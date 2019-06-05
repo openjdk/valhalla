@@ -22,14 +22,17 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/symbolTable.hpp"
 #include "compiler/compileBroker.hpp"
 #include "jvmci/jniAccessMark.inline.hpp"
 #include "jvmci/jvmciCompilerToVM.hpp"
 #include "jvmci/jvmciRuntime.hpp"
 #include "logging/log.hpp"
 #include "memory/oopFactory.hpp"
+#include "memory/universe.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/method.inline.hpp"
+#include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/deoptimization.hpp"
@@ -308,7 +311,7 @@ JRT_ENTRY_NO_ASYNC(static address, exception_handler_for_pc_helper(JavaThread* t
       tempst.print("compiled method <%s>\n"
                    " at PC" INTPTR_FORMAT " for thread " INTPTR_FORMAT,
                    cm->method()->print_value_string(), p2i(pc), p2i(thread));
-      Exceptions::log_exception(exception, tempst);
+      Exceptions::log_exception(exception, tempst.as_string());
     }
     // for AbortVMOnException flag
     NOT_PRODUCT(Exceptions::debug_check_abort(exception));
@@ -466,20 +469,20 @@ JRT_LEAF(jboolean, JVMCIRuntime::object_notifyAll(JavaThread *thread, oopDesc* o
 JRT_END
 
 JRT_ENTRY(void, JVMCIRuntime::throw_and_post_jvmti_exception(JavaThread* thread, const char* exception, const char* message))
-  TempNewSymbol symbol = SymbolTable::new_symbol(exception, CHECK);
+  TempNewSymbol symbol = SymbolTable::new_symbol(exception);
   SharedRuntime::throw_and_post_jvmti_exception(thread, symbol, message);
 JRT_END
 
 JRT_ENTRY(void, JVMCIRuntime::throw_klass_external_name_exception(JavaThread* thread, const char* exception, Klass* klass))
   ResourceMark rm(thread);
-  TempNewSymbol symbol = SymbolTable::new_symbol(exception, CHECK);
+  TempNewSymbol symbol = SymbolTable::new_symbol(exception);
   SharedRuntime::throw_and_post_jvmti_exception(thread, symbol, klass->external_name());
 JRT_END
 
 JRT_ENTRY(void, JVMCIRuntime::throw_class_cast_exception(JavaThread* thread, const char* exception, Klass* caster_klass, Klass* target_klass))
   ResourceMark rm(thread);
   const char* message = SharedRuntime::generate_class_cast_message(caster_klass, target_klass);
-  TempNewSymbol symbol = SymbolTable::new_symbol(exception, CHECK);
+  TempNewSymbol symbol = SymbolTable::new_symbol(exception);
   SharedRuntime::throw_and_post_jvmti_exception(thread, symbol, message);
 JRT_END
 
@@ -1008,8 +1011,7 @@ Klass* JVMCIRuntime::get_klass_by_name_impl(Klass*& accessing_klass,
     // This is a name from a signature.  Strip off the trimmings.
     // Call recursive to keep scope of strippedsym.
     TempNewSymbol strippedsym = SymbolTable::new_symbol(sym->as_utf8()+1,
-                    sym->utf8_length()-2,
-                    CHECK_NULL);
+                                                        sym->utf8_length()-2);
     return get_klass_by_name_impl(accessing_klass, cpool, strippedsym, require_local);
   }
 
@@ -1042,8 +1044,7 @@ Klass* JVMCIRuntime::get_klass_by_name_impl(Klass*& accessing_klass,
     // We have an unloaded array.
     // Build it on the fly if the element class exists.
     TempNewSymbol elem_sym = SymbolTable::new_symbol(sym->as_utf8()+1,
-                                                 sym->utf8_length()-1,
-                                                 CHECK_NULL);
+                                                     sym->utf8_length()-1);
 
     // Get element Klass recursively.
     Klass* elem_klass =

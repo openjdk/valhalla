@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "ci/ciSymbol.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "classfile/symbolTable.hpp"
 #include "memory/oopFactory.hpp"
 
 // ------------------------------------------------------------------
@@ -151,12 +152,7 @@ const char* ciSymbol::as_klass_external_name() const {
 // Make a ciSymbol from a C string (implementation).
 ciSymbol* ciSymbol::make_impl(const char* s) {
   EXCEPTION_CONTEXT;
-  TempNewSymbol sym = SymbolTable::new_symbol(s, THREAD);
-  if (HAS_PENDING_EXCEPTION) {
-    CLEAR_PENDING_EXCEPTION;
-    CURRENT_THREAD_ENV->record_out_of_memory_failure();
-    return ciEnv::_unloaded_cisymbol;
-  }
+  TempNewSymbol sym = SymbolTable::new_symbol(s);
   return CURRENT_THREAD_ENV->get_symbol(sym);
 }
 

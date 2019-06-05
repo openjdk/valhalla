@@ -630,6 +630,29 @@ static void post_class_revocation_event(EventBiasedLockClassRevocation* event, K
   event->commit();
 }
 
+BiasedLocking::Condition BiasedLocking::revoke_own_locks_in_handshake(Handle obj, TRAPS) {
+  markOop mark = obj->mark();
+
+  if (!mark->has_bias_pattern()) {
+    return NOT_BIASED;
+  }
+
+  Klass *k = obj->klass();
+  markOop prototype_header = k->prototype_header();
+  assert(mark->biased_locker() == THREAD &&
+         prototype_header->bias_epoch() == mark->bias_epoch(), "Revoke failed, unhandled biased lock state");
+  ResourceMark rm;
+  log_info(biasedlocking)("Revoking bias by walking my own stack:");
+  EventBiasedLockSelfRevocation event;
+  BiasedLocking::Condition cond = revoke_bias(obj(), false, false, (JavaThread*) THREAD, NULL);
+  ((JavaThread*) THREAD)->set_cached_monitor_info(NULL);
+  assert(cond == BIAS_REVOKED, "why not?");
+  if (event.should_commit()) {
+    post_self_revocation_event(&event, k);
+  }
+  return cond;
+}
+
 BiasedLocking::Condition BiasedLocking::revoke_and_rebias(Handle obj, bool attempt_rebias, TRAPS) {
   assert(!SafepointSynchronize::is_at_safepoint(), "must not be called while at safepoint");
 
@@ -867,7 +890,7 @@ int* BiasedLocking::slow_path_entry_count_addr()               { return _counter
 
 // BiasedLockingCounters
 
-int BiasedLockingCounters::slow_path_entry_count() {
+int BiasedLockingCounters::slow_path_entry_count() const {
   if (_slow_path_entry_count != 0) {
     return _slow_path_entry_count;
   }
@@ -878,7 +901,7 @@ int BiasedLockingCounters::slow_path_entry_count() {
   return _total_entry_count - sum;
 }
 
-void BiasedLockingCounters::print_on(outputStream* st) {
+void BiasedLockingCounters::print_on(outputStream* st) const {
   tty->print_cr("# total entries: %d", _total_entry_count);
   tty->print_cr("# biased lock entries: %d", _biased_lock_entry_count);
   tty->print_cr("# anonymously biased lock entries: %d", _anonymously_biased_lock_entry_count);
@@ -887,3 +910,5 @@ void BiasedLockingCounters::print_on(outputStream* st) {
   tty->print_cr("# fast path lock entries: %d", _fast_path_entry_count);
   tty->print_cr("# slow path lock entries: %d", slow_path_entry_count());
 }
+
+void BiasedLockingCounters::print() const { print_on(tty); }

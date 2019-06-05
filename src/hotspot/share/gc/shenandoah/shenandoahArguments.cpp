@@ -29,7 +29,6 @@
 #include "gc/shenandoah/shenandoahCollectorPolicy.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
-#include "gc/shenandoah/shenandoahTaskqueue.hpp"
 #include "utilities/defaultStream.hpp"
 
 void ShenandoahArguments::initialize() {
@@ -52,17 +51,6 @@ void ShenandoahArguments::initialize() {
   FLAG_SET_DEFAULT(ShenandoahCloneBarrier,           false);
 
   FLAG_SET_DEFAULT(ShenandoahVerifyOptoBarriers,     false);
-#endif
-
-#ifdef _LP64
-  // The optimized ObjArrayChunkedTask takes some bits away from the full 64 addressable
-  // bits, fail if we ever attempt to address more than we can. Only valid on 64bit.
-  if (MaxHeapSize >= ObjArrayChunkedTask::max_addressable()) {
-    jio_fprintf(defaultStream::error_stream(),
-                "Shenandoah GC cannot address more than " SIZE_FORMAT " bytes, and " SIZE_FORMAT " bytes heap requested.",
-                ObjArrayChunkedTask::max_addressable(), MaxHeapSize);
-    vm_exit(1);
-  }
 #endif
 
   if (UseLargePages && (MaxHeapSize / os::large_page_size()) < ShenandoahHeapRegion::MIN_NUM_REGIONS) {
@@ -204,7 +192,7 @@ size_t ShenandoahArguments::conservative_max_heap_alignment() {
 
 void ShenandoahArguments::initialize_alignments() {
   // Need to setup sizes early to get correct alignments.
-  ShenandoahHeapRegion::setup_sizes(InitialHeapSize, MaxHeapSize);
+  ShenandoahHeapRegion::setup_sizes(MaxHeapSize);
 
   // This is expected by our algorithm for ShenandoahHeap::heap_region_containing().
   size_t align = ShenandoahHeapRegion::region_size_bytes();

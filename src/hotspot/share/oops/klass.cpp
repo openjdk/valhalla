@@ -39,6 +39,7 @@
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
@@ -524,7 +525,8 @@ void Klass::metaspace_pointers_do(MetaspaceClosure* it) {
 }
 
 void Klass::remove_unshareable_info() {
-  assert (DumpSharedSpaces, "only called for DumpSharedSpaces");
+  assert (DumpSharedSpaces || DynamicDumpSharedSpaces,
+          "only called during CDS dump time");
   JFR_ONLY(REMOVE_ID(this);)
   if (log_is_enabled(Trace, cds, unshareable)) {
     ResourceMark rm;
@@ -541,7 +543,7 @@ void Klass::remove_unshareable_info() {
 }
 
 void Klass::remove_java_mirror() {
-  assert (DumpSharedSpaces, "only called for DumpSharedSpaces");
+  assert(DumpSharedSpaces || DynamicDumpSharedSpaces, "only called during CDS dump time");
   if (log_is_enabled(Trace, cds, unshareable)) {
     ResourceMark rm;
     log_trace(cds, unshareable)("remove java_mirror: %s", external_name());
@@ -817,17 +819,12 @@ void Klass::oop_verify_on(oop obj, outputStream* st) {
   guarantee(obj->klass()->is_klass(), "klass field is not a klass");
 }
 
-Klass* Klass::decode_klass_raw(narrowKlass narrow_klass) {
-  return (Klass*)(void*)( (uintptr_t)Universe::narrow_klass_base() +
-                         ((uintptr_t)narrow_klass << Universe::narrow_klass_shift()));
-}
-
 bool Klass::is_valid(Klass* k) {
   if (!is_aligned(k, sizeof(MetaWord))) return false;
   if ((size_t)k < os::min_page_size()) return false;
 
   if (!os::is_readable_range(k, k + 1)) return false;
-  if (!MetaspaceUtils::is_range_in_committed(k, k + 1)) return false;
+  if (!Metaspace::contains(k)) return false;
 
   if (!Symbol::is_valid(k->name())) return false;
   return ClassLoaderDataGraph::is_valid(k->class_loader_data());

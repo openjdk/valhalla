@@ -119,22 +119,20 @@ class ClassLoaderDataGraph : public AllStatic {
   static GrowableArray<ClassLoaderData*>* new_clds();
 
   static void set_should_purge(bool b) { _should_purge = b; }
-  static void purge_if_needed() {
-    // Only purge the CLDG for CMS if concurrent sweep is complete.
-    if (_should_purge) {
-      purge();
-      // reset for next time.
-      set_should_purge(false);
-    }
+  static bool should_purge_and_reset() {
+    bool res = _should_purge;
+    // reset for next time.
+    set_should_purge(false);
+    return res;
   }
 
-  static int resize_if_needed();
+  static int resize_dictionaries();
 
   static bool has_metaspace_oom()           { return _metaspace_oom; }
   static void set_metaspace_oom(bool value) { _metaspace_oom = value; }
 
   static void print_on(outputStream * const out) PRODUCT_RETURN;
-  static void print() { print_on(tty); }
+  static void print();
   static void verify();
 
   // instance and array class counters

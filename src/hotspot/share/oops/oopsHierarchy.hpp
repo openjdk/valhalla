@@ -27,7 +27,6 @@
 
 #include "metaprogramming/integralConstant.hpp"
 #include "metaprogramming/primitiveConversions.hpp"
-#include "runtime/globals.hpp"
 #include "utilities/globalDefinitions.hpp"
 
 // OBJECT hierarchy
@@ -75,6 +74,8 @@ typedef class     valueArrayOopDesc*            valueArrayOop;
 class Thread;
 class PromotedObject;
 class oopDesc;
+
+extern bool CheckUnhandledOops;
 
 class oop {
   oopDesc* _o;

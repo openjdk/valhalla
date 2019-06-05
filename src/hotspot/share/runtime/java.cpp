@@ -28,6 +28,7 @@
 #include "classfile/classLoader.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/stringTable.hpp"
+#include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
@@ -42,6 +43,7 @@
 #include "logging/logStream.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/dynamicArchive.hpp"
 #include "memory/universe.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/generateOopMap.hpp"
@@ -497,6 +499,12 @@ void before_exit(JavaThread* thread) {
   // Note: we don't wait until it actually dies.
   os::terminate_signal_thread();
 
+#if INCLUDE_CDS
+  if (DynamicDumpSharedSpaces) {
+    DynamicArchive::dump();
+  }
+#endif
+
   print_statistics();
   Universe::heap()->print_tracing_info();
 
@@ -709,14 +717,7 @@ void JDK_Version::initialize() {
   int security = JDK_VERSION_SECURITY(info.jdk_version);
   int build = JDK_VERSION_BUILD(info.jdk_version);
 
-  // Incompatible with pre-4243978 JDK.
-  if (info.pending_list_uses_discovered_field == 0) {
-    vm_exit_during_initialization(
-      "Incompatible JDK is not using Reference.discovered field for pending list");
-  }
-  _current = JDK_Version(major, minor, security, info.patch_version, build,
-                         info.thread_park_blocker == 1,
-                         info.post_vm_init_hook_enabled == 1);
+  _current = JDK_Version(major, minor, security, info.patch_version, build);
 }
 
 void JDK_Version_init() {

@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/javaClasses.inline.hpp"
+#include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
@@ -630,7 +631,7 @@ JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::create_exception(JavaThread* thread, char* name, char* message))
   // lookup exception klass
-  TempNewSymbol s = SymbolTable::new_symbol(name, CHECK);
+  TempNewSymbol s = SymbolTable::new_symbol(name);
   if (ProfileTraps) {
     if (s == vmSymbols::java_lang_ArithmeticException()) {
       note_trap(thread, Deoptimization::Reason_div0_check, CHECK);
@@ -649,7 +650,7 @@ JRT_ENTRY(void, InterpreterRuntime::create_klass_exception(JavaThread* thread, c
   ResourceMark rm(thread);
   const char* klass_name = obj->klass()->external_name();
   // lookup exception klass
-  TempNewSymbol s = SymbolTable::new_symbol(name, CHECK);
+  TempNewSymbol s = SymbolTable::new_symbol(name);
   if (ProfileTraps) {
     note_trap(thread, Deoptimization::Reason_class_check, CHECK);
   }
@@ -756,7 +757,7 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
       tempst.print("interpreter method <%s>\n"
                    " at bci %d for thread " INTPTR_FORMAT " (%s)",
                    h_method->print_value_string(), current_bci, p2i(thread), thread->name());
-      Exceptions::log_exception(h_exception, tempst);
+      Exceptions::log_exception(h_exception, tempst.as_string());
     }
 // Don't go paging in something which won't be used.
 //     else if (extable->length() == 0) {

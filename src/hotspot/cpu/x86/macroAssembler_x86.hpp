@@ -326,7 +326,9 @@ class MacroAssembler: public Assembler {
   void testbool(Register dst);
 
   void resolve_oop_handle(Register result, Register tmp = rscratch2);
+  void resolve_weak_handle(Register result, Register tmp);
   void load_mirror(Register mirror, Register method, Register tmp = rscratch2);
+  void load_method_holder_cld(Register rresult, Register rmethod);
 
   // oop manipulations
   void load_metadata(Register dst, Register src);

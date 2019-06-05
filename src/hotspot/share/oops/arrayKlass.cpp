@@ -123,7 +123,7 @@ Symbol* ArrayKlass::create_element_klass_array_name(bool is_qtype, Klass* elemen
       new_str[idx++] = ';';
     }
     new_str[idx++] = '\0';
-    name = SymbolTable::new_permanent_symbol(new_str, CHECK_NULL);
+    name = SymbolTable::new_permanent_symbol(new_str);
     if (element_klass->is_instance_klass() && (!is_qtype)) {
       InstanceKlass* ik = InstanceKlass::cast(element_klass);
       ik->set_array_name(name); // CMH: only cache and deref array_name for L-type...missing for Q-type

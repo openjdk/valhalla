@@ -24,6 +24,7 @@
 /*
  * @test
  * @bug 8036979 8072384 8044773
+ * @library /test/lib
  * @requires !vm.graal.enabled
  * @run main/othervm -Xcheck:jni OptionsTest
  * @run main/othervm -Xcheck:jni -Djava.net.preferIPv4Stack=true OptionsTest
@@ -33,6 +34,7 @@
 import java.lang.reflect.Method;
 import java.net.*;
 import java.util.*;
+import jdk.test.lib.net.IPSupport;
 
 public class OptionsTest {
 
@@ -59,14 +61,18 @@ public class OptionsTest {
         Test.create(StandardSocketOptions.SO_REUSEADDR, Boolean.FALSE),
         Test.create(StandardSocketOptions.SO_REUSEPORT, Boolean.FALSE),
         Test.create(StandardSocketOptions.SO_LINGER, Integer.valueOf(80)),
-        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(100))
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(0)),  // lower-bound
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(100)),
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(255))  //upper-bound
     };
 
     static Test[] serverSocketTests = new Test[] {
         Test.create(StandardSocketOptions.SO_RCVBUF, Integer.valueOf(8 * 100)),
         Test.create(StandardSocketOptions.SO_REUSEADDR, Boolean.FALSE),
         Test.create(StandardSocketOptions.SO_REUSEPORT, Boolean.FALSE),
-        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(100))
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(0)),  // lower-bound
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(100)),
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(255))  //upper-bound
     };
 
     static Test[] dgSocketTests = new Test[] {
@@ -74,12 +80,16 @@ public class OptionsTest {
         Test.create(StandardSocketOptions.SO_RCVBUF, Integer.valueOf(8 * 100)),
         Test.create(StandardSocketOptions.SO_REUSEADDR, Boolean.FALSE),
         Test.create(StandardSocketOptions.SO_REUSEPORT, Boolean.FALSE),
-        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(100))
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(0)),  // lower-bound
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(100)),
+        Test.create(StandardSocketOptions.IP_TOS, Integer.valueOf(255))  //upper-bound
     };
 
     static Test[] mcSocketTests = new Test[] {
         Test.create(StandardSocketOptions.IP_MULTICAST_IF, getNetworkInterface()),
+        Test.create(StandardSocketOptions.IP_MULTICAST_TTL, Integer.valueOf(0)),   // lower-bound
         Test.create(StandardSocketOptions.IP_MULTICAST_TTL, Integer.valueOf(10)),
+        Test.create(StandardSocketOptions.IP_MULTICAST_TTL, Integer.valueOf(255)), //upper-bound
         Test.create(StandardSocketOptions.IP_MULTICAST_LOOP, Boolean.TRUE)
     };
 
@@ -278,6 +288,7 @@ public class OptionsTest {
     }
 
     public static void main(String args[]) throws Exception {
+        IPSupport.throwSkippedExceptionIfNonOperational();
         doSocketTests();
         doServerSocketTests();
         doDgSocketTests();

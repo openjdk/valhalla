@@ -27,6 +27,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
@@ -353,7 +354,7 @@ bool SignatureStream::is_array() const {
   return _type == T_ARRAY;
 }
 
-Symbol* SignatureStream::as_symbol(TRAPS) {
+Symbol* SignatureStream::as_symbol() {
   // Create a symbol from for string _begin _end
   int begin = _begin;
   int end   = _end;
@@ -387,7 +388,7 @@ Symbol* SignatureStream::as_symbol(TRAPS) {
 
   // Save names for cleaning up reference count at the end of
   // SignatureStream scope.
-  name = SymbolTable::new_symbol(symbol_chars, len, CHECK_NULL);
+  name = SymbolTable::new_symbol(symbol_chars, len);
   if (!name->is_permanent()) {
     if (_names == NULL) {
       _names = new GrowableArray<Symbol*>(10);
@@ -399,9 +400,9 @@ Symbol* SignatureStream::as_symbol(TRAPS) {
 }
 
 Klass* SignatureStream::as_klass(Handle class_loader, Handle protection_domain,
-                                   FailureMode failure_mode, TRAPS) {
+                                 FailureMode failure_mode, TRAPS) {
   if (!is_object())  return NULL;
-  Symbol* name = as_symbol(CHECK_NULL);
+  Symbol* name = as_symbol();
   if (failure_mode == ReturnNull) {
     return SystemDictionary::resolve_or_null(name, class_loader, protection_domain, THREAD);
   } else {
@@ -582,7 +583,7 @@ TempNewSymbol SigEntry::create_symbol(const GrowableArray<SigEntry>* sig) {
   }
   sig_str[idx++] = ')';
   sig_str[idx++] = '\0';
-  return SymbolTable::new_symbol(sig_str, Thread::current());
+  return SymbolTable::new_symbol(sig_str);
 }
 
 // Increment signature iterator (skips value type delimiters and T_VOID) and check if next entry is reserved

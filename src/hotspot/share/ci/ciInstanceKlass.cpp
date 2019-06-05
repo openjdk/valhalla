@@ -783,7 +783,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
       ResetNoHandleMark rnhm;
       Thread* THREAD = Thread::current();
       SignatureStream ss(fd->signature(), false);
-      Symbol* name = ss.as_symbol(THREAD);
+      Symbol* name = ss.as_symbol();
       assert(!HAS_PENDING_EXCEPTION, "can resolve klass?");
       InstanceKlass* holder = fd->field_holder();
       Klass* k = SystemDictionary::find(name, Handle(THREAD, holder->class_loader()),

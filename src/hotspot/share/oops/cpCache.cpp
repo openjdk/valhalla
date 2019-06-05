@@ -35,8 +35,8 @@
 #include "memory/metaspaceClosure.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
-#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/compressedOops.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/cpCache.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
@@ -703,7 +703,7 @@ void ConstantPoolCache::remove_unshareable_info() {
 }
 
 void ConstantPoolCache::walk_entries_for_initialization(bool check_only) {
-  assert(DumpSharedSpaces, "sanity");
+  assert(DumpSharedSpaces || DynamicDumpSharedSpaces, "sanity");
   // When dumping the archive, we want to clean up the ConstantPoolCache
   // to remove any effect of linking due to the execution of Java code --
   // each ConstantPoolCacheEntry will have the same contents as if

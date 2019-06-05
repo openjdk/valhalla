@@ -26,6 +26,7 @@
 #define SHARE_OOPS_OOP_INLINE_HPP
 
 #include "gc/shared/collectedHeap.hpp"
+#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/arrayKlass.hpp"
 #include "oops/arrayOop.hpp"
@@ -95,7 +96,7 @@ Klass*      oopDesc::klass_masked(uintptr_t raw)     { return reinterpret_cast<K
 
 Klass* oopDesc::klass() const {
   if (UseCompressedClassPointers) {
-    return Klass::decode_klass_not_null(compressed_klass_masked(_metadata._compressed_klass));
+    return CompressedKlassPointers::decode_not_null(compressed_klass_masked(_metadata._compressed_klass));
   } else {
     return klass_masked(_metadata._wide_storage_props);
   }
@@ -103,7 +104,7 @@ Klass* oopDesc::klass() const {
 
 Klass* oopDesc::klass_or_null() const volatile {
   if (UseCompressedClassPointers) {
-    return Klass::decode_klass(compressed_klass_masked(_metadata._compressed_klass));
+    return CompressedKlassPointers::decode(compressed_klass_masked(_metadata._compressed_klass));
   } else {
     return klass_masked(_metadata._wide_storage_props);
   }
@@ -114,7 +115,7 @@ Klass* oopDesc::klass_or_null_acquire() const volatile {
     // Workaround for non-const load_acquire parameter.
     const volatile narrowKlass* addr = &_metadata._compressed_klass;
     volatile narrowKlass* xaddr = const_cast<volatile narrowKlass*>(addr);
-    return Klass::decode_klass(compressed_klass_masked(OrderAccess::load_acquire(xaddr)));
+    return CompressedKlassPointers::decode(compressed_klass_masked(OrderAccess::load_acquire(xaddr)));
   } else {
     return klass_masked(OrderAccess::load_acquire(&_metadata._wide_storage_props));
   }
@@ -159,7 +160,7 @@ narrowKlass* oopDesc::compressed_klass_addr() {
 void oopDesc::set_klass(Klass* k) {
   CHECK_SET_KLASS(k);
   if (UseCompressedClassPointers) {
-    *compressed_klass_addr() = Klass::encode_klass_not_null(k);
+    *compressed_klass_addr() = CompressedKlassPointers::encode_not_null(k);
   } else {
     *klass_addr() = k;
   }
@@ -169,7 +170,7 @@ void oopDesc::release_set_klass(HeapWord* mem, Klass* klass) {
   CHECK_SET_KLASS(klass);
   if (UseCompressedClassPointers) {
     OrderAccess::release_store(compressed_klass_addr(mem),
-                               Klass::encode_klass_not_null(klass));
+                               CompressedKlassPointers::encode_not_null(klass));
   } else {
     OrderAccess::release_store(klass_addr(mem), klass);
   }
@@ -179,7 +180,7 @@ void oopDesc::release_set_klass(HeapWord* mem, Klass* klass) {
 void oopDesc::set_metadata(ArrayStorageProperties storage_props, Klass* klass) {
   CHECK_SET_KLASS(klass);
   if (UseCompressedClassPointers) {
-    *compressed_klass_addr() = (Klass::encode_klass_not_null(klass) | storage_props.encode<narrowKlass>(narrow_storage_props_shift));
+    *compressed_klass_addr() = (CompressedKlassPointers::encode_not_null(klass) | storage_props.encode<narrowKlass>(narrow_storage_props_shift));
   } else {
     *wide_metadata_addr((HeapWord*)this) = (reinterpret_cast<uintptr_t>(klass) | storage_props.encode<uintptr_t>(wide_storage_props_shift));
   }
@@ -189,7 +190,7 @@ void oopDesc::release_set_metadata(HeapWord* mem, ArrayStorageProperties storage
   CHECK_SET_KLASS(klass);
   if (UseCompressedClassPointers) {
     OrderAccess::release_store(oopDesc::compressed_klass_addr(mem),
-                               Klass::encode_klass_not_null(klass) | storage_props.encode<narrowKlass>(narrow_storage_props_shift));
+                               CompressedKlassPointers::encode_not_null(klass) | storage_props.encode<narrowKlass>(narrow_storage_props_shift));
   } else {
     OrderAccess::release_store(oopDesc::wide_metadata_addr(mem),
                                (reinterpret_cast<uintptr_t>(klass) | storage_props.encode<uintptr_t>(wide_storage_props_shift)));

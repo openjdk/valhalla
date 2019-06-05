@@ -43,6 +43,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import jdk.internal.util.ArraysSupport;
 
 /**
  * A compiled representation of a regular expression.
@@ -539,7 +540,7 @@ import java.util.stream.StreamSupport;
  * <p> This class is in conformance with Level 1 of <a
  * href="http://www.unicode.org/reports/tr18/"><i>Unicode Technical
  * Standard #18: Unicode Regular Expression</i></a>, plus RL2.1
- * Canonical Equivalents.
+ * Canonical Equivalents and RL2.2 Extended Grapheme Clusters.
  * <p>
  * <b>Unicode escape sequences</b> such as <code>&#92;u2014</code> in Java source code
  * are processed as described in section 3.3 of
@@ -1500,15 +1501,8 @@ public final class Pattern
                 off++;
                 continue;
             }
-            int j = off + Character.charCount(ch0);
+            int j = Grapheme.nextBoundary(src, off, limit);
             int ch1;
-            while (j < limit) {
-                ch1 = src.codePointAt(j);
-                if (Grapheme.isBoundary(ch0, ch1))
-                    break;
-                ch0 = ch1;
-                j += Character.charCount(ch1);
-            }
             String seq = src.substring(off, j);
             String nfd = Normalizer.normalize(seq, Normalizer.Form.NFD);
             off = j;
@@ -2315,13 +2309,15 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         }
     }
 
-    private void append(int ch, int len) {
-        if (len >= buffer.length) {
-            int[] tmp = new int[len+len];
-            System.arraycopy(buffer, 0, tmp, 0, len);
-            buffer = tmp;
+    private void append(int ch, int index) {
+        int len = buffer.length;
+        if (index - len >= 0) {
+            len = ArraysSupport.newLength(len,
+                    1 + index - len, /* minimum growth */
+                    len              /* preferred growth */);
+            buffer = Arrays.copyOf(buffer, len);
         }
-        buffer[len] = ch;
+        buffer[index] = ch;
     }
 
     /**
@@ -3972,14 +3968,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
             if (i < matcher.to) {
                 int ch0 = Character.codePointAt(seq, i);
                 int n = Character.charCount(ch0);
-                int j = i + n;
-                while (j < matcher.to) {
-                    int ch1 = Character.codePointAt(seq, j);
-                    if (Grapheme.isBoundary(ch0, ch1))
-                        break;
-                    ch0 = ch1;
-                    j += Character.charCount(ch1);
-                }
+                int j = Grapheme.nextBoundary(seq, i, matcher.to);
                 if (i + n == j) {    // single, assume nfc cp
                     if (predicate.is(ch0))
                         return next.match(matcher, j, seq);
@@ -4018,15 +4007,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
     static class XGrapheme extends Node {
         boolean match(Matcher matcher, int i, CharSequence seq) {
             if (i < matcher.to) {
-                int ch0 = Character.codePointAt(seq, i);
-                    i += Character.charCount(ch0);
-                while (i < matcher.to) {
-                    int ch1 = Character.codePointAt(seq, i);
-                    if (Grapheme.isBoundary(ch0, ch1))
-                        break;
-                    ch0 = ch1;
-                    i += Character.charCount(ch1);
-                }
+                i = Grapheme.nextBoundary(seq, i, matcher.to);
                 return next.match(matcher, i, seq);
             }
             matcher.hitEnd = true;
@@ -4056,8 +4037,9 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
             }
             if (i < endIndex) {
                 if (Character.isSurrogatePair(seq.charAt(i-1), seq.charAt(i)) ||
-                    !Grapheme.isBoundary(Character.codePointBefore(seq, i),
-                                         Character.codePointAt(seq, i))) {
+                    Grapheme.nextBoundary(seq,
+                        i - Character.charCount(Character.codePointBefore(seq, i)),
+                        i + Character.charCount(Character.codePointAt(seq, i))) > i) {
                     return false;
                 }
             } else {

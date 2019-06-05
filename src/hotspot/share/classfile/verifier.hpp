@@ -450,7 +450,7 @@ class ClassVerifier : public StackObj {
   }
 
   int change_sig_to_verificationType(
-    SignatureStream* sig_type, VerificationType* inference_type, TRAPS);
+    SignatureStream* sig_type, VerificationType* inference_type);
 
   VerificationType cp_index_to_type(int index, const constantPoolHandle& cp, TRAPS) {
     Symbol* name = cp->klass_name_at(index);
@@ -467,8 +467,8 @@ class ClassVerifier : public StackObj {
   // their reference counts need to be decremented when the verifier object
   // goes out of scope.  Since these symbols escape the scope in which they're
   // created, we can't use a TempNewSymbol.
-  Symbol* create_temporary_symbol(const Symbol* s, int begin, int end, TRAPS);
-  Symbol* create_temporary_symbol(const char *s, int length, TRAPS);
+  Symbol* create_temporary_symbol(const Symbol* s, int begin, int end);
+  Symbol* create_temporary_symbol(const char *s, int length);
   Symbol* create_temporary_symbol(Symbol* s) {
     if (s == _previous_symbol) {
       return s;
@@ -484,18 +484,18 @@ class ClassVerifier : public StackObj {
     return s;
   }
 
-  TypeOrigin ref_ctx(const char* str, TRAPS);
+  TypeOrigin ref_ctx(const char* str);
 
 };
 
 inline int ClassVerifier::change_sig_to_verificationType(
-    SignatureStream* sig_type, VerificationType* inference_type, TRAPS) {
+    SignatureStream* sig_type, VerificationType* inference_type) {
   BasicType bt = sig_type->type();
   switch (bt) {
     case T_OBJECT:
     case T_ARRAY:
       {
-        Symbol* name = sig_type->as_symbol(CHECK_0);
+        Symbol* name = sig_type->as_symbol();
         // Create another symbol to save as signature stream unreferences this symbol.
         Symbol* name_copy = create_temporary_symbol(name);
         assert(name_copy == name, "symbols don't match");
@@ -504,7 +504,7 @@ inline int ClassVerifier::change_sig_to_verificationType(
       }
     case T_VALUETYPE:
       {
-        Symbol* vname = sig_type->as_symbol(CHECK_0);
+        Symbol* vname = sig_type->as_symbol();
         // Create another symbol to save as signature stream unreferences this symbol.
         Symbol* vname_copy = create_temporary_symbol(vname);
         assert(vname_copy == vname, "symbols don't match");

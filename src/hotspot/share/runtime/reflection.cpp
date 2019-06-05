@@ -775,7 +775,7 @@ static oop get_mirror_from_signature(const methodHandle& method,
 
   BasicType bt = ss->type();
   if (T_OBJECT == bt || T_ARRAY == bt || T_VALUETYPE == bt) {
-    Symbol* name = ss->as_symbol(CHECK_NULL);
+    Symbol* name = ss->as_symbol();
     oop loader = method->method_holder()->class_loader();
     oop protection_domain = method->method_holder()->protection_domain();
     const Klass* k = SystemDictionary::resolve_or_fail(name,
