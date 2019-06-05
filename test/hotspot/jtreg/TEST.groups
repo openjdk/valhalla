@@ -313,6 +313,10 @@ tier1_runtime = \
  -:tier1_runtime_appcds_exclude \
  -runtime/signal
 
+tier1_runtime_no_valhalla = \
+  :tier1_runtime \
+  -runtime/valhalla
+
 hotspot_cds = \
   runtime/SharedArchiveFile/ \
   runtime/CompressedOops/

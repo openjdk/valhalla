@@ -84,6 +84,7 @@ runtime/jni/terminatedThread/TestTerminatedThread.java 8219652 aix-ppc64
 runtime/appcds/SharedArchiveConsistency.java 8223336 windows-all
 
 # Valhalla TODO:
+runtime/CompressedOops/CompressedClassPointers.java 8210258 generic-all
 runtime/RedefineTests/RedefineLeak.java 8205032 generic-all
 runtime/SharedArchiveFile/BootAppendTests.java 8210258 generic-all
 runtime/SharedArchiveFile/CdsDifferentCompactStrings.java 8210258 generic-all
