@@ -664,7 +664,7 @@
   template(url_void_signature,                     "(Ljava/net/URL;)V")                                           \
                                                                                                                   \
   template(java_lang_invoke_ValueBootstrapMethods, "java/lang/invoke/ValueBootstrapMethods")                      \
-  template(isSubstitutable_name,                   "isSubstitutable")                                             \
+  template(isSubstitutable_name,                   "isSubstitutable0")                                            \
   /*end*/
 
 // Here are all the intrinsics known to the runtime and the CI.

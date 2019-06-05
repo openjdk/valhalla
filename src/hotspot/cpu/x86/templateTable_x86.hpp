@@ -43,4 +43,6 @@
                                         Register obj, Register off, Register flags, Register flags2);
   static void fast_storefield_helper(Address field, Register rax);
 
+  static void invoke_is_substitutable(Register aobj, Register bobj, Label& is_subst, Label& not_subst);
+
 #endif // CPU_X86_TEMPLATETABLE_X86_HPP

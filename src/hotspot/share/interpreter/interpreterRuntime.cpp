@@ -516,6 +516,20 @@ JRT_ENTRY(void, InterpreterRuntime::register_finalizer(JavaThread* thread, oopDe
   InstanceKlass::register_finalizer(instanceOop(obj), CHECK);
 JRT_END
 
+JRT_ENTRY(jboolean, InterpreterRuntime::is_substitutable(JavaThread* thread, oopDesc* aobj, oopDesc* bobj))
+  assert(oopDesc::is_oop(aobj) && oopDesc::is_oop(bobj), "must be valid oops");
+
+  Handle ha(THREAD, aobj);
+  Handle hb(THREAD, bobj);
+  JavaValue result(T_BOOLEAN);
+  JavaCallArguments args;
+  args.push_oop(ha);
+  args.push_oop(hb);
+  methodHandle method(Universe::is_substitutable_method());
+  JavaCalls::call(&result, method, &args, THREAD);
+  guarantee(!HAS_PENDING_EXCEPTION, "isSubstitutable() raised exception");
+  return result.get_jboolean();
+JRT_END
 
 // Quicken instance-of and check-cast bytecodes
 JRT_ENTRY(void, InterpreterRuntime::quicken_io_cc(JavaThread* thread))

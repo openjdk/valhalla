@@ -2471,6 +2471,41 @@ void TemplateTable::if_acmp(Condition cc) {
   __ pop_ptr(rdx);
 
   const int is_value_mask = markOopDesc::always_locked_pattern;
+  if (EnableValhalla && ACmpOnValues == 3) {
+    __ cmpoop(rdx, rax);
+    __ jcc(Assembler::equal, (cc == equal) ? taken : not_taken);
+
+    // might be substitutable, test if either rax or rdx is null
+    __ movptr(rbx, rdx);
+    __ andptr(rbx, rax);
+    __ testptr(rbx, rbx);
+    __ jcc(Assembler::zero, (cc == equal) ? not_taken : taken);
+
+    // and both are values ?
+    __ movptr(rbx, Address(rdx, oopDesc::mark_offset_in_bytes()));
+    __ andptr(rbx, is_value_mask);
+    __ movptr(rcx, Address(rax, oopDesc::mark_offset_in_bytes()));
+    __ andptr(rbx, is_value_mask);
+    __ andptr(rbx, rcx);
+    __ cmpl(rbx, is_value_mask);
+    __ jcc(Assembler::notEqual, (cc == equal) ? not_taken : taken);
+
+    // same value klass ?
+    __ load_metadata(rbx, rdx);
+    __ load_metadata(rcx, rax);
+    __ cmpptr(rbx, rcx);
+    __ jcc(Assembler::notEqual, (cc == equal) ? not_taken : taken);
+
+    // Know both are the same type, let's test for substitutability...
+    if (cc == equal) {
+      invoke_is_substitutable(rax, rdx, taken, not_taken);
+    } else {
+      invoke_is_substitutable(rax, rdx, not_taken, taken);
+    }
+    __ stop("Not reachable");
+  }
+
+
   if (EnableValhalla && ACmpOnValues == 1) {
     Label is_null;
     __ testptr(rdx, rdx);
@@ -2486,7 +2521,7 @@ void TemplateTable::if_acmp(Condition cc) {
 
   __ cmpoop(rdx, rax);
 
-  if (EnableValhalla && ACmpOnValues != 1) {
+  if (EnableValhalla && ACmpOnValues == 2) {
     __ jcc(Assembler::notEqual, (cc == not_equal) ? taken : not_taken);
     __ testptr(rdx, rdx);
     __ jcc(Assembler::zero, (cc == equal) ? taken : not_taken);
@@ -2501,6 +2536,15 @@ void TemplateTable::if_acmp(Condition cc) {
   branch(false, false);
   __ bind(not_taken);
   __ profile_not_taken_branch(rax);
+}
+
+void TemplateTable::invoke_is_substitutable(Register aobj, Register bobj,
+                                            Label& is_subst, Label& not_subst) {
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::is_substitutable), aobj, bobj);
+  // Restored...rax answer, jmp to outcome...
+  __ testl(rax, rax);
+  __ jcc(Assembler::zero, not_subst);
+  __ jmp(is_subst);
 }
 
 void TemplateTable::ret() {

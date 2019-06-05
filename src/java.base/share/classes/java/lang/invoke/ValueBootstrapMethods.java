@@ -513,12 +513,20 @@ public final class ValueBootstrapMethods {
      * @see Double#equals(Object)
      */
     public static <T> boolean isSubstitutable(T a, Object b) {
-        if (VERBOSE)
-            System.out.println("substitutable " + a + " vs " + b);
         if (a == b) return true;
         if (a == null || b == null) return false;
         if (a.getClass() != b.getClass()) return false;
+        return isSubstitutable0(a, b);
+    }
 
+    // Called directly from the VM, null and class checks already done
+    // DO NOT: Use "==" or "!=" on args "a" and "b", with this code or any of
+    //         its callees. Could be inside of if_acmp<eq|ne> bytecode
+    //         implementation
+    private static <T> boolean isSubstitutable0(T a, Object b) {
+        if (VERBOSE) {
+            System.out.println("substitutable " + a + " vs " + b);
+        }
         try {
             Class<?> type = a.getClass().isValue() ? a.getClass().asValueType() : a.getClass();
             return (boolean) substitutableInvoker(type).invoke(a, b);
