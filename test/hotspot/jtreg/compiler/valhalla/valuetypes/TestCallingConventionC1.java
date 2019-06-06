@@ -1400,11 +1400,6 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         }
     }
 
-
-    /*
-
-    // FIXME: C1 fails with "Could not resolve circular dependency when shuffling value type arguments" when compiling test63()
-
     // C2->C1 invokeinterface via VVEP(RO) -- force GC for every allocation when entering a C1 VVEP(RO) (a bunch of RefPoints and Numbers)
     @Test(compLevel = C2)
     public int test63(RefPoint_Access rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
@@ -1430,7 +1425,6 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             Asserts.assertEQ(result, n);
         }
     }
-    /**/
 
     // C2->C1 invokevirtual via VVEP(RO) (opt_virtual_call)
     @Test(compLevel = C2)

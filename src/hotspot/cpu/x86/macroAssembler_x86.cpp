@@ -6270,6 +6270,74 @@ void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
   verified_entry(C, sp_inc);
 }
 
+static void mark_reg_writable(const VMRegPair* regs, int num_regs, int reg_index, MacroAssembler::RegState* reg_state) {
+  assert(0 <= reg_index && reg_index < num_regs, "sanity");
+  VMReg from_reg = regs[reg_index].first();
+  if (from_reg->is_valid()) {
+    assert(from_reg->is_stack(), "reserved entries must be stack");
+    reg_state[from_reg->value()] = MacroAssembler::reg_writable;
+  }
+}
+
+static void mark_reserved_entries_writable(const GrowableArray<SigEntry>* sig_cc, const VMRegPair* regs, int num_regs, MacroAssembler::RegState* reg_state) {
+  int reg_index = 0;
+  for (int sig_index = 0; sig_index <sig_cc->length(); sig_index ++) {
+    if (SigEntry::is_reserved_entry(sig_cc, sig_index)) {
+      mark_reg_writable(regs, num_regs, reg_index, reg_state);
+      reg_index ++;
+    } else if (SigEntry::skip_value_delimiters(sig_cc, sig_index)) {
+      reg_index ++;
+    } else {
+      int vt = 1;
+      do {
+        sig_index++;
+        BasicType bt = sig_cc->at(sig_index)._bt;
+        if (bt == T_VALUETYPE) {
+          vt++;
+        } else if (bt == T_VOID &&
+                   sig_cc->at(sig_index-1)._bt != T_LONG &&
+                   sig_cc->at(sig_index-1)._bt != T_DOUBLE) {
+          vt--;
+        } else if (SigEntry::is_reserved_entry(sig_cc, sig_index)) {
+          mark_reg_writable(regs, num_regs, reg_index, reg_state);
+          reg_index++;
+        } else {
+          reg_index++;
+        }
+      } while (vt != 0);
+    }
+  }
+}
+
+static MacroAssembler::RegState* init_reg_state(bool is_packing, const GrowableArray<SigEntry>* sig_cc,
+                                                VMRegPair* regs, int num_regs, int sp_inc, int max_stack) {
+  int max_reg = VMRegImpl::stack2reg(max_stack)->value();
+  MacroAssembler::RegState* reg_state = NEW_RESOURCE_ARRAY(MacroAssembler::RegState, max_reg);
+
+  // Make all writable
+  for (int i = 0; i < max_reg; ++i) {
+    reg_state[i] = MacroAssembler::reg_writable;
+  }
+  // Set all source registers/stack slots to readonly to prevent accidental overwriting
+  for (int i = 0; i < num_regs; ++i) {
+    VMReg reg = regs[i].first();
+    if (!reg->is_valid()) continue;
+    if (reg->is_stack()) {
+      // Update source stack location by adding stack increment
+      reg = VMRegImpl::stack2reg(reg->reg2stack() + sp_inc/VMRegImpl::stack_slot_size);
+      regs[i] = reg;
+    }
+    assert(reg->value() >= 0 && reg->value() < max_reg, "reg value out of bounds");
+    reg_state[reg->value()] = MacroAssembler::reg_readonly;
+  }
+  if (is_packing) {
+    // The reserved entries are not used by the packed args, so make them writable
+    mark_reserved_entries_writable(sig_cc, regs, num_regs, reg_state);
+  }
+
+  return reg_state;
+}
+
 int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
                                        BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
                                        int args_passed, int args_on_stack, VMRegPair* regs,            // from
@@ -6299,25 +6367,8 @@ int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int 
     ret_off = sp_inc;
   }
 
-  // Initialize register/stack slot states (make all writable)
   int max_stack = MAX2(args_on_stack + sp_inc/VMRegImpl::stack_slot_size, args_on_stack_to);
-  int max_reg = VMRegImpl::stack2reg(max_stack)->value();
-  RegState* reg_state = NEW_RESOURCE_ARRAY(RegState, max_reg);
-  for (int i = 0; i < max_reg; ++i) {
-    reg_state[i] = reg_writable;
-  }
-  // Set all source registers/stack slots to readonly to prevent accidental overwriting
-  for (int i = 0; i < args_passed; ++i) {
-    VMReg reg = regs[i].first();
-    if (!reg->is_valid()) continue;
-    if (reg->is_stack()) {
-      // Update source stack location by adding stack increment
-      reg = VMRegImpl::stack2reg(reg->reg2stack() + sp_inc/VMRegImpl::stack_slot_size);
-      regs[i] = reg;
-    }
-    assert(reg->value() >= 0 && reg->value() < max_reg, "reg value out of bounds");
-    reg_state[reg->value()] = reg_readonly;
-  }
+  RegState* reg_state = init_reg_state(is_packing, sig_cc, regs, args_passed, sp_inc, max_stack);
 
   // Emit code for packing/unpacking value type arguments
   // We try multiple times and eventually start spilling to resolve (circular) dependencies
@@ -6336,14 +6387,6 @@ int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int 
       assert(0 <= sig_index && sig_index < sig_cc->length(), "index out of bounds");
       if (SigEntry::is_reserved_entry(sig_cc, sig_index)) {
         if (is_packing) {
-          if (i == 0) {
-            // The reserved entries are not used by the packed args, so make them writable
-            VMReg from_reg = regs[from_index].first();
-            if (from_reg->is_valid()) {
-              assert(from_reg->is_stack(), "reserved entries must be stack");
-              reg_state[from_reg->value()] = reg_writable;
-            }
-          }
           from_index += step;
         } else {
           to_index += step;
