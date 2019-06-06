@@ -191,7 +191,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
      */
     public MethodType getInvocationType() {
         MethodType itype = getMethodOrFieldType();
-        Class<?> c = clazz.isValue() ? clazz.asValueType() : clazz;
+        Class<?> c = clazz.isInlineClass() ? clazz.asPrimaryType() : clazz;
         if (isConstructor() && getReferenceKind() == REF_newInvokeSpecial)
             return itype.changeReturnType(c);
         if (!isStatic())
@@ -428,7 +428,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     /** Utility method to query the modifier flags of this member. */
     public boolean isFinal() {
         // all fields declared in a value type are effectively final
-        assert(!clazz.isValue() || !isField() || Modifier.isFinal(flags));
+        assert(!clazz.isInlineClass() || !isField() || Modifier.isFinal(flags));
         return Modifier.isFinal(flags);
     }
     /** Utility method to query whether this member or its defining class is final. */
@@ -473,11 +473,11 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     /** Query whether this member is a flattened field */
     public boolean isFlattened() { return (flags & FLATTENED) == FLATTENED; }
 
-    /** Query whether this member is a field of normal value type. */
-    public boolean isValue()  {
+    /** Query whether this member is a field of an inline class. */
+    public boolean isInlineable()  {
         if (isField()) {
             Class<?> type = getFieldType();
-            return type == type.asValueType();
+            return type.isInlineClass() && type == type.asPrimaryType();
         }
         return false;
     }
@@ -942,9 +942,18 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     }
     private static String getName(Object obj) {
         if (obj instanceof Class<?>)
-            return ((Class<?>)obj).getName();
+            return toTypeName((Class<?>)obj);
         return String.valueOf(obj);
     }
+
+    /*
+     * Returns the class name appended with "?" if it is the nullable projection
+     * of an inline class.
+     */
+    private static String toTypeName(Class<?> type) {
+        return type.isInlineClass() && type.isIndirectType() ? type.getName() + "?" : type.getName();
+    }
+
 
     public IllegalAccessException makeAccessException(String message, Object from) {
         message = message + ": "+ toString();

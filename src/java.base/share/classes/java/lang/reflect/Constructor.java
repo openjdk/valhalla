@@ -180,7 +180,7 @@ public final class Constructor<T> extends Executable {
         AccessibleObject.checkPermission();
 
         if (flag) {
-            if (clazz.isValue()) {
+            if (clazz.isInlineClass()) {
                 throw new InaccessibleObjectException(
                     "Unable to make an inline class constructor \"" + this + "\" accessible");
             }
@@ -210,8 +210,7 @@ public final class Constructor<T> extends Executable {
     }
 
     /**
-     * Returns the {@code Class} object representing
-     * {@linkplain Class#asBoxType() the box type} of the class that
+     * Returns the {@code Class} object representing the class that
      * declares the constructor represented by this object.
      */
     @Override
@@ -483,7 +482,7 @@ public final class Constructor<T> extends Executable {
         throws InstantiationException, IllegalAccessException,
                IllegalArgumentException, InvocationTargetException
     {
-        if (clazz.isValue()) {
+        if (clazz.isInlineClass()) {
             throw new IllegalAccessException(
                 "cannot create new instance of an inline class " + clazz.getName());
         }

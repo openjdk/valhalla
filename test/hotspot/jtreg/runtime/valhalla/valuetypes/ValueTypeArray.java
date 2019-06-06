@@ -69,7 +69,7 @@ public class ValueTypeArray {
             Class<?> arrayCls = Class.forName(arrayClsName);
             assertTrue(arrayCls.isArray(), "Expected an array class");
 
-            assertTrue(arrayCls.getComponentType() == Point.class.asBoxType(),
+            assertTrue(arrayCls.getComponentType() == Point.class.asIndirectType(),
                        "Expected component type of Point.class got: " + arrayCls.getComponentType());
 
             arrayClsName = "[" + arrayClsName;
@@ -81,7 +81,7 @@ public class ValueTypeArray {
             arrayCls = Class.forName(qarrayClsName);
             assertTrue(arrayCls.isArray(), "Expected an array class");
 
-            assertTrue(arrayCls.getComponentType() == Point.class.asValueType(),
+            assertTrue(arrayCls.getComponentType() == Point.class,
                        arrayCls +
                        " Expected component type of Point.class got: " + arrayCls.getComponentType());
 
@@ -200,7 +200,7 @@ public class ValueTypeArray {
         assertTrue(array3[0][0] == null, "Expected NULL");
 
         // Now create ObjArrays of ValueArray...
-        cls = (Class<?>) Point.class.asBoxType();
+        cls = (Class<?>) Point.class.asIndirectType();
         Point?[][] barray = (Point?[][]) Array.newInstance(cls, 1, 2);
         assertEquals(barray.length, 1, "Incorrect length");
         assertEquals(barray[0].length, 2, "Incorrect length");
@@ -255,8 +255,8 @@ public class ValueTypeArray {
         assertTrue(myInts instanceof Comparable[]);
         assertTrue(myInts instanceof MyInt?[]);
 
-        Class<?> cls = MyInt.class.asValueType();
-        assertTrue(cls.isValue());
+        Class<?> cls = MyInt.class;
+        assertTrue(cls.isInlineClass());
         Object arrObj = Array.newInstance(cls, 1);
         assertTrue(arrObj instanceof Object[], "Not Object array");
         assertTrue(arrObj instanceof Comparable[], "Not Comparable array");

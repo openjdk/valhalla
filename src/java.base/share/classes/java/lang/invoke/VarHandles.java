@@ -43,7 +43,7 @@ final class VarHandles {
                 } else {
                     return f.isFinal() && !isWriteAllowedOnFinalFields
                        ? new VarHandleReferences.FieldInstanceReadOnly(refc, foffset, type)
-                       : new VarHandleReferences.FieldInstanceReadWrite(refc, foffset, type, f.isValue());
+                       : new VarHandleReferences.FieldInstanceReadWrite(refc, foffset, type, f.isInlineable());
                 }
             }
             else if (type == boolean.class) {
@@ -106,7 +106,7 @@ final class VarHandles {
                 assert(!f.isFlattened());   // static field is not flattened
                 return f.isFinal() && !isWriteAllowedOnFinalFields
                        ? new VarHandleReferences.FieldStaticReadOnly(base, foffset, type)
-                       : new VarHandleReferences.FieldStaticReadWrite(base, foffset, type, f.isValue());
+                       : new VarHandleReferences.FieldStaticReadWrite(base, foffset, type, f.isInlineable());
             }
             else if (type == boolean.class) {
                 return f.isFinal() && !isWriteAllowedOnFinalFields
@@ -200,7 +200,7 @@ final class VarHandles {
             // the redundant componentType.isValue() check is there to
             // minimize the performance impact to non-value array.
             // It should be removed when Unsafe::isFlattenedArray is intrinsified.
-            return componentType.isValue() && UNSAFE.isFlattenedArray(arrayClass)
+            return componentType.isInlineClass() && UNSAFE.isFlattenedArray(arrayClass)
                 ? new VarHandleReferences.ValueArray(aoffset, ashift, arrayClass)
                 : new VarHandleReferences.Array(aoffset, ashift, arrayClass);
         }

@@ -25,7 +25,6 @@
  * @test
  * @summary Basic test for Array::get, Array::set, Arrays::setAll on inline class array
  * @compile -XDallowWithFieldOperator Point.java NonFlattenValue.java
- * @compile -XDallowWithFieldOperator ValueArray.java
  * @run testng/othervm -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=-1 ValueArray
  * @run testng/othervm -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=0  ValueArray
  */
@@ -39,10 +38,108 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
 public class ValueArray {
+    private final Class<?> arrayClass;
+    private final Class<?> componentType;
+    private final Object[] array;
+    ValueArray(Class<?> arrayClass, Object[] array) {
+        this.arrayClass = arrayClass;
+        this.array = array;
+        this.componentType = arrayClass.getComponentType();
+        assertTrue(arrayClass.isArray());
+        assertTrue(array.getClass() == arrayClass);
+    }
+
     private static Class<?> nullablePointArrayClass() {
         Object a = new Point?[0];
         return a.getClass();
     }
+
+    void run() {
+        testClassName();
+        testArrayElements();
+
+        if (componentType.isInlineClass()) {
+            Object[] qArray = (Object[]) Array.newInstance(componentType.asPrimaryType(), 0);
+            Object[] lArray = (Object[]) Array.newInstance(componentType.asIndirectType(), 0);
+            testInlineArrayCovariance(componentType, qArray, lArray);
+        }
+    }
+
+    void testClassName() {
+        // test class names
+        String arrayClassName = arrayClass.getName();
+        StringBuilder sb = new StringBuilder();
+        Class<?> c = arrayClass;
+        while (c.isArray()) {
+            sb.append("[");
+            c = c.getComponentType();
+        }
+        sb.append(c.isIndirectType() ? "L" : "Q").append(c.getName()).append(";");
+        assertEquals(sb.toString(), arrayClassName);
+        assertEquals(c.getTypeName(), c.getName() + (c.isInlineClass() && c.isIndirectType() ? "?" : ""));
+    }
+
+    void testArrayElements() {
+        Object[] array = (Object[]) Array.newInstance(componentType, this.array.length);
+        assertTrue(array.getClass() == arrayClass);
+        assertTrue(array.getClass().getComponentType() == componentType);
+
+        // set elements
+        for (int i=0; i < this.array.length; i++) {
+            Array.set(array, i, this.array[i]);
+        }
+        for (int i=0; i < this.array.length; i++) {
+            Object o = Array.get(array, i);
+            assertEquals(o, this.array[i]);
+        }
+        Arrays.setAll(array, i -> this.array[i]);
+
+        // test nullable
+        if (componentType.isNullableType()) {
+            for (int i=0; i < array.length; i++) {
+                Array.set(array, i, null);
+            }
+        } else {
+            for (int i=0; i < array.length; i++) {
+                try {
+                    Array.set(array, i, null);
+                    assertFalse(true, "expect NPE but not thrown");
+                } catch (NullPointerException e) { }
+            }
+        }
+    }
+
+    void testInlineArrayCovariance(Class<?> componentType, Object[] qArray, Object[] lArray) {
+        assertTrue(componentType.isInlineClass());
+
+        // Class.instanceOf (self)
+        assertTrue(qArray.getClass().isInstance(qArray));
+        assertTrue(lArray.getClass().isInstance(lArray));
+
+        // Class.instanceof inline vs indirect
+        assertFalse(qArray.getClass().isInstance(lArray));
+        assertTrue(lArray.getClass().isInstance(qArray));
+
+        // Class.isAssignableFrom (self)
+        assertTrue(qArray.getClass().isAssignableFrom(qArray.getClass()));
+        assertTrue(lArray.getClass().isAssignableFrom(lArray.getClass()));
+
+        // Class.isAssignableFrom inline vs indirect
+        assertTrue(lArray.getClass().isAssignableFrom(qArray.getClass()));
+        assertFalse(qArray.getClass().isAssignableFrom(lArray.getClass()));
+
+        // Class.cast (self)
+        qArray.getClass().cast(qArray);
+        lArray.getClass().cast(lArray);
+
+        // Class.cast inline vs indirect
+        lArray.getClass().cast(qArray);
+        try {
+            qArray.getClass().cast(lArray);
+            assertFalse(true, "cast of Point? to Point should not succeed");
+        } catch (ClassCastException cce) { }
+    }
+
 
     @DataProvider(name="arrayTypes")
     static Object[][] arrayTypes() {
@@ -59,7 +156,7 @@ public class ValueArray {
             new Object[] { nullablePointArrayClass(),
                            new Point?[] { Point.makePoint(11, 22),
                                           Point.makePoint(110, 220),
-                                          null}},
+                                          null }},
             new Object[] { NonFlattenValue[].class,
                            new NonFlattenValue[] { NonFlattenValue.make(1, 2),
                                                    NonFlattenValue.make(10, 20),
@@ -67,33 +164,10 @@ public class ValueArray {
         };
     }
 
-
     @Test(dataProvider="arrayTypes")
-    public static void test(Class<?> c, Object[] elements) {
-        ValueArray test = new ValueArray(c, elements.length);
-        test.run(elements);
-        Class<?> compType = c.getComponentType();
-        if (compType.isValue()) {
-            test.testSetNullElement(compType == compType.asBoxType());
-        }
-     }
-
-    @Test
-    public static void testPointArray() {
-        PointArray array = PointArray.makeArray(Point.makePoint(1, 2), Point.makePoint(10, 20));
-        ValueArray test = new ValueArray(array.points);
-        test.run(Point.makePoint(3, 4), Point.makePoint(30, 40));
-    }
-
-    @Test
-    public static void testNullablePointArray() {
-        Point ?[]array = new Point ?[3];
-        array[0] = Point.makePoint(1, 2);
-        array[1] = null;
-        array[2] = Point.makePoint(3, 4);
-
-        ValueArray test = new ValueArray(array);
-        test.run(null, Point.makePoint(3, 4), null);
+    public static void test(Class<?> arrayClass, Object[] array) {
+        ValueArray test = new ValueArray(arrayClass, array);
+        test.run();
     }
 
     @Test
@@ -125,95 +199,19 @@ public class ValueArray {
 
     }
 
-    @Test()
-    static void testArrayCovariance() {
+    @Test
+    static void testPointArray() {
         Point[] qArray = new Point[0];
         Point?[] lArray = new Point?[0];
+
+        ValueArray test = new ValueArray(Point[].class, qArray);
+        test.run();
+
+        ValueArray test1 = new ValueArray(Point?[].class, lArray);
+        test.run();
 
         // language instanceof
         assertTrue(qArray instanceof Point[]);
         assertTrue(lArray instanceof Point?[]);
-
-        // Class.instanceOf (self)
-        assertTrue(qArray.getClass().isInstance(qArray));
-        assertTrue(lArray.getClass().isInstance(lArray));
-
-        // Class.instanceof inline vs indirect
-        assertFalse(qArray.getClass().isInstance(lArray));
-        assertTrue(lArray.getClass().isInstance(qArray));
-
-        // Class.isAssignableFrom (self)
-        assertTrue(qArray.getClass().isAssignableFrom(qArray.getClass()));
-        assertTrue(lArray.getClass().isAssignableFrom(lArray.getClass()));
-
-        // Class.isAssignableFrom inline vs indirect
-        assertTrue(lArray.getClass().isAssignableFrom(qArray.getClass()));
-        assertFalse(qArray.getClass().isAssignableFrom(lArray.getClass()));
-
-        // Class.cast (self)
-        qArray.getClass().cast(qArray);
-        lArray.getClass().cast(lArray);
-
-        // Class.cast inline vs indirect
-        lArray.getClass().cast(qArray);
-        try {
-            qArray.getClass().cast(lArray);
-            fail("cast of Point? to Point should not succeed");
-        } catch (ClassCastException cce) {
-            // expected
-        }
-    }
-
-    private final Object[] array;
-
-    ValueArray(Class<?> arrayClass, int len) {
-        this((Object[])Array.newInstance(arrayClass.getComponentType(), len));
-        assertTrue(array.getClass() == arrayClass);
-    }
-
-    ValueArray(Object[] array) {
-        this.array = array;
-    }
-
-    void run(Object... elements) {
-        for (int i=0; i < elements.length; i++) {
-            Array.set(array, i, elements[i]);
-        }
-
-        for (int i=0; i < elements.length; i++) {
-            Object o = Array.get(array, i);
-            assertEquals(o, elements[i]);
-        }
-
-        Arrays.setAll(array, i -> elements[i]);
-    }
-
-    void testSetNullElement(boolean nullable) {
-        assert(array.getClass().getComponentType().isValue());
-        for (int i=0; i < array.length; i++) {
-            try {
-                Array.set(array, i, null);
-                if (!nullable)
-                    throw new AssertionError("NPE not thrown");
-            } catch (NullPointerException e) {
-                assertFalse(nullable);
-            }
-        }
-    }
-
-  static inline class PointArray {
-        public Point[] points;
-        PointArray() {
-            points = new Point[0];
-        }
-        public static PointArray makeArray(Point... points) {
-            PointArray a = PointArray.default;
-            Point[] array = new Point[points.length];
-            for (int i=0; i < points.length; i++) {
-                array[i] = points[i];
-            }
-            a = __WithField(a.points, array);
-            return a;
-        }
     }
 }

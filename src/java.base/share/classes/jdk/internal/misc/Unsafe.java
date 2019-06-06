@@ -177,13 +177,6 @@ public final class Unsafe {
     @HotSpotIntrinsicCandidate
     public native void putInt(Object o, long offset, int x);
 
-    /**
-     * Returns true if the given class is a regular value type.
-     */
-    public boolean isValueType(Class<?> c) {
-        return c.isValue() && c == c.asValueType();
-    }
-
     private static final int JVM_ACC_FLATTENED = 0x00008000; // HotSpot-specific bit
 
     /**
@@ -234,7 +227,7 @@ public final class Unsafe {
      * @param offset indication of where the variable resides in a Java heap
      *        object, if any, else a memory address locating the variable
      *        statically
-     * @param vc value class
+     * @param vc inline class
      * @param <V> the type of a value
      * @return the value fetched from the indicated Java variable
      * @throws RuntimeException No defined exceptions are thrown, not even
@@ -254,7 +247,7 @@ public final class Unsafe {
      * @param offset indication of where the variable resides in a Java heap
      *        object, if any, else a memory address locating the variable
      *        statically
-     * @param vc value class
+     * @param vc inline class
      * @param v the value to store into the indicated Java variable
      * @param <V> the type of a value
      * @throws RuntimeException No defined exceptions are thrown, not even
@@ -266,14 +259,14 @@ public final class Unsafe {
     /**
      * Fetches a reference value of type {@code vc} from a given Java variable.
      * This method can return a reference to a value or a null reference
-     * for a boxed value type.
+     * for a nullable-projection of an inline type.
      *
-     * @param vc value class
+     * @param vc inline class
      */
     public Object getReference(Object o, long offset, Class<?> vc) {
         Object ref = getReference(o, offset);
-        if (ref == null && isValueType(vc)) {
-            // If the type of the returned reference is a normal value type
+        if (ref == null && vc.isInlineClass() && !vc.isIndirectType()) {
+            // If the type of the returned reference is a regular inline type
             // return an uninitialized default value if null
             ref = uninitializedDefaultValue(vc);
         }
@@ -282,8 +275,8 @@ public final class Unsafe {
 
     public Object getReferenceVolatile(Object o, long offset, Class<?> vc) {
         Object ref = getReferenceVolatile(o, offset);
-        if (ref == null && isValueType(vc)) {
-            // If the type of the returned reference is a normal value type
+        if (ref == null && vc.isInlineClass() && !vc.isIndirectType()) {
+            // If the type of the returned reference is a regular inline type
             // return an uninitialized default value if null
             ref = uninitializedDefaultValue(vc);
         }
@@ -291,7 +284,7 @@ public final class Unsafe {
     }
 
     /**
-     * Returns an uninitialized default value of the given value class.
+     * Returns an uninitialized default value of the given inline class.
      */
     public native <V> V uninitializedDefaultValue(Class<?> vc);
 
@@ -316,11 +309,11 @@ public final class Unsafe {
     public native <V> V finishPrivateBuffer(V value);
 
     /**
-     * Returns the header size of the given value class
+     * Returns the header size of the given inline class
      *
-     * @param vc Value class
+     * @param vc inline class
      * @param <V> value clas
-     * @return the header size of the value class
+     * @return the header size of the inline class
      */
     public native <V> long valueHeaderSize(Class<V> vc);
 
@@ -2172,8 +2165,8 @@ public final class Unsafe {
 
     /**
      * Global lock for atomic and volatile strength access to any value of
-     * a value type.  This is a temporary workaround until better localized
-     * atomic access mechanisms are supported for value types.
+     * an inline type.  This is a temporary workaround until better localized
+     * atomic access mechanisms are supported for inline types.
      */
     private static final Object valueLock = new Object();
 

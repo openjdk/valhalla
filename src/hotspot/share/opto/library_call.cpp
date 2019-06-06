@@ -799,8 +799,8 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_getSuperclass:
   case vmIntrinsics::_getClassAccessFlags:      return inline_native_Class_query(intrinsic_id());
 
-  case vmIntrinsics::_asValueType:
-  case vmIntrinsics::_asBoxType:                return inline_value_Class_conversion(intrinsic_id());
+  case vmIntrinsics::_asPrimaryType:
+  case vmIntrinsics::_asIndirectType:           return inline_value_Class_conversion(intrinsic_id());
 
   case vmIntrinsics::_floatToRawIntBits:
   case vmIntrinsics::_floatToIntBits:
@@ -3516,8 +3516,8 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
 }
 
 //-------------------------inline_value_Class_conversion-------------------
-// public Class<T> java.lang.Class.asBoxType();
-// public Class<T> java.lang.Class.asValueType()
+// public Class<T> java.lang.Class.asPrimaryType();
+// public Class<T> java.lang.Class.asIndirectType()
 bool LibraryCallKit::inline_value_Class_conversion(vmIntrinsics::ID id) {
   Node* mirror = argument(0); // Receiver Class
   const TypeInstPtr* mirror_con = _gvn.type(mirror)->isa_instptr();
@@ -3529,10 +3529,10 @@ bool LibraryCallKit::inline_value_Class_conversion(vmIntrinsics::ID id) {
   ciType* tm = mirror_con->java_mirror_type(&is_val_type);
   if (tm != NULL && tm->is_valuetype()) {
     Node* result = mirror;
-    if (id == vmIntrinsics::_asValueType && !is_val_type) {
-      result = _gvn.makecon(TypeInstPtr::make(tm->as_value_klass()->value_mirror_instance()));
-    } else if (id == vmIntrinsics::_asBoxType && is_val_type) {
-      result = _gvn.makecon(TypeInstPtr::make(tm->as_value_klass()->box_mirror_instance()));
+    if (id == vmIntrinsics::_asPrimaryType && !is_val_type) {
+      result = _gvn.makecon(TypeInstPtr::make(tm->as_value_klass()->inline_mirror_instance()));
+    } else if (id == vmIntrinsics::_asIndirectType && is_val_type) {
+      result = _gvn.makecon(TypeInstPtr::make(tm->as_value_klass()->indirect_mirror_instance()));
     }
     set_result(result);
     return true;
@@ -3620,11 +3620,11 @@ bool LibraryCallKit::inline_Class_cast() {
   if (!stopped()) {
     // TODO move this into do_checkcast?
     if (EnableValhalla && !obj->is_ValueType() && !is_val_type) {
-      // Check if (mirror == value_mirror && obj == null)
+      // Check if (mirror == inline_mirror && obj == null)
       RegionNode* r = new RegionNode(3);
-      Node* p = basic_plus_adr(mirror, java_lang_Class::value_mirror_offset_in_bytes());
-      Node* value_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
-      Node* cmp = _gvn.transform(new CmpPNode(mirror, value_mirror));
+      Node* p = basic_plus_adr(mirror, java_lang_Class::inline_mirror_offset_in_bytes());
+      Node* inline_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
+      Node* cmp = _gvn.transform(new CmpPNode(mirror, inline_mirror));
       Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
       Node* if_ne = generate_fair_guard(bol, NULL);
       r->init_req(1, if_ne);

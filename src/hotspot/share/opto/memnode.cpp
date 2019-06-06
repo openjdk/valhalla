@@ -1855,14 +1855,14 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     // Fold component and value mirror loads
     ciInstanceKlass* ik = tinst->klass()->as_instance_klass();
     if (ik == phase->C->env()->Class_klass() && (off == java_lang_Class::component_mirror_offset_in_bytes() ||
-                                                 off == java_lang_Class::value_mirror_offset_in_bytes())) {
+                                                 off == java_lang_Class::inline_mirror_offset_in_bytes())) {
       ciType* mirror_type = tinst->java_mirror_type();
       if (mirror_type != NULL) {
         const Type* const_oop = TypePtr::NULL_PTR;
         if (mirror_type->is_array_klass()) {
           const_oop = TypeInstPtr::make(mirror_type->as_array_klass()->component_mirror_instance());
         } else if (mirror_type->is_valuetype()) {
-          const_oop = TypeInstPtr::make(mirror_type->as_value_klass()->value_mirror_instance());
+          const_oop = TypeInstPtr::make(mirror_type->as_value_klass()->inline_mirror_instance());
         }
         return (bt == T_NARROWOOP) ? const_oop->make_narrowoop() : const_oop;
       }

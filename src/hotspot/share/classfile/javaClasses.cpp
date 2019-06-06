@@ -929,17 +929,19 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
         assert(element_klass->is_value(), "Must be value type component");
         ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(element_klass));
         comp_mirror = Handle(THREAD, vk->value_mirror());
-      }
-      else if (k->is_typeArray_klass()) {
+      } else if (k->is_typeArray_klass()) {
         BasicType type = TypeArrayKlass::cast(k)->element_type();
         comp_mirror = Handle(THREAD, Universe::java_mirror(type));
       } else {
         assert(k->is_objArray_klass(), "Must be");
         Klass* element_klass = ObjArrayKlass::cast(k)->element_klass();
         assert(element_klass != NULL, "Must have an element klass");
-        if (element_klass->is_value() && k->name()->is_Q_array_signature()) {
+        if (element_klass->is_value()) {
           ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(element_klass));
-          comp_mirror = Handle(THREAD, vk->value_mirror());
+          assert(vk->java_mirror() == vk->value_mirror(), "primary mirror is the value mirror");
+          assert(vk->indirect_mirror() != NULL, "must have an indirect class mirror");
+          comp_mirror = k->name()->is_Q_array_signature() ? Handle(THREAD, vk->value_mirror())
+                                                          : Handle(THREAD, vk->indirect_mirror());
         } else {
           comp_mirror = Handle(THREAD, element_klass->java_mirror());
         }
@@ -984,10 +986,10 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
     }
 
     if (k->is_value()) {
-      // create the secondary mirror for value class
-      oop value_mirror_oop = create_value_mirror(k, mirror, CHECK);
-      set_box_mirror(mirror(), mirror());
-      set_value_mirror(mirror(), value_mirror_oop);
+      // create the secondary mirror for an inline class
+      oop indirect_mirror_oop = create_indirect_type_mirror(k, mirror, CHECK);
+      set_inline_type_mirror(mirror(), mirror());
+      set_indirect_type_mirror(mirror(), indirect_mirror_oop);
     }
   } else {
     assert(fixup_mirror_list() != NULL, "fixup_mirror_list not initialized");
@@ -995,31 +997,26 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
   }
 }
 
-// Create the secondary mirror for value type. Sets all the fields of this java.lang.Class
-// instance with the same value as the primary mirror except signers.
-// Class::setSigners and getSigners will use the primary mirror when passed to the JVM.
-oop java_lang_Class::create_value_mirror(Klass* k, Handle mirror, TRAPS) {
-    // Allocate mirror (java.lang.Class instance)
-    oop mirror_oop = InstanceMirrorKlass::cast(SystemDictionary::Class_klass())->allocate_instance(k, CHECK_0);
-    Handle value_mirror(THREAD, mirror_oop);
+// Create the secondary mirror for inline class. Sets all the fields of this java.lang.Class
+// instance with the same value as the primary mirror
+oop java_lang_Class::create_indirect_type_mirror(Klass* k, Handle mirror, TRAPS) {
+  assert(k->is_value(), "inline class");
+  // Allocate mirror (java.lang.Class instance)
+  oop mirror_oop = InstanceMirrorKlass::cast(SystemDictionary::Class_klass())->allocate_instance(k, CHECK_0);
+  Handle indirect_mirror(THREAD, mirror_oop);
 
-    java_lang_Class::set_klass(value_mirror(), k);
-    java_lang_Class::set_static_oop_field_count(value_mirror(), static_oop_field_count(mirror()));
-    // ## do we need to set init lock?
-    java_lang_Class::set_init_lock(value_mirror(), init_lock(mirror()));
+  java_lang_Class::set_klass(indirect_mirror(), k);
+  java_lang_Class::set_static_oop_field_count(indirect_mirror(), static_oop_field_count(mirror()));
+  // ## do we need to set init lock?
+  java_lang_Class::set_init_lock(indirect_mirror(), init_lock(mirror()));
 
-    if (k->is_array_klass()) {
-      assert(component_mirror(mirror()) != NULL, "must have a mirror");
-      set_component_mirror(value_mirror(), component_mirror(mirror()));
-    }
-
-    set_protection_domain(value_mirror(), protection_domain(mirror()));
-    set_class_loader(value_mirror(), class_loader(mirror()));
-    // ## handle if java.base is not yet defined
-    set_module(value_mirror(), module(mirror()));
-    set_box_mirror(value_mirror(), mirror());
-    set_value_mirror(value_mirror(), value_mirror());
-    return value_mirror();
+  set_protection_domain(indirect_mirror(), protection_domain(mirror()));
+  set_class_loader(indirect_mirror(), class_loader(mirror()));
+  // ## handle if java.base is not yet defined
+  set_module(indirect_mirror(), module(mirror()));
+  set_inline_type_mirror(indirect_mirror(), mirror());
+  set_indirect_type_mirror(indirect_mirror(), indirect_mirror());
+  return indirect_mirror();
 }
 
 #if INCLUDE_CDS_JAVA_HEAP
@@ -1429,24 +1426,24 @@ void java_lang_Class::set_source_file(oop java_class, oop source_file) {
   java_class->obj_field_put(_source_file_offset, source_file);
 }
 
-oop java_lang_Class::value_mirror(oop java_class) {
-  assert(_value_mirror_offset != 0, "must be set");
-  return java_class->obj_field(_value_mirror_offset);
+oop java_lang_Class::inline_type_mirror(oop java_class) {
+  assert(_inline_mirror_offset != 0, "must be set");
+  return java_class->obj_field(_inline_mirror_offset);
 }
 
-void java_lang_Class::set_value_mirror(oop java_class, oop mirror) {
-  assert(_value_mirror_offset != 0, "must be set");
-  java_class->obj_field_put(_value_mirror_offset, mirror);
+void java_lang_Class::set_inline_type_mirror(oop java_class, oop mirror) {
+  assert(_inline_mirror_offset != 0, "must be set");
+  java_class->obj_field_put(_inline_mirror_offset, mirror);
 }
 
-oop java_lang_Class::box_mirror(oop java_class) {
-  assert(_box_mirror_offset != 0, "must be set");
-  return java_class->obj_field(_box_mirror_offset);
+oop java_lang_Class::indirect_type_mirror(oop java_class) {
+  assert(_indirect_mirror_offset != 0, "must be set");
+  return java_class->obj_field(_indirect_mirror_offset);
 }
 
-void java_lang_Class::set_box_mirror(oop java_class, oop mirror) {
-  assert(_box_mirror_offset != 0, "must be set");
-  java_class->obj_field_put(_box_mirror_offset, mirror);
+void java_lang_Class::set_indirect_type_mirror(oop java_class, oop mirror) {
+  assert(_indirect_mirror_offset != 0, "must be set");
+  java_class->obj_field_put(_indirect_mirror_offset, mirror);
 }
 
 oop java_lang_Class::create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS) {
@@ -1507,7 +1504,7 @@ void java_lang_Class::print_signature(oop java_class, outputStream* st) {
     return;
   }
   if (is_instance)  {
-    if (is_value && (java_class == value_mirror(java_class))) {
+    if (is_value && (java_class == inline_type_mirror(java_class))) {
       st->print("Q");
     } else {
       st->print("L");
@@ -1535,7 +1532,7 @@ Symbol* java_lang_Class::as_signature(oop java_class, bool intern_if_not_found) 
       ResourceMark rm;
       const char* sigstr;
       if (k->is_value()) {
-        char c = (java_class == value_mirror(java_class)) ? 'Q' : 'L';
+        char c = (java_class == inline_type_mirror(java_class)) ? 'Q' : 'L';
         sigstr = InstanceKlass::cast(k)->signature_name_of(c);
       } else {
         sigstr = k->signature_name();
@@ -1625,8 +1622,8 @@ int  java_lang_Class::classRedefinedCount_offset = -1;
   macro(_component_mirror_offset,   k, "componentType",       class_signature,       false); \
   macro(_module_offset,             k, "module",              module_signature,      false); \
   macro(_name_offset,               k, "name",                string_signature,      false); \
-  macro(_box_mirror_offset,         k, "boxType",             class_signature,       false); \
-  macro(_value_mirror_offset,       k, "valueType",           class_signature,       false); \
+  macro(_inline_mirror_offset,      k, "inlineType",          class_signature,       false); \
+  macro(_indirect_mirror_offset,    k, "indirectType",        class_signature,       false); \
 
 void java_lang_Class::compute_offsets() {
   if (offsets_computed) {
@@ -4158,8 +4155,8 @@ int java_lang_Class::_class_loader_offset;
 int java_lang_Class::_module_offset;
 int java_lang_Class::_protection_domain_offset;
 int java_lang_Class::_component_mirror_offset;
-int java_lang_Class::_box_mirror_offset;
-int java_lang_Class::_value_mirror_offset;
+int java_lang_Class::_inline_mirror_offset;
+int java_lang_Class::_indirect_mirror_offset;
 int java_lang_Class::_init_lock_offset;
 int java_lang_Class::_signers_offset;
 int java_lang_Class::_name_offset;

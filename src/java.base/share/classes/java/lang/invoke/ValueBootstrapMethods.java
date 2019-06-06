@@ -107,7 +107,7 @@ public final class ValueBootstrapMethods {
         }
 
         static MethodHandle[] getters(Lookup lookup, Comparator<MethodHandle> comparator) {
-            Class<?> type = lookup.lookupClass().asValueType();
+            Class<?> type = lookup.lookupClass().asPrimaryType();
             // filter static fields and synthetic fields
             Stream<MethodHandle> s = Arrays.stream(type.getDeclaredFields())
                 .filter(f -> !Modifier.isStatic(f.getModifiers()) && !f.isSynthetic())
@@ -173,8 +173,8 @@ public final class ValueBootstrapMethods {
          * of the given value class are substitutable.
          */
         static MethodHandle valueEquals(Class<?> c) {
-            assert c.isValue();
-            Class<?> type = c.asValueType();
+            assert c.isInlineClass();
+            Class<?> type = c.asPrimaryType();
             MethodType mt = methodType(boolean.class, type, type);
             MethodHandles.Lookup lookup = new MethodHandles.Lookup(type);
             MethodHandle[] getters = getters(lookup, TYPE_SORTER);
@@ -217,7 +217,7 @@ public final class ValueBootstrapMethods {
         private static boolean isSameValueClass(Object a, Object b) {
             if (a == null || b == null)
                 return false;
-            return a.getClass().isValue() && a.getClass().asBoxType() == b.getClass().asBoxType();
+            return a.getClass().isInlineClass() && a.getClass().asNullableType() == b.getClass().asNullableType();
         }
 
         private static boolean valueEq(Object a, Object b) {
@@ -348,7 +348,7 @@ public final class ValueBootstrapMethods {
      * Produces a method handle that computes the hashcode
      */
     private static MethodHandle hashCodeInvoker(Lookup lookup, String name, MethodType mt) {
-        Class<?> type = lookup.lookupClass().asValueType();
+        Class<?> type = lookup.lookupClass().asPrimaryType();
         MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
         MethodHandle cls = dropArguments(constant(Class.class, type),0, type);
         MethodHandle classHashCode = filterReturnValue(cls, hashCodeForType(Class.class));
@@ -376,7 +376,7 @@ public final class ValueBootstrapMethods {
      * Produces a method handle that invokes the toString method of a value object.
      */
     private static MethodHandle toStringInvoker(Lookup lookup, String name, MethodType mt) {
-        Class<?> type = lookup.lookupClass().asValueType();
+        Class<?> type = lookup.lookupClass().asPrimaryType();
         MethodHandle[] getters = MethodHandleBuilder.getters(lookup);
         int length = getters.length;
         StringBuilder format = new StringBuilder();
@@ -412,7 +412,7 @@ public final class ValueBootstrapMethods {
      * Produces a method handle that tests if two arguments are equals.
      */
     private static MethodHandle equalsInvoker(Lookup lookup, String name, MethodType mt) {
-        Class<?> type = lookup.lookupClass().asValueType();
+        Class<?> type = lookup.lookupClass().asPrimaryType();
         // MethodHandle to compare all fields of two value objects
         MethodHandle[] getters = MethodHandleBuilder.getters(lookup, TYPE_SORTER);
         MethodHandle accumulator = dropArguments(TRUE, 0, type, type);
@@ -528,9 +528,10 @@ public final class ValueBootstrapMethods {
             System.out.println("substitutable " + a + " vs " + b);
         }
         try {
-            Class<?> type = a.getClass().isValue() ? a.getClass().asValueType() : a.getClass();
+            Class<?> type = a.getClass().isInlineClass() ? a.getClass().asPrimaryType() : a.getClass();
             return (boolean) substitutableInvoker(type).invoke(a, b);
         } catch (Error|RuntimeException e) {
+            if (VERBOSE) e.printStackTrace();
             throw e;
         } catch (Throwable e) {
             if (VERBOSE) e.printStackTrace();
@@ -574,7 +575,7 @@ public final class ValueBootstrapMethods {
         if (type.isInterface() || type == Object.class)
             return MethodHandleBuilder.interfaceEquals(type);
 
-        if (type.isValue())
+        if (type.isInlineClass())
             return SUBST_TEST_METHOD_HANDLES.get(type);
 
         return MethodHandleBuilder.referenceEquals(type);

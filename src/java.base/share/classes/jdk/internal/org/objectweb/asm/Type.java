@@ -59,6 +59,7 @@
 package jdk.internal.org.objectweb.asm;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 /**
@@ -667,13 +668,11 @@ public final class Type {
             stringBuilder.append(descriptor);
         } else {
             String name = currentClass.getName();
-            // Workarounds nasgen build that depends on ASM but compiled with
-            // the bootstrap JDK.  Can't use Class::isValue and Class::asValueType
-            int index = currentClass.getTypeName().lastIndexOf("/val");
-            if (index > 0) {
-                stringBuilder.append('Q');
-            } else {
+            if (Helper.isIndirectType(currentClass)) {
                 stringBuilder.append('L');
+            } else {
+                stringBuilder.append('Q');
+
             }
             int nameLength = name.length();
             for (int i = 0; i < nameLength; ++i) {
@@ -681,6 +680,34 @@ public final class Type {
                 stringBuilder.append(car == '.' ? '/' : car);
             }
             stringBuilder.append(';');
+        }
+    }
+
+    // Workarounds nasgen build that depends on ASM but compiled with
+    // the bootstrap JDK.  Can't reference Class::isIndirectType
+    static class Helper {
+        static final Method isIndirectTypeMethod = isIndirectTypeMethod();
+        static Method isIndirectTypeMethod() {
+            try {
+                return Class.class.getMethod("isIndirectType");
+            } catch (NoSuchMethodException e) {
+                return null;
+            }
+        }
+
+        static boolean isIndirectType(Class<?> clazz) {
+            int mods = clazz.getModifiers();
+            if ((mods & 0x00000100) != 0) {            // inline class
+                assert isIndirectTypeMethod != null;
+                try {
+                    return (boolean) isIndirectTypeMethod.invoke(clazz);
+                } catch (InvocationTargetException e) {
+                    throw new InternalError(e.getCause());
+                } catch (IllegalAccessException e) {
+                    throw new InternalError(e);
+                }
+            }
+            return true;
         }
     }
 

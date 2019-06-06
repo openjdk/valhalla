@@ -32,7 +32,7 @@
 import java.lang.invoke.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.*;
+import java.util.List;
 
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
@@ -120,15 +120,15 @@ public class MethodHandleTest {
         }
 
         Class<?> elementType = c.getComponentType();
-        if (elementType.isValue()) {
-            assertTrue(elementType == elementType.asValueType());
+        if (elementType.isInlineClass()) {
+            assertTrue(elementType == elementType.asPrimaryType());
         }
         // set an array element to null
         try {
             Object v = (Object)setter.invoke(array, 0, null);
-            assertFalse(elementType.isValue(), "should fail to set an inline class array element to null");
+            assertFalse(elementType.isInlineClass(), "should fail to set an inline class array element to null");
         } catch (NullPointerException e) {
-            assertTrue(elementType.isValue(), "should only fail to set an inline class array element to null");
+            assertTrue(elementType.isInlineClass(), "should only fail to set an inline class array element to null");
         }
     }
 
@@ -136,7 +136,7 @@ public class MethodHandleTest {
     public static void testNullableArray() throws Throwable {
         Class<?> arrayClass = (new Point?[0]).getClass();
         Class<?> elementType = arrayClass.getComponentType();
-        assertTrue(elementType == Point.class.asBoxType());
+        assertTrue(elementType == Point.class.asIndirectType(), arrayClass.getComponentType().toString());
 
         MethodHandle setter = MethodHandles.arrayElementSetter(arrayClass);
         MethodHandle getter = MethodHandles.arrayElementGetter(arrayClass);
@@ -163,7 +163,7 @@ public class MethodHandleTest {
             unreflectField(f);
             findGetter(f);
             varHandle(f);
-            if (c.isValue())
+            if (c.isInlineClass())
                 ensureImmutable(f);
             else
                 ensureNullable(f);
@@ -196,7 +196,7 @@ public class MethodHandleTest {
     void setValueField(String name, Object obj, Object value) throws Throwable {
         Field f = c.getDeclaredField(name);
         boolean isStatic = Modifier.isStatic(f.getModifiers());
-        assertTrue(f.getType().isValue());
+        assertTrue(f.getType().isInlineClass());
         assertTrue((isStatic && obj == null) || (!isStatic && obj != null));
         Object v = f.get(obj);
 
@@ -262,8 +262,7 @@ public class MethodHandleTest {
      */
     void ensureNullable(Field f) throws Throwable {
         assertFalse(Modifier.isStatic(f.getModifiers()));
-        // flattenable implies non-nullable
-        boolean canBeNull = !isFlattenable(f);
+        boolean canBeNull = f.getType().isNullableType();
         // test reflection
         try {
             f.set(o, null);
@@ -315,9 +314,4 @@ public class MethodHandleTest {
     boolean isFlattened(Field f) {
         return (f.getModifiers() & 0x00008000) == 0x00008000;
     }
-
-    boolean isFlattenable(Field f) {
-        return (f.getModifiers() & 0x00000100) == 0x00000100;
-    }
-
 }

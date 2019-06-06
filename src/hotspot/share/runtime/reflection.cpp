@@ -344,7 +344,7 @@ arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
     if (k->is_array_klass() && ArrayKlass::cast(k)->dimension() >= MAX_DIM) {
       THROW_0(vmSymbols::java_lang_IllegalArgumentException());
     }
-    if (java_lang_Class::is_box_type(element_mirror)) {
+    if (java_lang_Class::is_indirect_type(element_mirror)) {
       return oopFactory::new_objArray(k, length, THREAD);
     } else {
       return oopFactory::new_valueArray(k, length, THREAD);
@@ -760,9 +760,9 @@ void Reflection::check_for_inner_class(const InstanceKlass* outer, const Instanc
 // Returns Q-mirror if qtype_if_value is true and k is a ValueKlass;
 // otherwise returns java_mirror or L-mirror for ValueKlass
 static oop java_mirror(Klass* k, jboolean qtype_if_value) {
-  if (qtype_if_value && k->is_value()) {
+  if (k->is_value()) {
     ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(k));
-    return vk->value_mirror();
+    return qtype_if_value ? vk->value_mirror() : vk->indirect_mirror();
   } else {
     return k->java_mirror();
   }
@@ -952,7 +952,9 @@ oop Reflection::new_field(fieldDescriptor* fd, TRAPS) {
   // Note the ACC_ANNOTATION bit, which is a per-class access flag, is never set here.
   int modifiers = fd->access_flags().as_int() & JVM_RECOGNIZED_FIELD_MODIFIERS;
   if (fd->is_flattenable()) {
-    modifiers |= JVM_ACC_FLATTENABLE;
+    modifiers |= JVM_ACC_FIELD_FLATTENABLE;
+    // JVM_ACC_FLATTENABLE should not be set in LWorld.  set_is_flattenable should be re-examined.
+    modifiers &= ~JVM_ACC_FLATTENABLE;
   }
   if (fd->is_flattened()) {
     modifiers |= JVM_ACC_FIELD_FLATTENED;
@@ -1232,7 +1234,7 @@ oop Reflection::invoke_method(oop method_mirror, Handle receiver, objArrayHandle
   BasicType rtype;
   if (java_lang_Class::is_primitive(return_type_mirror)) {
     rtype = basic_type_mirror_to_basic_type(return_type_mirror, CHECK_NULL);
-  } else if (java_lang_Class::value_mirror(return_type_mirror) == return_type_mirror) {
+  } else if (java_lang_Class::inline_type_mirror(return_type_mirror) == return_type_mirror) {
     rtype = T_VALUETYPE;
   } else {
     rtype = T_OBJECT;

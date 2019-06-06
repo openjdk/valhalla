@@ -25,8 +25,7 @@ public inline class NonFlattenValue {
     Point? nfp;
 
     NonFlattenValue() {
-        Point p = Point.makePoint(0,0);
-        this.nfp = p;
+        this.nfp = Point.makePoint(0,0);
     }
     public Point? point() {
         return nfp;
@@ -47,6 +46,7 @@ public inline class NonFlattenValue {
 
     @Override
     public String toString() {
-        return nfp.toString();
+        // nfp may be null when NonFlattenValue[] is created and filled with default value
+        return nfp != null ? nfp.toString() : "default NonFlattenValue";
     }
 }

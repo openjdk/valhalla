@@ -300,7 +300,7 @@ public class AccessibleObject implements AnnotatedElement {
 
         // does not allow to suppress access check for Value class's
         // constructor or field
-        if (declaringClass.isValue()) {
+        if (declaringClass.isInlineClass()) {
             if (this instanceof Constructor) return false;
             if (this instanceof Field && Modifier.isFinal(modifiers)) return false;
         }

@@ -1426,11 +1426,11 @@ class ProxyGenerator {
             "java/lang/Class",
             "forName", "(Ljava/lang/String;)Ljava/lang/Class;"));
 
-        if (cl.isValue() && cl == cl.asValueType()) {
+        if (cl.isInlineClass() && cl == cl.asPrimaryType()) {
             out.writeByte(opc_invokevirtual);
             out.writeShort(cp.getMethodRef(
                 "java/lang/Class",
-                "asValueType", "()Ljava/lang/Class;"));
+                "asPrimaryType", "()Ljava/lang/Class;"));
         }
     }
 
@@ -1495,8 +1495,12 @@ class ProxyGenerator {
              */
             return type.getName().replace('.', '/');
         } else {
-            char prefix = type.isValue() && type == type.asValueType() ? 'Q' : 'L';
-            return prefix + dotToSlash(type.getName()) + ";";
+            if (type.isInlineClass()) {
+                Class<?> primary = type.asPrimaryType();
+                return (type == primary ? 'Q' : 'L' ) + dotToSlash(primary.getName()) + ";";
+            } else {
+                return 'L' + dotToSlash(type.getName()) + ";";
+            }
         }
     }
 

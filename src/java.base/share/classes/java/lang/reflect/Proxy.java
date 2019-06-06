@@ -849,11 +849,12 @@ public class Proxy implements java.io.Serializable {
         private static void ensureVisible(ClassLoader ld, Class<?> c) {
             Class<?> type = null;
             try {
+                if (c.isInlineClass() && c.isIndirectType())
+                    c = c.asPrimaryType();
                 type = Class.forName(c.getName(), false, ld);
             } catch (ClassNotFoundException e) {
             }
-            // use box type to do visibility check
-            if (type != c.asBoxType()) {
+            if (type != c) {
                 throw new IllegalArgumentException(c.getName() +
                         " referenced from a method is not visible from class loader");
             }

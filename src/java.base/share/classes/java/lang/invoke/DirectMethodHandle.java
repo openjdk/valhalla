@@ -78,7 +78,7 @@ class DirectMethodHandle extends MethodHandle {
         if (!member.isStatic()) {
             if (!member.getDeclaringClass().isAssignableFrom(refc) || member.isConstructor())
                 throw new InternalError(member.toString());
-            mtype = mtype.insertParameterTypes(0, refc.isValue() ? refc.asValueType() : refc);
+            mtype = mtype.insertParameterTypes(0, refc.isInlineClass() ? refc.asPrimaryType() : refc);
         }
         if (!member.isField()) {
             // refKind reflects the original type of lookup via findSpecial or
@@ -111,13 +111,13 @@ class DirectMethodHandle extends MethodHandle {
             if (member.isStatic()) {
                 long offset = MethodHandleNatives.staticFieldOffset(member);
                 Object base = MethodHandleNatives.staticFieldBase(member);
-                return member.isValue() ? new StaticValueAccessor(mtype, lform, member, base, offset)
-                                        : new StaticAccessor(mtype, lform, member, base, offset);
+                return member.isInlineable() ? new StaticValueAccessor(mtype, lform, member, base, offset)
+                                                  : new StaticAccessor(mtype, lform, member, base, offset);
             } else {
                 long offset = MethodHandleNatives.objectFieldOffset(member);
                 assert(offset == (int)offset);
-                return  member.isValue() ? new ValueAccessor(mtype, lform, member, (int)offset)
-                                         : new Accessor(mtype, lform, member, (int)offset);
+                return  member.isInlineable() ? new ValueAccessor(mtype, lform, member, (int)offset)
+                                                   : new Accessor(mtype, lform, member, (int)offset);
 
             }
         }
@@ -136,8 +136,8 @@ class DirectMethodHandle extends MethodHandle {
     private static DirectMethodHandle makeAllocator(MemberName ctor) {
         assert(ctor.isConstructor() && ctor.getName().equals("<init>"));
         Class<?> instanceClass = ctor.getDeclaringClass();
-        if (instanceClass.isValue())
-            instanceClass = instanceClass.asValueType();  // convert to Q-Type
+        if (instanceClass.isInlineClass())
+            instanceClass = instanceClass.asPrimaryType();  // convert to Q-Type
         ctor = ctor.asConstructor();
         assert(ctor.isConstructor() && ctor.getReferenceKind() == REF_newInvokeSpecial) : ctor;
         MethodType mtype = ctor.getMethodType().changeReturnType(instanceClass);
@@ -667,12 +667,12 @@ class DirectMethodHandle extends MethodHandle {
         }
         if (shouldBeInitialized(m)) {
             // precompute the barrier-free version:
-            preparedFieldLambdaForm(formOp, m.isVolatile(), m.isValue(), m.isFlattened(), ftype);
+            preparedFieldLambdaForm(formOp, m.isVolatile(), m.isInlineable(), m.isFlattened(), ftype);
             assert((AF_GETSTATIC_INIT - AF_GETSTATIC) ==
                    (AF_PUTSTATIC_INIT - AF_PUTSTATIC));
             formOp += (AF_GETSTATIC_INIT - AF_GETSTATIC);
         }
-        LambdaForm lform = preparedFieldLambdaForm(formOp, m.isVolatile(), m.isValue(), m.isFlattened(), ftype);
+        LambdaForm lform = preparedFieldLambdaForm(formOp, m.isVolatile(), m.isInlineable(), m.isFlattened(), ftype);
         maybeCompile(lform, m);
         assert(lform.methodType().dropParameterTypes(0, 1)
                 .equals(m.getInvocationType().basicType()))

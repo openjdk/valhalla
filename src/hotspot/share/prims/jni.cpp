@@ -58,6 +58,7 @@
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "oops/valueKlass.hpp"
 #include "prims/jniCheck.hpp"
 #include "prims/jniExport.hpp"
 #include "prims/jniFastGetField.hpp"
@@ -578,7 +579,15 @@ JNI_QUICK_ENTRY(jboolean, jni_IsAssignableFrom(JNIEnv *env, jclass sub, jclass s
   assert(sub_klass != NULL && super_klass != NULL, "invalid arguments to jni_IsAssignableFrom");
   jboolean ret = sub_klass->is_subtype_of(super_klass) ?
                    JNI_TRUE : JNI_FALSE;
-
+  if (sub_klass == super_klass && sub_klass->is_value()) {
+    // for inline class, V <: V?
+    ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(sub_klass));
+    if (sub_mirror == super_mirror || (sub_mirror == vk->value_mirror() && super_mirror == vk->indirect_mirror())) {
+      ret = JNI_TRUE;
+    } else {
+      ret = JNI_FALSE;
+    }
+  }
   HOTSPOT_JNI_ISASSIGNABLEFROM_RETURN(ret);
   return ret;
 JNI_END

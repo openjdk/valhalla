@@ -38,6 +38,8 @@ public class Reflection {
         testPointClass();
         testLineClass();
         testNonFlattenValue();
+        testMirrors();
+        testClassName();
     }
 
     static void testPointClass() throws Exception  {
@@ -54,19 +56,68 @@ public class Reflection {
     static void testLineClass() throws Exception {
         Line l = Line.makeLine(10, 20, 30, 40);
         Reflection test = new Reflection(Line.class, "Line", l);
-        test.checkField("p1", Point.class.asValueType());
-        test.checkField("p2", Point.class.asValueType());
-        test.checkMethod("p1", Point.class.asValueType());
-        test.checkMethod("p2", Point.class.asValueType());
+        test.checkField("public final Point Line.p1", "p1", Point.class);
+        test.checkField("public final Point Line.p2", "p2", Point.class);
+        test.checkMethod("public Point Line.p1()",           "p1", Point.class);
+        test.checkMethod("public Point Line.p2()",           "p2", Point.class);
     }
 
     static void testNonFlattenValue() throws Exception {
         NonFlattenValue nfv = NonFlattenValue.make(10, 20);
         Reflection test = new Reflection(NonFlattenValue.class, "NonFlattenValue", nfv);
-        test.checkField("nfp", Point.class.asBoxType());
-        test.checkMethod("point", Point.class.asBoxType());
-        test.checkMethod("pointValue", Point.class.asValueType());
-        test.checkMethod("has", void.class, Point.class.asValueType(), Point.class.asBoxType());
+        test.checkField("final Point? NonFlattenValue.nfp", "nfp", Point.class.asIndirectType());
+        test.checkMethod("public Point NonFlattenValue.pointValue()", "pointValue", Point.class);
+        test.checkMethod("public Point? NonFlattenValue.point()", "point", Point.class.asIndirectType());
+        test.checkMethod("public boolean NonFlattenValue.has(Point,Point?)", "has", boolean.class, Point.class, Point.class.asIndirectType());
+    }
+
+    /*
+     * Tests reflection APIs with the primary type and indirect/nullable projection type
+     */
+    static void testMirrors() throws Exception {
+        Class<?> primary = Point.class;
+        Class<?> indirect = Point.class.asIndirectType();
+
+        assertEquals(primary, Point.class);
+        assertEquals(indirect, Point.class.asNullableType());
+        assertTrue(primary.isInlineClass());
+        assertFalse(primary.isIndirectType());
+        assertFalse(primary.isNullableType());
+
+        assertTrue(indirect.isInlineClass());
+        assertTrue(indirect.isIndirectType());
+        assertTrue(indirect.isNullableType());
+
+        Point o = Point.makePoint(10, 20);
+        assertTrue(primary.isInstance(o));
+        assertTrue(indirect.isInstance(o));
+
+        // V <: V? and V <: Object
+        assertTrue(indirect.isAssignableFrom(primary));
+        assertTrue(Object.class.isAssignableFrom(primary));
+        assertFalse(primary.isAssignableFrom(indirect));
+        assertTrue(Object.class.isAssignableFrom(indirect));
+
+        assertEquals(primary, primary.asSubclass(indirect));
+        try {
+            Class<?> c = indirect.asSubclass(primary);
+            assertTrue(false);
+        } catch (ClassCastException e) { }
+
+        // indirect class
+        assertEquals(Reflection.class.asPrimaryType(), Reflection.class);
+        assertEquals(Reflection.class.asIndirectType(), Reflection.class);
+        assertEquals(Reflection.class.asNullableType(), Reflection.class);
+        assertTrue(Reflection.class.isIndirectType());
+        assertTrue(Reflection.class.isNullableType());
+    }
+
+    static void testClassName() {
+        assertEquals(Point.class.getName(), "Point");
+        assertEquals(Point.class.asNullableType().getName(), "Point");
+        assertEquals(Line.class.getName(), "Line");
+        assertEquals((new Point[0]).getClass().getName(), "[QPoint;");
+        assertEquals((new Point?[0][0]).getClass().getName(), "[[LPoint;");
     }
 
     private final Class<?> c;
@@ -74,48 +125,53 @@ public class Reflection {
     private final Object o;
     Reflection(Class<?> type, String cn, Object o) throws Exception {
         this.c = Class.forName(cn);
-        if (!c.isValue() || c != type) {
+        if (!c.isInlineClass() || c != type) {
             throw new RuntimeException(cn + " is not an inline class");
         }
 
-        // the box type is the primary mirror
+        // V.class, Class.forName, and the type of the object return the primary mirror
         assertEquals(type, o.getClass());
-        assertEquals(type, c.asBoxType());
+        assertEquals(type, c.asPrimaryType());
+        assertEquals(c, c.asPrimaryType());
 
         this.ctor = c.getDeclaredConstructor();
         this.o = o;
 
-        // TODO: what should Object::getClass return?
-        // assertEquals(o.getClass(), c.asValueType());
 
-        // test the box type and value type
-        testBoxAndValueType(this.c);
-        // test array of Q-type
-        // TODO: array of L-type support
-        testArrayOfQType();
+        // test the primary mirror and secondary mirror
+        testMirrors(this.c);
+        // test array of Q-type and L-type
+        testArray(c.asPrimaryType());
+        testArray(c.asNullableType());
     }
 
-    private static void testBoxAndValueType(Class<?> c) {
-        Class<?> box = c.asBoxType();
-        Class<?> val = c.asValueType();
-        assertTrue(val != null);
-        assertEquals(box.getTypeName(), c.getTypeName());
-        assertEquals(val.getTypeName(), c.getTypeName() + "/val");
-        assertEquals(box, c);
-        assertEquals(val.asBoxType(), box);
-        assertEquals(box.asValueType(), val);
+    private static void testMirrors(Class<?> c) {
+        Class<?> inlineType = c.asPrimaryType();
+        Class<?> nullableType = c.asNullableType();
+
+        assertTrue(inlineType != null);
+        assertEquals(nullableType.getTypeName(), c.getTypeName() + "?");
+
+        assertEquals(nullableType.getName(), inlineType.getName());
+        assertEquals(nullableType.getTypeName(), inlineType.getTypeName() + "?");
+        assertEquals(inlineType.asNullableType(), nullableType);
+        assertEquals(nullableType.asPrimaryType(), inlineType);
     }
 
-    void testArrayOfQType() {
-        Class<?> elementType = c.asValueType();
-        Object array = Array.newInstance(elementType, 1);
+    void testArray(Class<?> elementType) {
+        Object[] array = (Object[])Array.newInstance(elementType, 1);
         Class<?> arrayType = array.getClass();
         assertTrue(arrayType.isArray());
         Class<?> componentType = arrayType.getComponentType();
-        assertTrue(componentType.isValue());
+        assertTrue(componentType.isInlineClass());
         assertEquals(componentType, elementType);
         // Array is a reference type
-        assertEquals(arrayType.asBoxType(), arrayType);
+        assertEquals(arrayType.asNullableType(), arrayType);
+        if (array[0] == null) {
+            System.out.println("array[0] = null");
+        } else {
+            System.out.println("array[0] = " + array[0]);
+        }
     }
 
     void accessFieldX(int x) throws Exception {
@@ -177,22 +233,15 @@ public class Reflection {
         } catch (InaccessibleObjectException e) { }
     }
 
-    void checkField(String name, Class<?> type) throws Exception {
+    void checkField(String source, String name, Class<?> type) throws Exception {
         Field f = c.getDeclaredField(name);
-        System.out.format("Field %s::%s of type %s = %s%n",
-                          f.getDeclaringClass().getTypeName(), f.getName(),
-                          f.getType().getTypeName(), f.get(o));
         assertEquals(f.getType(), type);
+        assertEquals(f.toString(), source);
     }
 
-    void checkMethod(String name, Class<?> returnType, Class<?>... params) throws Exception {
+    void checkMethod(String source, String name, Class<?> returnType, Class<?>... params) throws Exception {
         Method m = c.getDeclaredMethod(name, params);
-
-        String paramDesc = (params == null || params.length == 0) ? "" :
-            Arrays.stream(params).map(Class::getTypeName).collect(Collectors.joining(", "));
-        System.out.format("Method %s::%s(%s)%s%n",
-                          m.getDeclaringClass().getTypeName(), m.getName(),
-                          paramDesc, returnType.getTypeName());
+        assertEquals(m.toString(), source);
     }
 
     static void assertEquals(Object o1, Object o2) {
@@ -205,6 +254,10 @@ public class Reflection {
     static void assertTrue(boolean value) {
         if (!value)
             throw new AssertionError("expected true");
+    }
 
+    static void assertFalse(boolean value) {
+        if (value)
+            throw new AssertionError("expected false");
     }
 }

@@ -24,7 +24,6 @@
 package compiler.valhalla.valuetypes;
 
 import java.lang.invoke.*;
-import java.lang.reflect.Method;
 
 import jdk.experimental.value.MethodHandleBuilder;
 import jdk.test.lib.Asserts;
@@ -1277,7 +1276,7 @@ public class TestLWorld extends ValueTypeTest {
     // Tests writing an array element with a (statically known) incompatible type
     private static final MethodHandle setArrayElementIncompatible = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
         "setArrayElementIncompatible",
-        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class.asValueType()),
+        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class.asPrimaryType()),
         CODE -> {
             CODE.
             aload_1().

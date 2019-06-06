@@ -93,7 +93,7 @@ public class BytecodeDescriptor {
                 Class<?> clz = (loader == null)
                                     ? Class.forName(name, false, null)
                                     : loader.loadClass(name);
-                return c == 'Q' ? clz.asValueType() : clz.asBoxType();
+                return c == 'Q' ? clz.asPrimaryType() : clz.asIndirectType();
             } catch (ClassNotFoundException ex) {
                 throw new TypeNotPresentException(name, ex);
             }
@@ -158,7 +158,7 @@ public class BytecodeDescriptor {
             sb.append("Ljava/lang/Object;");
         } else {
             boolean lsemi = (!t.isArray());
-            if (t == t.asValueType())
+            if (!t.isIndirectType())
                 c = 'Q';
             if (lsemi)  sb.append(c);
             sb.append(t.getName().replace('.', '/'));

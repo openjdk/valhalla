@@ -34,21 +34,15 @@ import java.io.IOException;
 import java.lang.invoke.CallSite;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
-import java.lang.reflect.*;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
-import jdk.internal.org.objectweb.asm.Attribute;
-import jdk.internal.org.objectweb.asm.ByteVector;
-import jdk.internal.org.objectweb.asm.ClassReader;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.Handle;
-import jdk.internal.org.objectweb.asm.Label;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.internal.org.objectweb.asm.Type;
 import static jdk.internal.org.objectweb.asm.Opcodes.*;
@@ -60,7 +54,7 @@ public class ValueBootstrapMethods {
         Class<?> test = valueTestClass();
         Value value = Value.make(10, 5.03, "foo", "bar", "goo");
 
-        Class<?> valueClass = Value.class.asValueType();
+        Class<?> valueClass = Value.class;
         Method hashCode = test.getMethod("hashCode", valueClass);
         int hash = (int)hashCode.invoke(null, value);
         assertEquals(hash, value.hashCode());
@@ -97,7 +91,7 @@ public class ValueBootstrapMethods {
         }
 
         List<Object> values() {
-            return List.of(Value.class.asValueType(), i, d, s, l);
+            return List.of(Value.class, i, d, s, l);
         }
 
         public int hashCode() {
@@ -116,7 +110,7 @@ public class ValueBootstrapMethods {
      */
     private static Class<?> valueTestClass() throws Exception {
         Path path = Paths.get(TEST_CLASSES, "ValueTest.class");
-        generate(Value.class.asValueType(), "ValueTest", path);
+        generate(Value.class, "ValueTest", path);
         return Class.forName("ValueTest");
     }
 

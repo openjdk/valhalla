@@ -2655,7 +2655,7 @@ return mh1;
      */
     public static
     MethodHandle arrayElementSetter(Class<?> arrayClass) throws IllegalArgumentException {
-        if (arrayClass.isValue()) {
+        if (arrayClass.isInlineClass()) {
             throw new UnsupportedOperationException();
         }
         return MethodHandleImpl.makeArrayElementAccessor(arrayClass, MethodHandleImpl.ArrayAccess.SET);
@@ -3432,7 +3432,7 @@ assert((int)twice.invokeExact(21) == 42);
         Objects.requireNonNull(type);
         if (type.isPrimitive()) {
             return zero(Wrapper.forPrimitiveType(type), type);
-        } else if (type.isValue()) {
+        } else if (type.isInlineClass()) {
             throw new UnsupportedOperationException();
         } else {
             return zero(Wrapper.OBJECT, type);

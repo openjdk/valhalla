@@ -474,7 +474,7 @@ public class ObjectStreamClass implements Serializable {
         name = cl.getName();
         isProxy = Proxy.isProxyClass(cl);
         isEnum = Enum.class.isAssignableFrom(cl);
-        boolean isInlineClass = cl.isValue();
+        boolean isInlineClass = cl.isInlineClass();
         serializable = Serializable.class.isAssignableFrom(cl);
         externalizable = Externalizable.class.isAssignableFrom(cl);
 

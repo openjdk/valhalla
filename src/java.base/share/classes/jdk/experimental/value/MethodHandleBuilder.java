@@ -174,14 +174,14 @@ public class MethodHandleBuilder {
                 if (aClass.isArray()) {
                     return classToInternalName(aClass);
                 } else {
-                    return (aClass.isValue() ? "Q" : "L") + classToInternalName(aClass) + ";";
+                    return (aClass.isInlineClass() ? "Q" : "L") + classToInternalName(aClass) + ";";
                 }
             }
 
             @Override
             public boolean isValue(String desc) {
                 Class<?> aClass = symbol(desc);
-                return aClass != null && aClass.isValue();
+                return aClass != null && aClass.isInlineClass();
             }
 
             @Override

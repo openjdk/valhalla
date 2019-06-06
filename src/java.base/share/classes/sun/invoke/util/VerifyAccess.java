@@ -236,7 +236,8 @@ public class VerifyAccess {
      * @param refc the class attempting to make the reference
      */
     public static boolean isTypeVisible(Class<?> type, Class<?> refc) {
-        if (type.asBoxType() == refc.asBoxType()) {
+        // FIXME: should use asPrimaryType after intrinsified method is updated.
+        if (type.asIndirectType() == refc.asIndirectType()) {
             return true;  // easy check
         }
         while (type.isArray())  type = type.getComponentType();
@@ -284,6 +285,10 @@ public class VerifyAccess {
         // that differs from "type"; this happens once due to JVM system dictionary
         // memoization.  And the caller never gets to look at the alternate type binding
         // ("res"), whether it exists or not.
+
+        if (type.isInlineClass()) {
+            type = type.asPrimaryType();
+        }
         final String name = type.getName();
         Class<?> res = java.security.AccessController.doPrivileged(
                 new java.security.PrivilegedAction<>() {
@@ -295,7 +300,7 @@ public class VerifyAccess {
                         }
                     }
             });
-        return (type.asBoxType() == res);
+        return (type == res);
     }
 
     /**

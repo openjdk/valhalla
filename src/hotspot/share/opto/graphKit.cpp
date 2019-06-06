@@ -3408,10 +3408,10 @@ void GraphKit::gen_value_array_null_guard(Node* ary, Node* val, int nargs) {
     Node* array_type_mirror = load_mirror_from_klass(load_object_klass(ary));
     Node* elem_mirror_adr = basic_plus_adr(array_type_mirror, java_lang_Class::component_mirror_offset_in_bytes());
     Node* elem_mirror = access_load_at(array_type_mirror, elem_mirror_adr, _gvn.type(elem_mirror_adr)->is_ptr(), TypeInstPtr::MIRROR, T_OBJECT, IN_HEAP);
-    Node* value_mirror_adr = basic_plus_adr(elem_mirror, java_lang_Class::value_mirror_offset_in_bytes());
-    Node* value_mirror = access_load_at(elem_mirror, value_mirror_adr, _gvn.type(value_mirror_adr)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
-    // Deoptimize if elem_mirror == value_mirror => null-free array
-    Node* cmp = _gvn.transform(new CmpPNode(elem_mirror, value_mirror));
+    Node* inline_mirror_adr = basic_plus_adr(elem_mirror, java_lang_Class::inline_mirror_offset_in_bytes());
+    Node* inline_mirror = access_load_at(elem_mirror, inline_mirror_adr, _gvn.type(inline_mirror_adr)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
+    // Deoptimize if elem_mirror == inline_mirror => null-free array
+    Node* cmp = _gvn.transform(new CmpPNode(elem_mirror, inline_mirror));
     Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
     { BuildCutout unless(this, bol, PROB_MAX);
       inc_sp(nargs);
@@ -4057,9 +4057,9 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     Node* flat      = MakeConX(ArrayStorageProperties::flattened_and_null_free.encode<NOT_LP64(jint) LP64_ONLY(jlong)>(props_shift));
 
     // Check if element mirror is a value mirror
-    Node* p = basic_plus_adr(elem_mirror, java_lang_Class::value_mirror_offset_in_bytes());
-    Node* value_mirror = access_load_at(elem_mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
-    Node* cmp = _gvn.transform(new CmpPNode(elem_mirror, value_mirror));
+    Node* p = basic_plus_adr(elem_mirror, java_lang_Class::inline_mirror_offset_in_bytes());
+    Node* inline_mirror = access_load_at(elem_mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
+    Node* cmp = _gvn.transform(new CmpPNode(elem_mirror, inline_mirror));
     Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
     IfNode* iff = create_and_map_if(control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 

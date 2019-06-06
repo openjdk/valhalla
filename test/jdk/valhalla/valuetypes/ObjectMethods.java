@@ -25,15 +25,15 @@
 /*
  * @test
  * @summary test Object methods on inline types
- * @compile -XDallowWithFieldOperator ObjectMethods.java
- * @run testng/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 ObjectMethods
- * @run testng/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 -XX:ValueFieldMaxFlatSize=0 ObjectMethods
+ * @compile -XDallowWithFieldOperator Point.java  Line.java MutablePath.java MixedValues.java Value.java
+ * @build ObjectMethods
+ * @run testng/othervm -XX:+EnableValhalla -Xcomp -Dvalue.bsm.salt=1 ObjectMethods
+ * @run testng/othervm -XX:+EnableValhalla -Xcomp -Dvalue.bsm.salt=1 -XX:ValueFieldMaxFlatSize=0 ObjectMethods
  */
 
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.testng.annotations.BeforeTest;
@@ -84,8 +84,8 @@ public class ObjectMethods {
             { MIXED_VALUES, new MixedValues(P1, LINE1, MUTABLE_PATH, "value"), false},
             // uninitialized default value
             { MyValue1.default, MyValue1.default, true},
-            { MyValue1.default, MyValue1.make(0,0, null), true},
-            { MyValue1.make(10, 20, P1), MyValue1.make(10, 20, Point.makePoint(1,2)), true},
+            { MyValue1.default, new MyValue1(0,0, null), true},
+            { new MyValue1(10, 20, P1), new MyValue1(10, 20, Point.makePoint(1,2)), true},
         };
     }
 
@@ -115,9 +115,9 @@ public class ObjectMethods {
               "[Value char_v=\u0000 byte_v=0 boolean_v=false int_v=0 short_v=0 long_v=0 double_v=0.0 " +
               "float_v=0.0 number_v=99 point_v=[Point x=0 y=0] ref_v=[ref]]" },
             // enclosing instance field `this$0` should be filtered
-            { MyValue1.default, "[ObjectMethods$MyValue1 p=[Point x=0 y=0] box=null]" },
-            { MyValue1.make(0,0, null), "[ObjectMethods$MyValue1 p=[Point x=0 y=0] box=null]" },
-            { MyValue1.make(0,0, P1), "[ObjectMethods$MyValue1 p=[Point x=0 y=0] box=[Point x=1 y=2]]" },
+            { MyValue1.default, "[ObjectMethods$MyValue1 p=[Point x=0 y=0] np=null]" },
+            { new MyValue1(0,0, null), "[ObjectMethods$MyValue1 p=[Point x=0 y=0] np=null]" },
+            { new MyValue1(0,0, P1), "[ObjectMethods$MyValue1 p=[Point x=0 y=0] np=[Point x=1 y=2]]" },
         };
     }
 
@@ -141,13 +141,13 @@ public class ObjectMethods {
                            .setReference(new Object()).build();
         // this is sensitive to the order of the returned fields from Class::getDeclaredFields
         return new Object[][]{
-            { P1,                   hash(Point.class.asValueType(), 1, 2) },
-            { LINE1,                hash(Line.class.asValueType(), Point.makePoint(1, 2), Point.makePoint(3, 4)) },
+            { P1,                   hash(Point.class, 1, 2) },
+            { LINE1,                hash(Line.class, Point.makePoint(1, 2), Point.makePoint(3, 4)) },
             { v,                    hash(hashCodeComponents(v))},
-            { Point.makePoint(0,0), hash(Point.class.asValueType(), 0, 0) },
-            { Point.default,        hash(Point.class.asValueType(), 0, 0) },
-            { MyValue1.default,     hash(MyValue1.class.asValueType(), Point.default, null) },
-            { MyValue1.make(0,0, null), hash(MyValue1.class.asValueType(), Point.makePoint(0,0), null) },
+            { Point.makePoint(0,0), hash(Point.class, 0, 0) },
+            { Point.default,        hash(Point.class, 0, 0) },
+            { MyValue1.default,     hash(MyValue1.class, Point.default, null) },
+            { new MyValue1(0, 0, null), hash(MyValue1.class, Point.makePoint(0,0), null) },
         };
     }
 
@@ -157,7 +157,7 @@ public class ObjectMethods {
     }
 
     private static Object[] hashCodeComponents(Object o) {
-        Class<?> type = o.getClass().asValueType();
+        Class<?> type = o.getClass();
         // filter static fields and synthetic fields
         Stream<Object> fields = Arrays.stream(type.getDeclaredFields())
             .filter(f -> !Modifier.isStatic(f.getModifiers()) && !f.isSynthetic())
@@ -180,14 +180,12 @@ public class ObjectMethods {
     }
 
     static inline class MyValue1 {
-        Point p = Point.default;
-        Point? box = Point.default;
+        private Point p;
+        private Point? np;
 
-        static MyValue1 make(int x, int y, Point? box) {
-            MyValue1 v = MyValue1.default;
-            v = __WithField(v.p, Point.makePoint(x, y));
-            v = __WithField(v.box, box);
-            return v;
+        MyValue1(int x, int y, Point? np) {
+            this.p = Point.makePoint(x, y);
+            this.np = np;
         }
     }
 }

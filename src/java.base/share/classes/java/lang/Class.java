@@ -62,8 +62,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.StringJoiner;
-import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
@@ -197,9 +195,9 @@ public final class Class<T> implements java.io.Serializable,
      * @return a string representation of this class object.
      */
     public String toString() {
-        return (isValue() ? "inline " : "")
+        return (isInlineClass() ? "inline " : "")
                + (isInterface() ? "interface " : (isPrimitive() ? "" : "class "))
-               + getName() + (isValue() && isBoxType() ? "?" : "");
+               + getName() + (isInlineClass() && isIndirectType() ? "?" : "");
     }
 
     /**
@@ -260,8 +258,8 @@ public final class Class<T> implements java.io.Serializable,
                 if (isAnnotation()) {
                     sb.append('@');
                 }
-                if (isValue()) {
-                    sb.append("value");
+                if (isInlineClass()) {
+                    sb.append("inline");
                     sb.append(' ');
                 }
                 if (isInterface()) { // Note: all annotation types are interfaces
@@ -361,10 +359,6 @@ public final class Class<T> implements java.io.Serializable,
      * <p> If {@code name} denotes an array class, the component type of
      * the array class is loaded but not initialized.
      *
-     * <p> If {@code name} denotes a value class, this method returns
-     * the {@code Class} object representing the
-     * {@linkplain #asBoxType() box value type}.
-     *
      * <p> For example, in an instance method the expression:
      *
      * <blockquote>
@@ -445,10 +439,6 @@ public final class Class<T> implements java.io.Serializable,
      * the given name is a class defined in a different module, this method
      * returns {@code null} after the class is loaded. </p>
      *
-     * <p> If {@code name} denotes a value class, this method returns
-     * the {@code Class} object representing the
-     * {@linkplain #asBoxType() box value type}. </p>
-     *
      * <p> This method does not check whether the requested class is
      * accessible to its caller. </p>
      *
@@ -511,70 +501,92 @@ public final class Class<T> implements java.io.Serializable,
 
 
     /**
-     * Returns {@code true} if this class is a value class.
+     * Returns {@code true} if this class is an inline class.
      *
-     * @return {@code true} if this class is a value class.
+     * @return {@code true} if this class is an inline class.
      */
-    public boolean isValue() {
-        int mods = this.getModifiers();
-        if ((mods & VALUE_TYPE) != 0) {
-            if ((mods & (Modifier.INTERFACE | Modifier.ABSTRACT)) != 0) {
-                throw new InternalError("inline class can't have ACC_INTERFACE or ACC_ABSTRACT set");
-            }
-            if (getSuperclass() != Object.class) {
-                throw new InternalError("Super class of an inline class must be java.lang.Object");
-            }
-            return true;
-        }
-        return false;
+    public boolean isInlineClass() {
+        return (this.getModifiers() & VALUE_TYPE) != 0;
     }
 
     /**
-     * Returns a {@code Class} object representing the <em>box type</em>
-     * of this class if this class is a {@linkplain #isValue() value class};
+     * Returns a {@code Class} object representing the primary type of
+     * this class.
+     *
+     * <p> For class {@code C}, {@code C.class} is the primary type of {@code C}.
+     * For a primitive type, the {@code Class} instance representing
+     * that primitive type is its primary type, for example {@code int.class}.
+     *
+     * @return the {@code Class} object representing the primary type of
+     *         this class
+     */
+    @HotSpotIntrinsicCandidate
+    public Class<T> asPrimaryType() {
+        return isInlineClass() ? inlineType : this;
+    }
+
+    /**
+     * Returns a {@code Class} object representing the <em>indirect projection</em>
+     * type if this class is an {@linkplain #isInlineClass() inline class};
      * otherwise, returns this class.
      *
-     * <p> A value class has two {@code Class} representations,
-     * a null-free type or a nullable box type, that can be obtained
-     * by calling {@link #asValueType()} or {@link #asBoxType()} method
-     * for conversion.
+     * <p> An inline class, {@code V}, has two {@code Class} representations,
+     * {@code V.class} and its {@linkplain #asIndirectType() indirect projection
+     * type}.  The indirect projection type is always
+     * {@linkplain #isNullableType() nullable}.
+     * The indirect projection type of a zero-default inline class
+     * is also its nullable projection type.
      *
-     * @return the box type of this class if this class is a value class;
-     *         otherwise, this class.
+     * @return the {@code Class} object representing the indirect projection type of
+     *         this class if this class is an inline class; otherwise, this class.
      */
     @HotSpotIntrinsicCandidate
-    public Class<T> asBoxType() {
-        return isValue() ? boxType : this;
+    public Class<T> asIndirectType() {
+        return isInlineClass() ? indirectType : this;
     }
 
     /**
-     * Returns a {@code Class} object representing the <em>null-free value type</em>
-     * of this class if this class is a {@linkplain #isValue() value class};
-     * otherwise, returns {@code null}.
+     * Returns a {@code Class} object representing the <em>nullable projection</em>
+     * type if this class is an {@linkplain #isInlineClass() inline class};
+     * otherwise, returns this class.
      *
-     * <p> A value class has two {@code Class} representations,
-     * a null-free type or a nullable box type, that can be obtained
-     * by calling {@link #asValueType()} or {@link #asBoxType()} method
-     * for conversion.
+     * <p> An inline class, {@code V}, has two {@code Class} representations,
+     * {@code V.class} and its {@linkplain #asIndirectType() indirect projection
+     * type}.  The indirect projection type is always
+     * {@linkplain #isNullableType() nullable}.
+     * The indirect projection type of a zero-default inline class
+     * is also its nullable projection type.
      *
-     * @return the unbox value type of this class if this class is a value class;
-     *         otherwise, {@code null}.
+     * @return the {@code Class} object representing the nullable projection type of
+     *         this class if this class is an inline class; otherwise, this class.
      */
-    @HotSpotIntrinsicCandidate
-    public Class<T> asValueType() {
-        return isValue() ? valueType : null;
+    public Class<T> asNullableType() {
+        return asIndirectType();
     }
 
-    /*
-     * Returns true if this class is a non-value class or a box value class.
+    /**
+     * Returns {@code true} if this class is an indirect type.
+     * An indirect type is always {@linkplain #isNullableType() nullable}.
+     *
+     * @return {@code true} if this class is an indirect type.
      */
-    boolean isBoxType() {
-        return boxType == null || this == boxType;
+    public boolean isIndirectType() {
+        return indirectType == null || this == indirectType;
     }
 
-    // set by VM if this class is a value type
-    private transient Class<T> boxType;
-    private transient Class<T> valueType;
+    /**
+     * Returns {@code true} if this class is a nullable type.
+     *
+     * @return {@code true} if this class is a nullable type.
+     */
+    public boolean isNullableType() {
+        return isIndirectType();
+    }
+
+    // set by VM if this class is an inline type
+    // otherwise, these two fields are null
+    private transient Class<T> inlineType;
+    private transient Class<T> indirectType;
 
     /**
      * Creates a new instance of the class represented by this {@code Class}
@@ -634,7 +646,7 @@ public final class Class<T> implements java.io.Serializable,
     public T newInstance()
         throws InstantiationException, IllegalAccessException
     {
-        if (this.isValue()) {
+        if (this.isInlineClass()) {
             throw new IllegalAccessException(
                 "cannot create new instance of an inline class " + this.getName());
         }
@@ -854,7 +866,7 @@ public final class Class<T> implements java.io.Serializable,
      * <tr><th scope="row"> char         <td style="text-align:center"> C
      * <tr><th scope="row"> class or interface
      *                                   <td style="text-align:center"> L<i>classname</i>;
-     * <tr><th scope="row"> {@linkplain #asValueType() regular value class}
+     * <tr><th scope="row"> non-nullable {@linkplain #isInlineClass() inline class}
      *                                   <td style="text-align:center"> Q<i>classname</i>;
      * <tr><th scope="row"> double       <td style="text-align:center"> D
      * <tr><th scope="row"> float        <td style="text-align:center"> F
@@ -874,11 +886,13 @@ public final class Class<T> implements java.io.Serializable,
      * byte.class.getName()
      *     returns "byte"
      * Point.class.getName()
-     *     returns "p.Point"
+     *     returns "Point"
      * (new Object[3]).getClass().getName()
      *     returns "[Ljava.lang.Object;"
      * (new Point[3]).getClass().getName()
      *     returns "[QPoint;"
+     * (new Point?[3][4]).getClass().getName()
+     *     returns "[[LPoint;"
      * (new int[3][4][5][6][7][8][9]).getClass().getName()
      *     returns "[[[[[[[I"
      * </pre></blockquote>
@@ -1297,7 +1311,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since   1.1
      */
     public Object[] getSigners() {
-        Class<?> c = (isValue() && !isBoxType()) ? asBoxType() : this;
+        Class<?> c = isInlineClass() && isIndirectType() ? asPrimaryType() : this;
         return c.getSigners0();
     }
 
@@ -1307,7 +1321,7 @@ public final class Class<T> implements java.io.Serializable,
      * Set the signers of this class.
      */
     void setSigners(Object[] signers) {
-        Class<?> c = (isValue() && !isBoxType()) ? asBoxType() : this;
+        Class<?> c = isInlineClass() && isIndirectType() ? asPrimaryType() : this;
         c.setSigners0(signers);
     }
 
@@ -1649,9 +1663,6 @@ public final class Class<T> implements java.io.Serializable,
      * component type with "[]" appended.  In particular the simple
      * name of an array whose component type is anonymous is "[]".
      *
-     * <p>The simple name of a value type is the simple name of
-     * this class with {@code ".box"} appended.
-     *
      * @return the simple name of the underlying class
      * @since 1.5
      */
@@ -1673,7 +1684,7 @@ public final class Class<T> implements java.io.Serializable,
             simpleName = getName();
             simpleName = simpleName.substring(simpleName.lastIndexOf('.') + 1); // strip the package name
         }
-        return isValue() && isBoxType() ? simpleName + ".box" : simpleName;
+        return simpleName;
     }
 
     /**
@@ -1694,8 +1705,7 @@ public final class Class<T> implements java.io.Serializable,
                 return cl.getTypeName() + "[]".repeat(dimensions);
             } catch (Throwable e) { /*FALLTHRU*/ }
         }
-        // ## append "/box" to box value type instead?
-        return isBoxType() ? getName() : getName() + "/val";
+        return toTypeName();
     }
 
     /**
@@ -3520,8 +3530,16 @@ public final class Class<T> implements java.io.Serializable,
                 ((argTypes == null || argTypes.length == 0) ?
                 "()" :
                 Arrays.stream(argTypes)
-                        .map(c -> c == null ? "null" : c.getName())
+                        .map(c -> c == null ? "null" : c.toTypeName())
                         .collect(Collectors.joining(",", "(", ")")));
+    }
+
+    /*
+     * Returns the class name appended with "?" if it is the nullable projection
+     * of an inline class.
+     */
+    private String toTypeName() {
+        return isInlineClass() && isIndirectType() ? getName() + "?" : getName();
     }
 
     /** use serialVersionUID from JDK 1.1 for interoperability */
@@ -3698,16 +3716,16 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @throws ClassCastException if the object is not
      * {@code null} and is not assignable to the type T.
-     * @throws NullPointerException if this class is a {@linkplain #asValueType()
-     * null-free value class} and the object is {@code null}
+     * @throws NullPointerException if this is not a {@linkplain #isNullableType()
+     * nullable type} and the object is {@code null}
      *
      * @since 1.5
      */
     @SuppressWarnings("unchecked")
     @HotSpotIntrinsicCandidate
     public T cast(Object obj) {
-        if (isValue() && !isBoxType() && obj == null)
-            throw new NullPointerException(getName() + " is non-nullable value class");
+        if (!isNullableType() && obj == null)
+            throw new NullPointerException(getName() + " is an inline class");
 
         if (obj != null && !isInstance(obj))
             throw new ClassCastException(cannotCastMsg(obj));

@@ -340,7 +340,6 @@ public class Modifier {
     static final int ANNOTATION  = 0x00002000;
     static final int ENUM        = 0x00004000;
     static final int MANDATED    = 0x00008000;
-    static final int FLATTENABLE = 0x00000100;
     static final int FLATTENED   = 0x00008000;      // HotSpot-specific bit
     static boolean isSynthetic(int mod) {
       return (mod & SYNTHETIC) != 0;

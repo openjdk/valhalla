@@ -53,7 +53,7 @@ ciType* ciInstance::java_mirror_type(bool* is_val_type) {
     Klass* k = java_lang_Class::as_Klass(m);
     assert(k != NULL, "");
     if (is_val_type != NULL) {
-      *is_val_type = k->is_value() && !java_lang_Class::is_box_type(m);
+      *is_val_type = k->is_value() && !java_lang_Class::is_indirect_type(m);
     }
     return CURRENT_THREAD_ENV->get_klass(k);
   }

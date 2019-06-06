@@ -61,8 +61,8 @@ public class QTypeDescriptorTest {
 
     @Test
     public static void testMethodInvoke() throws Exception {
-        Class<?> pointQType = Point.class.asValueType();
-        Class<?> nonFlattenValueQType = NonFlattenValue.class.asValueType();
+        Class<?> pointQType = Point.class;
+        Class<?> nonFlattenValueQType = NonFlattenValue.class;
         Method m = QTypeDescriptorTest.class
             .getDeclaredMethod("toLine", pointQType, nonFlattenValueQType);
         makeLine(m, P0, NFV);
@@ -127,10 +127,10 @@ public class QTypeDescriptorTest {
 
     @DataProvider
     static Object[][] descriptors() {
-        Class<?> pointLType = Point.class.asBoxType();
-        Class<?> pointQType = Point.class.asValueType();
-        Class<?> nonFlattenValueLType = NonFlattenValue.class.asBoxType();
-        Class<?> nonFlattenValueQType = NonFlattenValue.class.asValueType();
+        Class<?> pointLType = Point.class.asIndirectType();
+        Class<?> pointQType = Point.class;
+        Class<?> nonFlattenValueLType = NonFlattenValue.class.asIndirectType();
+        Class<?> nonFlattenValueQType = NonFlattenValue.class;
         return new Object[][]{
             { QTypeDescriptorTest.class, "toLine", new Class<?>[] {pointQType, nonFlattenValueQType}, true},
             { QTypeDescriptorTest.class, "toLine", new Class<?>[] {pointLType, nonFlattenValueQType}, false},
@@ -154,8 +154,8 @@ public class QTypeDescriptorTest {
 
     @DataProvider
     static Object[][] methodTypes() {
-        Class<?> pointLType = Point.class.asBoxType();
-        Class<?> pointQType = Point.class.asValueType();
+        Class<?> pointLType = Point.class.asIndirectType();
+        Class<?> pointQType = Point.class;
         ClassLoader loader = QTypeDescriptorTest.class.getClassLoader();
         return new Object[][]{
             { "point",      MethodType.methodType(pointLType),                            true },

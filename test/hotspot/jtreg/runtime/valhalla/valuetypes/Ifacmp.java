@@ -165,7 +165,7 @@ public class Ifacmp {
     }
 
     boolean shouldEqualSelf(Object a) {
-        return acmpModeInlineAlwaysFalse ? (!(a != null && a.getClass().isValue())) : true;
+        return acmpModeInlineAlwaysFalse ? (!(a != null && a.getClass().isInlineClass())) : true;
     }
 
     void checkEqual(Object a, Object b, boolean isEqual) {

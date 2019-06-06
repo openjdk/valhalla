@@ -168,7 +168,7 @@ class Field extends AccessibleObject implements Member {
     public void setAccessible(boolean flag) {
         AccessibleObject.checkPermission();
 
-        if (clazz.isValue()) {
+        if (clazz.isInlineClass()) {
             throw new InaccessibleObjectException("cannot make a field accessible of inline class "
                     + clazz.getName());
         }
@@ -184,8 +184,7 @@ class Field extends AccessibleObject implements Member {
     }
 
     /**
-     * Returns the {@code Class} object representing
-     * {@linkplain Class#asBoxType() the box type} of the class or interface
+     * Returns the {@code Class} object representing the class or interface
      * that declares the field represented by this {@code Field} object.
      */
     @Override
@@ -1107,7 +1106,7 @@ class Field extends AccessibleObject implements Member {
      * Ensure the declaring class is not an inline class.
      */
     private void ensureNotValueClass() throws IllegalAccessException {
-        if (clazz.isValue()) {
+        if (clazz.isInlineClass()) {
             throw new IllegalAccessException("cannot set field \"" + this + "\" of inline class "
                 + clazz.getName());
         }

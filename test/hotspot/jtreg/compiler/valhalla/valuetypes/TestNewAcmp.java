@@ -1414,7 +1414,7 @@ public class TestNewAcmp {
             if (args[i] != null && !parameterTypes[0].isInstance(args[i])) {
                 continue;
             }
-            if (args[i] == null && parameterTypes[0] == MyValue1.class.asValueType()) {
+            if (args[i] == null && parameterTypes[0] == MyValue1.class) {
                 continue;
             }
             if (parameterCount == 1) {
@@ -1436,7 +1436,7 @@ public class TestNewAcmp {
                     if (args[j] != null && !parameterTypes[1].isInstance(args[j])) {
                         continue;
                     }
-                    if (args[j] == null && parameterTypes[1] == MyValue1.class.asValueType()) {
+                    if (args[j] == null && parameterTypes[1] == MyValue1.class) {
                         continue;
                     }
                     System.out.print("Testing " + m.getName() + "(" + args[i] + ", " + args[j] + ")");
@@ -1524,14 +1524,14 @@ public class TestNewAcmp {
             compiled = WHITE_BOX.isMethodCompiled(cmpSometimesEqual1_m, false);
             res = cmpSometimesEqual1(args[idx]);
             if (ACmpOnValues != 3) {
-                Asserts.assertEQ(res, args[idx] == null || !args[idx].getClass().isValue());
+                Asserts.assertEQ(res, args[idx] == null || !args[idx].getClass().isInlineClass());
             } else if (compiled) {
                 Asserts.assertTrue(res);
             }
             compiled = WHITE_BOX.isMethodCompiled(cmpSometimesEqual2_m, false);
             res = cmpSometimesEqual2(args[idx]);
             if (ACmpOnValues != 3) {
-                Asserts.assertNE(res, args[idx] == null || !args[idx].getClass().isValue());
+                Asserts.assertNE(res, args[idx] == null || !args[idx].getClass().isInlineClass());
             } else if (compiled) {
                 Asserts.assertFalse(res);
             }

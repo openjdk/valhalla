@@ -64,11 +64,11 @@ public class TestNullableValueTypes extends ValueTypeTest {
             ClassLoader loader = clazz.getClassLoader();
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            MethodType test18_mt = MethodType.methodType(void.class, MyValue1.class.asBoxType());
+            MethodType test18_mt = MethodType.methodType(void.class, MyValue1.class.asNullableType());
             test18_mh1 = lookup.findStatic(clazz, "test18_target1", test18_mt);
             test18_mh2 = lookup.findStatic(clazz, "test18_target2", test18_mt);
 
-            MethodType test19_mt = MethodType.methodType(void.class, MyValue1.class.asBoxType());
+            MethodType test19_mt = MethodType.methodType(void.class, MyValue1.class.asNullableType());
             test19_mh1 = lookup.findStatic(clazz, "test19_target1", test19_mt);
             test19_mh2 = lookup.findStatic(clazz, "test19_target2", test19_mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
@@ -468,7 +468,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     @Test
     @Warmup(10000) // Warmup to make sure 'test17_dontinline' is compiled
     public boolean test16(Object arg) throws Exception {
-        Method test16method = getClass().getMethod("test16_dontinline", MyValue1.class.asBoxType());
+        Method test16method = getClass().getMethod("test16_dontinline", MyValue1.class.asNullableType());
         return (boolean)test16method.invoke(this, arg);
     }
 

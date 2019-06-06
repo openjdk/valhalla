@@ -305,7 +305,7 @@ public class ValueOops {
      */
     public static void testOverGc() {
         try {
-            Class<?> vtClass = Person.class.asValueType();
+            Class<?> vtClass = Person.class;
 
             System.out.println("vtClass="+vtClass);
 

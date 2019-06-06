@@ -64,7 +64,7 @@ abstract class UnsafeFieldAccessorImpl extends FieldAccessorImpl {
     }
 
     protected boolean canBeNull() {
-        return field.getType() == field.getType().asBoxType();
+        return field.getType().isNullableType();
     }
 
     protected Object checkValue(Object value) {
