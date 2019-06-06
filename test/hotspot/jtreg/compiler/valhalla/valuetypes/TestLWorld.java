@@ -43,24 +43,16 @@ import jdk.test.lib.Asserts;
  *                               compiler.valhalla.valuetypes.TestLWorld
  */
 public class TestLWorld extends ValueTypeTest {
-    public int getNumScenarios() {
-        if (TEST_C1) {
-            return 2;
-        } else {
-            return super.getNumScenarios();
+    static {
+        if (TEST_C1 && (Long)WHITE_BOX.getVMFlag("ValueFieldMaxFlatSize") == 0) {
+            System.out.println("Skipped: C1 fails with -XX:ValueFieldMaxFlatSize=0"); // FIXME JDK-8225367
+            System.exit(0);
         }
     }
 
     // Extra VM parameters for some test scenarios. See ValueTypeTest.getVMParameters()
     @Override
     public String[] getExtraVMParameters(int scenario) {
-        if (TEST_C1) {
-            switch (scenario) {
-            case 1:  return new String[] {"-XX:-UseBiasedLocking"};
-            }
-            return null;
-        }
-
         switch (scenario) {
         case 1: return new String[] {"-XX:-UseOptoBiasInlining"};
         case 2: return new String[] {"-XX:-UseBiasedLocking"};

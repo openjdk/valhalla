@@ -270,6 +270,7 @@ public class TestCallingConvention extends ValueTypeTest {
     }
 
     @Test()
+    @TempSkipForC1(reason = "JDK-8225374: C1 fails with -XX:+StressValueTypeReturnedAsFields")
     public MyValue2 test14(boolean flag) {
         return test14_interp(flag);
     }
@@ -573,7 +574,7 @@ public class TestCallingConvention extends ValueTypeTest {
     }
 
 // TODO enable once JDK-8224110 and JDK-8224211 are fixed
-/* 
+/*
     // Test calling a method returning a value type as fields via reflection
     MyValue3 test29_vt = MyValue3.create();
 

@@ -90,10 +90,23 @@ import java.util.TreeMap;
     int value();
 }
 
+// Do not enqueue the test method for compilation immediately after warmup loops have finished. Instead
+// let the test method be compiled with on-stack-replacement.
+@Retention(RetentionPolicy.RUNTIME)
+@interface OSRCompileOnly {}
+
+// Skip this test temporarily for C1 testing
+@Retention(RetentionPolicy.RUNTIME)
+@interface TempSkipForC1 {
+    String reason() default "";
+}
+
 public abstract class ValueTypeTest {
-    // Run "jtreg -Dtest.c1=true" to enable experimental C1 testing. This forces all
-    // compilable methods to be compiled with C1, regardless of the @Test(compLevel=?) setting.
-    static final boolean TEST_C1 = Boolean.getBoolean("test.c1");
+    protected static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
+
+    // Currently C1 is disabled by default. To test C1, run "jtreg -vmoptions:-XX:+EnableValhallaC1 -vmoptions:-XX:TieredStopAtLevel=1".
+    // This forces C1 to be use for all methods that are compiled, @Test(compLevel=?) setting.
+    static final boolean TEST_C1 = (Boolean)WHITE_BOX.getVMFlag("EnableValhallaC1");
 
     // Should we execute tests that assume (ValueType[] <: Object[])?
     static final boolean ENABLE_VALUE_ARRAY_COVARIANCE = Boolean.getBoolean("ValueArrayCovariance");
@@ -105,7 +118,7 @@ public abstract class ValueTypeTest {
     // User defined settings
     protected static final boolean XCOMP = Platform.isComp();
     private static final boolean PRINT_GRAPH = true;
-    private static final boolean VERBOSE = Boolean.parseBoolean(System.getProperty("Verbose", "false"));
+    protected static final boolean VERBOSE = Boolean.parseBoolean(System.getProperty("Verbose", "false"));
     private static final boolean PRINT_TIMES = Boolean.parseBoolean(System.getProperty("PrintTimes", "false"));
     private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true")) && !TEST_C1 && !XCOMP;
     private static final boolean VERIFY_VM = Boolean.parseBoolean(System.getProperty("VerifyVM", "false"));
@@ -130,7 +143,6 @@ public abstract class ValueTypeTest {
         "-XX:+VerifyOops", "-XX:+VerifyStack", "-XX:+VerifyLastFrame", "-XX:+VerifyBeforeGC", "-XX:+VerifyAfterGC",
         "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing"};
 
-    protected static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
     protected static final int ValueTypePassFieldsAsArgsOn = 0x1;
     protected static final int ValueTypePassFieldsAsArgsOff = 0x2;
     protected static final int ValueTypeArrayFlattenOn = 0x4;
@@ -194,14 +206,10 @@ public abstract class ValueTypeTest {
 
     /**
      * Override getNumScenarios and getVMParameters if you want to run with more than
-     * the 5 built-in scenarios
+     * the 6 built-in scenarios
      */
     public int getNumScenarios() {
-        if (TEST_C1) {
-            return 1;
-        } else {
-            return 6;
-        }
+        return 6;
     }
 
     /**
@@ -209,15 +217,6 @@ public abstract class ValueTypeTest {
      * extra parameters for (some of) these scenarios, override getExtraVMParameters().
      */
     public String[] getVMParameters(int scenario) {
-        if (TEST_C1) {
-            return new String[] {
-                "-XX:+EnableValhallaC1",
-                "-XX:TieredStopAtLevel=1",
-                "-XX:-ValueTypePassFieldsAsArgs",
-                "-XX:-ValueTypeReturnedAsFields"
-            };
-        }
-
         switch (scenario) {
         case 0: return new String[] {
                 "-XX:+AlwaysIncrementalInline",
@@ -570,6 +569,11 @@ public abstract class ValueTypeTest {
             if (VERBOSE) {
                 System.out.println("Starting " + test.getName());
             }
+            TempSkipForC1 c1skip = test.getAnnotation(TempSkipForC1.class);
+            if (TEST_C1 && c1skip != null) {
+                System.out.println("Skipped " + test.getName() + " for C1 testing: " + c1skip.reason());
+                continue;
+            }
             long startTime = System.nanoTime();
             Method verifier = getClass().getMethod(test.getName() + "_verifier", boolean.class);
             // Warmup using verifier method
@@ -578,18 +582,24 @@ public abstract class ValueTypeTest {
             for (int i = 0; i < warmup; ++i) {
                 verifier.invoke(this, true);
             }
-            int compLevel = getCompLevel(test.getAnnotation(Test.class));
-            // Trigger compilation
-            WHITE_BOX.enqueueMethodForCompilation(test, compLevel);
-            Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
+            boolean osrOnly = (test.getAnnotation(OSRCompileOnly.class) != null);
+            if (!osrOnly) {
+                int compLevel = getCompLevel(test.getAnnotation(Test.class));
+                // Trigger compilation
+                WHITE_BOX.enqueueMethodForCompilation(test, compLevel);
+                Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
+            }
             // Check result
             verifier.invoke(this, false);
+            if (osrOnly) {
+                Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
+            }
             if (PRINT_TIMES || VERBOSE) {
                 long endTime = System.nanoTime();
                 long duration = (endTime - startTime);
                 durations.put(duration, test.getName());
                 if (VERBOSE) {
-                    System.out.println("Done " + test.getName() + ": " + duration + "ms");
+                    System.out.println("Done " + test.getName() + ": " + duration + "ns");
                 }
             }
         }

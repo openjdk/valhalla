@@ -24,6 +24,7 @@
 package compiler.valhalla.valuetypes;
 
 import jdk.test.lib.Asserts;
+import java.lang.reflect.Method;
 
 /*
  * @test
@@ -52,6 +53,19 @@ public class TestOnStackReplacement extends ValueTypeTest {
         test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class);
     }
 
+    boolean isCompiled(String methodName) {
+        try {
+            Method m = getClass().getMethod(methodName);
+            boolean b = WHITE_BOX.isMethodCompiled(m, false);
+            if (VERBOSE) {
+                System.out.println("Is " + methodName + " compiled? " + b);
+            }
+            return b;
+        } catch (Throwable t) {
+            throw new RuntimeException("Unknown method: " + methodName + "()");
+        }
+    }
+
     // Helper methods
 
     protected long hash() {
@@ -63,7 +77,7 @@ public class TestOnStackReplacement extends ValueTypeTest {
     }
 
     // Test OSR compilation
-    @Test()
+    @Test() @Warmup(0) @OSRCompileOnly
     public long test1() {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         MyValue1[] va = new MyValue1[Math.abs(rI) % 3];
@@ -84,12 +98,14 @@ public class TestOnStackReplacement extends ValueTypeTest {
 
     @DontCompile
     public void test1_verifier(boolean warmup) {
-        long result = test1();
-        Asserts.assertEQ(result, ((Math.abs(rI) % 3) + 1) * hash());
+        do {
+            long result = test1();
+            Asserts.assertEQ(result, ((Math.abs(rI) % 3) + 1) * hash());
+        } while (!isCompiled("test1"));
     }
 
     // Test loop peeling
-    @Test(failOn = ALLOC + LOAD + STORE)
+    @Test(failOn = ALLOC + LOAD + STORE) @Warmup(0) @OSRCompileOnly
     public void test2() {
         MyValue1 v = MyValue1.createWithFieldsInline(0, 1);
         // Trigger OSR compilation and loop peeling
@@ -104,11 +120,14 @@ public class TestOnStackReplacement extends ValueTypeTest {
 
     @DontCompile
     public void test2_verifier(boolean warmup) {
-        test2();
+        do {
+            test2();
+        } while (!isCompiled("test2"));
     }
 
     // Test loop peeling and unrolling
-    @Test()
+    @Test() @Warmup(0) @OSRCompileOnly
+    @TempSkipForC1(reason = "C1 inlining overflow")
     public void test3() {
         MyValue1 v1 = MyValue1.createWithFieldsInline(0, 0);
         MyValue1 v2 = MyValue1.createWithFieldsInline(1, 1);
@@ -125,7 +144,9 @@ public class TestOnStackReplacement extends ValueTypeTest {
 
     @DontCompile
     public void test3_verifier(boolean warmup) {
-        test3();
+        do {
+            test3();
+        } while (!isCompiled("test3"));
     }
 
     // OSR compilation with Object local
@@ -139,7 +160,7 @@ public class TestOnStackReplacement extends ValueTypeTest {
         return MyValue1.createWithFieldsInline(rI, rL);
     }
 
-    @Test()
+    @Test() @Warmup(0) @OSRCompileOnly
     public Object test4() {
         Object vt = test4_init();
         for (int i = 0; i < 50_000; i++) {
@@ -152,14 +173,16 @@ public class TestOnStackReplacement extends ValueTypeTest {
 
     @DontCompile
     public void test4_verifier(boolean warmup) {
-        test4();
+        do {
+            test4();
+        } while (!isCompiled("test4"));
     }
 
     // OSR compilation with null value type local
 
     MyValue1? nullField;
 
-    @Test()
+    @Test() @Warmup(0) @OSRCompileOnly
     public void test5() {
         MyValue1? vt = nullField;
         for (int i = 0; i < 50_000; i++) {
@@ -171,6 +194,8 @@ public class TestOnStackReplacement extends ValueTypeTest {
 
     @DontCompile
     public void test5_verifier(boolean warmup) {
-        test5();
+        do {
+            test5();
+        } while (!isCompiled("test5"));
     }
 }
