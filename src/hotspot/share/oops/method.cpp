@@ -151,6 +151,11 @@ address Method::get_c2i_unverified_entry() {
   return adapter()->get_c2i_unverified_entry();
 }
 
+address Method::get_c2i_unverified_value_entry() {
+  assert(adapter() != NULL, "must have");
+  return adapter()->get_c2i_unverified_value_entry();
+}
+
 char* Method::name_and_sig_as_C_string() const {
   return name_and_sig_as_C_string(constants()->pool_holder(), name(), signature());
 }

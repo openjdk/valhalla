@@ -565,7 +565,7 @@ public abstract class ValueTypeTest {
         }
 
         // Execute tests
-        TreeMap<Long, String> durations = PRINT_TIMES ? new TreeMap<Long, String>() : null;
+        TreeMap<Long, String> durations = (PRINT_TIMES || VERBOSE) ? new TreeMap<Long, String>() : null;
         for (Method test : tests.values()) {
             if (VERBOSE) {
                 System.out.println("Starting " + test.getName());

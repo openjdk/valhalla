@@ -606,11 +606,15 @@ void LIR_Assembler::emit_op1(LIR_Op1* op) {
   }
 }
 
-void LIR_Assembler::add_std_entry_info(int pc_offset, bool no_receiver) {
-  // FIXME: build different oompaps/stack/locals according to no_receiver.
+void LIR_Assembler::add_scalarized_entry_info(int pc_offset) {
   flush_debug_info(pc_offset);
   DebugInformationRecorder* debug_info = compilation()->debug_info_recorder();
-  OopMap* oop_map = new OopMap(0, 0); // FIXME
+  // The VEP and VVEP(RO) of a C1-compiled method call buffer_value_args_xxx()
+  // before doing any argument shuffling. This call may cause GC. When GC happens,
+  // all the parameters are still as passed by the caller, so we just use
+  // map->set_include_argument_oops() inside frame::sender_for_compiled_frame(RegisterMap* map).
+  // There's no need to build a GC map here.
+  OopMap* oop_map = new OopMap(0, 0);
   debug_info->add_safepoint(pc_offset, oop_map);
   DebugToken* locvals = debug_info->create_scope_values(NULL); // FIXME is this needed (for Java debugging to work properly??)
   DebugToken* expvals = debug_info->create_scope_values(NULL); // FIXME is this needed (for Java debugging to work properly??)
@@ -623,21 +627,40 @@ void LIR_Assembler::add_std_entry_info(int pc_offset, bool no_receiver) {
   debug_info->end_safepoint(pc_offset);
 }
 
+// Emit VEP (and VVEP/VEP_RO if necessary)
 void LIR_Assembler::emit_std_entries() {
   offsets()->set_value(CodeOffsets::OSR_Entry, _masm->offset());
 
   const CompiledEntrySignature* ces = compilation()->compiled_entry_signature();
+
+  _masm->align(CodeEntryAlignment);
+  offsets()->set_value(CodeOffsets::Entry, _masm->offset());
+  if (needs_icache(compilation()->method())) {
+    check_icache();
+  }
+
   if (ces->has_scalarized_args()) {
     assert(ValueTypePassFieldsAsArgs && method()->get_Method()->has_scalarized_args(), "must be");
-    add_std_entry_info(emit_std_entry(CodeOffsets::Verified_Entry, ces), false);
 
     bool has_value_ro_entry = false;
     if (ces->has_value_recv() && ces->num_value_args() > 1) {
-      // We need a separate entry for value_ro
+      // VVEP(RO) = pack all value parameters, except the <this> object.
       has_value_ro_entry = true;
-      add_std_entry_info(emit_std_entry(CodeOffsets::Verified_Value_Entry_RO, ces), true);
+      add_scalarized_entry_info(emit_std_entry(CodeOffsets::Verified_Value_Entry_RO, ces));
     }
+
+    // VEP = pack all value parameters
+    _masm->align(CodeEntryAlignment);
+    add_scalarized_entry_info(emit_std_entry(CodeOffsets::Verified_Entry, ces));
+
+    _masm->align(CodeEntryAlignment);
+    offsets()->set_value(CodeOffsets::Value_Entry, _masm->offset());
+    if (needs_icache(compilation()->method())) {
+      check_icache();
+    }
+    // VVEP = all value parameters are already passed as refs, so no need for packing.
     emit_std_entry(CodeOffsets::Verified_Value_Entry, NULL);
+
     if (!has_value_ro_entry) {
       if (ces->has_value_recv()) {
         assert(ces->num_value_args() == 1, "must be");
@@ -658,10 +681,6 @@ void LIR_Assembler::emit_std_entries() {
 }
 
 int LIR_Assembler::emit_std_entry(CodeOffsets::Entries entry, const CompiledEntrySignature* ces) {
-  _masm->align(CodeEntryAlignment);
-  if (needs_icache(compilation()->method())) {
-    check_icache();
-  }
   offsets()->set_value(entry, _masm->offset());
   switch (entry) {
   case CodeOffsets::Verified_Entry:

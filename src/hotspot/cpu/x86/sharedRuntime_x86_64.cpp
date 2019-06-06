@@ -1172,6 +1172,28 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   __ jmp(r11);
 }
 
+static void gen_inline_cache_check(MacroAssembler *masm, Label& skip_fixup) {
+  Label ok;
+
+  Register holder = rax;
+  Register receiver = j_rarg0;
+  Register temp = rbx;
+
+  __ load_klass(temp, receiver);
+  __ cmpptr(temp, Address(holder, CompiledICHolder::holder_klass_offset()));
+  __ movptr(rbx, Address(holder, CompiledICHolder::holder_metadata_offset()));
+  __ jcc(Assembler::equal, ok);
+  __ jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+
+  __ bind(ok);
+  // Method might have been compiled since the call site was patched to
+  // interpreted if that is the case treat it as a miss so we can get
+  // the call site corrected.
+  __ cmpptr(Address(rbx, in_bytes(Method::code_offset())), (int32_t)NULL_WORD);
+  __ jcc(Assembler::equal, skip_fixup);
+  __ jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+}
+
 // ---------------------------------------------------------------
 AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
                                                             int comp_args_on_stack,
@@ -1197,27 +1219,8 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
   address c2i_unverified_entry = __ pc();
   Label skip_fixup;
-  Label ok;
 
-  Register holder = rax;
-  Register receiver = j_rarg0;
-  Register temp = rbx;
-
-  {
-    __ load_klass(temp, receiver);
-    __ cmpptr(temp, Address(holder, CompiledICHolder::holder_klass_offset()));
-    __ movptr(rbx, Address(holder, CompiledICHolder::holder_metadata_offset()));
-    __ jcc(Assembler::equal, ok);
-    __ jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-
-    __ bind(ok);
-    // Method might have been compiled since the call site was patched to
-    // interpreted if that is the case treat it as a miss so we can get
-    // the call site corrected.
-    __ cmpptr(Address(rbx, in_bytes(Method::code_offset())), (int32_t)NULL_WORD);
-    __ jcc(Assembler::equal, skip_fixup);
-    __ jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
-  }
+  gen_inline_cache_check(masm, skip_fixup);
 
   OopMapSet* oop_maps = new OopMapSet();
   int frame_complete = CodeOffsets::frame_never_safe;
@@ -1233,18 +1236,24 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
   // Scalarized c2i adapter
   address c2i_entry = __ pc();
-  
+
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->c2i_entry_barrier(masm);
-  
+
   gen_c2i_adapter(masm, sig_cc, regs_cc, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, true);
+
+  address c2i_unverified_value_entry = c2i_unverified_entry;
 
   // Non-scalarized c2i adapter
   address c2i_value_entry = c2i_entry;
   if (regs != regs_cc) {
+    Label value_entry_skip_fixup;
+    c2i_unverified_value_entry = __ pc();
+    gen_inline_cache_check(masm, value_entry_skip_fixup);
+
     c2i_value_entry = __ pc();
     Label unused;
-    gen_c2i_adapter(masm, sig, regs, unused, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
+    gen_c2i_adapter(masm, sig, regs, value_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
   }
 
   __ flush();
@@ -1254,7 +1263,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   bool caller_must_gc_arguments = (regs != regs_cc);
   new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
 
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry);
+  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry, c2i_unverified_value_entry);
 }
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,

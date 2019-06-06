@@ -237,6 +237,7 @@ public:
   virtual bool make_not_entrant() = 0;
   virtual bool make_entrant() = 0;
   virtual address entry_point() const = 0;
+  virtual address value_entry_point() const = 0;
   virtual bool make_zombie() = 0;
   virtual bool is_osr_method() const = 0;
   virtual int osr_entry_bci() const = 0;

@@ -500,6 +500,7 @@ public:
   address get_c2i_entry();
   address get_c2i_value_entry();
   address get_c2i_unverified_entry();
+  address get_c2i_unverified_value_entry();
   AdapterHandlerEntry* adapter() const {
     return constMethod()->adapter();
   }

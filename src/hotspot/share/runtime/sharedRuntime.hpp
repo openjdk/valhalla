@@ -670,6 +670,7 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   address _c2i_value_entry;
   address _c2i_value_ro_entry;
   address _c2i_unverified_entry;
+  address _c2i_unverified_value_entry;
 
   // Support for scalarized value type calling convention
   const GrowableArray<SigEntry>* _sig_cc;
@@ -681,13 +682,15 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   int            _saved_code_length;
 #endif
 
-  void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_value_ro_entry, address c2i_unverified_entry) {
+  void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_value_entry,
+            address c2i_value_ro_entry, address c2i_unverified_entry, address c2i_unverified_value_entry) {
     _fingerprint = fingerprint;
     _i2c_entry = i2c_entry;
     _c2i_entry = c2i_entry;
     _c2i_value_entry = c2i_value_entry;
     _c2i_value_ro_entry = c2i_value_ro_entry;
     _c2i_unverified_entry = c2i_unverified_entry;
+    _c2i_unverified_value_entry = c2i_unverified_value_entry;
     _sig_cc = NULL;
 #ifdef ASSERT
     _saved_code = NULL;
@@ -706,6 +709,7 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   address get_c2i_value_entry()      const { return _c2i_value_entry; }
   address get_c2i_value_ro_entry()   const { return _c2i_value_ro_entry; }
   address get_c2i_unverified_entry() const { return _c2i_unverified_entry; }
+  address get_c2i_unverified_value_entry() const { return _c2i_unverified_value_entry; }
   address base_address();
   void relocate(address new_base);
 
@@ -755,7 +759,8 @@ class AdapterHandlerLibrary: public AllStatic {
  public:
 
   static AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint,
-                                        address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_value_ro_entry, address c2i_unverified_entry);
+                                        address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_value_ro_entry,
+                                        address c2i_unverified_entry, address c2i_unverified_value_entry);
   static void create_native_wrapper(const methodHandle& method);
   static AdapterHandlerEntry* get_adapter(const methodHandle& method);
 

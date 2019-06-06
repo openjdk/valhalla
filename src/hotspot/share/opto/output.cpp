@@ -84,17 +84,19 @@ void Compile::Output() {
       _cfg->insert( broot, 0, new MachBreakpointNode() );
     }
   } else {
-    if (_method && !_method->is_static()) {
-      // Insert unvalidated entry point
-      _cfg->insert(broot, 0, new MachUEPNode());
-    }
-    if (_method && _method->has_scalarized_args()) {
-      // Add entry point to unpack all value type arguments
-      _cfg->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ true, /* receiver_only */ false));
-      if (!_method->is_static()) {
-        // Add verified/unverified entry points to only unpack value type receiver at interface calls
-        _cfg->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ true, /* receiver_only */ true));
-        _cfg->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ false, /* receiver_only */ true));
+    if (_method) {
+      if (_method->has_scalarized_args()) {
+        // Add entry point to unpack all value type arguments
+        _cfg->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ true, /* receiver_only */ false));
+        if (!_method->is_static()) {
+          // Add verified/unverified entry points to only unpack value type receiver at interface calls
+          _cfg->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ false, /* receiver_only */ false));
+          _cfg->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ true,  /* receiver_only */ true));
+          _cfg->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ false, /* receiver_only */ true));
+        }
+      } else if (!_method->is_static()) {
+        // Insert unvalidated entry point
+        _cfg->insert(broot, 0, new MachUEPNode());
       }
     }
   }
@@ -135,10 +137,22 @@ void Compile::Output() {
   if (_method && _method->has_scalarized_args()) {
     // Compute the offsets of the entry points required by the value type calling convention
     if (!_method->is_static()) {
-      uint vep_ro_size  = ((MachVEPNode*)broot->get_node(0))->size(_regalloc);
-      uint vvep_ro_size = ((MachVEPNode*)broot->get_node(1))->size(_regalloc);
-      _code_offsets.set_value(CodeOffsets::Verified_Value_Entry_RO, vep_ro_size);
-      _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, vep_ro_size + vvep_ro_size);
+      // We have entries at the beginning of the method, implemented by the first 4 nodes.
+      // Entry                     (unverified) @ offset 0
+      // Verified_Value_Entry_RO
+      // Value_Entry               (unverified)
+      // Verified_Value_Entry
+      uint offset = 0;
+      _code_offsets.set_value(CodeOffsets::Entry, offset);
+
+      offset += ((MachVEPNode*)broot->get_node(0))->size(_regalloc);
+      _code_offsets.set_value(CodeOffsets::Verified_Value_Entry_RO, offset);
+
+      offset += ((MachVEPNode*)broot->get_node(1))->size(_regalloc);
+      _code_offsets.set_value(CodeOffsets::Value_Entry, offset);
+
+      offset += ((MachVEPNode*)broot->get_node(2))->size(_regalloc);
+      _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, offset);
     } else {
       _code_offsets.set_value(CodeOffsets::Entry, -1); // will be patched later
       _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, 0);

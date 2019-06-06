@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2563,9 +2563,12 @@ class AdapterHandlerTable : public BasicHashtable<mtCode> {
     : BasicHashtable<mtCode>(293, (DumpSharedSpaces ? sizeof(CDSAdapterHandlerEntry) : sizeof(AdapterHandlerEntry))) { }
 
   // Create a new entry suitable for insertion in the table
-  AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_value_ro_entry, address c2i_unverified_entry) {
+  AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry,
+                                 address c2i_value_entry, address c2i_value_ro_entry,
+                                 address c2i_unverified_entry, address c2i_unverified_value_entry) {
     AdapterHandlerEntry* entry = (AdapterHandlerEntry*)BasicHashtable<mtCode>::new_entry(fingerprint->compute_hash());
-    entry->init(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry);
+    entry->init(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry,
+                c2i_unverified_entry, c2i_unverified_value_entry);
     if (DumpSharedSpaces) {
       ((CDSAdapterHandlerEntry*)entry)->init();
     }
@@ -2708,7 +2711,8 @@ void AdapterHandlerLibrary::initialize() {
   address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
   _abstract_method_handler = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(NULL),
                                                               StubRoutines::throw_AbstractMethodError_entry(),
-                                                              wrong_method_abstract, wrong_method_abstract, wrong_method_abstract, wrong_method_abstract);
+                                                              wrong_method_abstract, wrong_method_abstract, wrong_method_abstract,
+                                                              wrong_method_abstract, wrong_method_abstract);
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* fingerprint,
@@ -2716,8 +2720,10 @@ AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* finger
                                                       address c2i_entry,
                                                       address c2i_value_entry,
                                                       address c2i_value_ro_entry,
-                                                      address c2i_unverified_entry) {
-  return _adapters->new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry);
+                                                      address c2i_unverified_entry,
+                                                      address c2i_unverified_value_entry) {
+  return _adapters->new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry,
+                              c2i_unverified_value_entry);
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
@@ -2941,7 +2947,8 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
       address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
       entry = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(NULL),
                                                StubRoutines::throw_AbstractMethodError_entry(),
-                                               wrong_method_abstract, wrong_method_abstract, wrong_method_abstract, wrong_method_abstract);
+                                               wrong_method_abstract, wrong_method_abstract, wrong_method_abstract,
+                                               wrong_method_abstract, wrong_method_abstract);
       GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(sig_cc_ro.length(), true);
       heap_sig->appendAll(&sig_cc_ro);
       entry->set_sig_cc(heap_sig);
@@ -3074,6 +3081,7 @@ address AdapterHandlerEntry::base_address() {
   assert(base <= _c2i_value_entry || _c2i_value_entry == NULL, "");
   assert(base <= _c2i_value_ro_entry || _c2i_value_ro_entry == NULL, "");
   assert(base <= _c2i_unverified_entry || _c2i_unverified_entry == NULL, "");
+  assert(base <= _c2i_unverified_value_entry || _c2i_unverified_value_entry == NULL, "");
   return base;
 }
 
@@ -3091,6 +3099,8 @@ void AdapterHandlerEntry::relocate(address new_base) {
     _c2i_value_ro_entry += delta;
   if (_c2i_unverified_entry != NULL)
     _c2i_unverified_entry += delta;
+  if (_c2i_unverified_value_entry != NULL)
+    _c2i_unverified_value_entry += delta;
   assert(base_address() == new_base, "");
 }
 
@@ -3437,9 +3447,11 @@ void AdapterHandlerLibrary::print_handler_on(outputStream* st, const CodeBlob* b
 }
 
 void AdapterHandlerEntry::print_adapter_on(outputStream* st) const {
-  st->print_cr("AHE@" INTPTR_FORMAT ": %s i2c: " INTPTR_FORMAT " c2i: " INTPTR_FORMAT " c2iVE: " INTPTR_FORMAT " c2iVROE: " INTPTR_FORMAT " c2iUE: " INTPTR_FORMAT,
+  st->print_cr("AHE@" INTPTR_FORMAT ": %s i2c: " INTPTR_FORMAT " c2i: " INTPTR_FORMAT " c2iVE: " INTPTR_FORMAT
+               " c2iVROE: " INTPTR_FORMAT " c2iUE: " INTPTR_FORMAT " c2iUVE: " INTPTR_FORMAT,
                p2i(this), fingerprint()->as_string(),
-               p2i(get_i2c_entry()), p2i(get_c2i_entry()), p2i(get_c2i_value_entry()), p2i(get_c2i_value_ro_entry()), p2i(get_c2i_unverified_entry()));
+               p2i(get_i2c_entry()), p2i(get_c2i_entry()), p2i(get_c2i_value_entry()),
+               p2i(get_c2i_value_ro_entry()), p2i(get_c2i_unverified_entry()), p2i(get_c2i_unverified_value_entry()));
 
 }
 

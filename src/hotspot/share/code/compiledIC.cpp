@@ -539,8 +539,7 @@ void CompiledIC::compute_monomorphic_entry(const methodHandle& method,
     if (is_optimized) {
       entry      = caller_is_c1 ? method_code->verified_value_entry_point() : method_code->verified_entry_point();
     } else {
-    //assert(!(caller_is_c1 && method->has_scalarized_args()), "FIXME - what to do with c1 caller??");
-      entry      = method_code->entry_point();
+      entry      = caller_is_c1 ? method_code->value_entry_point() : method_code->entry_point();
     }
   }
   bool far_c2a = entry != NULL && caller_is_nmethod && method_code->is_far_code();
@@ -561,8 +560,8 @@ void CompiledIC::compute_monomorphic_entry(const methodHandle& method,
       // Use icholder entry
       assert(method_code == NULL || method_code->is_compiled(), "must be compiled");
       CompiledICHolder* holder = new CompiledICHolder(method(), receiver_klass);
-    //assert(!(caller_is_c1 && method->has_scalarized_args()), "FIXME - what to do with c1 caller??");
-      info.set_icholder_entry(method()->get_c2i_unverified_entry(), holder);
+      entry = (caller_is_c1)? method()->get_c2i_unverified_value_entry() : method()->get_c2i_unverified_entry();
+      info.set_icholder_entry(entry, holder);
     }
   }
   assert(info.is_optimized() == is_optimized, "must agree");

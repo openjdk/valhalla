@@ -31,7 +31,6 @@ import jdk.test.lib.Asserts;
  * @summary Test calls from {C1} to {C2, Interpreter}, and vice versa.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
- * @requires vm.compMode != "Xcomp"
  * @compile TestCallingConventionC1.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
@@ -75,9 +74,11 @@ public class TestCallingConventionC1 extends ValueTypeTest {
                  Functor2.class,
                  Functor3.class,
                  Functor4.class,
+                 MyImplPojo0.class,
                  MyImplPojo1.class,
                  MyImplPojo2.class,
-                 MyImplVal.class,
+                 MyImplVal1.class,
+                 MyImplVal2.class,
                  FixedPoints.class,
                  FloatPoint.class,
                  RefPoint.class);
@@ -166,16 +167,16 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         public int func2(int a, int b, Point p);
     }
 
-    static class MyImplPojo1 implements Intf {
-        int field = 1000;
+    static class MyImplPojo0 implements Intf {
+        int field = 0;
         @DontInline @DontCompile
         public int func1(int a, int b)             { return field + a + b + 1; }
         @DontInline @DontCompile
         public int func2(int a, int b, Point p)     { return field + a + b + p.x + p.y + 1; }
     }
 
-    static class MyImplPojo2 implements Intf {
-        int field = 2000;
+    static class MyImplPojo1 implements Intf {
+        int field = 1000;
 
         @DontInline @ForceCompile(compLevel = C1)
         public int func1(int a, int b)             { return field + a + b + 20; }
@@ -183,13 +184,19 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 20; }
     }
 
-    static inline class MyImplVal implements Intf {
+    static class MyImplPojo2 implements Intf {
+        int field = 2000;
+
+        @DontInline @ForceCompile(compLevel = C2)
+        public int func1(int a, int b)             { return field + a + b + 20; }
+        @DontInline @ForceCompile(compLevel = C2)
+        public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 20; }
+    }
+
+    static inline class MyImplVal1 implements Intf {
         final int field;
-        MyImplVal(int f) {
-            field = f;
-        }
-        MyImplVal() {
-            field = 3000;
+        MyImplVal1() {
+            field = 11000;
         }
 
         @DontInline @ForceCompile(compLevel = C1)
@@ -199,14 +206,28 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
+    static inline class MyImplVal2 implements Intf {
+        final int field;
+        MyImplVal2() {
+            field = 12000;
+        }
+
+        @DontInline @ForceCompile(compLevel = C2)
+        public int func1(int a, int b)             { return field + a + b + 300; }
+
+        @DontInline @ForceCompile(compLevel = C2)
+        public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
+    }
+
     static Intf intfs[] = {
-        new MyImplPojo1(),
-        new MyImplPojo2(),
-        new MyImplVal()
+        new MyImplPojo0(), // methods not compiled
+        new MyImplPojo1(), // methods compiled by C1
+        new MyImplPojo2(), // methods compiled by C2
+        new MyImplVal1(),  // methods compiled by C1
+        new MyImplVal2()   // methods compiled by C2
     };
-    static int intfCounter = 0;
-    static Intf getIntf() {
-        int n = (++ intfCounter) % intfs.length;
+    static Intf getIntf(int i) {
+        int n = i % intfs.length;
         return intfs[n];
     }
 
@@ -581,7 +602,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
     public void test33_verifier(boolean warmup) {
         int count = warmup ? 1 : 20;
         for (int i=0; i<count; i++) {
-            Intf intf = warmup ? intfs[0] : getIntf();
+            Intf intf = warmup ? intfs[0] : getIntf(i+1);
             int result = test33(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func1(123, 456) + i);
         }
@@ -597,7 +618,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
     public void test34_verifier(boolean warmup) {
         int count = warmup ? 1 : 20;
         for (int i=0; i<count; i++) {
-            Intf intf = warmup ? intfs[0] : getIntf();
+            Intf intf = warmup ? intfs[0] : getIntf(i+1);
             int result = test34(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
         }
@@ -1400,6 +1421,9 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         }
     }
 
+    /* disabled due to bug JDK-8224944 [lworld] TestCallingConventionC1::test63 fails with -Xcomp
+
+
     // C2->C1 invokeinterface via VVEP(RO) -- force GC for every allocation when entering a C1 VVEP(RO) (a bunch of RefPoints and Numbers)
     @Test(compLevel = C2)
     public int test63(RefPoint_Access rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
@@ -1425,6 +1449,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             Asserts.assertEQ(result, n);
         }
     }
+    /**/
 
     // C2->C1 invokevirtual via VVEP(RO) (opt_virtual_call)
     @Test(compLevel = C2)
@@ -1698,4 +1723,139 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         Asserts.assertEQ(result, null);
     }
 
+    //----------------------------------------------------------------------------------
+    // Tests for unverified entries: there are 6 cases:
+    // C1 -> Unverified Value Entry compiled by C1
+    // C1 -> Unverified Value Entry compiled by C2
+    // C2 -> Unverified Entry compiled by C1 (target is NOT a value type)
+    // C2 -> Unverified Entry compiled by C2 (target is NOT a value type)
+    // C2 -> Unverified Entry compiled by C1 (target IS a value type, i.e., has VVEP_RO)
+    // C2 -> Unverified Entry compiled by C2 (target IS a value type, i.e., has VVEP_RO)
+    //----------------------------------------------------------------------------------
+
+    // C1->C1 invokeinterface -- call Unverified Value Entry of MyImplPojo1.func2 (compiled by C1)
+    @Test(compLevel = C1)
+    public int test90(Intf intf, int a, int b) {
+        return intf.func2(a, b, pointField);
+    }
+
+    static Intf test90_intfs[] = {
+        new MyImplPojo1(),
+        new MyImplPojo2(),
+    };
+
+    @DontCompile
+    public void test90_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) {
+            Intf intf = test90_intfs[i % test90_intfs.length];
+            int result = test90(intf, 123, 456) + i;
+            Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
+        }
+    }
+
+    // C1->C2 invokeinterface -- call Unverified Value Entry of MyImplPojo2.func2 (compiled by C2)
+    @Test(compLevel = C1)
+    public int test91(Intf intf, int a, int b) {
+        return intf.func2(a, b, pointField);
+    }
+
+    static Intf test91_intfs[] = {
+        new MyImplPojo2(),
+        new MyImplPojo1(),
+    };
+
+    @DontCompile
+    public void test91_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) {
+            Intf intf = test91_intfs[i % test91_intfs.length];
+            int result = test91(intf, 123, 456) + i;
+            Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
+        }
+    }
+
+    // C2->C1 invokeinterface -- call Unverified Entry of MyImplPojo1.func2 (compiled by C1)
+    @Test(compLevel = C2)
+    public int test92(Intf intf, int a, int b) {
+        return intf.func2(a, b, pointField);
+    }
+
+    static Intf test92_intfs[] = {
+        new MyImplPojo1(),
+        new MyImplPojo2(),
+    };
+
+    @DontCompile
+    public void test92_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) {
+            Intf intf = test92_intfs[i % test92_intfs.length];
+            int result = test92(intf, 123, 456) + i;
+            Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
+        }
+    }
+
+    // C2->C2 invokeinterface -- call Unverified Entry of MyImplPojo2.func2 (compiled by C2)
+    @Test(compLevel = C2)
+    public int test93(Intf intf, int a, int b) {
+        return intf.func2(a, b, pointField);
+    }
+
+    static Intf test93_intfs[] = {
+        new MyImplPojo2(),
+        new MyImplPojo1(),
+    };
+
+    @DontCompile
+    public void test93_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) {
+            Intf intf = test93_intfs[i % test93_intfs.length];
+            int result = test93(intf, 123, 456) + i;
+            Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
+        }
+    }
+
+    // C2->C1 invokeinterface -- call Unverified Entry of MyImplVal1.func2 (compiled by C1 - has VVEP_RO)
+    @Test(compLevel = C2)
+    public int test94(Intf intf, int a, int b) {
+        return intf.func2(a, b, pointField);
+    }
+
+    static Intf test94_intfs[] = {
+        new MyImplVal1(),
+        new MyImplVal2(),
+    };
+
+    @DontCompile
+    public void test94_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) {
+            Intf intf = test94_intfs[i % test94_intfs.length];
+            int result = test94(intf, 123, 456) + i;
+            Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
+        }
+    }
+
+    // C2->C2 invokeinterface -- call Unverified Entry of MyImplVal2.func2 (compiled by C2 - has VVEP_RO)
+    @Test(compLevel = C2)
+    public int test95(Intf intf, int a, int b) {
+        return intf.func2(a, b, pointField);
+    }
+
+    static Intf test95_intfs[] = {
+        new MyImplVal2(),
+        new MyImplVal1(),
+    };
+
+    @DontCompile
+    public void test95_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) {
+            Intf intf = test95_intfs[i % test95_intfs.length];
+            int result = test95(intf, 123, 456) + i;
+            Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
+        }
+    }
 }

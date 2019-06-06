@@ -216,7 +216,7 @@ class LIR_Assembler: public CompilationResourceObj {
   void emit_delay(LIR_OpDelay* op);
   void emit_std_entries();
   int  emit_std_entry(CodeOffsets::Entries entry, const CompiledEntrySignature* ces);
-  void add_std_entry_info(int call_offset, bool no_receiver);
+  void add_scalarized_entry_info(int call_offset);
 
   void arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dest, CodeEmitInfo* info, bool pop_fpu_stack);
   void arithmetic_idiv(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr temp, LIR_Opr result, CodeEmitInfo* info);

@@ -632,8 +632,12 @@ nmethod::nmethod(
     _comp_level              = CompLevel_none;
     _entry_point             = code_begin()          + offsets->value(CodeOffsets::Entry);
     _verified_entry_point    = code_begin()          + offsets->value(CodeOffsets::Verified_Entry);
+
+    assert(!method->has_scalarized_args(), "scalarized native wrappers not supported yet"); // for the next 3 fields
+    _value_entry_point       = _entry_point;
     _verified_value_entry_point = _verified_entry_point;
     _verified_value_ro_entry_point = _verified_entry_point;
+
     _osr_entry_point         = NULL;
     _exception_cache         = NULL;
     _pc_desc_container.reset_to(NULL);
@@ -805,6 +809,7 @@ nmethod::nmethod(
 #endif
     _entry_point             = code_begin()          + offsets->value(CodeOffsets::Entry);
     _verified_entry_point    = code_begin()          + offsets->value(CodeOffsets::Verified_Entry);
+    _value_entry_point       = code_begin()          + offsets->value(CodeOffsets::Value_Entry);
     _verified_value_entry_point = code_begin()       + offsets->value(CodeOffsets::Verified_Value_Entry);
     _verified_value_ro_entry_point = code_begin()    + offsets->value(CodeOffsets::Verified_Value_Entry_RO);
     _osr_entry_point         = code_begin()          + offsets->value(CodeOffsets::OSR_Entry);
@@ -2937,6 +2942,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
       m->print_value_on(stream);
       stream->cr();
     }
+  if (block_begin == value_entry_point())       stream->print_cr("[Value Entry Point]");
     if (m.is_null() || is_osr_method()) {
       return;
     }
