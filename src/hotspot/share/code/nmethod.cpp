@@ -2911,6 +2911,7 @@ const char* nmethod::nmethod_section_label(address pos) const {
   const char* label = NULL;
   if (pos == code_begin())                                              label = "[Instructions begin]";
   if (pos == entry_point())                                             label = "[Entry Point]";
+  if (pos == value_entry_point())                                       label = "[Value Entry Point]";
   if (pos == verified_entry_point())                                    label = "[Verified Entry Point]";
   if (pos == verified_value_entry_point())                              label = "[Verified Value Entry Point]";
   if (pos == verified_value_ro_entry_point())                           label = "[Verified Value Entry Point (RO)]";
@@ -2932,24 +2933,26 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
     }
   }
 
+  if (_nmethod_to_print != this) {
+    return;
+  }
+  methodHandle m = method();
+  if (m.is_null() || is_osr_method()) {
+    return;
+  }
+
+  // Print the name of the method (only once)
   address low = MIN4(entry_point(), verified_entry_point(), verified_value_entry_point(), verified_value_ro_entry_point());
+  low = MIN2(low, value_entry_point());
   assert(low != 0, "sanity");
   if (block_begin == low) {
-    // Print method arguments before the method entry
-    methodHandle m = method();
-    if (m.not_null()) {
-      stream->print("  # ");
-      m->print_value_on(stream);
-      stream->cr();
-    }
-  if (block_begin == value_entry_point())       stream->print_cr("[Value Entry Point]");
-    if (m.is_null() || is_osr_method()) {
-      return;
-    }
-    if (_nmethod_to_print != this) {
-      return;
-    }
+    stream->print("  # ");
+    m->print_value_on(stream);
+    stream->cr();
+  }
 
+  // Print the arguments for the 3 types of verified entry points
+  {
     const CompiledEntrySignature* ces = _nmethod_to_print_ces;
     const GrowableArray<SigEntry>* sig_cc;
     const VMRegPair* regs;
@@ -2959,10 +2962,11 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
     } else if (block_begin == verified_value_entry_point()) {
       sig_cc = &ces->sig();
       regs = ces->regs();
-    } else {
-      assert(block_begin == verified_value_ro_entry_point(), "must be");
+    } else if (block_begin == verified_value_ro_entry_point()) {
       sig_cc = &ces->sig_cc_ro();
       regs = ces->regs_cc_ro();
+    } else {
+      return;
     }
 
     ResourceMark rm;
