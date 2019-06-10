@@ -646,11 +646,6 @@ public final class Class<T> implements java.io.Serializable,
     public T newInstance()
         throws InstantiationException, IllegalAccessException
     {
-        if (this.isInlineClass()) {
-            throw new IllegalAccessException(
-                "cannot create new instance of an inline class " + this.getName());
-        }
-
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             checkMemberAccess(sm, Member.PUBLIC, Reflection.getCallerClass(), false);

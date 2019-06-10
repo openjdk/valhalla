@@ -29,9 +29,11 @@
  * @run main/othervm -XX:+EnableValhalla Reflection
  */
 
-import java.lang.reflect.*;
-import java.util.Arrays;
-import java.util.stream.Collectors;
+import java.lang.reflect.Array;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
+import java.lang.reflect.InaccessibleObjectException;
+import java.lang.reflect.Method;
 
 public class Reflection {
     public static void main(String... args) throws Exception {
@@ -48,8 +50,6 @@ public class Reflection {
         test.newInstance();
         test.constructor();
         test.accessFieldX(o.x);
-        test.setAccessible();
-        test.trySetAccessible();
         test.staticField();
     }
 
@@ -186,40 +186,15 @@ public class Reflection {
         } catch (IllegalAccessException e) {}
     }
 
+    @SuppressWarnings("deprecation")
     void newInstance() throws Exception {
-        try {
-            Object o = c.newInstance();
-            throw new RuntimeException("newInstance expected to be unsupported on inline class");
-        } catch (IllegalAccessException e) {}
+        Object o = c.newInstance();
+        assertEquals(o.getClass(), c);
     }
 
     void constructor() throws Exception {
-        try {
-            ctor.newInstance();
-            throw new RuntimeException("IllegalAccessException not thrown");
-        } catch (IllegalAccessException e) { }
-    }
-
-    void setAccessible() throws Exception {
-        try {
-            ctor.setAccessible(true);
-            throw new RuntimeException("InaccessibleObjectException not thrown");
-        } catch (InaccessibleObjectException e) { e.printStackTrace(); }
-        Field field = c.getField("x");
-        try {
-            field.setAccessible(true);
-            throw new RuntimeException("InaccessibleObjectException not thrown");
-        } catch (InaccessibleObjectException e) { e.printStackTrace(); }
-    }
-
-    void trySetAccessible() throws Exception {
-        if (ctor.trySetAccessible()) {
-            throw new RuntimeException("trySetAccessible should not succeed");
-        }
-        Field field = c.getField("x");
-        if (field.trySetAccessible()) {
-            throw new RuntimeException("trySetAccessible should not succeed");
-        }
+        Object o = ctor.newInstance();
+        assertEquals(o.getClass(), c);
     }
 
     void staticField() throws Exception {

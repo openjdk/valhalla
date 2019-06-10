@@ -298,11 +298,17 @@ public class AccessibleObject implements AnnotatedElement {
             modifiers = ((Field) this).getModifiers();
         }
 
-        // does not allow to suppress access check for Value class's
-        // constructor or field
-        if (declaringClass.isInlineClass()) {
-            if (this instanceof Constructor) return false;
-            if (this instanceof Field && Modifier.isFinal(modifiers)) return false;
+        // Do not allow suppression of access check for inline class's field
+        if (declaringClass.isInlineClass() &&
+                this instanceof Field
+                && Modifier.isFinal(modifiers)) {
+            if (throwExceptionIfDenied) {
+                String msg = "Unable to make field accessible of inline class "
+                                + declaringClass.getName();
+                throw new InaccessibleObjectException(msg);
+            } else {
+                return false;
+            }
         }
 
         Module callerModule = caller.getModule();

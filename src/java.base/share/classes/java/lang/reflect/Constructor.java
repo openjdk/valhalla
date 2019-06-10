@@ -180,10 +180,6 @@ public final class Constructor<T> extends Executable {
         AccessibleObject.checkPermission();
 
         if (flag) {
-            if (clazz.isInlineClass()) {
-                throw new InaccessibleObjectException(
-                    "Unable to make an inline class constructor \"" + this + "\" accessible");
-            }
             checkCanSetAccessible(Reflection.getCallerClass());
         }
         setAccessible0(flag);
@@ -482,10 +478,6 @@ public final class Constructor<T> extends Executable {
         throws InstantiationException, IllegalAccessException,
                IllegalArgumentException, InvocationTargetException
     {
-        if (clazz.isInlineClass()) {
-            throw new IllegalAccessException(
-                "cannot create new instance of an inline class " + clazz.getName());
-        }
         Class<?> caller = override ? null : Reflection.getCallerClass();
         return newInstanceWithCaller(initargs, !override, caller);
     }
