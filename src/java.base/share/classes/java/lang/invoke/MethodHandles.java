@@ -1110,6 +1110,12 @@ assertEquals("[x, y]", MH_asList.invoke("x", "y").toString());
         public
         MethodHandle findStatic(Class<?> refc, String name, MethodType type) throws NoSuchMethodException, IllegalAccessException {
             MemberName method = resolveOrFail(REF_invokeStatic, refc, name, type);
+            // resolveOrFail could return a non-static <init> method if present
+            // detect and throw NSME before producing a MethodHandle
+            if (!method.isStatic() && name.equals("<init>")) {
+                throw new NoSuchMethodException("illegal method name: " + name);
+            }
+
             return getDirectMethod(REF_invokeStatic, refc, method, findBoundCallerClass(method));
         }
 
@@ -1255,6 +1261,13 @@ ProcessBuilder pb = (ProcessBuilder)
   MH_newProcessBuilder.invoke("x", "y", "z");
 assertEquals("[x, y, z]", pb.command().toString());
          * }</pre></blockquote>
+         *
+         * @apiNote
+         * This method does not find a static {@code <init>} factory method as it is invoked
+         * via {@code invokestatic} bytecode as opposed to {@code invokespecial} for an
+         * object constructor.  To look up static {@code <init>} factory method, use
+         * the {@link #findStatic(Class, String, MethodType) findStatic} method.
+         *
          * @param refc the class or interface from which the method is accessed
          * @param type the type of the method, with the receiver argument omitted, and a void return type
          * @return the desired method handle
@@ -1839,10 +1852,18 @@ return mh1;
          */
         public MethodHandle unreflectConstructor(Constructor<?> c) throws IllegalAccessException {
             MemberName ctor = new MemberName(c);
-            assert(ctor.isConstructor());
+            assert(ctor.isObjectConstructorOrStaticInitMethod());
             @SuppressWarnings("deprecation")
             Lookup lookup = c.isAccessible() ? IMPL_LOOKUP : this;
-            return lookup.getDirectConstructorNoSecurityManager(ctor.getDeclaringClass(), ctor);
+            if (ctor.isObjectConstructor()) {
+                assert(ctor.getReturnType() == void.class);
+                return lookup.getDirectConstructorNoSecurityManager(ctor.getDeclaringClass(), ctor);
+            } else {
+                // static init factory is a static method
+                assert(ctor.isMethod() && ctor.getReturnType() == ctor.getDeclaringClass() && ctor.getReferenceKind() == REF_invokeStatic);
+                assert(!MethodHandleNatives.isCallerSensitive(ctor));  // must not be caller-sensitive
+                return lookup.getDirectMethodNoSecurityManager(ctor.getReferenceKind(), ctor.getDeclaringClass(), ctor, null);
+            }
         }
 
         /**
@@ -2091,10 +2112,12 @@ return mh1;
 
         /** Check name for an illegal leading "&lt;" character. */
         void checkMethodName(byte refKind, String name) throws NoSuchMethodException {
-            if (name.startsWith("<") && refKind != REF_newInvokeSpecial)
-                throw new NoSuchMethodException("illegal method name: "+name);
+            // "<init>" can only be invoked via invokespecial or it's a static init factory
+            if (name.startsWith("<") && refKind != REF_newInvokeSpecial &&
+                    !(refKind == REF_invokeStatic && name.equals("<init>"))) {
+                    throw new NoSuchMethodException("illegal method name: " + name);
+            }
         }
-
 
         /**
          * Find my trustable caller class if m is a caller sensitive method.
@@ -2164,7 +2187,7 @@ return mh1;
         void checkMethod(byte refKind, Class<?> refc, MemberName m) throws IllegalAccessException {
             boolean wantStatic = (refKind == REF_invokeStatic);
             String message;
-            if (m.isConstructor())
+            if (m.isObjectConstructor())
                 message = "expected a method, not a constructor";
             else if (!m.isMethod())
                 message = "expected a method";
@@ -2460,7 +2483,7 @@ return mh1;
         /** Common code for all constructors; do not call directly except from immediately above. */
         private MethodHandle getDirectConstructorCommon(Class<?> refc, MemberName ctor,
                                                   boolean checkSecurity) throws IllegalAccessException {
-            assert(ctor.isConstructor());
+            assert(ctor.isObjectConstructor());
             checkAccess(REF_newInvokeSpecial, refc, ctor);
             // Optionally check with the security manager; this isn't needed for unreflect* calls.
             if (checkSecurity)

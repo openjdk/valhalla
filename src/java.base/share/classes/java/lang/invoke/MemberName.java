@@ -192,7 +192,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     public MethodType getInvocationType() {
         MethodType itype = getMethodOrFieldType();
         Class<?> c = clazz.isInlineClass() ? clazz.asPrimaryType() : clazz;
-        if (isConstructor() && getReferenceKind() == REF_newInvokeSpecial)
+        if (isObjectConstructor() && getReferenceKind() == REF_newInvokeSpecial)
             return itype.changeReturnType(c);
         if (!isStatic())
             return itype.insertParameterTypes(0, c);
@@ -285,7 +285,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
         if (isField()) {
             assert(staticIsConsistent());
             assert(MethodHandleNatives.refKindIsField(refKind));
-        } else if (isConstructor()) {
+        } else if (isObjectConstructor()) {
             assert(refKind == REF_newInvokeSpecial || refKind == REF_invokeSpecial);
         } else if (isMethod()) {
             assert(staticIsConsistent());
@@ -489,15 +489,15 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
 
     // private flags, not part of RECOGNIZED_MODIFIERS:
     static final int
-            IS_METHOD        = MN_IS_METHOD,        // method (not constructor)
-            IS_CONSTRUCTOR   = MN_IS_CONSTRUCTOR,   // constructor
-            IS_FIELD         = MN_IS_FIELD,         // field
-            IS_TYPE          = MN_IS_TYPE,          // nested type
-            CALLER_SENSITIVE = MN_CALLER_SENSITIVE; // @CallerSensitive annotation detected
+            IS_METHOD             = MN_IS_METHOD,              // method (not object constructor)
+            IS_OBJECT_CONSTRUCTOR = MN_IS_OBJECT_CONSTRUCTOR,  // object constructor
+            IS_FIELD              = MN_IS_FIELD,               // field
+            IS_TYPE               = MN_IS_TYPE,                // nested type
+            CALLER_SENSITIVE      = MN_CALLER_SENSITIVE;       // @CallerSensitive annotation detected
 
     static final int ALL_ACCESS = Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED;
-    static final int ALL_KINDS = IS_METHOD | IS_CONSTRUCTOR | IS_FIELD | IS_TYPE;
-    static final int IS_INVOCABLE = IS_METHOD | IS_CONSTRUCTOR;
+    static final int ALL_KINDS = IS_METHOD | IS_OBJECT_CONSTRUCTOR | IS_FIELD | IS_TYPE;
+    static final int IS_INVOCABLE = IS_METHOD | IS_OBJECT_CONSTRUCTOR;
     static final int IS_FIELD_OR_METHOD = IS_METHOD | IS_FIELD;
     static final int SEARCH_ALL_SUPERS = MN_SEARCH_SUPERCLASSES | MN_SEARCH_INTERFACES;
 
@@ -514,8 +514,12 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
         return testAllFlags(IS_METHOD);
     }
     /** Query whether this member is a constructor. */
-    public boolean isConstructor() {
-        return testAllFlags(IS_CONSTRUCTOR);
+    public boolean isObjectConstructor() {
+        return testAllFlags(IS_OBJECT_CONSTRUCTOR);
+    }
+    /** Query whether this member is an object constructor or static <init> factory */
+    public boolean isObjectConstructorOrStaticInitMethod() {
+        return isObjectConstructor() || (getName().equals(CONSTRUCTOR_NAME) && testAllFlags(IS_METHOD));
     }
     /** Query whether this member is a field. */
     public boolean isField() {
@@ -644,7 +648,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     /** If this MN is not REF_newInvokeSpecial, return a clone with that ref. kind.
      *  In that case it must already be REF_invokeSpecial.
      */
-    public MemberName asConstructor() {
+    public MemberName asObjectConstructor() {
         switch (getReferenceKind()) {
         case REF_invokeSpecial:     return clone().changeReferenceKind(REF_newInvokeSpecial, REF_invokeSpecial);
         case REF_newInvokeSpecial:  return this;
@@ -833,7 +837,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
      *  The resulting name will in an unresolved state.
      */
     public MemberName(Class<?> defClass, String name, MethodType type, byte refKind) {
-        int initFlags = (name != null && name.equals(CONSTRUCTOR_NAME) && type.returnType() == void.class ? IS_CONSTRUCTOR : IS_METHOD);
+        int initFlags = (name != null && name.equals(CONSTRUCTOR_NAME) && type.returnType() == void.class ? IS_OBJECT_CONSTRUCTOR : IS_METHOD);
         init(defClass, name, type, flagsMods(initFlags, 0, refKind));
         initResolved(false);
     }
@@ -851,7 +855,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
             if (!(type instanceof MethodType))
                 throw newIllegalArgumentException("not a method type");
         } else if (refKind == REF_newInvokeSpecial) {
-            kindFlags = IS_CONSTRUCTOR;
+            kindFlags = IS_OBJECT_CONSTRUCTOR;
             if (!(type instanceof MethodType) ||
                 !CONSTRUCTOR_NAME.equals(name))
                 throw newIllegalArgumentException("not a constructor type or name");
@@ -976,7 +980,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
     private String message() {
         if (isResolved())
             return "no access";
-        else if (isConstructor())
+        else if (isObjectConstructor())
             return "no such constructor";
         else if (isMethod())
             return "no such method";
@@ -989,7 +993,7 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
         if (isResolved() || !(resolution instanceof NoSuchMethodError ||
                               resolution instanceof NoSuchFieldError))
             ex = new IllegalAccessException(message);
-        else if (isConstructor())
+        else if (isObjectConstructor())
             ex = new NoSuchMethodException(message);
         else if (isMethod())
             ex = new NoSuchMethodException(message);
@@ -1167,12 +1171,12 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
             int matchFlags = IS_METHOD | (searchSupers ? SEARCH_ALL_SUPERS : 0);
             return getMembers(defc, name, type, matchFlags, lookupClass);
         }
-        /** Return a list of all constructors defined by the given class.
+        /** Return a list of all object constructors defined by the given class.
          *  Access checking is performed on behalf of the given {@code lookupClass}.
          *  Inaccessible members are not added to the last.
          */
-        public List<MemberName> getConstructors(Class<?> defc, Class<?> lookupClass) {
-            return getMembers(defc, null, null, IS_CONSTRUCTOR, lookupClass);
+        public List<MemberName> getObjectConstructors(Class<?> defc, Class<?> lookupClass) {
+            return getMembers(defc, null, null, IS_OBJECT_CONSTRUCTOR, lookupClass);
         }
         /** Return a list of all fields defined by the given class.
          *  Super types are searched (for inherited members) if {@code searchSupers} is true.

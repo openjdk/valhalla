@@ -3670,7 +3670,7 @@ Method* java_lang_invoke_MemberName::vmtarget(oop mname) {
 
 bool java_lang_invoke_MemberName::is_method(oop mname) {
   assert(is_instance(mname), "must be MemberName");
-  return (flags(mname) & (MN_IS_METHOD | MN_IS_CONSTRUCTOR)) > 0;
+  return (flags(mname) & (MN_IS_METHOD | MN_IS_OBJECT_CONSTRUCTOR)) > 0;
 }
 
 void java_lang_invoke_MemberName::set_method(oop mname, oop resolved_method) {

@@ -939,7 +939,8 @@ class InvokerBytecodeGenerator {
 
     static boolean isStaticallyInvocable(MemberName member) {
         if (member == null)  return false;
-        if (member.isConstructor())  return false;
+        if (member.isObjectConstructorOrStaticInitMethod())  return false;
+
         Class<?> cls = member.getDeclaringClass();
         // Fast-path non-private members declared by MethodHandles, which is a common
         // case

@@ -120,16 +120,16 @@ void MethodHandles::set_enabled(bool z) {
 
 // import java_lang_invoke_MemberName.*
 enum {
-  IS_METHOD            = java_lang_invoke_MemberName::MN_IS_METHOD,
-  IS_CONSTRUCTOR       = java_lang_invoke_MemberName::MN_IS_CONSTRUCTOR,
-  IS_FIELD             = java_lang_invoke_MemberName::MN_IS_FIELD,
-  IS_TYPE              = java_lang_invoke_MemberName::MN_IS_TYPE,
-  CALLER_SENSITIVE     = java_lang_invoke_MemberName::MN_CALLER_SENSITIVE,
-  REFERENCE_KIND_SHIFT = java_lang_invoke_MemberName::MN_REFERENCE_KIND_SHIFT,
-  REFERENCE_KIND_MASK  = java_lang_invoke_MemberName::MN_REFERENCE_KIND_MASK,
-  SEARCH_SUPERCLASSES  = java_lang_invoke_MemberName::MN_SEARCH_SUPERCLASSES,
-  SEARCH_INTERFACES    = java_lang_invoke_MemberName::MN_SEARCH_INTERFACES,
-  ALL_KINDS      = IS_METHOD | IS_CONSTRUCTOR | IS_FIELD | IS_TYPE
+  IS_METHOD             = java_lang_invoke_MemberName::MN_IS_METHOD,
+  IS_OBJECT_CONSTRUCTOR = java_lang_invoke_MemberName::MN_IS_OBJECT_CONSTRUCTOR,
+  IS_FIELD              = java_lang_invoke_MemberName::MN_IS_FIELD,
+  IS_TYPE               = java_lang_invoke_MemberName::MN_IS_TYPE,
+  CALLER_SENSITIVE      = java_lang_invoke_MemberName::MN_CALLER_SENSITIVE,
+  REFERENCE_KIND_SHIFT  = java_lang_invoke_MemberName::MN_REFERENCE_KIND_SHIFT,
+  REFERENCE_KIND_MASK   = java_lang_invoke_MemberName::MN_REFERENCE_KIND_MASK,
+  SEARCH_SUPERCLASSES   = java_lang_invoke_MemberName::MN_SEARCH_SUPERCLASSES,
+  SEARCH_INTERFACES     = java_lang_invoke_MemberName::MN_SEARCH_INTERFACES,
+  ALL_KINDS      = IS_METHOD | IS_OBJECT_CONSTRUCTOR | IS_FIELD | IS_TYPE
 };
 
 int MethodHandles::ref_kind_to_flags(int ref_kind) {
@@ -140,7 +140,7 @@ int MethodHandles::ref_kind_to_flags(int ref_kind) {
   } else if (ref_kind_is_method(ref_kind)) {
     flags |= IS_METHOD;
   } else if (ref_kind == JVM_REF_newInvokeSpecial) {
-    flags |= IS_CONSTRUCTOR;
+    flags |= IS_OBJECT_CONSTRUCTOR;
   }
   return flags;
 }
@@ -159,7 +159,7 @@ Handle MethodHandles::resolve_MemberName_type(Handle mname, Klass* caller, TRAPS
   int flags = java_lang_invoke_MemberName::flags(mname());
   switch (flags & ALL_KINDS) {
     case IS_METHOD:
-    case IS_CONSTRUCTOR:
+    case IS_OBJECT_CONSTRUCTOR:
       resolved = SystemDictionary::find_method_handle_type(signature, caller, CHECK_(empty));
       break;
     case IS_FIELD:
@@ -302,7 +302,7 @@ oop MethodHandles::init_method_MemberName(Handle mname, CallInfo& info) {
     if (m->is_static()) {
       flags |= IS_METHOD      | (JVM_REF_invokeStatic  << REFERENCE_KIND_SHIFT);
     } else if (m->is_object_constructor()) {
-      flags |= IS_CONSTRUCTOR | (JVM_REF_invokeSpecial << REFERENCE_KIND_SHIFT);
+      flags |= IS_OBJECT_CONSTRUCTOR | (JVM_REF_invokeSpecial << REFERENCE_KIND_SHIFT);
     } else {
       // "special" reflects that this is a direct call, not that it
       // necessarily originates from an invokespecial. We can also do
@@ -837,7 +837,7 @@ Handle MethodHandles::resolve_MemberName(Handle mname, Klass* caller,
       oop mname2 = init_method_MemberName(mname, result);
       return Handle(THREAD, mname2);
     }
-  case IS_CONSTRUCTOR:
+  case IS_OBJECT_CONSTRUCTOR:
     {
       CallInfo result;
       LinkInfo link_info(defc, name, type, caller, access_check);
@@ -909,7 +909,7 @@ void MethodHandles::expand_MemberName(Handle mname, int suppress, TRAPS) {
 
   switch (flags & ALL_KINDS) {
   case IS_METHOD:
-  case IS_CONSTRUCTOR:
+  case IS_OBJECT_CONSTRUCTOR:
     {
       Method* vmtarget = java_lang_invoke_MemberName::vmtarget(mname());
       if (vmtarget == NULL) {
@@ -991,7 +991,7 @@ int MethodHandles::find_MemberNames(Klass* k,
     if (sig->char_at(0) == '(')
       match_flags &= ~(IS_FIELD | IS_TYPE);
     else
-      match_flags &= ~(IS_CONSTRUCTOR | IS_METHOD);
+      match_flags &= ~(IS_OBJECT_CONSTRUCTOR | IS_METHOD);
   }
 
   if ((match_flags & IS_TYPE) != 0) {
@@ -1021,13 +1021,13 @@ int MethodHandles::find_MemberNames(Klass* k,
     }
   }
 
-  if ((match_flags & (IS_METHOD | IS_CONSTRUCTOR)) != 0) {
+  if ((match_flags & (IS_METHOD | IS_OBJECT_CONSTRUCTOR)) != 0) {
     // watch out for these guys:
     Symbol* init_name   = vmSymbols::object_initializer_name();
     Symbol* clinit_name = vmSymbols::class_initializer_name();
     if (name == clinit_name)  clinit_name = NULL; // hack for exposing <clinit>
     bool ctor_ok = true, sfac_ok = true;
-    // fix name so that it captures the intention of IS_CONSTRUCTOR
+    // fix name so that it captures the intention of IS_OBJECT_CONSTRUCTOR
     if (!(match_flags & IS_METHOD)) {
       // constructors only
       if (name == NULL) {
@@ -1036,7 +1036,7 @@ int MethodHandles::find_MemberNames(Klass* k,
         return 0;               // no constructors of this method name
       }
       sfac_ok = false;
-    } else if (!(match_flags & IS_CONSTRUCTOR)) {
+    } else if (!(match_flags & IS_OBJECT_CONSTRUCTOR)) {
       // methods only
       ctor_ok = false;  // but sfac_ok is true, so we might find <init>
     } else {
@@ -1155,7 +1155,7 @@ void MethodHandles::trace_method_handle_interpreter_entry(MacroAssembler* _masm,
 #ifndef PRODUCT
 #define EACH_NAMED_CON(template, requirement) \
     template(java_lang_invoke_MemberName,MN_IS_METHOD) \
-    template(java_lang_invoke_MemberName,MN_IS_CONSTRUCTOR) \
+    template(java_lang_invoke_MemberName,MN_IS_OBJECT_CONSTRUCTOR) \
     template(java_lang_invoke_MemberName,MN_IS_FIELD) \
     template(java_lang_invoke_MemberName,MN_IS_TYPE) \
     template(java_lang_invoke_MemberName,MN_CALLER_SENSITIVE) \
@@ -1280,7 +1280,7 @@ JVM_ENTRY(jobject, MHN_resolve_Mem(JNIEnv *env, jobject igcls, jobject mname_jh,
     if ((flags & ALL_KINDS) == IS_FIELD) {
       THROW_MSG_NULL(vmSymbols::java_lang_NoSuchFieldError(), "field resolution failed");
     } else if ((flags & ALL_KINDS) == IS_METHOD ||
-               (flags & ALL_KINDS) == IS_CONSTRUCTOR) {
+               (flags & ALL_KINDS) == IS_OBJECT_CONSTRUCTOR) {
       THROW_MSG_NULL(vmSymbols::java_lang_NoSuchMethodError(), "method resolution failed");
     } else {
       THROW_MSG_NULL(vmSymbols::java_lang_LinkageError(), "resolution failed");

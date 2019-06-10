@@ -76,7 +76,7 @@ class DirectMethodHandle extends MethodHandle {
     static DirectMethodHandle make(byte refKind, Class<?> refc, MemberName member, Class<?> callerClass) {
         MethodType mtype = member.getMethodOrFieldType();
         if (!member.isStatic()) {
-            if (!member.getDeclaringClass().isAssignableFrom(refc) || member.isConstructor())
+            if (!member.getDeclaringClass().isAssignableFrom(refc) || member.isObjectConstructor())
                 throw new InternalError(member.toString());
             mtype = mtype.insertParameterTypes(0, refc.isInlineClass() ? refc.asPrimaryType() : refc);
         }
@@ -129,17 +129,16 @@ class DirectMethodHandle extends MethodHandle {
         return make(refKind, refc, member, null /* no callerClass context */);
     }
     static DirectMethodHandle make(MemberName member) {
-        if (member.isConstructor() && member.getReturnType() == void.class)
+        if (member.isObjectConstructor() && member.getReturnType() == void.class)
             return makeAllocator(member);
         return make(member.getDeclaringClass(), member);
     }
     private static DirectMethodHandle makeAllocator(MemberName ctor) {
-        assert(ctor.isConstructor() && ctor.getName().equals("<init>"));
+        assert(ctor.isObjectConstructor() && !ctor.getDeclaringClass().isInlineClass()) : ctor;
+
         Class<?> instanceClass = ctor.getDeclaringClass();
-        if (instanceClass.isInlineClass())
-            instanceClass = instanceClass.asPrimaryType();  // convert to Q-Type
-        ctor = ctor.asConstructor();
-        assert(ctor.isConstructor() && ctor.getReferenceKind() == REF_newInvokeSpecial) : ctor;
+        ctor = ctor.asObjectConstructor();
+        assert(ctor.getReferenceKind() == REF_newInvokeSpecial) : ctor;
         MethodType mtype = ctor.getMethodType().changeReturnType(instanceClass);
         LambdaForm lform = preparedLambdaForm(ctor);
         MemberName init = ctor.asSpecial();
