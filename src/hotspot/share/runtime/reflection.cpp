@@ -1275,7 +1275,7 @@ oop Reflection::invoke_constructor(oop constructor_mirror, objArrayHandle args, 
   if (!method->signature()->is_void_method_signature()) {
     assert(klass->is_value(), "inline classes must use factory methods");
     Handle no_receiver; // null instead of receiver
-    return invoke(klass, method, no_receiver, override, ptypes, T_OBJECT, args, false, CHECK_NULL);
+    return invoke(klass, method, no_receiver, override, ptypes, T_VALUETYPE, args, false, CHECK_NULL);
   }
 
   // main branch of code creates a non-inline object:
