@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,23 +21,33 @@
  * questions.
  */
 
-public inline class Point {
-    static final Object STATIC_FIELD = new Object();
-    public int x;
-    public int y;
-    Point () {
-        x = 10;
-        y = 20;
-    }
-    public static Point makePoint(int x, int y) {
-        Point p = Point.default;
-        p = __WithField(p.x, x);
-        p = __WithField(p.y, y);
-        return p;
+import java.lang.ref.WeakReference;
+import java.lang.ref.ReferenceQueue;
+
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
+
+/*
+ * @test
+ * @summary Test inline classes with Reference types
+ * @compile -XDallowWithFieldOperator Point.java
+ * @run testng/othervm -XX:+EnableValhalla InlineReferenceTest
+ */
+@Test
+public class InlineReferenceTest {
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    static void test1() {
+        Point? p = new Point(10,20);
+        WeakReference<Point?> r = new WeakReference<>(p);
     }
 
-    public Point(int x, int y) {
-        this.x = x;
-        this.y = y;
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    static void test2() {
+        ReferenceQueue<Object> q = new ReferenceQueue<>();
+        Point? p = new Point(1,2);
+        WeakReference<Point?> r = new WeakReference<>(p, q);
     }
 }

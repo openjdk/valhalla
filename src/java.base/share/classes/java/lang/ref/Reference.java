@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -396,6 +396,10 @@ public abstract class Reference<T> {
     }
 
     Reference(T referent, ReferenceQueue<? super T> queue) {
+        if (referent != null && referent.getClass().isInlineClass()) {
+            throw new IllegalArgumentException("cannot reference an inline value of type: " +
+                    referent.getClass().getName());
+        }
         this.referent = referent;
         this.queue = (queue == null) ? ReferenceQueue.NULL : queue;
     }

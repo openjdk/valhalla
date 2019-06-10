@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2003, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,9 @@ package java.lang.ref;
  * Weak reference objects, which do not prevent their referents from being
  * made finalizable, finalized, and then reclaimed.  Weak references are most
  * often used to implement canonicalizing mappings.
+ * <p>
+ * The referent must not be an instance of an inline class; such a value
+ * can never have another reference to it and cannot be held in a reference type.
  *
  * <p> Suppose that the garbage collector determines at a certain point in time
  * that an object is <a href="package-summary.html#reachability">weakly
@@ -52,6 +55,8 @@ public class WeakReference<T> extends Reference<T> {
      * reference is not registered with any queue.
      *
      * @param referent object the new weak reference will refer to
+     * @throws IllegalArgumentException if the referent is an instance of an
+     *         {@link Class#isInlineClass() inlineClass}
      */
     public WeakReference(T referent) {
         super(referent);
@@ -64,6 +69,8 @@ public class WeakReference<T> extends Reference<T> {
      * @param referent object the new weak reference will refer to
      * @param q the queue with which the reference is to be registered,
      *          or {@code null} if registration is not required
+     * @throws IllegalArgumentException if the referent is an instance of an
+     *         {@link Class#isInlineClass() inlineClass}
      */
     public WeakReference(T referent, ReferenceQueue<? super T> q) {
         super(referent, q);
