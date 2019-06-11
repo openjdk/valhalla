@@ -27,6 +27,7 @@ import java.lang.ref.*;
 
 /*
  * @test Ifacmp
+ * @requires vm.gc == null
  * @summary if_acmpeq/ne bytecode test
  * @compile Ifacmp.java
  * @run main/othervm -Xint -Xms16m -Xmx16m -XX:+UseSerialGC -XX:+EnableValhalla
