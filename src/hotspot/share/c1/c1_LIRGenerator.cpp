@@ -3243,7 +3243,7 @@ void LIRGenerator::substitutability_check(IfOp* x, LIRItem& left, LIRItem& right
 
   LabelObj* L_oops_equal = new LabelObj();
   LabelObj* L_oops_not_equal = new LabelObj();
-  LabelObj* L_do_subst_check = new LabelObj();
+  LabelObj* L_do_slow_subst_check = new LabelObj();
   LabelObj* L_end = new LabelObj();
 
   __ cmp(lir_cond_equal, left.result(), right.result());
@@ -3298,8 +3298,8 @@ void LIRGenerator::substitutability_check(IfOp* x, LIRItem& left, LIRItem& right
 
   // (3) Same klass check: if the operands are of different klasses, they are not substitutable.
   if (left_klass != NULL && left_klass->is_valuetype() && left_klass == right_klass) {
-    // No need to check -- they are known to be the same value klass.
-    __ branch(lir_cond_always, T_ILLEGAL, L_do_subst_check->label());
+    // No need to load klass -- the operands are statically known to be the same value klass.
+    __ branch(lir_cond_always, T_ILLEGAL, L_do_slow_subst_check->label());
   } else {
     BasicType t_klass = UseCompressedOops ? T_INT : T_METADATA;
     BasicType t_addr  = UseCompressedOops ? T_INT : T_ADDRESS;
@@ -3309,7 +3309,7 @@ void LIRGenerator::substitutability_check(IfOp* x, LIRItem& left, LIRItem& right
     __ move(new LIR_Address(left.result(),  oopDesc::klass_offset_in_bytes(), t_addr), left_klass);
     __ move(new LIR_Address(right.result(), oopDesc::klass_offset_in_bytes(), t_addr), right_klass);
     __ cmp(lir_cond_equal, left_klass, right_klass);
-    __ branch(lir_cond_equal, T_ILLEGAL, L_do_subst_check->label());
+    __ branch(lir_cond_equal, T_ILLEGAL, L_do_slow_subst_check->label());
 
     // fall through to L_oops_not_equal
   }
@@ -3318,33 +3318,17 @@ void LIRGenerator::substitutability_check(IfOp* x, LIRItem& left, LIRItem& right
   __ move(not_equal_result, reg);
   __ branch(lir_cond_always, T_ILLEGAL, L_end->label());
 
-
   // FIXME -- for simple case (no non-flattened value fields), do a per-field comparison
 
-  __ branch_destination(L_do_subst_check->label());
-  {
-    // Call into ValueBootstrapMethods::isSubstitutable()
-    ciMethod* subst_method = ciEnv::current()->ValueBootstrapMethods_klass()->find_method(ciSymbol::isSubstitutable_name(), ciSymbol::object_object_boolean_signature());
-    assert(method() != subst_method, "cannot recurse!");
+  __ branch_destination(L_do_slow_subst_check->label());
 
-    const LIR_Opr result = result_register_for(x->type());
-    CodeEmitInfo* info = state_for(x, x->state_before());
-    BasicTypeList signature(2);
-    signature.append(T_OBJECT);
-    signature.append(T_OBJECT);
+  const LIR_Opr result = result_register_for(x->type());
+  CodeEmitInfo* info = state_for(x, x->state_before());
+  CodeStub* slow_path = new SubstitutabilityCheckStub(left.result(), right.result(), result, info);
+  __ branch(lir_cond_always, T_ILLEGAL, slow_path);
+  __ branch_destination(slow_path->continuation());
 
-    CallingConvention* cc = frame_map()->java_calling_convention(&signature, true);
-    LIR_OprList* arg_list = cc->args();
-
-    left.set_destroys_register();
-    right.set_destroys_register();
-    invoke_load_one_argument(&left, arg_list->at(0));
-    invoke_load_one_argument(&right, arg_list->at(1));
-    __ call_static(subst_method, result,
-                   SharedRuntime::get_resolve_static_call_stub(),
-                   arg_list, info);
-    __ cmp(lir_cond_notEqual, result, LIR_OprFact::intConst(1));
-  }
+  __ cmp(lir_cond_notEqual, result, LIR_OprFact::intConst(1));
   __ move(not_equal_result, reg);
   __ branch(lir_cond_notEqual, T_ILLEGAL, L_end->label());
 

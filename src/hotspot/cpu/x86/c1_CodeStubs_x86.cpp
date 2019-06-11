@@ -206,6 +206,30 @@ void StoreFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
 }
 
 
+// Implementation of SubstitutabilityCheckStub
+
+SubstitutabilityCheckStub::SubstitutabilityCheckStub(LIR_Opr left, LIR_Opr right, LIR_Opr result, CodeEmitInfo* info) {
+  _left = left;
+  _right = right;
+  _result = result;
+  _info = new CodeEmitInfo(info);
+}
+
+void SubstitutabilityCheckStub::emit_code(LIR_Assembler* ce) {
+  assert(__ rsp_offset() == 0, "frame size should be fixed");
+  __ bind(_entry);
+  ce->store_parameter(_left->as_register(), 1);
+  ce->store_parameter(_right->as_register(), 0);
+  __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::substitutability_check_id)));
+  ce->add_call_info_here(_info);
+  ce->verify_oop_map(_info);
+  if (_result->as_register() != rax) {
+    __ movptr(_result->as_register(), rax);
+  }
+  __ jmp(_continuation);
+}
+
+
 // Implementation of NewInstanceStub
 
 NewInstanceStub::NewInstanceStub(LIR_Opr klass_reg, LIR_Opr result, ciInstanceKlass* klass, CodeEmitInfo* info, Runtime1::StubID stub_id) {

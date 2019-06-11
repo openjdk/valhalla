@@ -125,6 +125,7 @@ int Runtime1::_new_instance_slowcase_cnt = 0;
 int Runtime1::_new_multi_array_slowcase_cnt = 0;
 int Runtime1::_load_flattened_array_slowcase_cnt = 0;
 int Runtime1::_store_flattened_array_slowcase_cnt = 0;
+int Runtime1::_substitutability_check_slowcase_cnt = 0;
 int Runtime1::_buffer_value_args_slowcase_cnt = 0;
 int Runtime1::_buffer_value_args_no_receiver_slowcase_cnt = 0;
 int Runtime1::_monitorenter_slowcase_cnt = 0;
@@ -474,6 +475,22 @@ JRT_ENTRY(void, Runtime1::store_flattened_array(JavaThread* thread, valueArrayOo
                         vaklass->element_byte_size(), true, false);
   }
 JRT_END
+
+
+JRT_ENTRY(int, Runtime1::substitutability_check(JavaThread* thread, oopDesc* left, oopDesc* right))
+  NOT_PRODUCT(_substitutability_check_slowcase_cnt++;)
+  JavaCallArguments args;
+  args.push_oop(Handle(THREAD, left));
+  args.push_oop(Handle(THREAD, right));
+  JavaValue result(T_BOOLEAN);
+  JavaCalls::call_static(&result,
+                         SystemDictionary::ValueBootstrapMethods_klass(),
+                         vmSymbols::isSubstitutable_name(),
+                         vmSymbols::object_object_boolean_signature(),
+                         &args, CHECK_0);
+  return result.get_jboolean() ? 1 : 0;
+JRT_END
+
 
 extern "C" void ps();
 
@@ -1592,7 +1609,9 @@ void Runtime1::print_statistics() {
   tty->print_cr(" _new_value_array_slowcase_cnt:   %d", _new_value_array_slowcase_cnt);
   tty->print_cr(" _new_instance_slowcase_cnt:      %d", _new_instance_slowcase_cnt);
   tty->print_cr(" _new_multi_array_slowcase_cnt:   %d", _new_multi_array_slowcase_cnt);
-  tty->print_cr(" _load_flattened_array_slowcase_cnt: %d", _load_flattened_array_slowcase_cnt);
+  tty->print_cr(" _load_flattened_array_slowcase_cnt:   %d", _load_flattened_array_slowcase_cnt);
+  tty->print_cr(" _store_flattened_array_slowcase_cnt:  %d", _store_flattened_array_slowcase_cnt);
+  tty->print_cr(" _substitutability_check_slowcase_cnt: %d", _substitutability_check_slowcase_cnt);
   tty->print_cr(" _buffer_value_args_slowcase_cnt:%d", _buffer_value_args_slowcase_cnt);
   tty->print_cr(" _buffer_value_args_no_receiver_slowcase_cnt:%d", _buffer_value_args_no_receiver_slowcase_cnt);
 

@@ -1596,11 +1596,6 @@ public class TestNewAcmp {
                         cmds = addOptions(cmds, "-XX:+UnlockExperimentalVMOptions", "-XX:ACmpOnValues=3");
                     }
 
-                    if (EnableValhallaC1) {
-                        // FIXME: C1 runs into problems when these methods are compiled
-                        cmds = addOptions(cmds, "-XX:CompileCommand=exclude,java.lang.ClassValue::*");
-                    }
-
                     cmds = addOptions(cmds, "compiler.valhalla.valuetypes.TestNewAcmp");
                     cmds = addOptions(cmds, Integer.toString(nullMode));
 
