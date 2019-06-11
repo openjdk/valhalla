@@ -2000,23 +2000,24 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
 
     // Test the return value of ValueBootstrapMethods::isSubstitutable()
     Node* subst_cmp = _gvn.transform(new CmpINode(ret, intcon(1)));
+    Node* ctl = C->top();
     if (btest == BoolTest::eq) {
+      PreserveJVMState pjvms(this);
       do_if(btest, subst_cmp);
+      if (!stopped()) {
+        ctl = control();
+      }
     } else {
       assert(btest == BoolTest::ne, "only eq or ne");
-      Node* is_not_equal = NULL;
-      {
-        PreserveJVMState pjvms(this);
-        do_if(btest, subst_cmp, false, &is_not_equal);
-        if (!stopped()) {
-          eq_region->init_req(2, control());
-          eq_io_phi->init_req(2, i_o());
-          eq_mem_phi->init_req(2, reset_memory());
-        }
+      PreserveJVMState pjvms(this);
+      do_if(btest, subst_cmp, false, &ctl);
+      if (!stopped()) {
+        eq_region->init_req(2, control());
+        eq_io_phi->init_req(2, i_o());
+        eq_mem_phi->init_req(2, reset_memory());
       }
-      set_control(is_not_equal);
     }
-    ne_region->init_req(5, control());
+    ne_region->init_req(5, ctl);
     ne_io_phi->init_req(5, i_o());
     ne_mem_phi->init_req(5, reset_memory());
 
