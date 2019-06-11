@@ -2487,4 +2487,65 @@ public class TestNullableArrays extends ValueTypeTest {
         long result = test95();
         Asserts.assertEQ(result, hash());
     }
+
+    // Matrix multiplication test to exercise type flow analysis with nullable value arrays
+    inline static class Complex {
+        private final double re;
+        private final double im;
+
+        Complex(double re, double im) {
+            this.re = re;
+            this.im = im;
+        }
+
+        public Complex add(Complex that) {
+            return new Complex(this.re + that.re, this.im + that.im);
+        }
+
+        public Complex mul(Complex that) {
+            return new Complex(this.re * that.re - this.im * that.im,
+                               this.re * that.im + this.im * that.re);
+        }
+    }
+
+    @Test()
+    public Complex?[][] test96(Complex?[][] A, Complex?[][] B) {
+        int size = A.length;
+        Complex?[][] R = new Complex?[size][size];
+        for (int i = 0; i < size; i++) {
+            for (int k = 0; k < size; k++) {
+                Complex? aik = A[i][k];
+                for (int j = 0; j < size; j++) {
+                    R[i][j] = B[i][j].add(aik.mul((Complex)B[k][j]));
+                }
+            }
+        }
+        return R;
+    }
+
+    static Complex?[][] test96_A = new Complex?[10][10];
+    static Complex?[][] test96_B = new Complex?[10][10];
+    static Complex?[][] test96_R;
+
+    static {
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                test96_A[i][j] = new Complex(rI, rI);
+                test96_B[i][j] = new Complex(rI, rI);
+            }
+        }
+    }
+
+    @DontCompile
+    public void test96_verifier(boolean warmup) {
+        Complex?[][] result = test96(test96_A, test96_B);
+        if (test96_R == null) {
+            test96_R = result;
+        }
+        for (int i = 0; i < 10; i++) {
+            for (int j = 0; j < 10; j++) {
+                Asserts.assertEQ(result[i][j], test96_R[i][j]);
+            }
+        }
+    }
 }

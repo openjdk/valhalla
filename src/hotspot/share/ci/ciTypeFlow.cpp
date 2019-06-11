@@ -611,8 +611,9 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
          (Deoptimization::Reason_unloaded,
           Deoptimization::Action_reinterpret));
   } else {
-    if (element_klass->is_valuetype()) {
+    if (array_klass->storage_properties().is_null_free()) {
       // Value type array elements are never null
+      assert(element_klass->is_valuetype(), "must be a value type array");
       push(outer()->mark_as_never_null(element_klass));
     } else {
       push_object(element_klass);
