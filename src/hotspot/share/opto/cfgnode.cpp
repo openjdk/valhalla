@@ -903,7 +903,7 @@ const TypePtr* flatten_phi_adr_type(const TypePtr* at) {
 // create a new phi with edges matching r and set (initially) to x
 PhiNode* PhiNode::make(Node* r, Node* x, const Type *t, const TypePtr* at) {
   uint preds = r->req();   // Number of predecessor paths
-  assert(t != Type::MEMORY || at == flatten_phi_adr_type(at), "flatten at");
+  assert(t != Type::MEMORY || at == flatten_phi_adr_type(at) || (flatten_phi_adr_type(at) == TypeAryPtr::VALUES && Compile::current()->flattened_accesses_share_alias()), "flatten at");
   PhiNode* p = new PhiNode(r, t, at);
   for (uint j = 1; j < preds; j++) {
     // Fill in all inputs, except those which the region does not yet have

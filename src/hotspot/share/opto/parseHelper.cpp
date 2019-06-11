@@ -29,6 +29,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/valueArrayKlass.hpp"
 #include "opto/addnode.hpp"
+#include "opto/castnode.hpp"
 #include "opto/memnode.hpp"
 #include "opto/mulnode.hpp"
 #include "opto/parse.hpp"
@@ -213,6 +214,9 @@ Node* Parse::array_store_check() {
     } else {                  // Cast array klass to exactness:
       // Use the exact constant value we know it is.
       replace_in_map(array_klass,con);
+      Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, extak->as_instance_type()));
+      replace_in_map(ary, cast);
+
       CompileLog* log = C->log();
       if (log != NULL) {
         log->elem("cast_up reason='monomorphic_array' from='%d' to='(exact)'",

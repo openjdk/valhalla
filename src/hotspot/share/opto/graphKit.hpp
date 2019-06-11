@@ -600,7 +600,8 @@ class GraphKit : public Phase {
                        const TypePtr* adr_type,
                        const Type* val_type,
                        BasicType bt,
-                       DecoratorSet decorators);
+                       DecoratorSet decorators,
+                       Node* ctl = NULL);
 
   Node* access_load(Node* adr,   // actual adress to load val at
                     const Type* val_type,

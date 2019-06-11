@@ -611,6 +611,8 @@ void Type::Initialize_shared(Compile* current) {
 
   TypeMetadataPtr::BOTTOM = TypeMetadataPtr::make(TypePtr::BotPTR, NULL, Offset::bottom);
 
+  TypeValueType::BOTTOM = TypeValueType::make(NULL);
+
   TypeNarrowOop::NULL_PTR = TypeNarrowOop::make( TypePtr::NULL_PTR );
   TypeNarrowOop::BOTTOM   = TypeNarrowOop::make( TypeInstPtr::BOTTOM );
 
@@ -647,6 +649,7 @@ void Type::Initialize_shared(Compile* current) {
   TypeAryPtr::LONGS   = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeLong::LONG     ,TypeInt::POS), ciTypeArrayKlass::make(T_LONG),   true,  Offset::bottom);
   TypeAryPtr::FLOATS  = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::FLOAT        ,TypeInt::POS), ciTypeArrayKlass::make(T_FLOAT),  true,  Offset::bottom);
   TypeAryPtr::DOUBLES = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(Type::DOUBLE       ,TypeInt::POS), ciTypeArrayKlass::make(T_DOUBLE), true,  Offset::bottom);
+  TypeAryPtr::VALUES  = TypeAryPtr::make(TypePtr::BotPTR, TypeAry::make(TypeValueType::BOTTOM,TypeInt::POS), NULL, false,  Offset::bottom);
 
   // Nobody should ask _array_body_type[T_NARROWOOP]. Use NULL as assert.
   TypeAryPtr::_array_body_type[T_NARROWOOP] = NULL;
@@ -2386,6 +2389,8 @@ bool TypeAry::ary_must_be_exact() const {
 
 //==============================TypeValueType=======================================
 
+const TypeValueType *TypeValueType::BOTTOM;
+
 //------------------------------make-------------------------------------------
 const TypeValueType* TypeValueType::make(ciValueKlass* vk, bool larval) {
   return (TypeValueType*)(new TypeValueType(vk, larval))->hashcons();
@@ -2437,7 +2442,11 @@ const Type* TypeValueType::xmeet(const Type* t) const {
   case ValueType: {
     // All value types inherit from Object
     const TypeValueType* other = t->is_valuetype();
-    if (_vk == other->_vk) {
+    if (_vk == NULL) {
+      return this;
+    } else if (other->_vk == NULL) {
+      return other;
+    } else if (_vk == other->_vk) {
       if (_larval == other->_larval ||
           !_larval) {
         return this;
@@ -2488,6 +2497,10 @@ bool TypeValueType::empty(void) const {
 //------------------------------dump2------------------------------------------
 #ifndef PRODUCT
 void TypeValueType::dump2(Dict &d, uint depth, outputStream* st) const {
+  if (_vk == NULL) {
+    st->print("BOTTOM valuetype");
+    return;
+  }
   int count = _vk->nof_declared_nonstatic_fields();
   st->print("valuetype[%d]:{", count);
   st->print("%s", count != 0 ? _vk->declared_nonstatic_field_at(0)->type()->name() : "empty");
@@ -4351,6 +4364,7 @@ const TypeAryPtr *TypeAryPtr::INTS;
 const TypeAryPtr *TypeAryPtr::LONGS;
 const TypeAryPtr *TypeAryPtr::FLOATS;
 const TypeAryPtr *TypeAryPtr::DOUBLES;
+const TypeAryPtr *TypeAryPtr::VALUES;
 
 //------------------------------make-------------------------------------------
 const TypeAryPtr* TypeAryPtr::make(PTR ptr, const TypeAry *ary, ciKlass* k, bool xk, Offset offset, Offset field_offset,
@@ -5346,7 +5360,9 @@ ciKlass* TypeAryPtr::compute_klass(DEBUG_ONLY(bool verify)) const {
     bool null_free = el->is_valuetypeptr() && el->isa_instptr()->ptr() != TypePtr::TopPTR && !el->isa_instptr()->maybe_null();
     k_ary = ciArrayKlass::make(el->is_oopptr()->klass(), null_free);
   } else if (el->isa_valuetype()) {
-    k_ary = ciArrayKlass::make(el->value_klass(), /* null_free */ true);
+    if (el->value_klass() != NULL) {
+      k_ary = ciArrayKlass::make(el->value_klass(), /* null_free */ true);
+    }
   } else if ((tary = el->isa_aryptr()) != NULL) {
     // Compute array klass from element klass
     ciKlass* k_elem = tary->klass();

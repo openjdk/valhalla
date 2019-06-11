@@ -1167,6 +1167,9 @@ void Compile::Init(int aliaslevel) {
 
   set_do_freq_based_layout(_directive->BlockLayoutByFrequencyOption);
   _loop_opts_cnt = LoopOptsCount;
+  _has_flattened_accesses = false;
+  _flattened_accesses_share_alias = true;
+
   set_do_inlining(Inline);
   set_max_inline_size(MaxInlineSize);
   set_freq_inline_size(FreqInlineSize);
@@ -1534,6 +1537,11 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       const TypeAry *tary = TypeAry::make(TypeInstPtr::BOTTOM, ta->size());
       tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), ta->field_offset());
     }
+    // Initially all flattened array accesses share a single slice
+    if (ta->elem()->isa_valuetype() && ta->elem() != TypeValueType::BOTTOM && _flattened_accesses_share_alias) {
+      const TypeAry *tary = TypeAry::make(TypeValueType::BOTTOM, ta->size());
+      tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), Type::Offset(Type::OffsetBot));
+    }
     // Arrays of bytes and of booleans both use 'bastore' and 'baload' so
     // cannot be distinguished by bytecode alone.
     if (ta->elem() == TypeInt::BOOL) {
@@ -1775,13 +1783,16 @@ void Compile::grow_alias_types() {
 
 
 //--------------------------------find_alias_type------------------------------
-Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_create, ciField* original_field) {
+Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_create, ciField* original_field, bool uncached) {
   if (_AliasLevel == 0)
     return alias_type(AliasIdxBot);
 
-  AliasCacheEntry* ace = probe_alias_cache(adr_type);
-  if (ace->_adr_type == adr_type) {
-    return alias_type(ace->_index);
+  AliasCacheEntry* ace = NULL;
+  if (!uncached) {
+    ace = probe_alias_cache(adr_type);
+    if (ace->_adr_type == adr_type) {
+      return alias_type(ace->_index);
+    }
   }
 
   // Handle special cases.
@@ -1843,7 +1854,9 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
         alias_type(idx)->set_element(elemtype);
       }
       int field_offset = flat->is_aryptr()->field_offset().get();
-      if (elemtype->isa_valuetype() && field_offset != Type::OffsetBot) {
+      if (elemtype->isa_valuetype() &&
+          elemtype->value_klass() != NULL &&
+          field_offset != Type::OffsetBot) {
         ciValueKlass* vk = elemtype->value_klass();
         field_offset += vk->first_field_offset();
         field = vk->get_field_by_offset(field_offset, false);
@@ -1857,6 +1870,8 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
       if (flat->offset() == in_bytes(Klass::access_flags_offset()))
         alias_type(idx)->set_rewritable(false);
       if (flat->offset() == in_bytes(Klass::java_mirror_offset()))
+        alias_type(idx)->set_rewritable(false);
+      if (flat->offset() == in_bytes(Klass::layout_helper_offset()))
         alias_type(idx)->set_rewritable(false);
     }
     // %%% (We would like to finalize JavaThread::threadObj_offset(),
@@ -1891,16 +1906,18 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
   }
 
   // Fill the cache for next time.
-  ace->_adr_type = adr_type;
-  ace->_index    = idx;
-  assert(alias_type(adr_type) == alias_type(idx),  "type must be installed");
+  if (!uncached) {
+    ace->_adr_type = adr_type;
+    ace->_index    = idx;
+    assert(alias_type(adr_type) == alias_type(idx),  "type must be installed");
 
-  // Might as well try to fill the cache for the flattened version, too.
-  AliasCacheEntry* face = probe_alias_cache(flat);
-  if (face->_adr_type == NULL) {
-    face->_adr_type = flat;
-    face->_index    = idx;
-    assert(alias_type(flat) == alias_type(idx), "flat type must work too");
+    // Might as well try to fill the cache for the flattened version, too.
+    AliasCacheEntry* face = probe_alias_cache(flat);
+    if (face->_adr_type == NULL) {
+      face->_adr_type = flat;
+      face->_index    = idx;
+      assert(alias_type(flat) == alias_type(idx), "flat type must work too");
+    }
   }
 
   return alias_type(idx);
@@ -2134,6 +2151,258 @@ void Compile::process_value_types(PhaseIterGVN &igvn) {
   }
   igvn.optimize();
 }
+
+void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
+  if (!_has_flattened_accesses) {
+    return;
+  }
+  // Initially, all flattened array accesses share the same slice to
+  // keep dependencies with Object[] array accesses (that could be
+  // to a flattened array) correct. We're done with parsing so we
+  // now know all flattened array accesses in this compile
+  // unit. Let's move flattened array accesses to their own slice,
+  // one per element field. This should help memory access
+  // optimizations.
+  ResourceMark rm;
+  Unique_Node_List wq;
+  wq.push(root());
+
+  Node_List mergememnodes;
+  Node_List memnodes;
+
+  // Alias index currently shared by all flattened memory accesses
+  int index = get_alias_index(TypeAryPtr::VALUES);
+
+  // Find MergeMem nodes and flattened array accesses
+  for (uint i = 0; i < wq.size(); i++) {
+    Node* n = wq.at(i);
+    if (n->is_Mem()) {
+      const TypePtr* adr_type = get_adr_type(get_alias_index(n->adr_type()));
+      if (adr_type == TypeAryPtr::VALUES) {
+        memnodes.push(n);
+      }
+    } else if (n->is_MergeMem()) {
+      MergeMemNode* mm = n->as_MergeMem();
+      if (mm->memory_at(index) != mm->base_memory()) {
+        mergememnodes.push(n);
+      }
+    }
+    for (uint j = 0; j < n->req(); j++) {
+      Node* m = n->in(j);
+      if (m != NULL) {
+        wq.push(m);
+      }
+    }
+  }
+
+  if (memnodes.size() > 0) {
+    _flattened_accesses_share_alias = false;
+
+    // We are going to change the slice for the flattened array
+    // accesses so we need to clear the cache entries that refer to
+    // them.
+    for (uint i = 0; i < AliasCacheSize; i++) {
+      AliasCacheEntry* ace = &_alias_cache[i];
+      if (ace->_adr_type != NULL &&
+          ace->_adr_type->isa_aryptr() &&
+          ace->_adr_type->is_aryptr()->elem()->isa_valuetype()) {
+        ace->_adr_type = NULL;
+        ace->_index = 0;
+      }
+    }
+
+    // Find what aliases we are going to add
+    int start_alias = num_alias_types()-1;
+    int stop_alias = 0;
+
+    for (uint i = 0; i < memnodes.size(); i++) {
+      Node* m = memnodes.at(i);
+      const TypePtr* adr_type = m->adr_type();
+#ifdef ASSERT
+      m->as_Mem()->set_adr_type(adr_type);
+#endif
+      int idx = get_alias_index(adr_type);
+      start_alias = MIN2(start_alias, idx);
+      stop_alias = MAX2(stop_alias, idx);
+    }
+
+    assert(stop_alias >= start_alias, "should have expanded aliases");
+
+    Node_Stack stack(0);
+#ifdef ASSERT
+    VectorSet seen(Thread::current()->resource_area());
+#endif
+    // Now let's fix the memory graph so each flattened array access
+    // is moved to the right slice. Start from the MergeMem nodes.
+    uint last = unique();
+    for (uint i = 0; i < mergememnodes.size(); i++) {
+      MergeMemNode* current = mergememnodes.at(i)->as_MergeMem();
+      Node* n = current->memory_at(index);
+      MergeMemNode* mm = NULL;
+      do {
+        // Follow memory edges through memory accesses, phis and
+        // narrow membars and push nodes on the stack. Once we hit
+        // bottom memory, we pop element off the stack one at a
+        // time, in reverse order, and move them to the right slice
+        // by changing their memory edges.
+        if ((n->is_Phi() && n->adr_type() != TypePtr::BOTTOM) || n->is_Mem() || n->adr_type() == TypeAryPtr::VALUES) {
+          assert(!seen.test_set(n->_idx), "");
+          // Uses (a load for instance) will need to be moved to the
+          // right slice as well and will get a new memory state
+          // that we don't know yet. The use could also be the
+          // backedge of a loop. We put a place holder node between
+          // the memory node and its uses. We replace that place
+          // holder with the correct memory state once we know it,
+          // i.e. when nodes are popped off the stack. Using the
+          // place holder make the logic work in the presence of
+          // loops.
+          if (n->outcnt() > 1) {
+            Node* place_holder = NULL;
+            assert(!n->has_out_with(Op_Node), "");
+            for (DUIterator k = n->outs(); n->has_out(k); k++) {
+              Node* u = n->out(k);
+              if (u != current && u->_idx < last) {
+                bool success = false;
+                for (uint l = 0; l < u->req(); l++) {
+                  if (!stack.is_empty() && u == stack.node() && l == stack.index()) {
+                    continue;
+                  }
+                  Node* in = u->in(l);
+                  if (in == n) {
+                    if (place_holder == NULL) {
+                      place_holder = new Node(1);
+                      place_holder->init_req(0, n);
+                    }
+                    igvn.replace_input_of(u, l, place_holder);
+                    success = true;
+                  }
+                }
+                if (success) {
+                  --k;
+                }
+              }
+            }
+          }
+          if (n->is_Phi()) {
+            stack.push(n, 1);
+            n = n->in(1);
+          } else if (n->is_Mem()) {
+            stack.push(n, n->req());
+            n = n->in(MemNode::Memory);
+          } else {
+            assert(n->is_Proj() && n->in(0)->Opcode() == Op_MemBarCPUOrder, "");
+            stack.push(n, n->req());
+            n = n->in(0)->in(TypeFunc::Memory);
+          }
+        } else {
+          assert(n->adr_type() == TypePtr::BOTTOM || (n->Opcode() == Op_Node && n->_idx >= last) || (n->is_Proj() && n->in(0)->is_Initialize()), "");
+          // Build a new MergeMem node to carry the new memory state
+          // as we build it. IGVN should fold extraneous MergeMem
+          // nodes.
+          mm = MergeMemNode::make(n);
+          igvn.register_new_node_with_optimizer(mm);
+          while (stack.size() > 0) {
+            Node* m = stack.node();
+            uint idx = stack.index();
+            if (m->is_Mem()) {
+              // Move memory node to its new slice
+              const TypePtr* adr_type = m->adr_type();
+              int alias = get_alias_index(adr_type);
+              Node* prev = mm->memory_at(alias);
+              igvn.replace_input_of(m, MemNode::Memory, prev);
+              mm->set_memory_at(alias, m);
+            } else if (m->is_Phi()) {
+              // We need as many new phis as there are new aliases
+              igvn.replace_input_of(m, idx, mm);
+              if (idx == m->req()-1) {
+                Node* r = m->in(0);
+                for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
+                  const Type* adr_type = get_adr_type(j);
+                  if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_valuetype()) {
+                    continue;
+                  }
+                  Node* phi = new PhiNode(r, Type::MEMORY, get_adr_type(j));
+                  igvn.register_new_node_with_optimizer(phi);
+                  for (uint k = 1; k < m->req(); k++) {
+                    phi->init_req(k, m->in(k)->as_MergeMem()->memory_at(j));
+                  }
+                  mm->set_memory_at(j, phi);
+                }
+                Node* base_phi = new PhiNode(r, Type::MEMORY, TypePtr::BOTTOM);
+                igvn.register_new_node_with_optimizer(base_phi);
+                for (uint k = 1; k < m->req(); k++) {
+                  base_phi->init_req(k, m->in(k)->as_MergeMem()->base_memory());
+                }
+                mm->set_base_memory(base_phi);
+              }
+            } else {
+              // This is a MemBarCPUOrder node from
+              // Parse::array_load()/Parse::array_store(), in the
+              // branch that handles flattened arrays hidden under
+              // an Object[] array. We also need one new membar per
+              // new alias to keep the unknown access that the
+              // membars protect properly ordered with accesses to
+              // known flattened array.
+              assert(m->is_Proj(), "projection expected");
+              Node* ctrl = m->in(0)->in(TypeFunc::Control);
+              igvn.replace_input_of(m->in(0), TypeFunc::Control, top());
+              for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
+                const Type* adr_type = get_adr_type(j);
+                if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_valuetype()) {
+                  continue;
+                }
+                MemBarNode* mb = new MemBarCPUOrderNode(this, j, NULL);
+                igvn.register_new_node_with_optimizer(mb);
+                Node* mem = mm->memory_at(j);
+                mb->init_req(TypeFunc::Control, ctrl);
+                mb->init_req(TypeFunc::Memory, mem);
+                ctrl = new ProjNode(mb, TypeFunc::Control);
+                igvn.register_new_node_with_optimizer(ctrl);
+                mem = new ProjNode(mb, TypeFunc::Memory);
+                igvn.register_new_node_with_optimizer(mem);
+                mm->set_memory_at(j, mem);
+              }
+              igvn.replace_node(m->in(0)->as_Multi()->proj_out(TypeFunc::Control), ctrl);
+            }
+            if (idx < m->req()-1) {
+              idx += 1;
+              stack.set_index(idx);
+              n = m->in(idx);
+              break;
+            }
+            // Take care of place holder nodes
+            if (m->has_out_with(Op_Node)) {
+              Node* place_holder = m->find_out_with(Op_Node);
+              if (place_holder != NULL) {
+                Node* mm_clone = mm->clone();
+                igvn.register_new_node_with_optimizer(mm_clone);
+                Node* hook = new Node(1);
+                hook->init_req(0, mm);
+                igvn.replace_node(place_holder, mm_clone);
+                hook->destruct();
+              }
+              assert(!m->has_out_with(Op_Node), "place holder should be gone now");
+            }
+            stack.pop();
+          }
+        }
+      } while(stack.size() > 0);
+      // Fix the memory state at the MergeMem we started from
+      igvn.rehash_node_delayed(current);
+      for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
+        const Type* adr_type = get_adr_type(j);
+        if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_valuetype()) {
+          continue;
+        }
+        current->set_memory_at(j, mm);
+      }
+      current->set_memory_at(index, current->base_memory());
+    }
+    igvn.optimize();
+  }
+  print_method(PHASE_SPLIT_VALUES_ARRAY, 2);
+}
+
 
 // StringOpts and late inlining of string methods
 void Compile::inline_string_calls(bool parse_time) {
@@ -2413,6 +2682,8 @@ void Compile::Optimize() {
     // Do this once all inlining is over to avoid getting inconsistent debug info
     process_value_types(igvn);
   }
+
+  adjust_flattened_array_access_aliases(igvn);
 
   // Perform escape analysis
   if (_do_escape_analysis && ConnectionGraph::has_candidates(this)) {
@@ -3130,6 +3401,43 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
       assert( !tp || oop_offset_is_sane(tp), "" );
     }
 #endif
+    if (nop == Op_LoadKlass || nop == Op_LoadNKlass) {
+      const TypeKlassPtr* tk = n->bottom_type()->make_ptr()->is_klassptr();
+      assert(!tk->klass_is_exact(), "should have been folded");
+      if (tk->klass()->is_obj_array_klass() || tk->klass()->is_java_lang_Object()) {
+        bool maybe_value_array = tk->klass()->is_java_lang_Object();
+        if (!maybe_value_array) {
+          ciArrayKlass* ak = tk->klass()->as_array_klass();
+          ciKlass* elem = ak->element_klass();
+          maybe_value_array = elem->is_java_lang_Object() || elem->is_interface() || elem->is_valuetype();
+        }
+        if (maybe_value_array) {
+          // Array load klass needs to filter out property bits (but not
+          // GetNullFreePropertyNode which needs to extract the null free
+          // bits)
+          uint last = unique();
+          Node* pointer = NULL;
+          if (nop == Op_LoadKlass) {
+            Node* cast = new CastP2XNode(NULL, n);
+            Node* masked = new LShiftXNode(cast, new ConINode(TypeInt::make(oopDesc::storage_props_nof_bits)));
+            masked = new RShiftXNode(masked, new ConINode(TypeInt::make(oopDesc::storage_props_nof_bits)));
+            pointer = new CastX2PNode(masked);
+            pointer = new CheckCastPPNode(NULL, pointer, n->bottom_type());
+          } else {
+            Node* cast = new CastN2INode(n);
+            Node* masked = new AndINode(cast, new ConINode(TypeInt::make(oopDesc::compressed_klass_mask())));
+            pointer = new CastI2NNode(masked, n->bottom_type());
+          }
+          for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
+            Node* u = n->fast_out(i);
+            if (u->_idx < last && u->Opcode() != Op_GetNullFreeProperty) {
+              int nb = u->replace_edge(n, pointer);
+              --i, imax -= nb;
+            }
+          }
+        }
+      }
+    }
     break;
   }
 
@@ -3652,6 +3960,21 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     break;
   }
 #endif
+  case Op_GetNullFreeProperty: {
+    // Extract the null free bits
+    uint last = unique();
+    Node* null_free = NULL;
+    if (n->in(1)->Opcode() == Op_LoadKlass) {
+      Node* cast = new CastP2XNode(NULL, n->in(1));
+      null_free = new AndLNode(cast, new ConLNode(TypeLong::make(((jlong)1)<<(oopDesc::wide_storage_props_shift + ArrayStorageProperties::null_free_bit))));
+    } else {
+      assert(n->in(1)->Opcode() == Op_LoadNKlass, "not a compressed klass?");
+      Node* cast = new CastN2INode(n->in(1));
+      null_free = new AndINode(cast, new ConINode(TypeInt::make(1<<(oopDesc::narrow_storage_props_shift + ArrayStorageProperties::null_free_bit))));
+    }
+    n->replace_by(null_free);
+    break;
+  }
   default:
     assert(!n->is_Call(), "");
     assert(!n->is_Mem(), "");

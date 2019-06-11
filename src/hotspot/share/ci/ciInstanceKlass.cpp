@@ -753,6 +753,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
     }
     case T_ARRAY:  // fall-through
     case T_OBJECT: {
+      _out->print("%s ", fd->signature()->as_quoted_ascii());
       oop value =  mirror->obj_field_acquire(fd->offset());
       if (value == NULL) {
         _out->print_cr("null");
@@ -763,7 +764,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
           _out->print("\"%s\"", (ascii_value != NULL) ? ascii_value : "");
          } else {
           const char* klass_name  = value->klass()->name()->as_quoted_ascii();
-          _out->print_cr("%s", klass_name);
+          _out->print("%s", klass_name);
         }
       } else if (value->is_array()) {
         typeArrayOop ta = (typeArrayOop)value;
@@ -773,7 +774,6 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
           const char* klass_name  = value->klass()->name()->as_quoted_ascii();
           _out->print(" %s", klass_name);
         }
-        _out->cr();
       } else {
         ShouldNotReachHere();
       }

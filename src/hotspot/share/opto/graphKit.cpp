@@ -1631,13 +1631,14 @@ Node* GraphKit::access_load_at(Node* obj,   // containing obj
                                const TypePtr* adr_type,
                                const Type* val_type,
                                BasicType bt,
-                               DecoratorSet decorators) {
+                               DecoratorSet decorators,
+                               Node* ctl) {
   if (stopped()) {
     return top(); // Dead path ?
   }
 
   C2AccessValuePtr addr(adr, adr_type);
-  C2ParseAccess access(this, decorators | C2_READ_ACCESS, bt, obj, addr);
+  C2ParseAccess access(this, decorators | C2_READ_ACCESS, bt, obj, addr, ctl);
   if (access.is_raw()) {
     return _barrier_set->BarrierSetC2::load_at(access, val_type);
   } else {
@@ -3404,15 +3405,26 @@ void GraphKit::gen_value_array_null_guard(Node* ary, Node* val, int nargs) {
   if (null_ctl != top()) {
     PreserveJVMState pjvms(this);
     set_control(null_ctl);
-    // Get array element mirror and corresponding value mirror
-    Node* array_type_mirror = load_mirror_from_klass(load_object_klass(ary));
-    Node* elem_mirror_adr = basic_plus_adr(array_type_mirror, java_lang_Class::component_mirror_offset_in_bytes());
-    Node* elem_mirror = access_load_at(array_type_mirror, elem_mirror_adr, _gvn.type(elem_mirror_adr)->is_ptr(), TypeInstPtr::MIRROR, T_OBJECT, IN_HEAP);
-    Node* inline_mirror_adr = basic_plus_adr(elem_mirror, java_lang_Class::inline_mirror_offset_in_bytes());
-    Node* inline_mirror = access_load_at(elem_mirror, inline_mirror_adr, _gvn.type(inline_mirror_adr)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
-    // Deoptimize if elem_mirror == inline_mirror => null-free array
-    Node* cmp = _gvn.transform(new CmpPNode(elem_mirror, inline_mirror));
-    Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
+    // Extract null free property from klass pointer
+    Node* k_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
+    const TypePtr *k_adr_type = k_adr->bottom_type()->isa_ptr();
+    Node* klass = NULL;
+    if (k_adr_type->is_ptr_to_narrowklass()) {
+      klass = _gvn.transform(new LoadNKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT->make_narrowklass(), MemNode::unordered));
+    } else {
+      klass = _gvn.transform(new LoadKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, MemNode::unordered));
+    }
+
+    Node* null_free = _gvn.transform(new GetNullFreePropertyNode(klass));
+    // Deoptimize if null-free array
+    Node* cmp = NULL;
+    if (_gvn.type(klass)->isa_klassptr()) {
+      cmp = new CmpLNode(null_free, zerocon(T_LONG));
+    } else {
+      cmp = new CmpINode(null_free, zerocon(T_INT));
+    }
+    cmp = _gvn.transform(cmp);
+    Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
     { BuildCutout unless(this, bol, PROB_MAX);
       inc_sp(nargs);
       uncommon_trap(Deoptimization::Reason_null_check,
@@ -3427,7 +3439,8 @@ void GraphKit::gen_value_array_null_guard(Node* ary, Node* val, int nargs) {
 
 Node* GraphKit::load_lh_array_tag(Node* kls) {
   Node* lhp = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
-  Node* layout_val = make_load(NULL, lhp, TypeInt::INT, T_INT, MemNode::unordered);
+  Node* layout_val = _gvn.transform(LoadNode::make(_gvn, NULL, immutable_memory(), lhp, lhp->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
+
   return _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
 }
 
@@ -3705,6 +3718,12 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
     if (oop_type->isa_aryptr()) {
       const TypeAryPtr* arytype = oop_type->is_aryptr();
       if (arytype->klass()->is_value_array_klass()) {
+        // Initially all flattened array accesses share a single slice
+        // but that changes after parsing. Prepare the memory graph so
+        // it can optimize flattened array accesses properly once they
+        // don't share a single slice.
+        assert(C->flattened_accesses_share_alias(), "should be set at parse time");
+        C->set_flattened_accesses_share_alias(false);
         ciValueArrayKlass* vak = arytype->klass()->as_value_array_klass();
         ciValueKlass* vk = vak->element_klass()->as_value_klass();
         for (int i = 0, len = vk->nof_nonstatic_fields(); i < len; i++) {
@@ -3713,9 +3732,11 @@ Node* GraphKit::set_output_for_allocation(AllocateNode* alloc,
             continue;  // do not bother to track really large numbers of fields
           int off_in_vt = field->offset() - vk->first_field_offset();
           const TypePtr* adr_type = arytype->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
-          int fieldidx = C->get_alias_index(adr_type);
+          int fieldidx = C->get_alias_index(adr_type, true);
           hook_memory_on_init(*this, fieldidx, minit_in, minit_out);
         }
+        C->set_flattened_accesses_share_alias(true);
+        hook_memory_on_init(*this, C->get_alias_index(TypeAryPtr::VALUES), minit_in, minit_out);
       } else {
         const TypePtr* telemref = oop_type->add_offset(Type::OffsetBot);
         int            elemidx  = C->get_alias_index(telemref);

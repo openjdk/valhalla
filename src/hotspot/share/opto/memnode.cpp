@@ -2333,6 +2333,46 @@ Node* LoadKlassNode::Identity(PhaseGVN* phase) {
   return klass_identity_common(phase);
 }
 
+const Type* GetNullFreePropertyNode::Value(PhaseGVN* phase) const {
+  if (in(1) != NULL) {
+    const Type* in1_t = phase->type(in(1));
+    if (in1_t == Type::TOP) {
+      return Type::TOP;
+    }
+    const TypeKlassPtr* tk = in1_t->make_ptr()->is_klassptr();
+    ciArrayKlass* ak = tk->klass()->as_array_klass();
+    ciKlass* elem = ak->element_klass();
+    if (tk->klass_is_exact() || (!elem->is_java_lang_Object() && !elem->is_interface() && !elem->is_valuetype())) {
+      int props_shift = in1_t->isa_narrowklass() ? oopDesc::narrow_storage_props_shift : oopDesc::wide_storage_props_shift;
+      ArrayStorageProperties props = ak->storage_properties();
+      intptr_t storage_properties = props.encode<intptr_t>(props_shift);
+      if (in1_t->isa_narrowklass()) {
+        return TypeInt::make((int)storage_properties);
+      }
+      return TypeX::make(storage_properties);
+    }
+  }
+  return bottom_type();
+}
+
+Node* GetNullFreePropertyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
+  if (!can_reshape) {
+    return NULL;
+  }
+  if (in(1) != NULL && in(1)->is_Phi()) {
+    Node* phi = in(1);
+    Node* r = phi->in(0);
+    Node* new_phi = new PhiNode(r, bottom_type());
+    for (uint i = 1; i < r->req(); i++) {
+      Node* in = phi->in(i);
+      if (in == NULL) continue;
+      new_phi->init_req(i, phase->transform(new GetNullFreePropertyNode(in)));
+    }
+    return new_phi;
+  }
+  return NULL;
+}
+
 Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
   Node* x = LoadNode::Identity(phase);
   if (x != this)  return x;
@@ -2580,7 +2620,7 @@ Node *StoreNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // unsafe if I have intervening uses...  Also disallowed for StoreCM
   // since they must follow each StoreP operation.  Redundant StoreCMs
   // are eliminated just before matching in final_graph_reshape.
-  {
+  if (phase->C->get_adr_type(phase->C->get_alias_index(adr_type())) != TypeAryPtr::VALUES) {
     Node* st = mem;
     // If Store 'st' has more than one use, we cannot fold 'st' away.
     // For example, 'st' might be the final state at a conditional

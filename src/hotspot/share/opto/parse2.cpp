@@ -65,6 +65,7 @@ void Parse::array_load(BasicType bt) {
   const TypeOopPtr* elemptr = elemtype->make_oopptr();
   const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
   if (elemtype->isa_valuetype() != NULL) {
+    C->set_flattened_accesses();
     // Load from flattened value type array
     Node* vt = ValueTypeNode::make_from_flattened(this, elemtype->value_klass(), ary, adr);
     push(vt);
@@ -75,6 +76,7 @@ void Parse::array_load(BasicType bt) {
   } else if (ValueArrayFlatten && elemptr != NULL && elemptr->can_be_value_type() &&
              !ary_t->klass_is_exact() && (!elemptr->is_valuetypeptr() || elemptr->value_klass()->flatten_array())) {
     // Cannot statically determine if array is flattened, emit runtime check
+    Node* ctl = control();
     IdealKit ideal(this);
     IdealVariable res(ideal);
     ideal.declarations_done();
@@ -85,7 +87,7 @@ void Parse::array_load(BasicType bt) {
       sync_kit(ideal);
       const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
       Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt,
-                                IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
+                                IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD, ctl);
       ideal.sync_kit(this);
       ideal.set(res, ld);
     } ideal.else_(); {
@@ -102,6 +104,7 @@ void Parse::array_load(BasicType bt) {
         adr = array_element_address(cast, idx, T_VALUETYPE, ary_t->size(), control());
         Node* vt = ValueTypeNode::make_from_flattened(this, vk, cast, adr)->allocate(this, false, false)->get_oop();
         ideal.set(res, vt);
+        ideal.sync_kit(this);
       } else {
         // Element type is unknown, emit runtime call
         assert(!ary_t->klass_is_exact(), "should not have exact type here");
@@ -116,6 +119,12 @@ void Parse::array_load(BasicType bt) {
         AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_obj, &_gvn);
         assert(alloc->maybe_set_complete(&_gvn), "");
         alloc->initialization()->set_complete_with_arraycopy();
+
+        // This membar keeps this access to an unknown flattened array
+        // correctly ordered with other unknown and known flattened
+        // array accesses.
+        insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::VALUES));
+
         BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
         // Unknown value type might contain reference fields
         if (!bs->array_copy_requires_gc_barriers(false, T_OBJECT, false, BarrierSetC2::Parsing)) {
@@ -144,11 +153,24 @@ void Parse::array_load(BasicType bt) {
           sync_kit(ideal);
         }
 
-        insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
+        // This makes sure no other thread sees a partially initialized buffered value
+        insert_mem_bar_volatile(Op_MemBarStoreStore, Compile::AliasIdxRaw, alloc->proj_out_or_null(AllocateNode::RawAddress));
+
+        // Same as MemBarCPUOrder above: keep this unknown flattened
+        // array access correctly ordered with other flattened array
+        // access
+        insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::VALUES));
+
+        // Prevent any use of the newly allocated value before it is
+        // fully initialized
+        alloc_obj = new CastPPNode(alloc_obj, _gvn.type(alloc_obj), true);
+        alloc_obj->set_req(0, control());
+        alloc_obj = _gvn.transform(alloc_obj);
+
+        ideal.sync_kit(this);
 
         ideal.set(res, alloc_obj);
       }
-      ideal.sync_kit(this);
     } ideal.end_if();
     sync_kit(ideal);
     push_node(bt, _gvn.transform(ideal.value(res)));
@@ -195,6 +217,7 @@ void Parse::array_store(BasicType bt) {
     const TypeOopPtr* elemptr = elemtype->make_oopptr();
     const Type* val_t = _gvn.type(val);
     if (elemtype->isa_valuetype() != NULL) {
+      C->set_flattened_accesses();
       // Store to flattened value type array
       if (!cast_val->is_ValueType()) {
         inc_sp(3);
@@ -269,10 +292,26 @@ void Parse::array_store(BasicType bt) {
           } else if (!ideal.ctrl()->is_top()) {
             // Element type is unknown, emit runtime call
             assert(!ary_t->klass_is_exact(), "should not have exact type here");
+            sync_kit(ideal);
+
+            // This membar keeps this access to an unknown flattened
+            // array correctly ordered with other unknown and known
+            // flattened array accesses.
+            insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::VALUES));
+            ideal.sync_kit(this);
+
             ideal.make_leaf_call(OptoRuntime::store_unknown_value_Type(),
                                  CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_value),
                                  "store_unknown_value",
                                  val, ary, idx);
+
+            sync_kit(ideal);
+            // Same as MemBarCPUOrder above: keep this unknown
+            // flattened array access correctly ordered with other
+            // flattened array access
+            insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::VALUES));
+            ideal.sync_kit(this);
+
           }
         } ideal.end_if();
         sync_kit(ideal);

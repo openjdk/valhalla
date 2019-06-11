@@ -76,7 +76,8 @@ protected:
          IsMultiversioned=16384,
          StripMined=32768,
          SubwordLoop=65536,
-         ProfileTripFailed=131072};
+         ProfileTripFailed=131072,
+         FlattenedArrays=262144};
   char _unswitch_count;
   enum { _unswitch_max=3 };
   char _postloop_flags;
@@ -101,6 +102,7 @@ public:
   bool is_strip_mined() const { return _loop_flags & StripMined; }
   bool is_profile_trip_failed() const { return _loop_flags & ProfileTripFailed; }
   bool is_subword_loop() const { return _loop_flags & SubwordLoop; }
+  bool is_flattened_arrays() const { return _loop_flags & FlattenedArrays; }
 
   void mark_partial_peel_failed() { _loop_flags |= PartialPeelFailed; }
   void mark_has_reductions() { _loop_flags |= HasReductions; }
@@ -115,6 +117,7 @@ public:
   void clear_strip_mined() { _loop_flags &= ~StripMined; }
   void mark_profile_trip_failed() { _loop_flags |= ProfileTripFailed; }
   void mark_subword_loop() { _loop_flags |= SubwordLoop; }
+  void mark_flattened_arrays() { _loop_flags |= FlattenedArrays; }
 
   int unswitch_max() { return _unswitch_max; }
   int unswitch_count() { return _unswitch_count; }
@@ -1219,7 +1222,7 @@ public:
   void do_unswitching (IdealLoopTree *loop, Node_List &old_new);
 
   // Find candidate "if" for unswitching
-  IfNode* find_unswitching_candidate(const IdealLoopTree *loop) const;
+  IfNode* find_unswitching_candidate(const IdealLoopTree *loop, Node_List& flattened_checks) const;
 
   // Range Check Elimination uses this function!
   // Constrain the main loop iterations so the affine function:

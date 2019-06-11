@@ -932,7 +932,8 @@ class CompileReplay : public StackObj {
       java_mirror->obj_field_put(fd->offset(), value());
       return true;
     } else if (field_signature[0] == 'L') {
-      Klass* k = resolve_klass(field_signature, CHECK_(true));
+      const char* instance = parse_escaped_string();
+      Klass* k = resolve_klass(instance, CHECK_(true));
       oop value = InstanceKlass::cast(k)->allocate_instance(CHECK_(true));
       java_mirror->obj_field_put(fd->offset(), value);
       return true;

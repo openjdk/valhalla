@@ -785,6 +785,8 @@ public:
   virtual bool would_improve_type(ciKlass* exact_kls, int inline_depth) const { return false; }
   virtual bool would_improve_ptr(ProfilePtrKind ptr_kind) const { return false; }
 
+  static const TypeValueType *BOTTOM;
+
 #ifndef PRODUCT
   virtual void dump2(Dict &d, uint, outputStream* st) const; // Specialized per-Type dumping
 #endif
@@ -1325,6 +1327,7 @@ public:
   static const TypeAryPtr *LONGS;
   static const TypeAryPtr *FLOATS;
   static const TypeAryPtr *DOUBLES;
+  static const TypeAryPtr *VALUES;
   // selects one of the above:
   static const TypeAryPtr *get_array_body_type(BasicType elem) {
     assert((uint)elem <= T_CONFLICT && _array_body_type[elem] != NULL, "bad elem type");

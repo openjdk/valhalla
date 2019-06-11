@@ -24,6 +24,8 @@
 package compiler.valhalla.valuetypes;
 
 import java.lang.invoke.*;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 
 import jdk.experimental.value.MethodHandleBuilder;
 import jdk.test.lib.Asserts;
@@ -2054,5 +2056,143 @@ public class TestLWorld extends ValueTypeTest {
     public void test81_verifier(boolean warmup) {
         int result = test81();
         Asserts.assertEQ(result, 10*rI);
+    }
+
+    // Test check for null free array when storing to value array
+    @Test
+    public void test82(Object[] dst, Object v) {
+        dst[0] = v;
+    }
+
+    @DontCompile
+    public void test82_verifier(boolean warmup) {
+        MyValue2[] dst = new MyValue2[1];
+        test82(dst, testValue2);
+        if (!warmup) {
+            try {
+                test82(dst, null);
+                throw new RuntimeException("No ArrayStoreException thrown");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    @Test
+    @Warmup(10000)
+    public void test83(Object[] dst, Object v, boolean flag) {
+        if (dst == null) { // null check
+        }
+        if (flag) {
+            if (dst.getClass() == MyValue1[].class) { // trigger split if
+            }
+        } else {
+            dst = new MyValue2[1]; // constant null free property
+        }
+        dst[0] = v;
+    }
+
+    @DontCompile
+    public void test83_verifier(boolean warmup) {
+        MyValue2[] dst = new MyValue2[1];
+        test83(dst, testValue2, false);
+        if (!warmup) {
+            try {
+                test83(dst, null, true);
+                throw new RuntimeException("No ArrayStoreException thrown");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    // Following: should make 2 copies of the loop, one for non
+    // flattened arrays, one for other cases
+    @Test(match = { COUNTEDLOOP }, matchCount = { 4 } )
+    public void test84(Object[] src, Object[] dst) {
+        for (int i = 0; i < src.length; i++) {
+            dst[i] = src[i];
+        }
+    }
+
+    @DontCompile
+    public void test84_verifier(boolean warmup) {
+        MyValue2[] src = new MyValue2[100];
+        Arrays.fill(src, testValue2);
+        MyValue2[] dst = new MyValue2[100];
+        test84(src, dst);
+        Asserts.assertTrue(Arrays.equals(src, dst));
+    }
+
+    @Test(valid = G1GCOn, match = { COUNTEDLOOP }, matchCount = { 2 } )
+    @Test(valid = G1GCOff, match = { COUNTEDLOOP }, matchCount = { 3 } )
+    public void test85(Object[] src, Object[] dst) {
+        for (int i = 0; i < src.length; i++) {
+            dst[i] = src[i];
+        }
+    }
+
+    @DontCompile
+    public void test85_verifier(boolean warmup) {
+        Object[] src = new Object[100];
+        Arrays.fill(src, new Object());
+        src[0] = null;
+        Object[] dst = new Object[100];
+        test85(src, dst);
+        Asserts.assertTrue(Arrays.equals(src, dst));
+    }
+
+    @Test(valid = G1GCOn, match = { COUNTEDLOOP }, matchCount = { 2 } )
+    @Test(valid = G1GCOff, match = { COUNTEDLOOP }, matchCount = { 3 } )
+    public void test86(Object[] src, Object[] dst) {
+        for (int i = 0; i < src.length; i++) {
+            dst[i] = src[i];
+        }
+    }
+
+    @DontCompile
+    public void test86_verifier(boolean warmup) {
+        MyValue2[] src = new MyValue2[100];
+        Arrays.fill(src, testValue2);
+        Object[] dst = new Object[100];
+        test86(src, dst);
+        Asserts.assertTrue(Arrays.equals(src, dst));
+    }
+
+    @Test(match = { COUNTEDLOOP }, matchCount = { 4 } )
+    public void test87(Object[] src, Object[] dst) {
+        for (int i = 0; i < src.length; i++) {
+            dst[i] = src[i];
+        }
+    }
+
+    @DontCompile
+    public void test87_verifier(boolean warmup) {
+        Object[] src = new Object[100];
+        Arrays.fill(src, testValue2);
+        MyValue2[] dst = new MyValue2[100];
+        test87(src, dst);
+        Asserts.assertTrue(Arrays.equals(src, dst));
+    }
+
+    @Test(match = { COUNTEDLOOP }, matchCount = { 4 } )
+    public void test88(Object[] src1, Object[] dst1, Object[] src2, Object[] dst2) {
+        for (int i = 0; i < src1.length; i++) {
+            dst1[i] = src1[i];
+            dst2[i] = src2[i];
+        }
+    }
+
+    @DontCompile
+    public void test88_verifier(boolean warmup) {
+        MyValue2[] src1 = new MyValue2[100];
+        Arrays.fill(src1, testValue2);
+        MyValue2[] dst1 = new MyValue2[100];
+        Object[] src2 = new Object[100];
+        Arrays.fill(src2, new Object());
+        Object[] dst2 = new Object[100];
+        test88(src1, dst1, src2, dst2);
+        Asserts.assertTrue(Arrays.equals(src1, dst1));
+        Asserts.assertTrue(Arrays.equals(src2, dst2));
     }
 }

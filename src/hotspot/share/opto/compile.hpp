@@ -422,6 +422,8 @@ class Compile : public Phase {
   bool                  _has_method_handle_invokes; // True if this method has MethodHandle invokes.
   RTMState              _rtm_state;             // State of Restricted Transactional Memory usage
   int                   _loop_opts_cnt;         // loop opts round
+  bool                  _has_flattened_accesses; // Any known flattened array accesses?
+  bool                  _flattened_accesses_share_alias; // Initially all flattened array share a single slice
 
   // Compilation environment.
   Arena                 _comp_arena;            // Arena with lifetime equivalent to Compile
@@ -721,6 +723,9 @@ class Compile : public Phase {
   bool          profile_rtm() const              { return _rtm_state == ProfileRTM; }
   uint              max_node_limit() const       { return (uint)_max_node_limit; }
   void          set_max_node_limit(uint n)       { _max_node_limit = n; }
+  void          set_flattened_accesses()         { _has_flattened_accesses = true; }
+  bool          flattened_accesses_share_alias() const { return _flattened_accesses_share_alias; }
+  void          set_flattened_accesses_share_alias(bool z) { _flattened_accesses_share_alias = z; }
 
   // Support for scalarized value type calling convention
   bool              has_scalarized_args() const  { return _method != NULL && _method->has_scalarized_args(); }
@@ -853,6 +858,8 @@ class Compile : public Phase {
   void remove_value_type(Node* n);
   void process_value_types(PhaseIterGVN &igvn);
   bool can_add_value_type() const { return _value_type_nodes != NULL; }
+
+  void adjust_flattened_array_access_aliases(PhaseIterGVN& igvn);
 
   // remove the opaque nodes that protect the predicates so that the unused checks and
   // uncommon traps will be eliminated from the graph.
@@ -997,11 +1004,11 @@ class Compile : public Phase {
   }
 
   AliasType*        alias_type(int                idx)  { assert(idx < num_alias_types(), "oob"); return _alias_types[idx]; }
-  AliasType*        alias_type(const TypePtr* adr_type, ciField* field = NULL) { return find_alias_type(adr_type, false, field); }
+  AliasType*        alias_type(const TypePtr* adr_type, ciField* field = NULL, bool uncached = false) { return find_alias_type(adr_type, false, field, uncached); }
   bool         have_alias_type(const TypePtr* adr_type);
   AliasType*        alias_type(ciField*         field);
 
-  int               get_alias_index(const TypePtr* at)  { return alias_type(at)->index(); }
+  int               get_alias_index(const TypePtr* at, bool uncached = false) { return alias_type(at, NULL, uncached)->index(); }
   const TypePtr*    get_adr_type(uint aidx)             { return alias_type(aidx)->adr_type(); }
   int               get_general_index(uint aidx)        { return alias_type(aidx)->general_index(); }
 
@@ -1318,7 +1325,7 @@ class Compile : public Phase {
   void grow_alias_types();
   AliasCacheEntry* probe_alias_cache(const TypePtr* adr_type);
   const TypePtr *flatten_alias_type(const TypePtr* adr_type) const;
-  AliasType* find_alias_type(const TypePtr* adr_type, bool no_create, ciField* field);
+  AliasType* find_alias_type(const TypePtr* adr_type, bool no_create, ciField* field, bool uncached = false);
 
   void verify_top(Node*) const PRODUCT_RETURN;
 

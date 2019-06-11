@@ -41,6 +41,10 @@ void* C2ParseAccess::barrier_set_state() const {
 
 PhaseGVN& C2ParseAccess::gvn() const { return _kit->gvn(); }
 
+Node* C2ParseAccess::control() const {
+  return _ctl == NULL ? _kit->control() : _ctl;
+}
+
 bool C2Access::needs_cpu_membar() const {
   bool mismatched = (_decorators & C2_MISMATCHED) != 0;
   bool is_unordered = (_decorators & MO_UNORDERED) != 0;
@@ -144,7 +148,7 @@ Node* BarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) con
   if (access.is_parse_access()) {
     C2ParseAccess& parse_access = static_cast<C2ParseAccess&>(access);
     GraphKit* kit = parse_access.kit();
-    Node* control = control_dependent ? kit->control() : NULL;
+    Node* control = control_dependent ? parse_access.control() : NULL;
 
     if (in_native) {
       load = kit->make_load(control, adr, val_type, access.type(), mo);

@@ -151,11 +151,14 @@ public abstract class ValueTypeTest {
     protected static final int ValueTypeReturnedAsFieldsOff = 0x20;
     protected static final int AlwaysIncrementalInlineOn = 0x40;
     protected static final int AlwaysIncrementalInlineOff = 0x80;
+    protected static final int G1GCOn = 0x100;
+    protected static final int G1GCOff = 0x200;
     static final int AllFlags = ValueTypePassFieldsAsArgsOn | ValueTypePassFieldsAsArgsOff | ValueTypeArrayFlattenOn | ValueTypeArrayFlattenOff | ValueTypeReturnedAsFieldsOn;
     protected static final boolean ValueTypePassFieldsAsArgs = (Boolean)WHITE_BOX.getVMFlag("ValueTypePassFieldsAsArgs");
     protected static final boolean ValueTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("ValueArrayElemMaxFlatSize") == -1); // FIXME - fix this if default of ValueArrayElemMaxFlatSize is changed
     protected static final boolean ValueTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("ValueTypeReturnedAsFields");
     protected static final boolean AlwaysIncrementalInline = (Boolean)WHITE_BOX.getVMFlag("AlwaysIncrementalInline");
+    protected static final boolean G1GC = (Boolean)WHITE_BOX.getVMFlag("UseG1GC");
     protected static final long TieredStopAtLevel = (Long)WHITE_BOX.getVMFlag("TieredStopAtLevel");
     protected static final int COMP_LEVEL_ANY               = -2;
     protected static final int COMP_LEVEL_ALL               = -2;
@@ -180,6 +183,7 @@ public abstract class ValueTypeTest {
     protected static final String LOADK  = START + "LoadK" + MID + END;
     protected static final String STORE  = START + "Store(B|C|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/valuetypes/MyValue.*" + END;
     protected static final String LOOP   = START + "Loop" + MID + "" + END;
+    protected static final String COUNTEDLOOP = START + "CountedLoop\\b" + MID + "" + END;
     protected static final String TRAP   = START + "CallStaticJava" + MID + "uncommon_trap.*(unstable_if|predicate)" + END;
     protected static final String RETURN = START + "Return" + MID + "returns" + END;
     protected static final String LINKTOSTATIC = START + "CallStaticJava" + MID + "linkToStatic" + END;
@@ -472,6 +476,12 @@ public abstract class ValueTypeTest {
                     assert anno == null;
                     anno = a;
                 } else if ((a.valid() & AlwaysIncrementalInlineOff) != 0 && !AlwaysIncrementalInline) {
+                    assert anno == null;
+                    anno = a;
+                } else if ((a.valid() & G1GCOn) != 0 && G1GC) {
+                    assert anno == null;
+                    anno = a;
+                } else if ((a.valid() & G1GCOff) != 0 && !G1GC) {
                     assert anno == null;
                     anno = a;
                 }

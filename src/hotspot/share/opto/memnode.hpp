@@ -111,6 +111,10 @@ public:
 #endif
   }
 
+#ifdef ASSERT
+  void set_adr_type(const TypePtr* adr_type) { _adr_type = adr_type; }
+#endif
+
   // Map a load or store opcode to its corresponding store opcode.
   // (Return -1 if unknown.)
   virtual int store_Opcode() const { return -1; }
@@ -522,6 +526,33 @@ public:
   virtual bool depends_only_on_test() const { return true; }
 };
 
+// Retrieve the null free property from an array klass. This is
+// treated a bit like a field that would be read from the klass
+// structure at runtime except, the implementation encodes the
+// property as a bit in the klass header field of the array. This
+// implementation detail is hidden under this node so it doesn't make
+// a difference for high level optimizations. At final graph reshaping
+// time, this node is turned into the actual logical operations that
+// extract the property from the klass pointer. For this to work
+// correctly, GetNullFreePropertyNode must take a LoadKlass/LoadNKlass
+// input. The Ideal transformation splits the GetNullFreePropertyNode
+// through phis, Value returns a constant if the node's input is a
+// constant. These 2 should guarantee GetNullFreePropertyNode does
+// indeed have a LoadKlass/LoadNKlass input at final graph reshaping
+// time.
+class GetNullFreePropertyNode : public Node {
+public:
+  GetNullFreePropertyNode(Node* klass) : Node(NULL, klass) {}
+  virtual int Opcode() const;
+  virtual const Type* Value(PhaseGVN* phase) const;
+  virtual Node* Ideal(PhaseGVN *phase, bool can_reshape);
+  virtual const Type* bottom_type() const {
+    if (in(1)->bottom_type()->isa_klassptr()) {
+      return TypeLong::LONG;
+    }
+    return TypeInt::INT;
+  }
+};
 
 //------------------------------StoreNode--------------------------------------
 // Store value; requires Store, Address and Value

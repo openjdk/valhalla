@@ -139,18 +139,22 @@ public:
 class C2ParseAccess: public C2Access {
 protected:
   GraphKit*         _kit;
+  Node* _ctl;
 
   void* barrier_set_state() const;
 
 public:
   C2ParseAccess(GraphKit* kit, DecoratorSet decorators,
-                BasicType type, Node* base, C2AccessValuePtr& addr) :
+                BasicType type, Node* base, C2AccessValuePtr& addr,
+                Node* ctl = NULL) :
     C2Access(decorators, type, base, addr),
-    _kit(kit) {
+    _kit(kit),
+    _ctl(ctl) {
     fixup_decorators();
   }
 
   GraphKit* kit() const           { return _kit; }
+  Node* control() const;
 
   template <typename T>
   T barrier_set_state_as() const {

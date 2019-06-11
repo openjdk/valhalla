@@ -56,6 +56,8 @@ enum CompilerPhaseType {
   PHASE_BEFORE_MACRO_EXPANSION,
   PHASE_END,
   PHASE_FAILURE,
+  PHASE_SPLIT_VALUES_ARRAY,
+  PHASE_SPLIT_VALUES_ARRAY_IGVN,
 
   PHASE_NUM_TYPES
 };
@@ -94,6 +96,8 @@ class CompilerPhaseTypeHelper {
       case PHASE_BEFORE_MACRO_EXPANSION:     return "Before macro expansion";
       case PHASE_END:                        return "End";
       case PHASE_FAILURE:                    return "Failure";
+      case PHASE_SPLIT_VALUES_ARRAY:         return "Split values array";
+      case PHASE_SPLIT_VALUES_ARRAY_IGVN:    return "IGVN after split values array";
       default:
         ShouldNotReachHere();
         return NULL;
