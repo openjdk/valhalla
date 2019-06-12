@@ -359,12 +359,10 @@ Symbol* SignatureStream::as_symbol() {
   int begin = _begin;
   int end   = _end;
 
-  if (_type == T_OBJECT || _type == T_VALUETYPE) {
+  if (  (_signature->char_at(_begin) == 'L' || _signature->char_at(_begin) == 'Q')
+      && _signature->char_at(_end-1) == ';') {
     begin++;
     end--;
-    if (begin == end) {
-      return vmSymbols::java_lang_Object();
-    }
   }
 
   const char* symbol_chars = (const char*)_signature->base() + begin;
@@ -415,7 +413,7 @@ oop SignatureStream::as_java_mirror(Handle class_loader, Handle protection_domai
                                     FailureMode failure_mode, TRAPS) {
   if (!is_object())
     return Universe::java_mirror(type());
-  Klass* klass = as_klass(class_loader, protection_domain, failure_mode, CHECK_NULL);
+  Klass* klass = as_klass(class_loader, protection_domain, failure_mode, THREAD);
   if (klass == NULL)  return NULL;
   if (klass->is_value()) {
     ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(klass));
@@ -433,12 +431,10 @@ Symbol* SignatureStream::as_symbol_or_null() {
   int begin = _begin;
   int end   = _end;
 
-  if (_type == T_OBJECT || _type == T_VALUETYPE) {
+  if (  (_signature->char_at(_begin) == 'L' || _signature->char_at(_begin) == 'Q')
+      && _signature->char_at(_end-1) == ';') {
     begin++;
     end--;
-    if (begin == end) {
-      return vmSymbols::java_lang_Object();
-    }
   }
 
   char* buffer = NEW_RESOURCE_ARRAY(char, end - begin);
