@@ -1030,9 +1030,13 @@ void Method::unlink_method() {
     _from_compiled_entry = cds_adapter->get_c2i_entry_trampoline();
     assert(*((int*)_from_compiled_entry) == 0,
            "must be NULL during dump time, to be initialized at run time");
-    _from_compiled_value_ro_entry = cds_adapter->get_c2i_entry_trampoline();
+    _from_compiled_value_ro_entry = cds_adapter->get_c2i_entry_trampoline(); // FIXME - doesn't work if you have value args!
     assert(*((int*)_from_compiled_value_ro_entry) == 0,
            "must be NULL during dump time, to be initialized at run time");
+    _from_compiled_value_entry  = cds_adapter->get_c2i_entry_trampoline(); // FIXME - doesn't work if you have value args (or this is value type)!
+    assert(*((int*)_from_compiled_value_entry) == 0,
+           "must be NULL during dump time, to be initialized at run time");
+    assert(!method_holder()->is_value(), "FIXME: valuetype not supported by CDS");
   }
 
   if (is_native()) {
