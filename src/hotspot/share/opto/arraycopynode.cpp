@@ -649,20 +649,21 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   JVMState* new_jvms = NULL;
   SafePointNode* new_map = NULL;
   if (!is_clonebasic()) {
-    new_jvms =  jvms()->clone_shallow(phase->C);
+    new_jvms = jvms()->clone_shallow(phase->C);
     new_map = new SafePointNode(req(), new_jvms);
     for (uint i = TypeFunc::FramePtr; i < req(); i++) {
       new_map->init_req(i, in(i));
     }
     new_jvms->set_map(new_map);
   } else {
-    new_jvms =  new (phase->C) JVMState(0);
+    new_jvms = new (phase->C) JVMState(0);
     new_map = new SafePointNode(TypeFunc::Parms, new_jvms);
     new_jvms->set_map(new_map);
   }
   new_map->set_control(in(TypeFunc::Control));
   new_map->set_memory(MergeMemNode::make(in(TypeFunc::Memory)));
   new_map->set_i_o(in(TypeFunc::I_O));
+  phase->record_for_igvn(new_map);
 
   const TypeAryPtr* atp_src = get_address_type(phase, src);
   const TypeAryPtr* atp_dest = get_address_type(phase, dest);
