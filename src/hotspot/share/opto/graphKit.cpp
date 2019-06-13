@@ -3373,6 +3373,13 @@ Node* GraphKit::is_always_locked(Node* obj) {
   return _gvn.transform(new AndXNode(mark, value_mask));
 }
 
+Node* GraphKit::is_value_mirror(Node* mirror) {
+  Node* p = basic_plus_adr(mirror, java_lang_Class::inline_mirror_offset_in_bytes());
+  Node* inline_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
+  Node* cmp = _gvn.transform(new CmpPNode(mirror, inline_mirror));
+  return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+}
+
 // Deoptimize if 'obj' is a value type
 void GraphKit::gen_value_type_guard(Node* obj, int nargs) {
   assert(EnableValhalla, "should only be used if value types are enabled");
@@ -4078,11 +4085,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     Node* flat      = MakeConX(ArrayStorageProperties::flattened_and_null_free.encode<NOT_LP64(jint) LP64_ONLY(jlong)>(props_shift));
 
     // Check if element mirror is a value mirror
-    Node* p = basic_plus_adr(elem_mirror, java_lang_Class::inline_mirror_offset_in_bytes());
-    Node* inline_mirror = access_load_at(elem_mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
-    Node* cmp = _gvn.transform(new CmpPNode(elem_mirror, inline_mirror));
-    Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
-    IfNode* iff = create_and_map_if(control(), bol, PROB_FAIR, COUNT_UNKNOWN);
+    IfNode* iff = create_and_map_if(control(), is_value_mirror(elem_mirror), PROB_FAIR, COUNT_UNKNOWN);
 
     // Not a value mirror but a box mirror or not a value type array, initialize with all zero
     r->init_req(1, _gvn.transform(new IfFalseNode(iff)));
@@ -4091,8 +4094,8 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
 
     // Value mirror (= null-free), check if flattened
     set_control(_gvn.transform(new IfTrueNode(iff)));
-    cmp = gen_lh_array_test(klass_node, Klass::_lh_array_tag_vt_value);
-    bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+    Node* cmp = gen_lh_array_test(klass_node, Klass::_lh_array_tag_vt_value);
+    Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
     iff = create_and_map_if(control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
     // Flattened, initialize with all zero
@@ -4102,7 +4105,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
 
     // Non-flattened, initialize with the default value
     set_control(_gvn.transform(new IfFalseNode(iff)));
-    p = basic_plus_adr(klass_node, in_bytes(ArrayKlass::element_klass_offset()));
+    Node* p = basic_plus_adr(klass_node, in_bytes(ArrayKlass::element_klass_offset()));
     Node* eklass = _gvn.transform(LoadKlassNode::make(_gvn, control(), immutable_memory(), p, TypeInstPtr::KLASS));
     Node* adr_fixed_block_addr = basic_plus_adr(eklass, in_bytes(InstanceKlass::adr_valueklass_fixed_block_offset()));
     Node* adr_fixed_block = make_load(control(), adr_fixed_block_addr, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
