@@ -3527,14 +3527,12 @@ bool LibraryCallKit::inline_value_Class_conversion(vmIntrinsics::ID id) {
 
   bool is_val_type = false;
   ciType* tm = mirror_con->java_mirror_type(&is_val_type);
-  if (tm != NULL) {
+  if (tm != NULL && tm->is_valuetype()) {
     Node* result = mirror;
-    if (tm->is_valuetype()) {
-      if (id == vmIntrinsics::_asPrimaryType && !is_val_type) {
-        result = _gvn.makecon(TypeInstPtr::make(tm->as_value_klass()->inline_mirror_instance()));
-      } else if (id == vmIntrinsics::_asIndirectType && is_val_type) {
-        result = _gvn.makecon(TypeInstPtr::make(tm->as_value_klass()->indirect_mirror_instance()));
-      }
+    if (id == vmIntrinsics::_asPrimaryType && !is_val_type) {
+      result = _gvn.makecon(TypeInstPtr::make(tm->as_value_klass()->inline_mirror_instance()));
+    } else if (id == vmIntrinsics::_asIndirectType && is_val_type) {
+      result = _gvn.makecon(TypeInstPtr::make(tm->as_value_klass()->indirect_mirror_instance()));
     }
     set_result(result);
     return true;
@@ -3624,10 +3622,13 @@ bool LibraryCallKit::inline_Class_cast() {
     if (EnableValhalla && !obj->is_ValueType() && !is_val_type) {
       // Check if (mirror == inline_mirror && obj == null)
       RegionNode* r = new RegionNode(3);
-      Node* is_val_mirror = generate_fair_guard(is_value_mirror(mirror), NULL);
-      r->init_req(1, control());
+      Node* p = basic_plus_adr(mirror, java_lang_Class::inline_mirror_offset_in_bytes());
+      Node* inline_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
+      Node* cmp = _gvn.transform(new CmpPNode(mirror, inline_mirror));
+      Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
+      Node* if_ne = generate_fair_guard(bol, NULL);
+      r->init_req(1, if_ne);
 
-      set_control(is_val_mirror);
       // Casting to .val, check for null
       Node* null_ctr = top();
       null_check_oop(obj, &null_ctr);
@@ -3681,10 +3682,8 @@ bool LibraryCallKit::inline_native_subtype_check() {
   };
 
   RegionNode* region = new RegionNode(PATH_LIMIT);
-  RegionNode* prim_region = new RegionNode(2);
   Node*       phi    = new PhiNode(region, TypeInt::BOOL);
   record_for_igvn(region);
-  record_for_igvn(prim_region);
 
   const TypePtr* adr_type = TypeRawPtr::BOTTOM;   // memory type of loads
   const TypeKlassPtr* kls_type = TypeKlassPtr::OBJECT_OR_NULL;
@@ -3713,11 +3712,8 @@ bool LibraryCallKit::inline_native_subtype_check() {
     Node* kls = klasses[which_arg];
     Node* null_ctl = top();
     kls = null_check_oop(kls, &null_ctl, never_see_null);
-    if (which_arg == 0) {
-      prim_region->init_req(1, null_ctl);
-    } else {
-      region->init_req(_prim_1_path, null_ctl);
-    }
+    int prim_path = (which_arg == 0 ? _prim_0_path : _prim_1_path);
+    region->init_req(prim_path, null_ctl);
     if (stopped())  break;
     klasses[which_arg] = kls;
   }
@@ -3727,9 +3723,6 @@ bool LibraryCallKit::inline_native_subtype_check() {
     Node* subk   = klasses[1];  // the argument to isAssignableFrom
     Node* superk = klasses[0];  // the receiver
     region->set_req(_both_ref_path, gen_subtype_check(subk, superk));
-    // If superc is a value mirror, we also need to check if superc == subc because
-    // V? is not a subtype of V but due to subk == superk the subtype check will pass.
-    generate_fair_guard(is_value_mirror(args[0]), prim_region);
     // now we have a successful reference subtype check
     region->set_req(_ref_subtype_path, control());
   }
@@ -3737,13 +3730,12 @@ bool LibraryCallKit::inline_native_subtype_check() {
   // If both operands are primitive (both klasses null), then
   // we must return true when they are identical primitives.
   // It is convenient to test this after the first null klass check.
-  // This path is also used if superc is a value mirror.
-  set_control(_gvn.transform(prim_region));
+  set_control(region->in(_prim_0_path)); // go back to first null check
   if (!stopped()) {
     // Since superc is primitive, make a guard for the superc==subc case.
     Node* cmp_eq = _gvn.transform(new CmpPNode(args[0], args[1]));
     Node* bol_eq = _gvn.transform(new BoolNode(cmp_eq, BoolTest::eq));
-    generate_fair_guard(bol_eq, region);
+    generate_guard(bol_eq, region, PROB_FAIR);
     if (region->req() == PATH_LIMIT+1) {
       // A guard was added.  If the added guard is taken, superc==subc.
       region->swap_edges(PATH_LIMIT, _prim_same_path);

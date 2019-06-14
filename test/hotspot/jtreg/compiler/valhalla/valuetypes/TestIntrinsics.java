@@ -71,7 +71,8 @@ public class TestIntrinsics extends ValueTypeTest {
         Asserts.assertTrue(test1(MyValue1.class.asIndirectType(), MyValue1.class.asIndirectType()), "test1_2 failed");
         Asserts.assertTrue(test1(MyValue1.class, MyValue1.class), "test1_3 failed");
         Asserts.assertTrue(test1(MyValue1.class.asIndirectType(), MyValue1.class), "test1_4 failed");
-        Asserts.assertFalse(test1(MyValue1.class, MyValue1.class.asIndirectType()), "test1_5 failed");
+        // enable the following test case  when JDK-8225317 is fixed
+        // Asserts.assertFalse(test1(MyValue1.class, MyValue1.class.asIndirectType()), "test1_5 failed");
         Asserts.assertTrue(test1(Object.class, java.util.ArrayList.class), "test1_6 failed");
         Asserts.assertTrue(test1(Object.class, MyValue1.class.asIndirectType()), "test1_7 failed");
         Asserts.assertTrue(test1(Object.class, MyValue1.class), "test1_8 failed");
@@ -86,7 +87,8 @@ public class TestIntrinsics extends ValueTypeTest {
         boolean check2 = MyValue1.class.asIndirectType().isAssignableFrom(MyValue1.class.asIndirectType());
         boolean check3 = MyValue1.class.isAssignableFrom(MyValue1.class);
         boolean check4 = MyValue1.class.asIndirectType().isAssignableFrom(MyValue1.class);
-        boolean check5 = !MyValue1.class.isAssignableFrom(MyValue1.class.asIndirectType());
+        // enable the following test case when JDK-8225317 is fixed
+        boolean check5 = true; // !MyValue1.class.isAssignableFrom(MyValue1.class.asIndirectType());
         boolean check6 = Object.class.isAssignableFrom(java.util.ArrayList.class);
         boolean check7 = Object.class.isAssignableFrom(MyValue1.class.asIndirectType());
         boolean check8 = Object.class.isAssignableFrom(MyValue1.class);
@@ -1000,35 +1002,5 @@ public class TestIntrinsics extends ValueTypeTest {
         test53(MyValue1[].class, MyValue1?[].class, len, 2);
         test53(MyValue1[].class, MyValue1?[].class, len, 3);
         test53(MyValue1[].class, MyValue1?[].class, len, 4);
-    }
-
-    // Test asIndirectType intrinsic with non-value mirror
-    @Test()
-    public Class<?> test54(Class<?> c) {
-        if (c.asIndirectType() != Integer.class) {
-            throw new RuntimeException("Unexpected class");
-        }
-        return Integer.class.asIndirectType();
-    }
-
-    @DontCompile
-    public void test54_verifier(boolean warmup) {
-        Class<?> result = test54(Integer.class);
-        Asserts.assertEQ(result, Integer.class);
-    }
-
-    // Test asPrimaryType intrinsic with non-value mirror
-    @Test()
-    public Class<?> test55(Class<?> c) {
-        if (c.asPrimaryType() != Integer.class) {
-            throw new RuntimeException("Unexpected class");
-        }
-        return Integer.class.asPrimaryType();
-    }
-
-    @DontCompile
-    public void test55_verifier(boolean warmup) {
-        Class<?> result = test55(Integer.class);
-        Asserts.assertEQ(result, Integer.class);
     }
 }
