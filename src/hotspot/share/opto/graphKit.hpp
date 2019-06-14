@@ -852,6 +852,7 @@ class GraphKit : public Phase {
   Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = NULL, bool never_null = false);
 
   Node* is_always_locked(Node* obj);
+  Node* is_value_mirror(Node* mirror);
   void gen_value_type_guard(Node* obj, int nargs = 0);
   void gen_value_array_null_guard(Node* ary, Node* val, int nargs);
   Node* load_lh_array_tag(Node* kls);
