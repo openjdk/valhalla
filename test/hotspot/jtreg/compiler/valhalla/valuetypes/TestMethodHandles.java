@@ -344,7 +344,6 @@ public class TestMethodHandles extends ValueTypeTest {
     static MethodHandle test8_mh2;
 
     @Test
-    @TempSkipForC1(reason = "JDK-8225374: C1 fails with -XX:+StressValueTypeReturnedAsFields")
     public long test8() throws Throwable {
         return ((MyValue2)test8_mh.invokeExact(test8_mh2)).hash();
     }
@@ -439,7 +438,6 @@ public class TestMethodHandles extends ValueTypeTest {
     static MethodHandle test10_mh3;
 
     @Test
-    @TempSkipForC1(reason = "JDK-8225374: C1 fails with -XX:+StressValueTypeReturnedAsFields")
     public long test10() throws Throwable {
         return ((MyValue2)test10_mh.invokeExact(test10_mh2, test10_mh3)).hash();
     }
@@ -481,7 +479,6 @@ public class TestMethodHandles extends ValueTypeTest {
     // is properly handled by the caller.
     @Test
     @Warmup(11000)
-    @TempSkipForC1(reason = "JDK-8225374: C1 fails with -XX:+StressValueTypeReturnedAsFields")
     public long test11() throws Throwable {
         return ((MyValue2)test11_mh.invokeExact(test11_mh2)).hash();
     }
