@@ -1306,8 +1306,7 @@ public final class Class<T> implements java.io.Serializable,
      * @since   1.1
      */
     public Object[] getSigners() {
-        Class<?> c = isInlineClass() && isIndirectType() ? asPrimaryType() : this;
-        return c.getSigners0();
+        return asPrimaryType().getSigners0();
     }
 
     private native Object[] getSigners0();
@@ -1316,8 +1315,7 @@ public final class Class<T> implements java.io.Serializable,
      * Set the signers of this class.
      */
     void setSigners(Object[] signers) {
-        Class<?> c = isInlineClass() && isIndirectType() ? asPrimaryType() : this;
-        c.setSigners0(signers);
+        asPrimaryType().setSigners0(signers);
     }
 
     native void setSigners0(Object[] signers);

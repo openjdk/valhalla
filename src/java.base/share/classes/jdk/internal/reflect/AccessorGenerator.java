@@ -420,16 +420,7 @@ class AccessorGenerator implements ClassFileConstants {
             return "[" + getClassName(c.getComponentType(), true);
         } else {
             if (addPrefixAndSuffixForNonPrimitiveTypes) {
-                final String desc;
-                if (c.isInlineClass()) {
-                    if (c == c.asPrimaryType()) {
-                        desc = 'Q' + c.getName() + ";";
-                    } else {
-                        desc = 'L' + c.asPrimaryType().getName() + ";";
-                    }
-                } else {
-                    desc = 'L' + c.getName() + ";";
-                }
+                final String desc = (c.isIndirectType() ? 'L' : 'Q') + c.getName() + ";";
                 return internalize(desc);
             } else {
                 return internalize(c.getName());

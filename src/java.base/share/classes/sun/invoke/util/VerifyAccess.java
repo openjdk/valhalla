@@ -236,8 +236,7 @@ public class VerifyAccess {
      * @param refc the class attempting to make the reference
      */
     public static boolean isTypeVisible(Class<?> type, Class<?> refc) {
-        // FIXME: should use asPrimaryType after intrinsified method is updated.
-        if (type.asIndirectType() == refc.asIndirectType()) {
+        if (type.asPrimaryType() == refc.asPrimaryType()) {
             return true;  // easy check
         }
         while (type.isArray())  type = type.getComponentType();
@@ -286,9 +285,6 @@ public class VerifyAccess {
         // memoization.  And the caller never gets to look at the alternate type binding
         // ("res"), whether it exists or not.
 
-        if (type.isInlineClass()) {
-            type = type.asPrimaryType();
-        }
         final String name = type.getName();
         Class<?> res = java.security.AccessController.doPrivileged(
                 new java.security.PrivilegedAction<>() {
@@ -300,7 +296,7 @@ public class VerifyAccess {
                         }
                     }
             });
-        return (type == res);
+        return (type.asPrimaryType() == res);
     }
 
     /**

@@ -528,7 +528,7 @@ public final class ValueBootstrapMethods {
             System.out.println("substitutable " + a + " vs " + b);
         }
         try {
-            Class<?> type = a.getClass().isInlineClass() ? a.getClass().asPrimaryType() : a.getClass();
+            Class<?> type = a.getClass().asPrimaryType();
             return (boolean) substitutableInvoker(type).invoke(a, b);
         } catch (Error|RuntimeException e) {
             if (VERBOSE) e.printStackTrace();
