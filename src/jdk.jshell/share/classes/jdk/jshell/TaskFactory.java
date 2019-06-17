@@ -236,9 +236,7 @@ class TaskFactory {
     // Parse a snippet and return our parse task handler
     <Z> Z parse(final String source, Worker<ParseTask, Z> worker) {
         return parse(source, false, pt -> {
-            if (!pt.units().isEmpty()
-                    && pt.units().get(0).getKind() == Kind.EXPRESSION_STATEMENT
-                    && pt.getDiagnostics().hasOtherThanNotStatementErrors()) {
+            if (shouldParseAsExpression(pt)) {
                 // It failed, it may be an expression being incorrectly
                 // parsed as having a leading type variable, example:   a < b
                 // Try forcing interpretation as an expression
@@ -253,6 +251,20 @@ class TaskFactory {
             return worker.withTask(pt);
         });
     }
+        // where
+        private boolean shouldParseAsExpression(ParseTask pt) {
+            if (pt.units().isEmpty() || !pt.getDiagnostics().hasOtherThanNotStatementErrors())
+                return false;
+            Tree tree = pt.units().get(0);
+            if (tree.getKind() == Kind.EXPRESSION_STATEMENT)
+                return true;
+            if (tree.getKind() == Kind.VARIABLE) {
+                JCVariableDecl varDecl = (JCVariableDecl) tree;
+                if (varDecl.vartype != null && varDecl.vartype.isQuestioned())
+                    return true;
+            }
+            return false;
+        }
 
     private interface SourceHandler<T> {
 
