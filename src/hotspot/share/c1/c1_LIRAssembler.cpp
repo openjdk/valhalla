@@ -337,9 +337,9 @@ void LIR_Assembler::add_debug_info_for_branch(CodeEmitInfo* info) {
 }
 
 
-void LIR_Assembler::add_call_info(int pc_offset, CodeEmitInfo* cinfo) {
+void LIR_Assembler::add_call_info(int pc_offset, CodeEmitInfo* cinfo, bool maybe_return_as_fields) {
   flush_debug_info(pc_offset);
-  cinfo->record_debug_info(compilation()->debug_info_recorder(), pc_offset);
+  cinfo->record_debug_info(compilation()->debug_info_recorder(), pc_offset, maybe_return_as_fields);
   if (cinfo->exception_handlers() != NULL) {
     compilation()->add_exception_handlers_for_pco(pc_offset, cinfo->exception_handlers());
   }

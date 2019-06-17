@@ -1227,6 +1227,8 @@ class LIR_OpJavaCall: public LIR_OpCall {
   virtual void emit_code(LIR_Assembler* masm);
   virtual LIR_OpJavaCall* as_OpJavaCall() { return this; }
   virtual void print_instr(outputStream* out) const PRODUCT_RETURN;
+
+  bool maybe_return_as_fields() const;
 };
 
 // --------------------------------------------------

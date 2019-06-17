@@ -25,6 +25,7 @@ package compiler.valhalla.valuetypes;
 
 import jdk.test.lib.Asserts;
 
+import java.lang.invoke.*;
 import java.lang.reflect.Method;
 
 /*
@@ -49,6 +50,23 @@ public class TestCallingConvention extends ValueTypeTest {
         case 3: return new String[] {"-XX:ValueArrayElemMaxFlatSize=0"};
         }
         return null;
+    }
+
+    static {
+        try {
+            Class<?> clazz = TestCallingConvention.class;
+            ClassLoader loader = clazz.getClassLoader();
+            MethodHandles.Lookup lookup = MethodHandles.lookup();
+
+            MethodType mt32 = MethodType.methodType(MyValue2.class, boolean.class);
+            test32_mh = lookup.findVirtual(clazz, "test32_interp", mt32);
+
+            MethodType mt33 = MethodType.methodType(Object.class, boolean.class);
+            test33_mh = lookup.findVirtual(clazz, "test33_interp", mt33);
+        } catch (NoSuchMethodException | IllegalAccessException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Method handle lookup failed");
+        }
     }
 
     public static void main(String[] args) throws Throwable {
@@ -270,7 +288,6 @@ public class TestCallingConvention extends ValueTypeTest {
     }
 
     @Test()
-    @TempSkipForC1(reason = "JDK-8225374: C1 fails with -XX:+StressValueTypeReturnedAsFields")
     public MyValue2 test14(boolean flag) {
         return test14_interp(flag);
     }
@@ -618,4 +635,54 @@ public class TestCallingConvention extends ValueTypeTest {
         test31_vt.verify(vt);
     }
 */
+
+    // Test deoptimization at call return with return value in registers. Same as test14, except the interpreted method
+    // is called via a MethodHandle.
+    static MethodHandle test32_mh;
+
+    @DontCompile
+    public MyValue2 test32_interp(boolean deopt) {
+        if (deopt) {
+            // uncommon trap
+            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test32"));
+        }
+        return MyValue2.createWithFieldsInline(rI+32, true);
+    }
+
+    @Test()
+    public MyValue2 test32(boolean flag) throws Throwable {
+        return (MyValue2)test32_mh.invokeExact(this, flag);
+    }
+
+    @DontCompile
+    public void test32_verifier(boolean warmup) throws Throwable {
+        MyValue2 result = test32(!warmup);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI+32, true);
+        Asserts.assertEQ(result.hash(), v.hash());
+    }
+
+    // Same as test32, except the return type is not flattenable.
+    static MethodHandle test33_mh;
+
+    @DontCompile
+    public Object test33_interp(boolean deopt) {
+        if (deopt) {
+            // uncommon trap
+            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test33"));
+        }
+        return MyValue2.createWithFieldsInline(rI+33, true);
+    }
+
+    @Test()
+    public MyValue2 test33(boolean flag) throws Throwable {
+        Object o = test33_mh.invokeExact(this, flag);
+        return (MyValue2)o;
+    }
+
+    @DontCompile
+    public void test33_verifier(boolean warmup) throws Throwable {
+        MyValue2 result = test33(!warmup);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI+33, true);
+        Asserts.assertEQ(result.hash(), v.hash());
+    }
 }

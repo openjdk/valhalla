@@ -232,20 +232,7 @@ class IRScopeDebugInfo: public CompilationResourceObj {
   //Whether we should reexecute this bytecode for deopt
   bool should_reexecute();
 
-  void record_debug_info(DebugInformationRecorder* recorder, int pc_offset, bool topmost, bool is_method_handle_invoke = false) {
-    if (caller() != NULL) {
-      // Order is significant:  Must record caller first.
-      caller()->record_debug_info(recorder, pc_offset, false/*topmost*/);
-    }
-    DebugToken* locvals = recorder->create_scope_values(locals());
-    DebugToken* expvals = recorder->create_scope_values(expressions());
-    DebugToken* monvals = recorder->create_monitor_values(monitors());
-    // reexecute allowed only for the topmost frame
-    bool reexecute = topmost ? should_reexecute() : false;
-    bool return_oop = false; // This flag will be ignored since it used only for C2 with escape analysis.
-    bool rethrow_exception = false;
-    recorder->describe_scope(pc_offset, methodHandle(), scope()->method(), bci(), reexecute, rethrow_exception, is_method_handle_invoke, return_oop, false, locvals, expvals, monvals);
-  }
+  void record_debug_info(DebugInformationRecorder* recorder, int pc_offset, bool topmost, bool is_method_handle_invoke = false, bool maybe_return_as_fields = false);
 };
 
 
@@ -280,7 +267,7 @@ class CodeEmitInfo: public CompilationResourceObj {
   bool deoptimize_on_exception() const           { return _deoptimize_on_exception; }
 
   void add_register_oop(LIR_Opr opr);
-  void record_debug_info(DebugInformationRecorder* recorder, int pc_offset);
+  void record_debug_info(DebugInformationRecorder* recorder, int pc_offset, bool maybe_return_as_fields = false);
 
   bool     is_method_handle_invoke() const { return _is_method_handle_invoke;     }
   void set_is_method_handle_invoke(bool x) {        _is_method_handle_invoke = x; }

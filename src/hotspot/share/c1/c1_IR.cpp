@@ -179,6 +179,25 @@ bool IRScopeDebugInfo::should_reexecute() {
     return false;
 }
 
+void IRScopeDebugInfo::record_debug_info(DebugInformationRecorder* recorder, int pc_offset, bool topmost, bool is_method_handle_invoke, bool maybe_return_as_fields) {
+  if (caller() != NULL) {
+    // Order is significant:  Must record caller first.
+    caller()->record_debug_info(recorder, pc_offset, false/*topmost*/);
+  }
+  DebugToken* locvals = recorder->create_scope_values(locals());
+  DebugToken* expvals = recorder->create_scope_values(expressions());
+  DebugToken* monvals = recorder->create_monitor_values(monitors());
+  // reexecute allowed only for the topmost frame
+  bool reexecute = topmost ? should_reexecute() : false;
+  bool return_oop = false; // This flag will be ignored since it used only for C2 with escape analysis.
+  bool rethrow_exception = false;
+  bool return_vt = false;
+  if (maybe_return_as_fields) {
+    return_oop = true;
+    return_vt = true;
+  }
+  recorder->describe_scope(pc_offset, methodHandle(), scope()->method(), bci(), reexecute, rethrow_exception, is_method_handle_invoke, return_oop, return_vt, locvals, expvals, monvals);
+}
 
 // Implementation of CodeEmitInfo
 
@@ -211,10 +230,10 @@ CodeEmitInfo::CodeEmitInfo(CodeEmitInfo* info, ValueStack* stack)
 }
 
 
-void CodeEmitInfo::record_debug_info(DebugInformationRecorder* recorder, int pc_offset) {
+void CodeEmitInfo::record_debug_info(DebugInformationRecorder* recorder, int pc_offset, bool maybe_return_as_fields) {
   // record the safepoint before recording the debug info for enclosing scopes
   recorder->add_safepoint(pc_offset, _oop_map->deep_copy());
-  _scope_debug_info->record_debug_info(recorder, pc_offset, true/*topmost*/, _is_method_handle_invoke);
+  _scope_debug_info->record_debug_info(recorder, pc_offset, true/*topmost*/, _is_method_handle_invoke, maybe_return_as_fields);
   recorder->end_safepoint(pc_offset);
 }
 

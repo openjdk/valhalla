@@ -2882,13 +2882,13 @@ void LIR_Assembler::call(LIR_OpJavaCall* op, relocInfo::relocType rtype) {
   assert((__ offset() + NativeCall::displacement_offset) % BytesPerWord == 0,
          "must be aligned");
   __ call(AddressLiteral(op->addr(), rtype));
-  add_call_info(code_offset(), op->info());
+  add_call_info(code_offset(), op->info(), op->maybe_return_as_fields());
 }
 
 
 void LIR_Assembler::ic_call(LIR_OpJavaCall* op) {
   __ ic_call(op->addr());
-  add_call_info(code_offset(), op->info());
+  add_call_info(code_offset(), op->info(), op->maybe_return_as_fields());
   assert((__ offset() - NativeCall::instruction_size + NativeCall::displacement_offset) % BytesPerWord == 0,
          "must be aligned");
 }

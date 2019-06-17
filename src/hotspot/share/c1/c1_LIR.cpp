@@ -28,6 +28,7 @@
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciInstance.hpp"
+#include "ci/ciValueKlass.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 Register LIR_OprDesc::as_register() const {
@@ -1019,6 +1020,28 @@ bool LIR_OpVisitState::no_operands(LIR_Op* op) {
 
 void LIR_OpJavaCall::emit_code(LIR_Assembler* masm) {
   masm->emit_call(this);
+}
+
+bool LIR_OpJavaCall::maybe_return_as_fields() const {
+  if (ValueTypeReturnedAsFields) {
+    if (method()->signature()->returns_never_null()) {
+      ciType* return_type = method()->return_type();
+      if (return_type->is_valuetype()) {
+        ciValueKlass* vk = return_type->as_value_klass();
+        if (vk->can_be_returned_as_fields()) {
+          return true;
+        }
+      }
+    } else if (is_method_handle_invoke()) {
+      BasicType bt = method()->return_type()->basic_type();
+      if (bt == T_OBJECT || bt == T_VALUETYPE) {
+        // A value type might be returned from the call but we don't know its
+        // type.
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 void LIR_OpRTCall::emit_code(LIR_Assembler* masm) {
