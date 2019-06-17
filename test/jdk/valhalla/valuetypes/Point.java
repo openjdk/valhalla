@@ -25,19 +25,18 @@ public inline class Point {
     static final Object STATIC_FIELD = new Object();
     public int x;
     public int y;
-    Point () {
-        x = 10;
-        y = 20;
-    }
     public static Point makePoint(int x, int y) {
-        Point p = Point.default;
-        p = __WithField(p.x, x);
-        p = __WithField(p.y, y);
-        return p;
+        return new Point(x, y);
+    }
+
+    Point() {
+        this.x = 10;
+        this.y = 20;
     }
 
     public Point(int x, int y) {
         this.x = x;
         this.y = y;
     }
+
 }

@@ -47,20 +47,18 @@ public inline class Value {
         point_v = Point.makePoint(0,0);
         ref_v = null;
     }
-    static Value makeValue(char c, boolean z, byte b, int x, short y, long l, float f, double d, Number number, Point p, Object o) {
-        Value v = Value.default;
-        v = __WithField(v.char_v, c);
-        v = __WithField(v.byte_v, b);
-        v = __WithField(v.boolean_v, z);
-        v = __WithField(v.int_v, x);
-        v = __WithField(v.short_v, y);
-        v = __WithField(v.long_v, l);
-        v = __WithField(v.float_v, f);
-        v = __WithField(v.double_v, d);
-        v = __WithField(v.number_v, number);
-        v = __WithField(v.point_v, p);
-        v = __WithField(v.ref_v, o);
-        return v;
+    Value(char c, boolean z, byte b, int x, short y, long l, float f, double d, Number number, Point p, Object o) {
+        char_v = c;
+        byte_v = b;
+        boolean_v = z;
+        int_v = x;
+        short_v = y;
+        long_v = l;
+        float_v = f;
+        double_v = d;
+        number_v = number;
+        point_v = p;
+        ref_v = o;
     }
 
     static class Builder {
@@ -122,7 +120,7 @@ public inline class Value {
             return this;
         }
         Value build() {
-            return Value.makeValue(c, z, b, i, s, l, f, d, n, p, ref);
+            return new Value(c, z, b, i, s, l, f, d, n, p, ref);
         }
     }
 
@@ -135,22 +133,18 @@ public inline class Value {
         }
 
         static IntValue intValue(int i) {
-            IntValue v = IntValue.default;
-            v = __WithField(v.i, i);
-            return v;
+            return new IntValue(i);
         }
 
         static ShortValue shortValue(short s) {
-            ShortValue v = ShortValue.default;
-            v = __WithField(v.s, s);
-            return v;
+            return new ShortValue(s);
         }
     }
 
     static inline class IntValue implements Number {
         int i;
-        IntValue() {
-            i = 0;
+        IntValue(int i) {
+            this.i = i;
         }
         public int intValue() {
             return i;
@@ -159,8 +153,8 @@ public inline class Value {
 
     static inline class ShortValue implements Number {
         short s;
-        ShortValue() {
-            s = 0;
+        ShortValue(short s) {
+            this.s = s;
         }
         public short shortValue() {
             return s;

@@ -24,9 +24,19 @@
 public final inline class Line {
     public Point p1;
     public Point p2;
-    Line () {
+
+    Line() {
         this.p1 = Point.makePoint(0, 0);
         this.p2 = Point.makePoint(0, 0);
+    }
+
+    Line(int x1, int y1, int x2, int y2) {
+        this(Point.makePoint(x1, y1), Point.makePoint(x2, y2));
+    }
+
+    Line(Point p1, Point p2) {
+        this.p1 = p1;
+        this.p2 = p2;
     }
 
     public Point p1() {
@@ -38,14 +48,10 @@ public final inline class Line {
     }
 
     public static Line makeLine(int x1, int y1, int x2, int y2) {
-        return makeLine(Point.makePoint(x1, y1), Point.makePoint(x2, y2));
+        return new Line(x1, y1, x2, y2);
     }
 
     public static Line makeLine(Point p1, Point p2) {
-        Line l = Line.default;
-
-        l = __WithField(l.p1, p1);
-        l = __WithField(l.p2, p2);
-        return l;
+        return new Line(p1, p2);
     }
 }

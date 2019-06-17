@@ -32,7 +32,6 @@ import static org.testng.Assert.*;
 /*
  * @test
  * @summary Test inline classes with Reference types
- * @compile -XDallowWithFieldOperator Point.java
  * @run testng/othervm -XX:+EnableValhalla InlineReferenceTest
  */
 @Test

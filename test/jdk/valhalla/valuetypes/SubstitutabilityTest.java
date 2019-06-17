@@ -24,7 +24,6 @@
 /*
  * @test
  * @summary test MethodHandle/VarHandle on inline types
- * @compile -XDallowWithFieldOperator Point.java Line.java Value.java MutablePath.java MixedValues.java
  * @run testng/othervm -XX:+EnableValhalla SubstitutabilityTest
  */
 

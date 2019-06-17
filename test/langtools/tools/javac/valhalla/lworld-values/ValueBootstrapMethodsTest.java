@@ -25,7 +25,6 @@
 /*
  * @test
  * @summary test value bootstrap methods
- * @compile -XDallowWithFieldOperator ValueBootstrapMethodsTest.java
  * @run main/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 ValueBootstrapMethodsTest
  */
 
@@ -39,19 +38,11 @@ public class ValueBootstrapMethodsTest {
         private final double d;
         private final String s;
         private final List<String> l;
-        Value() {
-            this.i = 0;
-            this.d = 0;
-            this.s = "default";
-            this.l = List.of();
-        }
-        public static Value make(int i, double d, String s, String... items) {
-            Value v = Value.default;
-            v = __WithField(v.i, i);
-            v = __WithField(v.d, d);
-            v = __WithField(v.s, s);
-            v = __WithField(v.l, List.of(items));
-            return v;
+        Value(int i, double d, String s, String... items) {
+            this.i = i;
+            this.d = d;
+            this.s = s;
+            this.l = List.of(items);
         }
 
         private List<Object> values() {
@@ -77,7 +68,7 @@ public class ValueBootstrapMethodsTest {
 
     public static void main(String... args) throws Throwable {
 
-        Value value = Value.make(10, 5.03, "foo", "bar", "goo");
+        Value value = new Value(10, 5.03, "foo", "bar", "goo");
 
         assertEquals(value.localHashCode(), value.hashCode());
         assertEquals(value.localToString(), value.toString());
@@ -86,12 +77,12 @@ public class ValueBootstrapMethodsTest {
             throw new RuntimeException("expected equals");
         }
 
-        Value v2 = Value.make(20, 5.03, "foo", "bar", "goo");
+        Value v2 = new Value(20, 5.03, "foo", "bar", "goo");
         if (value.equals(v2)) {
             throw new RuntimeException("expected unequals");
         }
 
-        Value v3 = Value.make(20, 5.03, "foo", "bar", "goo");
+        Value v3 = new Value(20, 5.03, "foo", "bar", "goo");
         if (!v2.equals(v3)) {
             throw new RuntimeException("expected equals");
         }

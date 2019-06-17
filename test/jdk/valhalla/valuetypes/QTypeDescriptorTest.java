@@ -25,8 +25,6 @@
  * @test
  * @summary Test core reflection, dynamic proxy and lambdas that generates
  *          classes dynamically that reference Q-type and L-type
- * @compile -XDallowWithFieldOperator Point.java Line.java MutablePath.java
- * @compile -XDallowWithFieldOperator NonFlattenValue.java
  * @run testng/othervm -XX:+EnableValhalla QTypeDescriptorTest
  * @run testng/othervm -XX:+EnableValhalla -Dsun.reflect.noInflation=true QTypeDescriptorTest
  */

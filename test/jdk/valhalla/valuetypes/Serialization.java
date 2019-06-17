@@ -24,7 +24,7 @@
 /*
  * @test
  * @summary No Serialization support of inline value classes, without a proxy
- * @compile -XDallowWithFieldOperator Point.java Line.java NonFlattenValue.java Serialization.java
+ * @build Point Line NonFlattenValue Serialization
  * @run testng/othervm -XX:+EnableValhalla Serialization
  */
 
@@ -81,12 +81,9 @@ public class Serialization {
     static inline class SerializablePoint implements Serializable {
         public int x;
         public int y;
-        SerializablePoint() { x = 10; y = 20; }
+        SerializablePoint(int x, int y) { this.x = x; this.y = y; }
         static SerializablePoint make(int x, int y) {
-            SerializablePoint p = SerializablePoint.default;
-            p = __WithField(p.x, x);
-            p = __WithField(p.y, y);
-            return p;
+            return new SerializablePoint(x, y);
         }
         @Override public String toString() {
             return "[SerializablePoint x=" + x + " y=" + y + "]"; }
@@ -96,12 +93,9 @@ public class Serialization {
     static inline class ExternalizablePoint implements Externalizable {
         public int x;
         public int y;
-        ExternalizablePoint() { x = 11; y = 21; }
+        ExternalizablePoint(int x, int y) { this.x = x; this.y = y; }
         static ExternalizablePoint make(int x, int y) {
-            ExternalizablePoint p = ExternalizablePoint.default;
-            p = __WithField(p.x, x);
-            p = __WithField(p.y, y);
-            return p;
+            return new ExternalizablePoint(x, y);
         }
         @Override public void readExternal(ObjectInput in) {  }
         @Override public void writeExternal(ObjectOutput out) {  }
@@ -138,11 +132,9 @@ public class Serialization {
     /** A Serializable Foo, with a serial proxy */
     static inline class SerializableFoo implements Serializable {
         public int x;
-        SerializableFoo() {  x = 10; }
+        SerializableFoo(int x) { this.x = x; }
         static SerializableFoo make(int x) {
-            SerializableFoo p = SerializableFoo.default;
-            p = __WithField(p.x, x);
-            return p;
+            return new SerializableFoo(x);
         }
         Object writeReplace() throws ObjectStreamException {
             return new SerialFooProxy(x);
@@ -162,11 +154,9 @@ public class Serialization {
     /** An Externalizable Foo, with a serial proxy */
     static inline class ExternalizableFoo implements Externalizable {
         public String s;
-        ExternalizableFoo() {  s = "hello"; }
+        ExternalizableFoo(String s) {  this.s = s; }
         static ExternalizableFoo make(String s) {
-            ExternalizableFoo p = ExternalizableFoo.default;
-            p = __WithField(p.s, s);
-            return p;
+            return new ExternalizableFoo(s);
         }
         Object writeReplace() throws ObjectStreamException {
             return new SerialFooProxy(s);

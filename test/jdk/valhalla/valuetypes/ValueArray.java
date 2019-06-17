@@ -24,7 +24,6 @@
 /*
  * @test
  * @summary Basic test for Array::get, Array::set, Arrays::setAll on inline class array
- * @compile -XDallowWithFieldOperator Point.java NonFlattenValue.java
  * @run testng/othervm -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=-1 ValueArray
  * @run testng/othervm -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=0  ValueArray
  */

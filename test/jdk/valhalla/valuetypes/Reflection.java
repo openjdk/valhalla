@@ -25,7 +25,6 @@
 /*
  * @test
  * @summary test reflection on inline types
- * @compile -XDallowWithFieldOperator Point.java Line.java NonFlattenValue.java
  * @run main/othervm -XX:+EnableValhalla Reflection
  */
 

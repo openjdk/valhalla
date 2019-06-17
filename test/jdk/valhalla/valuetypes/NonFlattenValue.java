@@ -27,6 +27,9 @@ public inline class NonFlattenValue {
     NonFlattenValue() {
         this.nfp = Point.makePoint(0,0);
     }
+    NonFlattenValue(Point p) {
+        this.nfp = p;
+    }
     public Point? point() {
         return nfp;
     }
@@ -38,10 +41,7 @@ public inline class NonFlattenValue {
     }
 
     public static NonFlattenValue make(int x, int y) {
-        NonFlattenValue v = NonFlattenValue.default;
-        Point p = Point.makePoint(x, y);
-        v = __WithField(v.nfp, p);
-        return v;
+        return new NonFlattenValue(Point.makePoint(x, y));
     }
 
     @Override

@@ -25,8 +25,6 @@
 /*
  * @test
  * @summary test Object methods on inline types
- * @compile -XDallowWithFieldOperator Point.java  Line.java MutablePath.java MixedValues.java Value.java
- * @build ObjectMethods
  * @run testng/othervm -XX:+EnableValhalla -Xcomp -Dvalue.bsm.salt=1 ObjectMethods
  * @run testng/othervm -XX:+EnableValhalla -Xcomp -Dvalue.bsm.salt=1 -XX:ValueFieldMaxFlatSize=0 ObjectMethods
  */
