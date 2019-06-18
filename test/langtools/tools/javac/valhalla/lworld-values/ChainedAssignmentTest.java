@@ -25,7 +25,7 @@
  * @test
  * @bug 8207332
  * @summary Verify that chained assignments in value constructors are lowered correctly.
- * @run main/othervm -XX:+EnableValhalla ChainedAssignmentTest
+ * @run main/othervm ChainedAssignmentTest
  */
 
 public class ChainedAssignmentTest {

@@ -26,7 +26,7 @@
  * @bug 8210351
  * @summary test nestmate access to an inline type's public, protected and private final fields.
  * @compile -XDemitQtypes -XDallowWithFieldOperator WithFieldAccessorTest.java
- * @run main/othervm -XX:+EnableValhalla WithFieldAccessorTest
+ * @run main/othervm WithFieldAccessorTest
  */
 
 // This test is similar to javac's WithFieldAccessorTest but tests nestmate

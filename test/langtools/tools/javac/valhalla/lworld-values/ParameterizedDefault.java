@@ -25,7 +25,7 @@
  * @test
  * @bug 8210906 8215109
  * @summary [lworld] default value creation should not impose raw types on users.
- * @run main/othervm -XX:+EnableValhalla ParameterizedDefault
+ * @run main/othervm ParameterizedDefault
  */
 
 public inline class ParameterizedDefault<E> {

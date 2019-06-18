@@ -25,7 +25,7 @@
  * @test
  * @summary Verify that certain array accesses do not trigger deoptimization.
  * @library /test/lib
- * @run main/othervm -XX:+EnableValhalla TestArrayAccessDeopt
+ * @run main/othervm TestArrayAccessDeopt
  */
 
 import java.io.File;
@@ -86,7 +86,7 @@ public class TestArrayAccessDeopt {
     static public void main(String[] args) throws Exception {
         if (args.length == 0) {
             // Run test in new VM instance
-            String[] arg = {"-XX:+EnableValhalla", "-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,TestArrayAccessDeopt::test*",
+            String[] arg = {"-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,TestArrayAccessDeopt::test*",
                             "-XX:+TraceDeoptimization", "-Xbatch", "-XX:-MonomorphicArrayCheck", "-Xmixed", "TestArrayAccessDeopt", "run"};
             OutputAnalyzer oa = ProcessTools.executeTestJvm(arg);
             String output = oa.getOutput();

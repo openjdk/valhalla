@@ -27,7 +27,7 @@
  * @test
  * @bug 8222745
  * @summary Test inline modifier
- * @run main/othervm -XX:+EnableValhalla InlineClassTest
+ * @run main/othervm InlineClassTest
  */
 
 public inline class InlineClassTest {

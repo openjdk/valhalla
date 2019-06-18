@@ -35,10 +35,10 @@ import static jdk.test.lib.Asserts.*;
  * @summary Plain array test for Inline Types
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers -XDallowGenericsOverValues ValueTypeArray.java Point.java Long8Value.java Person.java
- * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=-1 -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
- * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=0  -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
- * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=-1 -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
- * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=0  -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeArray
+ * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=-1 runtime.valhalla.valuetypes.ValueTypeArray
+ * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=0  runtime.valhalla.valuetypes.ValueTypeArray
+ * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=-1 runtime.valhalla.valuetypes.ValueTypeArray
+ * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=0  runtime.valhalla.valuetypes.ValueTypeArray
  */
 public class ValueTypeArray {
     public static void main(String[] args) {

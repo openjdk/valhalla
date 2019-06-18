@@ -29,7 +29,7 @@
  *          is not a nestmate of an inline type tries to write to the inline type's
  *          final fields.
  * @compile -XDemitQtypes WithFieldNoAccessTest.jcod
- * @run main/othervm -XX:+EnableValhalla WithFieldNoAccessTest
+ * @run main/othervm WithFieldNoAccessTest
  */
 
 // This test is based on the below Java program.  The only difference is that

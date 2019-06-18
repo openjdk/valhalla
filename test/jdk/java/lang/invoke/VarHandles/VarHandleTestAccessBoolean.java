@@ -24,10 +24,10 @@
 /*
  * @test
  * @compile -XDallowWithFieldOperator Value.java
- * @run testng/othervm -Diters=10    -XX:+EnableValhalla -Xint                   VarHandleTestAccessBoolean
- * @run testng/othervm -Diters=20000 -XX:+EnableValhalla -XX:TieredStopAtLevel=1 VarHandleTestAccessBoolean
- * @run testng/othervm -Diters=20000 -XX:+EnableValhalla                         VarHandleTestAccessBoolean
- * @run testng/othervm -Diters=20000 -XX:+EnableValhalla -XX:-TieredCompilation  VarHandleTestAccessBoolean
+ * @run testng/othervm -Diters=10    -Xint                   VarHandleTestAccessBoolean
+ * @run testng/othervm -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccessBoolean
+ * @run testng/othervm -Diters=20000                         VarHandleTestAccessBoolean
+ * @run testng/othervm -Diters=20000 -XX:-TieredCompilation  VarHandleTestAccessBoolean
  */
 
 import org.testng.annotations.BeforeClass;

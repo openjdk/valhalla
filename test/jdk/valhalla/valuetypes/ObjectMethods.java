@@ -25,9 +25,9 @@
 /*
  * @test
  * @summary test Object methods on inline types
- * @run testng/othervm -XX:+EnableValhalla -Xint -Dvalue.bsm.salt=1 ObjectMethods
- * @run testng/othervm -XX:+EnableValhalla -Xcomp -Dvalue.bsm.salt=1 ObjectMethods
- * @run testng/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 -XX:ValueFieldMaxFlatSize=0 ObjectMethods
+ * @run testng/othervm -Xint -Dvalue.bsm.salt=1 ObjectMethods
+ * @run testng/othervm -Xcomp -Dvalue.bsm.salt=1 ObjectMethods
+ * @run testng/othervm -Dvalue.bsm.salt=1 -XX:ValueFieldMaxFlatSize=0 ObjectMethods
  */
 
 import java.lang.reflect.Modifier;

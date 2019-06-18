@@ -25,8 +25,8 @@
 /*
  * @test
  * @summary test VarHandle on inline class array
- * @run testng/othervm -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=-1 ArrayElementVarHandleTest
- * @run testng/othervm -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=0  ArrayElementVarHandleTest
+ * @run testng/othervm -XX:ValueArrayElemMaxFlatSize=-1 ArrayElementVarHandleTest
+ * @run testng/othervm -XX:ValueArrayElemMaxFlatSize=0  ArrayElementVarHandleTest
  */
 
 import java.lang.invoke.*;

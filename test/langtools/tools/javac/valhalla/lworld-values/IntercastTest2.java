@@ -25,7 +25,7 @@
  * @test
  * @bug 8217875 8221545
  * @summary [lworld] Javac does not allow express casts between value types and their light weight box types
- * @run main/othervm -Xverify:none -XX:+EnableValhalla  IntercastTest2
+ * @run main/othervm -Xverify:none IntercastTest2
  */
 
 public inline class IntercastTest2 {

@@ -36,7 +36,7 @@ import java.util.Arrays;
  * @compile TestArrays.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
+ *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
  *                               compiler.valhalla.valuetypes.ValueTypeTest
  *                               compiler.valhalla.valuetypes.TestArrays
  */

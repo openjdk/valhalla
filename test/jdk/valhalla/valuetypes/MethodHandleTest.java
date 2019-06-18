@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test MethodHandle/VarHandle on inline types
- * @run testng/othervm -XX:+EnableValhalla MethodHandleTest
+ * @run testng/othervm MethodHandleTest
  */
 
 import java.lang.invoke.*;

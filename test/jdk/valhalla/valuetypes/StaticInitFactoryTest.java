@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test MethodHandle of static init factories
- * @run main/othervm -XX:+EnableValhalla StaticInitFactoryTest
+ * @run main/othervm StaticInitFactoryTest
  */
 
 import java.lang.invoke.MethodHandle;

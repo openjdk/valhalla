@@ -25,7 +25,7 @@
  * @test
  * @bug 8207341
  * @summary Test value constructor code with side effects.
- * @run main/othervm -XX:+EnableValhalla SideEffectTest
+ * @run main/othervm SideEffectTest
  */
 
 

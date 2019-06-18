@@ -26,8 +26,8 @@ package runtime.valhalla.valuetypes;
 /* @test
  * @summary test JNI functions with inline types
  * @compile -XDemitQtypes -XDallowWithFieldOperator ValueWithJni.java
- * @run main/othervm/native -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueWithJni
- * @run main/othervm/native -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueWithJni
+ * @run main/othervm/native -Xint runtime.valhalla.valuetypes.ValueWithJni
+ * @run main/othervm/native -Xcomp runtime.valhalla.valuetypes.ValueWithJni
  */
 public inline final class ValueWithJni {
 

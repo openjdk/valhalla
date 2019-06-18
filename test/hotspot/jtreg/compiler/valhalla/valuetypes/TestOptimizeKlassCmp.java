@@ -27,8 +27,7 @@
  * @summary Verify that Parse::optimize_cmp_with_klass() works with value types.
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes TestOptimizeKlassCmp.java
- * @run main/othervm -XX:+EnableValhalla -Xbatch
- *                   compiler.valhalla.valuetypes.TestOptimizeKlassCmp
+ * @run main/othervm -Xbatch compiler.valhalla.valuetypes.TestOptimizeKlassCmp
  */
 
 package compiler.valhalla.valuetypes;

@@ -92,9 +92,9 @@ hotspot_not_fast_compiler = \
   -:hotspot_slow_compiler \
   -compiler/graalunit
 
+# Valhalla temp drop:   compiler/codecache/stress
 hotspot_slow_compiler = \
   compiler/codegen/aes \
-  compiler/codecache/stress \
   compiler/gcbarriers/PreserveFPRegistersTest.java
 
 tier1_compiler_1 = \
@@ -112,9 +112,9 @@ tier1_compiler_1 = \
   -compiler/c2/Test6603011.java \
   -compiler/c2/Test6912517.java \
 
+# Valhalla temp drop:   compiler/codecache/
 tier1_compiler_2 = \
   compiler/classUnloading/ \
-  compiler/codecache/ \
   compiler/codegen/ \
   compiler/cpuflags/ \
   compiler/dependencies/ \
@@ -152,13 +152,21 @@ tier1_compiler_3 = \
   -compiler/loopopts/Test7052494.java \
   -compiler/runtime/Test6826736.java
 
+# Valhalla temp drop JDK-8226295:   compiler/aot
 tier1_compiler_not_xcomp = \
-  compiler/aot \
   compiler/profiling
 
+# Valhalla temp drop JDK-8226295:   compiler/aot
 tier1_compiler_not_cms = \
-  compiler/aot \
   compiler/jvmci
+
+tier1_compiler_no_valhalla = \
+  :tier1_compiler_1 \
+  :tier1_compiler_2 \
+  :tier1_compiler_3 \
+  :tier1_compiler_not_xcomp \
+  -compiler/valhalla
+
 
 ctw_1 = \
   applications/ctw/modules/ \

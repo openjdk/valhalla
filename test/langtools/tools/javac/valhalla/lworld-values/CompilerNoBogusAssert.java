@@ -27,7 +27,7 @@
  * @test
  * @bug 8222711
  * @summary Regression test for bogus assertion failure.
- * @run main/othervm -XX:+EnableValhalla CompilerNoBogusAssert
+ * @run main/othervm CompilerNoBogusAssert
  */
 
 public class CompilerNoBogusAssert {

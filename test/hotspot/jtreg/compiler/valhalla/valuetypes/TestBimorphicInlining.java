@@ -31,11 +31,11 @@ import jdk.test.lib.Asserts;
  * @bug 8209009
  * @summary Test bimorphic inlining with value receivers.
  * @library /testlibrary /test/lib
- * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:TypeProfileLevel=222
+ * @run main/othervm -Xbatch -XX:TypeProfileLevel=222
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.TestBimorphicInlining::test*
  *                   -XX:CompileCommand=quiet -XX:CompileCommand=print,compiler.valhalla.valuetypes.TestBimorphicInlining::test*
  *                   compiler.valhalla.valuetypes.TestBimorphicInlining
- * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:TypeProfileLevel=222
+ * @run main/othervm -Xbatch -XX:TypeProfileLevel=222
  *                   -XX:+UnlockExperimentalVMOptions -XX:PerMethodTrapLimit=0 -XX:PerMethodSpecTrapLimit=0
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.TestBimorphicInlining::test*
  *                   -XX:CompileCommand=quiet -XX:CompileCommand=print,compiler.valhalla.valuetypes.TestBimorphicInlining::test*

@@ -30,7 +30,7 @@ import jdk.test.lib.Asserts;
  * @summary Test if inline field klasses are correctly retrieved for inherited fields
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java TestInheritedValueTypeFields.java
- * @run main/othervm -XX:+EnableValhalla runtime.valhalla.valuetypes.TestInheritedValueTypeFields
+ * @run main/othervm runtime.valhalla.valuetypes.TestInheritedValueTypeFields
  */
 
 class A {

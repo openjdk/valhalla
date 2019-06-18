@@ -26,7 +26,7 @@
  * @bug 8206147
  * @summary WithField operation on a private inner field should be enclosed in a suitable accessor method.
  * @compile -XDallowWithFieldOperator WithFieldAccessorTest.java
- * @run main/othervm -XX:+EnableValhalla WithFieldAccessorTest
+ * @run main/othervm WithFieldAccessorTest
  */
 
 public class WithFieldAccessorTest {

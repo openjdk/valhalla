@@ -45,8 +45,8 @@ class EmptyTest {
  * @test Empty
  * @summary Test empty inline type
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowEmptyValues Empty.java
- * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.Empty
- * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.Empty
+ * @run main/othervm -Xint  runtime.valhalla.valuetypes.Empty
+ * @run main/othervm -Xcomp runtime.valhalla.valuetypes.Empty
  */
 public class Empty {
     public static void main(String[] args) {

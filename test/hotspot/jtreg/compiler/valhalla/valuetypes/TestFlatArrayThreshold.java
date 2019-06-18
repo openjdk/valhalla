@@ -25,9 +25,9 @@
  * @test
  * @summary Test accessing value type arrays that exceed the flattening threshold.
  * @library /test/lib
- * @run main/othervm -XX:+EnableValhalla -Xbatch TestFlatArrayThreshold
- * @run main/othervm -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatOops=1 -Xbatch TestFlatArrayThreshold
- * @run main/othervm -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=1 -Xbatch TestFlatArrayThreshold
+ * @run main/othervm -Xbatch TestFlatArrayThreshold
+ * @run main/othervm -XX:ValueArrayElemMaxFlatOops=1 -Xbatch TestFlatArrayThreshold
+ * @run main/othervm -XX:ValueArrayElemMaxFlatSize=1 -Xbatch TestFlatArrayThreshold
  */
 
 import jdk.test.lib.Asserts;

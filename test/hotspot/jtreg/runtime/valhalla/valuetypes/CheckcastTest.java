@@ -30,8 +30,8 @@ import jdk.test.lib.Asserts;
  * @summary checkcast bytecode test
  * @library /test/lib
  * @compile VDefaultTest.java
- * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.CheckcastTest
- * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.CheckcastTest
+ * @run main/othervm -Xint runtime.valhalla.valuetypes.CheckcastTest
+ * @run main/othervm -Xcomp runtime.valhalla.valuetypes.CheckcastTest
  */
 
 public class CheckcastTest {

@@ -28,8 +28,8 @@ package runtime.valhalla.valuetypes;
  * @summary test return of buffered inline type passed in argument by caller
  * @library /test/lib
  * @compile -XDemitQtypes -XDallowWithFieldOperator -XDenableValueTypes Test8186715.java
- * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.Test8186715
- * @run main/othervm -XX:+EnableValhalla runtime.valhalla.valuetypes.Test8186715
+ * @run main/othervm -Xint runtime.valhalla.valuetypes.Test8186715
+ * @run main/othervm runtime.valhalla.valuetypes.Test8186715
  */
 
 public class Test8186715 {

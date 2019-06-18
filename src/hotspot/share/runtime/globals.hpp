@@ -2485,7 +2485,7 @@ const size_t minimumSymbolTableSize = 1024;
   experimental(bool, UseFastUnorderedTimeStamps, false,                     \
           "Use platform unstable time where supported for timestamps only") \
                                                                             \
-  product(bool, EnableValhalla, false,                                      \
+  product(bool, EnableValhalla, true,                                       \
           "Enable experimental Valhalla features")                          \
                                                                             \
   product(bool, EnableValhallaC1, false,                                    \

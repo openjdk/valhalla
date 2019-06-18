@@ -27,7 +27,7 @@
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @compile TestNewAcmp.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm/timeout=240 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla
+ * @run main/othervm/timeout=240 -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                               compiler.valhalla.valuetypes.TestNewAcmp
  */
 
@@ -1571,7 +1571,6 @@ public class TestNewAcmp {
             "-XX:+UnlockDiagnosticVMOptions",
             "-XX:+WhiteBoxAPI",
             "-Xbatch",
-            "-XX:+EnableValhalla",
             "-XX:TypeProfileLevel=222",
             "-XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::test*",
             "-XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.TestNewAcmp::cmp*"};

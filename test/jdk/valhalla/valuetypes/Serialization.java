@@ -25,7 +25,7 @@
  * @test
  * @summary No Serialization support of inline value classes, without a proxy
  * @build Point Line NonFlattenValue Serialization
- * @run testng/othervm -XX:+EnableValhalla Serialization
+ * @run testng/othervm Serialization
  */
 
 import java.io.ByteArrayInputStream;

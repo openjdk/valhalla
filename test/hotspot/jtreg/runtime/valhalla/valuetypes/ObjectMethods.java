@@ -33,12 +33,12 @@ import jdk.experimental.value.MethodHandleBuilder;
  *          java.base/jdk.experimental.value
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator ObjectMethods.java
- * @run main/othervm -Xint -XX:+EnableValhalla -XX:+UseBiasedLocking -XX:+UseCompressedClassPointers runtime.valhalla.valuetypes.ObjectMethods
- * @run main/othervm -Xint -XX:+EnableValhalla -XX:-UseBiasedLocking -XX:-UseCompressedClassPointers runtime.valhalla.valuetypes.ObjectMethods
- * @run main/othervm -Xint -XX:+EnableValhalla -noverify runtime.valhalla.valuetypes.ObjectMethods noverify
- * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:+UseBiasedLocking -XX:+UseCompressedClassPointers runtime.valhalla.valuetypes.ObjectMethods
- * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:-UseBiasedLocking -XX:-UseCompressedClassPointers runtime.valhalla.valuetypes.ObjectMethods
- * @run main/othervm -Xcomp -XX:+EnableValhalla -noverify runtime.valhalla.valuetypes.ObjectMethods noverify
+ * @run main/othervm -Xint -XX:+UseBiasedLocking -XX:+UseCompressedClassPointers runtime.valhalla.valuetypes.ObjectMethods
+ * @run main/othervm -Xint -XX:-UseBiasedLocking -XX:-UseCompressedClassPointers runtime.valhalla.valuetypes.ObjectMethods
+ * @run main/othervm -Xint -noverify runtime.valhalla.valuetypes.ObjectMethods noverify
+ * @run main/othervm -Xcomp -XX:+UseBiasedLocking -XX:+UseCompressedClassPointers runtime.valhalla.valuetypes.ObjectMethods
+ * @run main/othervm -Xcomp -XX:-UseBiasedLocking -XX:-UseCompressedClassPointers runtime.valhalla.valuetypes.ObjectMethods
+ * @run main/othervm -Xcomp -noverify runtime.valhalla.valuetypes.ObjectMethods noverify
  */
 
 public class ObjectMethods {

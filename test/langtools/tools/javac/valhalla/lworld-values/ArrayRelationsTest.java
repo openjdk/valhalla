@@ -27,7 +27,7 @@
  * @test
  * @bug 8222402
  * @summary LW2 array support in javac
- * @run main/othervm -XX:+EnableValhalla ArrayRelationsTest
+ * @run main/othervm ArrayRelationsTest
  */
 
 public inline class ArrayRelationsTest {

@@ -27,7 +27,7 @@
  * @summary  Javac fails to compile V?[].class
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile ProjectedArrayDotClass.java
- * @run main/othervm -Xverify:none -XX:+EnableValhalla ProjectedArrayDotClass
+ * @run main/othervm -Xverify:none ProjectedArrayDotClass
  * @modules jdk.compiler
  */
 

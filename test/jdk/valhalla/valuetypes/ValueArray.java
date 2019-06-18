@@ -24,8 +24,8 @@
 /*
  * @test
  * @summary Basic test for Array::get, Array::set, Arrays::setAll on inline class array
- * @run testng/othervm -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=-1 ValueArray
- * @run testng/othervm -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=0  ValueArray
+ * @run testng/othervm -XX:ValueArrayElemMaxFlatSize=-1 ValueArray
+ * @run testng/othervm -XX:ValueArrayElemMaxFlatSize=0  ValueArray
  */
 
 import java.lang.reflect.Array;

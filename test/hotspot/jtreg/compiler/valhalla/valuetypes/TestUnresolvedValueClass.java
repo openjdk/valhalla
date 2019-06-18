@@ -27,7 +27,7 @@
  * @summary The VM should exit gracefully when unable to resolve a value type argument
  * @library /test/lib
  * @build SimpleValueType
- * @run main/othervm -XX:+EnableValhalla TestUnresolvedValueClass
+ * @run main/othervm TestUnresolvedValueClass
  */
 
 import java.io.File;
@@ -51,7 +51,7 @@ public class TestUnresolvedValueClass {
             }
 
             // Run test in new VM instance
-            String[] arg = {"-XX:+EnableValhalla", "-XX:+ValueTypePassFieldsAsArgs", "TestUnresolvedValueClass", "run"};
+            String[] arg = {"-XX:+ValueTypePassFieldsAsArgs", "TestUnresolvedValueClass", "run"};
             OutputAnalyzer oa = ProcessTools.executeTestJvm(arg);
 
             // Adapter creation for TestUnresolvedValueClass::test1 should fail with a

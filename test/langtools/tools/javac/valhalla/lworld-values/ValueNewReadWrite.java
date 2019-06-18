@@ -25,7 +25,7 @@
  * @test
  * @bug 8198749
  * @summary Test value instatiation using new/ctors.
- * @run main/othervm -XX:+EnableValhalla ValueNewReadWrite
+ * @run main/othervm ValueNewReadWrite
  */
 
 public inline class ValueNewReadWrite {

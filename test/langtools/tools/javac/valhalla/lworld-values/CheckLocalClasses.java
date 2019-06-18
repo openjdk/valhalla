@@ -28,7 +28,7 @@
  * @bug 8211910
  * @summary [lworld] Reinstate support for local value classes.
  * @modules jdk.jdeps/com.sun.tools.classfile
- * @run main/othervm -XX:+EnableValhalla CheckLocalClasses
+ * @run main/othervm CheckLocalClasses
  */
 
 import com.sun.tools.classfile.*;

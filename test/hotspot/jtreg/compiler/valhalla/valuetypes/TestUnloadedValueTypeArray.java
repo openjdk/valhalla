@@ -26,15 +26,15 @@
  * @bug 8182997 8214898
  * @library /test/lib
  * @summary Test the handling of Arrays of unloaded value classes.
- * @run main/othervm -XX:+EnableValhalla -Xcomp
+ * @run main/othervm -Xcomp
  *                   -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test*
  *                   TestUnloadedValueTypeArray
- * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:ValueArrayElemMaxFlatSize=0
+ * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=0
  *                   -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test*
  *                   TestUnloadedValueTypeArray
- * @run main/othervm -XX:+EnableValhalla -Xcomp
+ * @run main/othervm -Xcomp
  *                   TestUnloadedValueTypeArray
- * @run main/othervm -XX:+EnableValhalla -Xcomp -XX:ValueArrayElemMaxFlatSize=0
+ * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=0
  *                   TestUnloadedValueTypeArray
  */
 

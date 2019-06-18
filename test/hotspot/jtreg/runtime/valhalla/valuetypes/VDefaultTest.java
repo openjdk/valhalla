@@ -31,8 +31,8 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Point.java
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers VDefaultTest.java
- * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.VDefaultTest
- * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.VDefaultTest
+ * @run main/othervm -Xint runtime.valhalla.valuetypes.VDefaultTest
+ * @run main/othervm -Xcomp runtime.valhalla.valuetypes.VDefaultTest
  */
 
 public class VDefaultTest {

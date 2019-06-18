@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary Test reflection of constructors for inline classes
- * @run main/othervm -XX:+EnableValhalla InlineConstructorTest
+ * @run main/othervm InlineConstructorTest
  */
 
 import java.lang.reflect.Constructor;

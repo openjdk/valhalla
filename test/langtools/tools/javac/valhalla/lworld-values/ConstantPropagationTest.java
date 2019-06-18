@@ -26,7 +26,7 @@
  * @summary Check constant propagation behavior
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile ConstantPropagationTest.java
- * @run main/othervm -Xverify:none -XX:+EnableValhalla ConstantPropagationTest
+ * @run main/othervm -Xverify:none ConstantPropagationTest
  * @modules jdk.compiler
  */
 

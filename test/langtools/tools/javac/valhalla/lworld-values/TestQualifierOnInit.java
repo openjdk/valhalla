@@ -28,7 +28,7 @@
  * @bug 8222711
  * @summary Ensure that static factory methods are generated with the right qualifier.
  * @compile TestQualifierOnInit.java
- * @run main/othervm -XX:+EnableValhalla TestQualifierOnInit
+ * @run main/othervm TestQualifierOnInit
  */
 
 

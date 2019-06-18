@@ -45,22 +45,22 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator ValueOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xint -XX:+UseSerialGC -Xmx128m -XX:+EnableValhalla
+ * @run main/othervm -Xint -XX:+UseSerialGC -Xmx128m
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
- * @run main/othervm -Xint  -XX:+UseG1GC -Xmx128m -XX:+EnableValhalla
+ * @run main/othervm -Xint  -XX:+UseG1GC -Xmx128m
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops 100
- * @run main/othervm -Xint -XX:+UseParallelGC -Xmx128m -XX:+EnableValhalla
+ * @run main/othervm -Xint -XX:+UseParallelGC -Xmx128m
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
- * @run main/othervm -Xcomp -XX:+UseSerialGC -Xmx128m -XX:+EnableValhalla
+ * @run main/othervm -Xcomp -XX:+UseSerialGC -Xmx128m
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
- * @run main/othervm -Xcomp -XX:+UseG1GC -Xmx128m -XX:+EnableValhalla
+ * @run main/othervm -Xcomp -XX:+UseG1GC -Xmx128m
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops 100
- * @run main/othervm -Xcomp -XX:+UseParallelGC -Xmx128m -XX:+EnableValhalla
+ * @run main/othervm -Xcomp -XX:+UseParallelGC -Xmx128m
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
  */

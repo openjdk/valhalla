@@ -29,8 +29,8 @@ package runtime.valhalla.valuetypes;
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
  * @compile -XDallowWithFieldOperator Point.java UnsafeTest.java
- * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.UnsafeTest
- * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.UnsafeTest
+ * @run main/othervm -Xint runtime.valhalla.valuetypes.UnsafeTest
+ * @run main/othervm -Xcomp runtime.valhalla.valuetypes.UnsafeTest
  */
 
 import jdk.internal.misc.Unsafe;

@@ -30,7 +30,7 @@
  *
  * @compile -XDallowWithFieldOperator Point.java
  * @compile -XDallowValueBasedClasses -XDallowWithFieldOperator CastNullCheckTest.java
- * @run main/othervm -XX:+EnableValhalla CastNullCheckTest
+ * @run main/othervm CastNullCheckTest
  */
 
 public class CastNullCheckTest {

@@ -25,7 +25,7 @@
  * @test
  * @bug 8198749
  * @summary Test value instatiation using new/ctors by chaining constructors.
- * @run main/othervm -XX:+EnableValhalla CtorChain
+ * @run main/othervm CtorChain
  */
 
 public inline class CtorChain {

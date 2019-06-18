@@ -28,7 +28,7 @@
  * @bug 8222634
  * @summary Check field descriptors in class file
  * @modules jdk.jdeps/com.sun.tools.classfile
- * @run main/othervm -XX:+EnableValhalla CheckFieldDescriptors
+ * @run main/othervm CheckFieldDescriptors
  */
 
 import com.sun.tools.classfile.*;

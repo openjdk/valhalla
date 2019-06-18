@@ -27,7 +27,7 @@
  * @summary Check that javac emits Q types for values as needed
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile QTypedValue.java
- * @run main/othervm -Xverify:none -XX:+EnableValhalla QTypeTest
+ * @run main/othervm -Xverify:none QTypeTest
  * @modules jdk.compiler
  */
 

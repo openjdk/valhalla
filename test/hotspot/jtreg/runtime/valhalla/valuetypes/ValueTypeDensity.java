@@ -33,10 +33,10 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator ValueTypeDensity.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -Xint -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=-1
+ * @run main/othervm -Xint -XX:ValueArrayElemMaxFlatSize=-1
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI ValueTypeDensity
- * @run main/othervm -Xcomp -XX:+EnableValhalla -XX:ValueArrayElemMaxFlatSize=-1
+ * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=-1
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI ValueTypeDensity
  */

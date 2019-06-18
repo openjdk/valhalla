@@ -27,7 +27,7 @@
  * @summary test that the right exceptions get thrown for bad inline type
  *          class files.
  * @compile verifierTests.jcod NoNullVT.jcod
- * @run main/othervm -verify -XX:+EnableValhalla VerifierValueTypes
+ * @run main/othervm -verify VerifierValueTypes
  */
 
 public class VerifierValueTypes {

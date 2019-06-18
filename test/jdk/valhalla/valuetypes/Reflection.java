@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test reflection on inline types
- * @run main/othervm -XX:+EnableValhalla Reflection
+ * @run main/othervm Reflection
  */
 
 import java.lang.reflect.Array;

@@ -280,7 +280,7 @@ public abstract class ValueTypeTest {
         if (args.length != 1) {
             throw new RuntimeException("Usage: @run main/othervm/timeout=120 -Xbootclasspath/a:." +
                                        " -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions" +
-                                       " -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:+EnableValhalla" +
+                                       " -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI" +
                                        " compiler.valhalla.valuetypes.ValueTypeTest <YourTestMainClass>");
         }
         String testMainClassName = args[0];

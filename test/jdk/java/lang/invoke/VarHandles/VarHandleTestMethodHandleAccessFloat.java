@@ -24,7 +24,7 @@
 /*
  * @test
  * @compile -XDallowWithFieldOperator Value.java
- * @run testng/othervm -XX:+EnableValhalla -Diters=2000 VarHandleTestMethodHandleAccessFloat
+ * @run testng/othervm -Diters=2000 VarHandleTestMethodHandleAccessFloat
  */
 
 import org.testng.annotations.BeforeClass;

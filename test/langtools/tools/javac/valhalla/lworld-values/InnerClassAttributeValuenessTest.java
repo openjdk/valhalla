@@ -26,7 +26,7 @@
  * @bug 8221330
  * @summary Javac adds InnerClass attribute missing value flag
  * @modules jdk.jdeps/com.sun.tools.classfile
- * @run main/othervm -XX:+EnableValhalla InnerClassAttributeValuenessTest
+ * @run main/othervm InnerClassAttributeValuenessTest
  */
 
 import com.sun.tools.classfile.AccessFlags;

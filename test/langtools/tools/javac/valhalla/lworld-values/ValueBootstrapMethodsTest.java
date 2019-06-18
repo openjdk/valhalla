@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test value bootstrap methods
- * @run main/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 ValueBootstrapMethodsTest
+ * @run main/othervm -Dvalue.bsm.salt=1 ValueBootstrapMethodsTest
  */
 
 import java.util.List;

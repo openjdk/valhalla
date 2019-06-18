@@ -25,7 +25,7 @@
  * @test
  * @bug 8208067
  * @summary Verify that instance methods are callable from ctor after all instance fields are DA.
- * @run main/othervm -XX:+EnableValhalla -ea CanonicalCtorTest
+ * @run main/othervm -ea CanonicalCtorTest
  */
 
 public inline class CanonicalCtorTest {

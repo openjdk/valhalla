@@ -27,7 +27,7 @@
  * @summary test value bootstrap methods
  * @modules java.base/jdk.internal.org.objectweb.asm
  * @compile -XDallowWithFieldOperator ValueBootstrapMethods.java
- * @run main/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 ValueBootstrapMethods
+ * @run main/othervm -Dvalue.bsm.salt=1 ValueBootstrapMethods
  */
 
 import java.io.IOException;

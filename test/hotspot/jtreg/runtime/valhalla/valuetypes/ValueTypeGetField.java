@@ -29,8 +29,8 @@ import jdk.test.lib.Asserts;
  * @summary Value Type get field test
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Point.java ValueTypeGetField.java
- * @run main/othervm -Xint -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeGetField
- * @run main/othervm -Xcomp -XX:+EnableValhalla runtime.valhalla.valuetypes.ValueTypeGetField
+ * @run main/othervm -Xint runtime.valhalla.valuetypes.ValueTypeGetField
+ * @run main/othervm -Xcomp runtime.valhalla.valuetypes.ValueTypeGetField
  */
 public class ValueTypeGetField {
 

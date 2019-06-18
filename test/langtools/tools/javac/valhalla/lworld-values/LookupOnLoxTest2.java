@@ -25,7 +25,7 @@
  * @test
  * @bug 8217872 8221545
  * @summary [lworld] Javac forbids look ups on the light weight box type of a value type
- * @run main/othervm -Xverify:none -XX:+EnableValhalla  LookupOnLoxTest2
+ * @run main/othervm -Xverify:none LookupOnLoxTest2
  */
 
 public inline class LookupOnLoxTest2 {

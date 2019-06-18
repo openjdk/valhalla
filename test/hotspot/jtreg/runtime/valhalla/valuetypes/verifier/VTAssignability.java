@@ -25,7 +25,7 @@
  * @test
  * @summary Test basic verifier assignability of inline types.
  * @compile -XDallowWithFieldOperator -XDemitQtypes VTAssignability.java
- * @run main/othervm -Xverify:remote -XX:+EnableValhalla VTAssignability
+ * @run main/othervm -Xverify:remote VTAssignability
  */
 
 // Test that an inline type is assignable to itself, to java.lang.Object,

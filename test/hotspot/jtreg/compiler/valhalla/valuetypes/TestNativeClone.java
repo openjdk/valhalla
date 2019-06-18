@@ -27,7 +27,7 @@
  * @summary Verify that the native clone intrinsic handles value types.
  * @modules java.base/jdk.experimental.value
  * @library /test/lib
- * @run main/othervm -XX:+EnableValhalla -Xbatch -XX:-UseTypeProfile
+ * @run main/othervm -Xbatch -XX:-UseTypeProfile
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.MyValue::*
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.valuetypes.TestNativeClone::test*
  *                   -XX:CompileCommand=compileonly,jdk.internal.reflect.GeneratedMethodAccessor1::invoke

@@ -32,7 +32,7 @@ import static org.testng.Assert.*;
 /*
  * @test
  * @summary Test inline classes with Reference types
- * @run testng/othervm -XX:+EnableValhalla InlineReferenceTest
+ * @run testng/othervm InlineReferenceTest
  */
 @Test
 public class InlineReferenceTest {

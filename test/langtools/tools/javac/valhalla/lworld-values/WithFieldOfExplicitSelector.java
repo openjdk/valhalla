@@ -26,7 +26,7 @@
  * @summary Check code generation for value creation ops
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile -XDallowWithFieldOperator WithFieldOfExplicitSelector.java
- * @run main/othervm -Xverify:none -XX:+EnableValhalla WithFieldOfExplicitSelector
+ * @run main/othervm -Xverify:none WithFieldOfExplicitSelector
  * @modules jdk.compiler
  */
 

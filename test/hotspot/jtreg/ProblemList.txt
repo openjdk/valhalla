@@ -181,6 +181,7 @@ serviceability/sa/TestIntConstant.java 8190936 generic-all
 serviceability/sa/TestJhsdbJstackLock.java 8190936 generic-all
 serviceability/sa/TestJmapCore.java 8190936 generic-all
 serviceability/sa/TestJmapCoreMetaspace.java 8190936 generic-all
+serviceability/sa/TestPrintMdo.java 8190936 generic-all
 serviceability/sa/jmap-hprof/JMapHProfLargeHeapTest.java 8190936 generic-all
 
 #############################################################################

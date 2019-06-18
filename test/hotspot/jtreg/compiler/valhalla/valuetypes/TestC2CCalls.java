@@ -25,21 +25,20 @@
  * @test
  * @library /test/lib
  * @summary Test value type calling convention with compiled to compiled calls.
- * @run main/othervm -XX:+EnableValhalla
- *                   TestC2CCalls
- * @run main/othervm -XX:+EnableValhalla -XX:-UseBimorphicInlining -Xbatch
+ * @run main/othervm TestC2CCalls
+ * @run main/othervm -XX:-UseBimorphicInlining -Xbatch
  *                   -XX:CompileCommand=compileonly,TestC2CCalls*::test*
  *                   -XX:CompileCommand=dontinline,TestC2CCalls*::test*
  *                   TestC2CCalls
- * @run main/othervm -XX:+EnableValhalla -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
+ * @run main/othervm -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
  *                   -XX:CompileCommand=compileonly,TestC2CCalls*::test*
  *                   -XX:CompileCommand=dontinline,TestC2CCalls*::test*
  *                   TestC2CCalls
- * @run main/othervm -XX:+EnableValhalla -XX:-UseBimorphicInlining -Xbatch
+ * @run main/othervm -XX:-UseBimorphicInlining -Xbatch
  *                   -XX:CompileCommand=compileonly,TestC2CCalls::test*
  *                   -XX:CompileCommand=dontinline,TestC2CCalls*::test*
  *                   TestC2CCalls
- * @run main/othervm -XX:+EnableValhalla -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
+ * @run main/othervm -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
  *                   -XX:CompileCommand=compileonly,TestC2CCalls::test*
  *                   -XX:CompileCommand=dontinline,TestC2CCalls*::test*
  *                   TestC2CCalls

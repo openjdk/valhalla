@@ -25,7 +25,7 @@
  * @test
  * @summary Test that values code like a class - i.e are accepted in some places where only references used be, when invoked with the experimental mode -XDallowGenericsOverValues
    @compile  ValuesAsRefs.java
- * @run main/othervm -XX:+EnableValhalla ValuesAsRefs
+ * @run main/othervm ValuesAsRefs
  */
 import java.util.ArrayList;
 

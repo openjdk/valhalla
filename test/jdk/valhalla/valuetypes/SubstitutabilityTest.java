@@ -24,7 +24,7 @@
 /*
  * @test
  * @summary test MethodHandle/VarHandle on inline types
- * @run testng/othervm -XX:+EnableValhalla SubstitutabilityTest
+ * @run testng/othervm SubstitutabilityTest
  */
 
 import java.lang.invoke.ValueBootstrapMethods;

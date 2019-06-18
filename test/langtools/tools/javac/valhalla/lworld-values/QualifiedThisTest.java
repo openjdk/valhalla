@@ -25,7 +25,7 @@
  * @test
  * @bug 8198749
  * @summary Test that qualified this based access to instance fields works ok.
- * @run main/othervm -XX:+EnableValhalla QualifiedThisTest
+ * @run main/othervm QualifiedThisTest
  */
 
 public inline  class QualifiedThisTest {
