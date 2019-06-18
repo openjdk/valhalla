@@ -107,7 +107,7 @@ public final class ValueBootstrapMethods {
         }
 
         static MethodHandle[] getters(Lookup lookup, Comparator<MethodHandle> comparator) {
-            Class<?> type = lookup.lookupClass().asPrimaryType();
+            Class<?> type = lookup.lookupClass();
             // filter static fields and synthetic fields
             Stream<MethodHandle> s = Arrays.stream(type.getDeclaredFields())
                 .filter(f -> !Modifier.isStatic(f.getModifiers()) && !f.isSynthetic())
@@ -129,14 +129,6 @@ public final class ValueBootstrapMethods {
             return EQUALS[index];
         }
 
-        static MethodHandle referenceEquals(Class<?> type) {
-            return EQUALS[Wrapper.OBJECT.ordinal()].asType(methodType(boolean.class, type, type));
-        }
-
-        static MethodHandle referenceEq() {
-            return EQUALS[Wrapper.OBJECT.ordinal()];
-        }
-
         static MethodHandle hashCodeForType(Class<?> type) {
             if (type.isPrimitive()) {
                 int index = Wrapper.forPrimitiveType(type).ordinal();
@@ -146,6 +138,10 @@ public final class ValueBootstrapMethods {
             }
         }
 
+        /*
+         * For primitive types: a == b
+         * For indirect or inline class: a == b || (a != null && a.equals(b))
+         */
         static MethodHandle equalsForType(Class<?> type) {
             if (type.isPrimitive()) {
                 return primitiveEquals(type);
@@ -156,28 +152,30 @@ public final class ValueBootstrapMethods {
 
         /*
          * Produces a MethodHandle that returns boolean if two instances
-         * of the given interface class are substitutable.
+         * of the given indirect interface/class are substitutable.
          *
-         * Two interface values are i== iff
+         * Two values of indirect interface/class are substitutable i== iff
          * 1. if o1 and o2 are both reference objects then o1 r== o2; or
          * 2. if o1 and o2 are both values then o1 v== o2
+         *
+         * At invocation time, it needs a dynamic check on the objects and
+         * do the substitutability test if they are of an inline type.
          */
-        static MethodHandle interfaceEquals(Class<?> type) {
-            assert type.isInterface() || type == Object.class;
-            MethodType mt = methodType(boolean.class, type, type);
-            return guardWithTest(IS_SAME_VALUE_CLASS.asType(mt), VALUE_EQUALS.asType(mt), referenceEquals(type));
+        static MethodHandle indirectTypeEquals(Class<?> type) {
+            return EQUALS[Wrapper.OBJECT.ordinal()].asType(methodType(boolean.class, type, type));
         }
+
 
         /*
          * Produces a MethodHandle that returns boolean if two value instances
-         * of the given value class are substitutable.
+         * of the given inline class are substitutable.
          */
-        static MethodHandle valueEquals(Class<?> c) {
-            assert c.isInlineClass();
-            Class<?> type = c.asPrimaryType();
+        static MethodHandle inlineTypeEquals(Class<?> type) {
+            assert type.isInlineClass();
             MethodType mt = methodType(boolean.class, type, type);
             MethodHandles.Lookup lookup = new MethodHandles.Lookup(type);
             MethodHandle[] getters = getters(lookup, TYPE_SORTER);
+            MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
             MethodHandle instanceFalse = dropArguments(FALSE, 0, type, Object.class).asType(mt);
             MethodHandle accumulator = dropArguments(TRUE, 0, type, type);
             for (MethodHandle getter : getters) {
@@ -188,10 +186,9 @@ public final class ValueBootstrapMethods {
             }
             // if both arguments are null, return true;
             // otherwise return accumulator;
-            MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
             return guardWithTest(IS_NULL.asType(mt),
                                  instanceTrue.asType(mt),
-                                 guardWithTest(IS_SAME_VALUE_CLASS.asType(mt),
+                                 guardWithTest(IS_SAME_INLINE_CLASS.asType(mt),
                                                accumulator,
                                                instanceFalse));
         }
@@ -205,7 +202,34 @@ public final class ValueBootstrapMethods {
         private static boolean eq(float a, float b)     { return Float.compare(a, b) == 0; }
         private static boolean eq(double a, double b)   { return Double.compare(a, b) == 0; }
         private static boolean eq(boolean a, boolean b) { return a == b; }
-        private static boolean eq(Object a, Object b)   { return a == b; }
+        private static boolean eq(Object a, Object b)   {
+            if (a == null && b == null) return true;
+            if (a == null || b == null) return false;
+            if (a.getClass() != b.getClass()) return false;
+            return a.getClass().isInlineClass() ? inlineValueEq(a, b) : (a == b);
+        }
+
+        private static boolean objectsEquals(Object a, Object b)   {
+            if (a == null && b == null) return true;
+            if (a == null || b == null) return false;
+            if (a.getClass() != b.getClass()) return false;
+            return eq(a, b) || a.equals(b);
+        }
+
+        /*
+         * Returns true if two values are substitutable.
+         */
+        private static boolean inlineValueEq(Object a, Object b) {
+            assert a != null && b != null && isSameInlineClass(a, b);
+            try {
+                Class<?> type = a.getClass();
+                return (boolean) substitutableInvoker(type).invoke(type.cast(a), type.cast(b));
+            } catch (Error|RuntimeException e) {
+                throw e;
+            } catch (Throwable e) {
+                throw new InternalError(e);
+            }
+        }
 
         private static boolean isNull(Object a, Object b) {
             // avoid acmp that will call isSubstitutable
@@ -214,22 +238,17 @@ public final class ValueBootstrapMethods {
             return true;
         }
 
-        private static boolean isSameValueClass(Object a, Object b) {
-            if (a == null || b == null)
-                return false;
-            return a.getClass().isInlineClass() && a.getClass().asNullableType() == b.getClass().asNullableType();
-        }
+        /*
+         * Returns true if the given objects are of the same inline class.
+         *
+         * Two objects are of the same inline class iff:
+         * 1. a != null and b != null
+         * 2. the declaring class of a and b is the same inline class
+         */
+        private static boolean isSameInlineClass(Object a, Object b) {
+            if (a == null || b == null) return false;
 
-        private static boolean valueEq(Object a, Object b) {
-            assert isSameValueClass(a, b);
-            try {
-                Class<?> type = a.getClass();
-                return (boolean) valueEquals(type).invoke(type.cast(a), type.cast(b));
-            } catch (Error|RuntimeException e) {
-                throw e;
-            } catch (Throwable e) {
-                throw new InternalError(e);
-            }
+            return a.getClass().isInlineClass() && a.getClass() == b.getClass();
         }
 
         private static String toString(Object o) {
@@ -269,16 +288,14 @@ public final class ValueBootstrapMethods {
         private static final MethodHandle[] ARRAYS_TO_STRING = initArraysToString();
         private static final MethodHandle[] HASHCODE = initHashCode();
 
-        static final MethodHandle IS_SAME_VALUE_CLASS =
-            findStatic("isSameValueClass", methodType(boolean.class, Object.class, Object.class));
-        static final MethodHandle VALUE_EQUALS =
-             findStatic("valueEq", methodType(boolean.class, Object.class, Object.class));
+        static final MethodHandle IS_SAME_INLINE_CLASS =
+            findStatic("isSameInlineClass", methodType(boolean.class, Object.class, Object.class));
         static final MethodHandle IS_NULL =
             findStatic("isNull", methodType(boolean.class, Object.class, Object.class));
         static final MethodHandle TO_STRING =
             findStatic("toString", methodType(String.class, Object.class));
         static final MethodHandle OBJECTS_EQUALS =
-            findStatic(Objects.class, "equals", methodType(boolean.class, Object.class, Object.class));
+            findStatic("objectsEquals", methodType(boolean.class, Object.class, Object.class));
 
         static final MethodHandle FALSE = constant(boolean.class, false);
         static final MethodHandle TRUE = constant(boolean.class, true);
@@ -348,7 +365,7 @@ public final class ValueBootstrapMethods {
      * Produces a method handle that computes the hashcode
      */
     private static MethodHandle hashCodeInvoker(Lookup lookup, String name, MethodType mt) {
-        Class<?> type = lookup.lookupClass().asPrimaryType();
+        Class<?> type = lookup.lookupClass();
         MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
         MethodHandle cls = dropArguments(constant(Class.class, type),0, type);
         MethodHandle classHashCode = filterReturnValue(cls, hashCodeForType(Class.class));
@@ -376,7 +393,7 @@ public final class ValueBootstrapMethods {
      * Produces a method handle that invokes the toString method of a value object.
      */
     private static MethodHandle toStringInvoker(Lookup lookup, String name, MethodType mt) {
-        Class<?> type = lookup.lookupClass().asPrimaryType();
+        Class<?> type = lookup.lookupClass();
         MethodHandle[] getters = MethodHandleBuilder.getters(lookup);
         int length = getters.length;
         StringBuilder format = new StringBuilder();
@@ -412,25 +429,27 @@ public final class ValueBootstrapMethods {
      * Produces a method handle that tests if two arguments are equals.
      */
     private static MethodHandle equalsInvoker(Lookup lookup, String name, MethodType mt) {
-        Class<?> type = lookup.lookupClass().asPrimaryType();
+        Class<?> type = lookup.lookupClass();
         // MethodHandle to compare all fields of two value objects
         MethodHandle[] getters = MethodHandleBuilder.getters(lookup, TYPE_SORTER);
         MethodHandle accumulator = dropArguments(TRUE, 0, type, type);
         MethodHandle instanceFalse = dropArguments(FALSE, 0, type, Object.class)
                                         .asType(methodType(boolean.class, type, type));
         for (MethodHandle getter : getters) {
+            // for primitive types, a == b
+            // for indirect types, a == b || (a != null && a.equals(b))
             MethodHandle eq = equalsForType(getter.type().returnType());
             MethodHandle thisFieldEqual = filterArguments(eq, 0, getter, getter);
             accumulator = guardWithTest(thisFieldEqual, accumulator, instanceFalse);
         }
 
-        // if o1 == o2 return true;
-        // if (o1 and o2 are same value class) return accumulator;
-        // return false;
+        // if a == null && b == null then true
+        // if a and b are not-null and of the same inline class
+        // then field-to-field comparison else false
         MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
-        return guardWithTest(referenceEq().asType(mt),
+        return guardWithTest(IS_NULL.asType(mt),
                              instanceTrue.asType(mt),
-                             guardWithTest(IS_SAME_VALUE_CLASS.asType(mt),
+                             guardWithTest(IS_SAME_INLINE_CLASS.asType(mt),
                                            accumulator.asType(mt),
                                            dropArguments(FALSE, 0, type, Object.class)));
     }
@@ -528,7 +547,7 @@ public final class ValueBootstrapMethods {
             System.out.println("substitutable " + a + " vs " + b);
         }
         try {
-            Class<?> type = a.getClass().asPrimaryType();
+            Class<?> type = a.getClass();
             return (boolean) substitutableInvoker(type).invoke(a, b);
         } catch (Error|RuntimeException e) {
             if (VERBOSE) e.printStackTrace();
@@ -572,19 +591,16 @@ public final class ValueBootstrapMethods {
         if (type.isPrimitive())
             return MethodHandleBuilder.primitiveEquals(type);
 
-        if (type.isInterface() || type == Object.class)
-            return MethodHandleBuilder.interfaceEquals(type);
-
         if (type.isInlineClass())
             return SUBST_TEST_METHOD_HANDLES.get(type);
 
-        return MethodHandleBuilder.referenceEquals(type);
+        return MethodHandleBuilder.indirectTypeEquals(type);
     }
 
     // store the method handle for value types in ClassValue
     private static ClassValue<MethodHandle> SUBST_TEST_METHOD_HANDLES = new ClassValue<>() {
         @Override protected MethodHandle computeValue(Class<?> c) {
-        return MethodHandleBuilder.valueEquals(c);
+            return MethodHandleBuilder.inlineTypeEquals(c);
         }
     };
 

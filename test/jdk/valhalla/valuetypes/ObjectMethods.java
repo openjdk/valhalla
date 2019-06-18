@@ -25,13 +25,15 @@
 /*
  * @test
  * @summary test Object methods on inline types
+ * @run testng/othervm -XX:+EnableValhalla -Xint -Dvalue.bsm.salt=1 ObjectMethods
  * @run testng/othervm -XX:+EnableValhalla -Xcomp -Dvalue.bsm.salt=1 ObjectMethods
- * @run testng/othervm -XX:+EnableValhalla -Xcomp -Dvalue.bsm.salt=1 -XX:ValueFieldMaxFlatSize=0 ObjectMethods
+ * @run testng/othervm -XX:+EnableValhalla -Dvalue.bsm.salt=1 -XX:ValueFieldMaxFlatSize=0 ObjectMethods
  */
 
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Stream;
 
 import org.testng.annotations.BeforeTest;
@@ -84,12 +86,39 @@ public class ObjectMethods {
             { MyValue1.default, MyValue1.default, true},
             { MyValue1.default, new MyValue1(0,0, null), true},
             { new MyValue1(10, 20, P1), new MyValue1(10, 20, Point.makePoint(1,2)), true},
+            { new IndirectType0(10), new IndirectType0(10), true},
+            { new InlineType1(10),   new InlineType1(10), true},
+            { new InlineType2(10),   new InlineType2(10), true},
+            { new InlineType1(20),   new InlineType2(20), false},
+            { new InlineType2(20),   new InlineType1(20), true},
+            { new IndirectType0(30), new InlineType1(30), true},
+            { new IndirectType0(30), new InlineType2(30), true},
         };
     }
 
     @Test(dataProvider="equalsTests")
     public void testEquals(Object o1, Object o2, boolean expected) {
         assertTrue(o1.equals(o2) == expected);
+    }
+
+    @DataProvider(name="interfaceEqualsTests")
+    Object[][] interfaceEqualsTests() {
+        return new Object[][]{
+                { new IndirectType0(10), new IndirectType0(10), false, true},
+                { new InlineType1(10),   new InlineType1(10),   true,  true},
+                { new InlineType2(10),   new InlineType2(10),   true,  true},
+                { new InlineType1(20),   new InlineType2(20),   false, false},
+                { new InlineType2(20),   new InlineType1(20),   false, true},
+                { new IndirectType0(30), new InlineType1(30),   false, true},
+                { new IndirectType0(30), new InlineType2(30),   false, true},
+        };
+    }
+
+
+    @Test(dataProvider="interfaceEqualsTests")
+    public void testNumber(Number n1, Number n2, boolean isSubstitutable, boolean isEquals) {
+        assertTrue((n1 == n2) == isSubstitutable);
+        assertTrue(n1.equals(n2) == isEquals);
     }
 
     @DataProvider(name="toStringTests")
@@ -184,6 +213,55 @@ public class ObjectMethods {
         MyValue1(int x, int y, Point? np) {
             this.p = Point.makePoint(x, y);
             this.np = np;
+        }
+    }
+
+
+    interface Number {
+        int value();
+    }
+
+    static class IndirectType0 implements Number {
+        int i;
+        public IndirectType0(int i) {
+            this.i = i;
+        }
+        public int value() {
+            return i;
+        }
+        @Override
+        public boolean equals(Object o) {
+            if (o != null && o instanceof Number) {
+                return this.value() == ((Number)o).value();
+            }
+            return false;
+        }
+    }
+
+    static inline class InlineType1 implements Number {
+        int i;
+        public InlineType1(int i) {
+            this.i = i;
+        }
+        public int value() {
+            return i;
+        }
+    }
+
+    static inline class InlineType2 implements Number {
+        int i;
+        public InlineType2(int i) {
+            this.i = i;
+        }
+        public int value() {
+            return i;
+        }
+        @Override
+        public boolean equals(Object o) {
+            if (o != null && o instanceof Number) {
+                return this.value() == ((Number)o).value();
+            }
+            return false;
         }
     }
 }
