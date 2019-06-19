@@ -74,6 +74,7 @@ hotspot_misc = \
  -:hotspot_gc \
  -:hotspot_runtime \
  -:hotspot_serviceability \
+ -:valhalla_temp_drop \
  -gc/nvdimm
 
 hotspot_native_sanity = \
