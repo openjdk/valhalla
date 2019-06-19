@@ -144,6 +144,8 @@ public:
   virtual bool is_compiled() const                    { return false; }
   virtual bool is_buffered_value_type_blob() const    { return false; }
 
+  virtual bool can_verify_stack() const               { return false; }
+
   inline bool is_compiled_by_c1() const    { return _type == compiler_c1; };
   inline bool is_compiled_by_c2() const    { return _type == compiler_c2; };
   inline bool is_compiled_by_jvmci() const { return _type == compiler_jvmci; };
@@ -506,6 +508,10 @@ public:
 class RuntimeStub: public RuntimeBlob {
   friend class VMStructs;
  private:
+  // All RuntimeStub can support InterfaceSupport::verify_stack(), except for
+  // the stub for SharedRuntime::store_value_type_fields_to_buf.
+  bool _can_verify_stack;
+
   // Creation support
   RuntimeStub(
     const char* name,
@@ -514,7 +520,8 @@ class RuntimeStub: public RuntimeBlob {
     int         frame_complete,
     int         frame_size,
     OopMapSet*  oop_maps,
-    bool        caller_must_gc_arguments
+    bool        caller_must_gc_arguments,
+    bool        can_verify_stack
   );
 
   // This ordinary operator delete is needed even though not used, so the
@@ -531,11 +538,13 @@ class RuntimeStub: public RuntimeBlob {
     int         frame_complete,
     int         frame_size,
     OopMapSet*  oop_maps,
-    bool        caller_must_gc_arguments
+    bool        caller_must_gc_arguments,
+    bool        can_verify_stack = true
   );
 
   // Typing
   bool is_runtime_stub() const                   { return true; }
+  bool can_verify_stack() const                  { return _can_verify_stack; }
 
   address entry_point() const                    { return code_begin(); }
 
@@ -701,6 +710,8 @@ class UncommonTrapBlob: public SingletonBlob {
 
   // Typing
   bool is_uncommon_trap_stub() const             { return true; }
+  bool can_verify_stack() const                  { return true; }
+
 };
 
 

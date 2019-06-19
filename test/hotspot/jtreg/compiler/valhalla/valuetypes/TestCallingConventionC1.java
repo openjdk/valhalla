@@ -298,6 +298,10 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             this.x = new Number(x);
             this.y = new Number(y);
         }
+        public RefPoint(Number x, Number y) {
+            this.x = x;
+            this.y = y;
+        }
 
         @DontInline
         @ForceCompile(compLevel = C1)
@@ -1856,6 +1860,36 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             Intf intf = test95_intfs[i % test95_intfs.length];
             int result = test95(intf, 123, 456) + i;
             Asserts.assertEQ(result, intf.func2(123, 456, pointField) + i);
+        }
+    }
+
+    // C1->C2 GC handling in StubRoutines::store_value_type_fields_to_buf()
+    @Test(compLevel = C1)
+    public RefPoint test96(RefPoint rp, boolean b) {
+        RefPoint p = test96_helper(rp);
+        if (b) {
+            return rp;
+        }
+        return p;
+    }
+
+    @DontInline @ForceCompile(compLevel = C2)
+    public RefPoint test96_helper(RefPoint rp) {
+        return rp;
+    }
+
+    @DontCompile
+    public void test96_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20000; // Do enough iteration to cause GC inside StubRoutines::store_value_type_fields_to_buf
+        Number x = new Number(10); // old object
+        for (int i=0; i<count; i++) {
+            Number y = new Number(i); // new object for each iteraton
+            RefPoint rp1 = new RefPoint(x, y);
+            RefPoint rp2 = test96(rp1, warmup);
+
+            Asserts.assertEQ(rp1.x, x);
+            Asserts.assertEQ(rp1.y, y);
+            Asserts.assertEQ(rp1.y.n, i);
         }
     }
 }

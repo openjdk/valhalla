@@ -628,7 +628,7 @@ public abstract class ValueTypeTest {
     // Currently, if TEST_C1 is true, we always use COMP_LEVEL_SIMPLE. Otherwise, if the
     // compLevel is unspecified, the default is COMP_LEVEL_FULL_OPTIMIZATION.
     int getCompLevel(Object annotation) {
-        if (TEST_C1) {
+        if (TEST_C1 && !(this instanceof TestCallingConventionC1)) {
             return COMP_LEVEL_SIMPLE;
         }
         int compLevel;

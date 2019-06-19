@@ -5920,7 +5920,11 @@ address generate_avx_ghash_processBlocks() {
     // make sure all code is generated
     masm->flush();
 
-    RuntimeStub* stub = RuntimeStub::new_runtime_stub(name, &buffer, frame_complete, frame_size_in_words, oop_maps, false);
+    // The caller may not know the register mapping of the fields of the returned value
+    // object, so it won't generate a valid oopmap for the call site. Hence, we can't
+    // do InterfaceSupport::verify_stack().
+    RuntimeStub* stub = RuntimeStub::new_runtime_stub(name, &buffer, frame_complete, frame_size_in_words, oop_maps, false,
+                                                      /*can_verify_stack =*/false);
     return stub->entry_point();
   }
 

@@ -389,9 +389,11 @@ RuntimeStub::RuntimeStub(
   int         frame_complete,
   int         frame_size,
   OopMapSet*  oop_maps,
-  bool        caller_must_gc_arguments
+  bool        caller_must_gc_arguments,
+  bool        can_verify_stack
 )
 : RuntimeBlob(name, cb, sizeof(RuntimeStub), size, frame_complete, frame_size, oop_maps, caller_must_gc_arguments)
+, _can_verify_stack(can_verify_stack)
 {
 }
 
@@ -400,14 +402,15 @@ RuntimeStub* RuntimeStub::new_runtime_stub(const char* stub_name,
                                            int frame_complete,
                                            int frame_size,
                                            OopMapSet* oop_maps,
-                                           bool caller_must_gc_arguments)
+                                           bool caller_must_gc_arguments,
+                                           bool can_verify_stack)
 {
   RuntimeStub* stub = NULL;
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
   {
     MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
     unsigned int size = CodeBlob::allocation_size(cb, sizeof(RuntimeStub));
-    stub = new (size) RuntimeStub(stub_name, cb, size, frame_complete, frame_size, oop_maps, caller_must_gc_arguments);
+    stub = new (size) RuntimeStub(stub_name, cb, size, frame_complete, frame_size, oop_maps, caller_must_gc_arguments, can_verify_stack);
   }
 
   trace_new_stub(stub, "RuntimeStub - ", stub_name);
