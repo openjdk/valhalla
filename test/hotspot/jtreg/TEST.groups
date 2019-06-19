@@ -28,8 +28,14 @@ hotspot_all_no_apps = \
   / \
   -applications
 
+# Valhalla temporarily drop from testing
+valhalla_temp_drop = \
+  compiler/aot       \
+  compiler/codecache
+
 hotspot_compiler = \
-  compiler
+  compiler \
+  -:valhalla_temp_drop
 
 hotspot_compiler_xcomp = \
   :hotspot_compiler \
