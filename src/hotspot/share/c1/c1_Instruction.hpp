@@ -509,8 +509,6 @@ class Instruction: public CompilationResourceObj {
     return _next;
   }
 
-  bool is_flattened_array() const;             // FIXME -- remove it
-
   bool is_loaded_flattened_array() const;
   bool maybe_flattened_array();
   bool maybe_null_free_array();
@@ -657,28 +655,18 @@ LEAF(Phi, Instruction)
  private:
   int         _pf_flags; // the flags of the phi function
   int         _index;    // to value on operand stack (index < 0) or to local
-  ciType*     _exact_type; // currently is set only for flattened arrays, NULL otherwise.
  public:
   // creation
-  Phi(ValueType* type, BlockBegin* b, int index, ciType* exact_type)
+  Phi(ValueType* type, BlockBegin* b, int index)
   : Instruction(type->base())
   , _pf_flags(0)
   , _index(index)
-  , _exact_type(exact_type)
   {
     _block = b;
     NOT_PRODUCT(set_printable_bci(Value(b)->printable_bci()));
     if (type->is_illegal()) {
       make_illegal();
     }
-  }
-
-  virtual ciType* exact_type() const {
-    return _exact_type;
-  }
-
-  virtual ciType* declared_type() const {
-    return _exact_type;
   }
 
   // flags

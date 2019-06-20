@@ -2088,11 +2088,9 @@ bool Arguments::check_vm_args_consistency() {
         TEMP: to run the valuetype tests with C1, you need to use the following command-line:
 
         cd test/hotspot/jtreg/compiler/valhalla/valuetypes
-        jtreg -Dtest.c1=true \
-            -vmoptions:-XX:+EnableValhallaC1 \
-            -vmoptions:-XX:TieredStopAtLevel=1 \
-            -vmoptions:-XX:-ValueTypePassFieldsAsArgs \
-            -vmoptions:-XX:-ValueTypeReturnedAsFields \
+        jtreg \
+            -javaoption:-XX:+EnableValhallaC1 \
+            -javaoption:-XX:TieredStopAtLevel=1 \
             .
 
       */

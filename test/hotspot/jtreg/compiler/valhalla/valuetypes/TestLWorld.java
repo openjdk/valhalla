@@ -44,13 +44,6 @@ import jdk.test.lib.Asserts;
  *                               compiler.valhalla.valuetypes.TestLWorld
  */
 public class TestLWorld extends ValueTypeTest {
-    static {
-        if (TEST_C1 && (Long)WHITE_BOX.getVMFlag("ValueFieldMaxFlatSize") == 0) {
-            System.out.println("Skipped: C1 fails with -XX:ValueFieldMaxFlatSize=0"); // FIXME JDK-8225367
-            System.exit(0);
-        }
-    }
-
     // Extra VM parameters for some test scenarios. See ValueTypeTest.getVMParameters()
     @Override
     public String[] getExtraVMParameters(int scenario) {
