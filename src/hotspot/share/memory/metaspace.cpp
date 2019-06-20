@@ -935,7 +935,7 @@ ChunkManager* Metaspace::_chunk_manager_class = NULL;
 #define VIRTUALSPACEMULTIPLIER 2
 
 #ifdef _LP64
-static const uint64_t UnscaledClassSpaceMax = (uint64_t(max_juint) + 1);
+static uint64_t UnscaledClassSpaceMax = (uint64_t(max_juint) + 1);
 
 void Metaspace::set_narrow_klass_base_and_shift(address metaspace_base, address cds_base) {
   assert(!DumpSharedSpaces, "narrow_klass is set by MetaspaceShared class.");
@@ -1209,7 +1209,11 @@ void Metaspace::ergo_initialize() {
 
 void Metaspace::global_initialize() {
   MetaspaceGC::initialize();
-
+#ifdef _LP64
+  if (EnableValhalla) {
+    UnscaledClassSpaceMax >>= oopDesc::storage_props_nof_bits;
+  }
+#endif
 #if INCLUDE_CDS
   if (DumpSharedSpaces) {
     MetaspaceShared::initialize_dumptime_shared_and_meta_spaces();
