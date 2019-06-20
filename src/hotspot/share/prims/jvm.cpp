@@ -3500,7 +3500,7 @@ JVM_ENTRY(jobject, JVM_InvokeMethod(JNIEnv *env, jobject method, jobject obj, jo
   if (thread->stack_available((address) &method_handle) >= JVMInvokeMethodSlack) {
     method_handle = Handle(THREAD, JNIHandles::resolve(method));
     Handle receiver(THREAD, JNIHandles::resolve(obj));
-    objArrayHandle args(THREAD, objArrayOop(JNIHandles::resolve(args0)));
+    objArrayHandle args = oopFactory::ensure_objArray(JNIHandles::resolve(args0), CHECK_NULL);
     oop result = Reflection::invoke_method(method_handle(), receiver, args, CHECK_NULL);
     jobject res = JNIHandles::make_local(env, result);
     if (JvmtiExport::should_post_vm_object_alloc()) {
@@ -3521,8 +3521,8 @@ JVM_END
 
 JVM_ENTRY(jobject, JVM_NewInstanceFromConstructor(JNIEnv *env, jobject c, jobjectArray args0))
   JVMWrapper("JVM_NewInstanceFromConstructor");
+  objArrayHandle args = oopFactory::ensure_objArray(JNIHandles::resolve(args0), CHECK_NULL);
   oop constructor_mirror = JNIHandles::resolve(c);
-  objArrayHandle args(THREAD, objArrayOop(JNIHandles::resolve(args0)));
   oop result = Reflection::invoke_constructor(constructor_mirror, args, CHECK_NULL);
   jobject res = JNIHandles::make_local(env, result);
   if (JvmtiExport::should_post_vm_object_alloc()) {

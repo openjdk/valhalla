@@ -66,6 +66,10 @@ class oopFactory: AllStatic {
   // i.e. valueArrayOop if flattening can be done, else objArrayOop with "null free" storage properties
   static arrayOop        new_valueArray(Klass* klass, int length, TRAPS);
 
+  // Helper conversions from value to obj array...
+  static objArrayHandle  copy_valueArray_to_objArray(valueArrayHandle array, TRAPS);
+  static objArrayHandle  ensure_objArray(oop array, TRAPS); // copy into new objArray if not already an objArray
+
   // Helpers that return handles
   static objArrayHandle  new_objArray_handle(Klass* klass, int length, TRAPS);
   static typeArrayHandle new_byteArray_handle(int length, TRAPS);

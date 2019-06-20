@@ -41,6 +41,8 @@
 #include "oops/typeArrayOop.inline.hpp"
 #include "oops/valueKlass.hpp"
 #include "oops/valueArrayKlass.hpp"
+#include "oops/valueArrayOop.inline.hpp"
+#include "oops/valueArrayOop.hpp"
 #include "runtime/handles.inline.hpp"
 #include "utilities/utf8.hpp"
 
@@ -145,6 +147,23 @@ arrayOop oopFactory::new_valueArray(Klass* klass, int length, TRAPS) {
   }
   assert(oop->array_storage_properties().is_null_free(), "Bad array storage encoding");
   return oop;
+}
+
+objArrayHandle oopFactory::copy_valueArray_to_objArray(valueArrayHandle array, TRAPS) {
+  int len = array->length();
+  ValueArrayKlass* vak = ValueArrayKlass::cast(array->klass());
+  objArrayHandle oarray = new_objArray_handle(vak->element_klass(),
+                                              array->length(), CHECK_(objArrayHandle()));
+  vak->copy_array(array(), 0, oarray(), 0, len, CHECK_(objArrayHandle()));
+  return oarray;
+}
+
+objArrayHandle  oopFactory::ensure_objArray(oop array, TRAPS) {
+  if (array != NULL && array->is_valueArray()) {
+    return copy_valueArray_to_objArray(valueArrayHandle(THREAD, valueArrayOop(array)), THREAD);
+  } else {
+    return objArrayHandle(THREAD, objArrayOop(array));
+  }
 }
 
 objArrayHandle oopFactory::new_objArray_handle(Klass* klass, int length, TRAPS) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,11 +21,39 @@
  * questions.
  */
 
+
 package runtime.valhalla.valuetypes;
 
-public inline class IntValue {
-    int val;
-    public IntValue()       { this(0); }
-    public IntValue(int v)  { val = v; }
-    public int getInt()     { return val; }
+public class NewInstanceFromConstructor {
+
+    int value;
+    static int consCalls = 0;
+
+    public NewInstanceFromConstructor() {
+        this(0);
+    }
+
+    public NewInstanceFromConstructor(int v) {
+        value = v;
+        consCalls++;
+    }
+
+    public NewInstanceFromConstructor(IntValue v) {
+        this(v.getInt());
+    }
+
+    public NewInstanceFromConstructor(IntValue v1,
+                                      IntValue v2) {
+        this(v1.getInt() + v2.getInt());
+    }
+
+    public NewInstanceFromConstructor(IntValue v1,
+                                      String s) {
+        this(v1);
+        throw new RuntimeException(s);
+    }
+
+    public int getValue() { return value; }
+
+    public static int getConsCalls() { return consCalls; }
 }
