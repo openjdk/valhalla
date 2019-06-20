@@ -667,7 +667,6 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
     guarantee(klass->is_cloneable(), "all arrays are cloneable");
   } else {
     guarantee(obj->is_instance(), "should be instanceOop");
-    guarantee(!obj->is_value(), "should not be a value");
     bool cloneable = klass->is_subtype_of(SystemDictionary::Cloneable_klass());
     guarantee(cloneable == klass->is_cloneable(), "incorrect cloneable flag");
   }
