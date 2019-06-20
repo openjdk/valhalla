@@ -63,12 +63,12 @@ applications/ctw/modules/java_desktop_2.java 8205016 windows-all
 applications/ctw/modules/jdk_jconsole.java   8205016 windows-all
 
 # Valhalla
-compiler/arguments/CheckCICompilerCount.java                        8226467 generic-all
-compiler/arguments/CheckCompileThresholdScaling.java                8226467 generic-all
-compiler/codecache/CheckSegmentedCodeCache.java                     8226467 generic-all
-compiler/codecache/cli/TestSegmentedCodeCacheOption.java            8226467 generic-all
-compiler/codecache/cli/codeheapsize/TestCodeHeapSizeOptions.java    8226467 generic-all
-compiler/codecache/cli/printcodecache/TestPrintCodeCacheOption.java 8226467 generic-all
+compiler/arguments/CheckCICompilerCount.java                        8205030 generic-all
+compiler/arguments/CheckCompileThresholdScaling.java                8205030 generic-all
+compiler/codecache/CheckSegmentedCodeCache.java                     8205030 generic-all
+compiler/codecache/cli/TestSegmentedCodeCacheOption.java            8205030 generic-all
+compiler/codecache/cli/codeheapsize/TestCodeHeapSizeOptions.java    8205030 generic-all
+compiler/codecache/cli/printcodecache/TestPrintCodeCacheOption.java 8205030 generic-all
 
 compiler/aot/cli/DisabledAOTWithLibraryTest.java 8226295 generic-all
 compiler/aot/cli/SingleAOTOptionTest.java 8226295 generic-all
