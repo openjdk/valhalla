@@ -736,6 +736,10 @@ bool Method::is_static_init_factory() const {
    return name() == vmSymbols::object_initializer_name() && is_static();
 }
 
+bool Method::needs_clinit_barrier() const {
+  return is_static() && !method_holder()->is_initialized();
+}
+
 objArrayHandle Method::resolved_checked_exceptions_impl(Method* method, TRAPS) {
   int length = method->checked_exceptions_length();
   if (length == 0) {  // common case

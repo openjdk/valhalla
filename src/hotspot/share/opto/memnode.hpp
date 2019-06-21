@@ -1344,7 +1344,7 @@ class InitializeNode: public MemBarNode {
   enum {
     Incomplete    = 0,
     Complete      = 1,
-    WithArraycopy = 2,
+    WithArraycopy = 2
   };
   int _is_complete;
 

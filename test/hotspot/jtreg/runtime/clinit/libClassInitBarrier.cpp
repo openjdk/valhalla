@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 1998, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -22,22 +20,23 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-/***
- *** THIS IMPLEMENTS ONLY THE OBSOLETE java.awt.Event CLASS! SEE
- *** awt_AWTEvent.[ch] FOR THE NEWER EVENT CLASSES.
- ***
- ***/
-#ifndef _AWT_EVENT_H_
-#define _AWT_EVENT_H_
 
-#include "jni_util.h"
+#include <jni.h>
 
-struct EventIDs {
-  jfieldID data;
-  jfieldID consumed;
-  jfieldID id;
-};
+static jmethodID methodId;
 
-extern struct EventIDs eventIDs;
+extern "C" {
+    JNIEXPORT jboolean JNICALL Java_ClassInitBarrier_init(JNIEnv* env, jclass cls) {
+        jclass runnable = env->FindClass("java/lang/Runnable");
+        if (runnable == NULL)  return JNI_FALSE;
 
-#endif /* _AWT_EVENT_H_ */
+        methodId = env->GetMethodID(runnable, "run", "()V");
+        if (methodId == NULL)  return JNI_FALSE;
+
+        return JNI_TRUE;
+    }
+
+    JNIEXPORT void JNICALL Java_ClassInitBarrier_00024Test_00024A_staticN(JNIEnv* env, jclass cls, jobject action) {
+        env->CallVoidMethod(action, methodId);
+    }
+}

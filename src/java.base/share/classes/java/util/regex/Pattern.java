@@ -3271,28 +3271,33 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         case '+':
             return curly(prev, 1);
         case '{':
-            ch = temp[cursor+1];
+            ch = skip();
             if (ASCII.isDigit(ch)) {
-                skip();
-                int cmin = 0;
-                do {
-                    cmin = cmin * 10 + (ch - '0');
-                } while (ASCII.isDigit(ch = read()));
-                int cmax = cmin;
-                if (ch == ',') {
-                    ch = read();
-                    cmax = MAX_REPS;
-                    if (ch != '}') {
-                        cmax = 0;
-                        while (ASCII.isDigit(ch)) {
-                            cmax = cmax * 10 + (ch - '0');
-                            ch = read();
+                int cmin = 0, cmax;
+                try {
+                    do {
+                        cmin = Math.addExact(Math.multiplyExact(cmin, 10),
+                                             ch - '0');
+                    } while (ASCII.isDigit(ch = read()));
+                    cmax = cmin;
+                    if (ch == ',') {
+                        ch = read();
+                        cmax = MAX_REPS;
+                        if (ch != '}') {
+                            cmax = 0;
+                            while (ASCII.isDigit(ch)) {
+                                cmax = Math.addExact(Math.multiplyExact(cmax, 10),
+                                                     ch - '0');
+                                ch = read();
+                            }
                         }
                     }
+                } catch (ArithmeticException ae) {
+                    throw error("Illegal repetition range");
                 }
                 if (ch != '}')
                     throw error("Unclosed counted closure");
-                if (((cmin) | (cmax) | (cmax - cmin)) < 0)
+                if (cmax < cmin)
                     throw error("Illegal repetition range");
                 Curly curly;
                 ch = peek();
@@ -3968,7 +3973,16 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
             if (i < matcher.to) {
                 int ch0 = Character.codePointAt(seq, i);
                 int n = Character.charCount(ch0);
-                int j = Grapheme.nextBoundary(seq, i, matcher.to);
+                int j = i + n;
+                // Fast check if it's necessary to call Normalizer;
+                // testing Grapheme.isBoundary is enough for this case
+                while (j < matcher.to) {
+                    int ch1 = Character.codePointAt(seq, j);
+                    if (Grapheme.isBoundary(ch0, ch1))
+                        break;
+                    ch0 = ch1;
+                    j += Character.charCount(ch1);
+                }
                 if (i + n == j) {    // single, assume nfc cp
                     if (predicate.is(ch0))
                         return next.match(matcher, j, seq);

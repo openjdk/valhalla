@@ -42,7 +42,7 @@ class ArrayStorageProperties {
     flattened_value       = 1 <<  flattened_bit,
     null_free_bit = flattened_bit + 1,
     null_free_value = 1 << null_free_bit,
-    nof_oop_properties = null_free_bit + 1,
+    nof_oop_properties = null_free_bit + 1
   };
 
   ArrayStorageProperties() : _flags(empty_value) {};

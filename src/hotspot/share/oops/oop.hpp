@@ -121,7 +121,7 @@ class oopDesc {
   enum {
     storage_props_nof_bits     = LogKlassAlignmentInBytes, // This alignment gives us some "free bits"
     narrow_storage_props_shift = (sizeof(narrowKlass) << 3) - storage_props_nof_bits,
-    wide_storage_props_shift   = (sizeof(Klass*) << 3) - storage_props_nof_bits,
+    wide_storage_props_shift   = (sizeof(Klass*) << 3) - storage_props_nof_bits
   };
 
   static inline narrowKlass compressed_klass_mask();

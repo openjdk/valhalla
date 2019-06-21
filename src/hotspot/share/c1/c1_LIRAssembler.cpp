@@ -166,6 +166,9 @@ bool LIR_Assembler::needs_icache(ciMethod* method) const {
   return !method->is_static();
 }
 
+bool LIR_Assembler::needs_clinit_barrier_on_entry(ciMethod* method) const {
+  return VM_Version::supports_fast_class_init_checks() && method->needs_clinit_barrier();
+}
 
 int LIR_Assembler::code_offset() const {
   return _masm->offset();
@@ -695,16 +698,27 @@ void LIR_Assembler::emit_std_entries() {
 
 int LIR_Assembler::emit_std_entry(CodeOffsets::Entries entry, const CompiledEntrySignature* ces) {
   offsets()->set_value(entry, _masm->offset());
+  int offset = _masm->offset();
   switch (entry) {
   case CodeOffsets::Verified_Entry:
-    return _masm->verified_entry(ces, initial_frame_size_in_bytes(), bang_size_in_bytes(), _verified_value_entry);
+    offset = _masm->verified_entry(ces, initial_frame_size_in_bytes(), bang_size_in_bytes(), _verified_value_entry);
+    if (needs_clinit_barrier_on_entry(compilation()->method())) {
+      clinit_barrier(compilation()->method());
+    }
+    return offset;
   case CodeOffsets::Verified_Value_Entry_RO:
-    return _masm->verified_value_ro_entry(ces, initial_frame_size_in_bytes(), bang_size_in_bytes(), _verified_value_entry);
+    offset = _masm->verified_value_ro_entry(ces, initial_frame_size_in_bytes(), bang_size_in_bytes(), _verified_value_entry);
+    if (needs_clinit_barrier_on_entry(compilation()->method())) {
+      clinit_barrier(compilation()->method());
+    }
+    return offset;
   default:
     {
-      int offset = _masm->offset();
       assert(entry == CodeOffsets::Verified_Value_Entry, "must be");
       _masm->verified_value_entry();
+      if (needs_clinit_barrier_on_entry(compilation()->method())) {
+        clinit_barrier(compilation()->method());
+      }
       build_frame();
       offsets()->set_value(CodeOffsets::Frame_Complete, _masm->offset());
       return offset;
