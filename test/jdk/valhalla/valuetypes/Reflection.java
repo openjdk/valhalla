@@ -150,9 +150,12 @@ public class Reflection {
 
         assertTrue(inlineType != null);
         assertEquals(nullableType.getTypeName(), c.getTypeName() + "?");
+        assertEquals(nullableType.getSimpleName(), c.getSimpleName() + "?");
 
         assertEquals(nullableType.getName(), inlineType.getName());
         assertEquals(nullableType.getTypeName(), inlineType.getTypeName() + "?");
+        assertEquals(nullableType.getSimpleName(), inlineType.getSimpleName() + "?");
+
         assertEquals(inlineType.asNullableType(), nullableType);
         assertEquals(nullableType.asPrimaryType(), inlineType);
     }

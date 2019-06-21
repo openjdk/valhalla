@@ -1677,7 +1677,7 @@ public final class Class<T> implements java.io.Serializable,
             simpleName = getName();
             simpleName = simpleName.substring(simpleName.lastIndexOf('.') + 1); // strip the package name
         }
-        return simpleName;
+        return isInlineClass() && isIndirectType() ? simpleName + "?" : simpleName;
     }
 
     /**
