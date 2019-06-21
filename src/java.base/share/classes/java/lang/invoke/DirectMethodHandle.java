@@ -111,14 +111,13 @@ class DirectMethodHandle extends MethodHandle {
             if (member.isStatic()) {
                 long offset = MethodHandleNatives.staticFieldOffset(member);
                 Object base = MethodHandleNatives.staticFieldBase(member);
-                return member.isInlineable() ? new StaticValueAccessor(mtype, lform, member, base, offset)
-                                                  : new StaticAccessor(mtype, lform, member, base, offset);
+                return member.isIndirect() ? new IndirectStaticAccessor(mtype, lform, member, base, offset)
+                                           : new InlineStaticAccessor(mtype, lform, member, base, offset);
             } else {
                 long offset = MethodHandleNatives.objectFieldOffset(member);
                 assert(offset == (int)offset);
-                return  member.isInlineable() ? new ValueAccessor(mtype, lform, member, (int)offset)
-                                                   : new Accessor(mtype, lform, member, (int)offset);
-
+                return  member.isIndirect() ? new IndirectAccessor(mtype, lform, member, (int)offset)
+                                            : new InlineAccessor(mtype, lform, member, (int)offset);
             }
         }
     }
@@ -487,14 +486,25 @@ class DirectMethodHandle extends MethodHandle {
     }
 
     /** This subclass handles non-static field references. */
-    static class Accessor extends DirectMethodHandle {
+    static abstract class Accessor extends DirectMethodHandle {
         final Class<?> fieldType;
-        final int      fieldOffset;
-        private Accessor(MethodType mtype, LambdaForm form, MemberName member,
-                         int fieldOffset) {
+        final int fieldOffset;
+
+        protected Accessor(MethodType mtype, LambdaForm form, MemberName member,
+                           int fieldOffset) {
             super(mtype, form, member);
-            this.fieldType   = member.getFieldType();
+            this.fieldType = member.getFieldType();
             this.fieldOffset = fieldOffset;
+        }
+        abstract Object checkCast(Object obj);
+        abstract MethodHandle copyWith(MethodType mt, LambdaForm lf);
+    }
+
+    /** This subclass handles non-static field references of indirect type */
+    static class IndirectAccessor extends Accessor {
+        private IndirectAccessor(MethodType mtype, LambdaForm form, MemberName member,
+                                 int fieldOffset) {
+            super(mtype, form, member, fieldOffset);
         }
 
         @Override Object checkCast(Object obj) {
@@ -502,13 +512,14 @@ class DirectMethodHandle extends MethodHandle {
         }
         @Override
         MethodHandle copyWith(MethodType mt, LambdaForm lf) {
-            return new Accessor(mt, lf, member, fieldOffset);
+            return new IndirectAccessor(mt, lf, member, fieldOffset);
         }
     }
 
-    static class ValueAccessor extends Accessor {
-        private ValueAccessor(MethodType mtype, LambdaForm form, MemberName member,
-                              int fieldOffset) {
+    /** This subclass handles non-static field references of inline type */
+    static class InlineAccessor extends Accessor {
+        private InlineAccessor(MethodType mtype, LambdaForm form, MemberName member,
+                               int fieldOffset) {
             super(mtype, form, member, fieldOffset);
         }
 
@@ -517,7 +528,7 @@ class DirectMethodHandle extends MethodHandle {
         }
         @Override
         MethodHandle copyWith(MethodType mt, LambdaForm lf) {
-            return new ValueAccessor(mt, lf, member, fieldOffset);
+            return new InlineAccessor(mt, lf, member, fieldOffset);
         }
     }
 
@@ -540,44 +551,56 @@ class DirectMethodHandle extends MethodHandle {
         return Objects.requireNonNull(obj);
     }
 
-    /** This subclass handles static field references. */
-    static class StaticAccessor extends DirectMethodHandle {
+    static abstract class StaticAccessor extends DirectMethodHandle {
         final Class<?> fieldType;
-        final Object   staticBase;
-        final long     staticOffset;
+        final Object staticBase;
+        final long staticOffset;
 
-        private StaticAccessor(MethodType mtype, LambdaForm form, MemberName member,
-                               Object staticBase, long staticOffset) {
+        protected StaticAccessor(MethodType mtype, LambdaForm form, MemberName member,
+                                 Object staticBase, long staticOffset) {
             super(mtype, form, member);
-            this.fieldType    = member.getFieldType();
-            this.staticBase   = staticBase;
+            this.fieldType = member.getFieldType();
+            this.staticBase = staticBase;
             this.staticOffset = staticOffset;
         }
+        abstract Object checkCast(Object obj);
+        abstract MethodHandle copyWith(MethodType mt, LambdaForm lf);
+    }
 
+    /** This subclass handles static field references of indirect type. */
+    static class IndirectStaticAccessor extends StaticAccessor {
+        private IndirectStaticAccessor(MethodType mtype, LambdaForm form, MemberName member,
+                                     Object staticBase, long staticOffset) {
+            super(mtype, form, member, staticBase, staticOffset);
+        }
+
+        // indirect type is always nullable
         @Override Object checkCast(Object obj) {
             return fieldType.cast(obj);
         }
         @Override
         MethodHandle copyWith(MethodType mt, LambdaForm lf) {
-            return new StaticAccessor(mt, lf, member, staticBase, staticOffset);
+            return new IndirectStaticAccessor(mt, lf, member, staticBase, staticOffset);
         }
     }
 
-    static class StaticValueAccessor extends StaticAccessor {
-        private StaticValueAccessor(MethodType mtype, LambdaForm form, MemberName member,
-                               Object staticBase, long staticOffset) {
+    /** This subclass handles static field references of inline type . */
+    static class InlineStaticAccessor extends StaticAccessor {
+        private InlineStaticAccessor(MethodType mtype, LambdaForm form, MemberName member,
+                                     Object staticBase, long staticOffset) {
             super(mtype, form, member, staticBase, staticOffset);
         }
 
+        // zero-default inline type is not-nullable
         @Override Object checkCast(Object obj) {
+            assert !fieldType.isNullableType() : "null-default inline type not yet supported";
             return fieldType.cast(Objects.requireNonNull(obj));
         }
         @Override
         MethodHandle copyWith(MethodType mt, LambdaForm lf) {
-            return new StaticValueAccessor(mt, lf, member, staticBase, staticOffset);
+            return new InlineStaticAccessor(mt, lf, member, staticBase, staticOffset);
         }
     }
-
 
     @ForceInline
     /*non-public*/ static Object nullCheck(Object obj) {
@@ -600,12 +623,12 @@ class DirectMethodHandle extends MethodHandle {
     }
 
     @ForceInline
-    /*non-public*/ static Class<?> fieldValueType(Object accessorObj) {
+    /*non-public*/ static Class<?> fieldType(Object accessorObj) {
         return ((Accessor) accessorObj).fieldType;
     }
 
     @ForceInline
-    /*non-public*/ static Class<?> staticFieldValueType(Object accessorObj) {
+    /*non-public*/ static Class<?> staticFieldType(Object accessorObj) {
         return ((StaticAccessor) accessorObj).fieldType;
     }
 
@@ -825,8 +848,8 @@ class DirectMethodHandle extends MethodHandle {
         }
         int x = 3;
         if (hasValueTypeArg) {
-            outArgs[x++] = names[VALUE_TYPE] = isStatic ? new Name(getFunction(NF_staticFieldValueType), names[DMH_THIS])
-                                                        : new Name(getFunction(NF_fieldValueType), names[DMH_THIS]);
+            outArgs[x++] = names[VALUE_TYPE] = isStatic ? new Name(getFunction(NF_staticFieldType), names[DMH_THIS])
+                                                        : new Name(getFunction(NF_fieldType), names[DMH_THIS]);
         }
         if (!isGetter) {
             outArgs[x] = (needsCast ? names[PRE_CAST] : names[SET_VALUE]);
@@ -880,8 +903,8 @@ class DirectMethodHandle extends MethodHandle {
             NF_constructorMethod = 9,
             NF_UNSAFE = 10,
             NF_checkReceiver = 11,
-            NF_fieldValueType = 12,
-            NF_staticFieldValueType = 13,
+            NF_fieldType = 12,
+            NF_staticFieldType = 13,
             NF_LIMIT = 14;
 
     private static final @Stable NamedFunction[] NFS = new NamedFunction[NF_LIMIT];
@@ -936,10 +959,10 @@ class DirectMethodHandle extends MethodHandle {
                     return new NamedFunction(
                         MemberName.getFactory()
                             .resolveOrFail(REF_invokeVirtual, member, DirectMethodHandle.class, NoSuchMethodException.class));
-                case NF_fieldValueType:
-                    return getNamedFunction("fieldValueType", CLS_OBJ_TYPE);
-                case NF_staticFieldValueType:
-                    return getNamedFunction("staticFieldValueType", CLS_OBJ_TYPE);
+                case NF_fieldType:
+                    return getNamedFunction("fieldType", CLS_OBJ_TYPE);
+                case NF_staticFieldType:
+                    return getNamedFunction("staticFieldType", CLS_OBJ_TYPE);
                 default:
                     throw newInternalError("Unknown function: " + func);
             }

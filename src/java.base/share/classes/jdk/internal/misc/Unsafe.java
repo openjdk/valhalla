@@ -1423,6 +1423,36 @@ public final class Unsafe {
                                                        Object expected,
                                                        Object x);
 
+    private final boolean isInlineType(Object o) {
+        return o != null && o.getClass().isInlineClass();
+    }
+
+    /*
+     * For inline type, CAS should do substitutability test as opposed
+     * to two pointers comparison.
+     *
+     * Perhaps we can keep the xxxObject methods for compatibility and
+     * change the JDK 13 xxxReference method signature freely.
+     */
+    public final <V> boolean compareAndSetReference(Object o, long offset,
+                                                    Class<?> valueType,
+                                                    V expected,
+                                                    V x) {
+        if (valueType.isInlineClass() || isInlineType(expected)) {
+            synchronized (valueLock) {
+                Object witness = getReference(o, offset);
+                if (witness == expected) {
+                    putReference(o, offset, x);
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        } else {
+            return compareAndSetReference(o, offset, expected, x);
+        }
+    }
+
     @ForceInline
     public final <V> boolean compareAndSetValue(Object o, long offset,
                                                 Class<?> valueType,
@@ -1430,7 +1460,7 @@ public final class Unsafe {
                                                 V x) {
         synchronized (valueLock) {
             Object witness = getValue(o, offset, valueType);
-            if (witness.equals(expected)) {
+            if (witness == expected) {
                 putValue(o, offset, valueType, x);
                 return true;
             }
@@ -1444,6 +1474,24 @@ public final class Unsafe {
     public final native Object compareAndExchangeReference(Object o, long offset,
                                                            Object expected,
                                                            Object x);
+
+    public final <V> Object compareAndExchangeReference(Object o, long offset,
+                                                        Class<?> valueType,
+                                                        V expected,
+                                                        V x) {
+        if (valueType.isInlineClass() || isInlineType(expected)) {
+            synchronized (valueLock) {
+                Object witness = getReference(o, offset);
+                if (witness == expected) {
+                    putReference(o, offset, x);
+                }
+                return witness;
+            }
+        } else {
+            return compareAndExchangeReference(o, offset, expected, x);
+        }
+    }
+
     @ForceInline
     public final <V> Object compareAndExchangeValue(Object o, long offset,
                                                     Class<?> valueType,
@@ -1451,7 +1499,7 @@ public final class Unsafe {
                                                     V x) {
         synchronized (valueLock) {
             Object witness = getValue(o, offset, valueType);
-            if (witness.equals(expected)) {
+            if (witness == expected) {
                 putValue(o, offset, valueType, x);
             }
             return witness;
@@ -1463,6 +1511,13 @@ public final class Unsafe {
                                                            Object expected,
                                                            Object x) {
         return compareAndExchangeReference(o, offset, expected, x);
+    }
+
+    public final <V> Object compareAndExchangeReferenceAcquire(Object o, long offset,
+                                                               Class<?> valueType,
+                                                               V expected,
+                                                               V x) {
+        return compareAndExchangeReference(o, offset, valueType, expected, x);
     }
 
     @ForceInline
@@ -1480,6 +1535,13 @@ public final class Unsafe {
         return compareAndExchangeReference(o, offset, expected, x);
     }
 
+    public final <V> Object compareAndExchangeReferenceRelease(Object o, long offset,
+                                                               Class<?> valueType,
+                                                               V expected,
+                                                               V x) {
+        return compareAndExchangeReference(o, offset, valueType, expected, x);
+    }
+
     @ForceInline
     public final <V> Object compareAndExchangeValueRelease(Object o, long offset,
                                                            Class<?> valueType,
@@ -1493,6 +1555,17 @@ public final class Unsafe {
                                                          Object expected,
                                                          Object x) {
         return compareAndSetReference(o, offset, expected, x);
+    }
+
+    public final <V> boolean weakCompareAndSetReferencePlain(Object o, long offset,
+                                                             Class<?> valueType,
+                                                             V expected,
+                                                             V x) {
+        if (valueType.isInlineClass() || isInlineType(expected)) {
+            return compareAndSetReference(o, offset, valueType, expected, x);
+        } else {
+            return weakCompareAndSetReferencePlain(o, offset, expected, x);
+        }
     }
 
     @ForceInline
@@ -1510,6 +1583,17 @@ public final class Unsafe {
         return compareAndSetReference(o, offset, expected, x);
     }
 
+    public final <V> boolean weakCompareAndSetReferenceAcquire(Object o, long offset,
+                                                               Class<?> valueType,
+                                                               V expected,
+                                                               V x) {
+        if (valueType.isInlineClass() || isInlineType(expected)) {
+            return compareAndSetReference(o, offset, valueType, expected, x);
+        } else {
+            return weakCompareAndSetReferencePlain(o, offset, expected, x);
+        }
+    }
+
     @ForceInline
     public final <V> boolean weakCompareAndSetValueAcquire(Object o, long offset,
                                                            Class<?> valueType,
@@ -1525,6 +1609,17 @@ public final class Unsafe {
         return compareAndSetReference(o, offset, expected, x);
     }
 
+    public final <V> boolean weakCompareAndSetReferenceRelease(Object o, long offset,
+                                                               Class<?> valueType,
+                                                               V expected,
+                                                               V x) {
+        if (valueType.isInlineClass() || isInlineType(expected)) {
+            return compareAndSetReference(o, offset, valueType, expected, x);
+        } else {
+            return weakCompareAndSetReferencePlain(o, offset, expected, x);
+        }
+    }
+
     @ForceInline
     public final <V> boolean weakCompareAndSetValueRelease(Object o, long offset,
                                                            Class<?> valueType,
@@ -1538,6 +1633,17 @@ public final class Unsafe {
                                                     Object expected,
                                                     Object x) {
         return compareAndSetReference(o, offset, expected, x);
+    }
+
+    public final <V> boolean weakCompareAndSetReference(Object o, long offset,
+                                                        Class<?> valueType,
+                                                        V expected,
+                                                        V x) {
+        if (valueType.isInlineClass() || isInlineType(expected)) {
+            return compareAndSetReference(o, offset, valueType, expected, x);
+        } else {
+            return weakCompareAndSetReferencePlain(o, offset, expected, x);
+        }
     }
 
     @ForceInline

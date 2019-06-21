@@ -482,6 +482,13 @@ import static java.lang.invoke.MethodHandleStatics.newInternalError;
         return false;
     }
 
+    public boolean isIndirect()  {
+        if (isField()) {
+            return getFieldType().isIndirectType();
+        }
+        return false;
+    }
+
     static final String CONSTRUCTOR_NAME = "<init>";  // the ever-popular
 
     // modifiers exported by the JVM:

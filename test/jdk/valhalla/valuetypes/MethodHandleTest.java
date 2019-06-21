@@ -225,10 +225,25 @@ public class MethodHandleTest {
         } finally {
             f.set(obj, v);
         }
-        // VarHandle::set
+
+        // VarHandle tests
+        VarHandle vh = MethodHandles.lookup().findVarHandle(c, f.getName(), f.getType());
         try {
-            VarHandle vh = MethodHandles.lookup().findVarHandle(c, f.getName(), f.getType());
             vh.set(obj, value);
+            assertEquals(f.get(obj), value);
+        } finally {
+            f.set(obj, v);
+        }
+
+        try {
+            assertTrue(vh.compareAndSet(obj, v, value));
+            assertEquals(f.get(obj), value);
+        } finally {
+            f.set(obj, v);
+        }
+
+        try {
+            assertEquals(vh.compareAndExchange(obj, v, value), v);
             assertEquals(f.get(obj), value);
         } finally {
             f.set(obj, v);
@@ -245,10 +260,24 @@ public class MethodHandleTest {
         } finally {
             f.set(null, v);
         }
-        // VarHandle::set
+        // VarHandle tests
+        VarHandle vh = MethodHandles.lookup().findStaticVarHandle(c, f.getName(), f.getType());
         try {
-            VarHandle vh = MethodHandles.lookup().findStaticVarHandle(c, f.getName(), f.getType());
             vh.set(f.getType().cast(value));
+            assertEquals(f.get(null), value);
+        } finally {
+            f.set(null, v);
+        }
+
+        try {
+            assertTrue(vh.compareAndSet(v, f.getType().cast(value)));
+            assertEquals(f.get(null), value);
+        } finally {
+            f.set(null, v);
+        }
+
+        try {
+            assertEquals(vh.compareAndExchange(v, f.getType().cast(value)), v);
             assertEquals(f.get(null), value);
         } finally {
             f.set(null, v);

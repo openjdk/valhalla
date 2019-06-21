@@ -38,12 +38,12 @@ final class VarHandles {
             if (!type.isPrimitive()) {
                 if (f.isFlattened()) {
                     return f.isFinal() && !isWriteAllowedOnFinalFields
-                        ? new VarHandleReferences.FlatValueFieldInstanceReadOnly(refc, foffset, type)
-                        : new VarHandleReferences.FlatValueFieldInstanceReadWrite(refc, foffset, type);
+                        ? new VarHandleValues.FieldInstanceReadOnly(refc, foffset, type)
+                        : new VarHandleValues.FieldInstanceReadWrite(refc, foffset, type);
                 } else {
                     return f.isFinal() && !isWriteAllowedOnFinalFields
                        ? new VarHandleReferences.FieldInstanceReadOnly(refc, foffset, type)
-                       : new VarHandleReferences.FieldInstanceReadWrite(refc, foffset, type, f.isInlineable());
+                       : new VarHandleReferences.FieldInstanceReadWrite(refc, foffset, type);
                 }
             }
             else if (type == boolean.class) {
@@ -103,10 +103,15 @@ final class VarHandles {
             Object base = MethodHandleNatives.staticFieldBase(f);
             long foffset = MethodHandleNatives.staticFieldOffset(f);
             if (!type.isPrimitive()) {
-                assert(!f.isFlattened());   // static field is not flattened
-                return f.isFinal() && !isWriteAllowedOnFinalFields
-                       ? new VarHandleReferences.FieldStaticReadOnly(base, foffset, type)
-                       : new VarHandleReferences.FieldStaticReadWrite(base, foffset, type, f.isInlineable());
+                if (f.isFlattened()) {
+                    return f.isFinal() && !isWriteAllowedOnFinalFields
+                            ? new VarHandleValues.FieldStaticReadOnly(refc, foffset, type)
+                            : new VarHandleValues.FieldStaticReadWrite(refc, foffset, type);
+                } else {
+                    return f.isFinal() && !isWriteAllowedOnFinalFields
+                            ? new VarHandleReferences.FieldStaticReadOnly(base, foffset, type)
+                            : new VarHandleReferences.FieldStaticReadWrite(base, foffset, type);
+                }
             }
             else if (type == boolean.class) {
                 return f.isFinal() && !isWriteAllowedOnFinalFields
@@ -200,8 +205,9 @@ final class VarHandles {
             // the redundant componentType.isValue() check is there to
             // minimize the performance impact to non-value array.
             // It should be removed when Unsafe::isFlattenedArray is intrinsified.
+
             return componentType.isInlineClass() && UNSAFE.isFlattenedArray(arrayClass)
-                ? new VarHandleReferences.ValueArray(aoffset, ashift, arrayClass)
+                ? new VarHandleValues.Array(aoffset, ashift, arrayClass)
                 : new VarHandleReferences.Array(aoffset, ashift, arrayClass);
         }
         else if (componentType == boolean.class) {
