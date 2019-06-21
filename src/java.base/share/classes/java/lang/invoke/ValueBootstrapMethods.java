@@ -171,7 +171,7 @@ public final class ValueBootstrapMethods {
          * of the given inline class are substitutable.
          */
         static MethodHandle inlineTypeEquals(Class<?> type) {
-            assert type.isInlineClass();
+            assert type.isInlineClass() && !type.isIndirectType();
             MethodType mt = methodType(boolean.class, type, type);
             MethodHandles.Lookup lookup = new MethodHandles.Lookup(type);
             MethodHandle[] getters = getters(lookup, TYPE_SORTER);
@@ -599,8 +599,8 @@ public final class ValueBootstrapMethods {
 
     // store the method handle for value types in ClassValue
     private static ClassValue<MethodHandle> SUBST_TEST_METHOD_HANDLES = new ClassValue<>() {
-        @Override protected MethodHandle computeValue(Class<?> c) {
-            return MethodHandleBuilder.inlineTypeEquals(c);
+        @Override protected MethodHandle computeValue(Class<?> type) {
+            return MethodHandleBuilder.inlineTypeEquals(type.asPrimaryType());
         }
     };
 
