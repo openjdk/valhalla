@@ -63,6 +63,7 @@ import jdk.internal.module.Modules;
  *          be set accessible if the right permission is granted; this test
  *          loads all classes and get their declared fields
  *          and call setAccessible(false) followed by setAccessible(true);
+ *          Except for fields of inline classes that are never settable
  * @modules java.base/jdk.internal.module
  * @run main/othervm --add-modules=ALL-SYSTEM FieldSetAccessibleTest UNSECURE
  * @run main/othervm --add-modules=ALL-SYSTEM FieldSetAccessibleTest SECURE
@@ -95,7 +96,9 @@ public class FieldSetAccessibleTest {
             // otherwise it would fail.
             boolean isPublic = Modifier.isPublic(f.getModifiers()) &&
                 Modifier.isPublic(c.getModifiers());
-            boolean access = (exported && isPublic) || target.isOpen(pn, self);
+            boolean access = !c.isInlineClass() &&
+                    ((exported && isPublic) || target.isOpen(pn, self));
+
             try {
                 f.setAccessible(false);
                 f.setAccessible(true);
