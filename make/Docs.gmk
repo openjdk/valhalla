@@ -32,6 +32,7 @@ include ModuleTools.gmk
 include ProcessMarkdown.gmk
 include ToolsJdk.gmk
 include ZipArchive.gmk
+include TextFileProcessing.gmk
 
 # This is needed to properly setup DOCS_MODULES.
 $(eval $(call ReadImportMetaData))
@@ -64,7 +65,7 @@ MODULES_SOURCE_PATH := $(call PathList, $(call GetModuleSrcPath) \
 # URLs
 JAVADOC_BASE_URL := https://docs.oracle.com/pls/topic/lookup?ctx=javase$(VERSION_NUMBER)&amp;id=homepage
 BUG_SUBMIT_URL := https://bugreport.java.com/bugreport/
-COPYRIGHT_URL := {@docroot}/../legal/copyright.html
+COPYRIGHT_URL := legal/copyright.html
 LICENSE_URL := https://www.oracle.com/technetwork/java/javase/terms/license/java$(VERSION_NUMBER)speclicense.html
 REDISTRIBUTION_URL := https://www.oracle.com/technetwork/java/redist-137594.html
 
@@ -84,13 +85,14 @@ JAVADOC_TAGS := \
     -tag param \
     -tag return \
     -tag throws \
+    -taglet build.tools.taglet.JSpec\$$JLS \
+    -taglet build.tools.taglet.JSpec\$$JVMS \
     -taglet build.tools.taglet.ModuleGraph \
+    -taglet build.tools.taglet.ToolGuide \
     -tag since \
     -tag serialData \
     -tag factory \
     -tag see \
-    -tag 'jvms:a:See <cite>The Java&trade; Virtual Machine Specification</cite>:' \
-    -tag 'jls:a:See <cite>The Java&trade; Language Specification</cite>:' \
     -taglet build.tools.taglet.ExtLink \
     -taglet build.tools.taglet.Incubating \
     -tagletpath $(BUILDTOOLS_OUTPUTDIR)/jdk_tools_classes \
@@ -148,6 +150,15 @@ else
   HEADER_STYLE := style="margin-top: 14px;"
 endif
 
+# $1 - Relative prefix to COPYRIGHT_URL
+COPYRIGHT_BOTTOM = \
+    <a href="$(strip $1)$(COPYRIGHT_URL)">Copyright</a> \
+    &copy; 1993, $(COPYRIGHT_YEAR), $(FULL_COMPANY_NAME), \
+    $(COMPANY_ADDRESS).<br>All rights reserved. \
+    Use is subject to <a href="$(LICENSE_URL)">license terms</a> and the \
+    <a href="$(REDISTRIBUTION_URL)">documentation redistribution policy</a>. \
+    $(DRAFT_MARKER_STR) <!-- Version $(VERSION_STRING) -->
+
 JAVADOC_BOTTOM := \
     <a href="$(BUG_SUBMIT_URL)">Report a bug or suggest an enhancement</a><br> \
     For further API reference and developer documentation see the \
@@ -157,12 +168,7 @@ JAVADOC_BOTTOM := \
     of terms, workarounds, and working code examples.<br> \
     Java is a trademark or registered trademark of $(FULL_COMPANY_NAME) in \
     the US and other countries.<br> \
-    <a href="$(COPYRIGHT_URL)">Copyright</a> \
-    &copy; 1993, $(COPYRIGHT_YEAR), $(FULL_COMPANY_NAME), \
-    $(COMPANY_ADDRESS).<br>All rights reserved. \
-    Use is subject to <a href="$(LICENSE_URL)">license terms</a> and the \
-    <a href="$(REDISTRIBUTION_URL)">documentation redistribution policy</a>. \
-    $(DRAFT_MARKER_STR) <!-- Version $(VERSION_STRING) -->
+    $(call COPYRIGHT_BOTTOM, {@docroot}/../)
 
 JAVADOC_TOP := \
     <div style="padding: 6px; text-align: center; font-size: 80%; \
@@ -270,7 +276,8 @@ define SetupApiDocsGenerationBody
   $1_INDIRECT_EXPORTS := $$(call FindTransitiveIndirectDepsForModules, $$($1_MODULES))
   $1_ALL_MODULES := $$(sort $$($1_MODULES) $$($1_INDIRECT_EXPORTS))
 
-  $1_JAVA_ARGS := -Dextlink.spec.version=$$(VERSION_SPECIFICATION)
+  $1_JAVA_ARGS := -Dextlink.spec.version=$$(VERSION_SPECIFICATION) \
+	-Djspec.version=$$(VERSION_SPECIFICATION)
 
   ifeq ($$(ENABLE_FULL_DOCS), true)
     # Tell the ModuleGraph taglet to generate html links to soon-to-be-created
@@ -480,11 +487,25 @@ $(eval $(call SetupApiDocsGeneration, REFERENCE_API, \
 
 ################################################################################
 
+# Use this variable to control which spec files are included in the output.
+# Format: space-delimited list of names, including at most one '%' as a
+# wildcard. Spec source files match if their filename or any enclosing folder
+# name matches one of the items in SPEC_FILTER.
+SPEC_FILTER := %
+
+ApplySpecFilter = \
+    $(strip $(foreach file, $(1), \
+        $(eval searchkeys := $(subst /, ,$(subst $(WORKSPACE_ROOT),,$(file)))) \
+        $(if $(filter $(SPEC_FILTER), $(searchkeys)), \
+            $(file) \
+        ) \
+    ))
+
 # Copy the global resources, including the top-level redirect index.html
-GLOBAL_SPECS_RESOURCES_DIR := $(TOPDIR)/make/data/docs-resources/
+GLOBAL_SPECS_RESOURCES_DIR := $(TOPDIR)/make/data/docs-resources
 $(eval $(call SetupCopyFiles, COPY_GLOBAL_RESOURCES, \
     SRC := $(GLOBAL_SPECS_RESOURCES_DIR), \
-    FILES := $(call FindFiles, $(GLOBAL_SPECS_RESOURCES_DIR)), \
+    FILES := $(call ApplySpecFilter, $(call FindFiles, $(GLOBAL_SPECS_RESOURCES_DIR))), \
     DEST := $(DOCS_OUTPUTDIR), \
 ))
 JDK_INDEX_TARGETS += $(COPY_GLOBAL_RESOURCES)
@@ -492,7 +513,7 @@ JDK_INDEX_TARGETS += $(COPY_GLOBAL_RESOURCES)
 # Copy the legal notices distributed with the docs bundle
 $(eval $(call SetupCopyFiles, COPY_DOCS_LEGAL_NOTICES, \
     SRC := $(TOPDIR)/src/jdk.javadoc/share/legal, \
-    FILES := $(wildcard $(TOPDIR)/src/jdk.javadoc/share/legal/*), \
+    FILES := $(call ApplySpecFilter, $(wildcard $(TOPDIR)/src/jdk.javadoc/share/legal/*)), \
     DEST := $(DOCS_OUTPUTDIR)/legal, \
 ))
 JDK_INDEX_TARGETS += $(COPY_DOCS_LEGAL_NOTICES)
@@ -500,22 +521,58 @@ JDK_INDEX_TARGETS += $(COPY_DOCS_LEGAL_NOTICES)
 ################################################################################
 # Copy JDK specs files
 
-# For all html documentation in $module/share/specs directories, copy it
+# For all non html/md files in $module/share/specs directories, copy them
 # unmodified
 
 ALL_MODULES := $(call FindAllModules)
-COPY_SPEC_FILTER := %.html %.gif %.jpg %.mib %.css
+COPY_SPEC_FILTER := %.gif %.jpg %.mib %.css
 
 $(foreach m, $(ALL_MODULES), \
   $(eval SPECS_$m := $(call FindModuleSpecsDirs, $m)) \
   $(foreach d, $(SPECS_$m), \
-    $(if $(filter $(COPY_SPEC_FILTER), $(call FindFiles, $d)), \
+    $(if $(call ApplySpecFilter, $(filter $(COPY_SPEC_FILTER), $(call FindFiles, $d))), \
       $(eval $(call SetupCopyFiles, COPY_$m, \
           SRC := $d, \
-          FILES := $(filter $(COPY_SPEC_FILTER), $(call FindFiles, $d)), \
+          FILES := $(call ApplySpecFilter, $(filter $(COPY_SPEC_FILTER), $(call FindFiles, $d))), \
           DEST := $(DOCS_OUTPUTDIR)/specs/, \
       )) \
       $(eval JDK_SPECS_TARGETS += $(COPY_$m)) \
+    ) \
+  ) \
+)
+
+# Create copyright footer variables. We need different variables for different
+# relative paths to the copyright.html file. The number 0-2 below represent how
+# many extra directory levels down below the specs dir the specs html file is
+# located.
+SPECS_BOTTOM = <footer class="legal-footer"><hr/>$(COPYRIGHT_BOTTOM)</footer>
+# The legal dir is one ../ below the specs dir, so start with one ../.
+specs_bottom_rel_path := ../
+$(foreach n, 0 1 2, \
+  $(eval SPECS_BOTTOM_$n := $(call SPECS_BOTTOM,$(specs_bottom_rel_path))) \
+  $(eval specs_bottom_rel_path := $(specs_bottom_rel_path)../) \
+)
+
+SPECS_TOP := $(if $(filter true, $(IS_DRAFT)), <div class="draft-header">$(DRAFT_TEXT)</div>)
+
+# For all html files in $module/share/specs directories, copy and add the
+# copyright footer.
+
+$(foreach m, $(ALL_MODULES), \
+  $(eval SPECS_$m := $(call FindModuleSpecsDirs, $m)) \
+  $(foreach d, $(SPECS_$m), \
+    $(foreach f, $(call ApplySpecFilter, $(filter %.html, $(call FindFiles, $d))), \
+      $(eval $m_$f_NOF_SUBDIRS := $(words $(subst /, $(SPACE), $(subst $d, , $(dir $f))))) \
+      $(eval $m_$f_NAME := PROCESS_HTML_$m_$(strip $(call RelativePath, $f, $(TOPDIR)))) \
+      $(eval $(call SetupTextFileProcessing, $($m_$f_NAME), \
+          SOURCE_FILES := $f, \
+          SOURCE_BASE_DIR := $d, \
+          OUTPUT_DIR := $(DOCS_OUTPUTDIR)/specs/, \
+          REPLACEMENTS := \
+              <body> => <body>$(SPECS_TOP) ; \
+              </body> => $(SPECS_BOTTOM_$($m_$f_NOF_SUBDIRS))</body>, \
+      )) \
+      $(eval JDK_SPECS_TARGETS += $($($m_$f_NAME))) \
     ) \
   ) \
 )
@@ -529,15 +586,19 @@ ifeq ($(ENABLE_PANDOC), true)
   $(foreach m, $(ALL_MODULES), \
     $(eval SPECS_$m := $(call FindModuleSpecsDirs, $m)) \
     $(foreach d, $(SPECS_$m), \
-      $(if $(filter %.md, $(call FindFiles, $d)), \
-        $(eval $m_$d_NAME := SPECS_TO_HTML_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
-        $(eval $(call SetupProcessMarkdown, $($m_$d_NAME), \
+      $(foreach f, $(call ApplySpecFilter, $(filter %.md, $(call FindFiles, $d))), \
+        $(eval $m_$f_NOF_SUBDIRS := $(words $(subst /, $(SPACE), $(subst $d, , $(dir $f))))) \
+        $(eval $m_$f_NAME := SPECS_TO_HTML_$m_$(strip $(call RelativePath, $f, $(TOPDIR)))) \
+        $(eval $(call SetupProcessMarkdown, $($m_$f_NAME), \
             SRC := $d, \
-            FILES := $(filter %.md, $(call FindFiles, $d)), \
+            FILES := $f, \
             DEST := $(DOCS_OUTPUTDIR)/specs/, \
             CSS := $(GLOBAL_SPECS_DEFAULT_CSS_FILE), \
+            OPTIONS := -V include-before='$(SPECS_TOP)' -V include-after='$(SPECS_BOTTOM_$($m_$f_NOF_SUBDIRS))', \
+            REPLACEMENTS := @@VERSION_STRING@@ => $(VERSION_STRING), \
+            POST_PROCESS := $(TOOL_FIXUPPANDOC), \
         )) \
-        $(eval JDK_SPECS_TARGETS += $($($m_$d_NAME))) \
+        $(eval JDK_SPECS_TARGETS += $($($m_$f_NAME))) \
       ) \
     ) \
   )
@@ -556,19 +617,21 @@ ifeq ($(ENABLE_PANDOC), true)
   $(foreach m, $(ALL_MODULES), \
     $(eval MAN_$m := $(call FindModuleManDirs, $m)) \
     $(foreach d, $(MAN_$m), \
-      $(if $(filter %.md, $(call FindFiles, $d)), \
-        $(eval $m_$d_NAME := MAN_TO_HTML_$m_$(strip $(call RelativePath, $d, $(TOPDIR)))) \
-        $(eval $(call SetupProcessMarkdown, $($m_$d_NAME), \
+      $(foreach f, $(call ApplySpecFilter, $(filter %.md, $(call FindFiles, $d))), \
+        $(eval $m_$f_NAME := MAN_TO_HTML_$m_$(strip $(call RelativePath, $f, $(TOPDIR)))) \
+        $(eval $(call SetupProcessMarkdown, $($m_$f_NAME), \
             SRC := $d, \
-            FILES := $(filter %.md, $(call FindFiles, $d)), \
+            FILES := $f, \
             DEST := $(DOCS_OUTPUTDIR)/specs/man, \
             FILTER := $(PANDOC_HTML_MANPAGE_FILTER), \
             CSS := $(GLOBAL_SPECS_DEFAULT_CSS_FILE), \
             REPLACEMENTS := @@VERSION_SHORT@@ => $(VERSION_SHORT), \
+            OPTIONS := -V include-before='$(SPECS_TOP)' -V include-after='$(SPECS_BOTTOM_1)', \
+            POST_PROCESS := $(TOOL_FIXUPPANDOC), \
             EXTRA_DEPS := $(PANDOC_HTML_MANPAGE_FILTER) \
                 $(PANDOC_HTML_MANPAGE_FILTER_JAVASCRIPT), \
         )) \
-        $(eval JDK_SPECS_TARGETS += $($($m_$d_NAME))) \
+        $(eval JDK_SPECS_TARGETS += $($($m_$f_NAME))) \
       ) \
     ) \
   )
@@ -580,19 +643,29 @@ endif
 # Special treatment for generated documentation
 
 JDWP_PROTOCOL := $(SUPPORT_OUTPUTDIR)/gensrc/jdk.jdi/jdwp-protocol.html
-$(eval $(call SetupCopyFiles, COPY_JDWP_PROTOCOL, \
-    FILES := $(JDWP_PROTOCOL), \
-    DEST := $(DOCS_OUTPUTDIR)/specs/jdwp, \
-))
-JDK_SPECS_TARGETS += $(COPY_JDWP_PROTOCOL)
+ifneq ($(call ApplySpecFilter, $(JDWP_PROTOCOL)), )
+  $(eval $(call SetupTextFileProcessing, PROCESS_JDWP_PROTOCOL, \
+      SOURCE_FILES := $(JDWP_PROTOCOL), \
+      OUTPUT_DIR := $(DOCS_OUTPUTDIR)/specs/jdwp, \
+      REPLACEMENTS := \
+          <body> => <body>$(SPECS_TOP) ; \
+          </body> => $(SPECS_BOTTOM_1)</body>, \
+  ))
+  JDK_SPECS_TARGETS += $(PROCESS_JDWP_PROTOCOL)
+endif
 
 # Get jvmti.html from the main jvm variant (all variants' jvmti.html are identical).
 JVMTI_HTML ?= $(HOTSPOT_OUTPUTDIR)/variant-$(JVM_VARIANT_MAIN)/gensrc/jvmtifiles/jvmti.html
-$(eval $(call SetupCopyFiles, COPY_JVMTI_HTML, \
-    FILES := $(JVMTI_HTML), \
-    DEST := $(DOCS_OUTPUTDIR)/specs, \
-))
-JDK_SPECS_TARGETS += $(COPY_JVMTI_HTML)
+ifneq ($(call ApplySpecFilter, $(JVMTI_HTML)), )
+  $(eval $(call SetupTextFileProcessing, PROCESS_JVMTI_HTML, \
+      SOURCE_FILES := $(JVMTI_HTML), \
+      OUTPUT_DIR := $(DOCS_OUTPUTDIR)/specs/, \
+      REPLACEMENTS := \
+          <body> => <body>$(SPECS_TOP) ; \
+          </body> => $(SPECS_BOTTOM_0)</body>, \
+  ))
+  JDK_SPECS_TARGETS += $(PROCESS_JVMTI_HTML)
+endif
 
 ################################################################################
 # Optional target which bundles all generated javadocs into a zip archive.
@@ -608,6 +681,24 @@ $(eval $(call SetupZipArchive, BUILD_JAVADOC_ZIP, \
 ))
 
 ZIP_TARGETS += $(BUILD_JAVADOC_ZIP)
+
+################################################################################
+# Hook to include the corresponding custom file, if present.
+$(eval $(call IncludeCustomExtension, Docs-post.gmk))
+
+################################################################################
+# Bundles all generated specs into a zip archive, skipping javadocs.
+
+SPECS_ZIP_NAME := jdk-$(VERSION_STRING)-specs.zip
+SPECS_ZIP_FILE := $(OUTPUTDIR)/bundles/$(SPECS_ZIP_NAME)
+
+$(eval $(call SetupZipArchive, BUILD_SPECS_ZIP, \
+    SRC := $(DOCS_OUTPUTDIR), \
+    ZIP := $(SPECS_ZIP_FILE), \
+    EXTRA_DEPS := $(JDK_SPECS_TARGETS), \
+))
+
+SPECS_ZIP_TARGETS += $(BUILD_SPECS_ZIP)
 
 ################################################################################
 
@@ -629,11 +720,14 @@ docs-jdk-index: $(JDK_INDEX_TARGETS)
 
 docs-zip: $(ZIP_TARGETS)
 
+docs-specs-zip: $(SPECS_ZIP_TARGETS)
+
 all: docs-jdk-api-javadoc docs-jdk-api-modulegraph docs-javase-api-javadoc \
     docs-javase-api-modulegraph docs-reference-api-javadoc \
-    docs-reference-api-modulegraph docs-jdk-specs docs-jdk-index docs-zip
+    docs-reference-api-modulegraph docs-jdk-specs docs-jdk-index docs-zip \
+    docs-specs-zip
 
 .PHONY: default all docs-jdk-api-javadoc docs-jdk-api-modulegraph \
     docs-javase-api-javadoc docs-javase-api-modulegraph \
     docs-reference-api-javadoc docs-reference-api-modulegraph docs-jdk-specs \
-    docs-jdk-index docs-zip
+    docs-jdk-index docs-zip docs-specs-zip

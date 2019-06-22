@@ -25,10 +25,8 @@
 
 package jdk.javadoc.internal.doclets.formats.html;
 
-import jdk.javadoc.internal.doclets.formats.html.markup.Table;
-import jdk.javadoc.internal.doclets.formats.html.markup.TableHeader;
-
-import java.util.*;
+import java.util.List;
+import java.util.SortedSet;
 
 import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.PackageElement;
@@ -36,16 +34,20 @@ import javax.lang.model.element.TypeElement;
 
 import com.sun.source.doctree.DocTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
+import jdk.javadoc.internal.doclets.formats.html.markup.Entity;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.Navigation;
 import jdk.javadoc.internal.doclets.formats.html.markup.Navigation.PageMode;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
+import jdk.javadoc.internal.doclets.formats.html.markup.Table;
+import jdk.javadoc.internal.doclets.formats.html.markup.TableHeader;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.PackageSummaryWriter;
 import jdk.javadoc.internal.doclets.toolkit.util.CommentHelper;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException;
+import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
 
 /**
@@ -77,7 +79,7 @@ public class PackageWriterImpl extends HtmlDocletWriter
     /**
      * The HTML tree for section tag.
      */
-    protected HtmlTree sectionTree = HtmlTree.SECTION();
+    protected HtmlTree sectionTree = HtmlTree.SECTION(HtmlStyle.packageDescription, new ContentBuilder());
 
     private final Navigation navBar;
 
@@ -120,7 +122,7 @@ public class PackageWriterImpl extends HtmlDocletWriter
             ModuleElement mdle = configuration.docEnv.getElementUtils().getModuleOf(packageElement);
             Content classModuleLabel = HtmlTree.SPAN(HtmlStyle.moduleLabelInPackage, contents.moduleLabel);
             Content moduleNameDiv = HtmlTree.DIV(HtmlStyle.subTitle, classModuleLabel);
-            moduleNameDiv.add(Contents.SPACE);
+            moduleNameDiv.add(Entity.NO_BREAK_SPACE);
             moduleNameDiv.add(getModuleLink(mdle,
                     new StringContent(mdle.getQualifiedName().toString())));
             div.add(moduleNameDiv);
@@ -130,7 +132,7 @@ public class PackageWriterImpl extends HtmlDocletWriter
         div.add(annotationContent);
         Content tHeading = HtmlTree.HEADING(Headings.PAGE_TITLE_HEADING, true,
                 HtmlStyle.title, contents.packageLabel);
-        tHeading.add(Contents.SPACE);
+        tHeading.add(Entity.NO_BREAK_SPACE);
         Content packageHead = new StringContent(heading);
         tHeading.add(packageHead);
         div.add(tHeading);
@@ -316,8 +318,16 @@ public class PackageWriterImpl extends HtmlDocletWriter
     @Override
     public void printDocument(Content contentTree) throws DocFileIOException {
         String description = getDescription("declaration", packageElement);
-        Content stylesheetContent = getLocalStylesheetContent(packageElement);
+        List<DocPath> localStylesheets = getLocalStylesheets(packageElement);
         printHtmlDocument(configuration.metakeywords.getMetaKeywords(packageElement),
-                description, stylesheetContent, contentTree);
+                description, localStylesheets, contentTree);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Content getPackageSummary(Content summaryContentTree) {
+        return HtmlTree.SECTION(HtmlStyle.summary, summaryContentTree);
     }
 }

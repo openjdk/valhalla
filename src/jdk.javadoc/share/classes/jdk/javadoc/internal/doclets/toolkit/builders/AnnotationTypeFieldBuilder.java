@@ -139,12 +139,11 @@ public class AnnotationTypeFieldBuilder extends AbstractMemberBuilder {
         }
         if (hasMembersToDocument()) {
             writer.addAnnotationFieldDetailsMarker(memberDetailsTree);
+            Content annotationDetailsTreeHeader = writer.getAnnotationDetailsTreeHeader(typeElement);
+            Content detailsTree = writer.getMemberTreeHeader();
 
-            Element lastElement = members.get(members.size() - 1);
             for (Element member : members) {
                 currentMember = member;
-                Content detailsTree = writer.getMemberTreeHeader();
-                writer.addAnnotationDetailsTreeHeader(typeElement, detailsTree);
                 Content annotationDocTree = writer.getAnnotationDocTreeHeader(currentMember,
                         detailsTree);
 
@@ -153,10 +152,9 @@ public class AnnotationTypeFieldBuilder extends AbstractMemberBuilder {
                 buildMemberComments(annotationDocTree);
                 buildTagInfo(annotationDocTree);
 
-                detailsTree.add(writer.getAnnotationDoc(
-                        annotationDocTree, currentMember == lastElement));
-                memberDetailsTree.add(writer.getAnnotationDetails(detailsTree));
+                detailsTree.add(writer.getAnnotationDoc(annotationDocTree));
             }
+            memberDetailsTree.add(writer.getAnnotationDetails(annotationDetailsTreeHeader, detailsTree));
         }
     }
 

@@ -957,6 +957,146 @@ reg_class v3_reg(
     V3, V3_H
 );
 
+// Class for 128 bit register v4
+reg_class v4_reg(
+    V4, V4_H
+);
+
+// Class for 128 bit register v5
+reg_class v5_reg(
+    V5, V5_H
+);
+
+// Class for 128 bit register v6
+reg_class v6_reg(
+    V6, V6_H
+);
+
+// Class for 128 bit register v7
+reg_class v7_reg(
+    V7, V7_H
+);
+
+// Class for 128 bit register v8
+reg_class v8_reg(
+    V8, V8_H
+);
+
+// Class for 128 bit register v9
+reg_class v9_reg(
+    V9, V9_H
+);
+
+// Class for 128 bit register v10
+reg_class v10_reg(
+    V10, V10_H
+);
+
+// Class for 128 bit register v11
+reg_class v11_reg(
+    V11, V11_H
+);
+
+// Class for 128 bit register v12
+reg_class v12_reg(
+    V12, V12_H
+);
+
+// Class for 128 bit register v13
+reg_class v13_reg(
+    V13, V13_H
+);
+
+// Class for 128 bit register v14
+reg_class v14_reg(
+    V14, V14_H
+);
+
+// Class for 128 bit register v15
+reg_class v15_reg(
+    V15, V15_H
+);
+
+// Class for 128 bit register v16
+reg_class v16_reg(
+    V16, V16_H
+);
+
+// Class for 128 bit register v17
+reg_class v17_reg(
+    V17, V17_H
+);
+
+// Class for 128 bit register v18
+reg_class v18_reg(
+    V18, V18_H
+);
+
+// Class for 128 bit register v19
+reg_class v19_reg(
+    V19, V19_H
+);
+
+// Class for 128 bit register v20
+reg_class v20_reg(
+    V20, V20_H
+);
+
+// Class for 128 bit register v21
+reg_class v21_reg(
+    V21, V21_H
+);
+
+// Class for 128 bit register v22
+reg_class v22_reg(
+    V22, V22_H
+);
+
+// Class for 128 bit register v23
+reg_class v23_reg(
+    V23, V23_H
+);
+
+// Class for 128 bit register v24
+reg_class v24_reg(
+    V24, V24_H
+);
+
+// Class for 128 bit register v25
+reg_class v25_reg(
+    V25, V25_H
+);
+
+// Class for 128 bit register v26
+reg_class v26_reg(
+    V26, V26_H
+);
+
+// Class for 128 bit register v27
+reg_class v27_reg(
+    V27, V27_H
+);
+
+// Class for 128 bit register v28
+reg_class v28_reg(
+    V28, V28_H
+);
+
+// Class for 128 bit register v29
+reg_class v29_reg(
+    V29, V29_H
+);
+
+// Class for 128 bit register v30
+reg_class v30_reg(
+    V30, V30_H
+);
+
+// Class for 128 bit register v31
+reg_class v31_reg(
+    V31, V31_H
+);
+
 // Singleton class for condition codes
 reg_class int_flags(RFLAGS);
 
@@ -1962,7 +2102,7 @@ void MachUEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
   st->print_cr("# MachUEPNode");
   if (UseCompressedClassPointers) {
     st->print_cr("\tldrw rscratch1, j_rarg0 + oopDesc::klass_offset_in_bytes()]\t# compressed klass");
-    if (Universe::narrow_klass_shift() != 0) {
+    if (CompressedKlassPointers::shift() != 0) {
       st->print_cr("\tdecode_klass_not_null rscratch1, rscratch1");
     }
   } else {
@@ -2183,7 +2323,7 @@ const bool Matcher::need_masked_shift_count = false;
 // Implicit_null_check optimization moves the Decode along with the
 // memory operation back up before the NullCheck.
 bool Matcher::narrow_oop_use_complex_address() {
-  return Universe::narrow_oop_shift() == 0;
+  return CompressedOops::shift() == 0;
 }
 
 bool Matcher::narrow_klass_use_complex_address() {
@@ -2194,12 +2334,12 @@ bool Matcher::narrow_klass_use_complex_address() {
 
 bool Matcher::const_oop_prefer_decode() {
   // Prefer ConN+DecodeN over ConP in simple compressed oops mode.
-  return Universe::narrow_oop_base() == NULL;
+  return CompressedOops::base() == NULL;
 }
 
 bool Matcher::const_klass_prefer_decode() {
   // Prefer ConNKlass+DecodeNKlass over ConP in simple compressed klass mode.
-  return Universe::narrow_klass_base() == NULL;
+  return CompressedKlassPointers::base() == NULL;
 }
 
 // Is it better to copy float constants, or load them directly from
@@ -4774,6 +4914,258 @@ operand vRegD_V3()
   interface(REG_INTER);
 %}
 
+operand vRegD_V4()
+%{
+  constraint(ALLOC_IN_RC(v4_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V5()
+%{
+  constraint(ALLOC_IN_RC(v5_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V6()
+%{
+  constraint(ALLOC_IN_RC(v6_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V7()
+%{
+  constraint(ALLOC_IN_RC(v7_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V8()
+%{
+  constraint(ALLOC_IN_RC(v8_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V9()
+%{
+  constraint(ALLOC_IN_RC(v9_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V10()
+%{
+  constraint(ALLOC_IN_RC(v10_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V11()
+%{
+  constraint(ALLOC_IN_RC(v11_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V12()
+%{
+  constraint(ALLOC_IN_RC(v12_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V13()
+%{
+  constraint(ALLOC_IN_RC(v13_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V14()
+%{
+  constraint(ALLOC_IN_RC(v14_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V15()
+%{
+  constraint(ALLOC_IN_RC(v15_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V16()
+%{
+  constraint(ALLOC_IN_RC(v16_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V17()
+%{
+  constraint(ALLOC_IN_RC(v17_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V18()
+%{
+  constraint(ALLOC_IN_RC(v18_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V19()
+%{
+  constraint(ALLOC_IN_RC(v19_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V20()
+%{
+  constraint(ALLOC_IN_RC(v20_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V21()
+%{
+  constraint(ALLOC_IN_RC(v21_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V22()
+%{
+  constraint(ALLOC_IN_RC(v22_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V23()
+%{
+  constraint(ALLOC_IN_RC(v23_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V24()
+%{
+  constraint(ALLOC_IN_RC(v24_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V25()
+%{
+  constraint(ALLOC_IN_RC(v25_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V26()
+%{
+  constraint(ALLOC_IN_RC(v26_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V27()
+%{
+  constraint(ALLOC_IN_RC(v27_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V28()
+%{
+  constraint(ALLOC_IN_RC(v28_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V29()
+%{
+  constraint(ALLOC_IN_RC(v29_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V30()
+%{
+  constraint(ALLOC_IN_RC(v30_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
+operand vRegD_V31()
+%{
+  constraint(ALLOC_IN_RC(v31_reg));
+  match(RegD);
+  op_cost(0);
+  format %{ %}
+  interface(REG_INTER);
+%}
+
 // Flags register, used as output of signed compare instructions
 
 // note that on AArch64 we also use this register as the output for
@@ -5044,7 +5436,7 @@ operand indOffL16(iRegP reg, immLoffset16 off)
 
 operand indirectN(iRegN reg)
 %{
-  predicate(Universe::narrow_oop_shift() == 0);
+  predicate(CompressedOops::shift() == 0);
   constraint(ALLOC_IN_RC(ptr_reg));
   match(DecodeN reg);
   op_cost(0);
@@ -5059,7 +5451,7 @@ operand indirectN(iRegN reg)
 
 operand indIndexScaledI2LN(iRegN reg, iRegI ireg, immIScale scale)
 %{
-  predicate(Universe::narrow_oop_shift() == 0 && size_fits_all_mem_uses(n->as_AddP(), n->in(AddPNode::Offset)->in(2)->get_int()));
+  predicate(CompressedOops::shift() == 0 && size_fits_all_mem_uses(n->as_AddP(), n->in(AddPNode::Offset)->in(2)->get_int()));
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (DecodeN reg) (LShiftL (ConvI2L ireg) scale));
   op_cost(0);
@@ -5074,7 +5466,7 @@ operand indIndexScaledI2LN(iRegN reg, iRegI ireg, immIScale scale)
 
 operand indIndexScaledN(iRegN reg, iRegL lreg, immIScale scale)
 %{
-  predicate(Universe::narrow_oop_shift() == 0 && size_fits_all_mem_uses(n->as_AddP(), n->in(AddPNode::Offset)->in(2)->get_int()));
+  predicate(CompressedOops::shift() == 0 && size_fits_all_mem_uses(n->as_AddP(), n->in(AddPNode::Offset)->in(2)->get_int()));
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (DecodeN reg) (LShiftL lreg scale));
   op_cost(0);
@@ -5089,7 +5481,7 @@ operand indIndexScaledN(iRegN reg, iRegL lreg, immIScale scale)
 
 operand indIndexI2LN(iRegN reg, iRegI ireg)
 %{
-  predicate(Universe::narrow_oop_shift() == 0);
+  predicate(CompressedOops::shift() == 0);
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (DecodeN reg) (ConvI2L ireg));
   op_cost(0);
@@ -5104,7 +5496,7 @@ operand indIndexI2LN(iRegN reg, iRegI ireg)
 
 operand indIndexN(iRegN reg, iRegL lreg)
 %{
-  predicate(Universe::narrow_oop_shift() == 0);
+  predicate(CompressedOops::shift() == 0);
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (DecodeN reg) lreg);
   op_cost(0);
@@ -5119,7 +5511,7 @@ operand indIndexN(iRegN reg, iRegL lreg)
 
 operand indOffIN(iRegN reg, immIOffset off)
 %{
-  predicate(Universe::narrow_oop_shift() == 0);
+  predicate(CompressedOops::shift() == 0);
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (DecodeN reg) off);
   op_cost(0);
@@ -5134,7 +5526,7 @@ operand indOffIN(iRegN reg, immIOffset off)
 
 operand indOffLN(iRegN reg, immLoffset off)
 %{
-  predicate(Universe::narrow_oop_shift() == 0);
+  predicate(CompressedOops::shift() == 0);
   constraint(ALLOC_IN_RC(ptr_reg));
   match(AddP (DecodeN reg) off);
   op_cost(0);
@@ -7039,8 +7431,8 @@ instruct storeN(iRegN src, memory mem)
 instruct storeImmN0(iRegIHeapbase heapbase, immN0 zero, memory mem)
 %{
   match(Set mem (StoreN mem zero));
-  predicate(Universe::narrow_oop_base() == NULL &&
-            Universe::narrow_klass_base() == NULL &&
+  predicate(CompressedOops::base() == NULL &&
+            CompressedKlassPointers::base() == NULL &&
             (!needs_releasing_store(n)));
 
   ins_cost(INSN_COST);
@@ -7822,7 +8214,7 @@ instruct convP2I(iRegINoSp dst, iRegP src) %{
 // in case of 32bit oops (heap < 4Gb).
 instruct convN2I(iRegINoSp dst, iRegN src)
 %{
-  predicate(Universe::narrow_oop_shift() == 0);
+  predicate(CompressedOops::shift() == 0);
   match(Set dst (ConvL2I (CastP2X (DecodeN src))));
 
   ins_cost(INSN_COST);
@@ -11343,14 +11735,11 @@ instruct SubL_reg_LShift_reg(iRegLNoSp dst,
 instruct sbfmL(iRegLNoSp dst, iRegL src, immI lshift_count, immI rshift_count)
 %{
   match(Set dst (RShiftL (LShiftL src lshift_count) rshift_count));
-  // Make sure we are not going to exceed what sbfm can do.
-  predicate((unsigned int)n->in(2)->get_int() <= 63
-            && (unsigned int)n->in(1)->in(2)->get_int() <= 63);
-
   ins_cost(INSN_COST * 2);
   format %{ "sbfm  $dst, $src, $rshift_count - $lshift_count, #63 - $lshift_count" %}
   ins_encode %{
-    int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
+    int lshift = $lshift_count$$constant & 63;
+    int rshift = $rshift_count$$constant & 63;
     int s = 63 - lshift;
     int r = (rshift - lshift) & 63;
     __ sbfm(as_Register($dst$$reg),
@@ -11366,14 +11755,11 @@ instruct sbfmL(iRegLNoSp dst, iRegL src, immI lshift_count, immI rshift_count)
 instruct sbfmwI(iRegINoSp dst, iRegIorL2I src, immI lshift_count, immI rshift_count)
 %{
   match(Set dst (RShiftI (LShiftI src lshift_count) rshift_count));
-  // Make sure we are not going to exceed what sbfmw can do.
-  predicate((unsigned int)n->in(2)->get_int() <= 31
-            && (unsigned int)n->in(1)->in(2)->get_int() <= 31);
-
   ins_cost(INSN_COST * 2);
   format %{ "sbfmw  $dst, $src, $rshift_count - $lshift_count, #31 - $lshift_count" %}
   ins_encode %{
-    int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
+    int lshift = $lshift_count$$constant & 31;
+    int rshift = $rshift_count$$constant & 31;
     int s = 31 - lshift;
     int r = (rshift - lshift) & 31;
     __ sbfmw(as_Register($dst$$reg),
@@ -11389,14 +11775,11 @@ instruct sbfmwI(iRegINoSp dst, iRegIorL2I src, immI lshift_count, immI rshift_co
 instruct ubfmL(iRegLNoSp dst, iRegL src, immI lshift_count, immI rshift_count)
 %{
   match(Set dst (URShiftL (LShiftL src lshift_count) rshift_count));
-  // Make sure we are not going to exceed what ubfm can do.
-  predicate((unsigned int)n->in(2)->get_int() <= 63
-            && (unsigned int)n->in(1)->in(2)->get_int() <= 63);
-
   ins_cost(INSN_COST * 2);
   format %{ "ubfm  $dst, $src, $rshift_count - $lshift_count, #63 - $lshift_count" %}
   ins_encode %{
-    int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
+    int lshift = $lshift_count$$constant & 63;
+    int rshift = $rshift_count$$constant & 63;
     int s = 63 - lshift;
     int r = (rshift - lshift) & 63;
     __ ubfm(as_Register($dst$$reg),
@@ -11412,14 +11795,11 @@ instruct ubfmL(iRegLNoSp dst, iRegL src, immI lshift_count, immI rshift_count)
 instruct ubfmwI(iRegINoSp dst, iRegIorL2I src, immI lshift_count, immI rshift_count)
 %{
   match(Set dst (URShiftI (LShiftI src lshift_count) rshift_count));
-  // Make sure we are not going to exceed what ubfmw can do.
-  predicate((unsigned int)n->in(2)->get_int() <= 31
-            && (unsigned int)n->in(1)->in(2)->get_int() <= 31);
-
   ins_cost(INSN_COST * 2);
   format %{ "ubfmw  $dst, $src, $rshift_count - $lshift_count, #31 - $lshift_count" %}
   ins_encode %{
-    int lshift = $lshift_count$$constant, rshift = $rshift_count$$constant;
+    int lshift = $lshift_count$$constant & 31;
+    int rshift = $rshift_count$$constant & 31;
     int s = 31 - lshift;
     int r = (rshift - lshift) & 31;
     __ ubfmw(as_Register($dst$$reg),
@@ -11491,13 +11871,12 @@ instruct ubfxIConvI2L(iRegLNoSp dst, iRegIorL2I src, immI rshift, immI_bitmask m
 instruct ubfizwI(iRegINoSp dst, iRegIorL2I src, immI lshift, immI_bitmask mask)
 %{
   match(Set dst (LShiftI (AndI src mask) lshift));
-  predicate((unsigned int)n->in(2)->get_int() <= 31 &&
-    (exact_log2(n->in(1)->in(2)->get_int()+1) + (unsigned int)n->in(2)->get_int()) <= (31+1));
+  predicate((exact_log2(n->in(1)->in(2)->get_int() + 1) + (n->in(2)->get_int() & 31)) <= (31 + 1));
 
   ins_cost(INSN_COST);
   format %{ "ubfizw $dst, $src, $lshift, $mask" %}
   ins_encode %{
-    int lshift = $lshift$$constant;
+    int lshift = $lshift$$constant & 31;
     long mask = $mask$$constant;
     int width = exact_log2(mask+1);
     __ ubfizw(as_Register($dst$$reg),
@@ -11510,13 +11889,12 @@ instruct ubfizwI(iRegINoSp dst, iRegIorL2I src, immI lshift, immI_bitmask mask)
 instruct ubfizL(iRegLNoSp dst, iRegL src, immI lshift, immL_bitmask mask)
 %{
   match(Set dst (LShiftL (AndL src mask) lshift));
-  predicate((unsigned int)n->in(2)->get_int() <= 63 &&
-    (exact_log2_long(n->in(1)->in(2)->get_long()+1) + (unsigned int)n->in(2)->get_int()) <= (63+1));
+  predicate((exact_log2_long(n->in(1)->in(2)->get_long() + 1) + (n->in(2)->get_int() & 63)) <= (63 + 1));
 
   ins_cost(INSN_COST);
   format %{ "ubfiz $dst, $src, $lshift, $mask" %}
   ins_encode %{
-    int lshift = $lshift$$constant;
+    int lshift = $lshift$$constant & 63;
     long mask = $mask$$constant;
     int width = exact_log2_long(mask+1);
     __ ubfiz(as_Register($dst$$reg),
@@ -11528,14 +11906,13 @@ instruct ubfizL(iRegLNoSp dst, iRegL src, immI lshift, immL_bitmask mask)
 // If there is a convert I to L block between and AndI and a LShiftL, we can also match ubfiz
 instruct ubfizIConvI2L(iRegLNoSp dst, iRegIorL2I src, immI lshift, immI_bitmask mask)
 %{
-  match(Set dst (LShiftL (ConvI2L(AndI src mask)) lshift));
-  predicate((unsigned int)n->in(2)->get_int() <= 31 &&
-    (exact_log2((unsigned int)n->in(1)->in(1)->in(2)->get_int()+1) + (unsigned int)n->in(2)->get_int()) <= 32);
+  match(Set dst (LShiftL (ConvI2L (AndI src mask)) lshift));
+  predicate((exact_log2(n->in(1)->in(1)->in(2)->get_int() + 1) + (n->in(2)->get_int() & 63)) <= (63 + 1));
 
   ins_cost(INSN_COST);
   format %{ "ubfiz $dst, $src, $lshift, $mask" %}
   ins_encode %{
-    int lshift = $lshift$$constant;
+    int lshift = $lshift$$constant & 63;
     long mask = $mask$$constant;
     int width = exact_log2(mask+1);
     __ ubfiz(as_Register($dst$$reg),
@@ -11549,7 +11926,7 @@ instruct ubfizIConvI2L(iRegLNoSp dst, iRegIorL2I src, immI lshift, immI_bitmask 
 instruct extrOrL(iRegLNoSp dst, iRegL src1, iRegL src2, immI lshift, immI rshift, rFlagsReg cr)
 %{
   match(Set dst (OrL (LShiftL src1 lshift) (URShiftL src2 rshift)));
-  predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 63));
+  predicate(0 == (((n->in(1)->in(2)->get_int() & 63) + (n->in(2)->in(2)->get_int() & 63)) & 63));
 
   ins_cost(INSN_COST);
   format %{ "extr $dst, $src1, $src2, #$rshift" %}
@@ -11564,7 +11941,7 @@ instruct extrOrL(iRegLNoSp dst, iRegL src1, iRegL src2, immI lshift, immI rshift
 instruct extrOrI(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2, immI lshift, immI rshift, rFlagsReg cr)
 %{
   match(Set dst (OrI (LShiftI src1 lshift) (URShiftI src2 rshift)));
-  predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 31));
+  predicate(0 == (((n->in(1)->in(2)->get_int() & 31) + (n->in(2)->in(2)->get_int() & 31)) & 31));
 
   ins_cost(INSN_COST);
   format %{ "extr $dst, $src1, $src2, #$rshift" %}
@@ -11579,7 +11956,7 @@ instruct extrOrI(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2, immI lshift, i
 instruct extrAddL(iRegLNoSp dst, iRegL src1, iRegL src2, immI lshift, immI rshift, rFlagsReg cr)
 %{
   match(Set dst (AddL (LShiftL src1 lshift) (URShiftL src2 rshift)));
-  predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 63));
+  predicate(0 == (((n->in(1)->in(2)->get_int() & 63) + (n->in(2)->in(2)->get_int() & 63)) & 63));
 
   ins_cost(INSN_COST);
   format %{ "extr $dst, $src1, $src2, #$rshift" %}
@@ -11594,7 +11971,7 @@ instruct extrAddL(iRegLNoSp dst, iRegL src1, iRegL src2, immI lshift, immI rshif
 instruct extrAddI(iRegINoSp dst, iRegIorL2I src1, iRegIorL2I src2, immI lshift, immI rshift, rFlagsReg cr)
 %{
   match(Set dst (AddI (LShiftI src1 lshift) (URShiftI src2 rshift)));
-  predicate(0 == ((n->in(1)->in(2)->get_int() + n->in(2)->in(2)->get_int()) & 31));
+  predicate(0 == (((n->in(1)->in(2)->get_int() & 31) + (n->in(2)->in(2)->get_int() & 31)) & 31));
 
   ins_cost(INSN_COST);
   format %{ "extr $dst, $src1, $src2, #$rshift" %}
@@ -13878,7 +14255,7 @@ instruct compF_reg_zero(rFlagsReg cr, vRegF src1, immF0 src2)
   format %{ "fcmps $src1, 0.0" %}
 
   ins_encode %{
-    __ fcmps(as_FloatRegister($src1$$reg), 0.0D);
+    __ fcmps(as_FloatRegister($src1$$reg), 0.0);
   %}
 
   ins_pipe(pipe_class_compare);
@@ -13907,7 +14284,7 @@ instruct compD_reg_zero(rFlagsReg cr, vRegD src1, immD0 src2)
   format %{ "fcmpd $src1, 0.0" %}
 
   ins_encode %{
-    __ fcmpd(as_FloatRegister($src1$$reg), 0.0D);
+    __ fcmpd(as_FloatRegister($src1$$reg), 0.0);
   %}
 
   ins_pipe(pipe_class_compare);
@@ -13983,7 +14360,7 @@ instruct compF3_reg_immF0(iRegINoSp dst, vRegF src1, immF0 zero, rFlagsReg cr)
     Label done;
     FloatRegister s1 = as_FloatRegister($src1$$reg);
     Register d = as_Register($dst$$reg);
-    __ fcmps(s1, 0.0D);
+    __ fcmps(s1, 0.0);
     // installs 0 if EQ else -1
     __ csinvw(d, zr, zr, Assembler::EQ);
     // keeps -1 if less or unordered else installs 1
@@ -14010,7 +14387,7 @@ instruct compD3_reg_immD0(iRegINoSp dst, vRegD src1, immD0 zero, rFlagsReg cr)
     Label done;
     FloatRegister s1 = as_FloatRegister($src1$$reg);
     Register d = as_Register($dst$$reg);
-    __ fcmpd(s1, 0.0D);
+    __ fcmpd(s1, 0.0);
     // installs 0 if EQ else -1
     __ csinvw(d, zr, zr, Assembler::EQ);
     // keeps -1 if less or unordered else installs 1
@@ -14061,55 +14438,63 @@ instruct cmpLTMask_reg_zero(iRegINoSp dst, iRegIorL2I src, immI0 zero, rFlagsReg
 // ============================================================================
 // Max and Min
 
-instruct minI_rReg(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
+instruct cmovI_reg_reg_lt(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
 %{
-  match(Set dst (MinI src1 src2));
+  effect( DEF dst, USE src1, USE src2, USE cr );
 
-  effect(DEF dst, USE src1, USE src2, KILL cr);
-  size(8);
-
-  ins_cost(INSN_COST * 3);
-  format %{
-    "cmpw $src1 $src2\t signed int\n\t"
-    "cselw $dst, $src1, $src2 lt\t"
-  %}
+  ins_cost(INSN_COST * 2);
+  format %{ "cselw $dst, $src1, $src2 lt\t"  %}
 
   ins_encode %{
-    __ cmpw(as_Register($src1$$reg),
-            as_Register($src2$$reg));
     __ cselw(as_Register($dst$$reg),
              as_Register($src1$$reg),
              as_Register($src2$$reg),
              Assembler::LT);
   %}
 
-  ins_pipe(ialu_reg_reg);
+  ins_pipe(icond_reg_reg);
+%}
+
+instruct minI_rReg(iRegINoSp dst, iRegI src1, iRegI src2)
+%{
+  match(Set dst (MinI src1 src2));
+  ins_cost(INSN_COST * 3);
+
+  expand %{
+    rFlagsReg cr;
+    compI_reg_reg(cr, src1, src2);
+    cmovI_reg_reg_lt(dst, src1, src2, cr);
+  %}
+
 %}
 // FROM HERE
 
-instruct maxI_rReg(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
+instruct cmovI_reg_reg_gt(iRegINoSp dst, iRegI src1, iRegI src2, rFlagsReg cr)
 %{
-  match(Set dst (MaxI src1 src2));
+  effect( DEF dst, USE src1, USE src2, USE cr );
 
-  effect(DEF dst, USE src1, USE src2, KILL cr);
-  size(8);
-
-  ins_cost(INSN_COST * 3);
-  format %{
-    "cmpw $src1 $src2\t signed int\n\t"
-    "cselw $dst, $src1, $src2 gt\t"
-  %}
+  ins_cost(INSN_COST * 2);
+  format %{ "cselw $dst, $src1, $src2 gt\t"  %}
 
   ins_encode %{
-    __ cmpw(as_Register($src1$$reg),
-            as_Register($src2$$reg));
     __ cselw(as_Register($dst$$reg),
              as_Register($src1$$reg),
              as_Register($src2$$reg),
              Assembler::GT);
   %}
 
-  ins_pipe(ialu_reg_reg);
+  ins_pipe(icond_reg_reg);
+%}
+
+instruct maxI_rReg(iRegINoSp dst, iRegI src1, iRegI src2)
+%{
+  match(Set dst (MaxI src1 src2));
+  ins_cost(INSN_COST * 3);
+  expand %{
+    rFlagsReg cr;
+    compI_reg_reg(cr, src1, src2);
+    cmovI_reg_reg_gt(dst, src1, src2, cr);
+  %}
 %}
 
 // ============================================================================
@@ -14558,9 +14943,10 @@ instruct cmpFastUnlock(rFlagsReg cr, iRegP object, iRegP box, iRegPNoSp tmp, iRe
 // TODO
 // provide a near and far version of this code
 
-instruct safePoint(iRegP poll)
+instruct safePoint(rFlagsReg cr, iRegP poll)
 %{
   match(SafePoint poll);
+  effect(KILL cr);
 
   format %{
     "ldrw zr, [$poll]\t# Safepoint: poll for GC"

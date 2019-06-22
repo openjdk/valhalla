@@ -546,6 +546,9 @@ Node *Node::clone() const {
   if (n->is_SafePoint()) {
     n->as_SafePoint()->clone_replaced_nodes();
   }
+  if (n->is_Load()) {
+    n->as_Load()->copy_barrier_info(this);
+  }
   return n;                     // Return the clone
 }
 
@@ -563,7 +566,6 @@ void Node::setup_is_top() {
     assert(!is_top(), "must not be top");
   }
 }
-
 
 //------------------------------~Node------------------------------------------
 // Fancy destructor; eagerly attempt to reclaim Node numberings and storage
@@ -891,13 +893,15 @@ int Node::disconnect_inputs(Node *n, Compile* C) {
 //-----------------------------uncast---------------------------------------
 // %%% Temporary, until we sort out CheckCastPP vs. CastPP.
 // Strip away casting.  (It is depth-limited.)
-Node* Node::uncast() const {
+// Optionally, keep casts with dependencies.
+Node* Node::uncast(bool keep_deps) const {
   // Should be inline:
   //return is_ConstraintCast() ? uncast_helper(this) : (Node*) this;
-  if (is_ConstraintCast())
-    return uncast_helper(this);
-  else
+  if (is_ConstraintCast()) {
+    return uncast_helper(this, keep_deps);
+  } else {
     return (Node*) this;
+  }
 }
 
 // Find out of current node that matches opcode.
@@ -929,7 +933,7 @@ bool Node::has_out_with(int opcode1, int opcode2, int opcode3, int opcode4) {
 
 
 //---------------------------uncast_helper-------------------------------------
-Node* Node::uncast_helper(const Node* p) {
+Node* Node::uncast_helper(const Node* p, bool keep_deps) {
 #ifdef ASSERT
   uint depth_count = 0;
   const Node* orig_p = p;
@@ -947,6 +951,9 @@ Node* Node::uncast_helper(const Node* p) {
     if (p == NULL || p->req() != 2) {
       break;
     } else if (p->is_ConstraintCast()) {
+      if (keep_deps && p->as_ConstraintCast()->carry_dependency()) {
+        break; // stop at casts with dependencies
+      }
       p = p->in(1);
     } else {
       break;
@@ -1449,12 +1456,15 @@ bool Node::rematerialize() const {
 //------------------------------needs_anti_dependence_check---------------------
 // Nodes which use memory without consuming it, hence need antidependences.
 bool Node::needs_anti_dependence_check() const {
-  if( req() < 2 || (_flags & Flag_needs_anti_dependence_check) == 0 )
+  if (req() < 2 || (_flags & Flag_needs_anti_dependence_check) == 0) {
     return false;
-  else
-    return in(1)->bottom_type()->has_memory();
+  }
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  if (!bs->needs_anti_dependence_check(this)) {
+    return false;
+  }
+  return in(1)->bottom_type()->has_memory();
 }
-
 
 // Get an integer constant from a ConNode (or CastIINode).
 // Return a default value if there is no apparent constant here.

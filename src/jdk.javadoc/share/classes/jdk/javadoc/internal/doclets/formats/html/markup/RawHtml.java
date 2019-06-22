@@ -45,10 +45,6 @@ public class RawHtml extends Content {
 
     private final String rawHtmlContent;
 
-    public static final Content nbsp = new RawHtml("&nbsp;");
-
-    public static final Content zws = new RawHtml("&#8203;");
-
     /**
      * Constructor to construct a RawHtml object.
      *
@@ -115,6 +111,11 @@ public class RawHtml extends Content {
                         case '&':
                             state = State.ENTITY;
                             count++;
+                            break;
+                        case '\r':
+                        case '\n':
+                            // Windows uses "\r\n" as line separator while UNIX uses "\n".
+                            // Ignore line separators to get consistent results across platforms.
                             break;
                         default:
                             count++;

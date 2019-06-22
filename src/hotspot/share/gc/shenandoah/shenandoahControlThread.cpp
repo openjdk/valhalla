@@ -377,6 +377,9 @@ void ShenandoahControlThread::service_concurrent_normal_cycle(GCCause::Cause cau
   // Complete marking under STW, and start evacuation
   heap->vmop_entry_final_mark();
 
+  // Evacuate concurrent roots
+  heap->entry_roots();
+
   // Final mark might have reclaimed some immediate garbage, kick cleanup to reclaim
   // the space. This would be the last action if there is nothing to evacuate.
   heap->entry_cleanup();
@@ -508,7 +511,7 @@ void ShenandoahControlThread::request_gc(GCCause::Cause cause) {
 void ShenandoahControlThread::handle_requested_gc(GCCause::Cause cause) {
   _requested_gc_cause = cause;
   _gc_requested.set();
-  MonitorLockerEx ml(&_gc_waiters_lock);
+  MonitorLocker ml(&_gc_waiters_lock);
   while (_gc_requested.is_set()) {
     ml.wait();
   }
@@ -528,7 +531,7 @@ void ShenandoahControlThread::handle_alloc_failure(size_t words) {
     heap->cancel_gc(GCCause::_allocation_failure);
   }
 
-  MonitorLockerEx ml(&_alloc_failure_waiters_lock);
+  MonitorLocker ml(&_alloc_failure_waiters_lock);
   while (is_alloc_failure_gc()) {
     ml.wait();
   }
@@ -549,7 +552,7 @@ void ShenandoahControlThread::handle_alloc_failure_evac(size_t words) {
 
 void ShenandoahControlThread::notify_alloc_failure_waiters() {
   _alloc_failure_gc.unset();
-  MonitorLockerEx ml(&_alloc_failure_waiters_lock);
+  MonitorLocker ml(&_alloc_failure_waiters_lock);
   ml.notify_all();
 }
 
@@ -563,7 +566,7 @@ bool ShenandoahControlThread::is_alloc_failure_gc() {
 
 void ShenandoahControlThread::notify_gc_waiters() {
   _gc_requested.unset();
-  MonitorLockerEx ml(&_gc_waiters_lock);
+  MonitorLocker ml(&_gc_waiters_lock);
   ml.notify_all();
 }
 

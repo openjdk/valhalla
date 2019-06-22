@@ -1041,7 +1041,7 @@ var getJibProfilesDependencies = function (input, common) {
             // build_number: "b07",
             // file: "bundles/jcov-3_0.zip",
             organization: common.organization,
-            revision: "3.0-57-support+1.0",
+            revision: "3.0-58-support+1.0",
             ext: "zip",
             environment_name: "JCOV_HOME",
         },
@@ -1283,7 +1283,10 @@ var getVersion = function (feature, interim, update, patch) {
     var version = (feature != null ? feature : version_numbers.get("DEFAULT_VERSION_FEATURE"))
         + "." + (interim != null ? interim : version_numbers.get("DEFAULT_VERSION_INTERIM"))
         + "." + (update != null ? update :  version_numbers.get("DEFAULT_VERSION_UPDATE"))
-        + "." + (patch != null ? patch : version_numbers.get("DEFAULT_VERSION_PATCH"));
+        + "." + (patch != null ? patch : version_numbers.get("DEFAULT_VERSION_PATCH"))
+        + "." + version_numbers.get("DEFAULT_VERSION_EXTRA1")
+        + "." + version_numbers.get("DEFAULT_VERSION_EXTRA2")
+        + "." + version_numbers.get("DEFAULT_VERSION_EXTRA3");
     while (version.match(".*\\.0$")) {
         version = version.substring(0, version.length - 2);
     }
@@ -1298,10 +1301,16 @@ var versionArgs = function(input, common) {
     var args = ["--with-version-build=" + common.build_number];
     if (input.build_type == "promoted") {
         args = concat(args,
-                      // This needs to be changed when we start building release candidates
-                      // with-version-pre must be set to ea for 'ea' and empty for fcs build
-                      "--with-version-pre=ea",
+                      "--with-version-pre=" + version_numbers.get("DEFAULT_PROMOTED_VERSION_PRE"),
                       "--without-version-opt");
+    } else if (input.build_type == "ci") {
+        var optString = input.build_id_data.ciBuildNumber;
+        var preString = input.build_id_data.projectName;
+        if (preString == "jdk") {
+            preString = version_numbers.get("DEFAULT_PROMOTED_VERSION_PRE");
+        }
+        args = concat(args, "--with-version-pre=" + preString,
+                     "--with-version-opt=" + optString);
     } else {
         args = concat(args, "--with-version-opt=" + common.build_id);
     }

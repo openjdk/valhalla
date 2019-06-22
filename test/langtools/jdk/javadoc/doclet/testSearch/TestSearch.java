@@ -25,7 +25,7 @@
  * @test
  * @bug 8141492 8071982 8141636 8147890 8166175 8168965 8176794 8175218 8147881
  *      8181622 8182263 8074407 8187521 8198522 8182765 8199278 8196201 8196202
- *      8184205 8214468
+ *      8184205 8214468 8222548
  * @summary Test the search feature of javadoc.
  * @author bpatel
  * @library ../../lib
@@ -291,22 +291,8 @@ public class TestSearch extends JavadocTester {
     }
 
     @Test
-    public void testNoModuleDirectories() {
-        javadoc("-d", "out-noMdlDir",
-                "--no-module-directories",
-                "-Xdoclint:none",
-                "-sourcepath", testSrc,
-                "-use",
-                "pkg", "pkg1", "pkg2", "pkg3");
-        checkExit(Exit.OK);
-        checkSearchOutput(true, false);
-        checkSearchJS();
-    }
-
-    @Test
     public void testURLEncoding() {
         javadoc("-d", "out-encode-html5",
-                "--no-module-directories",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
@@ -320,7 +306,6 @@ public class TestSearch extends JavadocTester {
     public void testJapaneseLocale() {
         javadoc("-locale", "ja_JP",
                 "-d", "out-jp",
-                "--no-module-directories",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
@@ -339,7 +324,6 @@ public class TestSearch extends JavadocTester {
     public void testChineseLocale() {
         javadoc("-locale", "zh_CN",
                 "-d", "out-cn",
-                "--no-module-directories",
                 "-Xdoclint:none",
                 "-sourcepath", testSrc,
                 "-use",
@@ -386,20 +370,18 @@ public class TestSearch extends JavadocTester {
     void checkSearchOutput(String fileName, boolean expectedOutput, boolean moduleDirectoriesVar) {
         // Test for search related markup
         checkOutput(fileName, expectedOutput,
-                "<link rel=\"stylesheet\" type=\"text/css\" href=\"jquery/jquery-ui.css\" title=\"Style\">\n",
-                "<script type=\"text/javascript\" src=\"jquery/jszip/dist/jszip.min.js\"></script>\n",
-                "<script type=\"text/javascript\" src=\"jquery/jszip-utils/dist/jszip-utils.min.js\"></script>\n",
+                "<link rel=\"stylesheet\" type=\"text/css\" href=\"script-dir/jquery-ui.css\" title=\"Style\">\n",
+                "<script type=\"text/javascript\" src=\"script-dir/jszip/dist/jszip.min.js\"></script>\n",
+                "<script type=\"text/javascript\" src=\"script-dir/jszip-utils/dist/jszip-utils.min.js\"></script>\n",
                 "<!--[if IE]>\n",
-                "<script type=\"text/javascript\" src=\"jquery/jszip-utils/dist/jszip-utils-ie.min.js\"></script>\n",
+                "<script type=\"text/javascript\" src=\"script-dir/jszip-utils/dist/jszip-utils-ie.min.js\"></script>\n",
                 "<![endif]-->\n",
-                "<script type=\"text/javascript\" src=\"jquery/jquery-3.3.1.js\"></script>\n",
-                "<script type=\"text/javascript\" src=\"jquery/jquery-migrate-3.0.1.js\"></script>\n",
-                "<script type=\"text/javascript\" src=\"jquery/jquery-ui.js\"></script>",
+                "<script type=\"text/javascript\" src=\"script-dir/jquery-3.4.1.js\"></script>\n",
+                "<script type=\"text/javascript\" src=\"script-dir/jquery-ui.js\"></script>",
                 "var pathtoroot = \"./\";\n"
-                + "var useModuleDirectories = " + moduleDirectoriesVar + ";\n"
                 + "loadScripts(document, 'script');",
-                "<ul class=\"navListSearch\">\n",
-                "<li><label for=\"search\">SEARCH:</label>\n"
+                "<div class=\"navListSearch\">",
+                "<label for=\"search\">SEARCH:</label>\n"
                 + "<input type=\"text\" id=\"search\" value=\"search\" disabled=\"disabled\">\n"
                 + "<input type=\"reset\" id=\"reset\" value=\"reset\" disabled=\"disabled\">\n");
         checkOutput(fileName, true,
@@ -585,46 +567,38 @@ public class TestSearch extends JavadocTester {
     void checkJqueryAndImageFiles(boolean expectedOutput) {
         checkFiles(expectedOutput,
                 "search.js",
-                "jquery/jquery-3.3.1.js",
-                "jquery/jquery-migrate-3.0.1.js",
-                "jquery/jquery-ui.js",
-                "jquery/jquery-ui.css",
-                "jquery/jquery-ui.min.js",
-                "jquery/jquery-ui.min.css",
-                "jquery/jquery-ui.structure.min.css",
-                "jquery/jquery-ui.structure.css",
-                "jquery/external/jquery/jquery.js",
-                "jquery/jszip/dist/jszip.js",
-                "jquery/jszip/dist/jszip.min.js",
-                "jquery/jszip-utils/dist/jszip-utils.js",
-                "jquery/jszip-utils/dist/jszip-utils.min.js",
-                "jquery/jszip-utils/dist/jszip-utils-ie.js",
-                "jquery/jszip-utils/dist/jszip-utils-ie.min.js",
-                "jquery/images/ui-bg_glass_65_dadada_1x400.png",
-                "jquery/images/ui-icons_454545_256x240.png",
-                "jquery/images/ui-bg_glass_95_fef1ec_1x400.png",
-                "jquery/images/ui-bg_glass_75_dadada_1x400.png",
-                "jquery/images/ui-bg_highlight-soft_75_cccccc_1x100.png",
-                "jquery/images/ui-icons_888888_256x240.png",
-                "jquery/images/ui-icons_2e83ff_256x240.png",
-                "jquery/images/ui-icons_cd0a0a_256x240.png",
-                "jquery/images/ui-bg_glass_55_fbf9ee_1x400.png",
-                "jquery/images/ui-icons_222222_256x240.png",
-                "jquery/images/ui-bg_glass_75_e6e6e6_1x400.png",
+                "script-dir/jquery-3.4.1.js",
+                "script-dir/jquery-ui.js",
+                "script-dir/jquery-ui.css",
+                "script-dir/jquery-ui.min.js",
+                "script-dir/jquery-ui.min.css",
+                "script-dir/jquery-ui.structure.min.css",
+                "script-dir/jquery-ui.structure.css",
+                "script-dir/external/jquery/jquery.js",
+                "script-dir/jszip/dist/jszip.js",
+                "script-dir/jszip/dist/jszip.min.js",
+                "script-dir/jszip-utils/dist/jszip-utils.js",
+                "script-dir/jszip-utils/dist/jszip-utils.min.js",
+                "script-dir/jszip-utils/dist/jszip-utils-ie.js",
+                "script-dir/jszip-utils/dist/jszip-utils-ie.min.js",
+                "script-dir/images/ui-bg_glass_65_dadada_1x400.png",
+                "script-dir/images/ui-icons_454545_256x240.png",
+                "script-dir/images/ui-bg_glass_95_fef1ec_1x400.png",
+                "script-dir/images/ui-bg_glass_75_dadada_1x400.png",
+                "script-dir/images/ui-bg_highlight-soft_75_cccccc_1x100.png",
+                "script-dir/images/ui-icons_888888_256x240.png",
+                "script-dir/images/ui-icons_2e83ff_256x240.png",
+                "script-dir/images/ui-icons_cd0a0a_256x240.png",
+                "script-dir/images/ui-bg_glass_55_fbf9ee_1x400.png",
+                "script-dir/images/ui-icons_222222_256x240.png",
+                "script-dir/images/ui-bg_glass_75_e6e6e6_1x400.png",
                 "resources/x.png",
                 "resources/glass.png");
     }
 
     void checkSearchJS() {
         checkOutput("search.js", true,
-                "camelCaseRegexp = ($.ui.autocomplete.escapeRegex(request.term)).split(/(?=[A-Z])/).join(\"([a-z0-9_$]*?)\");",
-                "var camelCaseMatcher = new RegExp(\"^\" + camelCaseRegexp);",
-                "camelCaseMatcher.test(item.l)",
-                "var secondaryresult = new Array();",
-                "function nestedName(e) {",
                 "function concatResults(a1, a2) {",
-                "if (exactMatcher.test(item.l)) {\n"
-                + "                        presult.push(item);",
                 "$(\"#search\").on('click keydown paste', function() {\n"
                 + "        if ($(this).val() == watermark) {\n"
                 + "            $(this).val('').removeClass('watermark');\n"
@@ -632,22 +606,20 @@ public class TestSearch extends JavadocTester {
                 + "    });",
                 "function getURLPrefix(ui) {\n"
                 + "    var urlPrefix=\"\";\n"
-                + "    if (useModuleDirectories) {\n"
-                + "        var slash = \"/\";\n"
-                + "        if (ui.item.category === catModules) {\n"
-                + "            return ui.item.l + slash;\n"
-                + "        } else if (ui.item.category === catPackages && ui.item.m) {\n"
-                + "            return ui.item.m + slash;\n"
-                + "        } else if ((ui.item.category === catTypes && ui.item.p) || ui.item.category === catMembers) {\n"
-                + "            $.each(packageSearchIndex, function(index, item) {\n"
-                + "                if (item.m && ui.item.p == item.l) {\n"
-                + "                    urlPrefix = item.m + slash;\n"
-                + "                }\n"
-                + "            });\n"
-                + "            return urlPrefix;\n"
-                + "        } else {\n"
-                + "            return urlPrefix;\n"
-                + "        }\n"
+                + "    var slash = \"/\";\n"
+                + "    if (ui.item.category === catModules) {\n"
+                + "        return ui.item.l + slash;\n"
+                + "    } else if (ui.item.category === catPackages && ui.item.m) {\n"
+                + "        return ui.item.m + slash;\n"
+                + "    } else if ((ui.item.category === catTypes && ui.item.p) || ui.item.category === catMembers) {\n"
+                + "        $.each(packageSearchIndex, function(index, item) {\n"
+                + "            if (item.m && ui.item.p == item.l) {\n"
+                + "                urlPrefix = item.m + slash;\n"
+                + "            }\n"
+                + "        });\n"
+                + "        return urlPrefix;\n"
+                + "    } else {\n"
+                + "        return urlPrefix;\n"
                 + "    }\n"
                 + "    return urlPrefix;\n"
                 + "}",

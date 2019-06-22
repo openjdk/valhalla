@@ -75,7 +75,6 @@ import java.util.EnumSet;
 import org.graalvm.compiler.asm.Label;
 import org.graalvm.compiler.asm.amd64.AMD64Address.Scale;
 import org.graalvm.compiler.asm.amd64.AVXKind.AVXSize;
-import org.graalvm.compiler.core.common.NumUtil;
 import org.graalvm.compiler.core.common.calc.Condition;
 import org.graalvm.compiler.debug.GraalError;
 
@@ -907,7 +906,8 @@ public class AMD64Assembler extends AMD64BaseAssembler {
         CPU_XMM(CPUFeature.AVX, null, CPU, null, XMM, null),
         AVX1_2_CPU_XMM(CPUFeature.AVX, CPUFeature.AVX2, CPU, null, XMM, null),
         BMI1(CPUFeature.BMI1, null, CPU, CPU, CPU, null),
-        BMI2(CPUFeature.BMI2, null, CPU, CPU, CPU, null);
+        BMI2(CPUFeature.BMI2, null, CPU, CPU, CPU, null),
+        FMA(CPUFeature.FMA, null, XMM, XMM, XMM, null);
 
         private final CPUFeature l128feature;
         private final CPUFeature l256feature;
@@ -1309,6 +1309,8 @@ public class AMD64Assembler extends AMD64BaseAssembler {
         public static final VexRVMOp VPCMPGTW  = new VexRVMOp("VPCMPGTW",  P_66, M_0F,   WIG, 0x65, VEXOpAssertion.AVX1_2);
         public static final VexRVMOp VPCMPGTD  = new VexRVMOp("VPCMPGTD",  P_66, M_0F,   WIG, 0x66, VEXOpAssertion.AVX1_2);
         public static final VexRVMOp VPCMPGTQ  = new VexRVMOp("VPCMPGTQ",  P_66, M_0F38, WIG, 0x37, VEXOpAssertion.AVX1_2);
+        public static final VexRVMOp VFMADD231SS = new VexRVMOp("VFMADD231SS", P_66, M_0F38, W0, 0xB9, VEXOpAssertion.FMA);
+        public static final VexRVMOp VFMADD231SD = new VexRVMOp("VFMADD231SD", P_66, M_0F38, W1, 0xB9, VEXOpAssertion.FMA);
         // @formatter:on
 
         private VexRVMOp(String opcode, int pp, int mmmmm, int w, int op) {
@@ -1882,7 +1884,7 @@ public class AMD64Assembler extends AMD64BaseAssembler {
             // is the same however, seems to be rather unlikely case.
             // Note: use jccb() if label to be bound is very close to get
             // an 8-bit displacement
-            l.addPatchAt(position());
+            l.addPatchAt(position(), this);
             emitByte(0x0F);
             emitByte(0x80 | cc.getValue());
             emitInt(0);
@@ -1900,7 +1902,7 @@ public class AMD64Assembler extends AMD64BaseAssembler {
             emitByte(0x70 | cc.getValue());
             emitByte((int) ((disp - shortSize) & 0xFF));
         } else {
-            l.addPatchAt(position());
+            l.addPatchAt(position(), this);
             emitByte(0x70 | cc.getValue());
             emitByte(0);
         }
@@ -1929,7 +1931,7 @@ public class AMD64Assembler extends AMD64BaseAssembler {
             // the forward jump will not run beyond 256 bytes, use jmpb to
             // force an 8-bit displacement.
 
-            l.addPatchAt(position());
+            l.addPatchAt(position(), this);
             emitByte(0xE9);
             emitInt(0);
         }
@@ -1950,14 +1952,13 @@ public class AMD64Assembler extends AMD64BaseAssembler {
     public final void jmpb(Label l) {
         if (l.isBound()) {
             int shortSize = 2;
-            int entry = l.position();
-            assert isByte((entry - position()) + shortSize) : "Dispacement too large for a short jmp";
-            long offs = entry - position();
+            // Displacement is relative to byte just after jmpb instruction
+            int displacement = l.position() - position() - shortSize;
+            GraalError.guarantee(isByte(displacement), "Displacement too large to be encoded as a byte: %d", displacement);
             emitByte(0xEB);
-            emitByte((int) ((offs - shortSize) & 0xFF));
+            emitByte(displacement & 0xFF);
         } else {
-
-            l.addPatchAt(position());
+            l.addPatchAt(position(), this);
             emitByte(0xEB);
             emitByte(0);
         }
@@ -3005,6 +3006,18 @@ public class AMD64Assembler extends AMD64BaseAssembler {
         emitByte(0x99);
     }
 
+    public final void repStosb() {
+        emitByte(0xf3);
+        rexw();
+        emitByte(0xaa);
+    }
+
+    public final void repStosq() {
+        emitByte(0xf3);
+        rexw();
+        emitByte(0xab);
+    }
+
     public final void cmovq(ConditionFlag cc, Register dst, Register src) {
         prefixq(dst, src);
         emitByte(0x0F);
@@ -3397,9 +3410,7 @@ public class AMD64Assembler extends AMD64BaseAssembler {
              * Since a wrongly patched short branch can potentially lead to working but really bad
              * behaving code we should always fail with an exception instead of having an assert.
              */
-            if (!NumUtil.isByte(imm8)) {
-                throw new InternalError("branch displacement out of range: " + imm8);
-            }
+            GraalError.guarantee(isByte(imm8), "Displacement too large to be encoded as a byte: %d", imm8);
             emitByte(imm8, branch + 1);
 
         } else {

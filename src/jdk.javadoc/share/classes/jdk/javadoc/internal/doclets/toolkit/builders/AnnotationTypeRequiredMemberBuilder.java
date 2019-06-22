@@ -142,20 +142,19 @@ public class AnnotationTypeRequiredMemberBuilder extends AbstractMemberBuilder {
         }
         if (hasMembersToDocument()) {
             writer.addAnnotationDetailsMarker(memberDetailsTree);
-            Element lastMember = members.get((members.size() - 1));
+            Content annotationDetailsTreeHeader = writer.getAnnotationDetailsTreeHeader(typeElement);
+            Content detailsTree = writer.getMemberTreeHeader();
+
             for (Element member : members) {
                 currentMember = member;
-                Content detailsTree = writer.getMemberTreeHeader();
-                writer.addAnnotationDetailsTreeHeader(typeElement, detailsTree);
                 Content annotationDocTree = writer.getAnnotationDocTreeHeader(
                         currentMember, detailsTree);
 
                 buildAnnotationTypeMemberChildren(annotationDocTree);
 
-                detailsTree.add(writer.getAnnotationDoc(
-                        annotationDocTree, currentMember == lastMember));
-                memberDetailsTree.add(writer.getAnnotationDetails(detailsTree));
+                detailsTree.add(writer.getAnnotationDoc(annotationDocTree));
             }
+            memberDetailsTree.add(writer.getAnnotationDetails(annotationDetailsTreeHeader, detailsTree));
         }
     }
 

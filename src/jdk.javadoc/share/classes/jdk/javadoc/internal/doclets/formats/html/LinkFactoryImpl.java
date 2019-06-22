@@ -35,11 +35,13 @@ import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeMirror;
 
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
+import jdk.javadoc.internal.doclets.formats.html.markup.Entity;
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.Resources;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
+import jdk.javadoc.internal.doclets.toolkit.util.DocletConstants;
 import jdk.javadoc.internal.doclets.toolkit.util.links.LinkFactory;
 import jdk.javadoc.internal.doclets.toolkit.util.links.LinkInfo;
 
@@ -133,7 +135,7 @@ public class LinkFactoryImpl extends LinkFactory {
      * {@inheritDoc}
      */
     @Override
-    protected Content getTypeParameterLinks(LinkInfo linkInfo, boolean isClassLabel){
+    protected Content getTypeParameterLinks(LinkInfo linkInfo, boolean isClassLabel) {
         Content links = newContent();
         List<TypeMirror> vars = new ArrayList<>();
         TypeMirror ctype = linkInfo.type != null
@@ -162,7 +164,10 @@ public class LinkFactoryImpl extends LinkFactory {
             for (TypeMirror t : vars) {
                 if (many) {
                     links.add(",");
-                    links.add(Contents.ZERO_WIDTH_SPACE);
+                    links.add(Entity.ZERO_WIDTH_SPACE);
+                    if (((LinkInfoImpl) linkInfo).getContext() == LinkInfoImpl.Kind.MEMBER_TYPE_PARAMS) {
+                        links.add(DocletConstants.NL);
+                    }
                 }
                 links.add(getTypeParameterLink(linkInfo, t));
                 many = true;
@@ -185,7 +190,6 @@ public class LinkFactoryImpl extends LinkFactory {
         typeLinkInfo.excludeTypeBounds = linkInfo.excludeTypeBounds;
         typeLinkInfo.excludeTypeParameterLinks = linkInfo.excludeTypeParameterLinks;
         typeLinkInfo.linkToSelf = linkInfo.linkToSelf;
-        typeLinkInfo.isJava5DeclarationLocation = false;
         return getLink(typeLinkInfo);
     }
 
@@ -217,7 +221,7 @@ public class LinkFactoryImpl extends LinkFactory {
         if (annotations.isEmpty())
             return links;
 
-        List<Content> annos = m_writer.getAnnotations(0, annotations, false, linkInfo.isJava5DeclarationLocation);
+        List<Content> annos = m_writer.getAnnotations(annotations, false);
 
         boolean isFirst = true;
         for (Content anno : annos) {

@@ -773,7 +773,7 @@ static void *thread_native_entry(Thread *thread) {
 
   // handshaking with parent thread
   {
-    MutexLockerEx ml(sync, Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(sync, Mutex::_no_safepoint_check_flag);
 
     // notify parent thread
     osthread->set_state(INITIALIZED);
@@ -781,7 +781,7 @@ static void *thread_native_entry(Thread *thread) {
 
     // wait until os::start_thread()
     while (osthread->get_state() == INITIALIZED) {
-      sync->wait(Mutex::_no_safepoint_check_flag);
+      sync->wait_without_safepoint_check();
     }
   }
 
@@ -881,9 +881,9 @@ bool os::create_thread(Thread* thread, ThreadType thr_type,
     // Wait until child thread is either initialized or aborted
     {
       Monitor* sync_with_child = osthread->startThread_lock();
-      MutexLockerEx ml(sync_with_child, Mutex::_no_safepoint_check_flag);
+      MutexLocker ml(sync_with_child, Mutex::_no_safepoint_check_flag);
       while ((state = osthread->get_state()) == ALLOCATED) {
-        sync_with_child->wait(Mutex::_no_safepoint_check_flag);
+        sync_with_child->wait_without_safepoint_check();
       }
     }
   }
@@ -975,7 +975,7 @@ void os::pd_start_thread(Thread* thread) {
   OSThread * osthread = thread->osthread();
   assert(osthread->get_state() != INITIALIZED, "just checking");
   Monitor* sync_with_child = osthread->startThread_lock();
-  MutexLockerEx ml(sync_with_child, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(sync_with_child, Mutex::_no_safepoint_check_flag);
   sync_with_child->notify();
 }
 
@@ -1461,8 +1461,15 @@ void os::abort(bool dump_core, void* siginfo, const void* context) {
 }
 
 // Die immediately, no exit hook, no abort hook, no cleanup.
+// Dump a core file, if possible, for debugging.
 void os::die() {
-  ::abort();
+  if (TestUnresponsiveErrorHandler && !CreateCoredumpOnCrash) {
+    // For TimeoutInErrorHandlingTest.java, we just kill the VM
+    // and don't take the time to generate a core file.
+    os::signal_raise(SIGKILL);
+  } else {
+    ::abort();
+  }
 }
 
 // thread_id is kernel thread id (similar to Solaris LWP id)
@@ -1874,8 +1881,17 @@ void * os::Linux::dlopen_helper(const char *filename, char *ebuf,
                                 int ebuflen) {
   void * result = ::dlopen(filename, RTLD_LAZY);
   if (result == NULL) {
-    ::strncpy(ebuf, ::dlerror(), ebuflen - 1);
-    ebuf[ebuflen-1] = '\0';
+    const char* error_report = ::dlerror();
+    if (error_report == NULL) {
+      error_report = "dlerror returned no error description";
+    }
+    if (ebuf != NULL && ebuflen > 0) {
+      ::strncpy(ebuf, error_report, ebuflen-1);
+      ebuf[ebuflen-1]='\0';
+    }
+    Events::log(NULL, "Loading shared library %s failed, %s", filename, error_report);
+  } else {
+    Events::log(NULL, "Loaded shared library %s", filename);
   }
   return result;
 }
@@ -3450,6 +3466,7 @@ static bool linux_mprotect(char* addr, size_t size, int prot) {
   assert(addr == bottom, "sanity check");
 
   size = align_up(pointer_delta(addr, bottom, 1) + size, os::Linux::page_size());
+  Events::log(NULL, "Protecting memory [" INTPTR_FORMAT "," INTPTR_FORMAT "] with protection modes %x", p2i(bottom), p2i(bottom+size), prot);
   return ::mprotect(bottom, size, prot) == 0;
 }
 
@@ -4088,11 +4105,6 @@ char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr, int f
 // available (and not reserved for something else).
 
 char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr) {
-  const int max_tries = 10;
-  char* base[max_tries];
-  size_t size[max_tries];
-  const size_t gap = 0x000000;
-
   // Assert only that the size is a multiple of the page size, since
   // that's all that mmap requires, and since that's all we really know
   // about at this low abstraction level.  If we need higher alignment,
@@ -4115,50 +4127,7 @@ char* os::pd_attempt_reserve_memory_at(size_t bytes, char* requested_addr) {
     anon_munmap(addr, bytes);
   }
 
-  int i;
-  for (i = 0; i < max_tries; ++i) {
-    base[i] = reserve_memory(bytes);
-
-    if (base[i] != NULL) {
-      // Is this the block we wanted?
-      if (base[i] == requested_addr) {
-        size[i] = bytes;
-        break;
-      }
-
-      // Does this overlap the block we wanted? Give back the overlapped
-      // parts and try again.
-
-      ptrdiff_t top_overlap = requested_addr + (bytes + gap) - base[i];
-      if (top_overlap >= 0 && (size_t)top_overlap < bytes) {
-        unmap_memory(base[i], top_overlap);
-        base[i] += top_overlap;
-        size[i] = bytes - top_overlap;
-      } else {
-        ptrdiff_t bottom_overlap = base[i] + bytes - requested_addr;
-        if (bottom_overlap >= 0 && (size_t)bottom_overlap < bytes) {
-          unmap_memory(requested_addr, bottom_overlap);
-          size[i] = bytes - bottom_overlap;
-        } else {
-          size[i] = bytes;
-        }
-      }
-    }
-  }
-
-  // Give back the unused reserved pieces.
-
-  for (int j = 0; j < i; ++j) {
-    if (base[j] != NULL) {
-      unmap_memory(base[j], size[j]);
-    }
-  }
-
-  if (i < max_tries) {
-    return requested_addr;
-  } else {
-    return NULL;
-  }
+  return NULL;
 }
 
 // Sleep forever; naked call to OS-specific sleep; use with CAUTION
@@ -5158,13 +5127,16 @@ jint os::init_2(void) {
     return JNI_ERR;
   }
 
+#if defined(IA32)
+  // Need to ensure we've determined the process's initial stack to
+  // perform the workaround
+  Linux::capture_initial_stack(JavaThread::stack_size_at_create());
+  workaround_expand_exec_shield_cs_limit();
+#else
   suppress_primordial_thread_resolution = Arguments::created_by_java_launcher();
   if (!suppress_primordial_thread_resolution) {
     Linux::capture_initial_stack(JavaThread::stack_size_at_create());
   }
-
-#if defined(IA32)
-  workaround_expand_exec_shield_cs_limit();
 #endif
 
   Linux::libpthread_init();

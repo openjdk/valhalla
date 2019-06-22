@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -171,8 +171,8 @@ static oop construct_dcmd_instance(JfrJavaArguments* args, TRAPS) {
   assert(args != NULL, "invariant");
   DEBUG_ONLY(JfrJavaSupport::check_java_thread_in_vm(THREAD));
   assert(args->klass() != NULL, "invariant");
-  args->set_name("<init>", CHECK_NULL);
-  args->set_signature("()V", CHECK_NULL);
+  args->set_name("<init>");
+  args->set_signature("()V");
   JfrJavaSupport::new_object(args, CHECK_NULL);
   return (oop)args->result()->get_jobject();
 }
@@ -438,7 +438,13 @@ void JfrStartFlightRecordingDCmd::execute(DCmdSource source, TRAPS) {
 
   jobjectArray settings = NULL;
   if (_settings.is_set()) {
-    const int length = _settings.value()->array()->length();
+    int length = _settings.value()->array()->length();
+    if (length == 1) {
+      const char* c_str = _settings.value()->array()->at(0);
+      if (strcmp(c_str, "none") == 0) {
+        length = 0;
+      }
+    }
     settings = JfrJavaSupport::new_string_array(length, CHECK);
     assert(settings != NULL, "invariant");
     for (int i = 0; i < length; ++i) {

@@ -57,8 +57,9 @@ public class TestMemberSummary extends JavadocTester {
                 + "<th class=\"colSecond\" scope=\"row\"><code><span class=\"memberNameLink\"><a href=\"#returnTypeTest()\">"
                 + "returnTypeTest</a></span>()</code>",
                 // Check return type in member detail.
-                "<pre class=\"methodSignature\">public&nbsp;<a href=\"PublicChild.html\" title=\"class in pkg\">"
-                + "PublicChild</a>&nbsp;returnTypeTest()</pre>",
+                "<div class=\"memberSignature\"><span class=\"modifiers\">public</span>&nbsp;"
+                + "<span class=\"returnType\"><a href=\"PublicChild.html\" title=\"class in pkg\">"
+                + "PublicChild</a></span>&nbsp;<span class=\"memberName\">returnTypeTest</span>()</div>",
                 "<th class=\"colConstructorName\" scope=\"row\"><code><span class=\"memberNameLink\">"
                 + "<a href=\"#%3Cinit%3E()\">PublicChild</a></span>()</code></th>");
 
@@ -72,8 +73,6 @@ public class TestMemberSummary extends JavadocTester {
         checkOutput("pkg2/A.html", true,
                 "<a id=\"f(java.lang.Object[])\">\n"
                 + "<!--   -->\n"
-                + "</a><a id=\"f(T[])\">\n"
-                + "<!--   -->\n"
-                + "</a>");
+                + "</a><a id=\"f(T[])\">f</a>");
     }
 }

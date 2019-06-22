@@ -24,6 +24,7 @@
 package jdk.test.lib.containers.docker;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.FileVisitResult;
@@ -32,6 +33,7 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -45,6 +47,12 @@ public class DockerTestUtils {
     private static final String FS = File.separator;
     private static boolean isDockerEngineAvailable = false;
     private static boolean wasDockerEngineChecked = false;
+
+    // Specifies how many lines to copy from child STDOUT to main test output.
+    // Having too many lines in the main test output will result
+    // in JT harness trimming the output, and can lead to loss of useful
+    // diagnostic information.
+    private static final int MAX_LINES_TO_COPY_FOR_CHILD_STDOUT = 100;
 
     // Use this property to specify docker location on your system.
     // E.g.: "/usr/local/bin/docker".
@@ -169,24 +177,30 @@ public class DockerTestUtils {
         generateDockerFile(buildDir.resolve("Dockerfile"),
                            DockerfileConfig.getBaseImageName(),
                            DockerfileConfig.getBaseImageVersion());
-
-        // Build the docker
-        execute(DOCKER_COMMAND, "build", "--no-cache", "--tag", imageName, buildDir.toString())
-            .shouldHaveExitValue(0)
-            .shouldContain("Successfully built");
+        try {
+            // Build the docker
+            execute(DOCKER_COMMAND, "build", "--no-cache", "--tag", imageName, buildDir.toString())
+                .shouldHaveExitValue(0)
+                .shouldContain("Successfully built");
+        } catch (Exception e) {
+            // If docker image building fails there is a good chance it happens due to environment and/or
+            // configuration other than product failure. Throw jtreg skipped exception in such case
+            // instead of failing the test.
+            throw new SkippedException("Building docker image failed. Details: \n" + e.getMessage());
+        }
     }
 
 
     /**
-     * Run Java inside the docker image with specified parameters and options.
+     * Build the docker command to run java inside a container
      *
      * @param DockerRunOptions optins for running docker
      *
-     * @return output of the run command
+     * @return command
      * @throws Exception
      */
-    public static OutputAnalyzer dockerRunJava(DockerRunOptions opts) throws Exception {
-        ArrayList<String> cmd = new ArrayList<>();
+    public static List<String> buildJavaCommand(DockerRunOptions opts) throws Exception {
+        List<String> cmd = new ArrayList<>();
 
         cmd.add(DOCKER_COMMAND);
         cmd.add("run");
@@ -207,7 +221,19 @@ public class DockerTestUtils {
         cmd.add(opts.classToRun);
         cmd.addAll(opts.classParams);
 
-        return execute(cmd);
+        return cmd;
+    }
+
+    /**
+     * Run Java inside the docker image with specified parameters and options.
+     *
+     * @param DockerRunOptions optins for running docker
+     *
+     * @return output of the run command
+     * @throws Exception
+     */
+    public static OutputAnalyzer dockerRunJava(DockerRunOptions opts) throws Exception {
+        return execute(buildJavaCommand(opts));
     }
 
 
@@ -248,13 +274,38 @@ public class DockerTestUtils {
         System.out.println("[COMMAND]\n" + Utils.getCommandLine(pb));
 
         long started = System.currentTimeMillis();
-        OutputAnalyzer output = new OutputAnalyzer(pb.start());
+        Process p = pb.start();
+        long pid = p.pid();
+        OutputAnalyzer output = new OutputAnalyzer(p);
 
+        String stdoutLogFile = String.format("docker-stdout-%d.log", pid);
         System.out.println("[ELAPSED: " + (System.currentTimeMillis() - started) + " ms]");
         System.out.println("[STDERR]\n" + output.getStderr());
-        System.out.println("[STDOUT]\n" + output.getStdout());
+        System.out.println("[STDOUT]\n" +
+                           trimLines(output.getStdout(),MAX_LINES_TO_COPY_FOR_CHILD_STDOUT));
+        System.out.printf("Child process STDOUT is trimmed to %d lines \n",
+                           MAX_LINES_TO_COPY_FOR_CHILD_STDOUT);
+        writeOutputToFile(output.getStdout(), stdoutLogFile);
+        System.out.println("Full child process STDOUT was saved to " + stdoutLogFile);
 
         return output;
+    }
+
+
+    private static void writeOutputToFile(String output, String fileName) throws Exception {
+        try (FileWriter fw = new FileWriter(fileName)) {
+            fw.write(output, 0, output.length());
+        }
+    }
+
+
+    private static String trimLines(String buffer, int nrOfLines) {
+        List<String> l = Arrays.asList(buffer.split("\\R"));
+        if (l.size() < nrOfLines) {
+            return buffer;
+        }
+
+        return String.join("\n", l.subList(0, nrOfLines));
     }
 
 

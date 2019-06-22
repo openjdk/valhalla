@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/classLoaderDataGraph.inline.hpp"
+#include "classfile/dictionary.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
@@ -66,9 +67,6 @@
 #include "services/runtimeService.hpp"
 #include "utilities/events.hpp"
 #include "utilities/macros.hpp"
-#ifdef COMPILER1
-#include "c1/c1_globals.hpp"
-#endif
 
 static void post_safepoint_begin_event(EventSafepointBegin& event,
                                        uint64_t safepoint_id,
@@ -186,16 +184,14 @@ static void assert_list_is_valid(const ThreadSafepointState* tss_head, int still
 }
 #endif // ASSERT
 
-static void back_off(int iteration) {
-  // iteration will be 1 the first time we enter this spin back-off.
-  // naked_short_nanosleep takes tenths of micros which means that
-  // number of nanoseconds is irrelevant if it's below that. We do
-  // 20 1 ns sleeps with a total cost of ~1 ms, then we do 1 ms sleeps.
-  jlong sleep_ns = 1;
-  if (iteration > 20) {
-    sleep_ns = NANOUNITS / MILLIUNITS;  // 1 ms
+static void back_off(int64_t start_time) {
+  // We start with fine-grained nanosleeping until a millisecond has
+  // passed, at which point we resort to plain naked_short_sleep.
+  if (os::javaTimeNanos() - start_time < NANOSECS_PER_MILLISEC) {
+    os::naked_short_nanosleep(10 * (NANOUNITS / MICROUNITS));
+  } else {
+    os::naked_short_sleep(1);
   }
-  os::naked_short_nanosleep(sleep_ns);
 }
 
 int SafepointSynchronize::synchronize_threads(jlong safepoint_limit_time, int nof_threads, int* initial_running)
@@ -229,9 +225,16 @@ int SafepointSynchronize::synchronize_threads(jlong safepoint_limit_time, int no
 
   *initial_running = still_running;
 
-  int iterations = 1; // The first iteration is above.
+  // If there is no thread still running, we are already done.
+  if (still_running <= 0) {
+    assert(tss_head == NULL, "Must be empty");
+    return 1;
+  }
 
-  while (still_running > 0) {
+  int iterations = 1; // The first iteration is above.
+  int64_t start_time = os::javaTimeNanos();
+
+  do {
     // Check if this has taken too long:
     if (SafepointTimeout && safepoint_limit_time < os::javaTimeNanos()) {
       print_safepoint_timeout();
@@ -264,11 +267,11 @@ int SafepointSynchronize::synchronize_threads(jlong safepoint_limit_time, int no
     DEBUG_ONLY(assert_list_is_valid(tss_head, still_running);)
 
     if (still_running > 0) {
-      back_off(iterations);
+      back_off(start_time);
     }
 
     iterations++;
-  }
+  } while (still_running > 0);
 
   assert(tss_head == NULL, "Must be empty");
 
@@ -511,6 +514,8 @@ bool SafepointSynchronize::is_cleanup_needed() {
   if (ObjectSynchronizer::is_cleanup_needed()) return true;
   // Need a safepoint if some inline cache buffers is non-empty
   if (!InlineCacheBuffer::is_empty()) return true;
+  if (StringTable::needs_rehashing()) return true;
+  if (SymbolTable::needs_rehashing()) return true;
   return false;
 }
 
@@ -603,23 +608,27 @@ public:
     }
 
     if (_subtasks.try_claim_task(SafepointSynchronize::SAFEPOINT_CLEANUP_CLD_PURGE)) {
-      // CMS delays purging the CLDG until the beginning of the next safepoint and to
-      // make sure concurrent sweep is done
-      const char* name = "purging class loader data graph";
-      EventSafepointCleanupTask event;
-      TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
-      ClassLoaderDataGraph::purge_if_needed();
+      if (ClassLoaderDataGraph::should_purge_and_reset()) {
+        // CMS delays purging the CLDG until the beginning of the next safepoint and to
+        // make sure concurrent sweep is done
+        const char* name = "purging class loader data graph";
+        EventSafepointCleanupTask event;
+        TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
+        ClassLoaderDataGraph::purge();
 
-      post_safepoint_cleanup_task_event(event, safepoint_id, name);
+        post_safepoint_cleanup_task_event(event, safepoint_id, name);
+      }
     }
 
     if (_subtasks.try_claim_task(SafepointSynchronize::SAFEPOINT_CLEANUP_SYSTEM_DICTIONARY_RESIZE)) {
-      const char* name = "resizing system dictionaries";
-      EventSafepointCleanupTask event;
-      TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
-      ClassLoaderDataGraph::resize_if_needed();
+      if (Dictionary::does_any_dictionary_needs_resizing()) {
+        const char* name = "resizing system dictionaries";
+        EventSafepointCleanupTask event;
+        TraceTime timer(name, TRACETIME_LOG(Info, safepoint, cleanup));
+        ClassLoaderDataGraph::resize_dictionaries();
 
-      post_safepoint_cleanup_task_event(event, safepoint_id, name);
+        post_safepoint_cleanup_task_event(event, safepoint_id, name);
+      }
     }
 
     _subtasks.all_tasks_completed(_num_workers);
@@ -1031,6 +1040,8 @@ void ThreadSafepointState::print_on(outputStream *st) const {
 
   _thread->print_thread_state_on(st);
 }
+
+void ThreadSafepointState::print() const { print_on(tty); }
 
 // ---------------------------------------------------------------------------------------------------------------------
 

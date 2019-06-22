@@ -71,11 +71,13 @@ public abstract class SSLContextImpl extends SSLContextSpi {
     private volatile StatusResponseManager statusResponseManager;
 
     private final ReentrantLock contextLock = new ReentrantLock();
+    final HashMap<Integer, SessionTicketExtension.StatelessKey> keyHashMap = new HashMap<>();
+
 
     SSLContextImpl() {
         ephemeralKeyManager = new EphemeralKeyManager();
-        clientCache = new SSLSessionContextImpl();
-        serverCache = new SSLSessionContextImpl();
+        clientCache = new SSLSessionContextImpl(false);
+        serverCache = new SSLSessionContextImpl(true);
     }
 
     @Override
@@ -379,7 +381,8 @@ public abstract class SSLContextImpl extends SSLContextSpi {
 
                 boolean isSupported = false;
                 for (ProtocolVersion protocol : protocols) {
-                    if (!suite.supports(protocol)) {
+                    if (!suite.supports(protocol) ||
+                            !suite.bulkCipher.isAvailable()) {
                         continue;
                     }
 

@@ -29,6 +29,7 @@
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/interpreter.hpp"
+#include "memory/universe.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/instanceOop.hpp"
 #include "oops/method.hpp"
@@ -44,6 +45,9 @@
 #include "utilities/align.hpp"
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
+#endif
+#if INCLUDE_ZGC
+#include "gc/z/zThreadLocalData.hpp"
 #endif
 
 #ifdef BUILTIN_SIM
@@ -578,6 +582,16 @@ class StubGenerator: public StubCodeGenerator {
     // object is in r0
     // make sure object is 'reasonable'
     __ cbz(r0, exit); // if obj is NULL it is OK
+
+#if INCLUDE_ZGC
+    if (UseZGC) {
+      // Check if mask is good.
+      // verifies that ZAddressBadMask & r0 == 0
+      __ ldr(c_rarg3, Address(rthread, ZThreadLocalData::address_bad_mask_offset()));
+      __ andr(c_rarg2, r0, c_rarg3);
+      __ cbnz(c_rarg2, error);
+    }
+#endif
 
     // Check if the oop is in the right area of memory
     __ mov(c_rarg3, (intptr_t) Universe::verify_oop_mask());
@@ -1363,7 +1377,7 @@ class StubGenerator: public StubCodeGenerator {
     }
 
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->arraycopy_prologue(_masm, decorators, is_oop, d, count, saved_reg);
+    bs->arraycopy_prologue(_masm, decorators, is_oop, s, d, count, saved_reg);
 
     if (is_oop) {
       // save regs before copy_memory
@@ -1435,7 +1449,7 @@ class StubGenerator: public StubCodeGenerator {
     }
 
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->arraycopy_prologue(_masm, decorators, is_oop, d, count, saved_regs);
+    bs->arraycopy_prologue(_masm, decorators, is_oop, s, d, count, saved_regs);
 
     if (is_oop) {
       // save regs before copy_memory
@@ -1788,14 +1802,14 @@ class StubGenerator: public StubCodeGenerator {
     }
 #endif //ASSERT
 
-    DecoratorSet decorators = IN_HEAP | IS_ARRAY | ARRAYCOPY_CHECKCAST;
+    DecoratorSet decorators = IN_HEAP | IS_ARRAY | ARRAYCOPY_CHECKCAST | ARRAYCOPY_DISJOINT;
     bool is_oop = true;
     if (dest_uninitialized) {
       decorators |= IS_DEST_UNINITIALIZED;
     }
 
     BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->arraycopy_prologue(_masm, decorators, is_oop, to, count, wb_pre_saved_regs);
+    bs->arraycopy_prologue(_masm, decorators, is_oop, from, to, count, wb_pre_saved_regs);
 
     // save the original count
     __ mov(count_save, count);
@@ -4034,14 +4048,14 @@ class StubGenerator: public StubCodeGenerator {
         : "compare_long_string_different_encoding UL");
     address entry = __ pc();
     Label SMALL_LOOP, TAIL, TAIL_LOAD_16, LOAD_LAST, DIFF1, DIFF2,
-        DONE, CALCULATE_DIFFERENCE, LARGE_LOOP_PREFETCH, SMALL_LOOP_ENTER,
+        DONE, CALCULATE_DIFFERENCE, LARGE_LOOP_PREFETCH, NO_PREFETCH,
         LARGE_LOOP_PREFETCH_REPEAT1, LARGE_LOOP_PREFETCH_REPEAT2;
     Register result = r0, str1 = r1, cnt1 = r2, str2 = r3, cnt2 = r4,
         tmp1 = r10, tmp2 = r11, tmp3 = r12, tmp4 = r14;
     FloatRegister vtmpZ = v0, vtmp = v1, vtmp3 = v2;
     RegSet spilled_regs = RegSet::of(tmp3, tmp4);
 
-    int prefetchLoopExitCondition = MAX(32, SoftwarePrefetchHintDistance/2);
+    int prefetchLoopExitCondition = MAX(64, SoftwarePrefetchHintDistance/2);
 
     __ eor(vtmpZ, __ T16B, vtmpZ, vtmpZ);
     // cnt2 == amount of characters left to compare
@@ -4068,7 +4082,7 @@ class StubGenerator: public StubCodeGenerator {
 
     if (SoftwarePrefetchHintDistance >= 0) {
       __ subs(rscratch2, cnt2, prefetchLoopExitCondition);
-      __ br(__ LT, SMALL_LOOP);
+      __ br(__ LT, NO_PREFETCH);
       __ bind(LARGE_LOOP_PREFETCH);
         __ prfm(Address(tmp2, SoftwarePrefetchHintDistance));
         __ mov(tmp4, 2);
@@ -4088,51 +4102,20 @@ class StubGenerator: public StubCodeGenerator {
           __ br(__ GE, LARGE_LOOP_PREFETCH);
     }
     __ cbz(cnt2, LOAD_LAST); // no characters left except last load
+    __ bind(NO_PREFETCH);
     __ subs(cnt2, cnt2, 16);
     __ br(__ LT, TAIL);
-    __ b(SMALL_LOOP_ENTER);
     __ bind(SMALL_LOOP); // smaller loop
       __ subs(cnt2, cnt2, 16);
-    __ bind(SMALL_LOOP_ENTER);
       compare_string_16_x_LU(tmpL, tmpU, DIFF1, DIFF2);
       __ br(__ GE, SMALL_LOOP);
-      __ cbz(cnt2, LOAD_LAST);
-    __ bind(TAIL); // 1..15 characters left
-      __ subs(zr, cnt2, -8);
-      __ br(__ GT, TAIL_LOAD_16);
-      __ ldrd(vtmp, Address(tmp2));
-      __ zip1(vtmp3, __ T8B, vtmp, vtmpZ);
-
-      __ ldr(tmpU, Address(__ post(cnt1, 8)));
-      __ fmovd(tmpL, vtmp3);
-      __ eor(rscratch2, tmp3, tmpL);
-      __ cbnz(rscratch2, DIFF2);
-      __ umov(tmpL, vtmp3, __ D, 1);
-      __ eor(rscratch2, tmpU, tmpL);
-      __ cbnz(rscratch2, DIFF1);
-      __ b(LOAD_LAST);
-    __ bind(TAIL_LOAD_16);
-      __ ldrq(vtmp, Address(tmp2));
-      __ ldr(tmpU, Address(__ post(cnt1, 8)));
-      __ zip1(vtmp3, __ T16B, vtmp, vtmpZ);
-      __ zip2(vtmp, __ T16B, vtmp, vtmpZ);
-      __ fmovd(tmpL, vtmp3);
-      __ eor(rscratch2, tmp3, tmpL);
-      __ cbnz(rscratch2, DIFF2);
-
-      __ ldr(tmp3, Address(__ post(cnt1, 8)));
-      __ umov(tmpL, vtmp3, __ D, 1);
-      __ eor(rscratch2, tmpU, tmpL);
-      __ cbnz(rscratch2, DIFF1);
-
-      __ ldr(tmpU, Address(__ post(cnt1, 8)));
-      __ fmovd(tmpL, vtmp);
-      __ eor(rscratch2, tmp3, tmpL);
-      __ cbnz(rscratch2, DIFF2);
-
-      __ umov(tmpL, vtmp, __ D, 1);
-      __ eor(rscratch2, tmpU, tmpL);
-      __ cbnz(rscratch2, DIFF1);
+      __ cmn(cnt2, (u1)16);
+      __ br(__ EQ, LOAD_LAST);
+    __ bind(TAIL); // 1..15 characters left until last load (last 4 characters)
+      __ add(cnt1, cnt1, cnt2, __ LSL, 1); // Address of 8 bytes before last 4 characters in UTF-16 string
+      __ add(tmp2, tmp2, cnt2); // Address of 16 bytes before last 4 characters in Latin1 string
+      __ ldr(tmp3, Address(cnt1, -8));
+      compare_string_16_x_LU(tmpL, tmpU, DIFF1, DIFF2); // last 16 characters before last load
       __ b(LOAD_LAST);
     __ bind(DIFF2);
       __ mov(tmpU, tmp3);
@@ -4140,10 +4123,12 @@ class StubGenerator: public StubCodeGenerator {
       __ pop(spilled_regs, sp);
       __ b(CALCULATE_DIFFERENCE);
     __ bind(LOAD_LAST);
+      // Last 4 UTF-16 characters are already pre-loaded into tmp3 by compare_string_16_x_LU.
+      // No need to load it again
+      __ mov(tmpU, tmp3);
       __ pop(spilled_regs, sp);
 
       __ ldrs(vtmp, Address(strL));
-      __ ldr(tmpU, Address(strU));
       __ zip1(vtmp, __ T8B, vtmp, vtmpZ);
       __ fmovd(tmpL, vtmp);
 
@@ -4205,10 +4190,10 @@ class StubGenerator: public StubCodeGenerator {
         compare_string_16_bytes_same(DIFF, DIFF2);
         __ br(__ GT, LARGE_LOOP_PREFETCH);
         __ cbz(cnt2, LAST_CHECK_AND_LENGTH_DIFF); // no more chars left?
-        // less than 16 bytes left?
-        __ subs(cnt2, cnt2, isLL ? 16 : 8);
-        __ br(__ LT, TAIL);
     }
+    // less than 16 bytes left?
+    __ subs(cnt2, cnt2, isLL ? 16 : 8);
+    __ br(__ LT, TAIL);
     __ bind(SMALL_LOOP);
       compare_string_16_bytes_same(DIFF, DIFF2);
       __ subs(cnt2, cnt2, isLL ? 16 : 8);
@@ -4337,6 +4322,7 @@ class StubGenerator: public StubCodeGenerator {
     __ ldr(ch1, Address(str1));
     // Read whole register from str2. It is safe, because length >=8 here
     __ ldr(ch2, Address(str2));
+    __ sub(cnt2, cnt2, cnt1);
     __ andr(first, ch1, str1_isL ? 0xFF : 0xFFFF);
     if (str1_isL != str2_isL) {
       __ eor(v0, __ T16B, v0, v0);

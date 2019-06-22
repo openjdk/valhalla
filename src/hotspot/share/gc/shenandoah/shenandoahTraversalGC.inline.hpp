@@ -32,6 +32,7 @@
 #include "gc/shenandoah/shenandoahTraversalGC.hpp"
 #include "gc/shenandoah/shenandoahTaskqueue.hpp"
 #include "gc/shenandoah/shenandoahTaskqueue.inline.hpp"
+#include "oops/compressedOops.inline.hpp"
 #include "oops/oop.inline.hpp"
 
 template <class T, bool STRING_DEDUP, bool DEGEN>
@@ -53,7 +54,7 @@ void ShenandoahTraversalGC::process_oop(T* p, Thread* thread, ShenandoahObjToSca
       }
       shenandoah_assert_forwarded_except(p, obj, _heap->cancelled_gc());
       // Update reference.
-      _heap->atomic_compare_exchange_oop(forw, p, obj);
+      ShenandoahHeap::cas_oop(forw, p, obj);
       obj = forw;
     }
 

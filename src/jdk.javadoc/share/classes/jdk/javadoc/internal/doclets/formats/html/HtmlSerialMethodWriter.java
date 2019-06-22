@@ -77,10 +77,7 @@ public class HtmlSerialMethodWriter extends MethodWriterImpl implements
      */
     public Content getMethodsContentHeader(boolean isLastContent) {
         HtmlTree li = new HtmlTree(HtmlTag.LI);
-        if (isLastContent)
-            li.setStyle(HtmlStyle.blockListLast);
-        else
-            li.setStyle(HtmlStyle.blockList);
+        li.setStyle(HtmlStyle.blockList);
         return li;
     }
 
@@ -95,9 +92,9 @@ public class HtmlSerialMethodWriter extends MethodWriterImpl implements
     public Content getSerializableMethods(String heading, Content serializableMethodContent) {
         Content headingContent = new StringContent(heading);
         Content serialHeading = HtmlTree.HEADING(Headings.SerializedForm.CLASS_SUBHEADING, headingContent);
-        Content li = HtmlTree.LI(HtmlStyle.blockList, serialHeading);
-        li.add(serializableMethodContent);
-        return li;
+        Content section = HtmlTree.SECTION(HtmlStyle.detail, serialHeading);
+        section.add(serializableMethodContent);
+        return HtmlTree.LI(HtmlStyle.blockList, section);
     }
 
     /**

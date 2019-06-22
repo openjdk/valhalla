@@ -25,18 +25,17 @@
 
 package jdk.javadoc.internal.doclets.formats.html;
 
-import jdk.javadoc.internal.doclets.formats.html.markup.Table;
-
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
-import jdk.javadoc.internal.doclets.formats.html.markup.TableHeader;
+import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
+import jdk.javadoc.internal.doclets.formats.html.markup.Table;
+import jdk.javadoc.internal.doclets.formats.html.markup.TableHeader;
 import jdk.javadoc.internal.doclets.toolkit.AnnotationTypeFieldWriter;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.MemberSummaryWriter;
@@ -72,7 +71,7 @@ public class AnnotationTypeFieldWriterImpl extends AbstractMemberWriter
             Content memberSummaryTree) {
         memberSummaryTree.add(
                 MarkerComments.START_OF_ANNOTATION_TYPE_FIELD_SUMMARY);
-        Content memberTree = writer.getMemberTreeHeader();
+        Content memberTree = new ContentBuilder();
         writer.addSummaryHeader(this, typeElement, memberTree);
         return memberTree;
     }
@@ -88,7 +87,7 @@ public class AnnotationTypeFieldWriterImpl extends AbstractMemberWriter
      * {@inheritDoc}
      */
     public void addMemberTree(Content memberSummaryTree, Content memberTree) {
-        writer.addMemberTree(memberSummaryTree, memberTree);
+        writer.addMemberTree(HtmlStyle.fieldSummary, memberSummaryTree, memberTree);
     }
 
     /**
@@ -101,16 +100,17 @@ public class AnnotationTypeFieldWriterImpl extends AbstractMemberWriter
     /**
      * {@inheritDoc}
      */
-    public void addAnnotationDetailsTreeHeader(TypeElement typeElement,
-            Content memberDetailsTree) {
+    public Content getAnnotationDetailsTreeHeader(TypeElement typeElement) {
+        Content memberDetailsTree = new ContentBuilder();
         if (!writer.printedAnnotationFieldHeading) {
-            memberDetailsTree.add(links.createAnchor(
-                    SectionName.ANNOTATION_TYPE_FIELD_DETAIL));
             Content heading = HtmlTree.HEADING(Headings.TypeDeclaration.DETAILS_HEADING,
                     contents.fieldDetailsLabel);
+            memberDetailsTree.add(links.createAnchor(
+                    SectionName.ANNOTATION_TYPE_FIELD_DETAIL));
             memberDetailsTree.add(heading);
             writer.printedAnnotationFieldHeading = true;
         }
+        return memberDetailsTree;
     }
 
     /**
@@ -118,33 +118,20 @@ public class AnnotationTypeFieldWriterImpl extends AbstractMemberWriter
      */
     public Content getAnnotationDocTreeHeader(Element member,
             Content annotationDetailsTree) {
-        annotationDetailsTree.add(links.createAnchor(name(member)));
-        Content annotationDocTree = writer.getMemberTreeHeader();
+        Content annotationDocTree = new ContentBuilder();
         Content heading = new HtmlTree(Headings.TypeDeclaration.MEMBER_HEADING);
-        heading.add(name(member));
+        heading.add(links.createAnchor(name(member), new StringContent(name(member))));
         annotationDocTree.add(heading);
-        return annotationDocTree;
+        return HtmlTree.SECTION(HtmlStyle.detail, annotationDocTree);
     }
 
     /**
      * {@inheritDoc}
      */
     public Content getSignature(Element member) {
-        Content pre = new HtmlTree(HtmlTag.PRE);
-        writer.addAnnotationInfo(member, pre);
-        addModifiers(member, pre);
-        Content link =
-                writer.getLink(new LinkInfoImpl(configuration,
-                        LinkInfoImpl.Kind.MEMBER, getType(member)));
-        pre.add(link);
-        pre.add(Contents.SPACE);
-        if (configuration.linksource) {
-            Content memberName = new StringContent(name(member));
-            writer.addSrcLink(member, memberName, pre);
-        } else {
-            addName(name(member), pre);
-        }
-        return pre;
+        return new MemberSignature(member)
+                .addType(getType(member))
+                .toContent();
     }
 
     /**
@@ -171,16 +158,18 @@ public class AnnotationTypeFieldWriterImpl extends AbstractMemberWriter
     /**
      * {@inheritDoc}
      */
-    public Content getAnnotationDetails(Content annotationDetailsTree) {
-        return HtmlTree.SECTION(getMemberTree(annotationDetailsTree));
+    public Content getAnnotationDetails(Content annotationDetailsTreeHeader, Content annotationDetailsTree) {
+        Content annotationDetails = new ContentBuilder();
+        annotationDetails.add(annotationDetailsTreeHeader);
+        annotationDetails.add(annotationDetailsTree);
+        return getMemberTree(HtmlTree.SECTION(HtmlStyle.fieldDetails, annotationDetails));
     }
 
     /**
      * {@inheritDoc}
      */
-    public Content getAnnotationDoc(Content annotationDocTree,
-            boolean isLastContent) {
-        return getMemberTree(annotationDocTree, isLastContent);
+    public Content getAnnotationDoc(Content annotationDocTree) {
+        return getMemberTree(annotationDocTree);
     }
 
     /**

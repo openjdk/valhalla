@@ -245,9 +245,7 @@ void ObjectMonitor::enter(TRAPS) {
 
   void * cur = Atomic::cmpxchg(Self, &_owner, (void*)NULL);
   if (cur == NULL) {
-    // Either ASSERT _recursions == 0 or explicitly set _recursions = 0.
     assert(_recursions == 0, "invariant");
-    assert(_owner == Self, "invariant");
     return;
   }
 
@@ -276,9 +274,13 @@ void ObjectMonitor::enter(TRAPS) {
   // Note that if we acquire the monitor from an initial spin
   // we forgo posting JVMTI events and firing DTRACE probes.
   if (TrySpin(Self) > 0) {
-    assert(_owner == Self, "invariant");
-    assert(_recursions == 0, "invariant");
-    assert(((oop)(object()))->mark() == markOopDesc::encode(this), "invariant");
+    assert(_owner == Self, "must be Self: owner=" INTPTR_FORMAT, p2i(_owner));
+    assert(_recursions == 0, "must be 0: recursions=" INTPTR_FORMAT,
+           _recursions);
+    assert(((oop)object())->mark() == markOopDesc::encode(this),
+           "object mark must match encoded this: mark=" INTPTR_FORMAT
+           ", encoded this=" INTPTR_FORMAT, p2i(((oop)object())->mark()),
+           p2i(markOopDesc::encode(this)));
     Self->_Stalled = 0;
     return;
   }
@@ -290,11 +292,11 @@ void ObjectMonitor::enter(TRAPS) {
   assert(!SafepointSynchronize::is_at_safepoint(), "invariant");
   assert(jt->thread_state() != _thread_blocked, "invariant");
   assert(this->object() != NULL, "invariant");
-  assert(_count >= 0, "invariant");
+  assert(_contentions >= 0, "invariant");
 
   // Prevent deflation at STW-time.  See deflate_idle_monitors() and is_busy().
   // Ensure the object-monitor relationship remains stable while there's contention.
-  Atomic::inc(&_count);
+  Atomic::inc(&_contentions);
 
   JFR_ONLY(JfrConditionalFlushWithStacktrace<EventJavaMonitorEnter> flush(jt);)
   EventJavaMonitorEnter event;
@@ -355,8 +357,8 @@ void ObjectMonitor::enter(TRAPS) {
     // acquire it.
   }
 
-  Atomic::dec(&_count);
-  assert(_count >= 0, "invariant");
+  Atomic::dec(&_contentions);
+  assert(_contentions >= 0, "invariant");
   Self->_Stalled = 0;
 
   // Must either set _recursions = 0 or ASSERT _recursions == 0.
@@ -401,9 +403,7 @@ int ObjectMonitor::TryLock(Thread * Self) {
   void * own = _owner;
   if (own != NULL) return 0;
   if (Atomic::replace_if_null(Self, &_owner)) {
-    // Either guarantee _recursions == 0 or set _recursions = 0.
     assert(_recursions == 0, "invariant");
-    assert(_owner == Self, "invariant");
     return 1;
   }
   // The lock had been free momentarily, but we lost the race to the lock.
@@ -411,6 +411,15 @@ int ObjectMonitor::TryLock(Thread * Self) {
   // We can either return -1 or retry.
   // Retry doesn't make as much sense because the lock was just acquired.
   return -1;
+}
+
+// Convert the fields used by is_busy() to a string that can be
+// used for diagnostic output.
+const char* ObjectMonitor::is_busy_to_string(stringStream* ss) {
+  ss->print("is_busy: contentions=%d, waiters=%d, owner=" INTPTR_FORMAT
+            ", cxq=" INTPTR_FORMAT ", EntryList=" INTPTR_FORMAT, _contentions,
+            _waiters, p2i(_owner), p2i(_cxq), p2i(_EntryList));
+  return ss->base();
 }
 
 #define MAX_RECHECK_INTERVAL 1000
@@ -809,7 +818,7 @@ void ObjectMonitor::UnlinkAfterAcquire(Thread *Self, ObjectWaiter *SelfNode) {
 // There's one exception to the claim above, however.  EnterI() can call
 // exit() to drop a lock if the acquirer has been externally suspended.
 // In that case exit() is called with _thread_state as _thread_blocked,
-// but the monitor's _count field is > 0, which inhibits reclamation.
+// but the monitor's _contentions field is > 0, which inhibits reclamation.
 //
 // 1-0 exit
 // ~~~~~~~~
@@ -1922,3 +1931,12 @@ void ObjectMonitor::Initialize() {
 
   DEBUG_ONLY(InitDone = true;)
 }
+
+void ObjectMonitor::print_on(outputStream* st) const {
+  // The minimal things to print for markOop printing, more can be added for debugging and logging.
+  st->print("{contentions=0x%08x,waiters=0x%08x"
+            ",recursions=" INTPTR_FORMAT ",owner=" INTPTR_FORMAT "}",
+            contentions(), waiters(), recursions(),
+            p2i(owner()));
+}
+void ObjectMonitor::print() const { print_on(tty); }

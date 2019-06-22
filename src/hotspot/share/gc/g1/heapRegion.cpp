@@ -106,7 +106,7 @@ void HeapRegion::setup_heap_region_size(size_t initial_heap_size, size_t max_hea
   CardsPerRegion = GrainBytes >> G1CardTable::card_shift;
 
   if (G1HeapRegionSize != GrainBytes) {
-    FLAG_SET_ERGO(size_t, G1HeapRegionSize, GrainBytes);
+    FLAG_SET_ERGO(G1HeapRegionSize, GrainBytes);
   }
 }
 
@@ -516,7 +516,7 @@ public:
       oop obj = CompressedOops::decode_not_null(heap_oop);
       bool failed = false;
       if (!_g1h->is_in(obj) || _g1h->is_obj_dead_cond(obj, _vo)) {
-        MutexLockerEx x(ParGCRareEvent_lock,
+        MutexLocker x(ParGCRareEvent_lock,
           Mutex::_no_safepoint_check_flag);
 
         if (!_failures) {
@@ -588,7 +588,7 @@ public:
                 cv_field == dirty :
                 cv_obj == dirty || cv_field == dirty));
         if (is_bad) {
-          MutexLockerEx x(ParGCRareEvent_lock,
+          MutexLocker x(ParGCRareEvent_lock,
             Mutex::_no_safepoint_check_flag);
 
           if (!_failures) {

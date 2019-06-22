@@ -125,9 +125,9 @@ public class FieldBuilder extends AbstractMemberBuilder {
             return;
         }
         if (!fields.isEmpty()) {
-            Content fieldDetailsTree = writer.getFieldDetailsTreeHeader(typeElement, memberDetailsTree);
+            Content fieldDetailsTreeHeader = writer.getFieldDetailsTreeHeader(typeElement, memberDetailsTree);
+            Content fieldDetailsTree = writer.getMemberTreeHeader();
 
-            Element lastElement = fields.get(fields.size() - 1);
             for (Element element : fields) {
                 currentElement = (VariableElement)element;
                 Content fieldDocTree = writer.getFieldDocTreeHeader(currentElement, fieldDetailsTree);
@@ -137,11 +137,10 @@ public class FieldBuilder extends AbstractMemberBuilder {
                 buildFieldComments(fieldDocTree);
                 buildTagInfo(fieldDocTree);
 
-                fieldDetailsTree.add(writer.getFieldDoc(
-                        fieldDocTree, currentElement == lastElement));
+                fieldDetailsTree.add(writer.getFieldDoc(fieldDocTree));
             }
             memberDetailsTree.add(
-                    writer.getFieldDetails(fieldDetailsTree));
+                    writer.getFieldDetails(fieldDetailsTreeHeader, fieldDetailsTree));
         }
     }
 

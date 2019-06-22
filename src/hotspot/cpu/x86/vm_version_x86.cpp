@@ -32,6 +32,7 @@
 #include "runtime/java.hpp"
 #include "runtime/os.hpp"
 #include "runtime/stubCodeGenerator.hpp"
+#include "utilities/virtualizationSupport.hpp"
 #include "vm_version_x86.hpp"
 
 
@@ -680,7 +681,7 @@ void VM_Version::get_processor_features() {
     _features &= ~CPU_HT;
   }
 
-  if( is_intel() ) { // Intel cpus specific settings
+  if (is_intel()) { // Intel cpus specific settings
     if (is_knights_family()) {
       _features &= ~CPU_VZEROUPPER;
     }
@@ -781,7 +782,7 @@ void VM_Version::get_processor_features() {
           FLAG_SET_DEFAULT(UseAESCTRIntrinsics, false);
         }
       } else {
-        if(supports_sse4_1()) {
+        if (supports_sse4_1()) {
           if (FLAG_IS_DEFAULT(UseAESCTRIntrinsics)) {
             FLAG_SET_DEFAULT(UseAESCTRIntrinsics, true);
           }
@@ -1001,7 +1002,7 @@ void VM_Version::get_processor_features() {
   } else if (UseAVX == 1 || UseAVX == 2) {
     // 32 bytes vectors (in YMM) are only supported with AVX+
     max_vector_size = 32;
-  } else if (UseAVX > 2 ) {
+  } else if (UseAVX > 2) {
     // 64 bytes vectors (in ZMM) are only supported with AVX 3
     max_vector_size = 64;
   }
@@ -1165,38 +1166,38 @@ void VM_Version::get_processor_features() {
     }
   }
 
-  if( is_amd() ) { // AMD cpus specific settings
-    if( supports_sse2() && FLAG_IS_DEFAULT(UseAddressNop) ) {
+  if (is_amd_family()) { // AMD cpus specific settings
+    if (supports_sse2() && FLAG_IS_DEFAULT(UseAddressNop)) {
       // Use it on new AMD cpus starting from Opteron.
       UseAddressNop = true;
     }
-    if( supports_sse2() && FLAG_IS_DEFAULT(UseNewLongLShift) ) {
+    if (supports_sse2() && FLAG_IS_DEFAULT(UseNewLongLShift)) {
       // Use it on new AMD cpus starting from Opteron.
       UseNewLongLShift = true;
     }
-    if( FLAG_IS_DEFAULT(UseXmmLoadAndClearUpper) ) {
+    if (FLAG_IS_DEFAULT(UseXmmLoadAndClearUpper)) {
       if (supports_sse4a()) {
         UseXmmLoadAndClearUpper = true; // use movsd only on '10h' Opteron
       } else {
         UseXmmLoadAndClearUpper = false;
       }
     }
-    if( FLAG_IS_DEFAULT(UseXmmRegToRegMoveAll) ) {
-      if( supports_sse4a() ) {
+    if (FLAG_IS_DEFAULT(UseXmmRegToRegMoveAll)) {
+      if (supports_sse4a()) {
         UseXmmRegToRegMoveAll = true; // use movaps, movapd only on '10h'
       } else {
         UseXmmRegToRegMoveAll = false;
       }
     }
-    if( FLAG_IS_DEFAULT(UseXmmI2F) ) {
-      if( supports_sse4a() ) {
+    if (FLAG_IS_DEFAULT(UseXmmI2F)) {
+      if (supports_sse4a()) {
         UseXmmI2F = true;
       } else {
         UseXmmI2F = false;
       }
     }
-    if( FLAG_IS_DEFAULT(UseXmmI2D) ) {
-      if( supports_sse4a() ) {
+    if (FLAG_IS_DEFAULT(UseXmmI2D)) {
+      if (supports_sse4a()) {
         UseXmmI2D = true;
       } else {
         UseXmmI2D = false;
@@ -1214,7 +1215,7 @@ void VM_Version::get_processor_features() {
     }
 
     // some defaults for AMD family 15h
-    if ( cpu_family() == 0x15 ) {
+    if (cpu_family() == 0x15) {
       // On family 15h processors default is no sw prefetch
       if (FLAG_IS_DEFAULT(AllocatePrefetchStyle)) {
         FLAG_SET_DEFAULT(AllocatePrefetchStyle, 0);
@@ -1239,8 +1240,8 @@ void VM_Version::get_processor_features() {
     }
 #endif // COMPILER2
 
-    // Some defaults for AMD family 17h
-    if ( cpu_family() == 0x17 ) {
+    // Some defaults for AMD family 17h || Hygon family 18h
+    if (cpu_family() == 0x17 || cpu_family() == 0x18) {
       // On family 17h processors use XMM and UnalignedLoadStores for Array Copy
       if (supports_sse2() && FLAG_IS_DEFAULT(UseXMMForArrayCopy)) {
         FLAG_SET_DEFAULT(UseXMMForArrayCopy, true);
@@ -1256,29 +1257,29 @@ void VM_Version::get_processor_features() {
     }
   }
 
-  if( is_intel() ) { // Intel cpus specific settings
-    if( FLAG_IS_DEFAULT(UseStoreImmI16) ) {
+  if (is_intel()) { // Intel cpus specific settings
+    if (FLAG_IS_DEFAULT(UseStoreImmI16)) {
       UseStoreImmI16 = false; // don't use it on Intel cpus
     }
-    if( cpu_family() == 6 || cpu_family() == 15 ) {
-      if( FLAG_IS_DEFAULT(UseAddressNop) ) {
+    if (cpu_family() == 6 || cpu_family() == 15) {
+      if (FLAG_IS_DEFAULT(UseAddressNop)) {
         // Use it on all Intel cpus starting from PentiumPro
         UseAddressNop = true;
       }
     }
-    if( FLAG_IS_DEFAULT(UseXmmLoadAndClearUpper) ) {
+    if (FLAG_IS_DEFAULT(UseXmmLoadAndClearUpper)) {
       UseXmmLoadAndClearUpper = true; // use movsd on all Intel cpus
     }
-    if( FLAG_IS_DEFAULT(UseXmmRegToRegMoveAll) ) {
-      if( supports_sse3() ) {
+    if (FLAG_IS_DEFAULT(UseXmmRegToRegMoveAll)) {
+      if (supports_sse3()) {
         UseXmmRegToRegMoveAll = true; // use movaps, movapd on new Intel cpus
       } else {
         UseXmmRegToRegMoveAll = false;
       }
     }
-    if( cpu_family() == 6 && supports_sse3() ) { // New Intel cpus
+    if (cpu_family() == 6 && supports_sse3()) { // New Intel cpus
 #ifdef COMPILER2
-      if( FLAG_IS_DEFAULT(MaxLoopPad) ) {
+      if (FLAG_IS_DEFAULT(MaxLoopPad)) {
         // For new Intel cpus do the next optimization:
         // don't align the beginning of a loop if there are enough instructions
         // left (NumberOfLoopInstrToAlign defined in c2_globals.hpp)
@@ -1324,7 +1325,7 @@ void VM_Version::get_processor_features() {
         FLAG_SET_DEFAULT(UseIncDec, false);
       }
     }
-    if(FLAG_IS_DEFAULT(AllocatePrefetchInstr) && supports_3dnow_prefetch()) {
+    if (FLAG_IS_DEFAULT(AllocatePrefetchInstr) && supports_3dnow_prefetch()) {
       FLAG_SET_DEFAULT(AllocatePrefetchInstr, 3);
     }
   }
@@ -1581,6 +1582,7 @@ void VM_Version::print_platform_virtualization_info(outputStream* st) {
     st->print_cr("KVM virtualization detected");
   } else if (vrt == VMWare) {
     st->print_cr("VMWare virtualization detected");
+    VirtualizationSupport::print_virtualization_info(st);
   } else if (vrt == HyperV) {
     st->print_cr("HyperV virtualization detected");
   }
@@ -1684,6 +1686,8 @@ void VM_Version::check_virtualizations() {
 
     if (strncmp("VMwareVMware", signature, 12) == 0) {
       Abstract_VM_Version::_detected_virtualization = VMWare;
+      // check for extended metrics from guestlib
+      VirtualizationSupport::initialize();
     }
 
     if (strncmp("Microsoft Hv", signature, 12) == 0) {

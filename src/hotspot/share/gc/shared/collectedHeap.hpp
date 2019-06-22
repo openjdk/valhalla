@@ -27,6 +27,7 @@
 
 #include "gc/shared/gcCause.hpp"
 #include "gc/shared/gcWhen.hpp"
+#include "gc/shared/verifyOption.hpp"
 #include "memory/allocation.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/perfData.hpp"
@@ -44,7 +45,6 @@
 
 class AdaptiveSizePolicy;
 class BarrierSet;
-class CollectorPolicy;
 class GCHeapSummary;
 class GCTimer;
 class GCTracer;
@@ -73,7 +73,7 @@ class GCHeapLog : public EventLogBase<GCMessage> {
   void log_heap(CollectedHeap* heap, bool before);
 
  public:
-  GCHeapLog() : EventLogBase<GCMessage>("GC Heap History") {}
+  GCHeapLog() : EventLogBase<GCMessage>("GC Heap History", "gc") {}
 
   void log_heap_before(CollectedHeap* heap) {
     log_heap(heap, true);
@@ -209,6 +209,9 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
   virtual size_t capacity() const = 0;
   virtual size_t used() const = 0;
+
+  // Returns unused capacity.
+  virtual size_t unused() const;
 
   // Return "true" if the part of the heap that allocates Java
   // objects has reached the maximal committed limit that it can
@@ -385,9 +388,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
   void increment_total_full_collections() { _total_full_collections++; }
 
-  // Return the CollectorPolicy for the heap
-  virtual CollectorPolicy* collector_policy() const = 0;
-
   // Return the SoftRefPolicy for the heap;
   virtual SoftRefPolicy* soft_ref_policy() = 0;
 
@@ -449,9 +449,8 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // Print heap information on the given outputStream.
   virtual void print_on(outputStream* st) const = 0;
   // The default behavior is to call print_on() on tty.
-  virtual void print() const {
-    print_on(tty);
-  }
+  virtual void print() const;
+
   // Print more detailed heap information on the given
   // outputStream. The default behavior is to call print_on(). It is
   // up to each subclass to override it and add any additional output
@@ -534,11 +533,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   virtual bool is_oop(oop object) const;
 
   virtual size_t obj_size(oop obj) const;
-
-  // Cells are memory slices allocated by the allocator. Objects are initialized
-  // in cells. The cell itself may have a header, found at a negative offset of
-  // oops. Usually, the size of the cell header is 0, but it may be larger.
-  virtual ptrdiff_t cell_header_size() const { return 0; }
 
   // Non product verification and debugging.
 #ifndef PRODUCT

@@ -35,6 +35,7 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
+#include "memory/universe.hpp"
 #include "nativeInst_s390.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "runtime/frame.inline.hpp"
@@ -78,6 +79,21 @@ int LIR_Assembler::check_icache() {
   int offset = __ offset();
   __ inline_cache_check(receiver, Z_inline_cache);
   return offset;
+}
+
+void LIR_Assembler::clinit_barrier(ciMethod* method) {
+  assert(!method->holder()->is_not_initialized(), "initialization should have been started");
+
+  Label L_skip_barrier;
+  Register klass = Z_R1_scratch;
+
+  metadata2reg(method->holder()->constant_encoding(), klass);
+  __ clinit_barrier(klass, Z_thread, &L_skip_barrier /*L_fast_path*/);
+
+  __ load_const_optimized(klass, SharedRuntime::get_handle_wrong_method_stub());
+  __ z_br(klass);
+
+  __ bind(L_skip_barrier);
 }
 
 void LIR_Assembler::osr_entry() {

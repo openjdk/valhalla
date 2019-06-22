@@ -56,6 +56,7 @@
 #include "logging/log.hpp"
 #include "memory/allocation.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
@@ -166,13 +167,13 @@ void G1CMMarkStack::add_chunk_to_list(TaskQueueEntryChunk* volatile* list, TaskQ
 }
 
 void G1CMMarkStack::add_chunk_to_chunk_list(TaskQueueEntryChunk* elem) {
-  MutexLockerEx x(MarkStackChunkList_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker x(MarkStackChunkList_lock, Mutex::_no_safepoint_check_flag);
   add_chunk_to_list(&_chunk_list, elem);
   _chunks_in_chunk_list++;
 }
 
 void G1CMMarkStack::add_chunk_to_free_list(TaskQueueEntryChunk* elem) {
-  MutexLockerEx x(MarkStackFreeList_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker x(MarkStackFreeList_lock, Mutex::_no_safepoint_check_flag);
   add_chunk_to_list(&_free_list, elem);
 }
 
@@ -185,7 +186,7 @@ G1CMMarkStack::TaskQueueEntryChunk* G1CMMarkStack::remove_chunk_from_list(TaskQu
 }
 
 G1CMMarkStack::TaskQueueEntryChunk* G1CMMarkStack::remove_chunk_from_chunk_list() {
-  MutexLockerEx x(MarkStackChunkList_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker x(MarkStackChunkList_lock, Mutex::_no_safepoint_check_flag);
   TaskQueueEntryChunk* result = remove_chunk_from_list(&_chunk_list);
   if (result != NULL) {
     _chunks_in_chunk_list--;
@@ -194,7 +195,7 @@ G1CMMarkStack::TaskQueueEntryChunk* G1CMMarkStack::remove_chunk_from_chunk_list(
 }
 
 G1CMMarkStack::TaskQueueEntryChunk* G1CMMarkStack::remove_chunk_from_free_list() {
-  MutexLockerEx x(MarkStackFreeList_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker x(MarkStackFreeList_lock, Mutex::_no_safepoint_check_flag);
   return remove_chunk_from_list(&_free_list);
 }
 
@@ -256,30 +257,38 @@ void G1CMMarkStack::set_empty() {
   _free_list = NULL;
 }
 
-G1CMRootRegions::G1CMRootRegions(uint const max_regions) :
-  _root_regions(NEW_C_HEAP_ARRAY(HeapRegion*, max_regions, mtGC)),
-  _max_regions(max_regions),
-  _num_root_regions(0),
-  _claimed_root_regions(0),
-  _scan_in_progress(false),
-  _should_abort(false) { }
-
-G1CMRootRegions::~G1CMRootRegions() {
-  FREE_C_HEAP_ARRAY(HeapRegion*, _max_regions);
+G1CMRootMemRegions::G1CMRootMemRegions(uint const max_regions) :
+    _root_regions(NULL),
+    _max_regions(max_regions),
+    _num_root_regions(0),
+    _claimed_root_regions(0),
+    _scan_in_progress(false),
+    _should_abort(false) {
+  _root_regions = new MemRegion[_max_regions];
+  if (_root_regions == NULL) {
+    vm_exit_during_initialization("Could not allocate root MemRegion set.");
+  }
 }
 
-void G1CMRootRegions::reset() {
+G1CMRootMemRegions::~G1CMRootMemRegions() {
+  delete[] _root_regions;
+}
+
+void G1CMRootMemRegions::reset() {
   _num_root_regions = 0;
 }
 
-void G1CMRootRegions::add(HeapRegion* hr) {
+void G1CMRootMemRegions::add(HeapWord* start, HeapWord* end) {
   assert_at_safepoint();
   size_t idx = Atomic::add((size_t)1, &_num_root_regions) - 1;
-  assert(idx < _max_regions, "Trying to add more root regions than there is space " SIZE_FORMAT, _max_regions);
-  _root_regions[idx] = hr;
+  assert(idx < _max_regions, "Trying to add more root MemRegions than there is space " SIZE_FORMAT, _max_regions);
+  assert(start != NULL && end != NULL && start <= end, "Start (" PTR_FORMAT ") should be less or equal to "
+         "end (" PTR_FORMAT ")", p2i(start), p2i(end));
+  _root_regions[idx].set_start(start);
+  _root_regions[idx].set_end(end);
 }
 
-void G1CMRootRegions::prepare_for_scan() {
+void G1CMRootMemRegions::prepare_for_scan() {
   assert(!scan_in_progress(), "pre-condition");
 
   _scan_in_progress = _num_root_regions > 0;
@@ -288,7 +297,7 @@ void G1CMRootRegions::prepare_for_scan() {
   _should_abort = false;
 }
 
-HeapRegion* G1CMRootRegions::claim_next() {
+const MemRegion* G1CMRootMemRegions::claim_next() {
   if (_should_abort) {
     // If someone has set the should_abort flag, we return NULL to
     // force the caller to bail out of their loop.
@@ -301,26 +310,26 @@ HeapRegion* G1CMRootRegions::claim_next() {
 
   size_t claimed_index = Atomic::add((size_t)1, &_claimed_root_regions) - 1;
   if (claimed_index < _num_root_regions) {
-    return _root_regions[claimed_index];
+    return &_root_regions[claimed_index];
   }
   return NULL;
 }
 
-uint G1CMRootRegions::num_root_regions() const {
+uint G1CMRootMemRegions::num_root_regions() const {
   return (uint)_num_root_regions;
 }
 
-void G1CMRootRegions::notify_scan_done() {
-  MutexLockerEx x(RootRegionScan_lock, Mutex::_no_safepoint_check_flag);
+void G1CMRootMemRegions::notify_scan_done() {
+  MutexLocker x(RootRegionScan_lock, Mutex::_no_safepoint_check_flag);
   _scan_in_progress = false;
   RootRegionScan_lock->notify_all();
 }
 
-void G1CMRootRegions::cancel_scan() {
+void G1CMRootMemRegions::cancel_scan() {
   notify_scan_done();
 }
 
-void G1CMRootRegions::scan_finished() {
+void G1CMRootMemRegions::scan_finished() {
   assert(scan_in_progress(), "pre-condition");
 
   if (!_should_abort) {
@@ -332,15 +341,15 @@ void G1CMRootRegions::scan_finished() {
   notify_scan_done();
 }
 
-bool G1CMRootRegions::wait_until_scan_finished() {
+bool G1CMRootMemRegions::wait_until_scan_finished() {
   if (!scan_in_progress()) {
     return false;
   }
 
   {
-    MutexLockerEx x(RootRegionScan_lock, Mutex::_no_safepoint_check_flag);
+    MonitorLocker ml(RootRegionScan_lock, Mutex::_no_safepoint_check_flag);
     while (scan_in_progress()) {
-      RootRegionScan_lock->wait(Mutex::_no_safepoint_check_flag);
+      ml.wait();
     }
   }
   return true;
@@ -424,7 +433,7 @@ G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap* g1h,
     // Calculate the number of concurrent worker threads by scaling
     // the number of parallel GC threads.
     uint marking_thread_num = scale_concurrent_worker_threads(ParallelGCThreads);
-    FLAG_SET_ERGO(uint, ConcGCThreads, marking_thread_num);
+    FLAG_SET_ERGO(ConcGCThreads, marking_thread_num);
   }
 
   assert(ConcGCThreads > 0, "ConcGCThreads have been set.");
@@ -455,7 +464,7 @@ G1ConcurrentMark::G1ConcurrentMark(G1CollectedHeap* g1h,
                       mark_stack_size, MarkStackSizeMax);
       return;
     }
-    FLAG_SET_ERGO(size_t, MarkStackSize, mark_stack_size);
+    FLAG_SET_ERGO(MarkStackSize, mark_stack_size);
   } else {
     // Verify MarkStackSize is in range.
     if (FLAG_IS_CMDLINE(MarkStackSize)) {
@@ -874,14 +883,21 @@ uint G1ConcurrentMark::calc_active_marking_workers() {
   return result;
 }
 
-void G1ConcurrentMark::scan_root_region(HeapRegion* hr, uint worker_id) {
-  assert(hr->is_old() || (hr->is_survivor() && hr->next_top_at_mark_start() == hr->bottom()),
-         "Root regions must be old or survivor but region %u is %s", hr->hrm_index(), hr->get_type_str());
+void G1ConcurrentMark::scan_root_region(const MemRegion* region, uint worker_id) {
+#ifdef ASSERT
+  HeapWord* last = region->last();
+  HeapRegion* hr = _g1h->heap_region_containing(last);
+  assert(hr->is_old() || hr->next_top_at_mark_start() == hr->bottom(),
+         "Root regions must be old or survivor/eden but region %u is %s", hr->hrm_index(), hr->get_type_str());
+  assert(hr->next_top_at_mark_start() == region->start(),
+         "MemRegion start should be equal to nTAMS");
+#endif
+
   G1RootRegionScanClosure cl(_g1h, this, worker_id);
 
   const uintx interval = PrefetchScanIntervalInBytes;
-  HeapWord* curr = hr->next_top_at_mark_start();
-  const HeapWord* end = hr->top();
+  HeapWord* curr = region->start();
+  const HeapWord* end = region->end();
   while (curr < end) {
     Prefetch::read(curr, interval);
     oop obj = oop(curr);
@@ -901,11 +917,11 @@ public:
     assert(Thread::current()->is_ConcurrentGC_thread(),
            "this should only be done by a conc GC thread");
 
-    G1CMRootRegions* root_regions = _cm->root_regions();
-    HeapRegion* hr = root_regions->claim_next();
-    while (hr != NULL) {
-      _cm->scan_root_region(hr, worker_id);
-      hr = root_regions->claim_next();
+    G1CMRootMemRegions* root_regions = _cm->root_regions();
+    const MemRegion* region = root_regions->claim_next();
+    while (region != NULL) {
+      _cm->scan_root_region(region, worker_id);
+      region = root_regions->claim_next();
     }
   }
 };
@@ -1288,7 +1304,7 @@ public:
     // Now update the old/humongous region sets
     _g1h->remove_from_old_sets(cl.old_regions_removed(), cl.humongous_regions_removed());
     {
-      MutexLockerEx x(ParGCRareEvent_lock, Mutex::_no_safepoint_check_flag);
+      MutexLocker x(ParGCRareEvent_lock, Mutex::_no_safepoint_check_flag);
       _g1h->decrement_summary_bytes(cl.freed_bytes());
 
       _cleanup_list->add_ordered(&local_cleanup_list);

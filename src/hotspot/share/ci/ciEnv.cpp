@@ -33,6 +33,7 @@
 #include "ci/ciNullObject.hpp"
 #include "ci/ciReplay.hpp"
 #include "ci/ciUtilities.inline.hpp"
+#include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
@@ -43,6 +44,7 @@
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "jfr/jfrEvents.hpp"
+#include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
@@ -404,8 +406,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
     // This is a name from a signature.  Strip off the trimmings.
     // Call recursive to keep scope of strippedsym.
     TempNewSymbol strippedsym = SymbolTable::new_symbol(sym->as_utf8()+1,
-                    sym->utf8_length()-2,
-                    KILL_COMPILE_ON_FATAL_(_unloaded_ciinstance_klass));
+                                                        sym->utf8_length()-2);
     ciSymbol* strippedname = get_symbol(strippedsym);
     return get_klass_by_name_impl(accessing_klass, cpool, strippedname, require_local);
   }
@@ -458,8 +459,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
     // We have an unloaded array.
     // Build it on the fly if the element class exists.
     TempNewSymbol elem_sym = SymbolTable::new_symbol(sym->as_utf8()+1,
-                                                 sym->utf8_length()-1,
-                                                 KILL_COMPILE_ON_FATAL_(fail_type));
+                                                     sym->utf8_length()-1);
 
     // Get element ciKlass recursively.
     ciKlass* elem_klass =
@@ -992,6 +992,11 @@ void ciEnv::register_method(ciMethod* target,
       record_failure("DTrace flags change invalidated dependencies");
     }
 
+    if (!failing() && target->needs_clinit_barrier() &&
+        target->holder()->is_in_error_state()) {
+      record_failure("method holder is in error state");
+    }
+
     if (!failing()) {
       if (log() != NULL) {
         // Log the dependencies which this compilation declares.
@@ -1072,25 +1077,23 @@ void ciEnv::register_method(ciMethod* target,
             old->make_not_used();
           }
         }
-        if (TraceNMethodInstalls) {
+
+        LogTarget(Info, nmethod, install) lt;
+        if (lt.is_enabled()) {
           ResourceMark rm;
           char *method_name = method->name_and_sig_as_C_string();
-          ttyLocker ttyl;
-          tty->print_cr("Installing method (%d) %s ",
-                        task()->comp_level(),
-                        method_name);
+          lt.print("Installing method (%d) %s ",
+                    task()->comp_level(), method_name);
         }
         // Allow the code to be executed
         method->set_code(method, nm);
       } else {
-        if (TraceNMethodInstalls) {
+        LogTarget(Info, nmethod, install) lt;
+        if (lt.is_enabled()) {
           ResourceMark rm;
           char *method_name = method->name_and_sig_as_C_string();
-          ttyLocker ttyl;
-          tty->print_cr("Installing osr method (%d) %s @ %d",
-                        task()->comp_level(),
-                        method_name,
-                        entry_bci);
+          lt.print("Installing osr method (%d) %s @ %d",
+                    task()->comp_level(), method_name, entry_bci);
         }
         method->method_holder()->add_osr_nmethod(nm);
       }

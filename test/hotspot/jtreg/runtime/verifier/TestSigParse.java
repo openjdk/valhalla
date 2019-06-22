@@ -27,7 +27,7 @@
  * @summary Test that signatures are properly parsed when verification of local
  *          classes is requested but verification of remote classes is not.
  * @compile BadSignatures.jcod
- * @run main/othervm -XX:+BytecodeVerificationLocal -XX:-BytecodeVerificationRemote TestSigParse
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+BytecodeVerificationLocal -XX:-BytecodeVerificationRemote TestSigParse
  */
 
 public class TestSigParse {
@@ -63,7 +63,7 @@ public class TestSigParse {
             throw new RuntimeException("Expected ClasFormatError exception not thrown");
         } catch (java.lang.ClassFormatError e) {
             String eMsg = e.getMessage();
-            if (!eMsg.contains("Class name contains illegal character")) {
+            if (!eMsg.contains("Class name is empty or contains illegal character")) {
                 throw new RuntimeException("Unexpected exception: " + eMsg);
             }
         }

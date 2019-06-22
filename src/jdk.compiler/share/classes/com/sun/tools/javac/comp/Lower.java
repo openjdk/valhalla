@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -93,7 +93,6 @@ public class Lower extends TreeTranslator {
     private final Attr attr;
     private TreeMaker make;
     private DiagnosticPosition make_pos;
-    private final ClassWriter writer;
     private final ConstFold cfolder;
     private final Target target;
     private final Source source;
@@ -116,7 +115,6 @@ public class Lower extends TreeTranslator {
         chk = Check.instance(context);
         attr = Attr.instance(context);
         make = TreeMaker.instance(context);
-        writer = ClassWriter.instance(context);
         cfolder = ConstFold.instance(context);
         target = Target.instance(context);
         source = Source.instance(context);
@@ -274,9 +272,8 @@ public class Lower extends TreeTranslator {
         }
 
         @Override
-        public void visitBreak(JCBreak tree) {
-            if (tree.isValueBreak())
-                scan(tree.value);
+        public void visitYield(JCYield tree) {
+            scan(tree.value);
         }
 
     }
@@ -475,7 +472,7 @@ public class Lower extends TreeTranslator {
                 .fromString(target.syntheticNameChar() +
                             "SwitchMap" +
                             target.syntheticNameChar() +
-                            writer.xClassName(forEnum.type).toString()
+                            names.fromUtf(ClassWriter.externalize(forEnum.type.tsym.flatName())).toString()
                             .replace('/', '.')
                             .replace('.', target.syntheticNameChar()));
             ClassSymbol outerCacheClass = outerCacheClass();
@@ -1889,7 +1886,7 @@ public class Lower extends TreeTranslator {
             ClassSymbol c = types.boxedClass(type);
             Symbol typeSym =
                 rs.accessBase(
-                    rs.findIdentInType(attrEnv, c.type, names.TYPE, KindSelector.VAR),
+                    rs.findIdentInType(pos, attrEnv, c.type, names.TYPE, KindSelector.VAR),
                     pos, c.type, names.TYPE, true);
             if (typeSym.kind == VAR)
                 ((VarSymbol)typeSym).getConstValue(); // ensure initializer is evaluated
@@ -3226,6 +3223,11 @@ public class Lower extends TreeTranslator {
                     if (tree.target == src)
                         tree.target = dest;
                 }
+                public void visitYield(JCYield tree) {
+                    if (tree.target == src)
+                        tree.target = dest;
+                    scan(tree.value);
+                }
                 public void visitContinue(JCContinue tree) {
                     if (tree.target == src)
                         tree.target = dest;
@@ -3678,9 +3680,12 @@ public class Lower extends TreeTranslator {
 
     @Override
     public void visitBreak(JCBreak tree) {
-        if (tree.isValueBreak()) {
-            tree.value = translate(tree.value, tree.target.type);
-        }
+        result = tree;
+    }
+
+    @Override
+    public void visitYield(JCYield tree) {
+        tree.value = translate(tree.value, tree.target.type);
         result = tree;
     }
 

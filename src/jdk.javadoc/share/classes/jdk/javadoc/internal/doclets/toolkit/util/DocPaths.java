@@ -39,14 +39,12 @@ import javax.lang.model.element.TypeElement;
  *
  */
 public class DocPaths {
-    private final boolean useModuleDirectories;
     private final String moduleSeparator;
     private final Utils utils;
 
-    public DocPaths(Utils utils, boolean useModuleDirectories) {
+    public DocPaths(Utils utils) {
         this.utils = utils;
-        this.useModuleDirectories = useModuleDirectories;
-        moduleSeparator = useModuleDirectories ? "/module-" : "-";
+        moduleSeparator = "/module-";
     }
 
     public static final DocPath DOT_DOT = DocPath.create("..");
@@ -100,16 +98,13 @@ public class DocPaths {
     public static final DocPath JAVASCRIPT = DocPath.create("script.js");
 
     /** The name of the directory for the jQuery. */
-    public static final DocPath JQUERY_FILES = DocPath.create("jquery");
+    public static final DocPath JQUERY_FILES = DocPath.create("script-dir");
 
     /** The name of the default jQuery stylesheet file. */
     public static final DocPath JQUERY_STYLESHEET_FILE = DocPath.create("jquery-ui.css");
 
     /** The name of the default jQuery javascript file. */
-    public static final DocPath JQUERY_JS_3_3 = DocPath.create("jquery-3.3.1.js");
-
-    /** The name of jquery-migrate javascript file. */
-    public static final DocPath JQUERY_MIGRATE = DocPath.create("jquery-migrate-3.0.1.js");
+    public static final DocPath JQUERY_JS_3_4 = DocPath.create("jquery-3.4.1.js");
 
     /** The name of the default jQuery javascript file. */
     public static final DocPath JQUERY_JS = DocPath.create("jquery-ui.js");
@@ -239,12 +234,8 @@ public class DocPaths {
         }
 
         DocPath pkgPath = DocPath.create(pkgElement.getQualifiedName().toString().replace('.', '/'));
-        if (useModuleDirectories) {
-            ModuleElement mdle = (ModuleElement) pkgElement.getEnclosingElement();
-            return forModule(mdle).resolve(pkgPath);
-        } else {
-            return pkgPath;
-        }
+        ModuleElement mdle = (ModuleElement) pkgElement.getEnclosingElement();
+        return forModule(mdle).resolve(pkgPath);
     }
 
     /**

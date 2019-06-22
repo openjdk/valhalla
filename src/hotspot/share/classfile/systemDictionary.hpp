@@ -26,7 +26,6 @@
 #define SHARE_CLASSFILE_SYSTEMDICTIONARY_HPP
 
 #include "classfile/classLoaderData.hpp"
-#include "jvmci/systemDictionary_jvmci.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/java.hpp"
@@ -74,6 +73,7 @@
 // of placeholders must hold the SystemDictionary_lock.
 //
 
+class BootstrapInfo;
 class ClassFileStream;
 class Dictionary;
 class PlaceholderTable;
@@ -214,13 +214,14 @@ class OopStorage;
   do_klass(Integer_klass,                               java_lang_Integer                                     ) \
   do_klass(Long_klass,                                  java_lang_Long                                        ) \
                                                                                                                 \
-  /* JVMCI classes. These are loaded on-demand. */                                                              \
-  JVMCI_WK_KLASSES_DO(do_klass)                                                                                 \
+  /* force inline of iterators */                                                                               \
+  do_klass(Iterator_klass,                              java_util_Iterator                                    ) \
                                                                                                                 \
   /*end*/
 
 
 class SystemDictionary : AllStatic {
+  friend class BootstrapInfo;
   friend class VMStructs;
   friend class SystemDictionaryHandles;
 
@@ -233,11 +234,6 @@ class SystemDictionary : AllStatic {
     #undef WK_KLASS_ENUM
 
     WKID_LIMIT,
-
-#if INCLUDE_JVMCI
-    FIRST_JVMCI_WKID = WK_KLASS_ENUM_NAME(JVMCI_klass),
-    LAST_JVMCI_WKID  = WK_KLASS_ENUM_NAME(Value_klass),
-#endif
 
     FIRST_WKID = NO_WKID + 1
   };
@@ -374,7 +370,7 @@ public:
 
 public:
   // Printing
-  static void print() { return print_on(tty); }
+  static void print();
   static void print_on(outputStream* st);
   static void dump(outputStream* st, bool verbose);
 
@@ -543,21 +539,7 @@ public:
                                                TRAPS);
 
   // ask Java to compute a constant by invoking a BSM given a Dynamic_info CP entry
-  static Handle    link_dynamic_constant(Klass* caller,
-                                         int condy_index,
-                                         Handle bootstrap_specifier,
-                                         Symbol* name,
-                                         Symbol* type,
-                                         TRAPS);
-
-  // ask Java to create a dynamic call site, while linking an invokedynamic op
-  static methodHandle find_dynamic_call_site_invoker(Klass* caller,
-                                                     int indy_index,
-                                                     Handle bootstrap_method,
-                                                     Symbol* name,
-                                                     Symbol* type,
-                                                     Handle *appendix_result,
-                                                     TRAPS);
+  static void      invoke_bootstrap_method(BootstrapInfo& bootstrap_specifier, TRAPS);
 
   // Record the error when the first attempt to resolve a reference from a constant
   // pool entry to a class fails.
@@ -714,6 +696,11 @@ private:
   static oop  _java_platform_loader;
 
   static bool _has_checkPackageAccess;
+
+public:
+  static TableStatistics placeholders_statistics();
+  static TableStatistics loader_constraints_statistics();
+  static TableStatistics protection_domain_cache_statistics();
 };
 
 #endif // SHARE_CLASSFILE_SYSTEMDICTIONARY_HPP

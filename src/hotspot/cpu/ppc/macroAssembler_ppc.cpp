@@ -2011,6 +2011,35 @@ void MacroAssembler::check_klass_subtype(Register sub_klass,
   bind(L_failure); // Fallthru if not successful.
 }
 
+void MacroAssembler::clinit_barrier(Register klass, Register thread, Label* L_fast_path, Label* L_slow_path) {
+  assert(L_fast_path != NULL || L_slow_path != NULL, "at least one is required");
+
+  Label L_fallthrough;
+  if (L_fast_path == NULL) {
+    L_fast_path = &L_fallthrough;
+  } else if (L_slow_path == NULL) {
+    L_slow_path = &L_fallthrough;
+  }
+
+  // Fast path check: class is fully initialized
+  lbz(R0, in_bytes(InstanceKlass::init_state_offset()), klass);
+  cmpwi(CCR0, R0, InstanceKlass::fully_initialized);
+  beq(CCR0, *L_fast_path);
+
+  // Fast path check: current thread is initializer thread
+  ld(R0, in_bytes(InstanceKlass::init_thread_offset()), klass);
+  cmpd(CCR0, thread, R0);
+  if (L_slow_path == &L_fallthrough) {
+    beq(CCR0, *L_fast_path);
+  } else if (L_fast_path == &L_fallthrough) {
+    bne(CCR0, *L_slow_path);
+  } else {
+    Unimplemented();
+  }
+
+  bind(L_fallthrough);
+}
+
 void MacroAssembler::check_method_handle_type(Register mtype_reg, Register mh_reg,
                                               Register temp_reg,
                                               Label& wrong_method_type) {
@@ -3119,13 +3148,13 @@ void MacroAssembler::get_vm_result_2(Register metadata_result) {
 
 Register MacroAssembler::encode_klass_not_null(Register dst, Register src) {
   Register current = (src != noreg) ? src : dst; // Klass is in dst if no src provided.
-  if (Universe::narrow_klass_base() != 0) {
+  if (CompressedKlassPointers::base() != 0) {
     // Use dst as temp if it is free.
-    sub_const_optimized(dst, current, Universe::narrow_klass_base(), R0);
+    sub_const_optimized(dst, current, CompressedKlassPointers::base(), R0);
     current = dst;
   }
-  if (Universe::narrow_klass_shift() != 0) {
-    srdi(dst, current, Universe::narrow_klass_shift());
+  if (CompressedKlassPointers::shift() != 0) {
+    srdi(dst, current, CompressedKlassPointers::shift());
     current = dst;
   }
   return current;
@@ -3153,7 +3182,7 @@ void MacroAssembler::store_klass_gap(Register dst_oop, Register val) {
 int MacroAssembler::instr_size_for_decode_klass_not_null() {
   if (!UseCompressedClassPointers) return 0;
   int num_instrs = 1;  // shift or move
-  if (Universe::narrow_klass_base() != 0) num_instrs = 7;  // shift + load const + add
+  if (CompressedKlassPointers::base() != 0) num_instrs = 7;  // shift + load const + add
   return num_instrs * BytesPerInstWord;
 }
 
@@ -3161,13 +3190,13 @@ void MacroAssembler::decode_klass_not_null(Register dst, Register src) {
   assert(dst != R0, "Dst reg may not be R0, as R0 is used here.");
   if (src == noreg) src = dst;
   Register shifted_src = src;
-  if (Universe::narrow_klass_shift() != 0 ||
-      Universe::narrow_klass_base() == 0 && src != dst) {  // Move required.
+  if (CompressedKlassPointers::shift() != 0 ||
+      CompressedKlassPointers::base() == 0 && src != dst) {  // Move required.
     shifted_src = dst;
-    sldi(shifted_src, src, Universe::narrow_klass_shift());
+    sldi(shifted_src, src, CompressedKlassPointers::shift());
   }
-  if (Universe::narrow_klass_base() != 0) {
-    add_const_optimized(dst, shifted_src, Universe::narrow_klass_base(), R0);
+  if (CompressedKlassPointers::base() != 0) {
+    add_const_optimized(dst, shifted_src, CompressedKlassPointers::base(), R0);
   }
 }
 
@@ -3192,6 +3221,12 @@ void MacroAssembler::load_mirror_from_const_method(Register mirror, Register con
   ld(mirror, ConstantPool::pool_holder_offset_in_bytes(), mirror);
   ld(mirror, in_bytes(Klass::java_mirror_offset()), mirror);
   resolve_oop_handle(mirror);
+}
+
+void MacroAssembler::load_method_holder(Register holder, Register method) {
+  ld(holder, in_bytes(Method::const_offset()), method);
+  ld(holder, in_bytes(ConstMethod::constants_offset()), holder);
+  ld(holder, ConstantPool::pool_holder_offset_in_bytes(), holder);
 }
 
 // Clear Array

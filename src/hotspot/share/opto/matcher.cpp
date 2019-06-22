@@ -27,6 +27,7 @@
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/compressedOops.hpp"
 #include "opto/ad.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
@@ -2065,6 +2066,12 @@ void Matcher::find_shared( Node *n ) {
         // Node is shared and has no reason to clone.  Flag it as shared.
         // This causes it to match into a register for the sharing.
         set_shared(n);       // Flag as shared and
+        if (n->is_DecodeNarrowPtr()) {
+          // Oop field/array element loads must be shared but since
+          // they are shared through a DecodeN they may appear to have
+          // a single use so force sharing here.
+          set_shared(n->in(1));
+        }
         mstack.pop();        // remove node from stack
         continue;
       }
@@ -2095,13 +2102,6 @@ void Matcher::find_shared( Node *n ) {
         if( _must_clone[mop] ) {
           mstack.push(m, Visit);
           continue; // for(int i = ...)
-        }
-
-        if( mop == Op_AddP && m->in(AddPNode::Base)->is_DecodeNarrowPtr()) {
-          // Bases used in addresses must be shared but since
-          // they are shared through a DecodeN they may appear
-          // to have a single use so force sharing here.
-          set_shared(m->in(AddPNode::Base)->in(1));
         }
 
         // if 'n' and 'm' are part of a graph for BMI instruction, clone this node.
@@ -2480,6 +2480,19 @@ void Matcher::validate_null_checks( ) {
       i-=2;
     }
   }
+}
+
+bool Matcher::gen_narrow_oop_implicit_null_checks() {
+  // Advice matcher to perform null checks on the narrow oop side.
+  // Implicit checks are not possible on the uncompressed oop side anyway
+  // (at least not for read accesses).
+  // Performs significantly better (especially on Power 6).
+  if (!os::zero_page_read_protected()) {
+    return true;
+  }
+  return CompressedOops::use_implicit_null_checks() &&
+         (narrow_oop_use_complex_address() ||
+          CompressedOops::base() != NULL);
 }
 
 // Used by the DFA in dfa_xxx.cpp.  Check for a following barrier or

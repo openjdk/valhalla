@@ -137,6 +137,12 @@ class ThreadInVMForHandshake : public ThreadStateTransition {
     SafepointMechanism::block_if_requested(_thread);
 
     _thread->set_thread_state(_original_state);
+
+    if (_original_state != _thread_blocked_trans &&  _original_state != _thread_in_vm_trans &&
+        _thread->has_special_runtime_exit_condition()) {
+      _thread->handle_special_runtime_exit_condition(
+          !_thread->is_at_poll_safepoint() && (_original_state != _thread_in_native_trans));
+    }
   }
 
  public:
@@ -421,30 +427,6 @@ class RuntimeHistogramElement : public HistogramElement {
   os::verify_stack_alignment();                                      \
   /* begin of body */
 
-
-// Definitions for IRT (Interpreter Runtime)
-// (thread is an argument passed in to all these routines)
-
-#define IRT_ENTRY(result_type, header)                               \
-  result_type header {                                               \
-    ThreadInVMfromJava __tiv(thread);                                \
-    VM_ENTRY_BASE(result_type, header, thread)                       \
-    debug_only(VMEntryWrapper __vew;)
-
-
-#define IRT_LEAF(result_type, header)                                \
-  result_type header {                                               \
-    VM_LEAF_BASE(result_type, header)                                \
-    debug_only(NoSafepointVerifier __nspv(true);)
-
-
-#define IRT_ENTRY_NO_ASYNC(result_type, header)                      \
-  result_type header {                                               \
-    ThreadInVMfromJavaNoAsyncException __tiv(thread);                \
-    VM_ENTRY_BASE(result_type, header, thread)                       \
-    debug_only(VMEntryWrapper __vew;)
-
-#define IRT_END }
 
 #define JRT_ENTRY(result_type, header)                               \
   result_type header {                                               \

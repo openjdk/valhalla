@@ -135,10 +135,10 @@ public class ConstructorBuilder extends AbstractMemberBuilder {
             return;
         }
         if (hasMembersToDocument()) {
-            Content constructorDetailsTree = writer.getConstructorDetailsTreeHeader(typeElement,
+            Content constructorDetailsTreeHeader = writer.getConstructorDetailsTreeHeader(typeElement,
                     memberDetailsTree);
+            Content constructorDetailsTree = writer.getMemberTreeHeader();
 
-            Element lastElement = constructors.get(constructors.size() - 1);
             for (Element contructor : constructors) {
                 currentConstructor = (ExecutableElement)contructor;
                 Content constructorDocTree = writer.getConstructorDocTreeHeader(currentConstructor, constructorDetailsTree);
@@ -148,11 +148,10 @@ public class ConstructorBuilder extends AbstractMemberBuilder {
                 buildConstructorComments(constructorDocTree);
                 buildTagInfo(constructorDocTree);
 
-                constructorDetailsTree.add(writer.getConstructorDoc(constructorDocTree,
-                        currentConstructor == lastElement));
+                constructorDetailsTree.add(writer.getConstructorDoc(constructorDocTree));
             }
             memberDetailsTree.add(
-                    writer.getConstructorDetails(constructorDetailsTree));
+                    writer.getConstructorDetails(constructorDetailsTreeHeader, constructorDetailsTree));
         }
     }
 

@@ -32,6 +32,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.channels.ServerSocketChannel;
 import java.security.AccessController;
 import java.security.PrivilegedExceptionAction;
+import java.util.Objects;
 import java.util.Set;
 import java.util.Collections;
 
@@ -72,11 +73,6 @@ class ServerSocket implements java.io.Closeable {
     private SocketImpl impl;
 
     /**
-     * Are we using an older SocketImpl?
-     */
-    private boolean oldImpl = false;
-
-    /**
      * Creates a server socket with a user-specified {@code SocketImpl}.
      *
      * @param      impl an instance of a SocketImpl to use on the ServerSocket.
@@ -86,8 +82,8 @@ class ServerSocket implements java.io.Closeable {
      * @since 12
      */
     protected ServerSocket(SocketImpl impl) {
+        Objects.requireNonNull(impl);
         this.impl = impl;
-        impl.setServerSocket(this);
     }
 
     /**
@@ -110,9 +106,10 @@ class ServerSocket implements java.io.Closeable {
      * request to connect) is set to {@code 50}. If a connection
      * indication arrives when the queue is full, the connection is refused.
      * <p>
-     * If the application has specified a server socket factory, that
-     * factory's {@code createSocketImpl} method is called to create
-     * the actual socket implementation. Otherwise a "plain" socket is created.
+     * If the application has specified a server socket implementation
+     * factory, that factory's {@code createSocketImpl} method is called to
+     * create the actual socket implementation. Otherwise a system-default
+     * socket implementation is created.
      * <p>
      * If there is a security manager,
      * its {@code checkListen} method is called
@@ -154,9 +151,10 @@ class ServerSocket implements java.io.Closeable {
      * a connection indication arrives when the queue is full, the
      * connection is refused.
      * <p>
-     * If the application has specified a server socket factory, that
-     * factory's {@code createSocketImpl} method is called to create
-     * the actual socket implementation. Otherwise a "plain" socket is created.
+     * If the application has specified a server socket implementation
+     * factory, that factory's {@code createSocketImpl} method is called to
+     * create the actual socket implementation. Otherwise a system-default
+     * socket implementation is created.
      * <p>
      * If there is a security manager,
      * its {@code checkListen} method is called
@@ -270,36 +268,13 @@ class ServerSocket implements java.io.Closeable {
         return impl;
     }
 
-    private void checkOldImpl() {
-        if (impl == null)
-            return;
-        // SocketImpl.connect() is a protected method, therefore we need to use
-        // getDeclaredMethod, therefore we need permission to access the member
-        try {
-            AccessController.doPrivileged(
-                new PrivilegedExceptionAction<Void>() {
-                    public Void run() throws NoSuchMethodException {
-                        impl.getClass().getDeclaredMethod("connect",
-                                                          SocketAddress.class,
-                                                          int.class);
-                        return null;
-                    }
-                });
-        } catch (java.security.PrivilegedActionException e) {
-            oldImpl = true;
-        }
-    }
-
     private void setImpl() {
         SocketImplFactory factory = ServerSocket.factory;
         if (factory != null) {
             impl = factory.createSocketImpl();
-            checkOldImpl();
         } else {
             impl = SocketImpl.createPlatformSocketImpl(true);
         }
-        if (impl != null)
-            impl.setServerSocket(this);
     }
 
     /**
@@ -368,7 +343,7 @@ class ServerSocket implements java.io.Closeable {
     public void bind(SocketAddress endpoint, int backlog) throws IOException {
         if (isClosed())
             throw new SocketException("Socket is closed");
-        if (!oldImpl && isBound())
+        if (isBound())
             throw new SocketException("Already bound");
         if (endpoint == null)
             endpoint = new InetSocketAddress(0);
@@ -499,6 +474,12 @@ class ServerSocket implements java.io.Closeable {
      * as its arguments to ensure the operation is allowed.
      * This could result in a SecurityException.
      *
+     * @implNote
+     * An instance of this class using a system-default {@code SocketImpl}
+     * accepts sockets with a {@code SocketImpl} of the same type, regardless
+     * of the {@linkplain Socket#setSocketImplFactory(SocketImplFactory)
+     * client socket implementation factory}, if one has been set.
+     *
      * @exception  IOException  if an I/O error occurs when waiting for a
      *               connection.
      * @exception  SecurityException  if a security manager exists and its
@@ -528,15 +509,33 @@ class ServerSocket implements java.io.Closeable {
     /**
      * Subclasses of ServerSocket use this method to override accept()
      * to return their own subclass of socket.  So a FooServerSocket
-     * will typically hand this method an <i>empty</i> FooSocket.  On
-     * return from implAccept the FooSocket will be connected to a client.
+     * will typically hand this method a newly created, unbound, FooSocket.
+     * On return from implAccept the FooSocket will be connected to a client.
+     *
+     * <p> The behavior of this method is unspecified when invoked with a
+     * socket that is not newly created and unbound. Any socket options set
+     * on the given socket prior to invoking this method may or may not be
+     * preserved when the connection is accepted. It may not be possible to
+     * accept a connection when this socket has a {@code SocketImpl} of one
+     * type and the given socket has a {@code SocketImpl} of a completely
+     * different type.
+     *
+     * @implNote
+     * An instance of this class using a system-default {@code SocketImpl}
+     * can accept a connection with a Socket using a {@code SocketImpl} of
+     * the same type: {@code IOException} is thrown if the Socket is using
+     * a custom {@code SocketImpl}. An instance of this class using a
+     * custom {@code SocketImpl} cannot accept a connection with a Socket
+     * using a system-default {@code SocketImpl}.
      *
      * @param s the Socket
      * @throws java.nio.channels.IllegalBlockingModeException
      *         if this socket has an associated channel,
      *         and the channel is in non-blocking mode
      * @throws IOException if an I/O error occurs when waiting
-     * for a connection.
+     *         for a connection, or if it is not possible for this socket
+     *         to accept a connection with the given socket
+     *
      * @since   1.1
      * @revised 1.4
      * @spec JSR-51
@@ -722,8 +721,7 @@ class ServerSocket implements java.io.Closeable {
      * @since 1.4
      */
     public boolean isBound() {
-        // Before 1.3 ServerSockets were always bound during creation
-        return bound || oldImpl;
+        return bound;
     }
 
     /**
@@ -845,7 +843,8 @@ class ServerSocket implements java.io.Closeable {
      * Returns the implementation address and implementation port of
      * this socket as a {@code String}.
      * <p>
-     * If there is a security manager set, its {@code checkConnect} method is
+     * If there is a security manager set, and this socket is
+     * {@linkplain #isBound bound}, its {@code checkConnect} method is
      * called with the local address and {@code -1} as its arguments to see
      * if the operation is allowed. If the operation is not allowed,
      * an {@code InetAddress} representing the
@@ -859,19 +858,11 @@ class ServerSocket implements java.io.Closeable {
             return "ServerSocket[unbound]";
         InetAddress in;
         if (System.getSecurityManager() != null)
-            in = InetAddress.getLoopbackAddress();
+            in = getInetAddress();
         else
             in = impl.getInetAddress();
         return "ServerSocket[addr=" + in +
                 ",localport=" + impl.getLocalPort()  + "]";
-    }
-
-    void setBound() {
-        bound = true;
-    }
-
-    void setCreated() {
-        created = true;
     }
 
     /**
@@ -1061,6 +1052,9 @@ class ServerSocket implements java.io.Closeable {
     public <T> ServerSocket setOption(SocketOption<T> name, T value)
         throws IOException
     {
+        Objects.requireNonNull(name);
+        if (isClosed())
+            throw new SocketException("Socket is closed");
         getImpl().setOption(name, value);
         return this;
     }
@@ -1089,6 +1083,9 @@ class ServerSocket implements java.io.Closeable {
      * @since 9
      */
     public <T> T getOption(SocketOption<T> name) throws IOException {
+        Objects.requireNonNull(name);
+        if (isClosed())
+            throw new SocketException("Socket is closed");
         return getImpl().getOption(name);
     }
 

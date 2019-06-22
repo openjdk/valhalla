@@ -341,7 +341,7 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
 
   # Only enable Shenandoah on supported arches
   AC_MSG_CHECKING([if shenandoah can be built])
-  if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
+  if test "x$OPENJDK_TARGET_CPU_ARCH" = "xx86" || test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
     AC_MSG_RESULT([yes])
   else
     DISABLED_JVM_FEATURES="$DISABLED_JVM_FEATURES shenandoahgc"
@@ -350,7 +350,8 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
 
   # Only enable ZGC on supported platforms
   AC_MSG_CHECKING([if zgc can be built])
-  if test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = "xx86_64"; then
+  if (test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = "xx86_64") || \
+     (test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = "xaarch64"); then
     AC_MSG_RESULT([yes])
   else
     DISABLED_JVM_FEATURES="$DISABLED_JVM_FEATURES zgc"
@@ -392,9 +393,8 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
     JVM_FEATURES_jvmci=""
     INCLUDE_JVMCI="false"
   else
-    # Only enable jvmci on x86_64, sparcv9 and aarch64
+    # Only enable jvmci on x86_64 and aarch64
     if test "x$OPENJDK_TARGET_CPU" = "xx86_64" || \
-       test "x$OPENJDK_TARGET_CPU" = "xsparcv9" || \
        test "x$OPENJDK_TARGET_CPU" = "xaarch64" ; then
       AC_MSG_RESULT([yes])
       JVM_FEATURES_jvmci="jvmci"

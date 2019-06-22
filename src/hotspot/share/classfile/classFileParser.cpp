@@ -125,8 +125,11 @@
 
 #define JAVA_13_VERSION                   57
 
+#define JAVA_14_VERSION                   58
+
 void ClassFileParser::set_class_bad_constant_seen(short bad_constant) {
-  assert((bad_constant == 19 || bad_constant == 20) && _major_version >= JAVA_9_VERSION,
+  assert((bad_constant == JVM_CONSTANT_Module ||
+          bad_constant == JVM_CONSTANT_Package) && _major_version >= JAVA_9_VERSION,
          "Unexpected bad constant pool entry");
   if (_bad_constant_seen == 0) _bad_constant_seen = bad_constant;
 }
@@ -334,8 +337,7 @@ void ClassFileParser::parse_constant_pool_entries(const ClassFileStream* const s
                                      names,
                                      lengths,
                                      indices,
-                                     hashValues,
-                                     CHECK);
+                                     hashValues);
             names_count = 0;
           }
         } else {
@@ -343,8 +345,8 @@ void ClassFileParser::parse_constant_pool_entries(const ClassFileStream* const s
         }
         break;
       }
-      case 19:
-      case 20: {
+      case JVM_CONSTANT_Module:
+      case JVM_CONSTANT_Package: {
         // Record that an error occurred in these two cases but keep parsing so
         // that ACC_Module can be checked for in the access_flags.  Need to
         // throw NoClassDefFoundError in that case.
@@ -372,8 +374,7 @@ void ClassFileParser::parse_constant_pool_entries(const ClassFileStream* const s
                              names,
                              lengths,
                              indices,
-                             hashValues,
-                             CHECK);
+                             hashValues);
   }
 
   // Copy _current pointer of local copy back to stream.
@@ -822,7 +823,7 @@ void ClassFileParser::patch_constant_pool(ConstantPool* cp,
         guarantee_property(java_lang_String::is_instance(patch()),
                            "Illegal class patch at %d in class file %s",
                            index, CHECK);
-        Symbol* const name = java_lang_String::as_symbol(patch(), CHECK);
+        Symbol* const name = java_lang_String::as_symbol(patch());
         patch_class(cp, index, NULL, name);
       }
       break;
@@ -4761,60 +4762,62 @@ static bool has_illegal_visibility(jint flags) {
 
 // A legal major_version.minor_version must be one of the following:
 //
-//   Major_version = 45, any minor_version.
-//   Major_version >= 46 and major_version <= current_major_version and minor_version = 0.
-//   Major_version = current_major_version and minor_version = 65535 and --enable-preview is present.
+//  Major_version >= 45 and major_version < 56, any minor_version.
+//  Major_version >= 56 and major_version <= JVM_CLASSFILE_MAJOR_VERSION and minor_version = 0.
+//  Major_version = JVM_CLASSFILE_MAJOR_VERSION and minor_version = 65535 and --enable-preview is present.
 //
 static void verify_class_version(u2 major, u2 minor, Symbol* class_name, TRAPS){
+  ResourceMark rm(THREAD);
   const u2 max_version = JVM_CLASSFILE_MAJOR_VERSION;
-  if (major != JAVA_MIN_SUPPORTED_VERSION) { // All 45.* are ok including 45.65535
-    if (minor == JAVA_PREVIEW_MINOR_VERSION) {
-      if (major != max_version) {
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-          THREAD_AND_LOCATION,
-          vmSymbols::java_lang_UnsupportedClassVersionError(),
-          "%s (class file version %u.%u) was compiled with preview features that are unsupported. "
-          "This version of the Java Runtime only recognizes preview features for class file version %u.%u",
-          class_name->as_C_string(), major, minor, JVM_CLASSFILE_MAJOR_VERSION, JAVA_PREVIEW_MINOR_VERSION);
-        return;
-      }
+  if (major < JAVA_MIN_SUPPORTED_VERSION) {
+    Exceptions::fthrow(
+      THREAD_AND_LOCATION,
+      vmSymbols::java_lang_UnsupportedClassVersionError(),
+      "%s (class file version %u.%u) was compiled with an invalid major version",
+      class_name->as_C_string(), major, minor);
+    return;
+  }
 
-      if (!Arguments::enable_preview()) {
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-          THREAD_AND_LOCATION,
-          vmSymbols::java_lang_UnsupportedClassVersionError(),
-          "Preview features are not enabled for %s (class file version %u.%u). Try running with '--enable-preview'",
-          class_name->as_C_string(), major, minor);
-        return;
-      }
+  if (major > max_version) {
+    Exceptions::fthrow(
+      THREAD_AND_LOCATION,
+      vmSymbols::java_lang_UnsupportedClassVersionError(),
+      "%s has been compiled by a more recent version of the Java Runtime (class file version %u.%u), "
+      "this version of the Java Runtime only recognizes class file versions up to %u.0",
+      class_name->as_C_string(), major, minor, JVM_CLASSFILE_MAJOR_VERSION);
+    return;
+  }
 
-    } else { // minor != JAVA_PREVIEW_MINOR_VERSION
-      if (major > max_version) {
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-          THREAD_AND_LOCATION,
-          vmSymbols::java_lang_UnsupportedClassVersionError(),
-          "%s has been compiled by a more recent version of the Java Runtime (class file version %u.%u), "
-          "this version of the Java Runtime only recognizes class file versions up to %u.0",
-          class_name->as_C_string(), major, minor, JVM_CLASSFILE_MAJOR_VERSION);
-      } else if (major < JAVA_MIN_SUPPORTED_VERSION) {
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-          THREAD_AND_LOCATION,
-          vmSymbols::java_lang_UnsupportedClassVersionError(),
-          "%s (class file version %u.%u) was compiled with an invalid major version",
-          class_name->as_C_string(), major, minor);
-      } else if (minor != 0) {
-        ResourceMark rm(THREAD);
-        Exceptions::fthrow(
-          THREAD_AND_LOCATION,
-          vmSymbols::java_lang_UnsupportedClassVersionError(),
-          "%s (class file version %u.%u) was compiled with an invalid non-zero minor version",
-          class_name->as_C_string(), major, minor);
-      }
+  if (major < JAVA_12_VERSION || minor == 0) {
+    return;
+  }
+
+  if (minor == JAVA_PREVIEW_MINOR_VERSION) {
+    if (major != max_version) {
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_UnsupportedClassVersionError(),
+        "%s (class file version %u.%u) was compiled with preview features that are unsupported. "
+        "This version of the Java Runtime only recognizes preview features for class file version %u.%u",
+        class_name->as_C_string(), major, minor, JVM_CLASSFILE_MAJOR_VERSION, JAVA_PREVIEW_MINOR_VERSION);
+      return;
     }
+
+    if (!Arguments::enable_preview()) {
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_UnsupportedClassVersionError(),
+        "Preview features are not enabled for %s (class file version %u.%u). Try running with '--enable-preview'",
+        class_name->as_C_string(), major, minor);
+      return;
+    }
+
+  } else { // minor != JAVA_PREVIEW_MINOR_VERSION
+    Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_UnsupportedClassVersionError(),
+        "%s (class file version %u.%u) was compiled with an invalid non-zero minor version",
+        class_name->as_C_string(), major, minor);
   }
 }
 
@@ -4961,6 +4964,7 @@ void ClassFileParser::verify_legal_utf8(const unsigned char* buffer,
 bool ClassFileParser::verify_unqualified_name(const char* name,
                                               unsigned int length,
                                               int type) {
+  if (length == 0) return false;  // Must have at least one char.
   for (const char* p = name; p != name + length; p++) {
     switch(*p) {
       case '.':
@@ -5110,7 +5114,7 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
           int newlen = c - (char*) signature;
           bool legal = verify_unqualified_name(signature, newlen, LegalClass);
           if (!legal) {
-            classfile_parse_error("Class name contains illegal character "
+            classfile_parse_error("Class name is empty or contains illegal character "
                                   "in descriptor in class file %s",
                                   CHECK_0);
             return NULL;
@@ -5661,11 +5665,11 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     }
 
     if (ik->minor_version() == JAVA_PREVIEW_MINOR_VERSION &&
-        ik->major_version() != JAVA_MIN_SUPPORTED_VERSION &&
+        ik->major_version() == JVM_CLASSFILE_MAJOR_VERSION &&
         log_is_enabled(Info, class, preview)) {
       ResourceMark rm;
       log_info(class, preview)("Loading class %s that depends on preview features (class file version %d.65535)",
-                               ik->external_name(), ik->major_version());
+                               ik->external_name(), JVM_CLASSFILE_MAJOR_VERSION);
     }
 
     if (log_is_enabled(Debug, class, resolve))  {
@@ -5729,7 +5733,7 @@ void ClassFileParser::prepend_host_package_name(const InstanceKlass* unsafe_anon
     // The new class name is created with a refcount of one. When installed into the InstanceKlass,
     // it'll be two and when the ClassFileParser destructor runs, it'll go back to one and get deleted
     // when the class is unloaded.
-    _class_name = SymbolTable::new_symbol(new_anon_name, symbol_len, CHECK);
+    _class_name = SymbolTable::new_symbol(new_anon_name, symbol_len);
   }
 }
 
@@ -5985,9 +5989,9 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   _minor_version = stream->get_u2_fast();
   _major_version = stream->get_u2_fast();
 
-  if (DumpSharedSpaces && _major_version < JAVA_1_5_VERSION) {
+  if (DumpSharedSpaces && _major_version < JAVA_6_VERSION) {
     ResourceMark rm;
-    warning("Pre JDK 1.5 class not supported by CDS: %u.%u %s",
+    warning("Pre JDK 6 class not supported by CDS: %u.%u %s",
             _major_version,  _minor_version, _class_name->as_C_string());
     Exceptions::fthrow(
       THREAD_AND_LOCATION,

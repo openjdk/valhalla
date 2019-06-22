@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "code/compiledIC.hpp"
 #include "code/compiledMethod.inline.hpp"
+#include "code/exceptionHandlerTable.hpp"
 #include "code/scopeDesc.hpp"
 #include "code/codeCache.hpp"
 #include "code/icBuffer.hpp"
@@ -37,8 +38,10 @@
 #include "oops/methodData.hpp"
 #include "oops/method.inline.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/deoptimization.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
+#include "runtime/sharedRuntime.hpp"
 
 CompiledMethod::CompiledMethod(Method* method, const char* name, CompilerType type, const CodeBlobLayout& layout,
                                int frame_complete_offset, int frame_size, ImmutableOopMapSet* oop_maps,
@@ -468,39 +471,6 @@ bool CompiledMethod::clean_ic_if_metadata_is_dead(CompiledIC *ic) {
   return ic->set_to_clean();
 }
 
-// static_stub_Relocations may have dangling references to
-// nmethods so trim them out here.  Otherwise it looks like
-// compiled code is maintaining a link to dead metadata.
-void CompiledMethod::clean_ic_stubs() {
-#ifdef ASSERT
-  address low_boundary = oops_reloc_begin();
-  RelocIterator iter(this, low_boundary);
-  while (iter.next()) {
-    address static_call_addr = NULL;
-    if (iter.type() == relocInfo::opt_virtual_call_type) {
-      CompiledIC* cic = CompiledIC_at(&iter);
-      if (!cic->is_call_to_interpreted()) {
-        static_call_addr = iter.addr();
-      }
-    } else if (iter.type() == relocInfo::static_call_type) {
-      CompiledStaticCall* csc = compiledStaticCall_at(iter.reloc());
-      if (!csc->is_call_to_interpreted()) {
-        static_call_addr = iter.addr();
-      }
-    }
-    if (static_call_addr != NULL) {
-      RelocIterator sciter(this, low_boundary);
-      while (sciter.next()) {
-        if (sciter.type() == relocInfo::static_stub_type &&
-            sciter.static_stub_reloc()->static_call() == static_call_addr) {
-          sciter.static_stub_reloc()->clear_inline_cache();
-        }
-      }
-    }
-  }
-#endif
-}
-
 // Clean references to unloaded nmethods at addr from this one, which is not unloaded.
 template <class CompiledICorStaticCall>
 static bool clean_if_nmethod_is_unloaded(CompiledICorStaticCall *ic, address addr, CompiledMethod* from,
@@ -549,9 +519,6 @@ bool CompiledMethod::unload_nmethod_caches(bool unloading_occurred) {
     return false;
   }
 
-  // All static stubs need to be cleaned.
-  clean_ic_stubs();
-
 #ifdef ASSERT
   // Check that the metadata embedded in the nmethod is alive
   CheckClass check_class;
@@ -581,6 +548,7 @@ bool CompiledMethod::cleanup_inline_caches_impl(bool unloading_occurred, bool cl
   // Find all calls in an nmethod and clear the ones that point to non-entrant,
   // zombie and unloaded nmethods.
   RelocIterator iter(this, oops_reloc_begin());
+  bool is_in_static_stub = false;
   while(iter.next()) {
 
     switch (iter.type()) {
@@ -611,6 +579,45 @@ bool CompiledMethod::cleanup_inline_caches_impl(bool unloading_occurred, bool cl
       }
       break;
 
+    case relocInfo::static_stub_type: {
+      is_in_static_stub = true;
+      break;
+    }
+
+    case relocInfo::metadata_type: {
+      // Only the metadata relocations contained in static/opt virtual call stubs
+      // contains the Method* passed to c2i adapters. It is the only metadata
+      // relocation that needs to be walked, as it is the one metadata relocation
+      // that violates the invariant that all metadata relocations have an oop
+      // in the compiled method (due to deferred resolution and code patching).
+
+      // This causes dead metadata to remain in compiled methods that are not
+      // unloading. Unless these slippery metadata relocations of the static
+      // stubs are at least cleared, subsequent class redefinition operations
+      // will access potentially free memory, and JavaThread execution
+      // concurrent to class unloading may call c2i adapters with dead methods.
+      if (!is_in_static_stub) {
+        // The first metadata relocation after a static stub relocation is the
+        // metadata relocation of the static stub used to pass the Method* to
+        // c2i adapters.
+        continue;
+      }
+      is_in_static_stub = false;
+      metadata_Relocation* r = iter.metadata_reloc();
+      Metadata* md = r->metadata_value();
+      if (md != NULL && md->is_method()) {
+        Method* method = static_cast<Method*>(md);
+        if (!method->method_holder()->is_loader_alive()) {
+          Atomic::store((Method*)NULL, r->metadata_addr());
+
+          if (!r->metadata_is_immediate()) {
+            r->fix_metadata_relocation();
+          }
+        }
+      }
+      break;
+    }
+
     default:
       break;
     }
@@ -632,6 +639,46 @@ bool CompiledMethod::nmethod_access_is_safe(nmethod* nm) {
          os::is_readable_pointer(method) &&
          os::is_readable_pointer(method->constants()) &&
          os::is_readable_pointer(method->signature());
+}
+
+address CompiledMethod::continuation_for_implicit_exception(address pc, bool for_div0_check) {
+  // Exception happened outside inline-cache check code => we are inside
+  // an active nmethod => use cpc to determine a return address
+  int exception_offset = pc - code_begin();
+  int cont_offset = ImplicitExceptionTable(this).continuation_offset( exception_offset );
+#ifdef ASSERT
+  if (cont_offset == 0) {
+    Thread* thread = Thread::current();
+    ResetNoHandleMark rnm; // Might be called from LEAF/QUICK ENTRY
+    HandleMark hm(thread);
+    ResourceMark rm(thread);
+    CodeBlob* cb = CodeCache::find_blob(pc);
+    assert(cb != NULL && cb == this, "");
+    ttyLocker ttyl;
+    tty->print_cr("implicit exception happened at " INTPTR_FORMAT, p2i(pc));
+    print();
+    method()->print_codes();
+    print_code();
+    print_pcs();
+  }
+#endif
+  if (cont_offset == 0) {
+    // Let the normal error handling report the exception
+    return NULL;
+  }
+  if (cont_offset == exception_offset) {
+#if INCLUDE_JVMCI
+    Deoptimization::DeoptReason deopt_reason = for_div0_check ? Deoptimization::Reason_div0_check : Deoptimization::Reason_null_check;
+    JavaThread *thread = JavaThread::current();
+    thread->set_jvmci_implicit_exception_pc(pc);
+    thread->set_pending_deoptimization(Deoptimization::make_trap_request(deopt_reason,
+                                                                         Deoptimization::Action_reinterpret));
+    return (SharedRuntime::deopt_blob()->implicit_exception_uncommon_trap());
+#else
+    ShouldNotReachHere();
+#endif
+  }
+  return code_begin() + cont_offset;
 }
 
 class HasEvolDependency : public MetadataClosure {

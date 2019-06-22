@@ -168,7 +168,7 @@ static void create_object(JfrJavaArguments* args, JavaValue* result, TRAPS) {
 
   const int array_length = args->array_length();
 
-  if (array_length > 0) {
+  if (array_length >= 0) {
     array_construction(args, result, klass, array_length, CHECK);
   } else {
     object_construction(args, result, klass, THREAD);
@@ -579,7 +579,7 @@ const char* const JDK_JFR_PACKAGE_NAME = "jdk/jfr";
 static bool is_jdk_jfr_module_in_readability_graph() {
   Thread* const t = Thread::current();
   // take one of the packages in the module to be located and query for its definition.
-  TempNewSymbol pkg_sym = SymbolTable::new_symbol(JDK_JFR_PACKAGE_NAME, t);
+  TempNewSymbol pkg_sym = SymbolTable::new_symbol(JDK_JFR_PACKAGE_NAME);
   return Modules::is_package_defined(pkg_sym, Handle(), t);
 }
 

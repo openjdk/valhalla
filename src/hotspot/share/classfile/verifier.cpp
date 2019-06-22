@@ -30,6 +30,7 @@
 #include "classfile/stackMapTable.hpp"
 #include "classfile/stackMapFrame.hpp"
 #include "classfile/stackMapTableFormat.hpp"
+#include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/verifier.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -39,6 +40,7 @@
 #include "logging/logStream.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
@@ -163,22 +165,28 @@ bool Verifier::verify(InstanceKlass* klass, bool should_verify_class, TRAPS) {
                            PerfClassTraceTime::CLASS_VERIFY);
 
   // If the class should be verified, first see if we can use the split
-  // verifier.  If not, or if verification fails and FailOverToOldVerifier
-  // is set, then call the inference verifier.
+  // verifier.  If not, or if verification fails and can failover, then
+  // call the inference verifier.
   Symbol* exception_name = NULL;
   const size_t message_buffer_len = klass->name()->utf8_length() + 1024;
   char* message_buffer = NULL;
   char* exception_message = NULL;
-
-  bool can_failover = FailOverToOldVerifier &&
-     klass->major_version() < NOFAILOVER_MAJOR_VERSION;
 
   log_info(class, init)("Start class verification for: %s", klass->external_name());
   if (klass->major_version() >= STACKMAP_ATTRIBUTE_MAJOR_VERSION) {
     ClassVerifier split_verifier(klass, THREAD);
     split_verifier.verify_class(THREAD);
     exception_name = split_verifier.result();
-    if (can_failover && !HAS_PENDING_EXCEPTION &&
+
+    // If DumpSharedSpaces is set then don't fall back to the old verifier on
+    // verification failure. If a class fails verification with the split verifier,
+    // it might fail the CDS runtime verifier constraint check. In that case, we
+    // don't want to share the class. We only archive classes that pass the split
+    // verifier.
+    bool can_failover = !DumpSharedSpaces &&
+      klass->major_version() < NOFAILOVER_MAJOR_VERSION;
+
+    if (can_failover && !HAS_PENDING_EXCEPTION &&  // Split verifier doesn't set PENDING_EXCEPTION for failure
         (exception_name == vmSymbols::java_lang_VerifyError() ||
          exception_name == vmSymbols::java_lang_ClassFormatError())) {
       log_info(verification)("Fail over class verification to old verifier for: %s", klass->external_name());
@@ -593,9 +601,9 @@ VerificationType ClassVerifier::object_type() const {
   return VerificationType::reference_type(vmSymbols::java_lang_Object());
 }
 
-TypeOrigin ClassVerifier::ref_ctx(const char* sig, TRAPS) {
+TypeOrigin ClassVerifier::ref_ctx(const char* sig) {
   VerificationType vt = VerificationType::reference_type(
-      create_temporary_symbol(sig, (int)strlen(sig), THREAD));
+                         create_temporary_symbol(sig, (int)strlen(sig)));
   return TypeOrigin::implicit(vt);
 }
 
@@ -645,7 +653,7 @@ void ClassVerifier::translate_signature(Symbol* const method_sig,
 
   // Translate the signature arguments into verification types.
   while (!sig_stream.at_return_type()) {
-    int n = change_sig_to_verificationType(&sig_stream, sig_type, CHECK_VERIFY(this));
+    int n = change_sig_to_verificationType(&sig_stream, sig_type);
     assert(n <= 2, "Unexpected signature type");
 
     // Store verification type(s).  Longs and Doubles each have two verificationTypes.
@@ -662,7 +670,7 @@ void ClassVerifier::translate_signature(Symbol* const method_sig,
 
   // Store verification type(s) for the return type, if there is one.
   if (sig_stream.type() != T_VOID) {
-    int n = change_sig_to_verificationType(&sig_stream, sig_type, CHECK_VERIFY(this));
+    int n = change_sig_to_verificationType(&sig_stream, sig_type);
     assert(n <= 2, "Unexpected signature return type");
     for (int y = 0; y < n; y++) {
       verif_types->push(sig_type[y]);
@@ -923,7 +931,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::reference_check(), CHECK_VERIFY(this));
           if (!atype.is_int_array()) {
             verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(), ref_ctx("[I", THREAD)),
+                current_frame.stack_top_ctx(), ref_ctx("[I")),
                 bad_type_msg, "iaload");
             return;
           }
@@ -951,7 +959,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::reference_check(), CHECK_VERIFY(this));
           if (!atype.is_char_array()) {
             verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(), ref_ctx("[C", THREAD)),
+                current_frame.stack_top_ctx(), ref_ctx("[C")),
                 bad_type_msg, "caload");
             return;
           }
@@ -965,7 +973,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::reference_check(), CHECK_VERIFY(this));
           if (!atype.is_short_array()) {
             verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(), ref_ctx("[S", THREAD)),
+                current_frame.stack_top_ctx(), ref_ctx("[S")),
                 bad_type_msg, "saload");
             return;
           }
@@ -979,7 +987,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::reference_check(), CHECK_VERIFY(this));
           if (!atype.is_long_array()) {
             verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(), ref_ctx("[J", THREAD)),
+                current_frame.stack_top_ctx(), ref_ctx("[J")),
                 bad_type_msg, "laload");
             return;
           }
@@ -994,7 +1002,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::reference_check(), CHECK_VERIFY(this));
           if (!atype.is_float_array()) {
             verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(), ref_ctx("[F", THREAD)),
+                current_frame.stack_top_ctx(), ref_ctx("[F")),
                 bad_type_msg, "faload");
             return;
           }
@@ -1008,7 +1016,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::reference_check(), CHECK_VERIFY(this));
           if (!atype.is_double_array()) {
             verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(), ref_ctx("[D", THREAD)),
+                current_frame.stack_top_ctx(), ref_ctx("[D")),
                 bad_type_msg, "daload");
             return;
           }
@@ -1097,7 +1105,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::reference_check(), CHECK_VERIFY(this));
           if (!atype.is_int_array()) {
             verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(), ref_ctx("[I", THREAD)),
+                current_frame.stack_top_ctx(), ref_ctx("[I")),
                 bad_type_msg, "iastore");
             return;
           }
@@ -1125,7 +1133,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::reference_check(), CHECK_VERIFY(this));
           if (!atype.is_char_array()) {
             verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(), ref_ctx("[C", THREAD)),
+                current_frame.stack_top_ctx(), ref_ctx("[C")),
                 bad_type_msg, "castore");
             return;
           }
@@ -1139,7 +1147,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::reference_check(), CHECK_VERIFY(this));
           if (!atype.is_short_array()) {
             verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(), ref_ctx("[S", THREAD)),
+                current_frame.stack_top_ctx(), ref_ctx("[S")),
                 bad_type_msg, "sastore");
             return;
           }
@@ -1154,7 +1162,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::reference_check(), CHECK_VERIFY(this));
           if (!atype.is_long_array()) {
             verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(), ref_ctx("[J", THREAD)),
+                current_frame.stack_top_ctx(), ref_ctx("[J")),
                 bad_type_msg, "lastore");
             return;
           }
@@ -1168,7 +1176,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::reference_check(), CHECK_VERIFY(this));
           if (!atype.is_float_array()) {
             verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(), ref_ctx("[F", THREAD)),
+                current_frame.stack_top_ctx(), ref_ctx("[F")),
                 bad_type_msg, "fastore");
             return;
           }
@@ -1183,7 +1191,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             VerificationType::reference_check(), CHECK_VERIFY(this));
           if (!atype.is_double_array()) {
             verify_error(ErrorContext::bad_type(bci,
-                current_frame.stack_top_ctx(), ref_ctx("[D", THREAD)),
+                current_frame.stack_top_ctx(), ref_ctx("[D")),
                 bad_type_msg, "dastore");
             return;
           }
@@ -2181,8 +2189,7 @@ void ClassVerifier::verify_ldc(
     uintptr_t constant_type_buffer[2];
     VerificationType* v_constant_type = (VerificationType*)constant_type_buffer;
     SignatureStream sig_stream(constant_type, false);
-    int n = change_sig_to_verificationType(
-      &sig_stream, v_constant_type, CHECK_VERIFY(this));
+    int n = change_sig_to_verificationType(&sig_stream, v_constant_type);
     int opcode_n = (opcode == Bytecodes::_ldc2_w ? 2 : 1);
     if (n != opcode_n) {
       // wrong kind of ldc; reverify against updated type mask
@@ -2323,8 +2330,7 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
 
   SignatureStream sig_stream(field_sig, false);
   VerificationType stack_object_type;
-  int n = change_sig_to_verificationType(
-    &sig_stream, field_type, CHECK_VERIFY(this));
+  int n = change_sig_to_verificationType(&sig_stream, field_type);
   u2 bci = bcs->bci();
   bool is_assignable;
   switch (bcs->raw_code()) {
@@ -3000,8 +3006,7 @@ VerificationType ClassVerifier::get_newarray_type(
   }
 
   // from_bt[index] contains the array signature which has a length of 2
-  Symbol* sig = create_temporary_symbol(
-    from_bt[index], 2, CHECK_(VerificationType::bogus_type()));
+  Symbol* sig = create_temporary_symbol(from_bt[index], 2);
   return VerificationType::reference_type(sig);
 }
 
@@ -3039,8 +3044,7 @@ void ClassVerifier::verify_anewarray(
     int n = os::snprintf(arr_sig_str, length + 1, "[L%s;", component_name);
     assert(n == length, "Unexpected number of characters in string");
   }
-  Symbol* arr_sig = create_temporary_symbol(
-    arr_sig_str, length, CHECK_VERIFY(this));
+  Symbol* arr_sig = create_temporary_symbol(arr_sig_str, length);
   VerificationType new_array_type = VerificationType::reference_type(arr_sig);
   current_frame->push_stack(new_array_type, CHECK_VERIFY(this));
 }
@@ -3148,18 +3152,18 @@ void ClassVerifier::verify_return_value(
 // These are stored in the verifier until the end of verification so that
 // they can be reference counted.
 Symbol* ClassVerifier::create_temporary_symbol(const Symbol *s, int begin,
-                                               int end, TRAPS) {
+                                               int end) {
   const char* name = (const char*)s->base() + begin;
   int length = end - begin;
-  return create_temporary_symbol(name, length, CHECK_NULL);
+  return create_temporary_symbol(name, length);
 }
 
-Symbol* ClassVerifier::create_temporary_symbol(const char *name, int length, TRAPS) {
+Symbol* ClassVerifier::create_temporary_symbol(const char *name, int length) {
   // Quick deduplication check
   if (_previous_symbol != NULL && _previous_symbol->equals(name, length)) {
     return _previous_symbol;
   }
-  Symbol* sym = SymbolTable::new_symbol(name, length, CHECK_NULL);
+  Symbol* sym = SymbolTable::new_symbol(name, length);
   if (!sym->is_permanent()) {
     if (_symbols == NULL) {
       _symbols = new GrowableArray<Symbol*>(50, 0, NULL);

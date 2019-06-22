@@ -126,10 +126,10 @@ public class MethodBuilder extends AbstractMemberBuilder {
             return;
         }
         if (hasMembersToDocument()) {
-            Content methodDetailsTree = writer.getMethodDetailsTreeHeader(typeElement,
+            Content methodDetailsTreeHeader = writer.getMethodDetailsTreeHeader(typeElement,
                     memberDetailsTree);
+            Content methodDetailsTree = writer.getMemberTreeHeader();
 
-            Element lastElement = methods.get(methods.size() - 1);
             for (Element method : methods) {
                 currentMethod = (ExecutableElement)method;
                 Content methodDocTree = writer.getMethodDocTreeHeader(currentMethod, methodDetailsTree);
@@ -139,10 +139,9 @@ public class MethodBuilder extends AbstractMemberBuilder {
                 buildMethodComments(methodDocTree);
                 buildTagInfo(methodDocTree);
 
-                methodDetailsTree.add(writer.getMethodDoc(
-                        methodDocTree, currentMethod == lastElement));
+                methodDetailsTree.add(writer.getMethodDoc(methodDocTree));
             }
-            memberDetailsTree.add(writer.getMethodDetails(methodDetailsTree));
+            memberDetailsTree.add(writer.getMethodDetails(methodDetailsTreeHeader, methodDetailsTree));
         }
     }
 

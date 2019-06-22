@@ -87,10 +87,7 @@ public class HtmlSerialFieldWriter extends FieldWriterImpl
      */
     public Content getFieldsContentHeader(boolean isLastContent) {
         HtmlTree li = new HtmlTree(HtmlTag.LI);
-        if (isLastContent)
-            li.setStyle(HtmlStyle.blockListLast);
-        else
-            li.setStyle(HtmlStyle.blockList);
+        li.setStyle(HtmlStyle.blockList);
         return li;
     }
 
@@ -103,15 +100,14 @@ public class HtmlSerialFieldWriter extends FieldWriterImpl
      * @return a content tree for the serializable fields content
      */
     public Content getSerializableFields(String heading, Content serializableFieldsTree) {
-        HtmlTree li = new HtmlTree(HtmlTag.LI);
-        li.setStyle(HtmlStyle.blockList);
+        HtmlTree section = HtmlTree.SECTION(HtmlStyle.detail);
         if (serializableFieldsTree.isValid()) {
             Content headingContent = new StringContent(heading);
             Content serialHeading = HtmlTree.HEADING(Headings.SerializedForm.CLASS_SUBHEADING, headingContent);
-            li.add(serialHeading);
-            li.add(serializableFieldsTree);
+            section.add(serialHeading);
+            section.add(serializableFieldsTree);
         }
-        return li;
+        return HtmlTree.LI(HtmlStyle.blockList, section);
     }
 
     @Override

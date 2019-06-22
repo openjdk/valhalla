@@ -396,6 +396,7 @@ void CompileTask::log_task_done(CompileLog* log) {
   ResourceMark rm(thread);
 
   if (!_is_success) {
+    assert(_failure_reason != NULL, "missing");
     const char* reason = _failure_reason != NULL ? _failure_reason : "unknown";
     log->elem("failure reason='%s'", reason);
   }
@@ -415,9 +416,7 @@ void CompileTask::log_task_done(CompileLog* log) {
   log->end_elem();
   log->clear_identities();   // next task will have different CI
   log->tail("task");
-  if (log->unflushed_count() > 2000) {
-    log->flush();
-  }
+  log->flush();
   log->mark_file_end();
 }
 

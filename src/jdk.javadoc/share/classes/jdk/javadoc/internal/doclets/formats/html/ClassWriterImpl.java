@@ -25,7 +25,11 @@
 
 package jdk.javadoc.internal.doclets.formats.html;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -36,6 +40,9 @@ import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.SimpleElementVisitor8;
 
 import com.sun.source.doctree.DocTree;
+import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
+import jdk.javadoc.internal.doclets.formats.html.markup.Entity;
+import jdk.javadoc.internal.doclets.formats.html.markup.HtmlAttr;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
@@ -48,6 +55,7 @@ import jdk.javadoc.internal.doclets.toolkit.taglets.ParamTaglet;
 import jdk.javadoc.internal.doclets.toolkit.util.ClassTree;
 import jdk.javadoc.internal.doclets.toolkit.util.CommentHelper;
 import jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException;
+import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
 import jdk.javadoc.internal.doclets.toolkit.util.DocletConstants;
 
 /**
@@ -122,7 +130,7 @@ public class ClassWriterImpl extends SubWriterHolderWriter implements ClassWrite
             ModuleElement mdle = configuration.docEnv.getElementUtils().getModuleOf(typeElement);
             Content classModuleLabel = HtmlTree.SPAN(HtmlStyle.moduleLabelInType, contents.moduleLabel);
             Content moduleNameDiv = HtmlTree.DIV(HtmlStyle.subTitle, classModuleLabel);
-            moduleNameDiv.add(Contents.SPACE);
+            moduleNameDiv.add(Entity.NO_BREAK_SPACE);
             moduleNameDiv.add(getModuleLink(mdle,
                     new StringContent(mdle.getQualifiedName())));
             div.add(moduleNameDiv);
@@ -131,7 +139,7 @@ public class ClassWriterImpl extends SubWriterHolderWriter implements ClassWrite
         if (!pkg.isUnnamed()) {
             Content classPackageLabel = HtmlTree.SPAN(HtmlStyle.packageLabelInType, contents.packageLabel);
             Content pkgNameDiv = HtmlTree.DIV(HtmlStyle.subTitle, classPackageLabel);
-            pkgNameDiv.add(Contents.SPACE);
+            pkgNameDiv.add(Entity.NO_BREAK_SPACE);
             Content pkgNameContent = getPackageLink(pkg,
                     new StringContent(utils.getPackageName(pkg)));
             pkgNameDiv.add(pkgNameContent);
@@ -178,9 +186,9 @@ public class ClassWriterImpl extends SubWriterHolderWriter implements ClassWrite
     public void printDocument(Content contentTree) throws DocFileIOException {
         String description = getDescription("declaration", typeElement);
         PackageElement pkg = utils.containingPackage(typeElement);
-        Content stylesheetContent = getLocalStylesheetContent(pkg);
+        List<DocPath> localStylesheets = getLocalStylesheets(pkg);
         printHtmlDocument(configuration.metakeywords.getMetaKeywords(typeElement),
-                description, stylesheetContent, contentTree);
+                description, localStylesheets, contentTree);
     }
 
     /**
@@ -290,26 +298,17 @@ public class ClassWriterImpl extends SubWriterHolderWriter implements ClassWrite
      */
     private Content getClassInheritenceTree(TypeMirror type) {
         TypeMirror sup;
-        HtmlTree classTreeUl = new HtmlTree(HtmlTag.UL);
-        classTreeUl.setStyle(HtmlStyle.inheritance);
-        Content liTree = null;
+        HtmlTree classTree = null;
         do {
             sup = utils.getFirstVisibleSuperClass(type);
-            if (sup != null) {
-                HtmlTree ul = new HtmlTree(HtmlTag.UL);
-                ul.setStyle(HtmlStyle.inheritance);
-                ul.add(getTreeForClassHelper(type));
-                if (liTree != null)
-                    ul.add(liTree);
-                Content li = HtmlTree.LI(ul);
-                liTree = li;
-                type = sup;
-            } else
-                classTreeUl.add(getTreeForClassHelper(type));
+            HtmlTree htmlElement = HtmlTree.DIV(HtmlStyle.inheritance, getTreeForClassHelper(type));
+            if (classTree != null)
+                htmlElement.add(classTree);
+            classTree = htmlElement;
+            type = sup;
         } while (sup != null);
-        if (liTree != null)
-            classTreeUl.add(liTree);
-        return classTreeUl;
+        classTree.put(HtmlAttr.TITLE, contents.getContent("doclet.Inheritance_Tree").toString());
+        return classTree;
     }
 
     /**
@@ -319,25 +318,25 @@ public class ClassWriterImpl extends SubWriterHolderWriter implements ClassWrite
      * @return a content tree for class helper
      */
     private Content getTreeForClassHelper(TypeMirror type) {
-        Content li = new HtmlTree(HtmlTag.LI);
+        Content content = new ContentBuilder();
         if (type.equals(typeElement.asType())) {
             Content typeParameters = getTypeParameterLinks(
                     new LinkInfoImpl(configuration, LinkInfoImpl.Kind.TREE,
                     typeElement));
             if (configuration.shouldExcludeQualifier(utils.containingPackage(typeElement).toString())) {
-                li.add(utils.asTypeElement(type).getSimpleName());
-                li.add(typeParameters);
+                content.add(utils.asTypeElement(type).getSimpleName());
+                content.add(typeParameters);
             } else {
-                li.add(utils.asTypeElement(type).getQualifiedName());
-                li.add(typeParameters);
+                content.add(utils.asTypeElement(type).getQualifiedName());
+                content.add(typeParameters);
             }
         } else {
             Content link = getLink(new LinkInfoImpl(configuration,
                     LinkInfoImpl.Kind.CLASS_TREE_PARENT, type)
                     .label(configuration.getClassName(utils.asTypeElement(type))));
-            li.add(link);
+            content.add(link);
         }
-        return li;
+        return content;
     }
 
     /**

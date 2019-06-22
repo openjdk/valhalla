@@ -31,6 +31,7 @@
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/moduleEntry.hpp"
+#include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
 #include "classfile/verifier.hpp"
@@ -52,6 +53,7 @@
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/fieldStreams.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/instanceClassLoaderKlass.hpp"
@@ -482,6 +484,8 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _static_field_size(parser.static_field_size()),
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
+  _init_thread(NULL),
+  _init_state(allocated),
   _reference_type(parser.reference_type())
 {
   set_vtable_length(parser.vtable_size());
@@ -496,7 +500,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   assert(is_instance_klass(), "is layout incorrect?");
   assert(size_helper() == parser.layout_size(), "incorrect size_helper?");
 
-  if (DumpSharedSpaces) {
+  if (DumpSharedSpaces || DynamicDumpSharedSpaces) {
     SystemDictionaryShared::init_dumptime_info(this);
   }
 }
@@ -646,7 +650,7 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   }
   set_annotations(NULL);
 
-  if (DumpSharedSpaces) {
+  if (DumpSharedSpaces || DynamicDumpSharedSpaces) {
     SystemDictionaryShared::remove_dumptime_info(this);
   }
 }
@@ -1116,11 +1120,13 @@ void InstanceKlass::set_initialization_state_and_notify(ClassState state, TRAPS)
   Handle h_init_lock(THREAD, init_lock());
   if (h_init_lock() != NULL) {
     ObjectLocker ol(h_init_lock, THREAD);
+    set_init_thread(NULL); // reset _init_thread before changing _init_state
     set_init_state(state);
     fence_and_clear_init_lock();
     ol.notify_all(CHECK);
   } else {
     assert(h_init_lock() != NULL, "The initialization state should never be set twice");
+    set_init_thread(NULL); // reset _init_thread before changing _init_state
     set_init_state(state);
   }
 }
@@ -2234,7 +2240,7 @@ void InstanceKlass::clean_method_data() {
   for (int m = 0; m < methods()->length(); m++) {
     MethodData* mdo = methods()->at(m)->method_data();
     if (mdo != NULL) {
-      MutexLockerEx ml(SafepointSynchronize::is_at_safepoint() ? NULL : mdo->extra_data_lock());
+      MutexLocker ml(SafepointSynchronize::is_at_safepoint() ? NULL : mdo->extra_data_lock());
       mdo->clean_method_data(/*always_clean*/false);
     }
   }
@@ -2270,8 +2276,8 @@ bool InstanceKlass::should_store_fingerprint(bool is_nonfindable) {
     // (1) We are running AOT to generate a shared library.
     return true;
   }
-  if (DumpSharedSpaces) {
-    // (2) We are running -Xshare:dump to create a shared archive
+  if (DumpSharedSpaces || DynamicDumpSharedSpaces) {
+    // (2) We are running -Xshare:dump or -XX:ArchiveClassesAtExit to create a shared archive
     return true;
   }
   if (UseAOT && is_nonfindable) {
@@ -2391,15 +2397,13 @@ void InstanceKlass::remove_unshareable_info() {
     array_klasses()->remove_unshareable_info();
   }
 
-  // These are not allocated from metaspace, but they should should all be empty
-  // during dump time, so we don't need to worry about them in InstanceKlass::iterate().
-  guarantee(_source_debug_extension == NULL, "must be");
-  guarantee(_dep_context == NULL, "must be");
-  guarantee(_osr_nmethods_head == NULL, "must be");
-
+  // These are not allocated from metaspace. They are safe to set to NULL.
+  _source_debug_extension = NULL;
+  _dep_context = NULL;
+  _osr_nmethods_head = NULL;
 #if INCLUDE_JVMTI
-  guarantee(_breakpoints == NULL, "must be");
-  guarantee(_previous_versions == NULL, "must be");
+  _breakpoints = NULL;
+  _previous_versions = NULL;
   _cached_class_file = NULL;
 #endif
 
@@ -2519,6 +2523,10 @@ void InstanceKlass::unload_class(InstanceKlass* ik) {
 
   // notify ClassLoadingService of class unload
   ClassLoadingService::notify_class_unloaded(ik);
+
+  if (DumpSharedSpaces || DynamicDumpSharedSpaces) {
+    SystemDictionaryShared::remove_dumptime_info(ik);
+  }
 
   if (log_is_enabled(Info, class, unload)) {
     ResourceMark rm;
@@ -2657,7 +2665,7 @@ Symbol* InstanceKlass::package_from_name(const Symbol* name, TRAPS) {
     if (package_name == NULL) {
       return NULL;
     }
-    Symbol* pkg_name = SymbolTable::new_symbol(package_name, THREAD);
+    Symbol* pkg_name = SymbolTable::new_symbol(package_name);
     return pkg_name;
   }
 }
@@ -3032,10 +3040,17 @@ void InstanceKlass::adjust_default_methods(bool* trace_name_printed) {
 
 // On-stack replacement stuff
 void InstanceKlass::add_osr_nmethod(nmethod* n) {
+#ifndef PRODUCT
+  if (TieredCompilation) {
+      nmethod * prev = lookup_osr_nmethod(n->method(), n->osr_entry_bci(), n->comp_level(), true);
+      assert(prev == NULL || !prev->is_in_use(),
+      "redundunt OSR recompilation detected. memory leak in CodeCache!");
+  }
+#endif
   // only one compilation can be active
   {
     // This is a short non-blocking critical region, so the no safepoint check is ok.
-    MutexLockerEx ml(OsrList_lock, Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(OsrList_lock, Mutex::_no_safepoint_check_flag);
     assert(n->is_osr_method(), "wrong kind of nmethod");
     n->set_osr_link(osr_nmethods_head());
     set_osr_nmethods_head(n);
@@ -3060,7 +3075,7 @@ void InstanceKlass::add_osr_nmethod(nmethod* n) {
 // Remove osr nmethod from the list. Return true if found and removed.
 bool InstanceKlass::remove_osr_nmethod(nmethod* n) {
   // This is a short non-blocking critical region, so the no safepoint check is ok.
-  MutexLockerEx ml(OsrList_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(OsrList_lock, Mutex::_no_safepoint_check_flag);
   assert(n->is_osr_method(), "wrong kind of nmethod");
   nmethod* last = NULL;
   nmethod* cur  = osr_nmethods_head();
@@ -3104,7 +3119,7 @@ bool InstanceKlass::remove_osr_nmethod(nmethod* n) {
 
 int InstanceKlass::mark_osr_nmethods(const Method* m) {
   // This is a short non-blocking critical region, so the no safepoint check is ok.
-  MutexLockerEx ml(OsrList_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(OsrList_lock, Mutex::_no_safepoint_check_flag);
   nmethod* osr = osr_nmethods_head();
   int found = 0;
   while (osr != NULL) {
@@ -3120,7 +3135,7 @@ int InstanceKlass::mark_osr_nmethods(const Method* m) {
 
 nmethod* InstanceKlass::lookup_osr_nmethod(const Method* m, int bci, int comp_level, bool match_level) const {
   // This is a short non-blocking critical region, so the no safepoint check is ok.
-  MutexLockerEx ml(OsrList_lock, Mutex::_no_safepoint_check_flag);
+  MutexLocker ml(OsrList_lock, Mutex::_no_safepoint_check_flag);
   nmethod* osr = osr_nmethods_head();
   nmethod* best = NULL;
   while (osr != NULL) {
@@ -3150,7 +3165,9 @@ nmethod* InstanceKlass::lookup_osr_nmethod(const Method* m, int bci, int comp_le
     }
     osr = osr->osr_link();
   }
-  if (best != NULL && best->comp_level() >= comp_level && match_level == false) {
+
+  assert(match_level == false || best == NULL, "shouldn't pick up anything if match_level is set");
+  if (best != NULL && best->comp_level() >= comp_level) {
     return best;
   }
   return NULL;
@@ -3478,7 +3495,12 @@ void InstanceKlass::print_class_load_logging(ClassLoaderData* loader_data,
       info_stream.print(" source: %s", class_loader->klass()->external_name());
     }
   } else {
-    info_stream.print(" source: shared objects file");
+    assert(this->is_shared(), "must be");
+    if (MetaspaceShared::is_shared_dynamic((void*)this)) {
+      info_stream.print(" source: shared objects file (top)");
+    } else {
+      info_stream.print(" source: shared objects file");
+    }
   }
 
   msg.info("%s", info_stream.as_string());
@@ -3759,6 +3781,7 @@ void InstanceKlass::set_init_state(ClassState state) {
                                                : (_init_state < state);
   assert(good_state || state == allocated, "illegal state transition");
 #endif
+  assert(_init_thread == NULL, "should be cleared before state change");
   _init_state = (u1)state;
 }
 

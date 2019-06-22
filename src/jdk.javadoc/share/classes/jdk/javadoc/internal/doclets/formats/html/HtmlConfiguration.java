@@ -347,7 +347,7 @@ public class HtmlConfiguration extends BaseConfiguration {
                 }
             }
         }
-        docPaths = new DocPaths(utils, useModuleDirectories);
+        docPaths = new DocPaths(utils);
         setCreateOverview();
         setTopFile(docEnv);
         workArounds.initDocLint(doclintOpts.values(), tagletManager.getAllTagletNames());
@@ -452,13 +452,17 @@ public class HtmlConfiguration extends BaseConfiguration {
         return null;
     }
 
-    public DocFile getMainStylesheet() {
-        return stylesheetfile.isEmpty() ? null : DocFile.createFileForInput(this, stylesheetfile);
+    public DocPath getMainStylesheet() {
+        if(!stylesheetfile.isEmpty()){
+            DocFile docFile = DocFile.createFileForInput(this, stylesheetfile);
+            return DocPath.create(docFile.getName());
+        }
+        return  null;
     }
 
-    public List<DocFile> getAdditionalStylesheets() {
+    public List<DocPath> getAdditionalStylesheets() {
         return additionalStylesheets.stream()
-                .map(ssf -> DocFile.createFileForInput(this, ssf))
+                .map(ssf -> DocFile.createFileForInput(this, ssf)).map(file -> DocPath.create(file.getName()))
                 .collect(Collectors.toList());
     }
 

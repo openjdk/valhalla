@@ -123,9 +123,10 @@ public class EnumConstantBuilder extends AbstractMemberBuilder {
             return;
         }
         if (hasMembersToDocument()) {
-            Content enumConstantsDetailsTree = writer.getEnumConstantsDetailsTreeHeader(typeElement,
+            Content enumConstantsDetailsTreeHeader = writer.getEnumConstantsDetailsTreeHeader(typeElement,
                     memberDetailsTree);
-            Element lastElement = enumConstants.get(enumConstants.size() - 1);
+            Content enumConstantsDetailsTree = writer.getMemberTreeHeader();
+
             for (Element enumConstant : enumConstants) {
                 currentElement = (VariableElement)enumConstant;
                 Content enumConstantsTree = writer.getEnumConstantsTreeHeader(currentElement,
@@ -136,11 +137,10 @@ public class EnumConstantBuilder extends AbstractMemberBuilder {
                 buildEnumConstantComments(enumConstantsTree);
                 buildTagInfo(enumConstantsTree);
 
-                enumConstantsDetailsTree.add(writer.getEnumConstants(
-                        enumConstantsTree, currentElement == lastElement));
+                enumConstantsDetailsTree.add(writer.getEnumConstants(enumConstantsTree));
             }
             memberDetailsTree.add(
-                    writer.getEnumConstantsDetails(enumConstantsDetailsTree));
+                    writer.getEnumConstantsDetails(enumConstantsDetailsTreeHeader, enumConstantsDetailsTree));
         }
     }
 

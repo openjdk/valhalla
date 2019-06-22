@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,9 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/cardTableRS.hpp"
 #include "gc/shared/collectedHeap.hpp"
-#include "gc/shared/collectorPolicy.hpp"
+#include "gc/shared/gcArguments.hpp"
 #include "gc/shared/gcConfig.hpp"
 #include "gc/shared/jvmFlagConstraintsGC.hpp"
 #include "gc/shared/plab.hpp"
@@ -44,12 +45,6 @@
 #if INCLUDE_PARALLELGC
 #include "gc/parallel/jvmFlagConstraintsParallel.hpp"
 #endif
-#ifdef COMPILER1
-#include "c1/c1_globals.hpp"
-#endif // COMPILER1
-#ifdef COMPILER2
-#include "opto/c2_globals.hpp"
-#endif // COMPILER2
 
 // Some flags that have default values that indicate that the
 // JVM should automatically determine an appropriate value
@@ -313,15 +308,19 @@ static JVMFlag::Error MaxSizeForHeapAlignment(const char* name, size_t value, bo
 
 #if INCLUDE_G1GC
   if (UseG1GC) {
-    // For G1 GC, we don't know until G1CollectorPolicy is created.
+    // For G1 GC, we don't know until G1CollectedHeap is created.
     heap_alignment = MaxSizeForHeapAlignmentG1();
   } else
 #endif
   {
-    heap_alignment = CollectorPolicy::compute_heap_alignment();
+    heap_alignment = GCArguments::compute_heap_alignment();
   }
 
   return MaxSizeForAlignment(name, value, heap_alignment, verbose);
+}
+
+JVMFlag::Error MinHeapSizeConstraintFunc(size_t value, bool verbose) {
+  return MaxSizeForHeapAlignment("MinHeapSize", value, verbose);
 }
 
 JVMFlag::Error InitialHeapSizeConstraintFunc(size_t value, bool verbose) {
@@ -335,6 +334,15 @@ JVMFlag::Error MaxHeapSizeConstraintFunc(size_t value, bool verbose) {
     status = CheckMaxHeapSizeAndSoftRefLRUPolicyMSPerMB(value, SoftRefLRUPolicyMSPerMB, verbose);
   }
   return status;
+}
+
+JVMFlag::Error SoftMaxHeapSizeConstraintFunc(size_t value, bool verbose) {
+  if (value > MaxHeapSize) {
+    JVMFlag::printError(verbose, "SoftMaxHeapSize must be less than or equal to the maximum heap size\n");
+    return JVMFlag::VIOLATES_CONSTRAINT;
+  }
+
+  return JVMFlag::SUCCESS;
 }
 
 JVMFlag::Error HeapBaseMinAddressConstraintFunc(size_t value, bool verbose) {
@@ -422,12 +430,12 @@ JVMFlag::Error TLABWasteIncrementConstraintFunc(uintx value, bool verbose) {
 
 JVMFlag::Error SurvivorRatioConstraintFunc(uintx value, bool verbose) {
   if (FLAG_IS_CMDLINE(SurvivorRatio) &&
-      (value > (MaxHeapSize / Universe::heap()->collector_policy()->space_alignment()))) {
+      (value > (MaxHeapSize / SpaceAlignment))) {
     JVMFlag::printError(verbose,
                         "SurvivorRatio (" UINTX_FORMAT ") must be "
                         "less than or equal to ergonomic SurvivorRatio maximum (" SIZE_FORMAT ")\n",
                         value,
-                        (MaxHeapSize / Universe::heap()->collector_policy()->space_alignment()));
+                        (MaxHeapSize / SpaceAlignment));
     return JVMFlag::VIOLATES_CONSTRAINT;
   } else {
     return JVMFlag::SUCCESS;

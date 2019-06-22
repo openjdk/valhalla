@@ -25,15 +25,10 @@
 #include "c1/c1_IR.hpp"
 #include "gc/shared/satbMarkQueue.hpp"
 #include "gc/shenandoah/shenandoahBarrierSetAssembler.hpp"
-#include "gc/shenandoah/shenandoahBrooksPointer.hpp"
 #include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
 #include "gc/shenandoah/shenandoahThreadLocalData.hpp"
 #include "gc/shenandoah/c1/shenandoahBarrierSetC1.hpp"
-
-#ifndef PATCHED_ADDR
-#define PATCHED_ADDR  (max_jint)
-#endif
 
 #ifdef ASSERT
 #define __ gen->lir(__FILE__, __LINE__)->

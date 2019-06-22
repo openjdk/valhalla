@@ -40,9 +40,13 @@
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "memory/allocation.inline.hpp"
+#include "memory/universe.hpp"
 #include "runtime/mutex.hpp"
 #include "services/management.hpp"
 #include "utilities/macros.hpp"
+#if INCLUDE_JVMCI
+#include "jvmci/jvmci.hpp"
+#endif
 
 void G1RootProcessor::worker_has_discovered_all_strong_classes() {
   assert(ClassUnloadingWithConcurrentMark, "Currently only needed when doing G1 Class Unloading");
@@ -50,7 +54,7 @@ void G1RootProcessor::worker_has_discovered_all_strong_classes() {
   uint new_value = (uint)Atomic::add(1, &_n_workers_discovered_strong_classes);
   if (new_value == n_workers()) {
     // This thread is last. Notify the others.
-    MonitorLockerEx ml(&_lock, Mutex::_no_safepoint_check_flag);
+    MonitorLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
     _lock.notify_all();
   }
 }
@@ -59,9 +63,9 @@ void G1RootProcessor::wait_until_all_strong_classes_discovered() {
   assert(ClassUnloadingWithConcurrentMark, "Currently only needed when doing G1 Class Unloading");
 
   if ((uint)_n_workers_discovered_strong_classes != n_workers()) {
-    MonitorLockerEx ml(&_lock, Mutex::_no_safepoint_check_flag);
+    MonitorLocker ml(&_lock, Mutex::_no_safepoint_check_flag);
     while ((uint)_n_workers_discovered_strong_classes != n_workers()) {
-      _lock.wait(Mutex::_no_safepoint_check_flag, 0, false);
+      ml.wait(0);
     }
   }
 }
@@ -117,16 +121,6 @@ void G1RootProcessor::evacuate_roots(G1ParScanThreadState* pss, uint worker_i) {
     phase_times->record_time_secs(G1GCPhaseTimes::WaitForStrongCLD, worker_i, 0.0);
     phase_times->record_time_secs(G1GCPhaseTimes::WeakCLDRoots, worker_i, 0.0);
     assert(closures->second_pass_weak_clds() == NULL, "Should be null if not tracing metadata.");
-  }
-
-  // During conc marking we have to filter the per-thread SATB buffers
-  // to make sure we remove any oops into the CSet (which will show up
-  // as implicitly live).
-  {
-    G1GCParPhaseTimesTracker x(phase_times, G1GCPhaseTimes::SATBFiltering, worker_i);
-    if (_process_strong_tasks.try_claim_task(G1RP_PS_filter_satb_buffers) && _g1h->collector_state()->mark_or_rebuild_in_progress()) {
-      G1BarrierSet::satb_mark_queue_set().filter_thread_buffers();
-    }
   }
 
   _process_strong_tasks.all_tasks_completed(n_workers());
@@ -263,6 +257,15 @@ void G1RootProcessor::process_vm_roots(G1RootClosures* closures,
     G1GCParPhaseTimesTracker x(phase_times, G1GCPhaseTimes::AOTCodeRoots, worker_i);
     if (_process_strong_tasks.try_claim_task(G1RP_PS_aot_oops_do)) {
         AOTLoader::oops_do(strong_roots);
+    }
+  }
+#endif
+
+#if INCLUDE_JVMCI
+  if (EnableJVMCI) {
+    G1GCParPhaseTimesTracker x(phase_times, G1GCPhaseTimes::JVMCIRoots, worker_i);
+    if (_process_strong_tasks.try_claim_task(G1RP_PS_JVMCI_oops_do)) {
+      JVMCI::oops_do(strong_roots);
     }
   }
 #endif

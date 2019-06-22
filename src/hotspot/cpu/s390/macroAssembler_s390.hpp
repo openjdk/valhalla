@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2018, SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2019, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -713,6 +713,11 @@ class MacroAssembler: public Assembler {
                            Register temp2_reg,
                            Label&   L_success);
 
+  void clinit_barrier(Register klass,
+                      Register thread,
+                      Label* L_fast_path = NULL,
+                      Label* L_slow_path = NULL);
+
   // Increment a counter at counter_address when the eq condition code is set.
   // Kills registers tmp1_reg and tmp2_reg and preserves the condition code.
   void increment_counter_eq(address counter_address, Register tmp1_reg, Register tmp2_reg);
@@ -823,14 +828,15 @@ class MacroAssembler: public Assembler {
                    Register Rbase = Z_R1, int pow2_offset = -1);
 
   void resolve_oop_handle(Register result);
-  void load_mirror(Register mirror, Register method);
+  void load_mirror_from_const_method(Register mirror, Register const_method);
+  void load_method_holder(Register holder, Register method);
 
   //--------------------------
   //---  Operations on arrays.
   //--------------------------
-  unsigned int Clear_Array(Register cnt_arg, Register base_pointer_arg, Register src_addr, Register src_len);
+  unsigned int Clear_Array(Register cnt_arg, Register base_pointer_arg, Register odd_tmp_reg);
   unsigned int Clear_Array_Const(long cnt, Register base);
-  unsigned int Clear_Array_Const_Big(long cnt, Register base_pointer_arg, Register src_addr, Register src_len);
+  unsigned int Clear_Array_Const_Big(long cnt, Register base_pointer_arg, Register odd_tmp_reg);
   unsigned int CopyRawMemory_AlignedDisjoint(Register src_reg, Register dst_reg,
                                              Register cnt_reg,
                                              Register tmp1_reg, Register tmp2_reg);
