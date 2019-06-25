@@ -273,6 +273,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   bool needs_null_free_array_store_check(StoreIndexed* x);
   void check_null_free_array(LIRItem& array, LIRItem& value,  CodeEmitInfo* info);
   void substitutability_check(IfOp* x, LIRItem& left, LIRItem& right, LIRItem& t_val, LIRItem& f_val);
+  void init_temps_for_substitutability_check(LIR_Opr& tmp1, LIR_Opr& tmp2);
 
  public:
   LIR_Opr call_runtime(BasicTypeArray* signature, LIRItemList* args, address entry, ValueType* result_type, CodeEmitInfo* info);

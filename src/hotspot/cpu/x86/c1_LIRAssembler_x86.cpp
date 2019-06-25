@@ -1981,6 +1981,89 @@ void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
   __ testb(op->tmp()->as_register(), ArrayStorageProperties::null_free_value);
 }
 
+void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op) {
+  Label L_oops_equal;
+  Label L_oops_not_equal;
+  Label L_end;
+
+  Register left  = op->left()->as_register();
+  Register right = op->right()->as_register();
+
+  __ cmpptr(left, right);
+  __ jcc(Assembler::equal, L_oops_equal);
+
+  // (1) Null check -- if one of the operands is null, the other must not be null (because
+  //     the two references are not equal), so they are not substitutable,
+  //     FIXME: do null check only if the operand is nullable
+  {
+    __ cmpptr(left, (int32_t)NULL_WORD);
+    __ jcc(Assembler::equal, L_oops_not_equal);
+
+    __ cmpptr(right, (int32_t)NULL_WORD);
+    __ jcc(Assembler::equal, L_oops_not_equal);
+  }
+
+  ciKlass* left_klass = op->left_klass();
+  ciKlass* right_klass = op->right_klass();
+
+  // (2) Value object check -- if either of the operands is not a value object,
+  //     they are not substitutable. We do this only if we are not sure that the
+  //     operands are value objects
+  if ((left_klass == NULL || right_klass == NULL) ||// The klass is still unloaded, or came from a Phi node.
+      !left_klass->is_valuetype() || !right_klass->is_valuetype()) {
+    Register tmp1  = op->tmp1()->as_register();
+    __ movptr(tmp1, (intptr_t)markOopDesc::always_locked_pattern);
+    __ andl(tmp1, Address(left, oopDesc::mark_offset_in_bytes()));
+    __ andl(tmp1, Address(right, oopDesc::mark_offset_in_bytes()));
+    __ cmpptr(tmp1, (intptr_t)markOopDesc::always_locked_pattern);
+    __ jcc(Assembler::notEqual, L_oops_not_equal);
+  }
+
+  // (3) Same klass check: if the operands are of different klasses, they are not substitutable.
+  if (left_klass != NULL && left_klass->is_valuetype() && left_klass == right_klass) {
+    // No need to load klass -- the operands are statically known to be the same value klass.
+    __ jmp(*op->stub()->entry());
+  } else {
+    Register left_klass_op = op->left_klass_op()->as_register();
+    Register right_klass_op = op->right_klass_op()->as_register();
+
+    if (UseCompressedOops) {
+      __ movl(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
+      __ movl(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
+      __ cmpl(left_klass_op, right_klass_op);
+    } else {
+      __ movptr(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
+      __ movptr(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
+      __ cmpptr(left_klass_op, right_klass_op);
+    }
+
+    __ jcc(Assembler::equal, *op->stub()->entry()); // same klass -> do slow check
+    // fall through to L_oops_not_equal
+  }
+
+  __ bind(L_oops_not_equal);
+  move(op->not_equal_result(), op->result_opr());
+  __ jmp(L_end);
+
+  __ bind(L_oops_equal);
+  move(op->equal_result(), op->result_opr());
+  __ jmp(L_end);
+
+  // We've returned from the stub. op->result_opr() contains 0x0 IFF the two
+  // operands are not substitutable. (Don't compare against 0x1 in case the
+  // C compiler is naughty)
+  __ bind(*op->stub()->continuation());
+  if (op->result_opr()->type() == T_LONG) {
+    __ cmpptr(op->result_opr()->as_register(), (int32_t)0);
+  } else {
+    __ cmpl(op->result_opr()->as_register(), 0);
+  }
+  __ jcc(Assembler::equal, L_oops_not_equal); // (call_stub() == 0x0) -> not_equal
+  move(op->equal_result(), op->result_opr()); // (call_stub() != 0x0) -> equal
+  // fall-through
+  __ bind(L_end);
+}
+
 void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
   if (LP64_ONLY(false &&) op->code() == lir_cas_long && VM_Version::supports_cx8()) {
     assert(op->cmp_value()->as_register_lo() == rax, "wrong register");
@@ -2037,6 +2120,21 @@ void LIR_Assembler::emit_compare_and_swap(LIR_OpCompareAndSwap* op) {
 #endif // _LP64
   } else {
     Unimplemented();
+  }
+}
+
+void LIR_Assembler::move(LIR_Opr src, LIR_Opr dst) {
+  assert(dst->is_cpu_register(), "must be");
+  assert(dst->type() == src->type(), "must be");
+
+  if (src->is_cpu_register()) {
+    reg2reg(src, dst);
+  } else if (src->is_stack()) {
+    stack2reg(src, dst, dst->type());
+  } else if (src->is_constant()) {
+    const2reg(src, dst, lir_patch_none, NULL);
+  } else {
+    ShouldNotReachHere();
   }
 }
 

@@ -3237,105 +3237,36 @@ void LIRGenerator::do_IfOp(IfOp* x) {
 void LIRGenerator::substitutability_check(IfOp* x, LIRItem& left, LIRItem& right, LIRItem& t_val, LIRItem& f_val) {
   assert(x->cond() == If::eql || x->cond() == If::neq, "must be");
   bool is_acmpeq = (x->cond() == If::eql);
-  LIR_Opr reg = rlock_result(x);
   LIR_Opr equal_result     = is_acmpeq ? t_val.result() : f_val.result();
   LIR_Opr not_equal_result = is_acmpeq ? f_val.result() : t_val.result();
 
-  LabelObj* L_oops_equal = new LabelObj();
-  LabelObj* L_oops_not_equal = new LabelObj();
-  LabelObj* L_do_slow_subst_check = new LabelObj();
-  LabelObj* L_end = new LabelObj();
-
-  __ cmp(lir_cond_equal, left.result(), right.result());
-  __ branch(lir_cond_equal, T_ILLEGAL, L_oops_equal->label());
-
-  // The two operands are not the same reference. Do a more costly substitutability check.
+  LIR_Opr tmp1 = LIR_OprFact::illegalOpr;
+  LIR_Opr tmp2 = LIR_OprFact::illegalOpr;
+  LIR_Opr left_klass_op = LIR_OprFact::illegalOpr;
+  LIR_Opr right_klass_op = LIR_OprFact::illegalOpr;
 
   ciKlass* left_klass = x->x()->as_loaded_klass_or_null();
   ciKlass* right_klass = x->y()->as_loaded_klass_or_null();
 
-  // (1) Null check -- if one of the operands is null, the other must not be null (because
-  //     the two references are not equal), so they are not substitutable,
-  //     FIXME: do null check only if the operand is nullable
-  {
-    __ cmp(lir_cond_equal, left.result(), LIR_OprFact::oopConst(NULL));
-    __ branch(lir_cond_equal, T_ILLEGAL, L_oops_not_equal->label());
-
-    __ cmp(lir_cond_equal, right.result(), LIR_OprFact::oopConst(NULL));
-    __ branch(lir_cond_equal, T_ILLEGAL, L_oops_not_equal->label());
-  }
-
-  // (2) Value object check -- if either of the operands is not a value object,
-  //     they are not substitutable. We do this only if we are not sure that the
-  //     operands are value objects
   if ((left_klass == NULL || right_klass == NULL) ||// The klass is still unloaded, or came from a Phi node.
       !left_klass->is_valuetype() || !right_klass->is_valuetype()) {
-    // FIXME: on x64, this can be optimized as:
-    // mov $0x405,%r10d
-    // and (%left), %r10d   /* if need to check left */
-    // and (%right), %r10d  /* if need to check right */
-    // cmp $0x405, $r10d
-    // jne L_oops_not_equal
-
-    LIR_Opr mark = new_register(T_LONG);
-    LIR_Opr always_locked_pattern = new_register(T_LONG);
-    __ move(LIR_OprFact::longConst(markOopDesc::always_locked_pattern), always_locked_pattern);
-
-    if (left_klass == NULL || !left_klass->is_valuetype()) {
-      __ move(new LIR_Address(left.result(), oopDesc::mark_offset_in_bytes(), T_LONG), mark);
-      __ logical_and(mark, always_locked_pattern, mark);
-      __ cmp(lir_cond_notEqual, mark, always_locked_pattern);
-      __ branch(lir_cond_notEqual, T_ILLEGAL, L_oops_not_equal->label());
-    }
-
-    if (right_klass == NULL || !right_klass->is_valuetype()) {
-      __ move(new LIR_Address(right.result(), oopDesc::mark_offset_in_bytes(), T_LONG), mark);
-      __ logical_and(mark, always_locked_pattern, mark);
-      __ cmp(lir_cond_notEqual, mark, always_locked_pattern);
-      __ branch(lir_cond_notEqual, T_ILLEGAL, L_oops_not_equal->label());
-    }
+    init_temps_for_substitutability_check(tmp1, tmp2);
   }
 
-  // (3) Same klass check: if the operands are of different klasses, they are not substitutable.
   if (left_klass != NULL && left_klass->is_valuetype() && left_klass == right_klass) {
     // No need to load klass -- the operands are statically known to be the same value klass.
-    __ branch(lir_cond_always, T_ILLEGAL, L_do_slow_subst_check->label());
   } else {
     BasicType t_klass = UseCompressedOops ? T_INT : T_METADATA;
-    BasicType t_addr  = UseCompressedOops ? T_INT : T_ADDRESS;
-
-    LIR_Opr left_klass = new_register(t_klass);
-    LIR_Opr right_klass = new_register(t_klass);
-    __ move(new LIR_Address(left.result(),  oopDesc::klass_offset_in_bytes(), t_addr), left_klass);
-    __ move(new LIR_Address(right.result(), oopDesc::klass_offset_in_bytes(), t_addr), right_klass);
-    __ cmp(lir_cond_equal, left_klass, right_klass);
-    __ branch(lir_cond_equal, T_ILLEGAL, L_do_slow_subst_check->label());
-
-    // fall through to L_oops_not_equal
+    left_klass_op = new_register(t_klass);
+    right_klass_op = new_register(t_klass);
   }
 
-  __ branch_destination(L_oops_not_equal->label());
-  __ move(not_equal_result, reg);
-  __ branch(lir_cond_always, T_ILLEGAL, L_end->label());
-
-  // FIXME -- for simple case (no non-flattened value fields), do a per-field comparison
-
-  __ branch_destination(L_do_slow_subst_check->label());
-
-  const LIR_Opr result = result_register_for(x->type());
+  LIR_Opr result = rlock_result(x);
   CodeEmitInfo* info = state_for(x, x->state_before());
   CodeStub* slow_path = new SubstitutabilityCheckStub(left.result(), right.result(), result, info);
-  __ branch(lir_cond_always, T_ILLEGAL, slow_path);
-  __ branch_destination(slow_path->continuation());
-
-  __ cmp(lir_cond_notEqual, result, LIR_OprFact::intConst(1));
-  __ move(not_equal_result, reg);
-  __ branch(lir_cond_notEqual, T_ILLEGAL, L_end->label());
-
-  __ branch_destination(L_oops_equal->label());
-  __ move(equal_result, reg);
-
-  __ branch_destination(L_end->label());
+  __ substitutability_check(result, left.result(), right.result(), equal_result, not_equal_result,
+                            tmp1, tmp2,
+                            left_klass, right_klass, left_klass_op, right_klass_op, info, slow_path);
 }
 
 #ifdef JFR_HAVE_INTRINSICS

@@ -382,6 +382,24 @@ LIR_OpNullFreeArrayCheck::LIR_OpNullFreeArrayCheck(LIR_Opr array, LIR_Opr tmp)
   , _tmp(tmp) {}
 
 
+LIR_OpSubstitutabilityCheck::LIR_OpSubstitutabilityCheck(LIR_Opr result, LIR_Opr left, LIR_Opr right, LIR_Opr equal_result, LIR_Opr not_equal_result,
+                                                         LIR_Opr tmp1, LIR_Opr tmp2,
+                                                         ciKlass* left_klass, ciKlass* right_klass, LIR_Opr left_klass_op, LIR_Opr right_klass_op,
+                                                         CodeEmitInfo* info, CodeStub* stub)
+  : LIR_Op(lir_substitutability_check, result, info)
+  , _left(left)
+  , _right(right)
+  , _equal_result(equal_result)
+  , _not_equal_result(not_equal_result)
+  , _tmp1(tmp1)
+  , _tmp2(tmp2)
+  , _left_klass(left_klass)
+  , _right_klass(right_klass)
+  , _left_klass_op(left_klass_op)
+  , _right_klass_op(right_klass_op)
+  , _stub(stub) {}
+
+
 LIR_OpArrayCopy::LIR_OpArrayCopy(LIR_Opr src, LIR_Opr src_pos, LIR_Opr dst, LIR_Opr dst_pos, LIR_Opr length,
                                  LIR_Opr tmp, ciArrayKlass* expected_type, int flags, CodeEmitInfo* info)
   : LIR_Op(lir_arraycopy, LIR_OprFact::illegalOpr, info)
@@ -895,6 +913,28 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       break;
     }
 
+// LIR_OpSubstitutabilityCheck
+    case lir_substitutability_check: {
+      assert(op->as_OpSubstitutabilityCheck() != NULL, "must be");
+      LIR_OpSubstitutabilityCheck* opSubstitutabilityCheck = (LIR_OpSubstitutabilityCheck*)op;
+                                                                do_input(opSubstitutabilityCheck->_left);
+                                                                do_temp (opSubstitutabilityCheck->_left);
+                                                                do_input(opSubstitutabilityCheck->_right);
+                                                                do_temp (opSubstitutabilityCheck->_right);
+                                                                do_input(opSubstitutabilityCheck->_equal_result);
+                                                                do_temp (opSubstitutabilityCheck->_equal_result);
+                                                                do_input(opSubstitutabilityCheck->_not_equal_result);
+                                                                do_temp (opSubstitutabilityCheck->_not_equal_result);
+      if (opSubstitutabilityCheck->_tmp1->is_valid())           do_temp(opSubstitutabilityCheck->_tmp1);
+      if (opSubstitutabilityCheck->_tmp2->is_valid())           do_temp(opSubstitutabilityCheck->_tmp2);
+      if (opSubstitutabilityCheck->_left_klass_op->is_valid())  do_temp(opSubstitutabilityCheck->_left_klass_op);
+      if (opSubstitutabilityCheck->_right_klass_op->is_valid()) do_temp(opSubstitutabilityCheck->_right_klass_op);
+      if (opSubstitutabilityCheck->_result->is_valid())         do_output(opSubstitutabilityCheck->_result);
+                                                                do_info(opSubstitutabilityCheck->_info);
+                                                                do_stub(opSubstitutabilityCheck->_stub);
+      break;
+    }
+
 // LIR_OpCompareAndSwap
     case lir_cas_long:
     case lir_cas_obj:
@@ -1113,6 +1153,13 @@ void LIR_OpFlattenedArrayCheck::emit_code(LIR_Assembler* masm) {
 
 void LIR_OpNullFreeArrayCheck::emit_code(LIR_Assembler* masm) {
   masm->emit_opNullFreeArrayCheck(this);
+}
+
+void LIR_OpSubstitutabilityCheck::emit_code(LIR_Assembler* masm) {
+  masm->emit_opSubstitutabilityCheck(this);
+  if (stub() != NULL) {
+    masm->append_code_stub(stub());
+  }
 }
 
 void LIR_OpCompareAndSwap::emit_code(LIR_Assembler* masm) {
@@ -1526,6 +1573,17 @@ void LIR_List::check_null_free_array(LIR_Opr array, LIR_Opr tmp) {
   append(c);
 }
 
+void LIR_List::substitutability_check(LIR_Opr result, LIR_Opr left, LIR_Opr right, LIR_Opr equal_result, LIR_Opr not_equal_result,
+                                      LIR_Opr tmp1, LIR_Opr tmp2,
+                                      ciKlass* left_klass, ciKlass* right_klass, LIR_Opr left_klass_op, LIR_Opr right_klass_op,
+                                      CodeEmitInfo* info, CodeStub* stub) {
+  LIR_OpSubstitutabilityCheck* c = new LIR_OpSubstitutabilityCheck(result, left, right, equal_result, not_equal_result,
+                                                                   tmp1, tmp2,
+                                                                   left_klass, right_klass, left_klass_op, right_klass_op,
+                                                                   info, stub);
+  append(c);
+}
+
 void LIR_List::cas_long(LIR_Opr addr, LIR_Opr cmp_value, LIR_Opr new_value,
                         LIR_Opr t1, LIR_Opr t2, LIR_Opr result) {
   append(new LIR_OpCompareAndSwap(lir_cas_long, addr, cmp_value, new_value, t1, t2, result));
@@ -1822,6 +1880,8 @@ const char * LIR_Op::name() const {
      case lir_flattened_array_check: s = "flattened_array_check"; break;
      // LIR_OpNullFreeArrayCheck
      case lir_null_free_array_check: s = "null_free_array_check"; break;
+     // LIR_OpSubstitutabilityCheck
+     case lir_substitutability_check: s = "substitutability_check"; break;
      // LIR_OpCompareAndSwap
      case lir_cas_long:              s = "cas_long";      break;
      case lir_cas_obj:               s = "cas_obj";      break;
@@ -2079,6 +2139,23 @@ void LIR_OpFlattenedArrayCheck::print_instr(outputStream* out) const {
 void LIR_OpNullFreeArrayCheck::print_instr(outputStream* out) const {
   array()->print(out);                   out->print(" ");
   tmp()->print(out);                     out->print(" ");
+}
+
+void LIR_OpSubstitutabilityCheck::print_instr(outputStream* out) const {
+  result_opr()->print(out);              out->print(" ");
+  left()->print(out);                    out->print(" ");
+  right()->print(out);                   out->print(" ");
+  equal_result()->print(out);            out->print(" ");
+  not_equal_result()->print(out);        out->print(" ");
+  tmp1()->print(out);                    out->print(" ");
+  tmp2()->print(out);                    out->print(" ");
+  left_klass()->print(out);              out->print(" ");
+  right_klass()->print(out);             out->print(" ");
+  left_klass_op()->print(out);           out->print(" ");
+  right_klass_op()->print(out);          out->print(" ");
+  if (stub() != NULL) {
+    out->print("[label:" INTPTR_FORMAT "]", p2i(stub()->entry()));
+  }
 }
 
 // LIR_Op3
