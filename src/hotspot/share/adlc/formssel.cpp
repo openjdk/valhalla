@@ -764,6 +764,7 @@ bool InstructForm::captures_bottom_type(FormDict &globals) const {
   if (_matrule && _matrule->_rChild &&
       (!strcmp(_matrule->_rChild->_opType,"CastPP")       ||  // new result type
        !strcmp(_matrule->_rChild->_opType,"CastX2P")      ||  // new result type
+       !strcmp(_matrule->_rChild->_opType,"CastI2N")      ||  // new result type
        !strcmp(_matrule->_rChild->_opType,"DecodeN")      ||
        !strcmp(_matrule->_rChild->_opType,"EncodeP")      ||
        !strcmp(_matrule->_rChild->_opType,"DecodeNKlass") ||
@@ -792,7 +793,7 @@ bool InstructForm::captures_bottom_type(FormDict &globals) const {
   if (is_vector()) return true;
   if (is_mach_constant()) return true;
 
-  return  false;
+  return false;
 }
 
 
