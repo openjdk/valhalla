@@ -291,6 +291,10 @@ public class AccessibleObject implements AnnotatedElement {
             throw new IllegalCallerException();   // should not happen
         }
 
+        if (declaringClass.isHiddenClass()) {
+            return false;
+        }
+
         Module callerModule = caller.getModule();
         Module declaringModule = declaringClass.getModule();
 

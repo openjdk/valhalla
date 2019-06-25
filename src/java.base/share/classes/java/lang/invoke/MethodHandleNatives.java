@@ -146,7 +146,7 @@ class MethodHandleNatives {
          */
         static final int
             NESTMATE_CLASS            = 0x00000001,
-            NONFINDABLE_CLASS         = 0x00000002,
+            HIDDEN_CLASS              = 0x00000002,
             WEAK_CLASS                = 0x00000004,
             ACCESS_VM_ANNOTATIONS     = 0x00100000;
     }

@@ -34,7 +34,6 @@ import jdk.internal.org.objectweb.asm.Type;
 import sun.invoke.util.VerifyAccess;
 import sun.invoke.util.VerifyType;
 import sun.invoke.util.Wrapper;
-import sun.reflect.misc.ReflectUtil;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -318,11 +317,9 @@ class InvokerBytecodeGenerator {
      * Define a given class as anonymous class in the runtime system.
      */
     private static Class<?> loadAndInitializeInvokerClass(byte[] classBytes, List<Object> classData) {
-        Class<?> invokerClass = LOOKUP.defineClassWithNoCheck(classBytes, WEAK_HIDDEN_NESTMATE, classData);
-        UNSAFE.ensureClassInitialized(invokerClass);  // Make sure the class is initialized; VM might complain.
-        return invokerClass;
+        return LOOKUP.defineClassAsLookupNoCheck(classBytes, WEAK_HIDDEN_NESTMATE, classData)
+                     .lookupClass();
     }
-
 
     private static MemberName resolveInvokerMember(Class<?> invokerClass, String name, MethodType type) {
         MemberName member = new MemberName(invokerClass, name, type, REF_invokeStatic);
@@ -382,8 +379,9 @@ class InvokerBytecodeGenerator {
         mv.visitCode();
         mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/invoke/MethodHandles",
                            "lookup", "()Ljava/lang/invoke/MethodHandles$Lookup;", false);
+        mv.visitLdcInsn(Type.getType(List.class));
         mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/invoke/MethodHandles$Lookup",
-                           "classData", "()Ljava/lang/Object;", false);
+                           "classData", "(Ljava/lang/Class;)Ljava/lang/Object;", false);
         // we should optimize one single element case that does not need to create a List
         mv.visitTypeInsn(Opcodes.CHECKCAST, "java/util/List");
         mv.visitVarInsn(Opcodes.ASTORE, 0);
@@ -1027,7 +1025,7 @@ class InvokerBytecodeGenerator {
             return false;  // inner class of some sort
         if (cls.getClassLoader() != MethodHandle.class.getClassLoader())
             return false;  // not on BCP
-        if (cls.isHidden())
+        if (cls.isHiddenClass())
             return false;
         if (!isStaticallyInvocableType(member.getMethodOrFieldType()))
             return false;
@@ -1051,14 +1049,14 @@ class InvokerBytecodeGenerator {
         if (cls == Object.class)
             return true;
         if (MethodHandle.class.isAssignableFrom(cls)) {
-            assert(!cls.isHidden());
+            assert(!cls.isHiddenClass());
             return true;
         }
         while (cls.isArray())
             cls = cls.getComponentType();
         if (cls.isPrimitive())
             return true;  // int[].class, for example
-        if (cls.isHidden())
+        if (cls.isHiddenClass())
             return false;
         // could use VerifyAccess.isClassAccessible but the following is a safe approximation
         if (cls.getClassLoader() != Object.class.getClassLoader())

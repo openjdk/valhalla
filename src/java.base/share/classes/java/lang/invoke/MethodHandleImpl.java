@@ -40,6 +40,7 @@ import sun.invoke.util.ValueConversions;
 import sun.invoke.util.VerifyType;
 import sun.invoke.util.Wrapper;
 
+import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Collections;
@@ -53,6 +54,7 @@ import java.util.stream.Stream;
 import static java.lang.invoke.LambdaForm.*;
 import static java.lang.invoke.MethodHandleStatics.*;
 import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
+import static java.lang.invoke.MethodHandles.Lookup.WEAK_HIDDEN_NESTMATE;
 import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
 /**
@@ -1166,18 +1168,20 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             return restoreToType(bccInvoker.bindTo(vamh), mh, hostClass);
         }
 
-        private static MethodHandle makeInjectedInvoker(Class<?> hostClass) {
+        private static MethodHandle makeInjectedInvoker(Class<?> targetClass) {
             try {
-                /* ## TODO
+                /*
                  * The invoker class defined to the same class loader as the lookup class
                  * but in an unnamed package so that the class bytes can be cached and
                  * reused for any @CSM.
                  *
                  * @CSM must be public and exported if called by any module.
                  */
-                Class<?> invokerClass = UNSAFE.defineAnonymousClass(hostClass, INJECTED_INVOKER_TEMPLATE, null);
-                assert checkInjectedInvoker(hostClass, invokerClass);
-                return IMPL_LOOKUP.findStatic(invokerClass, "invoke_V", INVOKER_MT);
+                String name = targetClass.getNestHost().getName() + "$$InjectedInvoker";
+                Lookup lookup = new Lookup(targetClass).defineClassAsLookupNoCheck(name, INJECTED_INVOKER_TEMPLATE, WEAK_HIDDEN_NESTMATE);
+                Class<?> invokerClass = lookup.lookupClass();
+                assert checkInjectedInvoker(targetClass, invokerClass);
+                return lookup.findStatic(invokerClass, "invoke_V", INVOKER_MT);
             } catch (ReflectiveOperationException ex) {
                 throw uncaughtException(ex);
             }

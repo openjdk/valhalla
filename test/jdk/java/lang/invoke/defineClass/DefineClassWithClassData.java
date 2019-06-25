@@ -45,6 +45,8 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
 import static org.testng.Assert.*;
 
 public class DefineClassWithClassData {
+    private static final byte[] T_CLASS_BYTES = ClassByteBuilder.classBytes("T");
+    private static final byte[] T2_CLASS_BYTES = ClassByteBuilder.classBytes("T2");
 
     private int privMethod() { return 1234; }
 
@@ -72,8 +74,8 @@ public class DefineClassWithClassData {
     @Test
     public void defineNestMate() throws Throwable {
         // define a nestmate
-        Lookup lookup = MethodHandles.lookup();
-        Class<?> c = lookup.defineClassWithClassData(ClassByteBuilder.classBytes("T"), classData, NESTMATE, HIDDEN);
+        Lookup lookup = MethodHandles.lookup().defineClassWithClassData(T_CLASS_BYTES, classData, NESTMATE, HIDDEN);
+        Class<?> c = lookup.lookupClass();
         assertTrue(c.getNestHost() == DefineClassWithClassData.class);
         assertEquals(classData, injectedData(c));
 
@@ -89,10 +91,10 @@ public class DefineClassWithClassData {
     @Test
     public void defineHiddenClass() throws Throwable {
         // define a hidden class
-        Lookup lookup = MethodHandles.lookup();
-        Class<?> c = lookup.defineClassWithClassData(ClassByteBuilder.classBytes("T"), classData, NESTMATE, HIDDEN);
+        Lookup lookup = MethodHandles.lookup().defineClassWithClassData(T_CLASS_BYTES, classData, NESTMATE, HIDDEN);
+        Class<?> c = lookup.lookupClass();
         assertTrue(c.getNestHost() == DefineClassWithClassData.class);
-        assertTrue(c.isHidden());
+        assertTrue(c.isHiddenClass());
         assertEquals(classData, injectedData(c));
 
         // invoke int test(DefineClassWithClassData o)
@@ -107,32 +109,32 @@ public class DefineClassWithClassData {
     @Test
     public void defineWeakClass() throws Throwable {
         // define a weak class
-        Lookup lookup = MethodHandles.lookup().dropLookupMode(Lookup.PRIVATE);
-        Class<?> c = lookup.defineClassWithClassData(ClassByteBuilder.classBytes("T"), classData, WEAK);
+        Lookup lookup = MethodHandles.lookup().defineClassWithClassData(T_CLASS_BYTES, classData, WEAK);
+        Class<?> c = lookup.lookupClass();
         assertTrue(c.getNestHost() == c);
-        assertTrue(c.isHidden());
+        assertTrue(c.isHiddenClass());
     }
 
     @Test(expectedExceptions = IllegalAccessException.class)
     public void noPrivateLookupAccess() throws Throwable {
         Lookup lookup = MethodHandles.lookup().dropLookupMode(Lookup.PRIVATE);
-        lookup.defineClassWithClassData(ClassByteBuilder.classBytes("T2"), classData, NESTMATE, HIDDEN);
+        lookup.defineClassWithClassData(T2_CLASS_BYTES, classData, NESTMATE, HIDDEN);
     }
 
     @Test(expectedExceptions = IllegalAccessException.class)
     public void teleportToNestmate() throws Throwable {
-        byte[] classBytes = ClassByteBuilder.classBytes("T");
-        Class<?> c = MethodHandles.lookup()
-            .defineClassWithClassData(classBytes, classData, NESTMATE, HIDDEN);
+        Lookup lookup = MethodHandles.lookup()
+            .defineClassWithClassData(T_CLASS_BYTES, classData, NESTMATE, HIDDEN);
+        Class<?> c = lookup.lookupClass();
         assertTrue(c.getNestHost() == DefineClassWithClassData.class);
         assertEquals(classData, injectedData(c));
-        assertTrue(c.isHidden());
+        assertTrue(c.isHiddenClass());
 
         // Teleport to a nestmate
-        Lookup lookup =  MethodHandles.lookup().in(c);
-        assertTrue((lookup.lookupModes() & PRIVATE) == 0);
+        Lookup lookup2 =  MethodHandles.lookup().in(c);
+        assertTrue((lookup2.lookupModes() & PRIVATE) == 0);
         // fail to define a nestmate
-        lookup.defineClassWithClassData(ClassByteBuilder.classBytes("T2"), classData, NESTMATE, HIDDEN);
+        lookup2.defineClassWithClassData(T2_CLASS_BYTES, classData, NESTMATE, HIDDEN);
     }
 
     static class ClassByteBuilder {
@@ -144,7 +146,7 @@ public class DefineClassWithClassData {
         static final String LOOKUP_SIG = "Ljava/lang/invoke/MethodHandles$Lookup;";
         static final String LIST_SIG = "Ljava/util/List;";
 
-        static byte[] classBytes(String classname) throws Exception {
+        static byte[] classBytes(String classname) {
             ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
             MethodVisitor mv;
             FieldVisitor fv;
@@ -169,7 +171,8 @@ public class DefineClassWithClassData {
 
                 mv.visitLabel(lTryBlockStart);
                 mv.visitMethodInsn(INVOKESTATIC, MH_CLS, "lookup", "()" + LOOKUP_SIG);
-                mv.visitMethodInsn(INVOKEVIRTUAL, LOOKUP_CLS, "classData", "()Ljava/lang/Object;");
+                mv.visitLdcInsn(Type.getType(List.class));
+                mv.visitMethodInsn(INVOKEVIRTUAL, LOOKUP_CLS, "classData", "(Ljava/lang/Class;)Ljava/lang/Object;");
                 mv.visitTypeInsn(CHECKCAST, LIST_CLS);
                 mv.visitFieldInsn(PUTSTATIC, classname, "data", LIST_SIG);
                 mv.visitLabel(lTryBlockEnd);

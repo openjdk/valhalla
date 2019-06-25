@@ -63,7 +63,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.StringJoiner;
 import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
@@ -326,9 +325,9 @@ public final class Class<T> implements java.io.Serializable,
      * @exception ExceptionInInitializerError if the initialization provoked
      *            by this method fails
      * @exception ClassNotFoundException if the class cannot be located, or
-     *            the class is {@linkplain #isHidden() hidden}
+     *            the class is {@linkplain #isHiddenClass() hidden}
      *
-     * @see Class#isHidden
+     * @see Class#isHiddenClass
      */
     @CallerSensitive
     public static Class<?> forName(String className)
@@ -388,7 +387,7 @@ public final class Class<T> implements java.io.Serializable,
      *            by this method fails
      * @exception ClassNotFoundException if the class cannot be located by
      *            the specified class loader, or
-     *            the class is {@linkplain #isHidden() hidden}
+     *            the class is {@linkplain #isHiddenClass() hidden}
      * @exception SecurityException
      *            if a security manager is present, and the {@code loader} is
      *            {@code null}, and the caller's class loader is not
@@ -397,7 +396,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @see       java.lang.Class#forName(String)
      * @see       java.lang.ClassLoader
-     * @see       java.lang.Class#isHidden
+     * @see       java.lang.Class#isHiddenClass
      * @since     1.2
      */
     @CallerSensitive
@@ -456,7 +455,7 @@ public final class Class<T> implements java.io.Serializable,
      *                  of the class
      * @return {@code Class} object of the given name defined in the given module;
      *         {@code null} if not found or the class is defined in
-     *         the given module but {@linkplain #isHidden() hidden}
+     *         the given module but {@linkplain #isHiddenClass() hidden}
      *
      * @throws NullPointerException if the given module or name is {@code null}
      *
@@ -472,7 +471,7 @@ public final class Class<T> implements java.io.Serializable,
      *         in a module.</li>
      *         </ul>
      *
-     * @see       java.lang.Class#isHidden
+     * @see       java.lang.Class#isHiddenClass
      * @since 9
      * @spec JPMS
      */
@@ -1635,7 +1634,7 @@ public final class Class<T> implements java.io.Serializable,
             else
                 return ReflectionData.NULL_SENTINEL;
         }
-        if (isLocalOrAnonymousClass())
+        if (isHiddenClass() || isLocalOrAnonymousClass())
             return ReflectionData.NULL_SENTINEL;
         Class<?> enclosingClass = getEnclosingClass();
         if (enclosingClass == null) { // top level class
@@ -4128,39 +4127,34 @@ public final class Class<T> implements java.io.Serializable,
    }
 
     /**
-     * Returns {@code true} if this class is hidden from being referenced
-     * by other classes; otherwise, {@code false}.
+     * Returns {@code true} if this class is a hidden class.
      *
-     * <p> A <em>hidden class</em> is a class that cannot be referenced
-     * by other classes and cannot be loaded by its name.
-     * <p> A hidden class can be defined via
-     * {@link MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty[])
-     * Lookup.defineClass} with
-     * {@link MethodHandles.Lookup.ClassProperty#HIDDEN HIDDEN} property.
+     * <p> A <em>hidden class</em> is a class to which no constant pool entry
+     * (or symbolic reference derived therefrom) can refer.
+     * Loading, linking, and initializing of a hidden class are controlled solely
+     * by invocations on the {@link MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty...)
+     * MethodHandles.Lookup} object.
      *
-     * <p> If this class is hidden then it cannot be found via its name.
-     * For example, {@code Class.forName(this.getName())} cannot find this class
-     * and {@code ClassNotFoundException} will be thrown.
+     * <p> If this class is hidden then it cannot be found via its name
+     * including {@link ClassLoader#findLoadedClass},
+     * {@link Class#forName(String) Class.forName(this.getName())},
+     * and {@link MethodHandles.Lookup#findClass(String) MethodHandles.Lookup.findClass}.
      *
      * <p> If this class is an array class and its component class is hidden,
      * then this array class is also hidden.
      *
+     * <p> A hidden class does not have a {@linkplain #getCanonicalName()
+     * canonical name}.
+     *
      * @return {@code true} if this class is hidden;
      * otherwise {@code false}.
      *
-     * @since 12
+     * @since 14
+     * @see MethodHandles.Lookup.ClassProperty#HIDDEN
      * @see MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty[])
      */
-    public boolean isHidden() {
-        return getName().indexOf('\\') > -1 || isVMAnonymousClass();
-    }
-
-    /**
-     * Checks if this {@code Class} is a VM-anonymous class
-     * as defined by {@link jdk.internal.misc.Unsafe#defineAnonymousClass}
-     * (not to be confused with a Java Language anonymous inner class).
-     */
-    private boolean isVMAnonymousClass() {
+    public boolean isHiddenClass() {
         return getName().indexOf('/') > -1;
     }
+
 }

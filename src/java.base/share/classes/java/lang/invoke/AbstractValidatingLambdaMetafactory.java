@@ -51,6 +51,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
      *         System.out.printf(">>> %s\n", iii.foo(44));
      * }}
      */
+    final MethodHandles.Lookup caller;
     final Class<?> targetClass;               // The class calling the meta-factory via invokedynamic "class X"
     final MethodType invokedType;             // The type of the invoked method "(CC)II"
     final Class<?> samBase;                   // The type of the returned instance "interface JJ"
@@ -120,6 +121,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
                     "Invalid caller: %s",
                     caller.lookupClass().getName()));
         }
+        this.caller = caller;
         this.targetClass = caller.lookupClass();
         this.invokedType = invokedType;
 

@@ -1127,6 +1127,7 @@ public abstract class ClassLoader {
      * @param off the start offset in {@code b} of the class bytes
      * @param len the length of the class bytes
      * @param pd protection domain
+     * @param initialize initialize the class
      * @param flags flags
      * @param classData class data
      */
@@ -1135,6 +1136,7 @@ public abstract class ClassLoader {
                                         String name,
                                         byte[] b, int off, int len,
                                         ProtectionDomain pd,
+                                        boolean initialize,
                                         int flags,
                                         Object classData);
 

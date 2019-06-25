@@ -187,7 +187,9 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
      */
     @Override
     CallSite buildCallSite() throws LambdaConversionException {
-        final Class<?> innerClass = spinInnerClass();
+        Lookup lookup = spinInnerClassAsLookup();
+        Class<?> innerClass = lookup.lookupClass();
+        assert innerClass.isHiddenClass() : innerClass.toString();
         if (invokedType.parameterCount() == 0) {
             final Constructor<?>[] ctrs = AccessController.doPrivileged(
                     new PrivilegedAction<>() {
@@ -216,8 +218,6 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             }
         } else {
             try {
-                UNSAFE.ensureClassInitialized(innerClass);
-                Lookup lookup = MethodHandles.privateLookupIn(innerClass, Lookup.IMPL_LOOKUP);
                 MethodHandle mh = lookup.findConstructor(innerClass, invokedType.changeReturnType(void.class));
                 return new ConstantCallSite(mh.asType(invokedType));
             } catch (ReflectiveOperationException e) {
@@ -241,7 +241,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
      * @throws LambdaConversionException If properly formed functional interface
      * is not found
      */
-    private Class<?> spinInnerClass() throws LambdaConversionException {
+    private Lookup spinInnerClassAsLookup() throws LambdaConversionException {
         String[] interfaces;
         String samIntf = samBase.getName().replace('.', '/');
         boolean accidentallySerializable = !isSerializable && Serializable.class.isAssignableFrom(samBase);
@@ -299,7 +299,6 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         // Define the generated class in this VM.
 
         final byte[] classBytes = cw.toByteArray();
-
         // If requested, dump out to a file for debugging purposes
         if (dumper != null) {
             AccessController.doPrivileged(new PrivilegedAction<>() {
@@ -313,13 +312,8 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             // createDirectories may need it
             new PropertyPermission("user.dir", "read"));
         }
-        try {
-            Lookup lookup = MethodHandles.privateLookupIn(targetClass, IMPL_LOOKUP);
-            // this class is linked at the indy callsite.  No need to be weak class
-            return lookup.defineClassWithNoCheck(classBytes, HIDDEN_NESTMATE);
-        } catch (ReflectiveOperationException e) {
-            throw new LambdaConversionException(e);
-        }
+        // this class is linked at the indy callsite.  No need to be weak class
+        return caller.defineClassAsLookupNoCheck(classBytes, HIDDEN_NESTMATE);
     }
 
     /**

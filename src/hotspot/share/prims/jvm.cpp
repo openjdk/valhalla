@@ -977,7 +977,7 @@ enum {
  */
 static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *name,
                                       jobject loader, const jbyte *buf, jsize len, jobject pd,
-                                      int flags, jobject classData, TRAPS) {
+                                      jboolean init, int flags, jobject classData, TRAPS) {
   assert(THREAD->is_Java_thread(), "must be a JavaThread");
   JavaThread* jt = (JavaThread*) THREAD;
   ResourceMark rm(THREAD);
@@ -1091,6 +1091,11 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                                 ik->is_nonfindable() ? "is non-findable" : "is findable");
   }
 
+  if (init) {
+    InstanceKlass* ik = InstanceKlass::cast(k);
+    ik->initialize(CHECK_NULL);
+  }
+
   return (jclass) JNIHandles::make_local(env, k->java_mirror());
 }
 
@@ -1108,11 +1113,12 @@ JVM_END
  *  buf:     class bytes
  *  len:     length of class bytes
  *  pd:      protection domain
+ *  init:    initialize the class 
  *  flags:   properties of the class
  *  classData: private static pre-initialized field
  */
 JVM_ENTRY(jclass, JVM_LookupDefineClass(JNIEnv *env, jclass lookup, const char *name, jobject loader,
-                      const jbyte *buf, jsize len, jobject pd, int flags, jobject classData))
+                      const jbyte *buf, jsize len, jobject pd, jboolean initialize, int flags, jobject classData))
   JVMWrapper("JVM_LookupDefineClass");
 
   if (lookup == NULL) {
@@ -1121,7 +1127,7 @@ JVM_ENTRY(jclass, JVM_LookupDefineClass(JNIEnv *env, jclass lookup, const char *
 
   assert(buf != NULL, "buf must not be NULL");
 
-  return jvm_lookup_define_class(env, lookup, name, loader, buf, len, pd, flags, classData, THREAD);
+  return jvm_lookup_define_class(env, lookup, name, loader, buf, len, pd, initialize, flags, classData, THREAD);
 JVM_END
 
 JVM_ENTRY(jclass, JVM_DefineClassWithSource(JNIEnv *env, const char *name, jobject loader, const jbyte *buf, jsize len, jobject pd, const char *source))

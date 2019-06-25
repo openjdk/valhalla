@@ -2186,8 +2186,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
                 } else {
                     if (refSym.isStatic()) {
                         return ClassFile.REF_invokeStatic;
-                    } else if ((refSym.flags() & PRIVATE) != 0) {
-                        return ClassFile.REF_invokeSpecial;
                     } else if (refSym.enclClass().isInterface()) {
                         return ClassFile.REF_invokeInterface;
                     } else {

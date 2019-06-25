@@ -2193,8 +2193,8 @@ public final class System {
                 return ClassLoader.defineClass1(loader, name, b, 0, b.length, pd, source);
             }
             public Class<?> defineClass(ClassLoader loader, Class<?> lookup, String name, byte[] b, ProtectionDomain pd,
-                                        int flags, Object classData) {
-                return ClassLoader.defineClass0(loader, lookup, name, b, 0, b.length, pd, flags, classData);
+                                        boolean initialize, int flags, Object classData) {
+                return ClassLoader.defineClass0(loader, lookup, name, b, 0, b.length, pd, initialize, flags, classData);
             }
             public Class<?> findBootstrapClassOrNull(ClassLoader cl, String name) {
                 return cl.findBootstrapClassOrNull(name);

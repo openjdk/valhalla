@@ -44,7 +44,6 @@ import java.util.Objects;
 import java.util.Properties;
 
 import jdk.internal.misc.VM;
-import sun.reflect.misc.ReflectUtil;
 import sun.security.action.GetPropertyAction;
 import sun.security.util.SecurityConstants;
 
@@ -202,7 +201,7 @@ public class ReflectionFactory {
             method = root;
         }
 
-        if (noInflation && !method.getDeclaringClass().isHidden()) {
+        if (noInflation && !method.getDeclaringClass().isHiddenClass()) {
             return new MethodAccessorGenerator().
                 generateMethod(method.getDeclaringClass(),
                                method.getName(),
@@ -246,7 +245,7 @@ public class ReflectionFactory {
             return new BootstrapConstructorAccessorImpl(c);
         }
 
-        if (noInflation && !c.getDeclaringClass().isHidden()) {
+        if (noInflation && !c.getDeclaringClass().isHiddenClass()) {
             return new MethodAccessorGenerator().
                 generateConstructor(c.getDeclaringClass(),
                                     c.getParameterTypes(),

@@ -153,7 +153,7 @@ public interface JavaLangAccess {
      *
      * @see java.lang.invoke.MethodHandles.Lookup#defineClass
      */
-    Class<?> defineClass(ClassLoader cl, Class<?> lookup, String name, byte[] b, ProtectionDomain pd, int flags, Object classData);
+    Class<?> defineClass(ClassLoader cl, Class<?> lookup, String name, byte[] b, ProtectionDomain pd, boolean initialize, int flags, Object classData);
 
     /**
      * Returns a class loaded by the bootstrap class loader.

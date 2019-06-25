@@ -395,12 +395,13 @@ JVM_DefineClassWithSource(JNIEnv *env, const char *name, jobject loader,
  *  buf:     class bytes
  *  len:     length of class bytes
  *  pd:      protection domain
+ *  init:    initialize the class
  *  flags:   properties of the class
  *  classData: private static pre-initialized field; may be null
  */
 JNIEXPORT jclass JNICALL
 JVM_LookupDefineClass(JNIEnv *env, jclass lookup, const char *name, jobject loader,
-                      const jbyte *buf, jsize len, jobject pd, int flags, jobject classData);
+                      const jbyte *buf, jsize len, jobject pd, jboolean init, int flags, jobject classData);
 
 /*
  * Module support funcions

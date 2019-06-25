@@ -30,6 +30,7 @@ import jdk.internal.misc.VM;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 
+import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.util.Set;
 
@@ -820,11 +821,17 @@ public final class Unsafe {
      * <li>String: any object (not just a java.lang.String)
      * <li>InterfaceMethodRef: (NYI) a method handle to invoke on that call site's arguments
      * </ul>
+     *
+     * @deprecated Use the {@link java.lang.invoke.MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty...)}
+     * and {@link java.lang.invoke.MethodHandles.Lookup#defineClassWithClassData(byte[], Object, MethodHandles.Lookup.ClassProperty...)}
+     * methods instead.
+     *
      * @param hostClass context for linkage, access control, protection domain, and class loader
      * @param data      bytes of a class file
      * @param cpPatches where non-null entries exist, they replace corresponding CP entries in data
      */
     @ForceInline
+    @Deprecated(since = "14", forRemoval = false)
     public Class<?> defineAnonymousClass(Class<?> hostClass, byte[] data, Object[] cpPatches) {
         return theInternalUnsafe.defineAnonymousClass(hostClass, data, cpPatches);
     }

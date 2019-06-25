@@ -221,6 +221,7 @@ Java_java_lang_ClassLoader_defineClass0(JNIEnv *env,
                                         jint offset,
                                         jint length,
                                         jobject pd,
+                                        jboolean initialize,
                                         jint flags,
                                         jobject classData)
 {
@@ -263,7 +264,7 @@ Java_java_lang_ClassLoader_defineClass0(JNIEnv *env,
         utfName = NULL;
     }
 
-    return JVM_LookupDefineClass(env, lookup, utfName, loader, body, length, pd, flags, classData);
+    return JVM_LookupDefineClass(env, lookup, utfName, loader, body, length, pd, initialize, flags, classData);
 
  free_body:
     free(body);
