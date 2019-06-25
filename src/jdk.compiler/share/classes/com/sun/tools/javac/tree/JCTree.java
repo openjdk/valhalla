@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -190,6 +190,10 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         /** Break statements, of type Break.
          */
         BREAK,
+
+        /** Yield statements, of type Yield.
+         */
+        YIELD,
 
         /** Continue statements, of type Continue.
          */
@@ -1596,10 +1600,10 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
      * A break from a loop or switch.
      */
     public static class JCBreak extends JCStatement implements BreakTree {
-        public JCExpression value;
+        public Name label;
         public JCTree target;
-        protected JCBreak(JCExpression value, JCTree target) {
-            this.value = value;
+        protected JCBreak(Name label, JCTree target) {
+            this.label = label;
             this.target = target;
         }
         @Override
@@ -1612,11 +1616,8 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public Kind getKind() { return Kind.BREAK; }
         @DefinedBy(Api.COMPILER_TREE)
         public Name getLabel() {
-            return value != null && value.getKind() == Kind.IDENTIFIER ? ((JCIdent) value).getName() : null;
+            return label;
         }
-        @DefinedBy(Api.COMPILER_TREE)
-        @SuppressWarnings("removal")
-        public JCExpression getValue() { return value; }
         @Override @DefinedBy(Api.COMPILER_TREE)
         public <R,D> R accept(TreeVisitor<R,D> v, D d) {
             return v.visitBreak(this, d);
@@ -1624,6 +1625,33 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         @Override
         public Tag getTag() {
             return BREAK;
+        }
+    }
+
+    /**
+     * A break-with from a switch expression.
+     */
+    @SuppressWarnings("removal")
+    public static class JCYield extends JCStatement implements YieldTree {
+        public JCExpression value;
+        public JCTree target;
+        protected JCYield(JCExpression value, JCTree target) {
+            this.value = value;
+            this.target = target;
+        }
+        @Override
+        public void accept(Visitor v) { v.visitYield(this); }
+        @DefinedBy(Api.COMPILER_TREE)
+        public Kind getKind() { return Kind.YIELD; }
+        @DefinedBy(Api.COMPILER_TREE)
+        public JCExpression getValue() { return value; }
+        @Override @DefinedBy(Api.COMPILER_TREE)
+        public <R,D> R accept(TreeVisitor<R,D> v, D d) {
+            return v.visitYield(this, d);
+        }
+        @Override
+        public Tag getTag() {
+            return YIELD;
         }
     }
 
@@ -3136,7 +3164,8 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
                                 JCExpression elsepart);
         JCIf If(JCExpression cond, JCStatement thenpart, JCStatement elsepart);
         JCExpressionStatement Exec(JCExpression expr);
-        JCBreak Break(JCExpression value);
+        JCBreak Break(Name label);
+        JCYield Yield(JCExpression value);
         JCContinue Continue(Name label);
         JCReturn Return(JCExpression expr);
         JCThrow Throw(JCExpression expr);
@@ -3208,6 +3237,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public void visitIf(JCIf that)                       { visitTree(that); }
         public void visitExec(JCExpressionStatement that)    { visitTree(that); }
         public void visitBreak(JCBreak that)                 { visitTree(that); }
+        public void visitYield(JCYield that)                 { visitTree(that); }
         public void visitContinue(JCContinue that)           { visitTree(that); }
         public void visitReturn(JCReturn that)               { visitTree(that); }
         public void visitThrow(JCThrow that)                 { visitTree(that); }

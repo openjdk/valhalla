@@ -474,13 +474,16 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
   _extra_flags(0),
+  _init_thread(NULL),
+  _init_state(allocated),
   _reference_type(parser.reference_type()),
-  _adr_valueklass_fixed_block(NULL) {
-    set_vtable_length(parser.vtable_size());
-    set_kind(kind);
-    set_access_flags(parser.access_flags());
-    set_is_unsafe_anonymous(parser.is_unsafe_anonymous());
-    set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
+  _adr_valueklass_fixed_block(NULL)
+{
+  set_vtable_length(parser.vtable_size());
+  set_kind(kind);
+  set_access_flags(parser.access_flags());
+  set_is_unsafe_anonymous(parser.is_unsafe_anonymous());
+  set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
                                                     false));
     if (parser.has_flattenable_fields()) {
       set_has_value_fields();
@@ -1184,11 +1187,13 @@ void InstanceKlass::set_initialization_state_and_notify(ClassState state, TRAPS)
   Handle h_init_lock(THREAD, init_lock());
   if (h_init_lock() != NULL) {
     ObjectLocker ol(h_init_lock, THREAD);
+    set_init_thread(NULL); // reset _init_thread before changing _init_state
     set_init_state(state);
     fence_and_clear_init_lock();
     ol.notify_all(CHECK);
   } else {
     assert(h_init_lock() != NULL, "The initialization state should never be set twice");
+    set_init_thread(NULL); // reset _init_thread before changing _init_state
     set_init_state(state);
   }
 }
@@ -3857,6 +3862,7 @@ void InstanceKlass::set_init_state(ClassState state) {
                                                : (_init_state < state);
   assert(good_state || state == allocated, "illegal state transition");
 #endif
+  assert(_init_thread == NULL, "should be cleared before state change");
   _init_state = (u1)state;
 }
 

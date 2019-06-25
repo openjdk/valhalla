@@ -67,8 +67,10 @@ public class TestInterface extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("pkg/Interface.html", true,
-                "<pre class=\"methodSignature\">int&nbsp;method()</pre>",
-                "<pre>static final&nbsp;int field</pre>",
+                "<div class=\"memberSignature\"><span class=\"returnType\">int</span>&nbsp;"
+                + "<span class=\"memberName\">method</span>()</div>",
+                "<div class=\"memberSignature\"><span class=\"modifiers\">static final</span>&nbsp;"
+                + "<span class=\"returnType\">int</span>&nbsp;<span class=\"memberName\">field</span></div>",
                 // Make sure known implementing class list is correct and omits type parameters.
                 "<dl>\n"
                 + "<dt>All Known Implementing Classes:</dt>\n"
@@ -122,11 +124,9 @@ public class TestInterface extends JavadocTester {
                 "<dt><span class=\"overrideSpecifyLabel\">Specified by:</span></dt>\n");
 
         checkOutput("pkg/ClassWithStaticMembers.html", true,
-                "<h3>f</h3>\n"
-                + "<a id=\"f\">\n"
-                + "<!--   -->\n"
-                + "</a>\n"
-                + "<pre>public static&nbsp;int f</pre>\n"
+                "<h3><a id=\"f\">f</a></h3>\n"
+                + "<div class=\"memberSignature\"><span class=\"modifiers\">public static</span>&nbsp;"
+                + "<span class=\"returnType\">int</span>&nbsp;<span class=\"memberName\">f</span></div>\n"
                 + "<div class=\"block\">A hider field</div>",
 
                 "<td class=\"colFirst\"><code>static void</code></td>\n"
@@ -136,11 +136,9 @@ public class TestInterface extends JavadocTester {
                 + "<div class=\"block\">A hider method</div>\n"
                 + "</td>\n",
 
-                "<h3>staticMethod</h3>\n"
-                + "<a id=\"staticMethod()\">\n"
-                + "<!--   -->\n"
-                + "</a>\n"
-                + "<pre class=\"methodSignature\">public static&nbsp;void&nbsp;staticMethod()</pre>\n"
+                "<h3><a id=\"staticMethod()\">staticMethod</a></h3>\n"
+                + "<div class=\"memberSignature\"><span class=\"modifiers\">public static</span>&nbsp;"
+                + "<span class=\"returnType\">void</span>&nbsp;<span class=\"memberName\">staticMethod</span>()</div>\n"
                 + "<div class=\"block\"><span class=\"descfrmTypeLabel\">"
                 + "Description copied from interface:&nbsp;<code>"
                 + "<a href=\"InterfaceWithStaticMembers.html#staticMethod()\">"

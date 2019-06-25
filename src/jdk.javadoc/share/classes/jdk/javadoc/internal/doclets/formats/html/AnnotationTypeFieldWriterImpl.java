@@ -31,9 +31,7 @@ import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
-import jdk.javadoc.internal.doclets.formats.html.markup.Entity;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.formats.html.markup.Table;
@@ -107,9 +105,9 @@ public class AnnotationTypeFieldWriterImpl extends AbstractMemberWriter
         if (!writer.printedAnnotationFieldHeading) {
             Content heading = HtmlTree.HEADING(Headings.TypeDeclaration.DETAILS_HEADING,
                     contents.fieldDetailsLabel);
-            memberDetailsTree.add(heading);
             memberDetailsTree.add(links.createAnchor(
                     SectionName.ANNOTATION_TYPE_FIELD_DETAIL));
+            memberDetailsTree.add(heading);
             writer.printedAnnotationFieldHeading = true;
         }
         return memberDetailsTree;
@@ -122,9 +120,8 @@ public class AnnotationTypeFieldWriterImpl extends AbstractMemberWriter
             Content annotationDetailsTree) {
         Content annotationDocTree = new ContentBuilder();
         Content heading = new HtmlTree(Headings.TypeDeclaration.MEMBER_HEADING);
-        heading.add(name(member));
+        heading.add(links.createAnchor(name(member), new StringContent(name(member))));
         annotationDocTree.add(heading);
-        annotationDocTree.add(links.createAnchor(name(member)));
         return HtmlTree.SECTION(HtmlStyle.detail, annotationDocTree);
     }
 
@@ -132,21 +129,9 @@ public class AnnotationTypeFieldWriterImpl extends AbstractMemberWriter
      * {@inheritDoc}
      */
     public Content getSignature(Element member) {
-        Content pre = new HtmlTree(HtmlTag.PRE);
-        writer.addAnnotationInfo(member, pre);
-        addModifiers(member, pre);
-        Content link =
-                writer.getLink(new LinkInfoImpl(configuration,
-                        LinkInfoImpl.Kind.MEMBER, getType(member)));
-        pre.add(link);
-        pre.add(Entity.NO_BREAK_SPACE);
-        if (configuration.linksource) {
-            Content memberName = new StringContent(name(member));
-            writer.addSrcLink(member, memberName, pre);
-        } else {
-            addName(name(member), pre);
-        }
-        return pre;
+        return new MemberSignature(member)
+                .addType(getType(member))
+                .toContent();
     }
 
     /**
@@ -183,9 +168,8 @@ public class AnnotationTypeFieldWriterImpl extends AbstractMemberWriter
     /**
      * {@inheritDoc}
      */
-    public Content getAnnotationDoc(Content annotationDocTree,
-            boolean isLastContent) {
-        return getMemberTree(annotationDocTree, isLastContent);
+    public Content getAnnotationDoc(Content annotationDocTree) {
+        return getMemberTree(annotationDocTree);
     }
 
     /**

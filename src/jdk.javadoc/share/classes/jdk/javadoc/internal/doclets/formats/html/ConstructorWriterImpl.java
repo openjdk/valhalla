@@ -123,9 +123,9 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
         Content constructorDetailsTree = new ContentBuilder();
         Content heading = HtmlTree.HEADING(Headings.TypeDeclaration.DETAILS_HEADING,
                 contents.constructorDetailsLabel);
-        constructorDetailsTree.add(heading);
         constructorDetailsTree.add(links.createAnchor(
                 SectionName.CONSTRUCTOR_DETAIL));
+        constructorDetailsTree.add(heading);
         return constructorDetailsTree;
     }
 
@@ -138,12 +138,11 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
         String erasureAnchor;
         Content constructorDocTree = new ContentBuilder();
         Content heading = new HtmlTree(Headings.TypeDeclaration.MEMBER_HEADING);
-        heading.add(name(constructor));
-        constructorDocTree.add(heading);
         if ((erasureAnchor = getErasureAnchor(constructor)) != null) {
-            constructorDocTree.add(links.createAnchor((erasureAnchor)));
+            heading.add(links.createAnchor((erasureAnchor)));
         }
-        constructorDocTree.add(links.createAnchor(writer.getAnchor(constructor)));
+        heading.add(links.createAnchor(writer.getAnchor(constructor), new StringContent(name(constructor))));
+        constructorDocTree.add(heading);
         return HtmlTree.SECTION(HtmlStyle.detail, constructorDocTree);
     }
 
@@ -152,20 +151,10 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
      */
     @Override
     public Content getSignature(ExecutableElement constructor) {
-        Content pre = new HtmlTree(HtmlTag.PRE);
-        writer.addAnnotationInfo(constructor, pre);
-        int annotationLength = pre.charCount();
-        addModifiers(constructor, pre);
-        if (configuration.linksource) {
-            Content constructorName = new StringContent(name(constructor));
-            writer.addSrcLink(constructor, constructorName, pre);
-        } else {
-            addName(name(constructor), pre);
-        }
-        int indent = pre.charCount() - annotationLength;
-        addParameters(constructor, pre, indent);
-        addExceptions(constructor, pre, indent);
-        return pre;
+        return new MemberSignature(constructor)
+                .addParameters(getParameters(constructor, true))
+                .addExceptions(getExceptions(constructor))
+                .toContent();
     }
 
     /**
@@ -205,9 +194,8 @@ public class ConstructorWriterImpl extends AbstractExecutableMemberWriter
      * {@inheritDoc}
      */
     @Override
-    public Content getConstructorDoc(Content constructorDocTree,
-            boolean isLastContent) {
-        return getMemberTree(constructorDocTree, isLastContent);
+    public Content getConstructorDoc(Content constructorDocTree) {
+        return getMemberTree(constructorDocTree);
     }
 
     /**

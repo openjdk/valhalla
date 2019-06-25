@@ -32,7 +32,6 @@ import javax.lang.model.element.TypeElement;
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
 import jdk.javadoc.internal.doclets.formats.html.markup.Entity;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.formats.html.markup.Table;
@@ -90,8 +89,8 @@ public class PropertyWriterImpl extends AbstractMemberWriter
         Content propertyDetailsTree = new ContentBuilder();
         Content heading = HtmlTree.HEADING(Headings.TypeDeclaration.DETAILS_HEADING,
                 contents.propertyDetailsLabel);
-        propertyDetailsTree.add(heading);
         propertyDetailsTree.add(links.createAnchor(SectionName.PROPERTY_DETAIL));
+        propertyDetailsTree.add(heading);
         return propertyDetailsTree;
     }
 
@@ -103,9 +102,9 @@ public class PropertyWriterImpl extends AbstractMemberWriter
             Content propertyDetailsTree) {
         Content propertyDocTree = new ContentBuilder();
         Content heading = new HtmlTree(Headings.TypeDeclaration.MEMBER_HEADING);
-        heading.add(utils.getPropertyLabel(name(property)));
+        heading.add(links.createAnchor(name(property),
+                new StringContent(utils.getPropertyLabel(name(property)))));
         propertyDocTree.add(heading);
-        propertyDocTree.add(links.createAnchor(name(property)));
         return HtmlTree.SECTION(HtmlStyle.detail, propertyDocTree);
     }
 
@@ -114,21 +113,9 @@ public class PropertyWriterImpl extends AbstractMemberWriter
      */
     @Override
     public Content getSignature(ExecutableElement property) {
-        Content pre = new HtmlTree(HtmlTag.PRE);
-        writer.addAnnotationInfo(property, pre);
-        addModifiers(property, pre);
-        Content propertylink = writer.getLink(new LinkInfoImpl(
-                configuration, LinkInfoImpl.Kind.MEMBER,
-                utils.getReturnType(property)));
-        pre.add(propertylink);
-        pre.add(" ");
-        if (configuration.linksource) {
-            Content propertyName = new StringContent(name(property));
-            writer.addSrcLink(property, propertyName, pre);
-        } else {
-            addName(name(property), pre);
-        }
-        return pre;
+        return new MemberSignature(property)
+                .addType(utils.getReturnType(property))
+                .toContent();
     }
 
     /**
@@ -189,9 +176,8 @@ public class PropertyWriterImpl extends AbstractMemberWriter
      * {@inheritDoc}
      */
     @Override
-    public Content getPropertyDoc(Content propertyDocTree,
-            boolean isLastContent) {
-        return getMemberTree(propertyDocTree, isLastContent);
+    public Content getPropertyDoc(Content propertyDocTree) {
+        return getMemberTree(propertyDocTree);
     }
 
     /**

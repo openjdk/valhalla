@@ -32,7 +32,6 @@ import javax.lang.model.element.VariableElement;
 
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
 import jdk.javadoc.internal.doclets.formats.html.markup.Table;
@@ -93,9 +92,9 @@ public class EnumConstantWriterImpl extends AbstractMemberWriter
         Content enumConstantsDetailsTree = new ContentBuilder();
         Content heading = HtmlTree.HEADING(Headings.TypeDeclaration.DETAILS_HEADING,
                 contents.enumConstantDetailLabel);
-        enumConstantsDetailsTree.add(heading);
         enumConstantsDetailsTree.add(links.createAnchor(
                 SectionName.ENUM_CONSTANT_DETAIL));
+        enumConstantsDetailsTree.add(heading);
         return enumConstantsDetailsTree;
     }
 
@@ -107,9 +106,8 @@ public class EnumConstantWriterImpl extends AbstractMemberWriter
             Content enumConstantsDetailsTree) {
         Content enumConstantsTree = new ContentBuilder();
         Content heading = new HtmlTree(Headings.TypeDeclaration.MEMBER_HEADING);
-        heading.add(name(enumConstant));
+        heading.add(links.createAnchor(name(enumConstant), new StringContent(name(enumConstant))));
         enumConstantsTree.add(heading);
-        enumConstantsTree.add(links.createAnchor(name(enumConstant)));
         return HtmlTree.SECTION(HtmlStyle.detail, enumConstantsTree);
     }
 
@@ -118,20 +116,9 @@ public class EnumConstantWriterImpl extends AbstractMemberWriter
      */
     @Override
     public Content getSignature(VariableElement enumConstant) {
-        Content pre = new HtmlTree(HtmlTag.PRE);
-        writer.addAnnotationInfo(enumConstant, pre);
-        addModifiers(enumConstant, pre);
-        Content enumConstantLink = writer.getLink(new LinkInfoImpl(
-                configuration, LinkInfoImpl.Kind.MEMBER, enumConstant.asType()));
-        pre.add(enumConstantLink);
-        pre.add(" ");
-        if (configuration.linksource) {
-            Content enumConstantName = new StringContent(name(enumConstant));
-            writer.addSrcLink(enumConstant, enumConstantName, pre);
-        } else {
-            addName(name(enumConstant), pre);
-        }
-        return pre;
+        return new MemberSignature(enumConstant)
+                .addType(enumConstant.asType())
+                .toContent();
     }
 
     /**
@@ -173,9 +160,8 @@ public class EnumConstantWriterImpl extends AbstractMemberWriter
      * {@inheritDoc}
      */
     @Override
-    public Content getEnumConstants(Content enumConstantsTree,
-            boolean isLastContent) {
-        return getMemberTree(enumConstantsTree, isLastContent);
+    public Content getEnumConstants(Content enumConstantsTree) {
+        return getMemberTree(enumConstantsTree);
     }
 
     /**

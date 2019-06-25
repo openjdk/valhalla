@@ -73,7 +73,7 @@ class GCHeapLog : public EventLogBase<GCMessage> {
   void log_heap(CollectedHeap* heap, bool before);
 
  public:
-  GCHeapLog() : EventLogBase<GCMessage>("GC Heap History") {}
+  GCHeapLog() : EventLogBase<GCMessage>("GC Heap History", "gc") {}
 
   void log_heap_before(CollectedHeap* heap) {
     log_heap(heap, true);
@@ -533,11 +533,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   virtual bool is_oop(oop object) const;
 
   virtual size_t obj_size(oop obj) const;
-
-  // Cells are memory slices allocated by the allocator. Objects are initialized
-  // in cells. The cell itself may have a header, found at a negative offset of
-  // oops. Usually, the size of the cell header is 0, but it may be larger.
-  virtual ptrdiff_t cell_header_size() const { return 0; }
 
   // Non product verification and debugging.
 #ifndef PRODUCT

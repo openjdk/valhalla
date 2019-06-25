@@ -43,6 +43,7 @@ import sun.net.NetHooks;
 import sun.net.PlatformSocketImpl;
 import sun.net.ResourceManager;
 import sun.net.ext.ExtendedSocketOptions;
+import sun.net.util.IPAddressUtil;
 import sun.net.util.SocketExceptions;
 
 /**
@@ -157,8 +158,12 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSoc
         boolean connected = false;
         try {
             InetAddress address = InetAddress.getByName(host);
-            this.port = port;
+            // recording this.address as supplied by caller before calling connect
             this.address = address;
+            this.port = port;
+            if (address.isLinkLocalAddress()) {
+                address = IPAddressUtil.toScopedAddress(address);
+            }
 
             connectToAddress(address, port, timeout);
             connected = true;
@@ -182,8 +187,12 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSoc
      * @param port the specified port
      */
     protected void connect(InetAddress address, int port) throws IOException {
-        this.port = port;
+        // recording this.address as supplied by caller before calling connect
         this.address = address;
+        this.port = port;
+        if (address.isLinkLocalAddress()) {
+            address = IPAddressUtil.toScopedAddress(address);
+        }
 
         try {
             connectToAddress(address, port, timeout);
@@ -215,10 +224,14 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSoc
             InetSocketAddress addr = (InetSocketAddress) address;
             if (addr.isUnresolved())
                 throw new UnknownHostException(addr.getHostName());
+            // recording this.address as supplied by caller before calling connect
+            InetAddress ia = addr.getAddress();
+            this.address = ia;
             this.port = addr.getPort();
-            this.address = addr.getAddress();
-
-            connectToAddress(this.address, port, timeout);
+            if (ia.isLinkLocalAddress()) {
+                ia = IPAddressUtil.toScopedAddress(ia);
+            }
+            connectToAddress(ia, port, timeout);
             connected = true;
         } finally {
             if (!connected) {
@@ -446,7 +459,10 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSoc
         } else if (name == StandardSocketOptions.SO_REUSEPORT) {
             setOption(SocketOptions.SO_REUSEPORT, value);
         } else if (name == StandardSocketOptions.SO_LINGER ) {
-            setOption(SocketOptions.SO_LINGER, value);
+            if (((Integer)value).intValue() < 0)
+                setOption(SocketOptions.SO_LINGER, false);
+            else
+                setOption(SocketOptions.SO_LINGER, value);
         } else if (name == StandardSocketOptions.IP_TOS) {
             int i = ((Integer)value).intValue();
             if (i < 0 || i > 255)
@@ -482,7 +498,12 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSoc
         } else if (name == StandardSocketOptions.SO_REUSEPORT) {
             return (T)getOption(SocketOptions.SO_REUSEPORT);
         } else if (name == StandardSocketOptions.SO_LINGER) {
-            return (T)getOption(SocketOptions.SO_LINGER);
+            Object value = getOption(SocketOptions.SO_LINGER);
+            if (value instanceof Boolean) {
+                assert ((Boolean)value).booleanValue() == false;
+                value = -1;
+            }
+            return (T)value;
         } else if (name == StandardSocketOptions.IP_TOS) {
             return (T)getOption(SocketOptions.IP_TOS);
         } else if (name == StandardSocketOptions.TCP_NODELAY) {
@@ -537,6 +558,9 @@ abstract class AbstractPlainSocketImpl extends SocketImpl implements PlatformSoc
             if (!closePending && !isBound) {
                 NetHooks.beforeTcpBind(fd, address, lport);
             }
+        }
+        if (address.isLinkLocalAddress()) {
+            address = IPAddressUtil.toScopedAddress(address);
         }
         socketBind(address, lport);
         isBound = true;

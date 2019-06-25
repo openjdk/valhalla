@@ -420,6 +420,7 @@ class CodeBuffer: public StackObj {
                        || PrintMethodHandleStubs
                        || PrintInterpreter
                        || PrintSignatureHandlers
+                       || UnlockDiagnosticVMOptions
                         );
   }
 

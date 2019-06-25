@@ -38,10 +38,10 @@ compiler/compilercontrol/jcmd/AddLogTest.java                   8181753   generi
 compiler/compilercontrol/mixed/RandomValidCommandsTest.java     8181753   generic-all
 compiler/compilercontrol/mixed/RandomCommandsTest.java          8181753   generic-all
 
-compiler/graalunit/HotspotJdk9Test.java                         8224254   generic-all
-compiler/graalunit/JttThreadsTest.java                          8207757   generic-all
+compiler/graalunit/HotspotJdk9Test.java                         8223807   generic-all
+compiler/jsr292/InvokerSignatureMismatch.java                   8223807   generic-all
 
-compiler/jvmci/SecurityRestrictionsTest.java                    8181837   generic-all
+compiler/graalunit/JttThreadsTest.java                          8207757   generic-all
 
 compiler/unsafe/UnsafeGetConstantField.java                     8181833   generic-all
 compiler/unsafe/UnsafeGetStableArrayElement.java                8181833   generic-all
@@ -52,6 +52,7 @@ compiler/whitebox/ClearMethodStateTest.java                     8181831   generi
 compiler/whitebox/EnqueueMethodForCompilationTest.java          8181831   generic-all
 compiler/whitebox/MakeMethodNotCompilableTest.java              8181831   generic-all
 
+compiler/uncommontrap/DeoptReallocFailure.java                  8196611   generic-all
 gc/arguments/TestNewSizeFlags.java                              8196611   generic-all
 gc/arguments/TestVerifyBeforeAndAfterGCFlags.java               8196611   generic-all
 gc/g1/mixedgc/TestOldGenCollectionUsage.java                    8196611   generic-all
@@ -59,16 +60,32 @@ gc/g1/TestConcurrentSystemGC.java                               8196611   generi
 gc/g1/TestPeriodicCollection.java                               8196611   generic-all
 gc/g1/TestFromCardCacheIndex.java                               8196611   generic-all
 gc/parallel/TestPrintGCDetailsVerbose.java                      8196611   generic-all
-vm/gc/InfiniteList.java                                         8196611 generic-all
-vmTestbase/gc/lock/malloc/malloclock03/TestDescription.java     8196611   macosx-all
+gc/InfiniteList.java                                            8196611   generic-all
+
+vmTestbase/gc/lock/jni/jnilock001/TestDescription.java          8196611   generic-all
+vmTestbase/gc/lock/jniref/jnireflock04/TestDescription.java     8196611   generic-all
+vmTestbase/gc/lock/jvmti/alloc/jvmtialloclock02/TestDescription.java 8196611   generic-all
+vmTestbase/gc/lock/malloc/malloclock03/TestDescription.java     8196611   generic-all
 vmTestbase/gc/gctests/LargeObjects/large001/large001.java       8196611   generic-all
 vmTestbase/gc/gctests/ReferencesGC/ReferencesGC.java            8196611   generic-all
+vmTestbase/nsk/stress/except/except001.java                     8196611   generic-all
+vmTestbase/nsk/stress/except/except002.java                     8196611   generic-all
+vmTestbase/nsk/stress/except/except003.java                     8196611   generic-all
 vmTestbase/nsk/stress/except/except004.java                     8196611   generic-all
+vmTestbase/nsk/stress/except/except005.java                     8196611   generic-all
+vmTestbase/nsk/stress/except/except006.java                     8196611   generic-all
 vmTestbase/nsk/stress/except/except007.java                     8196611   generic-all
 vmTestbase/nsk/stress/except/except008.java                     8196611   generic-all
+vmTestbase/nsk/stress/except/except009.java                     8196611   generic-all
+vmTestbase/nsk/stress/except/except010.java                     8196611   generic-all
 vmTestbase/nsk/stress/except/except011.java                     8196611   generic-all
+vmTestbase/nsk/stress/except/except012.java                     8196611   generic-all
+vmTestbase/nsk/jdi/stress/serial/heapwalking001/TestDescription.java                               8196611   generic-all
+vmTestbase/nsk/jdi/VirtualMachine/instanceCounts/instancecounts002/TestDescription.java            8196611   generic-all
 vmTestbase/nsk/jdi/VirtualMachine/instanceCounts/instancecounts003/instancecounts003.java          8196611   generic-all
 vmTestbase/nsk/jdi/ObjectReference/referringObjects/referringObjects002/referringObjects002.java   8196611   generic-all
+vmTestbase/vm/gc/compact/Humongous_NonbranchyTree/TestDescription.java                             8196611   generic-all
+
 serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorMultiArrayTest.java 8196611   generic-all
 serviceability/tmtools/jstat/GcTest02.java                      8196611 generic-all
 serviceability/tmtools/jstat/GcCapacityTest.java                8196611 generic-all
@@ -130,16 +147,16 @@ vmTestbase/vm/mlvm/anonloader/stress/oome/metaspace/Test.java    8186299   gener
 # jvmti tests
 vmTestbase/nsk/jvmti/PopFrame/popframe009/TestDescription.java                     8195639   generic-all
 
-vmTestbase/nsk/jvmti/ForceEarlyReturn/ForceEarlyReturn001/TestDescription.java     8195674   generic-all
-vmTestbase/nsk/jvmti/ForceEarlyReturn/ForceEarlyReturn002/TestDescription.java     8195674   generic-all
+vmTestbase/nsk/jvmti/ForceEarlyReturn/ForceEarlyReturn001/TestDescription.java     8195674,8195635   generic-all
+vmTestbase/nsk/jvmti/ForceEarlyReturn/ForceEarlyReturn002/TestDescription.java     8195674,8195635   generic-all
 
 runtime/appcds/cacheObject/RedefineClassTest.java                                  8204506   macosx-all
-vmTestbase/nsk/jvmti/scenarios/hotswap/HS102/hs102t001/TestDescription.java        8204506   macosx-all
+vmTestbase/nsk/jvmti/scenarios/hotswap/HS102/hs102t001/TestDescription.java        8204506,8195635   macosx-all,generic-all
 vmTestbase/nsk/jvmti/scenarios/hotswap/HS102/hs102t002/TestDescription.java        8204506   macosx-all
 
-vmTestbase/nsk/jvmti/PopFrame/popframe001/TestDescription.java                     8207013   generic-all
-vmTestbase/nsk/jvmti/PopFrame/popframe003/TestDescription.java                     8207013   generic-all
-vmTestbase/nsk/jvmti/PopFrame/popframe005/TestDescription.java                     8207013   generic-all
+vmTestbase/nsk/jvmti/PopFrame/popframe001/TestDescription.java                     8207013,8195635   generic-all
+vmTestbase/nsk/jvmti/PopFrame/popframe003/TestDescription.java                     8207013,8195635   generic-all
+vmTestbase/nsk/jvmti/PopFrame/popframe005/TestDescription.java                     8207013,8195635   generic-all
 vmTestbase/nsk/jvmti/StopThread/stopthrd007/TestDescription.java                   8207013   generic-all
 
 serviceability/jvmti/FieldAccessWatch/FieldAccessWatch.java                        8202482   generic-all
@@ -157,7 +174,6 @@ vmTestbase/nsk/jdi/BScenarios/hotswap/tc06x001/TestDescription.java             
 vmTestbase/nsk/jdi/BScenarios/hotswap/tc08x001/TestDescription.java                               8195635 generic-all
 vmTestbase/nsk/jdi/BScenarios/hotswap/tc10x002/TestDescription.java                               8195635 generic-all
 vmTestbase/nsk/jdi/MethodExitEvent/returnValue/returnValue003/returnValue003.java                 8195635 generic-all
-vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.jav                        8195635 generic-all
 vmTestbase/nsk/jdi/Scenarios/invokeMethod/popframes001/TestDescription.java                       8195635 generic-all
 vmTestbase/nsk/jdi/ThreadReference/popFrames/popframes001/TestDescription.java                    8195635 generic-all
 vmTestbase/nsk/jdi/VirtualMachine/redefineClasses/redefineclasses002/TestDescription.java         8195635 generic-all
@@ -165,14 +181,8 @@ vmTestbase/nsk/jdi/stress/serial/forceEarlyReturn001/TestDescription.java       
 vmTestbase/nsk/jdi/stress/serial/forceEarlyReturn002/TestDescription.java                         8195635 generic-all
 vmTestbase/nsk/jdi/stress/serial/mixed002/TestDescription.java                                    8195635 generic-all
 vmTestbase/nsk/jdwp/ThreadReference/ForceEarlyReturn/forceEarlyReturn002/forceEarlyReturn002.java 8195635 generic-all
-vmTestbase/nsk/jvmti/ForceEarlyReturn/ForceEarlyReturn001/TestDescription.java                    8195635 generic-all
-vmTestbase/nsk/jvmti/ForceEarlyReturn/ForceEarlyReturn002/TestDescription.java                    8195635 generic-all
-vmTestbase/nsk/jvmti/PopFrame/popframe001/TestDescription.java                                    8195635 generic-all
-vmTestbase/nsk/jvmti/PopFrame/popframe003/TestDescription.java                                    8195635 generic-all
-vmTestbase/nsk/jvmti/PopFrame/popframe005/TestDescription.java                                    8195635 generic-all
 vmTestbase/nsk/jvmti/scenarios/capability/CM01/cm01t007/TestDescription.java                      8195635 generic-all
 vmTestbase/nsk/jvmti/scenarios/capability/CM03/cm03t001/TestDescription.java                      8195635 generic-all
-vmTestbase/nsk/jvmti/scenarios/hotswap/HS102/hs102t001/TestDescription.java                       8195635 generic-all
 vmTestbase/nsk/jvmti/scenarios/hotswap/HS201/hs201t001/TestDescription.java                       8195635 generic-all
 vmTestbase/nsk/jvmti/scenarios/hotswap/HS201/hs201t002/TestDescription.java                       8195635 generic-all
 vmTestbase/nsk/jvmti/scenarios/hotswap/HS202/hs202t002/hs202t002.java                             8195635 generic-all
@@ -217,7 +227,6 @@ vmTestbase/nsk/jdb/unmonitor/unmonitor001/unmonitor001.java                   82
 
 vmTestbase/nsk/jdb/clear/clear003/clear003.java                               8218701 generic-all
 
-compiler/jsr292/InvokerSignatureMismatch.java           8221577   generic-all
 
 # Next tests should be re-enabled once libgraal is introduced
 compiler/arguments/TestScavengeRootsInCode.java         8207267   generic-all
@@ -228,8 +237,6 @@ compiler/jsr292/NonInlinedCall/InvokeTest.java          8207267   generic-all
 compiler/codegen/TestTrichotomyExpressions.java         8207267   generic-all
 
 runtime/exceptionMsgs/AbstractMethodError/AbstractMethodErrorTest.java        8222582 generic-all
-
-serviceability/dcmd/compiler/CodelistTest.java 8220449 generic-all
 
 # Graal unit tests
 org.graalvm.compiler.core.test.CheckGraalInvariants                              8205081
