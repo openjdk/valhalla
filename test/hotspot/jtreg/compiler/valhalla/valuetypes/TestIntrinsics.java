@@ -39,7 +39,7 @@ import jdk.internal.misc.Unsafe;
  * @requires os.simpleArch == "x64"
  * @compile TestIntrinsics.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
- * @run main/othervm/timeout=120 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
  *                               compiler.valhalla.valuetypes.ValueTypeTest
  *                               compiler.valhalla.valuetypes.TestIntrinsics
