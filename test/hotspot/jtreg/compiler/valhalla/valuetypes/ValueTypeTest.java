@@ -160,6 +160,7 @@ public abstract class ValueTypeTest {
     protected static final boolean AlwaysIncrementalInline = (Boolean)WHITE_BOX.getVMFlag("AlwaysIncrementalInline");
     protected static final boolean G1GC = (Boolean)WHITE_BOX.getVMFlag("UseG1GC");
     protected static final long TieredStopAtLevel = (Long)WHITE_BOX.getVMFlag("TieredStopAtLevel");
+    protected static final boolean VerifyOops = (Boolean)WHITE_BOX.getVMFlag("VerifyOops");
     protected static final int COMP_LEVEL_ANY               = -2;
     protected static final int COMP_LEVEL_ALL               = -2;
     protected static final int COMP_LEVEL_AOT               = -1;
@@ -593,15 +594,27 @@ public abstract class ValueTypeTest {
                 verifier.invoke(this, true);
             }
             boolean osrOnly = (test.getAnnotation(OSRCompileOnly.class) != null);
+
+            // C1 generates a lot of code when VerifyOops is enabled and may run out of space (for a small
+            // number of test cases).
+            boolean maybeCodeBufferOverflow = (TEST_C1 && VerifyOops);
+
             if (!osrOnly) {
                 int compLevel = getCompLevel(test.getAnnotation(Test.class));
                 // Trigger compilation
                 WHITE_BOX.enqueueMethodForCompilation(test, compLevel);
+                if (maybeCodeBufferOverflow && !WHITE_BOX.isMethodCompiled(test, false)) {
+                  // Let's disable VerifyOops temporarily and retry.
+                  WHITE_BOX.setBooleanVMFlag("VerifyOops", false);
+                  WHITE_BOX.clearMethodState(test);
+                  WHITE_BOX.enqueueMethodForCompilation(test, compLevel);
+                  WHITE_BOX.setBooleanVMFlag("VerifyOops", true);
+                }
                 Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
             }
             // Check result
             verifier.invoke(this, false);
-            if (osrOnly) {
+            if (osrOnly && !maybeCodeBufferOverflow) {
                 Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
             }
             if (PRINT_TIMES || VERBOSE) {
