@@ -2182,7 +2182,12 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
   for (uint i = 0; i < wq.size(); i++) {
     Node* n = wq.at(i);
     if (n->is_Mem()) {
-      const TypePtr* adr_type = get_adr_type(get_alias_index(n->adr_type()));
+      const TypePtr* adr_type = NULL;
+      if (n->Opcode() == Op_StoreCM) {
+        adr_type = get_adr_type(get_alias_index(n->in(MemNode::OopStore)->adr_type()));
+      } else {
+        adr_type = get_adr_type(get_alias_index(n->adr_type()));
+      }
       if (adr_type == TypeAryPtr::VALUES) {
         memnodes.push(n);
       }
@@ -2222,10 +2227,20 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
 
     for (uint i = 0; i < memnodes.size(); i++) {
       Node* m = memnodes.at(i);
-      const TypePtr* adr_type = m->adr_type();
+      const TypePtr* adr_type = NULL;
+      if (m->Opcode() == Op_StoreCM) {
+        adr_type = m->in(MemNode::OopStore)->adr_type();
+        Node* clone = new StoreCMNode(m->in(MemNode::Control), m->in(MemNode::Memory), m->in(MemNode::Address),
+                                      m->adr_type(), m->in(MemNode::ValueIn), m->in(MemNode::OopStore),
+                                      get_alias_index(adr_type));
+        igvn.register_new_node_with_optimizer(clone);
+        igvn.replace_node(m, clone);
+      } else {
+        adr_type = m->adr_type();
 #ifdef ASSERT
-      m->as_Mem()->set_adr_type(adr_type);
+        m->as_Mem()->set_adr_type(adr_type);
 #endif
+      }
       int idx = get_alias_index(adr_type);
       start_alias = MIN2(start_alias, idx);
       stop_alias = MAX2(stop_alias, idx);
