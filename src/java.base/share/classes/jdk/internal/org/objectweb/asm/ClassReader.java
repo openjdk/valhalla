@@ -1611,6 +1611,8 @@ public class ClassReader {
                 case Constants.PUTSTATIC:
                 case Constants.GETFIELD:
                 case Constants.PUTFIELD:
+                case Constants.DEFAULT:
+                case Constants.WITHFIELD:
                 case Constants.INVOKEVIRTUAL:
                 case Constants.INVOKESPECIAL:
                 case Constants.INVOKESTATIC:
@@ -2226,18 +2228,19 @@ public class ClassReader {
                 case Constants.INVOKESPECIAL:
                 case Constants.INVOKESTATIC:
                 case Constants.INVOKEINTERFACE:
+                case Constants.WITHFIELD:
                     {
                         int cpInfoOffset = cpInfoOffsets[readUnsignedShort(currentOffset + 1)];
                         int nameAndTypeCpInfoOffset = cpInfoOffsets[readUnsignedShort(cpInfoOffset + 2)];
                         String owner = readClass(cpInfoOffset, charBuffer);
                         String name = readUTF8(nameAndTypeCpInfoOffset, charBuffer);
                         String descriptor = readUTF8(nameAndTypeCpInfoOffset + 2, charBuffer);
-                        if (opcode < Opcodes.INVOKEVIRTUAL) {
-                            methodVisitor.visitFieldInsn(opcode, owner, name, descriptor);
-                        } else {
+                        if (opcode >= Opcodes.INVOKEVIRTUAL && opcode <= Opcodes.INVOKEINTERFACE) {
                             boolean isInterface =
                                     classFileBuffer[cpInfoOffset - 1] == Symbol.CONSTANT_INTERFACE_METHODREF_TAG;
                             methodVisitor.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+                        } else {
+                            methodVisitor.visitFieldInsn(opcode, owner, name, descriptor);
                         }
                         if (opcode == Opcodes.INVOKEINTERFACE) {
                             currentOffset += 5;
@@ -2272,6 +2275,7 @@ public class ClassReader {
                 case Constants.ANEWARRAY:
                 case Constants.CHECKCAST:
                 case Constants.INSTANCEOF:
+                case Constants.DEFAULT:
                     methodVisitor.visitTypeInsn(opcode, readClass(currentOffset + 1, charBuffer));
                     currentOffset += 3;
                     break;

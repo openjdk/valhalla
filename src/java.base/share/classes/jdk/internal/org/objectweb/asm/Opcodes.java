@@ -370,4 +370,6 @@ public interface Opcodes {
     int MULTIANEWARRAY = 197; // visitMultiANewArrayInsn
     int IFNULL = 198; // visitJumpInsn
     int IFNONNULL = 199; // -
+    int DEFAULT = 203; // visitTypeInsn
+    int WITHFIELD = 204; // visitFieldInsn
 }

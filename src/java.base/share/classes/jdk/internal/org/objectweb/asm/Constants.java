@@ -177,10 +177,8 @@ final class Constants implements Opcodes {
 
     // The delta between the ASM_IFEQ, ..., ASM_IF_ACMPNE, ASM_GOTO and ASM_JSR opcodes
     // and IFEQ, ..., IF_ACMPNE, GOTO and JSR.
-    static final int ASM_OPCODE_DELTA = 49;
-
-    // The delta between the ASM_IFNULL and ASM_IFNONNULL opcodes and IFNULL and IFNONNULL.
-    static final int ASM_IFNULL_OPCODE_DELTA = 20;
+    // Offset to next available opcode after WITHFIELD from IFEQ
+    static final int ASM_OPCODE_DELTA = (WITHFIELD + 1) - IFEQ;
 
     // ASM specific opcodes, used for long forward jump instructions.
 
@@ -200,9 +198,14 @@ final class Constants implements Opcodes {
     static final int ASM_IF_ACMPNE = IF_ACMPNE + ASM_OPCODE_DELTA;
     static final int ASM_GOTO = GOTO + ASM_OPCODE_DELTA;
     static final int ASM_JSR = JSR + ASM_OPCODE_DELTA;
+
+    // The delta between the ASM_IFNULL and ASM_IFNONNULL opcodes and IFNULL and IFNONNULL.
+    // Offset to next available opcode after ASM_JSR from IFNULL.
+    static final int ASM_IFNULL_OPCODE_DELTA = (ASM_JSR + 1) - IFNULL;
+
     static final int ASM_IFNULL = IFNULL + ASM_IFNULL_OPCODE_DELTA;
     static final int ASM_IFNONNULL = IFNONNULL + ASM_IFNULL_OPCODE_DELTA;
-    static final int ASM_GOTO_W = 220;
+    static final int ASM_GOTO_W = GOTO_W + ASM_IFNULL_OPCODE_DELTA;
 
     private Constants() {}
 }
