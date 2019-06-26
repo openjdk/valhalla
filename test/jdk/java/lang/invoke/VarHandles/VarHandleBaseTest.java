@@ -427,6 +427,10 @@ abstract class VarHandleBaseTest {
         VarHandle get() {
             return vh;
         }
+
+        public String toString() {
+            return super.toString() + ", vh:" + vh;
+        }
     }
 
     static class MethodHandleAccessTestCase extends AccessTestCase<Handles> {
@@ -446,6 +450,10 @@ abstract class VarHandleBaseTest {
         @Override
         Handles get() throws Exception {
             return new Handles(vh, f);
+        }
+
+        public String toString() {
+            return super.toString() + ", vh:" + vh + ", f: " + f;
         }
     }
 

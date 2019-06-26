@@ -21,12 +21,14 @@
  * questions.
  */
 
+#warn
+
 /*
  * @test
 #if[Value]
- * @run testng/othervm -XX:+EnableValhalla -Diters=2000 VarHandleTestMethodHandleAccess$Type$
+ * @run testng/othervm -Diters=2000 VarHandleTestMethodHandleAccess$Type$
 #else[Value]
- * @run testng/othervm -XX:-EnableValhalla -Diters=20000 VarHandleTestMethodHandleAccess$Type$
+ * @run testng/othervm -Diters=20000 VarHandleTestMethodHandleAccess$Type$
 #end[Value]
  */
 
@@ -83,7 +85,7 @@ public class VarHandleTestMethodHandleAccess$Type$ extends VarHandleBaseTest {
 
 #if[Value]
         vhValueTypeField = MethodHandles.lookup().findVarHandle(
-                    Value.class, "$type$_v", $type$.class);
+                    Value.class, "$varType$_v", $type$.class);
 #end[Value]
     }
 

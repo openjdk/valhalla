@@ -21,9 +21,10 @@
  * questions.
  */
 
+// -- This file was mechanically generated: Do not edit! -- //
+
 /*
  * @test
- * @compile -XDallowWithFieldOperator Value.java
  * @run testng/othervm -Diters=10    -Xint                   VarHandleTestAccessBoolean
  * @run testng/othervm -Diters=20000 -XX:TieredStopAtLevel=1 VarHandleTestAccessBoolean
  * @run testng/othervm -Diters=20000                         VarHandleTestAccessBoolean

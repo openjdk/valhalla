@@ -21,6 +21,8 @@
  * questions.
  */
 
+// -- This file was mechanically generated: Do not edit! -- //
+
 /*
  * @test
  * @run testng/othervm -Diters=10    -Xint                   VarHandleTestAccessString

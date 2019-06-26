@@ -30,7 +30,7 @@ final inline class Value {
     final long long_v;
     final double double_v;
     final float float_v;
-    final Point Point_v;
+    final Point point_v;
     Value() {
         char_v = 'z';
         boolean_v = true;
@@ -40,7 +40,7 @@ final inline class Value {
         long_v = 3;
         float_v = 0.1f;
         double_v = 0.2d;
-        Point_v = new Point(1, 1);
+        point_v = new Point(1, 1);
     }
     public Value(char c, boolean z, byte b, int x, short y, long l, float f, double d, Point p) {
         this.char_v = c;
@@ -51,7 +51,7 @@ final inline class Value {
         this.long_v = l;
         this.float_v = f;
         this.double_v = d;
-        this.Point_v = p;
+        this.point_v = p;
     }
 
     static Value getInstance() {

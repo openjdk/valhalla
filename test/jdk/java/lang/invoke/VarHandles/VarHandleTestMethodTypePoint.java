@@ -26,8 +26,8 @@
 /*
  * @test
  * @bug 8156486
- * @run testng/othervm VarHandleTestMethodTypeString
- * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false VarHandleTestMethodTypeString
+ * @run testng/othervm VarHandleTestMethodTypePoint
+ * @run testng/othervm -Djava.lang.invoke.VarHandle.VAR_HANDLE_GUARDS=false VarHandleTestMethodTypePoint
  */
 
 import org.testng.annotations.BeforeClass;
@@ -44,14 +44,14 @@ import static org.testng.Assert.*;
 
 import static java.lang.invoke.MethodType.*;
 
-public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
-    static final String static_final_v = "foo";
+public class VarHandleTestMethodTypePoint extends VarHandleBaseTest {
+    static final Point static_final_v = Point.getInstance(1,1);
 
-    static String static_v = "foo";
+    static Point static_v = Point.getInstance(1,1);
 
-    final String final_v = "foo";
+    final Point final_v = Point.getInstance(1,1);
 
-    String v = "foo";
+    Point v = Point.getInstance(1,1);
 
     VarHandle vhFinalField;
 
@@ -66,18 +66,18 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
     @BeforeClass
     public void setup() throws Exception {
         vhFinalField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodTypeString.class, "final_v", String.class);
+                VarHandleTestMethodTypePoint.class, "final_v", Point.class);
 
         vhField = MethodHandles.lookup().findVarHandle(
-                VarHandleTestMethodTypeString.class, "v", String.class);
+                VarHandleTestMethodTypePoint.class, "v", Point.class);
 
         vhStaticFinalField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodTypeString.class, "static_final_v", String.class);
+            VarHandleTestMethodTypePoint.class, "static_final_v", Point.class);
 
         vhStaticField = MethodHandles.lookup().findStaticVarHandle(
-            VarHandleTestMethodTypeString.class, "static_v", String.class);
+            VarHandleTestMethodTypePoint.class, "static_v", Point.class);
 
-        vhArray = MethodHandles.arrayElementVarHandle(String[].class);
+        vhArray = MethodHandles.arrayElementVarHandle(Point[].class);
     }
 
     @DataProvider
@@ -89,11 +89,11 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
                                               false));
 
         cases.add(new VarHandleAccessTestCase("Static field",
-                                              vhStaticField, VarHandleTestMethodTypeString::testStaticFieldWrongMethodType,
+                                              vhStaticField, VarHandleTestMethodTypePoint::testStaticFieldWrongMethodType,
                                               false));
 
         cases.add(new VarHandleAccessTestCase("Array",
-                                              vhArray, VarHandleTestMethodTypeString::testArrayWrongMethodType,
+                                              vhArray, VarHandleTestMethodTypePoint::testArrayWrongMethodType,
                                               false));
 
         for (VarHandleToMethodHandle f : VarHandleToMethodHandle.values()) {
@@ -102,11 +102,11 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
                                                      false));
 
             cases.add(new MethodHandleAccessTestCase("Static field",
-                                                     vhStaticField, f, VarHandleTestMethodTypeString::testStaticFieldWrongMethodType,
+                                                     vhStaticField, f, VarHandleTestMethodTypePoint::testStaticFieldWrongMethodType,
                                                      false));
 
             cases.add(new MethodHandleAccessTestCase("Array",
-                                                     vhArray, f, VarHandleTestMethodTypeString::testArrayWrongMethodType,
+                                                     vhArray, f, VarHandleTestMethodTypePoint::testArrayWrongMethodType,
                                                      false));
         }
         // Work around issue with jtreg summary reporting which truncates
@@ -125,17 +125,17 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
     }
 
 
-    static void testInstanceFieldWrongMethodType(VarHandleTestMethodTypeString recv, VarHandle vh) throws Throwable {
+    static void testInstanceFieldWrongMethodType(VarHandleTestMethodTypePoint recv, VarHandle vh) throws Throwable {
         // Get
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            String x = (String) vh.get(null);
+            Point x = (Point) vh.get(null);
         });
         checkCCE(() -> { // receiver reference class
-            String x = (String) vh.get(Void.class);
+            Point x = (Point) vh.get(Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            String x = (String) vh.get(0);
+            Point x = (Point) vh.get(0);
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
@@ -146,46 +146,46 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.get();
+            Point x = (Point) vh.get();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.get(recv, Void.class);
+            Point x = (Point) vh.get(recv, Void.class);
         });
 
 
         // Set
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            vh.set(null, "foo");
+            vh.set(null, Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            vh.set(Void.class, "foo");
+            vh.set(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // value reference class
             vh.set(recv, Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            vh.set(0, "foo");
+            vh.set(0, Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             vh.set();
         });
         checkWMTE(() -> { // >
-            vh.set(recv, "foo", Void.class);
+            vh.set(recv, Point.getInstance(1,1), Void.class);
         });
 
 
         // GetVolatile
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            String x = (String) vh.getVolatile(null);
+            Point x = (Point) vh.getVolatile(null);
         });
         checkCCE(() -> { // receiver reference class
-            String x = (String) vh.getVolatile(Void.class);
+            Point x = (Point) vh.getVolatile(Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            String x = (String) vh.getVolatile(0);
+            Point x = (Point) vh.getVolatile(0);
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
@@ -196,46 +196,46 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getVolatile();
+            Point x = (Point) vh.getVolatile();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getVolatile(recv, Void.class);
+            Point x = (Point) vh.getVolatile(recv, Void.class);
         });
 
 
         // SetVolatile
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            vh.setVolatile(null, "foo");
+            vh.setVolatile(null, Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            vh.setVolatile(Void.class, "foo");
+            vh.setVolatile(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // value reference class
             vh.setVolatile(recv, Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            vh.setVolatile(0, "foo");
+            vh.setVolatile(0, Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             vh.setVolatile();
         });
         checkWMTE(() -> { // >
-            vh.setVolatile(recv, "foo", Void.class);
+            vh.setVolatile(recv, Point.getInstance(1,1), Void.class);
         });
 
 
         // GetOpaque
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            String x = (String) vh.getOpaque(null);
+            Point x = (Point) vh.getOpaque(null);
         });
         checkCCE(() -> { // receiver reference class
-            String x = (String) vh.getOpaque(Void.class);
+            Point x = (Point) vh.getOpaque(Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            String x = (String) vh.getOpaque(0);
+            Point x = (Point) vh.getOpaque(0);
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
@@ -246,46 +246,46 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getOpaque();
+            Point x = (Point) vh.getOpaque();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getOpaque(recv, Void.class);
+            Point x = (Point) vh.getOpaque(recv, Void.class);
         });
 
 
         // SetOpaque
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            vh.setOpaque(null, "foo");
+            vh.setOpaque(null, Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            vh.setOpaque(Void.class, "foo");
+            vh.setOpaque(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // value reference class
             vh.setOpaque(recv, Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            vh.setOpaque(0, "foo");
+            vh.setOpaque(0, Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             vh.setOpaque();
         });
         checkWMTE(() -> { // >
-            vh.setOpaque(recv, "foo", Void.class);
+            vh.setOpaque(recv, Point.getInstance(1,1), Void.class);
         });
 
 
         // GetAcquire
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            String x = (String) vh.getAcquire(null);
+            Point x = (Point) vh.getAcquire(null);
         });
         checkCCE(() -> { // receiver reference class
-            String x = (String) vh.getAcquire(Void.class);
+            Point x = (Point) vh.getAcquire(Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            String x = (String) vh.getAcquire(0);
+            Point x = (Point) vh.getAcquire(0);
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
@@ -296,386 +296,386 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getAcquire();
+            Point x = (Point) vh.getAcquire();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getAcquire(recv, Void.class);
+            Point x = (Point) vh.getAcquire(recv, Void.class);
         });
 
 
         // SetRelease
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            vh.setRelease(null, "foo");
+            vh.setRelease(null, Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            vh.setRelease(Void.class, "foo");
+            vh.setRelease(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // value reference class
             vh.setRelease(recv, Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            vh.setRelease(0, "foo");
+            vh.setRelease(0, Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             vh.setRelease();
         });
         checkWMTE(() -> { // >
-            vh.setRelease(recv, "foo", Void.class);
+            vh.setRelease(recv, Point.getInstance(1,1), Void.class);
         });
 
 
         // CompareAndSet
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            boolean r = vh.compareAndSet(null, "foo", "foo");
+            boolean r = vh.compareAndSet(null, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            boolean r = vh.compareAndSet(Void.class, "foo", "foo");
+            boolean r = vh.compareAndSet(Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            boolean r = vh.compareAndSet(recv, Void.class, "foo");
+            boolean r = vh.compareAndSet(recv, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.compareAndSet(recv, "foo", Void.class);
+            boolean r = vh.compareAndSet(recv, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            boolean r = vh.compareAndSet(0, "foo", "foo");
+            boolean r = vh.compareAndSet(0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.compareAndSet();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.compareAndSet(recv, "foo", "foo", Void.class);
+            boolean r = vh.compareAndSet(recv, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // WeakCompareAndSet
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            boolean r = vh.weakCompareAndSetPlain(null, "foo", "foo");
+            boolean r = vh.weakCompareAndSetPlain(null, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            boolean r = vh.weakCompareAndSetPlain(Void.class, "foo", "foo");
+            boolean r = vh.weakCompareAndSetPlain(Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            boolean r = vh.weakCompareAndSetPlain(recv, Void.class, "foo");
+            boolean r = vh.weakCompareAndSetPlain(recv, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.weakCompareAndSetPlain(recv, "foo", Void.class);
+            boolean r = vh.weakCompareAndSetPlain(recv, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            boolean r = vh.weakCompareAndSetPlain(0, "foo", "foo");
+            boolean r = vh.weakCompareAndSetPlain(0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.weakCompareAndSetPlain();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.weakCompareAndSetPlain(recv, "foo", "foo", Void.class);
+            boolean r = vh.weakCompareAndSetPlain(recv, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // WeakCompareAndSetVolatile
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            boolean r = vh.weakCompareAndSet(null, "foo", "foo");
+            boolean r = vh.weakCompareAndSet(null, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            boolean r = vh.weakCompareAndSet(Void.class, "foo", "foo");
+            boolean r = vh.weakCompareAndSet(Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            boolean r = vh.weakCompareAndSet(recv, Void.class, "foo");
+            boolean r = vh.weakCompareAndSet(recv, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.weakCompareAndSet(recv, "foo", Void.class);
+            boolean r = vh.weakCompareAndSet(recv, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            boolean r = vh.weakCompareAndSet(0, "foo", "foo");
+            boolean r = vh.weakCompareAndSet(0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.weakCompareAndSet();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.weakCompareAndSet(recv, "foo", "foo", Void.class);
+            boolean r = vh.weakCompareAndSet(recv, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // WeakCompareAndSetAcquire
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            boolean r = vh.weakCompareAndSetAcquire(null, "foo", "foo");
+            boolean r = vh.weakCompareAndSetAcquire(null, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            boolean r = vh.weakCompareAndSetAcquire(Void.class, "foo", "foo");
+            boolean r = vh.weakCompareAndSetAcquire(Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            boolean r = vh.weakCompareAndSetAcquire(recv, Void.class, "foo");
+            boolean r = vh.weakCompareAndSetAcquire(recv, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.weakCompareAndSetAcquire(recv, "foo", Void.class);
+            boolean r = vh.weakCompareAndSetAcquire(recv, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            boolean r = vh.weakCompareAndSetAcquire(0, "foo", "foo");
+            boolean r = vh.weakCompareAndSetAcquire(0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.weakCompareAndSetAcquire();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.weakCompareAndSetAcquire(recv, "foo", "foo", Void.class);
+            boolean r = vh.weakCompareAndSetAcquire(recv, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // WeakCompareAndSetRelease
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            boolean r = vh.weakCompareAndSetRelease(null, "foo", "foo");
+            boolean r = vh.weakCompareAndSetRelease(null, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            boolean r = vh.weakCompareAndSetRelease(Void.class, "foo", "foo");
+            boolean r = vh.weakCompareAndSetRelease(Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            boolean r = vh.weakCompareAndSetRelease(recv, Void.class, "foo");
+            boolean r = vh.weakCompareAndSetRelease(recv, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.weakCompareAndSetRelease(recv, "foo", Void.class);
+            boolean r = vh.weakCompareAndSetRelease(recv, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            boolean r = vh.weakCompareAndSetRelease(0, "foo", "foo");
+            boolean r = vh.weakCompareAndSetRelease(0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.weakCompareAndSetRelease();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.weakCompareAndSetRelease(recv, "foo", "foo", Void.class);
+            boolean r = vh.weakCompareAndSetRelease(recv, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // CompareAndExchange
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            String x = (String) vh.compareAndExchange(null, "foo", "foo");
+            Point x = (Point) vh.compareAndExchange(null, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            String x = (String) vh.compareAndExchange(Void.class, "foo", "foo");
+            Point x = (Point) vh.compareAndExchange(Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            String x = (String) vh.compareAndExchange(recv, Void.class, "foo");
+            Point x = (Point) vh.compareAndExchange(recv, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            String x = (String) vh.compareAndExchange(recv, "foo", Void.class);
+            Point x = (Point) vh.compareAndExchange(recv, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // reciever primitive class
-            String x = (String) vh.compareAndExchange(0, "foo", "foo");
+            Point x = (Point) vh.compareAndExchange(0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.compareAndExchange(recv, "foo", "foo");
+            Void r = (Void) vh.compareAndExchange(recv, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.compareAndExchange(recv, "foo", "foo");
+            boolean x = (boolean) vh.compareAndExchange(recv, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.compareAndExchange();
+            Point x = (Point) vh.compareAndExchange();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.compareAndExchange(recv, "foo", "foo", Void.class);
+            Point x = (Point) vh.compareAndExchange(recv, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // CompareAndExchangeAcquire
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            String x = (String) vh.compareAndExchangeAcquire(null, "foo", "foo");
+            Point x = (Point) vh.compareAndExchangeAcquire(null, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            String x = (String) vh.compareAndExchangeAcquire(Void.class, "foo", "foo");
+            Point x = (Point) vh.compareAndExchangeAcquire(Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            String x = (String) vh.compareAndExchangeAcquire(recv, Void.class, "foo");
+            Point x = (Point) vh.compareAndExchangeAcquire(recv, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            String x = (String) vh.compareAndExchangeAcquire(recv, "foo", Void.class);
+            Point x = (Point) vh.compareAndExchangeAcquire(recv, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // reciever primitive class
-            String x = (String) vh.compareAndExchangeAcquire(0, "foo", "foo");
+            Point x = (Point) vh.compareAndExchangeAcquire(0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.compareAndExchangeAcquire(recv, "foo", "foo");
+            Void r = (Void) vh.compareAndExchangeAcquire(recv, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.compareAndExchangeAcquire(recv, "foo", "foo");
+            boolean x = (boolean) vh.compareAndExchangeAcquire(recv, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.compareAndExchangeAcquire();
+            Point x = (Point) vh.compareAndExchangeAcquire();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.compareAndExchangeAcquire(recv, "foo", "foo", Void.class);
+            Point x = (Point) vh.compareAndExchangeAcquire(recv, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // CompareAndExchangeRelease
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            String x = (String) vh.compareAndExchangeRelease(null, "foo", "foo");
+            Point x = (Point) vh.compareAndExchangeRelease(null, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            String x = (String) vh.compareAndExchangeRelease(Void.class, "foo", "foo");
+            Point x = (Point) vh.compareAndExchangeRelease(Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            String x = (String) vh.compareAndExchangeRelease(recv, Void.class, "foo");
+            Point x = (Point) vh.compareAndExchangeRelease(recv, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            String x = (String) vh.compareAndExchangeRelease(recv, "foo", Void.class);
+            Point x = (Point) vh.compareAndExchangeRelease(recv, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // reciever primitive class
-            String x = (String) vh.compareAndExchangeRelease(0, "foo", "foo");
+            Point x = (Point) vh.compareAndExchangeRelease(0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.compareAndExchangeRelease(recv, "foo", "foo");
+            Void r = (Void) vh.compareAndExchangeRelease(recv, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.compareAndExchangeRelease(recv, "foo", "foo");
+            boolean x = (boolean) vh.compareAndExchangeRelease(recv, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.compareAndExchangeRelease();
+            Point x = (Point) vh.compareAndExchangeRelease();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.compareAndExchangeRelease(recv, "foo", "foo", Void.class);
+            Point x = (Point) vh.compareAndExchangeRelease(recv, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // GetAndSet
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            String x = (String) vh.getAndSet(null, "foo");
+            Point x = (Point) vh.getAndSet(null, Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            String x = (String) vh.getAndSet(Void.class, "foo");
+            Point x = (Point) vh.getAndSet(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // value reference class
-            String x = (String) vh.getAndSet(recv, Void.class);
+            Point x = (Point) vh.getAndSet(recv, Void.class);
         });
         checkWMTE(() -> { // reciever primitive class
-            String x = (String) vh.getAndSet(0, "foo");
+            Point x = (Point) vh.getAndSet(0, Point.getInstance(1,1));
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.getAndSet(recv, "foo");
+            Void r = (Void) vh.getAndSet(recv, Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.getAndSet(recv, "foo");
+            boolean x = (boolean) vh.getAndSet(recv, Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getAndSet();
+            Point x = (Point) vh.getAndSet();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getAndSet(recv, "foo", Void.class);
+            Point x = (Point) vh.getAndSet(recv, Point.getInstance(1,1), Void.class);
         });
 
         // GetAndSetAcquire
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            String x = (String) vh.getAndSetAcquire(null, "foo");
+            Point x = (Point) vh.getAndSetAcquire(null, Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            String x = (String) vh.getAndSetAcquire(Void.class, "foo");
+            Point x = (Point) vh.getAndSetAcquire(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // value reference class
-            String x = (String) vh.getAndSetAcquire(recv, Void.class);
+            Point x = (Point) vh.getAndSetAcquire(recv, Void.class);
         });
         checkWMTE(() -> { // reciever primitive class
-            String x = (String) vh.getAndSetAcquire(0, "foo");
+            Point x = (Point) vh.getAndSetAcquire(0, Point.getInstance(1,1));
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.getAndSetAcquire(recv, "foo");
+            Void r = (Void) vh.getAndSetAcquire(recv, Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.getAndSetAcquire(recv, "foo");
+            boolean x = (boolean) vh.getAndSetAcquire(recv, Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getAndSetAcquire();
+            Point x = (Point) vh.getAndSetAcquire();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getAndSetAcquire(recv, "foo", Void.class);
+            Point x = (Point) vh.getAndSetAcquire(recv, Point.getInstance(1,1), Void.class);
         });
 
         // GetAndSetRelease
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            String x = (String) vh.getAndSetRelease(null, "foo");
+            Point x = (Point) vh.getAndSetRelease(null, Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            String x = (String) vh.getAndSetRelease(Void.class, "foo");
+            Point x = (Point) vh.getAndSetRelease(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // value reference class
-            String x = (String) vh.getAndSetRelease(recv, Void.class);
+            Point x = (Point) vh.getAndSetRelease(recv, Void.class);
         });
         checkWMTE(() -> { // reciever primitive class
-            String x = (String) vh.getAndSetRelease(0, "foo");
+            Point x = (Point) vh.getAndSetRelease(0, Point.getInstance(1,1));
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.getAndSetRelease(recv, "foo");
+            Void r = (Void) vh.getAndSetRelease(recv, Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.getAndSetRelease(recv, "foo");
+            boolean x = (boolean) vh.getAndSetRelease(recv, Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getAndSetRelease();
+            Point x = (Point) vh.getAndSetRelease();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getAndSetRelease(recv, "foo", Void.class);
+            Point x = (Point) vh.getAndSetRelease(recv, Point.getInstance(1,1), Void.class);
         });
 
 
     }
 
-    static void testInstanceFieldWrongMethodType(VarHandleTestMethodTypeString recv, Handles hs) throws Throwable {
+    static void testInstanceFieldWrongMethodType(VarHandleTestMethodTypePoint recv, Handles hs) throws Throwable {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                String x = (String) hs.get(am, methodType(String.class, VarHandleTestMethodTypeString.class)).
-                    invokeExact((VarHandleTestMethodTypeString) null);
+                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class)).
+                    invokeExact((VarHandleTestMethodTypePoint) null);
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                String x = (String) hs.get(am, methodType(String.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class, Class.class)).
                     invokeExact(Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                String x = (String) hs.get(am, methodType(String.class, int.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class, int.class)).
                     invokeExact(0);
             });
             // Incorrect return type
             hs.checkWMTEOrCCE(() -> { // reference class
-                Void x = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypeString.class)).
+                Void x = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypePoint.class)).
                     invokeExact(recv);
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeString.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class)).
                     invokeExact(recv);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                String x = (String) hs.get(am, methodType(String.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                String x = (String) hs.get(am, methodType(String.class, VarHandleTestMethodTypeString.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Class.class)).
                     invokeExact(recv, Void.class);
             });
         }
@@ -683,20 +683,20 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                hs.get(am, methodType(void.class, VarHandleTestMethodTypeString.class, String.class)).
-                    invokeExact((VarHandleTestMethodTypeString) null, "foo");
+                hs.get(am, methodType(void.class, VarHandleTestMethodTypePoint.class, Point.class)).
+                    invokeExact((VarHandleTestMethodTypePoint) null, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                hs.get(am, methodType(void.class, Class.class, String.class)).
-                    invokeExact(Void.class, "foo");
+                hs.get(am, methodType(void.class, Class.class, Point.class)).
+                    invokeExact(Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // value reference class
-                hs.get(am, methodType(void.class, VarHandleTestMethodTypeString.class, Class.class)).
+                hs.get(am, methodType(void.class, VarHandleTestMethodTypePoint.class, Class.class)).
                     invokeExact(recv, Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                hs.get(am, methodType(void.class, int.class, String.class)).
-                    invokeExact(0, "foo");
+                hs.get(am, methodType(void.class, int.class, Point.class)).
+                    invokeExact(0, Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
@@ -704,32 +704,32 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                hs.get(am, methodType(void.class, VarHandleTestMethodTypeString.class, String.class, Class.class)).
-                    invokeExact(recv, "foo", Void.class);
+                hs.get(am, methodType(void.class, VarHandleTestMethodTypePoint.class, Point.class, Class.class)).
+                    invokeExact(recv, Point.getInstance(1,1), Void.class);
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeString.class, String.class, String.class)).
-                    invokeExact((VarHandleTestMethodTypeString) null, "foo", "foo");
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Point.class, Point.class)).
+                    invokeExact((VarHandleTestMethodTypePoint) null, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, String.class, String.class)).
-                    invokeExact(Void.class, "foo", "foo");
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, Point.class, Point.class)).
+                    invokeExact(Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // expected reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeString.class, Class.class, String.class)).
-                    invokeExact(recv, Void.class, "foo");
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Class.class, Point.class)).
+                    invokeExact(recv, Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // actual reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeString.class, String.class, Class.class)).
-                    invokeExact(recv, "foo", Void.class);
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Point.class, Class.class)).
+                    invokeExact(recv, Point.getInstance(1,1), Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, int.class , String.class, String.class)).
-                    invokeExact(0, "foo", "foo");
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, int.class , Point.class, Point.class)).
+                    invokeExact(0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
@@ -737,86 +737,86 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeString.class, String.class, String.class, Class.class)).
-                    invokeExact(recv, "foo", "foo", Void.class);
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Point.class, Point.class, Class.class)).
+                    invokeExact(recv, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_EXCHANGE)) {
             checkNPE(() -> { // null receiver
-                String x = (String) hs.get(am, methodType(String.class, VarHandleTestMethodTypeString.class, String.class, String.class)).
-                    invokeExact((VarHandleTestMethodTypeString) null, "foo", "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Point.class, Point.class)).
+                    invokeExact((VarHandleTestMethodTypePoint) null, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                String x = (String) hs.get(am, methodType(String.class, Class.class, String.class, String.class)).
-                    invokeExact(Void.class, "foo", "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, Class.class, Point.class, Point.class)).
+                    invokeExact(Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // expected reference class
-                String x = (String) hs.get(am, methodType(String.class, VarHandleTestMethodTypeString.class, Class.class, String.class)).
-                    invokeExact(recv, Void.class, "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Class.class, Point.class)).
+                    invokeExact(recv, Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // actual reference class
-                String x = (String) hs.get(am, methodType(String.class, VarHandleTestMethodTypeString.class, String.class, Class.class)).
-                    invokeExact(recv, "foo", Void.class);
+                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Point.class, Class.class)).
+                    invokeExact(recv, Point.getInstance(1,1), Void.class);
             });
             checkWMTE(() -> { // reciever primitive class
-                String x = (String) hs.get(am, methodType(String.class, int.class , String.class, String.class)).
-                    invokeExact(0, "foo", "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, int.class , Point.class, Point.class)).
+                    invokeExact(0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             // Incorrect return type
             hs.checkWMTEOrCCE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypeString.class , String.class, String.class)).
-                    invokeExact(recv, "foo", "foo");
+                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypePoint.class , Point.class, Point.class)).
+                    invokeExact(recv, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeString.class , String.class, String.class)).
-                    invokeExact(recv, "foo", "foo");
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class , Point.class, Point.class)).
+                    invokeExact(recv, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                String x = (String) hs.get(am, methodType(String.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                String x = (String) hs.get(am, methodType(String.class, VarHandleTestMethodTypeString.class, String.class, String.class, Class.class)).
-                    invokeExact(recv, "foo", "foo", Void.class);
+                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Point.class, Point.class, Class.class)).
+                    invokeExact(recv, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_SET)) {
             checkNPE(() -> { // null receiver
-                String x = (String) hs.get(am, methodType(String.class, VarHandleTestMethodTypeString.class, String.class)).
-                    invokeExact((VarHandleTestMethodTypeString) null, "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Point.class)).
+                    invokeExact((VarHandleTestMethodTypePoint) null, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                String x = (String) hs.get(am, methodType(String.class, Class.class, String.class)).
-                    invokeExact(Void.class, "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, Class.class, Point.class)).
+                    invokeExact(Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // value reference class
-                String x = (String) hs.get(am, methodType(String.class, VarHandleTestMethodTypeString.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Class.class)).
                     invokeExact(recv, Void.class);
             });
             checkWMTE(() -> { // reciever primitive class
-                String x = (String) hs.get(am, methodType(String.class, int.class, String.class)).
-                    invokeExact(0, "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, int.class, Point.class)).
+                    invokeExact(0, Point.getInstance(1,1));
             });
             // Incorrect return type
             hs.checkWMTEOrCCE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypeString.class, String.class)).
-                    invokeExact(recv, "foo");
+                Void r = (Void) hs.get(am, methodType(Void.class, VarHandleTestMethodTypePoint.class, Point.class)).
+                    invokeExact(recv, Point.getInstance(1,1));
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypeString.class, String.class)).
-                    invokeExact(recv, "foo");
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, VarHandleTestMethodTypePoint.class, Point.class)).
+                    invokeExact(recv, Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                String x = (String) hs.get(am, methodType(String.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                String x = (String) hs.get(am, methodType(String.class, VarHandleTestMethodTypeString.class, String.class)).
-                    invokeExact(recv, "foo", Void.class);
+                Point x = (Point) hs.get(am, methodType(Point.class, VarHandleTestMethodTypePoint.class, Point.class)).
+                    invokeExact(recv, Point.getInstance(1,1), Void.class);
             });
         }
 
@@ -835,7 +835,7 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
         });
         // Incorrect arity
         checkWMTE(() -> { // >
-            String x = (String) vh.get(Void.class);
+            Point x = (Point) vh.get(Void.class);
         });
 
 
@@ -849,7 +849,7 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
             vh.set();
         });
         checkWMTE(() -> { // >
-            vh.set("foo", Void.class);
+            vh.set(Point.getInstance(1,1), Void.class);
         });
 
 
@@ -862,7 +862,7 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
             boolean x = (boolean) vh.getVolatile();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getVolatile(Void.class);
+            Point x = (Point) vh.getVolatile(Void.class);
         });
 
 
@@ -876,7 +876,7 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
             vh.setVolatile();
         });
         checkWMTE(() -> { // >
-            vh.setVolatile("foo", Void.class);
+            vh.setVolatile(Point.getInstance(1,1), Void.class);
         });
 
 
@@ -889,7 +889,7 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
             boolean x = (boolean) vh.getOpaque();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getOpaque(Void.class);
+            Point x = (Point) vh.getOpaque(Void.class);
         });
 
 
@@ -903,7 +903,7 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
             vh.setOpaque();
         });
         checkWMTE(() -> { // >
-            vh.setOpaque("foo", Void.class);
+            vh.setOpaque(Point.getInstance(1,1), Void.class);
         });
 
 
@@ -916,7 +916,7 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
             boolean x = (boolean) vh.getAcquire();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getAcquire(Void.class);
+            Point x = (Point) vh.getAcquire(Void.class);
         });
 
 
@@ -930,227 +930,227 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
             vh.setRelease();
         });
         checkWMTE(() -> { // >
-            vh.setRelease("foo", Void.class);
+            vh.setRelease(Point.getInstance(1,1), Void.class);
         });
 
 
         // CompareAndSet
         // Incorrect argument types
         checkCCE(() -> { // expected reference class
-            boolean r = vh.compareAndSet(Void.class, "foo");
+            boolean r = vh.compareAndSet(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.compareAndSet("foo", Void.class);
+            boolean r = vh.compareAndSet(Point.getInstance(1,1), Void.class);
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.compareAndSet();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.compareAndSet("foo", "foo", Void.class);
+            boolean r = vh.compareAndSet(Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // WeakCompareAndSet
         // Incorrect argument types
         checkCCE(() -> { // expected reference class
-            boolean r = vh.weakCompareAndSetPlain(Void.class, "foo");
+            boolean r = vh.weakCompareAndSetPlain(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.weakCompareAndSetPlain("foo", Void.class);
+            boolean r = vh.weakCompareAndSetPlain(Point.getInstance(1,1), Void.class);
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.weakCompareAndSetPlain();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.weakCompareAndSetPlain("foo", "foo", Void.class);
+            boolean r = vh.weakCompareAndSetPlain(Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // WeakCompareAndSetVolatile
         // Incorrect argument types
         checkCCE(() -> { // expected reference class
-            boolean r = vh.weakCompareAndSet(Void.class, "foo");
+            boolean r = vh.weakCompareAndSet(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.weakCompareAndSet("foo", Void.class);
+            boolean r = vh.weakCompareAndSet(Point.getInstance(1,1), Void.class);
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.weakCompareAndSet();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.weakCompareAndSet("foo", "foo", Void.class);
+            boolean r = vh.weakCompareAndSet(Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // WeakCompareAndSetAcquire
         // Incorrect argument types
         checkCCE(() -> { // expected reference class
-            boolean r = vh.weakCompareAndSetAcquire(Void.class, "foo");
+            boolean r = vh.weakCompareAndSetAcquire(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.weakCompareAndSetAcquire("foo", Void.class);
+            boolean r = vh.weakCompareAndSetAcquire(Point.getInstance(1,1), Void.class);
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.weakCompareAndSetAcquire();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.weakCompareAndSetAcquire("foo", "foo", Void.class);
+            boolean r = vh.weakCompareAndSetAcquire(Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // WeakCompareAndSetRelease
         // Incorrect argument types
         checkCCE(() -> { // expected reference class
-            boolean r = vh.weakCompareAndSetRelease(Void.class, "foo");
+            boolean r = vh.weakCompareAndSetRelease(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.weakCompareAndSetRelease("foo", Void.class);
+            boolean r = vh.weakCompareAndSetRelease(Point.getInstance(1,1), Void.class);
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.weakCompareAndSetRelease();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.weakCompareAndSetRelease("foo", "foo", Void.class);
+            boolean r = vh.weakCompareAndSetRelease(Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // CompareAndExchange
         // Incorrect argument types
         checkCCE(() -> { // expected reference class
-            String x = (String) vh.compareAndExchange(Void.class, "foo");
+            Point x = (Point) vh.compareAndExchange(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            String x = (String) vh.compareAndExchange("foo", Void.class);
+            Point x = (Point) vh.compareAndExchange(Point.getInstance(1,1), Void.class);
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.compareAndExchange("foo", "foo");
+            Void r = (Void) vh.compareAndExchange(Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.compareAndExchange("foo", "foo");
+            boolean x = (boolean) vh.compareAndExchange(Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.compareAndExchange();
+            Point x = (Point) vh.compareAndExchange();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.compareAndExchange("foo", "foo", Void.class);
+            Point x = (Point) vh.compareAndExchange(Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // CompareAndExchangeAcquire
         // Incorrect argument types
         checkCCE(() -> { // expected reference class
-            String x = (String) vh.compareAndExchangeAcquire(Void.class, "foo");
+            Point x = (Point) vh.compareAndExchangeAcquire(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            String x = (String) vh.compareAndExchangeAcquire("foo", Void.class);
+            Point x = (Point) vh.compareAndExchangeAcquire(Point.getInstance(1,1), Void.class);
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.compareAndExchangeAcquire("foo", "foo");
+            Void r = (Void) vh.compareAndExchangeAcquire(Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.compareAndExchangeAcquire("foo", "foo");
+            boolean x = (boolean) vh.compareAndExchangeAcquire(Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.compareAndExchangeAcquire();
+            Point x = (Point) vh.compareAndExchangeAcquire();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.compareAndExchangeAcquire("foo", "foo", Void.class);
+            Point x = (Point) vh.compareAndExchangeAcquire(Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // CompareAndExchangeRelease
         // Incorrect argument types
         checkCCE(() -> { // expected reference class
-            String x = (String) vh.compareAndExchangeRelease(Void.class, "foo");
+            Point x = (Point) vh.compareAndExchangeRelease(Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            String x = (String) vh.compareAndExchangeRelease("foo", Void.class);
+            Point x = (Point) vh.compareAndExchangeRelease(Point.getInstance(1,1), Void.class);
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.compareAndExchangeRelease("foo", "foo");
+            Void r = (Void) vh.compareAndExchangeRelease(Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.compareAndExchangeRelease("foo", "foo");
+            boolean x = (boolean) vh.compareAndExchangeRelease(Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.compareAndExchangeRelease();
+            Point x = (Point) vh.compareAndExchangeRelease();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.compareAndExchangeRelease("foo", "foo", Void.class);
+            Point x = (Point) vh.compareAndExchangeRelease(Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // GetAndSet
         // Incorrect argument types
         checkCCE(() -> { // value reference class
-            String x = (String) vh.getAndSet(Void.class);
+            Point x = (Point) vh.getAndSet(Void.class);
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.getAndSet("foo");
+            Void r = (Void) vh.getAndSet(Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.getAndSet("foo");
+            boolean x = (boolean) vh.getAndSet(Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getAndSet();
+            Point x = (Point) vh.getAndSet();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getAndSet("foo", Void.class);
+            Point x = (Point) vh.getAndSet(Point.getInstance(1,1), Void.class);
         });
 
 
         // GetAndSetAcquire
         // Incorrect argument types
         checkCCE(() -> { // value reference class
-            String x = (String) vh.getAndSetAcquire(Void.class);
+            Point x = (Point) vh.getAndSetAcquire(Void.class);
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.getAndSetAcquire("foo");
+            Void r = (Void) vh.getAndSetAcquire(Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.getAndSetAcquire("foo");
+            boolean x = (boolean) vh.getAndSetAcquire(Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getAndSetAcquire();
+            Point x = (Point) vh.getAndSetAcquire();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getAndSetAcquire("foo", Void.class);
+            Point x = (Point) vh.getAndSetAcquire(Point.getInstance(1,1), Void.class);
         });
 
 
         // GetAndSetRelease
         // Incorrect argument types
         checkCCE(() -> { // value reference class
-            String x = (String) vh.getAndSetRelease(Void.class);
+            Point x = (Point) vh.getAndSetRelease(Void.class);
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.getAndSetRelease("foo");
+            Void r = (Void) vh.getAndSetRelease(Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.getAndSetRelease("foo");
+            boolean x = (boolean) vh.getAndSetRelease(Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getAndSetRelease();
+            Point x = (Point) vh.getAndSetRelease();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getAndSetRelease("foo", Void.class);
+            Point x = (Point) vh.getAndSetRelease(Point.getInstance(1,1), Void.class);
         });
 
 
@@ -1171,7 +1171,7 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
             });
             // Incorrect arity
             checkWMTE(() -> { // >
-                String x = (String) hs.get(am, methodType(Class.class)).
+                Point x = (Point) hs.get(am, methodType(Class.class)).
                     invokeExact(Void.class);
             });
         }
@@ -1187,19 +1187,19 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                hs.get(am, methodType(void.class, String.class, Class.class)).
-                    invokeExact("foo", Void.class);
+                hs.get(am, methodType(void.class, Point.class, Class.class)).
+                    invokeExact(Point.getInstance(1,1), Void.class);
             });
         }
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_SET)) {
             // Incorrect argument types
             hs.checkWMTEOrCCE(() -> { // expected reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, String.class)).
-                    invokeExact(Void.class, "foo");
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, Point.class)).
+                    invokeExact(Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // actual reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, String.class, Class.class)).
-                    invokeExact("foo", Void.class);
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point.class, Class.class)).
+                    invokeExact(Point.getInstance(1,1), Void.class);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
@@ -1207,64 +1207,64 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, String.class, String.class, Class.class)).
-                    invokeExact("foo", "foo", Void.class);
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point.class, Point.class, Class.class)).
+                    invokeExact(Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_EXCHANGE)) {
             // Incorrect argument types
             hs.checkWMTEOrCCE(() -> { // expected reference class
-                String x = (String) hs.get(am, methodType(String.class, Class.class, String.class)).
-                    invokeExact(Void.class, "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, Class.class, Point.class)).
+                    invokeExact(Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // actual reference class
-                String x = (String) hs.get(am, methodType(String.class, String.class, Class.class)).
-                    invokeExact("foo", Void.class);
+                Point x = (Point) hs.get(am, methodType(Point.class, Point.class, Class.class)).
+                    invokeExact(Point.getInstance(1,1), Void.class);
             });
             // Incorrect return type
             hs.checkWMTEOrCCE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, String.class, String.class)).
-                    invokeExact("foo", "foo");
+                Void r = (Void) hs.get(am, methodType(Void.class, Point.class, Point.class)).
+                    invokeExact(Point.getInstance(1,1), Point.getInstance(1,1));
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, String.class, String.class)).
-                    invokeExact("foo", "foo");
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, Point.class, Point.class)).
+                    invokeExact(Point.getInstance(1,1), Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                String x = (String) hs.get(am, methodType(String.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                String x = (String) hs.get(am, methodType(String.class, String.class, String.class, Class.class)).
-                    invokeExact("foo", "foo", Void.class);
+                Point x = (Point) hs.get(am, methodType(Point.class, Point.class, Point.class, Class.class)).
+                    invokeExact(Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_SET)) {
             // Incorrect argument types
             hs.checkWMTEOrCCE(() -> { // value reference class
-                String x = (String) hs.get(am, methodType(String.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class, Class.class)).
                     invokeExact(Void.class);
             });
             // Incorrect return type
             hs.checkWMTEOrCCE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, String.class)).
-                    invokeExact("foo");
+                Void r = (Void) hs.get(am, methodType(Void.class, Point.class)).
+                    invokeExact(Point.getInstance(1,1));
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, String.class)).
-                    invokeExact("foo");
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, Point.class)).
+                    invokeExact(Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                String x = (String) hs.get(am, methodType(String.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                String x = (String) hs.get(am, methodType(String.class, String.class, Class.class)).
-                    invokeExact("foo", Void.class);
+                Point x = (Point) hs.get(am, methodType(Point.class, Point.class, Class.class)).
+                    invokeExact(Point.getInstance(1,1), Void.class);
             });
         }
 
@@ -1273,22 +1273,22 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
 
 
     static void testArrayWrongMethodType(VarHandle vh) throws Throwable {
-        String[] array = new String[10];
-        Arrays.fill(array, "foo");
+        Point[] array = new Point[10];
+        Arrays.fill(array, Point.getInstance(1,1));
 
         // Get
         // Incorrect argument types
         checkNPE(() -> { // null array
-            String x = (String) vh.get(null, 0);
+            Point x = (Point) vh.get(null, 0);
         });
         checkCCE(() -> { // array reference class
-            String x = (String) vh.get(Void.class, 0);
+            Point x = (Point) vh.get(Void.class, 0);
         });
         checkWMTE(() -> { // array primitive class
-            String x = (String) vh.get(0, 0);
+            Point x = (Point) vh.get(0, 0);
         });
         checkWMTE(() -> { // index reference class
-            String x = (String) vh.get(array, Void.class);
+            Point x = (Point) vh.get(array, Void.class);
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
@@ -1299,52 +1299,52 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.get();
+            Point x = (Point) vh.get();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.get(array, 0, Void.class);
+            Point x = (Point) vh.get(array, 0, Void.class);
         });
 
 
         // Set
         // Incorrect argument types
         checkNPE(() -> { // null array
-            vh.set(null, 0, "foo");
+            vh.set(null, 0, Point.getInstance(1,1));
         });
         checkCCE(() -> { // array reference class
-            vh.set(Void.class, 0, "foo");
+            vh.set(Void.class, 0, Point.getInstance(1,1));
         });
         checkCCE(() -> { // value reference class
             vh.set(array, 0, Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            vh.set(0, 0, "foo");
+            vh.set(0, 0, Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            vh.set(array, Void.class, "foo");
+            vh.set(array, Void.class, Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             vh.set();
         });
         checkWMTE(() -> { // >
-            vh.set(array, 0, "foo", Void.class);
+            vh.set(array, 0, Point.getInstance(1,1), Void.class);
         });
 
 
         // GetVolatile
         // Incorrect argument types
         checkNPE(() -> { // null array
-            String x = (String) vh.getVolatile(null, 0);
+            Point x = (Point) vh.getVolatile(null, 0);
         });
         checkCCE(() -> { // array reference class
-            String x = (String) vh.getVolatile(Void.class, 0);
+            Point x = (Point) vh.getVolatile(Void.class, 0);
         });
         checkWMTE(() -> { // array primitive class
-            String x = (String) vh.getVolatile(0, 0);
+            Point x = (Point) vh.getVolatile(0, 0);
         });
         checkWMTE(() -> { // index reference class
-            String x = (String) vh.getVolatile(array, Void.class);
+            Point x = (Point) vh.getVolatile(array, Void.class);
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
@@ -1355,52 +1355,52 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getVolatile();
+            Point x = (Point) vh.getVolatile();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getVolatile(array, 0, Void.class);
+            Point x = (Point) vh.getVolatile(array, 0, Void.class);
         });
 
 
         // SetVolatile
         // Incorrect argument types
         checkNPE(() -> { // null array
-            vh.setVolatile(null, 0, "foo");
+            vh.setVolatile(null, 0, Point.getInstance(1,1));
         });
         checkCCE(() -> { // array reference class
-            vh.setVolatile(Void.class, 0, "foo");
+            vh.setVolatile(Void.class, 0, Point.getInstance(1,1));
         });
         checkCCE(() -> { // value reference class
             vh.setVolatile(array, 0, Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            vh.setVolatile(0, 0, "foo");
+            vh.setVolatile(0, 0, Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            vh.setVolatile(array, Void.class, "foo");
+            vh.setVolatile(array, Void.class, Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             vh.setVolatile();
         });
         checkWMTE(() -> { // >
-            vh.setVolatile(array, 0, "foo", Void.class);
+            vh.setVolatile(array, 0, Point.getInstance(1,1), Void.class);
         });
 
 
         // GetOpaque
         // Incorrect argument types
         checkNPE(() -> { // null array
-            String x = (String) vh.getOpaque(null, 0);
+            Point x = (Point) vh.getOpaque(null, 0);
         });
         checkCCE(() -> { // array reference class
-            String x = (String) vh.getOpaque(Void.class, 0);
+            Point x = (Point) vh.getOpaque(Void.class, 0);
         });
         checkWMTE(() -> { // array primitive class
-            String x = (String) vh.getOpaque(0, 0);
+            Point x = (Point) vh.getOpaque(0, 0);
         });
         checkWMTE(() -> { // index reference class
-            String x = (String) vh.getOpaque(array, Void.class);
+            Point x = (Point) vh.getOpaque(array, Void.class);
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
@@ -1411,52 +1411,52 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getOpaque();
+            Point x = (Point) vh.getOpaque();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getOpaque(array, 0, Void.class);
+            Point x = (Point) vh.getOpaque(array, 0, Void.class);
         });
 
 
         // SetOpaque
         // Incorrect argument types
         checkNPE(() -> { // null array
-            vh.setOpaque(null, 0, "foo");
+            vh.setOpaque(null, 0, Point.getInstance(1,1));
         });
         checkCCE(() -> { // array reference class
-            vh.setOpaque(Void.class, 0, "foo");
+            vh.setOpaque(Void.class, 0, Point.getInstance(1,1));
         });
         checkCCE(() -> { // value reference class
             vh.setOpaque(array, 0, Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            vh.setOpaque(0, 0, "foo");
+            vh.setOpaque(0, 0, Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            vh.setOpaque(array, Void.class, "foo");
+            vh.setOpaque(array, Void.class, Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             vh.setOpaque();
         });
         checkWMTE(() -> { // >
-            vh.setOpaque(array, 0, "foo", Void.class);
+            vh.setOpaque(array, 0, Point.getInstance(1,1), Void.class);
         });
 
 
         // GetAcquire
         // Incorrect argument types
         checkNPE(() -> { // null array
-            String x = (String) vh.getAcquire(null, 0);
+            Point x = (Point) vh.getAcquire(null, 0);
         });
         checkCCE(() -> { // array reference class
-            String x = (String) vh.getAcquire(Void.class, 0);
+            Point x = (Point) vh.getAcquire(Void.class, 0);
         });
         checkWMTE(() -> { // array primitive class
-            String x = (String) vh.getAcquire(0, 0);
+            Point x = (Point) vh.getAcquire(0, 0);
         });
         checkWMTE(() -> { // index reference class
-            String x = (String) vh.getAcquire(array, Void.class);
+            Point x = (Point) vh.getAcquire(array, Void.class);
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
@@ -1467,431 +1467,431 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getAcquire();
+            Point x = (Point) vh.getAcquire();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getAcquire(array, 0, Void.class);
+            Point x = (Point) vh.getAcquire(array, 0, Void.class);
         });
 
 
         // SetRelease
         // Incorrect argument types
         checkNPE(() -> { // null array
-            vh.setRelease(null, 0, "foo");
+            vh.setRelease(null, 0, Point.getInstance(1,1));
         });
         checkCCE(() -> { // array reference class
-            vh.setRelease(Void.class, 0, "foo");
+            vh.setRelease(Void.class, 0, Point.getInstance(1,1));
         });
         checkCCE(() -> { // value reference class
             vh.setRelease(array, 0, Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            vh.setRelease(0, 0, "foo");
+            vh.setRelease(0, 0, Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            vh.setRelease(array, Void.class, "foo");
+            vh.setRelease(array, Void.class, Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             vh.setRelease();
         });
         checkWMTE(() -> { // >
-            vh.setRelease(array, 0, "foo", Void.class);
+            vh.setRelease(array, 0, Point.getInstance(1,1), Void.class);
         });
 
 
         // CompareAndSet
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            boolean r = vh.compareAndSet(null, 0, "foo", "foo");
+            boolean r = vh.compareAndSet(null, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            boolean r = vh.compareAndSet(Void.class, 0, "foo", "foo");
+            boolean r = vh.compareAndSet(Void.class, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            boolean r = vh.compareAndSet(array, 0, Void.class, "foo");
+            boolean r = vh.compareAndSet(array, 0, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.compareAndSet(array, 0, "foo", Void.class);
+            boolean r = vh.compareAndSet(array, 0, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            boolean r = vh.compareAndSet(0, 0, "foo", "foo");
+            boolean r = vh.compareAndSet(0, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            boolean r = vh.compareAndSet(array, Void.class, "foo", "foo");
+            boolean r = vh.compareAndSet(array, Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.compareAndSet();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.compareAndSet(array, 0, "foo", "foo", Void.class);
+            boolean r = vh.compareAndSet(array, 0, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // WeakCompareAndSet
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            boolean r = vh.weakCompareAndSetPlain(null, 0, "foo", "foo");
+            boolean r = vh.weakCompareAndSetPlain(null, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            boolean r = vh.weakCompareAndSetPlain(Void.class, 0, "foo", "foo");
+            boolean r = vh.weakCompareAndSetPlain(Void.class, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            boolean r = vh.weakCompareAndSetPlain(array, 0, Void.class, "foo");
+            boolean r = vh.weakCompareAndSetPlain(array, 0, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.weakCompareAndSetPlain(array, 0, "foo", Void.class);
+            boolean r = vh.weakCompareAndSetPlain(array, 0, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            boolean r = vh.weakCompareAndSetPlain(0, 0, "foo", "foo");
+            boolean r = vh.weakCompareAndSetPlain(0, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            boolean r = vh.weakCompareAndSetPlain(array, Void.class, "foo", "foo");
+            boolean r = vh.weakCompareAndSetPlain(array, Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.weakCompareAndSetPlain();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.weakCompareAndSetPlain(array, 0, "foo", "foo", Void.class);
+            boolean r = vh.weakCompareAndSetPlain(array, 0, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // WeakCompareAndSetVolatile
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            boolean r = vh.weakCompareAndSet(null, 0, "foo", "foo");
+            boolean r = vh.weakCompareAndSet(null, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            boolean r = vh.weakCompareAndSet(Void.class, 0, "foo", "foo");
+            boolean r = vh.weakCompareAndSet(Void.class, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            boolean r = vh.weakCompareAndSet(array, 0, Void.class, "foo");
+            boolean r = vh.weakCompareAndSet(array, 0, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.weakCompareAndSet(array, 0, "foo", Void.class);
+            boolean r = vh.weakCompareAndSet(array, 0, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            boolean r = vh.weakCompareAndSet(0, 0, "foo", "foo");
+            boolean r = vh.weakCompareAndSet(0, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            boolean r = vh.weakCompareAndSet(array, Void.class, "foo", "foo");
+            boolean r = vh.weakCompareAndSet(array, Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.weakCompareAndSet();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.weakCompareAndSet(array, 0, "foo", "foo", Void.class);
+            boolean r = vh.weakCompareAndSet(array, 0, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // WeakCompareAndSetAcquire
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            boolean r = vh.weakCompareAndSetAcquire(null, 0, "foo", "foo");
+            boolean r = vh.weakCompareAndSetAcquire(null, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            boolean r = vh.weakCompareAndSetAcquire(Void.class, 0, "foo", "foo");
+            boolean r = vh.weakCompareAndSetAcquire(Void.class, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            boolean r = vh.weakCompareAndSetAcquire(array, 0, Void.class, "foo");
+            boolean r = vh.weakCompareAndSetAcquire(array, 0, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.weakCompareAndSetAcquire(array, 0, "foo", Void.class);
+            boolean r = vh.weakCompareAndSetAcquire(array, 0, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            boolean r = vh.weakCompareAndSetAcquire(0, 0, "foo", "foo");
+            boolean r = vh.weakCompareAndSetAcquire(0, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            boolean r = vh.weakCompareAndSetAcquire(array, Void.class, "foo", "foo");
+            boolean r = vh.weakCompareAndSetAcquire(array, Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.weakCompareAndSetAcquire();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.weakCompareAndSetAcquire(array, 0, "foo", "foo", Void.class);
+            boolean r = vh.weakCompareAndSetAcquire(array, 0, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // WeakCompareAndSetRelease
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            boolean r = vh.weakCompareAndSetRelease(null, 0, "foo", "foo");
+            boolean r = vh.weakCompareAndSetRelease(null, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // receiver reference class
-            boolean r = vh.weakCompareAndSetRelease(Void.class, 0, "foo", "foo");
+            boolean r = vh.weakCompareAndSetRelease(Void.class, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            boolean r = vh.weakCompareAndSetRelease(array, 0, Void.class, "foo");
+            boolean r = vh.weakCompareAndSetRelease(array, 0, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            boolean r = vh.weakCompareAndSetRelease(array, 0, "foo", Void.class);
+            boolean r = vh.weakCompareAndSetRelease(array, 0, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // receiver primitive class
-            boolean r = vh.weakCompareAndSetRelease(0, 0, "foo", "foo");
+            boolean r = vh.weakCompareAndSetRelease(0, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            boolean r = vh.weakCompareAndSetRelease(array, Void.class, "foo", "foo");
+            boolean r = vh.weakCompareAndSetRelease(array, Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
             boolean r = vh.weakCompareAndSetRelease();
         });
         checkWMTE(() -> { // >
-            boolean r = vh.weakCompareAndSetRelease(array, 0, "foo", "foo", Void.class);
+            boolean r = vh.weakCompareAndSetRelease(array, 0, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // CompareAndExchange
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            String x = (String) vh.compareAndExchange(null, 0, "foo", "foo");
+            Point x = (Point) vh.compareAndExchange(null, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // array reference class
-            String x = (String) vh.compareAndExchange(Void.class, 0, "foo", "foo");
+            Point x = (Point) vh.compareAndExchange(Void.class, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            String x = (String) vh.compareAndExchange(array, 0, Void.class, "foo");
+            Point x = (Point) vh.compareAndExchange(array, 0, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            String x = (String) vh.compareAndExchange(array, 0, "foo", Void.class);
+            Point x = (Point) vh.compareAndExchange(array, 0, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // array primitive class
-            String x = (String) vh.compareAndExchange(0, 0, "foo", "foo");
+            Point x = (Point) vh.compareAndExchange(0, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            String x = (String) vh.compareAndExchange(array, Void.class, "foo", "foo");
+            Point x = (Point) vh.compareAndExchange(array, Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.compareAndExchange(array, 0, "foo", "foo");
+            Void r = (Void) vh.compareAndExchange(array, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.compareAndExchange(array, 0, "foo", "foo");
+            boolean x = (boolean) vh.compareAndExchange(array, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.compareAndExchange();
+            Point x = (Point) vh.compareAndExchange();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.compareAndExchange(array, 0, "foo", "foo", Void.class);
+            Point x = (Point) vh.compareAndExchange(array, 0, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // CompareAndExchangeAcquire
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            String x = (String) vh.compareAndExchangeAcquire(null, 0, "foo", "foo");
+            Point x = (Point) vh.compareAndExchangeAcquire(null, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // array reference class
-            String x = (String) vh.compareAndExchangeAcquire(Void.class, 0, "foo", "foo");
+            Point x = (Point) vh.compareAndExchangeAcquire(Void.class, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            String x = (String) vh.compareAndExchangeAcquire(array, 0, Void.class, "foo");
+            Point x = (Point) vh.compareAndExchangeAcquire(array, 0, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            String x = (String) vh.compareAndExchangeAcquire(array, 0, "foo", Void.class);
+            Point x = (Point) vh.compareAndExchangeAcquire(array, 0, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // array primitive class
-            String x = (String) vh.compareAndExchangeAcquire(0, 0, "foo", "foo");
+            Point x = (Point) vh.compareAndExchangeAcquire(0, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            String x = (String) vh.compareAndExchangeAcquire(array, Void.class, "foo", "foo");
+            Point x = (Point) vh.compareAndExchangeAcquire(array, Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.compareAndExchangeAcquire(array, 0, "foo", "foo");
+            Void r = (Void) vh.compareAndExchangeAcquire(array, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.compareAndExchangeAcquire(array, 0, "foo", "foo");
+            boolean x = (boolean) vh.compareAndExchangeAcquire(array, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.compareAndExchangeAcquire();
+            Point x = (Point) vh.compareAndExchangeAcquire();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.compareAndExchangeAcquire(array, 0, "foo", "foo", Void.class);
+            Point x = (Point) vh.compareAndExchangeAcquire(array, 0, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // CompareAndExchangeRelease
         // Incorrect argument types
         checkNPE(() -> { // null receiver
-            String x = (String) vh.compareAndExchangeRelease(null, 0, "foo", "foo");
+            Point x = (Point) vh.compareAndExchangeRelease(null, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // array reference class
-            String x = (String) vh.compareAndExchangeRelease(Void.class, 0, "foo", "foo");
+            Point x = (Point) vh.compareAndExchangeRelease(Void.class, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkCCE(() -> { // expected reference class
-            String x = (String) vh.compareAndExchangeRelease(array, 0, Void.class, "foo");
+            Point x = (Point) vh.compareAndExchangeRelease(array, 0, Void.class, Point.getInstance(1,1));
         });
         checkCCE(() -> { // actual reference class
-            String x = (String) vh.compareAndExchangeRelease(array, 0, "foo", Void.class);
+            Point x = (Point) vh.compareAndExchangeRelease(array, 0, Point.getInstance(1,1), Void.class);
         });
         checkWMTE(() -> { // array primitive class
-            String x = (String) vh.compareAndExchangeRelease(0, 0, "foo", "foo");
+            Point x = (Point) vh.compareAndExchangeRelease(0, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            String x = (String) vh.compareAndExchangeRelease(array, Void.class, "foo", "foo");
+            Point x = (Point) vh.compareAndExchangeRelease(array, Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.compareAndExchangeRelease(array, 0, "foo", "foo");
+            Void r = (Void) vh.compareAndExchangeRelease(array, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.compareAndExchangeRelease(array, 0, "foo", "foo");
+            boolean x = (boolean) vh.compareAndExchangeRelease(array, 0, Point.getInstance(1,1), Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.compareAndExchangeRelease();
+            Point x = (Point) vh.compareAndExchangeRelease();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.compareAndExchangeRelease(array, 0, "foo", "foo", Void.class);
+            Point x = (Point) vh.compareAndExchangeRelease(array, 0, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
         });
 
 
         // GetAndSet
         // Incorrect argument types
         checkNPE(() -> { // null array
-            String x = (String) vh.getAndSet(null, 0, "foo");
+            Point x = (Point) vh.getAndSet(null, 0, Point.getInstance(1,1));
         });
         checkCCE(() -> { // array reference class
-            String x = (String) vh.getAndSet(Void.class, 0, "foo");
+            Point x = (Point) vh.getAndSet(Void.class, 0, Point.getInstance(1,1));
         });
         checkCCE(() -> { // value reference class
-            String x = (String) vh.getAndSet(array, 0, Void.class);
+            Point x = (Point) vh.getAndSet(array, 0, Void.class);
         });
         checkWMTE(() -> { // reciarrayever primitive class
-            String x = (String) vh.getAndSet(0, 0, "foo");
+            Point x = (Point) vh.getAndSet(0, 0, Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            String x = (String) vh.getAndSet(array, Void.class, "foo");
+            Point x = (Point) vh.getAndSet(array, Void.class, Point.getInstance(1,1));
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.getAndSet(array, 0, "foo");
+            Void r = (Void) vh.getAndSet(array, 0, Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.getAndSet(array, 0, "foo");
+            boolean x = (boolean) vh.getAndSet(array, 0, Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getAndSet();
+            Point x = (Point) vh.getAndSet();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getAndSet(array, 0, "foo", Void.class);
+            Point x = (Point) vh.getAndSet(array, 0, Point.getInstance(1,1), Void.class);
         });
 
 
         // GetAndSetAcquire
         // Incorrect argument types
         checkNPE(() -> { // null array
-            String x = (String) vh.getAndSetAcquire(null, 0, "foo");
+            Point x = (Point) vh.getAndSetAcquire(null, 0, Point.getInstance(1,1));
         });
         checkCCE(() -> { // array reference class
-            String x = (String) vh.getAndSetAcquire(Void.class, 0, "foo");
+            Point x = (Point) vh.getAndSetAcquire(Void.class, 0, Point.getInstance(1,1));
         });
         checkCCE(() -> { // value reference class
-            String x = (String) vh.getAndSetAcquire(array, 0, Void.class);
+            Point x = (Point) vh.getAndSetAcquire(array, 0, Void.class);
         });
         checkWMTE(() -> { // reciarrayever primitive class
-            String x = (String) vh.getAndSetAcquire(0, 0, "foo");
+            Point x = (Point) vh.getAndSetAcquire(0, 0, Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            String x = (String) vh.getAndSetAcquire(array, Void.class, "foo");
+            Point x = (Point) vh.getAndSetAcquire(array, Void.class, Point.getInstance(1,1));
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.getAndSetAcquire(array, 0, "foo");
+            Void r = (Void) vh.getAndSetAcquire(array, 0, Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.getAndSetAcquire(array, 0, "foo");
+            boolean x = (boolean) vh.getAndSetAcquire(array, 0, Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getAndSetAcquire();
+            Point x = (Point) vh.getAndSetAcquire();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getAndSetAcquire(array, 0, "foo", Void.class);
+            Point x = (Point) vh.getAndSetAcquire(array, 0, Point.getInstance(1,1), Void.class);
         });
 
 
         // GetAndSetRelease
         // Incorrect argument types
         checkNPE(() -> { // null array
-            String x = (String) vh.getAndSetRelease(null, 0, "foo");
+            Point x = (Point) vh.getAndSetRelease(null, 0, Point.getInstance(1,1));
         });
         checkCCE(() -> { // array reference class
-            String x = (String) vh.getAndSetRelease(Void.class, 0, "foo");
+            Point x = (Point) vh.getAndSetRelease(Void.class, 0, Point.getInstance(1,1));
         });
         checkCCE(() -> { // value reference class
-            String x = (String) vh.getAndSetRelease(array, 0, Void.class);
+            Point x = (Point) vh.getAndSetRelease(array, 0, Void.class);
         });
         checkWMTE(() -> { // reciarrayever primitive class
-            String x = (String) vh.getAndSetRelease(0, 0, "foo");
+            Point x = (Point) vh.getAndSetRelease(0, 0, Point.getInstance(1,1));
         });
         checkWMTE(() -> { // index reference class
-            String x = (String) vh.getAndSetRelease(array, Void.class, "foo");
+            Point x = (Point) vh.getAndSetRelease(array, Void.class, Point.getInstance(1,1));
         });
         // Incorrect return type
         checkCCE(() -> { // reference class
-            Void r = (Void) vh.getAndSetRelease(array, 0, "foo");
+            Void r = (Void) vh.getAndSetRelease(array, 0, Point.getInstance(1,1));
         });
         checkWMTE(() -> { // primitive class
-            boolean x = (boolean) vh.getAndSetRelease(array, 0, "foo");
+            boolean x = (boolean) vh.getAndSetRelease(array, 0, Point.getInstance(1,1));
         });
         // Incorrect arity
         checkWMTE(() -> { // 0
-            String x = (String) vh.getAndSetRelease();
+            Point x = (Point) vh.getAndSetRelease();
         });
         checkWMTE(() -> { // >
-            String x = (String) vh.getAndSetRelease(array, 0, "foo", Void.class);
+            Point x = (Point) vh.getAndSetRelease(array, 0, Point.getInstance(1,1), Void.class);
         });
 
 
     }
 
     static void testArrayWrongMethodType(Handles hs) throws Throwable {
-        String[] array = new String[10];
-        Arrays.fill(array, "foo");
+        Point[] array = new Point[10];
+        Arrays.fill(array, Point.getInstance(1,1));
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET)) {
             // Incorrect argument types
             checkNPE(() -> { // null array
-                String x = (String) hs.get(am, methodType(String.class, String[].class, int.class)).
-                    invokeExact((String[]) null, 0);
+                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class)).
+                    invokeExact((Point[]) null, 0);
             });
             hs.checkWMTEOrCCE(() -> { // array reference class
-                String x = (String) hs.get(am, methodType(String.class, Class.class, int.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class, Class.class, int.class)).
                     invokeExact(Void.class, 0);
             });
             checkWMTE(() -> { // array primitive class
-                String x = (String) hs.get(am, methodType(String.class, int.class, int.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class, int.class, int.class)).
                     invokeExact(0, 0);
             });
             checkWMTE(() -> { // index reference class
-                String x = (String) hs.get(am, methodType(String.class, String[].class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, Class.class)).
                     invokeExact(array, Void.class);
             });
             // Incorrect return type
             hs.checkWMTEOrCCE(() -> { // reference class
-                Void x = (Void) hs.get(am, methodType(Void.class, String[].class, int.class)).
+                Void x = (Void) hs.get(am, methodType(Void.class, Point[].class, int.class)).
                     invokeExact(array, 0);
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, String[].class, int.class)).
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class)).
                     invokeExact(array, 0);
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                String x = (String) hs.get(am, methodType(String.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                String x = (String) hs.get(am, methodType(String.class, String[].class, int.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Class.class)).
                     invokeExact(array, 0, Void.class);
             });
         }
@@ -1899,24 +1899,24 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null array
-                hs.get(am, methodType(void.class, String[].class, int.class, String.class)).
-                    invokeExact((String[]) null, 0, "foo");
+                hs.get(am, methodType(void.class, Point[].class, int.class, Point.class)).
+                    invokeExact((Point[]) null, 0, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // array reference class
-                hs.get(am, methodType(void.class, Class.class, int.class, String.class)).
-                    invokeExact(Void.class, 0, "foo");
+                hs.get(am, methodType(void.class, Class.class, int.class, Point.class)).
+                    invokeExact(Void.class, 0, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // value reference class
-                hs.get(am, methodType(void.class, String[].class, int.class, Class.class)).
+                hs.get(am, methodType(void.class, Point[].class, int.class, Class.class)).
                     invokeExact(array, 0, Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                hs.get(am, methodType(void.class, int.class, int.class, String.class)).
-                    invokeExact(0, 0, "foo");
+                hs.get(am, methodType(void.class, int.class, int.class, Point.class)).
+                    invokeExact(0, 0, Point.getInstance(1,1));
             });
             checkWMTE(() -> { // index reference class
-                hs.get(am, methodType(void.class, String[].class, Class.class, String.class)).
-                    invokeExact(array, Void.class, "foo");
+                hs.get(am, methodType(void.class, Point[].class, Class.class, Point.class)).
+                    invokeExact(array, Void.class, Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
@@ -1924,35 +1924,35 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                hs.get(am, methodType(void.class, String[].class, int.class, Class.class)).
-                    invokeExact(array, 0, "foo", Void.class);
+                hs.get(am, methodType(void.class, Point[].class, int.class, Class.class)).
+                    invokeExact(array, 0, Point.getInstance(1,1), Void.class);
             });
         }
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, String[].class, int.class, String.class, String.class)).
-                    invokeExact((String[]) null, 0, "foo", "foo");
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class, Point.class)).
+                    invokeExact((Point[]) null, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // receiver reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, int.class, String.class, String.class)).
-                    invokeExact(Void.class, 0, "foo", "foo");
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Class.class, int.class, Point.class, Point.class)).
+                    invokeExact(Void.class, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // expected reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, String[].class, int.class, Class.class, String.class)).
-                    invokeExact(array, 0, Void.class, "foo");
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Class.class, Point.class)).
+                    invokeExact(array, 0, Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // actual reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, String[].class, int.class, String.class, Class.class)).
-                    invokeExact(array, 0, "foo", Void.class);
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class, Class.class)).
+                    invokeExact(array, 0, Point.getInstance(1,1), Void.class);
             });
             checkWMTE(() -> { // receiver primitive class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, int.class, int.class, String.class, String.class)).
-                    invokeExact(0, 0, "foo", "foo");
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, int.class, int.class, Point.class, Point.class)).
+                    invokeExact(0, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             checkWMTE(() -> { // index reference class
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, String[].class, Class.class, String.class, String.class)).
-                    invokeExact(array, Void.class, "foo", "foo");
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, Class.class, Point.class, Point.class)).
+                    invokeExact(array, Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
@@ -1960,96 +1960,96 @@ public class VarHandleTestMethodTypeString extends VarHandleBaseTest {
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                boolean r = (boolean) hs.get(am, methodType(boolean.class, String[].class, int.class, String.class, String.class, Class.class)).
-                    invokeExact(array, 0, "foo", "foo", Void.class);
+                boolean r = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class, Point.class, Class.class)).
+                    invokeExact(array, 0, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.COMPARE_AND_EXCHANGE)) {
             // Incorrect argument types
             checkNPE(() -> { // null receiver
-                String x = (String) hs.get(am, methodType(String.class, String[].class, int.class, String.class, String.class)).
-                    invokeExact((String[]) null, 0, "foo", "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Point.class, Point.class)).
+                    invokeExact((Point[]) null, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // array reference class
-                String x = (String) hs.get(am, methodType(String.class, Class.class, int.class, String.class, String.class)).
-                    invokeExact(Void.class, 0, "foo", "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, Class.class, int.class, Point.class, Point.class)).
+                    invokeExact(Void.class, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // expected reference class
-                String x = (String) hs.get(am, methodType(String.class, String[].class, int.class, Class.class, String.class)).
-                    invokeExact(array, 0, Void.class, "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Class.class, Point.class)).
+                    invokeExact(array, 0, Void.class, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // actual reference class
-                String x = (String) hs.get(am, methodType(String.class, String[].class, int.class, String.class, Class.class)).
-                    invokeExact(array, 0, "foo", Void.class);
+                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Point.class, Class.class)).
+                    invokeExact(array, 0, Point.getInstance(1,1), Void.class);
             });
             checkWMTE(() -> { // array primitive class
-                String x = (String) hs.get(am, methodType(String.class, int.class, int.class, String.class, String.class)).
-                    invokeExact(0, 0, "foo", "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, int.class, int.class, Point.class, Point.class)).
+                    invokeExact(0, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             checkWMTE(() -> { // index reference class
-                String x = (String) hs.get(am, methodType(String.class, String[].class, Class.class, String.class, String.class)).
-                    invokeExact(array, Void.class, "foo", "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, Class.class, Point.class, Point.class)).
+                    invokeExact(array, Void.class, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             // Incorrect return type
             hs.checkWMTEOrCCE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, String[].class, int.class, String.class, String.class)).
-                    invokeExact(array, 0, "foo", "foo");
+                Void r = (Void) hs.get(am, methodType(Void.class, Point[].class, int.class, Point.class, Point.class)).
+                    invokeExact(array, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, String[].class, int.class, String.class, String.class)).
-                    invokeExact(array, 0, "foo", "foo");
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class, Point.class)).
+                    invokeExact(array, 0, Point.getInstance(1,1), Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                String x = (String) hs.get(am, methodType(String.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                String x = (String) hs.get(am, methodType(String.class, String[].class, int.class, String.class, String.class, Class.class)).
-                    invokeExact(array, 0, "foo", "foo", Void.class);
+                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Point.class, Point.class, Class.class)).
+                    invokeExact(array, 0, Point.getInstance(1,1), Point.getInstance(1,1), Void.class);
             });
         }
 
         for (TestAccessMode am : testAccessModesOfType(TestAccessType.GET_AND_SET)) {
             // Incorrect argument types
             checkNPE(() -> { // null array
-                String x = (String) hs.get(am, methodType(String.class, String[].class, int.class, String.class)).
-                    invokeExact((String[]) null, 0, "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Point.class)).
+                    invokeExact((Point[]) null, 0, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // array reference class
-                String x = (String) hs.get(am, methodType(String.class, Class.class, int.class, String.class)).
-                    invokeExact(Void.class, 0, "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, Class.class, int.class, Point.class)).
+                    invokeExact(Void.class, 0, Point.getInstance(1,1));
             });
             hs.checkWMTEOrCCE(() -> { // value reference class
-                String x = (String) hs.get(am, methodType(String.class, String[].class, int.class, Class.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Class.class)).
                     invokeExact(array, 0, Void.class);
             });
             checkWMTE(() -> { // array primitive class
-                String x = (String) hs.get(am, methodType(String.class, int.class, int.class, String.class)).
-                    invokeExact(0, 0, "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, int.class, int.class, Point.class)).
+                    invokeExact(0, 0, Point.getInstance(1,1));
             });
             checkWMTE(() -> { // index reference class
-                String x = (String) hs.get(am, methodType(String.class, String[].class, Class.class, String.class)).
-                    invokeExact(array, Void.class, "foo");
+                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, Class.class, Point.class)).
+                    invokeExact(array, Void.class, Point.getInstance(1,1));
             });
             // Incorrect return type
             hs.checkWMTEOrCCE(() -> { // reference class
-                Void r = (Void) hs.get(am, methodType(Void.class, String[].class, int.class, String.class)).
-                    invokeExact(array, 0, "foo");
+                Void r = (Void) hs.get(am, methodType(Void.class, Point[].class, int.class, Point.class)).
+                    invokeExact(array, 0, Point.getInstance(1,1));
             });
             checkWMTE(() -> { // primitive class
-                boolean x = (boolean) hs.get(am, methodType(boolean.class, String[].class, int.class, String.class)).
-                    invokeExact(array, 0, "foo");
+                boolean x = (boolean) hs.get(am, methodType(boolean.class, Point[].class, int.class, Point.class)).
+                    invokeExact(array, 0, Point.getInstance(1,1));
             });
             // Incorrect arity
             checkWMTE(() -> { // 0
-                String x = (String) hs.get(am, methodType(String.class)).
+                Point x = (Point) hs.get(am, methodType(Point.class)).
                     invokeExact();
             });
             checkWMTE(() -> { // >
-                String x = (String) hs.get(am, methodType(String.class, String[].class, int.class, String.class, Class.class)).
-                    invokeExact(array, 0, "foo", Void.class);
+                Point x = (Point) hs.get(am, methodType(Point.class, Point[].class, int.class, Point.class, Class.class)).
+                    invokeExact(array, 0, Point.getInstance(1,1), Void.class);
             });
         }
 
