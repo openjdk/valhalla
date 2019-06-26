@@ -1964,8 +1964,6 @@ bool SharedRuntime::should_fixup_call_destination(address destination, address e
 JRT_LEAF(void, SharedRuntime::fixup_callers_callsite(Method* method, address caller_pc))
   Method* moop(method);
 
-  address entry_point = moop->from_compiled_entry_no_trampoline();
-
   // It's possible that deoptimization can occur at a call site which hasn't
   // been resolved yet, in which case this function will be called from
   // an nmethod that has been patched for deopt and we can ignore the
@@ -1977,7 +1975,11 @@ JRT_LEAF(void, SharedRuntime::fixup_callers_callsite(Method* method, address cal
   // ask me how I know this...
 
   CodeBlob* cb = CodeCache::find_blob(caller_pc);
-  if (cb == NULL || !cb->is_compiled() || entry_point == moop->get_c2i_entry()) {
+  if (cb == NULL || !cb->is_compiled()) {
+    return;
+  }
+  address entry_point = moop->from_compiled_entry_no_trampoline(cb->is_compiled_by_c1());
+  if (entry_point == moop->get_c2i_entry()) {
     return;
   }
 

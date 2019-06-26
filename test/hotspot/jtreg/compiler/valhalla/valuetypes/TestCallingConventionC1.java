@@ -44,22 +44,34 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
     @Override
     public int getNumScenarios() {
-        return 2;
+        return 4;
     }
 
     @Override
     public String[] getVMParameters(int scenario) {
         switch (scenario) {
-
-        // Default: both C1 and C2 are enabled, tierd compilation enabled
-        case 0: return new String[] {"-XX:+EnableValhallaC1", "-XX:CICompilerCount=2"
-                                   //  , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test78*"
-                                   //, "-XX:CompileCommand=print,*::func_c1"
-                                     };
-        // Only C1. Tierd compilation disabled.
-        case 1: return new String[] {"-XX:+EnableValhallaC1", "-XX:TieredStopAtLevel=1"
-                                   //  , "-XX:-CheckCompressedOops", "-XX:CompileCommand=print,*::test76*"
-                                     };
+        case 0: return new String[] {
+                // Default: both C1 and C2 are enabled, tierd compilation enabled
+                "-XX:+EnableValhallaC1",
+                "-XX:CICompilerCount=2"
+            };
+        case 1: return new String[] {
+                // Same as above, but flip all the compLevel=C1 and compLevel=C2, so we test
+                // the compliment of the above scenario.
+                "-XX:+EnableValhallaC1",
+                "-XX:CICompilerCount=2",
+                "-DFlipC1C2=true"
+            };
+        case 2: return new String[] {
+                // Only C1. Tierd compilation disabled.
+                "-XX:+EnableValhallaC1",
+                "-XX:TieredStopAtLevel=1",
+            };
+        case 3: return new String[] {
+                // Only C2.
+                "-XX:-EnableValhallaC1",
+                "-XX:TieredStopAtLevel=4",
+            };
         }
         return null;
     }
@@ -1890,6 +1902,72 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             Asserts.assertEQ(rp1.x, x);
             Asserts.assertEQ(rp1.y, y);
             Asserts.assertEQ(rp1.y.n, i);
+        }
+    }
+
+    // C1->C1  - caller is compiled first. It invokes callee(test97) a few times while the
+    //           callee is executed by the interpreter. Then, callee is compiled
+    //           and SharedRuntime::fixup_callers_callsite is called to fix up the
+    //           callsite from test97_verifier->test97.
+    @Test(compLevel = C1)
+    public int test97(Point p1, Point p2) {
+        return test97_helper(p1, p2);
+    }
+
+    @DontInline @DontCompile
+    public int test97_helper(Point p1, Point p2) {
+        return p1.x + p1.y + p2.x + p2.y;
+    }
+
+    @ForceCompile(compLevel = C1)
+    public void test97_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) {
+            int result = test97(pointField1, pointField2);
+            int n = test97_helper(pointField1, pointField2);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C1->C2  - same as test97, except the callee is compiled by c2.
+    @Test(compLevel = C2)
+    public int test98(Point p1, Point p2) {
+        return test98_helper(p1, p2);
+    }
+
+    @DontInline @DontCompile
+    public int test98_helper(Point p1, Point p2) {
+        return p1.x + p1.y + p2.x + p2.y;
+    }
+
+    @ForceCompile(compLevel = C1)
+    public void test98_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) {
+            int result = test98(pointField1, pointField2);
+            int n = test98_helper(pointField1, pointField2);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+    // C1->C2  - same as test97, except the callee is a static method.
+    @Test(compLevel = C1)
+    public static int test99(Point p1, Point p2) {
+        return test99_helper(p1, p2);
+    }
+
+    @DontInline @DontCompile
+    public static int test99_helper(Point p1, Point p2) {
+        return p1.x + p1.y + p2.x + p2.y;
+    }
+
+    @ForceCompile(compLevel = C1)
+    public void test99_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) {
+            int result = test99(pointField1, pointField2);
+            int n = test99_helper(pointField1, pointField2);
+            Asserts.assertEQ(result, n);
         }
     }
 }

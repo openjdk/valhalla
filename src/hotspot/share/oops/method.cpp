@@ -1218,12 +1218,22 @@ void Method::restore_unshareable_info(TRAPS) {
   }
 }
 
-address Method::from_compiled_entry_no_trampoline() const {
+address Method::from_compiled_entry_no_trampoline(bool caller_is_c1) const {
   CompiledMethod *code = OrderAccess::load_acquire(&_code);
-  if (code) {
-    return code->verified_entry_point();
+  if (caller_is_c1) {
+    // C1 - value arguments are passed as objects
+    if (code) {
+      return code->verified_value_entry_point();
+    } else {
+      return adapter()->get_c2i_value_entry();
+    }
   } else {
-    return adapter()->get_c2i_entry();
+    // C2 - value arguments may be passed as fields
+    if (code) {
+      return code->verified_entry_point();
+    } else {
+      return adapter()->get_c2i_entry();
+    }
   }
 }
 

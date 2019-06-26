@@ -127,6 +127,10 @@ public abstract class ValueTypeTest {
     private static final String EXCLUDELIST = System.getProperty("Exclude", "");
     private static final int WARMUP = Integer.parseInt(System.getProperty("Warmup", "251"));
     private static final boolean DUMP_REPLAY = Boolean.parseBoolean(System.getProperty("DumpReplay", "false"));
+    protected static final boolean FLIP_C1_C2 = Boolean.parseBoolean(System.getProperty("FlipC1C2", "false"));
+
+    // "jtreg -DXcomp=true" runs all the scenarios with -Xcomp. This is faster than "jtreg -javaoptions:-Xcomp".
+    protected static final boolean RUN_SCENARIOS_WITH_XCOMP = Boolean.parseBoolean(System.getProperty("Xcomp", "false"));
 
     // Pre-defined settings
     private static final String[] defaultFlags = {
@@ -295,6 +299,9 @@ public abstract class ValueTypeTest {
             if (scenarios == null || scenarios.contains(Integer.toString(i))) {
                 System.out.println("Scenario #" + i + " -------- ");
                 String[] cmds = InputArguments.getVmInputArgs();
+                if (RUN_SCENARIOS_WITH_XCOMP) {
+                    cmds = concat(cmds, "-Xcomp");
+                }
                 cmds = concat(cmds, test.getVMParameters(i));
                 cmds = concat(cmds, test.getExtraVMParameters(i));
                 cmds = concat(cmds, testMainClassName);
@@ -653,6 +660,18 @@ public abstract class ValueTypeTest {
             compLevel = ((ForceCompile)annotation).compLevel();
         }
         if (compLevel == COMP_LEVEL_ANY) {
+            compLevel = COMP_LEVEL_FULL_OPTIMIZATION;
+        }
+        if (FLIP_C1_C2) {
+            // Effectively treat all (compLevel = C1) as (compLevel = C2), and
+            //                       (compLevel = C2) as (compLevel = C1).
+            if (compLevel == COMP_LEVEL_SIMPLE) {
+                compLevel = COMP_LEVEL_FULL_OPTIMIZATION;
+            } else if (compLevel == COMP_LEVEL_FULL_OPTIMIZATION) {
+                compLevel = COMP_LEVEL_SIMPLE;
+            }
+        }
+        if (!TEST_C1 && compLevel < COMP_LEVEL_FULL_OPTIMIZATION) {
             compLevel = COMP_LEVEL_FULL_OPTIMIZATION;
         }
         if (compLevel > (int)TieredStopAtLevel) {
