@@ -169,7 +169,8 @@ public class AccessibleObject implements AnnotatedElement {
      * members with default (package) access, protected instance members, or
      * protected constructors when the declaring class is in a different module
      * to the caller and the package containing the declaring class is not open
-     * to the caller's module. </p>
+     * to the caller's module or it is a {@linkplain Class#isHiddenClass()
+     * hidden class}.</p>
      *
      * <p> If there is a security manager, its
      * {@code checkPermission} method is first called with a

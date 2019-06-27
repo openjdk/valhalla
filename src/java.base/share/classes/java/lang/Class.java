@@ -128,6 +128,12 @@ import sun.reflect.misc.ReflectUtil;
  * other members are the classes and interfaces whose declarations are
  * enclosed within the top-level class declaration.
  *
+ * <p> Some methods of class {@code Class} expose some characteristics of
+ * a class defined via
+ * {@link java.lang.invoke.MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty...)
+ * Lookup::defineClass} API such as whether this class is a
+ * {@linkplain #isHiddenClass() hidden class}.
+ *
  * <p> The following example uses a {@code Class} object to print the
  * class name of an object:
  *
@@ -4135,19 +4141,18 @@ public final class Class<T> implements java.io.Serializable,
      * by invocations on the {@link MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty...)
      * MethodHandles.Lookup} object.
      *
+     * <p> A hidden class does not have a {@linkplain #getCanonicalName()
+     * canonical name}.
+     *
      * <p> If this class is hidden then it cannot be found via its name
-     * including {@link ClassLoader#findLoadedClass},
-     * {@link Class#forName(String) Class.forName(this.getName())},
+     * including {@link Class#forName(String) Class.forName(this.getName())},
+     * {@link ClassLoader#findLoadedClass},
      * and {@link MethodHandles.Lookup#findClass(String) MethodHandles.Lookup.findClass}.
      *
      * <p> If this class is an array class and its component class is hidden,
      * then this array class is also hidden.
      *
-     * <p> A hidden class does not have a {@linkplain #getCanonicalName()
-     * canonical name}.
-     *
-     * @return {@code true} if this class is hidden;
-     * otherwise {@code false}.
+     * @return {@code true} if this class is hidden; otherwise {@code false}.
      *
      * @since 14
      * @see MethodHandles.Lookup.ClassProperty#HIDDEN

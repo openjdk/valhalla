@@ -910,24 +910,16 @@ public class MethodHandles {
          * {@linkplain java.security.ProtectionDomain protection domain} as this lookup's
          * {@linkplain #lookupClass() lookup class}.
          *
-         * This method is equivalent to calling
-         * {@link #defineClass(byte[], ClassProperty[])
-         * defineClass(bytes, (ClassProperty[])null)}.
+         * This method is equivalent to calling {@link #defineClass(byte[], ClassProperty[])
+         * defineClass(bytes, new ClassProperty[0])}.
          *
-         * <p> The {@linkplain #lookupModes() lookup modes} for this lookup must include
-         * {@link #PACKAGE PACKAGE} access as default (package) members will be
-         * accessible to the class. The {@code PACKAGE} lookup mode serves to authenticate
-         * that the lookup object was created by a caller in the runtime package (or derived
-         * from a lookup originally created by suitably privileged code to a target class in
-         * the runtime package). </p>
+         * <p> The {@linkplain #lookupModes() lookup modes} for this lookup must
+         * have {@code PRIVATE} and {@code MODULE} access in order to add a new
+         * member in the module of this lookup class.
          *
-         * <p> The {@code bytes} parameter is the class bytes of a valid class file (as defined
-         * by the <em>The Java Virtual Machine Specification</em>) with a class name in the
-         * same package as the lookup class. </p>
-         *
-         * <p> This method does not run the class initializer. The class initializer may
-         * run at a later time, as detailed in section 12.4 of the <em>The Java Language
-         * Specification</em>. </p>
+         * <p> The class bytes of a nestmate class must not contain
+         * the {@code NestHost} attribute nor the {@code NestMembers} attribute;
+         * otherwise {@code IllegalArgumentException} will be thrown.
          *
          * <p> If there is a security manager, its {@code checkPermission} method is first called
          * to check {@code RuntimePermission("defineClass")}. </p>
@@ -936,7 +928,7 @@ public class MethodHandles {
          * @return the {@code Class} object for the class
          * @throws IllegalArgumentException the bytes are for a class in a different package
          * to the lookup class
-         * @throws IllegalAccessException if this lookup does not have {@code PACKAGE} access
+         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
          * @throws LinkageError if the class is malformed ({@code ClassFormatError}), cannot be
          * verified ({@code VerifyError}), is already defined, or another linkage error occurs
          * @throws SecurityException if denied by the security manager
@@ -948,7 +940,7 @@ public class MethodHandles {
          * @see ClassLoader#defineClass(String,byte[],int,int,ProtectionDomain)
          */
         public Class<?> defineClass(byte[] bytes) throws IllegalAccessException {
-            return defineClass(bytes, (ClassProperty[])null);
+            return defineClass(bytes, EMPTY_CLASS_PROPS);
         }
 
         /**
@@ -959,6 +951,11 @@ public class MethodHandles {
          *
          * <p> A class can be defined with the following properties:
          * <ul>
+         * <li>A {@linkplain ClassProperty#NESTMATE <em>nestmate</em>} of the lookup class,
+         *     i.e. in the same {@linkplain Class#getNestHost nest}
+         *     of the lookup class.  The class will have access to the private members
+         *     of all classes and interfaces in the same nest.
+         *     </li>
          * <li>A {@linkplain ClassProperty#HIDDEN <em>hidden</em>} class,
          *     i.e. a class cannot be named in other classes.
          *     A hidden class has the following properties:
@@ -969,30 +966,26 @@ public class MethodHandles {
          *     collide with other classes defined to the same class loader.
          *     <li>Class resolution:
          *     A hidden class is not registered with a globally defined name and
-         *     hence cannot be found by its class loader.  A hidden class can
-         *     reference its members locally via {@code this_class} in the
-         *     {@code ClassFile} structure
-         *     as defined in <em>JVMS chapter 4 The class File Format</em>.
+         *     hence cannot be found by its class loader.
          *     A hidden class cannot be named as a field type, a method parameter
          *     type and a method return type.
          *     The name returned by {@link Class#getName()} is a unique name
          *     in the same package as this lookup class and
          *     is different from the name in the class bytes.
          *     <li>Class retransformation:
-         *     The class is not {@linkplain java.lang.instrument.Instrumentation#isModifiableClass(Class)
+         *     A hidden class is not {@linkplain java.lang.instrument.Instrumentation#isModifiableClass(Class)
          *     modifiable} by Java agents or tool agents using
          *     the <a href="{@docRoot}/../specs/jvmti.html">JVM Tool Interface</a>.
+         *     <li>Reflective access:
+         *     The {@linkplain java.lang.reflect.AccessibleObject#setAccessible(boolean)
+         *     accessible} flag of its {@link Field}, {@link Method},
+         *     {@link Constructor} reflected objects of a hidden class cannot be set
+         *     to suppress access check.
          *     </ul>
          *     </li>
-         * <li>A {@linkplain ClassProperty#NESTMATE <em>nestmate</em>} of the lookup class,
-         *     i.e. in the same {@linkplain Class#getNestHost nest}
-         *     of the lookup class.  The class will have access to the private members
-         *     of all classes and interfaces in the same nest.  The specified bytes
-         *     must not contain the {@code NestHost} attribute nor the {@code NestMembers}
-         *     attribute; otherwise {@code IllegalArgumentException} will be thrown.
-         *     </li>
          * <li>A {@linkplain ClassProperty#WEAK <em>weak</em>} class,
-         *     i.e. a class may be unloaded even if its defining class loader is
+         *     i.e. a class may be unloaded independently with
+         *     its defining class loader when it becomes
          *     <a href="../ref/package.html#reachability">reachable</a>,
          *     as if the defining class loader would only hold a
          *     {@linkplain java.lang.ref.WeakReference weak reference} of
@@ -1003,20 +996,22 @@ public class MethodHandles {
          *
          * <p> The {@linkplain #lookupModes() lookup modes} for this lookup must
          * have {@code PRIVATE} and {@code MODULE} access in order to add a new
-         * member in the module of this lookup class.</p>
+         * member in the module of this lookup class.
          *
          * <p> The {@code bytes} parameter is the class bytes of a valid class file
          * (as defined by the <em>The Java Virtual Machine Specification</em>)
          * with a class name in the same package as the lookup class.
-         * The class bytes of a nestmate class must not contain
+         *
+         * <p> The class bytes of a nestmate class must not contain
          * the {@code NestHost} attribute nor the {@code NestMembers} attribute;
-         * otherwise {@code IllegalArgumentException} will be thrown.</p>
+         * otherwise {@code IllegalArgumentException} will be thrown.
          *
          * <p> If there is a security manager, its {@code checkPermission} method is first called
-         * to check {@code RuntimePermission("defineClass")}. </p>
+         * to check {@code RuntimePermission("defineClass")}.
          *
-         * <p> This method does not run the class initializer. The class initializer
-         * may run at a later time, as detailed in section 12.4 of the The Java Language Specification.
+         * <p> This method does not run the class initializer. The class initializer may
+         * run at a later time, as detailed in section 12.4 of the <em>The Java Language
+         * Specification</em>.
          *
          * @apiNote  An implementation of the Java Progamming Language may
          * unload classes as specified in section 12.7 of the Java Language Specification.
@@ -1034,7 +1029,7 @@ public class MethodHandles {
          *                                  to the lookup class; or if {@code NESTMATE} class
          *                                  property is specified and the bytes contain
          *                                  {@code NestHost} or {@code NestMembers} attribute
-         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} access
+         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
          * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
          *                                  verified ({@code VerifyError}), is already defined,
          *                                  or another linkage error occurs
@@ -1072,12 +1067,20 @@ public class MethodHandles {
          * in the same runtime package and
          * {@linkplain java.security.ProtectionDomain protection domain} as this lookup's
          * {@linkplain #lookupClass() lookup class} with its class initializer invoked.
-         * <p>
-         * This method is equivalent to calling {@link #defineClass(byte[], ClassProperty...)
+         *
+         * <p> This method is equivalent to calling {@link #defineClass(byte[], ClassProperty...)
          * defineClass(bytes, props)} to define the class and then calling
          * its class initializer.  If the newly loaded class is a nestmate of this lookup class,
          * this method returns a {@code Lookup} with {@link #PRIVATE} access; otherwise
          * this method returns a {@code Lookup} with {@link #PACKAGE} access.
+         *
+         * <p> The {@linkplain #lookupModes() lookup modes} for this lookup must
+         * have {@code PRIVATE} and {@code MODULE} access in order to add a new
+         * member in the module of this lookup class.
+         *
+         * <p> The class bytes of a nestmate class must not contain
+         * the {@code NestHost} attribute nor the {@code NestMembers} attribute;
+         * otherwise {@code IllegalArgumentException} will be thrown.
          *
          * <p> If there is a security manager, its {@code checkPermission} method is first called
          * to check {@code RuntimePermission("defineClass")}.
@@ -1095,7 +1098,7 @@ public class MethodHandles {
          *                                  to the lookup class; or if {@code NESTMATE} class
          *                                  property is specified and the bytes contain
          *                                  {@code NestHost} or {@code NestMembers} attribute
-         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} access
+         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
          * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
          *                                  verified ({@code VerifyError}), is already defined,
          *                                  or another linkage error occurs
@@ -1138,6 +1141,14 @@ public class MethodHandles {
          * in a private static unnamed field and then invoke {@code <clinit>}
          * to complete the class initialization.
          *
+         * <p> The {@linkplain #lookupModes() lookup modes} for this lookup must
+         * have {@code PRIVATE} and {@code MODULE} access in order to add a new
+         * member in the module of this lookup class.
+         *
+         * <p> The class bytes of a nestmate class must not contain
+         * the {@code NestHost} attribute nor the {@code NestMembers} attribute;
+         * otherwise {@code IllegalArgumentException} will be thrown.
+         *
          * <p> If there is a security manager, its {@code checkPermission} method is
          * first called to check {@code RuntimePermission("defineClass")}. </p>
          *
@@ -1154,7 +1165,7 @@ public class MethodHandles {
          *                                  to the lookup class; or if {@code NESTMATE} class
          *                                  property is specified and the bytes contain
          *                                  {@code NestHost} or {@code NestMembers} attribute
-         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} access
+         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
          * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
          *                                  verified ({@code VerifyError}), is already defined,
          *                                  or another linkage error occurs
@@ -1197,6 +1208,10 @@ public class MethodHandles {
          * then the supplied {@code classData} object is returned; otherwise,
          * {@code null}.
          *
+         * <p> The {@linkplain #lookupModes() lookup modes} for this lookup must
+         * have {@code PRIVATE} and {@code MODULE} access in order to retrieve
+         * the class data.
+         *
          * @apiNote
          * The class data can be viewed as a private static unnamed field
          * that has been pre-initialized and supplied at define class time.
@@ -1220,10 +1235,8 @@ public class MethodHandles {
          *
          * @param <T> the type to cast the class data object to
          * @param clazz the class of the type to cast the class data object to
-         * @return the class data if this lookup class was defined via
-         * {@link #defineClassWithClassData(byte[], Object, ClassProperty...)}; otherwise {@code null}.
-         *
-         * @throws IllegalAccessException if this lookup does not have {@code PRIVATE} access
+         * @return the class data if present; otherwise {@code null}.
+         * @throws IllegalAccessException if this lookup does not have {@code PRIVATE} and {@code MODULE}access
          * @since 14
          * @see #defineClassWithClassData(byte[], Object, ClassProperty...)
          */
@@ -1234,6 +1247,8 @@ public class MethodHandles {
             }
             return (T) MethodHandleNatives.classData(lookupClass);
         }
+
+        private static final ClassProperty[] EMPTY_CLASS_PROPS = new ClassProperty[0];
 
         /*
          * map the set of ClassProperty to VM flags
@@ -2905,12 +2920,12 @@ return mh1;
         static ConcurrentHashMap<MemberName, DirectMethodHandle> LOOKASIDE_TABLE = new ConcurrentHashMap<>();
 
         /**
-         * Property of a class to be defined via the
-         * {@link Lookup#defineClass(byte[], ClassProperty[]) Lookup.defineClass} method.
+         * Class property representing the kind of classes defined by the
+         * {@link Lookup#defineClass(byte[], ClassProperty[]) Lookup::defineClass} method.
          *
          * @since 14
          * @see Lookup#defineClass(byte[], ClassProperty[])
-         * @see Lookup#defineClassWithClassData(byte[], Object, ClassProperty[])
+         * @see Lookup#defineClassAsLookup(byte[], ClassProperty[])
          */
         public enum ClassProperty {
             /**
@@ -2934,8 +2949,8 @@ return mh1;
             HIDDEN(HIDDEN_CLASS),
 
             /**
-             * A weak class is a class that may be unloaded even if
-             * its defining class loader is
+             * A weak class is a class that may be unloaded independently with
+             * its defining class loader when it becomes
              * <a href="../ref/package.html#reachability">reachable</a>.
              * A weak class is {@linkplain #HIDDEN hidden}.
              *
@@ -2944,7 +2959,7 @@ return mh1;
             WEAK(WEAK_CLASS);
 
             /* the flag value is used by VM at define class time */
-            final int flag;
+            private final int flag;
             ClassProperty(int flag) {
                 this.flag = flag;
             }
