@@ -1465,7 +1465,7 @@ void LIRGenerator::do_If(If* x) {
   if (tag == longTag && yin->is_constant() && yin->get_jlong_constant() == 0 && (cond == If::eql || cond == If::neq)) {
     // inline long zero
     yin->dont_load_item();
-  } else if (tag == longTag || tag == floatTag || tag == doubleTag) {
+  } else if (tag == longTag || tag == floatTag || tag == doubleTag || x->substitutability_check()) {
     // longs cannot handle constants at right side
     yin->load_item();
   } else {
@@ -1485,7 +1485,11 @@ void LIRGenerator::do_If(If* x) {
     __ safepoint(safepoint_poll_register(), state_for(x, x->state_before()));
   }
 
-  __ cmp(lir_cond(cond), left, right);
+  if (x->substitutability_check()) {
+    substitutability_check(x, *xin, *yin);
+  } else {
+    __ cmp(lir_cond(cond), left, right);
+  }
   // Generate branch profiling. Profiling code doesn't kill flags.
   profile_branch(x, cond);
   move_to_phi(x->state());

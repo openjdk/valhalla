@@ -291,6 +291,7 @@ class SubstitutabilityCheckStub: public CodeStub {
   LIR_Opr          _left;
   LIR_Opr          _right;
   LIR_Opr          _result;
+  LIR_Opr          _scratch_reg;
   CodeEmitInfo*    _info;
  public:
   SubstitutabilityCheckStub(LIR_Opr left, LIR_Opr right, LIR_Opr result, CodeEmitInfo* info);
@@ -301,6 +302,9 @@ class SubstitutabilityCheckStub: public CodeStub {
     visitor->do_input(_left);
     visitor->do_input(_right);
     visitor->do_output(_result);
+    if (_scratch_reg != LIR_OprFact::illegalOpr) {
+      visitor->do_temp(_scratch_reg);
+    }
   }
 #ifndef PRODUCT
   virtual void print_name(outputStream* out) const { out->print("SubstitutabilityCheckStub"); }

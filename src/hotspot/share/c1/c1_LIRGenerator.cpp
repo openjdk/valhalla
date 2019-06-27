@@ -3239,14 +3239,34 @@ void LIRGenerator::substitutability_check(IfOp* x, LIRItem& left, LIRItem& right
   bool is_acmpeq = (x->cond() == If::eql);
   LIR_Opr equal_result     = is_acmpeq ? t_val.result() : f_val.result();
   LIR_Opr not_equal_result = is_acmpeq ? f_val.result() : t_val.result();
+  LIR_Opr result = rlock_result(x);
+  CodeEmitInfo* info = state_for(x, x->state_before());
 
+  substitutability_check_common(x->x(), x->y(), left, right, equal_result, not_equal_result, result, info);
+}
+
+void LIRGenerator::substitutability_check(If* x, LIRItem& left, LIRItem& right) {
+  LIR_Opr equal_result     = LIR_OprFact::intConst(1);
+  LIR_Opr not_equal_result = LIR_OprFact::intConst(0);
+  LIR_Opr result = new_register(T_INT);
+  CodeEmitInfo* info = state_for(x, x->state_before());
+
+  substitutability_check_common(x->x(), x->y(), left, right, equal_result, not_equal_result, result, info);
+
+  assert(x->cond() == If::eql || x->cond() == If::neq, "must be");
+  __ cmp(lir_cond(x->cond()), result, equal_result);
+}
+
+void LIRGenerator::substitutability_check_common(Value left_val, Value right_val, LIRItem& left, LIRItem& right,
+                                                 LIR_Opr equal_result, LIR_Opr not_equal_result, LIR_Opr result,
+                                                 CodeEmitInfo* info) {
   LIR_Opr tmp1 = LIR_OprFact::illegalOpr;
   LIR_Opr tmp2 = LIR_OprFact::illegalOpr;
   LIR_Opr left_klass_op = LIR_OprFact::illegalOpr;
   LIR_Opr right_klass_op = LIR_OprFact::illegalOpr;
 
-  ciKlass* left_klass = x->x()->as_loaded_klass_or_null();
-  ciKlass* right_klass = x->y()->as_loaded_klass_or_null();
+  ciKlass* left_klass  = left_val ->as_loaded_klass_or_null();
+  ciKlass* right_klass = right_val->as_loaded_klass_or_null();
 
   if ((left_klass == NULL || right_klass == NULL) ||// The klass is still unloaded, or came from a Phi node.
       !left_klass->is_valuetype() || !right_klass->is_valuetype()) {
@@ -3261,8 +3281,6 @@ void LIRGenerator::substitutability_check(IfOp* x, LIRItem& left, LIRItem& right
     right_klass_op = new_register(t_klass);
   }
 
-  LIR_Opr result = rlock_result(x);
-  CodeEmitInfo* info = state_for(x, x->state_before());
   CodeStub* slow_path = new SubstitutabilityCheckStub(left.result(), right.result(), result, info);
   __ substitutability_check(result, left.result(), right.result(), equal_result, not_equal_result,
                             tmp1, tmp2,

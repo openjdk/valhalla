@@ -212,6 +212,8 @@ SubstitutabilityCheckStub::SubstitutabilityCheckStub(LIR_Opr left, LIR_Opr right
   _left = left;
   _right = right;
   _result = result;
+  // Tell the register allocator that the runtime call will scratch rax.
+  _scratch_reg = FrameMap::rax_oop_opr;
   _info = new CodeEmitInfo(info);
 }
 
