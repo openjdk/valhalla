@@ -1964,10 +1964,7 @@ static void collect_value_fields(ciValueKlass* vk, const Type** field_array, uin
 // Make a TypeTuple from the range of a method signature
 const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
   ciType* return_type = sig->return_type();
-  bool never_null = sig->returns_never_null();
-
   uint arg_cnt = return_type->size();
-  ret_vt_fields = ret_vt_fields && never_null && return_type->as_value_klass()->can_be_returned_as_fields();
   if (ret_vt_fields) {
     arg_cnt = return_type->as_value_klass()->value_arg_slots() + 1;
   }
@@ -2000,7 +1997,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
       ExtendedSignature sig = ExtendedSignature(NULL, SigEntryFilter());
       collect_value_fields(return_type->as_value_klass(), field_array, pos, sig);
     } else {
-      field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(never_null ? TypePtr::NOTNULL : TypePtr::BOTTOM);
+      field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(sig->returns_never_null() ? TypePtr::NOTNULL : TypePtr::BOTTOM);
     }
     break;
   case T_VOID:
@@ -5694,9 +5691,11 @@ const TypeFunc *TypeFunc::make(ciMethod* method) {
   // type argument/return as a single slot), one based on the actual calling
   // convention (with a value type argument/return as a list of its fields).
   const TypeTuple* domain_sig = TypeTuple::make_domain(method, false);
-  const TypeTuple* domain_cc = TypeTuple::make_domain(method, method->has_scalarized_args());
-  const TypeTuple* range_sig = TypeTuple::make_range(method->signature(), false);
-  const TypeTuple* range_cc = TypeTuple::make_range(method->signature(), ValueTypeReturnedAsFields);
+  const TypeTuple* domain_cc = method->has_scalarized_args() ? TypeTuple::make_domain(method, true) : domain_sig;
+  ciSignature* sig = method->signature();
+  bool has_scalarized_ret = sig->returns_never_null() && sig->return_type()->as_value_klass()->can_be_returned_as_fields();
+  const TypeTuple* range_sig = TypeTuple::make_range(sig, false);
+  const TypeTuple* range_cc = has_scalarized_ret ? TypeTuple::make_range(sig, true) : range_sig;
   tf = TypeFunc::make(domain_sig, domain_cc, range_sig, range_cc);
   C->set_last_tf(method, tf);  // fill cache
   return tf;
