@@ -51,7 +51,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
     public String[] getVMParameters(int scenario) {
         switch (scenario) {
         case 0: return new String[] {
-                // Default: both C1 and C2 are enabled, tierd compilation enabled
+                // Default: both C1 and C2 are enabled, tiered compilation enabled
                 "-XX:+EnableValhallaC1",
                 "-XX:CICompilerCount=2"
             };
@@ -63,7 +63,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
                 "-DFlipC1C2=true"
             };
         case 2: return new String[] {
-                // Only C1. Tierd compilation disabled.
+                // Only C1. Tiered compilation disabled.
                 "-XX:+EnableValhallaC1",
                 "-XX:TieredStopAtLevel=1",
             };

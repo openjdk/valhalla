@@ -54,6 +54,10 @@ public class TestOnStackReplacement extends ValueTypeTest {
     }
 
     boolean isCompiled(String methodName) {
+        if (XCOMP) {
+            // Don't control compilation if -Xcomp is enabled
+            return true;
+        }
         try {
             Method m = getClass().getMethod(methodName);
             boolean b = WHITE_BOX.isMethodCompiled(m, false);

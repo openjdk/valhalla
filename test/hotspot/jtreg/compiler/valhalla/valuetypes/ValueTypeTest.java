@@ -134,7 +134,7 @@ public abstract class ValueTypeTest {
 
     // Pre-defined settings
     private static final String[] defaultFlags = {
-        "-XX:-BackgroundCompilation", "-XX:CICompilerCount=1",
+        "-XX:-BackgroundCompilation",
         "-XX:CompileCommand=quiet",
         "-XX:CompileCommand=compileonly,java.lang.invoke.*::*",
         "-XX:CompileCommand=compileonly,java.lang.Long::sum",
@@ -387,13 +387,13 @@ public abstract class ValueTypeTest {
             }
         }
         // Each VM is launched with flags in this order, so the later ones can override the earlier one:
-        //     defaultFlags
         //     VERIFY_IR/VERIFY_VM flags specified below
         //     vmInputArgs, which consists of:
         //        @run options
         //        getVMParameters()
         //        getExtraVMParameters()
-        String cmds[] = defaultFlags;
+        //     defaultFlags
+        String cmds[] = null;
         if (VERIFY_IR) {
             // Add print flags for IR verification
             cmds = concat(cmds, printFlags);
@@ -404,6 +404,7 @@ public abstract class ValueTypeTest {
             cmds = concat(cmds, verifyFlags);
         }
         cmds = concat(cmds, vmInputArgs);
+        cmds = concat(cmds, defaultFlags);
 
         // Run tests in own process and verify output
         cmds = concat(cmds, getClass().getName(), "run");
@@ -621,7 +622,7 @@ public abstract class ValueTypeTest {
             }
             // Check result
             verifier.invoke(this, false);
-            if (osrOnly && !maybeCodeBufferOverflow) {
+            if (osrOnly && !maybeCodeBufferOverflow && !XCOMP) {
                 Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
             }
             if (PRINT_TIMES || VERBOSE) {
