@@ -590,8 +590,6 @@ public class TestCallingConvention extends ValueTypeTest {
         String result = test28();
     }
 
-// TODO enable once JDK-8224110 and JDK-8224211 are fixed
-/*
     // Test calling a method returning a value type as fields via reflection
     MyValue3 test29_vt = MyValue3.create();
 
@@ -616,7 +614,7 @@ public class TestCallingConvention extends ValueTypeTest {
     @DontCompile
     public void test30_verifier(boolean warmup) throws Exception {
         MyValue3[] array = new MyValue3[1];
-        MyValue3 vt = (MyValue3)TestCallingConvention.class.getDeclaredMethod("test30", MyValue3[].class).invoke(this, array);
+        MyValue3 vt = (MyValue3)TestCallingConvention.class.getDeclaredMethod("test30", MyValue3[].class).invoke(this, (Object)array);
         array[0].verify(vt);
     }
 
@@ -634,7 +632,6 @@ public class TestCallingConvention extends ValueTypeTest {
         MyValue3 vt = (MyValue3)TestCallingConvention.class.getDeclaredMethod("test31").invoke(this);
         test31_vt.verify(vt);
     }
-*/
 
     // Test deoptimization at call return with return value in registers. Same as test14, except the interpreted method
     // is called via a MethodHandle.

@@ -505,7 +505,6 @@ BasicType Method::result_type() const {
   return rtf.type();
 }
 
-#ifdef ASSERT
 // ValueKlass the method is declared to return. This must not
 // safepoint as it is called with references live on the stack at
 // locations the GC is unaware of.
@@ -524,7 +523,6 @@ ValueKlass* Method::returned_value_type(Thread* thread) const {
   assert(k != NULL && !thread->has_pending_exception(), "can't resolve klass");
   return ValueKlass::cast(k);
 }
-#endif
 
 bool Method::is_empty_method() const {
   return  code_size() == 1

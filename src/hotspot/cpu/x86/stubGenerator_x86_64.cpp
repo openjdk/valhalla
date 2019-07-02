@@ -416,9 +416,17 @@ class StubGenerator: public StubCodeGenerator {
     // handle return types different from T_INT
     __ BIND(is_value);
     if (ValueTypeReturnedAsFields) {
-      // Handle value type returned as fields
-      __ store_value_type_fields_to_buf(NULL);
-      __ movptr(r13, result);
+      // Check for flattened return value
+      __ testptr(rax, 1);
+      __ jcc(Assembler::zero, is_long);
+      // Initialize pre-allocated buffer
+      __ mov(rbx, rax);
+      __ andptr(rbx, -2);
+      __ movptr(rbx, Address(rbx, InstanceKlass::adr_valueklass_fixed_block_offset()));
+      __ movptr(rbx, Address(rbx, ValueKlass::pack_handler_offset()));
+      __ movptr(rax, Address(r13, 0));
+      __ call(rbx);
+      __ jmp(exit);
     }
     __ BIND(is_long);
     __ movq(Address(r13, 0), rax);

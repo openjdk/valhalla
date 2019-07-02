@@ -449,11 +449,23 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   }
 #endif
 
+  Handle vt;
+  if (ValueTypeReturnedAsFields && result->get_type() == T_VALUETYPE) {
+    // Pre allocate buffered value in case the result is returned
+    // flattened by compiled code
+    ValueKlass* vk = method->returned_value_type(thread);
+    vt = vk->allocate_instance_handle(CHECK);
+  }
+
   // do call
   { JavaCallWrapper link(method, receiver, result, CHECK);
     { HandleMark hm(thread);  // HandleMark used by HandleMarkCleaner
 
-      StubRoutines::call_stub()(
+    if (vt() != NULL) {
+      result->set_jobject((jobject)vt());
+    }
+
+    StubRoutines::call_stub()(
         (address)&link,
         // (intptr_t*)&(result->_value), // see NOTE above (compiler problem)
         result_val_address,          // see NOTE above (compiler problem)
