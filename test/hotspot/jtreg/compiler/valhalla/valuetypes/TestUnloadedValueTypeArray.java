@@ -25,7 +25,7 @@
  * @test
  * @bug 8182997 8214898
  * @library /test/lib
- * @summary Test the handling of Arrays of unloaded value classes.
+ * @summary Test the handling of arrays of unloaded value classes.
  * @run main/othervm -Xcomp
  *                   -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test*
  *                   TestUnloadedValueTypeArray
@@ -152,7 +152,23 @@ final inline class MyValue7Box {
     }
 }
 
+final inline class MyValue8 {
+    final int foo = 123;
+    static {
+        TestUnloadedValueTypeArray.MyValue8_inited = true;
+    }
+}
+
+final inline class MyValue9 {
+    final int foo = 123;
+    static {
+        TestUnloadedValueTypeArray.MyValue9_inited = true;
+    }
+}
+
 public class TestUnloadedValueTypeArray {
+    static boolean MyValue8_inited = false;
+    static boolean MyValue9_inited = false;
 
     static MyValue1[] target1() {
         return new MyValue1[10];
@@ -432,6 +448,22 @@ public class TestUnloadedValueTypeArray {
         Asserts.assertEQ(arr[0][0], null);
     }
 
+    static void test8() {
+        MyValue8? a[] = new MyValue8?[0];
+        Asserts.assertEQ(MyValue8_inited, false);
+
+        MyValue8  b[] = new MyValue8 [0];
+        Asserts.assertEQ(MyValue8_inited, true);
+    }
+
+    static void test9() {
+        MyValue9? a[][] = new MyValue9?[10][0];
+        Asserts.assertEQ(MyValue9_inited, false);
+
+        MyValue9  b[][] = new MyValue9 [10][0];
+        Asserts.assertEQ(MyValue9_inited, true);
+    }
+
     static public void main(String[] args) {
         test1();
         test1Box();
@@ -446,5 +478,7 @@ public class TestUnloadedValueTypeArray {
         verifyTest6Box();
         verifyTest7();
         verifyTest7Box();
+        test8();
+        test9();
     }
 }

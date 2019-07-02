@@ -416,6 +416,8 @@ JRT_ENTRY(void, Runtime1::new_value_array(JavaThread* thread, Klass* array_klass
   Handle holder(THREAD, array_klass->klass_holder()); // keep the klass alive
   Klass* elem_klass = ArrayKlass::cast(array_klass)->element_klass();
   assert(elem_klass->is_value(), "must be");
+  // Logically creates elements, ensure klass init
+  elem_klass->initialize(CHECK);
   arrayOop obj = oopFactory::new_valueArray(elem_klass, length, CHECK);
   thread->set_vm_result(obj);
   // This is pretty rare but this runtime patch is stressful to deoptimization
