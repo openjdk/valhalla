@@ -342,9 +342,10 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
 #endif // TIERED
   decrement(rsp, frame_size_in_bytes); // does not emit code for frame_size == 0
   if (needs_stack_repair) {
-    movptr(Address(rsp, frame_size_in_bytes - wordSize), frame_size_in_bytes
+    int real_frame_size =  frame_size_in_bytes
            + wordSize     // skip over pushed rbp
-           + wordSize);   // skip over RA pushed by caller
+           + wordSize;    // skip over RA pushed by caller
+    movptr(Address(rsp, frame_size_in_bytes - wordSize), real_frame_size);
     if (verified_value_entry_label != NULL) {
       bind(*verified_value_entry_label);
     }
@@ -398,25 +399,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   if (C1Breakpoint)int3();
   verify_FPU(0, "method_entry");
 
-  // FIXME -- call runtime only if we cannot in-line allocate all the incoming value args.
-  push(rbp); // Create a temp frame so we can call into runtime // FIXME: need to be able to handle GC during the call
-  if (PreserveFramePointer) {
-    mov(rbp, rsp);
-  }
-  subptr(rsp, frame_size_in_bytes);
-  movptr(rbx, (intptr_t)(ces->method()));
-  if (is_value_ro_entry) {
-    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_value_args_no_receiver_id)));
-  } else {
-    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_value_args_id)));
-  }
-  int rt_call_offset = offset();
-
-  addptr(rsp, frame_size_in_bytes);
-  pop(rbp);
-
   assert(ValueTypePassFieldsAsArgs, "sanity");
-
   GrowableArray<SigEntry>* sig   = &ces->sig();
   GrowableArray<SigEntry>* sig_cc = is_value_ro_entry ? &ces->sig_cc_ro() : &ces->sig_cc();
   VMRegPair* regs      = ces->regs();
@@ -430,11 +413,51 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
 
   int extra_stack_offset = wordSize; // tos is return address.
-  int sp_inc = shuffle_value_args(true, is_value_ro_entry, extra_stack_offset, sig_bt, sig_cc,
-                                  args_passed_cc, args_on_stack_cc, regs_cc, // from
-                                  args_passed, args_on_stack, regs);         // to
+
+  // Create a temp frame so we can call into runtime. It must be properly set up to accomodate GC.
+  int sp_inc = (args_on_stack - args_on_stack_cc) * VMRegImpl::stack_slot_size;
+  if (sp_inc > 0) {
+    pop(r13);
+    sp_inc = align_up(sp_inc, StackAlignmentInBytes);
+    subptr(rsp, sp_inc);
+    push(r13);
+  } else {
+    sp_inc = 0;
+  }
+  push(rbp);
+  if (PreserveFramePointer) {
+    mov(rbp, rsp);
+  }
+  subptr(rsp, frame_size_in_bytes);
+  if (sp_inc > 0) {
+    int real_frame_size = frame_size_in_bytes +
+           + wordSize  // pushed rbp
+           + wordSize  // returned address pushed by the stack extension code
+           + sp_inc;   // stack extension
+    movptr(Address(rsp, frame_size_in_bytes - wordSize), real_frame_size);
+  }
+
+  // FIXME -- call runtime only if we cannot in-line allocate all the incoming value args.
+  movptr(rbx, (intptr_t)(ces->method()));
+  if (is_value_ro_entry) {
+    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_value_args_no_receiver_id)));
+  } else {
+    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_value_args_id)));
+  }
+  int rt_call_offset = offset();
+
+  // Remove the temp frame
+  addptr(rsp, frame_size_in_bytes);
+  pop(rbp);
+
+  int n = shuffle_value_args(true, is_value_ro_entry, extra_stack_offset, sig_bt, sig_cc,
+                             args_passed_cc, args_on_stack_cc, regs_cc, // from
+                             args_passed, args_on_stack, regs);         // to
+  assert(sp_inc == n, "must be");
 
   if (sp_inc != 0) {
+    // Do the stack banging here, and skip over the stack repair code in the
+    // verified_value_entry (which has a different real_frame_size).
     assert(sp_inc > 0, "stack should not shrink");
     generate_stack_overflow_check(bang_size_in_bytes);
     push(rbp);
@@ -448,10 +471,6 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
     }
 #endif // TIERED
     decrement(rsp, frame_size_in_bytes);
-    movptr(Address(rsp, frame_size_in_bytes - wordSize), frame_size_in_bytes +
-           + wordSize  // pushed rbp
-           + wordSize  // returned address pushed by the stack extension code
-           + sp_inc);  // stack extension
   }
 
   jmp(verified_value_entry_label);

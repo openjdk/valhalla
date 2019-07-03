@@ -566,13 +566,13 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
     // C2->C1 invokestatic, two single value args
     @Test(compLevel = C2)
-      public int test31() {
+    public int test31() {
       return test31_helper(pointField1, pointField2);
     }
 
     @DontInline
     @ForceCompile(compLevel = C1)
-      private static int test31_helper(Point p1, Point p2) {
+    private static int test31_helper(Point p1, Point p2) {
         return p1.x + p2.y;
     }
 
@@ -865,7 +865,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
     @DontInline
     @ForceCompile(compLevel = C1)
-      private static float test44_helper(FloatPoint fp1, FloatPoint fp2, int a1, int a2, int a3, int a4, int a5, int a6) {
+    private static float test44_helper(FloatPoint fp1, FloatPoint fp2, int a1, int a2, int a3, int a4, int a5, int a6) {
         // On x64:
         //    Scalarized entry -- all parameters are passed in registers
         //    Non-scalarized entry -- a5 is passed on stack[0]
@@ -920,7 +920,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
     @DontInline
     @ForceCompile(compLevel = C1)
-      private static float test46_helper(FloatPoint fp1, FloatPoint fp2, Point p1, FloatPoint fp3, FloatPoint fp4, Point p2, FloatPoint fp5, int a1, int a2, int a3, int a4, int a5, int a6, int a7) {
+    private static float test46_helper(FloatPoint fp1, FloatPoint fp2, Point p1, FloatPoint fp3, FloatPoint fp4, Point p2, FloatPoint fp5, int a1, int a2, int a3, int a4, int a5, int a6, int a7) {
         return p1.x + p1.y +
                p2.x + p2.y +
                fp1.x + fp1.y +
@@ -1967,6 +1967,56 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         for (int i=0; i<count; i++) {
             int result = test99(pointField1, pointField2);
             int n = test99_helper(pointField1, pointField2);
+            Asserts.assertEQ(result, n);
+        }
+    }
+
+
+    // C2->C1 invokestatic, packing causes stack growth (1 extra stack word).
+    // Make sure stack frame is set up properly for GC.
+    @Test(compLevel = C2)
+    public float test100(FloatPoint fp1, FloatPoint fp2, RefPoint rp, int a1, int a2, int a3, int a4) {
+        return test100_helper(fp1, fp2, rp, a1, a2, a3, a4);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    private static float test100_helper(FloatPoint fp1, FloatPoint fp2, RefPoint rp, int a1, int a2, int a3, int a4) {
+        // On x64:
+        //    Scalarized entry -- all parameters are passed in registers
+        //          xmm0 = fp1.x
+        //          xmm1 = fp1.y
+        //          xmm2 = fp2.x
+        //          xmm3 = fp2.y
+        //          rsi  = rp.x  (oop)
+        //          rdx  = rp.y  (oop)
+        //          cx   = a1
+        //          r8   = a2
+        //          r9   = a3
+        //          di   = a4
+        //    Non-scalarized entry -- a6 is passed on stack[0]
+        //          rsi  = fp1
+        //          rdx  = fp2
+        //          rcx  = rp
+        //          r8   = a1
+        //          r9   = a2
+        //          di   = a3
+        //    [sp + ??]  = a4
+        return fp1.x + fp1.y + fp2.x + fp2.y + rp.x.n + rp.y.n + a1 + a2 + a3 + a4;
+    }
+
+    @DontCompile
+    public void test100_verifier(boolean warmup) {
+        int count = warmup ? 1 : 4;
+        for (int i=0; i<count; i++) {
+            FloatPoint fp1 = new FloatPoint(i+0,  i+11);
+            FloatPoint fp2 = new FloatPoint(i+222, i+3333);
+            RefPoint rp = new RefPoint(i+44444, i+555555);
+            float result;
+            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+                result = test100(fp1, fp2, rp, 1, 2, 3, 4);
+            }
+            float n = test100_helper(fp1, fp2, rp, 1, 2, 3, 4);
             Asserts.assertEQ(result, n);
         }
     }

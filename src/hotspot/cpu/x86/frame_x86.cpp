@@ -717,9 +717,8 @@ intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr)
   if (cm != NULL && cm->needs_stack_repair()) {
     // The stack increment resides just below the saved rbp on the stack
     // and does not account for the return address.
-    intptr_t* sp_inc_addr = (intptr_t*) (saved_fp_addr - 1);
-    int sp_inc = (*sp_inc_addr) / wordSize;
-    int real_frame_size = sp_inc;
+    intptr_t* real_frame_size_addr = (intptr_t*) (saved_fp_addr - 1);
+    int real_frame_size = (*real_frame_size_addr) / wordSize;
     if (!cm->is_compiled_by_c1()) {
       // Add size of return address (C1 already includes the RA size)
       real_frame_size += 1;

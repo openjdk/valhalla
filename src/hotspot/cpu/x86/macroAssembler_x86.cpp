@@ -6370,15 +6370,18 @@ int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int 
                                        BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
                                        int args_passed, int args_on_stack, VMRegPair* regs,            // from
                                        int args_passed_to, int args_on_stack_to, VMRegPair* regs_to) { // to
-  // Check if we need to extend the stack for unpacking
+  // Check if we need to extend the stack for packing/unpacking
   int sp_inc = (args_on_stack_to - args_on_stack) * VMRegImpl::stack_slot_size;
   if (sp_inc > 0) {
-    // Save the return address, adjust the stack (make sure it is properly
-    // 16-byte aligned) and copy the return address to the new top of the stack.
-    pop(r13);
     sp_inc = align_up(sp_inc, StackAlignmentInBytes);
-    subptr(rsp, sp_inc);
-    push(r13);
+    if (!is_packing) {
+      // Save the return address, adjust the stack (make sure it is properly
+      // 16-byte aligned) and copy the return address to the new top of the stack.
+      // (Note: C1 does this in C1_MacroAssembler::scalarized_entry).
+      pop(r13);
+      subptr(rsp, sp_inc);
+      push(r13);
+    }
   } else {
     // The scalarized calling convention needs less stack space than the unscalarized one.
     // No need to extend the stack, the caller will take care of these adjustments.
