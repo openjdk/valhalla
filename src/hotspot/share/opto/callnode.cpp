@@ -1021,7 +1021,7 @@ bool CallJavaNode::validate_symbolic_info() const {
     return true; // call into runtime or uncommon trap
   }
   Bytecodes::Code bc = jvms()->method()->java_code_at_bci(_bci);
-  if (ACmpOnValues == 3 && (bc == Bytecodes::_if_acmpeq || bc == Bytecodes::_if_acmpne)) {
+  if (EnableValhalla && (bc == Bytecodes::_if_acmpeq || bc == Bytecodes::_if_acmpne)) {
     return true;
   }
   ciMethod* symbolic_info = jvms()->method()->get_method_at_bci(_bci);

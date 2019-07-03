@@ -31,13 +31,8 @@ import java.lang.ref.*;
  * @summary if_acmpeq/ne bytecode test
  * @compile Ifacmp.java
  * @run main/othervm -Xint -Xms16m -Xmx16m -XX:+UseSerialGC
- *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=2
- *                   runtime.valhalla.valuetypes.Ifacmp alwaysFalse
- * @run main/othervm -Xint -Xms16m -Xmx16m -XX:+UseSerialGC
- *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=3
  *                   runtime.valhalla.valuetypes.Ifacmp
  * @run main/othervm -Xcomp -Xms16m -Xmx16m -XX:+UseSerialGC
- *                   -XX:+UnlockExperimentalVMOptions -XX:ACmpOnValues=3
  *                   runtime.valhalla.valuetypes.Ifacmp
  */
 public class Ifacmp {

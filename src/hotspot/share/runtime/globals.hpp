@@ -2499,13 +2499,6 @@ const size_t minimumSymbolTableSize = 1024;
                                                                             \
   develop(bool, ScalarizeValueTypes, true,                                  \
           "Scalarize value types in compiled code")                         \
-                                                                            \
-  experimental(uint, ACmpOnValues, 3,                                       \
-               "0 = regular acmp"                                           \
-               "1 = always false for value, perturbation scheme"            \
-               "2 = always false for value"                                 \
-               "3 = substitutability test")                                 \
-               range(0, 3)                                                  \
 
 
 

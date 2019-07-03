@@ -88,18 +88,6 @@ class MyObject implements MyInterface {
     int x;
 }
 
-// Mark test methods that return always false
-@Retention(RetentionPolicy.RUNTIME)
-@interface AlwaysFalse {
-    int[] valid_for() default {1, 2};
-}
-
-// Mark test methods that return always true
-@Retention(RetentionPolicy.RUNTIME)
-@interface AlwaysTrue {
-    int[] valid_for() default {1, 2};
-}
-
 // Mark test methods that return false if the argument is null
 @Retention(RetentionPolicy.RUNTIME)
 @interface FalseIfNull { }
@@ -197,77 +185,62 @@ public class TestNewAcmp {
         return get(v) == get(o); // only true if both null
     }
 
-    @AlwaysFalse
     public boolean testEq07_1(MyValue1 v1, MyValue1 v2) {
         return getNotNull(v1) == (Object)v2; // false
     }
 
-    @AlwaysFalse
     public boolean testEq07_2(MyValue1 v1, MyValue1 v2) {
         return (Object)v1 == getNotNull(v2); // false
     }
 
-    @AlwaysFalse
     public boolean testEq07_3(MyValue1 v1, MyValue1 v2) {
         return getNotNull(v1) == getNotNull(v2); // false
     }
 
-    @AlwaysFalse
     public boolean testEq08_1(MyValue1 v, Object u) {
         return getNotNull(v) == u; // false
     }
 
-    @AlwaysFalse
     public boolean testEq08_2(MyValue1 v, Object u) {
         return (Object)v == getNotNull(u); // false
     }
 
-    @AlwaysFalse
     public boolean testEq08_3(MyValue1 v, Object u) {
         return getNotNull(v) == getNotNull(u); // false
     }
 
-    @AlwaysFalse
     public boolean testEq09_1(Object u, MyValue1 v) {
         return getNotNull(u) == (Object)v; // false
     }
 
-    @AlwaysFalse
     public boolean testEq09_2(Object u, MyValue1 v) {
         return u == getNotNull(v); // false
     }
 
-    @AlwaysFalse
     public boolean testEq09_3(Object u, MyValue1 v) {
         return getNotNull(u) == getNotNull(v); // false
     }
 
-    @AlwaysFalse
     public boolean testEq10_1(MyObject o, MyValue1 v) {
         return getNotNull(o) == (Object)v; // false
     }
 
-    @AlwaysFalse
     public boolean testEq10_2(MyObject o, MyValue1 v) {
         return o == getNotNull(v); // false
     }
 
-    @AlwaysFalse
     public boolean testEq10_3(MyObject o, MyValue1 v) {
         return getNotNull(o) == getNotNull(v); // false
     }
 
-    @AlwaysFalse
     public boolean testEq11_1(MyValue1 v, MyObject o) {
         return getNotNull(v) == o; // false
     }
 
-    @AlwaysFalse
     public boolean testEq11_2(MyValue1 v, MyObject o) {
         return (Object)v == getNotNull(o); // false
     }
 
-    @AlwaysFalse
     public boolean testEq11_3(MyValue1 v, MyObject o) {
         return getNotNull(v) == getNotNull(o); // false
     }
@@ -356,32 +329,26 @@ public class TestNewAcmp {
         return get(v) == get(a); // only true if both null
     }
 
-    @AlwaysFalse
     public boolean testEq19_1(Object[] a, MyValue1 v) {
         return getNotNull(a) == (Object)v; // false
     }
 
-    @AlwaysFalse
     public boolean testEq19_2(Object[] a, MyValue1 v) {
         return a == getNotNull(v); // false
     }
 
-    @AlwaysFalse
     public boolean testEq19_3(Object[] a, MyValue1 v) {
         return getNotNull(a) == getNotNull(v); // false
     }
 
-    @AlwaysFalse
     public boolean testEq20_1(MyValue1 v, Object[] a) {
         return getNotNull(v) == a; // false
     }
 
-    @AlwaysFalse
     public boolean testEq20_2(MyValue1 v, Object[] a) {
         return (Object)v == getNotNull(a); // false
     }
 
-    @AlwaysFalse
     public boolean testEq20_3(MyValue1 v, Object[] a) {
         return getNotNull(v) == getNotNull(a); // false
     }
@@ -437,32 +404,26 @@ public class TestNewAcmp {
         return get(u) == get(v); // only true if both null
     }
 
-    @AlwaysFalse
     public boolean testEq24_1(MyValue1 v, MyInterface u) {
         return getNotNull(v) == u; // false
     }
 
-    @AlwaysFalse
     public boolean testEq24_2(MyValue1 v, MyInterface u) {
         return (Object)v == getNotNull(u); // false
     }
 
-    @AlwaysFalse
     public boolean testEq24_3(MyValue1 v, MyInterface u) {
         return getNotNull(v) == getNotNull(u); // false
     }
 
-    @AlwaysFalse
     public boolean testEq25_1(MyInterface u, MyValue1 v) {
         return getNotNull(u) == (Object)v; // false
     }
 
-    @AlwaysFalse
     public boolean testEq25_2(MyInterface u, MyValue1 v) {
         return u == getNotNull(v); // false
     }
 
-    @AlwaysFalse
     public boolean testEq25_3(MyInterface u, MyValue1 v) {
         return getNotNull(u) == getNotNull(v); // false
     }
@@ -539,32 +500,26 @@ public class TestNewAcmp {
         return get(v) == get(a); // only true if both null
     }
 
-    @AlwaysFalse
     public boolean testEq32_1(MyInterface[] a, MyValue1 v) {
         return getNotNull(a) == (Object)v; // false
     }
 
-    @AlwaysFalse
     public boolean testEq32_2(MyInterface[] a, MyValue1 v) {
         return a == getNotNull(v); // false
     }
 
-    @AlwaysFalse
     public boolean testEq32_3(MyInterface[] a, MyValue1 v) {
         return getNotNull(a) == getNotNull(v); // false
     }
 
-    @AlwaysFalse
     public boolean testEq33_1(MyValue1 v, MyInterface[] a) {
         return getNotNull(v) == a; // false
     }
 
-    @AlwaysFalse
     public boolean testEq33_2(MyValue1 v, MyInterface[] a) {
         return (Object)v == getNotNull(a); // false
     }
 
-    @AlwaysFalse
     public boolean testEq33_3(MyValue1 v, MyInterface[] a) {
         return getNotNull(v) == getNotNull(a); // false
     }
@@ -789,77 +744,62 @@ public class TestNewAcmp {
         return get(v) != get(o); // only false if both null
     }
 
-    @AlwaysTrue
     public boolean testNotEq07_1(MyValue1 v1, MyValue1 v2) {
         return getNotNull(v1) != (Object)v2; // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq07_2(MyValue1 v1, MyValue1 v2) {
         return (Object)v1 != getNotNull(v2); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq07_3(MyValue1 v1, MyValue1 v2) {
         return getNotNull(v1) != getNotNull(v2); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq08_1(MyValue1 v, Object u) {
         return getNotNull(v) != u; // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq08_2(MyValue1 v, Object u) {
         return (Object)v != getNotNull(u); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq08_3(MyValue1 v, Object u) {
         return getNotNull(v) != getNotNull(u); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq09_1(Object u, MyValue1 v) {
         return getNotNull(u) != (Object)v; // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq09_2(Object u, MyValue1 v) {
         return u != getNotNull(v); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq09_3(Object u, MyValue1 v) {
         return getNotNull(u) != getNotNull(v); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq10_1(MyObject o, MyValue1 v) {
         return getNotNull(o) != (Object)v; // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq10_2(MyObject o, MyValue1 v) {
         return o != getNotNull(v); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq10_3(MyObject o, MyValue1 v) {
         return getNotNull(o) != getNotNull(v); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq11_1(MyValue1 v, MyObject o) {
         return getNotNull(v) != o; // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq11_2(MyValue1 v, MyObject o) {
         return (Object)v != getNotNull(o); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq11_3(MyValue1 v, MyObject o) {
         return getNotNull(v) != getNotNull(o); // true
     }
@@ -948,32 +888,26 @@ public class TestNewAcmp {
         return get(v) != get(a); // only false if both null
     }
 
-    @AlwaysTrue
     public boolean testNotEq19_1(Object[] a, MyValue1 v) {
         return getNotNull(a) != (Object)v; // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq19_2(Object[] a, MyValue1 v) {
         return a != getNotNull(v); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq19_3(Object[] a, MyValue1 v) {
         return getNotNull(a) != getNotNull(v); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq20_1(MyValue1 v, Object[] a) {
         return getNotNull(v) != a; // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq20_2(MyValue1 v, Object[] a) {
         return (Object)v != getNotNull(a); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq20_3(MyValue1 v, Object[] a) {
         return getNotNull(v) != getNotNull(a); // true
     }
@@ -1029,32 +963,26 @@ public class TestNewAcmp {
         return get(u) != get(v); // only false if both null
     }
 
-    @AlwaysTrue
     public boolean testNotEq24_1(MyValue1 v, MyInterface u) {
         return getNotNull(v) != u; // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq24_2(MyValue1 v, MyInterface u) {
         return (Object)v != getNotNull(u); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq24_3(MyValue1 v, MyInterface u) {
         return getNotNull(v) != getNotNull(u); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq25_1(MyInterface u, MyValue1 v) {
         return getNotNull(u) != (Object)v; // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq25_2(MyInterface u, MyValue1 v) {
         return u != getNotNull(v); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq25_3(MyInterface u, MyValue1 v) {
         return getNotNull(u) != getNotNull(v); // true
     }
@@ -1131,32 +1059,26 @@ public class TestNewAcmp {
         return get(v) != get(a); // only false if both null
     }
 
-    @AlwaysTrue
     public boolean testNotEq32_1(MyInterface[] a, MyValue1 v) {
         return getNotNull(a) != (Object)v; // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq32_2(MyInterface[] a, MyValue1 v) {
         return a != getNotNull(v); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq32_3(MyInterface[] a, MyValue1 v) {
         return getNotNull(a) != getNotNull(v); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq33_1(MyValue1 v, MyInterface[] a) {
         return getNotNull(v) != a; // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq33_2(MyValue1 v, MyInterface[] a) {
         return (Object)v != getNotNull(a); // true
     }
 
-    @AlwaysTrue
     public boolean testNotEq33_3(MyValue1 v, MyInterface[] a) {
         return getNotNull(v) != getNotNull(a); // true
     }
@@ -1333,16 +1255,6 @@ public class TestNewAcmp {
         return m.isAnnotationPresent(FalseIfNull.class);
     }
 
-    public boolean alwaysTrue(Method m) {
-        return m.isAnnotationPresent(AlwaysTrue.class) &&
-            Arrays.asList(((AlwaysTrue)m.getAnnotation(AlwaysTrue.class)).valid_for()).contains(ACmpOnValues);
-    }
-
-    public boolean alwaysFalse(Method m) {
-        return m.isAnnotationPresent(AlwaysFalse.class) &&
-            Arrays.asList(((AlwaysFalse)m.getAnnotation(AlwaysFalse.class)).valid_for()).contains(ACmpOnValues);
-    }
-
     public boolean isNegated(Method m) {
         return m.getName().startsWith("testNot");
     }
@@ -1398,7 +1310,6 @@ public class TestNewAcmp {
     protected static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
     protected static final long TieredStopAtLevel = (Long)WHITE_BOX.getVMFlag("TieredStopAtLevel");
     protected static final int COMP_LEVEL_FULL_OPTIMIZATION = get_full_opt_level();
-    protected static final long ACmpOnValues = (Long)WHITE_BOX.getVMFlag("ACmpOnValues");
 
     // FIXME: temp -- special handling for C1 testing.
     protected static final boolean EnableValhallaC1 = (Boolean)WHITE_BOX.getVMFlag("EnableValhallaC1");
@@ -1443,7 +1354,7 @@ public class TestNewAcmp {
                     // Avoid acmp in the computation of the expected result!
                     boolean equal = equalities[i][j];
                     equal = isNegated(m) ? !equal : equal;
-                    boolean expected = alwaysTrue(m) || ((i == 0 || j == 0) && trueIfNull(m)) || (!alwaysFalse(m) && equal && !(i == 0 && falseIfNull(m)));
+                    boolean expected = ((i == 0 || j == 0) && trueIfNull(m)) || (equal && !(i == 0 && falseIfNull(m)));
                     for (int run = 0; run < warmup; ++run) {
                         Boolean result = (Boolean)m.invoke(this, args[i], args[j]);
                         if (result != expected && WHITE_BOX.isMethodCompiled(m, false) && warmup == 1) {
@@ -1469,15 +1380,15 @@ public class TestNewAcmp {
                            MyValue1.setX(MyValue1.createDefault(), 42),
                            MyValue2.setX(MyValue2.createDefault(), 42), };
 
-        boolean[][] equalities = { { true,  false,  false, false,            false, false, false,             false,             false             },
-                                   { false, true,   false, false,            false, false, false,             false,             false             },
-                                   { false, false,  true,  false,            false, false, false,             false,             false             },
-                                   { false, false,  false, ACmpOnValues == 3,false, false, false,             ACmpOnValues == 3, false             },
-                                   { false, false,  false, false,            true,  false, false,             false,             false             },
-                                   { false, false,  false, false,            false, true,  false,             false,             false             },
-                                   { false, false,  false, false,            false, false, ACmpOnValues == 3, false,             false             },
-                                   { false, false,  false, ACmpOnValues == 3,false, false, false,             ACmpOnValues == 3, false             },
-                                   { false, false,  false, false,            false, false, false,             false,             ACmpOnValues == 3 } };
+        boolean[][] equalities = { { true,  false, false, false, false, false, false, false, false },
+                                   { false, true,  false, false, false, false, false, false, false },
+                                   { false, false, true,  false, false, false, false, false, false },
+                                   { false, false, false, true,  false, false, false, true,  false },
+                                   { false, false, false, false, true,  false, false, false, false },
+                                   { false, false, false, false, false, true,  false, false, false },
+                                   { false, false, false, false, false, false, true,  false, false },
+                                   { false, false, false, true,  false, false, false, true,  false },
+                                   { false, false, false, false, false, false, false, false, true  } };
 
         // Run tests
         for (Method m : getClass().getMethods()) {
@@ -1505,36 +1416,16 @@ public class TestNewAcmp {
 
             Asserts.assertFalse(cmpAlwaysUnEqual1(args[1], args[2]));
             Asserts.assertTrue(cmpAlwaysUnEqual2(args[1], args[2]));
-            boolean compiled = WHITE_BOX.isMethodCompiled(cmpAlwaysUnEqual3_m, false);
             boolean res = cmpAlwaysUnEqual3(args[3]);
-            if (ACmpOnValues != 3) {
-                Asserts.assertFalse(res);
-            } else if (compiled) {
-                Asserts.assertTrue(res);
-            }
-            compiled = WHITE_BOX.isMethodCompiled(cmpAlwaysUnEqual4_m, false);
+            Asserts.assertTrue(res);
             res = cmpAlwaysUnEqual4(args[3]);
-            if (ACmpOnValues != 3) {
-                Asserts.assertTrue(res);
-            } else if (compiled) {
-                Asserts.assertFalse(res);
-            }
+            Asserts.assertFalse(res);
 
             int idx = i % args.length;
-            compiled = WHITE_BOX.isMethodCompiled(cmpSometimesEqual1_m, false);
             res = cmpSometimesEqual1(args[idx]);
-            if (ACmpOnValues != 3) {
-                Asserts.assertEQ(res, args[idx] == null || !args[idx].getClass().isInlineClass());
-            } else if (compiled) {
-                Asserts.assertTrue(res);
-            }
-            compiled = WHITE_BOX.isMethodCompiled(cmpSometimesEqual2_m, false);
+            Asserts.assertTrue(res);
             res = cmpSometimesEqual2(args[idx]);
-            if (ACmpOnValues != 3) {
-                Asserts.assertNE(res, args[idx] == null || !args[idx].getClass().isInlineClass());
-            } else if (compiled) {
-                Asserts.assertFalse(res);
-            }
+            Asserts.assertFalse(res);
         }
     }
 
@@ -1582,35 +1473,27 @@ public class TestNewAcmp {
         }
 
         int scenario = -1;
-        for (int nullMode = 0; nullMode <= 2; nullMode++) {              // null mode
-            for (int onVal = 0; onVal < 2; onVal++) {                    // 0 = default, 1 = -XX:ACmpOnValues=3
-                for (int incrInline = 0; incrInline < 2; incrInline++) { // 0 = default, 1 = -XX:+AlwaysIncrementalInline
-                    scenario++;
-                    System.out.println("Scenario #" + scenario + " -------------------");
-                    String[] cmds = baseOptions;
-                    if (incrInline != 0) {
-                        cmds = addOptions(cmds, "-XX:+IgnoreUnrecognizedVMOptions", "-XX:+AlwaysIncrementalInline");
-                    }
-                    if (onVal != 0) {
-                        cmds = addOptions(cmds, "-XX:+UnlockExperimentalVMOptions", "-XX:ACmpOnValues=3");
-                    }
-
-                    cmds = addOptions(cmds, "compiler.valhalla.valuetypes.TestNewAcmp");
-                    cmds = addOptions(cmds, Integer.toString(nullMode));
-
-                    if (scenarios != null && !scenarios.contains(Integer.toString(scenario))) {
-                        System.out.println("Scenario #" + scenario + " is skipped due to -Dscenarios=" + SCENARIOS);
-                        continue;
-                    } else if (EnableValhallaC1 && onVal == 0) {
-                        System.out.println("Scenario #" + scenario + " is skipped because C1 requires -XX:ACmpOnValues=3");
-                        continue;
-                    }
-
-                    OutputAnalyzer oa = ProcessTools.executeTestJvm(cmds);
-                    String output = oa.getOutput();
-                    oa.shouldHaveExitValue(0);
-                    System.out.println(output);
+        for (int nullMode = 0; nullMode <= 2; nullMode++) {          // null mode
+            for (int incrInline = 0; incrInline < 2; incrInline++) { // 0 = default, 1 = -XX:+AlwaysIncrementalInline
+                scenario++;
+                System.out.println("Scenario #" + scenario + " -------------------");
+                String[] cmds = baseOptions;
+                if (incrInline != 0) {
+                    cmds = addOptions(cmds, "-XX:+IgnoreUnrecognizedVMOptions", "-XX:+AlwaysIncrementalInline");
                 }
+
+                cmds = addOptions(cmds, "compiler.valhalla.valuetypes.TestNewAcmp");
+                cmds = addOptions(cmds, Integer.toString(nullMode));
+
+                if (scenarios != null && !scenarios.contains(Integer.toString(scenario))) {
+                    System.out.println("Scenario #" + scenario + " is skipped due to -Dscenarios=" + SCENARIOS);
+                    continue;
+                }
+
+                OutputAnalyzer oa = ProcessTools.executeTestJvm(cmds);
+                String output = oa.getOutput();
+                oa.shouldHaveExitValue(0);
+                System.out.println(output);
             }
         }
     }

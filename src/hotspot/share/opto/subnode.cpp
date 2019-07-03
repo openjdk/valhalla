@@ -840,14 +840,6 @@ const Type* CmpULNode::sub(const Type* t1, const Type* t2) const {
 // Simplify an CmpP (compare 2 pointers) node, based on local information.
 // If both inputs are constants, compare them.
 const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
-  if (ACmpOnValues != 3 &&
-      (t1->isa_valuetype() || t2->isa_valuetype() ||
-       ((t1->is_valuetypeptr() || t2->is_valuetypeptr()) &&
-        (!t1->maybe_null() || !t2->maybe_null())))) {
-    // One operand is a value type and one operand is never null, fold to constant false
-    return TypeInt::CC_GT;
-  }
-
   const TypePtr *r0 = t1->is_ptr(); // Handy access
   const TypePtr *r1 = t2->is_ptr();
 
@@ -986,17 +978,6 @@ static inline Node* isa_const_java_mirror(PhaseGVN* phase, Node* n) {
 // checking to see an unknown klass subtypes a known klass with no subtypes;
 // this only happens on an exact match.  We can shorten this test by 1 load.
 Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  Node* pert = has_perturbed_operand();
-  if (pert != NULL) {
-    // Optimize new acmp
-    Node* a = pert->in(AddPNode::Base); // unperturbed a
-    Node* b = in(2);
-    Node* cmp = phase->C->optimize_acmp(phase, a, b);
-    if (cmp != NULL) {
-      return cmp;
-    }
-  }
-
   // Normalize comparisons between Java mirrors into comparisons of the low-
   // level klass, where a dependent load could be shortened.
   //
@@ -1111,22 +1092,6 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   this->set_req(1,ldk2);
 
   return this;
-}
-
-// Checks if one operand is perturbed and returns it
-Node* CmpPNode::has_perturbed_operand() const {
-  // We always perturbe the first operand
-  AddPNode* addP = in(1)->isa_AddP();
-  if (addP != NULL) {
-    Node* base = addP->in(AddPNode::Base);
-    if (base->is_top()) {
-      // RawPtr comparison
-      return NULL;
-    }
-    assert(EnableValhalla && ACmpOnValues == 1, "unexpected perturbed oop");
-    return in(1);
-  }
-  return NULL;
 }
 
 //=============================================================================

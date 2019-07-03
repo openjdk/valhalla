@@ -177,7 +177,6 @@ public:
   virtual int Opcode() const;
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
   virtual const Type *sub( const Type *, const Type * ) const;
-  Node* has_perturbed_operand() const;
 };
 
 //------------------------------CmpNNode--------------------------------------

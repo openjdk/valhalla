@@ -2471,7 +2471,7 @@ void TemplateTable::if_acmp(Condition cc) {
   __ pop_ptr(rdx);
 
   const int is_value_mask = markOopDesc::always_locked_pattern;
-  if (EnableValhalla && ACmpOnValues == 3) {
+  if (EnableValhalla) {
     __ cmpoop(rdx, rax);
     __ jcc(Assembler::equal, (cc == equal) ? taken : not_taken);
 
@@ -2505,32 +2505,7 @@ void TemplateTable::if_acmp(Condition cc) {
     __ stop("Not reachable");
   }
 
-
-  if (EnableValhalla && ACmpOnValues == 1) {
-    Label is_null;
-    __ testptr(rdx, rdx);
-    __ jcc(Assembler::zero, is_null);
-    __ movptr(rbx, Address(rdx, oopDesc::mark_offset_in_bytes()));
-    __ andptr(rbx, is_value_mask);
-    __ cmpl(rbx, is_value_mask);
-    __ setb(Assembler::equal, rbx);
-    __ movzbl(rbx, rbx);
-    __ orptr(rdx, rbx);
-    __ bind(is_null);
-  }
-
   __ cmpoop(rdx, rax);
-
-  if (EnableValhalla && ACmpOnValues == 2) {
-    __ jcc(Assembler::notEqual, (cc == not_equal) ? taken : not_taken);
-    __ testptr(rdx, rdx);
-    __ jcc(Assembler::zero, (cc == equal) ? taken : not_taken);
-    __ movptr(rbx, Address(rdx, oopDesc::mark_offset_in_bytes()));
-    __ andptr(rbx, is_value_mask);
-    __ cmpl(rbx, is_value_mask);
-    cc = (cc == equal) ? not_equal : equal;
-  }
-
   __ jcc(j_not(cc), not_taken);
   __ bind(taken);
   branch(false, false);
