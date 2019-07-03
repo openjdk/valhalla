@@ -213,7 +213,6 @@ public:
     Compile* compile = Compile::current();
     compile->set_type_last_size(x);
     void *temp = compile->type_arena()->Amalloc_D(x);
-    compile->set_type_hwm(temp);
     return temp;
   }
   inline void operator delete( void* ptr ) {
@@ -723,8 +722,8 @@ public:
 //------------------------------TypeAry----------------------------------------
 // Class of Array Types
 class TypeAry : public Type {
-  TypeAry(const Type* elem, const TypeInt* size, bool stable) : Type(Array),
-      _elem(elem), _size(size), _stable(stable) {}
+  TypeAry(const Type* elem, const TypeInt* size, bool stable, bool not_flat, bool not_null_free) : Type(Array),
+      _elem(elem), _size(size), _stable(stable), _not_flat(not_flat), _not_null_free(not_null_free) {}
 public:
   virtual bool eq( const Type *t ) const;
   virtual int  hash() const;             // Type specific hashing
@@ -735,10 +734,16 @@ private:
   const Type *_elem;            // Element type of array
   const TypeInt *_size;         // Elements in array
   const bool _stable;           // Are elements @Stable?
+
+  // Value type array properties
+  const bool _not_flat;         // Array is never flattened
+  const bool _not_null_free;    // Array is never null-free
+
   friend class TypeAryPtr;
 
 public:
-  static const TypeAry* make(const Type* elem, const TypeInt* size, bool stable = false);
+  static const TypeAry* make(const Type* elem, const TypeInt* size, bool stable = false,
+                             bool not_flat = false, bool not_null_free = false);
 
   virtual const Type *xmeet( const Type *t ) const;
   virtual const Type *xdual() const;    // Compute dual right now.
@@ -1095,7 +1100,7 @@ public:
   bool is_known_instance_field() const { return is_known_instance() && _offset.get() >= 0; }
 
   virtual bool can_be_value_type() const { return EnableValhalla && can_be_value_type_raw(); }
-  virtual bool can_be_value_type_raw() const { return _klass == NULL || _klass->is_valuetype() || ((_klass->is_java_lang_Object() || _klass->is_interface()) && !klass_is_exact()); }
+  virtual bool can_be_value_type_raw() const { return _klass == NULL || !_klass->is_loaded() || _klass->is_valuetype() || ((_klass->is_java_lang_Object() || _klass->is_interface()) && !klass_is_exact()); }
 
   virtual intptr_t get_con() const;
 
@@ -1265,6 +1270,10 @@ public:
   const TypeInt* size() const { return _ary->_size; }
   bool      is_stable() const { return _ary->_stable; }
 
+  // Value type array properties
+  bool is_not_flat()      const { return _ary->_not_flat; }
+  bool is_not_null_free() const { return _ary->_not_null_free; }
+
   bool is_autobox_cache() const { return _is_autobox_cache; }
 
   static const TypeAryPtr* make(PTR ptr, const TypeAry *ary, ciKlass* k, bool xk, Offset offset,
@@ -1297,12 +1306,16 @@ public:
 
   // Speculative type helper methods.
   virtual const Type* remove_speculative() const;
+  virtual const Type* cleanup_speculative() const;
   virtual const TypePtr* with_inline_depth(int depth) const;
   virtual const TypePtr* with_instance_id(int instance_id) const;
 
   // the core of the computation of the meet of 2 types
   virtual const Type *xmeet_helper(const Type *t) const;
   virtual const Type *xdual() const;    // Compute dual right now.
+
+  const TypeAryPtr* cast_to_not_flat(bool not_flat = true) const;
+  const TypeAryPtr* cast_to_not_null_free(bool not_null_free = true) const;
 
   const TypeAryPtr* cast_to_stable(bool stable, int stable_dimension = 1) const;
   int stable_dimension() const;
@@ -1594,12 +1607,11 @@ public:
 
   // Accessors:
   const TypeTuple* domain_sig() const { return _domain_sig; }
-  const TypeTuple* domain_cc() const { return _domain_cc; }
+  const TypeTuple* domain_cc()  const { return _domain_cc; }
   const TypeTuple* range_sig()  const { return _range_sig; }
-  const TypeTuple* range_cc()  const { return _range_cc; }
+  const TypeTuple* range_cc()   const { return _range_cc; }
 
   static const TypeFunc *make(ciMethod* method);
-  static const TypeFunc *make(ciSignature signature, const Type* extra);
   static const TypeFunc *make(const TypeTuple* domain_sig, const TypeTuple* domain_cc,
                               const TypeTuple* range_sig, const TypeTuple* range_cc);
   static const TypeFunc *make(const TypeTuple* domain, const TypeTuple* range);

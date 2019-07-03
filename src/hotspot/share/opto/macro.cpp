@@ -1720,13 +1720,13 @@ Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
     if (UseCompressedClassPointers) {
       // Compress the klass pointer before inserting the storage properties value
       metadata = transform_later(new EncodePKlassNode(metadata, metadata->bottom_type()->make_narrowklass()));
-    }
-    metadata = transform_later(new CastP2XNode(NULL, metadata));
-    metadata = transform_later(new OrXNode(metadata, properties));
-    bt = T_LONG;
-    if (UseCompressedClassPointers) {
+      metadata = transform_later(new CastN2INode(metadata));
+      metadata = transform_later(new OrINode(metadata, transform_later(new ConvL2INode(properties))));
       bt = T_INT;
-      metadata = transform_later(new ConvL2INode(metadata));
+    } else {
+      metadata = transform_later(new CastP2XNode(NULL, metadata));
+      metadata = transform_later(new OrXNode(metadata, properties));
+      bt = T_LONG;
     }
   }
   rawmem = make_store(control, rawmem, object, oopDesc::klass_offset_in_bytes(), metadata, bt);

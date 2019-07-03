@@ -59,8 +59,10 @@ public class TestNullableArrays extends ValueTypeTest {
     @Override
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
-        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:+ValueArrayFlatten"};
-        case 4: return new String[] {"-XX:-MonomorphicArrayCheck"};
+        case 2: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast"};
+        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast"};
+        case 4: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast"};
+        case 5: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast"};
         }
         return null;
     }
@@ -2546,6 +2548,246 @@ public class TestNullableArrays extends ValueTypeTest {
             for (int j = 0; j < 10; j++) {
                 Asserts.assertEQ(result[i][j], test96_R[i][j]);
             }
+        }
+    }
+
+    // Test loads from vararg arrays
+    @Test(failOn = LOAD_UNKNOWN_VALUE)
+    public static Object test97(Object... args) {
+        return args[0];
+    }
+
+    @DontCompile
+    public static void test97_verifier(boolean warmup) {
+        Object obj = new Object();
+        Object result = test97(obj);
+        Asserts.assertEquals(result, obj);
+        Integer[] myInt = new Integer[1];
+        myInt[0] = rI;
+        result = test97((Object[])myInt);
+        Asserts.assertEquals(result, rI);
+    }
+
+    @Test()
+    public static Object test98(Object... args) {
+        return args[0];
+    }
+
+    @DontCompile
+    public static void test98_verifier(boolean warmup) {
+        Object obj = new Object();
+        Object result = test98(obj);
+        Asserts.assertEquals(result, obj);
+        Integer[] myInt = new Integer[1];
+        myInt[0] = rI;
+        result = test98((Object[])myInt);
+        Asserts.assertEquals(result, rI);
+        if (!warmup) {
+            MyValue1[] va = new MyValue1[1];
+            MyValue1?[] vab = new MyValue1?[1];
+            result = test98((Object[])va);
+            Asserts.assertEquals(((MyValue1)result).hash(), MyValue1.default.hash());
+            result = test98((Object[])vab);
+            Asserts.assertEquals(result, null);
+        }
+    }
+
+    @Test()
+    public static Object test99(Object... args) {
+        return args[0];
+    }
+
+    @DontCompile
+    public static void test99_verifier(boolean warmup) {
+        Object obj = new Object();
+        Object result = test99(obj);
+        Asserts.assertEquals(result, obj);
+        Integer[] myInt = new Integer[1];
+        myInt[0] = rI;
+        result = test99((Object[])myInt);
+        Asserts.assertEquals(result, rI);
+        if (!warmup) {
+            try {
+                test99((Object[])null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException npe) {
+                // Expected
+            }
+        }
+    }
+
+    @Test()
+    public static Object test100(Object... args) {
+        return args[0];
+    }
+
+    @DontCompile
+    public static void test100_verifier(boolean warmup) {
+        Object obj = new Object();
+        Object result = test100(obj);
+        Asserts.assertEquals(result, obj);
+        Integer[] myInt = new Integer[1];
+        myInt[0] = rI;
+        result = test100((Object[])myInt);
+        Asserts.assertEquals(result, rI);
+        if (!warmup) {
+            try {
+                test100();
+                throw new RuntimeException("No AIOOBE thrown");
+            } catch (ArrayIndexOutOfBoundsException aioobe) {
+                // Expected
+            }
+        }
+    }
+
+    // Test stores to varag arrays
+    @Test(failOn = STORE_UNKNOWN_VALUE)
+    public static void test101(Object val, Object... args) {
+        args[0] = val;
+    }
+
+    @DontCompile
+    public static void test101_verifier(boolean warmup) {
+        Object obj = new Object();
+        test101(obj, obj);
+        Integer[] myInt = new Integer[1];
+        test101(rI, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], rI);
+        test101(null, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], null);
+    }
+
+    @Test()
+    public static void test102(Object val, Object... args) {
+        args[0] = val;
+    }
+
+    @DontCompile
+    public static void test102_verifier(boolean warmup) {
+        Object obj = new Object();
+        test102(obj, obj);
+        Integer[] myInt = new Integer[1];
+        test102(rI, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], rI);
+        test102(null, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], null);
+        if (!warmup) {
+            MyValue1[] va = new MyValue1[1];
+            MyValue1?[] vab = new MyValue1?[1];
+            test102(testValue1, (Object[])va);
+            Asserts.assertEquals(va[0].hash(), testValue1.hash());
+            test102(testValue1, (Object[])vab);
+            Asserts.assertEquals(vab[0].hash(), testValue1.hash());
+            test102(null, (Object[])vab);
+            Asserts.assertEquals(vab[0], null);
+        }
+    }
+
+    @Test()
+    public static void test103(Object val, Object... args) {
+        args[0] = val;
+    }
+
+    @DontCompile
+    public static void test103_verifier(boolean warmup) {
+        Object obj = new Object();
+        test103(obj, obj);
+        Integer[] myInt = new Integer[1];
+        test103(rI, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], rI);
+        test103(null, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], null);
+        if (!warmup) {
+            MyValue1[] va = new MyValue1[1];
+            try {
+                test103(null, (Object[])va);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException npe) {
+                // Expected
+            }
+        }
+    }
+
+    @Test()
+    public static void test104(Object val, Object... args) {
+        args[0] = val;
+    }
+
+    @DontCompile
+    public static void test104_verifier(boolean warmup) {
+        Object obj = new Object();
+        test104(obj, obj);
+        Integer[] myInt = new Integer[1];
+        test104(rI, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], rI);
+        test104(null, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], null);
+        if (!warmup) {
+            try {
+                test104(testValue1);
+                throw new RuntimeException("No AIOOBE thrown");
+            } catch (ArrayIndexOutOfBoundsException aioobe) {
+                // Expected
+            }
+        }
+    }
+
+    @Test()
+    public static void test105(Object val, Object... args) {
+        args[0] = val;
+    }
+
+    @DontCompile
+    public static void test105_verifier(boolean warmup) {
+        Object obj = new Object();
+        test105(obj, obj);
+        Integer[] myInt = new Integer[1];
+        test105(rI, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], rI);
+        test105(null, (Object[])myInt);
+        Asserts.assertEquals(myInt[0], null);
+        if (!warmup) {
+            try {
+                test105(testValue1, (Object[])null);
+                throw new RuntimeException("No NPE thrown");
+            } catch (NullPointerException npe) {
+                // Expected
+            }
+        }
+    }
+
+    @Test()
+    public static Object[] test106(Object[] dst, Object... args) {
+        // Access array to speculate on non-flatness
+        if (args[0] == null) {
+            args[0] = testValue1;
+        }
+        System.arraycopy(args, 0, dst, 0, args.length);
+        System.arraycopy(dst, 0, args, 0, dst.length);
+        Object[] clone = args.clone();
+        if (clone[0] == null) {
+            throw new RuntimeException("Unexpected null");
+        }
+        return Arrays.copyOf(args, args.length, Object[].class);
+    }
+
+    @DontCompile
+    public static void test106_verifier(boolean warmup) {
+        Object[] dst = new Object[1];
+        Object obj = new Object();
+        Object[] result = test106(dst, obj);
+        Asserts.assertEquals(result[0], obj);
+        Integer[] myInt = new Integer[1];
+        myInt[0] = rI;
+        result = test106(myInt, (Object[])myInt);
+        Asserts.assertEquals(result[0], rI);
+        if (!warmup) {
+            MyValue1[] va = new MyValue1[1];
+            MyValue1?[] vab = new MyValue1?[1];
+            result = test106(va, (Object[])va);
+            Asserts.assertEquals(((MyValue1)result[0]).hash(), MyValue1.default.hash());
+            result = test106(vab, (Object[])vab);
+            Asserts.assertEquals(((MyValue1)result[0]).hash(), testValue1.hash());
         }
     }
 }

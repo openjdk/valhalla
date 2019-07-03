@@ -2219,12 +2219,13 @@ inline const TypeInt* normalize_array_size(const TypeInt* size) {
 }
 
 //------------------------------make-------------------------------------------
-const TypeAry* TypeAry::make(const Type* elem, const TypeInt* size, bool stable) {
+const TypeAry* TypeAry::make(const Type* elem, const TypeInt* size, bool stable,
+                             bool not_flat, bool not_null_free) {
   if (UseCompressedOops && elem->isa_oopptr()) {
     elem = elem->make_narrowoop();
   }
   size = normalize_array_size(size);
-  return (TypeAry*)(new TypeAry(elem,size,stable))->hashcons();
+  return (TypeAry*)(new TypeAry(elem, size, stable, not_flat, not_null_free))->hashcons();
 }
 
 //------------------------------meet-------------------------------------------
@@ -2246,7 +2247,9 @@ const Type *TypeAry::xmeet( const Type *t ) const {
     const TypeAry *a = t->is_ary();
     return TypeAry::make(_elem->meet_speculative(a->_elem),
                          _size->xmeet(a->_size)->is_int(),
-                         _stable && a->_stable);
+                         _stable && a->_stable,
+                         _not_flat && a->_not_flat,
+                         _not_null_free && a->_not_null_free);
   }
   case Top:
     break;
@@ -2259,7 +2262,7 @@ const Type *TypeAry::xmeet( const Type *t ) const {
 const Type *TypeAry::xdual() const {
   const TypeInt* size_dual = _size->dual()->is_int();
   size_dual = normalize_array_size(size_dual);
-  return new TypeAry(_elem->dual(), size_dual, !_stable);
+  return new TypeAry(_elem->dual(), size_dual, !_stable, !_not_flat, !_not_null_free);
 }
 
 //------------------------------eq---------------------------------------------
@@ -2268,7 +2271,10 @@ bool TypeAry::eq( const Type *t ) const {
   const TypeAry *a = (const TypeAry*)t;
   return _elem == a->_elem &&
     _stable == a->_stable &&
-    _size == a->_size;
+    _size == a->_size &&
+    _not_flat == a->_not_flat &&
+    _not_null_free == a->_not_null_free;
+
 }
 
 //------------------------------hash-------------------------------------------
@@ -2281,14 +2287,14 @@ int TypeAry::hash(void) const {
  * Return same type without a speculative part in the element
  */
 const Type* TypeAry::remove_speculative() const {
-  return make(_elem->remove_speculative(), _size, _stable);
+  return make(_elem->remove_speculative(), _size, _stable, _not_flat, _not_null_free);
 }
 
 /**
  * Return same type with cleaned up speculative part of element
  */
 const Type* TypeAry::cleanup_speculative() const {
-  return make(_elem->cleanup_speculative(), _size, _stable);
+  return make(_elem->cleanup_speculative(), _size, _stable, _not_flat, _not_null_free);
 }
 
 /**
@@ -2322,6 +2328,10 @@ bool TypeAry::interface_vs_oop(const Type *t) const {
 #ifndef PRODUCT
 void TypeAry::dump2( Dict &d, uint depth, outputStream *st ) const {
   if (_stable)  st->print("stable:");
+  if (Verbose) {
+    if (_not_flat) st->print("not flat:");
+    if (_not_null_free) st->print("not null free:");
+  }
   _elem->dump2(d, depth, st);
   st->print("[");
   _size->dump2(d, depth, st);
@@ -2365,7 +2375,7 @@ bool TypeAry::ary_must_be_exact() const {
   else
     tinst = _elem->isa_instptr();
   if (tinst) {
-    // [V? has a subtype: [V. So eventhough V is final, [V? is not exact.
+    // [V? has a subtype: [V. So even though V is final, [V? is not exact.
     if (tklass->as_instance_klass()->is_final()) {
       if (tinst->is_valuetypeptr() && (tinst->ptr() == TypePtr::BotPTR || tinst->ptr() == TypePtr::TopPTR)) {
         return false;
@@ -3464,12 +3474,15 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     // Element is an object or value array. Recursively call ourself.
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), false, try_for_exact);
     bool null_free = klass->is_loaded() && klass->as_array_klass()->storage_properties().is_null_free();
-    if (null_free && etype->is_valuetypeptr()) {
+    if (null_free) {
+      assert(etype->is_valuetypeptr(), "must be a valuetypeptr");
       etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
     }
-    // [V? has a subtype: [V. So eventhough V is final, [V? is not exact.
+    // [V? has a subtype: [V. So even though V is final, [V? is not exact.
     bool xk = etype->klass_is_exact() && (!etype->is_valuetypeptr() || null_free);
-    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS);
+    bool not_flat = !ValueArrayFlatten || xk || !etype->can_be_value_type() || (etype->is_valuetypeptr() && !etype->value_klass()->flatten_array());
+    bool not_null_free = !etype->can_be_value_type();
+    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, false, not_flat, not_null_free);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
     // slam NULLs down in the subarrays.
@@ -3478,7 +3491,8 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
   } else if (klass->is_type_array_klass()) {
     // Element is an typeArray
     const Type* etype = get_const_basic_type(klass->as_type_array_klass()->element_type());
-    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS);
+    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS,
+                                        /* stable= */ false, /* not_flat= */ true, /* not_null_free= */ true);
     // We used to pass NotNull in here, asserting that the array pointer
     // is not-null. That was not true in general.
     const TypeAryPtr* arr = TypeAryPtr::make(TypePtr::BotPTR, arr0, klass, true, Offset(0));
@@ -3513,10 +3527,12 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
     // Element is an object array. Recursively call ourself.
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass());
     bool null_free = klass->is_loaded() && klass->as_array_klass()->storage_properties().is_null_free();
-    if (null_free && etype->is_valuetypeptr()) {
+    if (null_free) {
+      assert(etype->is_valuetypeptr(), "must be a valuetypeptr");
       etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
     }
-    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()));
+    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()),
+                                        /* stable= */ false, /* not_flat= */ true, /* not_null_free= */ !null_free);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
     // slam NULLs down in the subarrays.
@@ -3527,9 +3543,9 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
     }
   } else if (klass->is_type_array_klass()) {
     // Element is an typeArray
-    const Type* etype =
-      (Type*)get_const_basic_type(klass->as_type_array_klass()->element_type());
-    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()));
+    const Type* etype = (Type*)get_const_basic_type(klass->as_type_array_klass()->element_type());
+    const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()),
+                                        /* stable= */ false, /* not_flat= */ true, /* not_null_free= */ true);
     // We used to pass NotNull in here, asserting that the array pointer
     // is not-null. That was not true in general.
     if (make_constant) {
@@ -4476,7 +4492,26 @@ const TypeAryPtr* TypeAryPtr::cast_to_size(const TypeInt* new_size) const {
   assert(new_size != NULL, "");
   new_size = narrow_size_type(new_size);
   if (new_size == size())  return this;
-  const TypeAry* new_ary = TypeAry::make(elem(), new_size, is_stable());
+  const TypeAry* new_ary = TypeAry::make(elem(), new_size, is_stable(), is_not_flat(), is_not_null_free());
+  return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
+}
+
+//-------------------------------cast_to_not_flat------------------------------
+const TypeAryPtr* TypeAryPtr::cast_to_not_flat(bool not_flat) const {
+  if (not_flat == is_not_flat()) {
+    return this;
+  }
+  const TypeAry* new_ary = TypeAry::make(elem(), size(), is_stable(), not_flat, is_not_null_free());
+  return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
+}
+
+//-------------------------------cast_to_not_null_free-------------------------
+const TypeAryPtr* TypeAryPtr::cast_to_not_null_free(bool not_null_free) const {
+  if (not_null_free == is_not_null_free()) {
+    return this;
+  }
+  // Not null free implies not flat
+  const TypeAry* new_ary = TypeAry::make(elem(), size(), is_stable(), not_null_free ? true : is_not_flat(), not_null_free);
   return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
 }
 
@@ -4493,7 +4528,7 @@ const TypeAryPtr* TypeAryPtr::cast_to_stable(bool stable, int stable_dimension) 
     elem = elem_ptr = elem_ptr->is_aryptr()->cast_to_stable(stable, stable_dimension - 1);
   }
 
-  const TypeAry* new_ary = TypeAry::make(elem, size(), stable);
+  const TypeAry* new_ary = TypeAry::make(elem, size(), stable, is_not_flat(), is_not_null_free());
 
   return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
 }
@@ -4516,7 +4551,7 @@ const TypeAryPtr* TypeAryPtr::cast_to_autobox_cache(bool cache) const {
   // The pointers in the autobox arrays are always non-null.
   TypePtr::PTR ptr_type = cache ? TypePtr::NotNull : TypePtr::AnyNull;
   etype = etype->cast_to_ptr_type(TypePtr::NotNull)->is_oopptr();
-  const TypeAry* new_ary = TypeAry::make(etype, size(), is_stable());
+  const TypeAry* new_ary = TypeAry::make(etype, size(), is_stable(), is_not_flat(), is_not_null_free());
   return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact(), _offset, _field_offset, _instance_id, _speculative, _inline_depth, cache);
 }
 
@@ -4636,7 +4671,7 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         // Something like byte[int+] meets char[int+].
         // This must fall to bottom, not (int[-128..65535])[int+].
         instance_id = InstanceBot;
-        tary = TypeAry::make(Type::BOTTOM, tary->_size, tary->_stable);
+        tary = TypeAry::make(Type::BOTTOM, tary->_size, tary->_stable, tary->_not_flat, tary->_not_null_free);
       }
     } else if (klass() != NULL && tap->klass() != NULL &&
                klass()->as_array_klass()->storage_properties().value() != tap->klass()->as_array_klass()->storage_properties().value()) {
@@ -4663,7 +4698,7 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
            // 'this' is exact and super or unrelated:
            (this->_klass_is_exact && !klass()->is_subtype_of(tap->klass())))) {
       if (above_centerline(ptr)) {
-        tary = TypeAry::make(Type::BOTTOM, tary->_size, tary->_stable);
+        tary = TypeAry::make(Type::BOTTOM, tary->_size, tary->_stable, tary->_not_flat, tary->_not_null_free);
       }
       return make(NotNull, NULL, tary, lazy_klass, false, off, field_off, InstanceBot, speculative, depth);
     }
@@ -4865,6 +4900,18 @@ const Type *TypeAryPtr::remove_speculative() const {
   }
   assert(_inline_depth == InlineDepthTop || _inline_depth == InlineDepthBottom, "non speculative type shouldn't have inline depth");
   return make(_ptr, _const_oop, _ary->remove_speculative()->is_ary(), _klass, _klass_is_exact, _offset, _field_offset, _instance_id, NULL, _inline_depth, _is_autobox_cache);
+}
+
+const Type* TypeAryPtr::cleanup_speculative() const {
+  if (speculative() == NULL) {
+    return this;
+  }
+  // Keep speculative part if it contains information about flat-/nullability
+  const TypeAryPtr* spec_aryptr = speculative()->isa_aryptr();
+  if (spec_aryptr != NULL && (spec_aryptr->is_not_flat() || spec_aryptr->is_not_null_free())) {
+    return this;
+  }
+  return TypeOopPtr::cleanup_speculative();
 }
 
 const TypePtr *TypeAryPtr::with_inline_depth(int depth) const {

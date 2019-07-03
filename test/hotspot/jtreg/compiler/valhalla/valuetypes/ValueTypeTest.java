@@ -196,6 +196,8 @@ public abstract class ValueTypeTest {
     protected static final String CALL = START + "CallStaticJava" + MID + END;
     protected static final String STOREVALUETYPEFIELDS = START + "CallStaticJava" + MID + "store_value_type_fields" + END;
     protected static final String SCOBJ = "(.*# ScObj.*" + END;
+    protected static final String LOAD_UNKNOWN_VALUE = "(.*call_leaf,runtime  load_unknown_value.*" + END;
+    protected static final String STORE_UNKNOWN_VALUE = "(.*call_leaf,runtime  store_unknown_value.*" + END;
 
     public static String[] concat(String prefix[], String... extra) {
         ArrayList<String> list = new ArrayList<String>();
@@ -261,7 +263,8 @@ public abstract class ValueTypeTest {
                 "-XX:ValueArrayElemMaxFlatSize=-1",
                 "-XX:ValueFieldMaxFlatSize=0",
                 "-XX:+ValueTypePassFieldsAsArgs",
-                "-XX:-ValueTypeReturnedAsFields"};
+                "-XX:-ValueTypeReturnedAsFields",
+                "-XX:-ReduceInitialCardMarks"};
         case 5: return new String[] {
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:ValueArrayElemMaxFlatOops=-1",

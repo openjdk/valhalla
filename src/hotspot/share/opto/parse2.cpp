@@ -73,9 +73,10 @@ void Parse::array_load(BasicType bt) {
   } else if (elemptr != NULL && elemptr->is_valuetypeptr() && !elemptr->maybe_null()) {
     // Load from non-flattened but flattenable value type array (elements can never be null)
     bt = T_VALUETYPE;
-  } else if (ValueArrayFlatten && elemptr != NULL && elemptr->can_be_value_type() &&
-             !ary_t->klass_is_exact() && (!elemptr->is_valuetypeptr() || elemptr->value_klass()->flatten_array())) {
+  } else if (!ary_t->is_not_flat() && !ary_t->klass_is_exact()) {
     // Cannot statically determine if array is flattened, emit runtime check
+    assert(ValueArrayFlatten && elemptr != NULL && elemptr->can_be_value_type() &&
+           (!elemptr->is_valuetypeptr() || elemptr->value_klass()->flatten_array()), "array can't be flattened");
     Node* ctl = control();
     IdealKit ideal(this);
     IdealVariable res(ideal);
@@ -107,7 +108,6 @@ void Parse::array_load(BasicType bt) {
         ideal.sync_kit(this);
       } else {
         // Element type is unknown, emit runtime call
-        assert(!ary_t->klass_is_exact(), "should not have exact type here");
         Node* k_adr = basic_plus_adr(kls, in_bytes(ArrayKlass::element_klass_offset()));
         Node* elem_klass = _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS));
         Node* obj_size  = NULL;
@@ -215,7 +215,7 @@ void Parse::array_store(BasicType bt) {
   const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
   if (bt == T_OBJECT) {
     const TypeOopPtr* elemptr = elemtype->make_oopptr();
-    const Type* val_t = _gvn.type(val);
+    const Type* val_t = _gvn.type(cast_val);
     if (elemtype->isa_valuetype() != NULL) {
       C->set_flattened_accesses();
       // Store to flattened value type array
@@ -236,35 +236,40 @@ void Parse::array_store(BasicType bt) {
         if (stopped()) return;
         dec_sp(3);
       }
-    } else if (elemptr->can_be_value_type() && (!ary_t->klass_is_exact() || elemptr->is_valuetypeptr()) &&
-               (val->is_ValueType() || val_t == TypePtr::NULL_PTR || val_t->is_oopptr()->can_be_value_type())) {
-      // Cannot statically determine if array is flattened, emit runtime check
+    } else if (elemptr->can_be_value_type() && !ary_t->klass_is_exact() &&
+               (cast_val->is_ValueType() || val_t == TypePtr::NULL_PTR || val_t->is_oopptr()->can_be_value_type())) {
+      // Cannot statically determine if array is flattened or null-free, emit runtime checks
       ciValueKlass* vk = NULL;
       // Try to determine the value klass
-      if (val->is_ValueType()) {
+      if (cast_val->is_ValueType()) {
         vk = val_t->value_klass();
       } else if (elemptr->is_valuetypeptr()) {
         vk = elemptr->value_klass();
       }
-      if (ValueArrayFlatten && (vk == NULL || vk->flatten_array())) {
+      if (!ary_t->is_not_flat() && (vk == NULL || vk->flatten_array())) {
+        // Array might be flattened
+        assert(ValueArrayFlatten && !ary_t->is_not_null_free(), "a null-ok array can't be flattened");
         IdealKit ideal(this);
         Node* kls = load_object_klass(ary);
         Node* layout_val = load_lh_array_tag(kls);
-        ideal.if_then(layout_val, BoolTest::ne, intcon(Klass::_lh_array_tag_vt_value)); {
+        ideal.if_then(layout_val, BoolTest::ne, intcon(Klass::_lh_array_tag_vt_value));
+        {
           // non-flattened
           sync_kit(ideal);
-          gen_value_array_null_guard(ary, val, 3);
+          gen_value_array_null_guard(ary, cast_val, 3);
           const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
           elemtype = ary_t->elem()->make_oopptr();
-          access_store_at(ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false, false);
+          access_store_at(ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false, false);
           ideal.sync_kit(this);
-        } ideal.else_(); {
+        }
+        ideal.else_();
+        {
           // flattened
-          if (!val->is_ValueType() && TypePtr::NULL_PTR->higher_equal(val_t)) {
+          if (!cast_val->is_ValueType() && TypePtr::NULL_PTR->higher_equal(val_t)) {
             // Add null check
             sync_kit(ideal);
             Node* null_ctl = top();
-            val = null_check_oop(val, &null_ctl);
+            cast_val = null_check_oop(cast_val, &null_ctl);
             if (null_ctl != top()) {
               PreserveJVMState pjvms(this);
               inc_sp(3);
@@ -283,15 +288,14 @@ void Parse::array_store(BasicType bt) {
             const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
             ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
             adr = array_element_address(ary, idx, T_OBJECT, arytype->size(), control());
-            if (!val->is_ValueType()) {
-              assert(!gvn().type(val)->maybe_null(), "value type array elements should never be null");
-              val = ValueTypeNode::make_from_oop(this, val, vk);
+            if (!cast_val->is_ValueType()) {
+              assert(!gvn().type(cast_val)->maybe_null(), "value type array elements should never be null");
+              cast_val = ValueTypeNode::make_from_oop(this, cast_val, vk);
             }
-            val->as_ValueType()->store_flattened(this, ary, adr);
+            cast_val->as_ValueType()->store_flattened(this, ary, adr);
             ideal.sync_kit(this);
           } else if (!ideal.ctrl()->is_top()) {
             // Element type is unknown, emit runtime call
-            assert(!ary_t->klass_is_exact(), "should not have exact type here");
             sync_kit(ideal);
 
             // This membar keeps this access to an unknown flattened
@@ -303,7 +307,7 @@ void Parse::array_store(BasicType bt) {
             ideal.make_leaf_call(OptoRuntime::store_unknown_value_Type(),
                                  CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_value),
                                  "store_unknown_value",
-                                 val, ary, idx);
+                                 cast_val, ary, idx);
 
             sync_kit(ideal);
             // Same as MemBarCPUOrder above: keep this unknown
@@ -313,11 +317,13 @@ void Parse::array_store(BasicType bt) {
             ideal.sync_kit(this);
 
           }
-        } ideal.end_if();
+        }
+        ideal.end_if();
         sync_kit(ideal);
         return;
-      } else {
-        gen_value_array_null_guard(ary, val, 3);
+      } else if (!ary_t->is_not_null_free()) {
+        // Array is never flattened
+        gen_value_array_null_guard(ary, cast_val, 3);
       }
     }
   }
@@ -429,6 +435,20 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type* *result2) {
   }
   // Check for always knowing you are throwing a range-check exception
   if (stopped())  return top();
+
+  // Speculate on the array not being null-free
+  if (!arytype->is_not_null_free() && arytype->speculative() != NULL && arytype->speculative()->isa_aryptr() != NULL &&
+      arytype->speculative()->is_aryptr()->is_not_null_free() &&
+      !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
+    Node* tst = gen_null_free_array_check(ary);
+    {
+      BuildCutout unless(this, tst, PROB_ALWAYS);
+      uncommon_trap(Deoptimization::Reason_speculate_class_check,
+                    Deoptimization::Action_maybe_recompile);
+    }
+    Node* cast = new CheckCastPPNode(control(), ary, arytype->cast_to_not_null_free());
+    replace_in_map(ary, _gvn.transform(cast));
+  }
 
   // Make array address computation control dependent to prevent it
   // from floating above the range check during loop optimizations.

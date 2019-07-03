@@ -3453,9 +3453,30 @@ void GraphKit::gen_value_type_guard(Node* obj, int nargs) {
   }
 }
 
+// Check if 'ary' is a null-free value type array
+Node* GraphKit::gen_null_free_array_check(Node* ary) {
+  assert(EnableValhalla, "should only be used if value types are enabled");
+  // Extract null free property from klass pointer
+  Node* k_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
+  const TypePtr* k_adr_type = k_adr->bottom_type()->isa_ptr();
+  Node* klass = NULL;
+  if (k_adr_type->is_ptr_to_narrowklass()) {
+    klass = _gvn.transform(new LoadNKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT->make_narrowklass(), MemNode::unordered));
+  } else {
+    klass = _gvn.transform(new LoadKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, MemNode::unordered));
+  }
+  Node* null_free = _gvn.transform(new GetNullFreePropertyNode(klass));
+  Node* cmp = NULL;
+  if (_gvn.type(klass)->isa_klassptr()) {
+    cmp = _gvn.transform(new CmpLNode(null_free, zerocon(T_LONG)));
+  } else {
+    cmp = _gvn.transform(new CmpINode(null_free, zerocon(T_INT)));
+  }
+  return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+}
+
 // Deoptimize if 'ary' is a null-free value type array and 'val' is null
 void GraphKit::gen_value_array_null_guard(Node* ary, Node* val, int nargs) {
-  assert(EnableValhalla, "should only be used if value types are enabled");
   const Type* val_t = _gvn.type(val);
   if (val->is_ValueType() || !TypePtr::NULL_PTR->higher_equal(val_t)) {
     return; // Never null
@@ -3466,26 +3487,8 @@ void GraphKit::gen_value_array_null_guard(Node* ary, Node* val, int nargs) {
   if (null_ctl != top()) {
     PreserveJVMState pjvms(this);
     set_control(null_ctl);
-    // Extract null free property from klass pointer
-    Node* k_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
-    const TypePtr *k_adr_type = k_adr->bottom_type()->isa_ptr();
-    Node* klass = NULL;
-    if (k_adr_type->is_ptr_to_narrowklass()) {
-      klass = _gvn.transform(new LoadNKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT->make_narrowklass(), MemNode::unordered));
-    } else {
-      klass = _gvn.transform(new LoadKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, MemNode::unordered));
-    }
-
-    Node* null_free = _gvn.transform(new GetNullFreePropertyNode(klass));
     // Deoptimize if null-free array
-    Node* cmp = NULL;
-    if (_gvn.type(klass)->isa_klassptr()) {
-      cmp = new CmpLNode(null_free, zerocon(T_LONG));
-    } else {
-      cmp = new CmpINode(null_free, zerocon(T_INT));
-    }
-    cmp = _gvn.transform(cmp);
-    Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+    Node* bol = gen_null_free_array_check(ary);
     { BuildCutout unless(this, bol, PROB_MAX);
       inc_sp(nargs);
       uncommon_trap(Deoptimization::Reason_null_check,
@@ -4365,7 +4368,7 @@ Node* GraphKit::load_String_value(Node* str, bool set_ctrl) {
                                                      false, NULL, Type::Offset(0));
   const TypePtr* value_field_type = string_type->add_offset(value_offset);
   const TypeAryPtr* value_type = TypeAryPtr::make(TypePtr::NotNull,
-                                                  TypeAry::make(TypeInt::BYTE, TypeInt::POS),
+                                                  TypeAry::make(TypeInt::BYTE, TypeInt::POS, false, true, true),
                                                   ciTypeArrayKlass::make(T_BYTE), true, Type::Offset(0));
   Node* p = basic_plus_adr(str, str, value_offset);
   Node* load = access_load_at(str, p, value_field_type, value_type, T_OBJECT,

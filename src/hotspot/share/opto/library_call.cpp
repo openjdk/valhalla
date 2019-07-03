@@ -212,6 +212,7 @@ class LibraryCallKit : public GraphKit {
     return generate_array_guard_common(kls, region, TypeArray);
   }
   Node* generate_valueArray_guard(Node* kls, RegionNode* region) {
+    assert(ValueArrayFlatten, "can never be flattened");
     return generate_array_guard_common(kls, region, ValueArray);
   }
   Node* generate_array_guard_common(Node* kls, RegionNode* region, ArrayKind kind);
@@ -4035,17 +4036,21 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       }
     }
 
-    if (EnableValhalla) {
+    if (ValueArrayFlatten) {
       // Either both or neither new array klass and original array
       // klass must be flattened
-      Node* flattened_klass = generate_valueArray_guard(klass_node, NULL);
-      generate_valueArray_guard(original_kls, bailout);
-      if (flattened_klass != NULL) {
+      Node* is_flat = generate_valueArray_guard(klass_node, NULL);
+      if (!original_t->is_not_flat()) {
+        generate_valueArray_guard(original_kls, bailout);
+      }
+      if (is_flat != NULL) {
         RegionNode* r = new RegionNode(2);
         record_for_igvn(r);
         r->init_req(1, control());
-        set_control(flattened_klass);
-        generate_valueArray_guard(original_kls, r);
+        set_control(is_flat);
+        if (!original_t->is_not_flat()) {
+          generate_valueArray_guard(original_kls, r);
+        }
         bailout->add_req(control());
         set_control(_gvn.transform(r));
       }
@@ -4757,7 +4762,8 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       set_control(array_ctl);
 
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-      if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Parsing)) {
+      if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Parsing) &&
+          (!obj_type->isa_aryptr() || !obj_type->is_aryptr()->is_not_flat())) {
         // Flattened value type array may have object field that would require a
         // write barrier. Conservatively, go to slow path.
         generate_valueArray_guard(obj_klass, slow_region);
@@ -5242,15 +5248,11 @@ bool LibraryCallKit::inline_arraycopy() {
     src_type = _gvn.type(src);
     top_src  = src_type->isa_aryptr();
 
-    if (top_dest != NULL &&
-        top_dest->elem()->make_oopptr() != NULL &&
-        top_dest->elem()->make_oopptr()->can_be_value_type()) {
+    if (top_dest != NULL && !top_dest->elem()->isa_valuetype() && !top_dest->is_not_flat()) {
       generate_valueArray_guard(dest_klass, slow_region);
     }
 
-    if (top_src != NULL &&
-        top_src->elem()->make_oopptr() != NULL &&
-        top_src->elem()->make_oopptr()->can_be_value_type()) {
+    if (top_src != NULL && !top_src->elem()->isa_valuetype() && !top_src->is_not_flat()) {
       generate_valueArray_guard(src_klass, slow_region);
     }
 

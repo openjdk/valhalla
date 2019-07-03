@@ -189,6 +189,7 @@ Node* PhaseMacroExpand::generate_nonpositive_guard(Node** ctrl, Node* index, boo
 }
 
 Node* PhaseMacroExpand::generate_flattened_array_guard(Node** ctrl, Node* mem, Node* obj_or_klass, RegionNode* region) {
+  assert(ValueArrayFlatten, "can never be flattened");
   return generate_array_guard(ctrl, mem, obj_or_klass, region, Klass::_lh_array_tag_vt_value);
 }
 
@@ -1323,7 +1324,9 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     RegionNode* slow_region = new RegionNode(1);
     transform_later(slow_region);
 
-    generate_flattened_array_guard(&ctrl, merge_mem, dest, slow_region);
+    if (ValueArrayFlatten && (top_dest == NULL || !top_dest->is_not_flat())) {
+      generate_flattened_array_guard(&ctrl, merge_mem, dest, slow_region);
+    }
 
     // Call StubRoutines::generic_arraycopy stub.
     Node* mem = generate_arraycopy(ac, NULL, &ctrl, merge_mem, &io,
@@ -1423,15 +1426,11 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     // (9) each element of an oop array must be assignable
     // The generate_arraycopy subroutine checks this.
 
-    if (dest_elem == T_OBJECT &&
-        ValueArrayFlatten &&
-        top_dest->elem()->make_oopptr()->can_be_value_type()) {
+    if (dest_elem == T_OBJECT && !top_dest->elem()->isa_valuetype() && !top_dest->is_not_flat()) {
       generate_flattened_array_guard(&ctrl, merge_mem, dest, slow_region);
     }
 
-    if (src_elem == T_OBJECT &&
-        ValueArrayFlatten &&
-        top_src->elem()->make_oopptr()->can_be_value_type()) {
+    if (src_elem == T_OBJECT && !top_src->elem()->isa_valuetype() && !top_src->is_not_flat()) {
       generate_flattened_array_guard(&ctrl, merge_mem, src, slow_region);
     }
   }

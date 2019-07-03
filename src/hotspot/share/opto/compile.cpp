@@ -470,7 +470,6 @@ CompileWrapper::CompileWrapper(Compile* compile) : _compile(compile) {
   compile->set_type_dict(NULL);
   compile->set_clone_map(new Dict(cmpkey, hashkey, _compile->comp_arena()));
   compile->clone_map().set_clone_idx(0);
-  compile->set_type_hwm(NULL);
   compile->set_type_last_size(0);
   compile->set_last_tf(NULL, NULL);
   compile->set_indexSet_arena(NULL);
@@ -1494,6 +1493,15 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
     // Erase stability property for alias analysis.
     tj = ta = ta->cast_to_stable(false);
   }
+  if (ta && ta->is_not_flat()) {
+    // Erase not flat property for alias analysis.
+    tj = ta = ta->cast_to_not_flat(false);
+  }
+  if (ta && ta->is_not_null_free()) {
+    // Erase not null free property for alias analysis.
+    tj = ta = ta->cast_to_not_null_free(false);
+  }
+
   if( ta && is_known_inst ) {
     if ( offset != Type::OffsetBot &&
          offset > arrayOopDesc::length_offset_in_bytes() ) {
@@ -3419,39 +3427,36 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
       assert( !tp || oop_offset_is_sane(tp), "" );
     }
 #endif
-    if (nop == Op_LoadKlass || nop == Op_LoadNKlass) {
+    if (EnableValhalla && (nop == Op_LoadKlass || nop == Op_LoadNKlass)) {
       const TypeKlassPtr* tk = n->bottom_type()->make_ptr()->is_klassptr();
       assert(!tk->klass_is_exact(), "should have been folded");
-      if (tk->klass()->is_obj_array_klass() || tk->klass()->is_java_lang_Object()) {
-        bool maybe_value_array = tk->klass()->is_java_lang_Object();
-        if (!maybe_value_array) {
-          ciArrayKlass* ak = tk->klass()->as_array_klass();
-          ciKlass* elem = ak->element_klass();
-          maybe_value_array = elem->is_java_lang_Object() || elem->is_interface() || elem->is_valuetype();
+      ciKlass* klass = tk->klass();
+      bool maybe_value_array = klass->is_java_lang_Object();
+      if (!maybe_value_array && klass->is_obj_array_klass()) {
+        klass = klass->as_array_klass()->element_klass();
+        maybe_value_array = klass->is_java_lang_Object() || klass->is_interface() || klass->is_valuetype();
+      }
+      if (maybe_value_array) {
+        // Array load klass needs to filter out property bits (but not
+        // GetNullFreePropertyNode which needs to extract the null free bits)
+        uint last = unique();
+        Node* pointer = NULL;
+        if (nop == Op_LoadKlass) {
+          Node* cast = new CastP2XNode(NULL, n);
+          Node* masked = new LShiftXNode(cast, new ConINode(TypeInt::make(oopDesc::storage_props_nof_bits)));
+          masked = new RShiftXNode(masked, new ConINode(TypeInt::make(oopDesc::storage_props_nof_bits)));
+          pointer = new CastX2PNode(masked);
+          pointer = new CheckCastPPNode(NULL, pointer, n->bottom_type());
+        } else {
+          Node* cast = new CastN2INode(n);
+          Node* masked = new AndINode(cast, new ConINode(TypeInt::make(oopDesc::compressed_klass_mask())));
+          pointer = new CastI2NNode(masked, n->bottom_type());
         }
-        if (maybe_value_array) {
-          // Array load klass needs to filter out property bits (but not
-          // GetNullFreePropertyNode which needs to extract the null free
-          // bits)
-          uint last = unique();
-          Node* pointer = NULL;
-          if (nop == Op_LoadKlass) {
-            Node* cast = new CastP2XNode(NULL, n);
-            Node* masked = new LShiftXNode(cast, new ConINode(TypeInt::make(oopDesc::storage_props_nof_bits)));
-            masked = new RShiftXNode(masked, new ConINode(TypeInt::make(oopDesc::storage_props_nof_bits)));
-            pointer = new CastX2PNode(masked);
-            pointer = new CheckCastPPNode(NULL, pointer, n->bottom_type());
-          } else {
-            Node* cast = new CastN2INode(n);
-            Node* masked = new AndINode(cast, new ConINode(TypeInt::make(oopDesc::compressed_klass_mask())));
-            pointer = new CastI2NNode(masked, n->bottom_type());
-          }
-          for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
-            Node* u = n->fast_out(i);
-            if (u->_idx < last && u->Opcode() != Op_GetNullFreeProperty) {
-              int nb = u->replace_edge(n, pointer);
-              --i, imax -= nb;
-            }
+        for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
+          Node* u = n->fast_out(i);
+          if (u->_idx < last && u->Opcode() != Op_GetNullFreeProperty) {
+            int nb = u->replace_edge(n, pointer);
+            --i, imax -= nb;
           }
         }
       }
