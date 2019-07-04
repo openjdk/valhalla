@@ -439,7 +439,6 @@ void ValueTypeBaseNode::replace_call_results(GraphKit* kit, Node* call, Compile*
       ciField* f = vk->nonstatic_field_at(field_nb - extra);
       Node* field = field_value_by_offset(f->offset(), true);
       if (field->is_ValueType()) {
-        assert(f->is_flattened(), "should be flattened");
         field = field->as_ValueType()->allocate(kit)->get_oop();
       }
       C->gvn_replace_by(pn, field);
