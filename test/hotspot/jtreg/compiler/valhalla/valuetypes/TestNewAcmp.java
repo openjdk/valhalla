@@ -1396,7 +1396,7 @@ public class TestNewAcmp {
                 // Do some warmup runs
                 runTest(m, args, 1000, nullMode, equalities);
                 // Make sure method is compiled
-                WHITE_BOX.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+                ValueTypeTest.enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
                 Asserts.assertTrue(WHITE_BOX.isMethodCompiled(m, false), m + " not compiled");
                 // Run again to verify correctness of compiled code
                 runTest(m, args, 1, nullMode, equalities);

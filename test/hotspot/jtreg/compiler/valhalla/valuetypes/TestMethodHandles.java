@@ -178,7 +178,7 @@ public class TestMethodHandles extends ValueTypeTest {
     public void test2_verifier(boolean warmup) throws Throwable {
         Method helper_m = getClass().getDeclaredMethod("test2_target");
         if (!warmup && USE_COMPILER && !WHITE_BOX.isMethodCompiled(helper_m, false)) {
-            WHITE_BOX.enqueueMethodForCompilation(helper_m, COMP_LEVEL_FULL_OPTIMIZATION);
+            enqueueMethodForCompilation(helper_m, COMP_LEVEL_FULL_OPTIMIZATION);
             Asserts.assertTrue(WHITE_BOX.isMethodCompiled(helper_m, false), "test2_target not compiled");
         }
         MyValue3 vt = test2();

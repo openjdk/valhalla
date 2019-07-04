@@ -351,7 +351,7 @@ public class TestCallingConvention extends ValueTypeTest {
     public void test17_verifier(boolean warmup) throws Exception {
         Method helper_m = getClass().getDeclaredMethod("test17_comp");
         if (!warmup && USE_COMPILER && !WHITE_BOX.isMethodCompiled(helper_m, false)) {
-            WHITE_BOX.enqueueMethodForCompilation(helper_m, COMP_LEVEL_FULL_OPTIMIZATION);
+            enqueueMethodForCompilation(helper_m, COMP_LEVEL_FULL_OPTIMIZATION);
             Asserts.assertTrue(WHITE_BOX.isMethodCompiled(helper_m, false), "test17_comp not compiled");
         }
         test17();
@@ -409,7 +409,7 @@ public class TestCallingConvention extends ValueTypeTest {
     public void test20_verifier(boolean warmup) throws Exception {
         Method helper_m = getClass().getDeclaredMethod("test20_comp");
         if (!warmup && USE_COMPILER && !WHITE_BOX.isMethodCompiled(helper_m, false)) {
-            WHITE_BOX.enqueueMethodForCompilation(helper_m, COMP_LEVEL_FULL_OPTIMIZATION);
+            enqueueMethodForCompilation(helper_m, COMP_LEVEL_FULL_OPTIMIZATION);
             Asserts.assertTrue(WHITE_BOX.isMethodCompiled(helper_m, false), "test20_comp not compiled");
         }
         test20();
