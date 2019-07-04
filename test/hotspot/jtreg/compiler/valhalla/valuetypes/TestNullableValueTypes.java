@@ -822,4 +822,16 @@ public class TestNullableValueTypes extends ValueTypeTest {
     public void test31_verifier(boolean warmup) {
         test31(null);
     }
+
+    private static final MyValue1? constNullField = null;
+
+    @Test
+    public MyValue1? test32() {
+        return constNullField;
+    }
+
+    @DontCompile
+    public void test32_verifier(boolean warmup) {
+        test32();
+    }
 }
