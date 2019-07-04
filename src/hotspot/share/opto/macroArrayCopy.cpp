@@ -135,7 +135,7 @@ Node* PhaseMacroExpand::generate_guard(Node** ctrl, Node* test, RegionNode* regi
   return if_slow;
 }
 
-inline Node* PhaseMacroExpand::generate_slow_guard(Node** ctrl, Node* test, RegionNode* region) {
+Node* PhaseMacroExpand::generate_slow_guard(Node** ctrl, Node* test, RegionNode* region) {
   return generate_guard(ctrl, test, region, PROB_UNLIKELY_MAG(3));
 }
 

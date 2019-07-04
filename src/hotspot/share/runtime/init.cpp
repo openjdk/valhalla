@@ -113,6 +113,7 @@ jint init_globals() {
   codeCache_init();
   VM_Version_init();
   os_init_globals();
+  VMRegImpl::set_regName();  // need this before generate_stubs (for printing oop maps).
   stubRoutines_init1();
   jint status = universe_init();  // dependent on codeCache_init and
                                   // stubRoutines_init1 and metaspace_init.
@@ -125,7 +126,6 @@ jint init_globals() {
   accessFlags_init();
   templateTable_init();
   InterfaceSupport_init();
-  VMRegImpl::set_regName();  // need this before generate_stubs (for printing oop maps).
   SharedRuntime::generate_stubs();
   universe2_init();  // dependent on codeCache_init and stubRoutines_init1
   javaClasses_init();// must happen after vtable initialization, before referenceProcessor_init

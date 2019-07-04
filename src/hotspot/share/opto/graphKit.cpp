@@ -3594,12 +3594,6 @@ FastLockNode* GraphKit::shared_lock(Node* obj) {
   if( !GenerateSynchronizationCode )
     return NULL;                // Not locking things?
 
-  // We cannot lock on a value type
-  const TypeOopPtr* objptr = _gvn.type(obj)->make_oopptr();
-  if (objptr->can_be_value_type()) {
-    gen_value_type_guard(obj, 1);
-  }
-
   if (stopped())                // Dead monitor?
     return NULL;
 
