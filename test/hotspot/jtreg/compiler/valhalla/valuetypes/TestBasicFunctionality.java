@@ -782,4 +782,27 @@ public class TestBasicFunctionality extends ValueTypeTest {
         Asserts.assertEQ(test36(true), hash());
         Asserts.assertEQ(test36(false), hash(rI + 1, rL + 1));
     }
+
+    // Test correct loading of flattened fields
+    inline class Test37Value2 {
+        final int x = 0;
+        final int y = 0;
+    }
+
+    inline class Test37Value1 {
+        final double d = 0;
+        final float f = 0;
+        final Test37Value2 v = new Test37Value2();
+    }
+
+    @Test
+    public Test37Value1 test37(Test37Value1 vt) {
+        return vt;
+    }
+
+    @DontCompile
+    public void test37_verifier(boolean warmup) {
+        Test37Value1 vt = new Test37Value1();
+        Asserts.assertEQ(test37(vt), vt);
+    }
 }

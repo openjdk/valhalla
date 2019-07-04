@@ -678,7 +678,8 @@ void ValueTypeNode::pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig, 
 
     if (field_is_flattened(idx)) {
       // Flattened value type field
-      arg->as_ValueType()->pass_fields(kit, n, sig, base_input, sig_offset - value_klass()->first_field_offset());
+      ValueTypeNode* vt = arg->as_ValueType();
+      vt->pass_fields(kit, n, sig, base_input, sig_offset - vt->value_klass()->first_field_offset());
     } else {
       if (arg->is_ValueType()) {
         // Non-flattened value type field
@@ -715,7 +716,7 @@ void ValueTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, ExtendedS
     if (field_is_flattened(idx)) {
       // Flattened value type field
       ValueTypeNode* vt = ValueTypeNode::make_uninitialized(gvn, type->as_value_klass());
-      vt->initialize_fields(kit, multi, sig, base_input, sig_offset - value_klass()->first_field_offset(), in);
+      vt->initialize_fields(kit, multi, sig, base_input, sig_offset - type->as_value_klass()->first_field_offset(), in);
       parm = gvn.transform(vt);
     } else {
       if (multi->is_Start()) {
