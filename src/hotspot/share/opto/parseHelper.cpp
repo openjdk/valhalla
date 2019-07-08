@@ -312,8 +312,12 @@ void Parse::do_defaultvalue() {
     if (stopped())  return;
   }
 
-  // Always scalarize default value because it's not NULL by definition
-  push(ValueTypeNode::make_default(_gvn, vk));
+  ValueTypeNode* vt = ValueTypeNode::make_default(_gvn, vk);
+  if (vk->is_scalarizable()) {
+    push(vt);
+  } else {
+    push(vt->get_oop());
+  }
 }
 
 //------------------------------do_withfield------------------------------------

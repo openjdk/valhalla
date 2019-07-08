@@ -81,9 +81,9 @@ bool ciValueKlass::can_be_returned_as_fields() const {
   GUARDED_VM_ENTRY(return to_ValueKlass()->can_be_returned_as_fields();)
 }
 
-// TODO
+// Can this value type be scalarized?
 bool ciValueKlass::is_scalarizable() const {
-  return ScalarizeValueTypes;
+  GUARDED_VM_ENTRY(return to_ValueKlass()->is_scalarizable();)
 }
 
 // When passing a value type's fields as arguments, count the number

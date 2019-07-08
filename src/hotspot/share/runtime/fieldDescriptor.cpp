@@ -211,14 +211,9 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
     case T_VALUETYPE:
       if (is_flattened()) {
         // Resolve klass of flattened value type field
-        Thread* THREAD = Thread::current();
-        ResourceMark rm(THREAD);
+        ResourceMark rm(Thread::current());
         SignatureStream ss(signature(), false);
-        Klass* k = ss.as_klass(Handle(THREAD, field_holder()->class_loader()),
-            Handle(THREAD, field_holder()->protection_domain()),
-            SignatureStream::ReturnNull, THREAD);
-        assert(k != NULL && !HAS_PENDING_EXCEPTION, "can resolve klass?");
-        ValueKlass* vk = ValueKlass::cast(k);
+        ValueKlass* vk = ss.as_value_klass(field_holder());
         int field_offset = offset() - vk->first_field_offset();
         obj = (oop)((address)obj + field_offset);
         // Print flattened fields of the value type field

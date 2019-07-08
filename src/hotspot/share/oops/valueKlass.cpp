@@ -322,7 +322,7 @@ void ValueKlass::initialize_calling_convention(TRAPS) {
   // Because the pack and unpack handler addresses need to be loadable from generated code,
   // they are stored at a fixed offset in the klass metadata. Since value type klasses do
   // not have a vtable, the vtable offset is used to store these addresses.
-  if (ValueTypeReturnedAsFields || ValueTypePassFieldsAsArgs) {
+  if (is_scalarizable() && (ValueTypeReturnedAsFields || ValueTypePassFieldsAsArgs)) {
     ResourceMark rm;
     GrowableArray<SigEntry> sig_vk;
     int nb_fields = collect_fields(&sig_vk);
@@ -379,6 +379,11 @@ void ValueKlass::cleanup_blobs() {
     *((address*)adr_pack_handler()) = NULL;
     *((address*)adr_unpack_handler()) = NULL;
   }
+}
+
+// Can this value type be scalarized?
+bool ValueKlass::is_scalarizable() const {
+  return ScalarizeValueTypes;
 }
 
 // Can this value type be returned as multiple values?

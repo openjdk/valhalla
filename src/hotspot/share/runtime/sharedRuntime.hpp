@@ -826,8 +826,8 @@ public:
   void compute_calling_conventions();
 
 private:
-  static int compute_scalarized_cc(Method* method, GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver);
-  static int insert_reserved_entry(GrowableArray<SigEntry>* sig_cc, VMRegPair* regs_cc, int ret_off);
+  int compute_scalarized_cc(GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver);
+  int insert_reserved_entry(int ret_off);
 };
 
 #endif // SHARE_RUNTIME_SHAREDRUNTIME_HPP

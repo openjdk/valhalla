@@ -2737,49 +2737,34 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
   return entry;
 }
 
-CompiledEntrySignature::CompiledEntrySignature(Method* method) {
-  _method = method;
-  _num_value_args = 0;
-  _has_value_recv = false;
-  _has_scalarized_args = false;
-  _c1_needs_stack_repair = false;
-  _c2_needs_stack_repair = false;
+CompiledEntrySignature::CompiledEntrySignature(Method* method) :
+  _method(method), _num_value_args(0), _has_value_recv(false),
+  _sig_cc(NULL), _sig_cc_ro(NULL), _regs(NULL), _regs_cc(NULL), _regs_cc_ro(NULL),
+  _args_on_stack(0), _args_on_stack_cc(0), _args_on_stack_cc_ro(0),
+  _c1_needs_stack_repair(false), _c2_needs_stack_repair(false), _has_scalarized_args(false) {
   _sig = new GrowableArray<SigEntry>(method->size_of_parameters());
-  if (!method->is_static()) {
-    if (method->method_holder()->is_value()) {
-      _has_value_recv = true;
-      _num_value_args ++;
-    }
-    SigEntry::add_entry(_sig, T_OBJECT);
-  }
-  for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
-    BasicType bt = ss.type();
-    if (bt == T_VALUETYPE) {
-      _num_value_args ++;
-      bt = T_OBJECT;
-    }
-    SigEntry::add_entry(_sig, bt);
-  }
+
 }
 
-int CompiledEntrySignature::compute_scalarized_cc(Method* method, GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver) {
-  InstanceKlass* holder = method->method_holder();
-  sig_cc = new GrowableArray<SigEntry>(method->size_of_parameters());
-  if (!method->is_static()) {
-    if (holder->is_value() && scalar_receiver) {
+int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver) {
+  InstanceKlass* holder = _method->method_holder();
+  sig_cc = new GrowableArray<SigEntry>(_method->size_of_parameters());
+  if (!_method->is_static()) {
+    if (holder->is_value() && scalar_receiver && ValueKlass::cast(holder)->is_scalarizable()) {
       sig_cc->appendAll(ValueKlass::cast(holder)->extended_sig());
     } else {
       SigEntry::add_entry(sig_cc, T_OBJECT);
     }
   }
   Thread* THREAD = Thread::current();
-  for (SignatureStream ss(method->signature()); !ss.at_return_type(); ss.next()) {
+  for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
     if (ss.type() == T_VALUETYPE) {
-      Klass* k = ss.as_klass(Handle(THREAD, holder->class_loader()),
-                             Handle(THREAD, holder->protection_domain()),
-                             SignatureStream::ReturnNull, THREAD);
-      assert(k != NULL && !HAS_PENDING_EXCEPTION, "value klass should have been pre-loaded");
-      sig_cc->appendAll(ValueKlass::cast(k)->extended_sig());
+      ValueKlass* vk = ss.as_value_klass(holder);
+      if (vk->is_scalarizable()) {
+        sig_cc->appendAll(vk->extended_sig());
+      } else {
+        SigEntry::add_entry(sig_cc, T_OBJECT);
+      }
     } else {
       SigEntry::add_entry(sig_cc, ss.type());
     }
@@ -2788,16 +2773,16 @@ int CompiledEntrySignature::compute_scalarized_cc(Method* method, GrowableArray<
   return SharedRuntime::java_calling_convention(sig_cc, regs_cc);
 }
 
-int CompiledEntrySignature::insert_reserved_entry(GrowableArray<SigEntry>* sig_cc, VMRegPair* regs_cc, int ret_off) {
+int CompiledEntrySignature::insert_reserved_entry(int ret_off) {
   // Find index in signature that belongs to return address slot
   BasicType bt = T_ILLEGAL;
   int i = 0;
-  for (uint off = 0; i < sig_cc->length(); ++i) {
-    if (SigEntry::skip_value_delimiters(sig_cc, i)) {
-      VMReg first = regs_cc[off++].first();
+  for (uint off = 0; i < _sig_cc->length(); ++i) {
+    if (SigEntry::skip_value_delimiters(_sig_cc, i)) {
+      VMReg first = _regs_cc[off++].first();
       if (first->is_valid() && first->is_stack()) {
         // Select a type for the reserved entry that will end up on the stack
-        bt = sig_cc->at(i)._bt;
+        bt = _sig_cc->at(i)._bt;
         if (((int)first->reg2stack() + VMRegImpl::slots_per_word) == ret_off) {
           break; // Index of the return address found
         }
@@ -2805,11 +2790,33 @@ int CompiledEntrySignature::insert_reserved_entry(GrowableArray<SigEntry>* sig_c
     }
   }
   // Insert reserved entry and re-compute calling convention
-  SigEntry::insert_reserved_entry(sig_cc, i, bt);
-  return SharedRuntime::java_calling_convention(sig_cc, regs_cc);
+  SigEntry::insert_reserved_entry(_sig_cc, i, bt);
+  return SharedRuntime::java_calling_convention(_sig_cc, _regs_cc);
 }
 
 void CompiledEntrySignature::compute_calling_conventions() {
+  // Get the (non-scalarized) signature and check for value type arguments
+  if (!_method->is_static()) {
+    if (_method->method_holder()->is_value() && ValueKlass::cast(_method->method_holder())->is_scalarizable()) {
+      _has_value_recv = true;
+      _num_value_args++;
+    }
+    SigEntry::add_entry(_sig, T_OBJECT);
+  }
+  for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
+    BasicType bt = ss.type();
+    if (bt == T_VALUETYPE) {
+      if (ss.as_value_klass(_method->method_holder())->is_scalarizable()) {
+        _num_value_args++;
+      }
+      bt = T_OBJECT;
+    }
+    SigEntry::add_entry(_sig, bt);
+  }
+  if (_method->is_abstract() && !(ValueTypePassFieldsAsArgs && has_value_arg())) {
+    return;
+  }
+
   // Get a description of the compiled java calling convention and the largest used (VMReg) stack slot usage
   _regs = NEW_RESOURCE_ARRAY(VMRegPair, _sig->length());
   _args_on_stack = SharedRuntime::java_calling_convention(_sig, _regs);
@@ -2823,14 +2830,14 @@ void CompiledEntrySignature::compute_calling_conventions() {
   _args_on_stack_cc_ro = _args_on_stack;
 
   if (ValueTypePassFieldsAsArgs && has_value_arg() && !_method->is_native()) {
-    _args_on_stack_cc = compute_scalarized_cc(_method, _sig_cc, _regs_cc, /* scalar_receiver = */ true);
+    _args_on_stack_cc = compute_scalarized_cc(_sig_cc, _regs_cc, /* scalar_receiver = */ true);
 
     _sig_cc_ro = _sig_cc;
     _regs_cc_ro = _regs_cc;
     _args_on_stack_cc_ro = _args_on_stack_cc;
     if (_has_value_recv || _args_on_stack_cc > _args_on_stack) {
       // For interface calls, we need another entry point / adapter to unpack the receiver
-      _args_on_stack_cc_ro = compute_scalarized_cc(_method, _sig_cc_ro, _regs_cc_ro, /* scalar_receiver = */ false);
+      _args_on_stack_cc_ro = compute_scalarized_cc(_sig_cc_ro, _regs_cc_ro, /* scalar_receiver = */ false);
     }
 
     // Compute the stack extension that is required to convert between the calling conventions.
@@ -2854,12 +2861,12 @@ void CompiledEntrySignature::compute_calling_conventions() {
         if (ret_off > ret_off_ro) {
           swap(ret_off, ret_off_ro); // Sort by offset
         }
-        _args_on_stack_cc = insert_reserved_entry(_sig_cc, _regs_cc, ret_off);
-        _args_on_stack_cc = insert_reserved_entry(_sig_cc, _regs_cc, ret_off_ro);
+        _args_on_stack_cc = insert_reserved_entry(ret_off);
+        _args_on_stack_cc = insert_reserved_entry(ret_off_ro);
       } else {
         ret_off += 2; // Account for one reserved entry (2 slots)
         ret_off = align_up(ret_off, alignment);
-        _args_on_stack_cc = insert_reserved_entry(_sig_cc, _regs_cc, ret_off);
+        _args_on_stack_cc = insert_reserved_entry(ret_off);
       }
     }
 
@@ -2901,26 +2908,16 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
     initialize();
 
     CompiledEntrySignature ces(method());
-    bool has_value_arg = ces.has_value_arg();
-    GrowableArray<SigEntry>& sig = ces.sig();
-
-    // Process abstract method if it has value type args to set has_scalarized_args accordingly
-    if (method->is_abstract() && !(ValueTypePassFieldsAsArgs && has_value_arg)) {
-      return _abstract_method_handler;
-    }
-
     {
-      MutexUnlocker mul(AdapterHandlerLibrary_lock); // <-- why is this needed?
-      ces.compute_calling_conventions();
+       MutexUnlocker mul(AdapterHandlerLibrary_lock);
+       ces.compute_calling_conventions();
     }
+    GrowableArray<SigEntry>& sig       = ces.sig();
     GrowableArray<SigEntry>& sig_cc    = ces.sig_cc();
     GrowableArray<SigEntry>& sig_cc_ro = ces.sig_cc_ro();
     VMRegPair* regs         = ces.regs();
     VMRegPair* regs_cc      = ces.regs_cc();
     VMRegPair* regs_cc_ro   = ces.regs_cc_ro();
-    int args_on_stack       = ces.args_on_stack();
-    int args_on_stack_cc    = ces.args_on_stack_cc();
-    int args_on_stack_cc_ro = ces.args_on_stack_cc_ro();
 
     if (ces.has_scalarized_args()) {
       method->set_has_scalarized_args(true);
@@ -2929,17 +2926,20 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
     }
 
     if (method->is_abstract()) {
-      // Save a C heap allocated version of the signature for abstract methods with scalarized value type arguments
-      assert(ValueTypePassFieldsAsArgs && has_value_arg, "must have scalarized value type args");
-      address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
-      entry = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(NULL),
-                                               StubRoutines::throw_AbstractMethodError_entry(),
-                                               wrong_method_abstract, wrong_method_abstract, wrong_method_abstract,
-                                               wrong_method_abstract, wrong_method_abstract);
-      GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(sig_cc_ro.length(), true);
-      heap_sig->appendAll(&sig_cc_ro);
-      entry->set_sig_cc(heap_sig);
-      return entry;
+      if (ces.has_scalarized_args()) {
+        // Save a C heap allocated version of the signature for abstract methods with scalarized value type arguments
+        address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
+        entry = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(NULL),
+                                                 StubRoutines::throw_AbstractMethodError_entry(),
+                                                 wrong_method_abstract, wrong_method_abstract, wrong_method_abstract,
+                                                 wrong_method_abstract, wrong_method_abstract);
+        GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(sig_cc_ro.length(), true);
+        heap_sig->appendAll(&sig_cc_ro);
+        entry->set_sig_cc(heap_sig);
+        return entry;
+      } else {
+        return _abstract_method_handler;
+      }
     }
 
     // Lookup method signature's fingerprint
@@ -2977,7 +2977,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
 
       MacroAssembler _masm(&buffer);
       entry = SharedRuntime::generate_i2c2i_adapters(&_masm,
-                                                     args_on_stack,
+                                                     ces.args_on_stack(),
                                                      &sig,
                                                      regs,
                                                      &sig_cc,
@@ -2987,7 +2987,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
                                                      fingerprint,
                                                      new_adapter);
 
-      if (regs != regs_cc) {
+      if (ces.has_scalarized_args()) {
         // Save a C heap allocated version of the scalarized signature and store it in the adapter
         GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(sig_cc.length(), true);
         heap_sig->appendAll(&sig_cc);
@@ -3547,8 +3547,6 @@ oop SharedRuntime::allocate_value_types_impl(JavaThread* thread, methodHandle ca
   if (allocate_receiver) {
     nb_slots++;
   }
-  Handle class_loader(THREAD, holder->class_loader());
-  Handle protection_domain(THREAD, holder->protection_domain());
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
     if (ss.type() == T_VALUETYPE) {
       nb_slots++;
@@ -3565,9 +3563,7 @@ oop SharedRuntime::allocate_value_types_impl(JavaThread* thread, methodHandle ca
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
     if (ss.type() == T_VALUETYPE) {
-      Klass* k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);
-      assert(k != NULL && !HAS_PENDING_EXCEPTION, "can't resolve klass");
-      ValueKlass* vk = ValueKlass::cast(k);
+      ValueKlass* vk = ss.as_value_klass(holder);
       oop res = vk->allocate_instance(CHECK_NULL);
       array->obj_at_put(i, res);
       i++;

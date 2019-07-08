@@ -409,6 +409,7 @@ class SignatureStream : public StackObj {
   BasicType type() const                         { return _type; }
   Symbol* as_symbol();
   enum FailureMode { ReturnNull, NCDFError };
+  ValueKlass* as_value_klass(InstanceKlass* holder);
   Klass* as_klass(Handle class_loader, Handle protection_domain, FailureMode failure_mode, TRAPS);
   oop as_java_mirror(Handle class_loader, Handle protection_domain, FailureMode failure_mode, TRAPS);
   const u1* raw_bytes()  { return _signature->bytes() + _begin; }

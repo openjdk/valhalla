@@ -852,21 +852,15 @@ class CompileReplay : public StackObj {
         break;
       }
       case T_VALUETYPE: {
-        Thread* THREAD = Thread::current();
         SignatureStream ss(fd->signature(), false);
-        InstanceKlass* holder = fd->field_holder();
-        Klass* k = ss.as_klass(Handle(THREAD, holder->class_loader()),
-                               Handle(THREAD, holder->protection_domain()),
-                               SignatureStream::ReturnNull, THREAD);
-        assert(k != NULL && !HAS_PENDING_EXCEPTION, "can resolve klass?");
-        ValueKlass* vk = ValueKlass::cast(k);
+        ValueKlass* vk = ss.as_value_klass(fd->field_holder());
         if (fd->is_flattened()) {
           int field_offset = fd->offset() - vk->first_field_offset();
           oop obj = (oop)((address)_vt + field_offset);
           ValueTypeFieldInitializer init_fields(obj, _replay);
           vk->do_nonstatic_fields(&init_fields);
         } else {
-          oop value = vk->allocate_instance(THREAD);
+          oop value = vk->allocate_instance(Thread::current());
           _vt->obj_field_put(fd->offset(), value);
         }
         break;

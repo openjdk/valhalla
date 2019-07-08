@@ -210,6 +210,7 @@ class ValueKlass: public InstanceKlass {
   Array<VMRegPair>* return_regs() const {
     return *((Array<VMRegPair>**)adr_return_regs());
   }
+  bool is_scalarizable() const;
   bool can_be_returned_as_fields() const;
   void save_oop_fields(const RegisterMap& map, GrowableArray<Handle>& handles) const;
   void restore_oop_results(RegisterMap& map, GrowableArray<Handle>& handles) const;
