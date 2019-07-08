@@ -1,7 +1,7 @@
-CheckValueModifier.java:18:11: compiler.err.illegal.combination.of.modifiers: interface, value
-CheckValueModifier.java:19:12: compiler.err.illegal.combination.of.modifiers: interface, value
-CheckValueModifier.java:20:11: compiler.err.mod.not.allowed.here: value
-CheckValueModifier.java:21:20: compiler.err.illegal.combination.of.modifiers: abstract, value
-CheckValueModifier.java:15:15: compiler.err.mod.not.allowed.here: value
-CheckValueModifier.java:16:15: compiler.err.mod.not.allowed.here: value
+CheckValueModifier.java:18:11: compiler.err.illegal.combination.of.modifiers: interface, inline
+CheckValueModifier.java:19:12: compiler.err.illegal.combination.of.modifiers: interface, inline
+CheckValueModifier.java:20:11: compiler.err.mod.not.allowed.here: inline
+CheckValueModifier.java:21:20: compiler.err.illegal.combination.of.modifiers: abstract, inline
+CheckValueModifier.java:15:15: compiler.err.mod.not.allowed.here: inline
+CheckValueModifier.java:16:15: compiler.err.mod.not.allowed.here: inline
 6 errors

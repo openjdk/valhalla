@@ -415,7 +415,7 @@ public class Flags {
         BLOCK(Flags.BLOCK),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),
-        VALUE(Flags.VALUE),
+        INLINE(Flags.VALUE),
         NOOUTERTHIS(Flags.NOOUTERTHIS),
         EXISTS(Flags.EXISTS),
         COMPOUND(Flags.COMPOUND),

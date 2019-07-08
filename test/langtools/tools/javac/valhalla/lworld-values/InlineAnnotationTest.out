@@ -1,4 +1,4 @@
-InlineAnnotationTest.java:25:1: compiler.err.illegal.combination.of.modifiers: interface, value
+InlineAnnotationTest.java:25:1: compiler.err.illegal.combination.of.modifiers: interface, inline
 InlineAnnotationTest.java:9:1: compiler.err.value.may.not.extend
 InlineAnnotationTest.java:13:1: compiler.err.empty.value.not.yet
 InlineAnnotationTest.java:20:9: compiler.err.cant.assign.val.to.final.var: x

@@ -1,5 +1,5 @@
-CheckMakeDefault.java:9:12: compiler.err.illegal.combination.of.modifiers: interface, value
-CheckMakeDefault.java:10:21: compiler.err.illegal.combination.of.modifiers: abstract, value
+CheckMakeDefault.java:9:12: compiler.err.illegal.combination.of.modifiers: interface, inline
+CheckMakeDefault.java:10:21: compiler.err.illegal.combination.of.modifiers: abstract, inline
 CheckMakeDefault.java:13:26: compiler.err.make.default.with.nonvalue
 CheckMakeDefault.java:35:25: compiler.err.make.default.with.nonvalue
 4 errors
