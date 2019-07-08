@@ -105,9 +105,9 @@ public class ClassReader {
      */
     boolean allowModules;
 
-    /** Switch: allow value types.
+    /** Switch: allow inline types.
      */
-    boolean allowValueTypes;
+    boolean allowInlineTypes;
 
    /** Lint option: warn about classfile issues
      */
@@ -272,7 +272,7 @@ public class ClassReader {
         Source source = Source.instance(context);
         preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
-        allowValueTypes = Feature.VALUE_TYPES.allowedInSource(source);
+        allowInlineTypes = Feature.INLINE_TYPES.allowedInSource(source);
         saveParameterNames = options.isSet(PARAMETERS);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
 
@@ -2657,7 +2657,7 @@ public class ClassReader {
         }
         if ((flags & ACC_VALUE) != 0) {
             flags &= ~ACC_VALUE;
-            flags |= allowValueTypes ? VALUE : allowValueBasedClasses ? VALUEBASED : 0;
+            flags |= allowInlineTypes ? VALUE : allowValueBasedClasses ? VALUEBASED : 0;
         }
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded
     }

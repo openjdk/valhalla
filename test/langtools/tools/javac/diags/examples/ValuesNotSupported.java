@@ -22,8 +22,8 @@
  */
 
 // key: compiler.err.feature.not.supported.in.source
-// key: compiler.misc.feature.value.types
+// key: compiler.misc.feature.inline.type
 // key: compiler.warn.source.no.bootclasspath
-// options: -source 10
+// options: -source 13
 
 inline final class ValuesNotSupported {}

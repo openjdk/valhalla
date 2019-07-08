@@ -200,7 +200,7 @@ public enum Source {
         SWITCH_RULE(JDK14, Fragments.FeatureSwitchRules, DiagKind.PLURAL),
         SWITCH_EXPRESSION(JDK14, Fragments.FeatureSwitchExpressions, DiagKind.PLURAL),
         TEXT_BLOCKS(JDK14, Fragments.FeatureTextBlocks, DiagKind.PLURAL),
-        VALUE_TYPES(JDK12, Fragments.FeatureValueTypes, DiagKind.NORMAL);
+        INLINE_TYPES(JDK14, Fragments.FeatureInlineType, DiagKind.NORMAL);
 
         enum DiagKind {
             NORMAL,

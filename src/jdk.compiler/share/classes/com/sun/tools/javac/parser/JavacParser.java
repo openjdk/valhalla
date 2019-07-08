@@ -3412,7 +3412,7 @@ public class JavacParser implements Parser {
                          t == INTERFACE ||
                          t == ENUM ||
                          t == IDENTIFIER)) { // new value Comparable() {}
-            checkSourceLevel(Feature.VALUE_TYPES);
+            checkSourceLevel(Feature.INLINE_TYPES);
             return new Token(VALUE, token.pos, token.endPos, token.comments);
         }
         return token;
