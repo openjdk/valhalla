@@ -2921,12 +2921,31 @@ const char* nmethod::nmethod_section_label(address pos) const {
   return label;
 }
 
+static int maybe_print_entry_label(outputStream* stream, address pos, address entry, const char* label) {
+  if (pos == entry) {
+    stream->bol();
+    stream->print_cr("%s", label);
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bool print_section_labels) const {
   if (print_section_labels) {
-    const char* label = nmethod_section_label(block_begin);
-    if (label != NULL) {
-      stream->bol();
-      stream->print_cr("%s", label);
+    int n = 0;
+    // Multiple entry points may be at the same position. Print them all.
+    n += maybe_print_entry_label(stream, block_begin, entry_point(),                   "[Entry Point]");
+    n += maybe_print_entry_label(stream, block_begin, value_entry_point(),             "[Value Entry Point]");
+    n += maybe_print_entry_label(stream, block_begin, verified_entry_point(),          "[Verified Entry Point]");
+    n += maybe_print_entry_label(stream, block_begin, verified_value_entry_point(),    "[Verified Value Entry Point]");
+    n += maybe_print_entry_label(stream, block_begin, verified_value_ro_entry_point(), "[Verified Value Entry Point (RO)]");
+    if (n == 0) {
+      const char* label = nmethod_section_label(block_begin);
+      if (label != NULL) {
+        stream->bol();
+        stream->print_cr("%s", label);
+      }
     }
   }
 
@@ -2981,8 +3000,8 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
       }
     }
     bool has_this = !m->is_static();
-    if (has_scalarized_args && block_begin == verified_entry_point()) {
-      // this pointer is scalarized for verified_entry_point()
+    if (ces->has_value_recv() && block_begin == verified_entry_point()) {
+      // <this> argument is scalarized for verified_entry_point()
       has_this = false;
     }
     const char* spname = "sp"; // make arch-specific?
@@ -3026,7 +3045,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
         bool did_name = false;
         if (!at_this && ss.is_object()) {
           Symbol* name = ss.as_symbol_or_null();
-          if (name != NULL) {
+          if (name != NULL && name->utf8_length() > 0) {
             name->print_value_on(stream);
             did_name = true;
           }

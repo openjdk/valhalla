@@ -93,7 +93,9 @@ public class TestCallingConventionC1 extends ValueTypeTest {
                  MyImplVal2.class,
                  FixedPoints.class,
                  FloatPoint.class,
-                 RefPoint.class);
+                 RefPoint.class,
+                 RefPoint_Access_Impl1.class,
+                 RefPoint_Access_Impl2.class);
     }
 
     static inline class Point {
@@ -345,7 +347,8 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         public int func1(RefPoint rp2) {
             return rp2.x.n + rp2.y.n + 1111111;
         }
-        @DontInline @DontCompile
+        @DontInline
+        @ForceCompile(compLevel = C1)
         public int func2(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
             return 111111 +
                    rp1.x.n + rp1.y.n +
@@ -361,7 +364,8 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         public int func1(RefPoint rp2) {
             return rp2.x.n + rp2.y.n + 2222222;
         }
-        @DontInline @DontCompile
+        @DontInline
+        @ForceCompile(compLevel = C1)
         public int func2(RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
             return 222222 +
                    rp1.x.n + rp1.y.n +
@@ -1437,9 +1441,6 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         }
     }
 
-    /* disabled due to bug JDK-8224944 [lworld] TestCallingConventionC1::test63 fails with -Xcomp
-
-
     // C2->C1 invokeinterface via VVEP(RO) -- force GC for every allocation when entering a C1 VVEP(RO) (a bunch of RefPoints and Numbers)
     @Test(compLevel = C2)
     public int test63(RefPoint_Access rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
@@ -1465,7 +1466,38 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             Asserts.assertEQ(result, n);
         }
     }
-    /**/
+
+    // C2->C1 invokestatic (same as test63, but use invokestatic instead)
+    @Test(compLevel = C2)
+    public int test64(RefPoint_Access rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
+        return test64_helper(rpa, rp1, rp2, n1, rp3, rp4, n2);
+    }
+
+    @DontInline
+    @ForceCompile(compLevel = C1)
+    public static int test64_helper(RefPoint_Access rpa, RefPoint rp1, RefPoint rp2, Number n1, RefPoint rp3, RefPoint rp4, Number n2) {
+        return rp3.y.n;
+    }
+
+    @DontCompile
+    public void test64_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) { // need a loop to test inline cache
+            RefPoint_Access rpa = get_RefPoint_Access();
+            RefPoint rp1 = new RefPoint(1, 2);
+            RefPoint rp2 = refPointField1;
+            RefPoint rp3 = new RefPoint(222, 777);
+            RefPoint rp4 = refPointField2;
+            Number n1 = new Number(5878);
+            Number n2 = new Number(1234);
+            int result;
+            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+                result = test64(rpa, rp1, rp2, n1, rp3, rp4, n2);
+            }
+            int n = test64_helper(rpa, rp1, rp2, n1, rp3, rp4, n2);
+            Asserts.assertEQ(result, n);
+        }
+    }
 
     // C2->C1 invokevirtual via VVEP(RO) (opt_virtual_call)
     @Test(compLevel = C2)

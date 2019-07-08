@@ -658,10 +658,9 @@ void LIR_Assembler::emit_std_entries() {
   if (ces->has_scalarized_args()) {
     assert(ValueTypePassFieldsAsArgs && method()->get_Method()->has_scalarized_args(), "must be");
 
-    bool has_value_ro_entry = false;
-    if (ces->has_value_recv() && ces->num_value_args() > 1) {
+    CodeOffsets::Entries ro_entry_type = ces->c1_value_ro_entry_type();
+    if (ro_entry_type == CodeOffsets::Verified_Value_Entry_RO) {
       // VVEP(RO) = pack all value parameters, except the <this> object.
-      has_value_ro_entry = true;
       add_scalarized_entry_info(emit_std_entry(CodeOffsets::Verified_Value_Entry_RO, ces));
     }
 
@@ -674,19 +673,12 @@ void LIR_Assembler::emit_std_entries() {
     if (needs_icache(compilation()->method())) {
       check_icache();
     }
-    // VVEP = all value parameters are already passed as refs, so no need for packing.
+    // VVEP = all value parameters are passed as refs - no packing.
     emit_std_entry(CodeOffsets::Verified_Value_Entry, NULL);
 
-    if (!has_value_ro_entry) {
-      if (ces->has_value_recv()) {
-        assert(ces->num_value_args() == 1, "must be");
-        offsets()->set_value(CodeOffsets::Verified_Value_Entry_RO,
-                             offsets()->value(CodeOffsets::Verified_Value_Entry));
-      } else {
-        assert(ces->num_value_args() > 0, "must be");
-        offsets()->set_value(CodeOffsets::Verified_Value_Entry_RO,
-                             offsets()->value(CodeOffsets::Verified_Entry));
-      }
+    if (ro_entry_type != CodeOffsets::Verified_Value_Entry_RO) {
+      offsets()->set_value(CodeOffsets::Verified_Value_Entry_RO,
+                           offsets()->value(ro_entry_type));
     }
   } else {
     // All 3 entries are the same (no value-type packing)

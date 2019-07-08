@@ -2742,6 +2742,7 @@ CompiledEntrySignature::CompiledEntrySignature(Method* method) :
   _sig_cc(NULL), _sig_cc_ro(NULL), _regs(NULL), _regs_cc(NULL), _regs_cc_ro(NULL),
   _args_on_stack(0), _args_on_stack_cc(0), _args_on_stack_cc_ro(0),
   _c1_needs_stack_repair(false), _c2_needs_stack_repair(false), _has_scalarized_args(false) {
+  _has_reserved_entries = false;
   _sig = new GrowableArray<SigEntry>(method->size_of_parameters());
 
 }
@@ -2793,6 +2794,46 @@ int CompiledEntrySignature::insert_reserved_entry(int ret_off) {
   SigEntry::insert_reserved_entry(_sig_cc, i, bt);
   return SharedRuntime::java_calling_convention(_sig_cc, _regs_cc);
 }
+
+// See if we can save space by sharing the same entry for VVEP and VVEP(RO),
+// or the same entry for VEP and VVEP(RO).
+CodeOffsets::Entries CompiledEntrySignature::c1_value_ro_entry_type() const {
+  if (!has_scalarized_args()) {
+    // VEP/VVEP/VVEP(RO) all share the same entry. There's no packing.
+    return CodeOffsets::Verified_Entry;
+  }
+  if (_method->is_static()) {
+    // Static methods don't need VVEP(RO)
+    return CodeOffsets::Verified_Entry;
+  }
+
+  if (has_value_recv()) {
+    if (num_value_args() == 1) {
+      // Share same entry for VVEP and VVEP(RO).
+      // This is quite common: we have an instance method in a ValueKlass that has
+      // no value args other than <this>.
+      return CodeOffsets::Verified_Value_Entry;
+    } else {
+      assert(num_value_args() > 1, "must be");
+      // No sharing:
+      //   VVEP(RO) -- <this> is passed as object
+      //   VEP      -- <this> is passed as fields
+      return CodeOffsets::Verified_Value_Entry_RO;
+    }
+  }
+
+  // Either a static method, or <this> is not a value type
+  if (args_on_stack_cc() != args_on_stack_cc_ro() || _has_reserved_entries) {
+    // No sharing:
+    // Some arguments are passed on the stack, and we have inserted reserved entries
+    // into the VEP, but we never insert reserved entries into the VVEP(RO).
+    return CodeOffsets::Verified_Value_Entry_RO;
+  } else {
+    // Share same entry for VEP and VVEP(RO).
+    return CodeOffsets::Verified_Entry;
+  }
+}
+
 
 void CompiledEntrySignature::compute_calling_conventions() {
   // Get the (non-scalarized) signature and check for value type arguments
@@ -2868,6 +2909,8 @@ void CompiledEntrySignature::compute_calling_conventions() {
         ret_off = align_up(ret_off, alignment);
         _args_on_stack_cc = insert_reserved_entry(ret_off);
       }
+
+      _has_reserved_entries = true;
     }
 
     // Upper bound on stack arguments to avoid hitting the argument limit and

@@ -25,6 +25,7 @@
 #ifndef SHARE_RUNTIME_SHAREDRUNTIME_HPP
 #define SHARE_RUNTIME_SHAREDRUNTIME_HPP
 
+#include "asm/codeBuffer.hpp"
 #include "interpreter/bytecodeHistogram.hpp"
 #include "interpreter/bytecodeTracer.hpp"
 #include "interpreter/linkResolver.hpp"
@@ -793,6 +794,7 @@ class CompiledEntrySignature : public StackObj {
   bool _c1_needs_stack_repair;
   bool _c2_needs_stack_repair;
   bool _has_scalarized_args;
+  bool _has_reserved_entries;
 
 public:
   Method* method()                     const { return _method; }
@@ -821,6 +823,7 @@ public:
   bool has_scalarized_args()           const { return _has_scalarized_args; }
   bool c1_needs_stack_repair()         const { return _c1_needs_stack_repair; }
   bool c2_needs_stack_repair()         const { return _c2_needs_stack_repair; }
+  CodeOffsets::Entries c1_value_ro_entry_type() const;
 
   CompiledEntrySignature(Method* method);
   void compute_calling_conventions();
