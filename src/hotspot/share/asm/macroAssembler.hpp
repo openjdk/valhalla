@@ -27,6 +27,7 @@
 
 #include "asm/assembler.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/growableArray.hpp"
 
 #include CPU_HEADER(macroAssembler)
 

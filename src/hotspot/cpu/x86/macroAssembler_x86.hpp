@@ -1673,6 +1673,7 @@ public:
   bool shuffle_value_args_spill(bool is_packing,  const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
                                 VMRegPair* regs_from, int from_index, int regs_from_count,
                                 RegState* reg_state, int sp_inc, int extra_stack_offset);
+  VMReg spill_reg_for(VMReg reg);
 
   // clear memory of size 'cnt' qwords, starting at 'base';
   // if 'is_large' is set, do not try to produce short loop
@@ -1830,6 +1831,9 @@ public:
   // Inflate byte[] array to char[].
   void byte_array_inflate(Register src, Register dst, Register len,
                           XMMRegister tmp1, Register tmp2);
+
+#include "asm/macroAssembler_common.hpp"
+
 
 };
 
