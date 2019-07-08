@@ -832,6 +832,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     @DontCompile
     public void test32_verifier(boolean warmup) {
-        test32();
+        MyValue1? result = test32();
+        Asserts.assertEquals(result, null);
     }
 }
