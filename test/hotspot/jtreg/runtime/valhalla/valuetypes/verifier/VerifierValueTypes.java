@@ -94,9 +94,10 @@ public class VerifierValueTypes {
         // Test that VerifyError is thrown if the class for a withfields's cp fieldref
         // entry is java.lang.Object and the reference on the stack is an inline type.
         runTestVerifyError("wthFldObject", "must be identical inline types");
-*/
+
         // Test VerifyError is thrown if a monitorenter's cp entry is an inline type.
         runTestVerifyError("monEnterVT", "Bad type on operand stack");
+*/
 
         // Test VerifyError is thrown if a defaultvalue's cp entry is an inline type.
         runTestVerifyError("defValueObj", "Illegal type at constant pool entry 4");

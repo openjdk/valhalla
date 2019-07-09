@@ -1807,7 +1807,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         case Bytecodes::_monitorenter :
         case Bytecodes::_monitorexit : {
           VerificationType ref = current_frame.pop_stack(
-            VerificationType::reference_check(), CHECK_VERIFY(this));
+            VerificationType::nonscalar_check(), CHECK_VERIFY(this));
           no_control_flow = false; break;
         }
         case Bytecodes::_multianewarray :
