@@ -230,7 +230,7 @@ void Parse::array_store(BasicType bt) {
       return;
     } else if (elemptr->is_valuetypeptr() && !elemptr->maybe_null()) {
       // Store to non-flattened but flattenable value type array (elements can never be null)
-      if (!cast_val->is_ValueType()) {
+      if (!cast_val->is_ValueType() && val_t->maybe_null()) {
         inc_sp(3);
         cast_val = null_check(cast_val);
         if (stopped()) return;
@@ -265,7 +265,7 @@ void Parse::array_store(BasicType bt) {
         ideal.else_();
         {
           // flattened
-          if (!cast_val->is_ValueType() && TypePtr::NULL_PTR->higher_equal(val_t)) {
+          if (!cast_val->is_ValueType() && val_t->maybe_null()) {
             // Add null check
             sync_kit(ideal);
             Node* null_ctl = top();

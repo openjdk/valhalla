@@ -834,6 +834,7 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
     AllocateNode* alloc = fast_out(i)->isa_Allocate();
     if (alloc != NULL && alloc->result_cast() != NULL && alloc->in(AllocateNode::ValueNode) == this) {
       assert(!is_default(*igvn), "default value type allocation");
+      Node* res = alloc->result_cast();
       Node* res_dom = NULL;
       if (is_allocated(igvn)) {
         // The value type is already allocated but still connected to an AllocateNode.
@@ -843,19 +844,19 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
       } else {
         // Search for a dominating allocation of the same value type
         for (DUIterator_Fast jmax, j = fast_outs(jmax); j < jmax; j++) {
-          Node* out2 = fast_out(j);
-          if (alloc != out2 && out2->is_Allocate() && out2->in(AllocateNode::ValueNode) == this &&
-              phase->is_dominator(out2, alloc)) {
-            AllocateNode* alloc_dom =  out2->as_Allocate();
+          AllocateNode* alloc_dom = fast_out(j)->isa_Allocate();
+          if (alloc_dom != NULL && alloc != alloc_dom && alloc_dom->result_cast() != NULL &&
+              alloc_dom->in(AllocateNode::ValueNode) == this) {
             assert(alloc->in(AllocateNode::KlassNode) == alloc_dom->in(AllocateNode::KlassNode), "klasses should match");
-            res_dom = alloc_dom->result_cast();
-            break;
+            if (phase->is_dominator(alloc_dom->result_cast()->in(0), res->in(0))) {
+              res_dom = alloc_dom->result_cast();
+              break;
+            }
           }
         }
       }
       if (res_dom != NULL) {
         // Move users to dominating allocation
-        Node* res = alloc->result_cast();
         igvn->replace_node(res, res_dom);
         // The result of the dominated allocation is now unused and will be
         // removed later in AllocateNode::Ideal() to not confuse loop opts.

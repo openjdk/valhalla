@@ -2790,4 +2790,28 @@ public class TestNullableArrays extends ValueTypeTest {
             Asserts.assertEquals(((MyValue1)result[0]).hash(), testValue1.hash());
         }
     }
+
+    // Test that allocation is not replaced by non-dominating allocation
+    public long test107_helper(MyValue1?[] va, MyValue1 vt) {
+        try {
+            va[0] = vt;
+        } catch (NullPointerException npe) { }
+        return va[1].hash();
+    }
+
+    @Test()
+    public void test107() {
+        MyValue1[] va = new MyValue1[2];
+        MyValue1?[] tmp = new MyValue1?[2];
+        long res1 = test107_helper(va, testValue1);
+        long res2 = test107_helper(va, testValue1);
+        Asserts.assertEquals(va[0].hash(), testValue1.hash());
+        Asserts.assertEquals(res1, MyValue1.default.hash());
+        Asserts.assertEquals(res2, MyValue1.default.hash());
+    }
+
+    @DontCompile
+    public void test107_verifier(boolean warmup) {
+        test107();
+    }
 }

@@ -1810,7 +1810,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool incremental_
       if (!incremental_inlining) {
         arg = arg->as_ValueType()->allocate(this)->get_oop();
       } else {
-        arg = ValueTypePtrNode::make_from_value_type(this, arg->as_ValueType(), false);
+        arg = ValueTypePtrNode::make_from_value_type(this, arg->as_ValueType());
       }
     }
     call->init_req(idx++, arg);
