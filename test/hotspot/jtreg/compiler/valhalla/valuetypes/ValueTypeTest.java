@@ -612,30 +612,61 @@ public abstract class ValueTypeTest {
             // number of test cases).
             boolean maybeCodeBufferOverflow = (TEST_C1 && VerifyOops);
 
-            if (!osrOnly) {
+            if (osrOnly) {
+                long started = System.currentTimeMillis();
+                boolean stateCleared = false;
+                for (;;)  {
+                    long elapsed = System.currentTimeMillis() - started;
+                    if (maybeCodeBufferOverflow && elapsed > 5000 && !WHITE_BOX.isMethodCompiled(test, false)) {
+                        System.out.println("Temporarily disabling VerifyOops");
+                        try {
+                            WHITE_BOX.setBooleanVMFlag("VerifyOops", false);
+                            if (!stateCleared) {
+                                WHITE_BOX.clearMethodState(test);
+                                stateCleared = true;
+                            }
+                            verifier.invoke(this, false);
+                        } finally {
+                            WHITE_BOX.setBooleanVMFlag("VerifyOops", true);
+                            System.out.println("Re-enabled VerifyOops");
+                        }
+                    } else {
+                        verifier.invoke(this, false);
+                    }
+
+                    boolean b = WHITE_BOX.isMethodCompiled(test, false);
+                    if (VERBOSE) {
+                        System.out.println("Is " + test.getName() + " compiled? " + b);
+                    }
+                    if (b || XCOMP || !USE_COMPILER) {
+                        // Don't control compilation if -Xcomp is enabled, or if compiler is disabled
+                        break;
+                    }
+                }
+                if (!XCOMP) {
+                    Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
+                }
+            } else {
                 int compLevel = getCompLevel(test.getAnnotation(Test.class));
                 // Trigger compilation
                 enqueueMethodForCompilation(test, compLevel);
                 if (maybeCodeBufferOverflow && !WHITE_BOX.isMethodCompiled(test, false)) {
-                  // Let's disable VerifyOops temporarily and retry.
-                  WHITE_BOX.setBooleanVMFlag("VerifyOops", false);
-                  WHITE_BOX.clearMethodState(test);
-                  enqueueMethodForCompilation(test, compLevel);
-                  WHITE_BOX.setBooleanVMFlag("VerifyOops", true);
+                    // Let's disable VerifyOops temporarily and retry.
+                    WHITE_BOX.setBooleanVMFlag("VerifyOops", false);
+                    WHITE_BOX.clearMethodState(test);
+                    enqueueMethodForCompilation(test, compLevel);
+                    WHITE_BOX.setBooleanVMFlag("VerifyOops", true);
                 }
                 Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
-            }
-            // Check result
-            verifier.invoke(this, false);
-            if (osrOnly && !maybeCodeBufferOverflow && !XCOMP) {
-                Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
+                // Check result
+                verifier.invoke(this, false);
             }
             if (PRINT_TIMES || VERBOSE) {
                 long endTime = System.nanoTime();
                 long duration = (endTime - startTime);
                 durations.put(duration, test.getName());
                 if (VERBOSE) {
-                    System.out.println("Done " + test.getName() + ": " + duration + "ns");
+                    System.out.println("Done " + test.getName() + ": " + duration + " ns = " + (duration / 1000000) + " ms");
                 }
             }
         }

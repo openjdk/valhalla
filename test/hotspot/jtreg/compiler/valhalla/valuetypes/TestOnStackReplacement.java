@@ -53,23 +53,6 @@ public class TestOnStackReplacement extends ValueTypeTest {
         test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class);
     }
 
-    boolean isCompiled(String methodName) {
-        if (XCOMP) {
-            // Don't control compilation if -Xcomp is enabled
-            return true;
-        }
-        try {
-            Method m = getClass().getMethod(methodName);
-            boolean b = WHITE_BOX.isMethodCompiled(m, false);
-            if (VERBOSE) {
-                System.out.println("Is " + methodName + " compiled? " + b);
-            }
-            return b;
-        } catch (Throwable t) {
-            throw new RuntimeException("Unknown method: " + methodName + "()");
-        }
-    }
-
     // Helper methods
 
     protected long hash() {
@@ -102,10 +85,8 @@ public class TestOnStackReplacement extends ValueTypeTest {
 
     @DontCompile
     public void test1_verifier(boolean warmup) {
-        do {
-            long result = test1();
-            Asserts.assertEQ(result, ((Math.abs(rI) % 3) + 1) * hash());
-        } while (!isCompiled("test1"));
+        long result = test1();
+        Asserts.assertEQ(result, ((Math.abs(rI) % 3) + 1) * hash());
     }
 
     // Test loop peeling
@@ -124,14 +105,12 @@ public class TestOnStackReplacement extends ValueTypeTest {
 
     @DontCompile
     public void test2_verifier(boolean warmup) {
-        do {
-            test2();
-        } while (!isCompiled("test2"));
+        test2();
     }
 
     // Test loop peeling and unrolling
     @Test() @Warmup(0) @OSRCompileOnly
-    @TempSkipForC1(reason = "C1 inlining overflow")
+    @TempSkipForC1(reason = "JDK-8227494 - C1 inlining overflow")
     public void test3() {
         MyValue1 v1 = MyValue1.createWithFieldsInline(0, 0);
         MyValue1 v2 = MyValue1.createWithFieldsInline(1, 1);
@@ -148,9 +127,7 @@ public class TestOnStackReplacement extends ValueTypeTest {
 
     @DontCompile
     public void test3_verifier(boolean warmup) {
-        do {
-            test3();
-        } while (!isCompiled("test3"));
+        test3();
     }
 
     // OSR compilation with Object local
@@ -177,9 +154,7 @@ public class TestOnStackReplacement extends ValueTypeTest {
 
     @DontCompile
     public void test4_verifier(boolean warmup) {
-        do {
-            test4();
-        } while (!isCompiled("test4"));
+        test4();
     }
 
     // OSR compilation with null value type local
@@ -198,8 +173,6 @@ public class TestOnStackReplacement extends ValueTypeTest {
 
     @DontCompile
     public void test5_verifier(boolean warmup) {
-        do {
-            test5();
-        } while (!isCompiled("test5"));
+        test5();
     }
 }
