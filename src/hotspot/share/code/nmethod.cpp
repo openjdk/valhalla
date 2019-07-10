@@ -2989,7 +2989,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
     int sizeargs = 0;
     BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, 256);
     bool has_scalarized_args = ces->has_scalarized_args();
-    Symbol* sig = SigEntry::create_symbol(sig_cc);
+    TempNewSymbol sig = SigEntry::create_symbol(sig_cc);
     for (SignatureStream ss(sig); !ss.at_return_type(); ss.next()) {
       BasicType t = ss.type();
       sig_bt[sizeargs++] = t;
@@ -3043,7 +3043,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
         m->method_holder()->print_value_on(stream);
       } else {
         bool did_name = false;
-        if (!at_this && ss.is_object()) {
+        if (ss.is_object()) {
           Symbol* name = ss.as_symbol_or_null();
           if (name != NULL && name->utf8_length() > 0) {
             name->print_value_on(stream);
