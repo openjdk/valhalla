@@ -152,6 +152,13 @@ bool Instruction::maybe_flattened_array() {
           // We will add a runtime check for flat-ness.
           return true;
         }
+      } else if (type->is_value_array_klass()) {
+        ciKlass* element_klass = type->as_value_array_klass()->element_klass();
+        if (!element_klass->is_loaded() ||
+            (element_klass->is_valuetype() && element_klass->as_value_klass()->flatten_array())) { // (ValueType[] <: ValueType?[])
+          // We will add a runtime check for flat-ness.
+          return true;
+        }
       } else if (type->is_klass() && type->as_klass()->is_java_lang_Object()) {
         // This can happen as a parameter to System.arraycopy()
         return true;
@@ -274,7 +281,7 @@ ciType* LoadIndexed::declared_type() const {
 }
 
 bool StoreIndexed::is_exact_flattened_array_store() const {
-  if (array()->is_loaded_flattened_array() && value()->as_Constant() == NULL) {
+  if (array()->is_loaded_flattened_array() && value()->as_Constant() == NULL && value()->declared_type() != NULL) {
     ciKlass* element_klass = array()->declared_type()->as_value_array_klass()->element_klass();
     ciKlass* actual_klass = value()->declared_type()->as_klass();
 

@@ -1784,4 +1784,46 @@ public class TestArrays extends ValueTypeTest {
             }
         }
     }
+
+    @Test
+    public void test77() {
+        MyValue1 v0 = MyValue1.createWithFieldsDontInline(rI, rL);
+        MyValue1 v1 = MyValue1.createWithFieldsDontInline(rI+1, rL+1);
+        MyValue1[] arr = new MyValue1[1];
+
+        Object[] oa = arr;
+        Object o1 = v1;
+        Object o = (o1 == null) ? v0 : o1;
+
+        oa[0] = o; // For C1, due to IfOp optimization, the declared_type of o becomes NULL.
+
+        Asserts.assertEQ(arr[0].hash(), v1.hash());
+    }
+
+
+    @DontCompile
+    public void test77_verifier(boolean warmup) {
+        test77();
+    }
+
+    @Test
+    public long test78(MyValue1 v, int n) {
+        long x = 0;
+        for (int i = 0; i<n; i++) {
+        }
+
+        MyValue1[] a = new MyValue1[n];
+        a[0] = v;
+        for (int i = 0; i<n; i++) {
+            x += a[i].hash(); // C1 PhiSimplifier changes "a" from a Phi node to a NewObjectArray node
+        }
+
+        return x;
+    }
+
+    @DontCompile
+    public void test78_verifier(boolean warmup) {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        Asserts.assertEQ(test78(v, 1), v.hash());
+    }
 }

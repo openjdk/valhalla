@@ -2133,8 +2133,9 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     }
   }
 
-  if (x->array()->is_loaded_flattened_array()) {
-    // Find the destination address (of the NewValueTypeInstance)
+  if (x->vt() != NULL) {
+    assert(x->array()->is_loaded_flattened_array(), "must be");
+    // Find the destination address (of the NewValueTypeInstance).
     LIR_Opr obj = x->vt()->operand();
     LIRItem obj_item(x->vt(), this);
 

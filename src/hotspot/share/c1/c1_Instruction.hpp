@@ -966,7 +966,7 @@ LEAF(LoadIndexed, AccessIndexed)
   // creation
   LoadIndexed(Value array, Value index, Value length, BasicType elt_type, ValueStack* state_before, bool mismatched = false)
   : AccessIndexed(array, index, length, elt_type, state_before, mismatched)
-  , _explicit_null_check(NULL) {}
+  , _explicit_null_check(NULL), _vt(NULL) {}
 
   // accessors
   NullCheck* explicit_null_check() const         { return _explicit_null_check; }
