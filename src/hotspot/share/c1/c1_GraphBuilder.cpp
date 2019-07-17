@@ -1856,7 +1856,6 @@ void GraphBuilder::withfield(int field_index)
   bool will_link;
   ciField* field_modify = stream()->get_field(will_link);
   ciInstanceKlass* holder = field_modify->holder();
-  assert(holder->is_valuetype(), "must be a value klass");
   BasicType field_type = field_modify->type()->basic_type();
   ValueType* type = as_ValueType(field_type);
 
@@ -1870,11 +1869,20 @@ void GraphBuilder::withfield(int field_index)
   scope()->set_wrote_fields();
 
   const int offset = !needs_patching ? field_modify->offset() : -1;
+
+  if (!holder->is_loaded()) {
+    ValueStack* state_before = copy_state_before();
+    Value val = pop(type);
+    Value obj = apop();
+    apush(append_split(new WithField(obj->type(), state_before)));
+    return;
+  }
+  ValueStack* state_before = copy_state_for_exception();
+
   Value val = pop(type);
   Value obj = apop();
 
-  ValueStack* state_before = copy_state_for_exception();
-
+  assert(holder->is_valuetype(), "must be a value klass");
   NewValueTypeInstance* new_instance = new NewValueTypeInstance(holder->as_value_klass(), state_before, false);
   _memory->new_instance(new_instance);
   apush(append_split(new_instance));
@@ -2301,14 +2309,19 @@ void GraphBuilder::new_instance(int klass_index) {
 }
 
 void GraphBuilder::new_value_type_instance(int klass_index) {
-  ValueStack* state_before = copy_state_exhandling();
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
-  assert(klass->is_valuetype(), "must be a value klass");
-  NewValueTypeInstance* new_instance = new NewValueTypeInstance(klass->as_value_klass(),
-      state_before, stream()->is_unresolved_klass());
-  _memory->new_instance(new_instance);
-  apush(append_split(new_instance));
+  if (klass->is_loaded()) {
+    assert(klass->is_valuetype(), "must be a value klass");
+    ValueStack* state_before = copy_state_exhandling();
+    NewValueTypeInstance* new_instance = new NewValueTypeInstance(klass->as_value_klass(),
+        state_before, stream()->is_unresolved_klass());
+    _memory->new_instance(new_instance);
+    apush(append_split(new_instance));
+  } else {
+    ValueStack* state_before = copy_state_before();
+    apush(append_split(new DefaultValue(objectType, state_before)));
+  }
 }
 
 void GraphBuilder::new_type_array() {

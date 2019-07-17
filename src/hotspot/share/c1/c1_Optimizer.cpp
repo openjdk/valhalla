@@ -515,6 +515,8 @@ public:
   void do_NewTypeArray   (NewTypeArray*    x);
   void do_NewObjectArray (NewObjectArray*  x);
   void do_NewMultiArray  (NewMultiArray*   x);
+  void do_WithField      (WithField*       x);
+  void do_DefaultValue   (DefaultValue*    x);
   void do_CheckCast      (CheckCast*       x);
   void do_InstanceOf     (InstanceOf*      x);
   void do_MonitorEnter   (MonitorEnter*    x);
@@ -703,6 +705,8 @@ void NullCheckVisitor::do_NewValueTypeInstance(NewValueTypeInstance*     x) { nc
 void NullCheckVisitor::do_NewTypeArray   (NewTypeArray*    x) { nce()->handle_NewArray(x); }
 void NullCheckVisitor::do_NewObjectArray (NewObjectArray*  x) { nce()->handle_NewArray(x); }
 void NullCheckVisitor::do_NewMultiArray  (NewMultiArray*   x) { nce()->handle_NewArray(x); }
+void NullCheckVisitor::do_WithField      (WithField*       x) {}
+void NullCheckVisitor::do_DefaultValue   (DefaultValue*    x) {}
 void NullCheckVisitor::do_CheckCast      (CheckCast*       x) { nce()->clear_last_explicit_null_check(); }
 void NullCheckVisitor::do_InstanceOf     (InstanceOf*      x) {}
 void NullCheckVisitor::do_MonitorEnter   (MonitorEnter*    x) { nce()->handle_AccessMonitor(x); }

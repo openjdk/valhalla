@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -648,6 +648,8 @@ void Canonicalizer::do_NewValueTypeInstance(NewValueTypeInstance* x) {}
 void Canonicalizer::do_NewTypeArray   (NewTypeArray*    x) {}
 void Canonicalizer::do_NewObjectArray (NewObjectArray*  x) {}
 void Canonicalizer::do_NewMultiArray  (NewMultiArray*   x) {}
+void Canonicalizer::do_WithField      (WithField*       x) {}
+void Canonicalizer::do_DefaultValue   (DefaultValue*    x) {}
 void Canonicalizer::do_CheckCast      (CheckCast*       x) {
   if (x->klass()->is_loaded() && !x->is_never_null()) {
     // Don't canonicalize for non-nullable types -- we need to throw NPE.

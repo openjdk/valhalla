@@ -77,6 +77,8 @@ class     NewArray;
 class       NewTypeArray;
 class       NewObjectArray;
 class       NewMultiArray;
+class     WithField;
+class     DefaultValue;
 class     TypeCheck;
 class       CheckCast;
 class       InstanceOf;
@@ -182,6 +184,8 @@ class InstructionVisitor: public StackObj {
   virtual void do_NewTypeArray   (NewTypeArray*    x) = 0;
   virtual void do_NewObjectArray (NewObjectArray*  x) = 0;
   virtual void do_NewMultiArray  (NewMultiArray*   x) = 0;
+  virtual void do_WithField      (WithField*       x) = 0;
+  virtual void do_DefaultValue   (DefaultValue*    x) = 0;
   virtual void do_CheckCast      (CheckCast*       x) = 0;
   virtual void do_InstanceOf     (InstanceOf*      x) = 0;
   virtual void do_MonitorEnter   (MonitorEnter*    x) = 0;
@@ -565,6 +569,8 @@ class Instruction: public CompilationResourceObj {
   virtual NewTypeArray*     as_NewTypeArray()    { return NULL; }
   virtual NewObjectArray*   as_NewObjectArray()  { return NULL; }
   virtual NewMultiArray*    as_NewMultiArray()   { return NULL; }
+  virtual WithField*        as_WithField()       { return NULL; }
+  virtual DefaultValue*     as_DefaultValue()    { return NULL; }
   virtual TypeCheck*        as_TypeCheck()       { return NULL; }
   virtual CheckCast*        as_CheckCast()       { return NULL; }
   virtual InstanceOf*       as_InstanceOf()      { return NULL; }
@@ -1467,6 +1473,19 @@ LEAF(NewMultiArray, NewArray)
   ciType* exact_type() const;
 };
 
+LEAF(WithField, StateSplit)
+ public:
+  // creation
+  WithField(ValueType* type, ValueStack* state_before)
+  : StateSplit(type, state_before) {}
+};
+
+LEAF(DefaultValue, StateSplit)
+ public:
+  // creation
+  DefaultValue(ValueType* type, ValueStack* state_before)
+  : StateSplit(type, state_before) {}
+};
 
 BASE(TypeCheck, StateSplit)
  private:
