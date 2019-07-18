@@ -485,28 +485,10 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
     compilation()->set_has_method_handle_invokes(true);
   }
 
-  if (ValueTypeReturnedAsFields) {
-    ciMethod* method = op->method();
-    if (method->signature()->returns_never_null()) {
-      ciType* return_type = method->return_type();
-      if (return_type->is_valuetype()) {
-        ciValueKlass* vk = return_type->as_value_klass();
-        if (vk->can_be_returned_as_fields()) {
-          store_value_type_fields_to_buf(vk);
-        }
-      }
-    } else if (op->is_method_handle_invoke()) {
-      BasicType bt = method->return_type()->basic_type();
-      if (bt == T_OBJECT || bt == T_VALUETYPE) {
-        // A value type might be returned from the call but we don't know its
-        // type. Either we get a buffered value (and nothing needs to be done)
-        // or one of the values being returned is the klass of the value type
-        // (RAX on x64, with LSB set to 1) and we need to allocate a value
-        // type instance of that type and initialize it with other values being
-        // returned (in other registers).
-        store_value_type_fields_to_buf(NULL);
-      }
-    }
+  ciValueKlass* vk;
+  if (op->maybe_return_as_fields(&vk)) {
+    int offset = store_value_type_fields_to_buf(vk);
+    add_call_info(offset, op->info(), true);
   }
 
 #if defined(X86) && defined(TIERED)

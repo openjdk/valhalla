@@ -1062,13 +1062,16 @@ void LIR_OpJavaCall::emit_code(LIR_Assembler* masm) {
   masm->emit_call(this);
 }
 
-bool LIR_OpJavaCall::maybe_return_as_fields() const {
+bool LIR_OpJavaCall::maybe_return_as_fields(ciValueKlass** vk_ret) const {
   if (ValueTypeReturnedAsFields) {
     if (method()->signature()->returns_never_null()) {
       ciType* return_type = method()->return_type();
       if (return_type->is_valuetype()) {
         ciValueKlass* vk = return_type->as_value_klass();
         if (vk->can_be_returned_as_fields()) {
+          if (vk_ret != NULL) {
+            *vk_ret = vk;
+          }
           return true;
         }
       }
@@ -1076,7 +1079,15 @@ bool LIR_OpJavaCall::maybe_return_as_fields() const {
       BasicType bt = method()->return_type()->basic_type();
       if (bt == T_OBJECT || bt == T_VALUETYPE) {
         // A value type might be returned from the call but we don't know its
+        // type. Either we get a buffered value (and nothing needs to be done)
+        // or one of the values being returned is the klass of the value type
+        // (RAX on x64, with LSB set to 1) and we need to allocate a value
+        // type instance of that type and initialize it with other values being
+        // returned (in other registers).
         // type.
+        if (vk_ret != NULL) {
+          *vk_ret = NULL;
+        }
         return true;
       }
     }

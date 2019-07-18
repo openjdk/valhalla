@@ -592,8 +592,8 @@ void LIR_Assembler::return_op(LIR_Opr result) {
 }
 
 
-void LIR_Assembler::store_value_type_fields_to_buf(ciValueKlass* vk) {
-  __ store_value_type_fields_to_buf(vk);
+int LIR_Assembler::store_value_type_fields_to_buf(ciValueKlass* vk) {
+  return (__ store_value_type_fields_to_buf(vk, false));
 }
 
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {

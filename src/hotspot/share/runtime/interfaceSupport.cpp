@@ -264,7 +264,7 @@ void InterfaceSupport::verify_stack() {
       // In case of exceptions we might not have a runtime_stub on
       // top of stack, hence, all callee-saved registers are not going
       // to be setup correctly, hence, we cannot do stack verify
-    if (cb != NULL && !cb->can_verify_stack()) return;
+    if (cb != NULL && !(cb->is_runtime_stub() || cb->is_uncommon_trap_stub())) return;
 
     for (; !sfs.is_done(); sfs.next()) {
       sfs.current()->verify(sfs.register_map());

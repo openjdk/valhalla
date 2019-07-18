@@ -2052,4 +2052,68 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             Asserts.assertEQ(result, n);
         }
     }
+
+    // C1->C2 force GC for every allocation when storing the returned
+    // fields back into a buffered object.
+    @Test(compLevel = C1)
+    public RefPoint test101(RefPoint rp) {
+        return test101_helper(rp);
+    }
+
+    @ForceCompile(compLevel = C2) @DontInline
+    public RefPoint test101_helper(RefPoint rp) {
+        return rp;
+    }
+
+    @DontCompile
+    public void test101_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) {
+            RefPoint rp = new RefPoint(1, 2);
+            Object x = rp.x;
+            Object y = rp.y;
+            RefPoint result = new RefPoint(3, 4);
+            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+                result = test101(rp);
+            }
+            Asserts.assertEQ(rp.x, result.x);
+            Asserts.assertEQ(rp.y, result.y);
+            Asserts.assertEQ(x, result.x);
+            Asserts.assertEQ(y, result.y);
+        }
+    }
+
+    // Same as test101, except we have Interpreter->C2 instead.
+    @Test(compLevel = C1)
+    public RefPoint test102(RefPoint rp) {
+        return test102_interp(rp);
+    }
+
+    @DontCompile @DontInline
+    public RefPoint test102_interp(RefPoint rp) {
+        return test102_helper(rp);
+    }
+
+    @ForceCompile(compLevel = C2) @DontInline
+    public RefPoint test102_helper(RefPoint rp) {
+        return rp;
+    }
+
+    @DontCompile
+    public void test102_verifier(boolean warmup) {
+        int count = warmup ? 1 : 5;
+        for (int i=0; i<count; i++) {
+            RefPoint rp = new RefPoint(11, 22);
+            Object x = rp.x;
+            Object y = rp.y;
+            RefPoint result = new RefPoint(333, 444);
+            try (ForceGCMarker m = ForceGCMarker.mark(warmup)) {
+                result = test102(rp);
+            }
+            Asserts.assertEQ(rp.x, result.x);
+            Asserts.assertEQ(rp.y, result.y);
+            Asserts.assertEQ(x, result.x);
+            Asserts.assertEQ(y, result.y);
+        }
+    }
 }

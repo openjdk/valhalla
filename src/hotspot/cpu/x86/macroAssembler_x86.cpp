@@ -5883,17 +5883,18 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XM
   BIND(L_end);
 }
 
-void MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk) {
-#ifndef _LP64
-  super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
-#else
+int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_interpreter) {
   // A value type might be returned. If fields are in registers we
   // need to allocate a value type instance and initialize it with
   // the value of the fields.
-  Label skip, slow_case;
+  Label skip;
   // We only need a new buffered value if a new one is not returned
   testptr(rax, 1);
   jcc(Assembler::zero, skip);
+  int call_offset = -1;
+
+#ifdef _LP64
+  Label slow_case;
 
   // Try to allocate a new buffered value (from the heap)
   if (UseTLAB) {
@@ -5932,7 +5933,7 @@ void MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk) {
     if (vk != NULL) {
       // FIXME -- do the packing in-line to avoid the runtime call
       mov(rax, r13);
-      call(RuntimeAddress(vk->pack_handler()));
+      call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
       movptr(rbx, Address(rax, InstanceKlass::adr_valueklass_fixed_block_offset()));
       movptr(rbx, Address(rbx, ValueKlass::pack_handler_offset()));
@@ -5947,9 +5948,17 @@ void MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk) {
   // call. Some oop field may be live in some registers but we can't
   // tell. That runtime call will take care of preserving them
   // across a GC if there's one.
-  super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
-  bind(skip);
 #endif
+
+  if (from_interpreter) {
+    super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
+  } else {
+    call(RuntimeAddress(StubRoutines::store_value_type_fields_to_buf()));
+    call_offset = offset();
+  }
+
+  bind(skip);
+  return call_offset;
 }
 
 
