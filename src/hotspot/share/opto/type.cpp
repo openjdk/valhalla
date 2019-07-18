@@ -4263,14 +4263,14 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
 
 
 //------------------------java_mirror_type--------------------------------------
-ciType* TypeInstPtr::java_mirror_type(bool* is_val_type) const {
+ciType* TypeInstPtr::java_mirror_type(bool* is_indirect_type) const {
   // must be a singleton type
   if( const_oop() == NULL )  return NULL;
 
   // must be of type java.lang.Class
   if( klass() != ciEnv::current()->Class_klass() )  return NULL;
 
-  return const_oop()->as_instance()->java_mirror_type(is_val_type);
+  return const_oop()->as_instance()->java_mirror_type(is_indirect_type);
 }
 
 

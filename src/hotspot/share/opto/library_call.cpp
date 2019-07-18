@@ -3529,14 +3529,14 @@ bool LibraryCallKit::inline_value_Class_conversion(vmIntrinsics::ID id) {
     return false;
   }
 
-  bool is_val_type = false;
-  ciType* tm = mirror_con->java_mirror_type(&is_val_type);
+  bool is_indirect_type = true;
+  ciType* tm = mirror_con->java_mirror_type(&is_indirect_type);
   if (tm != NULL) {
     Node* result = mirror;
     if (tm->is_valuetype()) {
-      if (id == vmIntrinsics::_asPrimaryType && !is_val_type) {
+      if (id == vmIntrinsics::_asPrimaryType && is_indirect_type) {
         result = _gvn.makecon(TypeInstPtr::make(tm->as_value_klass()->inline_mirror_instance()));
-      } else if (id == vmIntrinsics::_asIndirectType && is_val_type) {
+      } else if (id == vmIntrinsics::_asIndirectType && !is_indirect_type) {
         result = _gvn.makecon(TypeInstPtr::make(tm->as_value_klass()->indirect_mirror_instance()));
       }
     }
@@ -3570,9 +3570,9 @@ bool LibraryCallKit::inline_Class_cast() {
 
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
-  bool is_val_type = false;
-  ciType* tm = mirror_con->java_mirror_type(&is_val_type);
-  if (!obj->is_ValueType() && is_val_type) {
+  bool is_indirect_type = true;
+  ciType* tm = mirror_con->java_mirror_type(&is_indirect_type);
+  if (!obj->is_ValueType() && !is_indirect_type) {
     obj = null_check(obj);
     if (stopped()) {
       return true;
@@ -3624,8 +3624,7 @@ bool LibraryCallKit::inline_Class_cast() {
 
   Node* res = top();
   if (!stopped()) {
-    // TODO move this into do_checkcast?
-    if (EnableValhalla && !obj->is_ValueType() && !is_val_type) {
+    if (EnableValhalla && !obj->is_ValueType() && is_indirect_type) {
       // Check if (mirror == inline_mirror && obj == null)
       Node* is_val_mirror = generate_fair_guard(is_value_mirror(mirror), NULL);
       if (is_val_mirror != NULL) {

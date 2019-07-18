@@ -243,8 +243,6 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
   oop result;
 
   if (array_type->is_valueArray_klass()) {
-    // TODO refactor all these checks, is_typeArray_klass should not be true for a value type array
-    // TODO use oopFactory::new_array
     Klass* elem_type = ValueArrayKlass::cast(array_type)->element_klass();
     result = oopFactory::new_valueArray(elem_type, len, THREAD);
   } else if (array_type->is_typeArray_klass()) {

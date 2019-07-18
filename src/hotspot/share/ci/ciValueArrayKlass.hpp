@@ -37,7 +37,6 @@ class ciValueArrayKlass : public ciArrayKlass {
 
 private:
   ciKlass* _element_klass;
-  // TODO remove this??
   ciKlass* _base_element_klass;
 
 protected:
@@ -67,7 +66,6 @@ public:
   // The one-level type of the array elements.
   ciKlass* element_klass();
 
-  // TODO refactor all of this
   int log2_element_size() {
     return Klass::layout_helper_log2_element_size(layout_helper());
   }

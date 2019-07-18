@@ -70,24 +70,11 @@ ciValueArrayKlass::ciValueArrayKlass(ciSymbol* array_name,
 ciKlass* ciValueArrayKlass::element_klass() {
   if (_element_klass == NULL) {
     assert(dimension() > 1, "_element_klass should not be NULL");
+    assert(is_loaded(), "valueArrayKlass must be loaded");
     // Produce the element klass.
-    if (is_loaded()) {
-      VM_ENTRY_MARK;
-      Klass* element_Klass = get_ValueArrayKlass()->element_klass();
-      _element_klass = CURRENT_THREAD_ENV->get_klass(element_Klass);
-    } else {
-      // TODO handle this
-      guarantee(false, "unloaded array klass");
-      VM_ENTRY_MARK;
-      // We are an unloaded array klass.  Attempt to fetch our
-      // element klass by name.
-      _element_klass = CURRENT_THREAD_ENV->get_klass_by_name_impl(
-                          this,
-                          constantPoolHandle(),
-                          construct_array_name(base_element_klass()->name(),
-                                               dimension() - 1),
-                          false);
-    }
+    VM_ENTRY_MARK;
+    Klass* element_Klass = get_ValueArrayKlass()->element_klass();
+    _element_klass = CURRENT_THREAD_ENV->get_klass(element_Klass);
   }
   return _element_klass;
 }
@@ -169,13 +156,6 @@ ciValueArrayKlass* ciValueArrayKlass::make(ciKlass* element_klass) {
 }
 
 ciKlass* ciValueArrayKlass::exact_klass() {
-  assert(element_klass()->is_valuetype(), "element type must be value type");
-  if (element_klass()->is_loaded()) {
-    assert(element_klass()->as_value_klass()->exact_klass() != NULL, "must be");
-    return this;
-  }
-
-  // TODO handle this
-  guarantee(false, "klass not loaded");
-  return NULL;
+  assert(element_klass()->is_loaded() && element_klass()->as_value_klass()->exact_klass() != NULL, "must have exact klass");
+  return this;
 }

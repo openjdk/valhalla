@@ -39,7 +39,7 @@
 
 // ------------------------------------------------------------------
 // ciObject::java_mirror_type
-ciType* ciInstance::java_mirror_type(bool* is_val_type) {
+ciType* ciInstance::java_mirror_type(bool* is_indirect_type) {
   VM_ENTRY_MARK;
   oop m = get_oop();
   // Return NULL if it is not java.lang.Class.
@@ -52,8 +52,8 @@ ciType* ciInstance::java_mirror_type(bool* is_val_type) {
   } else {
     Klass* k = java_lang_Class::as_Klass(m);
     assert(k != NULL, "");
-    if (is_val_type != NULL) {
-      *is_val_type = k->is_value() && !java_lang_Class::is_indirect_type(m);
+    if (is_indirect_type != NULL) {
+      *is_indirect_type = java_lang_Class::is_indirect_type(m);
     }
     return CURRENT_THREAD_ENV->get_klass(k);
   }
