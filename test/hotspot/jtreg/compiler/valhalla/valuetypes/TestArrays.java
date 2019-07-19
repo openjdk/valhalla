@@ -1826,4 +1826,29 @@ public class TestArrays extends ValueTypeTest {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         Asserts.assertEQ(test78(v, 1), v.hash());
     }
+
+
+    @Test
+    public boolean test79() {
+        boolean b = true;
+
+        MyValue1[] qArray = new MyValue1[0];
+        MyValue1?[] lArray = new MyValue1?[0];
+
+        b = b && (qArray instanceof MyValue1[]);
+        b = b && (lArray instanceof MyValue1?[]);
+
+        MyValue1[][] qArray2 = new MyValue1[0][0];
+        MyValue1?[][] lArray2 = new MyValue1?[0][0];
+
+        b = b && (qArray2 instanceof MyValue1[][]);
+        b = b && (lArray2 instanceof MyValue1?[][]);
+
+        return b;
+    }
+
+    @DontCompile
+    public void test79_verifier(boolean warmup) {
+        Asserts.assertEQ(test79(), true);
+    }
 }

@@ -306,8 +306,12 @@ ciType* NewTypeArray::exact_type() const {
 
 ciType* NewObjectArray::exact_type() const {
   ciKlass* element_klass = klass();
-  if (is_never_null() && element_klass->is_valuetype() && element_klass->as_value_klass()->flatten_array()) {
-    return ciValueArrayKlass::make(element_klass);
+  if (is_never_null() && element_klass->is_valuetype()) {
+    if (element_klass->as_value_klass()->flatten_array()) {
+      return ciValueArrayKlass::make(element_klass);
+    } else {
+      return ciObjArrayKlass::make(element_klass, /*never_null =*/true);
+    }
   } else {
     return ciObjArrayKlass::make(element_klass);
   }
