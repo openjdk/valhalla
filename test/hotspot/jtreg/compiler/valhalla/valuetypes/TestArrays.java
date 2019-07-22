@@ -2126,9 +2126,8 @@ public class TestArrays extends ValueTypeTest {
         }
     }
 
-
     @Test
-    public boolean test79() {
+    public boolean test90() {
         boolean b = true;
 
         MyValue1[] qArray = new MyValue1[0];
@@ -2147,7 +2146,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     @DontCompile
-    public void test79_verifier(boolean warmup) {
-        Asserts.assertEQ(test79(), true);
+    public void test90_verifier(boolean warmup) {
+        Asserts.assertEQ(test90(), true);
     }
 }
