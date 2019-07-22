@@ -4183,11 +4183,11 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
   if (EnableValhalla && (elem == NULL || (elem_klass != NULL && (elem_klass->is_java_lang_Object() || elem_klass->is_valuetype()) &&
                                           !ary_type->klass_is_exact()))) {
     // Array type is not known, compute default value and storage properties for initialization.
-    assert(raw_default_value == NULL && storage_properties == NULL, "shouldn't be set yet");
+    assert(default_value == NULL && raw_default_value == NULL && storage_properties == NULL, "shouldn't be set yet");
     assert(elem_mirror != NULL, "should not be null");
 
     Node* r = new RegionNode(4);
-    raw_default_value = new PhiNode(r, TypeX_X);
+    default_value = new PhiNode(r, TypeInstPtr::BOTTOM);
     storage_properties = new PhiNode(r, TypeX_X);
 
     Node* empty     = MakeConX(ArrayStorageProperties::empty.encode<NOT_LP64(jint) LP64_ONLY(jlong)>(props_shift));
@@ -4199,7 +4199,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
 
     // Not a value mirror but a box mirror or not a value type array, initialize with all zero
     r->init_req(1, _gvn.transform(new IfFalseNode(iff)));
-    raw_default_value->init_req(1, MakeConX(0));
+    default_value->init_req(1, null());
     storage_properties->init_req(1, empty);
 
     // Value mirror (= null-free), check if flattened
@@ -4210,7 +4210,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
 
     // Flattened, initialize with all zero
     r->init_req(2, _gvn.transform(new IfTrueNode(iff)));
-    raw_default_value->init_req(2, MakeConX(0));
+    default_value->init_req(2, null());
     storage_properties->init_req(2, flat);
 
     // Non-flattened, initialize with the default value
@@ -4223,19 +4223,19 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     Node* default_value_offset = make_load(control(), default_value_offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
     Node* default_value_addr = basic_plus_adr(elem_mirror, ConvI2X(default_value_offset));
     Node* val = access_load_at(elem_mirror, default_value_addr, _gvn.type(default_value_addr)->is_ptr(), TypeInstPtr::BOTTOM, T_OBJECT, IN_HEAP);
-    if (UseCompressedOops) {
-      val = _gvn.transform(new EncodePNode(val, elem));
-      val = raw_default_for_coops(val, *this);
-    } else {
-      val = _gvn.transform(new CastP2XNode(control(), val));
-    }
     r->init_req(3, control());
-    raw_default_value->init_req(3, val);
+    default_value->init_req(3, val);
     storage_properties->init_req(3, null_free);
 
     set_control(_gvn.transform(r));
-    raw_default_value = _gvn.transform(raw_default_value);
+    default_value = _gvn.transform(default_value);
     storage_properties = _gvn.transform(storage_properties);
+    if (UseCompressedOops) {
+      default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));
+      raw_default_value = raw_default_for_coops(default_value, *this);
+    } else {
+      raw_default_value = _gvn.transform(new CastP2XNode(control(), default_value));
+    }
   }
 
   // Create the AllocateArrayNode and its result projections
