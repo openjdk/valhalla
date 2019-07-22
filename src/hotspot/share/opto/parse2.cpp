@@ -73,9 +73,9 @@ void Parse::array_load(BasicType bt) {
   } else if (elemptr != NULL && elemptr->is_valuetypeptr() && !elemptr->maybe_null()) {
     // Load from non-flattened but flattenable value type array (elements can never be null)
     bt = T_VALUETYPE;
-  } else if (!ary_t->is_not_flat() && !ary_t->klass_is_exact()) {
+  } else if (!ary_t->is_not_flat()) {
     // Cannot statically determine if array is flattened, emit runtime check
-    assert(ValueArrayFlatten && elemptr != NULL && elemptr->can_be_value_type() &&
+    assert(ValueArrayFlatten && elemptr->can_be_value_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
            (!elemptr->is_valuetypeptr() || elemptr->value_klass()->flatten_array()), "array can't be flattened");
     Node* ctl = control();
     IdealKit ideal(this);
@@ -96,9 +96,8 @@ void Parse::array_load(BasicType bt) {
       sync_kit(ideal);
       if (elemptr->is_valuetypeptr()) {
         // Element type is known, cast and load from flattened representation
-        assert(elemptr->maybe_null(), "must be nullable");
         ciValueKlass* vk = elemptr->value_klass();
-        assert(vk->flatten_array(), "must be flattenable");
+        assert(vk->flatten_array() && elemptr->maybe_null(), "must be a flattenable and nullable array");
         ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* never_null */ true);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
@@ -213,128 +212,145 @@ void Parse::array_store(BasicType bt) {
   Node* ary = pop();        // The array itself
 
   const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
-  if (bt == T_OBJECT) {
-    const TypeOopPtr* elemptr = elemtype->make_oopptr();
-    const Type* val_t = _gvn.type(cast_val);
-    if (elemtype->isa_valuetype() != NULL) {
-      C->set_flattened_accesses();
+  const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+
+  if (elemtype == TypeInt::BOOL) {
+    bt = T_BOOLEAN;
+  } else if (bt == T_OBJECT) {
+    elemtype = elemtype->make_oopptr();
+    const Type* tval = _gvn.type(cast_val);
+    // We may have lost type information for 'val' here due to the casts
+    // emitted by the array_store_check code (see JDK-6312651)
+    // TODO Remove this code once JDK-6312651 is in.
+    const Type* tval_init = _gvn.type(val);
+    bool can_be_value_type = tval->isa_valuetype() || (tval != TypePtr::NULL_PTR && tval_init->is_oopptr()->can_be_value_type() && tval->is_oopptr()->can_be_value_type());
+    bool not_flattenable = !can_be_value_type || ((tval_init->is_valuetypeptr() || tval_init->isa_valuetype()) && !tval_init->value_klass()->flatten_array());
+
+    if (!ary_t->is_not_null_free() && !can_be_value_type && (!tval->maybe_null() || !tval_init->maybe_null())) {
+      // Storing a non-inline-type, mark array as not null-free.
+      // This is only legal for non-null stores because the array_store_check passes for null.
+      ary_t = ary_t->cast_to_not_null_free();
+      Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, ary_t));
+      replace_in_map(ary, cast);
+      ary = cast;
+    } else if (!ary_t->is_not_flat() && not_flattenable) {
+      // Storing a non-flattenable value, mark array as not flat.
+      ary_t = ary_t->cast_to_not_flat();
+      if (tval != TypePtr::NULL_PTR) {
+        // For NULL, this transformation is only valid after the null guard below
+        Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, ary_t));
+        replace_in_map(ary, cast);
+        ary = cast;
+      }
+    }
+
+    if (ary_t->elem()->isa_valuetype() != NULL) {
       // Store to flattened value type array
+      C->set_flattened_accesses();
       if (!cast_val->is_ValueType()) {
         inc_sp(3);
         cast_val = null_check(cast_val);
         if (stopped()) return;
         dec_sp(3);
-        cast_val = ValueTypeNode::make_from_oop(this, cast_val, elemtype->value_klass());
+        cast_val = ValueTypeNode::make_from_oop(this, cast_val, ary_t->elem()->value_klass());
       }
       cast_val->as_ValueType()->store_flattened(this, ary, adr);
       return;
-    } else if (elemptr->is_valuetypeptr() && !elemptr->maybe_null()) {
+    } else if (elemtype->is_valuetypeptr() && !elemtype->maybe_null()) {
       // Store to non-flattened but flattenable value type array (elements can never be null)
-      if (!cast_val->is_ValueType() && val_t->maybe_null()) {
+      if (!cast_val->is_ValueType() && tval->maybe_null()) {
         inc_sp(3);
         cast_val = null_check(cast_val);
         if (stopped()) return;
         dec_sp(3);
       }
-    } else if (elemptr->can_be_value_type() && !ary_t->klass_is_exact() &&
-               (cast_val->is_ValueType() || val_t == TypePtr::NULL_PTR || val_t->is_oopptr()->can_be_value_type())) {
-      // Cannot statically determine if array is flattened or null-free, emit runtime checks
-      ciValueKlass* vk = NULL;
-      // Try to determine the value klass
-      if (cast_val->is_ValueType()) {
-        vk = val_t->value_klass();
-      } else if (elemptr->is_valuetypeptr()) {
-        vk = elemptr->value_klass();
+    } else if (!ary_t->is_not_flat()) {
+      // Array might be flattened, emit runtime checks
+      assert(ValueArrayFlatten && !not_flattenable && elemtype->is_oopptr()->can_be_value_type() &&
+             !ary_t->klass_is_exact() && !ary_t->is_not_null_free(), "array can't be flattened");
+      IdealKit ideal(this);
+      Node* kls = load_object_klass(ary);
+      Node* layout_val = load_lh_array_tag(kls);
+      ideal.if_then(layout_val, BoolTest::ne, intcon(Klass::_lh_array_tag_vt_value));
+      {
+        // non-flattened
+        sync_kit(ideal);
+        gen_value_array_null_guard(ary, cast_val, 3);
+        access_store_at(ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false, false);
+        ideal.sync_kit(this);
       }
-      if (!ary_t->is_not_flat() && (vk == NULL || vk->flatten_array())) {
-        // Array might be flattened
-        assert(ValueArrayFlatten && !ary_t->is_not_null_free(), "a null-ok array can't be flattened");
-        IdealKit ideal(this);
-        Node* kls = load_object_klass(ary);
-        Node* layout_val = load_lh_array_tag(kls);
-        ideal.if_then(layout_val, BoolTest::ne, intcon(Klass::_lh_array_tag_vt_value));
-        {
-          // non-flattened
+      ideal.else_();
+      {
+        // flattened
+        if (!cast_val->is_ValueType() && tval->maybe_null()) {
+          // Add null check
           sync_kit(ideal);
-          gen_value_array_null_guard(ary, cast_val, 3);
-          const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
-          elemtype = ary_t->elem()->make_oopptr();
-          access_store_at(ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false, false);
+          Node* null_ctl = top();
+          cast_val = null_check_oop(cast_val, &null_ctl);
+          if (null_ctl != top()) {
+            PreserveJVMState pjvms(this);
+            inc_sp(3);
+            set_control(null_ctl);
+            uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+            dec_sp(3);
+          }
           ideal.sync_kit(this);
         }
-        ideal.else_();
-        {
-          // flattened
-          if (!cast_val->is_ValueType() && val_t->maybe_null()) {
-            // Add null check
-            sync_kit(ideal);
-            Node* null_ctl = top();
-            cast_val = null_check_oop(cast_val, &null_ctl);
-            if (null_ctl != top()) {
-              PreserveJVMState pjvms(this);
-              inc_sp(3);
-              set_control(null_ctl);
-              uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-              dec_sp(3);
-            }
-            ideal.sync_kit(this);
-          }
-          if (vk != NULL && !stopped()) {
-            // Element type is known, cast and store to flattened representation
-            sync_kit(ideal);
-            assert(vk->flatten_array(), "must be flattenable");
-            assert(elemptr->maybe_null(), "must be nullable");
-            ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* never_null */ true);
-            const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-            ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
-            adr = array_element_address(ary, idx, T_OBJECT, arytype->size(), control());
-            if (!cast_val->is_ValueType()) {
-              assert(!gvn().type(cast_val)->maybe_null(), "value type array elements should never be null");
-              cast_val = ValueTypeNode::make_from_oop(this, cast_val, vk);
-            }
-            cast_val->as_ValueType()->store_flattened(this, ary, adr);
-            ideal.sync_kit(this);
-          } else if (!ideal.ctrl()->is_top()) {
-            // Element type is unknown, emit runtime call
-            sync_kit(ideal);
-
-            // This membar keeps this access to an unknown flattened
-            // array correctly ordered with other unknown and known
-            // flattened array accesses.
-            insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::VALUES));
-            ideal.sync_kit(this);
-
-            ideal.make_leaf_call(OptoRuntime::store_unknown_value_Type(),
-                                 CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_value),
-                                 "store_unknown_value",
-                                 cast_val, ary, idx);
-
-            sync_kit(ideal);
-            // Same as MemBarCPUOrder above: keep this unknown
-            // flattened array access correctly ordered with other
-            // flattened array access
-            insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::VALUES));
-            ideal.sync_kit(this);
-
-          }
+        // Try to determine the value klass
+        ciValueKlass* vk = NULL;
+        if (tval->isa_valuetype() || tval->is_valuetypeptr()) {
+          vk = tval->value_klass();
+        } else if (tval_init->isa_valuetype() || tval_init->is_valuetypeptr()) {
+          vk = tval_init->value_klass();
+        } else if (elemtype->is_valuetypeptr()) {
+          vk = elemtype->value_klass();
         }
-        ideal.end_if();
-        sync_kit(ideal);
-        return;
-      } else if (!ary_t->is_not_null_free()) {
-        // Array is never flattened
-        gen_value_array_null_guard(ary, cast_val, 3);
+        if (vk != NULL && !stopped()) {
+          // Element type is known, cast and store to flattened representation
+          sync_kit(ideal);
+          assert(vk->flatten_array() && elemtype->maybe_null(), "must be a flattenable and nullable array");
+          ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* never_null */ true);
+          const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
+          ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
+          adr = array_element_address(ary, idx, T_OBJECT, arytype->size(), control());
+          if (!cast_val->is_ValueType()) {
+            assert(!gvn().type(cast_val)->maybe_null(), "value type array elements should never be null");
+            cast_val = ValueTypeNode::make_from_oop(this, cast_val, vk);
+          }
+          cast_val->as_ValueType()->store_flattened(this, ary, adr);
+          ideal.sync_kit(this);
+        } else if (!ideal.ctrl()->is_top()) {
+          // Element type is unknown, emit runtime call
+          sync_kit(ideal);
+
+          // This membar keeps this access to an unknown flattened
+          // array correctly ordered with other unknown and known
+          // flattened array accesses.
+          insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::VALUES));
+          ideal.sync_kit(this);
+
+          ideal.make_leaf_call(OptoRuntime::store_unknown_value_Type(),
+                               CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_value),
+                               "store_unknown_value",
+                               cast_val, ary, idx);
+
+          sync_kit(ideal);
+          // Same as MemBarCPUOrder above: keep this unknown
+          // flattened array access correctly ordered with other
+          // flattened array access
+          insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::VALUES));
+          ideal.sync_kit(this);
+        }
       }
+      ideal.end_if();
+      sync_kit(ideal);
+      return;
+    } else if (!ary_t->is_not_null_free()) {
+      // Array is not flattened but may be null free
+      assert(elemtype->is_oopptr()->can_be_value_type() && !ary_t->klass_is_exact(), "array can't be null free");
+      ary = gen_value_array_null_guard(ary, cast_val, 3, true);
     }
   }
-
-  if (elemtype == TypeInt::BOOL) {
-    bt = T_BOOLEAN;
-  } else if (bt == T_OBJECT) {
-    elemtype = ary_t->elem()->make_oopptr();
-  }
-
-  const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
 
   access_store_at(ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
 }

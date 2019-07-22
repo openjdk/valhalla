@@ -535,8 +535,8 @@ ValueTypeNode* ValueTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciValueKla
     // Oop can never be null
     Node* init_ctl = kit->control();
     vt->load(kit, oop, oop, vk, /* holder_offset */ 0);
-    assert(init_ctl != kit->control() || oop->is_Con() || oop->is_CheckCastPP() || oop->Opcode() == Op_ValueTypePtr ||
-           vt->is_loaded(&gvn) == oop, "value type should be loaded");
+    assert(init_ctl != kit->control() || !gvn.type(oop)->is_valuetypeptr() || oop->is_Con() || oop->Opcode() == Op_ValueTypePtr ||
+           AllocateNode::Ideal_allocation(oop, &gvn) != NULL || vt->is_loaded(&gvn) == oop, "value type should be loaded");
   }
 
   assert(vt->is_allocated(&gvn), "value type should be allocated");

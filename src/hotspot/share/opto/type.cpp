@@ -3480,8 +3480,8 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     }
     // [V? has a subtype: [V. So even though V is final, [V? is not exact.
     bool xk = etype->klass_is_exact() && (!etype->is_valuetypeptr() || null_free);
-    bool not_flat = !ValueArrayFlatten || xk || !etype->can_be_value_type() || (etype->is_valuetypeptr() && !etype->value_klass()->flatten_array());
-    bool not_null_free = !etype->can_be_value_type();
+    bool not_null_free = !etype->can_be_value_type() || xk;
+    bool not_flat = !ValueArrayFlatten || not_null_free || (etype->is_valuetypeptr() && !etype->value_klass()->flatten_array());
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, false, not_flat, not_null_free);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
@@ -4415,7 +4415,13 @@ const Type *TypeAryPtr::cast_to_exactness(bool klass_is_exact) const {
   if( klass_is_exact == _klass_is_exact ) return this;
   if (!UseExactTypes)  return this;
   if (_ary->ary_must_be_exact())  return this;  // cannot clear xk
-  return make(ptr(), const_oop(), _ary, klass(), klass_is_exact, _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
+
+  const TypeAry* new_ary = _ary;
+  if (klass() != NULL && klass()->is_obj_array_klass() && klass_is_exact) {
+    // An object array can't be flat or null-free if the klass is exact
+    new_ary = TypeAry::make(elem(), size(), is_stable(), /* not_flat= */ true, /* not_null_free= */ true);
+  }
+  return make(ptr(), const_oop(), new_ary, klass(), klass_is_exact, _offset, _field_offset, _instance_id, _speculative, _inline_depth, _is_autobox_cache);
 }
 
 //-----------------------------cast_to_instance_id----------------------------

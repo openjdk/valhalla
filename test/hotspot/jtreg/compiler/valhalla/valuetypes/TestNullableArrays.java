@@ -85,8 +85,8 @@ public class TestNullableArrays extends ValueTypeTest {
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
 
     // Test nullable value type array creation and initialization
-    @Test(valid = ValueTypeArrayFlattenOff, failOn = LOAD)
     @Test(valid = ValueTypeArrayFlattenOn)
+    @Test(valid = ValueTypeArrayFlattenOff, failOn = LOAD)
     public MyValue1?[] test1(int len) {
         MyValue1?[] va = new MyValue1?[len];
         if (len > 0) {
@@ -111,9 +111,9 @@ public class TestNullableArrays extends ValueTypeTest {
     }
 
     // Test creation of a value type array and element access
-    @Test()
-// TODO fix
-//    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    @Test
+    // TODO 8227588
+    // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     public long test2() {
         MyValue1?[] va = new MyValue1?[1];
         va[0] = MyValue1.createWithFieldsInline(rI, rL);
@@ -222,7 +222,7 @@ public class TestNullableArrays extends ValueTypeTest {
     }
 
     // Test creation of value type array with single element
-    @Test(failOn = ALLOCA + LOOP + LOAD + TRAP)
+    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     public MyValue1? test6() {
         MyValue1?[] va = new MyValue1?[1];
         return va[0];
@@ -864,8 +864,7 @@ public class TestNullableArrays extends ValueTypeTest {
     }
 
     // non escaping allocations
-// TODO fix
-//    @Test(failOn = ALLOCA + LOOP + LOAD + TRAP)
+    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     public MyValue2? test28() {
         MyValue2?[] src = new MyValue2?[10];
         src[0] = null;
@@ -881,6 +880,7 @@ public class TestNullableArrays extends ValueTypeTest {
     }
 
     // non escaping allocations
+    // TODO 8227588: shouldn't this have the same IR matching rules as test6?
     @Test(failOn = ALLOCA + LOOP + TRAP)
     public MyValue2? test29(MyValue2?[] src) {
         MyValue2?[] dst = new MyValue2?[10];
@@ -921,8 +921,8 @@ public class TestNullableArrays extends ValueTypeTest {
 
     // non escaping allocation with memory phi
     @Test()
-// TODO fix
-//    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + TRAP)
+    // TODO 8227588
+    // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     public long test31(boolean b, boolean deopt) {
         MyValue2?[] src = new MyValue2?[1];
         if (b) {
@@ -2112,7 +2112,7 @@ public class TestNullableArrays extends ValueTypeTest {
     }
 
     // Test widening conversions from [Q to [L
-    @Test(failOn = ALLOC + ALLOCA + STORE)
+    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     public static MyValue1?[] test79(MyValue1[] va) {
         return va;
     }
@@ -2134,7 +2134,7 @@ public class TestNullableArrays extends ValueTypeTest {
     }
 
     // Same as test79 but with explicit cast and Object return
-    @Test(failOn = ALLOC + ALLOCA + STORE)
+    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     public static Object[] test80(MyValue1[] va) {
         return (MyValue1?[])va;
     }
@@ -2248,7 +2248,8 @@ public class TestNullableArrays extends ValueTypeTest {
         Asserts.assertEquals(res, testValue1.hash());
     }
 
-    @Test(failOn = ALLOC + ALLOCA + STORE)
+    @Test(valid = ValueTypeArrayFlattenOn, failOn = ALLOC + ALLOCA + LOOP + STORE + TRAP)
+    @Test(valid = ValueTypeArrayFlattenOff)
     public static MyValue1?[] test84(MyValue1 vt1, MyValue1? vt2) {
         MyValue1?[] result = new MyValue1[2];
         result[0] = vt1;
@@ -2334,7 +2335,7 @@ public class TestNullableArrays extends ValueTypeTest {
     }
 
     // Test narrowing conversion from [L to [Q
-    @Test(failOn = ALLOC + ALLOCA + STORE)
+    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     public static MyValue1[] test88(MyValue1?[] va) {
         return (MyValue1[])va;
     }
@@ -2356,7 +2357,7 @@ public class TestNullableArrays extends ValueTypeTest {
     }
 
     // Same as test88 but with explicit cast and Object argument
-    @Test(failOn = ALLOC + ALLOCA + STORE)
+    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     public static MyValue1[] test89(Object[] va) {
         return (MyValue1[])va;
     }

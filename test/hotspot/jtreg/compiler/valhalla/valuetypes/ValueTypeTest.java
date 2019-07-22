@@ -183,6 +183,10 @@ public abstract class ValueTypeTest {
     protected static final String START = "(\\d+\\t(.*";
     protected static final String MID = ".*)+\\t===.*";
     protected static final String END = ")|";
+    // Generic allocation
+    protected static final String ALLOC_G  = "(.*call,static  wrapper for: _new_instance_Java" + END;
+    protected static final String ALLOCA_G = "(.*call,static  wrapper for: _new_array_Java" + END;
+    // Value type allocation
     protected static final String ALLOC  = "(.*precise klass compiler/valhalla/valuetypes/MyValue.*\\R(.*(nop|spill).*\\R)*.*_new_instance_Java" + END;
     protected static final String ALLOCA = "(.*precise klass \\[Lcompiler/valhalla/valuetypes/MyValue.*\\R(.*(nop|spill).*\\R)*.*_new_array_Java" + END;
     protected static final String LOAD   = START + "Load(B|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/valuetypes/MyValue.*" + END;
@@ -199,6 +203,7 @@ public abstract class ValueTypeTest {
     protected static final String SCOBJ = "(.*# ScObj.*" + END;
     protected static final String LOAD_UNKNOWN_VALUE = "(.*call_leaf,runtime  load_unknown_value.*" + END;
     protected static final String STORE_UNKNOWN_VALUE = "(.*call_leaf,runtime  store_unknown_value.*" + END;
+    protected static final String VALUE_ARRAY_NULL_GUARD = "(.*call,static  wrapper for: uncommon_trap.*reason='null_check' action='none'.*" + END;
 
     public static String[] concat(String prefix[], String... extra) {
         ArrayList<String> list = new ArrayList<String>();
@@ -232,24 +237,23 @@ public abstract class ValueTypeTest {
         switch (scenario) {
         case 0: return new String[] {
                 "-XX:+AlwaysIncrementalInline",
-                "-XX:ValueArrayElemMaxFlatOops=-1",
+                "-XX:ValueArrayElemMaxFlatOops=5",
                 "-XX:ValueArrayElemMaxFlatSize=-1",
                 "-XX:ValueFieldMaxFlatSize=-1",
                 "-XX:+ValueTypePassFieldsAsArgs",
                 "-XX:+ValueTypeReturnedAsFields"};
         case 1: return new String[] {
                 "-XX:-UseCompressedOops",
-                "-XX:ValueArrayElemMaxFlatOops=-1",
+                "-XX:ValueArrayElemMaxFlatOops=5",
                 "-XX:ValueArrayElemMaxFlatSize=-1",
                 "-XX:ValueFieldMaxFlatSize=-1",
                 "-XX:-ValueTypePassFieldsAsArgs",
                 "-XX:-ValueTypeReturnedAsFields"};
         case 2: return new String[] {
-                "-DVerifyIR=false",
                 "-XX:-UseCompressedOops",
                 "-XX:ValueArrayElemMaxFlatOops=0",
                 "-XX:ValueArrayElemMaxFlatSize=0",
-                "-XX:ValueFieldMaxFlatSize=0",
+                "-XX:ValueFieldMaxFlatSize=-1",
                 "-XX:+ValueTypePassFieldsAsArgs",
                 "-XX:+ValueTypeReturnedAsFields",
                 "-XX:+StressValueTypeReturnedAsFields"};
@@ -271,7 +275,7 @@ public abstract class ValueTypeTest {
                 "-XX:-ReduceInitialCardMarks"};
         case 5: return new String[] {
                 "-XX:+AlwaysIncrementalInline",
-                "-XX:ValueArrayElemMaxFlatOops=-1",
+                "-XX:ValueArrayElemMaxFlatOops=5",
                 "-XX:ValueArrayElemMaxFlatSize=-1",
                 "-XX:ValueFieldMaxFlatSize=-1",
                 "-XX:-ValueTypePassFieldsAsArgs",

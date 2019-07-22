@@ -1212,6 +1212,53 @@ bool IfNode::is_null_check(ProjNode* proj, PhaseIterGVN* igvn) {
   return false;
 }
 
+// Returns true if this IfNode belongs to a flattened array check
+// and returns the corresponding array in the 'array' parameter.
+bool IfNode::is_flattened_array_check(PhaseTransform* phase, Node*& array) {
+  Node* bol = in(1);
+  if (!bol->is_Bool() || bol->as_Bool()->_test._test != BoolTest::ne) {
+    return false;
+  }
+  Node* cmp = bol->in(1);
+  if (cmp->Opcode() != Op_CmpI) {
+    return false;
+  }
+  Node* cmp_in1 = cmp->in(1);
+  Node* cmp_in2 = cmp->in(2);
+  if ((unsigned int)cmp_in2->find_int_con(0) != Klass::_lh_array_tag_vt_value) {
+    return false;
+  }
+  if (cmp_in1->Opcode() != Op_RShiftI) {
+    return false;
+  }
+  Node* shift_in1 = cmp_in1->in(1);
+  Node* shift_in2 = cmp_in1->in(2);
+  if ((unsigned int)shift_in2->find_int_con(0) != Klass::_lh_array_tag_shift) {
+    return false;
+  }
+  if (shift_in1->Opcode() != Op_LoadI) {
+    return false;
+  }
+  intptr_t offset;
+  Node* ptr = shift_in1->in(MemNode::Address);
+  Node* addr = AddPNode::Ideal_base_and_offset(ptr, phase, offset);
+  if (addr == NULL || offset != in_bytes(Klass::layout_helper_offset())) {
+    return false;
+  }
+  if (!phase->type(addr)->isa_klassptr()) {
+    return false;
+  }
+  Node* klass_load = ptr->as_AddP()->in(AddPNode::Base)->uncast();
+  if (klass_load->is_DecodeNKlass()) {
+    klass_load = klass_load->in(1);
+  }
+  if (klass_load->is_Load()) {
+    Node* address = klass_load->in(MemNode::Address);
+    array = address->as_AddP()->in(AddPNode::Base);
+  }
+  return true;
+}
+
 // Check that the If that is in between the 2 integer comparisons has
 // no side effect
 bool IfNode::is_side_effect_free_test(ProjNode* proj, PhaseIterGVN* igvn) {

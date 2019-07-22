@@ -46,8 +46,7 @@ public class TestMethodHandles extends ValueTypeTest {
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
         // Prevent inlining through MethodHandle linkTo adapters to stress the calling convention
-        case 2: return new String[] {"-XX:CompileCommand=dontinline,java.lang.invoke.DirectMethodHandle::internalMemberName"};
-        case 3: return new String[] {"-XX:ValueArrayElemMaxFlatSize=0"};
+        case 2: return new String[] {"-DVerifyIR=false", "-XX:CompileCommand=dontinline,java.lang.invoke.DirectMethodHandle::internalMemberName"};
         case 4: return new String[] {"-XX:CompileCommand=dontinline,java.lang.invoke.DirectMethodHandle::internalMemberName"};
         }
         return null;

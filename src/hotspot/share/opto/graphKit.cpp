@@ -3411,6 +3411,42 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   set_control( _gvn.transform(region) );
   record_for_igvn(region);
 
+  bool not_null_free = !toop->can_be_value_type();
+  bool not_flattenable = !ValueArrayFlatten || not_null_free || (toop->is_valuetypeptr() && !toop->value_klass()->flatten_array());
+  if (EnableValhalla && not_flattenable) {
+    // Check if obj has been loaded from an array
+    obj = obj->isa_DecodeN() ? obj->in(1) : obj;
+    Node* array = NULL;
+    if (obj->isa_Load()) {
+      Node* address = obj->in(MemNode::Address);
+      if (address->isa_AddP()) {
+        array = address->as_AddP()->in(AddPNode::Base);
+      }
+    } else if (obj->is_Phi()) {
+      Node* region = obj->in(0);
+      if (region->req() == 3 && region->in(2) != NULL) {
+        IfNode* iff = region->in(2)->in(0)->isa_If();
+        if (iff != NULL) {
+          iff->is_flattened_array_check(&_gvn, array);
+        }
+      }
+    }
+    if (array != NULL) {
+      const TypeAryPtr* ary_t = _gvn.type(array)->isa_aryptr();
+      if (ary_t != NULL) {
+        if (!ary_t->is_not_null_free() && not_null_free) {
+          // Casting array element to a non-inline-type, mark array as not null-free.
+          Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, ary_t->cast_to_not_null_free()));
+          replace_in_map(array, cast);
+        } else if (!ary_t->is_not_flat()) {
+          // Casting array element to a non-flattenable type, mark array as not flat.
+          Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, ary_t->cast_to_not_flat()));
+          replace_in_map(array, cast);
+        }
+      }
+    }
+  }
+
   if (!is_value) {
     res = record_profiled_receiver_for_speculation(res);
     if (toop->is_valuetypeptr() && toop->value_klass()->is_scalarizable() && !gvn().type(res)->maybe_null()) {
@@ -3476,10 +3512,10 @@ Node* GraphKit::gen_null_free_array_check(Node* ary) {
 }
 
 // Deoptimize if 'ary' is a null-free value type array and 'val' is null
-void GraphKit::gen_value_array_null_guard(Node* ary, Node* val, int nargs) {
+Node* GraphKit::gen_value_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace) {
   const Type* val_t = _gvn.type(val);
   if (val->is_ValueType() || !TypePtr::NULL_PTR->higher_equal(val_t)) {
-    return; // Never null
+    return ary; // Never null
   }
   RegionNode* region = new RegionNode(3);
   Node* null_ctl = top();
@@ -3499,6 +3535,17 @@ void GraphKit::gen_value_array_null_guard(Node* ary, Node* val, int nargs) {
   region->init_req(2, control());
   set_control(_gvn.transform(region));
   record_for_igvn(region);
+  const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
+  if (val_t == TypePtr::NULL_PTR && !ary_t->is_not_null_free()) {
+    // Since we were just successfully storing null, the array can't be null free.
+    ary_t = ary_t->cast_to_not_null_free();
+    Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, ary_t));
+    if (safe_for_replace) {
+      replace_in_map(ary, cast);
+    }
+    ary = cast;
+  }
+  return ary;
 }
 
 Node* GraphKit::load_lh_array_tag(Node* kls) {

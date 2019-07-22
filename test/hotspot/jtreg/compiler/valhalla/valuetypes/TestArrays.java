@@ -60,8 +60,10 @@ public class TestArrays extends ValueTypeTest {
     @Override
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
-        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:ValueArrayElemMaxFlatSize=-1"};
-        case 4: return new String[] {"-XX:-MonomorphicArrayCheck"};
+        case 2: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast"};
+        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:ValueArrayElemMaxFlatSize=-1", "-XX:-UncommonNullCast"};
+        case 4: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast"};
+        case 5: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast"};
         }
         return null;
     }
@@ -82,8 +84,8 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // Test value type array creation and initialization
-    @Test(valid = ValueTypeArrayFlattenOff, failOn = LOAD)
     @Test(valid = ValueTypeArrayFlattenOn)
+    @Test(valid = ValueTypeArrayFlattenOff, failOn = LOAD)
     public MyValue1[] test1(int len) {
         MyValue1[] va = new MyValue1[len];
         for (int i = 0; i < len; ++i) {
@@ -102,7 +104,9 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // Test creation of a value type array and element access
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    // TODO 8227588
+    @Test(valid = ValueTypeArrayFlattenOn, failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    @Test(valid = ValueTypeArrayFlattenOff)
     public long test2() {
         MyValue1[] va = new MyValue1[1];
         va[0] = MyValue1.createWithFieldsInline(rI, rL);
@@ -203,7 +207,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // Test creation of value type array with single element
-    @Test(failOn = ALLOCA + LOOP + LOAD + TRAP)
+    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     public MyValue1 test6() {
         MyValue1[] va = new MyValue1[1];
         return va[0];
@@ -678,7 +682,9 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // non escaping allocations
-    @Test(failOn = ALLOCA + LOOP + LOAD + TRAP)
+    // TODO 8227588: shouldn't this have the same IR matching rules as test6?
+    @Test(valid = ValueTypeArrayFlattenOn, failOn = ALLOCA + LOOP + LOAD + TRAP)
+    @Test(valid = ValueTypeArrayFlattenOff)
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, 0, dst, 0, 10);
@@ -717,7 +723,9 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // non escaping allocation with memory phi
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + TRAP)
+    // TODO 8227588
+    @Test(valid = ValueTypeArrayFlattenOn, failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    @Test(valid = ValueTypeArrayFlattenOff)
     public long test31(boolean b, boolean deopt) {
         MyValue2[] src = new MyValue2[1];
         if (b) {
@@ -1825,6 +1833,297 @@ public class TestArrays extends ValueTypeTest {
     public void test78_verifier(boolean warmup) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
         Asserts.assertEQ(test78(v, 1), v.hash());
+    }
+
+    // Verify that casting an array element to a non-flattenable type marks the array as not-flat
+    @Test(valid = ValueTypeArrayFlattenOn, match = { ALLOC_G, LOAD_UNKNOWN_VALUE }, matchCount = { 1, 1 })
+    @Test(valid = ValueTypeArrayFlattenOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE)
+    public Object test79(Object[] array, int i) {
+        Integer i1 = (Integer)array[0];
+        Object o = array[1];
+        return array[i];
+    }
+
+    @DontCompile
+    public void test79_verifier(boolean warmup) {
+        Integer i = new Integer(rI);
+        Integer[] array = new Integer[2];
+        array[1] = i;
+        Object result = test79(array, 1);
+        Asserts.assertEquals(result, i);
+    }
+
+    inline static class NotFlattenable {
+        private final Object o1 = null;
+        private final Object o2 = null;
+        private final Object o3 = null;
+        private final Object o4 = null;
+        private final Object o5 = null;
+        private final Object o6 = null;
+    }
+
+    // Same as test80 but with not-flattenable inline type
+    @Test(valid = ValueTypeArrayFlattenOn, match = { ALLOC_G, LOAD_UNKNOWN_VALUE }, matchCount = { 1, 1 })
+    @Test(valid = ValueTypeArrayFlattenOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE)
+    public Object test80(Object[] array, int i) {
+        NotFlattenable vt = (NotFlattenable)array[0];
+        Object o = array[1];
+        return array[i];
+    }
+
+    @DontCompile
+    public void test80_verifier(boolean warmup) {
+        NotFlattenable vt = new NotFlattenable();
+        NotFlattenable[] array = new NotFlattenable[2];
+        array[1] = vt;
+        Object result = test80(array, 1);
+        Asserts.assertEquals(result, vt);
+    }
+
+    // Verify that writing an object of a non-inline, non-null type to an array marks the array as not-null-free and not-flat
+    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD)
+    public Object test81(Object[] array, Integer v, Object o, int i) {
+        if (v == null) {
+          return null;
+        }
+        array[0] = v;
+        array[1] = array[0];
+        array[2] = o;
+        return array[i];
+    }
+
+    @DontCompile
+    public void test81_verifier(boolean warmup) {
+        Integer i = new Integer(rI);
+        Integer[] array1 = new Integer[3];
+        Object[] array2 = new Object[3];
+        Object result = test81(array1, i, i, 0);
+        Asserts.assertEquals(array1[0], i);
+        Asserts.assertEquals(array1[1], i);
+        Asserts.assertEquals(array1[2], i);
+        Asserts.assertEquals(result, i);
+        result = test81(array2, i, i, 1);
+        Asserts.assertEquals(array2[0], i);
+        Asserts.assertEquals(array2[1], i);
+        Asserts.assertEquals(array2[2], i);
+        Asserts.assertEquals(result, i);
+    }
+
+    // Verify that writing an object of a non-flattenable inline type to an array marks the array as not-flat
+    @Test(valid = ValueTypePassFieldsAsArgsOn, failOn = ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE)
+    @Test(valid = ValueTypePassFieldsAsArgsOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE)
+    public Object test82(Object[] array, NotFlattenable vt, Object o, int i) {
+        array[0] = vt;
+        array[1] = array[0];
+        array[2] = o;
+        return array[i];
+    }
+
+    @DontCompile
+    public void test82_verifier(boolean warmup) {
+        NotFlattenable vt = new NotFlattenable();
+        NotFlattenable[] array1 = new NotFlattenable[3];
+        Object[] array2 = new Object[3];
+        Object result = test82(array1, vt, vt, 0);
+        Asserts.assertEquals(array1[0], vt);
+        Asserts.assertEquals(array1[1], vt);
+        Asserts.assertEquals(array1[2], vt);
+        Asserts.assertEquals(result, vt);
+        result = test82(array2, vt, vt, 1);
+        Asserts.assertEquals(array2[0], vt);
+        Asserts.assertEquals(array2[1], vt);
+        Asserts.assertEquals(array2[2], vt);
+        Asserts.assertEquals(result, vt);
+    }
+
+    // Verify that casting an array element to a non-inline type type marks the array as not-null-free and not-flat
+    @Test(valid = ValueTypeArrayFlattenOn, match = { ALLOC_G, LOAD_UNKNOWN_VALUE }, matchCount = { 1, 1 }, failOn = ALLOCA_G + STORE_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD)
+    @Test(valid = ValueTypeArrayFlattenOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD)
+    public void test83(Object[] array, Object o) {
+        Integer i = (Integer)array[0];
+        array[1] = o;
+    }
+
+    @DontCompile
+    public void test83_verifier(boolean warmup) {
+        Integer i = new Integer(rI);
+        Integer[] array1 = new Integer[2];
+        Object[] array2 = new Object[2];
+        test83(array1, i);
+        Asserts.assertEquals(array1[1], i);
+        test83(array2, null);
+        Asserts.assertEquals(array2[1], null);
+    }
+
+    // Verify that writing constant null into an array marks the array as not-null-free and not-flat
+    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE, match = { VALUE_ARRAY_NULL_GUARD }, matchCount = { 1 })
+    public Object test84(Object[] array, int i) {
+        array[0] = null;
+        array[1] = null;
+        return array[i];
+    }
+
+    @DontCompile
+    public void test84_verifier(boolean warmup) {
+        NotFlattenable?[] array1 = new NotFlattenable?[2];
+        Object[] array2 = new Object[2];
+        Object result = test84(array1, 0);
+        Asserts.assertEquals(array1[0], null);
+        Asserts.assertEquals(result, null);
+        result = test84(array2, 1);
+        Asserts.assertEquals(array2[0], null);
+        Asserts.assertEquals(result, null);
+        if (!warmup) {
+            NotFlattenable[] array3 = new NotFlattenable[2];
+            try {
+                test84(array3, 1);
+                throw new RuntimeException("Should throw NullPointerException");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    // Same as test84 but with branches
+    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE, match = { VALUE_ARRAY_NULL_GUARD }, matchCount = { 2 })
+    public void test85(Object[] array, Object o, boolean b) {
+        if (b) {
+            array[0] = null;
+        } else {
+            array[1] = null;
+        }
+        array[1] = o;
+    }
+
+    @DontCompile
+    public void test85_verifier(boolean warmup) {
+        Integer i = new Integer(rI);
+        Integer[] array1 = new Integer[2];
+        Object[] array2 = new Object[2];
+        test85(array1, i, true);
+        Asserts.assertEquals(array1[1], i);
+        test85(array1, null, false);
+        Asserts.assertEquals(array1[1], null);
+        test85(array2, i, true);
+        Asserts.assertEquals(array2[1], i);
+        test85(array2, null, false);
+        Asserts.assertEquals(array2[1], null);
+        if (!warmup) {
+            NotFlattenable[] array3 = new NotFlattenable[2];
+            try {
+                test85(array3, null, true);
+                throw new RuntimeException("Should throw NullPointerException");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    // Same as test85 but with not-flattenable inline type array
+    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE, match = { VALUE_ARRAY_NULL_GUARD }, matchCount = { 2 })
+    public void test86(NotFlattenable?[] array, NotFlattenable? o, boolean b) {
+        if (b) {
+            array[0] = null;
+        } else {
+            array[1] = null;
+        }
+        array[1] = o;
+    }
+
+    @DontCompile
+    public void test86_verifier(boolean warmup) {
+        NotFlattenable vt = new NotFlattenable();
+        NotFlattenable?[] array1 = new NotFlattenable?[2];
+        test86(array1, vt, true);
+        Asserts.assertEquals(array1[1], vt);
+        test86(array1, null, false);
+        Asserts.assertEquals(array1[1], null);
+        if (!warmup) {
+            NotFlattenable[] array2 = new NotFlattenable[2];
+            try {
+                test86(array2, null, true);
+                throw new RuntimeException("Should throw NullPointerException");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    // Same as test85 but with inline type array
+    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE, match = { VALUE_ARRAY_NULL_GUARD }, matchCount = { 2 })
+    public void test87(MyValue1?[] array, MyValue1? o, boolean b) {
+        if (b) {
+            array[0] = null;
+        } else {
+            array[1] = null;
+        }
+        array[1] = o;
+    }
+
+    @DontCompile
+    public void test87_verifier(boolean warmup) {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1?[] array1 = new MyValue1?[2];
+        test87(array1, vt, true);
+        Asserts.assertEquals(array1[1], vt);
+        test87(array1, null, false);
+        Asserts.assertEquals(array1[1], null);
+        if (!warmup) {
+            MyValue1[] array2 = new MyValue1[2];
+            try {
+                test87(array2, null, true);
+                throw new RuntimeException("Should throw NullPointerException");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    // Additional correcntess tests to make sure we have the required null checks
+    @Test()
+    public void test88(Object[] array, Integer v) {
+        array[0] = v;
+    }
+
+    @DontCompile
+    public void test88_verifier(boolean warmup) {
+        Integer[] array1 = new Integer[1];
+        Object[] array2 = new Object[1];
+        test88(array1, null);
+        Asserts.assertEquals(array1[0], null);
+        test88(array2, null);
+        Asserts.assertEquals(array2[0], null);
+        if (!warmup) {
+            MyValue1[] array3 = new MyValue1[1];
+            try {
+                test88(array3, null);
+                throw new RuntimeException("Should throw NullPointerException");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    @Test()
+    public void test89(MyValue1?[] array, Integer v) {
+        Object o = v;
+        array[0] = (MyValue1?)o;
+    }
+
+    @DontCompile
+    public void test89_verifier(boolean warmup) {
+        MyValue1?[] array1 = new MyValue1?[1];
+        test89(array1, null);
+        Asserts.assertEquals(array1[0], null);
+        if (!warmup) {
+            MyValue1[] array2 = new MyValue1[1];
+            try {
+                test89(array2, null);
+                throw new RuntimeException("Should throw NullPointerException");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
     }
 
 

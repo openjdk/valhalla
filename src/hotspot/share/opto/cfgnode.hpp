@@ -400,6 +400,8 @@ public:
   // Returns NULL is it couldn't improve the type.
   static const TypeInt* filtered_int_type(PhaseGVN* phase, Node* val, Node* if_proj);
 
+  bool is_flattened_array_check(PhaseTransform* phase, Node*& array);
+
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const;
   virtual void related(GrowableArray <Node *> *in_rel, GrowableArray <Node *> *out_rel, bool compact) const;

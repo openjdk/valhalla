@@ -53,45 +53,6 @@
 //
 // Note: the "else" clause may be empty
 
-static bool is_flattened_array_check(Node* iff, PhaseTransform* phase) {
-  if (iff->Opcode() != Op_If) {
-    return false;
-  }
-  Node* bol = iff->in(1);
-  if (!bol->is_Bool() || bol->as_Bool()->_test._test != BoolTest::ne) {
-    return false;
-  }
-  Node* cmp = bol->in(1);
-  if (cmp->Opcode() != Op_CmpI) {
-    return false;
-  }
-  Node* cmp_in1 = cmp->in(1);
-  Node* cmp_in2 = cmp->in(2);
-  if ((unsigned int)cmp_in2->find_int_con(0) != Klass::_lh_array_tag_vt_value) {
-    return false;
-  }
-  if (cmp_in1->Opcode() != Op_RShiftI) {
-    return false;
-  }
-  Node* shift_in1 = cmp_in1->in(1);
-  Node* shift_in2 = cmp_in1->in(2);
-  if ((unsigned int)shift_in2->find_int_con(0) != Klass::_lh_array_tag_shift) {
-    return false;
-  }
-  if (shift_in1->Opcode() != Op_LoadI) {
-    return false;
-  }
-  intptr_t offset;
-  Node* addr = AddPNode::Ideal_base_and_offset(shift_in1->in(MemNode::Address), phase, offset);
-  if (addr == NULL || offset != in_bytes(Klass::layout_helper_offset())) {
-    return false;
-  }
-  if (!phase->type(addr)->isa_klassptr()) {
-    return false;
-  }
-
-  return true;
-}
 
 //------------------------------policy_unswitching-----------------------------
 // Return TRUE or FALSE if the loop should be unswitched
@@ -158,11 +119,12 @@ IfNode* PhaseIdealLoop::find_unswitching_candidate(const IdealLoopTree *loop, No
     n = n_dom;
   }
 
-  if (unswitch_iff == NULL || is_flattened_array_check(unswitch_iff, &_igvn)) {
+  Node* array;
+  if (unswitch_iff == NULL || unswitch_iff->is_flattened_array_check(&_igvn, array)) {
     // collect all flattened array checks
     for (uint i = 0; i < loop->_body.size(); i++) {
       Node* n = loop->_body.at(i);
-      if (is_flattened_array_check(n, &_igvn) &&
+      if (n->is_If() && n->as_If()->is_flattened_array_check(&_igvn, array) &&
           loop->is_invariant(n->in(1)) &&
           !loop->is_loop_exit(n)) {
         flattened_checks.push(n);
