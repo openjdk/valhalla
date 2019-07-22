@@ -279,6 +279,7 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
     int offset = holder_offset + field_offset(i);
     Node* value = NULL;
     ciType* ft = field_type(i);
+    bool is_flattenable = field_is_flattenable(i);
     if (field_is_flattened(i)) {
       // Recursively load the flattened value type field
       value = ValueTypeNode::make_from_flattened(kit, ft->as_value_klass(), base, ptr, holder, offset, decorators);
@@ -295,6 +296,10 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
         const Type* con_type = Type::make_from_constant(constant, /*require_const=*/ true);
         assert(con_type != NULL, "type not found");
         value = kit->gvn().transform(kit->makecon(con_type));
+        if (ft->is_valuetype() && !constant.as_object()->is_null_object()) {
+          // Null-free, treat as flattenable
+          is_flattenable = true;
+        }
       } else {
         // Load field value from memory
         const TypePtr* adr_type = field_adr_type(base, offset, holder, decorators, kit->gvn());
@@ -307,7 +312,7 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
         }
         value = kit->access_load_at(base, adr, adr_type, val_type, bt, decorators);
       }
-      if (field_is_flattenable(i)) {
+      if (is_flattenable) {
         // Loading a non-flattened but flattenable value type from memory
         if (ft->as_value_klass()->is_scalarizable()) {
           value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass());
@@ -683,7 +688,6 @@ void ValueTypeNode::pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig, 
     } else {
       if (arg->is_ValueType()) {
         // Non-flattened value type field
-        assert(field_is_flattenable(idx), "must be flattenable");
         ValueTypeNode* vt = arg->as_ValueType();
         assert(n->Opcode() != Op_Return || vt->is_allocated(&kit->gvn()), "value type field should be allocated on return");
         arg = vt->allocate(kit)->get_oop();

@@ -835,4 +835,29 @@ public class TestNullableValueTypes extends ValueTypeTest {
         MyValue1? result = test32();
         Asserts.assertEquals(result, null);
     }
+
+    static inline class Test33Value1 {
+        int x = 0;
+    }
+
+    static inline class Test33Value2 {
+        Test33Value1? vt;
+
+        public Test33Value2() {
+            vt = new Test33Value1();
+        }
+    }
+
+    public static final Test33Value2 test33Val = new Test33Value2();
+
+    @Test
+    public Test33Value2 test33() {
+        return test33Val;
+    }
+
+    @DontCompile
+    public void test33_verifier(boolean warmup) {
+        Test33Value2 result = test33();
+        Asserts.assertEquals(result, test33Val);
+    }
 }
