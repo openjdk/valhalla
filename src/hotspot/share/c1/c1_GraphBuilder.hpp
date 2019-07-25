@@ -268,7 +268,7 @@ class GraphBuilder {
   Value round_fp(Value fp_value);
 
   // value types
-  void new_value_type_instance(int klass_index);
+  void default_value(int klass_index);
   void withfield(int field_index);
   void copy_value_content(ciValueKlass* vk, Value src, int src_off, Value dest, int dest_off,
        ValueStack* state_before, bool needs_patching);

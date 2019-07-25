@@ -470,6 +470,12 @@ class Instruction: public CompilationResourceObj {
   XHandlers* exception_handlers() const          { return _exception_handlers; }
   ciKlass* as_loaded_klass_or_null() const;
 
+  // withfield optimization
+  virtual void set_escaped()                     { }
+  virtual void set_local_index(int index)        { }
+  virtual bool is_optimizable_for_withfield() const { return false; }
+
+
   // manipulation
   void pin(PinReason reason)                     { _pin_state |= reason; }
   void pin()                                     { _pin_state |= PinUnknown; }
@@ -1347,14 +1353,17 @@ LEAF(NewValueTypeInstance, StateSplit)
   bool _is_unresolved;
   ciValueKlass* _klass;
   Value _depends_on;      // Link to instance on with withfield was called on
-
+  bool _is_optimizable_for_withfield;
+  int _first_local_index;
 public:
 
   // Default creation, always allocated for now
-  NewValueTypeInstance(ciValueKlass* klass, ValueStack* state_before, bool is_unresolved, Value depends_on = NULL)
+  NewValueTypeInstance(ciValueKlass* klass, ValueStack* state_before, bool is_unresolved, Value depends_on = NULL, bool from_default_value = false)
   : StateSplit(instanceType, state_before)
    , _is_unresolved(is_unresolved)
    , _klass(klass)
+   , _is_optimizable_for_withfield(from_default_value)
+   , _first_local_index(-1)
   {
     if (depends_on == NULL) {
       _depends_on = this;
@@ -1379,6 +1388,21 @@ public:
 
   // Only done in LIR Generator -> map everything to object
   void set_to_object_type() { set_type(instanceType); }
+
+  // withfield optimization
+  virtual void set_escaped() {
+    _is_optimizable_for_withfield = false;
+  }
+  virtual void set_local_index(int index) {
+    if (_first_local_index != index) {
+      if (_first_local_index == -1) {
+        _first_local_index = index;
+      } else {
+        _is_optimizable_for_withfield = false;
+      }
+    }
+  }
+  virtual bool is_optimizable_for_withfield() const {  return _is_optimizable_for_withfield; }
 };
 
 BASE(NewArray, StateSplit)

@@ -975,6 +975,7 @@ void GraphBuilder::store_local(ValueStack* state, Value x, int index) {
     }
   }
 
+  x->set_local_index(index);
   state->store_local(index, round_fp(x));
 }
 
@@ -1015,6 +1016,7 @@ void GraphBuilder::store_indexed(BasicType type) {
   Value index = ipop();
   Value array = apop();
   Value length = NULL;
+  value->set_escaped();
   if (CSEArrayLength ||
       (array->as_AccessField() && array->as_AccessField()->field()->is_constant()) ||
       (array->as_NewArray() && array->as_NewArray()->length() && array->as_NewArray()->length()->type()->is_constant())) {
@@ -1675,6 +1677,7 @@ Value GraphBuilder::make_constant(ciConstant field_value, ciField* field) {
 
 void GraphBuilder::copy_value_content(ciValueKlass* vk, Value src, int src_off, Value dest, int dest_off,
     ValueStack* state_before, bool needs_patching) {
+  src->set_escaped();
   for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
     ciField* inner_field = vk->nonstatic_field_at(i);
     assert(!inner_field->is_flattened(), "the iteration over nested fields is handled by the loop itself");
@@ -1715,11 +1718,11 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
     }
   }
 
-  if (field->is_final() && (code == Bytecodes::_putfield)) {
+  if (field->is_final() && (code == Bytecodes::_putfield || code == Bytecodes::_withfield)) {
     scope()->set_wrote_final();
   }
 
-  if (code == Bytecodes::_putfield) {
+  if (code == Bytecodes::_putfield || code == Bytecodes::_withfield) {
     scope()->set_wrote_fields();
     if (field->is_volatile()) {
       scope()->set_wrote_volatile();
@@ -1754,6 +1757,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
     }
     case Bytecodes::_putstatic: {
       Value val = pop(type);
+      val->set_escaped();
       if (state_before == NULL) {
         state_before = copy_state_for_exception();
       }
@@ -1818,8 +1822,10 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       }
       break;
     }
+    case Bytecodes::_withfield:
     case Bytecodes::_putfield: {
       Value val = pop(type);
+      val->set_escaped();
       obj = apop();
       if (state_before == NULL) {
         state_before = copy_state_for_exception();
@@ -1870,7 +1876,9 @@ void GraphBuilder::withfield(int field_index)
 
   const int offset = !needs_patching ? field_modify->offset() : -1;
 
-  if (!holder->is_loaded()) {
+  if (!holder->is_loaded()
+      || needs_patching /* FIXME: 8228634 - field_modify->will_link() may incorrectly return false */
+      ) {
     ValueStack* state_before = copy_state_before();
     Value val = pop(type);
     Value obj = apop();
@@ -1881,6 +1889,42 @@ void GraphBuilder::withfield(int field_index)
 
   Value val = pop(type);
   Value obj = apop();
+
+  if (!needs_patching && obj->is_optimizable_for_withfield()) {
+    int astore_index;
+    ciBytecodeStream s(method());
+    s.force_bci(bci());
+    s.next();
+    switch (s.cur_bc()) {
+    case Bytecodes::_astore:    astore_index = s.get_index(); break;
+    case Bytecodes::_astore_0:  astore_index = 0; break;
+    case Bytecodes::_astore_1:  astore_index = 1; break;
+    case Bytecodes::_astore_2:  astore_index = 2; break;
+    case Bytecodes::_astore_3:  astore_index = 3; break;
+    default: astore_index = -1;
+    }
+
+    if (astore_index >= 0 && obj == state()->local_at(astore_index)) {
+      // We have a sequence like this, where we load a value object from a local slot,
+      // and overwrite the same local slot with a modified copy of the value object.
+      //      defaultvalue #1 // class compiler/valhalla/valuetypes/MyValue1
+      //      astore 9
+      //      ...
+      //      iload_0
+      //      aload 9
+      //      swap
+      //      withfield #7 // Field x:I
+      //      astore 9
+      // If this object was created by defaultvalue, and has not escaped, and is not stored
+      // in any other local slots, we can effectively treat the withfield/astore
+      // sequence as a single putfield bytecode.
+      push(objectType, obj);
+      push(type, val);
+      access_field(Bytecodes::_withfield);
+      stream()->next(); // skip the next astore/astore_n bytecode.
+      return;
+    }
+  }
 
   assert(holder->is_valuetype(), "must be a value klass");
   NewValueTypeInstance* new_instance = new NewValueTypeInstance(holder->as_value_klass(), state_before, false);
@@ -2279,6 +2323,13 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
     }
   }
 
+  if (recv != NULL) {
+    recv->set_escaped();
+  }
+  for (int i=0; i<args->length(); i++) {
+    args->at(0)->set_escaped();
+  }
+
   Invoke* result = new Invoke(code, result_type, recv, args, vtable_index, target, state_before,
                               declared_signature->returns_never_null());
   // push result
@@ -2308,14 +2359,14 @@ void GraphBuilder::new_instance(int klass_index) {
   apush(append_split(new_instance));
 }
 
-void GraphBuilder::new_value_type_instance(int klass_index) {
+void GraphBuilder::default_value(int klass_index) {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
   if (klass->is_loaded()) {
     assert(klass->is_valuetype(), "must be a value klass");
     ValueStack* state_before = copy_state_exhandling();
     NewValueTypeInstance* new_instance = new NewValueTypeInstance(klass->as_value_klass(),
-        state_before, stream()->is_unresolved_klass());
+        state_before, stream()->is_unresolved_klass(), NULL, true);
     _memory->new_instance(new_instance);
     apush(append_split(new_instance));
   } else {
@@ -3078,7 +3129,7 @@ BlockEnd* GraphBuilder::iterate_bytecodes_for_block(int bci) {
       case Bytecodes::_ifnonnull      : if_null(objectType, If::neq); break;
       case Bytecodes::_goto_w         : _goto(s.cur_bci(), s.get_far_dest()); break;
       case Bytecodes::_jsr_w          : jsr(s.get_far_dest()); break;
-      case Bytecodes::_defaultvalue   : new_value_type_instance(s.get_index_u2()); break;
+      case Bytecodes::_defaultvalue   : default_value(s.get_index_u2()); break;
       case Bytecodes::_withfield      : withfield(s.get_index_u2()); break;
       case Bytecodes::_breakpoint     : BAILOUT_("concurrent setting of breakpoint", NULL);
       default                         : ShouldNotReachHere(); break;

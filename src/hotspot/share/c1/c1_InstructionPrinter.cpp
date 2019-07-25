@@ -520,6 +520,9 @@ void InstructionPrinter::do_NewTypeArray(NewTypeArray* x) {
 
 void InstructionPrinter::do_NewValueTypeInstance(NewValueTypeInstance* x) {
   output()->print("new value type instance ");
+  if (x->is_optimizable_for_withfield()) {
+    output()->print("(optimizable) ");
+  }
   print_klass(x->klass());
 }
 

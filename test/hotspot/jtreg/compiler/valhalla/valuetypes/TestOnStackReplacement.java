@@ -110,7 +110,6 @@ public class TestOnStackReplacement extends ValueTypeTest {
 
     // Test loop peeling and unrolling
     @Test() @Warmup(0) @OSRCompileOnly
-    @TempSkipForC1(reason = "JDK-8227494 - C1 inlining overflow")
     public void test3() {
         MyValue1 v1 = MyValue1.createWithFieldsInline(0, 0);
         MyValue1 v2 = MyValue1.createWithFieldsInline(1, 1);

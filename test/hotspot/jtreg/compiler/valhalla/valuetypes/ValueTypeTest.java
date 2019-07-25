@@ -129,6 +129,7 @@ public abstract class ValueTypeTest {
     private static final boolean DUMP_REPLAY = Boolean.parseBoolean(System.getProperty("DumpReplay", "false"));
     protected static final boolean FLIP_C1_C2 = Boolean.parseBoolean(System.getProperty("FlipC1C2", "false"));
     protected static final boolean GCAfter = Boolean.parseBoolean(System.getProperty("GCAfter", "false"));
+    private static final int OSRTestTimeOut = Integer.parseInt(System.getProperty("OSRTestTimeOut", "-1"));
 
     // "jtreg -DXcomp=true" runs all the scenarios with -Xcomp. This is faster than "jtreg -javaoptions:-Xcomp".
     protected static final boolean RUN_SCENARIOS_WITH_XCOMP = Boolean.parseBoolean(System.getProperty("Xcomp", "false"));
@@ -645,6 +646,9 @@ public abstract class ValueTypeTest {
                     }
                     if (b || XCOMP || !USE_COMPILER) {
                         // Don't control compilation if -Xcomp is enabled, or if compiler is disabled
+                        break;
+                    }
+                    if (OSRTestTimeOut > 0 && elapsed > OSRTestTimeOut) {
                         break;
                     }
                 }
