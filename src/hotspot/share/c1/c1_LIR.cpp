@@ -1064,7 +1064,7 @@ void LIR_OpJavaCall::emit_code(LIR_Assembler* masm) {
 
 bool LIR_OpJavaCall::maybe_return_as_fields(ciValueKlass** vk_ret) const {
   if (ValueTypeReturnedAsFields) {
-    if (method()->signature()->returns_never_null()) {
+    if (method()->signature()->maybe_returns_never_null()) {
       ciType* return_type = method()->return_type();
       if (return_type->is_valuetype()) {
         ciValueKlass* vk = return_type->as_value_klass();
@@ -1074,6 +1074,12 @@ bool LIR_OpJavaCall::maybe_return_as_fields(ciValueKlass** vk_ret) const {
           }
           return true;
         }
+      } else {
+        assert(return_type->is_instance_klass() && !return_type->as_instance_klass()->is_loaded(), "must be");
+        if (vk_ret != NULL) {
+          *vk_ret = NULL;
+        }
+        return true;
       }
     } else if (is_method_handle_invoke()) {
       BasicType bt = method()->return_type()->basic_type();

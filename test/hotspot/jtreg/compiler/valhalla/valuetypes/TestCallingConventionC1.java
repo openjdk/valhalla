@@ -44,7 +44,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
     @Override
     public int getNumScenarios() {
-        return 4;
+        return 5;
     }
 
     @Override
@@ -56,18 +56,24 @@ public class TestCallingConventionC1 extends ValueTypeTest {
                 "-XX:CICompilerCount=2"
             };
         case 1: return new String[] {
+                // Default: both C1 and C2 are enabled, tiered compilation enabled
+                "-XX:+EnableValhallaC1",
+                "-XX:CICompilerCount=2",
+                "-XX:+StressValueTypeReturnedAsFields"
+            };
+        case 2: return new String[] {
                 // Same as above, but flip all the compLevel=C1 and compLevel=C2, so we test
                 // the compliment of the above scenario.
                 "-XX:+EnableValhallaC1",
                 "-XX:CICompilerCount=2",
                 "-DFlipC1C2=true"
             };
-        case 2: return new String[] {
+        case 3: return new String[] {
                 // Only C1. Tiered compilation disabled.
                 "-XX:+EnableValhallaC1",
                 "-XX:TieredStopAtLevel=1",
             };
-        case 3: return new String[] {
+        case 4: return new String[] {
                 // Only C2.
                 "-XX:-EnableValhallaC1",
                 "-XX:TieredStopAtLevel=4",
@@ -2115,5 +2121,68 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             Asserts.assertEQ(x, result.x);
             Asserts.assertEQ(y, result.y);
         }
+    }
+
+    @Test(compLevel = C1)
+    public void test103() {
+        // when this method is compiled by C1, the Test103Value class is not yet loaded.
+        test103_v = new Test103Value(); // invokestatic "Test103Value.<init>()QTest103Value;"
+    }
+
+    static inline class Test103Value {
+        int x = rI;
+    }
+
+    static Object test103_v;
+
+    @DontCompile
+    public void test103_verifier(boolean warmup) {
+        if (warmup) {
+            // Make sure test103() is compiled before Test103Value is loaded
+            return;
+        }
+        test103();
+        Test103Value v = (Test103Value)test103_v;
+        Asserts.assertEQ(v.x, rI);
+    }
+
+
+    // Same as test103, but with an inline class that's too big to return as fields.
+    @Test(compLevel = C1)
+    public void test104() {
+        // when this method is compiled by C1, the Test104Value class is not yet loaded.
+        test104_v = new Test104Value(); // invokestatic "Test104Value.<init>()QTest104Value;"
+    }
+
+    static inline class Test104Value {
+        long x0 = rL;
+        long x1 = rL;
+        long x2 = rL;
+        long x3 = rL;
+        long x4 = rL;
+        long x5 = rL;
+        long x6 = rL;
+        long x7 = rL;
+        long x8 = rL;
+        long x9 = rL;
+        long xa = rL;
+        long xb = rL;
+        long xc = rL;
+        long xd = rL;
+        long xe = rL;
+        long xf = rL;
+    }
+
+    static Object test104_v;
+
+    @DontCompile
+    public void test104_verifier(boolean warmup) {
+        if (warmup) {
+            // Make sure test104() is compiled before Test104Value is loaded
+            return;
+        }
+        test104();
+        Test104Value v = (Test104Value)test104_v;
+        Asserts.assertEQ(v.x0, rL);
     }
 }

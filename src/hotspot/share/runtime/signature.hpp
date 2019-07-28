@@ -484,8 +484,8 @@ public:
 #ifdef ASSERT
 class SignatureVerifier : public StackObj {
   public:
-    static bool is_valid_method_signature(Symbol* sig);
-    static bool is_valid_type_signature(Symbol* sig);
+    static bool is_valid_method_signature(const Symbol* sig);
+    static bool is_valid_type_signature(const Symbol* sig);
   private:
     static ssize_t is_valid_type(const char*, ssize_t);
 };

@@ -131,6 +131,19 @@ bool Symbol::is_Q_array_signature() const {
   return false;
 }
 
+bool Symbol::is_Q_method_signature() const {
+  assert(SignatureVerifier::is_valid_method_signature(this), "must be");
+  int len = utf8_length();
+  if (len > 4 && char_at(0) == '(') {
+    for (int i=1; i<len-3; i++) { // Must end with ")Qx;", where x is at least one character or more.
+      if (char_at(i) == ')' && char_at(i+1) == 'Q') {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 bool Symbol::is_Q_singledim_array_signature() const {
   return utf8_length() > 3 && char_at(0) == '[' && char_at(1) == 'Q' && ends_with(';');
 }

@@ -134,6 +134,22 @@ bool ciSignature::returns_never_null() const {
 }
 
 // ------------------------------------------------------------------
+// ciSignature::maybe_return_never_null
+//
+// True if we statically know that the return value is never null, or
+// if the return type has a Q signature but is not yet loaded, in which case
+// it could be a never-null type.
+bool ciSignature::maybe_returns_never_null() const {
+  ciType* ret_type = _types->at(_count);
+  if (ret_type->is_never_null()) {
+    return true;
+  } else if (ret_type->is_instance_klass() && !ret_type->as_instance_klass()->is_loaded()) {
+    GUARDED_VM_ENTRY(if (get_symbol()->is_Q_method_signature()) { return true; })
+  }
+  return false;
+}
+
+// ------------------------------------------------------------------
 // ciSignature::never_null_at
 //
 // True if we statically know that the argument at 'index' is never null.

@@ -466,7 +466,7 @@ int SignatureStream::reference_parameter_count() {
 }
 
 #ifdef ASSERT
-bool SignatureVerifier::is_valid_method_signature(Symbol* sig) {
+bool SignatureVerifier::is_valid_method_signature(const Symbol* sig) {
   const char* method_sig = (const char*)sig->bytes();
   ssize_t len = sig->utf8_length();
   ssize_t index = 0;
@@ -489,7 +489,7 @@ bool SignatureVerifier::is_valid_method_signature(Symbol* sig) {
   return false;
 }
 
-bool SignatureVerifier::is_valid_type_signature(Symbol* sig) {
+bool SignatureVerifier::is_valid_type_signature(const Symbol* sig) {
   const char* type_sig = (const char*)sig->bytes();
   ssize_t len = sig->utf8_length();
   return (type_sig != NULL && len >= 1 &&
