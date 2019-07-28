@@ -286,6 +286,14 @@ public abstract class ValueTypeTest {
     }
 
     /**
+     * Override this method and return a non-null reason if the given scenario should be
+     * ignored (due to an existing bug, etc).
+     */
+    String isScenarioIgnored(int scenario) {
+        return null;
+    }
+
+    /**
      * Override this method to provide extra parameters for selected scenarios
      */
     public String[] getExtraVMParameters(int scenario) {
@@ -307,7 +315,12 @@ public abstract class ValueTypeTest {
            scenarios = Arrays.asList(SCENARIOS.split(","));
         }
         for (int i=0; i<test.getNumScenarios(); i++) {
-            if (scenarios == null || scenarios.contains(Integer.toString(i))) {
+            String reason;
+            if ((reason = test.isScenarioIgnored(i)) != null) {
+                System.out.println("Scenario #" + i + " is ignored: " + reason);
+            } else if (scenarios != null && !scenarios.contains(Integer.toString(i))) {
+                System.out.println("Scenario #" + i + " is skipped due to -Dscenarios=" + SCENARIOS);
+            } else {
                 System.out.println("Scenario #" + i + " -------- ");
                 String[] cmds = InputArguments.getVmInputArgs();
                 if (RUN_SCENARIOS_WITH_XCOMP) {
@@ -321,8 +334,6 @@ public abstract class ValueTypeTest {
                 String output = oa.getOutput();
                 oa.shouldHaveExitValue(0);
                 System.out.println(output);
-            } else {
-                System.out.println("Scenario #" + i + " is skipped due to -Dscenarios=" + SCENARIOS);
             }
         }
     }

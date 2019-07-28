@@ -88,6 +88,18 @@ public class TestWithfieldC1 extends ValueTypeTest {
         return null;
     }
 
+    @Override
+    String isScenarioIgnored(int scenario) {
+        if (!TEST_C1 && (scenario == 0 || scenario == 3)) {
+            return "JDK-8228693";
+        } else if (scenario == 1 || scenario == 4) {
+            return "JDK-8228693";
+        } else {
+            return null;
+        }
+    }
+
+
     static FooValue? foo_static;
     static FooValue? foo_static_arr[] = new FooValue?[1];
     FooValue? foo_instance;
