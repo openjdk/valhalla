@@ -128,7 +128,8 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
                                         Address dst,
                                         Register val,
                                         Register tmp1,
-                                        Register tmp2) {
+                                        Register tmp2,
+                                        Register tmp3) {
   // Verify value
   if (type == T_OBJECT || type == T_ARRAY) {
     // Note that src could be noreg, which means we

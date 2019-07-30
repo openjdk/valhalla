@@ -118,6 +118,76 @@ void DivByZeroStub::emit_code(LIR_Assembler* ce) {
 #endif
 }
 
+// Implementation of LoadFlattenedArrayStub
+
+LoadFlattenedArrayStub::LoadFlattenedArrayStub(LIR_Opr array, LIR_Opr index, LIR_Opr result, CodeEmitInfo* info) {
+  _array = array;
+  _index = index;
+  _result = result;
+  _scratch_reg = FrameMap::r0_oop_opr;
+  _info = new CodeEmitInfo(info);
+}
+
+void LoadFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
+  assert(__ rsp_offset() == 0, "frame size should be fixed");
+  __ bind(_entry);
+  ce->store_parameter(_array->as_register(), 1);
+  ce->store_parameter(_index->as_register(), 0);
+  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::load_flattened_array_id)));
+  ce->add_call_info_here(_info);
+  ce->verify_oop_map(_info);
+  if (_result->as_register() != r0) { 
+    __ mov(_result->as_register(), r0);
+  }
+  __ b(_continuation);
+}
+
+
+// Implementation of StoreFlattenedArrayStub
+
+StoreFlattenedArrayStub::StoreFlattenedArrayStub(LIR_Opr array, LIR_Opr index, LIR_Opr value, CodeEmitInfo* info) {
+  _array = array;
+  _index = index;
+  _value = value;
+  _scratch_reg = FrameMap::r0_oop_opr;
+  _info = new CodeEmitInfo(info);
+}
+
+
+void StoreFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
+  assert(__ rsp_offset() == 0, "frame size should be fixed");
+  __ bind(_entry);
+  ce->store_parameter(_array->as_register(), 2);
+  ce->store_parameter(_index->as_register(), 1);
+  ce->store_parameter(_value->as_register(), 0);
+  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::store_flattened_array_id)));
+  ce->add_call_info_here(_info);
+  ce->verify_oop_map(_info);
+  __ b(_continuation);
+}
+
+// Implementation of SubstitutabilityCheckStub
+SubstitutabilityCheckStub::SubstitutabilityCheckStub(LIR_Opr left, LIR_Opr right, LIR_Opr result, CodeEmitInfo* info) {
+  _left = left;
+  _right = right;
+  _result = result;
+  _scratch_reg = FrameMap::r0_oop_opr;
+  _info = new CodeEmitInfo(info);
+}
+
+void SubstitutabilityCheckStub::emit_code(LIR_Assembler* ce) {
+  assert(__ rsp_offset() == 0, "frame size should be fixed");
+  __ bind(_entry);
+  ce->store_parameter(_left->as_register(), 1);
+  ce->store_parameter(_right->as_register(), 0);
+  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::substitutability_check_id)));
+  ce->add_call_info_here(_info);
+  ce->verify_oop_map(_info);
+  if (_result->as_register() != r0) {
+    __ mov(_result->as_register(), r0);
+  }
+  __ b(_continuation);
+}
 
 
 // Implementation of NewInstanceStub
@@ -133,8 +203,6 @@ NewInstanceStub::NewInstanceStub(LIR_Opr klass_reg, LIR_Opr result, ciInstanceKl
          "need new_instance id");
   _stub_id   = stub_id;
 }
-
-
 
 void NewInstanceStub::emit_code(LIR_Assembler* ce) {
   assert(__ rsp_offset() == 0, "frame size should be fixed");
@@ -175,11 +243,12 @@ void NewTypeArrayStub::emit_code(LIR_Assembler* ce) {
 
 // Implementation of NewObjectArrayStub
 
-NewObjectArrayStub::NewObjectArrayStub(LIR_Opr klass_reg, LIR_Opr length, LIR_Opr result, CodeEmitInfo* info) {
+NewObjectArrayStub::NewObjectArrayStub(LIR_Opr klass_reg, LIR_Opr length, LIR_Opr result, CodeEmitInfo* info, bool is_value_type) {
   _klass_reg = klass_reg;
   _result = result;
   _length = length;
   _info = new CodeEmitInfo(info);
+  _is_value_type = is_value_type; 
 }
 
 
@@ -188,7 +257,13 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   assert(_length->as_register() == r19, "length must in r19,");
   assert(_klass_reg->as_register() == r3, "klass_reg must in r3");
-  __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_object_array_id)));
+
+  if (_is_value_type) {
+    __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_value_array_id)));
+  } else {
+    __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_object_array_id)));
+  }
+
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
   assert(_result->as_register() == r0, "result must in r0");
@@ -196,16 +271,31 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
 }
 // Implementation of MonitorAccessStubs
 
-MonitorEnterStub::MonitorEnterStub(LIR_Opr obj_reg, LIR_Opr lock_reg, CodeEmitInfo* info)
+MonitorEnterStub::MonitorEnterStub(LIR_Opr obj_reg, LIR_Opr lock_reg, CodeEmitInfo* info,  CodeStub* throw_imse_stub, LIR_Opr scratch_reg)
 : MonitorAccessStub(obj_reg, lock_reg)
 {
   _info = new CodeEmitInfo(info);
+  _scratch_reg = scratch_reg;
+  _throw_imse_stub = throw_imse_stub;
+  if (_throw_imse_stub != NULL) {
+    assert(_scratch_reg != LIR_OprFact::illegalOpr, "must be");
+  }
 }
 
 
 void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   assert(__ rsp_offset() == 0, "frame size should be fixed");
   __ bind(_entry);
+  if (_throw_imse_stub != NULL) {
+    // When we come here, _obj_reg has already been checked to be non-null.
+    __ ldr(rscratch1, Address(_obj_reg->as_register(), oopDesc::mark_offset_in_bytes()));
+    __ mov(rscratch2, markOopDesc::always_locked_pattern);
+    __ andr(rscratch1, rscratch1, rscratch2);
+
+    __ cmp(rscratch1, rscratch2); 
+    __ br(Assembler::NE, *_throw_imse_stub->entry());
+  }
+
   ce->store_parameter(_obj_reg->as_register(),  1);
   ce->store_parameter(_lock_reg->as_register(), 0);
   Runtime1::StubID enter_id;

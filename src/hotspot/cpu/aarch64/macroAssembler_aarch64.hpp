@@ -29,6 +29,8 @@
 #include "asm/assembler.hpp"
 #include "oops/compressedOops.hpp"
 
+class ciValueKlass;
+
 // MacroAssembler extends Assembler by frequently used macros.
 //
 // Instructions for which a 'better' code sequence exists depending
@@ -585,6 +587,16 @@ public:
   static bool needs_explicit_null_check(intptr_t offset);
   static bool uses_implicit_null_check(void* address);
 
+  void test_klass_is_value(Register klass, Register temp_reg, Label& is_value);
+
+  void test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable);
+  void test_field_is_not_flattenable(Register flags, Register temp_reg, Label& notFlattenable);
+  void test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened);
+
+  // Check klass/oops is flat value type array (oop->_klass->_layout_helper & vt_bit)
+  void test_flattened_array_oop(Register klass, Register temp_reg, Label& is_flattened_array);
+  void test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array);
+
   static address target_addr_for_insn(address insn_addr, unsigned insn);
   static address target_addr_for_insn(address insn_addr) {
     unsigned insn = *(unsigned*)insn_addr;
@@ -789,6 +801,9 @@ public:
   void c2bool(Register x);
 
   // oop manipulations
+  void load_metadata(Register dst, Register src);
+  void load_storage_props(Register dst, Register src);
+
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
   void cmp_klass(Register oop, Register trial_klass, Register tmp);
@@ -800,7 +815,7 @@ public:
                       Register tmp1, Register tmp_thread);
 
   void access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register src,
-                       Register tmp1, Register tmp_thread);
+                       Register tmp1, Register tmp_thread, Register tmp3 = noreg);
 
   // Resolves obj for access. Result is placed in the same register.
   // All other registers are preserved.
@@ -812,7 +827,7 @@ public:
   void load_heap_oop_not_null(Register dst, Address src, Register tmp1 = noreg,
                               Register thread_tmp = noreg, DecoratorSet decorators = 0);
   void store_heap_oop(Address dst, Register src, Register tmp1 = noreg,
-                      Register tmp_thread = noreg, DecoratorSet decorators = 0);
+                      Register tmp_thread = noreg, Register tmp3 = noreg, DecoratorSet decorators = 0);
 
   // currently unimplemented
   // Used for storing NULL. All other oop constants should be
@@ -1143,6 +1158,19 @@ public:
 
   void adrp(Register reg1, const Address &dest, unsigned long &byte_offset);
 
+
+  enum RegState {
+     reg_readonly,
+     reg_writable,
+     reg_written
+  };
+
+  void verified_entry(Compile* C, int sp_inc);
+
+// Unpack all value type arguments passed as oops 
+  void unpack_value_args(Compile* C, bool receiver_only);
+  void store_value_type_fields_to_buf(ciValueKlass* vk);
+
   void tableswitch(Register index, jint lowbound, jint highbound,
                    Label &jumptable, Label &jumptable_end, int stride = 1) {
     adr(rscratch1, jumptable);
@@ -1235,6 +1263,8 @@ public:
                      int elem_size);
 
   void fill_words(Register base, Register cnt, Register value);
+  void fill_words(Register base, u_int64_t cnt, Register value);
+
   void zero_words(Register base, u_int64_t cnt);
   void zero_words(Register ptr, Register cnt);
   void zero_dcache_blocks(Register base, Register cnt);

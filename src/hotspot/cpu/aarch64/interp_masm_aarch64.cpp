@@ -35,6 +35,7 @@
 #include "oops/markOop.hpp"
 #include "oops/method.hpp"
 #include "oops/methodData.hpp"
+#include "oops/valueKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
@@ -656,6 +657,7 @@ void InterpreterMacroAssembler::remove_activation(
   // get sender esp
   ldr(esp,
       Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
+
   if (StackReservedPages > 0) {
     // testing if reserved zone needs to be re-enabled
     Label no_reserved_zone_enabling;
@@ -672,6 +674,7 @@ void InterpreterMacroAssembler::remove_activation(
 
     bind(no_reserved_zone_enabling);
   }
+
   // remove frame anchor
   leave();
   // If we're returning to interpreted code we will shortly be
@@ -724,6 +727,11 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
 
     // Save (object->mark() | 1) into BasicLock's displaced header
     str(swap_reg, Address(lock_reg, mark_offset));
+
+    if (EnableValhalla && !UseBiasedLocking) { 
+      // For slow path is_always_locked, using biased, which is never natural for !UseBiasLocking
+      andr(swap_reg, swap_reg, ~markOopDesc::biased_lock_bit_in_place);
+    }
 
     assert(lock_offset == 0,
            "displached header must be first word in BasicObjectLock");

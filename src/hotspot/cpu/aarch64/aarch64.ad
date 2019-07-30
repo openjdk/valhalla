@@ -1753,27 +1753,8 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   Compile* C = ra_->C;
   MacroAssembler _masm(&cbuf);
 
-  // n.b. frame size includes space for return pc and rfp
-  const long framesize = C->frame_size_in_bytes();
-  assert(framesize%(2*wordSize) == 0, "must preserve 2*wordSize alignment");
-
-  // insert a nop at the start of the prolog so we can patch in a
-  // branch if we need to invalidate the method later
-  __ nop();
-
-  int bangsize = C->bang_size_in_bytes();
-  if (C->need_stack_bang(bangsize) && UseStackBanging)
-    __ generate_stack_overflow_check(bangsize);
-
-  __ build_frame(framesize);
-
-  if (NotifySimulator) {
-    __ notify(Assembler::method_entry);
-  }
-
-  if (VerifyStackAtCalls) {
-    Unimplemented();
-  }
+  __ verified_entry(C, 0);
+  __ bind(*_verified_entry);
 
   C->set_frame_complete(cbuf.insts_size());
 
@@ -2094,8 +2075,46 @@ uint BoxLockNode::size(PhaseRegAlloc *ra_) const {
   return 4;
 }
 
-//=============================================================================
+///=============================================================================
+#ifndef PRODUCT
+void MachVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
+{
+  st->print_cr("# MachVEPNode");
+  if (!_verified) {
+    st->print_cr("\t load_class");
+  } else {
+    st->print_cr("\t unpack_value_arg");
+  }
+}
+#endif
 
+void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
+{
+  MacroAssembler _masm(&cbuf);
+
+  if (!_verified) {
+    Label skip;
+    __ cmp_klass(j_rarg0, rscratch2, rscratch1);
+    __ br(Assembler::EQ, skip);
+      __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+    __ bind(skip);
+
+  } else {
+    // Unpack value type args passed as oop and then jump to
+    // the verified entry point (skipping the unverified entry).
+    __ unpack_value_args(ra_->C, _receiver_only);
+    __ b(*_verified_entry);
+  }
+}
+
+
+uint MachVEPNode::size(PhaseRegAlloc* ra_) const
+{
+  return MachNode::size(ra_); // too many variables; just compute it the hard way
+}
+
+
+//=============================================================================
 #ifndef PRODUCT
 void MachUEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 {
@@ -2117,9 +2136,11 @@ void MachUEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
 {
   // This is the unverified entry point.
   MacroAssembler _masm(&cbuf);
-
-  __ cmp_klass(j_rarg0, rscratch2, rscratch1);
   Label skip;
+
+  // UseCompressedClassPointers logic are inside cmp_klass
+  __ cmp_klass(j_rarg0, rscratch2, rscratch1);
+
   // TODO
   // can we avoid this skip and still use a reloc?
   __ br(Assembler::EQ, skip);
@@ -2507,7 +2528,7 @@ static void getCallInfo(const TypeFunc *tf, int &gpcnt, int &fpcnt, int &rtype)
 {
   int gps = 0;
   int fps = 0;
-  const TypeTuple *domain = tf->domain();
+  const TypeTuple *domain = tf->domain_cc();
   int max = domain->cnt();
   for (int i = TypeFunc::Parms; i < max; i++) {
     const Type *t = domain->field_at(i);
@@ -8182,6 +8203,21 @@ instruct castX2P(iRegPNoSp dst, iRegL src) %{
   ins_pipe(ialu_reg);
 %}
 
+instruct castN2X(iRegLNoSp dst, iRegN src) %{
+  match(Set dst (CastP2X src));
+
+  ins_cost(INSN_COST);
+  format %{ "mov $dst, $src\t# ptr -> long" %}
+
+  ins_encode %{
+    if ($dst$$reg != $src$$reg) {
+      __ mov(as_Register($dst$$reg), as_Register($src$$reg));
+    }
+  %}
+
+  ins_pipe(ialu_reg);
+%}
+
 instruct castP2X(iRegLNoSp dst, iRegP src) %{
   match(Set dst (CastP2X src));
 
@@ -8196,6 +8232,37 @@ instruct castP2X(iRegLNoSp dst, iRegP src) %{
 
   ins_pipe(ialu_reg);
 %}
+
+instruct castN2I(iRegINoSp dst, iRegN src) %{
+  match(Set dst (CastN2I src));
+
+  ins_cost(INSN_COST);
+  format %{ "movw $dst, $src\t# compressed ptr -> int" %}
+
+  ins_encode %{
+    if ($dst$$reg != $src$$reg) {
+      __ movw(as_Register($dst$$reg), as_Register($src$$reg));
+    }
+  %}
+
+  ins_pipe(ialu_reg);
+%}
+
+instruct castI2N(iRegNNoSp dst, iRegI src) %{
+  match(Set dst (CastI2N src));
+
+  ins_cost(INSN_COST);
+  format %{ "movw $dst, $src\t# int -> compressed ptr" %}
+
+  ins_encode %{
+    if ($dst$$reg != $src$$reg) {
+      __ movw(as_Register($dst$$reg), as_Register($src$$reg));
+    }
+  %}
+
+  ins_pipe(ialu_reg);
+%}
+
 
 // Convert oop into int for vectors alignment masking
 instruct convP2I(iRegINoSp dst, iRegP src) %{
@@ -13686,33 +13753,16 @@ instruct MoveL2D_reg_reg(vRegD dst, iRegL src) %{
 // ============================================================================
 // clearing of an array
 
-instruct clearArray_reg_reg(iRegL_R11 cnt, iRegP_R10 base, Universe dummy, rFlagsReg cr)
+instruct clearArray_reg_reg(iRegL_R11 cnt, iRegP_R10 base, iRegL val, Universe dummy, rFlagsReg cr)
 %{
-  match(Set dummy (ClearArray cnt base));
+  match(Set dummy (ClearArray (Binary cnt base) val));
   effect(USE_KILL cnt, USE_KILL base);
 
   ins_cost(4 * INSN_COST);
-  format %{ "ClearArray $cnt, $base" %}
+  format %{ "ClearArray $cnt, $base, $val" %}
 
   ins_encode %{
-    __ zero_words($base$$Register, $cnt$$Register);
-  %}
-
-  ins_pipe(pipe_class_memory);
-%}
-
-instruct clearArray_imm_reg(immL cnt, iRegP_R10 base, Universe dummy, rFlagsReg cr)
-%{
-  predicate((u_int64_t)n->in(2)->get_long()
-            < (u_int64_t)(BlockZeroingLowLimit >> LogBytesPerWord));
-  match(Set dummy (ClearArray cnt base));
-  effect(USE_KILL base);
-
-  ins_cost(4 * INSN_COST);
-  format %{ "ClearArray $cnt, $base" %}
-
-  ins_encode %{
-    __ zero_words($base$$Register, (u_int64_t)$cnt$$constant);
+    __ fill_words($base$$Register, $cnt$$Register, $val$$Register);
   %}
 
   ins_pipe(pipe_class_memory);

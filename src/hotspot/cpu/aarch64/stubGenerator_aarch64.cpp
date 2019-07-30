@@ -320,13 +320,15 @@ class StubGenerator: public StubCodeGenerator {
     return_address = __ pc();
 
     // store result depending on type (everything that is not
-    // T_OBJECT, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
+    // T_OBJECT, T_VALUETYPE, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
     // n.b. this assumes Java returns an integral result in r0
     // and a floating result in j_farg0
     __ ldr(j_rarg2, result);
     Label is_long, is_float, is_double, exit;
     __ ldr(j_rarg1, result_type);
     __ cmp(j_rarg1, (u1)T_OBJECT);
+    __ br(Assembler::EQ, is_long);
+    __ cmp(j_rarg1, (u1)T_VALUETYPE);
     __ br(Assembler::EQ, is_long);
     __ cmp(j_rarg1, (u1)T_LONG);
     __ br(Assembler::EQ, is_long);
@@ -1829,7 +1831,7 @@ class StubGenerator: public StubCodeGenerator {
     __ align(OptoLoopAlignment);
 
     __ BIND(L_store_element);
-    __ store_heap_oop(__ post(to, UseCompressedOops ? 4 : 8), copied_oop, noreg, noreg, AS_RAW);  // store the oop
+    __ store_heap_oop(__ post(to, UseCompressedOops ? 4 : 8), copied_oop, noreg, noreg, noreg, AS_RAW);  // store the oop 
     __ sub(count, count, 1);
     __ cbz(count, L_do_card_marks);
 
@@ -5650,6 +5652,184 @@ class StubGenerator: public StubCodeGenerator {
   };
 
 
+  // Call here from the interpreter or compiled code to either load
+  // multiple returned values from the value type instance being
+  // returned to registers or to store returned values to a newly
+  // allocated value type instance.
+  address generate_return_value_stub(address destination, const char* name, bool has_res) {
+
+    // Information about frame layout at time of blocking runtime call.
+    // Note that we only have to preserve callee-saved registers since
+    // the compilers are responsible for supplying a continuation point
+    // if they expect all registers to be preserved.
+    // n.b. aarch64 asserts that frame::arg_reg_save_area_bytes == 0
+    enum layout {
+      rfp_off = 0, rfp_off2,
+
+      j_rarg7_off, j_rarg7_2,
+      j_rarg6_off, j_rarg6_2,
+      j_rarg5_off, j_rarg5_2,
+      j_rarg4_off, j_rarg4_2,
+      j_rarg3_off, j_rarg3_2,
+      j_rarg2_off, j_rarg2_2,
+      j_rarg1_off, j_rarg1_2,
+      j_rarg0_off, j_rarg0_2,
+
+      j_farg0_off, j_farg0_2,
+      j_farg1_off, j_farg1_2,
+      j_farg2_off, j_farg2_2,
+      j_farg3_off, j_farg3_2,
+      j_farg4_off, j_farg4_2,
+      j_farg5_off, j_farg5_2,
+      j_farg6_off, j_farg6_2,
+      j_farg7_off, j_farg7_2,
+ 
+      return_off, return_off2,
+      framesize // inclusive of return address
+    };
+
+    int insts_size = 512;
+    int locs_size  = 64;
+
+    CodeBuffer code(name, insts_size, locs_size);
+    OopMapSet* oop_maps  = new OopMapSet();
+    MacroAssembler* masm = new MacroAssembler(&code);
+
+    address start = __ pc();
+
+    const Address f7_save       (rfp, j_farg7_off * wordSize);
+    const Address f6_save       (rfp, j_farg6_off * wordSize);
+    const Address f5_save       (rfp, j_farg5_off * wordSize);
+    const Address f4_save       (rfp, j_farg4_off * wordSize);
+    const Address f3_save       (rfp, j_farg3_off * wordSize);
+    const Address f2_save       (rfp, j_farg2_off * wordSize);
+    const Address f1_save       (rfp, j_farg1_off * wordSize);
+    const Address f0_save       (rfp, j_farg0_off * wordSize);
+
+    const Address r0_save      (rfp, j_rarg0_off * wordSize);
+    const Address r1_save      (rfp, j_rarg1_off * wordSize);
+    const Address r2_save      (rfp, j_rarg2_off * wordSize);
+    const Address r3_save      (rfp, j_rarg3_off * wordSize);
+    const Address r4_save      (rfp, j_rarg4_off * wordSize);
+    const Address r5_save      (rfp, j_rarg5_off * wordSize);
+    const Address r6_save      (rfp, j_rarg6_off * wordSize);
+    const Address r7_save      (rfp, j_rarg7_off * wordSize);
+
+    // Generate oop map
+    OopMap* map = new OopMap(framesize, 0);
+
+    map->set_callee_saved(VMRegImpl::stack2reg(rfp_off), rfp->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg7_off), j_rarg7->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg6_off), j_rarg6->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg5_off), j_rarg5->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg4_off), j_rarg4->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg3_off), j_rarg3->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg2_off), j_rarg2->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg1_off), j_rarg1->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_rarg0_off), j_rarg0->as_VMReg());
+
+    map->set_callee_saved(VMRegImpl::stack2reg(j_farg0_off), j_farg0->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_farg1_off), j_farg1->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_farg2_off), j_farg2->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_farg3_off), j_farg3->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_farg4_off), j_farg4->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_farg5_off), j_farg5->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_farg6_off), j_farg6->as_VMReg());
+    map->set_callee_saved(VMRegImpl::stack2reg(j_farg7_off), j_farg7->as_VMReg());
+
+    // This is an inlined and slightly modified version of call_VM
+    // which has the ability to fetch the return PC out of
+    // thread-local storage and also sets up last_Java_sp slightly
+    // differently than the real call_VM
+
+    __ enter(); // Save FP and LR before call
+
+    assert(is_even(framesize/2), "sp not 16-byte aligned");
+
+    // lr and fp are already in place
+    __ sub(sp, rfp, ((unsigned)framesize - 4) << LogBytesPerInt); // prolog
+
+    __ strd(j_farg7, f7_save); 
+    __ strd(j_farg6, f6_save); 
+    __ strd(j_farg5, f5_save); 
+    __ strd(j_farg4, f4_save); 
+    __ strd(j_farg3, f3_save); 
+    __ strd(j_farg2, f2_save); 
+    __ strd(j_farg1, f1_save); 
+    __ strd(j_farg0, f0_save); 
+
+    __ str(j_rarg0, r0_save); 
+    __ str(j_rarg1, r1_save); 
+    __ str(j_rarg2, r2_save); 
+    __ str(j_rarg3, r3_save); 
+    __ str(j_rarg4, r4_save); 
+    __ str(j_rarg5, r5_save); 
+    __ str(j_rarg6, r6_save); 
+    __ str(j_rarg7, r7_save); 
+
+    int frame_complete = __ pc() - start;
+
+    // Set up last_Java_sp and last_Java_fp
+    address the_pc = __ pc();
+    __ set_last_Java_frame(sp, rfp, the_pc, rscratch1);
+
+    // Call runtime
+    __ mov(c_rarg0, rthread);
+    __ mov(c_rarg1, r0);
+
+    BLOCK_COMMENT("call runtime_entry");
+    __ mov(rscratch1, destination);
+    __ blrt(rscratch1, 2 /* number_of_arguments */, 0, 1);
+
+    oop_maps->add_gc_map(the_pc - start, map);
+
+    __ reset_last_Java_frame(false); 
+    __ maybe_isb(); 
+
+    __ ldrd(j_farg7, f7_save); 
+    __ ldrd(j_farg6, f6_save); 
+    __ ldrd(j_farg5, f5_save); 
+    __ ldrd(j_farg4, f4_save); 
+    __ ldrd(j_farg3, f3_save); 
+    __ ldrd(j_farg3, f2_save); 
+    __ ldrd(j_farg1, f1_save); 
+    __ ldrd(j_farg0, f0_save); 
+
+    __ ldr(j_rarg0, r0_save); 
+    __ ldr(j_rarg1, r1_save); 
+    __ ldr(j_rarg2, r2_save); 
+    __ ldr(j_rarg3, r3_save); 
+    __ ldr(j_rarg4, r4_save); 
+    __ ldr(j_rarg5, r5_save); 
+    __ ldr(j_rarg6, r6_save); 
+    __ ldr(j_rarg7, r7_save); 
+
+    __ leave();
+
+    // check for pending exceptions
+    Label pending;
+    __ ldr(rscratch1, Address(rthread, in_bytes(Thread::pending_exception_offset())));
+    __ cmp(rscratch1, (u1)NULL_WORD);
+    __ br(Assembler::NE, pending);
+
+    if (has_res) {
+      __ get_vm_result(r0, rthread);
+    }
+    __ ret(lr);
+
+    __ bind(pending);
+    __ ldr(r0, Address(rthread, in_bytes(Thread::pending_exception_offset())));
+    __ far_jump(RuntimeAddress(StubRoutines::forward_exception_entry()));
+
+
+    // codeBlob framesize is in words (not VMRegImpl::slot_size)
+    int frame_size_in_words = (framesize >> (LogBytesPerWord - LogBytesPerInt));
+    RuntimeStub* stub =
+      RuntimeStub::new_runtime_stub(name, &code, frame_complete, frame_size_in_words, oop_maps, false);
+
+    return stub->entry_point();
+  }
+
   // Initialization
   void generate_initial() {
     // Generate initial stubs and initializes the entry points
@@ -5699,6 +5879,12 @@ class StubGenerator: public StubCodeGenerator {
     if (vmIntrinsics::is_intrinsic_available(vmIntrinsics::_dcos)) {
       StubRoutines::_dcos = generate_dsin_dcos(/* isCos = */ true);
     }
+
+
+    StubRoutines::_load_value_type_fields_in_regs = 
+         generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_value_type_fields_in_regs), "load_value_type_fields_in_regs", false);
+    StubRoutines::_store_value_type_fields_to_buf = 
+         generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_value_type_fields_to_buf), "store_value_type_fields_to_buf", true);
   }
 
   void generate_all() {

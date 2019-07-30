@@ -43,7 +43,7 @@ public:
   virtual void load_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                        Register dst, Address src, Register tmp1, Register tmp_thread);
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                        Address dst, Register val, Register tmp1, Register tmp2);
+                        Address dst, Register val, Register tmp1, Register tmp2, Register tmp3 = noreg);
 
   virtual void obj_equals(MacroAssembler* masm,
                           Register obj1, Register obj2);
@@ -72,6 +72,7 @@ public:
     Label&   slow_case                 // continuation point if fast allocation fails
   );
   virtual void barrier_stubs_init() {}
+  virtual void nmethod_entry_barrier(MacroAssembler* masm);
 };
 
 #endif // CPU_AARCH64_GC_SHARED_BARRIERSETASSEMBLER_AARCH64_HPP

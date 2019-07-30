@@ -2111,12 +2111,12 @@ bool Arguments::check_vm_args_consistency() {
 
   status = status && GCArguments::check_args_consistency();
 
-  if (LP64_ONLY(false &&) !FLAG_IS_DEFAULT(ValueTypePassFieldsAsArgs)) {
+  if (AMD64_ONLY(false &&) !FLAG_IS_DEFAULT(ValueTypePassFieldsAsArgs)) {
     FLAG_SET_CMDLINE(ValueTypePassFieldsAsArgs, false);
     warning("ValueTypePassFieldsAsArgs is not supported on this platform");
   }
 
-  if (LP64_ONLY(false &&) !FLAG_IS_DEFAULT(ValueTypeReturnedAsFields)) {
+  if (AMD64_ONLY(false &&) !FLAG_IS_DEFAULT(ValueTypeReturnedAsFields)) {
     FLAG_SET_CMDLINE(ValueTypeReturnedAsFields, false);
     warning("ValueTypeReturnedAsFields is not supported on this platform");
   }

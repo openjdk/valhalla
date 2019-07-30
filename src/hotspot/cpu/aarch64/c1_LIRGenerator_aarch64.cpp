@@ -35,6 +35,7 @@
 #include "ci/ciArray.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
+#include "ci/ciValueKlass.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "vmreg_aarch64.inline.hpp"
@@ -98,6 +99,12 @@ LIR_Opr LIRGenerator::rlock_byte(BasicType type) {
   LIR_Opr reg = new_register(T_INT);
   set_vreg_flag(reg, LIRGenerator::byte_reg);
   return reg;
+}
+
+
+void LIRGenerator::init_temps_for_substitutability_check(LIR_Opr& tmp1, LIR_Opr& tmp2) {
+  tmp1 = new_register(T_INT);
+  tmp2 = LIR_OprFact::illegalOpr;
 }
 
 
@@ -332,7 +339,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   LIR_Opr lock = new_register(T_INT);
   // Need a scratch register for biased locking
   LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if (UseBiasedLocking) {
+  if (UseBiasedLocking || x->maybe_valuetype()) {
     scratch = new_register(T_INT);
   }
 
@@ -340,11 +347,17 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   if (x->needs_null_check()) {
     info_for_exception = state_for(x);
   }
+
+  CodeStub* throw_imse_stub = 
+      x->maybe_valuetype() ?
+      new SimpleExceptionStub(Runtime1::throw_illegal_monitor_state_exception_id, LIR_OprFact::illegalOpr, state_for(x)) :
+      NULL;
+
   // this CodeEmitInfo must not have the xhandlers because here the
   // object is already locked (xhandlers expect object to be unlocked)
   CodeEmitInfo* info = state_for(x, x->state(), true);
   monitor_enter(obj.result(), lock, syncTempOpr(), scratch,
-                        x->monitor_no(), info_for_exception, info);
+                        x->monitor_no(), info_for_exception, info, throw_imse_stub);
 }
 
 
@@ -1153,6 +1166,22 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   __ move(reg, result);
 }
 
+void LIRGenerator::do_NewValueTypeInstance  (NewValueTypeInstance* x) {
+  // Mapping to do_NewInstance (same code)
+  CodeEmitInfo* info = state_for(x, x->state());
+  x->set_to_object_type();
+  LIR_Opr reg = result_register_for(x->type());
+  new_instance(reg, x->klass(), x->is_unresolved(),
+             FrameMap::r2_oop_opr,
+             FrameMap::r5_oop_opr,
+             FrameMap::r4_oop_opr,
+             LIR_OprFact::illegalOpr,
+             FrameMap::r3_metadata_opr, info);
+  LIR_Opr result = rlock_result(x);
+  __ move(reg, result);
+
+}
+
 void LIRGenerator::do_NewTypeArray(NewTypeArray* x) {
   CodeEmitInfo* info = state_for(x, x->state());
 
@@ -1198,13 +1227,18 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
   length.load_item_force(FrameMap::r19_opr);
   LIR_Opr len = length.result();
 
-  CodeStub* slow_path = new NewObjectArrayStub(klass_reg, len, reg, info);
-  ciKlass* obj = (ciKlass*) ciObjArrayKlass::make(x->klass());
+  ciKlass* obj = (ciKlass*) x->exact_type();
+  CodeStub* slow_path = new NewObjectArrayStub(klass_reg, len, reg, info, x->is_never_null());
   if (obj == ciEnv::unloaded_ciobjarrayklass()) {
     BAILOUT("encountered unloaded_ciobjarrayklass due to out of memory error");
   }
+
   klass2reg_with_patching(klass_reg, obj, patching_info);
-  __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path);
+  if (x->is_never_null()) {
+    __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_VALUETYPE, klass_reg, slow_path);
+  } else {
+    __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path);
+  }
 
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);
@@ -1280,6 +1314,9 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
   CodeEmitInfo* info_for_exception =
       (x->needs_exception_state() ? state_for(x) :
                                     state_for(x, x->state_before(), true /*ignore_xhandler*/));
+  if (x->is_never_null()) {
+    __ null_check(obj.result(), new CodeEmitInfo(info_for_exception));
+  }
 
   CodeStub* stub;
   if (x->is_incompatible_class_change_check()) {
@@ -1298,10 +1335,13 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
   if (!x->klass()->is_loaded() || UseCompressedClassPointers) {
     tmp3 = new_register(objectType);
   }
+
+
   __ checkcast(reg, obj.result(), x->klass(),
                new_register(objectType), new_register(objectType), tmp3,
                x->direct_compare(), info_for_exception, patching_info, stub,
-               x->profiled_method(), x->profiled_bci());
+               x->profiled_method(), x->profiled_bci(), x->is_never_null());
+
 }
 
 void LIRGenerator::do_InstanceOf(InstanceOf* x) {

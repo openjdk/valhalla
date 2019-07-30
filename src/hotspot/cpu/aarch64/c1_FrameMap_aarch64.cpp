@@ -45,7 +45,7 @@ LIR_Opr FrameMap::map_to_opr(BasicType type, VMRegPair* reg, bool) {
       Register reg2 = r_2->as_Register();
       assert(reg2 == reg, "must be same register");
       opr = as_long_opr(reg);
-    } else if (type == T_OBJECT || type == T_ARRAY) {
+    } else if (type == T_OBJECT || type == T_ARRAY || type == T_VALUETYPE) {
       opr = as_oop_opr(reg);
     } else if (type == T_METADATA) {
       opr = as_metadata_opr(reg);

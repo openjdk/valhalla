@@ -73,7 +73,7 @@ void BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorators,
 }
 
 void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                                   Address dst, Register val, Register tmp1, Register tmp2) {
+                                   Address dst, Register val, Register tmp1, Register tmp2, Register tmp3) {
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool in_native = (decorators & IN_NATIVE) != 0;
   switch (type) {
@@ -229,3 +229,21 @@ void BarrierSetAssembler::incr_allocated_bytes(MacroAssembler* masm,
   }
   __ str(t1, Address(rthread, in_bytes(JavaThread::allocated_bytes_offset())));
 }
+
+void BarrierSetAssembler::nmethod_entry_barrier(MacroAssembler* masm)  {
+// DMS CHECK: 8210498: nmethod entry barriers is not implemented
+#if 0
+ BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
+  if (bs_nm == NULL) {
+    return;
+  }
+  Label continuation;
+  Address disarmed_addr(rthread, in_bytes(bs_nm->thread_disarmed_offset()));
+  __ align(8);
+  __ ldr(rscratch1, disarmed_addr);
+  __ cbz(rscratch1, continuation);
+  __ blr(RuntimeAddress(StubRoutines::aarch64::method_entry_barrier()));
+  __ bind(continuation);
+#endif
+}
+

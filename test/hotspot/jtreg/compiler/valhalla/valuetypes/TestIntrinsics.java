@@ -36,7 +36,7 @@ import jdk.internal.misc.Unsafe;
  * @summary Test intrinsic support for value types
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @modules java.base/jdk.internal.misc
- * @requires os.simpleArch == "x64"
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile TestIntrinsics.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions

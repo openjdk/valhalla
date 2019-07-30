@@ -31,7 +31,7 @@ import java.util.Arrays;
  * @test
  * @summary Test nullable value type arrays
  * @library /testlibrary /test/lib /compiler/whitebox /
- * @requires os.simpleArch == "x64"
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile TestNullableArrays.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions

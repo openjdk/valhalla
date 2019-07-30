@@ -28,6 +28,8 @@
 #include "c1/c1_Runtime1.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "gc/shared/collectedHeap.hpp"
+#include "gc/shared/barrierSet.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/markOop.hpp"
@@ -83,6 +85,12 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   ldr(hdr, Address(obj, hdr_offset));
   // and mark it as unlocked
   orr(hdr, hdr, markOopDesc::unlocked_value);
+
+  if (EnableValhalla && !UseBiasedLocking) {
+    // Mask always_locked bit such that we go to the slow path if object is a value type
+    andr(hdr, hdr, ~markOopDesc::biased_lock_bit_in_place);
+  }
+
   // save unlocked object header into the displaced header location on the stack
   str(hdr, Address(disp_hdr, 0));
   // test if object header is still the same (i.e. unlocked), and if so, store the
@@ -330,7 +338,9 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
 }
 
 
-void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes) {
+void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes,  bool needs_stack_repair, Label* verified_value_entry_label) {
+   
+
   // If we have to make this method not-entrant we'll overwrite its
   // first instruction with a jump.  For this action to be legal we
   // must ensure that this first instruction is a B, BL, NOP, BKPT,
@@ -340,22 +350,51 @@ void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes) {
   // Make sure there is enough stack space for this method's activation.
   // Note that we do this before doing an enter().
   generate_stack_overflow_check(bang_size_in_bytes);
+
+  guarantee(needs_stack_repair == false, "Stack repair should not be true");
+  if (verified_value_entry_label != NULL) {
+    bind(*verified_value_entry_label);
+  }
+
   MacroAssembler::build_frame(framesize + 2 * wordSize);
   if (NotifySimulator) {
     notify(Assembler::method_entry);
   }
 }
 
-void C1_MacroAssembler::remove_frame(int framesize) {
+void C1_MacroAssembler::remove_frame(int framesize, bool needs_stack_repair) {
+
+  guarantee(needs_stack_repair == false, "Stack repair should not be true");
+
   MacroAssembler::remove_frame(framesize + 2 * wordSize);
   if (NotifySimulator) {
     notify(Assembler::method_reentry);
   }
 }
 
-
-void C1_MacroAssembler::verified_entry() {
+void C1_MacroAssembler::verified_value_entry() {
+  if (C1Breakpoint || VerifyFPU || !UseStackBanging) {
+    // Verified Entry first instruction should be 5 bytes long for correct
+    // patching by patch_verified_entry().
+    //
+    // C1Breakpoint and VerifyFPU have one byte first instruction.
+    // Also first instruction will be one byte "push(rbp)" if stack banging
+    // code is not generated (see build_frame() above).
+    // For all these cases generate long instruction first.
+    nop();
+  }
+  
+  // build frame
+  // DMS CHECK: is it nop?
+  // verify_FPU(0, "method_entry");
+ 
 }
+
+int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, int bang_size_in_bytes, Label& verified_value_entry_label, bool is_value_ro_entry) {
+  guarantee(false, "Support for ValueTypePassFieldsAsArgs and ValueTypeReturnedAsFields is not implemented");
+  return 0;
+}
+
 
 void C1_MacroAssembler::load_parameter(int offset_in_words, Register reg) {
   // rbp, + 0: link

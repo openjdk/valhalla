@@ -773,6 +773,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
     case new_type_array_id:
     case new_object_array_id:
+    case new_value_array_id:
       {
         Register length   = r19; // Incoming
         Register klass    = r3; // Incoming
@@ -780,8 +781,12 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
         if (id == new_type_array_id) {
           __ set_info("new_type_array", dont_gc_arguments);
-        } else {
+        }
+        else if (id == new_object_array_id) {
           __ set_info("new_object_array", dont_gc_arguments);
+        }
+        else { 
+          __ set_info("new_value_array", dont_gc_arguments);
         }
 
 #ifdef ASSERT
@@ -791,9 +796,14 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           Register t0 = obj;
           __ ldrw(t0, Address(klass, Klass::layout_helper_offset()));
           __ asrw(t0, t0, Klass::_lh_array_tag_shift);
-          int tag = ((id == new_type_array_id)
-                     ? Klass::_lh_array_tag_type_value
-                     : Klass::_lh_array_tag_obj_value);
+
+          int tag = 0;
+          switch (id) {
+           case new_type_array_id: tag = Klass::_lh_array_tag_type_value; break;
+           case new_object_array_id: tag = Klass::_lh_array_tag_obj_value; break;
+           case new_value_array_id: tag = Klass::_lh_array_tag_vt_value; break;
+           default:  ShouldNotReachHere();
+          }
           __ mov(rscratch1, tag);
           __ cmpw(t0, rscratch1);
           __ br(Assembler::EQ, ok);
@@ -853,6 +863,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         if (id == new_type_array_id) {
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_type_array), klass, length);
         } else {
+          // Runtime1::new_object_array handles both object and value arrays
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_object_array), klass, length);
         }
 
@@ -887,6 +898,84 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         __ verify_oop(r0);
       }
       break;
+
+    case buffer_value_args_id:
+    case buffer_value_args_no_receiver_id:
+    { 
+        const char* name = (id == buffer_value_args_id) ?
+          "buffer_value_args" : "buffer_value_args_no_receiver";
+        StubFrame f(sasm, name, dont_gc_arguments);
+        OopMap* map = save_live_registers(sasm, 2);
+        Register method = r1; 
+        address entry = (id == buffer_value_args_id) ?
+          CAST_FROM_FN_PTR(address, buffer_value_args) :
+          CAST_FROM_FN_PTR(address, buffer_value_args_no_receiver);
+        int call_offset = __ call_RT(r0, noreg, entry, method);
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, map);
+        restore_live_registers_except_r0(sasm);
+        __ verify_oop(r0);  // r0: an array of buffered value objects
+     }
+     break;
+
+    case load_flattened_array_id:
+      {
+        StubFrame f(sasm, "load_flattened_array", dont_gc_arguments);
+        OopMap* map = save_live_registers(sasm, 3);
+
+        // Called with store_parameter and not C abi
+
+        f.load_argument(1, r0); // r0,: array
+        f.load_argument(0, r1); // r1,: index
+        int call_offset = __ call_RT(r0, noreg, CAST_FROM_FN_PTR(address, load_flattened_array), r0, r1);
+
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, map);
+        restore_live_registers_except_r0(sasm);
+
+        // r0: loaded element at array[index]
+        __ verify_oop(r0);
+      }
+      break;
+
+    case store_flattened_array_id:
+      {
+        StubFrame f(sasm, "store_flattened_array", dont_gc_arguments);
+        OopMap* map = save_live_registers(sasm, 4);
+
+        // Called with store_parameter and not C abi
+
+        f.load_argument(2, r0); // r0: array
+        f.load_argument(1, r1); // r1: index
+        f.load_argument(0, r2); // r2: value
+        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, store_flattened_array), r0, r1, r2);
+
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, map);
+        restore_live_registers_except_r0(sasm);
+      }
+      break;
+
+      case substitutability_check_id:
+      { 
+        StubFrame f(sasm, "substitutability_check", dont_gc_arguments);
+        OopMap* map = save_live_registers(sasm, 3);
+
+        // Called with store_parameter and not C abi
+
+        f.load_argument(1, r0); // r0,: left
+        f.load_argument(0, r1); // r1,: right
+        int call_offset = __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, substitutability_check), r0, r1);
+
+        oop_maps = new OopMapSet();
+        oop_maps->add_gc_map(call_offset, map);
+        restore_live_registers_except_r0(sasm);
+
+        // r0,: are the two operands substitutable
+      }
+      break;
+
+
 
     case register_finalizer_id:
       {
@@ -927,8 +1016,14 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       break;
 
     case throw_incompatible_class_change_error_id:
-      { StubFrame f(sasm, "throw_incompatible_class_cast_exception", dont_gc_arguments);
+      { StubFrame f(sasm, "throw_incompatible_class_change_exception", dont_gc_arguments);
         oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_incompatible_class_change_error), false);
+      }
+      break;
+
+    case throw_illegal_monitor_state_exception_id:
+      { StubFrame f(sasm, "throw_illegal_monitor_state_exception", dont_gc_arguments);
+        oop_maps = generate_exception_throw(sasm, CAST_FROM_FN_PTR(address, throw_illegal_monitor_state_exception), false);
       }
       break;
 
@@ -1123,8 +1218,10 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
-
     default:
+      // DMS CHECK: This code should be fixed in JDK workspace, because it fails 
+      // with assert during vm intialization rather than insert a call 
+      // to unimplemented_entry
       { StubFrame f(sasm, "unimplemented entry", dont_gc_arguments);
         __ mov(r0, (int)id);
         __ call_RT(noreg, noreg, CAST_FROM_FN_PTR(address, unimplemented_entry), r0);
@@ -1133,6 +1230,8 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       break;
     }
   }
+
+
   return oop_maps;
 }
 

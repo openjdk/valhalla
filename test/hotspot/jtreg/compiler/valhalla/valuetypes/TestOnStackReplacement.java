@@ -30,7 +30,7 @@ import java.lang.reflect.Method;
  * @test
  * @summary Test on stack replacement (OSR) with value types
  * @library /testlibrary /test/lib /compiler/whitebox /
- * @requires os.simpleArch == "x64"
+ * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile TestOnStackReplacement.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions

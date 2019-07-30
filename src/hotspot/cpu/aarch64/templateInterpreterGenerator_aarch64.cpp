@@ -38,6 +38,7 @@
 #include "oops/methodData.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valueKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/arguments.hpp"
@@ -440,6 +441,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   __ ldr(esp, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
   // and NULL it as marker that esp is now tos until next java call
   __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
+
   __ restore_bcp();
   __ restore_locals();
   __ restore_constant_pool_cache();
@@ -566,6 +568,7 @@ address TemplateInterpreterGenerator::generate_result_handler_for(
   case T_VOID   : /* nothing to do */        break;
   case T_FLOAT  : /* nothing to do */        break;
   case T_DOUBLE : /* nothing to do */        break;
+  case T_VALUETYPE: // fall through (value types are handled with oops)
   case T_OBJECT :
     // retrieve result from frame
     __ ldr(r0, Address(rfp, frame::interpreter_frame_oop_temp_offset*wordSize));

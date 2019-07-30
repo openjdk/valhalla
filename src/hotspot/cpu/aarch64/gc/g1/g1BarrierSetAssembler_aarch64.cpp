@@ -273,7 +273,12 @@ void G1BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorator
 }
 
 void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
-                                         Address dst, Register val, Register tmp1, Register tmp2) {
+                                         Address dst, Register val, Register tmp1, Register tmp2, Register tmp3) {
+
+   if (tmp3 == noreg) {
+       tmp3 = r8;  
+   }
+
   // flatten object address if needed
   if (dst.index() == noreg && dst.offset() == 0) {
     if (dst.base() != r3) {
@@ -292,7 +297,7 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
                        false /* expand_call */);
 
   if (val == noreg) {
-    BarrierSetAssembler::store_at(masm, decorators, type, Address(r3, 0), noreg, noreg, noreg);
+    BarrierSetAssembler::store_at(masm, decorators, type, Address(r3, 0), noreg, noreg, noreg, noreg);
   } else {
     // G1 barrier needs uncompressed oop for region cross check.
     Register new_val = val;
@@ -300,7 +305,7 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
       new_val = rscratch2;
       __ mov(new_val, val);
     }
-    BarrierSetAssembler::store_at(masm, decorators, type, Address(r3, 0), val, noreg, noreg);
+    BarrierSetAssembler::store_at(masm, decorators, type, Address(r3, 0), val, noreg, noreg, noreg);
     g1_write_barrier_post(masm,
                           r3 /* store_adr */,
                           new_val /* new_val */,

@@ -40,6 +40,7 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/objArrayKlass.hpp"
+#include "oops/oop.inline.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "vmreg_aarch64.inline.hpp"
@@ -242,7 +243,7 @@ void LIR_Assembler::osr_entry() {
 
   // build frame
   ciMethod* m = compilation()->method();
-  __ build_frame(initial_frame_size_in_bytes(), bang_size_in_bytes());
+  __ build_frame(initial_frame_size_in_bytes(), bang_size_in_bytes(), needs_stack_repair(), NULL); 
 
   // OSR buffer is
   //
@@ -452,7 +453,7 @@ int LIR_Assembler::emit_unwind_handler() {
 
   // remove the activation and dispatch to the unwind handler
   __ block_comment("remove_frame and dispatch to the unwind handler");
-  __ remove_frame(initial_frame_size_in_bytes());
+  __ remove_frame(initial_frame_size_in_bytes(), needs_stack_repair());
   __ far_jump(RuntimeAddress(Runtime1::entry_for(Runtime1::unwind_exception_id)));
 
   // Emit the slow path assembly
@@ -503,8 +504,9 @@ void LIR_Assembler::add_debug_info_for_branch(address adr, CodeEmitInfo* info) {
 void LIR_Assembler::return_op(LIR_Opr result) {
   assert(result->is_illegal() || !result->is_single_cpu() || result->as_register() == r0, "word returns are in r0,");
 
+  ciMethod* method = compilation()->method();
   // Pop the stack before the safepoint code
-  __ remove_frame(initial_frame_size_in_bytes());
+  __ remove_frame(initial_frame_size_in_bytes(), needs_stack_repair());
 
   if (StackReservedPages > 0 && compilation()->has_reserved_stack_access()) {
     __ reserved_stack_check();
@@ -513,6 +515,10 @@ void LIR_Assembler::return_op(LIR_Opr result) {
   address polling_page(os::get_polling_page());
   __ read_polling_page(rscratch1, polling_page, relocInfo::poll_return_type);
   __ ret(lr);
+}
+
+void LIR_Assembler::store_value_type_fields_to_buf(ciValueKlass* vk) { 
+  __ store_value_type_fields_to_buf(vk);
 }
 
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
@@ -562,11 +568,12 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
       break;
     }
 
+    case T_VALUETYPE:
     case T_OBJECT: {
-        if (patch_code == lir_patch_none) {
-          jobject2reg(c->as_jobject(), dest->as_register());
-        } else {
+        if (patch_code != lir_patch_none) {
           jobject2reg_with_patching(dest->as_register(), info);
+        } else {
+          jobject2reg(c->as_jobject(), dest->as_register());
         }
       break;
     }
@@ -608,6 +615,7 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
 void LIR_Assembler::const2stack(LIR_Opr src, LIR_Opr dest) {
   LIR_Const* c = src->as_constant_ptr();
   switch (c->type()) {
+  case T_VALUETYPE: 
   case T_OBJECT:
     {
       if (! c->as_jobject())
@@ -674,6 +682,7 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
     assert(c->as_jint() == 0, "should be");
     insn = &Assembler::strw;
     break;
+  case T_VALUETYPE: // DMS CHECK: the code is significantly differ from x86
   case T_OBJECT:
   case T_ARRAY:
     assert(c->as_jobject() == 0, "should be");
@@ -714,13 +723,13 @@ void LIR_Assembler::reg2reg(LIR_Opr src, LIR_Opr dest) {
       return;
     }
     assert(src->is_single_cpu(), "must match");
-    if (src->type() == T_OBJECT) {
+    if (src->type() == T_OBJECT || src->type() == T_VALUETYPE) {
       __ verify_oop(src->as_register());
     }
     move_regs(src->as_register(), dest->as_register());
 
   } else if (dest->is_double_cpu()) {
-    if (src->type() == T_OBJECT || src->type() == T_ARRAY) {
+    if (src->type() == T_OBJECT || src->type() == T_ARRAY || src->type() == T_VALUETYPE) {
       // Surprising to me but we can see move of a long to t_object
       __ verify_oop(src->as_register());
       move_regs(src->as_register(), dest->as_register_lo());
@@ -748,7 +757,7 @@ void LIR_Assembler::reg2reg(LIR_Opr src, LIR_Opr dest) {
 
 void LIR_Assembler::reg2stack(LIR_Opr src, LIR_Opr dest, BasicType type, bool pop_fpu_stack) {
   if (src->is_single_cpu()) {
-    if (type == T_ARRAY || type == T_OBJECT) {
+    if (type == T_ARRAY || type == T_OBJECT || type == T_VALUETYPE) {
       __ str(src->as_register(), frame_map()->address_for_slot(dest->single_stack_ix()));
       __ verify_oop(src->as_register());
     } else if (type == T_METADATA || type == T_DOUBLE) {
@@ -786,7 +795,7 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     return;
   }
 
-  if (type == T_ARRAY || type == T_OBJECT) {
+  if (type == T_ARRAY || type == T_OBJECT || type == T_VALUETYPE) {
     __ verify_oop(src->as_register());
 
     if (UseCompressedOops && !wide) {
@@ -808,6 +817,7 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       break;
     }
 
+    case T_VALUETYPE: // fall through
     case T_ARRAY:   // fall through
     case T_OBJECT:  // fall through
       if (UseCompressedOops && !wide) {
@@ -861,7 +871,7 @@ void LIR_Assembler::stack2reg(LIR_Opr src, LIR_Opr dest, BasicType type) {
   assert(dest->is_register(), "should not call otherwise");
 
   if (dest->is_single_cpu()) {
-    if (type == T_ARRAY || type == T_OBJECT) {
+    if (type == T_ARRAY || type == T_OBJECT || type == T_VALUETYPE) {
       __ ldr(dest->as_register(), frame_map()->address_for_slot(src->single_stack_ix()));
       __ verify_oop(dest->as_register());
     } else if (type == T_METADATA) {
@@ -933,7 +943,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
   LIR_Address* addr = src->as_address_ptr();
   LIR_Address* from_addr = src->as_address_ptr();
 
-  if (addr->base()->type() == T_OBJECT) {
+  if (addr->base()->type() == T_OBJECT || addr->base()->type() == T_VALUETYPE) { 
     __ verify_oop(addr->base()->as_pointer_register());
   }
 
@@ -957,6 +967,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       break;
     }
 
+    case T_VALUETYPE: // fall through
     case T_ARRAY:   // fall through
     case T_OBJECT:  // fall through
       if (UseCompressedOops && !wide) {
@@ -1011,7 +1022,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       ShouldNotReachHere();
   }
 
-  if (type == T_ARRAY || type == T_OBJECT) {
+  if (type == T_ARRAY || type == T_OBJECT || type == T_VALUETYPE) {
     if (UseCompressedOops && !wide) {
       __ decode_heap_oop(dest->as_register());
     }
@@ -1022,11 +1033,28 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     }
   } else if (type == T_ADDRESS && addr->disp() == oopDesc::klass_offset_in_bytes()) {
     if (UseCompressedClassPointers) {
+      __ andr(dest->as_register(), dest->as_register(), oopDesc::compressed_klass_mask());
       __ decode_klass_not_null(dest->as_register());
+    } else {
+      __   ubfm(dest->as_register(), dest->as_register(), 0, 63 - oopDesc::storage_props_nof_bits);
     }
   }
 }
 
+void LIR_Assembler::move(LIR_Opr src, LIR_Opr dst) {
+  assert(dst->is_cpu_register(), "must be");
+  assert(dst->type() == src->type(), "must be");
+
+  if (src->is_cpu_register()) {
+    reg2reg(src, dst);
+  } else if (src->is_stack()) {
+    stack2reg(src, dst, dst->type());
+  } else if (src->is_constant()) {
+    const2reg(src, dst, lir_patch_none, NULL);
+  } else {
+    ShouldNotReachHere();
+  }
+}
 
 int LIR_Assembler::array_element_size(BasicType type) const {
   int elem_size = type2aelembytes(type);
@@ -1218,7 +1246,7 @@ void LIR_Assembler::emit_alloc_array(LIR_OpAllocArray* op) {
   Register len =  op->len()->as_register();
   __ uxtw(len, len);
 
-  if (UseSlowPath ||
+  if (UseSlowPath || op->type() == T_VALUETYPE ||
       (!UseFastNewObjectArray && (op->type() == T_OBJECT || op->type() == T_ARRAY)) ||
       (!UseFastNewTypeArray   && (op->type() != T_OBJECT && op->type() != T_ARRAY))) {
     __ b(*op->stub()->entry());
@@ -1529,6 +1557,122 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
     ShouldNotReachHere();
   }
 }
+
+void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
+  // We are loading/storing an array that *may* be a flattened array (the declared type
+  // Object[], interface[], or VT?[]). If this array is flattened, take slow path.
+
+  __ load_storage_props(op->tmp()->as_register(), op->array()->as_register());
+  __ tst(op->tmp()->as_register(), ArrayStorageProperties::flattened_value);
+  __ br(Assembler::NE, *op->stub()->entry());
+  if (!op->value()->is_illegal()) {
+    // We are storing into the array.
+    Label skip;
+    __ tst(op->tmp()->as_register(), ArrayStorageProperties::null_free_value);
+    __ br(Assembler::EQ, skip);
+    // The array is not flattened, but it is null_free. If we are storing
+    // a null, take the slow path (which will throw NPE).
+    __ cbz(op->value()->as_register(), *op->stub()->entry());
+    __ bind(skip);
+  }
+
+}
+
+void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
+  // This is called when we use aastore into a an array declared as "[LVT;",
+  // where we know VT is not flattenable (due to ValueArrayElemMaxFlatOops, etc).
+  // However, we need to do a NULL check if the actual array is a "[QVT;".
+
+  __ load_storage_props(op->tmp()->as_register(), op->array()->as_register());
+  __ mov(rscratch1, (uint64_t) ArrayStorageProperties::null_free_value);
+  __ cmp(op->tmp()->as_register(), rscratch1);
+}
+
+void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op) {
+  Label L_oops_equal;
+  Label L_oops_not_equal;
+  Label L_end;
+
+  Register left  = op->left()->as_register();
+  Register right = op->right()->as_register();
+
+  __ cmp(left, right);
+  __ br(Assembler::EQ, L_oops_equal);
+
+  // (1) Null check -- if one of the operands is null, the other must not be null (because
+  //     the two references are not equal), so they are not substitutable,
+  //     FIXME: do null check only if the operand is nullable
+  {
+    __ cbz(left, L_oops_not_equal);
+    __ cbz(right, L_oops_not_equal);
+  }
+
+
+  ciKlass* left_klass = op->left_klass();
+  ciKlass* right_klass = op->right_klass();
+
+  // (2) Value object check -- if either of the operands is not a value object,
+  //     they are not substitutable. We do this only if we are not sure that the
+  //     operands are value objects
+  if ((left_klass == NULL || right_klass == NULL) ||// The klass is still unloaded, or came from a Phi node.
+      !left_klass->is_valuetype() || !right_klass->is_valuetype()) {
+    Register tmp1  = rscratch1; /* op->tmp1()->as_register(); */
+    Register tmp2  = rscratch2; /* op->tmp2()->as_register(); */
+
+    __ mov(tmp1, (intptr_t)markOopDesc::always_locked_pattern);
+
+    __ ldr(tmp2, Address(left, oopDesc::mark_offset_in_bytes()));
+    __ andr(tmp1, tmp1, tmp2);
+
+    __ ldr(tmp2, Address(right, oopDesc::mark_offset_in_bytes()));
+    __ andr(tmp1, tmp1, tmp2); 
+
+    __ mov(tmp2, (intptr_t)markOopDesc::always_locked_pattern);
+    __ cmp(tmp1, tmp2); 
+    __ br(Assembler::NE, L_oops_not_equal);
+  }
+
+  // (3) Same klass check: if the operands are of different klasses, they are not substitutable.
+  if (left_klass != NULL && left_klass->is_valuetype() && left_klass == right_klass) {
+    // No need to load klass -- the operands are statically known to be the same value klass.
+    __ b(*op->stub()->entry());
+  } else {
+    Register left_klass_op = op->left_klass_op()->as_register();
+    Register right_klass_op = op->right_klass_op()->as_register();
+
+    // DMS CHECK, likely x86 bug, make aarch64 implementation correct
+    __ load_klass(left_klass_op, left);
+    __ load_klass(right_klass_op, right);
+    __ cmp(left_klass_op, right_klass_op);
+    __ br(Assembler::EQ, *op->stub()->entry()); // same klass -> do slow check
+    // fall through to L_oops_not_equal
+  }
+
+  __ bind(L_oops_not_equal);
+  move(op->not_equal_result(), op->result_opr());
+  __ b(L_end);
+
+  __ bind(L_oops_equal);
+  move(op->equal_result(), op->result_opr());
+  __ b(L_end);
+
+  // We've returned from the stub. op->result_opr() contains 0x0 IFF the two
+  // operands are not substitutable. (Don't compare against 0x1 in case the
+  // C compiler is naughty)
+  __ bind(*op->stub()->continuation());
+
+  if (op->result_opr()->type() == T_LONG) {
+    __ cbzw(op->result_opr()->as_register(), L_oops_not_equal); // (call_stub() == 0x0) -> not_equal
+  } else {
+    __ cbz(op->result_opr()->as_register(), L_oops_not_equal); // (call_stub() == 0x0) -> not_equal
+  }
+
+  move(op->equal_result(), op->result_opr()); // (call_stub() != 0x0) -> equal
+  // fall-through
+  __ bind(L_end);
+
+}
+
 
 void LIR_Assembler::casw(Register addr, Register newval, Register cmpval) {
   __ cmpxchg(addr, cmpval, newval, Assembler::word, /* acquire*/ true, /* release*/ true, /* weak*/ false, rscratch1);
@@ -1940,10 +2084,10 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
     if (opr2->is_single_cpu()) {
       // cpu register - cpu register
       Register reg2 = opr2->as_register();
-      if (opr1->type() == T_OBJECT || opr1->type() == T_ARRAY) {
+      if (opr1->type() == T_OBJECT || opr1->type() == T_ARRAY || opr1->type() == T_VALUETYPE) {
         __ cmpoop(reg1, reg2);
       } else {
-        assert(opr2->type() != T_OBJECT && opr2->type() != T_ARRAY, "cmp int, oop?");
+        assert(opr2->type() != T_OBJECT && opr2->type() != T_ARRAY && opr2->type() != T_VALUETYPE,  "cmp int, oop?");
         __ cmpw(reg1, reg2);
       }
       return;
@@ -1970,6 +2114,7 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
       case T_ADDRESS:
         imm = opr2->as_constant_ptr()->as_jint();
         break;
+      case T_VALUETYPE:
       case T_OBJECT:
       case T_ARRAY:
         jobject2reg(opr2->as_constant_ptr()->as_jobject(), rscratch1);
@@ -2136,6 +2281,7 @@ void LIR_Assembler::shift_op(LIR_Code code, LIR_Opr left, LIR_Opr count, LIR_Opr
       }
       break;
     case T_LONG:
+    case T_VALUETYPE: 
     case T_ADDRESS:
     case T_OBJECT:
       switch (code) {
@@ -2172,6 +2318,7 @@ void LIR_Assembler::shift_op(LIR_Code code, LIR_Opr left, jint count, LIR_Opr de
       break;
     case T_LONG:
     case T_ADDRESS:
+    case T_VALUETYPE:
     case T_OBJECT:
       switch (code) {
       case lir_shl:  __ lsl (dreg, lreg, count); break;
@@ -2216,6 +2363,19 @@ void LIR_Assembler::store_parameter(jobject o,  int offset_from_rsp_in_words) {
   __ str(rscratch1, Address(sp, offset_from_rsp_in_bytes));
 }
 
+void LIR_Assembler::arraycopy_valuetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest) {
+  __ load_storage_props(tmp, obj);
+  if (is_dest) {
+    // We also take slow path if it's a null_free destination array, just in case the source array
+    // contains NULLs.
+    __ tst(tmp, ArrayStorageProperties::flattened_value | ArrayStorageProperties::null_free_value);
+  } else {
+    __ tst(tmp, ArrayStorageProperties::flattened_value);
+  }
+  __ br(Assembler::NE, *slow_path->entry());
+}
+
+
 
 // This code replaces a call to arraycopy; no exception may
 // be thrown in this code, they must be thrown in the System.arraycopy
@@ -2235,7 +2395,23 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   CodeStub* stub = op->stub();
   int flags = op->flags();
   BasicType basic_type = default_type != NULL ? default_type->element_type()->basic_type() : T_ILLEGAL;
-  if (basic_type == T_ARRAY) basic_type = T_OBJECT;
+  if (basic_type == T_ARRAY || basic_type == T_VALUETYPE) basic_type = T_OBJECT;
+
+  if (flags & LIR_OpArrayCopy::always_slow_path) {
+    __ b(*stub->entry());
+    __ bind(*stub->continuation());
+    return;
+  }
+
+  if (flags & LIR_OpArrayCopy::src_valuetype_check) {
+    arraycopy_valuetype_check(src, tmp, stub, false);
+  }
+
+  if (flags & LIR_OpArrayCopy::dst_valuetype_check) {
+    arraycopy_valuetype_check(dst, tmp, stub, true);
+  }
+
+
 
   // if we don't know anything, just go through the generic arraycopy
   if (default_type == NULL // || basic_type == T_OBJECT
@@ -2904,6 +3080,7 @@ void LIR_Assembler::rt_call(LIR_Opr result, address dest, const LIR_OprList* arg
       case T_INT:
       case T_LONG:
       case T_OBJECT:
+      case T_VALUETYPE:
         type = 1;
         break;
       case T_FLOAT:
@@ -3170,6 +3347,7 @@ void LIR_Assembler::atomic_op(LIR_Code code, LIR_Opr src, LIR_Opr data, LIR_Opr 
     xchg = &MacroAssembler::atomic_xchgal;
     add = &MacroAssembler::atomic_addal;
     break;
+  case T_VALUETYPE:
   case T_OBJECT:
   case T_ARRAY:
     if (UseCompressedOops) {

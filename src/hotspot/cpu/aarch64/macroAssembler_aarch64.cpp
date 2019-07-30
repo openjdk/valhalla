@@ -1309,7 +1309,11 @@ void MacroAssembler::check_klass_subtype_slow_path(Register sub_klass,
 
 
 void MacroAssembler::verify_oop(Register reg, const char* s) {
-  if (!VerifyOops) return;
+  if (!VerifyOops || VerifyAdapterSharing) {
+    // Below address of the code string confuses VerifyAdapterSharing
+    // because it may differ between otherwise equivalent adapters.
+    return;
+  }
 
   // Pass register number to verify_oop_subroutine
   const char* b = NULL;
@@ -1339,7 +1343,11 @@ void MacroAssembler::verify_oop(Register reg, const char* s) {
 }
 
 void MacroAssembler::verify_oop_addr(Address addr, const char* s) {
-  if (!VerifyOops) return;
+  if (!VerifyOops || VerifyAdapterSharing) {
+    // Below address of the code string confuses VerifyAdapterSharing
+    // because it may differ between otherwise equivalent adapters.
+    return;
+  }
 
   const char* b = NULL;
   {
@@ -1442,6 +1450,10 @@ void MacroAssembler::call_VM_leaf(address entry_point, Register arg_0,
   call_VM_leaf_base(entry_point, 3);
 }
 
+void MacroAssembler::super_call_VM_leaf(address entry_point) {
+  MacroAssembler::call_VM_leaf_base(entry_point, 1);
+}
+
 void MacroAssembler::super_call_VM_leaf(address entry_point, Register arg_0) {
   pass_arg0(this, arg_0);
   MacroAssembler::call_VM_leaf_base(entry_point, 1);
@@ -1489,6 +1501,39 @@ void MacroAssembler::null_check(Register reg, int offset) {
     // nothing to do, (later) access of M[reg + offset]
     // will provoke OS NULL exception if reg = NULL
   }
+}
+
+void MacroAssembler::test_klass_is_value(Register klass, Register temp_reg, Label& is_value) {
+  ldrw(temp_reg, Address(klass, Klass::access_flags_offset()));
+  andr(temp_reg, temp_reg, JVM_ACC_VALUE);
+  cbnz(temp_reg, is_value); 
+}
+
+void MacroAssembler::test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable) {
+  (void) temp_reg; // keep signature uniform with x86
+  tbnz(flags, ConstantPoolCacheEntry::is_flattenable_field_shift, is_flattenable);
+}
+
+void MacroAssembler::test_field_is_not_flattenable(Register flags, Register temp_reg, Label& not_flattenable) {
+  (void) temp_reg; // keep signature uniform with x86
+  tbz(flags, ConstantPoolCacheEntry::is_flattenable_field_shift, not_flattenable);
+}
+
+void MacroAssembler::test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened) {
+  (void) temp_reg; // keep signature uniform with x86
+  tbnz(flags, ConstantPoolCacheEntry::is_flattened_field_shift, is_flattened);
+}
+
+void MacroAssembler::test_flattened_array_oop(Register oop, Register temp_reg, Label& is_flattened_array) {
+  load_storage_props(temp_reg, oop);
+  andr(temp_reg, temp_reg, ArrayStorageProperties::flattened_value);
+  cbnz(temp_reg, is_flattened_array);
+}
+
+void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array) {
+  load_storage_props(temp_reg, oop);
+  andr(temp_reg, temp_reg, ArrayStorageProperties::null_free_value);
+  cbnz(temp_reg, is_null_free_array);
 }
 
 // MacroAssembler protected routines needed to implement
@@ -3683,12 +3728,21 @@ void MacroAssembler::cmpoop(Register obj1, Register obj2) {
   bs->obj_equals(this, obj1, obj2);
 }
 
-void MacroAssembler::load_klass(Register dst, Register src) {
+void MacroAssembler::load_metadata(Register dst, Register src) {
   if (UseCompressedClassPointers) {
     ldrw(dst, Address(src, oopDesc::klass_offset_in_bytes()));
-    decode_klass_not_null(dst);
   } else {
     ldr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
+  }
+}
+
+void MacroAssembler::load_klass(Register dst, Register src) {
+  load_metadata(dst, src);
+  if (UseCompressedClassPointers) {
+    andr(dst, dst, oopDesc::compressed_klass_mask());
+    decode_klass_not_null(dst);
+  } else {
+    ubfm(dst, dst, 0, 63 - oopDesc::storage_props_nof_bits);
   }
 }
 
@@ -3705,6 +3759,15 @@ void MacroAssembler::load_mirror(Register dst, Register method, Register tmp) {
   ldr(dst, Address(dst, ConstantPool::pool_holder_offset_in_bytes()));
   ldr(dst, Address(dst, mirror_offset));
   resolve_oop_handle(dst, tmp);
+}
+
+void MacroAssembler::load_storage_props(Register dst, Register src) {
+  load_metadata(dst, src);
+  if (UseCompressedClassPointers) {
+    asrw(dst, dst, oopDesc::narrow_storage_props_shift);
+  } else {
+    asr(dst, dst, oopDesc::wide_storage_props_shift);
+  }
 }
 
 void MacroAssembler::cmp_klass(Register oop, Register trial_klass, Register tmp) {
@@ -4024,14 +4087,14 @@ void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators,
 
 void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators,
                                      Address dst, Register src,
-                                     Register tmp1, Register thread_tmp) {
+                                     Register tmp1, Register thread_tmp, Register tmp3) {
   BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
   decorators = AccessInternal::decorator_fixup(decorators);
   bool as_raw = (decorators & AS_RAW) != 0;
   if (as_raw) {
-    bs->BarrierSetAssembler::store_at(this, decorators, type, dst, src, tmp1, thread_tmp);
+    bs->BarrierSetAssembler::store_at(this, decorators, type, dst, src, tmp1, thread_tmp, tmp3);
   } else {
-    bs->store_at(this, decorators, type, dst, src, tmp1, thread_tmp);
+    bs->store_at(this, decorators, type, dst, src, tmp1, thread_tmp, tmp3);
   }
 }
 
@@ -4055,13 +4118,13 @@ void MacroAssembler::load_heap_oop_not_null(Register dst, Address src, Register 
 }
 
 void MacroAssembler::store_heap_oop(Address dst, Register src, Register tmp1,
-                                    Register thread_tmp, DecoratorSet decorators) {
-  access_store_at(T_OBJECT, IN_HEAP | decorators, dst, src, tmp1, thread_tmp);
+                                    Register thread_tmp, Register tmp3, DecoratorSet decorators) {
+  access_store_at(T_OBJECT, IN_HEAP | decorators, dst, src, tmp1, thread_tmp, tmp3);
 }
 
 // Used for storing NULLs.
 void MacroAssembler::store_heap_oop_null(Address dst) {
-  access_store_at(T_OBJECT, IN_HEAP, dst, noreg, noreg, noreg);
+  access_store_at(T_OBJECT, IN_HEAP, dst, noreg, noreg, noreg, noreg);
 }
 
 Address MacroAssembler::allocate_metadata_address(Metadata* obj) {
@@ -5864,4 +5927,40 @@ void MacroAssembler::get_thread(Register dst) {
   }
 
   pop(saved_regs, sp);
+}
+
+// C2 compiled method's prolog code 
+// Moved here from aarch64.ad to support Valhalla code belows
+void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
+
+// n.b. frame size includes space for return pc and rfp
+  const long framesize = C->frame_size_in_bytes();
+  assert(framesize % (2 * wordSize) == 0, "must preserve 2 * wordSize alignment");
+
+  // insert a nop at the start of the prolog so we can patch in a
+  // branch if we need to invalidate the method later
+  nop();
+
+  int bangsize = C->bang_size_in_bytes();
+  if (C->need_stack_bang(bangsize) && UseStackBanging)
+     generate_stack_overflow_check(bangsize);
+
+  build_frame(framesize);
+
+  if (NotifySimulator) {
+    notify(Assembler::method_entry);
+  }
+
+  if (VerifyStackAtCalls) {
+    Unimplemented();
+  }
+}
+
+void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
+  // Called from MachVEP node
+  unimplemented("Support for ValueTypePassFieldsAsArgs and ValueTypeReturnedAsFields is not implemented");
+}
+
+void MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk) {
+  super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
 }
