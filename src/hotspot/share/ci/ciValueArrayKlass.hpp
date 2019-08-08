@@ -80,6 +80,10 @@ public:
   static ciValueArrayKlass* make(ciKlass* element_klass);
 
   virtual ciKlass* exact_klass();
+
+  virtual bool can_be_value_array_klass() {
+    return true;
+  }
 };
 
 

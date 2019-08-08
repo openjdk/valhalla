@@ -205,6 +205,7 @@ public abstract class ValueTypeTest {
     protected static final String LOAD_UNKNOWN_VALUE = "(.*call_leaf,runtime  load_unknown_value.*" + END;
     protected static final String STORE_UNKNOWN_VALUE = "(.*call_leaf,runtime  store_unknown_value.*" + END;
     protected static final String VALUE_ARRAY_NULL_GUARD = "(.*call,static  wrapper for: uncommon_trap.*reason='null_check' action='none'.*" + END;
+    protected static final String STORAGE_PROPERTY_CLEARING = "(.*((int:536870911)|(salq.*3\\R.*sarq.*3)).*" + END;
 
     public static String[] concat(String prefix[], String... extra) {
         ArrayList<String> list = new ArrayList<String>();

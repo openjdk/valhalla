@@ -75,6 +75,11 @@ public:
   static ciObjArrayKlass* make(ciKlass* element_klass, bool never_null = false);
 
   virtual ciKlass* exact_klass();
+
+  virtual bool can_be_value_array_klass() {
+    ciKlass* ek = element_klass();
+    return ek->is_java_lang_Object() || ek->is_interface() || ek->is_valuetype();
+  }
 };
 
 #endif // SHARE_CI_CIOBJARRAYKLASS_HPP

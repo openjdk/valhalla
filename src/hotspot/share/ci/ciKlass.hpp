@@ -108,6 +108,10 @@ public:
     return false;
   }
 
+  virtual bool can_be_value_array_klass() {
+    return is_java_lang_Object();
+  }
+
   // Attempt to get a klass using this ciKlass's loader.
   ciKlass* find_klass(ciSymbol* klass_name);
   // Note:  To find a class from its name string, use ciSymbol::make,

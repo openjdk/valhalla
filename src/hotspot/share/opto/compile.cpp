@@ -3430,13 +3430,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     if (EnableValhalla && (nop == Op_LoadKlass || nop == Op_LoadNKlass)) {
       const TypeKlassPtr* tk = n->bottom_type()->make_ptr()->is_klassptr();
       assert(!tk->klass_is_exact(), "should have been folded");
-      ciKlass* klass = tk->klass();
-      bool maybe_value_array = klass->is_java_lang_Object();
-      if (!maybe_value_array && klass->is_obj_array_klass()) {
-        klass = klass->as_array_klass()->element_klass();
-        maybe_value_array = klass->is_java_lang_Object() || klass->is_interface() || klass->is_valuetype();
-      }
-      if (maybe_value_array) {
+      if (tk->klass()->can_be_value_array_klass()) {
         // Array load klass needs to filter out property bits (but not
         // GetNullFreePropertyNode which needs to extract the null free bits)
         uint last = unique();
@@ -3455,6 +3449,17 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
         for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
           Node* u = n->fast_out(i);
           if (u->_idx < last && u->Opcode() != Op_GetNullFreeProperty) {
+            // If user is a comparison with a klass that can't be a value type
+            // array klass, we don't need to clear the storage property bits.
+            Node* cmp = (u->is_DecodeNKlass() && u->outcnt() == 1) ? u->unique_out() : u;
+            if (cmp->is_Cmp()) {
+              const TypeKlassPtr* kp1 = cmp->in(1)->bottom_type()->make_ptr()->isa_klassptr();
+              const TypeKlassPtr* kp2 = cmp->in(2)->bottom_type()->make_ptr()->isa_klassptr();
+              if ((kp1 != NULL && !kp1->klass()->can_be_value_array_klass()) ||
+                  (kp2 != NULL && !kp2->klass()->can_be_value_array_klass())) {
+                continue;
+              }
+            }
             int nb = u->replace_edge(n, pointer);
             --i, imax -= nb;
           }

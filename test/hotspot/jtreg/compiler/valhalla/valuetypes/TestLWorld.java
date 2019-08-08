@@ -2188,4 +2188,48 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertTrue(Arrays.equals(src1, dst1));
         Asserts.assertTrue(Arrays.equals(src2, dst2));
     }
+
+    // Verify that the storage property bits in the klass pointer are
+    // not cleared if we are comparing to a klass that can't be a inline
+    // type array klass anyway.
+    @Test(failOn = STORAGE_PROPERTY_CLEARING)
+    public boolean test89(Object obj) {
+        return obj.getClass() == Integer.class;
+    }
+
+    @DontCompile
+    public void test89_verifier(boolean warmup) {
+        Asserts.assertTrue(test89(new Integer(42)));
+        Asserts.assertFalse(test89(new Object()));
+    }
+
+    // Same as test89 but with a cast
+    @Test(failOn = STORAGE_PROPERTY_CLEARING)
+    public Integer test90(Object obj) {
+        return (Integer)obj;
+    }
+
+    @DontCompile
+    public void test90_verifier(boolean warmup) {
+        test90(new Integer(42));
+        try {
+            test90(new Object());
+            throw new RuntimeException("ClassCastException expected");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+    }
+
+    // Same as test89 but bit clearing can not be removed because
+    // we are comparing to a inline type array klass.
+    @Test(match = {STORAGE_PROPERTY_CLEARING}, matchCount = { 1 })
+    public boolean test91(Object obj) {
+        return obj.getClass() == MyValue2[].class;
+    }
+
+    @DontCompile
+    public void test91_verifier(boolean warmup) {
+        Asserts.assertTrue(test91(new MyValue2[1]));
+        Asserts.assertFalse(test91(new Object()));
+    }
 }
