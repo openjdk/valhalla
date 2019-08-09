@@ -860,4 +860,25 @@ public class TestNullableValueTypes extends ValueTypeTest {
         Test33Value2 result = test33();
         Asserts.assertEquals(result, test33Val);
     }
+
+    // Verify that static nullable inline-type fields are not
+    // treated as never-null by C2 when initialized at compile time.
+    private static MyValue1? test34Val;
+
+    @Test
+    public void test34(MyValue1 vt) {
+        if (test34Val == null) {
+            test34Val = vt;
+        }
+    }
+
+    @DontCompile
+    public void test34_verifier(boolean warmup) {
+        test34(testValue1);
+        if (!warmup) {
+            test34Val = null;
+            test34(testValue1);
+            Asserts.assertEquals(test34Val, testValue1);
+        }
+    }
 }
