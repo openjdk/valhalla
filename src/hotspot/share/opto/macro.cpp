@@ -2138,6 +2138,8 @@ bool PhaseMacroExpand::eliminate_locking_node(AbstractLockNode *alock) {
     return false;
   }
 #ifdef ASSERT
+  const Type* obj_type = _igvn.type(alock->obj_node());
+  assert(!obj_type->isa_valuetype() && !obj_type->is_valuetypeptr(), "Eliminating lock on value type");
   if (!alock->is_coarsened()) {
     // Check that new "eliminated" BoxLock node is created.
     BoxLockNode* oldbox = alock->box_node()->as_BoxLock();

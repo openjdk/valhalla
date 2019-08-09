@@ -1965,7 +1965,9 @@ Node *LockNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // prevents macro expansion from expanding the lock.  Since we don't
   // modify the graph, the value returned from this function is the
   // one computed above.
-  if (can_reshape && EliminateLocks && !is_non_esc_obj()) {
+  const Type* obj_type = phase->type(obj_node());
+  if (can_reshape && EliminateLocks && !is_non_esc_obj() &&
+      !obj_type->isa_valuetype() && !obj_type->is_valuetypeptr()) {
     //
     // If we are locking an unescaped object, the lock/unlock is unnecessary
     //
@@ -2133,7 +2135,9 @@ Node *UnlockNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // modify the graph, the value returned from this function is the
   // one computed above.
   // Escape state is defined after Parse phase.
-  if (can_reshape && EliminateLocks && !is_non_esc_obj()) {
+  const Type* obj_type = phase->type(obj_node());
+  if (can_reshape && EliminateLocks && !is_non_esc_obj() &&
+      !obj_type->isa_valuetype() && !obj_type->is_valuetypeptr()) {
     //
     // If we are unlocking an unescaped object, the lock/unlock is unnecessary.
     //

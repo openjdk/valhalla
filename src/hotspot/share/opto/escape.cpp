@@ -1892,7 +1892,9 @@ void ConnectionGraph::optimize_ideal_graph(GrowableArray<Node*>& ptr_cmp_worklis
       if (n->is_AbstractLock()) { // Lock and Unlock nodes
         AbstractLockNode* alock = n->as_AbstractLock();
         if (!alock->is_non_esc_obj()) {
-          if (not_global_escape(alock->obj_node())) {
+          const Type* obj_type = igvn->type(alock->obj_node());
+          if (not_global_escape(alock->obj_node()) &&
+              !obj_type->isa_valuetype() && !obj_type->is_valuetypeptr()) {
             assert(!alock->is_eliminated() || alock->is_coarsened(), "sanity");
             // The lock could be marked eliminated by lock coarsening
             // code during first IGVN before EA. Replace coarsened flag
