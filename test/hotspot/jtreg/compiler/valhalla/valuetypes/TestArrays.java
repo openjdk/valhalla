@@ -2149,4 +2149,54 @@ public class TestArrays extends ValueTypeTest {
     public void test90_verifier(boolean warmup) {
         Asserts.assertEQ(test90(), true);
     }
+
+    inline static final class Test91Value {
+        public final int f0;
+        public final int f1;
+        public final int f2;
+        public final int f3;
+        public final int f4;
+        public final int f5;
+
+        public Test91Value(int i) {
+            this.f0 = i;
+            this.f1 = i;
+            this.f2 = i;
+            this.f3 = i;
+            this.f4 = i;
+            this.f5 = i;
+        }
+
+        public void verify() {
+            if ((f0 != f1) || (f1 != f2) || (f2 != f3) || (f3 != f4) || (f4 != f5)) {
+                throw new RuntimeException("test91 failed");
+            }
+        }
+    }
+
+    // Test anti-dependencies between loads and stores from flattened array
+    @Test
+    @Warmup(0)
+    public int test91(Test91Value[] array, int lo, int val) {
+        int i = 3;
+        while (lo < i) {
+            Test91Value tmp = array[lo];
+            array[lo++] = array[i];
+            array[i--] = tmp;
+        }
+        return val;
+    }
+
+    @DontCompile
+    public void test91_verifier(boolean warmup) {
+        Test91Value[] array = new Test91Value[5];
+        for (int i = 0; i < 5; ++i) {
+            array[i] = new Test91Value(i);
+            array[i].verify();
+        }
+        Asserts.assertEQ(test91(array, 0, 5), 5);
+        for (int i = 0; i < 5; ++i) {
+            array[i].verify();
+        }
+    }
 }

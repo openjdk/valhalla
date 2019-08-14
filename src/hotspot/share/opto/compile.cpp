@@ -1915,7 +1915,14 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
             field->offset() == original_field->offset() &&
             field->is_static() == original_field->is_static()), "wrong field?");
     // Set field() and is_rewritable() attributes.
-    if (field != NULL)  alias_type(idx)->set_field(field);
+    if (field != NULL) {
+      alias_type(idx)->set_field(field);
+      if (flat->isa_aryptr()) {
+        // Fields of flattened inline type arrays are rewritable although they are declared final
+        assert(flat->is_aryptr()->elem()->isa_valuetype(), "must be a flattened value array");
+        alias_type(idx)->set_rewritable(true);
+      }
+    }
   }
 
   // Fill the cache for next time.
