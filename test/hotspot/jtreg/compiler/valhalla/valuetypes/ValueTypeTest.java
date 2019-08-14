@@ -709,9 +709,6 @@ public abstract class ValueTypeTest {
     // given annotation, as well as the current test scenario and VM options.
     //
     private int getCompLevel(Object annotation) {
-        if (TEST_C1 && !(this instanceof TestCallingConventionC1)) {
-            return COMP_LEVEL_SIMPLE;
-        }
         int compLevel;
         if (annotation == null) {
             compLevel = COMP_LEVEL_ANY;
@@ -725,9 +722,6 @@ public abstract class ValueTypeTest {
     }
 
     // Get the appropriate level as permitted by the test scenario and VM options.
-    //
-    // Currently, if TEST_C1 is true, we always use COMP_LEVEL_SIMPLE. Otherwise, if the
-    // compLevel is unspecified, the default is COMP_LEVEL_FULL_OPTIMIZATION.
     private static int restrictCompLevel(int compLevel) {
         if (compLevel == COMP_LEVEL_ANY) {
             compLevel = COMP_LEVEL_FULL_OPTIMIZATION;
@@ -751,6 +745,10 @@ public abstract class ValueTypeTest {
     }
 
     public static void enqueueMethodForCompilation(Method m, int level) {
-        WHITE_BOX.enqueueMethodForCompilation(m, restrictCompLevel(level));
+        level = restrictCompLevel(level);
+        if (VERBOSE) {
+            System.out.println("enqueueMethodForCompilation " + m + ", level = " + level);
+        }
+        WHITE_BOX.enqueueMethodForCompilation(m, level);
     }
 }
