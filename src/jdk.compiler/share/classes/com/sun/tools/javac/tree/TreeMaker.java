@@ -824,6 +824,8 @@ public class TreeMaker implements JCTree.Factory {
         default:
             throw new AssertionError("unexpected type: " + t);
         }
+        if (t.tsym.isProjectedNullable())
+            tp.setQuestioned();
         return tp.setType(t);
     }
 

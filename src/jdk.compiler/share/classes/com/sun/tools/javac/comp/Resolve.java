@@ -2407,7 +2407,8 @@ public class Resolve {
     Symbol findIdentInPackage(DiagnosticPosition pos,
                               Env<AttrContext> env, TypeSymbol pck,
                               Name name, KindSelector kind) {
-        return checkRestrictedType(pos, findIdentInPackageInternal(env, pck, name, kind), name);
+        Symbol sym = checkRestrictedType(pos, findIdentInPackageInternal(env, pck, name, kind), name);
+        return env.info.isQuestioned && sym.isValue() ? types.projectedNullableType((ClassSymbol) sym) : sym;
     }
 
     Symbol findIdentInPackageInternal(Env<AttrContext> env, TypeSymbol pck,
