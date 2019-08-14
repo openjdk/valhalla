@@ -3198,7 +3198,11 @@ void LIR_Assembler::store_parameter(Metadata* m,  int offset_from_rsp_in_words) 
 }
 
 
-void LIR_Assembler::arraycopy_valuetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest) {
+void LIR_Assembler::arraycopy_valuetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest, bool null_check) {
+  if (null_check) {
+    __ testptr(obj, obj);
+    __ jcc(Assembler::zero, *slow_path->entry());
+  }
   __ load_storage_props(tmp, obj);
   if (is_dest) {
     // We also take slow path if it's a null_free destination array, just in case the source array
@@ -3238,11 +3242,11 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
   }
 
   if (flags & LIR_OpArrayCopy::src_valuetype_check) {
-    arraycopy_valuetype_check(src, tmp, stub, false);
+    arraycopy_valuetype_check(src, tmp, stub, false, (flags & LIR_OpArrayCopy::src_null_check));
   }
 
   if (flags & LIR_OpArrayCopy::dst_valuetype_check) {
-    arraycopy_valuetype_check(dst, tmp, stub, true);
+    arraycopy_valuetype_check(dst, tmp, stub, true, (flags & LIR_OpArrayCopy::dst_null_check));
   }
 
   // if we don't know anything, just go through the generic arraycopy

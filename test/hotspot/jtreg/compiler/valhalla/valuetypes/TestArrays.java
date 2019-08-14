@@ -2199,4 +2199,28 @@ public class TestArrays extends ValueTypeTest {
             array[i].verify();
         }
     }
+
+    @Test
+    public void test92(Object[] src, Object[] dst) {
+        System.arraycopy(src, 0, dst, 0, src.length);
+    }
+
+    @DontCompile
+    public void test92_verifier(boolean warmup) {
+        MyValue1[] a = new MyValue1[1];
+        MyValue1[] b = new MyValue1[1];
+        try {
+            test92(a, null);
+            throw new RuntimeException("Should throw NullPointerException");
+        } catch (NullPointerException expected) {}
+
+        try {
+            test92(null, b);
+            throw new RuntimeException("Should throw NullPointerException");
+        } catch (NullPointerException expected) {}
+
+        a[0] = MyValue1.createWithFieldsInline(rI, rL);
+        test92(a, b);
+        verify(a, b);
+    }
 }
