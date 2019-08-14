@@ -301,6 +301,13 @@ public class JavacParser implements Parser {
                 tk3.accepts(S.token(lookahead + 3).kind);
     }
 
+    protected boolean peekToken(int lookahead, Filter<TokenKind> tk1, Filter<TokenKind> tk2, Filter<TokenKind> tk3, Filter<TokenKind> tk4) {
+        return tk1.accepts(S.token(lookahead + 1).kind) &&
+                tk2.accepts(S.token(lookahead + 2).kind) &&
+                tk3.accepts(S.token(lookahead + 3).kind) &&
+                tk4.accepts(S.token(lookahead + 4).kind);
+    }
+
     @SuppressWarnings("unchecked")
     protected boolean peekToken(Filter<TokenKind>... kinds) {
         return peekToken(0, kinds);
@@ -1745,8 +1752,8 @@ public class JavacParser implements Parser {
                 case ASSERT:
                 case ENUM:
                 case IDENTIFIER:
-                    if (peekToken(lookahead, LAX_IDENTIFIER)) {
-                        // Identifier, Identifier/'_'/'assert'/'enum' -> explicit lambda
+                    if (peekToken(lookahead, LAX_IDENTIFIER) || (peekToken(lookahead, QUES, LAX_IDENTIFIER) && (peekToken(lookahead + 2, RPAREN) || peekToken(lookahead + 2, COMMA)))) {
+                        // Identifier[?], Identifier/'_'/'assert'/'enum' -> explicit lambda
                         return ParensResult.EXPLICIT_LAMBDA;
                     } else if (peekToken(lookahead, RPAREN, ARROW)) {
                         // Identifier, ')' '->' -> implicit lambda
@@ -1822,6 +1829,8 @@ public class JavacParser implements Parser {
                             return ParensResult.CAST;
                         } else if (peekToken(lookahead, LAX_IDENTIFIER, COMMA) ||
                                 peekToken(lookahead, LAX_IDENTIFIER, RPAREN, ARROW) ||
+                                peekToken(lookahead, QUES, LAX_IDENTIFIER, COMMA) ||
+                                peekToken(lookahead, QUES, LAX_IDENTIFIER, RPAREN, ARROW) ||
                                 peekToken(lookahead, ELLIPSIS)) {
                             // '>', Identifier/'_'/'assert'/'enum', ',' -> explicit lambda
                             // '>', Identifier/'_'/'assert'/'enum', ')', '->' -> explicit lambda

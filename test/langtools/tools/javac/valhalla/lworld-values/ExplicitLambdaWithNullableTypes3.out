@@ -1,0 +1,3 @@
+ExplicitLambdaWithNullableTypes3.java:87:19: compiler.err.incomparable.types: OptionalInt, compiler.misc.type.null
+ExplicitLambdaWithNullableTypes3.java:86:40: compiler.err.prob.found.req: (compiler.misc.incompatible.arg.types.in.lambda)
+2 errors
