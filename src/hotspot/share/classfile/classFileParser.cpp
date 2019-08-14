@@ -4152,23 +4152,9 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
   for (AllFieldStream fs(_fields, _cp); !fs.done(); fs.next()) {
     if (fs.allocation_type() == STATIC_FLATTENABLE) {
-      // Pre-resolve the flattenable field and check for value type circularity
-      // issues.  Note that super-class circularity checks are not needed here
-      // because flattenable fields can only be in value types and value types
-      // only have java.lang.Object as their super class.
-      // Also, note that super-interface circularity checks are not needed
-      // because interfaces cannot be value types.
       ResourceMark rm;
       if (!fs.signature()->is_Q_signature()) {
         THROW(vmSymbols::java_lang_ClassFormatError());
-      }
-      Klass* klass =
-        SystemDictionary::resolve_flattenable_field_or_fail(&fs,
-                                                            Handle(THREAD, _loader_data->class_loader()),
-                                                            _protection_domain, true, CHECK);
-      assert(klass != NULL, "Sanity check");
-      if (!klass->access_flags().is_value_type()) {
-        THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
       }
       static_value_type_count++;
     } else if (fs.allocation_type() == NONSTATIC_FLATTENABLE) {
@@ -6025,17 +6011,20 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   int nfields = ik->java_fields_count();
   if (ik->is_value()) nfields++;
   for (int i = 0; i < nfields; i++) {
-    if (ik->field_access_flags(i) & JVM_ACC_FLATTENABLE) {
+    if (ik->field_is_flattenable(i)) {
       Symbol* klass_name = ik->field_signature(i)->fundamental_name(CHECK);
-      // Value classes must have been pre-loaded
+      // Inline classes for instance fields must have been pre-loaded
+      // Inline classes for static fields might not have been loaded yet
       Klass* klass = SystemDictionary::find(klass_name,
           Handle(THREAD, ik->class_loader()),
           Handle(THREAD, ik->protection_domain()), CHECK);
-      assert(klass != NULL, "Sanity check");
-      assert(klass->access_flags().is_value_type(), "Value type expected");
-      ik->set_value_field_klass(i, klass);
+      if (klass != NULL) {
+        assert(klass->access_flags().is_value_type(), "Value type expected");
+        ik->set_value_field_klass(i, klass);
+      }
       klass_name->decrement_refcount();
-    } else if (is_value_type() && ((ik->field_access_flags(i) & JVM_ACC_FIELD_INTERNAL) != 0)
+    } else
+      if (is_value_type() && ((ik->field_access_flags(i) & JVM_ACC_FIELD_INTERNAL) != 0)
         && ((ik->field_access_flags(i) & JVM_ACC_STATIC) != 0)) {
       ValueKlass::cast(ik)->set_default_value_offset(ik->field_offset(i));
     }
@@ -6722,7 +6711,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
 
   for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
-    if (fs.is_flattenable()) {
+    if (fs.is_flattenable() && !fs.access_flags().is_static()) {
       // Pre-load value class
       Klass* klass = SystemDictionary::resolve_flattenable_field_or_fail(&fs,
           Handle(THREAD, _loader_data->class_loader()),

@@ -73,15 +73,12 @@ public class BadValueTypes {
              }
          }
 
-        // Test that ClassCircularityError gets detected for static fields.
+        // Test that ClassCircularityError isn't detected for static fields.
         System.out.println("Testing ClassCircularityError for static fields");
         try {
             Class newClass = Class.forName("CircStaticB");
-            throw new RuntimeException( "java.lang.ClassCircularityError exception not thrown!");
         } catch (java.lang.ClassCircularityError e) {
-             if (!e.getMessage().contains("CircStatic")) {
-                 throw new RuntimeException( "Wrong ClassCircularityError: " + e.getMessage());
-             }
+             throw new RuntimeException( "java.lang.ClassCircularityError exception thrown!");
          }
 
         runTest("ValueCloneable", "Value Types do not support Cloneable");

@@ -379,14 +379,25 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread* thread, oopDesc* mirror, int index))
+  // The interpreter tries to access a flattenable static field that has not been initialized.
+  // This situation can happen only if the load or initialization of the field failed during step 8 of
+  // the initialization of the holder of the field. The code below tries to load and initialize
+  // the field's class again in order to throw likely the same exception or error as the one that caused
+  // the field initialization to fail.
   instanceHandle mirror_h(THREAD, (instanceOop)mirror);
   InstanceKlass* klass = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
   int offset = klass->field_offset(index);
   Klass* field_k = klass->get_value_field_klass_or_null(index);
-  assert(field_k != NULL, "Must have been initialized");
-  ValueKlass* field_vklass = ValueKlass::cast(field_k);
-  instanceOop res = (instanceOop)field_vklass->default_value();
-  thread->set_vm_result(res);
+  if (field_k == NULL) {
+    field_k = SystemDictionary::resolve_or_fail(klass->field_signature(index)->fundamental_name(THREAD),
+        Handle(THREAD, klass->class_loader()),
+        Handle(THREAD, klass->protection_domain()),
+        true, CHECK);
+    assert(field_k != NULL, "Should have been loaded or an exception thrown above");
+    klass->set_value_field_klass(index, field_k);
+  }
+  field_k->initialize(CHECK);
+  fatal("An exception should have been thrown above");
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::uninitialized_instance_value_field(JavaThread* thread, oopDesc* obj, int index))

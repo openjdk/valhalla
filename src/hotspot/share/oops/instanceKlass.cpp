@@ -1123,8 +1123,26 @@ void InstanceKlass::initialize_impl(TRAPS) {
   {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
       if (fs.is_flattenable()) {
-        InstanceKlass* field_klass = InstanceKlass::cast(this->get_value_field_klass(fs.index()));
-        field_klass->initialize(CHECK);
+        Klass* klass = this->get_value_field_klass_or_null(fs.index());
+        if (klass == NULL) {
+          assert(fs.access_flags().is_static() && fs.access_flags().is_flattenable(),
+              "Otherwise should have been pre-loaded");
+          klass = SystemDictionary::resolve_or_fail(field_signature(fs.index())->fundamental_name(THREAD),
+              Handle(THREAD, class_loader()),
+              Handle(THREAD, protection_domain()),
+              true, CHECK);
+          if (klass == NULL) {
+            THROW(vmSymbols::java_lang_NoClassDefFoundError());
+          }
+          if (!klass->is_value()) {
+            THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
+          }
+          this->set_value_field_klass(fs.index(), klass);
+        }
+        InstanceKlass::cast(klass)->initialize(CHECK);
+        if (fs.access_flags().is_static()) {
+          java_mirror()->obj_field_put(fs.offset(), ValueKlass::cast(klass)->default_value());
+        }
       }
     }
   }
