@@ -211,6 +211,8 @@ void LIRItem::set_result(LIR_Opr opr) {
 }
 
 void LIRItem::load_item() {
+  assert(!_gen->in_conditional_code(), "LIRItem cannot be loaded in conditional code");
+
   if (result()->is_illegal()) {
     // update the items result
     _result = value()->operand();
@@ -1434,10 +1436,18 @@ LIR_Opr LIRGenerator::load_constant(LIR_Const* c) {
 
   LIR_Opr result = new_register(t);
   __ move((LIR_Opr)c, result);
-  _constants.append(c);
-  _reg_for_constants.append(result);
+  if (!in_conditional_code()) {
+    _constants.append(c);
+    _reg_for_constants.append(result);
+  }
   return result;
 }
+
+void LIRGenerator::set_in_conditional_code(bool v) {
+  assert(v != _in_conditional_code, "must change state");
+  _in_conditional_code = v;
+}
+
 
 //------------------------field access--------------------------------------
 
@@ -1766,6 +1776,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
       index.load_item();
       slow_path = new StoreFlattenedArrayStub(array.result(), index.result(), value.result(), state_for(x));
       check_flattened_array(array.result(), value.result(), slow_path);
+      set_in_conditional_code(true);
     } else if (needs_null_free_array_store_check(x)) {
       CodeEmitInfo* info = new CodeEmitInfo(range_check_info);
       check_null_free_array(array, value, info);
@@ -1780,6 +1791,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
                     NULL, null_check_info);
     if (slow_path != NULL) {
       __ branch_destination(slow_path->continuation());
+      set_in_conditional_code(false);
     }
   }
 }
@@ -1871,10 +1883,10 @@ LIR_Opr LIRGenerator::access_resolve(DecoratorSet decorators, LIR_Opr obj) {
   return _barrier_set->resolve(this, decorators, obj);
 }
 
-Value LIRGenerator::flattenable_load_field_prolog(LoadField* x, CodeEmitInfo* info) {
+Constant* LIRGenerator::flattenable_load_field_prolog(LoadField* x, CodeEmitInfo* info) {
   ciField* field = x->field();
   ciInstanceKlass* holder = field->holder();
-  Value default_value = NULL;
+  Constant* default_value = NULL;
 
   // Unloaded "QV;" klasses are represented by a ciInstanceKlass
   bool field_type_unloaded = field->type()->is_instance_klass() && !field->type()->as_instance_klass()->is_loaded();
@@ -1974,7 +1986,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   }
 #endif
 
-  Value default_value = NULL;
+  Constant* default_value = NULL;
   if (x->field()->is_flattenable()) {
     default_value = flattenable_load_field_prolog(x, info);
   }
@@ -2012,12 +2024,10 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     LabelObj* L_end = new LabelObj();
     __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
     __ branch(lir_cond_notEqual, T_OBJECT, L_end->label());
-
-    LIRItem dv(default_value, this);
-    dv.load_item();
-    __ move(dv.result(), result);
-
+    set_in_conditional_code(true);
+    __ move(load_constant(default_value), result);
     __ branch_destination(L_end->label());
+    set_in_conditional_code(false);
   }
 }
 
@@ -2150,6 +2160,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
       // if we are loading from flattened array, load it using a runtime call
       slow_path = new LoadFlattenedArrayStub(array.result(), index.result(), result, state_for(x));
       check_flattened_array(array.result(), LIR_OprFact::illegalOpr, slow_path);
+      set_in_conditional_code(true);
     }
 
     DecoratorSet decorators = IN_HEAP | IS_ARRAY;
@@ -2159,6 +2170,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
 
     if (slow_path != NULL) {
       __ branch_destination(slow_path->continuation());
+      set_in_conditional_code(false);
     }
   }
 }
