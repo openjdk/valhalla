@@ -335,7 +335,7 @@ class SharedRuntime: AllStatic {
   static DeoptimizationBlob* deopt_blob(void)      { return _deopt_blob; }
 
   // Resets a call-site in compiled code so it will get resolved again.
-  static methodHandle reresolve_call_site(JavaThread *thread, bool& is_optimized, bool& caller_is_c1, TRAPS);
+  static methodHandle reresolve_call_site(JavaThread *thread, bool& is_static_call, bool& is_optimized, bool& caller_is_c1, TRAPS);
 
   // In the code prolog, if the klass comparison fails, the inline cache
   // misses and the call site is patched to megamorphic
@@ -345,13 +345,13 @@ class SharedRuntime: AllStatic {
   static methodHandle find_callee_method(JavaThread* thread, TRAPS);
 
 
-  static address entry_for_handle_wrong_method(methodHandle callee_method, bool is_optimized, bool caller_is_c1) {
+  static address entry_for_handle_wrong_method(methodHandle callee_method, bool is_static_call, bool is_optimized, bool caller_is_c1) {
     assert(callee_method->verified_code_entry() != NULL, "Jump to zero!");
     assert(callee_method->verified_value_code_entry() != NULL, "Jump to zero!");
     assert(callee_method->verified_value_ro_code_entry() != NULL, "Jump to zero!");
     if (caller_is_c1) {
       return callee_method->verified_value_code_entry();
-    } else if (is_optimized) {
+    } else if (is_static_call || is_optimized) {
       return callee_method->verified_code_entry();
     } else {
       return callee_method->verified_value_ro_code_entry();

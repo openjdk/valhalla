@@ -682,4 +682,45 @@ public class TestCallingConvention extends ValueTypeTest {
         MyValue2 v = MyValue2.createWithFieldsInline(rI+33, true);
         Asserts.assertEQ(result.hash(), v.hash());
     }
+
+    // Test selection of correct entry point in SharedRuntime::handle_wrong_method
+    static boolean test34_deopt = false;
+
+    @DontInline
+    public static long test34_callee(MyValue2 vt, int i1, int i2, int i3, int i4) {
+        Asserts.assertEQ(i1, rI);
+        Asserts.assertEQ(i2, rI);
+        Asserts.assertEQ(i3, rI);
+        Asserts.assertEQ(i4, rI);
+
+        if (test34_deopt) {
+            // uncommon trap
+            int result = 0;
+            for (int i = 0; i < 10; ++i) {
+                result += rL;
+            }
+            return vt.hash() + i1 + i2 + i3 + i4 + result;
+        }
+        return vt.hash() + i1 + i2 + i3 + i4;
+    }
+
+    @Test()
+    @Warmup(10000) // Make sure test34_callee is compiled
+    public static long test34(MyValue2 vt, int i1, int i2, int i3, int i4) {
+        return test34_callee(vt, i1, i2, i3, i4);
+    }
+
+    @DontCompile
+    public void test34_verifier(boolean warmup) {
+        MyValue2 vt = MyValue2.createWithFieldsInline(rI, true);
+        long result = test34(vt, rI, rI, rI, rI);
+        Asserts.assertEQ(result, vt.hash()+4*rI);
+        if (!warmup) {
+            test34_deopt = true;
+            for (int i = 0; i < 100; ++i) {
+                result = test34(vt, rI, rI, rI, rI);
+                Asserts.assertEQ(result, vt.hash()+4*rI+10*rL);
+            }
+        }
+    }
 }

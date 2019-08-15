@@ -1470,7 +1470,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_ic_miss(JavaThread* 
     thread->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return entry_for_handle_wrong_method(callee_method, is_optimized, caller_is_c1);
+  return entry_for_handle_wrong_method(callee_method, false, is_optimized, caller_is_c1);
 JRT_END
 
 
@@ -1501,15 +1501,16 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method(JavaThread* thread))
 
   // Must be compiled to compiled path which is safe to stackwalk
   methodHandle callee_method;
+  bool is_static_call = false;
   bool is_optimized = false;
   bool caller_is_c1 = false;
   JRT_BLOCK
     // Force resolving of caller (if we called from compiled frame)
-    callee_method = SharedRuntime::reresolve_call_site(thread, is_optimized, caller_is_c1, CHECK_NULL);
+    callee_method = SharedRuntime::reresolve_call_site(thread, is_static_call, is_optimized, caller_is_c1, CHECK_NULL);
     thread->set_vm_result_2(callee_method());
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
-  return entry_for_handle_wrong_method(callee_method, is_optimized, caller_is_c1);
+  return entry_for_handle_wrong_method(callee_method, is_static_call, is_optimized, caller_is_c1);
 JRT_END
 
 // Handle abstract method call
@@ -1694,7 +1695,9 @@ methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, bool& is_o
   // did this would still be the correct thing to do for it too, hence no ifdef.
   //
   if (call_info.resolved_method()->can_be_statically_bound()) {
-    methodHandle callee_method = SharedRuntime::reresolve_call_site(thread, is_optimized, caller_is_c1, CHECK_(methodHandle()));
+    bool is_static_call = false;
+    methodHandle callee_method = SharedRuntime::reresolve_call_site(thread, is_static_call, is_optimized, caller_is_c1, CHECK_(methodHandle()));
+    assert(!is_static_call, "IC miss at static call?");
     if (TraceCallFixup) {
       RegisterMap reg_map(thread, false);
       frame caller_frame = thread->last_frame().sender(&reg_map);
@@ -1782,7 +1785,7 @@ static bool clear_ic_at_addr(CompiledMethod* caller_nm, address call_addr, bool 
 // sites, and static call sites. Typically used to change a call sites
 // destination from compiled to interpreted.
 //
-methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, bool& is_optimized, bool& caller_is_c1, TRAPS) {
+methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, bool& is_static_call, bool& is_optimized, bool& caller_is_c1, TRAPS) {
   ResourceMark rm(thread);
   RegisterMap reg_map(thread, false);
   frame stub_frame = thread->last_frame();
@@ -1798,7 +1801,6 @@ methodHandle SharedRuntime::reresolve_call_site(JavaThread *thread, bool& is_opt
     address pc = caller.pc();
 
     // Check for static or virtual call
-    bool is_static_call = false;
     CompiledMethod* caller_nm = CodeCache::find_compiled(pc);
     caller_is_c1 = caller_nm->is_compiled_by_c1();
 
