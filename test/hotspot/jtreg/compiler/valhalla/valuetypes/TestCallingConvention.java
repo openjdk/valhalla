@@ -723,4 +723,22 @@ public class TestCallingConvention extends ValueTypeTest {
             }
         }
     }
+
+    // Test OSR compilation of method with scalarized argument
+    @Test()
+    public static long test35(MyValue2 vt, int i1, int i2, int i3, int i4) {
+        int result = 0;
+        // Trigger OSR compilation
+        for (int i = 0; i < 10_000; ++i) {
+            result += i1;
+        }
+        return vt.hash() + i1 + i2 + i3 + i4 + result;
+    }
+
+    @DontCompile
+    public void test35_verifier(boolean warmup) {
+        MyValue2 vt = MyValue2.createWithFieldsInline(rI, true);
+        long result = test35(vt, rI, rI, rI, rI);
+        Asserts.assertEQ(result, vt.hash()+10004*rI);
+    }
 }

@@ -886,7 +886,7 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
     } else {
       parm = gvn.transform(new ParmNode(start, j++));
       BasicType bt = t->basic_type();
-      while (i >= TypeFunc::Parms && SigEntry::next_is_reserved(sig_cc, bt, true)) {
+      while (i >= TypeFunc::Parms && !is_osr_compilation() && SigEntry::next_is_reserved(sig_cc, bt, true)) {
         j += type2size[bt]; // Skip reserved arguments
       }
     }
