@@ -2223,4 +2223,51 @@ public class TestArrays extends ValueTypeTest {
         test92(a, b);
         verify(a, b);
     }
+
+    // Same as test30 but accessing all elements of the non-escaping array
+    @Test
+    public long test93(MyValue2[] src, boolean flag) {
+        MyValue2[] dst = new MyValue2[10];
+        System.arraycopy(src, 0, dst, 0, 10);
+        if (flag) {  }
+        return dst[0].hash() + dst[1].hash() + dst[2].hash() + dst[3].hash() + dst[4].hash() +
+               dst[5].hash() + dst[6].hash() + dst[7].hash() + dst[8].hash() + dst[9].hash();
+    }
+
+    @DontCompile
+    public void test93_verifier(boolean warmup) {
+        MyValue2[] src = new MyValue2[10];
+        for (int i = 0; i < 10; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(rI, (rI % 2) == 0);
+        }
+        long res = test93(src, !warmup);
+        long expected = 0;
+        for (int i = 0; i < 10; ++i) {
+            expected += src[i].hash();
+        }
+        Asserts.assertEQ(res, expected);
+    }
+
+    // Same as test93 but with variable source array offset
+    @Test
+    public long test94(MyValue2[] src, int i, boolean flag) {
+        MyValue2[] dst = new MyValue2[10];
+        System.arraycopy(src, i, dst, 0, 1);
+        if (flag) {  }
+        return dst[0].hash() + dst[1].hash() + dst[2].hash() + dst[3].hash() + dst[4].hash() +
+               dst[5].hash() + dst[6].hash() + dst[7].hash() + dst[8].hash() + dst[9].hash();
+    }
+
+    @DontCompile
+    public void test94_verifier(boolean warmup) {
+        MyValue2[] src = new MyValue2[10];
+        for (int i = 0; i < 10; ++i) {
+            src[i] = MyValue2.createWithFieldsInline(i, (i % 2) == 0);
+        }
+        for (int i = 0; i < 10; ++i) {
+            long res = test94(src, i, !warmup);
+            long expected = src[i].hash() + 9*MyValue2.default.hash();
+            Asserts.assertEQ(res, expected);
+        }
+    }
 }

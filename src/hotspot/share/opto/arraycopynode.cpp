@@ -821,9 +821,13 @@ bool ArrayCopyNode::modifies(intptr_t offset_lo, intptr_t offset_hi, PhaseTransf
     return !must_modify;
   }
 
-  BasicType ary_elem = ary_t->klass()->as_array_klass()->element_type()->basic_type();
+  ciArrayKlass* klass = ary_t->klass()->as_array_klass();
+  BasicType ary_elem = klass->element_type()->basic_type();
   uint header = arrayOopDesc::base_offset_in_bytes(ary_elem);
   uint elemsize = type2aelembytes(ary_elem);
+  if (klass->is_value_array_klass()) {
+    elemsize = klass->as_value_array_klass()->element_byte_size();
+  }
 
   jlong dest_pos_plus_len_lo = (((jlong)dest_pos_t->_lo) + len_t->_lo) * elemsize + header;
   jlong dest_pos_plus_len_hi = (((jlong)dest_pos_t->_hi) + len_t->_hi) * elemsize + header;
