@@ -2049,15 +2049,11 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   move(op->equal_result(), op->result_opr());
   __ jmp(L_end);
 
-  // We've returned from the stub. op->result_opr() contains 0x0 IFF the two
+  // We've returned from the stub. RAX contains 0x0 IFF the two
   // operands are not substitutable. (Don't compare against 0x1 in case the
   // C compiler is naughty)
   __ bind(*op->stub()->continuation());
-  if (op->result_opr()->type() == T_LONG) {
-    __ cmpptr(op->result_opr()->as_register(), (int32_t)0);
-  } else {
-    __ cmpl(op->result_opr()->as_register(), 0);
-  }
+  __ cmpl(rax, 0);
   __ jcc(Assembler::equal, L_oops_not_equal); // (call_stub() == 0x0) -> not_equal
   move(op->equal_result(), op->result_opr()); // (call_stub() != 0x0) -> equal
   // fall-through

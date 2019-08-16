@@ -208,10 +208,9 @@ void StoreFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
 
 // Implementation of SubstitutabilityCheckStub
 
-SubstitutabilityCheckStub::SubstitutabilityCheckStub(LIR_Opr left, LIR_Opr right, LIR_Opr result, CodeEmitInfo* info) {
+SubstitutabilityCheckStub::SubstitutabilityCheckStub(LIR_Opr left, LIR_Opr right, CodeEmitInfo* info) {
   _left = left;
   _right = right;
-  _result = result;
   // Tell the register allocator that the runtime call will scratch rax.
   _scratch_reg = FrameMap::rax_oop_opr;
   _info = new CodeEmitInfo(info);
@@ -225,9 +224,6 @@ void SubstitutabilityCheckStub::emit_code(LIR_Assembler* ce) {
   __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::substitutability_check_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
-  if (_result->as_register() != rax) {
-    __ movptr(_result->as_register(), rax);
-  }
   __ jmp(_continuation);
 }
 

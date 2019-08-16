@@ -3317,7 +3317,7 @@ void LIRGenerator::substitutability_check_common(Value left_val, Value right_val
     right_klass_op = new_register(t_klass);
   }
 
-  CodeStub* slow_path = new SubstitutabilityCheckStub(left.result(), right.result(), result, info);
+  CodeStub* slow_path = new SubstitutabilityCheckStub(left.result(), right.result(), info);
   __ substitutability_check(result, left.result(), right.result(), equal_result, not_equal_result,
                             tmp1, tmp2,
                             left_klass, right_klass, left_klass_op, right_klass_op, info, slow_path);
