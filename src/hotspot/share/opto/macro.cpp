@@ -356,7 +356,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
   } else {
     if (ac->modifies(offset, offset, &_igvn, true)) {
       assert(ac->in(ArrayCopyNode::Dest) == alloc->result_cast(), "arraycopy destination should be allocation's result");
-      uint shift  = exact_log2(type2aelembytes(bt));
+      uint shift = exact_log2(type2aelembytes(bt));
       Node* diff = _igvn.transform(new SubINode(ac->in(ArrayCopyNode::SrcPos), ac->in(ArrayCopyNode::DestPos)));
 #ifdef _LP64
       diff = _igvn.transform(new ConvI2LNode(diff));
@@ -366,7 +366,16 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
       Node* off = _igvn.transform(new AddXNode(MakeConX(offset), diff));
       Node* base = ac->in(ArrayCopyNode::Src);
       Node* adr = _igvn.transform(new AddPNode(base, base, off));
-      const TypePtr* adr_type = _igvn.type(base)->is_ptr()->add_offset(offset);
+      const TypePtr* adr_type = _igvn.type(base)->is_ptr();
+      if (adr_type->isa_aryptr()) {
+        // In the case of a flattened value type array, each field has its
+        // own slice so we need to extract the field being accessed from
+        // the address computation
+        adr_type = adr_type->is_aryptr()->add_field_offset_and_offset(offset);
+        adr = _igvn.transform(new CastPPNode(adr, adr_type));
+      } else {
+        adr_type = adr_type->add_offset(offset);
+      }
       res = LoadNode::make(_igvn, ctl, mem, adr, adr_type, type, bt, MemNode::unordered, LoadNode::Pinned);
     }
   }
@@ -374,6 +383,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
     res = _igvn.transform(res);
     if (ftype->isa_narrowoop()) {
       // PhaseMacroExpand::scalar_replacement adds DecodeN nodes
+      assert(res->isa_DecodeN(), "should be narrow oop");
       res = _igvn.transform(new EncodePNode(res, ftype));
     }
     return res;

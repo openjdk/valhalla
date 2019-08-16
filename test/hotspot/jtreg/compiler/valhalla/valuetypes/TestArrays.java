@@ -718,7 +718,7 @@ public class TestArrays extends ValueTypeTest {
         for (int i = 0; i < 10; ++i) {
             src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
         }
-        MyValue2 v = test30(src, false);
+        MyValue2 v = test30(src, !warmup);
         Asserts.assertEQ(src[0].hash(), v.hash());
     }
 
