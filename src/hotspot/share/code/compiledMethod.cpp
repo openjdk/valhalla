@@ -363,8 +363,10 @@ void CompiledMethod::preserve_callee_argument_oops(frame fr, const RegisterMap *
       if (this->is_compiled_by_c2() && callee->has_scalarized_args()) {
         const GrowableArray<SigEntry>* sig = callee->adapter()->get_sig_cc();
         assert(sig != NULL, "sig should never be null");
-        signature = SigEntry::create_symbol(sig);
+        TempNewSymbol tmp_sig = SigEntry::create_symbol(sig);
         has_receiver = false; // The extended signature contains the receiver type
+        fr.oops_compiled_arguments_do(tmp_sig, has_receiver, has_appendix, reg_map, f);
+        return;
       }
     } else {
       SimpleScopeDesc ssd(this, pc);
