@@ -119,9 +119,54 @@ class ValueKlass: public InstanceKlass {
 
   Klass* allocate_value_array_klass(TRAPS);
 
+  address adr_alignment() const {
+    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _alignment));
+  }
+
+  address adr_first_field_offset() const {
+    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _first_field_offset));
+  }
+
+  address adr_exact_size_in_bytes() const {
+    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _exact_size_in_bytes));
+  }
+
+ public:
+  int get_alignment() const {
+    return *(int*)adr_alignment();
+  }
+
+  void set_alignment(int alignment) {
+    *(int*)adr_alignment() = alignment;
+  }
+
+  int get_first_field_offset() const {
+    int offset = *(int*)adr_first_field_offset();
+    assert(offset != 0, "Must be initialized before use");
+    return *(int*)adr_first_field_offset();
+  }
+
+  void set_first_field_offset(int offset) {
+    *(int*)adr_first_field_offset() = offset;
+  }
+
+  int get_exact_size_in_bytes() {
+    return *(int*)adr_exact_size_in_bytes();
+  }
+
+  void set_exact_size_in_bytes(int exact_size) {
+    *(int*)adr_exact_size_in_bytes() = exact_size;
+  }
+
+ private:
   int collect_fields(GrowableArray<SigEntry>* sig, int base_off = 0) const;
 
   void cleanup_blobs();
+
+  int first_field_offset_old() const;
 
  protected:
   // Returns the array class for the n'th dimension
@@ -163,7 +208,14 @@ class ValueKlass: public InstanceKlass {
   // minimum number of bytes occupied by nonstatic fields, HeapWord aligned or pow2
   int raw_value_byte_size() const;
 
-  int first_field_offset() const;
+  int first_field_offset() const {
+    // To be refactored/simplified once old layout code and UseNewLayout are removed
+    if (UseNewLayout) {
+      return get_first_field_offset();
+    } else {
+      return first_field_offset_old();
+    }
+  };
 
   address data_for_oop(oop o) const {
     return ((address) (void*) o) + first_field_offset();

@@ -46,7 +46,7 @@ class instanceOopDesc : public oopDesc {
 
   static bool contains_field_offset(int offset, int nonstatic_field_size, bool is_value) {
     int base_in_bytes = base_offset_in_bytes();
-    if (is_value) {
+    if (is_value && !UseNewLayout) {
       // The first field of value types is aligned on a long boundary
       base_in_bytes = align_up(base_in_bytes, BytesPerLong);
     }

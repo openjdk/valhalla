@@ -33,7 +33,9 @@
 #include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/reflectionAccessorImplKlassHelper.hpp"
+#include "oops/valueKlass.hpp"
 #include "runtime/os.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/stack.inline.hpp"
@@ -689,6 +691,138 @@ class HistoClosure : public KlassInfoClosure {
     _cih->add(cie);
   }
 };
+
+
+class FindClassByNameClosure : public KlassInfoClosure {
+ private:
+  GrowableArray<Klass*>* _klasses;
+  Symbol* _classname;
+ public:
+  FindClassByNameClosure(GrowableArray<Klass*>* klasses, Symbol* classname) :
+    _klasses(klasses), _classname(classname) { }
+
+  void do_cinfo(KlassInfoEntry* cie) {
+    if (cie->klass()->name() == _classname) {
+      _klasses->append(cie->klass());
+    }
+  }
+};
+
+class FieldDesc {
+private:
+  Symbol* _name;
+  Symbol* _signature;
+  int _offset;
+  int _index;
+  InstanceKlass* _holder;
+  AccessFlags _access_flags;
+ public:
+  FieldDesc() {
+    _name = NULL;
+    _signature = NULL;
+    _offset = -1;
+    _index = -1;
+    _holder = NULL;
+    _access_flags = AccessFlags();
+  }
+  FieldDesc(fieldDescriptor& fd) {
+    _name = fd.name();
+    _signature = fd.signature();
+    _offset = fd.offset();
+    _index = fd.index();
+    _holder = fd.field_holder();
+    _access_flags = fd.access_flags();
+  }
+  const Symbol* name() { return _name;}
+  const Symbol* signature() { return _signature; }
+  const int offset() { return _offset; }
+  const int index() { return _index; }
+  const InstanceKlass* holder() { return _holder; }
+  const AccessFlags& access_flags() { return _access_flags; }
+  const bool is_flattenable() { return _access_flags.is_flattenable(); }
+};
+
+static int compare_offset(FieldDesc* f1, FieldDesc* f2) {
+   return f1->offset() > f2->offset() ? 1 : -1;
+}
+
+static void print_field(outputStream* st, int level, int offset, FieldDesc& fd, bool flattenable, bool flattened ) {
+  const char* flattened_msg = "";
+  if (flattenable) {
+    flattened_msg = flattened ? "and flattened" : "not flattened";
+  }
+  st->print_cr("  @ %d %*s \"%s\" %s %s %s",
+      offset, level * 3, "",
+      fd.name()->as_C_string(),
+      fd.signature()->as_C_string(),
+      flattenable ? " // flattenable" : "",
+      flattened_msg);
+}
+
+static void print_flattened_field(outputStream* st, int level, int offset, InstanceKlass* klass) {
+  assert(klass->is_value(), "Only value classes can be flattened");
+  ValueKlass* vklass = ValueKlass::cast(klass);
+  GrowableArray<FieldDesc>* fields = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<FieldDesc>(100, true);
+  for (FieldStream fd(klass, false, false); !fd.eos(); fd.next()) {
+    if (!fd.access_flags().is_static()) {
+      fields->append(FieldDesc(fd.field_descriptor()));
+    }
+  }
+  fields->sort(compare_offset);
+  for(int i = 0; i < fields->length(); i++) {
+    FieldDesc fd = fields->at(i);
+    int offset2 = offset + fd.offset() - vklass->first_field_offset();
+    print_field(st, level, offset2, fd,
+        fd.is_flattenable(), fd.holder()->field_is_flattened(fd.index()));
+    if (fd.holder()->field_is_flattened(fd.index())) {
+      print_flattened_field(st, level + 1, offset2 ,
+          InstanceKlass::cast(fd.holder()->get_value_field_klass(fd.index())));
+    }
+  }
+}
+
+void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
+  KlassInfoTable cit(true);
+  if (cit.allocation_failed()) {
+    st->print_cr("ERROR: Ran out of C-heap; hierarchy not generated");
+    return;
+  }
+
+  Thread* THREAD = Thread::current();
+
+  Symbol* classname = SymbolTable::probe(class_name, (int)strlen(class_name));
+
+  GrowableArray<Klass*>* klasses = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<Klass*>(100, true);
+
+  FindClassByNameClosure fbnc(klasses, classname);
+  cit.iterate(&fbnc);
+
+  for(int i = 0; i < klasses->length(); i++) {
+    Klass* klass = klasses->at(i);
+    if (!klass->is_instance_klass()) continue;  // Skip
+    InstanceKlass* ik = InstanceKlass::cast(klass);
+    int tab = 1;
+    st->print_cr("Class %s [@%s]:", klass->name()->as_C_string(),
+        klass->class_loader_data()->name()->as_C_string());
+    ResourceMark rm;
+    GrowableArray<FieldDesc>* fields = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<FieldDesc>(100, true);
+    for (FieldStream fd(ik, false, false); !fd.eos(); fd.next()) {
+      if (!fd.access_flags().is_static()) {
+        fields->append(FieldDesc(fd.field_descriptor()));
+      }
+    }
+    fields->sort(compare_offset);
+    for(int i = 0; i < fields->length(); i++) {
+      FieldDesc fd = fields->at(i);
+      print_field(st, 0, fd.offset(), fd, fd.is_flattenable(), fd.holder()->field_is_flattened(fd.index()));
+      if (fd.holder()->field_is_flattened(fd.index())) {
+        print_flattened_field(st, 1, fd.offset(),
+            InstanceKlass::cast(fd.holder()->get_value_field_klass(fd.index())));
+      }
+    }
+  }
+  st->cr();
+}
 
 class RecordInstanceClosure : public ObjectClosure {
  private:

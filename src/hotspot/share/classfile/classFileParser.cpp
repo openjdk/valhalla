@@ -21,6 +21,7 @@
  * questions.
  *
  */
+
 #include "precompiled.hpp"
 #include "jvm.h"
 #include "aot/aotLoader.hpp"
@@ -30,6 +31,7 @@
 #include "classfile/classLoaderData.inline.hpp"
 #include "classfile/defaultMethods.hpp"
 #include "classfile/dictionary.hpp"
+#include <classfile/fieldLayoutBuilder.hpp>
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/moduleEntry.hpp"
 #include "classfile/packageEntry.hpp"
@@ -60,6 +62,7 @@
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/os.hpp"
@@ -1084,58 +1087,6 @@ void ClassFileParser::verify_constantvalue(const ConstantPool* const cp,
   }
 }
 
-class AnnotationCollector : public ResourceObj{
-public:
-  enum Location { _in_field, _in_method, _in_class };
-  enum ID {
-    _unknown = 0,
-    _method_CallerSensitive,
-    _method_ForceInline,
-    _method_DontInline,
-    _method_InjectedProfile,
-    _method_LambdaForm_Compiled,
-    _method_Hidden,
-    _method_HotSpotIntrinsicCandidate,
-    _jdk_internal_vm_annotation_Contended,
-    _field_Stable,
-    _jdk_internal_vm_annotation_ReservedStackAccess,
-    _annotation_LIMIT
-  };
-  const Location _location;
-  int _annotations_present;
-  u2 _contended_group;
-
-  AnnotationCollector(Location location)
-    : _location(location), _annotations_present(0)
-  {
-    assert((int)_annotation_LIMIT <= (int)sizeof(_annotations_present) * BitsPerByte, "");
-  }
-  // If this annotation name has an ID, report it (or _none).
-  ID annotation_index(const ClassLoaderData* loader_data, const Symbol* name);
-  // Set the annotation name:
-  void set_annotation(ID id) {
-    assert((int)id >= 0 && (int)id < (int)_annotation_LIMIT, "oob");
-    _annotations_present |= nth_bit((int)id);
-  }
-
-  void remove_annotation(ID id) {
-    assert((int)id >= 0 && (int)id < (int)_annotation_LIMIT, "oob");
-    _annotations_present &= ~nth_bit((int)id);
-  }
-
-  // Report if the annotation is present.
-  bool has_any_annotations() const { return _annotations_present != 0; }
-  bool has_annotation(ID id) const { return (nth_bit((int)id) & _annotations_present) != 0; }
-
-  void set_contended_group(u2 group) { _contended_group = group; }
-  u2 contended_group() const { return _contended_group; }
-
-  bool is_contended() const { return has_annotation(_jdk_internal_vm_annotation_Contended); }
-
-  void set_stable(bool stable) { set_annotation(_field_Stable); }
-  bool is_stable() const { return has_annotation(_field_Stable); }
-};
-
 // This class also doubles as a holder for metadata cleanup.
 class ClassFileParser::FieldAnnotationCollector : public AnnotationCollector {
 private:
@@ -1161,12 +1112,6 @@ class MethodAnnotationCollector : public AnnotationCollector{
 public:
   MethodAnnotationCollector() : AnnotationCollector(_in_method) { }
   void apply_to(const methodHandle& m);
-};
-
-class ClassFileParser::ClassAnnotationCollector : public AnnotationCollector{
-public:
-  ClassAnnotationCollector() : AnnotationCollector(_in_class) { }
-  void apply_to(InstanceKlass* ik);
 };
 
 
@@ -3886,141 +3831,121 @@ static void print_field_layout(const Symbol* name,
 }
 #endif
 
-// Values needed for oopmap and InstanceKlass creation
-class ClassFileParser::FieldLayoutInfo : public ResourceObj {
- public:
-  OopMapBlocksBuilder* oop_map_blocks;
-  int           instance_size;
-  int           nonstatic_field_size;
-  int           static_field_size;
-  bool          has_nonstatic_fields;
-};
-
-// Utility to collect and compact oop maps during layout
-class ClassFileParser::OopMapBlocksBuilder : public ResourceObj {
- public:
-  OopMapBlock*  nonstatic_oop_maps;
-  unsigned int  nonstatic_oop_map_count;
-  unsigned int  max_nonstatic_oop_maps;
-
- public:
-  OopMapBlocksBuilder(unsigned int  max_blocks, TRAPS) {
-    max_nonstatic_oop_maps = max_blocks;
-    nonstatic_oop_map_count = 0;
-    if (max_blocks == 0) {
-      nonstatic_oop_maps = NULL;
-    } else {
-      nonstatic_oop_maps = NEW_RESOURCE_ARRAY_IN_THREAD(
+OopMapBlocksBuilder::OopMapBlocksBuilder(unsigned int  max_blocks, TRAPS) {
+  max_nonstatic_oop_maps = max_blocks;
+  nonstatic_oop_map_count = 0;
+  if (max_blocks == 0) {
+    nonstatic_oop_maps = NULL;
+  } else {
+    nonstatic_oop_maps = NEW_RESOURCE_ARRAY_IN_THREAD(
         THREAD, OopMapBlock, max_nonstatic_oop_maps);
-      memset(nonstatic_oop_maps, 0, sizeof(OopMapBlock) * max_blocks);
-    }
+    memset(nonstatic_oop_maps, 0, sizeof(OopMapBlock) * max_blocks);
+  }
+}
+
+OopMapBlock* OopMapBlocksBuilder::last_oop_map() const {
+  assert(nonstatic_oop_map_count > 0, "Has no oop maps");
+  return nonstatic_oop_maps + (nonstatic_oop_map_count - 1);
+}
+
+// addition of super oop maps
+void OopMapBlocksBuilder::initialize_inherited_blocks(OopMapBlock* blocks, unsigned int nof_blocks) {
+  assert(nof_blocks && nonstatic_oop_map_count == 0 &&
+      nof_blocks <= max_nonstatic_oop_maps, "invariant");
+
+  memcpy(nonstatic_oop_maps, blocks, sizeof(OopMapBlock) * nof_blocks);
+  nonstatic_oop_map_count += nof_blocks;
+}
+
+// collection of oops
+void OopMapBlocksBuilder::add(int offset, int count) {
+  if (nonstatic_oop_map_count == 0) {
+    nonstatic_oop_map_count++;
+  }
+  OopMapBlock*  nonstatic_oop_map = last_oop_map();
+  if (nonstatic_oop_map->count() == 0) {  // Unused map, set it up
+    nonstatic_oop_map->set_offset(offset);
+    nonstatic_oop_map->set_count(count);
+  } else if (nonstatic_oop_map->is_contiguous(offset)) { // contiguous, add
+    nonstatic_oop_map->increment_count(count);
+  } else { // Need a new one...
+    nonstatic_oop_map_count++;
+    assert(nonstatic_oop_map_count <= max_nonstatic_oop_maps, "range check");
+    nonstatic_oop_map = last_oop_map();
+    nonstatic_oop_map->set_offset(offset);
+    nonstatic_oop_map->set_count(count);
+  }
+}
+
+// general purpose copy, e.g. into allocated instanceKlass
+void OopMapBlocksBuilder::copy(OopMapBlock* dst) {
+  if (nonstatic_oop_map_count != 0) {
+    memcpy(dst, nonstatic_oop_maps, sizeof(OopMapBlock) * nonstatic_oop_map_count);
+  }
+}
+
+// Sort and compact adjacent blocks
+void OopMapBlocksBuilder::compact(TRAPS) {
+  if (nonstatic_oop_map_count <= 1) {
+    return;
+  }
+  /*
+   * Since field layout sneeks in oops before values, we will be able to condense
+   * blocks. There is potential to compact between super, own refs and values
+   * containing refs.
+   *
+   * Currently compaction is slightly limited due to values being 8 byte aligned.
+   * This may well change: FixMe if doesn't, the code below is fairly general purpose
+   * and maybe it doesn't need to be.
+   */
+  qsort(nonstatic_oop_maps, nonstatic_oop_map_count, sizeof(OopMapBlock),
+      (_sort_Fn)OopMapBlock::compare_offset);
+  if (nonstatic_oop_map_count < 2) {
+    return;
   }
 
-  OopMapBlock* last_oop_map() const {
-    assert(nonstatic_oop_map_count > 0, "Has no oop maps");
-    return nonstatic_oop_maps + (nonstatic_oop_map_count - 1);
-  }
-
-  // addition of super oop maps
-  void initialize_inherited_blocks(OopMapBlock* blocks, unsigned int nof_blocks) {
-    assert(nof_blocks && nonstatic_oop_map_count == 0 &&
-        nof_blocks <= max_nonstatic_oop_maps, "invariant");
-
-    memcpy(nonstatic_oop_maps, blocks, sizeof(OopMapBlock) * nof_blocks);
-    nonstatic_oop_map_count += nof_blocks;
-  }
-
-  // collection of oops
-  void add(int offset, int count) {
-    if (nonstatic_oop_map_count == 0) {
-      nonstatic_oop_map_count++;
+  //Make a temp copy, and iterate through and copy back into the orig
+  ResourceMark rm(THREAD);
+  OopMapBlock* oop_maps_copy = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, OopMapBlock,
+      nonstatic_oop_map_count);
+  OopMapBlock* oop_maps_copy_end = oop_maps_copy + nonstatic_oop_map_count;
+  copy(oop_maps_copy);
+  OopMapBlock*  nonstatic_oop_map = nonstatic_oop_maps;
+  unsigned int new_count = 1;
+  oop_maps_copy++;
+  while(oop_maps_copy < oop_maps_copy_end) {
+    assert(nonstatic_oop_map->offset() < oop_maps_copy->offset(), "invariant");
+    if (nonstatic_oop_map->is_contiguous(oop_maps_copy->offset())) {
+      nonstatic_oop_map->increment_count(oop_maps_copy->count());
+    } else {
+      nonstatic_oop_map++;
+      new_count++;
+      nonstatic_oop_map->set_offset(oop_maps_copy->offset());
+      nonstatic_oop_map->set_count(oop_maps_copy->count());
     }
-    OopMapBlock*  nonstatic_oop_map = last_oop_map();
-    if (nonstatic_oop_map->count() == 0) {  // Unused map, set it up
-      nonstatic_oop_map->set_offset(offset);
-      nonstatic_oop_map->set_count(count);
-    } else if (nonstatic_oop_map->is_contiguous(offset)) { // contiguous, add
-      nonstatic_oop_map->increment_count(count);
-    } else { // Need a new one...
-      nonstatic_oop_map_count++;
-      assert(nonstatic_oop_map_count <= max_nonstatic_oop_maps, "range check");
-      nonstatic_oop_map = last_oop_map();
-      nonstatic_oop_map->set_offset(offset);
-      nonstatic_oop_map->set_count(count);
-    }
-  }
-
-  // general purpose copy, e.g. into allocated instanceKlass
-  void copy(OopMapBlock* dst) {
-    if (nonstatic_oop_map_count != 0) {
-      memcpy(dst, nonstatic_oop_maps, sizeof(OopMapBlock) * nonstatic_oop_map_count);
-    }
-  }
-
-  // Sort and compact adjacent blocks
-  void compact(TRAPS) {
-    if (nonstatic_oop_map_count <= 1) {
-      return;
-    }
-    /*
-     * Since field layout sneeks in oops before values, we will be able to condense
-     * blocks. There is potential to compact between super, own refs and values
-     * containing refs.
-     *
-     * Currently compaction is slightly limited due to values being 8 byte aligned.
-     * This may well change: FixMe if doesn't, the code below is fairly general purpose
-     * and maybe it doesn't need to be.
-     */
-    qsort(nonstatic_oop_maps, nonstatic_oop_map_count, sizeof(OopMapBlock),
-        (_sort_Fn)OopMapBlock::compare_offset);
-    if (nonstatic_oop_map_count < 2) {
-      return;
-    }
-
-     //Make a temp copy, and iterate through and copy back into the orig
-    ResourceMark rm(THREAD);
-    OopMapBlock* oop_maps_copy = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, OopMapBlock,
-        nonstatic_oop_map_count);
-    OopMapBlock* oop_maps_copy_end = oop_maps_copy + nonstatic_oop_map_count;
-    copy(oop_maps_copy);
-    OopMapBlock*  nonstatic_oop_map = nonstatic_oop_maps;
-    unsigned int new_count = 1;
     oop_maps_copy++;
-    while(oop_maps_copy < oop_maps_copy_end) {
-      assert(nonstatic_oop_map->offset() < oop_maps_copy->offset(), "invariant");
-      if (nonstatic_oop_map->is_contiguous(oop_maps_copy->offset())) {
-        nonstatic_oop_map->increment_count(oop_maps_copy->count());
-      } else {
-        nonstatic_oop_map++;
-        new_count++;
-        nonstatic_oop_map->set_offset(oop_maps_copy->offset());
-        nonstatic_oop_map->set_count(oop_maps_copy->count());
-      }
-      oop_maps_copy++;
-    }
-    assert(new_count <= nonstatic_oop_map_count, "end up with more maps after compact() ?");
-    nonstatic_oop_map_count = new_count;
   }
+  assert(new_count <= nonstatic_oop_map_count, "end up with more maps after compact() ?");
+  nonstatic_oop_map_count = new_count;
+}
 
-  void print_on(outputStream* st) const {
-    st->print_cr("  OopMapBlocks: %3d  /%3d", nonstatic_oop_map_count, max_nonstatic_oop_maps);
-    if (nonstatic_oop_map_count > 0) {
-      OopMapBlock* map = nonstatic_oop_maps;
-      OopMapBlock* last_map = last_oop_map();
-      assert(map <= last_map, "Last less than first");
-      while (map <= last_map) {
-        st->print_cr("    Offset: %3d  -%3d Count: %3d", map->offset(),
-            map->offset() + map->offset_span() - heapOopSize, map->count());
-        map++;
-      }
+void OopMapBlocksBuilder::print_on(outputStream* st) const {
+  st->print_cr("  OopMapBlocks: %3d  /%3d", nonstatic_oop_map_count, max_nonstatic_oop_maps);
+  if (nonstatic_oop_map_count > 0) {
+    OopMapBlock* map = nonstatic_oop_maps;
+    OopMapBlock* last_map = last_oop_map();
+    assert(map <= last_map, "Last less than first");
+    while (map <= last_map) {
+      st->print_cr("    Offset: %3d  -%3d Count: %3d", map->offset(),
+          map->offset() + map->offset_span() - heapOopSize, map->count());
+      map++;
     }
   }
+}
 
-  void print_value_on(outputStream* st) const {
-    print_on(st);
-  }
-
-};
+void OopMapBlocksBuilder::print_value_on(outputStream* st) const {
+  print_on(st);
+}
 
 void ClassFileParser::throwValueTypeLimitation(THREAD_AND_LOCATION_DECL,
                                                const char* msg,
@@ -4654,6 +4579,11 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
           static_fields_end);
     nonstatic_oop_maps->print_on(tty);
     tty->print("\n");
+    tty->print_cr("Instance size = %d", instance_size);
+    tty->print_cr("Nonstatic_field_size = %d", nonstatic_field_size);
+    tty->print_cr("Static_field_size = %d", static_field_size);
+    tty->print_cr("Has nonstatic fields = %d", has_nonstatic_fields);
+    tty->print_cr("---");
   }
 
 #endif
@@ -6031,6 +5961,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   }
 
   if (is_value_type()) {
+    ValueKlass::cast(ik)->set_alignment(_alignment);
+    ValueKlass::cast(ik)->set_first_field_offset(_first_field_offset);
+    ValueKlass::cast(ik)->set_exact_size_in_bytes(_exact_size_in_bytes);
     ValueKlass::cast(ik)->initialize_calling_convention(CHECK);
   }
 
@@ -6723,9 +6656,21 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   }
 
   _field_info = new FieldLayoutInfo();
-  layout_fields(cp, _fac, _parsed_annotations, _field_info, CHECK);
+  if (UseNewLayout) {
+    FieldLayoutBuilder lb(this, _field_info);
+    if (this->is_value_type()) {
+      lb.compute_inline_class_layout(CHECK);
+      _alignment = lb.get_alignment();
+      _first_field_offset = lb.get_first_field_offset();
+      _exact_size_in_bytes = lb.get_exact_size_in_byte();
+    } else {
+      lb.compute_regular_layout(CHECK);
+    }
+  } else {
+    layout_fields(cp, _fac, _parsed_annotations, _field_info, CHECK);
+  }
 
-  // Compute reference typ
+  // Compute reference type
   _rt = (NULL ==_super_klass) ? REF_NONE : _super_klass->reference_type();
 
 }

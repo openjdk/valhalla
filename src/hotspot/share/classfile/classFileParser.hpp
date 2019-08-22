@@ -45,18 +45,105 @@ class GrowableArray;
 class InstanceKlass;
 class Symbol;
 class TempNewSymbol;
+class FieldLayoutBuilder;
+
+
+class AnnotationCollector : public ResourceObj{
+public:
+  enum Location { _in_field, _in_method, _in_class };
+  enum ID {
+    _unknown = 0,
+    _method_CallerSensitive,
+    _method_ForceInline,
+    _method_DontInline,
+    _method_InjectedProfile,
+    _method_LambdaForm_Compiled,
+    _method_Hidden,
+    _method_HotSpotIntrinsicCandidate,
+    _jdk_internal_vm_annotation_Contended,
+    _field_Stable,
+    _jdk_internal_vm_annotation_ReservedStackAccess,
+    _annotation_LIMIT
+  };
+  const Location _location;
+  int _annotations_present;
+  u2 _contended_group;
+
+  AnnotationCollector(Location location)
+    : _location(location), _annotations_present(0)
+  {
+    assert((int)_annotation_LIMIT <= (int)sizeof(_annotations_present) * BitsPerByte, "");
+  }
+  // If this annotation name has an ID, report it (or _none).
+  ID annotation_index(const ClassLoaderData* loader_data, const Symbol* name);
+  // Set the annotation name:
+  void set_annotation(ID id) {
+    assert((int)id >= 0 && (int)id < (int)_annotation_LIMIT, "oob");
+    _annotations_present |= nth_bit((int)id);
+  }
+
+  void remove_annotation(ID id) {
+    assert((int)id >= 0 && (int)id < (int)_annotation_LIMIT, "oob");
+    _annotations_present &= ~nth_bit((int)id);
+  }
+
+  // Report if the annotation is present.
+  bool has_any_annotations() const { return _annotations_present != 0; }
+  bool has_annotation(ID id) const { return (nth_bit((int)id) & _annotations_present) != 0; }
+
+  void set_contended_group(u2 group) { _contended_group = group; }
+  u2 contended_group() const { return _contended_group; }
+
+  bool is_contended() const { return has_annotation(_jdk_internal_vm_annotation_Contended); }
+
+  void set_stable(bool stable) { set_annotation(_field_Stable); }
+  bool is_stable() const { return has_annotation(_field_Stable); }
+};
+
+// Utility to collect and compact oop maps during layout
+class OopMapBlocksBuilder : public ResourceObj {
+public:
+  OopMapBlock*  nonstatic_oop_maps;
+  unsigned int  nonstatic_oop_map_count;
+  unsigned int  max_nonstatic_oop_maps;
+
+ public:
+  OopMapBlocksBuilder(unsigned int  max_blocks, TRAPS);
+  OopMapBlock* last_oop_map() const;
+  void initialize_inherited_blocks(OopMapBlock* blocks, unsigned int nof_blocks);
+  void add(int offset, int count);
+  void copy(OopMapBlock* dst);
+  void compact(TRAPS);
+  void print_on(outputStream* st) const;
+  void print_value_on(outputStream* st) const;
+};
+
+// Values needed for oopmap and InstanceKlass creation
+class FieldLayoutInfo : public ResourceObj {
+ public:
+  OopMapBlocksBuilder* oop_map_blocks;
+  int           instance_size;
+  int           nonstatic_field_size;
+  int           static_field_size;
+  bool          has_nonstatic_fields;
+};
 
 // Parser for for .class files
 //
 // The bytes describing the class file structure is read from a Stream object
 
 class ClassFileParser {
+ friend class FieldLayoutBuilder;
+ friend class FieldLayout;
 
- class ClassAnnotationCollector;
+
+ class ClassAnnotationCollector : public AnnotationCollector {
+ public:
+   ClassAnnotationCollector() : AnnotationCollector(_in_class) { }
+   void apply_to(InstanceKlass* ik);
+ };
  class FieldAllocationCount;
  class FieldAnnotationCollector;
- class FieldLayoutInfo;
- class OopMapBlocksBuilder;
 
  public:
   // The ClassFileParser has an associated "publicity" level
@@ -124,6 +211,10 @@ class ClassFileParser {
   int _itable_size;
 
   int _num_miranda_methods;
+
+  int _alignment;
+  int _first_field_offset;
+  int _exact_size_in_bytes;
 
   ReferenceType _rt;
   Handle _protection_domain;

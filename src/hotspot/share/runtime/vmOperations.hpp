@@ -127,7 +127,7 @@
   template(ScavengeMonitors)                      \
   template(PrintMetadata)                         \
   template(GTestExecuteAtSafepoint)               \
-  template(VTBufferStats)                         \
+  template(ClassPrintLayout)                      \
 
 class VM_Operation: public CHeapObj<mtInternal> {
  public:
@@ -502,6 +502,16 @@ class VM_PrintCompileQueue: public VM_Operation {
   VM_PrintCompileQueue(outputStream* st) : _out(st) {}
   VMOp_Type type() const { return VMOp_PrintCompileQueue; }
   Mode evaluation_mode() const { return _safepoint; }
+  void doit();
+};
+
+class VM_PrintClassLayout: public VM_Operation {
+ private:
+  outputStream* _out;
+  char* _class_name;
+ public:
+  VM_PrintClassLayout(outputStream* st, char* class_name): _out(st), _class_name(class_name) {}
+  VMOp_Type type() const { return VMOp_PrintClassHierarchy; }
   void doit();
 };
 

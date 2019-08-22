@@ -143,6 +143,9 @@ class ValueKlassFixedBlock {
   address* _unpack_handler;
   int* _default_value_offset;
   Klass** _value_array_klass;
+  int _alignment;
+  int _first_field_offset;
+  int _exact_size_in_bytes;
 
   friend class ValueKlass;
 };
@@ -175,7 +178,7 @@ class InstanceKlass: public Klass {
     loaded,                             // loaded and inserted in class hierarchy (but not linked yet)
     linked,                             // successfully linked/verified (but not initialized yet)
     being_initialized,                  // currently running class initializer
-    fully_initialized,                  // initialized (successfull final state)
+    fully_initialized,                  // initialized (successful final state)
     initialization_error                // error happened during initialization
   };
 

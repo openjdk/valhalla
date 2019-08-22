@@ -46,7 +46,7 @@
 #include "runtime/thread.inline.hpp"
 #include "utilities/copy.hpp"
 
-int ValueKlass::first_field_offset() const {
+int ValueKlass::first_field_offset_old() const {
 #ifdef ASSERT
   int first_offset = INT_MAX;
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
@@ -192,18 +192,19 @@ void ValueKlass::array_klasses_do(void f(Klass* k)) {
 }
 
 void ValueKlass::raw_field_copy(void* src, void* dst, size_t raw_byte_size) {
-  /*
-   * Try not to shear fields even if not an atomic store...
-   *
-   * First 3 cases handle value array store, otherwise works on the same basis
-   * as JVM_Clone, at this size data is aligned. The order of primitive types
-   * is largest to smallest, and it not possible for fields to stradle long
-   * copy boundaries.
-   *
-   * If MT without exclusive access, possible to observe partial value store,
-   * but not partial primitive and reference field values
-   */
-  switch (raw_byte_size) {
+  if (!UseNewLayout) {
+    /*
+     * Try not to shear fields even if not an atomic store...
+     *
+     * First 3 cases handle value array store, otherwise works on the same basis
+     * as JVM_Clone, at this size data is aligned. The order of primitive types
+     * is largest to smallest, and it not possible for fields to stradle long
+     * copy boundaries.
+     *
+     * If MT without exclusive access, possible to observe partial value store,
+     * but not partial primitive and reference field values
+     */
+    switch (raw_byte_size) {
     case 1:
       *((jbyte*) dst) = *(jbyte*)src;
       break;
@@ -216,6 +217,44 @@ void ValueKlass::raw_field_copy(void* src, void* dst, size_t raw_byte_size) {
     default:
       assert(raw_byte_size % sizeof(jlong) == 0, "Unaligned raw_byte_size");
       Copy::conjoint_jlongs_atomic((jlong*)src, (jlong*)dst, raw_byte_size >> LogBytesPerLong);
+    }
+  } else {
+    int size = this->get_exact_size_in_bytes();
+    int length;
+    switch (this->get_alignment()) {
+    case BytesPerLong:
+      length = size >> LogBytesPerLong;
+      if (length > 0) {
+        Copy::conjoint_jlongs_atomic((jlong*)src, (jlong*)dst, length);
+        size -= length << LogBytesPerLong;
+        src = (jlong*)src + length;
+        dst = (jlong*)dst + length;
+      }
+      // Fallthrough
+    case BytesPerInt:
+      length = size >> LogBytesPerInt;
+      if (length > 0) {
+        Copy::conjoint_jints_atomic((jint*)src, (jint*)dst, length);
+        size -= length << LogBytesPerInt;
+        src = (jint*)src + length;
+        dst = (jint*)dst + length;
+      }
+      // Fallthrough
+    case BytesPerShort:
+      length = size >> LogBytesPerShort;
+      if (length > 0) {
+        Copy::conjoint_jshorts_atomic((jshort*)src, (jshort*)dst, length);
+        size -= length << LogBytesPerShort;
+        src = (jshort*)src + length;
+        dst = (jshort*)dst +length;
+      }
+      // Fallthrough
+    case 1:
+      if (size > 0) Copy::conjoint_jbytes_atomic((jbyte*)src, (jbyte*)dst, size);
+      break;
+    default:
+      fatal("Unsupported alignment");
+    }
   }
 }
 

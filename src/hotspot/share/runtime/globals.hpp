@@ -2499,6 +2499,17 @@ const size_t minimumSymbolTableSize = 1024;
                                                                             \
   develop(bool, ScalarizeValueTypes, true,                                  \
           "Scalarize value types in compiled code")                         \
+                                                                            \
+  product(bool, PrintNewLayout, false,                                      \
+               "Print layout compute by new algorithm")                     \
+                                                                            \
+  product(bool, PrintFlattenableLayouts, false,                             \
+                "Print layout of inline classes and classes with "          \
+                "flattenable fields")                                       \
+                                                                            \
+  product(bool, UseNewLayout, true,                                         \
+               "Use new algorithm to compute layouts")                      \
+                                                                            \
 
 
 
