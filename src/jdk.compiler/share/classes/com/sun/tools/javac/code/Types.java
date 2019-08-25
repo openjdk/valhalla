@@ -2192,8 +2192,9 @@ public class Types {
                 /* For inline types, the wired in super type is j.l.O.
                    So we need a special check for V <: V?
                 */
-                if (t.tsym == sym.nullFreeTypeSymbol())
-                    return sym.type;
+                if (t.tsym == sym.nullFreeTypeSymbol()) {
+                    return new ClassType(t.getEnclosingType(), t.getTypeArguments(), (TypeSymbol)sym, t.getMetadata());
+                }
 
                 Type st = supertype(t);
                 if (st.hasTag(CLASS) || st.hasTag(TYPEVAR)) {

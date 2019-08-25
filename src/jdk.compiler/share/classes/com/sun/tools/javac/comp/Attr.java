@@ -4501,6 +4501,9 @@ public class Attr extends JCTree.Visitor {
 
         // Attribute functor part of application and make sure it's a class.
         Type clazztype = chk.checkClassType(tree.clazz.pos(), attribType(tree.clazz, env));
+        if (tree.isQuestioned() && clazztype != null && clazztype.tsym != null && clazztype.tsym.isValue()) {
+            clazztype = types.projectedNullableType((ClassSymbol) clazztype.tsym).type;
+        }
 
         // Attribute type parameters
         List<Type> actuals = attribTypes(tree.arguments, env);

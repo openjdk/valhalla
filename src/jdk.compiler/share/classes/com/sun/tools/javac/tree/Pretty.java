@@ -1467,6 +1467,8 @@ public class Pretty extends JCTree.Visitor {
             print("<");
             printExprs(tree.arguments);
             print(">");
+            if (tree.isQuestioned())
+                print('?');
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

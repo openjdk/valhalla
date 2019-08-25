@@ -2163,13 +2163,16 @@ public class JavacParser implements Parser {
         if (!annotations.isEmpty()) {
             result = toP(F.at(annotations.head.pos).AnnotatedType(annotations,result));
         }
+        handleQuestion(result);
         return result;
     }
 
     JCTypeApply typeArguments(JCExpression t, boolean diamondAllowed) {
         int pos = token.pos;
         List<JCExpression> args = typeArguments(diamondAllowed);
-        return toP(F.at(pos).TypeApply(t, args));
+        JCTypeApply ta = toP(F.at(pos).TypeApply(t, args));
+        handleQuestion(ta);
+        return ta;
     }
 
     /**
