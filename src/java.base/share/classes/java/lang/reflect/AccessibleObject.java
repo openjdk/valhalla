@@ -292,12 +292,25 @@ public class AccessibleObject implements AnnotatedElement {
             throw new IllegalCallerException();   // should not happen
         }
 
-        if (declaringClass.isHiddenClass()) {
-            return false;
-        }
-
         Module callerModule = caller.getModule();
         Module declaringModule = declaringClass.getModule();
+
+        if (declaringClass.isHiddenClass()) {
+            if (callerModule == Object.class.getModule()) return true;
+            if (throwExceptionIfDenied) {
+                // not accessible
+                String msg = "Unable to make ";
+                if (this instanceof Field)
+                    msg += "field ";
+                msg += this + " accessible";
+                InaccessibleObjectException e = new InaccessibleObjectException(msg);
+                if (printStackTraceWhenAccessFails()) {
+                    e.printStackTrace(System.err);
+                }
+                throw e;
+            }
+            return false;
+        }
 
         if (callerModule == declaringModule) return true;
         if (callerModule == Object.class.getModule()) return true;

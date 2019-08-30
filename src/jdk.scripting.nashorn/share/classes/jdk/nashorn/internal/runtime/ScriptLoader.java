@@ -74,7 +74,8 @@ final class ScriptLoader extends NashornLoader {
                     .requires("java.logging")
                     .requires(NASHORN_MODULE.getName())
                     .requires(structMod.getName())
-                    .packages(Set.of(SCRIPTS_PKG));
+                    .packages(Set.of(SCRIPTS_PKG))
+                    .exports(SCRIPTS_PKG, Set.of(NASHORN_MODULE.getName()));
 
         if (Context.javaSqlFound) {
             builder.requires("java.sql");

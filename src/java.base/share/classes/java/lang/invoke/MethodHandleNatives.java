@@ -142,7 +142,7 @@ class MethodHandleNatives {
             REF_LIMIT                  = 10;
 
         /**
-         * Flags for Lookup.ClassProperty
+         * Flags for Lookup.ClassOptions
          */
         static final int
             NESTMATE_CLASS            = 0x00000001,

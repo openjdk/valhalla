@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,8 @@
  * @test
  * @library /test/lib
  * @modules java.base/jdk.internal.org.objectweb.asm
- * @build  DefineClassTest
- * @run testng/othervm DefineClassTest
+ * @build  DefineHiddenClassTest
+ * @run testng/othervm DefineHiddenClassTest
  */
 
 import java.lang.invoke.MethodHandle;
@@ -39,14 +39,14 @@ import java.util.stream.Stream;
 import jdk.internal.org.objectweb.asm.*;
 import org.testng.annotations.Test;
 
-import static java.lang.invoke.MethodHandles.Lookup.ClassProperty.*;
+import static java.lang.invoke.MethodHandles.Lookup.ClassOptions.*;
 import static java.lang.invoke.MethodHandles.Lookup.PRIVATE;
 import static java.lang.invoke.MethodType.*;
 
 import static jdk.internal.org.objectweb.asm.Opcodes.*;
 import static org.testng.Assert.*;
 
-public class DefineClassTest {
+public class DefineHiddenClassTest {
     private static final byte[] bytes = classBytes("Injected");
     private static byte[] classBytes(String classname) {
         ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS + ClassWriter.COMPUTE_FRAMES);
@@ -65,11 +65,11 @@ public class DefineClassTest {
         }
         {
             // access a private member of the nest host class
-            mv = cw.visitMethod(ACC_PUBLIC, "test", "(LDefineClassTest;)I", null, null);
+            mv = cw.visitMethod(ACC_PUBLIC, "test", "(LDefineHiddenClassTest;)I", null, null);
             mv.visitCode();
             mv.visitVarInsn(ALOAD, 0);
             mv.visitVarInsn(ALOAD, 1);
-            mv.visitMethodInsn(INVOKEVIRTUAL, "DefineClassTest", "privMethod", "()I");
+            mv.visitMethodInsn(INVOKEVIRTUAL, "DefineHiddenClassTest", "privMethod", "()I");
             mv.visitInsn(IRETURN);
             mv.visitMaxs(0, 0);
             mv.visitEnd();
@@ -82,86 +82,46 @@ public class DefineClassTest {
     private int privMethod() { return 1234; }
 
     @Test
-    public void defineNestMate() throws Throwable {
-        // define a nestmate
-        Lookup lookup = MethodHandles.lookup();
-        Class<?> c = lookup.defineClass(bytes, NESTMATE);
-        assertTrue(c.getNestHost() == DefineClassTest.class);
-        assertTrue(c == Class.forName("Injected"));
-
-        // invoke int test(DefineClassTest o)
-        int x = testInjectedClass(c);
-        assertTrue(x == privMethod());
-
-        // dynamic nestmate is not listed in the return array of getNestMembers
-        assertTrue(Stream.of(c.getNestHost().getNestMembers()).noneMatch(k -> k == c));
-        assertTrue(c.isNestmateOf(DefineClassTest.class));
-    }
-
-    @Test
-    public void defineNestMateAsLookup() throws Throwable {
-        // define a nestmate
-        byte[] bytes = classBytes("Injected2");
-        Lookup lookup = MethodHandles.lookup().defineClassAsLookup(bytes, NESTMATE);
-        Class<?> c = lookup.lookupClass();
-        assertTrue(c.getNestHost() == DefineClassTest.class);
-        assertTrue(c == Class.forName("Injected2"));
-
-        // invoke int test(DefineClassTest o) via MethodHandle
-        MethodHandle ctor = lookup.findConstructor(c, methodType(void.class));
-        MethodHandle mh = lookup.findVirtual(c, "test", methodType(int.class, DefineClassTest.class));
-        int x = (int)mh.bindTo(ctor.invoke()).invokeExact( this);
-        // int x =(int)mh.invoke(c.newInstance(), this);
-        assertTrue(x == privMethod());
-
-        // dynamic nestmate is not listed in the return array of getNestMembers
-        assertTrue(Stream.of(c.getNestHost().getNestMembers()).noneMatch(k -> k == c));
-        assertTrue(c.isNestmateOf(DefineClassTest.class));
-    }
-
-    @Test
     public void defineHiddenClass() throws Throwable {
         // define a hidden class
         Lookup lookup = MethodHandles.lookup();
-        Class<?> c = lookup.defineClass(bytes, NESTMATE, HIDDEN);
+        Class<?> c = lookup.defineHiddenClass(bytes, false, NESTMATE);
         System.out.println(c.getName());
-        assertTrue(c.getNestHost() == DefineClassTest.class);
+        assertTrue(c.getNestHost() == DefineHiddenClassTest.class);
         assertTrue(c.isHiddenClass());
 
-        // invoke int test(DefineClassTest o)
+        // invoke int test(DefineHiddenClassTest o)
         int x = testInjectedClass(c);
         assertTrue(x == privMethod());
 
         // dynamic nestmate is not listed in the return array of getNestMembers
         assertTrue(Stream.of(c.getNestHost().getNestMembers()).noneMatch(k -> k == c));
-        assertTrue(c.isNestmateOf(DefineClassTest.class));
+        assertTrue(c.isNestmateOf(DefineHiddenClassTest.class));
     }
 
     @Test
     public void defineHiddenClassAsLookup() throws Throwable {
         // define a hidden class
-        Lookup lookup = MethodHandles.lookup().defineClassAsLookup(bytes, NESTMATE, HIDDEN);
+        Lookup lookup = MethodHandles.lookup().defineHiddenClassAsLookup(bytes, false, NESTMATE);
         Class<?> c = lookup.lookupClass();
-        System.out.println(c.getName());
-        assertTrue(c.getNestHost() == DefineClassTest.class);
+        assertTrue(c.getNestHost() == DefineHiddenClassTest.class);
         assertTrue(c.isHiddenClass());
 
-        // invoke int test(DefineClassTest o) via MethodHandle
+        // invoke int test(DefineHiddenClassTest o) via MethodHandle
         MethodHandle ctor = lookup.findConstructor(c, methodType(void.class));
-        MethodHandle mh = lookup.findVirtual(c, "test", methodType(int.class, DefineClassTest.class));
+        MethodHandle mh = lookup.findVirtual(c, "test", methodType(int.class, DefineHiddenClassTest.class));
         int x = (int)mh.bindTo(ctor.invoke()).invokeExact( this);
         assertTrue(x == privMethod());
 
         // dynamic nestmate is not listed in the return array of getNestMembers
         assertTrue(Stream.of(c.getNestHost().getNestMembers()).noneMatch(k -> k == c));
-        assertTrue(c.isNestmateOf(DefineClassTest.class));
+        assertTrue(c.isNestmateOf(DefineHiddenClassTest.class));
     }
 
     @Test
     public void defineWeakClass() throws Throwable {
         // define a weak class
-        Class<?> c = MethodHandles.lookup().defineClass(bytes, WEAK);
-        System.out.println(c.getName());
+        Class<?> c = MethodHandles.lookup().defineHiddenClass(bytes, false, WEAK);
         assertTrue(c.getNestHost() == c);
         assertTrue(c.isHiddenClass());
     }
@@ -169,39 +129,39 @@ public class DefineClassTest {
     @Test(expectedExceptions = IllegalAccessException.class)
     public void definePackageAccessClass() throws Throwable {
         Lookup lookup = MethodHandles.lookup().dropLookupMode(Lookup.PRIVATE);
-        Class<?> c = lookup.defineClass(bytes, HIDDEN);
+        lookup.defineHiddenClass(bytes, false, NESTMATE);
     }
 
     @Test(expectedExceptions = IllegalAccessException.class)
     public void noPrivateLookupAccess() throws Throwable {
         Lookup lookup = MethodHandles.lookup().dropLookupMode(Lookup.PRIVATE);
-        lookup.defineClass(bytes, NESTMATE);
+        lookup.defineHiddenClass(bytes, false, NESTMATE);
     }
 
     @Test(expectedExceptions = IllegalAccessException.class)
     public void teleportToNestmate() throws Throwable {
-        Class<?> c = MethodHandles.lookup().defineClass(bytes, NESTMATE, HIDDEN);
-        assertTrue(c.getNestHost() == DefineClassTest.class);
+        Class<?> c = MethodHandles.lookup().defineHiddenClass(bytes, false, NESTMATE);
+        assertTrue(c.getNestHost() == DefineHiddenClassTest.class);
         assertTrue(c.isHiddenClass());
 
         // Teleport to a nestmate
         Lookup lookup =  MethodHandles.lookup().in(c);
         assertTrue((lookup.lookupModes() & PRIVATE) == 0);
         // fail to define a nestmate
-        lookup.defineClass(bytes, NESTMATE, HIDDEN);
+        lookup.defineHiddenClass(bytes, false, NESTMATE);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void notSamePackage() throws Throwable {
-        MethodHandles.lookup().defineClass(classBytes("p/Injected"), NESTMATE);
+        MethodHandles.lookup().defineHiddenClass(classBytes("p/Injected"), false, NESTMATE);
     }
 
     /*
-     * invoke int test(DefineClassTest o) method defined in the injected class
+     * invoke int test(DefineHiddenClassTest o) method defined in the injected class
      */
     private int testInjectedClass(Class<?> c) throws Throwable {
         try {
-            Method m = c.getMethod("test", DefineClassTest.class);
+            Method m = c.getMethod("test", DefineHiddenClassTest.class);
             return (int) m.invoke(c.newInstance(), this);
         } catch (InvocationTargetException e) {
             throw e.getCause();

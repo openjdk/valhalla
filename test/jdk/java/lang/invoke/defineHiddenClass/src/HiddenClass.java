@@ -23,47 +23,35 @@
 
 /*
  *  The classfile for this class will be loaded directly and used to define
- *  a non-findable class.
+ *  a hidden class.
  */
-public class NonFindable implements Test {
+public class HiddenClass implements HiddenTest {
 
-    NonFindable other = null;
+    HiddenClass other = null;
 
     private String realTest() {
         Object o = other;
-        NonFindable local = this;
+        HiddenClass local = this;
         local = other;
-        local = (NonFindable) o;
-        local = new NonFindable();
-
-        set_other(null);
-
-        local = getThis();
+        local = (HiddenClass) o;
+        local = new HiddenClass();
 
         set_other_maybe(new Object());
         set_other_maybe(this);
-        return "NonFindable";
-    }
-
-    private NonFindable getThis() {
-        return null;
-    }
-
-    private void set_other(NonFindable t) {
-        other = t;
+        return "HiddenClass";
     }
 
     private void set_other_maybe(Object o) {
-        if (o instanceof NonFindable) {
+        if (o instanceof HiddenClass) {
         }
     }
 
     public void test() {
         String result = realTest();
-        // Make sure that the Utf8 constant pool entry for "NonFindable" is okay.
-        if (!result.substring(0, 7).equals("NonFind") ||
-            !result.substring(7).equals("able")) {
-            throw new RuntimeException("'NonFindable string is bad: " + result);
+        // Make sure that the Utf8 constant pool entry for "HiddenClass" is okay.
+        if (!result.substring(0, 7).equals("HiddenC") ||
+            !result.substring(7).equals("lass")) {
+            throw new RuntimeException("'HiddenClass string is bad: " + result);
         }
 
     }

@@ -202,7 +202,6 @@ public class VerifyStackTrace {
             // out before comparing. We also erase the hash-like names of
             // synthetic frames introduced by lambdas & method handles
             return produced.replaceAll(":[1-9][0-9]*\\)", ":00)")
-                    .replaceAll("\\$\\$/0x", "/0x")
                     .replaceAll("/0x[0-9a-f]+\\.run", "/xxxxxxxx.run")
                     .replaceAll("/0x[0-9a-f]+\\.invoke", "/xxxxxxxx.invoke")
                     // LFs may or may not be pre-generated, making frames differ

@@ -25,7 +25,6 @@
 
 package java.lang.invoke;
 
-import jdk.internal.misc.Unsafe;
 import jdk.internal.org.objectweb.asm.*;
 import sun.invoke.util.BytecodeDescriptor;
 import sun.security.action.GetPropertyAction;
@@ -41,7 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.PropertyPermission;
 import java.util.Set;
 
-import static java.lang.invoke.MethodHandles.Lookup.*;
+import static java.lang.invoke.MethodHandles.Lookup.ClassOptions.NESTMATE;
 import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
 /**
@@ -51,8 +50,6 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
  * @see LambdaMetafactory
  */
 /* package */ final class InnerClassLambdaMetafactory extends AbstractValidatingLambdaMetafactory {
-    private static final Unsafe UNSAFE = Unsafe.getUnsafe();
-
     private static final int CLASSFILE_VERSION = 52;
     private static final String METHOD_DESCRIPTOR_VOID = Type.getMethodDescriptor(Type.VOID_TYPE);
     private static final String JAVA_LANG_OBJECT = "java/lang/Object";
@@ -77,8 +74,6 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
     private static final String DESCR_CTOR_NOT_SERIALIZABLE_EXCEPTION = "(Ljava/lang/String;)V";
     private static final String[] SER_HOSTILE_EXCEPTIONS = new String[] {NAME_NOT_SERIALIZABLE_EXCEPTION};
-
-    private static final String DESCR_HIDDEN = "Ljdk/internal/vm/annotation/Hidden;";
 
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
 
@@ -158,7 +153,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         implMethodName = implInfo.getName();
         implMethodDesc = implInfo.getMethodType().toMethodDescriptorString();
         constructorType = invokedType.changeReturnType(Void.TYPE);
-        lambdaClassName = targetClass.getName().replace('.', '/') + "$$Lambda$" + counter.incrementAndGet();
+        lambdaClassName = lambdaClassName(targetClass);
         cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
         int parameterCount = invokedType.parameterCount();
         if (parameterCount > 0) {
@@ -171,6 +166,15 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         } else {
             argNames = argDescs = EMPTY_STRING_ARRAY;
         }
+    }
+
+    private static String lambdaClassName(Class<?> targetClass) {
+        String name = targetClass.getName();
+        if (targetClass.isHiddenClass()) {
+            // use the original class name
+            name = name.replace('/', '_');
+        }
+        return name.replace('.', '/') + "$$Lambda$" + counter.incrementAndGet();
     }
 
     /**
@@ -187,7 +191,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
      */
     @Override
     CallSite buildCallSite() throws LambdaConversionException {
-        Lookup lookup = spinInnerClassAsLookup();
+        Lookup lookup = spinInnerClass();
         Class<?> innerClass = lookup.lookupClass();
         assert innerClass.isHiddenClass() : innerClass.toString();
         if (invokedType.parameterCount() == 0) {
@@ -241,7 +245,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
      * @throws LambdaConversionException If properly formed functional interface
      * is not found
      */
-    private Lookup spinInnerClassAsLookup() throws LambdaConversionException {
+    private Lookup spinInnerClass() throws LambdaConversionException {
         String[] interfaces;
         String samIntf = samBase.getName().replace('.', '/');
         boolean accidentallySerializable = !isSerializable && Serializable.class.isAssignableFrom(samBase);
@@ -276,7 +280,6 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         // Forward the SAM method
         MethodVisitor mv = cw.visitMethod(ACC_PUBLIC, samMethodName,
                                           samMethodType.toMethodDescriptorString(), null, null);
-        mv.visitAnnotation(DESCR_HIDDEN, true);
         new ForwardingMethodGenerator(mv).generate(samMethodType);
 
         // Forward the bridges
@@ -284,7 +287,6 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             for (MethodType mt : additionalBridges) {
                 mv = cw.visitMethod(ACC_PUBLIC|ACC_BRIDGE, samMethodName,
                                     mt.toMethodDescriptorString(), null, null);
-                mv.visitAnnotation(DESCR_HIDDEN, true);
                 new ForwardingMethodGenerator(mv).generate(mt);
             }
         }
@@ -312,8 +314,12 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             // createDirectories may need it
             new PropertyPermission("user.dir", "read"));
         }
-        // this class is linked at the indy callsite.  No need to be weak class
-        return caller.defineClassAsLookupNoCheck(classBytes, HIDDEN_NESTMATE);
+        try {
+            // this class is linked at the indy callsite; so define a hidden nestmate
+            return caller.defineHiddenClassAsLookup(classBytes, true, NESTMATE);
+        } catch (IllegalAccessException e) {
+            throw new LambdaConversionException("Exception defining lambda proxy class", e);
+        }
     }
 
     /**

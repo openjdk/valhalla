@@ -21,20 +21,6 @@
  * questions.
  */
 
-/*
- *  The classfile for this class will be used to define a non-findable
- *  class.  The load of this class will fail because non-findable classes
- *  cannot user their name in field signatures.
- */
-public class NonFindableField implements Test {
-
-    NonFindableField other = null;
-
-    private void realTest() {
-        other = this;  // field signature test
-    }
-
-    public void test() {
-        realTest();
-    }
+public abstract class AbstractClass {
+    abstract void test();
 }

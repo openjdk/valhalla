@@ -54,7 +54,7 @@ import java.util.stream.Stream;
 import static java.lang.invoke.LambdaForm.*;
 import static java.lang.invoke.MethodHandleStatics.*;
 import static java.lang.invoke.MethodHandles.Lookup.IMPL_LOOKUP;
-import static java.lang.invoke.MethodHandles.Lookup.WEAK_HIDDEN_NESTMATE;
+import static java.lang.invoke.MethodHandleNatives.Constants.HIDDEN_CLASS;
 import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
 /**
@@ -1177,8 +1177,8 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                  *
                  * @CSM must be public and exported if called by any module.
                  */
-                String name = targetClass.getNestHost().getName() + "$$InjectedInvoker";
-                Lookup lookup = new Lookup(targetClass).defineClassAsLookupNoCheck(name, INJECTED_INVOKER_TEMPLATE, WEAK_HIDDEN_NESTMATE);
+                String name = targetClass.getName() + "$$InjectedInvoker";
+                Lookup lookup = new Lookup(targetClass).defineClassAsLookup(name, INJECTED_INVOKER_TEMPLATE, HIDDEN_CLASS, true, null);
                 Class<?> invokerClass = lookup.lookupClass();
                 assert checkInjectedInvoker(targetClass, invokerClass);
                 return lookup.findStatic(invokerClass, "invoke_V", INVOKER_MT);
@@ -1275,10 +1275,6 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             MethodVisitor mv = cw.visitMethod(ACC_STATIC, "invoke_V",
                           "(Ljava/lang/invoke/MethodHandle;[Ljava/lang/Object;)Ljava/lang/Object;",
                           null, null);
-
-            // Suppress invoker method in stack traces.
-            AnnotationVisitor av0 = mv.visitAnnotation(InvokerBytecodeGenerator.HIDDEN_SIG, true);
-            av0.visitEnd();
 
             mv.visitCode();
             mv.visitVarInsn(ALOAD, 0);

@@ -888,8 +888,9 @@ public:
     _flags = x ? (_flags | _dont_inline) : (_flags & ~_dont_inline);
   }
 
-  bool is_hidden() {
-    return (_flags & _hidden) != 0;
+  bool is_hidden() const {
+    // ## FIXME: should be set at class parsing time
+    return method_holder()->is_nonfindable() || (_flags & _hidden) != 0;
   }
   void set_hidden(bool x) {
     _flags = x ? (_flags | _hidden) : (_flags & ~_hidden);

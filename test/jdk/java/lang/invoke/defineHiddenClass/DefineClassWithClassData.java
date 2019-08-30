@@ -39,7 +39,7 @@ import java.util.stream.Stream;
 import jdk.internal.org.objectweb.asm.*;
 import org.testng.annotations.Test;
 
-import static java.lang.invoke.MethodHandles.Lookup.ClassProperty.*;
+import static java.lang.invoke.MethodHandles.Lookup.ClassOptions.*;
 import static java.lang.invoke.MethodHandles.Lookup.PRIVATE;
 import static jdk.internal.org.objectweb.asm.Opcodes.*;
 import static org.testng.Assert.*;
@@ -74,7 +74,7 @@ public class DefineClassWithClassData {
     @Test
     public void defineNestMate() throws Throwable {
         // define a nestmate
-        Lookup lookup = MethodHandles.lookup().defineClassWithClassData(T_CLASS_BYTES, classData, NESTMATE, HIDDEN);
+        Lookup lookup = MethodHandles.lookup().defineHiddenClassWithClassData(T_CLASS_BYTES, classData, NESTMATE);
         Class<?> c = lookup.lookupClass();
         assertTrue(c.getNestHost() == DefineClassWithClassData.class);
         assertEquals(classData, injectedData(c));
@@ -91,7 +91,7 @@ public class DefineClassWithClassData {
     @Test
     public void defineHiddenClass() throws Throwable {
         // define a hidden class
-        Lookup lookup = MethodHandles.lookup().defineClassWithClassData(T_CLASS_BYTES, classData, NESTMATE, HIDDEN);
+        Lookup lookup = MethodHandles.lookup().defineHiddenClassWithClassData(T_CLASS_BYTES, classData, NESTMATE);
         Class<?> c = lookup.lookupClass();
         assertTrue(c.getNestHost() == DefineClassWithClassData.class);
         assertTrue(c.isHiddenClass());
@@ -109,7 +109,7 @@ public class DefineClassWithClassData {
     @Test
     public void defineWeakClass() throws Throwable {
         // define a weak class
-        Lookup lookup = MethodHandles.lookup().defineClassWithClassData(T_CLASS_BYTES, classData, WEAK);
+        Lookup lookup = MethodHandles.lookup().defineHiddenClassWithClassData(T_CLASS_BYTES, classData, WEAK);
         Class<?> c = lookup.lookupClass();
         assertTrue(c.getNestHost() == c);
         assertTrue(c.isHiddenClass());
@@ -118,13 +118,13 @@ public class DefineClassWithClassData {
     @Test(expectedExceptions = IllegalAccessException.class)
     public void noPrivateLookupAccess() throws Throwable {
         Lookup lookup = MethodHandles.lookup().dropLookupMode(Lookup.PRIVATE);
-        lookup.defineClassWithClassData(T2_CLASS_BYTES, classData, NESTMATE, HIDDEN);
+        lookup.defineHiddenClassWithClassData(T2_CLASS_BYTES, classData, NESTMATE);
     }
 
     @Test(expectedExceptions = IllegalAccessException.class)
     public void teleportToNestmate() throws Throwable {
         Lookup lookup = MethodHandles.lookup()
-            .defineClassWithClassData(T_CLASS_BYTES, classData, NESTMATE, HIDDEN);
+            .defineHiddenClassWithClassData(T_CLASS_BYTES, classData, NESTMATE);
         Class<?> c = lookup.lookupClass();
         assertTrue(c.getNestHost() == DefineClassWithClassData.class);
         assertEquals(classData, injectedData(c));
@@ -134,7 +134,7 @@ public class DefineClassWithClassData {
         Lookup lookup2 =  MethodHandles.lookup().in(c);
         assertTrue((lookup2.lookupModes() & PRIVATE) == 0);
         // fail to define a nestmate
-        lookup2.defineClassWithClassData(T2_CLASS_BYTES, classData, NESTMATE, HIDDEN);
+        lookup2.defineHiddenClassWithClassData(T2_CLASS_BYTES, classData, NESTMATE);
     }
 
     static class ClassByteBuilder {
@@ -170,9 +170,9 @@ public class DefineClassWithClassData {
                 mv.visitTryCatchBlock(lTryBlockStart, lTryBlockEnd, lCatchBlockStart, "java/lang/IllegalAccessException");
 
                 mv.visitLabel(lTryBlockStart);
-                mv.visitMethodInsn(INVOKESTATIC, MH_CLS, "lookup", "()" + LOOKUP_SIG);
+                mv.visitMethodInsn(INVOKESTATIC, MH_CLS, "lookup", "()" + LOOKUP_SIG, false);
                 mv.visitLdcInsn(Type.getType(List.class));
-                mv.visitMethodInsn(INVOKEVIRTUAL, LOOKUP_CLS, "classData", "(Ljava/lang/Class;)Ljava/lang/Object;");
+                mv.visitMethodInsn(INVOKEVIRTUAL, LOOKUP_CLS, "classData", "(Ljava/lang/Class;)Ljava/lang/Object;", false);
                 mv.visitTypeInsn(CHECKCAST, LIST_CLS);
                 mv.visitFieldInsn(PUTSTATIC, classname, "data", LIST_SIG);
                 mv.visitLabel(lTryBlockEnd);
@@ -183,7 +183,7 @@ public class DefineClassWithClassData {
                 mv.visitTypeInsn(NEW, "java/lang/Error");
                 mv.visitInsn(DUP);
                 mv.visitVarInsn(ALOAD, 0);
-                mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Error", "<init>", "(Ljava/lang/Throwable;)V");
+                mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Error", "<init>", "(Ljava/lang/Throwable;)V", false);
                 mv.visitInsn(ATHROW);
                 mv.visitLabel(lCatchBlockEnd);
                 mv.visitInsn(RETURN);
@@ -195,7 +195,7 @@ public class DefineClassWithClassData {
                 mv = cw.visitMethod(ACC_PUBLIC, "<init>", "()V", null, null);
                 mv.visitCode();
                 mv.visitVarInsn(ALOAD, 0);
-                mv.visitMethodInsn(INVOKESPECIAL, OBJECT_CLS, "<init>", "()V");
+                mv.visitMethodInsn(INVOKESPECIAL, OBJECT_CLS, "<init>", "()V", false);
                 mv.visitInsn(RETURN);
                 mv.visitMaxs(0, 0);
                 mv.visitEnd();
@@ -205,7 +205,7 @@ public class DefineClassWithClassData {
                 mv.visitCode();
                 mv.visitVarInsn(ALOAD, 0);
                 mv.visitVarInsn(ALOAD, 1);
-                mv.visitMethodInsn(INVOKEVIRTUAL, hostClassName, "privMethod", "()I");
+                mv.visitMethodInsn(INVOKEVIRTUAL, hostClassName, "privMethod", "()I", false);
                 mv.visitInsn(IRETURN);
                 mv.visitMaxs(0, 0);
                 mv.visitEnd();
@@ -216,7 +216,7 @@ public class DefineClassWithClassData {
                 mv.visitCode();
                 mv.visitFieldInsn(GETSTATIC, "java/lang/System", "out", "Ljava/io/PrintStream;");
                 mv.visitFieldInsn(GETSTATIC, classname, "data", LIST_SIG);
-                mv.visitMethodInsn(INVOKEVIRTUAL, "java/io/PrintStream", "println", "(Ljava/lang/Object;)V");
+                mv.visitMethodInsn(INVOKEVIRTUAL, "java/io/PrintStream", "println", "(Ljava/lang/Object;)V", false);
                 mv.visitInsn(RETURN);
                 mv.visitMaxs(0, 0);
                 mv.visitEnd();

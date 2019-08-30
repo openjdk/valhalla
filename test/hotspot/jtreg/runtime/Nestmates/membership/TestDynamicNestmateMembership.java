@@ -32,9 +32,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.Path;
-import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import static java.lang.invoke.MethodHandles.Lookup.ClassProperty.*;
+import static java.lang.invoke.MethodHandles.Lookup.ClassOptions.*;
 
 /* package */ class DynamicNestmate { }
 
@@ -98,13 +97,13 @@ public class TestDynamicNestmateMembership {
     // Try to inject a class that is already part of another nest
     static void test_alreadyNestMember() {
         String name = "StaticHost$StaticMember";
-        inject(name, ClassFormatError.class);
+        inject(name, IllegalArgumentException.class);
     }
 
     // Try to inject a class that is already a nest host
     static void test_alreadyNestHost() {
         String name = "StaticHost";
-        inject(name, ClassFormatError.class);
+        inject(name, IllegalArgumentException.class);
     }
 
     // Try to inject a class that is in another package
@@ -125,7 +124,7 @@ public class TestDynamicNestmateMembership {
 
         try {
             byte[] bytes = getBytesForClass(name);
-            Class<?> nestmate = lookup.defineClass(bytes, NESTMATE);
+            Class<?> nestmate = lookup.defineHiddenClass(bytes, false, NESTMATE);
             if (ex != null) {
                 throw new RuntimeException(action + " was expected to throw " +
                                            ex.getSimpleName());

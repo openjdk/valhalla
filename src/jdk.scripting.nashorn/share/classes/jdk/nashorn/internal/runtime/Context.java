@@ -25,7 +25,7 @@
 
 package jdk.nashorn.internal.runtime;
 
-import static jdk.internal.org.objectweb.asm.Opcodes.V1_7;
+import static jdk.internal.org.objectweb.asm.Opcodes.*;
 import static jdk.nashorn.internal.codegen.CompilerConstants.CONSTANTS;
 import static jdk.nashorn.internal.codegen.CompilerConstants.CREATE_PROGRAM_FUNCTION;
 import static jdk.nashorn.internal.codegen.CompilerConstants.SOURCE;
@@ -41,6 +41,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodHandles.Lookup.ClassOptions;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.SwitchPoint;
 import java.lang.ref.ReferenceQueue;
@@ -67,7 +68,6 @@ import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -84,10 +84,12 @@ import java.util.logging.Level;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.script.ScriptEngine;
+
 import jdk.dynalink.DynamicLinker;
 import jdk.internal.org.objectweb.asm.ClassReader;
 import jdk.internal.org.objectweb.asm.ClassWriter;
-import jdk.internal.org.objectweb.asm.Opcodes;
+import jdk.internal.org.objectweb.asm.FieldVisitor;
+import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.internal.org.objectweb.asm.util.CheckClassAdapter;
 import jdk.nashorn.api.scripting.ClassFilter;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
@@ -108,7 +110,6 @@ import jdk.nashorn.internal.runtime.logging.Loggable;
 import jdk.nashorn.internal.runtime.logging.Logger;
 import jdk.nashorn.internal.runtime.options.LoggingOption.LoggerInfo;
 import jdk.nashorn.internal.runtime.options.Options;
-import jdk.internal.misc.Unsafe;
 
 /**
  * This class manages the global state of execution. Context is immutable.
@@ -318,21 +319,38 @@ public final class Context {
     private final WeakValueCache<CodeSource, Class<?>> anonymousHostClasses = new WeakValueCache<>();
 
     private static final class AnonymousContextCodeInstaller extends ContextCodeInstaller {
-        private static final Unsafe UNSAFE = Unsafe.getUnsafe();
         private static final String ANONYMOUS_HOST_CLASS_NAME = Compiler.SCRIPTS_PACKAGE.replace('/', '.') + ".AnonymousHost";
         private static final byte[] ANONYMOUS_HOST_CLASS_BYTES = getAnonymousHostClassBytes();
 
-        private final Class<?> hostClass;
+        private final MethodHandles.Lookup hostLookup;
 
         private AnonymousContextCodeInstaller(final Context context, final CodeSource codeSource, final Class<?> hostClass) {
             super(context, codeSource);
-            this.hostClass = hostClass;
+            this.hostLookup = (MethodHandles.Lookup)staticFieldValue(hostClass, "LOOKUP");
+        }
+
+        private static Object staticFieldValue(Class<?> c, String name) {
+            try {
+                return AccessController.doPrivileged(new PrivilegedExceptionAction<Object>() {
+                        @Override
+                        public Object run() throws Exception {
+                            Field f = c.getDeclaredField(name);
+                            return f.get(null);
+                        }
+                });
+            } catch (PrivilegedActionException e) {
+                throw new InternalError(e.getCause());
+            }
         }
 
         @Override
         public Class<?> install(final String className, final byte[] bytecode) {
-            ANONYMOUS_INSTALLED_SCRIPT_COUNT.increment();
-            return UNSAFE.defineAnonymousClass(hostClass, bytecode, null);
+            try {
+                ANONYMOUS_INSTALLED_SCRIPT_COUNT.increment();
+                return hostLookup.defineHiddenClass(bytecode, false, ClassOptions.WEAK);
+            } catch (IllegalAccessException e) {
+                throw new InternalError(e);
+            }
         }
 
         @Override
@@ -350,8 +368,27 @@ public final class Context {
         }
 
         private static byte[] getAnonymousHostClassBytes() {
+            // Workaround: define a host class in a non-exported package.
+            // This should be replaced when there is a mechanism to define
+            // a hidden class in a given package of a given module.
             final ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-            cw.visit(V1_7, Opcodes.ACC_INTERFACE | Opcodes.ACC_ABSTRACT, ANONYMOUS_HOST_CLASS_NAME.replace('.', '/'), null, "java/lang/Object", null);
+            final String cn = ANONYMOUS_HOST_CLASS_NAME.replace('.', '/');
+            cw.visit(V13, ACC_PUBLIC|ACC_INTERFACE |ACC_ABSTRACT, cn, null, "java/lang/Object", null);
+            {
+                FieldVisitor fv = cw.visitField(ACC_PUBLIC|ACC_STATIC|ACC_FINAL, "LOOKUP",
+                        "Ljava/lang/invoke/MethodHandles$Lookup;", null, null);
+                fv.visitEnd();
+            }
+            {
+                MethodVisitor mv = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
+                mv.visitCode();
+                mv.visitMethodInsn(INVOKESTATIC, "java/lang/invoke/MethodHandles", "lookup",
+                        "()Ljava/lang/invoke/MethodHandles$Lookup;", false);
+                mv.visitFieldInsn(PUTSTATIC, cn, "LOOKUP", "Ljava/lang/invoke/MethodHandles$Lookup;");
+                mv.visitInsn(RETURN);
+                mv.visitMaxs(0, 0);
+                mv.visitEnd();
+            }
             cw.visitEnd();
             return cw.toByteArray();
         }

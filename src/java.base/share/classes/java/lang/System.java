@@ -35,6 +35,8 @@ import java.io.InputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.annotation.Annotation;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodType;
 import java.lang.module.ModuleDescriptor;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Executable;
@@ -2282,6 +2284,11 @@ public final class System {
             public ProtectionDomain protectionDomain(Class<?> c) {
                 return c.protectionDomain();
             }
+
+            public MethodHandle stringConcatHelper(String name, MethodType methodType) {
+                return StringConcatHelper.lookupStatic(name, methodType);
+            }
+
         });
     }
 }

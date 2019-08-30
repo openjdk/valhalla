@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @ignore 8227415
  * @bug 8219998 8221991
  * @summary Eliminate inherently singleton lists
  * @library /tools/lib ../../lib

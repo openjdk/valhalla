@@ -63,7 +63,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Stream;
 import java.util.stream.Collectors;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
@@ -129,10 +128,9 @@ import sun.reflect.misc.ReflectUtil;
  * enclosed within the top-level class declaration.
  *
  * <p> Some methods of class {@code Class} expose some characteristics of
- * a class defined via
- * {@link java.lang.invoke.MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty...)
- * Lookup::defineClass} API such as whether this class is a
- * {@linkplain #isHiddenClass() hidden class}.
+ * hidden classes that can be defined by calling
+ * {@link java.lang.invoke.MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOptions...)
+ * Lookup::defineHiddenClass}.
  *
  * <p> The following example uses a {@code Class} object to print the
  * class name of an object:
@@ -760,6 +758,9 @@ public final class Class<T> implements java.io.Serializable,
      * array type then the binary name of the class is returned, as specified
      * by
      * <cite>The Java&trade; Language Specification</cite>.
+     *
+     * <p> If this class object represents a {@linkplain #isHiddenClass() hidden class},
+     * then the name is given by the JVM and it may not be a valid binary name.
      *
      * <p> If this class object represents a primitive type or void, then the
      * name returned is a {@code String} equal to the Java language
@@ -1655,7 +1656,8 @@ public final class Class<T> implements java.io.Serializable,
 
     /**
      * Returns {@code true} if and only if the underlying class
-     * is an anonymous class.
+     * is an anonymous class.  An anonymous class is not a
+     * {@linkplain #isHiddenClass() hidden class}.
      *
      * @return {@code true} if and only if this class is an anonymous class.
      * @since 1.5
@@ -3922,10 +3924,11 @@ public final class Class<T> implements java.io.Serializable,
      * {@code NestMembers} attribute (JVMS 4.7.29).
      * A {@code class} file of version 54.0 or lower does not use these
      * attributes.
-     * A class defined at runtime in a nest via
-     * {@link MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty[])}
-     * must not have the {@code NestHost} attribute and is not enumerated
-     * in the {@code NestMembers} attribute of the class file of the nest host.
+     * If this class was created by calling
+     * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOptions...)
+     * Lookup.defineHiddenClass}
+     * and added to the nest of the lookup object's lookup class, then
+     * this class has the same nest host as the lookup class.
      *
      * @return the nest host of this class or interface
      *
@@ -4018,16 +4021,12 @@ public final class Class<T> implements java.io.Serializable,
      * interface records itself as a member of that same nest. Any exceptions
      * that occur during this validation are rethrown by this method.
      *
-     * <p>This method does not return the
-     * {@linkplain MethodHandles.Lookup.ClassProperty#NESTMATE nest members}
-     * defined dynamically via
-     * {@link MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty...)}.
-     *
      * @apiNote
-     * Reflection API presents the static view of this class. The dynamic
-     * nestmates are not listed in the {@code NestMembers} attribute.
-     * We can revisit this in the future if there is a need to find
-     * all dynamically defined nest members.
+     * This method returns the nest members listed in the {@code NestMembers}
+     * attribute.  The returned array does not include nest members created
+     * by calling
+     * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOptions...)
+     * Lookup.defineHiddenClass}.
      *
      * @return an array of all classes and interfaces in the same nest as
      * this class
@@ -4045,7 +4044,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since 11
      * @see #getNestHost()
-     * @see MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty...)
+     * @see MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOptions...)
      */
     @CallerSensitive
     public Class<?>[] getNestMembers() {
@@ -4135,28 +4134,21 @@ public final class Class<T> implements java.io.Serializable,
     /**
      * Returns {@code true} if this class is a hidden class.
      *
-     * <p> A <em>hidden class</em> is a class to which no constant pool entry
-     * (or symbolic reference derived therefrom) can refer.
-     * Loading, linking, and initializing of a hidden class are controlled solely
-     * by invocations on the {@link MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty...)
-     * MethodHandles.Lookup} object.
-     *
-     * <p> A hidden class does not have a {@linkplain #getCanonicalName()
-     * canonical name}.
-     *
-     * <p> If this class is hidden then it cannot be found via its name
-     * including {@link Class#forName(String) Class.forName(this.getName())},
+     * <p> A <em>hidden class</em> is non-discoverable by class loaders
+     * by bytecode linkage.  It cannot be found by
+     * {@link Class#forName(String) Class.forName(this.getName())},
      * {@link ClassLoader#findLoadedClass},
      * and {@link MethodHandles.Lookup#findClass(String) MethodHandles.Lookup.findClass}.
      *
      * <p> If this class is an array class and its component class is hidden,
      * then this array class is also hidden.
      *
-     * @return {@code true} if this class is hidden; otherwise {@code false}.
+     * <p> An anonymous class is not a hidden class.
+     *
+     * @return {@code true} if this class is a hidden class; otherwise {@code false}.
      *
      * @since 14
-     * @see MethodHandles.Lookup.ClassProperty#HIDDEN
-     * @see MethodHandles.Lookup#defineClass(byte[], MethodHandles.Lookup.ClassProperty[])
+     * @see MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOptions...)
      */
     public boolean isHiddenClass() {
         return getName().indexOf('/') > -1;
