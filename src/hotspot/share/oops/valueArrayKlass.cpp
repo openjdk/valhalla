@@ -184,6 +184,12 @@ oop ValueArrayKlass::protection_domain() const {
   return element_klass()->protection_domain();
 }
 
+// Temp hack having this here: need to move towards Access API
+static bool needs_backwards_copy(arrayOop s, int src_pos,
+                                 arrayOop d, int dst_pos, int length) {
+  return oopDesc::equals(s, d) && (dst_pos > src_pos) && (dst_pos - src_pos) < length;
+}
+
 void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
                                  arrayOop d, int dst_pos, int length, TRAPS) {
 
@@ -236,10 +242,21 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
        if (contains_oops()) {
          int elem_incr = 1 << log2_element_size();
          address src_end = src + (length << log2_element_size());
-         while (src < src_end) {
-           s_elem_vklass->value_store(src, dst, element_byte_size(), true, false);
-           src += elem_incr;
-           dst += elem_incr;
+         if (needs_backwards_copy(s, src_pos, d, dst_pos, length)) {
+           swap(src, src_end);
+           dst = dst + (length << log2_element_size());
+           do {
+             src -= elem_incr;
+             dst -= elem_incr;
+             s_elem_vklass->value_store(src, dst, element_byte_size(), true, false);
+           } while (src > src_end);
+         } else {
+           address src_end = src + (length << log2_element_size());
+           while (src < src_end) {
+             s_elem_vklass->value_store(src, dst, element_byte_size(), true, false);
+             src += elem_incr;
+             dst += elem_incr;
+           }
          }
        } else {
          // we are basically a type array...don't bother limiting element copy

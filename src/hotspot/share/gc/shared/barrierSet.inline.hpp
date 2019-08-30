@@ -33,28 +33,34 @@
 
 template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
-inline bool BarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+inline void BarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
                                                                                       arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                                                                                       size_t length) {
   T* src = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
   T* dst = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
 
-  if (!HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value) {
+  if ((!HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value) &&
+      (!HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value)) {
     // Covariant, copy without checks
-    return Raw::oop_arraycopy(NULL, 0, src, NULL, 0, dst, length);
+    Raw::oop_arraycopy(NULL, 0, src, NULL, 0, dst, length);
+    return;
   }
 
   // Copy each element with checking casts
   Klass* const dst_klass = objArrayOop(dst_obj)->element_klass();
   for (const T* const end = src + length; src < end; src++, dst++) {
     const T elem = *src;
-    if (!oopDesc::is_instanceof_or_null(CompressedOops::decode(elem), dst_klass)) {
-      return false;
+    if (HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value && CompressedOops::is_null(elem)) {
+      throw_array_null_pointer_store_exception(src_obj, dst_obj, Thread::current());
+      return;
+    }
+    if (HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value &&
+        (!oopDesc::is_instanceof_or_null(CompressedOops::decode(elem), dst_klass))) {
+      throw_array_store_exception(src_obj, dst_obj, Thread::current());
+      return;
     }
     *dst = elem;
   }
-
-  return true;
 }
 
 #endif // SHARE_GC_SHARED_BARRIERSET_INLINE_HPP

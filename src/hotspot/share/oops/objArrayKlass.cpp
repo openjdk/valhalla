@@ -233,26 +233,20 @@ void ObjArrayKlass::do_copy(arrayOop s, size_t src_offset,
     // We have to make sure all elements conform to the destination array
     Klass* bound = ObjArrayKlass::cast(d->klass())->element_klass();
     Klass* stype = ObjArrayKlass::cast(s->klass())->element_klass();
+    // Perform null check if dst is null-free but src has no such guarantee
+    bool null_check = ((!ArrayKlass::cast(s->klass())->storage_properties().is_null_free()) &&
+        ArrayKlass::cast(d->klass())->storage_properties().is_null_free());
     if (stype == bound || stype->is_subtype_of(bound)) {
-      // elements are guaranteed to be subtypes, so no check necessary
-      ArrayAccess<ARRAYCOPY_DISJOINT>::oop_arraycopy(s, src_offset, d, dst_offset, length);
+      if (null_check) {
+        ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_NOTNULL>::oop_arraycopy(s, src_offset, d, dst_offset, length);
+      } else {
+        ArrayAccess<ARRAYCOPY_DISJOINT>::oop_arraycopy(s, src_offset, d, dst_offset, length);
+      }
     } else {
-      // slow case: need individual subtype checks
-      // note: don't use obj_at_put below because it includes a redundant store check
-      if (!ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_CHECKCAST>::oop_arraycopy(s, src_offset, d, dst_offset, length)) {
-        ResourceMark rm(THREAD);
-        stringStream ss;
-        if (!bound->is_subtype_of(stype)) {
-          ss.print("arraycopy: type mismatch: can not copy %s[] into %s[]",
-                   stype->external_name(), bound->external_name());
-        } else {
-          // oop_arraycopy should return the index in the source array that
-          // contains the problematic oop.
-          ss.print("arraycopy: element type mismatch: can not cast one of the elements"
-                   " of %s[] to the type of the destination array, %s",
-                   stype->external_name(), bound->external_name());
-        }
-        THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
+      if (null_check) {
+        ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_CHECKCAST | ARRAYCOPY_NOTNULL>::oop_arraycopy(s, src_offset, d, dst_offset, length);
+      } else {
+        ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_CHECKCAST>::oop_arraycopy(s, src_offset, d, dst_offset, length);
       }
     }
   }
@@ -320,28 +314,7 @@ void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
   if (length==0) {
     return;
   }
-  if (EnableValhalla && ArrayKlass::cast(d->klass())->element_klass()->is_value()) {
-    assert(d->is_objArray(), "Expected objArray");
-    ValueKlass* d_elem_vklass = ValueKlass::cast(ArrayKlass::cast(d->klass())->element_klass());
-    objArrayOop da = objArrayOop(d);
-    objArrayOop sa = objArrayOop(s);
-    int src_end = src_pos + length;
-    bool null_free = ArrayKlass::cast(s->klass())->storage_properties().is_null_free() ||
-                     ArrayKlass::cast(d->klass())->storage_properties().is_null_free();
-    while (src_pos < src_end) {
-      oop se = sa->obj_at(src_pos);
-      if (null_free && se == NULL) {
-        THROW(vmSymbols::java_lang_NullPointerException());
-      }
-      // Check exact type per element
-      if (se != NULL && se->klass() != d_elem_vklass) {
-        THROW(vmSymbols::java_lang_ArrayStoreException());
-      }
-      da->obj_at_put(dst_pos, se);  // TODO: review with ValueArrayKlass::copy_array and Access API
-      dst_pos++;
-      src_pos++;
-    }
-  } else if (UseCompressedOops) {
+  if (UseCompressedOops) {
     size_t src_offset = (size_t) objArrayOopDesc::obj_at_offset<narrowOop>(src_pos);
     size_t dst_offset = (size_t) objArrayOopDesc::obj_at_offset<narrowOop>(dst_pos);
     assert(arrayOopDesc::obj_offset_to_raw<narrowOop>(s, src_offset, NULL) ==

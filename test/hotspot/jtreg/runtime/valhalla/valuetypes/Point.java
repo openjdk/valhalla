@@ -26,9 +26,9 @@ public inline final class Point {
     final int x;
     final int y;
 
-    private Point() {
-        x = 0;
-        y = 0;
+    private Point(int x, int y) {
+        this.x = x;
+        this.y = y;
     }
 
     public int getX() { return x; }
@@ -51,9 +51,6 @@ public inline final class Point {
     }
 
     public static Point createPoint(int x, int y) {
-        Point p = Point.default;
-        p = __WithField(p.x, x);
-        p = __WithField(p.y, y);
-        return p;
+        return new Point(x, y);
     }
 }

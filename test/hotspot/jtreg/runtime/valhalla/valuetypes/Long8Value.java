@@ -36,15 +36,15 @@ public final inline class Long8Value {
     final long longField7;
     final long longField8;
 
-    private Long8Value() {
-        longField1 = 0;
-        longField2 = 0;
-        longField3 = 0;
-        longField4 = 0;
-        longField5 = 0;
-        longField6 = 0;
-        longField7 = 0;
-        longField8 = 0;
+    private Long8Value(long l1, long l2, long l3, long l4, long l5, long l6, long l7, long l8) {
+        longField1 = l1;
+        longField2 = l2;
+        longField3 = l3;
+        longField4 = l4;
+        longField5 = l5;
+        longField6 = l6;
+        longField7 = l7;
+        longField8 = l8;
     }
 
     public long getLongField1() { return longField1; }
@@ -64,16 +64,7 @@ public final inline class Long8Value {
             long long6,
             long long7,
             long long8) {
-        Long8Value l8v = Long8Value.default;
-        l8v = __WithField(l8v.longField1, long1);
-        l8v = __WithField(l8v.longField2, long2);
-        l8v = __WithField(l8v.longField3, long3);
-        l8v = __WithField(l8v.longField4, long4);
-        l8v = __WithField(l8v.longField5, long5);
-        l8v = __WithField(l8v.longField6, long6);
-        l8v = __WithField(l8v.longField7, long7);
-        l8v = __WithField(l8v.longField8, long8);
-        return l8v;
+        return new Long8Value(long1, long2, long3, long4, long5, long6, long7, long8);
     }
 
     static void check(Long8Value value,

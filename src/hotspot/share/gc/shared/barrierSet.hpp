@@ -30,6 +30,7 @@
 #include "oops/access.hpp"
 #include "oops/accessBackend.hpp"
 #include "oops/oopsHierarchy.hpp"
+#include "utilities/exceptions.hpp"
 #include "utilities/fakeRttiSupport.hpp"
 #include "utilities/macros.hpp"
 
@@ -120,6 +121,9 @@ protected:
   static BarrierSetC2* make_barrier_set_c2() {
     return COMPILER2_PRESENT(new BarrierSetC2T()) NOT_COMPILER2(NULL);
   }
+
+  static void throw_array_null_pointer_store_exception(arrayOop src, arrayOop dst, TRAPS);
+  static void throw_array_store_exception(arrayOop src, arrayOop dst, TRAPS);
 
 public:
   // Support for optimizing compilers to call the barrier set on slow path allocations
@@ -283,7 +287,7 @@ public:
     }
 
     template <typename T>
-    static bool oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+    static void oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
                                       arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                                       size_t length);
 

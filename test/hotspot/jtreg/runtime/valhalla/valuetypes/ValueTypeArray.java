@@ -34,7 +34,7 @@ import static jdk.test.lib.Asserts.*;
  * @test ValueTypeArray
  * @summary Plain array test for Inline Types
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers -XDallowGenericsOverValues ValueTypeArray.java Point.java Long8Value.java Person.java
+ * @compile -XDallowGenericsOverValues ValueTypeArray.java Point.java Long8Value.java Person.java
  * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=-1 runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=0  runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=-1 runtime.valhalla.valuetypes.ValueTypeArray
@@ -109,28 +109,43 @@ public class ValueTypeArray {
         assertTrue(gotNpe, "Expected NullPointerException");
 
         Point[] points = createSimplePointArray();
-        checkSimplePointArray(points);
         System.gc(); // check that VTs survive GC
+        checkSimplePointArray(points);
 
         assertTrue(points instanceof Point[], "Instance of");
 
+        testSimplePointArrayCopy();
+    }
+
+    void testSimplePointArrayCopy() {
+        Point[] points = createSimplePointArray();
         Point[] pointsCopy = new Point[points.length];
         System.arraycopy(points, 0, pointsCopy, 0, points.length);
         checkSimplePointArray(pointsCopy);
+
+        // Conjoint, overlap...left
+        System.arraycopy(points, 0, points, 1, 2);
+        checkArrayElementsEqual(points, new Point[] { pointsCopy[0], pointsCopy[0], pointsCopy[1], pointsCopy[3] });
+
+        // Conjoint, overlap...right
+        points = createSimplePointArray();
+        System.arraycopy(points, 2, points, 1, 2);
+        checkArrayElementsEqual(points, new Point[] { pointsCopy[0], pointsCopy[2], pointsCopy[3], pointsCopy[3] });
     }
 
     static Point[] createSimplePointArray() {
-        Point[] ps = new Point[2];
-        assertEquals(ps.length, 2, "Length");
+        Point[] ps = new Point[4];
+        assertEquals(ps.length, 4, "Length");
         ps.toString();
         ps[0] = Point.createPoint(1, 2);
         ps[1] = Point.createPoint(3, 4);
+        ps[2] = Point.createPoint(5, 6);
+        ps[3] = Point.createPoint(7, 8);
         boolean sawOob = false;
         try {
-            ps[2] = Point.createPoint(0, 0);
+            ps[ps.length] = Point.createPoint(0, 0);
         } catch (ArrayIndexOutOfBoundsException aioobe) { sawOob = true; }
         assertTrue(sawOob, "Didn't see AIOOBE");
-        System.gc(); // check that VTs survive GC
         return ps;
     }
 
@@ -139,6 +154,10 @@ public class ValueTypeArray {
         assertEquals(points[0].y, 2, "invalid 0 point y value");
         assertEquals(points[1].x, 3, "invalid 1 point x value");
         assertEquals(points[1].y, 4, "invalid 1 point y value");
+        assertEquals(points[2].x, 5, "invalid 2 point x value");
+        assertEquals(points[2].y, 6, "invalid 2 point y value");
+        assertEquals(points[3].x, 7, "invalid 3 point x value");
+        assertEquals(points[3].y, 8, "invalid 3 point y value");
     }
 
     void testLong8Array() {
@@ -213,7 +232,8 @@ public class ValueTypeArray {
     static final inline class MyInt implements Comparable<MyInt?> {
         final int value;
 
-        private MyInt() { value = 0; }
+        private MyInt() { this(0); }
+        private MyInt(int v) { value = v; }
         public int getValue() { return value; }
         public String toString() { return "MyInt: " + getValue(); }
         public int compareTo(MyInt? that) { return Integer.compare(this.getValue(), that.getValue()); }
@@ -225,9 +245,7 @@ public class ValueTypeArray {
         }
 
         public static MyInt create(int v) {
-            MyInt mi = MyInt.default;
-            mi = __WithField(mi.value, v);
-            return mi;
+            return new MyInt(v);
         }
 
         // Null-able fields here are a temp hack to avoid ClassCircularityError
@@ -426,9 +444,10 @@ public class ValueTypeArray {
         final               MyInt x;
         final               MyInt y;
 
-        private MyPoint() {
-            x = (MyInt) MyInt.ZERO;
-            y = x;
+        private MyPoint() { this(0, 0); }
+        private MyPoint(int x, int y) {
+            this.x = new MyInt(x);
+            this.y = new MyInt(y);
         }
         public boolean equals(Object that) {
             if (that instanceof MyPoint) {
@@ -438,15 +457,10 @@ public class ValueTypeArray {
             return false;
         }
         static MyPoint create(int x) {
-            MyPoint mp = MyPoint.default;
-            mp = __WithField(mp.x, MyInt.create(x));
-            return mp;
+            return new MyPoint(x, x);
         }
         static MyPoint create(int x, int y) {
-            MyPoint mp = MyPoint.default;
-            mp = __WithField(mp.x, MyInt.create(x));
-            mp = __WithField(mp.y, MyInt.create(y));
-            return mp;
+            return new MyPoint(x, y);
         }
         static final MyPoint? ORIGIN = create(0);
     }

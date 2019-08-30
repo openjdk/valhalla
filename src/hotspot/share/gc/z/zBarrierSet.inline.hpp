@@ -170,32 +170,38 @@ inline oop ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_atomic_xchg_
 
 template <DecoratorSet decorators, typename BarrierSetT>
 template <typename T>
-inline bool ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy_in_heap(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
                                                                                        arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                                                                                        size_t length) {
   T* src = arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw);
   T* dst = arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw);
 
-  if (!HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value) {
+  if ((!HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value) &&
+      (!HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value)) {
     // No check cast, bulk barrier and bulk copy
     ZBarrier::load_barrier_on_oop_array(src, length);
-    return Raw::oop_arraycopy_in_heap(NULL, 0, src, NULL, 0, dst, length);
+    Raw::oop_arraycopy_in_heap(NULL, 0, src, NULL, 0, dst, length);
+    return;
   }
 
   // Check cast and copy each elements
   Klass* const dst_klass = objArrayOop(dst_obj)->element_klass();
   for (const T* const end = src + length; src < end; src++, dst++) {
     const oop elem = ZBarrier::load_barrier_on_oop_field(src);
-    if (!oopDesc::is_instanceof_or_null(elem, dst_klass)) {
+    if (HasDecorator<decorators, ARRAYCOPY_NOTNULL>::value && elem == NULL) {
+      throw_array_null_pointer_store_exception(src_obj, dst_obj, Thread::current());
+      return;
+    }
+    if (HasDecorator<decorators, ARRAYCOPY_CHECKCAST>::value &&
+        (!oopDesc::is_instanceof_or_null(elem, dst_klass))) {
       // Check cast failed
-      return false;
+      throw_array_store_exception(src_obj, dst_obj, Thread::current());
+      return;
     }
 
     // Cast is safe, since we know it's never a narrowOop
     *(oop*)dst = elem;
   }
-
-  return true;
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>

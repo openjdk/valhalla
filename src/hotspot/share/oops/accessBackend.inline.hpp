@@ -118,12 +118,12 @@ inline T RawAccessBarrier<decorators>::oop_atomic_xchg_at(T new_value, oop base,
 
 template <DecoratorSet decorators>
 template <typename T>
-inline bool RawAccessBarrier<decorators>::oop_arraycopy(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+inline void RawAccessBarrier<decorators>::oop_arraycopy(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
                                                         arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                                                         size_t length) {
-  return arraycopy(src_obj, src_offset_in_bytes, src_raw,
-                   dst_obj, dst_offset_in_bytes, dst_raw,
-                   length);
+  arraycopy(src_obj, src_offset_in_bytes, src_raw,
+            dst_obj, dst_offset_in_bytes, dst_raw,
+            length);
 }
 
 template <DecoratorSet decorators>
@@ -334,13 +334,12 @@ template<> struct RawAccessBarrierArrayCopy::IsHeapWordSized<void>: public Integ
 
 template <DecoratorSet decorators>
 template <typename T>
-inline bool RawAccessBarrier<decorators>::arraycopy(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
+inline void RawAccessBarrier<decorators>::arraycopy(arrayOop src_obj, size_t src_offset_in_bytes, T* src_raw,
                                                     arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                                                     size_t length) {
   RawAccessBarrierArrayCopy::arraycopy<decorators>(src_obj, src_offset_in_bytes, src_raw,
                                                    dst_obj, dst_offset_in_bytes, dst_raw,
                                                    length);
-  return true;
 }
 
 template <DecoratorSet decorators>

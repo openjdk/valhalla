@@ -29,10 +29,10 @@ public final inline class Person {
     final String firstName;
     final String lastName;
 
-    private Person() {
-        id = 0;
-        firstName = null;
-        lastName = null;
+    private Person(int id, String firstName, String lastName) {
+        this.id = id;
+        this.firstName = firstName;
+        this.lastName = lastName;
     }
 
     public int getId() { return id; }
@@ -44,10 +44,6 @@ public final inline class Person {
     }
 
     static Person create(int id, String firstName, String lastName) {
-        Person p = Person.default;
-        p = __WithField(p.id, id);
-        p = __WithField(p.firstName, firstName);
-        p = __WithField(p.lastName, lastName);
-        return p;
+        return new Person(id, firstName, lastName);
     }
 }

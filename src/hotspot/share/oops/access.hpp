@@ -131,14 +131,14 @@ class Access: public AllStatic {
 
 protected:
   template <typename T>
-  static inline bool oop_arraycopy(arrayOop src_obj, size_t src_offset_in_bytes, const T* src_raw,
+  static inline void oop_arraycopy(arrayOop src_obj, size_t src_offset_in_bytes, const T* src_raw,
                                    arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                                    size_t length) {
     verify_decorators<ARRAYCOPY_DECORATOR_MASK | IN_HEAP |
                       AS_DECORATOR_MASK | IS_ARRAY | IS_DEST_UNINITIALIZED>();
-    return AccessInternal::arraycopy<decorators | INTERNAL_VALUE_IS_OOP>(src_obj, src_offset_in_bytes, src_raw,
-                                                                         dst_obj, dst_offset_in_bytes, dst_raw,
-                                                                         length);
+    AccessInternal::arraycopy<decorators | INTERNAL_VALUE_IS_OOP>(src_obj, src_offset_in_bytes, src_raw,
+                                                                  dst_obj, dst_offset_in_bytes, dst_raw,
+                                                                  length);
   }
 
   template <typename T>
@@ -329,19 +329,19 @@ public:
                        length);
   }
 
-  static inline bool oop_arraycopy(arrayOop src_obj, size_t src_offset_in_bytes,
+  static inline void oop_arraycopy(arrayOop src_obj, size_t src_offset_in_bytes,
                                    arrayOop dst_obj, size_t dst_offset_in_bytes,
                                    size_t length) {
-    return AccessT::oop_arraycopy(src_obj, src_offset_in_bytes, reinterpret_cast<const HeapWord*>(NULL),
-                                  dst_obj, dst_offset_in_bytes, reinterpret_cast<HeapWord*>(NULL),
-                                  length);
+    AccessT::oop_arraycopy(src_obj, src_offset_in_bytes, reinterpret_cast<const HeapWord*>(NULL),
+                           dst_obj, dst_offset_in_bytes, reinterpret_cast<HeapWord*>(NULL),
+                           length);
   }
 
   template <typename T>
-  static inline bool oop_arraycopy_raw(T* src, T* dst, size_t length) {
-    return AccessT::oop_arraycopy(NULL, 0, src,
-                                  NULL, 0, dst,
-                                  length);
+  static inline void oop_arraycopy_raw(T* src, T* dst, size_t length) {
+    AccessT::oop_arraycopy(NULL, 0, src,
+                           NULL, 0, dst,
+                           length);
   }
 
 };
