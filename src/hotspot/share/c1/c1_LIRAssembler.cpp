@@ -625,22 +625,48 @@ void LIR_Assembler::add_scalarized_entry_info(int pc_offset) {
   debug_info->end_safepoint(pc_offset);
 }
 
-// Emit VEP (and VVEP/VEP_RO if necessary)
+// The entries points of C1-compiled methods can have the following types:
+// (1) Methods with no value args
+// (2) Methods with value receiver but no value args
+//     VVEP_RO is the same as VVEP
+// (3) Methods with non-value receiver and some value args
+//     VVEP_RO is the same as VEP
+// (4) Methods with value receiver and other value args
+//     Separate VEP, VVEP and VVEP_RO
+//
+// (1)               (2)                 (3)                    (4)
+// UEP/UVEP:         VEP:                UEP:                   UEP:
+//   check_icache      pack receiver       check_icache           check_icache
+// VEP/VVEP/VVEP_RO  UEP/UVEP:           VEP/VVEP_RO:           VVEP_RO:
+//   body              check_icache        pack value args        pack value args (except receiver)
+//                   VVEP/VVEP_RO        UVEP:                  VEP:
+//                     body                check_icache           pack all value args
+//                                       VVEP:                  UVEP:
+//                                         body                   check_icache
+//                                                              VVEP:
+//                                                                body
+//
+// Note: after packing, we jump to the method body.
 void LIR_Assembler::emit_std_entries() {
   offsets()->set_value(CodeOffsets::OSR_Entry, _masm->offset());
 
   const CompiledEntrySignature* ces = compilation()->compiled_entry_signature();
 
   _masm->align(CodeEntryAlignment);
-  offsets()->set_value(CodeOffsets::Entry, _masm->offset());
-  if (needs_icache(compilation()->method())) {
-    check_icache();
-  }
 
   if (ces->has_scalarized_args()) {
     assert(ValueTypePassFieldsAsArgs && method()->get_Method()->has_scalarized_args(), "must be");
 
     CodeOffsets::Entries ro_entry_type = ces->c1_value_ro_entry_type();
+
+    if (ro_entry_type != CodeOffsets::Verified_Value_Entry) {
+      // This is the UEP. It will fall-through to VEP or VVEP(RO)
+      offsets()->set_value(CodeOffsets::Entry, _masm->offset());
+      if (needs_icache(compilation()->method())) {
+        check_icache();
+      }
+    }
+
     if (ro_entry_type == CodeOffsets::Verified_Value_Entry_RO) {
       // VVEP(RO) = pack all value parameters, except the <this> object.
       add_scalarized_entry_info(emit_std_entry(CodeOffsets::Verified_Value_Entry_RO, ces));
@@ -651,7 +677,14 @@ void LIR_Assembler::emit_std_entries() {
     add_scalarized_entry_info(emit_std_entry(CodeOffsets::Verified_Entry, ces));
 
     _masm->align(CodeEntryAlignment);
+    // This is the UVEP. It will fall-through to VVEP.
     offsets()->set_value(CodeOffsets::Value_Entry, _masm->offset());
+    if (ro_entry_type == CodeOffsets::Verified_Value_Entry) {
+      // Special case if we have VVEP == VVEP(RO):
+      // this means UVEP (called by C1) == UEP (called by C2).
+      offsets()->set_value(CodeOffsets::Entry, _masm->offset());
+    }
+
     if (needs_icache(compilation()->method())) {
       check_icache();
     }
@@ -659,11 +692,19 @@ void LIR_Assembler::emit_std_entries() {
     emit_std_entry(CodeOffsets::Verified_Value_Entry, NULL);
 
     if (ro_entry_type != CodeOffsets::Verified_Value_Entry_RO) {
+      // The VVEP(RO) is the same as VEP or VVEP
+      assert(ro_entry_type == CodeOffsets::Verified_Entry ||
+             ro_entry_type == CodeOffsets::Verified_Value_Entry, "must be");
       offsets()->set_value(CodeOffsets::Verified_Value_Entry_RO,
                            offsets()->value(ro_entry_type));
     }
   } else {
     // All 3 entries are the same (no value-type packing)
+    offsets()->set_value(CodeOffsets::Entry, _masm->offset());
+    offsets()->set_value(CodeOffsets::Value_Entry, _masm->offset());
+    if (needs_icache(compilation()->method())) {
+      check_icache();
+    }
     int offset = emit_std_entry(CodeOffsets::Verified_Value_Entry, NULL);
     offsets()->set_value(CodeOffsets::Verified_Entry, offset);
     offsets()->set_value(CodeOffsets::Verified_Value_Entry_RO, offset);

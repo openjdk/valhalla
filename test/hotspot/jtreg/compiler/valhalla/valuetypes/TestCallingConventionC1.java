@@ -95,8 +95,11 @@ public class TestCallingConventionC1 extends ValueTypeTest {
                  MyImplPojo0.class,
                  MyImplPojo1.class,
                  MyImplPojo2.class,
+                 MyImplPojo3.class,
                  MyImplVal1.class,
                  MyImplVal2.class,
+                 MyImplVal1X.class,
+                 MyImplVal2X.class,
                  FixedPoints.class,
                  FloatPoint.class,
                  RefPoint.class,
@@ -213,6 +216,14 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 20; }
     }
 
+    static class MyImplPojo3 implements Intf {
+        int field = 0;
+        @DontInline // will be compiled with counters
+        public int func1(int a, int b)             { return field + a + b + 1; }
+        @DontInline // will be compiled with counters
+        public int func2(int a, int b, Point p)     { return field + a + b + p.x + p.y + 1; }
+    }
+
     static inline class MyImplVal1 implements Intf {
         final int field;
         MyImplVal1() {
@@ -236,6 +247,32 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         public int func1(int a, int b)             { return field + a + b + 300; }
 
         @DontInline @ForceCompile(compLevel = C2)
+        public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
+    }
+
+    static inline class MyImplVal1X implements Intf {
+        final int field;
+        MyImplVal1X() {
+            field = 11000;
+        }
+
+        @DontInline @DontCompile
+        public int func1(int a, int b)             { return field + a + b + 300; }
+
+        @DontInline @DontCompile
+        public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
+    }
+
+    static inline class MyImplVal2X implements Intf {
+        final int field;
+        MyImplVal2X() {
+            field = 12000;
+        }
+
+        @DontInline // will be compiled with counters
+        public int func1(int a, int b)             { return field + a + b + 300; }
+
+        @DontInline // will be compiled with counters
         public int func2(int a, int b, Point p)    { return field + a + b + p.x + p.y + 300; }
     }
 
@@ -2185,4 +2222,141 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         Test104Value v = (Test104Value)test104_v;
         Asserts.assertEQ(v.x0, rL);
     }
+
+    // C2->C1 invokeinterface -- call Unverified Entry of MyImplVal1.func1 (compiled by C1 - has VVEP_RO)
+    /// (same as test94, except we are calling func1, which shares VVEP and VVEP_RO
+    @Test(compLevel = C2)
+    public int test105(Intf intf, int a, int b) {
+        return intf.func1(a, b);
+    }
+
+    static Intf test105_intfs[] = {
+        new MyImplVal1(),
+        new MyImplVal2(),
+    };
+
+    @DontCompile
+    public void test105_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) {
+            Intf intf = test105_intfs[i % test105_intfs.length];
+            int result = test105(intf, 123, 456) + i;
+            Asserts.assertEQ(result, intf.func1(123, 456) + i);
+        }
+    }
+
+    // C2->C2 invokeinterface -- call Unverified Entry of MyImplVal2.func1 (compiled by C2 - has VVEP_RO)
+    /// (same as test95, except we are calling func1, which shares VVEP and VVEP_RO
+    @Test(compLevel = C2)
+    public int test106(Intf intf, int a, int b) {
+        return intf.func1(a, b);
+    }
+
+    static Intf test106_intfs[] = {
+        new MyImplVal2(),
+        new MyImplVal1(),
+    };
+
+    @DontCompile
+    public void test106_verifier(boolean warmup) {
+        int count = warmup ? 1 : 20;
+        for (int i=0; i<count; i++) {
+            Intf intf = test106_intfs[i % test106_intfs.length];
+            int result = test106(intf, 123, 456) + i;
+            Asserts.assertEQ(result, intf.func1(123, 456) + i);
+        }
+    }
+
+    /*** FIXME: disabled due to occassional timeout in mach5 testing. See JDK-8230408
+
+
+    // C2->C1 invokeinterface -- C2 calls call Unverified Entry of MyImplVal2X.func1 (compiled by
+    //                           C1, with VVEP_RO==VVEP)
+    // This test is developed to validate JDK-8230325.
+    @Test() @Warmup(0) @OSRCompileOnly
+    public int test115(Intf intf, int a, int b) {
+        return intf.func1(a, b);
+    }
+
+    @ForceCompile
+    public void test115_verifier(boolean warmup) {
+        Intf intf1 = new MyImplVal1X();
+        Intf intf2 = new MyImplVal2X();
+
+        for (int i=0; i<1000; i++) {
+            test115(intf1, 123, 456);
+        }
+        for (int i=0; i<500000; i++) {
+            // Run enough loops so that test115 will be compiled by C2.
+            if (i % 30 == 0) {
+                // This will indirectly call MyImplVal2X.func1, but the call frequency is low, so
+                // test115 will be compiled by C2, but MyImplVal2X.func1 will compiled by C1 only.
+                int result = test115(intf2, 123, 456) + i;
+                Asserts.assertEQ(result, intf2.func1(123, 456) + i);
+            } else {
+                // Call test115 with a mix of intf1 and intf2, so C2 will use a virtual call (not an optimized call)
+                // for the invokeinterface bytecode in test115.
+                test115(intf1, 123, 456);
+            }
+        }
+    }
+
+    // Same as test115, except we call MyImplVal2X.func2 (compiled by C1, VVEP_RO != VVEP)
+    @Test() @Warmup(0) @OSRCompileOnly
+    public int test116(Intf intf, int a, int b) {
+        return intf.func2(a, b, pointField);
+    }
+
+    @ForceCompile
+    public void test116_verifier(boolean warmup) {
+        Intf intf1 = new MyImplVal1X();
+        Intf intf2 = new MyImplVal2X();
+
+        for (int i=0; i<1000; i++) {
+            test116(intf1, 123, 456);
+        }
+        for (int i=0; i<500000; i++) {
+            // Run enough loops so that test116 will be compiled by C2.
+            if (i % 30 == 0) {
+                // This will indirectly call MyImplVal2X.func2, but the call frequency is low, so
+                // test116 will be compiled by C2, but MyImplVal2X.func2 will compiled by C1 only.
+                int result = test116(intf2, 123, 456) + i;
+                Asserts.assertEQ(result, intf2.func2(123, 456, pointField) + i);
+            } else {
+                // Call test116 with a mix of intf1 and intf2, so C2 will use a virtual call (not an optimized call)
+                // for the invokeinterface bytecode in test116.
+                test116(intf1, 123, 456);
+            }
+        }
+    }
+
+    // Same as test115, except we call MyImplPojo3.func2 (compiled by C1, VVEP_RO == VEP)
+    @Test() @Warmup(0) @OSRCompileOnly
+    public int test117(Intf intf, int a, int b) {
+        return intf.func2(a, b, pointField);
+    }
+
+    @ForceCompile
+    public void test117_verifier(boolean warmup) {
+        Intf intf1 = new MyImplPojo0();
+        Intf intf2 = new MyImplPojo3();
+
+        for (int i=0; i<1000; i++) {
+            test117(intf1, 123, 456);
+        }
+        for (int i=0; i<500000; i++) {
+            // Run enough loops so that test117 will be compiled by C2.
+            if (i % 30 == 0) {
+                // This will indirectly call MyImplPojo3.func2, but the call frequency is low, so
+                // test117 will be compiled by C2, but MyImplPojo3.func2 will compiled by C1 only.
+                int result = test117(intf2, 123, 456) + i;
+                Asserts.assertEQ(result, intf2.func2(123, 456, pointField) + i);
+            } else {
+                // Call test117 with a mix of intf1 and intf2, so C2 will use a virtual call (not an optimized call)
+                // for the invokeinterface bytecode in test117.
+                test117(intf1, 123, 456);
+            }
+        }
+    }
+    ---*/
 }
