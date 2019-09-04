@@ -134,7 +134,7 @@ void Compile::Output() {
     return;
   }
 
-  if (_method && _method->has_scalarized_args()) {
+  if (!is_osr_compilation() && _method && _method->has_scalarized_args()) {
     // Compute the offsets of the entry points required by the value type calling convention
     if (!_method->is_static()) {
       // We have entries at the beginning of the method, implemented by the first 4 nodes.

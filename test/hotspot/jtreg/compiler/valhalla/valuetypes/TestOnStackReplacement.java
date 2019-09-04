@@ -174,4 +174,30 @@ public class TestOnStackReplacement extends ValueTypeTest {
     public void test5_verifier(boolean warmup) {
         test5();
     }
+
+    // Test OSR in method with inline type receiver
+    inline class Test6Value {
+        public int f = 0;
+
+        public int test() {
+            int res = 0;
+            for (int i = 1; i < 20_000; ++i) {
+                res -= i;
+            }
+            return res;
+        }
+    }
+
+    @Test() @Warmup(0) @OSRCompileOnly
+    public void test6() {
+        Test6Value tmp = new Test6Value();
+        for (int i = 0; i < 100; ++i) {
+            tmp.test();
+        }
+    }
+
+    @DontCompile
+    public void test6_verifier(boolean warmup) {
+        test6();
+    }
 }
