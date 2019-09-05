@@ -32,7 +32,7 @@ public class TestDeadAllocationRemoval {
 
     public static void main(String[] args) {
         Test test = new Test();
-        for (int i = 0; i < 10_000; ++i) {
+        for (int i = 0; i < 10; ++i) {
             test.test();
         }
     }
