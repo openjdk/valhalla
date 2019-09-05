@@ -253,6 +253,7 @@ class ClassFileParser {
   bool _declares_nonstatic_concrete_methods;
   bool _has_final_method;
   bool _has_flattenable_fields;
+  bool _is_empty_value;
 
   // precomputed flags
   bool _has_finalizer;

@@ -143,7 +143,7 @@ class ValueKlass: public InstanceKlass {
     *(int*)adr_alignment() = alignment;
   }
 
-  int get_first_field_offset() const {
+  int first_field_offset() const {
     int offset = *(int*)adr_first_field_offset();
     assert(offset != 0, "Must be initialized before use");
     return *(int*)adr_first_field_offset();
@@ -161,12 +161,13 @@ class ValueKlass: public InstanceKlass {
     *(int*)adr_exact_size_in_bytes() = exact_size;
   }
 
+  int first_field_offset_old();
+
  private:
-  int collect_fields(GrowableArray<SigEntry>* sig, int base_off = 0) const;
+  int collect_fields(GrowableArray<SigEntry>* sig, int base_off = 0);
 
   void cleanup_blobs();
 
-  int first_field_offset_old() const;
 
  protected:
   // Returns the array class for the n'th dimension
@@ -206,16 +207,7 @@ class ValueKlass: public InstanceKlass {
   instanceOop allocate_instance(TRAPS);
 
   // minimum number of bytes occupied by nonstatic fields, HeapWord aligned or pow2
-  int raw_value_byte_size() const;
-
-  int first_field_offset() const {
-    // To be refactored/simplified once old layout code and UseNewLayout are removed
-    if (UseNewLayout) {
-      return get_first_field_offset();
-    } else {
-      return first_field_offset_old();
-    }
-  };
+  int raw_value_byte_size();
 
   address data_for_oop(oop o) const {
     return ((address) (void*) o) + first_field_offset();

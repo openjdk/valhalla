@@ -417,7 +417,9 @@ JRT_ENTRY(void, InterpreterRuntime::write_flattened_value(JavaThread* thread, oo
   assert(value->is_value(), "Sanity check");
 
   ValueKlass* vklass = ValueKlass::cast(value->klass());
-  vklass->value_store(vklass->data_for_oop(value), ((char*)(oopDesc*)rcv) + offset, true, true);
+  if (!vklass->is_empty_value()) {
+    vklass->value_store(vklass->data_for_oop(value), ((char*)(oopDesc*)rcv) + offset, true, true);
+  }
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::read_flattened_field(JavaThread* thread, oopDesc* obj, int index, Klass* field_holder))
@@ -433,11 +435,17 @@ JRT_ENTRY(void, InterpreterRuntime::read_flattened_field(JavaThread* thread, oop
   ValueKlass* field_vklass = ValueKlass::cast(klass->get_value_field_klass(index));
   assert(field_vklass->is_initialized(), "Must be initialized at this point");
 
-  // allocate instance
-  instanceOop res = field_vklass->allocate_instance(CHECK);
-  // copy value
-  field_vklass->value_store(((char*)(oopDesc*)obj_h()) + klass->field_offset(index),
-                            field_vklass->data_for_oop(res), true, true);
+  instanceOop res = NULL;
+  if (field_vklass->is_empty_value()) {
+    res = (instanceOop)field_vklass->default_value();
+  } else {
+    // allocate instance
+    res = field_vklass->allocate_instance(CHECK);
+    // copy value
+    field_vklass->value_store(((char*)(oopDesc*)obj_h()) + klass->field_offset(index),
+        field_vklass->data_for_oop(res), true, true);
+  }
+  assert(res != NULL, "Must be set in one of two paths above");
   thread->set_vm_result(res);
 JRT_END
 
@@ -467,10 +475,16 @@ JRT_ENTRY(void, InterpreterRuntime::value_array_load(JavaThread* thread, arrayOo
   ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
   ValueKlass* vklass = vaklass->element_klass();
   arrayHandle ah(THREAD, array);
-  instanceOop value_holder = vklass->allocate_instance(CHECK);
-  void* src = ((valueArrayOop)ah())->value_at_addr(index, vaklass->layout_helper());
-  vklass->value_store(src, vklass->data_for_oop(value_holder),
-                        vaklass->element_byte_size(), true, false);
+  instanceOop value_holder = NULL;
+  if (vklass->is_empty_value()) {
+    value_holder = (instanceOop)vklass->default_value();
+  } else {
+    value_holder = vklass->allocate_instance(CHECK);
+    void* src = ((valueArrayOop)ah())->value_at_addr(index, vaklass->layout_helper());
+    vklass->value_store(src, vklass->data_for_oop(value_holder),
+        vaklass->element_byte_size(), true, false);
+  }
+  assert(value_holder != NULL, "Must be set in one of two paths above");
   thread->set_vm_result(value_holder);
 JRT_END
 
@@ -483,9 +497,11 @@ JRT_ENTRY(void, InterpreterRuntime::value_array_store(JavaThread* thread, void* 
   valueArrayOop varray = (valueArrayOop)array;
   ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
   ValueKlass* vklass = vaklass->element_klass();
-  const int lh = vaklass->layout_helper();
-  vklass->value_store(vklass->data_for_oop((oop)val), varray->value_at_addr(index, lh),
-                      vaklass->element_byte_size(), true, false);
+  if (!vklass->is_empty_value()) {
+    const int lh = vaklass->layout_helper();
+    vklass->value_store(vklass->data_for_oop((oop)val), varray->value_at_addr(index, lh),
+        vaklass->element_byte_size(), true, false);
+  }
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* thread, jint* first_size_address))

@@ -1546,7 +1546,10 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   const InjectedField* const injected = JavaClasses::get_injected(_class_name,
                                                                   &num_injected);
 
-  const int total_fields = length + num_injected + (is_value_type ? 1 : 0);
+  // two more slots are required for inline classes:
+  // one for the static field with a reference to the pre-allocated default value
+  // one for the field the JVM injects when detecting an empty inline class
+  const int total_fields = length + num_injected + (is_value_type ? 2 : 0);
 
   // The field array starts with tuples of shorts
   // [access, name index, sig index, initial value index, byte offset].
@@ -1576,6 +1579,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   // The generic signature slots start after all other fields' data.
   int generic_signature_slot = total_fields * FieldInfo::field_slots;
   int num_generic_signature = 0;
+  int instance_fields_count = 0;
   for (int n = 0; n < length; n++) {
     // access_flags, name_index, descriptor_index, attributes_count
     cfs->guarantee_more(8, CHECK);
@@ -1616,6 +1620,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       }
       _has_flattenable_fields = true;
     }
+    if (!access_flags.is_static()) instance_fields_count++;
 
     u2 constantvalue_index = 0;
     bool is_synthetic = false;
@@ -1723,7 +1728,6 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   }
 
   if (is_value_type) {
-    index = length + num_injected;
     FieldInfo* const field = FieldInfo::from_field_array(fa, index);
     field->initialize(JVM_ACC_FIELD_INTERNAL | JVM_ACC_STATIC,
                       vmSymbols::default_value_name_enum,
@@ -1731,6 +1735,19 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                       0);
     const BasicType type = FieldType::basic_type(vmSymbols::object_signature());
     const FieldAllocationType atype = fac->update(true, type, false);
+    field->set_allocation_type(atype);
+    index++;
+  }
+
+  if (is_value_type && instance_fields_count == 0) {
+    _is_empty_value = true;
+    FieldInfo* const field = FieldInfo::from_field_array(fa, index);
+    field->initialize(JVM_ACC_FIELD_INTERNAL,
+        vmSymbols::empty_marker_name_enum,
+        vmSymbols::byte_signature_enum,
+        0);
+    const BasicType type = FieldType::basic_type(vmSymbols::byte_signature());
+    const FieldAllocationType atype = fac->update(false, type, false);
     field->set_allocation_type(atype);
     index++;
   }
@@ -5793,6 +5810,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   // Not yet: supers are done below to support the new subtype-checking fields
   ik->set_nonstatic_field_size(_field_info->nonstatic_field_size);
   ik->set_has_nonstatic_fields(_field_info->has_nonstatic_fields);
+  if (_is_empty_value) {
+    ik->set_is_empty_value();
+  }
   assert(_fac != NULL, "invariant");
   ik->set_static_oop_field_count(_fac->count[STATIC_OOP] + _fac->count[STATIC_FLATTENABLE]);
 
@@ -5961,9 +5981,14 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   }
 
   if (is_value_type()) {
-    ValueKlass::cast(ik)->set_alignment(_alignment);
-    ValueKlass::cast(ik)->set_first_field_offset(_first_field_offset);
-    ValueKlass::cast(ik)->set_exact_size_in_bytes(_exact_size_in_bytes);
+    ValueKlass* vk = ValueKlass::cast(ik);
+    if (UseNewLayout) {
+      vk->set_alignment(_alignment);
+      vk->set_first_field_offset(_first_field_offset);
+      vk->set_exact_size_in_bytes(_exact_size_in_bytes);
+    } else {
+      vk->set_first_field_offset(vk->first_field_offset_old());
+    }
     ValueKlass::cast(ik)->initialize_calling_convention(CHECK);
   }
 
@@ -6157,6 +6182,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _declares_nonstatic_concrete_methods(false),
   _has_final_method(false),
   _has_flattenable_fields(false),
+  _is_empty_value(false),
   _has_finalizer(false),
   _has_empty_finalizer(false),
   _has_vanilla_constructor(false),

@@ -257,7 +257,8 @@ class InstanceKlass: public Klass {
     _extra_is_being_redefined   = 1 << 0, // used for locking redefinition
     _extra_has_resolved_methods = 1 << 1, // resolved methods table entries added for this class
     _extra_has_value_fields     = 1 << 2, // has value fields and related embedded section is not empty
-    _extra_is_bufferable        = 1 << 3  // value can be buffered out side of the Java heap
+    _extra_is_bufferable        = 1 << 3, // value can be buffered out side of the Java heap
+    _extra_is_empty_value       = 1 << 4  // empty value type
   };
 
  protected:
@@ -422,6 +423,13 @@ class InstanceKlass: public Klass {
   }
   void set_has_value_fields()  {
     _extra_flags |= _extra_has_value_fields;
+  }
+
+  bool is_empty_value() const {
+    return (_extra_flags & _extra_is_empty_value) != 0;
+  }
+  void set_is_empty_value() {
+    _extra_flags |= _extra_is_empty_value;
   }
 
   // field sizes

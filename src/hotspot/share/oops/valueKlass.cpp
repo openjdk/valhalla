@@ -46,10 +46,10 @@
 #include "runtime/thread.inline.hpp"
 #include "utilities/copy.hpp"
 
-int ValueKlass::first_field_offset_old() const {
+int ValueKlass::first_field_offset_old() {
 #ifdef ASSERT
   int first_offset = INT_MAX;
-  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.offset() < first_offset) first_offset= fs.offset();
   }
 #endif
@@ -60,7 +60,7 @@ int ValueKlass::first_field_offset_old() const {
   return base_offset;
 }
 
-int ValueKlass::raw_value_byte_size() const {
+int ValueKlass::raw_value_byte_size() {
   int heapOopAlignedSize = nonstatic_field_size() << LogBytesPerHeapOop;
   // If bigger than 64 bits or needs oop alignment, then use jlong aligned
   // which for values should be jlong aligned, asserts in raw_field_copy otherwise
@@ -75,11 +75,11 @@ int ValueKlass::raw_value_byte_size() const {
   int first_offset = first_field_offset();
   int last_offset  = 0; // find the last offset, add basic type size
   int last_tsz     = 0;
-  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) {
       continue;
     } else if (fs.offset() > last_offset) {
-      BasicType type = fs.field_descriptor().field_type();
+      BasicType type = char2type(fs.signature()->char_at(0));
       if (is_java_primitive(type)) {
         last_tsz = type2aelembytes(type);
       } else if (type == T_VALUETYPE) {
@@ -329,10 +329,10 @@ void ValueKlass::value_store(void* src, void* dst, size_t raw_byte_size, bool ds
 // T_VALUETYPE, drop everything until and including the closing
 // T_VOID) or the compiler point of view (each field of the value
 // types is an argument: drop all T_VALUETYPE/T_VOID from the list).
-int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) const {
+int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   int count = 0;
   SigEntry::add_entry(sig, T_VALUETYPE, base_off);
-  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
+  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
     if (fs.is_flattened()) {
