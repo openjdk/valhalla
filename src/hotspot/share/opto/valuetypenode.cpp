@@ -831,8 +831,8 @@ Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 
 // Search for multiple allocations of this value type
 // and try to replace them by dominating allocations.
+// Then unlink the value type node and remove it.
 void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealLoop* phase) {
-  assert(EliminateAllocations, "allocation elimination should be enabled");
   // Search for allocations of this value type
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     AllocateNode* alloc = fast_out(i)->isa_Allocate();
@@ -884,9 +884,12 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
     if (out->is_ValueType()) {
       // Recursively process value type users
       out->as_ValueType()->remove_redundant_allocations(igvn, phase);
+      --i; --imax;
     } else if (out->isa_Allocate() != NULL) {
-      // Allocate users should be linked
+      // Unlink AllocateNode
       assert(out->in(AllocateNode::ValueNode) == this, "should be linked");
+      igvn->replace_input_of(out, AllocateNode::ValueNode, igvn->C->top());
+      --i; --imax;
     } else {
 #ifdef ASSERT
       // The value type should not have any other users at this time
@@ -895,6 +898,7 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
 #endif
     }
   }
+  igvn->remove_dead_node(this);
 }
 
 ValueTypePtrNode* ValueTypePtrNode::make_from_value_type(GraphKit* kit, ValueTypeNode* vt, bool deoptimize_on_exception) {

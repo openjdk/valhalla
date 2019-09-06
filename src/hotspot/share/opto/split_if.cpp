@@ -477,8 +477,7 @@ void PhaseIdealLoop::do_split_if( Node *iff ) {
         if (_nodes[m->_idx] == NULL) {
           _igvn.remove_dead_node(m);
           // fall through
-        }
-        else if (m != iff && split_up(m, region, iff)) {
+        } else if (m != iff && split_up(m, region, iff)) {
           // fall through
         } else {
           continue;

@@ -1452,7 +1452,7 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
   try_move_store_after_loop(n);
 
   // Remove multiple allocations of the same value type
-  if (n->is_ValueType() && EliminateAllocations) {
+  if (n->is_ValueType()) {
     n->as_ValueType()->remove_redundant_allocations(&_igvn, this);
     return; // n is now dead
   }

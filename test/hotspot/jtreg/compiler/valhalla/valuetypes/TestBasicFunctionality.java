@@ -833,4 +833,58 @@ public class TestBasicFunctionality extends ValueTypeTest {
         test38();
         Asserts.assertEQ(test38Field, new Test38Value(99));
     }
+
+    // Tests split if with value type Phi users
+    static inline class Test39Value {
+        public int iFld1;
+        public int iFld2;
+
+        public Test39Value(int i1, int i2) { iFld1 = i1; iFld2 = i2; }
+    }
+
+    static int test39A1[][] = new int[400][400];
+    static double test39A2[] = new double[400];
+    static Test39Value test39Val = Test39Value.default;
+
+    @DontInline
+    public int[] getArray() {
+        return new int[400];
+    }
+
+    @Test
+    @Warmup(10)
+    public int test39() {
+        int result = 0;
+        for (int i = 0; i < 100; ++i) {
+            switch ((i >>> 1) % 3) {
+            case 0:
+                test39A1[i][i] = i;
+                break;
+            case 1:
+                for (int j = 0; j < 100; ++j) {
+                    test39A1[i] = getArray();
+                    test39Val = new Test39Value(j, test39Val.iFld2);
+                }
+                break;
+            case 2:
+                for (float f = 142; f > i; f--) {
+                    test39A2[i + 1] += 3;
+                }
+                result += test39Val.iFld1;
+                break;
+            }
+            double d1 = 1;
+            while (++d1 < 142) {
+                test39A1[(i >>> 1) % 400][i + 1] = result;
+                test39Val = new Test39Value(i, test39Val.iFld2);
+            }
+        }
+        return result;
+    }
+
+    @DontCompile
+    public void test39_verifier(boolean warmup) {
+        int result = test39();
+        Asserts.assertEQ(result, 1552);
+    }
 }
