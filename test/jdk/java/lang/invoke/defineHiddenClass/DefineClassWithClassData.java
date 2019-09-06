@@ -39,7 +39,7 @@ import java.util.stream.Stream;
 import jdk.internal.org.objectweb.asm.*;
 import org.testng.annotations.Test;
 
-import static java.lang.invoke.MethodHandles.Lookup.ClassOptions.*;
+import static java.lang.invoke.MethodHandles.Lookup.ClassOption.*;
 import static java.lang.invoke.MethodHandles.Lookup.PRIVATE;
 import static jdk.internal.org.objectweb.asm.Opcodes.*;
 import static org.testng.Assert.*;
@@ -121,7 +121,7 @@ public class DefineClassWithClassData {
         lookup.defineHiddenClassWithClassData(T2_CLASS_BYTES, classData, NESTMATE);
     }
 
-    @Test(expectedExceptions = IllegalAccessException.class)
+    @Test
     public void teleportToNestmate() throws Throwable {
         Lookup lookup = MethodHandles.lookup()
             .defineHiddenClassWithClassData(T_CLASS_BYTES, classData, NESTMATE);
@@ -131,10 +131,11 @@ public class DefineClassWithClassData {
         assertTrue(c.isHiddenClass());
 
         // Teleport to a nestmate
-        Lookup lookup2 =  MethodHandles.lookup().in(c);
-        assertTrue((lookup2.lookupModes() & PRIVATE) == 0);
-        // fail to define a nestmate
-        lookup2.defineHiddenClassWithClassData(T2_CLASS_BYTES, classData, NESTMATE);
+        Lookup lookup2 =  MethodHandles.lookup().in(DefineClassWithClassData.class);
+        assertTrue((lookup2.lookupModes() & PRIVATE) != 0);
+        Lookup lc = lookup2.defineHiddenClassWithClassData(T2_CLASS_BYTES, classData, NESTMATE);
+        assertTrue(lc.lookupClass().getNestHost() == DefineClassWithClassData.class);
+        assertTrue(lc.lookupClass().isHiddenClass());
     }
 
     static class ClassByteBuilder {

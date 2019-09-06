@@ -34,7 +34,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.concurrent.TimeUnit;
 
-import static java.lang.invoke.MethodHandles.Lookup.ClassOptions.*;
+import static java.lang.invoke.MethodHandles.Lookup.ClassOption.*;
 
 public class LookupDefineClass {
     private static final byte[] X_BYTECODE = new byte[]{

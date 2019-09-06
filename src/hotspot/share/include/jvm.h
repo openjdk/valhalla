@@ -489,6 +489,9 @@ JVM_IsArrayClass(JNIEnv *env, jclass cls);
 JNIEXPORT jboolean JNICALL
 JVM_IsPrimitiveClass(JNIEnv *env, jclass cls);
 
+JNIEXPORT jboolean JNICALL
+JVM_IsHiddenClass(JNIEnv *env, jclass cls);
+
 JNIEXPORT jint JNICALL
 JVM_GetClassModifiers(JNIEnv *env, jclass cls);
 
@@ -548,7 +551,7 @@ JNIEXPORT jboolean JNICALL
 JVM_AreNestMates(JNIEnv *env, jclass current, jclass member);
 
 JNIEXPORT jclass JNICALL
-JVM_GetNestHost(JNIEnv *env, jclass current);
+JVM_GetNestHost(JNIEnv *env, jclass current, jboolean throwICCE);
 
 JNIEXPORT jobjectArray JNICALL
 JVM_GetNestMembers(JNIEnv *env, jclass current);

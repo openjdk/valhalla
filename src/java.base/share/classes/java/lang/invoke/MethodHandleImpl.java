@@ -27,7 +27,6 @@ package java.lang.invoke;
 
 import jdk.internal.access.JavaLangInvokeAccess;
 import jdk.internal.access.SharedSecrets;
-import jdk.internal.org.objectweb.asm.AnnotationVisitor;
 import jdk.internal.org.objectweb.asm.ClassWriter;
 import jdk.internal.org.objectweb.asm.MethodVisitor;
 import jdk.internal.reflect.CallerSensitive;
@@ -1178,10 +1177,10 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                  * @CSM must be public and exported if called by any module.
                  */
                 String name = targetClass.getName() + "$$InjectedInvoker";
-                Lookup lookup = new Lookup(targetClass).defineClassAsLookup(name, INJECTED_INVOKER_TEMPLATE, HIDDEN_CLASS, true, null);
-                Class<?> invokerClass = lookup.lookupClass();
+                Class<?> invokerClass = new Lookup(targetClass)
+                        .internalDefineClass(name, INJECTED_INVOKER_TEMPLATE, HIDDEN_CLASS, true, null);
                 assert checkInjectedInvoker(targetClass, invokerClass);
-                return lookup.findStatic(invokerClass, "invoke_V", INVOKER_MT);
+                return IMPL_LOOKUP.findStatic(invokerClass, "invoke_V", INVOKER_MT);
             } catch (ReflectiveOperationException ex) {
                 throw uncaughtException(ex);
             }

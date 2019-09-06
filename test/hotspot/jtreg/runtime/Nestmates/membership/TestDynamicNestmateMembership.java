@@ -33,7 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.Path;
 import java.lang.invoke.MethodHandles;
-import static java.lang.invoke.MethodHandles.Lookup.ClassOptions.*;
+import static java.lang.invoke.MethodHandles.Lookup.ClassOption.*;
 
 /* package */ class DynamicNestmate { }
 
@@ -121,10 +121,10 @@ public class TestDynamicNestmateMembership {
         Class<?> target = lookup.lookupClass();
         String action = "Injecting " + name + " into the nest of " +
             target.getSimpleName();
-
+        MethodHandles.Lookup nestLookup = lookup.in(target.getNestHost());
         try {
             byte[] bytes = getBytesForClass(name);
-            Class<?> nestmate = lookup.defineHiddenClass(bytes, false, NESTMATE);
+            Class<?> nestmate = nestLookup.defineHiddenClass(bytes, false, NESTMATE);
             if (ex != null) {
                 throw new RuntimeException(action + " was expected to throw " +
                                            ex.getSimpleName());

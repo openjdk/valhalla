@@ -822,7 +822,7 @@ public final class Unsafe {
      * <li>InterfaceMethodRef: (NYI) a method handle to invoke on that call site's arguments
      * </ul>
      *
-     * @deprecated Use the {@link java.lang.invoke.MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOptions...)}
+     * @deprecated Use the {@link java.lang.invoke.MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)}
      * method.
      *
      * @param hostClass context for linkage, access control, protection domain, and class loader

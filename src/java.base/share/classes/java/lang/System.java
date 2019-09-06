@@ -2281,6 +2281,10 @@ public final class System {
                 t.setCause(cause);
             }
 
+            public Class<?> nestHost(Class<?> c, boolean throwICCE) {
+                return c.getNestHost0(throwICCE);
+            }
+
             public ProtectionDomain protectionDomain(Class<?> c) {
                 return c.protectionDomain();
             }

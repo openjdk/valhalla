@@ -1141,11 +1141,10 @@ public final class StringConcatFactory {
 
             byte[] classBytes = cw.toByteArray();
             try {
-                // may use @ForceInline; use internal defineClassAsLookup
-                Lookup innerClassLookup = lookup.defineClassAsLookup(className, classBytes, HIDDEN_CLASS|ACCESS_VM_ANNOTATIONS, true, null);
-                Class<?> innerClass = innerClassLookup.lookupClass();
+                // may use @ForceInline; use internal defineClass
+                Class<?> innerClass = lookup.internalDefineClass(className, classBytes, HIDDEN_CLASS|ACCESS_VM_ANNOTATIONS, true, null);
                 dumpIfEnabled(className, classBytes);
-                return innerClassLookup.findStatic(innerClass, METHOD_NAME, args);
+                return lookup.findStatic(innerClass, METHOD_NAME, args);
             } catch (Exception e) {
                 dumpIfEnabled(className + "$$FAILED", classBytes);
                 throw new StringConcatException("Exception while spinning the class", e);

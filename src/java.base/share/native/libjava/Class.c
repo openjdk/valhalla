@@ -60,6 +60,7 @@ static JNINativeMethod methods[] = {
     {"setSigners",       "([" OBJ ")V",     (void *)&JVM_SetClassSigners},
     {"isArray",          "()Z",             (void *)&JVM_IsArrayClass},
     {"isPrimitive",      "()Z",             (void *)&JVM_IsPrimitiveClass},
+    {"isHiddenClass",    "()Z",             (void *)&JVM_IsHiddenClass},
     {"getModifiers",     "()I",             (void *)&JVM_GetClassModifiers},
     {"getDeclaredFields0","(Z)[" FLD,       (void *)&JVM_GetClassDeclaredFields},
     {"getDeclaredMethods0","(Z)[" MHD,      (void *)&JVM_GetClassDeclaredMethods},
@@ -74,7 +75,7 @@ static JNINativeMethod methods[] = {
     {"desiredAssertionStatus0","("CLS")Z",  (void *)&JVM_DesiredAssertionStatus},
     {"getEnclosingMethod0", "()[" OBJ,      (void *)&JVM_GetEnclosingMethodInfo},
     {"getRawTypeAnnotations", "()" BA,      (void *)&JVM_GetClassTypeAnnotations},
-    {"getNestHost0",         "()" CLS,      (void *)&JVM_GetNestHost},
+    {"getNestHost0",         "(Z)" CLS,      (void *)&JVM_GetNestHost},
     {"getNestMembers0",      "()[" CLS,     (void *)&JVM_GetNestMembers},
 };
 

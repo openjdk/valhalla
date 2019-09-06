@@ -28,13 +28,15 @@
  *        jdk.test.lib.compiler.CompilerUtils
  *        BasicTest
  * @run testng/othervm BasicTest
+ * @run testng/othervm -Xcomp BasicTest
  */
 
 import java.io.File;
 import java.io.IOException;
-import static java.lang.invoke.MethodHandles.Lookup.ClassOptions.*;
+import static java.lang.invoke.MethodHandles.Lookup.ClassOption.*;
 import static java.lang.invoke.MethodHandles.lookup;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -94,15 +96,42 @@ public class BasicTest {
 
         Class<?> c = t.getClass();
         Class<?>[] intfs = c.getInterfaces();
+        assertTrue(c.isHiddenClass());
         assertTrue(intfs.length == 1);
         assertTrue(intfs[0] == HiddenTest.class);
+        assertTrue(c.getCanonicalName() == null);
+
+        // test array of hidden class
+        testHiddenArray(c);
 
         // test setAccessible
         checkSetAccessible(c, "realTest");
         checkSetAccessible(c, "test");
     }
 
-    public void checkSetAccessible(Class<?> c, String name, Class<?>... ptypes) throws Exception {
+    @Test
+    public void testIsHiddenClass() {
+        assertFalse(int.class.isHiddenClass());
+        assertFalse(String.class.isHiddenClass());
+    }
+
+    private void testHiddenArray(Class<?> type) throws Exception {
+        // array of hidden class
+        Object array = Array.newInstance(type, 2);
+        Class<?> arrayType = array.getClass();
+        assertTrue(arrayType.isArray());
+        assertTrue(Array.getLength(array) == 2);
+        assertFalse(arrayType.isHiddenClass());
+
+        assertTrue(arrayType.getComponentType().isHiddenClass());
+        assertTrue(arrayType.getComponentType() == type);
+        Object t = type.newInstance();
+        Array.set(array, 0, t);
+        Object o = Array.get(array, 0);
+        assertTrue(o == t);
+    }
+
+    private void checkSetAccessible(Class<?> c, String name, Class<?>... ptypes) throws Exception {
         Method m = c.getDeclaredMethod(name, ptypes);
         assertFalse(m.trySetAccessible());
         try {

@@ -317,15 +317,26 @@ public interface JavaLangAccess {
     byte[] getBytesUTF8NoRepl(String s);
 
     /**
-     * Get protection domain of the given Class
-     */
-    ProtectionDomain protectionDomain(Class<?> c);
-
-    /**
      * Set the cause of Throwable
      * @param cause set t's cause to new value
      */
     void setCause(Throwable t, Throwable cause);
+
+    /**
+     * Returns the nest host of the given class.  This method may return
+     * {@code null}.
+     *
+     * @throws LinkageError if fails to load the nest host named in the NestHost
+     *         attribute.
+     * @throws IncompatibleClassChangeError if fails to validate the nest
+     *         membership and the given throwICCE is true.
+     */
+    Class<?> nestHost(Class<?> c, boolean throwICCE);
+
+    /**
+     * Get protection domain of the given Class
+     */
+    ProtectionDomain protectionDomain(Class<?> c);
 
     /**
      * Get a method handle of string concat helper method

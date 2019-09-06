@@ -613,6 +613,8 @@ protected:
   void set_has_miranda_methods()        { _access_flags.set_has_miranda_methods(); }
   bool is_shared() const                { return access_flags().is_shared_class(); } // shadows MetaspaceObj::is_shared)()
   void set_is_shared()                  { _access_flags.set_is_shared_class(); }
+  bool is_hidden() const                { return access_flags().is_hidden_class(); }
+  void set_is_hidden()                  { _access_flags.set_is_hidden_class(); }
 
   bool is_cloneable() const;
   void set_is_cloneable();

@@ -5548,6 +5548,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     // with ConstantPool::klass_at_impl, which does a SystemDictionary lookup.
     // Therefore, we must eagerly resolve _this_class_index now.
     ik->constants()->klass_at_put(_this_class_index, ik);
+    ik->set_is_hidden(); 
   }
 
   ik->set_minor_version(_minor_version);

@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.PropertyPermission;
 import java.util.Set;
 
-import static java.lang.invoke.MethodHandles.Lookup.ClassOptions.NESTMATE;
+import static java.lang.invoke.MethodHandles.Lookup.ClassOption.NESTMATE;
 import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
 /**
@@ -191,8 +191,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
      */
     @Override
     CallSite buildCallSite() throws LambdaConversionException {
-        Lookup lookup = spinInnerClass();
-        Class<?> innerClass = lookup.lookupClass();
+        Class<?> innerClass = spinInnerClass();
         assert innerClass.isHiddenClass() : innerClass.toString();
         if (invokedType.parameterCount() == 0) {
             final Constructor<?>[] ctrs = AccessController.doPrivileged(
@@ -216,13 +215,12 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             try {
                 Object inst = ctrs[0].newInstance();
                 return new ConstantCallSite(MethodHandles.constant(samBase, inst));
-            }
-            catch (ReflectiveOperationException e) {
+            } catch (ReflectiveOperationException e) {
                 throw new LambdaConversionException("Exception instantiating lambda object", e);
             }
         } else {
             try {
-                MethodHandle mh = lookup.findConstructor(innerClass, invokedType.changeReturnType(void.class));
+                MethodHandle mh = caller.findConstructor(innerClass, invokedType.changeReturnType(void.class));
                 return new ConstantCallSite(mh.asType(invokedType));
             } catch (ReflectiveOperationException e) {
                 throw new LambdaConversionException("Exception finding constructor", e);
@@ -245,7 +243,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
      * @throws LambdaConversionException If properly formed functional interface
      * is not found
      */
-    private Lookup spinInnerClass() throws LambdaConversionException {
+    private Class<?> spinInnerClass() throws LambdaConversionException {
         String[] interfaces;
         String samIntf = samBase.getName().replace('.', '/');
         boolean accidentallySerializable = !isSerializable && Serializable.class.isAssignableFrom(samBase);
@@ -316,7 +314,8 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         }
         try {
             // this class is linked at the indy callsite; so define a hidden nestmate
-            return caller.defineHiddenClassAsLookup(classBytes, true, NESTMATE);
+            Class<?> nestHost = caller.lookupClass().getNestHost();
+            return caller.in(nestHost).defineHiddenClass(classBytes, true, NESTMATE);
         } catch (IllegalAccessException e) {
             throw new LambdaConversionException("Exception defining lambda proxy class", e);
         }

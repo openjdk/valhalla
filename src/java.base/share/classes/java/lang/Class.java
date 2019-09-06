@@ -129,7 +129,7 @@ import sun.reflect.misc.ReflectUtil;
  *
  * <p> Some methods of class {@code Class} expose some characteristics of
  * hidden classes that can be defined by calling
- * {@link java.lang.invoke.MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOptions...)
+ * {@link java.lang.invoke.MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
  * Lookup::defineHiddenClass}.
  *
  * <p> The following example uses a {@code Class} object to print the
@@ -878,12 +878,6 @@ public final class Class<T> implements java.io.Serializable,
 
     // set by VM
     private transient Module module;
-
-    // set by VM (to be revisited if needed)
-    // for static nestmate, set to non-null when the first time Class::getNestHost is called
-    // for dynamic nestmate, set to non-null when it's defined and this keeps the host alive
-    // (the host may be temporary)
-    private transient Class<?> nestHost;
 
     // Initialized in JVM not by private constructor
     // This field is filtered from reflection access, i.e. getDeclaredField
@@ -3896,7 +3890,7 @@ public final class Class<T> implements java.io.Serializable,
          return TypeAnnotationParser.buildAnnotatedInterfaces(getRawTypeAnnotations(), getConstantPool(), this);
     }
 
-    private native Class<?> getNestHost0();
+    /* package-private */ native Class<?> getNestHost0(boolean throwICCE);
 
     /**
      * Returns the nest host of the <a href=#nest>nest</a> to which the class
@@ -3925,7 +3919,7 @@ public final class Class<T> implements java.io.Serializable,
      * A {@code class} file of version 54.0 or lower does not use these
      * attributes.
      * If this class was created by calling
-     * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOptions...)
+     * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
      * Lookup.defineHiddenClass}
      * and added to the nest of the lookup object's lookup class, then
      * this class has the same nest host as the lookup class.
@@ -3951,7 +3945,7 @@ public final class Class<T> implements java.io.Serializable,
         }
         Class<?> host;
         try {
-            host = getNestHost0();
+            host = getNestHost0(false);
         } catch (LinkageError e) {
             // if we couldn't load our nest-host then we
             // act as-if we have no nest-host attribute
@@ -3992,7 +3986,7 @@ public final class Class<T> implements java.io.Serializable,
             return false;
         }
         try {
-            return getNestHost0() == c.getNestHost0();
+            return getNestHost0(false) == c.getNestHost0(false);
         } catch (LinkageError e) {
             return false;
         }
@@ -4025,7 +4019,7 @@ public final class Class<T> implements java.io.Serializable,
      * This method returns the nest members listed in the {@code NestMembers}
      * attribute.  The returned array does not include nest members created
      * by calling
-     * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOptions...)
+     * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
      * Lookup.defineHiddenClass}.
      *
      * @return an array of all classes and interfaces in the same nest as
@@ -4044,7 +4038,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since 11
      * @see #getNestHost()
-     * @see MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOptions...)
+     * @see MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
      */
     @CallerSensitive
     public Class<?>[] getNestMembers() {
@@ -4132,26 +4126,21 @@ public final class Class<T> implements java.io.Serializable,
    }
 
     /**
-     * Returns {@code true} if this class is a hidden class.
+     * Returns {@code true} if and only if the underlying class is a hidden class.
      *
-     * <p> A <em>hidden class</em> is non-discoverable by class loaders
-     * by bytecode linkage.  It cannot be found by
-     * {@link Class#forName(String) Class.forName(this.getName())},
-     * {@link ClassLoader#findLoadedClass},
-     * and {@link MethodHandles.Lookup#findClass(String) MethodHandles.Lookup.findClass}.
-     *
-     * <p> If this class is an array class and its component class is hidden,
-     * then this array class is also hidden.
+     * <p> A <em>hidden class</em> is created by calling
+     * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
+     * Lookup::defineHiddenClass}.   A hidden class is non-discoverable
+     * for example via {@link Class#forName(String) Class::forName},
+     * {@link ClassLoader#loadClass(String) ClassLoader::loadClass}, and bytecode linkage.
      *
      * <p> An anonymous class is not a hidden class.
      *
-     * @return {@code true} if this class is a hidden class; otherwise {@code false}.
+     * @return {@code true} if and only if this class is a hidden class.
      *
      * @since 14
-     * @see MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOptions...)
      */
-    public boolean isHiddenClass() {
-        return getName().indexOf('/') > -1;
-    }
+    @HotSpotIntrinsicCandidate
+    public native boolean isHiddenClass();
 
 }

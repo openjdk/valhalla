@@ -1283,6 +1283,15 @@ JVM_QUICK_ENTRY(jboolean, JVM_IsInterface(JNIEnv *env, jclass cls))
   return result;
 JVM_END
 
+JVM_QUICK_ENTRY(jboolean, JVM_IsHiddenClass(JNIEnv *env, jclass cls))
+  JVMWrapper("JVM_IsHiddenClass");
+  oop mirror = JNIHandles::resolve_non_null(cls);
+  if (java_lang_Class::is_primitive(mirror)) {
+    return JNI_FALSE;
+  }
+  Klass* k = java_lang_Class::as_Klass(mirror);
+  return k->is_hidden();
+JVM_END
 
 JVM_ENTRY(jobjectArray, JVM_GetClassSigners(JNIEnv *env, jclass cls))
   JVMWrapper("JVM_GetClassSigners");
@@ -1944,15 +1953,22 @@ JVM_ENTRY(jboolean, JVM_AreNestMates(JNIEnv *env, jclass current, jclass member)
 }
 JVM_END
 
-JVM_ENTRY(jclass, JVM_GetNestHost(JNIEnv* env, jclass current))
+JVM_ENTRY(jclass, JVM_GetNestHost(JNIEnv* env, jclass current, jboolean throwICCE))
 {
   // current is not a primitive or array class
   JVMWrapper("JVM_GetNestHost");
   Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
   assert(c->is_instance_klass(), "must be");
   InstanceKlass* ck = InstanceKlass::cast(c);
-  // Don't post exceptions if validation fails
-  InstanceKlass* host = ck->nest_host(NULL, THREAD);
+  InstanceKlass* host;
+  if (throwICCE) {
+    // Get the nest host for this nest - throw ICCE if validation fails
+    Symbol* icce = vmSymbols::java_lang_IncompatibleClassChangeError();
+    host = ck->nest_host(icce, CHECK_NULL);
+  } else {
+    // Don't post exceptions if validation fails
+    host = ck->nest_host(NULL, THREAD);
+  }
   return (jclass) (host == NULL ? NULL :
                    JNIHandles::make_local(THREAD, host->java_mirror()));
 }

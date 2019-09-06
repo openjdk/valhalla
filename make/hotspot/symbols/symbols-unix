@@ -141,6 +141,7 @@ JVM_Interrupt
 JVM_InvokeMethod
 JVM_IsArrayClass
 JVM_IsConstructorIx
+JVM_IsHiddenClass
 JVM_IsInterface
 JVM_IsInterrupted
 JVM_IsPrimitiveClass

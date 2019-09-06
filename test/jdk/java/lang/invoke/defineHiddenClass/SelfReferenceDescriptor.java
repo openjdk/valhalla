@@ -34,7 +34,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import static java.lang.invoke.MethodHandles.Lookup.ClassOptions.*;
+import static java.lang.invoke.MethodHandles.Lookup.ClassOption.*;
 import static java.lang.invoke.MethodHandles.lookup;
 
 import java.nio.file.Path;

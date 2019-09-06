@@ -29,8 +29,7 @@
  * @run testng/othervm DefineHiddenClassTest
  */
 
-import java.lang.invoke.MethodHandle;
-import java.lang.invoke.MethodHandles;
+import java.lang.invoke.*;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -39,9 +38,8 @@ import java.util.stream.Stream;
 import jdk.internal.org.objectweb.asm.*;
 import org.testng.annotations.Test;
 
-import static java.lang.invoke.MethodHandles.Lookup.ClassOptions.*;
+import static java.lang.invoke.MethodHandles.Lookup.ClassOption.*;
 import static java.lang.invoke.MethodHandles.Lookup.PRIVATE;
-import static java.lang.invoke.MethodType.*;
 
 import static jdk.internal.org.objectweb.asm.Opcodes.*;
 import static org.testng.Assert.*;
@@ -108,8 +106,8 @@ public class DefineHiddenClassTest {
         assertTrue(c.isHiddenClass());
 
         // invoke int test(DefineHiddenClassTest o) via MethodHandle
-        MethodHandle ctor = lookup.findConstructor(c, methodType(void.class));
-        MethodHandle mh = lookup.findVirtual(c, "test", methodType(int.class, DefineHiddenClassTest.class));
+        MethodHandle ctor = lookup.findConstructor(c, MethodType.methodType(void.class));
+        MethodHandle mh = lookup.findVirtual(c, "test", MethodType.methodType(int.class, DefineHiddenClassTest.class));
         int x = (int)mh.bindTo(ctor.invoke()).invokeExact( this);
         assertTrue(x == privMethod());
 
@@ -146,9 +144,10 @@ public class DefineHiddenClassTest {
 
         // Teleport to a nestmate
         Lookup lookup =  MethodHandles.lookup().in(c);
-        assertTrue((lookup.lookupModes() & PRIVATE) == 0);
-        // fail to define a nestmate
-        lookup.defineHiddenClass(bytes, false, NESTMATE);
+        assertTrue((lookup.lookupModes() & PRIVATE) != 0);
+        Class<?> c2 = lookup.defineHiddenClass(bytes, false, NESTMATE);
+        assertTrue(c2.getNestHost() == DefineHiddenClassTest.class);
+        assertTrue(c2.isHiddenClass());
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)

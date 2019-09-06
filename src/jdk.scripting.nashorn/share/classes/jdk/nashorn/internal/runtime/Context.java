@@ -41,7 +41,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
-import java.lang.invoke.MethodHandles.Lookup.ClassOptions;
+import java.lang.invoke.MethodHandles.Lookup.ClassOption;
 import java.lang.invoke.MethodType;
 import java.lang.invoke.SwitchPoint;
 import java.lang.ref.ReferenceQueue;
@@ -347,10 +347,32 @@ public final class Context {
         public Class<?> install(final String className, final byte[] bytecode) {
             try {
                 ANONYMOUS_INSTALLED_SCRIPT_COUNT.increment();
-                return hostLookup.defineHiddenClass(bytecode, false, ClassOptions.WEAK);
+                // Workaround: define it as a hidden nestmate so that the hostLookup can find private members
+                return hostLookup.defineHiddenClass(bytecode, true, ClassOption.NESTMATE, ClassOption.WEAK);
             } catch (IllegalAccessException e) {
                 throw new InternalError(e);
             }
+        }
+
+        @Override
+        public void initialize(final Collection<Class<?>> classes, final Source source, final Object[] constants) {
+            AccessController.doPrivileged(new PrivilegedAction<Void>() {
+                @Override
+                public Void run() {
+                    for (final Class<?> clazz : classes) {
+                        try {
+                            //use reflection to write source and constants table to installed classes
+                            MethodHandle sourceField = hostLookup.findStaticSetter(clazz, SOURCE.symbolName(), Source.class);
+                            sourceField.invokeExact(source);
+                            MethodHandle constantsField = hostLookup.findStaticSetter(clazz, CONSTANTS.symbolName(), Object[].class);
+                            constantsField.invokeExact(constants);
+                        } catch (Throwable e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    return null;
+                }
+            });
         }
 
         @Override
