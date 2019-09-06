@@ -806,4 +806,31 @@ public class TestBasicFunctionality extends ValueTypeTest {
         Test37Value1 vt = new Test37Value1();
         Asserts.assertEQ(test37(vt), vt);
     }
+
+    // Test elimination of inline type allocations without a unique CheckCastPP
+    inline class Test38Value {
+        public int i;
+        public Test38Value(int i) { this.i = i; }
+    }
+
+    static Test38Value test38Field;
+
+    @Test
+    public void test38() {
+        for (int i = 3; i < 100; ++i) {
+            int j = 1;
+            while (++j < 11) {
+                try {
+                    test38Field = new Test38Value(i);
+                } catch (ArithmeticException ae) { }
+            }
+        }
+    }
+
+    @DontCompile
+    public void test38_verifier(boolean warmup) {
+        test38Field = Test38Value.default;
+        test38();
+        Asserts.assertEQ(test38Field, new Test38Value(99));
+    }
 }

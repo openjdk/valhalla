@@ -836,10 +836,13 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
   // Search for allocations of this value type
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     AllocateNode* alloc = fast_out(i)->isa_Allocate();
-    if (alloc != NULL && alloc->result_cast() != NULL && alloc->in(AllocateNode::ValueNode) == this) {
+    if (alloc != NULL && alloc->in(AllocateNode::ValueNode) == this) {
       assert(!is_default(*igvn), "default value type allocation");
       Node* res = alloc->result_cast();
-      Node* res_dom = NULL;
+      if (res == NULL || !res->is_CheckCastPP()) {
+        break; // No unique CheckCastPP
+      }
+      Node* res_dom = res;
       if (is_allocated(igvn)) {
         // The value type is already allocated but still connected to an AllocateNode.
         // This can happen with late inlining when we first allocate a value type argument
@@ -848,18 +851,17 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
       } else {
         // Search for a dominating allocation of the same value type
         for (DUIterator_Fast jmax, j = fast_outs(jmax); j < jmax; j++) {
-          AllocateNode* alloc_dom = fast_out(j)->isa_Allocate();
-          if (alloc_dom != NULL && alloc != alloc_dom && alloc_dom->result_cast() != NULL &&
-              alloc_dom->in(AllocateNode::ValueNode) == this) {
-            assert(alloc->in(AllocateNode::KlassNode) == alloc_dom->in(AllocateNode::KlassNode), "klasses should match");
-            if (phase->is_dominator(alloc_dom->result_cast()->in(0), res->in(0))) {
-              res_dom = alloc_dom->result_cast();
-              break;
+          AllocateNode* alloc_other = fast_out(j)->isa_Allocate();
+          if (alloc_other != NULL && alloc_other->in(AllocateNode::ValueNode) == this) {
+            Node* res_other = alloc_other->result_cast();
+            if (res_other != NULL && res_other->is_CheckCastPP() && res_other != res_dom &&
+                phase->is_dominator(res_other->in(0), res_dom->in(0))) {
+              res_dom = res_other;
             }
           }
         }
       }
-      if (res_dom != NULL) {
+      if (res_dom != res) {
         // Move users to dominating allocation
         igvn->replace_node(res, res_dom);
         // The result of the dominated allocation is now unused and will be
