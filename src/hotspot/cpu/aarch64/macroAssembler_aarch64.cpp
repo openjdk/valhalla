@@ -46,6 +46,7 @@
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/signature_cc.hpp"
 #include "runtime/thread.hpp"
 #ifdef COMPILER1
 #include "c1/c1_LIRAssembler.hpp"
@@ -4088,6 +4089,7 @@ void MacroAssembler::access_load_at(BasicType type, DecoratorSet decorators,
 void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators,
                                      Address dst, Register src,
                                      Register tmp1, Register thread_tmp, Register tmp3) {
+
   BarrierSetAssembler *bs = BarrierSet::barrier_set()->barrier_set_assembler();
   decorators = AccessInternal::decorator_fixup(decorators);
   bool as_raw = (decorators & AS_RAW) != 0;
@@ -5956,11 +5958,369 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   }
 }
 
-void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
-  // Called from MachVEP node
-  unimplemented("Support for ValueTypePassFieldsAsArgs and ValueTypeReturnedAsFields is not implemented");
+int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_interpreter) {
+  // A value type might be returned. If fields are in registers we
+  // need to allocate a value type instance and initialize it with
+  // the value of the fields.
+  Label skip;
+  // We only need a new buffered value if a new one is not returned
+  cmp(r0, (u1) 1);
+  br(Assembler::EQ, skip);
+  int call_offset = -1;
+
+  Label slow_case;
+
+  // Try to allocate a new buffered value (from the heap)
+  if (UseTLAB) {
+
+    if (vk != NULL) {
+      // Called from C1, where the return type is statically known.
+      mov(r1, (intptr_t)vk->get_ValueKlass());
+      jint lh = vk->layout_helper();
+      assert(lh != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
+      mov(r14, lh);
+    } else {
+       // Call from interpreter. R0 contains ((the ValueKlass* of the return type) | 0x01)
+       andr(r1, r0, -2);
+       // get obj size
+       ldrw(r14, Address(rscratch1 /*klass*/, Klass::layout_helper_offset()));
+    }
+
+     ldr(r13, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
+ 
+     // check whether we have space in TLAB, 
+     // rscratch1 contains pointer to just allocated obj
+      lea(r14, Address(r13, r14)); 
+      ldr(rscratch1, Address(rthread, in_bytes(JavaThread::tlab_end_offset())));
+
+      cmp(r14, rscratch1);
+      br(Assembler::GT, slow_case);
+
+      // OK we have room in TLAB, 
+      // Set new TLAB top
+      str(r14, Address(rthread, in_bytes(JavaThread::tlab_top_offset()))); 
+
+      // Set new class always locked
+      mov(rscratch1, (uint64_t) markOopDesc::always_locked_prototype());
+      str(rscratch1, Address(r13, oopDesc::mark_offset_in_bytes()));
+
+      store_klass_gap(r13, zr);  // zero klass gap for compressed oops
+      if (vk == NULL) {
+        // store_klass corrupts rbx, so save it in rax for later use (interpreter case only).
+         mov(r0, r1);
+      }
+      
+      store_klass(r13, r1);  // klass
+
+      if (vk != NULL) {
+        // FIXME -- do the packing in-line to avoid the runtime call
+        mov(r0, r13);
+        far_call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
+      } else {
+
+        // We have our new buffered value, initialize its fields with a
+        // value class specific handler
+        ldr(r1, Address(r0, InstanceKlass::adr_valueklass_fixed_block_offset()));
+        ldr(r1, Address(r1, ValueKlass::pack_handler_offset()));
+
+        // Mov new class to r0 and call pack_handler
+        mov(r0, r13);
+        blr(r1);
+      }
+      b(skip);
+  }
+
+  bind(slow_case);
+  // We failed to allocate a new value, fall back to a runtime
+  // call. Some oop field may be live in some registers but we can't
+  // tell. That runtime call will take care of preserving them
+  // across a GC if there's one.
+
+
+  if (from_interpreter) {
+    super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
+  } else {
+    ldr(rscratch1, RuntimeAddress(StubRoutines::store_value_type_fields_to_buf()));
+    blr(rscratch1);
+    call_offset = offset();
+  }
+
+  bind(skip);
+  return call_offset;
 }
 
-void MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk) {
-  super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
+// Move a value between registers/stack slots and update the reg_state
+bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset) {
+  if (reg_state[to->value()] == reg_written) {
+    return true; // Already written
+  }
+
+  if (from != to && bt != T_VOID) {
+    if (reg_state[to->value()] == reg_readonly) {
+      return false; // Not yet writable
+    }
+    if (from->is_reg()) {
+      if (to->is_reg()) {
+        mov(to->as_Register(), from->as_Register());
+      } else {
+        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
+        Address to_addr = Address(sp, st_off);
+        if (from->is_FloatRegister()) {
+          if (bt == T_DOUBLE) {
+             strd(from->as_FloatRegister(), to_addr);
+          } else {
+             assert(bt == T_FLOAT, "must be float");
+             strs(from->as_FloatRegister(), to_addr);
+          }
+        } else {
+          str(from->as_Register(), to_addr); 
+        }
+      }
+    } else {
+      Address from_addr = Address(sp, from->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset);
+      if (to->is_reg()) {
+        if (to->is_FloatRegister()) {
+          if (bt == T_DOUBLE) {
+             ldrd(to->as_FloatRegister(), from_addr);
+          } else {
+            assert(bt == T_FLOAT, "must be float");
+            ldrs(to->as_FloatRegister(), from_addr);
+          }
+        } else {
+          ldr(to->as_Register(), from_addr); 
+        }
+      } else {
+        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
+        ldr(rscratch1, from_addr); 
+        str(rscratch1, Address(sp, st_off));
+      }
+    }
+  }
+
+  // Update register states
+  reg_state[from->value()] = reg_writable;
+  reg_state[to->value()] = reg_written;
+  return true;
+}
+
+// Read all fields from a value type oop and store the values in registers/stack slots
+bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to,
+                                         int& to_index, RegState reg_state[], int ret_off, int extra_stack_offset) {
+  Register fromReg = from->is_reg() ? from->as_Register() : noreg;
+  assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
+
+
+  int vt = 1;
+  bool done = true;
+  bool mark_done = true;
+  do {
+    sig_index--;
+    BasicType bt = sig->at(sig_index)._bt;
+    if (bt == T_VALUETYPE) {
+      vt--;
+    } else if (bt == T_VOID &&
+               sig->at(sig_index-1)._bt != T_LONG &&
+               sig->at(sig_index-1)._bt != T_DOUBLE) {
+      vt++;
+    } else if (SigEntry::is_reserved_entry(sig, sig_index)) {
+      to_index--; // Ignore this
+    } else {
+      assert(to_index >= 0, "invalid to_index");
+      VMRegPair pair_to = regs_to[to_index--];
+      VMReg to = pair_to.first();
+
+      if (bt == T_VOID) continue;
+
+      int idx = (int) to->value();
+      if (reg_state[idx] == reg_readonly) {
+         if (idx != from->value()) {
+           mark_done = false;
+         }
+         done = false;
+         continue;
+      } else if (reg_state[idx] == reg_written) {
+        continue;
+      } else {
+        assert(reg_state[idx] == reg_writable, "must be writable");
+        reg_state[idx] = reg_written;
+      }
+
+      if (fromReg == noreg) {
+        int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
+        ldr(rscratch2, Address(sp, st_off)); 
+        fromReg = rscratch2;
+      }
+
+      int off = sig->at(sig_index)._offset;
+      assert(off > 0, "offset in object should be positive");
+      bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
+
+      Address fromAddr = Address(fromReg, off);
+      bool is_signed = (bt != T_CHAR) && (bt != T_BOOLEAN);
+
+      if (!to->is_FloatRegister()) {
+
+        Register dst = to->is_stack() ? rscratch1 : to->as_Register();
+
+        if (is_oop) {
+          load_heap_oop(dst, fromAddr);
+        } else {
+          load_sized_value(dst, fromAddr, type2aelembytes(bt), is_signed);
+        }
+        if (to->is_stack()) {
+          int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
+          str(dst, Address(sp, st_off));
+        }
+      } else {
+        if (bt == T_DOUBLE) {
+          ldrd(to->as_FloatRegister(), fromAddr);
+        } else {
+          assert(bt == T_FLOAT, "must be float");
+          ldrs(to->as_FloatRegister(), fromAddr);
+        }
+     }
+
+    }
+
+  } while (vt != 0);
+
+  if (mark_done && reg_state[from->value()] != reg_written) {
+    // This is okay because no one else will write to that slot
+    reg_state[from->value()] = reg_writable;
+  }
+  return done;
+}
+
+// Pack fields back into a value type oop
+bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
+                                       VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
+                                       int ret_off, int extra_stack_offset) {
+  assert(sig->at(sig_index)._bt == T_VALUETYPE, "should be at end delimiter");
+  assert(to->is_valid(), "must be");
+
+  if (reg_state[to->value()] == reg_written) {
+    skip_unpacked_fields(sig, sig_index, regs_from, regs_from_count, from_index);
+    return true; // Already written
+  }
+
+  Register val_array = r0;
+  Register val_obj_tmp = r11;
+  Register from_reg_tmp = r10;
+  Register tmp1 = r14;
+  Register tmp2 = r13;
+  Register tmp3 = r1;
+  Register val_obj = to->is_stack() ? val_obj_tmp : to->as_Register();
+
+  if (reg_state[to->value()] == reg_readonly) {
+    if (!is_reg_in_unpacked_fields(sig, sig_index, to, regs_from, regs_from_count, from_index)) {
+      skip_unpacked_fields(sig, sig_index, regs_from, regs_from_count, from_index);
+      return false; // Not yet writable
+    }
+    val_obj = val_obj_tmp;
+  }
+
+  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_VALUETYPE);
+  load_heap_oop(val_obj, Address(val_array, index));
+
+  ScalarizedValueArgsStream stream(sig, sig_index, regs_from, regs_from_count, from_index);
+  VMRegPair from_pair;
+  BasicType bt;
+
+  while (stream.next(from_pair, bt)) {
+    int off = sig->at(stream.sig_cc_index())._offset;
+    assert(off > 0, "offset in object should be positive");
+    bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
+    size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
+
+    VMReg from_r1 = from_pair.first();
+    VMReg from_r2 = from_pair.second();
+
+    // Pack the scalarized field into the value object.
+    Address dst(val_obj, off);
+
+    if (!from_r1->is_FloatRegister()) {
+      Register from_reg;
+      if (from_r1->is_stack()) {
+        from_reg = from_reg_tmp;
+        int ld_off = from_r1->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
+        load_sized_value(from_reg, Address(sp, ld_off), size_in_bytes, /* is_signed */ false);
+      } else {
+        from_reg = from_r1->as_Register();
+      }
+
+      if (is_oop) {
+        DecoratorSet decorators = IN_HEAP | ACCESS_WRITE;
+        store_heap_oop(dst, from_reg, tmp1, tmp2, tmp3, decorators);
+      } else {
+        store_sized_value(dst, from_reg, size_in_bytes);
+      }
+    } else { 
+      if (from_r2->is_valid()) {
+        strd(from_r1->as_FloatRegister(), dst);
+      } else {
+        strs(from_r1->as_FloatRegister(), dst);
+      }
+    }
+
+    reg_state[from_r1->value()] = reg_writable;
+  }
+  sig_index = stream.sig_cc_index();
+  from_index = stream.regs_cc_index();
+
+  assert(reg_state[to->value()] == reg_writable, "must have already been read");
+  bool success = move_helper(val_obj->as_VMReg(), to, T_OBJECT, reg_state, ret_off, extra_stack_offset);
+  assert(success, "to register must be writeable");
+
+  return true;
+}
+
+// Unpack all value type arguments passed as oops
+void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
+  int sp_inc = unpack_value_args_common(C, receiver_only);
+  // Emit code for verified entry and save increment for stack repair on return
+  verified_entry(C, sp_inc);
+}
+
+int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
+                                       BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
+                                       int args_passed, int args_on_stack, VMRegPair* regs,            // from
+                                       int args_passed_to, int args_on_stack_to, VMRegPair* regs_to) { // to
+  // Check if we need to extend the stack for packing/unpacking
+  int sp_inc = (args_on_stack_to - args_on_stack) * VMRegImpl::stack_slot_size;
+  if (sp_inc > 0) {
+    sp_inc = align_up(sp_inc, StackAlignmentInBytes);
+    if (!is_packing) {
+      // Save the return address, adjust the stack (make sure it is properly
+      // 16-byte aligned) and copy the return address to the new top of the stack.
+      // (Note: C1 does this in C1_MacroAssembler::scalarized_entry).
+      // FIXME: We need not to preserve return address on aarch64
+      pop(rscratch1);
+      sub(sp, sp, sp_inc); 
+      push(rscratch1);
+    }
+  } else {
+    // The scalarized calling convention needs less stack space than the unscalarized one.
+    // No need to extend the stack, the caller will take care of these adjustments.
+    sp_inc = 0;
+  }
+
+  int ret_off; // make sure we don't overwrite the return address
+  if (is_packing) {
+    // For C1 code, the VVEP doesn't have reserved slots, so we store the returned address at
+    // rsp[0] during shuffling.
+    ret_off = 0;
+  } else {
+    // C2 code ensures that sp_inc is a reserved slot.
+    ret_off = sp_inc;
+  }
+
+  return shuffle_value_args_common(is_packing, receiver_only, extra_stack_offset,
+                                   sig_bt, sig_cc,
+                                   args_passed, args_on_stack, regs,
+                                   args_passed_to, args_on_stack_to, regs_to,
+                                   sp_inc, ret_off);
+}
+
+VMReg MacroAssembler::spill_reg_for(VMReg reg) {
+  return (reg->is_FloatRegister()) ? v0->as_VMReg() : r14->as_VMReg();
 }

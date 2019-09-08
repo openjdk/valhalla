@@ -116,4 +116,5 @@ void CardTableBarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorS
       store_check(masm, r3, dst);
     }
   }
+
 }

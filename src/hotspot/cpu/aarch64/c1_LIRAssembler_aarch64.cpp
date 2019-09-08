@@ -34,6 +34,7 @@
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciInstance.hpp"
+#include "ci/ciValueKlass.hpp"
 #include "code/compiledIC.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/cardTableBarrierSet.hpp"
@@ -505,6 +506,21 @@ void LIR_Assembler::return_op(LIR_Opr result) {
   assert(result->is_illegal() || !result->is_single_cpu() || result->as_register() == r0, "word returns are in r0,");
 
   ciMethod* method = compilation()->method();
+
+  if (ValueTypeReturnedAsFields && method->signature()->returns_never_null()) {
+    ciType* return_type = method->return_type();
+    if (return_type->is_valuetype()) {
+      ciValueKlass* vk = return_type->as_value_klass();
+      if (vk->can_be_returned_as_fields()) {
+        address unpack_handler = vk->unpack_handler();
+        assert(unpack_handler != NULL, "must be");
+        __ far_call(RuntimeAddress(unpack_handler));
+        // At this point, rax points to the value object (for interpreter or C1 caller).
+        // The fields of the object are copied into registers (for C2 caller).
+      }
+    }
+  }
+
   // Pop the stack before the safepoint code
   __ remove_frame(initial_frame_size_in_bytes(), needs_stack_repair());
 
@@ -517,8 +533,8 @@ void LIR_Assembler::return_op(LIR_Opr result) {
   __ ret(lr);
 }
 
-void LIR_Assembler::store_value_type_fields_to_buf(ciValueKlass* vk) { 
-  __ store_value_type_fields_to_buf(vk);
+int LIR_Assembler::store_value_type_fields_to_buf(ciValueKlass* vk) { 
+ return (__ store_value_type_fields_to_buf(vk, false));
 }
 
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
@@ -682,9 +698,11 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
     assert(c->as_jint() == 0, "should be");
     insn = &Assembler::strw;
     break;
-  case T_VALUETYPE: // DMS CHECK: the code is significantly differ from x86
+  case T_VALUETYPE: 
   case T_OBJECT:
   case T_ARRAY:
+    // Non-null case is not handled on aarch64 but handled on x86
+    // FIXME: do we need to add it here?
     assert(c->as_jobject() == 0, "should be");
     if (UseCompressedOops && !wide) {
       insn = &Assembler::strw;
@@ -1640,10 +1658,16 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
     Register left_klass_op = op->left_klass_op()->as_register();
     Register right_klass_op = op->right_klass_op()->as_register();
 
-    // DMS CHECK, likely x86 bug, make aarch64 implementation correct
-    __ load_klass(left_klass_op, left);
-    __ load_klass(right_klass_op, right);
-    __ cmp(left_klass_op, right_klass_op);
+    if (UseCompressedOops) {
+      __ ldrw(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
+      __ ldrw(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
+      __ cmpw(left_klass_op, right_klass_op);
+    } else {
+      __ ldr(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
+      __ ldr(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
+      __ cmp(left_klass_op, right_klass_op);
+    }
+
     __ br(Assembler::EQ, *op->stub()->entry()); // same klass -> do slow check
     // fall through to L_oops_not_equal
   }

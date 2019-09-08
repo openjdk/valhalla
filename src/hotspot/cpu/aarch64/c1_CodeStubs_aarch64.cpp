@@ -167,10 +167,9 @@ void StoreFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
 }
 
 // Implementation of SubstitutabilityCheckStub
-SubstitutabilityCheckStub::SubstitutabilityCheckStub(LIR_Opr left, LIR_Opr right, LIR_Opr result, CodeEmitInfo* info) {
+SubstitutabilityCheckStub::SubstitutabilityCheckStub(LIR_Opr left, LIR_Opr right, CodeEmitInfo* info) {
   _left = left;
   _right = right;
-  _result = result;
   _scratch_reg = FrameMap::r0_oop_opr;
   _info = new CodeEmitInfo(info);
 }
@@ -183,9 +182,6 @@ void SubstitutabilityCheckStub::emit_code(LIR_Assembler* ce) {
   __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::substitutability_check_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
-  if (_result->as_register() != r0) {
-    __ mov(_result->as_register(), r0);
-  }
   __ b(_continuation);
 }
 

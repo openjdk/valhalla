@@ -324,12 +324,12 @@ class StubGenerator: public StubCodeGenerator {
     // n.b. this assumes Java returns an integral result in r0
     // and a floating result in j_farg0
     __ ldr(j_rarg2, result);
-    Label is_long, is_float, is_double, exit;
+    Label is_long, is_float, is_double, is_value, exit;
     __ ldr(j_rarg1, result_type);
     __ cmp(j_rarg1, (u1)T_OBJECT);
     __ br(Assembler::EQ, is_long);
     __ cmp(j_rarg1, (u1)T_VALUETYPE);
-    __ br(Assembler::EQ, is_long);
+    __ br(Assembler::EQ, is_value);
     __ cmp(j_rarg1, (u1)T_LONG);
     __ br(Assembler::EQ, is_long);
     __ cmp(j_rarg1, (u1)T_FLOAT);
@@ -390,6 +390,19 @@ class StubGenerator: public StubCodeGenerator {
     __ ret(lr);
 
     // handle return types different from T_INT
+    __ BIND(is_value);
+    if (ValueTypeReturnedAsFields) {
+      // Check for flattened return value
+      __ cbz(r0, is_long);
+      // Initialize pre-allocated buffer
+      __ mov(r1, r0);
+      __ andr(r1, r1, -2);
+      __ ldr(r1, Address(r1, InstanceKlass::adr_valueklass_fixed_block_offset()));
+      __ ldr(r1, Address(r1, ValueKlass::pack_handler_offset()));
+      __ ldr(r0, Address(j_rarg2, 0));
+      __ blr(r1);
+      __ b(exit);
+    }
 
     __ BIND(is_long);
     __ str(r0, Address(j_rarg2, 0));

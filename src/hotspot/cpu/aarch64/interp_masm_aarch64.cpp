@@ -675,6 +675,32 @@ void InterpreterMacroAssembler::remove_activation(
     bind(no_reserved_zone_enabling);
   }
 
+
+  if (state == atos && ValueTypeReturnedAsFields) {
+    Label skip;
+    // Test if the return type is a value type
+    ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
+    ldr(rscratch1, Address(rscratch1, Method::const_offset()));
+    ldrb(rscratch1, Address(rscratch1, ConstMethod::result_type_offset()));
+    cmpw(rscratch1, (u1) T_VALUETYPE);
+    br(Assembler::NE, skip);
+
+    // We are returning a value type, load its fields into registers
+    // Load fields from a buffered value with a value class specific handler
+
+    load_klass(rscratch1 /*dst*/, r0 /*src*/);
+    ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_valueklass_fixed_block_offset()));
+    ldr(rscratch1, Address(rscratch1, ValueKlass::unpack_handler_offset()));
+    cbz(rscratch1, skip); 
+
+    blr(rscratch1);
+
+    // call above kills the value in r1. Reload it.
+    ldr(r1, Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
+    bind(skip);
+  }
+
+
   // remove frame anchor
   leave();
   // If we're returning to interpreted code we will shortly be

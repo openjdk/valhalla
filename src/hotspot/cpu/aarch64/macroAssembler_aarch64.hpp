@@ -28,6 +28,9 @@
 
 #include "asm/assembler.hpp"
 #include "oops/compressedOops.hpp"
+#include "utilities/macros.hpp"
+#include "runtime/signature.hpp"
+
 
 class ciValueKlass;
 
@@ -1167,9 +1170,27 @@ public:
 
   void verified_entry(Compile* C, int sp_inc);
 
+  int store_value_type_fields_to_buf(ciValueKlass* vk, bool from_interpreter = true);
+
 // Unpack all value type arguments passed as oops 
   void unpack_value_args(Compile* C, bool receiver_only);
-  void store_value_type_fields_to_buf(ciValueKlass* vk);
+  bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset);
+  bool unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index,
+                           RegState reg_state[], int ret_off, int extra_stack_offset);
+  bool pack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
+                         VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
+                         int ret_off, int extra_stack_offset);
+  void restore_stack(Compile* C);
+
+  int shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
+                         BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
+                         int args_passed, int args_on_stack, VMRegPair* regs,
+                         int args_passed_to, int args_on_stack_to, VMRegPair* regs_to);
+  bool shuffle_value_args_spill(bool is_packing,  const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
+                                VMRegPair* regs_from, int from_index, int regs_from_count,
+                                RegState* reg_state, int sp_inc, int extra_stack_offset);
+  VMReg spill_reg_for(VMReg reg);
+
 
   void tableswitch(Register index, jint lowbound, jint highbound,
                    Label &jumptable, Label &jumptable_end, int stride = 1) {
@@ -1392,6 +1413,9 @@ public:
       spill(tmp1, true, dst_offset+8);
     }
   }
+
+  #include "asm/macroAssembler_common.hpp"
+
 };
 
 #ifdef ASSERT

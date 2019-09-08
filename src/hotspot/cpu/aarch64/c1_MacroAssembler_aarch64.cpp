@@ -385,14 +385,86 @@ void C1_MacroAssembler::verified_value_entry() {
   }
   
   // build frame
-  // DMS CHECK: is it nop?
   // verify_FPU(0, "method_entry");
- 
 }
 
 int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, int bang_size_in_bytes, Label& verified_value_entry_label, bool is_value_ro_entry) {
-  guarantee(false, "Support for ValueTypePassFieldsAsArgs and ValueTypeReturnedAsFields is not implemented");
-  return 0;
+  // This function required to support for ValueTypePassFieldsAsArgs
+  if (C1Breakpoint || VerifyFPU || !UseStackBanging) {
+    // Verified Entry first instruction should be 5 bytes long for correct
+    // patching by patch_verified_entry().
+    //
+    // C1Breakpoint and VerifyFPU have one byte first instruction.
+    // Also first instruction will be one byte "push(rbp)" if stack banging
+    // code is not generated (see build_frame() above).
+    // For all these cases generate long instruction first.
+    nop();
+  }
+
+  // verify_FPU(0, "method_entry");
+
+  assert(ValueTypePassFieldsAsArgs, "sanity");
+
+  GrowableArray<SigEntry>* sig   = &ces->sig();
+  GrowableArray<SigEntry>* sig_cc = is_value_ro_entry ? &ces->sig_cc_ro() : &ces->sig_cc();
+  VMRegPair* regs      = ces->regs();
+  VMRegPair* regs_cc   = is_value_ro_entry ? ces->regs_cc_ro() : ces->regs_cc();
+  int args_on_stack    = ces->args_on_stack();
+  int args_on_stack_cc = is_value_ro_entry ? ces->args_on_stack_cc_ro() : ces->args_on_stack_cc();
+
+  assert(sig->length() <= sig_cc->length(), "Zero-sized value class not allowed!");
+  BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, sig_cc->length());
+  int args_passed = sig->length();
+  int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
+
+  int extra_stack_offset = wordSize; // tos is return address.
+
+  // Create a temp frame so we can call into runtime. It must be properly set up to accomodate GC.
+  int sp_inc = (args_on_stack - args_on_stack_cc) * VMRegImpl::stack_slot_size;
+  if (sp_inc > 0) {
+    sp_inc = align_up(sp_inc, StackAlignmentInBytes);
+    sub(sp, sp, sp_inc);
+  } else {
+    sp_inc = 0;
+  }
+
+  sub(sp, sp, frame_size_in_bytes);
+  if (sp_inc > 0) {
+    int real_frame_size = frame_size_in_bytes +
+           + wordSize  // pushed rbp
+           + wordSize  // returned address pushed by the stack extension code
+           + sp_inc;   // stack extension
+    mov(rscratch1, real_frame_size);
+    str(rscratch1, Address(sp, frame_size_in_bytes - wordSize));
+  }
+
+  // FIXME -- call runtime only if we cannot in-line allocate all the incoming value args.
+  mov(r1, (intptr_t) ces->method());
+  if (is_value_ro_entry) {
+    far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_value_args_no_receiver_id)));
+  } else {
+    far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_value_args_id)));
+  }
+  int rt_call_offset = offset();
+
+  // Remove the temp frame
+  add(sp, sp, frame_size_in_bytes);
+
+  int n = shuffle_value_args(true, is_value_ro_entry, extra_stack_offset, sig_bt, sig_cc,
+                             args_passed_cc, args_on_stack_cc, regs_cc, // from
+                             args_passed, args_on_stack, regs);         // to
+  assert(sp_inc == n, "must be");
+
+  if (sp_inc != 0) {
+    // Do the stack banging here, and skip over the stack repair code in the
+    // verified_value_entry (which has a different real_frame_size).
+    assert(sp_inc > 0, "stack should not shrink");
+    generate_stack_overflow_check(bang_size_in_bytes);
+    decrement(sp, frame_size_in_bytes);
+  }
+
+  b(verified_value_entry_label);
+  return rt_call_offset;
 }
 
 

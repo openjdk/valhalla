@@ -352,7 +352,7 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *re
     case T_BYTE:
     case T_SHORT:
     case T_INT:
-      if (int_args < Argument::n_int_register_parameters_j) {
+      if (int_args < SharedRuntime::java_return_convention_max_int) {
         regs[i].set1(INT_ArgReg[int_args]->as_VMReg());
         int_args ++;
       } else {
@@ -374,7 +374,7 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *re
       // Should T_METADATA be added to java_calling_convention as well ?
     case T_METADATA:
     case T_VALUETYPE:
-      if (int_args < Argument::n_int_register_parameters_j) {
+      if (int_args < SharedRuntime::java_return_convention_max_int) {
         regs[i].set2(INT_ArgReg[int_args]->as_VMReg());
         int_args ++;
       } else {
@@ -382,7 +382,7 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *re
       }
       break;
     case T_FLOAT:
-      if (fp_args < Argument::n_float_register_parameters_j) {
+      if (fp_args < SharedRuntime::java_return_convention_max_float) {
         regs[i].set1(FP_ArgReg[fp_args]->as_VMReg());
         fp_args ++;
       } else {
@@ -442,13 +442,51 @@ static void patch_callers_callsite(MacroAssembler *masm) {
 // arguments for the call if value types are passed by reference (the
 // calling convention the interpreter expects).
 static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_extended) {
- int total_args_passed = 0;
- total_args_passed = sig_extended->length();
- return total_args_passed;
+  int total_args_passed = 0;
+  if (ValueTypePassFieldsAsArgs) {
+     for (int i = 0; i < sig_extended->length(); i++) {
+       BasicType bt = sig_extended->at(i)._bt;
+       if (SigEntry::is_reserved_entry(sig_extended, i)) {
+         // Ignore reserved entry
+       } else if (bt == T_VALUETYPE) {
+         // In sig_extended, a value type argument starts with:
+         // T_VALUETYPE, followed by the types of the fields of the
+         // value type and T_VOID to mark the end of the value
+         // type. Value types are flattened so, for instance, in the
+         // case of a value type with an int field and a value type
+         // field that itself has 2 fields, an int and a long:
+         // T_VALUETYPE T_INT T_VALUETYPE T_INT T_LONG T_VOID (second
+         // slot for the T_LONG) T_VOID (inner T_VALUETYPE) T_VOID
+         // (outer T_VALUETYPE)
+         total_args_passed++;
+         int vt = 1;
+         do {
+           i++;
+           BasicType bt = sig_extended->at(i)._bt;
+           BasicType prev_bt = sig_extended->at(i-1)._bt;
+           if (bt == T_VALUETYPE) {
+             vt++;
+           } else if (bt == T_VOID &&
+                      prev_bt != T_LONG &&
+                      prev_bt != T_DOUBLE) {
+             vt--;
+           }
+         } while (vt != 0);
+       } else {
+         total_args_passed++;
+       }
+     }
+  } else {
+    total_args_passed = sig_extended->length();
+  }
+
+  return total_args_passed;
 }
 
 
 static void gen_c2i_adapter_helper(MacroAssembler* masm, BasicType bt, const VMRegPair& reg_pair, int extraspace, const Address& to) {
+
+    assert(bt != T_VALUETYPE || !ValueTypePassFieldsAsArgs, "no value type here");
 
     // Say 4 args:
     // i   st_off
@@ -475,9 +513,8 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm, BasicType bt, const VMR
 
     if (r_1->is_stack()) {
       // memory to memory use rscratch1
-      // DMS CHECK: words_pushed is always 0 and can be removed?
-      // int ld_off = (r_1->reg2stack() * VMRegImpl::stack_slot_size + extraspace + words_pushed * wordSize);
-      int ld_off = (r_1->reg2stack() * VMRegImpl::stack_slot_size + extraspace);
+      // words_pushed is always 0 so we don't use it.
+      int ld_off = (r_1->reg2stack() * VMRegImpl::stack_slot_size + extraspace /* + word_pushed * wordSize */);
       if (!r_2->is_valid()) {
         // sign extend??
         __ ldrw(rscratch1, Address(sp, ld_off));
@@ -521,6 +558,51 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   __ bind(skip_fixup);
 
   bool has_value_argument = false;
+
+  if (ValueTypePassFieldsAsArgs) {
+      // Is there a value type argument?
+     for (int i = 0; i < sig_extended->length() && !has_value_argument; i++) {
+       has_value_argument = (sig_extended->at(i)._bt == T_VALUETYPE);
+     }
+     if (has_value_argument) {
+      // There is at least a value type argument: we're coming from
+      // compiled code so we have no buffers to back the value
+      // types. Allocate the buffers here with a runtime call.
+      OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
+ 
+      frame_complete = __ offset();
+      address the_pc = __ pc();
+ 
+      __ set_last_Java_frame(noreg, noreg, the_pc, rscratch1);
+
+      __ mov(c_rarg0, rthread);
+      __ mov(c_rarg1, r1);
+      __ mov(c_rarg2, (int64_t)alloc_value_receiver);
+
+      __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_value_types)));
+      __ blrt(rscratch1, 3, 0, 1);
+
+      oop_maps->add_gc_map((int)(__ pc() - start), map);
+      __ reset_last_Java_frame(false);
+
+      RegisterSaver::restore_live_registers(masm);
+
+      Label no_exception;
+      __ ldr(r0, Address(rthread, Thread::pending_exception_offset()));
+      __ cbz(r0, no_exception);
+
+      __ str(zr, Address(rthread, JavaThread::vm_result_offset()));
+      __ ldr(r0, Address(rthread, Thread::pending_exception_offset()));
+      __ b(RuntimeAddress(StubRoutines::forward_exception_entry()));
+
+      __ bind(no_exception);
+
+      // We get an array of objects from the runtime call
+      __ get_vm_result(r10, rthread); 
+      __ get_vm_result_2(r1, rthread); // TODO: required to keep the callee Method live?
+    }
+  }
+
   int words_pushed = 0;
 
   // Since all args are passed on the stack, total_args_passed *
@@ -547,21 +629,63 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     // offset to start parameters
     int st_off   = (total_args_passed - next_arg_int - 1) * Interpreter::stackElementSize;
 
-    if (SigEntry::is_reserved_entry(sig_extended, next_arg_comp)) {
-       continue; // Ignore reserved entry
-    }
+    if (!ValueTypePassFieldsAsArgs || bt != T_VALUETYPE) {
 
-     if (bt == T_VOID) { 
-       assert(next_arg_comp > 0 && (sig_extended->at(next_arg_comp - 1)._bt == T_LONG || sig_extended->at(next_arg_comp - 1)._bt == T_DOUBLE), "missing half");
-       next_arg_int ++;
-       continue;
-     }
+            if (SigEntry::is_reserved_entry(sig_extended, next_arg_comp)) {
+               continue; // Ignore reserved entry
+            }
 
-     int next_off = st_off - Interpreter::stackElementSize;
-     int offset = (bt == T_LONG || bt == T_DOUBLE) ? next_off : st_off;
+            if (bt == T_VOID) { 
+               assert(next_arg_comp > 0 && (sig_extended->at(next_arg_comp - 1)._bt == T_LONG || sig_extended->at(next_arg_comp - 1)._bt == T_DOUBLE), "missing half");
+               next_arg_int ++;
+               continue;
+             }
 
-     gen_c2i_adapter_helper(masm, bt, regs[next_arg_comp], extraspace, Address(sp, offset)); 
-     next_arg_int ++;
+             int next_off = st_off - Interpreter::stackElementSize;
+             int offset = (bt == T_LONG || bt == T_DOUBLE) ? next_off : st_off;
+
+             gen_c2i_adapter_helper(masm, bt, regs[next_arg_comp], extraspace, Address(sp, offset)); 
+             next_arg_int ++;
+   } else {
+       ignored++;
+      // get the buffer from the just allocated pool of buffers
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_VALUETYPE);
+      __ load_heap_oop(rscratch1, Address(r10, index));
+      next_vt_arg++;
+      next_arg_int++;
+      int vt = 1;
+      // write fields we get from compiled code in registers/stack
+      // slots to the buffer: we know we are done with that value type
+      // argument when we hit the T_VOID that acts as an end of value
+      // type delimiter for this value type. Value types are flattened
+      // so we might encounter embedded value types. Each entry in
+      // sig_extended contains a field offset in the buffer.
+      do {
+        next_arg_comp++;
+        BasicType bt = sig_extended->at(next_arg_comp)._bt;
+        BasicType prev_bt = sig_extended->at(next_arg_comp - 1)._bt;
+        if (bt == T_VALUETYPE) {
+          vt++;
+          ignored++;
+        } else if (bt == T_VOID && prev_bt != T_LONG && prev_bt != T_DOUBLE) {
+          vt--;
+          ignored++;
+        } else if (SigEntry::is_reserved_entry(sig_extended, next_arg_comp)) {
+          // Ignore reserved entry
+        } else {
+          int off = sig_extended->at(next_arg_comp)._offset;
+          assert(off > 0, "offset in object should be positive");
+
+          bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
+          has_oop_field = has_oop_field || is_oop;
+
+          gen_c2i_adapter_helper(masm, bt, regs[next_arg_comp - ignored], extraspace, Address(r11, off)); 
+        }
+      } while (vt != 0);
+      // pass the buffer to the interpreter
+      __ str(rscratch1, Address(sp, st_off));
+   }
+    
   }
 
 // If a value type was allocated and initialized, apply post barrier to all oop fields

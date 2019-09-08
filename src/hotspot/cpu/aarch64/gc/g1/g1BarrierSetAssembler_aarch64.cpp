@@ -275,44 +275,64 @@ void G1BarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet decorator
 void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                          Address dst, Register val, Register tmp1, Register tmp2, Register tmp3) {
 
+  bool in_heap = (decorators & IN_HEAP) != 0;
+  bool as_normal = (decorators & AS_NORMAL) != 0;
+  assert((decorators & IS_DEST_UNINITIALIZED) == 0, "unsupported");
+
+  bool needs_pre_barrier = as_normal;
+  bool needs_post_barrier = (val != noreg && in_heap);
+
+
    if (tmp3 == noreg) {
-       tmp3 = r8;  
+     tmp3 = rscratch2;
    }
+   // assert_different_registers(val, tmp1, tmp2, tmp3, rscratch1, rscratch2);
+   assert_different_registers(val, tmp1, tmp2, tmp3);
 
   // flatten object address if needed
   if (dst.index() == noreg && dst.offset() == 0) {
-    if (dst.base() != r3) {
-      __ mov(r3, dst.base());
+    if (dst.base() != tmp1) {
+      __ mov(tmp1, dst.base());
     }
   } else {
-    __ lea(r3, dst);
+    __ lea(tmp1, dst);
   }
 
-  g1_write_barrier_pre(masm,
-                       r3 /* obj */,
-                       tmp2 /* pre_val */,
+
+  if (needs_pre_barrier) {
+      g1_write_barrier_pre(masm,
+                       tmp1 /* obj */,
+                       tmp2 /* pre_val */,  
                        rthread /* thread */,
-                       tmp1  /* tmp */,
+                       tmp3  /* tmp */,
                        val != noreg /* tosca_live */,
                        false /* expand_call */);
+  }
 
   if (val == noreg) {
-    BarrierSetAssembler::store_at(masm, decorators, type, Address(r3, 0), noreg, noreg, noreg, noreg);
+    BarrierSetAssembler::store_at(masm, decorators, type, Address(tmp1, 0), noreg, noreg, noreg, noreg);
   } else {
     // G1 barrier needs uncompressed oop for region cross check.
     Register new_val = val;
-    if (UseCompressedOops) {
-      new_val = rscratch2;
-      __ mov(new_val, val);
-    }
-    BarrierSetAssembler::store_at(masm, decorators, type, Address(r3, 0), val, noreg, noreg, noreg);
-    g1_write_barrier_post(masm,
-                          r3 /* store_adr */,
+    if (needs_post_barrier) {
+      if (UseCompressedOops) { 
+        // FIXME: Refactor the code to avoid usage of r19 and stay within tmpX
+        new_val = r19;
+        __ mov(new_val, val);
+      }
+   }
+
+   BarrierSetAssembler::store_at(masm, decorators, type, Address(tmp1, 0), val, noreg, noreg, noreg);
+
+    if (needs_post_barrier) {
+       g1_write_barrier_post(masm,
+                          tmp1 /* store_adr */,
                           new_val /* new_val */,
                           rthread /* thread */,
-                          tmp1 /* tmp */,
-                          tmp2 /* tmp2 */);
-  }
+                          tmp2 /* tmp */,
+                          tmp3 /* tmp2 */);
+   }
+ }
 
 }
 

@@ -442,6 +442,10 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   // and NULL it as marker that esp is now tos until next java call
   __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
 
+  if (state == atos && ValueTypeReturnedAsFields) {
+    __ store_value_type_fields_to_buf(NULL, true);
+  }
+
   __ restore_bcp();
   __ restore_locals();
   __ restore_constant_pool_cache();

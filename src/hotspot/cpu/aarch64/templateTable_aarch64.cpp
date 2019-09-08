@@ -1121,7 +1121,7 @@ void TemplateTable::aastore() {
 
   index_check(r3, r2);     // kills r1
 
-  // DMS CHECK: what does line below do?
+  // FIXME: Could we remove the line below?
   __ add(r4, r2, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop); 
 
   // do array store check - check for NULL value first
@@ -1178,7 +1178,7 @@ void TemplateTable::aastore() {
   }
 
   // Store a NULL
-  do_oop_store(_masm, element_address, noreg, IS_ARRAY);
+  do_oop_store(_masm, element_address, noreg, IS_ARRAY); 
   __ b(done);
 
   if (EnableValhalla) { 
@@ -1211,8 +1211,8 @@ void TemplateTable::aastore() {
 
      __ bind(is_type_ok);
 
-    // DMS CHECK: Reload from TOS to be safe, because of profile_typecheck that blows r2 and r0.
-    // Should we really do it?
+    // Reload from TOS to be safe, because of profile_typecheck that blows r2 and r0.
+    // FIXME: Should we really do it?
      __ ldr(r1, at_tos());  // value
      __ mov(r2, r3); // array, ldr(r2, at_tos_p2()); 
      __ ldr(r3, at_tos_p1()); // index
@@ -2104,7 +2104,7 @@ void TemplateTable::if_acmp(Condition cc) {
   Register is_value_mask = rscratch1;
   __ mov(is_value_mask, markOopDesc::always_locked_pattern);
 
-  if (EnableValhalla && ACmpOnValues == 3) {
+  if (EnableValhalla) {
     __ cmp(r1, r0);
     __ br(Assembler::EQ, (cc == equal) ? taken : not_taken);
 
@@ -2136,28 +2136,7 @@ void TemplateTable::if_acmp(Condition cc) {
     __ stop("Not reachable");
   }
 
-  if (EnableValhalla && ACmpOnValues == 1) {
-    Label is_null;
-    __ cbz(r1, is_null);
-    __ ldr(r2, Address(r1, oopDesc::mark_offset_in_bytes()));
-    __ andr(r2, r2, is_value_mask);
-    __ cmp(r2, is_value_mask);
-    __ cset(r2, Assembler::EQ);
-    __ orr(r1, r1, r2);
-    __ bind(is_null);
-  }
-
   __ cmpoop(r1, r0);
-
-  if (EnableValhalla && ACmpOnValues == 2) {
-    __ br(Assembler::NE, (cc == not_equal) ? taken : not_taken);
-    __ cbz(r1, (cc == equal) ? taken : not_taken);
-    __ ldr(r2, Address(r1, oopDesc::mark_offset_in_bytes()));  
-    __ andr(r2, r2, is_value_mask);
-    __ cmp(r2, is_value_mask); 
-    cc = (cc == equal) ? not_equal : equal;
-  }
-
   __ br(j_not(cc), not_taken);
   __ bind(taken);
   branch(false, false);
@@ -3347,7 +3326,7 @@ void TemplateTable::fast_accessfield(TosState state)
   case Bytecodes::_fast_qgetfield: 
     {
        Label isFlattened, isInitialized, Done;
-       // DMS CHECK: We don't need to reload multiple times, but stay close to original code
+       // FIXME: We don't need to reload registers multiple times, but stay close to x86 code
        __ ldrw(r9, Address(r2, in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::flags_offset()))); 
        __ test_field_is_flattened(r9, r8 /* temp */, isFlattened);
         // Non-flattened field case
