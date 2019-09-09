@@ -200,4 +200,61 @@ public class TestOnStackReplacement extends ValueTypeTest {
     public void test6_verifier(boolean warmup) {
         test6();
     }
+
+    // Similar to test6 but with more fields and reserved stack entry
+    static inline class Test7Value1 {
+        public int i1 = rI;
+        public int i2 = rI;
+        public int i3 = rI;
+        public int i4 = rI;
+        public int i5 = rI;
+        public int i6 = rI;
+    }
+
+    static inline class Test7Value2 {
+        public int i1 = rI;
+        public int i2 = rI;
+        public int i3 = rI;
+        public int i4 = rI;
+        public int i5 = rI;
+        public int i6 = rI;
+        public int i7 = rI;
+        public int i8 = rI;
+        public int i9 = rI;
+        public int i10 = rI;
+        public int i11 = rI;
+        public int i12 = rI;
+        public int i13 = rI;
+        public int i14 = rI;
+        public int i15 = rI;
+        public int i16 = rI;
+        public int i17 = rI;
+        public int i18 = rI;
+        public int i19 = rI;
+        public int i20 = rI;
+        public int i21 = rI;
+
+        public Test7Value1 vt = new Test7Value1();
+
+        public int test(String[] args) {
+            int res = 0;
+            for (int i = 1; i < 20_000; ++i) {
+                res -= i;
+            }
+            return res;
+        }
+    }
+
+    @Test() @Warmup(0) @OSRCompileOnly
+    public void test7() {
+        Test7Value2 tmp = new Test7Value2();
+        for (int i = 0; i < 10; ++i) {
+            tmp.test(null);
+        }
+    }
+
+    @DontCompile
+    public void test7_verifier(boolean warmup) {
+        test7();
+    }
 }

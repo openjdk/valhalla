@@ -507,7 +507,7 @@ void Matcher::init_first_stack_mask() {
 
   // Check if the method has a reserved entry in the argument stack area that
   // should not be used for spilling because it may hold the return address.
-  if (C->method() != NULL && C->method()->has_scalarized_args()) {
+  if (!C->is_osr_compilation() && C->method() != NULL && C->method()->has_scalarized_args()) {
     ExtendedSignature sig_cc = ExtendedSignature(C->method()->get_sig_cc(), SigEntryFilter());
     for (int off = 0; !sig_cc.at_end(); ) {
       BasicType bt = (*sig_cc)._bt;
