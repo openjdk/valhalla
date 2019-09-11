@@ -31,6 +31,7 @@
 #include "gc/z/zMessagePort.inline.hpp"
 #include "gc/z/zServiceability.hpp"
 #include "gc/z/zStat.hpp"
+#include "gc/z/zVerify.hpp"
 #include "logging/log.hpp"
 #include "memory/universe.hpp"
 #include "runtime/vmOperations.hpp"
@@ -85,6 +86,9 @@ public:
     // Setup GC id and active marker
     GCIdMark gc_id_mark(_gc_id);
     IsGCActiveMark gc_active_mark;
+
+    // Verify before operation
+    ZVerify::before_zoperation();
 
     // Execute operation
     _success = do_operation();
@@ -207,6 +211,17 @@ public:
   }
 };
 
+class VM_ZVerify : public VM_Operation {
+public:
+  virtual VMOp_Type type() const {
+    return VMOp_ZVerify;
+  }
+
+  virtual void doit() {
+    ZVerify::after_weak_processing();
+  }
+};
+
 ZDriver::ZDriver() :
     _gc_cycle_port(),
     _gc_locker_port() {
@@ -301,7 +316,12 @@ void ZDriver::concurrent_reset_relocation_set() {
 
 void ZDriver::pause_verify() {
   if (VerifyBeforeGC || VerifyDuringGC || VerifyAfterGC) {
+    // Full verification
     VM_Verify op;
+    VMThread::execute(&op);
+  } else if (ZVerifyRoots || ZVerifyObjects) {
+    // Limited verification
+    VM_ZVerify op;
     VMThread::execute(&op);
   }
 }

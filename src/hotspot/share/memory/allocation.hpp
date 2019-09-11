@@ -25,12 +25,12 @@
 #ifndef SHARE_MEMORY_ALLOCATION_HPP
 #define SHARE_MEMORY_ALLOCATION_HPP
 
-#include "runtime/globals.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
 #include <new>
 
+class outputStream;
 class Thread;
 
 class AllocFailStrategy {
@@ -230,9 +230,6 @@ class StackObj ALLOCATION_SUPER_CLASS_SPEC {
  private:
   void* operator new(size_t size) throw();
   void* operator new [](size_t size) throw();
-#ifdef __IBMCPP__
- public:
-#endif
   void  operator delete(void* p);
   void  operator delete [](void* p);
 };
@@ -506,23 +503,6 @@ protected:
 // deallocate obj of type in heap without calling dtor
 #define FREE_C_HEAP_OBJ(objname)\
   FreeHeap((char*)objname);
-
-// for statistics
-#ifndef PRODUCT
-class AllocStats : StackObj {
-  julong start_mallocs, start_frees;
-  julong start_malloc_bytes, start_mfree_bytes, start_res_bytes;
- public:
-  AllocStats();
-
-  julong num_mallocs();    // since creation of receiver
-  julong alloc_bytes();
-  julong num_frees();
-  julong free_bytes();
-  julong resource_bytes();
-  void   print();
-};
-#endif
 
 
 //------------------------------ReallocMark---------------------------------

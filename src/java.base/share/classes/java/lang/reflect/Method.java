@@ -113,9 +113,7 @@ public final class Method extends Executable {
     }
 
     /**
-     * Package-private constructor used by ReflectAccess to enable
-     * instantiation of these objects in Java code from the java.lang
-     * package via sun.reflect.LangReflectAccess.
+     * Package-private constructor
      */
     Method(Class<?> declaringClass,
            String name,
@@ -422,17 +420,16 @@ public final class Method extends Executable {
 
     @Override
     String toShortString() {
-        StringBuilder sb = new StringBuilder("method ");
-        sb.append(getDeclaringClass().getTypeName()).append('.');
-        sb.append(getName());
-        sb.append('(');
-        StringJoiner sj = new StringJoiner(",");
+        return "method " + getDeclaringClass().getTypeName() +
+                '.' + toShortSignature();
+    }
+
+    String toShortSignature() {
+        StringJoiner sj = new StringJoiner(",", getName() + "(", ")");
         for (Class<?> parameterType : getParameterTypes()) {
             sj.add(parameterType.getTypeName());
         }
-        sb.append(sj);
-        sb.append(')');
-        return sb.toString();
+        return sj.toString();
     }
 
     /**

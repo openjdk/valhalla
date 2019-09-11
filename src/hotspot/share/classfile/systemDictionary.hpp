@@ -84,7 +84,6 @@ class SymbolPropertyTable;
 class ProtectionDomainCacheTable;
 class ProtectionDomainCacheEntry;
 class GCTimer;
-class OopStorage;
 
 #define WK_KLASS_ENUM_NAME(kname)    kname##_knum
 
@@ -360,7 +359,9 @@ public:
   static bool do_unloading(GCTimer* gc_timer);
 
   // Applies "f->do_oop" to all root oops in the system dictionary.
-  static void oops_do(OopClosure* f);
+  // If include_handles is true (the default), then the handles in the
+  // vm_global OopStorage object are included.
+  static void oops_do(OopClosure* f, bool include_handles = true);
 
   // System loader lock
   static oop system_loader_lock()           { return _system_loader_lock_obj; }
@@ -373,13 +374,6 @@ public:
   static void print();
   static void print_on(outputStream* st);
   static void dump(outputStream* st, bool verbose);
-
-  // Monotonically increasing counter which grows as classes are
-  // loaded or modifications such as hot-swapping or setting/removing
-  // of breakpoints are performed
-  static inline int number_of_modifications()     { assert_locked_or_safepoint(Compile_lock); return _number_of_modifications; }
-  // Needed by evolution and breakpoint code
-  static inline void notice_modification()        { assert_locked_or_safepoint(Compile_lock); ++_number_of_modifications;      }
 
   // Verification
   static void verify();
@@ -567,11 +561,6 @@ public:
   // Hashtable holding placeholders for classes being loaded.
   static PlaceholderTable*       _placeholders;
 
-  // Monotonically increasing counter which grows with
-  // loading classes as well as hot-swapping and breakpoint setting
-  // and removal.
-  static int                     _number_of_modifications;
-
   // Lock object for system class loader
   static oop                     _system_loader_lock_obj;
 
@@ -586,9 +575,6 @@ public:
 
   // ProtectionDomain cache
   static ProtectionDomainCacheTable*   _pd_cache_table;
-
-  // VM weak OopStorage object.
-  static OopStorage*             _vm_weak_oop_storage;
 
 protected:
   static void validate_protection_domain(InstanceKlass* klass,
@@ -643,9 +629,6 @@ public:
     assert(m != NULL, "Unexpected NULL Method*");
     return !m->is_public() && m->method_holder() == SystemDictionary::Object_klass();
   }
-
-  static void initialize_oop_storage();
-  static OopStorage* vm_weak_oop_storage();
 
 protected:
   // Setup link to hierarchy

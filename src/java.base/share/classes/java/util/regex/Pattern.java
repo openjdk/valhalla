@@ -357,11 +357,11 @@ import jdk.internal.util.ArraysSupport;
  * <a href="#UNIX_LINES">d</a> <a href="#MULTILINE">m</a> <a href="#DOTALL">s</a>
  * <a href="#UNICODE_CASE">u</a> <a href="#COMMENTS">x</a> <a href="#UNICODE_CHARACTER_CLASS">U</a>
  * on - off</td></tr>
- * <tr><th style="vertical-align:top; font-weight:normal" id="non_capture_group_flags"><code>(?idmsux-idmsux:</code><i>X</i>{@code )}&nbsp;&nbsp;</th>
+ * <tr><th style="vertical-align:top; font-weight:normal" id="non_capture_group_flags"><code>(?idmsuxU-idmsuxU:</code><i>X</i>{@code )}&nbsp;&nbsp;</th>
  *     <td headers="matches special non_capture_group_flags"><i>X</i>, as a <a href="#cg">non-capturing group</a> with the
  *         given flags <a href="#CASE_INSENSITIVE">i</a> <a href="#UNIX_LINES">d</a>
  * <a href="#MULTILINE">m</a> <a href="#DOTALL">s</a> <a href="#UNICODE_CASE">u</a >
- * <a href="#COMMENTS">x</a> on - off</td></tr>
+ * <a href="#COMMENTS">x</a> <a href="#UNICODE_CHARACTER_CLASS">U</a> on - off</td></tr>
  * <tr><th style="vertical-align:top; font-weight:normal" id="pos_lookahead">{@code (?=}<i>X</i>{@code )}</th>
  *     <td headers="matches special pos_lookahead"><i>X</i>, via zero-width positive lookahead</td></tr>
  * <tr><th style="vertical-align:top; font-weight:normal" id="neg_lookahead">{@code (?!}<i>X</i>{@code )}</th>
@@ -935,6 +935,7 @@ public final class Pattern
      */
 
     /** use serialVersionUID from Merlin b59 for interoperability */
+    @java.io.Serial
     private static final long serialVersionUID = 5073258162644648461L;
 
     /**
@@ -1376,6 +1377,7 @@ public final class Pattern
      * Recompile the Pattern instance from a stream.  The original pattern
      * string is read in and the object tree is recompiled from it.
      */
+    @java.io.Serial
     private void readObject(java.io.ObjectInputStream s)
         throws java.io.IOException, ClassNotFoundException {
 
@@ -1506,7 +1508,7 @@ public final class Pattern
             String seq = src.substring(off, j);
             String nfd = Normalizer.normalize(seq, Normalizer.Form.NFD);
             off = j;
-            if (nfd.length() > 1) {
+            if (nfd.codePointCount(0, nfd.length()) > 1) {
                 ch0 = nfd.codePointAt(0);
                 ch1 = nfd.codePointAt(Character.charCount(ch0));
                 if (Character.getType(ch1) == Character.NON_SPACING_MARK) {
@@ -2888,12 +2890,12 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
                 p = CharPredicates.forUnicodeBlock(name.substring(2));
             } else if (name.startsWith("Is")) {
                 // \p{IsGeneralCategory} and \p{IsScriptName}
-                name = name.substring(2);
-                p = CharPredicates.forUnicodeProperty(name);
+                String shortName = name.substring(2);
+                p = CharPredicates.forUnicodeProperty(shortName);
                 if (p == null)
-                    p = CharPredicates.forProperty(name);
+                    p = CharPredicates.forProperty(shortName);
                 if (p == null)
-                    p = CharPredicates.forUnicodeScript(name);
+                    p = CharPredicates.forUnicodeScript(shortName);
             } else {
                 if (has(UNICODE_CHARACTER_CLASS)) {
                     p = CharPredicates.forPOSIXName(name);
@@ -2902,7 +2904,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
                     p = CharPredicates.forProperty(name);
             }
             if (p == null)
-                throw error("Unknown character property name {In/Is" + name + "}");
+                throw error("Unknown character property name {" + name + "}");
         }
         if (isComplement) {
             // it might be too expensive to detect if a complement of

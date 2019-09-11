@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,13 +62,13 @@ public class CurveDB {
     }
 
     // Return a NamedCurve for the specified OID/name or null if unknown.
-    static NamedCurve lookup(String name) {
+    public static NamedCurve lookup(String name) {
         NamedCurve spec = oidMap.get(name);
         if (spec != null) {
             return spec;
         }
 
-        return nameMap.get(name);
+        return nameMap.get(name.toLowerCase(Locale.ENGLISH));
     }
 
     // Return EC parameters for the specified field size. If there are known
@@ -83,7 +83,7 @@ public class CurveDB {
 
     // Convert the given ECParameterSpec object to a NamedCurve object.
     // If params does not represent a known named curve, return null.
-    static NamedCurve lookup(ECParameterSpec params) {
+    public static NamedCurve lookup(ECParameterSpec params) {
         if ((params instanceof NamedCurve) || (params == null)) {
             return (NamedCurve)params;
         }
@@ -104,21 +104,10 @@ public class CurveDB {
             if (namedCurve.getCurve().getField().getFieldSize() != fieldSize) {
                 continue;
             }
-            if (namedCurve.getCurve().equals(params.getCurve()) == false) {
-                continue;
+            if (ECUtil.equals(namedCurve, params)) {
+                // everything matches our named curve, return it
+                return namedCurve;
             }
-            if (namedCurve.getGenerator().equals(params.getGenerator()) ==
-                    false) {
-                continue;
-            }
-            if (namedCurve.getOrder().equals(params.getOrder()) == false) {
-                continue;
-            }
-            if (namedCurve.getCofactor() != params.getCofactor()) {
-                continue;
-            }
-            // everything matches our named curve, return it
-            return namedCurve;
         }
         // no match found
         return null;
@@ -151,7 +140,8 @@ public class CurveDB {
 
         String[] commonNames = nameSplitPattern.split(name);
         for (String commonName : commonNames) {
-            if (nameMap.put(commonName.trim(), params) != null) {
+            if (nameMap.put(commonName.trim().toLowerCase(Locale.ENGLISH),
+                            params) != null) {
                 throw new RuntimeException("Duplication name: " + commonName);
             }
         }

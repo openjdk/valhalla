@@ -350,6 +350,12 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
   if (n_ptn != NULL)
     return; // No need to redefine PointsTo node during first iteration.
 
+  int opcode = n->Opcode();
+  bool gc_handled = BarrierSet::barrier_set()->barrier_set_c2()->escape_add_to_con_graph(this, igvn, delayed_worklist, n, opcode);
+  if (gc_handled) {
+    return; // Ignore node if already handled by GC.
+  }
+
   if (n->is_Call()) {
     // Arguments to allocation and locking don't escape.
     if (n->is_AbstractLock()) {
@@ -382,11 +388,6 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
   if (n_ptn == phantom_obj || n_ptn == null_obj)
     return; // Skip predefined nodes.
 
-  int opcode = n->Opcode();
-  bool gc_handled = BarrierSet::barrier_set()->barrier_set_c2()->escape_add_to_con_graph(this, igvn, delayed_worklist, n, opcode);
-  if (gc_handled) {
-    return; // Ignore node if already handled by GC.
-  }
   switch (opcode) {
     case Op_AddP: {
       Node* base = get_addp_base(n);
@@ -989,6 +990,8 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                   strcmp(call->as_CallLeaf()->_name, "aescrypt_decryptBlock") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "cipherBlockChaining_encryptAESCrypt") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "cipherBlockChaining_decryptAESCrypt") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "electronicCodeBook_encryptAESCrypt") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "electronicCodeBook_decryptAESCrypt") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "counterMode_AESCrypt") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "ghash_processBlocks") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "encodeBlock") == 0 ||
@@ -2175,6 +2178,9 @@ bool ConnectionGraph::not_global_escape(Node *n) {
     return false;
   }
   PointsToNode* ptn = ptnode_adr(idx);
+  if (ptn == NULL) {
+    return false; // not in congraph (e.g. ConI)
+  }
   PointsToNode::EscapeState es = ptn->escape_state();
   // If we have already computed a value, return it.
   if (es >= PointsToNode::GlobalEscape)

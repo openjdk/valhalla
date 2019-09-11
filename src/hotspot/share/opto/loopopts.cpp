@@ -324,7 +324,7 @@ Node *PhaseIdealLoop::has_local_phi_input( Node *n ) {
       }
       return NULL;
     }
-    assert(m->is_Phi() || is_dominator(get_ctrl(m), n_ctrl), "m has strange control");
+    assert(n->is_Phi() || m->is_Phi() || is_dominator(get_ctrl(m), n_ctrl), "m has strange control");
   }
 
   return n_ctrl;
@@ -1191,6 +1191,22 @@ bool PhaseIdealLoop::can_split_if(Node* n_ctrl) {
   return true;
 }
 
+// Detect if the node is the inner strip-mined loop
+// Return: NULL if it's not the case, or the exit of outer strip-mined loop
+static Node* is_inner_of_stripmined_loop(const Node* out) {
+  Node* out_le = NULL;
+
+  if (out->is_CountedLoopEnd()) {
+      const CountedLoopNode* loop = out->as_CountedLoopEnd()->loopnode();
+
+      if (loop != NULL && loop->is_strip_mined()) {
+        out_le = loop->in(LoopNode::EntryControl)->as_OuterStripMinedLoop()->outer_loop_exit();
+      }
+  }
+
+  return out_le;
+}
+
 //------------------------------split_if_with_blocks_post----------------------
 // Do the real work in a non-recursive function.  CFG hackery wants to be
 // in the post-order, so it can dirty the I-DOM info and not use the dirtied
@@ -1324,6 +1340,15 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
       Node *dom = idom(prevdom);
       while (dom != cutoff) {
         if (dom->req() > 1 && dom->in(1) == bol && prevdom->in(0) == dom) {
+          // It's invalid to move control dependent data nodes in the inner
+          // strip-mined loop, because:
+          //  1) break validation of LoopNode::verify_strip_mined()
+          //  2) move code with side-effect in strip-mined loop
+          // Move to the exit of outer strip-mined loop in that case.
+          Node* out_le = is_inner_of_stripmined_loop(dom);
+          if (out_le != NULL) {
+            prevdom = out_le;
+          }
           // Replace the dominated test with an obvious true or false.
           // Place it on the IGVN worklist for later cleanup.
           C->set_major_progress();
@@ -1427,9 +1452,8 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
             // Some institutional knowledge is needed here: 'x' is
             // yanked because if the optimizer runs GVN on it all the
             // cloned x's will common up and undo this optimization and
-            // be forced back in the loop.  This is annoying because it
-            // makes +VerifyOpto report false-positives on progress.  I
-            // tried setting control edges on the x's to force them to
+            // be forced back in the loop.
+            // I tried setting control edges on the x's to force them to
             // not combine, but the matching gets worried when it tries
             // to fold a StoreP and an AddP together (as part of an
             // address expression) and the AddP and StoreP have

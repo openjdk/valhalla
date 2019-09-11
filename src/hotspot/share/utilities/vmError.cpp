@@ -1327,6 +1327,12 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
   // File descriptor to the error log file.
   static int fd_log = -1;
 
+#ifdef CAN_SHOW_REGISTERS_ON_ASSERT
+  // Disarm assertion poison page, since from this point on we do not need this mechanism anymore and it may
+  // cause problems in error handling during native OOM, see JDK-8227275.
+  disarm_assert_poison();
+#endif
+
   // Use local fdStream objects only. Do not use global instances whose initialization
   // relies on dynamic initialization (see JDK-8214975). Do not rely on these instances
   // to carry over into recursions or invocations from other threads.
@@ -1521,6 +1527,11 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
     }
 
     log.set_fd(-1);
+  }
+
+  if (PrintNMTStatistics) {
+    fdStream fds(fd_out);
+    MemTracker::final_report(&fds);
   }
 
   static bool skip_replay = ReplayCompiles; // Do not overwrite file during replay
@@ -1786,11 +1797,14 @@ void VMError::controlled_crash(int how) {
   // Case 16 is tested by test/hotspot/jtreg/runtime/ErrorHandling/ThreadsListHandleInErrorHandlingTest.java.
   // Case 17 is tested by test/hotspot/jtreg/runtime/ErrorHandling/NestedThreadsListHandleInErrorHandlingTest.java.
 
-  // We grab Threads_lock to keep ThreadsSMRSupport::print_info_on()
+  // We try to grab Threads_lock to keep ThreadsSMRSupport::print_info_on()
   // from racing with Threads::add() or Threads::remove() as we
   // generate the hs_err_pid file. This makes our ErrorHandling tests
   // more stable.
-  MutexLocker ml(Threads_lock->owned_by_self() ? NULL : Threads_lock, Mutex::_no_safepoint_check_flag);
+  if (!Threads_lock->owned_by_self()) {
+    Threads_lock->try_lock();
+    // The VM is going to die so no need to unlock Thread_lock.
+  }
 
   switch (how) {
     case  1: vmassert(str == NULL, "expected null"); break;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,13 +23,11 @@
  */
 
 #include "precompiled.hpp"
-#include "gc/parallel/gcTaskManager.hpp"
 #include "gc/parallel/objectStartArray.inline.hpp"
 #include "gc/parallel/parallelScavengeHeap.inline.hpp"
 #include "gc/parallel/psCardTable.hpp"
 #include "gc/parallel/psPromotionManager.inline.hpp"
 #include "gc/parallel/psScavenge.inline.hpp"
-#include "gc/parallel/psTasks.hpp"
 #include "gc/parallel/psYoungGen.hpp"
 #include "memory/iterator.inline.hpp"
 #include "oops/access.inline.hpp"
@@ -128,6 +126,38 @@ class CheckForPreciseMarks : public BasicOopIterateClosure {
 // when the space is empty, fix the calculation of
 // end_card to allow sp_top == sp->bottom().
 
+// The generation (old gen) is divided into slices, which are further
+// subdivided into stripes, with one stripe per GC thread. The size of
+// a stripe is a constant, ssize.
+//
+//      +===============+        slice 0
+//      |  stripe 0     |
+//      +---------------+
+//      |  stripe 1     |
+//      +---------------+
+//      |  stripe 2     |
+//      +---------------+
+//      |  stripe 3     |
+//      +===============+        slice 1
+//      |  stripe 0     |
+//      +---------------+
+//      |  stripe 1     |
+//      +---------------+
+//      |  stripe 2     |
+//      +---------------+
+//      |  stripe 3     |
+//      +===============+        slice 2
+//      ...
+//
+// In this case there are 4 threads, so 4 stripes.  A GC thread first works on
+// its stripe within slice 0 and then moves to its stripe in the next slice
+// until it has exceeded the top of the generation.  The distance to stripe in
+// the next slice is calculated based on the number of stripes.  The next
+// stripe is at ssize * number_of_stripes (= slice_stride)..  So after
+// finishing stripe 0 in slice 0, the thread finds the stripe 0 in slice1 by
+// adding slice_stride to the start of stripe 0 in slice 0 to get to the start
+// of stride 0 in slice 1.
+
 void PSCardTable::scavenge_contents_parallel(ObjectStartArray* start_array,
                                              MutableSpace* sp,
                                              HeapWord* space_top,
@@ -170,7 +200,7 @@ void PSCardTable::scavenge_contents_parallel(ObjectStartArray* start_array,
       // Delay 1 worker so that it proceeds after all the work
       // has been completed.
       if (stripe_number < 2) {
-        os::sleep(Thread::current(), GCWorkerDelayMillis, false);
+        os::naked_sleep(GCWorkerDelayMillis);
       }
     }
 #endif

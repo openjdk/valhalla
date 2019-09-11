@@ -42,8 +42,8 @@ const DecoratorSet C2_UNALIGNED              = DECORATOR_LAST << 2;
 const DecoratorSet C2_WEAK_CMPXCHG           = DECORATOR_LAST << 3;
 // This denotes that a load has control dependency.
 const DecoratorSet C2_CONTROL_DEPENDENT_LOAD = DECORATOR_LAST << 4;
-// This denotes that a load that must be pinned.
-const DecoratorSet C2_PINNED_LOAD            = DECORATOR_LAST << 5;
+// This denotes that a load that must be pinned, but may float above safepoints.
+const DecoratorSet C2_UNKNOWN_CONTROL_LOAD   = DECORATOR_LAST << 5;
 // This denotes that the access is produced from the sun.misc.Unsafe intrinsics.
 const DecoratorSet C2_UNSAFE_ACCESS          = DECORATOR_LAST << 6;
 // This denotes that the access mutates state.
@@ -267,6 +267,7 @@ public:
   virtual bool has_load_barriers() const { return false; }
   virtual bool is_gc_barrier_node(Node* node) const { return false; }
   virtual Node* step_over_gc_barrier(Node* c) const { return c; }
+  virtual Node* step_over_gc_barrier_ctrl(Node* c) const { return c; }
 
   // Support for macro expanded GC barriers
   virtual void register_potential_barrier_node(Node* node) const { }

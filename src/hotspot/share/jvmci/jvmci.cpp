@@ -24,14 +24,14 @@
 #include "precompiled.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "gc/shared/collectedHeap.hpp"
-#include "gc/shared/oopStorage.inline.hpp"
+#include "gc/shared/oopStorage.hpp"
+#include "gc/shared/oopStorageSet.hpp"
 #include "jvmci/jvmci.hpp"
 #include "jvmci/jvmciJavaClasses.hpp"
 #include "jvmci/jvmciRuntime.hpp"
 #include "jvmci/metadataHandleBlock.hpp"
 #include "memory/universe.hpp"
 
-OopStorage* JVMCI::_object_handles = NULL;
 MetadataHandleBlock* JVMCI::_metadata_handles = NULL;
 JVMCIRuntime* JVMCI::_compiler_runtime = NULL;
 JVMCIRuntime* JVMCI::_java_runtime = NULL;
@@ -58,9 +58,6 @@ void JVMCI::initialize_compiler(TRAPS) {
 }
 
 void JVMCI::initialize_globals() {
-  _object_handles = new OopStorage("JVMCI Global Oop Handles",
-                                   JVMCIGlobalAlloc_lock,
-                                   JVMCIGlobalActive_lock);
   _metadata_handles = MetadataHandleBlock::allocate_block();
   if (UseJVMCINativeLibrary) {
     // There are two runtimes.
@@ -72,9 +69,9 @@ void JVMCI::initialize_globals() {
   }
 }
 
-OopStorage* JVMCI::object_handles() {
-  assert(_object_handles != NULL, "Uninitialized");
-  return _object_handles;
+// Handles to objects in the Hotspot heap.
+static OopStorage* object_handles() {
+  return OopStorageSet::vm_global();
 }
 
 jobject JVMCI::make_global(const Handle& obj) {
@@ -91,6 +88,14 @@ jobject JVMCI::make_global(const Handle& obj) {
                           "Cannot create JVMCI oop handle");
   }
   return res;
+}
+
+void JVMCI::destroy_global(jobject handle) {
+  // Assert before nulling out, for better debugging.
+  assert(is_global_handle(handle), "precondition");
+  oop* oop_ptr = reinterpret_cast<oop*>(handle);
+  NativeAccess<>::oop_store(oop_ptr, (oop)NULL);
+  object_handles()->release(oop_ptr);
 }
 
 bool JVMCI::is_global_handle(jobject handle) {
@@ -113,12 +118,6 @@ jmetadata JVMCI::allocate_handle(const constantPoolHandle& handle) {
 void JVMCI::release_handle(jmetadata handle) {
   MutexLocker ml(JVMCI_lock);
   _metadata_handles->chain_free_list(handle);
-}
-
-void JVMCI::oops_do(OopClosure* f) {
-  if (_object_handles != NULL) {
-    _object_handles->oops_do(f);
-  }
 }
 
 void JVMCI::metadata_do(void f(Metadata*)) {

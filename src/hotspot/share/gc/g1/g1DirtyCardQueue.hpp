@@ -25,25 +25,15 @@
 #ifndef SHARE_GC_G1_G1DIRTYCARDQUEUE_HPP
 #define SHARE_GC_G1_G1DIRTYCARDQUEUE_HPP
 
-#include "gc/shared/cardTable.hpp"
+#include "gc/g1/g1BufferNodeList.hpp"
+#include "gc/g1/g1FreeIdSet.hpp"
 #include "gc/shared/ptrQueue.hpp"
 #include "memory/allocation.hpp"
 
 class G1DirtyCardQueueSet;
-class G1FreeIdSet;
+class G1RedirtyCardsQueueSet;
 class Thread;
 class Monitor;
-
-// A closure class for processing card table entries.  Note that we don't
-// require these closure objects to be stack-allocated.
-class G1CardTableEntryClosure: public CHeapObj<mtGC> {
-public:
-  typedef CardTable::CardValue CardValue;
-
-  // Process the card whose card table entry is "card_ptr".  If returns
-  // "false", terminate the iteration early.
-  virtual bool do_card_ptr(CardValue* card_ptr, uint worker_i) = 0;
-};
 
 // A ptrQueue whose elements are "oops", pointers to object heads.
 class G1DirtyCardQueue: public PtrQueue {
@@ -76,60 +66,47 @@ public:
 };
 
 class G1DirtyCardQueueSet: public PtrQueueSet {
-  // Apply the closure to the elements of "node" from it's index to
-  // buffer_size.  If all closure applications return true, then
-  // returns true.  Stops processing after the first closure
-  // application that returns false, and returns false from this
-  // function.  If "consume" is true, the node's index is updated to
-  // exclude the processed elements, e.g. up to the element for which
-  // the closure returned false.
-  bool apply_closure_to_buffer(G1CardTableEntryClosure* cl,
-                               BufferNode* node,
-                               bool consume,
-                               uint worker_i = 0);
+  Monitor* _cbl_mon;  // Protects the list and count members.
+  BufferNode* _completed_buffers_head;
+  BufferNode* _completed_buffers_tail;
 
-  // If there are more than stop_at completed buffers, pop one, apply
-  // the specified closure to its active elements, and return true.
-  // Otherwise return false.
-  //
-  // A completely processed buffer is freed.  However, if a closure
-  // invocation returns false, processing is stopped and the partially
-  // processed buffer (with its index updated to exclude the processed
-  // elements, e.g. up to the element for which the closure returned
-  // false) is returned to the completed buffer set.
-  //
-  // If during_pause is true, stop_at must be zero, and the closure
-  // must never return false.
-  bool apply_closure_to_completed_buffer(G1CardTableEntryClosure* cl,
-                                         uint worker_i,
-                                         size_t stop_at,
-                                         bool during_pause);
+  // Number of actual cards in the list of completed buffers.
+  volatile size_t _num_cards;
+
+  size_t _process_cards_threshold;
+  volatile bool _process_completed_buffers;
+
+  void abandon_completed_buffers();
+
+  // Refine the cards in "node" from it's index to buffer_size.
+  // Stops processing if SuspendibleThreadSet::should_yield() is true.
+  // Returns true if the entire buffer was processed, false if there
+  // is a pending yield request.  The node's index is updated to exclude
+  // the processed elements, e.g. up to the element before processing
+  // stopped, or one past the last element if the entire buffer was
+  // processed.
+  bool refine_buffer(BufferNode* node, uint worker_id);
 
   bool mut_process_buffer(BufferNode* node);
 
-  // If the queue contains more buffers than configured here, the
-  // mutator must start doing some of the concurrent refinement work,
-  size_t _max_completed_buffers;
-  size_t _completed_buffers_padding;
-  static const size_t MaxCompletedBuffersUnlimited = ~size_t(0);
+  // If the queue contains more cards than configured here, the
+  // mutator must start doing some of the concurrent refinement work.
+  size_t _max_cards;
+  size_t _max_cards_padding;
+  static const size_t MaxCardsUnlimited = SIZE_MAX;
 
-  G1FreeIdSet* _free_ids;
+  G1FreeIdSet _free_ids;
 
   // The number of completed buffers processed by mutator and rs thread,
   // respectively.
   jint _processed_buffers_mut;
   jint _processed_buffers_rs_thread;
 
-  // Current buffer node used for parallel iteration.
-  BufferNode* volatile _cur_par_buffer_node;
-
 public:
-  G1DirtyCardQueueSet(bool notify_when_complete = true);
+  G1DirtyCardQueueSet();
   ~G1DirtyCardQueueSet();
 
-  void initialize(Monitor* cbl_mon,
-                  BufferNode::Allocator* allocator,
-                  bool init_free_ids = false);
+  void initialize(Monitor* cbl_mon, BufferNode::Allocator* allocator);
 
   // The number of parallel ids that can be claimed to allow collector or
   // mutator threads to do card-processing work.
@@ -142,39 +119,68 @@ public:
   // it can be reused in place.
   bool process_or_enqueue_completed_buffer(BufferNode* node);
 
-  // Apply G1RefineCardConcurrentlyClosure to completed buffers until there are stop_at
-  // completed buffers remaining.
+  virtual void enqueue_completed_buffer(BufferNode* node);
+
+  // If the number of completed buffers is > stop_at, then remove and
+  // return a completed buffer from the list.  Otherwise, return NULL.
+  BufferNode* get_completed_buffer(size_t stop_at = 0);
+
+  // The number of cards in completed buffers. Read without synchronization.
+  size_t num_cards() const { return _num_cards; }
+
+  // Verify that _num_cards is equal to the sum of actual cards
+  // in the completed buffers.
+  void verify_num_cards() const NOT_DEBUG_RETURN;
+
+  bool process_completed_buffers() { return _process_completed_buffers; }
+  void set_process_completed_buffers(bool x) { _process_completed_buffers = x; }
+
+  // Get/Set the number of cards that triggers log processing.
+  // Log processing should be done when the number of cards exceeds the
+  // threshold.
+  void set_process_cards_threshold(size_t sz) {
+    _process_cards_threshold = sz;
+  }
+  size_t process_cards_threshold() const {
+    return _process_cards_threshold;
+  }
+  static const size_t ProcessCardsThresholdNever = SIZE_MAX;
+
+  // Notify the consumer if the number of buffers crossed the threshold
+  void notify_if_necessary();
+
+  void merge_bufferlists(G1RedirtyCardsQueueSet* src);
+
+  G1BufferNodeList take_all_completed_buffers();
+
+  // If there are more than stop_at cards in the completed buffers, pop
+  // a buffer, refine its contents, and return true.  Otherwise return
+  // false.
+  //
+  // Stops processing a buffer if SuspendibleThreadSet::should_yield(),
+  // returning the incompletely processed buffer to the completed buffer
+  // list, for later processing of the remainder.
   bool refine_completed_buffer_concurrently(uint worker_i, size_t stop_at);
 
-  // Apply the given closure to all completed buffers. The given closure's do_card_ptr
-  // must never return false. Must only be called during GC.
-  bool apply_closure_during_gc(G1CardTableEntryClosure* cl, uint worker_i);
-
-  void reset_for_par_iteration() { _cur_par_buffer_node = completed_buffers_head(); }
-  // Applies the current closure to all completed buffers, non-consumptively.
-  // Can be used in parallel, all callers using the iteration state initialized
-  // by reset_for_par_iteration.
-  void par_apply_closure_to_all_completed_buffers(G1CardTableEntryClosure* cl);
-
-  // If a full collection is happening, reset partial logs, and ignore
+  // If a full collection is happening, reset partial logs, and release
   // completed ones: the full collection will make them all irrelevant.
   void abandon_logs();
 
   // If any threads have partial logs, add them to the global list of logs.
   void concatenate_logs();
 
-  void set_max_completed_buffers(size_t m) {
-    _max_completed_buffers = m;
+  void set_max_cards(size_t m) {
+    _max_cards = m;
   }
-  size_t max_completed_buffers() const {
-    return _max_completed_buffers;
+  size_t max_cards() const {
+    return _max_cards;
   }
 
-  void set_completed_buffers_padding(size_t padding) {
-    _completed_buffers_padding = padding;
+  void set_max_cards_padding(size_t padding) {
+    _max_cards_padding = padding;
   }
-  size_t completed_buffers_padding() const {
-    return _completed_buffers_padding;
+  size_t max_cards_padding() const {
+    return _max_cards_padding;
   }
 
   jint processed_buffers_mut() {

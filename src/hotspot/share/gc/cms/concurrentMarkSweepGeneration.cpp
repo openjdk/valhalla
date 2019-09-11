@@ -692,6 +692,10 @@ ConcurrentMarkSweepGeneration::unsafe_max_alloc_nogc() const {
   return _cmsSpace->max_alloc_in_words() * HeapWordSize;
 }
 
+size_t ConcurrentMarkSweepGeneration::used_stable() const {
+  return cmsSpace()->used_stable();
+}
+
 size_t ConcurrentMarkSweepGeneration::max_available() const {
   return free() + _virtual_space.uncommitted_size();
 }
@@ -1010,7 +1014,7 @@ oop ConcurrentMarkSweepGeneration::promote(oop obj, size_t obj_size) {
 // Things to support parallel young-gen collection.
 oop
 ConcurrentMarkSweepGeneration::par_promote(int thread_num,
-                                           oop old, markOop m,
+                                           oop old, markWord m,
                                            size_t word_sz) {
 #ifndef PRODUCT
   if (CMSHeap::heap()->promotion_should_fail()) {
@@ -1523,6 +1527,8 @@ void CMSCollector::compute_new_size() {
   FreelistLocker z(this);
   MetaspaceGC::compute_new_size();
   _cmsGen->compute_new_size_free_list();
+  // recalculate CMS used space after CMS collection
+  _cmsGen->cmsSpace()->recalculate_used_stable();
 }
 
 // A work method used by the foreground collector to do
@@ -2051,6 +2057,7 @@ void ConcurrentMarkSweepGeneration::gc_prologue(bool full) {
 
   _capacity_at_prologue = capacity();
   _used_at_prologue = used();
+  _cmsSpace->recalculate_used_stable();
 
   // We enable promotion tracking so that card-scanning can recognize
   // which objects have been promoted during this GC and skip them.
@@ -2123,6 +2130,7 @@ void CMSCollector::gc_epilogue(bool full) {
   _eden_chunk_index = 0;
 
   size_t cms_used   = _cmsGen->cmsSpace()->used();
+  _cmsGen->cmsSpace()->recalculate_used_stable();
 
   // update performance counters - this uses a special version of
   // update_counters() that allows the utilization to be passed as a
@@ -2637,7 +2645,7 @@ ConcurrentMarkSweepGeneration::expand_and_allocate(size_t word_size,
   MutexLocker x(freelistLock(), Mutex::_no_safepoint_check_flag);
   expand_for_gc_cause(word_size*HeapWordSize, MinHeapDeltaBytes, CMSExpansionCause::_satisfy_allocation);
   if (GCExpandToAllocateDelayMillis > 0) {
-    os::sleep(Thread::current(), GCExpandToAllocateDelayMillis, false);
+    os::naked_sleep(GCExpandToAllocateDelayMillis);
   }
   return have_lock_and_allocate(word_size, tlab);
 }
@@ -2676,7 +2684,7 @@ HeapWord* ConcurrentMarkSweepGeneration::expand_and_par_lab_allocate(CMSParGCThr
     // A competing par_promote might beat us to the expansion space,
     // so we may go around the loop again if promotion fails again.
     if (GCExpandToAllocateDelayMillis > 0) {
-      os::sleep(Thread::current(), GCExpandToAllocateDelayMillis, false);
+      os::naked_sleep(GCExpandToAllocateDelayMillis);
     }
   }
 }
@@ -2703,7 +2711,7 @@ bool ConcurrentMarkSweepGeneration::expand_and_ensure_spooling_space(
     // A competing allocation might beat us to the expansion space,
     // so we may go around the loop again if allocation fails again.
     if (GCExpandToAllocateDelayMillis > 0) {
-      os::sleep(Thread::current(), GCExpandToAllocateDelayMillis, false);
+      os::naked_sleep(GCExpandToAllocateDelayMillis);
     }
   }
 }
@@ -2816,6 +2824,8 @@ void CMSCollector::checkpointRootsInitial() {
     rp->enable_discovery();
     _collectorState = Marking;
   }
+
+  _cmsGen->cmsSpace()->recalculate_used_stable();
 }
 
 void CMSCollector::checkpointRootsInitialWork() {
@@ -3534,7 +3544,7 @@ void CMSConcMarkingTask::coordinator_yield() {
   for (unsigned i = 0; i < CMSCoordinatorYieldSleepCount &&
                    ConcurrentMarkSweepThread::should_yield() &&
                    !CMSCollector::foregroundGCIsActive(); ++i) {
-    os::sleep(Thread::current(), 1, false);
+    os::naked_short_sleep(1);
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
@@ -4177,6 +4187,7 @@ void CMSCollector::checkpointRootsFinal() {
     MutexLocker y(bitMapLock(),
                   Mutex::_no_safepoint_check_flag);
     checkpointRootsFinalWork();
+    _cmsGen->cmsSpace()->recalculate_used_stable();
   }
   verify_work_stacks_empty();
   verify_overflow_empty();
@@ -4250,7 +4261,6 @@ void CMSCollector::checkpointRootsFinalWork() {
   if (should_unload_classes()) {
     heap->prune_scavengable_nmethods();
   }
-  JvmtiExport::gc_epilogue();
 
   // If we encountered any (marking stack / work queue) overflow
   // events during the current CMS cycle, take appropriate
@@ -5337,9 +5347,14 @@ void CMSCollector::sweep() {
     // further below.
     {
       CMSTokenSyncWithLocks ts(true, _cmsGen->freelistLock());
+
       // Update heap occupancy information which is used as
       // input to soft ref clearing policy at the next gc.
       Universe::update_heap_info_at_gc();
+
+      // recalculate CMS used space after CMS collection
+      _cmsGen->cmsSpace()->recalculate_used_stable();
+
       _collectorState = Resizing;
     }
   }
@@ -5428,6 +5443,7 @@ void ConcurrentMarkSweepGeneration::update_gc_stats(Generation* current_generati
     // Gather statistics on the young generation collection.
     collector()->stats().record_gc0_end(used());
   }
+  _cmsSpace->recalculate_used_stable();
 }
 
 void CMSCollector::sweepWork(ConcurrentMarkSweepGeneration* old_gen) {
@@ -5525,7 +5541,7 @@ void CMSCollector::reset_concurrent() {
         for (unsigned i = 0; i < CMSYieldSleepCount &&
                          ConcurrentMarkSweepThread::should_yield() &&
                          !CMSCollector::foregroundGCIsActive(); ++i) {
-          os::sleep(Thread::current(), 1, false);
+          os::naked_short_sleep(1);
         }
 
         ConcurrentMarkSweepThread::synchronize(true);
@@ -5979,7 +5995,7 @@ void MarkRefsIntoAndScanClosure::do_yield_work() {
        ConcurrentMarkSweepThread::should_yield() &&
        !CMSCollector::foregroundGCIsActive();
        ++i) {
-    os::sleep(Thread::current(), 1, false);
+    os::naked_short_sleep(1);
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
@@ -6134,7 +6150,7 @@ void ScanMarkedObjectsAgainCarefullyClosure::do_yield_work() {
   for (unsigned i = 0; i < CMSYieldSleepCount &&
                    ConcurrentMarkSweepThread::should_yield() &&
                    !CMSCollector::foregroundGCIsActive(); ++i) {
-    os::sleep(Thread::current(), 1, false);
+    os::naked_short_sleep(1);
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
@@ -6201,7 +6217,7 @@ void SurvivorSpacePrecleanClosure::do_yield_work() {
   for (unsigned i = 0; i < CMSYieldSleepCount &&
                        ConcurrentMarkSweepThread::should_yield() &&
                        !CMSCollector::foregroundGCIsActive(); ++i) {
-    os::sleep(Thread::current(), 1, false);
+    os::naked_short_sleep(1);
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
@@ -6352,7 +6368,7 @@ void MarkFromRootsClosure::do_yield_work() {
   for (unsigned i = 0; i < CMSYieldSleepCount &&
                        ConcurrentMarkSweepThread::should_yield() &&
                        !CMSCollector::foregroundGCIsActive(); ++i) {
-    os::sleep(Thread::current(), 1, false);
+    os::naked_short_sleep(1);
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
@@ -6966,11 +6982,11 @@ void CMSPrecleanRefsYieldClosure::do_yield_work() {
   for (unsigned i = 0; i < CMSYieldSleepCount &&
                        ConcurrentMarkSweepThread::should_yield() &&
                        !CMSCollector::foregroundGCIsActive(); ++i) {
-    os::sleep(Thread::current(), 1, false);
+    os::naked_short_sleep(1);
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
-  bml->lock();
+  bml->lock_without_safepoint_check();
 
   _collector->startTimer();
 }
@@ -7531,7 +7547,7 @@ void SweepClosure::do_yield_work(HeapWord* addr) {
   for (unsigned i = 0; i < CMSYieldSleepCount &&
                        ConcurrentMarkSweepThread::should_yield() &&
                        !CMSCollector::foregroundGCIsActive(); ++i) {
-    os::sleep(Thread::current(), 1, false);
+    os::naked_short_sleep(1);
   }
 
   ConcurrentMarkSweepThread::synchronize(true);
@@ -7777,10 +7793,10 @@ bool CMSCollector::take_from_overflow_list(size_t num, CMSMarkStack* stack) {
   assert(stack->capacity() > num, "Shouldn't bite more than can chew");
   size_t i = num;
   oop  cur = _overflow_list;
-  const markOop proto = markOopDesc::prototype();
+  const markWord proto = markWord::prototype();
   NOT_PRODUCT(ssize_t n = 0;)
   for (oop next; i > 0 && cur != NULL; cur = next, i--) {
-    next = oop(cur->mark_raw());
+    next = oop(cur->mark_raw().to_pointer());
     cur->set_mark_raw(proto);   // until proven otherwise
     assert(oopDesc::is_oop(cur), "Should be an oop");
     bool res = stack->push(cur);
@@ -7829,7 +7845,6 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
   }
   // Grab the entire list; we'll put back a suffix
   oop prefix = cast_to_oop(Atomic::xchg((oopDesc*)BUSY, &_overflow_list));
-  Thread* tid = Thread::current();
   // Before "no_of_gc_threads" was introduced CMSOverflowSpinCount was
   // set to ParallelGCThreads.
   size_t CMSOverflowSpinCount = (size_t) no_of_gc_threads; // was ParallelGCThreads;
@@ -7837,7 +7852,7 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
   // If the list is busy, we spin for a short while,
   // sleeping between attempts to get the list.
   for (size_t spin = 0; prefix == BUSY && spin < CMSOverflowSpinCount; spin++) {
-    os::sleep(tid, sleep_time_millis, false);
+    os::naked_sleep(sleep_time_millis);
     if (_overflow_list == NULL) {
       // Nothing left to take
       return false;
@@ -7864,8 +7879,8 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
   size_t i = num;
   oop cur = prefix;
   // Walk down the first "num" objects, unless we reach the end.
-  for (; i > 1 && cur->mark_raw() != NULL; cur = oop(cur->mark_raw()), i--);
-  if (cur->mark_raw() == NULL) {
+  for (; i > 1 && cur->mark_raw().to_pointer() != NULL; cur = oop(cur->mark_raw().to_pointer()), i--);
+  if (cur->mark_raw().to_pointer() == NULL) {
     // We have "num" or fewer elements in the list, so there
     // is nothing to return to the global list.
     // Write back the NULL in lieu of the BUSY we wrote
@@ -7875,9 +7890,9 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
     }
   } else {
     // Chop off the suffix and return it to the global list.
-    assert(cur->mark_raw() != BUSY, "Error");
-    oop suffix_head = cur->mark_raw(); // suffix will be put back on global list
-    cur->set_mark_raw(NULL);           // break off suffix
+    assert(cur->mark_raw().to_pointer() != (void*)BUSY, "Error");
+    oop suffix_head = oop(cur->mark_raw().to_pointer()); // suffix will be put back on global list
+    cur->set_mark_raw(markWord::from_pointer(NULL));     // break off suffix
     // It's possible that the list is still in the empty(busy) state
     // we left it in a short while ago; in that case we may be
     // able to place back the suffix without incurring the cost
@@ -7897,18 +7912,18 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
       // Too bad, someone else sneaked in (at least) an element; we'll need
       // to do a splice. Find tail of suffix so we can prepend suffix to global
       // list.
-      for (cur = suffix_head; cur->mark_raw() != NULL; cur = (oop)(cur->mark_raw()));
+      for (cur = suffix_head; cur->mark_raw().to_pointer() != NULL; cur = (oop)(cur->mark_raw().to_pointer()));
       oop suffix_tail = cur;
-      assert(suffix_tail != NULL && suffix_tail->mark_raw() == NULL,
+      assert(suffix_tail != NULL && suffix_tail->mark_raw().to_pointer() == NULL,
              "Tautology");
       observed_overflow_list = _overflow_list;
       do {
         cur_overflow_list = observed_overflow_list;
         if (cur_overflow_list != BUSY) {
           // Do the splice ...
-          suffix_tail->set_mark_raw(markOop(cur_overflow_list));
+          suffix_tail->set_mark_raw(markWord::from_pointer((void*)cur_overflow_list));
         } else { // cur_overflow_list == BUSY
-          suffix_tail->set_mark_raw(NULL);
+          suffix_tail->set_mark_raw(markWord::from_pointer(NULL));
         }
         // ... and try to place spliced list back on overflow_list ...
         observed_overflow_list =
@@ -7920,11 +7935,11 @@ bool CMSCollector::par_take_from_overflow_list(size_t num,
 
   // Push the prefix elements on work_q
   assert(prefix != NULL, "control point invariant");
-  const markOop proto = markOopDesc::prototype();
+  const markWord proto = markWord::prototype();
   oop next;
   NOT_PRODUCT(ssize_t n = 0;)
   for (cur = prefix; cur != NULL; cur = next) {
-    next = oop(cur->mark_raw());
+    next = oop(cur->mark_raw().to_pointer());
     cur->set_mark_raw(proto);   // until proven otherwise
     assert(oopDesc::is_oop(cur), "Should be an oop");
     bool res = work_q->push(cur);
@@ -7943,7 +7958,7 @@ void CMSCollector::push_on_overflow_list(oop p) {
   NOT_PRODUCT(_num_par_pushes++;)
   assert(oopDesc::is_oop(p), "Not an oop");
   preserve_mark_if_necessary(p);
-  p->set_mark_raw((markOop)_overflow_list);
+  p->set_mark_raw(markWord::from_pointer(_overflow_list));
   _overflow_list = p;
 }
 
@@ -7957,9 +7972,9 @@ void CMSCollector::par_push_on_overflow_list(oop p) {
   do {
     cur_overflow_list = observed_overflow_list;
     if (cur_overflow_list != BUSY) {
-      p->set_mark_raw(markOop(cur_overflow_list));
+      p->set_mark_raw(markWord::from_pointer((void*)cur_overflow_list));
     } else {
-      p->set_mark_raw(NULL);
+      p->set_mark_raw(markWord::from_pointer(NULL));
     }
     observed_overflow_list =
       Atomic::cmpxchg((oopDesc*)p, &_overflow_list, (oopDesc*)cur_overflow_list);
@@ -7981,7 +7996,7 @@ void CMSCollector::par_push_on_overflow_list(oop p) {
 // the VM can then be changed, incrementally, to deal with such
 // failures where possible, thus, incrementally hardening the VM
 // in such low resource situations.
-void CMSCollector::preserve_mark_work(oop p, markOop m) {
+void CMSCollector::preserve_mark_work(oop p, markWord m) {
   _preserved_oop_stack.push(p);
   _preserved_mark_stack.push(m);
   assert(m == p->mark_raw(), "Mark word changed");
@@ -7991,15 +8006,15 @@ void CMSCollector::preserve_mark_work(oop p, markOop m) {
 
 // Single threaded
 void CMSCollector::preserve_mark_if_necessary(oop p) {
-  markOop m = p->mark_raw();
-  if (m->must_be_preserved(p)) {
+  markWord m = p->mark_raw();
+  if (p->mark_must_be_preserved(m)) {
     preserve_mark_work(p, m);
   }
 }
 
 void CMSCollector::par_preserve_mark_if_necessary(oop p) {
-  markOop m = p->mark_raw();
-  if (m->must_be_preserved(p)) {
+  markWord m = p->mark_raw();
+  if (p->mark_must_be_preserved(m)) {
     MutexLocker x(ParGCRareEvent_lock, Mutex::_no_safepoint_check_flag);
     // Even though we read the mark word without holding
     // the lock, we are assured that it will not change
@@ -8039,9 +8054,9 @@ void CMSCollector::restore_preserved_marks_if_any() {
     oop p = _preserved_oop_stack.pop();
     assert(oopDesc::is_oop(p), "Should be an oop");
     assert(_span.contains(p), "oop should be in _span");
-    assert(p->mark_raw() == markOopDesc::prototype(),
+    assert(p->mark_raw() == markWord::prototype(),
            "Set when taken from overflow list");
-    markOop m = _preserved_mark_stack.pop();
+    markWord m = _preserved_mark_stack.pop();
     p->set_mark_raw(m);
   }
   assert(_preserved_mark_stack.is_empty() && _preserved_oop_stack.is_empty(),

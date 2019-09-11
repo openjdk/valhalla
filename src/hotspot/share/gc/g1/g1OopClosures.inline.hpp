@@ -115,8 +115,7 @@ inline static void check_obj_during_refinement(T* p, oop const obj) {
   G1CollectedHeap* g1h = G1CollectedHeap::heap();
   // can't do because of races
   // assert(oopDesc::is_oop_or_null(obj), "expected an oop");
-  assert(check_obj_alignment(obj), "not oop aligned");
-  assert(g1h->is_in_reserved(obj), "must be in heap");
+  g1h->check_oop_location(obj);
 
   HeapRegion* from = g1h->heap_region_containing(p);
 
@@ -230,9 +229,9 @@ void G1ParCopyClosure<barrier, do_mark_object>::do_oop_work(T* p) {
   const G1HeapRegionAttr state = _g1h->region_attr(obj);
   if (state.is_in_cset()) {
     oop forwardee;
-    markOop m = obj->mark_raw();
-    if (m->is_marked()) {
-      forwardee = (oop) m->decode_pointer();
+    markWord m = obj->mark_raw();
+    if (m.is_marked()) {
+      forwardee = (oop) m.decode_pointer();
     } else {
       forwardee = _par_scan_state->copy_to_survivor_space(state, obj, m);
     }

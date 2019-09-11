@@ -108,7 +108,7 @@ public class CLDRConverter {
     private static final ResourceBundle.Control defCon =
         ResourceBundle.Control.getControl(ResourceBundle.Control.FORMAT_DEFAULT);
 
-    private static final String[] AVAILABLE_TZIDS = TimeZone.getAvailableIDs();
+    private static Set<String> AVAILABLE_TZIDS;
     private static String zoneNameTempFile;
     private static String tzDataDir;
     private static final Map<String, String> canonicalTZMap = new HashMap<>();
@@ -730,7 +730,7 @@ public class CLDRConverter {
             });
         }
 
-        Arrays.stream(AVAILABLE_TZIDS).forEach(tzid -> {
+        getAvailableZoneIds().stream().forEach(tzid -> {
             // If the tzid is deprecated, get the data for the replacement id
             String tzKey = Optional.ofNullable((String)handlerSupplMeta.get(tzid))
                                    .orElse(tzid);
@@ -864,7 +864,7 @@ public class CLDRConverter {
         }
 
         for (String key : map.keySet()) {
-        // Copy available calendar names
+            // Copy available calendar names
             if (key.startsWith(CLDRConverter.LOCALE_TYPE_PREFIX_CA)) {
                 String type = key.substring(CLDRConverter.LOCALE_TYPE_PREFIX_CA.length());
                 for (CalendarType calendarType : CalendarType.values()) {
@@ -891,12 +891,13 @@ public class CLDRConverter {
         List<String> numberingScripts = (List<String>) map.remove("numberingScripts");
         if (numberingScripts != null) {
             for (String script : numberingScripts) {
-                copyIfPresent(map, script + "." + "NumberElements", formatData);
+                copyIfPresent(map, script + ".NumberElements", formatData);
+                copyIfPresent(map, script + ".NumberPatterns", formatData);
             }
         } else {
             copyIfPresent(map, "NumberElements", formatData);
+            copyIfPresent(map, "NumberPatterns", formatData);
         }
-        copyIfPresent(map, "NumberPatterns", formatData);
         copyIfPresent(map, "short.CompactNumberPatterns", formatData);
         copyIfPresent(map, "long.CompactNumberPatterns", formatData);
 
@@ -1074,8 +1075,20 @@ public class CLDRConverter {
             StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
+    // This method assumes handlerMetaZones is already initialized
+    private static Set<String> getAvailableZoneIds() {
+        assert handlerMetaZones != null;
+        if (AVAILABLE_TZIDS == null) {
+            AVAILABLE_TZIDS = new HashSet<>(ZoneId.getAvailableZoneIds());
+            AVAILABLE_TZIDS.addAll(handlerMetaZones.keySet());
+            AVAILABLE_TZIDS.remove(MetaZonesParseHandler.NO_METAZONE_KEY);
+        }
+
+        return AVAILABLE_TZIDS;
+    }
+
     private static Stream<String> zidMapEntry() {
-        return ZoneId.getAvailableZoneIds().stream()
+        return getAvailableZoneIds().stream()
                 .map(id -> {
                     String canonId = canonicalTZMap.getOrDefault(id, id);
                     String meta = handlerMetaZones.get(canonId);
@@ -1146,5 +1159,23 @@ public class CLDRConverter {
                 })
                 .collect(Collectors.toList()),
             StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+    }
+
+    // for debug
+    private static void dumpMap(Map<String, Object> map) {
+        map.entrySet().stream()
+            .sorted(Map.Entry.comparingByKey())
+            .map(e -> {
+                Object val = e.getValue();
+                String valStr = null;
+
+                if (val instanceof String[]) {
+                    valStr = Arrays.asList((String[])val).toString();
+                } else if (val != null) {
+                    valStr = val.toString();
+                }
+                return e.getKey() + " = " + valStr;
+            })
+            .forEach(System.out::println);
     }
 }

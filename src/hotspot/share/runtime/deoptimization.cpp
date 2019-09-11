@@ -779,35 +779,10 @@ JRT_LEAF(BasicType, Deoptimization::unpack_frames(JavaThread* thread, int exec_m
   return bt;
 JRT_END
 
-class DeoptimizeMarkedTC : public ThreadClosure {
-  bool _in_handshake;
- public:
-  DeoptimizeMarkedTC(bool in_handshake) : _in_handshake(in_handshake) {}
-  virtual void do_thread(Thread* thread) {
-    assert(thread->is_Java_thread(), "must be");
-    JavaThread* jt = (JavaThread*)thread;
-    jt->deoptimize_marked_methods(_in_handshake);
-  }
-};
 
-void Deoptimization::deoptimize_all_marked() {
-  ResourceMark rm;
-  DeoptimizationMarker dm;
-
-  if (SafepointSynchronize::is_at_safepoint()) {
-    DeoptimizeMarkedTC deopt(false);
-    // Make the dependent methods not entrant
-    CodeCache::make_marked_nmethods_not_entrant();
-    Threads::java_threads_do(&deopt);
-  } else {
-    // Make the dependent methods not entrant
-    {
-      MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-      CodeCache::make_marked_nmethods_not_entrant();
-    }
-    DeoptimizeMarkedTC deopt(true);
-    Handshake::execute(&deopt);
-  }
+int Deoptimization::deoptimize_dependents() {
+  Threads::deoptimized_wrt_marked_nmethods();
+  return 0;
 }
 
 Deoptimization::DeoptAction Deoptimization::_unloaded_action
@@ -865,6 +840,15 @@ public:
     }
     return NULL;
   }
+  oop lookup_raw(intptr_t raw_value) {
+    // Have to cast to avoid little/big-endian problems.
+    if (sizeof(PrimitiveType) > sizeof(jint)) {
+      jlong value = (jlong)raw_value;
+      return lookup(value);
+    }
+    PrimitiveType value = (PrimitiveType)*((jint*)&raw_value);
+    return lookup(value);
+  }
 };
 
 typedef BoxCache<jint, java_lang_Integer_IntegerCache, java_lang_Integer> IntegerBoxCache;
@@ -903,6 +887,11 @@ public:
     }
     return _singleton;
   }
+  oop lookup_raw(intptr_t raw_value) {
+    // Have to cast to avoid little/big-endian problems.
+    jboolean value = (jboolean)*((jint*)&raw_value);
+    return lookup(value);
+  }
   oop lookup(jboolean value) {
     if (value != 0) {
       return JNIHandles::resolve_non_null(_true_cache);
@@ -917,18 +906,14 @@ oop Deoptimization::get_cached_box(AutoBoxObjectValue* bv, frame* fr, RegisterMa
    Klass* k = java_lang_Class::as_Klass(bv->klass()->as_ConstantOopReadValue()->value()());
    BasicType box_type = SystemDictionary::box_klass_type(k);
    if (box_type != T_OBJECT) {
-     StackValue* value = StackValue::create_stack_value(fr, reg_map, bv->field_at(0));
+     StackValue* value = StackValue::create_stack_value(fr, reg_map, bv->field_at(box_type == T_LONG ? 1 : 0));
      switch(box_type) {
-       case T_INT:     return IntegerBoxCache::singleton(THREAD)->lookup(value->get_int());
-       case T_LONG: {
-                       StackValue* low = StackValue::create_stack_value(fr, reg_map, bv->field_at(1));
-                       jlong res = (jlong)low->get_int();
-                       return LongBoxCache::singleton(THREAD)->lookup(res);
-                     }
-       case T_CHAR:    return CharacterBoxCache::singleton(THREAD)->lookup(value->get_int());
-       case T_SHORT:   return ShortBoxCache::singleton(THREAD)->lookup(value->get_int());
-       case T_BYTE:    return ByteBoxCache::singleton(THREAD)->lookup(value->get_int());
-       case T_BOOLEAN: return BooleanBoxCache::singleton(THREAD)->lookup(value->get_int());
+       case T_INT:     return IntegerBoxCache::singleton(THREAD)->lookup_raw(value->get_int());
+       case T_CHAR:    return CharacterBoxCache::singleton(THREAD)->lookup_raw(value->get_int());
+       case T_SHORT:   return ShortBoxCache::singleton(THREAD)->lookup_raw(value->get_int());
+       case T_BYTE:    return ByteBoxCache::singleton(THREAD)->lookup_raw(value->get_int());
+       case T_BOOLEAN: return BooleanBoxCache::singleton(THREAD)->lookup_raw(value->get_int());
+       case T_LONG:    return LongBoxCache::singleton(THREAD)->lookup_raw(value->get_int());
        default:;
      }
    }
@@ -1267,19 +1252,19 @@ void Deoptimization::relock_objects(GrowableArray<MonitorInfo*>* monitors, JavaT
       assert(!mon_info->owner_is_scalar_replaced() || realloc_failures, "reallocation was missed");
       if (!mon_info->owner_is_scalar_replaced()) {
         Handle obj(thread, mon_info->owner());
-        markOop mark = obj->mark();
-        if (UseBiasedLocking && mark->has_bias_pattern()) {
+        markWord mark = obj->mark();
+        if (UseBiasedLocking && mark.has_bias_pattern()) {
           // New allocated objects may have the mark set to anonymously biased.
           // Also the deoptimized method may called methods with synchronization
           // where the thread-local object is bias locked to the current thread.
-          assert(mark->is_biased_anonymously() ||
-                 mark->biased_locker() == thread, "should be locked to current thread");
+          assert(mark.is_biased_anonymously() ||
+                 mark.biased_locker() == thread, "should be locked to current thread");
           // Reset mark word to unbiased prototype.
-          markOop unbiased_prototype = markOopDesc::prototype()->set_age(mark->age());
+          markWord unbiased_prototype = markWord::prototype().set_age(mark.age());
           obj->set_mark(unbiased_prototype);
         }
         BasicLock* lock = mon_info->lock();
-        ObjectSynchronizer::slow_enter(obj, lock, thread);
+        ObjectSynchronizer::enter(obj, lock, thread);
         assert(mon_info->owner()->is_locked(), "object must be locked now");
       }
     }
@@ -1389,7 +1374,7 @@ void Deoptimization::pop_frames_failed_reallocs(JavaThread* thread, vframeArray*
       for (int j = 0; j < monitors->number_of_monitors(); j++) {
         BasicObjectLock* src = monitors->at(j);
         if (src->obj() != NULL) {
-          ObjectSynchronizer::fast_exit(src->obj(), src->lock(), thread);
+          ObjectSynchronizer::exit(src->obj(), src->lock(), thread);
         }
       }
       array->element(i)->free_monitors(thread);
@@ -1412,7 +1397,14 @@ static void collect_monitors(compiledVFrame* cvf, GrowableArray<Handle>* objects
   }
 }
 
-static void get_monitors_from_stack(GrowableArray<Handle>* objects_to_revoke, JavaThread* thread, frame fr, RegisterMap* map) {
+
+void Deoptimization::revoke_biases_of_monitors(JavaThread* thread, frame fr, RegisterMap* map) {
+  if (!UseBiasedLocking) {
+    return;
+  }
+
+  GrowableArray<Handle>* objects_to_revoke = new GrowableArray<Handle>();
+
   // Unfortunately we don't have a RegisterMap available in most of
   // the places we want to call this routine so we need to walk the
   // stack again to update the register map.
@@ -1436,34 +1428,11 @@ static void get_monitors_from_stack(GrowableArray<Handle>* objects_to_revoke, Ja
     cvf = compiledVFrame::cast(cvf->sender());
   }
   collect_monitors(cvf, objects_to_revoke);
-}
-
-void Deoptimization::revoke_using_safepoint(JavaThread* thread, frame fr, RegisterMap* map) {
-  if (!UseBiasedLocking) {
-    return;
-  }
-  GrowableArray<Handle>* objects_to_revoke = new GrowableArray<Handle>();
-  get_monitors_from_stack(objects_to_revoke, thread, fr, map);
 
   if (SafepointSynchronize::is_at_safepoint()) {
     BiasedLocking::revoke_at_safepoint(objects_to_revoke);
   } else {
-    BiasedLocking::revoke(objects_to_revoke);
-  }
-}
-
-void Deoptimization::revoke_using_handshake(JavaThread* thread, frame fr, RegisterMap* map) {
-  if (!UseBiasedLocking) {
-    return;
-  }
-  GrowableArray<Handle>* objects_to_revoke = new GrowableArray<Handle>();
-  get_monitors_from_stack(objects_to_revoke, thread, fr, map);
-
-  int len = objects_to_revoke->length();
-  for (int i = 0; i < len; i++) {
-    oop obj = (objects_to_revoke->at(i))();
-    BiasedLocking::revoke_own_locks_in_handshake(objects_to_revoke->at(i), thread);
-    assert(!obj->mark()->has_bias_pattern(), "biases should be revoked by now");
+    BiasedLocking::revoke(objects_to_revoke, thread);
   }
 }
 
@@ -1495,16 +1464,11 @@ void Deoptimization::deoptimize_single_frame(JavaThread* thread, frame fr, Deopt
   fr.deoptimize(thread);
 }
 
-void Deoptimization::deoptimize(JavaThread* thread, frame fr, RegisterMap *map, bool in_handshake) {
-  deopt_thread(in_handshake, thread, fr, map, Reason_constraint);
+void Deoptimization::deoptimize(JavaThread* thread, frame fr, RegisterMap *map) {
+  deoptimize(thread, fr, map, Reason_constraint);
 }
 
 void Deoptimization::deoptimize(JavaThread* thread, frame fr, RegisterMap *map, DeoptReason reason) {
-  deopt_thread(false, thread, fr, map, reason);
-}
-
-void Deoptimization::deopt_thread(bool in_handshake, JavaThread* thread,
-                                  frame fr, RegisterMap *map, DeoptReason reason) {
   // Deoptimize only if the frame comes from compile code.
   // Do not deoptimize the frame which is already patched
   // during the execution of the loops below.
@@ -1514,11 +1478,7 @@ void Deoptimization::deopt_thread(bool in_handshake, JavaThread* thread,
   ResourceMark rm;
   DeoptimizationMarker dm;
   if (UseBiasedLocking) {
-    if (in_handshake) {
-      revoke_using_handshake(thread, fr, map);
-    } else {
-      revoke_using_safepoint(thread, fr, map);
-    }
+    revoke_biases_of_monitors(thread, fr, map);
   }
   deoptimize_single_frame(thread, fr, reason);
 

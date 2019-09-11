@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,10 +55,6 @@
 #ifdef COMPILER2
 #include "opto/compile.hpp"
 #include "opto/node.hpp"
-#endif
-#if INCLUDE_G1GC
-#include "gc/g1/g1HeapRegionTraceType.hpp"
-#include "gc/g1/g1YCTypes.hpp"
 #endif
 
 // Requires a ResourceMark for get_thread_name/as_utf8
@@ -188,15 +184,6 @@ void GCWhenConstant::serialize(JfrCheckpointWriter& writer) {
   }
 }
 
-void G1HeapRegionTypeConstant::serialize(JfrCheckpointWriter& writer) {
-  static const u4 nof_entries = G1HeapRegionTraceType::G1HeapRegionTypeEndSentinel;
-  writer.write_count(nof_entries);
-  for (u4 i = 0; i < nof_entries; ++i) {
-    writer.write_key(i);
-    writer.write(G1HeapRegionTraceType::to_string((G1HeapRegionTraceType::Type)i));
-  }
-}
-
 void GCThresholdUpdaterConstant::serialize(JfrCheckpointWriter& writer) {
   static const u4 nof_entries = MetaspaceGCThresholdUpdater::Last;
   writer.write_count(nof_entries);
@@ -222,17 +209,6 @@ void MetaspaceObjectTypeConstant::serialize(JfrCheckpointWriter& writer) {
     writer.write_key(i);
     writer.write(MetaspaceObj::type_name((MetaspaceObj::Type)i));
   }
-}
-
-void G1YCTypeConstant::serialize(JfrCheckpointWriter& writer) {
-#if INCLUDE_G1GC
-  static const u4 nof_entries = G1YCTypeEndSentinel;
-  writer.write_count(nof_entries);
-  for (u4 i = 0; i < nof_entries; ++i) {
-    writer.write_key(i);
-    writer.write(G1YCTypeHelper::to_string((G1YCType)i));
-  }
-#endif
 }
 
 static const char* reference_type_to_string(ReferenceType rt) {
@@ -319,7 +295,7 @@ void ClassUnloadTypeSet::serialize(JfrCheckpointWriter& writer) {
 
 void TypeSet::serialize(JfrCheckpointWriter& writer) {
   TypeSetSerialization type_set(false);
-  if (LeakProfiler::is_suspended()) {
+  if (LeakProfiler::is_running()) {
     JfrCheckpointWriter leakp_writer(false, true, Thread::current());
     type_set.write(writer, &leakp_writer);
     ObjectSampleCheckpoint::install(leakp_writer, false, true);

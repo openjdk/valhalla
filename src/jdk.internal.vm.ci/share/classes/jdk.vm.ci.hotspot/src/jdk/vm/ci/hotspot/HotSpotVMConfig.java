@@ -73,7 +73,7 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
 
     final int hubOffset = getFieldOffset("oopDesc::_metadata._klass", Integer.class, "Klass*");
 
-    final int prototypeMarkWordOffset = getFieldOffset("Klass::_prototype_header", Integer.class, "markOop");
+    final int prototypeMarkWordOffset = getFieldOffset("Klass::_prototype_header", Integer.class, "markWord");
     final int subklassOffset = getFieldOffset("Klass::_subklass", Integer.class, "Klass*");
     final int superOffset = getFieldOffset("Klass::_super", Integer.class, "Klass*");
     final int nextSiblingOffset = getFieldOffset("Klass::_next_sibling", Integer.class, "Klass*");
@@ -142,11 +142,11 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     // This is only valid on AMD64.
     final int runtimeCallStackSize = getConstant("frame::arg_reg_save_area_bytes", Integer.class, osArch.equals("amd64") ? null : 0);
 
-    private final int markWordNoHashInPlace = getConstant("markOopDesc::no_hash_in_place", Integer.class);
-    private final int markWordNoLockInPlace = getConstant("markOopDesc::no_lock_in_place", Integer.class);
+    private final int markWordNoHashInPlace = getConstant("markWord::no_hash_in_place", Integer.class);
+    private final int markWordNoLockInPlace = getConstant("markWord::no_lock_in_place", Integer.class);
 
     /**
-     * See {@code markOopDesc::prototype()}.
+     * See {@code markWord::prototype()}.
      */
     long arrayPrototypeMarkWord() {
         return markWordNoHashInPlace | markWordNoLockInPlace;
@@ -351,11 +351,10 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     final int vmIntrinsicLinkToSpecial = getConstant("vmIntrinsics::_linkToSpecial", Integer.class);
     final int vmIntrinsicLinkToInterface = getConstant("vmIntrinsics::_linkToInterface", Integer.class);
 
-    final int codeInstallResultOk = getConstant("JVMCIEnv::ok", Integer.class);
-    final int codeInstallResultDependenciesFailed = getConstant("JVMCIEnv::dependencies_failed", Integer.class);
-    final int codeInstallResultDependenciesInvalid = getConstant("JVMCIEnv::dependencies_invalid", Integer.class);
-    final int codeInstallResultCacheFull = getConstant("JVMCIEnv::cache_full", Integer.class);
-    final int codeInstallResultCodeTooLarge = getConstant("JVMCIEnv::code_too_large", Integer.class);
+    final int codeInstallResultOk = getConstant("JVMCI::ok", Integer.class);
+    final int codeInstallResultDependenciesFailed = getConstant("JVMCI::dependencies_failed", Integer.class);
+    final int codeInstallResultCacheFull = getConstant("JVMCI::cache_full", Integer.class);
+    final int codeInstallResultCodeTooLarge = getConstant("JVMCI::code_too_large", Integer.class);
 
     String getCodeInstallResultDescription(int codeInstallResult) {
         if (codeInstallResult == codeInstallResultOk) {
@@ -363,9 +362,6 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
         }
         if (codeInstallResult == codeInstallResultDependenciesFailed) {
             return "dependencies failed";
-        }
-        if (codeInstallResult == codeInstallResultDependenciesInvalid) {
-            return "dependencies invalid";
         }
         if (codeInstallResult == codeInstallResultCacheFull) {
             return "code cache is full";

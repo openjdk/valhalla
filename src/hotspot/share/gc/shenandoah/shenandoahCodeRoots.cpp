@@ -170,7 +170,7 @@ void ShenandoahCodeRoots::remove_nmethod(nmethod* nm) {
       ShenandoahLocker locker(CodeCache_lock->owned_by_self() ? NULL : &_recorded_nms_lock);
 
       ShenandoahNMethodOopDetector detector;
-      nm->oops_do(&detector, /* allow_zombie = */ true);
+      nm->oops_do(&detector, /* allow_dead = */ true);
 
       if (detector.has_oops()) {
         int idx = _recorded_nms->find(nm, ShenandoahNMethod::find_with_nmethod);
@@ -200,7 +200,7 @@ ShenandoahCodeRootsIterator::ShenandoahCodeRootsIterator() :
       break;
     }
     case 2: {
-      CodeCache_lock->lock();
+      CodeCache_lock->lock_without_safepoint_check();
       break;
     }
     default:

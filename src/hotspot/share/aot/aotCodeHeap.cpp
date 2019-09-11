@@ -38,7 +38,6 @@
 #include "memory/universe.hpp"
 #include "oops/compressedOops.hpp"
 #include "oops/method.inline.hpp"
-#include "runtime/deoptimization.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepointVerifiers.hpp"
@@ -533,6 +532,8 @@ void AOTCodeHeap::link_stub_routines_symbols() {
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_stub_routines_aescrypt_decryptBlock", address, StubRoutines::_aescrypt_decryptBlock);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_stub_routines_cipherBlockChaining_encryptAESCrypt", address, StubRoutines::_cipherBlockChaining_encryptAESCrypt);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_stub_routines_cipherBlockChaining_decryptAESCrypt", address, StubRoutines::_cipherBlockChaining_decryptAESCrypt);
+    SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_stub_routines_electronicCodeBook_encryptAESCrypt", address, StubRoutines::_electronicCodeBook_encryptAESCrypt);
+    SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_stub_routines_electronicCodeBook_decryptAESCrypt", address, StubRoutines::_electronicCodeBook_decryptAESCrypt);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_stub_routines_update_bytes_crc32", address, StubRoutines::_updateBytesCRC32);
     SET_AOT_GLOBAL_SYMBOL_VALUE("_aot_stub_routines_crc_table_adr", address, StubRoutines::_crc_table_adr);
 
@@ -734,7 +735,8 @@ void AOTCodeHeap::sweep_dependent_methods(int* indexes, int methods_cnt) {
     }
   }
   if (marked > 0) {
-    Deoptimization::deoptimize_all_marked();
+    VM_Deoptimize op;
+    VMThread::execute(&op);
   }
 }
 

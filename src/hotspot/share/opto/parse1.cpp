@@ -523,10 +523,6 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
 #ifdef ASSERT
   if (depth() == 1) {
     assert(C->is_osr_compilation() == this->is_osr_parse(), "OSR in sync");
-    if (C->tf() != tf()) {
-      assert(C->env()->system_dictionary_modification_counter_changed(),
-             "Must invalidate if TypeFuncs differ");
-    }
   } else {
     assert(!this->is_osr_parse(), "no recursive OSR");
   }
@@ -983,15 +979,18 @@ void Parse::do_exits() {
   //    Rather than put a barrier on only those writes which are required
   //    to complete, we force all writes to complete.
   //
-  // 2. On PPC64, also add MemBarRelease for constructors which write
-  //    volatile fields. As support_IRIW_for_not_multiple_copy_atomic_cpu
-  //    is set on PPC64, no sync instruction is issued after volatile
-  //    stores. We want to guarantee the same behavior as on platforms
-  //    with total store order, although this is not required by the Java
-  //    memory model. So as with finals, we add a barrier here.
-  //
-  // 3. Experimental VM option is used to force the barrier if any field
+  // 2. Experimental VM option is used to force the barrier if any field
   //    was written out in the constructor.
+  //
+  // 3. On processors which are not CPU_MULTI_COPY_ATOMIC (e.g. PPC64),
+  //    support_IRIW_for_not_multiple_copy_atomic_cpu selects that
+  //    MemBarVolatile is used before volatile load instead of after volatile
+  //    store, so there's no barrier after the store.
+  //    We want to guarantee the same behavior as on platforms with total store
+  //    order, although this is not required by the Java memory model.
+  //    In this case, we want to enforce visibility of volatile field
+  //    initializations which are performed in constructors.
+  //    So as with finals, we add a barrier here.
   //
   // "All bets are off" unless the first publication occurs after a
   // normal return from the constructor.  We do not attempt to detect
@@ -999,9 +998,9 @@ void Parse::do_exits() {
   // exceptional returns, since they cannot publish normally.
   //
   if (method()->is_initializer() &&
-        (wrote_final() ||
-           PPC64_ONLY(wrote_volatile() ||)
-           (AlwaysSafeConstructors && wrote_fields()))) {
+       (wrote_final() ||
+         (AlwaysSafeConstructors && wrote_fields()) ||
+         (support_IRIW_for_not_multiple_copy_atomic_cpu && wrote_volatile()))) {
     _exits.insert_mem_bar(Op_MemBarRelease, alloc_with_final());
 
     // If Memory barrier is created for final fields write
@@ -1040,19 +1039,12 @@ void Parse::do_exits() {
     const Type* ret_type = tf()->range()->field_at(TypeFunc::Parms);
     Node*       ret_phi  = _gvn.transform( _exits.argument(0) );
     if (!_exits.control()->is_top() && _gvn.type(ret_phi)->empty()) {
-      // In case of concurrent class loading, the type we set for the
-      // ret_phi in build_exits() may have been too optimistic and the
-      // ret_phi may be top now.
-      // Otherwise, we've encountered an error and have to mark the method as
-      // not compilable. Just using an assertion instead would be dangerous
-      // as this could lead to an infinite compile loop in non-debug builds.
-      {
-        if (C->env()->system_dictionary_modification_counter_changed()) {
-          C->record_failure(C2Compiler::retry_class_loading_during_parsing());
-        } else {
-          C->record_method_not_compilable("Can't determine return type.");
-        }
-      }
+      // If the type we set for the ret_phi in build_exits() is too optimistic and
+      // the ret_phi is top now, there's an extremely small chance that it may be due to class
+      // loading.  It could also be due to an error, so mark this method as not compilable because
+      // otherwise this could lead to an infinite compile loop.
+      // In any case, this code path is rarely (and never in my testing) reached.
+      C->record_method_not_compilable("Can't determine return type.");
       return;
     }
     if (ret_type->isa_int()) {

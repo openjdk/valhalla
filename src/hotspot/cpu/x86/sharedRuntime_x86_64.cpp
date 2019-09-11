@@ -971,10 +971,8 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
   address c2i_entry = __ pc();
 
-  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->c2i_entry_barrier(masm);
-
   // Class initialization barrier for static methods
+  address c2i_no_clinit_check_entry = NULL;
   if (VM_Version::supports_fast_class_init_checks()) {
     Label L_skip_barrier;
     Register method = rbx;
@@ -993,12 +991,16 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     __ jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub())); // slow path
 
     __ bind(L_skip_barrier);
+    c2i_no_clinit_check_entry = __ pc();
   }
+
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->c2i_entry_barrier(masm);
 
   gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
 
   __ flush();
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry);
+  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry, c2i_no_clinit_check_entry);
 }
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
@@ -1922,7 +1924,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                                 int compile_id,
                                                 BasicType* in_sig_bt,
                                                 VMRegPair* in_regs,
-                                                BasicType ret_type) {
+                                                BasicType ret_type,
+                                                address critical_entry) {
   if (method->is_method_handle_intrinsic()) {
     vmIntrinsics::ID iid = method->intrinsic_id();
     intptr_t start = (intptr_t)__ pc();
@@ -1945,7 +1948,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                        (OopMapSet*)NULL);
   }
   bool is_critical_native = true;
-  address native_func = method->critical_native_function();
+  address native_func = critical_entry;
   if (native_func == NULL) {
     native_func = method->native_function();
     is_critical_native = false;

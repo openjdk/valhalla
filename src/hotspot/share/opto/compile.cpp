@@ -465,7 +465,6 @@ CompileWrapper::CompileWrapper(Compile* compile) : _compile(compile) {
   compile->set_type_dict(NULL);
   compile->set_clone_map(new Dict(cmpkey, hashkey, _compile->comp_arena()));
   compile->clone_map().set_clone_idx(0);
-  compile->set_type_hwm(NULL);
   compile->set_type_last_size(0);
   compile->set_last_tf(NULL, NULL);
   compile->set_indexSet_arena(NULL);
@@ -2400,13 +2399,6 @@ void Compile::Optimize() {
   }
 
 #ifdef ASSERT
-  bs->verify_gc_barriers(this, BarrierSetC2::BeforeLateInsertion);
-#endif
-
-  bs->barrier_insertion_phase(C, igvn);
-  if (failing())  return;
-
-#ifdef ASSERT
   bs->verify_gc_barriers(this, BarrierSetC2::BeforeMacroExpand);
 #endif
 
@@ -2419,6 +2411,13 @@ void Compile::Optimize() {
     }
     print_method(PHASE_MACRO_EXPANSION, 2);
   }
+
+#ifdef ASSERT
+  bs->verify_gc_barriers(this, BarrierSetC2::BeforeLateInsertion);
+#endif
+
+  bs->barrier_insertion_phase(C, igvn);
+  if (failing())  return;
 
   {
     TracePhase tp("barrierExpand", &timers[_t_barrierExpand]);

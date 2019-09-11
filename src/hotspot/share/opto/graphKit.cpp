@@ -1362,35 +1362,37 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 
   // Cast obj to not-null on this path, if there is no null_control.
   // (If there is a null_control, a non-null value may come back to haunt us.)
-  if (type == T_OBJECT) {
-    Node* cast = cast_not_null(value, false);
-    if (null_control == NULL || (*null_control) == top())
-      replace_in_map(value, cast);
-    value = cast;
-  }
-
-  return value;
+  return cast_not_null(value, (null_control == NULL || (*null_control) == top()));
 }
 
 
 //------------------------------cast_not_null----------------------------------
 // Cast obj to not-null on this path
 Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
-  const Type *t = _gvn.type(obj);
-  const Type *t_not_null = t->join_speculative(TypePtr::NOTNULL);
-  // Object is already not-null?
-  if( t == t_not_null ) return obj;
-
-  Node *cast = new CastPPNode(obj,t_not_null);
-  cast->init_req(0, control());
-  cast = _gvn.transform( cast );
+  Node* cast = NULL;
+  const Type* t = _gvn.type(obj);
+  if (t->make_ptr() != NULL) {
+    const Type* t_not_null = t->join_speculative(TypePtr::NOTNULL);
+    // Object is already not-null?
+    if (t == t_not_null) {
+      return obj;
+    }
+    cast = ConstraintCastNode::make_cast(Op_CastPP, control(), obj, t_not_null, false);
+  } else if (t->isa_int() != NULL) {
+    cast = ConstraintCastNode::make_cast(Op_CastII, control(), obj, TypeInt::INT, true);
+  } else if (t->isa_long() != NULL) {
+    cast = ConstraintCastNode::make_cast(Op_CastLL, control(), obj, TypeLong::LONG, true);
+  } else {
+    fatal("unexpected type: %s", type2name(t->basic_type()));
+  }
+  cast = _gvn.transform(cast);
 
   // Scan for instances of 'obj' in the current JVM mapping.
   // These instances are known to be not-null after the test.
-  if (do_replace_in_map)
+  if (do_replace_in_map) {
     replace_in_map(obj, cast);
-
-  return cast;                  // Return casted value
+  }
+  return cast;
 }
 
 // Sometimes in intrinsics, we implicitly know an object is not null
@@ -3304,18 +3306,6 @@ Node* GraphKit::insert_mem_bar_volatile(int opcode, int alias_idx, Node* precede
     set_memory(_gvn.transform(new ProjNode(membar, TypeFunc::Memory)),alias_idx);
   }
   return membar;
-}
-
-void GraphKit::insert_store_load_for_barrier() {
-  Node* mem = reset_memory();
-  MemBarNode* mb = MemBarNode::make(C, Op_MemBarVolatile, Compile::AliasIdxRaw);
-  mb->init_req(TypeFunc::Control, control());
-  mb->init_req(TypeFunc::Memory, mem);
-  Node* membar = _gvn.transform(mb);
-  set_control(_gvn.transform(new ProjNode(membar, TypeFunc::Control)));
-  Node* newmem = _gvn.transform(new ProjNode(membar, TypeFunc::Memory));
-  set_all_memory(mem);
-  set_memory(newmem, Compile::AliasIdxRaw);
 }
 
 //------------------------------shared_lock------------------------------------

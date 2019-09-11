@@ -47,17 +47,17 @@ void ShenandoahStringDedup::enqueue_candidate(oop java_string) {
         "Only from a GC worker thread");
 
   if (java_string->age() <= StringDeduplicationAgeThreshold) {
-    const markOop mark = java_string->mark();
+    const markWord mark = java_string->mark();
 
     // Having/had displaced header, too risk to deal with them, skip
-    if (mark == markOopDesc::INFLATING() || mark->has_displaced_mark_helper()) {
+    if (mark == markWord::INFLATING() || mark.has_displaced_mark_helper()) {
       return;
     }
 
     // Increase string age and enqueue it when it rearches age threshold
-    markOop new_mark = mark->incr_age();
+    markWord new_mark = mark.incr_age();
     if (mark == java_string->cas_set_mark(new_mark, mark)) {
-      if (mark->age() == StringDeduplicationAgeThreshold) {
+      if (mark.age() == StringDeduplicationAgeThreshold) {
         StringDedupQueue::push(ShenandoahWorkerSession::worker_id(), java_string);
       }
     }
@@ -75,16 +75,20 @@ void ShenandoahStringDedup::parallel_oops_do(BoolObjectClosure* is_alive, OopClo
   assert(SafepointSynchronize::is_at_safepoint(), "Must be at a safepoint");
   assert(is_enabled(), "String deduplication not enabled");
 
-  ShenandoahWorkerTimings* worker_times = ShenandoahHeap::heap()->phase_timings()->worker_times();
-
   StringDedupUnlinkOrOopsDoClosure sd_cl(is_alive, cl);
+  if (ShenandoahGCPhase::is_root_work_phase()) {
+    ShenandoahWorkerTimings* worker_times = ShenandoahHeap::heap()->phase_timings()->worker_times();
+    {
+      ShenandoahWorkerTimingsTracker x(worker_times, ShenandoahPhaseTimings::StringDedupQueueRoots, worker_id);
+      StringDedupQueue::unlink_or_oops_do(&sd_cl);
+    }
 
-  {
-    ShenandoahWorkerTimingsTracker x(worker_times, ShenandoahPhaseTimings::StringDedupQueueRoots, worker_id);
+    {
+      ShenandoahWorkerTimingsTracker x(worker_times, ShenandoahPhaseTimings::StringDedupTableRoots, worker_id);
+      StringDedupTable::unlink_or_oops_do(&sd_cl, worker_id);
+    }
+  } else {
     StringDedupQueue::unlink_or_oops_do(&sd_cl);
-  }
-  {
-    ShenandoahWorkerTimingsTracker x(worker_times, ShenandoahPhaseTimings::StringDedupTableRoots, worker_id);
     StringDedupTable::unlink_or_oops_do(&sd_cl, worker_id);
   }
 }

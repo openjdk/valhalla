@@ -104,20 +104,23 @@ public:
   }
 };
 
-class LoadBarrierSlowRegNode : public LoadPNode {
+class LoadBarrierSlowRegNode : public TypeNode {
 private:
-    bool _is_weak;
+  bool _is_weak;
 public:
   LoadBarrierSlowRegNode(Node *c,
-                         Node *mem,
                          Node *adr,
-                         const TypePtr *at,
+                         Node *src,
                          const TypePtr* t,
-                         MemOrd mo,
-                         bool weak = false,
-                         ControlDependency control_dependency = DependsOnlyOnTest) :
-      LoadPNode(c, mem, adr, at, t, mo, control_dependency), _is_weak(weak) {
+                         bool weak) :
+      TypeNode(t, 3), _is_weak(weak) {
+    init_req(1, adr);
+    init_req(2, src);
     init_class_id(Class_LoadBarrierSlowReg);
+  }
+
+  virtual uint size_of() const {
+    return sizeof(*this);
   }
 
   virtual const char * name() {
@@ -144,13 +147,6 @@ public:
   void add_load_barrier_node(LoadBarrierNode* n);
   void remove_load_barrier_node(LoadBarrierNode* n);
   LoadBarrierNode* load_barrier_node(int idx) const;
-};
-
-enum BarrierInfo {
-    NoBarrier       = 0,
-    RequireBarrier  = 1,
-    WeakBarrier     = 3,  // Inclusive with RequireBarrier
-    ExpandedBarrier = 4
 };
 
 class ZBarrierSetC2 : public BarrierSetC2 {
@@ -182,6 +178,7 @@ public:
   virtual bool has_load_barriers() const { return true; }
   virtual bool is_gc_barrier_node(Node* node) const;
   virtual Node* step_over_gc_barrier(Node* c) const;
+  virtual Node* step_over_gc_barrier_ctrl(Node* c) const;
 
   virtual void register_potential_barrier_node(Node* node) const;
   virtual void unregister_potential_barrier_node(Node* node) const;
@@ -205,11 +202,12 @@ public:
   virtual void barrier_insertion_phase(Compile* C, PhaseIterGVN &igvn) const;
   virtual bool optimize_loops(PhaseIdealLoop* phase, LoopOptsMode mode, VectorSet& visited, Node_Stack& nstack, Node_List& worklist) const;
   virtual bool is_gc_specific_loop_opts_pass(LoopOptsMode mode) const { return (mode == LoopOptsZBarrierInsertion); }
+  virtual bool strip_mined_loops_expanded(LoopOptsMode mode) const { return mode == LoopOptsZBarrierInsertion; }
 
 private:
   // Load barrier insertion and expansion internal
   void insert_barriers_on_unsafe(PhaseIdealLoop* phase) const;
-  void clean_catch_blocks(PhaseIdealLoop* phase) const;
+  void clean_catch_blocks(PhaseIdealLoop* phase, bool verify = false) const;
   void insert_load_barriers(PhaseIdealLoop* phase) const;
   LoadNode* insert_one_loadbarrier(PhaseIdealLoop* phase, LoadNode* load, Node* ctrl) const;
   void insert_one_loadbarrier_inner(PhaseIdealLoop* phase, LoadNode* load, Node* ctrl, VectorSet visited) const;

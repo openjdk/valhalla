@@ -43,6 +43,7 @@ class ShenandoahGCSession;
 class ShenandoahGCStateResetter;
 class ShenandoahHeuristics;
 class ShenandoahMarkingContext;
+class ShenandoahMode;
 class ShenandoahPhaseTimings;
 class ShenandoahHeap;
 class ShenandoahHeapRegion;
@@ -213,6 +214,9 @@ private:
   ShenandoahRegionIterator _update_refs_iterator;
 
 public:
+
+  inline HeapWord* base() const { return _heap_region.start(); }
+
   inline size_t num_regions() const { return _num_regions; }
   inline bool is_heap_region_special() { return _heap_region_special; }
 
@@ -435,6 +439,7 @@ private:
 private:
   ShenandoahControlThread*   _control_thread;
   ShenandoahCollectorPolicy* _shenandoah_policy;
+  ShenandoahMode*            _gc_mode;
   ShenandoahHeuristics*      _heuristics;
   ShenandoahFreeSet*         _free_set;
   ShenandoahConcurrentMark*  _scm;
@@ -454,7 +459,8 @@ public:
   ShenandoahHeuristics*      heuristics()        const { return _heuristics;        }
   ShenandoahFreeSet*         free_set()          const { return _free_set;          }
   ShenandoahConcurrentMark*  concurrent_mark()         { return _scm;               }
-  ShenandoahTraversalGC*     traversal_gc()            { return _traversal_gc;      }
+  ShenandoahTraversalGC*     traversal_gc()      const { return _traversal_gc;      }
+  bool                       is_traversal_mode() const { return _traversal_gc != NULL; }
   ShenandoahPacer*           pacer()             const { return _pacer;             }
 
   ShenandoahPhaseTimings*    phase_timings()     const { return _phase_timings;     }
@@ -509,9 +515,12 @@ public:
   void set_unload_classes(bool uc);
   bool unload_classes() const;
 
-  // Delete entries for dead interned string and clean up unreferenced symbols
-  // in symbol table, possibly in parallel.
-  void unload_classes_and_cleanup_tables(bool full_gc);
+  // Perform STW class unloading and weak root cleaning
+  void parallel_cleaning(bool full_gc);
+
+private:
+  void stw_unload_classes(bool full_gc);
+  void stw_process_weak_roots(bool full_gc);
 
 // ---------- Generic interface hooks
 // Minor things that super-interface expects us to implement to play nice with
@@ -524,12 +533,16 @@ public:
 
   bool is_in(const void* p) const;
 
+  MemRegion reserved_region() const { return _reserved; }
+  bool is_in_reserved(const void* addr) const { return _reserved.contains(addr); }
+
   void collect(GCCause::Cause cause);
   void do_full_collection(bool clear_all_soft_refs);
 
   // Used for parsing heap during error printing
   HeapWord* block_start(const void* addr) const;
   bool block_is_obj(const HeapWord* addr) const;
+  bool print_location(outputStream* st, void* addr) const;
 
   // Used for native heap walkers: heap dumpers, mostly
   void object_iterate(ObjectClosure* cl);

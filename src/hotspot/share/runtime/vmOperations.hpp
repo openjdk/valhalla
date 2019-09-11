@@ -49,6 +49,7 @@
   template(ClearICs)                              \
   template(ForceSafepoint)                        \
   template(ForceAsyncSafepoint)                   \
+  template(Deoptimize)                            \
   template(DeoptimizeFrame)                       \
   template(DeoptimizeAll)                         \
   template(ZombieAll)                             \
@@ -71,11 +72,11 @@
   template(ZMarkStart)                            \
   template(ZMarkEnd)                              \
   template(ZRelocateStart)                        \
+  template(ZVerify)                               \
   template(HandshakeOneThread)                    \
   template(HandshakeAllThreads)                   \
   template(HandshakeFallback)                     \
   template(EnableBiasedLocking)                   \
-  template(RevokeBias)                            \
   template(BulkRevokeBias)                        \
   template(PopulateDumpSharedSpace)               \
   template(JNIFunctionTableCopier)                \
@@ -127,6 +128,7 @@
   template(ScavengeMonitors)                      \
   template(PrintMetadata)                         \
   template(GTestExecuteAtSafepoint)               \
+  template(JFROldObject)                          \
 
 class VM_Operation: public CHeapObj<mtInternal> {
  public:
@@ -144,7 +146,6 @@ class VM_Operation: public CHeapObj<mtInternal> {
 
  private:
   Thread*         _calling_thread;
-  ThreadPriority  _priority;
   long            _timestamp;
   VM_Operation*   _next;
   VM_Operation*   _prev;
@@ -158,8 +159,7 @@ class VM_Operation: public CHeapObj<mtInternal> {
 
   // VM operation support (used by VM thread)
   Thread* calling_thread() const                 { return _calling_thread; }
-  ThreadPriority priority()                      { return _priority; }
-  void set_calling_thread(Thread* thread, ThreadPriority priority);
+  void set_calling_thread(Thread* thread);
 
   long timestamp() const              { return _timestamp; }
   void set_timestamp(long timestamp)  { _timestamp = timestamp; }
@@ -316,6 +316,14 @@ class VM_GTestExecuteAtSafepoint: public VM_Operation {
 
  protected:
   VM_GTestExecuteAtSafepoint() {}
+};
+
+class VM_Deoptimize: public VM_Operation {
+ public:
+  VM_Deoptimize() {}
+  VMOp_Type type() const                        { return VMOp_Deoptimize; }
+  void doit();
+  bool allow_nested_vm_operations() const        { return true; }
 };
 
 class VM_MarkActiveNMethods: public VM_Operation {

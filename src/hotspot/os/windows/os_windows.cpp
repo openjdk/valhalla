@@ -497,7 +497,10 @@ static OSThread* create_os_thread(Thread* thread, HANDLE thread_handle,
   OSThread* osthread = new OSThread(NULL, NULL);
   if (osthread == NULL) return NULL;
 
-  // Initialize support for Java interrupts
+  // Initialize the JDK library's interrupt event.
+  // This should really be done when OSThread is constructed,
+  // but there is no way for a constructor to report failure to
+  // allocate the event.
   HANDLE interrupt_event = CreateEvent(NULL, true, false, NULL);
   if (interrupt_event == NULL) {
     delete osthread;
@@ -599,7 +602,10 @@ bool os::create_thread(Thread* thread, ThreadType thr_type,
     return false;
   }
 
-  // Initialize support for Java interrupts
+  // Initialize the JDK library's interrupt event.
+  // This should really be done when OSThread is constructed,
+  // but there is no way for a constructor to report failure to
+  // allocate the event.
   HANDLE interrupt_event = CreateEvent(NULL, true, false, NULL);
   if (interrupt_event == NULL) {
     delete osthread;
@@ -1365,11 +1371,14 @@ static int _print_module(const char* fname, address base_address,
 // in case of error it checks if .dll/.so was built for the
 // same architecture as Hotspot is running on
 void * os::dll_load(const char *name, char *ebuf, int ebuflen) {
+  log_info(os)("attempting shared library load of %s", name);
+
   void * result = LoadLibrary(name);
   if (result != NULL) {
     Events::log(NULL, "Loaded shared library %s", name);
     // Recalculate pdb search path if a DLL was loaded successfully.
     SymbolEngine::recalc_search_path();
+    log_info(os)("shared library load of %s was successful", name);
     return result;
   }
   DWORD errcode = GetLastError();
@@ -1378,6 +1387,7 @@ void * os::dll_load(const char *name, char *ebuf, int ebuflen) {
   lasterror(ebuf, (size_t) ebuflen);
   ebuf[ebuflen - 1] = '\0';
   Events::log(NULL, "Loading shared library %s failed, error code %lu", name, errcode);
+  log_info(os)("shared library load of %s failed, error code %lu", name, errcode);
 
   if (errcode == ERROR_MOD_NOT_FOUND) {
     strncpy(ebuf, "Can't find dependent libraries", ebuflen - 1);
@@ -2581,10 +2591,18 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
         CodeBlob* cb = CodeCache::find_blob_unsafe(pc);
         nm = (cb != NULL) ? cb->as_compiled_method_or_null() : NULL;
       }
-      if ((thread->thread_state() == _thread_in_vm &&
+
+      bool is_unsafe_arraycopy = (thread->thread_state() == _thread_in_native || in_java) && UnsafeCopyMemory::contains_pc(pc);
+      if (((thread->thread_state() == _thread_in_vm ||
+           thread->thread_state() == _thread_in_native ||
+           is_unsafe_arraycopy) &&
           thread->doing_unsafe_access()) ||
           (nm != NULL && nm->has_unsafe_access())) {
-        return Handle_Exception(exceptionInfo, SharedRuntime::handle_unsafe_access(thread, (address)Assembler::locate_next_instruction(pc)));
+        address next_pc =  Assembler::locate_next_instruction(pc);
+        if (is_unsafe_arraycopy) {
+          next_pc = UnsafeCopyMemory::page_error_continue_pc(pc);
+        }
+        return Handle_Exception(exceptionInfo, SharedRuntime::handle_unsafe_access(thread, next_pc));
       }
     }
 
@@ -3468,87 +3486,7 @@ void os::pd_start_thread(Thread* thread) {
   assert(ret != SYS_THREAD_ERROR, "StartThread failed"); // should propagate back
 }
 
-class HighResolutionInterval : public CHeapObj<mtThread> {
-  // The default timer resolution seems to be 10 milliseconds.
-  // (Where is this written down?)
-  // If someone wants to sleep for only a fraction of the default,
-  // then we set the timer resolution down to 1 millisecond for
-  // the duration of their interval.
-  // We carefully set the resolution back, since otherwise we
-  // seem to incur an overhead (3%?) that we don't need.
-  // CONSIDER: if ms is small, say 3, then we should run with a high resolution time.
-  // Buf if ms is large, say 500, or 503, we should avoid the call to timeBeginPeriod().
-  // Alternatively, we could compute the relative error (503/500 = .6%) and only use
-  // timeBeginPeriod() if the relative error exceeded some threshold.
-  // timeBeginPeriod() has been linked to problems with clock drift on win32 systems and
-  // to decreased efficiency related to increased timer "tick" rates.  We want to minimize
-  // (a) calls to timeBeginPeriod() and timeEndPeriod() and (b) time spent with high
-  // resolution timers running.
- private:
-  jlong resolution;
- public:
-  HighResolutionInterval(jlong ms) {
-    resolution = ms % 10L;
-    if (resolution != 0) {
-      MMRESULT result = timeBeginPeriod(1L);
-    }
-  }
-  ~HighResolutionInterval() {
-    if (resolution != 0) {
-      MMRESULT result = timeEndPeriod(1L);
-    }
-    resolution = 0L;
-  }
-};
 
-int os::sleep(Thread* thread, jlong ms, bool interruptable) {
-  jlong limit = (jlong) MAXDWORD;
-
-  while (ms > limit) {
-    int res;
-    if ((res = sleep(thread, limit, interruptable)) != OS_TIMEOUT) {
-      return res;
-    }
-    ms -= limit;
-  }
-
-  assert(thread == Thread::current(), "thread consistency check");
-  OSThread* osthread = thread->osthread();
-  OSThreadWaitState osts(osthread, false /* not Object.wait() */);
-  int result;
-  if (interruptable) {
-    assert(thread->is_Java_thread(), "must be java thread");
-    JavaThread *jt = (JavaThread *) thread;
-    ThreadBlockInVM tbivm(jt);
-
-    jt->set_suspend_equivalent();
-    // cleared by handle_special_suspend_equivalent_condition() or
-    // java_suspend_self() via check_and_wait_while_suspended()
-
-    HANDLE events[1];
-    events[0] = osthread->interrupt_event();
-    HighResolutionInterval *phri=NULL;
-    if (!ForceTimeHighResolution) {
-      phri = new HighResolutionInterval(ms);
-    }
-    if (WaitForMultipleObjects(1, events, FALSE, (DWORD)ms) == WAIT_TIMEOUT) {
-      result = OS_TIMEOUT;
-    } else {
-      ResetEvent(osthread->interrupt_event());
-      osthread->set_interrupted(false);
-      result = OS_INTRPT;
-    }
-    delete phri; //if it is NULL, harmless
-
-    // were we externally suspended while we were waiting?
-    jt->check_and_wait_while_suspended();
-  } else {
-    assert(!thread->is_Java_thread(), "must not be java thread");
-    Sleep((long) ms);
-    result = OS_TIMEOUT;
-  }
-  return result;
-}
 
 // Short sleep, direct OS call.
 //
@@ -3674,6 +3612,9 @@ void os::interrupt(Thread* thread) {
   }
 
   ParkEvent * ev = thread->_ParkEvent;
+  if (ev != NULL) ev->unpark();
+
+  ev = thread->_SleepEvent;
   if (ev != NULL) ev->unpark();
 }
 
@@ -4110,7 +4051,7 @@ jint os::init_2(void) {
   // in order to forward implicit exceptions from code in AOT
   // generated DLLs.  This is necessary since these DLLs are not
   // registered for structured exceptions like codecache methods are.
-  if (UseAOT) {
+  if (AOTLibrary != NULL && (UseAOT || FLAG_IS_DEFAULT(UseAOT))) {
     topLevelVectoredExceptionHandler = AddVectoredExceptionHandler( 1, topLevelVectoredExceptionFilter);
   }
 #endif
@@ -4357,6 +4298,88 @@ int os::stat(const char *path, struct stat *sbuf) {
   }
   os::free(pathbuf);
   return ret;
+}
+
+static HANDLE create_read_only_file_handle(const char* file) {
+  if (file == NULL) {
+    return INVALID_HANDLE_VALUE;
+  }
+
+  char* nativepath = (char*)os::strdup(file, mtInternal);
+  if (nativepath == NULL) {
+    errno = ENOMEM;
+    return INVALID_HANDLE_VALUE;
+  }
+  os::native_path(nativepath);
+
+  size_t len = strlen(nativepath);
+  HANDLE handle = INVALID_HANDLE_VALUE;
+
+  if (len < MAX_PATH) {
+    handle = ::CreateFile(nativepath, 0, FILE_SHARE_READ,
+                          NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+  } else {
+    errno_t err = ERROR_SUCCESS;
+    wchar_t* wfile = create_unc_path(nativepath, err);
+    if (err != ERROR_SUCCESS) {
+      if (wfile != NULL) {
+        destroy_unc_path(wfile);
+      }
+      os::free(nativepath);
+      return INVALID_HANDLE_VALUE;
+    }
+    handle = ::CreateFileW(wfile, 0, FILE_SHARE_READ,
+                           NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    destroy_unc_path(wfile);
+  }
+
+  os::free(nativepath);
+  return handle;
+}
+
+bool os::same_files(const char* file1, const char* file2) {
+
+  if (file1 == NULL && file2 == NULL) {
+    return true;
+  }
+
+  if (file1 == NULL || file2 == NULL) {
+    return false;
+  }
+
+  if (strcmp(file1, file2) == 0) {
+    return true;
+  }
+
+  HANDLE handle1 = create_read_only_file_handle(file1);
+  HANDLE handle2 = create_read_only_file_handle(file2);
+  bool result = false;
+
+  // if we could open both paths...
+  if (handle1 != INVALID_HANDLE_VALUE && handle2 != INVALID_HANDLE_VALUE) {
+    BY_HANDLE_FILE_INFORMATION fileInfo1;
+    BY_HANDLE_FILE_INFORMATION fileInfo2;
+    if (::GetFileInformationByHandle(handle1, &fileInfo1) &&
+      ::GetFileInformationByHandle(handle2, &fileInfo2)) {
+      // the paths are the same if they refer to the same file (fileindex) on the same volume (volume serial number)
+      if (fileInfo1.dwVolumeSerialNumber == fileInfo2.dwVolumeSerialNumber &&
+        fileInfo1.nFileIndexHigh == fileInfo2.nFileIndexHigh &&
+        fileInfo1.nFileIndexLow == fileInfo2.nFileIndexLow) {
+        result = true;
+      }
+    }
+  }
+
+  //free the handles
+  if (handle1 != INVALID_HANDLE_VALUE) {
+    ::CloseHandle(handle1);
+  }
+
+  if (handle2 != INVALID_HANDLE_VALUE) {
+    ::CloseHandle(handle2);
+  }
+
+  return result;
 }
 
 
@@ -5076,6 +5099,40 @@ bool os::ThreadCrashProtection::call(os::CrashProtectionCallback& cb) {
   return success;
 }
 
+
+class HighResolutionInterval : public CHeapObj<mtThread> {
+  // The default timer resolution seems to be 10 milliseconds.
+  // (Where is this written down?)
+  // If someone wants to sleep for only a fraction of the default,
+  // then we set the timer resolution down to 1 millisecond for
+  // the duration of their interval.
+  // We carefully set the resolution back, since otherwise we
+  // seem to incur an overhead (3%?) that we don't need.
+  // CONSIDER: if ms is small, say 3, then we should run with a high resolution time.
+  // Buf if ms is large, say 500, or 503, we should avoid the call to timeBeginPeriod().
+  // Alternatively, we could compute the relative error (503/500 = .6%) and only use
+  // timeBeginPeriod() if the relative error exceeded some threshold.
+  // timeBeginPeriod() has been linked to problems with clock drift on win32 systems and
+  // to decreased efficiency related to increased timer "tick" rates.  We want to minimize
+  // (a) calls to timeBeginPeriod() and timeEndPeriod() and (b) time spent with high
+  // resolution timers running.
+ private:
+  jlong resolution;
+ public:
+  HighResolutionInterval(jlong ms) {
+    resolution = ms % 10L;
+    if (resolution != 0) {
+      MMRESULT result = timeBeginPeriod(1L);
+    }
+  }
+  ~HighResolutionInterval() {
+    if (resolution != 0) {
+      MMRESULT result = timeEndPeriod(1L);
+    }
+    resolution = 0L;
+  }
+};
+
 // An Event wraps a win32 "CreateEvent" kernel handle.
 //
 // We have a number of choices regarding "CreateEvent" win32 handle leakage:
@@ -5111,7 +5168,7 @@ bool os::ThreadCrashProtection::call(os::CrashProtectionCallback& cb) {
 // 1.  Reconcile Doug's JSR166 j.u.c park-unpark with the objectmonitor implementation.
 // 2.  Consider wrapping the WaitForSingleObject(Ex) calls in SEH try/finally blocks
 //     to recover from (or at least detect) the dreaded Windows 841176 bug.
-// 3.  Collapse the interrupt_event, the JSR166 parker event, and the objectmonitor ParkEvent
+// 3.  Collapse the JSR166 parker event, and the objectmonitor ParkEvent
 //     into a single win32 CreateEvent() handle.
 //
 // Assumption:
@@ -5184,11 +5241,16 @@ int os::PlatformEvent::park(jlong Millis) {
     if (Millis > MAXTIMEOUT) {
       prd = MAXTIMEOUT;
     }
+    HighResolutionInterval *phri = NULL;
+    if (!ForceTimeHighResolution) {
+      phri = new HighResolutionInterval(prd);
+    }
     rv = ::WaitForSingleObject(_ParkHandle, prd);
     assert(rv == WAIT_OBJECT_0 || rv == WAIT_TIMEOUT, "WaitForSingleObject failed");
     if (rv == WAIT_TIMEOUT) {
       Millis -= prd;
     }
+    delete phri; // if it is NULL, harmless
   }
   v = _Event;
   _Event = 0;
@@ -5708,4 +5770,8 @@ static void call_wrapper_dummy() {}
 void os::win32::initialize_thread_ptr_offset() {
   os::os_exception_wrapper((java_call_t)call_wrapper_dummy,
                            NULL, NULL, NULL, NULL);
+}
+
+bool os::supports_map_sync() {
+  return false;
 }

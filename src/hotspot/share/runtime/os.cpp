@@ -88,12 +88,6 @@ static size_t cur_malloc_words = 0;  // current size for MallocMaxTestWords
 
 DEBUG_ONLY(bool os::_mutex_init_done = false;)
 
-void os_init_globals() {
-  // Called from init_globals().
-  // See Threads::create_vm() in thread.cpp, and init.cpp.
-  os::init_globals();
-}
-
 static time_t get_timezone(const struct tm* time_struct) {
 #if defined(_ALLBSD_SOURCE)
   return time_struct->tm_gmtoff;
@@ -279,6 +273,19 @@ static bool conc_path_file_and_check(char *buffer, char *printbuffer, size_t pri
   return false;
 }
 
+// Frees all memory allocated on the heap for the
+// supplied array of arrays of chars (a), where n
+// is the number of elements in the array.
+static void free_array_of_char_arrays(char** a, size_t n) {
+      while (n > 0) {
+          n--;
+          if (a[n] != NULL) {
+            FREE_C_HEAP_ARRAY(char, a[n]);
+          }
+      }
+      FREE_C_HEAP_ARRAY(char*, a);
+}
+
 bool os::dll_locate_lib(char *buffer, size_t buflen,
                         const char* pname, const char* fname) {
   bool retval = false;
@@ -299,10 +306,10 @@ bool os::dll_locate_lib(char *buffer, size_t buflen,
       }
     } else if (strchr(pname, *os::path_separator()) != NULL) {
       // A list of paths. Search for the path that contains the library.
-      int n;
-      char** pelements = split_path(pname, &n);
+      size_t n;
+      char** pelements = split_path(pname, &n, fullfnamelen);
       if (pelements != NULL) {
-        for (int i = 0; i < n; i++) {
+        for (size_t i = 0; i < n; i++) {
           char* path = pelements[i];
           // Really shouldn't be NULL, but check can't hurt.
           size_t plen = (path == NULL) ? 0 : strlen(path);
@@ -314,12 +321,7 @@ bool os::dll_locate_lib(char *buffer, size_t buflen,
           if (retval) break;
         }
         // Release the storage allocated by split_path.
-        for (int i = 0; i < n; i++) {
-          if (pelements[i] != NULL) {
-            FREE_C_HEAP_ARRAY(char, pelements[i]);
-          }
-        }
-        FREE_C_HEAP_ARRAY(char*, pelements);
+        free_array_of_char_arrays(pelements, n);
       }
     } else {
       // A definite path.
@@ -360,11 +362,33 @@ static void signal_thread_entry(JavaThread* thread, TRAPS) {
 
     switch (sig) {
       case SIGBREAK: {
+#if INCLUDE_SERVICES
         // Check if the signal is a trigger to start the Attach Listener - in that
         // case don't print stack traces.
-        if (!DisableAttachMechanism && AttachListener::is_init_trigger()) {
-          continue;
+        if (!DisableAttachMechanism) {
+          // Attempt to transit state to AL_INITIALIZING.
+          AttachListenerState cur_state = AttachListener::transit_state(AL_INITIALIZING, AL_NOT_INITIALIZED);
+          if (cur_state == AL_INITIALIZING) {
+            // Attach Listener has been started to initialize. Ignore this signal.
+            continue;
+          } else if (cur_state == AL_NOT_INITIALIZED) {
+            // Start to initialize.
+            if (AttachListener::is_init_trigger()) {
+              // Attach Listener has been initialized.
+              // Accept subsequent request.
+              continue;
+            } else {
+              // Attach Listener could not be started.
+              // So we need to transit the state to AL_NOT_INITIALIZED.
+              AttachListener::set_state(AL_NOT_INITIALIZED);
+            }
+          } else if (AttachListener::check_socket_file()) {
+            // Attach Listener has been started, but unix domain socket file
+            // does not exist. So restart Attach Listener.
+            continue;
+          }
         }
+#endif
         // Print stack traces
         // Any SIGBREAK operations added here should make sure to flush
         // the output stream (e.g. tty->flush()) after output.  See 4803766.
@@ -1052,35 +1076,9 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
   }
 
   // Check if addr points into Java heap.
-  if (Universe::heap()->is_in(addr)) {
-    oop o = oopDesc::oop_or_null(addr);
-    if (o != NULL) {
-      if ((HeapWord*)o == (HeapWord*)addr) {
-        st->print(INTPTR_FORMAT " is an oop: ", p2i(addr));
-      } else {
-        st->print(INTPTR_FORMAT " is pointing into object: " , p2i(addr));
-      }
-      o->print_on(st);
-      return;
-    }
-  } else if (Universe::heap()->is_in_reserved(addr)) {
-    st->print_cr(INTPTR_FORMAT " is an unallocated location in the heap", p2i(addr));
+  if (Universe::heap()->print_location(st, addr)) {
     return;
   }
-
-  // Compressed oop needs to be decoded first.
-#ifdef _LP64
-  if (UseCompressedOops && ((uintptr_t)addr &~ (uintptr_t)max_juint) == 0) {
-    narrowOop narrow_oop = (narrowOop)(uintptr_t)addr;
-    oop o = CompressedOops::decode_raw(narrow_oop);
-
-    if (oopDesc::is_valid(o)) {
-      st->print(UINT32_FORMAT " is a compressed pointer to object: ", narrow_oop);
-      o->print_on(st);
-      return;
-    }
-  }
-#endif
 
   bool accessible = is_readable_pointer(addr);
 
@@ -1312,17 +1310,22 @@ bool os::set_boot_path(char fileSep, char pathSep) {
   return false;
 }
 
-/*
- * Splits a path, based on its separator, the number of
- * elements is returned back in n.
- * It is the callers responsibility to:
- *   a> check the value of n, and n may be 0.
- *   b> ignore any empty path elements
- *   c> free up the data.
- */
-char** os::split_path(const char* path, int* n) {
-  *n = 0;
-  if (path == NULL || strlen(path) == 0) {
+// Splits a path, based on its separator, the number of
+// elements is returned back in "elements".
+// file_name_length is used as a modifier for each path's
+// length when compared to JVM_MAXPATHLEN. So if you know
+// each returned path will have something appended when
+// in use, you can pass the length of that in
+// file_name_length, to ensure we detect if any path
+// exceeds the maximum path length once prepended onto
+// the sub-path/file name.
+// It is the callers responsibility to:
+//   a> check the value of "elements", which may be 0.
+//   b> ignore any empty path elements
+//   c> free up the data.
+char** os::split_path(const char* path, size_t* elements, size_t file_name_length) {
+  *elements = (size_t)0;
+  if (path == NULL || strlen(path) == 0 || file_name_length == (size_t)NULL) {
     return NULL;
   }
   const char psepchar = *os::path_separator();
@@ -1331,7 +1334,7 @@ char** os::split_path(const char* path, int* n) {
     return NULL;
   }
   strcpy(inpath, path);
-  int count = 1;
+  size_t count = 1;
   char* p = strchr(inpath, psepchar);
   // Get a count of elements to allocate memory
   while (p != NULL) {
@@ -1340,20 +1343,23 @@ char** os::split_path(const char* path, int* n) {
     p = strchr(p, psepchar);
   }
   char** opath = (char**) NEW_C_HEAP_ARRAY(char*, count, mtInternal);
-  if (opath == NULL) {
-    return NULL;
-  }
 
   // do the actual splitting
   p = inpath;
-  for (int i = 0 ; i < count ; i++) {
+  for (size_t i = 0 ; i < count ; i++) {
     size_t len = strcspn(p, os::path_separator());
-    if (len > JVM_MAXPATHLEN) {
-      return NULL;
+    if (len + file_name_length > JVM_MAXPATHLEN) {
+      // release allocated storage before exiting the vm
+      free_array_of_char_arrays(opath, i++);
+      vm_exit_during_initialization("The VM tried to use a path that exceeds the maximum path length for "
+                                    "this system. Review path-containing parameters and properties, such as "
+                                    "sun.boot.library.path, to identify potential sources for this path.");
     }
     // allocate the string and add terminator storage
-    char* s  = (char*)NEW_C_HEAP_ARRAY(char, len + 1, mtInternal);
+    char* s  = (char*)NEW_C_HEAP_ARRAY_RETURN_NULL(char, len + 1, mtInternal);
     if (s == NULL) {
+      // release allocated storage before returning null
+      free_array_of_char_arrays(opath, i++);
       return NULL;
     }
     strncpy(s, p, len);
@@ -1362,7 +1368,7 @@ char** os::split_path(const char* path, int* n) {
     p += len + 1;
   }
   FREE_C_HEAP_ARRAY(char, inpath);
-  *n = count;
+  *elements = count;
   return opath;
 }
 
@@ -1824,3 +1830,69 @@ os::SuspendResume::State os::SuspendResume::switch_state(os::SuspendResume::Stat
   return result;
 }
 #endif
+
+// Convenience wrapper around naked_short_sleep to allow for longer sleep
+// times. Only for use by non-JavaThreads.
+void os::naked_sleep(jlong millis) {
+  assert(!Thread::current()->is_Java_thread(), "not for use by JavaThreads");
+  const jlong limit = 999;
+  while (millis > limit) {
+    naked_short_sleep(limit);
+    millis -= limit;
+  }
+  naked_short_sleep(millis);
+}
+
+int os::sleep(JavaThread* thread, jlong millis) {
+  assert(thread == Thread::current(),  "thread consistency check");
+
+  ParkEvent * const slp = thread->_SleepEvent;
+  // Because there can be races with thread interruption sending an unpark()
+  // to the event, we explicitly reset it here to avoid an immediate return.
+  // The actual interrupt state will be checked before we park().
+  slp->reset();
+  // Thread interruption establishes a happens-before ordering in the
+  // Java Memory Model, so we need to ensure we synchronize with the
+  // interrupt state.
+  OrderAccess::fence();
+
+  jlong prevtime = javaTimeNanos();
+
+  for (;;) {
+    // interruption has precedence over timing out
+    if (os::is_interrupted(thread, true)) {
+      return OS_INTRPT;
+    }
+
+    jlong newtime = javaTimeNanos();
+
+    if (newtime - prevtime < 0) {
+      // time moving backwards, should only happen if no monotonic clock
+      // not a guarantee() because JVM should not abort on kernel/glibc bugs
+      assert(!os::supports_monotonic_clock(),
+             "unexpected time moving backwards detected in os::sleep()");
+    } else {
+      millis -= (newtime - prevtime) / NANOSECS_PER_MILLISEC;
+    }
+
+    if (millis <= 0) {
+      return OS_OK;
+    }
+
+    prevtime = newtime;
+
+    {
+      ThreadBlockInVM tbivm(thread);
+      OSThreadWaitState osts(thread->osthread(), false /* not Object.wait() */);
+
+      thread->set_suspend_equivalent();
+      // cleared by handle_special_suspend_equivalent_condition() or
+      // java_suspend_self() via check_and_wait_while_suspended()
+
+      slp->park(millis);
+
+      // were we externally suspended while we were waiting?
+      thread->check_and_wait_while_suspended();
+    }
+  }
+}

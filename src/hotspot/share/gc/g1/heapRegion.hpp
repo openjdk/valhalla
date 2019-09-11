@@ -60,7 +60,6 @@ class G1CollectedHeap;
 class G1CMBitMap;
 class G1IsAliveAndApplyClosure;
 class HeapRegionRemSet;
-class HeapRegionRemSetIterator;
 class HeapRegion;
 class HeapRegionSetBase;
 class nmethod;
@@ -256,7 +255,9 @@ class HeapRegion: public G1ContiguousSpace {
   // The index in the optional regions array, if this region
   // is considered optional during a mixed collections.
   uint _index_in_opt_cset;
-  int  _young_index_in_cset;
+
+  // Data for young region survivor prediction.
+  uint  _young_index_in_cset;
   SurvRateGroup* _surv_rate_group;
   int  _age_index;
 
@@ -290,14 +291,17 @@ class HeapRegion: public G1ContiguousSpace {
   // for the collection set.
   double _predicted_elapsed_time_ms;
 
-  // Iterate over the references in a humongous objects and apply the given closure
-  // to them.
+  // Iterate over the references covered by the given MemRegion in a humongous
+  // object and apply the given closure to them.
   // Humongous objects are allocated directly in the old-gen. So we need special
   // handling for concurrent processing encountering an in-progress allocation.
+  // Returns the address after the last actually scanned or NULL if the area could
+  // not be scanned (That should only happen when invoked concurrently with the
+  // mutator).
   template <class Closure, bool is_gc_active>
-  inline bool do_oops_on_card_in_humongous(MemRegion mr,
-                                           Closure* cl,
-                                           G1CollectedHeap* g1h);
+  inline HeapWord* do_oops_on_memregion_in_humongous(MemRegion mr,
+                                                     Closure* cl,
+                                                     G1CollectedHeap* g1h);
 
   // Returns the block size of the given (dead, potentially having its class unloaded) object
   // starting at p extending to at most the prev TAMS using the given mark bitmap.
@@ -315,6 +319,7 @@ class HeapRegion: public G1ContiguousSpace {
 
   static int    LogOfHRGrainBytes;
   static int    LogOfHRGrainWords;
+  static int    LogCardsPerRegion;
 
   static size_t GrainBytes;
   static size_t GrainWords;
@@ -560,21 +565,24 @@ class HeapRegion: public G1ContiguousSpace {
   void set_index_in_opt_cset(uint index) { _index_in_opt_cset = index; }
   void clear_index_in_opt_cset() { _index_in_opt_cset = InvalidCSetIndex; }
 
-  int  young_index_in_cset() const { return _young_index_in_cset; }
-  void set_young_index_in_cset(int index) {
-    assert( (index == -1) || is_young(), "pre-condition" );
+  uint  young_index_in_cset() const { return _young_index_in_cset; }
+  void clear_young_index_in_cset() { _young_index_in_cset = 0; }
+  void set_young_index_in_cset(uint index) {
+    assert(index != UINT_MAX, "just checking");
+    assert(index != 0, "just checking");
+    assert(is_young(), "pre-condition");
     _young_index_in_cset = index;
   }
 
   int age_in_surv_rate_group() {
-    assert( _surv_rate_group != NULL, "pre-condition" );
-    assert( _age_index > -1, "pre-condition" );
+    assert(_surv_rate_group != NULL, "pre-condition");
+    assert(_age_index > -1, "pre-condition");
     return _surv_rate_group->age_in_group(_age_index);
   }
 
   void record_surv_words_in_group(size_t words_survived) {
-    assert( _surv_rate_group != NULL, "pre-condition" );
-    assert( _age_index > -1, "pre-condition" );
+    assert(_surv_rate_group != NULL, "pre-condition");
+    assert(_age_index > -1, "pre-condition");
     int age_in_group = age_in_surv_rate_group();
     _surv_rate_group->record_surviving_words(age_in_group, words_survived);
   }
@@ -591,9 +599,9 @@ class HeapRegion: public G1ContiguousSpace {
   }
 
   void install_surv_rate_group(SurvRateGroup* surv_rate_group) {
-    assert( surv_rate_group != NULL, "pre-condition" );
-    assert( _surv_rate_group == NULL, "pre-condition" );
-    assert( is_young(), "pre-condition" );
+    assert(surv_rate_group != NULL, "pre-condition");
+    assert(_surv_rate_group == NULL, "pre-condition");
+    assert(is_young(), "pre-condition");
 
     _surv_rate_group = surv_rate_group;
     _age_index = surv_rate_group->next_age_index();
@@ -601,13 +609,13 @@ class HeapRegion: public G1ContiguousSpace {
 
   void uninstall_surv_rate_group() {
     if (_surv_rate_group != NULL) {
-      assert( _age_index > -1, "pre-condition" );
-      assert( is_young(), "pre-condition" );
+      assert(_age_index > -1, "pre-condition");
+      assert(is_young(), "pre-condition");
 
       _surv_rate_group = NULL;
       _age_index = -1;
     } else {
-      assert( _age_index == -1, "pre-condition" );
+      assert(_age_index == -1, "pre-condition");
     }
   }
 
@@ -645,18 +653,16 @@ class HeapRegion: public G1ContiguousSpace {
     }
   }
 
-  // Iterate over the objects overlapping part of a card, applying cl
+  // Iterate over the objects overlapping the given memory region, applying cl
   // to all references in the region.  This is a helper for
   // G1RemSet::refine_card*, and is tightly coupled with them.
-  // mr is the memory region covered by the card, trimmed to the
-  // allocated space for this region.  Must not be empty.
+  // mr must not be empty. Must be trimmed to the allocated/parseable space in this region.
   // This region must be old or humongous.
-  // Returns true if the designated objects were successfully
-  // processed, false if an unparsable part of the heap was
-  // encountered; that only happens when invoked concurrently with the
-  // mutator.
+  // Returns the next unscanned address if the designated objects were successfully
+  // processed, NULL if an unparseable part of the heap was encountered (That should
+  // only happen when invoked concurrently with the mutator).
   template <bool is_gc_active, class Closure>
-  inline bool oops_on_card_seq_iterate_careful(MemRegion mr, Closure* cl);
+  inline HeapWord* oops_on_memregion_seq_iterate_careful(MemRegion mr, Closure* cl);
 
   size_t recorded_rs_length() const        { return _recorded_rs_length; }
   double predicted_elapsed_time_ms() const { return _predicted_elapsed_time_ms; }

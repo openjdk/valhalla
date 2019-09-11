@@ -47,6 +47,7 @@
 #include "compiler/compileBroker.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/oopStorage.inline.hpp"
+#include "gc/shared/oopStorageSet.hpp"
 #include "interpreter/bytecodeStream.hpp"
 #include "interpreter/interpreter.hpp"
 #include "jfr/jfrEvents.hpp"
@@ -98,7 +99,6 @@ ResolutionErrorTable*  SystemDictionary::_resolution_errors   = NULL;
 SymbolPropertyTable*   SystemDictionary::_invoke_method_table = NULL;
 ProtectionDomainCacheTable*   SystemDictionary::_pd_cache_table = NULL;
 
-int         SystemDictionary::_number_of_modifications = 0;
 oop         SystemDictionary::_system_loader_lock_obj     =  NULL;
 
 InstanceKlass*      SystemDictionary::_well_known_klasses[SystemDictionary::WKID_LIMIT]
@@ -114,9 +114,6 @@ bool        SystemDictionary::_has_checkPackageAccess     =  false;
 // Default ProtectionDomainCacheSize value
 
 const int defaultProtectionDomainCacheSize = 1009;
-
-OopStorage* SystemDictionary::_vm_weak_oop_storage = NULL;
-
 
 // ----------------------------------------------------------------------------
 // Java-level SystemLoader and PlatformLoader
@@ -1061,11 +1058,7 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
       // Add to class hierarchy, initialize vtables, and do possible
       // deoptimizations.
       add_to_hierarchy(k, CHECK_NULL); // No exception, but can block
-
       // But, do not add to dictionary.
-
-      // compiled code dependencies need to be validated anyway
-      notice_modification();
     }
 
     // Rewrite and patch constant pool here.
@@ -1877,7 +1870,7 @@ bool SystemDictionary::do_unloading(GCTimer* gc_timer) {
   return unloading_occurred;
 }
 
-void SystemDictionary::oops_do(OopClosure* f) {
+void SystemDictionary::oops_do(OopClosure* f, bool include_handles) {
   f->do_oop(&_java_system_loader);
   f->do_oop(&_java_platform_loader);
   f->do_oop(&_system_loader_lock_obj);
@@ -1885,6 +1878,10 @@ void SystemDictionary::oops_do(OopClosure* f) {
 
   // Visit extra methods
   invoke_method_table()->oops_do(f);
+
+  if (include_handles) {
+    OopStorageSet::vm_global()->oops_do(f);
+  }
 }
 
 // CDS: scan and relocate all classes referenced by _well_known_klasses[].
@@ -1908,7 +1905,6 @@ void SystemDictionary::methods_do(void f(Method*)) {
 void SystemDictionary::initialize(TRAPS) {
   // Allocate arrays
   _placeholders        = new PlaceholderTable(_placeholder_table_size);
-  _number_of_modifications = 0;
   _loader_constraints  = new LoaderConstraintTable(_loader_constraint_size);
   _resolution_errors   = new ResolutionErrorTable(_resolution_error_size);
   _invoke_method_table = new SymbolPropertyTable(_invoke_method_size);
@@ -2170,7 +2166,7 @@ void SystemDictionary::update_dictionary(unsigned int d_hash,
     // See whether biased locking is enabled and if so set it for this
     // klass.
     // Note that this must be done past the last potential blocking
-    // point / safepoint. We enable biased locking lazily using a
+    // point / safepoint. We might enable biased locking lazily using a
     // VM_Operation to iterate the SystemDictionary and installing the
     // biasable mark word into each InstanceKlass's prototype header.
     // To avoid race conditions where we accidentally miss enabling the
@@ -2183,7 +2179,7 @@ void SystemDictionary::update_dictionary(unsigned int d_hash,
       // NOTE that we must only do this when the class is initally
       // defined, not each time it is referenced from a new class loader
       if (oopDesc::equals(k->class_loader(), class_loader())) {
-        k->set_prototype_header(markOopDesc::biased_locking_prototype());
+        k->set_prototype_header(markWord::biased_locking_prototype());
       }
     }
 
@@ -2192,8 +2188,6 @@ void SystemDictionary::update_dictionary(unsigned int d_hash,
     InstanceKlass* sd_check = find_class(d_hash, name, dictionary);
     if (sd_check == NULL) {
       dictionary->add_klass(d_hash, name, k);
-
-      notice_modification();
     }
   #ifdef ASSERT
     sd_check = find_class(d_hash, name, dictionary);
@@ -2926,16 +2920,4 @@ int SystemDictionaryDCmd::num_arguments() {
   } else {
     return 0;
   }
-}
-
-void SystemDictionary::initialize_oop_storage() {
-  _vm_weak_oop_storage =
-    new OopStorage("VM Weak Oop Handles",
-                   VMWeakAlloc_lock,
-                   VMWeakActive_lock);
-}
-
-OopStorage* SystemDictionary::vm_weak_oop_storage() {
-  assert(_vm_weak_oop_storage != NULL, "Uninitialized");
-  return _vm_weak_oop_storage;
 }
