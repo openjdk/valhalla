@@ -404,10 +404,6 @@ public abstract class ValueTypeTest {
                 // Disable IR verification if non-default CompileThreshold is set
                 VERIFY_IR = false;
             }
-            if (arg.startsWith("-XX:+EnableValhallaC1")) {
-                // Disable IR verification if C1 is used (FIXME!)
-                VERIFY_IR = false;
-            }
         }
         // Each VM is launched with flags in this order, so the later ones can override the earlier one:
         //     VERIFY_IR/VERIFY_VM flags specified below
@@ -539,7 +535,7 @@ public abstract class ValueTypeTest {
                 }
 
                 if (TieredCompilation) {
-                    // FIXME: TestLWorld.test88 fails with "expected 4 to equal 2"
+                    // FIXME: TestLWorld.test88 fails with "expected 4 to equal 2". See JDK-8230925
                     continue;
                 }
 
