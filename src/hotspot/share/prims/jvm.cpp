@@ -1103,9 +1103,11 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                                 ik->is_nonfindable() ? "is non-findable" : "is findable");
   }
 
+  InstanceKlass* ik = InstanceKlass::cast(k);
   if (init) {
-    InstanceKlass* ik = InstanceKlass::cast(k);
     ik->initialize(CHECK_NULL);
+  } else {
+    ik->link_class(CHECK_NULL);
   }
 
   return (jclass) JNIHandles::make_local(env, k->java_mirror());
