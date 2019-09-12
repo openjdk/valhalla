@@ -2121,36 +2121,6 @@ bool Arguments::check_vm_args_consistency() {
     warning("ValueTypeReturnedAsFields is not supported on this platform");
   }
 
-  if (EnableValhalla) {
-    if (!TieredCompilation) {
-      if (!FLAG_IS_DEFAULT(EnableValhallaC1) && EnableValhallaC1) {
-        warning("EnableValhallaC1 is disabled because TieredCompilation is disabled");
-      }
-      FLAG_SET_CMDLINE(EnableValhallaC1, false);
-      if (!FLAG_IS_DEFAULT(TieredStopAtLevel) && TieredStopAtLevel != 4) {
-        warning("TieredStopAtLevel is reset to 4 because TieredCompilation is disabled");
-      }
-      FLAG_SET_CMDLINE(TieredStopAtLevel, 4);
-    }
-    if (!EnableValhallaC1) {
-      // C1 support for value types is incomplete. Don't use it by default.
-      if (!FLAG_IS_DEFAULT(TieredCompilation) && TieredCompilation) {
-        warning("TieredCompilation disabled because value types are not fully supported by C1");
-      }
-      FLAG_SET_CMDLINE(TieredCompilation, false);
-    } else {
-      /*
-        TEMP: to run the valuetype tests with C1, you need to use the following command-line:
-
-        cd test/hotspot/jtreg/compiler/valhalla/valuetypes
-        jtreg \
-            -javaoption:-XX:+EnableValhallaC1 \
-            -javaoption:-XX:TieredStopAtLevel=1 \
-            .
-
-      */
-    }
-  }
   return status;
 }
 

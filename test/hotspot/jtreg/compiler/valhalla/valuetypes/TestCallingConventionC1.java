@@ -52,31 +52,34 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         switch (scenario) {
         case 0: return new String[] {
                 // Default: both C1 and C2 are enabled, tiered compilation enabled
-                "-XX:+EnableValhallaC1",
-                "-XX:CICompilerCount=2"
+                "-XX:CICompilerCount=2",
+                "-XX:TieredStopAtLevel=4",
+                "-XX:+TieredCompilation",
             };
         case 1: return new String[] {
                 // Default: both C1 and C2 are enabled, tiered compilation enabled
-                "-XX:+EnableValhallaC1",
                 "-XX:CICompilerCount=2",
+                "-XX:TieredStopAtLevel=4",
+                "-XX:+TieredCompilation",
                 "-XX:+StressValueTypeReturnedAsFields"
             };
         case 2: return new String[] {
                 // Same as above, but flip all the compLevel=C1 and compLevel=C2, so we test
                 // the compliment of the above scenario.
-                "-XX:+EnableValhallaC1",
                 "-XX:CICompilerCount=2",
+                "-XX:TieredStopAtLevel=4",
+                "-XX:+TieredCompilation",
                 "-DFlipC1C2=true"
             };
         case 3: return new String[] {
                 // Only C1. Tiered compilation disabled.
-                "-XX:+EnableValhallaC1",
                 "-XX:TieredStopAtLevel=1",
+                "-XX:+TieredCompilation",
             };
         case 4: return new String[] {
                 // Only C2.
-                "-XX:-EnableValhallaC1",
                 "-XX:TieredStopAtLevel=4",
+                "-XX:-TieredCompilation",
             };
         }
         return null;

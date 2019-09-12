@@ -62,26 +62,26 @@ public class TestC1 extends ValueTypeTest {
     public String[] getVMParameters(int scenario) {
         switch (scenario) {
         case 0: return new String[] { // C1 only
-                "-XX:+EnableValhallaC1",
                 "-XX:TieredStopAtLevel=1",
+                "-XX:+TieredCompilation",
             };
         case 1: return new String[] { // C2 only. (Make sure the tests are correctly written)
-                "-XX:-EnableValhallaC1",
                 "-XX:TieredStopAtLevel=4",
+                "-XX:-TieredCompilation",
             };
         case 2: return new String[] { // interpreter only
                 "-Xint",
             };
         case 3: return new String[] {
                 // Xcomp Only C1.
-                "-XX:+EnableValhallaC1",
                 "-XX:TieredStopAtLevel=1",
+                "-XX:+TieredCompilation",
                 "-Xcomp",
             };
         case 4: return new String[] {
                 // Xcomp Only C2.
-                "-XX:-EnableValhallaC1",
                 "-XX:TieredStopAtLevel=4",
+                "-XX:-TieredCompilation",
                 "-Xcomp",
             };
         }

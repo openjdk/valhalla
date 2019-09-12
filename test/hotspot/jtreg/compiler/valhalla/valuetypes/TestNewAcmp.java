@@ -1311,9 +1311,6 @@ public class TestNewAcmp {
     protected static final long TieredStopAtLevel = (Long)WHITE_BOX.getVMFlag("TieredStopAtLevel");
     protected static final int COMP_LEVEL_FULL_OPTIMIZATION = get_full_opt_level();
 
-    // FIXME: temp -- special handling for C1 testing.
-    protected static final boolean EnableValhallaC1 = (Boolean)WHITE_BOX.getVMFlag("EnableValhallaC1");
-
     public void runTest(Method m, Object[] args, int warmup, int nullMode, boolean[][] equalities) throws Exception {
         Class<?>[] parameterTypes = m.getParameterTypes();
         int parameterCount = parameterTypes.length;
