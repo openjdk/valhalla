@@ -174,8 +174,7 @@ public class AccessibleObject implements AnnotatedElement {
      * members with default (package) access, protected instance members, or
      * protected constructors when the declaring class is in a different module
      * to the caller and the package containing the declaring class is not open
-     * to the caller's module or it is a {@linkplain Class#isHiddenClass()
-     * hidden class}.</p>
+     * to the caller's module. </p>
      *
      * <p> If there is a security manager, its
      * {@code checkPermission} method is first called with a
@@ -299,23 +298,6 @@ public class AccessibleObject implements AnnotatedElement {
 
         Module callerModule = caller.getModule();
         Module declaringModule = declaringClass.getModule();
-
-        if (declaringClass.isHiddenClass()) {
-            if (callerModule == Object.class.getModule()) return true;
-            if (throwExceptionIfDenied) {
-                // not accessible
-                String msg = "Unable to make ";
-                if (this instanceof Field)
-                    msg += "field ";
-                msg += this + " accessible";
-                InaccessibleObjectException e = new InaccessibleObjectException(msg);
-                if (printStackTraceWhenAccessFails()) {
-                    e.printStackTrace(System.err);
-                }
-                throw e;
-            }
-            return false;
-        }
 
         if (callerModule == declaringModule) return true;
         if (callerModule == Object.class.getModule()) return true;

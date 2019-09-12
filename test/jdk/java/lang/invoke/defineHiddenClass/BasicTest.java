@@ -30,9 +30,8 @@
  * @run testng/othervm BasicTest
  */
 
- // Temporarily disabled until isHidden intrinsic is fixed.
- // @run testng/othervm -Xcomp BasicTest
-
+// Temporarily disabled until isHidden intrinsic is fixed.
+// @run testng/othervm -Xcomp BasicTest
 
 import java.io.File;
 import java.io.IOException;
@@ -136,12 +135,8 @@ public class BasicTest {
 
     private void checkSetAccessible(Class<?> c, String name, Class<?>... ptypes) throws Exception {
         Method m = c.getDeclaredMethod(name, ptypes);
-        assertFalse(m.trySetAccessible());
-        try {
-            m.setAccessible(true);
-        } catch (InaccessibleObjectException e) {
-            e.printStackTrace();
-        }
+        assertTrue(m.trySetAccessible());
+        m.setAccessible(true);
     }
 
     @Test
