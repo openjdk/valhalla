@@ -2255,8 +2255,7 @@ public class LambdaToMethod extends TreeTranslator {
 
             boolean isProtectedInSuperClassOfEnclosingClassInOtherPackage() {
                 return ((tree.sym.flags() & PROTECTED) != 0 &&
-                        tree.sym.packge() != owner.packge() &&
-                        !owner.enclClass().isSubClass(tree.sym.owner, types));
+                        tree.sym.packge() != owner.packge());
             }
 
             /**
