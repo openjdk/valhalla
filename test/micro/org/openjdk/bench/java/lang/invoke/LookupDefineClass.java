@@ -201,7 +201,7 @@ public class LookupDefineClass {
         @Benchmark
         public Class<?> load() throws ClassNotFoundException {
             try {
-                return HOST_LOOKUP.defineHiddenClass(X_BYTECODE, false, WEAK);
+                return HOST_LOOKUP.defineHiddenClass(X_BYTECODE, false, WEAK).lookupClass();
             } catch (IllegalAccessException e) {
                 throw new InternalError(e);
             }
@@ -269,7 +269,7 @@ public class LookupDefineClass {
         @Benchmark
         public Class<?> load() throws ClassNotFoundException {
             try {
-                return HOST_LOOKUP.defineHiddenClass(X_BYTECODE, false);
+                return HOST_LOOKUP.defineHiddenClass(X_BYTECODE, false).lookupClass();
             } catch (IllegalAccessException e) {
                 throw new InternalError(e);
             }
