@@ -1141,8 +1141,8 @@ public final class StringConcatFactory {
 
             byte[] classBytes = cw.toByteArray();
             try {
-                // may use @ForceInline; use internal defineClass
-                Class<?> innerClass = lookup.internalDefineClass(className, classBytes, HIDDEN_CLASS|ACCESS_VM_ANNOTATIONS, true, null);
+                // Need to investigate why this class uses @ForceInline.
+                Class<?> innerClass = lookup.lookupDefineClass(className, classBytes, HIDDEN_CLASS|ACCESS_VM_ANNOTATIONS, true, null);
                 dumpIfEnabled(className, classBytes);
                 return lookup.findStatic(innerClass, METHOD_NAME, args);
             } catch (Exception e) {

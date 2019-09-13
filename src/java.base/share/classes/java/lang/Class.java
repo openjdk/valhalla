@@ -3933,6 +3933,14 @@ public final class Class<T> implements java.io.Serializable,
      * that the represented entity belongs to the nest consisting only of
      * itself, and is the nest host.
      *
+     * <p> If this class is a {@linkplain #isHiddenClass() hidden class}
+     * created by calling
+     * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
+     * Lookup::defineHiddenClass} with
+     * {@link MethodHandles.Lookup.ClassOption#NESTMATE NESTMATE} class option,
+     * then this method returns the lookup class of the lookup object creating
+     * it as this hidden class was added as a member to the nest of that lookup class.
+     *
      * <p>If there is a {@linkplain LinkageError linkage error} accessing
      * the nest host, or if this class or interface is not enumerated as
      * a member of the nest by the nest host, then it is considered to belong
@@ -3946,11 +3954,6 @@ public final class Class<T> implements java.io.Serializable,
      * {@code NestMembers} attribute (JVMS 4.7.29).
      * A {@code class} file of version 54.0 or lower does not use these
      * attributes.
-     * If this class was created by calling
-     * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
-     * Lookup.defineHiddenClass}
-     * and added to the nest of the lookup object's lookup class, then
-     * this class has the same nest host as the lookup class.
      *
      * @return the nest host of this class or interface
      *
@@ -4045,10 +4048,10 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @apiNote
      * This method returns the nest members listed in the {@code NestMembers}
-     * attribute.  The returned array does not include nest members created
-     * by calling
+     * attribute.  The returned array does not include any hidden class that
+     * were added to the nest of this class via
      * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
-     * Lookup.defineHiddenClass}.
+     * Lookup::defineHiddenClass}.
      *
      * @return an array of all classes and interfaces in the same nest as
      * this class
@@ -4066,7 +4069,6 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since 11
      * @see #getNestHost()
-     * @see MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
      */
     @CallerSensitive
     public Class<?>[] getNestMembers() {
@@ -4167,6 +4169,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return {@code true} if and only if this class is a hidden class.
      *
      * @since 14
+     * @see MethodHandles.Lookup#defineHiddenClass
      */
     @HotSpotIntrinsicCandidate
     public native boolean isHiddenClass();

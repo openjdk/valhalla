@@ -35,11 +35,9 @@
 
 import java.io.File;
 import java.io.IOException;
-import static java.lang.invoke.MethodHandles.Lookup.ClassOption.*;
 import static java.lang.invoke.MethodHandles.lookup;
 
 import java.lang.reflect.Array;
-import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -86,14 +84,14 @@ public class BasicTest {
         return Files.readAllBytes(CLASSES_DIR.resolve(classFileName));
     }
 
-    static Class<HiddenTest> defineHiddenClass(String name) throws Exception {
+    static Class<?> defineHiddenClass(String name) throws Exception {
         byte[] bytes = readClassFile(name + ".class");
-        return (Class<HiddenTest>)lookup().defineHiddenClass(bytes, false, NESTMATE);
+        return lookup().defineHiddenClass(bytes, false).lookupClass();
     }
 
     @Test
     public void hiddenClass() throws Throwable {
-        HiddenTest t = defineHiddenClass("HiddenClass").newInstance();
+        HiddenTest t = (HiddenTest)defineHiddenClass("HiddenClass").newInstance();
         t.test();
 
         Class<?> c = t.getClass();
@@ -141,7 +139,7 @@ public class BasicTest {
 
     @Test
     public void testLambda() throws Throwable {
-        HiddenTest t = defineHiddenClass("Lambda").newInstance();
+        HiddenTest t = (HiddenTest)defineHiddenClass("Lambda").newInstance();
         try {
             t.test();
         } catch (Error e) {
@@ -153,7 +151,7 @@ public class BasicTest {
 
     @Test
     public void hiddenCantReflect() throws Throwable {
-        HiddenTest t = defineHiddenClass("HiddenCantReflect").newInstance();
+        HiddenTest t = (HiddenTest)defineHiddenClass("HiddenCantReflect").newInstance();
         t.test();
 
         Class<?> c = t.getClass();
@@ -174,35 +172,30 @@ public class BasicTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void hiddenInterface() throws Exception {
-        byte[] bytes = readClassFile("HiddenInterface.class");
-        Class<?> c = lookup().defineHiddenClass(bytes, false);
+        defineHiddenClass("HiddenInterface");
     }
 
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void abstractHiddenClass() throws Exception {
-        byte[] bytes = readClassFile("AbstractClass.class");
-        Class<?> c = lookup().defineHiddenClass(bytes, false);
+        defineHiddenClass("AbstractClass");
     }
 
     @Test(expectedExceptions = NoClassDefFoundError.class)
     public void hiddenSuperClass() throws Exception {
-        byte[] bytes = readClassFile("HiddenSuper.class");
-        Class<?> c = lookup().defineHiddenClass(bytes, false);
+        defineHiddenClass("HiddenSuper");
     }
 
     @Test
     public void hiddenNestmates() throws Throwable {
         try {
-            byte[] bytes = readClassFile("Outer.class");
-            lookup().defineHiddenClass(bytes, false);
+            defineHiddenClass("Outer");
         } catch (IllegalArgumentException e) {
             if (!e.getMessage().contains("NestMembers attribute")) throw e;
         }
 
         try {
-            byte[] bytes = readClassFile("Outer$Inner.class");
-            lookup().defineHiddenClass(bytes, false);
+            defineHiddenClass("Outer$Inner");
         } catch (IllegalArgumentException e) {
             if (!e.getMessage().contains("NestHost attribute")) throw e;
         }

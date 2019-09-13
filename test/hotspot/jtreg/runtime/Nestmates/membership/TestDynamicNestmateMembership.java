@@ -124,7 +124,7 @@ public class TestDynamicNestmateMembership {
         MethodHandles.Lookup nestLookup = lookup.in(target.getNestHost());
         try {
             byte[] bytes = getBytesForClass(name);
-            Class<?> nestmate = nestLookup.defineHiddenClass(bytes, false, NESTMATE);
+            Class<?> nestmate = nestLookup.defineHiddenClass(bytes, false, NESTMATE).lookupClass();
             if (ex != null) {
                 throw new RuntimeException(action + " was expected to throw " +
                                            ex.getSimpleName());

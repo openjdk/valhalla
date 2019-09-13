@@ -1178,7 +1178,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                  */
                 String name = targetClass.getName() + "$$InjectedInvoker";
                 Class<?> invokerClass = new Lookup(targetClass)
-                        .internalDefineClass(name, INJECTED_INVOKER_TEMPLATE, HIDDEN_CLASS, true, null);
+                        .lookupDefineClass(name, INJECTED_INVOKER_TEMPLATE, HIDDEN_CLASS, true, null);
                 assert checkInjectedInvoker(targetClass, invokerClass);
                 return IMPL_LOOKUP.findStatic(invokerClass, "invoke_V", INVOKER_MT);
             } catch (ReflectiveOperationException ex) {

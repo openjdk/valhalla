@@ -78,13 +78,13 @@ public class SelfReferenceDescriptor {
         }
     }
 
-    // Test that a nonFindable class cannot use its own name in a field
+    // Test that a hidden class cannot use its own name in a field
     // signature.
     public static void hiddenClassInFieldDescriptor() throws Exception {
         compileSources(SRC_DIR.resolve("SelfRefField.java"));
         byte[] bytes = readClassFile("SelfRefField.class");
         try {
-            Class<?> c = lookup().defineHiddenClass(bytes, false, NESTMATE);
+            lookup().defineHiddenClass(bytes, false);
         } catch (NoClassDefFoundError e) {
             if (!e.getMessage().contains("SelfRefField")) throw e;
         }
@@ -96,7 +96,7 @@ public class SelfReferenceDescriptor {
         compileSources(SRC_DIR.resolve("SelfRefMethod.java"));
         byte[] bytes = readClassFile("SelfRefMethod.class");
         try {
-            Class<?> c = lookup().defineHiddenClass(bytes, false, NESTMATE);
+            lookup().defineHiddenClass(bytes, false);
         } catch (NoClassDefFoundError e) {
             if (!e.getMessage().contains("SelfRefMethod")) throw e;
         }

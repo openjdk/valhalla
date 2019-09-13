@@ -348,7 +348,7 @@ public final class Context {
             try {
                 ANONYMOUS_INSTALLED_SCRIPT_COUNT.increment();
                 // Workaround: define it as a hidden nestmate so that the hostLookup can find private members
-                return hostLookup.defineHiddenClass(bytecode, true, ClassOption.NESTMATE, ClassOption.WEAK);
+                return hostLookup.defineHiddenClass(bytecode, true, ClassOption.NESTMATE, ClassOption.WEAK).lookupClass();
             } catch (IllegalAccessException e) {
                 throw new InternalError(e);
             }

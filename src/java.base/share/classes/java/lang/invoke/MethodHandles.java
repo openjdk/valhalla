@@ -1639,21 +1639,20 @@ public class MethodHandles {
         }
 
         /**
-         * Defines a <em>hidden class</em> to
+         * Creates a {@code Lookup} on a <em>hidden class</em> defined to
          * the same class loader and in the same runtime package and
          * {@linkplain java.security.ProtectionDomain protection domain} as this
          * lookup's {@linkplain #lookupClass() lookup class}.
-         * The {@code options} parameter specifies the class options to
-         * create the hidden class as a {@linkplain ClassOption#NESTMATE
-         * member of an access control nest} and/or {@linkplain ClassOption#WEAK
+         * The {@code options} parameter specifies the class options if the
+         * hidden class is created as a {@linkplain ClassOption#NESTMATE
+         * nestmate} of this lookup's lookup class and/or is {@linkplain ClassOption#WEAK
          * weakly referenced} by its defining class loader.
          *
          * <p> The hidden class is initialized if the {@code initialize} parameter is
          * {@code true}.
          *
          * <p> A {@link Class#isHiddenClass() <em>hidden</em>} class, i.e. a class
-         * cannot be symbolically referenced in other classes,
-         * with the following properties:
+         * cannot be referenced in other classes with the following additional properties:
          * <ul>
          * <li>Naming:
          *     The name of this class is determined by the JVM and the class name
@@ -1672,28 +1671,24 @@ public class MethodHandles {
          *     A hidden class is not {@linkplain java.lang.instrument.Instrumentation#isModifiableClass(Class)
          *     modifiable} by Java agents or tool agents using
          *     the <a href="{@docRoot}/../specs/jvmti.html">JVM Tool Interface</a>.
-         * <li>Reflective access:
-         *     The {@linkplain java.lang.reflect.AccessibleObject#setAccessible(boolean)
-         *     accessible} flag of its {@link Field}, {@link Method},
-         *     {@link Constructor} reflected objects of a hidden class cannot be set
-         *     to suppress access check.
          * </ul>
          *
          * <p> The {@linkplain #lookupModes() lookup modes} for this lookup must
          * have {@code PRIVATE} and {@code MODULE} access to create a hidden class
          * in the module of this lookup class.
          *
-         * <p> If {@code options} has {@link ClassOption#NESTMATE}, then this method
-         * creates the hidden class as a member of the nest of the lookup class.
+         * <p> If {@code options} has {@link ClassOption#NESTMATE NESTMATE}, then
+         * this method creates the hidden class as a member of the nest of
+         * the lookup class.
          * This lookup's lookup class must be the nest host.  Together with the
          * {@code PRIVATE} and {@code MODULE} lookup mode, it ensures that
          * the nest host authorized the addition of members to the nest.
          * The hidden class has this lookup's lookup class as the
          * {@linkplain Class#getNestHost nest host}.
          *
-         * <p> If {@code options} has {@link ClassOption#WEAK}, then the hidden class is
-         * weakly reachable from its defining class loader and may be unloaded while
-         * its defining class loader is strongly reachable.
+         * <p> If {@code options} has {@link ClassOption#WEAK WEAK}, then
+         * the hidden class is weakly referenced from its defining class loader
+         * and may be unloaded while its defining class loader is strongly reachable.
          *
          * <p> The {@code bytes} parameter is the class bytes of a valid class file
          * (as defined by the <em>The Java Virtual Machine Specification</em>)
@@ -1712,17 +1707,16 @@ public class MethodHandles {
          *
          * @param bytes the class bytes
          * @param initialize if {@code true} the class will be initialized.
-         *                   See Section 12.4 of <em>The Java Language Specification</em>.
          * @param options {@linkplain ClassOption class options}
          * @return the {@code Lookup} object on the hidden class
          *
          * @throws IllegalArgumentException the bytes are for a class in a different package
          *                                  to the lookup class; or the bytes contain {@code NestHost},
          *                                  {@code NestMembers}, {@code EnclosingMethod} attribute, or
-         *                                  {@code classes} entries in the `InnerClasses` attribute
+         *                                  {@code classes} entries in the {@code InnerClasses} attribute
          *                                  indicating that this hidden class is an enclosing class
          *                                  or a nested class.
-         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
+         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access;
          *                                  or if {@code NESTMATE} is set and the lookup class is not the nest host.
          * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
          *                                  verified ({@code VerifyError}), is already defined,
@@ -1732,58 +1726,11 @@ public class MethodHandles {
          * @throws NullPointerException     if {@code bytes} is {@code null}
          *
          * @since 14
-         * @jls 12.7 Unloading of Classes and Interfaces
+         * @see Class#isHiddenClass()
+         * @jls 12.3 Linking of Classes and Interfaces
+         * @jls 12.4 Initialization of Classes and Interfaces
          */
-        public Class<?> defineHiddenClass(byte[] bytes, boolean initialize, ClassOption... options)
-                throws IllegalAccessException
-        {
-            Objects.requireNonNull(bytes);
-
-            checkDefineClassPermission();
-            if ((lookupModes() & (PRIVATE|MODULE)) != (PRIVATE|MODULE)){
-                throw new IllegalAccessException(this + " does not have PRIVATE or MODULE access");
-            }
-
-            Set<ClassOption> opts = (options != null && options.length > 0) ? Set.of(options) : Set.of();
-            HiddenClassDefiner cfd = new HiddenClassDefiner(bytes.clone(), opts);
-            return cfd.defineClass(initialize, null);
-        }
-
-        /**
-         * Returns a {@code Lookup} on a {@link Class#isHiddenClass() hidden} class
-         * defined to the same class loader and in the same runtime package and
-         * {@linkplain java.security.ProtectionDomain protection domain}
-         * as this lookup's {@linkplain #lookupClass() lookup class}.
-         *
-         * <p> This method returns a {@code Lookup} object with private access
-         * on the hidden class which is defined as if calling
-         * {@link #defineHiddenClass(byte[], boolean, ClassOption...) defineHiddenClass}.
-         *
-         * @param bytes the class bytes
-         * @param initialize if {@code true} the class will be initialized.
-         *                   See Section 12.4 of <em>The Java Language Specification</em>.
-         * @param options {@linkplain ClassOption class options}
-         * @return the {@code Lookup} object on the hidden class
-         *
-         * @throws IllegalArgumentException the bytes are for a class in a different package
-         *                                  to the lookup class; or the bytes contain {@code NestHost},
-         *                                  {@code NestMembers}, {@code EnclosingMethod} attribute, or
-         *                                  {@code classes} entries in the `InnerClasses` attribute
-         *                                  indicating that this hidden class is an enclosing class
-         *                                  or a nested class.
-         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
-         *                                  or if {@code NESTMATE} is set and the lookup class is not the nest host.
-         * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
-         *                                  verified ({@code VerifyError}), is already defined,
-         *                                  or another linkage error occurs
-         * @throws SecurityException        if a security manager is present and it
-         *                                  <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
-         * @throws NullPointerException     if {@code bytes} is {@code null}
-         *
-         * @since 14
-         * @jls 12.7 Unloading of Classes and Interfaces
-         */
-        public Lookup defineHiddenClassAsLookup(byte[] bytes, boolean initialize, ClassOption... options)
+        public Lookup defineHiddenClass(byte[] bytes, boolean initialize, ClassOption... options)
                 throws IllegalAccessException
         {
             Objects.requireNonNull(bytes);
@@ -1797,26 +1744,28 @@ public class MethodHandles {
             HiddenClassDefiner cfd = new HiddenClassDefiner(bytes.clone(), opts);
             Class<?> c = cfd.defineClass(initialize, null);
             return new Lookup(c, null, FULL_POWER_MODES);
+
         }
 
         /**
-         * Returns a {@code Lookup} on a {@link Class#isHiddenClass() hidden} class
+         * Creates a {@code Lookup} on a <em>hidden class</em> defined to
          * defined to the same class loader and in the same runtime package
          * and {@linkplain java.security.ProtectionDomain protection domain} as
          * this lookup's {@linkplain #lookupClass() lookup class} with
          * the given class options and {@code classData}.
          *
-         * <p> This method defines a class as if calling
-         * {@link #defineHiddenClass(byte[], boolean, ClassOption...)  defineHiddenClass(bytes, true, options)}.
-         * Setting the {@code classData} behaves as if assigning it to
-         * a private static unnamed field in the class static initializer.
-         *
-         * <p> The {@linkplain #lookupModes() lookup modes} for this lookup must
-         * have {@code PRIVATE} and {@code MODULE} access in order to add a new
-         * member in the module of this lookup class.
+         * <p> This method defines a hidden class as if calling
+         * {@link #defineHiddenClass(byte[], boolean, ClassOption...)  defineHiddenClass(bytes, true, options)}
+         * and assigning the given {@code classData} to
+         * a private static unnamed field followed with the invocation
+         * of the class static initializer.
          *
          * <p> The {@link Lookup#classData(Class)} method can be used to retrieve
          * the {@code classData}.
+         *
+         * <p> The {@linkplain #lookupModes() lookup modes} for this lookup must
+         * have {@code PRIVATE} and {@code MODULE} access in order to create a
+         * hidden class in the module of this lookup class.
          *
          * @param bytes     the class bytes
          * @param classData pre-initialized class data
@@ -1824,10 +1773,12 @@ public class MethodHandles {
          * @return the {@code Lookup} object on the hidden class
          *
          * @throws IllegalArgumentException the bytes are for a class in a different package
-         *                                  to the lookup class; or the bytes contain
-         *                                  {@code NestHost}, {@code NestMembers}, {@code InnerClasses} or
-         *                                  {@code EnclosingMethod} attribute.
-         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
+         *                                  to the lookup class; or the bytes contain {@code NestHost},
+         *                                  {@code NestMembers}, {@code EnclosingMethod} attribute, or
+         *                                  {@code classes} entries in the {@code InnerClasses} attribute
+         *                                  indicating that this hidden class is an enclosing class
+         *                                  or a nested class.
+         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access;
          *                                  or if {@code NESTMATE} is set and the lookup class is not the nest host
          * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
          *                                  verified ({@code VerifyError}), is already defined,
@@ -1837,7 +1788,10 @@ public class MethodHandles {
          * @throws NullPointerException     if {@code bytes} is {@code null}
          *
          * @since 14
+         * @see Class#isHiddenClass()
          * @see #classData(Class)
+         * @jls 12.3 Linking of Classes and Interfaces
+         * @jls 12.4 Initialization of Classes and Interfaces
          */
         public Lookup defineHiddenClassWithClassData(byte[] bytes, Object classData, ClassOption... options)
                 throws IllegalAccessException
@@ -1990,24 +1944,29 @@ public class MethodHandles {
             }
         }
 
-        /*
-         * Invoke class loader's defineClass method to define the class of
-         * the given byte stream.
+        /**
+         * Defines the class of the given bytes and the given classData.
+         *
+         * If {@code initialize} parameter is true, then the class will be initialized.
+         *
+         * Called by InvokerBytecodeGenerator and BindCaller.makeInjectedInvoker
+         * @param name the name of the class if it's a non-hidden class; the prefix
+         *             to be used as VM assigned class name of a hidden class
+         * @param bytes class file bytes
+         * @param flags VM flags to indicate it's a hidden, nestmate, weak class
+         *              or access to VM annotations
+         * @param initialize true if the class to be initialized
+         * @param classData classData or null
+         * @return the class
+         *
+         * @throws LinkageError linkage error
          */
-        private Class<?> lookupDefineClass(String name, byte[] bytes, int flags, boolean initialize, Object classData) {
+        Class<?> lookupDefineClass(String name, byte[] bytes, int flags, boolean initialize, Object classData) {
+            assert (initialize || classData == null);  // initialize must be true if classData is non-null
             ClassLoader loader = lookupClass.getClassLoader();
             ProtectionDomain pd = (loader != null) ? lookupClassProtectionDomain() : null;
             Class<?> clazz = JLA.defineClass(loader, lookupClass, name, bytes, pd, initialize, flags, classData);
             return clazz;
-        }
-
-        /*
-         * Load and initialize the class of the given bytes and the given classData.
-         * Called by InvokerBytecodeGenerator and BindCaller.makeInjectedInvoker
-         */
-        Class<?> internalDefineClass(String name, byte[] bytes, int flags, boolean initialize, Object classData) {
-            assert (initialize || classData == null);  // initialize must be true if classData is non-null
-            return lookupDefineClass(name, bytes, flags, initialize, classData);
         }
 
         private ProtectionDomain lookupClassProtectionDomain() {
@@ -2331,9 +2290,8 @@ assertEquals("[x, y, z]", pb.command().toString());
          * <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
          * @throws LinkageError if the linkage fails
          * @throws ClassNotFoundException if the class cannot be loaded by the lookup class' loader
-         *                                or the class is not {@linkplain Class#isHiddenClass hidden}
+         *                                or the class is {@linkplain Class#isHiddenClass hidden}
          * @throws IllegalAccessException if the class is not accessible, using the allowed access modes.
-
          *
          * @jls 12.2 Loading of Classes and Interfaces
          * @jls 12.3 Linking of Classes and Interfaces
@@ -3653,15 +3611,20 @@ return mh1;
         static ConcurrentHashMap<MemberName, DirectMethodHandle> LOOKASIDE_TABLE = new ConcurrentHashMap<>();
 
         /**
-         * Class options representing the kind of hidden classes defined by the
-         * {@link Lookup#defineHiddenClass(byte[], boolean, ClassOption...)} method.
+         * The set of class options that specify whether a hidden class created by
+         * {@link Lookup#defineHiddenClass(byte[], boolean, ClassOption...)} method
+         * is added as a nest member of a lookup class and whether it is weakly
+         * referenced by its defining class loader.
          *
          * @since 14
          */
         public enum ClassOption {
             /**
-             * A nestmate is a class that is in the same {@linkplain Class#getNestHost nest}
-             * of a lookup class.  It has access to the private members of all
+             * This class option specifies the hidden class be added to
+             * {@linkplain Class#getNestHost nest} of a lookup class as
+             * a nestmate.
+             *
+             * <p> A hidden nestmate class has access to the private members of all
              * classes and interfaces in the same nest.
              *
              * @see Class#getNestHost()
@@ -3669,9 +3632,10 @@ return mh1;
             NESTMATE(NESTMATE_CLASS),
 
             /**
-             * A weak class is a class that may be unloaded independently with
-             * its defining class loader when it becomes
-             * <a href="../ref/package.html#reachability">unreachable</a>.
+             * This class option specifies the hidden class be weakly
+             * referenced by its defining class loader such that it
+             * may be unloaded while its defining class loader is
+             * <a href="../ref/package.html#reachability">strongly reachable</a>.
              *
              * @jls 12.7 Unloading of Classes and Interfaces
              */

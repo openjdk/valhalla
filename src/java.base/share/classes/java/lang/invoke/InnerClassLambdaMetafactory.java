@@ -315,7 +315,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         try {
             // this class is linked at the indy callsite; so define a hidden nestmate
             Class<?> nestHost = caller.lookupClass().getNestHost();
-            return caller.in(nestHost).defineHiddenClass(classBytes, true, NESTMATE);
+            return caller.in(nestHost).defineHiddenClass(classBytes, true, NESTMATE).lookupClass();
         } catch (IllegalAccessException e) {
             throw new LambdaConversionException("Exception defining lambda proxy class", e);
         }
