@@ -791,6 +791,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     __ jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub())); // slow path
 
     __ bind(L_skip_barrier);
+   // TODO fix this
+   // c2i_no_clinit_check_entry = __ pc();
   }
 
   // Before we get into the guts of the C2I adapter, see if we should be here
@@ -1277,6 +1279,10 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     gen_c2i_adapter(masm, sig, regs, value_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
   }
 
+  // TODO fix this
+  // Class initialization barrier for static methods
+  address c2i_no_clinit_check_entry = NULL;
+
   __ flush();
 
   // The c2i adapters might safepoint and trigger a GC. The caller must make sure that
@@ -1284,7 +1290,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   bool caller_must_gc_arguments = (regs != regs_cc);
   new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
 
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry, c2i_unverified_value_entry);
+  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry, c2i_unverified_value_entry, c2i_no_clinit_check_entry);
 }
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
@@ -2211,7 +2217,8 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                                 int compile_id,
                                                 BasicType* in_sig_bt,
                                                 VMRegPair* in_regs,
-                                                BasicType ret_type) {
+                                                BasicType ret_type,
+                                                address critical_entry) {
   if (method->is_method_handle_intrinsic()) {
     vmIntrinsics::ID iid = method->intrinsic_id();
     intptr_t start = (intptr_t)__ pc();
@@ -2234,7 +2241,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
                                        (OopMapSet*)NULL);
   }
   bool is_critical_native = true;
-  address native_func = method->critical_native_function();
+  address native_func = critical_entry;
   if (native_func == NULL) {
     native_func = method->native_function();
     is_critical_native = false;
@@ -2792,7 +2799,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ orptr(swap_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
     if (EnableValhalla && !UseBiasedLocking) {
       // For slow path is_always_locked, using biased, which is never natural for !UseBiasLocking
-      __ andptr(swap_reg, ~markOopDesc::biased_lock_bit_in_place);
+      __ andptr(swap_reg, ~((int) markWord::biased_lock_bit_in_place));
     }
 
     // Save (object->mark() | 1) into BasicLock's displaced header

@@ -31,15 +31,13 @@
 #include "memory/universe.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "runtime/deoptimization.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "jvmci/jniAccessMark.inline.hpp"
 #include "jvmci/jvmciRuntime.hpp"
 
-JVMCICompileState::JVMCICompileState(CompileTask* task, int system_dictionary_modification_counter):
+JVMCICompileState::JVMCICompileState(CompileTask* task):
   _task(task),
-  _system_dictionary_modification_counter(system_dictionary_modification_counter),
   _retryable(true),
   _failure_reason(NULL),
   _failure_reason_on_C_heap(false) {
@@ -1361,6 +1359,9 @@ Handle JVMCIEnv::asConstant(JVMCIObject constant, JVMCI_TRAPS) {
     return Handle(THREAD, obj);
   } else if (isa_IndirectHotSpotObjectConstantImpl(constant)) {
     jlong object_handle = get_IndirectHotSpotObjectConstantImpl_objectHandle(constant);
+    if (object_handle == 0L) {
+      JVMCI_THROW_MSG_(NullPointerException, "Foreign object reference has been cleared", Handle());
+    }
     oop result = resolve_handle(object_handle);
     if (result == NULL) {
       JVMCI_THROW_MSG_(InternalError, "Constant was unexpectedly NULL", Handle());
@@ -1490,7 +1491,8 @@ void JVMCIEnv::invalidate_nmethod_mirror(JVMCIObject mirror, JVMCI_TRAPS) {
     // Invalidating the HotSpotNmethod means we want the nmethod
     // to be deoptimized.
     nm->mark_for_deoptimization();
-    Deoptimization::deoptimize_all_marked();
+    VM_Deoptimize op;
+    VMThread::execute(&op);
   }
 
   // A HotSpotNmethod instance can only reference a single nmethod

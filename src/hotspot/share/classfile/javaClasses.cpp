@@ -65,6 +65,7 @@
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/vframe.inline.hpp"
+#include "runtime/vm_version.hpp"
 #include "utilities/align.hpp"
 #include "utilities/preserveException.hpp"
 #include "utilities/utf8.hpp"
@@ -2672,10 +2673,6 @@ void java_lang_StackTraceElement::fill_in(Handle element,
         source_file = NULL;
         java_lang_Class::set_source_file(java_class(), source_file);
       }
-      if (ShowHiddenFrames) {
-        source = vmSymbols::unknown_class_name();
-        source_file = StringTable::intern(source, CHECK);
-      }
     }
     java_lang_StackTraceElement::set_fileName(element(), source_file);
 
@@ -2713,11 +2710,7 @@ void java_lang_StackTraceElement::decode(Handle mirror, int method_id, int versi
     // via the previous versions list.
     holder = holder->get_klass_version(version);
     assert(holder != NULL, "sanity check");
-    Symbol* source = holder->source_file_name();
-    if (ShowHiddenFrames && source == NULL) {
-      source = vmSymbols::unknown_class_name();
-    }
-    filename = source;
+    filename = holder->source_file_name();
     line_number = Backtrace::get_line_number(method, bci);
   }
 }
@@ -2756,14 +2749,14 @@ void java_lang_StackFrameInfo::to_stack_trace_element(Handle stackFrame, Handle 
   Method* method = java_lang_StackFrameInfo::get_method(stackFrame, holder, CHECK);
 
   short version = stackFrame->short_field(_version_offset);
-  short bci = stackFrame->short_field(_bci_offset);
+  int bci = stackFrame->int_field(_bci_offset);
   Symbol* name = method->name();
   java_lang_StackTraceElement::fill_in(stack_trace_element, holder, method, version, bci, name, CHECK);
 }
 
 #define STACKFRAMEINFO_FIELDS_DO(macro) \
   macro(_memberName_offset,     k, "memberName",  object_signature, false); \
-  macro(_bci_offset,            k, "bci",         short_signature,  false)
+  macro(_bci_offset,            k, "bci",         int_signature,    false)
 
 void java_lang_StackFrameInfo::compute_offsets() {
   InstanceKlass* k = SystemDictionary::StackFrameInfo_klass();
@@ -4113,6 +4106,7 @@ private:
   int _page_size;
   bool _big_endian;
   bool _use_unaligned_access;
+  int _data_cache_line_flush_size;
 public:
   UnsafeConstantsFixup() {
     // round up values for all static final fields
@@ -4120,6 +4114,7 @@ public:
     _page_size = os::vm_page_size();
     _big_endian = LITTLE_ENDIAN_ONLY(false) BIG_ENDIAN_ONLY(true);
     _use_unaligned_access = UseUnalignedAccesses;
+    _data_cache_line_flush_size = (int)VM_Version::data_cache_line_flush_size();
   }
 
   void do_field(fieldDescriptor* fd) {
@@ -4136,6 +4131,8 @@ public:
       mirror->bool_field_put(fd->offset(), _big_endian);
     } else if (fd->name() == vmSymbols::use_unaligned_access_name()) {
       mirror->bool_field_put(fd->offset(), _use_unaligned_access);
+    } else if (fd->name() == vmSymbols::data_cache_line_flush_size_name()) {
+      mirror->int_field_put(fd->offset(), _data_cache_line_flush_size);
     } else {
       assert(false, "unexpected UnsafeConstants field");
     }
@@ -4305,6 +4302,7 @@ void java_lang_StackFrameInfo::set_version(oop element, short value) {
 }
 
 void java_lang_StackFrameInfo::set_bci(oop element, int value) {
+  assert(value >= 0 && value < max_jushort, "must be a valid bci value");
   element->int_field_put(_bci_offset, value);
 }
 
@@ -4628,9 +4626,6 @@ void JavaClasses::compute_offsets() {
   // BASIC_JAVA_CLASSES_DO_PART1 classes (java_lang_String and java_lang_Class)
   // earlier inside SystemDictionary::resolve_well_known_classes()
   BASIC_JAVA_CLASSES_DO_PART2(DO_COMPUTE_OFFSETS);
-
-  // generated interpreter code wants to know about the offsets we just computed:
-  AbstractAssembler::update_delayed_values();
 }
 
 #if INCLUDE_CDS

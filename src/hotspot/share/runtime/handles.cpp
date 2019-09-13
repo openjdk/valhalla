@@ -98,10 +98,7 @@ static uintx chunk_oops_do(OopClosure* f, Chunk* chunk, char* chunk_top) {
   // during GC phase 3, a handle may be a forward pointer that
   // is not yet valid, so loosen the assertion
   while (bottom < top) {
-    if (Universe::heap()->is_in_reserved_or_null(*bottom)) {
-      f->do_oop(bottom);
-    }
-    bottom++;
+    f->do_oop(bottom++);
   }
   return handles_visited;
 }

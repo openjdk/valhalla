@@ -285,7 +285,7 @@ void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   if (_throw_imse_stub != NULL) {
     // When we come here, _obj_reg has already been checked to be non-null.
     __ ldr(rscratch1, Address(_obj_reg->as_register(), oopDesc::mark_offset_in_bytes()));
-    __ mov(rscratch2, markOopDesc::always_locked_pattern);
+    __ mov(rscratch2, markWord::always_locked_pattern);
     __ andr(rscratch1, rscratch1, rscratch2);
 
     __ cmp(rscratch1, rscratch2); 

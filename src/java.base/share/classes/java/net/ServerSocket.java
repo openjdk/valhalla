@@ -27,17 +27,11 @@ package java.net;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.nio.channels.ServerSocketChannel;
-import java.security.AccessController;
-import java.security.PrivilegedExceptionAction;
 import java.util.Objects;
 import java.util.Set;
 import java.util.Collections;
 
-import jdk.internal.access.JavaNetSocketAccess;
-import jdk.internal.access.SharedSecrets;
 import sun.net.PlatformSocketImpl;
 
 /**
@@ -716,6 +710,10 @@ class ServerSocket implements java.io.Closeable {
 
     /**
      * Returns the binding state of the ServerSocket.
+     * <p>
+     * If the socket was bound prior to being {@linkplain #close closed},
+     * then this method will continue to return {@code true}
+     * after the socket is closed.
      *
      * @return true if the ServerSocket successfully bound to an address
      * @since 1.4
@@ -1115,28 +1113,5 @@ class ServerSocket implements java.io.Closeable {
             options = Collections.emptySet();
         }
         return options;
-    }
-
-    static {
-        SharedSecrets.setJavaNetSocketAccess(
-            new JavaNetSocketAccess() {
-                @Override
-                public ServerSocket newServerSocket(SocketImpl impl) {
-                    return new ServerSocket(impl);
-                }
-
-                @Override
-                public SocketImpl newSocketImpl(Class<? extends SocketImpl> implClass) {
-                    try {
-                        Constructor<? extends SocketImpl> ctor =
-                            implClass.getDeclaredConstructor();
-                        return ctor.newInstance();
-                    } catch (NoSuchMethodException | InstantiationException |
-                             IllegalAccessException | InvocationTargetException e) {
-                        throw new AssertionError(e);
-                    }
-                }
-            }
-        );
     }
 }

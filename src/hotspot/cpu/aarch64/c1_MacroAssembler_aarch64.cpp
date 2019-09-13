@@ -32,7 +32,7 @@
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "oops/arrayOop.hpp"
-#include "oops/markOop.hpp"
+#include "oops/markWord.hpp"
 #include "runtime/basicLock.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/os.hpp"
@@ -84,11 +84,11 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   // Load object header
   ldr(hdr, Address(obj, hdr_offset));
   // and mark it as unlocked
-  orr(hdr, hdr, markOopDesc::unlocked_value);
+  orr(hdr, hdr, markWord::unlocked_value);
 
   if (EnableValhalla && !UseBiasedLocking) {
     // Mask always_locked bit such that we go to the slow path if object is a value type
-    andr(hdr, hdr, ~markOopDesc::biased_lock_bit_in_place);
+    andr(hdr, hdr, ~markWord::biased_lock_bit_in_place);
   }
 
   // save unlocked object header into the displaced header location on the stack
@@ -184,7 +184,7 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
     ldr(t1, Address(klass, Klass::prototype_header_offset()));
   } else {
     // This assumes that all prototype bits fit in an int32_t
-    mov(t1, (int32_t)(intptr_t)markOopDesc::prototype());
+    mov(t1, (int32_t)(intptr_t)markWord::prototype().value());
   }
   str(t1, Address(obj, oopDesc::mark_offset_in_bytes()));
 
@@ -338,14 +338,7 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
 }
 
 
-void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes,  bool needs_stack_repair, Label* verified_value_entry_label) {
-   
-
-  // If we have to make this method not-entrant we'll overwrite its
-  // first instruction with a jump.  For this action to be legal we
-  // must ensure that this first instruction is a B, BL, NOP, BKPT,
-  // SVC, HVC, or SMC.  Make it a NOP.
-  nop();
+void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes, bool needs_stack_repair, Label* verified_value_entry_label) {
   assert(bang_size_in_bytes >= framesize, "stack bang size incorrect");
   // Make sure there is enough stack space for this method's activation.
   // Note that we do this before doing an enter().
@@ -357,9 +350,6 @@ void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes,  bool
   }
 
   MacroAssembler::build_frame(framesize + 2 * wordSize);
-  if (NotifySimulator) {
-    notify(Assembler::method_entry);
-  }
 }
 
 void C1_MacroAssembler::remove_frame(int framesize, bool needs_stack_repair) {
@@ -367,9 +357,6 @@ void C1_MacroAssembler::remove_frame(int framesize, bool needs_stack_repair) {
   guarantee(needs_stack_repair == false, "Stack repair should not be true");
 
   MacroAssembler::remove_frame(framesize + 2 * wordSize);
-  if (NotifySimulator) {
-    notify(Assembler::method_reentry);
-  }
 }
 
 void C1_MacroAssembler::verified_value_entry() {

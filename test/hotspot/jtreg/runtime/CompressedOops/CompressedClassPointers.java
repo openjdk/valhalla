@@ -70,6 +70,7 @@ public class CompressedClassPointers {
     public static void largeHeapTest() throws Exception {
         ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
             "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+UnlockExperimentalVMOptions",
             "-Xmx30g",
             "-XX:-UseAOT", // AOT explicitly set klass shift to 3.
             "-Xlog:gc+metaspace=trace",

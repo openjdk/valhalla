@@ -32,7 +32,7 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "logging/log.hpp"
 #include "oops/arrayOop.hpp"
-#include "oops/markOop.hpp"
+#include "oops/markWord.hpp"
 #include "oops/method.hpp"
 #include "oops/methodData.hpp"
 #include "oops/valueKlass.hpp"
@@ -287,6 +287,18 @@ void InterpreterMacroAssembler::load_resolved_klass_at_offset(
   ldr(klass, Address(cpool,  ConstantPool::resolved_klasses_offset_in_bytes())); // klass = cpool->_resolved_klasses
   add(klass, klass, temp, LSL, LogBytesPerWord);
   ldr(klass, Address(klass, Array<Klass*>::base_offset_in_bytes()));
+}
+
+void InterpreterMacroAssembler::load_resolved_method_at_index(int byte_no,
+                                                              Register method,
+                                                              Register cache) {
+  const int method_offset = in_bytes(
+    ConstantPoolCache::base_offset() +
+      ((byte_no == TemplateTable::f2_byte)
+       ? ConstantPoolCacheEntry::f2_offset()
+       : ConstantPoolCacheEntry::f1_offset()));
+
+  ldr(method, Address(cache, method_offset)); // get f1 Method*
 }
 
 // Generate a subtype check: branch to ok_is_subtype if sub_klass is a
@@ -756,7 +768,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
 
     if (EnableValhalla && !UseBiasedLocking) { 
       // For slow path is_always_locked, using biased, which is never natural for !UseBiasLocking
-      andr(swap_reg, swap_reg, ~markOopDesc::biased_lock_bit_in_place);
+      andr(swap_reg, swap_reg, ~((int) markWord::biased_lock_bit_in_place));
     }
 
     assert(lock_offset == 0,

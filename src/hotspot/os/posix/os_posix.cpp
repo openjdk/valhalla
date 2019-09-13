@@ -624,78 +624,6 @@ char* os::build_agent_function_name(const char *sym_name, const char *lib_name,
   return agent_entry_name;
 }
 
-int os::sleep(Thread* thread, jlong millis, bool interruptible) {
-  assert(thread == Thread::current(),  "thread consistency check");
-
-  ParkEvent * const slp = thread->_SleepEvent ;
-  slp->reset() ;
-  OrderAccess::fence() ;
-
-  if (interruptible) {
-    jlong prevtime = javaTimeNanos();
-
-    for (;;) {
-      if (os::is_interrupted(thread, true)) {
-        return OS_INTRPT;
-      }
-
-      jlong newtime = javaTimeNanos();
-
-      if (newtime - prevtime < 0) {
-        // time moving backwards, should only happen if no monotonic clock
-        // not a guarantee() because JVM should not abort on kernel/glibc bugs
-        assert(!os::supports_monotonic_clock(), "unexpected time moving backwards detected in os::sleep(interruptible)");
-      } else {
-        millis -= (newtime - prevtime) / NANOSECS_PER_MILLISEC;
-      }
-
-      if (millis <= 0) {
-        return OS_OK;
-      }
-
-      prevtime = newtime;
-
-      {
-        assert(thread->is_Java_thread(), "sanity check");
-        JavaThread *jt = (JavaThread *) thread;
-        ThreadBlockInVM tbivm(jt);
-        OSThreadWaitState osts(jt->osthread(), false /* not Object.wait() */);
-
-        jt->set_suspend_equivalent();
-        // cleared by handle_special_suspend_equivalent_condition() or
-        // java_suspend_self() via check_and_wait_while_suspended()
-
-        slp->park(millis);
-
-        // were we externally suspended while we were waiting?
-        jt->check_and_wait_while_suspended();
-      }
-    }
-  } else {
-    OSThreadWaitState osts(thread->osthread(), false /* not Object.wait() */);
-    jlong prevtime = javaTimeNanos();
-
-    for (;;) {
-      // It'd be nice to avoid the back-to-back javaTimeNanos() calls on
-      // the 1st iteration ...
-      jlong newtime = javaTimeNanos();
-
-      if (newtime - prevtime < 0) {
-        // time moving backwards, should only happen if no monotonic clock
-        // not a guarantee() because JVM should not abort on kernel/glibc bugs
-        assert(!os::supports_monotonic_clock(), "unexpected time moving backwards detected on os::sleep(!interruptible)");
-      } else {
-        millis -= (newtime - prevtime) / NANOSECS_PER_MILLISEC;
-      }
-
-      if (millis <= 0) break ;
-
-      prevtime = newtime;
-      slp->park(millis);
-    }
-    return OS_OK ;
-  }
-}
 
 void os::naked_short_nanosleep(jlong ns) {
   struct timespec req;
@@ -1450,6 +1378,30 @@ char * os::native_path(char *path) {
   return path;
 }
 
+bool os::same_files(const char* file1, const char* file2) {
+  if (strcmp(file1, file2) == 0) {
+    return true;
+  }
+
+  bool is_same = false;
+  struct stat st1;
+  struct stat st2;
+
+  if (os::stat(file1, &st1) < 0) {
+    return false;
+  }
+
+  if (os::stat(file2, &st2) < 0) {
+    return false;
+  }
+
+  if (st1.st_dev == st2.st_dev && st1.st_ino == st2.st_ino) {
+    // same files
+    is_same = true;
+  }
+  return is_same;
+}
+
 // Check minimum allowable stack sizes for thread creation and to initialize
 // the java system classes, including StackOverflowError - depends on page
 // size.
@@ -1671,8 +1623,8 @@ static void pthread_init_common(void) {
   if ((status = pthread_mutexattr_settype(_mutexAttr, PTHREAD_MUTEX_NORMAL)) != 0) {
     fatal("pthread_mutexattr_settype: %s", os::strerror(status));
   }
-  // Solaris has it's own PlatformMonitor, distinct from the one for POSIX.
-  NOT_SOLARIS(os::PlatformMonitor::init();)
+  // Solaris has it's own PlatformMutex, distinct from the one for POSIX.
+  NOT_SOLARIS(os::PlatformMutex::init();)
 }
 
 #ifndef SOLARIS
@@ -2250,33 +2202,29 @@ void Parker::unpark() {
   }
 }
 
-// Platform Monitor implementation
-
-os::PlatformMonitor::Impl::Impl() : _next(NULL) {
-  int status = pthread_cond_init(&_cond, _condAttr);
-  assert_status(status == 0, status, "cond_init");
-  status = pthread_mutex_init(&_mutex, _mutexAttr);
-  assert_status(status == 0, status, "mutex_init");
-}
-
-os::PlatformMonitor::Impl::~Impl() {
-  int status = pthread_cond_destroy(&_cond);
-  assert_status(status == 0, status, "cond_destroy");
-  status = pthread_mutex_destroy(&_mutex);
-  assert_status(status == 0, status, "mutex_destroy");
-}
+// Platform Mutex/Monitor implementation
 
 #if PLATFORM_MONITOR_IMPL_INDIRECT
 
-pthread_mutex_t os::PlatformMonitor::_freelist_lock;
-os::PlatformMonitor::Impl* os::PlatformMonitor::_freelist = NULL;
+os::PlatformMutex::Mutex::Mutex() : _next(NULL) {
+  int status = pthread_mutex_init(&_mutex, _mutexAttr);
+  assert_status(status == 0, status, "mutex_init");
+}
 
-void os::PlatformMonitor::init() {
+os::PlatformMutex::Mutex::~Mutex() {
+  int status = pthread_mutex_destroy(&_mutex);
+  assert_status(status == 0, status, "mutex_destroy");
+}
+
+pthread_mutex_t os::PlatformMutex::_freelist_lock;
+os::PlatformMutex::Mutex* os::PlatformMutex::_mutex_freelist = NULL;
+
+void os::PlatformMutex::init() {
   int status = pthread_mutex_init(&_freelist_lock, _mutexAttr);
   assert_status(status == 0, status, "freelist lock init");
 }
 
-struct os::PlatformMonitor::WithFreeListLocked : public StackObj {
+struct os::PlatformMutex::WithFreeListLocked : public StackObj {
   WithFreeListLocked() {
     int status = pthread_mutex_lock(&_freelist_lock);
     assert_status(status == 0, status, "freelist lock");
@@ -2288,24 +2236,78 @@ struct os::PlatformMonitor::WithFreeListLocked : public StackObj {
   }
 };
 
-os::PlatformMonitor::PlatformMonitor() {
+os::PlatformMutex::PlatformMutex() {
   {
     WithFreeListLocked wfl;
-    _impl = _freelist;
+    _impl = _mutex_freelist;
     if (_impl != NULL) {
-      _freelist = _impl->_next;
+      _mutex_freelist = _impl->_next;
       _impl->_next = NULL;
       return;
     }
   }
-  _impl = new Impl();
+  _impl = new Mutex();
+}
+
+os::PlatformMutex::~PlatformMutex() {
+  WithFreeListLocked wfl;
+  assert(_impl->_next == NULL, "invariant");
+  _impl->_next = _mutex_freelist;
+  _mutex_freelist = _impl;
+}
+
+os::PlatformMonitor::Cond::Cond() : _next(NULL) {
+  int status = pthread_cond_init(&_cond, _condAttr);
+  assert_status(status == 0, status, "cond_init");
+}
+
+os::PlatformMonitor::Cond::~Cond() {
+  int status = pthread_cond_destroy(&_cond);
+  assert_status(status == 0, status, "cond_destroy");
+}
+
+os::PlatformMonitor::Cond* os::PlatformMonitor::_cond_freelist = NULL;
+
+os::PlatformMonitor::PlatformMonitor() {
+  {
+    WithFreeListLocked wfl;
+    _impl = _cond_freelist;
+    if (_impl != NULL) {
+      _cond_freelist = _impl->_next;
+      _impl->_next = NULL;
+      return;
+    }
+  }
+  _impl = new Cond();
 }
 
 os::PlatformMonitor::~PlatformMonitor() {
   WithFreeListLocked wfl;
   assert(_impl->_next == NULL, "invariant");
-  _impl->_next = _freelist;
-  _freelist = _impl;
+  _impl->_next = _cond_freelist;
+  _cond_freelist = _impl;
+}
+
+#else
+
+os::PlatformMutex::PlatformMutex() {
+  int status = pthread_mutex_init(&_mutex, _mutexAttr);
+  assert_status(status == 0, status, "mutex_init");
+}
+
+os::PlatformMutex::~PlatformMutex() {
+  int status = pthread_mutex_destroy(&_mutex);
+  assert_status(status == 0, status, "mutex_destroy");
+}
+
+os::PlatformMonitor::PlatformMonitor() {
+  int status = pthread_cond_init(&_cond, _condAttr);
+  assert_status(status == 0, status, "cond_init");
+}
+
+os::PlatformMonitor::~PlatformMonitor() {
+  int status = pthread_cond_destroy(&_cond);
+  assert_status(status == 0, status, "cond_destroy");
 }
 
 #endif // PLATFORM_MONITOR_IMPL_INDIRECT

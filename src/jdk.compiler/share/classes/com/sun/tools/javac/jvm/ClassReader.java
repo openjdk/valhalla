@@ -528,7 +528,7 @@ public class ClassReader {
     /** Convert class signature to type, where signature is implicit.
      */
     Type classSigToType() {
-        if (signature[sigp] != 'L' && signature[sigp] != 'Q') 
+        if (signature[sigp] != 'L' && signature[sigp] != 'Q')
             throw badClassFile("bad.class.signature",
                                Convert.utf2string(signature, sigp, 10));
         sigp++;
@@ -818,8 +818,11 @@ public class ClassReader {
                            checkType(var, Double.class, v);
                            break;
                        case CLASS:
-                           Assert.check(var.type.tsym == syms.stringType.tsym);
-                           checkType(var, String.class, v);
+                           if (var.type.tsym == syms.stringType.tsym) {
+                               checkType(var, String.class, v);
+                           } else {
+                               throw badClassFile("bad.constant.value.type", var.type);
+                           }
                            break;
                        default:
                            // ignore ConstantValue attribute if type is not primitive or String

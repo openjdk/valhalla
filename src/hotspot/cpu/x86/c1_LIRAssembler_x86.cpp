@@ -2012,10 +2012,10 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   if ((left_klass == NULL || right_klass == NULL) ||// The klass is still unloaded, or came from a Phi node.
       !left_klass->is_valuetype() || !right_klass->is_valuetype()) {
     Register tmp1  = op->tmp1()->as_register();
-    __ movptr(tmp1, (intptr_t)markOopDesc::always_locked_pattern);
+    __ movptr(tmp1, (intptr_t)markWord::always_locked_pattern);
     __ andl(tmp1, Address(left, oopDesc::mark_offset_in_bytes()));
     __ andl(tmp1, Address(right, oopDesc::mark_offset_in_bytes()));
-    __ cmpptr(tmp1, (intptr_t)markOopDesc::always_locked_pattern);
+    __ cmpptr(tmp1, (intptr_t)markWord::always_locked_pattern);
     __ jcc(Assembler::notEqual, L_oops_not_equal);
   }
 

@@ -1033,15 +1033,10 @@ JRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorenter(JavaThread* thread, Ba
     Atomic::inc(BiasedLocking::slow_path_entry_count_addr());
   }
   Handle h_obj(thread, elem->obj());
-  assert(Universe::heap()->is_in_reserved_or_null(h_obj()),
+  assert(Universe::heap()->is_in_or_null(h_obj()),
          "must be NULL or an object");
-  if (UseBiasedLocking) {
-    // Retry fast entry if bias is revoked to avoid unnecessary inflation
-    ObjectSynchronizer::fast_enter(h_obj, elem->lock(), true, CHECK);
-  } else {
-    ObjectSynchronizer::slow_enter(h_obj, elem->lock(), CHECK);
-  }
-  assert(Universe::heap()->is_in_reserved_or_null(elem->obj()),
+  ObjectSynchronizer::enter(h_obj, elem->lock(), CHECK);
+  assert(Universe::heap()->is_in_or_null(elem->obj()),
          "must be NULL or an object");
 #ifdef ASSERT
   thread->last_frame().interpreter_frame_verify_monitor(elem);
@@ -1055,12 +1050,12 @@ JRT_ENTRY_NO_ASYNC(void, InterpreterRuntime::monitorexit(JavaThread* thread, Bas
   thread->last_frame().interpreter_frame_verify_monitor(elem);
 #endif
   Handle h_obj(thread, elem->obj());
-  assert(Universe::heap()->is_in_reserved_or_null(h_obj()),
+  assert(Universe::heap()->is_in_or_null(h_obj()),
          "must be NULL or an object");
   if (elem == NULL || h_obj()->is_unlocked()) {
     THROW(vmSymbols::java_lang_IllegalMonitorStateException());
   }
-  ObjectSynchronizer::slow_exit(h_obj(), elem->lock(), thread);
+  ObjectSynchronizer::exit(h_obj(), elem->lock(), thread);
   // Free entry. This must be done here, since a pending exception might be installed on
   // exit. If it is not cleared, the exception handling code will try to unlock the monitor again.
   elem->set_obj(NULL);
@@ -1122,9 +1117,10 @@ void InterpreterRuntime::resolve_invoke(JavaThread* thread, Bytecodes::Code byte
     Symbol* signature = call.signature();
     receiver = Handle(thread, last_frame.callee_receiver(signature));
 
-    assert(Universe::heap()->is_in_reserved_or_null(receiver()), "sanity check");
+    assert(Universe::heap()->is_in_or_null(receiver()),
+           "sanity check");
     assert(receiver.is_null() ||
-           !Universe::heap()->is_in_reserved(receiver->klass()),
+           !Universe::heap()->is_in(receiver->klass()),
            "sanity check");
   }
 
@@ -1370,7 +1366,7 @@ JRT_ENTRY(nmethod*,
           objects_to_revoke->append(Handle(THREAD, kptr->obj()));
         }
       }
-      BiasedLocking::revoke(objects_to_revoke);
+      BiasedLocking::revoke(objects_to_revoke, thread);
     }
   }
   return osr_nm;
@@ -1710,7 +1706,7 @@ void SignatureHandlerLibrary::add(const methodHandle& method) {
         method->set_signature_handler(_handlers->at(handler_index));
       }
     } else {
-      CHECK_UNHANDLED_OOPS_ONLY(Thread::current()->clear_unhandled_oops());
+      DEBUG_ONLY(Thread::current()->check_possible_safepoint());
       // use generic signature handler
       method->set_signature_handler(Interpreter::slow_signature_handler());
     }

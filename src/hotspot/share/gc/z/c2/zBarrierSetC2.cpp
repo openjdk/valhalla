@@ -128,14 +128,19 @@ void ZBarrierSetC2::enqueue_useful_gc_barrier(PhaseIterGVN* igvn, Node* node) co
   }
 }
 
-static bool load_require_barrier(LoadNode* load)      { return ((load->barrier_data() & RequireBarrier) != 0); }
-static bool load_has_weak_barrier(LoadNode* load)     { return ((load->barrier_data() & WeakBarrier) != 0); }
-static bool load_has_expanded_barrier(LoadNode* load) { return ((load->barrier_data() & ExpandedBarrier) != 0); }
+const uint NoBarrier       = 0;
+const uint RequireBarrier  = 1;
+const uint WeakBarrier     = 2;
+const uint ExpandedBarrier = 4;
+
+static bool load_require_barrier(LoadNode* load)      { return (load->barrier_data() & RequireBarrier)  == RequireBarrier; }
+static bool load_has_weak_barrier(LoadNode* load)     { return (load->barrier_data() & WeakBarrier)     == WeakBarrier; }
+static bool load_has_expanded_barrier(LoadNode* load) { return (load->barrier_data() & ExpandedBarrier) == ExpandedBarrier; }
 static void load_set_expanded_barrier(LoadNode* load) { return load->set_barrier_data(ExpandedBarrier); }
 
-static void load_set_barrier(LoadNode* load, bool weak)    {
+static void load_set_barrier(LoadNode* load, bool weak) {
   if (weak) {
-    load->set_barrier_data(WeakBarrier);
+    load->set_barrier_data(RequireBarrier | WeakBarrier);
   } else {
     load->set_barrier_data(RequireBarrier);
   }
@@ -522,7 +527,7 @@ void ZBarrierSetC2::expand_loadbarrier_node(PhaseMacroExpand* phase, LoadBarrier
   Node* in_val = barrier->in(LoadBarrierNode::Oop);
   Node* in_adr = barrier->in(LoadBarrierNode::Address);
 
-  Node* out_ctrl = barrier->proj_out_or_null(LoadBarrierNode::Control);
+  Node* out_ctrl = barrier->proj_out(LoadBarrierNode::Control);
   Node* out_res = barrier->proj_out(LoadBarrierNode::Oop);
 
   assert(barrier->in(LoadBarrierNode::Oop) != NULL, "oop to loadbarrier node cannot be null");
@@ -540,8 +545,8 @@ void ZBarrierSetC2::expand_loadbarrier_node(PhaseMacroExpand* phase, LoadBarrier
   Node* then = igvn.transform(new IfTrueNode(iff));
   Node* elsen = igvn.transform(new IfFalseNode(iff));
 
-  Node* new_loadp = igvn.transform(new LoadBarrierSlowRegNode(then, in_mem, in_adr, in_val->adr_type(),
-                                                                    (const TypePtr*) in_val->bottom_type(), MemNode::unordered, barrier->is_weak()));
+  Node* new_loadp = igvn.transform(new LoadBarrierSlowRegNode(then, in_adr, in_val,
+                                                              (const TypePtr*) in_val->bottom_type(), barrier->is_weak()));
 
   // Create the final region/phi pair to converge cntl/data paths to downstream code
   Node* result_region = igvn.transform(new RegionNode(3));
@@ -552,9 +557,7 @@ void ZBarrierSetC2::expand_loadbarrier_node(PhaseMacroExpand* phase, LoadBarrier
   result_phi->set_req(1, new_loadp);
   result_phi->set_req(2, barrier->in(LoadBarrierNode::Oop));
 
-  if (out_ctrl != NULL) {
-    igvn.replace_node(out_ctrl, result_region);
-  }
+  igvn.replace_node(out_ctrl, result_region);
   igvn.replace_node(out_res, result_phi);
 
   assert(barrier->outcnt() == 0,"LoadBarrier macro node has non-null outputs after expansion!");
@@ -640,6 +643,22 @@ Node* ZBarrierSetC2::step_over_gc_barrier(Node* c) const {
   return c;
 }
 
+Node* ZBarrierSetC2::step_over_gc_barrier_ctrl(Node* c) const {
+  Node* node = c;
+
+  // 1. This step follows potential ctrl projections of a load barrier before expansion
+  if (node->is_Proj()) {
+    node = node->in(0);
+  }
+
+  // 2. This step checks for unexpanded load barriers
+  if (node->is_LoadBarrier()) {
+    return node->in(LoadBarrierNode::Control);
+  }
+
+  return c;
+}
+
 bool ZBarrierSetC2::array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, ArrayCopyPhase phase) const {
   return type == T_OBJECT || type == T_ARRAY;
 }
@@ -652,7 +671,6 @@ bool ZBarrierSetC2::final_graph_reshaping(Compile* compile, Node* n, uint opcode
     case Op_ZCompareAndExchangeP:
     case Op_ZCompareAndSwapP:
     case Op_ZWeakCompareAndSwapP:
-    case Op_LoadBarrierSlowReg:
 #ifdef ASSERT
       if (VerifyOptoOopOffsets) {
         MemNode *mem = n->as_Mem();
@@ -721,29 +739,61 @@ bool ZBarrierSetC2::matcher_find_shared_post_visit(Matcher* matcher, Node* n, ui
 
 #ifdef ASSERT
 
-static bool look_for_barrier(Node* n, bool post_parse, VectorSet& visited) {
-  if (visited.test_set(n->_idx)) {
-    return true;
-  }
+static void verify_slippery_safepoints_internal(Node* ctrl) {
+  // Given a CFG node, make sure it does not contain both safepoints and loads
+  // that have expanded barriers.
+  bool found_safepoint = false;
+  bool found_load = false;
 
-  for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
-    Node* u = n->fast_out(i);
-    if (u->is_LoadBarrier()) {
-    } else if ((u->is_Phi() || u->is_CMove()) && !post_parse) {
-      if (!look_for_barrier(u, post_parse, visited)) {
-        return false;
-      }
-    } else if (u->Opcode() == Op_EncodeP || u->Opcode() == Op_DecodeN) {
-      if (!look_for_barrier(u, post_parse, visited)) {
-        return false;
-      }
-    } else if (u->Opcode() != Op_SCMemProj) {
-      tty->print("bad use"); u->dump();
-      return false;
+  for (DUIterator_Fast imax, i = ctrl->fast_outs(imax); i < imax; i++) {
+    Node* node = ctrl->fast_out(i);
+    if (node->in(0) != ctrl) {
+      // Skip outgoing precedence edges from ctrl.
+      continue;
+    }
+    if (node->is_SafePoint()) {
+      found_safepoint = true;
+    }
+    if (node->is_Load() && load_require_barrier(node->as_Load()) &&
+        load_has_expanded_barrier(node->as_Load())) {
+      found_load = true;
     }
   }
+  assert(!found_safepoint || !found_load, "found load and safepoint in same block");
+}
 
-  return true;
+static void verify_slippery_safepoints(Compile* C) {
+  ResourceArea *area = Thread::current()->resource_area();
+  Unique_Node_List visited(area);
+  Unique_Node_List checked(area);
+
+  // Recursively walk the graph.
+  visited.push(C->root());
+  while (visited.size() > 0) {
+    Node* node = visited.pop();
+
+    Node* ctrl = node;
+    if (!node->is_CFG()) {
+      ctrl = node->in(0);
+    }
+
+    if (ctrl != NULL && !checked.member(ctrl)) {
+      // For each block found in the graph, verify that it does not
+      // contain both a safepoint and a load requiring barriers.
+      verify_slippery_safepoints_internal(ctrl);
+
+      checked.push(ctrl);
+    }
+
+    checked.push(node);
+
+    for (DUIterator_Fast imax, i = node->fast_outs(imax); i < imax; i++) {
+      Node* use = node->fast_out(i);
+      if (checked.member(use))  continue;
+      if (visited.member(use))  continue;
+      visited.push(use);
+    }
+  }
 }
 
 void ZBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase phase) const {
@@ -759,6 +809,7 @@ void ZBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase phase) con
     case BarrierSetC2::BeforeCodeGen:
       // Barriers has been fully expanded.
       assert(state()->load_barrier_count() == 0, "No more macro barriers");
+      verify_slippery_safepoints(compile);
       break;
     default:
       assert(0, "Phase without verification");
@@ -830,6 +881,18 @@ void ZBarrierSetC2::verify_gc_barriers(bool post_parse) const {
 
 #endif // end verification code
 
+// If a call is the control, we actually want its control projection
+static Node* normalize_ctrl(Node* node) {
+ if (node->is_Call()) {
+   node = node->as_Call()->proj_out(TypeFunc::Control);
+ }
+ return node;
+}
+
+static Node* get_ctrl_normalized(PhaseIdealLoop *phase, Node* node) {
+  return normalize_ctrl(phase->get_ctrl(node));
+}
+
 static void call_catch_cleanup_one(PhaseIdealLoop* phase, LoadNode* load, Node* ctrl);
 
 // This code is cloning all uses of a load that is between a call and the catch blocks,
@@ -843,7 +906,7 @@ static bool fixup_uses_in_catch(PhaseIdealLoop *phase, Node *start_ctrl, Node *n
     return false;
   }
 
-  Node* ctrl = phase->get_ctrl(node);
+  Node* ctrl = get_ctrl_normalized(phase, node);
   if (ctrl != start_ctrl) {
     // We are in a successor block - the node is ok.
     return false; // Unwind
@@ -860,7 +923,6 @@ static bool fixup_uses_in_catch(PhaseIdealLoop *phase, Node *start_ctrl, Node *n
 
   // Now all successors are outside
   // - Clone this node to both successors
-  int no_succs = node->outcnt();
   assert(!node->is_Store(), "Stores not expected here");
 
   // In some very rare cases a load that doesn't need a barrier will end up here
@@ -884,7 +946,7 @@ static bool fixup_uses_in_catch(PhaseIdealLoop *phase, Node *start_ctrl, Node *n
         new_ctrl = use->in(0);
         assert (new_ctrl != NULL, "");
       } else {
-        new_ctrl = phase->get_ctrl(use);
+        new_ctrl = get_ctrl_normalized(phase, use);
       }
 
       phase->set_ctrl(clone, new_ctrl);
@@ -939,16 +1001,12 @@ static void call_catch_cleanup_one(PhaseIdealLoop* phase, LoadNode* load, Node* 
   // Process the loads successor nodes - if any is between
   // the call and the catch blocks, they need to be cloned to.
   // This is done recursively
-  int outcnt = load->outcnt();
-  uint index = 0;
-  for (int i = 0; i < outcnt; i++) {
-    if (index < load->outcnt()) {
-      Node *n = load->raw_out(index);
-      assert(!n->is_LoadBarrier(), "Sanity");
-      if (!fixup_uses_in_catch(phase, ctrl, n)) {
-        // if no successor was cloned, progress to next out.
-        index++;
-      }
+  for (uint i = 0; i < load->outcnt();) {
+    Node *n = load->raw_out(i);
+    assert(!n->is_LoadBarrier(), "Sanity");
+    if (!fixup_uses_in_catch(phase, ctrl, n)) {
+      // if no successor was cloned, progress to next out.
+      i++;
     }
   }
 
@@ -977,7 +1035,8 @@ static void call_catch_cleanup_one(PhaseIdealLoop* phase, LoadNode* load, Node* 
     Node* load_use = load->raw_out(i);
 
     if (phase->has_ctrl(load_use)) {
-      load_use_control = phase->get_ctrl(load_use);
+      load_use_control = get_ctrl_normalized(phase, load_use);
+      assert(load_use_control != ctrl, "sanity");
     } else {
       load_use_control = load_use->in(0);
     }
@@ -1158,10 +1217,10 @@ static void call_catch_cleanup_one(PhaseIdealLoop* phase, LoadNode* load, Node* 
 }
 
 // Sort out the loads that are between a call ant its catch blocks
-static void process_catch_cleanup_candidate(PhaseIdealLoop* phase, LoadNode* load) {
+static void process_catch_cleanup_candidate(PhaseIdealLoop* phase, LoadNode* load, bool verify) {
   bool trace = phase->C->directive()->ZTraceLoadBarriersOption;
 
-  Node* ctrl = phase->get_ctrl(load);
+  Node* ctrl = get_ctrl_normalized(phase, load);
   if (!ctrl->is_Proj() || (ctrl->in(0) == NULL) || !ctrl->in(0)->isa_Call()) {
     return;
   }
@@ -1169,6 +1228,7 @@ static void process_catch_cleanup_candidate(PhaseIdealLoop* phase, LoadNode* loa
   Node* catch_node = ctrl->isa_Proj()->raw_out(0);
   if (catch_node->is_Catch()) {
     if (catch_node->outcnt() > 1) {
+      assert(!verify, "All loads should already have been moved");
       call_catch_cleanup_one(phase, load, ctrl);
     } else {
       if (trace) tty->print_cr("Call catch cleanup with only one catch: load %i ", load->_idx);
@@ -1186,6 +1246,7 @@ bool ZBarrierSetC2::optimize_loops(PhaseIdealLoop* phase, LoopOptsMode mode, Vec
   if (mode == LoopOptsZBarrierInsertion) {
     // First make sure all loads between call and catch are moved to the catch block
     clean_catch_blocks(phase);
+    DEBUG_ONLY(clean_catch_blocks(phase, true /* verify */);)
 
     // Then expand barriers on all loads
     insert_load_barriers(phase);
@@ -1214,7 +1275,6 @@ static void insert_barrier_before_unsafe(PhaseIdealLoop* phase, LoadStoreNode* o
   Compile *C = phase->C;
   PhaseIterGVN &igvn = phase->igvn();
   LoadStoreNode* zclone = NULL;
-  bool is_weak = false;
 
   Node *in_ctrl = old_node->in(MemNode::Control);
   Node *in_mem  = old_node->in(MemNode::Memory);
@@ -1234,7 +1294,6 @@ static void insert_barrier_before_unsafe(PhaseIdealLoop* phase, LoadStoreNode* o
       if (can_simplify_cas(old_node)) {
         break;
       }
-      is_weak  = true;
       zclone = new ZWeakCompareAndSwapPNode(in_ctrl, in_mem, in_adr, in_val, old_node->in(LoadStoreConditionalNode::ExpectedIn),
               ((CompareAndSwapNode*)old_node)->order());
       adr_type = TypePtr::BOTTOM;
@@ -1265,7 +1324,7 @@ static void insert_barrier_before_unsafe(PhaseIdealLoop* phase, LoadStoreNode* o
     igvn.register_new_node_with_optimizer(load);
     igvn.replace_node(old_node, zclone);
 
-    Node *barrier = new LoadBarrierNode(C, NULL, in_mem, load, in_adr, is_weak);
+    Node *barrier = new LoadBarrierNode(C, NULL, in_mem, load, in_adr, false /* weak */);
     Node *barrier_val = new ProjNode(barrier, LoadBarrierNode::Oop);
     Node *barrier_ctrl = new ProjNode(barrier, LoadBarrierNode::Control);
 
@@ -1341,7 +1400,7 @@ void ZBarrierSetC2::insert_barriers_on_unsafe(PhaseIdealLoop* phase) const {
 // Sometimes the loads use will be at a place dominated by all catch blocks, then we need
 // a load in each catch block, and a Phi at the dominated use.
 
-void ZBarrierSetC2::clean_catch_blocks(PhaseIdealLoop* phase) const {
+void ZBarrierSetC2::clean_catch_blocks(PhaseIdealLoop* phase, bool verify) const {
 
   Compile *C = phase->C;
   uint new_ids = C->unique();
@@ -1368,7 +1427,7 @@ void ZBarrierSetC2::clean_catch_blocks(PhaseIdealLoop* phase) const {
       LoadNode* load = n->isa_Load();
       // only care about loads that will have a barrier
       if (load_require_barrier(load)) {
-        process_catch_cleanup_candidate(phase, load);
+        process_catch_cleanup_candidate(phase, load, verify);
       }
     }
   }
@@ -1536,6 +1595,7 @@ void ZBarrierSetC2::insert_one_loadbarrier_inner(PhaseIdealLoop* phase, LoadNode
   Node* barrier = new LoadBarrierNode(C, NULL, load->in(LoadNode::Memory), NULL, load->in(LoadNode::Address), load_has_weak_barrier(load));
   Node* barrier_val = new ProjNode(barrier, LoadBarrierNode::Oop);
   Node* barrier_ctrl = new ProjNode(barrier, LoadBarrierNode::Control);
+  ctrl = normalize_ctrl(ctrl);
 
   if (trace) tty->print_cr("Insert load %i with barrier: %i and ctrl : %i", load->_idx, barrier->_idx, ctrl->_idx);
 
@@ -1577,7 +1637,7 @@ void ZBarrierSetC2::insert_one_loadbarrier_inner(PhaseIdealLoop* phase, LoadNode
   // For all successors of ctrl - move all visited to become successors of barrier_ctrl instead
   for (DUIterator_Fast imax, r = ctrl->fast_outs(imax); r < imax; r++) {
     Node* tmp = ctrl->fast_out(r);
-    if (visited2.test(tmp->_idx) && (tmp != load)) {
+    if (tmp->is_SafePoint() || (visited2.test(tmp->_idx) && (tmp != load))) {
       if (trace) tty->print_cr(" Move ctrl_succ %i to barrier_ctrl", tmp->_idx);
       igvn.replace_input_of(tmp, 0, barrier_ctrl);
       --r; --imax;
@@ -1604,6 +1664,9 @@ void ZBarrierSetC2::insert_one_loadbarrier_inner(PhaseIdealLoop* phase, LoadNode
   // Connect barrier to load and control
   barrier->set_req(LoadBarrierNode::Oop, load);
   barrier->set_req(LoadBarrierNode::Control, ctrl);
+
+  igvn.replace_input_of(load, MemNode::Control, ctrl);
+  load->pin();
 
   igvn.rehash_node_delayed(load);
   igvn.register_new_node_with_optimizer(barrier);

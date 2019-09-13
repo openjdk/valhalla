@@ -28,7 +28,6 @@
 #include "gc/shared/referenceProcessor.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
 #include "gc/shared/workgroup.hpp"
-#include "gc/shared/weakProcessor.inline.hpp"
 #include "gc/shenandoah/shenandoahBarrierSet.hpp"
 #include "gc/shenandoah/shenandoahClosures.inline.hpp"
 #include "gc/shenandoah/shenandoahCodeRoots.hpp"
@@ -596,9 +595,7 @@ void ShenandoahTraversalGC::final_traversal_collection() {
 
   if (!_heap->cancelled_gc()) {
     fixup_roots();
-    if (_heap->unload_classes()) {
-      _heap->unload_classes_and_cleanup_tables(false);
-    }
+    _heap->parallel_cleaning(false);
   }
 
   if (!_heap->cancelled_gc()) {
@@ -709,7 +706,7 @@ void ShenandoahTraversalGC::fixup_roots() {
 #if COMPILER2_OR_JVMCI
   DerivedPointerTable::clear();
 #endif
-  ShenandoahRootUpdater rp(_heap->workers()->active_workers(), ShenandoahPhaseTimings::final_traversal_update_roots, true /* update code cache */);
+  ShenandoahRootUpdater rp(_heap->workers()->active_workers(), ShenandoahPhaseTimings::final_traversal_update_roots);
   ShenandoahTraversalFixRootsTask update_roots_task(&rp);
   _heap->workers()->run_task(&update_roots_task);
 #if COMPILER2_OR_JVMCI

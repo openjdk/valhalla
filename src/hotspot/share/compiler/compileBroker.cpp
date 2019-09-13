@@ -1546,7 +1546,6 @@ void CompileBroker::wait_for_completion(CompileTask* task) {
   assert(task->is_blocking(), "can only wait on blocking task");
 
   JavaThread* thread = JavaThread::current();
-  thread->set_blocked_on_compilation(true);
 
   methodHandle method(thread, task->method());
   bool free_task;
@@ -1564,7 +1563,6 @@ void CompileBroker::wait_for_completion(CompileTask* task) {
     }
   }
 
-  thread->set_blocked_on_compilation(false);
   if (free_task) {
     if (is_compilation_disabled_forever()) {
       CompileTask::free(task);
@@ -1595,16 +1593,10 @@ bool CompileBroker::init_compiler_runtime() {
   // Final sanity check - the compiler object must exist
   guarantee(comp != NULL, "Compiler object must exist");
 
-  int system_dictionary_modification_counter;
-  {
-    MutexLocker locker(Compile_lock, thread);
-    system_dictionary_modification_counter = SystemDictionary::number_of_modifications();
-  }
-
   {
     // Must switch to native to allocate ci_env
     ThreadToNativeFromVM ttn(thread);
-    ciEnv ci_env(NULL, system_dictionary_modification_counter);
+    ciEnv ci_env((CompileTask*)NULL);
     // Cache Jvmti state
     ci_env.cache_jvmti_state();
     // Cache DTrace flags
@@ -2045,12 +2037,6 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
   bool failure_reason_on_C_heap = false;
   const char* retry_message = NULL;
 
-  int system_dictionary_modification_counter;
-  {
-    MutexLocker locker(Compile_lock, thread);
-    system_dictionary_modification_counter = SystemDictionary::number_of_modifications();
-  }
-
 #if INCLUDE_JVMCI
   if (UseJVMCICompiler && comp != NULL && comp->is_jvmci()) {
     JVMCICompiler* jvmci = (JVMCICompiler*) comp;
@@ -2064,7 +2050,7 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
       retry_message = "not retryable";
       compilable = ciEnv::MethodCompilable_never;
     } else {
-      JVMCICompileState compile_state(task, system_dictionary_modification_counter);
+      JVMCICompileState compile_state(task);
       JVMCIEnv env(thread, &compile_state, __FILE__, __LINE__);
       methodHandle method(thread, target_handle);
       env.runtime()->compile_method(&env, jvmci, method, osr_bci);
@@ -2090,7 +2076,7 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     NoHandleMark  nhm;
     ThreadToNativeFromVM ttn(thread);
 
-    ciEnv ci_env(task, system_dictionary_modification_counter);
+    ciEnv ci_env(task);
     if (should_break) {
       ci_env.set_break_at_compile(true);
     }
@@ -2688,8 +2674,8 @@ void CompileBroker::print_heapinfo(outputStream* out, const char* function, size
   // for the entire duration of aggregation and printing. That makes sure
   // we see a consistent picture and do not run into issues caused by
   // the CodeHeap being altered concurrently.
-  Monitor* global_lock   = allFun ? CodeCache_lock : NULL;
-  Monitor* function_lock = allFun ? NULL : CodeCache_lock;
+  Mutex* global_lock   = allFun ? CodeCache_lock : NULL;
+  Mutex* function_lock = allFun ? NULL : CodeCache_lock;
   ts_global.update(); // record starting point
   MutexLocker mu2(global_lock, Mutex::_no_safepoint_check_flag);
   if (global_lock != NULL) {

@@ -114,7 +114,7 @@ LIR_Opr LIRGenerator::rlock_byte(BasicType type) {
 
 void LIRGenerator::init_temps_for_substitutability_check(LIR_Opr& tmp1, LIR_Opr& tmp2) {
   // We just need one 32-bit temp register for x86/x64, to check whether both
-  // oops have markOopDesc::always_locked_pattern. See LIR_Assembler::emit_opSubstitutabilityCheck().
+  // oops have markWord::always_locked_pattern. See LIR_Assembler::emit_opSubstitutabilityCheck().
   // @temp = %r10d
   // mov $0x405, %r10d
   // and (%left), %r10d   /* if need to check left */

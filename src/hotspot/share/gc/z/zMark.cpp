@@ -22,6 +22,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "gc/z/zBarrier.inline.hpp"
 #include "gc/z/zMark.inline.hpp"
 #include "gc/z/zMarkCache.inline.hpp"
@@ -155,7 +156,7 @@ public:
   ZMarkRootsTask(ZMark* mark) :
       ZTask("ZMarkRootsTask"),
       _mark(mark),
-      _roots() {}
+      _roots(true /* visit_invisible */, false /* visit_jvmti_weak_export */) {}
 
   virtual void work() {
     _roots.oops_do(&_cl);
@@ -632,14 +633,22 @@ public:
 
 class ZMarkConcurrentRootsTask : public ZTask {
 private:
-  ZConcurrentRootsIterator            _roots;
+  SuspendibleThreadSetJoiner          _sts_joiner;
+  ZConcurrentRootsIteratorClaimStrong _roots;
   ZMarkConcurrentRootsIteratorClosure _cl;
 
 public:
   ZMarkConcurrentRootsTask(ZMark* mark) :
       ZTask("ZMarkConcurrentRootsTask"),
-      _roots(true /* marking */),
-      _cl() {}
+      _sts_joiner(),
+      _roots(),
+      _cl() {
+    ClassLoaderDataGraph_lock->lock();
+  }
+
+  ~ZMarkConcurrentRootsTask() {
+    ClassLoaderDataGraph_lock->unlock();
+  }
 
   virtual void work() {
     _roots.oops_do(&_cl);

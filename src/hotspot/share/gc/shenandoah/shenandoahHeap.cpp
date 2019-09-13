@@ -28,8 +28,8 @@
 #include "gc/shared/gcArguments.hpp"
 #include "gc/shared/gcTimer.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
+#include "gc/shared/locationPrinter.inline.hpp"
 #include "gc/shared/memAllocator.hpp"
-#include "gc/shared/parallelCleaning.hpp"
 #include "gc/shared/plab.hpp"
 
 #include "gc/shenandoah/shenandoahAllocTracker.hpp"
@@ -50,23 +50,21 @@
 #include "gc/shenandoah/shenandoahMemoryPool.hpp"
 #include "gc/shenandoah/shenandoahMetrics.hpp"
 #include "gc/shenandoah/shenandoahMonitoringSupport.hpp"
+#include "gc/shenandoah/shenandoahNormalMode.hpp"
 #include "gc/shenandoah/shenandoahOopClosures.inline.hpp"
 #include "gc/shenandoah/shenandoahPacer.inline.hpp"
+#include "gc/shenandoah/shenandoahParallelCleaning.inline.hpp"
+#include "gc/shenandoah/shenandoahPassiveMode.hpp"
 #include "gc/shenandoah/shenandoahRootProcessor.inline.hpp"
 #include "gc/shenandoah/shenandoahStringDedup.hpp"
 #include "gc/shenandoah/shenandoahTaskqueue.hpp"
+#include "gc/shenandoah/shenandoahTraversalMode.hpp"
 #include "gc/shenandoah/shenandoahUtils.hpp"
 #include "gc/shenandoah/shenandoahVerifier.hpp"
 #include "gc/shenandoah/shenandoahCodeRoots.hpp"
 #include "gc/shenandoah/shenandoahVMOperations.hpp"
 #include "gc/shenandoah/shenandoahWorkGroup.hpp"
 #include "gc/shenandoah/shenandoahWorkerPolicy.hpp"
-#include "gc/shenandoah/heuristics/shenandoahAdaptiveHeuristics.hpp"
-#include "gc/shenandoah/heuristics/shenandoahAggressiveHeuristics.hpp"
-#include "gc/shenandoah/heuristics/shenandoahCompactHeuristics.hpp"
-#include "gc/shenandoah/heuristics/shenandoahPassiveHeuristics.hpp"
-#include "gc/shenandoah/heuristics/shenandoahStaticHeuristics.hpp"
-#include "gc/shenandoah/heuristics/shenandoahTraversalHeuristics.hpp"
 #if INCLUDE_JFR
 #include "gc/shenandoah/shenandoahJfrSupport.hpp"
 #endif
@@ -181,8 +179,8 @@ jint ShenandoahHeap::initialize() {
   // Reserve and commit memory for heap
   //
 
-  ReservedSpace heap_rs = Universe::reserve_heap(max_byte_size, heap_alignment);
-  initialize_reserved_region((HeapWord*)heap_rs.base(), (HeapWord*) (heap_rs.base() + heap_rs.size()));
+  ReservedHeapSpace heap_rs = Universe::reserve_heap(max_byte_size, heap_alignment);
+  initialize_reserved_region(heap_rs);
   _heap_region = MemRegion((HeapWord*)heap_rs.base(), heap_rs.size() / HeapWordSize);
   _heap_region_special = heap_rs.special();
 
@@ -348,7 +346,6 @@ jint ShenandoahHeap::initialize() {
   // The call below uses stuff (the SATB* things) that are in G1, but probably
   // belong into a shared location.
   ShenandoahBarrierSet::satb_mark_queue_set().initialize(this,
-                                                         SATB_Q_CBL_mon,
                                                          20 /* G1SATBProcessCompletedThreshold */,
                                                          60 /* G1SATBBufferEnqueueingThresholdPercent */);
 
@@ -368,7 +365,7 @@ jint ShenandoahHeap::initialize() {
     _pacer = NULL;
   }
 
-  _traversal_gc = heuristics()->can_do_traversal_gc() ?
+  _traversal_gc = strcmp(ShenandoahGCMode, "traversal") == 0 ?
                   new ShenandoahTraversalGC(this, _num_regions) :
                   NULL;
 
@@ -388,39 +385,34 @@ jint ShenandoahHeap::initialize() {
 }
 
 void ShenandoahHeap::initialize_heuristics() {
-  if (ShenandoahGCHeuristics != NULL) {
-    if (strcmp(ShenandoahGCHeuristics, "aggressive") == 0) {
-      _heuristics = new ShenandoahAggressiveHeuristics();
-    } else if (strcmp(ShenandoahGCHeuristics, "static") == 0) {
-      _heuristics = new ShenandoahStaticHeuristics();
-    } else if (strcmp(ShenandoahGCHeuristics, "adaptive") == 0) {
-      _heuristics = new ShenandoahAdaptiveHeuristics();
-    } else if (strcmp(ShenandoahGCHeuristics, "passive") == 0) {
-      _heuristics = new ShenandoahPassiveHeuristics();
-    } else if (strcmp(ShenandoahGCHeuristics, "compact") == 0) {
-      _heuristics = new ShenandoahCompactHeuristics();
-    } else if (strcmp(ShenandoahGCHeuristics, "traversal") == 0) {
-      _heuristics = new ShenandoahTraversalHeuristics();
+  if (ShenandoahGCMode != NULL) {
+    if (strcmp(ShenandoahGCMode, "traversal") == 0) {
+      _gc_mode = new ShenandoahTraversalMode();
+    } else if (strcmp(ShenandoahGCMode, "normal") == 0) {
+      _gc_mode = new ShenandoahNormalMode();
+    } else if (strcmp(ShenandoahGCMode, "passive") == 0) {
+      _gc_mode = new ShenandoahPassiveMode();
     } else {
-      vm_exit_during_initialization("Unknown -XX:ShenandoahGCHeuristics option");
+      vm_exit_during_initialization("Unknown -XX:ShenandoahGCMode option");
     }
-
-    if (_heuristics->is_diagnostic() && !UnlockDiagnosticVMOptions) {
-      vm_exit_during_initialization(
-              err_msg("Heuristics \"%s\" is diagnostic, and must be enabled via -XX:+UnlockDiagnosticVMOptions.",
-                      _heuristics->name()));
-    }
-    if (_heuristics->is_experimental() && !UnlockExperimentalVMOptions) {
-      vm_exit_during_initialization(
-              err_msg("Heuristics \"%s\" is experimental, and must be enabled via -XX:+UnlockExperimentalVMOptions.",
-                      _heuristics->name()));
-    }
-    log_info(gc, init)("Shenandoah heuristics: %s",
-                       _heuristics->name());
   } else {
-      ShouldNotReachHere();
+    ShouldNotReachHere();
   }
+  _gc_mode->initialize_flags();
+  _heuristics = _gc_mode->initialize_heuristics();
 
+  if (_heuristics->is_diagnostic() && !UnlockDiagnosticVMOptions) {
+    vm_exit_during_initialization(
+            err_msg("Heuristics \"%s\" is diagnostic, and must be enabled via -XX:+UnlockDiagnosticVMOptions.",
+                    _heuristics->name()));
+  }
+  if (_heuristics->is_experimental() && !UnlockExperimentalVMOptions) {
+    vm_exit_during_initialization(
+            err_msg("Heuristics \"%s\" is experimental, and must be enabled via -XX:+UnlockExperimentalVMOptions.",
+                    _heuristics->name()));
+  }
+  log_info(gc, init)("Shenandoah heuristics: %s",
+                     _heuristics->name());
 }
 
 #ifdef _MSC_VER
@@ -1142,6 +1134,10 @@ bool ShenandoahHeap::block_is_obj(const HeapWord* addr) const {
   return sp->block_is_obj(addr);
 }
 
+bool ShenandoahHeap::print_location(outputStream* st, void* addr) const {
+  return BlockLocationPrinter<ShenandoahHeap>::print_location(st, addr);
+}
+
 jlong ShenandoahHeap::millis_since_last_gc() {
   double v = heuristics()->time_since_last_gc() * 1000;
   assert(0 <= v && v <= max_jlong, "value should fit: %f", v);
@@ -1513,7 +1509,9 @@ void ShenandoahHeap::op_final_mark() {
       // From here on, we need to update references.
       set_has_forwarded_objects(true);
 
-      evacuate_and_update_roots();
+      if (!is_degenerated_gc_in_progress()) {
+        evacuate_and_update_roots();
+      }
 
       if (ShenandoahPacing) {
         pacer()->setup_for_evac();
@@ -1521,7 +1519,9 @@ void ShenandoahHeap::op_final_mark() {
 
       if (ShenandoahVerify) {
         if (ShenandoahConcurrentRoots::should_do_concurrent_roots()) {
-          verifier()->verify_roots_no_forwarded_except(ShenandoahRootVerifier::JNIHandleRoots);
+          ShenandoahRootVerifier::RootTypes types = ShenandoahRootVerifier::combine(ShenandoahRootVerifier::JNIHandleRoots, ShenandoahRootVerifier::WeakRoots);
+          types = ShenandoahRootVerifier::combine(types, ShenandoahRootVerifier::CLDGRoots);
+          verifier()->verify_roots_no_forwarded_except(types);
         } else {
           verifier()->verify_roots_no_forwarded();
         }
@@ -1587,7 +1587,9 @@ void ShenandoahHeap::op_cleanup() {
 
 class ShenandoahConcurrentRootsEvacUpdateTask : public AbstractGangTask {
 private:
-  ShenandoahJNIHandleRoots<true /*concurrent*/> _jni_roots;
+  ShenandoahVMRoots<true /*concurrent*/>        _vm_roots;
+  ShenandoahWeakRoots<true /*concurrent*/>      _weak_roots;
+  ShenandoahClassLoaderDataRoots<true /*concurrent*/, false /*single threaded*/> _cld_roots;
 
 public:
   ShenandoahConcurrentRootsEvacUpdateTask() :
@@ -1596,8 +1598,19 @@ public:
 
   void work(uint worker_id) {
     ShenandoahEvacOOMScope oom;
-    ShenandoahEvacuateUpdateRootsClosure cl;
-    _jni_roots.oops_do<ShenandoahEvacuateUpdateRootsClosure>(&cl);
+    {
+      // jni_roots and weak_roots are OopStorage backed roots, concurrent iteration
+      // may race against OopStorage::release() calls.
+      ShenandoahEvacUpdateOopStorageRootsClosure cl;
+      _vm_roots.oops_do<ShenandoahEvacUpdateOopStorageRootsClosure>(&cl);
+      _weak_roots.oops_do<ShenandoahEvacUpdateOopStorageRootsClosure>(&cl);
+    }
+
+    {
+      ShenandoahEvacuateUpdateRootsClosure cl;
+      CLDToOopClosure clds(&cl, ClassLoaderData::_claim_strong);
+      _cld_roots.cld_do(&clds);
+    }
   }
 };
 
@@ -1695,7 +1708,7 @@ void ShenandoahHeap::op_degenerated(ShenandoahDegenPoint point) {
       set_process_references(heuristics()->can_process_references());
       set_unload_classes(heuristics()->can_unload_classes());
 
-      if (heuristics()->can_do_traversal_gc()) {
+      if (is_traversal_mode()) {
         // Not possible to degenerate from here, upgrade to Full GC right away.
         cancel_gc(GCCause::_shenandoah_upgrade_to_full_gc);
         op_degenerated_fail();
@@ -1949,16 +1962,8 @@ void ShenandoahHeap::stop() {
   }
 }
 
-void ShenandoahHeap::unload_classes_and_cleanup_tables(bool full_gc) {
-  assert(heuristics()->can_unload_classes(), "Class unloading should be enabled");
-
-  ShenandoahGCPhase root_phase(full_gc ?
-                               ShenandoahPhaseTimings::full_gc_purge :
-                               ShenandoahPhaseTimings::purge);
-
-  ShenandoahIsAliveSelector alive;
-  BoolObjectClosure* is_alive = alive.is_alive_closure();
-
+void ShenandoahHeap::stw_unload_classes(bool full_gc) {
+  if (!unload_classes()) return;
   bool purged_class;
 
   // Unload classes and purge SystemDictionary.
@@ -1973,17 +1978,61 @@ void ShenandoahHeap::unload_classes_and_cleanup_tables(bool full_gc) {
     ShenandoahGCPhase phase(full_gc ?
                             ShenandoahPhaseTimings::full_gc_purge_par :
                             ShenandoahPhaseTimings::purge_par);
-    uint active = _workers->active_workers();
-    ParallelCleaningTask unlink_task(is_alive, active, purged_class, true);
+    ShenandoahIsAliveSelector is_alive;
+    uint num_workers = _workers->active_workers();
+    ShenandoahClassUnloadingTask unlink_task(is_alive.is_alive_closure(), num_workers, purged_class);
     _workers->run_task(&unlink_task);
   }
 
   {
     ShenandoahGCPhase phase(full_gc ?
-                      ShenandoahPhaseTimings::full_gc_purge_cldg :
-                      ShenandoahPhaseTimings::purge_cldg);
+                            ShenandoahPhaseTimings::full_gc_purge_cldg :
+                            ShenandoahPhaseTimings::purge_cldg);
     ClassLoaderDataGraph::purge();
   }
+  // Resize and verify metaspace
+  MetaspaceGC::compute_new_size();
+  MetaspaceUtils::verify_metrics();
+}
+
+// Process leftover weak oops: update them, if needed or assert they do not
+// need updating otherwise.
+// Weak processor API requires us to visit the oops, even if we are not doing
+// anything to them.
+void ShenandoahHeap::stw_process_weak_roots(bool full_gc) {
+  ShenandoahGCPhase root_phase(full_gc ?
+                               ShenandoahPhaseTimings::full_gc_purge :
+                               ShenandoahPhaseTimings::purge);
+  uint num_workers = _workers->active_workers();
+  ShenandoahPhaseTimings::Phase timing_phase = full_gc ?
+                                               ShenandoahPhaseTimings::full_gc_purge_par :
+                                               ShenandoahPhaseTimings::purge_par;
+  // Cleanup weak roots
+  ShenandoahGCPhase phase(timing_phase);
+  if (has_forwarded_objects()) {
+    ShenandoahForwardedIsAliveClosure is_alive;
+    ShenandoahUpdateRefsClosure keep_alive;
+    ShenandoahParallelWeakRootsCleaningTask<ShenandoahForwardedIsAliveClosure, ShenandoahUpdateRefsClosure>
+      cleaning_task(&is_alive, &keep_alive, num_workers);
+    _workers->run_task(&cleaning_task);
+  } else {
+    ShenandoahIsAliveClosure is_alive;
+#ifdef ASSERT
+  ShenandoahAssertNotForwardedClosure verify_cl;
+  ShenandoahParallelWeakRootsCleaningTask<ShenandoahIsAliveClosure, ShenandoahAssertNotForwardedClosure>
+    cleaning_task(&is_alive, &verify_cl, num_workers);
+#else
+  ShenandoahParallelWeakRootsCleaningTask<ShenandoahIsAliveClosure, DoNothingClosure>
+    cleaning_task(&is_alive, &do_nothing_cl, num_workers);
+#endif
+    _workers->run_task(&cleaning_task);
+  }
+}
+
+void ShenandoahHeap::parallel_cleaning(bool full_gc) {
+  assert(SafepointSynchronize::is_at_safepoint(), "Must be at a safepoint");
+  stw_process_weak_roots(full_gc);
+  stw_unload_classes(full_gc);
 }
 
 void ShenandoahHeap::set_has_forwarded_objects(bool cond) {

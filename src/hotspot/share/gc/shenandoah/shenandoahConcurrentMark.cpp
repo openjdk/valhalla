@@ -31,6 +31,7 @@
 #include "gc/shared/gcTimer.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
+#include "gc/shared/strongRootsScope.hpp"
 
 #include "gc/shenandoah/shenandoahBarrierSet.inline.hpp"
 #include "gc/shenandoah/shenandoahClosures.inline.hpp"
@@ -275,20 +276,9 @@ void ShenandoahConcurrentMark::mark_roots(ShenandoahPhaseTimings::Phase root_pha
 
 void ShenandoahConcurrentMark::update_roots(ShenandoahPhaseTimings::Phase root_phase) {
   assert(ShenandoahSafepoint::is_at_shenandoah_safepoint(), "Must be at a safepoint");
-
-  bool update_code_cache = true; // initialize to safer value
-  switch (root_phase) {
-    case ShenandoahPhaseTimings::update_roots:
-    case ShenandoahPhaseTimings::final_update_refs_roots:
-      update_code_cache = false;
-      break;
-    case ShenandoahPhaseTimings::full_gc_roots:
-    case ShenandoahPhaseTimings::degen_gc_update_roots:
-      update_code_cache = true;
-      break;
-    default:
-      ShouldNotReachHere();
-  }
+  assert(root_phase == ShenandoahPhaseTimings::full_gc_roots ||
+         root_phase == ShenandoahPhaseTimings::degen_gc_update_roots,
+         "Only for these phases");
 
   ShenandoahGCPhase phase(root_phase);
 
@@ -298,7 +288,7 @@ void ShenandoahConcurrentMark::update_roots(ShenandoahPhaseTimings::Phase root_p
 
   uint nworkers = _heap->workers()->active_workers();
 
-  ShenandoahRootUpdater root_updater(nworkers, root_phase, update_code_cache);
+  ShenandoahRootUpdater root_updater(nworkers, root_phase);
   ShenandoahUpdateRootsTask update_roots(&root_updater);
   _heap->workers()->run_task(&update_roots);
 
@@ -445,22 +435,11 @@ void ShenandoahConcurrentMark::finish_mark_from_roots(bool full_gc) {
     weak_refs_work(full_gc);
   }
 
-  weak_roots_work();
+  _heap->parallel_cleaning(full_gc);
 
-  // And finally finish class unloading
-  if (_heap->unload_classes()) {
-    _heap->unload_classes_and_cleanup_tables(full_gc);
-  } else if (ShenandoahStringDedup::is_enabled()) {
-    ShenandoahIsAliveSelector alive;
-    BoolObjectClosure* is_alive = alive.is_alive_closure();
-    ShenandoahStringDedup::unlink_or_oops_do(is_alive, NULL, false);
-  }
   assert(task_queues()->is_empty(), "Should be empty");
   TASKQUEUE_STATS_ONLY(task_queues()->print_taskqueue_stats());
   TASKQUEUE_STATS_ONLY(task_queues()->reset_taskqueue_stats());
-
-  // Resize Metaspace
-  MetaspaceGC::compute_new_size();
 }
 
 // Weak Reference Closures
@@ -555,26 +534,6 @@ public:
   void do_oop(oop* p)       { do_oop_work(p); }
 };
 
-class ShenandoahWeakAssertNotForwardedClosure : public OopClosure {
-private:
-  template <class T>
-  inline void do_oop_work(T* p) {
-#ifdef ASSERT
-    T o = RawAccess<>::oop_load(p);
-    if (!CompressedOops::is_null(o)) {
-      oop obj = CompressedOops::decode_not_null(o);
-      shenandoah_assert_not_forwarded(p, obj);
-    }
-#endif
-  }
-
-public:
-  ShenandoahWeakAssertNotForwardedClosure() {}
-
-  void do_oop(narrowOop* p) { do_oop_work(p); }
-  void do_oop(oop* p)       { do_oop_work(p); }
-};
-
 class ShenandoahRefProcTaskProxy : public AbstractGangTask {
 private:
   AbstractRefProcTaskExecutor::ProcessTask& _proc_task;
@@ -652,21 +611,6 @@ void ShenandoahConcurrentMark::weak_refs_work(bool full_gc) {
   rp->verify_no_references_recorded();
   assert(!rp->discovery_enabled(), "Post condition");
 
-}
-
-// Process leftover weak oops: update them, if needed or assert they do not
-// need updating otherwise.
-// Weak processor API requires us to visit the oops, even if we are not doing
-// anything to them.
-void ShenandoahConcurrentMark::weak_roots_work() {
-  WorkGang* workers = _heap->workers();
-  OopClosure* keep_alive = &do_nothing_cl;
-#ifdef ASSERT
-  ShenandoahWeakAssertNotForwardedClosure verify_cl;
-  keep_alive = &verify_cl;
-#endif
-  ShenandoahIsAliveClosure is_alive;
-  WeakProcessor::weak_oops_do(workers, &is_alive, keep_alive, 1);
 }
 
 void ShenandoahConcurrentMark::weak_refs_work_doit(bool full_gc) {

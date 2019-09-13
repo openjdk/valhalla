@@ -385,8 +385,8 @@ JRT_ENTRY_NO_ASYNC(void, JVMCIRuntime::monitorenter(JavaThread* thread, oopDesc*
   IF_TRACE_jvmci_3 {
     char type[O_BUFLEN];
     obj->klass()->name()->as_C_string(type, O_BUFLEN);
-    markOop mark = obj->mark();
-    TRACE_jvmci_3("%s: entered locking slow case with obj=" INTPTR_FORMAT ", type=%s, mark=" INTPTR_FORMAT ", lock=" INTPTR_FORMAT, thread->name(), p2i(obj), type, p2i(mark), p2i(lock));
+    markWord mark = obj->mark();
+    TRACE_jvmci_3("%s: entered locking slow case with obj=" INTPTR_FORMAT ", type=%s, mark=" INTPTR_FORMAT ", lock=" INTPTR_FORMAT, thread->name(), p2i(obj), type, mark.value(), p2i(lock));
     tty->flush();
   }
   if (PrintBiasedLockingStatistics) {
@@ -394,17 +394,7 @@ JRT_ENTRY_NO_ASYNC(void, JVMCIRuntime::monitorenter(JavaThread* thread, oopDesc*
   }
   Handle h_obj(thread, obj);
   assert(oopDesc::is_oop(h_obj()), "must be NULL or an object");
-  if (UseBiasedLocking) {
-    // Retry fast entry if bias is revoked to avoid unnecessary inflation
-    ObjectSynchronizer::fast_enter(h_obj, lock, true, CHECK);
-  } else {
-    if (JVMCIUseFastLocking) {
-      // When using fast locking, the compiled code has already tried the fast case
-      ObjectSynchronizer::slow_enter(h_obj, lock, THREAD);
-    } else {
-      ObjectSynchronizer::fast_enter(h_obj, lock, false, THREAD);
-    }
-  }
+  ObjectSynchronizer::enter(h_obj, lock, THREAD);
   TRACE_jvmci_3("%s: exiting locking slow with obj=" INTPTR_FORMAT, thread->name(), p2i(obj));
 JRT_END
 
@@ -426,16 +416,11 @@ JRT_LEAF(void, JVMCIRuntime::monitorexit(JavaThread* thread, oopDesc* obj, Basic
   }
 #endif
 
-  if (JVMCIUseFastLocking) {
-    // When using fast locking, the compiled code has already tried the fast case
-    ObjectSynchronizer::slow_exit(obj, lock, THREAD);
-  } else {
-    ObjectSynchronizer::fast_exit(obj, lock, THREAD);
-  }
+  ObjectSynchronizer::exit(obj, lock, THREAD);
   IF_TRACE_jvmci_3 {
     char type[O_BUFLEN];
     obj->klass()->name()->as_C_string(type, O_BUFLEN);
-    TRACE_jvmci_3("%s: exited locking slow case with obj=" INTPTR_FORMAT ", type=%s, mark=" INTPTR_FORMAT ", lock=" INTPTR_FORMAT, thread->name(), p2i(obj), type, p2i(obj->mark()), p2i(lock));
+    TRACE_jvmci_3("%s: exited locking slow case with obj=" INTPTR_FORMAT ", type=%s, mark=" INTPTR_FORMAT ", lock=" INTPTR_FORMAT, thread->name(), p2i(obj), type, obj->mark().value(), p2i(lock));
     tty->flush();
   }
 JRT_END
@@ -700,11 +685,15 @@ void JVMCINMethodData::add_failed_speculation(nmethod* nm, jlong speculation) {
   FailedSpeculation::add_failed_speculation(nm, _failed_speculations, data, length);
 }
 
-oop JVMCINMethodData::get_nmethod_mirror(nmethod* nm) {
+oop JVMCINMethodData::get_nmethod_mirror(nmethod* nm, bool phantom_ref) {
   if (_nmethod_mirror_index == -1) {
     return NULL;
   }
-  return nm->oop_at(_nmethod_mirror_index);
+  if (phantom_ref) {
+    return nm->oop_at_phantom(_nmethod_mirror_index);
+  } else {
+    return nm->oop_at(_nmethod_mirror_index);
+  }
 }
 
 void JVMCINMethodData::set_nmethod_mirror(nmethod* nm, oop new_mirror) {
@@ -728,7 +717,7 @@ void JVMCINMethodData::clear_nmethod_mirror(nmethod* nm) {
 }
 
 void JVMCINMethodData::invalidate_nmethod_mirror(nmethod* nm) {
-  oop nmethod_mirror = get_nmethod_mirror(nm);
+  oop nmethod_mirror = get_nmethod_mirror(nm, /* phantom_ref */ true);
   if (nmethod_mirror == NULL) {
     return;
   }
@@ -869,17 +858,6 @@ JVMCIObject JVMCIRuntime::get_HotSpotJVMCIRuntime(JVMCI_TRAPS) {
 
 // private void CompilerToVM.registerNatives()
 JVM_ENTRY_NO_ENV(void, JVM_RegisterJVMCINatives(JNIEnv *env, jclass c2vmClass))
-
-#ifdef _LP64
-#ifndef TARGET_ARCH_sparc
-  uintptr_t heap_end = (uintptr_t) Universe::heap()->reserved_region().end();
-  uintptr_t allocation_end = heap_end + ((uintptr_t)16) * 1024 * 1024 * 1024;
-  guarantee(heap_end < allocation_end, "heap end too close to end of address space (might lead to erroneous TLAB allocations)");
-#endif // TARGET_ARCH_sparc
-#else
-  fatal("check TLAB allocation code for address space conflicts");
-#endif
-
   JNI_JVMCIENV(thread, env);
 
   if (!EnableJVMCI) {
@@ -963,10 +941,8 @@ void JVMCIRuntime::exit_on_pending_exception(JVMCIEnv* JVMCIENV, const char* mes
       describe_pending_hotspot_exception(THREAD, true);
     }
   } else {
-    // Allow error reporting thread to print the stack trace.  Windows
-    // doesn't allow uninterruptible wait for JavaThreads
-    const bool interruptible = true;
-    os::sleep(THREAD, 200, interruptible);
+    // Allow error reporting thread to print the stack trace.
+    os::sleep(THREAD, 200);
   }
 
   before_exit(THREAD);
@@ -1321,22 +1297,13 @@ JVMCI::CodeInstallResult JVMCIRuntime::validate_compile_task_dependencies(Depend
     return JVMCI::dependencies_failed;
   }
 
-  // Dependencies must be checked when the system dictionary changes
-  // or if we don't know whether it has changed (i.e., compile_state == NULL).
-  bool counter_changed = compile_state == NULL || compile_state->system_dictionary_modification_counter() != SystemDictionary::number_of_modifications();
   CompileTask* task = compile_state == NULL ? NULL : compile_state->task();
-  Dependencies::DepType result = dependencies->validate_dependencies(task, counter_changed, failure_detail);
+  Dependencies::DepType result = dependencies->validate_dependencies(task, failure_detail);
   if (result == Dependencies::end_marker) {
     return JVMCI::ok;
   }
 
-  if (!Dependencies::is_klass_type(result) || counter_changed) {
-    return JVMCI::dependencies_failed;
-  }
-  // The dependencies were invalid at the time of installation
-  // without any intervening modification of the system
-  // dictionary.  That means they were invalidly constructed.
-  return JVMCI::dependencies_invalid;
+  return JVMCI::dependencies_failed;
 }
 
 // Reports a pending exception and exits the VM.
@@ -1530,7 +1497,7 @@ JVMCI::CodeInstallResult JVMCIRuntime::register_method(JVMCIEnv* JVMCIENV,
         JVMCINMethodData* data = nm->jvmci_nmethod_data();
         assert(data != NULL, "must be");
         if (install_default) {
-          assert(!nmethod_mirror.is_hotspot() || data->get_nmethod_mirror(nm) == NULL, "must be");
+          assert(!nmethod_mirror.is_hotspot() || data->get_nmethod_mirror(nm, /* phantom_ref */ false) == NULL, "must be");
           if (entry_bci == InvocationEntryBci) {
             if (TieredCompilation) {
               // If there is an old version we're done with it
@@ -1565,7 +1532,7 @@ JVMCI::CodeInstallResult JVMCIRuntime::register_method(JVMCIEnv* JVMCIENV,
             InstanceKlass::cast(method->method_holder())->add_osr_nmethod(nm);
           }
         } else {
-          assert(!nmethod_mirror.is_hotspot() || data->get_nmethod_mirror(nm) == HotSpotJVMCI::resolve(nmethod_mirror), "must be");
+          assert(!nmethod_mirror.is_hotspot() || data->get_nmethod_mirror(nm, /* phantom_ref */ false) == HotSpotJVMCI::resolve(nmethod_mirror), "must be");
         }
         nm->make_in_use();
       }

@@ -123,7 +123,7 @@ class nmethod : public CompiledMethod {
   // used by jvmti to track if an unload event has been posted for this nmethod.
   bool _unload_reported;
 
-  // Protected by CompiledMethod_lock
+  // Protected by Patching_lock
   volatile signed char _state;               // {not_installed, in_use, not_entrant, zombie, unloaded}
 
 #ifdef ASSERT
@@ -216,6 +216,9 @@ class nmethod : public CompiledMethod {
   void* operator new(size_t size, int nmethod_size, int comp_level) throw();
 
   const char* reloc_string_for(u_char* begin, u_char* end);
+
+  bool try_transition(int new_state);
+
   // Returns true if this thread changed the state of the nmethod or
   // false if another thread performed the transition.
   bool make_not_entrant_or_zombie(int state);
@@ -346,7 +349,7 @@ class nmethod : public CompiledMethod {
   // flag accessing and manipulation
   bool  is_not_installed() const                  { return _state == not_installed; }
   bool  is_in_use() const                         { return _state <= in_use; }
-  bool  is_alive() const                          { return _state < zombie; }
+  bool  is_alive() const                          { return _state < unloaded; }
   bool  is_not_entrant() const                    { return _state == not_entrant; }
   bool  is_zombie() const                         { return _state == zombie; }
   bool  is_unloaded() const                       { return _state == unloaded; }
@@ -393,11 +396,13 @@ class nmethod : public CompiledMethod {
   }
 
   int   comp_level() const                        { return _comp_level; }
-  void unlink_from_method();
+
+  void unlink_from_method(bool acquire_lock);
 
   // Support for oops in scopes and relocs:
   // Note: index 0 is reserved for null.
   oop   oop_at(int index) const;
+  oop   oop_at_phantom(int index) const; // phantom reference
   oop*  oop_addr_at(int index) const {  // for GC
     // relocation indexes are biased by 1 (because 0 is reserved)
     assert(index > 0 && index <= oops_count(), "must be a valid non-zero index");
@@ -478,7 +483,7 @@ public:
 
  public:
   void oops_do(OopClosure* f) { oops_do(f, false); }
-  void oops_do(OopClosure* f, bool allow_zombie);
+  void oops_do(OopClosure* f, bool allow_dead);
 
   bool test_set_oops_do_mark();
   static void oops_do_marking_prologue();

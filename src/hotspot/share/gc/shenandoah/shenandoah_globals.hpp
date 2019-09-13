@@ -65,12 +65,17 @@
           " *) static  -  start concurrent GC when static free heap "       \
           "               threshold and static allocation threshold are "   \
           "               tripped;"                                         \
-          " *) passive -  do not start concurrent GC, wait for Full GC; "   \
           " *) aggressive - run concurrent GC continuously, evacuate "      \
           "               everything;"                                      \
           " *) compact - run GC with lower footprint target, may end up "   \
           "               doing continuous GC, evacuate lots of live "      \
           "               objects, uncommit heap aggressively;")            \
+                                                                            \
+  experimental(ccstr, ShenandoahGCMode, "normal",                           \
+          "The GC mode to use in Shenandoah GC. Possible values"            \
+          " *) normal    - normal GC (mark-evac-update)"                    \
+          " *) traversal - traversal GC (single-pass)"                      \
+          " *) passive   - disable concurrent GC, do stop-the-world GC")    \
                                                                             \
   experimental(ccstr, ShenandoahUpdateRefsEarly, "adaptive",                \
           "Run a separate concurrent reference updating phase after"        \
@@ -364,10 +369,6 @@
   diagnostic(bool, ShenandoahLoadRefBarrier, true,                          \
           "Turn on/off load-reference barriers in Shenandoah")              \
                                                                             \
-  diagnostic(bool, ShenandoahStoreCheck, false,                             \
-          "Emit additional code that checks objects are written to only"    \
-          " in to-space")                                                   \
-                                                                            \
   experimental(bool, ShenandoahConcurrentScanCodeRoots, true,               \
           "Scan code roots concurrently, instead of during a pause")        \
                                                                             \
@@ -377,18 +378,8 @@
           " 1 - parallel iterator;"                                         \
           " 2 - parallel iterator with cset filters;")                      \
                                                                             \
-  experimental(bool, ShenandoahOptimizeStaticFinals, true,                  \
+  diagnostic(bool, ShenandoahOptimizeStaticFinals, true,                    \
           "Optimize barriers on static final fields. "                      \
-          "Turn it off for maximum compatibility with reflection or JNI "   \
-          "code that manipulates final fields.")                            \
-                                                                            \
-  experimental(bool, ShenandoahOptimizeInstanceFinals, false,               \
-          "Optimize barriers on final instance fields."                     \
-          "Turn it off for maximum compatibility with reflection or JNI "   \
-          "code that manipulates final fields.")                            \
-                                                                            \
-  experimental(bool, ShenandoahOptimizeStableFinals, false,                 \
-          "Optimize barriers on stable fields."                             \
           "Turn it off for maximum compatibility with reflection or JNI "   \
           "code that manipulates final fields.")                            \
                                                                             \

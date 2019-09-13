@@ -2470,7 +2470,7 @@ void TemplateTable::if_acmp(Condition cc) {
   Label taken, not_taken;
   __ pop_ptr(rdx);
 
-  const int is_value_mask = markOopDesc::always_locked_pattern;
+  const int is_value_mask = markWord::always_locked_pattern;
   if (EnableValhalla) {
     __ cmpoop(rdx, rax);
     __ jcc(Assembler::equal, (cc == equal) ? taken : not_taken);
@@ -4409,7 +4409,7 @@ void TemplateTable::_new() {
       __ movptr(Address(rax, oopDesc::mark_offset_in_bytes ()), rbx);
     } else {
       __ movptr(Address(rax, oopDesc::mark_offset_in_bytes ()),
-                (intptr_t)markOopDesc::prototype()); // header
+                (intptr_t)markWord::prototype().value()); // header
       __ pop(rcx);   // get saved klass back in the register.
     }
 #ifdef _LP64
@@ -4694,7 +4694,7 @@ void TemplateTable::monitorenter() {
 
   __ resolve(IS_NOT_NULL, rax);
 
-  const int is_value_mask = markOopDesc::always_locked_pattern;
+  const int is_value_mask = markWord::always_locked_pattern;
   Label has_identity;
   __ movptr(rbx, Address(rax, oopDesc::mark_offset_in_bytes()));
   __ andptr(rbx, is_value_mask);
@@ -4804,7 +4804,7 @@ void TemplateTable::monitorexit() {
 
   __ resolve(IS_NOT_NULL, rax);
 
-  const int is_value_mask = markOopDesc::always_locked_pattern;
+  const int is_value_mask = markWord::always_locked_pattern;
   Label has_identity;
   __ movptr(rbx, Address(rax, oopDesc::mark_offset_in_bytes()));
   __ andptr(rbx, is_value_mask);

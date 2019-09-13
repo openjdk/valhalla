@@ -50,6 +50,7 @@
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/reflection.hpp"
+#include "runtime/sharedRuntime.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/vm_version.hpp"
@@ -154,6 +155,25 @@ jlong Unsafe_field_offset_from_byte_offset(jlong byte_offset) {
 ///// Data read/writes on the Java heap and in native (off-heap) memory
 
 /**
+ * Helper class to wrap memory accesses in JavaThread::doing_unsafe_access()
+ */
+class GuardUnsafeAccess {
+  JavaThread* _thread;
+
+public:
+  GuardUnsafeAccess(JavaThread* thread) : _thread(thread) {
+    // native/off-heap access which may raise SIGBUS if accessing
+    // memory mapped file data in a region of the file which has
+    // been truncated and is now invalid.
+    _thread->set_doing_unsafe_access(true);
+  }
+
+  ~GuardUnsafeAccess() {
+    _thread->set_doing_unsafe_access(false);
+  }
+};
+
+/**
  * Helper class for accessing memory.
  *
  * Normalizes values and wraps accesses in
@@ -194,25 +214,6 @@ class MemoryAccess : StackObj {
     return x != 0;
   }
 
-  /**
-   * Helper class to wrap memory accesses in JavaThread::doing_unsafe_access()
-   */
-  class GuardUnsafeAccess {
-    JavaThread* _thread;
-
-  public:
-    GuardUnsafeAccess(JavaThread* thread) : _thread(thread) {
-      // native/off-heap access which may raise SIGBUS if accessing
-      // memory mapped file data in a region of the file which has
-      // been truncated and is now invalid
-      _thread->set_doing_unsafe_access(true);
-    }
-
-    ~GuardUnsafeAccess() {
-      _thread->set_doing_unsafe_access(false);
-    }
-  };
-
 public:
   MemoryAccess(JavaThread* thread, jobject obj, jlong offset)
     : _thread(thread), _obj(JNIHandles::resolve(obj)), _offset((ptrdiff_t)offset) {
@@ -235,7 +236,7 @@ public:
       GuardUnsafeAccess guard(_thread);
       RawAccess<>::store(addr(), normalize_for_write(x));
     } else {
-      assert(!_obj->is_value() || _obj->mark()->is_larval_state(), "must be an object instance or a larval value");
+      assert(!_obj->is_value() || _obj->mark().is_larval_state(), "must be an object instance or a larval value");
       HeapAccess<>::store_at(_obj, _offset, normalize_for_write(x));
     }
   }
@@ -337,7 +338,7 @@ UNSAFE_ENTRY(void, Unsafe_PutReference(JNIEnv *env, jobject unsafe, jobject obj,
   oop x = JNIHandles::resolve(x_h);
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
-  assert(!p->is_value() || p->mark()->is_larval_state(), "must be an object instance or a larval value");
+  assert(!p->is_value() || p->mark().is_larval_state(), "must be an object instance or a larval value");
   HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(p, offset, x);
 } UNSAFE_END
 
@@ -377,7 +378,7 @@ UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlo
   oop base = JNIHandles::resolve(obj);
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(vc));
   ValueKlass* vk = ValueKlass::cast(k);
-  assert(!base->is_value() || base->mark()->is_larval_state(), "must be an object instance or a larval value");
+  assert(!base->is_value() || base->mark().is_larval_state(), "must be an object instance or a larval value");
   assert_and_log_unsafe_value_access(base, offset, vk);
   oop v = JNIHandles::resolve(value);
   vk->value_store(vk->data_for_oop(v),
@@ -391,16 +392,16 @@ UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobj
   ValueKlass* vk = ValueKlass::cast(v->klass());
   instanceOop new_value = vk->allocate_instance(CHECK_NULL);
   vk->value_store(vk->data_for_oop(vh()), vk->data_for_oop(new_value), true, false);
-  markOop mark = new_value->mark();
-  new_value->set_mark(mark->enter_larval_state());
+  markWord mark = new_value->mark();
+  new_value->set_mark(mark.enter_larval_state());
   return JNIHandles::make_local(env, new_value);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_FinishPrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {
   oop v = JNIHandles::resolve(value);
-  assert(v->mark()->is_larval_state(), "must be a larval value");
-  markOop mark = v->mark();
-  v->set_mark(mark->exit_larval_state());
+  assert(v->mark().is_larval_state(), "must be a larval value");
+  markWord mark = v->mark();
+  v->set_mark(mark.exit_larval_state());
   return JNIHandles::make_local(env, v);
 } UNSAFE_END
 
@@ -530,8 +531,14 @@ UNSAFE_ENTRY(void, Unsafe_CopyMemory0(JNIEnv *env, jobject unsafe, jobject srcOb
 
   void* src = index_oop_from_field_offset_long(srcp, srcOffset);
   void* dst = index_oop_from_field_offset_long(dstp, dstOffset);
-
-  Copy::conjoint_memory_atomic(src, dst, sz);
+  {
+    GuardUnsafeAccess guard(thread);
+    if (StubRoutines::unsafe_arraycopy() != NULL) {
+      StubRoutines::UnsafeArrayCopy_stub()(src, dst, sz);
+    } else {
+      Copy::conjoint_memory_atomic(src, dst, sz);
+    }
+  }
 } UNSAFE_END
 
 // This function is a leaf since if the source and destination are both in native memory
@@ -547,7 +554,11 @@ UNSAFE_LEAF(void, Unsafe_CopySwapMemory0(JNIEnv *env, jobject unsafe, jobject sr
     address src = (address)srcOffset;
     address dst = (address)dstOffset;
 
-    Copy::conjoint_swap(src, dst, sz, esz);
+    {
+      JavaThread* thread = JavaThread::thread_from_jni_environment(env);
+      GuardUnsafeAccess guard(thread);
+      Copy::conjoint_swap(src, dst, sz, esz);
+    }
   } else {
     // At least one of src/dst are on heap, transition to VM to access raw pointers
 
@@ -558,9 +569,52 @@ UNSAFE_LEAF(void, Unsafe_CopySwapMemory0(JNIEnv *env, jobject unsafe, jobject sr
       address src = (address)index_oop_from_field_offset_long(srcp, srcOffset);
       address dst = (address)index_oop_from_field_offset_long(dstp, dstOffset);
 
-      Copy::conjoint_swap(src, dst, sz, esz);
+      {
+        GuardUnsafeAccess guard(thread);
+        Copy::conjoint_swap(src, dst, sz, esz);
+      }
     } JVM_END
   }
+} UNSAFE_END
+
+UNSAFE_LEAF (void, Unsafe_WriteBack0(JNIEnv *env, jobject unsafe, jlong line)) {
+  assert(VM_Version::supports_data_cache_line_flush(), "should not get here");
+#ifdef ASSERT
+  if (TraceMemoryWriteback) {
+    tty->print_cr("Unsafe: writeback 0x%p", addr_from_java(line));
+  }
+#endif
+
+  assert(StubRoutines::data_cache_writeback() != NULL, "sanity");
+  (StubRoutines::DataCacheWriteback_stub())(addr_from_java(line));
+} UNSAFE_END
+
+static void doWriteBackSync0(bool is_pre)
+{
+  assert(StubRoutines::data_cache_writeback_sync() != NULL, "sanity");
+  (StubRoutines::DataCacheWritebackSync_stub())(is_pre);
+}
+
+UNSAFE_LEAF (void, Unsafe_WriteBackPreSync0(JNIEnv *env, jobject unsafe)) {
+  assert(VM_Version::supports_data_cache_line_flush(), "should not get here");
+#ifdef ASSERT
+  if (TraceMemoryWriteback) {
+      tty->print_cr("Unsafe: writeback pre-sync");
+  }
+#endif
+
+  doWriteBackSync0(true);
+} UNSAFE_END
+
+UNSAFE_LEAF (void, Unsafe_WriteBackPostSync0(JNIEnv *env, jobject unsafe)) {
+  assert(VM_Version::supports_data_cache_line_flush(), "should not get here");
+#ifdef ASSERT
+  if (TraceMemoryWriteback) {
+    tty->print_cr("Unsafe: writeback pre-sync");
+  }
+#endif
+
+  doWriteBackSync0(false);
 } UNSAFE_END
 
 ////// Random queries
@@ -1204,6 +1258,9 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
 
     {CC "copyMemory0",        CC "(" OBJ "J" OBJ "JJ)V", FN_PTR(Unsafe_CopyMemory0)},
     {CC "copySwapMemory0",    CC "(" OBJ "J" OBJ "JJJ)V", FN_PTR(Unsafe_CopySwapMemory0)},
+    {CC "writeback0",         CC "(" "J" ")V",           FN_PTR(Unsafe_WriteBack0)},
+    {CC "writebackPreSync0",  CC "()V",                  FN_PTR(Unsafe_WriteBackPreSync0)},
+    {CC "writebackPostSync0", CC "()V",                  FN_PTR(Unsafe_WriteBackPostSync0)},
     {CC "setMemory0",         CC "(" OBJ "JJB)V",        FN_PTR(Unsafe_SetMemory0)},
 
     {CC "defineAnonymousClass0", CC "(" DAC_Args ")" CLS, FN_PTR(Unsafe_DefineAnonymousClass0)},

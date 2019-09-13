@@ -255,6 +255,12 @@ public:
   ciInstanceKlass* implementor();
   ciInstanceKlass* vcc_klass();
 
+  ciInstanceKlass* unique_implementor() {
+    assert(is_loaded(), "must be loaded");
+    ciInstanceKlass* impl = implementor();
+    return (impl != this ? impl : NULL);
+  }
+
   // Is the defining class loader of this class the default loader?
   bool uses_default_loader() const;
 

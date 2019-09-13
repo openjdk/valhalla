@@ -1523,11 +1523,12 @@ void GraphBuilder::method_return(Value x, bool ignore_return) {
     call_register_finalizer();
   }
 
+  // The conditions for a memory barrier are described in Parse::do_exits().
   bool need_mem_bar = false;
   if (method()->is_object_constructor() &&
-      (scope()->wrote_final() || (AlwaysSafeConstructors && scope()->wrote_fields())
-                              || (support_IRIW_for_not_multiple_copy_atomic_cpu && scope()->wrote_volatile())
-     )){
+       (scope()->wrote_final() ||
+         (AlwaysSafeConstructors && scope()->wrote_fields()) ||
+         (support_IRIW_for_not_multiple_copy_atomic_cpu && scope()->wrote_volatile()))) {
     need_mem_bar = true;
   }
 
@@ -2168,12 +2169,11 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
       // number of implementors for decl_interface is 0 or 1. If
       // it's 0 then no class implements decl_interface and there's
       // no point in inlining.
-      ciInstanceKlass* singleton = NULL;
       ciInstanceKlass* declared_interface = callee_holder;
-      if (declared_interface->nof_implementors() == 1 &&
-          (!target->is_default_method() || target->is_overpass()) /* CHA doesn't support default methods yet. */) {
-        singleton = declared_interface->implementor();
-        assert(singleton != NULL && singleton != declared_interface, "");
+      ciInstanceKlass* singleton = declared_interface->unique_implementor();
+      if (singleton != NULL &&
+          (!target->is_default_method() || target->is_overpass()) /* CHA doesn't support default methods yet. */ ) {
+        assert(singleton != declared_interface, "not a unique implementor");
         cha_monomorphic_target = target->find_monomorphic_target(calling_klass, declared_interface, singleton);
         if (cha_monomorphic_target != NULL) {
           if (cha_monomorphic_target->holder() != compilation()->env()->Object_klass()) {
@@ -2464,7 +2464,7 @@ void GraphBuilder::monitorenter(Value x, int bci) {
     if (EnableValhalla) {
       ciType* obj_type = x->declared_type();
       if (obj_type == NULL || obj_type->is_valuetype() || obj_type->as_klass()->is_java_lang_Object()) {
-        // If we're (possibly) locking on a valuetype, check for markOopDesc::always_locked_pattern
+        // If we're (possibly) locking on a valuetype, check for markWord::always_locked_pattern
         // and throw IMSE. (obj_type is null for Phi nodes, so let's just be conservative).
         maybe_valuetype = true;
       }

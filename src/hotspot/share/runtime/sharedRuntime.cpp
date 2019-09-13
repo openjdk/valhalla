@@ -1496,7 +1496,20 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method(JavaThread* thread))
     guarantee(callee != NULL && callee->is_method(), "bad handshake");
     thread->set_vm_result_2(callee);
     thread->set_callee_target(NULL);
-    return callee->get_c2i_entry();
+    // TODO fix this
+    if (false && caller_frame.is_entry_frame() && VM_Version::supports_fast_class_init_checks()) {
+      // Bypass class initialization checks in c2i when caller is in native.
+      // JNI calls to static methods don't have class initialization checks.
+      // Fast class initialization checks are present in c2i adapters and call into
+      // SharedRuntime::handle_wrong_method() on the slow path.
+      //
+      // JVM upcalls may land here as well, but there's a proper check present in
+      // LinkResolver::resolve_static_call (called from JavaCalls::call_static),
+      // so bypassing it in c2i adapter is benign.
+      return callee->get_c2i_no_clinit_check_entry();
+    } else {
+      return callee->get_c2i_entry();
+    }
   }
 
   // Must be compiled to compiled path which is safe to stackwalk
@@ -2088,7 +2101,7 @@ char* SharedRuntime::generate_class_cast_message(
   const char* caster_name = caster_klass->external_name();
 
   assert(target_klass != NULL || target_klass_name != NULL, "one must be provided");
-  const char* target_name = target_klass == NULL ? target_klass_name->as_C_string() :
+  const char* target_name = target_klass == NULL ? target_klass_name->as_klass_external_name() :
                                                    target_klass->external_name();
 
   size_t msglen = strlen(caster_name) + strlen("class ") + strlen(" cannot be cast to class ") + strlen(target_name) + 1;
@@ -2147,12 +2160,7 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::complete_monitor_locking_C(oopDesc* _obj, B
     Atomic::inc(BiasedLocking::slow_path_entry_count_addr());
   }
   Handle h_obj(THREAD, obj);
-  if (UseBiasedLocking) {
-    // Retry fast entry if bias is revoked to avoid unnecessary inflation
-    ObjectSynchronizer::fast_enter(h_obj, lock, true, CHECK);
-  } else {
-    ObjectSynchronizer::slow_enter(h_obj, lock, CHECK);
-  }
+  ObjectSynchronizer::enter(h_obj, lock, CHECK);
   assert(!HAS_PENDING_EXCEPTION, "Should have no exception here");
   JRT_BLOCK_END
 JRT_END
@@ -2183,7 +2191,7 @@ JRT_LEAF(void, SharedRuntime::complete_monitor_unlocking_C(oopDesc* _obj, BasicL
   {
     // Exit must be non-blocking, and therefore no exceptions can be thrown.
     EXCEPTION_MARK;
-    ObjectSynchronizer::slow_exit(obj, lock, THREAD);
+    ObjectSynchronizer::exit(obj, lock, THREAD);
   }
 
 #ifdef MIGHT_HAVE_PENDING
@@ -2554,10 +2562,10 @@ class AdapterHandlerTable : public BasicHashtable<mtCode> {
   // Create a new entry suitable for insertion in the table
   AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry,
                                  address c2i_value_entry, address c2i_value_ro_entry,
-                                 address c2i_unverified_entry, address c2i_unverified_value_entry) {
+                                 address c2i_unverified_entry, address c2i_unverified_value_entry, address c2i_no_clinit_check_entry) {
     AdapterHandlerEntry* entry = (AdapterHandlerEntry*)BasicHashtable<mtCode>::new_entry(fingerprint->compute_hash());
     entry->init(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry,
-                c2i_unverified_entry, c2i_unverified_value_entry);
+                c2i_unverified_entry, c2i_unverified_value_entry, c2i_no_clinit_check_entry);
     if (DumpSharedSpaces) {
       ((CDSAdapterHandlerEntry*)entry)->init();
     }
@@ -2710,9 +2718,10 @@ AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* finger
                                                       address c2i_value_entry,
                                                       address c2i_value_ro_entry,
                                                       address c2i_unverified_entry,
-                                                      address c2i_unverified_value_entry) {
+                                                      address c2i_unverified_value_entry,
+                                                      address c2i_no_clinit_check_entry) {
   return _adapters->new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry,
-                              c2i_unverified_value_entry);
+                              c2i_unverified_value_entry, c2i_no_clinit_check_entry);
 }
 
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
@@ -3114,6 +3123,7 @@ address AdapterHandlerEntry::base_address() {
   assert(base <= _c2i_value_ro_entry || _c2i_value_ro_entry == NULL, "");
   assert(base <= _c2i_unverified_entry || _c2i_unverified_entry == NULL, "");
   assert(base <= _c2i_unverified_value_entry || _c2i_unverified_value_entry == NULL, "");
+  assert(base <= _c2i_no_clinit_check_entry || _c2i_no_clinit_check_entry == NULL, "");
   return base;
 }
 
@@ -3133,6 +3143,8 @@ void AdapterHandlerEntry::relocate(address new_base) {
     _c2i_unverified_entry += delta;
   if (_c2i_unverified_value_entry != NULL)
     _c2i_unverified_value_entry += delta;
+  if (_c2i_no_clinit_check_entry != NULL)
+    _c2i_no_clinit_check_entry += delta;
   assert(base_address() == new_base, "");
 }
 
@@ -3178,10 +3190,16 @@ bool AdapterHandlerEntry::compare_code(unsigned char* buffer, int length) {
 void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
   ResourceMark rm;
   nmethod* nm = NULL;
+  address critical_entry = NULL;
 
   assert(method->is_native(), "must be native");
   assert(method->is_method_handle_intrinsic() ||
          method->has_native_function(), "must have something valid to call!");
+
+  if (CriticalJNINatives && !method->is_method_handle_intrinsic()) {
+    // We perform the I/O with transition to native before acquiring AdapterHandlerLibrary_lock.
+    critical_entry = NativeLookup::lookup_critical_entry(method);
+  }
 
   {
     // Perform the work while holding the lock, but perform any printing outside the lock
@@ -3228,7 +3246,7 @@ void AdapterHandlerLibrary::create_native_wrapper(const methodHandle& method) {
       int comp_args_on_stack = SharedRuntime::java_calling_convention(sig_bt, regs, total_args_passed, is_outgoing);
 
       // Generate the compiled-to-native wrapper code
-      nm = SharedRuntime::generate_native_wrapper(&_masm, method, compile_id, sig_bt, regs, ret_type);
+      nm = SharedRuntime::generate_native_wrapper(&_masm, method, compile_id, sig_bt, regs, ret_type, critical_entry);
 
       if (nm != NULL) {
         method->set_code(method, nm);
@@ -3440,10 +3458,10 @@ JRT_LEAF(intptr_t*, SharedRuntime::OSR_migration_begin( JavaThread *thread) )
     if (kptr2->obj() != NULL) {         // Avoid 'holes' in the monitor array
       BasicLock *lock = kptr2->lock();
       // Inflate so the displaced header becomes position-independent
-      if (lock->displaced_header()->is_unlocked())
+      if (lock->displaced_header().is_unlocked())
         ObjectSynchronizer::inflate_helper(kptr2->obj());
       // Now the displaced header is free to move
-      buf[i++] = (intptr_t)lock->displaced_header();
+      buf[i++] = (intptr_t)lock->displaced_header().value();
       buf[i++] = cast_from_oop<intptr_t>(kptr2->obj());
     }
   }
@@ -3479,12 +3497,29 @@ void AdapterHandlerLibrary::print_handler_on(outputStream* st, const CodeBlob* b
 }
 
 void AdapterHandlerEntry::print_adapter_on(outputStream* st) const {
-  st->print_cr("AHE@" INTPTR_FORMAT ": %s i2c: " INTPTR_FORMAT " c2i: " INTPTR_FORMAT " c2iVE: " INTPTR_FORMAT
-               " c2iVROE: " INTPTR_FORMAT " c2iUE: " INTPTR_FORMAT " c2iUVE: " INTPTR_FORMAT,
-               p2i(this), fingerprint()->as_string(),
-               p2i(get_i2c_entry()), p2i(get_c2i_entry()), p2i(get_c2i_value_entry()),
-               p2i(get_c2i_value_ro_entry()), p2i(get_c2i_unverified_entry()), p2i(get_c2i_unverified_value_entry()));
-
+  st->print("AHE@" INTPTR_FORMAT ": %s", p2i(this), fingerprint()->as_string());
+  if (get_i2c_entry() != NULL) {
+    st->print(" i2c: " INTPTR_FORMAT, p2i(get_i2c_entry()));
+  }
+  if (get_c2i_entry() != NULL) {
+    st->print(" c2i: " INTPTR_FORMAT, p2i(get_c2i_entry()));
+  }
+  if (get_c2i_entry() != NULL) {
+    st->print(" c2iVE: " INTPTR_FORMAT, p2i(get_c2i_value_entry()));
+  }
+  if (get_c2i_entry() != NULL) {
+    st->print(" c2iVROE: " INTPTR_FORMAT, p2i(get_c2i_value_ro_entry()));
+  }
+  if (get_c2i_unverified_entry() != NULL) {
+    st->print(" c2iUE: " INTPTR_FORMAT, p2i(get_c2i_unverified_entry()));
+  }
+  if (get_c2i_unverified_entry() != NULL) {
+    st->print(" c2iUVE: " INTPTR_FORMAT, p2i(get_c2i_unverified_value_entry()));
+  }
+  if (get_c2i_no_clinit_check_entry() != NULL) {
+    st->print(" c2iNCI: " INTPTR_FORMAT, p2i(get_c2i_no_clinit_check_entry()));
+  }
+  st->cr();
 }
 
 #if INCLUDE_CDS

@@ -95,21 +95,29 @@ public class TestGCLogMessages {
         new LogMessageWithLevel("Post Evacuate Collection Set", Level.INFO),
         new LogMessageWithLevel("Other", Level.INFO),
 
-        // Update RS
-        new LogMessageWithLevel("Update RS", Level.DEBUG),
-        new LogMessageWithLevel("Processed Buffers", Level.DEBUG),
-        new LogMessageWithLevel("Scanned Cards", Level.DEBUG),
+        // Merge Heap Roots
+        new LogMessageWithLevel("Merge Heap Roots", Level.INFO),
+        new LogMessageWithLevel("Prepare Merge Heap Roots", Level.DEBUG),
+        new LogMessageWithLevel("Eager Reclaim", Level.DEBUG),
+        new LogMessageWithLevel("Remembered Sets", Level.DEBUG),
+        new LogMessageWithLevel("Merged Sparse", Level.DEBUG),
+        new LogMessageWithLevel("Merged Fine", Level.DEBUG),
+        new LogMessageWithLevel("Merged Coarse", Level.DEBUG),
+        new LogMessageWithLevel("Hot Card Cache", Level.DEBUG),
+        new LogMessageWithLevel("Log Buffers", Level.DEBUG),
+        new LogMessageWithLevel("Dirty Cards", Level.DEBUG),
         new LogMessageWithLevel("Skipped Cards", Level.DEBUG),
-        new LogMessageWithLevel("Scan HCC", Level.DEBUG),
-        // Scan RS
-        new LogMessageWithLevel("Scan RS", Level.DEBUG),
+        // Scan Heap Roots
+        new LogMessageWithLevel("Scan Heap Roots", Level.DEBUG),
         new LogMessageWithLevel("Scanned Cards", Level.DEBUG),
-        new LogMessageWithLevel("Claimed Cards", Level.DEBUG),
-        new LogMessageWithLevel("Skipped Cards", Level.DEBUG),
+        new LogMessageWithLevel("Scanned Blocks", Level.DEBUG),
+        new LogMessageWithLevel("Claimed Chunks", Level.DEBUG),
+        // Code Roots Scan
+        new LogMessageWithLevel("Code Root Scan", Level.DEBUG),
         // Object Copy
         new LogMessageWithLevel("Object Copy", Level.DEBUG),
-        new LogMessageWithLevel("Scanned Cards", Level.DEBUG),
-        new LogMessageWithLevel("Claimed Cards", Level.DEBUG),
+        new LogMessageWithLevel("LAB Waste", Level.DEBUG),
+        new LogMessageWithLevel("LAB Undo Waste", Level.DEBUG),
         // Ext Root Scan
         new LogMessageWithLevel("Thread Roots", Level.TRACE),
         new LogMessageWithLevel("Universe Roots", Level.TRACE),
@@ -133,6 +141,7 @@ public class TestGCLogMessages {
         new LogMessageWithLevel("Table Fixup", Level.DEBUG),
         new LogMessageWithLevel("Expand Heap After Collection", Level.DEBUG),
         new LogMessageWithLevel("Region Register", Level.DEBUG),
+        new LogMessageWithLevel("Prepare Heap Roots", Level.DEBUG),
         // Free CSet
         new LogMessageWithLevel("Free Collection Set", Level.DEBUG),
         new LogMessageWithLevel("Free Collection Set Serial", Level.TRACE),
@@ -149,9 +158,10 @@ public class TestGCLogMessages {
         new LogMessageWithLevel("Reference Processing", Level.DEBUG),
         // VM internal reference processing
         new LogMessageWithLevel("Weak Processing", Level.DEBUG),
-        new LogMessageWithLevel("JNI weak processing", Level.DEBUG),
-        new LogMessageWithLevel("StringTable weak processing", Level.DEBUG),
-        new LogMessageWithLevel("VM weak processing", Level.DEBUG),
+        new LogMessageWithLevel("JNI weak", Level.DEBUG),
+        new LogMessageWithLevel("StringTable weak", Level.DEBUG),
+        new LogMessageWithLevel("ResolvedMethodTable weak", Level.DEBUG),
+        new LogMessageWithLevel("VM weak", Level.DEBUG),
 
         new LogMessageWithLevelC2OrJVMCIOnly("DerivedPointerTable Update", Level.DEBUG),
         new LogMessageWithLevel("Start New Collection Set", Level.DEBUG),

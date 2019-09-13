@@ -37,12 +37,12 @@
 #include "gc/g1/g1RegionMarkStatsCache.inline.hpp"
 #include "gc/g1/g1StringDedup.hpp"
 #include "gc/g1/g1ThreadLocalData.hpp"
+#include "gc/g1/g1Trace.hpp"
 #include "gc/g1/heapRegion.inline.hpp"
 #include "gc/g1/heapRegionRemSet.hpp"
 #include "gc/g1/heapRegionSet.inline.hpp"
 #include "gc/shared/gcId.hpp"
 #include "gc/shared/gcTimer.hpp"
-#include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/gcVMOperations.hpp"
 #include "gc/shared/genOopClosures.inline.hpp"
@@ -2419,11 +2419,12 @@ void G1CMTask::drain_satb_buffers() {
     abort_marking_if_regular_check_fail();
   }
 
-  _draining_satb_buffers = false;
+  // Can't assert qset is empty here, even if not aborted.  If concurrent,
+  // some other thread might be adding to the queue.  If not concurrent,
+  // some other thread might have won the race for the last buffer, but
+  // has not yet decremented the count.
 
-  assert(has_aborted() ||
-         _cm->concurrent() ||
-         satb_mq_set.completed_buffers_num() == 0, "invariant");
+  _draining_satb_buffers = false;
 
   // again, this was a potentially expensive operation, decrease the
   // limits to get the regular clock call early
@@ -2586,7 +2587,7 @@ void G1CMTask::do_marking_step(double time_target_ms,
   // and do_marking_step() is not being called serially.
   bool do_stealing = do_termination && !is_serial;
 
-  double diff_prediction_ms = _g1h->policy()->predictor().get_new_prediction(&_marking_step_diffs_ms);
+  double diff_prediction_ms = _g1h->policy()->predictor().get_new_prediction(&_marking_step_diff_ms);
   _time_target_ms = time_target_ms - diff_prediction_ms;
 
   // set up the variables that are used in the work-based scheme to
@@ -2828,7 +2829,7 @@ void G1CMTask::do_marking_step(double time_target_ms,
       // Keep statistics of how well we did with respect to hitting
       // our target only if we actually timed out (if we aborted for
       // other reasons, then the results might get skewed).
-      _marking_step_diffs_ms.add(diff_ms);
+      _marking_step_diff_ms.add(diff_ms);
     }
 
     if (_cm->has_overflown()) {
@@ -2911,11 +2912,11 @@ G1CMTask::G1CMTask(uint worker_id,
   _elapsed_time_ms(0.0),
   _termination_time_ms(0.0),
   _termination_start_time_ms(0.0),
-  _marking_step_diffs_ms()
+  _marking_step_diff_ms()
 {
   guarantee(task_queue != NULL, "invariant");
 
-  _marking_step_diffs_ms.add(0.5);
+  _marking_step_diff_ms.add(0.5);
 }
 
 // These are formatting macros that are used below to ensure

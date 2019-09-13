@@ -471,7 +471,6 @@ ifeq ($(call isTargetOs, windows macosx), false)
           $(LIBAWT_HEADLESS_CFLAGS), \
       EXTRA_HEADER_DIRS := $(LIBAWT_HEADLESS_EXTRA_HEADER_DIRS), \
       DISABLED_WARNINGS_gcc := unused-function, \
-      DISABLED_WARNINGS_xlc := 1506-356, \
       DISABLED_WARNINGS_solstudio := E_EMPTY_TRANSLATION_UNIT, \
       LDFLAGS := $(LDFLAGS_JDKLIB) \
           $(call SET_SHARED_LIBRARY_ORIGIN), \
@@ -480,10 +479,6 @@ ifeq ($(call isTargetOs, windows macosx), false)
       LIBS_linux := $(LIBM) $(LIBDL), \
       LIBS_solaris := $(LIBM) $(LIBDL) $(LIBCXX), \
   ))
-
-  # AIX warning explanation:
-  # 1506-356 : (W) Compilation unit is empty.
-  #            This happens during the headless build
 
   $(BUILD_LIBAWT_HEADLESS): $(BUILD_LIBAWT)
 
@@ -791,7 +786,8 @@ ifeq ($(ENABLE_HEADLESS_ONLY), false)
     LIBSPLASHSCREEN_EXCLUDE_SRC_PATTERNS := /unix/
   endif
 
-  LIBSPLASHSCREEN_CFLAGS += -DSPLASHSCREEN -DPNG_NO_MMX_CODE -DPNG_ARM_NEON_OPT=0
+  LIBSPLASHSCREEN_CFLAGS += -DSPLASHSCREEN -DPNG_NO_MMX_CODE \
+                            -DPNG_ARM_NEON_OPT=0 -DPNG_ARM_NEON_IMPLEMENTATION=0
 
   ifeq ($(call isTargetOs, linux), true)
     ifeq ($(call isTargetCpuArch, ppc), true)

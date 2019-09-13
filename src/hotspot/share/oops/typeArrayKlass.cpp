@@ -197,13 +197,13 @@ Klass* TypeArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, bo
         assert(h_ak->is_objArray_klass(), "incorrect initialization of ObjArrayKlass");
       }
     }
-  } else {
-    CHECK_UNHANDLED_OOPS_ONLY(Thread::current()->clear_unhandled_oops());
   }
+
   ObjArrayKlass* h_ak = ObjArrayKlass::cast(higher_dimension());
   if (or_null) {
     return h_ak->array_klass_or_null(storage_props, n);
   }
+  THREAD->check_possible_safepoint();
   return h_ak->array_klass(storage_props, n, THREAD);
 }
 

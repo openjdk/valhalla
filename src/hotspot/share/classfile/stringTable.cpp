@@ -30,6 +30,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/oopStorage.inline.hpp"
+#include "gc/shared/oopStorageSet.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
@@ -79,15 +80,13 @@ static CompactHashtable<
 
 // --------------------------------------------------------------------------
 
-typedef ConcurrentHashTable<WeakHandle<vm_string_table_data>,
-                            StringTableConfig, mtSymbol> StringTableHash;
+typedef ConcurrentHashTable<StringTableConfig, mtSymbol> StringTableHash;
 static StringTableHash* _local_table = NULL;
 
 volatile bool StringTable::_has_work = false;
 volatile bool StringTable::_needs_rehashing = false;
 
 volatile size_t StringTable::_uncleaned_items_count = 0;
-OopStorage* StringTable::_weak_handles = NULL;
 
 static size_t _current_size = 0;
 static volatile size_t _items_count = 0;
@@ -101,11 +100,12 @@ uintx hash_string(const jchar* s, int len, bool useAlt) {
     java_lang_String::hash_code(s, len);
 }
 
-class StringTableConfig : public StringTableHash::BaseConfig {
+class StringTableConfig : public StackObj {
  private:
  public:
-  static uintx get_hash(WeakHandle<vm_string_table_data> const& value,
-                        bool* is_dead) {
+  typedef WeakHandle<vm_string_table_data> Value;
+
+  static uintx get_hash(Value const& value, bool* is_dead) {
     EXCEPTION_MARK;
     oop val_oop = value.peek();
     if (val_oop == NULL) {
@@ -124,15 +124,13 @@ class StringTableConfig : public StringTableHash::BaseConfig {
     return 0;
   }
   // We use default allocation/deallocation but counted
-  static void* allocate_node(size_t size,
-                             WeakHandle<vm_string_table_data> const& value) {
+  static void* allocate_node(size_t size, Value const& value) {
     StringTable::item_added();
-    return StringTableHash::BaseConfig::allocate_node(size, value);
+    return AllocateHeap(size, mtSymbol);
   }
-  static void free_node(void* memory,
-                        WeakHandle<vm_string_table_data> const& value) {
+  static void free_node(void* memory, Value const& value) {
     value.release();
-    StringTableHash::BaseConfig::free_node(memory, value);
+    FreeHeap(memory);
     StringTable::item_removed();
   }
 };
@@ -208,9 +206,6 @@ static size_t ceil_log2(size_t val) {
 }
 
 void StringTable::create_table() {
-  _weak_handles = new OopStorage("StringTable weak",
-                                 StringTableWeakAlloc_lock,
-                                 StringTableWeakActive_lock);
   size_t start_size_log_2 = ceil_log2(StringTableSize);
   _current_size = ((size_t)1) << start_size_log_2;
   log_trace(stringtable)("Start size: " SIZE_FORMAT " (" SIZE_FORMAT ")",
@@ -344,7 +339,7 @@ oop StringTable::intern(Handle string_or_null_h, const jchar* name, int len, TRA
   if (found_string != NULL) {
     return found_string;
   }
-  return do_intern(string_or_null_h, name, len, hash, CHECK_NULL);
+  return do_intern(string_or_null_h, name, len, hash, THREAD);
 }
 
 oop StringTable::do_intern(Handle string_or_null_h, const jchar* name,
@@ -390,7 +385,7 @@ oop StringTable::do_intern(Handle string_or_null_h, const jchar* name,
 
 void StringTable::oops_do(OopClosure* f) {
   assert(f != NULL, "No closure");
-  _weak_handles->oops_do(f);
+  OopStorageSet::string_table_weak()->oops_do(f);
 }
 
 // Concurrent work

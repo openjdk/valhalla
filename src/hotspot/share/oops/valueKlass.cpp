@@ -102,7 +102,7 @@ instanceOop ValueKlass::allocate_instance(TRAPS) {
   int size = size_helper();  // Query before forming handle.
 
   instanceOop oop = (instanceOop)Universe::heap()->obj_allocate(this, size, CHECK_NULL);
-  assert(oop->mark()->is_always_locked(), "Unlocked value type");
+  assert(oop->mark().is_always_locked(), "Unlocked value type");
   return oop;
 }
 
@@ -595,10 +595,10 @@ ValueKlass* ValueKlass::returned_value_klass(const RegisterMap& map) {
 
 void ValueKlass::verify_on(outputStream* st) {
   InstanceKlass::verify_on(st);
-  guarantee(prototype_header()->is_always_locked(), "Prototype header is not always locked");
+  guarantee(prototype_header().is_always_locked(), "Prototype header is not always locked");
 }
 
 void ValueKlass::oop_verify_on(oop obj, outputStream* st) {
   InstanceKlass::oop_verify_on(obj, st);
-  guarantee(obj->mark()->is_always_locked(), "Header is not always locked");
+  guarantee(obj->mark().is_always_locked(), "Header is not always locked");
 }

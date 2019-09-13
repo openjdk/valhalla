@@ -1993,7 +1993,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
   }
 
   Node* is_value = is_always_locked(not_null_a);
-  Node* value_mask = _gvn.MakeConX(markOopDesc::always_locked_pattern);
+  Node* value_mask = _gvn.MakeConX(markWord::always_locked_pattern);
   Node* is_value_cmp = _gvn.transform(new CmpXNode(is_value, value_mask));
   Node* is_value_bol = _gvn.transform(new BoolNode(is_value_cmp, BoolTest::ne));
   IfNode* is_value_iff = create_and_map_if(control(), is_value_bol, PROB_FAIR, COUNT_UNKNOWN);

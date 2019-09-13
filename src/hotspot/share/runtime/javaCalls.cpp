@@ -362,9 +362,6 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   assert(!SafepointSynchronize::is_at_safepoint(), "call to Java code during VM operation");
   assert(!thread->handle_area()->no_handle_mark_active(), "cannot call out to Java here");
 
-
-  CHECK_UNHANDLED_OOPS_ONLY(thread->clear_unhandled_oops();)
-
 #if INCLUDE_JVMCI
   // Gets the nmethod (if any) that should be called instead of normal target
   nmethod* alternative_target = args->alternative_target();
@@ -412,10 +409,6 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   bool oop_result_flag = (result->get_type() == T_OBJECT || result->get_type() == T_ARRAY
                           || result->get_type() == T_VALUETYPE);
 
-  // NOTE: if we move the computation of the result_val_address inside
-  // the call to call_stub, the optimizer produces wrong code.
-  intptr_t* result_val_address = (intptr_t*)(result->get_value_addr());
-
   // Find receiver
   Handle receiver = (!method->is_static()) ? args->receiver() : Handle();
 
@@ -461,18 +454,22 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   { JavaCallWrapper link(method, receiver, result, CHECK);
     { HandleMark hm(thread);  // HandleMark used by HandleMarkCleaner
 
-    if (vt() != NULL) {
-      result->set_jobject((jobject)vt());
-    }
+      if (vt() != NULL) {
+        result->set_jobject((jobject)vt());
+      }
+      // NOTE: if we move the computation of the result_val_address inside
+      // the call to call_stub, the optimizer produces wrong code.
+      intptr_t* result_val_address = (intptr_t*)(result->get_value_addr());
+      intptr_t* parameter_address = args->parameters();
 
-    StubRoutines::call_stub()(
+      StubRoutines::call_stub()(
         (address)&link,
         // (intptr_t*)&(result->_value), // see NOTE above (compiler problem)
         result_val_address,          // see NOTE above (compiler problem)
         result_type,
         method(),
         entry_point,
-        args->parameters(),
+        parameter_address,
         args->size_of_parameters(),
         CHECK
       );

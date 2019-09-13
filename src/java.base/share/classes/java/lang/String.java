@@ -172,6 +172,7 @@ public final class String
     private boolean hashIsZero; // Default to false;
 
     /** use serialVersionUID from JDK 1.0.2 for interoperability */
+    @java.io.Serial
     private static final long serialVersionUID = -6849794470754667710L;
 
     /**
@@ -224,6 +225,7 @@ public final class String
      * <a href="{@docRoot}/../specs/serialization/protocol.html#stream-elements">
      * Object Serialization Specification, Section 6.2, "Stream Elements"</a>
      */
+    @java.io.Serial
     private static final ObjectStreamField[] serialPersistentFields =
         new ObjectStreamField[0];
 
@@ -1235,6 +1237,7 @@ public final class String
     private static class CaseInsensitiveComparator
             implements Comparator<String>, java.io.Serializable {
         // use serialVersionUID from JDK 1.2.2 for interoperability
+        @java.io.Serial
         private static final long serialVersionUID = 8575799808933029326L;
 
         public int compare(String s1, String s2) {
@@ -1250,6 +1253,7 @@ public final class String
         }
 
         /** Replaces the de-serialized object. */
+        @java.io.Serial
         private Object readResolve() { return CASE_INSENSITIVE_ORDER; }
     }
 
@@ -1868,18 +1872,7 @@ public final class String
      *             length of this {@code String} object.
      */
     public String substring(int beginIndex) {
-        if (beginIndex < 0) {
-            throw new StringIndexOutOfBoundsException(beginIndex);
-        }
-        int subLen = length() - beginIndex;
-        if (subLen < 0) {
-            throw new StringIndexOutOfBoundsException(subLen);
-        }
-        if (beginIndex == 0) {
-            return this;
-        }
-        return isLatin1() ? StringLatin1.newString(value, beginIndex, subLen)
-                          : StringUTF16.newString(value, beginIndex, subLen);
+        return substring(beginIndex, length());
     }
 
     /**
@@ -3677,7 +3670,7 @@ public final class String
     static void checkIndex(int index, int length) {
         if (index < 0 || index >= length) {
             throw new StringIndexOutOfBoundsException("index " + index +
-                                                      ",length " + length);
+                                                      ", length " + length);
         }
     }
 
@@ -3688,7 +3681,7 @@ public final class String
     static void checkOffset(int offset, int length) {
         if (offset < 0 || offset > length) {
             throw new StringIndexOutOfBoundsException("offset " + offset +
-                                                      ",length " + length);
+                                                      ", length " + length);
         }
     }
 

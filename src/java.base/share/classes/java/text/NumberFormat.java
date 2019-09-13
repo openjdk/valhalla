@@ -575,6 +575,15 @@ public abstract class NumberFormat extends Format  {
     /**
      * Returns a currency format for the specified locale.
      *
+     * <p>If the specified locale contains the "{@code cf}" (
+     * <a href="https://www.unicode.org/reports/tr35/tr35.html#UnicodeCurrencyFormatIdentifier">
+     * currency format style</a>)
+     * <a href="../util/Locale.html#def_locale_extension">Unicode extension</a>,
+     * the returned currency format uses the style if it is available.
+     * Otherwise, the style uses the default "{@code standard}" currency format.
+     * For example, if the style designates "{@code account}", negative
+     * currency amounts use a pair of parentheses in some locales.
+     *
      * @param inLocale the desired locale
      * @return the {@code NumberFormat} instance for currency formatting
      */
@@ -1004,6 +1013,7 @@ public abstract class NumberFormat extends Format  {
      *
      * @since 1.2
      */
+    @java.io.Serial
     private void readObject(ObjectInputStream stream)
          throws IOException, ClassNotFoundException
     {
@@ -1032,6 +1042,7 @@ public abstract class NumberFormat extends Format  {
      *
      * @since 1.2
      */
+    @java.io.Serial
     private void writeObject(ObjectOutputStream stream)
          throws IOException
     {
@@ -1216,6 +1227,7 @@ public abstract class NumberFormat extends Format  {
 
     // Removed "implements Cloneable" clause.  Needs to update serialization
     // ID for backward compatibility.
+    @java.io.Serial
     static final long serialVersionUID = -2308460125733713944L;
 
 
@@ -1233,6 +1245,7 @@ public abstract class NumberFormat extends Format  {
     public static class Field extends Format.Field {
 
         // Proclaim serial compatibility with 1.4 FCS
+        @java.io.Serial
         private static final long serialVersionUID = 7494728892700160890L;
 
         // table of all instances in this class, used by readResolve
@@ -1258,6 +1271,7 @@ public abstract class NumberFormat extends Format  {
          * @return resolved NumberFormat.Field constant
          */
         @Override
+        @java.io.Serial
         protected Object readResolve() throws InvalidObjectException {
             if (this.getClass() != NumberFormat.Field.class) {
                 throw new InvalidObjectException("subclass didn't correctly implement readResolve");

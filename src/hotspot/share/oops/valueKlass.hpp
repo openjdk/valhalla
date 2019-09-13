@@ -51,7 +51,7 @@ class ValueKlass: public InstanceKlass {
     assert(pack_handler() == NULL, "pack handler not null");
     *((int*)adr_default_value_offset()) = 0;
     *((Klass**)adr_value_array_klass()) = NULL;
-    set_prototype_header(markOopDesc::always_locked_prototype());
+    set_prototype_header(markWord::always_locked_prototype());
   }
 
   ValueKlassFixedBlock* valueklass_static_block() const {

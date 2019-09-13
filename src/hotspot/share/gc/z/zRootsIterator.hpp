@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -84,6 +84,9 @@ public:
 
 class ZRootsIterator {
 private:
+  bool _visit_invisible;
+  bool _visit_jvmti_weak_export;
+
   void do_universe(ZRootsIteratorClosure* cl);
   void do_object_synchronizer(ZRootsIteratorClosure* cl);
   void do_management(ZRootsIteratorClosure* cl);
@@ -103,29 +106,55 @@ private:
   ZParallelOopsDo<ZRootsIterator, &ZRootsIterator::do_code_cache>        _code_cache;
 
 public:
-  ZRootsIterator();
+  ZRootsIterator(bool visit_invisible = true, bool visit_jvmti_weak_export = false);
   ~ZRootsIterator();
 
-  void oops_do(ZRootsIteratorClosure* cl, bool visit_jvmti_weak_export = false);
+  void oops_do(ZRootsIteratorClosure* cl);
+};
+
+class ZRootsIteratorNoInvisible : public ZRootsIterator {
+public:
+  ZRootsIteratorNoInvisible() :
+      ZRootsIterator(false /* visit_invisible */, false /* visit_jvmti_weak_export */) {}
 };
 
 class ZConcurrentRootsIterator {
 private:
-  const bool                 _marking;
-  SuspendibleThreadSetJoiner _sts_joiner;
-  ZOopStorageIterator        _jni_handles_iter;
+  ZOopStorageIterator _jni_handles_iter;
+  ZOopStorageIterator _vm_handles_iter;
+  const int           _cld_claim;
 
   void do_jni_handles(ZRootsIteratorClosure* cl);
+  void do_vm_handles(ZRootsIteratorClosure* cl);
   void do_class_loader_data_graph(ZRootsIteratorClosure* cl);
 
   ZParallelOopsDo<ZConcurrentRootsIterator, &ZConcurrentRootsIterator::do_jni_handles>             _jni_handles;
+  ZParallelOopsDo<ZConcurrentRootsIterator, &ZConcurrentRootsIterator::do_vm_handles>              _vm_handles;
   ZParallelOopsDo<ZConcurrentRootsIterator, &ZConcurrentRootsIterator::do_class_loader_data_graph> _class_loader_data_graph;
 
 public:
-  ZConcurrentRootsIterator(bool marking = false);
+  ZConcurrentRootsIterator(int cld_claim);
   ~ZConcurrentRootsIterator();
 
   void oops_do(ZRootsIteratorClosure* cl);
+};
+
+class ZConcurrentRootsIteratorClaimStrong : public ZConcurrentRootsIterator {
+public:
+  ZConcurrentRootsIteratorClaimStrong() :
+      ZConcurrentRootsIterator(ClassLoaderData::_claim_strong) {}
+};
+
+class ZConcurrentRootsIteratorClaimOther : public ZConcurrentRootsIterator {
+public:
+  ZConcurrentRootsIteratorClaimOther() :
+      ZConcurrentRootsIterator(ClassLoaderData::_claim_other) {}
+};
+
+class ZConcurrentRootsIteratorClaimNone : public ZConcurrentRootsIterator {
+public:
+  ZConcurrentRootsIteratorClaimNone() :
+      ZConcurrentRootsIterator(ClassLoaderData::_claim_none) {}
 };
 
 class ZWeakRootsIterator {
@@ -133,8 +162,8 @@ private:
   void do_jvmti_weak_export(BoolObjectClosure* is_alive, ZRootsIteratorClosure* cl);
   void do_jfr_weak(BoolObjectClosure* is_alive, ZRootsIteratorClosure* cl);
 
-  ZSerialWeakOopsDo<ZWeakRootsIterator, &ZWeakRootsIterator::do_jvmti_weak_export>  _jvmti_weak_export;
-  ZSerialWeakOopsDo<ZWeakRootsIterator, &ZWeakRootsIterator::do_jfr_weak>           _jfr_weak;
+  ZSerialWeakOopsDo<ZWeakRootsIterator, &ZWeakRootsIterator::do_jvmti_weak_export> _jvmti_weak_export;
+  ZSerialWeakOopsDo<ZWeakRootsIterator, &ZWeakRootsIterator::do_jfr_weak>          _jfr_weak;
 
 public:
   ZWeakRootsIterator();
@@ -164,19 +193,6 @@ private:
 public:
   ZConcurrentWeakRootsIterator();
   ~ZConcurrentWeakRootsIterator();
-
-  void oops_do(ZRootsIteratorClosure* cl);
-};
-
-class ZThreadRootsIterator {
-private:
-  void do_threads(ZRootsIteratorClosure* cl);
-
-  ZParallelOopsDo<ZThreadRootsIterator, &ZThreadRootsIterator::do_threads> _threads;
-
-public:
-  ZThreadRootsIterator();
-  ~ZThreadRootsIterator();
 
   void oops_do(ZRootsIteratorClosure* cl);
 };

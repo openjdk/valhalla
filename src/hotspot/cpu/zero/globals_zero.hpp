@@ -32,8 +32,6 @@
 // Set the default values for platform dependent flags used by the
 // runtime system.  See globals.hpp for details of what they do.
 
-define_pd_global(bool,  ShareVtableStubs,     true);
-
 define_pd_global(bool,  ImplicitNullChecks,   true);
 define_pd_global(bool,  TrapBasedNullChecks,  false);
 define_pd_global(bool,  UncommonNullCast,     true);
@@ -81,7 +79,7 @@ define_pd_global(bool, ValueTypeReturnedAsFields, false);
 // No performance work done here yet.
 define_pd_global(bool, CompactStrings, false);
 
-define_pd_global(bool, ThreadLocalHandshakes, false);
+define_pd_global(bool, ThreadLocalHandshakes, true);
 
 #define ARCH_FLAGS(develop, \
                    product, \

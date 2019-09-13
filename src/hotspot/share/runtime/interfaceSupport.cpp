@@ -73,6 +73,14 @@ VMEntryWrapper::~VMEntryWrapper() {
   }
 }
 
+VMNativeEntryWrapper::VMNativeEntryWrapper() {
+  if (GCALotAtAllSafepoints) InterfaceSupport::check_gc_alot();
+}
+
+VMNativeEntryWrapper::~VMNativeEntryWrapper() {
+  if (GCALotAtAllSafepoints) InterfaceSupport::check_gc_alot();
+}
+
 long InterfaceSupport::_number_of_calls       = 0;
 long InterfaceSupport::_scavenge_alot_counter = 1;
 long InterfaceSupport::_fullgc_alot_counter   = 1;
@@ -292,40 +300,3 @@ void InterfaceSupport_init() {
   }
 #endif
 }
-
-#ifdef ASSERT
-// JRT_LEAF rules:
-// A JRT_LEAF method may not interfere with safepointing by
-//   1) acquiring or blocking on a Mutex or JavaLock - checked
-//   2) allocating heap memory - checked
-//   3) executing a VM operation - checked
-//   4) executing a system call (including malloc) that could block or grab a lock
-//   5) invoking GC
-//   6) reaching a safepoint
-//   7) running too long
-// Nor may any method it calls.
-JRTLeafVerifier::JRTLeafVerifier()
-  : NoSafepointVerifier(true, JRTLeafVerifier::should_verify_GC())
-{
-}
-
-JRTLeafVerifier::~JRTLeafVerifier()
-{
-}
-
-bool JRTLeafVerifier::should_verify_GC() {
-  switch (JavaThread::current()->thread_state()) {
-  case _thread_in_Java:
-    // is in a leaf routine, there must be no safepoint.
-    return true;
-  case _thread_in_native:
-    // A native thread is not subject to safepoints.
-    // Even while it is in a leaf routine, GC is ok
-    return false;
-  default:
-    // Leaf routines cannot be called from other contexts.
-    ShouldNotReachHere();
-    return false;
-  }
-}
-#endif // ASSERT

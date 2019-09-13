@@ -103,7 +103,7 @@
   nonstatic_field(Array<Klass*>,               _length,                                int)                                          \
   nonstatic_field(Array<Klass*>,               _data[0],                               Klass*)                                       \
                                                                                                                                      \
-  volatile_nonstatic_field(BasicLock,          _displaced_header,                      markOop)                                      \
+  volatile_nonstatic_field(BasicLock,          _displaced_header,                      markWord)                                     \
                                                                                                                                      \
   static_field(CodeCache,                      _low_bound,                             address)                                      \
   static_field(CodeCache,                      _high_bound,                            address)                                      \
@@ -173,6 +173,7 @@
   volatile_nonstatic_field(JavaThread,         _exception_oop,                                oop)                                   \
   volatile_nonstatic_field(JavaThread,         _exception_pc,                                 address)                               \
   volatile_nonstatic_field(JavaThread,         _is_method_handle_return,                      int)                                   \
+  volatile_nonstatic_field(JavaThread,         _doing_unsafe_access,                          bool)                                  \
   nonstatic_field(JavaThread,                  _osthread,                                     OSThread*)                             \
   nonstatic_field(JavaThread,                  _pending_deoptimization,                       int)                                   \
   nonstatic_field(JavaThread,                  _pending_failed_speculation,                   jlong)                                 \
@@ -193,7 +194,7 @@
   nonstatic_field(Klass,                       _subklass,                                     Klass*)                                \
   nonstatic_field(Klass,                       _layout_helper,                                jint)                                  \
   nonstatic_field(Klass,                       _name,                                         Symbol*)                               \
-  nonstatic_field(Klass,                       _prototype_header,                             markOop)                               \
+  nonstatic_field(Klass,                       _prototype_header,                             markWord)                              \
   nonstatic_field(Klass,                       _next_sibling,                                 Klass*)                                \
   nonstatic_field(Klass,                       _java_mirror,                                  OopHandle)                             \
   nonstatic_field(Klass,                       _modifier_flags,                               jint)                                  \
@@ -256,7 +257,7 @@
   volatile_nonstatic_field(ObjectMonitor,      _EntryList,                             ObjectWaiter*)                                \
   volatile_nonstatic_field(ObjectMonitor,      _succ,                                  Thread*)                                      \
                                                                                                                                      \
-  volatile_nonstatic_field(oopDesc,            _mark,                                         markOop)                               \
+  volatile_nonstatic_field(oopDesc,            _mark,                                         markWord)                              \
   volatile_nonstatic_field(oopDesc,            _metadata._klass,                              Klass*)                                \
                                                                                                                                      \
   static_field(os,                             _polling_page,                                 address)                               \
@@ -300,6 +301,8 @@
   static_field(StubRoutines,                _aescrypt_decryptBlock,                           address)                               \
   static_field(StubRoutines,                _cipherBlockChaining_encryptAESCrypt,             address)                               \
   static_field(StubRoutines,                _cipherBlockChaining_decryptAESCrypt,             address)                               \
+  static_field(StubRoutines,                _electronicCodeBook_encryptAESCrypt,              address)                               \
+  static_field(StubRoutines,                _electronicCodeBook_decryptAESCrypt,              address)                               \
   static_field(StubRoutines,                _counterMode_AESCrypt,                            address)                               \
   static_field(StubRoutines,                _base64_encodeBlock,                              address)                               \
   static_field(StubRoutines,                _ghash_processBlocks,                             address)                               \
@@ -541,11 +544,10 @@
   declare_constant(JumpData::taken_off_set)                               \
   declare_constant(JumpData::displacement_off_set)                        \
                                                                           \
-  declare_preprocessor_constant("JVMCIEnv::ok",                   JVMCI::ok)                      \
-  declare_preprocessor_constant("JVMCIEnv::dependencies_failed",  JVMCI::dependencies_failed)     \
-  declare_preprocessor_constant("JVMCIEnv::dependencies_invalid", JVMCI::dependencies_invalid)    \
-  declare_preprocessor_constant("JVMCIEnv::cache_full",           JVMCI::cache_full)              \
-  declare_preprocessor_constant("JVMCIEnv::code_too_large",       JVMCI::code_too_large)          \
+  declare_preprocessor_constant("JVMCI::ok",                   JVMCI::ok)                      \
+  declare_preprocessor_constant("JVMCI::dependencies_failed",  JVMCI::dependencies_failed)     \
+  declare_preprocessor_constant("JVMCI::cache_full",           JVMCI::cache_full)              \
+  declare_preprocessor_constant("JVMCI::code_too_large",       JVMCI::code_too_large)          \
   declare_constant(JVMCIRuntime::none)                                    \
   declare_constant(JVMCIRuntime::by_holder)                               \
   declare_constant(JVMCIRuntime::by_full_signature)                       \
@@ -562,7 +564,7 @@
   declare_constant(Klass::_lh_array_tag_type_value)                       \
   declare_constant(Klass::_lh_array_tag_obj_value)                        \
                                                                           \
-  declare_constant(markOopDesc::no_hash)                                  \
+  declare_constant(markWord::no_hash)                                     \
                                                                           \
   declare_constant(Method::_caller_sensitive)                             \
   declare_constant(Method::_force_inline)                                 \
@@ -594,19 +596,19 @@
   declare_constant(InvocationCounter::count_increment)                    \
   declare_constant(InvocationCounter::count_shift)                        \
                                                                           \
-  declare_constant(markOopDesc::hash_shift)                               \
+  declare_constant(markWord::hash_shift)                                  \
                                                                           \
-  declare_constant(markOopDesc::biased_lock_mask_in_place)                \
-  declare_constant(markOopDesc::age_mask_in_place)                        \
-  declare_constant(markOopDesc::epoch_mask_in_place)                      \
-  declare_constant(markOopDesc::hash_mask)                                \
-  declare_constant(markOopDesc::hash_mask_in_place)                       \
+  declare_constant(markWord::biased_lock_mask_in_place)                   \
+  declare_constant(markWord::age_mask_in_place)                           \
+  declare_constant(markWord::epoch_mask_in_place)                         \
+  declare_constant(markWord::hash_mask)                                   \
+  declare_constant(markWord::hash_mask_in_place)                          \
                                                                           \
-  declare_constant(markOopDesc::unlocked_value)                           \
-  declare_constant(markOopDesc::biased_lock_pattern)                      \
+  declare_constant(markWord::unlocked_value)                              \
+  declare_constant(markWord::biased_lock_pattern)                         \
                                                                           \
-  declare_constant(markOopDesc::no_hash_in_place)                         \
-  declare_constant(markOopDesc::no_lock_in_place)                         \
+  declare_constant(markWord::no_hash_in_place)                            \
+  declare_constant(markWord::no_lock_in_place)                            \
 
 #define VM_ADDRESSES(declare_address, declare_preprocessor_address, declare_function) \
   declare_function(SharedRuntime::register_finalizer)                     \

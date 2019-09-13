@@ -27,7 +27,7 @@
 
 #include "gc/g1/g1CardTable.hpp"
 #include "gc/g1/g1CollectedHeap.hpp"
-#include "gc/g1/g1DirtyCardQueue.hpp"
+#include "gc/g1/g1RedirtyCardsQueue.hpp"
 #include "gc/g1/g1OopClosures.hpp"
 #include "gc/g1/g1Policy.hpp"
 #include "gc/g1/g1RemSet.hpp"
@@ -46,7 +46,7 @@ class outputStream;
 class G1ParScanThreadState : public CHeapObj<mtGC> {
   G1CollectedHeap* _g1h;
   RefToScanQueue* _refs;
-  G1DirtyCardQueue _dcq;
+  G1RedirtyCardsQueue _rdcq;
   G1CardTable* _ct;
   G1EvacuationRootClosures* _closures;
 
@@ -59,6 +59,10 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
   G1ScanEvacuatedObjClosure  _scanner;
 
   uint _worker_id;
+
+  // Remember the last enqueued card to avoid enqueuing the same card over and over;
+  // since we only ever scan a card once, this is sufficient.
+  size_t _last_enqueued_card;
 
   // Upper and lower threshold to start and end work queue draining.
   uint const _stack_trim_upper_threshold;
@@ -77,7 +81,7 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
 
 #define PADDING_ELEM_NUM (DEFAULT_CACHE_LINE_SIZE / sizeof(size_t))
 
-  G1DirtyCardQueue& dirty_card_queue()           { return _dcq; }
+  G1RedirtyCardsQueue& redirty_cards_queue()     { return _rdcq; }
   G1CardTable* ct()                              { return _ct; }
 
   G1HeapRegionAttr dest(G1HeapRegionAttr original) const {
@@ -93,6 +97,7 @@ class G1ParScanThreadState : public CHeapObj<mtGC> {
 
 public:
   G1ParScanThreadState(G1CollectedHeap* g1h,
+                       G1RedirtyCardsQueueSet* rdcqs,
                        uint worker_id,
                        size_t young_cset_length,
                        size_t optional_cset_length);
@@ -128,8 +133,9 @@ public:
     }
     size_t card_index = ct()->index_for(p);
     // If the card hasn't been added to the buffer, do it.
-    if (ct()->mark_card_deferred(card_index)) {
-      dirty_card_queue().enqueue(ct()->byte_for_index(card_index));
+    if (_last_enqueued_card != card_index) {
+      redirty_cards_queue().enqueue(ct()->byte_for_index(card_index));
+      _last_enqueued_card = card_index;
     }
   }
 
@@ -138,12 +144,6 @@ public:
 
   size_t lab_waste_words() const;
   size_t lab_undo_waste_words() const;
-
-  size_t* surviving_young_words() {
-    // We add one to hide entry 0 which accumulates surviving words for
-    // age -1 regions (i.e. non-young ones)
-    return _surviving_young_words + 1;
-  }
 
   void flush(size_t* surviving_young_words);
 
@@ -198,7 +198,7 @@ private:
                                   size_t word_sz,
                                   bool previous_plab_refill_failed);
 
-  inline G1HeapRegionAttr next_region_attr(G1HeapRegionAttr const region_attr, markOop const m, uint& age);
+  inline G1HeapRegionAttr next_region_attr(G1HeapRegionAttr const region_attr, markWord const m, uint& age);
 
   void report_promotion_event(G1HeapRegionAttr const dest_attr,
                               oop const old, size_t word_sz, uint age,
@@ -209,7 +209,7 @@ private:
 
   inline void trim_queue_to_threshold(uint threshold);
 public:
-  oop copy_to_survivor_space(G1HeapRegionAttr const region_attr, oop const obj, markOop const old_mark);
+  oop copy_to_survivor_space(G1HeapRegionAttr const region_attr, oop const obj, markWord const old_mark);
 
   void trim_queue();
   void trim_queue_partially();
@@ -220,7 +220,7 @@ public:
   inline void steal_and_trim_queue(RefToScanQueueSet *task_queues);
 
   // An attempt to evacuate "obj" has failed; take necessary steps.
-  oop handle_evacuation_failure_par(oop obj, markOop m);
+  oop handle_evacuation_failure_par(oop obj, markWord m);
 
   template <typename T>
   inline void remember_root_into_optional_region(T* p);
@@ -232,6 +232,7 @@ public:
 
 class G1ParScanThreadStateSet : public StackObj {
   G1CollectedHeap* _g1h;
+  G1RedirtyCardsQueueSet* _rdcqs;
   G1ParScanThreadState** _states;
   size_t* _surviving_young_words_total;
   size_t _young_cset_length;
@@ -241,6 +242,7 @@ class G1ParScanThreadStateSet : public StackObj {
 
  public:
   G1ParScanThreadStateSet(G1CollectedHeap* g1h,
+                          G1RedirtyCardsQueueSet* rdcqs,
                           uint n_workers,
                           size_t young_cset_length,
                           size_t optional_cset_length);

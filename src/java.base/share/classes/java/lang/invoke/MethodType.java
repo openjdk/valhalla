@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -104,6 +104,7 @@ class MethodType
         implements Constable,
                    TypeDescriptor.OfMethod<Class<?>, MethodType>,
                    java.io.Serializable {
+    @java.io.Serial
     private static final long serialVersionUID = 292L;  // {rtype, {ptype...}}
 
     // The rtype and ptypes fields define the structural identity of the method type:
@@ -925,8 +926,8 @@ class MethodType
                 return false;
             return true;
         }
-        if ((oldForm.primitiveParameterCount() == 0 && oldForm.erasedType == this) ||
-            (newForm.primitiveParameterCount() == 0 && newForm.erasedType == newType)) {
+        if ((!oldForm.hasPrimitives() && oldForm.erasedType == this) ||
+            (!newForm.hasPrimitives() && newForm.erasedType == newType)) {
             // Somewhat complicated test to avoid a loop of 2 or more trips.
             // If either type has only Object parameters, we know we can convert.
             assert(canConvertParameters(srcTypes, dstTypes));
@@ -1072,49 +1073,6 @@ class MethodType
         return inv;
     }
 
-    /** Reports the number of JVM stack slots which carry all parameters including and after
-     * the given position, which must be in the range of 0 to
-     * {@code parameterCount} inclusive.  Successive parameters are
-     * more shallowly stacked, and parameters are indexed in the bytecodes
-     * according to their trailing edge.  Thus, to obtain the depth
-     * in the outgoing call stack of parameter {@code N}, obtain
-     * the {@code parameterSlotDepth} of its trailing edge
-     * at position {@code N+1}.
-     * <p>
-     * Parameters of type {@code long} and {@code double} occupy
-     * two stack slots (for historical reasons) and all others occupy one.
-     * Therefore, the number returned is the number of arguments
-     * <em>including</em> and <em>after</em> the given parameter,
-     * <em>plus</em> the number of long or double arguments
-     * at or after the argument for the given parameter.
-     * <p>
-     * This method is included for the benefit of applications that must
-     * generate bytecodes that process method handles and invokedynamic.
-     * @param num an index (zero-based, inclusive) within the parameter types
-     * @return the index of the (shallowest) JVM stack slot transmitting the
-     *         given parameter
-     * @throws IllegalArgumentException if {@code num} is negative or greater than {@code parameterCount()}
-     */
-    /*non-public*/ int parameterSlotDepth(int num) {
-        if (num < 0 || num > ptypes.length)
-            parameterType(num);  // force a range check
-        return form.parameterToArgSlot(num-1);
-    }
-
-    /** Reports the number of JVM stack slots required to receive a return value
-     * from a method of this type.
-     * If the {@link #returnType() return type} is void, it will be zero,
-     * else if the return type is long or double, it will be two, else one.
-     * <p>
-     * This method is included for the benefit of applications that must
-     * generate bytecodes that process method handles and invokedynamic.
-     * @return the number of JVM stack slots (0, 1, or 2) for this type's return value
-     * Will be removed for PFD.
-     */
-    /*non-public*/ int returnSlotCount() {
-        return form.returnSlotCount();
-    }
-
     /**
      * Finds or creates an instance of a method type, given the spelling of its bytecode descriptor.
      * Convenience method for {@link #methodType(java.lang.Class, java.lang.Class[]) methodType}.
@@ -1229,6 +1187,7 @@ class MethodType
     /**
      * There are no serializable fields for {@code MethodType}.
      */
+    @java.io.Serial
     private static final java.io.ObjectStreamField[] serialPersistentFields = { };
 
     /**
@@ -1251,6 +1210,7 @@ s.writeObject(this.parameterArray());
      * @param s the stream to write the object to
      * @throws java.io.IOException if there is a problem writing the object
      */
+    @java.io.Serial
     private void writeObject(java.io.ObjectOutputStream s) throws java.io.IOException {
         s.defaultWriteObject();  // requires serialPersistentFields to be an empty array
         s.writeObject(returnType());
@@ -1270,6 +1230,7 @@ s.writeObject(this.parameterArray());
      * @see #readResolve
      * @see #writeObject
      */
+    @java.io.Serial
     private void readObject(java.io.ObjectInputStream s) throws java.io.IOException, ClassNotFoundException {
         // Assign temporary defaults in case this object escapes
         MethodType_init(void.class, NO_PTYPES);
@@ -1309,6 +1270,7 @@ s.writeObject(this.parameterArray());
      * after serialization.
      * @return the fully initialized {@code MethodType} object
      */
+    @java.io.Serial
     private Object readResolve() {
         // Do not use a trusted path for deserialization:
         //    return makeImpl(rtype, ptypes, true);

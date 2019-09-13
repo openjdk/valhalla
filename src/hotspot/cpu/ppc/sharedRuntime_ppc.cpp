@@ -1277,6 +1277,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   c2i_entry = __ pc();
 
   // Class initialization barrier for static methods
+  address c2i_no_clinit_check_entry = NULL;
   if (VM_Version::supports_fast_class_init_checks()) {
     Label L_skip_barrier;
 
@@ -1295,11 +1296,12 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     __ bctr();
 
     __ bind(L_skip_barrier);
+    c2i_no_clinit_check_entry = __ pc();
   }
 
   gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, call_interpreter, ientry);
 
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry);
+  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_unverified_entry, c2i_no_clinit_check_entry);
 }
 
 #ifdef COMPILER2
@@ -1847,7 +1849,8 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
                                                 int compile_id,
                                                 BasicType *in_sig_bt,
                                                 VMRegPair *in_regs,
-                                                BasicType ret_type) {
+                                                BasicType ret_type,
+                                                address critical_entry) {
 #ifdef COMPILER2
   if (method->is_method_handle_intrinsic()) {
     vmIntrinsics::ID iid = method->intrinsic_id();
@@ -1872,7 +1875,7 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
   }
 
   bool is_critical_native = true;
-  address native_func = method->critical_native_function();
+  address native_func = critical_entry;
   if (native_func == NULL) {
     native_func = method->native_function();
     is_critical_native = false;
@@ -2717,10 +2720,6 @@ static void push_skeleton_frame(MacroAssembler* masm, bool deopt,
   __ ld(frame_size_reg, 0, frame_sizes_reg);
   __ std(pc_reg, _abi(lr), R1_SP);
   __ push_frame(frame_size_reg, R0/*tmp*/);
-#ifdef ASSERT
-  __ load_const_optimized(pc_reg, 0x5afe);
-  __ std(pc_reg, _ijava_state_neg(ijava_reserved), R1_SP);
-#endif
   __ std(R1_SP, _ijava_state_neg(sender_sp), R1_SP);
   __ addi(number_of_frames_reg, number_of_frames_reg, -1);
   __ addi(frame_sizes_reg, frame_sizes_reg, wordSize);
@@ -2793,10 +2792,6 @@ static void push_skeleton_frames(MacroAssembler* masm, bool deopt,
   __ std(R12_scratch2, _abi(lr), R1_SP);
 
   // Initialize initial_caller_sp.
-#ifdef ASSERT
- __ load_const_optimized(pc_reg, 0x5afe);
- __ std(pc_reg, _ijava_state_neg(ijava_reserved), R1_SP);
-#endif
  __ std(frame_size_reg, _ijava_state_neg(sender_sp), R1_SP);
 
 #ifdef ASSERT

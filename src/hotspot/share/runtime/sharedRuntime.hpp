@@ -508,7 +508,8 @@ class SharedRuntime: AllStatic {
                                           int compile_id,
                                           BasicType* sig_bt,
                                           VMRegPair* regs,
-                                          BasicType ret_type);
+                                          BasicType ret_type,
+                                          address critical_entry);
 
   // Block before entering a JNI critical method
   static void block_for_jni_critical(JavaThread* thread);
@@ -669,6 +670,7 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   address _c2i_value_ro_entry;
   address _c2i_unverified_entry;
   address _c2i_unverified_value_entry;
+  address _c2i_no_clinit_check_entry;
 
   // Support for scalarized value type calling convention
   const GrowableArray<SigEntry>* _sig_cc;
@@ -681,7 +683,7 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
 #endif
 
   void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_value_entry,
-            address c2i_value_ro_entry, address c2i_unverified_entry, address c2i_unverified_value_entry) {
+            address c2i_value_ro_entry, address c2i_unverified_entry, address c2i_unverified_value_entry, address c2i_no_clinit_check_entry) {
     _fingerprint = fingerprint;
     _i2c_entry = i2c_entry;
     _c2i_entry = c2i_entry;
@@ -689,6 +691,7 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
     _c2i_value_ro_entry = c2i_value_ro_entry;
     _c2i_unverified_entry = c2i_unverified_entry;
     _c2i_unverified_value_entry = c2i_unverified_value_entry;
+    _c2i_no_clinit_check_entry = c2i_no_clinit_check_entry;
     _sig_cc = NULL;
 #ifdef ASSERT
     _saved_code = NULL;
@@ -702,12 +705,14 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   AdapterHandlerEntry();
 
  public:
-  address get_i2c_entry()            const { return _i2c_entry; }
-  address get_c2i_entry()            const { return _c2i_entry; }
-  address get_c2i_value_entry()      const { return _c2i_value_entry; }
-  address get_c2i_value_ro_entry()   const { return _c2i_value_ro_entry; }
-  address get_c2i_unverified_entry() const { return _c2i_unverified_entry; }
+  address get_i2c_entry()                  const { return _i2c_entry; }
+  address get_c2i_entry()                  const { return _c2i_entry; }
+  address get_c2i_value_entry()            const { return _c2i_value_entry; }
+  address get_c2i_value_ro_entry()         const { return _c2i_value_ro_entry; }
+  address get_c2i_unverified_entry()       const { return _c2i_unverified_entry; }
   address get_c2i_unverified_value_entry() const { return _c2i_unverified_value_entry; }
+  address get_c2i_no_clinit_check_entry()  const { return _c2i_no_clinit_check_entry; }
+
   address base_address();
   void relocate(address new_base);
 
@@ -758,7 +763,7 @@ class AdapterHandlerLibrary: public AllStatic {
 
   static AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint,
                                         address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_value_ro_entry,
-                                        address c2i_unverified_entry, address c2i_unverified_value_entry);
+                                        address c2i_unverified_entry, address c2i_unverified_value_entry, address c2i_no_clinit_check_entry = NULL);
   static void create_native_wrapper(const methodHandle& method);
   static AdapterHandlerEntry* get_adapter(const methodHandle& method);
 
