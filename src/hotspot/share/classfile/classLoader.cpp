@@ -1324,7 +1324,7 @@ InstanceKlass* ClassLoader::load_class(Symbol* name, bool search_append_only, TR
                                                            protection_domain,
                                                            NULL,  // unsafe_anonymous_host
                                                            NULL,  // cp_patches
-                                                           false, // is_nonfindable
+                                                           false, // is_hidden
                                                            false, // can_access_vm_annotations
                                                            NULL,  // dynamic_nest_host
                                                            Handle(), // classData
@@ -1369,8 +1369,8 @@ void ClassLoader::record_result(InstanceKlass* ik, const ClassFileStream* stream
   assert(DumpSharedSpaces || DynamicDumpSharedSpaces, "sanity");
   assert(stream != NULL, "sanity");
 
-  if (ik->is_nonfindable() || ik->is_unsafe_anonymous()) {
-    // We do not archive nonfindable or unsafe anonymous classes.
+  if (ik->is_hidden() || ik->is_unsafe_anonymous()) {
+    // We do not archive hidden or unsafe anonymous classes.
     return;
   }
 

@@ -1467,7 +1467,7 @@ static InstanceKlass* create_new_instance_klass(InstanceKlass* ik, ClassFileStre
                              pd,
                              NULL,  // host klass
                              NULL,  // cp_patches
-                             false, // is_nonfindable
+                             false, // is_hidden
                              false, // can_access_vm_annotations
                              ClassFileParser::INTERNAL, // internal visibility
                              THREAD);

@@ -239,8 +239,7 @@ class InstanceKlass: public Klass {
     _misc_is_shared_boot_class                = 1 << 12, // defining class loader is boot class loader
     _misc_is_shared_platform_class            = 1 << 13, // defining class loader is platform class loader
     _misc_is_shared_app_class                 = 1 << 14, // defining class loader is app class loader
-    _misc_has_resolved_methods                = 1 << 15, // resolved methods table entries added for this class
-    _misc_is_nonfindable                      = 1 << 16  // is a non findable class, not stored in the SystemDictionary.
+    _misc_has_resolved_methods                = 1 << 15  // resolved methods table entries added for this class
   };
   u2 loader_type_bits() {
     return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
@@ -667,17 +666,6 @@ public:
     }
   }
 
-  bool is_nonfindable() const                {
-    return (_misc_flags & _misc_is_nonfindable) != 0;
-  }
-  void set_is_nonfindable(bool value)        {
-    if (value) {
-      _misc_flags |= _misc_is_nonfindable;
-    } else {
-      _misc_flags &= ~_misc_is_nonfindable;
-    }
-  }
-
   bool is_contended() const                {
     return (_misc_flags & _misc_is_contended) != 0;
   }
@@ -770,7 +758,7 @@ public:
   bool supers_have_passed_fingerprint_checks();
 
   static bool should_store_fingerprint(bool is_nonfindable);
-  bool should_store_fingerprint() const { return should_store_fingerprint(is_nonfindable() || is_unsafe_anonymous()); }
+  bool should_store_fingerprint() const { return should_store_fingerprint(is_hidden() || is_unsafe_anonymous()); }
   bool has_stored_fingerprint() const;
   uint64_t get_stored_fingerprint() const;
   void store_fingerprint(uint64_t fingerprint);
@@ -1043,20 +1031,20 @@ public:
 
   static int size(int vtable_length, int itable_length,
                   int nonstatic_oop_map_size,
-                  bool is_interface, bool is_nonfindable, bool has_stored_fingerprint) {
+                  bool is_interface, bool is_hidden, bool has_stored_fingerprint) {
     return align_metadata_size(header_size() +
            vtable_length +
            itable_length +
            nonstatic_oop_map_size +
            (is_interface ? (int)sizeof(Klass*)/wordSize : 0) +
-           (is_nonfindable ? (int)sizeof(Klass*)/wordSize : 0) +
+           (is_hidden ? (int)sizeof(Klass*)/wordSize : 0) +
            (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0));
   }
   int size() const                    { return size(vtable_length(),
                                                itable_length(),
                                                nonstatic_oop_map_size(),
                                                is_interface(),
-                                               (is_nonfindable() || is_unsafe_anonymous()),
+                                               (is_hidden() || is_unsafe_anonymous()),
                                                has_stored_fingerprint());
   }
 #if INCLUDE_SERVICES

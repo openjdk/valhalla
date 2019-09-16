@@ -855,10 +855,10 @@ Unsafe_DefineAnonymousClass_impl(JNIEnv *env,
                                                 &st,
                                                 InstanceKlass::cast(host_klass),
                                                 cp_patches,
-                                                false, // is_nonfindable
+                                                false, // is_hidden
                                                 false, // is_weak
                                                 false, // can_access_vm_annotations
-                                                NULL,  // dynamic_nest_host 
+                                                NULL,  // dynamic_nest_host
                                                 Handle(), // classData
                                                 CHECK_NULL);
   if (anonk == NULL) {

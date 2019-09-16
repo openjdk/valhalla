@@ -114,10 +114,10 @@ size_t SpaceManager::calc_chunk_size(size_t word_size) {
   // After that a medium chunk is preferred.
   size_t chunk_word_size;
 
-  // Special case for nonfindable metadata space.
+  // Special case for hidden metadata space.
   // ShortLived metadata space is usually small since it is used for
   // class loader data's whose life cycle is governed by one class such as a
-  // weak nonfindable or unsafe anonymous class.  The majority within 1K - 2K range and
+  // weak hidden or unsafe anonymous class.  The majority within 1K - 2K range and
   // rarely about 4K (64-bits JVM).
   // Instead of jumping to SmallChunk after initial chunk exhausted, keeping allocation
   // from SpecializeChunk up to _anon_or_delegating_metadata_specialize_chunk_limit (4)

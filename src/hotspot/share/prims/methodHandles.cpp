@@ -1155,7 +1155,7 @@ void MethodHandles::trace_method_handle_interpreter_entry(MacroAssembler* _masm,
     template(java_lang_invoke_MemberName,MN_REFERENCE_KIND_SHIFT) \
     template(java_lang_invoke_MemberName,MN_REFERENCE_KIND_MASK) \
     template(java_lang_invoke_MemberName,MN_NESTMATE_CLASS) \
-    template(java_lang_invoke_MemberName,MN_NONFINDABLE_CLASS) \
+    template(java_lang_invoke_MemberName,MN_HIDDEN_CLASS) \
     template(java_lang_invoke_MemberName,MN_WEAK_CLASS) \
     template(java_lang_invoke_MemberName,MN_ACCESS_VM_ANNOTATIONS) \
     /*end*/

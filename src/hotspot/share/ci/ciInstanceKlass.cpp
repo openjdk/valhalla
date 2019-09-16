@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -63,7 +63,7 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   _has_nonstatic_fields = ik->has_nonstatic_fields();
   _has_nonstatic_concrete_methods = ik->has_nonstatic_concrete_methods();
   _is_unsafe_anonymous = ik->is_unsafe_anonymous();
-  _is_nonfindable = ik->is_nonfindable();
+  _is_hidden = ik->is_hidden();
   _nonstatic_fields = NULL; // initialized lazily by compute_nonstatic_fields:
   _has_injected_fields = -1;
   _implementor = NULL; // we will fill these lazily
@@ -76,11 +76,11 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   oop holder = ik->klass_holder();
   if (ik->class_loader_data()->is_shortlived()) {
     // Though ciInstanceKlass records class loader oop, it's not enough to keep
-    // VM weak nonfindable and unsafe anonymous classes alive (loader == NULL). Klass holder should
+    // VM weak hidden and unsafe anonymous classes alive (loader == NULL). Klass holder should
     // be used instead. It is enough to record a ciObject, since cached elements are never removed
     // during ciObjectFactory lifetime. ciObjectFactory itself is created for
     // every compilation and lives for the whole duration of the compilation.
-    assert(holder != NULL, "holder of nonfindable or unsafe anonymous class is the mirror which is never null");
+    assert(holder != NULL, "holder of hidden or unsafe anonymous class is the mirror which is never null");
     (void)CURRENT_ENV->get_object(holder);
   }
 
@@ -124,7 +124,7 @@ ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
   _nonstatic_fields = NULL;
   _has_injected_fields = -1;
   _is_unsafe_anonymous = false;
-  _is_nonfindable = false;
+  _is_hidden = false;
   _loader = loader;
   _protection_domain = protection_domain;
   _is_shared = false;

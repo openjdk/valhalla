@@ -145,7 +145,7 @@ bool VM_RedefineClasses::doit_prologue() {
     }
 
     oop mirror = JNIHandles::resolve_non_null(_class_defs[i].klass);
-    // classes for primitives, arrays, nonfindable and vm unsafe anonymous classes
+    // classes for primitives, arrays, hidden and vm unsafe anonymous classes
     // cannot be redefined.  Check here so following code can assume these classes
     // are InstanceKlass.
     if (!is_modifiable_class(mirror)) {
@@ -289,8 +289,8 @@ bool VM_RedefineClasses::is_modifiable_class(oop klass_mirror) {
     return false;
   }
 
-  // Cannot redefine or retransform a nonfindable or an unsafe anonymous class.
-  if (InstanceKlass::cast(k)->is_nonfindable() ||
+  // Cannot redefine or retransform a hidden or an unsafe anonymous class.
+  if (InstanceKlass::cast(k)->is_hidden() ||
       InstanceKlass::cast(k)->is_unsafe_anonymous()) {
     return false;
   }

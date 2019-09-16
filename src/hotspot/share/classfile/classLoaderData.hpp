@@ -118,16 +118,16 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   Mutex* _metaspace_lock;  // Locks the metaspace for allocations and setup.
   bool _unloading;         // true if this class loader goes away
   bool _is_shortlived;     // CLD is dedicated to one class and that class determines the CLDs lifecycle.
-                           // For example, a weak nonfindable or an unsafe anonymous class.
+                           // For example, a weak hidden or an unsafe anonymous class.
 
   // Remembered sets support for the oops in the class loader data.
   bool _modified_oops;             // Card Table Equivalent (YC/CMS support)
   bool _accumulated_modified_oops; // Mod Union Equivalent (CMS support)
 
   int _keep_alive;         // if this CLD is kept alive.
-                           // Used for weak nonfindable classes, unsafe anonymous classes and the
+                           // Used for weak hidden classes, unsafe anonymous classes and the
                            // boot class loader. _keep_alive does not need to be volatile or
-                           // atomic since there is one unique CLD per weak nonfindable or unsafe anonymous class.
+                           // atomic since there is one unique CLD per weak hidden or unsafe anonymous class.
 
   volatile int _claim; // non-zero if claimed, for example during GC traces.
                        // To avoid applying oop closure more than once.
@@ -240,15 +240,15 @@ class ClassLoaderData : public CHeapObj<mtClass> {
   }
 
   // Returns true if this class loader data is for the system class loader.
-  // (Note that the class loader data may be for an weak nonfindable or unsafe anonymous class)
+  // (Note that the class loader data may be for an weak hidden or unsafe anonymous class)
   bool is_system_class_loader_data() const;
 
   // Returns true if this class loader data is for the platform class loader.
-  // (Note that the class loader data may be for an weak nonfindable or unsafe anonymous class)
+  // (Note that the class loader data may be for an weak hidden or unsafe anonymous class)
   bool is_platform_class_loader_data() const;
 
   // Returns true if this class loader data is for the boot class loader.
-  // (Note that the class loader data may be for an weak nonfindable unsafe anonymous class)
+  // (Note that the class loader data may be for an weak hidden unsafe anonymous class)
   inline bool is_boot_class_loader_data() const;
 
   bool is_builtin_class_loader_data() const;
@@ -269,7 +269,7 @@ class ClassLoaderData : public CHeapObj<mtClass> {
     return _unloading;
   }
 
-  // Used to refcount an weak nonfindable or unsafe anonymous class's CLD in order to
+  // Used to refcount an weak hidden or unsafe anonymous class's CLD in order to
   // indicate their aliveness.
   void inc_keep_alive();
   void dec_keep_alive();

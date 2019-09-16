@@ -85,7 +85,7 @@ InstanceKlass* KlassFactory::check_shared_class_file_load_hook(
                              protection_domain,
                              NULL,  // unsafe_anonymous_host
                              NULL,  // cp_patches
-                             false, // is_nonfindable
+                             false, // is_hidden
                              false, // can_access_vm_annotations
                              ClassFileParser::BROADCAST, // publicity level
                              CHECK_NULL);
@@ -174,7 +174,7 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
                                                 Handle protection_domain,
                                                 const InstanceKlass* unsafe_anonymous_host,
                                                 GrowableArray<Handle>* cp_patches,
-                                                const bool is_nonfindable,
+                                                const bool is_hidden,
                                                 const bool can_access_vm_annotations,
                                                 InstanceKlass* dynamic_nest_host,
                                                 Handle classData,
@@ -193,11 +193,11 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
   // increment counter
   THREAD->statistical_info().incr_define_class_count();
 
-  assert(!(is_nonfindable && (unsafe_anonymous_host != NULL)),
-         "nonFindable class has an anonymous host");
+  assert(!(is_hidden && (unsafe_anonymous_host != NULL)),
+         "hidden class has an anonymous host");
 
-  // Skip this processing for VM nonfindable or anonymous classes
-  if (!is_nonfindable && (unsafe_anonymous_host == NULL)) {
+  // Skip this processing for VM hidden or anonymous classes
+  if (!is_hidden && (unsafe_anonymous_host == NULL)) {
     stream = check_class_file_load_hook(stream,
                                         name,
                                         loader_data,
@@ -212,7 +212,7 @@ InstanceKlass* KlassFactory::create_from_stream(ClassFileStream* stream,
                          protection_domain,
                          unsafe_anonymous_host,
                          cp_patches,
-                         is_nonfindable,
+                         is_hidden,
                          can_access_vm_annotations,
                          ClassFileParser::BROADCAST, // publicity level
                          CHECK_NULL);

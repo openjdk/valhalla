@@ -220,7 +220,7 @@ class LoaderTreeNode : public ResourceObj {
       if (print_classes) {
         if (_classes != NULL) {
           for (LoadedClassInfo* lci = _classes; lci; lci = lci->_next) {
-            // Nonfindable and unsafe anonymous classes should live in the primary CLD of its loader
+            // Hidden and unsafe anonymous classes should live in the primary CLD of its loader
             assert(lci->_cld == _cld, "must be");
 
             branchtracker.print(st);
@@ -258,7 +258,7 @@ class LoaderTreeNode : public ResourceObj {
               st->print("%*s ", indentation, "");
             }
             st->print("%s", lci->_klass->external_name());
-            // For nonfindable and unsafe anonymous classes, also print CLD if verbose. Should be a different one than the primary CLD.
+            // For hidden and unsafe anonymous classes, also print CLD if verbose. Should be a different one than the primary CLD.
             assert(lci->_cld != _cld, "must be");
             if (verbose) {
               st->print("  (Loader Data: " PTR_FORMAT ")", p2i(lci->_cld));
@@ -319,14 +319,14 @@ public:
     _next = info;
   }
 
-  void add_classes(LoadedClassInfo* first_class, int num_classes, bool is_nonfindable) {
-    LoadedClassInfo** p_list_to_add_to = is_nonfindable ? &_anon_classes : &_classes;
+  void add_classes(LoadedClassInfo* first_class, int num_classes, bool is_hidden) {
+    LoadedClassInfo** p_list_to_add_to = is_hidden ? &_anon_classes : &_classes;
     // Search tail.
     while ((*p_list_to_add_to) != NULL) {
       p_list_to_add_to = &(*p_list_to_add_to)->_next;
     }
     *p_list_to_add_to = first_class;
-    if (is_nonfindable) {
+    if (is_hidden) {
       _num_anon_classes += num_classes;
     } else {
       _num_classes += num_classes;

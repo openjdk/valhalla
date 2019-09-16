@@ -283,8 +283,8 @@ public:
                         st,
                         NULL,  // unsafe_anonymous_host
                         NULL,  // cp_patches
-                        false, // is_nonfindable
-                        false, // is_weaknonfindable
+                        false, // is_hidden
+                        false, // is_weakhidden
                         false, // can_access_vm_annotations
                         dynamic_nest_host,
                         Handle(),  // classData
@@ -296,8 +296,8 @@ public:
                                      ClassFileStream* st,
                                      const InstanceKlass* unsafe_anonymous_host,
                                      GrowableArray<Handle>* cp_patches,
-                                     const bool is_nonfindable,
-                                     const bool is_weaknonfindable,
+                                     const bool is_hidden,
+                                     const bool is_weakhidden,
                                      const bool can_access_vm_annotations,
                                      InstanceKlass* dynamic_nest_host,
                                      Handle classData,

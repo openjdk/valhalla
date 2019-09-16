@@ -80,7 +80,7 @@ class ClassLoaderDataGraph : public AllStatic {
   // Walking classes through the ClassLoaderDataGraph include array classes.  It also includes
   // classes that are allocated but not loaded, classes that have errors, and scratch classes
   // for redefinition.  These classes are removed during the next class unloading.
-  // Walking the ClassLoaderDataGraph also includes nonfindable and unsafe anonymous classes.
+  // Walking the ClassLoaderDataGraph also includes hidden and unsafe anonymous classes.
   static void classes_do(KlassClosure* klass_closure);
   static void classes_do(void f(Klass* const));
   static void methods_do(void f(Method*));

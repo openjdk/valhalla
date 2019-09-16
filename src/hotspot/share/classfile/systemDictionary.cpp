@@ -987,7 +987,7 @@ Klass* SystemDictionary::find_instance_or_array_klass(Symbol* class_name,
 
 // Note: this method is much like resolve_from_stream, but
 // does not publish the classes via the SystemDictionary.
-// Handles Lookup.defineClass nonfindable, unsafe_DefineAnonymousClass
+// Handles Lookup.defineClass hidden, unsafe_DefineAnonymousClass
 // and redefineclasses. RedefinedClasses do not add to the class hierarchy.
 InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
                                               Handle class_loader,
@@ -995,8 +995,8 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
                                               ClassFileStream* st,
                                               const InstanceKlass* unsafe_anonymous_host,
                                               GrowableArray<Handle>* cp_patches,
-                                              const bool is_nonfindable,
-                                              const bool is_weaknonfindable,
+                                              const bool is_hidden,
+                                              const bool is_weakhidden,
                                               const bool can_access_vm_annotations,
                                               InstanceKlass* dynamic_nest_host,
                                               Handle classData,
@@ -1011,14 +1011,14 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
     //                               class loader as the unsafe_anonymous_host.
     guarantee(oopDesc::equals(unsafe_anonymous_host->class_loader(), class_loader()), "should be the same");
     loader_data = ClassLoaderData::shortlived_class_loader_data(class_loader);
-  } else if (is_nonfindable) {
-    // - for weak nonfindable class: create a new short-lived CLD whose loader is
+  } else if (is_hidden) {
+    // - for weak hidden class: create a new short-lived CLD whose loader is
     //                               the Lookup class' loader.
-    // - for nonfindable class: add the class to the Lookup class' loader's CLD.
-    if (is_weaknonfindable) {
+    // - for hidden class: add the class to the Lookup class' loader's CLD.
+    if (is_weakhidden) {
       loader_data = ClassLoaderData::shortlived_class_loader_data(class_loader);
     } else {
-      // This nonfindable class goes into the regular CLD pool for this loader.
+      // This hidden class goes into the regular CLD pool for this loader.
       loader_data = register_loader(class_loader);
     }
   } else {
@@ -1039,16 +1039,16 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
                                                       protection_domain,
                                                       unsafe_anonymous_host,
                                                       cp_patches,
-                                                      is_nonfindable,
+                                                      is_hidden,
                                                       can_access_vm_annotations,
                                                       dynamic_nest_host,
                                                       classData,
                                                       CHECK_NULL);
 
-  if ((is_nonfindable || (unsafe_anonymous_host != NULL)) && k != NULL) {
-    // Weak nonfindable and unsafe anonymous classes must update ClassLoaderData holder
+  if ((is_hidden || (unsafe_anonymous_host != NULL)) && k != NULL) {
+    // Weak hidden and unsafe anonymous classes must update ClassLoaderData holder
     // so that they can be unloaded when the mirror is no longer referenced.
-    if (is_weaknonfindable || (unsafe_anonymous_host != NULL)) {
+    if (is_weakhidden || (unsafe_anonymous_host != NULL)) {
       k->class_loader_data()->initialize_holder(Handle(THREAD, k->java_mirror()));
     }
 
@@ -1142,7 +1142,7 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
                                          protection_domain,
                                          NULL,  // unsafe_anonymous_host
                                          NULL,  // cp_patches
-                                         false, // is_nonfindable
+                                         false, // is_hidden
                                          false, // can_access_vm_annotations
                                          dynamic_nest_host,
                                          Handle(), // classData

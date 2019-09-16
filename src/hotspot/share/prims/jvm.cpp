@@ -974,14 +974,14 @@ static jclass jvm_define_class_common(JNIEnv *env, const char *name,
 
 enum {
   NESTMATE              = java_lang_invoke_MemberName::MN_NESTMATE_CLASS,
-  NONFINDABLE_CLASS     = java_lang_invoke_MemberName::MN_NONFINDABLE_CLASS,
+  HIDDEN_CLASS          = java_lang_invoke_MemberName::MN_HIDDEN_CLASS,
   WEAK_CLASS            = java_lang_invoke_MemberName::MN_WEAK_CLASS,
   ACCESS_VM_ANNOTATIONS = java_lang_invoke_MemberName::MN_ACCESS_VM_ANNOTATIONS
 };
 
 /*
  * Define a class with the specified flags that indicates if it's a nestmate,
- * not findable, or weakly reachable from class loader.
+ * hidden, or weakly reachable from class loader.
  *
  * Same class may be defined by multiple threads at the same time.
  * Should the VM keep the classData (the one successfully defined the class)
@@ -1002,7 +1002,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
   assert(k->is_instance_klass(), "Lookup class must be an instance klass");
 
   jboolean is_nestmate = (flags & NESTMATE) == NESTMATE;
-  jboolean is_nonfindable = (flags & NONFINDABLE_CLASS) == NONFINDABLE_CLASS;
+  jboolean is_hidden = (flags & HIDDEN_CLASS) == HIDDEN_CLASS;
   jboolean is_weak = (flags & WEAK_CLASS) == WEAK_CLASS;
   jboolean vm_annotations = (flags & ACCESS_VM_ANNOTATIONS) == ACCESS_VM_ANNOTATIONS;
 
@@ -1014,14 +1014,14 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
     host_class = InstanceKlass::cast(k)->nest_host(icce, CHECK_NULL);
   }
 
-  // classData (constant pool patching replacement) is only applicable for nonfindable classes
-  if (classData != NULL && !is_nonfindable) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "classData is only applicable for nonfindable classes");
+  // classData (constant pool patching replacement) is only applicable for hidden classes
+  if (classData != NULL && !is_hidden) {
+    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "classData is only applicable for hidden classes");
   }
 
-  // vm_annotations only allowed for nonfindable classes
-  if (vm_annotations && !is_nonfindable) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "vm annotations only allowed for weak nonfindable classes");
+  // vm_annotations only allowed for hidden classes
+  if (vm_annotations && !is_hidden) {
+    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "vm annotations only allowed for weak hidden classes");
   }
 
   if (log_is_enabled(Info, class, nestmates)) {
@@ -1029,7 +1029,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                                name,
                                is_nestmate ? "with dynamic nest-host " : "non-nestmate",
                                is_nestmate ? host_class->external_name() : "",
-                               is_nonfindable ? "non-findable" : "findable",
+                               is_hidden ? "hidden" : "not hidden",
                                is_weak ? "weak" : "strong",
                                vm_annotations ? "with vm annotations" : "without vm annotation");
   }
@@ -1057,7 +1057,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
   const char* source = is_nestmate ? host_class->external_name() : "__JVM_LookupDefineClass__";
   ClassFileStream st((u1*)buf, len, source, ClassFileStream::verify);
 
-  if (!is_nonfindable) {
+  if (!is_hidden) {
     k = SystemDictionary::resolve_from_stream(class_name,
                                               class_loader,
                                               protection_domain,
@@ -1068,7 +1068,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
     if (log_is_enabled(Debug, class, resolve) && k != NULL) {
       trace_class_resolution(k);
     }
-  } else { //nonfindable
+  } else { //hidden
     Handle classData_h(THREAD, JNIHandles::resolve(classData));
     k = SystemDictionary::parse_stream(class_name,
                                        class_loader,
@@ -1076,17 +1076,17 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                                        &st,
                                        NULL, // unsafe_anonymous_host
                                        NULL, // cp_patches
-                                       is_nonfindable,
+                                       is_hidden,
                                        is_weak,
                                        vm_annotations,
                                        host_class,
                                        classData_h,
                                        CHECK_NULL);
     if (k == NULL) {
-      THROW_MSG_0(vmSymbols::java_lang_Error(), "Failure to define a nonfindable class");
+      THROW_MSG_0(vmSymbols::java_lang_Error(), "Failure to define a hidden class");
     }
 
-    // The nonfindable class loader data has been artificially been kept alive to
+    // The hidden class loader data has been artificially been kept alive to
     // this point. The mirror and any instances of this class have to keep
     // it alive afterwards.
     InstanceKlass::cast(k)->class_loader_data()->dec_keep_alive();
@@ -1100,7 +1100,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                                 module_name,
                                 ik->external_name(),
                                 host_class->external_name(),
-                                ik->is_nonfindable() ? "is non-findable" : "is findable");
+                                ik->is_hidden() ? "is hidden" : "is not hidden");
   }
 
   InstanceKlass* ik = InstanceKlass::cast(k);
@@ -1127,7 +1127,7 @@ JVM_END
  *  buf:     class bytes
  *  len:     length of class bytes
  *  pd:      protection domain
- *  init:    initialize the class 
+ *  init:    initialize the class
  *  flags:   properties of the class
  *  classData: private static pre-initialized field
  */
@@ -1573,7 +1573,7 @@ JVM_ENTRY(jclass, JVM_GetDeclaringClass(JNIEnv *env, jclass ofClass))
     = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve_non_null(ofClass))
                           )->compute_enclosing_class(&inner_is_member, CHECK_NULL);
   if (outer_klass == NULL)  return NULL;  // already a top-level class
-  if (!inner_is_member)  return NULL;     // a nonfindable or unsafe anonymous class (inside a method)
+  if (!inner_is_member)  return NULL;     // a hidden or unsafe anonymous class (inside a method)
   return (jclass) JNIHandles::make_local(env, outer_klass->java_mirror());
 }
 JVM_END

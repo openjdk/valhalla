@@ -52,7 +52,7 @@ void InstanceMirrorKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
     // We'll get NULL for primitive mirrors.
     if (klass != NULL) {
       if (klass->is_instance_klass() && klass->class_loader_data()->is_shortlived()) {
-        // A weak nonfindable or an unsafe anonymous class doesn't have its own class loader,
+        // A weak hidden or an unsafe anonymous class doesn't have its own class loader,
         // so when handling the java mirror for the class we need to make sure its class
         // loader data is claimed, this is done by calling do_cld explicitly.
         // For non-anonymous classes the call to do_cld is made when the class

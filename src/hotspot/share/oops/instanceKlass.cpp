@@ -413,12 +413,13 @@ bool InstanceKlass::has_nestmate_access_to(InstanceKlass* k, TRAPS) {
 }
 
 InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& parser, TRAPS) {
+  bool is_nonfindable = parser.is_hidden() || parser.is_unsafe_anonymous();
   const int size = InstanceKlass::size(parser.vtable_size(),
                                        parser.itable_size(),
                                        nonstatic_oop_map_size(parser.total_oop_map_count()),
                                        parser.is_interface(),
-                                       (parser.is_nonfindable() || parser.is_unsafe_anonymous()),
-                                       should_store_fingerprint(parser.is_unsafe_anonymous()));
+                                       is_nonfindable,
+                                       should_store_fingerprint(is_nonfindable));
 
   const Symbol* const class_name = parser.class_name();
   assert(class_name != NULL, "invariant");
@@ -491,7 +492,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   set_vtable_length(parser.vtable_size());
   set_kind(kind);
   set_access_flags(parser.access_flags());
-  set_is_nonfindable(parser.is_nonfindable());
+  if (parser.is_hidden()) set_is_hidden();
   set_is_unsafe_anonymous(parser.is_unsafe_anonymous());
   set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
                                                     false));
@@ -2281,7 +2282,7 @@ bool InstanceKlass::should_store_fingerprint(bool is_nonfindable) {
     return true;
   }
   if (UseAOT && is_nonfindable) {
-    // (3) We are using AOT code from a shared library and see a nonfindable or unsafe anonymous class
+    // (3) We are using AOT code from a shared library and see a hidden or unsafe anonymous class
     return true;
   }
 #endif
@@ -2677,13 +2678,13 @@ ModuleEntry* InstanceKlass::module() const {
     return unsafe_anonymous_host()->module();
   }
 
-  if (is_nonfindable() &&
+  if (is_hidden() &&
       in_unnamed_package() &&
       class_loader_data()->is_shortlived()) {
-    // For a weak nonfindable class defined to an unnamed package,
+    // For a weak hidden class defined to an unnamed package,
     // the short-lived CLD will not have an unnamed module created for it.
     // Two choices to find the correct ModuleEntry:
-    // 1. If nonfindable class is within a nest, use nest host's module
+    // 1. If hidden class is within a nest, use nest host's module
     // 2. Find the unnamed module off from the class loader
     // For now option #2 is used since a nest host is not set until
     // after the instance class is created in jvm_lookup_define_class().

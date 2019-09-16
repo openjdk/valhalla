@@ -82,7 +82,7 @@ class ClassFileParser {
   mutable ClassLoaderData* _loader_data;
   const InstanceKlass* _unsafe_anonymous_host;
   GrowableArray<Handle>* _cp_patches; // overrides for CP entries
-  const bool _is_nonfindable;
+  const bool _is_hidden;
   const bool _can_access_vm_annotations;
   int _num_patched_klasses;
   int _max_num_patched_klasses;
@@ -498,7 +498,7 @@ class ClassFileParser {
                   Handle protection_domain,
                   const InstanceKlass* unsafe_anonymous_host,
                   GrowableArray<Handle>* cp_patches,
-                  const bool is_nonfindable,
+                  const bool is_hidden,
                   const bool can_access_vm_annotations,
                   Publicity pub_level,
                   TRAPS);
@@ -521,7 +521,7 @@ class ClassFileParser {
   u2 this_class_index() const { return _this_class_index; }
 
   bool is_unsafe_anonymous() const { return _unsafe_anonymous_host != NULL; }
-  bool is_nonfindable() const { return _is_nonfindable; }
+  bool is_hidden() const { return _is_hidden; }
   bool is_interface() const { return _access_flags.is_interface(); }
 
   const InstanceKlass* unsafe_anonymous_host() const { return _unsafe_anonymous_host; }

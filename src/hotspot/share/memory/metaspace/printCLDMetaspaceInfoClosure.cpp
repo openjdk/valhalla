@@ -104,7 +104,7 @@ void PrintCLDMetaspaceInfoClosure::do_cld(ClassLoaderData* cld) {
     _out->print(UINTX_FORMAT_W(4) ": ", _num_loaders);
 
     // Print "CLD for [<loader name>,] instance of <loader class name>"
-    // or    "CLD for <weak nonfindable class>, loaded by [<loader name>,] instance of <loader class name>"
+    // or    "CLD for <weak hidden class>, loaded by [<loader name>,] instance of <loader class name>"
 
     ResourceMark rm;
     const char* name = NULL;
@@ -129,7 +129,7 @@ void PrintCLDMetaspaceInfoClosure::do_cld(ClassLoaderData* cld) {
     }
     _out->print(":");
     if (cld->is_shortlived()) {
-      _out->print(" <weak nonfindable class>, loaded by");
+      _out->print(" <weak hidden class>, loaded by");
     }
     if (name != NULL) {
       _out->print(" \"%s\"", name);

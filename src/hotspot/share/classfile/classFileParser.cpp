@@ -5539,16 +5539,16 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
 
   ik->set_this_class_index(_this_class_index);
 
-  if (_is_nonfindable || is_unsafe_anonymous()) {
+  if (_is_hidden || is_unsafe_anonymous()) {
     // _this_class_index is a CONSTANT_Class entry that refers to this
-    // nonfindable or anonymous class itself. If this class needs to refer to its own
+    // hidden or anonymous class itself. If this class needs to refer to its own
     // methods or fields, it would use a CONSTANT_MethodRef, etc, which would reference
-    // _this_class_index. However, because this class is nonfindable or anonymous (it's
+    // _this_class_index. However, because this class is hidden or anonymous (it's
     // not stored in SystemDictionary), _this_class_index cannot be resolved
     // with ConstantPool::klass_at_impl, which does a SystemDictionary lookup.
     // Therefore, we must eagerly resolve _this_class_index now.
     ik->constants()->klass_at_put(_this_class_index, ik);
-    ik->set_is_hidden(); 
+    ik->set_is_hidden();
   }
 
   ik->set_minor_version(_minor_version);
@@ -5776,7 +5776,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
                                  Handle protection_domain,
                                  const InstanceKlass* unsafe_anonymous_host,
                                  GrowableArray<Handle>* cp_patches,
-                                 const bool is_nonfindable,
+                                 const bool is_hidden,
                                  const bool can_access_vm_annotations,
                                  Publicity pub_level,
                                  TRAPS) :
@@ -5785,7 +5785,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _loader_data(loader_data),
   _unsafe_anonymous_host(unsafe_anonymous_host),
   _cp_patches(cp_patches),
-  _is_nonfindable(is_nonfindable),
+  _is_hidden(is_hidden),
   _can_access_vm_annotations(can_access_vm_annotations),
   _num_patched_klasses(0),
   _max_num_patched_klasses(0),
@@ -6013,7 +6013,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
     cp_size, CHECK);
 
   _orig_cp_size = cp_size;
-  if (is_nonfindable()) { // Add a slot for nonfindable class name.
+  if (is_hidden()) { // Add a slot for hidden class name.
     assert(_max_num_patched_klasses == 0, "Sanity check");
     cp_size++;
   } else {
@@ -6083,26 +6083,26 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
 
 #ifdef ASSERT
   // Basic sanity checks
-  assert(!(_is_nonfindable && (_unsafe_anonymous_host != NULL)), "mutually exclusive variants");
+  assert(!(_is_hidden && (_unsafe_anonymous_host != NULL)), "mutually exclusive variants");
 
   if (_unsafe_anonymous_host != NULL) {
     assert(_class_name == vmSymbols::unknown_class_name(), "A named anonymous class???");
   }
-  if (_is_nonfindable) {
-    assert(_class_name != vmSymbols::unknown_class_name(), "non-findable classes should have a special name");
+  if (_is_hidden) {
+    assert(_class_name != vmSymbols::unknown_class_name(), "hidden classes should have a special name");
   }
 #endif
 
   // Update the _class_name as needed depending on whether this is a named,
-  // un-named, nonfindable or unsafe-anonymous class.
+  // un-named, hidden or unsafe-anonymous class.
 
-  if (_is_nonfindable) {
+  if (_is_hidden) {
     _class_name->increment_refcount();
 
-    // Add a Utf8 entry containing the nonfindable name.
+    // Add a Utf8 entry containing the hidden name.
     assert(_class_name != NULL, "Unexpected null _class_name");
-    int nonfindable_name_index = _orig_cp_size; // this is an extra slot we added
-    cp->symbol_at_put(nonfindable_name_index, _class_name);
+    int hidden_index = _orig_cp_size; // this is an extra slot we added
+    cp->symbol_at_put(hidden_index, _class_name);
 
     if (_need_verify) {
       // Since this name was not in the original constant pool, it didn't get
@@ -6115,12 +6115,12 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
     // so extract the existing resolved_klass_index first.
     CPKlassSlot cp_klass_slot = cp->klass_slot_at(_this_class_index);
     int resolved_klass_index = cp_klass_slot.resolved_klass_index();
-    cp->unresolved_klass_at_put(_this_class_index, nonfindable_name_index, resolved_klass_index);
+    cp->unresolved_klass_at_put(_this_class_index, hidden_index, resolved_klass_index);
     assert(cp->klass_slot_at(_this_class_index).name_index() == _orig_cp_size,
            "Bad name_index");
 
-  // NOTE: !_is_nonfindable does not imply "findable" as it could be an old-style
-  //       "non-findable" unsafe-anonymous class
+  // NOTE: !_is_hidden does not imply "findable" as it could be an old-style
+  //       "hidden" unsafe-anonymous class
 
   // If this is an anonymous class fix up its name if it is in the unnamed
   // package.  Otherwise, throw IAE if it is in a different package than
@@ -6176,10 +6176,10 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
         warning("DumpLoadedClassList and CDS are not supported in exploded build");
         DumpLoadedClassList = NULL;
       } else if (SystemDictionaryShared::is_sharing_possible(_loader_data) &&
-                 !_is_nonfindable &&
+                 !_is_hidden &&
                  _unsafe_anonymous_host == NULL) {
         // Only dump the classes that can be stored into CDS archive.
-        // Nonfindable and unsafe anonymous classes such as generated LambdaForm classes are also not included.
+        // Hidden and unsafe anonymous classes such as generated LambdaForm classes are also not included.
         oop class_loader = _loader_data->class_loader();
         ResourceMark rm(THREAD);
         bool skip = false;

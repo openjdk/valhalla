@@ -1137,7 +1137,7 @@ class java_lang_invoke_MemberName: AllStatic {
     MN_SEARCH_SUPERCLASSES   = 0x00100000, // walk super classes
     MN_SEARCH_INTERFACES     = 0x00200000, // walk implemented interfaces
     MN_NESTMATE_CLASS        = 0x00000001,
-    MN_NONFINDABLE_CLASS     = 0x00000002,
+    MN_HIDDEN_CLASS          = 0x00000002,
     MN_WEAK_CLASS            = 0x00000004,
     MN_ACCESS_VM_ANNOTATIONS = 0x00100000
   };

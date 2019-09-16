@@ -292,7 +292,7 @@ InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, TRAPS)
                                                            protection_domain,
                                                            NULL,  // unsafe_anonymous_host
                                                            NULL,  // cp_patches
-                                                           false, // is_nonfindable
+                                                           false, // is_hidden
                                                            false, // can_access_vm_annotations
                                                            NULL,  // dynamic_nest_host
                                                            Handle(), // classData

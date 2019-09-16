@@ -248,7 +248,7 @@ class ClassLoaderMetaspace : public CHeapObj<mtClass> {
 
   // Initialize the first chunk for a Metaspace.  Used for
   // special cases such as the boot class loader, reflection
-  // class loader and nonfindable class loader.
+  // class loader and hidden class loader.
   void initialize_first_chunk(Metaspace::MetaspaceType type, Metaspace::MetadataType mdtype);
   metaspace::Metachunk* get_initialization_chunk(Metaspace::MetaspaceType type, Metaspace::MetadataType mdtype);
 
@@ -393,7 +393,7 @@ public:
     rf_show_loaders                 = (1 << 0),
     // Breaks report down by chunk type (small, medium, ...).
     rf_break_down_by_chunktype      = (1 << 1),
-    // Breaks report down by space type (nonfindable, reflection, ...).
+    // Breaks report down by space type (hidden, reflection, ...).
     rf_break_down_by_spacetype      = (1 << 2),
     // Print details about the underlying virtual spaces.
     rf_show_vslist                  = (1 << 3),

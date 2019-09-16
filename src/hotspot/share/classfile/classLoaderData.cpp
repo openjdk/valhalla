@@ -152,11 +152,11 @@ ClassLoaderData::ClassLoaderData(Handle h_class_loader, bool is_shortlived) :
   }
 
   if (!is_shortlived) {
-    // The holder is initialized later for weak nonfindable and unsafe anonymous classes,
+    // The holder is initialized later for weak hidden and unsafe anonymous classes,
     // and before calling anything that call class_loader().
     initialize_holder(h_class_loader);
 
-    // A ClassLoaderData created solely for an weak nonfindable or unsafe anonymous class should
+    // A ClassLoaderData created solely for an weak hidden or unsafe anonymous class should
     // never have a ModuleEntryTable or PackageEntryTable created for it. The defining package
     // and module for an unsafe anonymous class will be found in its host class.
     _packages = new PackageEntryTable(PackageEntryTable::_packagetable_entry_size);
@@ -292,10 +292,10 @@ bool ClassLoaderData::try_claim(int claim) {
   }
 }
 
-// Weak nonfindable and unsafe anonymous classes have their own ClassLoaderData that is marked to keep alive
+// Weak hidden and unsafe anonymous classes have their own ClassLoaderData that is marked to keep alive
 // while the class is being parsed, and if the class appears on the module fixup list.
-// Due to the uniqueness that no other class shares the nonfindable or unsafe anonymous class' name or
-// ClassLoaderData, no other non-GC thread has knowledge of the nonfindable or unsafe anonymous class while
+// Due to the uniqueness that no other class shares the hidden or unsafe anonymous class' name or
+// ClassLoaderData, no other non-GC thread has knowledge of the hidden or unsafe anonymous class while
 // it is being defined, therefore _keep_alive is not volatile or atomic.
 void ClassLoaderData::inc_keep_alive() {
   if (is_shortlived()) {
@@ -419,13 +419,13 @@ void ClassLoaderData::record_dependency(const Klass* k) {
 
   oop to;
   if (to_cld->is_shortlived()) {
-    // Just return if a weak nonfindable or unsafe anonymous class is attempting to record a dependency
-    // to itself.  (Note that every weak nonfindable or unsafe anonymous class has its own unique class
+    // Just return if a weak hidden or unsafe anonymous class is attempting to record a dependency
+    // to itself.  (Note that every weak hidden or unsafe anonymous class has its own unique class
     // loader data.)
     if (to_cld == from_cld) {
       return;
     }
-    // Nonfindable and unsafe anonymous class dependencies are through the mirror.
+    // Hidden and unsafe anonymous class dependencies are through the mirror.
     to = k->java_mirror();
   } else {
     to = to_cld->class_loader();
@@ -619,7 +619,7 @@ oop ClassLoaderData::holder_no_keepalive() const {
 
 // Unloading support
 bool ClassLoaderData::is_alive() const {
-  bool alive = keep_alive()         // null class loader and incomplete weak nonfindable or unsafe anonymous klasses.
+  bool alive = keep_alive()         // null class loader and incomplete weak hidden or unsafe anonymous klasses.
       || (_holder.peek() != NULL);  // and not cleaned by the GC weak handle processing.
 
   return alive;
@@ -731,7 +731,7 @@ bool ClassLoaderData::is_platform_class_loader_data() const {
 // Returns true if the class loader for this class loader data is one of
 // the 3 builtin (boot application/system or platform) class loaders,
 // including a user-defined system class loader.  Note that if the class
-// loader data is for a weak nonfindable or unsafe anonymous class then it may
+// loader data is for a weak hidden or unsafe anonymous class then it may
 // get freed by a GC even if its class loader is one of these loaders.
 bool ClassLoaderData::is_builtin_class_loader_data() const {
   return (is_boot_class_loader_data() ||
@@ -741,7 +741,7 @@ bool ClassLoaderData::is_builtin_class_loader_data() const {
 
 // Returns true if this class loader data is a class loader data
 // that is not ever freed by a GC.  It must be the CLD for one of the builtin
-// class loaders and not the CLD for a weak nonfindable or unsafe anonymous class.
+// class loaders and not the CLD for a weak hidden or unsafe anonymous class.
 bool ClassLoaderData::is_permanent_class_loader_data() const {
   return is_builtin_class_loader_data() && !is_shortlived();
 }
@@ -878,7 +878,7 @@ void ClassLoaderData::free_deallocate_list_C_heap_structures() {
   }
 }
 
-// These CLDs are to contain weak nonfindable or unsafe anonymous classes used for JSR292
+// These CLDs are to contain weak hidden or unsafe anonymous classes used for JSR292
 ClassLoaderData* ClassLoaderData::shortlived_class_loader_data(Handle loader) {
   // Add a new class loader data to the graph.
   return ClassLoaderDataGraph::add(loader, true);
