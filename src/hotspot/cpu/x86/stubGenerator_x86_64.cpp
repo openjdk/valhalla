@@ -1050,7 +1050,7 @@ class StubGenerator: public StubCodeGenerator {
     StubCodeMark mark(this, "StubRoutines", "verify_oop");
     address start = __ pc();
 
-    Label exit, error, in_Java_heap;
+    Label exit, error;
 
     __ pushf();
     __ incrementl(ExternalAddress((address) StubRoutines::verify_oop_count_addr()));
@@ -1093,14 +1093,7 @@ class StubGenerator: public StubCodeGenerator {
     __ andptr(c_rarg2, c_rarg3);
     __ movptr(c_rarg3, (intptr_t) Universe::verify_oop_bits());
     __ cmpptr(c_rarg2, c_rarg3);
-    __ jcc(Assembler::zero, in_Java_heap);
-    // Not in Java heap, but could be valid if it's a bufferable value type
-    __ load_klass(c_rarg2, rax);
-    __ movbool(c_rarg2, Address(c_rarg2, InstanceKlass::extra_flags_offset()));
-    __ andptr(c_rarg2, InstanceKlass::_extra_is_bufferable);
-    __ testbool(c_rarg2);
-    __ jcc(Assembler::zero, error);
-    __ bind(in_Java_heap);
+    __ jcc(Assembler::notZero, error);
 
     // set r12 to heapbase for load_klass()
     __ reinit_heapbase();
