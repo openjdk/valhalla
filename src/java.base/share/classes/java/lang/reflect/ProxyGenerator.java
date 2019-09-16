@@ -813,7 +813,11 @@ final class ProxyGenerator extends ClassWriter {
                     throw new AssertionError();
                 }
             } else {
-                mv.visitTypeInsn(CHECKCAST, dotToSlash(type.getName()));
+                String internalName = dotToSlash(type.getName());
+                if (type.isInlineClass() && !type.isIndirectType()) {
+                    internalName = 'Q' + internalName + ";";
+                }
+                mv.visitTypeInsn(CHECKCAST, internalName);
                 mv.visitInsn(ARETURN);
             }
         }
@@ -865,7 +869,7 @@ final class ProxyGenerator extends ClassWriter {
         /**
          * Generate code to invoke the Class.forName with the name of the given
          * class to get its Class object at runtime.  And also generate code
-         * to invoke Class.asValueBox if the class is regular value type.
+         * to invoke Class.asPrimaryType if the class is regular value type.
          *
          * The code is written to the supplied stream.  Note that the code generated
          * by this method may caused the checked ClassNotFoundException to be thrown.
