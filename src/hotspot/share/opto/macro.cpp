@@ -373,13 +373,15 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
         // own slice so we need to extract the field being accessed from
         // the address computation
         adr_type = adr_type->is_aryptr()->add_field_offset_and_offset(offset);
-        adr = _igvn.transform(new CastPPNode(adr, adr_type));
       } else {
         adr_type = adr_type->add_offset(offset);
       }
       if (ac->in(ArrayCopyNode::Src) == ac->in(ArrayCopyNode::Dest)) {
         // Don't emit a new load from src if src == dst but try to get the value from memory instead
         return value_from_mem(ac->in(TypeFunc::Memory), ctl, ft, ftype, adr_type->isa_oopptr(), alloc);
+      }
+      if (adr_type->isa_aryptr()) {
+        adr = _igvn.transform(new CastPPNode(adr, adr_type));
       }
       res = LoadNode::make(_igvn, ctl, mem, adr, adr_type, type, bt, MemNode::unordered, LoadNode::UnknownControl);
     }
