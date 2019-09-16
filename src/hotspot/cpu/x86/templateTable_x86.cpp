@@ -33,6 +33,7 @@
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/valueKlass.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
@@ -4450,6 +4451,43 @@ void TemplateTable::_new() {
 void TemplateTable::defaultvalue() {
   transition(vtos, atos);
 
+  Label slow_case;
+  Label done;
+
+  __ get_unsigned_2_byte_index_at_bcp(rdx, 1);
+  __ get_cpool_and_tags(rcx, rax);
+
+  // Make sure the class we're about to instantiate has been resolved.
+  // This is done before loading InstanceKlass to be consistent with the order
+  // how Constant Pool is updated (see ConstantPool::klass_at_put)
+  const int tags_offset = Array<u1>::base_offset_in_bytes();
+  __ cmpb(Address(rax, rdx, Address::times_1, tags_offset), JVM_CONSTANT_Class);
+  __ jcc(Assembler::notEqual, slow_case);
+
+  // get InstanceKlass
+  __ load_resolved_klass_at_index(rcx, rcx, rdx);
+
+  // make sure klass is fully initialized
+  __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
+  __ jcc(Assembler::notEqual, slow_case);
+
+  // Getting the offset of the pre-allocated default value
+  __ movptr(rdx, Address(rcx, in_bytes(InstanceKlass::adr_valueklass_fixed_block_offset())));
+  __ movl(rdx, Address(rdx, in_bytes(ValueKlass::default_value_offset_offset())));
+
+  // Getting the mirror
+  __ movptr(rbx, Address(rcx, in_bytes(Klass::java_mirror_offset())));
+  __ resolve_oop_handle(rbx, rcx);
+  __ verify_oop(rbx);
+
+  // Getting the pre-allocated default value from the mirror
+  Address field(rbx, rdx, Address::times_1);
+  do_oop_load(_masm, field, rax);
+
+  __ jmp(done);
+
+  __ bind(slow_case);
+
   Register rarg1 = LP64_ONLY(c_rarg1) NOT_LP64(rcx);
   Register rarg2 = LP64_ONLY(c_rarg2) NOT_LP64(rdx);
 
@@ -4458,6 +4496,8 @@ void TemplateTable::defaultvalue() {
 
   call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::defaultvalue),
       rarg1, rarg2);
+
+  __ bind(done);
   __ verify_oop(rax);
 }
 
