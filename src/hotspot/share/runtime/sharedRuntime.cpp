@@ -1496,8 +1496,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method(JavaThread* thread))
     guarantee(callee != NULL && callee->is_method(), "bad handshake");
     thread->set_vm_result_2(callee);
     thread->set_callee_target(NULL);
-    // TODO fix this
-    if (false && caller_frame.is_entry_frame() && VM_Version::supports_fast_class_init_checks()) {
+    if (caller_frame.is_entry_frame() && VM_Version::supports_fast_class_init_checks()) {
       // Bypass class initialization checks in c2i when caller is in native.
       // JNI calls to static methods don't have class initialization checks.
       // Fast class initialization checks are present in c2i adapters and call into

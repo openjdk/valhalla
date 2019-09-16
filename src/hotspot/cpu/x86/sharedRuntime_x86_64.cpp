@@ -772,29 +772,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                             int& frame_complete,
                             int& frame_size_in_words,
                             bool alloc_value_receiver) {
-  // Class initialization barrier for static methods
-  if (VM_Version::supports_fast_class_init_checks()) {
-    Label L_skip_barrier;
-    Register method = rbx;
-
-    { // Bypass the barrier for non-static methods
-      Register flags  = rscratch1;
-      __ movl(flags, Address(method, Method::access_flags_offset()));
-      __ testl(flags, JVM_ACC_STATIC);
-      __ jcc(Assembler::zero, L_skip_barrier); // non-static
-    }
-
-    Register klass = rscratch1;
-    __ load_method_holder(klass, method);
-    __ clinit_barrier(klass, r15_thread, &L_skip_barrier /*L_fast_path*/);
-
-    __ jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub())); // slow path
-
-    __ bind(L_skip_barrier);
-   // TODO fix this
-   // c2i_no_clinit_check_entry = __ pc();
-  }
-
   // Before we get into the guts of the C2I adapter, see if we should be here
   // at all.  We've come from compiled code and are attempting to jump to the
   // interpreter, which means the caller made a static call to get here
@@ -1260,6 +1237,29 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   // Scalarized c2i adapter
   address c2i_entry = __ pc();
 
+  // Class initialization barrier for static methods
+  address c2i_no_clinit_check_entry = NULL;
+  if (VM_Version::supports_fast_class_init_checks()) {
+    Label L_skip_barrier;
+    Register method = rbx;
+
+    { // Bypass the barrier for non-static methods
+      Register flags  = rscratch1;
+      __ movl(flags, Address(method, Method::access_flags_offset()));
+      __ testl(flags, JVM_ACC_STATIC);
+      __ jcc(Assembler::zero, L_skip_barrier); // non-static
+    }
+
+    Register klass = rscratch1;
+    __ load_method_holder(klass, method);
+    __ clinit_barrier(klass, r15_thread, &L_skip_barrier /*L_fast_path*/);
+
+    __ jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub())); // slow path
+
+    __ bind(L_skip_barrier);
+    c2i_no_clinit_check_entry = __ pc();
+  }
+
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->c2i_entry_barrier(masm);
 
@@ -1278,10 +1278,6 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     Label unused;
     gen_c2i_adapter(masm, sig, regs, value_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
   }
-
-  // TODO fix this
-  // Class initialization barrier for static methods
-  address c2i_no_clinit_check_entry = NULL;
 
   __ flush();
 
