@@ -37,6 +37,7 @@ import java.io.IOException;
 import static java.lang.invoke.MethodHandles.Lookup.ClassOption.*;
 import static java.lang.invoke.MethodHandles.lookup;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -65,38 +66,29 @@ public class SelfReferenceDescriptor {
         }
     }
 
-    static byte[] readClassFile(String classFileName) throws IOException {
-        File classFile = new File(CLASSES_DIR + File.separator + classFileName);
-        try (FileInputStream in = new FileInputStream(classFile);
-             ByteArrayOutputStream out = new ByteArrayOutputStream())
-        {
-            int b;
-            while ((b = in.read()) != -1) {
-                out.write(b);
-            }
-            return out.toByteArray();
-        }
-    }
-
     // Test that a hidden class cannot use its own name in a field
     // signature.
     public static void hiddenClassInFieldDescriptor() throws Exception {
         compileSources(SRC_DIR.resolve("SelfRefField.java"));
-        byte[] bytes = readClassFile("SelfRefField.class");
+        Path path = CLASSES_DIR.resolve("SelfRefField.class");
+        byte[] bytes = Files.readAllBytes(path);
         try {
-            lookup().defineHiddenClass(bytes, false);
+            lookup().defineHiddenClass(bytes, false, NESTMATE);
+            throw new RuntimeException("expected NCDFE in defining SelfRefField hidden class");
         } catch (NoClassDefFoundError e) {
             if (!e.getMessage().contains("SelfRefField")) throw e;
         }
     }
 
-    // Test that a nonFindable class cannot use its own name in a method
+    // Test that a hidden class cannot use its own name in a method
     // signature.
     public static void hiddenClassInMethodDescriptor() throws Exception {
         compileSources(SRC_DIR.resolve("SelfRefMethod.java"));
-        byte[] bytes = readClassFile("SelfRefMethod.class");
+        Path path = CLASSES_DIR.resolve("SelfRefMethod.class");
+        byte[] bytes = Files.readAllBytes(path);
         try {
-            lookup().defineHiddenClass(bytes, false);
+            lookup().defineHiddenClass(bytes, false, NESTMATE);
+            throw new RuntimeException("expected NCDFE in defining SelfRefMethod hidden class");
         } catch (NoClassDefFoundError e) {
             if (!e.getMessage().contains("SelfRefMethod")) throw e;
         }
