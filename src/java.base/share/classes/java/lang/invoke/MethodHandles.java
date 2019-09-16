@@ -1684,7 +1684,9 @@ public class MethodHandles {
          * {@code PRIVATE} and {@code MODULE} lookup mode, it ensures that
          * the nest host authorized the addition of members to the nest.
          * The hidden class has this lookup's lookup class as the
-         * {@linkplain Class#getNestHost nest host}.
+         * {@linkplain Class#getNestHost nest host}.  If it fails to access
+         * the nest host of this lookup's lookup class, {@link LinkageError}
+         * will be thrown.
          *
          * <p> If {@code options} has {@link ClassOption#WEAK WEAK}, then
          * the hidden class is weakly referenced from its defining class loader
@@ -1715,9 +1717,8 @@ public class MethodHandles {
          *                                  {@code NestMembers}, {@code EnclosingMethod} attribute, or
          *                                  {@code classes} entries in the {@code InnerClasses} attribute
          *                                  indicating that this hidden class is an enclosing class
-         *                                  or a nested class.
-         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access;
-         *                                  or if {@code NESTMATE} is set and the lookup class is not the nest host.
+         *                                  or a nested class
+         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
          * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
          *                                  verified ({@code VerifyError}), is already defined,
          *                                  or another linkage error occurs
@@ -1777,9 +1778,8 @@ public class MethodHandles {
          *                                  {@code NestMembers}, {@code EnclosingMethod} attribute, or
          *                                  {@code classes} entries in the {@code InnerClasses} attribute
          *                                  indicating that this hidden class is an enclosing class
-         *                                  or a nested class.
-         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access;
-         *                                  or if {@code NESTMATE} is set and the lookup class is not the nest host
+         *                                  or a nested class
+         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
          * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
          *                                  verified ({@code VerifyError}), is already defined,
          *                                  or another linkage error occurs
@@ -1868,14 +1868,20 @@ public class MethodHandles {
                 this.bytes = bytes;
                 this.classFlags = ClassOption.optionsToFlag(options) | HIDDEN_CLASS;
                 if (options.contains(ClassOption.NESTMATE)) {
-                    checkNestHost();
+                    validateNestHost();
                 }
             }
 
-            void checkNestHost() throws IllegalAccessException {
+            /*
+             * validates static nest membership and throws NCDFE if nest host is not found
+             * or IncompatibleClassChangeError if mismatched run-time package.
+             *
+             * Class::getNestHost may lie and returns itself as the nest host
+             * if  it fails to resolve the class in NestHost attribute
+             */
+            void validateNestHost() {
                 Class<?> nestHost = JLA.nestHost(lookupClass, true);
-                if (nestHost != null && nestHost != lookupClass)
-                    throw new IllegalAccessException(lookupClass + " not the nest host: " + nestHost);
+                assert nestHost != null && nestHost != lookupClass;
             }
 
             Class<?> defineClass(boolean initialize, Object classData) {

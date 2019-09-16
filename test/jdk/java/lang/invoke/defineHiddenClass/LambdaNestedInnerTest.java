@@ -1,0 +1,116 @@
+/*
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+ *
+ * This code is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 only, as
+ * published by the Free Software Foundation.
+ *
+ * This code is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+ * version 2 for more details (a copy is included in the LICENSE file that
+ * accompanied this code).
+ *
+ * You should have received a copy of the GNU General Public License version
+ * 2 along with this work; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+ *
+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+ * or visit www.oracle.com if you need additional information or have any
+ * questions.
+ */
+
+/*
+ * @test
+ * @build  LambdaNestedInnerTest
+ * @run testng/othervm p.LambdaNestedInnerTest
+ * @summary define a lambda proxy class whose target class has an invalid
+ *          nest membership
+ */
+
+package p;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import org.testng.annotations.BeforeTest;
+import org.testng.annotations.Test;
+
+import static java.nio.file.StandardCopyOption.REPLACE_EXISTING;
+import static org.testng.Assert.*;
+
+public class LambdaNestedInnerTest {
+    private static final String INNER_CLASSNAME = "p.LambdaNestedInnerTest$Inner";
+    private static final String DIR = "missingOuter";
+    public static class Inner implements Runnable {
+        // generate lambda proxy class
+        private Runnable lambda1 = () -> {
+        };
+        @Override
+        public void run() {
+            Runnable r = lambda1;
+            r.run();
+            // validate the lambda proxy class
+            Class<?> lambdaProxyClass = r.getClass();
+            assertTrue(lambdaProxyClass.isHiddenClass());
+            System.out.println(lambdaProxyClass.getNestHost() + " vs " + this.getClass());
+            assertTrue(lambdaProxyClass.isNestmateOf(Inner.class));
+            assertTrue(lambdaProxyClass.getNestHost() == Inner.class.getNestHost());
+        }
+    }
+
+    @BeforeTest
+    public void setup() throws IOException {
+        String filename = INNER_CLASSNAME.replace('.', File.separatorChar) + ".class";
+        Path src = Paths.get(System.getProperty("test.classes"), filename);
+        Path dest = Paths.get(DIR, filename);
+        Files.createDirectories(dest.getParent());
+        Files.copy(src, dest, REPLACE_EXISTING);
+    }
+
+    @Test
+    public void test() throws Exception {
+        Class<?> inner = Class.forName(INNER_CLASSNAME);
+        // inner class is a nest member of LambdaNestedInnerTest
+        Class<?> nestHost = inner.getNestHost();
+        assertTrue(nestHost == LambdaNestedInnerTest.class);
+        assertEquals(nestHost.getNestMembers(), new Class<?>[] { nestHost, inner });
+
+        // spin lambda proxy hidden class
+        Runnable runnable = (Runnable) inner.newInstance();
+        runnable.run();
+    }
+
+    /*
+     * Class::getNestHost may lie.  If the outer class of a nested class is not present,
+     * getNestHost returns itself as the nest host.
+     *
+     * If the static nest membership is invalid, defineHiddenClass throws exception
+     * when the lookup class does not match the static nest membership.
+     */
+    @Test
+    public void noOuterClass() throws Exception {
+        URL[] urls = new URL[] { Paths.get(DIR).toUri().toURL() };
+        URLClassLoader loader = new URLClassLoader(urls, null);
+        Class<?> inner = loader.loadClass(INNER_CLASSNAME);
+        assertTrue(inner.getClassLoader() == loader);
+        assertTrue(inner.getNestHost() == inner);
+
+        try {
+            Runnable runnable = (Runnable) inner.newInstance();
+            runnable.run();
+            assertTrue(false);
+        } catch (NoClassDefFoundError e) {
+            e.printStackTrace();
+            assertEquals(e.getMessage(), "Unable to load nest-host class (p/LambdaNestedInnerTest) of p.LambdaNestedInnerTest$Inner");
+        }
+    }
+}
+
+
