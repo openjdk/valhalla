@@ -1141,7 +1141,9 @@ void InstanceKlass::initialize_impl(TRAPS) {
         }
         InstanceKlass::cast(klass)->initialize(CHECK);
         if (fs.access_flags().is_static()) {
-          java_mirror()->obj_field_put(fs.offset(), ValueKlass::cast(klass)->default_value());
+          if (java_mirror()->obj_field(fs.offset()) == NULL) {
+            java_mirror()->obj_field_put(fs.offset(), ValueKlass::cast(klass)->default_value());
+          }
         }
       }
     }

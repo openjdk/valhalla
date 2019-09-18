@@ -380,24 +380,51 @@ JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread* thread, oopDesc* mirror, int index))
   // The interpreter tries to access a flattenable static field that has not been initialized.
-  // This situation can happen only if the load or initialization of the field failed during step 8 of
-  // the initialization of the holder of the field. The code below tries to load and initialize
-  // the field's class again in order to throw likely the same exception or error as the one that caused
-  // the field initialization to fail.
+  // This situation can happen in different scenarios:
+  //   1 - if the load or initialization of the field failed during step 8 of
+  //       the initialization of the holder of the field, in this case the access to the field
+  //       must fail
+  //   2 - it can also happen when the initialization of the holder class triggered the initialization of
+  //       another class which accesses this field in its static initializer, in this case the
+  //       access must succeed to allow circularity
+  // The code below tries to load and initialize the field's class again before returning the default value.
+  // If the field was not initialized because of an error, a exception should be thrown.
+  // If the class is being initialized, the default value is returned.
   instanceHandle mirror_h(THREAD, (instanceOop)mirror);
   InstanceKlass* klass = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
-  int offset = klass->field_offset(index);
-  Klass* field_k = klass->get_value_field_klass_or_null(index);
-  if (field_k == NULL) {
-    field_k = SystemDictionary::resolve_or_fail(klass->field_signature(index)->fundamental_name(THREAD),
-        Handle(THREAD, klass->class_loader()),
-        Handle(THREAD, klass->protection_domain()),
-        true, CHECK);
-    assert(field_k != NULL, "Should have been loaded or an exception thrown above");
-    klass->set_value_field_klass(index, field_k);
+  if (klass->is_being_initialized() && klass->is_reentrant_initialization(THREAD)) {
+    int offset = klass->field_offset(index);
+    Klass* field_k = klass->get_value_field_klass_or_null(index);
+    if (field_k == NULL) {
+      field_k = SystemDictionary::resolve_or_fail(klass->field_signature(index)->fundamental_name(THREAD),
+          Handle(THREAD, klass->class_loader()),
+          Handle(THREAD, klass->protection_domain()),
+          true, CHECK);
+      assert(field_k != NULL, "Should have been loaded or an exception thrown above");
+      klass->set_value_field_klass(index, field_k);
+    }
+    field_k->initialize(CHECK);
+    oop defaultvalue = ValueKlass::cast(field_k)->default_value();
+    // It is safe to initialized the static field because 1) the current thread is the initializing thread
+    // and is the only one that can access it, and 2) the field is actually not initialized (i.e. null)
+    // otherwise the JVM should not be executing this code.
+    mirror->obj_field_put(offset, defaultvalue);
+    thread->set_vm_result(defaultvalue);
+  } else {
+    assert(klass->is_in_error_state(), "If not initializing, initialization must have failed to get there");
+    ResourceMark rm(THREAD);
+    const char* desc = "Could not initialize class ";
+    const char* className = klass->external_name();
+    size_t msglen = strlen(desc) + strlen(className) + 1;
+    char* message = NEW_RESOURCE_ARRAY(char, msglen);
+    if (NULL == message) {
+      // Out of memory: can't create detailed error message
+      THROW_MSG(vmSymbols::java_lang_NoClassDefFoundError(), className);
+    } else {
+      jio_snprintf(message, msglen, "%s%s", desc, className);
+      THROW_MSG(vmSymbols::java_lang_NoClassDefFoundError(), message);
+    }
   }
-  field_k->initialize(CHECK);
-  fatal("An exception should have been thrown above");
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::uninitialized_instance_value_field(JavaThread* thread, oopDesc* obj, int index))
