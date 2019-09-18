@@ -27,6 +27,7 @@ package java.util;
 
 import jdk.internal.util.Preconditions;
 import jdk.internal.vm.annotation.ForceInline;
+import jdk.internal.misc.Unsafe;
 
 import java.util.function.Supplier;
 
@@ -425,4 +426,14 @@ public final class Objects {
         return Preconditions.checkFromIndexSize(fromIndex, size, length, null);
     }
 
+    /**
+     * Return the size of the object in the heap.
+     *
+     * @param o an object
+     * @return the objects's size
+     * @since Valhalla
+     */
+    public static long getObjectSize(Object o) {
+        return Unsafe.getUnsafe().getObjectSize(o);
+    }
 }

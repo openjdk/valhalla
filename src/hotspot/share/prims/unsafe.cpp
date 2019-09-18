@@ -779,6 +779,12 @@ UNSAFE_ENTRY(jint, Unsafe_ArrayIndexScale0(JNIEnv *env, jobject unsafe, jclass c
 } UNSAFE_END
 
 
+UNSAFE_ENTRY(jlong, Unsafe_GetObjectSize0(JNIEnv* env, jobject o, jobject obj))
+  oop p = JNIHandles::resolve(obj);
+  return Universe::heap()->obj_size(p) * HeapWordSize;
+UNSAFE_END
+
+
 static inline void throw_new(JNIEnv *env, const char *ename) {
   jclass cls = env->FindClass(ename);
   if (env->ExceptionCheck()) {
@@ -1240,6 +1246,7 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "ensureClassInitialized0", CC "(" CLS ")V",      FN_PTR(Unsafe_EnsureClassInitialized0)},
     {CC "arrayBaseOffset0",   CC "(" CLS ")I",           FN_PTR(Unsafe_ArrayBaseOffset0)},
     {CC "arrayIndexScale0",   CC "(" CLS ")I",           FN_PTR(Unsafe_ArrayIndexScale0)},
+    {CC "getObjectSize0",     CC "(Ljava/lang/Object;)J", FN_PTR(Unsafe_GetObjectSize0)},
 
     {CC "defineClass0",       CC "(" DC_Args ")" CLS,    FN_PTR(Unsafe_DefineClass0)},
     {CC "allocateInstance",   CC "(" CLS ")" OBJ,        FN_PTR(Unsafe_AllocateInstance)},

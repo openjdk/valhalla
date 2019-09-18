@@ -1334,6 +1334,17 @@ public final class Unsafe {
         return arrayIndexScale0(arrayClass);
     }
 
+    /**
+     * Return the size of the object in the heap.
+     * @param o an object
+     * @return the objects's size
+     * @since Valhalla
+     */
+    public long getObjectSize(Object o) {
+        if (o == null)
+            throw new NullPointerException();
+        return getObjectSize0(o);
+    }
 
     /** The value of {@code arrayIndexScale(boolean[].class)} */
     public static final int ARRAY_BOOLEAN_INDEX_SCALE
@@ -4188,6 +4199,7 @@ public final class Unsafe {
     private native void ensureClassInitialized0(Class<?> c);
     private native int arrayBaseOffset0(Class<?> arrayClass);
     private native int arrayIndexScale0(Class<?> arrayClass);
+    private native long getObjectSize0(Object o);
     private native Class<?> defineAnonymousClass0(Class<?> hostClass, byte[] data, Object[] cpPatches);
     private native int getLoadAverage0(double[] loadavg, int nelems);
 
