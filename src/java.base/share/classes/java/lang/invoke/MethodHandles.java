@@ -1881,7 +1881,7 @@ public class MethodHandles {
              */
             void validateNestHost() {
                 Class<?> nestHost = JLA.nestHost(lookupClass, true);
-                assert nestHost != null && nestHost != lookupClass;
+                assert nestHost == null || nestHost == lookupClass;
             }
 
             Class<?> defineClass(boolean initialize, Object classData) {
