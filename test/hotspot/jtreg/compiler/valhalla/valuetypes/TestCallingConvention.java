@@ -71,7 +71,7 @@ public class TestCallingConvention extends ValueTypeTest {
 
     public static void main(String[] args) throws Throwable {
         TestCallingConvention test = new TestCallingConvention();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue4.class, Test27Value1.class, Test27Value2.class, Test27Value3.class);
+        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class, MyValue3Inline.class, MyValue4.class, Test27Value1.class, Test27Value2.class, Test27Value3.class);
     }
 
     // Test interpreter to compiled code with various signatures

@@ -94,7 +94,6 @@ class StartOSRNode : public StartNode {
 public:
   StartOSRNode( Node *root, const TypeTuple *domain ) : StartNode(root, domain) {}
   virtual int   Opcode() const;
-  static  const TypeTuple *osr_domain();
 };
 
 

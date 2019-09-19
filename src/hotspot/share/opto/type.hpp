@@ -1610,7 +1610,7 @@ public:
   const TypeTuple* range_sig()  const { return _range_sig; }
   const TypeTuple* range_cc()   const { return _range_cc; }
 
-  static const TypeFunc *make(ciMethod* method);
+  static const TypeFunc* make(ciMethod* method, bool is_osr_compilation = false);
   static const TypeFunc *make(const TypeTuple* domain_sig, const TypeTuple* domain_cc,
                               const TypeTuple* range_sig, const TypeTuple* range_cc);
   static const TypeFunc *make(const TypeTuple* domain, const TypeTuple* range);

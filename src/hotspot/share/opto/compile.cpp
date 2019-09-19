@@ -794,10 +794,8 @@ Compile::Compile( ciEnv* ci_env, C2Compiler* compiler, ciMethod* target, int osr
     // Set up tf(), start(), and find a CallGenerator.
     CallGenerator* cg = NULL;
     if (is_osr_compilation()) {
-      const TypeTuple *domain = StartOSRNode::osr_domain();
-      const TypeTuple *range = TypeTuple::make_range(method()->signature());
-      init_tf(TypeFunc::make(domain, range));
-      StartNode* s = new StartOSRNode(root(), domain);
+      init_tf(TypeFunc::make(method(), /* is_osr_compilation = */ true));
+      StartNode* s = new StartOSRNode(root(), tf()->domain_sig());
       initial_gvn()->set_type_bottom(s);
       init_start(s);
       cg = CallGenerator::for_osr(method(), entry_bci());

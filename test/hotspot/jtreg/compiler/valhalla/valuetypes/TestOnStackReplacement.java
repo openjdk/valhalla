@@ -50,7 +50,7 @@ public class TestOnStackReplacement extends ValueTypeTest {
 
     public static void main(String[] args) throws Throwable {
         TestOnStackReplacement test = new TestOnStackReplacement();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class);
+        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class, MyValue3Inline.class);
     }
 
     // Helper methods
@@ -256,5 +256,36 @@ public class TestOnStackReplacement extends ValueTypeTest {
     @DontCompile
     public void test7_verifier(boolean warmup) {
         test7();
+    }
+
+    // Test OSR with scalarized value type return
+    MyValue3 test8_vt;
+
+    @DontInline
+    public MyValue3 test8_callee(int len) {
+        test8_vt = MyValue3.create();
+        int val = 0;
+        for (int i = 0; i < len; ++i) {
+            val = i;
+        }
+        test8_vt = test8_vt.setI(test8_vt, val);
+        return test8_vt;
+    }
+
+    @Test() @Warmup(2)
+    public int test8(int start) {
+        MyValue3 vt = test8_callee(start);
+        test8_vt.verify(vt);
+        int result = 0;
+        for (int i = 0; i < 50_000; ++i) {
+            result += i;
+        }
+        return result;
+    }
+
+    @DontCompile
+    public void test8_verifier(boolean warmup) {
+        test8(1);
+        test8(50_000);
     }
 }

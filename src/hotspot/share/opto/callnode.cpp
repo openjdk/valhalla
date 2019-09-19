@@ -101,17 +101,6 @@ Node *StartNode::match(const ProjNode *proj, const Matcher *match, const RegMask
   return NULL;
 }
 
-//------------------------------StartOSRNode----------------------------------
-// The method start node for an on stack replacement adapter
-
-//------------------------------osr_domain-----------------------------
-const TypeTuple *StartOSRNode::osr_domain() {
-  const Type **fields = TypeTuple::fields(2);
-  fields[TypeFunc::Parms+0] = TypeRawPtr::BOTTOM;  // address of osr buffer
-
-  return TypeTuple::make(TypeFunc::Parms+1, fields);
-}
-
 //=============================================================================
 const char * const ParmNode::names[TypeFunc::Parms+1] = {
   "Control", "I_O", "Memory", "FramePtr", "ReturnAdr", "Parms"

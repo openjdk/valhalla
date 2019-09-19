@@ -5726,24 +5726,37 @@ const TypeFunc *TypeFunc::make(const TypeTuple *domain, const TypeTuple *range) 
   return make(domain, domain, range, range);
 }
 
+//------------------------------osr_domain-----------------------------
+const TypeTuple* osr_domain() {
+  const Type **fields = TypeTuple::fields(2);
+  fields[TypeFunc::Parms+0] = TypeRawPtr::BOTTOM;  // address of osr buffer
+  return TypeTuple::make(TypeFunc::Parms+1, fields);
+}
+
 //------------------------------make-------------------------------------------
-const TypeFunc *TypeFunc::make(ciMethod* method) {
+const TypeFunc* TypeFunc::make(ciMethod* method, bool is_osr_compilation) {
   Compile* C = Compile::current();
-  const TypeFunc* tf = C->last_tf(method); // check cache
-  if (tf != NULL)  return tf;  // The hit rate here is almost 50%.
+  const TypeFunc* tf = NULL;
+  if (!is_osr_compilation) {
+    tf = C->last_tf(method); // check cache
+    if (tf != NULL)  return tf;  // The hit rate here is almost 50%.
+  }
   // Value types are not passed/returned by reference, instead each field of
   // the value type is passed/returned as an argument. We maintain two views of
   // the argument/return list here: one based on the signature (with a value
   // type argument/return as a single slot), one based on the actual calling
   // convention (with a value type argument/return as a list of its fields).
-  const TypeTuple* domain_sig = TypeTuple::make_domain(method, false);
-  const TypeTuple* domain_cc = method->has_scalarized_args() ? TypeTuple::make_domain(method, true) : domain_sig;
+  bool has_scalar_args = method->has_scalarized_args() && !is_osr_compilation;
+  const TypeTuple* domain_sig = is_osr_compilation ? osr_domain() : TypeTuple::make_domain(method, false);
+  const TypeTuple* domain_cc = has_scalar_args ? TypeTuple::make_domain(method, true) : domain_sig;
   ciSignature* sig = method->signature();
-  bool has_scalarized_ret = sig->returns_never_null() && sig->return_type()->as_value_klass()->can_be_returned_as_fields();
+  bool has_scalar_ret = sig->returns_never_null() && sig->return_type()->as_value_klass()->can_be_returned_as_fields();
   const TypeTuple* range_sig = TypeTuple::make_range(sig, false);
-  const TypeTuple* range_cc = has_scalarized_ret ? TypeTuple::make_range(sig, true) : range_sig;
+  const TypeTuple* range_cc = has_scalar_ret ? TypeTuple::make_range(sig, true) : range_sig;
   tf = TypeFunc::make(domain_sig, domain_cc, range_sig, range_cc);
-  C->set_last_tf(method, tf);  // fill cache
+  if (!is_osr_compilation) {
+    C->set_last_tf(method, tf);  // fill cache
+  }
   return tf;
 }
 
