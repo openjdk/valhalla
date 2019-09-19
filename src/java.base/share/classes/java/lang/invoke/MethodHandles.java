@@ -1679,14 +1679,17 @@ public class MethodHandles {
          *
          * <p> If {@code options} has {@link ClassOption#NESTMATE NESTMATE}, then
          * this method creates the hidden class as a member of the nest of
-         * the lookup class.
-         * This lookup's lookup class must be the nest host.  Together with the
-         * {@code PRIVATE} and {@code MODULE} lookup mode, it ensures that
-         * the nest host authorized the addition of members to the nest.
-         * The hidden class has this lookup's lookup class as the
-         * {@linkplain Class#getNestHost nest host}.  If it fails to access
-         * the nest host of this lookup's lookup class, {@link LinkageError}
-         * will be thrown.
+         * this lookup's lookup class.  The lookup class must be the host class
+         * of the nest.  Together with the {@code PRIVATE} and {@code MODULE}
+         * lookup mode, it ensures that the nest host (the lookup class) authorizes
+         * the membership of the hidden class being defined.
+         * If the lookup class has a {@code NestHost} attribute, then this method
+         * will load the nest host indicated by the {@code NestHost} attribute.
+         * If the nest host cannot be loaded, or is not in the same runtime
+         * package as the lookup class, or does not authorize membership
+         * for the lookup class, then {@code LinkageError} will be thrown.
+         * If the nest host is not the lookup class itself, then
+         * {@code IllegalAccessException} will be thrown.
          *
          * <p> If {@code options} has {@link ClassOption#WEAK WEAK}, then
          * the hidden class is weakly referenced from its defining class loader
@@ -1718,7 +1721,9 @@ public class MethodHandles {
          *                                  {@code classes} entries in the {@code InnerClasses} attribute
          *                                  indicating that this hidden class is an enclosing class
          *                                  or a nested class
-         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
+         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access;
+         *                                  or if the hidden class is defined as a {@linkplain ClassOption#NESTMATE nestmate}
+         *                                  and this lookup's lookup class is not the nest host
          * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
          *                                  verified ({@code VerifyError}), is already defined,
          *                                  or another linkage error occurs
@@ -1873,15 +1878,19 @@ public class MethodHandles {
             }
 
             /*
-             * validates static nest membership and throws NCDFE if nest host is not found
-             * or IncompatibleClassChangeError if mismatched run-time package.
+             * Validates static nest membership and throws NCDFE if nest host is
+             * not found or IncompatibleClassChangeError if not same runtime package.
+             * If this lookup class is not the nest host, then throw
+             * IllegalAccessException.
              *
-             * Class::getNestHost may lie and returns itself as the nest host
-             * if  it fails to resolve the class in NestHost attribute
+             * Note that Class::getNestHost may lie and returns itself as the nest host
+             * when linkage error occurs when resolving the class indicated in
+             * the NestHost attribute.
              */
-            void validateNestHost() {
-                Class<?> nestHost = JLA.nestHost(lookupClass, true);
-                assert nestHost == null || nestHost == lookupClass;
+            void validateNestHost() throws IllegalAccessException {
+                Class<?> nestHost = JLA.nestHost(lookupClass, true /* throw error */);
+                if (nestHost != null && nestHost != lookupClass)
+                    throw new IllegalAccessException(lookupClass.getName() + " is not the nest host: " + nestHost);
             }
 
             Class<?> defineClass(boolean initialize, Object classData) {

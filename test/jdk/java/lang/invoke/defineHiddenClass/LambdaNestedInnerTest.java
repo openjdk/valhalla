@@ -38,6 +38,9 @@ import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
@@ -80,7 +83,8 @@ public class LambdaNestedInnerTest {
         // inner class is a nest member of LambdaNestedInnerTest
         Class<?> nestHost = inner.getNestHost();
         assertTrue(nestHost == LambdaNestedInnerTest.class);
-        assertEquals(nestHost.getNestMembers(), new Class<?>[] { nestHost, inner });
+        Set<Class<?>> members = Arrays.stream(nestHost.getNestMembers()).collect(Collectors.toSet());
+        assertEquals(members, Set.of(nestHost, inner, TestLoader.class));
 
         // spin lambda proxy hidden class
         Runnable runnable = (Runnable) inner.newInstance();
@@ -94,13 +98,20 @@ public class LambdaNestedInnerTest {
      * If the static nest membership is invalid, defineHiddenClass throws exception
      * when the lookup class does not match the static nest membership.
      */
+    private final String NCDFE_MSG = "Unable to load nest-host class (p/LambdaNestedInnerTest) of p.LambdaNestedInnerTest$Inner";
+    private final String ICCE_REGEX = "Type p.LambdaNestedInnerTest\\$Inner " +
+            "\\(loader: p.LambdaNestedInnerTest\\$TestLoader @[0-9a-f]+\\)" +
+            " is not a nest member of p.LambdaNestedInnerTest \\(loader: 'app'\\): types are in different packages";
+    /*
+     * Test NoClassDefFoundError thrown if the true nest host is not found.
+     */
     @Test
-    public void noOuterClass() throws Exception {
+    public void nestHostNotExist() throws Exception {
         URL[] urls = new URL[] { Paths.get(DIR).toUri().toURL() };
         URLClassLoader loader = new URLClassLoader(urls, null);
         Class<?> inner = loader.loadClass(INNER_CLASSNAME);
         assertTrue(inner.getClassLoader() == loader);
-        assertTrue(inner.getNestHost() == inner);
+        assertTrue(inner.getNestHost() == inner);   // linkage error ignored
 
         try {
             Runnable runnable = (Runnable) inner.newInstance();
@@ -108,7 +119,44 @@ public class LambdaNestedInnerTest {
             assertTrue(false);
         } catch (NoClassDefFoundError e) {
             e.printStackTrace();
-            assertEquals(e.getMessage(), "Unable to load nest-host class (p/LambdaNestedInnerTest) of p.LambdaNestedInnerTest$Inner");
+            assertEquals(e.getMessage(), NCDFE_MSG);
+        }
+    }
+
+    /*
+     * Tests IncompatibleClassChangeError thrown since the true nest host is not
+     * in the same runtime package as the hidden class
+     */
+    @Test
+    public void nestHostNotSamePackage() throws Exception {
+        URL[] urls = new URL[] { Paths.get(DIR).toUri().toURL() };
+        TestLoader loader = new TestLoader(urls);
+
+        Class<?> inner = loader.loadClass(INNER_CLASSNAME);
+        assertTrue(inner.getClassLoader() == loader);
+        assertTrue(inner.getNestHost() == inner);   // linkage error ignored.
+
+        try {
+            Runnable runnable = (Runnable) inner.newInstance();
+            runnable.run();
+            assertTrue(false);
+        } catch (IncompatibleClassChangeError e) {
+            e.printStackTrace();
+            assertTrue(e.getMessage().matches(ICCE_REGEX));
+        }
+    }
+
+    static class TestLoader extends URLClassLoader {
+        TestLoader(URL[] urls) {
+            super(urls, TestLoader.class.getClassLoader());
+        }
+        public Class<?> loadClass(String name) throws ClassNotFoundException {
+            if (INNER_CLASSNAME.equals(name)) {
+                return findClass(name);
+            } else {
+                // delegate to its parent
+                return loadClass(name, false);
+            }
         }
     }
 }

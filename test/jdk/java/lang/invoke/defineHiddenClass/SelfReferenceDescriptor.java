@@ -28,6 +28,7 @@
  *        jdk.test.lib.compiler.CompilerUtils
  *        SelfReferenceDescriptor
  * @run main/othervm -Xverify:remote SelfReferenceDescriptor
+ * @summary Test that a hidden class cannot be referenced in descriptor
  */
 
 import java.io.ByteArrayOutputStream;
