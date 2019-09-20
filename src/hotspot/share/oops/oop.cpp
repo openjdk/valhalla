@@ -37,8 +37,6 @@
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
 
-bool always_do_update_barrier = false;
-
 void oopDesc::print_on(outputStream* st) const {
   klass()->oop_print_on(oop(this), st);
 }
@@ -211,7 +209,6 @@ void oopDesc::release_double_field_put(int offset, jdouble value)     { HeapAcce
 
 #ifdef ASSERT
 void oopDesc::verify_forwardee(oop forwardee) {
-  Universe::heap()->check_oop_location(forwardee);
 #if INCLUDE_CDS_JAVA_HEAP
   assert(!HeapShared::is_archived_object(forwardee) && !HeapShared::is_archived_object(this),
          "forwarding archive object");

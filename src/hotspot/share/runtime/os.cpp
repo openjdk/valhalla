@@ -291,7 +291,7 @@ bool os::dll_locate_lib(char *buffer, size_t buflen,
   bool retval = false;
 
   size_t fullfnamelen = strlen(JNI_LIB_PREFIX) + strlen(fname) + strlen(JNI_LIB_SUFFIX);
-  char* fullfname = (char*)NEW_C_HEAP_ARRAY(char, fullfnamelen + 1, mtInternal);
+  char* fullfname = NEW_C_HEAP_ARRAY(char, fullfnamelen + 1, mtInternal);
   if (dll_build_name(fullfname, fullfnamelen + 1, fname)) {
     const size_t pnamelen = pname ? strlen(pname) : 0;
 
@@ -796,7 +796,7 @@ void* os::realloc(void *memblock, size_t size, MEMFLAGS memflags, const NativeCa
 #endif
 }
 
-
+// handles NULL pointers
 void  os::free(void *memblock) {
   NOT_PRODUCT(inc_stat_counter(&num_frees, 1));
 #ifdef ASSERT
@@ -1329,7 +1329,7 @@ char** os::split_path(const char* path, size_t* elements, size_t file_name_lengt
     return NULL;
   }
   const char psepchar = *os::path_separator();
-  char* inpath = (char*)NEW_C_HEAP_ARRAY(char, strlen(path) + 1, mtInternal);
+  char* inpath = NEW_C_HEAP_ARRAY(char, strlen(path) + 1, mtInternal);
   if (inpath == NULL) {
     return NULL;
   }
@@ -1342,7 +1342,8 @@ char** os::split_path(const char* path, size_t* elements, size_t file_name_lengt
     p++;
     p = strchr(p, psepchar);
   }
-  char** opath = (char**) NEW_C_HEAP_ARRAY(char*, count, mtInternal);
+
+  char** opath = NEW_C_HEAP_ARRAY(char*, count, mtInternal);
 
   // do the actual splitting
   p = inpath;
@@ -1356,7 +1357,8 @@ char** os::split_path(const char* path, size_t* elements, size_t file_name_lengt
                                     "sun.boot.library.path, to identify potential sources for this path.");
     }
     // allocate the string and add terminator storage
-    char* s  = (char*)NEW_C_HEAP_ARRAY_RETURN_NULL(char, len + 1, mtInternal);
+    char* s  = NEW_C_HEAP_ARRAY_RETURN_NULL(char, len + 1, mtInternal);
+
     if (s == NULL) {
       // release allocated storage before returning null
       free_array_of_char_arrays(opath, i++);
@@ -1841,58 +1843,4 @@ void os::naked_sleep(jlong millis) {
     millis -= limit;
   }
   naked_short_sleep(millis);
-}
-
-int os::sleep(JavaThread* thread, jlong millis) {
-  assert(thread == Thread::current(),  "thread consistency check");
-
-  ParkEvent * const slp = thread->_SleepEvent;
-  // Because there can be races with thread interruption sending an unpark()
-  // to the event, we explicitly reset it here to avoid an immediate return.
-  // The actual interrupt state will be checked before we park().
-  slp->reset();
-  // Thread interruption establishes a happens-before ordering in the
-  // Java Memory Model, so we need to ensure we synchronize with the
-  // interrupt state.
-  OrderAccess::fence();
-
-  jlong prevtime = javaTimeNanos();
-
-  for (;;) {
-    // interruption has precedence over timing out
-    if (os::is_interrupted(thread, true)) {
-      return OS_INTRPT;
-    }
-
-    jlong newtime = javaTimeNanos();
-
-    if (newtime - prevtime < 0) {
-      // time moving backwards, should only happen if no monotonic clock
-      // not a guarantee() because JVM should not abort on kernel/glibc bugs
-      assert(!os::supports_monotonic_clock(),
-             "unexpected time moving backwards detected in os::sleep()");
-    } else {
-      millis -= (newtime - prevtime) / NANOSECS_PER_MILLISEC;
-    }
-
-    if (millis <= 0) {
-      return OS_OK;
-    }
-
-    prevtime = newtime;
-
-    {
-      ThreadBlockInVM tbivm(thread);
-      OSThreadWaitState osts(thread->osthread(), false /* not Object.wait() */);
-
-      thread->set_suspend_equivalent();
-      // cleared by handle_special_suspend_equivalent_condition() or
-      // java_suspend_self() via check_and_wait_while_suspended()
-
-      slp->park(millis);
-
-      // were we externally suspended while we were waiting?
-      thread->check_and_wait_while_suspended();
-    }
-  }
 }
