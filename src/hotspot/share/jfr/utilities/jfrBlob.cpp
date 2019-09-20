@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,22 +19,49 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
 #include "precompiled.hpp"
-#include "gc/z/zUtils.inline.hpp"
-#include "utilities/debug.hpp"
+#include "jfr/utilities/jfrBlob.hpp"
 
-#include <stdlib.h>
+JfrBlob::JfrBlob(const u1* checkpoint, size_t size) :
+  _data(JfrCHeapObj::new_array<u1>(size)),
+  _next(),
+  _size(size),
+  _written(false) {
+  assert(_data != NULL, "invariant");
+  memcpy(const_cast<u1*>(_data), checkpoint, size);
+}
 
-uintptr_t ZUtils::alloc_aligned(size_t alignment, size_t size) {
-  void* res = NULL;
+JfrBlob::~JfrBlob() {
+  JfrCHeapObj::free(const_cast<u1*>(_data), _size);
+}
 
-  if (posix_memalign(&res, alignment, size) != 0) {
-    fatal("posix_memalign() failed");
+void JfrBlob::reset_write_state() const {
+  if (!_written) {
+    return;
   }
+  _written = false;
+  if (_next.valid()) {
+    _next->reset_write_state();
+  }
+}
 
-  memset(res, 0, size);
+void JfrBlob::set_next(const JfrBlobHandle& ref) {
+  if (_next == ref) {
+    return;
+  }
+  assert(_next != ref, "invariant");
+  if (_next.valid()) {
+    _next->set_next(ref);
+    return;
+  }
+  _next = ref;
+}
 
-  return (uintptr_t)res;
+JfrBlobHandle JfrBlob::make(const u1* data, size_t size) {
+  const JfrBlob* const blob = new JfrBlob(data, size);
+  assert(blob != NULL, "invariant");
+  return JfrBlobReference::make(blob);
 }

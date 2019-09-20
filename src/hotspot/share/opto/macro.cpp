@@ -2485,7 +2485,7 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
     _igvn.register_new_node_with_optimizer(unc);
 
     Node* ctrl = _igvn.transform(new ProjNode(unc, TypeFunc::Control));
-    Node* halt = _igvn.transform(new HaltNode(ctrl, lock->in(TypeFunc::FramePtr)));
+    Node* halt = _igvn.transform(new HaltNode(ctrl, lock->in(TypeFunc::FramePtr), "monitor enter on value-type"));
     C->root()->add_req(halt);
   }
 

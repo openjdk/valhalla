@@ -77,8 +77,6 @@
 // Storage properties encodings are current confined to arrayStorageProperties.hpp
 
 
-extern bool always_do_update_barrier;
-
 // Forward declarations.
 class OopClosure;
 class ScanClosure;
@@ -212,10 +210,6 @@ class oopDesc {
       return 0;
     }
   }
-
-  inline static bool equals(oop o1, oop o2) { return Access<>::equals(o1, o2); }
-
-  inline static bool equals_raw(oop o1, oop o2) { return RawAccess<>::equals(o1, o2); }
 
   // Access to fields in a instanceOop through these methods.
   template <DecoratorSet decorator>

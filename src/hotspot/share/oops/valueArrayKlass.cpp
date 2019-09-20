@@ -187,7 +187,7 @@ oop ValueArrayKlass::protection_domain() const {
 // Temp hack having this here: need to move towards Access API
 static bool needs_backwards_copy(arrayOop s, int src_pos,
                                  arrayOop d, int dst_pos, int length) {
-  return oopDesc::equals(s, d) && (dst_pos > src_pos) && (dst_pos - src_pos) < length;
+  return (s == d) && (dst_pos > src_pos) && (dst_pos - src_pos) < length;
 }
 
 void ValueArrayKlass::copy_array(arrayOop s, int src_pos,

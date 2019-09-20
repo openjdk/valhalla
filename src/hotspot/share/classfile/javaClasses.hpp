@@ -329,7 +329,7 @@ class java_lang_Class : AllStatic {
   static void set_indirect_type_mirror(oop java_class, oop mirror);
   static oop indirect_type_mirror(oop java_class);
   static bool is_indirect_type(oop java_class) { // Must match "Class.isIndirectType()"
-    return indirect_type_mirror(java_class) == NULL || oopDesc::equals(indirect_type_mirror(java_class), java_class);
+    return indirect_type_mirror(java_class) == NULL || indirect_type_mirror(java_class) == java_class;
   }
 
   static void set_inline_type_mirror(oop java_class, oop mirror);

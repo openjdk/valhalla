@@ -167,7 +167,7 @@ void universe_post_module_init();  // must happen after call_initPhase2
 
 #ifndef USE_LIBRARY_BASED_TLS_ONLY
 // Current thread is maintained as a thread-local variable
-THREAD_LOCAL_DECL Thread* Thread::_thr_current = NULL;
+THREAD_LOCAL Thread* Thread::_thr_current = NULL;
 #endif
 
 // ======= Thread ========
@@ -292,7 +292,6 @@ Thread::Thread() {
   // The stack would act as a cache to avoid calls to ParkEvent::Allocate()
   // and ::Release()
   _ParkEvent   = ParkEvent::Allocate(this);
-  _SleepEvent  = ParkEvent::Allocate(this);
   _MuxEvent    = ParkEvent::Allocate(this);
 
 #ifdef CHECK_UNHANDLED_OOPS
@@ -457,7 +456,6 @@ Thread::~Thread() {
   // It's possible we can encounter a null _ParkEvent, etc., in stillborn threads.
   // We NULL out the fields for good hygiene.
   ParkEvent::Release(_ParkEvent); _ParkEvent   = NULL;
-  ParkEvent::Release(_SleepEvent); _SleepEvent  = NULL;
   ParkEvent::Release(_MuxEvent); _MuxEvent    = NULL;
 
   delete handle_area();
@@ -858,19 +856,6 @@ JavaThread::is_thread_fully_suspended(bool wait_for_suspend, uint32_t *bits) {
 
   return true;
 }
-
-void Thread::interrupt(Thread* thread) {
-  debug_only(check_for_dangling_thread_pointer(thread);)
-  os::interrupt(thread);
-}
-
-bool Thread::is_interrupted(Thread* thread, bool clear_interrupted) {
-  debug_only(check_for_dangling_thread_pointer(thread);)
-  // Note:  If clear_interrupted==false, this simply fetches and
-  // returns the value of the field osthread()->interrupted().
-  return os::is_interrupted(thread, clear_interrupted);
-}
-
 
 // GC Support
 bool Thread::claim_par_threads_do(uintx claim_token) {
@@ -1329,16 +1314,12 @@ NamedThread::NamedThread() :
 {}
 
 NamedThread::~NamedThread() {
-  if (_name != NULL) {
-    FREE_C_HEAP_ARRAY(char, _name);
-    _name = NULL;
-  }
+  FREE_C_HEAP_ARRAY(char, _name);
 }
 
 void NamedThread::set_name(const char* format, ...) {
   guarantee(_name == NULL, "Only get to set name once.");
   _name = NEW_C_HEAP_ARRAY(char, max_name_len, mtThread);
-  guarantee(_name != NULL, "alloc failure");
   va_list ap;
   va_start(ap, format);
   jio_vsnprintf(_name, max_name_len, format, ap);
@@ -1702,7 +1683,7 @@ void JavaThread::initialize() {
   _do_not_unlock_if_synchronized = false;
   _cached_monitor_info = NULL;
   _parker = Parker::Allocate(this);
-
+  _SleepEvent = ParkEvent::Allocate(this);
   // Setup safepoint state info for this thread
   ThreadSafepointState::create(this);
 
@@ -1732,6 +1713,56 @@ JavaThread::JavaThread(bool is_attaching_via_jni) :
     _jni_attach_state = _not_attaching_via_jni;
   }
   assert(deferred_card_mark().is_empty(), "Default MemRegion ctor");
+}
+
+
+// interrupt support
+
+void JavaThread::interrupt() {
+  debug_only(check_for_dangling_thread_pointer(this);)
+
+  if (!osthread()->interrupted()) {
+    osthread()->set_interrupted(true);
+    // More than one thread can get here with the same value of osthread,
+    // resulting in multiple notifications.  We do, however, want the store
+    // to interrupted() to be visible to other threads before we execute unpark().
+    OrderAccess::fence();
+
+    // For JavaThread::sleep. Historically we only unpark if changing to the interrupted
+    // state, in contrast to the other events below. Not clear exactly why.
+    _SleepEvent->unpark();
+  }
+
+  // For JSR166. Unpark even if interrupt status already was set.
+  parker()->unpark();
+
+  // For ObjectMonitor and JvmtiRawMonitor
+  _ParkEvent->unpark();
+}
+
+
+bool JavaThread::is_interrupted(bool clear_interrupted) {
+  debug_only(check_for_dangling_thread_pointer(this);)
+  bool interrupted = osthread()->interrupted();
+
+  // NOTE that since there is no "lock" around the interrupt and
+  // is_interrupted operations, there is the possibility that the
+  // interrupted flag (in osThread) will be "false" but that the
+  // low-level events will be in the signaled state. This is
+  // intentional. The effect of this is that Object.wait() and
+  // LockSupport.park() will appear to have a spurious wakeup, which
+  // is allowed and not harmful, and the possibility is so rare that
+  // it is not worth the added complexity to add yet another lock.
+  // For the sleep event an explicit reset is performed on entry
+  // to JavaThread::sleep, so there is no early return. It has also been
+  // recommended not to put the interrupted flag into the "event"
+  // structure because it hides the issue.
+  if (interrupted && clear_interrupted) {
+    osthread()->set_interrupted(false);
+    // consider thread->_SleepEvent->reset() ... optional optimization
+  }
+
+  return interrupted;
 }
 
 bool JavaThread::reguard_stack(address cur_sp) {
@@ -1813,6 +1844,10 @@ JavaThread::~JavaThread() {
   // JSR166 -- return the parker to the free list
   Parker::Release(_parker);
   _parker = NULL;
+
+  // Return the sleep event to the free list
+  ParkEvent::Release(_SleepEvent);
+  _SleepEvent = NULL;
 
   // Free any remaining  previous UnrollBlock
   vframeArray* old_array = vframe_array_last();
@@ -2374,8 +2409,8 @@ void JavaThread::send_thread_stop(oop java_throwable)  {
   }
 
 
-  // Interrupt thread so it will wake up from a potential wait()
-  Thread::interrupt(this);
+  // Interrupt thread so it will wake up from a potential wait()/sleep()/park()
+  this->interrupt();
 }
 
 // External suspension mechanism.
@@ -3241,7 +3276,7 @@ WordSize JavaThread::popframe_preserved_args_size_in_words() {
 
 void JavaThread::popframe_free_preserved_args() {
   assert(_popframe_preserved_args != NULL, "should not free PopFrame preserved arguments twice");
-  FREE_C_HEAP_ARRAY(char, (char*) _popframe_preserved_args);
+  FREE_C_HEAP_ARRAY(char, (char*)_popframe_preserved_args);
   _popframe_preserved_args = NULL;
   _popframe_preserved_args_size = 0;
 }
@@ -3346,6 +3381,62 @@ Klass* JavaThread::security_get_caller_class(int depth) {
     return vfst.method()->method_holder();
   }
   return NULL;
+}
+
+// java.lang.Thread.sleep support
+// Returns true if sleep time elapsed as expected, and false
+// if the thread was interrupted.
+bool JavaThread::sleep(jlong millis) {
+  assert(this == Thread::current(),  "thread consistency check");
+
+  ParkEvent * const slp = this->_SleepEvent;
+  // Because there can be races with thread interruption sending an unpark()
+  // to the event, we explicitly reset it here to avoid an immediate return.
+  // The actual interrupt state will be checked before we park().
+  slp->reset();
+  // Thread interruption establishes a happens-before ordering in the
+  // Java Memory Model, so we need to ensure we synchronize with the
+  // interrupt state.
+  OrderAccess::fence();
+
+  jlong prevtime = os::javaTimeNanos();
+
+  for (;;) {
+    // interruption has precedence over timing out
+    if (this->is_interrupted(true)) {
+      return false;
+    }
+
+    if (millis <= 0) {
+      return true;
+    }
+
+    {
+      ThreadBlockInVM tbivm(this);
+      OSThreadWaitState osts(this->osthread(), false /* not Object.wait() */);
+
+      this->set_suspend_equivalent();
+      // cleared by handle_special_suspend_equivalent_condition() or
+      // java_suspend_self() via check_and_wait_while_suspended()
+
+      slp->park(millis);
+
+      // were we externally suspended while we were waiting?
+      this->check_and_wait_while_suspended();
+    }
+
+    // Update elapsed time tracking
+    jlong newtime = os::javaTimeNanos();
+    if (newtime - prevtime < 0) {
+      // time moving backwards, should only happen if no monotonic clock
+      // not a guarantee() because JVM should not abort on kernel/glibc bugs
+      assert(!os::supports_monotonic_clock(),
+             "unexpected time moving backwards detected in JavaThread::sleep()");
+    } else {
+      millis -= (newtime - prevtime) / NANOSECS_PER_MILLISEC;
+    }
+    prevtime = newtime;
+  }
 }
 
 static void compiler_thread_entry(JavaThread* thread, TRAPS) {

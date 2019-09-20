@@ -343,11 +343,13 @@ jint ShenandoahHeap::initialize() {
     Copy::fill_to_bytes(_liveness_cache[worker], _num_regions * sizeof(jushort));
   }
 
-  // The call below uses stuff (the SATB* things) that are in G1, but probably
-  // belong into a shared location.
-  ShenandoahBarrierSet::satb_mark_queue_set().initialize(this,
-                                                         20 /* G1SATBProcessCompletedThreshold */,
-                                                         60 /* G1SATBBufferEnqueueingThresholdPercent */);
+  // There should probably be Shenandoah-specific options for these,
+  // just as there are G1-specific options.
+  {
+    ShenandoahSATBMarkQueueSet& satbqs = ShenandoahBarrierSet::satb_mark_queue_set();
+    satbqs.set_process_completed_buffers_threshold(20); // G1SATBProcessCompletedThreshold
+    satbqs.set_buffer_enqueue_threshold_percentage(60); // G1SATBBufferEnqueueingThresholdPercent
+  }
 
   _monitoring_support = new ShenandoahMonitoringSupport(this);
   _phase_timings = new ShenandoahPhaseTimings();
@@ -1918,7 +1920,7 @@ bool ShenandoahHeap::try_cancel_gc() {
     else if (prev == CANCELLED) return false;
     assert(ShenandoahSuspendibleWorkers, "should not get here when not using suspendible workers");
     assert(prev == NOT_CANCELLED, "must be NOT_CANCELLED");
-    {
+    if (Thread::current()->is_Java_thread()) {
       // We need to provide a safepoint here, otherwise we might
       // spin forever if a SP is pending.
       ThreadBlockInVM sp(JavaThread::current());

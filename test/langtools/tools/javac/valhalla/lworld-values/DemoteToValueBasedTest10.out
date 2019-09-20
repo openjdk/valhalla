@@ -1,4 +1,4 @@
-- compiler.warn.source.no.bootclasspath: 10
+- compiler.warn.source.no.system.modules.path: 10
 - compiler.err.warnings.and.werror
 DemoteToValueBasedTest.java:11:15: compiler.warn.suspicious.mix.of.null.with.value.based.class: Point
 1 error

@@ -3154,7 +3154,7 @@ void AdapterHandlerEntry::deallocate() {
     delete _sig_cc;
   }
 #ifdef ASSERT
-  if (_saved_code) FREE_C_HEAP_ARRAY(unsigned char, _saved_code);
+  FREE_C_HEAP_ARRAY(unsigned char, _saved_code);
 #endif
 }
 

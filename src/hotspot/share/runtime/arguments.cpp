@@ -539,6 +539,7 @@ static SpecialFlag const special_jvm_flags[] = {
   { "FlightRecorder",               JDK_Version::jdk(13), JDK_Version::undefined(), JDK_Version::undefined() },
   { "FieldsAllocationStyle",        JDK_Version::jdk(14), JDK_Version::jdk(15), JDK_Version::jdk(16) },
   { "CompactFields",                JDK_Version::jdk(14), JDK_Version::jdk(15), JDK_Version::jdk(16) },
+  { "MonitorBound",                 JDK_Version::jdk(14), JDK_Version::jdk(15), JDK_Version::jdk(16) },
 
   // --- Deprecated alias flags (see also aliased_jvm_flags) - sorted by obsolete_in then expired_in:
   { "DefaultMaxRAMFraction",        JDK_Version::jdk(8),  JDK_Version::undefined(), JDK_Version::undefined() },
@@ -941,10 +942,8 @@ static bool append_to_string_flag(JVMFlag* flag, const char* new_value, JVMFlag:
   (void) JVMFlag::ccstrAtPut(flag, &value, origin);
   // JVMFlag always returns a pointer that needs freeing.
   FREE_C_HEAP_ARRAY(char, value);
-  if (free_this_too != NULL) {
-    // JVMFlag made its own copy, so I must delete my own temp. buffer.
-    FREE_C_HEAP_ARRAY(char, free_this_too);
-  }
+  // JVMFlag made its own copy, so I must delete my own temp. buffer.
+  FREE_C_HEAP_ARRAY(char, free_this_too);
   return true;
 }
 
