@@ -4071,7 +4071,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     if (not_objArray != NULL) {
       // Improve the klass node's type from the new optimistic assumption:
       ciKlass* ak = ciArrayKlass::make(env()->Object_klass());
-      const Type* akls = TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0));
+      const Type* akls = TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), false);
       Node* cast = new CastPPNode(klass_node, akls);
       cast->init_req(0, control());
       klass_node = _gvn.transform(cast);

@@ -1004,6 +1004,46 @@ bool CallJavaNode::cmp( const Node &n ) const {
   return CallNode::cmp(call) && _method == call._method &&
          _override_symbolic_info == call._override_symbolic_info;
 }
+
+void CallJavaNode::copy_call_debug_info(PhaseIterGVN* phase, CallNode *oldcall) {
+  // Copy debug information and adjust JVMState information
+  uint old_dbg_start = oldcall->tf()->domain_sig()->cnt();
+  uint new_dbg_start = tf()->domain_sig()->cnt();
+  int jvms_adj  = new_dbg_start - old_dbg_start;
+  assert (new_dbg_start == req(), "argument count mismatch");
+  Compile* C = phase->C;
+  
+  // SafePointScalarObject node could be referenced several times in debug info.
+  // Use Dict to record cloned nodes.
+  Dict* sosn_map = new Dict(cmpkey,hashkey);
+  for (uint i = old_dbg_start; i < oldcall->req(); i++) {
+    Node* old_in = oldcall->in(i);
+    // Clone old SafePointScalarObjectNodes, adjusting their field contents.
+    if (old_in != NULL && old_in->is_SafePointScalarObject()) {
+      SafePointScalarObjectNode* old_sosn = old_in->as_SafePointScalarObject();
+      uint old_unique = C->unique();
+      Node* new_in = old_sosn->clone(sosn_map);
+      if (old_unique != C->unique()) { // New node?
+        new_in->set_req(0, C->root()); // reset control edge
+        new_in = phase->transform(new_in); // Register new node.
+      }
+      old_in = new_in;
+    }
+    add_req(old_in);
+  }
+
+  // JVMS may be shared so clone it before we modify it
+  set_jvms(oldcall->jvms() != NULL ? oldcall->jvms()->clone_deep(C) : NULL);
+  for (JVMState *jvms = this->jvms(); jvms != NULL; jvms = jvms->caller()) {
+    jvms->set_map(this);
+    jvms->set_locoff(jvms->locoff()+jvms_adj);
+    jvms->set_stkoff(jvms->stkoff()+jvms_adj);
+    jvms->set_monoff(jvms->monoff()+jvms_adj);
+    jvms->set_scloff(jvms->scloff()+jvms_adj);
+    jvms->set_endoff(jvms->endoff()+jvms_adj);
+  }
+}
+
 #ifdef ASSERT
 bool CallJavaNode::validate_symbolic_info() const {
   if (method() == NULL) {
@@ -1066,6 +1106,157 @@ int CallStaticJavaNode::extract_uncommon_trap_request(const Node* call) {
 #endif
   return call->in(TypeFunc::Parms)->bottom_type()->is_int()->get_con();
 }
+
+bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, Node* mem, Node* unc_arg) {
+  // Split if can cause the flattened array branch of an array load to
+  // end in an uncommon trap. In that case, the allocation of the
+  // loaded value and its initialization is useless. Eliminate it. use
+  // the jvm state of the allocation to create a new uncommon trap
+  // call at the load.
+  if (ctl == NULL || ctl->is_top() || mem == NULL || mem->is_top() || !mem->is_MergeMem()) {
+    return false;
+  }
+  PhaseIterGVN* igvn = phase->is_IterGVN();
+  if (ctl->is_Region()) {
+    bool res = false;
+    for (uint i = 1; i < ctl->req(); i++) {
+      MergeMemNode* mm = mem->clone()->as_MergeMem();
+      for (MergeMemStream mms(mm); mms.next_non_empty(); ) {
+        Node* m = mms.memory();
+        if (m->is_Phi() && m->in(0) == ctl) {
+          mms.set_memory(m->in(i));
+        }
+      }
+      if (remove_useless_allocation(phase, ctl->in(i), mm, unc_arg)) {
+        res = true;
+        if (!ctl->in(i)->is_Region()) {
+          igvn->replace_input_of(ctl, i, phase->C->top());
+        }
+      }
+      igvn->remove_dead_node(mm);
+    }
+    return res;
+  }
+  // verify the control flow is ok
+  Node* c = ctl;
+  Node* copy = NULL;
+  Node* alloc = NULL;
+  for (;;) {
+    if (c == NULL || c->is_top()) {
+      return false;
+    }
+    if (c->is_Proj() || c->is_Catch() || c->is_MemBar()) {
+      c = c->in(0);
+    } else if (c->Opcode() == Op_CallLeaf &&
+               c->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, OptoRuntime::load_unknown_value)) {
+      copy = c;
+      c = c->in(0);
+    } else if (c->is_Allocate()) {
+      Node* new_obj = c->as_Allocate()->result_cast();
+      if (copy == NULL || new_obj == NULL) {
+        return false;
+      }
+      Node* copy_dest = copy->in(TypeFunc::Parms + 2);
+      if (copy_dest != new_obj) {
+        return false;
+      }
+      alloc = c;
+      break;
+    } else {
+      return false;
+    }
+  }
+  
+  JVMState* jvms = alloc->jvms();
+  if (phase->C->too_many_traps(jvms->method(), jvms->bci(), Deoptimization::trap_request_reason(uncommon_trap_request()))) {
+    return false;
+  }
+  
+  Node* alloc_mem = alloc->in(TypeFunc::Memory);
+  if (alloc_mem == NULL || alloc_mem->is_top()) {
+    return false;
+  }
+  if (!alloc_mem->is_MergeMem()) {
+    alloc_mem = MergeMemNode::make(alloc_mem);
+  }
+  
+  // and that there's no unexpected side effect
+  for (MergeMemStream mms2(mem->as_MergeMem(), alloc_mem->as_MergeMem()); mms2.next_non_empty2(); ) {
+    Node* m1 = mms2.is_empty() ? mms2.base_memory() : mms2.memory();
+    Node* m2 = mms2.memory2();
+    
+    for (uint i = 0; i < 100; i++) {
+      if (m1 == m2) {
+        break;
+      } else if (m1->is_Proj()) {
+        m1 = m1->in(0);
+      } else if (m1->is_MemBar()) {
+        m1 = m1->in(TypeFunc::Memory);
+      } else if (m1->Opcode() == Op_CallLeaf &&
+                 m1->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, OptoRuntime::load_unknown_value)) {
+        if (m1 != copy) {
+          return false;
+        }
+        m1 = m1->in(TypeFunc::Memory);
+      } else if (m1->is_Allocate()) {
+        if (m1 != alloc) {
+          return false;
+        }
+        break;
+      } else if (m1->is_MergeMem()) {
+        MergeMemNode* mm = m1->as_MergeMem();
+        int idx = mms2.alias_idx();
+        if (idx == Compile::AliasIdxBot) {
+          m1 = mm->base_memory();
+        } else {
+          m1 = mm->memory_at(idx);
+        }
+      } else {
+        return false;
+      }
+    }
+  }
+  if (alloc_mem->outcnt() == 0) {
+    igvn->remove_dead_node(alloc_mem);
+  }
+
+  address call_addr = SharedRuntime::uncommon_trap_blob()->entry_point();
+  CallNode* unc = new CallStaticJavaNode(OptoRuntime::uncommon_trap_Type(), call_addr, "uncommon_trap",
+                                         jvms->bci(), NULL);
+  unc->init_req(TypeFunc::Control, alloc->in(0));
+  unc->init_req(TypeFunc::I_O, alloc->in(TypeFunc::I_O));
+  unc->init_req(TypeFunc::Memory, alloc->in(TypeFunc::Memory));
+  unc->init_req(TypeFunc::FramePtr,  alloc->in(TypeFunc::FramePtr));
+  unc->init_req(TypeFunc::ReturnAdr, alloc->in(TypeFunc::ReturnAdr));
+  unc->init_req(TypeFunc::Parms+0, unc_arg);
+  unc->set_cnt(PROB_UNLIKELY_MAG(4));
+  unc->copy_call_debug_info(igvn, alloc->as_Allocate());
+  
+  igvn->replace_input_of(alloc, 0, phase->C->top());
+  
+  igvn->register_new_node_with_optimizer(unc);
+  
+  Node* ctrl = phase->transform(new ProjNode(unc, TypeFunc::Control));
+  Node* halt = phase->transform(new HaltNode(ctrl, alloc->in(TypeFunc::FramePtr), "uncommon trap returned which should never happen"));
+  phase->C->root()->add_req(halt);
+
+  return true;
+}
+
+
+Node* CallStaticJavaNode::Ideal(PhaseGVN *phase, bool can_reshape) {
+  if (can_reshape && uncommon_trap_request() != 0) {
+    if (remove_useless_allocation(phase, in(0), in(TypeFunc::Memory), in(TypeFunc::Parms))) {
+      if (!in(0)->is_Region()) {
+        PhaseIterGVN* igvn = phase->is_IterGVN();
+        igvn->replace_input_of(this, 0, phase->C->top());
+      }
+      return this;
+    }
+  }
+  return CallNode::Ideal(phase, can_reshape);
+}
+
 
 #ifndef PRODUCT
 void CallStaticJavaNode::dump_spec(outputStream *st) const {

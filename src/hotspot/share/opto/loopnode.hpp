@@ -1345,6 +1345,7 @@ private:
   Node* try_move_store_before_loop(Node* n, Node *n_ctrl);
   void try_move_store_after_loop(Node* n);
   bool identical_backtoback_ifs(Node *n);
+  bool flatten_array_element_type_check(Node *n);
   bool can_split_if(Node *n_ctrl);
 
   // Determine if a method is too big for a/another round of split-if, based on

@@ -3426,8 +3426,8 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
       }
     } else if (obj->is_Phi()) {
       Node* region = obj->in(0);
-      if (region->req() == 3 && region->in(2) != NULL) {
-        IfNode* iff = region->in(2)->in(0)->isa_If();
+      if (region->req() == 3 && region->in(1) != NULL) {
+        IfNode* iff = region->in(1)->in(0)->isa_If();
         if (iff != NULL) {
           iff->is_flattened_array_check(&_gvn, array);
         }
@@ -3511,6 +3511,20 @@ Node* GraphKit::gen_null_free_array_check(Node* ary) {
     cmp = _gvn.transform(new CmpINode(null_free, zerocon(T_INT)));
   }
   return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+}
+
+Node* GraphKit::gen_flattened_array_test(Node* ary) {
+  assert(EnableValhalla, "should only be used if value types are enabled");
+  // Extract flattened property from klass pointer
+  Node* k_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
+  const TypePtr* k_adr_type = k_adr->bottom_type()->isa_ptr();
+  Node* klass = NULL;
+  if (k_adr_type->is_ptr_to_narrowklass()) {
+    klass = _gvn.transform(new LoadNKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT->make_narrowklass(), MemNode::unordered));
+  } else {
+    klass = _gvn.transform(new LoadKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, MemNode::unordered));
+  }
+  return _gvn.transform(new GetFlattenedPropertyNode(klass));
 }
 
 // Deoptimize if 'ary' is a null-free value type array and 'val' is null
@@ -4396,7 +4410,7 @@ Node* GraphKit::load_String_length(Node* str, bool set_ctrl) {
 Node* GraphKit::load_String_value(Node* str, bool set_ctrl) {
   int value_offset = java_lang_String::value_offset_in_bytes();
   const TypeInstPtr* string_type = TypeInstPtr::make(TypePtr::NotNull, C->env()->String_klass(),
-                                                     false, NULL, Type::Offset(0));
+                                                     false, NULL, Type::Offset(0), false);
   const TypePtr* value_field_type = string_type->add_offset(value_offset);
   const TypeAryPtr* value_type = TypeAryPtr::make(TypePtr::NotNull,
                                                   TypeAry::make(TypeInt::BYTE, TypeInt::POS, false, true, true),
@@ -4413,7 +4427,7 @@ Node* GraphKit::load_String_coder(Node* str, bool set_ctrl) {
   }
   int coder_offset = java_lang_String::coder_offset_in_bytes();
   const TypeInstPtr* string_type = TypeInstPtr::make(TypePtr::NotNull, C->env()->String_klass(),
-                                                     false, NULL, Type::Offset(0));
+                                                     false, NULL, Type::Offset(0), false);
   const TypePtr* coder_field_type = string_type->add_offset(coder_offset);
 
   Node* p = basic_plus_adr(str, str, coder_offset);
@@ -4425,7 +4439,7 @@ Node* GraphKit::load_String_coder(Node* str, bool set_ctrl) {
 void GraphKit::store_String_value(Node* str, Node* value) {
   int value_offset = java_lang_String::value_offset_in_bytes();
   const TypeInstPtr* string_type = TypeInstPtr::make(TypePtr::NotNull, C->env()->String_klass(),
-                                                     false, NULL, Type::Offset(0));
+                                                     false, NULL, Type::Offset(0), false);
   const TypePtr* value_field_type = string_type->add_offset(value_offset);
 
   access_store_at(str,  basic_plus_adr(str, value_offset), value_field_type,
@@ -4435,7 +4449,7 @@ void GraphKit::store_String_value(Node* str, Node* value) {
 void GraphKit::store_String_coder(Node* str, Node* value) {
   int coder_offset = java_lang_String::coder_offset_in_bytes();
   const TypeInstPtr* string_type = TypeInstPtr::make(TypePtr::NotNull, C->env()->String_klass(),
-                                                     false, NULL, Type::Offset(0));
+                                                     false, NULL, Type::Offset(0), false);
   const TypePtr* coder_field_type = string_type->add_offset(coder_offset);
 
   access_store_at(str, basic_plus_adr(str, coder_offset), coder_field_type,

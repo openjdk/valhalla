@@ -2089,6 +2089,7 @@ public class TestLWorld extends ValueTypeTest {
     public void test83_verifier(boolean warmup) {
         MyValue2[] dst = new MyValue2[1];
         test83(dst, testValue2, false);
+        test83(dst, testValue2, true);
         if (!warmup) {
             try {
                 test83(dst, null, true);
@@ -2117,8 +2118,8 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertTrue(Arrays.equals(src, dst));
     }
 
-    @Test(valid = G1GCOn, match = { COUNTEDLOOP }, matchCount = { 2 } )
-    @Test(valid = G1GCOff, match = { COUNTEDLOOP }, matchCount = { 3 } )
+    @Test(valid = G1GCOn, match = { COUNTEDLOOP, LOAD_UNKNOWN_VALUE }, matchCount = { 2, 1 } )
+    @Test(valid = G1GCOff, match = { COUNTEDLOOP, LOAD_UNKNOWN_VALUE }, matchCount = { 3, 4 } )
     public void test85(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -2231,5 +2232,96 @@ public class TestLWorld extends ValueTypeTest {
     public void test91_verifier(boolean warmup) {
         Asserts.assertTrue(test91(new MyValue2[1]));
         Asserts.assertFalse(test91(new Object()));
+    }
+
+    static inline class Test92Value {
+        final int field;
+        public Test92Value() {
+            field = 0x42;
+        }
+    }
+
+    @Warmup(10000)
+    @Test(match = { CLASS_CHECK_TRAP }, matchCount = { 1 }, failOn = LOAD_UNKNOWN_VALUE + ALLOC_G)
+    public Object test92(Object[] array) {
+        // Dummy loops to ensure we run enough passes of split if
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 2; j++) {
+            }
+        }
+        
+        return (Integer)array[0];
+    }
+
+    @DontCompile
+    public void test92_verifier(boolean warmup) {
+        Object[] array = new Object[1];
+        array[0] = 0x42;
+        Object result = test92(array);
+        Asserts.assertEquals(result, 0x42);
+    }
+
+    // If the class check succeeds, the flattened array check that
+    // precedes will never succeed and the flat array branch should
+    // trigger an uncommon trap.
+    @Test
+    @Warmup(10000)
+    public Object test93(Object[] array) {
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 2; j++) {
+            }
+        }
+        
+        Object v = (Integer)array[0];
+        return v;
+    }
+
+    @DontCompile
+    public void test93_verifier(boolean warmup) {
+        if (warmup) {
+            Object[] array = new Object[1];
+            array[0] = 0x42;
+            Object result = test93(array);
+            Asserts.assertEquals(result, 0x42);
+        } else {
+            Object[] array = new Test92Value[1];
+            Method m = tests.get("TestLWorld::test93");
+            int extra = 3;
+            for (int j = 0; j < extra; j++) {
+                for (int i = 0; i < 10; i++) {
+                    try {
+                        test93(array);
+                    } catch (ClassCastException cce) {
+                    }
+                }
+                boolean compiled = isCompiledByC2(m);
+                Asserts.assertTrue(!USE_COMPILER || XCOMP || TEST_C1 || compiled || (j != extra-1));
+                if (!compiled) {
+                    enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
+                }
+            }
+        }
+    }
+
+    @Warmup(10000)
+    @Test(match = { CLASS_CHECK_TRAP, LOOP }, matchCount = { 1, 1 }, failOn = LOAD_UNKNOWN_VALUE + ALLOC_G)
+    public int test94(Object[] array) {
+        int res = 0;
+        for (int i = 1; i < 4; i *= 2) {
+            Object v = array[i];
+            res += (Integer)v;
+        }
+        return res;
+    }
+
+    @DontCompile
+    public void test94_verifier(boolean warmup) {
+        Object[] array = new Object[4];
+        array[0] = 0x42;
+        array[1] = 0x42;
+        array[2] = 0x42;
+        array[3] = 0x42;
+        int result = test94(array);
+        Asserts.assertEquals(result, 0x42 * 2);
     }
 }

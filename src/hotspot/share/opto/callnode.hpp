@@ -659,6 +659,8 @@ public:
 
   bool is_call_to_arraycopystub() const;
 
+  virtual void copy_call_debug_info(PhaseIterGVN* phase, CallNode *oldcall) {}
+  
 #ifndef PRODUCT
   virtual void        dump_req(outputStream *st = tty) const;
   virtual void        dump_spec(outputStream *st) const;
@@ -702,6 +704,8 @@ public:
   void  set_override_symbolic_info(bool f) { _override_symbolic_info = f; }
   bool  override_symbolic_info() const     { return _override_symbolic_info; }
 
+  void copy_call_debug_info(PhaseIterGVN* phase, CallNode *oldcall);
+
   DEBUG_ONLY( bool validate_symbolic_info() const; )
 
 #ifndef PRODUCT
@@ -717,6 +721,9 @@ public:
 class CallStaticJavaNode : public CallJavaNode {
   virtual bool cmp( const Node &n ) const;
   virtual uint size_of() const; // Size is bigger
+
+  bool remove_useless_allocation(PhaseGVN *phase, Node* ctl, Node* mem, Node* unc_arg);
+
 public:
   CallStaticJavaNode(Compile* C, const TypeFunc* tf, address addr, ciMethod* method, int bci)
     : CallJavaNode(tf, addr, method, bci) {
@@ -770,6 +777,8 @@ public:
       jvms()->set_map_deep(this);
     }
   }
+
+  virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);
 
   virtual int         Opcode() const;
 #ifndef PRODUCT

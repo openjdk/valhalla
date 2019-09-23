@@ -860,6 +860,7 @@ class GraphKit : public Phase {
   Node* is_value_mirror(Node* mirror);
   void gen_value_type_guard(Node* obj, int nargs = 0);
   Node* gen_null_free_array_check(Node* ary);
+  Node* gen_flattened_array_test(Node* ary);
   Node* gen_value_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace = false);
   Node* load_lh_array_tag(Node* kls);
   Node* gen_lh_array_test(Node* kls, unsigned int lh_value);

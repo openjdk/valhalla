@@ -130,7 +130,11 @@ IfNode* PhaseIdealLoop::find_unswitching_candidate(const IdealLoopTree *loop, No
         flattened_checks.push(n);
       }
     }
-    unswitch_iff = NULL;
+    if (flattened_checks.size() > 1) {
+      unswitch_iff = NULL;
+    } else {
+      flattened_checks.clear();
+    }
   }
 
   return unswitch_iff;
@@ -196,7 +200,9 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
   int nct = head->unswitch_count() + 1;
   head->set_unswitch_count(nct);
   head_clone->set_unswitch_count(nct);
-  head_clone->mark_flattened_arrays();
+  if (flattened_checks.size() > 0) {
+    head->mark_flattened_arrays();
+  }
 
   // Add test to new "if" outside of loop
   IfNode* invar_iff   = proj_true->in(0)->as_If();
@@ -220,12 +226,14 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
     Node* in1 = NULL;
     for (uint i = 0; i < flattened_checks.size(); i++) {
       Node* v = flattened_checks.at(i)->in(1)->in(1)->in(1);
-      v = new AndINode(v, _igvn.intcon(Klass::_lh_array_tag_vt_value));
-      register_new_node(v, invar_iff->in(0));
       if (in1 == NULL) {
         in1 = v;
       } else {
-        in1 = new OrINode(in1, v);
+        if (cmp->Opcode() == Op_CmpL) {
+          in1 = new OrLNode(in1, v);
+        } else {
+          in1 = new OrINode(in1, v);
+        }
         register_new_node(in1, invar_iff->in(0));
       }
     }
@@ -243,25 +251,50 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
 
   Node_List worklist;
 
-  for (DUIterator_Fast imax, i = unswitch_iff->fast_outs(imax); i < imax; i++) {
-    ProjNode* proj= unswitch_iff->fast_out(i)->as_Proj();
-    // Copy to a worklist for easier manipulation
-    for (DUIterator_Fast jmax, j = proj->fast_outs(jmax); j < jmax; j++) {
-      Node* use = proj->fast_out(j);
-      if (use->Opcode() == Op_CheckCastPP && loop->is_invariant(use->in(1))) {
-        worklist.push(use);
+  if (flattened_checks.size() > 0) {
+    for (uint i = 0; i < flattened_checks.size(); i++) {
+      IfNode* iff = flattened_checks.at(i)->as_If();
+      ProjNode* proj= iff->proj_out(0)->as_Proj();
+      // Copy to a worklist for easier manipulation
+      for (DUIterator_Fast jmax, j = proj->fast_outs(jmax); j < jmax; j++) {
+        Node* use = proj->fast_out(j);
+        if (use->Opcode() == Op_CheckCastPP && loop->is_invariant(use->in(1))) {
+          worklist.push(use);
+        }
+      }
+      ProjNode* invar_proj = invar_iff->proj_out(proj->_con)->as_Proj();
+      while (worklist.size() > 0) {
+        Node* use = worklist.pop();
+        Node* nuse = use->clone();
+        nuse->set_req(0, invar_proj);
+        _igvn.replace_input_of(use, 1, nuse);
+        register_new_node(nuse, invar_proj);
+        // Same for the clone
+        Node* use_clone = old_new[use->_idx];
+        _igvn.replace_input_of(use_clone, 1, nuse);
       }
     }
-    ProjNode* invar_proj = invar_iff->proj_out(proj->_con)->as_Proj();
-    while (worklist.size() > 0) {
-      Node* use = worklist.pop();
-      Node* nuse = use->clone();
-      nuse->set_req(0, invar_proj);
-      _igvn.replace_input_of(use, 1, nuse);
-      register_new_node(nuse, invar_proj);
-      // Same for the clone
-      Node* use_clone = old_new[use->_idx];
-      _igvn.replace_input_of(use_clone, 1, nuse);
+  } else {
+    for (DUIterator_Fast imax, i = unswitch_iff->fast_outs(imax); i < imax; i++) {
+      ProjNode* proj= unswitch_iff->fast_out(i)->as_Proj();
+      // Copy to a worklist for easier manipulation
+      for (DUIterator_Fast jmax, j = proj->fast_outs(jmax); j < jmax; j++) {
+        Node* use = proj->fast_out(j);
+        if (use->Opcode() == Op_CheckCastPP && loop->is_invariant(use->in(1))) {
+          worklist.push(use);
+        }
+      }
+      ProjNode* invar_proj = invar_iff->proj_out(proj->_con)->as_Proj();
+      while (worklist.size() > 0) {
+        Node* use = worklist.pop();
+        Node* nuse = use->clone();
+        nuse->set_req(0, invar_proj);
+        _igvn.replace_input_of(use, 1, nuse);
+        register_new_node(nuse, invar_proj);
+        // Same for the clone
+        Node* use_clone = old_new[use->_idx];
+        _igvn.replace_input_of(use_clone, 1, nuse);
+      }
     }
   }
 
@@ -270,7 +303,7 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
     for (uint i = 0; i < flattened_checks.size(); i++) {
       IfNode* iff = flattened_checks.at(i)->as_If();
       _igvn.rehash_node_delayed(iff);
-      short_circuit_if(iff, proj_true);
+      short_circuit_if(old_new[iff->_idx]->as_If(), proj_false);
     }
   } else {
     // Hardwire the control paths in the loops into if(true) and if(false)

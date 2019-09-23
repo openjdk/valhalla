@@ -928,7 +928,15 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
       }
     }
   }
-
+  const TypeKlassPtr* k0 = r0->isa_klassptr();
+  const TypeKlassPtr* k1 = r1->isa_klassptr();
+  if (k0 && k1) {
+    if ((k0->flat_array() && (!k1->can_be_value_type() || (k1->klass()->is_valuetype() && !k1->klass()->flatten_array()))) ||
+        (k1->flat_array() && (!k0->can_be_value_type() || (k0->klass()->is_valuetype() && !k0->klass()->flatten_array())))) {
+      return TypeInt::CC_GT;
+    }
+  }
+  
   // Known constants can be compared exactly
   // Null can be distinguished from any NotNull pointers
   // Unknown inputs makes an unknown result

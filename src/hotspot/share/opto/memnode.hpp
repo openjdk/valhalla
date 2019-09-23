@@ -534,24 +534,24 @@ public:
   virtual bool depends_only_on_test() const { return true; }
 };
 
-// Retrieve the null free property from an array klass. This is
-// treated a bit like a field that would be read from the klass
+// Retrieve the null free/flattened property from an array klass. This
+// is treated a bit like a field that would be read from the klass
 // structure at runtime except, the implementation encodes the
 // property as a bit in the klass header field of the array. This
 // implementation detail is hidden under this node so it doesn't make
 // a difference for high level optimizations. At final graph reshaping
 // time, this node is turned into the actual logical operations that
 // extract the property from the klass pointer. For this to work
-// correctly, GetNullFreePropertyNode must take a LoadKlass/LoadNKlass
-// input. The Ideal transformation splits the GetNullFreePropertyNode
+// correctly, GeStoragePropertyNodes must take a LoadKlass/LoadNKlass
+// input. The Ideal transformation splits the GetStoragePropertyNode
 // through phis, Value returns a constant if the node's input is a
-// constant. These 2 should guarantee GetNullFreePropertyNode does
+// constant. These 2 should guarantee GetStoragePropertyNode does
 // indeed have a LoadKlass/LoadNKlass input at final graph reshaping
 // time.
-class GetNullFreePropertyNode : public Node {
+class GetStoragePropertyNode : public Node {
+protected:
+  GetStoragePropertyNode(Node* klass) : Node(NULL, klass) {}
 public:
-  GetNullFreePropertyNode(Node* klass) : Node(NULL, klass) {}
-  virtual int Opcode() const;
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node* Ideal(PhaseGVN *phase, bool can_reshape);
   virtual const Type* bottom_type() const {
@@ -560,6 +560,19 @@ public:
     }
     return TypeInt::INT;
   }
+};
+
+
+class GetNullFreePropertyNode : public GetStoragePropertyNode {
+public:
+  GetNullFreePropertyNode(Node* klass) : GetStoragePropertyNode(klass) {}
+  virtual int Opcode() const;
+};
+
+class GetFlattenedPropertyNode : public GetStoragePropertyNode {
+public:
+  GetFlattenedPropertyNode(Node* klass) : GetStoragePropertyNode(klass) {}
+  virtual int Opcode() const;
 };
 
 //------------------------------StoreNode--------------------------------------

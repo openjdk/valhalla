@@ -80,44 +80,6 @@ int PhaseMacroExpand::replace_input(Node *use, Node *oldref, Node *newref) {
   return nreplacements;
 }
 
-void PhaseMacroExpand::copy_call_debug_info(CallNode *oldcall, CallNode * newcall) {
-  // Copy debug information and adjust JVMState information
-  uint old_dbg_start = oldcall->tf()->domain_sig()->cnt();
-  uint new_dbg_start = newcall->tf()->domain_sig()->cnt();
-  int jvms_adj  = new_dbg_start - old_dbg_start;
-  assert (new_dbg_start == newcall->req(), "argument count mismatch");
-
-  // SafePointScalarObject node could be referenced several times in debug info.
-  // Use Dict to record cloned nodes.
-  Dict* sosn_map = new Dict(cmpkey,hashkey);
-  for (uint i = old_dbg_start; i < oldcall->req(); i++) {
-    Node* old_in = oldcall->in(i);
-    // Clone old SafePointScalarObjectNodes, adjusting their field contents.
-    if (old_in != NULL && old_in->is_SafePointScalarObject()) {
-      SafePointScalarObjectNode* old_sosn = old_in->as_SafePointScalarObject();
-      uint old_unique = C->unique();
-      Node* new_in = old_sosn->clone(sosn_map);
-      if (old_unique != C->unique()) { // New node?
-        new_in->set_req(0, C->root()); // reset control edge
-        new_in = transform_later(new_in); // Register new node.
-      }
-      old_in = new_in;
-    }
-    newcall->add_req(old_in);
-  }
-
-  // JVMS may be shared so clone it before we modify it
-  newcall->set_jvms(oldcall->jvms() != NULL ? oldcall->jvms()->clone_deep(C) : NULL);
-  for (JVMState *jvms = newcall->jvms(); jvms != NULL; jvms = jvms->caller()) {
-    jvms->set_map(newcall);
-    jvms->set_locoff(jvms->locoff()+jvms_adj);
-    jvms->set_stkoff(jvms->stkoff()+jvms_adj);
-    jvms->set_monoff(jvms->monoff()+jvms_adj);
-    jvms->set_scloff(jvms->scloff()+jvms_adj);
-    jvms->set_endoff(jvms->endoff()+jvms_adj);
-  }
-}
-
 Node* PhaseMacroExpand::opt_bits_test(Node* ctrl, Node* region, int edge, Node* word, int mask, int bits, bool return_fast_path) {
   Node* cmp;
   if (mask != 0) {
@@ -170,7 +132,7 @@ CallNode* PhaseMacroExpand::make_slow_call(CallNode *oldcall, const TypeFunc* sl
   if (parm0 != NULL)  call->init_req(TypeFunc::Parms+0, parm0);
   if (parm1 != NULL)  call->init_req(TypeFunc::Parms+1, parm1);
   if (parm2 != NULL)  call->init_req(TypeFunc::Parms+2, parm2);
-  copy_call_debug_info(oldcall, call);
+  call->copy_call_debug_info(&_igvn, oldcall);
   call->set_cnt(PROB_UNLIKELY_MAG(4));  // Same effect as RC_UNCOMMON.
   _igvn.replace_node(oldcall, call);
   transform_later(call);
@@ -1592,7 +1554,7 @@ void PhaseMacroExpand::expand_allocate_common(
 
   // Copy debug information and adjust JVMState information, then replace
   // allocate node with the call
-  copy_call_debug_info((CallNode *) alloc,  call);
+  call->copy_call_debug_info(&_igvn, alloc);
   if (!always_slow) {
     call->set_cnt(PROB_UNLIKELY_MAG(4));  // Same effect as RC_UNCOMMON.
   } else {
@@ -2472,7 +2434,7 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
     unc->init_req(TypeFunc::ReturnAdr, lock->in(TypeFunc::ReturnAdr));
     unc->init_req(TypeFunc::Parms+0, _igvn.intcon(trap_request));
     unc->set_cnt(PROB_UNLIKELY_MAG(4));
-    copy_call_debug_info(lock, unc);
+    unc->copy_call_debug_info(&_igvn, lock);
 
     assert(unc->peek_monitor_box() == box, "wrong monitor");
     assert(unc->peek_monitor_obj() == obj, "wrong monitor");
@@ -2742,7 +2704,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   }
 
   // We can safepoint at that new call
-  copy_call_debug_info(call, slow_call);
+  slow_call->copy_call_debug_info(&_igvn, call);
   transform_later(slow_call);
   transform_later(handler_call);
 

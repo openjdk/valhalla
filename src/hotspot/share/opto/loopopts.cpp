@@ -1214,12 +1214,112 @@ static Node* is_inner_of_stripmined_loop(const Node* out) {
   return out_le;
 }
 
+bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
+  // If the CmpP is a subtype check for a value that has just been
+  // loaded from an array, the subtype checks guarantees the value
+  // can't be stored in a flattened array and the load of the value
+  // happens with a flattened array check then: push the type check
+  // through the phi of the flattened array check. This needs special
+  // logic because the subtype check's input is not a phi but a
+  // LoadKlass that must first be cloned through the phi.
+  if (n->Opcode() != Op_CmpP) {
+    return false;
+  }
+  
+  Node* klassptr = n->in(1);
+  Node* klasscon = n->in(2);
+
+  if (klassptr->is_DecodeNarrowPtr()) {
+    klassptr = klassptr->in(1);
+  }
+  
+  if (klassptr->Opcode() != Op_LoadKlass && klassptr->Opcode() != Op_LoadNKlass) {
+    return false;
+  }
+  
+  if (!klasscon->is_Con()) {
+    return false;
+  }
+  
+  Node* addr = klassptr->in(MemNode::Address);
+  
+  if (!addr->is_AddP()) {
+    return false;
+  }
+  
+  intptr_t offset;
+  Node* obj = AddPNode::Ideal_base_and_offset(addr, &_igvn, offset);
+
+  if (obj == NULL) {
+    return false;
+  }
+  
+  assert(obj != NULL && addr->in(AddPNode::Base) == addr->in(AddPNode::Address), "malformed AddP?");
+  if (obj->Opcode() == Op_CastPP) {
+    obj = obj->in(1);
+  }
+
+  if (!obj->is_Phi()) {
+    return false;
+  }
+
+  Node* region = obj->in(0);
+  
+  Node* phi = PhiNode::make_blank(region, n->in(1));
+  for (uint i = 1; i < region->req(); i++) {
+    Node* in = obj->in(i);
+    Node* ctrl = get_ctrl(in);
+    if (addr->in(AddPNode::Base) != obj) {
+      Node* cast = addr->in(AddPNode::Base);
+      assert(cast->Opcode() == Op_CastPP && cast->in(0) != NULL, "inconsistent subgraph");
+      Node* cast_clone = cast->clone();
+      cast_clone->set_req(0, region->in(i));
+      cast_clone->set_req(1, in);
+      register_new_node(cast_clone, region->in(i));
+      _igvn.set_type(cast_clone, cast_clone->Value(&_igvn));
+      in = cast_clone;
+    }
+    Node* addr_clone = addr->clone();
+    addr_clone->set_req(AddPNode::Base, in);
+    addr_clone->set_req(AddPNode::Address, in);
+    register_new_node(addr_clone, ctrl);
+    _igvn.set_type(addr_clone, addr_clone->Value(&_igvn));
+    Node* klassptr_clone = klassptr->clone();
+    klassptr_clone->set_req(2, addr_clone);
+    register_new_node(klassptr_clone, ctrl);
+    _igvn.set_type(klassptr_clone, klassptr_clone->Value(&_igvn));
+    if (klassptr != n->in(1)) {
+      Node* decode = n->in(1);
+      assert(decode->is_DecodeNarrowPtr(), "inconcistent subgraph");
+      Node* decode_clone = decode->clone();
+      decode_clone->set_req(1, klassptr_clone);
+      register_new_node(decode_clone, ctrl);
+      _igvn.set_type(decode_clone, decode_clone->Value(&_igvn));
+      klassptr_clone = decode_clone;
+    }
+    phi->set_req(i, klassptr_clone);
+  }
+  register_new_node(phi, region);
+  Node* orig = n->in(1);
+  _igvn.replace_input_of(n, 1, phi);
+  split_if_with_blocks_post(n);
+  if (n->outcnt() != 0) {
+    _igvn.replace_input_of(n, 1, orig);
+    _igvn.remove_dead_node(phi);
+  }
+  return true;
+}
+
 //------------------------------split_if_with_blocks_post----------------------
 // Do the real work in a non-recursive function.  CFG hackery wants to be
 // in the post-order, so it can dirty the I-DOM info and not use the dirtied
 // info.
 void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
 
+  if (flatten_array_element_type_check(n)) {
+    return;
+  }
+  
   // Cloning Cmp through Phi's involves the split-if transform.
   // FastLock is not used by an If
   if (n->is_Cmp() && !n->is_FastLock()) {

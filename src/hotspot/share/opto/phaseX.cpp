@@ -1692,6 +1692,16 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
     }
 
     BarrierSet::barrier_set()->barrier_set_c2()->igvn_add_users_to_worklist(this, use);
+    // Give CallStaticJavaNode::remove_useless_allocation a chance to run
+    if (use->is_Region()) {
+      Node* c = use;
+      do {
+        c = c->unique_ctrl_out();
+      } while (c != NULL && c->is_Region());
+      if (c != NULL && c->is_CallStaticJava() && c->as_CallStaticJava()->uncommon_trap_request() != 0) {
+        _worklist.push(c);
+      }
+    }
   }
 }
 

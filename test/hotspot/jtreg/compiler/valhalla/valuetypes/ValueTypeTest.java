@@ -206,6 +206,7 @@ public abstract class ValueTypeTest {
     protected static final String STORE_UNKNOWN_VALUE = "(.*call_leaf,runtime  store_unknown_value.*" + END;
     protected static final String VALUE_ARRAY_NULL_GUARD = "(.*call,static  wrapper for: uncommon_trap.*reason='null_check' action='none'.*" + END;
     protected static final String STORAGE_PROPERTY_CLEARING = "(.*((int:536870911)|(salq.*3\\R.*sarq.*3)).*" + END;
+    protected static final String CLASS_CHECK_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*class_check" + END;
 
     public static String[] concat(String prefix[], String... extra) {
         ArrayList<String> list = new ArrayList<String>();
@@ -752,5 +753,12 @@ public abstract class ValueTypeTest {
             System.out.println("enqueueMethodForCompilation " + m + ", level = " + level);
         }
         WHITE_BOX.enqueueMethodForCompilation(m, level);
+    }
+
+    // Unlike C2, C1 intrinsics never deoptimize System.arraycopy. Instead, we fall back to
+    // a normal method invocation when encountering flattened arrays.
+    static boolean isCompiledByC2(Method m) {
+        return USE_COMPILER && !XCOMP && WHITE_BOX.isMethodCompiled(m, false) &&
+            WHITE_BOX.getMethodCompilationLevel(m, false) >= COMP_LEVEL_FULL_OPTIMIZATION;
     }
 }

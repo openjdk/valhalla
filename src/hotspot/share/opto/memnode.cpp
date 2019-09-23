@@ -2258,7 +2258,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       }
 
       // Return root of possible klass
-      return TypeKlassPtr::make(TypePtr::NotNull, ik, Type::Offset(0));
+      return TypeKlassPtr::make(TypePtr::NotNull, ik, Type::Offset(0), tinst->flat_array());
     }
   }
 
@@ -2293,7 +2293,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             return TypeKlassPtr::make(ak);
           }
         }
-        return TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0));
+        return TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), false);
       } else if (ak->is_type_array_klass()) {
         //assert(!UseExactTypes, "this code should be useless with exact types");
         return TypeKlassPtr::make(ak); // These are always precise
@@ -2317,11 +2317,11 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
 
       // The array's TypeKlassPtr was declared 'precise' or 'not precise'
       // according to the element type's subclassing.
-      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0));
+      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0), elem->flatten_array());
     } else if (klass->is_value_array_klass() &&
                tkls->offset() == in_bytes(ObjArrayKlass::element_klass_offset())) {
       ciKlass* elem = klass->as_value_array_klass()->element_klass();
-      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0));
+      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0), true);
     }
     if( klass->is_instance_klass() && tkls->klass_is_exact() &&
         tkls->offset() == in_bytes(Klass::super_offset())) {
@@ -2343,7 +2343,7 @@ Node* LoadKlassNode::Identity(PhaseGVN* phase) {
   return klass_identity_common(phase);
 }
 
-const Type* GetNullFreePropertyNode::Value(PhaseGVN* phase) const {
+const Type* GetStoragePropertyNode::Value(PhaseGVN* phase) const {
   if (in(1) != NULL) {
     const Type* in1_t = phase->type(in(1));
     if (in1_t == Type::TOP) {
@@ -2355,7 +2355,11 @@ const Type* GetNullFreePropertyNode::Value(PhaseGVN* phase) const {
     if (tk->klass_is_exact() || (!elem->is_java_lang_Object() && !elem->is_interface() && !elem->is_valuetype())) {
       int props_shift = in1_t->isa_narrowklass() ? oopDesc::narrow_storage_props_shift : oopDesc::wide_storage_props_shift;
       ArrayStorageProperties props = ak->storage_properties();
-      intptr_t storage_properties = props.encode<intptr_t>(props_shift);
+      intptr_t storage_properties = 0;
+      if ((Opcode() == Op_GetFlattenedProperty && props.is_flattened()) ||
+          (Opcode() == Op_GetNullFreeProperty && props.is_null_free())) {
+        storage_properties = 1;
+      }
       if (in1_t->isa_narrowklass()) {
         return TypeInt::make((int)storage_properties);
       }
@@ -2365,7 +2369,7 @@ const Type* GetNullFreePropertyNode::Value(PhaseGVN* phase) const {
   return bottom_type();
 }
 
-Node* GetNullFreePropertyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
+Node* GetStoragePropertyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (!can_reshape) {
     return NULL;
   }
@@ -2376,7 +2380,9 @@ Node* GetNullFreePropertyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     for (uint i = 1; i < r->req(); i++) {
       Node* in = phi->in(i);
       if (in == NULL) continue;
-      new_phi->init_req(i, phase->transform(new GetNullFreePropertyNode(in)));
+      Node* n = clone();
+      n->set_req(1, in);
+      new_phi->init_req(i, phase->transform(n));
     }
     return new_phi;
   }

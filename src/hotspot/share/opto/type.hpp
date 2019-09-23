@@ -1139,44 +1139,56 @@ public:
 // Class of Java object pointers, pointing either to non-array Java instances
 // or to a Klass* (including array klasses).
 class TypeInstPtr : public TypeOopPtr {
-  TypeInstPtr(PTR ptr, ciKlass* k, bool xk, ciObject* o, Offset offset, int instance_id,
-              const TypePtr* speculative, int inline_depth);
+  TypeInstPtr(PTR ptr, ciKlass* k, bool xk, ciObject* o, Offset offset,
+              bool is_value, int instance_id, const TypePtr* speculative,
+              int inline_depth);
   virtual bool eq( const Type *t ) const;
   virtual int  hash() const;             // Type specific hashing
 
   ciSymbol*  _name;        // class name
-
+  bool _flat_array;
+  
+  bool meet_flat_array(bool other_flat_array) const {
+    return (_flat_array && other_flat_array) ? true : false;
+  }
+  
  public:
   ciSymbol* name()         const { return _name; }
+  bool flat_array() const {
+    assert(!klass()->is_valuetype() || !klass()->as_value_klass()->flatten_array() || _flat_array, "incorrect value bit");
+    assert(!_flat_array || can_be_value_type(), "incorrect value bit");
+    return _flat_array;
+  }
 
   bool  is_loaded() const { return _klass->is_loaded(); }
 
   // Make a pointer to a constant oop.
   static const TypeInstPtr *make(ciObject* o) {
-    return make(TypePtr::Constant, o->klass(), true, o, Offset(0), InstanceBot);
+    return make(TypePtr::Constant, o->klass(), true, o, Offset(0), o->klass()->is_valuetype() && o->klass()->as_value_klass()->flatten_array(), InstanceBot);
   }
   // Make a pointer to a constant oop with offset.
   static const TypeInstPtr* make(ciObject* o, Offset offset) {
-    return make(TypePtr::Constant, o->klass(), true, o, offset, InstanceBot);
+    return make(TypePtr::Constant, o->klass(), true, o, offset, o->klass()->is_valuetype() && o->klass()->as_value_klass()->flatten_array(), InstanceBot);
   }
 
   // Make a pointer to some value of type klass.
   static const TypeInstPtr *make(PTR ptr, ciKlass* klass) {
-    return make(ptr, klass, false, NULL, Offset(0), InstanceBot);
+    return make(ptr, klass, false, NULL, Offset(0), klass->is_valuetype() && klass->as_value_klass()->flatten_array(), InstanceBot);
   }
 
   // Make a pointer to some non-polymorphic value of exactly type klass.
   static const TypeInstPtr *make_exact(PTR ptr, ciKlass* klass) {
-    return make(ptr, klass, true, NULL, Offset(0), InstanceBot);
+    return make(ptr, klass, true, NULL, Offset(0), klass->is_valuetype() && klass->as_value_klass()->flatten_array(), InstanceBot);
   }
 
   // Make a pointer to some value of type klass with offset.
   static const TypeInstPtr *make(PTR ptr, ciKlass* klass, Offset offset) {
-    return make(ptr, klass, false, NULL, offset, InstanceBot);
+    return make(ptr, klass, false, NULL, offset, klass->is_valuetype() && klass->as_value_klass()->flatten_array(), InstanceBot);
   }
 
   // Make a pointer to an oop.
   static const TypeInstPtr* make(PTR ptr, ciKlass* k, bool xk, ciObject* o, Offset offset,
+                                 bool flat_array,
                                  int instance_id = InstanceBot,
                                  const TypePtr* speculative = NULL,
                                  int inline_depth = InlineDepthBottom);
@@ -1203,6 +1215,8 @@ class TypeInstPtr : public TypeOopPtr {
   virtual const Type* remove_speculative() const;
   virtual const TypePtr* with_inline_depth(int depth) const;
   virtual const TypePtr* with_instance_id(int instance_id) const;
+
+  virtual const TypeInstPtr* cast_to_flat_array() const;
 
   // the core of the computation of the meet of 2 types
   virtual const Type *xmeet_helper(const Type *t) const;
@@ -1399,7 +1413,7 @@ public:
 //------------------------------TypeKlassPtr-----------------------------------
 // Class of Java Klass pointers
 class TypeKlassPtr : public TypePtr {
-  TypeKlassPtr(PTR ptr, ciKlass* klass, Offset offset);
+  TypeKlassPtr(PTR ptr, ciKlass* klass, Offset offset, bool flat_array);
 
 protected:
   virtual const Type *filter_helper(const Type *kills, bool include_speculative) const;
@@ -1413,19 +1427,28 @@ protected:
 
   // Does the type exclude subclasses of the klass?  (Inexact == polymorphic.)
   bool          _klass_is_exact;
+  bool _flat_array;
 
 public:
   ciKlass* klass() const { return  _klass; }
   bool klass_is_exact()    const { return _klass_is_exact; }
 
+  virtual bool can_be_value_type() const { return EnableValhalla && can_be_value_type_raw(); }
+  virtual bool can_be_value_type_raw() const { return _klass == NULL || !_klass->is_loaded() || _klass->is_valuetype() || ((_klass->is_java_lang_Object() || _klass->is_interface()) && !klass_is_exact()); }
+  bool flat_array() const {
+    assert(!klass()->is_valuetype() || !klass()->as_value_klass()->flatten_array() || _flat_array, "incorrect value bit");
+    assert(!_flat_array || can_be_value_type(), "incorrect value bit");
+    return _flat_array;
+  }
+
   bool  is_loaded() const { return klass() != NULL && klass()->is_loaded(); }
 
   // ptr to klass 'k'
-  static const TypeKlassPtr* make(ciKlass* k) { return make( TypePtr::Constant, k, Offset(0)); }
+  static const TypeKlassPtr* make(ciKlass* k) { return make( TypePtr::Constant, k, Offset(0), k->is_valuetype() && k->as_value_klass()->flatten_array()); }
   // ptr to klass 'k' with offset
-  static const TypeKlassPtr* make(ciKlass* k, Offset offset) { return make( TypePtr::Constant, k, offset); }
+  static const TypeKlassPtr* make(ciKlass* k, Offset offset) { return make( TypePtr::Constant, k, offset, k->is_valuetype() && k->as_value_klass()->flatten_array()); }
   // ptr to klass 'k' or sub-klass
-  static const TypeKlassPtr* make(PTR ptr, ciKlass* k, Offset offset);
+  static const TypeKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, bool flat_array);
 
   virtual const Type *cast_to_ptr_type(PTR ptr) const;
 

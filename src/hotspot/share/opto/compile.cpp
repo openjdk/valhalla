@@ -1578,7 +1578,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
         // No constant oop pointers (such as Strings); they alias with
         // unknown strings.
         assert(!is_known_inst, "not scalarizable allocation");
-        tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset));
+        tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset), to->klass()->flatten_array());
       }
     } else if( is_known_inst ) {
       tj = to; // Keep NotNull and klass_is_exact for instance type
@@ -1586,17 +1586,17 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       // During the 2nd round of IterGVN, NotNull castings are removed.
       // Make sure the Bottom and NotNull variants alias the same.
       // Also, make sure exact and non-exact variants alias the same.
-      tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset));
+      tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset), to->klass()->flatten_array());
     }
     if (to->speculative() != NULL) {
-      tj = to = TypeInstPtr::make(to->ptr(),to->klass(),to->klass_is_exact(),to->const_oop(),Type::Offset(to->offset()), to->instance_id());
+      tj = to = TypeInstPtr::make(to->ptr(),to->klass(),to->klass_is_exact(),to->const_oop(),Type::Offset(to->offset()), to->klass()->flatten_array(), to->instance_id());
     }
     // Canonicalize the holder of this field
     if (offset >= 0 && offset < instanceOopDesc::base_offset_in_bytes()) {
       // First handle header references such as a LoadKlassNode, even if the
       // object's klass is unloaded at compile time (4965979).
       if (!is_known_inst) { // Do it only for non-instance types
-        tj = to = TypeInstPtr::make(TypePtr::BotPTR, env()->Object_klass(), false, NULL, Type::Offset(offset));
+        tj = to = TypeInstPtr::make(TypePtr::BotPTR, env()->Object_klass(), false, NULL, Type::Offset(offset), false);
       }
     } else if (BarrierSet::barrier_set()->barrier_set_c2()->flatten_gc_alias_type(tj)) {
       to = tj->is_instptr();
@@ -1612,9 +1612,9 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       ciInstanceKlass *canonical_holder = k->get_canonical_holder(offset);
       if (!k->equals(canonical_holder) || tj->offset() != offset) {
         if( is_known_inst ) {
-          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, true, NULL, Type::Offset(offset), to->instance_id());
+          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, true, NULL, Type::Offset(offset), canonical_holder->flatten_array(), to->instance_id());
         } else {
-          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, false, NULL, Type::Offset(offset));
+          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, false, NULL, Type::Offset(offset), canonical_holder->flatten_array());
         }
       }
     }
@@ -1631,7 +1631,8 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
 
       tj = tk = TypeKlassPtr::make(TypePtr::NotNull,
                                    TypeKlassPtr::OBJECT->klass(),
-                                   Type::Offset(offset));
+                                   Type::Offset(offset),
+                                   false);
     }
 
     ciKlass* klass = tk->klass();
@@ -1639,7 +1640,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       ciKlass* k = TypeAryPtr::OOPS->klass();
       if( !k || !k->is_loaded() )                  // Only fails for some -Xcomp runs
         k = TypeInstPtr::BOTTOM->klass();
-      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, k, Type::Offset(offset));
+      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, k, Type::Offset(offset), false);
     }
 
     // Check for precise loads from the primary supertype array and force them
@@ -1655,7 +1656,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
          offset < (int)(primary_supers_offset + Klass::primary_super_limit() * wordSize)) ||
         offset == (int)in_bytes(Klass::secondary_super_cache_offset())) {
       offset = in_bytes(Klass::secondary_super_cache_offset());
-      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, tk->klass(), Type::Offset(offset));
+      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, tk->klass(), Type::Offset(offset), tk->flat_array());
     }
   }
 
@@ -3435,9 +3436,10 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     if (EnableValhalla && (nop == Op_LoadKlass || nop == Op_LoadNKlass)) {
       const TypeKlassPtr* tk = n->bottom_type()->make_ptr()->is_klassptr();
       assert(!tk->klass_is_exact(), "should have been folded");
-      if (tk->klass()->can_be_value_array_klass()) {
+      if (tk->klass()->can_be_value_array_klass() && n->as_Mem()->adr_type()->offset() == oopDesc::klass_offset_in_bytes()) {
         // Array load klass needs to filter out property bits (but not
-        // GetNullFreePropertyNode which needs to extract the null free bits)
+        // GetNullFreePropertyNode or GetFlattenedPropertyNode which
+        // needs to extract the storage property bits)
         uint last = unique();
         Node* pointer = NULL;
         if (nop == Op_LoadKlass) {
@@ -3453,7 +3455,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
         }
         for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
           Node* u = n->fast_out(i);
-          if (u->_idx < last && u->Opcode() != Op_GetNullFreeProperty) {
+          if (u->_idx < last && u->Opcode() != Op_GetNullFreeProperty && u->Opcode() != Op_GetFlattenedProperty) {
             // If user is a comparison with a klass that can't be a value type
             // array klass, we don't need to clear the storage property bits.
             Node* cmp = (u->is_DecodeNKlass() && u->outcnt() == 1) ? u->unique_out() : u;
@@ -3992,19 +3994,21 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     break;
   }
 #endif
-  case Op_GetNullFreeProperty: {
+  case Op_GetNullFreeProperty:
+  case Op_GetFlattenedProperty: {
     // Extract the null free bits
     uint last = unique();
     Node* null_free = NULL;
+    int bit = nop == Op_GetNullFreeProperty ? ArrayStorageProperties::null_free_bit : ArrayStorageProperties::flattened_bit;
     if (n->in(1)->Opcode() == Op_LoadKlass) {
       Node* cast = new CastP2XNode(NULL, n->in(1));
-      null_free = new AndLNode(cast, new ConLNode(TypeLong::make(((jlong)1)<<(oopDesc::wide_storage_props_shift + ArrayStorageProperties::null_free_bit))));
+      null_free = new AndLNode(cast, new ConLNode(TypeLong::make(((jlong)1)<<(oopDesc::wide_storage_props_shift + bit))));
     } else {
       assert(n->in(1)->Opcode() == Op_LoadNKlass, "not a compressed klass?");
       Node* cast = new CastN2INode(n->in(1));
-      null_free = new AndINode(cast, new ConINode(TypeInt::make(1<<(oopDesc::narrow_storage_props_shift + ArrayStorageProperties::null_free_bit))));
+      null_free = new AndINode(cast, new ConINode(TypeInt::make(1<<(oopDesc::narrow_storage_props_shift + bit))));
     }
-    n->replace_by(null_free);
+    n->subsume_by(null_free, this);
     break;
   }
   default:

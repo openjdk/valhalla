@@ -81,17 +81,8 @@ void Parse::array_load(BasicType bt) {
     IdealKit ideal(this);
     IdealVariable res(ideal);
     ideal.declarations_done();
-    Node* kls = load_object_klass(ary);
-    Node* tag = load_lh_array_tag(kls);
-    ideal.if_then(tag, BoolTest::ne, intcon(Klass::_lh_array_tag_vt_value)); {
-      // non-flattened
-      sync_kit(ideal);
-      const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
-      Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt,
-                                IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD, ctl);
-      ideal.sync_kit(this);
-      ideal.set(res, ld);
-    } ideal.else_(); {
+    Node* flattened = gen_flattened_array_test(ary);
+    ideal.if_then(flattened, BoolTest::ne, zerocon(flattened->bottom_type()->basic_type())); {
       // flattened
       sync_kit(ideal);
       if (elemptr->is_valuetypeptr()) {
@@ -101,11 +92,12 @@ void Parse::array_load(BasicType bt) {
         ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* never_null */ true);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
-        adr = array_element_address(cast, idx, T_VALUETYPE, ary_t->size(), control());
-        Node* vt = ValueTypeNode::make_from_flattened(this, vk, cast, adr)->allocate(this, false, false)->get_oop();
+        Node* casted_adr = array_element_address(cast, idx, T_VALUETYPE, ary_t->size(), control());
+        Node* vt = ValueTypeNode::make_from_flattened(this, vk, cast, casted_adr)->allocate(this, false, false)->get_oop();
         ideal.set(res, vt);
         ideal.sync_kit(this);
       } else {
+        Node* kls = load_object_klass(ary);
         // Element type is unknown, emit runtime call
         Node* k_adr = basic_plus_adr(kls, in_bytes(ArrayKlass::element_klass_offset()));
         Node* elem_klass = _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS));
@@ -166,10 +158,22 @@ void Parse::array_load(BasicType bt) {
         alloc_obj->set_req(0, control());
         alloc_obj = _gvn.transform(alloc_obj);
 
+        const Type* unknown_value = TypeInstPtr::BOTTOM->cast_to_flat_array();
+        
+        alloc_obj = _gvn.transform(new CheckCastPPNode(control(), alloc_obj, unknown_value));
+        
         ideal.sync_kit(this);
 
         ideal.set(res, alloc_obj);
       }
+    } ideal.else_(); {
+      // non-flattened
+      sync_kit(ideal);
+      const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+      Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt,
+                                IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD, ctl);
+      ideal.sync_kit(this);
+      ideal.set(res, ld);
     } ideal.end_if();
     sync_kit(ideal);
     push_node(bt, _gvn.transform(ideal.value(res)));
@@ -269,24 +273,15 @@ void Parse::array_store(BasicType bt) {
       assert(ValueArrayFlatten && !not_flattenable && elemtype->is_oopptr()->can_be_value_type() &&
              !ary_t->klass_is_exact() && !ary_t->is_not_null_free(), "array can't be flattened");
       IdealKit ideal(this);
-      Node* kls = load_object_klass(ary);
-      Node* layout_val = load_lh_array_tag(kls);
-      ideal.if_then(layout_val, BoolTest::ne, intcon(Klass::_lh_array_tag_vt_value));
-      {
-        // non-flattened
-        sync_kit(ideal);
-        gen_value_array_null_guard(ary, cast_val, 3);
-        access_store_at(ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false, false);
-        ideal.sync_kit(this);
-      }
-      ideal.else_();
-      {
+      Node* flattened = gen_flattened_array_test(ary);
+      ideal.if_then(flattened, BoolTest::ne, zerocon(flattened->bottom_type()->basic_type())); {
+        Node* val = cast_val;
         // flattened
-        if (!cast_val->is_ValueType() && tval->maybe_null()) {
+        if (!val->is_ValueType() && tval->maybe_null()) {
           // Add null check
           sync_kit(ideal);
           Node* null_ctl = top();
-          cast_val = null_check_oop(cast_val, &null_ctl);
+          val = null_check_oop(val, &null_ctl);
           if (null_ctl != top()) {
             PreserveJVMState pjvms(this);
             inc_sp(3);
@@ -305,19 +300,20 @@ void Parse::array_store(BasicType bt) {
         } else if (elemtype->is_valuetypeptr()) {
           vk = elemtype->value_klass();
         }
+        Node* casted_ary = ary;
         if (vk != NULL && !stopped()) {
           // Element type is known, cast and store to flattened representation
           sync_kit(ideal);
           assert(vk->flatten_array() && elemtype->maybe_null(), "must be a flattenable and nullable array");
           ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* never_null */ true);
           const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
-          ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
-          adr = array_element_address(ary, idx, T_OBJECT, arytype->size(), control());
-          if (!cast_val->is_ValueType()) {
-            assert(!gvn().type(cast_val)->maybe_null(), "value type array elements should never be null");
-            cast_val = ValueTypeNode::make_from_oop(this, cast_val, vk);
+          casted_ary = _gvn.transform(new CheckCastPPNode(control(), casted_ary, arytype));
+          Node* casted_adr = array_element_address(casted_ary, idx, T_OBJECT, arytype->size(), control());
+          if (!val->is_ValueType()) {
+            assert(!gvn().type(val)->maybe_null(), "value type array elements should never be null");
+            val = ValueTypeNode::make_from_oop(this, val, vk);
           }
-          cast_val->as_ValueType()->store_flattened(this, ary, adr);
+          val->as_ValueType()->store_flattened(this, casted_ary, casted_adr);
           ideal.sync_kit(this);
         } else if (!ideal.ctrl()->is_top()) {
           // Element type is unknown, emit runtime call
@@ -332,15 +328,23 @@ void Parse::array_store(BasicType bt) {
           ideal.make_leaf_call(OptoRuntime::store_unknown_value_Type(),
                                CAST_FROM_FN_PTR(address, OptoRuntime::store_unknown_value),
                                "store_unknown_value",
-                               cast_val, ary, idx);
+                               val, casted_ary, idx);
 
           sync_kit(ideal);
           // Same as MemBarCPUOrder above: keep this unknown
           // flattened array access correctly ordered with other
-          // flattened array access
+          // flattened array accesses.
           insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::VALUES));
           ideal.sync_kit(this);
         }
+      }
+      ideal.else_();
+      {
+        // non-flattened
+        sync_kit(ideal);
+        gen_value_array_null_guard(ary, cast_val, 3);
+        access_store_at(ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false, false);
+        ideal.sync_kit(this);
       }
       ideal.end_if();
       sync_kit(ideal);
