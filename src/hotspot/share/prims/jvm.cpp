@@ -1008,13 +1008,13 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
 
   InstanceKlass* host_class = NULL;
   if (is_nestmate) {
-    // we need to find the true nest-host of the lookup class,
-    // so any exceptions in nest validation must be thrown
-    Symbol* icce = vmSymbols::java_lang_IncompatibleClassChangeError();
-    host_class = InstanceKlass::cast(k)->nest_host(icce, CHECK_NULL);
+    host_class = InstanceKlass::cast(k);
+    if (!host_class->is_nest_host()) {
+      THROW_MSG_0(vmSymbols::java_lang_IllegalAccessException(), "lookup class is not the nest host");
+    }
   }
 
-  // classData (constant pool patching replacement) is only applicable for hidden classes
+  // classData is only applicable for hidden classes
   if (classData != NULL && !is_hidden) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "classData is only applicable for hidden classes");
   }
@@ -1954,6 +1954,18 @@ JVM_ENTRY(jint, JVM_GetClassAccessFlags(JNIEnv *env, jclass cls))
 }
 JVM_END
 
+JVM_ENTRY(jboolean, JVM_IsNestHost(JNIEnv *env, jclass current))
+{
+  JVMWrapper("JVM_IsNestHost");
+  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
+  if (c->is_instance_klass()) {
+    InstanceKlass* ik = InstanceKlass::cast(c);
+    return ik->is_nest_host();
+  }
+  return JNI_FALSE;
+}
+JVM_END
+
 JVM_ENTRY(jboolean, JVM_AreNestMates(JNIEnv *env, jclass current, jclass member))
 {
   JVMWrapper("JVM_AreNestMates");
@@ -1967,22 +1979,15 @@ JVM_ENTRY(jboolean, JVM_AreNestMates(JNIEnv *env, jclass current, jclass member)
 }
 JVM_END
 
-JVM_ENTRY(jclass, JVM_GetNestHost(JNIEnv* env, jclass current, jboolean throwICCE))
+JVM_ENTRY(jclass, JVM_GetNestHost(JNIEnv* env, jclass current))
 {
   // current is not a primitive or array class
   JVMWrapper("JVM_GetNestHost");
   Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
   assert(c->is_instance_klass(), "must be");
   InstanceKlass* ck = InstanceKlass::cast(c);
-  InstanceKlass* host;
-  if (throwICCE) {
-    // Get the nest host for this nest - throw ICCE if validation fails
-    Symbol* icce = vmSymbols::java_lang_IncompatibleClassChangeError();
-    host = ck->nest_host(icce, CHECK_NULL);
-  } else {
-    // Don't post exceptions if validation fails
-    host = ck->nest_host(NULL, THREAD);
-  }
+  // Don't post exceptions if validation fails
+  InstanceKlass* host = ck->nest_host(NULL, THREAD);
   return (jclass) (host == NULL ? NULL :
                    JNIHandles::make_local(THREAD, host->java_mirror()));
 }

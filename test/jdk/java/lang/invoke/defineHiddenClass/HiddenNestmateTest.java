@@ -45,7 +45,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
 import static org.testng.Assert.*;
 
 public class HiddenNestmateTest {
-    private static final byte[] bytes = classBytes("Injected");
+    private static final byte[] bytes = classBytes("HiddenInjected");
 
     private static void assertNestmate(Lookup lookup) {
         assertTrue((lookup.lookupModes() & PRIVATE) != 0);
@@ -63,12 +63,12 @@ public class HiddenNestmateTest {
 
     @Test
     public void hiddenClass() throws Throwable {
-        // define a hidden nestmate class
+        // define a hidden class
         Lookup lookup = MethodHandles.lookup().defineHiddenClass(bytes, false);
         Class<?> c = lookup.lookupClass();
         assertTrue((lookup.lookupModes() & PRIVATE) != 0);
         assertTrue((lookup.lookupModes() & MODULE) != 0);
-        assertTrue(c.getNestHost() == c);
+        assertTrue(c.getNestHost() == c);  // host of its own nest
         assertTrue(c.isHiddenClass());
 
         // invoke int test(HiddenNestmateTest o) via MethodHandle
@@ -131,7 +131,7 @@ public class HiddenNestmateTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     public void notSamePackage() throws Throwable {
-        MethodHandles.lookup().defineHiddenClass(classBytes("p/Injected"), false, NESTMATE);
+        MethodHandles.lookup().defineHiddenClass(classBytes("p/HiddenInjected"), false, NESTMATE);
     }
 
     /*

@@ -1679,17 +1679,12 @@ public class MethodHandles {
          *
          * <p> If {@code options} has {@link ClassOption#NESTMATE NESTMATE}, then
          * this method creates the hidden class as a member of the nest of
-         * this lookup's lookup class.  The lookup class must be the host class
-         * of the nest.  Together with the {@code PRIVATE} and {@code MODULE}
+         * this lookup's lookup class.  The lookup class must be the host
+         * of a nest.  Together with the {@code PRIVATE} and {@code MODULE}
          * lookup mode, it ensures that the nest host (the lookup class) authorizes
          * the membership of the hidden class being defined.
-         * If the lookup class has a {@code NestHost} attribute, then this method
-         * will load the nest host indicated by the {@code NestHost} attribute.
-         * If the nest host cannot be loaded, or is not in the same runtime
-         * package as the lookup class, or does not authorize membership
-         * for the lookup class, then {@code LinkageError} will be thrown.
-         * If the nest host is not the lookup class itself, then
-         * {@code IllegalAccessException} will be thrown.
+         * If the lookup class is a member of some other class' nest, that is
+         * not the host of a nest, then {@code IllegalAccessException} will be thrown.
          *
          * <p> If {@code options} has {@link ClassOption#WEAK WEAK}, then
          * the hidden class is weakly referenced from its defining class loader
@@ -1697,15 +1692,16 @@ public class MethodHandles {
          *
          * <p> The {@code bytes} parameter is the class bytes of a valid class file
          * (as defined by the <em>The Java Virtual Machine Specification</em>)
-         * with a class name in the same package as the lookup class.  In addition,
+         * with a class name in the same package as the lookup class.
+         * The name of a hidden class cannot be referenced in other class and
+         * therefore:
          * <ul>
-         * <li> It must be a top-level class.</li>
-         * <li> It cannot be abstract.</li>
-         * <li> It cannot be an interface.</li>
-         * <li> It cannot be an enclosing class.</li>
-         * <li> It cannot be a superclass.</li>
-         * <li> It cannot be in any static nest membership, i.e. the class bytes
-         *      must not contain the {@code NestHost}, {@code NestMembers}.</li>
+         * <li>It must be a top-level class.</li>
+         * <li>It cannot be an abstract class or an interface.</li>
+         * <li>It cannot be an enclosing class.</li>
+         * <li>It cannot be a superclass.</li>
+         * <li>It cannot be in any static nest membership, i.e. the class bytes
+         *     must not contain the {@code NestHost}, {@code NestMembers}.</li>
          * </ul>
          * If any of the above checks is violated, {@code IllegalArgumentException}
          * will be thrown.
@@ -1750,7 +1746,6 @@ public class MethodHandles {
             HiddenClassDefiner cfd = new HiddenClassDefiner(bytes.clone(), opts);
             Class<?> c = cfd.defineClass(initialize, null);
             return new Lookup(c, null, FULL_POWER_MODES);
-
         }
 
         /**
@@ -1784,7 +1779,9 @@ public class MethodHandles {
          *                                  {@code classes} entries in the {@code InnerClasses} attribute
          *                                  indicating that this hidden class is an enclosing class
          *                                  or a nested class
-         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
+         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access;
+         *                                  or if the hidden class is defined as a {@linkplain ClassOption#NESTMATE nestmate}
+         *                                  and this lookup's lookup class is not the nest host
          * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
          *                                  verified ({@code VerifyError}), is already defined,
          *                                  or another linkage error occurs
@@ -1871,26 +1868,10 @@ public class MethodHandles {
             HiddenClassDefiner(byte[] bytes, Set<ClassOption> options) throws IllegalAccessException {
                 super(Opcodes.ASM7);
                 this.bytes = bytes;
-                this.classFlags = ClassOption.optionsToFlag(options) | HIDDEN_CLASS;
-                if (options.contains(ClassOption.NESTMATE)) {
-                    validateNestHost();
+                this.classFlags = HIDDEN_CLASS | ClassOption.optionsToFlag(options);
+                if (options.contains(ClassOption.NESTMATE) && !JLA.isNestHost(lookupClass)) {
+                    throw new IllegalAccessException(lookupClass.getName() + " is not a nest host");
                 }
-            }
-
-            /*
-             * Validates static nest membership and throws NCDFE if nest host is
-             * not found or IncompatibleClassChangeError if not same runtime package.
-             * If this lookup class is not the nest host, then throw
-             * IllegalAccessException.
-             *
-             * Note that Class::getNestHost may lie and returns itself as the nest host
-             * when linkage error occurs when resolving the class indicated in
-             * the NestHost attribute.
-             */
-            void validateNestHost() throws IllegalAccessException {
-                Class<?> nestHost = JLA.nestHost(lookupClass, true /* throw error */);
-                if (nestHost != null && nestHost != lookupClass)
-                    throw new IllegalAccessException(lookupClass.getName() + " is not the nest host: " + nestHost);
             }
 
             Class<?> defineClass(boolean initialize, Object classData) {
@@ -1961,10 +1942,11 @@ public class MethodHandles {
 
         /**
          * Defines the class of the given bytes and the given classData.
-         *
          * If {@code initialize} parameter is true, then the class will be initialized.
          *
-         * Called by InvokerBytecodeGenerator and BindCaller.makeInjectedInvoker
+         * This method is also called by InvokerBytecodeGenerator and
+         * BindCaller.makeInjectedInvoker
+         *
          * @param name the name of the class if it's a non-hidden class; the prefix
          *             to be used as VM assigned class name of a hidden class
          * @param bytes class file bytes

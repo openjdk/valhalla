@@ -46,6 +46,7 @@ import java.util.Properties;
 import jdk.internal.access.JavaLangReflectAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.misc.VM;
+import sun.reflect.misc.ReflectUtil;
 import sun.security.action.GetPropertyAction;
 import sun.security.util.SecurityConstants;
 
@@ -199,7 +200,8 @@ public class ReflectionFactory {
             method = root;
         }
 
-        if (noInflation && !method.getDeclaringClass().isHiddenClass()) {
+        if (noInflation && !method.getDeclaringClass().isHiddenClass()
+                && !ReflectUtil.isVMAnonymousClass(method.getDeclaringClass())) {
             return new MethodAccessorGenerator().
                 generateMethod(method.getDeclaringClass(),
                                method.getName(),

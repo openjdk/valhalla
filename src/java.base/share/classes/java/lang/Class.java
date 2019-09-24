@@ -3918,7 +3918,9 @@ public final class Class<T> implements java.io.Serializable,
          return TypeAnnotationParser.buildAnnotatedInterfaces(getRawTypeAnnotations(), getConstantPool(), this);
     }
 
-    /* package-private */ native Class<?> getNestHost0(boolean throwICCE);
+    private native Class<?> getNestHost0();
+
+    /* package-private */ native boolean isNestHost();
 
     /**
      * Returns the nest host of the <a href=#nest>nest</a> to which the class
@@ -3976,7 +3978,7 @@ public final class Class<T> implements java.io.Serializable,
         }
         Class<?> host;
         try {
-            host = getNestHost0(false);
+            host = getNestHost0();
         } catch (LinkageError e) {
             // if we couldn't load our nest-host then we
             // act as-if we have no nest-host attribute
@@ -4017,7 +4019,7 @@ public final class Class<T> implements java.io.Serializable,
             return false;
         }
         try {
-            return getNestHost0(false) == c.getNestHost0(false);
+            return getNestHost0() == c.getNestHost0();
         } catch (LinkageError e) {
             return false;
         }

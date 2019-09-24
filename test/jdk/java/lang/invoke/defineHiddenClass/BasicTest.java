@@ -97,6 +97,7 @@ public class BasicTest {
         Class<?> c = t.getClass();
         Class<?>[] intfs = c.getInterfaces();
         assertTrue(c.isHiddenClass());
+        assertFalse(c.isPrimitive());
         assertTrue(intfs.length == 1);
         assertTrue(intfs[0] == HiddenTest.class);
         assertTrue(c.getCanonicalName() == null);

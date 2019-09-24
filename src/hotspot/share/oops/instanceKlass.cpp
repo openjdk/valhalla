@@ -211,6 +211,21 @@ bool InstanceKlass::has_nest_member(InstanceKlass* k, TRAPS) const {
   return false;
 }
 
+bool InstanceKlass::is_nest_host() {
+  if (_nest_host_index != 0) {
+    // A member of other class's nest if NestHost attribute is present
+    // Do not do class resolution
+    return JNI_FALSE;
+  }
+
+  InstanceKlass* nest_host_k = _nest_host;
+  if (nest_host_k == NULL) {
+    // the host of its own nest
+    return JNI_TRUE;
+  }
+  return nest_host_k == this;
+}
+
 // Return nest-host class, resolving, validating and saving it if needed.
 // In cases where this is called from a thread that can not do classloading
 // (such as a native JIT thread) then we simply return NULL, which in turn

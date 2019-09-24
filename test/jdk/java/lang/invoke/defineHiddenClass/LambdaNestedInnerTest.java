@@ -33,6 +33,7 @@ package p;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.invoke.LambdaConversionException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -92,17 +93,6 @@ public class LambdaNestedInnerTest {
     }
 
     /*
-     * Class::getNestHost may lie.  If the outer class of a nested class is not present,
-     * getNestHost returns itself as the nest host.
-     *
-     * If the static nest membership is invalid, defineHiddenClass throws exception
-     * when the lookup class does not match the static nest membership.
-     */
-    private final String NCDFE_MSG = "Unable to load nest-host class (p/LambdaNestedInnerTest) of p.LambdaNestedInnerTest$Inner";
-    private final String ICCE_REGEX = "Type p.LambdaNestedInnerTest\\$Inner " +
-            "\\(loader: p.LambdaNestedInnerTest\\$TestLoader @[0-9a-f]+\\)" +
-            " is not a nest member of p.LambdaNestedInnerTest \\(loader: 'app'\\): types are in different packages";
-    /*
      * Test NoClassDefFoundError thrown if the true nest host is not found.
      */
     @Test
@@ -115,12 +105,16 @@ public class LambdaNestedInnerTest {
 
         try {
             Runnable runnable = (Runnable) inner.newInstance();
-            runnable.run();
             assertTrue(false);
-        } catch (NoClassDefFoundError e) {
-            e.printStackTrace();
-            assertEquals(e.getMessage(), NCDFE_MSG);
+        } catch (BootstrapMethodError e) {
+            lambdaConversionFailed(e);
         }
+    }
+
+    private static void lambdaConversionFailed(BootstrapMethodError bme) {
+        assertTrue(bme.getCause() instanceof LambdaConversionException);
+        IllegalAccessException iae = (IllegalAccessException)bme.getCause().getCause();
+        assertTrue(iae.getMessage().equals("p.LambdaNestedInnerTest$Inner is not a nest host"));
     }
 
     /*
@@ -138,11 +132,9 @@ public class LambdaNestedInnerTest {
 
         try {
             Runnable runnable = (Runnable) inner.newInstance();
-            runnable.run();
             assertTrue(false);
-        } catch (IncompatibleClassChangeError e) {
-            e.printStackTrace();
-            assertTrue(e.getMessage().matches(ICCE_REGEX));
+        } catch (BootstrapMethodError e) {
+            lambdaConversionFailed(e);
         }
     }
 

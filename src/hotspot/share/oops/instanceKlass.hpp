@@ -457,6 +457,8 @@ public:
   InstanceKlass* nest_host(Symbol* validationException, TRAPS);
   // Check if this klass is a nestmate of k - resolves this nest-host and k's
   bool has_nestmate_access_to(InstanceKlass* k, TRAPS);
+  // Check if this klass is the host of a nest
+  bool is_nest_host();
 
   enum InnerClassAttributeOffset {
     // From http://mirror.eng/products/jdk/1.1/docs/guide/innerclasses/spec/innerclasses.doc10.html#18814

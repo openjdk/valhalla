@@ -331,15 +331,14 @@ public interface JavaLangAccess {
     void loadLibrary(Class<?> caller, String library);
 
     /**
-     * Returns the nest host of the given class.  This method may return
-     * {@code null}.
+     * Returns true if this class is the host of a nest.
      *
-     * @throws LinkageError if fails to load the nest host named in the NestHost
-     *         attribute.
-     * @throws IncompatibleClassChangeError if fails to validate the nest
-     *         membership and the given throwICCE is true.
+     * If the NestHost attribute is present in the given Class,
+     * then it is not the nest host and the class indicated by
+     * the NestHost attribute is not accessed.  This method
+     * should not throw any exception.
      */
-    Class<?> nestHost(Class<?> c, boolean throwICCE);
+    boolean isNestHost(Class<?> c);
 
     /**
      * Get protection domain of the given Class
