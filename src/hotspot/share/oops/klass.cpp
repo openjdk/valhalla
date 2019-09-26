@@ -688,7 +688,7 @@ oop Klass::class_loader() const { return class_loader_data()->class_loader(); }
 const char* Klass::external_name() const {
   if (is_instance_klass()) {
     const InstanceKlass* ik = static_cast<const InstanceKlass*>(this);
-    if (ik->is_unsafe_anonymous() || ik->is_hidden()) {
+    if (ik->is_unsafe_anonymous()) {
       char addr_buf[20];
       jio_snprintf(addr_buf, 20, "/" INTPTR_FORMAT, p2i(ik));
       size_t addr_len = strlen(addr_buf);
@@ -698,6 +698,19 @@ const char* Klass::external_name() const {
       assert(strlen(result) == name_len, "");
       strcpy(result + name_len, addr_buf);
       assert(strlen(result) == name_len + addr_len, "");
+      return result;
+
+    } else if (ik->is_hidden()) {
+      // Replace the last '+' char with '/'.
+      size_t name_len = name()->utf8_length();
+      char* result = NEW_RESOURCE_ARRAY(char, name_len + 1);
+      name()->as_klass_external_name(result, (int)name_len + 1);
+      for (int index = (int)name_len; index > 0; index--) {
+        if (result[index] == '+') {
+          result[index] = '/';
+          break;
+        }
+      }
       return result;
     }
   }

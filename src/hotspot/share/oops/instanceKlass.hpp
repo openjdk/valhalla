@@ -759,7 +759,7 @@ public:
   }
   bool supers_have_passed_fingerprint_checks();
 
-  static bool should_store_fingerprint(bool is_nonfindable);
+  static bool should_store_fingerprint(bool is_hidden_or_anonymous);
   bool should_store_fingerprint() const { return should_store_fingerprint(is_hidden() || is_unsafe_anonymous()); }
   bool has_stored_fingerprint() const;
   uint64_t get_stored_fingerprint() const;
@@ -1033,13 +1033,13 @@ public:
 
   static int size(int vtable_length, int itable_length,
                   int nonstatic_oop_map_size,
-                  bool is_interface, bool is_hidden, bool has_stored_fingerprint) {
+                  bool is_interface, bool is_hidden_or_anonymous, bool has_stored_fingerprint) {
     return align_metadata_size(header_size() +
            vtable_length +
            itable_length +
            nonstatic_oop_map_size +
            (is_interface ? (int)sizeof(Klass*)/wordSize : 0) +
-           (is_hidden ? (int)sizeof(Klass*)/wordSize : 0) +
+           (is_hidden_or_anonymous ? (int)sizeof(Klass*)/wordSize : 0) +
            (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0));
   }
   int size() const                    { return size(vtable_length(),

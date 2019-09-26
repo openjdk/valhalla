@@ -3513,7 +3513,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
         }
         cfs->skip_u1(attribute_length, CHECK);
       } else if (_major_version >= JAVA_11_VERSION) {
-        if (tag == vmSymbols::tag_nest_members()) {
+        if (tag == vmSymbols::tag_nest_members() && !is_hidden()) { // ignored for hidden classes
           // Check for NestMembers tag
           if (parsed_nest_members_attribute) {
             classfile_parse_error("Multiple NestMembers attributes in class file %s", CHECK);
@@ -3526,7 +3526,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
           nest_members_attribute_start = cfs->current();
           nest_members_attribute_length = attribute_length;
           cfs->skip_u1(nest_members_attribute_length, CHECK);
-        } else if (tag == vmSymbols::tag_nest_host()) {
+        } else if (tag == vmSymbols::tag_nest_host() && !is_hidden()) { // ignored for hidden classes
           if (parsed_nest_host_attribute) {
             classfile_parse_error("Multiple NestHost attributes in class file %s", CHECK);
           } else {
@@ -3546,7 +3546,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
                          class_info_index, CHECK);
           _nest_host = class_info_index;
         } else {
-          // Unknown attribute
+          // Unknown attribute, or ignored for hidden class
           cfs->skip_u1(attribute_length, CHECK);
         }
       } else {
@@ -4746,6 +4746,17 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
       "Illegal class modifiers in class %s: 0x%X",
       _class_name->as_C_string(), flags
     );
+    return;
+  }
+
+  // TBD: should this be an assert() ?
+  if (is_hidden() && (is_interface || is_abstract)) {
+    ResourceMark rm(THREAD);
+    Exceptions::fthrow(
+      THREAD_AND_LOCATION,
+      vmSymbols::java_lang_ClassFormatError(),
+      "Illegal class modifiers in hidden class %s: 0x%X",
+      _class_name->as_C_string(), flags);
     return;
   }
 }
@@ -6099,18 +6110,32 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   // un-named, hidden or unsafe-anonymous class.
 
   if (_is_hidden) {
+    ResourceMark rm(THREAD);
+    assert(_class_name != NULL, "Unexpected null _class_name");
+#ifdef ASSERT
+    if (_need_verify) {
+      verify_legal_class_name(_class_name, CHECK);
+    }
+#endif
+
+    // Construct hidden name from _class_name, "+", and &_cp. Note that we can't
+    // use a '/' because that confuses finding the class's package.  Also, can't
+    // use an illegal char such as ';' because that causes serialization issues
+    // and issues with hidden classes that create their own hidden classes.
+    char addr_buf[20];
+    jio_snprintf(addr_buf, 20, INTPTR_FORMAT, p2i(_cp));
+    size_t new_name_len = _class_name->utf8_length() + 2 + strlen(addr_buf);
+    char* new_name = NEW_RESOURCE_ARRAY(char, new_name_len);
+    jio_snprintf(new_name, new_name_len, "%s+%s",
+                 _class_name->as_C_string(), addr_buf);
+    _class_name->decrement_refcount();
+    _class_name = SymbolTable::new_symbol(new_name);
     _class_name->increment_refcount();
 
     // Add a Utf8 entry containing the hidden name.
     assert(_class_name != NULL, "Unexpected null _class_name");
     int hidden_index = _orig_cp_size; // this is an extra slot we added
     cp->symbol_at_put(hidden_index, _class_name);
-
-    if (_need_verify) {
-      // Since this name was not in the original constant pool, it didn't get
-      // checked during constantpool parsing.  So, check it here.
-      verify_legal_class_name(_class_name, CHECK);
-    }
 
     // Update this_class_index's slot in the constant pool with the new Utf8 entry.
     // We have to update the resolved_klass_index and the name_index together

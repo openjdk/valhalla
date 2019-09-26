@@ -428,13 +428,13 @@ bool InstanceKlass::has_nestmate_access_to(InstanceKlass* k, TRAPS) {
 }
 
 InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& parser, TRAPS) {
-  bool is_nonfindable = parser.is_hidden() || parser.is_unsafe_anonymous();
+  bool is_hidden_or_anonymous = parser.is_hidden() || parser.is_unsafe_anonymous();
   const int size = InstanceKlass::size(parser.vtable_size(),
                                        parser.itable_size(),
                                        nonstatic_oop_map_size(parser.total_oop_map_count()),
                                        parser.is_interface(),
-                                       is_nonfindable,
-                                       should_store_fingerprint(is_nonfindable));
+                                       is_hidden_or_anonymous,
+                                       should_store_fingerprint(is_hidden_or_anonymous));
 
   const Symbol* const class_name = parser.class_name();
   assert(class_name != NULL, "invariant");
@@ -2285,7 +2285,7 @@ bool InstanceKlass::supers_have_passed_fingerprint_checks() {
   return true;
 }
 
-bool InstanceKlass::should_store_fingerprint(bool is_nonfindable) {
+bool InstanceKlass::should_store_fingerprint(bool is_hidden_or_anonymous) {
 #if INCLUDE_AOT
   // We store the fingerprint into the InstanceKlass only in the following 2 cases:
   if (CalculateClassFingerprint) {
@@ -2296,7 +2296,7 @@ bool InstanceKlass::should_store_fingerprint(bool is_nonfindable) {
     // (2) We are running -Xshare:dump or -XX:ArchiveClassesAtExit to create a shared archive
     return true;
   }
-  if (UseAOT && is_nonfindable) {
+  if (UseAOT && is_hidden_or_anonymous) {
     // (3) We are using AOT code from a shared library and see a hidden or unsafe anonymous class
     return true;
   }
