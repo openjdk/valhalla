@@ -2808,4 +2808,21 @@ public class TestNullableArrays extends ValueTypeTest {
     public void test107_verifier(boolean warmup) {
         test107();
     }
+
+
+    @Test
+    @Warmup(10000)
+    public Object test108(MyValue1?[] src, boolean flag) {
+        MyValue1?[] dst = new MyValue1?[8];
+        System.arraycopy(src, 1, dst, 2, 6);
+        if (flag) {} // uncommon trap
+        return dst[2];
+    }
+
+    @DontCompile
+    public void test108_verifier(boolean warmup) {
+        MyValue1?[] src = new MyValue1?[8];
+        test108(src, !warmup);
+    }
+
 }
