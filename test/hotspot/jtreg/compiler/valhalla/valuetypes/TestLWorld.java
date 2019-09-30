@@ -2121,7 +2121,9 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @Test(valid = G1GCOn, match = { COUNTEDLOOP, LOAD_UNKNOWN_VALUE }, matchCount = { 2, 1 } )
-    @Test(valid = G1GCOff, match = { COUNTEDLOOP, LOAD_UNKNOWN_VALUE }, matchCount = { 3, 4 } )
+    @Test(valid = G1GCOff)
+// TODO Re-enable with JDK-8231615
+//    @Test(valid = G1GCOff, match = { COUNTEDLOOP, LOAD_UNKNOWN_VALUE }, matchCount = { 3, 4 } )
     public void test85(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -2139,7 +2141,9 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @Test(valid = G1GCOn, match = { COUNTEDLOOP }, matchCount = { 2 } )
-    @Test(valid = G1GCOff, match = { COUNTEDLOOP }, matchCount = { 3 } )
+    @Test(valid = G1GCOff)
+// TODO Re-enable with JDK-8231615
+//    @Test(valid = G1GCOff, match = { COUNTEDLOOP }, matchCount = { 3 } )
     public void test86(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
