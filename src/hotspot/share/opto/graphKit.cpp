@@ -3426,7 +3426,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
       }
     } else if (obj->is_Phi()) {
       Node* region = obj->in(0);
-      if (region->req() == 3 && region->in(1) != NULL) {
+      if (region->req() == 3 && region->in(1) != NULL && region->in(1)->in(0) != NULL) {
         IfNode* iff = region->in(1)->in(0)->isa_If();
         if (iff != NULL) {
           iff->is_flattened_array_check(&_gvn, array);
