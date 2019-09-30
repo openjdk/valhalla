@@ -534,16 +534,10 @@ public abstract class ValueTypeTest {
                     count++;
                     nodes += matcher.group() + "\n";
                 }
-
-                if (TieredCompilation) {
-                    // FIXME: TestLWorld.test88 fails with "expected 4 to equal 2". See JDK-8230925
-                    continue;
-                }
-
                 if (matchCount[i] < 0) {
-                    Asserts.assertLTE(Math.abs(matchCount[i]), count, "Graph for '" + testName + "' contains different number of match nodes:\n" + nodes);
+                    Asserts.assertLTE(Math.abs(matchCount[i]), count, "Graph for '" + testName + "' contains different number of match nodes (expected <= " + matchCount[i] + " but got " + count + "):\n" + nodes);
                 } else {
-                    Asserts.assertEQ(matchCount[i], count, "Graph for '" + testName + "' contains different number of match nodes:\n" + nodes);
+                    Asserts.assertEQ(matchCount[i], count, "Graph for '" + testName + "' contains different number of match nodes (expected " + matchCount[i] + " but got " + count + "):\n" + nodes);
                 }
             }
             tests.remove(testName);
