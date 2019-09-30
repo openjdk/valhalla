@@ -129,7 +129,7 @@ public abstract class ValueTypeTest {
     private static final boolean PRINT_GRAPH = true;
     protected static final boolean VERBOSE = Boolean.parseBoolean(System.getProperty("Verbose", "false"));
     private static final boolean PRINT_TIMES = Boolean.parseBoolean(System.getProperty("PrintTimes", "false"));
-    private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true")) && !XCOMP;
+    private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true")) && !XCOMP && !TEST_C1;
     private static final boolean VERIFY_VM = Boolean.parseBoolean(System.getProperty("VerifyVM", "false"));
     private static final String SCENARIOS = System.getProperty("Scenarios", "");
     private static final String TESTLIST = System.getProperty("Testlist", "");
