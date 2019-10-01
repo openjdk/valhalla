@@ -2102,9 +2102,7 @@ public class TestLWorld extends ValueTypeTest {
 
     // Following: should make 2 copies of the loop, one for non
     // flattened arrays, one for other cases
-// TODO Re-enable with JDK-8231615
-//    @Test(match = { COUNTEDLOOP }, matchCount = { 4 } )
-    @Test()
+    @Test(match = { COUNTEDLOOP }, matchCount = { 4 } )
     public void test84(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -2159,9 +2157,7 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertTrue(Arrays.equals(src, dst));
     }
 
-// TODO Re-enable with JDK-8231615
-//    @Test(match = { COUNTEDLOOP }, matchCount = { 4 } )
-    @Test()
+    @Test(match = { COUNTEDLOOP }, matchCount = { 4 } )
     public void test87(Object[] src, Object[] dst) {
         for (int i = 0; i < src.length; i++) {
             dst[i] = src[i];
@@ -2177,9 +2173,7 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertTrue(Arrays.equals(src, dst));
     }
 
-// TODO Re-enable with JDK-8231615
-//    @Test(match = { COUNTEDLOOP }, matchCount = { 4 } )
-    @Test()
+    @Test(match = { COUNTEDLOOP }, matchCount = { 4 } )
     public void test88(Object[] src1, Object[] dst1, Object[] src2, Object[] dst2) {
         for (int i = 0; i < src1.length; i++) {
             dst1[i] = src1[i];
@@ -2252,15 +2246,14 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @Warmup(10000)
-// TODO Re-enable with JDK-8231613
-//    @Test(match = { CLASS_CHECK_TRAP }, matchCount = { 1 }, failOn = LOAD_UNKNOWN_VALUE + ALLOC_G)
-    @Test(failOn = LOAD_UNKNOWN_VALUE + ALLOC_G)
+    @Test(match = { CLASS_CHECK_TRAP }, matchCount = { 2 }, failOn = LOAD_UNKNOWN_VALUE + ALLOC_G)
     public Object test92(Object[] array) {
         // Dummy loops to ensure we run enough passes of split if
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 2; j++) {
             }
         }
+
         return (Integer)array[0];
     }
 
@@ -2282,6 +2275,7 @@ public class TestLWorld extends ValueTypeTest {
             for (int j = 0; j < 2; j++) {
             }
         }
+
         Object v = (Integer)array[0];
         return v;
     }
@@ -2314,9 +2308,7 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @Warmup(10000)
-// TODO Re-enable with JDK-8231613
-//    @Test(match = { CLASS_CHECK_TRAP, LOOP }, matchCount = { 1, 1 }, failOn = LOAD_UNKNOWN_VALUE + ALLOC_G)
-    @Test(match = { LOOP }, matchCount = { 1 }, failOn = LOAD_UNKNOWN_VALUE + ALLOC_G)
+    @Test(match = { CLASS_CHECK_TRAP, LOOP }, matchCount = { 2, 1 }, failOn = LOAD_UNKNOWN_VALUE + ALLOC_G)
     public int test94(Object[] array) {
         int res = 0;
         for (int i = 1; i < 4; i *= 2) {
