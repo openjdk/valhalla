@@ -36,6 +36,12 @@ class valueArrayOopDesc : public arrayOopDesc {
  public:
   void*  base() const;
   void* value_at_addr(int index, jint lh) const;
+
+  // Return a buffered element from index
+  static oop value_alloc_copy_from_index(valueArrayHandle vah, int index, TRAPS);
+  void value_copy_from_index(int index, oop dst) const;
+  void value_copy_to_index(oop src, int index) const;
+
   // Sizing
   static size_t element_size(int lh, int nof_elements) {
     return nof_elements << Klass::layout_helper_log2_element_size(lh);

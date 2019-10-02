@@ -31,6 +31,38 @@
 #include "oops/valueKlass.hpp"
 #include "utilities/macros.hpp"
 
+inline ValueKlass* ValueKlass::cast(Klass* k) {
+  assert(k->is_value(), "cast to ValueKlass");
+  return (ValueKlass*) k;
+}
+
+inline address ValueKlass::data_for_oop(oop o) const {
+  return ((address) (void*) o) + first_field_offset();
+}
+
+inline oop ValueKlass::oop_for_data(address data) const {
+  oop o = (oop) (data - first_field_offset());
+  assert(oopDesc::is_oop(o, false), "Not an oop");
+  return o;
+}
+
+inline void ValueKlass::value_copy_payload_to_new_oop(void* src, oop dst) {
+  HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, data_for_oop(dst), this);
+}
+
+inline void ValueKlass::value_copy_oop_to_new_oop(oop src, oop dst) {
+  HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(data_for_oop(src), data_for_oop(dst), this);
+}
+
+inline void ValueKlass::value_copy_oop_to_new_payload(oop src, void* dst) {
+  HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(data_for_oop(src), dst, this);
+}
+
+inline void ValueKlass::value_copy_oop_to_payload(oop src, void* dst) {
+  HeapAccess<>::value_copy(data_for_oop(src), dst, this);
+}
+
+
 template <typename T, class OopClosureType>
 void ValueKlass::oop_iterate_specialized(const address oop_addr, OopClosureType* closure) {
   OopMapBlock* map = start_of_nonstatic_oop_maps();

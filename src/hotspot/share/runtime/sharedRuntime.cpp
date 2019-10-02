@@ -54,7 +54,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/valueKlass.inline.hpp"
 #include "prims/forte.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"

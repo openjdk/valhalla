@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,6 +52,14 @@ struct HeapOopType: AllStatic {
   typedef typename Conditional<needs_oop_compress, narrowOop, oop>::type type;
 };
 
+// This meta-function returns either oop or narrowOop depending on whether
+// a back-end needs to consider compressed oops types or not.
+template <DecoratorSet decorators>
+struct ValueOopType: AllStatic {
+  static const bool needs_oop_compress = HasDecorator<decorators, INTERNAL_RT_USE_COMPRESSED_OOPS>::value;
+  typedef typename Conditional<needs_oop_compress, narrowOop, oop>::type type;
+};
+
 namespace AccessInternal {
   enum BarrierType {
     BARRIER_STORE,
@@ -64,6 +72,7 @@ namespace AccessInternal {
     BARRIER_ATOMIC_XCHG_AT,
     BARRIER_ARRAYCOPY,
     BARRIER_CLONE,
+    BARRIER_VALUE_COPY,
     BARRIER_RESOLVE
   };
 
@@ -114,6 +123,7 @@ namespace AccessInternal {
                                      arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                                      size_t length);
     typedef void (*clone_func_t)(oop src, oop dst, size_t size);
+    typedef void (*value_copy_func_t)(void* src, void* dst, ValueKlass* md);
     typedef oop (*resolve_func_t)(oop obj);
   };
 
@@ -141,6 +151,7 @@ namespace AccessInternal {
   ACCESS_GENERATE_ACCESS_FUNCTION(BARRIER_ATOMIC_XCHG_AT, atomic_xchg_at_func_t);
   ACCESS_GENERATE_ACCESS_FUNCTION(BARRIER_ARRAYCOPY, arraycopy_func_t);
   ACCESS_GENERATE_ACCESS_FUNCTION(BARRIER_CLONE, clone_func_t);
+  ACCESS_GENERATE_ACCESS_FUNCTION(BARRIER_VALUE_COPY, value_copy_func_t);
   ACCESS_GENERATE_ACCESS_FUNCTION(BARRIER_RESOLVE, resolve_func_t);
 #undef ACCESS_GENERATE_ACCESS_FUNCTION
 
@@ -406,6 +417,8 @@ public:
 
   static void clone(oop src, oop dst, size_t size);
 
+  static void value_copy(void* src, void* dst, ValueKlass* md);
+
   static oop resolve(oop obj) { return obj; }
 };
 
@@ -589,6 +602,18 @@ namespace AccessInternal {
   };
 
   template <DecoratorSet decorators, typename T>
+  struct RuntimeDispatch<decorators, T, BARRIER_VALUE_COPY>: AllStatic {
+    typedef typename AccessFunction<decorators, T, BARRIER_VALUE_COPY>::type func_t;
+    static func_t _value_copy_func;
+
+    static void value_copy_init(void* src, void* dst, ValueKlass* md);
+
+    static inline void value_copy(void* src, void* dst, ValueKlass* md) {
+      _value_copy_func(src, dst, md);
+    }
+  };
+
+  template <DecoratorSet decorators, typename T>
   struct RuntimeDispatch<decorators, T, BARRIER_RESOLVE>: AllStatic {
     typedef typename AccessFunction<decorators, T, BARRIER_RESOLVE>::type func_t;
     static func_t _resolve_func;
@@ -640,6 +665,10 @@ namespace AccessInternal {
   template <DecoratorSet decorators, typename T>
   typename AccessFunction<decorators, T, BARRIER_CLONE>::type
   RuntimeDispatch<decorators, T, BARRIER_CLONE>::_clone_func = &clone_init;
+
+  template <DecoratorSet decorators, typename T>
+  typename AccessFunction<decorators, T, BARRIER_VALUE_COPY>::type
+  RuntimeDispatch<decorators, T, BARRIER_VALUE_COPY>::_value_copy_func = &value_copy_init;
 
   template <DecoratorSet decorators, typename T>
   typename AccessFunction<decorators, T, BARRIER_RESOLVE>::type
@@ -963,6 +992,23 @@ namespace AccessInternal {
 
     template <DecoratorSet decorators>
     inline static typename EnableIf<
+      HasDecorator<decorators, AS_RAW>::value>::type
+    value_copy(void* src, void* dst, ValueKlass* md) {
+      typedef RawAccessBarrier<decorators & RAW_DECORATOR_MASK> Raw;
+      Raw::value_copy(src, dst, md);
+    }
+
+    template <DecoratorSet decorators>
+    inline static typename EnableIf<
+      !HasDecorator<decorators, AS_RAW>::value>::type
+      value_copy(void* src, void* dst, ValueKlass* md) {
+      const DecoratorSet expanded_decorators = decorators;
+      RuntimeDispatch<expanded_decorators, void*, BARRIER_VALUE_COPY>::value_copy(src, dst, md);
+    }
+
+
+    template <DecoratorSet decorators>
+    inline static typename EnableIf<
       HasDecorator<decorators, INTERNAL_BT_TO_SPACE_INVARIANT>::value, oop>::type
     resolve(oop obj) {
       typedef RawAccessBarrier<decorators & RAW_DECORATOR_MASK> Raw;
@@ -1265,6 +1311,12 @@ namespace AccessInternal {
   inline void clone(oop src, oop dst, size_t size) {
     const DecoratorSet expanded_decorators = DecoratorFixup<decorators>::value;
     PreRuntimeDispatch::clone<expanded_decorators>(src, dst, size);
+  }
+
+  template <DecoratorSet decorators>
+  inline void value_copy(void* src, void* dst, ValueKlass* md) {
+    const DecoratorSet expanded_decorators = DecoratorFixup<decorators>::value;
+    PreRuntimeDispatch::value_copy<expanded_decorators>(src, dst, md);
   }
 
   template <DecoratorSet decorators>

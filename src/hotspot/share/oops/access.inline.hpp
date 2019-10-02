@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -199,6 +199,13 @@ namespace AccessInternal {
   };
 
   template <class GCBarrierType, DecoratorSet decorators>
+  struct PostRuntimeDispatch<GCBarrierType, BARRIER_VALUE_COPY, decorators>: public AllStatic {
+    static void access_barrier(void* src, void* dst, ValueKlass* md) {
+      GCBarrierType::value_copy_in_heap(src, dst, md);
+    }
+  };
+
+  template <class GCBarrierType, DecoratorSet decorators>
   struct PostRuntimeDispatch<GCBarrierType, BARRIER_RESOLVE, decorators>: public AllStatic {
     static oop access_barrier(oop obj) {
       return GCBarrierType::resolve(obj);
@@ -351,6 +358,13 @@ namespace AccessInternal {
     func_t function = BarrierResolver<decorators, func_t, BARRIER_CLONE>::resolve_barrier();
     _clone_func = function;
     function(src, dst, size);
+  }
+
+  template <DecoratorSet decorators, typename T>
+  void RuntimeDispatch<decorators, T, BARRIER_VALUE_COPY>::value_copy_init(void* src, void* dst, ValueKlass* md) {
+    func_t function = BarrierResolver<decorators, func_t, BARRIER_VALUE_COPY>::resolve_barrier();
+    _value_copy_func = function;
+    function(src, dst, md);
   }
 
   template <DecoratorSet decorators, typename T>

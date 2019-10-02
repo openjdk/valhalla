@@ -28,7 +28,7 @@
 #include "classfile/javaClasses.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
-#include "oops/oop.inline.hpp"
+//#include "oops/oop.inline.hpp"
 
 // A ValueKlass is a specialized InstanceKlass for value types.
 
@@ -40,19 +40,7 @@ class ValueKlass: public InstanceKlass {
  private:
 
   // Constructor
-  ValueKlass(const ClassFileParser& parser)
-    : InstanceKlass(parser, InstanceKlass::_misc_kind_value_type, InstanceKlass::ID) {
-    _adr_valueklass_fixed_block = valueklass_static_block();
-    // Addresses used for value type calling convention
-    *((Array<SigEntry>**)adr_extended_sig()) = NULL;
-    *((Array<VMRegPair>**)adr_return_regs()) = NULL;
-    *((address*)adr_pack_handler()) = NULL;
-    *((address*)adr_unpack_handler()) = NULL;
-    assert(pack_handler() == NULL, "pack handler not null");
-    *((int*)adr_default_value_offset()) = 0;
-    *((Klass**)adr_value_array_klass()) = NULL;
-    set_prototype_header(markWord::always_locked_prototype());
-  }
+  ValueKlass(const ClassFileParser& parser);
 
   ValueKlassFixedBlock* valueklass_static_block() const {
     address adr_jf = adr_value_fields_klasses();
@@ -153,7 +141,7 @@ class ValueKlass: public InstanceKlass {
     *(int*)adr_first_field_offset() = offset;
   }
 
-  int get_exact_size_in_bytes() {
+  int get_exact_size_in_bytes() const {
     return *(int*)adr_exact_size_in_bytes();
   }
 
@@ -188,10 +176,7 @@ class ValueKlass: public InstanceKlass {
   oop indirect_mirror() const { return java_lang_Class::indirect_type_mirror(java_mirror()); }
 
   // Casting from Klass*
-  static ValueKlass* cast(Klass* k) {
-    assert(k->is_value(), "cast to ValueKlass");
-    return (ValueKlass*) k;
-  }
+  static ValueKlass* cast(Klass* k);
 
   // Use this to return the size of an instance in heap words
   // Implementation is currently simple because all value types are allocated
@@ -209,15 +194,8 @@ class ValueKlass: public InstanceKlass {
   // minimum number of bytes occupied by nonstatic fields, HeapWord aligned or pow2
   int raw_value_byte_size();
 
-  address data_for_oop(oop o) const {
-    return ((address) (void*) o) + first_field_offset();
-  }
-
-  oop oop_for_data(address data) const {
-    oop o = (oop) (data - first_field_offset());
-    assert(oopDesc::is_oop(o, false), "Not an oop");
-    return o;
-  }
+  address data_for_oop(oop o) const;
+  oop oop_for_data(address data) const;
 
   // Query if h/w provides atomic load/store
   bool is_atomic();
@@ -227,17 +205,18 @@ class ValueKlass: public InstanceKlass {
   bool contains_oops() const { return nonstatic_oop_map_count() > 0; }
   int nonstatic_oop_count();
 
-  // Prototype general store methods...
+  // General store methods
+  //
+  // Normally loads and store methods would be found in *Oops classes, but since values can be
+  // "in-lined" (flattened) into containing oops, these methods reside here in ValueKlass.
+  //
+  // "value_copy_*_to_new_*" assume new memory (i.e. IS_DEST_UNINITIALIZED for write barriers)
 
-  // copy the fields, with no concern for GC barriers
-  void raw_field_copy(void* src, void* dst, size_t raw_byte_size);
+  void value_copy_payload_to_new_oop(void* src, oop dst);
+  void value_copy_oop_to_new_oop(oop src, oop dst);
+  void value_copy_oop_to_new_payload(oop src, void* dst);
 
-  void value_store(void* src, void* dst, bool dst_is_heap, bool dst_uninitialized) {
-    value_store(src, dst, nonstatic_field_size() << LogBytesPerHeapOop, dst_is_heap, dst_uninitialized);
-  }
-
-  // store the value of this klass contained with src into dst, raw data ptr
-  void value_store(void* src, void* dst, size_t raw_byte_size, bool dst_is_heap, bool dst_uninitialized);
+  void value_copy_oop_to_payload(oop src, void* dst);
 
   // oop iterate raw value type data pointer (where oop_addr may not be an oop, but backing/array-element)
   template <typename T, class OopClosureType>
@@ -298,14 +277,7 @@ class ValueKlass: public InstanceKlass {
     indirect_mirror()->obj_field_put(default_value_offset(), val);
   }
 
-  oop default_value() {
-    oop val = java_mirror()->obj_field_acquire(default_value_offset());
-    assert(oopDesc::is_oop(val), "Sanity check");
-    assert(val->is_value(), "Sanity check");
-    assert(val->klass() == this, "sanity check");
-    return val;
-  }
-
+  oop default_value();
   void deallocate_contents(ClassLoaderData* loader_data);
   static void cleanup(ValueKlass* ik) ;
 

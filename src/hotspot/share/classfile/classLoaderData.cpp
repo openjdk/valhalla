@@ -63,7 +63,7 @@
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/oopHandle.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/valueKlass.inline.hpp"
 #include "oops/weakHandle.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"

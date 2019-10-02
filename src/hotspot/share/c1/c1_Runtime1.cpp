@@ -447,22 +447,9 @@ JRT_END
 
 JRT_ENTRY(void, Runtime1::load_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index))
   NOT_PRODUCT(_load_flattened_array_slowcase_cnt++;)
-  Klass* klass = array->klass();
-  assert(klass->is_valueArray_klass(), "expected value array oop");
   assert(array->length() > 0 && index < array->length(), "already checked");
-
-  ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
-  ValueKlass* vklass = vaklass->element_klass();
-
-  // We have a non-empty flattened array, so the element type must have been initialized.
-  assert(vklass->is_initialized(), "must be");
-  Handle holder(THREAD, vklass->klass_holder()); // keep the vklass alive
-  valueArrayHandle ha(THREAD, array);
-  oop obj = vklass->allocate_instance(CHECK);
-
-  void* src = ha()->value_at_addr(index, vaklass->layout_helper());
-  vklass->value_store(src, vklass->data_for_oop(obj),
-                      vaklass->element_byte_size(), true, false);
+  valueArrayHandle vah(thread, array);
+  oop obj = valueArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
   thread->set_vm_result(obj);
 JRT_END
 
@@ -472,15 +459,7 @@ JRT_ENTRY(void, Runtime1::store_flattened_array(JavaThread* thread, valueArrayOo
   if (value == NULL) {
     SharedRuntime::throw_and_post_jvmti_exception(thread, vmSymbols::java_lang_NullPointerException());
   } else {
-    Klass* klass = array->klass();
-    assert(klass->is_valueArray_klass(), "expected value array");
-    assert(ArrayKlass::cast(klass)->element_klass() == value->klass(), "Store type incorrect");
-
-    ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
-    ValueKlass* vklass = vaklass->element_klass();
-    const int lh = vaklass->layout_helper();
-    vklass->value_store(vklass->data_for_oop(value), array->value_at_addr(index, lh),
-                        vaklass->element_byte_size(), true, false);
+    array->value_copy_to_index(value, index);
   }
 JRT_END
 

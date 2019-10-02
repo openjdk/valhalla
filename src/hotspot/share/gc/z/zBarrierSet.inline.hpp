@@ -214,6 +214,23 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(o
   Raw::clone_in_heap(src, dst, size);
 }
 
+template <DecoratorSet decorators, typename BarrierSetT>
+inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_heap(void* src, void* dst, ValueKlass* md) {
+  if (md->contains_oops()) {
+    // src/dst aren't oops, need offset to adjust oop map offset
+    const address src_oop_addr_offset = ((address) src) - md->first_field_offset();
+
+    OopMapBlock* map = md->start_of_nonstatic_oop_maps();
+    OopMapBlock* const end = map + md->nonstatic_oop_map_count();
+    while (map != end) {
+      address soop_address = src_oop_addr_offset + map->offset();
+      ZBarrier::load_barrier_on_oop_array((oop*) soop_address, map->count());
+      map++;
+    }
+  }
+  Raw::value_copy_in_heap(src, dst, md);
+}
+
 //
 // Not in heap
 //

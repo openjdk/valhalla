@@ -32,7 +32,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/valueKlass.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/signature.hpp"
 

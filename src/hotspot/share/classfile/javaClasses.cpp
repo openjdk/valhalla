@@ -52,6 +52,7 @@
 #include "oops/symbol.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "oops/valueArrayKlass.hpp"
+#include "oops/valueKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/resolvedMethodTable.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"

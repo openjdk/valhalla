@@ -315,6 +315,10 @@ public:
       Raw::clone(src, dst, size);
     }
 
+    static void value_copy_in_heap(void* src, void* dst, ValueKlass* md) {
+      Raw::value_copy(src, dst, md);
+    }
+
     static oop resolve(oop obj) {
       return Raw::resolve(obj);
     }

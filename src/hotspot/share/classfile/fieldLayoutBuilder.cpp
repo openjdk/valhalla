@@ -29,7 +29,7 @@
 #include "memory/resourceArea.hpp"
 #include "oops/array.hpp"
 #include "oops/instanceMirrorKlass.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/valueKlass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 
 RawBlock::RawBlock(Kind kind, int size) {

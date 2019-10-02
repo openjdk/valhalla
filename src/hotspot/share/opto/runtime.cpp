@@ -1744,14 +1744,7 @@ const TypeFunc *OptoRuntime::pack_value_type_Type() {
 
 JRT_LEAF(void, OptoRuntime::load_unknown_value(valueArrayOopDesc* array, int index, instanceOopDesc* buffer))
 {
-  Klass* klass = array->klass();
-  assert(klass->is_valueArray_klass(), "expected value array oop");
-
-  ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
-  ValueKlass* vklass = vaklass->element_klass();
-  void* src = array->value_at_addr(index, vaklass->layout_helper());
-  vklass->value_store(src, vklass->data_for_oop(buffer),
-                        vaklass->element_byte_size(), true, false);
+  array->value_copy_from_index(index, buffer);
 }
 JRT_END
 
@@ -1777,15 +1770,7 @@ const TypeFunc *OptoRuntime::load_unknown_value_Type() {
 JRT_LEAF(void, OptoRuntime::store_unknown_value(instanceOopDesc* buffer, valueArrayOopDesc* array, int index))
 {
   assert(buffer != NULL, "can't store null into flat array");
-  Klass* klass = array->klass();
-  assert(klass->is_valueArray_klass(), "expected value array");
-  assert(ArrayKlass::cast(klass)->element_klass() == buffer->klass(), "Store type incorrect");
-
-  ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
-  ValueKlass* vklass = vaklass->element_klass();
-  const int lh = vaklass->layout_helper();
-  vklass->value_store(vklass->data_for_oop(buffer), array->value_at_addr(index, lh),
-                      vaklass->element_byte_size(), true, false);
+  array->value_copy_to_index(buffer, index);
 }
 JRT_END
 

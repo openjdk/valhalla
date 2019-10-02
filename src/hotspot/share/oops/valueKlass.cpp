@@ -36,7 +36,7 @@
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/valueKlass.inline.hpp"
 #include "oops/valueArrayKlass.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -45,6 +45,29 @@
 #include "runtime/signature.hpp"
 #include "runtime/thread.inline.hpp"
 #include "utilities/copy.hpp"
+
+  // Constructor
+ValueKlass::ValueKlass(const ClassFileParser& parser)
+    : InstanceKlass(parser, InstanceKlass::_misc_kind_value_type, InstanceKlass::ID) {
+  _adr_valueklass_fixed_block = valueklass_static_block();
+  // Addresses used for value type calling convention
+  *((Array<SigEntry>**)adr_extended_sig()) = NULL;
+  *((Array<VMRegPair>**)adr_return_regs()) = NULL;
+  *((address*)adr_pack_handler()) = NULL;
+  *((address*)adr_unpack_handler()) = NULL;
+  assert(pack_handler() == NULL, "pack handler not null");
+  *((int*)adr_default_value_offset()) = 0;
+  *((Klass**)adr_value_array_klass()) = NULL;
+  set_prototype_header(markWord::always_locked_prototype());
+}
+
+oop ValueKlass::default_value() {
+  oop val = java_mirror()->obj_field_acquire(default_value_offset());
+  assert(oopDesc::is_oop(val), "Sanity check");
+  assert(val->is_value(), "Sanity check");
+  assert(val->klass() == this, "sanity check");
+  return val;
+}
 
 int ValueKlass::first_field_offset_old() {
 #ifdef ASSERT
@@ -189,124 +212,6 @@ void ValueKlass::array_klasses_do(void f(Klass* k)) {
   InstanceKlass::array_klasses_do(f);
   if (get_value_array_klass() != NULL)
     ArrayKlass::cast(get_value_array_klass())->array_klasses_do(f);
-}
-
-void ValueKlass::raw_field_copy(void* src, void* dst, size_t raw_byte_size) {
-  if (!UseNewLayout) {
-    /*
-     * Try not to shear fields even if not an atomic store...
-     *
-     * First 3 cases handle value array store, otherwise works on the same basis
-     * as JVM_Clone, at this size data is aligned. The order of primitive types
-     * is largest to smallest, and it not possible for fields to stradle long
-     * copy boundaries.
-     *
-     * If MT without exclusive access, possible to observe partial value store,
-     * but not partial primitive and reference field values
-     */
-    switch (raw_byte_size) {
-    case 1:
-      *((jbyte*) dst) = *(jbyte*)src;
-      break;
-    case 2:
-      *((jshort*) dst) = *(jshort*)src;
-      break;
-    case 4:
-      *((jint*) dst) = *(jint*) src;
-      break;
-    default:
-      assert(raw_byte_size % sizeof(jlong) == 0, "Unaligned raw_byte_size");
-      Copy::conjoint_jlongs_atomic((jlong*)src, (jlong*)dst, raw_byte_size >> LogBytesPerLong);
-    }
-  } else {
-    int size = this->get_exact_size_in_bytes();
-    int length;
-    switch (this->get_alignment()) {
-    case BytesPerLong:
-      length = size >> LogBytesPerLong;
-      if (length > 0) {
-        Copy::conjoint_jlongs_atomic((jlong*)src, (jlong*)dst, length);
-        size -= length << LogBytesPerLong;
-        src = (jlong*)src + length;
-        dst = (jlong*)dst + length;
-      }
-      // Fallthrough
-    case BytesPerInt:
-      length = size >> LogBytesPerInt;
-      if (length > 0) {
-        Copy::conjoint_jints_atomic((jint*)src, (jint*)dst, length);
-        size -= length << LogBytesPerInt;
-        src = (jint*)src + length;
-        dst = (jint*)dst + length;
-      }
-      // Fallthrough
-    case BytesPerShort:
-      length = size >> LogBytesPerShort;
-      if (length > 0) {
-        Copy::conjoint_jshorts_atomic((jshort*)src, (jshort*)dst, length);
-        size -= length << LogBytesPerShort;
-        src = (jshort*)src + length;
-        dst = (jshort*)dst +length;
-      }
-      // Fallthrough
-    case 1:
-      if (size > 0) Copy::conjoint_jbytes_atomic((jbyte*)src, (jbyte*)dst, size);
-      break;
-    default:
-      fatal("Unsupported alignment");
-    }
-  }
-}
-
-/*
- * Store the value of this klass contained with src into dst.
- *
- * This operation is appropriate for use from vastore, vaload and putfield (for values)
- *
- * GC barriers currently can lock with no safepoint check and allocate c-heap,
- * so raw point is "safe" for now.
- *
- * Going forward, look to use machine generated (stub gen or bc) version for most used klass layouts
- *
- */
-void ValueKlass::value_store(void* src, void* dst, size_t raw_byte_size, bool dst_heap, bool dst_uninitialized) {
-  if (contains_oops()) {
-    if (dst_heap) {
-      // src/dst aren't oops, need offset to adjust oop map offset
-      const address dst_oop_addr = ((address) dst) - first_field_offset();
-
-      ModRefBarrierSet* bs = barrier_set_cast<ModRefBarrierSet>(BarrierSet::barrier_set());
-
-      // Pre-barriers...
-      OopMapBlock* map = start_of_nonstatic_oop_maps();
-      OopMapBlock* const end = map + nonstatic_oop_map_count();
-      while (map != end) {
-        // Shame we can't just use the existing oop iterator...src/dst aren't oop
-        address doop_address = dst_oop_addr + map->offset();
-        // TEMP HACK: barrier code need to migrate to => access API (need own versions of value type ops)
-        if (UseCompressedOops) {
-          bs->write_ref_array_pre((narrowOop*) doop_address, map->count(), dst_uninitialized);
-        } else {
-          bs->write_ref_array_pre((oop*) doop_address, map->count(), dst_uninitialized);
-        }
-        map++;
-      }
-
-      raw_field_copy(src, dst, raw_byte_size);
-
-      // Post-barriers...
-      map = start_of_nonstatic_oop_maps();
-      while (map != end) {
-        address doop_address = dst_oop_addr + map->offset();
-        bs->write_ref_array((HeapWord*) doop_address, map->count());
-        map++;
-      }
-    } else { // Buffered value case
-      raw_field_copy(src, dst, raw_byte_size);
-    }
-  } else {   // Primitive-only case...
-    raw_field_copy(src, dst, raw_byte_size);
-  }
 }
 
 // Value type arguments are not passed by reference, instead each

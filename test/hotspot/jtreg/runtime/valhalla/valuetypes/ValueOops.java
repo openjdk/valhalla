@@ -34,9 +34,8 @@ import sun.hotspot.WhiteBox;
 import jdk.experimental.value.MethodHandleBuilder;
 
 /**
- * @test ValueOops
- * @requires vm.gc == null
- * @requires vm.opt.ExplicitGCInvokesConcurrent != true
+ * @test ValueOops_int_Serial
+ * @requires vm.gc.Serial
  * @summary Test embedding oops into Value types
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
@@ -48,23 +47,106 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @run main/othervm -Xint -XX:+UseSerialGC -Xmx128m
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
+ */
+
+/**
+ * @test ValueOops_int_G1
+ * @requires vm.gc.G1
+ * @summary Test embedding oops into Value types
+ * @modules java.base/jdk.experimental.bytecode
+ *          java.base/jdk.experimental.value
+ * @library /test/lib
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator ValueOops.java
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint  -XX:+UseG1GC -Xmx128m
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops 100
+ */
+
+/**
+ * @test ValueOops_int_Parallel
+ * @requires vm.gc.Parallel
+ * @summary Test embedding oops into Value types
+ * @modules java.base/jdk.experimental.bytecode
+ *          java.base/jdk.experimental.value
+ * @library /test/lib
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator ValueOops.java
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UseParallelGC -Xmx128m
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
+ */
+
+/**
+ * @test ValueOops_int_Z
+ * @requires vm.gc.Z
+ * @summary Test embedding oops into Value types
+ * @modules java.base/jdk.experimental.bytecode
+ *          java.base/jdk.experimental.value
+ * @library /test/lib
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator ValueOops.java
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ *                   sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run main/othervm -Xint -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
+ *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   runtime.valhalla.valuetypes.ValueOops
+ */
+
+/**
+ * @test ValueOops_comp_serial
+ * @requires vm.gc.Serial
+ * @summary Test embedding oops into Value types
+ * @modules java.base/jdk.experimental.bytecode
+ *          java.base/jdk.experimental.value
+ * @library /test/lib
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator ValueOops.java
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xcomp -XX:+UseSerialGC -Xmx128m
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
+ */
+
+/**
+ * @test ValueOops_comp_G1
+ * @requires vm.gc.G1
+ * @summary Test embedding oops into Value types
+ * @modules java.base/jdk.experimental.bytecode
+ *          java.base/jdk.experimental.value
+ * @library /test/lib
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator ValueOops.java
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xcomp -XX:+UseG1GC -Xmx128m
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops 100
+ */
+
+/**
+ * @test ValueOops_comp_Parallel
+ * @requires vm.gc.Parallel
+ * @summary Test embedding oops into Value types
+ * @modules java.base/jdk.experimental.bytecode
+ *          java.base/jdk.experimental.value
+ * @library /test/lib
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator ValueOops.java
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xcomp -XX:+UseParallelGC -Xmx128m
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
  */
 public class ValueOops {
+
+    // Xcomp with ZGC missing until C1 and C2 barrier code is in place (JDK-8231498)
 
     // Extra debug: -XX:+VerifyOops -XX:+VerifyStack -XX:+VerifyLastFrame -XX:+VerifyBeforeGC -XX:+VerifyAfterGC -XX:+VerifyDuringGC -XX:VerifySubSet=threads,heap
     // Even more debugging: -XX:+TraceNewOopMapGeneration -Xlog:gc*=info

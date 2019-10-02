@@ -39,8 +39,8 @@
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "oops/valueArrayKlass.hpp"
-#include "oops/valueArrayOop.hpp"
 #include "oops/valueArrayOop.inline.hpp"
+#include "oops/valueKlass.inline.hpp"
 #include "prims/unsafe.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -368,9 +368,7 @@ UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, 
   Handle base_h(THREAD, base);
   oop v = vk->allocate_instance(CHECK_NULL); // allocate instance
   vk->initialize(CHECK_NULL); // If field is a default value, value class might not be initialized yet
-  vk->value_store(((address)(oopDesc*)base_h()) + offset,
-                  vk->data_for_oop(v),
-                  true, true);
+  vk->value_copy_payload_to_new_oop(((address)(oopDesc*)base_h()) + offset, v);
   return JNIHandles::make_local(env, v);
 } UNSAFE_END
 
@@ -381,8 +379,7 @@ UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlo
   assert(!base->is_value() || base->mark().is_larval_state(), "must be an object instance or a larval value");
   assert_and_log_unsafe_value_access(base, offset, vk);
   oop v = JNIHandles::resolve(value);
-  vk->value_store(vk->data_for_oop(v),
-                 ((address)(oopDesc*)base) + offset, true, true);
+  vk->value_copy_oop_to_payload(v, ((address)(oopDesc*)base) + offset);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {
@@ -391,7 +388,7 @@ UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobj
   Handle vh(THREAD, v);
   ValueKlass* vk = ValueKlass::cast(v->klass());
   instanceOop new_value = vk->allocate_instance(CHECK_NULL);
-  vk->value_store(vk->data_for_oop(vh()), vk->data_for_oop(new_value), true, false);
+  vk->value_copy_oop_to_new_oop(vh(),  new_value);
   markWord mark = new_value->mark();
   new_value->set_mark(mark.enter_larval_state());
   return JNIHandles::make_local(env, new_value);

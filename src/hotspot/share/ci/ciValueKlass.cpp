@@ -26,7 +26,7 @@
 #include "ci/ciField.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "ci/ciValueKlass.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/valueKlass.inline.hpp"
 
 int ciValueKlass::compute_nonstatic_fields() {
   int result = ciInstanceKlass::compute_nonstatic_fields();

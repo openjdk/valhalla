@@ -248,12 +248,12 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
            do {
              src -= elem_incr;
              dst -= elem_incr;
-             s_elem_vklass->value_store(src, dst, element_byte_size(), true, false);
+             HeapAccess<>::value_copy(src, dst, s_elem_vklass);
            } while (src > src_end);
          } else {
            address src_end = src + (length << log2_element_size());
            while (src < src_end) {
-             s_elem_vklass->value_store(src, dst, element_byte_size(), true, false);
+             HeapAccess<>::value_copy(src, dst, s_elem_vklass);
              src += elem_incr;
              dst += elem_incr;
            }
@@ -271,9 +271,7 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
        valueArrayHandle sh(THREAD, sa);
        int dst_end = dst_pos + length;
        while (dst_pos < dst_end) {
-         oop o = s_elem_vklass->allocate_instance(CHECK);
-         s_elem_vklass->value_store(sh->value_at_addr(src_pos, layout_helper()),
-                                             s_elem_vklass->data_for_oop(o), true, true);
+         oop o = valueArrayOopDesc::value_alloc_copy_from_index(sh, src_pos, CHECK);
          dh->obj_at_put(dst_pos, o);
          dst_pos++;
          src_pos++;
@@ -298,7 +296,7 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
        if (se->klass() != d_elem_klass) {
          THROW(vmSymbols::java_lang_ArrayStoreException());
        }
-       d_elem_vklass->value_store(d_elem_vklass->data_for_oop(se), dst, true, false);
+       d_elem_vklass->value_copy_oop_to_payload(se, dst);
        dst += delem_incr;
        src_pos++;
      }

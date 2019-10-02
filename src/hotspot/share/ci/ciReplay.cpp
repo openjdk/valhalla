@@ -37,7 +37,7 @@
 #include "oops/constantPool.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/valueKlass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "utilities/copy.hpp"

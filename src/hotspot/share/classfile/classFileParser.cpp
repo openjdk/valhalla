@@ -58,7 +58,7 @@
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/valueKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/arguments.hpp"

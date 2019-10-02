@@ -33,7 +33,7 @@
 #include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/reflectionAccessorImplKlassHelper.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/valueKlass.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "utilities/globalDefinitions.hpp"

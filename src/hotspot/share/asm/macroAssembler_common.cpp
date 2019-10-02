@@ -27,7 +27,7 @@
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
 #include "asm/macroAssembler.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/valueKlass.inline.hpp"
 #include "runtime/signature_cc.hpp"
 #include "runtime/sharedRuntime.hpp"
 #ifdef COMPILER2

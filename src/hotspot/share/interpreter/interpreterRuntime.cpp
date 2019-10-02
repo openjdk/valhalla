@@ -48,10 +48,9 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
-#include "oops/valueKlass.hpp"
 #include "oops/valueArrayKlass.hpp"
-#include "oops/valueArrayOop.hpp"
 #include "oops/valueArrayOop.inline.hpp"
+#include "oops/valueKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/atomic.hpp"
@@ -337,9 +336,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
   instanceOop new_value = vklass->allocate_instance(
       CHECK_((type2size[field_type]) * AbstractInterpreter::stackElementSize));
   Handle new_value_h = Handle(THREAD, new_value);
-  int first_offset = vklass->first_field_offset();
-  vklass->value_store(vklass->data_for_oop(old_value_h()),
-      vklass->data_for_oop(new_value_h()), true, false);
+  vklass->value_copy_oop_to_new_oop(old_value_h(), new_value_h());
 
   // Updating the field specified in arguments
   if (field_type == T_ARRAY || field_type == T_OBJECT) {
@@ -357,8 +354,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
       Klass* field_k = vklass->get_value_field_klass(field_index);
       ValueKlass* field_vk = ValueKlass::cast(field_k);
       assert(field_vk == vt_oop->klass(), "Must match");
-      field_vk->value_store(field_vk->data_for_oop(vt_oop),
-          ((char*)(oopDesc*)new_value_h()) + field_offset, false, false);
+      field_vk->value_copy_oop_to_new_payload(vt_oop, ((char*)(oopDesc*)new_value_h()) + field_offset);
     } else { // not flattened
       oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
       if (voop == NULL && cp_entry->is_flattenable()) {
@@ -445,7 +441,7 @@ JRT_ENTRY(void, InterpreterRuntime::write_flattened_value(JavaThread* thread, oo
 
   ValueKlass* vklass = ValueKlass::cast(value->klass());
   if (!vklass->is_empty_value()) {
-    vklass->value_store(vklass->data_for_oop(value), ((char*)(oopDesc*)rcv) + offset, true, true);
+    vklass->value_copy_oop_to_payload(value, ((char*)(oopDesc*)rcv) + offset);
   }
 JRT_END
 
@@ -466,11 +462,8 @@ JRT_ENTRY(void, InterpreterRuntime::read_flattened_field(JavaThread* thread, oop
   if (field_vklass->is_empty_value()) {
     res = (instanceOop)field_vklass->default_value();
   } else {
-    // allocate instance
     res = field_vklass->allocate_instance(CHECK);
-    // copy value
-    field_vklass->value_store(((char*)(oopDesc*)obj_h()) + klass->field_offset(index),
-        field_vklass->data_for_oop(res), true, true);
+    field_vklass->value_copy_payload_to_new_oop(((char*)(oopDesc*)obj_h()) + klass->field_offset(index), res);
   }
   assert(res != NULL, "Must be set in one of two paths above");
   thread->set_vm_result(res);
@@ -496,39 +489,14 @@ JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* thread, ConstantPool* 
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::value_array_load(JavaThread* thread, arrayOopDesc* array, int index))
-  Klass* klass = array->klass();
-  assert(klass->is_valueArray_klass(), "expected value array oop");
-
-  ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
-  ValueKlass* vklass = vaklass->element_klass();
-  arrayHandle ah(THREAD, array);
-  instanceOop value_holder = NULL;
-  if (vklass->is_empty_value()) {
-    value_holder = (instanceOop)vklass->default_value();
-  } else {
-    value_holder = vklass->allocate_instance(CHECK);
-    void* src = ((valueArrayOop)ah())->value_at_addr(index, vaklass->layout_helper());
-    vklass->value_store(src, vklass->data_for_oop(value_holder),
-        vaklass->element_byte_size(), true, false);
-  }
-  assert(value_holder != NULL, "Must be set in one of two paths above");
+  valueArrayHandle vah(thread, (valueArrayOop)array);
+  oop value_holder = valueArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
   thread->set_vm_result(value_holder);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::value_array_store(JavaThread* thread, void* val, arrayOopDesc* array, int index))
   assert(val != NULL, "can't store null into flat array");
-  Klass* klass = array->klass();
-  assert(klass->is_valueArray_klass(), "expected value array");
-  assert(ArrayKlass::cast(klass)->element_klass() == ((oop)val)->klass(), "Store type incorrect");
-
-  valueArrayOop varray = (valueArrayOop)array;
-  ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass);
-  ValueKlass* vklass = vaklass->element_klass();
-  if (!vklass->is_empty_value()) {
-    const int lh = vaklass->layout_helper();
-    vklass->value_store(vklass->data_for_oop((oop)val), varray->value_at_addr(index, lh),
-        vaklass->element_byte_size(), true, false);
-  }
+  ((valueArrayOop)array)->value_copy_to_index((oop)val, index);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* thread, jint* first_size_address))

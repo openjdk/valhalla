@@ -31,6 +31,7 @@
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.hpp"
+#include "oops/valueKlass.hpp"
 
 // count is number of array elements being written
 void ModRefBarrierSet::write_ref_array(HeapWord* start, size_t count) {
@@ -150,6 +151,38 @@ clone_in_heap(oop src, oop dst, size_t size) {
   Raw::clone(src, dst, size);
   BarrierSetT *bs = barrier_set_cast<BarrierSetT>(barrier_set());
   bs->write_region(MemRegion((HeapWord*)(void*)dst, size));
+}
+
+template <DecoratorSet decorators, typename BarrierSetT>
+inline void ModRefBarrierSet::AccessBarrier<decorators, BarrierSetT>::
+value_copy_in_heap(void* src, void* dst, ValueKlass* md) {
+  if (HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value || (!md->contains_oops())) {
+    Raw::value_copy(src, dst, md);
+  } else {
+    BarrierSetT* bs = barrier_set_cast<BarrierSetT>(BarrierSet::barrier_set());
+    // src/dst aren't oops, need offset to adjust oop map offset
+    const address dst_oop_addr_offset = ((address) dst) - md->first_field_offset();
+    typedef typename ValueOopType<decorators>::type OopType;
+
+    // Pre-barriers...
+    OopMapBlock* map = md->start_of_nonstatic_oop_maps();
+    OopMapBlock* const end = map + md->nonstatic_oop_map_count();
+    while (map != end) {
+      address doop_address = dst_oop_addr_offset + map->offset();
+      bs->write_ref_array_pre((OopType*) doop_address, map->count(), false);
+      map++;
+    }
+
+    Raw::value_copy(src, dst, md);
+
+    // Post-barriers...
+    map = md->start_of_nonstatic_oop_maps();
+    while (map != end) {
+      address doop_address = dst_oop_addr_offset + map->offset();
+      bs->write_ref_array((HeapWord*) doop_address, map->count());
+      map++;
+    }
+  }
 }
 
 #endif // SHARE_GC_SHARED_MODREFBARRIERSET_INLINE_HPP

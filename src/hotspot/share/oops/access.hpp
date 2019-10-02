@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,6 +57,7 @@
 // * atomic_xchg_at: Atomically swap a new value at an internal pointer address if previous value matched the compared value.
 // * arraycopy: Copy data from one heap array to another heap array. The ArrayAccess class has convenience functions for this.
 // * clone: Clone the contents of an object to a newly allocated object.
+// * value_copy: Copy the contents of a value type from one heap address to another
 // * resolve: Resolve a stable to-space invariant oop that is guaranteed not to relocate its payload until a subsequent thread transition.
 //
 // == IMPLEMENTATION ==
@@ -121,6 +122,12 @@ class Access: public AllStatic {
     const DecoratorSet heap_oop_decorators = AS_DECORATOR_MASK | ON_DECORATOR_MASK |
                                              IN_HEAP | IS_ARRAY | IS_NOT_NULL;
     verify_decorators<expected_mo_decorators | heap_oop_decorators>();
+  }
+
+  template <DecoratorSet expected_mo_decorators>
+  static void verify_heap_value_decorators() {
+    const DecoratorSet heap_value_decorators = IN_HEAP | IS_DEST_UNINITIALIZED;
+    verify_decorators<expected_mo_decorators | heap_value_decorators>();
   }
 
   static const DecoratorSet load_mo_decorators = MO_UNORDERED | MO_VOLATILE | MO_RELAXED | MO_ACQUIRE | MO_SEQ_CST;
@@ -211,6 +218,14 @@ public:
   static inline void clone(oop src, oop dst, size_t size) {
     verify_decorators<IN_HEAP>();
     AccessInternal::clone<decorators>(src, dst, size);
+  }
+
+  // Value type inline heap access (flattened)...
+
+  // Copy value type data from src to dst
+  static inline void value_copy(void* src, void* dst, ValueKlass* md) {
+    verify_heap_value_decorators<IN_HEAP>();
+    AccessInternal::value_copy<decorators>(src, dst, md);
   }
 
   // Primitive accesses
