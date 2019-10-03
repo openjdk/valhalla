@@ -195,6 +195,7 @@ public abstract class ValueTypeTest {
     protected static final String STORE  = START + "Store(B|C|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/valuetypes/MyValue.*" + END;
     protected static final String LOOP   = START + "Loop" + MID + "" + END;
     protected static final String COUNTEDLOOP = START + "CountedLoop\\b" + MID + "" + END;
+    protected static final String COUNTEDLOOP_MAIN = START + "CountedLoop\\b" + MID + "main" + END;
     protected static final String TRAP   = START + "CallStaticJava" + MID + "uncommon_trap.*(unstable_if|predicate)" + END;
     protected static final String RETURN = START + "Return" + MID + "returns" + END;
     protected static final String LINKTOSTATIC = START + "CallStaticJava" + MID + "linkToStatic" + END;
