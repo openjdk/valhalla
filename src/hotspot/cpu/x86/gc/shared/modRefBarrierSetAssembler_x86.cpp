@@ -34,7 +34,7 @@ void ModRefBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, Decorat
   bool disjoint = (decorators & ARRAYCOPY_DISJOINT) != 0;
   bool obj_int = type == T_OBJECT LP64_ONLY(&& UseCompressedOops);
 
-  if (type == T_OBJECT || type == T_ARRAY) {
+  if (is_reference_type(type)) {
 #ifdef _LP64
     if (!checkcast) {
       if (!obj_int) {
@@ -61,7 +61,7 @@ void ModRefBarrierSetAssembler::arraycopy_epilogue(MacroAssembler* masm, Decorat
   bool obj_int = type == T_OBJECT LP64_ONLY(&& UseCompressedOops);
   Register tmp = rax;
 
-  if (type == T_OBJECT || type == T_ARRAY) {
+  if (is_reference_type(type)) {
 #ifdef _LP64
     if (!checkcast) {
       if (!obj_int) {
@@ -85,7 +85,7 @@ void ModRefBarrierSetAssembler::arraycopy_epilogue(MacroAssembler* masm, Decorat
 
 void ModRefBarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                          Address dst, Register val, Register tmp1, Register tmp2, Register tmp3) {
-  if (type == T_OBJECT || type == T_ARRAY) {
+  if (is_reference_type(type)) {
     oop_store_at(masm, decorators, type, dst, val, tmp1, tmp2, tmp3);
   } else {
     BarrierSetAssembler::store_at(masm, decorators, type, dst, val, tmp1, tmp2, tmp3);

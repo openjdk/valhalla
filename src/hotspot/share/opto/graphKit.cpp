@@ -2370,7 +2370,7 @@ void GraphKit::record_profiled_arguments_for_speculation(ciMethod* dest_method, 
   int skip = Bytecodes::has_receiver(bc) ? 1 : 0;
   for (int j = skip, i = 0; j < nargs && i < TypeProfileArgsLimit; j++) {
     const Type *targ = tf->domain_sig()->field_at(j + TypeFunc::Parms);
-    if (targ->isa_oopptr()) {
+    if (is_reference_type(targ->basic_type())) {
       ProfilePtrKind ptr_kind = ProfileMaybeNull;
       ciKlass* better_type = NULL;
       if (method()->argument_profiled_type(bci(), i, better_type, ptr_kind)) {

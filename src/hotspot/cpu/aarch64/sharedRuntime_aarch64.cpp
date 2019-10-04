@@ -2228,7 +2228,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   __ reset_last_Java_frame(false);
 
   // Unbox oop result, e.g. JNIHandles::resolve result.
-  if (ret_type == T_OBJECT || ret_type == T_ARRAY || ret_type == T_VALUETYPE) {
+  if (is_reference_type(ret_type)) {
     __ resolve_jobject(r0, rthread, rscratch2);
   }
 

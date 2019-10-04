@@ -1590,6 +1590,22 @@ Node *LoadNode::split_through_phi(PhaseGVN *phase) {
   return phi;
 }
 
+AllocateNode* LoadNode::is_new_object_mark_load(PhaseGVN *phase) const {
+  if (Opcode() == Op_LoadX) {
+    Node* address = in(MemNode::Address);
+    AllocateNode* alloc = AllocateNode::Ideal_allocation(address, phase);
+    Node* mem = in(MemNode::Memory);
+    if (alloc != NULL && mem->is_Proj() &&
+        mem->in(0) != NULL &&
+        mem->in(0) == alloc->initialization() &&
+        alloc->initialization()->proj_out_or_null(0) != NULL) {
+      return alloc;
+    }
+  }
+  return NULL;
+}
+
+
 //------------------------------Ideal------------------------------------------
 // If the load is from Field memory and the pointer is non-null, it might be possible to
 // zero out the control input.
@@ -1726,7 +1742,7 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       alloc->initialization()->proj_out_or_null(0) != NULL) {
     InitializeNode* init = alloc->initialization();
     Node* control = init->proj_out(0);
-    return alloc->make_ideal_mark(phase, address, control, mem, NULL);
+    return alloc->make_ideal_mark(phase, address, control, mem);
   }
 
   return progress ? this : NULL;
@@ -2033,6 +2049,12 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       return Type::get_zero_type(_type->basic_type());
     }
   }
+
+  Node* alloc = is_new_object_mark_load(phase);
+  if (alloc != NULL && !(alloc->Opcode() == Op_Allocate && UseBiasedLocking)) {
+    return TypeX::make(markWord::prototype().value());
+  }
+
   return _type;
 }
 

@@ -128,7 +128,7 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
                                         Register tmp2,
                                         Register tmp3) {
   // Verify value
-  if (type == T_OBJECT || type == T_ARRAY) {
+  if (is_reference_type(type)) {
     // Note that src could be noreg, which means we
     // are storing null and can skip verification.
     if (val != noreg) {

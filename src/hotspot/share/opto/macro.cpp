@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -849,7 +849,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
 
       const Type *field_type;
       // The next code is taken from Parse::do_get_xxx().
-      if (basic_elem_type == T_OBJECT || basic_elem_type == T_ARRAY) {
+      if (is_reference_type(basic_elem_type)) {
         if (!elem_type->is_loaded()) {
           field_type = TypeInstPtr::BOTTOM;
         } else if (field != NULL && field->is_static_constant()) {
@@ -936,7 +936,10 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
 #endif
         return false;
       }
-      if (UseCompressedOops && field_type->isa_narrowoop()) {
+      if (field_val->is_ValueType()) {
+        // Keep track of value types to scalarize them later
+        value_worklist.push(field_val);
+      } else if (UseCompressedOops && field_type->isa_narrowoop()) {
         // Enable "DecodeN(EncodeP(Allocate)) --> Allocate" transformation
         // to be able scalar replace the allocation.
         if (field_val->is_EncodeP()) {
@@ -944,9 +947,6 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
         } else {
           field_val = transform_later(new DecodeNNode(field_val, field_val->get_ptr_type()));
         }
-      } else if (field_val->is_ValueType()) {
-        // Keep track of value types to scalarize them later
-        value_worklist.push(field_val);
       }
       sfpt->add_req(field_val);
     }
@@ -1706,7 +1706,7 @@ Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
                                           Node* size_in_bytes) {
   InitializeNode* init = alloc->initialization();
   // Store the klass & mark bits
-  Node* mark_node = alloc->make_ideal_mark(&_igvn, object, control, rawmem, klass_node);
+  Node* mark_node = alloc->make_ideal_mark(&_igvn, object, control, rawmem);
   if (!mark_node->is_Con()) {
     transform_later(mark_node);
   }
@@ -2924,14 +2924,35 @@ bool PhaseMacroExpand::expand_macro_nodes() {
     if (_igvn.type(n) == Type::TOP || (n->in(0) != NULL && n->in(0)->is_top())) {
       // node is unreachable, so don't try to expand it
       C->remove_macro_node(n);
-    } else if (n->is_ArrayCopy()){
-      int macro_count = C->macro_count();
+      continue;
+    }
+    int macro_count = C->macro_count();
+    switch (n->class_id()) {
+    case Node::Class_Lock:
+      expand_lock_node(n->as_Lock());
+      assert(C->macro_count() < macro_count, "must have deleted a node from macro list");
+      break;
+    case Node::Class_Unlock:
+      expand_unlock_node(n->as_Unlock());
+      assert(C->macro_count() < macro_count, "must have deleted a node from macro list");
+      break;
+    case Node::Class_ArrayCopy:
       expand_arraycopy_node(n->as_ArrayCopy());
       assert(C->macro_count() < macro_count, "must have deleted a node from macro list");
+      break;
     }
     if (C->failing())  return true;
     macro_idx --;
   }
+
+  // All nodes except Allocate nodes are expanded now. There could be
+  // new optimization opportunities (such as folding newly created
+  // load from a just allocated object). Run IGVN.
+  _igvn.set_delay_transform(false);
+  _igvn.optimize();
+  if (C->failing())  return true;
+
+  _igvn.set_delay_transform(true);
 
   // expand "macro" nodes
   // nodes are removed from the macro list as they are processed
@@ -2950,12 +2971,6 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       break;
     case Node::Class_AllocateArray:
       expand_allocate_array(n->as_AllocateArray());
-      break;
-    case Node::Class_Lock:
-      expand_lock_node(n->as_Lock());
-      break;
-    case Node::Class_Unlock:
-      expand_unlock_node(n->as_Unlock());
       break;
     case Node::Class_CallStaticJava:
       expand_mh_intrinsic_return(n->as_CallStaticJava());

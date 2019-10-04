@@ -31,6 +31,7 @@
 #include "memory/universe.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "runtime/deoptimization.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/javaCalls.hpp"
 #include "jvmci/jniAccessMark.inline.hpp"
@@ -43,6 +44,7 @@ JVMCICompileState::JVMCICompileState(CompileTask* task):
   _failure_reason_on_C_heap(false) {
   // Get Jvmti capabilities under lock to get consistent values.
   MutexLocker mu(JvmtiThreadState_lock);
+  _jvmti_redefinition_count             = JvmtiExport::redefinition_count();
   _jvmti_can_hotswap_or_post_breakpoint = JvmtiExport::can_hotswap_or_post_breakpoint() ? 1 : 0;
   _jvmti_can_access_local_variables     = JvmtiExport::can_access_local_variables() ? 1 : 0;
   _jvmti_can_post_on_exceptions         = JvmtiExport::can_post_on_exceptions() ? 1 : 0;
@@ -50,6 +52,10 @@ JVMCICompileState::JVMCICompileState(CompileTask* task):
 }
 
 bool JVMCICompileState::jvmti_state_changed() const {
+  // Some classes were redefined
+  if (jvmti_redefinition_count() != JvmtiExport::redefinition_count()) {
+    return true;
+  }
   if (!jvmti_can_access_local_variables() &&
       JvmtiExport::can_access_local_variables()) {
     return true;
@@ -1491,8 +1497,7 @@ void JVMCIEnv::invalidate_nmethod_mirror(JVMCIObject mirror, JVMCI_TRAPS) {
     // Invalidating the HotSpotNmethod means we want the nmethod
     // to be deoptimized.
     nm->mark_for_deoptimization();
-    VM_Deoptimize op;
-    VMThread::execute(&op);
+    Deoptimization::deoptimize_all_marked();
   }
 
   // A HotSpotNmethod instance can only reference a single nmethod

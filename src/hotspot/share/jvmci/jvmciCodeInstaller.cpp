@@ -1208,7 +1208,7 @@ void CodeInstaller::site_Call(CodeBuffer& buffer, jint pc_offset, JVMCIObject si
     OopMap *map = create_oop_map(debug_info, JVMCI_CHECK);
     _debug_recorder->add_safepoint(next_pc_offset, map);
 
-    bool return_oop = hotspot_method.is_non_null() && jvmci_env()->asMethod(hotspot_method)->may_return_oop();
+    bool return_oop = hotspot_method.is_non_null() && jvmci_env()->asMethod(hotspot_method)->is_returning_oop();
 
     record_scope(next_pc_offset, debug_info, CodeInstaller::FullFrame, return_oop, JVMCI_CHECK);
   }

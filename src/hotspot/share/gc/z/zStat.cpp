@@ -354,12 +354,11 @@ T* ZStatValue::get_cpu_local(uint32_t cpu) const {
 
 void ZStatValue::initialize() {
   // Finalize and align CPU offset
-  _cpu_offset = align_up(_cpu_offset, ZCacheLineSize);
+  _cpu_offset = align_up(_cpu_offset, (uint32_t)ZCacheLineSize);
 
   // Allocation aligned memory
   const size_t size = _cpu_offset * ZCPU::count();
   _base = ZUtils::alloc_aligned(ZCacheLineSize, size);
-  memset((void*)_base, 0, size);
 }
 
 const char* ZStatValue::group() const {

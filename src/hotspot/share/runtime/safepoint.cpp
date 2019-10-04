@@ -1093,7 +1093,7 @@ void ThreadSafepointState::handle_polling_page_exception() {
     ResourceMark rm;
     // See if return type is an oop.
     Method* method = nm->method();
-    bool return_oop = method->may_return_oop();
+    bool return_oop = method->is_returning_oop();
 
     GrowableArray<Handle> return_values;
     ValueKlass* vk = NULL;

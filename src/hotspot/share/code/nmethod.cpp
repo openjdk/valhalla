@@ -50,6 +50,7 @@
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiImpl.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/deoptimization.hpp"
 #include "runtime/flags/flagSetting.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -476,7 +477,6 @@ nmethod* nmethod::new_native_nmethod(const methodHandle& method,
     debug_only(nm->verify();) // might block
 
     nm->log_new_nmethod();
-    nm->make_in_use();
   }
   return nm;
 }
@@ -1162,6 +1162,11 @@ void nmethod::inc_decompile_count() {
 
 bool nmethod::try_transition(int new_state_int) {
   signed char new_state = new_state_int;
+#ifdef DEBUG
+  if (new_state != unloaded) {
+    assert_lock_strong(CompiledMethod_lock);
+  }
+#endif
   for (;;) {
     signed char old_state = Atomic::load(&_state);
     if (old_state >= new_state) {
@@ -1217,11 +1222,7 @@ void nmethod::make_unloaded() {
   // have the Method* live here, in case we unload the nmethod because
   // it is pointing to some oop (other than the Method*) being unloaded.
   if (_method != NULL) {
-    // OSR methods point to the Method*, but the Method* does not
-    // point back!
-    if (_method->code() == this) {
-      _method->clear_code(); // Break a cycle
-    }
+    _method->unlink_code(this);
   }
 
   // Make the class unloaded - i.e., change state and notify sweeper
@@ -1305,16 +1306,9 @@ void nmethod::log_state_change() const {
   }
 }
 
-void nmethod::unlink_from_method(bool acquire_lock) {
-  // We need to check if both the _code and _from_compiled_code_entry_point
-  // refer to this nmethod because there is a race in setting these two fields
-  // in Method* as seen in bugid 4947125.
-  // If the vep() points to the zombie nmethod, the memory for the nmethod
-  // could be flushed and the compiler and vtable stubs could still call
-  // through it.
-  if (method() != NULL && (method()->code() == this ||
-                           method()->from_compiled_entry() == verified_entry_point())) {
-    method()->clear_code(acquire_lock);
+void nmethod::unlink_from_method() {
+  if (method() != NULL) {
+    method()->unlink_code(this);
   }
 }
 
@@ -1323,7 +1317,6 @@ void nmethod::unlink_from_method(bool acquire_lock) {
  */
 bool nmethod::make_not_entrant_or_zombie(int state) {
   assert(state == zombie || state == not_entrant, "must be zombie or not_entrant");
-  assert(!is_zombie(), "should not already be a zombie");
 
   if (Atomic::load(&_state) >= state) {
     // Avoid taking the lock if already in required state.
@@ -1341,14 +1334,15 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
 
   // during patching, depending on the nmethod state we must notify the GC that
   // code has been unloaded, unregistering it. We cannot do this right while
-  // holding the Patching_lock because we need to use the CodeCache_lock. This
+  // holding the CompiledMethod_lock because we need to use the CodeCache_lock. This
   // would be prone to deadlocks.
   // This flag is used to remember whether we need to later lock and unregister.
   bool nmethod_needs_unregister = false;
 
   {
-    // invalidate osr nmethod before acquiring the patching lock since
-    // they both acquire leaf locks and we don't want a deadlock.
+    // Enter critical section.  Does not block for safepoint.
+    MutexLocker ml(CompiledMethod_lock->owned_by_self() ? NULL : CompiledMethod_lock, Mutex::_no_safepoint_check_flag);
+
     // This logic is equivalent to the logic below for patching the
     // verified entry point of regular methods. We check that the
     // nmethod is in use to ensure that it is invalidated only once.
@@ -1356,9 +1350,6 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
       // this effectively makes the osr nmethod not entrant
       invalidate_osr_method();
     }
-
-    // Enter critical section.  Does not block for safepoint.
-    MutexLocker pl(Patching_lock, Mutex::_no_safepoint_check_flag);
 
     if (Atomic::load(&_state) >= state) {
       // another thread already performed this transition so nothing
@@ -1413,8 +1404,9 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
     log_state_change();
 
     // Remove nmethod from method.
-    unlink_from_method(false /* already owns Patching_lock */);
-  } // leave critical region under Patching_lock
+    unlink_from_method();
+
+  } // leave critical region under CompiledMethod_lock
 
 #if INCLUDE_JVMCI
   // Invalidate can't occur while holding the Patching lock
@@ -2221,6 +2213,17 @@ public:
   virtual void do_oop(narrowOop* p) { ShouldNotReachHere(); }
 };
 
+class VerifyMetadataClosure: public MetadataClosure {
+ public:
+  void do_metadata(Metadata* md) {
+    if (md->is_method()) {
+      Method* method = (Method*)md;
+      assert(!method->is_old(), "Should not be installing old methods");
+    }
+  }
+};
+
+
 void nmethod::verify() {
 
   // Hmm. OSR methods can be deopted but not marked as zombie or not_entrant
@@ -2284,6 +2287,10 @@ void nmethod::verify() {
   Universe::heap()->verify_nmethod(this);
 
   verify_scopes();
+
+  CompiledICLocker nm_verify(this);
+  VerifyMetadataClosure vmc;
+  metadata_do(&vmc);
 }
 
 

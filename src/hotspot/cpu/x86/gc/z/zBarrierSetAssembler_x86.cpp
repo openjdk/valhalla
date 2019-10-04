@@ -200,7 +200,7 @@ void ZBarrierSetAssembler::store_at(MacroAssembler* masm,
 
   assert(type != T_VALUETYPE, "Not supported yet");
   // Verify oop store
-  if (type == T_OBJECT || type == T_ARRAY) {
+  if (is_reference_type(type)) {
     // Note that src could be noreg, which means we
     // are storing null and can skip verification.
     if (src != noreg) {

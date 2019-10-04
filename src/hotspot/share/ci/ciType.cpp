@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,8 +35,7 @@ ciType* ciType::_basic_types[T_CONFLICT+1];
 
 // ciType
 //
-// This class represents either a class (T_OBJECT), value (T_VALUETYPE),
-// array (T_ARRAY),or one of the primitive types such as T_INT.
+// This class represents a Java reference, value type or primitive type.
 
 // ------------------------------------------------------------------
 // ciType::ciType

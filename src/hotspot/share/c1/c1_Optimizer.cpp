@@ -878,7 +878,7 @@ void NullCheckEliminator::handle_AccessField(AccessField* x) {
       if (field->is_constant()) {
         ciConstant field_val = field->constant_value();
         BasicType field_type = field_val.basic_type();
-        if (field_type == T_OBJECT || field_type == T_ARRAY || field_type == T_VALUETYPE) {
+        if (is_reference_type(field_type)) {
           ciObject* obj_val = field_val.as_object();
           if (!obj_val->is_null_object()) {
             if (PrintNullCheckElimination) {

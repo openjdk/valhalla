@@ -406,8 +406,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   // Figure out if the result value is an oop or not (Note: This is a different value
   // than result_type. result_type will be T_INT of oops. (it is about size)
   BasicType result_type = runtime_type_from(result);
-  bool oop_result_flag = (result->get_type() == T_OBJECT || result->get_type() == T_ARRAY
-                          || result->get_type() == T_VALUETYPE);
+  bool oop_result_flag = is_reference_type(result->get_type());
 
   // Find receiver
   Handle receiver = (!method->is_static()) ? args->receiver() : Handle();

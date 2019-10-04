@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,17 +62,17 @@ class Array {
      * <p>The number of dimensions of the new array must not
      * exceed 255.
      *
-     * @param componentType the {@code Class} object representing the
-     * component type of the new array
-     * @param length the length of the new array
+     * @param  componentType the {@code Class} object representing the
+     *         component type of the new array
+     * @param  length the length of the new array
      * @return the new array
-     * @exception NullPointerException if the specified
-     * {@code componentType} parameter is null
-     * @exception IllegalArgumentException if componentType is {@link
-     * Void#TYPE} or if the number of dimensions of the requested array
-     * instance exceed 255.
-     * @exception NegativeArraySizeException if the specified {@code length}
-     * is negative
+     * @throws NullPointerException if the specified
+     *         {@code componentType} parameter is null
+     * @throws IllegalArgumentException if componentType is {@link
+     *         Void#TYPE} or if the number of dimensions of the requested array
+     *         instance exceed 255.
+     * @throws NegativeArraySizeException if the specified {@code length}
+     *         is negative
      */
     public static Object newInstance(Class<?> componentType, int length)
         throws NegativeArraySizeException {
@@ -101,13 +101,13 @@ class Array {
      * @param dimensions an array of {@code int} representing the dimensions of
      * the new array
      * @return the new array
-     * @exception NullPointerException if the specified
+     * @throws    NullPointerException if the specified
      * {@code componentType} argument is null
-     * @exception IllegalArgumentException if the specified {@code dimensions}
+     * @throws    IllegalArgumentException if the specified {@code dimensions}
      * argument is a zero-dimensional array, if componentType is {@link
      * Void#TYPE}, or if the number of dimensions of the requested array
      * instance exceed 255.
-     * @exception NegativeArraySizeException if any of the components in
+     * @throws    NegativeArraySizeException if any of the components in
      * the specified {@code dimensions} argument is negative.
      */
     public static Object newInstance(Class<?> componentType, int... dimensions)
@@ -120,7 +120,7 @@ class Array {
      *
      * @param array the array
      * @return the length of the array
-     * @exception IllegalArgumentException if the object argument is not
+     * @throws    IllegalArgumentException if the object argument is not
      * an array
      */
     @HotSpotIntrinsicCandidate
@@ -136,10 +136,10 @@ class Array {
      * @param index the index
      * @return the (possibly wrapped) value of the indexed component in
      * the specified array
-     * @exception NullPointerException If the specified object is null
-     * @exception IllegalArgumentException If the specified object is not
+     * @throws    NullPointerException If the specified object is null
+     * @throws    IllegalArgumentException If the specified object is not
      * an array
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to the
      * length of the specified array
      */
@@ -163,11 +163,11 @@ class Array {
      * @param array the array
      * @param index the index
      * @return the value of the indexed component in the specified array
-     * @exception NullPointerException If the specified object is null
-     * @exception IllegalArgumentException If the specified object is not
+     * @throws    NullPointerException If the specified object is null
+     * @throws    IllegalArgumentException If the specified object is not
      * an array, or if the indexed element cannot be converted to the
      * return type by an identity or widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to the
      * length of the specified array
      * @see Array#get
@@ -182,11 +182,11 @@ class Array {
      * @param array the array
      * @param index the index
      * @return the value of the indexed component in the specified array
-     * @exception NullPointerException If the specified object is null
-     * @exception IllegalArgumentException If the specified object is not
+     * @throws    NullPointerException If the specified object is null
+     * @throws    IllegalArgumentException If the specified object is not
      * an array, or if the indexed element cannot be converted to the
      * return type by an identity or widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to the
      * length of the specified array
      * @see Array#get
@@ -201,11 +201,11 @@ class Array {
      * @param array the array
      * @param index the index
      * @return the value of the indexed component in the specified array
-     * @exception NullPointerException If the specified object is null
-     * @exception IllegalArgumentException If the specified object is not
+     * @throws    NullPointerException If the specified object is null
+     * @throws    IllegalArgumentException If the specified object is not
      * an array, or if the indexed element cannot be converted to the
      * return type by an identity or widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to the
      * length of the specified array
      * @see Array#get
@@ -220,11 +220,11 @@ class Array {
      * @param array the array
      * @param index the index
      * @return the value of the indexed component in the specified array
-     * @exception NullPointerException If the specified object is null
-     * @exception IllegalArgumentException If the specified object is not
+     * @throws    NullPointerException If the specified object is null
+     * @throws    IllegalArgumentException If the specified object is not
      * an array, or if the indexed element cannot be converted to the
      * return type by an identity or widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to the
      * length of the specified array
      * @see Array#get
@@ -239,11 +239,11 @@ class Array {
      * @param array the array
      * @param index the index
      * @return the value of the indexed component in the specified array
-     * @exception NullPointerException If the specified object is null
-     * @exception IllegalArgumentException If the specified object is not
+     * @throws    NullPointerException If the specified object is null
+     * @throws    IllegalArgumentException If the specified object is not
      * an array, or if the indexed element cannot be converted to the
      * return type by an identity or widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to the
      * length of the specified array
      * @see Array#get
@@ -258,11 +258,11 @@ class Array {
      * @param array the array
      * @param index the index
      * @return the value of the indexed component in the specified array
-     * @exception NullPointerException If the specified object is null
-     * @exception IllegalArgumentException If the specified object is not
+     * @throws    NullPointerException If the specified object is null
+     * @throws    IllegalArgumentException If the specified object is not
      * an array, or if the indexed element cannot be converted to the
      * return type by an identity or widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to the
      * length of the specified array
      * @see Array#get
@@ -277,11 +277,11 @@ class Array {
      * @param array the array
      * @param index the index
      * @return the value of the indexed component in the specified array
-     * @exception NullPointerException If the specified object is null
-     * @exception IllegalArgumentException If the specified object is not
+     * @throws    NullPointerException If the specified object is null
+     * @throws    IllegalArgumentException If the specified object is not
      * an array, or if the indexed element cannot be converted to the
      * return type by an identity or widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to the
      * length of the specified array
      * @see Array#get
@@ -296,11 +296,11 @@ class Array {
      * @param array the array
      * @param index the index
      * @return the value of the indexed component in the specified array
-     * @exception NullPointerException If the specified object is null
-     * @exception IllegalArgumentException If the specified object is not
+     * @throws    NullPointerException If the specified object is null
+     * @throws    IllegalArgumentException If the specified object is not
      * an array, or if the indexed element cannot be converted to the
      * return type by an identity or widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to the
      * length of the specified array
      * @see Array#get
@@ -316,12 +316,12 @@ class Array {
      * @param array the array
      * @param index the index into the array
      * @param value the new value of the indexed component
-     * @exception NullPointerException If the specified object argument
+     * @throws    NullPointerException If the specified object argument
      * is null
-     * @exception IllegalArgumentException If the specified object argument
+     * @throws    IllegalArgumentException If the specified object argument
      * is not an array, or if the array component type is primitive and
      * an unwrapping conversion fails
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to
      * the length of the specified array
      */
@@ -344,13 +344,13 @@ class Array {
      * @param array the array
      * @param index the index into the array
      * @param z the new value of the indexed component
-     * @exception NullPointerException If the specified object argument
+     * @throws    NullPointerException If the specified object argument
      * is null
-     * @exception IllegalArgumentException If the specified object argument
+     * @throws    IllegalArgumentException If the specified object argument
      * is not an array, or if the specified value cannot be converted
      * to the underlying array's component type by an identity or a
      * primitive widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to
      * the length of the specified array
      * @see Array#set
@@ -364,13 +364,13 @@ class Array {
      * @param array the array
      * @param index the index into the array
      * @param b the new value of the indexed component
-     * @exception NullPointerException If the specified object argument
+     * @throws    NullPointerException If the specified object argument
      * is null
-     * @exception IllegalArgumentException If the specified object argument
+     * @throws    IllegalArgumentException If the specified object argument
      * is not an array, or if the specified value cannot be converted
      * to the underlying array's component type by an identity or a
      * primitive widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to
      * the length of the specified array
      * @see Array#set
@@ -384,13 +384,13 @@ class Array {
      * @param array the array
      * @param index the index into the array
      * @param c the new value of the indexed component
-     * @exception NullPointerException If the specified object argument
+     * @throws    NullPointerException If the specified object argument
      * is null
-     * @exception IllegalArgumentException If the specified object argument
+     * @throws    IllegalArgumentException If the specified object argument
      * is not an array, or if the specified value cannot be converted
      * to the underlying array's component type by an identity or a
      * primitive widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to
      * the length of the specified array
      * @see Array#set
@@ -404,13 +404,13 @@ class Array {
      * @param array the array
      * @param index the index into the array
      * @param s the new value of the indexed component
-     * @exception NullPointerException If the specified object argument
+     * @throws    NullPointerException If the specified object argument
      * is null
-     * @exception IllegalArgumentException If the specified object argument
+     * @throws    IllegalArgumentException If the specified object argument
      * is not an array, or if the specified value cannot be converted
      * to the underlying array's component type by an identity or a
      * primitive widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to
      * the length of the specified array
      * @see Array#set
@@ -424,13 +424,13 @@ class Array {
      * @param array the array
      * @param index the index into the array
      * @param i the new value of the indexed component
-     * @exception NullPointerException If the specified object argument
+     * @throws    NullPointerException If the specified object argument
      * is null
-     * @exception IllegalArgumentException If the specified object argument
+     * @throws    IllegalArgumentException If the specified object argument
      * is not an array, or if the specified value cannot be converted
      * to the underlying array's component type by an identity or a
      * primitive widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to
      * the length of the specified array
      * @see Array#set
@@ -444,13 +444,13 @@ class Array {
      * @param array the array
      * @param index the index into the array
      * @param l the new value of the indexed component
-     * @exception NullPointerException If the specified object argument
+     * @throws    NullPointerException If the specified object argument
      * is null
-     * @exception IllegalArgumentException If the specified object argument
+     * @throws    IllegalArgumentException If the specified object argument
      * is not an array, or if the specified value cannot be converted
      * to the underlying array's component type by an identity or a
      * primitive widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to
      * the length of the specified array
      * @see Array#set
@@ -464,13 +464,13 @@ class Array {
      * @param array the array
      * @param index the index into the array
      * @param f the new value of the indexed component
-     * @exception NullPointerException If the specified object argument
+     * @throws    NullPointerException If the specified object argument
      * is null
-     * @exception IllegalArgumentException If the specified object argument
+     * @throws    IllegalArgumentException If the specified object argument
      * is not an array, or if the specified value cannot be converted
      * to the underlying array's component type by an identity or a
      * primitive widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to
      * the length of the specified array
      * @see Array#set
@@ -484,13 +484,13 @@ class Array {
      * @param array the array
      * @param index the index into the array
      * @param d the new value of the indexed component
-     * @exception NullPointerException If the specified object argument
+     * @throws    NullPointerException If the specified object argument
      * is null
-     * @exception IllegalArgumentException If the specified object argument
+     * @throws    IllegalArgumentException If the specified object argument
      * is not an array, or if the specified value cannot be converted
      * to the underlying array's component type by an identity or a
      * primitive widening conversion
-     * @exception ArrayIndexOutOfBoundsException If the specified {@code index}
+     * @throws    ArrayIndexOutOfBoundsException If the specified {@code index}
      * argument is negative, or if it is greater than or equal to
      * the length of the specified array
      * @see Array#set
