@@ -115,6 +115,7 @@ extern Monitor* Service_lock;                    // a lock used for service thre
 extern Monitor* PeriodicTask_lock;               // protects the periodic task structure
 extern Monitor* RedefineClasses_lock;            // locks classes from parallel redefinition
 extern Monitor* ThreadsSMRDelete_lock;           // Used by ThreadsSMRSupport to take pressure off the Threads_lock
+extern Mutex*   ThreadIdTableCreate_lock;        // Used by ThreadIdTable to lazily create the thread id table
 extern Mutex*   SharedDecoder_lock;              // serializes access to the decoder during normal (not error reporting) use
 extern Mutex*   DCmdFactory_lock;                // serialize access to DCmdFactory information
 #if INCLUDE_NMT
@@ -148,6 +149,8 @@ extern Mutex*   CodeHeapStateAnalytics_lock;     // lock print functions against
 #if INCLUDE_JVMCI
 extern Monitor* JVMCI_lock;                      // Monitor to control initialization of JVMCI
 #endif
+
+extern Mutex* tty_lock;                          // lock to synchronize output.
 
 // A MutexLocker provides mutual exclusion with respect to a given mutex
 // for the scope which contains the locker.  The lock is an OS lock, not

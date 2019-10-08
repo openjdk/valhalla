@@ -82,7 +82,6 @@ bool   Arguments::_java_compiler                = false;
 bool   Arguments::_xdebug_mode                  = false;
 const char*  Arguments::_java_vendor_url_bug    = DEFAULT_VENDOR_URL_BUG;
 const char*  Arguments::_sun_java_launcher      = DEFAULT_JAVA_LAUNCHER;
-int    Arguments::_sun_java_launcher_pid        = -1;
 bool   Arguments::_sun_java_launcher_is_altjvm  = false;
 
 // These parameters are reset in method parse_vm_init_args()
@@ -361,8 +360,7 @@ bool Arguments::is_internal_module_property(const char* property) {
 
 // Process java launcher properties.
 void Arguments::process_sun_java_launcher_properties(JavaVMInitArgs* args) {
-  // See if sun.java.launcher, sun.java.launcher.is_altjvm or
-  // sun.java.launcher.pid is defined.
+  // See if sun.java.launcher or sun.java.launcher.is_altjvm is defined.
   // Must do this before setting up other system properties,
   // as some of them may depend on launcher type.
   for (int index = 0; index < args->nOptions; index++) {
@@ -377,10 +375,6 @@ void Arguments::process_sun_java_launcher_properties(JavaVMInitArgs* args) {
       if (strcmp(tail, "true") == 0) {
         _sun_java_launcher_is_altjvm = true;
       }
-      continue;
-    }
-    if (match_option(option, "-Dsun.java.launcher.pid=", &tail)) {
-      _sun_java_launcher_pid = atoi(tail);
       continue;
     }
   }
@@ -532,7 +526,6 @@ static SpecialFlag const special_jvm_flags[] = {
   { "MinRAMFraction",               JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::undefined() },
   { "InitialRAMFraction",           JDK_Version::jdk(10),  JDK_Version::undefined(), JDK_Version::undefined() },
   { "UseMembar",                    JDK_Version::jdk(10), JDK_Version::jdk(12), JDK_Version::undefined() },
-  { "CompilationPolicyChoice",      JDK_Version::jdk(13), JDK_Version::jdk(14), JDK_Version::undefined() },
   { "AllowJNIEnvProxy",             JDK_Version::jdk(13), JDK_Version::jdk(14), JDK_Version::jdk(15) },
   { "ThreadLocalHandshakes",        JDK_Version::jdk(13), JDK_Version::jdk(14), JDK_Version::jdk(15) },
   { "AllowRedefinitionToAddDeleteMethods", JDK_Version::jdk(13), JDK_Version::undefined(), JDK_Version::undefined() },
@@ -540,6 +533,7 @@ static SpecialFlag const special_jvm_flags[] = {
   { "FieldsAllocationStyle",        JDK_Version::jdk(14), JDK_Version::jdk(15), JDK_Version::jdk(16) },
   { "CompactFields",                JDK_Version::jdk(14), JDK_Version::jdk(15), JDK_Version::jdk(16) },
   { "MonitorBound",                 JDK_Version::jdk(14), JDK_Version::jdk(15), JDK_Version::jdk(16) },
+  { "G1RSetScanBlockSize",          JDK_Version::jdk(14), JDK_Version::jdk(15), JDK_Version::jdk(16) },
 
   // --- Deprecated alias flags (see also aliased_jvm_flags) - sorted by obsolete_in then expired_in:
   { "DefaultMaxRAMFraction",        JDK_Version::jdk(8),  JDK_Version::undefined(), JDK_Version::undefined() },
@@ -553,6 +547,7 @@ static SpecialFlag const special_jvm_flags[] = {
   { "SharedReadOnlySize",            JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
   { "SharedMiscDataSize",            JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
   { "SharedMiscCodeSize",            JDK_Version::undefined(), JDK_Version::jdk(10), JDK_Version::undefined() },
+  { "CompilationPolicyChoice",       JDK_Version::jdk(13),     JDK_Version::jdk(14), JDK_Version::jdk(15) },
   { "FailOverToOldVerifier",         JDK_Version::undefined(), JDK_Version::jdk(14), JDK_Version::jdk(15) },
   { "BindGCTaskThreadsToCPUs",       JDK_Version::undefined(), JDK_Version::jdk(14), JDK_Version::jdk(16) },
   { "UseGCTaskAffinity",             JDK_Version::undefined(), JDK_Version::jdk(14), JDK_Version::jdk(16) },
@@ -1411,10 +1406,9 @@ bool Arguments::add_property(const char* prop, PropertyWriteable writeable, Prop
   if (strcmp(key, "java.compiler") == 0) {
     process_java_compiler_argument(value);
     // Record value in Arguments, but let it get passed to Java.
-  } else if (strcmp(key, "sun.java.launcher.is_altjvm") == 0 ||
-             strcmp(key, "sun.java.launcher.pid") == 0) {
-    // sun.java.launcher.is_altjvm and sun.java.launcher.pid property are
-    // private and are processed in process_sun_java_launcher_properties();
+  } else if (strcmp(key, "sun.java.launcher.is_altjvm") == 0) {
+    // sun.java.launcher.is_altjvm property is
+    // private and is processed in process_sun_java_launcher_properties();
     // the sun.java.launcher property is passed on to the java application
   } else if (strcmp(key, "sun.boot.library.path") == 0) {
     // append is true, writable is true, internal is false
@@ -1460,7 +1454,7 @@ const char* unsupported_options[] = { "--limit-modules",
                                       "--patch-module"
                                     };
 void Arguments::check_unsupported_dumping_properties() {
-  assert(DumpSharedSpaces || DynamicDumpSharedSpaces,
+  assert(is_dumping_archive(),
          "this function is only used with CDS dump time");
   assert(ARRAY_SIZE(unsupported_properties) == ARRAY_SIZE(unsupported_options), "must be");
   // If a vm option is found in the unsupported_options array, vm will exit with an error message.
@@ -3479,10 +3473,8 @@ char* Arguments::get_default_shared_archive_path() {
   size_t file_sep_len = strlen(os::file_separator());
   const size_t len = jvm_path_len + file_sep_len + 20;
   default_archive_path = NEW_C_HEAP_ARRAY(char, len, mtArguments);
-  if (default_archive_path != NULL) {
-    jio_snprintf(default_archive_path, len, "%s%sclasses.jsa",
-      jvm_path, os::file_separator());
-  }
+  jio_snprintf(default_archive_path, len, "%s%sclasses.jsa",
+               jvm_path, os::file_separator());
   return default_archive_path;
 }
 
@@ -3545,7 +3537,7 @@ bool Arguments::init_shared_archive_paths() {
     SharedArchivePath = get_default_shared_archive_path();
   } else {
     int archives = num_archives(SharedArchiveFile);
-    if (DynamicDumpSharedSpaces || DumpSharedSpaces) {
+    if (is_dumping_archive()) {
       if (archives > 1) {
         vm_exit_during_initialization(
           "Cannot have more than 1 archive file specified in -XX:SharedArchiveFile during CDS dumping");
@@ -3558,7 +3550,7 @@ bool Arguments::init_shared_archive_paths() {
         }
       }
     }
-    if (!DynamicDumpSharedSpaces && !DumpSharedSpaces){
+    if (!is_dumping_archive()){
       if (archives > 2) {
         vm_exit_during_initialization(
           "Cannot have more than 2 archive files specified in the -XX:SharedArchiveFile option");
