@@ -4748,17 +4748,6 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
     );
     return;
   }
-
-  // TBD: should this be an assert() ?
-  if (is_hidden() && (is_interface || is_abstract)) {
-    ResourceMark rm(THREAD);
-    Exceptions::fthrow(
-      THREAD_AND_LOCATION,
-      vmSymbols::java_lang_ClassFormatError(),
-      "Illegal class modifiers in hidden class %s: 0x%X",
-      _class_name->as_C_string(), flags);
-    return;
-  }
 }
 
 static bool has_illegal_visibility(jint flags) {

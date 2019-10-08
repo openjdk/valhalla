@@ -21,32 +21,9 @@
  * questions.
  */
 
-import java.lang.invoke.*;
-import static java.lang.invoke.MethodType.*;
-
-// this serves as a trampoline class to invoke a method handle
-public class Invoker implements Runnable {
-    static final MethodHandle MH;
-    static {
-        MethodHandle mh = null;
-        try {
-            mh = MethodHandles.lookup().classData(MethodHandle.class);
-        } catch (IllegalAccessException e) {}
-        MH = mh;
-    }
-
-    public void run() {
-        try {
-            accessNestmate();
-            assert MH.invokeExact() == null;
-        } catch (Throwable t) {
-            throw new RuntimeException(t);
-        }
-    }
-
-    private static void accessNestmate() throws Throwable {
-        MethodHandle mh = MethodHandles.lookup()
-                .findStatic(MyThreadLocal.class, "testNestmateAccess", methodType(void.class));
-        mh.invokeExact();
+package p;
+public class D {
+    public String name() {
+        return "D";
     }
 }

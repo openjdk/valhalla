@@ -328,10 +328,7 @@ public final class Class<T> implements java.io.Serializable,
      * @exception LinkageError if the linkage fails
      * @exception ExceptionInInitializerError if the initialization provoked
      *            by this method fails
-     * @exception ClassNotFoundException if the class cannot be located, or
-     *            the class is {@linkplain #isHiddenClass() hidden}
-     *
-     * @see Class#isHiddenClass
+     * @exception ClassNotFoundException if the class cannot be located
      */
     @CallerSensitive
     public static Class<?> forName(String className)
@@ -390,8 +387,7 @@ public final class Class<T> implements java.io.Serializable,
      * @exception ExceptionInInitializerError if the initialization provoked
      *            by this method fails
      * @exception ClassNotFoundException if the class cannot be located by
-     *            the specified class loader, or
-     *            the class is {@linkplain #isHiddenClass() hidden}
+     *            the specified class loader
      * @exception SecurityException
      *            if a security manager is present, and the {@code loader} is
      *            {@code null}, and the caller's class loader is not
@@ -404,7 +400,6 @@ public final class Class<T> implements java.io.Serializable,
      * @jls 12.2 Loading of Classes and Interfaces
      * @jls 12.3 Linking of Classes and Interfaces
      * @jls 12.4 Initialization of Classes and Interfaces
-     * @see       java.lang.Class#isHiddenClass
      * @since     1.2
      */
     @CallerSensitive
@@ -466,8 +461,7 @@ public final class Class<T> implements java.io.Serializable,
      * @param  name     The <a href="ClassLoader.html#binary-name">binary name</a>
      *                  of the class
      * @return {@code Class} object of the given name defined in the given module;
-     *         {@code null} if not found or the class is defined in
-     *         the given module but {@linkplain #isHiddenClass() hidden}
+     *         {@code null} if not found
      *
      * @throws NullPointerException if the given module or name is {@code null}
      *
@@ -485,7 +479,6 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @jls 12.2 Loading of Classes and Interfaces
      * @jls 12.3 Linking of Classes and Interfaces
-     * @see       java.lang.Class#isHiddenClass
      * @since 9
      * @spec JPMS
      */
@@ -3920,8 +3913,6 @@ public final class Class<T> implements java.io.Serializable,
 
     private native Class<?> getNestHost0();
 
-    /* package-private */ native boolean isNestHost();
-
     /**
      * Returns the nest host of the <a href=#nest>nest</a> to which the class
      * or interface represented by this {@code Class} object belongs.
@@ -3935,18 +3926,16 @@ public final class Class<T> implements java.io.Serializable,
      * that the represented entity belongs to the nest consisting only of
      * itself, and is the nest host.
      *
-     * <p> If this class is a {@linkplain #isHiddenClass() hidden class}
-     * created by calling
-     * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
-     * Lookup::defineHiddenClass} with
-     * {@link MethodHandles.Lookup.ClassOption#NESTMATE NESTMATE} class option,
-     * then this method returns the lookup class of the lookup object creating
-     * it as this hidden class was added as a member to the nest of that lookup class.
-     *
      * <p>If there is a {@linkplain LinkageError linkage error} accessing
      * the nest host, or if this class or interface is not enumerated as
      * a member of the nest by the nest host, then it is considered to belong
      * to its own nest and {@code this} is returned as the host.
+     *
+     * <p>A {@linkplain Class#isHiddenClass() hidden class} can be dynamically
+     * added as a member of an existing nest of another class by calling
+     * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
+     * Lookup::defineHiddenClass} with {@link MethodHandles.Lookup.ClassOption#NESTMATE
+     * NESTMATE} option.
      *
      * @apiNote A {@code class} file of version 55.0 or greater may record the
      * host of the nest to which it belongs by using the {@code NestHost}
@@ -3956,6 +3945,9 @@ public final class Class<T> implements java.io.Serializable,
      * {@code NestMembers} attribute (JVMS 4.7.29).
      * A {@code class} file of version 54.0 or lower does not use these
      * attributes.
+     * A hidden class cannot attempt to claim nest membership statically
+     * as it cannot be referred by name.  The {@code NestHost} and
+     * {@code NestMembers} attributes are erroneous and therefore ignored.
      *
      * @return the nest host of this class or interface
      *
@@ -3976,18 +3968,16 @@ public final class Class<T> implements java.io.Serializable,
         if (isPrimitive() || isArray()) {
             return this;
         }
-        Class<?> host;
-        try {
+
+        Class<?> host = this.nest;
+        if (host == null) {
             host = getNestHost0();
-        } catch (LinkageError e) {
-            // if we couldn't load our nest-host then we
+            // if null then nest membership validation failed, so we
             // act as-if we have no nest-host attribute
-            return this;
-        }
-        // if null then nest membership validation failed, so we
-        // act as-if we have no nest-host attribute
-        if (host == null || host == this) {
-            return this;
+            if (host == null || host == this) {
+                return this.nest = this;
+            }
+            this.nest = host;
         }
         // returning a different class requires a security check
         SecurityManager sm = System.getSecurityManager();
@@ -3997,6 +3987,9 @@ public final class Class<T> implements java.io.Serializable,
         }
         return host;
     }
+
+    // keep a strong reference to the nest host
+    private transient Class<?> nest;
 
     /**
      * Determines if the given {@code Class} is a nestmate of the
@@ -4018,11 +4011,8 @@ public final class Class<T> implements java.io.Serializable,
             c.isPrimitive() || c.isArray()) {
             return false;
         }
-        try {
-            return getNestHost0() == c.getNestHost0();
-        } catch (LinkageError e) {
-            return false;
-        }
+
+        return getNestHost() == c.getNestHost();
     }
 
     private native Class<?>[] getNestMembers0();

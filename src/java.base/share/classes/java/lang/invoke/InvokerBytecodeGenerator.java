@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import static java.lang.invoke.LambdaForm.BasicType;
@@ -314,8 +315,8 @@ class InvokerBytecodeGenerator {
      * Extract the MemberName of a newly-defined method.
      */
     private MemberName loadMethod(byte[] classFile) {
-        Class<?> invokerClass = LOOKUP.lookupDefineClass(className(), classFile,
-                HIDDEN_CLASS|WEAK_CLASS|ACCESS_VM_ANNOTATIONS, true, classDataValues());
+        Class<?> invokerClass = LOOKUP.makeHiddenClassDefiner(classFile, Set.of(ClassOption.WEAK))
+                                      .defineClass(true, classDataValues());
         return resolveInvokerMember(invokerClass, invokerName, invokerType);
     }
 

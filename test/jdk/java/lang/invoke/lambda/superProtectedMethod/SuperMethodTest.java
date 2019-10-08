@@ -21,32 +21,46 @@
  * questions.
  */
 
-import java.lang.invoke.*;
-import static java.lang.invoke.MethodType.*;
+/*
+ * @test
+ * @bug 8227415
+ * @run main p.SuperMethodTest
+ * @summary method reference to a protected method inherited from its
+ *          superclass in a different package must be accessed via
+ *          a bridge method.  Lambda proxy class has no access to it.
+ */
 
-// this serves as a trampoline class to invoke a method handle
-public class Invoker implements Runnable {
-    static final MethodHandle MH;
-    static {
-        MethodHandle mh = null;
-        try {
-            mh = MethodHandles.lookup().classData(MethodHandle.class);
-        } catch (IllegalAccessException e) {}
-        MH = mh;
+package p;
+
+import q.I;
+import q.J;
+
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.function.Function;
+
+public class SuperMethodTest  {
+    public static void main(String... args) {
+        Sub_I sub = new Sub_I();
+        sub.test(Paths.get("test"));
     }
 
-    public void run() {
-        try {
-            accessNestmate();
-            assert MH.invokeExact() == null;
-        } catch (Throwable t) {
-            throw new RuntimeException(t);
+    public static class Sub_J extends J {
+        Sub_J(Function<Path,String> function) {
+            super(function);
         }
     }
 
-    private static void accessNestmate() throws Throwable {
-        MethodHandle mh = MethodHandles.lookup()
-                .findStatic(MyThreadLocal.class, "testNestmateAccess", methodType(void.class));
-        mh.invokeExact();
+    public static class Sub_I extends I {
+        public void test(Path path) {
+            /*
+             * The method reference to an inherited protected method
+             * in another package is desugared with REF_invokeVirtual on
+             * a bridge method to invoke protected q.I::filename method
+             */
+            Sub_J c = new Sub_J(this::filename);
+            c.check(path);
+        }
     }
 }
+

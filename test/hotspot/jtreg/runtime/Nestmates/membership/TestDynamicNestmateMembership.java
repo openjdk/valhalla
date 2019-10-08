@@ -94,16 +94,20 @@ public class TestDynamicNestmateMembership {
         inject(name, Member.getLookup(), null);
     }
 
-    // Try to inject a class that is already part of another nest
+    // Try to inject a class that has the NestHost attribute.  It is
+    // erroneous to name a hidden class in the static nest membership
+    // and so NestHost attribute is ignored.
     static void test_alreadyNestMember() {
         String name = "StaticHost$StaticMember";
-        inject(name, IllegalArgumentException.class);
+        inject(name, null);
     }
 
-    // Try to inject a class that is already a nest host
+    // Try to inject a class that has the NestMembers attribute.  It is
+    // erroneous to name a hidden class in the static nest membership
+    // and so NestMembers attribute is ignored.
     static void test_alreadyNestHost() {
         String name = "StaticHost";
-        inject(name, IllegalArgumentException.class);
+        inject(name, null);
     }
 
     // Try to inject a class that is in another package
@@ -121,10 +125,9 @@ public class TestDynamicNestmateMembership {
         Class<?> target = lookup.lookupClass();
         String action = "Injecting " + name + " into the nest of " +
             target.getSimpleName();
-        MethodHandles.Lookup nestLookup = lookup.in(target.getNestHost());
         try {
             byte[] bytes = getBytesForClass(name);
-            Class<?> nestmate = nestLookup.defineHiddenClass(bytes, false, NESTMATE).lookupClass();
+            Class<?> nestmate = lookup.defineHiddenClass(bytes, false, NESTMATE).lookupClass();
             if (ex != null) {
                 throw new RuntimeException(action + " was expected to throw " +
                                            ex.getSimpleName());
@@ -140,10 +143,9 @@ public class TestDynamicNestmateMembership {
             if (actualHost != target) {
                 System.out.print("(re-directed to target's nest-host) ");
             }
-            System.out.println("Nesthost of " + nestmate.getSimpleName() +
-                               " is " + actualHost.getSimpleName());
-        }
-        catch (Throwable t) {
+            System.out.println("Nesthost of " + nestmate.getName() +
+                               " is " + actualHost.getName());
+        } catch (Throwable t) {
             if (t.getClass() == ex) {
                 System.out.println("Ok: " + action + " got expected exception: " +
                                    t.getClass().getSimpleName() + ":" +

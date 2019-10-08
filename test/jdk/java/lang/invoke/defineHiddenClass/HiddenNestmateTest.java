@@ -34,6 +34,7 @@ import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.stream.Stream;
+import java.util.Arrays;
 
 import jdk.internal.org.objectweb.asm.*;
 import org.testng.annotations.Test;
@@ -59,6 +60,7 @@ public class HiddenNestmateTest {
         // hidden nestmate is not listed in the return array of getNestMembers
         assertTrue(Stream.of(nestHost.getNestMembers()).noneMatch(k -> k == hiddenClass));
         assertTrue(hiddenClass.isNestmateOf(lookup.lookupClass()));
+        assertTrue(Arrays.equals(hiddenClass.getNestMembers(), nestHost.getNestMembers()));
     }
 
     @Test
@@ -117,12 +119,11 @@ public class HiddenNestmateTest {
         lookup.defineHiddenClass(bytes, false, NESTMATE);
     }
 
-    @Test(expectedExceptions = IllegalAccessException.class)
     public void teleportToNestmate() throws Throwable {
         Lookup lookup = MethodHandles.lookup().defineHiddenClass(bytes, false, NESTMATE);
         assertNestmate(lookup);
 
-        // Teleport to a nestmate
+        // Teleport to a hidden nestmate
         Lookup lc =  MethodHandles.lookup().in(lookup.lookupClass());
         assertTrue((lc.lookupModes() & PRIVATE) != 0);
         Lookup lc2 = lc.defineHiddenClass(bytes, false, NESTMATE);

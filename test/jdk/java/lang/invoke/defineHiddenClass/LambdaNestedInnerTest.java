@@ -33,7 +33,6 @@ package p;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.invoke.LambdaConversionException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
@@ -54,18 +53,30 @@ public class LambdaNestedInnerTest {
     private static final String DIR = "missingOuter";
     public static class Inner implements Runnable {
         // generate lambda proxy class
-        private Runnable lambda1 = () -> {
-        };
+        private Runnable lambda1 = this::doit;
+
         @Override
         public void run() {
-            Runnable r = lambda1;
-            r.run();
             // validate the lambda proxy class
-            Class<?> lambdaProxyClass = r.getClass();
+            Class<?> lambdaProxyClass = lambda1.getClass();
             assertTrue(lambdaProxyClass.isHiddenClass());
-            System.out.println(lambdaProxyClass.getNestHost() + " vs " + this.getClass());
-            assertTrue(lambdaProxyClass.isNestmateOf(Inner.class));
+            System.out.format("%s nest host %s nestmate of Inner class %s%n",
+                    lambdaProxyClass, lambdaProxyClass.getNestHost(),
+                    lambdaProxyClass.isNestmateOf(Inner.class));
             assertTrue(lambdaProxyClass.getNestHost() == Inner.class.getNestHost());
+            assertTrue(Arrays.equals(lambdaProxyClass.getNestMembers(), Inner.class.getNestMembers()));
+            assertTrue(lambdaProxyClass.isNestmateOf(Inner.class));
+            lambda1.run();
+        }
+
+        // testng may not be visible to this class
+        private static void assertTrue(boolean x) {
+            if (!x) {
+                throw new AssertionError("expected true but found false");
+            }
+        }
+
+        private void doit() {
         }
     }
 
@@ -92,9 +103,6 @@ public class LambdaNestedInnerTest {
         runnable.run();
     }
 
-    /*
-     * Test NoClassDefFoundError thrown if the true nest host is not found.
-     */
     @Test
     public void nestHostNotExist() throws Exception {
         URL[] urls = new URL[] { Paths.get(DIR).toUri().toURL() };
@@ -103,18 +111,9 @@ public class LambdaNestedInnerTest {
         assertTrue(inner.getClassLoader() == loader);
         assertTrue(inner.getNestHost() == inner);   // linkage error ignored
 
-        try {
-            Runnable runnable = (Runnable) inner.newInstance();
-            assertTrue(false);
-        } catch (BootstrapMethodError e) {
-            lambdaConversionFailed(e);
-        }
-    }
-
-    private static void lambdaConversionFailed(BootstrapMethodError bme) {
-        assertTrue(bme.getCause() instanceof LambdaConversionException);
-        IllegalAccessException iae = (IllegalAccessException)bme.getCause().getCause();
-        assertTrue(iae.getMessage().equals("p.LambdaNestedInnerTest$Inner is not a nest host"));
+        Runnable runnable = (Runnable) inner.newInstance();
+        // this validates the lambda proxy class
+        runnable.run();
     }
 
     /*
@@ -130,12 +129,9 @@ public class LambdaNestedInnerTest {
         assertTrue(inner.getClassLoader() == loader);
         assertTrue(inner.getNestHost() == inner);   // linkage error ignored.
 
-        try {
-            Runnable runnable = (Runnable) inner.newInstance();
-            assertTrue(false);
-        } catch (BootstrapMethodError e) {
-            lambdaConversionFailed(e);
-        }
+        Runnable runnable = (Runnable) inner.newInstance();
+        // this validates the lambda proxy class
+        runnable.run();
     }
 
     static class TestLoader extends URLClassLoader {
@@ -152,5 +148,3 @@ public class LambdaNestedInnerTest {
         }
     }
 }
-
-

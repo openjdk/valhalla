@@ -872,6 +872,7 @@ public final class StringConcatFactory {
                     null,
                     null);
 
+            // use of @ForceInline no longer has any effect
             mv.visitAnnotation("Ljdk/internal/vm/annotation/ForceInline;", true);
             mv.visitCode();
 
@@ -1141,8 +1142,7 @@ public final class StringConcatFactory {
 
             byte[] classBytes = cw.toByteArray();
             try {
-                // Need to investigate why this class uses @ForceInline.
-                Class<?> innerClass = lookup.lookupDefineClass(className, classBytes, HIDDEN_CLASS|ACCESS_VM_ANNOTATIONS, true, null);
+                Class<?> innerClass = lookup.defineHiddenClass(classBytes,true).lookupClass();
                 dumpIfEnabled(className, classBytes);
                 return lookup.findStatic(innerClass, METHOD_NAME, args);
             } catch (Exception e) {

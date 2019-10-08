@@ -108,7 +108,7 @@ public class MyThreadLocal extends ThreadLocal<String> {
                                     MyThreadLocal.class);
     }
 
-    static class Inner2 {
+    static class SuperMethodHandleFactory {
         // dynamic version of superInitInner with MH, and no bridge
         static MethodHandle superInitInnerMH() throws ReflectiveOperationException {
             Lookup L = lookup();

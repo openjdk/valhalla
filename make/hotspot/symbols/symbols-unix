@@ -144,7 +144,6 @@ JVM_IsConstructorIx
 JVM_IsHiddenClass
 JVM_IsInterface
 JVM_IsInterrupted
-JVM_IsNestHost
 JVM_IsPrimitiveClass
 JVM_IsSameClassPackage
 JVM_IsSupportedJNIVersion

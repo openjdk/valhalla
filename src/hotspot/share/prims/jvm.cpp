@@ -981,11 +981,7 @@ enum {
 
 /*
  * Define a class with the specified flags that indicates if it's a nestmate,
- * hidden, or weakly reachable from class loader.
- *
- * Same class may be defined by multiple threads at the same time.
- * Should the VM keep the classData (the one successfully defined the class)
- * as if a private static field is declared in the class?
+ * hidden, or weakly referenced from class loader.
  */
 static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *name,
                                       jobject loader, const jbyte *buf, jsize len, jobject pd,
@@ -1008,20 +1004,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
 
   InstanceKlass* host_class = NULL;
   if (is_nestmate) {
-    host_class = InstanceKlass::cast(k);
-    if (!host_class->is_nest_host()) {
-      THROW_MSG_0(vmSymbols::java_lang_IllegalAccessException(), "lookup class is not the nest host");
-    }
-  }
-
-  // classData is only applicable for hidden classes
-  if (classData != NULL && !is_hidden) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "classData is only applicable for hidden classes");
-  }
-
-  // vm_annotations only allowed for hidden classes
-  if (vm_annotations && !is_hidden) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "vm annotations only allowed for weak hidden classes");
+    host_class = InstanceKlass::cast(k)->runtime_nest_host(CHECK_NULL);
   }
 
   if (log_is_enabled(Info, class, nestmates)) {
@@ -1032,6 +1015,16 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                                is_hidden ? "hidden" : "not hidden",
                                is_weak ? "weak" : "strong",
                                vm_annotations ? "with vm annotations" : "without vm annotation");
+  }
+
+  // classData is only applicable for hidden classes
+  if (classData != NULL && !is_hidden) {
+    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "classData is only applicable for hidden classes");
+  }
+
+  // vm_annotations only allowed for hidden classes
+  if (vm_annotations && !is_hidden) {
+    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "vm annotations only allowed for weak hidden classes");
   }
 
   // Since exceptions can be thrown, class initialization can take place
@@ -1954,18 +1947,6 @@ JVM_ENTRY(jint, JVM_GetClassAccessFlags(JNIEnv *env, jclass cls))
 }
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsNestHost(JNIEnv *env, jclass current))
-{
-  JVMWrapper("JVM_IsNestHost");
-  Klass* c = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(current));
-  if (c->is_instance_klass()) {
-    InstanceKlass* ik = InstanceKlass::cast(c);
-    return ik->is_nest_host();
-  }
-  return JNI_FALSE;
-}
-JVM_END
-
 JVM_ENTRY(jboolean, JVM_AreNestMates(JNIEnv *env, jclass current, jclass member))
 {
   JVMWrapper("JVM_AreNestMates");
@@ -2053,7 +2034,7 @@ JVM_ENTRY(jobjectArray, JVM_GetNestMembers(JNIEnv* env, jclass current))
       }
     }
     else {
-      assert(host == ck, "must be singleton nest");
+      assert(host == ck || ck->is_hidden(), "must be singleton nest or dynamic nestmate");
     }
     return (jobjectArray)JNIHandles::make_local(THREAD, result());
   }

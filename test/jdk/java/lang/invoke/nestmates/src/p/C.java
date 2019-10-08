@@ -21,32 +21,42 @@
  * questions.
  */
 
-import java.lang.invoke.*;
-import static java.lang.invoke.MethodType.*;
+package p;
 
-// this serves as a trampoline class to invoke a method handle
-public class Invoker implements Runnable {
-    static final MethodHandle MH;
-    static {
-        MethodHandle mh = null;
-        try {
-            mh = MethodHandles.lookup().classData(MethodHandle.class);
-        } catch (IllegalAccessException e) {}
-        MH = mh;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodHandles.Lookup;
+
+public class C extends ThreadLocal {
+    public static Lookup lookup() {
+        return MethodHandles.lookup();
     }
 
-    public void run() {
-        try {
-            accessNestmate();
-            assert MH.invokeExact() == null;
-        } catch (Throwable t) {
-            throw new RuntimeException(t);
+    public String name() {
+        return "C";
+    }
+
+    public static void test() {
+        accessD();
+        accessE();
+    }
+
+    private static void accessD() {
+        D d = new D();
+        System.out.println("invoking D.name() = " + d.name());
+        if (!d.name().equals("D")) {
+            throw new AssertionError("unexpected " + d.name());
         }
     }
 
-    private static void accessNestmate() throws Throwable {
-        MethodHandle mh = MethodHandles.lookup()
-                .findStatic(MyThreadLocal.class, "testNestmateAccess", methodType(void.class));
-        mh.invokeExact();
+    private static void accessE() {
+        E e = new E();
+        System.out.println("invoking E.name() = " + e.name());
+        if (!e.name().equals("E")) {
+            throw new AssertionError("unexpected " + e.name());
+        }
+    }
+
+    public static void main(String... args) {
+        test();
     }
 }

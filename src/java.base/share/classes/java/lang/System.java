@@ -2289,10 +2289,6 @@ public final class System {
                 ClassLoader.loadLibrary(caller, library, false);
             }
 
-            public boolean isNestHost(Class<?> c) {
-                return c.isNestHost();
-            }
-
             public ProtectionDomain protectionDomain(Class<?> c) {
                 return c.protectionDomain();
             }

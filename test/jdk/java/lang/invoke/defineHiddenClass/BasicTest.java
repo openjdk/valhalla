@@ -35,10 +35,12 @@
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.invoke.MethodHandles.Lookup;
 import static java.lang.invoke.MethodHandles.lookup;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -46,15 +48,14 @@ import java.util.Arrays;
 import java.util.stream.Stream;
 
 import jdk.test.lib.compiler.CompilerUtils;
-
 import jdk.test.lib.Utils;
 
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
-/* package-private */ interface HiddenTest {
-  void test();
+interface HiddenTest {
+    void test();
 }
 
 public class BasicTest {
@@ -65,9 +66,11 @@ public class BasicTest {
 
     @BeforeTest
     static void setup() throws IOException {
-        if (!CompilerUtils.compile(SRC_DIR, CLASSES_DIR, false, "-cp", Utils.TEST_CLASSES)) {
-            throw new RuntimeException("Compilation of the test failed");
-        }
+        compileSources(SRC_DIR, CLASSES_DIR);
+
+        // compile with --release 10 with no NestHost and NestMembers attribute
+        compileSources(SRC_DIR.resolve("Outer.java"), CLASSES_10_DIR, "--release", "10");
+        compileSources(SRC_DIR.resolve("EnclosingClass.java"), CLASSES_10_DIR, "--release", "10");
     }
 
     static void compileSources(Path sourceFile, Path dest, String... options) throws IOException {
@@ -80,15 +83,14 @@ public class BasicTest {
         }
     }
 
-    static byte[] readClassFile(String classFileName) throws IOException {
-        return Files.readAllBytes(CLASSES_DIR.resolve(classFileName));
-    }
-
     static Class<?> defineHiddenClass(String name) throws Exception {
-        byte[] bytes = readClassFile(name + ".class");
-        return lookup().defineHiddenClass(bytes, false).lookupClass();
+        byte[] bytes = Files.readAllBytes(CLASSES_DIR.resolve(name + ".class"));
+        Class<?> hc = lookup().defineHiddenClass(bytes, false).lookupClass();
+        assertHiddenClass(hc);
+        return hc;
     }
 
+    // basic test on a hidden class
     @Test
     public void hiddenClass() throws Throwable {
         HiddenTest t = (HiddenTest)defineHiddenClass("HiddenClass").newInstance();
@@ -111,7 +113,7 @@ public class BasicTest {
     }
 
     @Test
-    public void testIsHiddenClass() {
+    public void primitiveClass() {
         assertFalse(int.class.isHiddenClass());
         assertFalse(String.class.isHiddenClass());
     }
@@ -138,6 +140,7 @@ public class BasicTest {
         m.setAccessible(true);
     }
 
+    // define a hidden class that uses lambda whic
     @Test
     public void testLambda() throws Throwable {
         HiddenTest t = (HiddenTest)defineHiddenClass("Lambda").newInstance();
@@ -148,6 +151,22 @@ public class BasicTest {
                 throw e;
             }
         }
+    }
+
+    @Test
+    public void testHiddenNestHost() throws Throwable {
+        byte[] hc1 = Files.readAllBytes(CLASSES_DIR.resolve("HiddenClass.class"));
+        Lookup lookup1 = lookup().defineHiddenClass(hc1, false);
+        byte[] hc2 = Files.readAllBytes(CLASSES_DIR.resolve("Lambda.class"));
+        Lookup lookup2 = lookup1.defineHiddenClass(hc2, false, Lookup.ClassOption.NESTMATE);
+        Class<?> host = lookup1.lookupClass();
+        Class<?> member = lookup2.lookupClass();
+        assertTrue(host.getNestHost() == host);
+        assertTrue(member.getNestHost() == host.getNestHost());
+        assertTrue(host.isNestmateOf(member));
+        assertTrue(Arrays.equals(member.getNestMembers(), host.getNestMembers()));
+        assertTrue(host.getNestMembers().length == 1);
+        assertTrue(host.getNestMembers()[0] == host);
     }
 
     @Test
@@ -171,15 +190,21 @@ public class BasicTest {
         }
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test
     public void hiddenInterface() throws Exception {
-        defineHiddenClass("HiddenInterface");
+        Class<?> hc = defineHiddenClass("HiddenInterface");
+        assertTrue(hc.isInterface());
     }
 
-
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test
     public void abstractHiddenClass() throws Exception {
-        defineHiddenClass("AbstractClass");
+        Class<?> hc = defineHiddenClass("AbstractClass");
+        assertTrue(Modifier.isAbstract(hc.getModifiers()));
+    }
+
+    @Test
+    public void hiddenOuterClass() throws Throwable {
+        defineHiddenClass("Outer");
     }
 
     @Test(expectedExceptions = NoClassDefFoundError.class)
@@ -188,55 +213,56 @@ public class BasicTest {
     }
 
     @Test
-    public void hiddenNestmates() throws Throwable {
-        try {
-            defineHiddenClass("Outer");
-        } catch (IllegalArgumentException e) {
-            if (!e.getMessage().contains("NestMembers attribute")) throw e;
-        }
-
-        try {
-            defineHiddenClass("Outer$Inner");
-        } catch (IllegalArgumentException e) {
-            if (!e.getMessage().contains("NestHost attribute")) throw e;
-        }
+    public void hasStaticNestMembership() throws Exception {
+        byte[] bytes = Files.readAllBytes(CLASSES_DIR.resolve("Outer$Inner.class"));
+        Class<?> c = lookup().defineHiddenClass(bytes, false).lookupClass();
+        declaringClassNotFound(c, "Outer");
     }
 
     @Test
-    public void hiddenNestedClass() throws Throwable {
-        // compile with --release 10 with no NestHost and NestMembers attribute
-        compileSources(SRC_DIR.resolve("Outer.java"), CLASSES_10_DIR, "--release", "10");
-        try {
-            byte[] bytes = Files.readAllBytes(CLASSES_10_DIR.resolve("Outer.class"));
-            lookup().defineHiddenClass(bytes, false);
-        } catch (IllegalArgumentException e) {
-            if (!e.getMessage().contains("Outer$Inner")) throw e;
-        }
+    public void hasInnerClassesAttribute() throws Throwable {
+        byte[] bytes = Files.readAllBytes(CLASSES_10_DIR.resolve("Outer.class"));
+        Class<?> c = lookup().defineHiddenClass(bytes, false).lookupClass();
+        assertTrue(c.getSimpleName().startsWith("Outer"));
 
-        try {
-            byte[] bytes = Files.readAllBytes(CLASSES_10_DIR.resolve("Outer$Inner.class"));
-            lookup().defineHiddenClass(bytes, false);
-        } catch (IllegalArgumentException e) {
-            if (!e.getMessage().contains("Outer$Inner")) throw e;
-        }
+        bytes = Files.readAllBytes(CLASSES_10_DIR.resolve("Outer$Inner.class"));
+        c = lookup().defineHiddenClass(bytes, false).lookupClass();
+        declaringClassNotFound(c, "Outer");
     }
 
     @Test
-    public void hiddenAnonymous() throws Throwable {
-        // compile with --release 10 with no NestHost and NestMembers attribute
-        compileSources(SRC_DIR.resolve("EnclosingClass.java"), CLASSES_10_DIR, "--release", "10");
-        try {
-            byte[] bytes = Files.readAllBytes(CLASSES_10_DIR.resolve("EnclosingClass.class"));
-            lookup().defineHiddenClass(bytes, false);
-        } catch (IllegalArgumentException e) {
-            if (!e.getMessage().contains("EnclosingClass$1")) throw e;
-        }
+    public void anonymousClass() throws Throwable {
+        byte[] bytes = Files.readAllBytes(CLASSES_10_DIR.resolve("EnclosingClass.class"));
+        Class<?> c = lookup().defineHiddenClass(bytes, false).lookupClass();
+        assertTrue(c.getSimpleName().startsWith("EnclosingClass"));
 
+        bytes = Files.readAllBytes(CLASSES_10_DIR.resolve("EnclosingClass$1.class"));
+        c = lookup().defineHiddenClass(bytes, false).lookupClass();
+        declaringClassNotFound(c, "EnclosingClass");
+    }
+
+    private void declaringClassNotFound(Class<?> c, String cn) {
         try {
-            byte[] bytes = Files.readAllBytes(CLASSES_10_DIR.resolve("EnclosingClass$1.class"));
-            lookup().defineHiddenClass(bytes, false);
-        } catch (IllegalArgumentException e) {
-            if (!e.getMessage().contains("EnclosingMethod attribute")) throw e;
+            // fail to find declaring/enclosing class
+            c.getSimpleName();
+            assertTrue(false);
+        } catch (NoClassDefFoundError e) {
+            if (!e.getMessage().equals(cn)) {
+                throw e;
+            }
         }
+    }
+
+    private static void assertHiddenClass(Class<?> hc) {
+        assertTrue(hc.isHiddenClass());
+        assertTrue(hc.getNestHost() == hc);
+        assertTrue(hc.getNestMembers().length == 1);
+        assertTrue(hc.getNestMembers()[0] == hc);
+        assertTrue(hc.getCanonicalName() == null);
+        assertTrue(hc.getName().contains("/"));  // implementation-specific
+        assertFalse(hc.isAnonymousClass());
+        assertFalse(hc.isLocalClass());
+        assertFalse(hc.isMemberClass());
+        assertFalse(hc.getSimpleName().isEmpty()); // sanity check
     }
 }

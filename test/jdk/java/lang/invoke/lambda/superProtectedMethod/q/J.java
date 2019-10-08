@@ -21,32 +21,19 @@
  * questions.
  */
 
-import java.lang.invoke.*;
-import static java.lang.invoke.MethodType.*;
+package q;
 
-// this serves as a trampoline class to invoke a method handle
-public class Invoker implements Runnable {
-    static final MethodHandle MH;
-    static {
-        MethodHandle mh = null;
-        try {
-            mh = MethodHandles.lookup().classData(MethodHandle.class);
-        } catch (IllegalAccessException e) {}
-        MH = mh;
+import java.nio.file.Path;
+import java.util.function.Function;
+
+public class J {
+    protected final Function<Path,String> fileReader;
+
+    public J(Function<Path,String> fileReader) {
+        this.fileReader = fileReader;
     }
 
-    public void run() {
-        try {
-            accessNestmate();
-            assert MH.invokeExact() == null;
-        } catch (Throwable t) {
-            throw new RuntimeException(t);
-        }
-    }
-
-    private static void accessNestmate() throws Throwable {
-        MethodHandle mh = MethodHandles.lookup()
-                .findStatic(MyThreadLocal.class, "testNestmateAccess", methodType(void.class));
-        mh.invokeExact();
+    public void check(Path file) {
+        fileReader.apply(file);
     }
 }

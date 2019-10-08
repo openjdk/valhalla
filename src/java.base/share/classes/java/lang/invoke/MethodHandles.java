@@ -29,8 +29,6 @@ import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.module.IllegalAccessLogger;
 import jdk.internal.org.objectweb.asm.ClassReader;
-import jdk.internal.org.objectweb.asm.ClassVisitor;
-import jdk.internal.org.objectweb.asm.Opcodes;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.vm.annotation.ForceInline;
@@ -1597,35 +1595,7 @@ public class MethodHandles {
             if ((lookupModes() & PACKAGE) == 0)
                 throw new IllegalAccessException("Lookup does not have PACKAGE access");
             assert (lookupModes() & (MODULE|PUBLIC)) != 0;
-
-            // parse class bytes to get class name (in internal form)
-            bytes = bytes.clone();
-            String name;
-            try {
-                ClassReader reader = new ClassReader(bytes);
-                name = reader.getClassName();
-            } catch (RuntimeException e) {
-                // ASM exceptions are poorly specified
-                ClassFormatError cfe = new ClassFormatError();
-                cfe.initCause(e);
-                throw cfe;
-            }
-
-            // get package and class name in binary form
-            String cn, pn;
-            int index = name.lastIndexOf('/');
-            if (index == -1) {
-                cn = name;
-                pn = "";
-            } else {
-                cn = name.replace('/', '.');
-                pn = cn.substring(0, index);
-            }
-            if (!pn.equals(lookupClass.getPackageName())) {
-                throw new IllegalArgumentException("Class not in same package as lookup class");
-            }
-
-            return lookupDefineClass(cn, bytes, 0, false, null);
+            return makeClassDefiner(bytes.clone()).defineClass(false);
         }
 
         private void checkDefineClassPermission() {
@@ -1644,8 +1614,8 @@ public class MethodHandles {
          * {@linkplain java.security.ProtectionDomain protection domain} as this
          * lookup's {@linkplain #lookupClass() lookup class}.
          * The {@code options} parameter specifies the class options if the
-         * hidden class is created as a {@linkplain ClassOption#NESTMATE
-         * nestmate} of this lookup's lookup class and/or is {@linkplain ClassOption#WEAK
+         * hidden class is created as a {@linkplain ClassOption#NESTMATE nestmate}
+         * of this lookup's lookup class and/or is {@linkplain ClassOption#WEAK
          * weakly referenced} by its defining class loader.
          *
          * <p> The hidden class is initialized if the {@code initialize} parameter is
@@ -1671,6 +1641,12 @@ public class MethodHandles {
          *     A hidden class is not {@linkplain java.lang.instrument.Instrumentation#isModifiableClass(Class)
          *     modifiable} by Java agents or tool agents using
          *     the <a href="{@docRoot}/../specs/jvmti.html">JVM Tool Interface</a>.
+         * <li>Serialization:
+         *     The default serialization mechanism records the name of a class in
+         *     its serialized form and finds the class by name during deserialization.
+         *     A <em>serializable</em> hidden class requires a custom serialization
+         *     mechanism in order to ensure that instances are properly serialized
+         *     and deserialized.
          * </ul>
          *
          * <p> The {@linkplain #lookupModes() lookup modes} for this lookup must
@@ -1679,12 +1655,7 @@ public class MethodHandles {
          *
          * <p> If {@code options} has {@link ClassOption#NESTMATE NESTMATE}, then
          * this method creates the hidden class as a member of the nest of
-         * this lookup's lookup class.  The lookup class must be the host
-         * of a nest.  Together with the {@code PRIVATE} and {@code MODULE}
-         * lookup mode, it ensures that the nest host (the lookup class) authorizes
-         * the membership of the hidden class being defined.
-         * If the lookup class is a member of some other class' nest, that is
-         * not the host of a nest, then {@code IllegalAccessException} will be thrown.
+         * this lookup's lookup class.
          *
          * <p> If {@code options} has {@link ClassOption#WEAK WEAK}, then
          * the hidden class is weakly referenced from its defining class loader
@@ -1693,18 +1664,6 @@ public class MethodHandles {
          * <p> The {@code bytes} parameter is the class bytes of a valid class file
          * (as defined by the <em>The Java Virtual Machine Specification</em>)
          * with a class name in the same package as the lookup class.
-         * The name of a hidden class cannot be referenced in other class and
-         * therefore:
-         * <ul>
-         * <li>It must be a top-level class.</li>
-         * <li>It cannot be an abstract class or an interface.</li>
-         * <li>It cannot be an enclosing class.</li>
-         * <li>It cannot be a superclass.</li>
-         * <li>It cannot be in any static nest membership, i.e. the class bytes
-         *     must not contain the {@code NestHost}, {@code NestMembers}.</li>
-         * </ul>
-         * If any of the above checks is violated, {@code IllegalArgumentException}
-         * will be thrown.
          *
          * @param bytes the class bytes
          * @param initialize if {@code true} the class will be initialized.
@@ -1712,14 +1671,8 @@ public class MethodHandles {
          * @return the {@code Lookup} object on the hidden class
          *
          * @throws IllegalArgumentException the bytes are for a class in a different package
-         *                                  to the lookup class; or the bytes contain {@code NestHost},
-         *                                  {@code NestMembers}, {@code EnclosingMethod} attribute, or
-         *                                  {@code classes} entries in the {@code InnerClasses} attribute
-         *                                  indicating that this hidden class is an enclosing class
-         *                                  or a nested class
-         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access;
-         *                                  or if the hidden class is defined as a {@linkplain ClassOption#NESTMATE nestmate}
-         *                                  and this lookup's lookup class is not the nest host
+         *                                  to the lookup class
+         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
          * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
          *                                  verified ({@code VerifyError}), is already defined,
          *                                  or another linkage error occurs
@@ -1743,8 +1696,7 @@ public class MethodHandles {
             }
 
             Set<ClassOption> opts = (options != null && options.length > 0) ? Set.of(options) : Set.of();
-            HiddenClassDefiner cfd = new HiddenClassDefiner(bytes.clone(), opts);
-            Class<?> c = cfd.defineClass(initialize, null);
+            Class<?> c =  makeHiddenClassDefiner(bytes.clone(), opts).defineClass(initialize, null);
             return new Lookup(c, null, FULL_POWER_MODES);
         }
 
@@ -1774,14 +1726,8 @@ public class MethodHandles {
          * @return the {@code Lookup} object on the hidden class
          *
          * @throws IllegalArgumentException the bytes are for a class in a different package
-         *                                  to the lookup class; or the bytes contain {@code NestHost},
-         *                                  {@code NestMembers}, {@code EnclosingMethod} attribute, or
-         *                                  {@code classes} entries in the {@code InnerClasses} attribute
-         *                                  indicating that this hidden class is an enclosing class
-         *                                  or a nested class
-         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access;
-         *                                  or if the hidden class is defined as a {@linkplain ClassOption#NESTMATE nestmate}
-         *                                  and this lookup's lookup class is not the nest host
+         *                                  to the lookup class
+         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
          * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
          *                                  verified ({@code VerifyError}), is already defined,
          *                                  or another linkage error occurs
@@ -1807,8 +1753,7 @@ public class MethodHandles {
             }
 
             Set<ClassOption> opts = (options != null && options.length > 0) ? Set.of(options) : Set.of();
-            HiddenClassDefiner cfd = new HiddenClassDefiner(bytes.clone(), opts);
-            Class<?> c = cfd.defineClass(true, classData);
+            Class<?> c = makeHiddenClassDefiner(bytes.clone(), opts).defineClass(true, classData);
             return new Lookup(c, null, FULL_POWER_MODES);
         }
 
@@ -1860,43 +1805,93 @@ public class MethodHandles {
             return (T) MethodHandleNatives.classData(lookupClass);
         }
 
-        class HiddenClassDefiner extends ClassVisitor {
+        private ClassDefiner makeClassDefiner(byte[] bytes) {
+            return new ClassDefiner(this, bytes, Set.of(), 0);
+        }
+
+        ClassDefiner makeHiddenClassDefiner(byte[] bytes, Set<ClassOption> options) {
+            return new ClassDefiner(this, bytes, options, HIDDEN_CLASS);
+        }
+
+        /**
+         * This method is only called by MethodHandleImpl.BindCaller.makeInjectedInvoker.
+         *
+         * @param name the name of the class and the name in the class bytes is ignored.
+         * @param bytes class bytes
+         * @param flags class flags
+         * @return ClassDefiner
+         */
+        ClassDefiner makeHiddenClassDefiner(String name, byte[] bytes, int flags) {
+            return new ClassDefiner(this, name, bytes, flags | HIDDEN_CLASS);
+        }
+
+        static class ClassDefiner {
+            private final Lookup lookup;
+            private final String name;
             private final byte[] bytes;
             private final int classFlags;
-            private String name;
 
-            HiddenClassDefiner(byte[] bytes, Set<ClassOption> options) throws IllegalAccessException {
-                super(Opcodes.ASM7);
+            // caller should make a defensive copy of the arguments if needed
+            // before calling this constructor
+            private ClassDefiner(Lookup lookup, byte[] bytes, Set<ClassOption> options, int flags) {
+                this.lookup = lookup;
                 this.bytes = bytes;
-                this.classFlags = HIDDEN_CLASS | ClassOption.optionsToFlag(options);
-                if (options.contains(ClassOption.NESTMATE) && !JLA.isNestHost(lookupClass)) {
-                    throw new IllegalAccessException(lookupClass.getName() + " is not a nest host");
+                this.classFlags = flags | ClassOption.optionsToFlag(options);
+                this.name = className(bytes);
+
+                int index = name.lastIndexOf('.');
+                String pn = (index == -1) ? "" : name.substring(0, index);
+                if (!pn.equals(lookup.lookupClass().getPackageName())) {
+                    throw newIllegalArgumentException(name + " not in same package as lookup class: " +
+                            lookup.lookupClass().getName());
                 }
             }
 
-            Class<?> defineClass(boolean initialize, Object classData) {
-                parseClassFile();
-                return Lookup.this.lookupDefineClass(className(), bytes, classFlags, initialize, classData);
+            // skip package name check
+            private ClassDefiner(Lookup lookup, String name, byte[] bytes, int flags) {
+                this.lookup = lookup;
+                this.bytes = bytes;
+                this.classFlags = flags;
+                this.name = name;
             }
 
-            void parseClassFile() {
+            String className() {
+                return name;
+            }
+
+            Class<?> defineClass(boolean initialize) {
+                return defineClass(initialize, null);
+            }
+
+            /**
+             * Defines the class of the given bytes and the given classData.
+             * If {@code initialize} parameter is true, then the class will be initialized.
+             *
+             * @param initialize true if the class to be initialized
+             * @param classData classData or null
+             * @return the class
+             *
+             * @throws LinkageError linkage error
+             */
+            Class<?> defineClass(boolean initialize, Object classData) {
+                assert (initialize || classData == null);  // initialize must be true if classData is non-null
+                Class<?> lookupClass = lookup.lookupClass();
+                ClassLoader loader = lookupClass.getClassLoader();
+                ProtectionDomain pd = (loader != null) ? lookup.lookupClassProtectionDomain() : null;
+                Class<?> c = JLA.defineClass(loader, lookupClass, name, bytes, pd, initialize, classFlags, classData);
+                assert !isNestmate() || c.getNestHost() == lookupClass.getNestHost();
+                return c;
+            }
+
+            private boolean isNestmate() {
+                return (classFlags & NESTMATE_CLASS) != 0;
+            }
+
+            private static String className(byte[] bytes) {
                 try {
                     ClassReader reader = new ClassReader(bytes);
-                    this.name = reader.getClassName();
-                    int accessFlags = reader.getAccess();
-                    if (Modifier.isInterface(accessFlags) || Modifier.isAbstract(accessFlags)) {
-                        throw newIllegalArgumentException("can't define " +
-                                (Modifier.isInterface(accessFlags)
-                                    ? "a hidden interface" : "an abstract hidden class"));
-                    }
-                    // check package name
-                    int index = name.lastIndexOf('/');
-                    String cn = className();
-                    String pn = (index == -1) ? "" : cn.substring(0, index);
-                    if (!pn.equals(lookupClass.getPackageName())) {
-                        throw newIllegalArgumentException(cn + " not in same package as lookup class: " + lookupClass.getName());
-                    }
-                    reader.accept(this, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+                    String name = reader.getClassName();
+                    return name.replace('/', '.');
                 } catch (IllegalArgumentException e) {
                     throw e;
                 } catch (RuntimeException e) {
@@ -1906,64 +1901,6 @@ public class MethodHandles {
                     throw cfe;
                 }
             }
-
-            String className() {
-                return name.replace('/', '.');
-            }
-
-            @Override
-            public void visitNestHost(String nestHost) {
-                throw newIllegalArgumentException("can't define a hidden class with NestHost attribute");
-            }
-
-            @Override
-            public void visitNestMember(final String nestMember) {
-                throw newIllegalArgumentException("can't define a hidden class with NestMembers attribute");
-            }
-
-            @Override
-            public void visitOuterClass(String owner, String name, String desc) {
-                throw newIllegalArgumentException("can't define a hidden class with EnclosingMethod attribute");
-            }
-
-            @Override
-            public void visitInnerClass(String cn, String outerName, String innerName, int access) {
-                if (name.equals(cn)) {
-                    throw newIllegalArgumentException(name + " is a nested class");
-                }
-                if (name.equals(outerName)) {
-                    throw newIllegalArgumentException(name + " contains class members " + cn);
-                }
-                if (innerName == null) {
-                    throw newIllegalArgumentException(name + " encloses an anonymous class " + cn);
-                }
-            }
-        }
-
-        /**
-         * Defines the class of the given bytes and the given classData.
-         * If {@code initialize} parameter is true, then the class will be initialized.
-         *
-         * This method is also called by InvokerBytecodeGenerator and
-         * BindCaller.makeInjectedInvoker
-         *
-         * @param name the name of the class if it's a non-hidden class; the prefix
-         *             to be used as VM assigned class name of a hidden class
-         * @param bytes class file bytes
-         * @param flags VM flags to indicate it's a hidden, nestmate, weak class
-         *              or access to VM annotations
-         * @param initialize true if the class to be initialized
-         * @param classData classData or null
-         * @return the class
-         *
-         * @throws LinkageError linkage error
-         */
-        Class<?> lookupDefineClass(String name, byte[] bytes, int flags, boolean initialize, Object classData) {
-            assert (initialize || classData == null);  // initialize must be true if classData is non-null
-            ClassLoader loader = lookupClass.getClassLoader();
-            ProtectionDomain pd = (loader != null) ? lookupClassProtectionDomain() : null;
-            Class<?> clazz = JLA.defineClass(loader, lookupClass, name, bytes, pd, initialize, flags, classData);
-            return clazz;
         }
 
         private ProtectionDomain lookupClassProtectionDomain() {
@@ -2287,13 +2224,11 @@ assertEquals("[x, y, z]", pb.command().toString());
          * <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
          * @throws LinkageError if the linkage fails
          * @throws ClassNotFoundException if the class cannot be loaded by the lookup class' loader
-         *                                or the class is {@linkplain Class#isHiddenClass hidden}
          * @throws IllegalAccessException if the class is not accessible, using the allowed access modes.
          *
          * @jls 12.2 Loading of Classes and Interfaces
          * @jls 12.3 Linking of Classes and Interfaces
          * @since 9
-         * @see Class#isHiddenClass
          */
         public Class<?> findClass(String targetName) throws ClassNotFoundException, IllegalAccessException {
             Class<?> targetClass = Class.forName(targetName, false, lookupClass.getClassLoader());
@@ -3609,9 +3544,10 @@ return mh1;
 
         /**
          * The set of class options that specify whether a hidden class created by
-         * {@link Lookup#defineHiddenClass(byte[], boolean, ClassOption...)} method
-         * is added as a nest member of a lookup class and whether it is weakly
-         * referenced by its defining class loader.
+         * {@link Lookup#defineHiddenClass(byte[], boolean, ClassOption...)
+         * Lookup::defineHiddenMethod} method is dynamically added as
+         * a new member to the nest of a lookup class and whether a hidden class
+         * is weakly referenced by its defining class loader.
          *
          * @since 14
          */

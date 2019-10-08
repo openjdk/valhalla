@@ -211,19 +211,22 @@ bool InstanceKlass::has_nest_member(InstanceKlass* k, TRAPS) const {
   return false;
 }
 
-bool InstanceKlass::is_nest_host() {
-  if (_nest_host_index != 0) {
-    // A member of other class's nest if NestHost attribute is present
-    // Do not do class resolution
-    return JNI_FALSE;
-  }
-
-  InstanceKlass* nest_host_k = _nest_host;
+InstanceKlass* InstanceKlass::runtime_nest_host(TRAPS) {
+  // TODO: nest_host returns NULL if validation fails.  Need to follow up
+  // the specification when to evaluate the runtime nest host.  Right now
+  // it's only determined when a dynamic nestmate is added.
+  InstanceKlass* nest_host_k = nest_host(NULL, CHECK_NULL);
   if (nest_host_k == NULL) {
-    // the host of its own nest
-    return JNI_TRUE;
+    assert(_nest_host == NULL, "should fail to validate NestNost");
+    // drop the static nest information; set dynamic nest to this class
+    if (log_is_enabled(Trace, class, nestmates)) {
+      ResourceMark rm(THREAD);
+      log_trace(class, nestmates)("Fail to validate static nest host of %s: setting nest-host to self",
+                                  this->external_name());
+    }
+    _nest_host = nest_host_k = this;
   }
-  return nest_host_k == this;
+  return nest_host_k;
 }
 
 // Return nest-host class, resolving, validating and saving it if needed.
@@ -259,8 +262,13 @@ InstanceKlass* InstanceKlass::nest_host(Symbol* validationException, TRAPS) {
       Klass* k = _constants->klass_at(_nest_host_index, THREAD);
       if (HAS_PENDING_EXCEPTION) {
         Handle exc_h = Handle(THREAD, PENDING_EXCEPTION);
-        if (exc_h->is_a(SystemDictionary::NoClassDefFoundError_klass())) {
-          // throw a new CDNFE with the original as its cause, and a clear msg
+        if (validationException == NULL && exc_h->is_a(SystemDictionary::LinkageError_klass())) {
+          // clear exception if fails to resolve the nest host class
+          CLEAR_PENDING_EXCEPTION;
+        }
+        // throw a new NCDFE with the original as its cause, and a clear msg
+        if (exc_h->is_a(SystemDictionary::NoClassDefFoundError_klass()) && validationException != NULL) {
+          // throw a new NCDFE with the original as its cause, and a clear msg
           ResourceMark rm(THREAD);
           char buf[200];
           CLEAR_PENDING_EXCEPTION;
@@ -349,7 +357,7 @@ InstanceKlass* InstanceKlass::nest_host(Symbol* validationException, TRAPS) {
 // Dynamic nest member support: set this class's nest host to the given class.
 // This occurs as part of the class definition, as soon as the instanceKlass
 // has been created and doesn't require further resolution. The code:
-//    lookup().defineClass(bytes_for_X, NESTMATE);
+//    lookup().defineHiddenClass(bytes_for_X, NESTMATE);
 // results in:
 //    class_of_X.set_nest_host(lookup().lookupClass().getNestHost())
 // So we know that current class is "pristine" and its _nest_host must be NULL.
@@ -397,7 +405,7 @@ void InstanceKlass::set_nest_host(InstanceKlass* host, TRAPS) {
 bool InstanceKlass::has_nestmate_access_to(InstanceKlass* k, TRAPS) {
 
   assert(this != k, "this should be handled by higher-level code");
-
+  
   // Per JVMS 5.4.4 we first resolve and validate the current class, then
   // the target class k. Resolution exceptions will be passed on by upper
   // layers. IncompatibleClassChangeErrors from membership validation failures

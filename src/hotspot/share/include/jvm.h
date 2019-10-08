@@ -553,9 +553,6 @@ JVM_GetClassAccessFlags(JNIEnv *env, jclass cls);
 /* Nestmates - since JDK 11 */
 
 JNIEXPORT jboolean JNICALL
-JVM_IsNestHost(JNIEnv *env, jclass current);
-
-JNIEXPORT jboolean JNICALL
 JVM_AreNestMates(JNIEnv *env, jclass current, jclass member);
 
 JNIEXPORT jclass JNICALL
