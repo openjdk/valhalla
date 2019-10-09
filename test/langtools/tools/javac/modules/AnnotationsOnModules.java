@@ -29,7 +29,7 @@
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.main
  *          jdk.jdeps/com.sun.tools.classfile
- * @build toolbox.ToolBox toolbox.JavacTask ModuleTestBase ProxyTypeValidator
+ * @build toolbox.ToolBox toolbox.JavacTask ModuleTestBase
  * @run main AnnotationsOnModules
  */
 
@@ -39,7 +39,9 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.RoundEnvironment;
@@ -677,7 +679,7 @@ public class AnnotationsOnModules extends ModuleTestBase {
                 .options("--module-path", modulePath.toString(),
                          "--add-modules", "m",
                          "-processorpath", System.getProperty("test.classes"),
-                         "-processor", "ProxyTypeValidator",
+                         "-processor", ProxyTypeValidator.class.getName(),
                          "-A" + OPT_EXPECTED_ANNOTATIONS + "=" + tc.expectedAnnotations)
                 .outdir(classes)
                 .files(findJavaFiles(extraSrc))
@@ -687,4 +689,24 @@ public class AnnotationsOnModules extends ModuleTestBase {
     }
 
     private static final String OPT_EXPECTED_ANNOTATIONS = "expectedAnnotations";
+
+    @SupportedAnnotationTypes("*")
+    @SupportedOptions(OPT_EXPECTED_ANNOTATIONS)
+    public static final class ProxyTypeValidator extends AbstractProcessor {
+
+        @Override
+        public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+            ModuleElement m = processingEnv.getElementUtils().getModuleElement("m");
+            String actualTypes = m.getAnnotationMirrors()
+                                  .stream()
+                                  .map(am -> am.toString())
+                                  .collect(Collectors.joining(", "));
+            if (!Objects.equals(actualTypes, processingEnv.getOptions().get(OPT_EXPECTED_ANNOTATIONS))) {
+                throw new IllegalStateException("Expected annotations not found, actual: " + actualTypes);
+            }
+            return false;
+        }
+
+    }
+
 }
