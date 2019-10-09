@@ -650,6 +650,7 @@ class PacketStream {
 
     static boolean isObjectTag(byte tag) {
         return (tag == JDWP.Tag.OBJECT) ||
+               (tag == JDWP.Tag.INLINE_OBJECT) ||
                (tag == JDWP.Tag.ARRAY) ||
                (tag == JDWP.Tag.STRING) ||
                (tag == JDWP.Tag.THREAD) ||

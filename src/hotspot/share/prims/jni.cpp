@@ -58,6 +58,7 @@
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
+#include "oops/valueArrayOop.inline.hpp"
 #include "oops/valueKlass.inline.hpp"
 #include "prims/jniCheck.hpp"
 #include "prims/jniExport.hpp"
@@ -497,8 +498,9 @@ JNI_ENTRY(jfieldID, jni_FromReflectedField(JNIEnv *env, jobject field))
   // The jfieldID is the offset of the field within the object
   // It may also have hash bits for k, if VerifyJNIFields is turned on.
   intptr_t offset = InstanceKlass::cast(k1)->field_offset( slot );
+  bool is_flattened = InstanceKlass::cast(k1)->field_is_flattened(slot);
   assert(InstanceKlass::cast(k1)->contains_field_offset(offset), "stay within object");
-  ret = jfieldIDWorkaround::to_instance_jfieldID(k1, offset);
+  ret = jfieldIDWorkaround::to_instance_jfieldID(k1, offset, is_flattened);
   return ret;
 JNI_END
 
@@ -2050,7 +2052,7 @@ JNI_ENTRY(jfieldID, jni_GetFieldID(JNIEnv *env, jclass clazz,
 
   // A jfieldID for a non-static field is simply the offset of the field within the instanceOop
   // It may also have hash bits for k, if VerifyJNIFields is turned on.
-  ret = jfieldIDWorkaround::to_instance_jfieldID(k, fd.offset());
+  ret = jfieldIDWorkaround::to_instance_jfieldID(k, fd.offset(), fd.is_flattened());
   return ret;
 JNI_END
 
@@ -2061,13 +2063,24 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
   oop o = JNIHandles::resolve_non_null(obj);
   Klass* k = o->klass();
   int offset = jfieldIDWorkaround::from_instance_jfieldID(k, fieldID);
+  oop res = NULL;
   // Keep JVMTI addition small and only check enabled flag here.
   // jni_GetField_probe() assumes that is okay to create handles.
   if (JvmtiExport::should_post_field_access()) {
     o = JvmtiExport::jni_GetField_probe(thread, obj, o, k, fieldID, false);
   }
-  oop loaded_obj = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(o, offset);
-  jobject ret = JNIHandles::make_local(env, loaded_obj);
+  if (!jfieldIDWorkaround::is_flattened_field(fieldID)) {
+    res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(o, offset);
+  } else {
+    assert(k->is_instance_klass(), "Only instance can have flattened fields");
+    InstanceKlass* ik = InstanceKlass::cast(k);
+    fieldDescriptor fd;
+    ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
+    InstanceKlass* holder = fd.field_holder();
+    ValueKlass* field_vklass = ValueKlass::cast(holder->get_value_field_klass(fd.index()));
+    res = field_vklass->read_flattened_field(o, ik->field_offset(fd.index()), CHECK_NULL);
+  }
+  jobject ret = JNIHandles::make_local(env, res);
   HOTSPOT_JNI_GETOBJECTFIELD_RETURN(ret);
   return ret;
 JNI_END
@@ -2165,7 +2178,18 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     field_value.l = value;
     o = JvmtiExport::jni_SetField_probe_nh(thread, obj, o, k, fieldID, false, 'L', (jvalue *)&field_value);
   }
-  HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(o, offset, JNIHandles::resolve(value));
+  if (!jfieldIDWorkaround::is_flattened_field(fieldID)) {
+    HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(o, offset, JNIHandles::resolve(value));
+  } else {
+    assert(k->is_instance_klass(), "Only instances can have flattened fields");
+    InstanceKlass* ik = InstanceKlass::cast(k);
+    fieldDescriptor fd;
+    ik->find_field_from_offset(offset, false, &fd);
+    InstanceKlass* holder = fd.field_holder();
+    ValueKlass* vklass = ValueKlass::cast(holder->get_value_field_klass(fd.index()));
+    oop v = JNIHandles::resolve_non_null(value);
+    vklass->write_flattened_field(o, offset, v, CHECK);
+  }
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();
 JNI_END
 
@@ -2602,16 +2626,28 @@ JNI_ENTRY(jobject, jni_GetObjectArrayElement(JNIEnv *env, jobjectArray array, js
  HOTSPOT_JNI_GETOBJECTARRAYELEMENT_ENTRY(env, array, index);
   jobject ret = NULL;
   DT_RETURN_MARK(GetObjectArrayElement, jobject, (const jobject&)ret);
-  objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
-  if (a->is_within_bounds(index)) {
-    ret = JNIHandles::make_local(env, a->obj_at(index));
-    return ret;
+  oop res = NULL;
+  arrayOop arr((arrayOop)JNIHandles::resolve_non_null(array));
+  if (arr->is_within_bounds(index)) {
+    if (arr->is_valueArray()) {
+      valueArrayOop a = valueArrayOop(JNIHandles::resolve_non_null(array));
+      arrayHandle ah(THREAD, a);
+      valueArrayHandle vah(thread, a);
+      res = valueArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK_NULL);
+      assert(res != NULL, "Must be set in one of two paths above");
+    } else {
+      assert(arr->is_objArray(), "If not a valueArray. must be an objArray");
+      objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
+      res = a->obj_at(index);
+    }
   } else {
     ResourceMark rm(THREAD);
     stringStream ss;
-    ss.print("Index %d out of bounds for length %d", index, a->length());
+    ss.print("Index %d out of bounds for length %d", index,arr->length());
     THROW_MSG_0(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
   }
+  ret = JNIHandles::make_local(env, res);
+  return ret;
 JNI_END
 
 DT_VOID_RETURN_MARK_DECL(SetObjectArrayElement
@@ -2619,33 +2655,60 @@ DT_VOID_RETURN_MARK_DECL(SetObjectArrayElement
 
 JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize index, jobject value))
   JNIWrapper("SetObjectArrayElement");
- HOTSPOT_JNI_SETOBJECTARRAYELEMENT_ENTRY(env, array, index, value);
+  HOTSPOT_JNI_SETOBJECTARRAYELEMENT_ENTRY(env, array, index, value);
   DT_VOID_RETURN_MARK(SetObjectArrayElement);
 
-  objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
-  oop v = JNIHandles::resolve(value);
-  if (a->is_within_bounds(index)) {
-    if (v == NULL || v->is_a(ObjArrayKlass::cast(a->klass())->element_klass())) {
-      a->obj_at_put(index, v);
-    } else {
-      ResourceMark rm(THREAD);
-      stringStream ss;
-      Klass *bottom_kl = ObjArrayKlass::cast(a->klass())->bottom_klass();
-      ss.print("type mismatch: can not store %s to %s[%d]",
-               v->klass()->external_name(),
-               bottom_kl->is_typeArray_klass() ? type2name_tab[ArrayKlass::cast(bottom_kl)->element_type()] : bottom_kl->external_name(),
-               index);
-      for (int dims = ArrayKlass::cast(a->klass())->dimension(); dims > 1; --dims) {
-        ss.print("[]");
-      }
-      THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
-    }
-  } else {
-    ResourceMark rm(THREAD);
-    stringStream ss;
-    ss.print("Index %d out of bounds for length %d", index, a->length());
-    THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
-  }
+   bool oob = false;
+   int length = -1;
+   oop res = NULL;
+   arrayOop arr((arrayOop)JNIHandles::resolve_non_null(array));
+   if (arr->is_within_bounds(index)) {
+     if (arr->is_valueArray()) {
+       valueArrayOop a = valueArrayOop(JNIHandles::resolve_non_null(array));
+       oop v = JNIHandles::resolve(value);
+       ValueArrayKlass* vaklass = ValueArrayKlass::cast(a->klass());
+       ValueKlass* element_vklass = vaklass->element_klass();
+       if (v != NULL && v->is_a(element_vklass)) {
+         a->value_copy_to_index(v, index);
+       } else {
+         ResourceMark rm(THREAD);
+         stringStream ss;
+         Klass *kl = ValueArrayKlass::cast(a->klass());
+         ss.print("type mismatch: can not store %s to %s[%d]",
+             v->klass()->external_name(),
+             kl->external_name(),
+             index);
+         for (int dims = ArrayKlass::cast(a->klass())->dimension(); dims > 1; --dims) {
+           ss.print("[]");
+         }
+         THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
+       }
+     } else {
+       assert(arr->is_objArray(), "If not a valueArray. must be an objArray");
+       objArrayOop a = objArrayOop(JNIHandles::resolve_non_null(array));
+       oop v = JNIHandles::resolve(value);
+       if (v == NULL || v->is_a(ObjArrayKlass::cast(a->klass())->element_klass())) {
+         a->obj_at_put(index, v);
+       } else {
+         ResourceMark rm(THREAD);
+         stringStream ss;
+         Klass *bottom_kl = ObjArrayKlass::cast(a->klass())->bottom_klass();
+         ss.print("type mismatch: can not store %s to %s[%d]",
+             v->klass()->external_name(),
+             bottom_kl->is_typeArray_klass() ? type2name_tab[ArrayKlass::cast(bottom_kl)->element_type()] : bottom_kl->external_name(),
+                 index);
+         for (int dims = ArrayKlass::cast(a->klass())->dimension(); dims > 1; --dims) {
+           ss.print("[]");
+         }
+         THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), ss.as_string());
+       }
+     }
+   } else {
+     ResourceMark rm(THREAD);
+     stringStream ss;
+     ss.print("Index %d out of bounds for length %d", index, arr->length());
+     THROW_MSG(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
+   }
 JNI_END
 
 

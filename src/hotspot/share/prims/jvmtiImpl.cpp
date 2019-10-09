@@ -588,7 +588,7 @@ bool VM_GetOrSetLocal::is_assignable(const char* ty_sign, Klass* klass, Thread* 
   assert(klass != NULL, "klass must not be NULL");
 
   int len = (int) strlen(ty_sign);
-  if (ty_sign[0] == 'L' && ty_sign[len-1] == ';') { // Need pure class/interface name
+  if ((ty_sign[0] == 'L' || ty_sign[0] == 'Q') && ty_sign[len-1] == ';') { // Need pure class/interface name
     ty_sign++;
     len -= 2;
   }
@@ -771,7 +771,7 @@ void VM_GetOrSetLocal::doit() {
       // since the handle will be long gone by the time the deopt
       // happens. The oop stored in the deferred local will be
       // gc'd on its own.
-      if (_type == T_OBJECT) {
+      if (_type == T_OBJECT || _type == T_VALUETYPE) {
         _value.l = (jobject) (JNIHandles::resolve_external_guard(_value.l));
       }
       // Re-read the vframe so we can see that it is deoptimized
@@ -788,7 +788,8 @@ void VM_GetOrSetLocal::doit() {
       case T_LONG:   locals->set_long_at  (_index, _value.j); break;
       case T_FLOAT:  locals->set_float_at (_index, _value.f); break;
       case T_DOUBLE: locals->set_double_at(_index, _value.d); break;
-      case T_OBJECT: {
+      case T_OBJECT:
+      case T_VALUETYPE: {
         Handle ob_h(Thread::current(), JNIHandles::resolve_external_guard(_value.l));
         locals->set_obj_at (_index, ob_h);
         break;
@@ -809,7 +810,8 @@ void VM_GetOrSetLocal::doit() {
         case T_LONG:   _value.j = locals->long_at  (_index);   break;
         case T_FLOAT:  _value.f = locals->float_at (_index);   break;
         case T_DOUBLE: _value.d = locals->double_at(_index);   break;
-        case T_OBJECT: {
+        case T_OBJECT:
+        case T_VALUETYPE: {
           // Wrap the oop to be returned in a local JNI handle since
           // oops_do() no longer applies after doit() is finished.
           oop obj = locals->obj_at(_index)();

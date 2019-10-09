@@ -146,7 +146,8 @@ createGlobalRefs(JNIEnv *env, InvokeRequest *request)
                 break;
             }
             if ((argumentTag == JDWP_TAG(OBJECT)) ||
-                (argumentTag == JDWP_TAG(ARRAY))) {
+                (argumentTag == JDWP_TAG(ARRAY))  ||
+		(argumentTag == JDWP_TAG(INLINE_OBJECT))) {
                 /* Create a global ref for any non-null argument */
                 if (argument->l != NULL) {
                     saveGlobalRef(env, argument->l, &argRefs[argIndex]);
@@ -179,7 +180,8 @@ createGlobalRefs(JNIEnv *env, InvokeRequest *request)
             argument = request->arguments;
             while ( argIndex < request->argumentCount ) {
                 if ((argumentTag == JDWP_TAG(OBJECT)) ||
-                    (argumentTag == JDWP_TAG(ARRAY))) {
+                    (argumentTag == JDWP_TAG(ARRAY))  ||
+		    (argumentTag == JDWP_TAG(INLINE_OBJECT))) {
                     argument->l = argRefs[argIndex];
                 }
                 argument++;
@@ -232,7 +234,8 @@ deleteGlobalArgumentRefs(JNIEnv *env, InvokeRequest *request)
     /* Delete global argument references */
     while (argIndex < request->argumentCount) {
         if ((argumentTag == JDWP_TAG(OBJECT)) ||
-            (argumentTag == JDWP_TAG(ARRAY))) {
+            (argumentTag == JDWP_TAG(ARRAY))  ||
+	    (argumentTag == JDWP_TAG(INLINE_OBJECT))) {
             if (argument->l != NULL) {
                 tossGlobalRef(env, &(argument->l));
             }
@@ -406,7 +409,8 @@ invokeStatic(JNIEnv *env, InvokeRequest *request)
 {
     switch(returnTypeTag(request->methodSignature)) {
         case JDWP_TAG(OBJECT):
-        case JDWP_TAG(ARRAY): {
+        case JDWP_TAG(ARRAY):
+        case JDWP_TAG(INLINE_OBJECT): {
             jobject object;
             JDI_ASSERT_MSG(request->clazz, "Request clazz null");
             object = JNI_FUNC_PTR(env,CallStaticObjectMethodA)(env,
@@ -495,7 +499,8 @@ invokeVirtual(JNIEnv *env, InvokeRequest *request)
 {
     switch(returnTypeTag(request->methodSignature)) {
         case JDWP_TAG(OBJECT):
-        case JDWP_TAG(ARRAY): {
+        case JDWP_TAG(ARRAY):
+        case JDWP_TAG(INLINE_OBJECT): {
             jobject object;
             JDI_ASSERT_MSG(request->instance, "Request instance null");
             object = JNI_FUNC_PTR(env,CallObjectMethodA)(env,
@@ -583,7 +588,8 @@ invokeNonvirtual(JNIEnv *env, InvokeRequest *request)
 {
     switch(returnTypeTag(request->methodSignature)) {
         case JDWP_TAG(OBJECT):
-        case JDWP_TAG(ARRAY): {
+        case JDWP_TAG(ARRAY):
+        case JDWP_TAG(INLINE_OBJECT): {
             jobject object;
             JDI_ASSERT_MSG(request->clazz, "Request clazz null");
             JDI_ASSERT_MSG(request->instance, "Request instance null");
@@ -807,7 +813,8 @@ invoker_completeInvokeRequest(jthread thread)
          * until after the return packet was sent. */
         mustReleaseReturnValue = request->invokeType == INVOKE_CONSTRUCTOR ||
            returnTypeTag(request->methodSignature) == JDWP_TAG(OBJECT) ||
-           returnTypeTag(request->methodSignature) == JDWP_TAG(ARRAY);
+           returnTypeTag(request->methodSignature) == JDWP_TAG(ARRAY)  ||
+	   returnTypeTag(request->methodSignature) == JDWP_TAG(INLINE_OBJECT);
     }
 
     /*

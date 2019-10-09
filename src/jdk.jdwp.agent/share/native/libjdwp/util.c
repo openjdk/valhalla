@@ -292,6 +292,7 @@ util_reset(void)
 jboolean
 isObjectTag(jbyte tag) {
     return (tag == JDWP_TAG(OBJECT)) ||
+           (tag == JDWP_TAG(INLINE_OBJECT)) ||
            (tag == JDWP_TAG(STRING)) ||
            (tag == JDWP_TAG(THREAD)) ||
            (tag == JDWP_TAG(THREAD_GROUP)) ||
@@ -350,13 +351,14 @@ writeFieldValue(JNIEnv *env, PacketOutputStream *out, jobject object,
      * For primitive types, the type key is bounced back as is. Objects
      * are handled in the switch statement below.
      */
-    if ((typeKey != JDWP_TAG(OBJECT)) && (typeKey != JDWP_TAG(ARRAY))) {
+    if ((typeKey != JDWP_TAG(OBJECT)) && (typeKey != JDWP_TAG(ARRAY)) && (typeKey != JDWP_TAG(INLINE_OBJECT))) {
         (void)outStream_writeByte(out, typeKey);
     }
 
     switch (typeKey) {
         case JDWP_TAG(OBJECT):
-        case JDWP_TAG(ARRAY):   {
+        case JDWP_TAG(ARRAY):
+        case JDWP_TAG(INLINE_OBJECT): {
             jobject value = JNI_FUNC_PTR(env,GetObjectField)(env, object, field);
             (void)outStream_writeByte(out, specificTypeKey(env, value));
             (void)outStream_writeObjectRef(env, out, value);
@@ -425,13 +427,14 @@ writeStaticFieldValue(JNIEnv *env, PacketOutputStream *out, jclass clazz,
      * For primitive types, the type key is bounced back as is. Objects
      * are handled in the switch statement below.
      */
-    if ((typeKey != JDWP_TAG(OBJECT)) && (typeKey != JDWP_TAG(ARRAY))) {
+    if ((typeKey != JDWP_TAG(OBJECT)) && (typeKey != JDWP_TAG(ARRAY)) && (typeKey != JDWP_TAG(INLINE_OBJECT))) {
         (void)outStream_writeByte(out, typeKey);
     }
 
     switch (typeKey) {
         case JDWP_TAG(OBJECT):
-        case JDWP_TAG(ARRAY):   {
+        case JDWP_TAG(ARRAY):
+        case JDWP_TAG(INLINE_OBJECT): {
             jobject value = JNI_FUNC_PTR(env,GetStaticObjectField)(env, clazz, field);
             (void)outStream_writeByte(out, specificTypeKey(env, value));
             (void)outStream_writeObjectRef(env, out, value);

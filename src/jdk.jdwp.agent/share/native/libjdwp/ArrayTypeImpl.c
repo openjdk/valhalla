@@ -230,7 +230,8 @@ newInstance(PacketInputStream *in, PacketOutputStream *out)
     componentSignature = &signature[1];
 
     if ((componentSignature[0] == JDWP_TAG(OBJECT)) ||
-        (componentSignature[0] == JDWP_TAG(ARRAY))) {
+        (componentSignature[0] == JDWP_TAG(ARRAY))  ||
+	(componentSignature[0] == JDWP_TAG(INLINE_OBJECT))) {
         writeNewObjectArray(env, out, arrayClass, size, componentSignature);
     } else {
         writeNewPrimitiveArray(env, out, arrayClass, size, componentSignature);

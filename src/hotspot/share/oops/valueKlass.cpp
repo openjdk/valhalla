@@ -145,6 +145,29 @@ int ValueKlass::nonstatic_oop_count() {
   return oops;
 }
 
+oop ValueKlass::read_flattened_field(oop obj, int offset, TRAPS) {
+  oop res = NULL;
+  this->initialize(CHECK_NULL); // will throw an exception if in error state
+  if (is_empty_value()) {
+    res = (instanceOop)default_value();
+  } else {
+    Handle obj_h(THREAD, obj);
+    res = allocate_instance(CHECK_NULL);
+    value_copy_payload_to_new_oop(((char*)(oopDesc*)obj_h()) + offset, res);
+  }
+  assert(res != NULL, "Must be set in one of two paths above");
+  return res;
+}
+
+void ValueKlass::write_flattened_field(oop obj, int offset, oop value, TRAPS) {
+  if (value == NULL) {
+    THROW(vmSymbols::java_lang_NullPointerException());
+  }
+  if (!is_empty_value()) {
+    value_copy_oop_to_payload(value, ((char*)(oopDesc*)obj) + offset);
+  }
+}
+
 // Arrays of...
 
 bool ValueKlass::flatten_array() {

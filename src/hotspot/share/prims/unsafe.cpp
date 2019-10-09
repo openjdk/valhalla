@@ -366,9 +366,7 @@ UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, 
   ValueKlass* vk = ValueKlass::cast(k);
   assert_and_log_unsafe_value_access(base, offset, vk);
   Handle base_h(THREAD, base);
-  oop v = vk->allocate_instance(CHECK_NULL); // allocate instance
-  vk->initialize(CHECK_NULL); // If field is a default value, value class might not be initialized yet
-  vk->value_copy_payload_to_new_oop(((address)(oopDesc*)base_h()) + offset, v);
+  oop v = vk->read_flattened_field(base_h(), offset, CHECK_NULL);
   return JNIHandles::make_local(env, v);
 } UNSAFE_END
 
@@ -379,7 +377,7 @@ UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlo
   assert(!base->is_value() || base->mark().is_larval_state(), "must be an object instance or a larval value");
   assert_and_log_unsafe_value_access(base, offset, vk);
   oop v = JNIHandles::resolve(value);
-  vk->value_copy_oop_to_payload(v, ((address)(oopDesc*)base) + offset);
+  vk->write_flattened_field(base, offset, v, CHECK);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {

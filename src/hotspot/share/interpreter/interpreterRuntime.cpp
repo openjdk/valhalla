@@ -323,6 +323,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
   ResourceMark rm(THREAD);
   const char* signature = (const char *) field_signature->as_utf8();
   BasicType field_type = char2type(signature[0]);
+  int return_offset = (type2size[field_type] + type2size[T_OBJECT]) * AbstractInterpreter::stackElementSize;
 
   // Getting old value
   frame& f = last_frame.get_frame();
@@ -346,20 +347,14 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
   } else if (field_type == T_VALUETYPE) {
     if (cp_entry->is_flattened()) {
       oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      if (vt_oop == NULL) {
-        THROW_(vmSymbols::java_lang_NullPointerException(),
-            (type2size[field_type] * AbstractInterpreter::stackElementSize));
-      }
       assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_value(),"argument must be a value type");
-      Klass* field_k = vklass->get_value_field_klass(field_index);
-      ValueKlass* field_vk = ValueKlass::cast(field_k);
-      assert(field_vk == vt_oop->klass(), "Must match");
-      field_vk->value_copy_oop_to_new_payload(vt_oop, ((char*)(oopDesc*)new_value_h()) + field_offset);
+      ValueKlass* field_vk = ValueKlass::cast(vklass->get_value_field_klass(field_index));
+      assert(vt_oop != NULL && field_vk == vt_oop->klass(), "Must match");
+      field_vk->write_flattened_field(new_value_h(), offset, vt_oop, CHECK_(return_offset));
     } else { // not flattened
       oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
       if (voop == NULL && cp_entry->is_flattenable()) {
-        THROW_(vmSymbols::java_lang_NullPointerException(),
-            (type2size[field_type] * AbstractInterpreter::stackElementSize));
+        THROW_(vmSymbols::java_lang_NullPointerException(), return_offset);
       }
       assert(voop == NULL || oopDesc::is_oop(voop),"checking argument");
       new_value_h()->obj_field_put(field_offset, voop);
@@ -371,7 +366,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
 
   // returning result
   thread->set_vm_result(new_value_h());
-  return (type2size[field_type] + type2size[T_OBJECT]) * AbstractInterpreter::stackElementSize;
+  return return_offset;
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread* thread, oopDesc* mirror, int index))
@@ -435,14 +430,13 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_instance_value_field(JavaThrea
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::write_flattened_value(JavaThread* thread, oopDesc* value, int offset, oopDesc* rcv))
+  assert(value != NULL, "Sanity check");
   assert(oopDesc::is_oop(value), "Sanity check");
   assert(oopDesc::is_oop(rcv), "Sanity check");
   assert(value->is_value(), "Sanity check");
 
   ValueKlass* vklass = ValueKlass::cast(value->klass());
-  if (!vklass->is_empty_value()) {
-    vklass->value_copy_oop_to_payload(value, ((char*)(oopDesc*)rcv) + offset);
-  }
+  vklass->write_flattened_field(rcv, offset, value, CHECK);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::read_flattened_field(JavaThread* thread, oopDesc* obj, int index, Klass* field_holder))
@@ -458,14 +452,7 @@ JRT_ENTRY(void, InterpreterRuntime::read_flattened_field(JavaThread* thread, oop
   ValueKlass* field_vklass = ValueKlass::cast(klass->get_value_field_klass(index));
   assert(field_vklass->is_initialized(), "Must be initialized at this point");
 
-  instanceOop res = NULL;
-  if (field_vklass->is_empty_value()) {
-    res = (instanceOop)field_vklass->default_value();
-  } else {
-    res = field_vklass->allocate_instance(CHECK);
-    field_vklass->value_copy_payload_to_new_oop(((char*)(oopDesc*)obj_h()) + klass->field_offset(index), res);
-  }
-  assert(res != NULL, "Must be set in one of two paths above");
+  oop res = field_vklass->read_flattened_field(obj_h(), klass->field_offset(index), CHECK);
   thread->set_vm_result(res);
 JRT_END
 
@@ -1482,6 +1469,7 @@ ConstantPoolCacheEntry *cp_entry))
   if ((ik->field_access_flags(index) & JVM_ACC_FIELD_ACCESS_WATCHED) == 0) return;
 
   bool is_static = (obj == NULL);
+  bool is_flattened = cp_entry->is_flattened();
   HandleMark hm(thread);
 
   Handle h_obj;
@@ -1490,7 +1478,7 @@ ConstantPoolCacheEntry *cp_entry))
     h_obj = Handle(thread, obj);
   }
   InstanceKlass* cp_entry_f1 = InstanceKlass::cast(cp_entry->f1_as_klass());
-  jfieldID fid = jfieldIDWorkaround::to_jfieldID(cp_entry_f1, cp_entry->f2_as_index(), is_static);
+  jfieldID fid = jfieldIDWorkaround::to_jfieldID(cp_entry_f1, cp_entry->f2_as_index(), is_static, is_flattened);
   LastFrameAccessor last_frame(thread);
   JvmtiExport::post_field_access(thread, last_frame.method(), last_frame.bcp(), cp_entry_f1, h_obj, fid);
 JRT_END
@@ -1527,9 +1515,10 @@ JRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread *thread,
   }
 
   bool is_static = (obj == NULL);
+  bool is_flattened = cp_entry->is_flattened();
 
   HandleMark hm(thread);
-  jfieldID fid = jfieldIDWorkaround::to_jfieldID(ik, cp_entry->f2_as_index(), is_static);
+  jfieldID fid = jfieldIDWorkaround::to_jfieldID(ik, cp_entry->f2_as_index(), is_static, is_flattened);
   jvalue fvalue;
 #ifdef _LP64
   fvalue = *value;

@@ -315,6 +315,17 @@ class VirtualMachineImpl extends MirrorImpl
         return Collections.unmodifiableList(modules);
     }
 
+     List<ReferenceType> classesBySignature(String signature) {
+        validateVM();
+        List<ReferenceType> list;
+        if (retrievedAllTypes) {
+            list = findReferenceTypes(signature);
+        } else {
+            list = retrieveClassesBySignature(signature);
+        }
+        return Collections.unmodifiableList(list);
+    }
+
     public List<ReferenceType> classesByName(String className) {
         validateVM();
         String signature = JNITypeParser.typeNameToSignature(className);
@@ -1394,6 +1405,7 @@ class VirtualMachineImpl extends MirrorImpl
         if (object == null) {
             switch (tag) {
                 case JDWP.Tag.OBJECT:
+                case JDWP.Tag.INLINE_OBJECT:
                     object = new ObjectReferenceImpl(vm, id);
                     break;
                 case JDWP.Tag.STRING:

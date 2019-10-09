@@ -524,6 +524,7 @@ setValues(PacketInputStream *in, PacketOutputStream *out)
         switch (componentSignature[0]) {
             case JDWP_TAG(OBJECT):
             case JDWP_TAG(ARRAY):
+	    case JDWP_TAG(INLINE_OBJECT):
                 serror = readObjectComponents(env, in, array, index, length);
                 break;
 

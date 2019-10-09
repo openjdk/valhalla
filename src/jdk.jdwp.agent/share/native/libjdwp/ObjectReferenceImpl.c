@@ -76,6 +76,7 @@ readFieldValue(JNIEnv *env, PacketInputStream *in, jclass clazz,
     switch (signature[0]) {
         case JDWP_TAG(ARRAY):
         case JDWP_TAG(OBJECT):
+	case JDWP_TAG(INLINE_OBJECT):
             value.l = inStream_readObjectRef(env, in);
             JNI_FUNC_PTR(env,SetObjectField)(env, object, field, value.l);
             break;

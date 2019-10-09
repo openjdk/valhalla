@@ -851,7 +851,7 @@ saveEventInfoRefs(JNIEnv *env, EventInfo *evinfo)
                 saveGlobalRef(env, clazz, pclazz);
             }
             sig = evinfo->u.field_modification.signature_type;
-            if ((sig == JDWP_TAG(ARRAY)) || (sig == JDWP_TAG(OBJECT))) {
+            if ((sig == JDWP_TAG(ARRAY)) || (sig == JDWP_TAG(OBJECT)) || (sig == JDWP_TAG(INLINE_OBJECT))) {
                 if ( evinfo->u.field_modification.new_value.l != NULL ) {
                     pobject = &(evinfo->u.field_modification.new_value.l);
                     object = *pobject;
@@ -904,7 +904,7 @@ tossEventInfoRefs(JNIEnv *env, EventInfo *evinfo)
                 tossGlobalRef(env, &(evinfo->u.field_modification.field_clazz));
             }
             sig = evinfo->u.field_modification.signature_type;
-            if ((sig == JDWP_TAG(ARRAY)) || (sig == JDWP_TAG(OBJECT))) {
+            if ((sig == JDWP_TAG(ARRAY)) || (sig == JDWP_TAG(OBJECT)) || (sig == JDWP_TAG(INLINE_OBJECT))) {
                 if ( evinfo->u.field_modification.new_value.l != NULL ) {
                     tossGlobalRef(env, &(evinfo->u.field_modification.new_value.l));
                 }
