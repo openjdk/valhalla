@@ -990,11 +990,11 @@ LEAF(LoadIndexed, AccessIndexed)
   ciType* exact_type() const;
   ciType* declared_type() const;
 
-  NewValueTypeInstance* vt() { return _vt; }
+  NewValueTypeInstance* vt() const { return _vt; }
   void set_vt(NewValueTypeInstance* vt) { _vt = vt; }
 
   // generic
-  HASHING2(LoadIndexed, true, array()->subst(), index()->subst())
+  HASHING3(LoadIndexed, true, array()->subst(), index()->subst(), vt())
 };
 
 

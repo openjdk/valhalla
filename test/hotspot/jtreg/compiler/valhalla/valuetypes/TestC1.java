@@ -106,4 +106,27 @@ public class TestC1 extends ValueTypeTest {
         Asserts.assertEQ(r1, 0x5678123456781234L);
         Asserts.assertEQ(r2, 0x1234567812345678L);
     }
+
+    static inline class SimpleValue2 {
+        final int value;
+        SimpleValue2(int value) {
+            this.value = value;
+        }
+    }
+
+    // JDK-8231961
+    // Test that the value numbering optimization does not remove
+    // the second load from the buffered array element.
+    @Test(compLevel=C1)
+    public int test2(SimpleValue2[] array) {
+        return array[0].value + array[0].value;
+    }
+
+    @DontCompile
+    public void test2_verifier(boolean warmup) {
+        SimpleValue2[] array = new SimpleValue2[1];
+        array[0] = new SimpleValue2(rI);
+        int result = test2(array);
+        Asserts.assertEQ(result, 2*rI);
+    }
 }
