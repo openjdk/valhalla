@@ -441,21 +441,22 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   }
 #endif
 
-  Handle vt;
+  jobject value_buffer = NULL;
   if (ValueTypeReturnedAsFields && result->get_type() == T_VALUETYPE) {
     // Pre allocate buffered value in case the result is returned
     // flattened by compiled code
     ValueKlass* vk = method->returned_value_type(thread);
-    vt = vk->allocate_instance_handle(CHECK);
+    if (vk->can_be_returned_as_fields()) {
+      oop instance = vk->allocate_instance(CHECK);
+      value_buffer = JNIHandles::make_local(thread, instance);
+      result->set_jobject(value_buffer);
+    }
   }
 
   // do call
   { JavaCallWrapper link(method, receiver, result, CHECK);
     { HandleMark hm(thread);  // HandleMark used by HandleMarkCleaner
 
-      if (vt() != NULL) {
-        result->set_jobject((jobject)vt());
-      }
       // NOTE: if we move the computation of the result_val_address inside
       // the call to call_stub, the optimizer produces wrong code.
       intptr_t* result_val_address = (intptr_t*)(result->get_value_addr());
@@ -489,6 +490,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   if (oop_result_flag) {
     result->set_jobject((jobject)thread->vm_result());
     thread->set_vm_result(NULL);
+    JNIHandles::destroy_local(value_buffer);
   }
 }
 

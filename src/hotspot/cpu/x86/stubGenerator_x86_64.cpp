@@ -419,12 +419,17 @@ class StubGenerator: public StubCodeGenerator {
       // Check for flattened return value
       __ testptr(rax, 1);
       __ jcc(Assembler::zero, is_long);
-      // Initialize pre-allocated buffer
-      __ mov(rbx, rax);
-      __ andptr(rbx, -2);
-      __ movptr(rbx, Address(rbx, InstanceKlass::adr_valueklass_fixed_block_offset()));
-      __ movptr(rbx, Address(rbx, ValueKlass::pack_handler_offset()));
+      // Load pack handler address
+      __ andptr(rax, -2);
+      __ movptr(rax, Address(rax, InstanceKlass::adr_valueklass_fixed_block_offset()));
+      __ movptr(rbx, Address(rax, ValueKlass::pack_handler_offset()));
+      // Resolve pre-allocated buffer from JNI handle
       __ movptr(rax, Address(r13, 0));
+      __ resolve_jobject(rax /* value */,
+                         r15_thread /* thread */,
+                         r12 /* tmp */);
+      __ movptr(Address(r13, 0), rax);
+      // Call pack handler to initialize the buffer
       __ call(rbx);
       __ jmp(exit);
     }

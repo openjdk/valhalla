@@ -741,4 +741,22 @@ public class TestCallingConvention extends ValueTypeTest {
         long result = test35(vt, rI, rI, rI, rI);
         Asserts.assertEQ(result, vt.hash()+10004*rI);
     }
+
+    // Same as test31 but with GC in callee to verify that the
+    // pre-allocated buffer for the returned inline type remains valid.
+    MyValue3 test36_vt;
+
+    @Test
+    public MyValue3 test36() {
+        MyValue3 result = MyValue3.create();
+        test36_vt = result;
+        System.gc();
+        return result;
+    }
+
+    @DontCompile
+    public void test36_verifier(boolean warmup) throws Exception {
+        MyValue3 vt = (MyValue3)TestCallingConvention.class.getDeclaredMethod("test36").invoke(this);
+        test36_vt.verify(vt);
+    }
 }
