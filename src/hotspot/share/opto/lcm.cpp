@@ -313,7 +313,11 @@ void PhaseCFG::implicit_null_check(Block* block, Node *proj, Node *val, int allo
         if( is_decoden ) continue;
       }
       // Block of memory-op input
-      Block *inb = get_block_for_node(mach->in(j));
+      Block* inb = get_block_for_node(mach->in(j));
+      if (mach->in(j)->is_Con() && inb == get_block_for_node(mach)) {
+        // Ignore constant loads scheduled in the same block (we can simply hoist them as well)
+        continue;
+      }
       Block *b = block;          // Start from nul check
       while( b != inb && b->_dom_depth > inb->_dom_depth )
         b = b->_idom;           // search upwards for input
@@ -389,7 +393,28 @@ void PhaseCFG::implicit_null_check(Block* block, Node *proj, Node *val, int allo
         }
       }
     }
+  } else {
+    // Hoist constant load inputs as well.
+    for (uint i = 1; i < best->req(); ++i) {
+      Node* n = best->in(i);
+      if (n->is_Con() && get_block_for_node(n) == get_block_for_node(best)) {
+        get_block_for_node(n)->find_remove(n);
+        block->add_inst(n);
+        map_node_to_block(n, block);
+        // Constant loads may kill flags (for example, when XORing a register).
+        // Check for flag-killing projections that also need to be hoisted.
+        for (DUIterator_Fast jmax, j = n->fast_outs(jmax); j < jmax; j++) {
+          Node* proj = n->fast_out(j);
+          if (proj->is_MachProj()) {
+            get_block_for_node(proj)->find_remove(proj);
+            block->add_inst(proj);
+            map_node_to_block(proj, block);
+          }
+        }
+      }
+    }
   }
+
   // Hoist the memory candidate up to the end of the test block.
   Block *old_block = get_block_for_node(best);
   old_block->find_remove(best);

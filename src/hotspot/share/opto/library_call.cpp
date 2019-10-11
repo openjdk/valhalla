@@ -185,7 +185,6 @@ class LibraryCallKit : public GraphKit {
                                     int modifier_mask, int modifier_bits,
                                     RegionNode* region);
   Node* generate_interface_guard(Node* kls, RegionNode* region);
-  Node* generate_value_guard(Node* kls, RegionNode* region);
 
   enum ArrayKind {
     AnyArray,
@@ -3415,10 +3414,6 @@ Node* LibraryCallKit::generate_interface_guard(Node* kls, RegionNode* region) {
   return generate_access_flags_guard(kls, JVM_ACC_INTERFACE, 0, region);
 }
 
-Node* LibraryCallKit::generate_value_guard(Node* kls, RegionNode* region) {
-  return generate_access_flags_guard(kls, JVM_ACC_VALUE, 0, region);
-}
-
 //-------------------------inline_native_Class_query-------------------
 bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
   const Type* return_type = TypeInt::BOOL;
@@ -4347,13 +4342,6 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   RegionNode* slow_region = new RegionNode(1);
   record_for_igvn(slow_region);
 
-  const TypeOopPtr* obj_type = _gvn.type(obj)->is_oopptr();
-  assert(!obj_type->isa_valuetype() || !obj_type->is_valuetypeptr(), "no value type here");
-  if (is_static && obj_type->can_be_value_type()) {
-    Node* obj_klass = load_object_klass(obj);
-    generate_value_guard(obj_klass, slow_region);
-  }
-
   // If this is a virtual call, we generate a funny guard.  We pull out
   // the vtable entry corresponding to hashCode() from the target object.
   // If the target method which we are calling happens to be the native
@@ -4374,6 +4362,7 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
   Node* header = make_load(no_ctrl, header_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
 
   // Test the header to see if it is unlocked.
+  // This also serves as guard against value types (they have the always_locked_pattern set).
   Node *lock_mask      = _gvn.MakeConX(markWord::biased_lock_mask_in_place);
   Node *lmasked_header = _gvn.transform(new AndXNode(header, lock_mask));
   Node *unlocked_val   = _gvn.MakeConX(markWord::unlocked_value);

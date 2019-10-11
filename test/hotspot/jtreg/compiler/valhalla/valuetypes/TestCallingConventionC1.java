@@ -2272,92 +2272,91 @@ public class TestCallingConventionC1 extends ValueTypeTest {
 
     /*** FIXME: disabled due to occassional timeout in mach5 testing. See JDK-8230408
 
-
     // C2->C1 invokeinterface -- C2 calls call Unverified Entry of MyImplVal2X.func1 (compiled by
     //                           C1, with VVEP_RO==VVEP)
     // This test is developed to validate JDK-8230325.
     @Test() @Warmup(0) @OSRCompileOnly
-    public int test115(Intf intf, int a, int b) {
+    public int test107(Intf intf, int a, int b) {
         return intf.func1(a, b);
     }
 
     @ForceCompile
-    public void test115_verifier(boolean warmup) {
+    public void test107_verifier(boolean warmup) {
         Intf intf1 = new MyImplVal1X();
         Intf intf2 = new MyImplVal2X();
 
         for (int i=0; i<1000; i++) {
-            test115(intf1, 123, 456);
+            test107(intf1, 123, 456);
         }
         for (int i=0; i<500000; i++) {
-            // Run enough loops so that test115 will be compiled by C2.
+            // Run enough loops so that test107 will be compiled by C2.
             if (i % 30 == 0) {
                 // This will indirectly call MyImplVal2X.func1, but the call frequency is low, so
-                // test115 will be compiled by C2, but MyImplVal2X.func1 will compiled by C1 only.
-                int result = test115(intf2, 123, 456) + i;
+                // test107 will be compiled by C2, but MyImplVal2X.func1 will compiled by C1 only.
+                int result = test107(intf2, 123, 456) + i;
                 Asserts.assertEQ(result, intf2.func1(123, 456) + i);
             } else {
-                // Call test115 with a mix of intf1 and intf2, so C2 will use a virtual call (not an optimized call)
-                // for the invokeinterface bytecode in test115.
-                test115(intf1, 123, 456);
+                // Call test107 with a mix of intf1 and intf2, so C2 will use a virtual call (not an optimized call)
+                // for the invokeinterface bytecode in test107.
+                test107(intf1, 123, 456);
             }
         }
     }
 
-    // Same as test115, except we call MyImplVal2X.func2 (compiled by C1, VVEP_RO != VVEP)
+    // Same as test107, except we call MyImplVal2X.func2 (compiled by C1, VVEP_RO != VVEP)
     @Test() @Warmup(0) @OSRCompileOnly
-    public int test116(Intf intf, int a, int b) {
+    public int test108(Intf intf, int a, int b) {
         return intf.func2(a, b, pointField);
     }
 
     @ForceCompile
-    public void test116_verifier(boolean warmup) {
+    public void test108_verifier(boolean warmup) {
         Intf intf1 = new MyImplVal1X();
         Intf intf2 = new MyImplVal2X();
 
         for (int i=0; i<1000; i++) {
-            test116(intf1, 123, 456);
+            test108(intf1, 123, 456);
         }
         for (int i=0; i<500000; i++) {
-            // Run enough loops so that test116 will be compiled by C2.
+            // Run enough loops so that test108 will be compiled by C2.
             if (i % 30 == 0) {
                 // This will indirectly call MyImplVal2X.func2, but the call frequency is low, so
-                // test116 will be compiled by C2, but MyImplVal2X.func2 will compiled by C1 only.
-                int result = test116(intf2, 123, 456) + i;
+                // test108 will be compiled by C2, but MyImplVal2X.func2 will compiled by C1 only.
+                int result = test108(intf2, 123, 456) + i;
                 Asserts.assertEQ(result, intf2.func2(123, 456, pointField) + i);
             } else {
-                // Call test116 with a mix of intf1 and intf2, so C2 will use a virtual call (not an optimized call)
-                // for the invokeinterface bytecode in test116.
-                test116(intf1, 123, 456);
+                // Call test108 with a mix of intf1 and intf2, so C2 will use a virtual call (not an optimized call)
+                // for the invokeinterface bytecode in test108.
+                test108(intf1, 123, 456);
             }
         }
     }
 
     // Same as test115, except we call MyImplPojo3.func2 (compiled by C1, VVEP_RO == VEP)
     @Test() @Warmup(0) @OSRCompileOnly
-    public int test117(Intf intf, int a, int b) {
+    public int test109(Intf intf, int a, int b) {
         return intf.func2(a, b, pointField);
     }
 
     @ForceCompile
-    public void test117_verifier(boolean warmup) {
+    public void test109_verifier(boolean warmup) {
         Intf intf1 = new MyImplPojo0();
         Intf intf2 = new MyImplPojo3();
 
         for (int i=0; i<1000; i++) {
-            test117(intf1, 123, 456);
+            test109(intf1, 123, 456);
         }
         for (int i=0; i<500000; i++) {
-            // Run enough loops so that test117 will be compiled by C2.
+            // Run enough loops so that test109 will be compiled by C2.
             if (i % 30 == 0) {
                 // This will indirectly call MyImplPojo3.func2, but the call frequency is low, so
-                // test117 will be compiled by C2, but MyImplPojo3.func2 will compiled by C1 only.
-                int result = test117(intf2, 123, 456) + i;
+                // test109 will be compiled by C2, but MyImplPojo3.func2 will compiled by C1 only.
+                int result = test109(intf2, 123, 456) + i;
                 Asserts.assertEQ(result, intf2.func2(123, 456, pointField) + i);
             } else {
-                // Call test117 with a mix of intf1 and intf2, so C2 will use a virtual call (not an optimized call)
-                // for the invokeinterface bytecode in test117.
-                test117(intf1, 123, 456);
+                // Call test109 with a mix of intf1 and intf2, so C2 will use a virtual call (not an optimized call)
+                // for the invokeinterface bytecode in test109.
+                test109(intf1, 123, 456);
             }
         }
     }

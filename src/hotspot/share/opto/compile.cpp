@@ -3424,10 +3424,13 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
       assert( !tp || oop_offset_is_sane(tp), "" );
     }
 #endif
-    if (EnableValhalla && (nop == Op_LoadKlass || nop == Op_LoadNKlass)) {
+    if (EnableValhalla &&
+        ((nop == Op_LoadKlass && ((LoadKlassNode*)n)->clear_prop_bits()) ||
+         (nop == Op_LoadNKlass && ((LoadNKlassNode*)n)->clear_prop_bits()))) {
       const TypeKlassPtr* tk = n->bottom_type()->make_ptr()->is_klassptr();
       assert(!tk->klass_is_exact(), "should have been folded");
-      if (tk->klass()->can_be_value_array_klass() && n->as_Mem()->adr_type()->offset() == oopDesc::klass_offset_in_bytes()) {
+      assert(n->as_Mem()->adr_type()->offset() == oopDesc::klass_offset_in_bytes(), "unexpected LoadKlass");
+      if (tk->klass()->can_be_value_array_klass()) {
         // Array load klass needs to filter out property bits (but not
         // GetNullFreePropertyNode or GetFlattenedPropertyNode which
         // needs to extract the storage property bits)

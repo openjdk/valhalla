@@ -159,9 +159,9 @@ void Parse::array_load(BasicType bt) {
         alloc_obj = _gvn.transform(alloc_obj);
 
         const Type* unknown_value = TypeInstPtr::BOTTOM->cast_to_flat_array();
-        
+
         alloc_obj = _gvn.transform(new CheckCastPPNode(control(), alloc_obj, unknown_value));
-        
+
         ideal.sync_kit(this);
 
         ideal.set(res, alloc_obj);
@@ -1925,7 +1925,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
     return;
   }
 
-  // Substitutability test
+  // Allocate value type operands
   if (a->is_ValueType()) {
     inc_sp(2);
     a = a->as_ValueType()->allocate(this, true)->get_oop();
@@ -1937,19 +1937,17 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
     dec_sp(2);
   }
 
+  // First, do a normal pointer comparison
   const TypeOopPtr* ta = _gvn.type(a)->isa_oopptr();
   const TypeOopPtr* tb = _gvn.type(b)->isa_oopptr();
-
+  Node* cmp = CmpP(a, b);
+  cmp = optimize_cmp_with_klass(cmp);
   if (ta == NULL || !ta->can_be_value_type_raw() ||
       tb == NULL || !tb->can_be_value_type_raw()) {
-    Node* cmp = CmpP(a, b);
-    cmp = optimize_cmp_with_klass(cmp);
+    // This is sufficient, if one of the operands can't be a value type
     do_if(btest, cmp);
     return;
   }
-
-  Node* cmp = CmpP(a, b);
-  cmp = optimize_cmp_with_klass(cmp);
   Node* eq_region = NULL;
   if (btest == BoolTest::eq) {
     do_if(btest, cmp, true);
@@ -1974,7 +1972,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
     }
     set_control(is_not_equal);
   }
-  // Pointers not equal, check for values
+
+  // Pointers are not equal, check if first operand is non-null
   Node* ne_region = new RegionNode(6);
   inc_sp(2);
   Node* null_ctl = top();
@@ -1996,17 +1995,14 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
     return;
   }
 
+  // First operand is non-null, check if it is a value type
   Node* is_value = is_always_locked(not_null_a);
-  Node* value_mask = _gvn.MakeConX(markWord::always_locked_pattern);
-  Node* is_value_cmp = _gvn.transform(new CmpXNode(is_value, value_mask));
-  Node* is_value_bol = _gvn.transform(new BoolNode(is_value_cmp, BoolTest::ne));
-  IfNode* is_value_iff = create_and_map_if(control(), is_value_bol, PROB_FAIR, COUNT_UNKNOWN);
-  Node* not_value = _gvn.transform(new IfTrueNode(is_value_iff));
-  set_control(_gvn.transform(new IfFalseNode(is_value_iff)));
+  IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
+  Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
   ne_region->init_req(2, not_value);
+  set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
 
-  // One of the 2 pointers refers to a value, check if both are of
-  // the same class
+  // The first operand is a value type, check if the second operand is non-null
   inc_sp(2);
   null_ctl = top();
   Node* not_null_b = null_check_oop(b, &null_ctl, !too_many_traps(Deoptimization::Reason_null_check), false, false);
@@ -2026,8 +2022,11 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
     }
     return;
   }
-  Node* kls_a = load_object_klass(not_null_a);
-  Node* kls_b = load_object_klass(not_null_b);
+
+  // Check if both operands are of the same class. We don't need to clear the array property
+  // bits in the klass pointer for the cmp because we know that the first operand is a value type.
+  Node* kls_a = load_object_klass(not_null_a, /* clear_prop_bits = */ false);
+  Node* kls_b = load_object_klass(not_null_b, /* clear_prop_bits = */ false);
   Node* kls_cmp = CmpP(kls_a, kls_b);
   Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
   IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
@@ -2049,10 +2048,9 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
     }
     return;
   }
-  // Both are values of the same class, we need to perform a
-  // substitutability test. Delegate to
-  // ValueBootstrapMethods::isSubstitutable().
 
+  // Both operands are values types of the same class, we need to perform a
+  // substitutability test. Delegate to ValueBootstrapMethods::isSubstitutable().
   Node* ne_io_phi = PhiNode::make(ne_region, i_o());
   Node* mem = reset_memory();
   Node* ne_mem_phi = PhiNode::make(ne_region, mem);

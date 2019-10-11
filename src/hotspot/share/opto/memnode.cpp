@@ -2188,19 +2188,20 @@ const Type* LoadSNode::Value(PhaseGVN* phase) const {
 //=============================================================================
 //----------------------------LoadKlassNode::make------------------------------
 // Polymorphic factory method:
-Node* LoadKlassNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypePtr* at, const TypeKlassPtr* tk) {
+Node* LoadKlassNode::make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypePtr* at,
+                          const TypeKlassPtr* tk, bool clear_prop_bits) {
   // sanity check the alias category against the created node type
   const TypePtr *adr_type = adr->bottom_type()->isa_ptr();
   assert(adr_type != NULL, "expecting TypeKlassPtr");
 #ifdef _LP64
   if (adr_type->is_ptr_to_narrowklass()) {
     assert(UseCompressedClassPointers, "no compressed klasses");
-    Node* load_klass = gvn.transform(new LoadNKlassNode(ctl, mem, adr, at, tk->make_narrowklass(), MemNode::unordered));
+    Node* load_klass = gvn.transform(new LoadNKlassNode(ctl, mem, adr, at, tk->make_narrowklass(), MemNode::unordered, clear_prop_bits));
     return new DecodeNKlassNode(load_klass, load_klass->bottom_type()->make_ptr());
   }
 #endif
   assert(!adr_type->is_ptr_to_narrowklass() && !adr_type->is_ptr_to_narrowoop(), "should have got back a narrow oop");
-  return new LoadKlassNode(ctl, mem, adr, at, tk, MemNode::unordered);
+  return new LoadKlassNode(ctl, mem, adr, at, tk, MemNode::unordered, clear_prop_bits);
 }
 
 //------------------------------Value------------------------------------------

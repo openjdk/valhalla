@@ -2351,4 +2351,41 @@ public class TestLWorld extends ValueTypeTest {
         int result = test94(array);
         Asserts.assertEquals(result, 0x42 * 2);
     }
+
+    // Test that no code for clearing the array klass property bits is emitted for acmp
+    // because when loading the klass, we already know that the operand is a value type.
+    @Warmup(10000)
+    @Test(failOn = STORAGE_PROPERTY_CLEARING)
+    public boolean test95(Object o1, Object o2) {
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test95_verifier(boolean warmup) {
+        Object o1 = new Object();
+        Object o2 = new Object();
+        Asserts.assertTrue(test95(o1, o1));
+        Asserts.assertTrue(test95(null, null));
+        Asserts.assertFalse(test95(o1, null));
+        Asserts.assertFalse(test95(o1, o2));
+    }
+
+    // Same as test95 but operands are never null
+    @Warmup(10000)
+    @Test(failOn = STORAGE_PROPERTY_CLEARING)
+    public boolean test96(Object o1, Object o2) {
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test96_verifier(boolean warmup) {
+        Object o1 = new Object();
+        Object o2 = new Object();
+        Asserts.assertTrue(test96(o1, o1));
+        Asserts.assertFalse(test96(o1, o2));
+        if (!warmup) {
+            Asserts.assertTrue(test96(null, null));
+            Asserts.assertFalse(test96(o1, null));
+        }
+    }
 }

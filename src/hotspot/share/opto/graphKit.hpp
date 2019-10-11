@@ -342,7 +342,7 @@ class GraphKit : public Phase {
   Node* ConvI2UL(Node* offset);
   Node* ConvL2I(Node* offset);
   // Find out the klass of an object.
-  Node* load_object_klass(Node* object);
+  Node* load_object_klass(Node* object, bool clear_prop_bits = true);
   // Find out the length of an array.
   Node* load_array_length(Node* array);
 
@@ -858,7 +858,6 @@ class GraphKit : public Phase {
 
   Node* is_always_locked(Node* obj);
   Node* is_value_mirror(Node* mirror);
-  void gen_value_type_guard(Node* obj, int nargs = 0);
   Node* gen_null_free_array_check(Node* ary);
   Node* gen_flattened_array_test(Node* ary);
   Node* gen_value_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace = false);

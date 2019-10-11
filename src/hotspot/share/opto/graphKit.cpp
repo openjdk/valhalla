@@ -1174,12 +1174,12 @@ Node* GraphKit::ConvL2I(Node* offset) {
 }
 
 //-------------------------load_object_klass-----------------------------------
-Node* GraphKit::load_object_klass(Node* obj) {
+Node* GraphKit::load_object_klass(Node* obj, bool clear_prop_bits) {
   // Special-case a fresh allocation to avoid building nodes:
   Node* akls = AllocateNode::Ideal_klass(obj, &_gvn);
   if (akls != NULL)  return akls;
   Node* k_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
-  return _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS));
+  return _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, clear_prop_bits));
 }
 
 //-------------------------load_array_length-----------------------------------
@@ -3461,8 +3461,10 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
 Node* GraphKit::is_always_locked(Node* obj) {
   Node* mark_addr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
-  Node* value_mask = _gvn.MakeConX(markWord::always_locked_pattern);
-  return _gvn.transform(new AndXNode(mark, value_mask));
+  Node* mask = _gvn.MakeConX(markWord::always_locked_pattern);
+  Node* andx = _gvn.transform(new AndXNode(mark, mask));
+  Node* cmp = _gvn.transform(new CmpXNode(andx, mask));
+  return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
 }
 
 Node* GraphKit::is_value_mirror(Node* mirror) {
@@ -3470,25 +3472,6 @@ Node* GraphKit::is_value_mirror(Node* mirror) {
   Node* inline_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
   Node* cmp = _gvn.transform(new CmpPNode(mirror, inline_mirror));
   return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
-}
-
-// Deoptimize if 'obj' is a value type
-void GraphKit::gen_value_type_guard(Node* obj, int nargs) {
-  assert(EnableValhalla, "should only be used if value types are enabled");
-  Node* bol = NULL;
-  if (obj->is_ValueTypeBase()) {
-    bol = intcon(0);
-  } else {
-    Node* is_value = is_always_locked(obj);
-    Node* value_mask = _gvn.MakeConX(markWord::always_locked_pattern);
-    Node* cmp = _gvn.transform(new CmpXNode(is_value, value_mask));
-    bol = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
-  }
-  { BuildCutout unless(this, bol, PROB_MAX);
-    inc_sp(nargs);
-    uncommon_trap(Deoptimization::Reason_class_check,
-                  Deoptimization::Action_none);
-  }
 }
 
 // Check if 'ary' is a null-free value type array
@@ -3499,9 +3482,9 @@ Node* GraphKit::gen_null_free_array_check(Node* ary) {
   const TypePtr* k_adr_type = k_adr->bottom_type()->isa_ptr();
   Node* klass = NULL;
   if (k_adr_type->is_ptr_to_narrowklass()) {
-    klass = _gvn.transform(new LoadNKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT->make_narrowklass(), MemNode::unordered));
+    klass = _gvn.transform(new LoadNKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT->make_narrowklass(), MemNode::unordered, true));
   } else {
-    klass = _gvn.transform(new LoadKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, MemNode::unordered));
+    klass = _gvn.transform(new LoadKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, MemNode::unordered, true));
   }
   Node* null_free = _gvn.transform(new GetNullFreePropertyNode(klass));
   Node* cmp = NULL;
@@ -3520,9 +3503,9 @@ Node* GraphKit::gen_flattened_array_test(Node* ary) {
   const TypePtr* k_adr_type = k_adr->bottom_type()->isa_ptr();
   Node* klass = NULL;
   if (k_adr_type->is_ptr_to_narrowklass()) {
-    klass = _gvn.transform(new LoadNKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT->make_narrowklass(), MemNode::unordered));
+    klass = _gvn.transform(new LoadNKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT->make_narrowklass(), MemNode::unordered, true));
   } else {
-    klass = _gvn.transform(new LoadKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, MemNode::unordered));
+    klass = _gvn.transform(new LoadKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, MemNode::unordered, true));
   }
   return _gvn.transform(new GetFlattenedPropertyNode(klass));
 }
