@@ -993,18 +993,6 @@ void LoopNode::verify_strip_mined(int expect_skeleton) const {
       }
     }
 
-    if (UseZGC && !inner_out->in(0)->is_CountedLoopEnd()) {
-      // In some very special cases there can be a load that has no other uses than the
-      // counted loop safepoint. Then its loadbarrier will be placed between the inner
-      // loop exit and the safepoint. This is very rare
-
-      Node* ifnode = inner_out->in(1)->in(0);
-      // Region->IfTrue->If == Region->Iffalse->If
-      if (ifnode == inner_out->in(2)->in(0)) {
-        inner_out = ifnode->in(0);
-      }
-    }
-
     CountedLoopEndNode* cle = inner_out->in(0)->as_CountedLoopEnd();
     assert(cle == inner->loopexit_or_null(), "mismatch");
     bool has_skeleton = outer_le->in(1)->bottom_type()->singleton() && outer_le->in(1)->bottom_type()->is_int()->get_con() == 0;
@@ -4049,28 +4037,32 @@ Node *PhaseIdealLoop::get_late_ctrl( Node *n, Node *early ) {
   // dominated by early is considered a potentially interfering store.
   // This can produce false positives.
   if (n->is_Load() && LCA != early) {
-    Node_List worklist;
+    int load_alias_idx = C->get_alias_index(n->adr_type());
+    if (C->alias_type(load_alias_idx)->is_rewritable()) {
 
-    Node *mem = n->in(MemNode::Memory);
-    for (DUIterator_Fast imax, i = mem->fast_outs(imax); i < imax; i++) {
-      Node* s = mem->fast_out(i);
-      worklist.push(s);
-    }
-    while(worklist.size() != 0 && LCA != early) {
-      Node* s = worklist.pop();
-      if (s->is_Load() || s->Opcode() == Op_SafePoint ||
-          (s->is_CallStaticJava() && s->as_CallStaticJava()->uncommon_trap_request() != 0)) {
-        continue;
-      } else if (s->is_MergeMem()) {
-        for (DUIterator_Fast imax, i = s->fast_outs(imax); i < imax; i++) {
-          Node* s1 = s->fast_out(i);
-          worklist.push(s1);
-        }
-      } else {
-        Node *sctrl = has_ctrl(s) ? get_ctrl(s) : s->in(0);
-        assert(sctrl != NULL || s->outcnt() == 0, "must have control");
-        if (sctrl != NULL && !sctrl->is_top() && is_dominator(early, sctrl)) {
-          LCA = dom_lca_for_get_late_ctrl(LCA, sctrl, n);
+      Node_List worklist;
+
+      Node *mem = n->in(MemNode::Memory);
+      for (DUIterator_Fast imax, i = mem->fast_outs(imax); i < imax; i++) {
+        Node* s = mem->fast_out(i);
+        worklist.push(s);
+      }
+      while(worklist.size() != 0 && LCA != early) {
+        Node* s = worklist.pop();
+        if (s->is_Load() || s->Opcode() == Op_SafePoint ||
+            (s->is_CallStaticJava() && s->as_CallStaticJava()->uncommon_trap_request() != 0)) {
+          continue;
+        } else if (s->is_MergeMem()) {
+          for (DUIterator_Fast imax, i = s->fast_outs(imax); i < imax; i++) {
+            Node* s1 = s->fast_out(i);
+            worklist.push(s1);
+          }
+        } else {
+          Node *sctrl = has_ctrl(s) ? get_ctrl(s) : s->in(0);
+          assert(sctrl != NULL || s->outcnt() == 0, "must have control");
+          if (sctrl != NULL && !sctrl->is_top() && C->can_alias(s->adr_type(), load_alias_idx) && is_dominator(early, sctrl)) {
+            LCA = dom_lca_for_get_late_ctrl(LCA, sctrl, n);
+          }
         }
       }
     }

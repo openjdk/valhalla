@@ -66,7 +66,6 @@ Mutex*   TouchedMethodLog_lock        = NULL;
 Mutex*   RetData_lock                 = NULL;
 Monitor* VMOperationQueue_lock        = NULL;
 Monitor* VMOperationRequest_lock      = NULL;
-Monitor* SerializePage_lock           = NULL;
 Monitor* Threads_lock                 = NULL;
 Mutex*   NonJavaThreadsList_lock      = NULL;
 Mutex*   NonJavaThreadsListSync_lock  = NULL;
@@ -116,8 +115,10 @@ Monitor* RootRegionScan_lock          = NULL;
 
 Mutex*   Management_lock              = NULL;
 Monitor* Service_lock                 = NULL;
+Monitor* Notification_lock            = NULL;
 Monitor* PeriodicTask_lock            = NULL;
 Monitor* RedefineClasses_lock         = NULL;
+Mutex*   Verify_lock                  = NULL;
 
 #if INCLUDE_JFR
 Mutex*   JfrStacktrace_lock           = NULL;
@@ -236,6 +237,13 @@ void mutex_init() {
   def(Patching_lock                , PaddedMutex  , special,     true,  _safepoint_check_never);      // used for safepointing and code patching.
   def(CompiledMethod_lock          , PaddedMutex  , special-1,   true,  _safepoint_check_never);
   def(Service_lock                 , PaddedMonitor, special,     true,  _safepoint_check_never);      // used for service thread operations
+
+  if (UseNotificationThread) {
+    def(Notification_lock            , PaddedMonitor, special,     true,  _safepoint_check_never);  // used for notification thread operations
+  } else {
+    Notification_lock = Service_lock;
+  }
+
   def(JmethodIdCreation_lock       , PaddedMutex  , leaf,        true,  _safepoint_check_always); // used for creating jmethodIDs.
 
   def(SystemDictionary_lock        , PaddedMonitor, leaf,        true,  _safepoint_check_always);
@@ -298,6 +306,7 @@ void mutex_init() {
   def(CompileThread_lock           , PaddedMonitor, nonleaf+5,   false, _safepoint_check_always);
   def(PeriodicTask_lock            , PaddedMonitor, nonleaf+5,   true,  _safepoint_check_always);
   def(RedefineClasses_lock         , PaddedMonitor, nonleaf+5,   true,  _safepoint_check_always);
+  def(Verify_lock                  , PaddedMutex,   nonleaf+5,   true,  _safepoint_check_always);
 
   if (WhiteBoxAPI) {
     def(Compilation_lock           , PaddedMonitor, leaf,        false, _safepoint_check_never);

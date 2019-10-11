@@ -132,18 +132,6 @@ extern "C" int getargs(procsinfo*, int, char*, int);
 #define ERROR_MP_VMGETINFO_CLAIMS_NO_SUPPORT_FOR_64K 103
 
 // excerpts from systemcfg.h that might be missing on older os levels
-#ifndef PV_5_Compat
-  #define PV_5_Compat 0x0F8000   /* Power PC 5 */
-#endif
-#ifndef PV_6
-  #define PV_6 0x100000          /* Power PC 6 */
-#endif
-#ifndef PV_6_1
-  #define PV_6_1 0x100001        /* Power PC 6 DD1.x */
-#endif
-#ifndef PV_6_Compat
-  #define PV_6_Compat 0x108000   /* Power PC 6 */
-#endif
 #ifndef PV_7
   #define PV_7 0x200000          /* Power PC 7 */
 #endif
@@ -156,6 +144,13 @@ extern "C" int getargs(procsinfo*, int, char*, int);
 #ifndef PV_8_Compat
   #define PV_8_Compat 0x308000   /* Power PC 8 */
 #endif
+#ifndef PV_9
+  #define PV_9 0x400000          /* Power PC 9 */
+#endif
+#ifndef PV_9_Compat
+  #define PV_9_Compat  0x408000  /* Power PC 9 */
+#endif
+
 
 static address resolve_function_descriptor_to_code_pointer(address p);
 
@@ -1386,15 +1381,7 @@ void os::print_os_info_brief(outputStream* st) {
 void os::print_os_info(outputStream* st) {
   st->print("OS:");
 
-  st->print("uname:");
-  struct utsname name;
-  uname(&name);
-  st->print(name.sysname); st->print(" ");
-  st->print(name.nodename); st->print(" ");
-  st->print(name.release); st->print(" ");
-  st->print(name.version); st->print(" ");
-  st->print(name.machine);
-  st->cr();
+  os::Posix::print_uname_info(st);
 
   uint32_t ver = os::Aix::os_version();
   st->print_cr("AIX kernel version %u.%u.%u.%u",
@@ -1402,15 +1389,11 @@ void os::print_os_info(outputStream* st) {
 
   os::Posix::print_rlimit_info(st);
 
+  os::Posix::print_load_average(st);
+
   // _SC_THREAD_THREADS_MAX is the maximum number of threads within a process.
   long tmax = sysconf(_SC_THREAD_THREADS_MAX);
   st->print_cr("maximum #threads within a process:%ld", tmax);
-
-  // load average
-  st->print("load average:");
-  double loadavg[3] = {-1.L, -1.L, -1.L};
-  os::loadavg(loadavg, 3);
-  st->print_cr("%0.02f %0.02f %0.02f", loadavg[0], loadavg[1], loadavg[2]);
 
   // print wpar info
   libperfstat::wparinfo_t wi;
@@ -1504,6 +1487,9 @@ void os::print_memory_info(outputStream* st) {
 void os::get_summary_cpu_info(char* buf, size_t buflen) {
   // read _system_configuration.version
   switch (_system_configuration.version) {
+  case PV_9:
+    strncpy(buf, "Power PC 9", buflen);
+    break;
   case PV_8:
     strncpy(buf, "Power PC 8", buflen);
     break;
@@ -1536,6 +1522,9 @@ void os::get_summary_cpu_info(char* buf, size_t buflen) {
     break;
   case PV_8_Compat:
     strncpy(buf, "PV_8_Compat", buflen);
+    break;
+  case PV_9_Compat:
+    strncpy(buf, "PV_9_Compat", buflen);
     break;
   default:
     strncpy(buf, "unknown", buflen);

@@ -1065,6 +1065,9 @@ const size_t minimumSymbolTableSize = 1024;
   diagnostic(bool, EnableThreadSMRStatistics, trueInDebug,                  \
              "Enable Thread SMR Statistics")                                \
                                                                             \
+  product(bool, UseNotificationThread, true,                                \
+          "Use Notification Thread")                                        \
+                                                                            \
   product(bool, Inline, true,                                               \
           "Enable inlining")                                                \
                                                                             \

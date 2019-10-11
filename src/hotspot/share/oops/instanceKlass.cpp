@@ -494,7 +494,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
     assert(is_instance_klass(), "is layout incorrect?");
     assert(size_helper() == parser.layout_size(), "incorrect size_helper?");
 
-  if (DumpSharedSpaces || DynamicDumpSharedSpaces) {
+  if (Arguments::is_dumping_archive()) {
       SystemDictionaryShared::init_dumptime_info(this);
     }
 }
@@ -644,7 +644,7 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   }
   set_annotations(NULL);
 
-  if (DumpSharedSpaces || DynamicDumpSharedSpaces) {
+  if (Arguments::is_dumping_archive()) {
     SystemDictionaryShared::remove_dumptime_info(this);
   }
 }
@@ -2361,7 +2361,7 @@ bool InstanceKlass::should_store_fingerprint(bool is_unsafe_anonymous) {
     // (1) We are running AOT to generate a shared library.
     return true;
   }
-  if (DumpSharedSpaces || DynamicDumpSharedSpaces) {
+  if (Arguments::is_dumping_archive()) {
     // (2) We are running -Xshare:dump or -XX:ArchiveClassesAtExit to create a shared archive
     return true;
   }
@@ -2609,7 +2609,7 @@ void InstanceKlass::unload_class(InstanceKlass* ik) {
   // notify ClassLoadingService of class unload
   ClassLoadingService::notify_class_unloaded(ik);
 
-  if (DumpSharedSpaces || DynamicDumpSharedSpaces) {
+  if (Arguments::is_dumping_archive()) {
     SystemDictionaryShared::remove_dumptime_info(ik);
   }
 
