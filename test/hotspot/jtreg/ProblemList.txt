@@ -166,6 +166,7 @@ gc/metaspace/CompressedClassSpaceSizeInJmapHeap.java 8193639 solaris-all
 # Valhalla TODO:
 gc/z/TestUncommit.java 8231755 generic-all
 gc/z/TestHighUsage.java 8231755 generic-all
+gc/InfiniteList.java 8231755 generic-all
 
 #############################################################################
 
