@@ -321,14 +321,14 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
 
 
 // const uint SharedRuntime::java_return_convention_max_int = Argument::n_int_register_parameters_j+1;
-const uint SharedRuntime::java_return_convention_max_int = 6; 
+const uint SharedRuntime::java_return_convention_max_int = 6;
 const uint SharedRuntime::java_return_convention_max_float = Argument::n_float_register_parameters_j;
 
 int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *regs, int total_args_passed) {
 
   // Create the mapping between argument positions and
   // registers.
-  // r1, r2 used to address klasses and states, exclude it from return convention to avoid colision 
+  // r1, r2 used to address klasses and states, exclude it from return convention to avoid colision
 
   static const Register INT_ArgReg[java_return_convention_max_int] = {
      r0 /* j_rarg7 */, j_rarg6, j_rarg5, j_rarg4, j_rarg3, j_rarg2
@@ -521,7 +521,7 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm, BasicType bt, const VMR
         __ str(rscratch1, to);
       }
     } else if (r_1->is_Register()) {
-      Register r = r_1->as_Register(); 
+      Register r = r_1->as_Register();
       __ str(r, to);
     } else {
       assert(r_1->is_FloatRegister(), "");
@@ -565,10 +565,10 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // compiled code so we have no buffers to back the value
       // types. Allocate the buffers here with a runtime call.
       OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
- 
+
       frame_complete = __ offset();
       address the_pc = __ pc();
- 
+
       __ set_last_Java_frame(noreg, noreg, the_pc, rscratch1);
 
       __ mov(c_rarg0, rthread);
@@ -576,7 +576,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       __ mov(c_rarg2, (int64_t)alloc_value_receiver);
 
       __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_value_types)));
-      __ blrt(rscratch1, 3, 0, 1);
+      __ blr(rscratch1);
 
       oop_maps->add_gc_map((int)(__ pc() - start), map);
       __ reset_last_Java_frame(false);
@@ -594,7 +594,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       __ bind(no_exception);
 
       // We get an array of objects from the runtime call
-      __ get_vm_result(r10, rthread); 
+      __ get_vm_result(r10, rthread);
       __ get_vm_result_2(r1, rthread); // TODO: required to keep the callee Method live?
     }
   }
@@ -631,7 +631,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                continue; // Ignore reserved entry
             }
 
-            if (bt == T_VOID) { 
+            if (bt == T_VOID) {
                assert(next_arg_comp > 0 && (sig_extended->at(next_arg_comp - 1)._bt == T_LONG || sig_extended->at(next_arg_comp - 1)._bt == T_DOUBLE), "missing half");
                next_arg_int ++;
                continue;
@@ -640,7 +640,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
              int next_off = st_off - Interpreter::stackElementSize;
              int offset = (bt == T_LONG || bt == T_DOUBLE) ? next_off : st_off;
 
-             gen_c2i_adapter_helper(masm, bt, regs[next_arg_comp], extraspace, Address(sp, offset)); 
+             gen_c2i_adapter_helper(masm, bt, regs[next_arg_comp], extraspace, Address(sp, offset));
              next_arg_int ++;
    } else {
        ignored++;
@@ -675,13 +675,13 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
           has_oop_field = has_oop_field || is_oop;
 
-          gen_c2i_adapter_helper(masm, bt, regs[next_arg_comp - ignored], extraspace, Address(r11, off)); 
+          gen_c2i_adapter_helper(masm, bt, regs[next_arg_comp - ignored], extraspace, Address(r11, off));
         }
       } while (vt != 0);
       // pass the buffer to the interpreter
       __ str(rscratch1, Address(sp, st_off));
    }
-    
+
   }
 
 // If a value type was allocated and initialized, apply post barrier to all oop fields
@@ -768,7 +768,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
   }
 
   // Cut-out for having no stack args.
-  int comp_words_on_stack = 0; 
+  int comp_words_on_stack = 0;
   if (comp_args_on_stack) {
      comp_words_on_stack = align_up(comp_args_on_stack * VMRegImpl::stack_slot_size, wordSize) >> LogBytesPerWord;
      __ sub(rscratch1, sp, comp_words_on_stack * wordSize);
@@ -795,7 +795,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
 
   // Now generate the shuffle code.
   for (int i = 0; i < total_args_passed; i++) {
-    BasicType bt = sig->at(i)._bt; 
+    BasicType bt = sig->at(i)._bt;
 
     assert(bt != T_VALUETYPE, "i2c adapter doesn't unpack value args");
     if (bt == T_VOID) {
@@ -852,9 +852,9 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
          // two slots but only uses one for thr T_LONG or T_DOUBLE case
          // So we must adjust where to pick up the data to match the
          // interpreter.
- 
+
         const int offset = (bt == T_LONG || bt == T_DOUBLE) ? next_off : ld_off;
- 
+
          // this can be a misaligned move
          __ ldr(r, Address(esp, offset));
        } else {
@@ -885,19 +885,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
   __ br(rscratch1);
 }
 
-// ---------------------------------------------------------------
-AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
-                                                            int total_args_passed,
-                                                            int comp_args_on_stack,
-                                                            const BasicType *sig_bt,
-                                                            const VMRegPair *regs,
-                                                            AdapterFingerPrint* fingerprint) {
-  address i2c_entry = __ pc();
-
-  gen_i2c_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs);
-
-  address c2i_unverified_entry = __ pc();
-  Label skip_fixup;
+static void gen_inline_cache_check(MacroAssembler *masm, Label& skip_fixup) {
 
   Label ok;
 
@@ -934,6 +922,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   }
 }
 
+
 // ---------------------------------------------------------------
 AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm,
                                                             int comp_args_on_stack,
@@ -952,7 +941,6 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   address c2i_unverified_entry = __ pc();
   Label skip_fixup;
 
-
   gen_inline_cache_check(masm, skip_fixup);
 
   OopMapSet* oop_maps = new OopMapSet();
@@ -970,9 +958,32 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   // Scalarized c2i adapter
   address c2i_entry = __ pc();
 
-  // Not implemented
-  // BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  // bs->c2i_entry_barrier(masm);
+  // Class initialization barrier for static methods
+  address c2i_no_clinit_check_entry = NULL;
+
+  if (VM_Version::supports_fast_class_init_checks()) {
+    Label L_skip_barrier;
+    { // Bypass the barrier for non-static methods
+        Register flags  = rscratch1;
+      __ ldrw(flags, Address(rmethod, Method::access_flags_offset()));
+      __ tst(flags, JVM_ACC_STATIC);
+      __ br(Assembler::NE, L_skip_barrier); // non-static
+    }
+
+    Register klass = rscratch1;
+    __ load_method_holder(klass, rmethod);
+    // We pass rthread to this function on x86
+    __ clinit_barrier(klass, rscratch2, &L_skip_barrier /*L_fast_path*/);
+
+    __ far_jump(RuntimeAddress(SharedRuntime::get_handle_wrong_method_stub())); // slow path
+
+    __ bind(L_skip_barrier);
+    c2i_no_clinit_check_entry = __ pc();
+  }
+
+//  FIXME: Not Implemented
+//  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+//  bs->c2i_entry_barrier(masm);
 
   gen_c2i_adapter(masm, sig_cc, regs_cc, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, true);
 
@@ -989,10 +1000,6 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     Label unused;
     gen_c2i_adapter(masm, sig, regs, value_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
   }
-
-  // TODO fix this
-  // Class initialization barrier for static methods
-  address c2i_no_clinit_check_entry = NULL;
 
   __ flush();
 
@@ -3384,7 +3391,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
     VMReg r_1 = pair.first();
     VMReg r_2 = pair.second();
     Address to(r0, off);
-    if (bt == T_FLOAT) { 
+    if (bt == T_FLOAT) {
       __ strs(r_1->as_FloatRegister(), to);
     } else if (bt == T_DOUBLE) {
       __ strd(r_1->as_FloatRegister(), to);

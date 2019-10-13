@@ -370,7 +370,8 @@ void C1_MacroAssembler::verified_value_entry() {
     // For all these cases generate long instruction first.
     nop();
   }
-  
+
+  nop();
   // build frame
   // verify_FPU(0, "method_entry");
 }
@@ -388,6 +389,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
     nop();
   }
 
+  nop();
   // verify_FPU(0, "method_entry");
 
   assert(ValueTypePassFieldsAsArgs, "sanity");

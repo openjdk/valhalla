@@ -1813,7 +1813,7 @@ class StubGenerator: public StubCodeGenerator {
     __ align(OptoLoopAlignment);
 
     __ BIND(L_store_element);
-    __ store_heap_oop(__ post(to, UseCompressedOops ? 4 : 8), copied_oop, noreg, noreg, noreg, AS_RAW);  // store the oop 
+    __ store_heap_oop(__ post(to, UseCompressedOops ? 4 : 8), copied_oop, noreg, noreg, noreg, AS_RAW);  // store the oop
     __ sub(count, count, 1);
     __ cbz(count, L_do_card_marks);
 
@@ -5701,7 +5701,7 @@ class StubGenerator: public StubCodeGenerator {
       j_farg5_off, j_farg5_2,
       j_farg6_off, j_farg6_2,
       j_farg7_off, j_farg7_2,
- 
+
       return_off, return_off2,
       framesize // inclusive of return address
     };
@@ -5767,23 +5767,23 @@ class StubGenerator: public StubCodeGenerator {
     // lr and fp are already in place
     __ sub(sp, rfp, ((unsigned)framesize - 4) << LogBytesPerInt); // prolog
 
-    __ strd(j_farg7, f7_save); 
-    __ strd(j_farg6, f6_save); 
-    __ strd(j_farg5, f5_save); 
-    __ strd(j_farg4, f4_save); 
-    __ strd(j_farg3, f3_save); 
-    __ strd(j_farg2, f2_save); 
-    __ strd(j_farg1, f1_save); 
-    __ strd(j_farg0, f0_save); 
+    __ strd(j_farg7, f7_save);
+    __ strd(j_farg6, f6_save);
+    __ strd(j_farg5, f5_save);
+    __ strd(j_farg4, f4_save);
+    __ strd(j_farg3, f3_save);
+    __ strd(j_farg2, f2_save);
+    __ strd(j_farg1, f1_save);
+    __ strd(j_farg0, f0_save);
 
-    __ str(j_rarg0, r0_save); 
-    __ str(j_rarg1, r1_save); 
-    __ str(j_rarg2, r2_save); 
-    __ str(j_rarg3, r3_save); 
-    __ str(j_rarg4, r4_save); 
-    __ str(j_rarg5, r5_save); 
-    __ str(j_rarg6, r6_save); 
-    __ str(j_rarg7, r7_save); 
+    __ str(j_rarg0, r0_save);
+    __ str(j_rarg1, r1_save);
+    __ str(j_rarg2, r2_save);
+    __ str(j_rarg3, r3_save);
+    __ str(j_rarg4, r4_save);
+    __ str(j_rarg5, r5_save);
+    __ str(j_rarg6, r6_save);
+    __ str(j_rarg7, r7_save);
 
     int frame_complete = __ pc() - start;
 
@@ -5797,30 +5797,30 @@ class StubGenerator: public StubCodeGenerator {
 
     BLOCK_COMMENT("call runtime_entry");
     __ mov(rscratch1, destination);
-    __ blrt(rscratch1, 2 /* number_of_arguments */, 0, 1);
+    __ blr(rscratch1);
 
     oop_maps->add_gc_map(the_pc - start, map);
 
-    __ reset_last_Java_frame(false); 
-    __ maybe_isb(); 
+    __ reset_last_Java_frame(false);
+    __ maybe_isb();
 
-    __ ldrd(j_farg7, f7_save); 
-    __ ldrd(j_farg6, f6_save); 
-    __ ldrd(j_farg5, f5_save); 
-    __ ldrd(j_farg4, f4_save); 
-    __ ldrd(j_farg3, f3_save); 
-    __ ldrd(j_farg3, f2_save); 
-    __ ldrd(j_farg1, f1_save); 
-    __ ldrd(j_farg0, f0_save); 
+    __ ldrd(j_farg7, f7_save);
+    __ ldrd(j_farg6, f6_save);
+    __ ldrd(j_farg5, f5_save);
+    __ ldrd(j_farg4, f4_save);
+    __ ldrd(j_farg3, f3_save);
+    __ ldrd(j_farg3, f2_save);
+    __ ldrd(j_farg1, f1_save);
+    __ ldrd(j_farg0, f0_save);
 
-    __ ldr(j_rarg0, r0_save); 
-    __ ldr(j_rarg1, r1_save); 
-    __ ldr(j_rarg2, r2_save); 
-    __ ldr(j_rarg3, r3_save); 
-    __ ldr(j_rarg4, r4_save); 
-    __ ldr(j_rarg5, r5_save); 
-    __ ldr(j_rarg6, r6_save); 
-    __ ldr(j_rarg7, r7_save); 
+    __ ldr(j_rarg0, r0_save);
+    __ ldr(j_rarg1, r1_save);
+    __ ldr(j_rarg2, r2_save);
+    __ ldr(j_rarg3, r3_save);
+    __ ldr(j_rarg4, r4_save);
+    __ ldr(j_rarg5, r5_save);
+    __ ldr(j_rarg6, r6_save);
+    __ ldr(j_rarg7, r7_save);
 
     __ leave();
 
@@ -5899,9 +5899,9 @@ class StubGenerator: public StubCodeGenerator {
     }
 
 
-    StubRoutines::_load_value_type_fields_in_regs = 
+    StubRoutines::_load_value_type_fields_in_regs =
          generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_value_type_fields_in_regs), "load_value_type_fields_in_regs", false);
-    StubRoutines::_store_value_type_fields_to_buf = 
+    StubRoutines::_store_value_type_fields_to_buf =
          generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_value_type_fields_to_buf), "store_value_type_fields_to_buf", true);
   }
 

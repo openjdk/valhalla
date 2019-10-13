@@ -1515,7 +1515,7 @@ void MacroAssembler::null_check(Register reg, int offset) {
 void MacroAssembler::test_klass_is_value(Register klass, Register temp_reg, Label& is_value) {
   ldrw(temp_reg, Address(klass, Klass::access_flags_offset()));
   andr(temp_reg, temp_reg, JVM_ACC_VALUE);
-  cbnz(temp_reg, is_value); 
+  cbnz(temp_reg, is_value);
 }
 
 void MacroAssembler::test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable) {
@@ -3752,7 +3752,7 @@ void MacroAssembler::load_method_holder(Register holder, Register method) {
   ldr(holder, Address(holder, ConstantPool::pool_holder_offset_in_bytes())); // InstanceKlass*
 }
 
-void MacroAssembler::load_klass(Register dst, Register src) {
+void MacroAssembler::load_metadata(Register dst, Register src) {
   if (UseCompressedClassPointers) {
     ldrw(dst, Address(src, oopDesc::klass_offset_in_bytes()));
   } else {
@@ -5953,7 +5953,7 @@ void MacroAssembler::get_thread(Register dst) {
   pop(saved_regs, sp);
 }
 
-// C2 compiled method's prolog code 
+// C2 compiled method's prolog code
 // Moved here from aarch64.ad to support Valhalla code belows
 void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
 
@@ -5970,10 +5970,6 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
      generate_stack_overflow_check(bangsize);
 
   build_frame(framesize);
-
-  if (NotifySimulator) {
-    notify(Assembler::method_entry);
-  }
 
   if (VerifyStackAtCalls) {
     Unimplemented();
@@ -6009,18 +6005,18 @@ int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_i
     }
 
      ldr(r13, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
- 
-     // check whether we have space in TLAB, 
+
+     // check whether we have space in TLAB,
      // rscratch1 contains pointer to just allocated obj
-      lea(r14, Address(r13, r14)); 
+      lea(r14, Address(r13, r14));
       ldr(rscratch1, Address(rthread, in_bytes(JavaThread::tlab_end_offset())));
 
       cmp(r14, rscratch1);
       br(Assembler::GT, slow_case);
 
-      // OK we have room in TLAB, 
+      // OK we have room in TLAB,
       // Set new TLAB top
-      str(r14, Address(rthread, in_bytes(JavaThread::tlab_top_offset()))); 
+      str(r14, Address(rthread, in_bytes(JavaThread::tlab_top_offset())));
 
       // Set new class always locked
       mov(rscratch1, (uint64_t) markWord::always_locked_prototype().value());
@@ -6031,7 +6027,7 @@ int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_i
         // store_klass corrupts rbx, so save it in rax for later use (interpreter case only).
          mov(r0, r1);
       }
-      
+
       store_klass(r13, r1);  // klass
 
       if (vk != NULL) {
@@ -6095,7 +6091,7 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
              strs(from->as_FloatRegister(), to_addr);
           }
         } else {
-          str(from->as_Register(), to_addr); 
+          str(from->as_Register(), to_addr);
         }
       }
     } else {
@@ -6109,11 +6105,11 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
             ldrs(to->as_FloatRegister(), from_addr);
           }
         } else {
-          ldr(to->as_Register(), from_addr); 
+          ldr(to->as_Register(), from_addr);
         }
       } else {
         int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
-        ldr(rscratch1, from_addr); 
+        ldr(rscratch1, from_addr);
         str(rscratch1, Address(sp, st_off));
       }
     }
@@ -6169,7 +6165,7 @@ bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int
 
       if (fromReg == noreg) {
         int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
-        ldr(rscratch2, Address(sp, st_off)); 
+        ldr(rscratch2, Address(sp, st_off));
         fromReg = rscratch2;
       }
 
@@ -6276,7 +6272,7 @@ bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& 
       } else {
         store_sized_value(dst, from_reg, size_in_bytes);
       }
-    } else { 
+    } else {
       if (from_r2->is_valid()) {
         strd(from_r1->as_FloatRegister(), dst);
       } else {
@@ -6317,7 +6313,7 @@ int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int 
       // (Note: C1 does this in C1_MacroAssembler::scalarized_entry).
       // FIXME: We need not to preserve return address on aarch64
       pop(rscratch1);
-      sub(sp, sp, sp_inc); 
+      sub(sp, sp, sp_inc);
       push(rscratch1);
     }
   } else {
