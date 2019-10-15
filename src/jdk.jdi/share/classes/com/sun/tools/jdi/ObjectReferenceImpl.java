@@ -76,6 +76,10 @@ public class ObjectReferenceImpl extends ValueImpl
         }
     }
 
+    private boolean isInlineType() {
+        return referenceType().signature().startsWith("Q");
+    }
+
     // Override in subclasses
     protected Cache newCache() {
         return new Cache();
@@ -145,11 +149,34 @@ public class ObjectReferenceImpl extends ValueImpl
         }
     }
 
+    // The isSubstitutable() method must perform the same comparison on
+    // remote inline objects as the one performed ValueBootstrapMethods.isSubstitutable()
+    // on local instances.
+    private boolean isSubstitutable(ObjectReferenceImpl other) {
+        if (referenceType() != other.referenceType()) return false;
+        List<Field> fields = referenceType().fields();
+        for (Field f : fields) {
+            if (f.isStatic()) {
+                fields.remove(f);
+            }
+        }
+        Map<Field,Value> thisFields = getValues(fields);
+        Map<Field,Value> otherFields = other.getValues(fields);
+        for (Field f : fields) {
+            if (!thisFields.get(f).equals(otherFields.get(f))) return false;
+        }
+        return true;
+    }
+
     public boolean equals(Object obj) {
         if ((obj != null) && (obj instanceof ObjectReferenceImpl)) {
-            ObjectReferenceImpl other = (ObjectReferenceImpl)obj;
-            return (ref() == other.ref()) &&
-                   super.equals(obj);
+            ObjectReferenceImpl other = (ObjectReferenceImpl) obj;
+            if (isInlineType()) {
+                return isSubstitutable(other);
+            } else {
+                return (ref() == other.ref()) &&
+                        super.equals(obj);
+            }
         } else {
             return false;
         }
@@ -470,6 +497,9 @@ public class ObjectReferenceImpl extends ValueImpl
     }
 
     public long uniqueID() {
+        if (isInlineType()) {
+            throw new UnsupportedOperationException("Inline types cannot have unique IDs");
+        }
         return ref();
     }
 
@@ -611,11 +641,19 @@ public class ObjectReferenceImpl extends ValueImpl
     }
 
     public String toString() {
-        return "instance of " + referenceType().name() + "(id=" + uniqueID() + ")";
+        if (isInlineType()) {
+            return "instance of " + referenceType().name();
+        } else {
+            return "instance of " + referenceType().name() + "(id=" + uniqueID() + ")";
+        }
     }
 
     byte typeValueKey() {
-        return JDWP.Tag.OBJECT;
+        if (isInlineType()) {
+            return JDWP.Tag.INLINE_OBJECT;
+        } else {
+            return JDWP.Tag.OBJECT;
+        }
     }
 
     private static boolean isNonVirtual(int options) {
