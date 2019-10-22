@@ -44,7 +44,8 @@ class valueArrayOopDesc : public arrayOopDesc {
 
   // Sizing
   static size_t element_size(int lh, int nof_elements) {
-    return nof_elements << Klass::layout_helper_log2_element_size(lh);
+    size_t sz = (size_t) nof_elements;
+    return sz << Klass::layout_helper_log2_element_size(lh);
   }
 
   static int object_size(int lh, int length) {

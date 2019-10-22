@@ -59,6 +59,8 @@ public class ValueTypeArray {
 
         testReflectArray();
         testUtilArrays();
+
+        testValueArrayOom();
     }
 
     void testClassForName() {
@@ -538,5 +540,14 @@ public class ValueTypeArray {
     }
 
     Object getNull() { return null; }
+
+
+    void testValueArrayOom() {
+        int size = Integer.MAX_VALUE;
+        try {
+            MyPoint[] pts = new MyPoint[size];
+            throw new RuntimeException("Excepted OOM");
+        } catch (OutOfMemoryError oom) {}
+    }
 
 }
