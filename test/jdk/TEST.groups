@@ -109,7 +109,8 @@ jdk_lang = \
 # valhalla lworld tests
 jdk_valhalla = \
     java/lang/invoke \
-    valhalla
+    valhalla \
+    com/sun/jdi/JdbInlineTypesTest.java
 
 # All of the java.util package
 jdk_util = \

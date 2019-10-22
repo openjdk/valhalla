@@ -1163,7 +1163,7 @@ public abstract class ReferenceTypeImpl extends TypeImpl implements ReferenceTyp
             isPA = false;
         } else {
             char c = signature.charAt(i + 1);
-            isPA = (c != 'L');
+            isPA = (c != 'L' && c != 'Q');
         }
         return isPA;
     }
