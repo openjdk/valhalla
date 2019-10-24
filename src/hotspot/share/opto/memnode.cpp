@@ -964,6 +964,10 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
       BasicType ary_elem  = ary_t->klass()->as_array_klass()->element_type()->basic_type();
       uint header = arrayOopDesc::base_offset_in_bytes(ary_elem);
       uint shift  = exact_log2(type2aelembytes(ary_elem));
+      if (ary_t->klass()->is_value_array_klass()) {
+        ciValueArrayKlass* vak = ary_t->klass()->as_value_array_klass();
+        shift = vak->log2_element_size();
+      }
 
       Node* diff = phase->transform(new SubINode(ac->in(ArrayCopyNode::SrcPos), ac->in(ArrayCopyNode::DestPos)));
 #ifdef _LP64
