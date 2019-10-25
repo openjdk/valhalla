@@ -1228,13 +1228,26 @@ JNI_ENTRY(jobject, jni_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
   jobject obj = NULL;
   DT_RETURN_MARK(NewObjectA, jobject, (const jobject)obj);
 
-  instanceOop i = alloc_object(clazz, CHECK_NULL);
-  obj = JNIHandles::make_local(env, i);
-  JavaValue jvalue(T_VOID);
-  JNI_ArgumentPusherArray ap(methodID, args);
-  jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz));
+  if (k == NULL) {
+    ResourceMark rm(THREAD);
+    THROW_(vmSymbols::java_lang_InstantiationException(), NULL);
+  }
+
+  if (!k->is_value()) {
+    instanceOop i = alloc_object(clazz, CHECK_NULL);
+    obj = JNIHandles::make_local(env, i);
+    JavaValue jvalue(T_VOID);
+    JNI_ArgumentPusherArray ap(methodID, args);
+    jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
+  } else {
+    JavaValue jvalue(T_VALUETYPE);
+    JNI_ArgumentPusherArray ap(methodID, args);
+    jni_invoke_static(env, &jvalue, NULL, JNI_STATIC, methodID, &ap, CHECK_NULL);
+    obj = jvalue.get_jobject();
+  }
   return obj;
-JNI_END
+  JNI_END
 
 
 DT_RETURN_MARK_DECL(NewObjectV, jobject
@@ -1248,11 +1261,24 @@ JNI_ENTRY(jobject, jni_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
   jobject obj = NULL;
   DT_RETURN_MARK(NewObjectV, jobject, (const jobject&)obj);
 
-  instanceOop i = alloc_object(clazz, CHECK_NULL);
-  obj = JNIHandles::make_local(env, i);
-  JavaValue jvalue(T_VOID);
-  JNI_ArgumentPusherVaArg ap(methodID, args);
-  jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz));
+  if (k == NULL) {
+    ResourceMark rm(THREAD);
+    THROW_(vmSymbols::java_lang_InstantiationException(), NULL);
+  }
+
+  if (!k->is_value()) {
+    instanceOop i = alloc_object(clazz, CHECK_NULL);
+    obj = JNIHandles::make_local(env, i);
+    JavaValue jvalue(T_VOID);
+    JNI_ArgumentPusherVaArg ap(methodID, args);
+    jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
+  } else {
+    JavaValue jvalue(T_VALUETYPE);
+    JNI_ArgumentPusherVaArg ap(methodID, args);
+    jni_invoke_static(env, &jvalue, NULL, JNI_STATIC, methodID, &ap, CHECK_NULL);
+    obj = jvalue.get_jobject();
+  }
   return obj;
 JNI_END
 
@@ -1268,14 +1294,30 @@ JNI_ENTRY(jobject, jni_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, 
   jobject obj = NULL;
   DT_RETURN_MARK(NewObject, jobject, (const jobject&)obj);
 
-  instanceOop i = alloc_object(clazz, CHECK_NULL);
-  obj = JNIHandles::make_local(env, i);
-  va_list args;
-  va_start(args, methodID);
-  JavaValue jvalue(T_VOID);
-  JNI_ArgumentPusherVaArg ap(methodID, args);
-  jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
-  va_end(args);
+  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz));
+  if (k == NULL) {
+    ResourceMark rm(THREAD);
+    THROW_(vmSymbols::java_lang_InstantiationException(), NULL);
+  }
+
+  if (!k->is_value()) {
+    instanceOop i = alloc_object(clazz, CHECK_NULL);
+    obj = JNIHandles::make_local(env, i);
+    va_list args;
+    va_start(args, methodID);
+    JavaValue jvalue(T_VOID);
+    JNI_ArgumentPusherVaArg ap(methodID, args);
+    jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
+    va_end(args);
+  } else {
+    va_list args;
+    va_start(args, methodID);
+    JavaValue jvalue(T_VALUETYPE);
+    JNI_ArgumentPusherVaArg ap(methodID, args);
+    jni_invoke_static(env, &jvalue, NULL, JNI_STATIC, methodID, &ap, CHECK_NULL);
+    va_end(args);
+    obj = jvalue.get_jobject();
+  }
   return obj;
 JNI_END
 

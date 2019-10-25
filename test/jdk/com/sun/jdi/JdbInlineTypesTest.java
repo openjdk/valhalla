@@ -154,5 +154,8 @@ public class JdbInlineTypesTest extends JdbTest {
 	// Testing substitutability test 
 	execCommand(JdbCommand.print("v == v2")).shouldContain(" = true");
 	execCommand(JdbCommand.print("v == v3")).shouldContain(" = false");
+
+	// Testing inline type instance creation
+	execCommand(JdbCommand.print("new JdbInlineTypesTestTarg$SmallValue(42,64)")).shouldContain(" = \"[JdbInlineTypesTestTarg$SmallValue b0=42 b1=64]\"");
     }
 }

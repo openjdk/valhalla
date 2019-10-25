@@ -326,6 +326,14 @@ class VirtualMachineImpl extends MirrorImpl
         return Collections.unmodifiableList(list);
     }
 
+    private static boolean isReferenceArray(String signature) {
+        int i = signature.lastIndexOf('[');
+        if (i > -1 && signature.charAt(i+1) == 'L') {
+            return true;
+        }
+        return false;
+    }
+
     public List<ReferenceType> classesByName(String className) {
         validateVM();
         String signature = JNITypeParser.typeNameToSignature(className);
@@ -335,6 +343,24 @@ class VirtualMachineImpl extends MirrorImpl
         } else {
            list = retrieveClassesBySignature(signature);
         }
+        // HACK: add second request to cover the case where className
+        // is the name of an inline type. This is done only if the
+        // first signature is either a reference type or an array
+        // of a reference type.
+        if (signature.length() > 1 &&
+                (signature.charAt(0) == 'L' || isReferenceArray((signature)))) {
+            List<ReferenceType> listInlineTypes;
+            signature = JNITypeParser.inlineTypeNameToSignature(className);
+            if (retrievedAllTypes) {
+                listInlineTypes = findReferenceTypes(signature);
+            } else {
+                listInlineTypes = retrieveClassesBySignature(signature);
+            }
+            if (!listInlineTypes.isEmpty()) {
+                list.addAll(listInlineTypes);
+            }
+        }
+
         return Collections.unmodifiableList(list);
     }
 

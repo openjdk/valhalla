@@ -43,6 +43,30 @@ public class JNITypeParser {
         this.signature = signature;
     }
 
+    static String inlineTypeNameToSignature(String signature) {
+        StringBuilder sb = new StringBuilder();
+        int firstIndex = signature.indexOf('[');
+        int index = firstIndex;
+        while (index != -1) {
+            sb.append('[');
+            index = signature.indexOf('[', index + 1);
+        }
+
+        if (signature.equals("boolean") || signature.equals("byte")
+                || signature.equals("char") || signature.equals("short")
+                || signature.equals("int") ||signature.equals("long")
+                || signature.equals("float") || signature.equals("double")) {
+            throw new IllegalArgumentException("Not an inline type signature '" +
+                    signature + "'");
+        } else {
+            sb.append('Q');
+            sb.append(signature.replace('.', '/'));
+            sb.append(';');
+        }
+
+        return sb.toString();
+    }
+
     static String typeNameToSignature(String signature) {
         StringBuilder sb = new StringBuilder();
         int firstIndex = signature.indexOf('[');
