@@ -826,11 +826,6 @@ void os::set_native_thread_name(const char *name) {
   } __except(EXCEPTION_EXECUTE_HANDLER) {}
 }
 
-bool os::distribute_processes(uint length, uint* distribution) {
-  // Not yet implemented.
-  return false;
-}
-
 bool os::bind_to_processor(uint processor_id) {
   // Not yet implemented.
   return false;
@@ -911,8 +906,6 @@ FILETIME java_to_windows_time(jlong l) {
 }
 
 bool os::supports_vtime() { return true; }
-bool os::enable_vtime() { return false; }
-bool os::vtime_enabled() { return false; }
 
 double os::elapsedVTime() {
   FILETIME created;
@@ -3904,12 +3897,6 @@ void os::win32::setmode_streams() {
   _setmode(_fileno(stderr), _O_BINARY);
 }
 
-
-bool os::is_debugger_attached() {
-  return IsDebuggerPresent() ? true : false;
-}
-
-
 void os::wait_for_keypress_at_exit(void) {
   if (PauseAtExit) {
     fprintf(stderr, "Press any key to continue...\n");
@@ -4975,7 +4962,7 @@ bool os::pd_unmap_memory(char* addr, size_t bytes) {
 void os::pause() {
   char filename[MAX_PATH];
   if (PauseAtStartupFile && PauseAtStartupFile[0]) {
-    jio_snprintf(filename, MAX_PATH, PauseAtStartupFile);
+    jio_snprintf(filename, MAX_PATH, "%s", PauseAtStartupFile);
   } else {
     jio_snprintf(filename, MAX_PATH, "./vm.paused.%d", current_process_id());
   }

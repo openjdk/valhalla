@@ -826,11 +826,13 @@ static void pass_arg3(MacroAssembler* masm, Register arg) {
 }
 
 void MacroAssembler::stop(const char* msg) {
-  address rip = pc();
-  pusha(); // get regs on stack
+  if (ShowMessageBoxOnError) {
+    address rip = pc();
+    pusha(); // get regs on stack
+    lea(c_rarg1, InternalAddress(rip));
+    movq(c_rarg2, rsp); // pass pointer to regs array
+  }
   lea(c_rarg0, ExternalAddress((address) msg));
-  lea(c_rarg1, InternalAddress(rip));
-  movq(c_rarg2, rsp); // pass pointer to regs array
   andq(rsp, -16); // align stack as required by ABI
   call(RuntimeAddress(CAST_FROM_FN_PTR(address, MacroAssembler::debug64)));
   hlt();
@@ -6818,7 +6820,7 @@ void MacroAssembler::string_indexof_char(Register str1, Register cnt1, Register 
   movptr(result, str1);
   if (UseAVX >= 2) {
     cmpl(cnt1, stride);
-    jcc(Assembler::less, SCAN_TO_CHAR_LOOP);
+    jcc(Assembler::less, SCAN_TO_CHAR);
     cmpl(cnt1, 2*stride);
     jcc(Assembler::less, SCAN_TO_8_CHAR_INIT);
     movdl(vec1, ch);
@@ -6845,10 +6847,8 @@ void MacroAssembler::string_indexof_char(Register str1, Register cnt1, Register 
   }
   bind(SCAN_TO_8_CHAR);
   cmpl(cnt1, stride);
-  if (UseAVX >= 2) {
-    jcc(Assembler::less, SCAN_TO_CHAR);
-  } else {
-    jcc(Assembler::less, SCAN_TO_CHAR_LOOP);
+  jcc(Assembler::less, SCAN_TO_CHAR);
+  if (UseAVX < 2) {
     movdl(vec1, ch);
     pshuflw(vec1, vec1, 0x00);
     pshufd(vec1, vec1, 0);

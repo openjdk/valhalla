@@ -29,7 +29,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.sun.source.tree.CaseTree.CaseKind;
+import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.ModuleTree.ModuleKind;
 
@@ -1509,8 +1509,8 @@ public class JavacParser implements Parser {
         }
         List<JCStatement> stats = null;
         JCTree body = null;
-        @SuppressWarnings("removal")
-        CaseKind kind;
+        @SuppressWarnings("preview")
+        CaseTree.CaseKind kind;
         switch (token.kind) {
             case ARROW:
                 checkSourceLevel(Feature.SWITCH_RULE);
@@ -2999,8 +2999,8 @@ public class JavacParser implements Parser {
                 nextToken();
                 checkSourceLevel(Feature.SWITCH_MULTIPLE_CASE_LABELS);
             };
-            @SuppressWarnings("removal")
-            CaseKind caseKind;
+            @SuppressWarnings("preview")
+            CaseTree.CaseKind caseKind;
             JCTree body = null;
             if (token.kind == ARROW) {
                 checkSourceLevel(Feature.SWITCH_RULE);
@@ -3024,8 +3024,8 @@ public class JavacParser implements Parser {
         }
         case DEFAULT: {
             nextToken();
-            @SuppressWarnings("removal")
-            CaseKind caseKind;
+            @SuppressWarnings("preview")
+            CaseTree.CaseKind caseKind;
             JCTree body = null;
             if (token.kind == ARROW) {
                 checkSourceLevel(Feature.SWITCH_RULE);

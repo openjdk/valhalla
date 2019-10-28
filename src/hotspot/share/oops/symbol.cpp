@@ -292,8 +292,8 @@ const char* Symbol::as_klass_external_name() const {
   int   length = (int)strlen(str);
   // Turn all '/'s into '.'s (also for array klasses)
   for (int index = 0; index < length; index++) {
-    if (str[index] == '/') {
-      str[index] = '.';
+    if (str[index] == JVM_SIGNATURE_SLASH) {
+      str[index] = JVM_SIGNATURE_DOT;
     }
   }
   return str;
@@ -301,8 +301,8 @@ const char* Symbol::as_klass_external_name() const {
 
 static void print_class(outputStream *os, char *class_str, int len) {
   for (int i = 0; i < len; ++i) {
-    if (class_str[i] == '/') {
-      os->put('.');
+    if (class_str[i] == JVM_SIGNATURE_SLASH) {
+      os->put(JVM_SIGNATURE_DOT);
     } else {
       os->put(class_str[i]);
     }
@@ -312,9 +312,10 @@ static void print_class(outputStream *os, char *class_str, int len) {
 static void print_array(outputStream *os, char *array_str, int len) {
   int dimensions = 0;
   for (int i = 0; i < len; ++i) {
-    if (array_str[i] == '[') {
+    if (array_str[i] == JVM_SIGNATURE_ARRAY) {
       dimensions++;
-    } else if (array_str[i] == 'L' || array_str[i] == 'Q') {
+    } else if (array_str[i] == JVM_SIGNATURE_CLASS ||
+               array_str[i] == JVM_SIGNATURE_VALUETYPE) {
       // Expected format: L<type name>;. Skip 'L' and ';' delimiting the type name.
       print_class(os, array_str+i+1, len-i-2);
       break;

@@ -342,18 +342,16 @@ protected:
   static ByteSize access_flags_offset()          { return in_ByteSize(offset_of(Klass, _access_flags)); }
 
   // Unpacking layout_helper:
-  enum {
-    _lh_neutral_value           = 0,  // neutral non-array non-instance value
-    _lh_instance_slow_path_bit  = 0x01,
-    _lh_log2_element_size_shift = BitsPerByte*0,
-    _lh_log2_element_size_mask  = BitsPerLong-1,
-    _lh_element_type_shift      = BitsPerByte*1,
-    _lh_element_type_mask       = right_n_bits(BitsPerByte),  // shifted mask
-    _lh_header_size_shift       = BitsPerByte*2,
-    _lh_header_size_mask        = right_n_bits(BitsPerByte),  // shifted mask
-    _lh_array_tag_bits          = 3,
-    _lh_array_tag_shift         = BitsPerInt - _lh_array_tag_bits
-  };
+  static const int _lh_neutral_value           = 0;  // neutral non-array non-instance value
+  static const int _lh_instance_slow_path_bit  = 0x01;
+  static const int _lh_log2_element_size_shift = BitsPerByte*0;
+  static const int _lh_log2_element_size_mask  = BitsPerLong-1;
+  static const int _lh_element_type_shift      = BitsPerByte*1;
+  static const int _lh_element_type_mask       = right_n_bits(BitsPerByte);  // shifted mask
+  static const int _lh_header_size_shift       = BitsPerByte*2;
+  static const int _lh_header_size_mask        = right_n_bits(BitsPerByte);  // shifted mask
+  static const int _lh_array_tag_bits          = 3;
+  static const int _lh_array_tag_shift         = BitsPerInt - _lh_array_tag_bits;
 
   static const unsigned int _lh_array_tag_type_value = 0Xfffffffc;
   static const unsigned int _lh_array_tag_vt_value   = 0Xfffffffd;
@@ -473,8 +471,6 @@ protected:
   virtual bool should_be_initialized() const    { return false; }
   // initializes the klass
   virtual void initialize(TRAPS);
-  // lookup operation for MethodLookupCache
-  friend class MethodLookupCache;
   virtual Klass* find_field(Symbol* name, Symbol* signature, fieldDescriptor* fd) const;
   virtual Method* uncached_lookup_method(const Symbol* name, const Symbol* signature,
                                          OverpassLookupMode overpass_mode,
@@ -552,9 +548,6 @@ protected:
     }
   }
 
- public:
-  // subclass accessor (here for convenience; undefined for non-klass objects)
-  virtual bool is_leaf_class() const { fatal("not a class"); return false; }
  public:
   // ALL FUNCTIONS BELOW THIS POINT ARE DISPATCHED FROM AN OOP
   // These functions describe behavior for the oop not the KLASS.

@@ -167,11 +167,6 @@ size_t os::lasterror(char *buf, size_t len) {
   return n;
 }
 
-bool os::is_debugger_attached() {
-  // not implemented
-  return false;
-}
-
 void os::wait_for_keypress_at_exit(void) {
   // don't do anything on posix platforms
   return;
@@ -690,6 +685,9 @@ static const struct {
 #endif
   {  SIGHUP,      "SIGHUP" },
   {  SIGILL,      "SIGILL" },
+#ifdef SIGINFO
+  {  SIGINFO,     "SIGINFO" },
+#endif
   {  SIGINT,      "SIGINT" },
 #ifdef SIGIO
   {  SIGIO,       "SIGIO" },

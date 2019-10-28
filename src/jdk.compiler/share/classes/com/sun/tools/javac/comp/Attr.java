@@ -31,7 +31,7 @@ import java.util.function.BiConsumer;
 import javax.lang.model.element.ElementKind;
 import javax.tools.JavaFileObject;
 
-import com.sun.source.tree.CaseTree.CaseKind;
+import com.sun.source.tree.CaseTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberReferenceTree.ReferenceMode;
 import com.sun.source.tree.MemberSelectTree;
@@ -1549,8 +1549,8 @@ public class Attr extends JCTree.Visitor {
             // check that there are no duplicate case labels or default clauses.
             Set<Object> labels = new HashSet<>(); // The set of case labels.
             boolean hasDefault = false;      // Is there a default label?
-            @SuppressWarnings("removal")
-            CaseKind caseKind = null;
+            @SuppressWarnings("preview")
+            CaseTree.CaseKind caseKind = null;
             boolean wasError = false;
             for (List<JCCase> l = cases; l.nonEmpty(); l = l.tail) {
                 JCCase c = l.head;
@@ -4225,6 +4225,7 @@ public class Attr extends JCTree.Visitor {
                 chk.checkDeprecated(tree.pos(), env.info.scope.owner, sym);
                 chk.checkSunAPI(tree.pos(), sym);
                 chk.checkProfile(tree.pos(), sym);
+                chk.checkPreview(tree.pos(), sym);
             }
 
             // If symbol is a variable, check that its type and

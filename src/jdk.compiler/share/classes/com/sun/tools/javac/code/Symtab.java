@@ -215,6 +215,7 @@ public class Symtab {
     public final Type documentedType;
     public final Type elementTypeType;
     public final Type functionalInterfaceType;
+    public final Type previewFeatureType;
     public final Type valueBasedType;
 
     /** The symbol representing the length field of an array.
@@ -573,6 +574,7 @@ public class Symtab {
         stringConcatFactory = enterClass("java.lang.invoke.StringConcatFactory");
         valueBootstrapMethods = enterClass("java.lang.invoke.ValueBootstrapMethods");
         functionalInterfaceType = enterClass("java.lang.FunctionalInterface");
+        previewFeatureType = enterClass("jdk.internal.PreviewFeature");
         valueBasedType = enterClass("java.lang.ValueBased");
 
         synthesizeEmptyInterfaceIfMissing(autoCloseableType);

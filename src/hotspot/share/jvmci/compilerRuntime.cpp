@@ -25,11 +25,11 @@
 #include "aot/aotLoader.hpp"
 #include "classfile/stringTable.hpp"
 #include "classfile/symbolTable.hpp"
+#include "compiler/compilationPolicy.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "jvmci/compilerRuntime.hpp"
 #include "oops/cpCache.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/compilationPolicy.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -73,7 +73,7 @@ Klass* CompilerRuntime::resolve_klass_helper(JavaThread *thread, const char* nam
   Handle protection_domain(THREAD, caller->method_holder()->protection_domain());
 
   // Ignore wrapping L and ;
-  if (name[0] == 'L' || name[0] == 'Q') {
+  if (name[0] == JVM_SIGNATURE_CLASS || name[0] == JVM_SIGNATURE_VALUETYPE) {
     assert(len > 2, "small name %s", name);
     name++;
     len -= 2;

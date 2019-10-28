@@ -111,8 +111,6 @@ InstanceKlass*      SystemDictionary::_box_klasses[T_VOID+1]      =  { NULL /*, 
 oop         SystemDictionary::_java_system_loader         =  NULL;
 oop         SystemDictionary::_java_platform_loader       =  NULL;
 
-bool        SystemDictionary::_has_checkPackageAccess     =  false;
-
 // Default ProtectionDomainCacheSize value
 
 const int defaultProtectionDomainCacheSize = 1009;
@@ -493,8 +491,6 @@ void SystemDictionary::validate_protection_domain(InstanceKlass* klass,
                                                   Handle class_loader,
                                                   Handle protection_domain,
                                                   TRAPS) {
-  if(!has_checkPackageAccess()) return;
-
   // Now we have to call back to java to check if the initating class has access
   JavaValue result(T_VOID);
   LogTarget(Debug, protectiondomain) lt;
@@ -2039,14 +2035,14 @@ void SystemDictionary::resolve_well_known_classes(TRAPS) {
   resolve_wk_klasses_through(WK_KLASS_ENUM_NAME(Reference_klass), scan, CHECK);
 
   // Preload ref klasses and set reference types
-  InstanceKlass::cast(WK_KLASS(Reference_klass))->set_reference_type(REF_OTHER);
+  WK_KLASS(Reference_klass)->set_reference_type(REF_OTHER);
   InstanceRefKlass::update_nonstatic_oop_maps(WK_KLASS(Reference_klass));
 
   resolve_wk_klasses_through(WK_KLASS_ENUM_NAME(PhantomReference_klass), scan, CHECK);
-  InstanceKlass::cast(WK_KLASS(SoftReference_klass))->set_reference_type(REF_SOFT);
-  InstanceKlass::cast(WK_KLASS(WeakReference_klass))->set_reference_type(REF_WEAK);
-  InstanceKlass::cast(WK_KLASS(FinalReference_klass))->set_reference_type(REF_FINAL);
-  InstanceKlass::cast(WK_KLASS(PhantomReference_klass))->set_reference_type(REF_PHANTOM);
+  WK_KLASS(SoftReference_klass)->set_reference_type(REF_SOFT);
+  WK_KLASS(WeakReference_klass)->set_reference_type(REF_WEAK);
+  WK_KLASS(FinalReference_klass)->set_reference_type(REF_FINAL);
+  WK_KLASS(PhantomReference_klass)->set_reference_type(REF_PHANTOM);
 
   // JSR 292 classes
   WKID jsr292_group_start = WK_KLASS_ENUM_NAME(MethodHandle_klass);
@@ -2066,11 +2062,6 @@ void SystemDictionary::resolve_well_known_classes(TRAPS) {
   _box_klasses[T_LONG]    = WK_KLASS(Long_klass);
   //_box_klasses[T_OBJECT]  = WK_KLASS(object_klass);
   //_box_klasses[T_ARRAY]   = WK_KLASS(object_klass);
-
-  { // Compute whether we should use checkPackageAccess or NOT
-    Method* method = InstanceKlass::cast(ClassLoader_klass())->find_method(vmSymbols::checkPackageAccess_name(), vmSymbols::class_protectiondomain_signature());
-    _has_checkPackageAccess = (method != NULL);
-  }
 
 #ifdef ASSERT
   if (UseSharedSpaces) {
@@ -2579,7 +2570,7 @@ Handle SystemDictionary::find_java_mirror_for_type(Symbol* signature,
 
     // It's a primitive.  (Void has a primitive mirror too.)
     char ch = type->char_at(0);
-    assert(is_java_primitive(char2type(ch)) || ch == 'V', "");
+    assert(is_java_primitive(char2type(ch)) || ch == JVM_SIGNATURE_VOID, "");
     return Handle(THREAD, find_java_mirror_for_type(ch));
 
   } else if (FieldType::is_obj(type) || FieldType::is_valuetype(type) || FieldType::is_array(type)) {

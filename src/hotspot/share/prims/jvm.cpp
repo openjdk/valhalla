@@ -38,6 +38,7 @@
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/bytecode.hpp"
+#include "interpreter/bytecodeUtils.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "logging/log.hpp"
 #include "memory/heapShared.hpp"
@@ -532,13 +533,37 @@ JVM_END
 
 // java.lang.Throwable //////////////////////////////////////////////////////
 
-
 JVM_ENTRY(void, JVM_FillInStackTrace(JNIEnv *env, jobject receiver))
   JVMWrapper("JVM_FillInStackTrace");
   Handle exception(thread, JNIHandles::resolve_non_null(receiver));
   java_lang_Throwable::fill_in_stack_trace(exception);
 JVM_END
 
+// java.lang.NullPointerException ///////////////////////////////////////////
+
+JVM_ENTRY(jstring, JVM_GetExtendedNPEMessage(JNIEnv *env, jthrowable throwable))
+  if (!ShowCodeDetailsInExceptionMessages) return NULL;
+
+  oop exc = JNIHandles::resolve_non_null(throwable);
+
+  Method* method;
+  int bci;
+  if (!java_lang_Throwable::get_top_method_and_bci(exc, &method, &bci)) {
+    return NULL;
+  }
+  if (method->is_native()) {
+    return NULL;
+  }
+
+  stringStream ss;
+  bool ok = BytecodeUtils::get_NPE_message_at(&ss, method, bci);
+  if (ok) {
+    oop result = java_lang_String::create_oop_from_str(ss.base(), CHECK_0);
+    return (jstring) JNIHandles::make_local(env, result);
+  } else {
+    return NULL;
+  }
+JVM_END
 
 // java.lang.StackTraceElement //////////////////////////////////////////////
 
@@ -2333,7 +2358,7 @@ JVM_ENTRY(void, JVM_GetClassCPTypes(JNIEnv *env, jclass cls, unsigned char *type
     ConstantPool* cp = InstanceKlass::cast(k)->constants();
     for (int index = cp->length() - 1; index >= 0; index--) {
       constantTag tag = cp->tag_at(index);
-      types[index] = tag.is_unresolved_klass() ? JVM_CONSTANT_Class : tag.value();
+      types[index] = (tag.is_unresolved_klass()) ? (unsigned char) JVM_CONSTANT_Class : tag.value();
     }
   }
 JVM_END

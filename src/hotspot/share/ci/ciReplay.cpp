@@ -873,16 +873,16 @@ class CompileReplay : public StackObj {
   };
 
   bool process_staticfield_reference(const char* field_signature, oop java_mirror, fieldDescriptor* fd, TRAPS) {
-    if (field_signature[0] == '[') {
+    if (field_signature[0] == JVM_SIGNATURE_ARRAY) {
       int length = parse_int("array length");
       oop value = NULL;
 
-      if (field_signature[1] == '[') {
+      if (field_signature[1] == JVM_SIGNATURE_ARRAY) {
         // multi dimensional array
         Klass* k = resolve_klass(field_signature, CHECK_(true));
         ArrayKlass* kelem = (ArrayKlass *)k;
         int rank = 0;
-        while (field_signature[rank] == '[') {
+        while (field_signature[rank] == JVM_SIGNATURE_ARRAY) {
           rank++;
         }
         jint* dims = NEW_RESOURCE_ARRAY(jint, rank);
@@ -908,10 +908,12 @@ class CompileReplay : public StackObj {
           value = oopFactory::new_intArray(length, CHECK_(true));
         } else if (strcmp(field_signature, "[J") == 0) {
           value = oopFactory::new_longArray(length, CHECK_(true));
-        } else if (field_signature[0] == '[' && field_signature[1] == 'L') {
+        } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
+                   field_signature[1] == JVM_SIGNATURE_CLASS) {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
           value = oopFactory::new_objArray(kelem, length, CHECK_(true));
-        } else if (field_signature[0] == '[' && field_signature[1] == 'Q') {
+        } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
+                   field_signature[1] == JVM_SIGNATURE_VALUETYPE) {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
           value = oopFactory::new_valueArray(kelem, length, CHECK_(true));
         } else {
@@ -998,7 +1000,7 @@ class CompileReplay : public StackObj {
       const char* string_value = parse_escaped_string();
       double value = atof(string_value);
       java_mirror->double_field_put(fd.offset(), value);
-    } else if (field_signature[0] == 'Q') {
+    } else if (field_signature[0] == JVM_SIGNATURE_VALUETYPE) {
       Klass* kelem = resolve_klass(field_signature, CHECK);
       ValueKlass* vk = ValueKlass::cast(kelem);
       oop value = vk->allocate_instance(CHECK);

@@ -34,20 +34,11 @@
 #ifndef PRODUCT
 
 const char* InstructionPrinter::basic_type_name(BasicType type) {
-  switch (type) {
-    case T_BOOLEAN: return "boolean";
-    case T_BYTE   : return "byte";
-    case T_CHAR   : return "char";
-    case T_SHORT  : return "short";
-    case T_INT    : return "int";
-    case T_LONG   : return "long";
-    case T_FLOAT  : return "float";
-    case T_DOUBLE : return "double";
-    case T_ARRAY  : return "array";
-    case T_OBJECT : return "object";
-    case T_VALUETYPE : return "value type";
-    default       : return "???";
+  const char* n = type2name(type);
+  if (n == NULL || type > T_VOID) {
+    return "???";
   }
+  return n;
 }
 
 

@@ -120,8 +120,10 @@ class jfieldIDWorkaround: AllStatic {
 
   static jfieldID to_instance_jfieldID(Klass* k, int offset, bool flattened) {
     intptr_t as_uint = ((offset & large_offset_mask) << offset_shift) |
-                       (flattened ? flattened_mask_in_place : 0) |
                         instance_mask_in_place;
+    if (flattened) {
+      as_uint |= flattened_mask_in_place;
+    }
     if (VerifyJNIFields) {
       as_uint |= encode_klass_hash(k, offset);
     }
