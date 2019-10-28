@@ -3118,7 +3118,7 @@ void ClassVerifier::verify_anewarray(
     assert(n == length, "Unexpected number of characters in string");
   } else {         // it's an object or interface
     const char* component_name = component_type.name()->as_utf8();
-    char Q_or_L = component_type.is_valuetype() ? 'Q' : 'L';
+    char Q_or_L = component_type.is_valuetype() ? JVM_SIGNATURE_VALUETYPE : JVM_SIGNATURE_CLASS;
     // add one dimension to component with 'L' or 'Q' prepended and ';' appended.
     length = (int)strlen(component_name) + 3;
     arr_sig_str = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, length + 1);

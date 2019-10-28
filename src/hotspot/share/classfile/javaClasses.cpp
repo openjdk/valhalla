@@ -1538,7 +1538,8 @@ Symbol* java_lang_Class::as_signature(oop java_class, bool intern_if_not_found) 
       ResourceMark rm;
       const char* sigstr;
       if (k->is_value()) {
-        char c = (java_class == inline_type_mirror(java_class)) ? 'Q' : 'L';
+        char c = (java_class == inline_type_mirror(java_class)) ?
+          JVM_SIGNATURE_VALUETYPE : JVM_SIGNATURE_CLASS;
         sigstr = InstanceKlass::cast(k)->signature_name_of(c);
       } else {
         sigstr = k->signature_name();

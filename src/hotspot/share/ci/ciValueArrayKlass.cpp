@@ -91,16 +91,16 @@ ciSymbol* ciValueArrayKlass::construct_array_name(ciSymbol* element_name,
   Symbol* base_name_sym = element_name->get_symbol();
   char* name;
 
-  if (base_name_sym->char_at(0) == '[' ||
-      (base_name_sym->char_at(0) == 'L' &&  // watch package name 'Lxx'
-       base_name_sym->char_at(element_len-1) == ';')) {
+  if (base_name_sym->char_at(0) == JVM_SIGNATURE_ARRAY ||
+      (base_name_sym->char_at(0) == JVM_SIGNATURE_CLASS &&  // watch package name 'Lxx'
+       base_name_sym->char_at(element_len-1) == JVM_SIGNATURE_ENDCLASS)) {
 
     int new_len = element_len + dimension + 1; // for the ['s and '\0'
     name = CURRENT_THREAD_ENV->name_buffer(new_len);
 
     int pos = 0;
     for ( ; pos < dimension; pos++) {
-      name[pos] = '[';
+      name[pos] = JVM_SIGNATURE_ARRAY;
     }
     strncpy(name+pos, (char*)element_name->base(), element_len);
     name[new_len-1] = '\0';
@@ -112,11 +112,11 @@ ciSymbol* ciValueArrayKlass::construct_array_name(ciSymbol* element_name,
     name = CURRENT_THREAD_ENV->name_buffer(new_len);
     int pos = 0;
     for ( ; pos < dimension; pos++) {
-      name[pos] = '[';
+      name[pos] = JVM_SIGNATURE_ARRAY;
     }
-    name[pos++] = 'Q';
+    name[pos++] = JVM_SIGNATURE_VALUETYPE;
     strncpy(name+pos, (char*)element_name->base(), element_len);
-    name[new_len-2] = ';';
+    name[new_len-2] = JVM_SIGNATURE_ENDCLASS;
     name[new_len-1] = '\0';
   }
   return ciSymbol::make(name);

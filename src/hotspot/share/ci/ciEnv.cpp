@@ -485,7 +485,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
                              require_local);
     if (elem_klass != NULL && elem_klass->is_loaded()) {
       // Now make an array for it
-      return ciArrayKlass::make(elem_klass, sym->char_at(1) == 'Q');
+      return ciArrayKlass::make(elem_klass, sym->char_at(1) == JVM_SIGNATURE_VALUETYPE);
     }
   }
 
@@ -512,17 +512,17 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   // Not yet loaded into the VM, or not governed by loader constraints.
   // Make a CI representative for it.
   int i = 0;
-  while (sym->char_at(i) == '[') {
+  while (sym->char_at(i) == JVM_SIGNATURE_ARRAY) {
     i++;
   }
-  if (i > 0 && sym->char_at(i) == 'Q') {
+  if (i > 0 && sym->char_at(i) == JVM_SIGNATURE_VALUETYPE) {
     // An unloaded array class of value types is an ObjArrayKlass, an
     // unloaded value type class is an InstanceKlass. For consistency,
     // make the signature of the unloaded array of value type use L
     // rather than Q.
     char *new_name = CURRENT_THREAD_ENV->name_buffer(sym->utf8_length()+1);
     strncpy(new_name, (char*)sym->base(), sym->utf8_length());
-    new_name[i] = 'L';
+    new_name[i] = JVM_SIGNATURE_CLASS;
     new_name[sym->utf8_length()] = '\0';
     return get_unloaded_klass(accessing_klass, ciSymbol::make(new_name));
   }

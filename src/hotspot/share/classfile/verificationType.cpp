@@ -197,7 +197,7 @@ VerificationType VerificationType::get_component(ClassVerifier *context, TRAPS) 
       component = context->create_temporary_symbol(
         name(), 2, name()->utf8_length() - 1);
       return VerificationType::reference_type(component);
-    case 'Q':
+    case JVM_SIGNATURE_VALUETYPE:
       component = context->create_temporary_symbol(
         name(), 2, name()->utf8_length() - 1);
       return VerificationType::valuetype_type(component);

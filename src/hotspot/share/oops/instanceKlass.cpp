@@ -2716,7 +2716,7 @@ void InstanceKlass::set_source_debug_extension(const char* array, int length) {
 }
 
 const char* InstanceKlass::signature_name() const {
-  return signature_name_of(is_value() ? 'Q' : 'L');
+  return signature_name_of(is_value() ? JVM_SIGNATURE_VALUETYPE : JVM_SIGNATURE_CLASS);
 }
 
 const char* InstanceKlass::signature_name_of(char c) const {

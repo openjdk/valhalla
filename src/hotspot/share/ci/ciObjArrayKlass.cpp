@@ -111,7 +111,7 @@ ciSymbol* ciObjArrayKlass::construct_array_name(ciSymbol* element_name,
   int element_len = element_name->utf8_length();
 
   Symbol* base_name_sym = element_name->get_symbol();
-  assert(base_name_sym->char_at(0) != 'Q', "unloaded array klass element should not have Q-type");
+  assert(base_name_sym->char_at(0) != JVM_SIGNATURE_VALUETYPE, "unloaded array klass element should not have Q-type");
   char* name;
 
   if (base_name_sym->char_at(0) == JVM_SIGNATURE_ARRAY ||
