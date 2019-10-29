@@ -887,4 +887,23 @@ public class TestBasicFunctionality extends ValueTypeTest {
         int result = test39();
         Asserts.assertEQ(result, 1552);
     }
+
+    // Test scalar replacement of value type array containing value type with oop fields
+    @Test()
+    public long test40(boolean b) {
+        MyValue1[] va = {MyValue1.createWithFieldsInline(rI, rL)};
+        long result = 0;
+        for (int i = 0; i < 1000; ++i) {
+            if (!b) {
+                result = va[0].hash();
+            }
+        }
+        return result;
+    }
+
+    @DontCompile
+    public void test40_verifier(boolean warmup) {
+        long result = test40(warmup);
+        Asserts.assertEQ(result, warmup ? 0 : hash());
+    }
 }

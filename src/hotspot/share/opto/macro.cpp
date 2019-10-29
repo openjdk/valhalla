@@ -716,7 +716,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
         }
       } else if (use->is_ValueType() && use->isa_ValueType()->get_oop() == res) {
         // ok to eliminate
-      } else if (use->is_Store()) {
+      } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
         // store to mark work
       } else if (use->Opcode() != Op_CastP2X) { // CastP2X is used by card mark
         if (use->is_Phi()) {
