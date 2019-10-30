@@ -117,7 +117,7 @@ ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
                                  jobject loader, jobject protection_domain)
   : ciKlass(name, T_OBJECT)
 {
-  assert(name->char_at(0) != '[', "not an instance klass");
+  assert(name->char_at(0) != JVM_SIGNATURE_ARRAY, "not an instance klass");
   _init_state = (InstanceKlass::ClassState)0;
   _nonstatic_field_size = -1;
   _has_nonstatic_fields = false;

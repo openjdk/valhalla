@@ -43,7 +43,7 @@ static bool map(uintptr_t start, size_t size) {
 
   if ((uintptr_t)res != start) {
     // Failed to reserve memory at the requested address
-    unmap(start, size);
+    unmap((uintptr_t)res, size);
     return false;
   }
 
@@ -51,7 +51,7 @@ static bool map(uintptr_t start, size_t size) {
   return true;
 }
 
-bool ZVirtualMemoryManager::reserve_platform(uintptr_t start, size_t size) {
+bool ZVirtualMemoryManager::reserve_contiguous_platform(uintptr_t start, size_t size) {
   // Reserve address views
   const uintptr_t marked0 = ZAddress::marked0(start);
   const uintptr_t marked1 = ZAddress::marked1(start);

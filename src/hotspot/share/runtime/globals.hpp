@@ -563,9 +563,6 @@ const size_t minimumSymbolTableSize = 1024;
   product(bool, PrintExtendedThreadInfo, false,                             \
           "Print more information in thread dump")                          \
                                                                             \
-  diagnostic(bool, TraceNMethodInstalls, false,                             \
-          "Trace nmethod installation")                                     \
-                                                                            \
   diagnostic(intx, ScavengeRootsInCode, 2,                                  \
           "0: do not allow scavengable oops in the code cache; "            \
           "1: allow scavenging from the code cache; "                       \
@@ -642,6 +639,10 @@ const size_t minimumSymbolTableSize = 1024;
                                                                             \
   product(bool, OmitStackTraceInFastThrow, true,                            \
           "Omit backtraces for some 'hot' exceptions in optimized code")    \
+                                                                            \
+  manageable(bool, ShowCodeDetailsInExceptionMessages, false,               \
+          "Show exception messages from RuntimeExceptions that contain "    \
+          "snippets of the failing code. Disable this to improve privacy.") \
                                                                             \
   product(bool, PrintWarnings, true,                                        \
           "Print JVM warnings to output stream")                            \
@@ -1047,6 +1048,9 @@ const size_t minimumSymbolTableSize = 1024;
   diagnostic(bool, EnableThreadSMRStatistics, trueInDebug,                  \
              "Enable Thread SMR Statistics")                                \
                                                                             \
+  product(bool, UseNotificationThread, true,                                \
+          "Use Notification Thread")                                        \
+                                                                            \
   product(bool, Inline, true,                                               \
           "Enable inlining")                                                \
                                                                             \
@@ -1193,9 +1197,6 @@ const size_t minimumSymbolTableSize = 1024;
                                                                             \
   develop(bool, TraceCreateZombies, false,                                  \
           "trace creation of zombie nmethods")                              \
-                                                                            \
-  notproduct(bool, IgnoreLockingAssertions, false,                          \
-          "disable locking assertions (for speed)")                         \
                                                                             \
   product(bool, RangeCheckElimination, true,                                \
           "Eliminate range checks")                                         \

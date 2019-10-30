@@ -38,6 +38,7 @@
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/bytecode.hpp"
+#include "interpreter/bytecodeUtils.hpp"
 #include "jfr/jfrEvents.hpp"
 #include "logging/log.hpp"
 #include "memory/heapShared.hpp"
@@ -531,13 +532,37 @@ JVM_END
 
 // java.lang.Throwable //////////////////////////////////////////////////////
 
-
 JVM_ENTRY(void, JVM_FillInStackTrace(JNIEnv *env, jobject receiver))
   JVMWrapper("JVM_FillInStackTrace");
   Handle exception(thread, JNIHandles::resolve_non_null(receiver));
   java_lang_Throwable::fill_in_stack_trace(exception);
 JVM_END
 
+// java.lang.NullPointerException ///////////////////////////////////////////
+
+JVM_ENTRY(jstring, JVM_GetExtendedNPEMessage(JNIEnv *env, jthrowable throwable))
+  if (!ShowCodeDetailsInExceptionMessages) return NULL;
+
+  oop exc = JNIHandles::resolve_non_null(throwable);
+
+  Method* method;
+  int bci;
+  if (!java_lang_Throwable::get_top_method_and_bci(exc, &method, &bci)) {
+    return NULL;
+  }
+  if (method->is_native()) {
+    return NULL;
+  }
+
+  stringStream ss;
+  bool ok = BytecodeUtils::get_NPE_message_at(&ss, method, bci);
+  if (ok) {
+    oop result = java_lang_String::create_oop_from_str(ss.base(), CHECK_0);
+    return (jstring) JNIHandles::make_local(env, result);
+  } else {
+    return NULL;
+  }
+JVM_END
 
 // java.lang.StackTraceElement //////////////////////////////////////////////
 
@@ -1148,13 +1173,21 @@ JVM_ENTRY(jclass, JVM_FindLoadedClass(JNIEnv *env, jobject loader, jstring name)
   ResourceMark rm(THREAD);
 
   Handle h_name (THREAD, JNIHandles::resolve_non_null(name));
-  Handle string = java_lang_String::internalize_classname(h_name, CHECK_NULL);
+  char* str = java_lang_String::as_utf8_string(h_name());
 
-  const char* str   = java_lang_String::as_utf8_string(string());
   // Sanity check, don't expect null
   if (str == NULL) return NULL;
 
-  const int str_len = (int)strlen(str);
+  // Internalize the string, converting '.' to '/' in string.
+  char* p = (char*)str;
+  while (*p != '\0') {
+      if (*p == '.') {
+          *p = '/';
+      }
+      p++;
+  }
+
+  const int str_len = (int)(p - str);
   if (str_len > Symbol::max_length()) {
     // It's impossible to create this class;  the name cannot fit
     // into the constant pool.
@@ -2443,7 +2476,7 @@ JVM_ENTRY(void, JVM_GetClassCPTypes(JNIEnv *env, jclass cls, unsigned char *type
     ConstantPool* cp = InstanceKlass::cast(k)->constants();
     for (int index = cp->length() - 1; index >= 0; index--) {
       constantTag tag = cp->tag_at(index);
-      types[index] = (tag.is_unresolved_klass()) ? JVM_CONSTANT_Class : tag.value();
+      types[index] = (tag.is_unresolved_klass()) ? (unsigned char) JVM_CONSTANT_Class : tag.value();
     }
   }
 JVM_END

@@ -535,8 +535,8 @@ C2V_VMENTRY_NULL(jobject, lookupType, (JNIEnv* env, jobject, jstring jname, jcla
       JVMCI_THROW_MSG_NULL(ClassNotFoundException, str);
     }
   } else {
-    if (class_name->char_at(0) == 'L' &&
-      class_name->char_at(class_name->utf8_length()-1) == ';') {
+    if (class_name->char_at(0) == JVM_SIGNATURE_CLASS &&
+        class_name->char_at(class_name->utf8_length()-1) == JVM_SIGNATURE_ENDCLASS) {
       // This is a name from a signature.  Strip off the trimmings.
       // Call recursive to keep scope of strippedsym.
       TempNewSymbol strippedsym = SymbolTable::new_symbol(class_name->as_utf8()+1,
@@ -2330,6 +2330,16 @@ C2V_VMENTRY_PREFIX(jboolean, isCurrentThreadAttached, (JNIEnv* env, jobject c2vm
   return true;
 C2V_END
 
+C2V_VMENTRY_PREFIX(jlong, getCurrentJavaThread, (JNIEnv* env, jobject c2vm))
+  if (base_thread == NULL) {
+    // Called from unattached JVMCI shared library thread
+    return 0L;
+  }
+  JVMCITraceMark jtm("getCurrentJavaThread");
+  assert(base_thread->is_Java_thread(), "just checking");
+  return (jlong) p2i(base_thread);
+C2V_END
+
 C2V_VMENTRY_PREFIX(jboolean, attachCurrentThread, (JNIEnv* env, jobject c2vm, jboolean as_daemon))
   if (base_thread == NULL) {
     // Called from unattached JVMCI shared library thread
@@ -2743,6 +2753,7 @@ JNINativeMethod CompilerToVM::methods[] = {
   {CC "deleteGlobalHandle",                           CC "(J)V",                                                                            FN_PTR(deleteGlobalHandle)},
   {CC "registerNativeMethods",                        CC "(" CLASS ")[J",                                                                   FN_PTR(registerNativeMethods)},
   {CC "isCurrentThreadAttached",                      CC "()Z",                                                                             FN_PTR(isCurrentThreadAttached)},
+  {CC "getCurrentJavaThread",                         CC "()J",                                                                             FN_PTR(getCurrentJavaThread)},
   {CC "attachCurrentThread",                          CC "(Z)Z",                                                                            FN_PTR(attachCurrentThread)},
   {CC "detachCurrentThread",                          CC "()V",                                                                             FN_PTR(detachCurrentThread)},
   {CC "translate",                                    CC "(" OBJECT ")J",                                                                   FN_PTR(translate)},

@@ -247,54 +247,6 @@ void ShenandoahBarrierSetAssembler::satb_write_barrier_pre(MacroAssembler* masm,
   __ bind(done);
 }
 
-void ShenandoahBarrierSetAssembler::resolve_forward_pointer(MacroAssembler* masm, Register dst, Register tmp) {
-  assert(ShenandoahCASBarrier, "should be enabled");
-  Label is_null;
-  __ testptr(dst, dst);
-  __ jcc(Assembler::zero, is_null);
-  resolve_forward_pointer_not_null(masm, dst, tmp);
-  __ bind(is_null);
-}
-
-void ShenandoahBarrierSetAssembler::resolve_forward_pointer_not_null(MacroAssembler* masm, Register dst, Register tmp) {
-  assert(ShenandoahCASBarrier || ShenandoahLoadRefBarrier, "should be enabled");
-  // The below loads the mark word, checks if the lowest two bits are
-  // set, and if so, clear the lowest two bits and copy the result
-  // to dst. Otherwise it leaves dst alone.
-  // Implementing this is surprisingly awkward. I do it here by:
-  // - Inverting the mark word
-  // - Test lowest two bits == 0
-  // - If so, set the lowest two bits
-  // - Invert the result back, and copy to dst
-
-  bool borrow_reg = (tmp == noreg);
-  if (borrow_reg) {
-    // No free registers available. Make one useful.
-    tmp = LP64_ONLY(rscratch1) NOT_LP64(rdx);
-    if (tmp == dst) {
-      tmp = LP64_ONLY(rscratch2) NOT_LP64(rcx);
-    }
-    __ push(tmp);
-  }
-
-  assert_different_registers(dst, tmp);
-
-  Label done;
-  __ movptr(tmp, Address(dst, oopDesc::mark_offset_in_bytes()));
-  __ notptr(tmp);
-  __ testb(tmp, markWord::marked_value);
-  __ jccb(Assembler::notZero, done);
-  __ orptr(tmp, markWord::marked_value);
-  __ notptr(tmp);
-  __ mov(dst, tmp);
-  __ bind(done);
-
-  if (borrow_reg) {
-    __ pop(tmp);
-  }
-}
-
-
 void ShenandoahBarrierSetAssembler::load_reference_barrier_not_null(MacroAssembler* masm, Register dst) {
   assert(ShenandoahLoadRefBarrier, "Should be enabled");
 
@@ -333,7 +285,7 @@ void ShenandoahBarrierSetAssembler::load_reference_barrier_not_null(MacroAssembl
 #endif
 }
 
-void ShenandoahBarrierSetAssembler::load_reference_barrier_native(MacroAssembler* masm, Register dst) {
+void ShenandoahBarrierSetAssembler::load_reference_barrier_native(MacroAssembler* masm, Register dst, Address src) {
   if (!ShenandoahLoadRefBarrier) {
     return;
   }
@@ -341,6 +293,7 @@ void ShenandoahBarrierSetAssembler::load_reference_barrier_native(MacroAssembler
   Label done;
   Label not_null;
   Label slow_path;
+  __ block_comment("load_reference_barrier_native { ");
 
   // null check
   __ testptr(dst, dst);
@@ -371,7 +324,7 @@ void ShenandoahBarrierSetAssembler::load_reference_barrier_native(MacroAssembler
   __ bind(slow_path);
 
   if (dst != rax) {
-    __ xchgptr(dst, rax); // Move obj into rax and save rax into obj.
+    __ push(rax);
   }
   __ push(rcx);
   __ push(rdx);
@@ -388,8 +341,9 @@ void ShenandoahBarrierSetAssembler::load_reference_barrier_native(MacroAssembler
   __ push(r15);
 #endif
 
-  __ movptr(rdi, rax);
-  __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_native), rdi);
+  assert_different_registers(dst, rsi);
+  __ lea(rsi, src);
+  __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_native), dst, rsi);
 
 #ifdef _LP64
   __ pop(r15);
@@ -407,10 +361,12 @@ void ShenandoahBarrierSetAssembler::load_reference_barrier_native(MacroAssembler
   __ pop(rcx);
 
   if (dst != rax) {
-    __ xchgptr(rax, dst); // Swap back obj with rax.
+    __ movptr(dst, rax);
+    __ pop(rax);
   }
 
   __ bind(done);
+  __ block_comment("load_reference_barrier_native { ");
 }
 
 void ShenandoahBarrierSetAssembler::storeval_barrier(MacroAssembler* masm, Register dst, Register tmp) {
@@ -474,12 +430,41 @@ void ShenandoahBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet d
   bool is_traversal_mode = ShenandoahHeap::heap()->is_traversal_mode();
   bool keep_alive = ((decorators & AS_NO_KEEPALIVE) == 0) || is_traversal_mode;
 
+  Register result_dst = dst;
+  bool use_tmp1_for_dst = false;
+
+  if (on_oop) {
+    // We want to preserve src
+    if (dst == src.base() || dst == src.index()) {
+      // Use tmp1 for dst if possible, as it is not used in BarrierAssembler::load_at()
+      if (tmp1->is_valid() && tmp1 != src.base() && tmp1 != src.index()) {
+        dst = tmp1;
+        use_tmp1_for_dst = true;
+      } else {
+        dst = rdi;
+        __ push(dst);
+      }
+    }
+    assert_different_registers(dst, src.base(), src.index());
+  }
+
   BarrierSetAssembler::load_at(masm, decorators, type, dst, src, tmp1, tmp_thread);
+
   if (on_oop) {
     if (not_in_heap && !is_traversal_mode) {
-      load_reference_barrier_native(masm, dst);
+      load_reference_barrier_native(masm, dst, src);
     } else {
       load_reference_barrier(masm, dst);
+    }
+
+    if (dst != result_dst) {
+      __ movptr(result_dst, dst);
+
+      if (!use_tmp1_for_dst) {
+        __ pop(dst);
+      }
+
+      dst = result_dst;
     }
 
     if (ShenandoahKeepAliveBarrier && on_reference && keep_alive) {
@@ -572,8 +557,9 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
                                                 bool exchange, Register tmp1, Register tmp2) {
   assert(ShenandoahCASBarrier, "Should only be used when CAS barrier is enabled");
   assert(oldval == rax, "must be in rax for implicit use in cmpxchg");
+  assert_different_registers(oldval, newval, tmp1, tmp2);
 
-  Label retry, done;
+  Label L_success, L_failure;
 
   // Remember oldval for retry logic below
 #ifdef _LP64
@@ -585,8 +571,10 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
     __ movptr(tmp1, oldval);
   }
 
-  // Step 1. Try to CAS with given arguments. If successful, then we are done,
-  // and can safely return.
+  // Step 1. Fast-path.
+  //
+  // Try to CAS with given arguments. If successful, then we are done.
+
   if (os::is_MP()) __ lock();
 #ifdef _LP64
   if (UseCompressedOops) {
@@ -596,21 +584,32 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
   {
     __ cmpxchgptr(newval, addr);
   }
-  __ jcc(Assembler::equal, done, true);
+  __ jcc(Assembler::equal, L_success);
 
   // Step 2. CAS had failed. This may be a false negative.
   //
   // The trouble comes when we compare the to-space pointer with the from-space
-  // pointer to the same object. To resolve this, it will suffice to resolve both
-  // oldval and the value from memory -- this will give both to-space pointers.
+  // pointer to the same object. To resolve this, it will suffice to resolve
+  // the value from memory -- this will give both to-space pointers.
   // If they mismatch, then it was a legitimate failure.
   //
+  // Before reaching to resolve sequence, see if we can avoid the whole shebang
+  // with filters.
+
+  // Filter: when offending in-memory value is NULL, the failure is definitely legitimate
+  __ testptr(oldval, oldval);
+  __ jcc(Assembler::zero, L_failure);
+
+  // Filter: when heap is stable, the failure is definitely legitimate
 #ifdef _LP64
-  if (UseCompressedOops) {
-    __ decode_heap_oop(tmp1);
-  }
+  const Register thread = r15_thread;
+#else
+  const Register thread = tmp2;
+  __ get_thread(thread);
 #endif
-  resolve_forward_pointer(masm, tmp1);
+  Address gc_state(thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+  __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED);
+  __ jcc(Assembler::zero, L_failure);
 
 #ifdef _LP64
   if (UseCompressedOops) {
@@ -621,18 +620,70 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
   {
     __ movptr(tmp2, oldval);
   }
-  resolve_forward_pointer(masm, tmp2);
 
+  // Decode offending in-memory value.
+  // Test if-forwarded
+  __ testb(Address(tmp2, oopDesc::mark_offset_in_bytes()), markWord::marked_value);
+  __ jcc(Assembler::noParity, L_failure);  // When odd number of bits, then not forwarded
+  __ jcc(Assembler::zero, L_failure);      // When it is 00, then also not forwarded
+
+  // Load and mask forwarding pointer
+  __ movptr(tmp2, Address(tmp2, oopDesc::mark_offset_in_bytes()));
+  __ shrptr(tmp2, 2);
+  __ shlptr(tmp2, 2);
+
+#ifdef _LP64
+  if (UseCompressedOops) {
+    __ decode_heap_oop(tmp1); // decode for comparison
+  }
+#endif
+
+  // Now we have the forwarded offender in tmp2.
+  // Compare and if they don't match, we have legitimate failure
   __ cmpptr(tmp1, tmp2);
-  __ jcc(Assembler::notEqual, done, true);
+  __ jcc(Assembler::notEqual, L_failure);
 
-  // Step 3. Try to CAS again with resolved to-space pointers.
+  // Step 3. Need to fix the memory ptr before continuing.
   //
-  // Corner case: it may happen that somebody stored the from-space pointer
-  // to memory while we were preparing for retry. Therefore, we can fail again
-  // on retry, and so need to do this in loop, always resolving the failure
-  // witness.
-  __ bind(retry);
+  // At this point, we have from-space oldval in the register, and its to-space
+  // address is in tmp2. Let's try to update it into memory. We don't care if it
+  // succeeds or not. If it does, then the retrying CAS would see it and succeed.
+  // If this fixup fails, this means somebody else beat us to it, and necessarily
+  // with to-space ptr store. We still have to do the retry, because the GC might
+  // have updated the reference for us.
+
+#ifdef _LP64
+  if (UseCompressedOops) {
+    __ encode_heap_oop(tmp2); // previously decoded at step 2.
+  }
+#endif
+
+  if (os::is_MP()) __ lock();
+#ifdef _LP64
+  if (UseCompressedOops) {
+    __ cmpxchgl(tmp2, addr);
+  } else
+#endif
+  {
+    __ cmpxchgptr(tmp2, addr);
+  }
+
+  // Step 4. Try to CAS again.
+  //
+  // This is guaranteed not to have false negatives, because oldval is definitely
+  // to-space, and memory pointer is to-space as well. Nothing is able to store
+  // from-space ptr into memory anymore. Make sure oldval is restored, after being
+  // garbled during retries.
+  //
+#ifdef _LP64
+  if (UseCompressedOops) {
+    __ movl(oldval, tmp2);
+  } else
+#endif
+  {
+    __ movptr(oldval, tmp2);
+  }
+
   if (os::is_MP()) __ lock();
 #ifdef _LP64
   if (UseCompressedOops) {
@@ -642,41 +693,28 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
   {
     __ cmpxchgptr(newval, addr);
   }
-  __ jcc(Assembler::equal, done, true);
-
-#ifdef _LP64
-  if (UseCompressedOops) {
-    __ movl(tmp2, oldval);
-    __ decode_heap_oop(tmp2);
-  } else
-#endif
-  {
-    __ movptr(tmp2, oldval);
-  }
-  resolve_forward_pointer(masm, tmp2);
-
-  __ cmpptr(tmp1, tmp2);
-  __ jcc(Assembler::equal, retry, true);
-
-  // Step 4. If we need a boolean result out of CAS, check the flag again,
-  // and promote the result. Note that we handle the flag from both the CAS
-  // itself and from the retry loop.
-  __ bind(done);
   if (!exchange) {
+    __ jccb(Assembler::equal, L_success); // fastpath, peeking into Step 5, no need to jump
+  }
+
+  // Step 5. If we need a boolean result out of CAS, set the flag appropriately.
+  // and promote the result. Note that we handle the flag from both the 1st and 2nd CAS.
+  // Otherwise, failure witness for CAE is in oldval on all paths, and we can return.
+
+  if (exchange) {
+    __ bind(L_failure);
+    __ bind(L_success);
+  } else {
     assert(res != NULL, "need result register");
-#ifdef _LP64
-    __ setb(Assembler::equal, res);
-    __ movzbl(res, res);
-#else
-    // Need something else to clean the result, because some registers
-    // do not have byte encoding that movzbl wants. Cannot do the xor first,
-    // because it modifies the flags.
-    Label res_non_zero;
-    __ movptr(res, 1);
-    __ jcc(Assembler::equal, res_non_zero, true);
+
+    Label exit;
+    __ bind(L_failure);
     __ xorptr(res, res);
-    __ bind(res_non_zero);
-#endif
+    __ jmpb(exit);
+
+    __ bind(L_success);
+    __ movptr(res, 1);
+    __ bind(exit);
   }
 }
 

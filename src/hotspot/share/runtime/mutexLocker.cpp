@@ -66,7 +66,6 @@ Mutex*   TouchedMethodLog_lock        = NULL;
 Mutex*   RetData_lock                 = NULL;
 Monitor* VMOperationQueue_lock        = NULL;
 Monitor* VMOperationRequest_lock      = NULL;
-Monitor* SerializePage_lock           = NULL;
 Monitor* Threads_lock                 = NULL;
 Mutex*   NonJavaThreadsList_lock      = NULL;
 Mutex*   NonJavaThreadsListSync_lock  = NULL;
@@ -116,8 +115,10 @@ Monitor* RootRegionScan_lock          = NULL;
 
 Mutex*   Management_lock              = NULL;
 Monitor* Service_lock                 = NULL;
+Monitor* Notification_lock            = NULL;
 Monitor* PeriodicTask_lock            = NULL;
 Monitor* RedefineClasses_lock         = NULL;
+Mutex*   Verify_lock                  = NULL;
 
 #if INCLUDE_JFR
 Mutex*   JfrStacktrace_lock           = NULL;
@@ -160,7 +161,6 @@ static int _num_mutex;
 #ifdef ASSERT
 void assert_locked_or_safepoint(const Mutex* lock) {
   // check if this thread owns the lock (common case)
-  if (IgnoreLockingAssertions) return;
   assert(lock != NULL, "Need non-NULL lock");
   if (lock->owned_by_self()) return;
   if (SafepointSynchronize::is_at_safepoint()) return;
@@ -173,7 +173,6 @@ void assert_locked_or_safepoint(const Mutex* lock) {
 
 // a weaker assertion than the above
 void assert_locked_or_safepoint_weak(const Mutex* lock) {
-  if (IgnoreLockingAssertions) return;
   assert(lock != NULL, "Need non-NULL lock");
   if (lock->is_locked()) return;
   if (SafepointSynchronize::is_at_safepoint()) return;
@@ -183,7 +182,6 @@ void assert_locked_or_safepoint_weak(const Mutex* lock) {
 
 // a stronger assertion than the above
 void assert_lock_strong(const Mutex* lock) {
-  if (IgnoreLockingAssertions) return;
   assert(lock != NULL, "Need non-NULL lock");
   if (lock->owned_by_self()) return;
   fatal("must own lock %s", lock->name());
@@ -236,6 +234,13 @@ void mutex_init() {
   def(Patching_lock                , PaddedMutex  , special,     true,  _safepoint_check_never);      // used for safepointing and code patching.
   def(CompiledMethod_lock          , PaddedMutex  , special-1,   true,  _safepoint_check_never);
   def(Service_lock                 , PaddedMonitor, special,     true,  _safepoint_check_never);      // used for service thread operations
+
+  if (UseNotificationThread) {
+    def(Notification_lock            , PaddedMonitor, special,     true,  _safepoint_check_never);  // used for notification thread operations
+  } else {
+    Notification_lock = Service_lock;
+  }
+
   def(JmethodIdCreation_lock       , PaddedMutex  , leaf,        true,  _safepoint_check_always); // used for creating jmethodIDs.
 
   def(SystemDictionary_lock        , PaddedMonitor, leaf,        true,  _safepoint_check_always);
@@ -298,6 +303,7 @@ void mutex_init() {
   def(CompileThread_lock           , PaddedMonitor, nonleaf+5,   false, _safepoint_check_always);
   def(PeriodicTask_lock            , PaddedMonitor, nonleaf+5,   true,  _safepoint_check_always);
   def(RedefineClasses_lock         , PaddedMonitor, nonleaf+5,   true,  _safepoint_check_always);
+  def(Verify_lock                  , PaddedMutex,   nonleaf+5,   true,  _safepoint_check_always);
 
   if (WhiteBoxAPI) {
     def(Compilation_lock           , PaddedMonitor, leaf,        false, _safepoint_check_never);
@@ -328,12 +334,12 @@ void mutex_init() {
 #if INCLUDE_JVMTI
   def(CDSClassFileStream_lock      , PaddedMutex  , max_nonleaf, false, _safepoint_check_always);
 #endif
+  def(DumpTimeTable_lock           , PaddedMutex  , leaf,        true,  _safepoint_check_never);
+#endif // INCLUDE_CDS
 
 #if INCLUDE_JVMCI
   def(JVMCI_lock                   , PaddedMonitor, nonleaf+2,   true,  _safepoint_check_always);
 #endif
-  def(DumpTimeTable_lock           , PaddedMutex  , leaf,        true,  _safepoint_check_never);
-#endif // INCLUDE_CDS
 }
 
 GCMutexLocker::GCMutexLocker(Mutex* mutex) {

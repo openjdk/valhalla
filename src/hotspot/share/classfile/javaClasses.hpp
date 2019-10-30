@@ -88,6 +88,13 @@
         BASIC_JAVA_CLASSES_DO_PART1(f) \
         BASIC_JAVA_CLASSES_DO_PART2(f)
 
+// Interface to java.lang.Object objects
+
+class java_lang_Object : AllStatic {
+ public:
+  static void register_natives(TRAPS);
+};
+
 // Interface to java.lang.String objects
 
 class java_lang_String : AllStatic {
@@ -201,8 +208,9 @@ class java_lang_String : AllStatic {
   static inline bool value_equals(typeArrayOop str_value1, typeArrayOop str_value2);
 
   // Conversion between '.' and '/' formats
-  static Handle externalize_classname(Handle java_string, TRAPS) { return char_converter(java_string, '/', '.', THREAD); }
-  static Handle internalize_classname(Handle java_string, TRAPS) { return char_converter(java_string, '.', '/', THREAD); }
+  static Handle externalize_classname(Handle java_string, TRAPS) {
+    return char_converter(java_string, JVM_SIGNATURE_SLASH, JVM_SIGNATURE_DOT, THREAD);
+  }
 
   // Conversion
   static Symbol* as_symbol(oop java_string);
@@ -524,7 +532,8 @@ class java_lang_Throwable: AllStatic {
     trace_mirrors_offset = 2,
     trace_names_offset   = 3,
     trace_next_offset    = 4,
-    trace_size           = 5,
+    trace_hidden_offset  = 5,
+    trace_size           = 6,
     trace_chunk_size     = 32
   };
 
@@ -574,6 +583,8 @@ class java_lang_Throwable: AllStatic {
   static void java_printStackTrace(Handle throwable, TRAPS);
   // Debugging
   friend class JavaClasses;
+  // Gets the method and bci of the top frame (TOS). Returns false if this failed.
+  static bool get_top_method_and_bci(oop throwable, Method** method, int* bci);
 };
 
 

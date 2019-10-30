@@ -114,6 +114,7 @@ serviceability/sa/ClhsdbInspect.java 8193639 solaris-all
 serviceability/sa/ClhsdbJdis.java 8193639 solaris-all
 serviceability/sa/ClhsdbJhisto.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
 serviceability/sa/ClhsdbJstack.java 8193639 solaris-all
+serviceability/sa/ClhsdbJstackXcompStress.java 8193639,8231635 solaris-all,windows-x64
 serviceability/sa/ClhsdbLongConstant.java 8193639 solaris-all
 serviceability/sa/ClhsdbPmap.java 8193639,8211767 solaris-all,linux-ppc64le,linux-ppc64
 serviceability/sa/ClhsdbPrintAll.java 8193639 solaris-all
@@ -199,7 +200,6 @@ vmTestbase/jit/escape/LockCoarsening/LockCoarsening002/TestDescription.java 8208
 vmTestbase/vm/mlvm/indy/func/jvmti/redefineClassInBootstrap/TestDescription.java 8013267 generic-all
 vmTestbase/vm/mlvm/meth/func/java/throwException/Test.java 8058176 generic-all
 vmTestbase/vm/mlvm/meth/func/jdi/breakpointOtherStratum/Test.java 8208257,8058176 generic-all
-vmTestbase/vm/mlvm/meth/stress/compiler/deoptimize/Test.java 8058176 generic-all
 vmTestbase/vm/mlvm/meth/stress/compiler/i2c_c2i/Test.java 8058176 generic-all
 vmTestbase/vm/mlvm/meth/stress/compiler/sequences/Test.java 8058176 generic-all
 vmTestbase/vm/mlvm/meth/stress/gc/callSequencesDuringGC/Test.java 8058176 generic-all
