@@ -616,7 +616,11 @@ uint Compile::scratch_emit_size(const Node* n) {
   } else if (n->is_MachProlog()) {
     saveL = ((MachPrologNode*)n)->_verified_entry;
     ((MachPrologNode*)n)->_verified_entry = &fakeL;
+  } else if (n->is_MachVEP()) {
+    saveL = ((MachVEPNode*)n)->_verified_entry;
+    ((MachVEPNode*)n)->_verified_entry = &fakeL;
   }
+
   n->emit(buf, this->regalloc());
 
   // Emitting into the scratch buffer should not fail
@@ -627,6 +631,8 @@ uint Compile::scratch_emit_size(const Node* n) {
     n->as_MachBranch()->label_set(saveL, save_bnum);
   } else if (n->is_MachProlog()) {
     ((MachPrologNode*)n)->_verified_entry = saveL;
+  } else if (n->is_MachVEP()) {
+    ((MachVEPNode*)n)->_verified_entry = saveL;
   }
 
   // End scratch_emit_size section.

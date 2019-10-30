@@ -737,21 +737,18 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
   if (!r_1->is_XMMRegister()) {
     Register val = rax;
     assert_different_registers(to.base(), val);
-    if(r_1->is_stack()) {
+    if (r_1->is_stack()) {
       int ld_off = r_1->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
       __ load_sized_value(val, Address(rsp, ld_off), size_in_bytes, /* is_signed */ false);
     } else {
       val = r_1->as_Register();
     }
     if (is_oop) {
-      // We don't need barriers because the destination is a newly allocated object.
-      // Also, we cannot use store_heap_oop(to, val) because it uses r8 as tmp.
-      if (UseCompressedOops) {
-        __ encode_heap_oop(val);
-        __ movl(to, val);
-      } else {
-        __ movptr(to, val);
-      }
+      __ push(r13);
+      __ push(rbx);
+      __ store_heap_oop(to, val, rscratch1, r13, rbx, IN_HEAP | ACCESS_WRITE);
+      __ pop(rbx);
+      __ pop(r13);
     } else {
       __ store_sized_value(to, val, size_in_bytes);
     }
@@ -782,9 +779,9 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   __ bind(skip_fixup);
 
-  bool has_value_argument = false;
   if (ValueTypePassFieldsAsArgs) {
     // Is there a value type argument?
+    bool has_value_argument = false;
     for (int i = 0; i < sig_extended->length() && !has_value_argument; i++) {
       has_value_argument = (sig_extended->at(i)._bt == T_VALUETYPE);
     }
@@ -819,9 +816,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       __ bind(no_exception);
 
       // We get an array of objects from the runtime call
-      __ get_vm_result(r13, r15_thread); // Use r13 as temporary because r10 is trashed by movptr()
+      __ get_vm_result(rscratch2, r15_thread); // Use rscratch2 (r11) as temporary because rscratch1 (r10) is trashed by movptr()
       __ get_vm_result_2(rbx, r15_thread); // TODO: required to keep the callee Method live?
-      __ mov(r10, r13);
     }
   }
 
@@ -858,7 +854,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   // we allocated above and want to pass to the
   // interpreter. next_arg_int is the next argument from the
   // interpreter point of view (value types are passed by reference).
-  bool has_oop_field = false;
   for (int next_arg_comp = 0, ignored = 0, next_vt_arg = 0, next_arg_int = 0;
        next_arg_comp < sig_extended->length(); next_arg_comp++) {
     assert(ignored <= next_arg_comp, "shouldn't skip over more slots than there are arguments");
@@ -887,7 +882,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       ignored++;
       // get the buffer from the just allocated pool of buffers
       int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_VALUETYPE);
-      __ load_heap_oop(r11, Address(r10, index));
+      __ load_heap_oop(r14, Address(rscratch2, index));
       next_vt_arg++; next_arg_int++;
       int vt = 1;
       // write fields we get from compiled code in registers/stack
@@ -914,32 +909,14 @@ static void gen_c2i_adapter(MacroAssembler *masm,
           int off = sig_extended->at(next_arg_comp)._offset;
           assert(off > 0, "offset in object should be positive");
           size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
-          bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
-          has_oop_field = has_oop_field || is_oop;
+          bool is_oop = is_reference_type(bt);
           gen_c2i_adapter_helper(masm, bt, next_arg_comp > 0 ? sig_extended->at(next_arg_comp-1)._bt : T_ILLEGAL,
-                                 size_in_bytes, regs[next_arg_comp-ignored], Address(r11, off), extraspace, is_oop);
+                                 size_in_bytes, regs[next_arg_comp-ignored], Address(r14, off), extraspace, is_oop);
         }
       } while (vt != 0);
       // pass the buffer to the interpreter
-      __ movptr(Address(rsp, st_off), r11);
+      __ movptr(Address(rsp, st_off), r14);
     }
-  }
-
-  // If a value type was allocated and initialized, apply post barrier to all oop fields
-  if (has_value_argument && has_oop_field) {
-    __ push(r13); // save senderSP
-    __ push(rbx); // save callee
-    // Allocate argument register save area
-    if (frame::arg_reg_save_area_bytes != 0) {
-      __ subptr(rsp, frame::arg_reg_save_area_bytes);
-    }
-    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::apply_post_barriers), r15_thread, r10);
-    // De-allocate argument register save area
-    if (frame::arg_reg_save_area_bytes != 0) {
-      __ addptr(rsp, frame::arg_reg_save_area_bytes);
-    }
-    __ pop(rbx); // restore callee
-    __ pop(r13); // restore sender SP
   }
 
   // Schedule the branch target address early.
@@ -4395,23 +4372,14 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
       __ movflt(to, r_1->as_XMMRegister());
     } else if (bt == T_DOUBLE) {
       __ movdbl(to, r_1->as_XMMRegister());
-    } else if (bt == T_OBJECT || bt == T_ARRAY) {
-      Register val = r_1->as_Register();
-      assert_different_registers(rax, val);
-      // We don't need barriers because the destination is a newly allocated object.
-      // Also, we cannot use store_heap_oop(to, val) because it uses r8 as tmp.
-      if (UseCompressedOops) {
-        __ encode_heap_oop(val);
-        __ movl(to, val);
-      } else {
-        __ movptr(to, val);
-      }
-
     } else {
-      assert(is_java_primitive(bt), "unexpected basic type");
-      assert_different_registers(rax, r_1->as_Register());
-      size_t size_in_bytes = type2aelembytes(bt);
-      __ store_sized_value(to, r_1->as_Register(), size_in_bytes);
+      Register val = r_1->as_Register();
+      assert_different_registers(to.base(), val, r14, r15, rbx);
+      if (is_reference_type(bt)) {
+        __ store_heap_oop(to, val, r14, r13, rbx, IN_HEAP | ACCESS_WRITE);
+      } else {
+        __ store_sized_value(to, r_1->as_Register(), type2aelembytes(bt));
+      }
     }
     j++;
   }

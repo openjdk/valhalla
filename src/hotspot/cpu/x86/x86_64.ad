@@ -889,6 +889,11 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   __ verified_entry(C);
   __ bind(*_verified_entry);
 
+  if (C->stub_function() == NULL) {
+    BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+    bs->nmethod_entry_barrier(&_masm);
+  }
+
   C->set_frame_complete(cbuf.insts_size());
 
   if (C->has_mach_constant_base_node()) {
@@ -897,12 +902,6 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
     Compile::ConstantTable& constant_table = C->constant_table();
     constant_table.set_table_base_offset(constant_table.calculate_table_base_offset());
   }
-}
-
-uint MachPrologNode::size(PhaseRegAlloc* ra_) const
-{
-  return MachNode::size(ra_); // too many variables; just compute it
-                              // the hard way
 }
 
 int MachPrologNode::reloc() const
@@ -985,12 +984,6 @@ void MachEpilogNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
       }
     }
   }
-}
-
-uint MachEpilogNode::size(PhaseRegAlloc* ra_) const
-{
-  return MachNode::size(ra_); // too many variables; just compute it
-                              // the hard way
 }
 
 int MachEpilogNode::reloc() const
@@ -1561,11 +1554,6 @@ void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
   }
 }
 
-uint MachVEPNode::size(PhaseRegAlloc* ra_) const
-{
-  return MachNode::size(ra_); // too many variables; just compute it the hard way
-}
-
 //=============================================================================
 #ifndef PRODUCT
 void MachUEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
@@ -1607,13 +1595,6 @@ void MachUEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
   if (nops_cnt > 0)
     masm.nop(nops_cnt);
 }
-
-uint MachUEPNode::size(PhaseRegAlloc* ra_) const
-{
-  return MachNode::size(ra_); // too many variables; just compute it
-                              // the hard way
-}
-
 
 //=============================================================================
 

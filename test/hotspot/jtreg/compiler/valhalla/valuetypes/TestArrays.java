@@ -666,7 +666,9 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // non escaping allocations
-    @Test(failOn = ALLOCA + LOOP + LOAD + TRAP)
+    // TODO ZGC does not support the clone intrinsic, remove this once JDK-8232896 is fixed
+    @Test(valid = ZGCOff, failOn = ALLOCA + LOOP + LOAD + TRAP)
+    @Test(valid = ZGCOn)
     public MyValue2 test28() {
         MyValue2[] src = new MyValue2[10];
         src[0] = MyValue2.createWithFieldsInline(rI, false);

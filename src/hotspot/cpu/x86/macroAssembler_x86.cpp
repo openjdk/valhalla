@@ -5735,7 +5735,6 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   int bangsize = C->bang_size_in_bytes();
   bool fp_mode_24b = C->in_24_bit_fp_mode();
   int stack_bang_size = C->need_stack_bang(bangsize) ? bangsize : 0;
-  bool is_stub = C->stub_function() != NULL;
 
   // WARNING: Initial instruction MUST be 5 bytes or longer so that
   // NativeJump::patch_verified_entry will be able to patch out the entry
@@ -5822,11 +5821,6 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
     bind(L);
   }
 #endif
-
-  if (!is_stub) {
-    BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-    bs->nmethod_entry_barrier(this);
-  }
 }
 
 // clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM registers

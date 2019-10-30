@@ -2681,7 +2681,7 @@ class AdapterHandlerTableIterator : public StackObj {
 // Implementation of AdapterHandlerLibrary
 AdapterHandlerTable* AdapterHandlerLibrary::_adapters = NULL;
 AdapterHandlerEntry* AdapterHandlerLibrary::_abstract_method_handler = NULL;
-const int AdapterHandlerLibrary_size = 16*K;
+const int AdapterHandlerLibrary_size = 32*K;
 BufferBlob* AdapterHandlerLibrary::_buffer = NULL;
 
 BufferBlob* AdapterHandlerLibrary::buffer_blob() {
@@ -3663,7 +3663,8 @@ JRT_ENTRY(void, SharedRuntime::allocate_value_types(JavaThread* thread, Method* 
   thread->set_vm_result_2(callee()); // TODO: required to keep callee live?
 JRT_END
 
-// Iterate of the array of heap allocated value types and apply the GC post barrier to all reference fields.
+// TODO remove this once the AARCH64 dependency is gone
+// Iterate over the array of heap allocated value types and apply the GC post barrier to all reference fields.
 // This is called from the C2I adapter after value type arguments are heap allocated and initialized.
 JRT_LEAF(void, SharedRuntime::apply_post_barriers(JavaThread* thread, objArrayOopDesc* array))
 {

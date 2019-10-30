@@ -144,9 +144,23 @@ import jdk.experimental.value.MethodHandleBuilder;
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
  */
-public class ValueOops {
 
-    // Xcomp with ZGC missing until C1 and C2 barrier code is in place (JDK-8231498)
+/**
+ * @test ValueOops_comp_Z
+ * @requires vm.gc.Z
+ * @summary Test embedding oops into Value types
+ * @modules java.base/jdk.experimental.bytecode
+ *          java.base/jdk.experimental.value
+ * @library /test/lib
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
+ * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator ValueOops.java
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ *                   sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run main/othervm -Xcomp -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
+ *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   runtime.valhalla.valuetypes.ValueOops
+ */
+public class ValueOops {
 
     // Extra debug: -XX:+VerifyOops -XX:+VerifyStack -XX:+VerifyLastFrame -XX:+VerifyBeforeGC -XX:+VerifyAfterGC -XX:+VerifyDuringGC -XX:VerifySubSet=threads,heap
     // Even more debugging: -XX:+TraceNewOopMapGeneration -Xlog:gc*=info

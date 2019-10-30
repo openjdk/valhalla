@@ -288,9 +288,10 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     }
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    if (bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), dest_elem, false, BarrierSetC2::Optimization)) {
-      // It's an object array copy but we can't emit the card marking
-      // that is needed
+    if (bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), dest_elem, false, BarrierSetC2::Optimization) ||
+        (src_elem == T_VALUETYPE && ary_src->elem()->value_klass()->contains_oops() &&
+         bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), T_OBJECT, false, BarrierSetC2::Optimization))) {
+      // It's an object array copy but we can't emit the card marking that is needed
       return false;
     }
 
@@ -352,7 +353,9 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     }
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    if (bs->array_copy_requires_gc_barriers(true, elem, true, BarrierSetC2::Optimization)) {
+    if (bs->array_copy_requires_gc_barriers(true, elem, true, BarrierSetC2::Optimization) ||
+        (elem == T_VALUETYPE && ary_src->elem()->value_klass()->contains_oops() &&
+         bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Optimization))) {
       return false;
     }
 
@@ -406,6 +409,8 @@ void ArrayCopyNode::copy(GraphKit& kit,
                          Node* adr_dest,
                          BasicType copy_type,
                          const Type* value_type) {
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  Node* ctl = kit.control();
   if (copy_type == T_VALUETYPE) {
     ciValueArrayKlass* vak = atp_src->klass()->as_value_array_klass();
     ciValueKlass* vk = vak->element_klass()->as_value_klass();
@@ -421,32 +426,20 @@ void ArrayCopyNode::copy(GraphKit& kit,
       }
       const Type* rt = Type::get_const_type(ft);
       const TypePtr* adr_type = atp_src->with_field_offset(off_in_vt)->add_offset(Type::OffsetBot);
+      assert(!bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), bt, false, BarrierSetC2::Optimization), "GC barriers required");
       Node* next_src = kit.gvn().transform(new AddPNode(base_src, adr_src, off));
-      Node* v = kit.make_load(kit.control(), next_src, rt, bt, adr_type, MemNode::unordered);
-
       Node* next_dest = kit.gvn().transform(new AddPNode(base_dest, adr_dest, off));
-      if (is_java_primitive(bt)) {
-        kit.store_to_memory(kit.control(), next_dest, v, bt, adr_type, MemNode::unordered);
-      } else {
-        const TypeOopPtr* val_type = Type::get_const_type(ft)->is_oopptr();
-        kit.access_store_at(base_dest, next_dest, adr_type, v,
-                            val_type, bt, StoreNode::release_if_reference(T_OBJECT));
-      }
+      Node* v = load(bs, &kit.gvn(), ctl, kit.merged_memory(), next_src, adr_type, rt, bt);
+      store(bs, &kit.gvn(), ctl, kit.merged_memory(), next_dest, adr_type, v, rt, bt);
     }
   } else {
-    Node* off  = kit.MakeConX(type2aelembytes(copy_type) * i);
+    Node* off = kit.MakeConX(type2aelembytes(copy_type) * i);
     Node* next_src = kit.gvn().transform(new AddPNode(base_src, adr_src, off));
-    Node* v = kit.make_load(kit.control(), next_src, value_type, copy_type, atp_src, MemNode::unordered);
     Node* next_dest = kit.gvn().transform(new AddPNode(base_dest, adr_dest, off));
-    BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    if (copy_type == T_OBJECT && (bs->array_copy_requires_gc_barriers(false, T_OBJECT, false, BarrierSetC2::Optimization))) {
-      kit.access_store_at(base_dest, next_dest, atp_dest, v,
-                          value_type->make_ptr()->is_oopptr(), copy_type,
-                          StoreNode::release_if_reference(T_OBJECT));
-    } else {
-      kit.store_to_memory(kit.control(), next_dest, v, copy_type, atp_dest, MemNode::unordered);
-    }
+    Node* v = load(bs, &kit.gvn(), ctl, kit.merged_memory(), next_src, atp_src, value_type, copy_type);
+    store(bs, &kit.gvn(), ctl, kit.merged_memory(), next_dest, atp_dest, v, value_type, copy_type);
   }
+  kit.set_control(ctl);
 }
 
 

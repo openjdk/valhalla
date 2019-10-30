@@ -168,12 +168,15 @@ public abstract class ValueTypeTest {
     protected static final int AlwaysIncrementalInlineOff = 0x80;
     protected static final int G1GCOn = 0x100;
     protected static final int G1GCOff = 0x200;
+    protected static final int ZGCOn = 0x400;
+    protected static final int ZGCOff = 0x800;
     static final int AllFlags = ValueTypePassFieldsAsArgsOn | ValueTypePassFieldsAsArgsOff | ValueTypeArrayFlattenOn | ValueTypeArrayFlattenOff | ValueTypeReturnedAsFieldsOn;
     protected static final boolean ValueTypePassFieldsAsArgs = (Boolean)WHITE_BOX.getVMFlag("ValueTypePassFieldsAsArgs");
     protected static final boolean ValueTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("ValueArrayElemMaxFlatSize") == -1); // FIXME - fix this if default of ValueArrayElemMaxFlatSize is changed
     protected static final boolean ValueTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("ValueTypeReturnedAsFields");
     protected static final boolean AlwaysIncrementalInline = (Boolean)WHITE_BOX.getVMFlag("AlwaysIncrementalInline");
     protected static final boolean G1GC = (Boolean)WHITE_BOX.getVMFlag("UseG1GC");
+    protected static final boolean ZGC = (Boolean)WHITE_BOX.getVMFlag("UseZGC");
     protected static final boolean VerifyOops = (Boolean)WHITE_BOX.getVMFlag("VerifyOops");
 
     protected static final Hashtable<String, Method> tests = new Hashtable<String, Method>();
@@ -512,6 +515,12 @@ public abstract class ValueTypeTest {
                     assert anno == null;
                     anno = a;
                 } else if ((a.valid() & G1GCOff) != 0 && !G1GC) {
+                    assert anno == null;
+                    anno = a;
+                } else if ((a.valid() & ZGCOn) != 0 && ZGC) {
+                    assert anno == null;
+                    anno = a;
+                } else if ((a.valid() & ZGCOff) != 0 && !ZGC) {
                     assert anno == null;
                     anno = a;
                 }

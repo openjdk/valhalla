@@ -1653,6 +1653,7 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   declare_c2_type(MachTypeNode, MachNode)                                 \
   declare_c2_type(MachBreakpointNode, MachIdealNode)                      \
   declare_c2_type(MachUEPNode, MachIdealNode)                             \
+  declare_c2_type(MachVEPNode, MachIdealNode)                             \
   declare_c2_type(MachPrologNode, MachIdealNode)                          \
   declare_c2_type(MachEpilogNode, MachIdealNode)                          \
   declare_c2_type(MachNopNode, MachIdealNode)                             \

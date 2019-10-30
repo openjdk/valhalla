@@ -857,7 +857,9 @@ public class TestNullableArrays extends ValueTypeTest {
     }
 
     // non escaping allocations
-    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    // TODO ZGC does not support the clone intrinsic, remove this once JDK-8232896 is fixed
+    @Test(valid = ZGCOff, failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    @Test(valid = ZGCOn)
     public MyValue2? test28() {
         MyValue2?[] src = new MyValue2?[10];
         src[0] = null;
