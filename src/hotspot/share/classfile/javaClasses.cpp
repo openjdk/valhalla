@@ -89,6 +89,21 @@ InjectedField JavaClasses::_injected_fields[] = {
   ALL_INJECTED_FIELDS(DECLARE_INJECTED_FIELD)
 };
 
+// Register native methods of Object
+void java_lang_Object::register_natives(TRAPS) {
+  InstanceKlass* obj = SystemDictionary::Object_klass();
+  Method::register_native(obj, vmSymbols::hashCode_name(),
+                          vmSymbols::void_int_signature(), (address) &JVM_IHashCode, CHECK);
+  Method::register_native(obj, vmSymbols::wait_name(),
+                          vmSymbols::long_void_signature(), (address) &JVM_MonitorWait, CHECK);
+  Method::register_native(obj, vmSymbols::notify_name(),
+                          vmSymbols::void_method_signature(), (address) &JVM_MonitorNotify, CHECK);
+  Method::register_native(obj, vmSymbols::notifyAll_name(),
+                          vmSymbols::void_method_signature(), (address) &JVM_MonitorNotifyAll, CHECK);
+  Method::register_native(obj, vmSymbols::clone_name(),
+                          vmSymbols::void_object_signature(), (address) &JVM_Clone, THREAD);
+}
+
 int JavaClasses::compute_injected_offset(InjectedFieldID id) {
   return _injected_fields[id].compute_offset();
 }
@@ -374,14 +389,20 @@ Handle java_lang_String::create_from_symbol(Symbol* symbol, TRAPS) {
 Handle java_lang_String::create_from_platform_dependent_str(const char* str, TRAPS) {
   assert(str != NULL, "bad arguments");
 
-  typedef jstring (*to_java_string_fn_t)(JNIEnv*, const char *);
+  typedef jstring (JNICALL *to_java_string_fn_t)(JNIEnv*, const char *);
   static to_java_string_fn_t _to_java_string_fn = NULL;
 
   if (_to_java_string_fn == NULL) {
     void *lib_handle = os::native_java_library();
-    _to_java_string_fn = CAST_TO_FN_PTR(to_java_string_fn_t, os::dll_lookup(lib_handle, "NewStringPlatform"));
+    _to_java_string_fn = CAST_TO_FN_PTR(to_java_string_fn_t, os::dll_lookup(lib_handle, "JNU_NewStringPlatform"));
+#if defined(_WIN32) && !defined(_WIN64)
     if (_to_java_string_fn == NULL) {
-      fatal("NewStringPlatform missing");
+      // On 32 bit Windows, also try __stdcall decorated name
+      _to_java_string_fn = CAST_TO_FN_PTR(to_java_string_fn_t, os::dll_lookup(lib_handle, "_JNU_NewStringPlatform@8"));
+    }
+#endif
+    if (_to_java_string_fn == NULL) {
+      fatal("JNU_NewStringPlatform missing");
     }
   }
 
