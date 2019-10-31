@@ -125,15 +125,7 @@ void ValueArrayKlass::initialize(TRAPS) {
 
 // Oops allocation...
 valueArrayOop ValueArrayKlass::allocate(int length, TRAPS) {
-  if (length < 0) {
-    THROW_0(vmSymbols::java_lang_NegativeArraySizeException());
-  }
-  if (length > max_elements()) {
-    report_java_out_of_memory("Requested array size exceeds VM limit");
-    JvmtiExport::post_array_size_exhausted();
-    THROW_OOP_0(Universe::out_of_memory_error_array_size());
-  }
-
+  check_array_allocation_length(length, max_elements(), CHECK_NULL);
   int size = valueArrayOopDesc::object_size(layout_helper(), length);
   return (valueArrayOop) Universe::heap()->array_allocate(this, size, length, true, THREAD);
 }
@@ -176,8 +168,22 @@ int ValueArrayKlass::oop_size(oop obj) const {
   return array->object_size();
 }
 
+// For now return the maximum number of array elements that will not exceed:
+// nof bytes = "max_jint * HeapWord" since the "oopDesc::oop_iterate_size"
+// returns "int" HeapWords, need fix for JDK-4718400 and JDK-8233189
 jint ValueArrayKlass::max_elements() const {
-  return arrayOopDesc::max_array_length(arrayOopDesc::header_size(T_VALUETYPE), element_byte_size());
+  // Check the max number of heap words limit first (because of int32_t in oopDesc_oop_size() etc)
+  size_t max_size = max_jint;
+  max_size -= arrayOopDesc::header_size(T_VALUETYPE);
+  max_size = align_down(max_size, MinObjAlignment);
+  max_size <<= LogHeapWordSize;                                  // convert to max payload size in bytes
+  max_size >>= layout_helper_log2_element_size(_layout_helper);  // divide by element size (in bytes) = max elements
+  // Within int32_t heap words, still can't exceed Java array element limit
+  if (max_size > max_jint) {
+    max_size = max_jint;
+  }
+  assert((max_size >> LogHeapWordSize) <= max_jint, "Overflow");
+  return (jint) max_size;
 }
 
 oop ValueArrayKlass::protection_domain() const {
