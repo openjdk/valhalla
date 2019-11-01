@@ -54,6 +54,7 @@ ValueKlass::ValueKlass(const ClassFileParser& parser)
   *((Array<SigEntry>**)adr_extended_sig()) = NULL;
   *((Array<VMRegPair>**)adr_return_regs()) = NULL;
   *((address*)adr_pack_handler()) = NULL;
+  *((address*)adr_pack_handler_jobject()) = NULL;
   *((address*)adr_unpack_handler()) = NULL;
   assert(pack_handler() == NULL, "pack handler not null");
   *((int*)adr_default_value_offset()) = 0;
@@ -316,6 +317,7 @@ void ValueKlass::initialize_calling_convention(TRAPS) {
 
         BufferedValueTypeBlob* buffered_blob = SharedRuntime::generate_buffered_value_type_adapter(this);
         *((address*)adr_pack_handler()) = buffered_blob->pack_fields();
+        *((address*)adr_pack_handler_jobject()) = buffered_blob->pack_fields_jobject();
         *((address*)adr_unpack_handler()) = buffered_blob->unpack_fields();
         assert(CodeCache::find_blob(pack_handler()) == buffered_blob, "lost track of blob");
       }
@@ -344,6 +346,7 @@ void ValueKlass::cleanup_blobs() {
     assert(buffered_blob->is_buffered_value_type_blob(), "bad blob type");
     BufferBlob::free((BufferBlob*)buffered_blob);
     *((address*)adr_pack_handler()) = NULL;
+    *((address*)adr_pack_handler_jobject()) = NULL;
     *((address*)adr_unpack_handler()) = NULL;
   }
 }

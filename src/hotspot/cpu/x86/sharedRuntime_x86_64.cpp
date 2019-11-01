@@ -4347,6 +4347,15 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
   const Array<SigEntry>* sig_vk = vk->extended_sig();
   const Array<VMRegPair>* regs = vk->return_regs();
 
+  int pack_fields_jobject_off = __ offset();
+  // Resolve pre-allocated buffer from JNI handle.
+  // We cannot do this in generate_call_stub() because it requires GC code to be initialized.
+  __ movptr(rax, Address(r13, 0));
+  __ resolve_jobject(rax /* value */,
+                     r15_thread /* thread */,
+                     r12 /* tmp */);
+  __ movptr(Address(r13, 0), rax);
+
   int pack_fields_off = __ offset();
 
   int j = 1;
@@ -4434,5 +4443,5 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
 
   __ flush();
 
-  return BufferedValueTypeBlob::create(&buffer, pack_fields_off, unpack_fields_off);
+  return BufferedValueTypeBlob::create(&buffer, pack_fields_off, pack_fields_jobject_off, unpack_fields_off);
 }

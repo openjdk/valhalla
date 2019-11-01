@@ -422,13 +422,7 @@ class StubGenerator: public StubCodeGenerator {
       // Load pack handler address
       __ andptr(rax, -2);
       __ movptr(rax, Address(rax, InstanceKlass::adr_valueklass_fixed_block_offset()));
-      __ movptr(rbx, Address(rax, ValueKlass::pack_handler_offset()));
-      // Resolve pre-allocated buffer from JNI handle
-      __ movptr(rax, Address(r13, 0));
-      __ resolve_jobject(rax /* value */,
-                         r15_thread /* thread */,
-                         r12 /* tmp */);
-      __ movptr(Address(r13, 0), rax);
+      __ movptr(rbx, Address(rax, ValueKlass::pack_handler_jobject_offset()));
       // Call pack handler to initialize the buffer
       __ call(rbx);
       __ jmp(exit);

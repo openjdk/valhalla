@@ -140,6 +140,7 @@ class ValueKlassFixedBlock {
   Array<SigEntry>** _extended_sig;
   Array<VMRegPair>** _return_regs;
   address* _pack_handler;
+  address* _pack_handler_jobject;
   address* _unpack_handler;
   int* _default_value_offset;
   Klass** _value_array_klass;

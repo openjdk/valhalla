@@ -355,21 +355,22 @@ MethodHandlesAdapterBlob* MethodHandlesAdapterBlob::create(int buffer_size) {
 
 //----------------------------------------------------------------------------------------------------
 // Implementation of BufferedValueTypeBlob
-BufferedValueTypeBlob::BufferedValueTypeBlob(int size, CodeBuffer* cb, int pack_fields_off, int unpack_fields_off) :
+BufferedValueTypeBlob::BufferedValueTypeBlob(int size, CodeBuffer* cb, int pack_fields_off, int pack_fields_jobject_off, int unpack_fields_off) :
   BufferBlob("buffered value type", size, cb),
   _pack_fields_off(pack_fields_off),
+  _pack_fields_jobject_off(pack_fields_jobject_off),
   _unpack_fields_off(unpack_fields_off) {
   CodeCache::commit(this);
 }
 
-BufferedValueTypeBlob* BufferedValueTypeBlob::create(CodeBuffer* cb, int pack_fields_off, int unpack_fields_off) {
+BufferedValueTypeBlob* BufferedValueTypeBlob::create(CodeBuffer* cb, int pack_fields_off, int pack_fields_jobject_off, int unpack_fields_off) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
   BufferedValueTypeBlob* blob = NULL;
   unsigned int size = CodeBlob::allocation_size(cb, sizeof(BufferedValueTypeBlob));
   {
     MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size) BufferedValueTypeBlob(size, cb, pack_fields_off, unpack_fields_off);
+    blob = new (size) BufferedValueTypeBlob(size, cb, pack_fields_off, pack_fields_jobject_off, unpack_fields_off);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();

@@ -114,11 +114,12 @@ jint init_globals() {
   codeCache_init();
   VM_Version_init();
   VMRegImpl::set_regName();  // need this before generate_stubs (for printing oop maps).
-  jint status = universe_init();  // dependent on codeCache_init and metaspace_init.
+  stubRoutines_init1();
+  jint status = universe_init();  // dependent on codeCache_init and
+                                  // stubRoutines_init1 and metaspace_init.
   if (status != JNI_OK)
     return status;
 
-  stubRoutines_init1();
   gc_barrier_stubs_init();   // depends on universe_init, must be before interpreter_init
   interpreter_init();        // before any methods loaded
   invocationCounter_init();  // before any methods loaded

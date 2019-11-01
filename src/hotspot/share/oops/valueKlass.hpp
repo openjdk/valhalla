@@ -82,6 +82,11 @@ class ValueKlass: public InstanceKlass {
     return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _pack_handler));
   }
 
+  address adr_pack_handler_jobject() const {
+    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _pack_handler_jobject));
+  }
+
   address adr_unpack_handler() const {
     assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
     return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _unpack_handler));
@@ -254,6 +259,10 @@ class ValueKlass: public InstanceKlass {
   // so at a fixed offset from the base of the klass pointer.
   static ByteSize pack_handler_offset() {
     return byte_offset_of(ValueKlassFixedBlock, _pack_handler);
+  }
+
+  static ByteSize pack_handler_jobject_offset() {
+    return byte_offset_of(ValueKlassFixedBlock, _pack_handler_jobject);
   }
 
   static ByteSize unpack_handler_offset() {

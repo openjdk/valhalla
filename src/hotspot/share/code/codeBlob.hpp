@@ -485,15 +485,17 @@ public:
 class BufferedValueTypeBlob: public BufferBlob {
 private:
   const int _pack_fields_off;
+  const int _pack_fields_jobject_off;
   const int _unpack_fields_off;
 
-  BufferedValueTypeBlob(int size, CodeBuffer* cb, int pack_fields_off, int unpack_fields_off);
+  BufferedValueTypeBlob(int size, CodeBuffer* cb, int pack_fields_off, int pack_fields_jobject_off, int unpack_fields_off);
 
 public:
   // Creation
-  static BufferedValueTypeBlob* create(CodeBuffer* cb, int pack_fields_off, int unpack_fields_off);
+  static BufferedValueTypeBlob* create(CodeBuffer* cb, int pack_fields_off, int pack_fields_jobject_off, int unpack_fields_off);
 
   address pack_fields() const { return code_begin() + _pack_fields_off; }
+  address pack_fields_jobject() const { return code_begin() + _pack_fields_jobject_off; }
   address unpack_fields() const { return code_begin() + _unpack_fields_off; }
 
   // Typing
