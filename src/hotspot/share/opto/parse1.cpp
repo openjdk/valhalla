@@ -611,8 +611,8 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
       // Create ValueTypeNode from the oop and replace the parameter
       Node* vt = ValueTypeNode::make_from_oop(this, parm, t->value_klass());
       map()->replace_edge(parm, vt);
-    } else if (i == (uint)(arg_size_sig - 1) && !is_osr_parse() && method()->has_vararg() &&
-               t->isa_aryptr() != NULL && !t->is_aryptr()->is_not_null_free()) {
+    } else if (UseTypeSpeculation && (i == (uint)(arg_size_sig - 1)) && !is_osr_parse() &&
+               method()->has_vararg() && t->isa_aryptr() != NULL && !t->is_aryptr()->is_not_null_free()) {
       // Speculate on varargs Object array being not null-free (and therefore also not flattened)
       const TypePtr* spec_type = t->speculative();
       spec_type = (spec_type != NULL && spec_type->isa_aryptr() != NULL) ? spec_type : t->is_aryptr();
