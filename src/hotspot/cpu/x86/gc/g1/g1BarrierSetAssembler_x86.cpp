@@ -349,9 +349,9 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
                                          Address dst, Register val, Register tmp1, Register tmp2, Register tmp3) {
   bool in_heap = (decorators & IN_HEAP) != 0;
   bool as_normal = (decorators & AS_NORMAL) != 0;
-  assert((decorators & IS_DEST_UNINITIALIZED) == 0, "unsupported");
+  bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
 
-  bool needs_pre_barrier = as_normal;
+  bool needs_pre_barrier = as_normal && !dest_uninitialized;
   bool needs_post_barrier = val != noreg && in_heap;
 
   if (tmp3 == noreg) {

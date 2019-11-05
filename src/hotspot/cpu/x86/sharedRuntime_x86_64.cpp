@@ -4383,9 +4383,9 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
       __ movdbl(to, r_1->as_XMMRegister());
     } else {
       Register val = r_1->as_Register();
-      assert_different_registers(to.base(), val, r14, r15, rbx);
+      assert_different_registers(to.base(), val, r14, rbx);
       if (is_reference_type(bt)) {
-        __ store_heap_oop(to, val, r14, r13, rbx, IN_HEAP | ACCESS_WRITE);
+        __ store_heap_oop(to, val, r14, r13, rbx, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
       } else {
         __ store_sized_value(to, r_1->as_Register(), type2aelembytes(bt));
       }
