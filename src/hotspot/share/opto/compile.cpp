@@ -2235,7 +2235,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
           ace->_adr_type->isa_aryptr() &&
           ace->_adr_type->is_aryptr()->elem()->isa_valuetype()) {
         ace->_adr_type = NULL;
-        ace->_index = 0;
+        ace->_index = (i != 0) ? 0 : AliasIdxTop; // Make sure the NULL adr_type resolves to AliasIdxTop
       }
     }
 
