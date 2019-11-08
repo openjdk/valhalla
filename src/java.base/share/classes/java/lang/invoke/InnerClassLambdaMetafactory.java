@@ -31,6 +31,7 @@ import jdk.internal.org.objectweb.asm.*;
 import sun.invoke.util.BytecodeDescriptor;
 import jdk.internal.misc.Unsafe;
 import sun.security.action.GetPropertyAction;
+import sun.security.action.GetBooleanAction;
 
 import java.io.FilePermission;
 import java.io.Serializable;
@@ -90,10 +91,15 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
     // For dumping generated classes to disk, for debugging purposes
     private static final ProxyClassesDumper dumper;
 
+    private static final boolean disableEagerInitialization;
+
     static {
-        final String key = "jdk.internal.lambda.dumpProxyClasses";
-        String path = GetPropertyAction.privilegedGetProperty(key);
-        dumper = (null == path) ? null : ProxyClassesDumper.getInstance(path);
+        final String dumpProxyClassesKey = "jdk.internal.lambda.dumpProxyClasses";
+        String dumpPath = GetPropertyAction.privilegedGetProperty(dumpProxyClassesKey);
+        dumper = (null == dumpPath) ? null : ProxyClassesDumper.getInstance(dumpPath);
+
+        final String disableEagerInitializationKey = "jdk.internal.lambda.disableEagerInitialization";
+        disableEagerInitialization = GetBooleanAction.privilegedGetProperty(disableEagerInitializationKey);
     }
 
     // See context values in AbstractValidatingLambdaMetafactory
@@ -190,7 +196,9 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
     @Override
     CallSite buildCallSite() throws LambdaConversionException {
         final Class<?> innerClass = spinInnerClass();
-        if (invokedType.parameterCount() == 0) {
+        if (invokedType.parameterCount() == 0 && !disableEagerInitialization) {
+            // In the case of a non-capturing lambda, we optimize linkage by pre-computing a single instance,
+            // unless we've suppressed eager initialization
             final Constructor<?>[] ctrs = AccessController.doPrivileged(
                     new PrivilegedAction<>() {
                 @Override
@@ -218,7 +226,9 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             }
         } else {
             try {
-                UNSAFE.ensureClassInitialized(innerClass);
+                if (!disableEagerInitialization) {
+                    UNSAFE.ensureClassInitialized(innerClass);
+                }
                 return new ConstantCallSite(
                         MethodHandles.Lookup.IMPL_LOOKUP
                              .findStatic(innerClass, NAME_FACTORY, invokedType));
@@ -276,7 +286,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
         generateConstructor();
 
-        if (invokedType.parameterCount() != 0) {
+        if (invokedType.parameterCount() != 0 || disableEagerInitialization) {
             generateFactory();
         }
 

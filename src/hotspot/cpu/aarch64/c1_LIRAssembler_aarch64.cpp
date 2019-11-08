@@ -2146,6 +2146,9 @@ void LIR_Assembler::comp_op(LIR_Condition condition, LIR_Opr opr1, LIR_Opr opr2,
       case T_ADDRESS:
         imm = opr2->as_constant_ptr()->as_jint();
         break;
+      case T_METADATA:
+        imm = (intptr_t)(opr2->as_constant_ptr()->as_metadata());
+        break;
       case T_VALUETYPE:
       case T_OBJECT:
       case T_ARRAY:
