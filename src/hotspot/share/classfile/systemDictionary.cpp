@@ -113,6 +113,46 @@ oop         SystemDictionary::_java_platform_loader       =  NULL;
 
 const int defaultProtectionDomainCacheSize = 1009;
 
+ClassLoadInfo::ClassLoadInfo() {
+  _protection_domain = Handle();
+  _unsafe_anonymous_host = NULL;
+  _cp_patches = NULL;
+  _class_hidden_info._dynamic_nest_host = NULL;
+  _class_hidden_info._class_data = Handle();
+  _is_hidden = false;
+  _is_weak_hidden = false;
+  _can_access_vm_annotations = false;
+}
+
+ClassLoadInfo::ClassLoadInfo(Handle protection_domain) {
+  _protection_domain = protection_domain;
+  _unsafe_anonymous_host = NULL;
+  _cp_patches = NULL;
+  _class_hidden_info._dynamic_nest_host = NULL;
+  _class_hidden_info._class_data = Handle();
+  _is_hidden = false;
+  _is_weak_hidden = false;
+  _can_access_vm_annotations = false;
+}
+
+ClassLoadInfo::ClassLoadInfo(Handle protection_domain,
+                             const InstanceKlass* unsafe_anonymous_host,
+                             GrowableArray<Handle>* cp_patches,
+                             InstanceKlass* dynamic_nest_host,
+                             Handle class_data,
+                             bool is_hidden,
+                             bool is_weak_hidden,
+                             bool can_access_vm_annotations) {
+  _protection_domain = protection_domain;
+  _unsafe_anonymous_host = unsafe_anonymous_host;
+  _cp_patches = cp_patches;
+  _class_hidden_info._dynamic_nest_host = dynamic_nest_host;
+  _class_hidden_info._class_data = class_data;
+  _is_hidden = is_hidden;
+  _is_weak_hidden = is_weak_hidden;
+  _can_access_vm_annotations = can_access_vm_annotations;
+}
+
 // ----------------------------------------------------------------------------
 // Java-level SystemLoader and PlatformLoader
 
@@ -987,31 +1027,25 @@ Klass* SystemDictionary::find_instance_or_array_klass(Symbol* class_name,
 // and redefineclasses. RedefinedClasses do not add to the class hierarchy.
 InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
                                               Handle class_loader,
-                                              Handle protection_domain,
                                               ClassFileStream* st,
-                                              const InstanceKlass* unsafe_anonymous_host,
-                                              GrowableArray<Handle>* cp_patches,
-                                              const bool is_hidden,
-                                              const bool is_weakhidden,
-                                              const bool can_access_vm_annotations,
-                                              InstanceKlass* dynamic_nest_host,
-                                              Handle classData,
+                                              const ClassLoadInfo& cl_info,
                                               TRAPS) {
 
   EventClassLoad class_load_start_event;
 
   ClassLoaderData* loader_data;
 
-  if (unsafe_anonymous_host != NULL) {
+  if (cl_info.unsafe_anonymous_host() != NULL) {
     // - for unsafe anonymous class: create a new short-lived CLD that uses the same
     //                               class loader as the unsafe_anonymous_host.
-    guarantee(unsafe_anonymous_host->class_loader() == class_loader(), "should be the same");
+    guarantee(cl_info.unsafe_anonymous_host()->class_loader() == class_loader(),
+              "should be the same");
     loader_data = ClassLoaderData::shortlived_class_loader_data(class_loader);
-  } else if (is_hidden) {
+  } else if (cl_info.is_hidden()) {
     // - for weak hidden class: create a new short-lived CLD whose loader is
     //                               the Lookup class' loader.
     // - for hidden class: add the class to the Lookup class' loader's CLD.
-    if (is_weakhidden) {
+    if (cl_info.is_weak_hidden()) {
       loader_data = ClassLoaderData::shortlived_class_loader_data(class_loader);
     } else {
       // This hidden class goes into the regular CLD pool for this loader.
@@ -1032,19 +1066,13 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
   InstanceKlass* k = KlassFactory::create_from_stream(st,
                                                       class_name,
                                                       loader_data,
-                                                      protection_domain,
-                                                      unsafe_anonymous_host,
-                                                      cp_patches,
-                                                      is_hidden,
-                                                      can_access_vm_annotations,
-                                                      dynamic_nest_host,
-                                                      classData,
+                                                      cl_info,
                                                       CHECK_NULL);
 
-  if ((is_hidden || (unsafe_anonymous_host != NULL)) && k != NULL) {
+  if ((cl_info.is_hidden() || (cl_info.unsafe_anonymous_host() != NULL)) && k != NULL) {
     // Weak hidden and unsafe anonymous classes must update ClassLoaderData holder
     // so that they can be unloaded when the mirror is no longer referenced.
-    if (is_weakhidden || (unsafe_anonymous_host != NULL)) {
+    if (cl_info.is_weak_hidden() || (cl_info.unsafe_anonymous_host() != NULL)) {
       k->class_loader_data()->initialize_holder(Handle(THREAD, k->java_mirror()));
     }
 
@@ -1059,8 +1087,8 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
 
     // Rewrite and patch constant pool here.
     k->link_class(CHECK_NULL);
-    if (cp_patches != NULL) {
-      k->constants()->patch_resolved_references(cp_patches);
+    if (cl_info.cp_patches() != NULL) {
+      k->constants()->patch_resolved_references(cl_info.cp_patches());
     }
 
     // Initialize it now, since nobody else will.
@@ -1076,7 +1104,7 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
       post_class_load_event(&class_load_start_event, k, loader_data);
     }
   }
-  assert(unsafe_anonymous_host != NULL || NULL == cp_patches,
+  assert(cl_info.unsafe_anonymous_host() != NULL || NULL == cl_info.cp_patches(),
          "cp_patches only found with unsafe_anonymous_host");
 
   return k;
@@ -1132,17 +1160,16 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
     if (st->buffer() == NULL) {
       return NULL;
     }
-    k = KlassFactory::create_from_stream(st,
-                                         class_name,
-                                         loader_data,
-                                         protection_domain,
-                                         NULL,  // unsafe_anonymous_host
-                                         NULL,  // cp_patches
-                                         false, // is_hidden
-                                         false, // can_access_vm_annotations
-                                         dynamic_nest_host,
-                                         Handle(), // classData
-                                         CHECK_NULL);
+    ClassLoadInfo cl_info(protection_domain,
+                          NULL,     // unsafe_anonymous_host
+                          NULL,     // cp_patches
+                          dynamic_nest_host,
+                          Handle(), // classData
+                          false,    // is_hidden
+                          false,    // is_weak_hidden
+                          false);   // can_access_vm_annotations
+
+    k = KlassFactory::create_from_stream(st, class_name, loader_data, cl_info, CHECK_NULL);
   }
 
   assert(k != NULL, "no klass created");

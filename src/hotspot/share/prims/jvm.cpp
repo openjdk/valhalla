@@ -1088,17 +1088,18 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
     }
   } else { //hidden
     Handle classData_h(THREAD, JNIHandles::resolve(classData));
+    ClassLoadInfo cl_info(protection_domain,
+                          NULL, // unsafe_anonymous_host
+                          NULL, // cp_patches
+                          host_class,
+                          classData_h,
+                          is_hidden,
+                          is_weak,
+                          vm_annotations);
     k = SystemDictionary::parse_stream(class_name,
                                        class_loader,
-                                       protection_domain,
                                        &st,
-                                       NULL, // unsafe_anonymous_host
-                                       NULL, // cp_patches
-                                       is_hidden,
-                                       is_weak,
-                                       vm_annotations,
-                                       host_class,
-                                       classData_h,
+                                       cl_info,
                                        CHECK_NULL);
     if (k == NULL) {
       THROW_MSG_0(vmSymbols::java_lang_Error(), "Failure to define a hidden class");

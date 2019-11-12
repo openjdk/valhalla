@@ -5436,8 +5436,7 @@ static void check_methods_for_intrinsics(const InstanceKlass* ik,
 }
 
 InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
-                                                      InstanceKlass* dynamic_nest_host,
-                                                      Handle classData,
+                                                      const ClassInstanceInfo& cl_inst_info,
                                                       TRAPS) {
   if (_klass != NULL) {
     return _klass;
@@ -5446,7 +5445,7 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
   InstanceKlass* const ik =
     InstanceKlass::allocate_instance_klass(*this, CHECK_NULL);
 
-  fill_instance_klass(ik, changed_by_loadhook, dynamic_nest_host, classData, CHECK_NULL);
+  fill_instance_klass(ik, changed_by_loadhook, cl_inst_info, CHECK_NULL);
 
   assert(_klass == ik, "invariant");
 
@@ -5474,8 +5473,7 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
 
 void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
                                           bool changed_by_loadhook,
-                                          InstanceKlass* dynamic_nest_host,
-                                          Handle classData,
+                                          const ClassInstanceInfo& cl_inst_info,
                                           TRAPS) {
   assert(ik != NULL, "invariant");
 
@@ -5513,8 +5511,8 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   apply_parsed_class_metadata(ik, _java_fields_count, CHECK);
 
   // can only set dynamic nest-host after static nest information is set
-  if (dynamic_nest_host != NULL) {
-    ik->set_nest_host(dynamic_nest_host, CHECK);
+  if (cl_inst_info.dynamic_nest_host() != NULL) {
+    ik->set_nest_host(cl_inst_info.dynamic_nest_host(), CHECK);
   }
 
   // note that is not safe to use the fields in the parser from this point on
@@ -5637,7 +5635,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
                                  Handle(THREAD, _loader_data->class_loader()),
                                  module_handle,
                                  _protection_domain,
-                                 classData,
+                                 cl_inst_info.class_data(),
                                  CHECK);
 
   assert(_all_mirandas != NULL, "invariant");

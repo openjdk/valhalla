@@ -1167,12 +1167,12 @@ jvmtiError VM_RedefineClasses::load_new_class_versions(TRAPS) {
     // load hook event.
     state->set_class_being_redefined(the_class, _class_load_kind);
 
+    ClassLoadInfo cl_info(protection_domain);
     InstanceKlass* scratch_class = SystemDictionary::parse_stream(
                                                       the_class_sym,
                                                       the_class_loader,
-                                                      protection_domain,
                                                       &st,
-                                                      NULL, // dynamic_nest_host
+                                                      cl_info,
                                                       THREAD);
     // Clear class_being_redefined just to be sure.
     state->clear_class_being_redefined();

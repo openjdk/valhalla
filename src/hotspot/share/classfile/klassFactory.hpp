@@ -30,6 +30,7 @@
 
 class ClassFileStream;
 class ClassLoaderData;
+class ClassLoadInfo;
 template <typename>
 class GrowableArray;
 class Klass;
@@ -71,13 +72,7 @@ class KlassFactory : AllStatic {
   static InstanceKlass* create_from_stream(ClassFileStream* stream,
                                            Symbol* name,
                                            ClassLoaderData* loader_data,
-                                           Handle protection_domain,
-                                           const InstanceKlass* unsafe_anonymous_host,
-                                           GrowableArray<Handle>* cp_patches,
-                                           const bool is_hidden,
-                                           const bool can_access_vm_annotations,
-                                           InstanceKlass* dynamic_nest_host,
-                                           Handle classData,
+                                           const ClassLoadInfo& cl_info,
                                            TRAPS);
  public:
   static InstanceKlass* check_shared_class_file_load_hook(

@@ -1475,8 +1475,8 @@ static InstanceKlass* create_new_instance_klass(InstanceKlass* ik, ClassFileStre
     CLEAR_PENDING_EXCEPTION;
     return NULL;
   }
-  InstanceKlass* const new_ik = new_parser.create_instance_klass(false, NULL,
-                                                                 Handle(), THREAD);
+  ClassInstanceInfo cl_inst_info;
+  InstanceKlass* const new_ik = new_parser.create_instance_klass(false, cl_inst_info, THREAD);
   if (HAS_PENDING_EXCEPTION) {
     log_pending_exception(PENDING_EXCEPTION);
     CLEAR_PENDING_EXCEPTION;
