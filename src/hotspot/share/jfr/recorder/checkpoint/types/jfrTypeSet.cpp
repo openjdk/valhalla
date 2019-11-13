@@ -137,7 +137,6 @@ static traceid method_id(KlassPtr klass, MethodPtr method) {
 
 static traceid cld_id(CldPtr cld, bool leakp) {
   assert(cld != NULL, "invariant");
-  assert(!cld->is_shortlived(), "invariant");
   if (leakp) {
     SET_LEAKP(cld);
   } else {
@@ -514,7 +513,6 @@ static void write_modules() {
 
 static int write_classloader(JfrCheckpointWriter* writer, CldPtr cld, bool leakp) {
   assert(cld != NULL, "invariant");
-  assert(!cld->is_shortlived(), "invariant");
   // class loader type
   const Klass* class_loader_klass = cld->class_loader_klass();
   if (class_loader_klass == NULL) {
