@@ -1016,7 +1016,6 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
 
   InstanceKlass* host_class = NULL;
   if (is_nestmate) {
-    assert(is_hidden, "dynamic non-hidden nestmate is not supported");
     host_class = InstanceKlass::cast(k)->runtime_nest_host(CHECK_NULL);
   }
 
@@ -1030,15 +1029,26 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                                vm_annotations ? "with vm annotations" : "without vm annotation");
   }
 
-  // classData is only applicable for hidden classes
-  if (classData != NULL && !is_hidden) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "classData is only applicable for hidden classes");
+  if (!is_hidden) {
+    // classData is only applicable for hidden classes
+    if (classData != NULL) {
+      THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "classData is only applicable for hidden classes");
+    }
+    if (is_nestmate) {
+      THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "dynamic nestmate is only applicable for hidden classes");
+    }
+    if (is_weak) {
+      THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "weak class is only applicable for hidden classes");
+    }
+    if (vm_annotations) {
+      THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "vm annotations only allowed for hidden classes");
+    }
+    if (flags) {
+      THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(),
+                  err_msg("flag 0x%x can only be set for hidden classes", flags));
+    }
   }
 
-  // vm_annotations only allowed for hidden classes
-  if (vm_annotations && !is_hidden) {
-    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "vm annotations only allowed for weak hidden classes");
-  }
 
   // Since exceptions can be thrown, class initialization can take place
   // if name is NULL no check for class name in .class stream has to be made.
@@ -1096,17 +1106,17 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
     // this point. The mirror and any instances of this class have to keep
     // it alive afterwards.
     InstanceKlass::cast(k)->class_loader_data()->dec_keep_alive();
-  }
 
-  if (is_nestmate && log_is_enabled(Debug, class, nestmates)) {
-    InstanceKlass* ik = InstanceKlass::cast(k);
-    ModuleEntry* module = ik->module();
-    const char * module_name = module->is_named() ? module->name()->as_C_string() : UNNAMED_MODULE;
-    log_debug(class, nestmates)("Dynamic nestmate: %s/%s, nest_host %s, %s",
-                                module_name,
-                                ik->external_name(),
-                                host_class->external_name(),
-                                ik->is_hidden() ? "is hidden" : "is not hidden");
+    if (is_nestmate && log_is_enabled(Debug, class, nestmates)) {
+      InstanceKlass* ik = InstanceKlass::cast(k);
+      ModuleEntry* module = ik->module();
+      const char * module_name = module->is_named() ? module->name()->as_C_string() : UNNAMED_MODULE;
+      log_debug(class, nestmates)("Dynamic nestmate: %s/%s, nest_host %s, %s",
+                                  module_name,
+                                  ik->external_name(),
+                                  host_class->external_name(),
+                                  ik->is_hidden() ? "is hidden" : "is not hidden");
+    }
   }
 
   InstanceKlass* ik = InstanceKlass::cast(k);
