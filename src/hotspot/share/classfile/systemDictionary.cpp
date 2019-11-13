@@ -1119,7 +1119,6 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
                                                      Handle class_loader,
                                                      Handle protection_domain,
                                                      ClassFileStream* st,
-                                                     InstanceKlass* dynamic_nest_host,
                                                      TRAPS) {
 
   HandleMark hm(THREAD);
@@ -1160,15 +1159,7 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
     if (st->buffer() == NULL) {
       return NULL;
     }
-    ClassLoadInfo cl_info(protection_domain,
-                          NULL,     // unsafe_anonymous_host
-                          NULL,     // cp_patches
-                          dynamic_nest_host,
-                          Handle(), // classData
-                          false,    // is_hidden
-                          false,    // is_weak_hidden
-                          false);   // can_access_vm_annotations
-
+    ClassLoadInfo cl_info(protection_domain);
     k = KlassFactory::create_from_stream(st, class_name, loader_data, cl_info, CHECK_NULL);
   }
 

@@ -128,7 +128,7 @@ import sun.reflect.misc.ReflectUtil;
  * enclosed within the top-level class declaration.
  *
  * <p> Some methods of class {@code Class} expose some characteristics of
- * hidden classes that can be defined by calling
+ * <em>hidden classes</em>.  Hidden classes are created by calling
  * {@link java.lang.invoke.MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
  * Lookup::defineHiddenClass}.
  *
@@ -752,9 +752,6 @@ public final class Class<T> implements java.io.Serializable,
      * by
      * <cite>The Java&trade; Language Specification</cite>.
      *
-     * <p> If this class object represents a {@linkplain #isHiddenClass() hidden class},
-     * then the name is given by the JVM and it may not be a valid binary name.
-     *
      * <p> If this class object represents a primitive type or void, then the
      * name returned is a {@code String} equal to the Java language
      * keyword corresponding to the primitive type or void.
@@ -783,6 +780,16 @@ public final class Class<T> implements java.io.Serializable,
      * </tbody>
      * </table></blockquote>
      *
+     *
+     * <p> If this class object represents a {@linkplain #isHiddenClass() hidden class},
+     * then the name is defined by the JVM of the following format:
+     * <blockquote>
+     * {@code <fully-qualified binary name> + '/' + <suffix>}
+     * </blockquote>
+     * where the fully-qualified binary name is the class name in the {@code ClassFile}
+     * from which this {@code Class} object was derived and the suffix is an unique
+     * unqualified name as specified in JVMS 4.2.2.
+     *
      * <p> The class or interface name <i>classname</i> is the binary name of
      * the class specified above.
      *
@@ -800,6 +807,8 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @return  the name of the class or interface
      *          represented by this object.
+     *
+     * @jvms 4.2.2 Unqualified Names
      */
     public String getName() {
         String name = this.name;
@@ -3913,11 +3922,13 @@ public final class Class<T> implements java.io.Serializable,
      * a member of the nest by the nest host, then it is considered to belong
      * to its own nest and {@code this} is returned as the host.
      *
-     * <p>A {@linkplain Class#isHiddenClass() hidden class} can be dynamically
-     * added as a member of an existing nest of another class by calling
+     * <p>If this class is a {@linkplain Class#isHiddenClass() hidden class}
+     * created by calling
      * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
      * Lookup::defineHiddenClass} with {@link MethodHandles.Lookup.ClassOption#NESTMATE
-     * NESTMATE} option.
+     * NESTMATE} option, then the hidden class is added as a member to
+     * the nest of a {@linkplain MethodHandles.Lookup#lookupClass() lookup class}
+     * dynamically and it has the same nest host as the lookup class.
      *
      * @apiNote A {@code class} file of version 55.0 or greater may record the
      * host of the nest to which it belongs by using the {@code NestHost}
@@ -3927,9 +3938,6 @@ public final class Class<T> implements java.io.Serializable,
      * {@code NestMembers} attribute (JVMS 4.7.29).
      * A {@code class} file of version 54.0 or lower does not use these
      * attributes.
-     * A hidden class cannot attempt to claim nest membership statically
-     * as it cannot be referred by name.  The {@code NestHost} and
-     * {@code NestMembers} attributes are erroneous and therefore ignored.
      *
      * @return the nest host of this class or interface
      *
@@ -4135,10 +4143,8 @@ public final class Class<T> implements java.io.Serializable,
      * <p> A <em>hidden class</em> is created by calling
      * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
      * Lookup::defineHiddenClass}.   A hidden class is non-discoverable
-     * for example via {@link Class#forName(String) Class::forName},
+     * by name via {@link Class#forName(String) Class::forName},
      * {@link ClassLoader#loadClass(String) ClassLoader::loadClass}, and bytecode linkage.
-     *
-     * <p> An anonymous class is not a hidden class.
      *
      * @return {@code true} if and only if this class is a hidden class.
      *

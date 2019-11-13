@@ -361,43 +361,33 @@ InstanceKlass* InstanceKlass::nest_host(Symbol* validationException, TRAPS) {
 //    lookup().defineHiddenClass(bytes_for_X, NESTMATE);
 // results in:
 //    class_of_X.set_nest_host(lookup().lookupClass().getNestHost())
-// So we know that current class is "pristine" and its _nest_host must be NULL.
+// If it has an explicit _nest_host_index or _nest_members, these will be ignored. 
 // We also know the "host" is a valid nest-host in the same package so we can
 // assert some of those facts.
 void InstanceKlass::set_nest_host(InstanceKlass* host, TRAPS) {
+  assert(is_hidden(), "must be a hidden class");
   assert(host != NULL, "NULL nest host specified");
   assert(_nest_host == NULL, "current class has resolved nest-host");
   assert((host->_nest_host == NULL && host->_nest_host_index == 0) ||
-         (host->_nest_host == host), "proposed host is not a valid nest-host");
+         (host->_nest_host == host), "proposed host is not a valid nest-host"); 
   // Can't assert this as package is not set yet:
   // assert(is_same_class_package(host), "proposed host is in wrong package");
 
-  const char * error_msg = NULL;
-  // There are two validity checks that have to be made:
-  // 1. The current class must not expect a statically defined nest-host
-  if (_nest_host_index == 0) {
-    // 2. The current class can't itself be a nest-host
-    if (_nest_members == NULL ||
-        _nest_members == Universe::the_empty_short_array()) {
-      _nest_host = host;
-      return;
-    }
-    else {
-      error_msg = "the current class is already a nest-host";
+  if (log_is_enabled(Trace, class, nestmates)) {
+    ResourceMark rm(THREAD);
+    // a hidden class does not expect a statically defined nest-host
+    if (_nest_host_index > 0) {
+      log_trace(class, nestmates)("Type %s is a dynamic nest member of %s: the NestHost attribute in the current class is ignored",
+                                  this->external_name(),
+                                  host->external_name());
+    } else if (_nest_members != NULL && _nest_members != Universe::the_empty_short_array()) {
+      log_trace(class, nestmates)("Type %s is a dynamic nest member of %s: the NestMembers attribute in the current class is ignored",
+                                  this->external_name(),
+                                  host->external_name());
     }
   }
-  else {
-    error_msg = "the current class is already a member of a nest";
-  }
-
-  ResourceMark rm(THREAD);
-  Exceptions::fthrow(THREAD_AND_LOCATION,
-                     vmSymbols::java_lang_ClassFormatError(),
-                     "Type %s can not be a dynamic nest member of %s: %s",
-                     this->external_name(),
-                     host->external_name(),
-                     error_msg
-                     );
+  // set dynamic nest host
+  _nest_host = host;
 }
 
 // check if 'this' and k are nestmates (same nest_host), or k is our nest_host,

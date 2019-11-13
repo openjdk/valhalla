@@ -975,7 +975,6 @@ static jclass jvm_define_class_common(JNIEnv *env, const char *name,
                                                    class_loader,
                                                    protection_domain,
                                                    &st,
-                                                   NULL,  // dynamic_nest_host
                                                    CHECK_NULL);
 
   if (log_is_enabled(Debug, class, resolve) && k != NULL) {
@@ -1017,6 +1016,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
 
   InstanceKlass* host_class = NULL;
   if (is_nestmate) {
+    assert(is_hidden, "dynamic non-hidden nestmate is not supported");
     host_class = InstanceKlass::cast(k)->runtime_nest_host(CHECK_NULL);
   }
 
@@ -1068,13 +1068,12 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                                               class_loader,
                                               protection_domain,
                                               &st,
-                                              host_class,
                                               CHECK_NULL);
 
     if (log_is_enabled(Debug, class, resolve) && k != NULL) {
       trace_class_resolution(k);
     }
-  } else { //hidden
+  } else { // hidden
     Handle classData_h(THREAD, JNIHandles::resolve(classData));
     ClassLoadInfo cl_info(protection_domain,
                           NULL, // unsafe_anonymous_host

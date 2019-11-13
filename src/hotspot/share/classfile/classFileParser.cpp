@@ -3501,7 +3501,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
         }
         cfs->skip_u1(attribute_length, CHECK);
       } else if (_major_version >= JAVA_11_VERSION) {
-        if (tag == vmSymbols::tag_nest_members() && !is_hidden()) { // ignored for hidden classes
+        if (tag == vmSymbols::tag_nest_members()) {
           // Check for NestMembers tag
           if (parsed_nest_members_attribute) {
             classfile_parse_error("Multiple NestMembers attributes in class file %s", CHECK);
@@ -3514,7 +3514,7 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
           nest_members_attribute_start = cfs->current();
           nest_members_attribute_length = attribute_length;
           cfs->skip_u1(nest_members_attribute_length, CHECK);
-        } else if (tag == vmSymbols::tag_nest_host() && !is_hidden()) { // ignored for hidden classes
+        } else if (tag == vmSymbols::tag_nest_host()) {
           if (parsed_nest_host_attribute) {
             classfile_parse_error("Multiple NestHost attributes in class file %s", CHECK);
           } else {

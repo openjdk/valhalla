@@ -326,7 +326,6 @@ public:
                                             Handle class_loader,
                                             Handle protection_domain,
                                             ClassFileStream* st,
-                                            InstanceKlass* dynamic_nest_host,
                                             TRAPS);
 
   // Lookup an already loaded class. If not found NULL is returned.

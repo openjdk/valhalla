@@ -94,17 +94,17 @@ public class TestDynamicNestmateMembership {
         inject(name, Member.getLookup(), null);
     }
 
-    // Try to inject a class that has the NestHost attribute.  It is
-    // erroneous to name a hidden class in the static nest membership
-    // and so NestHost attribute is ignored.
+    // Try to inject a class that has a static NestHost attribute
+    // No error since the nest host has been set when it's created.
+    // Static nest membership is effectively ignored.
     static void test_alreadyNestMember() {
         String name = "StaticHost$StaticMember";
         inject(name, null);
     }
 
-    // Try to inject a class that has the NestMembers attribute.  It is
-    // erroneous to name a hidden class in the static nest membership
-    // and so NestMembers attribute is ignored.
+    // Try to inject a class that has the NestMembers attribute.
+    // No error since the nest host has been set when it's created.
+    // Static nest membership is effectively ignored.
     static void test_alreadyNestHost() {
         String name = "StaticHost";
         inject(name, null);

@@ -1627,19 +1627,18 @@ public class MethodHandles {
          * {@code true}.
          *
          * <p> A {@link Class#isHiddenClass() <em>hidden</em>} class, i.e. a class
-         * cannot be referenced in other classes with the following additional properties:
+         * cannot be referenced in other classes.  It has the following additional properties:
          * <ul>
          * <li>Naming:
-         *     The name of this class is determined by the JVM and the class name
-         *     does not collide with other classes defined to the same class loader.
-         *     The name returned by {@link Class#getName()} must be unique
-         *     in the same package as this lookup class.
-         *     It may not be a valid binary name.
-         *     There is no two classes (whether ordinary or hidden) with the same
-         *     defining loader have the same name.
+         *     The name of a hidden class returned by {@link Class#getName()} is
+         *     defined by the JVM of this form:<br>
+         *     {@code <fully-qualified binary name> + '/' + <suffix>}<br>
+         *     where {@code <fully-qualified binary name>} is the class name
+         *     from the class bytes and {@code <suffix>} must be an unique unqualified
+         *     name (see JVMS 4.2.2)
          * <li>Class resolution:
-         *     A hidden class is not registered with a globally defined name and
-         *     hence cannot be found by its class loader.
+         *     A hidden class is not registered in the JVM with a globally defined name
+         *     and hence cannot be found by its class loader.
          *     A hidden class cannot be named as a field type, a method parameter
          *     type and a method return type.
          * <li>Class retransformation:
@@ -1659,8 +1658,8 @@ public class MethodHandles {
          * in the module of this lookup class.
          *
          * <p> If {@code options} has {@link ClassOption#NESTMATE NESTMATE}, then
-         * this method creates the hidden class as a member of the nest of
-         * this lookup's lookup class.
+         * this method creates the hidden class as a member of
+         * {@linkplain Class#getNestHost() the nest} of this lookup's lookup class.
          *
          * <p> If {@code options} has {@link ClassOption#WEAK WEAK}, then
          * the hidden class is weakly referenced from its defining class loader
@@ -1687,6 +1686,7 @@ public class MethodHandles {
          *
          * @since 14
          * @see Class#isHiddenClass()
+         * @jvms 4.2.2 Unqualified Names
          * @jls 12.3 Linking of Classes and Interfaces
          * @jls 12.4 Initialization of Classes and Interfaces
          */
@@ -1741,10 +1741,9 @@ public class MethodHandles {
          * @throws NullPointerException     if {@code bytes} is {@code null}
          *
          * @since 14
+         * @see Lookup#defineHiddenClass(byte[], boolean, ClassOption...)  
          * @see Class#isHiddenClass()
          * @see #classData(Class)
-         * @jls 12.3 Linking of Classes and Interfaces
-         * @jls 12.4 Initialization of Classes and Interfaces
          */
         public Lookup defineHiddenClassWithClassData(byte[] bytes, Object classData, ClassOption... options)
                 throws IllegalAccessException
