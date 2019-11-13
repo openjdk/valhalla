@@ -27,14 +27,17 @@
 #include "gc/z/zBarrierSet.hpp"
 #include "gc/z/zBarrierSetAssembler.hpp"
 #include "gc/z/zBarrierSetRuntime.hpp"
+#include "opto/arraycopynode.hpp"
 #include "opto/block.hpp"
 #include "opto/compile.hpp"
 #include "opto/graphKit.hpp"
 #include "opto/machnode.hpp"
+#include "opto/macro.hpp"
 #include "opto/memnode.hpp"
 #include "opto/node.hpp"
 #include "opto/regalloc.hpp"
 #include "opto/rootnode.hpp"
+#include "opto/type.hpp"
 #include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
 
@@ -221,6 +224,56 @@ Node* ZBarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& access, Node* 
 bool ZBarrierSetC2::array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type,
                                                     bool is_clone, ArrayCopyPhase phase) const {
   return type == T_OBJECT || type == T_ARRAY;
+}
+
+static const TypeFunc* clone_type() {
+  // Create input type (domain)
+  const Type** domain_fields = TypeTuple::fields(3);
+  domain_fields[TypeFunc::Parms + 0] = TypeInstPtr::NOTNULL;  // src
+  domain_fields[TypeFunc::Parms + 1] = TypeInstPtr::NOTNULL;  // dst
+  domain_fields[TypeFunc::Parms + 2] = TypeInt::INT;          // size
+  const TypeTuple* domain = TypeTuple::make(TypeFunc::Parms + 3, domain_fields);
+
+  // Create result type (range)
+  const Type** range_fields = TypeTuple::fields(0);
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms + 0, range_fields);
+
+  return TypeFunc::make(domain, range);
+}
+
+void ZBarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac) const {
+  Node* const src = ac->in(ArrayCopyNode::Src);
+
+  if (src->bottom_type()->isa_aryptr()) {
+    // Clone primitive array
+    BarrierSetC2::clone_at_expansion(phase, ac);
+    return;
+  }
+
+  // Clone instance
+  Node* const ctrl = ac->in(TypeFunc::Control);
+  Node* const mem = ac->in(TypeFunc::Memory);
+  Node* const dst = ac->in(ArrayCopyNode::Dest);
+  Node* const src_offset = ac->in(ArrayCopyNode::SrcPos);
+  Node* const dst_offset = ac->in(ArrayCopyNode::DestPos);
+  Node* const size = ac->in(ArrayCopyNode::Length);
+
+  assert(src->bottom_type()->isa_instptr(), "Should be an instance");
+  assert(dst->bottom_type()->isa_instptr(), "Should be an instance");
+  assert(src_offset == NULL, "Should be null");
+  assert(dst_offset == NULL, "Should be null");
+
+  Node* const call = phase->make_leaf_call(ctrl,
+                                           mem,
+                                           clone_type(),
+                                           ZBarrierSetRuntime::clone_addr(),
+                                           "ZBarrierSetRuntime::clone",
+                                           TypeRawPtr::BOTTOM,
+                                           src,
+                                           dst,
+                                           size);
+  phase->transform_later(call);
+  phase->igvn().replace_node(ac, call);
 }
 
 // == Dominating barrier elision ==

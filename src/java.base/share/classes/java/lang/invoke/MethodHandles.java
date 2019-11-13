@@ -202,7 +202,7 @@ public class MethodHandles {
      * @param targetClass the target class
      * @param caller the caller lookup object
      * @return a lookup object for the target class, with private access
-     * @throws IllegalArgumentException if {@code targetClass} is a primitive type or array class
+     * @throws IllegalArgumentException if {@code targetClass} is a primitive type or void or array class
      * @throws NullPointerException if {@code targetClass} or {@code caller} is {@code null}
      * @throws SecurityException if denied by the security manager
      * @throws IllegalAccessException if any of the other access checks specified above fails
@@ -1393,7 +1393,7 @@ public class MethodHandles {
         private Lookup(Class<?> lookupClass, Class<?> prevLookupClass, int allowedModes) {
             assert prevLookupClass == null || ((allowedModes & MODULE) == 0
                     && prevLookupClass.getModule() != lookupClass.getModule());
-
+            assert !lookupClass.isArray() && !lookupClass.isPrimitive();
             this.lookupClass = lookupClass;
             this.prevLookupClass = prevLookupClass;
             this.allowedModes = allowedModes;
@@ -1452,6 +1452,7 @@ public class MethodHandles {
          * @param requestedLookupClass the desired lookup class for the new lookup object
          * @return a lookup object which reports the desired lookup class, or the same object
          * if there is no change
+         * @throws IllegalArgumentException if {@code requestedLookupClass} is a primitive type or void or array class
          * @throws NullPointerException if the argument is null
          *
          * @revised 9
@@ -1461,6 +1462,10 @@ public class MethodHandles {
          */
         public Lookup in(Class<?> requestedLookupClass) {
             Objects.requireNonNull(requestedLookupClass);
+            if (requestedLookupClass.isPrimitive())
+                throw new IllegalArgumentException(requestedLookupClass + " is a primitive class");
+            if (requestedLookupClass.isArray())
+                throw new IllegalArgumentException(requestedLookupClass + " is an array class");
 
             if (allowedModes == TRUSTED)  // IMPL_LOOKUP can make any lookup at all
                 return new Lookup(requestedLookupClass, null, FULL_POWER_MODES);
@@ -2206,17 +2211,12 @@ assertEquals("[x, y, z]", pb.command().toString());
         }
 
         /**
-         * Looks up a class by name from the lookup context defined by this {@code Lookup} object.
-         * This method attempts to locate, load, and link the class, and then determines whether
-         * the class is accessible to this {@code Lookup} object.  The static
+         * Looks up a class by name from the lookup context defined by this {@code Lookup} object. The static
          * initializer of the class is not run.
          * <p>
          * The lookup context here is determined by the {@linkplain #lookupClass() lookup class}, its class
-         * loader, and the {@linkplain #lookupModes() lookup modes}.
-         * <p>
-         * Note that this method throws errors related to loading and linking as
-         * specified in Sections 12.2 and 12.3 of <em>The Java Language
-         * Specification</em>.
+         * loader, and the {@linkplain #lookupModes() lookup modes}. In particular, the method first attempts to
+         * load the requested class, and then determines whether the class is accessible to this lookup object.
          *
          * @param targetName the fully qualified name of the class to be looked up.
          * @return the requested class.
@@ -2226,9 +2226,8 @@ assertEquals("[x, y, z]", pb.command().toString());
          * @throws ClassNotFoundException if the class cannot be loaded by the lookup class' loader.
          * @throws IllegalAccessException if the class is not accessible, using the allowed access
          * modes.
-         *
-         * @jls 12.2 Loading of Classes and Interfaces
-         * @jls 12.3 Linking of Classes and Interfaces
+         * @throws    SecurityException if a security manager is present and it
+         *                              <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
          * @since 9
          */
         public Class<?> findClass(String targetName) throws ClassNotFoundException, IllegalAccessException {
