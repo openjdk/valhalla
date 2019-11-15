@@ -1054,6 +1054,21 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
   methodHandle caller(THREAD, vfst.method());
   int          bci   = vfst.bci();
 
+  // Substitutability test implementation piggy backs on static call resolution
+  Bytecodes::Code code = caller->java_code_at(bci);
+  if (code == Bytecodes::_if_acmpeq || code == Bytecodes::_if_acmpne) {
+    bc = Bytecodes::_invokestatic;
+    methodHandle attached_method = extract_attached_method(vfst);
+    assert(attached_method.not_null(), "must have attached method");
+    LinkResolver::resolve_invoke(callinfo, receiver, attached_method, bc, CHECK_NH);
+#ifdef ASSERT
+    SystemDictionary::ValueBootstrapMethods_klass()->initialize(CHECK_NH);
+    Method* is_subst = SystemDictionary::ValueBootstrapMethods_klass()->find_method(vmSymbols::isSubstitutable_name(), vmSymbols::object_object_boolean_signature());
+    assert(callinfo.selected_method() == is_subst, "must be isSubstitutable method");
+#endif
+    return receiver;
+  }
+
   Bytecode_invoke bytecode(caller, bci);
   int bytecode_index = bytecode.index();
   bc = bytecode.invoke_code();
@@ -1356,16 +1371,6 @@ methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
   // and removed before we are done with it.
   // CLEANUP - with lazy deopt shouldn't need this lock
   nmethodLocker caller_lock(caller_nm);
-
-  if (!is_virtual && !is_optimized) {
-    SimpleScopeDesc ssd(caller_nm, caller_frame.pc());
-    Bytecode bc(ssd.method(), ssd.method()->bcp_from(ssd.bci()));
-    // Substitutability test implementation piggy backs on static call resolution
-    if (bc.code() == Bytecodes::_if_acmpeq || bc.code() == Bytecodes::_if_acmpne) {
-      SystemDictionary::ValueBootstrapMethods_klass()->initialize(CHECK_NULL);
-      return SystemDictionary::ValueBootstrapMethods_klass()->find_method(vmSymbols::isSubstitutable_name(), vmSymbols::object_object_boolean_signature());
-    }
-  }
 
   // determine call info & receiver
   // note: a) receiver is NULL for static calls
