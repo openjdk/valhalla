@@ -1714,8 +1714,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   bool obj_store = is_reference_type(x->elt_type());
   bool needs_store_check = obj_store && !(is_loaded_flattened_array && x->is_exact_flattened_array_store()) &&
                                         (x->value()->as_Constant() == NULL ||
-                                         !get_jobject_constant(x->value())->is_null_object() ||
-                                         x->should_profile());
+                                         !get_jobject_constant(x->value())->is_null_object());
 
   LIRItem array(x->array(), this);
   LIRItem index(x->index(), this);
@@ -1759,9 +1758,23 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     }
   }
 
+  if (x->should_profile()) {
+    ciMethodData* md = NULL;
+    ciArrayLoadStoreData* load_store = NULL;
+    profile_array_type(x, md, load_store);
+    if (is_loaded_flattened_array) {
+      int flag = ArrayLoadStoreData::flat_array_byte_constant() | ArrayLoadStoreData::null_free_array_byte_constant();
+      assert(md != NULL, "should have been initialized");
+      profile_array_load_store_flags(md, load_store, flag);
+    } else if (x->array()->maybe_null_free_array()) {
+      profile_null_free_array(array, md, load_store);
+    }
+    profile_element_type(x->value(), md, load_store);
+  }
+
   if (GenerateArrayStoreCheck && needs_store_check) {
     CodeEmitInfo* store_check_info = new CodeEmitInfo(range_check_info);
-    array_store_check(value.result(), array.result(), store_check_info, x->profiled_method(), x->profiled_bci());
+    array_store_check(value.result(), array.result(), store_check_info, NULL, -1);
   }
 
   if (is_loaded_flattened_array) {
@@ -2144,6 +2157,13 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     }
   }
 
+  ciMethodData* md = NULL;
+  ciArrayLoadStoreData* load_store = NULL;
+  if (x->should_profile()) {
+    profile_array_type(x, md, load_store);
+  }
+
+  Value element;
   if (x->vt() != NULL) {
     assert(x->array()->is_loaded_flattened_array(), "must be");
     // Find the destination address (of the NewValueTypeInstance).
@@ -2152,9 +2172,18 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
 
     access_flattened_array(true, array, index, obj_item);
     set_no_result(x);
+    element = x->vt();
+    if (x->should_profile()) {
+      int flag = ArrayLoadStoreData::flat_array_byte_constant() | ArrayLoadStoreData::null_free_array_byte_constant();
+      profile_array_load_store_flags(md, load_store, flag);
+    }
   } else {
     LIR_Opr result = rlock_result(x, x->elt_type());
     LoadFlattenedArrayStub* slow_path = NULL;
+
+    if (x->should_profile() && x->array()->maybe_null_free_array()) {
+      profile_null_free_array(array, md, load_store);
+    }
 
     if (x->elt_type() == T_OBJECT && x->array()->maybe_flattened_array()) {
       index.load_item();
@@ -2173,6 +2202,12 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
       __ branch_destination(slow_path->continuation());
       set_in_conditional_code(false);
     }
+
+    element = x;
+  }
+
+  if (x->should_profile()) {
+    profile_element_type(element, md, load_store);
   }
 }
 
@@ -2860,7 +2895,7 @@ ciKlass* LIRGenerator::profile_type(ciMethodData* md, int md_base_offset, int md
   }
 
   ciKlass* exact_signature_k = NULL;
-  if (do_update) {
+  if (do_update && signature_at_call_k != NULL) {
     // Is the type from the signature exact (the only one possible)?
     exact_signature_k = signature_at_call_k->exact_klass();
     if (exact_signature_k == NULL) {
@@ -2944,6 +2979,53 @@ void LIRGenerator::profile_parameters(Base* x) {
     }
   }
 }
+
+void LIRGenerator::profile_array_load_store_flags(ciMethodData* md, ciArrayLoadStoreData* load_store, int flag, LIR_Opr mdp) {
+  assert(md != NULL && load_store != NULL, "should have been initialized");
+  if (mdp == NULL) {
+    mdp = new_register(T_METADATA);
+    __ metadata2reg(md->constant_encoding(), mdp);
+  }
+  LIR_Address* addr = new LIR_Address(mdp, md->byte_offset_of_slot(load_store, DataLayout::flags_offset()), T_BYTE);
+  LIR_Opr id = new_register(T_INT);
+  __ move(addr, id);
+  __ logical_or(id, LIR_OprFact::intConst(flag), id);
+  __ store(id, addr);
+}
+
+void LIRGenerator::profile_null_free_array(LIRItem array, ciMethodData* md, ciArrayLoadStoreData* load_store) {
+  LabelObj* L_end = new LabelObj();
+  LIR_Opr tmp = new_register(T_METADATA);
+  LIR_Opr mdp = new_register(T_METADATA);
+  assert(md != NULL, "should have been initialized");
+  __ metadata2reg(md->constant_encoding(), mdp);
+  __ check_null_free_array(array.result(), tmp);
+  __ branch(lir_cond_equal, T_ILLEGAL, L_end->label());
+
+  profile_array_load_store_flags(md, load_store, ArrayLoadStoreData::null_free_array_byte_constant(), mdp);
+
+  __ branch_destination(L_end->label());
+}
+
+void LIRGenerator::profile_array_type(AccessIndexed* x, ciMethodData*& md, ciArrayLoadStoreData*& load_store) {
+  int bci = x->profiled_bci();
+  md = x->profiled_method()->method_data();
+  assert(md != NULL, "Sanity");
+  ciProfileData* data = md->bci_to_data(bci);
+  assert(data != NULL && data->is_ArrayLoadStoreData(), "incorrect profiling entry");
+  load_store = (ciArrayLoadStoreData*)data;
+  LIR_Opr mdp = LIR_OprFact::illegalOpr;
+  profile_type(md, md->byte_offset_of_slot(load_store, ArrayLoadStoreData::array_offset()), 0,
+               load_store->array()->type(), x->array(), mdp, true, NULL, NULL);
+}
+
+void LIRGenerator::profile_element_type(Value element, ciMethodData* md, ciArrayLoadStoreData* load_store) {
+  assert(md != NULL && load_store != NULL, "should have been initialized");
+  LIR_Opr mdp = LIR_OprFact::illegalOpr;
+  profile_type(md, md->byte_offset_of_slot(load_store, ArrayLoadStoreData::element_offset()), 0,
+               load_store->element()->type(), element, mdp, false, NULL, NULL);
+}
+
 
 void LIRGenerator::do_Base(Base* x) {
   __ std_entry(LIR_OprFact::illegalOpr);
@@ -3631,7 +3713,7 @@ void LIRGenerator::do_ProfileReturnType(ProfileReturnType* x) {
   ciProfileData* data = md->bci_to_data(bci);
   if (data != NULL) {
     assert(data->is_CallTypeData() || data->is_VirtualCallTypeData(), "wrong profile data type");
-    ciReturnTypeEntry* ret = data->is_CallTypeData() ? ((ciCallTypeData*)data)->ret() : ((ciVirtualCallTypeData*)data)->ret();
+    ciSingleTypeEntry* ret = data->is_CallTypeData() ? ((ciCallTypeData*)data)->ret() : ((ciVirtualCallTypeData*)data)->ret();
     LIR_Opr mdp = LIR_OprFact::illegalOpr;
 
     bool ignored_will_link;

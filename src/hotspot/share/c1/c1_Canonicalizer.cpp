@@ -276,7 +276,7 @@ void Canonicalizer::do_LoadIndexed    (LoadIndexed*     x) {
   assert(array == NULL || FoldStableValues, "not enabled");
 
   // Constant fold loads from stable arrays.
-  if (!x->mismatched() && array != NULL && index != NULL) {
+  if (!x->should_profile() && !x->mismatched() && array != NULL && index != NULL) {
     jint idx = index->value();
     if (idx < 0 || idx >= array->value()->length()) {
       // Leave the load as is. The range check will handle it.

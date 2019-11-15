@@ -703,7 +703,7 @@ void InterpreterMacroAssembler::remove_activation(
     load_klass(rscratch1 /*dst*/, r0 /*src*/);
     ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_valueklass_fixed_block_offset()));
     ldr(rscratch1, Address(rscratch1, ValueKlass::unpack_handler_offset()));
-    cbz(rscratch1, skip); 
+    cbz(rscratch1, skip);
 
     blr(rscratch1);
 
@@ -766,7 +766,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     // Save (object->mark() | 1) into BasicLock's displaced header
     str(swap_reg, Address(lock_reg, mark_offset));
 
-    if (EnableValhalla && !UseBiasedLocking) { 
+    if (EnableValhalla && !UseBiasedLocking) {
       // For slow path is_always_locked, using biased, which is never natural for !UseBiasLocking
       andr(swap_reg, swap_reg, ~((int) markWord::biased_lock_bit_in_place));
     }
@@ -1764,7 +1764,7 @@ void InterpreterMacroAssembler::profile_arguments_type(Register mdp, Register ca
         // argument. tmp is the number of cells left in the
         // CallTypeData/VirtualCallTypeData to reach its end. Non null
         // if there's a return to profile.
-        assert(ReturnTypeEntry::static_cell_count() < TypeStackSlotEntries::per_arg_count(), "can't move past ret type");
+        assert(SingleTypeEntry::static_cell_count() < TypeStackSlotEntries::per_arg_count(), "can't move past ret type");
         add(mdp, mdp, tmp, LSL, exact_log2(DataLayout::cell_size));
       }
       str(mdp, Address(rfp, frame::interpreter_frame_mdp_offset * wordSize));
@@ -1810,7 +1810,7 @@ void InterpreterMacroAssembler::profile_return_type(Register mdp, Register ret, 
       bind(do_profile);
     }
 
-    Address mdo_ret_addr(mdp, -in_bytes(ReturnTypeEntry::size()));
+    Address mdo_ret_addr(mdp, -in_bytes(SingleTypeEntry::size()));
     mov(tmp, ret);
     profile_obj_type(tmp, mdo_ret_addr);
 

@@ -137,7 +137,7 @@ void ProfileData::print_shared(outputStream* st, const char* name, const char* e
   }
   int flags = data()->flags();
   if (flags != 0) {
-    st->print("flags(%d) ", flags);
+    st->print("flags(%d) %p/%d", flags, data(), in_bytes(DataLayout::flags_offset()));
   }
 }
 
@@ -207,7 +207,7 @@ int TypeStackSlotEntries::compute_cell_count(Symbol* signature, bool include_rec
 
 int TypeEntriesAtCall::compute_cell_count(BytecodeStream* stream) {
   assert(Bytecodes::is_invoke(stream->code()), "should be invoke");
-  assert(TypeStackSlotEntries::per_arg_count() > ReturnTypeEntry::static_cell_count(), "code to test for arguments/results broken");
+  assert(TypeStackSlotEntries::per_arg_count() > SingleTypeEntry::static_cell_count(), "code to test for arguments/results broken");
   const methodHandle m = stream->method();
   int bci = stream->bci();
   Bytecode_invoke inv(m, bci);
@@ -217,7 +217,7 @@ int TypeEntriesAtCall::compute_cell_count(BytecodeStream* stream) {
   }
   int ret_cell = 0;
   if (MethodData::profile_return_for_invoke(m, bci) && is_reference_type(inv.result_type())) {
-    ret_cell = ReturnTypeEntry::static_cell_count();
+    ret_cell = SingleTypeEntry::static_cell_count();
   }
   int header_cell = 0;
   if (args_cell + ret_cell > 0) {
@@ -331,7 +331,7 @@ void TypeStackSlotEntries::clean_weak_klass_links(bool always_clean) {
   }
 }
 
-void ReturnTypeEntry::clean_weak_klass_links(bool always_clean) {
+void SingleTypeEntry::clean_weak_klass_links(bool always_clean) {
   intptr_t p = type();
   Klass* k = (Klass*)klass_part(p);
   if (k != NULL && (always_clean || !k->is_loader_alive())) {
@@ -369,7 +369,7 @@ void TypeStackSlotEntries::print_data_on(outputStream* st) const {
   }
 }
 
-void ReturnTypeEntry::print_data_on(outputStream* st) const {
+void SingleTypeEntry::print_data_on(outputStream* st) const {
   _pd->tab(st);
   print_klass(st, type());
   st->cr();
@@ -705,6 +705,17 @@ void SpeculativeTrapData::print_data_on(outputStream* st, const char* extra) con
   st->cr();
 }
 
+void ArrayLoadStoreData::print_data_on(outputStream* st, const char* extra) const {
+  print_shared(st, "ArrayLoadStore", extra);
+  st->cr();
+  tab(st, true);
+  st->print("array");
+  _array.print_data_on(st);
+  tab(st, true);
+  st->print("element");
+  _element.print_data_on(st);
+}
+
 // ==================================================================
 // MethodData*
 //
@@ -725,12 +736,14 @@ int MethodData::bytecode_cell_count(Bytecodes::Code code) {
   switch (code) {
   case Bytecodes::_checkcast:
   case Bytecodes::_instanceof:
-  case Bytecodes::_aastore:
     if (TypeProfileCasts) {
       return ReceiverTypeData::static_cell_count();
     } else {
       return BitData::static_cell_count();
     }
+  case Bytecodes::_aaload:
+  case Bytecodes::_aastore:
+    return ArrayLoadStoreData::static_cell_count();
   case Bytecodes::_invokespecial:
   case Bytecodes::_invokestatic:
     if (MethodData::profile_arguments() || MethodData::profile_return()) {
@@ -833,6 +846,7 @@ bool MethodData::is_speculative_trap_bytecode(Bytecodes::Code code) {
   switch (code) {
   case Bytecodes::_checkcast:
   case Bytecodes::_instanceof:
+  case Bytecodes::_aaload:
   case Bytecodes::_aastore:
   case Bytecodes::_invokevirtual:
   case Bytecodes::_invokeinterface:
@@ -1036,7 +1050,6 @@ int MethodData::initialize_data(BytecodeStream* stream,
   switch (c) {
   case Bytecodes::_checkcast:
   case Bytecodes::_instanceof:
-  case Bytecodes::_aastore:
     if (TypeProfileCasts) {
       cell_count = ReceiverTypeData::static_cell_count();
       tag = DataLayout::receiver_type_data_tag;
@@ -1044,6 +1057,11 @@ int MethodData::initialize_data(BytecodeStream* stream,
       cell_count = BitData::static_cell_count();
       tag = DataLayout::bit_data_tag;
     }
+    break;
+  case Bytecodes::_aaload:
+  case Bytecodes::_aastore:
+    cell_count = ArrayLoadStoreData::static_cell_count();
+    tag = DataLayout::array_load_store_data_tag;
     break;
   case Bytecodes::_invokespecial:
   case Bytecodes::_invokestatic: {
@@ -1190,6 +1208,8 @@ ProfileData* DataLayout::data_in() {
     return new ParametersTypeData(this);
   case DataLayout::speculative_trap_data_tag:
     return new SpeculativeTrapData(this);
+  case DataLayout::array_load_store_data_tag:
+    return new ArrayLoadStoreData(this);
   }
 }
 

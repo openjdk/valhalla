@@ -150,7 +150,7 @@ void InterpreterMacroAssembler::profile_arguments_type(Register mdp, Register ca
         // argument. tmp is the number of cells left in the
         // CallTypeData/VirtualCallTypeData to reach its end. Non null
         // if there's a return to profile.
-        assert(ReturnTypeEntry::static_cell_count() < TypeStackSlotEntries::per_arg_count(), "can't move past ret type");
+        assert(SingleTypeEntry::static_cell_count() < TypeStackSlotEntries::per_arg_count(), "can't move past ret type");
         shll(tmp, exact_log2(DataLayout::cell_size));
         addptr(mdp, tmp);
       }
@@ -195,7 +195,7 @@ void InterpreterMacroAssembler::profile_return_type(Register mdp, Register ret, 
       bind(do_profile);
     }
 
-    Address mdo_ret_addr(mdp, -in_bytes(ReturnTypeEntry::size()));
+    Address mdo_ret_addr(mdp, -in_bytes(SingleTypeEntry::size()));
     mov(tmp, ret);
     profile_obj_type(tmp, mdo_ret_addr);
 
@@ -555,7 +555,8 @@ void InterpreterMacroAssembler::load_resolved_method_at_index(int byte_no,
 // Kills:
 //      rcx, rdi
 void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass,
-                                                  Label& ok_is_subtype) {
+                                                  Label& ok_is_subtype,
+                                                  bool profile) {
   assert(Rsub_klass != rax, "rax holds superklass");
   LP64_ONLY(assert(Rsub_klass != r14, "r14 holds locals");)
   LP64_ONLY(assert(Rsub_klass != r13, "r13 holds bcp");)
@@ -563,13 +564,17 @@ void InterpreterMacroAssembler::gen_subtype_check(Register Rsub_klass,
   assert(Rsub_klass != rdi, "rdi holds 2ndary super array scan ptr");
 
   // Profile the not-null value's klass.
-  profile_typecheck(rcx, Rsub_klass, rdi); // blows rcx, reloads rdi
+  if (profile) {
+    profile_typecheck(rcx, Rsub_klass, rdi); // blows rcx, reloads rdi
+  }
 
   // Do the check.
   check_klass_subtype(Rsub_klass, rax, rcx, ok_is_subtype); // blows rcx
 
   // Profile the failure of the check.
-  profile_typecheck_failed(rcx); // blows rcx
+  if (profile) {
+    profile_typecheck_failed(rcx); // blows rcx
+  }
 }
 
 
@@ -1992,7 +1997,54 @@ void InterpreterMacroAssembler::profile_switch_case(Register index,
   }
 }
 
+void InterpreterMacroAssembler::profile_array(Register mdp,
+                                              Register array,
+                                              Register tmp) {
+  if (ProfileInterpreter) {
+    Label profile_continue;
 
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    mov(tmp, array);
+    profile_obj_type(tmp, Address(mdp, in_bytes(ArrayLoadStoreData::array_offset())));
+
+    Label not_flat;
+    test_non_flattened_array_oop(array, tmp, not_flat);
+
+    set_mdp_flag_at(mdp, ArrayLoadStoreData::flat_array_byte_constant());
+
+    bind(not_flat);
+
+    Label not_null_free;
+    test_non_null_free_array_oop(array, tmp, not_null_free);
+
+    set_mdp_flag_at(mdp, ArrayLoadStoreData::null_free_array_byte_constant());
+
+    bind(not_null_free);
+
+    bind(profile_continue);
+  }
+}
+
+void InterpreterMacroAssembler::profile_element(Register mdp,
+                                                Register element,
+                                                Register tmp) {
+  if (ProfileInterpreter) {
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    mov(tmp, element);
+    profile_obj_type(tmp, Address(mdp, in_bytes(ArrayLoadStoreData::element_offset())));
+
+    // The method data pointer needs to be updated.
+    update_mdp_by_constant(mdp, in_bytes(ArrayLoadStoreData::array_load_store_data_size()));
+
+    bind(profile_continue);
+  }
+}
 
 void InterpreterMacroAssembler::verify_oop(Register reg, TosState state) {
   if (state == atos) {

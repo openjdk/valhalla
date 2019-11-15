@@ -2335,19 +2335,30 @@ Node* GraphKit::record_profiled_receiver_for_speculation(Node* n) {
       method()->method_data()->is_mature()) {
     ciProfileData* data = method()->method_data()->bci_to_data(bci());
     if (data != NULL) {
-      if (!data->as_BitData()->null_seen()) {
-        ptr_kind = ProfileNeverNull;
+      if (java_bc() == Bytecodes::_aastore) {
+        ciKlass* array_type = NULL;
+        ciKlass* element_type = NULL;
+        ProfilePtrKind element_ptr = ProfileMaybeNull;
+        bool flat_array = true;
+        bool null_free_array = true;
+        method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
+        exact_kls = element_type;
+        ptr_kind = element_ptr;
       } else {
-        assert(data->is_ReceiverTypeData(), "bad profile data type");
-        ciReceiverTypeData* call = (ciReceiverTypeData*)data->as_ReceiverTypeData();
-        uint i = 0;
-        for (; i < call->row_limit(); i++) {
-          ciKlass* receiver = call->receiver(i);
-          if (receiver != NULL) {
-            break;
+        if (!data->as_BitData()->null_seen()) {
+          ptr_kind = ProfileNeverNull;
+        } else {
+          assert(data->is_ReceiverTypeData(), "bad profile data type");
+          ciReceiverTypeData* call = (ciReceiverTypeData*)data->as_ReceiverTypeData();
+          uint i = 0;
+          for (; i < call->row_limit(); i++) {
+            ciKlass* receiver = call->receiver(i);
+            if (receiver != NULL) {
+              break;
+            }
           }
+          ptr_kind = (i == call->row_limit()) ? ProfileAlwaysNull : ProfileMaybeNull;
         }
-        ptr_kind = (i == call->row_limit()) ? ProfileAlwaysNull : ProfileMaybeNull;
       }
     }
   }
@@ -2955,6 +2966,9 @@ bool GraphKit::seems_never_null(Node* obj, ciProfileData* data, bool& speculatin
     assert(java_bc() == Bytecodes::_checkcast ||
            java_bc() == Bytecodes::_instanceof ||
            java_bc() == Bytecodes::_aastore, "MDO must collect null_seen bit here");
+    if (java_bc() == Bytecodes::_aastore) {
+      return ((ciArrayLoadStoreData*)data->as_ArrayLoadStoreData())->element()->ptr_kind() == ProfileNeverNull;
+    }
     return !data->as_BitData()->null_seen();
   }
   speculating = false;
@@ -3034,7 +3048,20 @@ Node* GraphKit::maybe_cast_profiled_receiver(Node* not_null_obj,
   // to use the same ciMethod accessor to get the profile info...)
   // If we have a speculative type use it instead of profiling (which
   // may not help us)
-  ciKlass* exact_kls = spec_klass == NULL ? profile_has_unique_klass() : spec_klass;
+  ciKlass* exact_kls = spec_klass;
+  if (exact_kls == NULL) {
+    if (java_bc() == Bytecodes::_aastore) {
+      ciKlass* array_type = NULL;
+      ciKlass* element_type = NULL;
+      ProfilePtrKind element_ptr = ProfileMaybeNull;
+      bool flat_array = true;
+      bool null_free_array = true;
+      method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
+      exact_kls = element_type;
+    } else {
+      exact_kls = profile_has_unique_klass();
+    }
+  }
   if (exact_kls != NULL) {// no cast failures here
     if (require_klass == NULL ||
         C->static_subtype_check(require_klass, exact_kls) == Compile::SSC_always_true) {
@@ -3295,7 +3322,9 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     assert(java_bc() == Bytecodes::_aastore ||
            java_bc() == Bytecodes::_checkcast,
            "interpreter profiles type checks only for these BCs");
-    data = method()->method_data()->bci_to_data(bci());
+    if (method()->method_data()->is_mature()) {
+      data = method()->method_data()->bci_to_data(bci());
+    }
     safe_for_replace = true;
   }
 

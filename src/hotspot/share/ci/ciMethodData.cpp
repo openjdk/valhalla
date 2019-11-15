@@ -285,12 +285,12 @@ void ciTypeStackSlotEntries::translate_type_data_from(const TypeStackSlotEntries
   }
 }
 
-void ciReturnTypeEntry::translate_type_data_from(const ReturnTypeEntry* ret) {
+void ciSingleTypeEntry::translate_type_data_from(const SingleTypeEntry* ret) {
   intptr_t k = ret->type();
   Klass* klass = (Klass*)klass_part(k);
   if (klass != NULL && !klass->is_loader_alive()) {
     // With concurrent class unloading, the MDO could have stale metadata; override it
-    set_type(ReturnTypeEntry::with_status((Klass*)NULL, k));
+    set_type(SingleTypeEntry::with_status((Klass*)NULL, k));
   } else {
     set_type(translate_klass(k));
   }
@@ -338,6 +338,8 @@ ciProfileData* ciMethodData::data_at(int data_index) {
     return new ciVirtualCallTypeData(data_layout);
   case DataLayout::parameters_type_data_tag:
     return new ciParametersTypeData(data_layout);
+  case DataLayout::array_load_store_data_tag:
+    return new ciArrayLoadStoreData(data_layout);
   };
 }
 
@@ -804,7 +806,7 @@ void ciTypeStackSlotEntries::print_data_on(outputStream* st) const {
   }
 }
 
-void ciReturnTypeEntry::print_data_on(outputStream* st) const {
+void ciSingleTypeEntry::print_data_on(outputStream* st) const {
   _pd->tab(st);
   st->print("ret ");
   print_ciklass(st, type());
@@ -876,5 +878,15 @@ void ciSpeculativeTrapData::print_data_on(outputStream* st, const char* extra) c
   tab(st);
   method()->print_short_name(st);
   st->cr();
+}
+
+void ciArrayLoadStoreData::print_data_on(outputStream* st, const char* extra) const {
+  print_shared(st, "ciArrayLoadStoreData", extra);
+  tab(st, true);
+  st->print("array");
+  array()->print_data_on(st);
+  tab(st, true);
+  st->print("element");
+  element()->print_data_on(st);
 }
 #endif

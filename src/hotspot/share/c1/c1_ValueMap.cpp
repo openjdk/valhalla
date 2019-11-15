@@ -582,6 +582,8 @@ void GlobalValueNumbering::substitute(Instruction* instr) {
   assert(!instr->has_subst(), "substitution already set");
   Value subst = current_map()->find_insert(instr);
   if (subst != instr) {
+    assert(instr->as_LoadIndexed() == NULL || !instr->as_LoadIndexed()->should_profile(), "should not be optimized out");
+    assert(instr->as_StoreIndexed() == NULL, "should not be optimized out");
     assert(!subst->has_subst(), "can't have a substitution");
 
     TRACE_VALUE_NUMBERING(tty->print_cr("substitution for %d set to %d", instr->id(), subst->id()));

@@ -445,7 +445,25 @@ JRT_ENTRY(void, Runtime1::new_multi_array(JavaThread* thread, Klass* klass, int 
 JRT_END
 
 
+static void profile_flat_array(JavaThread* thread) {
+  ResourceMark rm(thread);
+  vframeStream vfst(thread, true);
+  assert(!vfst.at_end(), "Java frame must exist");
+  int bci = vfst.bci();
+  Method* method = vfst.method();
+  MethodData* md = method->method_data();
+  if (md != NULL) {
+    ProfileData* data = md->bci_to_data(bci);
+    assert(data != NULL && data->is_ArrayLoadStoreData(), "incorrect profiling entry");
+    ArrayLoadStoreData* load_store = (ArrayLoadStoreData*)data;
+    load_store->set_flat_array();
+  }
+}
+
 JRT_ENTRY(void, Runtime1::load_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index))
+  assert(ArrayKlass::cast(array->klass())->storage_properties().is_flattened(), "should not be called");
+  profile_flat_array(thread);
+
   NOT_PRODUCT(_load_flattened_array_slowcase_cnt++;)
   assert(array->length() > 0 && index < array->length(), "already checked");
   valueArrayHandle vah(thread, array);
@@ -455,10 +473,16 @@ JRT_END
 
 
 JRT_ENTRY(void, Runtime1::store_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index, oopDesc* value))
+  if (ArrayKlass::cast(array->klass())->storage_properties().is_flattened()) {
+    profile_flat_array(thread);
+  }
+
   NOT_PRODUCT(_store_flattened_array_slowcase_cnt++;)
   if (value == NULL) {
+    assert(ArrayKlass::cast(array->klass())->storage_properties().is_flattened() || ArrayKlass::cast(array->klass())->storage_properties().is_null_free(), "should not be called");
     SharedRuntime::throw_and_post_jvmti_exception(thread, vmSymbols::java_lang_NullPointerException());
   } else {
+    assert(ArrayKlass::cast(array->klass())->storage_properties().is_flattened(), "should not be called");
     array->value_copy_to_index(value, index);
   }
 JRT_END

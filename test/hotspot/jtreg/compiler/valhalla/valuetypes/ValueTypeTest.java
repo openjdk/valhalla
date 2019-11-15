@@ -45,7 +45,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import java.util.TreeMap;
+import java.util.function.BooleanSupplier;
 
 // Mark method as test
 @Retention(RetentionPolicy.RUNTIME)
@@ -58,7 +60,7 @@ import java.util.TreeMap;
     String[] match() default { };
     int[] matchCount() default { };
     int compLevel() default ValueTypeTest.COMP_LEVEL_ANY;
-    int valid() default ValueTypeTest.AllFlags;
+    int valid() default 0;
 }
 
 @Retention(RetentionPolicy.RUNTIME)
@@ -170,7 +172,10 @@ public abstract class ValueTypeTest {
     protected static final int G1GCOff = 0x200;
     protected static final int ZGCOn = 0x400;
     protected static final int ZGCOff = 0x800;
-    static final int AllFlags = ValueTypePassFieldsAsArgsOn | ValueTypePassFieldsAsArgsOff | ValueTypeArrayFlattenOn | ValueTypeArrayFlattenOff | ValueTypeReturnedAsFieldsOn;
+    protected static final int ArrayLoadStoreProfileOn = 0x1000;
+    protected static final int ArrayLoadStoreProfileOff = 0x2000;
+    protected static final int TypeProfileOn = 0x4000;
+    protected static final int TypeProfileOff = 0x8000;
     protected static final boolean ValueTypePassFieldsAsArgs = (Boolean)WHITE_BOX.getVMFlag("ValueTypePassFieldsAsArgs");
     protected static final boolean ValueTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("ValueArrayElemMaxFlatSize") == -1); // FIXME - fix this if default of ValueArrayElemMaxFlatSize is changed
     protected static final boolean ValueTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("ValueTypeReturnedAsFields");
@@ -178,6 +183,8 @@ public abstract class ValueTypeTest {
     protected static final boolean G1GC = (Boolean)WHITE_BOX.getVMFlag("UseG1GC");
     protected static final boolean ZGC = (Boolean)WHITE_BOX.getVMFlag("UseZGC");
     protected static final boolean VerifyOops = (Boolean)WHITE_BOX.getVMFlag("VerifyOops");
+    protected static final boolean UseArrayLoadStoreProfile = (Boolean)WHITE_BOX.getVMFlag("UseArrayLoadStoreProfile");
+    protected static final long TypeProfileLevel = (Long)WHITE_BOX.getVMFlag("TypeProfileLevel");
 
     protected static final Hashtable<String, Method> tests = new Hashtable<String, Method>();
     protected static final boolean USE_COMPILER = WHITE_BOX.getBooleanVMFlag("UseCompiler");
@@ -211,6 +218,9 @@ public abstract class ValueTypeTest {
     protected static final String VALUE_ARRAY_NULL_GUARD = "(.*call,static  wrapper for: uncommon_trap.*reason='null_check' action='none'.*" + END;
     protected static final String STORAGE_PROPERTY_CLEARING = "(.*((int:536870911)|(salq.*3\\R.*sarq.*3)).*" + END;
     protected static final String CLASS_CHECK_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*class_check" + END;
+    protected static final String NULL_CHECK_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*null_check" + END;
+    protected static final String RANGE_CHECK_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*range_check" + END;
+    protected static final String UNHANDLED_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*unhandled" + END;
 
     public static String[] concat(String prefix[], String... extra) {
         ArrayList<String> list = new ArrayList<String>();
@@ -237,12 +247,13 @@ public abstract class ValueTypeTest {
     }
 
     /**
-     * VM paramaters for the 5 built-in test scenarios. If your test needs to append
+     * VM parameters for the 5 built-in test scenarios. If your test needs to append
      * extra parameters for (some of) these scenarios, override getExtraVMParameters().
      */
     public String[] getVMParameters(int scenario) {
         switch (scenario) {
         case 0: return new String[] {
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:ValueArrayElemMaxFlatOops=5",
                 "-XX:ValueArrayElemMaxFlatSize=-1",
@@ -250,6 +261,7 @@ public abstract class ValueTypeTest {
                 "-XX:+ValueTypePassFieldsAsArgs",
                 "-XX:+ValueTypeReturnedAsFields"};
         case 1: return new String[] {
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:-UseCompressedOops",
                 "-XX:ValueArrayElemMaxFlatOops=5",
                 "-XX:ValueArrayElemMaxFlatSize=-1",
@@ -257,6 +269,7 @@ public abstract class ValueTypeTest {
                 "-XX:-ValueTypePassFieldsAsArgs",
                 "-XX:-ValueTypeReturnedAsFields"};
         case 2: return new String[] {
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:-UseCompressedOops",
                 "-XX:ValueArrayElemMaxFlatOops=0",
                 "-XX:ValueArrayElemMaxFlatSize=0",
@@ -265,6 +278,7 @@ public abstract class ValueTypeTest {
                 "-XX:+ValueTypeReturnedAsFields",
                 "-XX:+StressValueTypeReturnedAsFields"};
         case 3: return new String[] {
+                "-XX:-UseArrayLoadStoreProfile",
                 "-DVerifyIR=false",
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:ValueArrayElemMaxFlatOops=0",
@@ -273,6 +287,7 @@ public abstract class ValueTypeTest {
                 "-XX:+ValueTypePassFieldsAsArgs",
                 "-XX:+ValueTypeReturnedAsFields"};
         case 4: return new String[] {
+                "-XX:-UseArrayLoadStoreProfile",
                 "-DVerifyIR=false",
                 "-XX:ValueArrayElemMaxFlatOops=-1",
                 "-XX:ValueArrayElemMaxFlatSize=-1",
@@ -281,6 +296,7 @@ public abstract class ValueTypeTest {
                 "-XX:-ValueTypeReturnedAsFields",
                 "-XX:-ReduceInitialCardMarks"};
         case 5: return new String[] {
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:ValueArrayElemMaxFlatOops=5",
                 "-XX:ValueArrayElemMaxFlatSize=-1",
@@ -446,6 +462,48 @@ public abstract class ValueTypeTest {
         }
     }
 
+    static final class TestAnnotation {
+        private final int flag;
+        private final BooleanSupplier predicate;
+
+        private static final TestAnnotation testAnnotations[] = {
+            new TestAnnotation(ValueTypePassFieldsAsArgsOn, () -> ValueTypePassFieldsAsArgs),
+            new TestAnnotation(ValueTypePassFieldsAsArgsOff, () -> !ValueTypePassFieldsAsArgs),
+            new TestAnnotation(ValueTypeArrayFlattenOn, () -> ValueTypeArrayFlatten),
+            new TestAnnotation(ValueTypeArrayFlattenOff, () -> !ValueTypeArrayFlatten),
+            new TestAnnotation(ValueTypeReturnedAsFieldsOn, () -> ValueTypeReturnedAsFields),
+            new TestAnnotation(ValueTypeReturnedAsFieldsOff, () -> !ValueTypeReturnedAsFields),
+            new TestAnnotation(AlwaysIncrementalInlineOn, () -> AlwaysIncrementalInline),
+            new TestAnnotation(AlwaysIncrementalInlineOff, () -> !AlwaysIncrementalInline),
+            new TestAnnotation(G1GCOn, () -> G1GC),
+            new TestAnnotation(G1GCOff, () -> !G1GC),
+            new TestAnnotation(ZGCOn, () -> ZGC),
+            new TestAnnotation(ZGCOff, () -> !ZGC),
+            new TestAnnotation(ArrayLoadStoreProfileOn, () -> UseArrayLoadStoreProfile),
+            new TestAnnotation(ArrayLoadStoreProfileOff, () -> !UseArrayLoadStoreProfile),
+            new TestAnnotation(TypeProfileOn, () -> TypeProfileLevel == 222),
+            new TestAnnotation(TypeProfileOff, () -> TypeProfileLevel == 0),
+        };
+
+        private TestAnnotation(int flag, BooleanSupplier predicate) {
+            this.flag = flag;
+            this.predicate = predicate;
+        }
+
+        private boolean match(Test a) {
+            return (a.valid() & flag) != 0 && predicate.getAsBoolean();
+        }
+
+        static boolean find(Test a) {
+            Stream<TestAnnotation> s = Arrays.stream(testAnnotations).filter(t -> t.match(a));
+            long c = s.count();
+            if (c > 1) {
+                throw new RuntimeException("At most one Test annotation should match");
+            }
+            return c > 0;
+        }
+    }
+
     private void parseOutput(String output) throws Exception {
         Pattern comp_re = Pattern.compile("\\n\\s+\\d+\\s+\\d+\\s+(%| )(s| )(!| )b(n| )\\s+\\d?\\s+\\S+\\.(?<name>[^.]+::\\S+)\\s+(?<osr>@ \\d+\\s+)?[(]\\d+ bytes[)]");
         Matcher m = comp_re.matcher(output);
@@ -485,47 +543,14 @@ public abstract class ValueTypeTest {
             }
             // Parse graph using regular expressions to determine if it contains forbidden nodes
             Test[] annos = test.getAnnotationsByType(Test.class);
-            Test anno = null;
-            for (Test a : annos) {
-                if ((a.valid() & ValueTypePassFieldsAsArgsOn) != 0 && ValueTypePassFieldsAsArgs) {
-                    assert anno == null;
-                    anno = a;
-                } else if ((a.valid() & ValueTypePassFieldsAsArgsOff) != 0 && !ValueTypePassFieldsAsArgs) {
-                    assert anno == null;
-                    anno = a;
-                } else if ((a.valid() & ValueTypeArrayFlattenOn) != 0 && ValueTypeArrayFlatten) {
-                    assert anno == null;
-                    anno = a;
-                } else if ((a.valid() & ValueTypeArrayFlattenOff) != 0 && !ValueTypeArrayFlatten) {
-                    assert anno == null;
-                    anno = a;
-                } else if ((a.valid() & ValueTypeReturnedAsFieldsOn) != 0 && ValueTypeReturnedAsFields) {
-                    assert anno == null;
-                    anno = a;
-                } else if ((a.valid() & ValueTypeReturnedAsFieldsOff) != 0 && !ValueTypeReturnedAsFields) {
-                    assert anno == null;
-                    anno = a;
-                } else if ((a.valid() & AlwaysIncrementalInlineOn) != 0 && AlwaysIncrementalInline) {
-                    assert anno == null;
-                    anno = a;
-                } else if ((a.valid() & AlwaysIncrementalInlineOff) != 0 && !AlwaysIncrementalInline) {
-                    assert anno == null;
-                    anno = a;
-                } else if ((a.valid() & G1GCOn) != 0 && G1GC) {
-                    assert anno == null;
-                    anno = a;
-                } else if ((a.valid() & G1GCOff) != 0 && !G1GC) {
-                    assert anno == null;
-                    anno = a;
-                } else if ((a.valid() & ZGCOn) != 0 && ZGC) {
-                    assert anno == null;
-                    anno = a;
-                } else if ((a.valid() & ZGCOff) != 0 && !ZGC) {
-                    assert anno == null;
-                    anno = a;
+            Test anno = Arrays.stream(annos).filter(TestAnnotation::find).findFirst().orElse(null);
+            if (anno == null) {
+                Object[] res = Arrays.stream(annos).filter(a -> a.valid() == 0).toArray();
+                if (res.length != 1) {
+                    throw new RuntimeException("Only one Test annotation should match");
                 }
+                anno = (Test)res[0];
             }
-            assert anno != null;
             String regexFail = anno.failOn();
             if (!regexFail.isEmpty()) {
                 Pattern pattern = Pattern.compile(regexFail.substring(0, regexFail.length()-1));

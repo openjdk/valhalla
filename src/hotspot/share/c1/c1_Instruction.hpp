@@ -940,6 +940,8 @@ BASE(AccessIndexed, AccessArray)
   Value     _length;
   BasicType _elt_type;
   bool      _mismatched;
+  ciMethod* _profiled_method;
+  int       _profiled_bci;
 
  public:
   // creation
@@ -949,6 +951,7 @@ BASE(AccessIndexed, AccessArray)
   , _length(length)
   , _elt_type(elt_type)
   , _mismatched(mismatched)
+  , _profiled_method(NULL), _profiled_bci(0)
   {
     set_flag(Instruction::NeedsRangeCheckFlag, true);
     ASSERT_VALUES
@@ -964,7 +967,16 @@ BASE(AccessIndexed, AccessArray)
   // perform elimination of range checks involving constants
   bool compute_needs_range_check();
 
-  // generic
+  // Helpers for MethodData* profiling
+  void set_should_profile(bool value)                { set_flag(ProfileMDOFlag, value); }
+  void set_profiled_method(ciMethod* method)         { _profiled_method = method;   }
+  void set_profiled_bci(int bci)                     { _profiled_bci = bci;         }
+  bool      should_profile() const                   { return check_flag(ProfileMDOFlag); }
+  ciMethod* profiled_method() const                  { return _profiled_method;     }
+  int       profiled_bci() const                     { return _profiled_bci;        }
+
+
+// generic
   virtual void input_values_do(ValueVisitor* f)   { AccessArray::input_values_do(f); f->visit(&_index); if (_length != NULL) f->visit(&_length); }
 };
 
@@ -994,7 +1006,7 @@ LEAF(LoadIndexed, AccessIndexed)
   void set_vt(NewValueTypeInstance* vt) { _vt = vt; }
 
   // generic
-  HASHING3(LoadIndexed, true, array()->subst(), index()->subst(), vt())
+  HASHING3(LoadIndexed, !should_profile(), array()->subst(), index()->subst(), vt())
 };
 
 
@@ -1002,8 +1014,6 @@ LEAF(StoreIndexed, AccessIndexed)
  private:
   Value       _value;
 
-  ciMethod* _profiled_method;
-  int       _profiled_bci;
   bool      _check_boolean;
 
  public:
@@ -1011,7 +1021,7 @@ LEAF(StoreIndexed, AccessIndexed)
   StoreIndexed(Value array, Value index, Value length, BasicType elt_type, Value value, ValueStack* state_before,
                bool check_boolean, bool mismatched = false)
   : AccessIndexed(array, index, length, elt_type, state_before, mismatched)
-  , _value(value), _profiled_method(NULL), _profiled_bci(0), _check_boolean(check_boolean)
+  , _value(value), _check_boolean(check_boolean)
   {
     set_flag(NeedsWriteBarrierFlag, (as_ValueType(elt_type)->is_object()));
     set_flag(NeedsStoreCheckFlag, (as_ValueType(elt_type)->is_object()));
@@ -1024,13 +1034,7 @@ LEAF(StoreIndexed, AccessIndexed)
   bool needs_write_barrier() const               { return check_flag(NeedsWriteBarrierFlag); }
   bool needs_store_check() const                 { return check_flag(NeedsStoreCheckFlag); }
   bool check_boolean() const                     { return _check_boolean; }
-  // Helpers for MethodData* profiling
-  void set_should_profile(bool value)                { set_flag(ProfileMDOFlag, value); }
-  void set_profiled_method(ciMethod* method)         { _profiled_method = method;   }
-  void set_profiled_bci(int bci)                     { _profiled_bci = bci;         }
-  bool      should_profile() const                   { return check_flag(ProfileMDOFlag); }
-  ciMethod* profiled_method() const                  { return _profiled_method;     }
-  int       profiled_bci() const                     { return _profiled_bci;        }
+
   // Flattened array support
   bool is_exact_flattened_array_store() const;
   // generic
