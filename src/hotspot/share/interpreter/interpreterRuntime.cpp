@@ -536,7 +536,16 @@ JRT_ENTRY(jboolean, InterpreterRuntime::is_substitutable(JavaThread* thread, oop
   args.push_oop(hb);
   methodHandle method(Universe::is_substitutable_method());
   JavaCalls::call(&result, method, &args, THREAD);
-  guarantee(!HAS_PENDING_EXCEPTION, "isSubstitutable() raised exception");
+  if (HAS_PENDING_EXCEPTION) {
+    // Something really bad happened because isSubstitutable() should not throw exceptions
+    // If it is an error, just let it propagate
+    // If it is an exception, wrap it into an InternalError
+    if (!PENDING_EXCEPTION->is_a(SystemDictionary::Error_klass())) {
+      Handle e(THREAD, PENDING_EXCEPTION);
+      CLEAR_PENDING_EXCEPTION;
+      THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in substitutability test", e, false);
+    }
+  }
   return result.get_jboolean();
 JRT_END
 
