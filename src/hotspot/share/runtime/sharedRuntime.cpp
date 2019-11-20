@@ -1060,9 +1060,9 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
     bc = Bytecodes::_invokestatic;
     methodHandle attached_method = extract_attached_method(vfst);
     assert(attached_method.not_null(), "must have attached method");
+    SystemDictionary::ValueBootstrapMethods_klass()->initialize(CHECK_NH);
     LinkResolver::resolve_invoke(callinfo, receiver, attached_method, bc, CHECK_NH);
 #ifdef ASSERT
-    SystemDictionary::ValueBootstrapMethods_klass()->initialize(CHECK_NH);
     Method* is_subst = SystemDictionary::ValueBootstrapMethods_klass()->find_method(vmSymbols::isSubstitutable_name(), vmSymbols::object_object_boolean_signature());
     assert(callinfo.selected_method() == is_subst, "must be isSubstitutable method");
 #endif
