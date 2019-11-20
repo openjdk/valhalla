@@ -67,7 +67,8 @@ public class NestmateTest {
         Lookup L1 = MyThreadLocal.lookup();         // Lookup on MyThreadLocal
         Lookup L2 = L1.in(member);                  // teleport to a member
         assertTrue(L2.lookupClass().isNestmateOf(L1.lookupClass()));
-        assertTrue(L2.hasPrivateAccess());          // full-power lookup
+        assertTrue((L2.lookupModes() & (PRIVATE|MODULE)) == (PRIVATE|MODULE));
+        assertTrue((L2.lookupModes() & ORIGINAL) == 0);
 
         // access to a private method of its nest host
         MethodHandle mh = L2.findStatic(host, "testNestmateAccess", methodType(void.class));
@@ -136,7 +137,7 @@ public class NestmateTest {
         Path path = Paths.get(System.getProperty("test.classes"), "Invoker.class");
         byte[] bytes = Files.readAllBytes(path);
         Lookup lookup = MyThreadLocal.lookup()
-                .defineHiddenClassWithClassData(bytes, mh.bindTo(tl), ClassOption.NESTMATE);
+                .defineHiddenClassWithClassData(bytes, mh.bindTo(tl), false, ClassOption.NESTMATE);
         Class<?> hiddenClass = lookup.lookupClass();
         assertTrue(hiddenClass.isHiddenClass());
 

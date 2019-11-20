@@ -376,10 +376,9 @@ class InvokerBytecodeGenerator {
 
         MethodVisitor mv = cw.visitMethod(Opcodes.ACC_STATIC, "<clinit>", "()V", null, null);
         mv.visitCode();
-        mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/invoke/MethodHandles",
-                           "lookup", "()Ljava/lang/invoke/MethodHandles$Lookup;", false);
-        mv.visitLdcInsn(Type.getType(List.class));
-        mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, "java/lang/invoke/MethodHandles$Lookup",
+        // bootstrapping issue if using condy
+        mv.visitLdcInsn(Type.getType("L" + className + ";"));
+        mv.visitMethodInsn(Opcodes.INVOKESTATIC, "java/lang/invoke/MethodHandleNatives",
                            "classData", "(Ljava/lang/Class;)Ljava/lang/Object;", false);
         // we should optimize one single element case that does not need to create a List
         mv.visitTypeInsn(Opcodes.CHECKCAST, "java/util/List");

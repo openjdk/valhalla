@@ -29,10 +29,16 @@
  * @run testng/othervm DefineClassWithClassData
  */
 
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.stream.Stream;
 
@@ -74,7 +80,7 @@ public class DefineClassWithClassData {
     @Test
     public void defineNestMate() throws Throwable {
         // define a nestmate
-        Lookup lookup = MethodHandles.lookup().defineHiddenClassWithClassData(T_CLASS_BYTES, classData, NESTMATE);
+        Lookup lookup = MethodHandles.lookup().defineHiddenClassWithClassData(T_CLASS_BYTES, classData, true, NESTMATE);
         Class<?> c = lookup.lookupClass();
         assertTrue(c.getNestHost() == DefineClassWithClassData.class);
         assertEquals(classData, injectedData(c));
@@ -91,7 +97,7 @@ public class DefineClassWithClassData {
     @Test
     public void defineHiddenClass() throws Throwable {
         // define a hidden class
-        Lookup lookup = MethodHandles.lookup().defineHiddenClassWithClassData(T_CLASS_BYTES, classData, NESTMATE);
+        Lookup lookup = MethodHandles.lookup().defineHiddenClassWithClassData(T_CLASS_BYTES, classData, false, NESTMATE);
         Class<?> c = lookup.lookupClass();
         assertTrue(c.getNestHost() == DefineClassWithClassData.class);
         assertTrue(c.isHiddenClass());
@@ -109,7 +115,7 @@ public class DefineClassWithClassData {
     @Test
     public void defineWeakClass() throws Throwable {
         // define a weak class
-        Lookup lookup = MethodHandles.lookup().defineHiddenClassWithClassData(T_CLASS_BYTES, classData, WEAK);
+        Lookup lookup = MethodHandles.lookup().defineHiddenClassWithClassData(T_CLASS_BYTES, classData, true, WEAK);
         Class<?> c = lookup.lookupClass();
         assertTrue(c.getNestHost() == c);
         assertTrue(c.isHiddenClass());
@@ -118,13 +124,13 @@ public class DefineClassWithClassData {
     @Test(expectedExceptions = IllegalAccessException.class)
     public void noPrivateLookupAccess() throws Throwable {
         Lookup lookup = MethodHandles.lookup().dropLookupMode(Lookup.PRIVATE);
-        lookup.defineHiddenClassWithClassData(T2_CLASS_BYTES, classData, NESTMATE);
+        lookup.defineHiddenClassWithClassData(T2_CLASS_BYTES, classData, false, NESTMATE);
     }
 
     @Test
     public void teleportToNestmate() throws Throwable {
         Lookup lookup = MethodHandles.lookup()
-            .defineHiddenClassWithClassData(T_CLASS_BYTES, classData, NESTMATE);
+            .defineHiddenClassWithClassData(T_CLASS_BYTES, classData, false, NESTMATE);
         Class<?> c = lookup.lookupClass();
         assertTrue(c.getNestHost() == DefineClassWithClassData.class);
         assertEquals(classData, injectedData(c));
@@ -133,18 +139,14 @@ public class DefineClassWithClassData {
         // Teleport to a nestmate
         Lookup lookup2 =  MethodHandles.lookup().in(DefineClassWithClassData.class);
         assertTrue((lookup2.lookupModes() & PRIVATE) != 0);
-        Lookup lc = lookup2.defineHiddenClassWithClassData(T2_CLASS_BYTES, classData, NESTMATE);
+        Lookup lc = lookup2.defineHiddenClassWithClassData(T2_CLASS_BYTES, classData, false, NESTMATE);
         assertTrue(lc.lookupClass().getNestHost() == DefineClassWithClassData.class);
         assertTrue(lc.lookupClass().isHiddenClass());
     }
 
     static class ClassByteBuilder {
         static final String OBJECT_CLS = "java/lang/Object";
-        static final String STRING_CLS = "java/lang/String";
-        static final String LIST_CLS = "java/util/List";
-        static final String MH_CLS = "java/lang/invoke/MethodHandles";
-        static final String LOOKUP_CLS = "java/lang/invoke/MethodHandles$Lookup";
-        static final String LOOKUP_SIG = "Ljava/lang/invoke/MethodHandles$Lookup;";
+        static final String MHS_CLS = "java/lang/invoke/MethodHandles";
         static final String LIST_SIG = "Ljava/util/List;";
 
         static byte[] classBytes(String classname) {
@@ -154,7 +156,7 @@ public class DefineClassWithClassData {
 
             String hostClassName = DefineClassWithClassData.class.getName();
 
-            cw.visit(V11, ACC_FINAL, classname, null, OBJECT_CLS, null);
+            cw.visit(V13, ACC_FINAL, classname, null, OBJECT_CLS, null);
             {
                 fv = cw.visitField(ACC_STATIC | ACC_FINAL, "data", LIST_SIG, null, null);
                 fv.visitEnd();
@@ -163,30 +165,10 @@ public class DefineClassWithClassData {
                 mv = cw.visitMethod(ACC_STATIC, "<clinit>", "()V", null, null);
                 mv.visitCode();
 
-                // set up try block
-                Label lTryBlockStart =   new Label();
-                Label lTryBlockEnd =     new Label();
-                Label lCatchBlockStart = new Label();
-                Label lCatchBlockEnd =   new Label();
-                mv.visitTryCatchBlock(lTryBlockStart, lTryBlockEnd, lCatchBlockStart, "java/lang/IllegalAccessException");
-
-                mv.visitLabel(lTryBlockStart);
-                mv.visitMethodInsn(INVOKESTATIC, MH_CLS, "lookup", "()" + LOOKUP_SIG, false);
-                mv.visitLdcInsn(Type.getType(List.class));
-                mv.visitMethodInsn(INVOKEVIRTUAL, LOOKUP_CLS, "classData", "(Ljava/lang/Class;)Ljava/lang/Object;", false);
-                mv.visitTypeInsn(CHECKCAST, LIST_CLS);
+                Handle bsm = new Handle(H_INVOKESTATIC, MHS_CLS, "classData", "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/Class;)Ljava/lang/Object;", false);
+                ConstantDynamic dynamic = new ConstantDynamic("classdata", LIST_SIG, bsm);
+                mv.visitLdcInsn(dynamic);
                 mv.visitFieldInsn(PUTSTATIC, classname, "data", LIST_SIG);
-                mv.visitLabel(lTryBlockEnd);
-                mv.visitJumpInsn(GOTO, lCatchBlockEnd);
-
-                mv.visitLabel(lCatchBlockStart);
-                mv.visitVarInsn(ASTORE, 0);
-                mv.visitTypeInsn(NEW, "java/lang/Error");
-                mv.visitInsn(DUP);
-                mv.visitVarInsn(ALOAD, 0);
-                mv.visitMethodInsn(INVOKESPECIAL, "java/lang/Error", "<init>", "(Ljava/lang/Throwable;)V", false);
-                mv.visitInsn(ATHROW);
-                mv.visitLabel(lCatchBlockEnd);
                 mv.visitInsn(RETURN);
                 mv.visitMaxs(0, 0);
                 mv.visitEnd();
@@ -223,7 +205,15 @@ public class DefineClassWithClassData {
                 mv.visitEnd();
             }
             cw.visitEnd();
-            return cw.toByteArray();
+
+            byte[] bytes = cw.toByteArray();
+            Path p = Paths.get(classname + ".class");
+            try (OutputStream os = Files.newOutputStream(p)) {
+                os.write(bytes);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+            return bytes;
         }
     }
 }

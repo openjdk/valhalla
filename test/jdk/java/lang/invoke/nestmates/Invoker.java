@@ -30,7 +30,7 @@ public class Invoker implements Runnable {
     static {
         MethodHandle mh = null;
         try {
-            mh = MethodHandles.lookup().classData(MethodHandle.class);
+            mh = MethodHandles.classData(MethodHandles.lookup(), "dummy", MethodHandle.class);
         } catch (IllegalAccessException e) {}
         MH = mh;
     }
