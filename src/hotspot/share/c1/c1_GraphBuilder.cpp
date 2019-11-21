@@ -993,17 +993,29 @@ void GraphBuilder::load_indexed(BasicType type) {
     length = append(new ArrayLength(array, state_before));
   }
 
+  LoadIndexed* load_indexed = NULL;
+  Instruction* result = NULL;
   if (array->is_loaded_flattened_array()) {
     ciType* array_type = array->declared_type();
     ciValueKlass* elem_klass = array_type->as_value_array_klass()->element_klass()->as_value_klass();
     NewValueTypeInstance* new_instance = new NewValueTypeInstance(elem_klass, state_before, false);
     _memory->new_instance(new_instance);
     apush(append_split(new_instance));
-    LoadIndexed* load_indexed = new LoadIndexed(array, index, length, type, state_before);
+    load_indexed = new LoadIndexed(array, index, length, type, state_before);
     load_indexed->set_vt(new_instance);
-    append(load_indexed);
   } else {
-    push(as_ValueType(type), append(new LoadIndexed(array, index, length, type, state_before)));
+    load_indexed = new LoadIndexed(array, index, length, type, state_before);
+  }
+  if (profile_array_accesses() && is_reference_type(type)) {
+    compilation()->set_would_profile(true);
+    load_indexed->set_should_profile(true);
+    load_indexed->set_profiled_method(method());
+    load_indexed->set_profiled_bci(bci());
+  }
+  result = append(load_indexed);
+  assert(!(profile_array_accesses() && is_reference_type(type)) || load_indexed == result, "should not be optimized out");
+  if (!array->is_loaded_flattened_array()) {
+    push(as_ValueType(type), result);
   }
 }
 
@@ -1035,20 +1047,17 @@ void GraphBuilder::store_indexed(BasicType type) {
     check_boolean = true;
   }
 
-  StoreIndexed* result = new StoreIndexed(array, index, length, type, value, state_before, check_boolean);
-  append(result);
+  StoreIndexed* store_indexed = new StoreIndexed(array, index, length, type, value, state_before, check_boolean);
+  if (profile_array_accesses() && is_reference_type(type)) {
+    compilation()->set_would_profile(true);
+    store_indexed->set_should_profile(true);
+    store_indexed->set_profiled_method(method());
+    store_indexed->set_profiled_bci(bci());
+  }
+  Instruction* result = append(store_indexed);
+  assert(!store_indexed->should_profile() || store_indexed == result, "should not be optimized out");
   _memory->store_value(value);
 
-  if (type == T_OBJECT && is_profiling()) {
-    // Note that we'd collect profile data in this method if we wanted it.
-    compilation()->set_would_profile(true);
-
-    if (profile_checkcasts()) {
-      result->set_profiled_method(method());
-      result->set_profiled_bci(bci());
-      result->set_should_profile(true);
-    }
-  }
 }
 
 

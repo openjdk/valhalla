@@ -124,7 +124,8 @@ public:
     call_type_data_tag,
     virtual_call_type_data_tag,
     parameters_type_data_tag,
-    speculative_trap_data_tag
+    speculative_trap_data_tag,
+    array_load_store_data_tag
   };
 
   enum {
@@ -262,6 +263,7 @@ class     MultiBranchData;
 class     ArgInfoData;
 class     ParametersTypeData;
 class   SpeculativeTrapData;
+class   ArrayLoadStoreData;
 
 // ProfileData
 //
@@ -269,7 +271,7 @@ class   SpeculativeTrapData;
 // data in a structured way.
 class ProfileData : public ResourceObj {
   friend class TypeEntries;
-  friend class ReturnTypeEntry;
+  friend class SingleTypeEntry;
   friend class TypeStackSlotEntries;
 private:
   enum {
@@ -390,6 +392,7 @@ public:
   virtual bool is_VirtualCallTypeData()const { return false; }
   virtual bool is_ParametersTypeData() const { return false; }
   virtual bool is_SpeculativeTrapData()const { return false; }
+  virtual bool is_ArrayLoadStoreData() const { return false; }
 
 
   BitData* as_BitData() const {
@@ -447,6 +450,10 @@ public:
   SpeculativeTrapData* as_SpeculativeTrapData() const {
     assert(is_SpeculativeTrapData(), "wrong type");
     return is_SpeculativeTrapData() ? (SpeculativeTrapData*)this : NULL;
+  }
+  ArrayLoadStoreData* as_ArrayLoadStoreData() const {
+    assert(is_ArrayLoadStoreData(), "wrong type");
+    return is_ArrayLoadStoreData() ? (ArrayLoadStoreData*)this : NULL;
   }
 
 
@@ -842,7 +849,7 @@ public:
 
 // Type entry used for return from a call. A single cell to record the
 // type.
-class ReturnTypeEntry : public TypeEntries {
+class SingleTypeEntry : public TypeEntries {
 
 private:
   enum {
@@ -850,7 +857,7 @@ private:
   };
 
 public:
-  ReturnTypeEntry(int base_off)
+  SingleTypeEntry(int base_off)
     : TypeEntries(base_off) {}
 
   void post_initialize() {
@@ -884,7 +891,7 @@ public:
 };
 
 // Entries to collect type information at a call: contains arguments
-// (TypeStackSlotEntries), a return type (ReturnTypeEntry) and a
+// (TypeStackSlotEntries), a return type (SingleTypeEntry) and a
 // number of cells. Because the number of cells for the return type is
 // smaller than the number of cells for the type of an arguments, the
 // number of cells is used to tell how many arguments are profiled and
@@ -938,7 +945,7 @@ public:
   }
 
   static ByteSize return_only_size() {
-    return ReturnTypeEntry::size() + in_ByteSize(header_cell_count() * DataLayout::cell_size);
+    return SingleTypeEntry::size() + in_ByteSize(header_cell_count() * DataLayout::cell_size);
   }
 
 };
@@ -953,7 +960,7 @@ private:
   // entries for arguments if any
   TypeStackSlotEntries _args;
   // entry for return type if any
-  ReturnTypeEntry _ret;
+  SingleTypeEntry _ret;
 
   int cell_count_global_offset() const {
     return CounterData::static_cell_count() + TypeEntriesAtCall::cell_count_local_offset();
@@ -972,7 +979,7 @@ public:
   CallTypeData(DataLayout* layout) :
     CounterData(layout),
     _args(CounterData::static_cell_count()+TypeEntriesAtCall::header_cell_count(), number_of_arguments()),
-    _ret(cell_count() - ReturnTypeEntry::static_cell_count())
+    _ret(cell_count() - SingleTypeEntry::static_cell_count())
   {
     assert(layout->tag() == DataLayout::call_type_data_tag, "wrong type");
     // Some compilers (VC++) don't want this passed in member initialization list
@@ -985,7 +992,7 @@ public:
     return &_args;
   }
 
-  const ReturnTypeEntry* ret() const {
+  const SingleTypeEntry* ret() const {
     assert(has_return(), "no profiling of return value");
     return &_ret;
   }
@@ -1311,7 +1318,7 @@ private:
   // entries for arguments if any
   TypeStackSlotEntries _args;
   // entry for return type if any
-  ReturnTypeEntry _ret;
+  SingleTypeEntry _ret;
 
   int cell_count_global_offset() const {
     return VirtualCallData::static_cell_count() + TypeEntriesAtCall::cell_count_local_offset();
@@ -1330,7 +1337,7 @@ public:
   VirtualCallTypeData(DataLayout* layout) :
     VirtualCallData(layout),
     _args(VirtualCallData::static_cell_count()+TypeEntriesAtCall::header_cell_count(), number_of_arguments()),
-    _ret(cell_count() - ReturnTypeEntry::static_cell_count())
+    _ret(cell_count() - SingleTypeEntry::static_cell_count())
   {
     assert(layout->tag() == DataLayout::virtual_call_type_data_tag, "wrong type");
     // Some compilers (VC++) don't want this passed in member initialization list
@@ -1343,7 +1350,7 @@ public:
     return &_args;
   }
 
-  const ReturnTypeEntry* ret() const {
+  const SingleTypeEntry* ret() const {
     assert(has_return(), "no profiling of return value");
     return &_ret;
   }
@@ -1897,6 +1904,79 @@ public:
 
   static ByteSize method_offset() {
     return cell_offset(speculative_trap_method);
+  }
+
+  virtual void print_data_on(outputStream* st, const char* extra = NULL) const;
+};
+
+class ArrayLoadStoreData : public ProfileData {
+private:
+  enum {
+    flat_array_flag = DataLayout::first_flag,
+    null_free_array_flag = flat_array_flag + 1,
+  };
+
+  SingleTypeEntry _array;
+  SingleTypeEntry _element;
+
+public:
+  ArrayLoadStoreData(DataLayout* layout) :
+    ProfileData(layout),
+    _array(0),
+    _element(SingleTypeEntry::static_cell_count()) {
+    assert(layout->tag() == DataLayout::array_load_store_data_tag, "wrong type");
+    _array.set_profile_data(this);
+    _element.set_profile_data(this);
+  }
+
+  const SingleTypeEntry* array() const {
+    return &_array;
+  }
+
+  const SingleTypeEntry* element() const {
+    return &_element;
+  }
+
+  virtual bool is_ArrayLoadStoreData() const { return true; }
+
+  static int static_cell_count() {
+    return SingleTypeEntry::static_cell_count() * 2;
+  }
+
+  virtual int cell_count() const {
+    return static_cell_count();
+  }
+
+  void set_flat_array() { set_flag_at(flat_array_flag); }
+  bool flat_array() const { return flag_at(flat_array_flag); }
+
+  void set_null_free_array() { set_flag_at(null_free_array_flag); }
+  bool null_free_array() const { return flag_at(null_free_array_flag); }
+
+  // Code generation support
+  static int flat_array_byte_constant() {
+    return flag_number_to_constant(flat_array_flag);
+  }
+
+  static int null_free_array_byte_constant() {
+    return flag_number_to_constant(null_free_array_flag);
+  }
+
+  static ByteSize array_offset() {
+    return cell_offset(0);
+  }
+
+  static ByteSize element_offset() {
+    return cell_offset(SingleTypeEntry::static_cell_count());
+  }
+
+  virtual void clean_weak_klass_links(bool always_clean) {
+    _array.clean_weak_klass_links(always_clean);
+    _element.clean_weak_klass_links(always_clean);
+  }
+
+  static ByteSize array_load_store_data_size() {
+    return cell_offset(static_cell_count());
   }
 
   virtual void print_data_on(outputStream* st, const char* extra = NULL) const;

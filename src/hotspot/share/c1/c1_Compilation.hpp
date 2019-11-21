@@ -258,6 +258,10 @@ class Compilation: public StackObj {
     return env()->comp_level() == CompLevel_full_profile &&
       C1UpdateMethodData && MethodData::profile_return();
   }
+  bool profile_array_accesses() {
+    return env()->comp_level() == CompLevel_full_profile &&
+      C1UpdateMethodData;
+  }
   bool age_code() const {
     return _method->profile_aging();
   }

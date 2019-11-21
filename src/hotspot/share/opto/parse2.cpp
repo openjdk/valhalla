@@ -52,6 +52,23 @@ extern int explicit_null_checks_inserted,
            explicit_null_checks_elided;
 #endif
 
+Node* Parse::record_profile_for_speculation_at_array_load(Node* ld) {
+  // Feed unused profile data to type speculation
+  if (UseTypeSpeculation && UseArrayLoadStoreProfile) {
+    ciKlass* array_type = NULL;
+    ciKlass* element_type = NULL;
+    ProfilePtrKind element_ptr = ProfileMaybeNull;
+    bool flat_array = true;
+    bool null_free_array = true;
+    method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
+    if (element_type != NULL || element_ptr != ProfileMaybeNull) {
+      ld = record_profile_for_speculation(ld, element_type, element_ptr);
+    }
+  }
+  return ld;
+}
+
+
 //---------------------------------array_load----------------------------------
 void Parse::array_load(BasicType bt) {
   const Type* elemtype = Type::TOP;
@@ -74,6 +91,7 @@ void Parse::array_load(BasicType bt) {
     // Load from non-flattened but flattenable value type array (elements can never be null)
     bt = T_VALUETYPE;
   } else if (!ary_t->is_not_flat()) {
+    assert(is_reference_type(bt), "");
     // Cannot statically determine if array is flattened, emit runtime check
     assert(ValueArrayFlatten && elemptr->can_be_value_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
            (!elemptr->is_valuetypeptr() || elemptr->value_klass()->flatten_array()), "array can't be flattened");
@@ -176,7 +194,9 @@ void Parse::array_load(BasicType bt) {
       ideal.set(res, ld);
     } ideal.end_if();
     sync_kit(ideal);
-    push_node(bt, _gvn.transform(ideal.value(res)));
+    Node* ld = _gvn.transform(ideal.value(res));
+    ld = record_profile_for_speculation_at_array_load(ld);
+    push_node(bt, ld);
     return;
   }
 
@@ -195,6 +215,9 @@ void Parse::array_load(BasicType bt) {
     if (elemptr->value_klass()->is_scalarizable()) {
       ld = ValueTypeNode::make_from_oop(this, ld, elemptr->value_klass());
     }
+  }
+  if (!ld->is_ValueType()) {
+    ld = record_profile_for_speculation_at_array_load(ld);
   }
 
   push_node(bt, ld);
@@ -456,18 +479,134 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type* *result2) {
   // Check for always knowing you are throwing a range-check exception
   if (stopped())  return top();
 
-  // Speculate on the array not being null-free
-  if (!arytype->is_not_null_free() && arytype->speculative() != NULL && arytype->speculative()->isa_aryptr() != NULL &&
-      arytype->speculative()->is_aryptr()->is_not_null_free() &&
-      !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
-    Node* tst = gen_null_free_array_check(ary);
-    {
-      BuildCutout unless(this, tst, PROB_ALWAYS);
-      uncommon_trap(Deoptimization::Reason_speculate_class_check,
-                    Deoptimization::Action_maybe_recompile);
+  // This could be an access to a value array. We can't tell if it's
+  // flat or not. Speculating it's not leads to a much simpler graph
+  // shape. Check profiling.
+  // For aastore, by the time we're here, the array store check should
+  // have already taken advantage of profiling to cast the array to an
+  // exact type reported by profiling
+  const TypeOopPtr* elemptr = elemtype->make_oopptr();
+  if (elemtype->isa_valuetype() == NULL &&
+      (elemptr == NULL || !elemptr->is_valuetypeptr() || elemptr->maybe_null()) &&
+      !arytype->is_not_flat()) {
+    assert(is_reference_type(type), "Only references");
+    // First check the speculative type
+    Deoptimization::DeoptReason reason = Deoptimization::Reason_speculate_class_check;
+    ciKlass* array_type = arytype->speculative_type();
+    if (too_many_traps_or_recompiles(reason) || array_type == NULL) {
+      // No speculative type, check profile data at this bci
+      array_type = NULL;
+      reason = Deoptimization::Reason_class_check;
+      if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(reason)) {
+        ciKlass* element_type = NULL;
+        ProfilePtrKind element_ptr = ProfileMaybeNull;
+        bool flat_array = true;
+        bool null_free_array = true;
+        method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
+      }
     }
-    Node* cast = new CheckCastPPNode(control(), ary, arytype->cast_to_not_null_free());
-    replace_in_map(ary, _gvn.transform(cast));
+    if (array_type != NULL) {
+      // Speculate that this array has the exact type reported by profile data
+      Node* better_ary = NULL;
+      Node* slow_ctl = type_check_receiver(ary, array_type, 1.0, &better_ary);
+      { PreserveJVMState pjvms(this);
+        set_control(slow_ctl);
+        uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
+      }
+      replace_in_map(ary, better_ary);
+      ary = better_ary;
+      arytype  = _gvn.type(ary)->is_aryptr();
+      elemtype = arytype->elem();
+    }
+  } else if (UseTypeSpeculation && UseArrayLoadStoreProfile) {
+    // No need to speculate: feed profile data at this bci for the
+    // array to type speculation
+    ciKlass* array_type = NULL;
+    ciKlass* element_type = NULL;
+    ProfilePtrKind element_ptr = ProfileMaybeNull;
+    bool flat_array = true;
+    bool null_free_array = true;
+    method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
+    if (array_type != NULL) {
+      record_profile_for_speculation(ary, array_type, ProfileMaybeNull);
+    }
+  }
+
+  // We have no exact array type from profile data. Check profile data
+  // for a non null free or non flat array. Non null free implies non
+  // flat so check this one first. Speculating on a non null free
+  // array doesn't help aaload but could be profitable for a
+  // subsequent aastore.
+  elemptr = elemtype->make_oopptr();
+  if (!arytype->is_not_null_free() &&
+      elemtype->isa_valuetype() == NULL &&
+      (elemptr == NULL || !elemptr->is_valuetypeptr()) &&
+      UseArrayLoadStoreProfile) {
+    assert(is_reference_type(type), "");
+    bool null_free_array = true;
+    Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
+    if (arytype->speculative() != NULL &&
+        arytype->speculative()->is_aryptr()->is_not_null_free() &&
+        !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
+      null_free_array = false;
+      reason = Deoptimization::Reason_speculate_class_check;
+    } else if (!too_many_traps_or_recompiles(Deoptimization::Reason_class_check)) {
+      ciKlass* array_type = NULL;
+      ciKlass* element_type = NULL;
+      ProfilePtrKind element_ptr = ProfileMaybeNull;
+      bool flat_array = true;
+      method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
+      reason = Deoptimization::Reason_class_check;
+    }
+    if (!null_free_array) {
+      Node* tst = gen_null_free_array_check(ary);
+      {
+        BuildCutout unless(this, tst, PROB_MAX);
+        uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
+      }
+      Node* better_ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype->cast_to_not_null_free()));
+      replace_in_map(ary, better_ary);
+      ary = better_ary;
+      arytype  = _gvn.type(ary)->is_aryptr();
+    }
+  }
+
+  if (!arytype->is_not_flat() && elemtype->isa_valuetype() == NULL) {
+    assert(is_reference_type(type), "");
+    bool flat_array = true;
+    Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
+    if (arytype->speculative() != NULL &&
+        arytype->speculative()->is_aryptr()->is_not_flat() &&
+        !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
+      flat_array = false;
+      reason = Deoptimization::Reason_speculate_class_check;
+    } else if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(reason)) {
+      ciKlass* array_type = NULL;
+      ciKlass* element_type = NULL;
+      ProfilePtrKind element_ptr = ProfileMaybeNull;
+      bool null_free_array = true;
+      method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
+      reason = Deoptimization::Reason_class_check;
+    }
+    if (!flat_array) {
+      Node* flattened = gen_flattened_array_test(ary);
+      Node* chk = NULL;
+      if (_gvn.type(flattened)->isa_int()) {
+        chk = _gvn.transform(new CmpINode(flattened, intcon(0)));
+      } else {
+        assert(_gvn.type(flattened)->isa_long(), "flattened property is int or long");
+        chk = _gvn.transform(new CmpLNode(flattened, longcon(0)));
+      }
+      Node* tst = _gvn.transform(new BoolNode(chk, BoolTest::eq));
+      {
+        BuildCutout unless(this, tst, PROB_MAX);
+        uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
+      }
+      Node* better_ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype->cast_to_not_flat()));
+      replace_in_map(ary, better_ary);
+      ary = better_ary;
+      arytype  = _gvn.type(ary)->is_aryptr();
+    }
   }
 
   // Make array address computation control dependent to prevent it

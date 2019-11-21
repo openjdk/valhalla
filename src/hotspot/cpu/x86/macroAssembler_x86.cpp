@@ -3459,10 +3459,23 @@ void MacroAssembler::test_flattened_array_oop(Register oop, Register temp_reg,
   jcc(Assembler::notZero, is_flattened_array);
 }
 
+void MacroAssembler::test_non_flattened_array_oop(Register oop, Register temp_reg,
+                                                  Label&is_non_flattened_array) {
+  load_storage_props(temp_reg, oop);
+  testb(temp_reg, ArrayStorageProperties::flattened_value);
+  jcc(Assembler::zero, is_non_flattened_array);
+}
+
 void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array) {
   load_storage_props(temp_reg, oop);
   testb(temp_reg, ArrayStorageProperties::null_free_value);
   jcc(Assembler::notZero, is_null_free_array);
+}
+
+void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array) {
+  load_storage_props(temp_reg, oop);
+  testb(temp_reg, ArrayStorageProperties::null_free_value);
+  jcc(Assembler::zero, is_non_null_free_array);
 }
 
 void MacroAssembler::os_breakpoint() {

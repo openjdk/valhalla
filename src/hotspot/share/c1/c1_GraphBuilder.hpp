@@ -404,6 +404,7 @@ class GraphBuilder {
   bool profile_parameters()    { return _compilation->profile_parameters();    }
   bool profile_arguments()     { return _compilation->profile_arguments();     }
   bool profile_return()        { return _compilation->profile_return();        }
+  bool profile_array_accesses(){ return _compilation->profile_array_accesses();}
 
   Values* args_list_for_profiling(ciMethod* target, int& start, bool may_have_receiver);
   Values* collect_args_for_profiling(Values* args, ciMethod* target, bool may_have_receiver);

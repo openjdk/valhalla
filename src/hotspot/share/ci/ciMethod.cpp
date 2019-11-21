@@ -690,6 +690,22 @@ bool ciMethod::parameter_profiled_type(int i, ciKlass*& type, ProfilePtrKind& pt
   return false;
 }
 
+bool ciMethod::array_access_profiled_type(int bci, ciKlass*& array_type, ciKlass*& element_type, ProfilePtrKind& element_ptr, bool &flat_array, bool &null_free_array) {
+  if (method_data() != NULL && method_data()->is_mature()) {
+    ciProfileData* data = method_data()->bci_to_data(bci);
+    if (data != NULL && data->is_ArrayLoadStoreData()) {
+      ciArrayLoadStoreData* array_access = (ciArrayLoadStoreData*)data->as_ArrayLoadStoreData();
+      array_type = array_access->array()->valid_type();
+      element_type = array_access->element()->valid_type();
+      element_ptr = array_access->element()->ptr_kind();
+      flat_array = array_access->flat_array();
+      null_free_array = array_access->null_free_array();
+      return true;
+    }
+  }
+  return false;
+}
+
 
 // ------------------------------------------------------------------
 // ciMethod::find_monomorphic_target

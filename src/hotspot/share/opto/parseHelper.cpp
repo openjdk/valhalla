@@ -171,9 +171,7 @@ Node* Parse::array_store_check() {
   // succeeds.
   bool always_see_exact_class = false;
   if (MonomorphicArrayCheck
-      && !too_many_traps(Deoptimization::Reason_array_check)
-      && !tak->klass_is_exact()
-      && tak != TypeKlassPtr::OBJECT) {
+      && !tak->klass_is_exact()) {
       // Regarding the fourth condition in the if-statement from above:
       //
       // If the compiler has determined that the type of array 'ary' (represented
@@ -195,34 +193,61 @@ Node* Parse::array_store_check() {
       //
       // See issue JDK-8057622 for details.
 
-    always_see_exact_class = true;
     // (If no MDO at all, hope for the best, until a trap actually occurs.)
 
     // Make a constant out of the inexact array klass
-    const TypeKlassPtr *extak = tak->cast_to_exactness(true)->is_klassptr();
-    Node* con = makecon(extak);
-    Node* cmp = _gvn.transform(new CmpPNode( array_klass, con ));
-    Node* bol = _gvn.transform(new BoolNode( cmp, BoolTest::eq ));
-    Node* ctrl= control();
-    { BuildCutout unless(this, bol, PROB_MAX);
-      uncommon_trap(Deoptimization::Reason_array_check,
-                    Deoptimization::Action_maybe_recompile,
-                    tak->klass());
-    }
-    if (stopped()) {          // MUST uncommon-trap?
-      set_control(ctrl);      // Then Don't Do It, just fall into the normal checking
-    } else {                  // Cast array klass to exactness:
-      // Use the exact constant value we know it is.
-      replace_in_map(array_klass,con);
-      Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, extak->as_instance_type()));
-      replace_in_map(ary, cast);
-
-      CompileLog* log = C->log();
-      if (log != NULL) {
-        log->elem("cast_up reason='monomorphic_array' from='%d' to='(exact)'",
-                  log->identify(tak->klass()));
+    const TypeKlassPtr *extak = NULL;
+    const TypeOopPtr* ary_t = _gvn.type(ary)->is_oopptr();
+    ciKlass* ary_spec = ary_t->speculative_type();
+    Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
+    // Try to cast the array to an exact type from profile data. First
+    // check the speculative type.
+    if (ary_spec != NULL && !too_many_traps(Deoptimization::Reason_speculate_class_check)) {
+      extak = TypeKlassPtr::make(ary_spec);
+      reason = Deoptimization::Reason_speculate_class_check;
+    } else if (UseArrayLoadStoreProfile) {
+      // No speculative type: check profile data at this bci.
+      reason = Deoptimization::Reason_class_check;
+      if (!too_many_traps(reason)) {
+        ciKlass* array_type = NULL;
+        ciKlass* element_type = NULL;
+        ProfilePtrKind element_ptr = ProfileMaybeNull;
+        bool flat_array = true;
+        bool null_free_array = true;
+        method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
+        if (array_type != NULL) {
+          extak = TypeKlassPtr::make(array_type);
+        }
       }
-      array_klass = con;      // Use cast value moving forward
+    } else if (!too_many_traps(Deoptimization::Reason_class_check) && tak != TypeKlassPtr::OBJECT) {
+      extak = tak->cast_to_exactness(true)->is_klassptr();
+    }
+    if (extak != NULL) {
+      always_see_exact_class = true;
+      Node* con = makecon(extak);
+      Node* cmp = _gvn.transform(new CmpPNode( array_klass, con ));
+      Node* bol = _gvn.transform(new BoolNode( cmp, BoolTest::eq ));
+      Node* ctrl= control();
+      { BuildCutout unless(this, bol, PROB_MAX);
+        uncommon_trap(reason,
+                      Deoptimization::Action_maybe_recompile,
+                      tak->klass());
+      }
+      if (stopped()) {          // MUST uncommon-trap?
+        set_control(ctrl);      // Then Don't Do It, just fall into the normal checking
+      } else {                  // Cast array klass to exactness:
+        // Use the exact constant value we know it is.
+        replace_in_map(array_klass,con);
+        Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, extak->as_instance_type()));
+        replace_in_map(ary, cast);
+
+        CompileLog* log = C->log();
+        if (log != NULL) {
+          log->elem("cast_up reason='monomorphic_array' from='%d' to='(exact)'",
+                    log->identify(tak->klass()));
+        }
+        array_klass = con;      // Use cast value moving forward
+      }
     }
   }
 

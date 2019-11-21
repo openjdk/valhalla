@@ -109,7 +109,9 @@ class MacroAssembler: public Assembler {
 
   // Check oops array storage properties, i.e. flattened and/or null-free
   void test_flattened_array_oop(Register oop, Register temp_reg, Label&is_flattened_array);
+  void test_non_flattened_array_oop(Register oop, Register temp_reg, Label&is_non_flattened_array);
   void test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array);
+  void test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array);
 
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.

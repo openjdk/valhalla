@@ -124,9 +124,9 @@ public:
 #endif
 };
 
-class ciReturnTypeEntry : public ReturnTypeEntry, ciTypeEntries {
+class ciSingleTypeEntry : public SingleTypeEntry, ciTypeEntries {
 public:
-  void translate_type_data_from(const ReturnTypeEntry* ret);
+  void translate_type_data_from(const SingleTypeEntry* ret);
 
   ciKlass* valid_type() const {
     return valid_ciklass(type());
@@ -146,7 +146,7 @@ public:
   ciCallTypeData(DataLayout* layout) : CallTypeData(layout) {}
 
   ciTypeStackSlotEntries* args() const { return (ciTypeStackSlotEntries*)CallTypeData::args(); }
-  ciReturnTypeEntry* ret() const { return (ciReturnTypeEntry*)CallTypeData::ret(); }
+  ciSingleTypeEntry* ret() const { return (ciSingleTypeEntry*)CallTypeData::ret(); }
 
   void translate_from(const ProfileData* data) {
     if (has_arguments()) {
@@ -258,7 +258,7 @@ public:
   }
 
   ciTypeStackSlotEntries* args() const { return (ciTypeStackSlotEntries*)VirtualCallTypeData::args(); }
-  ciReturnTypeEntry* ret() const { return (ciReturnTypeEntry*)VirtualCallTypeData::ret(); }
+  ciSingleTypeEntry* ret() const { return (ciSingleTypeEntry*)VirtualCallTypeData::ret(); }
 
   // Copy & translate from oop based VirtualCallData
   virtual void translate_from(const ProfileData* data) {
@@ -355,6 +355,23 @@ public:
 
   void set_method(ciMethod* m) {
     set_intptr_at(speculative_trap_method, (intptr_t)m);
+  }
+
+#ifndef PRODUCT
+  void print_data_on(outputStream* st, const char* extra = NULL) const;
+#endif
+};
+
+class ciArrayLoadStoreData : public ArrayLoadStoreData {
+public:
+  ciArrayLoadStoreData(DataLayout* layout) : ArrayLoadStoreData(layout) {}
+
+  ciSingleTypeEntry* array() const { return (ciSingleTypeEntry*)ArrayLoadStoreData::array(); }
+  ciSingleTypeEntry* element() const { return (ciSingleTypeEntry*)ArrayLoadStoreData::element(); }
+
+  virtual void translate_from(const ProfileData* data) {
+    array()->translate_type_data_from(data->as_ArrayLoadStoreData()->array());
+    element()->translate_type_data_from(data->as_ArrayLoadStoreData()->element());
   }
 
 #ifndef PRODUCT

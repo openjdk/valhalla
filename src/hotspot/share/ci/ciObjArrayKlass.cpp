@@ -187,6 +187,15 @@ ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, bool never_null) 
 
 ciKlass* ciObjArrayKlass::exact_klass() {
   ciType* base = base_element_type();
+
+  if (!is_loaded()) {
+    return NULL;
+  }
+
+  if (!storage_properties().is_null_free() && element_klass()->is_valuetype()) {
+    return NULL;
+  }
+
   if (base->is_instance_klass()) {
     ciInstanceKlass* ik = base->as_instance_klass();
     if (ik->exact_klass() != NULL) {

@@ -827,6 +827,9 @@ void TemplateTable::aaload() {
   Register index = rax;
 
   index_check(array, index); // kills rbx
+
+  __ profile_array(rbx, array, rdx);
+
   if (ValueArrayFlatten) {
     Label is_flat_array, done;
     __ test_flattened_array_oop(array, rbx, is_flat_array);
@@ -848,6 +851,8 @@ void TemplateTable::aaload() {
                 rax,
                 IS_ARRAY);
   }
+
+  __ profile_element(rbx, rax, rdx);
 }
 
 void TemplateTable::baload() {
@@ -1146,6 +1151,9 @@ void TemplateTable::aastore() {
 
   index_check_without_pop(rdx, rcx);     // kills rbx
 
+  __ profile_array(rdi, rdx, rbx);
+  __ profile_element(rdi, rax, rbx);
+
   __ testptr(rax, rax);
   __ jcc(Assembler::zero, is_null);
 
@@ -1164,7 +1172,7 @@ void TemplateTable::aastore() {
   // Generate subtype check.  Blows rcx, rdi
   // Superklass in rax.  Subklass in rbx.
   // is "rbx <: rax" ? (value subclass <: array element superclass)
-  __ gen_subtype_check(rbx, ok_is_subtype);
+  __ gen_subtype_check(rbx, ok_is_subtype, false);
 
   // Come here on failure
   // object is at TOS
@@ -1182,7 +1190,6 @@ void TemplateTable::aastore() {
 
   // Have a NULL in rax, rdx=array, ecx=index.  Store NULL at ary[idx]
   __ bind(is_null);
-  __ profile_null_seen(rbx);
   if (EnableValhalla) {
     Label is_null_into_value_array_npe, store_null;
 
@@ -1207,7 +1214,6 @@ void TemplateTable::aastore() {
 
     // Profile the not-null value's klass.
     __ load_klass(rbx, rax);
-    __ profile_typecheck(rcx, rbx, rax); // blows rcx, and rax
     // Move element klass into rax
     __ movptr(rax, Address(rdi, ArrayKlass::element_klass_offset()));
     // flat value array needs exact type match
@@ -1215,7 +1221,6 @@ void TemplateTable::aastore() {
     __ cmpptr(rax, rbx);
     __ jccb(Assembler::equal, is_type_ok);
 
-    __ profile_typecheck_failed(rcx);
     __ jump(ExternalAddress(Interpreter::_throw_ArrayStoreException_entry));
 
     __ bind(is_type_ok);

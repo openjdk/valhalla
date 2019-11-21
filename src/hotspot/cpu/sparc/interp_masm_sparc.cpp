@@ -2046,7 +2046,7 @@ void InterpreterMacroAssembler::profile_arguments_type(Register callee, Register
         // argument. tmp1 is the number of cells left in the
         // CallTypeData/VirtualCallTypeData to reach its end. Non null
         // if there's a return to profile.
-        assert(ReturnTypeEntry::static_cell_count() < TypeStackSlotEntries::per_arg_count(), "can't move past ret type");
+        assert(SingleTypeEntry::static_cell_count() < TypeStackSlotEntries::per_arg_count(), "can't move past ret type");
         sll(tmp1, exact_log2(DataLayout::cell_size), tmp1);
         add(ImethodDataPtr, tmp1, ImethodDataPtr);
       }
@@ -2089,7 +2089,7 @@ void InterpreterMacroAssembler::profile_return_type(Register ret, Register tmp1,
       bind(do_profile);
     }
 
-    Address mdo_ret_addr(ImethodDataPtr, -in_bytes(ReturnTypeEntry::size()));
+    Address mdo_ret_addr(ImethodDataPtr, -in_bytes(SingleTypeEntry::size()));
     mov(ret, tmp1);
     profile_obj_type(tmp1, mdo_ret_addr, tmp2);
 

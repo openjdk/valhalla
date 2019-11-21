@@ -754,5 +754,8 @@
                                                                             \
   product(bool, UseProfiledLoopPredicate, true,                             \
           "move predicates out of loops based on profiling data")           \
+                                                                            \
+  product(bool, UseArrayLoadStoreProfile, false,                            \
+          "take advantage of profiling at array load/store")
 
 #endif // SHARE_OPTO_C2_GLOBALS_HPP
