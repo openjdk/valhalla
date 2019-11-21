@@ -1007,7 +1007,7 @@ bool Thread::is_in_stack(address adr) const {
   address end = os::current_stack_pointer();
   // Allow non Java threads to call this without stack_base
   if (_stack_base == NULL) return true;
-  if (stack_base() >= adr && adr >= end) return true;
+  if (stack_base() > adr && adr >= end) return true;
 
   return false;
 }
@@ -4367,7 +4367,7 @@ void JavaThread::invoke_shutdown_hooks() {
 //   + Call before_exit(), prepare for VM exit
 //      > run VM level shutdown hooks (they are registered through JVM_OnExit(),
 //        currently the only user of this mechanism is File.deleteOnExit())
-//      > stop StatSampler, watcher thread, CMS threads,
+//      > stop StatSampler, watcher thread,
 //        post thread end and vm death events to JVMTI,
 //        stop signal thread
 //   + Call JavaThread::exit(), it will:
