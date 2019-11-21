@@ -1624,9 +1624,8 @@ public class MethodHandles {
          * finds members, but with a lookup mode that has lost the given lookup mode.
          * The lookup mode to drop is one of {@link #PUBLIC PUBLIC}, {@link #MODULE
          * MODULE}, {@link #PACKAGE PACKAGE}, {@link #PROTECTED PROTECTED} or {@link #PRIVATE PRIVATE}.
-         * {@link #PROTECTED PROTECTED} is always dropped and
-         * so the resulting lookup mode will never have this access capability
-         * and {@link #ORIGINAL ORIGINAL}.
+         * {@link #PROTECTED PROTECTED} and and {@link #ORIGINAL ORIGINAL} are always dropped
+         * and so the resulting lookup mode will never have this access capability.
          * When dropping {@code PACKAGE} then the resulting lookup will not have {@code PACKAGE}
          * or {@code PRIVATE} access. When dropping {@code MODULE} then the resulting lookup will
          * not have {@code MODULE}, {@code PACKAGE}, or {@code PRIVATE} access. If {@code PUBLIC}
