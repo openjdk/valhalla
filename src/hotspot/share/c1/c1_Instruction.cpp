@@ -31,6 +31,7 @@
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciValueArrayKlass.hpp"
 #include "ci/ciValueKlass.hpp"
+#include "utilities/bitMap.inline.hpp"
 
 
 // Implementation of Instruction

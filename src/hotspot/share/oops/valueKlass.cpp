@@ -31,7 +31,7 @@
 #include "memory/metadataFactory.hpp"
 #include "oops/access.hpp"
 #include "oops/compressedOops.inline.hpp"
-#include "oops/fieldStreams.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"

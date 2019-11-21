@@ -367,7 +367,7 @@ class SharedRuntime: AllStatic {
                                         Bytecodes::Code& bc,
                                         CallInfo& callinfo, TRAPS);
 
-  static methodHandle extract_attached_method(vframeStream& vfst);
+  static Method* extract_attached_method(vframeStream& vfst);
 
 #if defined(X86) && defined(COMPILER1)
   // For Object.hashCode, System.identityHashCode try to pull hashCode from object header if available.

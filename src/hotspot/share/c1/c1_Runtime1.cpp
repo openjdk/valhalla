@@ -483,7 +483,7 @@ extern "C" void ps();
 
 void Runtime1::buffer_value_args_impl(JavaThread* thread, Method* m, bool allocate_receiver) {
   Thread* THREAD = thread;
-  methodHandle method(m); // We are inside the verified_entry or verified_value_ro_entry of this method.
+  methodHandle method(thread, m); // We are inside the verified_entry or verified_value_ro_entry of this method.
   oop obj = SharedRuntime::allocate_value_types_impl(thread, method, allocate_receiver, CHECK);
   thread->set_vm_result(obj);
 }
@@ -1527,7 +1527,7 @@ JRT_ENTRY(void, Runtime1::predicate_failed_trap(JavaThread* thread))
   assert (nm != NULL, "no more nmethod?");
   nm->make_not_entrant();
 
-  methodHandle m(nm->method());
+  methodHandle m(thread, nm->method());
   MethodData* mdo = m->method_data();
 
   if (mdo == NULL && !HAS_PENDING_EXCEPTION) {
@@ -1548,7 +1548,7 @@ JRT_ENTRY(void, Runtime1::predicate_failed_trap(JavaThread* thread))
   if (TracePredicateFailedTraps) {
     stringStream ss1, ss2;
     vframeStream vfst(thread);
-    methodHandle inlinee = methodHandle(vfst.method());
+    Method* inlinee = vfst.method();
     inlinee->print_short_name(&ss1);
     m->print_short_name(&ss2);
     tty->print_cr("Predicate failed trap in method %s at bci %d inlined in %s at pc " INTPTR_FORMAT, ss1.as_string(), vfst.bci(), ss2.as_string(), p2i(caller_frame.pc()));

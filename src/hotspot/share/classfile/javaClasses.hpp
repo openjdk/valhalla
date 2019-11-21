@@ -284,6 +284,8 @@ class java_lang_Class : AllStatic {
   static void fixup_mirror(Klass* k, TRAPS);
   static oop  create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS);
   static oop  create_indirect_type_mirror(Klass* k, Handle mirror, TRAPS);
+  static void update_archived_primitive_mirror_native_pointers(oop archived_mirror) NOT_CDS_JAVA_HEAP_RETURN;
+  static void update_archived_mirror_native_pointers(oop archived_mirror) NOT_CDS_JAVA_HEAP_RETURN;
 
   // Archiving
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
@@ -575,7 +577,7 @@ class java_lang_Throwable: AllStatic {
   static oop message(oop throwable);
   static void set_message(oop throwable, oop value);
   static Symbol* detail_message(oop throwable);
-  static void print_stack_element(outputStream *st, const methodHandle& method, int bci);
+  static void print_stack_element(outputStream *st, Method* method, int bci);
   static void print_stack_usage(Handle stream);
 
   static void compute_offsets();
@@ -1416,7 +1418,7 @@ class Backtrace: AllStatic {
   static int version_at(unsigned int merged);
   static int mid_at(unsigned int merged);
   static int cpref_at(unsigned int merged);
-  static int get_line_number(const methodHandle& method, int bci);
+  static int get_line_number(Method* method, int bci);
   static Symbol* get_source_file_name(InstanceKlass* holder, int version);
 
   // Debugging
@@ -1676,6 +1678,7 @@ class JavaClasses : AllStatic {
   static void check_offsets() PRODUCT_RETURN;
   static void serialize_offsets(SerializeClosure* soc) NOT_CDS_RETURN;
   static InjectedField* get_injected(Symbol* class_name, int* field_count);
+  static bool is_supported_for_archiving(oop obj) NOT_CDS_JAVA_HEAP_RETURN_(false);
 };
 
 #undef DECLARE_INJECTED_FIELD_ENUM

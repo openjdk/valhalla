@@ -377,7 +377,7 @@ void CompiledMethod::preserve_callee_argument_oops(frame fr, const RegisterMap *
       }
     } else {
       SimpleScopeDesc ssd(this, pc);
-      Bytecode_invoke call(ssd.method(), ssd.bci());
+      Bytecode_invoke call(methodHandle(Thread::current(), ssd.method()), ssd.bci());
       has_receiver = call.has_receiver();
       has_appendix = call.has_appendix();
       signature = call.signature();

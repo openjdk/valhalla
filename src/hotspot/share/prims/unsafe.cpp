@@ -34,7 +34,7 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "oops/access.inline.hpp"
-#include "oops/fieldStreams.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"

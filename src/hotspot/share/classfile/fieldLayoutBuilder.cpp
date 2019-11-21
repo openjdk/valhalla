@@ -28,6 +28,7 @@
 #include "classfile/fieldLayoutBuilder.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/array.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/valueKlass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"

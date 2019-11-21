@@ -145,7 +145,6 @@ DEF_HANDLE(valueArray       , is_valueArray_noinline       )
    public:                                       \
     /* Constructors */                           \
     name##Handle () : _value(NULL), _thread(NULL) {}   \
-    name##Handle (type* obj);                    \
     name##Handle (Thread* thread, type* obj);    \
                                                  \
     name##Handle (const name##Handle &h);        \

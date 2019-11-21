@@ -70,9 +70,6 @@ define_pd_global(bool, PreserveFramePointer,  false);
 define_pd_global(bool, ValueTypePassFieldsAsArgs, false);
 define_pd_global(bool, ValueTypeReturnedAsFields, false);
 
-// GC Ergo Flags
-define_pd_global(size_t, CMSYoungGenPerWorker, 16*M);  // Default max size of CMS young gen, per GC worker thread.
-
 define_pd_global(uintx, TypeProfileLevel, 111);
 
 define_pd_global(bool, CompactStrings, true);

@@ -48,7 +48,7 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.hpp"
-#include "oops/fieldStreams.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "oops/klass.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/objArrayKlass.hpp"
@@ -1025,7 +1025,7 @@ Handle SharedRuntime::find_callee_info(JavaThread* thread, Bytecodes::Code& bc, 
   return find_callee_info_helper(thread, vfst, bc, callinfo, THREAD);
 }
 
-methodHandle SharedRuntime::extract_attached_method(vframeStream& vfst) {
+Method* SharedRuntime::extract_attached_method(vframeStream& vfst) {
   CompiledMethod* caller = vfst.nm();
 
   nmethodLocker caller_lock(caller);
@@ -1058,7 +1058,7 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
   Bytecodes::Code code = caller->java_code_at(bci);
   if (code == Bytecodes::_if_acmpeq || code == Bytecodes::_if_acmpne) {
     bc = Bytecodes::_invokestatic;
-    methodHandle attached_method = extract_attached_method(vfst);
+    methodHandle attached_method(THREAD, extract_attached_method(vfst));
     assert(attached_method.not_null(), "must have attached method");
     SystemDictionary::ValueBootstrapMethods_klass()->initialize(CHECK_NH);
     LinkResolver::resolve_invoke(callinfo, receiver, attached_method, bc, CHECK_NH);
@@ -1073,9 +1073,9 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
   int bytecode_index = bytecode.index();
   bc = bytecode.invoke_code();
 
-  methodHandle attached_method = extract_attached_method(vfst);
+  methodHandle attached_method(THREAD, extract_attached_method(vfst));
   if (attached_method.not_null()) {
-    methodHandle callee = bytecode.static_target(CHECK_NH);
+    Method* callee = bytecode.static_target(CHECK_NH);
     vmIntrinsics::ID id = callee->intrinsic_id();
     // When VM replaces MH.invokeBasic/linkTo* call with a direct/virtual call,
     // it attaches statically resolved method to the call site.
@@ -1108,7 +1108,7 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
       assert(attached_method->has_scalarized_args(), "invalid use of attached method");
       if (!attached_method->method_holder()->is_value()) {
         // Ignore the attached method in this case to not confuse below code
-        attached_method = NULL;
+        attached_method = methodHandle(thread, NULL);
       }
     }
   }
@@ -1133,10 +1133,10 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
       caller_is_c1 = callerFrame.cb()->is_compiled_by_c1();
     }
 
-    methodHandle callee = attached_method;
-    if (callee.is_null()) {
+    Method* callee = attached_method();
+    if (callee == NULL) {
       callee = bytecode.static_target(CHECK_NH);
-      if (callee.is_null()) {
+      if (callee == NULL) {
         THROW_(vmSymbols::java_lang_NoSuchMethodException(), nullHandle);
       }
     }
@@ -1188,7 +1188,6 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
       rk = constants->klass_ref_at(bytecode_index, CHECK_NH);
     }
     Klass* static_receiver_klass = rk;
-    methodHandle callee = callinfo.selected_method();
     assert(receiver_klass->is_subtype_of(static_receiver_klass),
            "actual receiver must be subclass of static receiver klass");
     if (receiver_klass->is_instance_klass()) {
@@ -1226,7 +1225,7 @@ methodHandle SharedRuntime::find_callee_method(JavaThread* thread, TRAPS) {
     Bytecodes::Code bc;
     CallInfo callinfo;
     find_callee_info_helper(thread, vfst, bc, callinfo, CHECK_(methodHandle()));
-    callee_method = callinfo.selected_method();
+    callee_method = methodHandle(THREAD, callinfo.selected_method());
   }
   assert(callee_method()->is_method(), "must be");
   return callee_method;
@@ -1379,7 +1378,7 @@ methodHandle SharedRuntime::resolve_sub_helper(JavaThread *thread,
   Bytecodes::Code invoke_code = Bytecodes::_illegal;
   Handle receiver = find_callee_info(thread, invoke_code,
                                      call_info, CHECK_(methodHandle()));
-  methodHandle callee_method = call_info.selected_method();
+  methodHandle callee_method(THREAD, call_info.selected_method());
 
   assert((!is_virtual && invoke_code == Bytecodes::_invokestatic ) ||
          (!is_virtual && invoke_code == Bytecodes::_invokespecial) ||
@@ -1536,7 +1535,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_abstract(JavaThread*
   // Get the called method from the invoke bytecode.
   vframeStream vfst(thread, true);
   assert(!vfst.at_end(), "Java frame must exist");
-  methodHandle caller(vfst.method());
+  methodHandle caller(thread, vfst.method());
   Bytecode_invoke invoke(caller, vfst.bci());
   DEBUG_ONLY( invoke.verify(); )
 
@@ -1550,7 +1549,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::handle_wrong_method_abstract(JavaThread*
   // Install exception and return forward entry.
   address res = StubRoutines::throw_AbstractMethodError_entry();
   JRT_BLOCK
-    methodHandle callee = invoke.static_target(thread);
+    methodHandle callee(thread, invoke.static_target(thread));
     if (!callee.is_null()) {
       oop recv = callerFrame.retrieve_receiver(&reg_map);
       Klass *recv_klass = (recv != NULL) ? recv->klass() : NULL;
@@ -1727,7 +1726,7 @@ methodHandle SharedRuntime::handle_ic_miss_helper(JavaThread *thread, bool& is_o
     return callee_method;
   }
 
-  methodHandle callee_method = call_info.selected_method();
+  methodHandle callee_method(thread, call_info.selected_method());
 
 #ifndef PRODUCT
   Atomic::inc(&_ic_miss_ctr);
@@ -2730,7 +2729,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* finger
 
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
   AdapterHandlerEntry* entry = get_adapter0(method);
-  if (method->is_shared()) {
+  if (entry != NULL && method->is_shared()) {
     // See comments around Method::link_method()
     MutexLocker mu(AdapterHandlerLibrary_lock);
     if (method->adapter() == NULL) {
@@ -3662,7 +3661,7 @@ oop SharedRuntime::allocate_value_types_impl(JavaThread* thread, methodHandle ca
 }
 
 JRT_ENTRY(void, SharedRuntime::allocate_value_types(JavaThread* thread, Method* callee_method, bool allocate_receiver))
-  methodHandle callee(callee_method);
+  methodHandle callee(thread, callee_method);
   oop array = SharedRuntime::allocate_value_types_impl(thread, callee, allocate_receiver, CHECK);
   thread->set_vm_result(array);
   thread->set_vm_result_2(callee()); // TODO: required to keep callee live?

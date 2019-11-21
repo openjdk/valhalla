@@ -232,7 +232,8 @@ public:
   static Node* make(PhaseGVN& gvn, Node *c, Node *mem, Node *adr,
                     const TypePtr* at, const Type *rt, BasicType bt,
                     MemOrd mo, ControlDependency control_dependency = DependsOnlyOnTest,
-                    bool unaligned = false, bool mismatched = false, bool unsafe = false);
+                    bool unaligned = false, bool mismatched = false, bool unsafe = false,
+                    uint8_t barrier_data = 0);
 
   virtual uint hash()   const;  // Check the type
 
@@ -416,7 +417,7 @@ public:
   bool require_atomic_access() const { return _require_atomic_access; }
   static LoadLNode* make_atomic(Node* ctl, Node* mem, Node* adr, const TypePtr* adr_type,
                                 const Type* rt, MemOrd mo, ControlDependency control_dependency = DependsOnlyOnTest,
-                                bool unaligned = false, bool mismatched = false, bool unsafe = false);
+                                bool unaligned = false, bool mismatched = false, bool unsafe = false, uint8_t barrier_data = 0);
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const {
     LoadNode::dump_spec(st);
@@ -468,7 +469,7 @@ public:
   bool require_atomic_access() const { return _require_atomic_access; }
   static LoadDNode* make_atomic(Node* ctl, Node* mem, Node* adr, const TypePtr* adr_type,
                                 const Type* rt, MemOrd mo, ControlDependency control_dependency = DependsOnlyOnTest,
-                                bool unaligned = false, bool mismatched = false, bool unsafe = false);
+                                bool unaligned = false, bool mismatched = false, bool unsafe = false, uint8_t barrier_data = 0);
 #ifndef PRODUCT
   virtual void dump_spec(outputStream *st) const {
     LoadNode::dump_spec(st);

@@ -67,7 +67,7 @@ void JVMCICompiler::bootstrap(TRAPS) {
   // Initialize compile queue with a selected set of methods.
   int len = objectMethods->length();
   for (int i = 0; i < len; i++) {
-    methodHandle mh = objectMethods->at(i);
+    methodHandle mh(THREAD, objectMethods->at(i));
     if (!mh->is_native() &&
         !mh->is_static() &&
         !mh->is_object_constructor() &&
@@ -103,7 +103,7 @@ void JVMCICompiler::bootstrap(TRAPS) {
   JVMCI::compiler_runtime()->bootstrap_finished(CHECK);
 }
 
-bool JVMCICompiler::force_comp_at_level_simple(Method *method) {
+bool JVMCICompiler::force_comp_at_level_simple(const methodHandle& method) {
   if (UseJVMCINativeLibrary) {
     // This mechanism exists to force compilation of a JVMCI compiler by C1
     // to reduces the compilation time spent on the JVMCI compiler itself. In

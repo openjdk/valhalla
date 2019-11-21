@@ -49,7 +49,7 @@
 #include "memory/universe.hpp"
 #include "oops/annotations.hpp"
 #include "oops/constantPool.inline.hpp"
-#include "oops/fieldStreams.hpp"
+#include "oops/fieldStreams.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/klass.inline.hpp"
@@ -338,7 +338,7 @@ void ClassFileParser::parse_constant_pool_entries(const ClassFileStream* const s
           hashValues[names_count++] = hash;
           if (names_count == SymbolTable::symbol_alloc_batch_size) {
             SymbolTable::new_symbols(_loader_data,
-                                     cp,
+                                     constantPoolHandle(THREAD, cp),
                                      names_count,
                                      names,
                                      lengths,
@@ -375,7 +375,7 @@ void ClassFileParser::parse_constant_pool_entries(const ClassFileStream* const s
   // Allocate the remaining symbols
   if (names_count > 0) {
     SymbolTable::new_symbols(_loader_data,
-                             cp,
+                             constantPoolHandle(THREAD, cp),
                              names_count,
                              names,
                              lengths,
@@ -2941,7 +2941,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
   }
 
   if (parsed_annotations.has_any_annotations())
-    parsed_annotations.apply_to(m);
+    parsed_annotations.apply_to(methodHandle(THREAD, m));
 
   // Copy annotations
   copy_method_annotations(m->constMethod(),
@@ -3802,7 +3802,7 @@ const InstanceKlass* ClassFileParser::parse_super_class(ConstantPool* const cp,
 #ifndef PRODUCT
 static void print_field_layout(const Symbol* name,
                                Array<u2>* fields,
-                               const constantPoolHandle& cp,
+                               ConstantPool* cp,
                                int instance_size,
                                int instance_fields_start,
                                int instance_fields_end,

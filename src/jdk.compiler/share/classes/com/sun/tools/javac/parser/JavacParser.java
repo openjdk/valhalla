@@ -1509,7 +1509,6 @@ public class JavacParser implements Parser {
         }
         List<JCStatement> stats = null;
         JCTree body = null;
-        @SuppressWarnings("preview")
         CaseTree.CaseKind kind;
         switch (token.kind) {
             case ARROW:
@@ -2999,7 +2998,6 @@ public class JavacParser implements Parser {
                 nextToken();
                 checkSourceLevel(Feature.SWITCH_MULTIPLE_CASE_LABELS);
             };
-            @SuppressWarnings("preview")
             CaseTree.CaseKind caseKind;
             JCTree body = null;
             if (token.kind == ARROW) {
@@ -3024,7 +3022,6 @@ public class JavacParser implements Parser {
         }
         case DEFAULT: {
             nextToken();
-            @SuppressWarnings("preview")
             CaseTree.CaseKind caseKind;
             JCTree body = null;
             if (token.kind == ARROW) {
@@ -3453,7 +3450,7 @@ public class JavacParser implements Parser {
             if (allowYieldStatement) {
                 return true;
             } else if (shouldWarn) {
-                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK13));
+                log.warning(pos, Warnings.RestrictedTypeNotAllowed(name, Source.JDK14));
             }
         }
         return false;

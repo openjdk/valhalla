@@ -1530,7 +1530,6 @@ public class Attr extends JCTree.Visitor {
             // check that there are no duplicate case labels or default clauses.
             Set<Object> labels = new HashSet<>(); // The set of case labels.
             boolean hasDefault = false;      // Is there a default label?
-            @SuppressWarnings("preview")
             CaseTree.CaseKind caseKind = null;
             boolean wasError = false;
             for (List<JCCase> l = cases; l.nonEmpty(); l = l.tail) {
