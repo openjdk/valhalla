@@ -101,7 +101,15 @@ class MacroAssembler: public Assembler {
   static bool needs_explicit_null_check(intptr_t offset);
   static bool uses_implicit_null_check(void* address);
 
+  // valueKlass queries, kills temp_reg
   void test_klass_is_value(Register klass, Register temp_reg, Label& is_value);
+  void test_klass_is_empty_value(Register klass, Register temp_reg, Label& is_empty_value);
+
+  // Get the default value oop for the given ValueKlass
+  void get_default_value_oop(Register value_klass, Register temp_reg, Register obj);
+  // The empty value oop, for the given ValueKlass ("empty" as in no instance fields)
+  // get_default_value_oop with extra assertion for empty value klass
+  void get_empty_value_oop(Register value_klass, Register temp_reg, Register obj);
 
   void test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable);
   void test_field_is_not_flattenable(Register flags, Register temp_reg, Label& notFlattenable);
@@ -346,6 +354,13 @@ class MacroAssembler: public Assembler {
   void access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register src,
                        Register tmp1, Register tmp2, Register tmp3 = noreg);
 
+  void access_value_copy(DecoratorSet decorators, Register src, Register dst, Register value_klass);
+
+  // value type data payload offsets...
+  void first_field_offset(Register value_klass, Register offset);
+  void data_for_oop(Register oop, Register data, Register value_klass);
+
+
   // Resolves obj access. Result is placed in the same register.
   // All other registers are preserved.
   void resolve(DecoratorSet decorators, Register obj);
@@ -534,6 +549,15 @@ class MacroAssembler: public Assembler {
   void pop_callee_saved_registers();
 
   // allocation
+
+  // Object / value buffer allocation...
+  // Allocate instance of klass, assumes klass initialized by caller
+  // new_obj prefers to be rax
+  // Kills t1 and t2, perserves klass, return allocation in new_obj (rsi on LP64)
+  void allocate_instance(Register klass, Register new_obj,
+                         Register t1, Register t2,
+                         bool clear_fields, Label& alloc_failed);
+
   void eden_allocate(
     Register thread,                   // Current thread
     Register obj,                      // result: pointer to object after successful allocation
@@ -552,6 +576,9 @@ class MacroAssembler: public Assembler {
     Label&   slow_case                 // continuation point if fast allocation fails
   );
   void zero_memory(Register address, Register length_in_bytes, int offset_in_bytes, Register temp);
+
+  // For field "index" within "klass", return value_klass ...
+  void get_value_field_klass(Register klass, Register index, Register value_klass);
 
   // interface method calling
   void lookup_interface_method(Register recv_klass,

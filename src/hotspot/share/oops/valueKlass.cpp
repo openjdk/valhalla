@@ -130,6 +130,14 @@ instanceOop ValueKlass::allocate_instance(TRAPS) {
   return oop;
 }
 
+instanceOop ValueKlass::allocate_instance_buffer(TRAPS) {
+  int size = size_helper();  // Query before forming handle.
+
+  instanceOop oop = (instanceOop)Universe::heap()->obj_buffer_allocate(this, size, CHECK_NULL);
+  assert(oop->mark().is_always_locked(), "Unlocked value type");
+  return oop;
+}
+
 bool ValueKlass::is_atomic() {
   return (nonstatic_field_size() * heapOopSize) <= longSize;
 }
@@ -153,7 +161,7 @@ oop ValueKlass::read_flattened_field(oop obj, int offset, TRAPS) {
     res = (instanceOop)default_value();
   } else {
     Handle obj_h(THREAD, obj);
-    res = allocate_instance(CHECK_NULL);
+    res = allocate_instance_buffer(CHECK_NULL);
     value_copy_payload_to_new_oop(((char*)(oopDesc*)obj_h()) + offset, res);
   }
   assert(res != NULL, "Must be set in one of two paths above");

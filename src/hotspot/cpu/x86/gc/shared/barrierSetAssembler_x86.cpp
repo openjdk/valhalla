@@ -23,9 +23,11 @@
  */
 
 #include "precompiled.hpp"
+#include "asm/macroAssembler.inline.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/barrierSetNMethod.hpp"
+#include "gc/shared/barrierSetRuntime.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "memory/universe.hpp"
@@ -194,6 +196,20 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
   default: Unimplemented();
   }
 }
+
+void BarrierSetAssembler::value_copy(MacroAssembler* masm, DecoratorSet decorators,
+                                     Register src, Register dst, Register value_klass) {
+  // value_copy implementation is fairly complex, and there are not any
+  // "short-cuts" to be made from asm. What there is, appears to have the same
+  // cost in C++, so just "call_VM_leaf" for now rather than maintain hundreds
+  // of hand-rolled instructions...
+  if (decorators & IS_DEST_UNINITIALIZED) {
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy_is_dest_uninitialized), src, dst, value_klass);
+  } else {
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, BarrierSetRuntime::value_copy), src, dst, value_klass);
+  }
+}
+
 
 #ifndef _LP64
 void BarrierSetAssembler::obj_equals(MacroAssembler* masm,

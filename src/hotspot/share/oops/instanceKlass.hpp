@@ -361,6 +361,7 @@ class InstanceKlass: public Klass {
   //     [generic signature index]
   //     ...
   Array<u2>*      _fields;
+  const Klass**   _value_field_klasses; // For "inline class" fields, NULL if none present
 
   const ValueKlassFixedBlock* _adr_valueklass_fixed_block;
 
@@ -1066,6 +1067,7 @@ public:
   JFR_ONLY(DEFINE_KLASS_TRACE_ID_OFFSET;)
   static ByteSize init_thread_offset() { return in_ByteSize(offset_of(InstanceKlass, _init_thread)); }
 
+  static ByteSize value_field_klasses_offset() { return in_ByteSize(offset_of(InstanceKlass, _value_field_klasses)); }
   static ByteSize adr_valueklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_valueklass_fixed_block)); }
 
   // subclass/subinterface checks

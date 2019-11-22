@@ -49,6 +49,9 @@ public:
   virtual void store_at(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                         Address dst, Register val, Register tmp1, Register tmp2, Register tmp3 = noreg);
 
+  virtual void value_copy(MacroAssembler* masm, DecoratorSet decorators,
+                          Register src, Register dst, Register value_klass);
+
 #ifndef _LP64
   virtual void obj_equals(MacroAssembler* masm,
                           Address obj1, jobject obj2);

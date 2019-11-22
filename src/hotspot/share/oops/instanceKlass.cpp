@@ -478,6 +478,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _init_thread(NULL),
   _init_state(allocated),
   _reference_type(parser.reference_type()),
+  _value_field_klasses(NULL),
   _adr_valueklass_fixed_block(NULL)
 {
   set_vtable_length(parser.vtable_size());
@@ -503,6 +504,9 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   // cleared if revocation occurs too often for this type
   if (UseBiasedLocking && BiasedLocking::enabled()) {
     set_prototype_header(markWord::biased_locking_prototype());
+  }
+  if (has_value_fields()) {
+    _value_field_klasses = (const Klass**) adr_value_fields_klasses();
   }
 }
 

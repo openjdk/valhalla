@@ -72,6 +72,11 @@ inline oop CollectedHeap::obj_allocate(Klass* klass, int size, TRAPS) {
   return allocator.allocate();
 }
 
+inline oop CollectedHeap::obj_buffer_allocate(Klass* klass, int size, TRAPS) {
+  ObjBufferAllocator allocator(klass, size, THREAD);
+  return allocator.allocate();
+}
+
 inline oop CollectedHeap::array_allocate(Klass* klass, int size, int length, bool do_zero, TRAPS) {
   ObjArrayAllocator allocator(klass, size, length, do_zero, THREAD);
   return allocator.allocate();

@@ -401,6 +401,12 @@ oop ObjAllocator::initialize(HeapWord* mem) const {
   return finish(mem);
 }
 
+oop ObjBufferAllocator::initialize(HeapWord* mem) const {
+  oopDesc::set_klass_gap(mem, 0);
+  return finish(mem);
+}
+
+
 MemRegion ObjArrayAllocator::obj_memory_range(oop obj) const {
   if (_do_zero) {
     return MemAllocator::obj_memory_range(obj);

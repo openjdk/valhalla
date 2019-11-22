@@ -244,6 +244,7 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   GCCause::Cause gc_cause() { return _gc_cause; }
 
   oop obj_allocate(Klass* klass, int size, TRAPS);
+  oop obj_buffer_allocate(Klass* klass, int size, TRAPS); // doesn't clear memory
   virtual oop array_allocate(Klass* klass, int size, int length, bool do_zero, TRAPS);
   oop class_allocate(Klass* klass, int size, TRAPS);
 

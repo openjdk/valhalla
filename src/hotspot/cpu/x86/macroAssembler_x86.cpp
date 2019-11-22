@@ -3428,6 +3428,20 @@ void MacroAssembler::test_klass_is_value(Register klass, Register temp_reg, Labe
   jcc(Assembler::notZero, is_value);
 }
 
+void MacroAssembler::test_klass_is_empty_value(Register klass, Register temp_reg, Label& is_empty_value) {
+#ifdef ASSERT
+  {
+    Label done_check;
+    test_klass_is_value(klass, temp_reg, done_check);
+    stop("test_klass_is_empty_value with none value klass");
+    bind(done_check);
+  }
+#endif
+  movb(temp_reg, Address(klass, InstanceKlass::extra_flags_offset()));
+  testb(temp_reg, InstanceKlass::_extra_is_empty_value);
+  jcc(Assembler::notZero, is_empty_value);
+}
+
 void MacroAssembler::test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable) {
   movl(temp_reg, flags);
   shrl(temp_reg, ConstantPoolCacheEntry::is_flattenable_field_shift);
@@ -4304,6 +4318,134 @@ void MacroAssembler::testptr(Register dst, Register src) {
   LP64_ONLY(testq(dst, src)) NOT_LP64(testl(dst, src));
 }
 
+// Object / value buffer allocation...
+//
+// Kills klass and rsi on LP64
+void MacroAssembler::allocate_instance(Register klass, Register new_obj,
+                                       Register t1, Register t2,
+                                       bool clear_fields, Label& alloc_failed)
+{
+  Label done, initialize_header, initialize_object, slow_case, slow_case_no_pop;
+  Register layout_size = t1;
+  assert(new_obj == rax, "needs to be rax, according to barrier asm eden_allocate");
+  assert_different_registers(klass, new_obj, t1, t2);
+
+#ifdef ASSERT
+  {
+    Label L;
+    cmpb(Address(klass, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
+    jcc(Assembler::equal, L);
+    stop("klass not initialized");
+    bind(L);
+  }
+#endif
+
+  // get instance_size in InstanceKlass (scaled to a count of bytes)
+  movl(layout_size, Address(klass, Klass::layout_helper_offset()));
+  // test to see if it has a finalizer or is malformed in some way
+  testl(layout_size, Klass::_lh_instance_slow_path_bit);
+  jcc(Assembler::notZero, slow_case_no_pop);
+
+  // Allocate the instance:
+  //  If TLAB is enabled:
+  //    Try to allocate in the TLAB.
+  //    If fails, go to the slow path.
+  //  Else If inline contiguous allocations are enabled:
+  //    Try to allocate in eden.
+  //    If fails due to heap end, go to slow path.
+  //
+  //  If TLAB is enabled OR inline contiguous is enabled:
+  //    Initialize the allocation.
+  //    Exit.
+  //
+  //  Go to slow path.
+  const bool allow_shared_alloc =
+    Universe::heap()->supports_inline_contig_alloc();
+
+  push(klass);
+  const Register thread = LP64_ONLY(r15_thread) NOT_LP64(klass);
+#ifndef _LP64
+  if (UseTLAB || allow_shared_alloc) {
+    get_thread(thread);
+  }
+#endif // _LP64
+
+  if (UseTLAB) {
+    tlab_allocate(thread, new_obj, layout_size, 0, klass, t2, slow_case);
+    if (ZeroTLAB || (!clear_fields)) {
+      // the fields have been already cleared
+      jmp(initialize_header);
+    } else {
+      // initialize both the header and fields
+      jmp(initialize_object);
+    }
+  } else {
+    // Allocation in the shared Eden, if allowed.
+    //
+    eden_allocate(thread, new_obj, layout_size, 0, t2, slow_case);
+  }
+
+  // If UseTLAB or allow_shared_alloc are true, the object is created above and
+  // there is an initialize need. Otherwise, skip and go to the slow path.
+  if (UseTLAB || allow_shared_alloc) {
+    if (clear_fields) {
+      // The object is initialized before the header.  If the object size is
+      // zero, go directly to the header initialization.
+      bind(initialize_object);
+      decrement(layout_size, sizeof(oopDesc));
+      jcc(Assembler::zero, initialize_header);
+
+      // Initialize topmost object field, divide size by 8, check if odd and
+      // test if zero.
+      Register zero = klass;
+      xorl(zero, zero);    // use zero reg to clear memory (shorter code)
+      shrl(layout_size, LogBytesPerLong); // divide by 2*oopSize and set carry flag if odd
+
+  #ifdef ASSERT
+      // make sure instance_size was multiple of 8
+      Label L;
+      // Ignore partial flag stall after shrl() since it is debug VM
+      jcc(Assembler::carryClear, L);
+      stop("object size is not multiple of 2 - adjust this code");
+      bind(L);
+      // must be > 0, no extra check needed here
+  #endif
+
+      // initialize remaining object fields: instance_size was a multiple of 8
+      {
+        Label loop;
+        bind(loop);
+        movptr(Address(new_obj, layout_size, Address::times_8, sizeof(oopDesc) - 1*oopSize), zero);
+        NOT_LP64(movptr(Address(new_obj, layout_size, Address::times_8, sizeof(oopDesc) - 2*oopSize), zero));
+        decrement(layout_size);
+        jcc(Assembler::notZero, loop);
+      }
+    } // clear_fields
+
+    // initialize object header only.
+    bind(initialize_header);
+    pop(klass);
+    Register mark_word = t2;
+    movptr(mark_word, Address(klass, Klass::prototype_header_offset()));
+    movptr(Address(new_obj, oopDesc::mark_offset_in_bytes ()), mark_word);
+#ifdef _LP64
+    xorl(rsi, rsi);                 // use zero reg to clear memory (shorter code)
+    store_klass_gap(new_obj, rsi);  // zero klass gap for compressed oops
+#endif
+    movptr(t2, klass);         // preserve klass
+    store_klass(new_obj, t2);  // src klass reg is potentially compressed
+
+    jmp(done);
+  }
+
+  bind(slow_case);
+  pop(klass);
+  bind(slow_case_no_pop);
+  jmp(alloc_failed);
+
+  bind(done);
+}
+
 // Defines obj, preserves var_size_in_bytes, okay for t2 == var_size_in_bytes.
 void MacroAssembler::tlab_allocate(Register thread, Register obj,
                                    Register var_size_in_bytes,
@@ -4380,6 +4522,56 @@ void MacroAssembler::zero_memory(Register address, Register length_in_bytes, int
 
   bind(done);
 }
+
+void MacroAssembler::get_value_field_klass(Register klass, Register index, Register value_klass) {
+  movptr(value_klass, Address(klass, InstanceKlass::value_field_klasses_offset()));
+#ifdef ASSERT
+  {
+    Label done;
+    cmpptr(value_klass, 0);
+    jcc(Assembler::notEqual, done);
+    stop("get_value_field_klass contains no inline klasses");
+    bind(done);
+  }
+#endif
+  movptr(value_klass, Address(value_klass, index, Address::times_ptr));
+}
+
+void MacroAssembler::get_default_value_oop(Register value_klass, Register temp_reg, Register obj) {
+#ifdef ASSERT
+  {
+    Label done_check;
+    test_klass_is_value(value_klass, temp_reg, done_check);
+    stop("get_default_value_oop from non-value klass");
+    bind(done_check);
+  }
+#endif
+  Register offset = temp_reg;
+  // Getting the offset of the pre-allocated default value
+  movptr(offset, Address(value_klass, in_bytes(InstanceKlass::adr_valueklass_fixed_block_offset())));
+  movl(offset, Address(offset, in_bytes(ValueKlass::default_value_offset_offset())));
+
+  // Getting the mirror
+  movptr(obj, Address(value_klass, in_bytes(Klass::java_mirror_offset())));
+  resolve_oop_handle(obj, value_klass);
+
+  // Getting the pre-allocated default value from the mirror
+  Address field(obj, offset, Address::times_1);
+  load_heap_oop(obj, field);
+}
+
+void MacroAssembler::get_empty_value_oop(Register value_klass, Register temp_reg, Register obj) {
+#ifdef ASSERT
+  {
+    Label done_check;
+    test_klass_is_empty_value(value_klass, temp_reg, done_check);
+    stop("get_empty_value from non-empty value klass");
+    bind(done_check);
+  }
+#endif
+  get_default_value_oop(value_klass, temp_reg, obj);
+}
+
 
 // Look up the method for a megamorphic invokeinterface call.
 // The target method is determined by <intf_klass, itable_index>.
@@ -5393,6 +5585,28 @@ void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators, Ad
     bs->BarrierSetAssembler::store_at(this, decorators, type, dst, src, tmp1, tmp2, tmp3);
   } else {
     bs->store_at(this, decorators, type, dst, src, tmp1, tmp2, tmp3);
+  }
+}
+
+void MacroAssembler::access_value_copy(DecoratorSet decorators, Register src, Register dst,
+                                       Register value_klass) {
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->value_copy(this, decorators, src, dst, value_klass);
+}
+
+void MacroAssembler::first_field_offset(Register value_klass, Register offset) {
+  movptr(offset, Address(value_klass, InstanceKlass::adr_valueklass_fixed_block_offset()));
+  movl(offset, Address(offset, ValueKlass::first_field_offset_offset()));
+}
+
+void MacroAssembler::data_for_oop(Register oop, Register data, Register value_klass) {
+  // ((address) (void*) o) + vk->first_field_offset();
+  Register offset = (data == oop) ? rscratch1 : data;
+  first_field_offset(value_klass, offset);
+  if (data == oop) {
+    addptr(data, offset);
+  } else {
+    lea(data, Address(oop, offset));
   }
 }
 

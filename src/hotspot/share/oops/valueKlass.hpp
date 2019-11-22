@@ -194,7 +194,12 @@ class ValueKlass: public InstanceKlass {
   void array_klasses_do(void f(Klass* k));
 
   // allocate_instance() allocates a stand alone value in the Java heap
+  // initialized to default value (cleared memory)
   instanceOop allocate_instance(TRAPS);
+  // allocates a stand alone value buffer in the Java heap
+  // DOES NOT have memory cleared, user MUST initialize payload before
+  // returning to Java (i.e.: value_copy)
+  instanceOop allocate_instance_buffer(TRAPS);
 
   // minimum number of bytes occupied by nonstatic fields, HeapWord aligned or pow2
   int raw_value_byte_size();
@@ -271,6 +276,10 @@ class ValueKlass: public InstanceKlass {
 
   static ByteSize default_value_offset_offset() {
     return byte_offset_of(ValueKlassFixedBlock, _default_value_offset);
+  }
+
+  static ByteSize first_field_offset_offset() {
+    return byte_offset_of(ValueKlassFixedBlock, _first_field_offset);
   }
 
   void set_default_value_offset(int offset) {

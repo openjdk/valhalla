@@ -83,6 +83,14 @@ public:
   virtual oop initialize(HeapWord* mem) const;
 };
 
+class ObjBufferAllocator: public MemAllocator {
+public:
+  ObjBufferAllocator(Klass* klass, size_t word_size, Thread* thread = Thread::current())
+    : MemAllocator(klass, word_size, thread) {}
+  virtual oop initialize(HeapWord* mem) const;
+};
+
+
 class ObjArrayAllocator: public MemAllocator {
   const int  _length;
   const bool _do_zero;

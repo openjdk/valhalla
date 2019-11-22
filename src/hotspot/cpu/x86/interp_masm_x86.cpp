@@ -1198,6 +1198,65 @@ void InterpreterMacroAssembler::get_method_counters(Register method,
   bind(has_counters);
 }
 
+void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_obj,
+                                                  Register t1, Register t2,
+                                                  bool clear_fields, Label& alloc_failed) {
+  MacroAssembler::allocate_instance(klass, new_obj, t1, t2, clear_fields, alloc_failed);
+  {
+    SkipIfEqual skip_if(this, &DTraceAllocProbes, 0);
+    // Trigger dtrace event for fastpath
+    push(atos);
+    call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_object_alloc), new_obj);
+    pop(atos);
+  }
+}
+
+
+void InterpreterMacroAssembler::read_flattened_field(Register holder_klass,
+                                                     Register field_index, Register field_offset,
+                                                     Register obj) {
+  Label alloc_failed, empty_value, done;
+  const Register src = field_offset;
+  const Register alloc_temp = LP64_ONLY(rscratch1) NOT_LP64(rsi);
+  const Register dst_temp   = LP64_ONLY(rscratch2) NOT_LP64(rdi);
+  assert_different_registers(obj, holder_klass, field_index, field_offset, dst_temp);
+
+  // Grap the inline field klass
+  push(holder_klass);
+  const Register field_klass = holder_klass;
+  get_value_field_klass(holder_klass, field_index, field_klass);
+
+  //check for empty value klass
+  test_klass_is_empty_value(field_klass, dst_temp, empty_value);
+
+  // allocate buffer
+  push(obj); // save holder
+  allocate_instance(field_klass, obj, alloc_temp, dst_temp, false, alloc_failed);
+
+  // Have a oop instance buffer, copy into it
+  data_for_oop(obj, dst_temp, field_klass);
+  pop(alloc_temp);             // restore holder
+  lea(src, Address(alloc_temp, field_offset));
+  // call_VM_leaf, clobbers a few regs, save restore new obj
+  push(obj);
+  access_value_copy(IS_DEST_UNINITIALIZED, src, dst_temp, field_klass);
+  pop(obj);
+  pop(holder_klass);
+  jmp(done);
+
+  bind(empty_value);
+  get_empty_value_oop(field_klass, dst_temp, obj);
+  pop(holder_klass);
+  jmp(done);
+
+  bind(alloc_failed);
+  pop(obj);
+  pop(holder_klass);
+  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flattened_field),
+          obj, field_index, holder_klass);
+
+  bind(done);
+}
 
 // Lock object
 //
