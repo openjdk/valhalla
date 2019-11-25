@@ -687,7 +687,7 @@ struct JNINativeInterface_ {
       (JNIEnv *env, jfloatArray array, jfloat *elems, jint mode);
     void (JNICALL *ReleaseDoubleArrayElements)
       (JNIEnv *env, jdoubleArray array, jdouble *elems, jint mode);
-
+	
     void (JNICALL *GetBooleanArrayRegion)
       (JNIEnv *env, jbooleanArray array, jsize start, jsize l, jboolean *buf);
     void (JNICALL *GetByteArrayRegion)
@@ -775,6 +775,18 @@ struct JNINativeInterface_ {
 
     jobject (JNICALL *GetModule)
        (JNIEnv* env, jclass clazz);
+
+    /* Flattened arrays Features */
+    void* (JNICALL *GetFlattenedArrayElements)
+      (JNIEnv* env, jarray array , jboolean *isCopy);
+    void (JNICALL *ReleaseFlattenedArrayElements)
+      (JNIEnv* env, jarray, void* elem, jint mode);
+    jclass (JNICALL *GetFlattenedArrayElementClass)
+      (JNIEnv* env, jarray array);
+    jsize (JNICALL *GetFlattenedArrayElementSize)
+      (JNIEnv* env, jarray array);
+    jsize (JNICALL *GetFieldOffsetInFlattenedLayout)
+      (JNIEnv* env, jclass clazz,  const char *name, const char *signature, jboolean* isFlattened);
 };
 
 /*
@@ -1871,6 +1883,27 @@ struct JNIEnv_ {
 
     jobject GetModule(jclass clazz) {
         return functions->GetModule(this, clazz);
+    }
+
+    /* Flattened arrays Features */
+    void* GetFlattenedArrayElements(jarray array , jboolean *isCopy) {
+        return functions->GetFlattenedArrayElements(this, array, isCopy);
+    }
+  
+    void ReleaseFlattenedArrayElements(jarray array, void* elem, jint mode) {
+        return functions->ReleaseFlattenedArrayElements(this, array, elem, mode);
+    }
+
+    jclass GetFlattenedArrayElementClass(jarray array) {
+        return functions->GetFlattenedArrayElementClass(this, array);
+    }
+  
+    jsize GetFlattenedArrayElementSize(jarray array) {
+        return functions->GetFlattenedArrayElementSize(this, array);
+    }
+    
+    jsize GetFieldOffsetInFlattenedLayout(jclass clazz,  const char *name, const char *signature, jboolean* isFlattened) {
+        return functions->GetFieldOffsetInFlattenedLayout(this, clazz, name, signature, isFlattened);
     }
 
 #endif /* __cplusplus */

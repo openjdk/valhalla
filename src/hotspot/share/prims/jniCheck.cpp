@@ -2004,6 +2004,47 @@ JNI_ENTRY_CHECKED(jobject,
     return result;
 JNI_END
 
+JNI_ENTRY_CHECKED(void*,
+    checked_jni_GetFlattenedArrayElements(JNIEnv* env, jarray array, jboolean* isCopy))
+    functionEnter(thr);
+    void* result = UNCHECKED()->GetFlattenedArrayElements(env, array, isCopy);
+    functionExit(thr);
+    return result;
+
+JNI_END
+
+JNI_ENTRY_CHECKED(void,
+    checked_jni_ReleaseFlattenedArrayElements(JNIEnv* env, jarray array, void* elem, jint mode))
+    functionEnter(thr);
+    UNCHECKED()->ReleaseFlattenedArrayElements(env, array, elem, mode);
+    functionExit(thr);
+    return;
+JNI_END
+
+JNI_ENTRY_CHECKED(jclass,
+    checked_jni_GetFlattenedArrayElementClass(JNIEnv* env, jarray array))
+    functionEnter(thr);
+    jclass clazz = UNCHECKED()->GetFlattenedArrayElementClass(env, array);
+    functionExit(thr);
+    return clazz;
+JNI_END
+
+JNI_ENTRY_CHECKED(jsize,
+    checked_jni_GetFlattenedArrayElementSize(JNIEnv* env, jarray array))
+    functionEnter(thr);
+    jsize size = UNCHECKED()->GetFlattenedArrayElementSize(env, array);
+    functionExit(thr);
+    return size;
+JNI_END
+
+JNI_ENTRY_CHECKED(jsize,
+    checked_jni_GetFieldOffsetInFlattenedLayout(JNIEnv* env, jclass clazz, const char *name, const char *signature, jboolean* isFlattened))
+    functionEnter(thr);
+    jsize offset = UNCHECKED()->GetFieldOffsetInFlattenedLayout(env, clazz, name, signature, isFlattened);
+    functionExit(thr);
+    return offset;
+JNI_END
+
 /*
  * Structure containing all checked jni functions
  */
@@ -2289,7 +2330,14 @@ struct JNINativeInterface_  checked_jni_NativeInterface = {
 
     // Module Features
 
-    checked_jni_GetModule
+    checked_jni_GetModule,
+
+    // Flattened arrays Features
+    checked_jni_GetFlattenedArrayElements,
+    checked_jni_ReleaseFlattenedArrayElements,
+    checked_jni_GetFlattenedArrayElementClass,
+    checked_jni_GetFlattenedArrayElementSize,
+    checked_jni_GetFieldOffsetInFlattenedLayout
 };
 
 

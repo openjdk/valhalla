@@ -3510,6 +3510,96 @@ JNI_ENTRY(jobject, jni_GetModule(JNIEnv* env, jclass clazz))
 JNI_END
 
 
+JNI_ENTRY(void*, jni_GetFlattenedArrayElements(JNIEnv* env, jarray array, jboolean* isCopy))
+  JNIWrapper("jni_GetFlattenedArrayElements");
+  if (isCopy != NULL) {
+    *isCopy = JNI_FALSE;
+  }
+  arrayOop ar = arrayOop(JNIHandles::resolve_non_null(array));
+  if (!ar->is_array()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not an array");
+  }
+  if (!ar->is_valueArray()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
+  }
+  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass());
+  if (vak->contains_oops()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Flattened array contains oops");
+  }
+  oop a = lock_gc_or_pin_object(thread, array);
+  valueArrayOop vap = valueArrayOop(a);
+  void* ret = vap->value_at_addr(0, vak->layout_helper());
+  return ret;
+JNI_END
+
+JNI_ENTRY(void, jni_ReleaseFlattenedArrayElements(JNIEnv* env, jarray array, void* elem, jint mode))
+  JNIWrapper("jni_ReleaseFlattenedArrayElements");
+  unlock_gc_or_unpin_object(thread, array);
+JNI_END
+
+JNI_ENTRY(jsize, jni_GetFlattenedArrayElementSize(JNIEnv* env, jarray array)) {
+  JNIWrapper("jni_GetFlattenedElementSize");
+  arrayOop a = arrayOop(JNIHandles::resolve_non_null(array));
+  if (!a->is_array()) {
+    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Not an array");
+  }
+  if (!a->is_valueArray()) {
+    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
+  }
+  ValueArrayKlass* vak = ValueArrayKlass::cast(a->klass());
+  jsize ret = vak->element_byte_size();
+  return ret;
+}
+JNI_END
+
+JNI_ENTRY(jclass, jni_GetFlattenedArrayElementClass(JNIEnv* env, jarray array))
+  JNIWrapper("jni_GetArrayElementClass");
+  arrayOop a = arrayOop(JNIHandles::resolve_non_null(array));
+  if (!a->is_array()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not an array");
+  }
+  if (!a->is_valueArray()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
+  }
+  ValueArrayKlass* vak = ValueArrayKlass::cast(a->klass());
+  ValueKlass* vk = vak->element_klass();
+  return (jclass) JNIHandles::make_local(vk->java_mirror());
+JNI_END
+
+JNI_ENTRY(jsize, jni_GetFieldOffsetInFlattenedLayout(JNIEnv* env, jclass clazz, const char *name, const char *signature, jboolean* isFlattened))
+  JNIWrapper("jni_GetFieldOffsetInFlattenedLayout");
+
+  oop mirror = JNIHandles::resolve_non_null(clazz);
+  Klass* k = java_lang_Class::as_Klass(mirror);
+  if (!k->is_value()) {
+    ResourceMark rm;
+        THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s has not flattened layout", k->external_name()));
+  }
+  ValueKlass* vk = ValueKlass::cast(k);
+
+  TempNewSymbol fieldname = SymbolTable::probe(name, (int)strlen(name));
+  TempNewSymbol signame = SymbolTable::probe(signature, (int)strlen(signature));
+  if (fieldname == NULL || signame == NULL) {
+    ResourceMark rm;
+    THROW_MSG_0(vmSymbols::java_lang_NoSuchFieldError(), err_msg("%s.%s %s", vk->external_name(), name, signature));
+  }
+
+  assert(vk->is_initialized(), "If a flattened array has been created, the element klass must have been initialized");
+
+  fieldDescriptor fd;
+  if (!vk->is_instance_klass() ||
+      !InstanceKlass::cast(vk)->find_field(fieldname, signame, false, &fd)) {
+    ResourceMark rm;
+    THROW_MSG_0(vmSymbols::java_lang_NoSuchFieldError(), err_msg("%s.%s %s", vk->external_name(), name, signature));
+  }
+
+  int offset = fd.offset() - vk->first_field_offset();
+  if (isFlattened != NULL) {
+    *isFlattened = fd.is_flattened();
+  }
+  return (jsize)offset;
+JNI_END
+
 // Structure containing all jni functions
 struct JNINativeInterface_ jni_NativeInterface = {
     NULL,
@@ -3793,7 +3883,15 @@ struct JNINativeInterface_ jni_NativeInterface = {
 
     // Module features
 
-    jni_GetModule
+    jni_GetModule,
+
+    // Flattened arrays features
+
+    jni_GetFlattenedArrayElements,
+    jni_ReleaseFlattenedArrayElements,
+    jni_GetFlattenedArrayElementClass,
+    jni_GetFlattenedArrayElementSize,
+    jni_GetFieldOffsetInFlattenedLayout
 };
 
 
