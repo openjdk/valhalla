@@ -561,8 +561,10 @@ void FieldLayoutBuilder::regular_field_sorting(TRAPS) {
                 _cfp->_protection_domain, true, CHECK);
         assert(klass != NULL, "Sanity check");
         ValueKlass* vk = ValueKlass::cast(klass);
-        bool flattened = (ValueFieldMaxFlatSize < 0)
+        bool has_flattenable_size = (ValueFieldMaxFlatSize < 0)
                          || (vk->size_helper() * HeapWordSize) <= ValueFieldMaxFlatSize;
+        // volatile fields are currently never flattened, this could change in the future
+        bool flattened = !fs.access_flags().is_volatile() && has_flattenable_size;
         if (flattened) {
           group->add_flattened_field(fs, vk);
           _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
