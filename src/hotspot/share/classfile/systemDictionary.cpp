@@ -1091,9 +1091,10 @@ InstanceKlass* SystemDictionary::parse_stream(Symbol* class_name,
       k->constants()->patch_resolved_references(cl_info.cp_patches());
     }
 
-    // Initialize it now, since nobody else will.
-    // FIXME: why must we eager initialize? It should be initialized upon use.
-    k->eager_initialize(CHECK_NULL);
+    // If it's anonymous, initialize it now, since nobody else will.
+    if (cl_info.unsafe_anonymous_host() != NULL) {
+      k->eager_initialize(CHECK_NULL);
+    }
 
     // notify jvmti
     if (JvmtiExport::should_post_class_load()) {

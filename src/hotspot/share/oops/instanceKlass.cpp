@@ -155,6 +155,7 @@ static inline bool is_class_loader(const Symbol* class_name,
 
 // called to verify that k is a member of this nest
 bool InstanceKlass::has_nest_member(InstanceKlass* k, TRAPS) const {
+  assert(!is_hidden(), "unexpected hidden class");
   if (_nest_members == NULL || _nest_members == Universe::the_empty_short_array()) {
     if (log_is_enabled(Trace, class, nestmates)) {
       ResourceMark rm(THREAD);
@@ -361,7 +362,7 @@ InstanceKlass* InstanceKlass::nest_host(Symbol* validationException, TRAPS) {
 //    lookup().defineHiddenClass(bytes_for_X, NESTMATE);
 // results in:
 //    class_of_X.set_nest_host(lookup().lookupClass().getNestHost())
-// If it has an explicit _nest_host_index or _nest_members, these will be ignored. 
+// If it has an explicit _nest_host_index or _nest_members, these will be ignored.
 // We also know the "host" is a valid nest-host in the same package so we can
 // assert some of those facts.
 void InstanceKlass::set_nest_host(InstanceKlass* host, TRAPS) {
@@ -369,7 +370,7 @@ void InstanceKlass::set_nest_host(InstanceKlass* host, TRAPS) {
   assert(host != NULL, "NULL nest host specified");
   assert(_nest_host == NULL, "current class has resolved nest-host");
   assert((host->_nest_host == NULL && host->_nest_host_index == 0) ||
-         (host->_nest_host == host), "proposed host is not a valid nest-host"); 
+         (host->_nest_host == host), "proposed host is not a valid nest-host");
   // Can't assert this as package is not set yet:
   // assert(is_same_class_package(host), "proposed host is in wrong package");
 
@@ -396,7 +397,7 @@ void InstanceKlass::set_nest_host(InstanceKlass* host, TRAPS) {
 bool InstanceKlass::has_nestmate_access_to(InstanceKlass* k, TRAPS) {
 
   assert(this != k, "this should be handled by higher-level code");
-  
+
   // Per JVMS 5.4.4 we first resolve and validate the current class, then
   // the target class k. Resolution exceptions will be passed on by upper
   // layers. IncompatibleClassChangeErrors from membership validation failures
