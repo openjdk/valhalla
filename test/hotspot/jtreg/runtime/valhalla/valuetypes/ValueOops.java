@@ -62,7 +62,7 @@ import jdk.experimental.value.MethodHandleBuilder;
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint  -XX:+UseG1GC -Xmx128m
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   runtime.valhalla.valuetypes.ValueOops 100
+ *                   runtime.valhalla.valuetypes.ValueOops 20
  */
 
 /**
@@ -93,6 +93,7 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
  */
@@ -126,7 +127,7 @@ import jdk.experimental.value.MethodHandleBuilder;
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xcomp -XX:+UseG1GC -Xmx128m
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
- *                   runtime.valhalla.valuetypes.ValueOops 100
+ *                   runtime.valhalla.valuetypes.ValueOops 20
  */
 
 /**
@@ -157,6 +158,7 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xcomp -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.valuetypes.ValueOops
  */
@@ -165,7 +167,7 @@ public class ValueOops {
     // Extra debug: -XX:+VerifyOops -XX:+VerifyStack -XX:+VerifyLastFrame -XX:+VerifyBeforeGC -XX:+VerifyAfterGC -XX:+VerifyDuringGC -XX:VerifySubSet=threads,heap
     // Even more debugging: -XX:+TraceNewOopMapGeneration -Xlog:gc*=info
 
-    static final int NOF_PEOPLE = 1000; // Exercise arrays of this size
+    static final int NOF_PEOPLE = 10000; // Exercise arrays of this size
 
     static int MIN_ACTIVE_GC_COUNT = 10; // Run active workload for this number of GC passes
 

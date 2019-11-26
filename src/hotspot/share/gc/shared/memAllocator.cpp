@@ -391,9 +391,9 @@ oop MemAllocator::finish(HeapWord* mem) const {
 }
 
 oop MemAllocator::finish_with_properties(HeapWord* mem, ArrayStorageProperties storage_props) const {
-  finish(mem);
-  oopDesc::release_set_metadata(mem, storage_props, _klass);
-  return oop(mem);
+  oop res = finish(mem); // finish() returns on purpose (can be overloaded, clearing memory might safepoint)
+  oopDesc::release_set_metadata(cast_from_oop<HeapWord*>(res), storage_props, _klass);
+  return res;
 }
 
 oop ObjAllocator::initialize(HeapWord* mem) const {
