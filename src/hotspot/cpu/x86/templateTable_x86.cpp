@@ -3103,9 +3103,8 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ jmp(rewriteFlattenable);
         __ bind(isFlattened);
           __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
-          pop_and_check_object(rbx);
-          call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flattened_field),
-                  rbx, flags2, rcx);
+          pop_and_check_object(rax);
+          __ read_flattened_field(rcx, flags2, rbx, rax);
           __ verify_oop(rax);
           __ push(atos);
       __ bind(rewriteFlattenable);
