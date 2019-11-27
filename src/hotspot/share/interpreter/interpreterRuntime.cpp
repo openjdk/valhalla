@@ -429,16 +429,6 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_instance_value_field(JavaThrea
   thread->set_vm_result(res);
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::write_flattened_value(JavaThread* thread, oopDesc* value, int offset, oopDesc* rcv))
-  assert(value != NULL, "Sanity check");
-  assert(oopDesc::is_oop(value), "Sanity check");
-  assert(oopDesc::is_oop(rcv), "Sanity check");
-  assert(value->is_value(), "Sanity check");
-
-  ValueKlass* vklass = ValueKlass::cast(value->klass());
-  vklass->write_flattened_field(rcv, offset, value, CHECK);
-JRT_END
-
 JRT_ENTRY(void, InterpreterRuntime::read_flattened_field(JavaThread* thread, oopDesc* obj, int index, Klass* field_holder))
   Handle obj_h(THREAD, obj);
 

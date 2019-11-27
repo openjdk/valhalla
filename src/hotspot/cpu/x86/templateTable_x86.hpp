@@ -41,7 +41,7 @@
 
   static void putfield_or_static_helper(int byte_no, bool is_static, RewriteControl rc,
                                         Register obj, Register off, Register flags, Register flags2);
-  static void fast_storefield_helper(Address field, Register rax);
+  static void fast_storefield_helper(Address field, Register obj, Register flags);
 
   static void invoke_is_substitutable(Register aobj, Register bobj, Label& is_subst, Label& not_subst);
 

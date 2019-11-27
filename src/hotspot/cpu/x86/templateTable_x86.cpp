@@ -3452,8 +3452,11 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
         __ jmp(rewriteFlattenable);
         __ bind(isFlattened);
         pop_and_check_object(obj);
-        call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_flattened_value),
-                rax, off, obj);
+        assert_different_registers(rax, rdx, obj, off);
+        __ load_klass(rdx, rax);
+        __ data_for_oop(rax, rax, rdx);
+        __ addptr(obj, off);
+        __ access_value_copy(IN_HEAP, rax, obj, rdx);
         __ bind(rewriteFlattenable);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_qputfield, bc, rbx, true, byte_no);
@@ -3666,7 +3669,7 @@ void TemplateTable::fast_storefield(TosState state) {
 
   Label notVolatile, Done;
   if (bytecode() == Bytecodes::_fast_qputfield) {
-    __ movl(rscratch2, rdx);
+    __ movl(rscratch2, rdx);  // saving flags for isFlattened test
   }
 
   __ shrl(rdx, ConstantPoolCacheEntry::is_volatile_shift);
@@ -3682,18 +3685,24 @@ void TemplateTable::fast_storefield(TosState state) {
   __ testl(rdx, rdx);
   __ jcc(Assembler::zero, notVolatile);
 
-  fast_storefield_helper(field, rax);
+  if (bytecode() == Bytecodes::_fast_qputfield) {
+    __ movl(rdx, rscratch2);  // restoring flags for isFlattened test
+  }
+  fast_storefield_helper(field, rax, rdx);
   volatile_barrier(Assembler::Membar_mask_bits(Assembler::StoreLoad |
                                                Assembler::StoreStore));
   __ jmp(Done);
   __ bind(notVolatile);
 
-  fast_storefield_helper(field, rax);
+  if (bytecode() == Bytecodes::_fast_qputfield) {
+    __ movl(rdx, rscratch2);  // restoring flags for isFlattened test
+  }
+  fast_storefield_helper(field, rax, rdx);
 
   __ bind(Done);
 }
 
-void TemplateTable::fast_storefield_helper(Address field, Register rax) {
+void TemplateTable::fast_storefield_helper(Address field, Register rax, Register flags) {
 
   // access field
   switch (bytecode()) {
@@ -3701,13 +3710,16 @@ void TemplateTable::fast_storefield_helper(Address field, Register rax) {
     {
       Label isFlattened, done;
       __ null_check(rax);
-      __ test_field_is_flattened(rscratch2, rscratch1, isFlattened);
+      __ test_field_is_flattened(flags, rscratch1, isFlattened);
       // No Flattened case
       do_oop_store(_masm, field, rax);
       __ jmp(done);
       __ bind(isFlattened);
-      call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_flattened_value),
-          rax, rbx, rcx);
+      // Flattened case
+      __ load_klass(rdx, rax);
+      __ data_for_oop(rax, rax, rdx);
+      __ lea(rcx, field);
+      __ access_value_copy(IN_HEAP, rax, rcx, rdx);
       __ bind(done);
     }
     break;
