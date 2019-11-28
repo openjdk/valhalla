@@ -220,7 +220,7 @@ Klass* ValueKlass::value_array_klass(ArrayStorageProperties storage_props, bool 
       MutexLocker ma(MultiArray_lock, THREAD);
       if (get_value_array_klass() == NULL) {
         vak = allocate_value_array_klass(CHECK_NULL);
-        OrderAccess::release_store((Klass**)adr_value_array_klass(), vak);
+        Atomic::release_store((Klass**)adr_value_array_klass(), vak);
       }
     }
   }

@@ -35,6 +35,7 @@
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
+#include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -203,16 +204,16 @@ void VMOperationTimeoutTask::task() {
 }
 
 bool VMOperationTimeoutTask::is_armed() {
-  return OrderAccess::load_acquire(&_armed) != 0;
+  return Atomic::load_acquire(&_armed) != 0;
 }
 
 void VMOperationTimeoutTask::arm() {
   _arm_time = os::javaTimeMillis();
-  OrderAccess::release_store_fence(&_armed, 1);
+  Atomic::release_store_fence(&_armed, 1);
 }
 
 void VMOperationTimeoutTask::disarm() {
-  OrderAccess::release_store_fence(&_armed, 0);
+  Atomic::release_store_fence(&_armed, 0);
 }
 
 //------------------------------------------------------------------------------------------------------------------

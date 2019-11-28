@@ -107,7 +107,7 @@ class ValueKlass: public InstanceKlass {
   }
 
   Klass* acquire_value_array_klass() const {
-    return OrderAccess::load_acquire((Klass**)adr_value_array_klass());
+    return Atomic::load_acquire((Klass**)adr_value_array_klass());
   }
 
   Klass* allocate_value_array_klass(TRAPS);

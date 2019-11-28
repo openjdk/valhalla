@@ -33,8 +33,7 @@ import java.lang.invoke.MethodHandles.Lookup;
  * Auxiliary to MethodHandleInfo, wants to nest in MethodHandleInfo but must be non-public.
  */
 /*non-public*/
-final
-class InfoFromMemberName implements MethodHandleInfo {
+final class InfoFromMemberName implements MethodHandleInfo {
     private final MemberName member;
     private final int referenceKind;
 

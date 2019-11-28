@@ -199,7 +199,10 @@ public enum Source {
         SWITCH_RULE(JDK14, Fragments.FeatureSwitchRules, DiagKind.PLURAL),
         SWITCH_EXPRESSION(JDK14, Fragments.FeatureSwitchExpressions, DiagKind.PLURAL),
         TEXT_BLOCKS(JDK14, Fragments.FeatureTextBlocks, DiagKind.PLURAL),
-        INLINE_TYPES(JDK14, Fragments.FeatureInlineType, DiagKind.NORMAL);
+        REIFIABLE_TYPES_INSTANCEOF(JDK14, Fragments.FeatureReifiableTypesInstanceof, DiagKind.PLURAL),
+        PATTERN_MATCHING_IN_INSTANCEOF(JDK14, Fragments.FeaturePatternMatchingInstanceof, DiagKind.NORMAL),
+        INLINE_TYPES(JDK14, Fragments.FeatureInlineType, DiagKind.NORMAL),
+        ;
 
         enum DiagKind {
             NORMAL,
