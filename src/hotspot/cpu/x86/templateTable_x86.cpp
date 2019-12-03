@@ -822,14 +822,11 @@ void TemplateTable::daload() {
 
 void TemplateTable::aaload() {
   transition(itos, atos);
-
-  Register array = rcx;
+  Register array = rdx;
   Register index = rax;
 
   index_check(array, index); // kills rbx
-
-  __ profile_array(rbx, array, rdx);
-
+  __ profile_array(rbx, array, rcx);
   if (ValueArrayFlatten) {
     Label is_flat_array, done;
     __ test_flattened_array_oop(array, rbx, is_flat_array);
@@ -841,7 +838,7 @@ void TemplateTable::aaload() {
                 IS_ARRAY);
     __ jmp(done);
     __ bind(is_flat_array);
-    __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::value_array_load), array, index);
+    __ read_flattened_element(array, index, rbx, rcx, rax);
     __ bind(done);
   } else {
     do_oop_load(_masm,
@@ -851,8 +848,7 @@ void TemplateTable::aaload() {
                 rax,
                 IS_ARRAY);
   }
-
-  __ profile_element(rbx, rax, rdx);
+  __ profile_element(rbx, rax, rcx);
 }
 
 void TemplateTable::baload() {
@@ -1224,9 +1220,20 @@ void TemplateTable::aastore() {
     __ jump(ExternalAddress(Interpreter::_throw_ArrayStoreException_entry));
 
     __ bind(is_type_ok);
-    __ movptr(rax, at_tos());  // value
-    __ movl(rcx, at_tos_p1()); // index
-    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::value_array_store), rax, rdx, rcx);
+    // rbx: value's klass
+    // rdx: array
+    // rdi: array klass
+    __ test_klass_is_empty_value(rbx, rax, done);
+
+    // calc dst for copy
+    __ movl(rax, at_tos_p1()); // index
+    __ data_for_value_array_index(rdx, rdi, rax, rax);
+
+    // ...and src for copy
+    __ movptr(rcx, at_tos());  // value
+    __ data_for_oop(rcx, rcx, rbx);
+
+    __ access_value_copy(IN_HEAP, rcx, rax, rbx);
   }
   // Pop stack arguments
   __ bind(done);

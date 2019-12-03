@@ -5610,6 +5610,24 @@ void MacroAssembler::data_for_oop(Register oop, Register data, Register value_kl
   }
 }
 
+void MacroAssembler::data_for_value_array_index(Register array, Register array_klass,
+                                                Register index, Register data) {
+  assert(index != rcx, "index needs to shift by rcx");
+  assert_different_registers(array, array_klass, index);
+  assert_different_registers(rcx, array, index);
+
+  // array->base() + (index << Klass::layout_helper_log2_element_size(lh));
+  movl(rcx, Address(array_klass, Klass::layout_helper_offset()));
+
+  // Klass::layout_helper_log2_element_size(lh)
+  // (lh >> _lh_log2_element_size_shift) & _lh_log2_element_size_mask;
+  shrl(rcx, Klass::_lh_log2_element_size_shift);
+  andl(rcx, Klass::_lh_log2_element_size_mask);
+  shlptr(index); // index << rcx
+
+  lea(data, Address(array, index, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_VALUETYPE)));
+}
+
 void MacroAssembler::resolve(DecoratorSet decorators, Register obj) {
   // Use stronger ACCESS_WRITE|ACCESS_READ by default.
   if ((decorators & (ACCESS_READ | ACCESS_WRITE)) == 0) {

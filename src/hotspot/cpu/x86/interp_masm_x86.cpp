@@ -1233,7 +1233,7 @@ void InterpreterMacroAssembler::read_flattened_field(Register holder_klass,
   push(obj); // save holder
   allocate_instance(field_klass, obj, alloc_temp, dst_temp, false, alloc_failed);
 
-  // Have a oop instance buffer, copy into it
+  // Have an oop instance buffer, copy into it
   data_for_oop(obj, dst_temp, field_klass);
   pop(alloc_temp);             // restore holder
   lea(src, Address(alloc_temp, field_offset));
@@ -1257,6 +1257,52 @@ void InterpreterMacroAssembler::read_flattened_field(Register holder_klass,
 
   bind(done);
 }
+
+void InterpreterMacroAssembler::read_flattened_element(Register array, Register index,
+                                                       Register t1, Register t2,
+                                                       Register obj) {
+  assert_different_registers(array, index, t1, t2);
+  Label alloc_failed, empty_value, done;
+  const Register array_klass = t2;
+  const Register elem_klass = t1;
+  const Register alloc_temp = LP64_ONLY(rscratch1) NOT_LP64(rsi);
+  const Register dst_temp   = LP64_ONLY(rscratch2) NOT_LP64(rdi);
+
+  // load in array->klass()->element_klass()
+  load_klass(array_klass, array);
+  movptr(elem_klass, Address(array_klass, ArrayKlass::element_klass_offset()));
+
+  //check for empty value klass
+  test_klass_is_empty_value(elem_klass, dst_temp, empty_value);
+
+  // calc source into "array_klass" and free up some regs
+  const Register src = array_klass;
+  push(index); // preserve index reg in case alloc_failed
+  data_for_value_array_index(array, array_klass, index, src);
+
+  allocate_instance(elem_klass, obj, alloc_temp, dst_temp, false, alloc_failed);
+  // Have an oop instance buffer, copy into it
+  store_ptr(0, obj); // preserve obj (overwrite index, no longer needed)
+  data_for_oop(obj, dst_temp, elem_klass);
+  access_value_copy(IS_DEST_UNINITIALIZED, src, dst_temp, elem_klass);
+  pop(obj);
+  jmp(done);
+
+  bind(empty_value);
+  get_empty_value_oop(elem_klass, dst_temp, obj);
+  jmp(done);
+
+  bind(alloc_failed);
+  pop(index);
+  if (array == c_rarg2) {
+    mov(elem_klass, array);
+    array = elem_klass;
+  }
+  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::value_array_load), array, index);
+
+  bind(done);
+}
+
 
 // Lock object
 //

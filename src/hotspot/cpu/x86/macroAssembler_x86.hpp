@@ -359,6 +359,9 @@ class MacroAssembler: public Assembler {
   // value type data payload offsets...
   void first_field_offset(Register value_klass, Register offset);
   void data_for_oop(Register oop, Register data, Register value_klass);
+  // get data payload ptr a flat value array at index, kills rcx and index
+  void data_for_value_array_index(Register array, Register array_klass,
+                                  Register index, Register data);
 
 
   // Resolves obj access. Result is placed in the same register.
