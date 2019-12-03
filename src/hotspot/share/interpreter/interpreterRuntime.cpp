@@ -418,17 +418,6 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread*
   }
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::uninitialized_instance_value_field(JavaThread* thread, oopDesc* obj, int index))
-  instanceHandle obj_h(THREAD, (instanceOop)obj);
-  InstanceKlass* klass = InstanceKlass::cast(obj_h()->klass());
-  Klass* field_k = klass->get_value_field_klass_or_null(index);
-  assert(field_k != NULL, "Must have been initialized");
-  ValueKlass* field_vklass = ValueKlass::cast(field_k);
-  assert(field_vklass->is_initialized(), "Must have been initialized at this point");
-  instanceOop res = (instanceOop)field_vklass->default_value();
-  thread->set_vm_result(res);
-JRT_END
-
 JRT_ENTRY(void, InterpreterRuntime::read_flattened_field(JavaThread* thread, oopDesc* obj, int index, Klass* field_holder))
   Handle obj_h(THREAD, obj);
 

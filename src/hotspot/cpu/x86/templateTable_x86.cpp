@@ -3078,8 +3078,19 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ jmp(Done);
         __ bind(uninitialized);
           __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
+#ifdef _LP64
+          Label slow_case, finish;
+          __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
+          __ jcc(Assembler::notEqual, slow_case);
+        __ get_default_value_oop(rcx, off, rax);
+        __ jmp(finish);
+        __ bind(slow_case);
+#endif // LP64
           __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_value_field),
                  obj, flags2);
+#ifdef _LP64
+          __ bind(finish);
+#endif // _LP64
           __ verify_oop(rax);
           __ push(atos);
           __ jmp(Done);
@@ -3097,13 +3108,16 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       __ bind(isFlattenable);
         __ test_field_is_flattened(flags2, rscratch1, isFlattened);
           // Non-flattened field case
+          __ movptr(rax, rcx);  // small dance required to preserve the klass_holder somewhere
           pop_and_check_object(obj);
+          __ push(rax);
           __ load_heap_oop(rax, field);
+          __ pop(rcx);
           __ testptr(rax, rax);
           __ jcc(Assembler::notZero, nonnull);
             __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
-            __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_value_field),
-                       obj, flags2);
+            __ get_value_field_klass(rcx, flags2, rbx);
+            __ get_default_value_oop(rbx, rcx, rax);
           __ bind(nonnull);
           __ verify_oop(rax);
           __ push(atos);
@@ -3821,17 +3835,18 @@ void TemplateTable::fast_accessfield(TosState state) {
                                             ConstantPoolCacheEntry::flags_offset())));
       __ test_field_is_flattened(rscratch1, rscratch2, isFlattened);
         // Non-flattened field case
-        __ movptr(rscratch1, rax);
         __ load_heap_oop(rax, field);
         __ testptr(rax, rax);
         __ jcc(Assembler::notZero, nonnull);
-          __ movptr(rax, rscratch1);
-          __ movl(rcx, Address(rcx, rbx, Address::times_ptr,
+          __ movl(rdx, Address(rcx, rbx, Address::times_ptr,
                              in_bytes(ConstantPoolCache::base_offset() +
                                       ConstantPoolCacheEntry::flags_offset())));
-          __ andl(rcx, ConstantPoolCacheEntry::field_index_mask);
-          __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_value_field),
-                     rax, rcx);
+          __ andl(rdx, ConstantPoolCacheEntry::field_index_mask);
+          __ movptr(rcx, Address(rcx, rbx, Address::times_ptr,
+                                       in_bytes(ConstantPoolCache::base_offset() +
+                                                ConstantPoolCacheEntry::f1_offset())));
+          __ get_value_field_klass(rcx, rdx, rbx);
+          __ get_default_value_oop(rbx, rcx, rax);
         __ bind(nonnull);
         __ verify_oop(rax);
         __ jmp(Done);
