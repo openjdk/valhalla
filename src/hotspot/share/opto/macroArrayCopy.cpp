@@ -1202,8 +1202,10 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   } else if (ac->is_copyof() || ac->is_copyofrange() || ac->is_clone_oop_array()) {
     const Type* dest_type = _igvn.type(dest);
     const TypeAryPtr* top_dest = dest_type->isa_aryptr();
-
-    BasicType dest_elem = top_dest->klass()->as_array_klass()->element_type()->basic_type();
+    BasicType dest_elem = T_OBJECT;
+    if (top_dest != NULL && top_dest->klass() != NULL) {
+      dest_elem = top_dest->klass()->as_array_klass()->element_type()->basic_type();
+    }
     if (dest_elem == T_ARRAY || (dest_elem == T_VALUETYPE && top_dest->klass()->is_obj_array_klass())) {
       dest_elem = T_OBJECT;
     }
@@ -1218,14 +1220,13 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
       assert(alloc != NULL, "expect alloc");
     }
     assert(dest_elem != T_VALUETYPE || alloc != NULL, "unsupported");
-    Node* dest_length = alloc != NULL ? alloc->in(AllocateNode::ALength) : NULL;
+    Node* dest_length = (alloc != NULL) ? alloc->in(AllocateNode::ALength) : NULL;
 
     const TypePtr* adr_type = NULL;
-
     if (dest_elem == T_VALUETYPE) {
       adr_type = adjust_parameters_for_vt(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
     } else {
-      adr_type = _igvn.type(dest)->is_oopptr()->add_offset(Type::OffsetBot);
+      adr_type = dest_type->is_oopptr()->add_offset(Type::OffsetBot);
       if (ac->_dest_type != TypeOopPtr::BOTTOM) {
         adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();
       }
