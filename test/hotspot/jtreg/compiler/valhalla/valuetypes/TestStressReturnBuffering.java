@@ -23,6 +23,7 @@
 
 /**
  * @test
+ * @requires vm.gc != "Z"
  * @bug 8233415
  * @summary Verify that TLAB allocated buffer initialization when returning an inline type works properly with oops.
  * @library /test/lib
