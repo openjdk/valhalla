@@ -648,6 +648,29 @@ Node* BarrierSetC2::atomic_add_at(C2AtomicParseAccess& access, Node* new_val, co
   return atomic_add_at_resolved(access, new_val, value_type);
 }
 
+int BarrierSetC2::arraycopy_payload_base_offset(bool is_array) {
+  // Exclude the header but include array length to copy by 8 bytes words.
+  // Can't use base_offset_in_bytes(bt) since basic type is unknown.
+  int base_off = is_array ? arrayOopDesc::length_offset_in_bytes() :
+                 instanceOopDesc::base_offset_in_bytes();
+  // base_off:
+  // 8  - 32-bit VM
+  // 12 - 64-bit VM, compressed klass
+  // 16 - 64-bit VM, normal klass
+  if (base_off % BytesPerLong != 0) {
+    assert(UseCompressedClassPointers, "");
+    if (is_array) {
+      // Exclude length to copy by 8 bytes words.
+      base_off += sizeof(int);
+    } else {
+      // Include klass to copy by 8 bytes words.
+      base_off = instanceOopDesc::klass_offset_in_bytes();
+    }
+    assert(base_off % BytesPerLong == 0, "expect 8 bytes alignment");
+  }
+  return base_off;
+}
+
 void BarrierSetC2::clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* countx, bool is_array) const {
 #ifdef ASSERT
   intptr_t src_offset;
@@ -661,7 +684,11 @@ void BarrierSetC2::clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* co
   const TypePtr* raw_adr_type = TypeRawPtr::BOTTOM;
 
   ArrayCopyNode* ac = ArrayCopyNode::make(kit, false, src_base, NULL, dst_base, NULL, countx, true, false);
-  ac->set_clonebasic();
+  if (is_array) {
+    ac->set_clone_array();
+  } else {
+    ac->set_clone_inst();
+  }
   Node* n = kit->gvn().transform(ac);
   if (n == ac) {
     ac->_adr_type = TypeRawPtr::BOTTOM;

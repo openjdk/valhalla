@@ -4578,23 +4578,7 @@ void LibraryCallKit::copy_to_clone(Node* obj, Node* alloc_obj, Node* obj_size, b
   Node* size = _gvn.transform(obj_size);
   // Exclude the header but include array length to copy by 8 bytes words.
   // Can't use base_offset_in_bytes(bt) since basic type is unknown.
-  int base_off = is_array ? arrayOopDesc::length_offset_in_bytes() :
-                            instanceOopDesc::base_offset_in_bytes();
-  // base_off:
-  // 8  - 32-bit VM
-  // 12 - 64-bit VM, compressed klass
-  // 16 - 64-bit VM, normal klass
-  if (base_off % BytesPerLong != 0) {
-    assert(UseCompressedClassPointers, "");
-    if (is_array) {
-      // Exclude length to copy by 8 bytes words.
-      base_off += sizeof(int);
-    } else {
-      // Include klass to copy by 8 bytes words.
-      base_off = instanceOopDesc::klass_offset_in_bytes();
-    }
-    assert(base_off % BytesPerLong == 0, "expect 8 bytes alignment");
-  }
+  int base_off = BarrierSetC2::arraycopy_payload_base_offset(is_array);
   Node* src_base  = basic_plus_adr(obj,  base_off);
   Node* dst_base = basic_plus_adr(alloc_obj, base_off);
 

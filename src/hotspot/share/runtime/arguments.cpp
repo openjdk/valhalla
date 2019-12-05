@@ -1645,6 +1645,7 @@ static void no_shared_spaces(const char* message) {
       "Class data sharing is inconsistent with other specified options.\n");
     vm_exit_during_initialization("Unable to use shared archive", message);
   } else {
+    log_info(cds)("Unable to use shared archive: %s", message);
     FLAG_SET_DEFAULT(UseSharedSpaces, false);
   }
 }
@@ -1692,11 +1693,9 @@ void Arguments::set_use_compressed_oops() {
   size_t max_heap_size = MAX3(MaxHeapSize, InitialHeapSize, MinHeapSize);
 
   if (max_heap_size <= max_heap_for_compressed_oops()) {
-#if !defined(COMPILER1) || defined(TIERED)
     if (FLAG_IS_DEFAULT(UseCompressedOops)) {
       FLAG_SET_ERGO(UseCompressedOops, true);
     }
-#endif
   } else {
     if (UseCompressedOops && !FLAG_IS_DEFAULT(UseCompressedOops)) {
       warning("Max heap size too large for Compressed Oops");

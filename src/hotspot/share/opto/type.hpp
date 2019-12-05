@@ -485,7 +485,6 @@ public:
 
 private:
   // support arrays
-  static const BasicType _basic_type[];
   static const Type*        _zero_type[T_CONFLICT+1];
   static const Type* _const_basic_type[T_CONFLICT+1];
 };
@@ -1148,11 +1147,11 @@ class TypeInstPtr : public TypeOopPtr {
 
   ciSymbol*  _name;        // class name
   bool _flat_array;
-  
+
   bool meet_flat_array(bool other_flat_array) const {
     return (_flat_array && other_flat_array) ? true : false;
   }
-  
+
  public:
   ciSymbol* name()         const { return _name; }
   bool flat_array() const {
@@ -1335,6 +1334,8 @@ public:
   int stable_dimension() const;
 
   const TypeAryPtr* cast_to_autobox_cache(bool cache) const;
+
+  static jint max_array_length(BasicType etype);
 
   const int flattened_offset() const;
   const Offset field_offset() const { return _field_offset; }

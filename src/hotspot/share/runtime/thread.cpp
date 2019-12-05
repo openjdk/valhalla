@@ -47,6 +47,7 @@
 #include "logging/logConfiguration.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
+#include "memory/iterator.hpp"
 #include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
@@ -525,10 +526,9 @@ void Thread::start(Thread* thread) {
   }
 }
 
-// Enqueue a VM_Operation to do the job for us - sometime later
 void Thread::send_async_exception(oop java_thread, oop java_throwable) {
-  VM_ThreadStop* vm_stop = new VM_ThreadStop(java_thread, java_throwable);
-  VMThread::execute(vm_stop);
+  VM_ThreadStop vm_stop(java_thread, java_throwable);
+  VMThread::execute(&vm_stop);
 }
 
 
@@ -1652,7 +1652,7 @@ void JavaThread::initialize() {
   set_deopt_compiled_method(NULL);
   set_monitor_chunks(NULL);
   _on_thread_list = false;
-  set_thread_state(_thread_new);
+  _thread_state = _thread_new;
   _terminated = _not_terminated;
   _array_for_gc = NULL;
   _suspend_equivalent = false;

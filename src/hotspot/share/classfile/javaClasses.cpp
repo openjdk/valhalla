@@ -3999,6 +3999,24 @@ oop java_lang_invoke_CallSite::context_no_keepalive(oop call_site) {
   return dep_oop;
 }
 
+// Support for java_lang_invoke_ConstantCallSite
+
+int java_lang_invoke_ConstantCallSite::_is_frozen_offset;
+
+#define CONSTANTCALLSITE_FIELDS_DO(macro) \
+  macro(_is_frozen_offset, k, "isFrozen", bool_signature, false)
+
+void java_lang_invoke_ConstantCallSite::compute_offsets() {
+  InstanceKlass* k = SystemDictionary::ConstantCallSite_klass();
+  CONSTANTCALLSITE_FIELDS_DO(FIELD_COMPUTE_OFFSET);
+}
+
+#if INCLUDE_CDS
+void java_lang_invoke_ConstantCallSite::serialize_offsets(SerializeClosure* f) {
+  CONSTANTCALLSITE_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
+}
+#endif
+
 // Support for java_lang_invoke_MethodHandleNatives_CallSiteContext
 
 int java_lang_invoke_MethodHandleNatives_CallSiteContext::_vmdependencies_offset;
@@ -4076,17 +4094,20 @@ int  java_lang_ClassLoader::nameAndId_offset = -1;
 int  java_lang_ClassLoader::unnamedModule_offset = -1;
 
 ClassLoaderData* java_lang_ClassLoader::loader_data_acquire(oop loader) {
-  assert(loader != NULL && oopDesc::is_oop(loader), "loader must be oop");
+  assert(loader != NULL, "loader must not be NULL");
+  assert(oopDesc::is_oop(loader), "loader must be oop");
   return HeapAccess<MO_ACQUIRE>::load_at(loader, _loader_data_offset);
 }
 
 ClassLoaderData* java_lang_ClassLoader::loader_data_raw(oop loader) {
-  assert(loader != NULL && oopDesc::is_oop(loader), "loader must be oop");
+  assert(loader != NULL, "loader must not be NULL");
+  assert(oopDesc::is_oop(loader), "loader must be oop");
   return RawAccess<>::load_at(loader, _loader_data_offset);
 }
 
 void java_lang_ClassLoader::release_set_loader_data(oop loader, ClassLoaderData* new_data) {
-  assert(loader != NULL && oopDesc::is_oop(loader), "loader must be oop");
+  assert(loader != NULL, "loader must not be NULL");
+  assert(oopDesc::is_oop(loader), "loader must be oop");
   HeapAccess<MO_RELEASE>::store_at(loader, _loader_data_offset, new_data);
 }
 

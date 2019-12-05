@@ -48,7 +48,7 @@ import jdk.jfr.internal.SecuritySupport;
  * an event stream.
  */
 abstract class AbstractEventStream implements EventStream {
-    private final static AtomicLong counter = new AtomicLong(1);
+    private final static AtomicLong counter = new AtomicLong(0);
 
     private final Object terminated = new Object();
     private final Runnable flushOperation = () -> dispatcher().runFlushActions();
@@ -76,9 +76,10 @@ abstract class AbstractEventStream implements EventStream {
     abstract public void close();
 
     protected final Dispatcher dispatcher() {
-        if (configuration.hasChanged()) {
+        if (configuration.hasChanged()) { // quick check
             synchronized (configuration) {
                 dispatcher = new Dispatcher(configuration);
+                configuration.setChanged(false);
             }
         }
         return dispatcher;

@@ -745,6 +745,8 @@ public class Gen extends JCTree.Visitor {
             if (markBranches) result.tree = tree.falsepart;
             return result;
         } else if (inner_tree.hasTag(SWITCH_EXPRESSION)) {
+            code.resolvePending();
+
             boolean prevInCondSwitchExpression = inCondSwitchExpression;
             Chain prevSwitchExpressionTrueChain = switchExpressionTrueChain;
             Chain prevSwitchExpressionFalseChain = switchExpressionFalseChain;
@@ -769,6 +771,8 @@ public class Gen extends JCTree.Visitor {
                 switchExpressionFalseChain = prevSwitchExpressionFalseChain;
             }
         } else if (inner_tree.hasTag(LETEXPR) && ((LetExpr) inner_tree).needsCond) {
+            code.resolvePending();
+
             LetExpr tree = (LetExpr) inner_tree;
             int limit = code.nextreg;
             int prevLetExprStart = code.setLetExprStackPos(code.state.stacksize);

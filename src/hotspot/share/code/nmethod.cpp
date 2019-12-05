@@ -1589,14 +1589,18 @@ void nmethod::flush_dependencies(bool delete_immediately) {
 // Transfer information from compilation to jvmti
 void nmethod::post_compiled_method_load_event() {
 
-  Method* moop = method();
+ // This is a bad time for a safepoint.  We don't want
+ // this nmethod to get unloaded while we're queueing the event.
+ NoSafepointVerifier nsv;
+
+  Method* m = method();
   HOTSPOT_COMPILED_METHOD_LOAD(
-      (char *) moop->klass_name()->bytes(),
-      moop->klass_name()->utf8_length(),
-      (char *) moop->name()->bytes(),
-      moop->name()->utf8_length(),
-      (char *) moop->signature()->bytes(),
-      moop->signature()->utf8_length(),
+      (char *) m->klass_name()->bytes(),
+      m->klass_name()->utf8_length(),
+      (char *) m->name()->bytes(),
+      m->name()->utf8_length(),
+      (char *) m->signature()->bytes(),
+      m->signature()->utf8_length(),
       insts_begin(), insts_size());
 
   if (JvmtiExport::should_post_compiled_method_load() ||
@@ -1642,8 +1646,7 @@ void nmethod::post_compiled_method_unload() {
   if (_jmethod_id != NULL && JvmtiExport::should_post_compiled_method_unload()) {
     assert(!unload_reported(), "already unloaded");
     JvmtiDeferredEvent event =
-      JvmtiDeferredEvent::compiled_method_unload_event(this,
-          _jmethod_id, insts_begin());
+      JvmtiDeferredEvent::compiled_method_unload_event(_jmethod_id, insts_begin());
     MutexLocker ml(Service_lock, Mutex::_no_safepoint_check_flag);
     JvmtiDeferredEventQueue::enqueue(event);
   }
