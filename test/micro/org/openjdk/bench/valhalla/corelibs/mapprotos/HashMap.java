@@ -29,11 +29,12 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.PrintStream;
 import java.io.Serializable;
+import java.lang.Boolean;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.AbstractCollection;
-//import java.util.AbstractMap;
+import java.util.AbstractMap;
 import java.util.AbstractSet;
 import java.util.Arrays;
 import java.util.Collection;
@@ -75,7 +76,7 @@ import java.util.function.Function;
  * improve search times (assuming even hashcode distributions).
  * Badly distributed hash values will result in incremental table growth and
  * linear search performance.
- * <p></p>
+ * <p>
  * During insertion the Robin Hood hash algorithm does a small optimization
  * to reduce worst case rehash lengths.
  * Removal of entries, does a compaction of the following entries to fill
@@ -185,10 +186,13 @@ import java.util.function.Function;
  * @see     Hashtable
  * @since   1.2
  */
-public class YHashMap<K,V> extends XAbstractMap<K,V>
+public class HashMap<K,V> extends XAbstractMap<K,V>
         implements Map<K,V>, Cloneable, Serializable {
 
     private static final long serialVersionUID = 362498820763181265L;
+
+    private static final boolean DEBUG = Boolean.getBoolean("DEBUG");
+    private static final boolean VERIFYTABLEOK = Boolean.getBoolean("VERIFYTABLEOK");
 
     /*
      * Implementation notes.
@@ -215,6 +219,7 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      */
     static final float DEFAULT_LOAD_FACTOR = 0.75f;
 
+    private final int REHASH_HASH = 2003; // Odd and small (a medium-small prime)
 
     /**
      * Basic hash bin node, used for most entries.
@@ -236,8 +241,6 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
             this.hash = hash;
             this.key = key;
             this.value = value;
-            if (probes > 128)
-                throw new IllegalStateException("YNode probes overflow: " + probes);
             this.probes = (short)probes;
         }
 
@@ -249,13 +252,11 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
             return probes > 0;
         }
 
-        boolean isDeleted() {
-            return probes < 0;
-        }
-
         public final K getKey()        { return key; }
         public final V getValue()      { return value; }
-        public final String toString() { return key + "=" + value + ", probes: " + probes; }
+        public final String toString() { return key + "=" + value + ", probes: " + probes
+                + ", hash: " + Integer.toString(hash, 16)
+                + ", hashCode: " + hashCode(); }
         public final int hashCode() {
             return Objects.hashCode(key) ^ Objects.hashCode(value);
         }
@@ -278,22 +279,33 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
     }
 
     inline class YNodeWrapper implements Map.Entry<K,V> {
-        int index;
+        final int index;
+        final YNode<K,V> entry;
 
         YNodeWrapper(int index) {
             this.index = index;
+            this.entry = table[index];
         }
 
         public K getKey() {
-            YNode<K,V> e = table[index];
-            return e.isEmpty() ? null : e.key;
+            return entry.key;
         }
 
         public V getValue() {
-            YNode<K,V> e = table[index];
-            return e.isEmpty() ? null : e.value;
+            return entry.value;
         }
 
+        public String toString() {
+            return entry.toString();
+        }
+
+        public int hashCode() {
+            return entry.hashCode();
+        }
+
+        public boolean equals(Object o) {
+            return entry.equals(o);
+        }
         /**
          * Replaces the value corresponding to this entry with the specified
          * value (optional operation).  (Writes through to the map.)  The
@@ -315,10 +327,8 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
          *         removed from the backing map.
          */
         public V setValue(V value) {
-            YNode<K,V> e = table[index];
-            assert e.isValue();
-            table[index] = new YNode(e.hash, e.key, value, 0);
-            return e.value;
+            table[index] = new YNode<>(entry.hash, entry.key, value, entry.probes);
+            return entry.value;
         }
     }
     /* ---------------- Static utilities -------------- */
@@ -400,6 +410,11 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      */
     final float loadFactor;
 
+    private transient int[] getProbes = new int[16];
+    private transient int[] putProbes = new int[16];
+    private transient int[] notFoundProbes = new int[16];
+
+
     /* ---------------- Public operations -------------- */
 
     /**
@@ -411,7 +426,7 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      * @throws IllegalArgumentException if the initial capacity is negative
      *         or the load factor is nonpositive
      */
-    public YHashMap(int initialCapacity, float loadFactor) {
+    public HashMap(int initialCapacity, float loadFactor) {
         if (initialCapacity < 0)
             throw new IllegalArgumentException("Illegal initial capacity: " +
                     initialCapacity);
@@ -431,7 +446,7 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      * @param  initialCapacity the initial capacity.
      * @throws IllegalArgumentException if the initial capacity is negative.
      */
-    public YHashMap(int initialCapacity) {
+    public HashMap(int initialCapacity) {
         this(initialCapacity, DEFAULT_LOAD_FACTOR);
     }
 
@@ -439,7 +454,7 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      * Constructs an empty {@code HashMap} with the default initial capacity
      * (16) and the default load factor (0.75).
      */
-    public YHashMap() {
+    public HashMap() {
         this.loadFactor = DEFAULT_LOAD_FACTOR; // all other fields defaulted
     }
 
@@ -452,7 +467,7 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      * @param   m the map whose mappings are to be placed in this map
      * @throws  NullPointerException if the specified map is null
      */
-    public YHashMap(Map<? extends K, ? extends V> m) {
+    public HashMap(Map<? extends K, ? extends V> m) {
         this.loadFactor = DEFAULT_LOAD_FACTOR;
         putMapEntries(m, false);
     }
@@ -524,17 +539,59 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      * @see #put(Object, Object)
      */
     public V get(Object key) {
-        int hash = hash(key);
-        int i = getNode(hash, key);
-        if (i >= 0) {
-            return table[i].value;
+        final YNode<K, V>[] tab;
+        final int mask;
+//        int probes = 0;
+        if ((tab = table) != null && (mask = tab.length - 1) >= 0) {
+            final int hash = hash(key);
+            int h = hash;
+            YNode<K, V> entry;
+            while ((entry = tab[(mask & h)]).isValue()) {
+//                probes++;
+                K k;
+                if (entry.hash == hash &&
+                        ((k = entry.key) == key || (key != null && key.equals(k)))) {
+//                    getProbes = incProbeCount(getProbes, probes);
+                    return entry.value;
+                } else {
+                    h += REHASH_HASH;
+                }
+            }
         }
-        return null; // not found no value
-
+//        notFoundProbes = incProbeCount(notFoundProbes, 0);
+        return null;      // not found; empty table
     }
 
     /**
-     * XImplements Map.get and related methods.
+     * Same as Get caching the entry.
+     * @param key the key
+     * @return a value, or null
+     */
+    public V get1(Object key) {
+        final int hash = hash(key);
+        final YNode<K, V>[] tab;
+        int n;
+        if ((tab = table) != null && (n = tab.length) > 0) {
+            int h = hash;
+            int index = (n - 1) & h;
+            YNode<K, V> entry = tab[index];
+            for (; //int probes = 1
+                 entry.isValue();
+                 h += REHASH_HASH, index = (n - 1) & h, entry = tab[index]) {  //, probes++
+                K k;
+                if (entry.hash == hash &&
+                        ((k = entry.key) == key || (key != null && key.equals(k)))) {
+//                    getProbes = incProbeCount(getProbes, probes);
+                    return entry.value;
+                }
+            }
+        }
+//        notFoundProbes = incProbeCount(notFoundProbes, 0);
+        return null;      // not found; empty table
+    }
+
+    /**
+     * Implements Map.get and related methods.
      *
      * @param hash hash for key
      * @param key the key
@@ -542,32 +599,33 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      */
     private final int getNode(final int hash, Object key) {
         YNode<K, V>[] tab;
-        final YNode<K, V> first;
         int n;
-        K k;
         if ((tab = table) != null && (n = tab.length) > 0) {
-            if ((first = tab[(n - 1) & hash]).isValue() &&
+            final YNode<K, V> first;
+            final int i = (n - 1) & hash;
+            K k;
+            if ((first = tab[i]).isValue() &&
                     first.hash == hash &&
                     ((k = first.key) == key || (key != null && key.equals(k)))) {
-                return (n - 1) & hash;
+//                getProbes = incProbeCount(getProbes, 1);
+                return i;
             }
-            if (first.isEmpty())
-                return -1;
             // non-empty table and not first entry
-            final int rehash_hash = getRehash(hash);
-            int h = hash + rehash_hash;     // start with next entry
-            for (int probes = 1; probes < tab.length; probes++, h += rehash_hash) {
-                final YNode<K, V> entry;
-                final int index;
-                if (((entry = tab[(index = ((n - 1) & h))]).isValue()) &&
-                        entry.hash == hash &&
-                        ((k = entry.key) == key || (key != null && key.equals(k))))
-                    return index;
-                if (entry.isEmpty())
+            int h = hash;
+            for (int probes = 1; probes <= tab.length; probes++, h += REHASH_HASH) {
+                final int index = (n - 1) & h;
+                final YNode<K, V> entry = tab[index];
+                if (!entry.isValue()) {
+//                    notFoundProbes = incProbeCount(notFoundProbes, probes);
                     return -1;  // search ended without finding the key
+                } else if (entry.hash == hash &&
+                        ((k = entry.key) == key || (key != null && key.equals(k)))) {
+//                    getProbes = incProbeCount(getProbes, probes);
+                    return index;
+                }
             }
-            throw new RuntimeException("NYI: search exhausted");  // exhausted looking in the table
         }
+//        notFoundProbes = incProbeCount(notFoundProbes, 0);
         return -1;      // not found; empty table
     }
 
@@ -606,57 +664,115 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      * @param key the key
      * @param value the value to put
      * @param onlyIfAbsent if true, don't change existing value
-     * @param evict if false, the table is in creation mode.
      * @return previous value, or null if none
      */
-    private final V putVal(int hash, K key, V value, boolean onlyIfAbsent) {
+    private final V putVal(final int hash, final K key, final V value, boolean onlyIfAbsent) {
         YNode<K, V>[] tab;
         YNode<K, V> tp;
         int n, i;
         if ((tab = table) == null || (n = tab.length) == 0)
             n = (tab = resize()).length;
-//    System.out.printf("putVal: h: %8x, k: %s, tab.len: %d%n", hash, key, n);
-        final int rehash_hash = getRehash(hash);
-        int h = hash;
-        int index = 0;
-        for (int probes = 1; probes <= tab.length; probes++, h += rehash_hash) {
-            YNode<K, V> entry;
+        debug("  putval", -1, new YNode<K,V>(hash, key, value, -1));
 
-            entry = tab[(index = ((n - 1) & h))];
-//      System.out.printf("index: %d, probe: %d, e: %s%n", index, probes, entry);
+        int h = hash;
+        int insert = -1;    // insertion point if not already present
+        int insertProbes = -1;
+        for (int probes = 1; ; probes++, h += REHASH_HASH) {
+            if (probes > tab.length)
+                throw new IllegalStateException("No empty entries in table");
+            final int index;
+            final YNode<K, V> entry = tab[(index = ((n - 1) & h))];
+//            debug("    looking at", index, entry);
             if (entry.isEmpty()) {
                 // Absent; insert in the first place it could be added
-                tab[index] = new YNode(hash, key, value, probes);
+                // TBD: should it check onlyIfAbsent?
+                if (insert < 0) {
+                    // no better place to insert than here
+                    tab[index] = new YNode<>(hash, key, value, probes);
+                    debug("    setting", index, tab[index]);
+//                    putProbes = incProbeCount(putProbes, probes);
+                } else {
+                    // The new entry is more needy than the current one
+                    final YNode<K,V> tmp = tab[insert];
+                    tab[insert] = new YNode<>(hash, key, value, insertProbes);
+                    debug("    robin-hood inserted", index, tab[index]);
+//                    putProbes = incProbeCount(putProbes, insertProbes);
+                    putReinsert(insert, tmp);
+                }
                 break;  // break to update modCount and size
             }
 
             if (entry.isValue() && entry.hash == hash &&
-                    ((key = entry.key) == key || (key != null && key.equals(key)))) {
-                if (!onlyIfAbsent || entry.value == null)
-                    tab[index] = new YNode(hash, key, value, entry.probes);
+                    (entry.key == key || (key != null && key.equals(entry.key)))) {
+                // TBD: consider if updated entry should be moved closer to the front
+                if (!onlyIfAbsent || entry.value == null) {
+                    tab[index] = new YNode<>(hash, key, value, entry.probes);
+                }
+                debug("    oldvalue", index, entry);
+                debug("    updating", index, tab[index]);
+//                putProbes = incProbeCount(putProbes, probes);
                 return entry.value;
             }
 
-            // Robin Hood entry swap if..
-            if (probes > entry.probes) {
-                // The new entry is more needy than the current one
-                tab[index] = new YNode(hash, key, value, probes);
-                hash = entry.hash;
-                key = entry.key;
-                value = entry.value;
-                probes = entry.probes;
-            }
-
-            if (probes >= tab.length) {
-                dumpTable(table, "MAX: key:" + key);
-                throw new IllegalStateException("NYI: putVal table has no free entries");
+            // Save first possible insert index
+            if (insert < 0 && probes > entry.probes) {
+                insert = index;
+                insertProbes = probes;
             }
         }
-        //        System.out.printf("inserted at %d: k: %s%n", index, tab[index]);
         ++modCount;
-        if (++size > threshold)
-            resize();
+        ++size;
+        isTableOk(tab, "table not ok, putval");
+        if (size >= threshold)
+            resize();       // Ensure there is at least 1 empty available
         return null;
+    }
+
+    /**
+     * Re-insert the entry in the table starting at the entry beyond the index.
+     * Insert it at an empty slot.
+     * Replace an entry with a lower probe count and repeat to reinsert that entry.
+     * @param oldIndex the index just replaced
+     * @param rEntry the entry to be replaced
+     */
+    private void putReinsert(final int oldIndex, YNode<K,V> rEntry) {
+        final YNode<K, V>[] tab = table;
+        final int n = tab.length;
+
+        int h = oldIndex + REHASH_HASH;
+        for (int probes = rEntry.probes + 1; probes <= n; probes++, h += REHASH_HASH) {
+            isTableOk(tab, "bubble down loop");
+            final int index = (n - 1) & h;
+            final YNode<K,V> entry = tab[index];
+            if (entry.isEmpty()) {
+                // Insert in the empty slot
+                tab[index] = new YNode<>(rEntry.hash, rEntry.key, rEntry.value, probes);
+                debug("    reinserted", index, tab[index]);
+                return;
+            } else if (probes > entry.probes) {
+                // Replace a less deserving entry
+                tab[index] = new YNode<>(rEntry.hash, rEntry.key, rEntry.value, probes);
+                debug("    robin-hood bubble down", index, tab[index]);
+                rEntry = entry;
+                probes = rEntry.probes;
+                debug("    robin-hood moving", index, rEntry);
+            } else {
+                debug("    robin-hood skipping", index, entry);
+            }
+        }
+        throw new RuntimeException("bubble down failed");
+    }
+
+    private void debug(String msg, int index, YNode<K,V> entry) {
+        if (DEBUG && System.out != null) {
+            System.out.println(System.identityHashCode(this) + ": " + msg + ": index: " + index + ", node: " + Objects.toString(entry));
+        }
+    }
+   private void debug2(String msg, int index, YNode<K,V> entry) {
+        if (System.out != null) {
+            System.out.println(System.identityHashCode(this) + ": " + msg + ": index: " + index +
+                    ", " + "node: " + entry);
+        }
     }
 
     /**
@@ -679,7 +795,7 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
                 return oldTab;
             }
             else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
-                    oldCap >= DEFAULT_INITIAL_CAPACITY)
+                     oldCap >= DEFAULT_INITIAL_CAPACITY)
                 newThr = oldThr << 1; // double threshold
         }
         else if (oldThr > 0) // initial capacity was placed in threshold
@@ -693,7 +809,16 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
             newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY ?
                     (int)ft : Integer.MAX_VALUE);
         }
-        threshold = newThr;
+        isTableOk(oldTab, "oldTab bad before resize");
+        if (getProbes != null)
+            Arrays.fill(getProbes, 0);
+        if (putProbes != null)
+            Arrays.fill(putProbes, 0);
+        if (notFoundProbes != null)
+            Arrays.fill(notFoundProbes, 0);
+
+        // There must always be an empty entry, resize when it gets to capacity.
+        threshold = (newThr > newCap) ? newCap : newThr;
         @SuppressWarnings({"rawtypes","unchecked"})
         YNode<K,V>[] newTab = (YNode<K,V>[])new YNode[newCap];
         table = newTab;
@@ -703,16 +828,18 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
                 if ((e = oldTab[i]).isValue()) {
                     final int ii;
                     if (newTab[ii = (newCap - 1) & e.hash].isEmpty()) {
-                        newTab[ii] = new YNode(e.hash, e.key, e.value, 1);
+                        newTab[ii] = new YNode<>(e.hash, e.key, e.value, 1);
+                        putProbes = incProbeCount(putProbes, 1);
                     } else {
-                        final int rehash_hash = getRehash(e.hash);
-                        int h = e.hash + rehash_hash;
-                        for (int probes = 2; ; probes++, h += rehash_hash) {
+                        int h = e.hash + REHASH_HASH;
+                        for (int probes = 2; ; probes++, h += REHASH_HASH) {
                             final int index;
                             if (newTab[(index = ((newCap - 1) & h))].isEmpty()) {
-                                newTab[index] = new YNode(e.hash, e.key, e.value, probes);
+                                newTab[index] = new YNode<>(e.hash, e.key, e.value, probes);
+                                putProbes = incProbeCount(putProbes, probes);
                                 break;
                             }
+                            // TBD: Consider Robin-hood insert
                             if (probes > newTab.length)
                                 throw new IllegalStateException("NYI resize: no support for overflow");
                         }
@@ -720,14 +847,31 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
                 }
             }
         }
-        assert isTableOk() : "Table not ok after resize";
+
+        debug("resized", newTab.length, new YNode<K,V>());
+        isTableOk(newTab, "newTab bad after resize");
         return newTab;
     }
 
+    /**
+     * Dump the hashtable.
+     */
+    public void dumpTable() {
+        dumpTable(table, "dumpTable");
+    }
+
+    /**
+     * Dump the hashtable
+     * @param table the table
+     * @param msg a message
+     */
     private void dumpTable(YNode<K, V>[] table, String msg) {
-        System.out.println(msg);
+        if (System.out == null || table == null)
+            return;
+        System.out.println(msg + ", size: " + size + ", len: " + table.length);
         for (int i = 0; i < table.length; ++i) {
-            System.out.printf("%3d: %s%n", i, table[i]);
+            if (table[i].isValue())
+                System.out.println("   [" + i + "] " + table[i]);
         }
     }
 
@@ -753,8 +897,8 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      *         previously associated {@code null} with {@code key}.)
      */
     public V remove(Object key) {
-        Optional<V> o = removeNode(hash(key), key, null, false, true);
-        return o.orElse(null);
+        YNode<K,V> entry = removeNode(hash(key), key, null, false, true);
+        return entry.isValue() ? entry.value : null;
     }
 
     /**
@@ -767,53 +911,67 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      * @param movable if false do not move other nodes while removing
      * @return the node, or null if none
      */
-    private final Optional<V> removeNode(final int hash, Object key, Object value,
+    @SuppressWarnings("unchecked")
+    private final YNode<K,V> removeNode(final int hash, final Object key, final Object value,
                                          boolean matchValue, boolean movable) {
         YNode<K, V>[] tab;
         YNode<K, V> entry;
         V v = null;
         int curr;
         int n;
+        debug("  removeNode", -2, new YNode<K,V>(hash, (K)key, (V)value, -2));
+
         if ((tab = table) != null && (n = tab.length) > 0 &&
                 (curr = getNode(hash, key)) >= 0 &&
                 (entry = tab[curr]).isValue() &&
                 ((!matchValue || (v = entry.value) == value ||
                         (value != null && value.equals(v))))) {
             // found entry; free and compress
-            //            System.out.printf("remove index: %d, e: %s%n", curr, entry);
-            ++modCount;
-            --size;
-            final int rehash_hash = getRehash(hash);
-            int h = hash + rehash_hash;
-            for (int probes = 1; probes <= tab.length; probes++, h += rehash_hash) {
-                YNode<K, V> alt;
-                int index;
-                alt = tab[(index = ((n - 1) & h))];
-                if (alt.probes > probes) {
-                    // move alt to curr
-                    tab[curr] = new YNode(alt.hash, alt.key, alt.value, alt.probes - probes);
-                    tab[index] = new YNode();
-                    curr = index;
-                    probes = 0;
-                } else {
-                    return Optional.ofNullable(v);
-                }
-            }
-            throw new IllegalStateException("NYI: removeNode no support for overflow");
+            removeNode(curr);
+            return entry;
         }
-        return Optional.empty();
+        return YNode.default;
     }
 
-    // Rehash delta based on original hash and always odd.
-    // Does not use current hash to have a consistent stride.
-    private static int getRehash(int hash) {
-        return 3;
+    @SuppressWarnings("unchecked")
+    private void removeNode(final int curr) {
+        final YNode<K, V>[] tab = table;;
+        final int n = tab.length;
+
+        ++modCount;
+        --size;
+        int free = curr;        // The entry to be cleared, if not replaced
+        int h = curr;
+        int probes = 0;
+        do {
+            probes++;
+            h += REHASH_HASH;
+            final int index = (n - 1) & h;
+            final YNode<K, V> entry = tab[index];
+            if (entry.probes == 0) {
+                // Search ended at empty entry, clear the free entry
+                debug("    clearing", index, entry);
+                tab[free] = new YNode<>();
+                return;
+            }
+            if (entry.probes > probes) {
+                // move up the entry, skip if it is already in the best spot
+                debug("    replacing", free, entry);
+                tab[free] = new YNode<>(entry.hash, entry.key, entry.value, entry.probes - probes);
+                debug("         with", free, tab[free]);
+                free = index;
+                probes = 0;
+            }
+        } while (((n - 1) & h) != curr);
+        isTableOk(tab, "table not ok, not found");
+        throw new RuntimeException("removeNode too many probes");
     }
 
     /**
      * Removes all of the mappings from this map.
      * The map will be empty after this call returns.
      */
+    @SuppressWarnings({"rawtypes","unchecked"})
     public void clear() {
         YNode<K,V>[] tab;
         modCount++;
@@ -905,7 +1063,6 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
         Object[] r = a;
         YNode<K,V>[] tab;
         int idx = 0;
-        int i = 0;
         if (size > 0 && (tab = table) != null) {
             for (YNode<K,V> te : tab) {
                 if (te.isValue()) {
@@ -941,15 +1098,11 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
 
     final class KeySet extends AbstractSet<K> {
         public final int size()                 { return size; }
-        public final void clear()               { YHashMap.this.clear(); }
+        public final void clear()               { HashMap.this.clear(); }
         public final Iterator<K> iterator()     { return new KeyIterator(); }
         public final boolean contains(Object o) { return containsKey(o); }
         public final boolean remove(Object key) {
-            return removeNode(hash(key), key, null, false, true).isPresent();
-        }
-        public final Spliterator<K> spliterator() {
-            throw new RuntimeException("KeySet.spliterator");
-//            new KeySpliterator<>(XHashMap.this, 0, -1, 0, 0);
+            return removeNode(hash(key), key, null, false, true).isValue();
         }
 
         public Object[] toArray() {
@@ -1003,14 +1156,9 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
 
     final class Values extends AbstractCollection<V> {
         public final int size()                 { return size; }
-        public final void clear()               { YHashMap.this.clear(); }
+        public final void clear()               { HashMap.this.clear(); }
         public final Iterator<V> iterator()     { return new ValueIterator(); }
         public final boolean contains(Object o) { return containsValue(o); }
-        public final Spliterator<V> spliterator() {
-            throw new RuntimeException("Values.spliterator");
-            //new ValueSpliterator<>(XHashMap.this, 0, -1, 0, 0);
-
-        }
 
         public Object[] toArray() {
             return valuesToArray(new Object[size]);
@@ -1027,7 +1175,7 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
             if (size > 0 && (tab = table) != null) {
                 int mc = modCount;
                 for (YNode<K,V> te : tab) {
-                    if (!te.isValue()) {
+                    if (te.isValue()) {
                         action.accept(te.value);
                     }
                 }
@@ -1060,7 +1208,7 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
 
     final class EntrySet extends AbstractSet<Map.Entry<K,V>> {
         public final int size()                 { return size; }
-        public final void clear()               { YHashMap.this.clear(); }
+        public final void clear()               { HashMap.this.clear(); }
         public final Iterator<Map.Entry<K,V>> iterator() {
             return new EntryIterator();
         }
@@ -1077,14 +1225,11 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
                 Map.Entry<?,?> e = (Map.Entry<?,?>) o;
                 Object key = e.getKey();
                 Object value = e.getValue();
-                return removeNode(hash(key), key, value, true, true).isPresent();
+                return removeNode(hash(key), key, value, true, true).isValue();
             }
             return false;
         }
-        public final Spliterator<Map.Entry<K,V>> spliterator() {
-            throw new RuntimeException("EntrySet.spliterator");
-//            return new EntrySpliterator<>(XHashMap.this, 0, -1, 0, 0);
-        }
+
         public final void forEach(Consumer<? super Map.Entry<K,V>> action) {
             YNode<K,V>[] tab;
             if (action == null)
@@ -1117,7 +1262,7 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
 
     @Override
     public boolean remove(Object key, Object value) {
-        return removeNode(hash(key), key, value, true, true).isPresent();
+        return removeNode(hash(key), key, value, true, true).isValue();
     }
 
     @Override
@@ -1160,26 +1305,21 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
         if (mappingFunction == null)
             throw new NullPointerException();
         int hash = hash(key);
-        YNode<K,V>[] tab; YNode<K,V> first; int n, i;
+        YNode<K,V>[] tab = table;
+        YNode<K,V> entry;
         int index;
 
         index = getNode(hash, key);
-        if (index >= 0 && table[index].value != null)
-            return table[index].value;
-
+        if (index >= 0 && (entry = tab[index]).value != null) {
+            return entry.value;
+        }
         int mc = modCount;
         V v = mappingFunction.apply(key);
         if (mc != modCount) { throw new ConcurrentModificationException(); }
         if (v == null) {
             return null;
-        } else if (index >= 0) {
-            table[index] = new YNode<>(hash, key, v, 1);
-            return v;
         }
         putVal(hash, key, v, false);
-        // TBD: Watch the double counting
-        modCount = mc + 1;
-        ++size;
         return v;
     }
 
@@ -1198,18 +1338,17 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
                               BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
         if (remappingFunction == null)
             throw new NullPointerException();
-        V oldValue;
+        YNode<K,V> oldValue;
         int hash = hash(key);
         int index = getNode(hash, key);
-        if (index >= 0 && (oldValue = table[index].value) != null) {
+        if (index >= 0 && (oldValue = table[index]).value != null) {
             int mc = modCount;
-            V v = remappingFunction.apply(key, oldValue);
+            V v = remappingFunction.apply(key, oldValue.value);
             if (mc != modCount) { throw new ConcurrentModificationException(); }
             if (v != null) {
-                table[index] = new YNode(hash, key, v, table[index].probes);
+                table[index] = new YNode<>(hash, key, v, oldValue.probes);
                 return v;
-            }
-            else
+            } else
                 removeNode(hash, key, null, false, true);
         }
         return null;
@@ -1226,11 +1365,29 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      * remapping function modified this map
      */
     @Override
+    @SuppressWarnings("unchecked")
     public V compute(K key,
                      BiFunction<? super K, ? super V, ? extends V> remappingFunction) {
         if (remappingFunction == null)
             throw new NullPointerException();
-        return super.compute(key, remappingFunction);
+
+        int hash = hash(key);
+        int index = getNode(hash, key);
+        YNode<K,V> oldValue = (index >= 0) ? table[index] : YNode.default;
+
+        int mc = modCount;
+        V v = remappingFunction.apply(key, oldValue.value);
+        if (mc != modCount) { throw new ConcurrentModificationException(); }
+        if (v != null) {
+            if (index >= 0) {
+                table[index] = new YNode<>(hash, key, v, oldValue.probes);
+//                modCount++;
+            } else
+                putVal(hash, key, v, false);
+        } else
+            // TBD: 2nd lookup to remove even though we have index
+            removeNode(hash, key, null, false, true);
+        return v;
     }
 
     /**
@@ -1246,7 +1403,31 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
     @Override
     public V merge(K key, V value,
                    BiFunction<? super V, ? super V, ? extends V> remappingFunction) {
-        return super.merge(key, value, remappingFunction);
+        if (remappingFunction == null)
+            throw new NullPointerException();
+
+        final int hash = hash(key);
+        final int index = getNode(hash, key);
+        if (index >= 0) {
+            int mc = modCount;
+            V v = remappingFunction.apply(table[index].value, value);
+            if (mc != modCount) { throw new ConcurrentModificationException(); }
+            if (v != null) {
+                if (index >= 0) {
+                    table[index] = new YNode<>(hash, key, v, table[index].probes);
+//                    modCount++;
+                } else
+                    putVal(hash, key, v, false);
+            } else {
+                // TBD: 2nd lookup to remove even though we have index
+                removeNode(hash, key, null, false, true);
+            }
+            return v;
+        } else {
+            // put new key/value (even if null)
+            putVal(hash, key, value, false);
+        }
+        return value;
     }
 
     @Override
@@ -1261,8 +1442,6 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
                     action.accept(te.key, te.value);
                 }
             }
-            // TBD: iterate over overflow
-
             if (modCount != mc)
                 throw new ConcurrentModificationException();
         }
@@ -1285,9 +1464,9 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
     @SuppressWarnings("unchecked")
     @Override
     public Object clone() {
-        YHashMap<K,V> result;
+        HashMap<K,V> result;
         try {
-            result = (YHashMap<K,V>)super.clone();
+            result = (HashMap<K,V>)super.clone();
         } catch (CloneNotSupportedException e) {
             // this shouldn't happen, since we are Cloneable
             throw new InternalError(e);
@@ -1302,7 +1481,7 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
     final int capacity() {
         return (table != null) ? table.length :
                 (threshold > 0) ? threshold :
-                        DEFAULT_INITIAL_CAPACITY;
+                DEFAULT_INITIAL_CAPACITY;
     }
 
     /**
@@ -1318,7 +1497,7 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      *             emitted in no particular order.
      */
     private void writeObject(java.io.ObjectOutputStream s)
-            throws IOException {
+        throws IOException {
         int buckets = capacity();
         // Write out the threshold, loadfactor, and any hidden stuff
         s.defaultWriteObject();
@@ -1335,7 +1514,7 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      * @throws IOException if an I/O error occurs
      */
     private void readObject(java.io.ObjectInputStream s)
-            throws IOException, ClassNotFoundException {
+        throws IOException, ClassNotFoundException {
         // Read in the threshold (ignored), loadfactor, and any hidden stuff
         s.defaultReadObject();
         reinitialize();
@@ -1386,20 +1565,17 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
         int next;        // next entry to return
         int current;     // current entry
         int expectedModCount;  // for fast-fail
+        int count;
 
         HashIterator() {
             expectedModCount = modCount;
-            YNode<K,V>[] t = table;
             current = -1;
-            next = 0;
-            if (t != null && size > 0) { // advance to first entry
-                for (; next < t.length && !t[next].isValue(); next++) {
-                }
-            }
+            next = (size > 0 && table != null) ? findNext(0) : -1;
+            count = 0;
         }
 
         public final boolean hasNext() {
-            return table != null && next < table.length;
+            return next >= 0;
         }
 
         final Entry<K,V> nextNode() {
@@ -1408,13 +1584,10 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
             if (!hasNext())
                 throw new NoSuchElementException();
             current = next;
-            assert current >= 0 && current < table.length;
+            assert current >= 0;
 
-            YNode<K,V>[] t = table;
-            for (++next; next < t.length && !t[next].isValue(); next++) {
-
-            }
-
+            next = (current + REHASH_HASH) & (table.length - 1);
+            next = (next == 0) ? -1 : findNext(next);
             return new YNodeWrapper(current);
         }
 
@@ -1425,8 +1598,29 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
                 throw new ConcurrentModificationException();
             YNode<K, V> p = table[current];
             removeNode(p.hash, p.key, null, false, false);
+            if (table[current].isValue()) {
+                // a node was moved into current
+                next = current;
+            }
             current = -1;
             expectedModCount = modCount;
+        }
+
+        /**
+         * Find the next value entry in the rehash sequence.
+         */
+        private final int findNext(int index) {
+            final YNode<K,V>[] t = table;
+            final int lowbitmask = table.length - 1;
+            index = index & lowbitmask;
+            int count = 0;
+            while (!t[index].isValue()) {
+                count ++;
+                index = (index + REHASH_HASH) & lowbitmask;
+		if (index == 0)
+		    return -1;
+            }
+            return index;
         }
     }
 
@@ -1477,71 +1671,132 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
      *  - FindNode will find it from the key.
      *  - the probes value is correct.
      */
-    boolean isTableOk() {
-        boolean ok = true;
+    boolean isTableOk(final YNode<K,V>[] tab, String msg) {
         int n;
-        final YNode<K,V>[] tab;
-        if ((tab = table) == null || (n = tab.length) == 0)
-            return ok;
-        for (YNode<K,V> te : tab) {
+        if (!VERIFYTABLEOK || tab == null || (n = tab.length) == 0)
+            return true;
+        boolean ok = true;
+        int valueEntries = 0;
+        for (int index = 0; index < tab.length; index++) {
+            final YNode<K,V> te = tab[index];
             if (te.isValue()) {
+                valueEntries++;
+                if (te.key == this || te.value == this)
+                    continue;   // skip self referential entries
                 int hash = hash(te.key);
-                int origIndex = (n - 1) & hash;
-                int index = getNode(hash, te.key);
-                if (index < 0) {
+                int th = hash(te.key);
+                if (th != te.hash) {
                     ok = false;
-                    System.out.printf("ERROR: getNode at index: %d did not find " +
-                                    "the entry: %s%n", origIndex, te);
-                } else {
-                    int th;
-                    if ((th = hash(te.key)) != te.hash) {
-                        ok = false;
-                        System.out.printf("ERROR: computed hash not equal stored hash: " +
-                                "expected: %8x, actual: %8x, te: %s%n", te.hash, th, te);
-                    }
-                    final int rehash_hash = getRehash(hash);
+                    debug2("ERROR: computed hash not equal stored hash: th: " + th, index, te);
+                }
+
+                int findex = getNode(hash, te.key);
+                if (findex < index) {
+                    ok = false;
+                    debug2("ERROR: getNode entry not found/found at wrong index: " + findex,
+                            index , te);
+                }
+                if (findex >= 0) {
                     int h = hash;
-                    for (int probes = 1; probes < tab.length; probes++, h += rehash_hash) {
+                    for (int probes = 1; probes <= tab.length; probes++, h += REHASH_HASH) {
                         int i = (n - 1) & h;
-                        if (i == index) {
+                        if (i == findex) {
                             if (probes != te.probes) {
                                 ok = false;
-                                System.out.printf("ERROR: computed probes %d not equal recorded probes: " +
-                                                "%d for entry: %s%n",
-                                        probes, te.probes, te);
+                                debug2("ERROR: computed probes not equal recorded " +
+                                        "probes: " + probes, findex, te);
                             }
                             break;
                         }
-                        if (probes == 50) {
-                            System.out.printf("probes > 50: te: %s%n");
+                        if (probes == 500) {
+                            debug2("probes > 500: " + probes, findex, te);
                         }
                     }
-
                 }
+                // Check for duplicate entry
+                for (int j = index + 1; j < tab.length; j++) {
+                    if (te.hash == tab[j].hash &&
+                            te.key.equals(tab[j].key)) {
+                        debug2("ERROR: YNode at index ", index, te);
+                        debug2("ERROR: duplicate YNode", j, tab[j]);
+                    }
+                }
+            }
+        }
+        if (valueEntries != size()) {
+            debug2("ERROR: size wrong: " + valueEntries, size(), new YNode<K,V>());
+            ok = false;
+        }
+        if (!ok) {
+            if (System.out != null) {
+                Thread.dumpStack();
+                dumpTable(table, msg);
             }
         }
         return ok;
     }
 
+    /**
+     * Print stats of the table to the a stream.
+     * @param out a stream
+     */
     public void dumpStats(PrintStream out) {
         out.printf("%s instance: size: %d%n", this.getClass().getName(), this.size());
         long size = heapSize();
-        long bytesPer = size / this.size();
+        long bytesPer = (this.size != 0) ? size / this.size() : 0;
         out.printf("    heap size: %d(bytes), avg bytes per entry: %d, table len: %d%n",
-                size, bytesPer, table.length);
+                size, bytesPer, (table != null) ? table.length : 0);
         long[] types = entryTypes();
         out.printf("    values: %d, empty: %d%n",
                 types[0], types[1]);
-        int[] rehashes = entryRehashes();
-        out.printf("    hash collision histogram: max: %d, %s%n",
-                rehashes.length - 1, Arrays.toString(rehashes));
-        if (!isTableOk()) {
-            dumpTable(table, "Table:");
+        printStats(out, "hash collisions", entryRehashes());
+        printStats(out, "getProbes      ", minCounts(getProbes));
+        printStats(out, "putProbes      ", minCounts(putProbes));
+        printStats(out, "notFoundProbes ", minCounts(notFoundProbes));
+
+        isTableOk(table, "dumpStats");
+    }
+
+    private void printStats(PrintStream out, String label, int[] hist) {
+        if (hist.length > 1) {
+            out.printf("    %s: max: %d, mean: %3.2f, stddev: %3.2f, %s%n",
+                    label, hist.length - 1,
+                    computeMean(hist), computeStdDev(hist),
+                    Arrays.toString(hist));
+        } else if (hist.length > 0) {
+            out.printf("    %s: max: %d, %s%n",
+                    label, hist.length - 1,
+                    Arrays.toString(hist));
+        } else {
+            out.printf("    %s: n/a%n", label);
         }
+    }
+
+    private double computeStdDev(int[] hist) {
+        double mean = computeMean(hist);
+        double sum = 0.0f;
+        long count = 0L;
+        for (int i = 1; i < hist.length; i++) {
+            count += hist[i];
+            sum += (i - mean) * (i - mean) * hist[i];
+        }
+        return Math.sqrt(sum / (count - 1));
+    }
+
+    private double computeMean(int[] hist) {
+        long sum = 0L;
+        long count = 0;
+        for (int i = 1; i < hist.length; i++) {
+            count += hist[i];
+            sum += i * hist[i];
+        }
+        return (double)sum / (double)count;
     }
 
     private long[] entryTypes() {
         long[] counts = new long[2];
+        if (table == null)
+            return counts;
         for (YNode<K,V> te : table) {
             if (te.isEmpty())
                 counts[1]++;
@@ -1551,25 +1806,36 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
         return counts;
     }
 
+    private int[] incProbeCount(int[] counters, int probes) {
+        if (counters == null)
+            counters = new int[Math.max(probes + 1, 16)];
+        else if (probes >= counters.length)
+            counters = Arrays.copyOf(counters, Math.max(probes + 1, counters.length * 2));
+        counters[probes]++;
+        return counters;
+    }
+
+
     // Returns a histogram array of the number of rehashs needed to find each key.
     private int[] entryRehashes() {
+        if (table == null)
+            return new int[0];
         int[] counts = new int[table.length + 1];
         YNode<K,V>[] tab = table;
         int n = tab.length;
-        K key;
         for (YNode<K,V> te : tab) {
 
             if (!te.isValue())
                 continue;
-            final int rehash_hash = getRehash(te.hash);   // arbitrary but at least odd
             int h = te.hash;
             int count;
-            for (count = 0; count < tab.length; count++, h += rehash_hash) {
+            final K key = te.key;
+            K k;
+            for (count = 1; count < tab.length; count++, h += REHASH_HASH) {
                 final YNode<K, V> entry;
-                final int index;
-                if ((entry = tab[(index = ((n - 1) & h))]).isValue() &&
+                if ((entry = tab[(n - 1) & h]).isValue() &&
                         entry.hash == te.hash &&
-                        ((key = entry.key) == key || (key != null && key.equals(key)))) {
+                        ((k = entry.key) == key || (k != null && k.equals(key)))) {
                     break;
                 }
             }
@@ -1577,6 +1843,14 @@ public class YHashMap<K,V> extends XAbstractMap<K,V>
             counts[count]++;
         }
 
+        int i;
+        for (i = counts.length - 1; i >= 0 && counts[i] == 0; i--) {
+        }
+        counts = Arrays.copyOf(counts, i + 1);
+        return counts;
+    }
+
+    private int[] minCounts(int[] counts) {
         int i;
         for (i = counts.length - 1; i >= 0 && counts[i] == 0; i--) {
         }

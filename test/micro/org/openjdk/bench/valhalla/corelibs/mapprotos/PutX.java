@@ -23,34 +23,18 @@
 package org.openjdk.bench.valhalla.corelibs.mapprotos;
 
 import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.CompilerControl;
-import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Param;
-import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Supplier;
 import java.util.function.IntFunction;
-import java.util.concurrent.TimeUnit;
 
 
-@BenchmarkMode(Mode.AverageTime)
-@OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Fork(1)
-@State(Scope.Thread)
 public class PutX extends MapBase {
     IntFunction<Map<Integer, Integer>> mapSupplier;
-
-    @Param(value = {"org.openjdk.bench.valhalla.corelibs.mapprotos.YHashMap",
-            "org.openjdk.bench.valhalla.corelibs.mapprotos.XHashMap",
-            "java.util.HashMap"})
-        private String mapType;
+    Map<Integer,Integer> lastMap;
 
     @Setup
     public void setup() {
@@ -72,6 +56,11 @@ public class PutX extends MapBase {
         }
     }
 
+    @TearDown
+    public void teardown() {
+        super.TearDown(lastMap);
+    }
+
     @Benchmark
     public Map<Integer, Integer> put() {
         Integer[] keys = this.keys;
@@ -79,6 +68,7 @@ public class PutX extends MapBase {
         for (Integer k : keys) {
             map.put(k, k);
         }
+        lastMap = map;
         return map;
     }
 
@@ -89,6 +79,7 @@ public class PutX extends MapBase {
         for (Integer k : keys) {
             map.put(k, k);
         }
+        lastMap = map;
         return map;
     }
 

@@ -63,9 +63,11 @@ public class HashMapBench {
     @Param("1000000")
     private int size;
 
-    @Param(value = {"org.openjdk.bench.valhalla.corelibs.mapprotos.YHashMap",
-            "org.openjdk.bench.valhalla.corelibs.mapprotos.XHashMap",
-            "java.util.HashMap"})
+    @Param(value = {
+            "org.openjdk.bench.valhalla.corelibs.mapprotos.HashMap",
+//            "org.openjdk.bench.valhalla.corelibs.mapprotos.XHashMap",
+            "java.util.HashMap",
+        })
     private String mapType;
 
     @Setup

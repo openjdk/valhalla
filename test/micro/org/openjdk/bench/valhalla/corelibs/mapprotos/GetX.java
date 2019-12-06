@@ -23,14 +23,8 @@
 package org.openjdk.bench.valhalla.corelibs.mapprotos;
 
 import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Param;
-import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
+import org.openjdk.jmh.annotations.TearDown;
 
 import org.openjdk.jmh.infra.Blackhole;
 
@@ -39,32 +33,25 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.IntFunction;
-import java.util.concurrent.TimeUnit;
 
-@State(Scope.Thread)
 public class GetX extends MapBase {
 
     IntFunction<Map<Integer, Integer>> mapSupplier;
     Map<Integer, Integer> map;
     Integer[] mixed;
 
-    @Param(value = {"org.openjdk.bench.valhalla.corelibs.mapprotos.YHashMap",
-            "org.openjdk.bench.valhalla.corelibs.mapprotos.XHashMap",
-            "java.util.HashMap"})
-    private String mapType;
-
     @Setup
     public void setup() {
         super.init(size);
         try {
             Class<?> mapClass = Class.forName(mapType);
-            mapSupplier =  (size) -> newInstance(mapClass, size);
+            mapSupplier =  (s) -> newInstance(mapClass, s);
         } catch (Exception ex) {
             System.out.printf("%s: %s%n", mapType, ex.getMessage());
             return;
         }
 
-        map = mapSupplier.apply(0);
+        map = mapSupplier.apply(size);
         for (Integer k : keys) {
             map.put(k, k);
         }
@@ -73,6 +60,11 @@ public class GetX extends MapBase {
         System.arraycopy(keys, 0, mixed, 0, size / 2);
         System.arraycopy(nonKeys, 0, mixed, size / 2, size / 2);
         Collections.shuffle(Arrays.asList(mixed), rnd);
+    }
+
+    @TearDown
+    public void teardown() {
+        super.TearDown(map);
     }
 
     Map<Integer, Integer> newInstance(Class<?> mapClass, int size) {

@@ -23,38 +23,18 @@
 package org.openjdk.bench.valhalla.corelibs.mapprotos;
 
 import org.openjdk.jmh.annotations.Benchmark;
-import org.openjdk.jmh.annotations.BenchmarkMode;
-import org.openjdk.jmh.annotations.CompilerControl;
-import org.openjdk.jmh.annotations.Fork;
-import org.openjdk.jmh.annotations.Mode;
-import org.openjdk.jmh.annotations.OutputTimeUnit;
-import org.openjdk.jmh.annotations.Param;
-import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.State;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Supplier;
 import java.util.function.IntFunction;
-import java.util.concurrent.TimeUnit;
 
-
-@BenchmarkMode(Mode.AverageTime)
-@OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Fork(1)
-@State(Scope.Thread)
 public class ReplX extends MapBase {
     IntFunction<Map<Integer, Integer>> mapSupplier;
     Integer[] mixed;
     Map<Integer, Integer> map;
-
-    @Param(value = {"org.openjdk.bench.valhalla.corelibs.mapprotos.YHashMap",
-            "org.openjdk.bench.valhalla.corelibs.mapprotos.XHashMap",
-            "java.util.HashMap"})
-    private String mapType;
 
     @Setup
     public void setup() {

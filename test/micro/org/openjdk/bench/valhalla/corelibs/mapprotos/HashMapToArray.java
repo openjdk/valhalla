@@ -48,8 +48,6 @@ import java.util.concurrent.TimeUnit;
 
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.NANOSECONDS)
-@Warmup(iterations = 3, time = 500, timeUnit = TimeUnit.MILLISECONDS)
-@Measurement(iterations = 5, time = 500, timeUnit = TimeUnit.MILLISECONDS)
 @Fork(1)
 @State(Scope.Thread)
 public class HashMapToArray {
@@ -58,9 +56,11 @@ public class HashMapToArray {
     Map<Integer, Integer> map;
 
 
-    @Param(value = {"org.openjdk.bench.valhalla.corelibs.mapprotos.YHashMap",
-            "org.openjdk.bench.valhalla.corelibs.mapprotos.XHashMap",
-            "java.util.HashMap"})
+    @Param(value = {
+            "org.openjdk.bench.valhalla.corelibs.mapprotos.HashMap",
+//            "org.openjdk.bench.valhalla.corelibs.mapprotos.XHashMap",
+            "java.util.HashMap",
+        })
     private String mapType;
 
     @Param({"1", "10", "1000", "100000"})

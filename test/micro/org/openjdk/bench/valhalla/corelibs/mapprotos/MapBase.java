@@ -32,25 +32,40 @@ import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 
 @Fork(1)
-@Warmup(iterations = 3, time = 1)
-@Measurement(iterations = 5, time = 1)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @BenchmarkMode(Mode.AverageTime)
 @State(Scope.Thread)
 public class MapBase {
 
-    @Param({"500", "1000000"})
+    @Param({
+            "11",
+            "767",
+            "1572863",
+    })
     public int size;
 
-    @Param({"42"})
+    @Param({
+//            "0",
+            "42",
+    })
     public int seed;
+
+    @Param(value = {
+            "java.util.HashMap",
+            "org.openjdk.bench.valhalla.corelibs.mapprotos.HashMap",
+//            "org.openjdk.bench.valhalla.corelibs.mapprotos.XHashMap",
+//            "java.util.HashMap0",
+    })
+    public String mapType;
 
     public Random rnd;
     public Integer[] keys;
@@ -69,6 +84,14 @@ public class MapBase {
         }
         keys = Arrays.copyOfRange(all, 0, size);
         nonKeys = Arrays.copyOfRange(all, size, size * 2);
+    }
 
+    void TearDown(Map<Integer, Integer> map) {
+        try {
+            Method m = map.getClass().getMethod("dumpStats", java.io.PrintStream.class);
+            m.invoke(map, System.out);
+        } catch (Throwable nsme) {
+            System.out.println("Stats not available:");
+        }
     }
 }
