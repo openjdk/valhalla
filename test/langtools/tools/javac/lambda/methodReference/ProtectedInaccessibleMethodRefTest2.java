@@ -23,8 +23,8 @@
 
 /*
  * @test
- * @bug 8227415
- * @summary javac needs to desugar a wrapper method for a method reference to a protected method declared in super class
+ * @bug 8234729
+ * @summary Javac should eagerly change code generation for method references to avert IllegalAccessError in future.
  * @run main ProtectedInaccessibleMethodRefTest2
  */
 
@@ -34,7 +34,7 @@ import pack.J;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.function.Function;
-
+import java.lang.reflect.Method;
 import java.util.concurrent.Callable;
 
 public final class ProtectedInaccessibleMethodRefTest2 extends I {
@@ -42,6 +42,17 @@ public final class ProtectedInaccessibleMethodRefTest2 extends I {
     public static void main(String... args) {
         ProtectedInaccessibleMethodRefTest2 m = new ProtectedInaccessibleMethodRefTest2();
         m.test(Paths.get("test"));
+        // Verify that the method reference has been folded into a lambda.
+        boolean lambdaFound = false;
+        for (Method meth : ProtectedInaccessibleMethodRefTest2.class.getDeclaredMethods()) {
+            if (meth.getName().equals("lambda$test$0")) {
+                lambdaFound = true;
+                break;
+            }
+        }
+        if (!lambdaFound) {
+            throw new AssertionError("Did not find evidence of new code generation");
+        }
     }
 
     void test(Path outputDir) {

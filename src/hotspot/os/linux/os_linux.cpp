@@ -53,7 +53,6 @@
 #include "runtime/javaCalls.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/objectMonitor.hpp"
-#include "runtime/orderAccess.hpp"
 #include "runtime/osThread.hpp"
 #include "runtime/perfMemory.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -2120,6 +2119,8 @@ void os::print_os_info(outputStream* st) {
 
   os::Posix::print_uname_info(st);
 
+  os::Linux::print_uptime_info(st);
+
   // Print warning if unsafe chroot environment detected
   if (unsafe_chroot_detected) {
     st->print("WARNING!! ");
@@ -2304,6 +2305,15 @@ void os::Linux::print_ld_preload_file(outputStream* st) {
   _print_ascii_file("/etc/ld.so.preload", st, "\n/etc/ld.so.preload:");
   st->cr();
 }
+
+void os::Linux::print_uptime_info(outputStream* st) {
+  struct sysinfo sinfo;
+  int ret = sysinfo(&sinfo);
+  if (ret == 0) {
+    os::print_dhm(st, "OS uptime:", (long) sinfo.uptime);
+  }
+}
+
 
 void os::Linux::print_container_info(outputStream* st) {
   if (!OSContainer::is_containerized()) {
@@ -2752,7 +2762,7 @@ static int check_pending_signals() {
   for (;;) {
     for (int i = 0; i < NSIG + 1; i++) {
       jint n = pending_signals[i];
-      if (n > 0 && n == Atomic::cmpxchg(n - 1, &pending_signals[i], n)) {
+      if (n > 0 && n == Atomic::cmpxchg(&pending_signals[i], n, n - 1)) {
         return i;
       }
     }
@@ -2813,7 +2823,7 @@ void linux_wrap_code(char* base, size_t size) {
   }
 
   char buf[PATH_MAX+1];
-  int num = Atomic::add(1, &cnt);
+  int num = Atomic::add(&cnt, 1);
 
   snprintf(buf, sizeof(buf), "%s/hs-vm-%d-%d",
            os::get_temp_directory(), os::current_process_id(), num);

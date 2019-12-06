@@ -532,7 +532,7 @@ void ParallelCompactData::add_obj(HeapWord* addr, size_t len)
   const size_t end_region = (obj_ofs + len - 1) >> Log2RegionSize;
 
   DEBUG_ONLY(Atomic::inc(&add_obj_count);)
-  DEBUG_ONLY(Atomic::add(len, &add_obj_size);)
+  DEBUG_ONLY(Atomic::add(&add_obj_size, len);)
 
   if (beg_region == end_region) {
     // All in one region.
@@ -961,7 +961,7 @@ PSParallelCompact::clear_data_covering_space(SpaceId id)
   HeapWord* const max_top = MAX2(top, _space_info[id].new_top());
 
   const idx_t beg_bit = _mark_bitmap.addr_to_bit(bot);
-  const idx_t end_bit = BitMap::word_align_up(_mark_bitmap.addr_to_bit(top));
+  const idx_t end_bit = _mark_bitmap.align_range_end(_mark_bitmap.addr_to_bit(top));
   _mark_bitmap.clear_range(beg_bit, end_bit);
 
   const size_t beg_region = _summary_data.addr_to_region_idx(bot);
@@ -2449,7 +2449,7 @@ public:
   }
 
   bool try_claim(PSParallelCompact::UpdateDensePrefixTask& reference) {
-    uint claimed = Atomic::add(1u, &_counter) - 1; // -1 is so that we start with zero
+    uint claimed = Atomic::add(&_counter, 1u) - 1; // -1 is so that we start with zero
     if (claimed < _insert_index) {
       reference = _backing_array[claimed];
       return true;
@@ -2849,7 +2849,7 @@ PSParallelCompact::skip_live_words(HeapWord* beg, HeapWord* end, size_t count)
   ParMarkBitMap* m = mark_bitmap();
   idx_t bits_to_skip = m->words_to_bits(count);
   idx_t cur_beg = m->addr_to_bit(beg);
-  const idx_t search_end = BitMap::word_align_up(m->addr_to_bit(end));
+  const idx_t search_end = m->align_range_end(m->addr_to_bit(end));
 
   do {
     cur_beg = m->find_obj_beg(cur_beg, search_end);

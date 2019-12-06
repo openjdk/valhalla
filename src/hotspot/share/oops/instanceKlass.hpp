@@ -41,6 +41,7 @@
 #include "jfr/support/jfrKlassExtension.hpp"
 #endif
 
+class RecordComponent;
 
 // An InstanceKlass is the VM level representation of a Java class.
 // It contains all information needed for at class at execution runtime.
@@ -181,6 +182,9 @@ class InstanceKlass: public Klass {
   // Resolved nest-host klass: either true nest-host or self if we are not nested.
   // By always being set it makes nest-member access checks simpler.
   InstanceKlass* _nest_host;
+
+  // The contents of the Record attribute.
+  Array<RecordComponent*>* _record_components;
 
   // the source debug extension for this klass, NULL if not specified.
   // Specified as UTF-8 string without terminating zero byte in the classfile,
@@ -450,9 +454,17 @@ class InstanceKlass: public Klass {
   // dynamic nest member support
   void set_nest_host(InstanceKlass* host, TRAPS);
 
+  // record components
+  Array<RecordComponent*>* record_components() const { return _record_components; }
+  void set_record_components(Array<RecordComponent*>* record_components) {
+    _record_components = record_components;
+  }
+  bool is_record() const { return _record_components != NULL; }
+
 private:
   // Called to verify that k is a member of this nest - does not look at k's nest-host
   bool has_nest_member(InstanceKlass* k, TRAPS) const;
+
 public:
   // Returns nest-host class, resolving and validating it if needed
   // Returns NULL if an exception occurs during loading, or validation fails
@@ -1157,6 +1169,8 @@ public:
                                     const Klass* super_klass,
                                     Array<InstanceKlass*>* local_interfaces,
                                     Array<InstanceKlass*>* transitive_interfaces);
+  void static deallocate_record_components(ClassLoaderData* loader_data,
+                                           Array<RecordComponent*>* record_component);
 
   // The constant pool is on stack if any of the methods are executing or
   // referenced by handles.

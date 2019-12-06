@@ -528,6 +528,7 @@ static SpecialFlag const special_jvm_flags[] = {
   { "CompactFields",                JDK_Version::jdk(14), JDK_Version::jdk(15), JDK_Version::jdk(16) },
   { "MonitorBound",                 JDK_Version::jdk(14), JDK_Version::jdk(15), JDK_Version::jdk(16) },
   { "G1RSetScanBlockSize",          JDK_Version::jdk(14), JDK_Version::jdk(15), JDK_Version::jdk(16) },
+  { "UseParallelOldGC",             JDK_Version::jdk(14), JDK_Version::jdk(15), JDK_Version::jdk(16) },
 
   // --- Deprecated alias flags (see also aliased_jvm_flags) - sorted by obsolete_in then expired_in:
   { "DefaultMaxRAMFraction",        JDK_Version::jdk(8),  JDK_Version::undefined(), JDK_Version::undefined() },
@@ -622,6 +623,7 @@ static SpecialFlag const special_jvm_flags[] = {
   { "GCLockerInvokesConcurrent",     JDK_Version::undefined(), JDK_Version::jdk(14), JDK_Version::jdk(15) },
   { "BindGCTaskThreadsToCPUs",       JDK_Version::undefined(), JDK_Version::jdk(14), JDK_Version::jdk(16) },
   { "UseGCTaskAffinity",             JDK_Version::undefined(), JDK_Version::jdk(14), JDK_Version::jdk(16) },
+  { "GCTaskTimeStampEntries",        JDK_Version::undefined(), JDK_Version::jdk(14), JDK_Version::jdk(16) },
 
 #ifdef TEST_VERIFY_SPECIAL_JVM_FLAGS
   // These entries will generate build errors.  Their purpose is to test the macros.
@@ -1643,6 +1645,7 @@ static void no_shared_spaces(const char* message) {
       "Class data sharing is inconsistent with other specified options.\n");
     vm_exit_during_initialization("Unable to use shared archive", message);
   } else {
+    log_info(cds)("Unable to use shared archive: %s", message);
     FLAG_SET_DEFAULT(UseSharedSpaces, false);
   }
 }
@@ -1690,11 +1693,9 @@ void Arguments::set_use_compressed_oops() {
   size_t max_heap_size = MAX3(MaxHeapSize, InitialHeapSize, MinHeapSize);
 
   if (max_heap_size <= max_heap_for_compressed_oops()) {
-#if !defined(COMPILER1) || defined(TIERED)
     if (FLAG_IS_DEFAULT(UseCompressedOops)) {
       FLAG_SET_ERGO(UseCompressedOops, true);
     }
-#endif
   } else {
     if (UseCompressedOops && !FLAG_IS_DEFAULT(UseCompressedOops)) {
       warning("Max heap size too large for Compressed Oops");

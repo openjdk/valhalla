@@ -38,7 +38,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.ModuleElement;
 import javax.lang.model.element.PackageElement;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.util.SimpleElementVisitor9;
+import javax.lang.model.util.SimpleElementVisitor14;
 
 import com.sun.source.doctree.DocTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.Entity;
@@ -92,7 +92,7 @@ public class AbstractIndexWriter extends HtmlDocletWriter {
                                   IndexBuilder indexbuilder) {
         super(configuration, path);
         this.indexbuilder = indexbuilder;
-        this.navBar = new Navigation(null, configuration, fixedNavDiv, PageMode.INDEX, path);
+        this.navBar = new Navigation(null, configuration, PageMode.INDEX, path);
     }
 
     /**
@@ -178,9 +178,10 @@ public class AbstractIndexWriter extends HtmlDocletWriter {
         contentTree.add(heading);
     }
 
+    @SuppressWarnings("preview")
     protected void addDescription(Content dl, Element element) {
         SearchIndexItem si = new SearchIndexItem();
-        new SimpleElementVisitor9<Void, Void>() {
+        new SimpleElementVisitor14<Void, Void>() {
 
             @Override
             public Void visitModule(ModuleElement e, Void p) {
@@ -419,7 +420,7 @@ public class AbstractIndexWriter extends HtmlDocletWriter {
      * @return a content tree for the marker anchor
      */
     public Content getMarkerAnchorForIndex(String anchorNameForIndex) {
-        return links.createAnchor(getNameForIndex(anchorNameForIndex), null);
+        return links.createAnchor(getNameForIndex(anchorNameForIndex));
     }
 
     /**
