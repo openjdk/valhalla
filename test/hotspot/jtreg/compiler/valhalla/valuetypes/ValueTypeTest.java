@@ -140,7 +140,7 @@ public abstract class ValueTypeTest {
     private static final boolean DUMP_REPLAY = Boolean.parseBoolean(System.getProperty("DumpReplay", "false"));
     protected static final boolean FLIP_C1_C2 = Boolean.parseBoolean(System.getProperty("FlipC1C2", "false"));
     protected static final boolean GCAfter = Boolean.parseBoolean(System.getProperty("GCAfter", "false"));
-    private static final int OSRTestTimeOut = Integer.parseInt(System.getProperty("OSRTestTimeOut", "-1"));
+    private static final int OSRTestTimeOut = Integer.parseInt(System.getProperty("OSRTestTimeOut", "5000"));
 
     // "jtreg -DXcomp=true" runs all the scenarios with -Xcomp. This is faster than "jtreg -javaoptions:-Xcomp".
     protected static final boolean RUN_SCENARIOS_WITH_XCOMP = Boolean.parseBoolean(System.getProperty("Xcomp", "false"));
@@ -610,17 +610,24 @@ public abstract class ValueTypeTest {
                 WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_ANY, true);
                 WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_ANY, false);
                 WHITE_BOX.testSetDontInlineMethod(m, true);
-            } else if (m.isAnnotationPresent(ForceCompile.class)) {
-                int compLevel = getCompLevel(m.getAnnotation(ForceCompile.class));
-                enqueueMethodForCompilation(m, compLevel);
             }
             if (m.isAnnotationPresent(ForceInline.class)) {
+                Asserts.assertFalse(m.isAnnotationPresent(DontInline.class), "Method " + m.getName() + " has contradicting DontInline annotation");
                 WHITE_BOX.testSetForceInlineMethod(m, true);
-            } else if (m.isAnnotationPresent(DontInline.class)) {
+            }
+            if (m.isAnnotationPresent(DontInline.class)) {
+                Asserts.assertFalse(m.isAnnotationPresent(ForceInline.class), "Method " + m.getName() + " has contradicting ForceInline annotation");
                 WHITE_BOX.testSetDontInlineMethod(m, true);
             }
         }
-
+        // Only force compilation now because above annotations affect inlining
+        for (Method m : methods) {
+            if (m.isAnnotationPresent(ForceCompile.class)) {
+                Asserts.assertFalse(m.isAnnotationPresent(DontCompile.class), "Method " + m.getName() + " has contradicting DontCompile annotation");
+                int compLevel = getCompLevel(m.getAnnotation(ForceCompile.class));
+                enqueueMethodForCompilation(m, compLevel);
+            }
+        }
         // Compile class initializers
         int compLevel = getCompLevel(null);
         WHITE_BOX.enqueueInitializerForCompilation(clazz, compLevel);
@@ -665,7 +672,7 @@ public abstract class ValueTypeTest {
             if (osrOnly) {
                 long started = System.currentTimeMillis();
                 boolean stateCleared = false;
-                for (;;)  {
+                for (;;) {
                     long elapsed = System.currentTimeMillis() - started;
                     if (maybeCodeBufferOverflow && elapsed > 5000 && !WHITE_BOX.isMethodCompiled(test, false)) {
                         System.out.println("Temporarily disabling VerifyOops");
@@ -692,9 +699,7 @@ public abstract class ValueTypeTest {
                         // Don't control compilation if -Xcomp is enabled, or if compiler is disabled
                         break;
                     }
-                    if (OSRTestTimeOut > 0 && elapsed > OSRTestTimeOut) {
-                        break;
-                    }
+                    Asserts.assertTrue(OSRTestTimeOut < 0 || elapsed < OSRTestTimeOut, test + " not compiled after " + OSRTestTimeOut + " ms");
                 }
                 if (!XCOMP) {
                     Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");

@@ -2270,8 +2270,6 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         }
     }
 
-    /*** FIXME: disabled due to occassional timeout in mach5 testing. See JDK-8230408
-
     // C2->C1 invokeinterface -- C2 calls call Unverified Entry of MyImplVal2X.func1 (compiled by
     //                           C1, with VVEP_RO==VVEP)
     // This test is developed to validate JDK-8230325.
@@ -2288,7 +2286,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         for (int i=0; i<1000; i++) {
             test107(intf1, 123, 456);
         }
-        for (int i=0; i<500000; i++) {
+        for (int i=0; i<500_000; i++) {
             // Run enough loops so that test107 will be compiled by C2.
             if (i % 30 == 0) {
                 // This will indirectly call MyImplVal2X.func1, but the call frequency is low, so
@@ -2317,7 +2315,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         for (int i=0; i<1000; i++) {
             test108(intf1, 123, 456);
         }
-        for (int i=0; i<500000; i++) {
+        for (int i=0; i<500_000; i++) {
             // Run enough loops so that test108 will be compiled by C2.
             if (i % 30 == 0) {
                 // This will indirectly call MyImplVal2X.func2, but the call frequency is low, so
@@ -2332,7 +2330,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         }
     }
 
-    // Same as test115, except we call MyImplPojo3.func2 (compiled by C1, VVEP_RO == VEP)
+    // Same as test107, except we call MyImplPojo3.func2 (compiled by C1, VVEP_RO == VEP)
     @Test() @Warmup(0) @OSRCompileOnly
     public int test109(Intf intf, int a, int b) {
         return intf.func2(a, b, pointField);
@@ -2346,7 +2344,7 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         for (int i=0; i<1000; i++) {
             test109(intf1, 123, 456);
         }
-        for (int i=0; i<500000; i++) {
+        for (int i=0; i<500_000; i++) {
             // Run enough loops so that test109 will be compiled by C2.
             if (i % 30 == 0) {
                 // This will indirectly call MyImplPojo3.func2, but the call frequency is low, so
@@ -2360,5 +2358,4 @@ public class TestCallingConventionC1 extends ValueTypeTest {
             }
         }
     }
-    ---*/
 }
