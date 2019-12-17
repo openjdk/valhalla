@@ -2307,8 +2307,7 @@ const size_t minimumSymbolTableSize = 1024;
                                                                             \
   /* Shared spaces */                                                       \
                                                                             \
-  /* Disabled UseSharedSpaces for Valhalla, just for now */                 \
-  product(bool, UseSharedSpaces, false,                                     \
+  product(bool, UseSharedSpaces, true,                                      \
           "Use shared spaces for metadata")                                 \
                                                                             \
   product(bool, VerifySharedSpaces, false,                                  \

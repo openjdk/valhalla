@@ -261,12 +261,26 @@ public:
     }
 
     virtual void push_special(SpecialRef type, Ref* ref, intptr_t* p) {
-      assert(type == _method_entry_ref, "only special type allowed for now");
+      // TODO:CDS - JDK-8234693 will consolidate this with an almost identical method in metaspaceShared.cpp
+      assert_valid(type);
       address obj = ref->obj();
       address new_obj = _builder->get_new_loc(ref);
       size_t offset = pointer_delta(p, obj,  sizeof(u1));
       intptr_t* new_p = (intptr_t*)(new_obj + offset);
-      assert(*p == *new_p, "must be a copy");
+      switch (type) {
+      case _method_entry_ref:
+        assert(*p == *new_p, "must be a copy");
+        break;
+      case _internal_pointer_ref:
+        {
+          size_t off = pointer_delta(*((address*)p), obj, sizeof(u1));
+          assert(0 <= intx(off) && intx(off) < ref->size() * BytesPerWord, "must point to internal address");
+          *((address*)new_p) = new_obj + off;
+        }
+        break;
+      default:
+        ShouldNotReachHere();
+      }
       ArchivePtrMarker::mark_pointer((address*)new_p);
     }
   };
@@ -785,7 +799,7 @@ void DynamicArchiveBuilder::release_header() {
 size_t DynamicArchiveBuilder::estimate_trampoline_size() {
   size_t total = 0;
   size_t each_method_bytes =
-    align_up(SharedRuntime::trampoline_size(), BytesPerWord) +
+    align_up(SharedRuntime::trampoline_size(), BytesPerWord) * 3 +
     align_up(sizeof(AdapterHandlerEntry*), BytesPerWord);
 
   for (int i = 0; i < _klasses->length(); i++) {
@@ -806,9 +820,20 @@ void DynamicArchiveBuilder::make_trampolines() {
     Array<Method*>* methods = ik->methods();
     for (int j = 0; j < methods->length(); j++) {
       Method* m = methods->at(j);
+
+      // TODO:CDS - JDK-8234693 will consolidate this with Method::unlink()
       address c2i_entry_trampoline =
         (address)MetaspaceShared::misc_code_space_alloc(SharedRuntime::trampoline_size());
       m->set_from_compiled_entry(to_target(c2i_entry_trampoline));
+
+      address c2i_value_ro_entry_trampoline =
+        (address)MetaspaceShared::misc_code_space_alloc(SharedRuntime::trampoline_size());
+      m->set_from_compiled_value_ro_entry(to_target(c2i_value_ro_entry_trampoline));
+
+      address c2i_value_entry_trampoline =
+        (address)MetaspaceShared::misc_code_space_alloc(SharedRuntime::trampoline_size());
+      m->set_from_compiled_value_entry(to_target(c2i_value_entry_trampoline));
+
       AdapterHandlerEntry** adapter_trampoline =
         (AdapterHandlerEntry**)MetaspaceShared::misc_code_space_alloc(sizeof(AdapterHandlerEntry*));
       *adapter_trampoline = NULL;

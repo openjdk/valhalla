@@ -30,8 +30,8 @@
  * @comment JDK-8231610 Relocate the CDS archive if it cannot be mapped to the requested address
  * @bug 8231610
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds /test/hotspot/jtreg/runtime/cds/appcds/test-classes
- * @build Hello
- * @run driver ClassFileInstaller -jar hello.jar Hello
+ * @build HelloRelocation
+ * @run driver ClassFileInstaller -jar hello.jar HelloRelocation HelloInlineClassApp HelloInlineClassApp$Point
  * @run driver DynamicArchiveRelocationTest
  */
 
@@ -78,7 +78,7 @@ public class DynamicArchiveRelocationTest extends DynamicArchiveTestBase {
         System.out.println("============================================================");
 
         String appJar = ClassFileInstaller.getJarPath("hello.jar");
-        String mainClass = "Hello";
+        String mainClass = "HelloRelocation";
         String forceRelocation = "-XX:ArchiveRelocationMode=1";
         String dumpBaseRelocArg = dump_base_reloc ? forceRelocation : "-showversion";
         String dumpTopRelocArg  = dump_top_reloc  ? forceRelocation : "-showversion";

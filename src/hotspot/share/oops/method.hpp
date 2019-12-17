@@ -149,6 +149,8 @@ class Method : public Metadata {
 
   static address make_adapters(const methodHandle& mh, TRAPS);
   address from_compiled_entry() const;
+  address from_compiled_value_ro_entry() const;
+  address from_compiled_value_entry() const;
   address from_compiled_entry_no_trampoline(bool caller_is_c1) const;
   address from_interpreted_entry() const;
 
@@ -499,7 +501,13 @@ public:
     constMethod()->update_adapter_trampoline(adapter);
   }
   void set_from_compiled_entry(address entry) {
-    _from_compiled_entry =  entry;
+    _from_compiled_entry = entry;
+  }
+  void set_from_compiled_value_ro_entry(address entry) {
+    _from_compiled_value_ro_entry = entry;
+  }
+  void set_from_compiled_value_entry(address entry) {
+    _from_compiled_value_entry = entry;
   }
 
   address get_i2c_entry();

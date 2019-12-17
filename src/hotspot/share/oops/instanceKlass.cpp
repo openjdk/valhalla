@@ -2550,6 +2550,10 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
   set_package(loader_data, CHECK);
   Klass::restore_unshareable_info(loader_data, protection_domain, CHECK);
 
+  if (is_value()) {
+    ValueKlass::cast(this)->initialize_calling_convention(CHECK);
+  }
+
   Array<Method*>* methods = this->methods();
   int num_methods = methods->length();
   for (int index = 0; index < num_methods; ++index) {
@@ -2575,7 +2579,7 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
   }
 
   // Initialize current biased locking state.
-  if (UseBiasedLocking && BiasedLocking::enabled()) {
+  if (UseBiasedLocking && BiasedLocking::enabled() && !is_value()) {
     set_prototype_header(markWord::biased_locking_prototype());
   }
 }

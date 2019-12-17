@@ -740,11 +740,15 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
 // that's used only during CDS dump time.
 // For details, see comments around Method::link_method()
 class CDSAdapterHandlerEntry: public AdapterHandlerEntry {
-  address               _c2i_entry_trampoline;   // allocated from shared spaces "MC" region
-  AdapterHandlerEntry** _adapter_trampoline;     // allocated from shared spaces "MD" region
+  address               _c2i_entry_trampoline;           // allocated from shared spaces "MC" region
+  address               _c2i_value_ro_entry_trampoline;  // allocated from shared spaces "MC" region
+  address               _c2i_value_entry_trampoline;     // allocated from shared spaces "MC" region
+  AdapterHandlerEntry** _adapter_trampoline;             // allocated from shared spaces "MD" region
 
 public:
   address get_c2i_entry_trampoline()             const { return _c2i_entry_trampoline; }
+  address get_c2i_value_ro_entry_trampoline()    const { return _c2i_value_ro_entry_trampoline; }
+  address get_c2i_value_entry_trampoline()       const { return _c2i_value_entry_trampoline; }
   AdapterHandlerEntry** get_adapter_trampoline() const { return _adapter_trampoline; }
   void init() NOT_CDS_RETURN;
 };

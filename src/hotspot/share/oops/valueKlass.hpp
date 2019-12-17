@@ -37,6 +37,9 @@ class ValueKlass: public InstanceKlass {
   friend class VMStructs;
   friend class InstanceKlass;
 
+ public:
+  ValueKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
+
  private:
 
   // Constructor
@@ -155,6 +158,10 @@ class ValueKlass: public InstanceKlass {
   }
 
   int first_field_offset_old();
+
+  virtual void remove_unshareable_info();
+  virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
+  virtual void metaspace_pointers_do(MetaspaceClosure* it);
 
  private:
   int collect_fields(GrowableArray<SigEntry>* sig, int base_off = 0);

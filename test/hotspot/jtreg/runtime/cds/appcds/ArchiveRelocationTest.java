@@ -29,8 +29,8 @@
  * @comment JDK-8231610 Relocate the CDS archive if it cannot be mapped to the requested address
  * @bug 8231610
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds/test-classes
- * @build Hello
- * @run driver ClassFileInstaller -jar hello.jar Hello
+ * @build HelloRelocation
+ * @run driver ClassFileInstaller -jar hello.jar HelloRelocation HelloInlineClassApp HelloInlineClassApp$Point
  * @run driver ArchiveRelocationTest
  */
 
@@ -62,7 +62,7 @@ public class ArchiveRelocationTest {
 
 
         String appJar = ClassFileInstaller.getJarPath("hello.jar");
-        String mainClass = "Hello";
+        String mainClass = "HelloRelocation";
         String forceRelocation = "-XX:ArchiveRelocationMode=1";
         String dumpRelocArg = dump_reloc ? forceRelocation : "-showversion";
         String runRelocArg  = run_reloc  ? forceRelocation : "-showversion";
@@ -70,7 +70,9 @@ public class ArchiveRelocationTest {
         String unlockArg = "-XX:+UnlockDiagnosticVMOptions";
 
         OutputAnalyzer out = TestCommon.dump(appJar,
-                                             TestCommon.list(mainClass),
+                                             TestCommon.list(mainClass,
+                                                             "HelloInlineClassApp",
+                                                             "HelloInlineClassApp$Point"),
                                              unlockArg, dumpRelocArg, logArg);
         if (dump_reloc) {
             out.shouldContain("ArchiveRelocationMode == 1: always allocate class space at an alternative address");

@@ -59,6 +59,8 @@
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayKlass.hpp"
+#include "oops/valueArrayKlass.hpp"
+#include "oops/valueKlass.hpp"
 #include "prims/jvmtiRedefineClasses.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/os.hpp"
@@ -641,13 +643,15 @@ void MetaspaceShared::rewrite_nofast_bytecodes_and_calculate_fingerprints(Thread
 // Currently, the archive contain ONLY the following types of objects that have C++ vtables.
 #define CPP_VTABLE_PATCH_TYPES_DO(f) \
   f(ConstantPool) \
-  f(InstanceKlass) \
   f(InstanceClassLoaderKlass) \
+  f(InstanceKlass) \
   f(InstanceMirrorKlass) \
   f(InstanceRefKlass) \
   f(Method) \
   f(ObjArrayKlass) \
-  f(TypeArrayKlass)
+  f(TypeArrayKlass) \
+  f(ValueArrayKlass) \
+  f(ValueKlass)
 
 class CppVtableInfo {
   intptr_t _vtable_size;
@@ -829,7 +833,9 @@ intptr_t* MetaspaceShared::fix_cpp_vtable_for_dynamic_archive(MetaspaceObj::Type
     {
       Klass* k = (Klass*)obj;
       assert(k->is_klass(), "must be");
-      if (k->is_instance_klass()) {
+      if (k->is_value()) {
+        kind = ValueKlass_Kind;
+      } else if (k->is_instance_klass()) {
         kind = InstanceKlass_Kind;
       } else {
         assert(k->is_objArray_klass(),
@@ -913,6 +919,8 @@ void MetaspaceShared::patch_cpp_vtable_pointers() {
         CppVtableCloner<InstanceRefKlass>::patch(ik);
       } else if (ik->is_mirror_instance_klass()) {
         CppVtableCloner<InstanceMirrorKlass>::patch(ik);
+      } else if (ik->is_value()) {
+        CppVtableCloner<ValueKlass>::patch(ik);
       } else {
         CppVtableCloner<InstanceKlass>::patch(ik);
       }
@@ -1269,12 +1277,26 @@ private:
       return true; // recurse into ref.obj()
     }
     virtual void push_special(SpecialRef type, Ref* ref, intptr_t* p) {
-      assert(type == _method_entry_ref, "only special type allowed for now");
+      assert_valid(type);
+
       address obj = ref->obj();
       address new_obj = get_new_loc(ref);
       size_t offset = pointer_delta(p, obj,  sizeof(u1));
       intptr_t* new_p = (intptr_t*)(new_obj + offset);
-      assert(*p == *new_p, "must be a copy");
+      switch (type) {
+      case _method_entry_ref:
+        assert(*p == *new_p, "must be a copy");
+        break;
+      case _internal_pointer_ref:
+        {
+          size_t off = pointer_delta(*((address*)p), obj, sizeof(u1));
+          assert(0 <= intx(off) && intx(off) < ref->size() * BytesPerWord, "must point to internal address");
+          *((address*)new_p) = new_obj + off;
+        }
+        break;
+      default:
+        ShouldNotReachHere();
+      }
       ArchivePtrMarker::mark_pointer((address*)new_p);
     }
   };

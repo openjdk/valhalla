@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "gc/shared/gcLocker.inline.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
+#include "memory/metaspaceClosure.hpp"
 #include "memory/metadataFactory.hpp"
 #include "oops/access.hpp"
 #include "oops/compressedOops.inline.hpp"
@@ -195,6 +196,24 @@ bool ValueKlass::flatten_array() {
   }
 
   return true;
+}
+
+void ValueKlass::remove_unshareable_info() {
+  InstanceKlass::remove_unshareable_info();
+
+  *((Array<SigEntry>**)adr_extended_sig()) = NULL;
+  *((Array<VMRegPair>**)adr_return_regs()) = NULL;
+  *((address*)adr_pack_handler()) = NULL;
+  *((address*)adr_pack_handler_jobject()) = NULL;
+  *((address*)adr_unpack_handler()) = NULL;
+  assert(pack_handler() == NULL, "pack handler not null");
+  *((Klass**)adr_value_array_klass()) = NULL;
+}
+
+void ValueKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
+  InstanceKlass::restore_unshareable_info(loader_data, protection_domain, CHECK);
+  oop val = allocate_instance(CHECK);
+  set_default_value(val);
 }
 
 
@@ -540,4 +559,11 @@ void ValueKlass::verify_on(outputStream* st) {
 void ValueKlass::oop_verify_on(oop obj, outputStream* st) {
   InstanceKlass::oop_verify_on(obj, st);
   guarantee(obj->mark().is_always_locked(), "Header is not always locked");
+}
+
+void ValueKlass::metaspace_pointers_do(MetaspaceClosure* it) {
+  InstanceKlass::metaspace_pointers_do(it);
+
+  ValueKlass* this_ptr = this;
+  it->push_internal_pointer(&this_ptr, (intptr_t*)&_adr_valueklass_fixed_block);
 }

@@ -44,7 +44,7 @@
 #include "memory/universe.hpp"
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/instanceKlass.hpp"
-#include "oops/instanceMirrorKlass.hpp"
+#include "oops/instanceMirrorKlass.inline.hpp"
 #include "oops/klass.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
@@ -1195,6 +1195,12 @@ oop java_lang_Class::archive_mirror(Klass* k, TRAPS) {
       k->set_java_mirror_handle(NULL);
       return NULL;
     }
+  }
+
+  if (k->is_value()) {
+    // Values have a mirror and an indirect mirror. Don't handle this for now. TODO:CDS
+    k->set_java_mirror_handle(NULL);
+    return NULL;
   }
 
   // Now start archiving the mirror object

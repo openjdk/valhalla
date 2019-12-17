@@ -4189,7 +4189,7 @@ jint Arguments::apply_ergo() {
     log_info(verification)("Turning on remote verification because local verification is on");
     FLAG_SET_DEFAULT(BytecodeVerificationRemote, true);
   }
-  if (!EnableValhalla || is_interpreter_only()) {
+  if (!EnableValhalla || (is_interpreter_only() && !is_dumping_archive())) {
     // Disable calling convention optimizations if value types are not supported
     ValueTypePassFieldsAsArgs = false;
     ValueTypeReturnedAsFields = false;

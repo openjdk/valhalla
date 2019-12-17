@@ -77,7 +77,11 @@ public:
   };
 
   enum SpecialRef {
-    _method_entry_ref
+    // A field that points to a method entry. E.g., Method::_i2i_entry
+    _method_entry_ref,
+
+    // A field that points to a location inside the current object.
+    _internal_pointer_ref,
   };
 
   // class MetaspaceClosure::Ref --
@@ -284,13 +288,21 @@ public:
   }
 
   template <class T> void push_method_entry(T** mpp, intptr_t* p) {
-    push_special(_method_entry_ref, new ObjectRef<T>(mpp, _default), (intptr_t*)p);
+    push_special(_method_entry_ref, new ObjectRef<T>(mpp, _default), p);
+  }
+
+  template <class T> void push_internal_pointer(T** mpp, intptr_t* p) {
+    push_special(_internal_pointer_ref, new ObjectRef<T>(mpp, _default), p);
   }
 
   // This is for tagging special pointers that are not a reference to MetaspaceObj. It's currently
   // used to mark the method entry points in Method/ConstMethod.
   virtual void push_special(SpecialRef type, Ref* obj, intptr_t* p) {
-    assert(type == _method_entry_ref, "only special type allowed for now");
+    assert_valid(type);
+  }
+
+  static void assert_valid(SpecialRef type) {
+    assert(type == _method_entry_ref || type == _internal_pointer_ref, "only special types allowed for now");
   }
 };
 

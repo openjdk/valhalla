@@ -2727,6 +2727,20 @@ AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* finger
                               c2i_unverified_value_entry, c2i_no_clinit_check_entry);
 }
 
+static void generate_trampoline(address trampoline, address destination) {
+  if (*(int*)trampoline == 0) {
+    CodeBuffer buffer(trampoline, (int)SharedRuntime::trampoline_size());
+    MacroAssembler _masm(&buffer);
+    SharedRuntime::generate_trampoline(&_masm, destination);
+    assert(*(int*)trampoline != 0, "Instruction(s) for trampoline must not be encoded as zeros.");
+      _masm.flush();
+
+    if (PrintInterpreter) {
+      Disassembler::decode(buffer.insts_begin(), buffer.insts_end());
+    }
+  }
+}
+
 AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& method) {
   AdapterHandlerEntry* entry = get_adapter0(method);
   if (entry != NULL && method->is_shared()) {
@@ -2735,22 +2749,14 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
     if (method->adapter() == NULL) {
       method->update_adapter_trampoline(entry);
     }
-    address trampoline = method->from_compiled_entry();
-    if (*(int*)trampoline == 0) {
-      CodeBuffer buffer(trampoline, (int)SharedRuntime::trampoline_size());
-      MacroAssembler _masm(&buffer);
-      SharedRuntime::generate_trampoline(&_masm, entry->get_c2i_entry());
-      assert(*(int*)trampoline != 0, "Instruction(s) for trampoline must not be encoded as zeros.");
-      _masm.flush();
-
-      if (PrintInterpreter) {
-        Disassembler::decode(buffer.insts_begin(), buffer.insts_end());
-      }
-    }
+    generate_trampoline(method->from_compiled_entry(),          entry->get_c2i_entry());
+    generate_trampoline(method->from_compiled_value_ro_entry(), entry->get_c2i_value_ro_entry());
+    generate_trampoline(method->from_compiled_value_entry(),    entry->get_c2i_value_entry());
   }
 
   return entry;
 }
+
 
 CompiledEntrySignature::CompiledEntrySignature(Method* method) :
   _method(method), _num_value_args(0), _has_value_recv(false),
@@ -3536,6 +3542,8 @@ void AdapterHandlerEntry::print_adapter_on(outputStream* st) const {
 void CDSAdapterHandlerEntry::init() {
   assert(DumpSharedSpaces, "used during dump time only");
   _c2i_entry_trampoline = (address)MetaspaceShared::misc_code_space_alloc(SharedRuntime::trampoline_size());
+  _c2i_value_ro_entry_trampoline = (address)MetaspaceShared::misc_code_space_alloc(SharedRuntime::trampoline_size());
+  _c2i_value_entry_trampoline = (address)MetaspaceShared::misc_code_space_alloc(SharedRuntime::trampoline_size());
   _adapter_trampoline = (AdapterHandlerEntry**)MetaspaceShared::misc_code_space_alloc(sizeof(AdapterHandlerEntry*));
 };
 

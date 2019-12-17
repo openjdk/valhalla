@@ -357,6 +357,8 @@ void Method::metaspace_pointers_do(MetaspaceClosure* it) {
   Method* this_ptr = this;
   it->push_method_entry(&this_ptr, (intptr_t*)&_i2i_entry);
   it->push_method_entry(&this_ptr, (intptr_t*)&_from_compiled_entry);
+  it->push_method_entry(&this_ptr, (intptr_t*)&_from_compiled_value_ro_entry);
+  it->push_method_entry(&this_ptr, (intptr_t*)&_from_compiled_value_entry);
   it->push_method_entry(&this_ptr, (intptr_t*)&_from_interpreted_entry);
 }
 
@@ -1108,16 +1110,18 @@ void Method::unlink_method() {
     //       Remove the use of CDSAdapterHandlerEntry.
     CDSAdapterHandlerEntry* cds_adapter = (CDSAdapterHandlerEntry*)adapter();
     constMethod()->set_adapter_trampoline(cds_adapter->get_adapter_trampoline());
+
     _from_compiled_entry = cds_adapter->get_c2i_entry_trampoline();
     assert(*((int*)_from_compiled_entry) == 0,
-           "must be NULL during dump time, to be initialized at run time");
-    _from_compiled_value_ro_entry = cds_adapter->get_c2i_entry_trampoline(); // FIXME - doesn't work if you have value args!
+           "instructions must be zeros during dump time, to be initialized at run time");
+
+    _from_compiled_value_ro_entry = cds_adapter->get_c2i_value_ro_entry_trampoline();
     assert(*((int*)_from_compiled_value_ro_entry) == 0,
-           "must be NULL during dump time, to be initialized at run time");
-    _from_compiled_value_entry  = cds_adapter->get_c2i_entry_trampoline(); // FIXME - doesn't work if you have value args (or this is value type)!
+           "instructions must be zeros during dump time, to be initialized at run time");
+
+    _from_compiled_value_entry = cds_adapter->get_c2i_value_entry_trampoline();
     assert(*((int*)_from_compiled_value_entry) == 0,
-           "must be NULL during dump time, to be initialized at run time");
-    assert(!method_holder()->is_value(), "FIXME: valuetype not supported by CDS");
+           "instructions must be zeros during dump time, to be initialized at run time");
   }
 
   if (is_native()) {
@@ -1286,12 +1290,25 @@ address Method::make_adapters(const methodHandle& mh, TRAPS) {
 void Method::restore_unshareable_info(TRAPS) {
   assert(is_method() && is_valid_method(this), "ensure C++ vtable is restored");
 
+#if 0
+  /*
+   * CDS:TODO --
+   * "Q" classes in the method signature must be resolved during link_method.
+   * However, at this point we are still inside method_holder()->restore_unshareable_info.
+   * If we try to resolve method_holder(), or multually dependent classes, it will
+   * cause deadlock and other ill effects.
+   *
+   * For now, lets do method linking inside InstanceKlass::link_class(). Optimization
+   * may be possible if we know that resolution will never happen.
+   */
+
   // Since restore_unshareable_info can be called more than once for a method, don't
   // redo any work.
   if (adapter() == NULL) {
     methodHandle mh(THREAD, this);
     link_method(mh, CHECK);
   }
+#endif
 }
 
 address Method::from_compiled_entry_no_trampoline(bool caller_is_c1) const {
