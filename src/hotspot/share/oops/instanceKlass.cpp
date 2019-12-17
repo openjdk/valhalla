@@ -2715,6 +2715,15 @@ const char* InstanceKlass::signature_name() const {
     dest[dest_index++] = src[src_index++];
   }
 
+  if (is_hidden()) { // Replace the last '+' with a '/'.
+    for (int index = (int)src_length; index > 0; index--) {
+      if (dest[index] == '+') {
+        dest[index] = '/';
+        break;
+      }
+    }
+  }
+
   // If we have a hash, append it
   for (int hash_index = 0; hash_index < hash_len; ) {
     dest[dest_index++] = hash_buf[hash_index++];
