@@ -1726,7 +1726,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       if (t != NULL && t != Type::BOTTOM) {
         if (n->is_ValueType() && !t->isa_valuetype()) {
           // Allocate value type in src block to be able to merge it with oop in target block
-          map()->set_req(j, ValueTypePtrNode::make_from_value_type(this, n->as_ValueType(), true));
+          map()->set_req(j, ValueTypePtrNode::make_from_value_type(this, n->as_ValueType()));
         }
         assert(!t->isa_valuetype() || n->is_ValueType(), "inconsistent typeflow info");
       }
@@ -2346,21 +2346,30 @@ void Parse::return_current(Node* value) {
     Node* phi = _exits.argument(0);
     const Type* return_type = phi->bottom_type();
     const TypeOopPtr* tr = return_type->isa_oopptr();
-    if (return_type->isa_valuetype()) {
+    if (return_type->isa_valuetype() && !Compile::current()->inlining_incrementally()) {
       // Value type is returned as fields, make sure it is scalarized
       if (!value->is_ValueType()) {
         value = ValueTypeNode::make_from_oop(this, value, return_type->value_klass());
       }
       if (!_caller->has_method()) {
-        // Value type is returned as fields from root method, make
-        // sure all non-flattened value type fields are allocated.
+        // Value type is returned as fields from root method, make sure all non-flattened
+        // fields are buffered and re-execute if allocation triggers deoptimization.
+        PreserveReexecuteState preexecs(this);
         assert(tf()->returns_value_type_as_fields(), "must be returned as fields");
+        jvms()->set_should_reexecute(true);
+        inc_sp(1);
         value = value->as_ValueType()->allocate_fields(this);
       }
     } else if (value->is_ValueType()) {
-      // Value type is returned as oop, make sure it is allocated
-      assert(tr && tr->can_be_value_type(), "must return a value type pointer");
+      // Value type is returned as oop, make sure it is buffered and re-execute
+      // if allocation triggers deoptimization.
+      PreserveReexecuteState preexecs(this);
+      jvms()->set_should_reexecute(true);
+      inc_sp(1);
       value = ValueTypePtrNode::make_from_value_type(this, value->as_ValueType());
+      if (Compile::current()->inlining_incrementally()) {
+        value = value->as_ValueTypeBase()->allocate_fields(this);
+      }
     } else if (tr && tr->isa_instptr() && tr->klass()->is_loaded() && tr->klass()->is_interface()) {
       // If returning oops to an interface-return, there is a silent free
       // cast from oop to interface allowed by the Verifier. Make it explicit here.

@@ -372,6 +372,10 @@ void Parse::do_withfield() {
     val = ValueTypeNode::make_from_oop(this, val, gvn().type(val)->value_klass());
   } else if (val->is_ValueType() && !field->is_flattenable()) {
     // Non-flattenable field should not be scalarized
+    // Re-execute withfield if buffering triggers deoptimization
+    PreserveReexecuteState preexecs(this);
+    jvms()->set_should_reexecute(true);
+    inc_sp(2);
     val = ValueTypePtrNode::make_from_value_type(this, val->as_ValueType());
   }
 
@@ -384,6 +388,10 @@ void Parse::do_withfield() {
   if (holder_klass->is_scalarizable()) {
     push(_gvn.transform(new_vt));
   } else {
+    // Re-execute withfield if buffering triggers deoptimization
+    PreserveReexecuteState preexecs(this);
+    jvms()->set_should_reexecute(true);
+    inc_sp(2);
     push(new_vt->allocate(this)->get_oop());
   }
 }

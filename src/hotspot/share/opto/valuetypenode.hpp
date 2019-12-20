@@ -81,15 +81,18 @@ public:
   // Store the value type as a flattened (headerless) representation
   void store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED) const;
   // Store the field values to memory
-  void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, bool deoptimize_on_exception = false, DecoratorSet decorators = IN_HEAP | MO_UNORDERED) const;
+  void store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED) const;
   // Initialize the value type by loading its field values from memory
   void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
 
   // Allocates the value type (if not yet allocated)
-  ValueTypeBaseNode* allocate(GraphKit* kit, bool deoptimize_on_exception = false, bool safe_for_replace = true);
+  ValueTypeBaseNode* allocate(GraphKit* kit, bool safe_for_replace = true);
   bool is_allocated(PhaseGVN* phase) const;
 
   void replace_call_results(GraphKit* kit, Node* call, Compile* C);
+
+  // Allocate all non-flattened value type fields
+  Node* allocate_fields(GraphKit* kit);
 };
 
 //------------------------------ValueTypeNode-------------------------------------
@@ -130,9 +133,6 @@ public:
   // Returns the constant oop of the default value type allocation
   static Node* default_oop(PhaseGVN& gvn, ciValueKlass* vk);
 
-  // Allocate all non-flattened value type fields
-  Node* allocate_fields(GraphKit* kit);
-
   Node* tagged_klass(PhaseGVN& gvn) {
     return tagged_klass(value_klass(), gvn);
   }
@@ -163,7 +163,7 @@ private:
 
 public:
   // Create and initialize with the values of a ValueTypeNode
-  static ValueTypePtrNode* make_from_value_type(GraphKit* kit, ValueTypeNode* vt, bool deoptimize_on_exception = false);
+  static ValueTypePtrNode* make_from_value_type(GraphKit* kit, ValueTypeNode* vt);
   // Create and initialize by loading the field values from an oop
   static ValueTypePtrNode* make_from_oop(GraphKit* kit, Node* oop);
 

@@ -597,7 +597,6 @@ class GraphKit : public Phase {
                         const Type* val_type,
                         BasicType bt,
                         DecoratorSet decorators,
-                        bool deoptimize_on_exception = false,
                         bool safe_for_replace = true);
 
   Node* access_load_at(Node* obj,   // containing obj
@@ -716,7 +715,7 @@ class GraphKit : public Phase {
 
   // Fill in argument edges for the call from argument(0), argument(1), ...
   // (The next step is to call set_edges_for_java_call.)
-  void  set_arguments_for_java_call(CallJavaNode* call, bool incremental_inlining = false);
+  void  set_arguments_for_java_call(CallJavaNode* call, bool is_late_inline = false);
 
   // Fill in non-argument edges for the call.
   // Transform the call, and update the basics: control, i_o, memory.

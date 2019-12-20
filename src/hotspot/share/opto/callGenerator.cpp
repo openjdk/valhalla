@@ -462,7 +462,6 @@ void LateInlineCallGenerator::do_late_inline() {
         // Value type arguments are not passed by reference: we get an argument per
         // field of the value type. Build ValueTypeNodes from the value type arguments.
         GraphKit arg_kit(jvms, &gvn);
-        arg_kit.set_control(map->control());
         ValueTypeNode* vt = ValueTypeNode::make_from_multi(&arg_kit, call, sig_cc, t->value_klass(), j, true);
         map->set_control(arg_kit.control());
         map->set_argument(jvms, i1, vt);
@@ -486,6 +485,21 @@ void LateInlineCallGenerator::do_late_inline() {
     if (!do_late_inline_check(jvms)) {
       map->disconnect_inputs(NULL, C);
       return;
+    }
+
+    // Allocate a buffer for the returned ValueTypeNode because the caller expects an oop return.
+    // Do this before the method handle call in case the buffer allocation triggers deoptimization.
+    Node* buffer_oop = NULL;
+    if (is_mh_late_inline() && _inline_cg->method()->return_type()->is_valuetype()) {
+      GraphKit arg_kit(jvms, &gvn);
+      {
+        PreserveReexecuteState preexecs(&arg_kit);
+        arg_kit.jvms()->set_should_reexecute(true);
+        arg_kit.inc_sp(nargs);
+        Node* klass_node = arg_kit.makecon(TypeKlassPtr::make(_inline_cg->method()->return_type()->as_value_klass()));
+        buffer_oop = arg_kit.new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true);
+      }
+      jvms = arg_kit.transfer_exceptions_into_jvms();
     }
 
     // Setup default node notes to be picked up by the inlining
@@ -519,25 +533,14 @@ void LateInlineCallGenerator::do_late_inline() {
     // Handle value type returns
     bool returned_as_fields = call->tf()->returns_value_type_as_fields();
     if (result->is_ValueType()) {
+      // Only possible if is_mh_late_inline() when the callee does not "know" that the caller expects an oop
+      assert(is_mh_late_inline() && !returned_as_fields, "sanity");
+      assert(buffer_oop != NULL, "should have allocated a buffer");
       ValueTypeNode* vt = result->as_ValueType();
-      if (returned_as_fields) {
-        // Return of multiple values (the fields of a value type)
-        vt->replace_call_results(&kit, call, C);
-        if (vt->is_allocated(&gvn) && !StressValueTypeReturnedAsFields) {
-          result = vt->get_oop();
-        } else {
-          result = vt->tagged_klass(gvn);
-        }
-      } else {
-        result = ValueTypePtrNode::make_from_value_type(&kit, vt);
-      }
-    } else if (gvn.type(result)->is_valuetypeptr() && returned_as_fields) {
-      const Type* vt_t = call->_tf->range_sig()->field_at(TypeFunc::Parms);
-      Node* cast = new CheckCastPPNode(NULL, result, vt_t);
-      gvn.record_for_igvn(cast);
-      ValueTypePtrNode* vtptr = ValueTypePtrNode::make_from_oop(&kit, gvn.transform(cast));
-      vtptr->replace_call_results(&kit, call, C);
-      result = cast;
+      vt->store(&kit, buffer_oop, buffer_oop, vt->type()->value_klass(), 0);
+      result = buffer_oop;
+    } else if (result->is_ValueTypePtr() && returned_as_fields) {
+      result->as_ValueTypePtr()->replace_call_results(&kit, call, C);
     }
 
     kit.replace_call(call, result, true);

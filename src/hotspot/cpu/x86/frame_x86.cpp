@@ -459,8 +459,9 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
   assert(_cb->frame_size() >= 0, "must have non-zero frame size");
   intptr_t* sender_sp = unextended_sp() + _cb->frame_size();
 
-  // On Intel the return_address is always the word on the stack
-  address sender_pc = (address) *(sender_sp-1);
+#ifdef ASSERT
+  address sender_pc_copy = (address) *(sender_sp-1);
+#endif
 
   // This is the saved value of EBP which may or may not really be an FP.
   // It is only an FP if the sender is an interpreter frame (or C1?).
@@ -468,6 +469,19 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
 
   // Repair the sender sp if this is a method with scalarized value type args
   sender_sp = repair_sender_sp(sender_sp, saved_fp_addr);
+
+  // On Intel the return_address is always the word on the stack
+  address sender_pc = (address) *(sender_sp-1);
+
+#ifdef ASSERT
+  if (sender_pc != sender_pc_copy) {
+    // When extending the stack in the callee method entry to make room for unpacking of value
+    // type args, we keep a copy of the sender pc at the expected location in the callee frame.
+    // If the sender pc is patched due to deoptimization, the copy is not consistent anymore.
+    nmethod* nm = CodeCache::find_blob(sender_pc)->as_nmethod();
+    assert(sender_pc == nm->deopt_mh_handler_begin() || sender_pc == nm->deopt_handler_begin(), "unexpected sender pc");
+  }
+#endif
 
   if (map->update_map()) {
     // Tell GC to use argument oopmaps for some runtime stubs that need it.

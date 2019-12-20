@@ -982,7 +982,15 @@ void GraphBuilder::store_local(ValueStack* state, Value x, int index) {
 
 void GraphBuilder::load_indexed(BasicType type) {
   // In case of in block code motion in range check elimination
-  ValueStack* state_before = copy_state_indexed_access();
+  ValueStack* state_before = NULL;
+  int array_idx = state()->stack_size() - 2;
+  if (type == T_OBJECT && state()->stack_at(array_idx)->maybe_flattened_array()) {
+    // Save the entire state and re-execute on deopt when accessing flattened arrays
+    state_before = copy_state_before();
+    state_before->set_should_reexecute(true);
+  } else {
+    state_before = copy_state_indexed_access();
+  }
   compilation()->set_has_access_indexed(true);
   Value index = ipop();
   Value array = apop();
@@ -1022,7 +1030,15 @@ void GraphBuilder::load_indexed(BasicType type) {
 
 void GraphBuilder::store_indexed(BasicType type) {
   // In case of in block code motion in range check elimination
-  ValueStack* state_before = copy_state_indexed_access();
+  ValueStack* state_before = NULL;
+  int array_idx = state()->stack_size() - 3;
+  if (type == T_OBJECT && state()->stack_at(array_idx)->maybe_flattened_array()) {
+    // Save the entire state and re-execute on deopt when accessing flattened arrays
+    state_before = copy_state_before();
+    state_before->set_should_reexecute(true);
+  } else {
+    state_before = copy_state_indexed_access();
+  }
   compilation()->set_has_access_indexed(true);
   Value value = pop(as_ValueType(type));
   Value index = ipop();
@@ -1781,6 +1797,11 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
     case Bytecodes::_getfield: {
       // Check for compile-time constants, i.e., trusted final non-static fields.
       Value constant = NULL;
+      if (state_before == NULL && field->is_flattened()) {
+        // Save the entire state and re-execute on deopt when accessing flattened fields
+        assert(Interpreter::bytecode_should_reexecute(code), "should reexecute");
+        state_before = copy_state_before();
+      }
       obj = apop();
       ObjectType* obj_type = obj->type()->as_ObjectType();
       if (field->is_constant() && !field->is_flattened() && obj_type->is_constant() && !PatchALot) {
@@ -1842,7 +1863,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           NewValueTypeInstance* new_instance = new NewValueTypeInstance(value_klass, state_before, false);
           _memory->new_instance(new_instance);
           apush(append_split(new_instance));
-          copy_value_content(value_klass, obj, field->offset() , new_instance, value_klass->first_field_offset(),
+          copy_value_content(value_klass, obj, field->offset(), new_instance, value_klass->first_field_offset(),
                        state_before, needs_patching);
         }
       }
@@ -1911,7 +1932,7 @@ void GraphBuilder::withfield(int field_index)
     apush(append_split(new WithField(obj->type(), state_before)));
     return;
   }
-  ValueStack* state_before = copy_state_for_exception();
+  ValueStack* state_before = copy_state_before();
 
   Value val = pop(type);
   Value obj = apop();
@@ -1953,6 +1974,8 @@ void GraphBuilder::withfield(int field_index)
   }
 
   assert(holder->is_valuetype(), "must be a value klass");
+  // Save the entire state and re-execute on deopt when executing withfield
+  state_before->set_should_reexecute(true);
   NewValueTypeInstance* new_instance = new NewValueTypeInstance(holder->as_value_klass(), state_before, false);
   _memory->new_instance(new_instance);
   apush(append_split(new_instance));
@@ -2388,8 +2411,7 @@ void GraphBuilder::default_value(int klass_index) {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
   if (klass->is_loaded()) {
-    assert(klass->is_valuetype(), "must be a value klass");
-    ValueStack* state_before = copy_state_exhandling();
+    ValueStack* state_before = copy_state_before();
     NewValueTypeInstance* new_instance = new NewValueTypeInstance(klass->as_value_klass(),
         state_before, stream()->is_unresolved_klass(), NULL, true);
     _memory->new_instance(new_instance);

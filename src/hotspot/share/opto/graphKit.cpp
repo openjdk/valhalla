@@ -1601,7 +1601,6 @@ Node* GraphKit::access_store_at(Node* obj,
                                 const Type* val_type,
                                 BasicType bt,
                                 DecoratorSet decorators,
-                                bool deoptimize_on_exception,
                                 bool safe_for_replace) {
   // Transformation of a value which could be NULL pointer (CastPP #NULL)
   // could be delayed during Parse (for example, in adjust_map_after_if()).
@@ -1616,8 +1615,11 @@ Node* GraphKit::access_store_at(Node* obj,
 
   assert(val != NULL, "not dead path");
   if (val->is_ValueType()) {
-    // Allocate value type and get oop
-    val = val->as_ValueType()->allocate(this, deoptimize_on_exception, safe_for_replace)->get_oop();
+    // Store to non-flattened field. Buffer the inline type and make sure
+    // the store is re-executed if the allocation triggers deoptimization.
+    PreserveReexecuteState preexecs(this);
+    jvms()->set_should_reexecute(true);
+    val = val->as_ValueType()->allocate(this, safe_for_replace)->get_oop();
   }
 
   C2AccessValuePtr addr(adr, adr_type);
@@ -1792,8 +1794,15 @@ Node* GraphKit::load_array_element(Node* ctl, Node* ary, Node* idx, const TypeAr
 
 //-------------------------set_arguments_for_java_call-------------------------
 // Arguments (pre-popped from the stack) are taken from the JVMS.
-void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool incremental_inlining) {
-  // Add the call arguments:
+void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inline) {
+  PreserveReexecuteState preexecs(this);
+  if (EnableValhalla) {
+    // Make sure the call is re-executed, if buffering of value type arguments triggers deoptimization
+    jvms()->set_should_reexecute(true);
+    int arg_size = method()->get_declared_signature_at_bci(bci())->arg_size_for_bc(java_bc());
+    inc_sp(arg_size);
+  }
+  // Add the call arguments
   const TypeTuple* domain = call->tf()->domain_sig();
   ExtendedSignature sig_cc = ExtendedSignature(call->method()->get_sig_cc(), SigEntryFilter());
   uint nargs = domain->cnt();
@@ -1811,10 +1820,10 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool incremental_
       continue;
     } else if (arg->is_ValueType()) {
       // Pass value type argument via oop to callee
-      if (!incremental_inlining) {
-        arg = arg->as_ValueType()->allocate(this)->get_oop();
-      } else {
+      if (is_late_inline) {
         arg = ValueTypePtrNode::make_from_value_type(this, arg->as_ValueType());
+      } else {
+        arg = arg->as_ValueType()->allocate(this)->get_oop();
       }
     }
     call->init_req(idx++, arg);

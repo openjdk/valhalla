@@ -170,6 +170,9 @@ int IRScope::max_stack() const {
 
 
 bool IRScopeDebugInfo::should_reexecute() {
+  if (_should_reexecute) {
+    return true;
+  }
   ciMethod* cur_method = scope()->method();
   int       cur_bci    = bci();
   if (cur_method != NULL && cur_bci != SynchronizationEntryBCI) {

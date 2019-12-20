@@ -206,6 +206,7 @@ class IRScopeDebugInfo: public CompilationResourceObj {
   GrowableArray<ScopeValue*>*   _expressions;
   GrowableArray<MonitorValue*>* _monitors;
   IRScopeDebugInfo*             _caller;
+  bool                          _should_reexecute;
 
  public:
   IRScopeDebugInfo(IRScope*                      scope,
@@ -213,13 +214,15 @@ class IRScopeDebugInfo: public CompilationResourceObj {
                    GrowableArray<ScopeValue*>*   locals,
                    GrowableArray<ScopeValue*>*   expressions,
                    GrowableArray<MonitorValue*>* monitors,
-                   IRScopeDebugInfo*             caller):
+                   IRScopeDebugInfo*             caller,
+                   bool                          should_reexecute):
       _scope(scope)
     , _bci(bci)
     , _locals(locals)
     , _expressions(expressions)
     , _monitors(monitors)
-    , _caller(caller) {}
+    , _caller(caller)
+    , _should_reexecute(should_reexecute) {}
 
 
   IRScope*                      scope()       { return _scope;       }

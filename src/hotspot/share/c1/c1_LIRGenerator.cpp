@@ -1682,7 +1682,7 @@ void LIRGenerator::check_null_free_array(LIRItem& array, LIRItem& value, CodeEmi
 }
 
 bool LIRGenerator::needs_flattened_array_store_check(StoreIndexed* x) {
-  if (ValueArrayFlatten && x->elt_type() == T_OBJECT && x->array()->maybe_flattened_array()) {
+  if (x->elt_type() == T_OBJECT && x->array()->maybe_flattened_array()) {
     ciType* type = x->value()->declared_type();
     if (type != NULL && type->is_klass()) {
       ciKlass* klass = type->as_klass();
@@ -1788,7 +1788,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     if (needs_flattened_array_store_check(x)) {
       // Check if we indeed have a flattened array
       index.load_item();
-      slow_path = new StoreFlattenedArrayStub(array.result(), index.result(), value.result(), state_for(x));
+      slow_path = new StoreFlattenedArrayStub(array.result(), index.result(), value.result(), state_for(x, x->state_before()));
       check_flattened_array(array.result(), value.result(), slow_path);
       set_in_conditional_code(true);
     } else if (needs_null_free_array_store_check(x)) {
@@ -2188,7 +2188,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     if (x->elt_type() == T_OBJECT && x->array()->maybe_flattened_array()) {
       index.load_item();
       // if we are loading from flattened array, load it using a runtime call
-      slow_path = new LoadFlattenedArrayStub(array.result(), index.result(), result, state_for(x));
+      slow_path = new LoadFlattenedArrayStub(array.result(), index.result(), result, state_for(x, x->state_before()));
       check_flattened_array(array.result(), LIR_OprFact::illegalOpr, slow_path);
       set_in_conditional_code(true);
     }

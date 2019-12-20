@@ -186,7 +186,7 @@ class FrameMap : public CompilationResourceObj {
   }
 
   FrameMap(ciMethod* method, int monitors, int reserved_argument_area_size);
-  bool finalize_frame(int nof_slots);
+  bool finalize_frame(int nof_slots, bool needs_stack_repair);
 
   int   reserved_argument_area_size () const     { return _reserved_argument_area_size; }
   int   framesize                   () const     { assert(_framesize != -1, "hasn't been calculated"); return _framesize; }

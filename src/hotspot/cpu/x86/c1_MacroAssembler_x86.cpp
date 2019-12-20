@@ -414,7 +414,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
 
   int extra_stack_offset = wordSize; // tos is return address.
 
-  // Create a temp frame so we can call into runtime. It must be properly set up to accomodate GC.
+  // Create a temp frame so we can call into runtime. It must be properly set up to accommodate GC.
   int sp_inc = (args_on_stack - args_on_stack_cc) * VMRegImpl::stack_slot_size;
   if (sp_inc > 0) {
     pop(r13);

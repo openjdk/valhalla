@@ -332,10 +332,10 @@ void ValueTypeBaseNode::store_flattened(GraphKit* kit, Node* base, Node* ptr, ci
     holder = value_klass();
   }
   holder_offset -= value_klass()->first_field_offset();
-  store(kit, base, ptr, holder, holder_offset, false, decorators);
+  store(kit, base, ptr, holder, holder_offset, decorators);
 }
 
-void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, bool deoptimize_on_exception, DecoratorSet decorators) const {
+void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) const {
   // Write field values to memory
   for (uint i = 0; i < field_count(); ++i) {
     int offset = holder_offset + field_offset(i);
@@ -359,12 +359,12 @@ void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
       if (ary_type != NULL) {
         decorators |= IS_ARRAY;
       }
-      kit->access_store_at(base, adr, adr_type, value, val_type, bt, decorators, deoptimize_on_exception);
+      kit->access_store_at(base, adr, adr_type, value, val_type, bt, decorators);
     }
   }
 }
 
-ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool deoptimize_on_exception, bool safe_for_replace) {
+ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool safe_for_replace) {
   // Check if value type is already allocated
   Node* null_ctl = kit->top();
   Node* not_null_oop = kit->null_check_oop(get_oop(), &null_ctl);
@@ -381,15 +381,21 @@ ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool deoptimize_on
   PhiNode* io  = PhiNode::make(region, kit->i_o(), Type::ABIO);
   PhiNode* mem = PhiNode::make(region, kit->merged_memory(), Type::MEMORY, TypePtr::BOTTOM);
 
+  int bci = kit->bci();
+  bool reexecute = kit->jvms()->should_reexecute();
   {
     // Oop is NULL, allocate and initialize buffer
     PreserveJVMState pjvms(kit);
+    // Propagate re-execution state and bci
+    kit->set_bci(bci);
+    kit->jvms()->set_bci(bci);
+    kit->jvms()->set_should_reexecute(reexecute);
     kit->set_control(null_ctl);
     kit->kill_dead_locals();
     ciValueKlass* vk = value_klass();
     Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
-    Node* alloc_oop  = kit->new_instance(klass_node, NULL, NULL, deoptimize_on_exception, this);
-    store(kit, alloc_oop, alloc_oop, vk, 0, deoptimize_on_exception);
+    Node* alloc_oop  = kit->new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true, this);
+    store(kit, alloc_oop, alloc_oop, vk, 0);
     region->init_req(2, kit->control());
     oop   ->init_req(2, alloc_oop);
     io    ->init_req(2, kit->i_o());
@@ -444,7 +450,8 @@ void ValueTypeBaseNode::replace_call_results(GraphKit* kit, Node* call, Compile*
       ciField* f = vk->nonstatic_field_at(field_nb - extra);
       Node* field = field_value_by_offset(f->offset(), true);
       if (field->is_ValueType()) {
-        field = field->as_ValueType()->allocate(kit)->get_oop();
+        assert(field->as_ValueType()->is_allocated(&kit->gvn()), "must be allocated");
+        field = field->as_ValueType()->get_oop();
       }
       C->gvn_replace_by(pn, field);
       C->initial_gvn()->hash_delete(pn);
@@ -452,6 +459,23 @@ void ValueTypeBaseNode::replace_call_results(GraphKit* kit, Node* call, Compile*
       --i; --imax;
     }
   }
+}
+
+Node* ValueTypeBaseNode::allocate_fields(GraphKit* kit) {
+  ValueTypeBaseNode* vt = clone()->as_ValueTypeBase();
+  for (uint i = 0; i < field_count(); i++) {
+     ValueTypeNode* value = field_value(i)->isa_ValueType();
+     if (field_is_flattened(i)) {
+       // Flattened value type field
+       vt->set_field_value(i, value->allocate_fields(kit));
+     } else if (value != NULL) {
+       // Non-flattened value type field
+       vt->set_field_value(i, value->allocate(kit));
+     }
+  }
+  vt = kit->gvn().transform(vt)->as_ValueTypeBase();
+  kit->replace_in_map(this, vt);
+  return vt;
 }
 
 ValueTypeNode* ValueTypeNode::make_uninitialized(PhaseGVN& gvn, ciValueKlass* vk) {
@@ -571,12 +595,15 @@ ValueTypeNode* ValueTypeNode::make_larval(GraphKit* kit, bool allocate) const {
   ciValueKlass* vk = value_klass();
   ValueTypeNode* res = clone()->as_ValueType();
   if (allocate) {
+    // Re-execute if buffering triggers deoptimization
+    PreserveReexecuteState preexecs(kit);
+    kit->jvms()->set_should_reexecute(true);
     Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
-    Node* alloc_oop  = kit->new_instance(klass_node, NULL, NULL, false);
+    Node* alloc_oop  = kit->new_instance(klass_node, NULL, NULL, true);
     AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop, &kit->gvn());
     alloc->_larval = true;
 
-    store(kit, alloc_oop, alloc_oop, vk, 0, false);
+    store(kit, alloc_oop, alloc_oop, vk, 0);
     res->set_oop(alloc_oop);
   }
   res->set_type(TypeValueType::make(vk, true));
@@ -649,23 +676,6 @@ Node* ValueTypeNode::is_loaded(PhaseGVN* phase, ciValueKlass* vk, Node* base, in
     }
   }
   return base;
-}
-
-Node* ValueTypeNode::allocate_fields(GraphKit* kit) {
-  ValueTypeNode* vt = clone()->as_ValueType();
-  for (uint i = 0; i < field_count(); i++) {
-     ValueTypeNode* value = field_value(i)->isa_ValueType();
-     if (field_is_flattened(i)) {
-       // Flattened value type field
-       vt->set_field_value(i, value->allocate_fields(kit));
-     } else if (value != NULL){
-       // Non-flattened value type field
-       vt->set_field_value(i, value->allocate(kit));
-     }
-  }
-  vt = kit->gvn().transform(vt)->as_ValueType();
-  kit->replace_in_map(this, vt);
-  return vt;
 }
 
 Node* ValueTypeNode::tagged_klass(ciValueKlass* vk, PhaseGVN& gvn) {
@@ -901,8 +911,8 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
   igvn->remove_dead_node(this);
 }
 
-ValueTypePtrNode* ValueTypePtrNode::make_from_value_type(GraphKit* kit, ValueTypeNode* vt, bool deoptimize_on_exception) {
-  Node* oop = vt->allocate(kit, deoptimize_on_exception)->get_oop();
+ValueTypePtrNode* ValueTypePtrNode::make_from_value_type(GraphKit* kit, ValueTypeNode* vt) {
+  Node* oop = vt->allocate(kit)->get_oop();
   ValueTypePtrNode* vtptr = new ValueTypePtrNode(vt->value_klass(), oop);
   for (uint i = Oop+1; i < vt->req(); i++) {
     vtptr->init_req(i, vt->in(i));

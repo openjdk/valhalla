@@ -277,9 +277,11 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
       assert(!gvn().type(val)->maybe_null(), "should never be null");
       val = ValueTypeNode::make_from_oop(this, val, field->type()->as_value_klass());
     }
-    val->as_ValueType()->store_flattened(this, obj, obj, field->holder(), offset);
+    val->as_ValueType()->store_flattened(this, obj, obj, field->holder(), offset, decorators);
   } else {
+    inc_sp(1);
     access_store_at(obj, adr, adr_type, val, field_type, bt, decorators);
+    dec_sp(1);
   }
 
   if (is_field) {

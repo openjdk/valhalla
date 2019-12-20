@@ -192,9 +192,9 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
   ValueKlass* vk = NULL;
   if (save_oop_result && scope->return_vt()) {
     vk = ValueKlass::returned_value_klass(map);
-      if (vk != NULL) {
-        vk->save_oop_fields(map, return_oops);
-        save_oop_result = false;
+    if (vk != NULL) {
+      vk->save_oop_fields(map, return_oops);
+      save_oop_result = false;
     }
   }
   if (save_oop_result) {
@@ -229,7 +229,7 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
 #endif
   }
   if (save_oop_result || vk != NULL) {
-  // Restore result.
+    // Restore result.
     assert(return_oops.length() == 1, "no value type");
     deoptee.set_saved_oop_result(&map, return_oops.pop()());
   }

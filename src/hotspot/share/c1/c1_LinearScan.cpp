@@ -262,7 +262,7 @@ void LinearScan::assign_spill_slot(Interval* it) {
 }
 
 void LinearScan::propagate_spill_slots() {
-  if (!frame_map()->finalize_frame(max_spills())) {
+  if (!frame_map()->finalize_frame(max_spills(), compilation()->needs_stack_repair())) {
     bailout("frame too large");
   }
 }
@@ -2945,7 +2945,7 @@ IRScopeDebugInfo* LinearScan::compute_debug_info_for_scope(int op_id, IRScope* c
     }
   }
 
-  return new IRScopeDebugInfo(cur_scope, cur_state->bci(), locals, expressions, monitors, caller_debug_info);
+  return new IRScopeDebugInfo(cur_scope, cur_state->bci(), locals, expressions, monitors, caller_debug_info, cur_state->should_reexecute());
 }
 
 

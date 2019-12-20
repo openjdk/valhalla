@@ -135,9 +135,17 @@ class LibraryCallKit : public GraphKit {
 
   void push_result() {
     // Push the result onto the stack.
-    if (!stopped() && result() != NULL) {
-      BasicType bt = result()->bottom_type()->basic_type();
-      push_node(bt, result());
+    Node* res = result();
+    if (!stopped() && res != NULL) {
+      BasicType bt = res->bottom_type()->basic_type();
+      if (C->inlining_incrementally() && res->is_ValueType()) {
+        // The caller expects and oop when incrementally inlining an intrinsic that returns an
+        // inline type. Make sure the call is re-executed if the allocation triggers a deoptimization.
+        PreserveReexecuteState preexecs(this);
+        jvms()->set_should_reexecute(true);
+        res = ValueTypePtrNode::make_from_value_type(this, res->as_ValueType());
+      }
+      push_node(bt, res);
     }
   }
 
@@ -2524,6 +2532,9 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
           }
         }
       }
+      // Re-execute the unsafe access if allocation triggers deoptimization.
+      PreserveReexecuteState preexecs(this);
+      jvms()->set_should_reexecute(true);
       vt = vt->allocate(this)->as_ValueType();
       base = vt->get_oop();
     }

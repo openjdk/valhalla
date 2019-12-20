@@ -111,7 +111,11 @@ void Parse::array_load(BasicType bt) {
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
         Node* casted_adr = array_element_address(cast, idx, T_VALUETYPE, ary_t->size(), control());
-        Node* vt = ValueTypeNode::make_from_flattened(this, vk, cast, casted_adr)->allocate(this, false, false)->get_oop();
+        // Re-execute flattened array load if buffering triggers deoptimization
+        PreserveReexecuteState preexecs(this);
+        jvms()->set_should_reexecute(true);
+        inc_sp(2);
+        Node* vt = ValueTypeNode::make_from_flattened(this, vk, cast, casted_adr)->allocate(this, false)->get_oop();
         ideal.set(res, vt);
         ideal.sync_kit(this);
       } else {
@@ -121,9 +125,12 @@ void Parse::array_load(BasicType bt) {
         Node* elem_klass = _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS));
         Node* obj_size  = NULL;
         kill_dead_locals();
+        // Re-execute flattened array load if buffering triggers deoptimization
+        PreserveReexecuteState preexecs(this);
+        jvms()->set_bci(_bci);
+        jvms()->set_should_reexecute(true);
         inc_sp(2);
         Node* alloc_obj = new_instance(elem_klass, NULL, &obj_size, /*deoptimize_on_exception=*/true);
-        dec_sp(2);
 
         AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_obj, &_gvn);
         assert(alloc->maybe_set_complete(&_gvn), "");
@@ -281,7 +288,11 @@ void Parse::array_store(BasicType bt) {
         dec_sp(3);
         cast_val = ValueTypeNode::make_from_oop(this, cast_val, ary_t->elem()->value_klass());
       }
-      cast_val->as_ValueType()->store_flattened(this, ary, adr);
+      // Re-execute flattened array store if buffering triggers deoptimization
+      PreserveReexecuteState preexecs(this);
+      inc_sp(3);
+      jvms()->set_should_reexecute(true);
+      cast_val->as_ValueType()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
       return;
     } else if (elemtype->is_valuetypeptr() && !elemtype->maybe_null()) {
       // Store to non-flattened but flattenable value type array (elements can never be null)
@@ -336,7 +347,11 @@ void Parse::array_store(BasicType bt) {
             assert(!gvn().type(val)->maybe_null(), "value type array elements should never be null");
             val = ValueTypeNode::make_from_oop(this, val, vk);
           }
-          val->as_ValueType()->store_flattened(this, casted_ary, casted_adr);
+          // Re-execute flattened array store if buffering triggers deoptimization
+          PreserveReexecuteState preexecs(this);
+          inc_sp(3);
+          jvms()->set_should_reexecute(true);
+          val->as_ValueType()->store_flattened(this, casted_ary, casted_adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
           ideal.sync_kit(this);
         } else if (!ideal.ctrl()->is_top()) {
           // Element type is unknown, emit runtime call
@@ -366,7 +381,9 @@ void Parse::array_store(BasicType bt) {
         // non-flattened
         sync_kit(ideal);
         gen_value_array_null_guard(ary, cast_val, 3);
-        access_store_at(ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false, false);
+        inc_sp(3);
+        access_store_at(ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
+        dec_sp(3);
         ideal.sync_kit(this);
       }
       ideal.end_if();
@@ -378,8 +395,9 @@ void Parse::array_store(BasicType bt) {
       ary = gen_value_array_null_guard(ary, cast_val, 3, true);
     }
   }
-
+  inc_sp(3);
   access_store_at(ary, adr, adr_type, val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY);
+  dec_sp(3);
 }
 
 
@@ -2064,16 +2082,18 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
     return;
   }
 
-  // Allocate value type operands
+  // Allocate value type operands and re-execute on deoptimization
   if (a->is_ValueType()) {
+    PreserveReexecuteState preexecs(this);
     inc_sp(2);
-    a = a->as_ValueType()->allocate(this, true)->get_oop();
-    dec_sp(2);
+    jvms()->set_should_reexecute(true);
+    a = a->as_ValueType()->allocate(this)->get_oop();
   }
   if (b->is_ValueType()) {
+    PreserveReexecuteState preexecs(this);
     inc_sp(2);
-    b = b->as_ValueType()->allocate(this, true)->get_oop();
-    dec_sp(2);
+    jvms()->set_should_reexecute(true);
+    b = b->as_ValueType()->allocate(this)->get_oop();
   }
 
   // First, do a normal pointer comparison

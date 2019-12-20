@@ -916,7 +916,7 @@ void LIR_Assembler::emit_op2(LIR_Op2* op) {
 
 void LIR_Assembler::build_frame() {
   _masm->build_frame(initial_frame_size_in_bytes(), bang_size_in_bytes(),
-                     compilation()->compiled_entry_signature()->c1_needs_stack_repair(),
+                     compilation()->needs_stack_repair(),
                      &_verified_value_entry);
 }
 

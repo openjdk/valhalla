@@ -1241,9 +1241,9 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   __ move(reg, result);
 }
 
-void LIRGenerator::do_NewValueTypeInstance  (NewValueTypeInstance* x) {
-  // Mapping to do_NewInstance (same code)
-  CodeEmitInfo* info = state_for(x, x->state());
+void LIRGenerator::do_NewValueTypeInstance(NewValueTypeInstance* x) {
+  // Mapping to do_NewInstance (same code) but use state_before for reexecution.
+  CodeEmitInfo* info = state_for(x, x->state_before());
   x->set_to_object_type();
   LIR_Opr reg = result_register_for(x->type());
   new_instance(reg, x->klass(), x->is_unresolved(),
