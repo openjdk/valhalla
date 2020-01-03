@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -73,12 +73,12 @@ public class TestClassLoaderStatsEvent {
             if (CLASSLOADER_TYPE_NAME.equals(recordedClassLoader.getType().getName())) {
                 Asserts.assertEquals(CLASS_LOADER_NAME, recordedClassLoader.getName(),
                     "Expected class loader name " + CLASS_LOADER_NAME + ", got name " + recordedClassLoader.getName());
-                Events.assertField(event, "classCount").equal(1L);
+                Events.assertField(event, "classCount").equal(2L);
                 Events.assertField(event, "chunkSize").above(1L);
                 Events.assertField(event, "blockSize").above(1L);
-                Events.assertField(event, "unsafeAnonymousClassCount").equal(1L);
-                Events.assertField(event, "unsafeAnonymousChunkSize").above(1L);
-                Events.assertField(event, "unsafeAnonymousBlockSize").above(1L);
+                Events.assertField(event, "unsafeAnonymousClassCount").equal(0L);
+                Events.assertField(event, "unsafeAnonymousChunkSize").equal(0L);
+                Events.assertField(event, "unsafeAnonymousBlockSize").equal(0L);
                 isAnyFound = true;
             }
         }

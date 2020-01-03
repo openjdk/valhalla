@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -81,6 +81,10 @@ public:
   size_t            _anon_block_sz;
   uintx             _anon_classes_count;
 
+  size_t            _hidden_weak_chunk_sz;
+  size_t            _hidden_weak_block_sz;
+  uintx             _hidden_weak_classes_count;
+
   ClassLoaderStats() :
     _cld(0),
     _class_loader(0),
@@ -90,7 +94,10 @@ public:
     _classes_count(0),
     _anon_chunk_sz(0),
     _anon_block_sz(0),
-    _anon_classes_count(0) {
+    _anon_classes_count(0),
+    _hidden_weak_chunk_sz(0),
+    _hidden_weak_block_sz(0),
+    _hidden_weak_classes_count(0) {
   }
 };
 
