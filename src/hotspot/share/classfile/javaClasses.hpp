@@ -83,6 +83,7 @@
   f(java_lang_LiveStackFrameInfo) \
   f(java_util_concurrent_locks_AbstractOwnableSynchronizer) \
   f(jdk_internal_misc_UnsafeConstants) \
+  f(jdk_internal_vm_jni_SubElementSelector) \
   //end
 
 #define BASIC_JAVA_CLASSES_DO(f) \
@@ -1637,6 +1638,30 @@ class java_lang_Byte_ByteCache : AllStatic {
   static void compute_offsets(InstanceKlass* k);
   static objArrayOop  cache(InstanceKlass *k);
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
+};
+
+class jdk_internal_vm_jni_SubElementSelector : AllStatic {
+ private:
+  static int _arrayElementType_offset;
+  static int _subElementType_offset;
+  static int _offset_offset;
+  static int _isFlattened_offset;
+  static int _isFlattenable_offset;
+ public:
+  static Symbol* symbol();
+  static void compute_offsets();
+  static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
+
+  static oop getArrayElementType(oop obj);
+  static void setArrayElementType(oop obj, oop type);
+  static oop getSubElementType(oop obj);
+  static void setSubElementType(oop obj, oop type);
+  static int getOffset(oop obj);
+  static void setOffset(oop obj, int offset);
+  static bool getIsFlattened(oop obj);
+  static void setIsFlattened(oop obj, bool b);
+  static bool getIsFlattenable(oop obj);
+  static void setIsFlattenable(oop obj, bool b);
 };
 
 // Use to declare fields that need to be injected into Java classes

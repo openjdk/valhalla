@@ -3599,6 +3599,191 @@ JNI_ENTRY(jsize, jni_GetFieldOffsetInFlattenedLayout(JNIEnv* env, jclass clazz, 
   return (jsize)offset;
 JNI_END
 
+JNI_ENTRY(jobject, jni_CreateSubElementSelector(JNIEnv* env, jarray array))
+  JNIWrapper("jni_CreateSubElementSelector");
+
+  arrayOop ar = arrayOop(JNIHandles::resolve_non_null(array));
+  if (!ar->is_array()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not an array");
+  }
+  if (!ar->is_valueArray()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
+  }
+  Klass* ses_k = SystemDictionary::resolve_or_null(vmSymbols::jdk_internal_vm_jni_SubElementSelector(),
+        Handle(THREAD, SystemDictionary::java_system_loader()), Handle(), CHECK_NULL);
+  InstanceKlass* ses_ik = InstanceKlass::cast(ses_k);
+  ses_ik->initialize(CHECK_NULL);
+  Klass* elementKlass = ArrayKlass::cast(ar->klass())->element_klass();
+  oop ses = ses_ik->allocate_instance(CHECK_NULL);
+  Handle ses_h(THREAD, ses);
+  jdk_internal_vm_jni_SubElementSelector::setArrayElementType(ses_h(), elementKlass->java_mirror());
+  jdk_internal_vm_jni_SubElementSelector::setSubElementType(ses_h(), elementKlass->java_mirror());
+  jdk_internal_vm_jni_SubElementSelector::setOffset(ses_h(), 0);
+  jdk_internal_vm_jni_SubElementSelector::setIsFlattened(ses_h(), true);   // by definition, top element of a flattened array is flattened
+  jdk_internal_vm_jni_SubElementSelector::setIsFlattenable(ses_h(), true); // by definition, top element of a flattened array is flattenable
+  return JNIHandles::make_local(ses_h());
+JNI_END
+
+JNI_ENTRY(jobject, jni_GetSubElementSelector(JNIEnv* env, jobject selector, jfieldID fieldID))
+  JNIWrapper("jni_GetSubElementSelector");
+
+  oop slct = JNIHandles::resolve_non_null(selector);
+  if (slct->klass()->name() != vmSymbols::jdk_internal_vm_jni_SubElementSelector()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a SubElementSelector");
+  }
+  jboolean isflattened = jdk_internal_vm_jni_SubElementSelector::getIsFlattened(slct);
+  if (!isflattened) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "SubElement is not flattened");
+  }
+  oop semirror = jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct);
+  Klass* k = java_lang_Class::as_Klass(semirror);
+  if (!k->is_value()) {
+    ResourceMark rm;
+        THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s is not an inline type", k->external_name()));
+  }
+  ValueKlass* vk = ValueKlass::cast(k);
+  assert(vk->is_initialized(), "If a flattened array has been created, the element klass must have been initialized");
+  int field_offset = jfieldIDWorkaround::from_instance_jfieldID(vk, fieldID);
+  fieldDescriptor fd;
+  if (!vk->find_field_from_offset(field_offset, false, &fd)) {
+    THROW_NULL(vmSymbols::java_lang_NoSuchFieldError());
+  }
+  Handle arrayElementMirror(THREAD, jdk_internal_vm_jni_SubElementSelector::getArrayElementType(slct));
+  // offset of the SubElement is offset of the original SubElement plus the offset of the field inside the element
+  int offset = fd.offset() - vk->first_field_offset() + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
+  InstanceKlass* sesklass = InstanceKlass::cast(JNIHandles::resolve_non_null(selector)->klass());
+  oop res = sesklass->allocate_instance(CHECK_NULL);
+  Handle res_h(THREAD, res);
+  jdk_internal_vm_jni_SubElementSelector::setArrayElementType(res_h(), arrayElementMirror());
+  InstanceKlass* holder = fd.field_holder();
+  BasicType bt = char2type(fd.signature()->char_at(0));
+  if (is_java_primitive(bt)) {
+    jdk_internal_vm_jni_SubElementSelector::setSubElementType(res_h(), java_lang_Class::primitive_mirror(bt));
+  } else {
+    Klass* fieldKlass = SystemDictionary::resolve_or_fail(fd.signature(), Handle(THREAD, holder->class_loader()),
+        Handle(THREAD, holder->protection_domain()), true, CHECK_NULL);
+    jdk_internal_vm_jni_SubElementSelector::setSubElementType(res_h(),fieldKlass->java_mirror());
+  }
+  jdk_internal_vm_jni_SubElementSelector::setOffset(res_h(), offset);
+  jdk_internal_vm_jni_SubElementSelector::setIsFlattened(res_h(), fd.is_flattened());
+  jdk_internal_vm_jni_SubElementSelector::setIsFlattenable(res_h(), fd.is_flattenable());
+  return JNIHandles::make_local(res_h());
+JNI_END
+
+JNI_ENTRY(jobject, jni_GetObjectSubElement(JNIEnv* env, jarray array, jobject selector, int index))
+  JNIWrapper("jni_GetObjectSubElement");
+
+  valueArrayOop ar =  (valueArrayOop)JNIHandles::resolve_non_null(array);
+  oop slct = JNIHandles::resolve_non_null(selector);
+  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass());
+  if (jdk_internal_vm_jni_SubElementSelector::getArrayElementType(slct) != vak->element_klass()->java_mirror()) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Array/Selector mismatch");
+  }
+  oop res = NULL;
+  if (!jdk_internal_vm_jni_SubElementSelector::getIsFlattened(slct)) {
+    int offset = (address)ar->base() - (address)ar + index * vak->element_byte_size()
+                      + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
+    res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(ar, offset);
+  } else {
+    ValueKlass* fieldKlass = ValueKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
+    res = fieldKlass->allocate_instance(CHECK_NULL);
+    // The array might have been moved by the GC, refreshing the arrayOop
+    ar =  (valueArrayOop)JNIHandles::resolve_non_null(array);
+    address addr = (address)ar->value_at_addr(index, vak->layout_helper())
+              + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
+    fieldKlass->value_copy_payload_to_new_oop(addr, res);
+  }
+  return JNIHandles::make_local(res);
+JNI_END
+
+JNI_ENTRY(void, jni_SetObjectSubElement(JNIEnv* env, jarray array, jobject selector, int index, jobject value))
+  JNIWrapper("jni_SetObjectSubElement");
+
+  valueArrayOop ar =  (valueArrayOop)JNIHandles::resolve_non_null(array);
+  oop slct = JNIHandles::resolve_non_null(selector);
+  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass());
+  if (jdk_internal_vm_jni_SubElementSelector::getArrayElementType(slct) != vak->element_klass()->java_mirror()) {
+    THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "Array/Selector mismatch");
+  }
+  oop val = JNIHandles::resolve(value);
+  if (val == NULL) {
+    if (jdk_internal_vm_jni_SubElementSelector::getIsFlattenable(slct)) {
+      THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), "null cannot be stored in a flattened array");
+    }
+  } else {
+    if (!val->is_a(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)))) {
+      THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), "type mismatch");
+    }
+  }
+  if (!jdk_internal_vm_jni_SubElementSelector::getIsFlattened(slct)) {
+    int offset = (address)ar->base() - (address)ar + index * vak->element_byte_size()
+                  + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
+    HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(ar, offset, JNIHandles::resolve(value));
+  } else {
+    ValueKlass* fieldKlass = ValueKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
+    address addr = (address)ar->value_at_addr(index, vak->layout_helper())
+                  + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
+    fieldKlass->value_copy_oop_to_payload(JNIHandles::resolve_non_null(value), addr);
+  }
+JNI_END
+
+#define DEFINE_GETSUBELEMENT(ElementType,Result,ElementBasicType) \
+\
+JNI_ENTRY(ElementType, \
+          jni_Get##Result##SubElement(JNIEnv *env, jarray array, jobject selector, int index)) \
+  JNIWrapper("Get" XSTR(Result) "SubElement"); \
+  valueArrayOop ar = (valueArrayOop)JNIHandles::resolve_non_null(array); \
+  oop slct = JNIHandles::resolve_non_null(selector); \
+  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass()); \
+  if (jdk_internal_vm_jni_SubElementSelector::getArrayElementType(slct) != vak->element_klass()->java_mirror()) { \
+    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Array/Selector mismatch"); \
+  } \
+  if (jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct) != java_lang_Class::primitive_mirror(ElementBasicType)) { \
+    THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Wrong SubElement type"); \
+  } \
+  address addr = (address)ar->value_at_addr(index, vak->layout_helper()) \
+               + jdk_internal_vm_jni_SubElementSelector::getOffset(slct); \
+  ElementType result = *(ElementType*)addr; \
+  return result; \
+JNI_END
+
+DEFINE_GETSUBELEMENT(jboolean, Boolean,T_BOOLEAN)
+DEFINE_GETSUBELEMENT(jbyte, Byte, T_BYTE)
+DEFINE_GETSUBELEMENT(jshort, Short,T_SHORT)
+DEFINE_GETSUBELEMENT(jchar, Char,T_CHAR)
+DEFINE_GETSUBELEMENT(jint, Int,T_INT)
+DEFINE_GETSUBELEMENT(jlong, Long,T_LONG)
+DEFINE_GETSUBELEMENT(jfloat, Float,T_FLOAT)
+DEFINE_GETSUBELEMENT(jdouble, Double,T_DOUBLE)
+
+#define DEFINE_SETSUBELEMENT(ElementType,Result,ElementBasicType) \
+\
+JNI_ENTRY(void, \
+          jni_Set##Result##SubElement(JNIEnv *env, jarray array, jobject selector, int index, ElementType value)) \
+  JNIWrapper("Get" XSTR(Result) "SubElement"); \
+  valueArrayOop ar = (valueArrayOop)JNIHandles::resolve_non_null(array); \
+  oop slct = JNIHandles::resolve_non_null(selector); \
+  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass()); \
+  if (jdk_internal_vm_jni_SubElementSelector::getArrayElementType(slct) != vak->element_klass()->java_mirror()) { \
+    THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "Array/Selector mismatch"); \
+  } \
+  if (jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct) != java_lang_Class::primitive_mirror(ElementBasicType)) { \
+    THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "Wrong SubElement type"); \
+  } \
+  address addr = (address)ar->value_at_addr(index, vak->layout_helper()) \
+               + jdk_internal_vm_jni_SubElementSelector::getOffset(slct); \
+  *(ElementType*)addr = value; \
+JNI_END
+
+DEFINE_SETSUBELEMENT(jboolean, Boolean,T_BOOLEAN)
+DEFINE_SETSUBELEMENT(jbyte, Byte, T_BYTE)
+DEFINE_SETSUBELEMENT(jshort, Short,T_SHORT)
+DEFINE_SETSUBELEMENT(jchar, Char,T_CHAR)
+DEFINE_SETSUBELEMENT(jint, Int,T_INT)
+DEFINE_SETSUBELEMENT(jlong, Long,T_LONG)
+DEFINE_SETSUBELEMENT(jfloat, Float,T_FLOAT)
+DEFINE_SETSUBELEMENT(jdouble, Double,T_DOUBLE)
+
 // Structure containing all jni functions
 struct JNINativeInterface_ jni_NativeInterface = {
     NULL,
@@ -3890,7 +4075,30 @@ struct JNINativeInterface_ jni_NativeInterface = {
     jni_ReleaseFlattenedArrayElements,
     jni_GetFlattenedArrayElementClass,
     jni_GetFlattenedArrayElementSize,
-    jni_GetFieldOffsetInFlattenedLayout
+    jni_GetFieldOffsetInFlattenedLayout,
+
+    jni_CreateSubElementSelector,
+    jni_GetSubElementSelector,
+    jni_GetObjectSubElement,
+    jni_SetObjectSubElement,
+
+    jni_GetBooleanSubElement,
+    jni_GetByteSubElement,
+    jni_GetShortSubElement,
+    jni_GetCharSubElement,
+    jni_GetIntSubElement,
+    jni_GetLongSubElement,
+    jni_GetFloatSubElement,
+    jni_GetDoubleSubElement,
+
+    jni_SetBooleanSubElement,
+    jni_SetByteSubElement,
+    jni_SetShortSubElement,
+    jni_SetCharSubElement,
+    jni_SetIntSubElement,
+    jni_SetLongSubElement,
+    jni_SetFloatSubElement,
+    jni_SetDoubleSubElement
 };
 
 

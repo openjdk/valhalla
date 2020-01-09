@@ -30,16 +30,18 @@ import java.util.Arrays;
 import java.util.Comparator;
 
 import jdk.internal.misc.Unsafe;
+import jdk.internal.vm.jni.SubElementSelector;
 
 /*
  * @test
  * @summary Test flattened arrays accesses through JNI
- * @modules java.base/jdk.internal.misc
+ * @modules java.base/jdk.internal.misc java.base/jdk.internal.vm.jni
  * @library /testlibrary /test/lib
  * @requires (os.simpleArch == "x64")
  * @requires (os.family == "linux" | os.family == "mac")
  * @compile -XDallowGenericsOverValues -XDallowWithFieldOperator TestJNIArrays.java
- * @run main/othervm/native/timeout=3000 -XX:ValueArrayElemMaxFlatSize=128 TestJNIArrays
+ * @run main/othervm/native/timeout=3000 -XX:ValueArrayElemMaxFlatSize=128 -XX:+PrintFlattenableLayouts -XX:+UseCompressedOops TestJNIArrays
+ * @run main/othervm/native/timeout=3000 -XX:ValueArrayElemMaxFlatSize=128 -XX:+PrintFlattenableLayouts -XX:-UseCompressedOops TestJNIArrays
  */
 
 public class TestJNIArrays {
@@ -127,8 +129,10 @@ public class TestJNIArrays {
     }
 
     static inline class ValueWithOops {
-	String o = null;
+	String s = "bonjour";
 	int i = 0;
+	Containee c = new Containee(2.3f, (short)4);
+	BigValue b = new BigValue();
     }
     
     public static void main(String[] args) {
@@ -137,6 +141,7 @@ public class TestJNIArrays {
 	test.checkGetFlattenedArrayElementClass();
 	test.checkGetFieldOffsetInFlattenedLayout();
 	test.checkGetFlattenedArrayElements();
+	test.checkSubElementAPI();
 	test.checkBehaviors();
 	// test.mesureInitializationTime(1024 * 1024 * 10 , 1000);
 	// test.mesureInitializationTime2(1024 * 1024 * 10 , 1000);
@@ -145,6 +150,72 @@ public class TestJNIArrays {
 	test.mesureInitializationTime3(1024 * 1024 * 2 , 1000);
     }
 
+    void checkSubElementAPI() {
+	Throwable e = null;
+	ValueWithOops[] arrayWithOops = new ValueWithOops[100];
+	ValueWithOops v = new ValueWithOops();
+	for (int i = 0; i < 100; i++) {
+	    arrayWithOops[i] = v;
+	}
+	SubElementSelector selector1 = createSubElementSelector(arrayWithOops);
+	SubElementSelector selector2 = getSubElementSelector(selector1, ValueWithOops.class, "s", "Ljava/lang/String;");
+	String s = (String) getObjectSubElement(arrayWithOops, selector2, 1);
+	System.out.println("s = " + s);
+	Asserts.assertEquals(s.equals("bonjour"), true, "Wrong string, expecting \"bonjour\", got " + s); 
+	SubElementSelector selector3 = getSubElementSelector(selector1, ValueWithOops.class, "c", "QTestJNIArrays$Containee;");
+	Containee c = (Containee) getObjectSubElement(arrayWithOops, selector3, 2);
+	Asserts.assertEquals(c.f, 2.3f, "Wrong float value: " + c.f);
+	Asserts.assertEquals(c.s, (short)4, "Wrong short value " + c.s);
+	setObjectSubElement(arrayWithOops, selector2, 1, "Hello");
+	Asserts.assertEquals(arrayWithOops[1].s.equals("Hello"), true, "Wrong string, expecting \"Hello\", got " + s);
+	Integer myInteger = new Integer(345);
+	e = null;
+	try {
+	    setObjectSubElement(arrayWithOops, selector2, 1, myInteger);
+	} catch(Throwable t) {
+	    e = t;
+	}
+	Asserts.assertNotNull(e, "An exception should have been thrown");
+	Asserts.assertEquals(e.getClass(), java.lang.ArrayStoreException.class, "Wrong exception type");
+	c = new Containee(9.8f, (short)-3);
+	setObjectSubElement(arrayWithOops, selector3, 2, c);
+	Asserts.assertEquals(c.f, 9.8f, "Wrong float value: " + c.f);
+	Asserts.assertEquals(c.s, (short)-3, "Wrong short value " + c.s);
+	e = null;
+	try {
+	    setObjectSubElement(arrayWithOops, selector3, 2, null);
+	} catch(Throwable t) {
+	    e = t;
+	}
+	Asserts.assertNotNull(e, "An exception should have been thrown");
+	Asserts.assertEquals(e.getClass(), java.lang.ArrayStoreException.class, "Wrong exception type");
+	SubElementSelector selector4 = getSubElementSelector(selector3, TestJNIArrays.Containee.class, "s", "S");
+	short s2 = getShortSubElement(arrayWithOops, selector4, 3);
+	Asserts.assertEquals(s2, (short)4, "Wrong short value " + s2);
+	setShortSubElement(arrayWithOops, selector4, 3, (short)7);
+	Asserts.assertEquals(arrayWithOops[3].c.s, (short)7, "Wrong short value " + arrayWithOops[3].c.s);
+	e = null;
+	try {
+	    // should fail because selector4 designates a field with type short, not int
+	    getIntSubElement(arrayWithOops, selector4, 3);
+	} catch(Throwable t) {
+	    e = t;
+	}
+	Asserts.assertNotNull(e, "An exception should have been thrown");
+	Asserts.assertEquals(e.getClass(), java.lang.IllegalArgumentException.class, "Wrong exception type");
+	SubElementSelector selector5 = getSubElementSelector(selector1, ValueWithOops.class, "b", "QTestJNIArrays$BigValue;");
+	e = null;
+	try {
+	    // Should fail because selector5 designates a non-flattened field
+	    SubElementSelector selector6 = getSubElementSelector(selector5, TestJNIArrays.BigValue.class, "l0", "J");
+	} catch(Throwable t) {
+	    e = t;
+	}
+	Asserts.assertNotNull(e, "An exception should have been thrown");
+	Asserts.assertEquals(e.getClass(), java.lang.IllegalArgumentException.class, "Wrong exception type");
+	System.gc();
+    }
+    
     void checkGetFlattenedArrayElementSize() {
 	Throwable exception = null;
 	try {
@@ -801,4 +872,14 @@ public class TestJNIArrays {
     native void updateContainerArray(Object[] array, float f, short s);
 
     native void initializeLongLongLongLongArray(Object[] array, long l0, long l1, long l2, long l3);
+
+    native SubElementSelector createSubElementSelector(Object[] array);
+    native SubElementSelector getSubElementSelector(SubElementSelector selector, Class<?> klass, String name, String signature);
+    native Object getObjectSubElement(Object[] array, SubElementSelector selector, int index);
+    native void setObjectSubElement(Object[] array, SubElementSelector selector, int index, Object value);
+
+    native short getShortSubElement(Object[] array, SubElementSelector selector, int index);
+    native void setShortSubElement(Object[] array, SubElementSelector selector, int index, short value);
+    native int getIntSubElement(Object[] array, SubElementSelector selector, int index);
+    native void setIntSubElement(Object[] array, SubElementSelector selector, int index, int value);
 }

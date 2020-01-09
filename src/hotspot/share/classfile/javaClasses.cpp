@@ -4400,6 +4400,11 @@ int java_lang_Short_ShortCache::_static_cache_offset;
 int java_lang_Byte_ByteCache::_static_cache_offset;
 int java_lang_Boolean::_static_TRUE_offset;
 int java_lang_Boolean::_static_FALSE_offset;
+int jdk_internal_vm_jni_SubElementSelector::_arrayElementType_offset;
+int jdk_internal_vm_jni_SubElementSelector::_subElementType_offset;
+int jdk_internal_vm_jni_SubElementSelector::_offset_offset;
+int jdk_internal_vm_jni_SubElementSelector::_isFlattened_offset;
+int jdk_internal_vm_jni_SubElementSelector::_isFlattenable_offset;
 
 
 
@@ -4704,6 +4709,69 @@ void java_lang_Byte_ByteCache::serialize_offsets(SerializeClosure* f) {
 }
 #endif
 #undef BYTE_CACHE_FIELDS_DO
+
+#define SUBELEMENT_SELECTOR_FIELDS_DO(macro) \
+  macro(_arrayElementType_offset,  k, "arrayElementType", class_signature, false); \
+  macro(_subElementType_offset,    k, "subElementType",   class_signature, false); \
+  macro(_offset_offset,            k, "offset",           int_signature,   false); \
+  macro(_isFlattened_offset,       k, "isFlattened",      bool_signature,  false); \
+  macro(_isFlattenable_offset,     k, "isFlattenable",    bool_signature,  false);
+
+void jdk_internal_vm_jni_SubElementSelector::compute_offsets() {
+  InstanceKlass* k = SystemDictionary::jdk_internal_vm_jni_SubElementSelector_klass();
+  SUBELEMENT_SELECTOR_FIELDS_DO(FIELD_COMPUTE_OFFSET);
+}
+
+#if INCLUDE_CDS
+void jdk_internal_vm_jni_SubElementSelector::serialize_offsets(SerializeClosure* f) {
+  SUBELEMENT_SELECTOR_FIELDS_DO(FIELD_SERIALIZE_OFFSET);
+}
+#endif
+#undef SUBELEMENT_SELECTOR_FIELDS_DO
+
+Symbol* jdk_internal_vm_jni_SubElementSelector::symbol() {
+  return vmSymbols::jdk_internal_vm_jni_SubElementSelector();
+}
+
+oop jdk_internal_vm_jni_SubElementSelector::getArrayElementType(oop obj) {
+  return obj->obj_field(_arrayElementType_offset);
+}
+
+void jdk_internal_vm_jni_SubElementSelector::setArrayElementType(oop obj, oop type) {
+  obj->obj_field_put(_arrayElementType_offset, type);
+}
+
+oop jdk_internal_vm_jni_SubElementSelector::getSubElementType(oop obj) {
+  return obj->obj_field(_subElementType_offset);
+}
+
+void jdk_internal_vm_jni_SubElementSelector::setSubElementType(oop obj, oop type) {
+  obj->obj_field_put(_subElementType_offset, type);
+}
+
+int jdk_internal_vm_jni_SubElementSelector::getOffset(oop obj) {
+  return obj->int_field(_offset_offset);
+}
+
+void jdk_internal_vm_jni_SubElementSelector::setOffset(oop obj, int offset) {
+  obj->int_field_put(_offset_offset, offset);
+}
+
+bool jdk_internal_vm_jni_SubElementSelector::getIsFlattened(oop obj) {
+  return obj->bool_field(_isFlattened_offset);
+}
+
+void jdk_internal_vm_jni_SubElementSelector::setIsFlattened(oop obj, bool b) {
+  obj->bool_field_put(_isFlattened_offset, b);
+}
+
+bool jdk_internal_vm_jni_SubElementSelector::getIsFlattenable(oop obj) {
+  return obj->bool_field(_isFlattenable_offset);
+}
+
+void jdk_internal_vm_jni_SubElementSelector::setIsFlattenable(oop obj, bool b) {
+  obj->bool_field_put(_isFlattenable_offset, b);
+}
 
 jbyte java_lang_Byte::value(oop obj) {
    jvalue v;

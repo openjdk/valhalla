@@ -674,6 +674,8 @@
                                                                                                                   \
   template(java_lang_invoke_ValueBootstrapMethods, "java/lang/invoke/ValueBootstrapMethods")                      \
   template(isSubstitutable_name,                   "isSubstitutable0")                                            \
+                                                                                                                  \
+  template(jdk_internal_vm_jni_SubElementSelector, "jdk/internal/vm/jni/SubElementSelector")                      \
   /*end*/
 
 // Here are all the intrinsics known to the runtime and the CI.

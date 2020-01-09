@@ -244,7 +244,7 @@ Java_TestJNIArrays_updateContainerArray(JNIEnv* env, jobject receiver, jarray ar
 
 
  JNIEXPORT void JNICALL
-   Java_TestJNIArrays_initializeLongLongLongLongArray(JNIEnv* env, jobject receiver, jarray array, jlong l0, jlong l1, jlong l2, jlong l3) {
+ Java_TestJNIArrays_initializeLongLongLongLongArray(JNIEnv* env, jobject receiver, jarray array, jlong l0, jlong l1, jlong l2, jlong l3) {
   int len = (*env)->GetArrayLength(env, array);
   jsize elm_sz = (*env)->GetFlattenedArrayElementSize(env, array);
   jclass clazz = (*env)->GetFlattenedArrayElementClass(env, array);
@@ -262,6 +262,52 @@ Java_TestJNIArrays_updateContainerArray(JNIEnv* env, jobject receiver, jarray ar
     elm_ptr += elm_sz;
   }
   (*env)->ReleaseFlattenedArrayElements(env, array, base, 0);
+}
+
+JNIEXPORT jobject JNICALL
+Java_TestJNIArrays_createSubElementSelector(JNIEnv* env, jobject receiver, jarray array) {
+  return (*env)->CreateSubElementSelector(env, array);
+}
+
+JNIEXPORT jobject JNICALL
+  Java_TestJNIArrays_getSubElementSelector(JNIEnv* env, jobject receiver, jobject selector, jclass klass, jstring name, jstring signature) {
+  const char *name_ptr = (*env)->GetStringUTFChars(env, name, NULL);
+  const char *signature_ptr = (*env)->GetStringUTFChars(env, signature, NULL);
+  jfieldID fieldID = (*env)->GetFieldID(env, klass, name_ptr, signature_ptr);
+  jobject res = (*env)->GetSubElementSelector(env, selector, fieldID);
+  (*env)->ReleaseStringUTFChars(env, name, name_ptr);
+  (*env)->ReleaseStringUTFChars(env, signature, signature_ptr);
+  return res;
+}
+
+JNIEXPORT jobject JNICALL
+Java_TestJNIArrays_getObjectSubElement(JNIEnv* env, jobject receiver, jarray array, jobject selector, jint index) {
+  return (*env)->GetObjectSubElement(env, array, selector, index);
+}
+
+JNIEXPORT void JNICALL
+  Java_TestJNIArrays_setObjectSubElement(JNIEnv* env, jobject receiver, jarray array, jobject selector, jint index, jobject value) {
+  (*env)->SetObjectSubElement(env, array, selector, index, value);
+}
+
+JNIEXPORT jshort JNICALL
+Java_TestJNIArrays_getShortSubElement(JNIEnv* env, jobject receiver, jarray array, jobject selector, jint index) {
+  return (*env)->GetShortSubElement(env, array, selector, index);
+}
+
+JNIEXPORT void JNICALL
+  Java_TestJNIArrays_setShortSubElement(JNIEnv* env, jobject receiver, jarray array, jobject selector, jint index, short value) {
+  (*env)->SetShortSubElement(env, array, selector, index, value);
+}
+
+JNIEXPORT jint JNICALL
+Java_TestJNIArrays_getIntSubElement(JNIEnv* env, jobject receiver, jarray array, jobject selector, jint index) {
+  return (*env)->GetIntSubElement(env, array, selector, index);
+}
+
+JNIEXPORT void JNICALL
+  Java_TestJNIArrays_setIntSubElement(JNIEnv* env, jobject receiver, jarray array, jobject selector, jint index, jint value) {
+  (*env)->SetIntSubElement(env, array, selector, index, value);
 }
 
 #endif // !defined(_WIN32) && !defined(_WIN64)

@@ -219,6 +219,7 @@ class GCTimer;
   /* force inline of iterators */                                                                               \
   do_klass(Iterator_klass,                              java_util_Iterator                                    ) \
                                                                                                                 \
+  do_klass(jdk_internal_vm_jni_SubElementSelector_klass, jdk_internal_vm_jni_SubElementSelector               ) \
   /*end*/
 
 class SystemDictionary : AllStatic {

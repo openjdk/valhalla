@@ -787,6 +787,50 @@ struct JNINativeInterface_ {
       (JNIEnv* env, jarray array);
     jsize (JNICALL *GetFieldOffsetInFlattenedLayout)
       (JNIEnv* env, jclass clazz,  const char *name, const char *signature, jboolean* isFlattened);
+
+    jobject (JNICALL *CreateSubElementSelector)
+      (JNIEnv* env, jarray array);
+    jobject (JNICALL *GetSubElementSelector)
+      (JNIEnv* env, jobject selector, jfieldID fieldID);
+
+    jobject (JNICALL *GetObjectSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index);
+    void (JNICALL *SetObjectSubElement)
+    (JNIEnv* env, jarray array, jobject selector, int index, jobject value);
+
+    jboolean (JNICALL *GetBooleanSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index);
+    jbyte (JNICALL *GetByteSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index);
+    jshort (JNICALL *GetShortSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index);
+    jchar (JNICALL *GetCharSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index);
+    jint (JNICALL *GetIntSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index);
+    jlong (JNICALL *GetLongSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index);
+    jfloat (JNICALL *GetFloatSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index);
+    jdouble (JNICALL *GetDoubleSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index);
+
+    void (JNICALL *SetBooleanSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index, jboolean value);
+    void (JNICALL *SetByteSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index, jbyte value);
+    void (JNICALL *SetShortSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index, jshort value);
+    void (JNICALL *SetCharSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index, jchar value);
+    void (JNICALL *SetIntSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index, jint value);
+    void (JNICALL *SetLongSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index, jlong value);
+    void (JNICALL *SetFloatSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index, jfloat value);
+    void (JNICALL *SetDoubleSubElement)
+      (JNIEnv* env, jarray array, jobject selector, int index, jdouble value);
 };
 
 /*
@@ -1906,6 +1950,70 @@ struct JNIEnv_ {
         return functions->GetFieldOffsetInFlattenedLayout(this, clazz, name, signature, isFlattened);
     }
 
+    jobject CreateSubElementSelector(jarray array) {
+        return functions->CreateSubElementSelector(this, array);
+    }
+    jobject GetSubElementSelector(jobject selector, jfieldID fieldID) {
+        return functions->GetSubElementSelector(this, selector, fieldID);
+    }
+
+    jobject GetObjectSubElement(jarray array, jobject selector, int index) {
+        return functions->GetObjectSubElement(this, array, selector, index);
+    }
+    void SetObjectSubElement(jarray array, jobject selector, int index, jobject value) {
+      functions->SetObjectSubElement(this, array, selector, index, value);
+    }
+
+    jboolean GetBooleanSubElement(jarray array, jobject selector, int index) {
+        return functions->GetBooleanSubElement(this, array, selector, index);
+    }
+    jbyte GetByteSubElement(jarray array, jobject selector, int index) {
+        return functions->GetByteSubElement(this, array, selector, index);
+    }
+    jshort GetShortSubElement(jarray array, jobject selector, int index) {
+        return functions->GetShortSubElement(this, array, selector, index);
+    }
+    jchar GetCharSubElement(jarray array, jobject selector, int index) {
+        return functions->GetCharSubElement(this, array, selector, index);
+    }
+    jint GetIntSubElement(jarray array, jobject selector, int index) {
+        return functions->GetIntSubElement(this, array, selector, index);
+    }
+    jlong GetLongSubElement(jarray array, jobject selector, int index) {
+        return functions->GetLongSubElement(this, array, selector, index);
+    }
+    jfloat GetFloatSubElement(jarray array, jobject selector, int index) {
+        return functions->GetFloatSubElement(this, array, selector, index);
+    }
+    jdouble GetDoubleSubElement(jarray array, jobject selector, int index) {
+        return functions->GetDoubleSubElement(this, array, selector, index);
+    }
+
+    void SetBooleanSubElement(jarray array, jobject selector, int index, jboolean value) {
+        return functions->SetBooleanSubElement(this, array, selector, index, value);
+    }
+    void SetByteSubElement(jarray array, jobject selector, int index, jbyte value) {
+        return functions->SetByteSubElement(this, array, selector, index, value);
+    }
+    void SetShortSubElement(jarray array, jobject selector, int index, jshort value) {
+        return functions->SetShortSubElement(this, array, selector, index, value);
+    }
+    void SetCharSubElement(jarray array, jobject selector, int index, jchar value) {
+        return functions->SetCharSubElement(this, array, selector, index, value);
+    }
+    void SetIntSubElement(jarray array, jobject selector, int index, jint value) {
+        return functions->SetIntSubElement(this, array, selector, index, value);
+    }
+    void SetLongSubElement(jarray array, jobject selector, int index, jlong value) {
+      return functions->SetLongSubElement(this, array, selector, index, value);
+    }
+    void SetFloatSubElement(jarray array, jobject selector, int index, jfloat value) {
+        return functions->SetFloatSubElement(this, array, selector, index, value);
+    }
+    void SetDoubleSubElement(jarray array, jobject selector, int index, jdouble value) {
+      return functions->SetDoubleSubElement(this, array, selector, index, value);
+    }
+  
 #endif /* __cplusplus */
 };
 
