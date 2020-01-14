@@ -53,9 +53,8 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
  */
 /* package */ final class InnerClassLambdaMetafactory extends AbstractValidatingLambdaMetafactory {
     private static final Unsafe UNSAFE = Unsafe.getUnsafe();
-    private static final JavaLangAccess JLA = SharedSecrets.getJavaLangAccess();
 
-    private static final int CLASSFILE_VERSION = 52;
+    private static final int CLASSFILE_VERSION = V14;
     private static final String METHOD_DESCRIPTOR_VOID = Type.getMethodDescriptor(Type.VOID_TYPE);
     private static final String JAVA_LANG_OBJECT = "java/lang/Object";
     private static final String NAME_CTOR = "<init>";
