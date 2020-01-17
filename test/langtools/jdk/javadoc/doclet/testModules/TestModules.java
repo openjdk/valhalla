@@ -26,10 +26,9 @@
  * @bug 8154119 8154262 8156077 8157987 8154261 8154817 8135291 8155995 8162363
  *      8168766 8168688 8162674 8160196 8175799 8174974 8176778 8177562 8175218
  *      8175823 8166306 8178043 8181622 8183511 8169819 8074407 8183037 8191464
-        8164407 8192007 8182765 8196200 8196201 8196202 8196202 8205593 8202462
-        8184205 8219060 8223378
+ *      8164407 8192007 8182765 8196200 8196201 8196202 8196202 8205593 8202462
+ *      8184205 8219060 8223378 8234746
  * @summary Test modules support in javadoc.
- * @author bpatel
  * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build javadoc.tester.*
@@ -463,14 +462,14 @@ public class TestModules extends JavadocTester {
                 + "<!--   -->\n"
                 + "</a>\n"
                 + "<div class=\"block\">This is a test description for the moduleA module with a Search "
-                + "phrase <a id=\"searchphrase\" class=\"searchTagResult\">search phrase</a>.</div>");
+                + "phrase <span id=\"searchphrase\" class=\"searchTagResult\">search phrase</span>.</div>");
         checkOutput("moduleB/module-summary.html", found,
                 "<!-- ============ MODULE DESCRIPTION =========== -->\n"
                 + "<a name=\"module.description\">\n"
                 + "<!--   -->\n"
                 + "</a>\n"
                 + "<div class=\"block\">This is a test description for the moduleB module. Search "
-                + "word <a id=\"search_word\" class=\"searchTagResult\">search_word</a> with no description.</div>");
+                + "word <span id=\"search_word\" class=\"searchTagResult\">search_word</span> with no description.</div>");
         checkOutput("index.html", found,
                 "</script>\n"
                 + "<div class=\"contentContainer\">\n"
@@ -511,25 +510,19 @@ public class TestModules extends JavadocTester {
 
     void checkHtml5Description(boolean found) {
         checkOutput("moduleA/module-summary.html", found,
-                "<section class=\"moduleDescription\">\n"
+                "<section class=\"moduleDescription\" id=\"module.description\">\n"
                 + "<div class=\"deprecationBlock\"><span class=\"deprecatedLabel\">Deprecated, for removal:"
                 + " This API element is subject to removal in a future version.</span>\n"
                 + "<div class=\"deprecationComment\">This module is deprecated.</div>\n"
                 + "</div>\n"
                 + "<!-- ============ MODULE DESCRIPTION =========== -->\n"
-                + "<a id=\"module.description\">\n"
-                + "<!--   -->\n"
-                + "</a>\n"
                 + "<div class=\"block\">This is a test description for the moduleA module with a Search "
-                + "phrase <a id=\"searchphrase\" class=\"searchTagResult\">search phrase</a>.</div>");
+                + "phrase <span id=\"searchphrase\" class=\"searchTagResult\">search phrase</span>.</div>");
         checkOutput("moduleB/module-summary.html", found,
-                "<section class=\"moduleDescription\">\n"
+                "<section class=\"moduleDescription\" id=\"module.description\">\n"
                 + "<!-- ============ MODULE DESCRIPTION =========== -->\n"
-                + "<a id=\"module.description\">\n"
-                + "<!--   -->\n"
-                + "</a>\n"
                 + "<div class=\"block\">This is a test description for the moduleB module. Search "
-                + "word <a id=\"search_word\" class=\"searchTagResult\">search_word</a> with no description.</div>");
+                + "word <span id=\"search_word\" class=\"searchTagResult\">search_word</span> with no description.</div>");
         checkOutput("index.html", found,
                 "</nav>\n"
                 + "</header>\n"
@@ -560,14 +553,14 @@ public class TestModules extends JavadocTester {
                 + "<section class=\"summary\">\n"
                 + "<ul class=\"blockList\">\n"
                 + "<li class=\"blockList\">\n"
-                + "<section class=\"packagesSummary\">\n"
+                + "<section class=\"packagesSummary\" id=\"packages.summary\">\n"
                 + "<!-- ============ PACKAGES SUMMARY =========== -->");
         checkOutput("moduleB/module-summary.html", found,
                 "<div class=\"contentContainer\">\n"
                 + "<section class=\"summary\">\n"
                 + "<ul class=\"blockList\">\n"
                 + "<li class=\"blockList\">\n"
-                + "<section class=\"packagesSummary\">\n"
+                + "<section class=\"packagesSummary\" id=\"packages.summary\">\n"
                 + "<!-- ============ PACKAGES SUMMARY =========== -->");
     }
 
@@ -620,7 +613,7 @@ public class TestModules extends JavadocTester {
                 "<dt><span class=\"simpleTagLabel\">Version:</span></dt>\n"
                 + "<dd>1.0</dd>",
                 "<dt><span class=\"simpleTagLabel\">Author:</span></dt>\n"
-                + "<dd>Bhavesh Patel</dd>");
+                + "<dd>Alice</dd>");
         checkOutput("moduletags/testpkgmdltags/TestClassInModuleTags.html", false,
                 "<dt><span class=\"simpleTagLabel\">Module Tag:</span></dt>\n"
                 + "<dd>Just a simple module tag.</dd>");
@@ -766,18 +759,16 @@ public class TestModules extends JavadocTester {
                 + "<li><a href=\"#packages.summary\">Packages</a>&nbsp;|&nbsp;</li>\n"
                 + "<li>Services</li>\n"
                 + "</ul>",
-                "<!-- ============ MODULES SUMMARY =========== -->\n"
-                + "<a id=\"modules.summary\">\n"
-                + "<!--   -->\n"
-                + "</a>",
+                "<section class=\"modulesSummary\" id=\"modules.summary\">\n"
+                + "<!-- ============ MODULES SUMMARY =========== -->\n"
+                + "<h2>Modules</h2>",
                 "<tr class=\"altColor\" id=\"i0\">\n"
                 + "<th class=\"colFirst\" scope=\"row\"><a href=\"testpkgmdlA/package-summary.html\">testpkgmdlA</a></th>\n"
                 + "<td class=\"colLast\">&nbsp;</td>\n"
                 + "</tr>",
-                "<!-- ============ PACKAGES SUMMARY =========== -->\n"
-                + "<a id=\"packages.summary\">\n"
-                + "<!--   -->\n"
-                + "</a>",
+                "<section class=\"packagesSummary\" id=\"packages.summary\">\n"
+                + "<!-- ============ PACKAGES SUMMARY =========== -->\n"
+                + "<h2>Packages</h2>",
                 "<tr class=\"altColor\">\n"
                 + "<td class=\"colFirst\">transitive</td>\n"
                 + "<th class=\"colSecond\" scope=\"row\"><a href=\"../moduleB/module-summary.html\">moduleB</a></th>\n"
@@ -791,21 +782,15 @@ public class TestModules extends JavadocTester {
                 + "<li><a href=\"#packages.summary\">Packages</a>&nbsp;|&nbsp;</li>\n"
                 + "<li><a href=\"#services.summary\">Services</a></li>",
                 "<!-- ============ PACKAGES SUMMARY =========== -->\n"
-                + "<a id=\"packages.summary\">\n"
-                + "<!--   -->\n"
-                + "</a>",
+                + "<h2>Packages</h2>",
                 "<tr class=\"altColor\" id=\"i0\">\n"
                 + "<th class=\"colFirst\" scope=\"row\"><a href=\"testpkgmdlB/package-summary.html\">testpkgmdlB</a></th>\n"
                 + "<td class=\"colLast\">&nbsp;</td>\n"
                 + "</tr>",
                 "<!-- ============ PACKAGES SUMMARY =========== -->\n"
-                + "<a id=\"packages.summary\">\n"
-                + "<!--   -->\n"
-                + "</a>",
+                + "<h2>Packages</h2>",
                 "<!-- ============ SERVICES SUMMARY =========== -->\n"
-                + "<a id=\"services.summary\">\n"
-                + "<!--   -->\n"
-                + "</a>",
+                + "<h2>Services</h2>",
                 "<tr class=\"altColor\">\n"
                 + "<th class=\"colFirst\" scope=\"row\"><a href=\"testpkgmdlB/TestClassInModuleB.html\" title=\"class in testpkgmdlB\">TestClassInModuleB</a></th>\n"
                 + "<td class=\"colLast\">\n"
@@ -840,7 +825,7 @@ public class TestModules extends JavadocTester {
                 + "<h1 title=\"Module\" class=\"title\">Module&nbsp;moduleT</h1>\n"
                 + "</div>",
                 "<div class=\"block\">This is a test description for the moduleT module. "
-                + "Search phrase <a id=\"searchphrase\" class=\"searchTagResult\">search phrase</a>. "
+                + "Search phrase <span id=\"searchphrase\" class=\"searchTagResult\">search phrase</span>. "
                 + "Make sure there are no exported packages.</div>",
                 "<tbody>\n"
                 + "<tr class=\"altColor\">\n"
@@ -864,9 +849,7 @@ public class TestModules extends JavadocTester {
     void checkNegatedModuleSummary() {
         checkOutput("moduleA/module-summary.html", false,
                 "<!-- ============ SERVICES SUMMARY =========== -->\n"
-                + "<a id=\"services.summary\">\n"
-                + "<!--   -->\n"
-                + "</a>");
+                + "<h2>Services</h2>");
     }
 
     void checkModuleFilesAndLinks(boolean found) {
@@ -902,18 +885,18 @@ public class TestModules extends JavadocTester {
                 + "</dl>",
                 "<dl>\n"
                 + "<dt><span class=\"searchTagLink\"><a href=\"moduleB/module-summary.html#search_word\">"
-                + "search_word</a></span> - Search tag in moduleB</dt>\n"
+                + "search_word</a></span> - Search tag in module moduleB</dt>\n"
                 + "<dd>&nbsp;</dd>\n"
                 + "<dt><span class=\"searchTagLink\"><a href=\"moduleA/module-summary.html#searchphrase\">"
-                + "search phrase</a></span> - Search tag in moduleA</dt>\n"
+                + "search phrase</a></span> - Search tag in module moduleA</dt>\n"
                 + "<dd>with description</dd>\n"
                 + "</dl>");
         checkOutput("index-all.html", false,
                 "<dt><span class=\"searchTagLink\"><a href=\"moduleA/module-summary.html#searchphrase\">"
-                + "search phrase</a></span> - Search tag in moduleA</dt>\n"
+                + "search phrase</a></span> - Search tag in module moduleA</dt>\n"
                 + "<dd>with description</dd>\n"
                 + "<dt><span class=\"searchTagLink\"><a href=\"moduleA/module-summary.html#searchphrase\">"
-                + "search phrase</a></span> - Search tag in moduleA</dt>\n"
+                + "search phrase</a></span> - Search tag in module moduleA</dt>\n"
                 + "<dd>with description</dd>");
     }
 
@@ -1126,9 +1109,7 @@ public class TestModules extends JavadocTester {
     void checkModuleSummaryNoExported(boolean found) {
         checkOutput("moduleNoExport/module-summary.html", found,
                 "<!-- ============ PACKAGES SUMMARY =========== -->\n"
-                + "<a id=\"packages.summary\">\n"
-                + "<!--   -->\n"
-                + "</a>",
+                + "<h2>Packages</h2>",
                 "<caption><span>Concealed</span><span class=\"tabEnd\">&nbsp;</span></caption>");
     }
 
@@ -1244,7 +1225,7 @@ public class TestModules extends JavadocTester {
                 + "<h1 title=\"Module\" class=\"title\">Module&nbsp;test.moduleFullName</h1>\n"
                 + "</div>");
         checkOutput("index-all.html", found,
-                "<h2 class=\"title\">T</h2>\n"
+                "<h2 class=\"title\" id=\"I:T\">T</h2>\n"
                 + "<dl>\n"
                 + "<dt><a href=\"test.moduleFullName/module-summary.html\">test.moduleFullName</a> - module test.moduleFullName</dt>\n"
                 + "<dd>\n"
@@ -1288,21 +1269,21 @@ public class TestModules extends JavadocTester {
                 + "<pre>public class <a href=\"../../src-html/moduleA/testpkgmdlA/TestClassInModuleA.html#line.25\">"
                 + "TestClassInModuleA</a>\nextends java.lang.Object</pre>\n</section>");
         checkOutput("src-html/moduleA/testpkgmdlA/TestClassInModuleA.html", true,
-                "<span class=\"sourceLineNo\">019</span><a id=\"line.19\"> * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA</a>\n"
-                + "<span class=\"sourceLineNo\">020</span><a id=\"line.20\"> * or visit www.oracle.com if you need additional information or have any</a>\n"
-                + "<span class=\"sourceLineNo\">021</span><a id=\"line.21\"> * questions.</a>\n"
-                + "<span class=\"sourceLineNo\">022</span><a id=\"line.22\"> */</a>\n"
-                + "<span class=\"sourceLineNo\">023</span><a id=\"line.23\">package testpkgmdlA;</a>\n"
-                + "<span class=\"sourceLineNo\">024</span><a id=\"line.24\"></a>\n"
-                + "<span class=\"sourceLineNo\">025</span><a id=\"line.25\">public class TestClassInModuleA {</a>\n"
-                + "<span class=\"sourceLineNo\">026</span><a id=\"line.26\">}</a>");
+                "<span class=\"sourceLineNo\">019</span><span id=\"line.19\"> * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA</span>\n"
+                + "<span class=\"sourceLineNo\">020</span><span id=\"line.20\"> * or visit www.oracle.com if you need additional information or have any</span>\n"
+                + "<span class=\"sourceLineNo\">021</span><span id=\"line.21\"> * questions.</span>\n"
+                + "<span class=\"sourceLineNo\">022</span><span id=\"line.22\"> */</span>\n"
+                + "<span class=\"sourceLineNo\">023</span><span id=\"line.23\">package testpkgmdlA;</span>\n"
+                + "<span class=\"sourceLineNo\">024</span><span id=\"line.24\"></span>\n"
+                + "<span class=\"sourceLineNo\">025</span><span id=\"line.25\">public class TestClassInModuleA {</span>\n"
+                + "<span class=\"sourceLineNo\">026</span><span id=\"line.26\">}</span>");
         if (includePrivate) {
             checkOutput("src-html/moduleA/concealedpkgmdlA/ConcealedClassInModuleA.html", true,
-                    "<span class=\"sourceLineNo\">024</span><a id=\"line.24\">package concealedpkgmdlA;</a>\n"
-                    + "<span class=\"sourceLineNo\">025</span><a id=\"line.25\"></a>\n"
-                    + "<span class=\"sourceLineNo\">026</span><a id=\"line.26\">public class ConcealedClassInModuleA {</a>\n"
-                    + "<span class=\"sourceLineNo\">027</span><a id=\"line.27\">    public void testMethodConcealedClass() { }</a>\n"
-                    + "<span class=\"sourceLineNo\">028</span><a id=\"line.28\">}</a>");
+                    "<span class=\"sourceLineNo\">024</span><span id=\"line.24\">package concealedpkgmdlA;</span>\n"
+                    + "<span class=\"sourceLineNo\">025</span><span id=\"line.25\"></span>\n"
+                    + "<span class=\"sourceLineNo\">026</span><span id=\"line.26\">public class ConcealedClassInModuleA {</span>\n"
+                    + "<span class=\"sourceLineNo\">027</span><span id=\"line.27\">    public void testMethodConcealedClass() { }</span>\n"
+                    + "<span class=\"sourceLineNo\">028</span><span id=\"line.28\">}</span>");
         }
     }
 
@@ -1344,7 +1325,8 @@ public class TestModules extends JavadocTester {
         checkOutput("package-search-index.js", true,
                 "{\"l\":\"All Packages\",\"url\":\"allpackages-index.html\"}");
         checkOutput("index-all.html", true,
-                "<br><a href=\"allclasses-index.html\">All&nbsp;Classes</a>&nbsp;"
+                "<br><a href=\"allclasses-index.html\">All&nbsp;Classes</a>"
+                + "<span class=\"verticalSeparator\">|</span>"
                 + "<a href=\"allpackages-index.html\">All&nbsp;Packages</a>");
-}
+    }
 }

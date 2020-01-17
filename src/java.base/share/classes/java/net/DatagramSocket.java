@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,23 +43,68 @@ import java.util.Collections;
  * any order.
  *
  * <p> Where possible, a newly constructed {@code DatagramSocket} has the
- * {@link SocketOptions#SO_BROADCAST SO_BROADCAST} socket option enabled so as
+ * {@link StandardSocketOptions#SO_BROADCAST SO_BROADCAST} socket option enabled so as
  * to allow the transmission of broadcast datagrams. In order to receive
  * broadcast packets a DatagramSocket should be bound to the wildcard address.
  * In some implementations, broadcast packets may also be received when
  * a DatagramSocket is bound to a more specific address.
  * <p>
  * Example:
- * {@code
+ * <pre>{@code
  *              DatagramSocket s = new DatagramSocket(null);
  *              s.bind(new InetSocketAddress(8888));
- * }
+ * }</pre>
  * Which is equivalent to:
- * {@code
+ * <pre>{@code
  *              DatagramSocket s = new DatagramSocket(8888);
- * }
+ * }</pre>
  * Both cases will create a DatagramSocket able to receive broadcasts on
  * UDP port 8888.
+ *
+ * <p> The {@code DatagramSocket} class defines convenience
+ * methods to set and get several socket options. This class also
+ * defines the {@link #setOption(SocketOption,Object) setOption}
+ * and {@link #getOption(SocketOption) getOption} methods to set
+ * and query socket options.
+ * A {@code DatagramSocket} supports the following socket options:
+ * <blockquote>
+ * <a id="SocketOptions"></a>
+ * <table class="striped">
+ * <caption style="display:none">Socket options</caption>
+ * <thead>
+ *   <tr>
+ *     <th scope="col">Option Name</th>
+ *     <th scope="col">Description</th>
+ *   </tr>
+ * </thead>
+ * <tbody>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#SO_SNDBUF SO_SNDBUF} </th>
+ *     <td> The size of the socket send buffer </td>
+ *   </tr>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#SO_RCVBUF SO_RCVBUF} </th>
+ *     <td> The size of the socket receive buffer </td>
+ *   </tr>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#SO_REUSEADDR SO_REUSEADDR} </th>
+ *     <td> Re-use address </td>
+ *   </tr>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#SO_BROADCAST SO_BROADCAST} </th>
+ *     <td> Allow transmission of broadcast datagrams </td>
+ *   </tr>
+ *   <tr>
+ *     <th scope="row"> {@link java.net.StandardSocketOptions#IP_TOS IP_TOS} </th>
+ *     <td> The Type of Service (ToS) octet in the Internet Protocol (IP) header </td>
+ *   </tr>
+ * </tbody>
+ * </table>
+ * </blockquote>
+ * An implementation may also support additional options. In particular an implementation
+ * may support <a href="MulticastSocket.html#MulticastOptions">multicast options</a> which
+ * can be useful when using a plain {@code DatagramSocket} to send datagrams to a
+ * multicast group.
  *
  * @author  Pavani Diwanji
  * @see     java.net.DatagramPacket
@@ -454,6 +499,7 @@ public class DatagramSocket implements java.io.Closeable {
      *         not permit access to the given remote address
      *
      * @see #disconnect
+     * @since 1.2
      */
     public void connect(InetAddress address, int port) {
         try {
@@ -501,6 +547,7 @@ public class DatagramSocket implements java.io.Closeable {
      * then this method has no effect.
      *
      * @see #connect
+     * @since 1.2
      */
     public void disconnect() {
         synchronized (this) {
@@ -553,6 +600,7 @@ public class DatagramSocket implements java.io.Closeable {
      * after the socket is closed.
      *
      * @return the address to which this socket is connected.
+     * @since 1.2
      */
     public InetAddress getInetAddress() {
         return connectedAddress;
@@ -567,6 +615,7 @@ public class DatagramSocket implements java.io.Closeable {
      * after the socket is closed.
      *
      * @return the port number to which this socket is connected.
+     * @since 1.2
      */
     public int getPort() {
         return connectedPort;
@@ -964,6 +1013,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @throws    IllegalArgumentException if the value is 0 or is
      * negative.
      * @see #getSendBufferSize()
+     * @since 1.2
      */
     public synchronized void setSendBufferSize(int size) throws SocketException {
         if (!(size > 0)) {
@@ -982,6 +1032,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @throws    SocketException if there is an error in
      * the underlying protocol, such as an UDP error.
      * @see #setSendBufferSize
+     * @since 1.2
      */
     public synchronized int getSendBufferSize() throws SocketException {
         if (isClosed())
@@ -1021,6 +1072,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @throws    IllegalArgumentException if the value is 0 or is
      * negative.
      * @see #getReceiveBufferSize()
+     * @since 1.2
      */
     public synchronized void setReceiveBufferSize(int size) throws SocketException {
         if (size <= 0) {
@@ -1038,6 +1090,7 @@ public class DatagramSocket implements java.io.Closeable {
      * @return the value of the SO_RCVBUF option for this {@code DatagramSocket}
      * @throws    SocketException if there is an error in the underlying protocol, such as an UDP error.
      * @see #setReceiveBufferSize(int)
+     * @since 1.2
      */
     public synchronized int getReceiveBufferSize() throws SocketException {
         if (isClosed())

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <!--
- Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 
  This code is free software; you can redistribute it and/or modify it
@@ -464,7 +464,7 @@
     <Field type="ulong" contentType="bytes" name="used" label="Used" />
   </Event>
 
-  <Event name="Compilation" category="Java Virtual Machine, Compiler" label="Compilation" thread="true">
+  <Event name="Compilation" category="Java Virtual Machine, Compiler" label="Compilation" thread="true" commitState="_thread_in_native">
     <Field type="uint" name="compileId" label="Compilation Identifier" relation="CompileId" />
     <Field type="CompilerType" name="compiler" label="Compiler" />
     <Field type="Method" name="method" label="Method" />
@@ -492,7 +492,7 @@
     <Field type="string" name="descriptor" label="Method Descriptor" />
   </Type>
 
-  <Event name="CompilerInlining" category="Java Virtual Machine, Compiler, Optimization" label="Method Inlining" thread="true" startTime="false">
+  <Event name="CompilerInlining" category="Java Virtual Machine, Compiler, Optimization" label="Method Inlining" thread="true" startTime="false" commitState="_thread_in_native">
     <Field type="uint" name="compileId" label="Compilation Identifier" relation="CompileId" />
     <Field type="Method" name="caller" label="Caller Method" />
     <Field type="CalleeMethod" name="callee" struct="true" label="Callee Method" />
@@ -1018,36 +1018,6 @@
   </Type>
 
   <Event name="Flush" category="Flight Recorder" label="Flush" thread="false" experimental="true">
-    <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
-    <Field type="ulong" name="elements" label="Elements Written" />
-    <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
-  </Event>
-
-  <Event name="FlushStorage" category="Flight Recorder" label="Flush Storage" thread="false" experimental="true">
-    <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
-    <Field type="ulong" name="elements" label="Elements Written" />
-    <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
-  </Event>
-
-  <Event name="FlushStacktrace" category="Flight Recorder" label="Flush Stacktrace" thread="false" experimental="true">
-    <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
-    <Field type="ulong" name="elements" label="Elements Written" />
-    <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
-  </Event>
-
-  <Event name="FlushStringPool" category="Flight Recorder" label="Flush String Pool" thread="false" experimental="true">
-    <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
-    <Field type="ulong" name="elements" label="Elements Written" />
-    <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
-  </Event>
-
-  <Event name="FlushMetadata" category="Flight Recorder" label="Flush Metadata" thread="false" experimental="true">
-    <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
-    <Field type="ulong" name="elements" label="Elements Written" />
-    <Field type="ulong" contentType="bytes" name="size" label="Size Written" />
-  </Event>
-
-  <Event name="FlushTypeSet" category="Flight Recorder" label="Flush Type Set" thread="false" experimental="true">
     <Field type="ulong" name="flushId" label="Flush Identifier" relation="FlushId" />
     <Field type="ulong" name="elements" label="Elements Written" />
     <Field type="ulong" contentType="bytes" name="size" label="Size Written" />

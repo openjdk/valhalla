@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -884,6 +884,24 @@ public class TypeEnter implements Completer {
                 completing = prevCompleting;
             }
         }
+
+        void enterThisAndSuper(ClassSymbol sym, Env<AttrContext> env) {
+            ClassType ct = (ClassType)sym.type;
+            // enter symbols for 'this' into current scope.
+            VarSymbol thisSym =
+                    new VarSymbol(FINAL | HASINIT, names._this, sym.type, sym);
+            thisSym.pos = Position.FIRSTPOS;
+            env.info.scope.enter(thisSym);
+            // if this is a class, enter symbol for 'super' into current scope.
+            if ((sym.flags_field & INTERFACE) == 0 &&
+                    ct.supertype_field.hasTag(CLASS)) {
+                VarSymbol superSym =
+                        new VarSymbol(FINAL | HASINIT, names._super,
+                                ct.supertype_field, sym);
+                superSym.pos = Position.FIRSTPOS;
+                env.info.scope.enter(superSym);
+            }
+        }
     }
 
     private final class RecordPhase extends AbstractMembersPhase {
@@ -902,6 +920,9 @@ public class TypeEnter implements Completer {
                 for (JCVariableDecl field : fields) {
                     sym.getRecordComponent(field.sym, true);
                 }
+
+                enterThisAndSuper(sym, env);
+
                 // lets enter all constructors
                 for (JCTree def : tree.defs) {
                     if (TreeInfo.isConstructor(def)) {
@@ -932,19 +953,8 @@ public class TypeEnter implements Completer {
                 JCTree constrDef = defaultConstructor(make.at(tree.pos), helper);
                 tree.defs = tree.defs.prepend(constrDef);
             }
-            // enter symbols for 'this' into current scope.
-            VarSymbol thisSym =
-                new VarSymbol(FINAL | HASINIT, names._this, sym.type, sym);
-            thisSym.pos = Position.FIRSTPOS;
-            env.info.scope.enter(thisSym);
-            // if this is a class, enter symbol for 'super' into current scope.
-            if ((sym.flags_field & INTERFACE) == 0 &&
-                    ct.supertype_field.hasTag(CLASS)) {
-                VarSymbol superSym =
-                    new VarSymbol(FINAL | HASINIT, names._super,
-                                  ct.supertype_field, sym);
-                superSym.pos = Position.FIRSTPOS;
-                env.info.scope.enter(superSym);
+            if (!sym.isRecord()) {
+                enterThisAndSuper(sym, env);
             }
 
             if (!tree.typarams.isEmpty()) {
@@ -1030,9 +1040,16 @@ public class TypeEnter implements Completer {
                  * it could be that some of those annotations are not applicable to the accessor, they will be striped
                  * away later at Check::validateAnnotation
                  */
-                JCMethodDecl getter = make.at(tree.pos).MethodDef(make.Modifiers(Flags.PUBLIC | Flags.GENERATED_MEMBER, tree.mods.annotations),
+                JCMethodDecl getter = make.at(tree.pos).
+                        MethodDef(
+                                make.Modifiers(Flags.PUBLIC | Flags.GENERATED_MEMBER, tree.mods.annotations),
                           tree.sym.name,
-                          make.Type(tree.sym.type),
+                          /* we need to special case for the case when the user declared the type as an ident
+                           * if we don't do that then we can have issues if type annotations are applied to the
+                           * return type: javac issues an error if a type annotation is applied to java.lang.String
+                           * but applying a type annotation to String is kosher
+                           */
+                          tree.vartype.hasTag(IDENT) ? make.Ident(tree.vartype.type.tsym) : make.Type(tree.sym.type),
                           List.nil(),
                           List.nil(),
                           List.nil(), // thrown
@@ -1040,6 +1057,7 @@ public class TypeEnter implements Completer {
                           null);
                 memberEnter.memberEnter(getter, env);
                 rec.accessor = getter.sym;
+                rec.accessorMeth = getter;
             } else if (implSym != null) {
                 rec.accessor = implSym;
             }
@@ -1145,11 +1163,8 @@ public class TypeEnter implements Completer {
                 field.sym.flags_field &= ~Flags.VARARGS;
             }
             // now lets add the accessors
-            tree.defs.stream()
-                    .filter(t -> t.hasTag(VARDEF))
-                    .map(t -> (JCVariableDecl) t)
-                    // lets stay clear of adding a forbidden name, javac will fail later anyway
-                    .filter(vd -> (vd.sym.flags_field & RECORD) != 0 && lookupMethod(syms.objectType.tsym, vd.name, List.nil()) == null)
+            recordFields.stream()
+                    .filter(vd -> (lookupMethod(syms.objectType.tsym, vd.name, List.nil()) == null))
                     .forEach(vd -> addAccessor(vd, env));
         }
     }

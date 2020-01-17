@@ -27,7 +27,6 @@
  *      8192850 8182765 8220217
  * @summary Test to make sure that members are inherited properly in the Javadoc.
  *          Verify that inheritance labels are correct.
- * @author jamieh
  * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build javadoc.tester.*
@@ -121,7 +120,8 @@ public class TestMemberInheritance extends JavadocTester {
                 + "</td>\n");
 
         checkOutput("pkg2/DocumentedNonGenericChild.html", true,
-                "<h3><a id=\"parentMethod()\">parentMethod</a></h3>\n"
+                "<section class=\"detail\" id=\"parentMethod()\">\n"
+                + "<h3>parentMethod</h3>\n"
                 + "<div class=\"memberSignature\"><span class=\"modifiers\">protected abstract</span>"
                 + "&nbsp;<span class=\"returnType\">java.lang.String</span>&nbsp;"
                 + "<span class=\"memberName\">parentMethod</span>()</div>");

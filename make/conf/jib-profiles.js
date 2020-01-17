@@ -434,7 +434,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_cpu: "x64",
             dependencies: ["devkit", "cups"],
             configure_args: concat(common.configure_args_64bit,
-                "--with-zlib=system", "--enable-dtrace"),
+                "--with-zlib=system", "--enable-dtrace", "--enable-deprecated-ports=yes"),
         },
 
         "solaris-sparcv9": {
@@ -442,7 +442,7 @@ var getJibProfilesProfiles = function (input, common, data) {
             target_cpu: "sparcv9",
             dependencies: ["devkit", "cups"],
             configure_args: concat(common.configure_args_64bit,
-                "--with-zlib=system", "--enable-dtrace"),
+                "--with-zlib=system", "--enable-dtrace", "--enable-deprecated-ports=yes"),
         },
 
         "windows-x64": {
@@ -1043,7 +1043,7 @@ var getJibProfilesDependencies = function (input, common) {
         jtreg: {
             server: "javare",
             revision: "4.2",
-            build_number: "b14",
+            build_number: "b16",
             checksum_file: "MD5_VALUES",
             file: "jtreg_bin-4.2.zip",
             environment_name: "JT_HOME",
@@ -1066,7 +1066,7 @@ var getJibProfilesDependencies = function (input, common) {
             // build_number: "b07",
             // file: "bundles/jcov-3_0.zip",
             organization: common.organization,
-            revision: "3.0-58-support+1.0",
+            revision: "3.0-59-support+1.0",
             ext: "zip",
             environment_name: "JCOV_HOME",
         },

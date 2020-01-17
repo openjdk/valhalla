@@ -27,7 +27,6 @@
  *           8196200 8196202 8223378
  * @summary  Make sure the Next/Prev Class links iterate through all types.
  *           Make sure the navagation is 2 columns, not 3.
- * @author   jamieh
  * @library  /tools/lib ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build    toolbox.ToolBox javadoc.tester.*
@@ -63,32 +62,29 @@ public class TestNavigation extends JavadocTester {
         checkSubNav();
 
         checkOutput("pkg/A.html", true,
-                "<ul class=\"navList\" title=\"Navigation\">\n" +
+                "<ul id=\"navbar.top.firstrow\" class=\"navList\" title=\"Navigation\">\n" +
                 "<li><a href=\"../index.html\">Overview</a></li>");
 
         checkOutput("pkg/C.html", true,
-                "<ul class=\"navList\" title=\"Navigation\">\n" +
+                "<ul id=\"navbar.top.firstrow\" class=\"navList\" title=\"Navigation\">\n" +
                 "<li><a href=\"../index.html\">Overview</a></li>");
 
         checkOutput("pkg/E.html", true,
-                "<ul class=\"navList\" title=\"Navigation\">\n" +
+                "<ul id=\"navbar.top.firstrow\" class=\"navList\" title=\"Navigation\">\n" +
                 "<li><a href=\"../index.html\">Overview</a></li>");
 
         checkOutput("pkg/I.html", true,
                 // Test for 4664607
                 "<div class=\"skipNav\"><a href=\"#skip.navbar.top\" title=\"Skip navigation links\">Skip navigation links</a></div>\n"
-                + "<a id=\"navbar.top.firstrow\">\n"
-                + "<!--   -->\n"
-                + "</a>",
+                + "<ul id=\"navbar.top.firstrow\" class=\"navList\" title=\"Navigation\">\n",
                 "<li><a href=\"../index.html\">Overview</a></li>");
 
         // Remaining tests check for additional padding to offset the fixed navigation bar.
         checkOutput("pkg/A.html", true,
                 "<!-- ========= END OF TOP NAVBAR ========= -->\n"
-                + "<div class=\"skipNav\"><a id=\"skip.navbar.top\">\n"
+                + "<span class=\"skipNav\" id=\"skip.navbar.top\">\n"
                 + "<!--   -->\n"
-                + "</a></div>\n"
-                + "</nav>\n"
+                + "</span></nav>\n"
                 + "</header>\n"
                 + "<div class=\"flexContent\">\n"
                 + "<main role=\"main\">\n"
@@ -96,10 +92,9 @@ public class TestNavigation extends JavadocTester {
 
         checkOutput("pkg/package-summary.html", true,
                 "<!-- ========= END OF TOP NAVBAR ========= -->\n"
-                + "<div class=\"skipNav\"><a id=\"skip.navbar.top\">\n"
+                + "<span class=\"skipNav\" id=\"skip.navbar.top\">\n"
                 + "<!--   -->\n"
-                + "</a></div>\n"
-                + "</nav>\n"
+                + "</span></nav>\n"
                 + "</header>\n"
                 + "<div class=\"flexContent\">\n"
                 + "<main role=\"main\">\n"
@@ -118,10 +113,9 @@ public class TestNavigation extends JavadocTester {
 
         checkOutput("pkg/A.html", true,
                 "<!-- ========= END OF TOP NAVBAR ========= -->\n"
-                + "<div class=\"skipNav\"><a id=\"skip.navbar.top\">\n"
+                + "<span class=\"skipNav\" id=\"skip.navbar.top\">\n"
                 + "<!--   -->\n"
-                + "</a></div>\n"
-                + "</nav>\n"
+                + "</span></nav>\n"
                 + "</header>\n"
                 + "<div class=\"flexContent\">\n"
                 + "<main role=\"main\">\n"
@@ -129,10 +123,9 @@ public class TestNavigation extends JavadocTester {
 
         checkOutput("pkg/package-summary.html", true,
                 "<!-- ========= END OF TOP NAVBAR ========= -->\n"
-                + "<div class=\"skipNav\"><a id=\"skip.navbar.top\">\n"
+                + "<span class=\"skipNav\" id=\"skip.navbar.top\">\n"
                 + "<!--   -->\n"
-                + "</a></div>\n"
-                + "</nav>");
+                + "</span></nav>\n");
     }
 
     // Test to make sure that no extra padding for nav bar gets generated if -nonavbar is specified.
@@ -285,5 +278,5 @@ public class TestNavigation extends JavadocTester {
                 + "  allClassesLink = document.getElementById(\"allclasses_navbar_top\");",
                 "<script type=\"text/javascript\"><!--\n"
                 + "  allClassesLink = document.getElementById(\"allclasses_navbar_bottom\");");
-}
+    }
 }

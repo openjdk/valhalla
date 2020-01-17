@@ -88,16 +88,15 @@ import sun.reflect.annotation.*;
 import sun.reflect.misc.ReflectUtil;
 
 /**
- * Instances of the class {@code Class} represent classes and interfaces
- * in a running Java application. An enum type is a kind of class and an
- * annotation type is a kind of interface. Every array also
- * belongs to a class that is reflected as a {@code Class} object
- * that is shared by all arrays with the same element type and number
- * of dimensions.  The primitive Java types ({@code boolean},
- * {@code byte}, {@code char}, {@code short},
- * {@code int}, {@code long}, {@code float}, and
- * {@code double}), and the keyword {@code void} are also
- * represented as {@code Class} objects.
+ * Instances of the class {@code Class} represent classes and
+ * interfaces in a running Java application. An enum type and a record
+ * type are kinds of class; an annotation type is a kind of
+ * interface. Every array also belongs to a class that is reflected as
+ * a {@code Class} object that is shared by all arrays with the same
+ * element type and number of dimensions.  The primitive Java types
+ * ({@code boolean}, {@code byte}, {@code char}, {@code short}, {@code
+ * int}, {@code long}, {@code float}, and {@code double}), and the
+ * keyword {@code void} are also represented as {@code Class} objects.
  *
  * <p> {@code Class} has no public constructor. Instead a {@code Class}
  * object is constructed automatically by the Java Virtual Machine
@@ -211,8 +210,8 @@ public final class Class<T> implements java.io.Serializable,
      *
      * The string is formatted as a list of type modifiers, if any,
      * followed by the kind of type (empty string for primitive types
-     * and {@code class}, {@code enum}, {@code interface}, or
-     * <code>&#64;</code>{@code interface}, as appropriate), followed
+     * and {@code class}, {@code enum}, {@code interface},
+     * <code>&#64;</code>{@code interface}, or {@code record} as appropriate), followed
      * by the type's name, followed by an angle-bracketed
      * comma-separated list of the type's type parameters, if any,
      * including informative bounds on the type parameters, if any.
@@ -238,6 +237,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @since 1.8
      */
+    @SuppressWarnings("preview")
     public String toGenericString() {
         if (isPrimitive()) {
             return toString();
@@ -268,6 +268,8 @@ public final class Class<T> implements java.io.Serializable,
                 } else {
                     if (isEnum())
                         sb.append("enum");
+                    else if (isRecord())
+                        sb.append("record");
                     else
                         sb.append("class");
                 }
@@ -2285,14 +2287,20 @@ public final class Class<T> implements java.io.Serializable,
      *           may be removed in a future release, or upgraded to permanent
      *           features of the Java language.}
      *
-     * Returns an array containing {@code RecordComponent} objects reflecting all the
-     * declared record components of the record represented by this {@code Class} object.
-     * The components are returned in the same order that they are declared in the
-     * record header.
+     * Returns an array of {@code RecordComponent} objects representing all the
+     * record components of this record class, or {@code null} if this class is
+     * not a record class.
      *
-     * @return  The array of {@code RecordComponent} objects representing all the
-     *          record components of this record. The array is empty if this class
-     *          is not a record, or if this class is a record with no components.
+     * <p> The components are returned in the same order that they are declared
+     * in the record header. The array is empty if this record class has no
+     * components. If the class is not a record class, that is {@link
+     * #isRecord()} returns {@code false}, then this method returns {@code null}.
+     * Conversely, if {@link #isRecord()} returns {@code true}, then this method
+     * returns a non-null value.
+     *
+     * @return  An array of {@code RecordComponent} objects representing all the
+     *          record components of this record class, or {@code null} if this
+     *          class is not a record class
      * @throws  SecurityException
      *          If a security manager, <i>s</i>, is present and any of the
      *          following conditions is met:
@@ -2326,18 +2334,14 @@ public final class Class<T> implements java.io.Serializable,
         if (sm != null) {
             checkMemberAccess(sm, Member.DECLARED, Reflection.getCallerClass(), true);
         }
-        if (isPrimitive() || isArray()) {
+        if (!isRecord()) {
+            return null;
+        }
+        RecordComponent[] recordComponents = getRecordComponents0();
+        if (recordComponents == null) {
             return new RecordComponent[0];
         }
-        Object[] recordComponents = getRecordComponents0();
-        if (recordComponents == null || recordComponents.length == 0) {
-            return new RecordComponent[0];
-        }
-        RecordComponent[] result = new RecordComponent[recordComponents.length];
-        for (int i = 0; i < recordComponents.length; i++) {
-            result[i] = (RecordComponent)recordComponents[i];
-        }
-        return result;
+        return recordComponents;
     }
 
     /**
@@ -3501,7 +3505,8 @@ public final class Class<T> implements java.io.Serializable,
     private native Method[]      getDeclaredMethods0(boolean publicOnly);
     private native Constructor<T>[] getDeclaredConstructors0(boolean publicOnly);
     private native Class<?>[]   getDeclaredClasses0();
-    private native Object[]     getRecordComponents0();
+    @SuppressWarnings("preview")
+    private native RecordComponent[] getRecordComponents0();
     private native boolean      isRecord0();
 
     /**
@@ -3611,6 +3616,16 @@ public final class Class<T> implements java.io.Serializable,
         this.getSuperclass() == java.lang.Enum.class;
     }
 
+    /** java.lang.Record.class */
+    private static final Class<?> JAVA_LANG_RECORD_CLASS = javaLangRecordClass();
+    private static Class<?> javaLangRecordClass() {
+        try {
+            return Class.forName0("java.lang.Record", false, null, null);
+        } catch (ClassNotFoundException e) {
+            throw new InternalError("should not reach here", e);
+        }
+    }
+
     /**
      * {@preview Associated with records, a preview feature of the Java language.
      *
@@ -3620,18 +3635,23 @@ public final class Class<T> implements java.io.Serializable,
      *           features of the Java language.}
      *
      * Returns {@code true} if and only if this class is a record class.
-     * It returns {@code false} otherwise. Note that class {@link Record} is not a
-     * record type and thus invoking this method on class {@link java.lang.Record}
-     * returns {@code false}.
      *
-     * @return true if and only if this class is a record class
+     * <p> The {@linkplain #getSuperclass() direct superclass} of a record
+     * class is {@code java.lang.Record}. A record class has (possibly zero)
+     * record components, that is, {@link #getRecordComponents()} returns a
+     * non-null value.
+     *
+     * <p> Note that class {@link Record} is not a record type and thus invoking
+     * this method on class {@code Record} returns {@code false}.
+     *
+     * @return true if and only if this class is a record class, otherwise false
      * @jls 8.10 Record Types
      * @since 14
      */
     @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.RECORDS,
                                  essentialAPI=false)
     public boolean isRecord() {
-        return isRecord0();
+        return getSuperclass() == JAVA_LANG_RECORD_CLASS && isRecord0();
     }
 
     // Fetches the factory for reflective objects

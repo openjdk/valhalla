@@ -27,7 +27,6 @@
  * @summary  Test the case where the overriden method returns a different
  *           type than the method in the child class.  Make sure the
  *           documentation is inherited but the return type isn't.
- * @author   jamieh
  * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build    javadoc.tester.*
@@ -71,8 +70,7 @@ public class TestMemberSummary extends JavadocTester {
 
         // Legacy anchor dimensions (6290760)
         checkOutput("pkg2/A.html", true,
-                "<a id=\"f(java.lang.Object[])\">\n"
-                + "<!--   -->\n"
-                + "</a><a id=\"f(T[])\">f</a>");
+                "<section class=\"detail\" id=\"f(T[])\">\n"
+                + "<h3 id=\"f(java.lang.Object[])\">f</h3>\n");
     }
 }

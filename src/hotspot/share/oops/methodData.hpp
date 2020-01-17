@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,6 @@
 #include "utilities/align.hpp"
 
 class BytecodeStream;
-class KlassSizeStats;
 
 // The MethodData object collects counts and other profile information
 // during zeroth-tier (interpretive) and first-tier execution.
@@ -2079,10 +2078,6 @@ private:
   // parameter profiling.
   enum { no_parameters = -2, parameters_uninitialized = -1 };
   int _parameters_type_data_di;
-  int parameters_size_in_bytes() const {
-    ParametersTypeData* param = parameters_type_data();
-    return param == NULL ? 0 : param->size_in_bytes();
-  }
 
   // Beginning of the data entries
   intptr_t _data[1];
@@ -2185,9 +2180,6 @@ public:
   // My size
   int size_in_bytes() const { return _size; }
   int size() const    { return align_metadata_size(align_up(_size, BytesPerWord)/BytesPerWord); }
-#if INCLUDE_SERVICES
-  void collect_statistics(KlassSizeStats *sz) const;
-#endif
 
   int      creation_mileage() const  { return _creation_mileage; }
   void set_creation_mileage(int x)   { _creation_mileage = x; }
@@ -2298,6 +2290,11 @@ public:
   }
   int data_size() const {
     return _data_size;
+  }
+
+  int parameters_size_in_bytes() const {
+    ParametersTypeData* param = parameters_type_data();
+    return param == NULL ? 0 : param->size_in_bytes();
   }
 
   // Accessors

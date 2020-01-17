@@ -45,9 +45,6 @@ import static jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable.Kind.
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Jamie Ho
- * @author Bhavesh Patel (Modified)
  */
 public class AnnotationTypeRequiredMemberBuilder extends AbstractMemberBuilder {
 
@@ -142,13 +139,12 @@ public class AnnotationTypeRequiredMemberBuilder extends AbstractMemberBuilder {
         }
         if (hasMembersToDocument()) {
             writer.addAnnotationDetailsMarker(memberDetailsTree);
-            Content annotationDetailsTreeHeader = writer.getAnnotationDetailsTreeHeader(typeElement);
+            Content annotationDetailsTreeHeader = writer.getAnnotationDetailsTreeHeader();
             Content detailsTree = writer.getMemberTreeHeader();
 
             for (Element member : members) {
                 currentMember = member;
-                Content annotationDocTree = writer.getAnnotationDocTreeHeader(
-                        currentMember, detailsTree);
+                Content annotationDocTree = writer.getAnnotationDocTreeHeader(currentMember);
 
                 buildAnnotationTypeMemberChildren(annotationDocTree);
 

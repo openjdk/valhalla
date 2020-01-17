@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -69,11 +69,6 @@ import static javax.tools.Diagnostic.Kind.*;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Robert Field.
- * @author Atul Dambalkar.
- * @author Jamie Ho
- * @author Bhavesh Patel (Modified)
  */
 public class HtmlConfiguration extends BaseConfiguration {
 
@@ -267,6 +262,7 @@ public class HtmlConfiguration extends BaseConfiguration {
     private static final String versionBundleName = "jdk.javadoc.internal.tool.resources.version";
     private static final String defaultDocletVersion = System.getProperty("java.version");
     public final String docletVersion;
+    public final Date startTime = new Date();
 
     @Override
     public String getDocletVersion() {

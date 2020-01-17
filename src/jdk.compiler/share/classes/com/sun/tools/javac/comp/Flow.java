@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -137,7 +137,7 @@ import static com.sun.tools.javac.tree.JCTree.Tag.*;
  *  return statement" iff V is DA before the return statement or V is
  *  DA at the end of any intervening finally block.  Note that we
  *  don't have to worry about the return expression because this
- *  concept is only used for construcrors.
+ *  concept is only used for constructors.
  *
  *  <p>There is no spec in the JLS for when a variable is definitely
  *  assigned at the end of a constructor, which is needed for final
@@ -223,7 +223,7 @@ public class Flow {
         Log.DiagnosticHandler diagHandler = null;
         //we need to disable diagnostics temporarily; the problem is that if
         //a lambda expression contains e.g. an unreachable statement, an error
-        //message will be reported and will cause compilation to skip the flow analyis
+        //message will be reported and will cause compilation to skip the flow analysis
         //step - if we suppress diagnostics, we won't stop at Attr for flow-analysis
         //related errors, which will allow for more errors to be detected
         if (!speculative) {
@@ -242,7 +242,7 @@ public class Flow {
             JCLambda that, TreeMaker make) {
         //we need to disable diagnostics temporarily; the problem is that if
         //a lambda expression contains e.g. an unreachable statement, an error
-        //message will be reported and will cause compilation to skip the flow analyis
+        //message will be reported and will cause compilation to skip the flow analysis
         //step - if we suppress diagnostics, we won't stop at Attr for flow-analysis
         //related errors, which will allow for more errors to be detected
         Log.DiagnosticHandler diagHandler = new Log.DiscardDiagnosticHandler(log);
@@ -259,7 +259,7 @@ public class Flow {
     public boolean aliveAfter(Env<AttrContext> env, JCTree that, TreeMaker make) {
         //we need to disable diagnostics temporarily; the problem is that if
         //"that" contains e.g. an unreachable statement, an error
-        //message will be reported and will cause compilation to skip the flow analyis
+        //message will be reported and will cause compilation to skip the flow analysis
         //step - if we suppress diagnostics, we won't stop at Attr for flow-analysis
         //related errors, which will allow for more errors to be detected
         Log.DiagnosticHandler diagHandler = new Log.DiscardDiagnosticHandler(log);
@@ -276,7 +276,7 @@ public class Flow {
     public boolean breaksOutOf(Env<AttrContext> env, JCTree loop, JCTree body, TreeMaker make) {
         //we need to disable diagnostics temporarily; the problem is that if
         //"that" contains e.g. an unreachable statement, an error
-        //message will be reported and will cause compilation to skip the flow analyis
+        //message will be reported and will cause compilation to skip the flow analysis
         //step - if we suppress diagnostics, we won't stop at Attr for flow-analysis
         //related errors, which will allow for more errors to be detected
         Log.DiagnosticHandler diagHandler = new Log.DiscardDiagnosticHandler(log);
@@ -1310,7 +1310,7 @@ public class Flow {
                 log.error(pos, Errors.ExceptNeverThrownInTry(exc));
             } else {
                 List<Type> catchableThrownTypes = chk.intersect(List.of(exc), thrownInTry);
-                // 'catchableThrownTypes' cannnot possibly be empty - if 'exc' was an
+                // 'catchableThrownTypes' cannot possibly be empty - if 'exc' was an
                 // unchecked exception, the result list would not be empty, as the augmented
                 // thrown set includes { RuntimeException, Error }; if 'exc' was a checked
                 // exception, that would have been covered in the branch above
@@ -1855,21 +1855,17 @@ public class Flow {
 
         /** Check that trackable variable is initialized.
          */
-        boolean checkInit(DiagnosticPosition pos, VarSymbol sym, boolean compactConstructor) {
-            return checkInit(pos, sym, Errors.VarMightNotHaveBeenInitialized(sym), compactConstructor);
+        void checkInit(DiagnosticPosition pos, VarSymbol sym) {
+            checkInit(pos, sym, Errors.VarMightNotHaveBeenInitialized(sym));
         }
 
-        boolean checkInit(DiagnosticPosition pos, VarSymbol sym, Error errkey, boolean compactConstructor) {
+        void checkInit(DiagnosticPosition pos, VarSymbol sym, Error errkey) {
             if ((sym.adr >= firstadr || sym.owner.kind != TYP) &&
                 trackable(sym) &&
                 !inits.isMember(sym.adr)) {
-                if (sym.owner.kind != TYP || !compactConstructor || !uninits.isMember(sym.adr)) {
                     log.error(pos, errkey);
-                }
                 inits.incl(sym.adr);
-                return false;
             }
-            return true;
         }
 
         /** Utility method to reset several Bits instances.
@@ -2099,15 +2095,27 @@ public class Flow {
                                 // the ctor is default(synthesized) or not
                                 if (isSynthesized && !isCompactConstructor) {
                                     checkInit(TreeInfo.diagnosticPositionFor(var, vardecl),
-                                        var, Errors.VarNotInitializedInDefaultConstructor(var), isCompactConstructor);
-                                } else {
-                                    boolean wasInitialized = checkInit(TreeInfo.diagEndPos(tree.body), var, isCompactConstructor && tree.completesNormally);
-                                    if (!wasInitialized && var.owner.kind == TYP && isCompactConstructor && uninits.isMember(var.adr) && tree.completesNormally) {
+                                            var, Errors.VarNotInitializedInDefaultConstructor(var));
+                                } else if (isCompactConstructor) {
+                                    boolean isInstanceRecordField = var.enclClass().isRecord() &&
+                                            (var.flags_field & (Flags.PRIVATE | Flags.FINAL | Flags.GENERATED_MEMBER | Flags.RECORD)) != 0 &&
+                                            !var.isStatic() &&
+                                            var.owner.kind == TYP;
+                                    if (isInstanceRecordField) {
+                                        boolean notInitialized = !inits.isMember(var.adr);
+                                        if (notInitialized && uninits.isMember(var.adr) && tree.completesNormally) {
                                         /*  this way we indicate Lower that it should generate an initialization for this field
                                          *  in the compact constructor
                                          */
-                                        var.flags_field |= UNINITIALIZED_FIELD;
+                                            var.flags_field |= UNINITIALIZED_FIELD;
+                                        } else {
+                                            checkInit(TreeInfo.diagEndPos(tree.body), var);
+                                        }
+                                    } else {
+                                        checkInit(TreeInfo.diagnosticPositionFor(var, vardecl), var);
                                     }
+                                } else {
+                                    checkInit(TreeInfo.diagEndPos(tree.body), var);
                                 }
                             }
                         }
@@ -2124,7 +2132,7 @@ public class Flow {
                             Assert.check(exit instanceof AssignPendingExit);
                             inits.assign(((AssignPendingExit) exit).exit_inits);
                             for (int i = firstadr; i < nextadr; i++) {
-                                checkInit(exit.tree.pos(), vardecls[i].sym, isCompactConstructor);
+                                checkInit(exit.tree.pos(), vardecls[i].sym);
                             }
                         }
                     }
@@ -2571,7 +2579,7 @@ public class Flow {
                 recordExit(exit);
                 return ;
             } else {
-                scan(tree.value);
+                scanExpr(tree.value);
                 recordExit(new AssignPendingExit(tree, inits, uninits));
             }
         }
@@ -2666,7 +2674,7 @@ public class Flow {
             super.visitSelect(tree);
             if (TreeInfo.isThisQualifier(tree.selected) &&
                 tree.sym.kind == VAR) {
-                checkInit(tree.pos(), (VarSymbol)tree.sym, false);
+                checkInit(tree.pos(), (VarSymbol)tree.sym);
             }
         }
 
@@ -2727,7 +2735,7 @@ public class Flow {
 
         public void visitIdent(JCIdent tree) {
             if (tree.sym.kind == VAR) {
-                checkInit(tree.pos(), (VarSymbol)tree.sym, false);
+                checkInit(tree.pos(), (VarSymbol)tree.sym);
                 referenced(tree.sym);
             }
         }

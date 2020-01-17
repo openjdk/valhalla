@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -3664,23 +3664,29 @@ public class JavacParser implements Parser {
         } else {
             int pos = token.pos;
             List<JCTree> errs;
-            if (LAX_IDENTIFIER.accepts(token.kind)) {
-                errs = List.of(mods, toP(F.at(pos).Ident(ident())));
-                setErrorEndPos(token.pos);
+            if (token.kind == IDENTIFIER && token.name() == names.record && preview.isEnabled()) {
+                checkSourceLevel(Feature.RECORDS);
+                JCErroneous erroneousTree = syntaxError(token.pos, List.of(mods), Errors.RecordHeaderExpected);
+                return toP(F.Exec(erroneousTree));
             } else {
-                errs = List.of(mods);
-            }
-            final JCErroneous erroneousTree;
-            if (parseModuleInfo) {
-                erroneousTree = syntaxError(pos, errs, Errors.ExpectedModuleOrOpen);
-            } else {
-                if (allowRecords) {
-                    erroneousTree = syntaxError(pos, errs, Errors.Expected4(CLASS, INTERFACE, ENUM, "record"));
+                if (LAX_IDENTIFIER.accepts(token.kind)) {
+                    errs = List.of(mods, toP(F.at(pos).Ident(ident())));
+                    setErrorEndPos(token.pos);
                 } else {
-                    erroneousTree = syntaxError(pos, errs, Errors.Expected3(CLASS, INTERFACE, ENUM));
+                    errs = List.of(mods);
                 }
+                final JCErroneous erroneousTree;
+                if (parseModuleInfo) {
+                    erroneousTree = syntaxError(pos, errs, Errors.ExpectedModuleOrOpen);
+                } else {
+                    if (allowRecords) {
+                        erroneousTree = syntaxError(pos, errs, Errors.Expected4(CLASS, INTERFACE, ENUM, "record"));
+                    } else {
+                        erroneousTree = syntaxError(pos, errs, Errors.Expected3(CLASS, INTERFACE, ENUM));
+                    }
+                }
+                return toP(F.Exec(erroneousTree));
             }
-            return toP(F.Exec(erroneousTree));
         }
     }
 
@@ -3716,7 +3722,7 @@ public class JavacParser implements Parser {
     protected JCClassDecl recordDeclaration(JCModifiers mods, Comment dc) {
         int pos = token.pos;
         nextToken();
-        mods.flags |= Flags.RECORD | Flags.FINAL;
+        mods.flags |= Flags.RECORD;
         Name name = typeName();
 
         List<JCTypeParameter> typarams = typeParametersOpt();
@@ -3740,7 +3746,8 @@ public class JavacParser implements Parser {
                     ListBuffer<JCVariableDecl> tmpParams = new ListBuffer<>();
                     for (JCVariableDecl param : headerFields) {
                         tmpParams.add(F.at(param)
-                                .VarDef(F.Modifiers(Flags.PARAMETER | param.mods.flags & Flags.VARARGS | param.mods.flags & Flags.FINAL),
+                                // we will get flags plus annotations from the record component
+                                .VarDef(F.Modifiers(Flags.PARAMETER | param.mods.flags & Flags.VARARGS, param.mods.annotations),
                                 param.name, param.vartype, null));
                     }
                     methDef.params = tmpParams.toList();
@@ -4111,9 +4118,10 @@ public class JavacParser implements Parser {
         }
     }
 
-    boolean isRecordStart() {
+    protected boolean isRecordStart() {
      if (token.kind == IDENTIFIER && token.name() == names.record &&
             (peekToken(TokenKind.IDENTIFIER, TokenKind.LPAREN) ||
+             peekToken(TokenKind.IDENTIFIER, TokenKind.EOF) ||
              peekToken(TokenKind.IDENTIFIER, TokenKind.LT))) {
           checkSourceLevel(Feature.RECORDS);
           return true;

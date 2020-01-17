@@ -57,8 +57,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.IndexBuilder;
  *  deletion without notice.</b>
  *
  * @see java.lang.Character
- * @author Atul M Dambalkar
- * @author Bhavesh Patel (Modified)
  */
 public class SplitIndexWriter extends AbstractIndexWriter {
 
@@ -174,9 +172,14 @@ public class SplitIndexWriter extends AbstractIndexWriter {
         contentTree.add(links.createLink(pathToRoot.resolve(DocPaths.ALLCLASSES_INDEX),
                 contents.allClassesLabel));
         if (!configuration.packages.isEmpty()) {
-            contentTree.add(Entity.NO_BREAK_SPACE);
+            contentTree.add(getVerticalSeparator());
             contentTree.add(links.createLink(pathToRoot.resolve(DocPaths.ALLPACKAGES_INDEX),
                     contents.allPackagesLabel));
+        }
+        if (!configuration.tagSearchIndex.isEmpty()) {
+            contentTree.add(getVerticalSeparator());
+            contentTree.add(links.createLink(pathToRoot.resolve(DocPaths.SYSTEM_PROPERTIES),
+                    contents.systemPropertiesLabel));
+        }
     }
-}
 }

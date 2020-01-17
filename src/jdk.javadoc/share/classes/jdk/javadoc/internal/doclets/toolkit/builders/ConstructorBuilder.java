@@ -45,9 +45,6 @@ import static jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable.Kind.
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Jamie Ho
- * @author Bhavesh Patel (Modified)
  */
 public class ConstructorBuilder extends AbstractMemberBuilder {
 
@@ -135,13 +132,12 @@ public class ConstructorBuilder extends AbstractMemberBuilder {
             return;
         }
         if (hasMembersToDocument()) {
-            Content constructorDetailsTreeHeader = writer.getConstructorDetailsTreeHeader(typeElement,
-                    memberDetailsTree);
+            Content constructorDetailsTreeHeader = writer.getConstructorDetailsTreeHeader(memberDetailsTree);
             Content constructorDetailsTree = writer.getMemberTreeHeader();
 
-            for (Element contructor : constructors) {
-                currentConstructor = (ExecutableElement)contructor;
-                Content constructorDocTree = writer.getConstructorDocTreeHeader(currentConstructor, constructorDetailsTree);
+            for (Element constructor : constructors) {
+                currentConstructor = (ExecutableElement)constructor;
+                Content constructorDocTree = writer.getConstructorDocTreeHeader(currentConstructor);
 
                 buildSignature(constructorDocTree);
                 buildDeprecationInfo(constructorDocTree);

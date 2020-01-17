@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -228,7 +228,8 @@ public class Flags {
     public static final long EFFECTIVELY_FINAL = 1L<<41;
 
     /**
-     * Flag that marks non-override equivalent methods with the same signature.
+     * Flag that marks non-override equivalent methods with the same signature,
+     * or a conflicting match binding (BindingSymbol).
      */
     public static final long CLASH = 1L<<42;
 
@@ -360,7 +361,7 @@ public class Flags {
      */
     public static final long UNINITIALIZED_FIELD= 1L<<51; // VarSymbols only
 
-    /** Flag is set for compiler-generated record members, it could be appplied to
+    /** Flag is set for compiler-generated record members, it could be applied to
      *  accessors and fields
      */
     public static final int GENERATED_MEMBER = 1<<24; // MethodSymbols and VarSymbols

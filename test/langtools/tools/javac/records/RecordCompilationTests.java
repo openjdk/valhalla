@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,21 @@
  * questions.
  */
 
+/**
+ * RecordCompilationTests
+ *
+ * @test
+ * @summary Negative compilation tests, and positive compilation (smoke) tests for records
+ * @library /lib/combo
+ * @modules
+ *      jdk.compiler/com.sun.tools.javac.util
+ *      jdk.jdeps/com.sun.tools.classfile
+ * @compile --enable-preview -source ${jdk.version} RecordCompilationTests.java
+ * @run testng/othervm --enable-preview RecordCompilationTests
+ */
+
+import java.io.File;
+
 import java.lang.annotation.ElementType;
 import java.util.EnumMap;
 import java.util.EnumSet;
@@ -30,22 +45,18 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.sun.tools.javac.util.Assert;
+
+import com.sun.tools.classfile.ClassFile;
+import com.sun.tools.classfile.ConstantPool;
+import com.sun.tools.classfile.ConstantPool.CPInfo;
+
 import org.testng.annotations.Test;
 import tools.javac.combo.CompilationTestCase;
 
 import static java.lang.annotation.ElementType.*;
 import static org.testng.Assert.assertEquals;
 
-/**
- * RecordCompilationTests
- *
- * @test
- * @summary Negative compilation tests, and positive compilation (smoke) tests for records
- * @library /lib/combo
- * @modules jdk.compiler/com.sun.tools.javac.util
- * @compile --enable-preview -source ${jdk.version} RecordCompilationTests.java
- * @run testng/othervm --enable-preview RecordCompilationTests
- */
 @Test
 public class RecordCompilationTests extends CompilationTestCase {
 
@@ -67,7 +78,7 @@ public class RecordCompilationTests extends CompilationTestCase {
         assertFail("compiler.err.premature.eof", "record R();");
         assertFail("compiler.err.illegal.start.of.type", "record R(,) { }");
         assertFail("compiler.err.illegal.start.of.type", "record R((int x)) { }");
-        assertFail("compiler.err.expected4", "record R { }");
+        assertFail("compiler.err.record.header.expected", "record R { }");
         assertFail("compiler.err.expected", "record R(foo) { }");
         assertFail("compiler.err.expected", "record R(int int) { }");
         assertFail("compiler.err.mod.not.allowed.here", "abstract record R(String foo) { }");
@@ -377,12 +388,54 @@ public class RecordCompilationTests extends CompilationTestCase {
                 "    }\n" +
                 "}");
 
-        // Capture locals from local record
+        // Cant capture locals
+        assertFail("compiler.err.non-static.cant.be.ref",
+                "class R { \n" +
+                        "    void m(int y) { \n" +
+                        "        record RR(int x) { public int x() { return y; }};\n" +
+                        "    }\n" +
+                        "}");
+
+        assertFail("compiler.err.non-static.cant.be.ref",
+                "class R { \n" +
+                        "    void m() {\n" +
+                        "        int y;\n" +
+                        "        record RR(int x) { public int x() { return y; }};\n" +
+                        "    }\n" +
+                        "}");
+
+        // instance fields
+        assertFail("compiler.err.non-static.cant.be.ref",
+                "class R { \n" +
+                        "    int z = 0;\n" +
+                        "    void m() { \n" +
+                        "        record RR(int x) { public int x() { return z; }};\n" +
+                        "    }\n" +
+                        "}");
+
+        // or type variables
+        assertFail("compiler.err.non-static.cant.be.ref",
+                "class R<T> { \n" +
+                        "    void m() { \n" +
+                        "        record RR(T t) {};\n" +
+                        "    }\n" +
+                        "}");
+
+        // but static fields are OK
         assertOK("class R { \n" +
-                "    void m(int y) { \n" +
-                "        record RR(int x) { public int x() { return y; }};\n" +
+                "    static int z = 0;\n" +
+                "    void m() { \n" +
+                "        record RR(int x) { public int x() { return z; }};\n" +
                 "    }\n" +
                 "}");
+        // can be contained inside a lambda
+        assertOK("""
+                class Outer {
+                    Runnable run = () -> {
+                        record TestRecord(int i) {}
+                    };
+                }
+                """);
 
         // Can't self-shadow
         assertFail("compiler.err.already.defined",
@@ -406,6 +459,18 @@ public class RecordCompilationTests extends CompilationTestCase {
         // x is not DA nor DU in the body of the constructor hence error
         assertFail("compiler.err.var.might.not.have.been.initialized", "record R(int x) { # }",
                 "public R { if (x < 0) { this.x = -x; } }");
+
+        // if static fields are not DA then error
+        assertFail("compiler.err.var.might.not.have.been.initialized",
+                "record R() { # }", "static final String x;");
+
+        // ditto
+        assertFail("compiler.err.var.might.not.have.been.initialized",
+                "record R() { # }", "static final String x; public R {}");
+
+        // ditto
+        assertFail("compiler.err.var.might.not.have.been.initialized",
+                "record R(int i) { # }", "static final String x; public R {}");
     }
 
     public void testReturnInCanonical_Compact() {
@@ -415,6 +480,17 @@ public class RecordCompilationTests extends CompilationTestCase {
                 "public R { if (i < 0) { return; }}");
         assertOK("record R(int x) { public R(int x) { this.x = x; return; } }");
         assertOK("record R(int x) { public R { Runnable r = () -> { return; };} }");
+    }
+
+    public void testArgumentsAreNotFinalInCompact() {
+        assertOK(
+                """
+                record R(int x) {
+                    public R {
+                        x++;
+                    }
+                }
+                """);
     }
 
     public void testNoNativeMethods() {
@@ -431,5 +507,82 @@ public class RecordCompilationTests extends CompilationTestCase {
                 "        record R(int a) {}\n" +
                 "    }\n" +
                 "}");
+        assertFail("compiler.err.record.declaration.not.allowed.in.inner.classes",
+                """
+                class Outer {
+                    public void test() {
+                        class Inner extends Outer {
+                            record R(int i) {}
+                        }
+                    }
+                }
+                """);
+        assertFail("compiler.err.record.declaration.not.allowed.in.inner.classes",
+                """
+                class Outer {
+                    Runnable run = new Runnable() {
+                        record TestRecord(int i) {}
+                        public void run() {}
+                    };
+                }
+                """);
+        assertFail("compiler.err.record.declaration.not.allowed.in.inner.classes",
+                """
+                class Outer {
+                    void m() {
+                        record A() {
+                            record B() { }
+                        }
+                    }
+                }
+                """);
+    }
+
+    public void testReceiverParameter() {
+        assertFail("compiler.err.receiver.parameter.not.applicable.constructor.toplevel.class",
+                """
+                record R(int i) {
+                    public R(R this, int i) {
+                        this.i = i;
+                    }
+                }
+                """);
+        assertFail("compiler.err.non-static.cant.be.ref",
+                """
+                class Outer {
+                    record R(int i) {
+                        public R(Outer Outer.this, int i) {
+                            this.i = i;
+                        }
+                    }
+                }
+                """);
+        assertOK(
+                """
+                record R(int i) {
+                    void m(R this) {}
+                    public int i(R this) { return i; }
+                }
+                """);
+    }
+
+    public void testOnlyOneFieldRef() throws Exception {
+        int numberOfFieldRefs = 0;
+        File dir = assertOK(true, "record R(int recordComponent) {}");
+        for (final File fileEntry : dir.listFiles()) {
+            if (fileEntry.getName().equals("R.class")) {
+                ClassFile classFile = ClassFile.read(fileEntry);
+                for (CPInfo cpInfo : classFile.constant_pool.entries()) {
+                    if (cpInfo instanceof ConstantPool.CONSTANT_Fieldref_info) {
+                        numberOfFieldRefs++;
+                        ConstantPool.CONSTANT_NameAndType_info nameAndType =
+                                (ConstantPool.CONSTANT_NameAndType_info)classFile.constant_pool
+                                        .get(((ConstantPool.CONSTANT_Fieldref_info)cpInfo).name_and_type_index);
+                        Assert.check(nameAndType.getName().equals("recordComponent"));
+                    }
+                }
+            }
+        }
+        Assert.check(numberOfFieldRefs == 1);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -74,6 +74,8 @@
 #include "utilities/macros.hpp"
 
 // Entry point in java.dll for path canonicalization
+
+typedef int (*canonicalize_fn_t)(const char *orig, char *out, int len);
 
 static canonicalize_fn_t CanonicalizeEntry  = NULL;
 
@@ -724,7 +726,7 @@ void ClassLoader::add_to_exploded_build_list(Symbol* module_sym, TRAPS) {
       ModuleClassPathList* module_cpl = new ModuleClassPathList(module_sym);
       module_cpl->add_to_list(new_entry);
       {
-        MutexLocker ml(Module_lock, THREAD);
+        MutexLocker ml(THREAD, Module_lock);
         _exploded_entries->push(module_cpl);
       }
       log_info(class, load)("path: %s", path);
@@ -980,7 +982,7 @@ void ClassLoader::load_java_library() {
     vm_exit_during_initialization("Unable to load java library", NULL);
   }
 
-  CanonicalizeEntry = CAST_TO_FN_PTR(canonicalize_fn_t, dll_lookup(javalib_handle, "Canonicalize", NULL));
+  CanonicalizeEntry = CAST_TO_FN_PTR(canonicalize_fn_t, dll_lookup(javalib_handle, "JDK_Canonicalize", NULL));
 }
 
 void ClassLoader::load_zip_library() {
@@ -1040,7 +1042,7 @@ bool ClassLoader::add_package(const char *fullq_class_name, s2 classpath_index, 
   assert(fullq_class_name != NULL, "just checking");
 
   // Get package name from fully qualified class name.
-  ResourceMark rm;
+  ResourceMark rm(THREAD);
   const char *cp = package_from_name(fullq_class_name);
   if (cp != NULL) {
     PackageEntryTable* pkg_entry_tbl = ClassLoaderData::the_null_class_loader_data()->packages();
@@ -1088,7 +1090,7 @@ objArrayOop ClassLoader::get_system_packages(TRAPS) {
   // List of pointers to PackageEntrys that have loaded classes.
   GrowableArray<PackageEntry*>* loaded_class_pkgs = new GrowableArray<PackageEntry*>(50);
   {
-    MutexLocker ml(Module_lock, THREAD);
+    MutexLocker ml(THREAD, Module_lock);
 
     PackageEntryTable* pe_table =
       ClassLoaderData::the_null_class_loader_data()->packages();
@@ -1185,7 +1187,7 @@ ClassFileStream* ClassLoader::search_module_entries(const GrowableArray<ModuleCl
       // The exploded build entries can be added to at any time so a lock is
       // needed when searching them.
       assert(!ClassLoader::has_jrt_entry(), "Must be exploded build");
-      MutexLocker ml(Module_lock, THREAD);
+      MutexLocker ml(THREAD, Module_lock);
       e = find_first_module_cpe(mod_entry, module_list);
     } else {
       e = find_first_module_cpe(mod_entry, module_list);
@@ -1642,13 +1644,12 @@ void ClassLoader::classLoader_init2(TRAPS) {
 bool ClassLoader::get_canonical_path(const char* orig, char* out, int len) {
   assert(orig != NULL && out != NULL && len > 0, "bad arguments");
   JavaThread* THREAD = JavaThread::current();
-  JNIEnv* env = THREAD->jni_environment();
   ResourceMark rm(THREAD);
 
   // os::native_path writes into orig_copy
   char* orig_copy = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, strlen(orig)+1);
   strcpy(orig_copy, orig);
-  if ((CanonicalizeEntry)(env, os::native_path(orig_copy), out, len) < 0) {
+  if ((CanonicalizeEntry)(os::native_path(orig_copy), out, len) < 0) {
     return false;
   }
   return true;
@@ -1668,7 +1669,7 @@ void ClassLoader::create_javabase() {
   }
 
   {
-    MutexLocker ml(Module_lock, THREAD);
+    MutexLocker ml(THREAD, Module_lock);
     ModuleEntry* jb_module = null_cld_modules->locked_create_entry(Handle(),
                                false, vmSymbols::java_base(), NULL, NULL, null_cld);
     if (jb_module == NULL) {

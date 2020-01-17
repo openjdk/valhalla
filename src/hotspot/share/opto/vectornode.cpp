@@ -238,7 +238,7 @@ bool VectorNode::implemented(int opc, uint vlen, BasicType bt) {
       (vlen > 1) && is_power_of_2(vlen) &&
       Matcher::vector_size_supported(bt, vlen)) {
     int vopc = VectorNode::opcode(opc, bt);
-    return vopc > 0 && Matcher::match_rule_supported_vector(vopc, vlen);
+    return vopc > 0 && Matcher::match_rule_supported_vector(vopc, vlen, bt);
   }
   return false;
 }
@@ -482,6 +482,38 @@ VectorNode* VectorNode::shift_count(Node* shift, Node* cnt, uint vlen, BasicType
   default:
     fatal("Missed vector creation for '%s'", NodeClassNames[shift->Opcode()]);
     return NULL;
+  }
+}
+
+bool VectorNode::is_vector_shift(int opc) {
+  assert(opc > _last_machine_leaf && opc < _last_opcode, "invalid opcode");
+  switch (opc) {
+  case Op_LShiftVB:
+  case Op_LShiftVS:
+  case Op_LShiftVI:
+  case Op_LShiftVL:
+  case Op_RShiftVB:
+  case Op_RShiftVS:
+  case Op_RShiftVI:
+  case Op_RShiftVL:
+  case Op_URShiftVB:
+  case Op_URShiftVS:
+  case Op_URShiftVI:
+  case Op_URShiftVL:
+    return true;
+  default:
+    return false;
+  }
+}
+
+bool VectorNode::is_shift_count(int opc) {
+  assert(opc > _last_machine_leaf && opc < _last_opcode, "invalid opcode");
+  switch (opc) {
+  case Op_RShiftCntV:
+  case Op_LShiftCntV:
+    return true;
+  default:
+    return false;
   }
 }
 

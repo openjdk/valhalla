@@ -44,8 +44,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Bhavesh Patel
  */
 public class AnnotationTypeFieldBuilder extends AbstractMemberBuilder {
 
@@ -139,13 +137,12 @@ public class AnnotationTypeFieldBuilder extends AbstractMemberBuilder {
         }
         if (hasMembersToDocument()) {
             writer.addAnnotationFieldDetailsMarker(memberDetailsTree);
-            Content annotationDetailsTreeHeader = writer.getAnnotationDetailsTreeHeader(typeElement);
+            Content annotationDetailsTreeHeader = writer.getAnnotationDetailsTreeHeader();
             Content detailsTree = writer.getMemberTreeHeader();
 
             for (Element member : members) {
                 currentMember = member;
-                Content annotationDocTree = writer.getAnnotationDocTreeHeader(currentMember,
-                        detailsTree);
+                Content annotationDocTree = writer.getAnnotationDocTreeHeader(currentMember);
 
                 buildSignature(annotationDocTree);
                 buildDeprecationInfo(annotationDocTree);

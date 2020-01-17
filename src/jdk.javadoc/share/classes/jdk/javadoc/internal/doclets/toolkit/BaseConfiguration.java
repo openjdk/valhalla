@@ -73,10 +73,6 @@ import static javax.tools.Diagnostic.Kind.*;
  * If you write code that depends on this, you do so at your own risk.
  * This code and its internal interfaces are subject to change or
  * deletion without notice.</b>
- *
- * @author Robert Field.
- * @author Atul Dambalkar.
- * @author Jamie Ho
  */
 public abstract class BaseConfiguration {
     /**
@@ -110,7 +106,7 @@ public abstract class BaseConfiguration {
     public String tagletpath = null;
 
     /**
-     * This is true if option "-serialwarn" is used. Defualt value is false to
+     * This is true if option "-serialwarn" is used. Default value is false to
      * suppress excessive warnings about serial tag.
      */
     public boolean serialwarn = false;
@@ -247,8 +243,8 @@ public abstract class BaseConfiguration {
 
     /**
      * Don't generate deprecated API information at all, if -nodeprecated
-     * option is used. <code>nodepracted</code> is set to true if
-     * -nodeprecated option is used. Default is generate deprected API
+     * option is used. <code>nodeprecated</code> is set to true if
+     * -nodeprecated option is used. Default is generate deprecated API
      * information.
      */
     public boolean nodeprecated = false;
@@ -1096,7 +1092,7 @@ public abstract class BaseConfiguration {
 
     public abstract boolean showMessage(Element e, String key);
 
-    public static abstract class Option implements Doclet.Option, Comparable<Option> {
+    public abstract static class Option implements Doclet.Option, Comparable<Option> {
         private final String[] names;
         private final String parameters;
         private final String description;
@@ -1224,7 +1220,7 @@ public abstract class BaseConfiguration {
      * collection.
      */
     @SuppressWarnings("preview")
-    static private class Splitter {
+    private static class Splitter {
 
         final Set<ModuleElement> mset = new LinkedHashSet<>();
         final Set<PackageElement> pset = new LinkedHashSet<>();

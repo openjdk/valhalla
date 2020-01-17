@@ -35,8 +35,6 @@
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "code/compiledIC.hpp"
-#include "gc/shared/barrierSet.hpp"
-#include "gc/shared/cardTableBarrierSet.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/objArrayKlass.hpp"
@@ -759,7 +757,7 @@ void LIR_Assembler::reg2stack(LIR_Opr src, LIR_Opr dest, BasicType type, bool po
     if (is_reference_type(type)) {
       __ str(src->as_register(), frame_map()->address_for_slot(dest->single_stack_ix()));
       __ verify_oop(src->as_register());
-    } else if (type == T_METADATA || type == T_DOUBLE) {
+    } else if (type == T_METADATA || type == T_DOUBLE || type == T_ADDRESS) {
       __ str(src->as_register(), frame_map()->address_for_slot(dest->single_stack_ix()));
     } else {
       __ strw(src->as_register(), frame_map()->address_for_slot(dest->single_stack_ix()));
@@ -872,7 +870,7 @@ void LIR_Assembler::stack2reg(LIR_Opr src, LIR_Opr dest, BasicType type) {
     if (is_reference_type(type)) {
       __ ldr(dest->as_register(), frame_map()->address_for_slot(src->single_stack_ix()));
       __ verify_oop(dest->as_register());
-    } else if (type == T_METADATA) {
+    } else if (type == T_METADATA || type == T_ADDRESS) {
       __ ldr(dest->as_register(), frame_map()->address_for_slot(src->single_stack_ix()));
     } else {
       __ ldrw(dest->as_register(), frame_map()->address_for_slot(src->single_stack_ix()));

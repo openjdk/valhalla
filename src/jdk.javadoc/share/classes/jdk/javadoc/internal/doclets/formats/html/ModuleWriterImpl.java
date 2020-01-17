@@ -68,8 +68,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Bhavesh Patel
  */
 public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryWriter {
 
@@ -283,7 +281,7 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
                 }
                 packages.put(pkg, e);
             }
-        };
+        }
 
         // Get all exported packages for the module, using the exports directive for the module.
         for (ModuleElement.ExportsDirective directive : ElementFilter.exportsIn(mdle.getDirectives())) {
@@ -444,14 +442,12 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
      * Add the summary header.
      *
      * @param startMarker the marker comment
-     * @param markerAnchor the marker anchor for the section
      * @param heading the heading for the section
      * @param htmltree the content tree to which the information is added
      */
-    public void addSummaryHeader(Content startMarker, SectionName markerAnchor, Content heading,
+    public void addSummaryHeader(Content startMarker, Content heading,
             Content htmltree) {
         htmltree.add(startMarker);
-        htmltree.add(links.createAnchor(markerAnchor));
         htmltree.add(HtmlTree.HEADING(Headings.ModuleDeclaration.SUMMARY_HEADING, heading));
     }
 
@@ -498,9 +494,9 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
             TableHeader requiresTableHeader =
                     new TableHeader(contents.modifierLabel, contents.moduleLabel,
                             contents.descriptionLabel);
-            HtmlTree section = HtmlTree.SECTION(HtmlStyle.modulesSummary);
-            addSummaryHeader(MarkerComments.START_OF_MODULES_SUMMARY, SectionName.MODULES,
-                    contents.navModules, section);
+            HtmlTree section = HtmlTree.SECTION(HtmlStyle.modulesSummary)
+                    .setId(SectionName.MODULES.getName());
+            addSummaryHeader(MarkerComments.START_OF_MODULES_SUMMARY, contents.navModules, section);
             if (display(requires)) {
                 String text = resources.getText("doclet.Requires_Summary");
                 String tableSummary = resources.getText("doclet.Member_Table_Summary",
@@ -548,9 +544,9 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
     public void addPackagesSummary(Content summaryContentTree) {
         if (display(packages)
                 || display(indirectPackages) || display(indirectOpenPackages)) {
-            HtmlTree section = HtmlTree.SECTION(HtmlStyle.packagesSummary);
-            addSummaryHeader(MarkerComments.START_OF_PACKAGES_SUMMARY, SectionName.PACKAGES,
-                    contents.navPackages, section);
+            HtmlTree section = HtmlTree.SECTION(HtmlStyle.packagesSummary)
+                    .setId(SectionName.PACKAGES.getName());;
+            addSummaryHeader(MarkerComments.START_OF_PACKAGES_SUMMARY, contents.navPackages, section);
             if (display(packages)) {
                 addPackageSummary(section);
             }
@@ -725,9 +721,9 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
         boolean haveProvides = displayServices(provides.keySet(), providesTrees);
 
         if (haveProvides || haveUses) {
-            HtmlTree section = HtmlTree.SECTION(HtmlStyle.servicesSummary);
-            addSummaryHeader(MarkerComments.START_OF_SERVICES_SUMMARY, SectionName.SERVICES,
-                    contents.navServices, section);
+            HtmlTree section = HtmlTree.SECTION(HtmlStyle.servicesSummary)
+                    .setId(SectionName.SERVICES.getName());
+            addSummaryHeader(MarkerComments.START_OF_SERVICES_SUMMARY, contents.navServices, section);
             TableHeader usesProvidesTableHeader =
                     new TableHeader(contents.typeLabel, contents.descriptionLabel);
             if (haveProvides) {
@@ -852,10 +848,10 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
     @Override
     public void addModuleDescription(Content moduleContentTree) {
         if (!utils.getFullBody(mdle).isEmpty()) {
-            Content tree = HtmlTree.SECTION(HtmlStyle.moduleDescription);
+            HtmlTree tree = HtmlTree.SECTION(HtmlStyle.moduleDescription);
+            tree.setId(SectionName.MODULE_DESCRIPTION.getName());
             addDeprecationInfo(tree);
             tree.add(MarkerComments.START_OF_MODULE_DESCRIPTION);
-            tree.add(links.createAnchor(SectionName.MODULE_DESCRIPTION));
             addInlineComment(mdle, tree);
             moduleContentTree.add(tree);
         }

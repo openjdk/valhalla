@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -886,7 +886,7 @@ void java_lang_Class::set_mirror_module_field(Klass* k, Handle mirror, Handle mo
 
     bool javabase_was_defined = false;
     {
-      MutexLocker m1(Module_lock, THREAD);
+      MutexLocker m1(THREAD, Module_lock);
       // Keep list of classes needing java.base module fixup
       if (!ModuleEntryTable::javabase_defined()) {
         assert(k->java_mirror() != NULL, "Class's mirror is null");
@@ -1322,9 +1322,11 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
 
   set_mirror_module_field(k, mirror, module, THREAD);
 
-  ResourceMark rm;
-  log_trace(cds, heap, mirror)(
-    "Restored %s archived mirror " PTR_FORMAT, k->external_name(), p2i(mirror()));
+  if (log_is_enabled(Trace, cds, heap, mirror)) {
+    ResourceMark rm(THREAD);
+    log_trace(cds, heap, mirror)(
+        "Restored %s archived mirror " PTR_FORMAT, k->external_name(), p2i(mirror()));
+  }
 
   return true;
 }
@@ -1411,10 +1413,8 @@ void java_lang_Class::set_class_data(oop java_class, oop class_data) {
 
 
 void java_lang_Class::set_class_loader(oop java_class, oop loader) {
-  // jdk7 runs Queens in bootstrapping and jdk8-9 has no coordinated pushes yet.
-  if (_class_loader_offset != 0) {
-    java_class->obj_field_put(_class_loader_offset, loader);
-  }
+  assert(_class_loader_offset != 0, "offsets should have been initialized");
+  java_class->obj_field_put(_class_loader_offset, loader);
 }
 
 oop java_lang_Class::class_loader(oop java_class) {
@@ -1645,20 +1645,12 @@ void java_lang_Class::serialize_offsets(SerializeClosure* f) {
 #endif
 
 int java_lang_Class::classRedefinedCount(oop the_class_mirror) {
-  if (classRedefinedCount_offset == -1) {
-    // If we don't have an offset for it then just return -1 as a marker.
-    return -1;
-  }
-
+  assert(classRedefinedCount_offset != -1, "offsets should have been initialized");
   return the_class_mirror->int_field(classRedefinedCount_offset);
 }
 
 void java_lang_Class::set_classRedefinedCount(oop the_class_mirror, int value) {
-  if (classRedefinedCount_offset == -1) {
-    // If we don't have an offset for it then nothing to set.
-    return;
-  }
-
+  assert(classRedefinedCount_offset != -1, "offsets should have been initialized");
   the_class_mirror->int_field_put(classRedefinedCount_offset, value);
 }
 
@@ -2723,62 +2715,58 @@ void java_lang_StackTraceElement::fill_in(Handle element,
     java_lang_StackTraceElement::set_fileName(element(), NULL);
     java_lang_StackTraceElement::set_lineNumber(element(), -1);
   } else {
-    // Fill in source file name and line number.
-    Symbol* source = Backtrace::get_source_file_name(holder, version);
-    oop source_file = java_lang_Class::source_file(java_class());
-    if (source != NULL) {
-      // Class was not redefined. We can trust its cache if set,
-      // else we have to initialize it.
-      if (source_file == NULL) {
-        source_file = StringTable::intern(source, CHECK);
-        java_lang_Class::set_source_file(java_class(), source_file);
-      }
-    } else {
-      // Class was redefined. Dump the cache if it was set.
-      if (source_file != NULL) {
-        source_file = NULL;
-        java_lang_Class::set_source_file(java_class(), source_file);
-      }
-    }
-    java_lang_StackTraceElement::set_fileName(element(), source_file);
+    Symbol* source;
+    oop source_file;
+    int line_number;
+    decode_file_and_line(java_class, holder, version, method, bci, source, source_file, line_number, CHECK);
 
-    int line_number = Backtrace::get_line_number(method(), bci);
+    java_lang_StackTraceElement::set_fileName(element(), source_file);
     java_lang_StackTraceElement::set_lineNumber(element(), line_number);
   }
 }
 
-#if INCLUDE_JVMCI
-void java_lang_StackTraceElement::decode(Handle mirror, methodHandle method, int bci, Symbol*& methodname, Symbol*& filename, int& line_number) {
-  int method_id = method->orig_method_idnum();
-  int cpref = method->name_index();
-  decode(mirror, method_id, method->constants()->version(), bci, cpref, methodname, filename, line_number);
+void java_lang_StackTraceElement::decode_file_and_line(Handle java_class,
+                                                       InstanceKlass* holder,
+                                                       int version,
+                                                       const methodHandle& method,
+                                                       int bci,
+                                                       Symbol*& source,
+                                                       oop& source_file,
+                                                       int& line_number, TRAPS) {
+  // Fill in source file name and line number.
+  source = Backtrace::get_source_file_name(holder, version);
+  source_file = java_lang_Class::source_file(java_class());
+  if (source != NULL) {
+    // Class was not redefined. We can trust its cache if set,
+    // else we have to initialize it.
+    if (source_file == NULL) {
+      source_file = StringTable::intern(source, CHECK);
+      java_lang_Class::set_source_file(java_class(), source_file);
+    }
+  } else {
+    // Class was redefined. Dump the cache if it was set.
+    if (source_file != NULL) {
+      source_file = NULL;
+      java_lang_Class::set_source_file(java_class(), source_file);
+    }
+  }
+  line_number = Backtrace::get_line_number(method(), bci);
 }
 
-void java_lang_StackTraceElement::decode(Handle mirror, int method_id, int version, int bci, int cpref, Symbol*& methodname, Symbol*& filename, int& line_number) {
-  // Fill in class name
-  InstanceKlass* holder = InstanceKlass::cast(java_lang_Class::as_Klass(mirror()));
-  Method* method = holder->method_with_orig_idnum(method_id, version);
+#if INCLUDE_JVMCI
+void java_lang_StackTraceElement::decode(const methodHandle& method, int bci,
+                                         Symbol*& filename, int& line_number, TRAPS) {
+  ResourceMark rm(THREAD);
+  HandleMark hm(THREAD);
 
-  // The method can be NULL if the requested class version is gone
-  Symbol* sym = (method != NULL) ? method->name() : holder->constants()->symbol_at(cpref);
+  filename = NULL;
+  line_number = -1;
 
-  // Fill in method name
-  methodname = sym;
-
-  if (!version_matches(method, version)) {
-    // If the method was redefined, accurate line number information isn't available
-    filename = NULL;
-    line_number = -1;
-  } else {
-    // Fill in source file name and line number.
-    // Use a specific ik version as a holder since the mirror might
-    // refer to a version that is now obsolete and no longer accessible
-    // via the previous versions list.
-    holder = holder->get_klass_version(version);
-    assert(holder != NULL, "sanity check");
-    filename = holder->source_file_name();
-    line_number = Backtrace::get_line_number(method, bci);
-  }
+  oop source_file;
+  int version = method->constants()->version();
+  InstanceKlass* holder = method->method_holder();
+  Handle java_class(THREAD, holder->java_mirror());
+  decode_file_and_line(java_class, holder, version, method, bci, filename, source_file, line_number, CHECK);
 }
 #endif // INCLUDE_JVMCI
 
@@ -4060,6 +4048,7 @@ void java_security_AccessControlContext::serialize_offsets(SerializeClosure* f) 
 
 oop java_security_AccessControlContext::create(objArrayHandle context, bool isPrivileged, Handle privileged_context, TRAPS) {
   assert(_isPrivileged_offset != 0, "offsets should have been initialized");
+  assert(_isAuthorized_offset != -1, "offsets should have been initialized");
   // Ensure klass is initialized
   SystemDictionary::AccessControlContext_klass()->initialize(CHECK_0);
   // Allocate result
@@ -4068,10 +4057,8 @@ oop java_security_AccessControlContext::create(objArrayHandle context, bool isPr
   result->obj_field_put(_context_offset, context());
   result->obj_field_put(_privilegedContext_offset, privileged_context());
   result->bool_field_put(_isPrivileged_offset, isPrivileged);
-  // whitelist AccessControlContexts created by the JVM if present
-  if (_isAuthorized_offset != -1) {
-    result->bool_field_put(_isAuthorized_offset, true);
-  }
+  // whitelist AccessControlContexts created by the JVM
+  result->bool_field_put(_isAuthorized_offset, true);
   return result;
 }
 
@@ -4175,10 +4162,7 @@ bool java_lang_ClassLoader::is_instance(oop obj) {
 // based on non-null field
 // Written to by java.lang.ClassLoader, vm only reads this field, doesn't set it
 bool java_lang_ClassLoader::parallelCapable(oop class_loader) {
-  if (parallelCapable_offset == -1) {
-     // Default for backward compatibility is false
-     return false;
-  }
+  assert(parallelCapable_offset != -1, "offsets should have been initialized");
   return (class_loader->obj_field(parallelCapable_offset) != NULL);
 }
 

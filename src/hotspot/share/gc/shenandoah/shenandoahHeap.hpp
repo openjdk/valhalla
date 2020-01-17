@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -438,6 +439,9 @@ private:
   const char* init_mark_event_message() const;
   const char* final_mark_event_message() const;
   const char* conc_mark_event_message() const;
+  const char* init_traversal_event_message() const;
+  const char* final_traversal_event_message() const;
+  const char* conc_traversal_event_message() const;
   const char* degen_event_message(ShenandoahDegenPoint point) const;
 
 // ---------- GC subsystems
@@ -559,6 +563,9 @@ public:
 
   // Used for native heap walkers: heap dumpers, mostly
   void object_iterate(ObjectClosure* cl);
+
+  // Keep alive an object that was loaded with AS_NO_KEEPALIVE.
+  void keep_alive(oop obj);
 
   // Used by RMI
   jlong millis_since_last_gc();

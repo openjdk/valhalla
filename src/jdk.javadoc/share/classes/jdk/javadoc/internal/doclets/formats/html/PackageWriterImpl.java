@@ -60,9 +60,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Atul M Dambalkar
- * @author Bhavesh Patel (Modified)
  */
 public class PackageWriterImpl extends HtmlDocletWriter
     implements PackageSummaryWriter {
@@ -281,8 +278,8 @@ public class PackageWriterImpl extends HtmlDocletWriter
     @Override
     public void addPackageDescription(Content packageContentTree) {
         if (!utils.getBody(packageElement).isEmpty()) {
-            Content tree = sectionTree;
-            tree.add(links.createAnchor(SectionName.PACKAGE_DESCRIPTION));
+            HtmlTree tree = sectionTree;
+            tree.setId(SectionName.PACKAGE_DESCRIPTION.getName());
             addDeprecationInfo(tree);
             addInlineComment(packageElement, tree);
         }

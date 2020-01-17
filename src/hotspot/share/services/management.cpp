@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,7 +46,6 @@
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/notificationThread.hpp"
 #include "runtime/os.hpp"
-#include "runtime/serviceThread.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.hpp"
 #include "services/classLoadingService.hpp"
@@ -147,8 +146,6 @@ void Management::init() {
 }
 
 void Management::initialize(TRAPS) {
-  // Start the service thread
-  ServiceThread::initialize();
   if (UseNotificationThread) {
     NotificationThread::initialize();
   }
@@ -1708,7 +1705,7 @@ JVM_ENTRY(jint, jmm_GetInternalThreadTimes(JNIEnv *env,
 
   ThreadTimesClosure ttc(names_ah, times_ah);
   {
-    MutexLocker ml(Threads_lock);
+    MutexLocker ml(THREAD, Threads_lock);
     Threads::threads_do(&ttc);
   }
   ttc.do_unlocked();

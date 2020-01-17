@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -584,7 +584,7 @@ public:
   bool find_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
 
  private:
-  static int quick_search(const Array<Method*>* methods, const Symbol* name);
+  inline static int quick_search(const Array<Method*>* methods, const Symbol* name);
 
  public:
   static void disable_method_binary_search() {
@@ -1071,9 +1071,6 @@ public:
                                                (is_hidden() || is_unsafe_anonymous()),
                                                has_stored_fingerprint());
   }
-#if INCLUDE_SERVICES
-  virtual void collect_statistics(KlassSizeStats *sz) const;
-#endif
 
   intptr_t* start_of_itable()   const { return (intptr_t*)start_of_vtable() + vtable_length(); }
   intptr_t* end_of_itable()     const { return start_of_itable() + itable_length(); }

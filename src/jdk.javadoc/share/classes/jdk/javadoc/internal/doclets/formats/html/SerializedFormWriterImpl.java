@@ -49,8 +49,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Atul M Dambalkar
  */
 public class SerializedFormWriterImpl extends SubWriterHolderWriter
     implements SerializedFormWriter {
@@ -155,8 +153,8 @@ public class SerializedFormWriterImpl extends SubWriterHolderWriter
                 ? getLink(new LinkInfoImpl(configuration, LinkInfoImpl.Kind.DEFAULT, typeElement)
                         .label(configuration.getClassName(typeElement)))
                 : new StringContent(utils.getFullyQualifiedName(typeElement));
-        Content section = HtmlTree.SECTION(HtmlStyle.serializedClassDetails, links.createAnchor(
-                utils.getFullyQualifiedName(typeElement)));
+        Content section = HtmlTree.SECTION(HtmlStyle.serializedClassDetails)
+                .setId(utils.getFullyQualifiedName(typeElement));
         Content superClassLink = typeElement.getSuperclass() != null
                 ? getLink(new LinkInfoImpl(configuration, LinkInfoImpl.Kind.SERIALIZED_FORM,
                         typeElement.getSuperclass()))

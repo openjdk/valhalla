@@ -69,11 +69,6 @@ import static javax.lang.model.element.Modifier.SYNCHRONIZED;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Robert Field
- * @author Atul M Dambalkar
- * @author Jamie Ho (Re-write)
- * @author Bhavesh Patel (Modified)
  */
 public abstract class AbstractMemberWriter implements MemberSummaryWriter {
 
@@ -156,22 +151,6 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
      * @param inheritedTree the content tree to which the inherited summary label will be added
      */
     public abstract void addInheritedSummaryLabel(TypeElement typeElement, Content inheritedTree);
-
-    /**
-     * Add the anchor for the summary section of the member.
-     *
-     * @param typeElement the TypeElement to be documented
-     * @param memberTree the content tree to which the summary anchor will be added
-     */
-    public abstract void addSummaryAnchor(TypeElement typeElement, Content memberTree);
-
-    /**
-     * Add the anchor for the inherited summary section of the member.
-     *
-     * @param typeElement the TypeElement to be documented
-     * @param inheritedTree the content tree to which the inherited summary anchor will be added
-     */
-    public abstract void addInheritedSummaryAnchor(TypeElement typeElement, Content inheritedTree);
 
     /**
      * Add the summary type for the member.
@@ -515,11 +494,11 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
         private Content exceptions;
 
         // Threshold for length of type parameters before switching from inline to block representation.
-        private final static int TYPE_PARAMS_MAX_INLINE_LENGTH = 50;
+        private static final int TYPE_PARAMS_MAX_INLINE_LENGTH = 50;
 
         // Threshold for combined length of modifiers, type params and return type before breaking
         // it up with a line break before the return type.
-        private final static int RETURN_TYPE_MAX_LINE_LENGTH = 50;
+        private static final int RETURN_TYPE_MAX_LINE_LENGTH = 50;
 
         /**
          * Create a new member signature builder.

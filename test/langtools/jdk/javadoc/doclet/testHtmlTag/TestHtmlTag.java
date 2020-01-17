@@ -25,7 +25,6 @@
  * @test
  * @bug 6786682 4649116 8182765
  * @summary This test verifies the use of lang attribute by <HTML>.
- * @author Bhavesh Patel
  * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build javadoc.tester.*
@@ -109,9 +108,7 @@ public class TestHtmlTag extends JavadocTester {
 
         checkOutput("pkg3/package-summary.html", true,
                 "<div class=\"contentContainer\">\n"
-                + "<section class=\"packageDescription\"><a id=\"package.description\">\n"
-                + "<!--   -->\n"
-                + "</a>\n"
+                + "<section class=\"packageDescription\" id=\"package.description\">\n"
                 + "<div class=\"block\"><p>This is the first line. Note the newlines before the &lt;p&gt; is relevant.</div>\n"
                 + "</section>");
 
