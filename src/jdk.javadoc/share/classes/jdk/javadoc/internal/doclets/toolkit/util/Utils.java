@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,6 +87,7 @@ import com.sun.source.util.TreePath;
 import com.sun.tools.javac.model.JavacTypes;
 import jdk.javadoc.internal.doclets.formats.html.SearchIndexItem;
 import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
+import jdk.javadoc.internal.doclets.toolkit.BaseOptions;
 import jdk.javadoc.internal.doclets.toolkit.CommentUtils.DocCommentDuo;
 import jdk.javadoc.internal.doclets.toolkit.Messages;
 import jdk.javadoc.internal.doclets.toolkit.Resources;
@@ -112,15 +113,17 @@ import static jdk.javadoc.internal.doclets.toolkit.builders.ConstantsSummaryBuil
  */
 public class Utils {
     public final BaseConfiguration configuration;
-    public final Messages messages;
-    public final Resources resources;
+    private final BaseOptions options;
+    private final Messages messages;
+    private final Resources resources;
     public final DocTrees docTrees;
     public final Elements elementUtils;
     public final Types typeUtils;
-    public final JavaScriptScanner javaScriptScanner;
+    private final JavaScriptScanner javaScriptScanner;
 
     public Utils(BaseConfiguration c) {
         configuration = c;
+        options = configuration.getOptions();
         messages = configuration.getMessages();
         resources = configuration.getResources();
         elementUtils = c.docEnv.getElementUtils();
@@ -223,7 +226,7 @@ public class Utils {
      * @return true if t1 is a superclass of t2.
      */
     public boolean isSubclassOf(TypeElement t1, TypeElement t2) {
-        return typeUtils.isSubtype(t1.asType(), t2.asType());
+        return typeUtils.isSubtype(typeUtils.erasure(t1.asType()), typeUtils.erasure(t2.asType()));
     }
 
     /**
@@ -390,7 +393,7 @@ public class Utils {
     }
 
     public boolean isProperty(String name) {
-        return configuration.javafx && name.endsWith("Property");
+        return options.javafx() && name.endsWith("Property");
     }
 
     public String getPropertyName(String name) {
@@ -569,7 +572,8 @@ public class Utils {
     }
 
     public boolean isUndocumentedEnclosure(TypeElement enclosingTypeElement) {
-        return isPackagePrivate(enclosingTypeElement) && !isLinkable(enclosingTypeElement);
+        return (isPackagePrivate(enclosingTypeElement) || isPrivate(enclosingTypeElement))
+                && !isLinkable(enclosingTypeElement);
     }
 
     public boolean isError(TypeElement te) {
@@ -800,13 +804,51 @@ public class Utils {
     }
 
     /**
-     * Returns the TypeMirror of the ExecutableElement for all methods,
-     * a null if constructor.
+     * Returns the TypeMirror of the ExecutableElement if it is a method, or null
+     * if it is a constructor.
+     * @param site the contextual type
      * @param ee the ExecutableElement
-     * @return
+     * @return the return type
      */
-    public TypeMirror getReturnType(ExecutableElement ee) {
-        return ee.getKind() == CONSTRUCTOR ? null : ee.getReturnType();
+    public TypeMirror getReturnType(TypeElement site, ExecutableElement ee) {
+        return ee.getKind() == CONSTRUCTOR ? null : asInstantiatedMethodType(site, ee).getReturnType();
+    }
+
+    /**
+     * Returns the ExecutableType corresponding to the type of the method declaration seen as a
+     * member of a given declared type. This might cause type-variable substitution to kick in.
+     * @param site the contextual type.
+     * @param ee the method declaration.
+     * @return the instantiated method type.
+     */
+    public ExecutableType asInstantiatedMethodType(TypeElement site, ExecutableElement ee) {
+        return shouldInstantiate(site, ee) ?
+                (ExecutableType)typeUtils.asMemberOf((DeclaredType)site.asType(), ee) :
+                (ExecutableType)ee.asType();
+    }
+
+    /**
+     * Returns the TypeMirror corresponding to the type of the field declaration seen as a
+     * member of a given declared type. This might cause type-variable substitution to kick in.
+     * @param site the contextual type.
+     * @param ve the field declaration.
+     * @return the instantiated field type.
+     */
+    public TypeMirror asInstantiatedFieldType(TypeElement site, VariableElement ve) {
+        return shouldInstantiate(site, ve) ?
+                typeUtils.asMemberOf((DeclaredType)site.asType(), ve) :
+                ve.asType();
+    }
+
+    /*
+     * We should not instantiate if (i) there's no contextual type declaration, (ii) the declaration
+     * to which the member belongs to is the same as the one under consideration, (iii) if the
+     * delcaration to which the member belongs to is not generic.
+     */
+    private boolean shouldInstantiate(TypeElement site, Element e) {
+        return site != null &&
+                site != e.getEnclosingElement() &&
+               !((DeclaredType)e.getEnclosingElement().asType()).getTypeArguments().isEmpty();
     }
 
     /**
@@ -1348,8 +1390,8 @@ public class Utils {
         if (!text.contains("\t"))
             return text;
 
-        final int tabLength = configuration.sourcetab;
-        final String whitespace = configuration.tabSpaces;
+        final int tabLength = options.sourceTabSize();
+        final String whitespace = " ".repeat(tabLength);
         final int textLength = text.length();
         StringBuilder result = new StringBuilder(textLength);
         int pos = 0;
@@ -1481,7 +1523,7 @@ public class Utils {
         if (!isIncluded(e)) {
             return false;
         }
-        if (configuration.javafx &&
+        if (options.javafx() &&
                 hasBlockTag(e, DocTree.Kind.UNKNOWN_BLOCK_TAG, "treatAsPrivate")) {
             return true;
         }
@@ -1494,8 +1536,7 @@ public class Utils {
      * @return true if there are no comments, false otherwise
      */
     public boolean isSimpleOverride(ExecutableElement m) {
-        if (!configuration.summarizeOverriddenMethods ||
-                !isIncluded(m)) {
+        if (!options.summarizeOverriddenMethods() || !isIncluded(m)) {
             return false;
         }
 
@@ -1981,10 +2022,8 @@ public class Utils {
                         return result;
                     }
                     if (hasParameters(e1) && hasParameters(e2)) {
-                        @SuppressWarnings("unchecked")
-                        List<VariableElement> parameters1 = (List<VariableElement>)((ExecutableElement)e1).getParameters();
-                        @SuppressWarnings("unchecked")
-                        List<VariableElement> parameters2 = (List<VariableElement>)((ExecutableElement)e2).getParameters();
+                        List<? extends VariableElement> parameters1 = ((ExecutableElement)e1).getParameters();
+                        List<? extends VariableElement> parameters2 = ((ExecutableElement)e2).getParameters();
                         result = compareParameters(false, parameters1, parameters2);
                         if (result != 0) {
                             return result;

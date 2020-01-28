@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,6 +72,7 @@ public class TagletWriterImpl extends TagletWriter {
 
     private final HtmlDocletWriter htmlWriter;
     private final HtmlConfiguration configuration;
+    private final HtmlOptions options;
     private final Utils utils;
     private final boolean inSummary;
     private final Resources resources;
@@ -83,9 +84,10 @@ public class TagletWriterImpl extends TagletWriter {
     public TagletWriterImpl(HtmlDocletWriter htmlWriter, boolean isFirstSentence, boolean inSummary) {
         super(isFirstSentence);
         this.htmlWriter = htmlWriter;
-        configuration = htmlWriter.configuration;
-        this.utils = configuration.utils;
         this.inSummary = inSummary;
+        configuration = htmlWriter.configuration;
+        options = configuration.getOptions();
+        utils = configuration.utils;
         resources = configuration.getResources();
     }
 
@@ -341,12 +343,15 @@ public class TagletWriterImpl extends TagletWriter {
     /**
      * {@inheritDoc}
      */
-    public Content throwsTagOutput(Element element, DocTree throwsTag) {
+    public Content throwsTagOutput(Element element, DocTree throwsTag, TypeMirror substituteType) {
         ContentBuilder body = new ContentBuilder();
         CommentHelper ch = utils.getCommentHelper(element);
         Element exception = ch.getException(configuration, throwsTag);
         Content excName;
-        if (exception == null) {
+        if (substituteType != null) {
+           excName = htmlWriter.getLink(new LinkInfoImpl(configuration, LinkInfoImpl.Kind.MEMBER,
+                   substituteType));
+        } else if (exception == null) {
             excName = new RawHtml(ch.getExceptionName(throwsTag).toString());
         } else if (exception.asType() == null) {
             excName = new RawHtml(utils.getFullyQualifiedName(exception));
@@ -415,6 +420,13 @@ public class TagletWriterImpl extends TagletWriter {
         return configuration;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    protected TypeElement getCurrentPageElement() {
+        return htmlWriter.getCurrentPageElement();
+    }
+
     @SuppressWarnings("preview")
     private Content createAnchorAndSearchIndex(Element element, String tagText, String desc, boolean isSystemProperty) {
         Content result = null;
@@ -428,7 +440,7 @@ public class TagletWriterImpl extends TagletWriter {
                 anchorName += "-" + count;
             }
             result = HtmlTree.SPAN(anchorName, HtmlStyle.searchTagResult, new StringContent(tagText));
-            if (configuration.createindex && !tagText.isEmpty()) {
+            if (options.createIndex() && !tagText.isEmpty()) {
                 SearchIndexItem si = new SearchIndexItem();
                 si.setSystemProperty(isSystemProperty);
                 si.setLabel(tagText);
