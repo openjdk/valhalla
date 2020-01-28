@@ -54,6 +54,7 @@ import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.UnknownType;
 import com.sun.tools.javac.code.Types.UniqueType;
 import com.sun.tools.javac.comp.Modules;
+import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.util.Assert;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Convert;
@@ -64,6 +65,7 @@ import com.sun.tools.javac.util.JavacMessages;
 import com.sun.tools.javac.util.List;
 import com.sun.tools.javac.util.Name;
 import com.sun.tools.javac.util.Names;
+import com.sun.tools.javac.util.Options;
 
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Kinds.Kind.*;
@@ -219,6 +221,8 @@ public class Symtab {
     public final Type valueBasedType;
     public final Type inlineObjectType;
     public final Type identityObjectType;
+
+    public final boolean injectTopInterfaceTypes;
 
     /** The symbol representing the length field of an array.
      */
@@ -604,12 +608,19 @@ public class Symtab {
         MethodSymbol m = new MethodSymbol(PUBLIC | ABSTRACT, names.value, intType, profileType.tsym);
         profileType.tsym.members().enter(m);
 
+        injectTopInterfaceTypes = Options.instance(context).isUnset("noTopInterfaceInjection") &&
+                Feature.INLINE_TYPES.allowedInSource(source) &&
+                Target.instance(context).hasTopInterfaces();
+
         // Enter a class for arrays.
         // The class implements java.lang.Cloneable and java.io.Serializable.
         // It has a final length field and a clone method.
         ClassType arrayClassType = (ClassType)arrayClass.type;
         arrayClassType.supertype_field = objectType;
-        arrayClassType.interfaces_field = List.of(cloneableType, serializableType);
+        arrayClassType.interfaces_field = injectTopInterfaceTypes ?
+                List.of(cloneableType, serializableType, identityObjectType):
+                List.of(cloneableType, serializableType);
+
         arrayClass.members_field = WriteableScope.create(arrayClass);
         lengthVar = new VarSymbol(
             PUBLIC | FINAL,

@@ -114,6 +114,8 @@ public class Names {
     public final Name java_lang_System;
     public final Name __inline__;
     public final Name java_lang___inline__;
+    public final Name java_lang_IdentityObject;
+    public final Name java_lang_InlineObject;
 
     // names of builtin classes
     public final Name Array;
@@ -275,6 +277,8 @@ public class Names {
         java_lang_System = fromString("java.lang.System");
         __inline__ = fromString("__inline__");
         java_lang___inline__ = fromString("java.lang.__inline__");
+        java_lang_IdentityObject = fromString("java.lang.IdentityObject");
+        java_lang_InlineObject = fromString("java.lang.InlineObject");
 
         // names of builtin classes
         Array = fromString("Array");

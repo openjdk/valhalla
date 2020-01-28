@@ -50,6 +50,7 @@ import com.sun.tools.javac.comp.Enter;
 import com.sun.tools.javac.comp.Env;
 import com.sun.tools.javac.comp.LambdaToMethod;
 import com.sun.tools.javac.jvm.ClassFile;
+import com.sun.tools.javac.jvm.Target;
 import com.sun.tools.javac.util.*;
 
 import static com.sun.tools.javac.code.BoundKind.*;
@@ -95,6 +96,7 @@ public class Types {
     final boolean mapCapturesToBounds;
     final boolean allowValueBasedClasses;
     final boolean nonCovariantValueArrays;
+    final boolean injectTopInterfaceTypes;
     final Check chk;
     final Enter enter;
     JCDiagnostic.Factory diags;
@@ -127,6 +129,9 @@ public class Types {
         Options options = Options.instance(context);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
         nonCovariantValueArrays = options.isSet("nonCovariantValueArrays");
+        injectTopInterfaceTypes = Options.instance(context).isUnset("noTopInterfaceInjection") &&
+                Feature.INLINE_TYPES.allowedInSource(source) &&
+                Target.instance(context).hasTopInterfaces();
     }
     // </editor-fold>
 
@@ -1263,7 +1268,8 @@ public class Types {
                     Name sname = s.tsym.getQualifiedName();
                     return sname == names.java_lang_Object
                         || sname == names.java_lang_Cloneable
-                        || sname == names.java_io_Serializable;
+                        || sname == names.java_io_Serializable
+                        || (injectTopInterfaceTypes && sname == names.java_lang_IdentityObject);
                 }
 
                 return false;
@@ -4116,8 +4122,10 @@ public class Types {
                 synchronized (this) {
                     if (arraySuperType == null) {
                         // JLS 10.8: all arrays implement Cloneable and Serializable.
-                        arraySuperType = makeIntersectionType(List.of(syms.serializableType,
-                                syms.cloneableType), true);
+                        List<Type> ifaces = injectTopInterfaceTypes ?
+                                List.of(syms.serializableType, syms.cloneableType, syms.identityObjectType):
+                                List.of(syms.serializableType, syms.cloneableType);
+                        arraySuperType = makeIntersectionType(ifaces, true);
                     }
                 }
             }
