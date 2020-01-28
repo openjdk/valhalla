@@ -38,7 +38,7 @@ import java.io.IOError;
 import java.io.IOException;
 
 @ExpectedSignature(descriptor = "ExceptionTest",
-        signature = "<Exc:Ljava/lang/RuntimeException;:Ljava/lang/Runnable;>Ljava/lang/Object;")
+        signature = "<Exc:Ljava/lang/RuntimeException;:Ljava/lang/Runnable;>Ljava/lang/Object;Ljava/lang/IdentityObject;")
 public class ExceptionTest<Exc extends RuntimeException & Runnable> {
 
     @ExpectedSignature(descriptor = "<init>()", signature = "<E:Ljava/lang/Exception;>()V^TE;")

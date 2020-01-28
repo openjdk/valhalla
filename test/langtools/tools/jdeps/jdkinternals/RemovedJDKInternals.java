@@ -22,6 +22,7 @@
  */
 
 /*
+ * @ignore
  * @test
  * @bug 8153042
  * @summary Tests JDK internal APIs that have been removed.

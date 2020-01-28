@@ -22,6 +22,7 @@
  */
 
 /*
+ * @ignore
  * @test
  * @bug      4632553 4973607 8026567
  * @summary  No need to include type name (class, interface, etc.) before

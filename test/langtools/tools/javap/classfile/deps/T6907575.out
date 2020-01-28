@@ -1,8 +1,11 @@
 p/C1
+    java/lang/IdentityObject
     java/lang/Object
     p/C2
 p/C2
+    java/lang/IdentityObject
     java/lang/Object
     p/C3
 p/C3
+    java/lang/IdentityObject
     java/lang/Object

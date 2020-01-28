@@ -57,6 +57,7 @@ public class T6887895 {
         String[] expectNames = {
             "java/lang/Object",
             "java/lang/String",
+            "java/lang/IdentityObject",
             "T6887895",
             "T6887895$Test"
         };

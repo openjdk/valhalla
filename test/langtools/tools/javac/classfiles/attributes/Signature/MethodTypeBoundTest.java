@@ -36,7 +36,7 @@
 
 import java.util.*;
 
-@ExpectedSignature(descriptor = "MethodTypeBoundTest", signature = "<T:Ljava/lang/Object;>Ljava/lang/Object;")
+@ExpectedSignature(descriptor = "MethodTypeBoundTest", signature = "<T:Ljava/lang/Object;>Ljava/lang/Object;Ljava/lang/IdentityObject;")
 public class MethodTypeBoundTest<T> {
 
     @ExpectedSignature(descriptor = "method1(java.lang.String)",
@@ -76,7 +76,7 @@ public class MethodTypeBoundTest<T> {
     }
 
     @ExpectedSignature(descriptor = "MethodTypeBoundTest$InnerClass",
-            signature = "<T:Ljava/lang/Object;>Ljava/lang/Object;")
+            signature = "<T:Ljava/lang/Object;>Ljava/lang/Object;Ljava/lang/IdentityObject;")
     class InnerClass<T> {
     }
 }

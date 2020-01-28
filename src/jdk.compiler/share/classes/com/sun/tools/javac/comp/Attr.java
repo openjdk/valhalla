@@ -985,6 +985,9 @@ public class Attr extends JCTree.Visitor {
                         env.tree.hasTag(NEWCLASS)) {
                     c.flags_field |= NOOUTERTHIS;
                 }
+                if (env.tree.hasTag(NEWCLASS) && types.isValue(c.getSuperclass())) {
+                    c.flags_field |= VALUE; // avoid further secondary errors.
+                }
                 attribClass(tree.pos(), c);
                 result = tree.type = c.type;
             }
@@ -4858,7 +4861,7 @@ public class Attr extends JCTree.Visitor {
                 implementing = bounds;
             }
             JCClassDecl cd = make.at(tree).ClassDef(
-                make.Modifiers(PUBLIC | ABSTRACT),
+                make.Modifiers(PUBLIC | ABSTRACT | (extending != null && TreeInfo.symbol(extending).isValue() ? VALUE : 0)),
                 names.empty, List.nil(),
                 extending, implementing, List.nil());
 
@@ -5190,7 +5193,7 @@ public class Attr extends JCTree.Visitor {
                     log.error(l.head.pos(), Errors.IclsCantHaveStaticDecl(c));
             }
         }
-        if (!allowEmptyValues && !hasInstanceFields && (c.flags() & VALUE) != 0) {
+        if (!allowEmptyValues && !hasInstanceFields && (c.flags() & (VALUE | SYNTHETIC)) == VALUE) {
             log.error(tree.pos(), Errors.EmptyValueNotYet);
         }
 

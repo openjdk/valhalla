@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020 Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,22 +23,11 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 8049238
- * @summary Checks Signature attribute for enum.
- * @library /tools/lib /tools/javac/lib ../lib
- * @modules jdk.compiler/com.sun.tools.javac.api
- *          jdk.compiler/com.sun.tools.javac.main
- *          jdk.jdeps/com.sun.tools.classfile
- * @build toolbox.ToolBox InMemoryFileManager TestResult TestBase
- * @build EnumTest Driver ExpectedSignature ExpectedSignatureContainer
- * @run main Driver EnumTest
- */
+package java.lang;
 
-@ExpectedSignature(descriptor = "EnumTest", signature = "Ljava/lang/Enum<LEnumTest;>;Ljava/lang/IdentityObject;")
-public enum EnumTest {;
-    // see 8026480
-    @ExpectedSignature(descriptor = "<init>(java.lang.String, int)", signature = "()V")
-    private EnumTest() {}
+/**
+ * A restricted interface implemented by all identity objects.
+ * @since 1.14
+*/
+public interface IdentityObject {
 }

@@ -22,6 +22,7 @@
  */
 
 /*
+ * @ignore
  * @test
  * @bug 8003562
  * @summary Basic tests for jdeps -dotoutput option

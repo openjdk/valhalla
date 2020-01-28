@@ -1,0 +1,14 @@
+TopInterfaceNegativeTest.java:13:44: compiler.err.repeated.interface
+TopInterfaceNegativeTest.java:24:48: compiler.err.repeated.interface
+TopInterfaceNegativeTest.java:30:53: compiler.err.repeated.interface
+TopInterfaceNegativeTest.java:14:5: compiler.err.mutually.incompatible.interfaces: TopInterfaceNegativeTest.IID1
+TopInterfaceNegativeTest.java:15:5: compiler.err.mutually.incompatible.interfaces: TopInterfaceNegativeTest.IID2
+TopInterfaceNegativeTest.java:18:5: compiler.err.mutually.incompatible.interfaces: TopInterfaceNegativeTest.IID5
+TopInterfaceNegativeTest.java:20:12: compiler.err.identity.type.must.not.implement.inline.object: TopInterfaceNegativeTest.C1
+TopInterfaceNegativeTest.java:21:12: compiler.err.identity.type.must.not.implement.inline.object: TopInterfaceNegativeTest.C2
+TopInterfaceNegativeTest.java:26:12: compiler.err.identity.type.must.not.implement.inline.object: TopInterfaceNegativeTest.C7
+TopInterfaceNegativeTest.java:28:19: compiler.err.inline.type.must.not.implement.identity.object: TopInterfaceNegativeTest.V1
+TopInterfaceNegativeTest.java:29:19: compiler.err.empty.value.not.yet
+TopInterfaceNegativeTest.java:30:19: compiler.err.empty.value.not.yet
+TopInterfaceNegativeTest.java:33:13: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: TopInterfaceNegativeTest.V2, java.lang.IdentityObject)
+13 errors

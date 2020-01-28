@@ -217,6 +217,8 @@ public class Symtab {
     public final Type functionalInterfaceType;
     public final Type previewFeatureType;
     public final Type valueBasedType;
+    public final Type inlineObjectType;
+    public final Type identityObjectType;
 
     /** The symbol representing the length field of an array.
      */
@@ -576,6 +578,8 @@ public class Symtab {
         functionalInterfaceType = enterClass("java.lang.FunctionalInterface");
         previewFeatureType = enterClass("jdk.internal.PreviewFeature");
         valueBasedType = enterClass("java.lang.ValueBased");
+        identityObjectType = enterClass("java.lang.IdentityObject");
+        inlineObjectType = enterClass("java.lang.InlineObject");
 
         synthesizeEmptyInterfaceIfMissing(autoCloseableType);
         synthesizeEmptyInterfaceIfMissing(cloneableType);
@@ -583,6 +587,8 @@ public class Symtab {
         synthesizeEmptyInterfaceIfMissing(lambdaMetafactory);
         synthesizeEmptyInterfaceIfMissing(serializedLambdaType);
         synthesizeEmptyInterfaceIfMissing(stringConcatFactory);
+        synthesizeEmptyInterfaceIfMissing(inlineObjectType);
+        synthesizeEmptyInterfaceIfMissing(identityObjectType);
         synthesizeBoxTypeIfMissing(doubleType);
         synthesizeBoxTypeIfMissing(floatType);
         synthesizeBoxTypeIfMissing(voidType);

@@ -37,7 +37,7 @@
 import java.lang.ref.ReferenceQueue;
 import java.util.*;
 
-@ExpectedSignature(descriptor = "ConstructorTest", signature = "<T:Ljava/lang/Object;>Ljava/lang/Object;")
+@ExpectedSignature(descriptor = "ConstructorTest", signature = "<T:Ljava/lang/Object;>Ljava/lang/Object;Ljava/lang/IdentityObject;")
 public class ConstructorTest<T> {
 
     @ExpectedSignature(descriptor = "<init>(java.lang.Object, boolean)", signature = "(TT;Z)V")

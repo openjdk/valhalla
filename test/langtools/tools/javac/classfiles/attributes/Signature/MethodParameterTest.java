@@ -39,7 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-@ExpectedSignature(descriptor = "MethodParameterTest", signature = "<T:Ljava/lang/Object;>Ljava/lang/Object;")
+@ExpectedSignature(descriptor = "MethodParameterTest", signature = "<T:Ljava/lang/Object;>Ljava/lang/Object;Ljava/lang/IdentityObject;")
 public class MethodParameterTest<T> {
 
     @ExpectedSignature(descriptor = "<init>(java.lang.Object, java.util.Set, java.util.ArrayList)",

@@ -1001,7 +1001,7 @@ public class Types {
     }
 
     public boolean isValue(Type t) {
-        return t != null && t.tsym != null && (t.tsym.flags() & Flags.VALUE) != 0;
+        return t != null && t.tsym != null && (t.tsym.flags_field & Flags.VALUE) != 0;
     }
 
     public boolean isValueBased(Type t) {
@@ -1021,7 +1021,14 @@ public class Types {
         ClassType loxType = new ClassType(ct.getEnclosingType(), ct.typarams_field, null);
         loxType.allparams_field = ct.allparams_field;
         loxType.supertype_field = ct.supertype_field;
-        loxType.interfaces_field = ct.interfaces_field;
+        loxType.interfaces_field = List.nil();
+        for (Type t :ct.interfaces_field) {
+            if (t.tsym == syms.inlineObjectType.tsym) {
+                loxType.interfaces_field  = loxType.interfaces_field.append(syms.identityObjectType);
+            } else {
+                loxType.interfaces_field  = loxType.interfaces_field.append(t);
+            }
+        }
         loxType.all_interfaces_field = ct.all_interfaces_field;
         lox = new ClassSymbol((c.flags() & ~VALUE), c.name, loxType, c.owner) {
             @Override
@@ -2511,8 +2518,11 @@ public class Types {
         if (allInterfaces) {
             bounds = bounds.prepend(syms.objectType);
         }
+        long flags = ABSTRACT | PUBLIC | SYNTHETIC | COMPOUND | ACYCLIC;
+        if (isValue(bounds.head))
+            flags |= VALUE;
         ClassSymbol bc =
-            new ClassSymbol(ABSTRACT|PUBLIC|SYNTHETIC|COMPOUND|ACYCLIC,
+            new ClassSymbol(flags,
                             Type.moreInfo
                                 ? names.fromString(bounds.toString())
                                 : names.empty,

@@ -22,6 +22,7 @@
  */
 
 /*
+ * @ignore
  * @test
  * @bug 8168615 8172102
  * @summary Test all the ToolSimpleTest tests, but in local execution. Verify --execution flag

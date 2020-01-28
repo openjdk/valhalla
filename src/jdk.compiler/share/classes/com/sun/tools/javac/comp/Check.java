@@ -2558,6 +2558,15 @@ public class Check {
                     return;
         }
         checkCompatibleConcretes(pos, c);
+        boolean isIdentityObject = types.asSuper(c, syms.identityObjectType.tsym) != null;
+        boolean isInlineObject = types.asSuper(c, syms.inlineObjectType.tsym) != null;
+        if (types.isValue(c) && isIdentityObject) {
+            log.error(pos, Errors.InlineTypeMustNotImplementIdentityObject(c));
+        } else if (!c.isInterface() && !types.isValue(c) && isInlineObject) {
+            log.error(pos, Errors.IdentityTypeMustNotImplementInlineObject(c));
+        } else if (isIdentityObject && isInlineObject) {
+            log.error(pos, Errors.MutuallyIncompatibleInterfaces(c));
+        }
     }
 
     /** Check that all non-override equivalent methods accessible from 'site'

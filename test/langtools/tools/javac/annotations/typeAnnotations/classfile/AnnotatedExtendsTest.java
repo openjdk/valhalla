@@ -59,7 +59,8 @@ public class AnnotatedExtendsTest {
                 .classes(classPath.toString())
                 .run()
                 .getOutput(Task.OutputKind.DIRECT);
-        if (!javapOut.contains("0: #22(): CLASS_EXTENDS, type_index=65535"))
+        if (!javapOut.contains("0: #24(): CLASS_EXTENDS, type_index=65535") ||
+            !javapOut.contains("#24 = Utf8               LAnnotatedExtendsTest$TA;"))
             throw new AssertionError("Expected output missing: " + javapOut);
     }
 }

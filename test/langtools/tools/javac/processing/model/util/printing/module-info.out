@@ -1,13 +1,13 @@
 package p;
 
-public class P {
+public class P implements java.lang.IdentityObject {
 
-  public static class P1 extends p.P {
+  public static class P1 extends p.P implements java.lang.IdentityObject {
 
     public P1();
   }
 
-  public static class P2 extends p.P {
+  public static class P2 extends p.P implements java.lang.IdentityObject {
 
     public P2();
   }

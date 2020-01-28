@@ -39,6 +39,8 @@ import com.sun.tools.classfile.Type.WildcardType;
  * @bug 6888367
  * @summary classfile library parses signature attributes incorrectly
  * @modules jdk.jdeps/com.sun.tools.classfile
+ * @compile -XDnoTopInterfaceInjection T6888367.java
+ * @run main T6888367
  */
 
 /*

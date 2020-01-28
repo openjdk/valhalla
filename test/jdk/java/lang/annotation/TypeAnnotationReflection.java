@@ -74,8 +74,9 @@ public class TypeAnnotationReflection {
     private static void testInterfaces() throws Exception {
         AnnotatedType[] as;
         as = TestClassArray.class.getAnnotatedInterfaces();
-        check(as.length == 3);
+        check(as.length == 4);
         check(as[1].getAnnotations().length == 0);
+        check(as[3].getAnnotations().length == 0);
 
         Annotation[] annos;
         annos = as[0].getAnnotations();
@@ -326,8 +327,9 @@ public class TypeAnnotationReflection {
         // Base
         AnnotatedType[] as;
         as = TestParameterizedType.class.getAnnotatedInterfaces();
-        check(as.length == 1);
+        check(as.length == 2);
         check(as[0].getAnnotations().length == 1);
+        check(as[1].getAnnotations().length == 0);
         check(as[0].getAnnotation(TypeAnno.class).value().equals("M"));
 
         Annotation[] annos;

@@ -34,6 +34,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.List;
 import javax.tools.JavaCompiler;
 import javax.tools.JavaCompiler.CompilationTask;
 import javax.tools.JavaFileObject;
@@ -112,7 +113,7 @@ public class TestSuperclass {
 
         JavaSource js = new JavaSource();
         System.err.println(js.getCharContent(false));
-        CompilationTask t = comp.getTask(null, fm, null, null, null, Arrays.asList(js));
+        CompilationTask t = comp.getTask(null, fm, null, List.of("-XDnoTopInterfaceInjection"), null, Arrays.asList(js));
         if (!t.call())
             throw new Error("compilation failed");
 

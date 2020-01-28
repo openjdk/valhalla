@@ -22,6 +22,7 @@
  */
 
 /*
+ * @ignore
  * @test
  * @bug 8144903 8177466 8191842 8211694 8213725
  * @summary Tests for EvaluationState.variables

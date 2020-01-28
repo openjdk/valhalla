@@ -209,3 +209,6 @@ compiler.warn.potential.null.pollution
 compiler.err.empty.value.not.yet
 compiler.err.this.exposed.prematurely
 compiler.warn.this.exposed.prematurely
+compiler.err.identity.type.must.not.implement.inline.object
+compiler.err.inline.type.must.not.implement.identity.object
+compiler.err.mutually.incompatible.interfaces

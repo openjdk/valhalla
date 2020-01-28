@@ -22,6 +22,7 @@
  */
 
 /*
+ * @ignore
  * @test
  * @bug 8073100 8182765 8196202
  * @summary ensure the hidden tag works as intended
