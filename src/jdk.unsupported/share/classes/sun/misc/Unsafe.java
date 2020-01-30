@@ -637,6 +637,12 @@ public final class Unsafe {
      */
     @ForceInline
     public long objectFieldOffset(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
+        if (f.getDeclaringClass().isHiddenClass()) {
+            throw new UnsupportedOperationException("can't get field offset on a hidden class: " + f);
+        }
         return theInternalUnsafe.objectFieldOffset(f);
     }
 
@@ -659,6 +665,12 @@ public final class Unsafe {
      */
     @ForceInline
     public long staticFieldOffset(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
+        if (f.getDeclaringClass().isHiddenClass()) {
+            throw new UnsupportedOperationException("can't get field offset on a hidden class: " + f);
+        }
         return theInternalUnsafe.staticFieldOffset(f);
     }
 
@@ -674,6 +686,12 @@ public final class Unsafe {
      */
     @ForceInline
     public Object staticFieldBase(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
+        if (f.getDeclaringClass().isHiddenClass()) {
+            throw new UnsupportedOperationException("can't get base address on a hidden class: " + f);
+        }
         return theInternalUnsafe.staticFieldBase(f);
     }
 
