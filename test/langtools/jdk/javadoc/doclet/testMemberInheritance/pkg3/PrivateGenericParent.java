@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,18 +21,15 @@
  * questions.
  */
 
+package pkg3;
 
-/*
- * @test
- *
- * @summary converted from VM Testbase jit/escape/LockCoarsening/LockCoarsening001.
- * VM Testbase keywords: [jit, quarantine]
- * VM Testbase comments: 8148743
- *
- * @library /vmTestbase
- *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
- * @build jit.escape.LockCoarsening.LockCoarsening
- * @run shell ../run.sh EliminateLocks
- */
+public class PrivateGenericParent {
 
+    private static class PrivateParent<T> {
+        public T method(T t) {
+            return t;
+        }
+    }
+
+    public class PublicChild extends PrivateParent<String> {}
+}

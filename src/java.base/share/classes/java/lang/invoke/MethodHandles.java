@@ -306,7 +306,7 @@ public class MethodHandles {
      * @throws ClassCastException if the class data cannot be converted to
      * the specified {@code type}
      * @see Lookup#defineHiddenClassWithClassData(byte[], Object, boolean, Lookup.ClassOption...)
-     * @since 14
+     * @since 15
      */
     public static <T> T classData(Lookup caller, String name, Class<T> type) throws IllegalAccessException {
         if ((caller.lookupModes() & Lookup.ORIGINAL) == 0) {
@@ -1806,7 +1806,7 @@ public class MethodHandles {
          *                                  <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
          * @throws NullPointerException     if {@code bytes} is {@code null}
          *
-         * @since 14
+         * @since 15
          * @see Class#isHiddenClass()
          * @jvms 4.2.2 Unqualified Names
          * @jls 12.3 Linking of Classes and Interfaces
@@ -1861,7 +1861,7 @@ public class MethodHandles {
          *                                  <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
          * @throws NullPointerException     if {@code bytes} is {@code null}
          *
-         * @since 14
+         * @since 15
          * @see Lookup#defineHiddenClass(byte[], boolean, ClassOption...)  
          * @see Class#isHiddenClass()
          */
@@ -3649,7 +3649,7 @@ return mh1;
          * a new member to the nest of a lookup class and whether a hidden class
          * is weakly referenced by its defining class loader.
          *
-         * @since 14
+         * @since 15
          */
         public enum ClassOption {
             /**
