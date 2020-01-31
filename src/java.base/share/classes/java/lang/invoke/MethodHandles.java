@@ -1694,9 +1694,9 @@ public class MethodHandles {
          * by the <em>The Java Virtual Machine Specification</em>) with a class name in the
          * same package as the lookup class. </p>
          *
-         * <p> This method does not run the class initializer. The class initializer may
-         * run at a later time, as detailed in section 12.4 of the <em>The Java Language
-         * Specification</em>. </p>
+         * <p> This method does not run the class initializer.
+         * The class initializer may run at a later time, as detailed in section 12.4 of
+         * the <em>The Java Language Specification</em>. </p>
          *
          * <p> If there is a security manager and this lookup does not have {@linkplain
          * #hasFullPrivilegeAccess() full privilege access}, its {@code checkPermission} method
@@ -1740,29 +1740,34 @@ public class MethodHandles {
          * the same class loader and in the same runtime package and
          * {@linkplain java.security.ProtectionDomain protection domain} as this
          * lookup's {@linkplain #lookupClass() lookup class}.
-         * The {@code options} parameter specifies the class options if the
-         * hidden class is created as a {@linkplain ClassOption#NESTMATE nestmate}
-         * of this lookup's lookup class and/or is {@linkplain ClassOption#WEAK
-         * weakly referenced} by its defining class loader.
          *
-         * <p> The hidden class is initialized if the {@code initialize} parameter is
+         * If {@code options} has {@link ClassOption#NESTMATE NESTMATE} 
+         * option, then the hidden class is added as a member into
+         * {@linkplain Class#getNestHost() the nest} of this lookup's lookup class.
+         *
+         * If {@code options} has {@link ClassOption#WEAK WEAK} option, then
+         * the hidden class is weakly referenced from its defining class loader
+         * and may be unloaded while its defining class loader is strongly reachable.
+         *
+         * The hidden class is initialized if the {@code initialize} parameter is
          * {@code true}.
          *
-         * <p> A {@link Class#isHiddenClass() <em>hidden</em>} class, i.e. a class
-         * cannot be referenced in other classes.  It has the following additional properties:
+         * <p> A {@link Class#isHiddenClass() <em>hidden</em>} class has the
+         * following additional properties:
          * <ul>
          * <li>Naming:
          *     The name of a hidden class returned by {@link Class#getName()} is
-         *     defined by the JVM of this form:<br>
-         *     {@code <fully-qualified binary name> + '/' + <suffix>}<br>
+         *     defined by the JVM of this form:
+         *     {@code <fully-qualified binary name> + '/' + <suffix>},
          *     where {@code <fully-qualified binary name>} is the class name
          *     from the class bytes and {@code <suffix>} must be an unique unqualified
          *     name (see JVMS 4.2.2)
          * <li>Class resolution:
-         *     A hidden class is not registered in the JVM with a globally defined name
-         *     and hence cannot be found by its class loader.
-         *     A hidden class cannot be named as a field type, a method parameter
-         *     type and a method return type.
+         *     A hidden class cannot be referenced in other classes and cannot be
+         *     named as a field type, a method parameter type and a method return type.
+         *     It is not discoverable by its class loader for example via
+         *     {@link Class#forName(String, boolean, ClassLoader)},
+         *     {@link ClassLoader#loadClass(String, boolean)} and also bytecode linkage.
          * <li>Class retransformation:
          *     A hidden class is not {@linkplain java.lang.instrument.Instrumentation#isModifiableClass(Class)
          *     modifiable} by Java agents or tool agents using
@@ -1776,16 +1781,8 @@ public class MethodHandles {
          * </ul>
          *
          * <p> The {@linkplain #lookupModes() lookup modes} for this lookup must
-         * have {@code PRIVATE} and {@code MODULE} access to create a hidden class
-         * in the module of this lookup class.
-         *
-         * <p> If {@code options} has {@link ClassOption#NESTMATE NESTMATE}, then
-         * this method creates the hidden class as a member of
-         * {@linkplain Class#getNestHost() the nest} of this lookup's lookup class.
-         *
-         * <p> If {@code options} has {@link ClassOption#WEAK WEAK}, then
-         * the hidden class is weakly referenced from its defining class loader
-         * and may be unloaded while its defining class loader is strongly reachable.
+         * have {@linkplain #hasFullPrivilegeAccess() full privilege} access to
+         * create a hidden class in the module of this lookup class.
          *
          * <p> The {@code bytes} parameter is the class bytes of a valid class file
          * (as defined by the <em>The Java Virtual Machine Specification</em>)
@@ -1798,7 +1795,8 @@ public class MethodHandles {
          *
          * @throws IllegalArgumentException the bytes are for a class in a different package
          *                                  to the lookup class
-         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
+         * @throws IllegalAccessException   if this lookup does not have {@linkplain #hasFullPrivilegeAccess()
+         *                                  full privilege} access
          * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
          *                                  verified ({@code VerifyError}), is already defined,
          *                                  or another linkage error occurs
@@ -1853,7 +1851,8 @@ public class MethodHandles {
          *
          * @throws IllegalArgumentException the bytes are for a class in a different package
          *                                  to the lookup class
-         * @throws IllegalAccessException   if this lookup does not have {@code PRIVATE} and {@code MODULE} access
+         * @throws IllegalAccessException   if this lookup does not have {@linkplain #hasFullPrivilegeAccess()
+         *                                  full privilege} access
          * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
          *                                  verified ({@code VerifyError}), is already defined,
          *                                  or another linkage error occurs
