@@ -1045,6 +1045,39 @@ public class Check {
         return varType;
     }
 
+    public void checkForSuspectClassLiteralComparison(
+            final JCBinary tree,
+            final Type leftType,
+            final Type rightType) {
+
+        if (lint.isEnabled(LintCategory.MIGRATION)) {
+            if (isInvocationOfGetClass(tree.lhs) && isClassOfSomeInterface(rightType) ||
+                    isInvocationOfGetClass(tree.rhs) && isClassOfSomeInterface(leftType)) {
+                log.warning(LintCategory.MIGRATION, tree.pos(), Warnings.GetClassComparedWithInterface);
+            }
+        }
+    }
+    //where
+    private boolean isClassOfSomeInterface(Type someClass) {
+        if (someClass.tsym.flatName() == names.java_lang_Class) {
+            List<Type> arguments = someClass.getTypeArguments();
+            if (arguments.length() == 1) {
+                return arguments.head.isInterface();
+            }
+        }
+        return false;
+    }
+    //where
+    private boolean isInvocationOfGetClass(JCExpression tree) {
+        tree = TreeInfo.skipParens(tree);
+        if (tree.hasTag(APPLY)) {
+            JCMethodInvocation apply = (JCMethodInvocation)tree;
+            MethodSymbol msym = (MethodSymbol)TreeInfo.symbol(apply.meth);
+            return msym.name == names.getClass && msym.implementedIn(syms.objectType.tsym, types) != null;
+        }
+        return false;
+    }
+
     Type checkMethod(final Type mtype,
             final Symbol sym,
             final Env<AttrContext> env,

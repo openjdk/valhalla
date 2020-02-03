@@ -1,0 +1,5 @@
+CheckInterfaceComparison.java:10:31: compiler.warn.get.class.compared.with.interface
+CheckInterfaceComparison.java:14:31: compiler.warn.get.class.compared.with.interface
+CheckInterfaceComparison.java:18:31: compiler.warn.get.class.compared.with.interface
+CheckInterfaceComparison.java:22:31: compiler.warn.get.class.compared.with.interface
+4 warnings

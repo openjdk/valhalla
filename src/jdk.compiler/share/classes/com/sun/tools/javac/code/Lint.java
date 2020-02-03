@@ -216,6 +216,11 @@ public class Lint
         MODULE("module"),
 
         /**
+         * Warn about issues related to migration of JDK classes.
+         */
+        MIGRATION("migration"),
+
+        /**
          * Warn about issues regarding module opens.
          */
         OPENS("opens"),

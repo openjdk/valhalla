@@ -3814,6 +3814,7 @@ public class Attr extends JCTree.Visitor {
                 if (!types.isCastable(left, right, new Warner(tree.pos()))) {
                     log.error(tree.pos(), Errors.IncomparableTypes(left, right));
                 }
+                chk.checkForSuspectClassLiteralComparison(tree, left, right);
             }
 
             chk.checkDivZero(tree.rhs.pos(), operator, right);
