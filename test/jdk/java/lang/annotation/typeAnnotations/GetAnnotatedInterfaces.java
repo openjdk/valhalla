@@ -67,6 +67,12 @@ public class GetAnnotatedInterfaces {
                 System.out.println(toTest + ".class.getAnnotatedInterface() returns" +
                         "'null' should zero length array");
             } else if (res.length != 0) {
+                // Adjust according to JDK-8237952
+                if (!toTest.isPrimitive() && !toTest.isArray() && toTest != Object.class) {
+                    assert (res.length == 1);
+                    assert (res[0].getType() == IdentityObject.class);
+                    continue;
+                }
                 failed++;
                 System.out.println(toTest + ".class.getAnnotatedInterfaces() returns: "
                         + Arrays.asList(res) + ", should be a zero length array of AnnotatedType");

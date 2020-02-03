@@ -80,8 +80,9 @@ public class TestC1 {
         System.out.println("testing superinterfaces");
         Type[] sis = cls.getGenericInterfaces();
         assert
-            (sis.length == 0) :
-            "C1 should have no generic superinterfaces";
+            (sis.length == 1) :  // Adjust based on JDK-8237952
+            "C1 should have one generic superinterface";  // Adjust based on JDK-8237952
+        assert (sis[0] == IdentityObject.class);  // Adjust based on JDK-8237952
     }
 
     static void testTypeParameters() {
