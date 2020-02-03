@@ -91,7 +91,6 @@ public class Names {
     public final Name getClass;
     public final Name hasNext;
     public final Name hashCode;
-    public final Name identityHashCode;
     public final Name init;
     public final Name iterator;
     public final Name length;
@@ -253,7 +252,6 @@ public class Names {
         getClass = fromString("getClass");
         hasNext = fromString("hasNext");
         hashCode = fromString("hashCode");
-        identityHashCode = fromString("identityHashCode");
         init = fromString("<init>");
         iterator = fromString("iterator");
         length = fromString("length");

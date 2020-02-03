@@ -2343,43 +2343,40 @@ public class Attr extends JCTree.Visitor {
             restype = adjustMethodReturnType(msym, qualifier, methName, argtypes, restype);
 
             chk.checkRefTypes(tree.typeargs, typeargtypes);
-            // identity hash code is uncomputable for value instances.
-            final Symbol symbol = TreeInfo.symbol(tree.meth);
-            if (symbol != null && symbol.name == names.identityHashCode && symbol.owner.flatName() == names.java_lang_System) {
-                if (tree.args.length() == 1 && types.isValue(tree.args.head.type))
-                    log.error(tree.pos(), Errors.ValueDoesNotSupport(names.identityHashCode));
-            }
 
-            /* Is this an ill conceived attempt to invoke jlO methods not available on value types ??
-            */
-            boolean superCallOnValueReceiver = types.isValue(env.enclClass.sym.type)
-                                    && (tree.meth.hasTag(SELECT))
-                                    && ((JCFieldAccess) tree.meth).selected.hasTag(IDENT)
-                                    && TreeInfo.name(((JCFieldAccess) tree.meth).selected) == names._super;
-            if (types.isValue(qualifier) || superCallOnValueReceiver) {
-                int argSize = argtypes.size();
-                Name name = symbol.name;
-                switch (name.toString()) {
-                    case "wait":
-                        if (argSize == 0
-                                || (types.isConvertible(argtypes.head, syms.longType) &&
-                                (argSize == 1 || (argSize == 2 && types.isConvertible(argtypes.tail.head, syms.intType))))) {
-                            log.error(tree.pos(),Errors.ValueDoesNotSupport(name));
-                        }
-                        break;
-                    case "notify":
-                    case "notifyAll":
-                    case "clone":
-                    case "finalize":
-                        if (argSize == 0)
-                            log.error(tree.pos(), Errors.ValueDoesNotSupport(name));
-                        break;
-                    case "hashCode":
-                    case "equals":
-                    case "toString":
-                        if (superCallOnValueReceiver)
-                            log.error(tree.pos(), Errors.ValueDoesNotSupport(names.fromString("invocation of super." + name)));
-                        break;
+            final Symbol symbol = TreeInfo.symbol(tree.meth);
+            if (symbol != null) {
+                /* Is this an ill conceived attempt to invoke jlO methods not available on value types ??
+                 */
+                boolean superCallOnValueReceiver = types.isValue(env.enclClass.sym.type)
+                        && (tree.meth.hasTag(SELECT))
+                        && ((JCFieldAccess)tree.meth).selected.hasTag(IDENT)
+                        && TreeInfo.name(((JCFieldAccess)tree.meth).selected) == names._super;
+                if (types.isValue(qualifier) || superCallOnValueReceiver) {
+                    int argSize = argtypes.size();
+                    Name name = symbol.name;
+                    switch (name.toString()) {
+                        case "wait":
+                            if (argSize == 0
+                                    || (types.isConvertible(argtypes.head, syms.longType) &&
+                                    (argSize == 1 || (argSize == 2 && types.isConvertible(argtypes.tail.head, syms.intType))))) {
+                                log.error(tree.pos(), Errors.ValueDoesNotSupport(name));
+                            }
+                            break;
+                        case "notify":
+                        case "notifyAll":
+                        case "clone":
+                        case "finalize":
+                            if (argSize == 0)
+                                log.error(tree.pos(), Errors.ValueDoesNotSupport(name));
+                            break;
+                        case "hashCode":
+                        case "equals":
+                        case "toString":
+                            if (superCallOnValueReceiver)
+                                log.error(tree.pos(), Errors.ValueDoesNotSupport(names.fromString("invocation of super." + name)));
+                            break;
+                    }
                 }
             }
 
