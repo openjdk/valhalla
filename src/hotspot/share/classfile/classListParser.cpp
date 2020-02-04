@@ -30,6 +30,7 @@
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
+#include "classfile/vmSymbols.hpp"
 #include "logging/log.hpp"
 #include "logging/logTag.hpp"
 #include "memory/metaspaceShared.hpp"
@@ -304,11 +305,37 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
   InstanceKlass* k = ClassLoaderExt::load_class(class_name, _source, CHECK_NULL);
 
   if (k != NULL) {
-    if (k->local_interfaces()->length() != _interfaces->length()) {
+    int actual_num_interfaces = k->local_interfaces()->length();
+    int specified_num_interfaces = _interfaces->length();
+    int expected_num_interfaces, i;
+
+    bool identity_object_implemented = false;
+    bool identity_object_specified = false;
+    for (i = 0; i < actual_num_interfaces; i++) {
+      if (k->local_interfaces()->at(i) == SystemDictionary::IdentityObject_klass()) {
+        identity_object_implemented = true;
+        break;
+      }
+    }
+    for (i = 0; i < specified_num_interfaces; i++) {
+      if (lookup_class_by_id(_interfaces->at(i)) == SystemDictionary::IdentityObject_klass()) {
+        identity_object_specified = true;
+        break;
+      }
+    }
+
+    expected_num_interfaces = actual_num_interfaces;
+    if (identity_object_implemented  && !identity_object_specified) {
+      // Backwards compatibility -- older classlists do not know about
+      // java.lang.IdentityObject.
+      expected_num_interfaces--;
+    }
+
+    if (specified_num_interfaces != expected_num_interfaces) {
       print_specified_interfaces();
       print_actual_interfaces(k);
       error("The number of interfaces (%d) specified in class list does not match the class file (%d)",
-            _interfaces->length(), k->local_interfaces()->length());
+            specified_num_interfaces, expected_num_interfaces);
     }
 
     bool added = SystemDictionaryShared::add_unregistered_class(k, CHECK_NULL);
@@ -437,6 +464,12 @@ InstanceKlass* ClassListParser::lookup_super_for_current_class(Symbol* super_nam
 InstanceKlass* ClassListParser::lookup_interface_for_current_class(Symbol* interface_name) {
   if (!is_loading_from_source()) {
     return NULL;
+  }
+
+  if (interface_name == vmSymbols::java_lang_IdentityObject()) {
+    // Backwards compatibility -- older classlists do not know about
+    // java.lang.IdentityObject.
+    return SystemDictionary::IdentityObject_klass();
   }
 
   const int n = _interfaces->length();

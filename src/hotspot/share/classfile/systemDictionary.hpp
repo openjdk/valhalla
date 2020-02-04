@@ -103,6 +103,7 @@ class GCTimer;
 #define WK_KLASSES_DO(do_klass)                                                                                 \
   /* well-known classes */                                                                                      \
   do_klass(Object_klass,                                java_lang_Object                                      ) \
+  do_klass(IdentityObject_klass,                        java_lang_IdentityObject                              ) \
   do_klass(String_klass,                                java_lang_String                                      ) \
   do_klass(Class_klass,                                 java_lang_Class                                       ) \
   do_klass(Cloneable_klass,                             java_lang_Cloneable                                   ) \
