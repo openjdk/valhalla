@@ -165,6 +165,7 @@ public class Attr extends JCTree.Visitor {
         allowLambda = Feature.LAMBDA.allowedInSource(source);
         allowDefaultMethods = Feature.DEFAULT_METHODS.allowedInSource(source);
         allowStaticInterfaceMethods = Feature.STATIC_INTERFACE_METHODS.allowedInSource(source);
+        allowInlineTypes = Feature.INLINE_TYPES.allowedInSource(source);
         allowReifiableTypesInInstanceof =
                 Feature.REIFIABLE_TYPES_INSTANCEOF.allowedInSource(source) &&
                 (!preview.isPreview(Feature.REIFIABLE_TYPES_INSTANCEOF) || preview.isEnabled());
@@ -198,6 +199,10 @@ public class Attr extends JCTree.Visitor {
     /** Switch: support default methods ?
      */
     boolean allowDefaultMethods;
+
+    /** Switch: allow inline types?
+     */
+    boolean allowInlineTypes;
 
     /** Switch: static interface methods enabled?
      */
@@ -4019,6 +4024,10 @@ public class Attr extends JCTree.Visitor {
         if (tree.name == names._this || tree.name == names._super ||
                 tree.name == names._class || tree.name == names._default)
         {
+            if (tree.name == names._default && !allowInlineTypes) {
+                log.error(DiagnosticFlag.SOURCE_LEVEL, tree.pos(),
+                        Feature.INLINE_TYPES.error(sourceName));
+            }
             skind = KindSelector.TYP;
         } else {
             if (pkind().contains(KindSelector.PCK))
@@ -4040,10 +4049,15 @@ public class Attr extends JCTree.Visitor {
             while (elt.hasTag(ARRAY))
                 elt = ((ArrayType)elt).elemtype;
             if (elt.hasTag(TYPEVAR)) {
-                log.error(tree.pos(), Errors.TypeVarCantBeDeref);
-                result = tree.type = types.createErrorType(tree.name, site.tsym, site);
-                tree.sym = tree.type.tsym;
-                return ;
+                if (tree.name == names._default) {
+                    result = check(tree, litType(BOT).constType(null),
+                            KindSelector.VAL, resultInfo);
+                } else {
+                    log.error(tree.pos(), Errors.TypeVarCantBeDeref);
+                    result = tree.type = types.createErrorType(tree.name, site.tsym, site);
+                    tree.sym = tree.type.tsym;
+                    return;
+                }
             }
         }
 
@@ -4201,12 +4215,7 @@ public class Attr extends JCTree.Visitor {
                     // visitSelect that qualifier expression is a type.
                     return syms.getClassField(site, types);
                 } else if (name == names._default) {
-                    if (!types.isValue(site)) {
-                        log.error(pos, Errors.MakeDefaultWithNonvalue);
-                        return syms.errSymbol;
-                    } else {
-                        return new VarSymbol(STATIC, names._default, site, site.tsym);
-                    }
+                    return new VarSymbol(STATIC, names._default, site, site.tsym);
                 } else {
                     // We are seeing a plain identifier as selector.
                     Symbol sym = rs.findIdentInType(pos, env, site, name, resultInfo.pkind);
@@ -4216,6 +4225,10 @@ public class Attr extends JCTree.Visitor {
             case WILDCARD:
                 throw new AssertionError(tree);
             case TYPEVAR:
+                if (name == names._default) {
+                    // Be sure to return the default value before examining bounds
+                    return new VarSymbol(STATIC, names._default, site, site.tsym);
+                }
                 // Normally, site.getUpperBound() shouldn't be null.
                 // It should only happen during memberEnter/attribBase
                 // when determining the super type which *must* beac
@@ -4240,11 +4253,13 @@ public class Attr extends JCTree.Visitor {
                 return types.createErrorType(name, site.tsym, site).tsym;
             default:
                 // The qualifier expression is of a primitive type -- only
-                // .class is allowed for these.
+                // .class and .default is allowed for these.
                 if (name == names._class) {
                     // In this case, we have already made sure in Select that
                     // qualifier expression is a type.
                     return syms.getClassField(site, types);
+                } else if (name == names._default) {
+                    return new VarSymbol(STATIC, names._default, site, site.tsym);
                 } else {
                     log.error(pos, Errors.CantDeref(site));
                     return syms.errSymbol;

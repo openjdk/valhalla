@@ -2405,7 +2405,13 @@ public class Gen extends JCTree.Visitor {
             result = items.makeStackItem(pt);
             return;
         } else if (tree.name == names._default) {
-            code.emitop2(defaultvalue, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
+            if (tree.type.asElement().isValue()) {
+                code.emitop2(defaultvalue, checkDimension(tree.pos(), tree.type), PoolWriter::putClass);
+            } else if (tree.type.isReference()) {
+                code.emitop0(aconst_null);
+            } else {
+                code.emitop0(zero(Code.typecode(tree.type)));
+            }
             result = items.makeStackItem(tree.type);
             return;
         }

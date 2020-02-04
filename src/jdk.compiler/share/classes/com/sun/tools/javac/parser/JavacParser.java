@@ -477,6 +477,22 @@ public class JavacParser implements Parser {
         }
     }
 
+    /** If next input token matches one of the two given tokens, skip it, otherwise report
+     *  an error.
+     *
+     * @return The actual token kind.
+     */
+    public TokenKind accept2(TokenKind tk1, TokenKind tk2) {
+        TokenKind returnValue = token.kind;
+        if (token.kind == tk1 || token.kind == tk2) {
+            nextToken();
+        } else {
+            setErrorEndPos(token.pos);
+            reportSyntaxError(S.prevToken().endPos, Errors.Expected2(tk1, tk2));
+        }
+        return returnValue;
+    }
+
     /** Report an illegal start of expression/type error at given position.
      */
     JCExpression illegal(int pos) {
@@ -1326,7 +1342,7 @@ public class JavacParser implements Parser {
                             case DEFAULT:
                                 if (typeArgs != null) return illegal();
                                 selectExprMode();
-                                t = F.at(pos).Select(t, names._default);
+                                t = to(F.at(pos).Select(t, names._default));
                                 nextToken();
                                 break loop;
                             case CLASS:
@@ -2228,7 +2244,7 @@ public class JavacParser implements Parser {
             selectExprMode();
             int pos = token.pos;
             nextToken();
-            accept(CLASS);
+            TokenKind selector = accept2(CLASS, DEFAULT);
             if (token.pos == endPosTable.errorEndPos) {
                 // error recovery
                 Name name;
@@ -2246,7 +2262,7 @@ public class JavacParser implements Parser {
                 // taking care to handle some interior dimension(s) being annotated.
                 if ((tag == TYPEARRAY && TreeInfo.containsTypeAnnotation(t)) || tag == ANNOTATED_TYPE)
                     syntaxError(token.pos, Errors.NoAnnotationsOnDotClass);
-                t = toP(F.at(pos).Select(t, names._class));
+                t = toP(F.at(pos).Select(t, selector == CLASS ? names._class : names._default));
             }
         } else if ((mode & TYPE) != 0) {
             if (token.kind != COLCOL) {

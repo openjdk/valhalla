@@ -10,25 +10,32 @@ inline final class Point {
     inline abstract class A { int x = 10; } // Error
     static final class Sinner {
         static Sinner make() {
-            return Sinner.default; // NO: Sinner is not a value class.
+            return Sinner.default;
         }
     }
 
     inline static final class SinnerValue {
         static SinnerValue make() {
-            return SinnerValue.default; // OK.
+            return SinnerValue.default;
         } int x = 10;
     }
 
     final int x;
     final int y;
 
+    final int nonbool = boolean.default;
+    final boolean nonbyte = byte.default;
+    final boolean nonchar = char.default;
+    final boolean nonint = int.default;
+    final boolean nonshort = short.default;
+    final boolean nonlong = long.default;
+    final boolean nonfloat = float.default;
+    final boolean nondouble = double.default;
+    final int nonString = String.default;
+    final int nonbyteArray = byte[].default;
+
     Point() {}
     Point (int x, int y) {}
-
-    Point badFactory(int x, int y) {
-        return Point.default;
-    }
 
     static Point make(int x, int y) {
        Point p = Point.default;
