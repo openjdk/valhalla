@@ -685,6 +685,7 @@ protected:
   virtual void oop_print_on      (oop obj, outputStream* st);
 
   virtual const char* internal_name() const = 0;
+  static char* convert_hidden_name_to_java(Symbol* name);
 
   // Verification
   virtual void verify_on(outputStream* st);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -129,7 +129,7 @@ public class BasicTest {
         assertTrue(arrayType.isArray());
         assertTrue(Array.getLength(array) == 2);
         assertFalse(arrayType.isHiddenClass());
-        // assertTrue(arrayType.getName().startsWith("[LHiddenClass/"), "unexpected name: " + arrayType.getName());
+        assertTrue(arrayType.getName().startsWith("[LHiddenClass/"), "unexpected name: " + arrayType.getName());
 
         assertTrue(arrayType.getComponentType().isHiddenClass());
         assertTrue(arrayType.getComponentType() == type);

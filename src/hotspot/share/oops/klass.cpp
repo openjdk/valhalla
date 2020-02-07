@@ -669,6 +669,20 @@ void Klass::check_array_allocation_length(int length, int max_length, TRAPS) {
   }
 }
 
+// Replace the last '+' char with '/'.
+char* Klass::convert_hidden_name_to_java(Symbol* name) {
+  size_t name_len = name->utf8_length();
+  char* result = NEW_RESOURCE_ARRAY(char, name_len + 1);
+  name->as_klass_external_name(result, (int)name_len + 1);
+  for (int index = (int)name_len; index > 0; index--) {
+    if (result[index] == '+') {
+      result[index] = '/';
+      break;
+    }
+  }
+  return result;
+}
+
 // In product mode, this function doesn't have virtual function calls so
 // there might be some performance advantage to handling InstanceKlass here.
 const char* Klass::external_name() const {
@@ -687,18 +701,12 @@ const char* Klass::external_name() const {
       return result;
 
     } else if (ik->is_hidden()) {
-      // Replace the last '+' char with '/'.
-      size_t name_len = name()->utf8_length();
-      char* result = NEW_RESOURCE_ARRAY(char, name_len + 1);
-      name()->as_klass_external_name(result, (int)name_len + 1);
-      for (int index = (int)name_len; index > 0; index--) {
-        if (result[index] == '+') {
-          result[index] = '/';
-          break;
-        }
-      }
+      char* result = convert_hidden_name_to_java(name());
       return result;
     }
+  } else if (is_objArray_klass() && ObjArrayKlass::cast(this)->bottom_klass()->is_hidden()) {
+    char* result = convert_hidden_name_to_java(name());
+    return result;
   }
   if (name() == NULL)  return "<unknown>";
   return name()->as_klass_external_name();
@@ -706,6 +714,10 @@ const char* Klass::external_name() const {
 
 const char* Klass::signature_name() const {
   if (name() == NULL)  return "<unknown>";
+  if (is_objArray_klass() && ObjArrayKlass::cast(this)->bottom_klass()->is_hidden()) {
+    char* result = convert_hidden_name_to_java(name());
+    return result;
+  }
   return name()->as_C_string();
 }
 

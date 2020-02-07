@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,7 +66,7 @@ public class HiddenClassSigTest {
     private static final String HCName = "MyPackage/HiddenClassSig.class";
     private static final String DIR = Utils.TEST_CLASSES;
 
-    static native void checkHiddenClassSig(Class klass);
+    static native void checkHiddenClass(Class klass);
     static native boolean checkFailed();
 
     static {
@@ -103,7 +103,30 @@ public class HiddenClassSigTest {
     public static void main(String args[]) throws Exception {
         log("HiddenClassSigTest: started");
         Class<?> hc = defineHiddenClass(HCName);
-        checkHiddenClassSig(hc);
+
+        log("HiddenClassSigTest: HiddenClass getName:   " + hc.getName());
+        log("HiddenClassSigTest: HiddenClass typeName:  " + hc.getTypeName());
+        log("HiddenClassSigTest: HiddenClass canonName: " + hc.getCanonicalName());
+        log("HiddenClassSigTest: HiddenClass toString:  " + hc.toString());
+        log("HiddenClassSigTest: HiddenClass toGenStr:  " + hc.toGenericString());
+        log("HiddenClassSigTest: HiddenClass isHiddenC: " + hc.isHiddenClass());
+
+        Test<String> t = (Test<String>)hc.newInstance();
+        String str = t.test("Test generic hidden class");
+        log("Test returned string: " + str);
+
+        checkHiddenClass(hc);
+
+        Class<?> hcArr = hc.arrayType();
+        log("HiddenClassSigTest: HiddenClass[] getName:   " + hcArr.getName());
+        log("HiddenClassSigTest: HiddenClass[] typeName:  " + hcArr.getTypeName());
+        log("HiddenClassSigTest: HiddenClass[] canonName: " + hcArr.getCanonicalName());
+        log("HiddenClassSigTest: HiddenClass[] toString:  " + hcArr.toString());
+        log("HiddenClassSigTest: HiddenClass[] toGenStr:  " + hcArr.toGenericString());
+        log("HiddenClassSigTest: HiddenClass[] elem type: " + hcArr.componentType());
+        log("HiddenClassSigTest: HiddenClass[] isHiddenC: " + hcArr.isHiddenClass());
+
+        checkHiddenClass(hcArr);
         if (checkFailed()) {
           throw new RuntimeException("FAIL: failed status from native agent");
         }
