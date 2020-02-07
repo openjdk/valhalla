@@ -106,6 +106,7 @@ public class BasicTest {
         assertTrue(intfs.length == 1);
         assertTrue(intfs[0] == HiddenTest.class);
         assertTrue(c.getCanonicalName() == null);
+        assertTrue(c.getName().startsWith("HiddenClass/"));
 
         // test array of hidden class
         testHiddenArray(c);
@@ -128,6 +129,7 @@ public class BasicTest {
         assertTrue(arrayType.isArray());
         assertTrue(Array.getLength(array) == 2);
         assertFalse(arrayType.isHiddenClass());
+        // assertTrue(arrayType.getName().startsWith("[LHiddenClass/"), "unexpected name: " + arrayType.getName());
 
         assertTrue(arrayType.getComponentType().isHiddenClass());
         assertTrue(arrayType.getComponentType() == type);
