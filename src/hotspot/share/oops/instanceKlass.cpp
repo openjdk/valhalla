@@ -1593,6 +1593,14 @@ Klass* InstanceKlass::find_field(Symbol* name, Symbol* sig, bool is_static, fiel
   return NULL;
 }
 
+bool InstanceKlass::contains_field_offset(int offset) {
+  if (this->is_value()) {
+    ValueKlass* vk = ValueKlass::cast(this);
+    return offset >= vk->first_field_offset() && offset < (vk->first_field_offset() + vk->get_exact_size_in_bytes());
+  } else {
+    return offset >= instanceOopDesc::base_offset_in_bytes() && offset < (size_helper() * HeapWordSize);
+  }
+}
 
 bool InstanceKlass::find_local_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const {
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {

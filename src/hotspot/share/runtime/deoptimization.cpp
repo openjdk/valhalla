@@ -1196,27 +1196,28 @@ int compare(ReassignedField* left, ReassignedField* right) {
 // Restore fields of an eliminated instance object using the same field order
 // returned by HotSpotResolvedObjectTypeImpl.getInstanceFields(true)
 static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap* reg_map, ObjectValue* sv, int svIndex, oop obj, bool skip_internal, int base_offset, TRAPS) {
-  if (klass->superklass() != NULL) {
-    svIndex = reassign_fields_by_klass(klass->superklass(), fr, reg_map, sv, svIndex, obj, skip_internal, 0, CHECK_0);
-  }
 
   GrowableArray<ReassignedField>* fields = new GrowableArray<ReassignedField>();
-  for (AllFieldStream fs(klass); !fs.done(); fs.next()) {
-    if (!fs.access_flags().is_static() && (!skip_internal || !fs.access_flags().is_internal())) {
-      ReassignedField field;
-      field._offset = fs.offset();
-      field._type = FieldType::basic_type(fs.signature());
-      if (field._type == T_VALUETYPE) {
-        field._type = T_OBJECT;
+  InstanceKlass* ik = klass;
+  while (ik != NULL) {
+    for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
+      if (!fs.access_flags().is_static() && (!skip_internal || !fs.access_flags().is_internal())) {
+        ReassignedField field;
+        field._offset = fs.offset();
+        field._type = FieldType::basic_type(fs.signature());
+        if (field._type == T_VALUETYPE) {
+          field._type = T_OBJECT;
+        }
+        if (fs.is_flattened()) {
+          // Resolve klass of flattened value type field
+          Klass* vk = klass->get_value_field_klass(fs.index());
+          field._klass = ValueKlass::cast(vk);
+          field._type = T_VALUETYPE;
+        }
+        fields->append(field);
       }
-      if (fs.is_flattened()) {
-        // Resolve klass of flattened value type field
-        Klass* vk = klass->get_value_field_klass(fs.index());
-        field._klass = ValueKlass::cast(vk);
-        field._type = T_VALUETYPE;
-      }
-      fields->append(field);
     }
+    ik = ik->superklass();
   }
   fields->sort(compare);
   for (int i = 0; i < fields->length(); i++) {

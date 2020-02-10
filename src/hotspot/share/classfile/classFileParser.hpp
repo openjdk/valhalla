@@ -108,12 +108,12 @@ public:
   unsigned int  max_nonstatic_oop_maps;
 
  public:
-  OopMapBlocksBuilder(unsigned int  max_blocks, TRAPS);
+  OopMapBlocksBuilder(unsigned int  max_blocks);
   OopMapBlock* last_oop_map() const;
   void initialize_inherited_blocks(OopMapBlock* blocks, unsigned int nof_blocks);
   void add(int offset, int count);
   void copy(OopMapBlock* dst);
-  void compact(TRAPS);
+  void compact();
   void print_on(outputStream* st) const;
   void print_value_on(outputStream* st) const;
 };
@@ -122,10 +122,10 @@ public:
 class FieldLayoutInfo : public ResourceObj {
  public:
   OopMapBlocksBuilder* oop_map_blocks;
-  int           instance_size;
-  int           nonstatic_field_size;
-  int           static_field_size;
-  bool          has_nonstatic_fields;
+  int _instance_size;
+  int _nonstatic_field_size;
+  int _static_field_size;
+  bool _has_nonstatic_fields;
 };
 
 // Parser for for .class files
@@ -252,6 +252,8 @@ class ClassFileParser {
   bool _has_nonstatic_concrete_methods;
   bool _declares_nonstatic_concrete_methods;
   bool _has_final_method;
+  bool _has_contended_fields;
+
   bool _has_flattenable_fields;
   bool _is_empty_value;
 

@@ -231,9 +231,7 @@ public:
   ciInstanceKlass* unique_concrete_subklass();
   bool has_finalizable_subclass();
 
-  bool contains_field_offset(int offset) {
-    return instanceOopDesc::contains_field_offset(offset, nonstatic_field_size(), is_valuetype());
-  }
+  bool contains_field_offset(int offset);
 
   // Get the instance of java.lang.Class corresponding to
   // this klass.  This instance is used for locking of

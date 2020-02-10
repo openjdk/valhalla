@@ -1686,6 +1686,9 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     // After field is initialized with type, we can augment it with aux info
     if (parsed_annotations.has_any_annotations())
       parsed_annotations.apply_to(field);
+    if (field->is_contended()) {
+      _has_contended_fields = true;
+    }
   }
 
   int index = length;
@@ -3836,14 +3839,13 @@ static void print_field_layout(const Symbol* name,
 }
 #endif
 
-OopMapBlocksBuilder::OopMapBlocksBuilder(unsigned int  max_blocks, TRAPS) {
+OopMapBlocksBuilder::OopMapBlocksBuilder(unsigned int  max_blocks) {
   max_nonstatic_oop_maps = max_blocks;
   nonstatic_oop_map_count = 0;
   if (max_blocks == 0) {
     nonstatic_oop_maps = NULL;
   } else {
-    nonstatic_oop_maps = NEW_RESOURCE_ARRAY_IN_THREAD(
-        THREAD, OopMapBlock, max_nonstatic_oop_maps);
+    nonstatic_oop_maps = NEW_RESOURCE_ARRAY(OopMapBlock, max_nonstatic_oop_maps);
     memset(nonstatic_oop_maps, 0, sizeof(OopMapBlock) * max_blocks);
   }
 }
@@ -3890,7 +3892,7 @@ void OopMapBlocksBuilder::copy(OopMapBlock* dst) {
 }
 
 // Sort and compact adjacent blocks
-void OopMapBlocksBuilder::compact(TRAPS) {
+void OopMapBlocksBuilder::compact() {
   if (nonstatic_oop_map_count <= 1) {
     return;
   }
@@ -3910,9 +3912,8 @@ void OopMapBlocksBuilder::compact(TRAPS) {
   }
 
   //Make a temp copy, and iterate through and copy back into the orig
-  ResourceMark rm(THREAD);
-  OopMapBlock* oop_maps_copy = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, OopMapBlock,
-      nonstatic_oop_map_count);
+  ResourceMark rm;
+  OopMapBlock* oop_maps_copy = NEW_RESOURCE_ARRAY(OopMapBlock, nonstatic_oop_map_count);
   OopMapBlock* oop_maps_copy_end = oop_maps_copy + nonstatic_oop_map_count;
   copy(oop_maps_copy);
   OopMapBlock*  nonstatic_oop_map = nonstatic_oop_maps;
@@ -4155,7 +4156,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
       value_type_oop_map_count +
       not_flattened_value_types;
 
-  OopMapBlocksBuilder* nonstatic_oop_maps = new OopMapBlocksBuilder(max_oop_map_count, THREAD);
+  OopMapBlocksBuilder* nonstatic_oop_maps = new OopMapBlocksBuilder(max_oop_map_count);
   if (super_oop_map_count > 0) {
     nonstatic_oop_maps->initialize_inherited_blocks(_super_klass->start_of_nonstatic_oop_maps(),
                                                     _super_klass->nonstatic_oop_map_count());
@@ -4570,7 +4571,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
          (nonstatic_fields_count > 0), "double-check nonstatic start/end");
 
   // Number of non-static oop map blocks allocated at end of klass.
-  nonstatic_oop_maps->compact(THREAD);
+  nonstatic_oop_maps->compact();
 
 #ifndef PRODUCT
   if ((PrintFieldLayout && !is_value_type()) ||
@@ -4594,10 +4595,10 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 #endif
   // Pass back information needed for InstanceKlass creation
   info->oop_map_blocks = nonstatic_oop_maps;
-  info->instance_size = instance_size;
-  info->static_field_size = static_field_size;
-  info->nonstatic_field_size = nonstatic_field_size;
-  info->has_nonstatic_fields = has_nonstatic_fields;
+  info->_instance_size = instance_size;
+  info->_static_field_size = static_field_size;
+  info->_nonstatic_field_size = nonstatic_field_size;
+  info->_has_nonstatic_fields = has_nonstatic_fields;
 }
 
 void ClassFileParser::set_precomputed_flags(InstanceKlass* ik, TRAPS) {
@@ -5626,7 +5627,7 @@ int ClassFileParser::verify_legal_method_signature(const Symbol* name,
 
 int ClassFileParser::static_field_size() const {
   assert(_field_info != NULL, "invariant");
-  return _field_info->static_field_size;
+  return _field_info->_static_field_size;
 }
 
 int ClassFileParser::total_oop_map_count() const {
@@ -5636,7 +5637,7 @@ int ClassFileParser::total_oop_map_count() const {
 
 jint ClassFileParser::layout_size() const {
   assert(_field_info != NULL, "invariant");
-  return _field_info->instance_size;
+  return _field_info->_instance_size;
 }
 
 static void check_methods_for_intrinsics(const InstanceKlass* ik,
@@ -5786,19 +5787,19 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   set_klass_to_deallocate(ik);
 
   assert(_field_info != NULL, "invariant");
-  assert(ik->static_field_size() == _field_info->static_field_size, "sanity");
+  assert(ik->static_field_size() == _field_info->_static_field_size, "sanity");
   assert(ik->nonstatic_oop_map_count() == _field_info->oop_map_blocks->nonstatic_oop_map_count,
     "sanity");
 
   assert(ik->is_instance_klass(), "sanity");
-  assert(ik->size_helper() == _field_info->instance_size, "sanity");
+  assert(ik->size_helper() == _field_info->_instance_size, "sanity");
 
   // Fill in information already parsed
   ik->set_should_verify_class(_need_verify);
 
   // Not yet: supers are done below to support the new subtype-checking fields
-  ik->set_nonstatic_field_size(_field_info->nonstatic_field_size);
-  ik->set_has_nonstatic_fields(_field_info->has_nonstatic_fields);
+  ik->set_nonstatic_field_size(_field_info->_nonstatic_field_size);
+  ik->set_has_nonstatic_fields(_field_info->_has_nonstatic_fields);
   if (_is_empty_value) {
     ik->set_is_empty_value();
   }
@@ -5894,6 +5895,11 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   OopMapBlocksBuilder* oop_map_blocks = _field_info->oop_map_blocks;
   if (oop_map_blocks->nonstatic_oop_map_count > 0) {
     oop_map_blocks->copy(ik->start_of_nonstatic_oop_maps());
+  }
+
+  if (_has_contended_fields || _parsed_annotations->is_contended() ||
+      ( _super_klass != NULL && _super_klass->has_contended_annotations())) {
+    ik->set_has_contended_annotations(true);
   }
 
   // Fill in has_finalizer, has_vanilla_constructor, and layout_helper
@@ -6170,6 +6176,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_nonstatic_concrete_methods(false),
   _declares_nonstatic_concrete_methods(false),
   _has_final_method(false),
+  _has_contended_fields(false),
   _has_flattenable_fields(false),
   _is_empty_value(false),
   _has_finalizer(false),
@@ -6672,14 +6679,14 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
   _field_info = new FieldLayoutInfo();
   if (UseNewLayout) {
-    FieldLayoutBuilder lb(this, _field_info);
-    if (this->is_value_type()) {
-      lb.compute_inline_class_layout(CHECK);
+    FieldLayoutBuilder lb(class_name(), super_klass(), _cp, _fields,
+        _parsed_annotations->is_contended(), is_value_type(),
+        loader_data(), _protection_domain, _field_info);
+    lb.build_layout(CHECK);
+    if (is_value_type()) {
       _alignment = lb.get_alignment();
       _first_field_offset = lb.get_first_field_offset();
       _exact_size_in_bytes = lb.get_exact_size_in_byte();
-    } else {
-      lb.compute_regular_layout(CHECK);
     }
   } else {
     layout_fields(cp, _fac, _parsed_annotations, _field_info, CHECK);

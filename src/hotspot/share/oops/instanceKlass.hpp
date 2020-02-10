@@ -293,13 +293,13 @@ class InstanceKlass: public Klass {
     _misc_is_scratch_class                    = 1 << 12, // class is the redefined scratch class
     _misc_is_shared_boot_class                = 1 << 13, // defining class loader is boot class loader
     _misc_is_shared_platform_class            = 1 << 14, // defining class loader is platform class loader
-    _misc_is_shared_app_class                 = 1 << 15  // defining class loader is app class loader
-    // u2 _misc_flags full (see _extra_flags)
+    _misc_is_shared_app_class                 = 1 << 15, // defining class loader is app class loader
+    _misc_has_contended_annotations           = 1 << 17  // has @Contended annotation
   };
   u2 loader_type_bits() {
     return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
   }
-  u2              _misc_flags;
+  u4              _misc_flags;
   u2              _minor_version;        // minor version number of class file
   u2              _major_version;        // major version number of class file
   Thread*         _init_thread;          // Pointer to current thread doing initialization (to handle recursive initialization)
@@ -635,9 +635,7 @@ public:
   Klass* find_field(Symbol* name, Symbol* sig, bool is_static, fieldDescriptor* fd) const;
 
   // find a non-static or static field given its offset within the class.
-  bool contains_field_offset(int offset) {
-    return instanceOopDesc::contains_field_offset(offset, nonstatic_field_size(), is_value());
-  }
+  bool contains_field_offset(int offset);
 
   bool find_local_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
   bool find_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
@@ -797,6 +795,17 @@ public:
   int nonstatic_oop_map_size() const { return _nonstatic_oop_map_size; }
   void set_nonstatic_oop_map_size(int words) {
     _nonstatic_oop_map_size = words;
+  }
+
+  bool has_contended_annotations() const {
+    return ((_misc_flags & _misc_has_contended_annotations) != 0);
+  }
+  void set_has_contended_annotations(bool value)  {
+    if (value) {
+      _misc_flags |= _misc_has_contended_annotations;
+    } else {
+      _misc_flags &= ~_misc_has_contended_annotations;
+    }
   }
 
 #if INCLUDE_JVMTI

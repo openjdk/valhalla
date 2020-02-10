@@ -2557,7 +2557,10 @@ const size_t minimumSymbolTableSize = 1024;
                 "flattenable fields")                                       \
                                                                             \
   product(bool, UseNewLayout, true,                                         \
-               "Use new algorithm to compute layouts")                      \
+                "(Deprecated) Use new algorithm to compute field layouts")  \
+                                                                            \
+  product(bool, UseEmptySlotsInSupers, false,                               \
+                "Allow allocating fields in empty slots of super-classes")  \
                                                                             \
 
 
