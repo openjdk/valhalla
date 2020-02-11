@@ -1,0 +1,20 @@
+CheckObjectMethodsUsage.java:11:17: compiler.err.inline.class.may.not.override: finalize
+CheckObjectMethodsUsage.java:12:19: compiler.err.inline.class.may.not.override: clone
+CheckObjectMethodsUsage.java:15:23: compiler.err.value.does.not.support: finalize
+CheckObjectMethodsUsage.java:16:13: compiler.err.value.does.not.support: wait
+CheckObjectMethodsUsage.java:17:19: compiler.err.value.does.not.support: wait
+CheckObjectMethodsUsage.java:18:13: compiler.err.value.does.not.support: wait
+CheckObjectMethodsUsage.java:19:19: compiler.err.value.does.not.support: wait
+CheckObjectMethodsUsage.java:20:13: compiler.err.value.does.not.support: wait
+CheckObjectMethodsUsage.java:21:19: compiler.err.value.does.not.support: wait
+CheckObjectMethodsUsage.java:22:15: compiler.err.value.does.not.support: notify
+CheckObjectMethodsUsage.java:23:21: compiler.err.value.does.not.support: notify
+CheckObjectMethodsUsage.java:24:18: compiler.err.value.does.not.support: notifyAll
+CheckObjectMethodsUsage.java:25:24: compiler.err.value.does.not.support: notifyAll
+CheckObjectMethodsUsage.java:26:20: compiler.err.value.does.not.support: clone
+CheckObjectMethodsUsage.java:27:23: compiler.err.value.does.not.support: invocation of super.hashCode
+CheckObjectMethodsUsage.java:28:23: compiler.err.value.does.not.support: invocation of super.toString
+CheckObjectMethodsUsage.java:29:21: compiler.err.value.does.not.support: invocation of super.equals
+- compiler.note.deprecated.filename: CheckObjectMethodsUsage.java
+- compiler.note.deprecated.recompile
+17 errors

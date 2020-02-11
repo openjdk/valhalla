@@ -1877,6 +1877,15 @@ public class Check {
             return;
         }
 
+        if (origin.isValue() && other.owner == syms.objectType.tsym && m.type.getParameterTypes().size() == 0) {
+            if (m.name == names.clone || m.name == names.finalize) {
+                log.error(TreeInfo.diagnosticPositionFor(m, tree),
+                        Errors.InlineClassMayNotOverride(m.name));
+                m.flags_field |= BAD_OVERRIDE;
+                return;
+            }
+        }
+
         Type mt = types.memberType(origin.type, m);
         Type ot = types.memberType(origin.type, other);
         // Error if overriding result type is different

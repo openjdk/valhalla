@@ -1,6 +1,7 @@
+CheckFinalize.java:10:20: compiler.err.inline.class.may.not.override: finalize
 CheckFinalize.java:15:12: compiler.err.report.access: finalize(), protected, java.lang.Object
 CheckFinalize.java:15:21: compiler.err.value.does.not.support: finalize
 CheckFinalize.java:16:20: compiler.err.value.does.not.support: finalize
 - compiler.note.deprecated.filename: CheckFinalize.java
 - compiler.note.deprecated.recompile
-3 errors
+4 errors
