@@ -1804,8 +1804,10 @@ public class ObjectStreamClass implements Serializable {
                     ifaceNames[i] = interfaces[i].getName();
                 }
                 Arrays.sort(ifaceNames);
+                // Skip IdentityObject to keep the computed SVUID the same.
                 for (int i = 0; i < ifaceNames.length; i++) {
-                    dout.writeUTF(ifaceNames[i]);
+                    if (!"java.lang.IdentityObject".equals(ifaceNames[i]))
+                        dout.writeUTF(ifaceNames[i]);
                 }
             }
 
