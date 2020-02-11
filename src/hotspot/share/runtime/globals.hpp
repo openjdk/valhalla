@@ -2559,7 +2559,7 @@ const size_t minimumSymbolTableSize = 1024;
   product(bool, UseNewLayout, true,                                         \
                 "(Deprecated) Use new algorithm to compute field layouts")  \
                                                                             \
-  product(bool, UseEmptySlotsInSupers, false,                               \
+  product(bool, UseEmptySlotsInSupers, true,                                \
                 "Allow allocating fields in empty slots of super-classes")  \
                                                                             \
 

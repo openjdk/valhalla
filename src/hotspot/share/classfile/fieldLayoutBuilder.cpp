@@ -150,9 +150,9 @@ void FieldLayout::initialize_instance_layout(const InstanceKlass* super_klass) {
     _start = _blocks;
     insert(first_empty_block(), new LayoutRawBlock(LayoutRawBlock::RESERVED, instanceOopDesc::base_offset_in_bytes()));
   } else {
-    reconstruct_layout(super_klass);
+    bool has_fields = reconstruct_layout(super_klass);
     fill_holes(super_klass);
-    if (UseEmptySlotsInSupers && !super_klass->has_contended_annotations()) {
+    if ((UseEmptySlotsInSupers && !super_klass->has_contended_annotations()) || !has_fields) {
       _start = _blocks; // Setting _start to _blocks instead of _last would allow subclasses
       // to allocate fields in empty slots of their super classes
     } else {
@@ -163,9 +163,10 @@ void FieldLayout::initialize_instance_layout(const InstanceKlass* super_klass) {
 
 LayoutRawBlock* FieldLayout::first_field_block() {
   LayoutRawBlock* block = _blocks;
-  // Not sure the condition below will work well when inheriting layout with contented padding
-  while (block->kind() != LayoutRawBlock::INHERITED && block->kind() != LayoutRawBlock::REGULAR
-      && block->kind() != LayoutRawBlock::FLATTENED && block->kind() != LayoutRawBlock::PADDING) {
+  while (block != NULL
+         && block->kind() != LayoutRawBlock::INHERITED
+         && block->kind() != LayoutRawBlock::REGULAR
+         && block->kind() != LayoutRawBlock::FLATTENED) {
     block = block->next_block();
   }
   return block;
@@ -308,13 +309,15 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
   return block;
 }
 
-void FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
+bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
+  bool has_instance_fields = false;
   GrowableArray<LayoutRawBlock*>* all_fields = new GrowableArray<LayoutRawBlock*>(32);
   while (ik != NULL) {
     for (AllFieldStream fs(ik->fields(), ik->constants()); !fs.done(); fs.next()) {
       BasicType type = vmSymbols::signature_type(fs.signature());
       // distinction between static and non-static fields is missing
       if (fs.access_flags().is_static()) continue;
+      has_instance_fields = true;
       LayoutRawBlock* block;
       if (type == T_VALUETYPE) {
         ValueKlass* vk = ValueKlass::cast(ik->get_value_field_klass(fs.index()));
@@ -342,6 +345,7 @@ void FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
     _last = b;
   }
   _start = _blocks;
+  return has_instance_fields;
 }
 
 // Called during the reconstruction of a layout, after fields from super
@@ -403,6 +407,7 @@ void FieldLayout::fill_holes(const InstanceKlass* super_klass) {
 
 LayoutRawBlock* FieldLayout::insert(LayoutRawBlock* slot, LayoutRawBlock* block) {
   assert(slot->kind() == LayoutRawBlock::EMPTY, "Blocks can only be inserted in empty blocks");
+  assert(slot->size() >= block->size(), "Insufficient space");
   assert(slot->offset() % block->alignment() == 0, "Incompatible alignment");
   block->set_offset(slot->offset());
   slot->set_offset(slot->offset() + block->size());
@@ -410,7 +415,7 @@ LayoutRawBlock* FieldLayout::insert(LayoutRawBlock* slot, LayoutRawBlock* block)
   block->set_prev_block(slot->prev_block());
   block->set_next_block(slot);
   slot->set_prev_block(block);
-  if (block->prev_block() != NULL) {       // suspicious test
+  if (block->prev_block() != NULL) {
     block->prev_block()->set_next_block(block);
   }
   if (_blocks == slot) {
@@ -812,15 +817,31 @@ void FieldLayoutBuilder::compute_regular_layout() {
 void FieldLayoutBuilder::compute_inline_class_layout(TRAPS) {
   prologue();
   inline_class_field_sorting(CHECK);
-  if (_layout->start()->offset() % _alignment != 0) {
-    LayoutRawBlock* padding = new LayoutRawBlock(LayoutRawBlock::PADDING, _alignment - (_layout->start()->offset() % _alignment));
-    _layout->insert(_layout->start(), padding);
+  // Inline types are not polymorphic, so they cannot inherit fields.
+  // By consequence, at this stage, the layout must be composed of a RESERVED
+  // block, followed by an EMPTY block.
+  assert(_layout->start()->kind() == LayoutRawBlock::RESERVED, "Unexpected");
+  assert(_layout->start()->next_block()->kind() == LayoutRawBlock::EMPTY, "Unexpected");
+  LayoutRawBlock* first_empty = _layout->start()->next_block();
+  if (first_empty->offset() % _alignment != 0) {
+    LayoutRawBlock* padding = new LayoutRawBlock(LayoutRawBlock::PADDING, _alignment - (first_empty->offset() % _alignment));
+    _layout->insert(first_empty, padding);
     _layout->set_start(padding->next_block());
   }
-  _first_field_offset = _layout->start()->offset();
+
   _layout->add(_root_group->flattened_fields());
   _layout->add(_root_group->oop_fields());
   _layout->add(_root_group->primitive_fields());
+
+  LayoutRawBlock* first_field = _layout->first_field_block();
+   if (first_field != NULL) {
+     _first_field_offset = _layout->first_field_block()->offset();
+     _exact_size_in_bytes = _layout->last_block()->offset() - _layout->first_field_block()->offset();
+   } else {
+     // special case for empty value types
+     _first_field_offset = _layout->blocks()->size();
+     _exact_size_in_bytes = 0;
+   }
   _exact_size_in_bytes = _layout->last_block()->offset() - _layout->first_field_block()->offset();
 
   _static_layout->add(_static_fields->flattened_fields());
@@ -970,6 +991,11 @@ void FieldLayoutBuilder::epilogue() {
     tty->print_cr("Static fields:");
     _static_layout->print(tty, true, NULL);
     tty->print_cr("Instance size = %d bytes", _info->_instance_size * wordSize);
+    if (_is_value_type) {
+      tty->print_cr("First field offset = %d", _first_field_offset);
+      tty->print_cr("Alignment = %d bytes", _alignment);
+      tty->print_cr("Exact size = %d bytes", _exact_size_in_bytes);
+    }
     tty->print_cr("---");
   }
 }
