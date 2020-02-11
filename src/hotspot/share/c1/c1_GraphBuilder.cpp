@@ -1929,7 +1929,7 @@ void GraphBuilder::withfield(int field_index)
     ValueStack* state_before = copy_state_before();
     Value val = pop(type);
     Value obj = apop();
-    apush(append_split(new WithField(obj->type(), state_before)));
+    apush(append_split(new WithField(state_before)));
     return;
   }
   ValueStack* state_before = copy_state_before();
@@ -2409,16 +2409,12 @@ void GraphBuilder::new_instance(int klass_index) {
 
 void GraphBuilder::default_value(int klass_index) {
   bool will_link;
-  ciKlass* klass = stream()->get_klass(will_link);
-  if (klass->is_loaded()) {
-    ValueStack* state_before = copy_state_before();
-    NewValueTypeInstance* new_instance = new NewValueTypeInstance(klass->as_value_klass(),
-        state_before, stream()->is_unresolved_klass(), NULL, true);
-    _memory->new_instance(new_instance);
-    apush(append_split(new_instance));
+  ciValueKlass* vk = stream()->get_klass(will_link)->as_value_klass();
+  if (!stream()->is_unresolved_klass()) {
+    apush(append(new Constant(new InstanceConstant(vk->default_value_instance()))));
   } else {
     ValueStack* state_before = copy_state_before();
-    apush(append_split(new DefaultValue(objectType, state_before)));
+    apush(append_split(new DefaultValue(state_before)));
   }
 }
 

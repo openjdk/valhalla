@@ -1504,15 +1504,15 @@ LEAF(NewMultiArray, NewArray)
 LEAF(WithField, StateSplit)
  public:
   // creation
-  WithField(ValueType* type, ValueStack* state_before)
-  : StateSplit(type, state_before) {}
+  WithField(ValueStack* state_before)
+  : StateSplit(objectType, state_before) {}
 };
 
 LEAF(DefaultValue, StateSplit)
  public:
   // creation
-  DefaultValue(ValueType* type, ValueStack* state_before)
-  : StateSplit(type, state_before) {}
+  DefaultValue(ValueStack* state_before)
+  : StateSplit(objectType, state_before) {}
 };
 
 BASE(TypeCheck, StateSplit)
