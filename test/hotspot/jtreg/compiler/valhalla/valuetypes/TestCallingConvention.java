@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -55,14 +55,16 @@ public class TestCallingConvention extends ValueTypeTest {
     static {
         try {
             Class<?> clazz = TestCallingConvention.class;
-            ClassLoader loader = clazz.getClassLoader();
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            MethodType mt32 = MethodType.methodType(MyValue2.class, boolean.class);
-            test32_mh = lookup.findVirtual(clazz, "test32_interp", mt32);
+            MethodType mt = MethodType.methodType(MyValue2.class, boolean.class);
+            test32_mh = lookup.findVirtual(clazz, "test32_interp", mt);
 
-            MethodType mt33 = MethodType.methodType(Object.class, boolean.class);
-            test33_mh = lookup.findVirtual(clazz, "test33_interp", mt33);
+            mt = MethodType.methodType(Object.class, boolean.class);
+            test33_mh = lookup.findVirtual(clazz, "test33_interp", mt);
+
+            mt = MethodType.methodType(int.class);
+            test37_mh = lookup.findVirtual(Test37Value.class, "test", mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
             e.printStackTrace();
             throw new RuntimeException("Method handle lookup failed");
@@ -71,7 +73,7 @@ public class TestCallingConvention extends ValueTypeTest {
 
     public static void main(String[] args) throws Throwable {
         TestCallingConvention test = new TestCallingConvention();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class, MyValue3Inline.class, MyValue4.class, Test27Value1.class, Test27Value2.class, Test27Value3.class);
+        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class, MyValue3Inline.class, MyValue4.class, Test27Value1.class, Test27Value2.class, Test27Value3.class, Test37Value.class);
     }
 
     // Test interpreter to compiled code with various signatures
@@ -758,5 +760,30 @@ public class TestCallingConvention extends ValueTypeTest {
     public void test36_verifier(boolean warmup) throws Exception {
         MyValue3 vt = (MyValue3)TestCallingConvention.class.getDeclaredMethod("test36").invoke(this);
         test36_vt.verify(vt);
+    }
+
+    // Test method resolution with scalarized value receiver at invokespecial
+    static final MethodHandle test37_mh;
+
+    inline class Test37Value {
+        int x = rI;
+
+        @DontInline
+        public int test() {
+            return x;
+        }
+    }
+
+    @Test
+    public int test37(Test37Value vt) throws Throwable {
+        // Generates invokespecial call of Test37Value::test
+        return (int)test37_mh.invokeExact(vt);
+    }
+
+    @DontCompile
+    public void test37_verifier(boolean warmup) throws Throwable {
+        Test37Value vt = new Test37Value();
+        int res = test37(vt);
+        Asserts.assertEQ(res, rI);
     }
 }

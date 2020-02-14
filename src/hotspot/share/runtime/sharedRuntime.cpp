@@ -1061,7 +1061,7 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
     methodHandle attached_method(THREAD, extract_attached_method(vfst));
     assert(attached_method.not_null(), "must have attached method");
     SystemDictionary::ValueBootstrapMethods_klass()->initialize(CHECK_NH);
-    LinkResolver::resolve_invoke(callinfo, receiver, attached_method, bc, CHECK_NH);
+    LinkResolver::resolve_invoke(callinfo, receiver, attached_method, bc, false, CHECK_NH);
 #ifdef ASSERT
     Method* is_subst = SystemDictionary::ValueBootstrapMethods_klass()->find_method(vmSymbols::isSubstitutable_name(), vmSymbols::object_object_boolean_signature());
     assert(callinfo.selected_method() == is_subst, "must be isSubstitutable method");
@@ -1118,6 +1118,7 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
   bool has_receiver = bc != Bytecodes::_invokestatic &&
                       bc != Bytecodes::_invokedynamic &&
                       bc != Bytecodes::_invokehandle;
+  bool check_null_and_abstract = true;
 
   // Find receiver for non-static call
   if (has_receiver) {
@@ -1143,20 +1144,14 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
     if (!caller_is_c1 && callee->has_scalarized_args() && callee->method_holder()->is_value()) {
       // If the receiver is a value type that is passed as fields, no oop is available.
       // Resolve the call without receiver null checking.
-      assert(!attached_method.is_null(), "must have attached method");
-      if (bc == Bytecodes::_invokevirtual) {
-        LinkInfo link_info(attached_method->method_holder(), attached_method->name(), attached_method->signature());
-        LinkResolver::resolve_virtual_call(callinfo, receiver, callee->method_holder(), link_info, /*check_null_and_abstract=*/ false, CHECK_NH);
-      } else {
-        assert(bc == Bytecodes::_invokeinterface, "anything else?");
-        LinkInfo link_info(constantPoolHandle(THREAD, caller->constants()), bytecode_index, CHECK_NH);
-        LinkResolver::resolve_interface_call(callinfo, receiver, callee->method_holder(), link_info, /*check_null_and_abstract=*/ false, CHECK_NH);
+      assert(attached_method.not_null() && !attached_method->is_abstract(), "must have non-abstract attached method");
+      if (bc == Bytecodes::_invokeinterface) {
+        bc = Bytecodes::_invokevirtual; // C2 optimistically replaces interface calls by virtual calls
       }
-      return receiver; // is null
+      check_null_and_abstract = false;
     } else {
       // Retrieve from a compiled argument list
       receiver = Handle(THREAD, callerFrame.retrieve_receiver(&reg_map2));
-
       if (receiver.is_null()) {
         THROW_(vmSymbols::java_lang_NullPointerException(), nullHandle);
       }
@@ -1166,7 +1161,7 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
   // Resolve method
   if (attached_method.not_null()) {
     // Parameterized by attached method.
-    LinkResolver::resolve_invoke(callinfo, receiver, attached_method, bc, CHECK_NH);
+    LinkResolver::resolve_invoke(callinfo, receiver, attached_method, bc, check_null_and_abstract, CHECK_NH);
   } else {
     // Parameterized by bytecode.
     constantPoolHandle constants(THREAD, caller->constants());
@@ -1175,7 +1170,7 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
 
 #ifdef ASSERT
   // Check that the receiver klass is of the right subtype and that it is initialized for virtual calls
-  if (has_receiver) {
+  if (has_receiver && check_null_and_abstract) {
     assert(receiver.not_null(), "should have thrown exception");
     Klass* receiver_klass = receiver->klass();
     Klass* rk = NULL;

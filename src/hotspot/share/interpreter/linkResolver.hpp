@@ -343,7 +343,7 @@ class LinkResolver: AllStatic {
   // runtime resolving from attached method
   static void resolve_invoke(CallInfo& result, Handle& recv,
                              const methodHandle& attached_method,
-                             Bytecodes::Code byte, TRAPS);
+                             Bytecodes::Code byte, bool check_null_and_abstract, TRAPS);
 
  public:
   // Only resolved method known.

@@ -1630,20 +1630,21 @@ void LinkResolver::resolve_invoke(CallInfo& result, Handle recv, const constantP
 }
 
 void LinkResolver::resolve_invoke(CallInfo& result, Handle& recv,
-                             const methodHandle& attached_method,
-                             Bytecodes::Code byte, TRAPS) {
+                                  const methodHandle& attached_method,
+                                  Bytecodes::Code byte, bool check_null_and_abstract, TRAPS) {
   Klass* defc = attached_method->method_holder();
   Symbol* name = attached_method->name();
   Symbol* type = attached_method->signature();
   LinkInfo link_info(defc, name, type);
+  Klass* recv_klass = recv.is_null() ? defc : recv->klass();
   switch(byte) {
     case Bytecodes::_invokevirtual:
-      resolve_virtual_call(result, recv, recv->klass(), link_info,
-                           /*check_null_and_abstract=*/true, CHECK);
+      resolve_virtual_call(result, recv, recv_klass, link_info,
+                           check_null_and_abstract, CHECK);
       break;
     case Bytecodes::_invokeinterface:
-      resolve_interface_call(result, recv, recv->klass(), link_info,
-                             /*check_null_and_abstract=*/true, CHECK);
+      resolve_interface_call(result, recv, recv_klass, link_info,
+                             check_null_and_abstract, CHECK);
       break;
     case Bytecodes::_invokestatic:
       resolve_static_call(result, link_info, /*initialize_class=*/false, CHECK);
