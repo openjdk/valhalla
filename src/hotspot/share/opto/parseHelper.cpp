@@ -372,8 +372,8 @@ void Parse::do_withfield() {
     if (stopped()) return;
     val = ValueTypeNode::make_from_oop(this, val, gvn().type(val)->value_klass());
   } else if (val->is_ValueType() && !field->is_flattenable()) {
-    // Non-flattenable field should not be scalarized
-    // Re-execute withfield if buffering triggers deoptimization
+    // Non-flattenable field value needs to be allocated because it can be merged
+    // with an oop. Re-execute withfield if buffering triggers deoptimization.
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
     inc_sp(2);

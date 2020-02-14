@@ -1677,6 +1677,14 @@ Node* AllocateNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       igvn->replace_node(projs->catchall_catchproj, phase->C->top());
     }
     if (projs->resproj[0] != NULL) {
+      // Remove MemBarStoreStore user as well
+      for (DUIterator_Fast imax, i = projs->resproj[0]->fast_outs(imax); i < imax; i++) {
+        MemBarStoreStoreNode* mb = projs->resproj[0]->fast_out(i)->isa_MemBarStoreStore();
+        if (mb != NULL && mb->outcnt() == 2) {
+          mb->remove(igvn);
+          --i; --imax;
+        }
+      }
       igvn->replace_node(projs->resproj[0], phase->C->top());
     }
     igvn->replace_node(this, phase->C->top());
@@ -1696,7 +1704,7 @@ Node* AllocateNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   return CallNode::Ideal(phase, can_reshape);
 }
 
-Node *AllocateNode::make_ideal_mark(PhaseGVN *phase, Node* obj, Node* control, Node* mem) {
+Node* AllocateNode::make_ideal_mark(PhaseGVN* phase, Node* control, Node* mem) {
   Node* mark_node = NULL;
   // For now only enable fast locking for non-array types
   if ((EnableValhalla || UseBiasedLocking) && Opcode() == Op_Allocate) {

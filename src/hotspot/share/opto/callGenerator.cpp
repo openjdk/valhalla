@@ -538,6 +538,11 @@ void LateInlineCallGenerator::do_late_inline() {
       assert(buffer_oop != NULL, "should have allocated a buffer");
       ValueTypeNode* vt = result->as_ValueType();
       vt->store(&kit, buffer_oop, buffer_oop, vt->type()->value_klass(), 0);
+      // Do not let stores that initialize this buffer be reordered with a subsequent
+      // store that would make this buffer accessible by other threads.
+      AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer_oop, &kit.gvn());
+      assert(alloc != NULL, "must have an allocation node");
+      kit.insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
       result = buffer_oop;
     } else if (result->is_ValueTypePtr() && returned_as_fields) {
       result->as_ValueTypePtr()->replace_call_results(&kit, call, C);

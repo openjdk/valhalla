@@ -94,7 +94,6 @@ public class TestDeoptimizationWhenBuffering {
     static {
         try {
             Class<?> clazz = TestDeoptimizationWhenBuffering.class;
-            ClassLoader loader = clazz.getClassLoader();
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
             MethodType mt = MethodType.methodType(MyValue1.class);

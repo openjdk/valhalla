@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -129,25 +129,27 @@ public abstract class ValueTypeTest {
     // User defined settings
     protected static final boolean XCOMP = Platform.isComp();
     private static final boolean PRINT_GRAPH = true;
-    protected static final boolean VERBOSE = Boolean.parseBoolean(System.getProperty("Verbose", "false"));
+    private static final boolean VERBOSE = Boolean.parseBoolean(System.getProperty("Verbose", "false"));
     private static final boolean PRINT_TIMES = Boolean.parseBoolean(System.getProperty("PrintTimes", "false"));
-    private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true")) && !XCOMP && !TEST_C1;
+    private static final boolean COMPILE_COMMANDS = Boolean.parseBoolean(System.getProperty("CompileCommands", "true"));
+    private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true")) && !XCOMP && !TEST_C1 && COMPILE_COMMANDS;
     private static final boolean VERIFY_VM = Boolean.parseBoolean(System.getProperty("VerifyVM", "false"));
     private static final String SCENARIOS = System.getProperty("Scenarios", "");
     private static final String TESTLIST = System.getProperty("Testlist", "");
     private static final String EXCLUDELIST = System.getProperty("Exclude", "");
     private static final int WARMUP = Integer.parseInt(System.getProperty("Warmup", "251"));
     private static final boolean DUMP_REPLAY = Boolean.parseBoolean(System.getProperty("DumpReplay", "false"));
-    protected static final boolean FLIP_C1_C2 = Boolean.parseBoolean(System.getProperty("FlipC1C2", "false"));
-    protected static final boolean GCAfter = Boolean.parseBoolean(System.getProperty("GCAfter", "false"));
-    private static final int OSRTestTimeOut = Integer.parseInt(System.getProperty("OSRTestTimeOut", "5000"));
+    private static final boolean FLIP_C1_C2 = Boolean.parseBoolean(System.getProperty("FlipC1C2", "false"));
+    private static final boolean GC_AFTER = Boolean.parseBoolean(System.getProperty("GCAfter", "false"));
+    private static final int OSR_TEST_TIMEOUT = Integer.parseInt(System.getProperty("OSRTestTimeOut", "5000"));
 
     // "jtreg -DXcomp=true" runs all the scenarios with -Xcomp. This is faster than "jtreg -javaoptions:-Xcomp".
     protected static final boolean RUN_SCENARIOS_WITH_XCOMP = Boolean.parseBoolean(System.getProperty("Xcomp", "false"));
 
     // Pre-defined settings
     private static final String[] defaultFlags = {
-        "-XX:-BackgroundCompilation",
+        "-XX:-BackgroundCompilation"};
+    private static final String[] compileCommandFlags = {
         "-XX:CompileCommand=quiet",
         "-XX:CompileCommand=compileonly,java.lang.invoke.*::*",
         "-XX:CompileCommand=compileonly,java.lang.Long::sum",
@@ -433,6 +435,7 @@ public abstract class ValueTypeTest {
         //        getVMParameters()
         //        getExtraVMParameters()
         //     defaultFlags
+        //     compileCommandFlags
         String cmds[] = null;
         if (VERIFY_IR) {
             // Add print flags for IR verification
@@ -445,6 +448,9 @@ public abstract class ValueTypeTest {
         }
         cmds = concat(cmds, vmInputArgs);
         cmds = concat(cmds, defaultFlags);
+        if (COMPILE_COMMANDS) {
+          cmds = concat(cmds, compileCommandFlags);
+        }
 
         // Run tests in own process and verify output
         cmds = concat(cmds, getClass().getName(), "run");
@@ -699,7 +705,7 @@ public abstract class ValueTypeTest {
                         // Don't control compilation if -Xcomp is enabled, or if compiler is disabled
                         break;
                     }
-                    Asserts.assertTrue(OSRTestTimeOut < 0 || elapsed < OSRTestTimeOut, test + " not compiled after " + OSRTestTimeOut + " ms");
+                    Asserts.assertTrue(OSR_TEST_TIMEOUT < 0 || elapsed < OSR_TEST_TIMEOUT, test + " not compiled after " + OSR_TEST_TIMEOUT + " ms");
                 }
                 if (!XCOMP) {
                     Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
@@ -727,7 +733,7 @@ public abstract class ValueTypeTest {
                     System.out.println("Done " + test.getName() + ": " + duration + " ns = " + (duration / 1000000) + " ms");
                 }
             }
-            if (GCAfter) {
+            if (GC_AFTER) {
                 System.out.println("doing GC");
                 System.gc();
             }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -61,7 +61,6 @@ public class TestNullableValueTypes extends ValueTypeTest {
     static {
         try {
             Class<?> clazz = TestNullableValueTypes.class;
-            ClassLoader loader = clazz.getClassLoader();
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
             MethodType test18_mt = MethodType.methodType(void.class, MyValue1.class.asNullableType());
@@ -880,5 +879,23 @@ public class TestNullableValueTypes extends ValueTypeTest {
             test34(testValue1);
             Asserts.assertEquals(test34Val, testValue1);
         }
+    }
+
+    // Same as test17 but with non-allocated value at withfield
+    @Test()
+    public Test17Value test35(boolean b) {
+        Test17Value vt1 = Test17Value.default;
+        if ((Object)vt1.valueField != null) {
+            throw new RuntimeException("Should be null");
+        }
+        MyValue1 vt3 = MyValue1.createWithFieldsInline(rI, rL);
+        Test17Value vt2 = new Test17Value(vt3);
+        return b ? vt1 : vt2;
+    }
+
+    @DontCompile
+    public void test35_verifier(boolean warmup) {
+        test35(true);
+        test35(false);
     }
 }

@@ -1744,7 +1744,7 @@ Node *LoadNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       alloc->initialization()->proj_out_or_null(0) != NULL) {
     InitializeNode* init = alloc->initialization();
     Node* control = init->proj_out(0);
-    return alloc->make_ideal_mark(phase, address, control, mem);
+    return alloc->make_ideal_mark(phase, control, mem);
   }
 
   return progress ? this : NULL;

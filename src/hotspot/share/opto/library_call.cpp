@@ -139,7 +139,7 @@ class LibraryCallKit : public GraphKit {
     if (!stopped() && res != NULL) {
       BasicType bt = res->bottom_type()->basic_type();
       if (C->inlining_incrementally() && res->is_ValueType()) {
-        // The caller expects and oop when incrementally inlining an intrinsic that returns an
+        // The caller expects an oop when incrementally inlining an intrinsic that returns an
         // inline type. Make sure the call is re-executed if the allocation triggers a deoptimization.
         PreserveReexecuteState preexecs(this);
         jvms()->set_should_reexecute(true);

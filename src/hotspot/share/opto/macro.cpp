@@ -1706,7 +1706,7 @@ Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
                                           Node* size_in_bytes) {
   InitializeNode* init = alloc->initialization();
   // Store the klass & mark bits
-  Node* mark_node = alloc->make_ideal_mark(&_igvn, object, control, rawmem);
+  Node* mark_node = alloc->make_ideal_mark(&_igvn, control, rawmem);
   if (!mark_node->is_Con()) {
     transform_later(mark_node);
   }

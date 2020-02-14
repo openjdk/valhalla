@@ -396,6 +396,13 @@ ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool safe_for_repl
     Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
     Node* alloc_oop  = kit->new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true, this);
     store(kit, alloc_oop, alloc_oop, vk, 0);
+
+    // Do not let stores that initialize this buffer be reordered with a subsequent
+    // store that would make this buffer accessible by other threads.
+    AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop, &kit->gvn());
+    assert(alloc != NULL, "must have an allocation node");
+    kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
+
     region->init_req(2, kit->control());
     oop   ->init_req(2, alloc_oop);
     io    ->init_req(2, kit->i_o());
@@ -419,6 +426,7 @@ ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool safe_for_repl
   if (safe_for_replace) {
     kit->replace_in_map(this, vt);
   }
+  assert(vt->is_allocated(&kit->gvn()), "must be allocated");
   return vt;
 }
 
@@ -608,6 +616,7 @@ ValueTypeNode* ValueTypeNode::make_larval(GraphKit* kit, bool allocate) const {
   }
   res->set_type(TypeValueType::make(vk, true));
   res = kit->gvn().transform(res)->as_ValueType();
+  assert(!allocate || res->is_allocated(&kit->gvn()), "must be allocated");
   return res;
 }
 
@@ -617,6 +626,12 @@ ValueTypeNode* ValueTypeNode::finish_larval(GraphKit* kit) const {
   Node* mark = kit->make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
   mark = kit->gvn().transform(new AndXNode(mark, kit->MakeConX(~markWord::larval_mask_in_place)));
   kit->store_to_memory(kit->control(), mark_addr, mark, TypeX_X->basic_type(), kit->gvn().type(mark_addr)->is_ptr(), MemNode::unordered);
+
+  // Do not let stores that initialize this buffer be reordered with a subsequent
+  // store that would make this buffer accessible by other threads.
+  AllocateNode* alloc = AllocateNode::Ideal_allocation(obj, &kit->gvn());
+  assert(alloc != NULL, "must have an allocation node");
+  kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
 
   ciValueKlass* vk = value_klass();
   ValueTypeNode* res = clone()->as_ValueType();
