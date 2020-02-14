@@ -200,8 +200,8 @@ public abstract class ValueTypeTest {
     protected static final String ALLOC_G  = "(.*call,static  wrapper for: _new_instance_Java" + END;
     protected static final String ALLOCA_G = "(.*call,static  wrapper for: _new_array_Java" + END;
     // Value type allocation
-    protected static final String ALLOC  = "(.*precise klass compiler/valhalla/valuetypes/MyValue.*\\R(.*(nop|spill).*\\R)*.*_new_instance_Java" + END;
-    protected static final String ALLOCA = "(.*precise klass \\[Lcompiler/valhalla/valuetypes/MyValue.*\\R(.*(nop|spill).*\\R)*.*_new_array_Java" + END;
+    protected static final String ALLOC  = "(.*precise klass compiler/valhalla/valuetypes/MyValue.*\\R(.*(movl|xorl|nop|spill).*\\R)*.*_new_instance_Java" + END;
+    protected static final String ALLOCA = "(.*precise klass \\[(L|Q)compiler/valhalla/valuetypes/MyValue.*\\R(.*(movl|xorl|nop|spill).*\\R)*.*_new_array_Java" + END;
     protected static final String LOAD   = START + "Load(B|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/valuetypes/MyValue.*" + END;
     protected static final String LOADK  = START + "LoadK" + MID + END;
     protected static final String STORE  = START + "Store(B|C|S|I|L|F|D|P|N)" + MID + "@compiler/valhalla/valuetypes/MyValue.*" + END;

@@ -78,8 +78,8 @@ public class TestNullableArrays extends ValueTypeTest {
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
 
     // Test nullable value type array creation and initialization
-    @Test(valid = ValueTypeArrayFlattenOn)
-    @Test(valid = ValueTypeArrayFlattenOff, failOn = LOAD)
+    @Test(valid = ValueTypeArrayFlattenOn, match = { ALLOCA }, matchCount = { 1 })
+    @Test(valid = ValueTypeArrayFlattenOff, match = { ALLOCA }, matchCount = { 1 }, failOn = LOAD)
     public MyValue1?[] test1(int len) {
         MyValue1?[] va = new MyValue1?[len];
         if (len > 0) {
@@ -1740,7 +1740,7 @@ public class TestNullableArrays extends ValueTypeTest {
     }
 
     // Check init store elimination
-    @Test
+    @Test(match = { ALLOCA }, matchCount = { 1 })
     public MyValue1?[] test66(MyValue1? vt) {
         MyValue1?[] va = new MyValue1?[1];
         va[0] = vt;
@@ -2243,7 +2243,7 @@ public class TestNullableArrays extends ValueTypeTest {
         Asserts.assertEquals(res, testValue1.hash());
     }
 
-    @Test(valid = ValueTypeArrayFlattenOn, failOn = ALLOC + ALLOCA + LOOP + STORE + TRAP)
+    @Test(valid = ValueTypeArrayFlattenOn, failOn = ALLOC + LOOP + STORE + TRAP)
     @Test(valid = ValueTypeArrayFlattenOff)
     public static MyValue1?[] test84(MyValue1 vt1, MyValue1? vt2) {
         MyValue1?[] result = new MyValue1[2];

@@ -194,7 +194,7 @@ const char* OptoRuntime::stub_name(address entry) {
 // and try allocation again.
 
 // object allocation
-JRT_BLOCK_ENTRY(void, OptoRuntime::new_instance_C(Klass* klass, JavaThread* thread))
+JRT_BLOCK_ENTRY(void, OptoRuntime::new_instance_C(Klass* klass, bool is_larval, JavaThread* thread))
   JRT_BLOCK;
 #ifndef PRODUCT
   SharedRuntime::_new_instance_ctr++;         // new instance requires GC
@@ -214,7 +214,11 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_instance_C(Klass* klass, JavaThread* thre
   if (!HAS_PENDING_EXCEPTION) {
     // Scavenge and allocate an instance.
     Handle holder(THREAD, klass->klass_holder()); // keep the klass alive
-    oop result = InstanceKlass::cast(klass)->allocate_instance(THREAD);
+    instanceOop result = InstanceKlass::cast(klass)->allocate_instance(THREAD);
+    if (is_larval) {
+      // Check if this is a larval buffer allocation
+      result->set_mark(result->mark().enter_larval_state());
+    }
     thread->set_vm_result(result);
 
     // Pass oops back through thread local storage.  Our apparent type to Java
@@ -446,9 +450,10 @@ JRT_END
 
 const TypeFunc *OptoRuntime::new_instance_Type() {
   // create input type (domain)
-  const Type **fields = TypeTuple::fields(1);
+  const Type **fields = TypeTuple::fields(2);
   fields[TypeFunc::Parms+0] = TypeInstPtr::NOTNULL; // Klass to be allocated
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+1, fields);
+  fields[TypeFunc::Parms+1] = TypeInt::BOOL;        // is_larval
+  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+2, fields);
 
   // create result type (range)
   fields = TypeTuple::fields(1);

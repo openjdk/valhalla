@@ -84,8 +84,8 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // Test value type array creation and initialization
-    @Test(valid = ValueTypeArrayFlattenOn)
-    @Test(valid = ValueTypeArrayFlattenOff, failOn = LOAD)
+    @Test(valid = ValueTypeArrayFlattenOn, match = { ALLOCA }, matchCount = { 1 })
+    @Test(valid = ValueTypeArrayFlattenOff, match = { ALLOCA }, matchCount = { 1 }, failOn = LOAD)
     public MyValue1[] test1(int len) {
         MyValue1[] va = new MyValue1[len];
         for (int i = 0; i < len; ++i) {
@@ -1540,7 +1540,7 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // Check init store elimination
-    @Test
+    @Test(match = { ALLOCA }, matchCount = { 1 })
     public MyValue1[] test66(MyValue1 vt) {
         MyValue1[] va = new MyValue1[1];
         va[0] = vt;

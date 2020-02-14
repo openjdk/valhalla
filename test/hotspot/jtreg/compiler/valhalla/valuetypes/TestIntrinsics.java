@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1030,5 +1030,27 @@ public class TestIntrinsics extends ValueTypeTest {
     public void test55_verifier(boolean warmup) {
         Class<?> result = test55(Integer.class);
         Asserts.assertEQ(result, Integer.class);
+    }
+
+    // Same as test39 but Unsafe.putInt to buffer is not intrinsified/compiled
+    @DontCompile
+    public void test56_callee(MyValue1? v) { // Use ? here to make sure the argument is not scalarized (otherwise larval information is lost)
+        U.putInt(v, X_OFFSET, rI);
+    }
+
+    @Test()
+    @Warmup(10000) // Fill up the TLAB to trigger slow path allocation
+    public MyValue1 test56(MyValue1 v) {
+        v = U.makePrivateBuffer(v);
+        test56_callee(v);
+        v = U.finishPrivateBuffer(v);
+        return v;
+    }
+
+    @DontCompile
+    public void test56_verifier(boolean warmup) {
+        MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
+        MyValue1 res = test56(v.setX(v, 0));
+        Asserts.assertEQ(res.hash(), v.hash());
     }
 }

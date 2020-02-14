@@ -1563,6 +1563,9 @@ void PhaseMacroExpand::expand_allocate_common(
   call->init_req(TypeFunc::Parms+0, klass_node);
   if (length != NULL) {
     call->init_req(TypeFunc::Parms+1, length);
+  } else {
+    // Let the runtime know if this is a larval allocation
+    call->init_req(TypeFunc::Parms+1, _igvn.intcon(alloc->_larval));
   }
 
   // Copy debug information and adjust JVMState information, then replace
@@ -1595,29 +1598,16 @@ void PhaseMacroExpand::expand_allocate_common(
   // result_phi_rawmem (unless we are only generating a slow call when
   // both memory projections are combined)
   if (!always_slow && _memproj_fallthrough != NULL) {
-    for (DUIterator_Fast imax, i = _memproj_fallthrough->fast_outs(imax); i < imax; i++) {
-      Node *use = _memproj_fallthrough->fast_out(i);
-      _igvn.rehash_node_delayed(use);
-      imax -= replace_input(use, _memproj_fallthrough, result_phi_rawmem);
-      // back up iterator
-      --i;
-    }
+    _igvn.replace_in_uses(_memproj_fallthrough, result_phi_rawmem);
   }
   // Now change uses of _memproj_catchall to use _memproj_fallthrough and delete
   // _memproj_catchall so we end up with a call that has only 1 memory projection.
-  if (_memproj_catchall != NULL ) {
+  if (_memproj_catchall != NULL) {
     if (_memproj_fallthrough == NULL) {
       _memproj_fallthrough = new ProjNode(call, TypeFunc::Memory);
       transform_later(_memproj_fallthrough);
     }
-    for (DUIterator_Fast imax, i = _memproj_catchall->fast_outs(imax); i < imax; i++) {
-      Node *use = _memproj_catchall->fast_out(i);
-      _igvn.rehash_node_delayed(use);
-      imax -= replace_input(use, _memproj_catchall, _memproj_fallthrough);
-      // back up iterator
-      --i;
-    }
-    assert(_memproj_catchall->outcnt() == 0, "all uses must be deleted");
+    _igvn.replace_in_uses(_memproj_catchall, _memproj_fallthrough);
     _igvn.remove_dead_node(_memproj_catchall);
   }
 
@@ -1627,29 +1617,16 @@ void PhaseMacroExpand::expand_allocate_common(
   // (it is different from memory projections where both projections are
   // combined in such case).
   if (_ioproj_fallthrough != NULL) {
-    for (DUIterator_Fast imax, i = _ioproj_fallthrough->fast_outs(imax); i < imax; i++) {
-      Node *use = _ioproj_fallthrough->fast_out(i);
-      _igvn.rehash_node_delayed(use);
-      imax -= replace_input(use, _ioproj_fallthrough, result_phi_i_o);
-      // back up iterator
-      --i;
-    }
+    _igvn.replace_in_uses(_ioproj_fallthrough, result_phi_i_o);
   }
   // Now change uses of _ioproj_catchall to use _ioproj_fallthrough and delete
   // _ioproj_catchall so we end up with a call that has only 1 i_o projection.
-  if (_ioproj_catchall != NULL ) {
+  if (_ioproj_catchall != NULL) {
     if (_ioproj_fallthrough == NULL) {
       _ioproj_fallthrough = new ProjNode(call, TypeFunc::I_O);
       transform_later(_ioproj_fallthrough);
     }
-    for (DUIterator_Fast imax, i = _ioproj_catchall->fast_outs(imax); i < imax; i++) {
-      Node *use = _ioproj_catchall->fast_out(i);
-      _igvn.rehash_node_delayed(use);
-      imax -= replace_input(use, _ioproj_catchall, _ioproj_fallthrough);
-      // back up iterator
-      --i;
-    }
-    assert(_ioproj_catchall->outcnt() == 0, "all uses must be deleted");
+    _igvn.replace_in_uses(_ioproj_catchall, _ioproj_fallthrough);
     _igvn.remove_dead_node(_ioproj_catchall);
   }
 
