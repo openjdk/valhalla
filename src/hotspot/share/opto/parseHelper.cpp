@@ -219,8 +219,9 @@ Node* Parse::array_store_check() {
           extak = TypeKlassPtr::make(array_type);
         }
       }
-    } else if (!too_many_traps(Deoptimization::Reason_class_check) && tak != TypeKlassPtr::OBJECT) {
+    } else if (!too_many_traps(Deoptimization::Reason_array_check) && tak != TypeKlassPtr::OBJECT) {
       extak = tak->cast_to_exactness(true)->is_klassptr();
+      reason = Deoptimization::Reason_array_check;
     }
     if (extak != NULL) {
       always_see_exact_class = true;
