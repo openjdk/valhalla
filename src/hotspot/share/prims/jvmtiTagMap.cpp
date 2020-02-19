@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -97,6 +97,11 @@ class JvmtiTagHashmapEntry : public CHeapObj<mtInternal> {
   inline oop object_peek()  {
     return NativeAccess<ON_PHANTOM_OOP_REF | AS_NO_KEEPALIVE>::oop_load(object_addr());
   }
+
+  inline oop object_raw() {
+    return RawAccess<>::oop_load(object_addr());
+  }
+
   inline jlong tag() const  { return _tag; }
 
   inline void set_tag(jlong tag) {
@@ -483,6 +488,11 @@ JvmtiTagMap::~JvmtiTagMap() {
 // is returned. Otherwise an new entry is allocated.
 JvmtiTagHashmapEntry* JvmtiTagMap::create_entry(oop ref, jlong tag) {
   assert(Thread::current()->is_VM_thread() || is_locked(), "checking");
+
+  // ref was read with AS_NO_KEEPALIVE, or equivalent.
+  // The object needs to be kept alive when it is published.
+  Universe::heap()->keep_alive(ref);
+
   JvmtiTagHashmapEntry* entry;
   if (_free_entries == NULL) {
     entry = new JvmtiTagHashmapEntry(ref, tag);
@@ -1172,7 +1182,7 @@ static jint invoke_primitive_field_callback_for_static_fields
 
     // get offset and field value
     int offset = field->field_offset();
-    address addr = (address)klass->java_mirror() + offset;
+    address addr = cast_from_oop<address>(klass->java_mirror()) + offset;
     jvalue value;
     copy_to_jvalue(&value, addr, value_type);
 
@@ -1225,7 +1235,7 @@ static jint invoke_primitive_field_callback_for_instance_fields(
 
     // get offset and field value
     int offset = field->field_offset();
-    address addr = (address)obj + offset;
+    address addr = cast_from_oop<address>(obj) + offset;
     jvalue value;
     copy_to_jvalue(&value, addr, value_type);
 
@@ -2798,7 +2808,7 @@ inline bool VM_HeapWalkOperation::iterate_over_type_array(oop o) {
 // verify that a static oop field is in range
 static inline bool verify_static_oop(InstanceKlass* ik,
                                      oop mirror, int offset) {
-  address obj_p = (address)mirror + offset;
+  address obj_p = cast_from_oop<address>(mirror) + offset;
   address start = (address)InstanceMirrorKlass::start_of_static_fields(mirror);
   address end = start + (java_lang_Class::static_oop_field_count(mirror) * heapOopSize);
   assert(end >= start, "sanity check");
@@ -2926,7 +2936,7 @@ inline bool VM_HeapWalkOperation::iterate_over_class(oop java_class) {
         }
       } else {
          if (is_reporting_primitive_fields()) {
-           address addr = (address)mirror + field->field_offset();
+           address addr = cast_from_oop<address>(mirror) + field->field_offset();
            int slot = field->field_index();
            if (!CallbackInvoker::report_primitive_static_field(mirror, slot, addr, type)) {
              delete field_map;
@@ -2958,7 +2968,7 @@ inline bool VM_HeapWalkOperation::iterate_over_object(oop o) {
     ClassFieldDescriptor* field = field_map->field_at(i);
     char type = field->field_type();
     if (!is_primitive_field_type(type)) {
-      oop fld_o = o->obj_field(field->field_offset());
+      oop fld_o = o->obj_field_access<AS_NO_KEEPALIVE | ON_UNKNOWN_OOP_REF>(field->field_offset());
       // ignore any objects that aren't visible to profiler
       if (fld_o != NULL) {
         assert(Universe::heap()->is_in(fld_o), "unsafe code should not "
@@ -2971,7 +2981,7 @@ inline bool VM_HeapWalkOperation::iterate_over_object(oop o) {
     } else {
       if (is_reporting_primitive_fields()) {
         // primitive instance field
-        address addr = (address)o + field->field_offset();
+        address addr = cast_from_oop<address>(o) + field->field_offset();
         int slot = field->field_index();
         if (!CallbackInvoker::report_primitive_instance_field(o, slot, addr, type)) {
           return false;
@@ -3347,7 +3357,7 @@ void JvmtiTagMap::do_weak_oops(BoolObjectClosure* is_alive, OopClosure* f) {
       JvmtiTagHashmapEntry* next = entry->next();
 
       // has object been GC'ed
-      if (!is_alive->do_object_b(entry->object_peek())) {
+      if (!is_alive->do_object_b(entry->object_raw())) {
         // grab the tag
         jlong tag = entry->tag();
         guarantee(tag != 0, "checking");
@@ -3365,7 +3375,7 @@ void JvmtiTagMap::do_weak_oops(BoolObjectClosure* is_alive, OopClosure* f) {
         ++freed;
       } else {
         f->do_oop(entry->object_addr());
-        oop new_oop = entry->object_peek();
+        oop new_oop = entry->object_raw();
 
         // if the object has moved then re-hash it and move its
         // entry to its new location.
@@ -3399,7 +3409,7 @@ void JvmtiTagMap::do_weak_oops(BoolObjectClosure* is_alive, OopClosure* f) {
   // Re-add all the entries which were kept aside
   while (delayed_add != NULL) {
     JvmtiTagHashmapEntry* next = delayed_add->next();
-    unsigned int pos = JvmtiTagHashmap::hash(delayed_add->object_peek(), size);
+    unsigned int pos = JvmtiTagHashmap::hash(delayed_add->object_raw(), size);
     delayed_add->set_next(table[pos]);
     table[pos] = delayed_add;
     delayed_add = next;

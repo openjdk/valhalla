@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -79,7 +80,7 @@ class ShenandoahIsUnloadingBehaviour : public IsUnloadingBehaviour {
 public:
   virtual bool is_unloading(CompiledMethod* method) const {
     nmethod* const nm = method->as_nmethod();
-    guarantee(ShenandoahHeap::heap()->is_evacuation_in_progress(), "Only this phase");
+    guarantee(ShenandoahHeap::heap()->is_concurrent_root_in_progress(), "Only this phase");
     ShenandoahNMethod* data = ShenandoahNMethod::gc_data(nm);
     ShenandoahReentrantLocker locker(data->lock());
     ShenandoahIsUnloadingOopClosure cl;
@@ -166,7 +167,7 @@ public:
 
 void ShenandoahUnload::unload() {
   assert(ShenandoahConcurrentRoots::can_do_concurrent_class_unloading(), "Why we here?");
-  if (!ShenandoahHeap::heap()->is_evacuation_in_progress()) {
+  if (!ShenandoahHeap::heap()->is_concurrent_root_in_progress()) {
     return;
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,9 +53,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.CommentHelper;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Joe Fialli
- * @author Bhavesh Patel (Modified)
  */
 public class HtmlSerialFieldWriter extends FieldWriterImpl
         implements SerializedFormWriter.SerialFieldWriter {
@@ -73,6 +70,7 @@ public class HtmlSerialFieldWriter extends FieldWriterImpl
      *
      * @return a content tree for the header
      */
+    @Override
     public Content getSerializableFieldsHeader() {
         HtmlTree ul = new HtmlTree(HtmlTag.UL);
         ul.setStyle(HtmlStyle.blockList);
@@ -82,9 +80,10 @@ public class HtmlSerialFieldWriter extends FieldWriterImpl
     /**
      * Return the header for serializable fields content section.
      *
-     * @param isLastContent true if the cotent being documented is the last content.
+     * @param isLastContent true if the content being documented is the last content.
      * @return a content tree for the header
      */
+    @Override
     public Content getFieldsContentHeader(boolean isLastContent) {
         HtmlTree li = new HtmlTree(HtmlTag.LI);
         li.setStyle(HtmlStyle.blockList);
@@ -95,10 +94,11 @@ public class HtmlSerialFieldWriter extends FieldWriterImpl
      * Add serializable fields.
      *
      * @param heading the heading for the section
-     * @param serializableFieldsTree the tree to be added to the serializable fileds
+     * @param serializableFieldsTree the tree to be added to the serializable fields
      *        content tree
      * @return a content tree for the serializable fields content
      */
+    @Override
     public Content getSerializableFields(String heading, Content serializableFieldsTree) {
         HtmlTree section = HtmlTree.SECTION(HtmlStyle.detail);
         if (serializableFieldsTree.isValid()) {
@@ -149,6 +149,7 @@ public class HtmlSerialFieldWriter extends FieldWriterImpl
      * @param field the field to document.
      * @param contentTree the tree to which the deprecated info will be added
      */
+    @Override
     public void addMemberDeprecatedInfo(VariableElement field, Content contentTree) {
         addDeprecatedInfo(field, contentTree);
     }
@@ -159,6 +160,7 @@ public class HtmlSerialFieldWriter extends FieldWriterImpl
      * @param field the field to document.
      * @param contentTree the tree to which the deprecated info will be added
      */
+    @Override
     public void addMemberDescription(VariableElement field, Content contentTree) {
         if (!utils.getFullBody(field).isEmpty()) {
             writer.addInlineComment(field, contentTree);
@@ -175,9 +177,10 @@ public class HtmlSerialFieldWriter extends FieldWriterImpl
      * @param serialFieldTag the field to document (represented by tag)
      * @param contentTree the tree to which the deprecated info will be added
      */
+    @Override
     public void addMemberDescription(VariableElement field, DocTree serialFieldTag, Content contentTree) {
         CommentHelper ch = utils.getCommentHelper(field);
-        List<? extends DocTree> description = ch.getDescription(configuration, serialFieldTag);
+        List<? extends DocTree> description = ch.getDescription(serialFieldTag);
         if (!description.isEmpty()) {
             Content serialFieldContent = new RawHtml(ch.getText(description));
             Content div = HtmlTree.DIV(HtmlStyle.block, serialFieldContent);
@@ -191,6 +194,7 @@ public class HtmlSerialFieldWriter extends FieldWriterImpl
      * @param field the field to document.
      * @param contentTree the tree to which the member tags info will be added
      */
+    @Override
     public void addMemberTags(VariableElement field, Content contentTree) {
         Content tagContent = new ContentBuilder();
         TagletWriter.genTagOutput(configuration.tagletManager, field,
@@ -209,8 +213,9 @@ public class HtmlSerialFieldWriter extends FieldWriterImpl
      * @param field the field to check overview details for.
      * @return true if overview details need to be printed
      */
+    @Override
     public boolean shouldPrintOverview(VariableElement field) {
-        if (!configuration.nocomment) {
+        if (!options.noComment()) {
             if(!utils.getFullBody(field).isEmpty() ||
                     writer.hasSerializationOverviewTags(field))
                 return true;

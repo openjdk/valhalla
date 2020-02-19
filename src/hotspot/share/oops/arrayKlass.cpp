@@ -161,7 +161,7 @@ GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
 objArrayOop ArrayKlass::allocate_arrayArray(int n, int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_ARRAY), CHECK_0);
   int size = objArrayOopDesc::object_size(length);
-  Klass* k = array_klass(FieldType::get_array_storage_properties(name()), n+dimension(), CHECK_0);
+  Klass* k = array_klass(ArrayStorageProperties::for_signature(name()), n+dimension(), CHECK_0);
   ArrayKlass* ak = ArrayKlass::cast(k);
   objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
                                                                 /* do_zero */ true, CHECK_0);

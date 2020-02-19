@@ -99,6 +99,8 @@ private:
                               Node* length,
                               const TypeFunc* slow_call_type,
                               address slow_call_address);
+  void yank_initalize_node(InitializeNode* node);
+  void yank_alloc_node(AllocateNode* alloc);
   Node *value_from_mem(Node *mem, Node *ctl, BasicType ft, const Type *ftype, const TypeOopPtr *adr_t, AllocateNode *alloc);
   Node *value_from_mem_phi(Node *mem, BasicType ft, const Type *ftype, const TypeOopPtr *adr_t, AllocateNode *alloc, Node_Stack *value_phis, int level);
   Node* value_type_from_mem(Node* mem, Node* ctl, ciValueKlass* vk, const TypeAryPtr* adr_type, int offset, AllocateNode* alloc);
@@ -194,6 +196,8 @@ private:
   void expand_arraycopy_node(ArrayCopyNode *ac);
 
   int replace_input(Node *use, Node *oldref, Node *newref);
+  void migrate_outs(Node *old, Node *target);
+  void copy_call_debug_info(CallNode *oldcall, CallNode * newcall);
   Node* opt_bits_test(Node* ctrl, Node* region, int edge, Node* word, int mask, int bits, bool return_fast_path = false);
   void copy_predefined_input_for_runtime_call(Node * ctrl, CallNode* oldcall, CallNode* call);
   CallNode* make_slow_call(CallNode *oldcall, const TypeFunc* slow_call_type, address slow_call,
@@ -230,6 +234,8 @@ public:
                             Node*& needgc_false, Node*& contended_phi_rawmem,
                             Node* old_eden_top, Node* new_eden_top,
                             intx lines);
+  void expand_dtrace_alloc_probe(AllocateNode* alloc, Node* fast_oop, Node*&fast_oop_ctrl, Node*&fast_oop_rawmem);
+  void expand_initialize_membar(AllocateNode* alloc, InitializeNode* init, Node*&fast_oop_ctrl, Node*&fast_oop_rawmem);
 };
 
 #endif // SHARE_OPTO_MACRO_HPP

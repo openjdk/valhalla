@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,9 +60,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Atul M Dambalkar
- * @author Bhavesh Patel (Modified)
  */
 public class PackageWriterImpl extends HtmlDocletWriter
     implements PackageSummaryWriter {
@@ -100,9 +97,6 @@ public class PackageWriterImpl extends HtmlDocletWriter
         this.navBar = new Navigation(packageElement, configuration, PageMode.PACKAGE, path);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Content getPackageHeader(String heading) {
         HtmlTree bodyTree = getBody(getWindowTitle(utils.getPackageName(packageElement)));
@@ -138,9 +132,6 @@ public class PackageWriterImpl extends HtmlDocletWriter
         return bodyTree;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Content getContentHeader() {
         HtmlTree div = new HtmlTree(HtmlTag.DIV);
@@ -162,7 +153,7 @@ public class PackageWriterImpl extends HtmlDocletWriter
             Content deprPhrase = HtmlTree.SPAN(HtmlStyle.deprecatedLabel, getDeprecatedPhrase(packageElement));
             deprDiv.add(deprPhrase);
             if (!deprs.isEmpty()) {
-                List<? extends DocTree> commentTags = ch.getDescription(configuration, deprs.get(0));
+                List<? extends DocTree> commentTags = ch.getDescription(deprs.get(0));
                 if (!commentTags.isEmpty()) {
                     addInlineDeprecatedComment(packageElement, deprs.get(0), deprDiv);
                 }
@@ -171,9 +162,6 @@ public class PackageWriterImpl extends HtmlDocletWriter
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Content getSummaryHeader() {
         HtmlTree ul = new HtmlTree(HtmlTag.UL);
@@ -181,54 +169,42 @@ public class PackageWriterImpl extends HtmlDocletWriter
         return ul;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addInterfaceSummary(SortedSet<TypeElement> interfaces, Content summaryContentTree) {
         TableHeader tableHeader= new TableHeader(contents.interfaceLabel, contents.descriptionLabel);
         addClassesSummary(interfaces, resources.interfaceSummary, tableHeader, summaryContentTree);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addClassSummary(SortedSet<TypeElement> classes, Content summaryContentTree) {
         TableHeader tableHeader= new TableHeader(contents.classLabel, contents.descriptionLabel);
         addClassesSummary(classes, resources.classSummary, tableHeader, summaryContentTree);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addEnumSummary(SortedSet<TypeElement> enums, Content summaryContentTree) {
         TableHeader tableHeader= new TableHeader(contents.enum_, contents.descriptionLabel);
         addClassesSummary(enums, resources.enumSummary, tableHeader, summaryContentTree);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
+    public void addRecordSummary(SortedSet<TypeElement> records, Content summaryContentTree) {
+        TableHeader tableHeader= new TableHeader(contents.record, contents.descriptionLabel);
+        addClassesSummary(records, resources.recordSummary, tableHeader, summaryContentTree);
+    }
+
     @Override
     public void addExceptionSummary(SortedSet<TypeElement> exceptions, Content summaryContentTree) {
         TableHeader tableHeader= new TableHeader(contents.exception, contents.descriptionLabel);
         addClassesSummary(exceptions, resources.exceptionSummary, tableHeader, summaryContentTree);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addErrorSummary(SortedSet<TypeElement> errors, Content summaryContentTree) {
         TableHeader tableHeader= new TableHeader(contents.error, contents.descriptionLabel);
         addClassesSummary(errors, resources.errorSummary, tableHeader, summaryContentTree);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addAnnotationTypeSummary(SortedSet<TypeElement> annoTypes, Content summaryContentTree) {
         TableHeader tableHeader= new TableHeader(contents.annotationType, contents.descriptionLabel);
@@ -266,22 +242,16 @@ public class PackageWriterImpl extends HtmlDocletWriter
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addPackageDescription(Content packageContentTree) {
         if (!utils.getBody(packageElement).isEmpty()) {
-            Content tree = sectionTree;
-            tree.add(links.createAnchor(SectionName.PACKAGE_DESCRIPTION));
+            HtmlTree tree = sectionTree;
+            tree.setId(SectionName.PACKAGE_DESCRIPTION.getName());
             addDeprecationInfo(tree);
             addInlineComment(packageElement, tree);
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addPackageTags(Content packageContentTree) {
         Content htmlTree = sectionTree;
@@ -289,17 +259,11 @@ public class PackageWriterImpl extends HtmlDocletWriter
         packageContentTree.add(sectionTree);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addPackageContent(Content packageContentTree) {
         bodyContents.addMainContent(packageContentTree);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addPackageFooter() {
         Content htmlTree = HtmlTree.FOOTER();
@@ -309,9 +273,6 @@ public class PackageWriterImpl extends HtmlDocletWriter
         bodyContents.setFooter(htmlTree);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void printDocument(Content contentTree) throws DocFileIOException {
         String description = getDescription("declaration", packageElement);
@@ -321,9 +282,6 @@ public class PackageWriterImpl extends HtmlDocletWriter
                 description, localStylesheets, contentTree);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Content getPackageSummary(Content summaryContentTree) {
         return HtmlTree.SECTION(HtmlStyle.summary, summaryContentTree);

@@ -25,8 +25,10 @@
 
 package com.sun.tools.javac.util;
 
+import java.util.Set;
+
 /**
- * Access to the compiler's name table.  STandard names are defined,
+ * Access to the compiler's name table.  Standard names are defined,
  * as well as methods to create new names.
  *
  *  <p><b>This is NOT part of any supported API.
@@ -103,6 +105,8 @@ public class Names {
     public final Name inline;
     public final Name valueOf;
     public final Name values;
+    public final Name readResolve;
+    public final Name readObject;
 
     // class names
     public final Name java_io_Serializable;
@@ -149,6 +153,7 @@ public class Names {
     public final Name ModuleResolution;
     public final Name NestHost;
     public final Name NestMembers;
+    public final Name Record;
     public final Name RuntimeInvisibleAnnotations;
     public final Name RuntimeInvisibleParameterAnnotations;
     public final Name RuntimeInvisibleTypeAnnotations;
@@ -176,6 +181,7 @@ public class Names {
     public final Name TYPE;
     public final Name TYPE_PARAMETER;
     public final Name TYPE_USE;
+    public final Name RECORD_COMPONENT;
 
     // members of java.lang.annotation.RetentionPolicy
     public final Name CLASS;
@@ -201,6 +207,18 @@ public class Names {
 
     // values
     public final Name dollarValue;
+
+    // record related
+    // members of java.lang.runtime.ObjectMethods
+    public final Name bootstrap;
+
+    public final Name record;
+
+    // serialization members, used by records too
+    public final Name serialPersistentFields;
+    public final Name writeObject;
+    public final Name writeReplace;
+    public final Name readObjectNoData;
 
     public final Name.Table table;
 
@@ -264,6 +282,8 @@ public class Names {
         inline = fromString("inline");
         valueOf = fromString("valueOf");
         values = fromString("values");
+        readResolve = fromString("readResolve");
+        readObject = fromString("readObject");
         dollarThis = fromString("$this");
 
         // class names
@@ -311,6 +331,7 @@ public class Names {
         ModuleResolution = fromString("ModuleResolution");
         NestHost = fromString("NestHost");
         NestMembers = fromString("NestMembers");
+        Record = fromString("Record");
         RuntimeInvisibleAnnotations = fromString("RuntimeInvisibleAnnotations");
         RuntimeInvisibleParameterAnnotations = fromString("RuntimeInvisibleParameterAnnotations");
         RuntimeInvisibleTypeAnnotations = fromString("RuntimeInvisibleTypeAnnotations");
@@ -338,6 +359,7 @@ public class Names {
         TYPE = fromString("TYPE");
         TYPE_PARAMETER = fromString("TYPE_PARAMETER");
         TYPE_USE = fromString("TYPE_USE");
+        RECORD_COMPONENT = fromString("RECORD_COMPONENT");
 
         // members of java.lang.annotation.RetentionPolicy
         CLASS = fromString("CLASS");
@@ -363,6 +385,13 @@ public class Names {
         // value types
         dollarValue = fromString("$value");
 
+        bootstrap = fromString("bootstrap");
+        record = fromString("record");
+
+        serialPersistentFields = fromString("serialPersistentFields");
+        writeObject = fromString("writeObject");
+        writeReplace = fromString("writeReplace");
+        readObjectNoData = fromString("readObjectNoData");
     }
 
     protected Name.Table createTable(Options options) {

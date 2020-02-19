@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,6 +39,7 @@
 #include "opto/regalloc.hpp"
 #include "opto/rootnode.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 //=============================================================================
 #define NODE_HASH_MINIMUM_SIZE    255
@@ -260,12 +261,9 @@ bool NodeHash::hash_delete( const Node *n ) {
 
 //------------------------------round_up---------------------------------------
 // Round up to nearest power of 2
-uint NodeHash::round_up( uint x ) {
-  x += (x>>2);                  // Add 25% slop
-  if( x <16 ) return 16;        // Small stuff
-  uint i=16;
-  while( i < x ) i <<= 1;       // Double to fit
-  return i;                     // Return hash table size
+uint NodeHash::round_up(uint x) {
+  x += (x >> 2);                  // Add 25% slop
+  return MAX2(16U, round_up_power_of_2(x));
 }
 
 //------------------------------grow-------------------------------------------
@@ -810,14 +808,6 @@ Node* PhaseGVN::apply_ideal(Node* k, bool can_reshape) {
   return i;
 }
 
-Node* PhaseGVN::apply_identity(Node* k) {
-  Node* i = BarrierSet::barrier_set()->barrier_set_c2()->identity_node(this, k);
-  if (i == k) {
-    i = k->Identity(this);
-  }
-  return i;
-}
-
 //------------------------------transform--------------------------------------
 // Return a node which computes the same function as this node, but in a
 // faster or cheaper fashion.
@@ -872,7 +862,7 @@ Node *PhaseGVN::transform_no_reclaim( Node *n ) {
   }
 
   // Now check for Identities
-  Node *i = apply_identity(k);  // Look for a nearby replacement
+  Node *i = k->Identity(this);  // Look for a nearby replacement
   if( i != k ) {                // Found? Return replacement!
     NOT_PRODUCT( set_progress(); )
     return i;
@@ -1301,7 +1291,7 @@ Node *PhaseIterGVN::transform_old(Node* n) {
   }
 
   // Now check for Identities
-  i = apply_identity(k);      // Look for a nearby replacement
+  i = k->Identity(this);      // Look for a nearby replacement
   if (i != k) {                // Found? Return replacement!
     NOT_PRODUCT(set_progress();)
     add_users_to_worklist(k);
@@ -1694,7 +1684,6 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
       }
     }
 
-    BarrierSet::barrier_set()->barrier_set_c2()->igvn_add_users_to_worklist(this, use);
     // Give CallStaticJavaNode::remove_useless_allocation a chance to run
     if (use->is_Region()) {
       Node* c = use;
@@ -1806,8 +1795,11 @@ void PhaseCCP::analyze() {
         if (m->is_Call()) {
           for (DUIterator_Fast i2max, i2 = m->fast_outs(i2max); i2 < i2max; i2++) {
             Node* p = m->fast_out(i2);  // Propagate changes to uses
-            if (p->is_Proj() && p->as_Proj()->_con == TypeFunc::Control && p->outcnt() == 1) {
-              worklist.push(p->unique_out());
+            if (p->is_Proj() && p->as_Proj()->_con == TypeFunc::Control) {
+              Node* catch_node = p->find_out_with(Op_Catch);
+              if (catch_node != NULL) {
+                worklist.push(catch_node);
+              }
             }
           }
         }
@@ -1871,8 +1863,6 @@ void PhaseCCP::analyze() {
             }
           }
         }
-
-        BarrierSet::barrier_set()->barrier_set_c2()->ccp_analyze(this, worklist, m);
       }
     }
   }
@@ -2178,7 +2168,7 @@ void Type_Array::grow( uint i ) {
     _types[0] = NULL;
   }
   uint old = _max;
-  while( i >= _max ) _max <<= 1;        // Double to fit
+  _max = next_power_of_2(i);
   _types = (const Type**)_a->Arealloc( _types, old*sizeof(Type*),_max*sizeof(Type*));
   memset( &_types[old], 0, (_max-old)*sizeof(Type*) );
 }

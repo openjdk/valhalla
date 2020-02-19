@@ -25,6 +25,8 @@
 
 package java.io;
 
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
@@ -33,6 +35,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.RecordComponent;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.lang.reflect.Member;
 import java.lang.reflect.Method;
@@ -45,6 +48,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -124,6 +129,8 @@ public class ObjectStreamClass implements Serializable {
     private boolean isProxy;
     /** true if represents enum type */
     private boolean isEnum;
+    /** true if represents record type */
+    private boolean isRecord;
     /** true if represented class implements Serializable */
     private boolean serializable;
     /** true if represented class implements Externalizable */
@@ -185,6 +192,8 @@ public class ObjectStreamClass implements Serializable {
 
     /** serialization-appropriate constructor, or null if none */
     private Constructor<?> cons;
+    /** record canonical constructor, or null */
+    private MethodHandle canonicalCtr;
     /** protection domains that need to be checked when calling the constructor */
     private ProtectionDomain[] domains;
 
@@ -262,6 +271,9 @@ public class ObjectStreamClass implements Serializable {
     public long getSerialVersionUID() {
         // REMIND: synchronize instead of relying on volatile?
         if (suid == null) {
+            if (isRecord)
+                return 0L;
+
             suid = AccessController.doPrivileged(
                 new PrivilegedAction<Long>() {
                     public Long run() {
@@ -468,6 +480,11 @@ public class ObjectStreamClass implements Serializable {
         }
     }
 
+    @SuppressWarnings("preview")
+    private static boolean isRecord(Class<?> cls) {
+        return cls.isRecord();
+    }
+
     /**
      * Creates local class descriptor representing given class.
      */
@@ -477,6 +494,7 @@ public class ObjectStreamClass implements Serializable {
         isProxy = Proxy.isProxyClass(cl);
         isEnum = Enum.class.isAssignableFrom(cl);
         boolean isInlineClass = cl.isInlineClass();
+        isRecord = isRecord(cl);
         serializable = Serializable.class.isAssignableFrom(cl);
         externalizable = Externalizable.class.isAssignableFrom(cl);
 
@@ -507,7 +525,9 @@ public class ObjectStreamClass implements Serializable {
                         fields = NO_FIELDS;
                     }
 
-                    if (externalizable) {
+                    if (isRecord) {
+                        canonicalCtr = canonicalRecordCtr(cl);
+                    } else if (externalizable) {
                         cons = getExternalizableConstructor(cl);
                     } else {
                         cons = getSerializableConstructor(cl);
@@ -546,14 +566,18 @@ public class ObjectStreamClass implements Serializable {
                 deserializeEx = new ExceptionInfo(name, "enum type");
             } else if (isInlineClass && writeReplaceMethod == null) {
                 deserializeEx = new ExceptionInfo(name, "inline class");
-            } else if (cons == null) {
+            } else if (cons == null && !isRecord) {
                 deserializeEx = new ExceptionInfo(name, "no valid constructor");
             }
         }
-        for (int i = 0; i < fields.length; i++) {
-            if (fields[i].getField() == null) {
-                defaultSerializeEx = new ExceptionInfo(
-                    name, "unmatched serializable field(s) declared");
+        if (isRecord && canonicalCtr == null) {
+            deserializeEx = new ExceptionInfo(name, "record canonical constructor not found");
+        } else {
+            for (int i = 0; i < fields.length; i++) {
+                if (fields[i].getField() == null) {
+                    defaultSerializeEx = new ExceptionInfo(
+                        name, "unmatched serializable field(s) declared");
+                }
             }
         }
         initialized = true;
@@ -686,7 +710,7 @@ public class ObjectStreamClass implements Serializable {
             }
 
             if (model.serializable == osc.serializable &&
-                    !cl.isArray() &&
+                    !cl.isArray() && !isRecord(cl) &&
                     suid != osc.getSerialVersionUID()) {
                 throw new InvalidClassException(osc.name,
                         "local class incompatible: " +
@@ -718,6 +742,10 @@ public class ObjectStreamClass implements Serializable {
         }
 
         this.cl = cl;
+        if (cl != null) {
+            this.isRecord = isRecord(cl);
+            this.canonicalCtr = osc.canonicalCtr;
+        }
         this.resolveEx = resolveEx;
         this.superDesc = superDesc;
         name = model.name;
@@ -743,12 +771,14 @@ public class ObjectStreamClass implements Serializable {
                 deserializeEx = localDesc.deserializeEx;
             }
             domains = localDesc.domains;
+            assert isRecord(cl) ? localDesc.cons == null : true;
             cons = localDesc.cons;
         }
 
         fieldRefl = getReflector(fields, localDesc);
         // reassign to matched fields so as to reflect local unshared settings
         fields = fieldRefl.getFields();
+
         initialized = true;
     }
 
@@ -968,6 +998,15 @@ public class ObjectStreamClass implements Serializable {
     boolean isEnum() {
         requireInitialized();
         return isEnum;
+    }
+
+    /**
+     * Returns true if class descriptor represents a record type, false
+     * otherwise.
+     */
+    boolean isRecord() {
+        requireInitialized();
+        return isRecord;
     }
 
     /**
@@ -1523,6 +1562,37 @@ public class ObjectStreamClass implements Serializable {
     }
 
     /**
+     * Returns the canonical constructor for the given record class, or null if
+     * the not found ( which should never happen for correctly generated record
+     * classes ).
+     */
+    @SuppressWarnings("preview")
+    private static MethodHandle canonicalRecordCtr(Class<?> cls) {
+        assert isRecord(cls) : "Expected record, got: " + cls;
+        PrivilegedAction<MethodHandle> pa = () -> {
+            Class<?>[] paramTypes = Arrays.stream(cls.getRecordComponents())
+                                          .map(RecordComponent::getType)
+                                          .toArray(Class<?>[]::new);
+            try {
+                Constructor<?> ctr = cls.getConstructor(paramTypes);
+                ctr.setAccessible(true);
+                return MethodHandles.lookup().unreflectConstructor(ctr);
+            } catch (IllegalAccessException | NoSuchMethodException e) {
+                return null;
+            }
+        };
+        return AccessController.doPrivileged(pa);
+    }
+
+    /**
+     * Returns the canonical constructor, if the local class equivalent of this
+     * stream class descriptor is a record class, otherwise null.
+     */
+    MethodHandle getRecordConstructor() {
+        return canonicalCtr;
+    }
+
+    /**
      * Returns non-static, non-abstract method with given signature provided it
      * is defined by or accessible (via inheritance) by the given class, or
      * null if no match found.  Access checks are disabled on the returned
@@ -1645,12 +1715,16 @@ public class ObjectStreamClass implements Serializable {
     private static ObjectStreamField[] getSerialFields(Class<?> cl)
         throws InvalidClassException
     {
+        if (!Serializable.class.isAssignableFrom(cl))
+            return NO_FIELDS;
+
         ObjectStreamField[] fields;
-        if (Serializable.class.isAssignableFrom(cl) &&
-            !Externalizable.class.isAssignableFrom(cl) &&
+        if (isRecord(cl)) {
+            fields = getDefaultSerialFields(cl);
+            Arrays.sort(fields);
+        } else if (!Externalizable.class.isAssignableFrom(cl) &&
             !Proxy.isProxyClass(cl) &&
-            !cl.isInterface())
-        {
+                   !cl.isInterface()) {
             if ((fields = getDeclaredSerialFields(cl)) == null) {
                 fields = getDefaultSerialFields(cl);
             }
@@ -2442,6 +2516,117 @@ public class ObjectStreamClass implements Serializable {
             } else {
                 return false;
             }
+        }
+    }
+
+    /** Record specific support for retrieving and binding stream field values. */
+    static final class RecordSupport {
+
+        /** Binds the given stream field values to the given method handle. */
+        @SuppressWarnings("preview")
+        static MethodHandle bindCtrValues(MethodHandle ctrMH,
+                                          ObjectStreamClass desc,
+                                          ObjectInputStream.FieldValues fieldValues) {
+            RecordComponent[] recordComponents;
+            try {
+                Class<?> cls = desc.forClass();
+                PrivilegedExceptionAction<RecordComponent[]> pa = cls::getRecordComponents;
+                recordComponents = AccessController.doPrivileged(pa);
+            } catch (PrivilegedActionException e) {
+                throw new InternalError(e.getCause());
+            }
+
+            Object[] args = new Object[recordComponents.length];
+            for (int i = 0; i < recordComponents.length; i++) {
+                String name = recordComponents[i].getName();
+                Class<?> type= recordComponents[i].getType();
+                Object o = streamFieldValue(name, type, desc, fieldValues);
+                args[i] = o;
+            }
+
+            return MethodHandles.insertArguments(ctrMH, 0, args);
+        }
+
+        /** Returns the number of primitive fields for the given descriptor. */
+        private static int numberPrimValues(ObjectStreamClass desc) {
+            ObjectStreamField[] fields = desc.getFields();
+            int primValueCount = 0;
+            for (int i = 0; i < fields.length; i++) {
+                if (fields[i].isPrimitive())
+                    primValueCount++;
+                else
+                    break;  // can be no more
+            }
+            return primValueCount;
+        }
+
+        /** Returns the default value for the given type. */
+        private static Object defaultValueFor(Class<?> pType) {
+            if (pType == Integer.TYPE)
+                return 0;
+            else if (pType == Byte.TYPE)
+                return (byte)0;
+            else if (pType == Long.TYPE)
+                return 0L;
+            else if (pType == Float.TYPE)
+                return 0.0f;
+            else if (pType == Double.TYPE)
+                return 0.0d;
+            else if (pType == Short.TYPE)
+                return (short)0;
+            else if (pType == Character.TYPE)
+                return '\u0000';
+            else if (pType == Boolean.TYPE)
+                return false;
+            else
+                return null;
+        }
+
+        /**
+         * Returns the stream field value for the given name. The default value
+         * for the given type is returned if the field value is absent.
+         */
+        private static Object streamFieldValue(String pName,
+                                               Class<?> pType,
+                                               ObjectStreamClass desc,
+                                               ObjectInputStream.FieldValues fieldValues) {
+            ObjectStreamField[] fields = desc.getFields();
+
+            for (int i = 0; i < fields.length; i++) {
+                ObjectStreamField f = fields[i];
+                String fName = f.getName();
+                if (!fName.equals(pName))
+                    continue;
+
+                Class<?> fType = f.getField().getType();
+                if (!pType.isAssignableFrom(fType))
+                    throw new InternalError(fName + " unassignable, pType:" + pType + ", fType:" + fType);
+
+                if (f.isPrimitive()) {
+                    if (pType == Integer.TYPE)
+                        return Bits.getInt(fieldValues.primValues, f.getOffset());
+                    else if (fType == Byte.TYPE)
+                        return fieldValues.primValues[f.getOffset()];
+                    else if (fType == Long.TYPE)
+                        return Bits.getLong(fieldValues.primValues, f.getOffset());
+                    else if (fType == Float.TYPE)
+                        return Bits.getFloat(fieldValues.primValues, f.getOffset());
+                    else if (fType == Double.TYPE)
+                        return Bits.getDouble(fieldValues.primValues, f.getOffset());
+                    else if (fType == Short.TYPE)
+                        return Bits.getShort(fieldValues.primValues, f.getOffset());
+                    else if (fType == Character.TYPE)
+                        return Bits.getChar(fieldValues.primValues, f.getOffset());
+                    else if (fType == Boolean.TYPE)
+                        return Bits.getBoolean(fieldValues.primValues, f.getOffset());
+                    else
+                        throw new InternalError("Unexpected type: " + fType);
+                } else { // reference
+                    return fieldValues.objValues[i - numberPrimValues(desc)];
+                }
+            }
+
+            return defaultValueFor(pType);
         }
     }
 }

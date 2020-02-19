@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -296,7 +296,7 @@ public class Resolve {
             (owner.flags() & STATIC) == 0;
     }
 
-    /** Is class accessible in given evironment?
+    /** Is class accessible in given environment?
      *  @param env    The current environment.
      *  @param c      The class whose accessibility is checked.
      */
@@ -1489,7 +1489,13 @@ public class Resolve {
             if (sym.exists()) {
                 if (staticOnly &&
                     sym.kind == VAR &&
-                    sym.owner.kind == TYP &&
+                        // if it is a field
+                        (sym.owner.kind == TYP ||
+                        // or it is a local variable but it is not declared inside of the static local type
+                        // only records so far, then error
+                        (sym.owner.kind == MTH) &&
+                        (env.enclClass.sym.flags() & STATIC) != 0 &&
+                        sym.enclClass() != env.enclClass.sym) &&
                     (sym.flags() & STATIC) == 0)
                     return new StaticError(sym);
                 else
@@ -3251,7 +3257,7 @@ public class Resolve {
         @Override
         ReferenceLookupResult unboundResult(ReferenceLookupResult boundRes, ReferenceLookupResult unboundRes) {
             if (boundRes.isSuccess() && !boundRes.hasKind(StaticKind.NON_STATIC)) {
-                //the first serach has at least one applicable static method
+                //the first search has at least one applicable static method
                 return boundRes;
             } else if (unboundRes.isSuccess() && !unboundRes.hasKind(StaticKind.STATIC)) {
                 //the second search has at least one applicable non-static method
@@ -4614,7 +4620,7 @@ public class Resolve {
          */
         interface DiagnosticRewriter {
             JCDiagnostic rewriteDiagnostic(JCDiagnostic.Factory diags,
-                    DiagnosticPosition preferedPos, DiagnosticSource preferredSource,
+                    DiagnosticPosition preferredPos, DiagnosticSource preferredSource,
                     DiagnosticType preferredKind, JCDiagnostic d);
         }
 
@@ -4670,12 +4676,12 @@ public class Resolve {
 
             @Override
             public JCDiagnostic rewriteDiagnostic(JCDiagnostic.Factory diags,
-                    DiagnosticPosition preferedPos, DiagnosticSource preferredSource,
+                    DiagnosticPosition preferredPos, DiagnosticSource preferredSource,
                     DiagnosticType preferredKind, JCDiagnostic d) {
                 JCDiagnostic cause = (JCDiagnostic)d.getArgs()[causeIndex];
                 DiagnosticPosition pos = d.getDiagnosticPosition();
                 if (pos == null) {
-                    pos = preferedPos;
+                    pos = preferredPos;
                 }
                 return diags.create(preferredKind, preferredSource, pos,
                         "prob.found.req", cause);

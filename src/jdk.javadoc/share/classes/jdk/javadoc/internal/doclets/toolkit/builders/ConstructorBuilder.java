@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 
-import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
+import jdk.javadoc.internal.doclets.toolkit.BaseOptions;
 import jdk.javadoc.internal.doclets.toolkit.ConstructorWriter;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.DocletException;
@@ -45,9 +45,6 @@ import static jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable.Kind.
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Jamie Ho
- * @author Bhavesh Patel (Modified)
  */
 public class ConstructorBuilder extends AbstractMemberBuilder {
 
@@ -99,9 +96,6 @@ public class ConstructorBuilder extends AbstractMemberBuilder {
         return new ConstructorBuilder(context, typeElement, writer);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean hasMembersToDocument() {
         return !constructors.isEmpty();
@@ -116,9 +110,6 @@ public class ConstructorBuilder extends AbstractMemberBuilder {
         return writer;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void build(Content contentTree) throws DocletException {
         buildConstructorDoc(contentTree);
@@ -135,13 +126,12 @@ public class ConstructorBuilder extends AbstractMemberBuilder {
             return;
         }
         if (hasMembersToDocument()) {
-            Content constructorDetailsTreeHeader = writer.getConstructorDetailsTreeHeader(typeElement,
-                    memberDetailsTree);
+            Content constructorDetailsTreeHeader = writer.getConstructorDetailsTreeHeader(memberDetailsTree);
             Content constructorDetailsTree = writer.getMemberTreeHeader();
 
-            for (Element contructor : constructors) {
-                currentConstructor = (ExecutableElement)contructor;
-                Content constructorDocTree = writer.getConstructorDocTreeHeader(currentConstructor, constructorDetailsTree);
+            for (Element constructor : constructors) {
+                currentConstructor = (ExecutableElement)constructor;
+                Content constructorDocTree = writer.getConstructorDocTreeHeader(currentConstructor);
 
                 buildSignature(constructorDocTree);
                 buildDeprecationInfo(constructorDocTree);
@@ -175,12 +165,12 @@ public class ConstructorBuilder extends AbstractMemberBuilder {
 
     /**
      * Build the comments for the constructor.  Do nothing if
-     * {@link BaseConfiguration#nocomment} is set to true.
+     * {@link BaseOptions#noComment} is set to true.
      *
      * @param constructorDocTree the content tree to which the documentation will be added
      */
     protected void buildConstructorComments(Content constructorDocTree) {
-        if (!configuration.nocomment) {
+        if (!options.noComment()) {
             writer.addComments(currentConstructor, constructorDocTree);
         }
     }

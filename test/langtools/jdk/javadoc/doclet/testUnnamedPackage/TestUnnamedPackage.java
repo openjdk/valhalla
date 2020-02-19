@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
  * @bug      4904075 4774450 5015144 8043698 8196201 8203791 8184205
  * @summary  Reference unnamed package as "Unnamed", not empty string.
  *           Generate a package summary for the unnamed package.
- * @author   jamieh
  * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build    javadoc.tester.*
@@ -105,13 +104,14 @@ public class TestUnnamedPackage extends JavadocTester {
                 + "</table>");
 
         checkOutput("type-search-index.js", true,
-                "{\"l\":\"All Classes\",\"url\":\"allclasses-index.html\"}");
+                "{\"l\":\"All Classes\",\"u\":\"allclasses-index.html\"}");
 
         checkOutput("package-search-index.js", true,
-                "{\"l\":\"All Packages\",\"url\":\"allpackages-index.html\"}");
+                "{\"l\":\"All Packages\",\"u\":\"allpackages-index.html\"}");
 
         checkOutput("index-all.html", true,
-                "<br><a href=\"allclasses-index.html\">All&nbsp;Classes</a>&nbsp;"
+                "<br><a href=\"allclasses-index.html\">All&nbsp;Classes</a>"
+                + "<span class=\"verticalSeparator\">|</span>"
                 + "<a href=\"allpackages-index.html\">All&nbsp;Packages</a>");
 
         checkOutput(Output.OUT, false,

@@ -737,10 +737,7 @@ static bool safepoint_safe_with(JavaThread *thread, JavaThreadState state) {
 }
 
 bool SafepointSynchronize::handshake_safe(JavaThread *thread) {
-  // This function must be called with the Threads_lock held so an externally
-  // suspended thread cannot be resumed thus it is safe.
-  assert(Threads_lock->owned_by_self() && Thread::current()->is_VM_thread(),
-         "Must hold Threads_lock and be VMThread");
+  assert(Thread::current()->is_VM_thread(), "Must be VMThread");
   if (thread->is_ext_suspended() || thread->is_terminated()) {
     return true;
   }
@@ -882,7 +879,7 @@ void SafepointSynchronize::block(JavaThread *thread) {
 void SafepointSynchronize::handle_polling_page_exception(JavaThread *thread) {
   assert(thread->is_Java_thread(), "polling reference encountered by VM thread");
   assert(thread->thread_state() == _thread_in_Java, "should come from Java code");
-  if (!ThreadLocalHandshakes) {
+  if (!SafepointMechanism::uses_thread_local_poll()) {
     assert(SafepointSynchronize::is_synchronizing(), "polling encountered outside safepoint synchronization");
   }
 
@@ -1176,7 +1173,6 @@ jlong SafepointTracing::_last_safepoint_begin_time_ns = 0;
 jlong SafepointTracing::_last_safepoint_sync_time_ns = 0;
 jlong SafepointTracing::_last_safepoint_cleanup_time_ns = 0;
 jlong SafepointTracing::_last_safepoint_end_time_ns = 0;
-jlong SafepointTracing::_last_safepoint_end_time_epoch_ms = 0;
 jlong SafepointTracing::_last_app_time_ns = 0;
 int SafepointTracing::_nof_threads = 0;
 int SafepointTracing::_nof_running = 0;
@@ -1189,8 +1185,6 @@ uint64_t  SafepointTracing::_op_count[VM_Operation::VMOp_Terminating] = {0};
 void SafepointTracing::init() {
   // Application start
   _last_safepoint_end_time_ns = os::javaTimeNanos();
-  // amount of time since epoch
-  _last_safepoint_end_time_epoch_ms = os::javaTimeMillis();
 }
 
 // Helper method to print the header.
@@ -1290,8 +1284,6 @@ void SafepointTracing::cleanup() {
 
 void SafepointTracing::end() {
   _last_safepoint_end_time_ns = os::javaTimeNanos();
-  // amount of time since epoch
-  _last_safepoint_end_time_epoch_ms = os::javaTimeMillis();
 
   if (_max_sync_time < (_last_safepoint_sync_time_ns - _last_safepoint_begin_time_ns)) {
     _max_sync_time = _last_safepoint_sync_time_ns - _last_safepoint_begin_time_ns;

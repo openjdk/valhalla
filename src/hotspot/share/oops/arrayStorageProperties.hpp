@@ -25,6 +25,7 @@
 #ifndef SHARE_OOPS_ARRAYSTORAGEPROPERTIES_HPP
 #define SHARE_OOPS_ARRAYSTORAGEPROPERTIES_HPP
 
+#include "oops/symbol.hpp"
 #include "runtime/globals.hpp"
 
 class ArrayStorageProperties {
@@ -66,6 +67,11 @@ class ArrayStorageProperties {
   static const ArrayStorageProperties flattened;
   static const ArrayStorageProperties null_free;
   static const ArrayStorageProperties flattened_and_null_free;
+
+  static ArrayStorageProperties for_signature(Symbol* sig) {
+    return (sig->is_Q_array_signature() || sig->is_Q_signature()) ?
+      ArrayStorageProperties::flattened_and_null_free : ArrayStorageProperties::empty;
+  }
 };
 
 

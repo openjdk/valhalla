@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -304,7 +304,79 @@ void TieredThresholdPolicy::initialize() {
 #endif
 
   set_increase_threshold_at_ratio();
-  set_start_time(os::javaTimeMillis());
+  set_start_time(nanos_to_millis(os::javaTimeNanos()));
+}
+
+
+#ifdef ASSERT
+bool TieredThresholdPolicy::verify_level(CompLevel level) {
+  // AOT and interpreter levels are always valid.
+  if (level == CompLevel_aot || level == CompLevel_none) {
+    return true;
+  }
+  if (CompilationModeFlag::normal()) {
+    return true;
+  } else if (CompilationModeFlag::quick_only()) {
+    return level == CompLevel_simple;
+  } else if (CompilationModeFlag::high_only()) {
+    return level == CompLevel_full_optimization;
+  } else if (CompilationModeFlag::high_only_quick_internal()) {
+    return level == CompLevel_full_optimization || level == CompLevel_simple;
+  }
+  return false;
+}
+#endif
+
+
+CompLevel TieredThresholdPolicy::limit_level(CompLevel level) {
+  if (CompilationModeFlag::quick_only()) {
+    level = MIN2(level, CompLevel_simple);
+  }
+  assert(verify_level(level), "Invalid compilation level %d", level);
+  if (level <= TieredStopAtLevel) {
+    return level;
+  }
+  // Some compilation levels are not valid depending on a compilation mode:
+  // a) quick_only - levels 2,3,4 are invalid; levels -1,0,1 are valid;
+  // b) high_only - levels 1,2,3 are invalid; levels -1,0,4 are valid;
+  // c) high_only_quick_internal - levels 2,3 are invalid; levels -1,0,1,4 are valid.
+  // The invalid levels are actually sequential so a single comparison is sufficient.
+  // Down here we already have (level > TieredStopAtLevel), which also implies that
+  // (TieredStopAtLevel < Highest Possible Level), so we need to return a level that is:
+  // a) a max level that is strictly less than the highest for a given compilation mode
+  // b) less or equal to TieredStopAtLevel
+  if (CompilationModeFlag::normal() || CompilationModeFlag::quick_only()) {
+    return (CompLevel)TieredStopAtLevel;
+  }
+
+  if (CompilationModeFlag::high_only() || CompilationModeFlag::high_only_quick_internal()) {
+    return MIN2(CompLevel_none, (CompLevel)TieredStopAtLevel);
+  }
+
+  ShouldNotReachHere();
+  return CompLevel_any;
+}
+
+CompLevel TieredThresholdPolicy::initial_compile_level_helper(const methodHandle& method) {
+  if (CompilationModeFlag::normal()) {
+    return CompLevel_full_profile;
+  } else if (CompilationModeFlag::quick_only()) {
+    return CompLevel_simple;
+  } else if (CompilationModeFlag::high_only()) {
+    return CompLevel_full_optimization;
+  } else if (CompilationModeFlag::high_only_quick_internal()) {
+    if (force_comp_at_level_simple(method)) {
+      return CompLevel_simple;
+    } else {
+      return CompLevel_full_optimization;
+    }
+  }
+  ShouldNotReachHere();
+  return CompLevel_any;
+}
+
+CompLevel TieredThresholdPolicy::initial_compile_level(const methodHandle& method) {
+  return limit_level(initial_compile_level_helper(method));
 }
 
 void TieredThresholdPolicy::set_carry_if_necessary(InvocationCounter *counter) {
@@ -332,7 +404,7 @@ CompileTask* TieredThresholdPolicy::select_task(CompileQueue* compile_queue) {
   CompileTask *max_blocking_task = NULL;
   CompileTask *max_task = NULL;
   Method* max_method = NULL;
-  jlong t = os::javaTimeMillis();
+  jlong t = nanos_to_millis(os::javaTimeNanos());
   // Iterate through the queue and find a method with a maximum rate.
   for (CompileTask* task = compile_queue->first(); task != NULL;) {
     CompileTask* next_task = task->next();
@@ -457,12 +529,7 @@ nmethod* TieredThresholdPolicy::event(const methodHandle& method, const methodHa
 
 // Check if the method can be compiled, change level if necessary
 void TieredThresholdPolicy::compile(const methodHandle& mh, int bci, CompLevel level, JavaThread* thread) {
-  assert(level <= TieredStopAtLevel, "Invalid compilation level");
-  if (CompilationModeFlag::quick_only()) {
-    assert(level <= CompLevel_simple, "Invalid compilation level");
-  } else if (CompilationModeFlag::disable_intermediate()) {
-    assert(level != CompLevel_full_profile && level != CompLevel_limited_profile, "C1 profiling levels shouldn't be used with intermediate levels disabled");
-  }
+  assert(verify_level(level) && level <= TieredStopAtLevel, "Invalid compilation level %d", level);
 
   if (level == CompLevel_none) {
     if (mh->has_compiled_code()) {
@@ -529,7 +596,7 @@ void TieredThresholdPolicy::compile(const methodHandle& mh, int bci, CompLevel l
       print_event(COMPILE, mh(), mh(), bci, level);
     }
     int hot_count = (bci == InvocationEntryBci) ? mh->invocation_count() : mh->backedge_count();
-    update_rate(os::javaTimeMillis(), mh());
+    update_rate(nanos_to_millis(os::javaTimeNanos()), mh());
     CompileBroker::compile_method(mh, bci, level, mh, hot_count, CompileTask::Reason_Tiered, thread);
   }
 }
@@ -549,7 +616,7 @@ void TieredThresholdPolicy::update_rate(jlong t, Method* m) {
 
   // We don't update the rate if we've just came out of a safepoint.
   // delta_s is the time since last safepoint in milliseconds.
-  jlong delta_s = t - SafepointTracing::end_of_last_safepoint_epoch_ms();
+  jlong delta_s = t - SafepointTracing::end_of_last_safepoint_ms();
   jlong delta_t = t - (m->prev_time() != 0 ? m->prev_time() : start_time()); // milliseconds since the last measurement
   // How many events were there since the last time?
   int event_count = m->invocation_count() + m->backedge_count();
@@ -574,7 +641,7 @@ void TieredThresholdPolicy::update_rate(jlong t, Method* m) {
 // Check if this method has been stale for a given number of milliseconds.
 // See select_task().
 bool TieredThresholdPolicy::is_stale(jlong t, jlong timeout, Method* m) {
-  jlong delta_s = t - SafepointTracing::end_of_last_safepoint_epoch_ms();
+  jlong delta_s = t - SafepointTracing::end_of_last_safepoint_ms();
   jlong delta_t = t - m->prev_time();
   if (delta_t > timeout && delta_s > timeout) {
     int event_count = m->invocation_count() + m->backedge_count();
@@ -924,8 +991,10 @@ CompLevel TieredThresholdPolicy::common(Predicate p, const methodHandle& method,
       }
     }
   }
-  return MIN2(next_level, CompilationModeFlag::quick_only() ? CompLevel_simple : (CompLevel)TieredStopAtLevel);
+  return limit_level(next_level);
 }
+
+
 
 // Determine if a method should be compiled with a normal entry point at a different level.
 CompLevel TieredThresholdPolicy::call_event(const methodHandle& method, CompLevel cur_level, JavaThread* thread) {
@@ -1027,7 +1096,7 @@ void TieredThresholdPolicy::method_back_branch_event(const methodHandle& mh, con
       if (level == CompLevel_aot) {
         // Recompile the enclosing method to prevent infinite OSRs. Stay at AOT level while it's compiling.
         if (max_osr_level != CompLevel_none && !CompileBroker::compilation_is_in_queue(mh)) {
-          CompLevel enclosing_level = MIN2(CompilationModeFlag::quick_only() ? CompLevel_simple : (CompLevel)TieredStopAtLevel, CompLevel_full_profile);
+          CompLevel enclosing_level = limit_level(CompLevel_full_profile);
           compile(mh, InvocationEntryBci, enclosing_level, thread);
         }
       } else {

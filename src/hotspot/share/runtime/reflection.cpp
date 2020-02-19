@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -115,7 +115,7 @@ BasicType Reflection::unbox_for_primitive(oop box, jvalue* value, TRAPS) {
 
 BasicType Reflection::unbox_for_regular_object(oop box, jvalue* value) {
   // Note:  box is really the unboxed oop.  It might even be a Short, etc.!
-  value->l = (jobject) box;
+  value->l = cast_from_oop<jobject>(box);
   return T_OBJECT;
 }
 
@@ -226,7 +226,7 @@ BasicType Reflection::array_get(jvalue* value, arrayOop a, int index, TRAPS) {
     THROW_(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), T_ILLEGAL);
   }
   if (a->is_objArray()) {
-    value->l = (jobject) objArrayOop(a)->obj_at(index);
+    value->l = cast_from_oop<jobject>(objArrayOop(a)->obj_at(index));
     return T_OBJECT;
   } else {
     assert(a->is_typeArray(), "just checking");
@@ -389,7 +389,7 @@ arrayOop Reflection::reflect_new_multi_array(oop element_mirror, typeArrayOop di
       dim += k_dim;
     }
   }
-  ArrayStorageProperties storage_props = FieldType::get_array_storage_properties(klass->name());
+  ArrayStorageProperties storage_props = ArrayStorageProperties::for_signature(klass->name());
   klass = klass->array_klass(storage_props, dim, CHECK_NULL);
   oop obj = ArrayKlass::cast(klass)->multi_allocate(len, dimensions, CHECK_NULL);
   assert(obj->is_array(), "just checking");
@@ -826,9 +826,10 @@ static objArrayHandle get_exception_types(const methodHandle& method, TRAPS) {
 }
 
 static Handle new_type(Symbol* signature, Klass* k, TRAPS) {
+  SignatureStream ss(signature, false);
   // Basic types
-  BasicType type = vmSymbols::signature_type(signature);
-  if (type != T_OBJECT && type != T_VALUETYPE) {
+  BasicType type = ss.type();
+  if (!ss.is_reference()) {
     return Handle(THREAD, Universe::java_mirror(type));
   }
 

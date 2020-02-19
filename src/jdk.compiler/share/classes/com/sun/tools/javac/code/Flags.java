@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -234,7 +234,8 @@ public class Flags {
     public static final long EFFECTIVELY_FINAL = 1L<<41;
 
     /**
-     * Flag that marks non-override equivalent methods with the same signature.
+     * Flag that marks non-override equivalent methods with the same signature,
+     * or a conflicting match binding (BindingSymbol).
      */
     public static final long CLASH = 1L<<42;
 
@@ -350,17 +351,42 @@ public class Flags {
      */
     public static final long MATCH_BINDING_TO_OUTER = 1L<<60;
 
+    /**
+     * Flag to indicate that a class is a record. The flag is also used to mark fields that are
+     * part of the state vector of a record and to mark the canonical constructor
+     */
+    public static final long RECORD = 1L<<61; // ClassSymbols, MethodSymbols and VarSymbols
+
+    /**
+     * Flag to mark a record constructor as a compact one
+     */
+    public static final long COMPACT_RECORD_CONSTRUCTOR = 1L<<51; // MethodSymbols only
+
+    /**
+     * Flag to mark a record field that was not initialized in the compact constructor
+     */
+    public static final long UNINITIALIZED_FIELD= 1L<<51; // VarSymbols only
+
+    /** Flag is set for compiler-generated record members, it could be applied to
+     *  accessors and fields
+     */
+    public static final int GENERATED_MEMBER = 1<<24; // MethodSymbols and VarSymbols
+
     /** Modifier masks.
      */
     public static final int
         AccessFlags           = PUBLIC | PROTECTED | PRIVATE,
         LocalClassFlags       = FINAL | ABSTRACT | STRICTFP | ENUM | SYNTHETIC | VALUE,
+        LocalRecordFlags      = LocalClassFlags | STATIC,
         MemberClassFlags      = LocalClassFlags | INTERFACE | AccessFlags,
+        MemberRecordFlags     = MemberClassFlags | STATIC,
         ClassFlags            = LocalClassFlags | INTERFACE | PUBLIC | ANNOTATION,
         InterfaceVarFlags     = FINAL | STATIC | PUBLIC,
         ConstructorFlags      = AccessFlags,
         InterfaceMethodFlags  = ABSTRACT | PUBLIC,
         MethodFlags           = AccessFlags | ABSTRACT | STATIC | NATIVE |
+                                SYNCHRONIZED | FINAL | STRICTFP,
+        RecordMethodFlags     = AccessFlags | ABSTRACT | STATIC |
                                 SYNCHRONIZED | FINAL | STRICTFP;
     public static final long
         ExtendedStandardFlags       = (long)StandardFlags | DEFAULT | VALUE,
@@ -474,7 +500,8 @@ public class Flags {
         PREVIEW_API(Flags.PREVIEW_API),
         PREVIEW_ESSENTIAL_API(Flags.PREVIEW_ESSENTIAL_API),
         MATCH_BINDING(Flags.MATCH_BINDING),
-        MATCH_BINDING_TO_OUTER(Flags.MATCH_BINDING_TO_OUTER);
+        MATCH_BINDING_TO_OUTER(Flags.MATCH_BINDING_TO_OUTER),
+        RECORD(Flags.RECORD);
 
         Flag(long flag) {
             this.value = flag;

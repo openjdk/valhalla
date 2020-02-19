@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -200,7 +200,7 @@ public class TypeAnnotations {
         if (e.value.name == names.TYPE) {
             if (s.kind == TYP)
                 return AnnotationType.DECLARATION;
-        } else if (e.value.name == names.FIELD) {
+        } else if (e.value.name == names.FIELD || e.value.name == names.RECORD_COMPONENT) {
             if (s.kind == VAR &&
                     s.owner.kind != MTH)
                 return AnnotationType.DECLARATION;
@@ -770,6 +770,7 @@ public class TypeAnnotations {
                 case CLASS:
                 case ENUM:
                 case INTERFACE:
+                case RECORD:
                     if (((JCClassDecl)frame).extending == tree) {
                         return TypeAnnotationPosition
                             .classExtends(location.toList(), currentLambda,
@@ -954,6 +955,7 @@ public class TypeAnnotations {
                         appendTypeAnnotationsToOwner(v, v.getRawTypeAttributes());
                     }
                     switch (v.getKind()) {
+                        case BINDING_VARIABLE:
                         case LOCAL_VARIABLE:
                             return TypeAnnotationPosition
                                 .localVariable(location.toList(), currentLambda,
@@ -1127,6 +1129,9 @@ public class TypeAnnotations {
                 scan(tree.implementing);
             }
             scan(tree.defs);
+            if (tree.sym.isRecord()) {
+                tree.sym.getRecordComponents().stream().forEach(rc -> scan(rc.accessorMeth));
+            }
         }
 
         /**
@@ -1271,7 +1276,7 @@ public class TypeAnnotations {
                 // No type annotations can occur here.
             } else {
                 // There is nothing else in a variable declaration that needs separation.
-                Assert.error("Unhandled variable kind");
+                Assert.error("Unhandled variable kind: " + tree.sym.getKind());
             }
 
             scan(tree.mods);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
 
-import jdk.javadoc.internal.doclets.toolkit.BaseConfiguration;
+import jdk.javadoc.internal.doclets.toolkit.BaseOptions;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.DocletException;
 import jdk.javadoc.internal.doclets.toolkit.MethodWriter;
@@ -47,9 +47,6 @@ import static jdk.javadoc.internal.doclets.toolkit.util.VisibleMemberTable.Kind.
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Jamie Ho
- * @author Bhavesh Patel (Modified)
  */
 public class MethodBuilder extends AbstractMemberBuilder {
 
@@ -74,7 +71,7 @@ public class MethodBuilder extends AbstractMemberBuilder {
      * Construct a new MethodBuilder.
      *
      * @param context       the build context.
-     * @param typeElement the class whoses members are being documented.
+     * @param typeElement the class whose members are being documented.
      * @param writer the doclet specific writer.
      */
     private MethodBuilder(Context context,
@@ -89,7 +86,7 @@ public class MethodBuilder extends AbstractMemberBuilder {
      * Construct a new MethodBuilder.
      *
      * @param context       the build context.
-     * @param typeElement the class whoses members are being documented.
+     * @param typeElement the class whose members are being documented.
      * @param writer the doclet specific writer.
      *
      * @return an instance of a MethodBuilder.
@@ -99,17 +96,11 @@ public class MethodBuilder extends AbstractMemberBuilder {
         return new MethodBuilder(context, typeElement, writer);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean hasMembersToDocument() {
         return !methods.isEmpty();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void build(Content contentTree) throws DocletException {
         buildMethodDoc(contentTree);
@@ -126,13 +117,12 @@ public class MethodBuilder extends AbstractMemberBuilder {
             return;
         }
         if (hasMembersToDocument()) {
-            Content methodDetailsTreeHeader = writer.getMethodDetailsTreeHeader(typeElement,
-                    memberDetailsTree);
+            Content methodDetailsTreeHeader = writer.getMethodDetailsTreeHeader(memberDetailsTree);
             Content methodDetailsTree = writer.getMemberTreeHeader();
 
             for (Element method : methods) {
                 currentMethod = (ExecutableElement)method;
-                Content methodDocTree = writer.getMethodDocTreeHeader(currentMethod, methodDetailsTree);
+                Content methodDocTree = writer.getMethodDocTreeHeader(currentMethod);
 
                 buildSignature(methodDocTree);
                 buildDeprecationInfo(methodDocTree);
@@ -165,12 +155,12 @@ public class MethodBuilder extends AbstractMemberBuilder {
 
     /**
      * Build the comments for the method.  Do nothing if
-     * {@link BaseConfiguration#nocomment} is set to true.
+     * {@link BaseOptions#noComment} is set to true.
      *
      * @param methodDocTree the content tree to which the documentation will be added
      */
     protected void buildMethodComments(Content methodDocTree) {
-        if (!configuration.nocomment) {
+        if (!options.noComment()) {
             ExecutableElement method = currentMethod;
             if (utils.getFullBody(currentMethod).isEmpty()) {
                 DocFinder.Output docs = DocFinder.search(configuration,

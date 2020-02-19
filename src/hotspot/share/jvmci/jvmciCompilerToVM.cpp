@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -431,7 +431,7 @@ C2V_VMENTRY_NULL(jobject, getResolvedJavaType0, (JNIEnv* env, jobject, jobject b
       } else if (JVMCIENV->isa_HotSpotObjectConstantImpl(base_object)) {
         Handle base_oop = JVMCIENV->asConstant(base_object, JVMCI_CHECK_NULL);
         if (base_oop->is_a(SystemDictionary::Class_klass())) {
-          base_address = (jlong) (address) base_oop();
+          base_address = cast_from_oop<jlong>(base_oop());
         }
       }
       if (base_address == 0) {
@@ -539,31 +539,25 @@ C2V_VMENTRY_NULL(jobject, lookupType, (JNIEnv* env, jobject, jstring jname, jcla
       JVMCI_THROW_MSG_NULL(ClassNotFoundException, str);
     }
   } else {
-    if ((class_name->char_at(0) == JVM_SIGNATURE_CLASS ||
-         class_name->char_at(0) == JVM_SIGNATURE_VALUETYPE) &&
-        class_name->char_at(class_name->utf8_length()-1) == JVM_SIGNATURE_ENDCLASS) {
+    if (Signature::has_envelope(class_name)) {
       // This is a name from a signature.  Strip off the trimmings.
       // Call recursive to keep scope of strippedsym.
-      TempNewSymbol strippedsym = SymbolTable::new_symbol(class_name->as_utf8()+1,
-                                                          class_name->utf8_length()-2);
+      TempNewSymbol strippedsym = Signature::strip_envelope(class_name);
       resolved_klass = SystemDictionary::find(strippedsym, class_loader, protection_domain, CHECK_0);
-    } else if (FieldType::is_array(class_name)) {
-      FieldArrayInfo fd;
-      // dimension and object_key in FieldArrayInfo are assigned as a side-effect
-      // of this call
-      BasicType t = FieldType::get_array_info(class_name, fd, CHECK_0);
-      if (t == T_OBJECT) {
-        TempNewSymbol strippedsym = SymbolTable::new_symbol(class_name->as_utf8()+1+fd.dimension(),
-                                                            class_name->utf8_length()-2-fd.dimension());
+    } else if (Signature::is_array(class_name)) {
+      SignatureStream ss(class_name, false);
+      int ndim = ss.skip_array_prefix();
+      if (ss.type() == T_OBJECT) {
+        Symbol* strippedsym = ss.as_symbol();
         resolved_klass = SystemDictionary::find(strippedsym,
-                                                             class_loader,
-                                                             protection_domain,
-                                                             CHECK_0);
+                                                class_loader,
+                                                protection_domain,
+                                                CHECK_0);
         if (!resolved_klass.is_null()) {
-          resolved_klass = resolved_klass->array_klass(fd.dimension(), CHECK_0);
+          resolved_klass = resolved_klass->array_klass(ndim, CHECK_0);
         }
       } else {
-        resolved_klass = TypeArrayKlass::cast(Universe::typeArrayKlassObj(t))->array_klass(fd.dimension(), CHECK_0);
+        resolved_klass = TypeArrayKlass::cast(Universe::typeArrayKlassObj(ss.type()))->array_klass(ndim, CHECK_0);
       }
     } else {
       resolved_klass = SystemDictionary::find(class_name, class_loader, protection_domain, CHECK_0);
@@ -981,7 +975,8 @@ C2V_VMENTRY_NULL(jobject, disassembleCodeBlob, (JNIEnv* env, jobject, jobject in
   }
 
   JVMCIObject installedCodeObject = JVMCIENV->wrap(installedCode);
-  CodeBlob* cb = JVMCIENV->asCodeBlob(installedCodeObject);
+  nmethodLocker locker;
+  CodeBlob* cb = JVMCIENV->get_code_blob(installedCodeObject, locker);
   if (cb == NULL) {
     return NULL;
   }
@@ -1026,7 +1021,8 @@ C2V_VMENTRY_NULL(jobject, executeHotSpotNmethod, (JNIEnv* env, jobject, jobject 
   HandleMark hm;
 
   JVMCIObject nmethod_mirror = JVMCIENV->wrap(hs_nmethod);
-  nmethod* nm = JVMCIENV->asNmethod(nmethod_mirror);
+  nmethodLocker locker;
+  nmethod* nm = JVMCIENV->get_nmethod(nmethod_mirror, locker);
   if (nm == NULL) {
     JVMCI_THROW_NULL(InvalidInstalledCodeException);
   }
@@ -1035,18 +1031,18 @@ C2V_VMENTRY_NULL(jobject, executeHotSpotNmethod, (JNIEnv* env, jobject, jobject 
   JavaCallArguments jca(mh->size_of_parameters());
 
   JavaArgumentUnboxer jap(signature, &jca, (arrayOop) JNIHandles::resolve(args), mh->is_static());
-  JavaValue result(jap.get_ret_type());
+  JavaValue result(jap.return_type());
   jca.set_alternative_target(nm);
   JavaCalls::call(&result, mh, &jca, CHECK_NULL);
 
-  if (jap.get_ret_type() == T_VOID) {
+  if (jap.return_type() == T_VOID) {
     return NULL;
-  } else if (is_reference_type(jap.get_ret_type())) {
+  } else if (is_reference_type(jap.return_type())) {
     return JNIHandles::make_local((oop) result.get_jobject());
   } else {
     jvalue *value = (jvalue *) result.get_value_addr();
     // Narrow the value down if required (Important on big endian machines)
-    switch (jap.get_ret_type()) {
+    switch (jap.return_type()) {
       case T_BOOLEAN:
        value->z = (jboolean) value->i;
        break;
@@ -1062,7 +1058,7 @@ C2V_VMENTRY_NULL(jobject, executeHotSpotNmethod, (JNIEnv* env, jobject, jobject 
       default:
         break;
     }
-    JVMCIObject o = JVMCIENV->create_box(jap.get_ret_type(), value, JVMCI_CHECK_NULL);
+    JVMCIObject o = JVMCIENV->create_box(jap.return_type(), value, JVMCI_CHECK_NULL);
     return JVMCIENV->get_jobject(o);
   }
 C2V_END
@@ -1533,7 +1529,7 @@ C2V_VMENTRY(void, materializeVirtualObjects, (JNIEnv* env, jobject, jobject _hs_
         StackValue* var = locals->at(i2);
         if (var->type() == T_OBJECT && scopeLocals->at(i2)->is_object()) {
           jvalue val;
-          val.l = (jobject) locals->at(i2)->get_obj()();
+          val.l = cast_from_oop<jobject>(locals->at(i2)->get_obj()());
           cvf->update_local(T_OBJECT, i2, val);
         }
       }
@@ -1546,7 +1542,7 @@ C2V_VMENTRY(void, materializeVirtualObjects, (JNIEnv* env, jobject, jobject _hs_
         StackValue* var = expressions->at(i2);
         if (var->type() == T_OBJECT && scopeExpressions->at(i2)->is_object()) {
           jvalue val;
-          val.l = (jobject) expressions->at(i2)->get_obj()();
+          val.l = cast_from_oop<jobject>(expressions->at(i2)->get_obj()());
           cvf->update_stack(T_OBJECT, i2, val);
         }
       }
@@ -2448,7 +2444,8 @@ C2V_VMENTRY_0(jlong, translate, (JNIEnv* env, jobject, jobject obj_handle))
     Handle constant = thisEnv->asConstant(obj, JVMCI_CHECK_0);
     result = peerEnv->get_object_constant(constant());
   } else if (thisEnv->isa_HotSpotNmethod(obj)) {
-    nmethod* nm = thisEnv->asNmethod(obj);
+    nmethodLocker locker;
+    nmethod* nm = JVMCIENV->get_nmethod(obj, locker);
     if (nm != NULL) {
       JVMCINMethodData* data = nm->jvmci_nmethod_data();
       if (data != NULL) {
@@ -2513,12 +2510,14 @@ C2V_VMENTRY_NULL(jobject, unhand, (JNIEnv* env, jobject, jlong obj_handle))
 C2V_VMENTRY(void, updateHotSpotNmethod, (JNIEnv* env, jobject, jobject code_handle))
   JVMCIObject code = JVMCIENV->wrap(code_handle);
   // Execute this operation for the side effect of updating the InstalledCode state
-  JVMCIENV->asNmethod(code);
+  nmethodLocker locker;
+  JVMCIENV->get_nmethod(code, locker);
 }
 
 C2V_VMENTRY_NULL(jbyteArray, getCode, (JNIEnv* env, jobject, jobject code_handle))
   JVMCIObject code = JVMCIENV->wrap(code_handle);
-  CodeBlob* cb = JVMCIENV->asCodeBlob(code);
+  nmethodLocker locker;
+  CodeBlob* cb = JVMCIENV->get_code_blob(code, locker);
   if (cb == NULL) {
     return NULL;
   }

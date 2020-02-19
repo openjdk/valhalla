@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -632,7 +632,7 @@ class CompileReplay : public StackObj {
     {
       // Grab a lock here to prevent multiple
       // MethodData*s from being created.
-      MutexLocker ml(MethodData_lock, THREAD);
+      MutexLocker ml(THREAD, MethodData_lock);
       if (method->method_data() == NULL) {
         ClassLoaderData* loader_data = method->method_holder()->class_loader_data();
         MethodData* method_data = MethodData::allocate(loader_data, methodHandle(THREAD, method), CHECK);
@@ -856,7 +856,7 @@ class CompileReplay : public StackObj {
         ValueKlass* vk = ss.as_value_klass(fd->field_holder());
         if (fd->is_flattened()) {
           int field_offset = fd->offset() - vk->first_field_offset();
-          oop obj = (oop)((address)_vt + field_offset);
+          oop obj = (oop)(cast_from_oop<address>(_vt) + field_offset);
           ValueTypeFieldInitializer init_fields(obj, _replay);
           vk->do_nonstatic_fields(&init_fields);
         } else {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -72,7 +72,9 @@ class Bundle {
         "NumberElements/exponential",
         "NumberElements/permille",
         "NumberElements/infinity",
-        "NumberElements/nan"
+        "NumberElements/nan",
+        "NumberElements/currencyDecimal",
+        "NumberElements/currencyGroup",
     };
 
     private final static String[] TIME_PATTERN_KEYS = {
@@ -242,14 +244,14 @@ class Bundle {
                         if (i < size) {
                             pattern = patterns.get(i);
                             if (!pattern.isEmpty()) {
-                                return pattern;
+                                return "{" + pattern + "}";
                             }
                         }
                         // if not found, try parent
                         if (i < psize) {
                             pattern = pList.get(i);
                             if (!pattern.isEmpty()) {
-                                return pattern;
+                                return "{" + pattern + "}";
                             }
                         }
                         // bail out with empty string
@@ -292,7 +294,6 @@ class Bundle {
         }
 
         // First, weed out any empty timezone or metazone names from myMap.
-        // Fill in any missing abbreviations if locale is "en".
         for (Iterator<String> it = myMap.keySet().iterator(); it.hasNext();) {
             String key = it.next();
             if (key.startsWith(CLDRConverter.TIMEZONE_ID_PREFIX)
@@ -304,10 +305,6 @@ class Bundle {
                     // Remove those from the map.
                     it.remove();
                     continue;
-                }
-
-                if (id.equals("en")) {
-                    fillInJREs(key, nameMap);
                 }
             }
         }
@@ -634,42 +631,6 @@ class Bundle {
         return null;
     }
 
-    static List<Object[]> jreTimeZoneNames = Arrays.asList(TimeZoneNames.getContents());
-    private void fillInJREs(String key, Map<String, String> map) {
-        String tzid = null;
-
-        if (key.startsWith(CLDRConverter.METAZONE_ID_PREFIX)) {
-            // Look for tzid
-            String meta = key.substring(CLDRConverter.METAZONE_ID_PREFIX.length());
-            if (meta.equals("GMT")) {
-                tzid = meta;
-            } else {
-                for (String tz : CLDRConverter.handlerMetaZones.keySet()) {
-                    if (CLDRConverter.handlerMetaZones.get(tz).equals(meta)) {
-                        tzid = tz;
-                        break;
-                    }
-                }
-            }
-        } else {
-            tzid = key.substring(CLDRConverter.TIMEZONE_ID_PREFIX.length());
-        }
-
-        if (tzid != null) {
-            for (Object[] jreZone : jreTimeZoneNames) {
-                if (jreZone[0].equals(tzid)) {
-                    for (int i = 0; i < ZONE_NAME_KEYS.length; i++) {
-                        if (map.get(ZONE_NAME_KEYS[i]) == null) {
-                            String[] jreNames = (String[])jreZone[1];
-                            map.put(ZONE_NAME_KEYS[i], jreNames[i]);
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-    }
-
     /**
      * Perform a generic conversion of CLDR date-time format pattern letter based
      * on the support given by the SimpleDateFormat and the j.t.f.DateTimeFormatter
@@ -810,7 +771,10 @@ class Bundle {
                         assert keys == NUMBER_ELEMENT_KEYS;
                         if (key.endsWith("/pattern")) {
                             numArray[idx] = "#";
-                        } else {
+                        } else if (!key.endsWith("currencyDecimal") &&
+                                   !key.endsWith("currencyGroup")) {
+                            // throw error unless it is for "currencyDecimal/Group",
+                            // which may be missing.
                             throw new InternalError("NumberElements: null for " +
                                                     key + ", id: " + id);
                         }

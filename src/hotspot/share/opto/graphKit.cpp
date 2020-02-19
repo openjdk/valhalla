@@ -1446,6 +1446,9 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
 // opts so the test goes away and the compiled code doesn't execute a
 // useless check.
 Node* GraphKit::must_be_not_null(Node* value, bool do_replace_in_map) {
+  if (!TypePtr::NULL_PTR->higher_equal(_gvn.type(value))) {
+    return value;
+  }
   Node* chk = _gvn.transform(new CmpPNode(value, null()));
   Node *tst = _gvn.transform(new BoolNode(chk, BoolTest::ne));
   Node* opaq = _gvn.transform(new Opaque4Node(C, tst, intcon(1)));
@@ -1744,14 +1747,6 @@ Node* GraphKit::access_atomic_add_at(Node* obj,
 
 void GraphKit::access_clone(Node* src_base, Node* dst_base, Node* countx, bool is_array) {
   return _barrier_set->clone(this, src_base, dst_base, countx, is_array);
-}
-
-Node* GraphKit::access_resolve(Node* n, DecoratorSet decorators) {
-  // Use stronger ACCESS_WRITE|ACCESS_READ by default.
-  if ((decorators & (ACCESS_READ | ACCESS_WRITE)) == 0) {
-    decorators |= ACCESS_READ | ACCESS_WRITE;
-  }
-  return _barrier_set->resolve(this, n, decorators);
 }
 
 //-------------------------array_element_address-------------------------
@@ -2250,22 +2245,6 @@ Node* GraphKit::just_allocated_object(Node* current_control) {
 }
 
 
-void GraphKit::round_double_arguments(ciMethod* dest_method) {
-  // (Note:  TypeFunc::make has a cache that makes this fast.)
-  const TypeFunc* tf    = TypeFunc::make(dest_method);
-  int             nargs = tf->domain_sig()->cnt() - TypeFunc::Parms;
-  for (int j = 0; j < nargs; j++) {
-    const Type *targ = tf->domain_sig()->field_at(j + TypeFunc::Parms);
-    if( targ->basic_type() == T_DOUBLE ) {
-      // If any parameters are doubles, they must be rounded before
-      // the call, dstore_rounding does gvn.transform
-      Node *arg = argument(j);
-      arg = dstore_rounding(arg);
-      set_argument(j, arg);
-    }
-  }
-}
-
 /**
  * Record profiling data exact_kls for Node n with the type system so
  * that it can propagate it (speculation)
@@ -2442,43 +2421,80 @@ void GraphKit::record_profiled_return_for_speculation() {
 }
 
 void GraphKit::round_double_result(ciMethod* dest_method) {
-  // A non-strict method may return a double value which has an extended
-  // exponent, but this must not be visible in a caller which is 'strict'
-  // If a strict caller invokes a non-strict callee, round a double result
+  if (Matcher::strict_fp_requires_explicit_rounding) {
+    // If a strict caller invokes a non-strict callee, round a double result.
+    // A non-strict method may return a double value which has an extended exponent,
+    // but this must not be visible in a caller which is strict.
+    BasicType result_type = dest_method->return_type()->basic_type();
+    assert(method() != NULL, "must have caller context");
+    if( result_type == T_DOUBLE && method()->is_strict() && !dest_method->is_strict() ) {
+      // Destination method's return value is on top of stack
+      // dstore_rounding() does gvn.transform
+      Node *result = pop_pair();
+      result = dstore_rounding(result);
+      push_pair(result);
+    }
+  }
+}
 
-  BasicType result_type = dest_method->return_type()->basic_type();
-  assert( method() != NULL, "must have caller context");
-  if( result_type == T_DOUBLE && method()->is_strict() && !dest_method->is_strict() ) {
-    // Destination method's return value is on top of stack
-    // dstore_rounding() does gvn.transform
-    Node *result = pop_pair();
-    result = dstore_rounding(result);
-    push_pair(result);
+void GraphKit::round_double_arguments(ciMethod* dest_method) {
+  if (Matcher::strict_fp_requires_explicit_rounding) {
+    // (Note:  TypeFunc::make has a cache that makes this fast.)
+    const TypeFunc* tf    = TypeFunc::make(dest_method);
+    int             nargs = tf->domain_sig()->cnt() - TypeFunc::Parms;
+    for (int j = 0; j < nargs; j++) {
+      const Type *targ = tf->domain_sig()->field_at(j + TypeFunc::Parms);
+      if (targ->basic_type() == T_DOUBLE) {
+        // If any parameters are doubles, they must be rounded before
+        // the call, dstore_rounding does gvn.transform
+        Node *arg = argument(j);
+        arg = dstore_rounding(arg);
+        set_argument(j, arg);
+      }
+    }
   }
 }
 
 // rounding for strict float precision conformance
 Node* GraphKit::precision_rounding(Node* n) {
-  return UseStrictFP && _method->flags().is_strict()
-    && UseSSE == 0 && Matcher::strict_fp_requires_explicit_rounding
-    ? _gvn.transform( new RoundFloatNode(0, n) )
-    : n;
+  if (Matcher::strict_fp_requires_explicit_rounding) {
+#ifdef IA32
+    if (_method->flags().is_strict() && UseSSE == 0) {
+      return _gvn.transform(new RoundFloatNode(0, n));
+    }
+#else
+    Unimplemented();
+#endif // IA32
+  }
+  return n;
 }
 
 // rounding for strict double precision conformance
 Node* GraphKit::dprecision_rounding(Node *n) {
-  return UseStrictFP && _method->flags().is_strict()
-    && UseSSE <= 1 && Matcher::strict_fp_requires_explicit_rounding
-    ? _gvn.transform( new RoundDoubleNode(0, n) )
-    : n;
+  if (Matcher::strict_fp_requires_explicit_rounding) {
+#ifdef IA32
+    if (_method->flags().is_strict() && UseSSE < 2) {
+      return _gvn.transform(new RoundDoubleNode(0, n));
+    }
+#else
+    Unimplemented();
+#endif // IA32
+  }
+  return n;
 }
 
 // rounding for non-strict double stores
 Node* GraphKit::dstore_rounding(Node* n) {
-  return Matcher::strict_fp_requires_explicit_rounding
-    && UseSSE <= 1
-    ? _gvn.transform( new RoundDoubleNode(0, n) )
-    : n;
+  if (Matcher::strict_fp_requires_explicit_rounding) {
+#ifdef IA32
+    if (UseSSE < 2) {
+      return _gvn.transform(new RoundDoubleNode(0, n));
+    }
+#else
+    Unimplemented();
+#endif // IA32
+  }
+  return n;
 }
 
 //=============================================================================
@@ -3673,8 +3689,6 @@ FastLockNode* GraphKit::shared_lock(Node* obj) {
 
   assert(dead_locals_are_killed(), "should kill locals before sync. point");
 
-  obj = access_resolve(obj, ACCESS_READ | ACCESS_WRITE);
-
   // Box the stack location
   Node* box = _gvn.transform(new BoxLockNode(next_monitor()));
   Node* mem = reset_memory();
@@ -4533,8 +4547,6 @@ void GraphKit::inflate_string_slow(Node* src, Node* dst, Node* start, Node* coun
    *   dst[i_char++] = (char)(src[i_byte] & 0xff);
    * }
    */
-  src = access_resolve(src, ACCESS_READ);
-  dst = access_resolve(dst, ACCESS_WRITE);
   add_predicate();
   RegionNode* head = new RegionNode(3);
   head->init_req(1, control());

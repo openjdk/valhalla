@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -53,9 +53,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Atul M Dambalkar
- * @author Bhavesh Patel (Modified)
  */
 public class TreeWriter extends AbstractTreeWriter {
 
@@ -158,7 +155,7 @@ public class TreeWriter extends AbstractTreeWriter {
                 // is set and the package is marked as deprecated, do not include
                 // the page in the list of package hierarchies.
                 if (pkg.isUnnamed() ||
-                        (configuration.nodeprecated && utils.isDeprecated(pkg))) {
+                        (options.noDeprecated() && utils.isDeprecated(pkg))) {
                     i++;
                     continue;
                 }

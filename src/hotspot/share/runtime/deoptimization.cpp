@@ -1,7 +1,7 @@
 
 
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -322,7 +322,7 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
 
   // Reallocate the non-escaping objects and restore their fields. Then
   // relock objects if synchronization on them was eliminated.
-  if (jvmci_enabled || (DoEscapeAnalysis && EliminateAllocations)) {
+  if (jvmci_enabled COMPILER2_PRESENT( || (DoEscapeAnalysis && EliminateAllocations) )) {
     realloc_failures = eliminate_allocations(thread, exec_mode, cm, deoptee, map, chunk);
   }
 #endif // COMPILER2_OR_JVMCI
@@ -338,7 +338,7 @@ Deoptimization::UnrollBlock* Deoptimization::fetch_unroll_info_helper(JavaThread
   NoSafepointVerifier no_safepoint;
 
 #if COMPILER2_OR_JVMCI
-  if (jvmci_enabled || ((DoEscapeAnalysis || EliminateNestedLocks) && EliminateLocks)) {
+  if (jvmci_enabled COMPILER2_PRESENT( || ((DoEscapeAnalysis || EliminateNestedLocks) && EliminateLocks) )) {
     eliminate_locks(thread, chunk, realloc_failures);
   }
 #endif // COMPILER2_OR_JVMCI
@@ -834,22 +834,23 @@ class DeoptimizeMarkedClosure : public HandshakeClosure {
   }
 };
 
-void Deoptimization::deoptimize_all_marked() {
+void Deoptimization::deoptimize_all_marked(nmethod* nmethod_only) {
   ResourceMark rm;
   DeoptimizationMarker dm;
 
-  if (SafepointSynchronize::is_at_safepoint()) {
-    DeoptimizeMarkedClosure deopt;
-    // Make the dependent methods not entrant
+  // Make the dependent methods not entrant
+  if (nmethod_only != NULL) {
+    nmethod_only->mark_for_deoptimization();
+    nmethod_only->make_not_entrant();
+  } else {
+    MutexLocker mu(SafepointSynchronize::is_at_safepoint() ? NULL : CodeCache_lock, Mutex::_no_safepoint_check_flag);
     CodeCache::make_marked_nmethods_not_entrant();
+  }
+
+  DeoptimizeMarkedClosure deopt;
+  if (SafepointSynchronize::is_at_safepoint()) {
     Threads::java_threads_do(&deopt);
   } else {
-    // Make the dependent methods not entrant
-    {
-      MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-      CodeCache::make_marked_nmethods_not_entrant();
-    }
-    DeoptimizeMarkedClosure deopt;
     Handshake::execute(&deopt);
   }
 }
@@ -1204,7 +1205,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       if (!fs.access_flags().is_static() && (!skip_internal || !fs.access_flags().is_internal())) {
         ReassignedField field;
         field._offset = fs.offset();
-        field._type = FieldType::basic_type(fs.signature());
+        field._type = Signature::basic_type(fs.signature());
         if (field._type == T_VALUETYPE) {
           field._type = T_OBJECT;
         }
@@ -1683,33 +1684,20 @@ Deoptimization::get_method_data(JavaThread* thread, const methodHandle& m,
 
 #if COMPILER2_OR_JVMCI
 void Deoptimization::load_class_by_index(const constantPoolHandle& constant_pool, int index, TRAPS) {
-  // in case of an unresolved klass entry, load the class.
+  // In case of an unresolved klass entry, load the class.
+  // This path is exercised from case _ldc in Parse::do_one_bytecode,
+  // and probably nowhere else.
+  // Even that case would benefit from simply re-interpreting the
+  // bytecode, without paying special attention to the class index.
+  // So this whole "class index" feature should probably be removed.
+
   if (constant_pool->tag_at(index).is_unresolved_klass()) {
     Klass* tk = constant_pool->klass_at_ignore_error(index, CHECK);
     return;
   }
 
-  if (!constant_pool->tag_at(index).is_symbol()) return;
-
-  Handle class_loader (THREAD, constant_pool->pool_holder()->class_loader());
-  Symbol*  symbol  = constant_pool->symbol_at(index);
-
-  // class name?
-  if (symbol->char_at(0) != '(') {
-    Handle protection_domain (THREAD, constant_pool->pool_holder()->protection_domain());
-    SystemDictionary::resolve_or_null(symbol, class_loader, protection_domain, CHECK);
-    return;
-  }
-
-  // then it must be a signature!
-  ResourceMark rm(THREAD);
-  for (SignatureStream ss(symbol); !ss.is_done(); ss.next()) {
-    if (ss.is_object()) {
-      Symbol* class_name = ss.as_symbol();
-      Handle protection_domain (THREAD, constant_pool->pool_holder()->protection_domain());
-      SystemDictionary::resolve_or_null(class_name, class_loader, protection_domain, CHECK);
-    }
-  }
+  assert(!constant_pool->tag_at(index).is_symbol(),
+         "no symbolic names here, please");
 }
 
 

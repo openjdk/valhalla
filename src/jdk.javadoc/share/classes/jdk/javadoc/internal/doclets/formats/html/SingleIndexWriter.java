@@ -53,8 +53,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.IndexBuilder;
  *  deletion without notice.</b>
  *
  * @see java.lang.Character
- * @author Atul M Dambalkar
- * @author Bhavesh Patel (Modified)
  */
 public class SingleIndexWriter extends AbstractIndexWriter {
 
@@ -150,9 +148,13 @@ public class SingleIndexWriter extends AbstractIndexWriter {
         contentTree.add(links.createLink(DocPaths.ALLCLASSES_INDEX,
                 contents.allClassesLabel));
         if (!configuration.packages.isEmpty()) {
-            contentTree.add(Entity.NO_BREAK_SPACE);
+            contentTree.add(getVerticalSeparator());
             contentTree.add(links.createLink(DocPaths.ALLPACKAGES_INDEX,
                     contents.allPackagesLabel));
+        }
+        if (!configuration.tagSearchIndex.isEmpty()) {
+            contentTree.add(getVerticalSeparator());
+            contentTree.add(links.createLink(DocPaths.SYSTEM_PROPERTIES, contents.systemPropertiesLabel));
+        }
     }
-}
 }

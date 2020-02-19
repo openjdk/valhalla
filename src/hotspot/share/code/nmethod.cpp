@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -49,6 +49,7 @@
 #include "oops/methodData.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/jvmtiImpl.hpp"
+#include "prims/jvmtiThreadState.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/flags/flagSetting.hpp"
@@ -58,6 +59,7 @@
 #include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
 #include "runtime/safepointVerifiers.hpp"
+#include "runtime/serviceThread.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/sweeper.hpp"
 #include "runtime/vmThread.hpp"
@@ -428,7 +430,8 @@ void nmethod::init_defaults() {
   _has_flushed_dependencies   = 0;
   _lock_count                 = 0;
   _stack_traversal_mark       = 0;
-  _unload_reported            = false; // jvmti state
+  _load_reported              = false; // jvmti state
+  _unload_reported            = false;
   _is_far_code                = false; // nmethods are located in CodeCache
 
 #ifdef ASSERT
@@ -436,7 +439,6 @@ void nmethod::init_defaults() {
 #endif
 
   _oops_do_mark_link       = NULL;
-  _jmethod_id              = NULL;
   _osr_link                = NULL;
 #if INCLUDE_RTM_OPT
   _rtm_state               = NoRTM;
@@ -1069,7 +1071,7 @@ void nmethod::fix_oop_relocations(address begin, address end, bool initialize_im
       oop_Relocation* reloc = iter.oop_reloc();
       if (initialize_immediates && reloc->oop_is_immediate()) {
         oop* dest = reloc->oop_addr();
-        initialize_immediate_oop(dest, (jobject) *dest);
+        initialize_immediate_oop(dest, cast_from_oop<jobject>(*dest));
       }
       // Refresh the oop-related bits of this instruction.
       reloc->fix_oop_relocation();
@@ -1378,7 +1380,7 @@ bool nmethod::make_not_entrant_or_zombie(int state) {
     }
 
     // Must happen before state change. Otherwise we have a race condition in
-    // nmethod::can_not_entrant_be_converted(). I.e., a method can immediately
+    // nmethod::can_convert_to_zombie(). I.e., a method can immediately
     // transition its state from 'not_entrant' to 'zombie' without having to wait
     // for stack scanning.
     if (state == not_entrant) {
@@ -1587,11 +1589,17 @@ void nmethod::flush_dependencies(bool delete_immediately) {
 // post_compiled_method_load_event
 // new method for install_code() path
 // Transfer information from compilation to jvmti
-void nmethod::post_compiled_method_load_event() {
+void nmethod::post_compiled_method_load_event(JvmtiThreadState* state) {
 
- // This is a bad time for a safepoint.  We don't want
- // this nmethod to get unloaded while we're queueing the event.
- NoSafepointVerifier nsv;
+  // Don't post this nmethod load event if it is already dying
+  // because the sweeper might already be deleting this nmethod.
+  if (is_not_entrant() && can_convert_to_zombie()) {
+    return;
+  }
+
+  // This is a bad time for a safepoint.  We don't want
+  // this nmethod to get unloaded while we're queueing the event.
+  NoSafepointVerifier nsv;
 
   Method* m = method();
   HOTSPOT_COMPILED_METHOD_LOAD(
@@ -1603,26 +1611,23 @@ void nmethod::post_compiled_method_load_event() {
       m->signature()->utf8_length(),
       insts_begin(), insts_size());
 
-  if (JvmtiExport::should_post_compiled_method_load() ||
-      JvmtiExport::should_post_compiled_method_unload()) {
-    get_and_cache_jmethod_id();
-  }
 
   if (JvmtiExport::should_post_compiled_method_load()) {
-    // Let the Service thread (which is a real Java thread) post the event
-    MutexLocker ml(Service_lock, Mutex::_no_safepoint_check_flag);
-    JvmtiDeferredEventQueue::enqueue(
-      JvmtiDeferredEvent::compiled_method_load_event(this));
+    // Only post unload events if load events are found.
+    set_load_reported();
+    // If a JavaThread hasn't been passed in, let the Service thread
+    // (which is a real Java thread) post the event
+    JvmtiDeferredEvent event = JvmtiDeferredEvent::compiled_method_load_event(this);
+    if (state == NULL) {
+      // Execute any barrier code for this nmethod as if it's called, since
+      // keeping it alive looks like stack walking.
+      run_nmethod_entry_barrier();
+      ServiceThread::enqueue_deferred_event(&event);
+    } else {
+      // This enters the nmethod barrier outside in the caller.
+      state->enqueue_event(&event);
+    }
   }
-}
-
-jmethodID nmethod::get_and_cache_jmethod_id() {
-  if (_jmethod_id == NULL) {
-    // Cache the jmethod_id since it can no longer be looked up once the
-    // method itself has been marked for unloading.
-    _jmethod_id = method()->jmethod_id();
-  }
-  return _jmethod_id;
 }
 
 void nmethod::post_compiled_method_unload() {
@@ -1638,17 +1643,17 @@ void nmethod::post_compiled_method_unload() {
   // If a JVMTI agent has enabled the CompiledMethodUnload event then
   // post the event. Sometime later this nmethod will be made a zombie
   // by the sweeper but the Method* will not be valid at that point.
-  // If the _jmethod_id is null then no load event was ever requested
-  // so don't bother posting the unload.  The main reason for this is
-  // that the jmethodID is a weak reference to the Method* so if
+  // The jmethodID is a weak reference to the Method* so if
   // it's being unloaded there's no way to look it up since the weak
   // ref will have been cleared.
-  if (_jmethod_id != NULL && JvmtiExport::should_post_compiled_method_unload()) {
+
+  // Don't bother posting the unload if the load event wasn't posted.
+  if (load_reported() && JvmtiExport::should_post_compiled_method_unload()) {
     assert(!unload_reported(), "already unloaded");
     JvmtiDeferredEvent event =
-      JvmtiDeferredEvent::compiled_method_unload_event(_jmethod_id, insts_begin());
-    MutexLocker ml(Service_lock, Mutex::_no_safepoint_check_flag);
-    JvmtiDeferredEventQueue::enqueue(event);
+      JvmtiDeferredEvent::compiled_method_unload_event(
+          method()->jmethod_id(), insts_begin());
+    ServiceThread::enqueue_deferred_event(&event);
   }
 
   // The JVMTI CompiledMethodUnload event can be enabled or disabled at
@@ -3221,12 +3226,10 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
         m->method_holder()->print_value_on(stream);
       } else {
         bool did_name = false;
-        if (ss.is_object()) {
-          Symbol* name = ss.as_symbol_or_null();
-          if (name != NULL && name->utf8_length() > 0) {
-            name->print_value_on(stream);
-            did_name = true;
-          }
+        if (ss.is_reference()) {
+          Symbol* name = ss.as_symbol();
+          name->print_value_on(stream);
+          did_name = true;
         }
         if (!did_name)
           stream->print("%s", type2name(t));

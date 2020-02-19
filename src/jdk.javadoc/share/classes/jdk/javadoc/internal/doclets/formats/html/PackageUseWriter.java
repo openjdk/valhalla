@@ -56,9 +56,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Robert G. Field
- * @author Bhavesh Patel (Modified)
  */
 public class PackageUseWriter extends SubWriterHolderWriter {
 
@@ -201,8 +198,8 @@ public class PackageUseWriter extends SubWriterHolderWriter {
         ul.setStyle(HtmlStyle.blockList);
         for (String packageName : usingPackageToUsedClasses.keySet()) {
             PackageElement usingPackage = utils.elementUtils.getPackageElement(packageName);
-            HtmlTree section = HtmlTree.SECTION(HtmlStyle.detail);
-            section.add(links.createAnchor(getPackageAnchorName(usingPackage)));
+            HtmlTree section = HtmlTree.SECTION(HtmlStyle.detail)
+                    .setId(getPackageAnchorName(usingPackage));
             String tableSummary = resources.getText("doclet.Use_Table_Summary",
                                                         resources.getText("doclet.classes"));
             Content caption = contents.getContent(

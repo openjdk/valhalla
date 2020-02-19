@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,6 @@ import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.code.Directive.RequiresDirective;
 import com.sun.tools.javac.code.Scope.*;
 import com.sun.tools.javac.code.Symbol.*;
-import com.sun.tools.javac.comp.MatchBindingsComputer.BindingSymbol;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.DefinedBy.Api;
 import com.sun.tools.javac.util.JCDiagnostic.DiagnosticPosition;
@@ -52,7 +51,6 @@ import com.sun.source.tree.ModuleTree.ModuleKind;
 import com.sun.tools.javac.code.Directive.ExportsDirective;
 import com.sun.tools.javac.code.Directive.OpensDirective;
 import com.sun.tools.javac.code.Type.ModuleType;
-import com.sun.tools.javac.tree.JCTree.JCPolyExpression.PolyKind;
 
 /**
  * Root class for abstract syntax tree nodes. It provides definitions
@@ -163,7 +161,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
          */
         SWITCH_EXPRESSION,
 
-        /** Synchronized statements, of type Synchonized.
+        /** Synchronized statements, of type Synchronized.
          */
         SYNCHRONIZED,
 
@@ -799,6 +797,7 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         @Override
         public void accept(Visitor v) { v.visitClassDef(this); }
 
+        @SuppressWarnings("preview")
         @DefinedBy(Api.COMPILER_TREE)
         public Kind getKind() {
             if ((mods.flags & Flags.ANNOTATION) != 0)
@@ -807,6 +806,8 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
                 return Kind.INTERFACE;
             else if ((mods.flags & Flags.ENUM) != 0)
                 return Kind.ENUM;
+            else if ((mods.flags & Flags.RECORD) != 0)
+                return Kind.RECORD;
             else
                 return Kind.CLASS;
         }
@@ -866,6 +867,9 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
         public MethodSymbol sym;
         /** nascent value that evolves into the return value for a value factory */
         public VarSymbol factoryProduct;
+
+        /** does this method completes normally */
+        public boolean completesNormally;
 
         protected JCMethodDecl(JCModifiers mods,
                             Name name,

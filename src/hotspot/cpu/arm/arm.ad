@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
 // This code is free software; you can redistribute it and/or modify it
@@ -351,10 +351,7 @@ void MachEpilogNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
 
   // If this does safepoint polling, then do it here
   if (do_polling() && ra_->C->is_method_compilation()) {
-    // mov_slow here is usually one or two instruction
-    __ mov_address(Rtemp, (address)os::get_polling_page());
-    __ relocate(relocInfo::poll_return_type);
-    __ ldr(Rtemp, Address(Rtemp));
+    __ read_polling_page(Rtemp, relocInfo::poll_return_type);
   }
 }
 
@@ -971,7 +968,7 @@ const bool Matcher::match_rule_supported(int opcode) {
   return true;  // Per default match rules are supported.
 }
 
-const bool Matcher::match_rule_supported_vector(int opcode, int vlen) {
+const bool Matcher::match_rule_supported_vector(int opcode, int vlen, BasicType bt) {
 
   // TODO
   // identify extra cases that we might want to provide match rules for
@@ -1077,6 +1074,24 @@ const bool Matcher::need_masked_shift_count = true;
 
 const bool Matcher::convi2l_type_required = true;
 
+// No support for generic vector operands.
+const bool Matcher::supports_generic_vector_operands  = false;
+
+MachOper* Matcher::specialize_generic_vector_operand(MachOper* original_opnd, uint ideal_reg, bool is_temp) {
+  ShouldNotReachHere(); // generic vector operands not supported
+  return NULL;
+}
+
+bool Matcher::is_generic_reg2reg_move(MachNode* m) {
+  ShouldNotReachHere();  // generic vector operands not supported
+  return false;
+}
+
+bool Matcher::is_generic_vector(MachOper* opnd)  {
+  ShouldNotReachHere();  // generic vector operands not supported
+  return false;
+}
+
 // Should the Matcher clone shifts on addressing modes, expecting them
 // to be subsumed into complex addressing expressions or compute them
 // into registers?
@@ -1125,8 +1140,7 @@ const bool Matcher::misaligned_doubles_ok = false;
 void Matcher::pd_implicit_null_fixup(MachNode *node, uint idx) {
 }
 
-// Advertise here if the CPU requires explicit rounding operations
-// to implement the UseStrictFP mode.
+// Advertise here if the CPU requires explicit rounding operations to implement strictfp mode.
 const bool Matcher::strict_fp_requires_explicit_rounding = false;
 
 // Are floats converted to double when stored to stack during deoptimization?
@@ -10604,7 +10618,7 @@ instruct vsl16B_reg(vecX dst, vecX src, vecX shift) %{
 
 instruct vsl8B_immI(vecD dst, vecD src, immI shift) %{
   predicate(n->as_Vector()->length() == 8);
-  match(Set dst (LShiftVB src shift));
+  match(Set dst (LShiftVB src (LShiftCntV shift)));
   size(4);
   ins_cost(DEFAULT_COST); // FIXME
   format %{
@@ -10620,7 +10634,7 @@ instruct vsl8B_immI(vecD dst, vecD src, immI shift) %{
 
 instruct vsl16B_immI(vecX dst, vecX src, immI shift) %{
   predicate(n->as_Vector()->length() == 16);
-  match(Set dst (LShiftVB src shift));
+  match(Set dst (LShiftVB src (LShiftCntV shift)));
   size(4);
   ins_cost(DEFAULT_COST); // FIXME
   format %{
@@ -10659,7 +10673,7 @@ instruct vsl8S_reg(vecX dst, vecX src, vecX shift) %{
 
 instruct vsl4S_immI(vecD dst, vecD src, immI shift) %{
   predicate(n->as_Vector()->length() == 4);
-  match(Set dst (LShiftVS src shift));
+  match(Set dst (LShiftVS src (LShiftCntV shift)));
   size(4);
   ins_cost(DEFAULT_COST); // FIXME
   format %{
@@ -10714,7 +10728,7 @@ instruct vsl4I_reg(vecX dst, vecX src, vecX shift) %{
 
 instruct vsl2I_immI(vecD dst, vecD src, immI shift) %{
   predicate(n->as_Vector()->length() == 2 && VM_Version::has_simd());
-  match(Set dst (LShiftVI src shift));
+  match(Set dst (LShiftVI src (LShiftCntV shift)));
   size(4);
   ins_cost(DEFAULT_COST); // FIXME
   format %{
@@ -10730,7 +10744,7 @@ instruct vsl2I_immI(vecD dst, vecD src, immI shift) %{
 
 instruct vsl4I_immI(vecX dst, vecX src, immI shift) %{
   predicate(n->as_Vector()->length() == 4 && VM_Version::has_simd());
-  match(Set dst (LShiftVI src shift));
+  match(Set dst (LShiftVI src (LShiftCntV shift)));
   size(4);
   ins_cost(DEFAULT_COST); // FIXME
   format %{
@@ -10758,7 +10772,7 @@ instruct vsl2L_reg(vecX dst, vecX src, vecX shift) %{
 
 instruct vsl2L_immI(vecX dst, vecX src, immI shift) %{
   predicate(n->as_Vector()->length() == 2);
-  match(Set dst (LShiftVL src shift));
+  match(Set dst (LShiftVL src (LShiftCntV shift)));
   size(4);
   ins_cost(DEFAULT_COST); // FIXME
   format %{
@@ -10781,7 +10795,7 @@ instruct vsl2L_immI(vecX dst, vecX src, immI shift) %{
 // Chars vector logical right shift
 instruct vsrl4S_immI(vecD dst, vecD src, immI shift) %{
   predicate(n->as_Vector()->length() == 4);
-  match(Set dst (URShiftVS src shift));
+  match(Set dst (URShiftVS src (RShiftCntV shift)));
   size(4);
   ins_cost(DEFAULT_COST); // FIXME
   format %{
@@ -10797,7 +10811,7 @@ instruct vsrl4S_immI(vecD dst, vecD src, immI shift) %{
 
 instruct vsrl8S_immI(vecX dst, vecX src, immI shift) %{
   predicate(n->as_Vector()->length() == 8);
-  match(Set dst (URShiftVS src shift));
+  match(Set dst (URShiftVS src (RShiftCntV shift)));
   size(4);
   ins_cost(DEFAULT_COST); // FIXME
   format %{
@@ -10814,7 +10828,7 @@ instruct vsrl8S_immI(vecX dst, vecX src, immI shift) %{
 // Integers vector logical right shift
 instruct vsrl2I_immI(vecD dst, vecD src, immI shift) %{
   predicate(n->as_Vector()->length() == 2 && VM_Version::has_simd());
-  match(Set dst (URShiftVI src shift));
+  match(Set dst (URShiftVI src (RShiftCntV shift)));
   size(4);
   ins_cost(DEFAULT_COST); // FIXME
   format %{
@@ -10830,7 +10844,7 @@ instruct vsrl2I_immI(vecD dst, vecD src, immI shift) %{
 
 instruct vsrl4I_immI(vecX dst, vecX src, immI shift) %{
   predicate(n->as_Vector()->length() == 4 && VM_Version::has_simd());
-  match(Set dst (URShiftVI src shift));
+  match(Set dst (URShiftVI src (RShiftCntV shift)));
   size(4);
   ins_cost(DEFAULT_COST); // FIXME
   format %{
@@ -10847,7 +10861,7 @@ instruct vsrl4I_immI(vecX dst, vecX src, immI shift) %{
 // Longs vector logical right shift
 instruct vsrl2L_immI(vecX dst, vecX src, immI shift) %{
   predicate(n->as_Vector()->length() == 2);
-  match(Set dst (URShiftVL src shift));
+  match(Set dst (URShiftVL src (RShiftCntV shift)));
   size(4);
   ins_cost(DEFAULT_COST); // FIXME
   format %{

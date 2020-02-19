@@ -125,6 +125,8 @@ private:
   bool is_bmi_pattern(Node *n, Node *m);
 #endif
 
+  bool is_vshift_con_pattern(Node *n, Node *m);
+
   // Debug and profile information for nodes in old space:
   GrowableArray<Node_Notes*>* _old_node_note_array;
 
@@ -315,7 +317,7 @@ public:
 
   // identify extra cases that we might want to provide match rules for
   // e.g. Op_ vector nodes and other intrinsics while guarding with vlen
-  static const bool match_rule_supported_vector(int opcode, int vlen);
+  static const bool match_rule_supported_vector(int opcode, int vlen, BasicType bt);
 
   // Some microarchitectures have mask registers used on vectors
   static const bool has_predicated_vectors(void);
@@ -508,12 +510,35 @@ public:
   // postalloc expand)?
   static const bool require_postalloc_expand;
 
+  // Does the platform support generic vector operands?
+  // Requires cleanup after selection phase.
+  static const bool supports_generic_vector_operands;
+
+ private:
+  void do_postselect_cleanup();
+
+  void specialize_generic_vector_operands();
+  void specialize_mach_node(MachNode* m);
+  void specialize_temp_node(MachTempNode* tmp, MachNode* use, uint idx);
+  MachOper* specialize_vector_operand(MachNode* m, uint opnd_idx);
+  MachOper* specialize_vector_operand_helper(MachNode* m, uint opnd_idx, const TypeVect* vt);
+
+  static MachOper* specialize_generic_vector_operand(MachOper* generic_opnd, uint ideal_reg, bool is_temp);
+
+  static bool is_generic_reg2reg_move(MachNode* m);
+  static bool is_generic_vector(MachOper* opnd);
+
+  const RegMask* regmask_for_ideal_register(uint ideal_reg, Node* ret);
+
+  // Graph verification code
+  DEBUG_ONLY( bool verify_after_postselect_cleanup(); )
+
+ public:
   // Perform a platform dependent implicit null fixup.  This is needed
   // on windows95 to take care of some unusual register constraints.
   void pd_implicit_null_fixup(MachNode *load, uint idx);
 
-  // Advertise here if the CPU requires explicit rounding operations
-  // to implement the UseStrictFP mode.
+  // Advertise here if the CPU requires explicit rounding operations to implement strictfp mode.
   static const bool strict_fp_requires_explicit_rounding;
 
   // Are floats conerted to double when stored to stack during deoptimization?

@@ -25,7 +25,6 @@
  * @test
  * @bug      6786688 8008164 8162363 8169819 8183037 8182765 8184205
  * @summary  HTML tables should have table summary, caption and table headers.
- * @author   Bhavesh Patel
  * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build    javadoc.tester.*
@@ -120,8 +119,8 @@ public class TestHtmlTableTags extends JavadocTester {
 
         // Deprecated
         checkOutput("deprecated-list.html", true,
-                "<div class=\"deprecatedSummary\">\n<table>",
-                "<div class=\"deprecatedSummary\">\n<table>");
+                "<div class=\"deprecatedSummary\" id=\"field\">\n<table>",
+                "<div class=\"deprecatedSummary\" id=\"method\">\n<table>");
 
         // Constant values
         checkOutput("constant-values.html", true,
@@ -225,10 +224,10 @@ public class TestHtmlTableTags extends JavadocTester {
 
         // Deprecated
         checkOutput("deprecated-list.html", true,
-                "<div class=\"deprecatedSummary\">\n"
+                "<div class=\"deprecatedSummary\" id=\"field\">\n"
                 + "<table summary=\"Fields table, listing fields, "
                 + "and an explanation\">",
-                "<div class=\"deprecatedSummary\">\n"
+                "<div class=\"deprecatedSummary\" id=\"method\">\n"
                 + "<table summary=\"Methods table, listing methods, "
                 + "and an explanation\">");
 

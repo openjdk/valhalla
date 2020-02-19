@@ -215,7 +215,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
         SignatureStream ss(signature(), false);
         ValueKlass* vk = ss.as_value_klass(field_holder());
         int field_offset = offset() - vk->first_field_offset();
-        obj = (oop)((address)obj + field_offset);
+        obj = (oop)(cast_from_oop<address>(obj) + field_offset);
         // Print flattened fields of the value type field
         st->print_cr("Flattened value type '%s':", vk->name()->as_C_string());
         FieldPrinter print_field(st, obj);

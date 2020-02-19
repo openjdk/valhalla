@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,16 +52,20 @@ import jdk.javadoc.internal.doclets.toolkit.util.IndexBuilder;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Atul M Dambalkar
- * @author Robert Field
- * @author Jamie Ho
- *
  */
 public class HtmlDoclet extends AbstractDoclet {
 
-    public HtmlDoclet(Doclet parent) {
-        configuration = new HtmlConfiguration(parent);
+    /**
+     * Creates a doclet to generate HTML documentation,
+     * specifying the "initiating doclet" to be used when
+     * initializing any taglets for this doclet.
+     * An initiating doclet is one that delegates to
+     * this doclet.
+     *
+     * @param initiatingDoclet the initiating doclet
+     */
+    public HtmlDoclet(Doclet initiatingDoclet) {
+        this.initiatingDoclet = initiatingDoclet;
     }
 
     @Override // defined by Doclet
@@ -70,20 +74,31 @@ public class HtmlDoclet extends AbstractDoclet {
     }
 
     /**
-     * The global configuration information for this run.
+     * The initiating doclet, to be specified when creating
+     * the configuration.
      */
-    private final HtmlConfiguration configuration;
+    private final Doclet initiatingDoclet;
 
+    /**
+     * The global configuration information for this run.
+     * Initialized in {@link #init(Locale, Reporter)}.
+     */
+    private HtmlConfiguration configuration;
+
+    /**
+     * Object for generating messages and diagnostics.
+     */
     private Messages messages;
 
-
+    /**
+     * Base path for resources for this doclet.
+     */
     private static final DocPath DOCLET_RESOURCES = DocPath
             .create("/jdk/javadoc/internal/doclets/formats/html/resources");
 
     @Override // defined by Doclet
     public void init(Locale locale, Reporter reporter) {
-        configuration.reporter = reporter;
-        configuration.locale = locale;
+        configuration = new HtmlConfiguration(initiatingDoclet, locale, reporter);
         messages = configuration.getMessages();
     }
 
@@ -113,7 +128,8 @@ public class HtmlDoclet extends AbstractDoclet {
     protected void generateOtherFiles(DocletEnvironment docEnv, ClassTree classtree)
             throws DocletException {
         super.generateOtherFiles(docEnv, classtree);
-        if (configuration.linksource) {
+        HtmlOptions options = configuration.getOptions();
+        if (options.linkSource()) {
             SourceToHTMLConverter.convertRoot(configuration,
                 docEnv, DocPaths.SOURCE_OUTPUT);
         }
@@ -124,27 +140,27 @@ public class HtmlDoclet extends AbstractDoclet {
             messages.error("doclet.No_Non_Deprecated_Classes_To_Document");
             return;
         }
-        boolean nodeprecated = configuration.nodeprecated;
-        performCopy(configuration.helpfile);
-        performCopy(configuration.stylesheetfile);
-        for (String stylesheet : configuration.additionalStylesheets) {
+        boolean nodeprecated = options.noDeprecated();
+        performCopy(options.helpFile());
+        performCopy(options.stylesheetFile());
+        for (String stylesheet : options.additionalStylesheets()) {
             performCopy(stylesheet);
         }
         // do early to reduce memory footprint
-        if (configuration.classuse) {
+        if (options.classUse()) {
             ClassUseWriter.generate(configuration, classtree);
         }
         IndexBuilder indexbuilder = new IndexBuilder(configuration, nodeprecated);
 
-        if (configuration.createtree) {
+        if (options.createTree()) {
             TreeWriter.generate(configuration, classtree);
         }
 
-        if (!(configuration.nodeprecatedlist || nodeprecated)) {
+        if (!(options.noDeprecatedList() || nodeprecated)) {
             DeprecatedListWriter.generate(configuration);
         }
 
-        if (configuration.createoverview) {
+        if (options.createOverview()) {
             if (configuration.showModules) {
                 ModuleIndexWriter.generate(configuration);
             } else {
@@ -152,9 +168,9 @@ public class HtmlDoclet extends AbstractDoclet {
             }
         }
 
-        if (configuration.createindex) {
+        if (options.createIndex()) {
             configuration.buildSearchTagIndex();
-            if (configuration.splitindex) {
+            if (options.splitIndex()) {
                 SplitIndexWriter.generate(configuration, indexbuilder);
             } else {
                 SingleIndexWriter.generate(configuration, indexbuilder);
@@ -164,27 +180,28 @@ public class HtmlDoclet extends AbstractDoclet {
             if (!configuration.packages.isEmpty()) {
                 AllPackagesIndexWriter.generate(configuration);
             }
+            SystemPropertiesWriter.generate(configuration);
         }
 
-        if (configuration.createoverview) {
+        if (options.createOverview()) {
             IndexRedirectWriter.generate(configuration, DocPaths.OVERVIEW_SUMMARY, DocPaths.INDEX);
         } else {
             IndexRedirectWriter.generate(configuration);
         }
 
-        if (configuration.helpfile.isEmpty() && !configuration.nohelp) {
+        if (options.helpFile().isEmpty() && !options.noHelp()) {
             HelpWriter.generate(configuration);
         }
         // If a stylesheet file is not specified, copy the default stylesheet
         // and replace newline with platform-specific newline.
         DocFile f;
-        if (configuration.stylesheetfile.length() == 0) {
+        if (options.stylesheetFile().length() == 0) {
             f = DocFile.createFileForOutput(configuration, DocPaths.STYLESHEET);
             f.copyResource(DocPaths.RESOURCES.resolve(DocPaths.STYLESHEET), true, true);
         }
         f = DocFile.createFileForOutput(configuration, DocPaths.JAVASCRIPT);
         f.copyResource(DocPaths.RESOURCES.resolve(DocPaths.JAVASCRIPT), true, true);
-        if (configuration.createindex) {
+        if (options.createIndex()) {
             f = DocFile.createFileForOutput(configuration, DocPaths.SEARCH_JS);
             f.copyResource(DOCLET_RESOURCES.resolve(DocPaths.SEARCH_JS), true, true);
 
@@ -206,13 +223,6 @@ public class HtmlDoclet extends AbstractDoclet {
                 "jquery-ui.min.css",
                 "jquery-ui.structure.min.css",
                 "jquery-ui.structure.css",
-                "external/jquery/jquery.js",
-                "jszip/dist/jszip.js",
-                "jszip/dist/jszip.min.js",
-                "jszip-utils/dist/jszip-utils.js",
-                "jszip-utils/dist/jszip-utils.min.js",
-                "jszip-utils/dist/jszip-utils-ie.js",
-                "jszip-utils/dist/jszip-utils-ie.min.js",
                 "images/ui-bg_glass_65_dadada_1x400.png",
                 "images/ui-icons_454545_256x240.png",
                 "images/ui-bg_glass_95_fef1ec_1x400.png",
@@ -232,34 +242,27 @@ public class HtmlDoclet extends AbstractDoclet {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override // defined by AbstractDoclet
-    protected void generateClassFiles(SortedSet<TypeElement> arr, ClassTree classtree)
+    protected void generateClassFiles(SortedSet<TypeElement> typeElems, ClassTree classTree)
             throws DocletException {
-        List<TypeElement> list = new ArrayList<>(arr);
-        for (TypeElement klass : list) {
-            if (utils.hasHiddenTag(klass) ||
-                    !(configuration.isGeneratedDoc(klass) && utils.isIncluded(klass))) {
+        for (TypeElement te : typeElems) {
+            if (utils.hasHiddenTag(te) ||
+                    !(configuration.isGeneratedDoc(te) && utils.isIncluded(te))) {
                 continue;
             }
-            if (utils.isAnnotationType(klass)) {
+            if (utils.isAnnotationType(te)) {
                 AbstractBuilder annotationTypeBuilder =
                     configuration.getBuilderFactory()
-                        .getAnnotationTypeBuilder(klass);
+                        .getAnnotationTypeBuilder(te);
                 annotationTypeBuilder.build();
             } else {
                 AbstractBuilder classBuilder =
-                    configuration.getBuilderFactory().getClassBuilder(klass, classtree);
+                    configuration.getBuilderFactory().getClassBuilder(te, classTree);
                 classBuilder.build();
             }
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override // defined by AbstractDoclet
     protected void generateModuleFiles() throws DocletException {
         if (configuration.showModules) {
@@ -272,31 +275,29 @@ public class HtmlDoclet extends AbstractDoclet {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override // defined by AbstractDoclet
     protected void generatePackageFiles(ClassTree classtree) throws DocletException {
+        HtmlOptions options = configuration.getOptions();
         Set<PackageElement> packages = configuration.packages;
         List<PackageElement> pList = new ArrayList<>(packages);
         for (PackageElement pkg : pList) {
             // if -nodeprecated option is set and the package is marked as
             // deprecated, do not generate the package-summary.html, package-frame.html
             // and package-tree.html pages for that package.
-            if (!(configuration.nodeprecated && utils.isDeprecated(pkg))) {
+            if (!(options.noDeprecated() && utils.isDeprecated(pkg))) {
                 AbstractBuilder packageSummaryBuilder =
                         configuration.getBuilderFactory().getPackageSummaryBuilder(pkg);
                 packageSummaryBuilder.build();
-                if (configuration.createtree) {
-                    PackageTreeWriter.generate(configuration, pkg, configuration.nodeprecated);
+                if (options.createTree()) {
+                    PackageTreeWriter.generate(configuration, pkg, options.noDeprecated());
                 }
             }
         }
     }
 
     @Override // defined by Doclet
-    public Set<Option> getSupportedOptions() {
-        return configuration.getSupportedOptions();
+    public Set<? extends Option> getSupportedOptions() {
+        return configuration.getOptions().getSupportedOptions();
     }
 
     private void performCopy(String filename) throws DocFileIOException {

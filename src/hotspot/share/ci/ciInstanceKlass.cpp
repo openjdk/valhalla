@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -218,7 +218,7 @@ ciInstanceKlass* ciInstanceKlass::get_canonical_holder(int offset) {
   }
 
   ciInstanceKlass* self = this;
-  assert(self->is_loaded(), "must be lodaded to access field info");
+  assert(self->is_loaded(), "must be loaded to access field info");
   ciField* field = self->get_field_by_offset(offset, false);
   if (field != NULL) {
     return field->holder();
@@ -325,7 +325,7 @@ bool ciInstanceKlass::is_in_package_impl(const char* packagename, int len) {
 // Implementation of the print method.
 void ciInstanceKlass::print_impl(outputStream* st) {
   ciKlass::print_impl(st);
-  GUARDED_VM_ENTRY(st->print(" loader=" INTPTR_FORMAT, p2i((address)loader()));)
+  GUARDED_VM_ENTRY(st->print(" loader=" INTPTR_FORMAT, p2i(loader()));)
   if (is_loaded()) {
     st->print(" loaded=true initialized=%s finalized=%s subklass=%s size=%d flags=",
               bool_to_str(is_initialized()),
@@ -799,7 +799,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
       oop obj;
       if (flattened) {
         int field_offset = fd->offset() - vk->first_field_offset();
-        obj = (oop)((address)mirror + field_offset);
+        obj = (oop) (cast_from_oop<address>(mirror) + field_offset);
       } else {
         obj =  mirror->obj_field_acquire(fd->offset());
       }

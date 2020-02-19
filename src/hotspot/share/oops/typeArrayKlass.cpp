@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -185,7 +185,7 @@ Klass* TypeArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, bo
     ResourceMark rm;
     {
       // Atomic create higher dimension and link into list
-      MutexLocker mu(MultiArray_lock, THREAD);
+      MutexLocker mu(THREAD, MultiArray_lock);
 
       if (higher_dimension() == NULL) {
         Klass* oak = ObjArrayKlass::allocate_objArray_klass(

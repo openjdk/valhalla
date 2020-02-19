@@ -1711,7 +1711,7 @@ const bool Matcher::match_rule_supported(int opcode) {
   return true;  // Per default match rules are supported.
 }
 
-const bool Matcher::match_rule_supported_vector(int opcode, int vlen) {
+const bool Matcher::match_rule_supported_vector(int opcode, int vlen, BasicType bt) {
 
   // TODO
   // identify extra cases that we might want to provide match rules for
@@ -1815,6 +1815,24 @@ const bool Matcher::require_postalloc_expand = false;
 // the cpu only look at the lower 5/6 bits anyway?
 const bool Matcher::need_masked_shift_count = false;
 
+// No support for generic vector operands.
+const bool Matcher::supports_generic_vector_operands  = false;
+
+MachOper* Matcher::specialize_generic_vector_operand(MachOper* original_opnd, uint ideal_reg, bool is_temp) {
+  ShouldNotReachHere(); // generic vector operands not supported
+  return NULL;
+}
+
+bool Matcher::is_generic_reg2reg_move(MachNode* m) {
+  ShouldNotReachHere();  // generic vector operands not supported
+  return false;
+}
+
+bool Matcher::is_generic_vector(MachOper* opnd)  {
+  ShouldNotReachHere();  // generic vector operands not supported
+  return false;
+}
+
 bool Matcher::narrow_oop_use_complex_address() {
   assert(UseCompressedOops, "only for compressed oops code");
   return false;
@@ -1855,8 +1873,7 @@ const bool Matcher::misaligned_doubles_ok = true;
 void Matcher::pd_implicit_null_fixup(MachNode *node, uint idx) {
 }
 
-// Advertise here if the CPU requires explicit rounding operations
-// to implement the UseStrictFP mode.
+// Advertise here if the CPU requires explicit rounding operations to implement strictfp mode.
 const bool Matcher::strict_fp_requires_explicit_rounding = false;
 
 // Are floats converted to double when stored to stack during deoptimization?

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -42,6 +42,7 @@
 #include "jfr/support/jfrKlassExtension.hpp"
 #endif
 
+class RecordComponent;
 
 // An InstanceKlass is the VM level representation of a Java class.
 // It contains all information needed for at class at execution runtime.
@@ -105,7 +106,7 @@ class OopMapBlock {
   uint count() const         { return _count; }
   void set_count(uint count) { _count = count; }
 
-  void increment_count(int diff)     { _count += diff; }
+  void increment_count(int diff) { _count += diff; }
 
   int offset_span() const { return _count * heapOopSize; }
 
@@ -226,6 +227,9 @@ class InstanceKlass: public Klass {
 
   Array<ValueTypes>* _value_types;
 
+  // The contents of the Record attribute.
+  Array<RecordComponent*>* _record_components;
+
   // the source debug extension for this klass, NULL if not specified.
   // Specified as UTF-8 string without terminating zero byte in the classfile,
   // it is stored in the instanceklass as a NULL-terminated UTF-8 string
@@ -252,17 +256,6 @@ class InstanceKlass: public Klass {
   // _is_marked_dependent can be set concurrently, thus cannot be part of the
   // _misc_flags.
   bool            _is_marked_dependent;  // used for marking during flushing and deoptimization
-
- public:
-  enum {
-    _extra_is_being_redefined   = 1 << 0, // used for locking redefinition
-    _extra_has_resolved_methods = 1 << 1, // resolved methods table entries added for this class
-    _extra_has_value_fields     = 1 << 2, // has value fields and related embedded section is not empty
-    _extra_is_empty_value       = 1 << 3  // empty value type
-  };
-
- protected:
-  u1              _extra_flags;
 
   // The low three bits of _misc_flags contains the kind field.
   // This can be used to quickly discriminate among the five kinds of
@@ -294,7 +287,11 @@ class InstanceKlass: public Klass {
     _misc_is_shared_boot_class                = 1 << 13, // defining class loader is boot class loader
     _misc_is_shared_platform_class            = 1 << 14, // defining class loader is platform class loader
     _misc_is_shared_app_class                 = 1 << 15, // defining class loader is app class loader
-    _misc_has_contended_annotations           = 1 << 17  // has @Contended annotation
+    _misc_has_resolved_methods                = 1 << 16, // resolved methods table entries added for this class
+    _misc_is_being_redefined                  = 1 << 17, // used for locking redefinition
+    _misc_has_contended_annotations           = 1 << 18, // has @Contended annotation
+    _misc_has_value_fields                    = 1 << 19, // has value fields and related embedded section is not empty
+    _misc_is_empty_value                      = 1 << 20  // empty value type
   };
   u2 loader_type_bits() {
     return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
@@ -422,17 +419,17 @@ class InstanceKlass: public Klass {
   }
 
   bool has_value_fields() const          {
-    return (_extra_flags & _extra_has_value_fields) != 0;
+    return (_misc_flags & _misc_has_value_fields) != 0;
   }
   void set_has_value_fields()  {
-    _extra_flags |= _extra_has_value_fields;
+    _misc_flags |= _misc_has_value_fields;
   }
 
   bool is_empty_value() const {
-    return (_extra_flags & _extra_is_empty_value) != 0;
+    return (_misc_flags & _misc_is_empty_value) != 0;
   }
   void set_is_empty_value() {
-    _extra_flags |= _extra_is_empty_value;
+    _misc_flags |= _misc_is_empty_value;
   }
 
   // field sizes
@@ -522,9 +519,17 @@ class InstanceKlass: public Klass {
   jushort nest_host_index() const { return _nest_host_index; }
   void set_nest_host_index(u2 i)  { _nest_host_index = i; }
 
+  // record components
+  Array<RecordComponent*>* record_components() const { return _record_components; }
+  void set_record_components(Array<RecordComponent*>* record_components) {
+    _record_components = record_components;
+  }
+  bool is_record() const { return _record_components != NULL; }
+
 private:
   // Called to verify that k is a member of this nest - does not look at k's nest-host
   bool has_nest_member(InstanceKlass* k, TRAPS) const;
+
 public:
   // Returns nest-host class, resolving and validating it if needed
   // Returns NULL if an exception occurs during loading, or validation fails
@@ -598,7 +603,8 @@ public:
   bool is_marked_dependent() const         { return _is_marked_dependent; }
   void set_is_marked_dependent(bool value) { _is_marked_dependent = value; }
 
-  static ByteSize extra_flags_offset() { return in_ByteSize(offset_of(InstanceKlass, _extra_flags)); }
+  static ByteSize misc_flags_offset() { return in_ByteSize(offset_of(InstanceKlass, _misc_flags)); }
+  static u4 misc_flags_is_empty_value() { return _misc_is_empty_value; }
 
   // initialization (virtuals from Klass)
   bool should_be_initialized() const;  // means that initialize should be called
@@ -641,7 +647,7 @@ public:
   bool find_field_from_offset(int offset, bool is_static, fieldDescriptor* fd) const;
 
  private:
-  static int quick_search(const Array<Method*>* methods, const Symbol* name);
+  inline static int quick_search(const Array<Method*>* methods, const Symbol* name);
 
  public:
   static void disable_method_binary_search() {
@@ -810,14 +816,15 @@ public:
 
 #if INCLUDE_JVMTI
   // Redefinition locking.  Class can only be redefined by one thread at a time.
+
   bool is_being_redefined() const          {
-    return (_extra_flags & _extra_is_being_redefined);
+    return (_misc_flags & _misc_is_being_redefined);
   }
   void set_is_being_redefined(bool value)  {
     if (value) {
-      _extra_flags |= _extra_is_being_redefined;
+      _misc_flags |= _misc_is_being_redefined;
     } else {
-      _extra_flags &= ~_extra_is_being_redefined;
+      _misc_flags &= ~_misc_is_being_redefined;
     }
   }
 
@@ -873,11 +880,11 @@ public:
   }
 
   bool has_resolved_methods() const {
-    return (_extra_flags & _extra_has_resolved_methods) != 0;
+    return (_misc_flags & _misc_has_resolved_methods) != 0;
   }
 
   void set_has_resolved_methods() {
-    _extra_flags |= _extra_has_resolved_methods;
+    _misc_flags |= _misc_has_resolved_methods;
   }
 private:
 
@@ -1155,9 +1162,6 @@ public:
                                                has_value_fields() ? java_fields_count() : 0,
                                                is_value());
   }
-#if INCLUDE_SERVICES
-  virtual void collect_statistics(KlassSizeStats *sz) const;
-#endif
 
   intptr_t* start_of_itable()   const { return (intptr_t*)start_of_vtable() + vtable_length(); }
   intptr_t* end_of_itable()     const { return start_of_itable() + itable_length(); }
@@ -1300,6 +1304,8 @@ public:
                                     const Klass* super_klass,
                                     Array<InstanceKlass*>* local_interfaces,
                                     Array<InstanceKlass*>* transitive_interfaces);
+  void static deallocate_record_components(ClassLoaderData* loader_data,
+                                           Array<RecordComponent*>* record_component);
 
   // The constant pool is on stack if any of the methods are executing or
   // referenced by handles.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -320,9 +320,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
   int field_index = cp_entry->field_index();
   int field_offset = cp_entry->f2_as_offset();
   Symbol* field_signature = vklass->field_signature(field_index);
-  ResourceMark rm(THREAD);
-  const char* signature = (const char *) field_signature->as_utf8();
-  BasicType field_type = char2type(signature[0]);
+  BasicType field_type = Signature::basic_type(field_signature);
   int return_offset = (type2size[field_type] + type2size[T_OBJECT]) * AbstractInterpreter::stackElementSize;
 
   // Getting old value
@@ -1612,7 +1610,7 @@ void SignatureHandlerLibrary::add(const methodHandle& method) {
     // use slow signature handler if we can't do better
     int handler_index = -1;
     // check if we can use customized (fast) signature handler
-    if (UseFastSignatureHandlers && method->size_of_parameters() <= Fingerprinter::max_size_of_parameters) {
+    if (UseFastSignatureHandlers && method->size_of_parameters() <= Fingerprinter::fp_max_size_of_parameters) {
       // use customized signature handler
       MutexLocker mu(SignatureHandlerLibrary_lock);
       // make sure data structure is initialized

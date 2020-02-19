@@ -180,7 +180,7 @@ private:
 
       bool marked_as_dirty = Atomic::cmpxchg(&_contains[region], false, true) == false;
       if (marked_as_dirty) {
-        uint allocated = Atomic::add(&_cur_idx, 1u) - 1;
+        uint allocated = Atomic::fetch_and_add(&_cur_idx, 1u);
         _buffer[allocated] = region;
       }
     }
@@ -232,7 +232,7 @@ private:
 
     void work(uint worker_id) {
       while (_cur_dirty_regions < _regions->size()) {
-        uint next = Atomic::add(&_cur_dirty_regions, _chunk_length) - _chunk_length;
+        uint next = Atomic::fetch_and_add(&_cur_dirty_regions, _chunk_length);
         uint max = MIN2(next + _chunk_length, _regions->size());
 
         for (uint i = next; i < max; i++) {
@@ -305,6 +305,15 @@ public:
   }
 
   void prepare() {
+    // Reset the claim and clear scan top for all regions, including
+    // regions currently not available or free. Since regions might
+    // become used during the collection these values must be valid
+    // for those regions as well.
+    for (size_t i = 0; i < _max_regions; i++) {
+      reset_region_claim((uint)i);
+      clear_scan_top((uint)i);
+    }
+
     _all_dirty_regions = new G1DirtyRegions(_max_regions);
     _next_dirty_regions = new G1DirtyRegions(_max_regions);
   }
@@ -420,7 +429,7 @@ public:
 
   uint claim_cards_to_scan(uint region, uint increment) {
     assert(region < _max_regions, "Tried to access invalid region %u", region);
-    return Atomic::add(&_card_table_scan_state[region], increment) - increment;
+    return Atomic::fetch_and_add(&_card_table_scan_state[region], increment);
   }
 
   void add_dirty_region(uint const region) {
@@ -885,7 +894,6 @@ void G1RemSet::scan_collection_set_regions(G1ParScanThreadState* pss,
 void G1RemSet::prepare_region_for_scan(HeapRegion* region) {
   uint hrm_index = region->hrm_index();
 
-  _scan_state->reset_region_claim(hrm_index);
   if (region->in_collection_set()) {
     // Young regions had their card table marked as young at their allocation;
     // we need to make sure that these marks are cleared at the end of GC, *but*
@@ -893,7 +901,6 @@ void G1RemSet::prepare_region_for_scan(HeapRegion* region) {
     // So directly add them to the "all_dirty_regions".
     // Same for regions in the (initial) collection set: they may contain cards from
     // the log buffers, make sure they are cleaned.
-    _scan_state->clear_scan_top(hrm_index);
     _scan_state->add_all_dirty_region(hrm_index);
   } else if (region->is_old_or_humongous_or_archive()) {
     _scan_state->set_scan_top(hrm_index, region->top());
@@ -1460,14 +1467,14 @@ class G1RebuildRemSetTask: public AbstractGangTask {
       size_t const obj_size = obj->size();
       // All non-objArrays and objArrays completely within the mr
       // can be scanned without passing the mr.
-      if (!obj->is_objArray() || mr.contains(MemRegion((HeapWord*)obj, obj_size))) {
+      if (!obj->is_objArray() || mr.contains(MemRegion(cast_from_oop<HeapWord*>(obj), obj_size))) {
         obj->oop_iterate(&_update_cl);
         return obj_size;
       }
       // This path is for objArrays crossing the given MemRegion. Only scan the
       // area within the MemRegion.
       obj->oop_iterate(&_update_cl, mr);
-      return mr.intersection(MemRegion((HeapWord*)obj, obj_size)).word_size();
+      return mr.intersection(MemRegion(cast_from_oop<HeapWord*>(obj), obj_size)).word_size();
     }
 
     // A humongous object is live (with respect to the scanning) either
@@ -1572,7 +1579,7 @@ class G1RebuildRemSetTask: public AbstractGangTask {
           assert(hr->top() == top_at_mark_start || hr->top() == top_at_rebuild_start,
                  "More than one object in the humongous region?");
           humongous_obj->oop_iterate(&_update_cl, mr);
-          return top_at_mark_start != hr->bottom() ? mr.intersection(MemRegion((HeapWord*)humongous_obj, humongous_obj->size())).byte_size() : 0;
+          return top_at_mark_start != hr->bottom() ? mr.intersection(MemRegion(cast_from_oop<HeapWord*>(humongous_obj), humongous_obj->size())).byte_size() : 0;
         } else {
           return 0;
         }
@@ -1581,7 +1588,7 @@ class G1RebuildRemSetTask: public AbstractGangTask {
       for (LiveObjIterator it(bitmap, top_at_mark_start, mr, hr->block_start(mr.start())); it.has_next(); it.move_to_next()) {
         oop obj = it.next();
         size_t scanned_size = scan_for_references(obj, mr);
-        if ((HeapWord*)obj < top_at_mark_start) {
+        if (cast_from_oop<HeapWord*>(obj) < top_at_mark_start) {
           marked_words += scanned_size;
         }
       }

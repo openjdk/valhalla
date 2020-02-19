@@ -26,7 +26,9 @@
 package java.io;
 
 import java.io.ObjectStreamClass.WeakClassKey;
+import java.io.ObjectStreamClass.RecordSupport;
 import java.lang.System.Logger;
+import java.lang.invoke.MethodHandle;
 import java.lang.ref.ReferenceQueue;
 import java.lang.reflect.Array;
 import java.lang.reflect.Modifier;
@@ -217,6 +219,39 @@ import sun.reflect.misc.ReflectUtil;
  * methods defined by enum types are ignored during deserialization.
  * Similarly, any serialPersistentFields or serialVersionUID field declarations
  * are also ignored--all enum types have a fixed serialVersionUID of 0L.
+ *
+ * @implSpec
+ * <a id="record-serialization"></a>
+ * Records are serialized differently than ordinary serializable or externalizable
+ * objects. The serialized form of a record object is a sequence of values derived
+ * from the record components. The stream format of a record object is the same as
+ * that of an ordinary object in the stream. During deserialization, if the local
+ * class equivalent of the specified stream class descriptor is a record class,
+ * then first the stream fields are read and reconstructed to serve as the record's
+ * component values; and second, a record object is created by invoking the
+ * record's <i>canonical</i> constructor with the component values as arguments (or the
+ * default value for component's type if a component value is absent from the
+ * stream).
+ * Like other serializable or externalizable objects, record objects can function
+ * as the target of back references appearing subsequently in the serialization
+ * stream. However, a cycle in the graph where the record object is referred to,
+ * either directly or transitively, by one of its components, is not preserved.
+ * The record components are deserialized prior to the invocation of the record
+ * constructor, hence this limitation (see
+ * <a href="{@docRoot}/../specs/serialization/serial-arch.html#cyclic-references">
+ * [Section 1.14, "Circular References"</a> for additional information).
+ * The process by which record objects are serialized or externalized cannot be
+ * customized; any class-specific writeObject, readObject, readObjectNoData,
+ * writeExternal, and readExternal methods defined by record classes are
+ * ignored during serialization and deserialization. However, a substitute object
+ * to be serialized or a designate replacement may be specified, by the
+ * writeReplace and readResolve methods, respectively.  Any
+ * serialPersistentFields field declaration is ignored. Documenting serializable
+ * fields and data for record classes is unnecessary, since there is no variation
+ * in the serial form, other than whether a substitute or replacement object is
+ * used. The serialVersionUID of a record class is 0L unless explicitly
+ * declared. The requirement for matching serialVersionUID values is waived for
+ * record classes.
  *
  * @author      Mike Warres
  * @author      Roger Riggs
@@ -418,16 +453,50 @@ public class ObjectInputStream
      * @throws  IOException Any of the usual Input/Output related exceptions.
      */
     public final Object readObject()
+        throws IOException, ClassNotFoundException {
+        return readObject(Object.class);
+    }
+
+    /**
+     * Reads a String and only a string.
+     *
+     * @return  the String read
+     * @throws  EOFException If end of file is reached.
+     * @throws  IOException If other I/O error has occurred.
+     */
+    private String readString() throws IOException {
+        try {
+            return (String) readObject(String.class);
+        } catch (ClassNotFoundException cnf) {
+            throw new IllegalStateException(cnf);
+        }
+    }
+
+    /**
+     * Internal method to read an object from the ObjectInputStream of the expected type.
+     * Called only from {@code readObject()} and {@code readString()}.
+     * Only {@code Object.class} and {@code String.class} are supported.
+     *
+     * @param type the type expected; either Object.class or String.class
+     * @return an object of the type
+     * @throws  IOException Any of the usual Input/Output related exceptions.
+     * @throws  ClassNotFoundException Class of a serialized object cannot be
+     *          found.
+     */
+    private final Object readObject(Class<?> type)
         throws IOException, ClassNotFoundException
     {
         if (enableOverride) {
             return readObjectOverride();
         }
 
+        if (! (type == Object.class || type == String.class))
+            throw new AssertionError("internal error");
+
         // if nested read, passHandle contains handle of enclosing object
         int outerHandle = passHandle;
         try {
-            Object obj = readObject0(false);
+            Object obj = readObject0(type, false);
             handles.markDependency(outerHandle, passHandle);
             ClassNotFoundException ex = handles.lookupException(passHandle);
             if (ex != null) {
@@ -522,7 +591,7 @@ public class ObjectInputStream
         // if nested read, passHandle contains handle of enclosing object
         int outerHandle = passHandle;
         try {
-            Object obj = readObject0(true);
+            Object obj = readObject0(Object.class, true);
             handles.markDependency(outerHandle, passHandle);
             ClassNotFoundException ex = handles.lookupException(passHandle);
             if (ex != null) {
@@ -1542,8 +1611,10 @@ public class ObjectInputStream
 
     /**
      * Underlying readObject implementation.
+     * @param type a type expected to be deserialized; non-null
+     * @param unshared true if the object can not be a reference to a shared object, otherwise false
      */
-    private Object readObject0(boolean unshared) throws IOException {
+    private Object readObject0(Class<?> type, boolean unshared) throws IOException {
         boolean oldMode = bin.getBlockDataMode();
         if (oldMode) {
             int remain = bin.currentBlockRemaining();
@@ -1575,13 +1646,20 @@ public class ObjectInputStream
                     return readNull();
 
                 case TC_REFERENCE:
-                    return readHandle(unshared);
+                    // check the type of the existing object
+                    return type.cast(readHandle(unshared));
 
                 case TC_CLASS:
+                    if (type == String.class) {
+                        throw new ClassCastException("Cannot cast a class to java.lang.String");
+                    }
                     return readClass(unshared);
 
                 case TC_CLASSDESC:
                 case TC_PROXYCLASSDESC:
+                    if (type == String.class) {
+                        throw new ClassCastException("Cannot cast a class to java.lang.String");
+                    }
                     return readClassDesc(unshared);
 
                 case TC_STRING:
@@ -1589,15 +1667,27 @@ public class ObjectInputStream
                     return checkResolve(readString(unshared));
 
                 case TC_ARRAY:
+                    if (type == String.class) {
+                        throw new ClassCastException("Cannot cast an array to java.lang.String");
+                    }
                     return checkResolve(readArray(unshared));
 
                 case TC_ENUM:
+                    if (type == String.class) {
+                        throw new ClassCastException("Cannot cast an enum to java.lang.String");
+                    }
                     return checkResolve(readEnum(unshared));
 
                 case TC_OBJECT:
+                    if (type == String.class) {
+                        throw new ClassCastException("Cannot cast an object to java.lang.String");
+                    }
                     return checkResolve(readOrdinaryObject(unshared));
 
                 case TC_EXCEPTION:
+                    if (type == String.class) {
+                        throw new ClassCastException("Cannot cast an exception to java.lang.String");
+                    }
                     IOException ex = readFatalException();
                     throw new WriteAbortedException("writing aborted", ex);
 
@@ -1969,7 +2059,7 @@ public class ObjectInputStream
 
         if (ccl == null) {
             for (int i = 0; i < len; i++) {
-                readObject0(false);
+                readObject0(Object.class, false);
             }
         } else if (ccl.isPrimitive()) {
             if (ccl == Integer.TYPE) {
@@ -1994,7 +2084,7 @@ public class ObjectInputStream
         } else {
             Object[] oa = (Object[]) array;
             for (int i = 0; i < len; i++) {
-                oa[i] = readObject0(false);
+                oa[i] = readObject0(Object.class, false);
                 handles.markDependency(arrayHandle, passHandle);
             }
         }
@@ -2047,6 +2137,11 @@ public class ObjectInputStream
         return result;
     }
 
+    @SuppressWarnings("preview")
+    private static boolean isRecord(Class<?> cls) {
+        return cls.isRecord();
+    }
+
     /**
      * Reads and returns "ordinary" (i.e., not a String, Class,
      * ObjectStreamClass, array, or enum constant) object, or null if object's
@@ -2085,7 +2180,12 @@ public class ObjectInputStream
             handles.markException(passHandle, resolveEx);
         }
 
-        if (desc.isExternalizable()) {
+        final boolean isRecord = cl != null && isRecord(cl) ? true : false;
+        if (isRecord) {
+            assert obj == null;
+            obj = readRecord(desc);
+            handles.setObject(passHandle, obj);
+        } else if (desc.isExternalizable()) {
             readExternalData((Externalizable) obj, desc);
         } else {
             readSerialData(obj, desc);
@@ -2169,6 +2269,43 @@ public class ObjectInputStream
          * externalizable data remains in the stream, a subsequent read will
          * most likely throw a StreamCorruptedException.
          */
+    }
+
+    /** Reads a record. */
+    private Object readRecord(ObjectStreamClass desc) throws IOException {
+        ObjectStreamClass.ClassDataSlot[] slots = desc.getClassDataLayout();
+        if (slots.length != 1) {
+            // skip any superclass stream field values
+            for (int i = 0; i < slots.length-1; i++) {
+                ObjectStreamClass slotDesc = slots[i].desc;
+                if (slots[i].hasData) {
+                    defaultReadFields(null, slotDesc);
+                }
+            }
+        }
+
+        FieldValues fieldValues = defaultReadFields(null, desc);
+
+        // retrieve the canonical constructor
+        MethodHandle ctrMH = desc.getRecordConstructor();
+
+        // bind the stream field values
+        ctrMH = RecordSupport.bindCtrValues(ctrMH, desc, fieldValues);
+
+        try {
+            return ctrMH.invoke();
+        } catch (Exception e) {
+            InvalidObjectException ioe = new InvalidObjectException(e.getMessage());
+            ioe.initCause(e);
+            throw ioe;
+        } catch (Error e) {
+            throw e;
+        } catch (Throwable t) {
+            ObjectStreamException ose = new InvalidObjectException(
+                    "ReflectiveOperationException during deserialization");
+            ose.initCause(t);
+            throw ose;
+        }
     }
 
     /**
@@ -2311,13 +2448,13 @@ public class ObjectInputStream
                     return;
 
                 default:
-                    readObject0(false);
+                    readObject0(Object.class, false);
                     break;
             }
         }
     }
 
-    private class FieldValues {
+    /*package-private*/ class FieldValues {
         final byte[] primValues;
         final Object[] objValues;
 
@@ -2356,7 +2493,7 @@ public class ObjectInputStream
             int numPrimFields = fields.length - objVals.length;
             for (int i = 0; i < objVals.length; i++) {
                 ObjectStreamField f = fields[numPrimFields + i];
-                objVals[i] = readObject0(f.isUnshared());
+                objVals[i] = readObject0(Object.class, f.isUnshared());
                 if (f.getField() != null) {
                     handles.markDependency(objHandle, passHandle);
                 }
@@ -2397,7 +2534,7 @@ public class ObjectInputStream
             throw new InternalError();
         }
         clear();
-        return (IOException) readObject0(false);
+        return (IOException) readObject0(Object.class, false);
     }
 
     /**
@@ -2519,7 +2656,7 @@ public class ObjectInputStream
             int numPrimFields = fields.length - objVals.length;
             for (int i = 0; i < objVals.length; i++) {
                 objVals[i] =
-                    readObject0(fields[numPrimFields + i].isUnshared());
+                    readObject0(Object.class, fields[numPrimFields + i].isUnshared());
                 objHandles[i] = passHandle;
             }
             passHandle = oldHandle;
@@ -4008,6 +4145,7 @@ public class ObjectInputStream
 
     static {
         SharedSecrets.setJavaObjectInputStreamAccess(ObjectInputStream::checkArray);
+        SharedSecrets.setJavaObjectInputStreamReadString(ObjectInputStream::readString);
     }
 
 }

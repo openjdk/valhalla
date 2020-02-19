@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -121,6 +121,7 @@ class GCTimer;
   do_klass(AccessController_klass,                      java_security_AccessController                        ) \
   do_klass(SecureClassLoader_klass,                     java_security_SecureClassLoader                       ) \
   do_klass(ClassNotFoundException_klass,                java_lang_ClassNotFoundException                      ) \
+  do_klass(Record_klass,                                java_lang_Record                                      ) \
   do_klass(NoClassDefFoundError_klass,                  java_lang_NoClassDefFoundError                        ) \
   do_klass(LinkageError_klass,                          java_lang_LinkageError                                ) \
   do_klass(ClassCastException_klass,                    java_lang_ClassCastException                          ) \
@@ -221,6 +222,9 @@ class GCTimer;
   do_klass(Iterator_klass,                              java_util_Iterator                                    ) \
                                                                                                                 \
   do_klass(jdk_internal_vm_jni_SubElementSelector_klass, jdk_internal_vm_jni_SubElementSelector               ) \
+  /* support for records */                                                                                     \
+  do_klass(RecordComponent_klass,                       java_lang_reflect_RecordComponent                     ) \
+                                                                                                                \
   /*end*/
 
 class SystemDictionary : AllStatic {
@@ -503,10 +507,6 @@ public:
     return find_java_mirror_for_type(signature, accessing_klass, Handle(), Handle(),
                                      failure_mode, THREAD);
   }
-
-
-  // fast short-cut for the one-character case:
-  static oop       find_java_mirror_for_type(char signature_char);
 
   // find a java.lang.invoke.MethodType object for a given signature
   // (asks Java to compute it if necessary, except in a compiler thread)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2019, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -892,9 +892,9 @@ static void verify_oop_args(MacroAssembler *masm,
       if (r->is_stack()) {
         __ z_lg(Z_R0_scratch,
                 Address(Z_SP, r->reg2stack() * VMRegImpl::stack_slot_size + wordSize));
-        __ verify_oop(Z_R0_scratch);
+        __ verify_oop(Z_R0_scratch, FILE_AND_LINE);
       } else {
-        __ verify_oop(r->as_Register());
+        __ verify_oop(r->as_Register(), FILE_AND_LINE);
       }
     }
   }
@@ -1626,27 +1626,15 @@ nmethod *SharedRuntime::generate_native_wrapper(MacroAssembler *masm,
     for (int i = 0; i < total_in_args; i++, o++) {
       if (in_sig_bt[i] == T_ARRAY) {
         // Arrays are passed as tuples (int, elem*).
-        Symbol* atype = ss.as_symbol();
-        const char* at = atype->as_C_string();
-        if (strlen(at) == 2) {
-          assert(at[0] == '[', "must be");
-          switch (at[1]) {
-            case 'B': in_elem_bt[o]  = T_BYTE; break;
-            case 'C': in_elem_bt[o]  = T_CHAR; break;
-            case 'D': in_elem_bt[o]  = T_DOUBLE; break;
-            case 'F': in_elem_bt[o]  = T_FLOAT; break;
-            case 'I': in_elem_bt[o]  = T_INT; break;
-            case 'J': in_elem_bt[o]  = T_LONG; break;
-            case 'S': in_elem_bt[o]  = T_SHORT; break;
-            case 'Z': in_elem_bt[o]  = T_BOOLEAN; break;
-            default: ShouldNotReachHere();
-          }
-        }
+        ss.skip_array_prefix(1);  // skip one '['
+        assert(ss.is_primitive(), "primitive type expected");
+        in_elem_bt[o] = ss.type();
       } else {
         in_elem_bt[o] = T_VOID;
       }
       if (in_sig_bt[i] != T_VOID) {
-        assert(in_sig_bt[i] == ss.type(), "must match");
+        assert(in_sig_bt[i] == ss.type() ||
+               in_sig_bt[i] == T_ARRAY, "must match");
         ss.next();
       }
     }
@@ -2686,7 +2674,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
       __ z_ltgr(Z_ARG1, Z_ARG1);
       __ z_bre(ic_miss);
     }
-    __ verify_oop(Z_ARG1);
+    __ verify_oop(Z_ARG1, FILE_AND_LINE);
 
     // Check ic: object class <-> cached class
     // Compress cached class for comparison. That's more efficient.
@@ -2955,7 +2943,7 @@ void SharedRuntime::generate_deopt_blob() {
 #ifdef ASSERT
   // verify that there is really an exception oop in JavaThread
   __ z_lg(Z_ARG1, Address(Z_thread, JavaThread::exception_oop_offset()));
-  __ verify_oop(Z_ARG1);
+  __ MacroAssembler::verify_oop(Z_ARG1, FILE_AND_LINE);
 
   // verify that there is no pending exception
   __ asm_assert_mem8_is_zero(in_bytes(Thread::pending_exception_offset()), Z_thread,

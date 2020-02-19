@@ -29,7 +29,6 @@
  *           in member summary. Also, test for type parameter links in package-summary and
  *           class-use pages. The class/annotation pages should check for type
  *           parameter links in the class/annotation signature section when -linksource is set.
- * @author   jamieh
  * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build    javadoc.tester.*
@@ -70,7 +69,8 @@ public class TestTypeParameters extends JavadocTester {
 
         // Nested type parameters
         checkOutput("pkg/C.html", true,
-                "<a id=\"formatDetails(java.util.Collection,java.util.Collection)\">");
+                "<section class=\"detail\" id=\"formatDetails(java.util.Collection,java.util.Collection)\">\n"
+                + "<h3>formatDetails</h3>");
     }
 
     @Test

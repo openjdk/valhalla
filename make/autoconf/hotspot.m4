@@ -349,10 +349,27 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
   fi
 
   # Only enable ZGC on supported platforms
+  if (test "x$OPENJDK_TARGET_OS" = "xwindows" && test "x$OPENJDK_TARGET_CPU" = "xx86_64"); then
+    AC_MSG_CHECKING([if zgc can be built on windows])
+    AC_COMPILE_IFELSE(
+      [AC_LANG_PROGRAM([[#include <windows.h>]],
+        [[struct MEM_EXTENDED_PARAMETER x;]])
+      ],
+      [
+        AC_MSG_RESULT([yes])
+        CAN_BUILD_ZGC_ON_WINDOWS="yes"
+      ],
+      [
+        AC_MSG_RESULT([no, missing required APIs])
+        CAN_BUILD_ZGC_ON_WINDOWS="no"
+      ]
+    )
+  fi
+
   AC_MSG_CHECKING([if zgc can be built])
   if (test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = "xx86_64") || \
      (test "x$OPENJDK_TARGET_OS" = "xlinux" && test "x$OPENJDK_TARGET_CPU" = "xaarch64") || \
-     (test "x$OPENJDK_TARGET_OS" = "xwindows" && test "x$OPENJDK_TARGET_CPU" = "xx86_64") || \
+     (test "x$CAN_BUILD_ZGC_ON_WINDOWS" = "xyes") || \
      (test "x$OPENJDK_TARGET_OS" = "xmacosx" && test "x$OPENJDK_TARGET_CPU" = "xx86_64"); then
     AC_MSG_RESULT([yes])
   else
@@ -510,8 +527,7 @@ AC_DEFUN_ONCE([HOTSPOT_SETUP_JVM_FEATURES],
     fi
   fi
 
-  # Disable CDS for zero, minimal, core..
-  if HOTSPOT_CHECK_JVM_VARIANT(zero) || HOTSPOT_CHECK_JVM_VARIANT(minimal) || HOTSPOT_CHECK_JVM_VARIANT(core); then
+  if ! HOTSPOT_CHECK_JVM_VARIANT(server) && ! HOTSPOT_CHECK_JVM_VARIANT(client); then
     # ..except when the user explicitely requested it with --enable-jvm-features
     if ! HOTSPOT_CHECK_JVM_FEATURE(cds); then
       ENABLE_CDS="false"

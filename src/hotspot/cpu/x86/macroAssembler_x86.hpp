@@ -461,6 +461,7 @@ class MacroAssembler: public Assembler {
   // Division by power of 2, rounding towards 0
   void division_with_shift(Register reg, int shift_value);
 
+#ifndef _LP64
   // Compares the top-most stack entries on the FPU stack and sets the eflags as follows:
   //
   // CF (corresponds to C0) if x < y
@@ -489,6 +490,10 @@ class MacroAssembler: public Assembler {
   // tmp is a temporary register, if none is available use noreg
   void fremr(Register tmp);
 
+  // only if +VerifyFPU
+  void verify_FPU(int stack_depth, const char* s = "illegal FPU state");
+#endif // !LP64
+
   // dst = c = a * b + c
   void fmad(XMMRegister dst, XMMRegister a, XMMRegister b, XMMRegister c);
   void fmaf(XMMRegister dst, XMMRegister a, XMMRegister b, XMMRegister c);
@@ -508,9 +513,6 @@ class MacroAssembler: public Assembler {
   void jC2 (Register tmp, Label& L);
   void jnC2(Register tmp, Label& L);
 
-  // Pop ST (ffree & fincstp combined)
-  void fpop();
-
   // Load float value from 'address'. If UseSSE >= 1, the value is loaded into
   // register xmm0. Otherwise, the value is loaded onto the FPU stack.
   void load_float(Address src);
@@ -527,13 +529,12 @@ class MacroAssembler: public Assembler {
   // from register xmm0. Otherwise, the value is stored from the FPU stack.
   void store_double(Address dst);
 
-  // pushes double TOS element of FPU stack on CPU stack; pops from FPU stack
-  void push_fTOS();
-
-  // pops double TOS element from CPU stack and pushes on FPU stack
-  void pop_fTOS();
+#ifndef _LP64
+  // Pop ST (ffree & fincstp combined)
+  void fpop();
 
   void empty_FPU_stack();
+#endif // !_LP64
 
   void push_IU_state();
   void pop_IU_state();
@@ -655,9 +656,6 @@ class MacroAssembler: public Assembler {
 
 #define verify_method_ptr(reg) _verify_method_ptr(reg, "broken method " #reg, __FILE__, __LINE__)
 #define verify_klass_ptr(reg) _verify_klass_ptr(reg, "broken klass " #reg, __FILE__, __LINE__)
-
-  // only if +VerifyFPU
-  void verify_FPU(int stack_depth, const char* s = "illegal FPU state");
 
   // Verify or restore cpu control state after JNI call
   void restore_cpu_control_state_after_jni();
@@ -949,6 +947,7 @@ class MacroAssembler: public Assembler {
   void comisd(XMMRegister dst, Address src) { Assembler::comisd(dst, src); }
   void comisd(XMMRegister dst, AddressLiteral src);
 
+#ifndef _LP64
   void fadd_s(Address src)        { Assembler::fadd_s(src); }
   void fadd_s(AddressLiteral src) { Assembler::fadd_s(as_Address(src)); }
 
@@ -967,6 +966,7 @@ class MacroAssembler: public Assembler {
 
   void fmul_s(Address src)        { Assembler::fmul_s(src); }
   void fmul_s(AddressLiteral src) { Assembler::fmul_s(as_Address(src)); }
+#endif // _LP64
 
   void ldmxcsr(Address src) { Assembler::ldmxcsr(src); }
   void ldmxcsr(AddressLiteral src);
@@ -1128,9 +1128,6 @@ public:
                 XMMRegister xmm4, XMMRegister xmm5, XMMRegister xmm6, XMMRegister xmm7,
                 Register rax, Register rcx, Register rdx, Register tmp);
 #endif
-
-  void increase_precision();
-  void restore_precision();
 
 private:
 
@@ -1403,7 +1400,7 @@ public:
   void vpxor(XMMRegister dst, Address src) { Assembler::vpxor(dst, dst, src, true); }
 
   void vinserti128(XMMRegister dst, XMMRegister nds, XMMRegister src, uint8_t imm8) {
-    if (UseAVX > 2) {
+    if (UseAVX > 2 && VM_Version::supports_avx512novl()) {
       Assembler::vinserti32x4(dst, dst, src, imm8);
     } else if (UseAVX > 1) {
       // vinserti128 is available only in AVX2
@@ -1414,7 +1411,7 @@ public:
   }
 
   void vinserti128(XMMRegister dst, XMMRegister nds, Address src, uint8_t imm8) {
-    if (UseAVX > 2) {
+    if (UseAVX > 2 && VM_Version::supports_avx512novl()) {
       Assembler::vinserti32x4(dst, dst, src, imm8);
     } else if (UseAVX > 1) {
       // vinserti128 is available only in AVX2
@@ -1425,7 +1422,7 @@ public:
   }
 
   void vextracti128(XMMRegister dst, XMMRegister src, uint8_t imm8) {
-    if (UseAVX > 2) {
+    if (UseAVX > 2 && VM_Version::supports_avx512novl()) {
       Assembler::vextracti32x4(dst, src, imm8);
     } else if (UseAVX > 1) {
       // vextracti128 is available only in AVX2
@@ -1436,7 +1433,7 @@ public:
   }
 
   void vextracti128(Address dst, XMMRegister src, uint8_t imm8) {
-    if (UseAVX > 2) {
+    if (UseAVX > 2 && VM_Version::supports_avx512novl()) {
       Assembler::vextracti32x4(dst, src, imm8);
     } else if (UseAVX > 1) {
       // vextracti128 is available only in AVX2
@@ -1461,7 +1458,7 @@ public:
   }
 
   void vinsertf128_high(XMMRegister dst, XMMRegister src) {
-    if (UseAVX > 2) {
+    if (UseAVX > 2 && VM_Version::supports_avx512novl()) {
       Assembler::vinsertf32x4(dst, dst, src, 1);
     } else {
       Assembler::vinsertf128(dst, dst, src, 1);
@@ -1469,7 +1466,7 @@ public:
   }
 
   void vinsertf128_high(XMMRegister dst, Address src) {
-    if (UseAVX > 2) {
+    if (UseAVX > 2 && VM_Version::supports_avx512novl()) {
       Assembler::vinsertf32x4(dst, dst, src, 1);
     } else {
       Assembler::vinsertf128(dst, dst, src, 1);
@@ -1477,7 +1474,7 @@ public:
   }
 
   void vextractf128_high(XMMRegister dst, XMMRegister src) {
-    if (UseAVX > 2) {
+    if (UseAVX > 2 && VM_Version::supports_avx512novl()) {
       Assembler::vextractf32x4(dst, src, 1);
     } else {
       Assembler::vextractf128(dst, src, 1);
@@ -1485,7 +1482,7 @@ public:
   }
 
   void vextractf128_high(Address dst, XMMRegister src) {
-    if (UseAVX > 2) {
+    if (UseAVX > 2 && VM_Version::supports_avx512novl()) {
       Assembler::vextractf32x4(dst, src, 1);
     } else {
       Assembler::vextractf128(dst, src, 1);
@@ -1527,7 +1524,7 @@ public:
   }
 
   void vinsertf128_low(XMMRegister dst, XMMRegister src) {
-    if (UseAVX > 2) {
+    if (UseAVX > 2 && VM_Version::supports_avx512novl()) {
       Assembler::vinsertf32x4(dst, dst, src, 0);
     } else {
       Assembler::vinsertf128(dst, dst, src, 0);
@@ -1535,7 +1532,7 @@ public:
   }
 
   void vinsertf128_low(XMMRegister dst, Address src) {
-    if (UseAVX > 2) {
+    if (UseAVX > 2 && VM_Version::supports_avx512novl()) {
       Assembler::vinsertf32x4(dst, dst, src, 0);
     } else {
       Assembler::vinsertf128(dst, dst, src, 0);
@@ -1543,7 +1540,7 @@ public:
   }
 
   void vextractf128_low(XMMRegister dst, XMMRegister src) {
-    if (UseAVX > 2) {
+    if (UseAVX > 2 && VM_Version::supports_avx512novl()) {
       Assembler::vextractf32x4(dst, src, 0);
     } else {
       Assembler::vextractf128(dst, src, 0);
@@ -1551,7 +1548,7 @@ public:
   }
 
   void vextractf128_low(Address dst, XMMRegister src) {
-    if (UseAVX > 2) {
+    if (UseAVX > 2 && VM_Version::supports_avx512novl()) {
       Assembler::vextractf32x4(dst, src, 0);
     } else {
       Assembler::vextractf128(dst, src, 0);
@@ -1685,9 +1682,9 @@ public:
 
 #ifdef COMPILER2
   // Generic instructions support for use in .ad files C2 code generation
-  void vabsnegd(int opcode, XMMRegister dst, Register scr);
+  void vabsnegd(int opcode, XMMRegister dst, XMMRegister src, Register scr);
   void vabsnegd(int opcode, XMMRegister dst, XMMRegister src, int vector_len, Register scr);
-  void vabsnegf(int opcode, XMMRegister dst, Register scr);
+  void vabsnegf(int opcode, XMMRegister dst, XMMRegister src, Register scr);
   void vabsnegf(int opcode, XMMRegister dst, XMMRegister src, int vector_len, Register scr);
   void vextendbw(bool sign, XMMRegister dst, XMMRegister src, int vector_len);
   void vextendbw(bool sign, XMMRegister dst, XMMRegister src);
@@ -1887,6 +1884,11 @@ public:
                           XMMRegister tmp1, Register tmp2);
 
 #ifdef _LP64
+  void convert_f2i(Register dst, XMMRegister src);
+  void convert_d2i(Register dst, XMMRegister src);
+  void convert_f2l(Register dst, XMMRegister src);
+  void convert_d2l(Register dst, XMMRegister src);
+
   void cache_wb(Address line);
   void cache_wbsync(bool is_pre);
 #endif // _LP64

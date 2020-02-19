@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -672,11 +672,14 @@ void VM_Version::get_processor_features() {
     }
   }
   if (FLAG_IS_DEFAULT(UseAVX)) {
-    FLAG_SET_DEFAULT(UseAVX, use_avx_limit);
-    if (is_intel_family_core() && _model == CPU_MODEL_SKYLAKE && _stepping < 5) {
-      FLAG_SET_DEFAULT(UseAVX, 2);  //Set UseAVX=2 for Skylake
+    // Don't use AVX-512 on older Skylakes unless explicitly requested.
+    if (use_avx_limit > 2 && is_intel_skylake() && _stepping < 5) {
+      FLAG_SET_DEFAULT(UseAVX, 2);
+    } else {
+      FLAG_SET_DEFAULT(UseAVX, use_avx_limit);
     }
-  } else if (UseAVX > use_avx_limit) {
+  }
+  if (UseAVX > use_avx_limit) {
     warning("UseAVX=%d is not supported on this CPU, setting it to UseAVX=%d", (int) UseAVX, use_avx_limit);
     FLAG_SET_DEFAULT(UseAVX, use_avx_limit);
   } else if (UseAVX < 0) {
@@ -691,8 +694,10 @@ void VM_Version::get_processor_features() {
     _features &= ~CPU_AVX512BW;
     _features &= ~CPU_AVX512VL;
     _features &= ~CPU_AVX512_VPOPCNTDQ;
-    _features &= ~CPU_VPCLMULQDQ;
+    _features &= ~CPU_AVX512_VPCLMULQDQ;
     _features &= ~CPU_VAES;
+    _features &= ~CPU_VNNI;
+    _features &= ~CPU_VBMI2;
   }
 
   if (UseAVX < 2)
@@ -715,7 +720,7 @@ void VM_Version::get_processor_features() {
   }
 
   char buf[256];
-  jio_snprintf(buf, sizeof(buf), "(%u cores per cpu, %u threads per core) family %d model %d stepping %d%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
+  jio_snprintf(buf, sizeof(buf), "(%u cores per cpu, %u threads per core) family %d model %d stepping %d%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s",
                cores_per_cpu(), threads_per_core(),
                cpu_family(), _model, _stepping,
                (supports_cmov() ? ", cmov" : ""),
@@ -748,7 +753,10 @@ void VM_Version::get_processor_features() {
                (supports_adx() ? ", adx" : ""),
                (supports_evex() ? ", evex" : ""),
                (supports_sha() ? ", sha" : ""),
-               (supports_fma() ? ", fma" : ""));
+               (supports_fma() ? ", fma" : ""),
+               (supports_vbmi2() ? ", vbmi2" : ""),
+               (supports_vaes() ? ", vaes" : ""),
+               (supports_vnni() ? ", vnni" : ""));
   _features_string = os::strdup(buf);
 
   // UseSSE is set to the smaller of what hardware supports and what

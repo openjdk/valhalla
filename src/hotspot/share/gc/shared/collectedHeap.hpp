@@ -368,7 +368,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   unsigned int total_full_collections() const { return _total_full_collections;}
 
   // Increment total number of GC collections (started)
-  // Should be protected but used by PSMarkSweep - cleanup for 1.4.2
   void increment_total_collections(bool full = false) {
     _total_collections++;
     if (full) {
@@ -387,6 +386,9 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
   // Iterate over all objects, calling "cl.do_object" on each.
   virtual void object_iterate(ObjectClosure* cl) = 0;
+
+  // Keep alive an object that was loaded with AS_NO_KEEPALIVE.
+  virtual void keep_alive(oop obj) {}
 
   // Returns the longest time (in ms) that has elapsed since the last
   // time that any part of the heap was examined by a garbage collection.

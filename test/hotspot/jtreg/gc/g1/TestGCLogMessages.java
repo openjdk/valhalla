@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,7 +87,7 @@ public class TestGCLogMessages {
         }
 
         public boolean isAvailable() {
-            return Compiler.isC2Enabled() || Compiler.isGraalEnabled();
+            return Compiler.isC2OrJVMCIIncludedInVmBuild();
         }
     }
 
@@ -145,9 +145,15 @@ public class TestGCLogMessages {
         new LogMessageWithLevel("Prepare Heap Roots", Level.DEBUG),
         // Free CSet
         new LogMessageWithLevel("Free Collection Set", Level.DEBUG),
-        new LogMessageWithLevel("Free Collection Set Serial", Level.TRACE),
+        new LogMessageWithLevel("Serial Free Collection Set", Level.TRACE),
+        new LogMessageWithLevel("Parallel Free Collection Set", Level.TRACE),
         new LogMessageWithLevel("Young Free Collection Set", Level.TRACE),
         new LogMessageWithLevel("Non-Young Free Collection Set", Level.TRACE),
+        // Rebuild Free List
+        new LogMessageWithLevel("Rebuild Free List", Level.DEBUG),
+        new LogMessageWithLevel("Serial Rebuild Free List", Level.TRACE),
+        new LogMessageWithLevel("Parallel Rebuild Free List", Level.TRACE),
+
         // Humongous Eager Reclaim
         new LogMessageWithLevel("Humongous Reclaim", Level.DEBUG),
         // Merge PSS

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -189,12 +189,7 @@ class Symbol : public MetaspaceObj {
   bool equals(const char* str, int len) const {
     int l = utf8_length();
     if (l != len) return false;
-    while (l-- > 0) {
-      if (str[l] != char_at(l))
-        return false;
-    }
-    assert(l == -1, "we should be at the beginning");
-    return true;
+    return contains_utf8_at(0, str, len);
   }
   bool equals(const char* str) const { return equals(str, (int) strlen(str)); }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -454,22 +454,31 @@ JRT_LEAF(jboolean, JVMCIRuntime::object_notifyAll(JavaThread *thread, oopDesc* o
 
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::throw_and_post_jvmti_exception(JavaThread* thread, const char* exception, const char* message))
+JRT_BLOCK_ENTRY(int, JVMCIRuntime::throw_and_post_jvmti_exception(JavaThread* thread, const char* exception, const char* message))
+  JRT_BLOCK;
   TempNewSymbol symbol = SymbolTable::new_symbol(exception);
   SharedRuntime::throw_and_post_jvmti_exception(thread, symbol, message);
+  JRT_BLOCK_END;
+  return caller_is_deopted();
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::throw_klass_external_name_exception(JavaThread* thread, const char* exception, Klass* klass))
+JRT_BLOCK_ENTRY(int, JVMCIRuntime::throw_klass_external_name_exception(JavaThread* thread, const char* exception, Klass* klass))
+  JRT_BLOCK;
   ResourceMark rm(thread);
   TempNewSymbol symbol = SymbolTable::new_symbol(exception);
   SharedRuntime::throw_and_post_jvmti_exception(thread, symbol, klass->external_name());
+  JRT_BLOCK_END;
+  return caller_is_deopted();
 JRT_END
 
-JRT_ENTRY(void, JVMCIRuntime::throw_class_cast_exception(JavaThread* thread, const char* exception, Klass* caster_klass, Klass* target_klass))
+JRT_BLOCK_ENTRY(int, JVMCIRuntime::throw_class_cast_exception(JavaThread* thread, const char* exception, Klass* caster_klass, Klass* target_klass))
+  JRT_BLOCK;
   ResourceMark rm(thread);
   const char* message = SharedRuntime::generate_class_cast_message(caster_klass, target_klass);
   TempNewSymbol symbol = SymbolTable::new_symbol(exception);
   SharedRuntime::throw_and_post_jvmti_exception(thread, symbol, message);
+  JRT_BLOCK_END;
+  return caller_is_deopted();
 JRT_END
 
 JRT_LEAF(void, JVMCIRuntime::log_object(JavaThread* thread, oopDesc* obj, bool as_string, bool newline))
@@ -1413,7 +1422,7 @@ JVMCI::CodeInstallResult JVMCIRuntime::register_method(JVMCIEnv* JVMCIENV,
   JVMCI::CodeInstallResult result;
   {
     // To prevent compile queue updates.
-    MutexLocker locker(MethodCompileQueue_lock, THREAD);
+    MutexLocker locker(THREAD, MethodCompileQueue_lock);
 
     // Prevent SystemDictionary::add_to_hierarchy from running
     // and invalidating our dependencies until we install this method.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,10 @@
 
 ServiceThread* ServiceThread::_instance = NULL;
 JvmtiDeferredEvent* ServiceThread::_jvmti_event = NULL;
+// The service thread has it's own static deferred event queue.
+// Events can be posted before JVMTI vm_start, so it's too early to call JvmtiThreadState::state_for
+// to add this field to the per-JavaThread event queue.  TODO: fix this sometime later
+JvmtiDeferredEventQueue ServiceThread::_jvmti_service_queue;
 
 void ServiceThread::initialize() {
   EXCEPTION_MARK;
@@ -64,7 +68,7 @@ void ServiceThread::initialize() {
                           CHECK);
 
   {
-    MutexLocker mu(Threads_lock);
+    MutexLocker mu(THREAD, Threads_lock);
     ServiceThread* thread =  new ServiceThread(&service_thread_entry);
 
     // At this point it may be possible that no osthread was created for the
@@ -124,7 +128,7 @@ void ServiceThread::service_thread_entry(JavaThread* jt, TRAPS) {
       // tests from potentially starving later work.  Hence the use of
       // arithmetic-or to combine results; we don't want short-circuiting.
       while (((sensors_changed = (!UseNotificationThread && LowMemoryDetector::has_pending_requests())) |
-              (has_jvmti_events = JvmtiDeferredEventQueue::has_events()) |
+              (has_jvmti_events = _jvmti_service_queue.has_events()) |
               (has_gc_notification_event = (!UseNotificationThread && GCNotifier::has_event())) |
               (has_dcmd_notification_event = (!UseNotificationThread && DCmdFactory::has_pending_jmx_notification())) |
               (stringtable_work = StringTable::has_work()) |
@@ -140,7 +144,7 @@ void ServiceThread::service_thread_entry(JavaThread* jt, TRAPS) {
 
       if (has_jvmti_events) {
         // Get the event under the Service_lock
-        jvmti_event = JvmtiDeferredEventQueue::dequeue();
+        jvmti_event = _jvmti_service_queue.dequeue();
         _jvmti_event = &jvmti_event;
       }
     }
@@ -190,6 +194,16 @@ void ServiceThread::service_thread_entry(JavaThread* jt, TRAPS) {
   }
 }
 
+void ServiceThread::enqueue_deferred_event(JvmtiDeferredEvent* event) {
+  MutexLocker ml(Service_lock, Mutex::_no_safepoint_check_flag);
+  // If you enqueue events before the service thread runs, gc and the sweeper
+  // cannot keep the nmethod alive.  This could be restricted to compiled method
+  // load and unload events, if we wanted to be picky.
+  assert(_instance != NULL, "cannot enqueue events before the service thread runs");
+  _jvmti_service_queue.enqueue(*event);
+  Service_lock->notify_all();
+ }
+
 void ServiceThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
   JavaThread::oops_do(f, cf);
   // The ServiceThread "owns" the JVMTI Deferred events, scan them here
@@ -198,8 +212,9 @@ void ServiceThread::oops_do(OopClosure* f, CodeBlobClosure* cf) {
     if (_jvmti_event != NULL) {
       _jvmti_event->oops_do(f, cf);
     }
+    // Requires a lock, because threads can be adding to this queue.
     MutexLocker ml(Service_lock, Mutex::_no_safepoint_check_flag);
-    JvmtiDeferredEventQueue::oops_do(f, cf);
+    _jvmti_service_queue.oops_do(f, cf);
   }
 }
 
@@ -209,7 +224,8 @@ void ServiceThread::nmethods_do(CodeBlobClosure* cf) {
     if (_jvmti_event != NULL) {
       _jvmti_event->nmethods_do(cf);
     }
+    // Requires a lock, because threads can be adding to this queue.
     MutexLocker ml(Service_lock, Mutex::_no_safepoint_check_flag);
-    JvmtiDeferredEventQueue::nmethods_do(cf);
+    _jvmti_service_queue.nmethods_do(cf);
   }
 }

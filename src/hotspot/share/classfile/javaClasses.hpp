@@ -30,6 +30,8 @@
 #include "oops/oop.hpp"
 #include "runtime/os.hpp"
 
+class RecordComponent;
+
 // Interface for manipulating the basic Java classes.
 //
 // All dependencies on layout of actual Java classes should be kept here.
@@ -73,6 +75,7 @@
   f(java_lang_reflect_Method) \
   f(java_lang_reflect_Constructor) \
   f(java_lang_reflect_Field) \
+  f(java_lang_reflect_RecordComponent) \
   f(java_nio_Buffer) \
   f(reflect_ConstantPool) \
   f(reflect_UnsafeStaticFieldAccessorImpl) \
@@ -1413,6 +1416,10 @@ class java_lang_StackTraceElement: AllStatic {
   static void set_lineNumber(oop element, int value);
   static void set_declaringClassObject(oop element, oop value);
 
+  static void decode_file_and_line(Handle java_mirror, InstanceKlass* holder, int version,
+                                   const methodHandle& method, int bci,
+                                   Symbol*& source, oop& source_file, int& line_number, TRAPS);
+
  public:
   // Create an instance of StackTraceElement
   static oop create(const methodHandle& method, int bci, TRAPS);
@@ -1424,8 +1431,7 @@ class java_lang_StackTraceElement: AllStatic {
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 
 #if INCLUDE_JVMCI
-  static void decode(Handle mirror, int method, int version, int bci, int cpref, Symbol*& methodName, Symbol*& fileName, int& lineNumber);
-  static void decode(Handle mirror, methodHandle method, int bci, Symbol*& methodName, Symbol*& fileName, int& lineNumber);
+  static void decode(const methodHandle& method, int bci, Symbol*& fileName, int& lineNumber, TRAPS);
 #endif
 
   // Debugging
@@ -1497,6 +1503,39 @@ class java_lang_LiveStackFrameInfo: AllStatic {
   // Debugging
   friend class JavaClasses;
 };
+
+// Interface to java.lang.reflect.RecordComponent objects
+
+class java_lang_reflect_RecordComponent: AllStatic {
+ private:
+  static int clazz_offset;
+  static int name_offset;
+  static int type_offset;
+  static int accessor_offset;
+  static int signature_offset;
+  static int annotations_offset;
+  static int typeAnnotations_offset;
+
+  // Setters
+  static void set_clazz(oop element, oop value);
+  static void set_name(oop element, oop value);
+  static void set_type(oop element, oop value);
+  static void set_accessor(oop element, oop value);
+  static void set_signature(oop element, oop value);
+  static void set_annotations(oop element, oop value);
+  static void set_typeAnnotations(oop element, oop value);
+
+ public:
+  // Create an instance of RecordComponent
+  static oop create(InstanceKlass* holder, RecordComponent* component, TRAPS);
+
+  static void compute_offsets();
+  static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
+
+  // Debugging
+  friend class JavaClasses;
+};
+
 
 // Interface to java.lang.AssertionStatusDirectives objects
 

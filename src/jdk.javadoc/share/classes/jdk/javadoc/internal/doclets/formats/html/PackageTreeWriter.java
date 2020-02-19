@@ -49,9 +49,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocPaths;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Atul M Dambalkar
- * @author Bhavesh Patel (Modified)
  */
 public class PackageTreeWriter extends AbstractTreeWriter {
 
@@ -84,7 +81,7 @@ public class PackageTreeWriter extends AbstractTreeWriter {
      * @param configuration the configuration for this run.
      * @param pkg      Package for which tree file is to be generated.
      * @param noDeprecated  If true, do not generate any information for
-     * deprecated classe or interfaces.
+     * deprecated classes or interfaces.
      * @throws DocFileIOException if there is a problem generating the package tree page
      */
     public static void generate(HtmlConfiguration configuration,

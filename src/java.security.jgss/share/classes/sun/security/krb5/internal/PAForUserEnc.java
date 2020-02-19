@@ -135,6 +135,7 @@ public class PAForUserEnc {
         bytes.write(DerValue.createTag(DerValue.TAG_CONTEXT, true, (byte)0x01), name.getRealm().asn1Encode());
 
         try {
+            // MS-SFU 2.2.1: use hmac-md5 checksum regardless of key type
             Checksum cks = new Checksum(
                     Checksum.CKSUMTYPE_HMAC_MD5_ARCFOUR,
                     getS4UByteArray(),
@@ -179,6 +180,10 @@ public class PAForUserEnc {
         output[2] = (byte)((pnType>>16) & 0xff);
         output[3] = (byte)((pnType>>24) & 0xff);
         return output;
+    }
+
+    public PrincipalName getName() {
+        return name;
     }
 
     public String toString() {

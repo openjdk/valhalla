@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -193,9 +193,9 @@ void FieldLayout::add(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* star
     }
     // Before iterating over the layout to find an empty slot fitting the field's requirements,
     // check if the previous field had the same requirements and if the search for a fitting slot
-    // was successful. If he requirements were the same but the search failed, a new search will
+    // was successful. If the requirements were the same but the search failed, a new search will
     // fail the same way, so just append the field at the of the layout.
-    else  if (b->size() == last_size && b->alignment() == last_alignment && last_search_success == false) {
+    else  if (b->size() == last_size && b->alignment() == last_alignment && !last_search_success) {
       candidate = last_block();
     } else {
       // Iterate over the layout to find an empty slot fitting the field's requirements
@@ -207,8 +207,9 @@ void FieldLayout::add(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* star
 
       while (cursor != start) {
         if (cursor->kind() == LayoutRawBlock::EMPTY && cursor->fit(b->size(), b->alignment())) {
-          if (candidate == NULL) candidate = cursor;
-          else if (cursor->size() < candidate->size()) candidate = cursor;
+          if (candidate == NULL || cursor->size() < candidate->size()) {
+            candidate = cursor;
+          }
         }
         cursor = cursor->prev_block();
       }
@@ -254,7 +255,7 @@ void FieldLayout::add_field_at_offset(LayoutRawBlock* block, int offset, LayoutR
   fatal("Should have found a matching slot above, corrupted layout or invalid offset");
 }
 
-// The allocation logic uses a first fit strategy: the set of fields is allocated
+// The allocation logic uses a best fit strategy: the set of fields is allocated
 // in the first empty slot big enough to contain the whole set ((including padding
 // to fit alignment constraints).
 void FieldLayout::add_contiguously(GrowableArray<LayoutRawBlock*>* list, LayoutRawBlock* start) {
@@ -314,7 +315,7 @@ bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
   GrowableArray<LayoutRawBlock*>* all_fields = new GrowableArray<LayoutRawBlock*>(32);
   while (ik != NULL) {
     for (AllFieldStream fs(ik->fields(), ik->constants()); !fs.done(); fs.next()) {
-      BasicType type = vmSymbols::signature_type(fs.signature());
+      BasicType type = Signature::basic_type(fs.signature());
       // distinction between static and non-static fields is missing
       if (fs.access_flags().is_static()) continue;
       has_instance_fields = true;
@@ -326,7 +327,7 @@ bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
 
       } else {
         int size = type2aelembytes(type);
-        // INHERITED blocs are marked as non-reference because oop_maps are handled by their holder class
+        // INHERITED blocks are marked as non-reference because oop_maps are handled by their holder class
         block = new LayoutRawBlock(fs.index(), LayoutRawBlock::INHERITED, size, size, false);
       }
       block->set_offset(fs.offset());
@@ -377,7 +378,6 @@ void FieldLayout::fill_holes(const InstanceKlass* super_klass) {
   // inserted at the end to ensure that fields from the subclasses won't share
   // the cache line of the last field of the contended class
   if (super_klass->has_contended_annotations()) {
-    int rsize = b->offset() + b->size();
     LayoutRawBlock* p = new LayoutRawBlock(LayoutRawBlock::PADDING, ContendedPaddingWidth);
     p->set_offset(b->offset() + b->size());
     b->set_next_block(p);
@@ -407,10 +407,11 @@ void FieldLayout::fill_holes(const InstanceKlass* super_klass) {
 
 LayoutRawBlock* FieldLayout::insert(LayoutRawBlock* slot, LayoutRawBlock* block) {
   assert(slot->kind() == LayoutRawBlock::EMPTY, "Blocks can only be inserted in empty blocks");
-  assert(slot->size() >= block->size(), "Insufficient space");
   assert(slot->offset() % block->alignment() == 0, "Incompatible alignment");
   block->set_offset(slot->offset());
   slot->set_offset(slot->offset() + block->size());
+  assert((slot->size() - block->size()) < slot->size(), "underflow checking");
+  assert(slot->size() - block->size() >= 0, "no negative size allowed");
   slot->set_size(slot->size() - block->size());
   block->set_prev_block(slot->prev_block());
   block->set_next_block(slot);
@@ -495,7 +496,7 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
             break;
           }
         }
-        ik = ik->super() == NULL ? NULL : InstanceKlass::cast(ik->super());
+        ik = ik->java_super();
       }
       break;
     }
@@ -591,7 +592,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
       }
     }
     assert(group != NULL, "invariant");
-    BasicType type = vmSymbols::signature_type(fs.signature());
+    BasicType type = Signature::basic_type(fs.signature());
     switch(type) {
     case T_BYTE:
     case T_CHAR:
@@ -676,7 +677,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
       group = _root_group;
     }
     assert(group != NULL, "invariant");
-    BasicType type = vmSymbols::signature_type(fs.signature());
+    BasicType type = Signature::basic_type(fs.signature());
     switch(type) {
     case T_BYTE:
     case T_CHAR:
@@ -900,7 +901,7 @@ void FieldLayoutBuilder::compute_boxing_class_layout() {
     LayoutRawBlock* b = _root_group->primitive_fields()->at(i);
     FieldInfo* fi = FieldInfo::from_field_array(_fields, b->field_index());
     assert(fi->name(_constant_pool)->equals("value"), "Boxing classes have a single nonstatic field named 'value'");
-    BasicType type = vmSymbols::signature_type(fi->signature(_constant_pool));
+    BasicType type = Signature::basic_type(fi->signature(_constant_pool));
     offset = java_lang_boxing_object::value_offset_in_bytes(type);
     assert(offset != -1, "Unknown field");
     _layout->add_field_at_offset(b, offset);
@@ -926,7 +927,6 @@ void FieldLayoutBuilder::add_flattened_field_oopmap(OopMapBlocksBuilder* nonstat
 }
 
 void FieldLayoutBuilder::epilogue() {
-  Thread* thread = Thread::current();
   // Computing oopmaps
   int super_oop_map_count = (_super_klass == NULL) ? 0 :_super_klass->nonstatic_oop_map_count();
   int max_oop_map_count = super_oop_map_count + _nonstatic_oopmap_count;
@@ -984,7 +984,7 @@ void FieldLayoutBuilder::epilogue() {
   _info->_has_nonstatic_fields = _has_nonstatic_fields;
 
   if (PrintFieldLayout) {
-    ResourceMark rm(thread);
+    ResourceMark rm;
     tty->print_cr("Layout of class %s", _classname->as_C_string());
     tty->print_cr("Instance fields:");
     _layout->print(tty, false, _super_klass);

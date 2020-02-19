@@ -25,7 +25,6 @@
  * @test
  * @bug      4905786 6259611 8162363 8196202
  * @summary  Make sure that headings use the TH tag instead of the TD tag.
- * @author   jamieh
  * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build    javadoc.tester.*
@@ -63,7 +62,8 @@ public class TestHeadings extends JavadocTester {
                 "<th class=\"colFirst\" scope=\"col\">Modifier and Type</th>\n"
                 + "<th class=\"colSecond\" scope=\"col\">Field</th>\n"
                 + "<th class=\"colLast\" scope=\"col\">Description</th>",
-                "<h3>Methods inherited from class&nbsp;java.lang.Object</h3>");
+                "<h3 id=\"methods.inherited.from.class.java.lang.Object\">"
+                + "Methods inherited from class&nbsp;java.lang.Object</h3>");
 
         // Class use documentation
         checkOutput("pkg1/class-use/C1.html", true,

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -86,7 +86,7 @@ ciField::ciField(ciInstanceKlass* klass, int index) :
   Symbol* signature = cpool->symbol_at(sig_index);
   _signature = ciEnv::current(THREAD)->get_symbol(signature);
 
-  BasicType field_type = FieldType::basic_type(signature);
+  BasicType field_type = Signature::basic_type(signature);
 
   // If the field is a pointer type, get the klass of the
   // field.
@@ -245,7 +245,9 @@ static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
     // Never trust strangely unstable finals:  System.out, etc.
     return false;
   // Even if general trusting is disabled, trust system-built closures in these packages.
-  if (holder->is_in_package("java/lang/invoke") || holder->is_in_package("sun/invoke"))
+  if (holder->is_in_package("java/lang/invoke") || holder->is_in_package("sun/invoke") ||
+      holder->is_in_package("jdk/internal/foreign") || holder->is_in_package("jdk/incubator/foreign") ||
+      holder->is_in_package("java/lang"))
     return true;
   // Trust VM unsafe anonymous classes. They are private API (jdk.internal.misc.Unsafe)
   // and can't be serialized, so there is no hacking of finals going on with them.

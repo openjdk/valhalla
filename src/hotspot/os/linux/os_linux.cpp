@@ -2081,11 +2081,14 @@ int os::get_loaded_modules_info(os::LoadedModulesCallbackFunc callback, void *pa
       u8 base, top, offset, inode;
       char permissions[5];
       char device[6];
-      char name[PATH_MAX + 1];
+      char name[sizeof(line)];
 
       // Parse fields from line
-      sscanf(line, UINT64_FORMAT_X "-" UINT64_FORMAT_X " %4s " UINT64_FORMAT_X " %7s " INT64_FORMAT " %s",
+      int matches = sscanf(line, UINT64_FORMAT_X "-" UINT64_FORMAT_X " %4s " UINT64_FORMAT_X " %5s " INT64_FORMAT " %s",
              &base, &top, permissions, &offset, device, &inode, name);
+      // the last entry 'name' is empty for some entries, so we might have 6 matches instead of 7 for some lines
+      if (matches < 6) continue;
+      if (matches == 6) name[0] = '\0';
 
       // Filter by device id '00:00' so that we only get file system mapped files.
       if (strcmp(device, "00:00") != 0) {
@@ -3160,6 +3163,8 @@ bool os::Linux::libnuma_init() {
                                                   libnuma_v2_dlsym(handle, "numa_get_interleave_mask")));
       set_numa_move_pages(CAST_TO_FN_PTR(numa_move_pages_func_t,
                                          libnuma_dlsym(handle, "numa_move_pages")));
+      set_numa_set_preferred(CAST_TO_FN_PTR(numa_set_preferred_func_t,
+                                            libnuma_dlsym(handle, "numa_set_preferred")));
 
       if (numa_available() != -1) {
         set_numa_all_nodes((unsigned long*)libnuma_dlsym(handle, "numa_all_nodes"));
@@ -3295,6 +3300,7 @@ os::Linux::numa_distance_func_t os::Linux::_numa_distance;
 os::Linux::numa_get_membind_func_t os::Linux::_numa_get_membind;
 os::Linux::numa_get_interleave_mask_func_t os::Linux::_numa_get_interleave_mask;
 os::Linux::numa_move_pages_func_t os::Linux::_numa_move_pages;
+os::Linux::numa_set_preferred_func_t os::Linux::_numa_set_preferred;
 os::Linux::NumaAllocationPolicy os::Linux::_current_numa_policy;
 unsigned long* os::Linux::_numa_all_nodes;
 struct bitmask* os::Linux::_numa_all_nodes_ptr;

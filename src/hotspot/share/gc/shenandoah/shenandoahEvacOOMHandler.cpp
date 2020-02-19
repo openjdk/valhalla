@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2018, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2018, 2019, Red Hat, Inc. All rights reserved.
+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
@@ -122,12 +123,4 @@ ShenandoahEvacOOMScope::ShenandoahEvacOOMScope() {
 
 ShenandoahEvacOOMScope::~ShenandoahEvacOOMScope() {
   ShenandoahHeap::heap()->leave_evacuation();
-}
-
-ShenandoahEvacOOMScopeLeaver::ShenandoahEvacOOMScopeLeaver() {
-  ShenandoahHeap::heap()->leave_evacuation();
-}
-
-ShenandoahEvacOOMScopeLeaver::~ShenandoahEvacOOMScopeLeaver() {
-  ShenandoahHeap::heap()->enter_evacuation();
 }

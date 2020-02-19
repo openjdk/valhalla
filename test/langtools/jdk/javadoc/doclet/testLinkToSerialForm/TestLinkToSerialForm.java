@@ -26,7 +26,6 @@
  * @bug 4521661 8081854 8182765
  * @summary Test to make sure that there is a link with a proper anchor
  * from a serializable class to serialized-form.html.
- * @author jamieh
  * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build javadoc.tester.*
@@ -50,7 +49,7 @@ public class TestLinkToSerialForm extends JavadocTester {
         checkExit(Exit.OK);
 
         checkOutput("serialized-form.html", true,
-                "<a id=\"pkg.C\">");
+                "<section class=\"serializedClassDetails\" id=\"pkg.C\">");
         checkOutput("pkg/C.html", true,
                 "<a href=\"../serialized-form.html#pkg.C\">");
     }

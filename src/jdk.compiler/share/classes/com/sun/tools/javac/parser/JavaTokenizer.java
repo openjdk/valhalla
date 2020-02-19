@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -322,8 +322,8 @@ public class JavaTokenizer {
             String[] lines = string.split("\\R");
             int length = lines.length;
             // Extract last line.
-            String lastLine = lines[length - 1];
-            if (!optOut) {
+            String lastLine = length == 0 ? "" : lines[length - 1];
+             if (!optOut) {
                 // Prime with the last line indentation (may be blank.)
                 outdent = indent(lastLine);
                 for (String line : lines) {
@@ -392,7 +392,7 @@ public class JavaTokenizer {
         return reader.ch == CR && reader.peekChar() == LF;
     }
 
-    /** Count and skip repeated occurances of the specified character.
+    /** Count and skip repeated occurrences of the specified character.
      */
     private int countChar(char ch, int max) {
         int count = 0;

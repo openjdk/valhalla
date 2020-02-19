@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,6 +48,7 @@
   static_field(CompilerToVM::Data,             SharedRuntime_ic_miss_stub,             address)                                      \
   static_field(CompilerToVM::Data,             SharedRuntime_handle_wrong_method_stub, address)                                      \
   static_field(CompilerToVM::Data,             SharedRuntime_deopt_blob_unpack,        address)                                      \
+  static_field(CompilerToVM::Data,             SharedRuntime_deopt_blob_unpack_with_exception_in_tls,        address)                       \
   static_field(CompilerToVM::Data,             SharedRuntime_deopt_blob_uncommon_trap, address)                                      \
                                                                                                                                      \
   static_field(CompilerToVM::Data,             ThreadLocalAllocBuffer_alignment_reserve, size_t)                                     \
@@ -322,6 +323,8 @@
   static_field(StubRoutines,                _montgomeryMultiply,                              address)                               \
   static_field(StubRoutines,                _montgomerySquare,                                address)                               \
   static_field(StubRoutines,                _vectorizedMismatch,                              address)                               \
+  static_field(StubRoutines,                _bigIntegerRightShiftWorker,                      address)                               \
+  static_field(StubRoutines,                _bigIntegerLeftShiftWorker,                       address)                               \
                                                                                                                                      \
   nonstatic_field(Thread,                   _tlab,                                            ThreadLocalAllocBuffer)                \
   nonstatic_field(Thread,                   _allocated_bytes,                                 jlong)                                 \

@@ -261,9 +261,9 @@ The timeout factor (`-timeoutFactor`).
 Defaults to 4.
 
 #### TEST_MODE
-The test mode (`-agentvm`, `-samevm` or `-othervm`).
+The test mode (`agentvm` or `othervm`).
 
-Defaults to `-agentvm`.
+Defaults to `agentvm`.
 
 #### ASSERT
 Enable asserts (`-ea -esa`, or none).
@@ -331,6 +331,10 @@ Additional VM options to JTReg (`-vmoption`).
 Generate AOT modules before testing for the specified module, or set of
 modules. If multiple modules are specified, they should be separated by space
 (or, to help avoid quoting issues, the special value `%20`).
+
+#### RETRY_COUNT
+
+Retry failed tests up to a set number of times. Defaults to 0.
 
 ### Gtest keywords
 

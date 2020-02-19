@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -247,7 +247,6 @@ class MaskFillerForNative: public NativeSignatureIterator {
   void pass_float()                              { /* ignore */ }
   void pass_double()                             { /* ignore */ }
   void pass_object()                             { set_one(offset()); }
-  void pass_valuetype()                          { set_one(offset()); }
 
   MaskFillerForNative(const methodHandle& method, uintptr_t* mask, int size) : NativeSignatureIterator(method) {
     _mask   = mask;
@@ -258,7 +257,7 @@ class MaskFillerForNative: public NativeSignatureIterator {
   }
 
   void generate() {
-    NativeSignatureIterator::iterate();
+    iterate();
   }
 };
 

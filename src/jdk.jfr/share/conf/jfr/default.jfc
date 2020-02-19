@@ -671,32 +671,7 @@
     </event>
 
     <event name="jdk.Flush">
-      <setting name="enabled">true</setting>
-      <setting name="threshold">0 ns</setting>
-    </event>
-
-    <event name="jdk.FlushStorage">
-      <setting name="enabled">true</setting>
-      <setting name="threshold">0 ns</setting>
-    </event>
-
-    <event name="jdk.FlushStacktrace">
-      <setting name="enabled">true</setting>
-      <setting name="threshold">0 ns</setting>
-    </event>
-
-    <event name="jdk.FlushStringPool">
-      <setting name="enabled">true</setting>
-      <setting name="threshold">0 ns</setting>
-    </event>
-
-    <event name="jdk.FlushMetadata">
-      <setting name="enabled">true</setting>
-      <setting name="threshold">0 ns</setting>
-    </event>
-
-    <event name="jdk.FlushTypeSet">
-      <setting name="enabled">true</setting>
+      <setting name="enabled">false</setting>
       <setting name="threshold">0 ns</setting>
     </event>
 
@@ -731,6 +706,12 @@
     <event name="jdk.Deoptimization">
       <setting name="enabled">true</setting>
       <setting name="stackTrace">false</setting>
+    </event>
+
+    <event name="jdk.HeapDump">
+      <setting name="enabled">true</setting>
+      <setting name="threshold">0 ns</setting>
+      <setting name="stackTrace">true</setting>  
     </event>
 
 

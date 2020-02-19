@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,7 +57,6 @@ import jdk.javadoc.internal.doclets.toolkit.Messages;
  *
  * @see java.util.HashMap
  * @see java.util.List
- * @author Atul M Dambalkar
  */
 public class ClassTree {
 
@@ -167,7 +166,7 @@ public class ClassTree {
             // In the tree page (e.g overview-tree.html) do not include
             // information of classes which are deprecated or are a part of a
             // deprecated package.
-            if (configuration.nodeprecated &&
+            if (configuration.getOptions().noDeprecated() &&
                     (utils.isDeprecated(aClass) ||
                     utils.isDeprecated(utils.containingPackage(aClass)))) {
                 continue;

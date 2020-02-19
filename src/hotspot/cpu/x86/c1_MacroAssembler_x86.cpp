@@ -334,12 +334,12 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
   if (PreserveFramePointer) {
     mov(rbp, rsp);
   }
-#ifdef TIERED
-  // c2 leaves fpu stack dirty. Clean it on entry
+#if !defined(_LP64) && defined(TIERED)
   if (UseSSE < 2 ) {
+    // c2 leaves fpu stack dirty. Clean it on entry
     empty_FPU_stack();
   }
-#endif // TIERED
+#endif // !_LP64 && TIERED
   decrement(rsp, frame_size_in_bytes); // does not emit code for frame_size == 0
   if (needs_stack_repair) {
     int real_frame_size =  frame_size_in_bytes
@@ -382,7 +382,7 @@ void C1_MacroAssembler::verified_value_entry() {
   }
   if (C1Breakpoint)int3();
   // build frame
-  verify_FPU(0, "method_entry");
+  IA32_ONLY( verify_FPU(0, "method_entry"); )
 }
 
 int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, int bang_size_in_bytes, Label& verified_value_entry_label, bool is_value_ro_entry) {
@@ -397,7 +397,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
     fat_nop();
   }
   if (C1Breakpoint)int3();
-  verify_FPU(0, "method_entry");
+  IA32_ONLY( verify_FPU(0, "method_entry"); )
 
   assert(ValueTypePassFieldsAsArgs, "sanity");
   GrowableArray<SigEntry>* sig   = &ces->sig();
@@ -464,7 +464,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
     if (PreserveFramePointer) {
       mov(rbp, rsp);
     }
-#ifdef TIERED
+#if !defined(_LP64) && defined(TIERED)
     // c2 leaves fpu stack dirty. Clean it on entry
     if (UseSSE < 2 ) {
       empty_FPU_stack();

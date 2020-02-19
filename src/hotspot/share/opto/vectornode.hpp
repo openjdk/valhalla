@@ -74,6 +74,16 @@ class VectorNode : public TypeNode {
   static bool is_invariant_vector(Node* n);
   // [Start, end) half-open range defining which operands are vectors
   static void vector_operands(Node* n, uint* start, uint* end);
+
+  static bool is_vector_shift(int opc);
+  static bool is_vector_shift_count(int opc);
+
+  static bool is_vector_shift(Node* n) {
+    return is_vector_shift(n->Opcode());
+  }
+  static bool is_vector_shift_count(Node* n) {
+    return is_vector_shift_count(n->Opcode());
+  }
 };
 
 //===========================Vector=ALU=Operations=============================

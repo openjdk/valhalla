@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -68,8 +68,6 @@ import jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException;
  *  If you write code that depends on this, you do so at your own risk.
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
- *
- * @author Bhavesh Patel
  */
 public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryWriter {
 
@@ -190,7 +188,7 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
         HtmlTree bodyTree = getBody(getWindowTitle(mdle.getQualifiedName().toString()));
         Content headerContent = new ContentBuilder();
         addTop(headerContent);
-        navBar.setDisplaySummaryModuleDescLink(!utils.getFullBody(mdle).isEmpty() && !configuration.nocomment);
+        navBar.setDisplaySummaryModuleDescLink(!utils.getFullBody(mdle).isEmpty() && !options.noComment());
         navBar.setDisplaySummaryModulesLink(display(requires) || display(indirectModules));
         navBar.setDisplaySummaryPackagesLink(display(packages) || display(indirectPackages)
                 || display(indirectOpenPackages));
@@ -283,7 +281,7 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
                 }
                 packages.put(pkg, e);
             }
-        };
+        }
 
         // Get all exported packages for the module, using the exports directive for the module.
         for (ModuleElement.ExportsDirective directive : ElementFilter.exportsIn(mdle.getDirectives())) {
@@ -377,16 +375,16 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
         });
         // Generate the map of all services listed using @provides, and the description.
         (utils.getBlockTags(mdle, DocTree.Kind.PROVIDES)).forEach((tree) -> {
-            TypeElement t = ch.getServiceType(configuration, tree);
+            TypeElement t = ch.getServiceType(tree);
             if (t != null) {
-                providesTrees.put(t, commentTagsToContent(tree, mdle, ch.getDescription(configuration, tree), false, true));
+                providesTrees.put(t, commentTagsToContent(tree, mdle, ch.getDescription(tree), false, true));
             }
         });
         // Generate the map of all services listed using @uses, and the description.
         (utils.getBlockTags(mdle, DocTree.Kind.USES)).forEach((tree) -> {
-            TypeElement t = ch.getServiceType(configuration, tree);
+            TypeElement t = ch.getServiceType(tree);
             if (t != null) {
-                usesTrees.put(t, commentTagsToContent(tree, mdle, ch.getDescription(configuration, tree), false, true));
+                usesTrees.put(t, commentTagsToContent(tree, mdle, ch.getDescription(tree), false, true));
             }
         });
     }
@@ -444,14 +442,12 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
      * Add the summary header.
      *
      * @param startMarker the marker comment
-     * @param markerAnchor the marker anchor for the section
      * @param heading the heading for the section
      * @param htmltree the content tree to which the information is added
      */
-    public void addSummaryHeader(Content startMarker, SectionName markerAnchor, Content heading,
+    public void addSummaryHeader(Content startMarker, Content heading,
             Content htmltree) {
         htmltree.add(startMarker);
-        htmltree.add(links.createAnchor(markerAnchor));
         htmltree.add(HtmlTree.HEADING(Headings.ModuleDeclaration.SUMMARY_HEADING, heading));
     }
 
@@ -489,18 +485,15 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
                 .setColumnStyles(HtmlStyle.colFirst, HtmlStyle.colSecond, HtmlStyle.colLast);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addModulesSummary(Content summaryContentTree) {
         if (display(requires) || display(indirectModules)) {
             TableHeader requiresTableHeader =
                     new TableHeader(contents.modifierLabel, contents.moduleLabel,
                             contents.descriptionLabel);
-            HtmlTree section = HtmlTree.SECTION(HtmlStyle.modulesSummary);
-            addSummaryHeader(MarkerComments.START_OF_MODULES_SUMMARY, SectionName.MODULES,
-                    contents.navModules, section);
+            HtmlTree section = HtmlTree.SECTION(HtmlStyle.modulesSummary)
+                    .setId(SectionName.MODULES.getName());
+            addSummaryHeader(MarkerComments.START_OF_MODULES_SUMMARY, contents.navModules, section);
             if (display(requires)) {
                 String text = resources.getText("doclet.Requires_Summary");
                 String tableSummary = resources.getText("doclet.Member_Table_Summary",
@@ -548,9 +541,9 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
     public void addPackagesSummary(Content summaryContentTree) {
         if (display(packages)
                 || display(indirectPackages) || display(indirectOpenPackages)) {
-            HtmlTree section = HtmlTree.SECTION(HtmlStyle.packagesSummary);
-            addSummaryHeader(MarkerComments.START_OF_PACKAGES_SUMMARY, SectionName.PACKAGES,
-                    contents.navPackages, section);
+            HtmlTree section = HtmlTree.SECTION(HtmlStyle.packagesSummary)
+                    .setId(SectionName.PACKAGES.getName());;
+            addSummaryHeader(MarkerComments.START_OF_PACKAGES_SUMMARY, contents.navPackages, section);
             if (display(packages)) {
                 addPackageSummary(section);
             }
@@ -715,9 +708,6 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addServicesSummary(Content summaryContentTree) {
 
@@ -725,9 +715,9 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
         boolean haveProvides = displayServices(provides.keySet(), providesTrees);
 
         if (haveProvides || haveUses) {
-            HtmlTree section = HtmlTree.SECTION(HtmlStyle.servicesSummary);
-            addSummaryHeader(MarkerComments.START_OF_SERVICES_SUMMARY, SectionName.SERVICES,
-                    contents.navServices, section);
+            HtmlTree section = HtmlTree.SECTION(HtmlStyle.servicesSummary)
+                    .setId(SectionName.SERVICES.getName());
+            addSummaryHeader(MarkerComments.START_OF_SERVICES_SUMMARY, contents.navServices, section);
             TableHeader usesProvidesTableHeader =
                     new TableHeader(contents.typeLabel, contents.descriptionLabel);
             if (haveProvides) {
@@ -837,7 +827,7 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
             Content deprPhrase = HtmlTree.SPAN(HtmlStyle.deprecatedLabel, getDeprecatedPhrase(mdle));
             deprDiv.add(deprPhrase);
             if (!deprs.isEmpty()) {
-                List<? extends DocTree> commentTags = ch.getDescription(configuration, deprs.get(0));
+                List<? extends DocTree> commentTags = ch.getDescription(deprs.get(0));
                 if (!commentTags.isEmpty()) {
                     addInlineDeprecatedComment(mdle, deprs.get(0), deprDiv);
                 }
@@ -846,24 +836,18 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addModuleDescription(Content moduleContentTree) {
         if (!utils.getFullBody(mdle).isEmpty()) {
-            Content tree = HtmlTree.SECTION(HtmlStyle.moduleDescription);
+            HtmlTree tree = HtmlTree.SECTION(HtmlStyle.moduleDescription);
+            tree.setId(SectionName.MODULE_DESCRIPTION.getName());
             addDeprecationInfo(tree);
             tree.add(MarkerComments.START_OF_MODULE_DESCRIPTION);
-            tree.add(links.createAnchor(SectionName.MODULE_DESCRIPTION));
             addInlineComment(mdle, tree);
             moduleContentTree.add(tree);
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addModuleTags(Content moduleContentTree) {
         Content tree = HtmlTree.SECTION(HtmlStyle.moduleTags);
@@ -871,17 +855,11 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
         moduleContentTree.add(tree);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addModuleContent(Content moduleContentTree) {
         bodyContents.addMainContent(moduleContentTree);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addModuleFooter() {
         Content htmlTree = HtmlTree.FOOTER();
@@ -891,11 +869,6 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
         bodyContents.setFooter(htmlTree);
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * @throws jdk.javadoc.internal.doclets.toolkit.util.DocFileIOException
-     */
     @Override
     public void printDocument(Content contentTree) throws DocFileIOException {
         contentTree.add(bodyContents.toContent());
@@ -919,7 +892,7 @@ public class ModuleWriterImpl extends HtmlDocletWriter implements ModuleSummaryW
             deprDiv.add(deprPhrase);
             if (!deprs.isEmpty()) {
                 CommentHelper ch = utils.getCommentHelper(pkg);
-                List<? extends DocTree> commentTags = ch.getDescription(configuration, deprs.get(0));
+                List<? extends DocTree> commentTags = ch.getDescription(deprs.get(0));
                 if (!commentTags.isEmpty()) {
                     addInlineDeprecatedComment(pkg, deprs.get(0), deprDiv);
                 }

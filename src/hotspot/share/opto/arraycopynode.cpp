@@ -372,13 +372,12 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
   return true;
 }
 
-const TypeAryPtr* ArrayCopyNode::get_address_type(PhaseGVN *phase, Node* n) {
-  const Type* at = phase->type(n);
-  assert(at != Type::TOP, "unexpected type");
-  const TypeAryPtr* atp = at->is_aryptr();
+const TypeAryPtr* ArrayCopyNode::get_address_type(PhaseGVN* phase, const TypePtr* atp, Node* n) {
+  if (atp == TypeOopPtr::BOTTOM) {
+    atp = phase->type(n)->isa_ptr();
+  }
   // adjust atp to be the correct array element address type
-  atp = atp->add_offset(Type::OffsetBot)->is_aryptr();
-  return atp;
+  return atp->add_offset(Type::OffsetBot)->is_aryptr();
 }
 
 void ArrayCopyNode::array_copy_test_overlap(GraphKit& kit, bool disjoint_bases, int count, Node*& backward_ctl) {
@@ -657,8 +656,8 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   new_map->set_i_o(in(TypeFunc::I_O));
   phase->record_for_igvn(new_map);
 
-  const TypeAryPtr* atp_src = get_address_type(phase, src);
-  const TypeAryPtr* atp_dest = get_address_type(phase, dest);
+  const TypeAryPtr* atp_src = get_address_type(phase, _src_type, src);
+  const TypeAryPtr* atp_dest = get_address_type(phase, _dest_type, dest);
   uint alias_idx_src = phase->C->get_alias_index(atp_src);
   uint alias_idx_dest = phase->C->get_alias_index(atp_dest);
 

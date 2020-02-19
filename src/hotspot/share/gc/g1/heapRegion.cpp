@@ -110,7 +110,20 @@ void HeapRegion::setup_heap_region_size(size_t initial_heap_size, size_t max_hea
   }
 }
 
-void HeapRegion::hr_clear(bool keep_remset, bool clear_space, bool locked) {
+void HeapRegion::handle_evacuation_failure() {
+  uninstall_surv_rate_group();
+  clear_young_index_in_cset();
+  set_evacuation_failed(false);
+  set_old();
+}
+
+void HeapRegion::unlink_from_list() {
+  set_next(NULL);
+  set_prev(NULL);
+  set_containing_set(NULL);
+}
+
+void HeapRegion::hr_clear(bool clear_space) {
   assert(_humongous_start_region == NULL,
          "we should have already filtered out humongous regions");
   assert(!in_collection_set(),
@@ -122,13 +135,7 @@ void HeapRegion::hr_clear(bool keep_remset, bool clear_space, bool locked) {
   set_free();
   reset_pre_dummy_top();
 
-  if (!keep_remset) {
-    if (locked) {
-      rem_set()->clear_locked();
-    } else {
-      rem_set()->clear();
-    }
-  }
+  rem_set()->clear_locked();
 
   zero_marked_bytes();
 
@@ -273,7 +280,7 @@ void HeapRegion::initialize(bool clear_space, bool mangle_space) {
   set_compaction_top(bottom());
   reset_bot();
 
-  hr_clear(false /*par*/, false /*clear_space*/);
+  hr_clear(false /*clear_space*/);
 }
 
 void HeapRegion::report_region_type_change(G1HeapRegionTraceType::Type to) {
@@ -350,7 +357,7 @@ class VerifyStrongCodeRootOopClosure: public OopClosure {
       // current region. We only look at those which are.
       if (_hr->is_in(obj)) {
         // Object is in the region. Check that its less than top
-        if (_hr->top() <= (HeapWord*)obj) {
+        if (_hr->top() <= cast_from_oop<HeapWord*>(obj)) {
           // Object is above top
           log_error(gc, verify)("Object " PTR_FORMAT " in region " HR_FORMAT " is above top ",
                                 p2i(obj), HR_FORMAT_PARAMS(_hr));
@@ -559,7 +566,7 @@ public:
                     p2i(obj), HR_FORMAT_PARAMS(to), to->rem_set()->get_state_str());
         } else {
           HeapRegion* from = _g1h->heap_region_containing((HeapWord*)p);
-          HeapRegion* to = _g1h->heap_region_containing((HeapWord*)obj);
+          HeapRegion* to = _g1h->heap_region_containing(obj);
           log.error("Field " PTR_FORMAT " of live obj " PTR_FORMAT " in region " HR_FORMAT,
                     p2i(p), p2i(_containing_obj), HR_FORMAT_PARAMS(from));
           LogStream ls(log.error());
@@ -730,7 +737,7 @@ void HeapRegion::verify(VerifyOption vo,
 
   if (is_region_humongous) {
     oop obj = oop(this->humongous_start_region()->bottom());
-    if ((HeapWord*)obj > bottom() || (HeapWord*)obj + obj->size() < bottom()) {
+    if (cast_from_oop<HeapWord*>(obj) > bottom() || cast_from_oop<HeapWord*>(obj) + obj->size() < bottom()) {
       log_error(gc, verify)("this humongous region is not part of its' humongous object " PTR_FORMAT, p2i(obj));
       *failures = true;
       return;

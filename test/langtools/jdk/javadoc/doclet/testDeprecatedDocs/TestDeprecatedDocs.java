@@ -27,7 +27,6 @@
  * @bug      4927552 8026567 8071982 8162674 8175200 8175218 8183511 8186332
  *           8169819 8074407 8191030 8182765 8184205
  * @summary  test generated docs for deprecated items
- * @author   jamieh
  * @library  ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
  * @build    javadoc.tester.*
@@ -216,8 +215,7 @@ public class TestDeprecatedDocs extends JavadocTester {
                 + "<li><a href=\"#enum.constant\">Enum Constants</a></li>\n"
                 + "<li><a href=\"#annotation.type.member\">Annotation Type Elements</a></li>\n"
                 + "</ul>",
-                "<a id=\"forRemoval\">",
-                "<div class=\"deprecatedSummary\">\n"
+                "<div class=\"deprecatedSummary\" id=\"forRemoval\">\n"
                 + "<table>\n"
                 + "<caption><span>For Removal</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
                 + "<thead>\n"
@@ -226,7 +224,7 @@ public class TestDeprecatedDocs extends JavadocTester {
                 + "<th class=\"colLast\" scope=\"col\">Description</th>\n"
                 + "</tr>\n"
                 + "</thead>",
-                "<div class=\"deprecatedSummary\">\n"
+                "<div class=\"deprecatedSummary\" id=\"enum\">\n"
                 + "<table>\n"
                 + "<caption><span>Enums</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
                 + "<thead>\n"
@@ -245,7 +243,7 @@ public class TestDeprecatedDocs extends JavadocTester {
                 + "</tbody>\n"
                 + "</table>\n"
                 + "</div>",
-                "<div class=\"deprecatedSummary\">\n"
+                "<div class=\"deprecatedSummary\" id=\"exception\">\n"
                 + "<table>\n"
                 + "<caption><span>Exceptions</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
                 + "<thead>\n"
@@ -264,7 +262,7 @@ public class TestDeprecatedDocs extends JavadocTester {
                 + "</tbody>\n"
                 + "</table>\n"
                 + "</div>",
-                "<div class=\"deprecatedSummary\">\n"
+                "<div class=\"deprecatedSummary\" id=\"field\">\n"
                 + "<table>\n"
                 + "<caption><span>Fields</span><span class=\"tabEnd\">&nbsp;</span></caption>\n"
                 + "<thead>\n"

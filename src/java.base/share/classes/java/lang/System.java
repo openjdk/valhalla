@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2045,8 +2045,6 @@ public final class System {
         // register shared secrets
         setJavaLangAccess();
 
-        ClassLoader.initLibraryPaths();
-
         // Subsystems that are invoked during initialization can invoke
         // VM.isBooted() in order to avoid doing things that should
         // wait until the VM is fully initialized. The initialization level
@@ -2238,8 +2236,8 @@ public final class System {
             public void addOpensToAllUnnamed(Module m, String pn) {
                 m.implAddOpensToAllUnnamed(pn);
             }
-            public void addOpensToAllUnnamed(Module m, Iterator<String> packages) {
-                m.implAddOpensToAllUnnamed(packages);
+            public void addOpensToAllUnnamed(Module m, Set<String> concealedPackages, Set<String> exportedPackages) {
+                m.implAddOpensToAllUnnamed(concealedPackages, exportedPackages);
             }
             public void addUses(Module m, Class<?> service) {
                 m.implAddUses(service);

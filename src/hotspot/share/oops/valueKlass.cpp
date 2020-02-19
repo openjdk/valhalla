@@ -104,7 +104,7 @@ int ValueKlass::raw_value_byte_size() {
     if (fs.access_flags().is_static()) {
       continue;
     } else if (fs.offset() > last_offset) {
-      BasicType type = char2type(fs.signature()->char_at(0));
+      BasicType type = Signature::basic_type(fs.signature());
       if (is_java_primitive(type)) {
         last_tsz = type2aelembytes(type);
       } else if (type == T_VALUETYPE) {
@@ -236,7 +236,7 @@ Klass* ValueKlass::value_array_klass(ArrayStorageProperties storage_props, bool 
     ResourceMark rm;
     {
       // Atomic creation of array_klasses
-      MutexLocker ma(MultiArray_lock, THREAD);
+      MutexLocker ma(THREAD, MultiArray_lock);
       if (get_value_array_klass() == NULL) {
         vak = allocate_value_array_klass(CHECK_NULL);
         Atomic::release_store((Klass**)adr_value_array_klass(), vak);
@@ -296,7 +296,7 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
       Klass* vk = get_value_field_klass(fs.index());
       count += ValueKlass::cast(vk)->collect_fields(sig, offset);
     } else {
-      BasicType bt = FieldType::basic_type(fs.signature());
+      BasicType bt = Signature::basic_type(fs.signature());
       if (bt == T_VALUETYPE) {
         bt = T_OBJECT;
       }

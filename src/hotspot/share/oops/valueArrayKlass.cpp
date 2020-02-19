@@ -322,7 +322,7 @@ Klass* ValueArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, b
     ResourceMark rm;
     {
       // Ensure atomic creation of higher dimensions
-      MutexLocker mu(MultiArray_lock, THREAD);
+      MutexLocker mu(THREAD, MultiArray_lock);
 
       // Check if another thread beat us
       if (higher_dimension() == NULL) {
@@ -425,7 +425,7 @@ void ValueArrayKlass::oop_print_on(oop obj, outputStream* st) {
   ValueKlass* vk = element_klass();
   int print_len = MIN2((intx) va->length(), MaxElementPrintSize);
   for(int index = 0; index < print_len; index++) {
-    int off = (address) va->value_at_addr(index, layout_helper()) - (address) obj;
+    int off = (address) va->value_at_addr(index, layout_helper()) - cast_from_oop<address>(obj);
     st->print_cr(" - Index %3d offset %3d: ", index, off);
     oop obj = (oop) ((address)va->value_at_addr(index, layout_helper()) - vk->first_field_offset());
     FieldPrinter print_field(st, obj);

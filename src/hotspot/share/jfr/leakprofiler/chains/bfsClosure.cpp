@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@
 #include "jfr/leakprofiler/chains/edgeStore.hpp"
 #include "jfr/leakprofiler/chains/edgeQueue.hpp"
 #include "jfr/leakprofiler/utilities/granularTimer.hpp"
-#include "jfr/leakprofiler/utilities/unifiedOop.hpp"
+#include "jfr/leakprofiler/utilities/unifiedOopRef.inline.hpp"
 #include "logging/log.hpp"
 #include "memory/iterator.inline.hpp"
 #include "memory/resourceArea.hpp"
@@ -111,12 +111,12 @@ void BFSClosure::process_root_set() {
   }
 }
 
-void BFSClosure::process(const oop* reference, const oop pointee) {
+void BFSClosure::process(UnifiedOopRef reference, const oop pointee) {
   closure_impl(reference, pointee);
 }
-void BFSClosure::closure_impl(const oop* reference, const oop pointee) {
-  assert(reference != NULL, "invariant");
-  assert(UnifiedOop::dereference(reference) == pointee, "invariant");
+void BFSClosure::closure_impl(UnifiedOopRef reference, const oop pointee) {
+  assert(!reference.is_null(), "invariant");
+  assert(reference.dereference() == pointee, "invariant");
 
   if (GranularTimer::is_finished()) {
      return;
@@ -131,7 +131,7 @@ void BFSClosure::closure_impl(const oop* reference, const oop pointee) {
   if (!_mark_bits->is_marked(pointee)) {
     _mark_bits->mark_obj(pointee);
     // is the pointee a sample object?
-    if (NULL == pointee->mark().to_pointer()) {
+    if (pointee->mark().is_marked()) {
       add_chain(reference, pointee);
     }
 
@@ -146,9 +146,9 @@ void BFSClosure::closure_impl(const oop* reference, const oop pointee) {
   }
 }
 
-void BFSClosure::add_chain(const oop* reference, const oop pointee) {
+void BFSClosure::add_chain(UnifiedOopRef reference, const oop pointee) {
   assert(pointee != NULL, "invariant");
-  assert(NULL == pointee->mark().to_pointer(), "invariant");
+  assert(pointee->mark().is_marked(), "invariant");
   Edge leak_edge(_current_parent, reference);
   _edge_store->put_chain(&leak_edge, _current_parent == NULL ? 1 : _current_frontier_level + 2);
 }
@@ -213,23 +213,23 @@ void BFSClosure::iterate(const Edge* parent) {
 void BFSClosure::do_oop(oop* ref) {
   assert(ref != NULL, "invariant");
   assert(is_aligned(ref, HeapWordSize), "invariant");
-  const oop pointee = *ref;
+  const oop pointee = HeapAccess<AS_NO_KEEPALIVE>::oop_load(ref);
   if (pointee != NULL) {
-    closure_impl(ref, pointee);
+    closure_impl(UnifiedOopRef::encode_in_heap(ref), pointee);
   }
 }
 
 void BFSClosure::do_oop(narrowOop* ref) {
   assert(ref != NULL, "invariant");
   assert(is_aligned(ref, sizeof(narrowOop)), "invariant");
-  const oop pointee = RawAccess<>::oop_load(ref);
+  const oop pointee = HeapAccess<AS_NO_KEEPALIVE>::oop_load(ref);
   if (pointee != NULL) {
-    closure_impl(UnifiedOop::encode(ref), pointee);
+    closure_impl(UnifiedOopRef::encode_in_heap(ref), pointee);
   }
 }
 
-void BFSClosure::do_root(const oop* ref) {
-  assert(ref != NULL, "invariant");
+void BFSClosure::do_root(UnifiedOopRef ref) {
+  assert(!ref.is_null(), "invariant");
   if (!_edge_queue->is_full()) {
     _edge_queue->add(NULL, ref);
   }

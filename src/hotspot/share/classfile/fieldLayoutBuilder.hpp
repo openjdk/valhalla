@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,28 +26,29 @@
 #define SHARE_CLASSFILE_FIELDLAYOUTBUILDER_HPP
 
 #include "classfile/classFileParser.hpp"
-#include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoaderData.hpp"
+#include "memory/allocation.hpp"
+#include "oops/fieldStreams.hpp"
 #include "utilities/growableArray.hpp"
 
-/* Classes below are used to compute the field layout of classes. */
+// Classes below are used to compute the field layout of classes.
 
-
-/* ALayoutRawBlock describes an element of a layout.
- * Each field is represented by aLayoutRawBlock.
- *LayoutRawBlocks can also represent elements injected by the JVM:
- * padding, empty blocks, inherited fields, etc.
- * AllLayoutRawBlock must have a size and a alignment. The size is the
- * exact size of the field expressed in bytes. The alignment is
- * the alignment constraint of the field (1 for byte, 2 for short,
- * 4 for int, 8 for long, etc.)
- *
- *LayoutRawBlock are designed to be inserted in two linked list:
- *   - a field group (using _next_field, _prev_field)
- *   - a layout (using _next_block, _prev_block)
- *
- *  next/prev pointers are included in theLayoutRawBlock class to narrow
- *  the number of allocation required during the computation of a layout.
- */
+// A LayoutRawBlock describes an element of a layout.
+// Each field is represented by a LayoutRawBlock.
+// LayoutRawBlocks can also represent elements injected by the JVM:
+// padding, empty blocks, inherited fields, etc.
+// All LayoutRawBlocks must have a size and an alignment. The size is the
+// exact size of the field expressed in bytes. The alignment is
+// the alignment constraint of the field (1 for byte, 2 for short,
+// 4 for int, 8 for long, etc.)
+//
+// LayoutRawBlock are designed to be used in two data structures:
+//   - a linked list in a layout (using _next_block, _prev_block)
+//   - a GrowableArray in field group (the growable array contains pointers to LayoutRawBlocks)
+//
+//  next/prev pointers are included in the LayoutRawBlock class to narrow
+//  the number of allocation required during the computation of a layout.
+//
 class LayoutRawBlock : public ResourceObj {
  public:
   // Some code relies on the order of values below.
@@ -73,14 +74,14 @@ class LayoutRawBlock : public ResourceObj {
 
  public:
   LayoutRawBlock(Kind kind, int size);
-  LayoutRawBlock(int index, Kind kind, int size, int alignment, bool is_reference);
+  LayoutRawBlock(int index, Kind kind, int size, int alignment, bool is_reference = false);
   LayoutRawBlock* next_block() const { return _next_block; }
   void set_next_block(LayoutRawBlock* next) { _next_block = next; }
   LayoutRawBlock* prev_block() const { return _prev_block; }
   void set_prev_block(LayoutRawBlock* prev) { _prev_block = prev; }
   Kind kind() const { return _kind; }
   int offset() const {
-    assert(_offset >= 0, "Mut be initialized");
+    assert(_offset >= 0, "Must be initialized");
     return _offset;
   }
   void set_offset(int offset) { _offset = offset; }
@@ -119,12 +120,11 @@ class LayoutRawBlock : public ResourceObj {
   }
 };
 
-/* A Field group represents a set of fields that have to be allocated together,
- * this is the way the @Contended annotation is supported.
- * Inside a FieldGroup, fields are sorted based on their kind: primitive,
- * oop, or flattened.
- *
- */
+// A Field group represents a set of fields that have to be allocated together,
+// this is the way the @Contended annotation is supported.
+// Inside a FieldGroup, fields are sorted based on their kind: primitive,
+// oop, or flattened.
+//
 class FieldGroup : public ResourceObj {
 
  private:
@@ -155,29 +155,29 @@ class FieldGroup : public ResourceObj {
   void sort_by_size();
 };
 
-/* The FieldLayout class represents a set of fields organized
- * in a layout.
- * An instance of FieldLayout can either represent the layout
- * of non-static fields (used in an instance object) or the
- * layout of static fields (to be included in the class mirror).
- *
- * _block is a pointer to a list ofLayoutRawBlock ordered by increasing
- * offsets.
- * _start points to theLayoutRawBlock with the first offset that can
- * be used to allocate fields of the current class
- * _last points to the lastLayoutRawBlock of the list. In order to
- * simplify the code, theLayoutRawBlock list always ends with an
- * EMPTY block (the kind ofLayoutRawBlock from which space is taken
- * to allocate fields) with a size big enough to satisfy all
- * field allocations.
- */
+// The FieldLayout class represents a set of fields organized
+// in a layout.
+// An instance of FieldLayout can either represent the layout
+// of non-static fields (used in an instance object) or the
+// layout of static fields (to be included in the class mirror).
+//
+// _block is a pointer to a list of LayoutRawBlock ordered by increasing
+// offsets.
+// _start points to the LayoutRawBlock with the first offset that can
+// be used to allocate fields of the current class
+// _last points to the last LayoutRawBlock of the list. In order to
+// simplify the code, the LayoutRawBlock list always ends with an
+// EMPTY block (the kind of LayoutRawBlock from which space is taken
+// to allocate fields) with a size big enough to satisfy all
+// field allocations.
+//
 class FieldLayout : public ResourceObj {
  private:
   Array<u2>* _fields;
   ConstantPool* _cp;
-  LayoutRawBlock* _blocks;
-  LayoutRawBlock* _start;
-  LayoutRawBlock* _last;
+  LayoutRawBlock* _blocks;  // the layout being computed
+  LayoutRawBlock* _start;   // points to the first block where a field can be inserted
+  LayoutRawBlock* _last;    // points to the last block of the layout (big empty block)
 
  public:
   FieldLayout(Array<u2>* fields, ConstantPool* cp);
@@ -211,29 +211,29 @@ class FieldLayout : public ResourceObj {
 };
 
 
-/* FieldLayoutBuilder is the main entry point for layout computation.
- * This class has two methods to generate layout: one for identity classes
- * and one for inline classes. The rational for having two methods
- * is that each kind of classes has a different set goals regarding
- * its layout, so instead of mixing two layout strategies into a
- * single method, each kind has its own method (see comments below
- * for more details about the allocation strategies).
- *
- * Computing the layout of a class always goes through 4 steps:
- *   1 - Prologue: preparation of data structure and gathering of
- *       layout information inherited from super classes
- *   2 - Field sorting: fields are sorted out according to their
- *       kind (oop, primitive, inline class) and their contention
- *       annotation (if any)
- *   3 - Layout is computed from the set of lists generated during
- *       step 2
- *   4 - Epilogue: oopmaps are generated, layout information are
- *       prepared so other VM components can use them (instance size,
- *       static field size, non-static field size, etc.)
- *
- *  Steps 1 and 4 are common to all layout computations. Step 2 and 3
- *  differ for inline classes and identity classes.
- */
+// FieldLayoutBuilder is the main entry point for layout computation.
+// This class has two methods to generate layout: one for identity classes
+// and one for inline classes. The rational for having two methods
+// is that each kind of classes has a different set goals regarding
+// its layout, so instead of mixing two layout strategies into a
+// single method, each kind has its own method (see comments below
+// for more details about the allocation strategies).
+//
+// Computing the layout of a class always goes through 4 steps:
+//   1 - Prologue: preparation of data structure and gathering of
+//       layout information inherited from super classes
+//   2 - Field sorting: fields are sorted according to their
+//       kind (oop, primitive, inline class) and their contention
+//       annotation (if any)
+//   3 - Layout is computed from the set of lists generated during
+//       step 2
+//   4 - Epilogue: oopmaps are generated, layout information is
+//       prepared so other VM components can use it (instance size,
+//       static field size, non-static field size, etc.)
+//
+//  Steps 1 and 4 are common to all layout computations. Step 2 and 3
+//  differ for inline classes and identity classes.
+//
 class FieldLayoutBuilder : public ResourceObj {
  private:
   const Symbol* _classname;
