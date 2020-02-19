@@ -891,9 +891,9 @@ public:
   }
 
   bool is_hidden() const {
-    // ## FIXME: should be set at class parsing time
-    return method_holder()->is_hidden() || (_flags & _hidden) != 0;
+    return (_flags & _hidden) != 0;
   }
+
   void set_hidden(bool x) {
     _flags = x ? (_flags | _hidden) : (_flags & ~_hidden);
   }

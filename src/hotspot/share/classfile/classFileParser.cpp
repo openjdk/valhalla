@@ -2880,6 +2880,10 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
   if (parsed_annotations.has_any_annotations())
     parsed_annotations.apply_to(methodHandle(THREAD, m));
 
+  if (is_hidden()) { // Mark methods in hidden classes as 'hidden'.
+    m->set_hidden(true);
+  }
+
   // Copy annotations
   copy_method_annotations(m->constMethod(),
                           runtime_visible_annotations,
