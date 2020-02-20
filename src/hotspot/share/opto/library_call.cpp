@@ -1787,8 +1787,15 @@ bool LibraryCallKit::inline_string_char_access(bool is_store) {
 //--------------------------round_double_node--------------------------------
 // Round a double node if necessary.
 Node* LibraryCallKit::round_double_node(Node* n) {
-  if (Matcher::strict_fp_requires_explicit_rounding && UseSSE <= 1)
-    n = _gvn.transform(new RoundDoubleNode(0, n));
+  if (Matcher::strict_fp_requires_explicit_rounding) {
+#ifdef IA32
+    if (UseSSE < 2) {
+      n = _gvn.transform(new RoundDoubleNode(NULL, n));
+    }
+#else
+    Unimplemented();
+#endif // IA32
+  }
   return n;
 }
 
@@ -4863,8 +4870,6 @@ LibraryCallKit::tightly_coupled_allocation(Node* ptr,
 
   // This arraycopy must unconditionally follow the allocation of the ptr.
   Node* alloc_ctl = ptr->in(0);
-  assert(just_allocated_object(alloc_ctl) == ptr, "most recent allo");
-
   Node* ctl = control();
   while (ctl != alloc_ctl) {
     // There may be guards which feed into the slow_region.
