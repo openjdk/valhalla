@@ -608,6 +608,8 @@ TempNewSymbol SigEntry::create_symbol(const GrowableArray<SigEntry>* sig) {
     }
   }
   sig_str[idx++] = ')';
+  // Add a dummy return type. It won't be used but SignatureStream needs it.
+  sig_str[idx++] = 'V';
   sig_str[idx++] = '\0';
   return SymbolTable::new_symbol(sig_str);
 }
