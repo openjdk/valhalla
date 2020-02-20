@@ -493,6 +493,7 @@ ValueTypeNode* ValueTypeNode::make_uninitialized(PhaseGVN& gvn, ciValueKlass* vk
 
 Node* ValueTypeNode::default_oop(PhaseGVN& gvn, ciValueKlass* vk) {
   // Returns the constant oop of the default value type allocation
+  assert(vk->is_initialized(), "must be initialized");
   return gvn.makecon(TypeInstPtr::make(vk->default_value_instance()));
 }
 

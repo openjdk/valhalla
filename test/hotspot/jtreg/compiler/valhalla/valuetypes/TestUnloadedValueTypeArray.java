@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2017, 2020, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,16 @@
  * @run main/othervm -Xcomp
  *                   TestUnloadedValueTypeArray
  * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=0
+ *                   TestUnloadedValueTypeArray
+ * @run main/othervm -Xcomp -XX:-TieredCompilation
+ *                   -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test*
+ *                   TestUnloadedValueTypeArray
+ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:ValueArrayElemMaxFlatSize=0
+ *                   -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test*
+ *                   TestUnloadedValueTypeArray
+ * @run main/othervm -Xcomp -XX:-TieredCompilation
+ *                   TestUnloadedValueTypeArray
+ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:ValueArrayElemMaxFlatSize=0
  *                   TestUnloadedValueTypeArray
  */
 
@@ -164,6 +174,14 @@ final inline class MyValue9 {
     static {
         TestUnloadedValueTypeArray.MyValue9_inited = true;
     }
+}
+
+final inline class MyValue10 {
+    final int foo = 42;
+}
+
+final inline class MyValue11 {
+    final int foo = 42;
 }
 
 public class TestUnloadedValueTypeArray {
@@ -464,6 +482,16 @@ public class TestUnloadedValueTypeArray {
         Asserts.assertEQ(MyValue9_inited, true);
     }
 
+    static void test10(MyValue10? dummy) {
+        MyValue10[][] a = new MyValue10[1][1];
+        if (a[0][0].equals(null)) throw new RuntimeException("test10 failed");
+    }
+
+    static void test11(MyValue10? dummy) {
+        MyValue11?[][] a = new MyValue11?[1][1];
+        if (a[0][0] != null) throw new RuntimeException("test11 failed");
+    }
+
     static public void main(String[] args) {
         test1();
         test1Box();
@@ -480,5 +508,7 @@ public class TestUnloadedValueTypeArray {
         verifyTest7Box();
         test8();
         test9();
+        test10(null);
+        test11(null);
     }
 }

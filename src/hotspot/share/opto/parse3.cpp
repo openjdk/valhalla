@@ -401,7 +401,18 @@ void Parse::do_multianewarray() {
   Node** length = NEW_RESOURCE_ARRAY(Node*, ndimensions + 1);
   length[ndimensions] = NULL;  // terminating null for make_runtime_call
   int j;
-  for (j = ndimensions-1; j >= 0 ; j--) length[j] = pop();
+  ciKlass* elem_klass = array_klass;
+  for (j = ndimensions-1; j >= 0; j--) {
+    length[j] = pop();
+    elem_klass = elem_klass->as_array_klass()->element_klass();
+  }
+  if (elem_klass != NULL && elem_klass->is_valuetype() && !elem_klass->as_value_klass()->is_initialized()) {
+    inc_sp(ndimensions);
+    uncommon_trap(Deoptimization::Reason_uninitialized,
+                  Deoptimization::Action_reinterpret,
+                  NULL);
+    return;
+  }
 
   // The original expression was of this form: new T[length0][length1]...
   // It is often the case that the lengths are small (except the last).
