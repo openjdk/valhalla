@@ -2274,6 +2274,8 @@ public class TestLWorld extends ValueTypeTest {
         // Dummy loops to ensure we run enough passes of split if
         for (int i = 0; i < 2; i++) {
             for (int j = 0; j < 2; j++) {
+              for (int k = 0; k < 2; k++) {
+              }
             }
         }
 
