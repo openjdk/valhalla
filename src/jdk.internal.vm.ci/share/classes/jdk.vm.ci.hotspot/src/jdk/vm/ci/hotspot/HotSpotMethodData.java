@@ -106,6 +106,7 @@ final class HotSpotMethodData {
             new VirtualCallTypeData(this, config.dataLayoutVirtualCallTypeDataTag),
             new UnknownProfileData(this, config.dataLayoutParametersTypeDataTag),
             new UnknownProfileData(this, config.dataLayoutSpeculativeTrapDataTag),
+            new UnknownProfileData(this, config.dataLayoutArrayLoadStoreDataTag),
         };
         // @formatter:on
 

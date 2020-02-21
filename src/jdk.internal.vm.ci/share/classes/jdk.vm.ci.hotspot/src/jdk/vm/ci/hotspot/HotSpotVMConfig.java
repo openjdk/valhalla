@@ -310,6 +310,7 @@ class HotSpotVMConfig extends HotSpotVMConfigAccess {
     final int dataLayoutVirtualCallTypeDataTag = getConstant("DataLayout::virtual_call_type_data_tag", Integer.class);
     final int dataLayoutParametersTypeDataTag = getConstant("DataLayout::parameters_type_data_tag", Integer.class);
     final int dataLayoutSpeculativeTrapDataTag = getConstant("DataLayout::speculative_trap_data_tag", Integer.class);
+    final int dataLayoutArrayLoadStoreDataTag = getConstant("DataLayout::array_load_store_data_tag", Integer.class);
 
     final int bciProfileWidth = getFlag("BciProfileWidth", Integer.class);
     final int typeProfileWidth = getFlag("TypeProfileWidth", Integer.class);
