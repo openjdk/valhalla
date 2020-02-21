@@ -1824,8 +1824,7 @@ public class MethodHandles {
             }
 
             Set<ClassOption> opts = (options != null && options.length > 0) ? Set.of(options) : Set.of();
-            Class<?> c =  makeHiddenClassDefiner(bytes.clone(), opts).defineClass(initialize, null);
-            return new Lookup(c, null, FULL_POWER_MODES);
+            return makeHiddenClassDefiner(bytes.clone(), opts).defineClassAsLookup(initialize);
         }
 
         /**
@@ -1879,8 +1878,7 @@ public class MethodHandles {
             }
 
             Set<ClassOption> opts = (options != null && options.length > 0) ? Set.of(options) : Set.of();
-            Class<?> c = makeHiddenClassDefiner(bytes.clone(), opts).defineClass(initialize, classData);
-            return new Lookup(c, null, FULL_POWER_MODES);
+            return makeHiddenClassDefiner(bytes.clone(), opts).defineClassAsLookup(initialize, classData);
         }
 
         private ClassDefiner makeClassDefiner(byte[] bytes) {
@@ -1906,8 +1904,8 @@ public class MethodHandles {
          * @param bytes class bytes
          * @return ClassDefiner that defines a hidden class of the given bytes
          */
-        ClassDefiner makeHiddenClassDefiner(String name, byte[] bytes) {
-            return new ClassDefiner(this, name, bytes, HIDDEN_CLASS);
+        ClassDefiner makeHiddenClassDefiner(String name, byte[] bytes, int flags) {
+            return new ClassDefiner(this, name, bytes, HIDDEN_CLASS|flags);
         }
 
         static class ClassDefiner {
@@ -1948,6 +1946,11 @@ public class MethodHandles {
                 return defineClass(initialize, null);
             }
 
+            Lookup defineClassAsLookup(boolean initialize) {
+                Class<?> c = defineClass(initialize, null);
+                return new Lookup(c, null, FULL_POWER_MODES);
+            }
+
             /**
              * Defines the class of the given bytes and the given classData.
              * If {@code initialize} parameter is true, then the class will be initialized.
@@ -1965,6 +1968,11 @@ public class MethodHandles {
                 Class<?> c = JLA.defineClass(loader, lookupClass, name, bytes, pd, initialize, classFlags, classData);
                 assert !isNestmate() || c.getNestHost() == lookupClass.getNestHost();
                 return c;
+            }
+
+            Lookup defineClassAsLookup(boolean initialize, Object classData) {
+                Class<?> c = defineClass(initialize, classData);
+                return new Lookup(c, null, FULL_POWER_MODES);
             }
 
             private boolean isNestmate() {

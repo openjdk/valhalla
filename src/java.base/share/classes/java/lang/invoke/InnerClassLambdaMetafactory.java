@@ -34,6 +34,7 @@ import java.io.FilePermission;
 import java.io.Serializable;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.LinkedHashSet;
@@ -62,13 +63,17 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
     private static final String DESCR_METHOD_WRITE_REPLACE = "()Ljava/lang/Object;";
     private static final String DESCR_METHOD_WRITE_OBJECT = "(Ljava/io/ObjectOutputStream;)V";
     private static final String DESCR_METHOD_READ_OBJECT = "(Ljava/io/ObjectInputStream;)V";
+    private static final String DESCR_SET_IMPL_METHOD = "(Ljava/lang/invoke/MethodHandle;)V";
+
     private static final String NAME_METHOD_WRITE_REPLACE = "writeReplace";
     private static final String NAME_METHOD_READ_OBJECT = "readObject";
     private static final String NAME_METHOD_WRITE_OBJECT = "writeObject";
+    private static final String NAME_FIELD_IMPL_METHOD = "protectedImplMethod";
 
     private static final String DESCR_CLASS = "Ljava/lang/Class;";
     private static final String DESCR_STRING = "Ljava/lang/String;";
     private static final String DESCR_OBJECT = "Ljava/lang/Object;";
+    private static final String DESCR_METHOD_HANDLE = "Ljava/lang/invoke/MethodHandle;";
     private static final String DESCR_CTOR_SERIALIZED_LAMBDA
             = "(" + DESCR_CLASS + DESCR_STRING + DESCR_STRING + DESCR_STRING + "I"
             + DESCR_STRING + DESCR_STRING + DESCR_STRING + DESCR_STRING + "[" + DESCR_OBJECT + ")V";
@@ -104,6 +109,7 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
     private final String[] argNames;                 // Generated names for the constructor arguments
     private final String[] argDescs;                 // Type descriptors for the constructor arguments
     private final String lambdaClassName;            // Generated name for the generated class "X$$Lambda$1"
+    private final boolean useImplMethodHandle;       // use MethodHandle invocation instead of symbolic bytecode invocation
 
     /**
      * General meta-factory constructor, supporting both standard cases and
@@ -160,6 +166,8 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         implMethodDesc = implInfo.getMethodType().toMethodDescriptorString();
         constructorType = invokedType.changeReturnType(Void.TYPE);
         lambdaClassName = lambdaClassName(targetClass);
+        useImplMethodHandle = !implClass.getPackageName().equals(implInfo.getDeclaringClass().getPackageName())
+                                && !Modifier.isPublic(implInfo.getModifiers());
         cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
         int parameterCount = invokedType.parameterCount();
         if (parameterCount > 0) {
@@ -297,6 +305,23 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
             }
         }
 
+        if (useImplMethodHandle) {
+            FieldVisitor fv = cw.visitField(ACC_PRIVATE + ACC_STATIC,
+                                            NAME_FIELD_IMPL_METHOD,
+                                            DESCR_METHOD_HANDLE,
+                                            null, null);
+            fv.visitEnd();
+
+            mv = cw.visitMethod(ACC_PRIVATE + ACC_STATIC,
+                                "setImplMethod", DESCR_SET_IMPL_METHOD,
+                                null, null);
+            mv.visitVarInsn(ALOAD, 0);
+            mv.visitFieldInsn(PUTSTATIC, lambdaClassName, NAME_FIELD_IMPL_METHOD, DESCR_METHOD_HANDLE);
+            mv.visitInsn(RETURN);
+            mv.visitMaxs(-1, -1);
+            mv.visitEnd();
+        }
+
         if (isSerializable)
             generateSerializationFriendlyMethods();
         else if (accidentallySerializable)
@@ -322,9 +347,23 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
         }
         try {
             // this class is linked at the indy callsite; so define a hidden nestmate
-            return caller.defineHiddenClass(classBytes, !disableEagerInitialization, NESTMATE).lookupClass();
+            Lookup lookup = caller.defineHiddenClass(classBytes, !disableEagerInitialization, NESTMATE);
+            if (useImplMethodHandle) {
+                // If the target class invokes a method reference this::m which is
+                // resolved to a protected method inherited from a superclass in a different
+                // package, the target class does not have a bridge and this method reference
+                // has been changed from public to protected after the target class was compiled.
+                // This lambda proxy class has no access to the resolved method.
+                // So this workaround by passing the live implMethod method handle
+                // to the proxy class to invoke directly.
+                MethodHandle mh = lookup.findStaticSetter(lookup.lookupClass(), NAME_FIELD_IMPL_METHOD, MethodHandle.class);
+                mh.invokeExact(implMethod);
+            }
+            return lookup.lookupClass();
         } catch (IllegalAccessException e) {
             throw new LambdaConversionException("Exception defining lambda proxy class", e);
+        } catch (Throwable t) {
+            throw new InternalError(t);
         }
     }
 
@@ -441,6 +480,10 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
                 visitTypeInsn(NEW, implMethodClassName);
                 visitInsn(DUP);
             }
+            if (useImplMethodHandle) {
+                visitVarInsn(ALOAD, 0);
+                visitFieldInsn(GETSTATIC, lambdaClassName, NAME_FIELD_IMPL_METHOD, DESCR_METHOD_HANDLE);
+            }
             for (int i = 0; i < argNames.length; i++) {
                 visitVarInsn(ALOAD, 0);
                 visitFieldInsn(GETFIELD, lambdaClassName, argNames[i], argDescs[i]);
@@ -448,11 +491,16 @@ import static jdk.internal.org.objectweb.asm.Opcodes.*;
 
             convertArgumentTypes(methodType);
 
-            // Invoke the method we want to forward to
-            visitMethodInsn(invocationOpcode(), implMethodClassName,
-                            implMethodName, implMethodDesc,
-                            implClass.isInterface());
-
+            if (useImplMethodHandle) {
+                MethodType mtype = implInfo.getMethodType().insertParameterTypes(0, implClass);
+                visitMethodInsn(INVOKEVIRTUAL, "java/lang/invoke/MethodHandle",
+                                "invokeExact", mtype.descriptorString(), false);
+            } else {
+                // Invoke the method we want to forward to
+                visitMethodInsn(invocationOpcode(), implMethodClassName,
+                                implMethodName, implMethodDesc,
+                                implClass.isInterface());
+            }
             // Convert the return value (if any) and return it
             // Note: if adapting from non-void to void, the 'return'
             // instruction will pop the unneeded result
