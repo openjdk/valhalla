@@ -426,6 +426,9 @@ ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool safe_for_repl
   if (safe_for_replace) {
     kit->replace_in_map(this, vt);
   }
+  // ValueTypeNode::remove_redundant_allocations piggybacks on split if.
+  // Make sure it gets a chance to remove this allocation.
+  kit->C->set_has_split_ifs(true);
   assert(vt->is_allocated(&kit->gvn()), "must be allocated");
   return vt;
 }
