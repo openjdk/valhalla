@@ -417,8 +417,14 @@ public class CheckGraalIntrinsics extends GraalTest {
             add(toBeInvestigated,
                             "com/sun/crypto/provider/ElectronicCodeBook.implECBDecrypt([BII[BI)I",
                             "com/sun/crypto/provider/ElectronicCodeBook.implECBEncrypt([BII[BI)I",
+                            "java/lang/Class.asIndirectType()Ljava/lang/Class;",
+                            "java/lang/Class.asPrimaryType()Ljava/lang/Class;",
                             "java/math/BigInteger.shiftLeftImplWorker([I[IIII)V",
-                            "java/math/BigInteger.shiftRightImplWorker([I[IIII)V");
+                            "java/math/BigInteger.shiftRightImplWorker([I[IIII)V",
+                            "jdk/internal/misc/Unsafe.finishPrivateBuffer(Ljava/lang/Object;)Ljava/lang/Object;",
+                            "jdk/internal/misc/Unsafe.getValue(Ljava/lang/Object;JLjava/lang/Class;)Ljava/lang/Object;",
+                            "jdk/internal/misc/Unsafe.makePrivateBuffer(Ljava/lang/Object;)Ljava/lang/Object;",
+                            "jdk/internal/misc/Unsafe.putValue(Ljava/lang/Object;JLjava/lang/Class;Ljava/lang/Object;)V");
         }
 
         if (!config.inlineNotify()) {
