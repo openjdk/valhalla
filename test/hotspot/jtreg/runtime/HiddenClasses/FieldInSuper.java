@@ -64,9 +64,10 @@ public class FieldInSuper {
         // references field 'hello' using:
         //   getfield Field FieldInSuper.hello:"Ljava/lang/String;";
         // This will cause the verifier to check that the 'this' pointer for
-        // the hidden class is asignable to FieldInSuper.
+        // the hidden class is assignable to FieldInSuper.
         Class<?> c = lookup.defineHiddenClass(bytes, true, NESTMATE).lookupClass();
-        Object o = c.newInstance();
+        Object fss = c.newInstance();
+        c.getMethod("printMe").invoke(fss);
     }
 
 }

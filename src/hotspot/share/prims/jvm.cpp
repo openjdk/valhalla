@@ -1002,12 +1002,12 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
   JavaThread* jt = (JavaThread*) THREAD;
   ResourceMark rm(THREAD);
 
-  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(lookup));
+  Klass* lookup_k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(lookup));
   // Lookup class must be a non-null instance
-  if (k == NULL) {
+  if (lookup_k == NULL) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Lookup class is null");
   }
-  assert(k->is_instance_klass(), "Lookup class must be an instance klass");
+  assert(lookup_k->is_instance_klass(), "Lookup class must be an instance klass");
 
   jboolean is_nestmate = (flags & NESTMATE) == NESTMATE;
   jboolean is_hidden = (flags & HIDDEN_CLASS) == HIDDEN_CLASS;
@@ -1016,7 +1016,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
 
   InstanceKlass* host_class = NULL;
   if (is_nestmate) {
-    host_class = InstanceKlass::cast(k)->runtime_nest_host(CHECK_NULL);
+    host_class = InstanceKlass::cast(lookup_k)->runtime_nest_host(CHECK_NULL);
   }
 
   if (log_is_enabled(Info, class, nestmates)) {
@@ -1073,15 +1073,16 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
   const char* source = is_nestmate ? host_class->external_name() : "__JVM_LookupDefineClass__";
   ClassFileStream st((u1*)buf, len, source, ClassFileStream::verify);
 
+  Klass* defined_k;
   if (!is_hidden) {
-    k = SystemDictionary::resolve_from_stream(class_name,
-                                              class_loader,
-                                              protection_domain,
-                                              &st,
-                                              CHECK_NULL);
+    defined_k = SystemDictionary::resolve_from_stream(class_name,
+                                                     class_loader,
+                                                     protection_domain,
+                                                     &st,
+                                                     CHECK_NULL);
 
-    if (log_is_enabled(Debug, class, resolve) && k != NULL) {
-      trace_class_resolution(k);
+    if (log_is_enabled(Debug, class, resolve) && defined_k != NULL) {
+      trace_class_resolution(defined_k);
     }
   } else { // hidden
     Handle classData_h(THREAD, JNIHandles::resolve(classData));
@@ -1093,22 +1094,22 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
                           is_hidden,
                           is_weak,
                           vm_annotations);
-    k = SystemDictionary::parse_stream(class_name,
-                                       class_loader,
-                                       &st,
-                                       cl_info,
-                                       CHECK_NULL);
-    if (k == NULL) {
+    defined_k = SystemDictionary::parse_stream(class_name,
+                                               class_loader,
+                                               &st,
+                                               cl_info,
+                                               CHECK_NULL);
+    if (defined_k == NULL) {
       THROW_MSG_0(vmSymbols::java_lang_Error(), "Failure to define a hidden class");
     }
 
     // The hidden class loader data has been artificially been kept alive to
     // this point. The mirror and any instances of this class have to keep
     // it alive afterwards.
-    InstanceKlass::cast(k)->class_loader_data()->dec_keep_alive();
+    InstanceKlass::cast(defined_k)->class_loader_data()->dec_keep_alive();
 
     if (is_nestmate && log_is_enabled(Debug, class, nestmates)) {
-      InstanceKlass* ik = InstanceKlass::cast(k);
+      InstanceKlass* ik = InstanceKlass::cast(defined_k);
       ModuleEntry* module = ik->module();
       const char * module_name = module->is_named() ? module->name()->as_C_string() : UNNAMED_MODULE;
       log_debug(class, nestmates)("Dynamic nestmate: %s/%s, nest_host %s, %s",
@@ -1119,14 +1120,14 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
     }
   }
 
-  InstanceKlass* ik = InstanceKlass::cast(k);
+  InstanceKlass* ik = InstanceKlass::cast(defined_k);
   if (init) {
     ik->initialize(CHECK_NULL);
   } else {
     ik->link_class(CHECK_NULL);
   }
 
-  return (jclass) JNIHandles::make_local(env, k->java_mirror());
+  return (jclass) JNIHandles::make_local(env, defined_k->java_mirror());
 }
 
 JVM_ENTRY(jclass, JVM_DefineClass(JNIEnv *env, const char *name, jobject loader, const jbyte *buf, jsize len, jobject pd))
