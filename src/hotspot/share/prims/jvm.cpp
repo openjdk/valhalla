@@ -1120,7 +1120,7 @@ static jclass jvm_lookup_define_class(JNIEnv *env, jclass lookup, const char *na
     }
   }
   assert(Reflection::is_same_class_package(lookup_k, defined_k),
-         "lookup class and hidden class are in different pacakges");
+         "lookup class and defined class are in different packages");
 
   InstanceKlass* ik = InstanceKlass::cast(defined_k);
   if (init) {
