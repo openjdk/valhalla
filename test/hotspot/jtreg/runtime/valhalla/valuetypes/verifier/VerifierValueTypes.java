@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -108,9 +108,5 @@ public class VerifierValueTypes {
         // Test that null is not assignable to an inline type.
         runTestVerifyError("NoNullVT",
             "Type null (current frame, stack[1]) is not assignable to 'QNoNullVT;'");
-
-        // Test that a [Qjava/lang/Object; signature does not crash the verifier.
-        runTestVerifyError("QObject",
-            "'[Ljava/lang/String;' (current frame, stack[0]) is not assignable to '[Qjava/lang/Object;'");
     }
 }

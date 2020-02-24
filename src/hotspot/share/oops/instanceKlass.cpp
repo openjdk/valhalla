@@ -905,7 +905,11 @@ bool InstanceKlass::link_class_impl(TRAPS) {
               THROW_(vmSymbols::java_lang_LinkageError(), false);
             }
             if (!klass->is_value()) {
-              THROW_(vmSymbols::java_lang_IncompatibleClassChangeError(), false);
+              Exceptions::fthrow(
+                THREAD_AND_LOCATION,
+                vmSymbols::java_lang_IncompatibleClassChangeError(),
+                "class %s is not an inline type",
+                klass->external_name());
             }
           }
         }
