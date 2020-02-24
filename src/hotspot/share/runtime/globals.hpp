@@ -2527,7 +2527,7 @@ const size_t minimumSymbolTableSize = 1024;
                 "Print layout of inline classes and classes with "          \
                 "flattenable fields")                                       \
                                                                             \
-  product(bool, UseNewLayout, true,                                         \
+  product(bool, UseNewFieldLayout, true,                                    \
                 "(Deprecated) Use new algorithm to compute field layouts")  \
                                                                             \
   product(bool, UseEmptySlotsInSupers, true,                                \

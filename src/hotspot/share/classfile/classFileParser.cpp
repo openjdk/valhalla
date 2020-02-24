@@ -6230,7 +6230,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
 
   if (is_value_type()) {
     ValueKlass* vk = ValueKlass::cast(ik);
-    if (UseNewLayout) {
+    if (UseNewFieldLayout) {
       vk->set_alignment(_alignment);
       vk->set_first_field_offset(_first_field_offset);
       vk->set_exact_size_in_bytes(_exact_size_in_bytes);
@@ -6937,7 +6937,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   }
 
   _field_info = new FieldLayoutInfo();
-  if (UseNewLayout) {
+  if (UseNewFieldLayout) {
     FieldLayoutBuilder lb(class_name(), super_klass(), _cp, _fields,
         _parsed_annotations->is_contended(), is_value_type(),
         loader_data(), _protection_domain, _field_info);
