@@ -1168,6 +1168,10 @@ abstract class MethodHandleImpl {
                  * @CSM must be public and exported if called by any module.
                  */
                 String name = targetClass.getName() + "$$InjectedInvoker";
+                if (targetClass.isHiddenClass()) {
+                    // use the original class name
+                    name = name.replace('/', '_');
+                }
                 Class<?> invokerClass = new Lookup(targetClass)
                         .makeHiddenClassDefiner(name, INJECTED_INVOKER_TEMPLATE, 0).defineClass(true);
                 assert checkInjectedInvoker(targetClass, invokerClass);
