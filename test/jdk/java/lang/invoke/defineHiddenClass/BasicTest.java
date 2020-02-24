@@ -28,10 +28,8 @@
  *        jdk.test.lib.compiler.CompilerUtils
  *        BasicTest
  * @run testng/othervm BasicTest
+ * @run testng/othervm -Xcomp BasicTest
  */
-
-// Temporarily disabled until isHidden intrinsic is fixed.
-// @run testng/othervm -Xcomp BasicTest
 
 import java.io.File;
 import java.io.IOException;
