@@ -332,6 +332,10 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   // save the live input values
   __ push(store_addr);
   __ push(new_val);
+  // Save caller saved registers until JDK-8232094 is fixed (TODO).
+  __ push(rax);
+  __ push(rcx);
+  __ push(rdx);
 #ifdef _LP64
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_post_entry), card_addr, r15_thread);
 #else
@@ -339,6 +343,9 @@ void G1BarrierSetAssembler::g1_write_barrier_post(MacroAssembler* masm,
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_field_post_entry), card_addr, thread);
   __ pop(thread);
 #endif
+  __ pop(rdx);
+  __ pop(rcx);
+  __ pop(rax);
   __ pop(new_val);
   __ pop(store_addr);
 

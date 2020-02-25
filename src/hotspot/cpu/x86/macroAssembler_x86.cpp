@@ -6348,8 +6348,8 @@ bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& 
 
   Register val_array = rax;
   Register val_obj_tmp = r11;
-  Register from_reg_tmp = r10;
-  Register tmp1 = r14;
+  Register from_reg_tmp = r14; // Be careful with r14 because it's used for spilling
+  Register tmp1 = r10;
   Register tmp2 = r13;
   Register tmp3 = rbx;
   Register val_obj = to->is_stack() ? val_obj_tmp : to->as_Register();
@@ -6381,7 +6381,6 @@ bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& 
     Address dst(val_obj, off);
     if (!from_r1->is_XMMRegister()) {
       Register from_reg;
-
       if (from_r1->is_stack()) {
         from_reg = from_reg_tmp;
         int ld_off = from_r1->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
@@ -6389,10 +6388,9 @@ bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& 
       } else {
         from_reg = from_r1->as_Register();
       }
-
+      assert_different_registers(dst.base(), from_reg, tmp1, tmp2, tmp3, val_array);
       if (is_oop) {
-        DecoratorSet decorators = IN_HEAP | ACCESS_WRITE;
-        store_heap_oop(dst, from_reg, tmp1, tmp2, tmp3, decorators);
+        store_heap_oop(dst, from_reg, tmp1, tmp2, tmp3, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
       } else {
         store_sized_value(dst, from_reg, size_in_bytes);
       }

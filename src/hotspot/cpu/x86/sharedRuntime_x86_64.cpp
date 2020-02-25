@@ -736,17 +736,17 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
 
   if (!r_1->is_XMMRegister()) {
     Register val = rax;
-    assert_different_registers(to.base(), val);
     if (r_1->is_stack()) {
       int ld_off = r_1->reg2stack() * VMRegImpl::stack_slot_size + extraspace;
       __ load_sized_value(val, Address(rsp, ld_off), size_in_bytes, /* is_signed */ false);
     } else {
       val = r_1->as_Register();
     }
+    assert_different_registers(to.base(), val, rscratch1);
     if (is_oop) {
       __ push(r13);
       __ push(rbx);
-      __ store_heap_oop(to, val, rscratch1, r13, rbx, IN_HEAP | ACCESS_WRITE);
+      __ store_heap_oop(to, val, rscratch1, r13, rbx, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
       __ pop(rbx);
       __ pop(r13);
     } else {
@@ -4371,7 +4371,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
       __ movdbl(to, r_1->as_XMMRegister());
     } else {
       Register val = r_1->as_Register();
-      assert_different_registers(to.base(), val, r14, rbx);
+      assert_different_registers(to.base(), val, r14, r13, rbx, rscratch1);
       if (is_reference_type(bt)) {
         __ store_heap_oop(to, val, r14, r13, rbx, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
       } else {
