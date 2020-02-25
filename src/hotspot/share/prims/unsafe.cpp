@@ -857,7 +857,7 @@ Unsafe_DefineAnonymousClass_impl(JNIEnv *env,
                         Handle(), // classData
                         false,    // is_hidden
                         false,    // is_weak_hidden
-                        false);   // can_access_vm_annotations
+                        true);    // can_access_vm_annotations
 
   Klass* anonk = SystemDictionary::parse_stream(no_class_name,
                                                 host_loader,
