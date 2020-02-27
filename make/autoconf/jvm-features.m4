@@ -41,19 +41,45 @@
 # We need these as m4 defines to be able to loop over them using m4 later on.
 
 # All valid JVM features, regardless of platform
-define(jvm_features_valid, m4_normalize( \
+m4_define(jvm_features_valid, m4_normalize( \
     ifdef([custom_jvm_features_valid], custom_jvm_features_valid) \
     \
     aot cds compiler1 compiler2 dtrace epsilongc g1gc graal jfr jni-check \
-    jvmci jvmti link-time-opt management minimal nmt parallelgc serialgc \
-    services shenandoahgc static-build vm-structs zero zgc \
+    jvmci jvmti link-time-opt management minimal nmt opt-size parallelgc \
+    serialgc services shenandoahgc static-build vm-structs zero zgc \
 ))
 
 # Deprecated JVM features (these are ignored, but with a warning)
-define(jvm_features_deprecated, m4_normalize(
+m4_define(jvm_features_deprecated, m4_normalize(
     cmsgc trace \
 ))
 
+# Feature descriptions
+m4_define(jvm_feature_desc_aot, [enable ahead of time compilation (AOT)])
+m4_define(jvm_feature_desc_cds, [enable class data sharing (CDS)])
+m4_define(jvm_feature_desc_compiler1, [enable hotspot compiler C1])
+m4_define(jvm_feature_desc_compiler2, [enable hotspot compiler C2])
+m4_define(jvm_feature_desc_dtrace, [enable dtrace support])
+m4_define(jvm_feature_desc_epsilongc, [include the epsilon (no-op) garbage collector])
+m4_define(jvm_feature_desc_g1gc, [include the G1 garbage collector])
+m4_define(jvm_feature_desc_graal, [enable Graal (jdk.internal.vm.compiler)])
+m4_define(jvm_feature_desc_jfr, [enable JDK Flight Recorder (JFR)])
+m4_define(jvm_feature_desc_jni_check, [enable -Xcheck:jni support])
+m4_define(jvm_feature_desc_jvmci, [enable JVM Compiler Interface (JVMCI)])
+m4_define(jvm_feature_desc_jvmti, [enable Java Virtual Machine Tool Interface (JVM TI)])
+m4_define(jvm_feature_desc_link_time_opt, [enable link time optimization])
+m4_define(jvm_feature_desc_management, [enable java.lang.management API support])
+m4_define(jvm_feature_desc_minimal, [support building variant 'minimal'])
+m4_define(jvm_feature_desc_nmt, [include native memory tracking (NMT)])
+m4_define(jvm_feature_desc_opt_size, [optimize the JVM library for size])
+m4_define(jvm_feature_desc_parallelgc, [include the parallel garbage collector])
+m4_define(jvm_feature_desc_serialgc, [include the serial garbage collector])
+m4_define(jvm_feature_desc_services, [enable diagnostic services and client attaching])
+m4_define(jvm_feature_desc_shenandoahgc, [include the Shenandoah garbage collector])
+m4_define(jvm_feature_desc_static_build, [build static library instead of dynamic])
+m4_define(jvm_feature_desc_vm_structs, [export JVM structures to the Serviceablility Agent])
+m4_define(jvm_feature_desc_zero, [support building variant 'zero'])
+m4_define(jvm_feature_desc_zgc, [include the Z garbage collector])
 
 ###############################################################################
 # Parse command line options for JVM feature selection. After this function
@@ -63,14 +89,14 @@ define(jvm_features_deprecated, m4_normalize(
 AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
 [
   # Setup shell variables from the m4 lists
-  BASIC_SORT_LIST(JVM_FEATURES_VALID, "jvm_features_valid")
-  BASIC_SORT_LIST(JVM_FEATURES_DEPRECATED, "jvm_features_deprecated")
+  UTIL_SORT_LIST(JVM_FEATURES_VALID, "jvm_features_valid")
+  UTIL_SORT_LIST(JVM_FEATURES_DEPRECATED, "jvm_features_deprecated")
 
   # For historical reasons, some jvm features have their own, shorter names.
   # Keep those as aliases for the --enable-jvm-feature-* style arguments.
-  BASIC_ALIASED_ARG_ENABLE(aot, --enable-jvm-feature-aot)
-  BASIC_ALIASED_ARG_ENABLE(cds, --enable-jvm-feature-cds)
-  BASIC_ALIASED_ARG_ENABLE(dtrace, --enable-jvm-feature-dtrace)
+  UTIL_ALIASED_ARG_ENABLE(aot, --enable-jvm-feature-aot)
+  UTIL_ALIASED_ARG_ENABLE(cds, --enable-jvm-feature-cds)
+  UTIL_ALIASED_ARG_ENABLE(dtrace, --enable-jvm-feature-dtrace)
 
   # First check for features using the
   # --with-jvm-features="<[-]feature>[,<[-]feature> ...]" syntax.
@@ -86,7 +112,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
         $AWK '{ for (i=1; i<=NF; i++) if (match($i, /^-.*/)) printf("%s ", substr($i, 2))}'`
 
     # Verify that the user has provided only valid (or deprecated) features
-    BASIC_GET_NON_MATCHING_VALUES(invalid_features, $JVM_FEATURES_ENABLED \
+    UTIL_GET_NON_MATCHING_VALUES(invalid_features, $JVM_FEATURES_ENABLED \
         $JVM_FEATURES_DISABLED, $JVM_FEATURES_VALID $JVM_FEATURES_DEPRECATED)
     if test "x$invalid_features" != x; then
       AC_MSG_NOTICE([Unknown JVM features specified: '$invalid_features'])
@@ -95,14 +121,14 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
     fi
 
     # Check if the user has provided deprecated features
-    BASIC_GET_MATCHING_VALUES(deprecated_features, $JVM_FEATURES_ENABLED \
+    UTIL_GET_MATCHING_VALUES(deprecated_features, $JVM_FEATURES_ENABLED \
         $JVM_FEATURES_DISABLED, $JVM_FEATURES_DEPRECATED)
     if test "x$deprecated_features" != x; then
       AC_MSG_WARN([Deprecated JVM features specified (will be ignored): '$deprecated_features'])
       # Filter out deprecated features
-      BASIC_GET_NON_MATCHING_VALUES(JVM_FEATURES_ENABLED, \
+      UTIL_GET_NON_MATCHING_VALUES(JVM_FEATURES_ENABLED, \
           $JVM_FEATURES_ENABLED, $deprecated_features)
-      BASIC_GET_NON_MATCHING_VALUES(JVM_FEATURES_DISABLED, \
+      UTIL_GET_NON_MATCHING_VALUES(JVM_FEATURES_DISABLED, \
           $JVM_FEATURES_DISABLED, $deprecated_features)
     fi
   fi
@@ -110,12 +136,13 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
   # Then check for features using the "--enable-jvm-feature-<feature>" syntax.
   # Using m4, loop over all features with the variable FEATURE.
   m4_foreach(FEATURE, m4_split(jvm_features_valid), [
-    AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING(
-        [--enable-jvm-feature-FEATURE], [enable jvm feature 'FEATURE']))
-
     # Create an m4 variable containing a shell variable name (like
-    # "enable_jvm_feature_static_build").
-    define(FEATURE_SHELL, [enable_jvm_feature_]translit(FEATURE, -, _))
+    # "enable_jvm_feature_static_build"), and the description.
+    m4_define(FEATURE_SHELL, [enable_jvm_feature_]m4_translit(FEATURE, -, _))
+    m4_define(FEATURE_DESCRIPTION, [jvm_feature_desc_]m4_translit(FEATURE, -, _))
+
+    AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING(
+        [--enable-jvm-feature-FEATURE], [enable jvm feature 'FEATURE' (FEATURE_DESCRIPTION)]))
 
     if test "x$FEATURE_SHELL" = xyes; then
       JVM_FEATURES_ENABLED="$JVM_FEATURES_ENABLED FEATURE"
@@ -125,34 +152,35 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
       AC_MSG_ERROR([Invalid value for --enable-jvm-feature-FEATURE: '$FEATURE_SHELL'])
     fi
 
-    undefine([FEATURE_SHELL])
+    m4_undefine([FEATURE_SHELL])
+    m4_undefine([FEATURE_DESCRIPTION])
   ])
 
   # Likewise, check for deprecated arguments.
   m4_foreach(FEATURE, m4_split(jvm_features_deprecated), [
     AC_ARG_ENABLE(jvm-feature-FEATURE, AS_HELP_STRING(
-        [--enable-jvm-feature-FEATURE], [enable jvm feature 'FEATURE'
-         (deprecated)]))
+        [--enable-jvm-feature-FEATURE], 
+        [Deprecated. Option is kept for backwards compatibility and is ignored]))
 
-    define(FEATURE_SHELL, [enable_jvm_feature_]translit(FEATURE, -, _))
+    m4_define(FEATURE_SHELL, [enable_jvm_feature_]m4_translit(FEATURE, -, _))
 
     if test "x$FEATURE_SHELL" != x; then
       AC_MSG_WARN([Deprecated JVM feature, will be ignored: --enable-jvm-feature-FEATURE])
     fi
 
-    undefine([FEATURE_SHELL])
+    m4_undefine([FEATURE_SHELL])
   ])
 
   # Warn if the user has both enabled and disabled a feature
   # If this happens, disable will override enable.
-  BASIC_GET_MATCHING_VALUES(enabled_and_disabled, $JVM_FEATURES_ENABLED, \
+  UTIL_GET_MATCHING_VALUES(enabled_and_disabled, $JVM_FEATURES_ENABLED, \
       $JVM_FEATURES_DISABLED)
   if test "x$enabled_and_disabled" != x; then
     AC_MSG_WARN([Disabling of these features will override enabling: '$enabled_and_disabled'])
   fi
 
   # Clean up lists and announce results to user
-  BASIC_SORT_LIST(JVM_FEATURES_ENABLED, $JVM_FEATURES_ENABLED)
+  UTIL_SORT_LIST(JVM_FEATURES_ENABLED, $JVM_FEATURES_ENABLED)
   AC_MSG_CHECKING([for JVM features enabled by the user])
   if test "x$JVM_FEATURES_ENABLED" != x; then
     AC_MSG_RESULT(['$JVM_FEATURES_ENABLED'])
@@ -160,7 +188,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_PARSE_OPTIONS],
     AC_MSG_RESULT([none])
   fi
 
-  BASIC_SORT_LIST(JVM_FEATURES_DISABLED, $JVM_FEATURES_DISABLED)
+  UTIL_SORT_LIST(JVM_FEATURES_DISABLED, $JVM_FEATURES_DISABLED)
   AC_MSG_CHECKING([for JVM features disabled by the user])
   if test "x$JVM_FEATURES_DISABLED" != x; then
     AC_MSG_RESULT(['$JVM_FEATURES_DISABLED'])
@@ -449,23 +477,25 @@ AC_DEFUN([JVM_FEATURES_PREPARE_VARIANT],
 
   # Check which features should be off by default for this JVM variant.
   if test "x$variant" = "xclient"; then
-    JVM_FEATURES_VARIANT_FILTER="aot compiler2 graal jvmci link-time-opt"
+    JVM_FEATURES_VARIANT_FILTER="aot compiler2 graal jvmci link-time-opt opt-size"
   elif test "x$variant" = "xminimal"; then
     JVM_FEATURES_VARIANT_FILTER="aot cds compiler2 dtrace epsilongc g1gc \
         graal jfr jni-check jvmci jvmti management nmt parallelgc services \
         shenandoahgc vm-structs zgc"
-    if test "x$OPENJDK_TARGET_CPU" != xarm ; then
+    if test "x$OPENJDK_TARGET_CPU" = xarm ; then
+      JVM_FEATURES_VARIANT_FILTER="$JVM_FEATURES_VARIANT_FILTER opt-size"
+    else
       # Only arm-32 should have link-time-opt enabled as default.
       JVM_FEATURES_VARIANT_FILTER="$JVM_FEATURES_VARIANT_FILTER \
           link-time-opt"
     fi
   elif test "x$variant" = "xcore"; then
     JVM_FEATURES_VARIANT_FILTER="aot compiler1 compiler2 graal jvmci \
-        link-time-opt"
+        link-time-opt opt-size"
   elif test "x$variant" = "xzero"; then
-    JVM_FEATURES_VARIANT_FILTER="jfr link-time-opt"
+    JVM_FEATURES_VARIANT_FILTER="jfr link-time-opt opt-size"
   else
-    JVM_FEATURES_VARIANT_FILTER="link-time-opt"
+    JVM_FEATURES_VARIANT_FILTER="link-time-opt opt-size"
   fi
 ])
 
@@ -482,7 +512,7 @@ AC_DEFUN([JVM_FEATURES_CALCULATE_ACTIVE],
   # The default is set to all valid features except those unavailable or listed
   # in a filter.
   if test "x$variant" != xcustom; then
-    BASIC_GET_NON_MATCHING_VALUES(default_for_variant, $JVM_FEATURES_VALID, \
+    UTIL_GET_NON_MATCHING_VALUES(default_for_variant, $JVM_FEATURES_VALID, \
         $JVM_FEATURES_PLATFORM_UNAVAILABLE $JVM_FEATURES_VARIANT_UNAVAILABLE \
         $JVM_FEATURES_PLATFORM_FILTER $JVM_FEATURES_VARIANT_FILTER)
   else
@@ -492,7 +522,7 @@ AC_DEFUN([JVM_FEATURES_CALCULATE_ACTIVE],
   fi
 
   # Verify that explicitly enabled features are available
-  BASIC_GET_MATCHING_VALUES(enabled_but_unavailable, $JVM_FEATURES_ENABLED, \
+  UTIL_GET_MATCHING_VALUES(enabled_but_unavailable, $JVM_FEATURES_ENABLED, \
       $JVM_FEATURES_PLATFORM_UNAVAILABLE $JVM_FEATURES_VARIANT_UNAVAILABLE)
   if test "x$enabled_but_unavailable" != x; then
     AC_MSG_NOTICE([ERROR: Unavailable JVM features explicitly enabled for '$variant': '$enabled_but_unavailable'])
@@ -500,12 +530,12 @@ AC_DEFUN([JVM_FEATURES_CALCULATE_ACTIVE],
   fi
 
   # Notify the user if their command line options has no real effect
-  BASIC_GET_MATCHING_VALUES(enabled_but_default, $JVM_FEATURES_ENABLED, \
+  UTIL_GET_MATCHING_VALUES(enabled_but_default, $JVM_FEATURES_ENABLED, \
       $default_for_variant)
   if test "x$enabled_but_default" != x; then
     AC_MSG_NOTICE([Default JVM features explicitly enabled for '$variant': '$enabled_but_default'])
   fi
-  BASIC_GET_MATCHING_VALUES(disabled_but_unavailable, $JVM_FEATURES_DISABLED, \
+  UTIL_GET_MATCHING_VALUES(disabled_but_unavailable, $JVM_FEATURES_DISABLED, \
       $JVM_FEATURES_PLATFORM_UNAVAILABLE $JVM_FEATURES_VARIANT_UNAVAILABLE)
   if test "x$disabled_but_unavailable" != x; then
     AC_MSG_NOTICE([Unavailable JVM features explicitly disabled for '$variant': '$disabled_but_unavailable'])
@@ -513,7 +543,7 @@ AC_DEFUN([JVM_FEATURES_CALCULATE_ACTIVE],
 
   # JVM_FEATURES_ACTIVE is the set of all default features and all explicitly
   # enabled features, with the explicitly disabled features filtered out.
-  BASIC_GET_NON_MATCHING_VALUES(JVM_FEATURES_ACTIVE, $default_for_variant \
+  UTIL_GET_NON_MATCHING_VALUES(JVM_FEATURES_ACTIVE, $default_for_variant \
       $JVM_FEATURES_ENABLED, $JVM_FEATURES_DISABLED)
 ])
 
@@ -613,7 +643,7 @@ AC_DEFUN_ONCE([JVM_FEATURES_SETUP],
     JVM_FEATURES_VERIFY($variant)
 
     # Keep feature list sorted and free of duplicates
-    BASIC_SORT_LIST(JVM_FEATURES_ACTIVE, $JVM_FEATURES_ACTIVE)
+    UTIL_SORT_LIST(JVM_FEATURES_ACTIVE, $JVM_FEATURES_ACTIVE)
     AC_MSG_CHECKING([JVM features to use for variant '$variant'])
     AC_MSG_RESULT(['$JVM_FEATURES_ACTIVE'])
 
