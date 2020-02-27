@@ -23,7 +23,6 @@
 
 /*
  * @test
- * @ignore until 8240174 is fixed
  * @bug 8238811
  * @requires vm.debug == true & vm.flavor == "server"
  * @summary Run with -Xcomp to test -XX:+VerifyGraphEdges in debug builds.
