@@ -1121,7 +1121,7 @@ public class Attr extends JCTree.Visitor {
                                             TreeInfo.name(app.meth) == names._super) &&
                                     checkFirstConstructorStat(app, tree, false)) {
                                 log.error(tree, Errors.InvalidCanonicalConstructorInRecord(
-                                        Fragments.Canonical, tree.sym,
+                                        Fragments.Canonical, tree.sym.name,
                                         Fragments.CanonicalMustNotContainExplicitConstructorInvocation));
                             }
                         }
@@ -1129,7 +1129,7 @@ public class Attr extends JCTree.Visitor {
                         // also we want to check that no type variables have been defined
                         if (!tree.typarams.isEmpty()) {
                             log.error(tree, Errors.InvalidCanonicalConstructorInRecord(
-                                    Fragments.Canonical, tree.sym, Fragments.CanonicalMustNotDeclareTypeVariables));
+                                    Fragments.Canonical, tree.sym.name, Fragments.CanonicalMustNotDeclareTypeVariables));
                         }
 
                         /* and now we need to check that the constructor's arguments are exactly the same as those of the
@@ -1139,7 +1139,7 @@ public class Attr extends JCTree.Visitor {
                         for (JCVariableDecl param: tree.params) {
                             if (!types.isSameType(param.type, recordComponentTypes.head)) {
                                 log.error(param, Errors.InvalidCanonicalConstructorInRecord(
-                                        Fragments.Canonical, tree.sym, Fragments.TypeMustBeIdenticalToCorrespondingRecordComponentType));
+                                        Fragments.Canonical, tree.sym.name, Fragments.TypeMustBeIdenticalToCorrespondingRecordComponentType));
                             }
                             recordComponentTypes = recordComponentTypes.tail;
                         }
@@ -1213,18 +1213,20 @@ public class Attr extends JCTree.Visitor {
                         List<Name> initParamNames = tree.sym.params.map(p -> p.name);
                         if (!initParamNames.equals(recordComponentNames)) {
                             log.error(tree, Errors.InvalidCanonicalConstructorInRecord(
-                                    Fragments.Canonical, env.enclClass.sym, Fragments.CanonicalWithNameMismatch));
+                                    Fragments.Canonical, env.enclClass.sym.name, Fragments.CanonicalWithNameMismatch));
                         }
                         if (!tree.sym.isPublic()) {
                             log.error(tree, Errors.InvalidCanonicalConstructorInRecord(
                                     TreeInfo.isCompactConstructor(tree) ? Fragments.Compact : Fragments.Canonical,
-                                    env.enclClass.sym, Fragments.CanonicalConstructorMustBePublic));
+                                    env.enclClass.sym.name, Fragments.CanonicalConstructorMustBePublic));
                         }
                         if (tree.sym.type.asMethodType().thrown != null && !tree.sym.type.asMethodType().thrown.isEmpty()) {
                             log.error(tree,
                                     Errors.InvalidCanonicalConstructorInRecord(
                                             TreeInfo.isCompactConstructor(tree) ? Fragments.Compact : Fragments.Canonical,
-                                            env.enclClass.sym, Fragments.ThrowsClauseNotAllowedForCanonicalConstructor));
+                                            env.enclClass.sym.name,
+                                            Fragments.ThrowsClauseNotAllowedForCanonicalConstructor(
+                                                    TreeInfo.isCompactConstructor(tree) ? Fragments.Compact : Fragments.Canonical)));
                         }
                     }
                 }
@@ -2298,7 +2300,7 @@ public class Attr extends JCTree.Visitor {
                 env.enclMethod != null &&
                 TreeInfo.isCompactConstructor(env.enclMethod)) {
             log.error(env.enclMethod,
-                    Errors.InvalidCanonicalConstructorInRecord(Fragments.Compact, env.enclMethod.sym, Fragments.CanonicalCantHaveReturnStatement));
+                    Errors.InvalidCanonicalConstructorInRecord(Fragments.Compact, env.enclMethod.sym.name, Fragments.CanonicalCantHaveReturnStatement));
         } else {
             // Attribute return expression, if it exists, and check that
             // it conforms to result type of enclosing method.

@@ -72,7 +72,7 @@ Node* Parse::record_profile_for_speculation_at_array_load(Node* ld) {
 //---------------------------------array_load----------------------------------
 void Parse::array_load(BasicType bt) {
   const Type* elemtype = Type::TOP;
-  Node* adr = array_addressing(bt, 0, &elemtype);
+  Node* adr = array_addressing(bt, 0, elemtype);
   if (stopped())  return;     // guaranteed null or range check
 
   Node* idx = pop();
@@ -209,10 +209,7 @@ void Parse::array_load(BasicType bt) {
 
   if (elemtype == TypeInt::BOOL) {
     bt = T_BOOLEAN;
-  } else if (bt == T_OBJECT) {
-    elemtype = ary_t->elem()->make_oopptr();
   }
-
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
   Node* ld = access_load_at(ary, adr, adr_type, elemtype, bt,
                             IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
@@ -234,7 +231,7 @@ void Parse::array_load(BasicType bt) {
 //--------------------------------array_store----------------------------------
 void Parse::array_store(BasicType bt) {
   const Type* elemtype = Type::TOP;
-  Node* adr = array_addressing(bt, type2size[bt], &elemtype);
+  Node* adr = array_addressing(bt, type2size[bt], elemtype);
   if (stopped())  return;     // guaranteed null or range check
   Node* cast_val = NULL;
   if (bt == T_OBJECT) {
@@ -403,7 +400,7 @@ void Parse::array_store(BasicType bt) {
 
 //------------------------------array_addressing-------------------------------
 // Pull array and index from the stack.  Compute pointer-to-element.
-Node* Parse::array_addressing(BasicType type, int vals, const Type* *result2) {
+Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   Node *idx   = peek(0+vals);   // Get from stack without popping
   Node *ary   = peek(1+vals);   // in case of exception
 
@@ -414,9 +411,9 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type* *result2) {
 
   const TypeAryPtr* arytype  = _gvn.type(ary)->is_aryptr();
   const TypeInt*    sizetype = arytype->size();
-  const Type*       elemtype = arytype->elem();
+  elemtype = arytype->elem();
 
-  if (UseUniqueSubclasses && result2 != NULL) {
+  if (UseUniqueSubclasses) {
     const Type* el = elemtype->make_ptr();
     if (el && el->isa_instptr()) {
       const TypeInstPtr* toop = el->is_instptr();
@@ -630,9 +627,6 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type* *result2) {
   // Make array address computation control dependent to prevent it
   // from floating above the range check during loop optimizations.
   Node* ptr = array_element_address(ary, idx, type, sizetype, control());
-
-  if (result2 != NULL)  *result2 = elemtype;
-
   assert(ptr != top(), "top should go hand-in-hand with stopped");
 
   return ptr;

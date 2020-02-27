@@ -29,6 +29,7 @@
 #include "asm/assembler.hpp"
 #include "oops/compressedOops.hpp"
 #include "utilities/macros.hpp"
+#include "utilities/powerOfTwo.hpp"
 #include "runtime/signature.hpp"
 
 
@@ -1199,7 +1200,7 @@ public:
 
   int store_value_type_fields_to_buf(ciValueKlass* vk, bool from_interpreter = true);
 
-// Unpack all value type arguments passed as oops 
+// Unpack all value type arguments passed as oops
   void unpack_value_args(Compile* C, bool receiver_only);
   bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset);
   bool unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index,

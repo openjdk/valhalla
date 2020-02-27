@@ -40,6 +40,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 #define __ _masm->
 
@@ -147,7 +148,7 @@ static void do_oop_store(InterpreterMacroAssembler* _masm,
                          Register val,
                          DecoratorSet decorators) {
   assert(val == noreg || val == r0, "parameter is just for looks");
-  __ store_heap_oop(dst, val, r10, r1, noreg, decorators); 
+  __ store_heap_oop(dst, val, r10, r1, noreg, decorators);
 }
 
 static void do_oop_load(InterpreterMacroAssembler* _masm,
@@ -812,7 +813,7 @@ void TemplateTable::aaload()
   if (ValueArrayFlatten) {
     Label is_flat_array, done;
 
-    __ test_flattened_array_oop(r0, r8 /*temp*/, is_flat_array); 
+    __ test_flattened_array_oop(r0, r8 /*temp*/, is_flat_array);
     __ add(r1, r1, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
     do_oop_load(_masm, Address(r0, r1, Address::uxtw(LogBytesPerHeapOop)), r0, IS_ARRAY);
 
@@ -1113,7 +1114,7 @@ void TemplateTable::aastore() {
   Label is_null, ok_is_subtype, done;
   transition(vtos, vtos);
   // stack: ..., array, index, value
-  __ ldr(r0, at_tos());    // value 
+  __ ldr(r0, at_tos());    // value
   __ ldr(r2, at_tos_p1()); // index
   __ ldr(r3, at_tos_p2()); // array
 
@@ -1122,7 +1123,7 @@ void TemplateTable::aastore() {
   index_check(r3, r2);     // kills r1
 
   // FIXME: Could we remove the line below?
-  __ add(r4, r2, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop); 
+  __ add(r4, r2, arrayOopDesc::base_offset_in_bytes(T_OBJECT) >> LogBytesPerHeapOop);
 
   // do array store check - check for NULL value first
   __ cbz(r0, is_null);

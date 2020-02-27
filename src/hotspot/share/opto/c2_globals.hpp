@@ -746,9 +746,12 @@
           range(0, max_juint)                                               \
                                                                             \
   product(bool, UseProfiledLoopPredicate, true,                             \
-          "move predicates out of loops based on profiling data")           \
+          "Move predicates out of loops based on profiling data")           \
                                                                             \
   product(bool, UseArrayLoadStoreProfile, false,                            \
-          "take advantage of profiling at array load/store")
+          "Take advantage of profiling at array load/store")                \
+                                                                            \
+  diagnostic(bool, ExpandSubTypeCheckAtParseTime, true,                     \
+          "Do not use subtype check macro node")                            \
 
 #endif // SHARE_OPTO_C2_GLOBALS_HPP

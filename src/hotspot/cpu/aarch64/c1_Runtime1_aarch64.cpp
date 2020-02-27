@@ -43,6 +43,7 @@
 #include "runtime/signature.hpp"
 #include "runtime/vframe.hpp"
 #include "runtime/vframeArray.hpp"
+#include "utilities/powerOfTwo.hpp"
 #include "vmreg_aarch64.inline.hpp"
 
 
@@ -785,7 +786,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         else if (id == new_object_array_id) {
           __ set_info("new_object_array", dont_gc_arguments);
         }
-        else { 
+        else {
           __ set_info("new_value_array", dont_gc_arguments);
         }
 
@@ -902,12 +903,12 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
     case buffer_value_args_id:
     case buffer_value_args_no_receiver_id:
-    { 
+    {
         const char* name = (id == buffer_value_args_id) ?
           "buffer_value_args" : "buffer_value_args_no_receiver";
         StubFrame f(sasm, name, dont_gc_arguments);
         OopMap* map = save_live_registers(sasm, 2);
-        Register method = r1; 
+        Register method = r1;
         address entry = (id == buffer_value_args_id) ?
           CAST_FROM_FN_PTR(address, buffer_value_args) :
           CAST_FROM_FN_PTR(address, buffer_value_args_no_receiver);

@@ -44,6 +44,7 @@
 #include "opto/runtime.hpp"
 #include "opto/valuetypenode.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 // Portions of code courtesy of Clifford Click
 
@@ -1012,7 +1013,7 @@ void CallJavaNode::copy_call_debug_info(PhaseIterGVN* phase, CallNode *oldcall) 
   int jvms_adj  = new_dbg_start - old_dbg_start;
   assert (new_dbg_start == req(), "argument count mismatch");
   Compile* C = phase->C;
-  
+
   // SafePointScalarObject node could be referenced several times in debug info.
   // Use Dict to record cloned nodes.
   Dict* sosn_map = new Dict(cmpkey,hashkey);
@@ -1166,12 +1167,12 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
       return false;
     }
   }
-  
+
   JVMState* jvms = alloc->jvms();
   if (phase->C->too_many_traps(jvms->method(), jvms->bci(), Deoptimization::trap_request_reason(uncommon_trap_request()))) {
     return false;
   }
-  
+
   Node* alloc_mem = alloc->in(TypeFunc::Memory);
   if (alloc_mem == NULL || alloc_mem->is_top()) {
     return false;
@@ -1179,12 +1180,12 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
   if (!alloc_mem->is_MergeMem()) {
     alloc_mem = MergeMemNode::make(alloc_mem);
   }
-  
+
   // and that there's no unexpected side effect
   for (MergeMemStream mms2(mem->as_MergeMem(), alloc_mem->as_MergeMem()); mms2.next_non_empty2(); ) {
     Node* m1 = mms2.is_empty() ? mms2.base_memory() : mms2.memory();
     Node* m2 = mms2.memory2();
-    
+
     for (uint i = 0; i < 100; i++) {
       if (m1 == m2) {
         break;
@@ -1231,11 +1232,11 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
   unc->init_req(TypeFunc::Parms+0, unc_arg);
   unc->set_cnt(PROB_UNLIKELY_MAG(4));
   unc->copy_call_debug_info(igvn, alloc->as_Allocate());
-  
+
   igvn->replace_input_of(alloc, 0, phase->C->top());
-  
+
   igvn->register_new_node_with_optimizer(unc);
-  
+
   Node* ctrl = phase->transform(new ProjNode(unc, TypeFunc::Control));
   Node* halt = phase->transform(new HaltNode(ctrl, alloc->in(TypeFunc::FramePtr), "uncommon trap returned which should never happen"));
   phase->C->root()->add_req(halt);

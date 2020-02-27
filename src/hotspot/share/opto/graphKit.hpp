@@ -861,13 +861,7 @@ class GraphKit : public Phase {
   Node* load_lh_array_tag(Node* kls);
   Node* gen_lh_array_test(Node* kls, unsigned int lh_value);
 
-  Node* gen_subtype_check(Node* subklass, Node* superklass) {
-    MergeMemNode* mem = merged_memory();
-    Node* ctrl = control();
-    Node* n = Phase::gen_subtype_check(subklass, superklass, &ctrl, mem, &_gvn);
-    set_control(ctrl);
-    return n;
-  }
+  Node* gen_subtype_check(Node* obj, Node* superklass);
 
   // Exact type check used for predicted calls and casts.
   // Rewrites (*casted_receiver) to be casted to the stronger type.

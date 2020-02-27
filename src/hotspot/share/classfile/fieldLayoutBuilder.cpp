@@ -156,7 +156,7 @@ void FieldLayout::initialize_instance_layout(const InstanceKlass* super_klass) {
       _start = _blocks; // Setting _start to _blocks instead of _last would allow subclasses
       // to allocate fields in empty slots of their super classes
     } else {
-      _start = _last;
+      _start = _last;    // append fields at the end of the reconstructed layout
     }
   }
 }
@@ -377,7 +377,7 @@ void FieldLayout::fill_holes(const InstanceKlass* super_klass) {
   // If the super class has @Contended annotation, a padding block is
   // inserted at the end to ensure that fields from the subclasses won't share
   // the cache line of the last field of the contended class
-  if (super_klass->has_contended_annotations()) {
+  if (super_klass->has_contended_annotations() && ContendedPaddingWidth > 0) {
     LayoutRawBlock* p = new LayoutRawBlock(LayoutRawBlock::PADDING, ContendedPaddingWidth);
     p->set_offset(b->offset() + b->size());
     b->set_next_block(p);

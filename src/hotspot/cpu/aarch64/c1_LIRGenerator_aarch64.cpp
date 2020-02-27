@@ -38,6 +38,7 @@
 #include "ci/ciValueKlass.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
+#include "utilities/powerOfTwo.hpp"
 #include "vmreg_aarch64.inline.hpp"
 
 #ifdef ASSERT
@@ -348,7 +349,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
     info_for_exception = state_for(x);
   }
 
-  CodeStub* throw_imse_stub = 
+  CodeStub* throw_imse_stub =
       x->maybe_valuetype() ?
       new SimpleExceptionStub(Runtime1::throw_illegal_monitor_state_exception_id, LIR_OprFact::illegalOpr, state_for(x)) :
       NULL;
@@ -460,7 +461,7 @@ void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) {
       // no need to do div-by-zero check if the divisor is a non-zero constant
       if (c != 0) need_zero_check = false;
       // do not load right if the divisor is a power-of-2 constant
-      if (c > 0 && is_power_of_2_long(c)) {
+      if (c > 0 && is_power_of_2(c)) {
         right.dont_load_item();
       } else {
         right.load_item();

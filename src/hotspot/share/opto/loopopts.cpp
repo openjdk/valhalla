@@ -40,6 +40,7 @@
 #include "opto/opaquenode.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/subnode.hpp"
+#include "opto/subtypenode.hpp"
 #include "opto/valuetypenode.hpp"
 #include "utilities/macros.hpp"
 
@@ -663,6 +664,9 @@ Node *PhaseIdealLoop::conditional_move( Node *region ) {
   }
   assert(bol->Opcode() == Op_Bool, "Unexpected node");
   int cmp_op = bol->in(1)->Opcode();
+  if (cmp_op == Op_SubTypeCheck) { // SubTypeCheck expansion expects an IfNode
+    return NULL;
+  }
   // It is expensive to generate flags from a float compare.
   // Avoid duplicated float compare.
   if (phis > 1 && (cmp_op == Op_CmpF || cmp_op == Op_CmpD)) return NULL;
@@ -905,6 +909,7 @@ void PhaseIdealLoop::try_move_store_after_loop(Node* n) {
             // Move the store out of the loop if the LCA of all
             // users (except for the phi) is outside the loop.
             Node* hook = new Node(1);
+            hook->init_req(0, n_ctrl); // Add an input to prevent hook from being dead
             _igvn.rehash_node_delayed(phi);
             int count = phi->replace_edge(n, hook);
             assert(count > 0, "inconsistent phi");
@@ -1216,35 +1221,35 @@ bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
   if (n->Opcode() != Op_CmpP) {
     return false;
   }
-  
+
   Node* klassptr = n->in(1);
   Node* klasscon = n->in(2);
 
   if (klassptr->is_DecodeNarrowPtr()) {
     klassptr = klassptr->in(1);
   }
-  
+
   if (klassptr->Opcode() != Op_LoadKlass && klassptr->Opcode() != Op_LoadNKlass) {
     return false;
   }
-  
+
   if (!klasscon->is_Con()) {
     return false;
   }
-  
+
   Node* addr = klassptr->in(MemNode::Address);
-  
+
   if (!addr->is_AddP()) {
     return false;
   }
-  
+
   intptr_t offset;
   Node* obj = AddPNode::Ideal_base_and_offset(addr, &_igvn, offset);
 
   if (obj == NULL) {
     return false;
   }
-  
+
   assert(obj != NULL && addr->in(AddPNode::Base) == addr->in(AddPNode::Address), "malformed AddP?");
   if (obj->Opcode() == Op_CastPP) {
     obj = obj->in(1);
@@ -1255,7 +1260,7 @@ bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
   }
 
   Node* region = obj->in(0);
-  
+
   Node* phi = PhiNode::make_blank(region, n->in(1));
   for (uint i = 1; i < region->req(); i++) {
     Node* in = obj->in(i);
@@ -1310,7 +1315,7 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
   if (flatten_array_element_type_check(n)) {
     return;
   }
-  
+
   // Cloning Cmp through Phi's involves the split-if transform.
   // FastLock is not used by an If
   if (n->is_Cmp() && !n->is_FastLock()) {

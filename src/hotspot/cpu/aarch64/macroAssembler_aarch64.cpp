@@ -48,6 +48,7 @@
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature_cc.hpp"
 #include "runtime/thread.hpp"
+#include "utilities/powerOfTwo.hpp"
 #ifdef COMPILER1
 #include "c1/c1_LIRAssembler.hpp"
 #endif
