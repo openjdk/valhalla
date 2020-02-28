@@ -1295,7 +1295,7 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
         } while(stack.size() > 0);
         continue;
       }
-      CallProjections projs = call->extract_projections(false, false);
+      CallProjections* projs = call->extract_projections(false, false);
       Node* lrb_clone = lrb->clone();
       phase->register_new_node(lrb_clone, projs->catchall_catchproj);
       phase->set_ctrl(lrb, projs->fallthrough_catchproj);

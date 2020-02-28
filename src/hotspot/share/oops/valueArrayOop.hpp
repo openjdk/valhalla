@@ -27,7 +27,6 @@
 
 #include "oops/arrayOop.hpp"
 #include "oops/klass.hpp"
-#include "oops/oop.inline.hpp"
 
 // A valueArrayOop is an array containing value types (may include flatten embedded oop elements).
 
