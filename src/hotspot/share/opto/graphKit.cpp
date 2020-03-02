@@ -2998,25 +2998,22 @@ Node* Phase::gen_subtype_check(Node* subklass, Node* superklass, Node** ctrl, No
 }
 
 Node* GraphKit::gen_subtype_check(Node* obj_or_subklass, Node* superklass) {
+  const Type* sub_t = _gvn.type(obj_or_subklass);
+  if (sub_t->isa_valuetype()) {
+    obj_or_subklass = makecon(TypeKlassPtr::make(sub_t->value_klass()));
+  }
   if (ExpandSubTypeCheckAtParseTime) {
     MergeMemNode* mem = merged_memory();
     Node* ctrl = control();
     Node* subklass = obj_or_subklass;
-    const Type* t = _gvn.type(obj_or_subklass);
-    if (!t->isa_klassptr()) {
-      if (t->isa_valuetype()) {
-        subklass = makecon(TypeKlassPtr::make(t->value_klass()));
-      } else {
-        subklass = load_object_klass(obj_or_subklass);
-      }
+    if (!sub_t->isa_klassptr()) {
+      subklass = load_object_klass(obj_or_subklass);
     }
-
     Node* n = Phase::gen_subtype_check(subklass, superklass, &ctrl, mem, _gvn);
     set_control(ctrl);
     return n;
   }
 
-  const TypePtr* adr_type = TypeKlassPtr::make(TypePtr::NotNull, C->env()->Object_klass(), Type::Offset::bottom, false);
   Node* check = _gvn.transform(new SubTypeCheckNode(C, obj_or_subklass, superklass));
   Node* bol = _gvn.transform(new BoolNode(check, BoolTest::eq));
   IfNode* iff = create_and_xform_if(control(), bol, PROB_STATIC_FREQUENT, COUNT_UNKNOWN);
@@ -3523,7 +3520,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
 
   if (cast_obj == NULL) {
     // Generate the subtype check
-    Node* not_subtype_ctrl = gen_subtype_check(not_null_obj, superklass );
+    Node* not_subtype_ctrl = gen_subtype_check(not_null_obj, superklass);
 
     // Plug in success path into the merge
     cast_obj = is_value ? not_null_obj : _gvn.transform(new CheckCastPPNode(control(), not_null_obj, toop));

@@ -77,8 +77,7 @@ public:
   virtual ciKlass* exact_klass();
 
   virtual bool can_be_value_array_klass() {
-    ciKlass* ek = element_klass();
-    return ek->is_java_lang_Object() || ek->is_interface() || ek->is_valuetype();
+    return element_klass()->can_be_value_klass();
   }
 };
 

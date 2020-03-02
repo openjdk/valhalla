@@ -973,6 +973,9 @@ public:
 
   virtual bool maybe_null() const { return meet_ptr(Null) == ptr(); }
 
+  virtual bool can_be_value_type() const { return false; }
+  virtual bool flat_array() const { return false; }
+
   // Tests for relation to centerline of type lattice:
   static bool above_centerline(PTR ptr) { return (ptr <= AnyNull); }
   static bool below_centerline(PTR ptr) { return (ptr >= NotNull); }
@@ -1098,8 +1101,7 @@ public:
   int  instance_id()             const { return _instance_id; }
   bool is_known_instance_field() const { return is_known_instance() && _offset.get() >= 0; }
 
-  virtual bool can_be_value_type() const { return EnableValhalla && can_be_value_type_raw(); }
-  virtual bool can_be_value_type_raw() const { return _klass == NULL || !_klass->is_loaded() || _klass->is_valuetype() || ((_klass->is_java_lang_Object() || _klass->is_interface()) && !klass_is_exact()); }
+  virtual bool can_be_value_type() const { return EnableValhalla && (_klass == NULL || _klass->can_be_value_klass(_klass_is_exact)); }
 
   virtual intptr_t get_con() const;
 
@@ -1152,11 +1154,6 @@ class TypeInstPtr : public TypeOopPtr {
 
  public:
   ciSymbol* name()         const { return _name; }
-  bool flat_array() const {
-    assert(!klass()->is_valuetype() || !klass()->as_value_klass()->flatten_array() || _flat_array, "incorrect value bit");
-    assert(!_flat_array || can_be_value_type(), "incorrect value bit");
-    return _flat_array;
-  }
 
   bool  is_loaded() const { return _klass->is_loaded(); }
 
@@ -1213,6 +1210,11 @@ class TypeInstPtr : public TypeOopPtr {
   virtual const TypePtr* with_instance_id(int instance_id) const;
 
   virtual const TypeInstPtr* cast_to_flat_array() const;
+  virtual bool flat_array() const {
+    assert(!klass()->is_valuetype() || !klass()->as_value_klass()->flatten_array() || _flat_array, "incorrect value bit");
+    assert(!_flat_array || can_be_value_type(), "incorrect value bit");
+    return _flat_array;
+  }
 
   // the core of the computation of the meet of 2 types
   virtual const Type *xmeet_helper(const Type *t) const;
@@ -1429,9 +1431,8 @@ public:
   ciKlass* klass() const { return  _klass; }
   bool klass_is_exact()    const { return _klass_is_exact; }
 
-  virtual bool can_be_value_type() const { return EnableValhalla && can_be_value_type_raw(); }
-  virtual bool can_be_value_type_raw() const { return _klass == NULL || !_klass->is_loaded() || _klass->is_valuetype() || ((_klass->is_java_lang_Object() || _klass->is_interface()) && !klass_is_exact()); }
-  bool flat_array() const {
+  virtual bool can_be_value_type() const { return EnableValhalla && (_klass == NULL || _klass->can_be_value_klass(_klass_is_exact)); }
+  virtual bool flat_array() const {
     assert(!klass()->is_valuetype() || !klass()->as_value_klass()->flatten_array() || _flat_array, "incorrect value bit");
     assert(!_flat_array || can_be_value_type(), "incorrect value bit");
     return _flat_array;

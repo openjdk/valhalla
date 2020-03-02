@@ -2385,7 +2385,7 @@ const Type* GetStoragePropertyNode::Value(PhaseGVN* phase) const {
     const TypeKlassPtr* tk = in1_t->make_ptr()->is_klassptr();
     ciArrayKlass* ak = tk->klass()->as_array_klass();
     ciKlass* elem = ak->element_klass();
-    if (tk->klass_is_exact() || (!elem->is_java_lang_Object() && !elem->is_interface() && !elem->is_valuetype())) {
+    if (tk->klass_is_exact() || !elem->can_be_value_klass()) {
       int props_shift = in1_t->isa_narrowklass() ? oopDesc::narrow_storage_props_shift : oopDesc::wide_storage_props_shift;
       ArrayStorageProperties props = ak->storage_properties();
       intptr_t storage_properties = 0;

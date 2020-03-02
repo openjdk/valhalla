@@ -917,6 +917,11 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
       } else {                  // Neither subtypes the other
         unrelated_classes = true;
       }
+      if ((r0->flat_array() && (!r1->can_be_value_type() || (klass1->is_valuetype() && !klass1->flatten_array()))) ||
+          (r1->flat_array() && (!r0->can_be_value_type() || (klass0->is_valuetype() && !klass0->flatten_array())))) {
+        // One type is flattened in arrays and the other type is not. Must be unrelated.
+        unrelated_classes = true;
+      }
       if (unrelated_classes) {
         // The oops classes are known to be unrelated. If the joined PTRs of
         // two oops is not Null and not Bottom, then we are sure that one
@@ -926,14 +931,6 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
           return TypeInt::CC_GT;
         }
       }
-    }
-  }
-  const TypeKlassPtr* k0 = r0->isa_klassptr();
-  const TypeKlassPtr* k1 = r1->isa_klassptr();
-  if (k0 && k1) {
-    if ((k0->flat_array() && (!k1->can_be_value_type() || (k1->klass()->is_valuetype() && !k1->klass()->flatten_array()))) ||
-        (k1->flat_array() && (!k0->can_be_value_type() || (k0->klass()->is_valuetype() && !k0->klass()->flatten_array())))) {
-      return TypeInt::CC_GT;
     }
   }
 

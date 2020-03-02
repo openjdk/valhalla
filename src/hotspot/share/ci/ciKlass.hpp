@@ -109,8 +109,12 @@ public:
     return false;
   }
 
+  virtual bool can_be_value_klass(bool is_exact = false) {
+    return EnableValhalla && (!is_loaded() || is_valuetype() || ((is_java_lang_Object() || is_interface()) && !is_exact));
+  }
+
   virtual bool can_be_value_array_klass() {
-    return is_java_lang_Object();
+    return EnableValhalla && is_java_lang_Object();
   }
 
   // Attempt to get a klass using this ciKlass's loader.

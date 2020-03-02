@@ -34,7 +34,6 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
   ciKlass* superk = super_t->is_klassptr()->klass();
   ciKlass* subk   = sub_t->isa_klassptr() ? sub_t->is_klassptr()->klass() : sub_t->is_oopptr()->klass();
 
-  bool xsuperk = super_t->is_klassptr()->klass_is_exact();
   bool xsubk = sub_t->isa_klassptr() ? sub_t->is_klassptr()->klass_is_exact() : sub_t->is_oopptr()->klass_is_exact();
 
   // Similar to logic in CmpPNode::sub()
@@ -54,6 +53,12 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
     } else if (subk->is_subtype_of(superk)) {
       // skip
     } else {
+      unrelated_classes = true;
+    }
+    // Ignore exactness of constant supertype (the type of the corresponding object may be non-exact).
+    const TypeKlassPtr* casted_sup = super_t->is_klassptr()->cast_to_exactness(false)->is_klassptr();
+    if (sub_t->is_ptr()->flat_array() && (!casted_sup->can_be_value_type() || (superk->is_valuetype() && !superk->flatten_array()))) {
+      // Subtype is flattened in arrays but supertype is not. Must be unrelated.
       unrelated_classes = true;
     }
     if (unrelated_classes) {

@@ -2513,7 +2513,7 @@ void GraphBuilder::monitorenter(Value x, int bci) {
     // We are compiling a monitorenter bytecode
     if (EnableValhalla) {
       ciType* obj_type = x->declared_type();
-      if (obj_type == NULL || obj_type->is_valuetype() || obj_type->as_klass()->is_java_lang_Object()) {
+      if (obj_type == NULL || obj_type->as_klass()->can_be_value_klass()) {
         // If we're (possibly) locking on a valuetype, check for markWord::always_locked_pattern
         // and throw IMSE. (obj_type is null for Phi nodes, so let's just be conservative).
         maybe_valuetype = true;

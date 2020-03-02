@@ -657,7 +657,7 @@ void Type::Initialize_shared(Compile* current) {
   TypeAryPtr::_array_body_type[T_DOUBLE]  = TypeAryPtr::DOUBLES;
 
   TypeKlassPtr::OBJECT = TypeKlassPtr::make(TypePtr::NotNull, current->env()->Object_klass(), Offset(0), false);
-  TypeKlassPtr::OBJECT_OR_NULL = TypeKlassPtr::make(TypePtr::BotPTR, current->env()->Object_klass(), Offset(0), false );
+  TypeKlassPtr::OBJECT_OR_NULL = TypeKlassPtr::make(TypePtr::BotPTR, current->env()->Object_klass(), Offset(0), false);
 
   const Type **fi2c = TypeTuple::fields(2);
   fi2c[TypeFunc::Parms+0] = TypeInstPtr::BOTTOM; // Method*
@@ -5339,9 +5339,9 @@ TypeKlassPtr::TypeKlassPtr(PTR ptr, ciKlass* klass, Offset offset, bool flat_arr
 
 //------------------------------make-------------------------------------------
 // ptr to klass 'k', if Constant, or possibly to a sub-klass if not a Constant
-const TypeKlassPtr* TypeKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, bool value) {
+const TypeKlassPtr* TypeKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, bool flat_array) {
   assert(k == NULL || k->is_instance_klass() || k->is_array_klass(), "Incorrect type of klass oop");
-  return (TypeKlassPtr*)(new TypeKlassPtr(ptr, k, offset, value))->hashcons();
+  return (TypeKlassPtr*)(new TypeKlassPtr(ptr, k, offset, flat_array))->hashcons();
 }
 
 //------------------------------eq---------------------------------------------

@@ -2095,8 +2095,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
   const TypeOopPtr* tb = _gvn.type(b)->isa_oopptr();
   Node* cmp = CmpP(a, b);
   cmp = optimize_cmp_with_klass(cmp);
-  if (ta == NULL || !ta->can_be_value_type_raw() ||
-      tb == NULL || !tb->can_be_value_type_raw()) {
+  if (ta == NULL || !ta->can_be_value_type() ||
+      tb == NULL || !tb->can_be_value_type()) {
     // This is sufficient, if one of the operands can't be a value type
     do_if(btest, cmp);
     return;

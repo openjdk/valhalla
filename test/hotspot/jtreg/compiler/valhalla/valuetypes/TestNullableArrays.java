@@ -2070,7 +2070,7 @@ public class TestNullableArrays extends ValueTypeTest {
             result = new MyValue1[42];
         } else if (n == 3) {
             result = new MyValue1?[42];
-        } else  if (n == 4) {
+        } else if (n == 4) {
             result = new Integer[42];
         }
         result[0] = val;
