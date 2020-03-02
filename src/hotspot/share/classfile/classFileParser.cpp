@@ -5933,8 +5933,8 @@ void ClassFileParser::fix_unsafe_anonymous_class_name(TRAPS) {
 }
 
 static bool relax_format_check_for(ClassLoaderData* loader_data) {
-  bool trusted = (loader_data->is_the_null_class_loader_data() ||
-                  SystemDictionary::is_platform_class_loader(loader_data->class_loader()));
+  bool trusted = loader_data->is_boot_class_loader_data() ||
+                 loader_data->is_platform_class_loader_data();
   bool need_verify =
     // verifyAll
     (BytecodeVerificationLocal && BytecodeVerificationRemote) ||

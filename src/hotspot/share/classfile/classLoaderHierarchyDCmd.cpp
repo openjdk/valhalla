@@ -180,6 +180,7 @@ class LoaderTreeNode : public ResourceObj {
     if (_cld->is_the_null_class_loader_data()) {
       st->print(" <bootstrap>");
     } else {
+      assert(!_cld->is_shortlived(), "_cld must be the primary cld");
       if (loader_name != NULL) {
         st->print(" \"%s\",", loader_name->as_C_string());
       }
@@ -223,7 +224,7 @@ class LoaderTreeNode : public ResourceObj {
       if (print_classes) {
         if (_classes != NULL) {
           for (LoadedClassInfo* lci = _classes; lci; lci = lci->_next) {
-            // Hidden and unsafe anonymous classes should live in the primary CLD of its loader
+            // Weak-hidden and unsafe anonymous classes should not live in the primary CLD of their loaders.
             assert(lci->_cld == _cld, "must be");
 
             branchtracker.print(st);

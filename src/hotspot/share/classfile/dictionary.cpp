@@ -354,6 +354,7 @@ bool Dictionary::is_valid_protection_domain(unsigned int hash,
 // since been unreferenced, so this entry should be cleared.
 void Dictionary::clean_cached_protection_domains() {
   assert_locked_or_safepoint(SystemDictionary_lock);
+  assert(!loader_data()->is_shortlived(), "class loader data shouldn't be short-lived");
 
   if (loader_data()->is_the_null_class_loader_data()) {
     // Classes in the boot loader are not loaded with protection domains
@@ -482,6 +483,7 @@ void Dictionary::print_on(outputStream* st) const {
   ResourceMark rm;
 
   assert(loader_data() != NULL, "loader data should not be null");
+  assert(!loader_data()->is_shortlived(), "class loader data shouldn't be short-lived");
   st->print_cr("Java dictionary (table_size=%d, classes=%d, resizable=%s)",
                table_size(), number_of_entries(), BOOL_TO_STR(_resizable));
   st->print_cr("^ indicates that initiating loader is different from defining loader");
