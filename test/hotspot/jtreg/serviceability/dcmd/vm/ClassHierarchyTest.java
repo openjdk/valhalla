@@ -29,6 +29,7 @@
  *          java.compiler
  *          java.management
  *          jdk.internal.jvmstat/sun.jvmstat.monitor
+ * @compile -XDnoTopInterfaceInjection ClassHierarchyTest.java
  * @run testng ClassHierarchyTest
  */
 
