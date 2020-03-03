@@ -2595,7 +2595,7 @@ return mh1;
                 // static init factory is a static method
                 assert(ctor.isMethod() && ctor.getReturnType() == ctor.getDeclaringClass() && ctor.getReferenceKind() == REF_invokeStatic);
                 assert(!MethodHandleNatives.isCallerSensitive(ctor));  // must not be caller-sensitive
-                return lookup.getDirectMethodNoSecurityManager(ctor.getReferenceKind(), ctor.getDeclaringClass(), ctor, null);
+                return lookup.getDirectMethodNoSecurityManager(ctor.getReferenceKind(), ctor.getDeclaringClass(), ctor, lookup);
             }
         }
 
