@@ -1,5 +1,5 @@
  /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -128,8 +128,8 @@ void ClassLoaderData::initialize_name(Handle class_loader) {
 
 ClassLoaderData::ClassLoaderData(Handle h_class_loader, bool is_shortlived) :
   _metaspace(NULL),
-  _metaspace_lock(new Mutex(Monitor::leaf+1, "Metaspace allocation lock", true,
-                            Monitor::_safepoint_check_never)),
+  _metaspace_lock(new Mutex(Mutex::leaf+1, "Metaspace allocation lock", true,
+                            Mutex::_safepoint_check_never)),
   _unloading(false), _is_shortlived(is_shortlived),
   _modified_oops(true), _accumulated_modified_oops(false),
   // An unsafe anonymous class loader data doesn't have anything to keep
