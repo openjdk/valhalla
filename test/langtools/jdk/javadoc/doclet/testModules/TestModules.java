@@ -27,7 +27,7 @@
  *      8168766 8168688 8162674 8160196 8175799 8174974 8176778 8177562 8175218
  *      8175823 8166306 8178043 8181622 8183511 8169819 8074407 8183037 8191464
  *      8164407 8192007 8182765 8196200 8196201 8196202 8196202 8205593 8202462
- *      8184205 8219060 8223378 8234746
+ *      8184205 8219060 8223378 8234746 8239804
  * @summary Test modules support in javadoc.
  * @library ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
@@ -472,20 +472,16 @@ public class TestModules extends JavadocTester {
                 + "word <span id=\"search_word\" class=\"searchTagResult\">search_word</span> with no description.</div>");
         checkOutput("index.html", found,
                 "</script>\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"block\">The overview summary page header.</div>\n"
                 + "</div>\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"overviewSummary\">\n"
                 + "<table summary=\"Module Summary table, listing modules, and an explanation\">\n"
                 + "<caption><span>Modules</span><span class=\"tabEnd\">&nbsp;</span></caption>");
         checkOutput("index.html", false,
                 "</table>\n"
                 + "</div>\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"block\">The overview summary page header.</div>\n"
                 + "</div>\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"overviewSummary\">\n"
                 + "<table summary=\"Module Summary table, listing modules, and an explanation\">\n"
                 + "<caption><span>Modules</span><span class=\"tabEnd\">&nbsp;</span></caption>");
@@ -493,15 +489,18 @@ public class TestModules extends JavadocTester {
 
     void checkNoDescription(boolean found) {
         checkOutput("moduleA/module-summary.html", found,
-                "<div class=\"contentContainer\">\n"
+                "<div class=\"header\">\n"
+                + "<p>@Deprecated(forRemoval=true)\n"
+                + "</p>\n"
+                + "<h1 title=\"Module\" class=\"title\">Module&nbsp;moduleA</h1>\n"
+                + "</div>"
                 + "<ul class=\"blockList\">\n"
                 + "<li class=\"blockList\">\n"
                 + "<ul class=\"blockList\">\n"
                 + "<li class=\"blockList\">\n"
                 + "<!-- ============ PACKAGES SUMMARY =========== -->");
         checkOutput("moduleB/module-summary.html", found,
-                "<div class=\"contentContainer\">\n"
-                + "<ul class=\"blockList\">\n"
+                "<ul class=\"blockList\">\n"
                 + "<li class=\"blockList\">\n"
                 + "<ul class=\"blockList\">\n"
                 + "<li class=\"blockList\">\n"
@@ -528,10 +527,7 @@ public class TestModules extends JavadocTester {
                 + "</header>\n"
                 + "<div class=\"flexContent\">\n"
                 + "<main role=\"main\">\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"block\">The overview summary page header.</div>\n"
-                + "</div>\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"overviewSummary\">\n<table>\n"
                 + "<caption><span>Modules</span><span class=\"tabEnd\">&nbsp;</span></caption>");
         checkOutput("index.html", false,
@@ -539,24 +535,31 @@ public class TestModules extends JavadocTester {
                 + "</div>\n"
                 + "</main>\n"
                 + "<main role=\"main\">\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"block\">The overview summary page header.</div>\n"
                 + "</div>\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"overviewSummary\">\n<table>\n"
                 + "<caption><span>Modules</span><span class=\"tabEnd\">&nbsp;</span></caption>");
     }
 
     void checkHtml5NoDescription(boolean found) {
         checkOutput("moduleA/module-summary.html", found,
-                "<div class=\"contentContainer\">\n"
+                "<div class=\"header\">\n"
+                + "<p>@Deprecated(forRemoval=true)\n"
+                + "</p>\n"
+                + "<h1 title=\"Module\" class=\"title\">Module&nbsp;moduleA</h1>\n"
+                + "</div>\n"
                 + "<section class=\"summary\">\n"
                 + "<ul class=\"blockList\">\n"
                 + "<li class=\"blockList\">\n"
                 + "<section class=\"packagesSummary\" id=\"packages.summary\">\n"
                 + "<!-- ============ PACKAGES SUMMARY =========== -->");
         checkOutput("moduleB/module-summary.html", found,
-                "<div class=\"contentContainer\">\n"
+                "<p><a href=\"testpkgmdlB/AnnotationType.html\" title=\"annotation in testpkgmdlB\">@AnnotationType</a>"
+                + "(<a href=\"testpkgmdlB/AnnotationType.html#optional()\">optional</a>=\"Module Annotation\",\n"
+                + "                <a href=\"testpkgmdlB/AnnotationType.html#required()\">required</a>=2016)\n"
+                + "</p>\n"
+                + "<h1 title=\"Module\" class=\"title\">Module&nbsp;moduleB</h1>\n"
+                + "</div>\n"
                 + "<section class=\"summary\">\n"
                 + "<ul class=\"blockList\">\n"
                 + "<li class=\"blockList\">\n"
@@ -600,22 +603,22 @@ public class TestModules extends JavadocTester {
                 "Member Link: <a href=\"testpkgmdltags/TestClassInModuleTags.html#"
                 + "testMethod(java.lang.String)\"><code>testMethod(String)</code></a>.",
                 "Package Link: <a href=\"testpkgmdltags/package-summary.html\"><code>testpkgmdltags</code></a>.",
-                "<dt><span class=\"simpleTagLabel\">Since:</span></dt>\n"
+                "<dt>Since:</dt>\n"
                 + "<dd>JDK 9</dd>",
-                "<dt><span class=\"seeLabel\">See Also:</span></dt>\n"
+                "<dt>See Also:</dt>\n"
                 + "<dd>\"Test see tag\", \n"
                 + "<a href=\"testpkgmdltags/TestClassInModuleTags.html\" title=\"class in testpkgmdltags\"><code>"
                 + "TestClassInModuleTags</code></a></dd>",
-                "<dt><span class=\"simpleTagLabel\">Regular Tag:</span></dt>\n"
+                "<dt>Regular Tag:</dt>\n"
                 + "<dd>Just a regular simple tag.</dd>",
-                "<dt><span class=\"simpleTagLabel\">Module Tag:</span></dt>\n"
+                "<dt>Module Tag:</dt>\n"
                 + "<dd>Just a simple module tag.</dd>",
-                "<dt><span class=\"simpleTagLabel\">Version:</span></dt>\n"
+                "<dt>Version:</dt>\n"
                 + "<dd>1.0</dd>",
-                "<dt><span class=\"simpleTagLabel\">Author:</span></dt>\n"
+                "<dt>Author:</dt>\n"
                 + "<dd>Alice</dd>");
         checkOutput("moduletags/testpkgmdltags/TestClassInModuleTags.html", false,
-                "<dt><span class=\"simpleTagLabel\">Module Tag:</span></dt>\n"
+                "<dt>Module Tag:</dt>\n"
                 + "<dd>Just a simple module tag.</dd>");
     }
 
@@ -655,10 +658,8 @@ public class TestModules extends JavadocTester {
                 + "</thead>",
                 "</table>\n"
                 + "</div>\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"block\">The overview summary page header.</div>\n"
                 + "</div>\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"overviewSummary\">\n"
                 + "<table summary=\"Package Summary table, listing packages, and an explanation\">\n"
                 + "<caption><span>Packages</span><span class=\"tabEnd\">&nbsp;</span></caption>");
@@ -673,10 +674,8 @@ public class TestModules extends JavadocTester {
                 + "</tr>\n"
                 + "</thead>\n",
                 "</script>\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"block\">The overview summary page header.</div>\n"
                 + "</div>\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"overviewSummary\">\n"
                 + "<table summary=\"Package Summary table, listing packages, and an explanation\">\n"
                 + "<caption><span>Packages</span><span class=\"tabEnd\">&nbsp;</span></caption>");
@@ -720,10 +719,9 @@ public class TestModules extends JavadocTester {
                 + "</div>\n"
                 + "</main>\n"
                 + "<main role=\"main\">\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"block\">The overview summary page header.</div>\n"
                 + "</div>\n"
-                + "<div class=\"contentContainer\"><a id=\"Packages\">\n"
+                + "<a id=\"Packages\">\n"
                 + "<!--   -->\n"
                 + "</a>\n"
                 + "<div class=\"overviewSummary\">\n"
@@ -742,10 +740,7 @@ public class TestModules extends JavadocTester {
                 + "</header>\n"
                 + "<div class=\"flexContent\">\n"
                 + "<main role=\"main\">\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"block\">The overview summary page header.</div>\n"
-                + "</div>\n"
-                + "<div class=\"contentContainer\">\n"
                 + "<div class=\"overviewSummary\">\n<table>\n"
                 + "<caption><span>Packages</span><span class=\"tabEnd\">&nbsp;</span></caption>");
     }
@@ -872,7 +867,7 @@ public class TestModules extends JavadocTester {
 
     void checkModulesInSearch(boolean found) {
         checkOutput("index-all.html", found,
-                "<dl>\n"
+                "<dl class=\"index\">\n"
                 + "<dt><a href=\"moduleA/module-summary.html\">moduleA</a> - module moduleA</dt>\n"
                 + "<dd>\n"
                 + "<div class=\"block\">This is a test description for the moduleA module with a Search "
@@ -883,7 +878,7 @@ public class TestModules extends JavadocTester {
                 + "<div class=\"block\">This is a test description for the moduleB module.</div>\n"
                 + "</dd>\n"
                 + "</dl>",
-                "<dl>\n"
+                "<dl class=\"index\">\n"
                 + "<dt><span class=\"searchTagLink\"><a href=\"moduleB/module-summary.html#search_word\">"
                 + "search_word</a></span> - Search tag in module moduleB</dt>\n"
                 + "<dd>&nbsp;</dd>\n"
@@ -1115,8 +1110,7 @@ public class TestModules extends JavadocTester {
 
     void checkGroupOption() {
         checkOutput("index.html", true,
-                "<div class=\"contentContainer\">\n"
-                + "<div class=\"overviewSummary\">\n"
+                "<div class=\"overviewSummary\">\n"
                 + "<div role=\"tablist\" aria-orientation=\"horizontal\"><button role=\"tab\""
                 + " aria-selected=\"true\" aria-controls=\"overviewSummary_tabpanel\" tabindex=\"0\""
                 + " onkeydown=\"switchTab(event)\" id=\"t0\" class=\"activeTableTab\">All Modules</button>"
@@ -1178,10 +1172,7 @@ public class TestModules extends JavadocTester {
 
     void checkUnnamedModuleGroupOption() {
         checkOutput("index.html", true,
-                "<div class=\"contentContainer\">\n"
-                + "<div class=\"block\">The overview summary page header.</div>\n"
-                + "</div>\n"
-                + "<div class=\"contentContainer\">\n"
+                "<div class=\"block\">The overview summary page header.</div>\n"
                 + "<div class=\"overviewSummary\">\n"
                 + "<div role=\"tablist\" aria-orientation=\"horizontal\"><button role=\"tab\""
                 + " aria-selected=\"true\" aria-controls=\"overviewSummary_tabpanel\" tabindex=\"0\""
@@ -1226,7 +1217,7 @@ public class TestModules extends JavadocTester {
                 + "</div>");
         checkOutput("index-all.html", found,
                 "<h2 class=\"title\" id=\"I:T\">T</h2>\n"
-                + "<dl>\n"
+                + "<dl class=\"index\">\n"
                 + "<dt><a href=\"test.moduleFullName/module-summary.html\">test.moduleFullName</a> - module test.moduleFullName</dt>\n"
                 + "<dd>\n"
                 + "<div class=\"block\">This is a test description for the test.moduleFullName.</div>\n"
@@ -1236,7 +1227,7 @@ public class TestModules extends JavadocTester {
                 + "<h1 title=\"Module\" class=\"title\">Module&nbsp;moduleFullName</h1>\n"
                 + "</div>");
         checkOutput("index-all.html", !found,
-                "<dl>\n"
+                "<dl class=\"index\">\n"
                 + "<dt><a href=\"test.moduleFullName/module-summary.html\">moduleFullName</a> - module moduleFullName</dt>\n"
                 + "<dd>\n"
                 + "<div class=\"block\">This is a test description for the test.moduleFullName.</div>\n"

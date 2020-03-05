@@ -184,9 +184,7 @@ public class SerializedFormWriterImpl extends SubWriterHolderWriter
      */
     @Override
     public Content getSerialUIDInfoHeader() {
-        HtmlTree dl = new HtmlTree(HtmlTag.DL);
-        dl.setStyle(HtmlStyle.nameValue);
-        return dl;
+        return HtmlTree.DL(HtmlStyle.nameValue);
     }
 
     /**
@@ -227,9 +225,7 @@ public class SerializedFormWriterImpl extends SubWriterHolderWriter
      */
     @Override
     public void addSerializedContent(Content serializedTreeContent) {
-        HtmlTree divContent = HtmlTree.DIV(HtmlStyle.serializedFormContainer,
-                serializedTreeContent);
-        bodyContents.addMainContent(divContent);
+        bodyContents.addMainContent(serializedTreeContent);
     }
 
     @Override
