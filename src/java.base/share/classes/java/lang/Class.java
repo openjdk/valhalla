@@ -795,11 +795,6 @@ public final class Class<T> implements java.io.Serializable,
      * </tbody>
      * </table></blockquote>
      *
-     *
-     * <p> If this class object represents a {@linkplain #isHiddenClass() hidden class},
-     * then the name of a hidden class is not a binary name and contains
-     * a ASCII {@code '/'} character.
-     *
      * <p> The class or interface name <i>classname</i> is the binary name of
      * the class specified above.
      *
@@ -814,6 +809,10 @@ public final class Class<T> implements java.io.Serializable,
      * (new int[3][4][5][6][7][8][9]).getClass().getName()
      *     returns "[[[[[[[I"
      * </pre></blockquote>
+     *
+     * <p> If this class object represents a {@linkplain #isHiddenClass() hidden class},
+     * then the name of a hidden class is not a binary name and contains
+     * a ASCII {@code '/'} character.
      *
      * @return  the name of the class or interface
      *          represented by this object.
