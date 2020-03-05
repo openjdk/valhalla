@@ -677,7 +677,7 @@ char* Klass::convert_hidden_name_to_java(Symbol* name) {
   name->as_klass_external_name(result, (int)name_len + 1);
   for (int index = (int)name_len; index > 0; index--) {
     if (result[index] == '+') {
-      result[index] = '/';
+      result[index] = JVM_SIGNATURE_SLASH;
       break;
     }
   }
@@ -716,7 +716,15 @@ const char* Klass::external_name() const {
 const char* Klass::signature_name() const {
   if (name() == NULL)  return "<unknown>";
   if (is_objArray_klass() && ObjArrayKlass::cast(this)->bottom_klass()->is_hidden()) {
-    char* result = convert_hidden_name_to_java(name());
+    size_t name_len = name()->utf8_length();
+    char* result = NEW_RESOURCE_ARRAY(char, name_len + 1);
+    name()->as_C_string(result, (int)name_len + 1);
+    for (int index = (int)name_len; index > 0; index--) {
+      if (result[index] == '+') {
+        result[index] = JVM_SIGNATURE_DOT;
+        break;
+      }
+    }
     return result;
   }
   return name()->as_C_string();

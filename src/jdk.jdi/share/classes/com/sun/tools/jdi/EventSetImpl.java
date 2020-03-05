@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -425,8 +425,16 @@ public class EventSetImpl extends ArrayList<Event> implements EventSet {
         }
 
         public String className() {
-            return classSignature.substring(1, classSignature.length()-1)
-                .replace('/', '.');
+            String name = classSignature;
+            int index = name.indexOf(".");  // check if it's a hidden class
+            if (index < 0) {
+                name = name.replace('/', '.');
+            } else {
+                // the class name of a hidden class is <binary-name> + "/" + <suffix>
+                name = name.substring(0, index).replace('/', '.') + "/" +
+                         name.substring(index + 1, name.length());
+            }
+            return name;
         }
 
         public String classSignature() {

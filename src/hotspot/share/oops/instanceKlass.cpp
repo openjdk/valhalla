@@ -2725,10 +2725,10 @@ const char* InstanceKlass::signature_name() const {
     dest[dest_index++] = src[src_index++];
   }
 
-  if (is_hidden()) { // Replace the last '+' with a '/'.
+  if (is_hidden()) { // Replace the last '+' with a '.'.
     for (int index = (int)src_length; index > 0; index--) {
       if (dest[index] == '+') {
-        dest[index] = '/';
+        dest[index] = JVM_SIGNATURE_DOT;
         break;
       }
     }
