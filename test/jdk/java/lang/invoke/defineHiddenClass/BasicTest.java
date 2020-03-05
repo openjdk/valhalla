@@ -39,10 +39,12 @@ import static java.lang.invoke.MethodHandles.lookup;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Stream;
 
 import jdk.test.lib.compiler.CompilerUtils;
@@ -238,6 +240,34 @@ public class BasicTest {
     public void hiddenSuperClass() throws Exception {
         byte[] bytes = Files.readAllBytes(CLASSES_DIR.resolve("HiddenSuper.class"));
         Class<?> hc = lookup().defineHiddenClass(bytes, false).lookupClass();
+    }
+
+    @Test(expectedExceptions = {IllegalArgumentException.class})
+    public void cantDefineModule() throws Throwable {
+        Path src = Paths.get("module-info.java");
+        Path dir = CLASSES_DIR.resolve("m");
+        Files.write(src, List.of("module m {}"), StandardCharsets.UTF_8);
+        compileSources(src, dir);
+
+        byte[] bytes = Files.readAllBytes(dir.resolve("module-info.class"));
+        lookup().defineHiddenClass(bytes, false);
+    }
+
+    @Test(expectedExceptions = {IllegalArgumentException.class})
+    public void cantDefineClassInAnotherPackage() throws Throwable {
+        Path src = Paths.get("ClassInAnotherPackage.java");
+        Files.write(src, List.of("package p;", "public class ClassInAnotherPackage {}"), StandardCharsets.UTF_8);
+        compileSources(src, CLASSES_DIR);
+
+        byte[] bytes = Files.readAllBytes(CLASSES_DIR.resolve("p").resolve("ClassInAnotherPackage.class"));
+        lookup().defineHiddenClass(bytes, false);
+    }
+
+    @Test(expectedExceptions = {IllegalAccessException.class})
+    public void lessPrivilegedLookup() throws Throwable {
+        Lookup lookup = lookup().dropLookupMode(Lookup.PRIVATE);
+        byte[] bytes = Files.readAllBytes(CLASSES_DIR.resolve("HiddenClass.class"));
+        lookup.defineHiddenClass(bytes, false);
     }
 
     @DataProvider(name = "nestedTypesOrAnonymousClass")
