@@ -3751,7 +3751,8 @@ return mh1;
          * {@link Lookup#defineHiddenClass(byte[], boolean, ClassOption...)
          * Lookup::defineHiddenMethod} method is dynamically added as
          * a new member to the nest of a lookup class and whether a hidden class
-         * is weakly referenced by its defining class loader.
+         * is weak such that it may be unloaded while its defining class loader
+         * is <a href="../ref/package.html#reachability">strongly reachable</a>.
          *
          * @since 15
          */
@@ -3769,9 +3770,9 @@ return mh1;
             NESTMATE(NESTMATE_CLASS),
 
             /**
-             * This class option specifies the hidden class be weakly
-             * referenced by its defining class loader such that it
-             * may be unloaded while its defining class loader is
+             * This class option specifies the hidden class be weak so that
+             * the class is not strongly referenced by its defining class loader.
+             * A weak class may be unloaded while its defining class loader is
              * <a href="../ref/package.html#reachability">strongly reachable</a>.
              *
              * @jls 12.7 Unloading of Classes and Interfaces
