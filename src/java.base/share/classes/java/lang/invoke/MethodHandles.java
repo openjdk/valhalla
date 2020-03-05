@@ -29,6 +29,7 @@ import jdk.internal.access.JavaLangAccess;
 import jdk.internal.access.SharedSecrets;
 import jdk.internal.module.IllegalAccessLogger;
 import jdk.internal.org.objectweb.asm.ClassReader;
+import jdk.internal.org.objectweb.asm.Opcodes;
 import jdk.internal.reflect.CallerSensitive;
 import jdk.internal.reflect.Reflection;
 import jdk.internal.vm.annotation.ForceInline;
@@ -1206,8 +1207,8 @@ public class MethodHandles {
      * and the Core Reflection API
      * (as found on {@link java.lang.Class Class}).
      * <p>
-     * If a security manager is present, member and class lookups are
-     * subject to additional checks.
+     * If a security manager is present, member and class lookups are subject to
+     * additional checks.
      * From one to three calls are made to the security manager.
      * Any of these calls can refuse access by throwing a
      * {@link java.lang.SecurityException SecurityException}.
@@ -1520,7 +1521,6 @@ public class MethodHandles {
             this.lookupClass = lookupClass;
             this.prevLookupClass = prevLookupClass;
             this.allowedModes = allowedModes;
-            assert !lookupClass.isPrimitive() && !lookupClass.isArray();
         }
 
         private static Lookup newLookup(Class<?> lookupClass, Class<?> prevLookupClass, int allowedModes) {
@@ -1908,13 +1908,14 @@ public class MethodHandles {
                 throws IllegalAccessException
         {
             Objects.requireNonNull(bytes);
+            Objects.requireNonNull(options);
 
             ensureDefineClassPermission();
-            if ((lookupModes() & (PRIVATE|MODULE)) != (PRIVATE|MODULE)){
-                throw new IllegalAccessException(this + " does not have PRIVATE or MODULE access");
+            if (!hasFullPrivilegeAccess()) {
+                throw new IllegalAccessException(this + " does not have full privilege access");
             }
 
-            Set<ClassOption> opts = (options != null && options.length > 0) ? Set.of(options) : Set.of();
+            Set<ClassOption> opts = options.length > 0 ? Set.of(options) : Set.of();
             return makeHiddenClassDefiner(bytes.clone(), opts).defineClassAsLookup(initialize);
         }
 
@@ -1952,7 +1953,7 @@ public class MethodHandles {
          * @throws NullPointerException if any parameter is {@code null}
          *
          * @since 15
-         * @see Lookup#defineHiddenClass(byte[], boolean, ClassOption...)  
+         * @see Lookup#defineHiddenClass(byte[], boolean, ClassOption...)
          * @see Class#isHiddenClass()
          */
         public Lookup defineHiddenClassWithClassData(byte[] bytes, Object classData, boolean initialize, ClassOption... options)
@@ -1960,13 +1961,14 @@ public class MethodHandles {
         {
             Objects.requireNonNull(bytes);
             Objects.requireNonNull(classData);
+            Objects.requireNonNull(options);
 
             ensureDefineClassPermission();
-            if ((lookupModes() & (PRIVATE|MODULE)) != (PRIVATE|MODULE)){
-                throw new IllegalAccessException(this + " does not have PRIVATE or MODULE access");
+            if (!hasFullPrivilegeAccess()) {
+                throw new IllegalAccessException(this + " does not have full privilege access");
             }
 
-            Set<ClassOption> opts = (options != null && options.length > 0) ? Set.of(options) : Set.of();
+            Set<ClassOption> opts = options.length > 0 ? Set.of(options) : Set.of();
             return makeHiddenClassDefiner(bytes.clone(), opts).defineClassAsLookup(initialize, classData);
         }
 
@@ -2071,6 +2073,9 @@ public class MethodHandles {
             private static String className(byte[] bytes) {
                 try {
                     ClassReader reader = new ClassReader(bytes);
+                    if ((reader.getAccess() & Opcodes.ACC_MODULE) != 0) {
+                        throw newIllegalArgumentException("Not a class or interface: ACC_MODULE flag is set");
+                    }
                     String name = reader.getClassName();
                     return name.replace('/', '.');
                 } catch (IllegalArgumentException e) {
