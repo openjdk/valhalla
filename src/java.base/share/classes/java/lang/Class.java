@@ -465,7 +465,7 @@ public final class Class<T> implements java.io.Serializable,
      * @param  name     The <a href="ClassLoader.html#binary-name">binary name</a>
      *                  of the class
      * @return {@code Class} object of the given name defined in the given module;
-     *         {@code null} if not found
+     *         {@code null} if not found.
      *
      * @throws NullPointerException if the given module or name is {@code null}
      *
@@ -797,13 +797,8 @@ public final class Class<T> implements java.io.Serializable,
      *
      *
      * <p> If this class object represents a {@linkplain #isHiddenClass() hidden class},
-     * then the name is defined by the JVM of the following format:
-     * <blockquote>
-     * {@code <fully-qualified binary name> + '/' + <suffix>}
-     * </blockquote>
-     * where the fully-qualified binary name is the class name in the {@code ClassFile}
-     * from which this {@code Class} object was derived and the suffix is an unique
-     * unqualified name as specified in JVMS 4.2.2.
+     * then the name of a hidden class is not a binary name and contains
+     * a ASCII {@code '/'} character.
      *
      * <p> The class or interface name <i>classname</i> is the binary name of
      * the class specified above.
@@ -822,8 +817,6 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @return  the name of the class or interface
      *          represented by this object.
-     *
-     * @jvms 4.2.2 Unqualified Names
      */
     public String getName() {
         String name = this.name;

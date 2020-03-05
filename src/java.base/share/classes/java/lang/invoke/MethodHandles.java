@@ -1739,79 +1739,170 @@ public class MethodHandles {
         }
 
         /**
-         * Creates a {@code Lookup} on a <em>hidden class</em> defined to
-         * the same class loader and in the same runtime package and
-         * {@linkplain java.security.ProtectionDomain protection domain} as this
-         * lookup's {@linkplain #lookupClass() lookup class}.
+         * Creates a <em>hidden</em> class or interface from {@code bytes},
+         * returning a {@code Lookup} on the newly created class or interface.
          *
-         * If {@code options} has {@link ClassOption#NESTMATE NESTMATE} 
-         * option, then the hidden class is added as a member into
-         * {@linkplain Class#getNestHost() the nest} of this lookup's lookup class.
+         * <p> Ordinarily, a class or interface {@code C} is created by a class loader,
+         * which either defines {@code C} directly or delegates to another class loader.
+         * A class loader defines {@code C} directly by invoking
+         * {@link ClassLoader#defineClass(String, byte[], int, int, ProtectionDomain)
+         * ClassLoader::defineClass}, which causes the Java Virtual Machine
+         * to derive {@code C} from a purported representation in {@code class} file format.
+         * In situations where use of a class loader is undesirable, a class or interface
+         * {@code C} can be created by this method instead. This method is capable of
+         * defining {@code C}, and thereby creating it, without invoking
+         * {@code ClassLoader::defineClass}.
+         * Instead, this method defines {@code C} as if by arranging for
+         * the Java Virtual Machine to derive a nonarray class or interface {@code C}
+         * from a purported representation in {@code class} file format
+         * using the following rules:
          *
-         * If {@code options} has {@link ClassOption#WEAK WEAK} option, then
-         * the hidden class is weakly referenced from its defining class loader
-         * and may be unloaded while its defining class loader is strongly reachable.
+         * <ol>
+         * <li> The {@linkplain #lookupModes() lookup modes} for this {@code Lookup}
+         * must include {@linkplain #hasFullPrivilegeAccess() full privilege} access.
+         * This level of access is needed to create {@code C} in the module
+         * of the lookup class of this {@code Lookup}.</li>
          *
-         * The hidden class is initialized if the {@code initialize} parameter is
-         * {@code true}.
+         * <li> The purported representation in {@code bytes} must be a {@code ClassFile}
+         * structure of a supported major and minor version. The major and minor version
+         * may differ from the {@code class} file version of the lookup class of this
+         * {@code Lookup}.</li>
          *
-         * <p> A {@link Class#isHiddenClass() <em>hidden</em>} class has the
-         * following additional properties:
+         * <li> The value of {@code access_flags} must indicate this {@code class} file
+         * is a class or interface, i.e. must not have the {@code ACC_MODULE} flag set.
+         *
+         * <li> The value of {@code this_class} must be a valid index in the
+         * {@code constant_pool} table, and the entry at that index must be a valid
+         * {@code CONSTANT_Class_info} structure. Let {@code N} be the binary name
+         * encoded in internal form that is specified by this structure. {@code N} must
+         * denote a class or interface in the same package as the lookup class.</li>
+         *
+         * <li> Let {@code CN} be the string {@code N + "." + <suffix>},
+         * where {@code <suffix>} is an unqualified name that is guaranteed to be unique
+         * during this execution of the JVM. Let {@code newBytes} be the {@code ClassFile}
+         * structure given by bytes with an additional entry in the {@code constant_pool}
+         * table, indicating a {@code CONSTANT_Utf8_info} structure for {@code CN}, and
+         * where the {@code CONSTANT_Class_info} structure indicated by {@code this_class}
+         * refers to the new {@code CONSTANT_Utf8_info} structure.
+         * {@code C} is derived as if from {@code newBytes}.
+         *
+         * <p>The {@code this_class} item in {@code newBytes} would be invalid in a real
+         * {@code class} file because {@code CN} is not a valid binary name encoded in
+         * internal form; {@code CN} uses an ASCII period ({@code .}) as a separator,
+         * rather than exclusively using ASCII forward slashes ({@code /}).
+         *
+         * <p> Let {@code GN} be the binary name obtained by taking {@code N} (a binary name
+         * encoded in internal form) and replacing ASCII forward slashes with ASCII periods.
+         * {@link Class#getName()} returns the string {@code GN + "/" + <suffix>} as
+         * the name of {@code C}. This string does not denote a valid binary name because
+         * it uses an ASCII forward slash as a separator, rather than exclusively using
+         * ASCII periods.</li>
+         *
+         * <li> If {@code C} has a direct superclass, the symbolic reference from {@code C}
+         * to its direct superclass is resolved using the algorithm of JVMS 5.4.3.1.
+         * Any exceptions that can be thrown due to class or interface resolution
+         * can be thrown by this method. In addition:
          * <ul>
-         * <li>Naming:
-         *     The name of a hidden class returned by {@link Class#getName()} is
-         *     defined by the JVM of this form:
-         *     {@code <fully-qualified binary name> + '/' + <suffix>},
-         *     where {@code <fully-qualified binary name>} is the class name
-         *     from the class bytes and {@code <suffix>} must be an unique unqualified
-         *     name (see JVMS 4.2.2)
-         * <li>Class resolution:
-         *     A hidden class cannot be referenced in other classes and cannot be
-         *     named as a field type, a method parameter type and a method return type.
-         *     It is not discoverable by its class loader for example via
-         *     {@link Class#forName(String, boolean, ClassLoader)},
-         *     {@link ClassLoader#loadClass(String, boolean)} and also bytecode linkage.
-         * <li>Class retransformation:
-         *     A hidden class is not {@linkplain java.lang.instrument.Instrumentation#isModifiableClass(Class)
-         *     modifiable} by Java agents or tool agents using
-         *     the <a href="{@docRoot}/../specs/jvmti.html">JVM Tool Interface</a>.
-         * <li>Serialization:
-         *     The default serialization mechanism records the name of a class in
-         *     its serialized form and finds the class by name during deserialization.
-         *     A <em>serializable</em> hidden class requires a custom serialization
-         *     mechanism in order to ensure that instances are properly serialized
-         *     and deserialized.
+         * <li> The class or interface named as the direct superclass of {@code C}
+         * must not in fact be an interface.</li>
+         * <li> None of the superclasses of {@code C} may be {@code C} itself.</li>
+         * </ul>
+         * </li>
+         *
+         * <li> If {@code C} has any direct superinterfaces, the symbolic references
+         * from {@code C} to its direct superinterfaces are resolved using the algorithm
+         * of JVMS 5.4.3.1.
+         * Any exceptions that can be thrown due to class or interface resolution
+         * can be thrown by this method. In addition:
+         * <ul>
+         * <li> All of the classes and interfaces named as direct superinterfaces of {@code C}
+         * must in fact be interfaces.</li>
+         * <li> None of the superinterfaces of {@code C} may be {@code C} itself.</li>
+         * </ul>
+         * </li>
+         *
+         * <li> The Java Virtual Machine marks {@code C} as having the same defining class loader,
+         * runtime package, and {@linkplain java.security.ProtectionDomain protection domain}
+         * as the lookup class of this {@code Lookup}.
+         * No class loader is recorded as the initiating class loader for {@code C}.</li>
+         * </ol>
+         *
+         * <p>After {@code C} has been created, it is linked by the Java Virtual Machine.
+         * The entry in the run-time constant pool indicated by {@code this_class} is
+         * deemed to be resolved to {@code C}, and subsequent attempts to resolve that
+         * entry always succeed immediately.
+         *
+         * If the {@code initialize} parameter is {@code true},
+         * then {@code C} is initialized by the Java Virtual Machine.
+         *
+         * <p>The newly created class or interface {@code C} is <em>hidden</em>, in the sense that
+         * no other class or interface can refer to {@code C} via a constant pool entry.
+         * That is, a hidden class or interface cannot be named as a supertype, a field type,
+         * a method parameter type, or a method return type by any other class.
+         * This is because a hidden class or interface does not have a binary name, so
+         * there is no internal form available to record in any class's constant pool.
+         * (Given the {@code Lookup} object returned this method, its lookup class
+         * is a {@code Class} object for which {@link Class#getName()} returns a string
+         * that is not a binary name.)
+         * A hidden class or interface is not discoverable by {@link Class#forName(String, boolean, ClassLoader)},
+         * {@link ClassLoader#loadClass(String, boolean)}, or {@link #findClass(String)}, and
+         * is not {@linkplain java.lang.instrument.Instrumentation#isModifiableClass(Class)
+         * modifiable} by Java agents or tool agents using the <a href="{@docRoot}/../specs/jvmti.html">
+         * JVM Tool Interface</a>.
+         *
+         * <p> If {@code options} has the {@link ClassOption#NESTMATE NESTMATE} option, then
+         * the newly created class or interface {@code C} is a member of a nest. The nest
+         * to which {@code C} belongs is not based on any {@code NestHost} attribute in
+         * the {@code ClassFile} structure from which {@code C} was derived.
+         * Instead, the following rules determine the nest host of {@code C}:
+         * <ul>
+         * <li>If the nest host of the lookup class of this {@code Lookup} has previously
+         * been determined, then {@code H} be the nest host of the lookup class.</li>
+         * <li>Otherwise, it is determined using the algorithm in JVMS 5.4.4, yielding {@code H}.</li>
+         * <li>The nest host of {@code C} is determined to be {@code H}, the nest host of the lookup class.</li>
          * </ul>
          *
-         * <p> The {@linkplain #lookupModes() lookup modes} for this lookup must
-         * have {@linkplain #hasFullPrivilegeAccess() full privilege} access to
-         * create a hidden class in the module of this lookup class.
+         * <p> If {@code options} has {@link ClassOption#WEAK WEAK} option, then
+         * the newly created class or interface is <em>not strongly referenced</em> from
+         * its defining class loader. Therefore, it may be unloaded while
+         * its defining class loader is strongly reachable.
          *
-         * <p> The {@code bytes} parameter is the class bytes of a valid class file
-         * (as defined by the <em>The Java Virtual Machine Specification</em>)
-         * with a class name in the same package as the lookup class.
+         * <p> A hidden class or interface may be serializable, but this requires a custom
+         * serialization mechanism in order to ensure that instances are properly serialized
+         * and deserialized. The default serialization mechanism supports only classes and
+         * interfaces that are discoverable by their class name.
          *
-         * @param bytes the class bytes
+         * @param bytes the bytes that make up the class data,
+         * in the format of a valid {@code class} file as defined by The JavaTM Virtual Machine Specification.
          * @param initialize if {@code true} the class will be initialized.
          * @param options {@linkplain ClassOption class options}
          * @return the {@code Lookup} object on the hidden class
          *
-         * @throws IllegalArgumentException the bytes are for a class in a different package
-         *                                  to the lookup class
-         * @throws IllegalAccessException   if this lookup does not have {@linkplain #hasFullPrivilegeAccess()
-         *                                  full privilege} access
-         * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
-         *                                  verified ({@code VerifyError}), is already defined,
-         *                                  or another linkage error occurs
-         * @throws SecurityException        if a security manager is present and it
-         *                                  <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
-         * @throws NullPointerException     if {@code bytes} is {@code null}
+         * @throws IllegalAccessException if this {@code Lookup} does not have
+         * {@linkplain #hasFullPrivilegeAccess() full privilege} access
+         * @throws SecurityException if a security manager is present and it
+         * <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
+         * @throws ClassFormatError if {@code bytes} is not a {@code ClassFile} structure
+         * @throws UnsupportedClassVersionError if {@code bytes} is not of a supported major or minor version
+         * @throws IllegalArgumentException if {@code bytes} is not a class or interface or
+         * {@bytes} denotes a class in a different package than the lookup class
+         * @throws IncompatibleClassChangeError if the class or interface named as the direct superclass of {@code C}
+         * is in fact an interface, or if any of the classes or interfaces named as direct superinterfaces of {@code C}
+         * are not in fact interfaces
+         * @throws ClassCircularityError if any of the superclasses or superinterfaces of {@code C} is {@code C} itself
+         * @throws VerifyError if the newly created class cannot be verified
+         * @throws LinkageError if the newly created class cannot be linked for any other reason
+         * @throws NullPointerException if any parameter is {@code null}
          *
          * @since 15
          * @see Class#isHiddenClass()
+         * @jvms 4.2.1 Binary Class and Interface Names
          * @jvms 4.2.2 Unqualified Names
-         * @jls 12.3 Linking of Classes and Interfaces
-         * @jls 12.4 Initialization of Classes and Interfaces
+         * @jvms 5.4.3.1 Class and Interface Resolution
+         * @jvms 5.4.4 Access Control
+         * @jvms 5.3.5 Deriving a {@code Class} from a {@code class} File Representation
+         * @jvms 5.4 Linking
+         * @jvms 5.5 Initialization
          */
         public Lookup defineHiddenClass(byte[] bytes, boolean initialize, ClassOption... options)
                 throws IllegalAccessException
@@ -1828,11 +1919,8 @@ public class MethodHandles {
         }
 
         /**
-         * Creates a {@code Lookup} on a <em>hidden class</em> with {@code classData}
-         * defined to the same class loader and in the same runtime package
-         * and {@linkplain java.security.ProtectionDomain protection domain} as
-         * this lookup's {@linkplain #lookupClass() lookup class} with
-         * the given class options.
+         * Creates a <em>hidden</em> class or interface from {@code bytes} with {@code classData},
+         * returning a {@code Lookup} on the newly created class or interface.
          *
          * <p> This method is equivalent to calling
          * {@link #defineHiddenClass(byte[], boolean, ClassOption...) defineHiddenClass(bytes, initialize, options)}
@@ -1841,26 +1929,27 @@ public class MethodHandles {
          * The {@link MethodHandles#classData(Lookup, String, Class) MethodHandles::classData} method
          * can be used to retrieve the {@code classData}.
          *
-         * <p> The {@linkplain #lookupModes() lookup modes} for this lookup must
-         * have {@code PRIVATE} and {@code MODULE} access in order to create a
-         * hidden class in the module of this lookup class.
-         *
          * @param bytes     the class bytes
          * @param classData pre-initialized class data
          * @param initialize if {@code true} the class will be initialized.
          * @param options   {@linkplain ClassOption class options}
          * @return the {@code Lookup} object on the hidden class
          *
-         * @throws IllegalArgumentException the bytes are for a class in a different package
-         *                                  to the lookup class
-         * @throws IllegalAccessException   if this lookup does not have {@linkplain #hasFullPrivilegeAccess()
-         *                                  full privilege} access
-         * @throws LinkageError             if the class is malformed ({@code ClassFormatError}), cannot be
-         *                                  verified ({@code VerifyError}), is already defined,
-         *                                  or another linkage error occurs
-         * @throws SecurityException        if a security manager is present and it
-         *                                  <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
-         * @throws NullPointerException     if {@code bytes} is {@code null}
+         * @throws IllegalAccessException if this {@code Lookup} does not have
+         * {@linkplain #hasFullPrivilegeAccess() full privilege} access
+         * @throws SecurityException if a security manager is present and it
+         * <a href="MethodHandles.Lookup.html#secmgr">refuses access</a>
+         * @throws ClassFormatError if {@code bytes} is not a {@code ClassFile} structure
+         * @throws UnsupportedClassVersionError if {@code bytes} is not of a supported major or minor version
+         * @throws IllegalArgumentException if {@code bytes} is not a class or interface or
+         * {@bytes} denotes a class in a different package than the lookup class
+         * @throws IncompatibleClassChangeError if the class or interface named as the direct superclass of {@code C}
+         * is in fact an interface, or if any of the classes or interfaces named as direct superinterfaces of {@code C}
+         * are not in fact interfaces
+         * @throws ClassCircularityError if any of the superclasses or superinterfaces of {@code C} is {@code C} itself
+         * @throws VerifyError if the newly created class cannot be verified
+         * @throws LinkageError if the newly created class cannot be linked for any other reason
+         * @throws NullPointerException if any parameter is {@code null}
          *
          * @since 15
          * @see Lookup#defineHiddenClass(byte[], boolean, ClassOption...)  

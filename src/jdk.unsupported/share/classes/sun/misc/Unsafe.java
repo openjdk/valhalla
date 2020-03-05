@@ -848,7 +848,7 @@ public final class Unsafe {
      * @param cpPatches where non-null entries exist, they replace corresponding CP entries in data
      */
     @ForceInline
-    @Deprecated(since = "14", forRemoval = false)
+    @Deprecated(since = "15", forRemoval = false)
     public Class<?> defineAnonymousClass(Class<?> hostClass, byte[] data, Object[] cpPatches) {
         return theInternalUnsafe.defineAnonymousClass(hostClass, data, cpPatches);
     }
