@@ -39,8 +39,6 @@
 #############################################################################
 
 # Valhalla dynamic-nestmates temporary exclusions
-compiler/jvmci/jdk.vm.ci.runtime.test/src/jdk/vm/ci/runtime/test/TestResolvedJavaType.java 8230935 generic-all
-compiler/jvmci/jdk.vm.ci.runtime.test/src/jdk/vm/ci/runtime/test/TestMetaAccessProvider.java 8230935 generic-all
 compiler/graalunit/HotspotTest.java 8219607 generic-all
 
 # :hotspot_compiler
