@@ -46,7 +46,6 @@ check_jvmti_status(JNIEnv* jni, jvmtiError err, const char* msg) {
 
 static jmethodID
 is_hidden_mid(JNIEnv* jni) {
-  jvmtiError err;
   char* csig = NULL;
   jint count = 0;
   jmethodID *methods = NULL;
@@ -160,7 +159,7 @@ check_hidden_class(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, jstring exp_sign_
   if (exp_sign == NULL) {
     jni->FatalError("check_hidden_class: Error: JNI GetStringChars returned NULL for jstring\n");
   }
- 
+
   printf("\n### Native agent: check_hidden_class started for class: %s\n", exp_sign); fflush(0);
 
   err = jvmti->GetClassModifiers(klass, &class_modifiers);
@@ -184,11 +183,11 @@ check_hidden_class(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass, jstring exp_sign_
   }
   jni->ReleaseStringUTFChars(exp_sign_str, exp_sign);
   if (is_array) {
-    printf("### Native agent: check_hidden_class finished\n"); fflush(0); 
+    printf("### Native agent: check_hidden_class finished\n"); fflush(0);
     return;
   }
   if (gsig == NULL) {
-    printf("check_hidden_class: FAIL: unexpected NULL generic signature for hidden class\n"); fflush(0); 
+    printf("check_hidden_class: FAIL: unexpected NULL generic signature for hidden class\n"); fflush(0);
     failed = true;
   }
 
