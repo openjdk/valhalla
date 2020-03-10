@@ -1768,9 +1768,6 @@ public class MethodHandles {
          * may differ from the {@code class} file version of the lookup class of this
          * {@code Lookup}.</li>
          *
-         * <li> The value of {@code access_flags} must indicate this {@code class} file
-         * is a class or interface, i.e. must not have the {@code ACC_MODULE} flag set.
-         *
          * <li> The value of {@code this_class} must be a valid index in the
          * {@code constant_pool} table, and the entry at that index must be a valid
          * {@code CONSTANT_Class_info} structure. Let {@code N} be the binary name
@@ -1779,60 +1776,53 @@ public class MethodHandles {
          *
          * <li> Let {@code CN} be the string {@code N + "." + <suffix>},
          * where {@code <suffix>} is an unqualified name that is guaranteed to be unique
-         * during this execution of the JVM. Let {@code newBytes} be the {@code ClassFile}
-         * structure given by bytes with an additional entry in the {@code constant_pool}
-         * table, indicating a {@code CONSTANT_Utf8_info} structure for {@code CN}, and
+         * during this execution of the JVM.
+         *
+         * <p> Let {@code newBytes} be the {@code ClassFile} structure given by
+         * {@code bytes} with an additional entry in the {@code constant_pool} table,
+         * indicating a {@code CONSTANT_Utf8_info} structure for {@code CN}, and
          * where the {@code CONSTANT_Class_info} structure indicated by {@code this_class}
          * refers to the new {@code CONSTANT_Utf8_info} structure.
-         * {@code C} is derived as if from {@code newBytes}.
          *
-         * <p>The {@code this_class} item in {@code newBytes} would be invalid in a real
-         * {@code class} file because {@code CN} is not a valid binary name encoded in
-         * internal form; {@code CN} uses an ASCII period ({@code .}) as a separator,
-         * rather than exclusively using ASCII forward slashes ({@code /}).
+         * <p> Let {@code L} be the defining class loader of the lookup class of this {@code Lookup}.
          *
-         * <p> Let {@code GN} be the binary name obtained by taking {@code N} (a binary name
-         * encoded in internal form) and replacing ASCII forward slashes with ASCII periods.
-         * {@link Class#getName()} returns the string {@code GN + "/" + <suffix>} as
-         * the name of {@code C}. This string does not denote a valid binary name because
-         * it uses an ASCII forward slash as a separator, rather than exclusively using
-         * ASCII periods.</li>
-         *
-         * <li> If {@code C} has a direct superclass, the symbolic reference from {@code C}
-         * to its direct superclass is resolved using the algorithm of JVMS 5.4.3.1.
-         * Any exceptions that can be thrown due to class or interface resolution
-         * can be thrown by this method. In addition:
+         * <p> {@code C} is derived with name {@code CN}, class loader {@code L}, and
+         * purported representation {@code newBytes} as if by the rules of JVMS 5.3.5,
+         * with the following adjustments:
          * <ul>
-         * <li> The class or interface named as the direct superclass of {@code C}
-         * must not in fact be an interface.</li>
-         * <li> None of the superclasses of {@code C} may be {@code C} itself.</li>
-         * </ul>
-         * </li>
+         * <li> The constant indicated by {@code this_class} is permitted to specify a name
+         * that includes a single {@code "."} character, even though this is not a valid
+         * binary class or interface name in internal form.</li>
          *
-         * <li> If {@code C} has any direct superinterfaces, the symbolic references
-         * from {@code C} to its direct superinterfaces are resolved using the algorithm
-         * of JVMS 5.4.3.1.
-         * Any exceptions that can be thrown due to class or interface resolution
-         * can be thrown by this method. In addition:
-         * <ul>
-         * <li> All of the classes and interfaces named as direct superinterfaces of {@code C}
-         * must in fact be interfaces.</li>
-         * <li> None of the superinterfaces of {@code C} may be {@code C} itself.</li>
-         * </ul>
-         * </li>
+         * <li> The Java Virtual Machine marks {@code L} as the defining class loader of {@code C},
+         * but no class loader is recorded as an initiating class loader of {@code C}.</li>
          *
-         * <li> The Java Virtual Machine marks {@code C} as having the same defining class loader,
-         * runtime package, and {@linkplain java.security.ProtectionDomain protection domain}
+         * <li> {@code C} is considered to have the same runtime package and
+         * {@linkplain java.security.ProtectionDomain protection domain}
          * as the lookup class of this {@code Lookup}.
-         * No class loader is recorded as the initiating class loader for {@code C}.</li>
+         *
+         * <li> Let {@code GN} be the binary name obtained by taking {@code N}
+         * (a binary name encoded in internal form) and replacing ASCII forward slashes with
+         * ASCII periods. For the instance of {@link java.lang.Class} representing {@code C},
+         * {@link Class#getName()} returns the string {@code GN + "/" + <suffix>}, even though
+         * this is not a valid binary class or interface name.</li>
+         * </ul>
+         * </li>
          * </ol>
          *
-         * <p>After {@code C} has been created, it is linked by the Java Virtual Machine.
-         * The entry in the run-time constant pool indicated by {@code this_class} is
-         * deemed to be resolved to {@code C}, and subsequent attempts to resolve that
-         * entry always succeed immediately.
+         * <p> After {@code C} is derived, it is linked by the Java Virtual Machine.
+         * Linkage occurs as specified in JVMS 5.4.3, with the following adjustments:
+         * <ul>
+         * <li> During verification, whenever it is necessary to load the class named
+         * {@code CN}, the attempt succeeds, producing class {@code C}. No request is
+         * made of any class loader.</li>
          *
-         * If the {@code initialize} parameter is {@code true},
+         * <li> On any attempt to resolve the entry in the run-time constant pool indicated
+         * by {@code this_class}, the symbolic reference is considered to be resolved to
+         * {@code C} and resolution always succeeds immediately.</li>
+         * </ul>
+         *
+         * <p> If the {@code initialize} parameter is {@code true},
          * then {@code C} is initialized by the Java Virtual Machine.
          *
          * <p>The newly created class or interface {@code C} is <em>hidden</em>, in the sense that
@@ -1873,7 +1863,8 @@ public class MethodHandles {
          * interfaces that are discoverable by their class name.
          *
          * @param bytes the bytes that make up the class data,
-         * in the format of a valid {@code class} file as defined by The JavaTM Virtual Machine Specification.
+         * in the format of a valid {@code class} file as defined by
+         * <cite>The Java Virtual Machine Specification</cite>.
          * @param initialize if {@code true} the class will be initialized.
          * @param options {@linkplain ClassOption class options}
          * @return the {@code Lookup} object on the hidden class
@@ -1886,10 +1877,11 @@ public class MethodHandles {
          * @throws UnsupportedClassVersionError if {@code bytes} is not of a supported major or minor version
          * @throws IllegalArgumentException if {@code bytes} is not a class or interface or
          * {@bytes} denotes a class in a different package than the lookup class
-         * @throws IncompatibleClassChangeError if the class or interface named as the direct superclass of {@code C}
-         * is in fact an interface, or if any of the classes or interfaces named as direct superinterfaces of {@code C}
-         * are not in fact interfaces
-         * @throws ClassCircularityError if any of the superclasses or superinterfaces of {@code C} is {@code C} itself
+         * @throws IncompatibleClassChangeError if the class or interface named as
+         * the direct superclass of {@code C} is in fact an interface, or if any of the classes
+         * or interfaces named as direct superinterfaces of {@code C} are not in fact interfaces
+         * @throws ClassCircularityError if any of the superclasses or superinterfaces of
+         * {@code C} is {@code C} itself
          * @throws VerifyError if the newly created class cannot be verified
          * @throws LinkageError if the newly created class cannot be linked for any other reason
          * @throws NullPointerException if any parameter is {@code null}
