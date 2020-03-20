@@ -436,4 +436,18 @@ public final class Objects {
     public static long getObjectSize(Object o) {
         return Unsafe.getUnsafe().getObjectSize(o);
     }
+
+    /**
+     * Returns a new Object implementing the {@code IdentityObject} interface.
+     * The object is a unique {@link IdentityObject} suitable for all purposes
+     * for which {@code new Object{}} was used including synchronization,
+     * mutexes and unique placeholders.
+     *
+     * @return a new Object implementing the IdentityObject interface
+     * @since Valhalla
+     */
+    public static IdentityObject newIdentity() {
+        // Return a new instance of an anonymous inner class.
+        return new IdentityObject() { };
+    }
 }
