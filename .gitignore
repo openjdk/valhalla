@@ -13,3 +13,5 @@ test/nashorn/lib
 NashornProfile.txt
 **/JTreport/**
 **/JTwork/**
+.vscode/c_cpp_properties.json
+.ccls-cache
