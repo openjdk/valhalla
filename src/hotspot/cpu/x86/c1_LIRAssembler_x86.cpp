@@ -283,8 +283,7 @@ void LIR_Assembler::osr_entry() {
 
   // build frame
   ciMethod* m = compilation()->method();
-  __ build_frame(initial_frame_size_in_bytes(), bang_size_in_bytes(),
-                 needs_stack_repair(), NULL);
+  __ build_frame(initial_frame_size_in_bytes(), bang_size_in_bytes());
 
   // OSR buffer is
   //
@@ -4269,6 +4268,9 @@ void LIR_Assembler::get_thread(LIR_Opr result_reg) {
 #endif // _LP64
 }
 
+void LIR_Assembler::check_orig_pc() {
+  __ cmpptr(frame_map()->address_for_orig_pc_addr(), (int32_t)NULL_WORD);
+}
 
 void LIR_Assembler::peephole(LIR_List*) {
   // do nothing for now

@@ -216,6 +216,9 @@ class FrameMap : public CompilationResourceObj {
   Address address_for_monitor_object(int monitor_index) const {
     return make_new_address(sp_offset_for_monitor_object(monitor_index));
   }
+  Address address_for_orig_pc_addr() const {
+    return make_new_address(sp_offset_for_monitor_base(_num_monitors));
+  }
 
   // Creates Location describing desired slot and returns it via pointer
   // to Location object. Returns true if the stack frame offset was legal
