@@ -1595,7 +1595,7 @@ void Deoptimization::deoptimize_single_frame(JavaThread* thread, frame fr, Deopt
 }
 
 void Deoptimization::deoptimize(JavaThread* thread, frame fr, DeoptReason reason) {
-  // Deoptimize only if the frame comes from compile code.
+  // Deoptimize only if the frame comes from compiled code.
   // Do not deoptimize the frame which is already patched
   // during the execution of the loops below.
   if (!fr.is_compiled_frame() || fr.is_deoptimized_frame()) {

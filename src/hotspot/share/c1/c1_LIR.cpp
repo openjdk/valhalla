@@ -468,6 +468,7 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
     case lir_membar_storestore:        // result and info always invalid
     case lir_membar_loadstore:         // result and info always invalid
     case lir_membar_storeload:         // result and info always invalid
+    case lir_check_orig_pc:            // result and info always invalid
     case lir_on_spin_wait:
     {
       assert(op->as_Op0() != NULL, "must be");
@@ -1817,6 +1818,7 @@ const char * LIR_Op::name() const {
      case lir_fpop_raw:              s = "fpop_raw";      break;
      case lir_breakpoint:            s = "breakpoint";    break;
      case lir_get_thread:            s = "get_thread";    break;
+     case lir_check_orig_pc:         s = "check_orig_pc"; break;
      // LIR_Op1
      case lir_fxch:                  s = "fxch";          break;
      case lir_fld:                   s = "fld";           break;

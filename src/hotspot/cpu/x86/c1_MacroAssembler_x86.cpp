@@ -318,18 +318,21 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
 }
 
 
-void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes, bool needs_stack_repair, Label* verified_value_entry_label) {
-  assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
+void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, bool needs_stack_repair, bool has_scalarized_args, Label* verified_value_entry_label) {
+  if (has_scalarized_args) {
+    // Initialize orig_pc to detect deoptimization during buffering in the entry points
+    movptr(Address(rsp, sp_offset_for_orig_pc - frame_size_in_bytes - wordSize), 0);
+  }
+  if (!needs_stack_repair && verified_value_entry_label != NULL) {
+    bind(*verified_value_entry_label);
+  }
   // Make sure there is enough stack space for this method's activation.
   // Note that we do this before doing an enter(). This matches the
   // ordering of C2's stack overflow check / rsp decrement and allows
   // the SharedRuntime stack overflow handling to be consistent
   // between the two compilers.
+  assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
   generate_stack_overflow_check(bang_size_in_bytes);
-
-  if (!needs_stack_repair && verified_value_entry_label != NULL) {
-    bind(*verified_value_entry_label);
-  }
   push(rbp);
   if (PreserveFramePointer) {
     mov(rbp, rsp);
@@ -363,13 +366,13 @@ void C1_MacroAssembler::remove_frame(int frame_size_in_bytes, bool needs_stack_r
   } else {
     movq(r13, Address(rsp, frame_size_in_bytes + wordSize)); // return address
     movq(rbp, Address(rsp, frame_size_in_bytes));
-    addq(rsp, Address(rsp, frame_size_in_bytes - wordSize)); // now we are back to caller frame, without the outgoing returned address
-    push(r13);                  // restore the returned address, as pushed by caller
+    addq(rsp, Address(rsp, frame_size_in_bytes - wordSize)); // now we are back to caller frame, without the outgoing return address
+    push(r13); // restore the return address, as pushed by caller
   }
 }
 
 
-void C1_MacroAssembler::verified_value_entry() {
+void C1_MacroAssembler::verified_entry() {
   if (C1Breakpoint || VerifyFPU || !UseStackBanging) {
     // Verified Entry first instruction should be 5 bytes long for correct
     // patching by patch_verified_entry().
@@ -385,22 +388,13 @@ void C1_MacroAssembler::verified_value_entry() {
   IA32_ONLY( verify_FPU(0, "method_entry"); )
 }
 
-int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, int bang_size_in_bytes, Label& verified_value_entry_label, bool is_value_ro_entry) {
-  if (C1Breakpoint || VerifyFPU || !UseStackBanging) {
-    // Verified Entry first instruction should be 5 bytes long for correct
-    // patching by patch_verified_entry().
-    //
-    // C1Breakpoint and VerifyFPU have one byte first instruction.
-    // Also first instruction will be one byte "push(rbp)" if stack banging
-    // code is not generated (see build_frame() above).
-    // For all these cases generate long instruction first.
-    fat_nop();
-  }
-  if (C1Breakpoint)int3();
-  IA32_ONLY( verify_FPU(0, "method_entry"); )
-
+int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_value_entry_label, bool is_value_ro_entry) {
   assert(ValueTypePassFieldsAsArgs, "sanity");
-  GrowableArray<SigEntry>* sig   = &ces->sig();
+  // Make sure there is enough stack space for this method's activation.
+  assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
+  generate_stack_overflow_check(bang_size_in_bytes);
+
+  GrowableArray<SigEntry>* sig    = &ces->sig();
   GrowableArray<SigEntry>* sig_cc = is_value_ro_entry ? &ces->sig_cc_ro() : &ces->sig_cc();
   VMRegPair* regs      = ces->regs();
   VMRegPair* regs_cc   = is_value_ro_entry ? ces->regs_cc_ro() : ces->regs_cc();
@@ -411,10 +405,8 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, sig_cc->length());
   int args_passed = sig->length();
   int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
-
   int extra_stack_offset = wordSize; // tos is return address.
 
-  // Create a temp frame so we can call into runtime. It must be properly set up to accommodate GC.
   int sp_inc = (args_on_stack - args_on_stack_cc) * VMRegImpl::stack_slot_size;
   if (sp_inc > 0) {
     pop(r13);
@@ -424,6 +416,8 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   } else {
     sp_inc = 0;
   }
+
+  // Create a temp frame so we can call into runtime. It must be properly set up to accommodate GC.
   push(rbp);
   if (PreserveFramePointer) {
     mov(rbp, rsp);
@@ -432,10 +426,13 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   if (sp_inc > 0) {
     int real_frame_size = frame_size_in_bytes +
            + wordSize  // pushed rbp
-           + wordSize  // returned address pushed by the stack extension code
+           + wordSize  // return address pushed by the stack extension code
            + sp_inc;   // stack extension
     movptr(Address(rsp, frame_size_in_bytes - wordSize), real_frame_size);
   }
+
+  // Initialize orig_pc to detect deoptimization during buffering in below runtime call
+  movptr(Address(rsp, sp_offset_for_orig_pc), 0);
 
   // FIXME -- call runtime only if we cannot in-line allocate all the incoming value args.
   movptr(rbx, (intptr_t)(ces->method()));
@@ -456,10 +453,9 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   assert(sp_inc == n, "must be");
 
   if (sp_inc != 0) {
-    // Do the stack banging here, and skip over the stack repair code in the
+    // Skip over the stack banging and frame setup code in the
     // verified_value_entry (which has a different real_frame_size).
     assert(sp_inc > 0, "stack should not shrink");
-    generate_stack_overflow_check(bang_size_in_bytes);
     push(rbp);
     if (PreserveFramePointer) {
       mov(rbp, rsp);
