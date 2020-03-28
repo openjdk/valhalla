@@ -83,6 +83,7 @@
 #include "utilities/macros.hpp"
 #include "utilities/ostream.hpp"
 #include "utilities/resourceHash.hpp"
+#include "utilities/stringUtils.hpp"
 #include "utilities/utf8.hpp"
 
 #if INCLUDE_CDS
@@ -943,10 +944,17 @@ static bool put_after_lookup(const Symbol* name, const Symbol* sig, NameSigHash*
 }
 
 // Side-effects: populates the _local_interfaces field
-void ClassFileParser::parse_interfaces(const ClassFileStream* const stream,
-                                       const int itfs_len,
-                                       ConstantPool* const cp,
+void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
+                                       int itfs_len,
+                                       ConstantPool* cp,
                                        bool* const has_nonstatic_concrete_methods,
+                                       // FIXME: lots of these functions
+                                       // declare their parameters as const,
+                                       // which adds only noise to the code.
+                                       // Remove the spurious const modifiers.
+                                       // Many are of the form "const int x"
+                                       // or "T* const x".
+                                       bool* const is_declared_atomic,
                                        TRAPS) {
   assert(stream != NULL, "invariant");
   assert(cp != NULL, "invariant");
@@ -994,10 +1002,14 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* const stream,
                           interf->class_in_module_of_loader()));
       }
 
-      if (InstanceKlass::cast(interf)->has_nonstatic_concrete_methods()) {
+      InstanceKlass* ik = InstanceKlass::cast(interf);
+      if (ik->has_nonstatic_concrete_methods()) {
         *has_nonstatic_concrete_methods = true;
       }
-      _local_interfaces->at_put(index, InstanceKlass::cast(interf));
+      if (ik->is_declared_atomic()) {
+        *is_declared_atomic = true;
+      }
+      _local_interfaces->at_put(index, ik);
     }
 
     if (!_need_verify || itfs_len <= 1) {
@@ -4346,6 +4358,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   Klass** nonstatic_value_type_klasses = NULL;
   unsigned int value_type_oop_map_count = 0;
   int not_flattened_value_types = 0;
+  int not_atomic_value_types = 0;
 
   int max_nonstatic_value_type = fac->count[NONSTATIC_FLATTENABLE] + 1;
 
@@ -4380,7 +4393,16 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
       }
       ValueKlass* vk = ValueKlass::cast(klass);
       // Conditions to apply flattening or not should be defined in a single place
-      if ((ValueFieldMaxFlatSize < 0) || (vk->size_helper() * HeapWordSize) <= ValueFieldMaxFlatSize) {
+      bool too_big_to_flatten = (ValueFieldMaxFlatSize >= 0 &&
+                                 (vk->size_helper() * HeapWordSize) > ValueFieldMaxFlatSize);
+      bool too_atomic_to_flatten = vk->is_declared_atomic();
+      bool too_volatile_to_flatten = fs.access_flags().is_volatile();
+      if (vk->is_naturally_atomic()) {
+        too_atomic_to_flatten = false;
+        //too_volatile_to_flatten = false; //FIXME
+        // volatile fields are currently never flattened, this could change in the future
+      }
+      if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten)) {
         nonstatic_value_type_indexes[nonstatic_value_type_count] = fs.index();
         nonstatic_value_type_klasses[nonstatic_value_type_count] = klass;
         nonstatic_value_type_count++;
@@ -4390,6 +4412,9 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
           value_type_oop_map_count += vklass->nonstatic_oop_map_count();
         }
         fs.set_flattened(true);
+        if (!vk->is_atomic()) {  // flat and non-atomic: take note
+          not_atomic_value_types++;
+        }
       } else {
         not_flattened_value_types++;
         fs.set_flattened(false);
@@ -4848,6 +4873,19 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   info->_static_field_size = static_field_size;
   info->_nonstatic_field_size = nonstatic_field_size;
   info->_has_nonstatic_fields = has_nonstatic_fields;
+
+  // A value type is naturally atomic if it has just one field, and
+  // that field is simple enough.
+  info->_is_naturally_atomic = (is_value_type() &&
+                                !super_has_nonstatic_fields &&
+                                (nonstatic_fields_count <= 1) &&
+                                (not_atomic_value_types == 0) &&
+                                (nonstatic_contended_count == 0));
+  // This may be too restrictive, since if all the fields fit in 64
+  // bits we could make the decision to align instances of this class
+  // to 64-bit boundaries, and load and store them as single words.
+  // And on machines which supported larger atomics we could similarly
+  // allow larger values to be atomic, if properly aligned.
 }
 
 void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
@@ -5983,6 +6021,7 @@ static void check_methods_for_intrinsics(const InstanceKlass* ik,
   }
 }
 
+// Called from a factory method in KlassFactory, not from this file.
 InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook, TRAPS) {
   if (_klass != NULL) {
     return _klass;
@@ -6052,6 +6091,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   // Not yet: supers are done below to support the new subtype-checking fields
   ik->set_nonstatic_field_size(_field_info->_nonstatic_field_size);
   ik->set_has_nonstatic_fields(_field_info->_has_nonstatic_fields);
+  if (_field_info->_is_naturally_atomic && ik->is_value()) {
+    ik->set_is_naturally_atomic();
+  }
   if (_is_empty_value) {
     ik->set_is_empty_value();
   }
@@ -6101,6 +6143,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   ik->set_major_version(_major_version);
   ik->set_has_nonstatic_concrete_methods(_has_nonstatic_concrete_methods);
   ik->set_declares_nonstatic_concrete_methods(_declares_nonstatic_concrete_methods);
+  if (_is_declared_atomic) {
+    ik->set_is_declared_atomic();
+  }
 
   if (_unsafe_anonymous_host != NULL) {
     assert (ik->is_unsafe_anonymous(), "should be the same");
@@ -6433,6 +6478,8 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_contended_fields(false),
   _has_flattenable_fields(false),
   _is_empty_value(false),
+  _is_naturally_atomic(false),
+  _is_declared_atomic(false),
   _has_finalizer(false),
   _has_empty_finalizer(false),
   _has_vanilla_constructor(false),
@@ -6772,6 +6819,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
                    _itfs_len,
                    cp,
                    &_has_nonstatic_concrete_methods,
+                   &_is_declared_atomic,
                    CHECK);
 
   assert(_local_interfaces != NULL, "invariant");
@@ -6779,8 +6827,8 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   // Fields (offsets are filled in later)
   _fac = new FieldAllocationCount();
   parse_fields(stream,
-               _access_flags.is_interface(),
-               _access_flags.is_value_type(),
+               is_interface(),
+               is_value_type(),
                _fac,
                cp,
                cp_size,
@@ -6792,8 +6840,8 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   // Methods
   AccessFlags promoted_flags;
   parse_methods(stream,
-                _access_flags.is_interface(),
-                _access_flags.is_value_type(),
+                is_interface(),
+                is_value_type(),
                 &promoted_flags,
                 &_has_final_method,
                 &_declares_nonstatic_concrete_methods,
@@ -6842,7 +6890,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   // We check super class after class file is parsed and format is checked
   if (_super_class_index > 0 && NULL ==_super_klass) {
     Symbol* const super_class_name = cp->klass_name_at(_super_class_index);
-    if (_access_flags.is_interface()) {
+    if (is_interface()) {
       // Before attempting to resolve the superclass, check for class format
       // errors not checked yet.
       guarantee_property(super_class_name == vmSymbols::java_lang_Object(),
@@ -6862,6 +6910,9 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   if (_super_klass != NULL) {
     if (_super_klass->has_nonstatic_concrete_methods()) {
       _has_nonstatic_concrete_methods = true;
+    }
+    if (_super_klass->is_declared_atomic()) {
+      _is_declared_atomic = true;
     }
 
     if (_super_klass->is_interface()) {
@@ -6886,6 +6937,18 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     // Make sure super class is not final
     if (_super_klass->is_final()) {
       THROW_MSG(vmSymbols::java_lang_VerifyError(), "Cannot inherit from final class");
+    }
+  }
+
+  if (_class_name == vmSymbols::java_lang_NonTearable() && _loader_data->class_loader() == NULL) {
+    // This is the original source of this condition.
+    // It propagates by inheritance, as if testing "instanceof NonTearable".
+    _is_declared_atomic = true;
+  } else if (*ForceNonTearable != '\0') {
+    // Allow a command line switch to force the same atomicity property:
+    const char* class_name_str = _class_name->as_C_string();
+    if (StringUtils::class_list_match(ForceNonTearable, class_name_str)) {
+      _is_declared_atomic = true;
     }
   }
 
@@ -6917,7 +6980,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                                                     CHECK);
 
   // Size of Java itable (in words)
-  _itable_size = _access_flags.is_interface() ? 0 :
+  _itable_size = is_interface() ? 0 :
     klassItable::compute_itable_size(_transitive_interfaces);
 
   assert(_fac != NULL, "invariant");
