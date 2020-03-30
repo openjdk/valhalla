@@ -12,8 +12,8 @@ import org.openjdk.jmh.infra.Blackhole;
 
 @Fork(1)
 @Warmup(iterations = 3, time = 1)
-@Measurement(iterations = 5, time = 1)
-@OutputTimeUnit(TimeUnit.NANOSECONDS)
+@Measurement(iterations = 5, time = 3)
+@OutputTimeUnit(TimeUnit.MILLISECONDS)
 @BenchmarkMode(Mode.AverageTime)
 @State(Scope.Thread)
 public class XArrayListCursorTest {

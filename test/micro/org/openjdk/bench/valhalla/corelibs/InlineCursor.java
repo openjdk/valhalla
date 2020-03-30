@@ -93,23 +93,4 @@ public interface InlineCursor<T> {
      *         has been modified since this Cursor was created
      */
     T get();
-
-    /**
-     * Remove the current element if it exists.
-     *
-     * The collection is modified by removing the element.
-     * After calling {@code #remove()}, this Cursor is not valid
-     * to refer to the element.
-     * Calling {@link #advance()} on the cursor returns a Cursor for
-     * the next element after the element that has been removed.
-     *
-     * @return a Cursor for a non-existent position before the next element;
-     *         the Cursor does not refer to an element
-     * @throws NoSuchElementException if not valid
-     * @throws ConcurrentModificationException if the collection
-     *         has been modified since this Cursor was created
-     */
-    default InlineCursor<T> remove() {
-        throw new UnsupportedOperationException();
-    }
 }

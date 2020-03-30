@@ -1097,77 +1097,42 @@ public class XArrayList<E> extends AbstractList<E>
      */
     private inline class AListCursor<E> implements InlineCursor<E> {
         // Inner class field 'this' is initialized
-        int index;          // index of next element to return; if neg is removed index
+        int index;
         int expectedModCount;
-
-        /**
-         * Return true if the element has been removed.
-         * @return true if the element has been removed
-         */
-        private boolean isRemoved() {
-            return index < 0;
-        }
 
         /**
          * Create a new Cursor for this XArrayList.
          *
-         * @param cursor index if positive;
-         *               if negative is the inverse (not) of a removed element
+         * @param cursor index
          */
         public AListCursor(int cursor) {
             this.index = cursor;
             this.expectedModCount = XArrayList.this.modCount;
         }
 
-        /**
-         * Return true if the index is in range for the Collection
-         * and has not been explicitly removed.
-         * It does NOT check for co-modification.
-         *
-         * @param cursor and index
-         * @return true if the index is a valid index.
-         */
-        private boolean validIndex(int cursor) {
-            return cursor >= 0 && cursor < XArrayList.this.size;
-        }
-
         @Override
         public boolean exists() {
-            return validIndex(index);
+            return index < XArrayList.this.size;
         }
 
         @SuppressWarnings("unchecked")
         public E get() {
-            if (!validIndex(index))
-                throw new NoSuchElementException();
-            checkForComodification();
-            try {
-                Object[] elementData = XArrayList.this.elementData;
-                return (E) elementData[index];
-            } catch (ArrayIndexOutOfBoundsException aioobe) {
-                throw new ConcurrentModificationException();
+            if (exists()) {
+                checkForComodification();
+                try {
+                    return (E) XArrayList.this.elementData[index];
+                } catch (ArrayIndexOutOfBoundsException aioobe) {
+                    throw new ConcurrentModificationException();
+                }
             }
+            throw new NoSuchElementException();
         }
 
         @Override
         public AListCursor<E> advance() {
-            checkForComodification();   // Reject if Collection has changed
             // new Cursor will have a current expectedModCount
             // TBD: Saturate index?  So calling adv, adv, adv, prev == last
-            return new AListCursor<>(isRemoved() ? ~index : index + 1);
-        }
-
-        @Override
-        public AListCursor<E> remove() {
-            if (!validIndex(index))
-                throw new NoSuchElementException();
-            checkForComodification();
-            try {
-                XArrayList.this.remove(index);
-                return new AListCursor<>(~index); // invert for removed index
-            } catch (IndexOutOfBoundsException ex) {
-                throw new ConcurrentModificationException();
-            }
+            return new AListCursor<>(Math.min(index + 1, size));
         }
 
         final void checkForComodification() {
@@ -1210,13 +1175,6 @@ public class XArrayList<E> extends AbstractList<E>
             lastRet = cursor;
             cursor = cursor.advance();
             return val;
-        }
-
-        public void remove() {
-            if (lastRet.exists())
-                lastRet.remove();
-            else
-                throw new IllegalStateException();
         }
 
         @Override
