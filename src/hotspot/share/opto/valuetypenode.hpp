@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -88,9 +88,6 @@ public:
   // Allocates the value type (if not yet allocated)
   ValueTypeBaseNode* allocate(GraphKit* kit, bool safe_for_replace = true);
   bool is_allocated(PhaseGVN* phase) const;
-
-  // Ensure that writes to base are comitted before a subsequent store.
-  void ready_to_publish(GraphKit* kit, Node* base) const;
 
   void replace_call_results(GraphKit* kit, Node* call, Compile* C);
 
