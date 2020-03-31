@@ -75,8 +75,8 @@ class StringMatcher {
   // These do not get properly inlined.
   // For full performance, this should be a template class
   // parameterized by two function arguments.
-  const getc_function_t* _pattern_getc;
-  const getc_function_t* _string_getc;
+  getc_function_t* _pattern_getc;
+  getc_function_t* _string_getc;
 
  public:
   StringMatcher(getc_function_t pattern_getc,
@@ -309,7 +309,7 @@ static bool class_list_match_sane() {
   class_list_match_sane("\\*foo", "*foo");
   const char* foo = "foo!";
   char buf[100], buf2[100];
-  const int m = strlen(foo);
+  const int m = (int)strlen(foo);
   for (int n = 0; n <= 1; n++) {  // neg: 0=>pos
     for (int a = -1; a <= 1; a++) {  // alt: -1/X,T 0/T 1/T,Y
       for (int i = 0; i <= m; i++) {  // 1st substring [i:j]
