@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -399,7 +399,6 @@ ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool safe_for_repl
 
     // Do not let stores that initialize this buffer be reordered with a subsequent
     // store that would make this buffer accessible by other threads.
-    // FIXME: coordinate with ready_to_publish(kit, alloc_oop)
     AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop, &kit->gvn());
     assert(alloc != NULL, "must have an allocation node");
     kit->insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
@@ -630,7 +629,6 @@ ValueTypeNode* ValueTypeNode::finish_larval(GraphKit* kit) const {
   Node* mark = kit->make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
   mark = kit->gvn().transform(new AndXNode(mark, kit->MakeConX(~markWord::larval_mask_in_place)));
   kit->store_to_memory(kit->control(), mark_addr, mark, TypeX_X->basic_type(), kit->gvn().type(mark_addr)->is_ptr(), MemNode::unordered);
-  ready_to_publish(kit, obj);
 
   // Do not let stores that initialize this buffer be reordered with a subsequent
   // store that would make this buffer accessible by other threads.
@@ -643,17 +641,6 @@ ValueTypeNode* ValueTypeNode::finish_larval(GraphKit* kit) const {
   res->set_type(TypeValueType::make(vk, false));
   res = kit->gvn().transform(res)->as_ValueType();
   return res;
-}
-
-void ValueTypeBaseNode::ready_to_publish(GraphKit* kit, Node* base) const {
-  // Do not let stores that initialize this buffer be reordered with
-  // a subsequent store that would make it accessible by other threads.
-  // Required for correct non-flat array element publication.
-  // (See jtreg test ValueTearing.java.)
-  Node* raw_address_proj = NULL;  //FIXME
-  kit->insert_mem_bar(Op_MemBarStoreStore, raw_address_proj);
-  // Fails to prevent array element tearing:
-  //kit->insert_mem_bar_volatile(Op_MemBarStoreStore, Compile::AliasIdxRaw, raw_address_proj);
 }
 
 Node* ValueTypeNode::is_loaded(PhaseGVN* phase, ciValueKlass* vk, Node* base, int holder_offset) {
