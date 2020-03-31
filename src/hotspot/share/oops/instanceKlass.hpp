@@ -291,7 +291,9 @@ class InstanceKlass: public Klass {
     _misc_is_being_redefined                  = 1 << 17, // used for locking redefinition
     _misc_has_contended_annotations           = 1 << 18, // has @Contended annotation
     _misc_has_value_fields                    = 1 << 19, // has value fields and related embedded section is not empty
-    _misc_is_empty_value                      = 1 << 20  // empty value type
+    _misc_is_empty_value                      = 1 << 20, // empty value type
+    _misc_is_naturally_atomic                 = 1 << 21, // loaded/stored in one instruction
+    _misc_is_declared_atomic                  = 1 << 22  // implements jl.NonTearable
   };
   u2 loader_type_bits() {
     return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
@@ -430,6 +432,32 @@ class InstanceKlass: public Klass {
   }
   void set_is_empty_value() {
     _misc_flags |= _misc_is_empty_value;
+  }
+
+  // Note:  The naturally_atomic property only applies to
+  // inline classes; it is never true on identity classes.
+  // The bit is placed on instanceKlass for convenience.
+
+  // Query if h/w provides atomic load/store for instances.
+  bool is_naturally_atomic() const {
+    return (_misc_flags & _misc_is_naturally_atomic) != 0;
+  }
+  // Initialized in the class file parser, not changed later.
+  void set_is_naturally_atomic() {
+    _misc_flags |= _misc_is_naturally_atomic;
+  }
+
+  // Query if this class implements jl.NonTearable or was
+  // mentioned in the JVM option AlwaysAtomicValueTypes.
+  // This bit can occur anywhere, but is only significant
+  // for inline classes *and* their super types.
+  // It inherits from supers along with NonTearable.
+  bool is_declared_atomic() const {
+    return (_misc_flags & _misc_is_declared_atomic) != 0;
+  }
+  // Initialized in the class file parser, not changed later.
+  void set_is_declared_atomic() {
+    _misc_flags |= _misc_is_declared_atomic;
   }
 
   // field sizes

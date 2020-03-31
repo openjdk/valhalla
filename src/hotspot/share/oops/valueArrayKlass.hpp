@@ -87,7 +87,8 @@ class ValueArrayKlass : public ArrayKlass {
     return element_klass()->contains_oops();
   }
 
-  bool is_atomic() {
+  // Override.
+  bool element_access_is_atomic() {
     return element_klass()->is_atomic();
   }
 

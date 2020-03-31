@@ -62,6 +62,12 @@ import javax.tools.*;
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
  *                   runtime.valhalla.valuetypes.ValueTypesTest
+ * @run main/othervm -Xbatch -Xmx128m -XX:-ShowMessageBoxOnError
+ *                   -XX:+ExplicitGCInvokesConcurrent
+ *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
+ *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
+ *                   -XX:ForceNonTearable=*
+ *                   runtime.valhalla.valuetypes.ValueTypesTest
  */
 public class ValueTypesTest {
 
