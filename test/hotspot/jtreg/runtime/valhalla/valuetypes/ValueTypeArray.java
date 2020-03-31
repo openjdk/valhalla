@@ -39,6 +39,7 @@ import static jdk.test.lib.Asserts.*;
  * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=0  runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=-1 runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=0  runtime.valhalla.valuetypes.ValueTypeArray
+ * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.valuetypes.ValueTypeArray
  */
 public class ValueTypeArray {
     public static void main(String[] args) {

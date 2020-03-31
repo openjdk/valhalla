@@ -2333,10 +2333,7 @@ JVM_ENTRY(jboolean, JVM_ArrayIsAccessAtomic(JNIEnv *env, jclass unused, jobject 
   if ((o == NULL) || (!k->is_array_klass())) {
     THROW_0(vmSymbols::java_lang_IllegalArgumentException());
   }
-  if (k->is_valueArray_klass()) {
-    return ValueArrayKlass::cast(k)->is_atomic();
-  }
-  return true;
+  return ArrayKlass::cast(k)->element_access_is_atomic();
 JVM_END
 
 JVM_ENTRY(jobject, JVM_ArrayEnsureAccessAtomic(JNIEnv *env, jclass unused, jobject array))
@@ -2348,7 +2345,7 @@ JVM_ENTRY(jobject, JVM_ArrayEnsureAccessAtomic(JNIEnv *env, jclass unused, jobje
   }
   if (k->is_valueArray_klass()) {
     ValueArrayKlass* vk = ValueArrayKlass::cast(k);
-    if (!vk->is_atomic()) {
+    if (!vk->element_access_is_atomic()) {
       /**
        * Need to decide how to implement:
        *

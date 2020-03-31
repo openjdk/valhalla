@@ -214,8 +214,8 @@ class ValueKlass: public InstanceKlass {
   address data_for_oop(oop o) const;
   oop oop_for_data(address data) const;
 
-  // Query if h/w provides atomic load/store
-  bool is_atomic();
+  // Query if this class promises atomicity one way or another
+  bool is_atomic() { return is_naturally_atomic() || is_declared_atomic(); }
 
   bool flatten_array();
 

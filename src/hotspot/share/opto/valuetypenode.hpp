@@ -89,6 +89,9 @@ public:
   ValueTypeBaseNode* allocate(GraphKit* kit, bool safe_for_replace = true);
   bool is_allocated(PhaseGVN* phase) const;
 
+  // Ensure that writes to base are comitted before a subsequent store.
+  void ready_to_publish(GraphKit* kit, Node* base) const;
+
   void replace_call_results(GraphKit* kit, Node* call, Compile* C);
 
   // Allocate all non-flattened value type fields
