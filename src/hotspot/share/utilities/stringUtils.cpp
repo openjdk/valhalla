@@ -273,7 +273,7 @@ class ClassListMatcher : public StringMatcher {
   }
 };
 
-static bool class_list_match_sane();
+DEBUG_ONLY(static bool class_list_match_sane();)
 
 bool StringUtils::class_list_match(const char* class_pattern_list,
                                    const char* class_name) {
@@ -285,8 +285,7 @@ bool StringUtils::class_list_match(const char* class_pattern_list,
 }
 
 #ifdef ASSERT
-static void
-class_list_match_sane(const char* pat, const char* str, bool result = true) {
+static void class_list_match_sane(const char* pat, const char* str, bool result = true) {
   if (result) {
     assert(StringUtils::class_list_match(pat, str), "%s ~ %s", pat, str);
   } else {
@@ -294,8 +293,7 @@ class_list_match_sane(const char* pat, const char* str, bool result = true) {
   }
 }
 
-static bool
-class_list_match_sane() {
+static bool class_list_match_sane() {
   static bool done = false;
   if (done)  return true;
   done = true;
