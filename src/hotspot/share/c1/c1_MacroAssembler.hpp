@@ -42,7 +42,6 @@ class C1_MacroAssembler: public MacroAssembler {
 
   void inline_cache_check(Register receiver, Register iCache);
   void build_frame(int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc = 0, bool needs_stack_repair = false, bool has_scalarized_args = false, Label* verified_value_entry_label = NULL);
-  void remove_frame(int frame_size_in_bytes, bool needs_stack_repair);
 
   int verified_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_value_entry_label) {
     return scalarized_entry(ces, frame_size_in_bytes, bang_size_in_bytes, sp_offset_for_orig_pc, verified_value_entry_label, false);

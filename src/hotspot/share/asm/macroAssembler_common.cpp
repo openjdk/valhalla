@@ -168,17 +168,23 @@ int MacroAssembler::unpack_value_args_common(Compile* C, bool receiver_only) {
   int args_on_stack_cc = SharedRuntime::java_calling_convention(sig_bt, regs_cc, args_passed_cc, false);
 
   int extra_stack_offset = wordSize; // stack has the returned address
-  int sp_inc = shuffle_value_args(false, receiver_only, extra_stack_offset, sig_bt, sig_cc,
-                                  args_passed, args_on_stack, regs,
-                                  args_passed_cc, args_on_stack_cc, regs_cc);
+  int sp_inc = (args_on_stack_cc - args_on_stack) * VMRegImpl::stack_slot_size;
+  if (sp_inc > 0) {
+    sp_inc = align_up(sp_inc, StackAlignmentInBytes);
+  } else {
+    sp_inc = 0;
+  }
+  shuffle_value_args(false, receiver_only, extra_stack_offset, sig_bt, sig_cc,
+                     args_passed, args_on_stack, regs,
+                     args_passed_cc, args_on_stack_cc, regs_cc, sp_inc);
   return sp_inc;
 }
 
-int MacroAssembler::shuffle_value_args_common(bool is_packing, bool receiver_only, int extra_stack_offset,
-                                              BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                                              int args_passed, int args_on_stack, VMRegPair* regs,            // from
-                                              int args_passed_to, int args_on_stack_to, VMRegPair* regs_to,   // to
-                                              int sp_inc, int ret_off) {
+void MacroAssembler::shuffle_value_args_common(bool is_packing, bool receiver_only, int extra_stack_offset,
+                                               BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
+                                               int args_passed, int args_on_stack, VMRegPair* regs,            // from
+                                               int args_passed_to, int args_on_stack_to, VMRegPair* regs_to,   // to
+                                               int sp_inc, int ret_off) {
   int max_stack = MAX2(args_on_stack + sp_inc/VMRegImpl::stack_slot_size, args_on_stack_to);
   RegState* reg_state = init_reg_state(is_packing, sig_cc, regs, args_passed, sp_inc, max_stack);
 
@@ -236,7 +242,6 @@ int MacroAssembler::shuffle_value_args_common(bool is_packing, bool receiver_onl
     }
   }
   guarantee(done, "Could not resolve circular dependency when shuffling value type arguments");
-  return sp_inc;
 }
 
 bool MacroAssembler::shuffle_value_args_spill(bool is_packing, const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,

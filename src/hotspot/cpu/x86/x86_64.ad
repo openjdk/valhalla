@@ -963,7 +963,7 @@ void MachEpilogNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
     __ vzeroupper();
   }
 
-  __ restore_stack(C);
+  __ remove_frame(C->frame_size_in_bytes(), C->needs_stack_repair());
 
 
   if (StackReservedPages > 0 && C->has_reserved_stack_access()) {
