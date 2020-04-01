@@ -480,7 +480,7 @@ int LIR_Assembler::emit_unwind_handler() {
   }
 
   // remove the activation and dispatch to the unwind handler
-  __ remove_frame(initial_frame_size_in_bytes(), needs_stack_repair());
+  __ remove_frame(in_bytes(frame_map()->framesize_in_bytes()), needs_stack_repair());
   __ jump(RuntimeAddress(Runtime1::entry_for(Runtime1::unwind_exception_id)));
 
   // Emit the slow path assembly
@@ -546,7 +546,7 @@ void LIR_Assembler::return_op(LIR_Opr result) {
   }
 
   // Pop the stack before the safepoint code
-  __ remove_frame(initial_frame_size_in_bytes(), needs_stack_repair());
+  __ remove_frame(in_bytes(frame_map()->framesize_in_bytes()), needs_stack_repair());
 
   if (StackReservedPages > 0 && compilation()->has_reserved_stack_access()) {
     __ reserved_stack_check();

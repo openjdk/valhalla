@@ -346,8 +346,7 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
   decrement(rsp, frame_size_in_bytes); // does not emit code for frame_size == 0
   if (needs_stack_repair) {
     int real_frame_size =  frame_size_in_bytes
-           + wordSize     // skip over pushed rbp
-           + wordSize;    // skip over RA pushed by caller
+           + wordSize;     // skip over pushed rbp
     movptr(Address(rsp, frame_size_in_bytes - wordSize), real_frame_size);
     if (verified_value_entry_label != NULL) {
       bind(*verified_value_entry_label);
@@ -357,20 +356,6 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->nmethod_entry_barrier(this);
 }
-
-
-void C1_MacroAssembler::remove_frame(int frame_size_in_bytes, bool needs_stack_repair) {
-  if (!needs_stack_repair) {
-    increment(rsp, frame_size_in_bytes);  // Does not emit code for frame_size == 0
-    pop(rbp);
-  } else {
-    movq(r13, Address(rsp, frame_size_in_bytes + wordSize)); // return address
-    movq(rbp, Address(rsp, frame_size_in_bytes));
-    addq(rsp, Address(rsp, frame_size_in_bytes - wordSize)); // now we are back to caller frame, without the outgoing return address
-    push(r13); // restore the return address, as pushed by caller
-  }
-}
-
 
 void C1_MacroAssembler::verified_entry() {
   if (C1Breakpoint || VerifyFPU || !UseStackBanging) {
@@ -407,26 +392,26 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
   int extra_stack_offset = wordSize; // tos is return address.
 
-  int sp_inc = (args_on_stack - args_on_stack_cc) * VMRegImpl::stack_slot_size;
-  if (sp_inc > 0) {
-    pop(r13);
+  int sp_inc = 0;
+  if (args_on_stack > args_on_stack_cc) {
+    // TODO comment about stack extension
+    // TODO why + 2?
+    sp_inc = (args_on_stack +2) * VMRegImpl::stack_slot_size;
+    pop(r13); // Copy return address
     sp_inc = align_up(sp_inc, StackAlignmentInBytes);
     subptr(rsp, sp_inc);
     push(r13);
-  } else {
-    sp_inc = 0;
   }
 
-  // Create a temp frame so we can call into runtime. It must be properly set up to accommodate GC.
+  // Create a temp frame so we can call into the runtime. It must be properly set up to accommodate GC.
   push(rbp);
   if (PreserveFramePointer) {
     mov(rbp, rsp);
   }
   subptr(rsp, frame_size_in_bytes);
-  if (sp_inc > 0) {
+  if (sp_inc != 0) {
     int real_frame_size = frame_size_in_bytes +
            + wordSize  // pushed rbp
-           + wordSize  // return address pushed by the stack extension code
            + sp_inc;   // stack extension
     movptr(Address(rsp, frame_size_in_bytes - wordSize), real_frame_size);
   }
@@ -447,10 +432,9 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   addptr(rsp, frame_size_in_bytes);
   pop(rbp);
 
-  int n = shuffle_value_args(true, is_value_ro_entry, extra_stack_offset, sig_bt, sig_cc,
-                             args_passed_cc, args_on_stack_cc, regs_cc, // from
-                             args_passed, args_on_stack, regs);         // to
-  assert(sp_inc == n, "must be");
+  shuffle_value_args(true, is_value_ro_entry, extra_stack_offset, sig_bt, sig_cc,
+                     args_passed_cc, args_on_stack_cc, regs_cc, // from
+                     args_passed, args_on_stack, regs, sp_inc); // to
 
   if (sp_inc != 0) {
     // Skip over the stack banging and frame setup code in the

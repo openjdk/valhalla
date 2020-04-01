@@ -6420,26 +6420,18 @@ void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
   verified_entry(C, sp_inc);
 }
 
-int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
-                                       BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                                       int args_passed, int args_on_stack, VMRegPair* regs,            // from
-                                       int args_passed_to, int args_on_stack_to, VMRegPair* regs_to) { // to
+void MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
+                                        BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
+                                        int args_passed, int args_on_stack, VMRegPair* regs,            // from
+                                        int args_passed_to, int args_on_stack_to, VMRegPair* regs_to, int sp_inc) { // to
   // Check if we need to extend the stack for packing/unpacking
-  int sp_inc = (args_on_stack_to - args_on_stack) * VMRegImpl::stack_slot_size;
-  if (sp_inc > 0) {
-    sp_inc = align_up(sp_inc, StackAlignmentInBytes);
-    if (!is_packing) {
-      // Save the return address, adjust the stack (make sure it is properly
-      // 16-byte aligned) and copy the return address to the new top of the stack.
-      // (Note: C1 does this in C1_MacroAssembler::scalarized_entry).
-      pop(r13);
-      subptr(rsp, sp_inc);
-      push(r13);
-    }
-  } else {
-    // The scalarized calling convention needs less stack space than the unscalarized one.
-    // No need to extend the stack, the caller will take care of these adjustments.
-    sp_inc = 0;
+  if (sp_inc > 0 && !is_packing) {
+    // Save the return address, adjust the stack (make sure it is properly
+    // 16-byte aligned) and copy the return address to the new top of the stack.
+    // (Note: C1 does this in C1_MacroAssembler::scalarized_entry).
+    pop(r13);
+    subptr(rsp, sp_inc);
+    push(r13);
   }
 
   int ret_off; // make sure we don't overwrite the return address
@@ -6452,28 +6444,26 @@ int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int 
     ret_off = sp_inc;
   }
 
-  return shuffle_value_args_common(is_packing, receiver_only, extra_stack_offset,
-                                   sig_bt, sig_cc,
-                                   args_passed, args_on_stack, regs,
-                                   args_passed_to, args_on_stack_to, regs_to,
-                                   sp_inc, ret_off);
+  shuffle_value_args_common(is_packing, receiver_only, extra_stack_offset,
+                            sig_bt, sig_cc,
+                            args_passed, args_on_stack, regs,
+                            args_passed_to, args_on_stack_to, regs_to,
+                            sp_inc, ret_off);
 }
 
 VMReg MacroAssembler::spill_reg_for(VMReg reg) {
   return reg->is_XMMRegister() ? xmm8->as_VMReg() : r14->as_VMReg();
 }
 
-// Restores the stack on return
-void MacroAssembler::restore_stack(Compile* C) {
-  int framesize = C->frame_size_in_bytes();
+void MacroAssembler::remove_frame(int framesize, bool needs_stack_repair) {
   assert((framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
   // Remove word for return addr already pushed and RBP
   framesize -= 2*wordSize;
 
-  if (C->needs_stack_repair()) {
+  if (needs_stack_repair) {
     // Restore rbp and repair rsp by adding the stack increment
     movq(rbp, Address(rsp, framesize));
-    addq(rsp, Address(rsp, C->sp_inc_offset()));
+    addq(rsp, Address(rsp, framesize - wordSize));
   } else {
     if (framesize > 0) {
       addq(rsp, framesize);
