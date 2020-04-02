@@ -42,8 +42,8 @@ private:
   int unpack_value_args_common(Compile* C, bool receiver_only);
   void shuffle_value_args_common(bool is_packing, bool receiver_only, int extra_stack_offset,
                                  BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                                 int args_passed, int args_on_stack, VMRegPair* regs,            // from
-                                 int args_passed_to, int args_on_stack_to, VMRegPair* regs_to,   // to
+                                 int args_passed, int args_on_stack, VMRegPair* regs,
+                                 int args_passed_to, int args_on_stack_to, VMRegPair* regs_to,
                                  int sp_inc, int ret_off);
 
 // };

@@ -6422,8 +6422,8 @@ void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
 
 void MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
                                         BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                                        int args_passed, int args_on_stack, VMRegPair* regs,            // from
-                                        int args_passed_to, int args_on_stack_to, VMRegPair* regs_to, int sp_inc) { // to
+                                        int args_passed, int args_on_stack, VMRegPair* regs,
+                                        int args_passed_to, int args_on_stack_to, VMRegPair* regs_to, int sp_inc) {
   // Check if we need to extend the stack for packing/unpacking
   if (sp_inc > 0 && !is_packing) {
     // Save the return address, adjust the stack (make sure it is properly
@@ -6455,18 +6455,15 @@ VMReg MacroAssembler::spill_reg_for(VMReg reg) {
   return reg->is_XMMRegister() ? xmm8->as_VMReg() : r14->as_VMReg();
 }
 
-void MacroAssembler::remove_frame(int framesize, bool needs_stack_repair) {
-  assert((framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
-  // Remove word for return addr already pushed and RBP
-  framesize -= 2*wordSize;
-
+void MacroAssembler::remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset) {
+  assert((initial_framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
   if (needs_stack_repair) {
     // Restore rbp and repair rsp by adding the stack increment
-    movq(rbp, Address(rsp, framesize));
-    addq(rsp, Address(rsp, framesize - wordSize));
+    movq(rbp, Address(rsp, initial_framesize));
+    addq(rsp, Address(rsp, sp_inc_offset));
   } else {
-    if (framesize > 0) {
-      addq(rsp, framesize);
+    if (initial_framesize > 0) {
+      addq(rsp, initial_framesize);
     }
     pop(rbp);
   }
