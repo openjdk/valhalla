@@ -166,13 +166,12 @@ int MacroAssembler::unpack_value_args_common(Compile* C, bool receiver_only) {
   int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
   VMRegPair* regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc->length());
   int args_on_stack_cc = SharedRuntime::java_calling_convention(sig_bt, regs_cc, args_passed_cc, false);
-
   int extra_stack_offset = wordSize; // stack has the returned address
-  int sp_inc = (args_on_stack_cc - args_on_stack) * VMRegImpl::stack_slot_size;
-  if (sp_inc > 0) {
+  // Compute stack increment
+  int sp_inc = 0;
+  if (args_on_stack_cc > args_on_stack) {
+    sp_inc = (args_on_stack_cc - args_on_stack) * VMRegImpl::stack_slot_size;
     sp_inc = align_up(sp_inc, StackAlignmentInBytes);
-  } else {
-    sp_inc = 0;
   }
   shuffle_value_args(false, receiver_only, extra_stack_offset, sig_bt, sig_cc,
                      args_passed, args_on_stack, regs,
@@ -182,8 +181,8 @@ int MacroAssembler::unpack_value_args_common(Compile* C, bool receiver_only) {
 
 void MacroAssembler::shuffle_value_args_common(bool is_packing, bool receiver_only, int extra_stack_offset,
                                                BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                                               int args_passed, int args_on_stack, VMRegPair* regs,            // from
-                                               int args_passed_to, int args_on_stack_to, VMRegPair* regs_to,   // to
+                                               int args_passed, int args_on_stack, VMRegPair* regs,
+                                               int args_passed_to, int args_on_stack_to, VMRegPair* regs_to,
                                                int sp_inc, int ret_off) {
   int max_stack = MAX2(args_on_stack + sp_inc/VMRegImpl::stack_slot_size, args_on_stack_to);
   RegState* reg_state = init_reg_state(is_packing, sig_cc, regs, args_passed, sp_inc, max_stack);

@@ -480,7 +480,6 @@ public class TestC2CCalls {
     }
 
     public static void main(String[] args) {
-// TODO fails with -Djdk.test.lib.random.seed=-2885191669592709487
         // Sometimes, exclude some methods from compilation with C2 to stress test the calling convention
         if (Utils.getRandomInstance().nextBoolean()) {
             ArrayList<Method> methods = new ArrayList<Method>();

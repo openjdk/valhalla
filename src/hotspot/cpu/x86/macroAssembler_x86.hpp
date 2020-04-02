@@ -1717,7 +1717,7 @@ public:
   bool pack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
                          VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
                          int ret_off, int extra_stack_offset);
-  void remove_frame(int framesize, bool needs_stack_repair);
+  void remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset);
 
   void shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
                           BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,

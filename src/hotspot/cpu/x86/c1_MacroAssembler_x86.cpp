@@ -345,8 +345,8 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
 #endif // !_LP64 && TIERED
   decrement(rsp, frame_size_in_bytes); // does not emit code for frame_size == 0
   if (needs_stack_repair) {
-    int real_frame_size =  frame_size_in_bytes
-           + wordSize;     // skip over pushed rbp
+    // Save stack increment (also account for rbp)
+    int real_frame_size = frame_size_in_bytes + wordSize;
     movptr(Address(rsp, frame_size_in_bytes - wordSize), real_frame_size);
     if (verified_value_entry_label != NULL) {
       bind(*verified_value_entry_label);
@@ -392,13 +392,13 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
   int extra_stack_offset = wordSize; // tos is return address.
 
+  // Check if we need to extend the stack for packing
   int sp_inc = 0;
   if (args_on_stack > args_on_stack_cc) {
-    // TODO comment about stack extension
-    // TODO why + 2?
-    sp_inc = (args_on_stack +2) * VMRegImpl::stack_slot_size;
-    pop(r13); // Copy return address
+    // Two additional slots to account for return address
+    sp_inc = (args_on_stack + 2) * VMRegImpl::stack_slot_size;
     sp_inc = align_up(sp_inc, StackAlignmentInBytes);
+    pop(r13); // Copy return address
     subptr(rsp, sp_inc);
     push(r13);
   }
@@ -409,10 +409,11 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
     mov(rbp, rsp);
   }
   subptr(rsp, frame_size_in_bytes);
-  if (sp_inc != 0) {
-    int real_frame_size = frame_size_in_bytes +
-           + wordSize  // pushed rbp
-           + sp_inc;   // stack extension
+
+  if (ces->c1_needs_stack_repair()) {
+    // Save stack increment (also account for fixed framesize and rbp)
+    assert((sp_inc & (StackAlignmentInBytes-1)) == 0, "stack increment not aligned");
+    int real_frame_size = sp_inc + frame_size_in_bytes + wordSize;
     movptr(Address(rsp, frame_size_in_bytes - wordSize), real_frame_size);
   }
 
@@ -436,10 +437,9 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
                      args_passed_cc, args_on_stack_cc, regs_cc, // from
                      args_passed, args_on_stack, regs, sp_inc); // to
 
-  if (sp_inc != 0) {
+  if (ces->c1_needs_stack_repair()) {
     // Skip over the stack banging and frame setup code in the
     // verified_value_entry (which has a different real_frame_size).
-    assert(sp_inc > 0, "stack should not shrink");
     push(rbp);
     if (PreserveFramePointer) {
       mov(rbp, rsp);

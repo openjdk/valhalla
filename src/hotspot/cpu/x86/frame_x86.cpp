@@ -451,8 +451,7 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
   // It is only an FP if the sender is an interpreter frame (or C1?).
   intptr_t** saved_fp_addr = (intptr_t**) (sender_sp - frame::sender_sp_offset);
 
-  // TODO move this up and refactor in method?
-  // Repair the sender sp if this is a method required stack extension
+  // Repair the sender sp if the frame has been extended
   sender_sp = repair_sender_sp(sender_sp, saved_fp_addr);
 
   // On Intel the return_address is always the word on the stack
