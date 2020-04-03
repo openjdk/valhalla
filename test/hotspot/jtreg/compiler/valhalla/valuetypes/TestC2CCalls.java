@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,32 +23,46 @@
 
 /**
  * @test
- * @library /test/lib
  * @summary Test value type calling convention with compiled to compiled calls.
- * @run main/othervm TestC2CCalls
- * @run main/othervm -XX:-UseBimorphicInlining -Xbatch
+ * @library /test/lib /test/lib /compiler/whitebox /
+ * @compile TestC2CCalls.java
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   TestC2CCalls
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-UseBimorphicInlining -Xbatch
  *                   -XX:CompileCommand=compileonly,TestC2CCalls*::test*
  *                   -XX:CompileCommand=dontinline,TestC2CCalls*::test*
  *                   TestC2CCalls
- * @run main/othervm -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
  *                   -XX:CompileCommand=compileonly,TestC2CCalls*::test*
  *                   -XX:CompileCommand=dontinline,TestC2CCalls*::test*
  *                   TestC2CCalls
- * @run main/othervm -XX:-UseBimorphicInlining -Xbatch
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-UseBimorphicInlining -Xbatch
  *                   -XX:CompileCommand=compileonly,TestC2CCalls::test*
  *                   -XX:CompileCommand=dontinline,TestC2CCalls*::test*
  *                   TestC2CCalls
- * @run main/othervm -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
+ * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:-UseBimorphicInlining -Xbatch -XX:-ProfileInterpreter
  *                   -XX:CompileCommand=compileonly,TestC2CCalls::test*
  *                   -XX:CompileCommand=dontinline,TestC2CCalls*::test*
  *                   TestC2CCalls
  */
 
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
+
 import jdk.test.lib.Asserts;
 import jdk.test.lib.Utils;
 
-public class TestC2CCalls {
+import sun.hotspot.WhiteBox;
 
+public class TestC2CCalls {
+    public static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
+    public static final int COMP_LEVEL_FULL_OPTIMIZATION = 4; // C2 or JVMCI
     public static final int rI = Utils.getRandomInstance().nextInt() % 1000;
 
     static inline class OtherVal {
@@ -466,6 +480,24 @@ public class TestC2CCalls {
     }
 
     public static void main(String[] args) {
+        // Sometimes, exclude some methods from compilation with C2 to stress test the calling convention
+        if (Utils.getRandomInstance().nextBoolean()) {
+            ArrayList<Method> methods = new ArrayList<Method>();
+            Collections.addAll(methods, MyValue1.class.getDeclaredMethods());
+            Collections.addAll(methods, MyValue2.class.getDeclaredMethods());
+            Collections.addAll(methods, MyValue3.class.getDeclaredMethods());
+            Collections.addAll(methods, MyValue4.class.getDeclaredMethods());
+            Collections.addAll(methods, MyObject.class.getDeclaredMethods());
+            Collections.addAll(methods, TestC2CCalls.class.getDeclaredMethods());
+            System.out.println("Excluding methods from C2 compilation:");
+            for (Method m : methods) {
+                if (Utils.getRandomInstance().nextBoolean()) {
+                    System.out.println(m);
+                    WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);
+                }
+            }
+        }
+
         MyValue1 val1 = new MyValue1(rI);
         MyValue2 val2 = new MyValue2(rI+1);
         MyValue3 val3 = new MyValue3(rI+2);

@@ -911,8 +911,7 @@ void LIR_Assembler::emit_op2(LIR_Op2* op) {
 
 void LIR_Assembler::build_frame() {
   _masm->build_frame(initial_frame_size_in_bytes(), bang_size_in_bytes(), in_bytes(frame_map()->sp_offset_for_orig_pc()),
-                     compilation()->needs_stack_repair(), method()->has_scalarized_args(),
-                     &_verified_value_entry);
+                     needs_stack_repair(), method()->has_scalarized_args(), &_verified_value_entry);
 }
 
 

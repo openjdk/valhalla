@@ -345,9 +345,8 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
 #endif // !_LP64 && TIERED
   decrement(rsp, frame_size_in_bytes); // does not emit code for frame_size == 0
   if (needs_stack_repair) {
-    int real_frame_size =  frame_size_in_bytes
-           + wordSize     // skip over pushed rbp
-           + wordSize;    // skip over RA pushed by caller
+    // Save stack increment (also account for rbp)
+    int real_frame_size = frame_size_in_bytes + wordSize;
     movptr(Address(rsp, frame_size_in_bytes - wordSize), real_frame_size);
     if (verified_value_entry_label != NULL) {
       bind(*verified_value_entry_label);
@@ -357,20 +356,6 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->nmethod_entry_barrier(this);
 }
-
-
-void C1_MacroAssembler::remove_frame(int frame_size_in_bytes, bool needs_stack_repair) {
-  if (!needs_stack_repair) {
-    increment(rsp, frame_size_in_bytes);  // Does not emit code for frame_size == 0
-    pop(rbp);
-  } else {
-    movq(r13, Address(rsp, frame_size_in_bytes + wordSize)); // return address
-    movq(rbp, Address(rsp, frame_size_in_bytes));
-    addq(rsp, Address(rsp, frame_size_in_bytes - wordSize)); // now we are back to caller frame, without the outgoing return address
-    push(r13); // restore the return address, as pushed by caller
-  }
-}
-
 
 void C1_MacroAssembler::verified_entry() {
   if (C1Breakpoint || VerifyFPU || !UseStackBanging) {
@@ -407,27 +392,28 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
   int extra_stack_offset = wordSize; // tos is return address.
 
-  int sp_inc = (args_on_stack - args_on_stack_cc) * VMRegImpl::stack_slot_size;
-  if (sp_inc > 0) {
-    pop(r13);
+  // Check if we need to extend the stack for packing
+  int sp_inc = 0;
+  if (args_on_stack > args_on_stack_cc) {
+    // Two additional slots to account for return address
+    sp_inc = (args_on_stack + 2) * VMRegImpl::stack_slot_size;
     sp_inc = align_up(sp_inc, StackAlignmentInBytes);
+    pop(r13); // Copy return address
     subptr(rsp, sp_inc);
     push(r13);
-  } else {
-    sp_inc = 0;
   }
 
-  // Create a temp frame so we can call into runtime. It must be properly set up to accommodate GC.
+  // Create a temp frame so we can call into the runtime. It must be properly set up to accommodate GC.
   push(rbp);
   if (PreserveFramePointer) {
     mov(rbp, rsp);
   }
   subptr(rsp, frame_size_in_bytes);
-  if (sp_inc > 0) {
-    int real_frame_size = frame_size_in_bytes +
-           + wordSize  // pushed rbp
-           + wordSize  // return address pushed by the stack extension code
-           + sp_inc;   // stack extension
+
+  if (ces->c1_needs_stack_repair()) {
+    // Save stack increment (also account for fixed framesize and rbp)
+    assert((sp_inc & (StackAlignmentInBytes-1)) == 0, "stack increment not aligned");
+    int real_frame_size = sp_inc + frame_size_in_bytes + wordSize;
     movptr(Address(rsp, frame_size_in_bytes - wordSize), real_frame_size);
   }
 
@@ -447,15 +433,13 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   addptr(rsp, frame_size_in_bytes);
   pop(rbp);
 
-  int n = shuffle_value_args(true, is_value_ro_entry, extra_stack_offset, sig_bt, sig_cc,
-                             args_passed_cc, args_on_stack_cc, regs_cc, // from
-                             args_passed, args_on_stack, regs);         // to
-  assert(sp_inc == n, "must be");
+  shuffle_value_args(true, is_value_ro_entry, extra_stack_offset, sig_bt, sig_cc,
+                     args_passed_cc, args_on_stack_cc, regs_cc, // from
+                     args_passed, args_on_stack, regs, sp_inc); // to
 
-  if (sp_inc != 0) {
+  if (ces->c1_needs_stack_repair()) {
     // Skip over the stack banging and frame setup code in the
     // verified_value_entry (which has a different real_frame_size).
-    assert(sp_inc > 0, "stack should not shrink");
     push(rbp);
     if (PreserveFramePointer) {
       mov(rbp, rsp);
