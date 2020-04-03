@@ -143,7 +143,8 @@ void Parse::array_load(BasicType bt) {
 
         BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
         // Unknown value type might contain reference fields
-        if (!bs->array_copy_requires_gc_barriers(false, T_OBJECT, false, BarrierSetC2::Parsing)) {
+        if (false && !bs->array_copy_requires_gc_barriers(false, T_OBJECT, false, BarrierSetC2::Parsing)) {
+          // FIXME 8230656 also merge changes from 8238759 in
           int base_off = sizeof(instanceOopDesc);
           Node* dst_base = basic_plus_adr(alloc_obj, base_off);
           Node* countx = obj_size;
@@ -2282,7 +2283,7 @@ void Parse::maybe_add_predicate_after_if(Block* path) {
     // Add predicates at bci of if dominating the loop so traps can be
     // recorded on the if's profile data
     int bc_depth = repush_if_args();
-    add_predicate();
+    add_empty_predicates();
     dec_sp(bc_depth);
     path->set_has_predicates();
   }

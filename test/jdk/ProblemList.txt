@@ -121,6 +121,7 @@ java/awt/Focus/FocusOwnerFrameOnClick/FocusOwnerFrameOnClick.java 8081489 generi
 java/awt/Focus/IconifiedFrameFocusChangeTest/IconifiedFrameFocusChangeTest.java 6849364 generic-all
 java/awt/Focus/AutoRequestFocusTest/AutoRequestFocusToFrontTest.java 6848406 generic-all
 java/awt/Focus/AutoRequestFocusTest/AutoRequestFocusSetVisibleTest.java 6848407 generic-all
+java/awt/Focus/UnaccessibleChoice/AccessibleChoiceTest.java 8239801 macosx-all
 java/awt/Frame/MaximizedUndecorated/MaximizedUndecorated.java 8022302 generic-all
 java/awt/Frame/FrameLocation/FrameLocation.java 8233703 linux-all
 java/awt/FileDialog/FileDialogIconTest/FileDialogIconTest.java 8160558 windows-all
@@ -155,7 +156,7 @@ java/awt/KeyboardFocusmanager/TypeAhead/TestDialogTypeAhead.java 8198626 macosx-
 java/awt/Mixing/AWT_Mixing/HierarchyBoundsListenerMixingTest.java 8049405 macosx-all
 java/awt/Mixing/AWT_Mixing/OpaqueOverlappingChoice.java 8048171 generic-all
 java/awt/Mixing/AWT_Mixing/JMenuBarOverlapping.java 8159451 linux-all,windows-all,macosx-all
-java/awt/Mixing/AWT_Mixing/JSplitPaneOverlapping.java 8194765 generic-all
+java/awt/Mixing/AWT_Mixing/JSplitPaneOverlapping.java 6986109 generic-all
 java/awt/Mixing/AWT_Mixing/JInternalFrameMoveOverlapping.java 6986109 windows-all
 java/awt/Mixing/AWT_Mixing/MixingPanelsResizing.java 8049405 generic-all
 java/awt/Mixing/AWT_Mixing/JComboBoxOverlapping.java 8049405 macosx-all
@@ -253,6 +254,7 @@ java/awt/font/TextLayout/TextLayoutBounds.java 8169188 generic-all
 java/awt/font/StyledMetrics/BoldSpace.java 8198422 linux-all
 java/awt/FontMetrics/FontCrash.java 8198336 windows-all
 java/awt/FontMetrics/MaxAdvanceIsMax.java 8221305,8231495 solaris-all,macosx-all,linux-all
+java/awt/image/BufferedImage/ICMColorDataTest/ICMColorDataTest.java 8233028 generic-all
 java/awt/image/DrawImage/IncorrectAlphaSurface2SW.java 8056077 generic-all
 java/awt/image/DrawImage/IncorrectClipXorModeSW2Surface.java 8196025 windows-all
 java/awt/image/DrawImage/IncorrectClipXorModeSurface2Surface.java 8196025 windows-all
@@ -551,8 +553,6 @@ com/apple/eawt/DefaultMenuBar/DefaultMenuBarTest.java 8233648 macosx-all
 java/awt/Choice/ChoiceKeyEventReaction/ChoiceKeyEventReaction.java 7185258 macosx-all
 java/awt/TrayIcon/RightClickWhenBalloonDisplayed/RightClickWhenBalloonDisplayed.java 8238720 windows-all
 java/awt/PopupMenu/PopupMenuLocation.java 8238720 windows-all
-java/awt/Mixing/AWT_Mixing/MixingFrameResizing.java 8238720 windows-all
-java/awt/Mixing/AWT_Mixing/HierarchyBoundsListenerMixingTest.java 8238720 windows-all
 java/awt/GridLayout/ComponentPreferredSize/ComponentPreferredSize.java 8238720 windows-all
 java/awt/GridLayout/ChangeGridSize/ChangeGridSize.java   8238720 windows-all
 java/awt/event/MouseEvent/FrameMouseEventAbsoluteCoordsTest/FrameMouseEventAbsoluteCoordsTest.java
@@ -566,7 +566,6 @@ java/beans/Introspector/8132566/OverridePropertyInfoTest.java   8132565 generic-
 java/beans/Introspector/8132566/OverrideUserDefPropertyInfoTest.java 8132565 generic-all
 
 java/beans/XMLEncoder/Test6570354.java 8015593 macosx-all
-java/beans/XMLEncoder/Test4625418.java 8239965 generic-all
 
 ############################################################################
 
@@ -590,7 +589,7 @@ java/lang/management/ThreadMXBean/ThreadMXBeanStateTest.java    8081652 generic-
 java/lang/management/ThreadMXBean/AllThreadIds.java             8131745 generic-all
 
 javax/management/monitor/DerivedGaugeMonitorTest.java         8042211 generic-all
-javax/management/remote/mandatory/connection/MultiThreadDeadLockTest.java 8042215 generic-all
+javax/management/remote/mandatory/connection/MultiThreadDeadLockTest.java 8227337 generic-all
 
 ############################################################################
 
@@ -604,6 +603,10 @@ java/io/pathNames/GeneralWin32.java                             8180264 windows-
 
 com/sun/management/OperatingSystemMXBean/GetProcessCpuLoad.java 8030957 aix-all
 com/sun/management/OperatingSystemMXBean/GetSystemCpuLoad.java  8030957 aix-all
+
+sun/management/jdp/JdpDefaultsTest.java                         8241530 macosx-all
+sun/management/jdp/JdpJmxRemoteDynamicPortTest.java             8241530 macosx-all
+sun/management/jdp/JdpSpecificAddressTest.java                  8241530 macosx-all
 
 ############################################################################
 
@@ -809,6 +812,7 @@ javax/swing/JPopupMenu/4966112/bug4966112.java 8064915 macosx-all
 javax/swing/JSpinner/8223788/JSpinnerButtonFocusTest.java 8238085 macosx-all
 javax/swing/MultiUIDefaults/Test6860438.java 8198391 generic-all
 javax/swing/MultiUIDefaults/4300666/bug4300666.java 7105119 macosx-all
+javax/swing/UIDefaults/8146330/UIDefaultKeySizeTest.java 8241228 aix-all,linux-all,solaris-all
 javax/swing/UITest/UITest.java 8198392 generic-all
 javax/swing/plaf/basic/BasicComboBoxEditor/Test8015336.java 8198394 generic-all
 javax/swing/plaf/metal/MetalLookAndFeel/Test8039750.java 8198395 generic-all
@@ -826,7 +830,6 @@ javax/swing/DataTransfer/8059739/bug8059739.java 8199074 generic-all
 javax/swing/JCheckBox/8032667/bug8032667_image_diff.java 8199063 macosx-all
 javax/swing/JComboBox/7031551/bug7031551.java 8199056 generic-all
 javax/swing/JScrollBar/6924059/bug6924059.java 8199078 generic-all
-javax/swing/JTabbedPane/TabProb.java 8236635 linux-all
 javax/swing/JTree/8003830/bug8003830.java 8199057 generic-all
 javax/swing/plaf/nimbus/ColorCustomizationTest.java 8199080 generic-all
 javax/swing/SwingWorker/6432565/bug6432565.java 8199077 generic-all
@@ -916,6 +919,9 @@ com/sun/jdi/RepStep.java                                        8043571 generic-
 com/sun/jdi/NashornPopFrameTest.java                            8225620 generic-all
 
 com/sun/jdi/InvokeHangTest.java                                 8218463 linux-all
+
+com/sun/jdi/JdwpAttachTest.java                                 8241530 macosx-all
+com/sun/jdi/JdwpListenTest.java                                 8241530 macosx-all
 
 ############################################################################
 

@@ -48,6 +48,10 @@
 #include "utilities/copy.hpp"
 #include "utilities/globalDefinitions.hpp"
 
+inline ShenandoahHeap* ShenandoahHeap::heap() {
+  assert(_heap != NULL, "Heap is not initialized yet");
+  return _heap;
+}
 
 inline ShenandoahHeapRegion* ShenandoahRegionIterator::next() {
   size_t new_index = Atomic::add(&_index, (size_t) 1);
@@ -248,6 +252,7 @@ inline oop ShenandoahHeap::evacuate_object(oop p, Thread* thread) {
   }
 
   assert(ShenandoahThreadLocalData::is_evac_allowed(thread), "must be enclosed in oom-evac scope");
+  assert(is_concurrent_traversal_in_progress() || !is_traversal_mode(), "Should not evacuate objects");
 
   size_t size = p->size();
 
@@ -326,14 +331,12 @@ inline bool ShenandoahHeap::requires_marking(const void* entry) const {
 
 inline bool ShenandoahHeap::in_collection_set(oop p) const {
   assert(collection_set() != NULL, "Sanity");
-  assert(is_in(p), "should be in heap");
   return collection_set()->is_in(p);
 }
 
 inline bool ShenandoahHeap::in_collection_set_loc(void* p) const {
   assert(collection_set() != NULL, "Sanity");
-  assert(is_in(p), "should be in heap");
-  return collection_set()->is_in((HeapWord*)p);
+  return collection_set()->is_in_loc(p);
 }
 
 inline bool ShenandoahHeap::is_stable() const {

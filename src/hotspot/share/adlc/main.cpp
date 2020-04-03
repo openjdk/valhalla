@@ -211,7 +211,6 @@ int main(int argc, char *argv[])
   AD.addInclude(AD._CPP_file, "adfiles", get_basename(AD._VM_file._name));
   AD.addInclude(AD._CPP_file, "adfiles", get_basename(AD._HPP_file._name));
   AD.addInclude(AD._CPP_file, "memory/allocation.inline.hpp");
-  AD.addInclude(AD._CPP_file, "asm/macroAssembler.inline.hpp");
   AD.addInclude(AD._CPP_file, "code/compiledIC.hpp");
   AD.addInclude(AD._CPP_file, "code/nativeInst.hpp");
   AD.addInclude(AD._CPP_file, "code/vmreg.inline.hpp");
@@ -222,6 +221,7 @@ int main(int argc, char *argv[])
   AD.addInclude(AD._CPP_file, "oops/markWord.hpp");
   AD.addInclude(AD._CPP_file, "oops/method.hpp");
   AD.addInclude(AD._CPP_file, "oops/oop.inline.hpp");
+  AD.addInclude(AD._CPP_file, "opto/c2_MacroAssembler.hpp");
   AD.addInclude(AD._CPP_file, "opto/cfgnode.hpp");
   AD.addInclude(AD._CPP_file, "opto/intrinsicnode.hpp");
   AD.addInclude(AD._CPP_file, "opto/locknode.hpp");
@@ -238,6 +238,7 @@ int main(int argc, char *argv[])
   AD.addInclude(AD._HPP_file, "memory/allocation.hpp");
   AD.addInclude(AD._HPP_file, "oops/compressedOops.hpp");
   AD.addInclude(AD._HPP_file, "code/nativeInst.hpp");
+  AD.addInclude(AD._HPP_file, "opto/output.hpp");
   AD.addInclude(AD._HPP_file, "opto/machnode.hpp");
   AD.addInclude(AD._HPP_file, "opto/node.hpp");
   AD.addInclude(AD._HPP_file, "opto/regalloc.hpp");

@@ -132,29 +132,17 @@ AC_DEFUN([FLAGS_SETUP_DEBUG_SYMBOLS],
 
 AC_DEFUN([FLAGS_SETUP_WARNINGS],
 [
-  AC_ARG_ENABLE([warnings-as-errors], [AS_HELP_STRING([--disable-warnings-as-errors],
-      [do not consider native warnings to be an error @<:@enabled@:>@])])
-
   # Set default value.
-  if test "x$TOOLCHAIN_TYPE" = xxlc; then
-    WARNINGS_AS_ERRORS=false
+  if test "x$TOOLCHAIN_TYPE" != xxlc; then
+    WARNINGS_AS_ERRORS_DEFAULT=true
   else
-    WARNINGS_AS_ERRORS=true
+    WARNINGS_AS_ERRORS_DEFAULT=false
   fi
 
-  AC_MSG_CHECKING([if native warnings are errors])
-  if test "x$enable_warnings_as_errors" = "xyes"; then
-    AC_MSG_RESULT([yes (explicitly set)])
-    WARNINGS_AS_ERRORS=true
-  elif test "x$enable_warnings_as_errors" = "xno"; then
-    AC_MSG_RESULT([no (explicitly set)])
-    WARNINGS_AS_ERRORS=false
-  elif test "x$enable_warnings_as_errors" = "x"; then
-    AC_MSG_RESULT([${WARNINGS_AS_ERRORS} (default)])
-  else
-    AC_MSG_ERROR([--enable-warnings-as-errors accepts no argument])
-  fi
-
+  UTIL_ARG_ENABLE(NAME: warnings-as-errors, DEFAULT: $WARNINGS_AS_ERRORS_DEFAULT,
+      RESULT: WARNINGS_AS_ERRORS,
+      DEFAULT_DESC: [auto],
+      DESC: [consider native warnings to be an error])
   AC_SUBST(WARNINGS_AS_ERRORS)
 
   case "${TOOLCHAIN_TYPE}" in
@@ -709,7 +697,10 @@ AC_DEFUN([FLAGS_SETUP_CFLAGS_HELPER],
   # JDK libraries.
   STATIC_LIBS_CFLAGS="-DSTATIC_BUILD=1"
   if test "x$TOOLCHAIN_TYPE" = xgcc || test "x$TOOLCHAIN_TYPE" = xclang; then
-    STATIC_LIBS_CFLAGS="$STATIC_LIBS_CFLAGS -ffunction-sections -fdata-sections"
+    STATIC_LIBS_CFLAGS="$STATIC_LIBS_CFLAGS -ffunction-sections -fdata-sections \
+      -DJNIEXPORT='__attribute__((visibility(\"hidden\")))'"
+  else
+    STATIC_LIBS_CFLAGS="$STATIC_LIBS_CFLAGS -DJNIEXPORT="
   fi
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     # Disable relax-relocation to enable compatibility with older linkers

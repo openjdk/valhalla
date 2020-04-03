@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8218998 8219946 8219060
+ * @bug 8218998 8219946 8219060 8241190
  * @summary Add metadata to generated API documentation files
  * @library /tools/lib ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
@@ -137,27 +137,27 @@ public class TestMetadata extends JavadocTester {
     final Pattern nl = Pattern.compile("[\\r\\n]+");
     final Pattern bodyPattern = Pattern.compile("<body [^>]*class=\"([^\"]+)\"");
     final Set<String> allBodyClasses = Set.of(
-        "all-classes-index",
-        "all-packages-index",
-        "class-declaration",
-        "class-use",
-        "constants-summary",
-        "deprecated-list",
-        "doc-file",
-        "help",
-        "index-redirect",
-        "module-declaration",
-        "module-index",
-        "package-declaration",
-        "package-index",
-        "package-tree",
-        "package-use",
-        "serialized-form",
-        "single-index",
-        "source",
-        "split-index",
-        "system-properties",
-        "tree"
+        "all-classes-index-page",
+        "all-packages-index-page",
+        "class-declaration-page",
+        "class-use-page",
+        "constants-summary-page",
+        "deprecated-list-page",
+        "doc-file-page",
+        "help-page",
+        "index-redirect-page",
+        "module-declaration-page",
+        "module-index-page",
+        "package-declaration-page",
+        "package-index-page",
+        "package-tree-page",
+        "package-use-page",
+        "serialized-form-page",
+        "single-index-page",
+        "source-page",
+        "split-index-page",
+        "system-properties-page",
+        "tree-page"
     );
 
     void checkBodyClasses() throws IOException {
@@ -386,7 +386,7 @@ public class TestMetadata extends JavadocTester {
         switch (s) {
             case PACKAGES:
                 tb.writeJavaFiles(src,
-                    "/** Package pA. */ package pA;",
+                    "/** Package pA. {@systemProperty exampleProperty} */ package pA;",
                     "/** Class pA.CA. */ package pA; public class CA { }",
                     "/** Anno pA.Anno, */ package pA; public @interface Anno { }",
                     "/** Serializable pA.Ser, */ package pA; public class Ser implements java.io.Serializable { }",
@@ -413,4 +413,3 @@ public class TestMetadata extends JavadocTester {
         return src;
     }
 }
-

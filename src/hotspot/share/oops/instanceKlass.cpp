@@ -807,7 +807,7 @@ bool InstanceKlass::link_class_or_fail(TRAPS) {
 }
 
 bool InstanceKlass::link_class_impl(TRAPS) {
-  if (DumpSharedSpaces && is_in_error_state()) {
+  if (DumpSharedSpaces && SystemDictionaryShared::has_class_failed_verification(this)) {
     // This is for CDS dumping phase only -- we use the in_error_state to indicate that
     // the class has failed verification. Throwing the NoClassDefFoundError here is just
     // a convenient way to stop repeat attempts to verify the same (bad) class.
@@ -1287,7 +1287,9 @@ int  InstanceKlass::nof_implementors() const {
 //
 // The _implementor field only exists for interfaces.
 void InstanceKlass::add_implementor(Klass* k) {
-  assert_lock_strong(Compile_lock);
+  if (Universe::is_fully_initialized()) {
+    assert_lock_strong(Compile_lock);
+  }
   assert(is_interface(), "not interface");
   // Filter out my subinterfaces.
   // (Note: Interfaces are never on the subklass list.)
@@ -2508,12 +2510,10 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
 void InstanceKlass::remove_unshareable_info() {
   Klass::remove_unshareable_info();
 
-  if (is_in_error_state()) {
+  if (SystemDictionaryShared::has_class_failed_verification(this)) {
     // Classes are attempted to link during dumping and may fail,
     // but these classes are still in the dictionary and class list in CLD.
-    // Check in_error state first because in_error is > linked state, so
-    // is_linked() is true.
-    // If there's a linking error, there is nothing else to remove.
+    // If the class has failed verification, there is nothing else to remove.
     return;
   }
 
@@ -2612,39 +2612,7 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
   }
 }
 
-// returns true IFF is_in_error_state() has been changed as a result of this call.
-bool InstanceKlass::check_sharing_error_state() {
-  assert(DumpSharedSpaces, "should only be called during dumping");
-  bool old_state = is_in_error_state();
-
-  if (!is_in_error_state()) {
-    bool bad = false;
-    for (InstanceKlass* sup = java_super(); sup; sup = sup->java_super()) {
-      if (sup->is_in_error_state()) {
-        bad = true;
-        break;
-      }
-    }
-    if (!bad) {
-      Array<InstanceKlass*>* interfaces = transitive_interfaces();
-      for (int i = 0; i < interfaces->length(); i++) {
-        InstanceKlass* iface = interfaces->at(i);
-        if (iface->is_in_error_state()) {
-          bad = true;
-          break;
-        }
-      }
-    }
-
-    if (bad) {
-      set_in_error_state();
-    }
-  }
-
-  return (old_state != is_in_error_state());
-}
-
-void InstanceKlass::set_class_loader_type(s2 loader_type) {
+void InstanceKlass::set_shared_class_loader_type(s2 loader_type) {
   switch (loader_type) {
   case ClassLoader::BOOT_LOADER:
     _misc_flags |= _misc_is_shared_boot_class;
@@ -2826,24 +2794,6 @@ const char* InstanceKlass::signature_name_of(char c) const {
   return dest;
 }
 
-// Used to obtain the package name from a fully qualified class name.
-Symbol* InstanceKlass::package_from_name(const Symbol* name, TRAPS) {
-  if (name == NULL) {
-    return NULL;
-  } else {
-    if (name->utf8_length() <= 0) {
-      return NULL;
-    }
-    ResourceMark rm(THREAD);
-    const char* package_name = ClassLoader::package_from_name((const char*) name->as_C_string());
-    if (package_name == NULL) {
-      return NULL;
-    }
-    Symbol* pkg_name = SymbolTable::new_symbol(package_name);
-    return pkg_name;
-  }
-}
-
 ModuleEntry* InstanceKlass::module() const {
   // For an unsafe anonymous class return the host class' module
   if (is_unsafe_anonymous()) {
@@ -2865,7 +2815,7 @@ void InstanceKlass::set_package(ClassLoaderData* loader_data, TRAPS) {
   // ensure java/ packages only loaded by boot or platform builtin loaders
   check_prohibited_package(name(), loader_data, CHECK);
 
-  TempNewSymbol pkg_name = package_from_name(name(), CHECK);
+  TempNewSymbol pkg_name = ClassLoader::package_from_class_name(name());
 
   if (pkg_name != NULL && loader_data != NULL) {
 
@@ -2961,13 +2911,12 @@ bool InstanceKlass::is_same_class_package(oop other_class_loader,
     ResourceMark rm;
 
     bool bad_class_name = false;
-    const char* other_pkg =
-      ClassLoader::package_from_name((const char*) other_class_name->as_C_string(), &bad_class_name);
+    TempNewSymbol other_pkg = ClassLoader::package_from_class_name(other_class_name, &bad_class_name);
     if (bad_class_name) {
       return false;
     }
-    // Check that package_from_name() returns NULL, not "", if there is no package.
-    assert(other_pkg == NULL || strlen(other_pkg) > 0, "package name is empty string");
+    // Check that package_from_class_name() returns NULL, not "", if there is no package.
+    assert(other_pkg == NULL || other_pkg->utf8_length() > 0, "package name is empty string");
 
     const Symbol* const this_package_name =
       this->package() != NULL ? this->package()->name() : NULL;
@@ -2975,11 +2924,11 @@ bool InstanceKlass::is_same_class_package(oop other_class_loader,
     if (this_package_name == NULL || other_pkg == NULL) {
       // One of the two doesn't have a package.  Only return true if the other
       // one also doesn't have a package.
-      return (const char*)this_package_name == other_pkg;
+      return this_package_name == other_pkg;
     }
 
     // Check if package is identical
-    return this_package_name->equals(other_pkg);
+    return this_package_name->fast_compare(other_pkg) == 0;
   }
 }
 
@@ -3013,7 +2962,7 @@ void InstanceKlass::check_prohibited_package(Symbol* class_name,
     ResourceMark rm(THREAD);
     char* name = class_name->as_C_string();
     if (strncmp(name, JAVAPKG, JAVAPKG_LEN) == 0 && name[JAVAPKG_LEN] == '/') {
-      TempNewSymbol pkg_name = InstanceKlass::package_from_name(class_name, CHECK);
+      TempNewSymbol pkg_name = ClassLoader::package_from_class_name(class_name);
       assert(pkg_name != NULL, "Error in parsing package name starting with 'java/'");
       name = pkg_name->as_C_string();
       const char* class_loader_name = loader_data->loader_name_and_id();

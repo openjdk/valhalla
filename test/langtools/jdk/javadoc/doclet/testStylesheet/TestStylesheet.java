@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,26 +24,37 @@
 /*
  * @test
  * @bug      4494033 7028815 7052425 8007338 8023608 8008164 8016549 8072461 8154261 8162363 8160196 8151743 8177417
- *           8175218 8176452 8181215 8182263 8183511 8169819 8183037 8185369 8182765 8196201 8184205 8223378
+ *           8175218 8176452 8181215 8182263 8183511 8169819 8183037 8185369 8182765 8196201 8184205 8223378 8241544
  * @summary  Run tests on doclet stylesheet.
- * @library  ../../lib
+ * @library  /tools/lib ../../lib
  * @modules jdk.javadoc/jdk.javadoc.internal.tool
- * @build    javadoc.tester.*
+ * @build    toolbox.ToolBox javadoc.tester.*
  * @run main TestStylesheet
  */
 
+import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Function;
+
+import javadoc.tester.HtmlChecker;
 import javadoc.tester.JavadocTester;
+import toolbox.ToolBox;
 
 public class TestStylesheet extends JavadocTester {
 
     public static void main(String... args) throws Exception {
         TestStylesheet tester = new TestStylesheet();
-        tester.runTests();
+        tester.runTests(m -> new Object[] { Path.of(m.getName())});
     }
 
     @Test
-    public void test() {
-        javadoc("-d", "out",
+    public void test(Path base) {
+        javadoc("-d", base.resolve("out").toString(),
                 "-sourcepath", testSrc,
                 "pkg");
         checkExit(Exit.ERROR);
@@ -75,10 +86,10 @@ public class TestStylesheet extends JavadocTester {
                 "ul {\n"
                 + "    list-style-type:disc;\n"
                 + "}",
-                ".overviewSummary caption, .memberSummary caption, .typeSummary caption,\n"
-                + ".useSummary caption, .constantsSummary caption, .deprecatedSummary caption,\n"
-                + ".requiresSummary caption, .packagesSummary caption, .providesSummary caption,\n"
-                + ".usesSummary caption, .systemPropertiesSummary caption {\n"
+                ".overview-summary caption, .member-summary caption, .type-summary caption,\n"
+                + ".use-summary caption, .constants-summary caption, .deprecated-summary caption,\n"
+                + ".requires-summary caption, .packages-summary caption, .provides-summary caption,\n"
+                + ".uses-summary caption, .system-properties-summary caption {\n"
                 + "    position:relative;\n"
                 + "    text-align:left;\n"
                 + "    background-repeat:no-repeat;\n"
@@ -92,10 +103,10 @@ public class TestStylesheet extends JavadocTester {
                 + "    margin:0px;\n"
                 + "    white-space:pre;\n"
                 + "}",
-                ".overviewSummary caption span, .memberSummary caption span, .typeSummary caption span,\n"
-                + ".useSummary caption span, .constantsSummary caption span, .deprecatedSummary caption span,\n"
-                + ".requiresSummary caption span, .packagesSummary caption span, .providesSummary caption span,\n"
-                + ".usesSummary caption span, .systemPropertiesSummary caption span {\n"
+                ".overview-summary caption span, .member-summary caption span, .type-summary caption span,\n"
+                + ".use-summary caption span, .constants-summary caption span, .deprecated-summary caption span,\n"
+                + ".requires-summary caption span, .packages-summary caption span, .provides-summary caption span,\n"
+                + ".uses-summary caption span, .system-properties-summary caption span {\n"
                 + "    white-space:nowrap;\n"
                 + "    padding-top:5px;\n"
                 + "    padding-left:12px;\n"
@@ -107,62 +118,62 @@ public class TestStylesheet extends JavadocTester {
                 + "    border: none;\n"
                 + "    height:16px;\n"
                 + "}",
-                ".overviewSummary [role=tablist] button, .memberSummary [role=tablist] button,\n"
-                + ".typeSummary [role=tablist] button, .packagesSummary [role=tablist] button {\n"
+                ".overview-summary [role=tablist] button, .member-summary [role=tablist] button,\n"
+                + ".type-summary [role=tablist] button, .packages-summary [role=tablist] button {\n"
                 + "   border: none;\n"
                 + "   cursor: pointer;\n"
                 + "   padding: 5px 12px 7px 12px;\n"
                 + "   font-weight: bold;\n"
                 + "   margin-right: 3px;\n"
                 + "}",
-                ".overviewSummary [role=tablist] .activeTableTab, .memberSummary [role=tablist] .activeTableTab,\n"
-                + ".typeSummary [role=tablist] .activeTableTab, .packagesSummary [role=tablist] .activeTableTab {\n"
+                ".overview-summary [role=tablist] .active-table-tab, .member-summary [role=tablist] .active-table-tab,\n"
+                + ".type-summary [role=tablist] .active-table-tab, .packages-summary [role=tablist] .active-table-tab {\n"
                 + "   background: #F8981D;\n"
                 + "   color: #253441;\n"
                 + "}",
-                ".overviewSummary [role=tablist] .tableTab, .memberSummary [role=tablist] .tableTab,\n"
-                + ".typeSummary [role=tablist] .tableTab, .packagesSummary [role=tablist] .tableTab {\n"
+                ".overview-summary [role=tablist] .table-tab, .member-summary [role=tablist] .table-tab,\n"
+                + ".type-summary [role=tablist] .table-tab, .packages-summary [role=tablist] .table-tab {\n"
                 + "   background: #4D7A97;\n"
                 + "   color: #FFFFFF;\n"
                 + "}",
                 // Test the formatting styles for proper content display in use and constant values pages.
-                ".overviewSummary td.colFirst, .overviewSummary th.colFirst,\n"
-                + ".requiresSummary td.colFirst, .requiresSummary th.colFirst,\n"
-                + ".packagesSummary td.colFirst, .packagesSummary td.colSecond, .packagesSummary th.colFirst, .packagesSummary th,\n"
-                + ".usesSummary td.colFirst, .usesSummary th.colFirst,\n"
-                + ".providesSummary td.colFirst, .providesSummary th.colFirst,\n"
-                + ".memberSummary td.colFirst, .memberSummary th.colFirst,\n"
-                + ".memberSummary td.colSecond, .memberSummary th.colSecond, .memberSummary th.colConstructorName,\n"
-                + ".typeSummary td.colFirst, .typeSummary th.colFirst {\n"
+                ".overview-summary td.col-first, .overview-summary th.col-first,\n"
+                + ".requires-summary td.col-first, .requires-summary th.col-first,\n"
+                + ".packages-summary td.col-first, .packages-summary td.col-second, .packages-summary th.col-first, .packages-summary th,\n"
+                + ".uses-summary td.col-first, .uses-summary th.col-first,\n"
+                + ".provides-summary td.col-first, .provides-summary th.col-first,\n"
+                + ".member-summary td.col-first, .member-summary th.col-first,\n"
+                + ".member-summary td.col-second, .member-summary th.col-second, .member-summary th.col-constructor-name,\n"
+                + ".type-summary td.col-first, .type-summary th.col-first {\n"
                 + "    vertical-align:top;\n"
                 + "}",
-                ".overviewSummary td, .memberSummary td, .typeSummary td,\n"
-                + ".useSummary td, .constantsSummary td, .deprecatedSummary td,\n"
-                + ".requiresSummary td, .packagesSummary td, .providesSummary td,\n"
-                + ".usesSummary td, .systemPropertiesSummary td {\n"
+                ".overview-summary td, .member-summary td, .type-summary td,\n"
+                + ".use-summary td, .constants-summary td, .deprecated-summary td,\n"
+                + ".requires-summary td, .packages-summary td, .provides-summary td,\n"
+                + ".uses-summary td, .system-properties-summary td {\n"
                 + "    text-align:left;\n"
                 + "    padding:0px 0px 12px 10px;\n"
                 + "}",
                 "@import url('resources/fonts/dejavu.css');",
-                ".searchTagResult:target {\n"
+                ".search-tag-result:target {\n"
                 + "    background-color:yellow;\n"
                 + "}",
                 "a[href]:hover, a[href]:focus {\n"
                 + "    text-decoration:none;\n"
                 + "    color:#bb7a2a;\n"
                 + "}",
-                "td.colFirst a:link, td.colFirst a:visited,\n"
-                + "td.colSecond a:link, td.colSecond a:visited,\n"
-                + "th.colFirst a:link, th.colFirst a:visited,\n"
-                + "th.colSecond a:link, th.colSecond a:visited,\n"
-                + "th.colConstructorName a:link, th.colConstructorName a:visited,\n"
-                + "th.colDeprecatedItemName a:link, th.colDeprecatedItemName a:visited,\n"
-                + ".constantValuesContainer td a:link, .constantValuesContainer td a:visited,\n"
-                + ".allClassesContainer td a:link, .allClassesContainer td a:visited,\n"
-                + ".allPackagesContainer td a:link, .allPackagesContainer td a:visited {\n"
+                "td.col-first a:link, td.col-first a:visited,\n"
+                + "td.col-second a:link, td.col-second a:visited,\n"
+                + "th.col-first a:link, th.col-first a:visited,\n"
+                + "th.col-second a:link, th.col-second a:visited,\n"
+                + "th.col-constructor-name a:link, th.col-constructor-name a:visited,\n"
+                + "th.col-deprecated-item-name a:link, th.col-deprecated-item-name a:visited,\n"
+                + ".constant-values-container td a:link, .constant-values-container td a:visited,\n"
+                + ".all-classes-container td a:link, .all-classes-container td a:visited,\n"
+                + ".all-packages-container td a:link, .all-packages-container td a:visited {\n"
                 + "    font-weight:bold;\n"
                 + "}",
-                ".deprecationBlock {\n"
+                ".deprecation-block {\n"
                 + "    font-size:14px;\n"
                 + "    font-family:'DejaVu Serif', Georgia, \"Times New Roman\", Times, serif;\n"
                 + "    border-style:solid;\n"
@@ -201,7 +212,7 @@ public class TestStylesheet extends JavadocTester {
                 + " an <a id=\"named_anchor1\">anchor_with_id</a>.</div>");
 
         checkOutput("pkg/package-summary.html", true,
-                "<td class=\"colLast\">\n"
+                "<td class=\"col-last\">\n"
                 + "<div class=\"block\">Test comment for a class which has an <a name=\"named_anchor\">"
                 + "anchor_with_name</a> and\n"
                 + " an <a id=\"named_anchor1\">anchor_with_id</a>.</div>\n"
@@ -223,14 +234,193 @@ public class TestStylesheet extends JavadocTester {
                 + "    text-decoration:none;\n"
                 + "    color:#353833;\n"
                 + "}",
-                "td.colFirst a:link, td.colFirst a:visited,\n"
-                + "td.colSecond a:link, td.colSecond a:visited,\n"
-                + "th.colFirst a:link, th.colFirst a:visited,\n"
-                + "th.colSecond a:link, th.colSecond a:visited,\n"
-                + "th.colConstructorName a:link, th.colConstructorName a:visited,\n"
-                + "td.colLast a:link, td.colLast a:visited,\n"
-                + ".constantValuesContainer td a:link, .constantValuesContainer td a:visited {\n"
+                "td.col-first a:link, td.col-first a:visited,\n"
+                + "td.col-second a:link, td.col-second a:visited,\n"
+                + "th.col-first a:link, th.col-first a:visited,\n"
+                + "th.col-second a:link, th.col-second a:visited,\n"
+                + "th.col-constructor-name a:link, th.col-constructor-name a:visited,\n"
+                + "td.col-last a:link, td.col-last a:visited,\n"
+                + ".constant-values-container td a:link, .constant-values-container td a:visited {\n"
                 + "    font-weight:bold;\n"
                 + "}");
+    }
+
+    ToolBox tb = new ToolBox();
+
+    @Test
+    public void testStyles(Path base) throws Exception {
+        Path src = base.resolve("src");
+        tb.writeJavaFiles(src,
+                "module mA { exports p; }",
+                "package p; public class C {\n"
+                + "public C() { }\n"
+                + "public C(int i) { }\n"
+                + "public int f1;\n"
+                + "public int f2;\n"
+                + "public int m1() { }\n"
+                + "public int m2(int i) { }\n"
+                + "}\n",
+                "package p; public @interface Anno {\n"
+                + "public int value();\n"
+                + "}\n"
+        );
+
+        javadoc("-d", base.resolve("out").toString(),
+                "-sourcepath", src.toString(),
+                "--module", "mA");
+        checkExit(Exit.OK);
+        checkStyles(addExtraCSSClassNamesTo(readStylesheet()));
+    }
+
+    Set<String> readStylesheet() {
+        // scan for class selectors, skipping '{' ... '}'
+        Set<String> styles = new TreeSet<>();
+        String stylesheet = readFile("stylesheet.css");
+        for (int i = 0; i < stylesheet.length(); i++) {
+            char ch = stylesheet.charAt(i);
+            switch (ch) {
+                case '.':
+                    i++;
+                    int start = i;
+                    while (i < stylesheet.length()) {
+                        ch = stylesheet.charAt(i);
+                        if (!(Character.isLetterOrDigit(ch) || ch == '-')) {
+                            break;
+                        }
+                        i++;
+                    }
+                    styles.add(stylesheet.substring(start, i));
+                    break;
+
+                case '{':
+                    i++;
+                    while (i < stylesheet.length()) {
+                        ch = stylesheet.charAt(i);
+                        if (ch == '}') {
+                            break;
+                        }
+                        i++;
+                    }
+                    break;
+
+                case '@':
+                    i++;
+                    while (i < stylesheet.length()) {
+                        ch = stylesheet.charAt(i);
+                        if (ch == '{') {
+                            break;
+                        }
+                        i++;
+                    }
+                    break;
+            }
+        }
+        out.println("found styles: " + styles);
+        return styles;
+    }
+
+    Set<String> addExtraCSSClassNamesTo(Set<String> styles) throws Exception {
+        // The following names are used in the generated HTML,
+        // but have no corresponding definitions in the stylesheet file.
+        // They are mostly optional, in the "use if you want to" category.
+        // They are included here so that we do not get errors when these
+        // names are used in the generated HTML.
+        List<String> extra = List.of(
+                // entries for <body> elements
+                "all-classes-index-page",
+                "all-packages-index-page",
+                "constants-summary-page",
+                "deprecated-list-page",
+                "help-page",
+                "index-redirect-page",
+                "package-declaration-page",
+                "package-tree-page",
+                "single-index-page",
+                "tree-page",
+                // the following names are matched by [class$='...'] in the stylesheet
+                "constructor-details",
+                "constructor-summary",
+                "field-details",
+                "field-summary",
+                "member-details",
+                "method-details",
+                "method-summary",
+                // the following provide the ability to optionally override components of the
+                // memberSignature structure
+                "member-name",
+                "modifiers",
+                "packages",
+                "return-type",
+                // and others...
+                "help-section",     // part of the help page
+                "hierarchy",        // for the hierarchy on a tree page
+                "index"             // on the index page
+        );
+        Set<String> all = new TreeSet<>(styles);
+        for (String e : extra) {
+            if (styles.contains(e)) {
+                throw new Exception("extra CSS class name found in style sheet: " + e);
+            }
+            all.add(e);
+        }
+        return all;
+    }
+
+    /**
+     * Checks that all the CSS names found in {@code class} attributes in HTML files in the
+     * output directory are present in a given set of styles.
+     *
+     * @param styles the styles
+     */
+    void checkStyles(Set<String> styles) {
+        checking("Check CSS class names");
+        CSSClassChecker c = new CSSClassChecker(out, this::readFile, styles);
+        try {
+            c.checkDirectory(outputDir.toPath());
+            c.report();
+            int errors = c.getErrorCount();
+            if (errors == 0) {
+                passed("No CSS class name errors found");
+            } else {
+                failed(errors + " errors found when checking CSS class names");
+            }
+        } catch (IOException e) {
+            failed("exception thrown when reading files: " + e);
+        }
+
+    }
+
+    class CSSClassChecker extends HtmlChecker {
+        Set<String> styles;
+        int errors;
+
+        protected CSSClassChecker(PrintStream out,
+                                  Function<Path, String> fileReader,
+                                  Set<String> styles) {
+            super(out, fileReader);
+            this.styles = styles;
+        }
+
+        protected int getErrorCount() {
+            return errors;
+        }
+
+        @Override
+        protected void report() {
+            if (getErrorCount() == 0) {
+                out.println("All CSS class names found");
+            } else {
+                out.println(getErrorCount() + " CSS class names not found");
+            }
+
+        }
+
+        @Override
+        public void startElement(String name, Map<String,String> attrs, boolean selfClosing) {
+            String style = attrs.get("class");
+            if (style != null && !styles.contains(style)) {
+                error(currFile, getLineNumber(), "CSS class name not found: " + style);
+            }
+        }
     }
 }

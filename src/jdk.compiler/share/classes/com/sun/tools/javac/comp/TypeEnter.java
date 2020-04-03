@@ -946,7 +946,10 @@ public class TypeEnter implements Completer {
                 List<JCVariableDecl> fields = TreeInfo.recordFields(tree);
                 memberEnter.memberEnter(fields, env);
                 for (JCVariableDecl field : fields) {
-                    sym.getRecordComponent(field, true);
+                    sym.getRecordComponent(field, true,
+                            field.mods.annotations.isEmpty() ?
+                                    List.nil() :
+                                    new TreeCopier<JCTree>(make.at(field.pos)).copy(field.mods.annotations));
                 }
 
                 enterThisAndSuper(sym, env);
@@ -1071,7 +1074,9 @@ public class TypeEnter implements Completer {
                  * it could be that some of those annotations are not applicable to the accessor, they will be striped
                  * away later at Check::validateAnnotation
                  */
-                List<JCAnnotation> originalAnnos = rec.getOriginalAnnos();
+                List<JCAnnotation> originalAnnos = rec.getOriginalAnnos().isEmpty() ?
+                        rec.getOriginalAnnos() :
+                        new TreeCopier<JCTree>(make.at(tree.pos)).copy(rec.getOriginalAnnos());
                 JCMethodDecl getter = make.at(tree.pos).
                         MethodDef(
                                 make.Modifiers(Flags.PUBLIC | Flags.GENERATED_MEMBER, originalAnnos),
@@ -1470,7 +1475,9 @@ public class TypeEnter implements Completer {
                  * parameter in the constructor.
                  */
                 RecordComponent rc = ((ClassSymbol) owner).getRecordComponent(arg.sym);
-                arg.mods.annotations = rc.getOriginalAnnos();
+                arg.mods.annotations = rc.getOriginalAnnos().isEmpty() ?
+                        List.nil() :
+                        new TreeCopier<JCTree>(make.at(arg.pos)).copy(rc.getOriginalAnnos());
                 arg.vartype = tmpRecordFieldDecls.head.vartype;
                 tmpRecordFieldDecls = tmpRecordFieldDecls.tail;
             }

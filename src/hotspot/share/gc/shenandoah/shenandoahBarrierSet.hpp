@@ -84,6 +84,7 @@ public:
   virtual void on_thread_detach(Thread* thread);
 
   static inline oop resolve_forwarded_not_null(oop p);
+  static inline oop resolve_forwarded_not_null_mutator(oop p);
   static inline oop resolve_forwarded(oop p);
 
   template <DecoratorSet decorators, typename T>
@@ -94,7 +95,6 @@ public:
   template <DecoratorSet decorators>
   inline void keep_alive_if_weak(oop value);
   inline void keep_alive_if_weak(DecoratorSet decorators, oop value);
-  inline void keep_alive_barrier(oop value);
 
   inline void enqueue(oop obj);
 
@@ -123,6 +123,7 @@ private:
   template <class T>
   oop load_reference_barrier_native_impl(oop obj, T* load_addr);
 
+  inline bool skip_bulk_update(HeapWord* dst);
 public:
   // Callbacks for runtime accesses.
   template <DecoratorSet decorators, typename BarrierSetT = ShenandoahBarrierSet>

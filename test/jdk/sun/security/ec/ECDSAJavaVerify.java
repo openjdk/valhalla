@@ -48,11 +48,14 @@ import java.util.Random;
 
 /*
  * @test
- * @bug 8237218
- * @summary Support NIST Curves verification in java implementation
+ * @bug 8237218 8239928
  * @modules jdk.crypto.ec
  *          jdk.jdi
+ * @requires os.family != "windows"
  * @run main ECDSAJavaVerify debug
+ * @summary Support NIST Curves verification in java implementation.
+ *  This test does not run stable on Windows. VMDisconnectedException
+ *  might not be thrown at all.
  */
 
 // ATTENTION: This test depends on method names inside the non-exported
@@ -97,7 +100,8 @@ public class ECDSAJavaVerify {
                 = launchingConnector.defaultArguments();
         arguments.get("main").setValue(ECDSAJavaVerify.class.getName());
         arguments.get("options").setValue(
-                "-cp " + System.getProperty("test.classes"));
+                "-cp " + System.getProperty("test.classes") +
+                " -Djdk.sunec.disableNative=false");
         VirtualMachine vm = launchingConnector.launch(arguments);
 
         MethodEntryRequest req = vm.eventRequestManager()
@@ -120,9 +124,15 @@ public class ECDSAJavaVerify {
             }
         }
 
-        // Test result, init as ' ', '-' if run, 'x' for unexpected.
+        // Test result
+        // '.': not run yet
+        // '-': enter engineVerify
+        // 'v': expected impl called
+        // 'x': unexpected impl called
+        // Note: some error cases fail before any impl called. Ex: if there
+        // is a DER encoding error.
         char[] result = new char[numberOfTests];
-        Arrays.fill(result, ' ');
+        Arrays.fill(result, '.');
 
         String stdout, stderr;
 
@@ -135,18 +145,13 @@ public class ECDSAJavaVerify {
                         MethodEntryEvent e = (MethodEntryEvent)event;
                         switch (e.method().name()) {
                             case "engineVerify":
-                                pos++;
-                                result[pos] = '-';
+                                result[++pos] = '-';
                                 break;
                             case "verifySignedDigestImpl": // the java impl
-                                if (expected[pos] != 'J') {
-                                    result[pos] = 'x';
-                                }
+                                result[pos] = expected[pos] != 'J' ? 'x' : 'v';
                                 break;
-                            case "verifySignedDigest":
-                                if (expected[pos] != 'N') { // the native impl
-                                    result[pos] = 'x';
-                                }
+                            case "verifySignedDigest": // the native impl
+                                result[pos] = expected[pos] != 'N' ? 'x' : 'v';
                                 break;
                         }
                     }
@@ -160,19 +165,22 @@ public class ECDSAJavaVerify {
             stdout = new String(vm.process().getInputStream().readAllBytes());
         }
 
+        int exitCode = vm.process().waitFor();
+        System.out.println("  exit: " + exitCode);
         System.out.println("stderr:\n" + stderr);
         System.out.println("stdout:\n" + stdout);
 
         String sResult = new String(result);
 
-        System.out.println("Expected: " + new String(expected));
-        System.out.println("  Actual: " + sResult);
+        System.out.println(" Cases: " + new String(expected));
+        System.out.println("Result: " + sResult);
 
-        if (pos != numberOfTests - 1 || sResult.contains("x")) {
+        if (pos != numberOfTests - 1 || sResult.contains("x")
+                || sResult.contains(".")) {
             throw new Exception("Unexpected result");
         }
 
-        if (stdout.contains("fail") || !stderr.isEmpty()) {
+        if (stdout.contains("fail") || exitCode != 0) {
             throw new Exception("Test failed");
         }
     }

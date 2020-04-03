@@ -149,12 +149,9 @@ void CardTableBarrierSetC2::clone(GraphKit* kit, Node* src_base, Node* dst_base,
     Node* no_particular_value = NULL;
     Node* no_particular_field = NULL;
     int raw_adr_idx = Compile::AliasIdxRaw;
-    intptr_t unused_offset;
-    Node* dst = AddPNode::Ideal_base_and_offset(dst_base, &kit->gvn(), unused_offset);
-    assert(dst != NULL, "dst_base not an Addp");
     post_barrier(kit, kit->control(),
                  kit->memory(raw_adr_type),
-                 dst,
+                 dst_base,
                  no_particular_field,
                  raw_adr_idx,
                  no_particular_value,

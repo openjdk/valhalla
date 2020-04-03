@@ -1619,7 +1619,7 @@ public final class System {
          * the Java Runtime.  See the class specification of how the
          * {@link LoggerFinder LoggerFinder} implementation is located and
          * loaded.
-
+         *
          * @return the {@link LoggerFinder LoggerFinder} instance.
          * @throws SecurityException if a security manager is present and its
          *         {@code checkPermission} method doesn't allow the
@@ -2275,11 +2275,6 @@ public final class System {
             }
             public void setCause(Throwable t, Throwable cause) {
                 t.setCause(cause);
-            }
-
-            public void loadLibrary(Class<?> caller, String library) {
-                assert library.indexOf(java.io.File.separatorChar) < 0;
-                ClassLoader.loadLibrary(caller, library, false);
             }
         });
     }

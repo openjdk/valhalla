@@ -4572,15 +4572,11 @@ void LibraryCallKit::copy_to_clone(Node* obj, Node* alloc_obj, Node* obj_size, b
   // Exclude the header but include array length to copy by 8 bytes words.
   // Can't use base_offset_in_bytes(bt) since basic type is unknown.
   int base_off = BarrierSetC2::arraycopy_payload_base_offset(is_array);
-  Node* src_base  = basic_plus_adr(obj,  base_off);
-  Node* dst_base = basic_plus_adr(alloc_obj, base_off);
-
-  // Compute the length also, if needed:
   Node* countx = size;
   countx = _gvn.transform(new SubXNode(countx, MakeConX(base_off)));
   countx = _gvn.transform(new URShiftXNode(countx, intcon(LogBytesPerLong)));
 
-  access_clone(src_base, dst_base, countx, is_array);
+  access_clone(obj, alloc_obj, countx, is_array);
 
   // Do not let reads from the cloned object float above the arraycopy.
   if (alloc != NULL) {

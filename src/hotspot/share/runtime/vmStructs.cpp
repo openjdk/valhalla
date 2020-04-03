@@ -106,11 +106,6 @@
 #include OS_HEADER(vmStructs)
 #include OS_CPU_HEADER(vmStructs)
 
-#if INCLUDE_JVMCI
-# include "jvmci/vmStructs_jvmci.hpp"
-#endif
-
-
 #ifdef COMPILER2
 #include "opto/addnode.hpp"
 #include "opto/block.hpp"
@@ -522,7 +517,6 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   nonstatic_field(ClassLoaderData,             _class_loader,                                 OopHandle)                             \
   nonstatic_field(ClassLoaderData,             _next,                                         ClassLoaderData*)                      \
   volatile_nonstatic_field(ClassLoaderData,    _klasses,                                      Klass*)                                \
-  nonstatic_field(ClassLoaderData,             _is_unsafe_anonymous,                          bool)                                  \
   volatile_nonstatic_field(ClassLoaderData,    _dictionary,                                   Dictionary*)                           \
                                                                                                                                      \
   static_ptr_volatile_field(ClassLoaderDataGraph, _head,                                      ClassLoaderData*)                      \
@@ -791,15 +785,8 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   volatile_nonstatic_field(OSThread,           _state,                                        ThreadState)                           \
                                                                                                                                      \
   /************************/                                                                                                         \
-  /* OopMap and OopMapSet */                                                                                                         \
+  /* ImmutableOopMap      */                                                                                                         \
   /************************/                                                                                                         \
-                                                                                                                                     \
-  nonstatic_field(OopMap,                      _pc_offset,                                    int)                                   \
-  nonstatic_field(OopMap,                      _omv_count,                                    int)                                   \
-  nonstatic_field(OopMap,                      _write_stream,                                 CompressedWriteStream*)                \
-  nonstatic_field(OopMapSet,                   _om_count,                                     int)                                   \
-  nonstatic_field(OopMapSet,                   _om_size,                                      int)                                   \
-  nonstatic_field(OopMapSet,                   _om_data,                                      OopMap**)                              \
                                                                                                                                      \
   nonstatic_field(ImmutableOopMapSet,          _count,                                        int)                                   \
   nonstatic_field(ImmutableOopMapSet,          _size,                                         int)                                   \
@@ -1449,11 +1436,9 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   declare_toplevel_type(Deoptimization::UnrollBlock)                      \
                                                                           \
   /************************/                                              \
-  /* OopMap and OopMapSet */                                              \
+  /* ImmutableOopMap      */                                              \
   /************************/                                              \
                                                                           \
-  declare_toplevel_type(OopMap)                                           \
-  declare_toplevel_type(OopMapSet)                                        \
   declare_toplevel_type(ImmutableOopMapSet)                               \
   declare_toplevel_type(ImmutableOopMapPair)                              \
   declare_toplevel_type(ImmutableOopMap)                                  \
@@ -1833,8 +1818,11 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   declare_c2_type(URShiftVINode, VectorNode)                              \
   declare_c2_type(URShiftVLNode, VectorNode)                              \
   declare_c2_type(AndVNode, VectorNode)                                   \
+  declare_c2_type(AndReductionVNode, ReductionNode)                       \
   declare_c2_type(OrVNode, VectorNode)                                    \
+  declare_c2_type(OrReductionVNode, ReductionNode)                        \
   declare_c2_type(XorVNode, VectorNode)                                   \
+  declare_c2_type(XorReductionVNode, ReductionNode)                       \
   declare_c2_type(MaxVNode, VectorNode)                                   \
   declare_c2_type(MinVNode, VectorNode)                                   \
   declare_c2_type(MaxReductionVNode, ReductionNode)                       \
@@ -1997,9 +1985,7 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   declare_toplevel_type(ObjectMonitor*)                                   \
   declare_toplevel_type(PaddedObjectMonitor*)                             \
   declare_toplevel_type(oop*)                                             \
-  declare_toplevel_type(OopMap**)                                         \
   declare_toplevel_type(OopMapCache*)                                     \
-  declare_toplevel_type(OopMapSet*)                                       \
   declare_toplevel_type(VMReg)                                            \
   declare_toplevel_type(OSThread*)                                        \
    declare_integer_type(ReferenceType)                                    \
@@ -2694,13 +2680,7 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
 # define GENERATE_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c) GENERATE_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
 # define CHECK_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)    CHECK_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
 # define ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT(a, b, c)          ENSURE_FIELD_TYPE_PRESENT(a, b, c)
-# define GENERATE_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c) GENERATE_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
-# define CHECK_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)    CHECK_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
-# define ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT(a, b, c)          ENSURE_FIELD_TYPE_PRESENT(a, b, c)
 #else
-# define GENERATE_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
-# define CHECK_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
-# define ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT(a, b, c)
 # define GENERATE_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
 # define CHECK_NONPRODUCT_NONSTATIC_VM_STRUCT_ENTRY(a, b, c)
 # define ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT(a, b, c)
@@ -2975,10 +2955,43 @@ size_t VMStructs::localHotSpotVMLongConstantsLength() {
   return sizeof(localHotSpotVMLongConstants) / sizeof(VMLongConstantEntry);
 }
 
-// This is used both to check the types of referenced fields and, in
-// debug builds, to ensure that all of the field types are present.
-void
-VMStructs::init() {
+extern "C" {
+
+#define STRIDE(array) ((char*)&array[1] - (char*)&array[0])
+
+JNIEXPORT VMStructEntry* gHotSpotVMStructs = VMStructs::localHotSpotVMStructs;
+JNIEXPORT uint64_t gHotSpotVMStructEntryTypeNameOffset = offset_of(VMStructEntry, typeName);
+JNIEXPORT uint64_t gHotSpotVMStructEntryFieldNameOffset = offset_of(VMStructEntry, fieldName);
+JNIEXPORT uint64_t gHotSpotVMStructEntryTypeStringOffset = offset_of(VMStructEntry, typeString);
+JNIEXPORT uint64_t gHotSpotVMStructEntryIsStaticOffset = offset_of(VMStructEntry, isStatic);
+JNIEXPORT uint64_t gHotSpotVMStructEntryOffsetOffset = offset_of(VMStructEntry, offset);
+JNIEXPORT uint64_t gHotSpotVMStructEntryAddressOffset = offset_of(VMStructEntry, address);
+JNIEXPORT uint64_t gHotSpotVMStructEntryArrayStride = STRIDE(gHotSpotVMStructs);
+
+JNIEXPORT VMTypeEntry* gHotSpotVMTypes = VMStructs::localHotSpotVMTypes;
+JNIEXPORT uint64_t gHotSpotVMTypeEntryTypeNameOffset = offset_of(VMTypeEntry, typeName);
+JNIEXPORT uint64_t gHotSpotVMTypeEntrySuperclassNameOffset = offset_of(VMTypeEntry, superclassName);
+JNIEXPORT uint64_t gHotSpotVMTypeEntryIsOopTypeOffset = offset_of(VMTypeEntry, isOopType);
+JNIEXPORT uint64_t gHotSpotVMTypeEntryIsIntegerTypeOffset = offset_of(VMTypeEntry, isIntegerType);
+JNIEXPORT uint64_t gHotSpotVMTypeEntryIsUnsignedOffset = offset_of(VMTypeEntry, isUnsigned);
+JNIEXPORT uint64_t gHotSpotVMTypeEntrySizeOffset = offset_of(VMTypeEntry, size);
+JNIEXPORT uint64_t gHotSpotVMTypeEntryArrayStride = STRIDE(gHotSpotVMTypes);
+
+JNIEXPORT VMIntConstantEntry* gHotSpotVMIntConstants = VMStructs::localHotSpotVMIntConstants;
+JNIEXPORT uint64_t gHotSpotVMIntConstantEntryNameOffset = offset_of(VMIntConstantEntry, name);
+JNIEXPORT uint64_t gHotSpotVMIntConstantEntryValueOffset = offset_of(VMIntConstantEntry, value);
+JNIEXPORT uint64_t gHotSpotVMIntConstantEntryArrayStride = STRIDE(gHotSpotVMIntConstants);
+
+JNIEXPORT VMLongConstantEntry* gHotSpotVMLongConstants = VMStructs::localHotSpotVMLongConstants;
+JNIEXPORT uint64_t gHotSpotVMLongConstantEntryNameOffset = offset_of(VMLongConstantEntry, name);
+JNIEXPORT uint64_t gHotSpotVMLongConstantEntryValueOffset = offset_of(VMLongConstantEntry, value);
+JNIEXPORT uint64_t gHotSpotVMLongConstantEntryArrayStride = STRIDE(gHotSpotVMLongConstants);
+} // "C"
+
+#ifdef ASSERT
+// This is used both to check the types of referenced fields and
+// to ensure that all of the field types are present.
+void VMStructs::init() {
   VM_STRUCTS(CHECK_NONSTATIC_VM_STRUCT_ENTRY,
              CHECK_STATIC_VM_STRUCT_ENTRY,
              CHECK_STATIC_PTR_VOLATILE_VM_STRUCT_ENTRY,
@@ -3054,80 +3067,47 @@ VMStructs::init() {
   // Solstice NFS setup. If everyone switches to local workspaces on
   // Win32, we can put this back in.
 #ifndef _WINDOWS
-  debug_only(VM_STRUCTS(ENSURE_FIELD_TYPE_PRESENT,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP));
-  debug_only(VM_STRUCTS(CHECK_NO_OP,
-                        ENSURE_FIELD_TYPE_PRESENT,
-                        ENSURE_FIELD_TYPE_PRESENT,
-                        CHECK_NO_OP,
-                        ENSURE_FIELD_TYPE_PRESENT,
-                        ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT,
-                        ENSURE_C1_FIELD_TYPE_PRESENT,
-                        ENSURE_C2_FIELD_TYPE_PRESENT,
-                        CHECK_NO_OP,
-                        CHECK_NO_OP));
+  VM_STRUCTS(ENSURE_FIELD_TYPE_PRESENT,
+             CHECK_NO_OP,
+             CHECK_NO_OP,
+             CHECK_NO_OP,
+             CHECK_NO_OP,
+             CHECK_NO_OP,
+             CHECK_NO_OP,
+             CHECK_NO_OP,
+             CHECK_NO_OP,
+             CHECK_NO_OP);
 
-  debug_only(VM_STRUCTS_CPU(ENSURE_FIELD_TYPE_PRESENT,
-                            ENSURE_FIELD_TYPE_PRESENT,
-                            CHECK_NO_OP,
-                            ENSURE_FIELD_TYPE_PRESENT,
-                            ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT,
-                            ENSURE_C2_FIELD_TYPE_PRESENT,
-                            CHECK_NO_OP,
-                            CHECK_NO_OP));
-  debug_only(VM_STRUCTS_OS_CPU(ENSURE_FIELD_TYPE_PRESENT,
-                               ENSURE_FIELD_TYPE_PRESENT,
-                               CHECK_NO_OP,
-                               ENSURE_FIELD_TYPE_PRESENT,
-                               ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT,
-                               ENSURE_C2_FIELD_TYPE_PRESENT,
-                               CHECK_NO_OP,
-                               CHECK_NO_OP));
-#endif
+  VM_STRUCTS(CHECK_NO_OP,
+             ENSURE_FIELD_TYPE_PRESENT,
+             ENSURE_FIELD_TYPE_PRESENT,
+             CHECK_NO_OP,
+             ENSURE_FIELD_TYPE_PRESENT,
+             ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT,
+             ENSURE_C1_FIELD_TYPE_PRESENT,
+             ENSURE_C2_FIELD_TYPE_PRESENT,
+             CHECK_NO_OP,
+             CHECK_NO_OP);
+
+  VM_STRUCTS_CPU(ENSURE_FIELD_TYPE_PRESENT,
+                 ENSURE_FIELD_TYPE_PRESENT,
+                 CHECK_NO_OP,
+                 ENSURE_FIELD_TYPE_PRESENT,
+                 ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT,
+                 ENSURE_C2_FIELD_TYPE_PRESENT,
+                 CHECK_NO_OP,
+                 CHECK_NO_OP);
+  VM_STRUCTS_OS_CPU(ENSURE_FIELD_TYPE_PRESENT,
+                    ENSURE_FIELD_TYPE_PRESENT,
+                    CHECK_NO_OP,
+                    ENSURE_FIELD_TYPE_PRESENT,
+                    ENSURE_NONPRODUCT_FIELD_TYPE_PRESENT,
+                    ENSURE_C2_FIELD_TYPE_PRESENT,
+                    CHECK_NO_OP,
+                    CHECK_NO_OP);
+#endif // !_WINDOWS
 }
 
-extern "C" {
-
-#define STRIDE(array) ((char*)&array[1] - (char*)&array[0])
-
-JNIEXPORT VMStructEntry* gHotSpotVMStructs = VMStructs::localHotSpotVMStructs;
-JNIEXPORT uint64_t gHotSpotVMStructEntryTypeNameOffset = offset_of(VMStructEntry, typeName);
-JNIEXPORT uint64_t gHotSpotVMStructEntryFieldNameOffset = offset_of(VMStructEntry, fieldName);
-JNIEXPORT uint64_t gHotSpotVMStructEntryTypeStringOffset = offset_of(VMStructEntry, typeString);
-JNIEXPORT uint64_t gHotSpotVMStructEntryIsStaticOffset = offset_of(VMStructEntry, isStatic);
-JNIEXPORT uint64_t gHotSpotVMStructEntryOffsetOffset = offset_of(VMStructEntry, offset);
-JNIEXPORT uint64_t gHotSpotVMStructEntryAddressOffset = offset_of(VMStructEntry, address);
-JNIEXPORT uint64_t gHotSpotVMStructEntryArrayStride = STRIDE(gHotSpotVMStructs);
-
-JNIEXPORT VMTypeEntry* gHotSpotVMTypes = VMStructs::localHotSpotVMTypes;
-JNIEXPORT uint64_t gHotSpotVMTypeEntryTypeNameOffset = offset_of(VMTypeEntry, typeName);
-JNIEXPORT uint64_t gHotSpotVMTypeEntrySuperclassNameOffset = offset_of(VMTypeEntry, superclassName);
-JNIEXPORT uint64_t gHotSpotVMTypeEntryIsOopTypeOffset = offset_of(VMTypeEntry, isOopType);
-JNIEXPORT uint64_t gHotSpotVMTypeEntryIsIntegerTypeOffset = offset_of(VMTypeEntry, isIntegerType);
-JNIEXPORT uint64_t gHotSpotVMTypeEntryIsUnsignedOffset = offset_of(VMTypeEntry, isUnsigned);
-JNIEXPORT uint64_t gHotSpotVMTypeEntrySizeOffset = offset_of(VMTypeEntry, size);
-JNIEXPORT uint64_t gHotSpotVMTypeEntryArrayStride = STRIDE(gHotSpotVMTypes);
-
-JNIEXPORT VMIntConstantEntry* gHotSpotVMIntConstants = VMStructs::localHotSpotVMIntConstants;
-JNIEXPORT uint64_t gHotSpotVMIntConstantEntryNameOffset = offset_of(VMIntConstantEntry, name);
-JNIEXPORT uint64_t gHotSpotVMIntConstantEntryValueOffset = offset_of(VMIntConstantEntry, value);
-JNIEXPORT uint64_t gHotSpotVMIntConstantEntryArrayStride = STRIDE(gHotSpotVMIntConstants);
-
-JNIEXPORT VMLongConstantEntry* gHotSpotVMLongConstants = VMStructs::localHotSpotVMLongConstants;
-JNIEXPORT uint64_t gHotSpotVMLongConstantEntryNameOffset = offset_of(VMLongConstantEntry, name);
-JNIEXPORT uint64_t gHotSpotVMLongConstantEntryValueOffset = offset_of(VMLongConstantEntry, value);
-JNIEXPORT uint64_t gHotSpotVMLongConstantEntryArrayStride = STRIDE(gHotSpotVMLongConstants);
-}
-
-#ifdef ASSERT
 static int recursiveFindType(VMTypeEntry* origtypes, const char* typeName, bool isRecurse) {
   {
     VMTypeEntry* types = origtypes;
@@ -3194,15 +3174,13 @@ static int recursiveFindType(VMTypeEntry* origtypes, const char* typeName, bool 
   return 0;
 }
 
-
-int
-VMStructs::findType(const char* typeName) {
+int VMStructs::findType(const char* typeName) {
   VMTypeEntry* types = gHotSpotVMTypes;
 
   return recursiveFindType(types, typeName, false);
 }
-#endif
 
 void vmStructs_init() {
-  debug_only(VMStructs::init());
+  VMStructs::init();
 }
+#endif // ASSERT

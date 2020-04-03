@@ -396,27 +396,6 @@ public:
 
     verify(r, r->is_cset() == _heap->collection_set()->is_in(r),
            "Transitional: region flags and collection set agree");
-
-    verify(r, r->is_empty() || r->seqnum_first_alloc() != 0,
-           "Non-empty regions should have first seqnum set");
-
-    verify(r, r->is_empty() || (r->seqnum_first_alloc_mutator() != 0 || r->seqnum_first_alloc_gc() != 0),
-           "Non-empty regions should have first seqnum set to either GC or mutator");
-
-    verify(r, r->is_empty() || r->seqnum_last_alloc() != 0,
-           "Non-empty regions should have last seqnum set");
-
-    verify(r, r->is_empty() || (r->seqnum_last_alloc_mutator() != 0 || r->seqnum_last_alloc_gc() != 0),
-           "Non-empty regions should have last seqnum set to either GC or mutator");
-
-    verify(r, r->seqnum_first_alloc() <= r->seqnum_last_alloc(),
-           "First seqnum should not be greater than last timestamp");
-
-    verify(r, r->seqnum_first_alloc_mutator() <= r->seqnum_last_alloc_mutator(),
-           "First mutator seqnum should not be greater than last seqnum");
-
-    verify(r, r->seqnum_first_alloc_gc() <= r->seqnum_last_alloc_gc(),
-           "First GC seqnum should not be greater than last seqnum");
   }
 };
 
@@ -811,29 +790,16 @@ void ShenandoahVerifier::verify_generic(VerifyOption vo) {
 }
 
 void ShenandoahVerifier::verify_before_concmark() {
-  if (_heap->has_forwarded_objects()) {
     verify_at_safepoint(
-            "Before Mark",
-            _verify_forwarded_allow,     // may have forwarded references
-            _verify_marked_disable,      // do not verify marked: lots ot time wasted checking dead allocations
-            _verify_cset_forwarded,      // allow forwarded references to cset
-            _verify_liveness_disable,    // no reliable liveness data
-            _verify_regions_notrash,     // no trash regions
-            _verify_gcstate_forwarded,   // there are forwarded objects
-            _verify_all_weak_roots
-    );
-  } else {
-    verify_at_safepoint(
-            "Before Mark",
-            _verify_forwarded_none,      // UR should have fixed up
-            _verify_marked_disable,      // do not verify marked: lots ot time wasted checking dead allocations
-            _verify_cset_none,           // UR should have fixed this
-            _verify_liveness_disable,    // no reliable liveness data
-            _verify_regions_notrash,     // no trash regions
-            _verify_gcstate_stable,      // there are no forwarded objects
-            _verify_all_weak_roots
-    );
-  }
+          "Before Mark",
+          _verify_forwarded_none,      // UR should have fixed up
+          _verify_marked_disable,      // do not verify marked: lots ot time wasted checking dead allocations
+          _verify_cset_none,           // UR should have fixed this
+          _verify_liveness_disable,    // no reliable liveness data
+          _verify_regions_notrash,     // no trash regions
+          _verify_gcstate_stable,      // there are no forwarded objects
+          _verify_all_weak_roots
+  );
 }
 
 void ShenandoahVerifier::verify_after_concmark() {
@@ -1016,7 +982,7 @@ private:
     T o = RawAccess<>::oop_load(p);
     if (!CompressedOops::is_null(o)) {
       oop obj = CompressedOops::decode_not_null(o);
-      ShenandoahHeap* heap = ShenandoahHeap::heap_no_check();
+      ShenandoahHeap* heap = ShenandoahHeap::heap();
 
       if (!heap->marking_context()->is_marked(obj)) {
         ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, NULL,

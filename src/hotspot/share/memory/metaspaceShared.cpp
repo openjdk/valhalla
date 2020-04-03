@@ -465,6 +465,9 @@ void MetaspaceShared::serialize(SerializeClosure* soc) {
   SystemDictionaryShared::serialize_dictionary_headers(soc);
 
   InstanceMirrorKlass::serialize_offsets(soc);
+
+  // Dump/restore well known classes (pointers)
+  SystemDictionaryShared::serialize_well_known_klasses(soc);
   soc->do_tag(--tag);
 
   serialize_cloned_cpp_vtptrs(soc);
@@ -1106,7 +1109,7 @@ private:
   void dump_symbols();
   char* dump_read_only_tables();
   void print_class_stats();
-  void print_region_stats();
+  void print_region_stats(FileMapInfo* map_info);
   void print_bitmap_region_stats(size_t size, size_t total_size);
   void print_heap_region_stats(GrowableArray<MemRegion> *heap_mem,
                                const char *name, size_t total_size);
@@ -1392,7 +1395,7 @@ public:
         it->push(_global_klass_objects->adr_at(i));
       }
     }
-    FileMapInfo::metaspace_pointers_do(it);
+    FileMapInfo::metaspace_pointers_do(it, false);
     SystemDictionaryShared::dumptime_classes_do(it);
     Universe::metaspace_pointers_do(it);
     SymbolTable::metaspace_pointers_do(it);
@@ -1440,6 +1443,8 @@ char* VM_PopulateDumpSharedSpace::dump_read_only_tables() {
   MetaspaceShared::serialize(&wc);
 
   // Write the bitmaps for patching the archive heap regions
+  _closed_archive_heap_oopmaps = NULL;
+  _open_archive_heap_oopmaps = NULL;
   dump_archive_heap_oopmaps();
 
   return start;
@@ -1589,7 +1594,7 @@ void VM_PopulateDumpSharedSpace::doit() {
   mapinfo->set_i2i_entry_code_buffers(MetaspaceShared::i2i_entry_code_buffers(),
                                       MetaspaceShared::i2i_entry_code_buffers_size());
   mapinfo->open_for_write();
-  MetaspaceShared::write_core_archive_regions(mapinfo);
+  MetaspaceShared::write_core_archive_regions(mapinfo, _closed_archive_heap_oopmaps, _open_archive_heap_oopmaps);
   _total_closed_archive_region_size = mapinfo->write_archive_heap_regions(
                                         _closed_archive_heap_regions,
                                         _closed_archive_heap_oopmaps,
@@ -1604,9 +1609,8 @@ void VM_PopulateDumpSharedSpace::doit() {
   mapinfo->set_final_requested_base((char*)Arguments::default_SharedBaseAddress());
   mapinfo->set_header_crc(mapinfo->compute_header_crc());
   mapinfo->write_header();
+  print_region_stats(mapinfo);
   mapinfo->close();
-
-  print_region_stats();
 
   if (log_is_enabled(Info, cds)) {
     ArchiveCompactor::alloc_stats()->print_stats(int(_ro_region.used()), int(_rw_region.used()),
@@ -1628,10 +1632,10 @@ void VM_PopulateDumpSharedSpace::doit() {
   vm_direct_exit(0);
 }
 
-void VM_PopulateDumpSharedSpace::print_region_stats() {
+void VM_PopulateDumpSharedSpace::print_region_stats(FileMapInfo *map_info) {
   // Print statistics of all the regions
-  const size_t bitmap_used = ArchivePtrMarker::ptrmap()->size_in_bytes();
-  const size_t bitmap_reserved = align_up(bitmap_used, Metaspace::reserve_alignment());
+  const size_t bitmap_used = map_info->space_at(MetaspaceShared::bm)->used();
+  const size_t bitmap_reserved = map_info->space_at(MetaspaceShared::bm)->used_aligned();
   const size_t total_reserved = _ro_region.reserved()  + _rw_region.reserved() +
                                 _mc_region.reserved()  +
                                 bitmap_reserved +
@@ -1673,7 +1677,9 @@ void VM_PopulateDumpSharedSpace::print_heap_region_stats(GrowableArray<MemRegion
   }
 }
 
-void MetaspaceShared::write_core_archive_regions(FileMapInfo* mapinfo) {
+void MetaspaceShared::write_core_archive_regions(FileMapInfo* mapinfo,
+                                                 GrowableArray<ArchiveHeapOopmapInfo>* closed_oopmaps,
+                                                 GrowableArray<ArchiveHeapOopmapInfo>* open_oopmaps) {
   // Make sure NUM_CDS_REGIONS (exported in cds.h) agrees with
   // MetaspaceShared::n_regions (internal to hotspot).
   assert(NUM_CDS_REGIONS == MetaspaceShared::n_regions, "sanity");
@@ -1683,7 +1689,7 @@ void MetaspaceShared::write_core_archive_regions(FileMapInfo* mapinfo) {
   write_region(mapinfo, mc, &_mc_region, /*read_only=*/false,/*allow_exec=*/true);
   write_region(mapinfo, rw, &_rw_region, /*read_only=*/false,/*allow_exec=*/false);
   write_region(mapinfo, ro, &_ro_region, /*read_only=*/true, /*allow_exec=*/false);
-  mapinfo->write_bitmap_region(ArchivePtrMarker::ptrmap());
+  mapinfo->write_bitmap_region(ArchivePtrMarker::ptrmap(), closed_oopmaps, open_oopmaps);
 }
 
 void MetaspaceShared::write_region(FileMapInfo* mapinfo, int region_idx, DumpRegion* dump_region, bool read_only,  bool allow_exec) {
@@ -1719,27 +1725,22 @@ class LinkSharedClassesClosure : public KlassClosure {
   void do_klass(Klass* k) {
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
-      // Link the class to cause the bytecodes to be rewritten and the
-      // cpcache to be created. Class verification is done according
-      // to -Xverify setting.
-      _made_progress |= MetaspaceShared::try_link_class(ik, THREAD);
-      guarantee(!HAS_PENDING_EXCEPTION, "exception in link_class");
+      // For dynamic CDS dump, only link classes loaded by the builtin class loaders.
+      bool do_linking = DumpSharedSpaces ? true : !ik->is_shared_unregistered_class();
+      if (do_linking) {
+        // Link the class to cause the bytecodes to be rewritten and the
+        // cpcache to be created. Class verification is done according
+        // to -Xverify setting.
+        _made_progress |= MetaspaceShared::try_link_class(ik, THREAD);
+        guarantee(!HAS_PENDING_EXCEPTION, "exception in link_class");
 
-      ik->constants()->resolve_class_constants(THREAD);
-    }
-  }
-};
-
-class CheckSharedClassesClosure : public KlassClosure {
-  bool    _made_progress;
- public:
-  CheckSharedClassesClosure() : _made_progress(false) {}
-
-  void reset()               { _made_progress = false; }
-  bool made_progress() const { return _made_progress; }
-  void do_klass(Klass* k) {
-    if (k->is_instance_klass() && InstanceKlass::cast(k)->check_sharing_error_state()) {
-      _made_progress = true;
+        if (DumpSharedSpaces) {
+          // The following function is used to resolve all Strings in the statically
+          // dumped classes to archive all the Strings. The archive heap is not supported
+          // for the dynamic archive.
+          ik->constants()->resolve_class_constants(THREAD);
+        }
+      }
     }
   }
 };
@@ -1753,18 +1754,6 @@ void MetaspaceShared::link_and_cleanup_shared_classes(TRAPS) {
     ClassLoaderDataGraph::unlocked_loaded_classes_do(&link_closure);
     guarantee(!HAS_PENDING_EXCEPTION, "exception in link_class");
   } while (link_closure.made_progress());
-
-  if (_has_error_classes) {
-    // Mark all classes whose super class or interfaces failed verification.
-    CheckSharedClassesClosure check_closure;
-    do {
-      // Not completely sure if we need to do this iteratively. Anyway,
-      // we should come here only if there are unverifiable classes, which
-      // shouldn't happen in normal cases. So better safe than sorry.
-      check_closure.reset();
-      ClassLoaderDataGraph::unlocked_loaded_classes_do(&check_closure);
-    } while (check_closure.made_progress());
-  }
 }
 
 void MetaspaceShared::prepare_for_dumping() {
@@ -1891,10 +1880,11 @@ int MetaspaceShared::preload_classes(const char* class_list_path, TRAPS) {
 
 // Returns true if the class's status has changed
 bool MetaspaceShared::try_link_class(InstanceKlass* ik, TRAPS) {
-  assert(DumpSharedSpaces, "should only be called during dumping");
-  if (ik->init_state() < InstanceKlass::linked) {
+  Arguments::assert_is_dumping_archive();
+  if (ik->init_state() < InstanceKlass::linked &&
+      !SystemDictionaryShared::has_class_failed_verification(ik)) {
     bool saved = BytecodeVerificationLocal;
-    if (ik->loader_type() == 0 && ik->class_loader() == NULL) {
+    if (ik->is_shared_unregistered_class() && ik->class_loader() == NULL) {
       // The verification decision is based on BytecodeVerificationRemote
       // for non-system classes. Since we are using the NULL classloader
       // to load non-system classes for customized class loaders during dumping,
@@ -1910,7 +1900,7 @@ bool MetaspaceShared::try_link_class(InstanceKlass* ik, TRAPS) {
       log_warning(cds)("Preload Warning: Verification failed for %s",
                     ik->external_name());
       CLEAR_PENDING_EXCEPTION;
-      ik->set_in_error_state();
+      SystemDictionaryShared::set_class_has_failed_verification(ik);
       _has_error_classes = true;
     }
     BytecodeVerificationLocal = saved;
@@ -1948,7 +1938,7 @@ void VM_PopulateDumpSharedSpace::dump_archive_heap_oopmaps(GrowableArray<MemRegi
     ResourceBitMap oopmap = HeapShared::calculate_oopmap(regions->at(i));
     size_t size_in_bits = oopmap.size();
     size_t size_in_bytes = oopmap.size_in_bytes();
-    uintptr_t* buffer = (uintptr_t*)_ro_region.allocate(size_in_bytes, sizeof(intptr_t));
+    uintptr_t* buffer = (uintptr_t*)NEW_C_HEAP_ARRAY(char, size_in_bytes, mtInternal);
     oopmap.write_to(buffer, size_in_bytes);
     log_info(cds, heap)("Oopmap = " INTPTR_FORMAT " (" SIZE_FORMAT_W(6) " bytes) for heap region "
                         INTPTR_FORMAT " (" SIZE_FORMAT_W(8) " bytes)",
@@ -1958,6 +1948,7 @@ void VM_PopulateDumpSharedSpace::dump_archive_heap_oopmaps(GrowableArray<MemRegi
     ArchiveHeapOopmapInfo info;
     info._oopmap = (address)buffer;
     info._oopmap_size_in_bits = size_in_bits;
+    info._oopmap_size_in_bytes = size_in_bytes;
     oopmaps->append(info);
   }
 }
@@ -2380,6 +2371,8 @@ void MetaspaceShared::initialize_shared_spaces() {
 
   // Close the mapinfo file
   static_mapinfo->close();
+
+  static_mapinfo->unmap_region(MetaspaceShared::bm);
 
   FileMapInfo *dynamic_mapinfo = FileMapInfo::dynamic_info();
   if (dynamic_mapinfo != NULL) {

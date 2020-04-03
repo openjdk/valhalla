@@ -316,7 +316,7 @@
  * see the API note documented on the {@link java.util.stream.Stream#count count}
  * operation.)
  *
- * <p>Many computations where one might be tempted to use side effects can be more
+ * <p>Many computations where one might be tempted to use side-effects can be more
  * safely and efficiently expressed without side-effects, such as using
  * <a href="package-summary.html#Reduction">reduction</a> instead of mutable
  * accumulators. However, side-effects such as using {@code println()} for debugging
@@ -445,7 +445,7 @@
  * required.
  *
  * <p>The "widgets" examples shown earlier shows how reduction combines with
- * other operations to replace for loops with bulk operations.  If {@code widgets}
+ * other operations to replace for-loops with bulk operations.  If {@code widgets}
  * is a collection of {@code Widget} objects, which have a {@code getWeight} method,
  * we can find the heaviest widget with:
  * <pre>{@code
@@ -729,7 +729,6 @@
  * timing of binding to the data, since the data could change between the time
  * the spliterator is created and the time the stream pipeline is executed.
  * Ideally, a spliterator for a stream would report a characteristic of
-
  * {@code IMMUTABLE} or {@code CONCURRENT}; if not it should be
  * <a href="../Spliterator.html#binding"><em>late-binding</em></a>. If a source
  * cannot directly supply a recommended spliterator, it may indirectly supply

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -274,7 +274,7 @@ class InstructionVisitor: public StackObj {
 
 
 #define HASHING3(class_name, enabled, f1, f2, f3)     \
-  virtual intx hash() const {                          \
+  virtual intx hash() const {                         \
     return (enabled) ? HASH4(name(), f1, f2, f3) : 0; \
   }                                                   \
   virtual bool is_equal(Value v) const {              \
@@ -462,6 +462,8 @@ class Instruction: public CompilationResourceObj {
   bool is_never_null() const                     { return check_flag(NeverNullFlag); }
   bool is_linked() const                         { return check_flag(IsLinkedInBlockFlag); }
   bool can_be_linked()                           { return as_Local() == NULL && as_Phi() == NULL; }
+
+  bool is_null_obj()                             { return as_Constant() != NULL && type()->as_ObjectType()->constant_value()->is_null_object(); }
 
   bool has_uses() const                          { return use_count() > 0; }
   ValueStack* state_before() const               { return _state_before; }
@@ -859,8 +861,8 @@ LEAF(LoadField, AccessField)
 
   ciType* declared_type() const;
 
-  // generic
-  HASHING2(LoadField, !needs_patching() && !field()->is_volatile(), obj()->subst(), offset())  // cannot be eliminated if needs patching or if volatile
+  // generic; cannot be eliminated if needs patching or if volatile.
+  HASHING3(LoadField, !needs_patching() && !field()->is_volatile(), obj()->subst(), offset(), declared_type())
 };
 
 
