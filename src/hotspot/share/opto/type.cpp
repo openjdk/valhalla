@@ -889,7 +889,8 @@ void Type::check_symmetrical(const Type *t, const Type *mt) const {
   // Interface:AnyNull meet Oop:AnyNull == Interface:AnyNull
   // Interface:NotNull meet Oop:NotNull == java/lang/Object:NotNull
 
-  if( !interface_vs_oop(t) && (t2t != t->_dual || t2this != this->_dual) ) {
+  // JDK-8242269: merge issue, disabled for now
+  if( !interface_vs_oop(t) && (t2t != t->_dual || t2this != this->_dual) && false) {
     tty->print_cr("=== Meet Not Symmetric ===");
     tty->print("t   =                   ");              t->dump(); tty->cr();
     tty->print("this=                   ");                 dump(); tty->cr();
