@@ -224,7 +224,12 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
     if (TraceDeoptimization) {
       ttyLocker ttyl;
       tty->print_cr("REALLOC OBJECTS in thread " INTPTR_FORMAT, p2i(thread));
-      Deoptimization::print_objects(objects, realloc_failures);
+      if (objects != NULL) {
+        Deoptimization::print_objects(objects, realloc_failures);
+      } else {
+        Handle obj = realloc_failures ? Handle() : return_oops.first();
+        Deoptimization::print_object(vk, obj, realloc_failures);
+      }
     }
 #endif
   }
@@ -1404,25 +1409,26 @@ void Deoptimization::relock_objects(GrowableArray<MonitorInfo*>* monitors, JavaT
 // print information about reallocated objects
 void Deoptimization::print_objects(GrowableArray<ScopeValue*>* objects, bool realloc_failures) {
   fieldDescriptor fd;
-
   for (int i = 0; i < objects->length(); i++) {
     ObjectValue* sv = (ObjectValue*) objects->at(i);
     Klass* k = java_lang_Class::as_Klass(sv->klass()->as_ConstantOopReadValue()->value()());
-    Handle obj = sv->value();
+    print_object(k, sv->value(), realloc_failures);
+  }
+}
 
-    tty->print("     object <" INTPTR_FORMAT "> of type ", p2i(sv->value()()));
-    k->print_value();
-    assert(obj.not_null() || realloc_failures, "reallocation was missed");
-    if (obj.is_null()) {
-      tty->print(" allocation failed");
-    } else {
-      tty->print(" allocated (%d bytes)", obj->size() * HeapWordSize);
-    }
-    tty->cr();
+void Deoptimization::print_object(Klass* k, Handle obj, bool realloc_failures) {
+  tty->print("     object <" INTPTR_FORMAT "> of type ", p2i(obj()));
+  k->print_value();
+  assert(obj.not_null() || realloc_failures, "reallocation was missed");
+  if (obj.is_null()) {
+    tty->print(" allocation failed");
+  } else {
+    tty->print(" allocated (%d bytes)", obj->size() * HeapWordSize);
+  }
+  tty->cr();
 
-    if (Verbose && !obj.is_null()) {
-      k->oop_print_on(obj(), tty);
-    }
+  if (Verbose && !obj.is_null()) {
+    k->oop_print_on(obj(), tty);
   }
 }
 #endif

@@ -2324,7 +2324,7 @@ public class TestLWorld extends ValueTypeTest {
                     }
                 }
                 boolean compiled = isCompiledByC2(m);
-                Asserts.assertTrue(!USE_COMPILER || XCOMP || TEST_C1 || compiled || (j != extra-1));
+                Asserts.assertTrue(!USE_COMPILER || XCOMP || STRESS_CC || TEST_C1 || compiled || (j != extra-1));
                 if (!compiled) {
                     enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
                 }

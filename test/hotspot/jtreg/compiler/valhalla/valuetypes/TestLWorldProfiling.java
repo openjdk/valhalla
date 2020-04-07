@@ -355,12 +355,10 @@ public class TestLWorldProfiling extends ValueTypeTest {
                     deopt = true;
                 }
             }
-            if (!TieredCompilation && (deopt && (UseArrayLoadStoreProfile || TypeProfileLevel == 222))) {
+            if (!TieredCompilation && !STRESS_CC && (deopt && (UseArrayLoadStoreProfile || TypeProfileLevel == 222))) {
                 throw new RuntimeException("Monomorphic array check should rely on profiling and be accurate");
             }
-
         }
-
     }
 
     // null free array profiling
