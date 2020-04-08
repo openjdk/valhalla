@@ -273,78 +273,11 @@ class ClassListMatcher : public StringMatcher {
   }
 };
 
-DEBUG_ONLY(static bool class_list_match_sane();)
-
 bool StringUtils::class_list_match(const char* class_pattern_list,
                                    const char* class_name) {
-  assert(class_list_match_sane(), "");
   if (class_pattern_list == NULL || class_name == NULL || class_name[0] == '\0')
     return false;
   ClassListMatcher clm;
   return clm.string_match(class_pattern_list, class_name);
 }
 
-#ifdef ASSERT
-static void class_list_match_sane(const char* pat, const char* str, bool result = true) {
-  if (result) {
-    assert(StringUtils::class_list_match(pat, str), "%s ~ %s", pat, str);
-  } else {
-    assert(!StringUtils::class_list_match(pat, str), "%s !~ %s", pat, str);
-  }
-}
-
-static bool class_list_match_sane() {
-  static bool done = false;
-  if (done)  return true;
-  done = true;
-  class_list_match_sane("foo", "foo");
-  class_list_match_sane("foo,", "foo");
-  class_list_match_sane(",foo,", "foo");
-  class_list_match_sane("bar,foo", "foo");
-  class_list_match_sane("bar,foo,", "foo");
-  class_list_match_sane("*", "foo");
-  class_list_match_sane("foo.bar", "foo/bar");
-  class_list_match_sane("foo/bar", "foo.bar");
-  class_list_match_sane("\\foo", "foo");
-  class_list_match_sane("\\*foo", "*foo");
-  const char* foo = "foo!";
-  char buf[100], buf2[100];
-  const int m = (int)strlen(foo);
-  for (int n = 0; n <= 1; n++) {  // neg: 0=>pos
-    for (int a = -1; a <= 1; a++) {  // alt: -1/X,T 0/T 1/T,Y
-      for (int i = 0; i <= m; i++) {  // 1st substring [i:j]
-        for (int j = i; j <= m; j++) {
-          if (j == i && j > 0)  continue; // only take 1st empty
-          for (int k = j; k <= m; k++) {  // 2nd substring [k:l]
-            if (k == j && k > i)  continue; // only take 1st empty
-            for (int l = k; l <= m; l++) {
-              if (l == k && l > j)  continue; // only take 1st empty
-              char* bp = &buf[0];
-              strncpy(bp, foo + 0, i - 0); bp += i - 0;
-              *bp++ = '*';
-              strncpy(bp, foo + j, k - j); bp += k - j;
-              *bp++ = '*';
-              strncpy(bp, foo + l, m - l); bp += m - l;
-              if (n) {
-                *bp++ = 'N';  // make it fail
-              }
-              *bp++ = '\0';
-              if (a != 0) {
-                if (a < 0) {  // X*, (test pattern)
-                  strcpy(buf2, buf);
-                  strcat(buf, "X*, ");
-                  strcat(buf, buf2);
-                } else {      // (test pattern), Y
-                  strcat(buf, ", Y");
-                }
-              }
-              class_list_match_sane(buf, foo, !n);
-            }
-          }
-        }
-      }
-    }
-  }
-  return true;
-}
-#endif //ASSERT
