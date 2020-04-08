@@ -689,7 +689,7 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
     assert(c->as_jint() == 0, "should be");
     insn = &Assembler::strw;
     break;
-  case T_VALUETYPE: 
+  case T_VALUETYPE:
   case T_OBJECT:
   case T_ARRAY:
     // Non-null case is not handled on aarch64 but handled on x86
@@ -952,7 +952,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
   LIR_Address* addr = src->as_address_ptr();
   LIR_Address* from_addr = src->as_address_ptr();
 
-  if (addr->base()->type() == T_OBJECT || addr->base()->type() == T_VALUETYPE) { 
+  if (addr->base()->type() == T_OBJECT || addr->base()->type() == T_VALUETYPE) {
     __ verify_oop(addr->base()->as_pointer_register());
   }
 
@@ -1634,10 +1634,10 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
     __ andr(tmp1, tmp1, tmp2);
 
     __ ldr(tmp2, Address(right, oopDesc::mark_offset_in_bytes()));
-    __ andr(tmp1, tmp1, tmp2); 
+    __ andr(tmp1, tmp1, tmp2);
 
     __ mov(tmp2, (intptr_t)markWord::always_locked_pattern);
-    __ cmp(tmp1, tmp2); 
+    __ cmp(tmp1, tmp2);
     __ br(Assembler::NE, L_oops_not_equal);
   }
 
@@ -2299,7 +2299,7 @@ void LIR_Assembler::shift_op(LIR_Code code, LIR_Opr left, LIR_Opr count, LIR_Opr
       }
       break;
     case T_LONG:
-    case T_VALUETYPE: 
+    case T_VALUETYPE:
     case T_ADDRESS:
     case T_OBJECT:
       switch (code) {

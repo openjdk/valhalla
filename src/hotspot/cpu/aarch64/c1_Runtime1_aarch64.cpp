@@ -959,7 +959,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       break;
 
       case substitutability_check_id:
-      { 
+      {
         StubFrame f(sasm, "substitutability_check", dont_gc_arguments);
         OopMap* map = save_live_registers(sasm, 3);
 
@@ -1232,7 +1232,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       break;
 
     default:
-      // FIXME: For unhandled trap_id this code fails with assert during vm intialization 
+      // FIXME: For unhandled trap_id this code fails with assert during vm intialization
       // rather than insert a call to unimplemented_entry
       { StubFrame f(sasm, "unimplemented entry", dont_gc_arguments);
         __ mov(r0, (int)id);
