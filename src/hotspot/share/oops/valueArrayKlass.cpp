@@ -83,7 +83,7 @@ void ValueArrayKlass::set_element_klass(Klass* k) {
 
 ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass* element_klass, TRAPS) {
   assert(ValueArrayFlatten, "Flatten array required");
-  assert(ValueKlass::cast(element_klass)->is_atomic() || (!ValueArrayAtomicAccess), "Atomic by-default");
+  assert(ValueKlass::cast(element_klass)->is_naturally_atomic() || (!ValueArrayAtomicAccess), "Atomic by-default");
 
   /*
    *  MVT->LWorld, now need to allocate secondaries array types, just like objArrayKlass...

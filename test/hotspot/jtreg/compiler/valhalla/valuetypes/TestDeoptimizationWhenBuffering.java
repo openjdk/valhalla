@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,34 +28,47 @@ import java.lang.reflect.Method;
 
 import jdk.test.lib.Asserts;
 
+import sun.hotspot.WhiteBox;
+
 /**
  * @test TestDeoptimizationWhenBuffering
  * @summary Test correct execution after deoptimizing from inline type specific runtime calls.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @compile -XDallowWithFieldOperator TestDeoptimizationWhenBuffering.java
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+DeoptimizeALot -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.*::test*
+ *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering C1
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch
  *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
  *                   -XX:-ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:ValueArrayElemMaxFlatSize=1
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.*::test*
  *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
  *                   -XX:-ValueTypePassFieldsAsArgs -XX:-ValueTypeReturnedAsFields -XX:ValueArrayElemMaxFlatSize=1
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.*::test*
  *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
  *                   -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields -XX:ValueArrayElemMaxFlatSize=-1
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.*::test*
  *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
  *                   -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields -XX:ValueArrayElemMaxFlatSize=-1
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.*::test*
  *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
  *                   -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueFieldMaxFlatSize=0
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.*::test*
  *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering
- * @run main/othervm -XX:+IgnoreUnrecognizedVMOptions -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
+ * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
+ *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
  *                   -XX:+ValueTypePassFieldsAsArgs -XX:+ValueTypeReturnedAsFields -XX:ValueArrayElemMaxFlatSize=-1 -XX:ValueFieldMaxFlatSize=0
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.*::test*
  *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering
@@ -91,6 +104,9 @@ final inline class MyValue2 {
 }
 
 public class TestDeoptimizationWhenBuffering {
+    static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
+    static final int COMP_LEVEL_FULL_OPTIMIZATION = 4; // C2 or JVMCI
+
     static {
         try {
             Class<?> clazz = TestDeoptimizationWhenBuffering.class;
@@ -116,7 +132,7 @@ public class TestDeoptimizationWhenBuffering {
         return vtField1;
     }
 
-    int test3Callee(MyValue1 vt) {
+    public int test3Callee(MyValue1 vt) {
         return vt.hash();
     }
 
@@ -152,7 +168,7 @@ public class TestDeoptimizationWhenBuffering {
 
     static final MethodHandle test9_mh;
 
-    static MyValue1 test9Callee() {
+    public static MyValue1 test9Callee() {
         return new MyValue1();
     }
 
@@ -164,7 +180,7 @@ public class TestDeoptimizationWhenBuffering {
     static final MyValue1 test10Field = new MyValue1();
     static int test10Counter = 0;
 
-    static MyValue1 test10Callee() {
+    public static MyValue1 test10Callee() {
         test10Counter++;
         return test10Field;
     }
@@ -185,6 +201,19 @@ public class TestDeoptimizationWhenBuffering {
     }
 
     public static void main(String[] args) throws Throwable {
+        if (args.length > 0) {
+            // Compile callees with C1 only, to exercise deoptimization while buffering at method entry
+            Asserts.assertEQ(args[0], "C1", "unsupported mode");
+            Method m = MyValue1.class.getMethod("testWithField", int.class);
+            WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);
+            m = TestDeoptimizationWhenBuffering.class.getMethod("test3Callee", MyValue1.class);
+            WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);
+            m = TestDeoptimizationWhenBuffering.class.getMethod("test9Callee");
+            WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);
+            m = TestDeoptimizationWhenBuffering.class.getMethod("test10Callee");
+            WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);
+        }
+
         MyValue1[] va = new MyValue1[3];
         va[0] = new MyValue1();
         Object[] oa = new Object[3];

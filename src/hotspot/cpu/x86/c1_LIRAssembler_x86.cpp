@@ -283,8 +283,7 @@ void LIR_Assembler::osr_entry() {
 
   // build frame
   ciMethod* m = compilation()->method();
-  __ build_frame(initial_frame_size_in_bytes(), bang_size_in_bytes(),
-                 needs_stack_repair(), NULL);
+  __ build_frame(initial_frame_size_in_bytes(), bang_size_in_bytes());
 
   // OSR buffer is
   //
@@ -481,7 +480,8 @@ int LIR_Assembler::emit_unwind_handler() {
   }
 
   // remove the activation and dispatch to the unwind handler
-  __ remove_frame(initial_frame_size_in_bytes(), needs_stack_repair());
+  int initial_framesize = initial_frame_size_in_bytes();
+  __ remove_frame(initial_framesize, needs_stack_repair(), initial_framesize - wordSize);
   __ jump(RuntimeAddress(Runtime1::entry_for(Runtime1::unwind_exception_id)));
 
   // Emit the slow path assembly
@@ -547,7 +547,8 @@ void LIR_Assembler::return_op(LIR_Opr result) {
   }
 
   // Pop the stack before the safepoint code
-  __ remove_frame(initial_frame_size_in_bytes(), needs_stack_repair());
+  int initial_framesize = initial_frame_size_in_bytes();
+  __ remove_frame(initial_framesize, needs_stack_repair(), initial_framesize - wordSize);
 
   if (StackReservedPages > 0 && compilation()->has_reserved_stack_access()) {
     __ reserved_stack_check();
@@ -4269,6 +4270,9 @@ void LIR_Assembler::get_thread(LIR_Opr result_reg) {
 #endif // _LP64
 }
 
+void LIR_Assembler::check_orig_pc() {
+  __ cmpptr(frame_map()->address_for_orig_pc_addr(), (int32_t)NULL_WORD);
+}
 
 void LIR_Assembler::peephole(LIR_List*) {
   // do nothing for now

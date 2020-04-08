@@ -1663,12 +1663,12 @@ public:
   bool pack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
                          VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
                          int ret_off, int extra_stack_offset);
-  void restore_stack(Compile* C);
+  void remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset);
 
-  int shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
-                         BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                         int args_passed, int args_on_stack, VMRegPair* regs,
-                         int args_passed_to, int args_on_stack_to, VMRegPair* regs_to);
+  void shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
+                          BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
+                          int args_passed, int args_on_stack, VMRegPair* regs,
+                          int args_passed_to, int args_on_stack_to, VMRegPair* regs_to, int sp_inc);
   bool shuffle_value_args_spill(bool is_packing,  const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
                                 VMRegPair* regs_from, int from_index, int regs_from_count,
                                 RegState* reg_state, int sp_inc, int extra_stack_offset);

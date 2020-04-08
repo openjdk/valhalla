@@ -906,6 +906,7 @@ enum LIR_Code {
       , lir_membar_storeload
       , lir_get_thread
       , lir_on_spin_wait
+      , lir_check_orig_pc
   , end_op0
   , begin_op1
       , lir_fxch

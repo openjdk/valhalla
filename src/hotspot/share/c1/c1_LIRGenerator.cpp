@@ -3120,6 +3120,14 @@ void LIRGenerator::do_Base(Base* x) {
     CodeEmitInfo* info = new CodeEmitInfo(scope()->start()->state()->copy(ValueStack::StateBefore, SynchronizationEntryBCI), NULL, false);
     increment_invocation_counter(info);
   }
+  if (method()->has_scalarized_args()) {
+    // Check if deoptimization was triggered (i.e. orig_pc was set) while buffering scalarized value type arguments
+    // in the entry point (see comments in frame::deoptimize). If so, deoptimize only now that we have the right state.
+    CodeEmitInfo* info = new CodeEmitInfo(scope()->start()->state()->copy(ValueStack::StateBefore, 0), NULL, false);
+    CodeStub* deopt_stub = new DeoptimizeStub(info, Deoptimization::Reason_none, Deoptimization::Action_none);
+    __ append(new LIR_Op0(lir_check_orig_pc));
+    __ branch(lir_cond_notEqual, T_ADDRESS, deopt_stub);
+  }
 
   // all blocks with a successor must end with an unconditional jump
   // to the successor even if they are consecutive

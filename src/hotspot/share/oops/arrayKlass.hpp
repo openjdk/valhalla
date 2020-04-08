@@ -69,6 +69,10 @@ class ArrayKlass: public Klass {
   // Presented with an ArrayKlass, which storage_properties should be encoded into arrayOop
   virtual ArrayStorageProperties storage_properties() { return ArrayStorageProperties::empty; }
 
+  // Are loads and stores to this concrete array type atomic?
+  // Note that Object[] is naturally atomic, but its subtypes may not be.
+  virtual bool element_access_is_atomic() { return true; }
+
   // Testing operation
   DEBUG_ONLY(bool is_array_klass_slow() const { return true; })
 

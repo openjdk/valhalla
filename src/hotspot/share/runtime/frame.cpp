@@ -53,6 +53,9 @@
 #include "utilities/debug.hpp"
 #include "utilities/decoder.hpp"
 #include "utilities/formatBuffer.hpp"
+#ifdef COMPILER1
+#include "c1/c1_Runtime1.hpp"
+#endif
 
 RegisterMap::RegisterMap(JavaThread *thread, bool update_map) {
   _thread         = thread;
@@ -285,6 +288,25 @@ void frame::deoptimize(JavaThread* thread) {
 
   // Save the original pc before we patch in the new one
   cm->set_original_pc(this, pc());
+
+#ifdef COMPILER1
+  if (cm->is_compiled_by_c1() && cm->method()->has_scalarized_args() &&
+      pc() < cm->verified_value_entry_point()) {
+    // The VEP and VVEP(RO) of C1-compiled methods call into the runtime to buffer scalarized value
+    // type args. We can't deoptimize at that point because the buffers have not yet been initialized.
+    // Also, if the method is synchronized, we first need to acquire the lock.
+    // Don't patch the return pc to delay deoptimization until we enter the method body (the check
+    // addedin LIRGenerator::do_Base will detect the pending deoptimization by checking the original_pc).
+#ifdef ASSERT
+    NativeCall* call = nativeCall_before(this->pc());
+    address dest = call->destination();
+    assert(dest == Runtime1::entry_for(Runtime1::buffer_value_args_no_receiver_id) ||
+           dest == Runtime1::entry_for(Runtime1::buffer_value_args_id), "unexpected safepoint in entry point");
+#endif
+    return;
+  }
+#endif
+
   patch_pc(thread, deopt);
 
 #ifdef ASSERT

@@ -451,7 +451,7 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
   // It is only an FP if the sender is an interpreter frame (or C1?).
   intptr_t** saved_fp_addr = (intptr_t**) (sender_sp - frame::sender_sp_offset);
 
-  // Repair the sender sp if this is a method with scalarized value type args
+  // Repair the sender sp if the frame has been extended
   sender_sp = repair_sender_sp(sender_sp, saved_fp_addr);
 
   // On Intel the return_address is always the word on the stack
@@ -472,22 +472,24 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     // For C1, the runtime stub might not have oop maps, so set this flag
     // outside of update_register_map.
     bool caller_args = _cb->caller_must_gc_arguments(map->thread());
+#ifdef COMPILER1
     if (!caller_args) {
       nmethod* nm = _cb->as_nmethod_or_null();
-      if (nm != NULL && nm->is_compiled_by_c1() &&
-          nm->method()->has_scalarized_args() &&
+      if (nm != NULL && nm->is_compiled_by_c1() && nm->method()->has_scalarized_args() &&
           pc() < nm->verified_value_entry_point()) {
         // The VEP and VVEP(RO) of C1-compiled methods call buffer_value_args_xxx
         // before doing any argument shuffling, so we need to scan the oops
         // as the caller passes them.
+        caller_args = true;
+#ifdef ASSERT
         NativeCall* call = nativeCall_before(pc());
         address dest = call->destination();
-        if (dest == Runtime1::entry_for(Runtime1::buffer_value_args_no_receiver_id) ||
-            dest == Runtime1::entry_for(Runtime1::buffer_value_args_id)) {
-          caller_args = true;
-        }
+        assert(dest == Runtime1::entry_for(Runtime1::buffer_value_args_no_receiver_id) ||
+               dest == Runtime1::entry_for(Runtime1::buffer_value_args_id), "unexpected safepoint in entry point");
+#endif
       }
     }
+#endif
     map->set_include_argument_oops(caller_args);
     if (_cb->oop_maps() != NULL) {
       OopMapSet::update_register_map(this, map);
@@ -712,11 +714,7 @@ intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr)
     // The stack increment resides just below the saved rbp on the stack
     // and does not account for the return address.
     intptr_t* real_frame_size_addr = (intptr_t*) (saved_fp_addr - 1);
-    int real_frame_size = (*real_frame_size_addr) / wordSize;
-    if (!cm->is_compiled_by_c1()) {
-      // Add size of return address (C1 already includes the RA size)
-      real_frame_size += 1;
-    }
+    int real_frame_size = ((*real_frame_size_addr) + wordSize) / wordSize;
     assert(real_frame_size >= _cb->frame_size(), "invalid frame size");
     sender_sp = unextended_sp() + real_frame_size;
   }

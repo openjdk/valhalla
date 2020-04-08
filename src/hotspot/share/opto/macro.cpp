@@ -83,18 +83,6 @@ int PhaseMacroExpand::replace_input(Node *use, Node *oldref, Node *newref) {
   return nreplacements;
 }
 
-void PhaseMacroExpand::migrate_outs(Node *old, Node *target) {
-  assert(old != NULL, "sanity");
-  for (DUIterator_Fast imax, i = old->fast_outs(imax); i < imax; i++) {
-    Node* use = old->fast_out(i);
-    _igvn.rehash_node_delayed(use);
-    imax -= replace_input(use, old, target);
-    // back up iterator
-    --i;
-  }
-  assert(old->outcnt() == 0, "all uses must be deleted");
-}
-
 Node* PhaseMacroExpand::opt_bits_test(Node* ctrl, Node* region, int edge, Node* word, int mask, int bits, bool return_fast_path) {
   Node* cmp;
   if (mask != 0) {
@@ -1565,7 +1553,7 @@ void PhaseMacroExpand::expand_allocate_common(
   // result_phi_rawmem (unless we are only generating a slow call when
   // both memory projections are combined)
   if (expand_fast_path && _memproj_fallthrough != NULL) {
-    migrate_outs(_memproj_fallthrough, result_phi_rawmem);
+    _igvn.replace_in_uses(_memproj_fallthrough, result_phi_rawmem);
   }
   // Now change uses of _memproj_catchall to use _memproj_fallthrough and delete
   // _memproj_catchall so we end up with a call that has only 1 memory projection.
@@ -1574,7 +1562,7 @@ void PhaseMacroExpand::expand_allocate_common(
       _memproj_fallthrough = new ProjNode(call, TypeFunc::Memory);
       transform_later(_memproj_fallthrough);
     }
-    migrate_outs(_memproj_catchall, _memproj_fallthrough);
+    _igvn.replace_in_uses(_memproj_catchall, _memproj_fallthrough);
     _igvn.remove_dead_node(_memproj_catchall);
   }
 
@@ -1584,7 +1572,7 @@ void PhaseMacroExpand::expand_allocate_common(
   // (it is different from memory projections where both projections are
   // combined in such case).
   if (_ioproj_fallthrough != NULL) {
-    migrate_outs(_ioproj_fallthrough, result_phi_i_o);
+    _igvn.replace_in_uses(_ioproj_fallthrough, result_phi_i_o);
   }
   // Now change uses of _ioproj_catchall to use _ioproj_fallthrough and delete
   // _ioproj_catchall so we end up with a call that has only 1 i_o projection.
@@ -1593,7 +1581,7 @@ void PhaseMacroExpand::expand_allocate_common(
       _ioproj_fallthrough = new ProjNode(call, TypeFunc::I_O);
       transform_later(_ioproj_fallthrough);
     }
-    migrate_outs(_ioproj_catchall, _ioproj_fallthrough);
+    _igvn.replace_in_uses(_ioproj_catchall, _ioproj_fallthrough);
     _igvn.remove_dead_node(_ioproj_catchall);
   }
 
@@ -1661,7 +1649,7 @@ void PhaseMacroExpand::yank_alloc_node(AllocateNode* alloc) {
     _igvn.remove_dead_node(_resproj);
   }
   if (_fallthroughcatchproj != NULL) {
-    migrate_outs(_fallthroughcatchproj, ctrl);
+    _igvn.replace_in_uses(_fallthroughcatchproj, ctrl);
     _igvn.remove_dead_node(_fallthroughcatchproj);
   }
   if (_catchallcatchproj != NULL) {
@@ -1674,11 +1662,11 @@ void PhaseMacroExpand::yank_alloc_node(AllocateNode* alloc) {
     _igvn.remove_dead_node(_fallthroughproj);
   }
   if (_memproj_fallthrough != NULL) {
-    migrate_outs(_memproj_fallthrough, mem);
+    _igvn.replace_in_uses(_memproj_fallthrough, mem);
     _igvn.remove_dead_node(_memproj_fallthrough);
   }
   if (_ioproj_fallthrough != NULL) {
-    migrate_outs(_ioproj_fallthrough, i_o);
+    _igvn.replace_in_uses(_ioproj_fallthrough, i_o);
     _igvn.remove_dead_node(_ioproj_fallthrough);
   }
   if (_memproj_catchall != NULL) {
