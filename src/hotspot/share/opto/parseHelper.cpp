@@ -351,24 +351,24 @@ void Parse::do_withfield() {
   bool will_link;
   ciField* field = iter().get_field(will_link);
   assert(will_link, "withfield: typeflow responsibility");
-  BasicType bt = field->layout_type();
-  Node* val = type2size[bt] == 1 ? pop() : pop_pair();
+  Node* val = pop_node(field->layout_type());
   ciValueKlass* holder_klass = field->holder()->as_value_klass();
   Node* holder = pop();
+  int nargs = 1 + field->type()->size();
 
   if (!holder->is_ValueType()) {
     // Null check and scalarize value type holder
-    inc_sp(2);
+    inc_sp(nargs);
     holder = null_check(holder);
-    dec_sp(2);
+    dec_sp(nargs);
     if (stopped()) return;
     holder = ValueTypeNode::make_from_oop(this, holder, holder_klass);
   }
   if (!val->is_ValueType() && field->is_flattenable()) {
     // Null check and scalarize value type field value
-    inc_sp(2);
+    inc_sp(nargs);
     val = null_check(val);
-    dec_sp(2);
+    dec_sp(nargs);
     if (stopped()) return;
     val = ValueTypeNode::make_from_oop(this, val, gvn().type(val)->value_klass());
   } else if (val->is_ValueType() && !field->is_flattenable()) {
@@ -376,7 +376,7 @@ void Parse::do_withfield() {
     // with an oop. Re-execute withfield if buffering triggers deoptimization.
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
-    inc_sp(2);
+    inc_sp(nargs);
     val = ValueTypePtrNode::make_from_value_type(this, val->as_ValueType());
   }
 
@@ -385,16 +385,16 @@ void Parse::do_withfield() {
   new_vt->set_oop(_gvn.zerocon(T_VALUETYPE));
   gvn().set_type(new_vt, new_vt->bottom_type());
   new_vt->set_field_value_by_offset(field->offset(), val);
+  Node* res = new_vt;
 
-  if (holder_klass->is_scalarizable()) {
-    push(_gvn.transform(new_vt));
-  } else {
+  if (!holder_klass->is_scalarizable()) {
     // Re-execute withfield if buffering triggers deoptimization
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
-    inc_sp(2);
-    push(new_vt->allocate(this)->get_oop());
+    inc_sp(nargs);
+    res = new_vt->allocate(this)->get_oop();
   }
+  push(_gvn.transform(res));
 }
 
 #ifndef PRODUCT
