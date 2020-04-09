@@ -142,6 +142,7 @@ public abstract class ValueTypeTest {
     private static final boolean FLIP_C1_C2 = Boolean.parseBoolean(System.getProperty("FlipC1C2", "false"));
     private static final boolean GC_AFTER = Boolean.parseBoolean(System.getProperty("GCAfter", "false"));
     private static final int OSR_TEST_TIMEOUT = Integer.parseInt(System.getProperty("OSRTestTimeOut", "5000"));
+    protected static final boolean STRESS_CC = Boolean.parseBoolean(System.getProperty("StressCC", "false"));
 
     // "jtreg -DXcomp=true" runs all the scenarios with -Xcomp. This is faster than "jtreg -javaoptions:-Xcomp".
     protected static final boolean RUN_SCENARIOS_WITH_XCOMP = Boolean.parseBoolean(System.getProperty("Xcomp", "false"));
@@ -625,6 +626,13 @@ public abstract class ValueTypeTest {
                 Asserts.assertFalse(m.isAnnotationPresent(ForceInline.class), "Method " + m.getName() + " has contradicting ForceInline annotation");
                 WHITE_BOX.testSetDontInlineMethod(m, true);
             }
+            if (STRESS_CC) {
+                // Exclude some methods from compilation with C2 to stress test the calling convention
+                if (Utils.getRandomInstance().nextBoolean()) {
+                    System.out.println("Excluding from C2 compilation: " + m);
+                    WHITE_BOX.makeMethodNotCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false);
+                }
+            }
         }
         // Only force compilation now because above annotations affect inlining
         for (Method m : methods) {
@@ -640,7 +648,7 @@ public abstract class ValueTypeTest {
     }
 
     private void run(Class<?>... classes) throws Exception {
-        if (USE_COMPILER && PRINT_IDEAL && !XCOMP) {
+        if (USE_COMPILER && PRINT_IDEAL && !XCOMP && !STRESS_CC) {
             System.out.println("PrintIdeal enabled");
         }
         System.out.format("rI = %d, rL = %d\n", rI, rL);
@@ -701,15 +709,13 @@ public abstract class ValueTypeTest {
                     if (VERBOSE) {
                         System.out.println("Is " + test.getName() + " compiled? " + b);
                     }
-                    if (b || XCOMP || !USE_COMPILER) {
+                    if (b || XCOMP || STRESS_CC || !USE_COMPILER) {
                         // Don't control compilation if -Xcomp is enabled, or if compiler is disabled
                         break;
                     }
                     Asserts.assertTrue(OSR_TEST_TIMEOUT < 0 || elapsed < OSR_TEST_TIMEOUT, test + " not compiled after " + OSR_TEST_TIMEOUT + " ms");
                 }
-                if (!XCOMP) {
-                    Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
-                }
+                Asserts.assertTrue(XCOMP || STRESS_CC || !USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
             } else {
                 int compLevel = getCompLevel(test.getAnnotation(Test.class));
                 // Trigger compilation
@@ -721,7 +727,7 @@ public abstract class ValueTypeTest {
                     enqueueMethodForCompilation(test, compLevel);
                     WHITE_BOX.setBooleanVMFlag("VerifyOops", true);
                 }
-                Asserts.assertTrue(!USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
+                Asserts.assertTrue(STRESS_CC || !USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
                 // Check result
                 verifier.invoke(this, false);
             }

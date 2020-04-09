@@ -50,7 +50,7 @@ public class TestArrays extends ValueTypeTest {
             CompLevel_full_profile      = 3,         // C1, invocation & backedge counters + mdo
             CompLevel_full_optimization = 4;         // C2 or JVMCI
 
-        if (USE_COMPILER && !XCOMP && WHITE_BOX.isMethodCompiled(m, false) &&
+        if (USE_COMPILER && !XCOMP && !STRESS_CC && WHITE_BOX.isMethodCompiled(m, false) &&
             WHITE_BOX.getMethodCompilationLevel(m, false) >= CompLevel_full_optimization) {
             throw new RuntimeException("Type check should have caused it to deoptimize");
         }
@@ -877,7 +877,7 @@ public class TestArrays extends ValueTypeTest {
         if (!warmup) {
             Method m = tests.get(test);
             if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false)) {
-                if (!ValueTypeArrayFlatten && !XCOMP) {
+                if (!ValueTypeArrayFlatten && !XCOMP && !STRESS_CC) {
                     throw new RuntimeException("Unexpected deoptimization");
                 }
                 enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
@@ -973,7 +973,7 @@ public class TestArrays extends ValueTypeTest {
             enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test38(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
                 throw new RuntimeException("unexpected deoptimization");
             }
         }
@@ -1022,7 +1022,7 @@ public class TestArrays extends ValueTypeTest {
             enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test40(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
                 throw new RuntimeException("unexpected deoptimization");
             }
         }
@@ -1066,7 +1066,7 @@ public class TestArrays extends ValueTypeTest {
         verify(src, dst);
         if (!warmup) {
             Method m = tests.get("TestArrays::test42");
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
                 throw new RuntimeException("unexpected deoptimization");
             }
         }
@@ -1154,7 +1154,7 @@ public class TestArrays extends ValueTypeTest {
             enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test46(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
                 throw new RuntimeException("unexpected deoptimization");
             }
         }
@@ -1201,7 +1201,7 @@ public class TestArrays extends ValueTypeTest {
             enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test48(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
                 throw new RuntimeException("unexpected deoptimization");
             }
         }
@@ -1243,7 +1243,7 @@ public class TestArrays extends ValueTypeTest {
         verify(src, dst);
         if (!warmup) {
             Method m = tests.get("TestArrays::test50");
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
                 throw new RuntimeException("unexpected deoptimization");
             }
         }

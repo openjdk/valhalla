@@ -1079,7 +1079,7 @@ public class TestNullableArrays extends ValueTypeTest {
         if (!warmup) {
             Method m = tests.get(test);
             if (USE_COMPILER &&  !WHITE_BOX.isMethodCompiled(m, false)) {
-                if (!ValueTypeArrayFlatten && !XCOMP) {
+                if (!ValueTypeArrayFlatten && !XCOMP && !STRESS_CC) {
                     throw new RuntimeException("Unexpected deoptimization");
                 }
                 enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
@@ -1175,7 +1175,7 @@ public class TestNullableArrays extends ValueTypeTest {
             enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test38(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
                 throw new RuntimeException("unexpected deoptimization");
             }
         }
@@ -1224,7 +1224,7 @@ public class TestNullableArrays extends ValueTypeTest {
             enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test40(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
                 throw new RuntimeException("unexpected deoptimization");
             }
         }
@@ -1268,7 +1268,7 @@ public class TestNullableArrays extends ValueTypeTest {
         verify(src, dst);
         if (!warmup) {
             Method m = tests.get("TestNullableArrays::test42");
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
                 throw new RuntimeException("unexpected deoptimization");
             }
         }
@@ -1356,7 +1356,7 @@ public class TestNullableArrays extends ValueTypeTest {
             enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test46(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
                 throw new RuntimeException("unexpected deoptimization");
             }
         }
@@ -1403,7 +1403,7 @@ public class TestNullableArrays extends ValueTypeTest {
             enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
             test48(src, dst);
             verify(dst, src);
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
                 throw new RuntimeException("unexpected deoptimization");
             }
         }
@@ -1445,7 +1445,7 @@ public class TestNullableArrays extends ValueTypeTest {
         verify(src, dst);
         if (!warmup) {
             Method m = tests.get("TestNullableArrays::test50");
-            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP) {
+            if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false) && !XCOMP && !STRESS_CC) {
                 throw new RuntimeException("unexpected deoptimization");
             }
         }

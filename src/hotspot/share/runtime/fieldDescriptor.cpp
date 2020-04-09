@@ -31,7 +31,7 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/valueKlass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/signature.hpp"
@@ -190,15 +190,19 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
       as_int = obj->bool_field(offset());
       st->print(" %s", obj->bool_field(offset()) ? "true" : "false");
       break;
-    case T_ARRAY:
-      st->print(" ");
-      NOT_LP64(as_int = obj->int_field(offset()));
-      if (obj->obj_field(offset()) != NULL) {
-        obj->obj_field(offset())->print_value_on(st);
-      } else {
-        st->print_cr("NULL");
+    case T_VALUETYPE:
+      if (is_flattened()) {
+        // Print fields of flattened value type field
+        ValueKlass* vk = ValueKlass::cast(field_holder()->get_value_field_klass(index()));
+        int field_offset = offset() - vk->first_field_offset();
+        obj = (oop)(cast_from_oop<address>(obj) + field_offset);
+        st->print_cr("Flattened value type '%s':", vk->name()->as_C_string());
+        FieldPrinter print_field(st, obj);
+        vk->do_nonstatic_fields(&print_field);
+        return; // Do not print underlying representation
       }
-      break;
+      // Non-flattened field, fall through
+    case T_ARRAY:
     case T_OBJECT:
       st->print(" ");
       NOT_LP64(as_int = obj->int_field(offset()));
@@ -206,25 +210,6 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
         obj->obj_field(offset())->print_value_on(st);
       } else {
         st->print_cr("NULL");
-      }
-      break;
-    case T_VALUETYPE:
-      if (is_flattened()) {
-        // Resolve klass of flattened value type field
-        ResourceMark rm(Thread::current());
-        SignatureStream ss(signature(), false);
-        ValueKlass* vk = ss.as_value_klass(field_holder());
-        int field_offset = offset() - vk->first_field_offset();
-        obj = (oop)(cast_from_oop<address>(obj) + field_offset);
-        // Print flattened fields of the value type field
-        st->print_cr("Flattened value type '%s':", vk->name()->as_C_string());
-        FieldPrinter print_field(st, obj);
-        vk->do_nonstatic_fields(&print_field);
-        return; // Do not print underlying representation
-      } else {
-        st->print(" ");
-        NOT_LP64(as_int = obj->int_field(offset()));
-        obj->obj_field(offset())->print_value_on(st);
       }
       break;
     default:
