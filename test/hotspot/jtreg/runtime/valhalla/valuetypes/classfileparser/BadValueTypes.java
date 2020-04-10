@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,7 +60,7 @@ public class BadValueTypes {
         runTest("ValueMethodSynch",
                 "Method getInt in class ValueMethodSynch (an inline class) has illegal modifiers");
 
-        runTest("ValueSuperClass", "Value type must have java.lang.Object as superclass");
+        runTest("ValueSuperClass", "Inline type must have java.lang.Object as superclass");
 
         // Test that ClassCircularityError gets detected for instance fields.
         System.out.println("Testing ClassCircularityError for instance fields");
@@ -81,6 +81,6 @@ public class BadValueTypes {
              throw new RuntimeException( "java.lang.ClassCircularityError exception thrown!");
          }
 
-        runTest("ValueCloneable", "Value Types do not support Cloneable");
+        runTest("ValueCloneable", "Inline Types do not support Cloneable");
     }
 }
