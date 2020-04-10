@@ -60,59 +60,59 @@ import javax.tools.*;
 public class CreationErrorTest {
 
     static inline class InlineClass {
-	int i = 0;
+        int i = 0;
     }
 
     static class IdentityClass {
-	long l = 0L;
+        long l = 0L;
     }
 
     static MethodHandles.Lookup LOOKUP = MethodHandles.lookup();
-    
+
     public static void main(String[] args) {
-	testErroneousObjectCreation();
-	testErroneousValueCreation();
+        testErroneousObjectCreation();
+        testErroneousValueCreation();
     }
-    
+
     static void testErroneousObjectCreation() {
-	MethodHandle testNewOnInlineClass = MethodHandleBuilder.loadCode(
+        MethodHandle testNewOnInlineClass = MethodHandleBuilder.loadCode(
                 LOOKUP,
                 "testNewOnInlineClass",
                 MethodType.methodType(boolean.class),
                 CODE -> {
-		    CODE.new_(InlineClass.class)
-			.iconst_1()
-			.return_(TypeTag.Z);
+                    CODE.new_(InlineClass.class)
+                        .iconst_1()
+                        .return_(TypeTag.Z);
                 });
-	Throwable error = null;
-	try {
-	    boolean result = (boolean) testNewOnInlineClass.invokeExact();
-	} catch (Throwable t) {
-	    error = t;
-	}
-	System.out.println("error="+error);
+        Throwable error = null;
+        try {
+            boolean result = (boolean) testNewOnInlineClass.invokeExact();
+        } catch (Throwable t) {
+            error = t;
+        }
+        System.out.println("error="+error);
         assertTrue(error != null && error instanceof InstantiationError, "Invariant");
 
     }
 
     // Note: this test might become obsolete if defaultvalue is extended to accept identity classes
     static void testErroneousValueCreation() {
-	MethodHandle testDefaultvalueOnIdentityClass = MethodHandleBuilder.loadCode(
+        MethodHandle testDefaultvalueOnIdentityClass = MethodHandleBuilder.loadCode(
                 LOOKUP,
                 "testDefaultValueOnIdentityClass",
                 MethodType.methodType(boolean.class),
                 CODE -> {
-		    CODE.defaultvalue(IdentityClass.class)
-			.iconst_1()
-			.return_(TypeTag.Z);
+                    CODE.defaultvalue(IdentityClass.class)
+                        .iconst_1()
+                        .return_(TypeTag.Z);
                 });
-	Throwable error = null;
-	try {
-	    boolean result = (boolean) testDefaultvalueOnIdentityClass.invokeExact();
-	} catch (Throwable t) {
-	    error = t;
-	}
-	System.out.println("error="+error);
+        Throwable error = null;
+        try {
+            boolean result = (boolean) testDefaultvalueOnIdentityClass.invokeExact();
+        } catch (Throwable t) {
+            error = t;
+        }
+        System.out.println("error="+error);
         assertTrue(error != null && error instanceof IncompatibleClassChangeError, "Invariant");
 
     }
