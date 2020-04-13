@@ -4337,7 +4337,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   // Temporary value types restrictions
   if (is_value_type()) {
     if (is_contended_class) {
-      throwValueTypeLimitation(THREAD_AND_LOCATION, "Value Types do not support @Contended annotation yet");
+      throwValueTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support @Contended annotation yet");
       return;
     }
   }
@@ -4438,7 +4438,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
   if (is_value_type() && (!has_nonstatic_fields)) {
     // There are a number of fixes required throughout the type system and JIT
-    throwValueTypeLimitation(THREAD_AND_LOCATION, "Value Types do not support zero instance size yet");
+    throwValueTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support zero instance size yet");
     return;
   }
 
@@ -4761,7 +4761,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
             // Value types in static fields are handled with oops
           case NONSTATIC_FLATTENABLE:
             throwValueTypeLimitation(THREAD_AND_LOCATION,
-                                     "@Contended annotation not supported for value types yet", fs.name(), fs.signature());
+                                     "@Contended annotation not supported for inline types yet", fs.name(), fs.signature());
             return;
 
           case NONSTATIC_OOP:
@@ -4923,7 +4923,7 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
     if (ik->is_subtype_of(SystemDictionary::Cloneable_klass())) {
       if (ik->is_value()) {
         Thread *THREAD = Thread::current();
-        throwValueTypeLimitation(THREAD_AND_LOCATION, "Value Types do not support Cloneable");
+        throwValueTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support Cloneable");
         return;
       }
       ik->set_is_cloneable();
@@ -6930,7 +6930,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     // For a value class, only java/lang/Object is an acceptable super class
     if (_access_flags.get_flags() & JVM_ACC_VALUE) {
       guarantee_property(_super_klass->name() == vmSymbols::java_lang_Object(),
-        "Value type must have java.lang.Object as superclass in class file %s",
+        "Inline type must have java.lang.Object as superclass in class file %s",
         CHECK);
     }
 
