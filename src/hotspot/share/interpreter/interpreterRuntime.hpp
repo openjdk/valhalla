@@ -86,6 +86,7 @@ class InterpreterRuntime: AllStatic {
                                                   Klass* recvKlass,
                                                   Method* missingMethod);
 
+  static void    throw_InstantiationError(JavaThread* thread);
   static void    throw_IncompatibleClassChangeError(JavaThread* thread);
   static void    throw_IncompatibleClassChangeErrorVerbose(JavaThread* thread,
                                                            Klass* resc,

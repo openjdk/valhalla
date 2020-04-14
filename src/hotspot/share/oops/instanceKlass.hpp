@@ -163,6 +163,7 @@ class InstanceKlass: public Klass {
   friend class JVMCIVMStructs;
   friend class ClassFileParser;
   friend class CompileReplay;
+  friend class TemplateTable;
 
  public:
   static const KlassID ID = InstanceKlassID;
