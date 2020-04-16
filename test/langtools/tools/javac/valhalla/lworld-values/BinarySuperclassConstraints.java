@@ -12,7 +12,7 @@ public class BinarySuperclassConstraints {
 
     // Test that super class cannot be concrete, including express jlO
     inline class I0 extends SuperclassCollections.BadSuper {} // ERROR: concrete super class
-    
+
     // Test that abstract class is allowed to be super including when extending jlO
     inline class I3 extends SuperclassCollections.GoodSuper implements SuperclassCollections.GoodSuperInterface {} // jlO can be indirect super class
     inline class I4 extends SuperclassCollections.Integer {}
@@ -31,7 +31,7 @@ public class BinarySuperclassConstraints {
     inline class I7 extends SuperclassCollections.SuperWithStaticField {} // OK.
 
     // -------------------------------------------------------------
-    
+
     // Test that no-arg constructor must be empty
     inline class I8 extends SuperclassCollections.SuperWithEmptyNoArgCtor_02 {}
 

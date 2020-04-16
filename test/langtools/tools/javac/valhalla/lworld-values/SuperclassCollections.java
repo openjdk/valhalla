@@ -26,9 +26,9 @@
 public class SuperclassCollections {
 
     public static class BadSuper {}
-    
+
     public interface GoodSuperInterface {}
-    public static abstract class GoodSuper extends Object {} 
+    public static abstract class GoodSuper extends Object {}
     public static abstract class Integer extends Number {
         public double doubleValue() { return 0; }
         public float floatValue() { return 0; }

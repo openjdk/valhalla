@@ -14,10 +14,10 @@ public class SuperclassConstraints {
     inline class I0 extends BadSuper {} // ERROR: concrete super class
     inline class I1 extends Object {}   // ERROR: concrete jlO cannot be express-superclass
     inline class I2 {} // OK
-    
+
     // Test that abstract class is allowed to be super including when extending jlO
     interface GoodSuperInterface {}
-    static abstract class GoodSuper extends Object {} 
+    static abstract class GoodSuper extends Object {}
     inline class I3 extends GoodSuper implements GoodSuperInterface {} // jlO can be indirect super class
     static abstract class Integer extends Number {
         public double doubleValue() { return 0; }
@@ -50,7 +50,7 @@ public class SuperclassConstraints {
     inline class I7 extends SuperWithStaticField {} // OK.
 
     // -------------------------------------------------------------
-    
+
     // Test that no-arg constructor must be empty
     static abstract class SuperWithEmptyNoArgCtor {
         SuperWithEmptyNoArgCtor() {
