@@ -688,8 +688,6 @@ public class TypeEnter implements Completer {
             final boolean isValueType = (tree.mods.flags & Flags.VALUE) != 0;
 
             if (tree.extending != null) {
-                if (isValueType)
-                    log.error(tree.pos(), Errors.ValueMayNotExtend);
                 extending = clearTypeParams(tree.extending);
                 supertype = attr.attribBase(extending, baseEnv, true, false, true);
                 if (supertype == syms.recordType) {
@@ -710,7 +708,7 @@ public class TypeEnter implements Completer {
             if (injectTopInterfaceTypes) {
                 if (isValueType || types.isValue(supertype)) {
                     interfaceToInject = syms.inlineObjectType;
-                } else if ((sym.flags_field & INTERFACE) == 0) { // skip interfaces and annotations.
+                } else if ((sym.flags_field & (INTERFACE | ABSTRACT)) == 0) { // skip interfaces, abstract classes and annotations.
                     if (sym.fullname != names.java_lang_Object) {
                         interfaceToInject = syms.identityObjectType;
                     }

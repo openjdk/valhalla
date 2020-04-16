@@ -194,7 +194,6 @@ public class TransValues extends TreeTranslator {
                 MethodSymbol symbol = (MethodSymbol)TreeInfo.symbol(call.meth);
                 if (names._super.equals(name)) { // "initial" constructor.
                     // Synthesize code to allocate factory "product" via: V $this = V.default;
-                    Assert.check(symbol.owner == syms.objectType.tsym);
                     Assert.check(symbol.type.getParameterTypes().size() == 0);
                     final JCExpression type = make.Type(currentClass.type);
                     rhs = make.Select(type, new VarSymbol(STATIC, names._default, currentClass.type, currentClass.sym));

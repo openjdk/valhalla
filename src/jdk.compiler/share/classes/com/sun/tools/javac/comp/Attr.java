@@ -1194,7 +1194,7 @@ public class Attr extends JCTree.Visitor {
                 if (tree.name == names.init && owner.type != syms.objectType) {
                     JCBlock body = tree.body;
                     if (body.stats.isEmpty() ||
-                            TreeInfo.getConstructorInvocationName(body.stats, names) == names.empty) {
+                            TreeInfo.getConstructorInvocationName(body.stats, names, true) == names.empty) {
                         JCStatement supCall = make.at(body.pos).Exec(make.Apply(List.nil(),
                                 make.Ident(names._super), make.Idents(List.nil())));
                         body.stats = body.stats.prepend(supCall);
@@ -1228,6 +1228,12 @@ public class Attr extends JCTree.Visitor {
                                             Fragments.ThrowsClauseNotAllowedForCanonicalConstructor(
                                                     TreeInfo.isCompactConstructor(tree) ? Fragments.Compact : Fragments.Canonical)));
                         }
+                    }
+                }
+                if (m.isConstructor() && m.type.getParameterTypes().size() == 0) {
+                    if ((owner.type == syms.objectType) ||
+                            (tree.body.stats.size() == 1 && TreeInfo.getConstructorInvocationName(tree.body.stats, names, false) == names._super)) {
+                        m.flags_field |= EMPTYNOARGCONSTR;
                     }
                 }
 
@@ -1427,7 +1433,11 @@ public class Attr extends JCTree.Visitor {
             final Env<AttrContext> localEnv =
                 env.dup(tree, env.info.dup(env.info.scope.dupUnshared(fakeOwner)));
 
-            if ((tree.flags & STATIC) != 0) localEnv.info.staticLevel++;
+            if ((tree.flags & STATIC) != 0)
+                localEnv.info.staticLevel++;
+            else if (tree.stats.size() > 0)
+                env.info.scope.owner.flags_field |= HASINITBLOCK;
+
             // Attribute all type annotations in the block
             annotate.queueScanTreeAndTypeAnnotate(tree, localEnv, localEnv.info.scope.owner, null);
             annotate.flush();
@@ -5202,6 +5212,14 @@ public class Attr extends JCTree.Visitor {
                 }
 
                 attribClassBody(env, c);
+
+                if ((c.flags() & (VALUE | ABSTRACT)) == VALUE) { // for non-intersection, concrete values.
+                    Assert.check(env.tree.hasTag(CLASSDEF));
+                    JCClassDecl classDecl = (JCClassDecl) env.tree;
+                    if (classDecl.extending != null) {
+                        chk.checkConstraintsOfInlineSuper(env.tree.pos(), c);
+                    }
+                }
 
                 chk.checkDeprecatedAnnotation(env.tree.pos(), c);
                 chk.checkClassOverrideEqualsAndHashIfNeeded(env.tree.pos(), c);

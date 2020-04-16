@@ -1,7 +1,7 @@
 round: 1
 
 @javax.annotation.processing.SupportedAnnotationTypes({"*"})
-public abstract class GeneratedSource<E> extends java.util.LinkedList<java.lang.Number> implements java.lang.Runnable, java.lang.CharSequence, java.lang.IdentityObject {
+public abstract class GeneratedSource<E> extends java.util.LinkedList<java.lang.Number> implements java.lang.Runnable, java.lang.CharSequence {
 
   public GeneratedSource();
 
@@ -9,7 +9,7 @@ public abstract class GeneratedSource<E> extends java.util.LinkedList<java.lang.
 }
 
 @javax.annotation.processing.SupportedAnnotationTypes({"*"})
-public abstract class GeneratedClass<E> extends java.util.LinkedList<java.lang.Number> implements java.lang.Runnable, java.lang.CharSequence, java.lang.IdentityObject {
+public abstract class GeneratedClass<E> extends java.util.LinkedList<java.lang.Number> implements java.lang.Runnable, java.lang.CharSequence {
 
   public GeneratedClass();
 

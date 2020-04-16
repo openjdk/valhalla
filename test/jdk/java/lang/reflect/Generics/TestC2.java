@@ -183,8 +183,8 @@ public class TestC2 {
         System.out.println("testing superinterfaces");
         Type[] sis = cls.getGenericInterfaces();
         assert
-            ((sis.length == 4)): // Adjust based on JDK-8237952
-            "C2 should have four generic superinterfaces"; // Adjust based on JDK-8237952
+            ((sis.length == 3)):
+            "C2 should have three generic superinterfaces";
 
         Type t = sis[0];
         assert
@@ -216,8 +216,6 @@ public class TestC2 {
         assert
             t == I3.class :
             "Third superinterface of C2 is I3";
-
-        assert (sis[3] == IdentityObject.class); // Adjust based on JDK-8237952
 
         // Test interfaces themselves
 

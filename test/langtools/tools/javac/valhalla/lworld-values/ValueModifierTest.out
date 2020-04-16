@@ -2,6 +2,6 @@ ValueModifierTest.java:11:28: compiler.err.empty.value.not.yet
 ValueModifierTest.java:14:16: compiler.err.empty.value.not.yet
 ValueModifierTest.java:15:13: compiler.err.cant.inherit.from.final: value
 ValueModifierTest.java:15:21: compiler.err.empty.value.not.yet
-ValueModifierTest.java:16:28: compiler.err.value.may.not.extend
 ValueModifierTest.java:16:20: compiler.err.cant.inherit.from.final: value
+ValueModifierTest.java:16:28: compiler.err.override.meth: (compiler.misc.cant.override: hashCode(), compiler.misc.anonymous.class: ValueModifierTest$3, hashCode(), value), final
 6 errors
