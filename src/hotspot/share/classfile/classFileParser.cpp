@@ -6927,11 +6927,14 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       return;
     }
 
-    // For a value class, only java/lang/Object is an acceptable super class
+    // For an inline class, only java/lang/Object or special abstract classes
+    // are acceptable super classes.
     if (_access_flags.get_flags() & JVM_ACC_VALUE) {
-      guarantee_property(_super_klass->name() == vmSymbols::java_lang_Object(),
-        "Inline type must have java.lang.Object as superclass in class file %s",
-        CHECK);
+      if (_super_klass->name() != vmSymbols::java_lang_Object()) {
+        guarantee_property(_super_klass->is_abstract(),
+          "Inline type must have java.lang.Object or an abstract class as its superclass, class file %s",
+          CHECK);
+      }
     }
 
     // Make sure super class is not final

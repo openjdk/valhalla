@@ -60,7 +60,8 @@ public class BadValueTypes {
         runTest("ValueMethodSynch",
                 "Method getInt in class ValueMethodSynch (an inline class) has illegal modifiers");
 
-        runTest("ValueSuperClass", "Inline type must have java.lang.Object as superclass");
+        runTest("ValueSuperClass",
+                "Inline type must have java.lang.Object or an abstract class as its superclass");
 
         // Test that ClassCircularityError gets detected for instance fields.
         System.out.println("Testing ClassCircularityError for instance fields");
