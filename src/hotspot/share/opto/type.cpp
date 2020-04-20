@@ -889,8 +889,7 @@ void Type::check_symmetrical(const Type *t, const Type *mt) const {
   // Interface:AnyNull meet Oop:AnyNull == Interface:AnyNull
   // Interface:NotNull meet Oop:NotNull == java/lang/Object:NotNull
 
-  // JDK-8242269: merge issue, disabled for now
-  if( !interface_vs_oop(t) && (t2t != t->_dual || t2this != this->_dual) && false) {
+  if( !interface_vs_oop(t) && (t2t != t->_dual || t2this != this->_dual)) {
     tty->print_cr("=== Meet Not Symmetric ===");
     tty->print("t   =                   ");              t->dump(); tty->cr();
     tty->print("this=                   ");                 dump(); tty->cr();
@@ -4196,30 +4195,30 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
     ciKlass *subtype = NULL;
     bool subtype_exact = false;
     bool flat_array = false;
-    if( tinst_klass->equals(this_klass) ) {
+    if (tinst_klass->equals(this_klass)) {
       subtype = this_klass;
       subtype_exact = below_centerline(ptr) ? (this_xk && tinst_xk) : (this_xk || tinst_xk);
       flat_array = below_centerline(ptr) ? (this_flat_array && tinst_flat_array) : (this_flat_array || tinst_flat_array);
-    } else if( !tinst_xk && this_klass->is_subtype_of( tinst_klass ) ) {
+    } else if(!tinst_xk && this_klass->is_subtype_of(tinst_klass) && (!tinst_flat_array || this_flat_array)) {
       subtype = this_klass;     // Pick subtyping class
       subtype_exact = this_xk;
       flat_array = this_flat_array;
-    } else if( !this_xk && tinst_klass->is_subtype_of( this_klass ) ) {
+    } else if(!this_xk && tinst_klass->is_subtype_of(this_klass) && (!this_flat_array || tinst_flat_array)) {
       subtype = tinst_klass;    // Pick subtyping class
       subtype_exact = tinst_xk;
       flat_array = tinst_flat_array;
     }
 
-    if( subtype ) {
-      if( above_centerline(ptr) ) { // both are up?
+    if (subtype) {
+      if (above_centerline(ptr)) { // both are up?
         this_klass = tinst_klass = subtype;
         this_xk = tinst_xk = subtype_exact;
         this_flat_array = tinst_flat_array = flat_array;
-      } else if( above_centerline(this ->_ptr) && !above_centerline(tinst->_ptr) ) {
+      } else if (above_centerline(this ->_ptr) && !above_centerline(tinst->_ptr)) {
         this_klass = tinst_klass; // tinst is down; keep down man
         this_xk = tinst_xk;
         this_flat_array = tinst_flat_array;
-      } else if( above_centerline(tinst->_ptr) && !above_centerline(this ->_ptr) ) {
+      } else if (above_centerline(tinst->_ptr) && !above_centerline(this ->_ptr)) {
         tinst_klass = this_klass; // this is down; keep down man
         tinst_xk = this_xk;
         tinst_flat_array = this_flat_array;
@@ -4269,7 +4268,7 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
       if (tv->value_klass()->is_subtype_of(_klass)) {
         return t;
       } else {
-        return TypeInstPtr::make(NotNull, _klass);
+        return TypeInstPtr::NOTNULL;
       }
     } else {
       PTR ptr = this->_ptr;
@@ -4702,18 +4701,6 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         instance_id = InstanceBot;
         tary = TypeAry::make(Type::BOTTOM, tary->_size, tary->_stable, tary->_not_flat, tary->_not_null_free);
       }
-    } else if (klass() != NULL && tap->klass() != NULL &&
-               klass()->as_array_klass()->storage_properties().value() != tap->klass()->as_array_klass()->storage_properties().value()) {
-      // Meeting value type arrays with conflicting storage properties
-      if (tary->_elem->isa_valuetype()) {
-        // Result is flattened
-        off = Offset(elem()->isa_valuetype() ? offset() : tap->offset());
-        field_off = elem()->isa_valuetype() ? field_offset() : tap->field_offset();
-      } else if (tary->_elem->make_oopptr() != NULL && tary->_elem->make_oopptr()->isa_instptr() && below_centerline(ptr)) {
-        // Result is non-flattened
-        off = Offset(flattened_offset()).meet(Offset(tap->flattened_offset()));
-        field_off = Offset::bottom;
-      }
     } else // Non integral arrays.
       // Must fall to bottom if exact klasses in upper lattice
       // are not equal or super klass is exact.
@@ -4730,6 +4717,18 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         tary = TypeAry::make(Type::BOTTOM, tary->_size, tary->_stable, tary->_not_flat, tary->_not_null_free);
       }
       return make(NotNull, NULL, tary, lazy_klass, false, off, field_off, InstanceBot, speculative, depth);
+    } else if (klass() != NULL && tap->klass() != NULL &&
+               klass()->as_array_klass()->storage_properties().value() != tap->klass()->as_array_klass()->storage_properties().value()) {
+      // Meeting value type arrays with conflicting storage properties
+      if (tary->_elem->isa_valuetype()) {
+        // Result is flattened
+        off = Offset(elem()->isa_valuetype() ? offset() : tap->offset());
+        field_off = elem()->isa_valuetype() ? field_offset() : tap->field_offset();
+      } else if (tary->_elem->make_oopptr() != NULL && tary->_elem->make_oopptr()->isa_instptr() && below_centerline(ptr)) {
+        // Result is non-flattened
+        off = Offset(flattened_offset()).meet(Offset(tap->flattened_offset()));
+        field_off = Offset::bottom;
+      }
     }
 
     bool xk = false;
@@ -4824,14 +4823,17 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
   }
 
   case ValueType: {
-    // All value types inherit from Object
-    PTR ptr = this->_ptr;
-    if (ptr == Constant) {
-      ptr = NotNull;
+    const TypeValueType* tv = t->is_valuetype();
+    if (above_centerline(ptr())) {
+      return TypeInstPtr::NOTNULL;
+    } else {
+      PTR ptr = this->_ptr;
+      if (ptr == Constant) {
+        ptr = NotNull;
+      }
+      return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass());
     }
-    return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass());
   }
-
   }
   return this;                  // Lint noise
 }
