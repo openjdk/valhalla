@@ -738,6 +738,8 @@ class Compile : public Phase {
 
   void adjust_flattened_array_access_aliases(PhaseIterGVN& igvn);
 
+  void sort_macro_nodes();
+
   // remove the opaque nodes that protect the predicates so that the unused checks and
   // uncommon traps will be eliminated from the graph.
   void cleanup_loop_predicates(PhaseIterGVN &igvn);
