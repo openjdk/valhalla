@@ -3091,6 +3091,11 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       expand_subtypecheck_node(n->as_SubTypeCheck());
       assert(C->macro_count() == (old_macro_count - 1), "expansion must have deleted one node from macro list");
       break;
+    case Node::Class_CallStaticJava:
+      expand_mh_intrinsic_return(n->as_CallStaticJava());
+      C->remove_macro_node(n);
+      assert(C->macro_count() == (old_macro_count - 1), "expansion must have deleted one node from macro list");
+      break;
     default:
       assert(false, "unknown node type in macro list");
     }
@@ -3132,10 +3137,6 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       break;
     case Node::Class_AllocateArray:
       expand_allocate_array(n->as_AllocateArray());
-      break;
-    case Node::Class_CallStaticJava:
-      expand_mh_intrinsic_return(n->as_CallStaticJava());
-      C->remove_macro_node(n);
       break;
     default:
       assert(false, "unknown node type in macro list");
