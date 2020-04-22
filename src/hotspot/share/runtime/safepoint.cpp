@@ -464,8 +464,6 @@ void SafepointSynchronize::disarm_safepoint() {
       assert(!cur_state->is_running(), "Thread not suspended at safepoint");
       cur_state->restart(); // TSS _running
       assert(cur_state->is_running(), "safepoint state has not been reset");
-
-      SafepointMechanism::disarm_if_needed(current, false /* NO release */);
     }
   } // ~JavaThreadIteratorWithHandle
 
@@ -706,7 +704,6 @@ static bool safepoint_safe_with(JavaThread *thread, JavaThreadState state) {
 }
 
 bool SafepointSynchronize::handshake_safe(JavaThread *thread) {
-  assert(Thread::current()->is_VM_thread(), "Must be VMThread");
   if (thread->is_ext_suspended() || thread->is_terminated()) {
     return true;
   }

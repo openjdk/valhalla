@@ -30,6 +30,7 @@
 
 #include "gc/shared/weakProcessor.inline.hpp"
 #include "gc/shared/gcTimer.hpp"
+#include "gc/shared/gcTrace.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
 #include "gc/shared/strongRootsScope.hpp"
@@ -687,16 +688,18 @@ void ShenandoahConcurrentMark::weak_refs_work_doit(bool full_gc) {
 
     if (_heap->has_forwarded_objects()) {
       ShenandoahCMKeepAliveUpdateClosure keep_alive(get_queue(serial_worker_id));
-      rp->process_discovered_references(is_alive.is_alive_closure(), &keep_alive,
-                                        &complete_gc, &executor,
-                                        &pt);
-
+      const ReferenceProcessorStats& stats =
+        rp->process_discovered_references(is_alive.is_alive_closure(), &keep_alive,
+                                          &complete_gc, &executor,
+                                          &pt);
+       _heap->tracer()->report_gc_reference_stats(stats);
     } else {
       ShenandoahCMKeepAliveClosure keep_alive(get_queue(serial_worker_id));
-      rp->process_discovered_references(is_alive.is_alive_closure(), &keep_alive,
-                                        &complete_gc, &executor,
-                                        &pt);
-
+      const ReferenceProcessorStats& stats =
+        rp->process_discovered_references(is_alive.is_alive_closure(), &keep_alive,
+                                          &complete_gc, &executor,
+                                          &pt);
+      _heap->tracer()->report_gc_reference_stats(stats);
     }
 
     pt.print_all_references();
@@ -817,7 +820,7 @@ void ShenandoahConcurrentMark::mark_loop_prework(uint w, TaskTerminator *t, Refe
                                                  bool strdedup) {
   ShenandoahObjToScanQueue* q = get_queue(w);
 
-  jushort* ld = _heap->get_liveness_cache(w);
+  ShenandoahLiveData* ld = _heap->get_liveness_cache(w);
 
   // TODO: We can clean up this if we figure out how to do templated oop closures that
   // play nice with specialized_oop_iterators.
@@ -863,7 +866,7 @@ void ShenandoahConcurrentMark::mark_loop_prework(uint w, TaskTerminator *t, Refe
 }
 
 template <class T, bool CANCELLABLE>
-void ShenandoahConcurrentMark::mark_loop_work(T* cl, jushort* live_data, uint worker_id, TaskTerminator *terminator) {
+void ShenandoahConcurrentMark::mark_loop_work(T* cl, ShenandoahLiveData* live_data, uint worker_id, TaskTerminator *terminator) {
   uintx stride = ShenandoahMarkLoopStride;
 
   ShenandoahHeap* heap = ShenandoahHeap::heap();
