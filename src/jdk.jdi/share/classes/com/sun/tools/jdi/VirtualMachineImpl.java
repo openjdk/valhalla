@@ -315,17 +315,6 @@ class VirtualMachineImpl extends MirrorImpl
         return Collections.unmodifiableList(modules);
     }
 
-     List<ReferenceType> classesBySignature(String signature) {
-        validateVM();
-        List<ReferenceType> list;
-        if (retrievedAllTypes) {
-            list = findReferenceTypes(signature);
-        } else {
-            list = retrieveClassesBySignature(signature);
-        }
-        return Collections.unmodifiableList(list);
-    }
-
     private static boolean isReferenceArray(String signature) {
         int i = signature.lastIndexOf('[');
         if (i > -1 && signature.charAt(i+1) == 'L') {
@@ -354,7 +343,7 @@ class VirtualMachineImpl extends MirrorImpl
         if (signature.length() > 1 &&
                 (signature.charAt(0) == 'L' || isReferenceArray((signature)))) {
             List<ReferenceType> listInlineTypes;
-            signature = JNITypeParser.inlineTypeNameToSignature(className);
+            signature = signature.replaceFirst("L", "Q");
             if (retrievedAllTypes) {
                 listInlineTypes = findReferenceTypes(signature);
             } else {
