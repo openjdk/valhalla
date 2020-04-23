@@ -316,7 +316,7 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
   if (needs_pre_barrier) {
       g1_write_barrier_pre(masm,
                        tmp1 /* obj */,
-                       tmp2 /* pre_val */,  
+                       tmp2 /* pre_val */,
                        rthread /* thread */,
                        tmp3  /* tmp */,
                        val != noreg /* tosca_live */,
@@ -329,7 +329,7 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
     // G1 barrier needs uncompressed oop for region cross check.
     Register new_val = val;
     if (needs_post_barrier) {
-      if (UseCompressedOops) { 
+      if (UseCompressedOops) {
         // FIXME: Refactor the code to avoid usage of r19 and stay within tmpX
         new_val = r19;
         __ mov(new_val, val);
