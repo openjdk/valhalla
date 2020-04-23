@@ -211,3 +211,10 @@ compiler.warn.this.exposed.prematurely
 compiler.err.identity.type.must.not.implement.inline.object
 compiler.err.inline.type.must.not.implement.identity.object
 compiler.err.mutually.incompatible.interfaces
+compiler.err.concrete.supertype.for.inline.class
+compiler.err.super.class.cannot.be.inner
+compiler.err.super.class.declares.init.block
+compiler.err.super.constructor.cannot.take.arguments
+compiler.err.super.field.not.allowed
+compiler.err.super.method.cannot.be.synchronized
+compiler.err.super.no.arg.constructor.must.be.empty

@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @summary Check inlineness via __inline__ annotation
  * @bug 8222745
- * @compile/fail/ref=InlineAnnotationTest.out -XDrawDiagnostics InlineAnnotationTest.java
+ * @compile/fail/ref=InlineAnnotationTest.out -XDallowEmptyValues -XDrawDiagnostics InlineAnnotationTest.java
  */
 
 @__inline__

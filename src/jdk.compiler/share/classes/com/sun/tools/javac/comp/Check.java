@@ -743,6 +743,50 @@ public class Check {
                                     : t;
         }
 
+    void checkConstraintsOfInlineSuper(DiagnosticPosition pos, ClassSymbol c) {
+        boolean indirectSuper = false;
+        for(Type st = types.supertype(c.type); st != Type.noType; indirectSuper = true, st = types.supertype(st)) {
+            if (st == null || st.tsym == null || st.tsym.kind == ERR)
+                return;
+            if  (indirectSuper && st.tsym == syms.objectType.tsym)
+                return;
+            if (!st.tsym.isAbstract()) {
+                log.error(pos, Errors.ConcreteSupertypeForInlineClass(c, st));
+            }
+            if ((st.tsym.flags() & HASINITBLOCK) != 0) {
+                log.error(pos, Errors.SuperClassDeclaresInitBlock(c, st));
+            }
+            // No instance fields and no arged constructors both mean inner classes cannot be inline supers.
+            Type encl = st.getEnclosingType();
+            if (encl != null && encl.hasTag(CLASS)) {
+                log.error(pos, Errors.SuperClassCannotBeInner(c, st));
+            }
+            for (Symbol s : st.tsym.members().getSymbols(NON_RECURSIVE)) {
+                switch (s.kind) {
+                case VAR:
+                    if ((s.flags() & STATIC) == 0) {
+                        log.error(pos, Errors.SuperFieldNotAllowed(s, c, st));
+                    }
+                    break;
+                case MTH:
+                    if ((s.flags() & SYNCHRONIZED) != 0) {
+                        log.error(pos, Errors.SuperMethodCannotBeSynchronized(s, c, st));
+                    } else if (s.isConstructor()) {
+                        MethodSymbol m = (MethodSymbol)s;
+                        if (m.getParameters().size() > 0) {
+                            log.error(pos, Errors.SuperConstructorCannotTakeArguments(m, c, st));
+                        } else {
+                            if ((m.flags() & (GENERATEDCONSTR | EMPTYNOARGCONSTR)) == 0) {
+                                log.error(pos, Errors.SuperNoArgConstructorMustBeEmpty(m, c, st));
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     /** Check that type is a valid qualifier for a constructor reference expression
      */
     Type checkConstructorRefType(DiagnosticPosition pos, Type t) {
