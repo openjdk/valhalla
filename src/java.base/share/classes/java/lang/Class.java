@@ -3898,9 +3898,14 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
+     * {@inheritDoc}
+     * <p>Note that any annotation returned by this method is a
+     * declaration annotation.
+     *
      * @throws NullPointerException {@inheritDoc}
      * @since 1.5
      */
+    @Override
     @SuppressWarnings("unchecked")
     public <A extends Annotation> A getAnnotation(Class<A> annotationClass) {
         Objects.requireNonNull(annotationClass);
@@ -3919,6 +3924,10 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
+     * {@inheritDoc}
+     * <p>Note that any annotations returned by this method are
+     * declaration annotations.
+     *
      * @throws NullPointerException {@inheritDoc}
      * @since 1.8
      */
@@ -3933,13 +3942,22 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
+     * {@inheritDoc}
+     * <p>Note that any annotations returned by this method are
+     * declaration annotations.
+     *
      * @since 1.5
      */
+    @Override
     public Annotation[] getAnnotations() {
         return AnnotationParser.toArray(annotationData().annotations);
     }
 
     /**
+     * {@inheritDoc}
+     * <p>Note that any annotation returned by this method is a
+     * declaration annotation.
+     *
      * @throws NullPointerException {@inheritDoc}
      * @since 1.8
      */
@@ -3952,6 +3970,10 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
+     * {@inheritDoc}
+     * <p>Note that any annotations returned by this method are
+     * declaration annotations.
+     *
      * @throws NullPointerException {@inheritDoc}
      * @since 1.8
      */
@@ -3964,8 +3986,13 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
+     * {@inheritDoc}
+     * <p>Note that any annotations returned by this method are
+     * declaration annotations.
+     *
      * @since 1.5
      */
+    @Override
     public Annotation[] getDeclaredAnnotations()  {
         return AnnotationParser.toArray(annotationData().declaredAnnotations);
     }

@@ -687,9 +687,10 @@ public final class Method extends Executable {
 
     /**
      * {@inheritDoc}
-     * @throws NullPointerException  {@inheritDoc}
+     * @throws NullPointerException {@inheritDoc}
      * @since 1.5
      */
+    @Override
     public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
         return super.getAnnotation(annotationClass);
     }
@@ -698,6 +699,7 @@ public final class Method extends Executable {
      * {@inheritDoc}
      * @since 1.5
      */
+    @Override
     public Annotation[] getDeclaredAnnotations()  {
         return super.getDeclaredAnnotations();
     }

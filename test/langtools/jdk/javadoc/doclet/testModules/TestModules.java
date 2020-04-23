@@ -550,7 +550,7 @@ public class TestModules extends JavadocTester {
                 + "<h1 title=\"Module\" class=\"title\">Module&nbsp;moduleA</h1>\n"
                 + "</div>\n"
                 + "<section class=\"summary\">\n"
-                + "<ul class=\"block-list\">\n"
+                + "<ul class=\"summary-list\">\n"
                 + "<li>\n"
                 + "<section class=\"packages-summary\" id=\"packages.summary\">\n"
                 + "<!-- ============ PACKAGES SUMMARY =========== -->");
@@ -562,7 +562,7 @@ public class TestModules extends JavadocTester {
                 + "<h1 title=\"Module\" class=\"title\">Module&nbsp;moduleB</h1>\n"
                 + "</div>\n"
                 + "<section class=\"summary\">\n"
-                + "<ul class=\"block-list\">\n"
+                + "<ul class=\"summary-list\">\n"
                 + "<li>\n"
                 + "<section class=\"packages-summary\" id=\"packages.summary\">\n"
                 + "<!-- ============ PACKAGES SUMMARY =========== -->");
