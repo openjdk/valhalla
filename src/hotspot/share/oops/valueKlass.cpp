@@ -211,8 +211,8 @@ void ValueKlass::remove_unshareable_info() {
   *((Klass**)adr_value_array_klass()) = NULL;
 }
 
-void ValueKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
-  InstanceKlass::restore_unshareable_info(loader_data, protection_domain, CHECK);
+void ValueKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
+  InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
   oop val = allocate_instance(CHECK);
   set_default_value(val);
 }

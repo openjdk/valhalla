@@ -1796,8 +1796,9 @@ public:
   void cache_wbsync(bool is_pre);
 #endif // _LP64
 
-  #include "asm/macroAssembler_common.hpp"
+  void vallones(XMMRegister dst, int vector_len);
 
+  #include "asm/macroAssembler_common.hpp"
 };
 
 /**

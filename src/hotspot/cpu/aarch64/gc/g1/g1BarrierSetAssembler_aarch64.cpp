@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -47,6 +47,18 @@ void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm
                                                             Register addr, Register count, RegSet saved_regs) {
   bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
   if (!dest_uninitialized) {
+    Label done;
+    Address in_progress(rthread, in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset()));
+
+    // Is marking active?
+    if (in_bytes(SATBMarkQueue::byte_width_of_active()) == 4) {
+      __ ldrw(rscratch1, in_progress);
+    } else {
+      assert(in_bytes(SATBMarkQueue::byte_width_of_active()) == 1, "Assumption");
+      __ ldrb(rscratch1, in_progress);
+    }
+    __ cbzw(rscratch1, done);
+
     __ push(saved_regs, sp);
     if (count == c_rarg0) {
       if (addr == c_rarg1) {
@@ -68,6 +80,8 @@ void G1BarrierSetAssembler::gen_write_ref_array_pre_barrier(MacroAssembler* masm
       __ call_VM_leaf(CAST_FROM_FN_PTR(address, G1BarrierSetRuntime::write_ref_array_pre_oop_entry), 2);
     }
     __ pop(saved_regs, sp);
+
+    __ bind(done);
   }
 }
 
@@ -302,7 +316,7 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
   if (needs_pre_barrier) {
       g1_write_barrier_pre(masm,
                        tmp1 /* obj */,
-                       tmp2 /* pre_val */,  
+                       tmp2 /* pre_val */,
                        rthread /* thread */,
                        tmp3  /* tmp */,
                        val != noreg /* tosca_live */,
@@ -315,7 +329,7 @@ void G1BarrierSetAssembler::oop_store_at(MacroAssembler* masm, DecoratorSet deco
     // G1 barrier needs uncompressed oop for region cross check.
     Register new_val = val;
     if (needs_post_barrier) {
-      if (UseCompressedOops) { 
+      if (UseCompressedOops) {
         // FIXME: Refactor the code to avoid usage of r19 and stay within tmpX
         new_val = r19;
         __ mov(new_val, val);

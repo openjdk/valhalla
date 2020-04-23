@@ -2977,12 +2977,6 @@ bool PhaseMacroExpand::expand_macro_nodes() {
   // Last attempt to eliminate macro nodes.
   eliminate_macro_nodes();
 
-  // Make sure expansion will not cause node limit to be exceeded.
-  // Worst case is a macro node gets expanded into about 200 nodes.
-  // Allow 50% more for optimization.
-  if (C->check_node_count(C->macro_count() * 300, "out of nodes before macro expansion" ) )
-    return true;
-
   // Eliminate Opaque and LoopLimit nodes. Do it after all loop optimizations.
   bool progress = true;
   while (progress) {
@@ -3041,17 +3035,44 @@ bool PhaseMacroExpand::expand_macro_nodes() {
     }
   }
 
+  // Clean up the graph so we're less likely to hit the maximum node
+  // limit
+  _igvn.set_delay_transform(false);
+  _igvn.optimize();
+  if (C->failing())  return true;
+  _igvn.set_delay_transform(true);
+
+
+  // Because we run IGVN after each expansion, some macro nodes may go
+  // dead and be removed from the list as we iterate over it. Move
+  // Allocate nodes (processed in a second pass) at the beginning of
+  // the list and then iterate from the last element of the list until
+  // an Allocate node is seen. This is robust to random deletion in
+  // the list due to nodes going dead.
+  C->sort_macro_nodes();
+
   // expand arraycopy "macro" nodes first
   // For ReduceBulkZeroing, we must first process all arraycopy nodes
   // before the allocate nodes are expanded.
-  for (int i = C->macro_count(); i > 0; i--) {
-    Node* n = C->macro_node(i-1);
+  while (C->macro_count() > 0) {
+    int macro_count = C->macro_count();
+    Node * n = C->macro_node(macro_count-1);
     assert(n->is_macro(), "only macro nodes expected here");
     if (_igvn.type(n) == Type::TOP || (n->in(0) != NULL && n->in(0)->is_top())) {
       // node is unreachable, so don't try to expand it
       C->remove_macro_node(n);
       continue;
     }
+    if (n->is_Allocate()) {
+      break;
+    }
+    // Make sure expansion will not cause node limit to be exceeded.
+    // Worst case is a macro node gets expanded into about 200 nodes.
+    // Allow 50% more for optimization.
+    if (C->check_node_count(300, "out of nodes before macro expansion")) {
+      return true;
+    }
+
     debug_only(int old_macro_count = C->macro_count(););
     switch (n->class_id()) {
     case Node::Class_Lock:
@@ -3070,18 +3091,28 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       expand_subtypecheck_node(n->as_SubTypeCheck());
       assert(C->macro_count() == (old_macro_count - 1), "expansion must have deleted one node from macro list");
       break;
+    case Node::Class_CallStaticJava:
+      expand_mh_intrinsic_return(n->as_CallStaticJava());
+      C->remove_macro_node(n);
+      assert(C->macro_count() == (old_macro_count - 1), "expansion must have deleted one node from macro list");
+      break;
+    default:
+      assert(false, "unknown node type in macro list");
     }
+    assert(C->macro_count() < macro_count, "must have deleted a node from macro list");
     if (C->failing())  return true;
+
+    // Clean up the graph so we're less likely to hit the maximum node
+    // limit
+    _igvn.set_delay_transform(false);
+    _igvn.optimize();
+    if (C->failing())  return true;
+    _igvn.set_delay_transform(true);
   }
 
   // All nodes except Allocate nodes are expanded now. There could be
   // new optimization opportunities (such as folding newly created
   // load from a just allocated object). Run IGVN.
-  _igvn.set_delay_transform(false);
-  _igvn.optimize();
-  if (C->failing())  return true;
-
-  _igvn.set_delay_transform(true);
 
   // expand "macro" nodes
   // nodes are removed from the macro list as they are processed
@@ -3094,6 +3125,12 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       C->remove_macro_node(n);
       continue;
     }
+    // Make sure expansion will not cause node limit to be exceeded.
+    // Worst case is a macro node gets expanded into about 200 nodes.
+    // Allow 50% more for optimization.
+    if (C->check_node_count(300, "out of nodes before macro expansion")) {
+      return true;
+    }
     switch (n->class_id()) {
     case Node::Class_Allocate:
       expand_allocate(n->as_Allocate());
@@ -3101,19 +3138,20 @@ bool PhaseMacroExpand::expand_macro_nodes() {
     case Node::Class_AllocateArray:
       expand_allocate_array(n->as_AllocateArray());
       break;
-    case Node::Class_CallStaticJava:
-      expand_mh_intrinsic_return(n->as_CallStaticJava());
-      C->remove_macro_node(n);
-      break;
     default:
       assert(false, "unknown node type in macro list");
     }
     assert(C->macro_count() < macro_count, "must have deleted a node from macro list");
     if (C->failing())  return true;
+
+    // Clean up the graph so we're less likely to hit the maximum node
+    // limit
+    _igvn.set_delay_transform(false);
+    _igvn.optimize();
+    if (C->failing())  return true;
+    _igvn.set_delay_transform(true);
   }
 
   _igvn.set_delay_transform(false);
-  _igvn.optimize();
-  if (C->failing())  return true;
   return false;
 }

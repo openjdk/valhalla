@@ -160,7 +160,7 @@ class ValueKlass: public InstanceKlass {
   int first_field_offset_old();
 
   virtual void remove_unshareable_info();
-  virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
+  virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS);
   virtual void metaspace_pointers_do(MetaspaceClosure* it);
 
  private:
