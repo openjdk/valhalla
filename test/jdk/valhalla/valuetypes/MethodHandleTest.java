@@ -133,9 +133,9 @@ public class MethodHandleTest {
 
     @Test
     public static void testNullableArray() throws Throwable {
-        Class<?> arrayClass = (new Point?[0]).getClass();
+        Class<?> arrayClass = (new Point.ref[0]).getClass();
         Class<?> elementType = arrayClass.getComponentType();
-        assertTrue(elementType == Point.class.asIndirectType(), arrayClass.getComponentType().toString());
+        assertTrue(elementType == Point.ref.class, arrayClass.getComponentType().toString());
 
         MethodHandle setter = MethodHandles.arrayElementSetter(arrayClass);
         MethodHandle getter = MethodHandles.arrayElementGetter(arrayClass);
@@ -195,7 +195,8 @@ public class MethodHandleTest {
     void setValueField(String name, Object obj, Object value) throws Throwable {
         Field f = c.getDeclaredField(name);
         boolean isStatic = Modifier.isStatic(f.getModifiers());
-        assertTrue(f.getType().isInlineClass());
+        assertTrue(f.getType().isInlineClass() ||
+                   f.getType().getCanonicalName().endsWith("$ref"));
         assertTrue((isStatic && obj == null) || (!isStatic && obj != null));
         Object v = f.get(obj);
 

@@ -49,7 +49,7 @@ public class ValueArray {
     }
 
     private static Class<?> nullablePointArrayClass() {
-        Object a = new Point?[0];
+        Object a = new Point.ref[0];
         return a.getClass();
     }
 
@@ -153,7 +153,7 @@ public class ValueArray {
                            new Point[][] { new Point[] { Point.makePoint(1, 2),
                                                          Point.makePoint(10, 20)}}},
             new Object[] { nullablePointArrayClass(),
-                           new Point?[] { Point.makePoint(11, 22),
+                           new Point.ref[] { Point.makePoint(11, 22),
                                           Point.makePoint(110, 220),
                                           null }},
             new Object[] { NonFlattenValue[].class,
@@ -201,16 +201,16 @@ public class ValueArray {
     @Test
     static void testPointArray() {
         Point[] qArray = new Point[0];
-        Point?[] lArray = new Point?[0];
+        Point.ref[] lArray = new Point.ref[0];
 
         ValueArray test = new ValueArray(Point[].class, qArray);
         test.run();
 
-        ValueArray test1 = new ValueArray(Point?[].class, lArray);
+        ValueArray test1 = new ValueArray(Point.ref[].class, lArray);
         test.run();
 
         // language instanceof
         assertTrue(qArray instanceof Point[]);
-        assertTrue(lArray instanceof Point?[]);
+        assertTrue(lArray instanceof Point.ref[]);
     }
 }
