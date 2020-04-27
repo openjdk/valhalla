@@ -43,8 +43,8 @@ public class InnerClassAttributeValuenessTest {
         }
 
         // Uncomment the next line, and Inner ceases to be a value type
-        public static final Inner? ZERO = Inner.create(0);
-        public static final Inner? ZERO2 = Inner.create(0);
+        public static final Inner.ref ZERO = Inner.create(0);
+        public static final Inner.ref ZERO2 = Inner.create(0);
     }
 
     public static void main(String[] args) {

@@ -31,8 +31,8 @@
  */
 
 inline class Point {
-    static final Point? origin = makePoint(10, 20);
-    static final Point? origin2 = makePoint(10, 20);
+    static final Point.ref origin = makePoint(10, 20);
+    static final Point.ref origin2 = makePoint(10, 20);
     int x;
     int y;
     Point () {

@@ -76,15 +76,15 @@ inline class OptionalInt {
 public final class ExplicitLambdaWithNullableTypes2 {
 
    public static void main(String[] args) {
-       List<OptionalInt?> opts = new ArrayList<>();
+       List<OptionalInt.ref> opts = new ArrayList<>();
        for (int i=0; i < 5; i++) {
            opts.add(OptionalInt.of(i));
            opts.add(OptionalInt.empty());
            opts.add(null);
        }
 
-       Stream<OptionalInt?> soi = opts.stream();
-       ToIntFunction<OptionalInt?> f = (OptionalInt? o) -> {
+       Stream<OptionalInt.ref> soi = opts.stream();
+       ToIntFunction<OptionalInt.ref> f = (OptionalInt.ref o) -> {
             if (o == null) return 0;
             OptionalInt op = (OptionalInt)o;
             return op.orElse(0);

@@ -26,7 +26,7 @@
 /*
  * @test
  * @bug 8222974
- * @summary javac doesn't like "?" syntax in instanceof type expression
+ * @summary javac doesn't like "?" syntax in instanceof type expression (syntax is dead)
  * @compile InstanceofProjectionArray.java
  */
 
@@ -37,11 +37,11 @@ public inline class InstanceofProjectionArray {
     public InstanceofProjectionArray() { this.value = 0; }
 
     public static void main(String[] args) throws Throwable {
-        InstanceofProjectionArray?[] foos = new InstanceofProjectionArray?[1];
-        if (!(foos instanceof InstanceofProjectionArray?[])) {
+        InstanceofProjectionArray.ref[] foos = new InstanceofProjectionArray.ref[1];
+        if (!(foos instanceof InstanceofProjectionArray.ref[])) {
             throw new RuntimeException("Thought that should work");
         }
-        InstanceofProjectionArray?[][] xx = null;
-        if (xx instanceof InstanceofProjectionArray?[][]) {}
+        InstanceofProjectionArray.ref[][] xx = null;
+        if (xx instanceof InstanceofProjectionArray.ref[][]) {}
     }
 }

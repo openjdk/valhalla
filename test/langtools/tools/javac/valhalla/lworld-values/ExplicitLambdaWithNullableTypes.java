@@ -75,7 +75,7 @@ inline class OptionalInt {
 public final class ExplicitLambdaWithNullableTypes {
 
    public static void main(String[] args) {
-       List<OptionalInt?> opts = new ArrayList<>();
+       List<OptionalInt.ref> opts = new ArrayList<>();
        for (int i=0; i < 5; i++) {
            opts.add(OptionalInt.of(i));
            opts.add(OptionalInt.empty());
@@ -83,7 +83,7 @@ public final class ExplicitLambdaWithNullableTypes {
        }
 
        Integer total = opts.stream()
-           .map((OptionalInt? o) -> {
+           .map((OptionalInt.ref o) -> {
                if (o == null)
                    return 0;
 

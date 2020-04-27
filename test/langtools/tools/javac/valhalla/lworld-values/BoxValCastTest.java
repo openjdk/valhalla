@@ -39,13 +39,13 @@ public class BoxValCastTest {
 
     static inline class VT {
         int f = 0;
-        static final VT? vtbox = (VT?) new VT(); // no binary cast
+        static final VT.ref vtbox = (VT.ref) new VT(); // no binary cast
         static VT vt = (VT) vtbox; // binary cast
-        static VT? box = vt; // no binary cast
-        static VT? box2 = (VT) box; // no binary cast
-        static VT? box3 = id(new VT()); // no binary cast + binary cast
+        static VT.ref box = vt; // no binary cast
+        static VT.ref box2 = (VT) box; // binary cast
+        static VT.ref box3 = id(new VT()); // no binary cast + no binary cast
 
-        static VT id(VT? vtb) {
+        static VT id(VT.ref vtb) {
             return (VT) vtb; // binary
         }
     }
