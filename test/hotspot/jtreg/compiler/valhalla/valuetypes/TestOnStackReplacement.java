@@ -158,11 +158,11 @@ public class TestOnStackReplacement extends ValueTypeTest {
 
     // OSR compilation with null value type local
 
-    MyValue1? nullField;
+    MyValue1.ref nullField;
 
     @Test() @Warmup(0) @OSRCompileOnly
     public void test5() {
-        MyValue1? vt = nullField;
+        MyValue1.ref vt = nullField;
         for (int i = 0; i < 50_000; i++) {
             if (vt != null) {
                 throw new RuntimeException("test5 failed: vt should be null");

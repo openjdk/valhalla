@@ -83,7 +83,7 @@ public class TestLWorldProfiling extends ValueTypeTest {
     private static final Integer[] testIntegerArray = new Integer[] {42};
     private static final Long[] testLongArray = new Long[] {42L};
     private static final Double[] testDoubleArray = new Double[] {42.0D};
-    private static final MyValue1?[] testValue1NotFlatArray = new MyValue1?[] {testValue1};
+    private static final MyValue1.ref[] testValue1NotFlatArray = new MyValue1.ref[] {testValue1};
     private static final MyValue1[][] testValue1ArrayArray = new MyValue1[][] {testValue1Array};
 
     // aaload
