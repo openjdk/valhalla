@@ -33,15 +33,15 @@ import jdk.test.lib.Asserts;
  * @run main/othervm -Xcomp -XX:ValueFieldMaxFlatSize=64 runtime.valhalla.valuetypes.UninitializedValueFieldsTest
  */
 public class UninitializedValueFieldsTest {
-    static Point? nonFlattenableStaticPoint;
+    static Point.ref nonFlattenableStaticPoint;
     static Point staticPoint;
 
     Point instancePoint;
 
-    static JumboValue? sj1;
+    static JumboValue.ref sj1;
     static JumboValue sj2;
 
-    JumboValue? j1;
+    JumboValue.ref j1;
     JumboValue j2;
 
     static Object getNull() {

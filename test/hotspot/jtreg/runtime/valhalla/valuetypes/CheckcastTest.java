@@ -65,14 +65,14 @@ public class CheckcastTest {
     static void testCastingFromValToBox(Point p) {
         boolean npe = false;
         try {
-            Point? pb = p;
+            Point.ref pb = p;
         } catch(NullPointerException e) {
             npe = true;
         }
         Asserts.assertFalse(npe, "Casting from val to box should not throw an NPE");
     }
 
-    static void testCastingFromBoxToVal(Point? p) {
+    static void testCastingFromBoxToVal(Point.ref p) {
         boolean npe = false;
         try {
             Point pv = (Point) p;
