@@ -56,8 +56,13 @@ public class TopInterfaceTest  {
         if (!(inln_o instanceof InlineObject)) // really really make sure...
             throw new AssertionError("Expected inline Object");
 
+        // Check that V's super class is V.ref in class file.
+        Class<?> vrefCls = inln_o.getClass().getSuperclass();
+        if (!vrefCls.getCanonicalName().equals("TopInterfaceTest.V$ref"))
+            throw new AssertionError("Wrong super type for value type");
+
         // Check that no injection has happened for jlO itself.
-        Class<?> jlo = inln_o.getClass().getSuperclass();
+        Class<?> jlo = vrefCls.getSuperclass();
         if (!jlo.getCanonicalName().equals("java.lang.Object"))
             throw new AssertionError("Wrong super type for value type");
         if (jlo.getInterfaces().length != 0)

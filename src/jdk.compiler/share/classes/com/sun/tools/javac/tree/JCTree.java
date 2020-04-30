@@ -696,7 +696,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
     }
 
     public static abstract class JCExpression extends JCTree implements ExpressionTree {
-        boolean questioned = false;
         @Override
         public JCExpression setType(Type type) {
             super.setType(type);
@@ -707,14 +706,6 @@ public abstract class JCTree implements Tree, Cloneable, DiagnosticPosition {
             super.setPos(pos);
             return this;
         }
-
-        public void setQuestioned() {
-            this.questioned = true;
-        }
-        public boolean isQuestioned() {
-            return this.questioned;
-        }
-
         public boolean isPoly() { return false; }
         public boolean isStandalone() { return true; }
     }

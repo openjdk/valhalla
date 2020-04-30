@@ -746,6 +746,15 @@ public class TypeEnter implements Completer {
                 ct.all_interfaces_field = (all_interfaces == null)
                         ? ct.interfaces_field : all_interfaces.toList();
             }
+            if (ct.isValue()) {
+                ClassSymbol cSym = (ClassSymbol) ct.tsym;
+                if (cSym.projection != null) {
+                    ClassType projectedType = (ClassType) cSym.projection.type;
+                    projectedType.supertype_field = ct.supertype_field;
+                    projectedType.interfaces_field = ct.interfaces_field;
+                    projectedType.all_interfaces_field = ct.all_interfaces_field;
+                }
+            }
         }
             //where:
             protected JCExpression clearTypeParams(JCExpression superType) {

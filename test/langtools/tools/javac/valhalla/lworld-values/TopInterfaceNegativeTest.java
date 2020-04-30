@@ -33,4 +33,5 @@ public class TopInterfaceNegativeTest  {
         if (v instanceof IdentityObject)
             throw new AssertionError("Expected inline object but found identity object");
     }
+    abstract class abs implements IdentityObject {} // OK
 }

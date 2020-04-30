@@ -1781,8 +1781,8 @@ public class Code {
             case ARRAY:
                 int width = width(t);
                 Type old = stack[stacksize-width];
-                Assert.check(types.isSubtype(types.erasure(old),
-                                       types.erasure(t)));
+                Assert.check(types.isSubtype(types.erasure(old), types.erasure(t)) ||
+                        (old.isValue() != t.isValue() && types.isConvertible(types.erasure(old), types.erasure(t))));
                 stack[stacksize-width] = t;
                 break;
             default:
