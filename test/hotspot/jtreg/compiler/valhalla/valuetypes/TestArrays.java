@@ -1251,7 +1251,8 @@ public class TestArrays extends ValueTypeTest {
 
     @Test
     public MyValue1[] test51(MyValue1[] va) {
-        return Arrays.copyOf(va, va.length, MyValue1[].class);
+        // TODO Remove cast as workaround once javac is fixed
+        return (MyValue1[])Arrays.copyOf(va, va.length, MyValue1[].class);
     }
 
     @DontCompile
@@ -1269,7 +1270,8 @@ public class TestArrays extends ValueTypeTest {
 
     @Test
     public MyValue1[] test52() {
-        return Arrays.copyOf(test52_va, 8, MyValue1[].class);
+        // TODO Remove cast as workaround once javac is fixed
+        return (MyValue1[])Arrays.copyOf(test52_va, 8, MyValue1[].class);
     }
 
     @DontCompile
@@ -1283,7 +1285,8 @@ public class TestArrays extends ValueTypeTest {
 
     @Test
     public MyValue1[] test53(Object[] va) {
-        return Arrays.copyOf(va, va.length, MyValue1[].class);
+        // TODO Remove cast as workaround once javac is fixed
+        return (MyValue1[])Arrays.copyOf(va, va.length, MyValue1[].class);
     }
 
     @DontCompile
@@ -1331,7 +1334,8 @@ public class TestArrays extends ValueTypeTest {
 
     @Test
     public MyValue1[] test56(Object[] va) {
-        return Arrays.copyOf(va, va.length, MyValue1[].class);
+        // TODO Remove cast as workaround once javac is fixed
+        return (MyValue1[])Arrays.copyOf(va, va.length, MyValue1[].class);
     }
 
     @DontCompile
