@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,7 +24,7 @@
 package compiler.valhalla.valuetypes;
 
 // Value type definition with too many fields to return in registers
-final inline class MyValue4 implements MyInterface {
+final inline class MyValue4 extends MyAbstract {
     final MyValue3 v1;
     final MyValue3 v2;
 

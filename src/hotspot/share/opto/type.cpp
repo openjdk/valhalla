@@ -3482,7 +3482,7 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     return TypeInstPtr::make(TypePtr::BotPTR, klass, klass_is_exact, NULL, Offset(0), klass->flatten_array());
   } else if (klass->is_obj_array_klass()) {
     // Element is an object or value array. Recursively call ourself.
-    const TypeOopPtr* etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), false, try_for_exact);
+    const TypeOopPtr* etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ false, try_for_exact);
     bool null_free = klass->is_loaded() && klass->as_array_klass()->storage_properties().is_null_free();
     if (null_free) {
       assert(etype->is_valuetypeptr(), "must be a valuetypeptr");
@@ -3490,8 +3490,13 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     }
     // [V? has a subtype: [V. So even though V is final, [V? is not exact.
     bool xk = etype->klass_is_exact() && (!etype->is_valuetypeptr() || null_free);
-    bool not_null_free = !etype->can_be_value_type() || xk;
-    bool not_flat = !ValueArrayFlatten || not_null_free || (etype->is_valuetypeptr() && !etype->value_klass()->flatten_array());
+
+    // Use exact element type to determine null-free/flattened properties
+    const TypeOopPtr* exact_etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ true, try_for_exact);
+    bool not_null_free = !exact_etype->can_be_value_type();
+    assert(!(not_null_free && null_free), "inconsistent null-free information");
+    bool not_flat = !ValueArrayFlatten || not_null_free || (exact_etype->is_valuetypeptr() && !exact_etype->value_klass()->flatten_array());
+
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, false, not_flat, not_null_free);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can

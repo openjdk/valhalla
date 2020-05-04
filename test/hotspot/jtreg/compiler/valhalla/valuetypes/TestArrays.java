@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2081,7 +2081,7 @@ public class TestArrays extends ValueTypeTest {
         }
     }
 
-    // Additional correcntess tests to make sure we have the required null checks
+    // Additional correctness tests to make sure we have the required null checks
     @Test()
     public void test88(Object[] array, Integer v) {
         array[0] = v;
