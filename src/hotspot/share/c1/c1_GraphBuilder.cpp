@@ -1292,11 +1292,8 @@ void GraphBuilder::if_node(Value x, If::Condition cond, Value y, ValueStack* sta
       if (left_klass == NULL || right_klass == NULL) {
         // The klass is still unloaded, or came from a Phi node. Go slow case;
         subst_check = true;
-      } else if (left_klass->is_java_lang_Object() || left_klass->is_interface() ||
-                 right_klass->is_java_lang_Object() || right_klass->is_interface()) {
-        // Either operand may be a value object, but we're not sure.  Go slow case;
-        subst_check = true;
-      } else if (left_klass->is_valuetype() || right_klass->is_valuetype()) {
+      } else if (left_klass->can_be_value_klass() || right_klass->can_be_value_klass()) {
+        // Either operand may be a value object, but we're not sure. Go slow case;
         subst_check = true;
       } else {
         // No need to do substitutability check
