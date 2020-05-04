@@ -209,6 +209,8 @@ class ClassFileParser {
   bool _has_vanilla_constructor;
   int _max_bootstrap_specifier_index;  // detects BSS values
 
+  void check_super_of_inline_type(const InstanceKlass* super_klass, TRAPS);
+
   void parse_stream(const ClassFileStream* const stream, TRAPS);
 
   void post_process_parsed_stream(const ClassFileStream* const stream,

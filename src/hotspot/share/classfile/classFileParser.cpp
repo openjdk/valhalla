@@ -6874,6 +6874,50 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   // all bytes in stream read and parsed
 }
 
+// Check that super class of an inline type is abstract, has no instance fields,
+// has an empty body-less no-arg constructor, and no synchronized instance methods.
+// Otherwise, throw ICCE.
+void ClassFileParser::check_super_of_inline_type(const InstanceKlass* super_klass, TRAPS) {
+  const char* icce_msg = NULL;
+
+  if (!super_klass->is_abstract()) {
+    icce_msg = "that is not abstract";
+
+  } else if (super_klass->has_nonstatic_fields()) {
+    icce_msg = "containing instance fields";
+
+  } else {
+    Array<Method*>* methods = super_klass->methods();
+    // Look at each method.
+    for (int x = 0; x < methods->length(); x++) {
+      const Method* const method = methods->at(x);
+      if (method->is_synchronized() && !method->is_static()) {
+        icce_msg = "containing a synchronized instance method";
+        break;
+
+      } else if (method->name() == vmSymbols::object_initializer_name()) {
+        if (method->signature() != vmSymbols::void_method_signature()) {
+          icce_msg = "containing a constructor with a non-void signature";
+          break;
+        } else if (!method->is_vanilla_constructor()) {
+          icce_msg = "containing a non-empty constructor";
+          break;
+        }
+      }
+    }
+  }
+  if (icce_msg != NULL) {
+    ResourceMark rm(THREAD);
+    Exceptions::fthrow(
+      THREAD_AND_LOCATION,
+      vmSymbols::java_lang_IncompatibleClassChangeError(),
+      "inline class %s has a super class %s %s",
+      _class_name->as_klass_external_name(),
+      super_klass->external_name(),
+      icce_msg);
+  }
+}
+
 void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const stream,
                                                  ConstantPool* cp,
                                                  TRAPS) {
@@ -6930,10 +6974,11 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     // For an inline class, only java/lang/Object or special abstract classes
     // are acceptable super classes.
     if (_access_flags.get_flags() & JVM_ACC_VALUE) {
-      if (_super_klass->name() != vmSymbols::java_lang_Object()) {
-        guarantee_property(_super_klass->is_abstract(),
-          "Inline type must have java.lang.Object or an abstract class as its superclass, class file %s",
-          CHECK);
+      const InstanceKlass* super_ik = _super_klass;
+      while (super_ik->name() != vmSymbols::java_lang_Object()) {
+        check_super_of_inline_type(super_ik, CHECK);
+        super_ik = super_ik->java_super();
+        assert(super_ik != NULL, "Unexpected NULL super class");
       }
     }
 
