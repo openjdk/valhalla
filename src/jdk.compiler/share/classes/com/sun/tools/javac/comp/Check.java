@@ -898,7 +898,7 @@ public class Check {
     }
 
     void checkParameterizationWithValues(DiagnosticPosition pos, Type t) {
-        if (t.tsym != syms.classType.tsym) { // tolerate Value.class for now.
+        if (t.tsym != syms.classType.tsym) { // tolerate Value.class.
             valueParameterizationChecker.visit(t, pos);
         }
     }

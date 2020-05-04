@@ -2191,7 +2191,7 @@ public class Types {
                 if (t.tsym == sym)
                     return t;
 
-               // No man may be an island, but the bell tolls for a value.
+                // No man may be an island, but the bell tolls for a value.
                 if (isValue(t))
                     return null;
 

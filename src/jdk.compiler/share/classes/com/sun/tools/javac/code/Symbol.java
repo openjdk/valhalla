@@ -426,7 +426,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     }
 
     /**
-     * Return the value projection IFF `this' happens to be derived reference projection, null
+     * Return the value projection IFF 'this' happens to be derived reference projection, null
      * otherwise.
      */
     public Symbol valueProjection() {
@@ -434,7 +434,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     }
 
     /**
-     * Return the reference projection IFF `this' happens to be value projection, null
+     * Return the reference projection IFF 'this' happens to be value projection, null
      * otherwise.
      */
     public Symbol referenceProjection() {
@@ -543,7 +543,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     }
 
     /** The outermost class which indirectly owns this symbol.
-     * `outermost' being a lexical construct, should transcend
+     * 'outermost' being a lexical construct, should transcend
      *  projections
      */
     public ClassSymbol outermostClass() {
@@ -1316,7 +1316,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
          */
         private List<RecordComponent> recordComponents = List.nil();
 
-        /* the `other' projection: If `this' is an inline class then 'projection' is its reference projection
+        /* the 'other' projection: If 'this' is an inline class then 'projection' is its reference projection
            and vice versa.
          */
         public ClassSymbol projection;
@@ -1666,20 +1666,20 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
             projection = new ClassSymbol(projectionFlags, projectionName, projectedType, this.owner);
             projection.members_field = WriteableScope.create(projection);
-            for (Symbol s : this.members().getSymbols(s->(s.kind == MTH || s.kind == VAR), NON_RECURSIVE)) { // TODO: TYP?, CLINT?
+            for (Symbol s : this.members().getSymbols(s->(s.kind == MTH || s.kind == VAR), NON_RECURSIVE)) {
                 Symbol clone = null;
                 if (s.kind == MTH) {
-                    MethodSymbol vMethod = (MethodSymbol)s;
-                    MethodSymbol rMethod = vMethod.clone(projection);
-                    vMethod.projection = rMethod;
-                    rMethod.projection = vMethod;
-                    clone = rMethod;
+                    MethodSymbol valMethod = (MethodSymbol)s;
+                    MethodSymbol refMethod = valMethod.clone(projection);
+                    valMethod.projection = refMethod;
+                    refMethod.projection = valMethod;
+                    clone = refMethod;
                 } else if (s.kind == VAR) {
-                    VarSymbol vVar = (VarSymbol)s;
-                    VarSymbol rVar = vVar.clone(projection);
-                    vVar.projection = rVar;
-                    rVar.projection = vVar;
-                    clone = rVar;
+                    VarSymbol valVar = (VarSymbol)s;
+                    VarSymbol refVar = valVar.clone(projection);
+                    valVar.projection = refVar;
+                    refVar.projection = valVar;
+                    clone = refVar;
                 }
                 projection.members_field.enter(clone);
             }
@@ -1712,7 +1712,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
          */
         public int adr = -1;
 
-        /* The `other' projection: If `this' is a field of an inline class, then 'projection' is the
+        /* The 'other' projection: If 'this' is a field of an inline class, then 'projection' is the
            its doppleganger in its referene projection class and vice versa.
         */
         public VarSymbol projection;
@@ -1964,7 +1964,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
          */
         public Attribute defaultValue = null;
 
-        /* The `other' projection: If `this' is a method of an inline class, then 'projection' is the
+        /* The 'other' projection: If 'this' is a method of an inline class, then 'projection' is the
            its doppleganger in its referene projection class and vice versa.
         */
         public MethodSymbol projection;

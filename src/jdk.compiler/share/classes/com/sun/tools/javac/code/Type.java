@@ -1024,7 +1024,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
          */
         public List<Type> all_interfaces_field;
 
-        /* The `other' projection: If `this' is type of an inline class, then 'projection' is the
+        /* The 'other' projection: If 'this' is type of an inline class, then 'projection' is the
            its doppleganger in its referene projection world and vice versa.
         */
         public ClassType projection;
