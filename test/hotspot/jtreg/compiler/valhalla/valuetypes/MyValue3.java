@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,7 +62,7 @@ final inline class MyValue3Inline {
 
 // Value type definition to stress test return of a value in registers
 // (uses all registers of calling convention on x86_64)
-public final inline class MyValue3 implements MyInterface {
+public final inline class MyValue3 extends MyAbstract {
     final char c;
     final byte bb;
     final short s;

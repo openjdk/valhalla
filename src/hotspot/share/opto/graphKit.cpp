@@ -3822,7 +3822,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     bool can_be_flattened = false;
     if (ValueArrayFlatten && klass->is_obj_array_klass()) {
       ciKlass* elem = klass->as_obj_array_klass()->element_klass();
-      can_be_flattened = elem->is_java_lang_Object() || elem->is_interface() || (elem->is_valuetype() && !klass->as_array_klass()->storage_properties().is_null_free());
+      can_be_flattened = elem->can_be_value_klass() && (!elem->is_valuetype() || elem->as_value_klass()->flatten_array());
     }
     if (xklass || (klass->is_array_klass() && !can_be_flattened)) {
       jint lhelper = klass->layout_helper();
