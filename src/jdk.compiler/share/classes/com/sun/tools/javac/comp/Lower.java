@@ -2099,7 +2099,8 @@ public class Lower extends TreeTranslator {
     /** Visitor method: Translate a single node, boxing or unboxing if needed.
      */
     public <T extends JCExpression> T translate(T tree, Type type) {
-        return (tree == null) ? null : boxIfNeeded(translate(tree), type);
+        return (tree == null) ? null :
+                applyInlineConversionsAsNeeded(boxIfNeeded(translate(tree), type), type);
     }
 
     /** Visitor method: Translate tree.
@@ -3088,6 +3089,23 @@ public class Lower extends TreeTranslator {
         }
         return result.toList();
     }
+
+    /** Apply inline widening/narrowing conversions as needed */
+    @SuppressWarnings("unchecked")
+    <T extends JCExpression> T applyInlineConversionsAsNeeded(T tree, Type type) {
+        boolean haveValue = tree.type.isValue();
+        if (haveValue == type.isValue())
+            return tree;
+        if (haveValue) {
+            // widening coversion is a NOP for the VM due to subtyping relationship at class file
+            return tree;
+        } else {
+            // For narrowing conversion, insert a cast which should trigger a null check
+            return (T) make.TypeCast(type, tree);
+        }
+    }
+
+
 
     /** Expand a boxing or unboxing conversion if needed. */
     @SuppressWarnings("unchecked") // XXX unchecked

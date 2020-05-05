@@ -237,8 +237,6 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
     public JCTree visitIdentifier(IdentifierTree node, P p) {
         JCIdent t = (JCIdent) node;
         JCIdent ident = M.at(t.pos).Ident(t.name);
-        if (t.isQuestioned())
-            ident.setQuestioned();
         return ident;
     }
 
@@ -356,9 +354,6 @@ public class TreeCopier<P> implements TreeVisitor<JCTree,P> {
         JCFieldAccess t = (JCFieldAccess) node;
         JCExpression selected = copy(t.selected, p);
         JCFieldAccess select = M.at(t.pos).Select(selected, t.name);
-        if (t.isQuestioned()) {
-            select.setQuestioned();
-        }
         return select;
     }
 

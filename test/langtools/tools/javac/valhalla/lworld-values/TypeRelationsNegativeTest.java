@@ -9,21 +9,21 @@ final inline class TypeRelationsNegativeTest {
 
     void foo() {
         TypeRelationsNegativeTest x = null; // error
-        TypeRelationsNegativeTest? xq = null;
+        TypeRelationsNegativeTest.ref xq = null;
 
         xq = x;
-        xq = (TypeRelationsNegativeTest?) x;
+        xq = (TypeRelationsNegativeTest.ref) x;
         xq = (TypeRelationsNegativeTest) x;
-        x = xq;  // error
-        x = (TypeRelationsNegativeTest?) xq; // error
+        x = xq;
+        x = (TypeRelationsNegativeTest.ref) xq;
         x = (TypeRelationsNegativeTest) xq;
  
         TypeRelationsNegativeTest [] xa = new TypeRelationsNegativeTest[] { null }; // error
-        TypeRelationsNegativeTest? [] xqa = new TypeRelationsNegativeTest?[] { null };
+        TypeRelationsNegativeTest.ref [] xqa = new TypeRelationsNegativeTest.ref[] { null };
 
         xqa = xa;
-        xqa = (TypeRelationsNegativeTest?[]) xa;
-        xa = xqa; // error
+        xqa = (TypeRelationsNegativeTest.ref[]) xa;
+        xa = xqa;// error
         xa = (TypeRelationsNegativeTest []) xqa;
     }
     int x = 10;

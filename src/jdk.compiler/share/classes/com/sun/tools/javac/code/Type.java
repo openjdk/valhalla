@@ -235,6 +235,22 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         this.metadata = metadata;
     }
 
+    public boolean isValue() {
+        return false;
+    }
+
+    public boolean isReferenceProjection() {
+        return false;
+    }
+
+    public Type valueProjection() {
+        return null;
+    }
+
+    public Type referenceProjection() {
+        return null;
+    }
+
     /**
      * A subclass of {@link Types.TypeMapping} which applies a mapping recursively to the subterms
      * of a given type expression. This mapping returns the original type is no changes occurred
@@ -1008,6 +1024,11 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
          */
         public List<Type> all_interfaces_field;
 
+        /* The 'other' projection: If 'this' is type of an inline class, then 'projection' is the
+           its doppleganger in its referene projection world and vice versa.
+        */
+        public ClassType projection;
+
         public ClassType(Type outer, List<Type> typarams, TypeSymbol tsym) {
             this(outer, typarams, tsym, TypeMetadata.EMPTY);
         }
@@ -1111,7 +1132,7 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
                 } else {
                     s = sym.name.toString();
                 }
-                return sym.isProjectedNullable() ? s + '?' : s;
+                return s;
             }
 
         @DefinedBy(Api.LANGUAGE_MODEL)
@@ -1159,6 +1180,54 @@ public abstract class Type extends AnnoConstruct implements TypeMirror, PoolCons
         @Override
         public boolean isReference() {
             return true;
+        }
+
+        @Override
+        public boolean isValue() {
+            return tsym != null && tsym.isValue();
+        }
+
+        @Override
+        public boolean isReferenceProjection() {
+            return tsym != null && tsym.isReferenceProjection();
+        }
+
+        @Override
+        public Type valueProjection() {
+            if (!isReferenceProjection() || projection !=  null)
+                return projection;
+
+            // Make a best case effort to cache the other projection.
+            ClassSymbol valueClass = (ClassSymbol) tsym.valueProjection();
+
+            projection = new ClassType(outer_field, typarams_field, valueClass);
+            projection.allparams_field = allparams_field;
+            projection.supertype_field = supertype_field;
+
+            projection.interfaces_field = interfaces_field;
+            projection.all_interfaces_field = all_interfaces_field;
+            projection.projection = this;
+            return projection;
+        }
+
+        // return the reference projection type preserving parameterizations
+        @Override
+        public ClassType referenceProjection() {
+
+            if (!isValue() || projection != null)
+                return projection;
+
+            // make a best case effort to cache the other projection.
+            ClassSymbol refClass = (ClassSymbol) tsym.referenceProjection();
+
+            projection = new ClassType(outer_field, typarams_field, refClass);
+            projection.allparams_field = allparams_field;
+            projection.supertype_field = supertype_field;
+
+            projection.interfaces_field = interfaces_field;
+            projection.all_interfaces_field = all_interfaces_field;
+            projection.projection = this;
+            return projection;
         }
 
         @Override

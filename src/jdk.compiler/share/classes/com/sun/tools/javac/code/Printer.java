@@ -326,7 +326,7 @@ public abstract class Printer implements Type.Visitor<String, Locale>, Symbol.Vi
             s =  sym.name.toString();
         }
 
-        return sym.isProjectedNullable() ? s + '?' : s;
+        return s;
     }
 
     /**

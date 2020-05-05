@@ -29,9 +29,12 @@ import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Scope.LookupKind;
 import com.sun.tools.javac.code.Scope.WriteableScope;
 import com.sun.tools.javac.code.Symbol;
+import com.sun.tools.javac.code.Symbol.ClassSymbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
+import com.sun.tools.javac.code.Symbol.TypeSymbol;
 import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.code.Symtab;
+import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Types;
 import com.sun.tools.javac.tree.JCTree;
@@ -218,6 +221,16 @@ public class TransValues extends TreeTranslator {
                 currentMethod.setType(factorySym.type);
                 currentMethod.factoryProduct = product;
                 currentClass.sym.members().remove(tree.sym);
+                ClassSymbol refProjection = currentClass.sym.projection;
+                if (refProjection != null) {
+                    MethodSymbol projection = tree.sym.projection;
+                    Assert.check(projection != null);
+                    refProjection.members().remove(projection);
+                    projection = factorySym.clone(refProjection);
+                    projection.projection = factorySym;
+                    factorySym.projection = projection;
+                    refProjection.members().enter(projection);
+                }
                 tree.sym = factorySym;
                 currentClass.sym.members().enter(factorySym);
                 tree.mods.flags |= STATIC;
@@ -313,7 +326,27 @@ public class TransValues extends TreeTranslator {
                 }
             }
         }
-        super.visitSelect(fieldAccess);
+        // Rewrite any accesses of the form V.ref.member to ((V) V.ref).member
+        fieldAccess.selected = translate(fieldAccess.selected);
+        if (fieldAccess.name != names._class && fieldAccess.name != names._default) {  // TODO: this and super ??
+            Symbol sym = TreeInfo.symbol(fieldAccess);
+            TypeSymbol selectedType = fieldAccess.selected.type.tsym;
+            if (selectedType.isReferenceProjection()) {
+                switch (sym.kind) {
+                    case MTH:
+                    case VAR:
+                        fieldAccess.selected =
+                                make.TypeCast(types.erasure(selectedType.valueProjection().type), fieldAccess.selected);
+                        if (sym.owner.isReferenceProjection()) // is an empty class file.
+                            sym = sym.valueProjection();
+                        break;
+                    case TYP:
+                        fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection().type));
+                        break;
+                }
+            }
+        }
+        result = fieldAccess;
     }
 
     // Translate a reference style instance creation attempt on a value type to a static factory call.

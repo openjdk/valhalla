@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,16 +21,35 @@
  * questions.
  */
 
-// key: compiler.err.generic.parameterization.with.value.type
+/**
+ * @test
+ * @bug 8237072
+ * @summary Test overload resolution.
+   @run main OverloadingPhaseTest2
+ */
 
-import java.util.List;
+public class OverloadingPhaseTest2 {
 
-inline class X {
+    interface A {}
+    interface B extends A {}
 
-    int x = 10;
-    
+    static inline class X {
+
+        int x = 42;
+
+        static int m(X.ref xr, A a) {
+            return 0;
+        }
+
+        static int m(X.ref xr, B b) {
+            return 1;
+        }
+    }
+
     public static void main(String [] args) {
-       var list = List.of(new X());
+        B b = null;
+        X x = new X();
+        if (X.m(x, null) != 1)
+            throw new AssertionError("Failed");
     }
 }
-

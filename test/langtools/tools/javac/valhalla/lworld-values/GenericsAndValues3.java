@@ -27,7 +27,7 @@
  * @test
  * @bug 8222784
  * @summary Check generics and values interplay
- * @compile -XDallowGenericsOverValues GenericsAndValues3.java
+ * @compile GenericsAndValues3.java
  */
 
 import java.util.stream.IntStream;
