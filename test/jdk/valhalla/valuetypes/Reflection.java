@@ -64,10 +64,10 @@ public class Reflection {
     static void testNonFlattenValue() throws Exception {
         NonFlattenValue nfv = NonFlattenValue.make(10, 20);
         Reflection test = new Reflection(NonFlattenValue.class, "NonFlattenValue", nfv);
-        test.checkField("final Point? NonFlattenValue.nfp", "nfp", Point.class.asIndirectType());
+        test.checkField("final Point$ref NonFlattenValue.nfp", "nfp", Point.ref.class);
         test.checkMethod("public Point NonFlattenValue.pointValue()", "pointValue", Point.class);
-        test.checkMethod("public Point? NonFlattenValue.point()", "point", Point.class.asIndirectType());
-        test.checkMethod("public boolean NonFlattenValue.has(Point,Point?)", "has", boolean.class, Point.class, Point.class.asIndirectType());
+        test.checkMethod("public Point$ref NonFlattenValue.point()", "point", Point.ref.class);
+        test.checkMethod("public boolean NonFlattenValue.has(Point,Point$ref)", "has", boolean.class, Point.class, Point.ref.class);
     }
 
     /*
@@ -75,15 +75,15 @@ public class Reflection {
      */
     static void testMirrors() throws Exception {
         Class<?> primary = Point.class;
-        Class<?> indirect = Point.class.asIndirectType();
+        Class<?> indirect = Point.ref.class;
 
         assertEquals(primary, Point.class);
-        assertEquals(indirect, Point.class.asNullableType());
+        assertEquals(indirect, Point.ref.class);
         assertTrue(primary.isInlineClass());
         assertFalse(primary.isIndirectType());
         assertFalse(primary.isNullableType());
 
-        assertTrue(indirect.isInlineClass());
+        assertTrue(!indirect.isInlineClass());
         assertTrue(indirect.isIndirectType());
         assertTrue(indirect.isNullableType());
 
@@ -116,7 +116,7 @@ public class Reflection {
         assertEquals(Point.class.asNullableType().getName(), "Point");
         assertEquals(Line.class.getName(), "Line");
         assertEquals((new Point[0]).getClass().getName(), "[QPoint;");
-        assertEquals((new Point?[0][0]).getClass().getName(), "[[LPoint;");
+        assertEquals((new Point.ref[0][0]).getClass().getName(), "[[LPoint$ref;");
     }
 
     private final Class<?> c;

@@ -22,7 +22,7 @@
  */
 
 public inline class NonFlattenValue {
-    Point? nfp;
+    Point.ref nfp;
 
     NonFlattenValue() {
         this.nfp = Point.makePoint(0,0);
@@ -30,13 +30,13 @@ public inline class NonFlattenValue {
     NonFlattenValue(Point p) {
         this.nfp = p;
     }
-    public Point? point() {
+    public Point.ref point() {
         return nfp;
     }
     public Point pointValue() {
         return (Point) nfp;
     }
-    public boolean has(Point p1, Point? p2) {
+    public boolean has(Point p1, Point.ref p2) {
         return nfp.equals(p1) || nfp.equals(p2);
     }
 

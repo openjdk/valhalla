@@ -208,9 +208,9 @@ public class ObjectMethods {
 
     static inline class MyValue1 {
         private Point p;
-        private Point? np;
+        private Point.ref np;
 
-        MyValue1(int x, int y, Point? np) {
+        MyValue1(int x, int y, Point.ref np) {
             this.p = Point.makePoint(x, y);
             this.np = np;
         }
