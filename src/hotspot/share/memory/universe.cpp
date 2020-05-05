@@ -315,7 +315,7 @@ void Universe::genesis(TRAPS) {
 
         ClassLoaderData* null_cld = ClassLoaderData::the_null_class_loader_data();
 
-        _the_array_interfaces_array     = MetadataFactory::new_array<Klass*>(null_cld, 2, NULL, CHECK);
+        _the_array_interfaces_array     = MetadataFactory::new_array<Klass*>(null_cld, 3, NULL, CHECK);
         _the_empty_int_array            = MetadataFactory::new_array<int>(null_cld, 0, CHECK);
         _the_empty_short_array          = MetadataFactory::new_array<u2>(null_cld, 0, CHECK);
         _the_empty_method_array         = MetadataFactory::new_array<Method*>(null_cld, 0, CHECK);
@@ -340,12 +340,16 @@ void Universe::genesis(TRAPS) {
              SystemDictionary::Cloneable_klass(), "u3");
       assert(_the_array_interfaces_array->at(1) ==
              SystemDictionary::Serializable_klass(), "u3");
+      assert(_the_array_interfaces_array->at(2) ==
+                   SystemDictionary::IdentityObject_klass(), "u3");
+
     } else
 #endif
     {
       // Set up shared interfaces array.  (Do this before supers are set up.)
       _the_array_interfaces_array->at_put(0, SystemDictionary::Cloneable_klass());
       _the_array_interfaces_array->at_put(1, SystemDictionary::Serializable_klass());
+      _the_array_interfaces_array->at_put(2, SystemDictionary::IdentityObject_klass());
     }
 
     initialize_basic_type_klass(boolArrayKlassObj(), CHECK);

@@ -962,12 +962,11 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
   assert(has_nonstatic_concrete_methods != NULL, "invariant");
 
   if (itfs_len == 0) {
-    _local_interfaces = Universe::the_empty_instance_klass_array();
+    _temp_local_interfaces = new GrowableArray<InstanceKlass*>(1);
   } else {
     assert(itfs_len > 0, "only called for len>0");
-    _local_interfaces = MetadataFactory::new_array<InstanceKlass*>(_loader_data, itfs_len, NULL, CHECK);
-
-    int index;
+    _temp_local_interfaces = new GrowableArray<InstanceKlass*>(itfs_len+1);
+    int index = 0;
     for (index = 0; index < itfs_len; index++) {
       const u2 interface_index = stream->get_u2(CHECK);
       Klass* interf;
@@ -985,7 +984,7 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
         guarantee_property(unresolved_klass->char_at(0) != JVM_SIGNATURE_ARRAY,
                            "Bad interface name in class file %s", CHECK);
 
-        // Call resolve_super so classcircularity is checked
+        // Call resolve_super so class circularity is checked
         interf = SystemDictionary::resolve_super_or_fail(
                                                   _class_name,
                                                   unresolved_klass,
@@ -1022,7 +1021,10 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
       if (ik->is_declared_atomic()) {
         *is_declared_atomic = true;
       }
-      _local_interfaces->at_put(index, ik);
+      if (ik->name() == vmSymbols::java_lang_IdentityObject()) {
+        _implements_identityObject = true;
+      }
+      _temp_local_interfaces->at_put_grow(index, ik);
     }
 
     if (!_need_verify || itfs_len <= 1) {
@@ -1040,7 +1042,7 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
     {
       debug_only(NoSafepointVerifier nsv;)
       for (index = 0; index < itfs_len; index++) {
-        const InstanceKlass* const k = _local_interfaces->at(index);
+        const InstanceKlass* const k = _temp_local_interfaces->at(index);
         name = k->name();
         // If no duplicates, add (name, NULL) in hashtable interface_names.
         if (!put_after_lookup(name, NULL, interface_names)) {
@@ -1837,6 +1839,10 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     const FieldAllocationType atype = fac->update(false, type, false);
     field->set_allocation_type(atype);
     index++;
+  }
+
+  if (instance_fields_count > 0) {
+    _has_nonstatic_fields = true;
   }
 
   assert(NULL == _fields, "invariant");
@@ -6081,20 +6087,19 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook, 
 // This function doesn't check if the class's super types are invalid.  Those checks
 // are done elsewhere.  The final determination of whether or not a class is an
 // invalid super type for an inline class is done in fill_instance_klass().
-static bool is_invalid_super_for_inline_type(const InstanceKlass* ik) {
-  if (ik->name() == vmSymbols::java_lang_IdentityObject()) {
+bool ClassFileParser::is_invalid_super_for_inline_type() {
+  if (class_name() == vmSymbols::java_lang_IdentityObject()) {
     return true;
   }
-  if (ik->is_interface() || ik->name() == vmSymbols::java_lang_Object()) {
+  if (is_interface() || class_name() == vmSymbols::java_lang_Object()) {
     return false;
   }
-  if (!ik->is_abstract() || ik->has_nonstatic_fields()) {
+  if (!access_flags().is_abstract() || _has_nonstatic_fields) {
     return true;
   } else {
-    Array<Method*>* methods = ik->methods();
-    // Look at each method.
-    for (int x = 0; x < methods->length(); x++) {
-      const Method* const method = methods->at(x);
+    // Look at each method
+    for (int x = 0; x < _methods->length(); x++) {
+      const Method* const method = _methods->at(x);
       if (method->is_synchronized() && !method->is_static()) {
         return true;
 
@@ -6144,6 +6149,15 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   if (_is_empty_value) {
     ik->set_is_empty_value();
   }
+
+  if (this->_invalid_inline_super) {
+    ik->set_invalid_inline_super();
+  }
+
+  if (_has_injected_identityObject) {
+    ik->set_has_injected_identityObject();
+  }
+
   assert(_fac != NULL, "invariant");
   ik->set_static_oop_field_count(_fac->count[STATIC_OOP] + _fac->count[STATIC_FLATTENABLE]);
 
@@ -6371,15 +6385,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
     }
   }
 
-  // Set ik->invalid_inline_super field to TRUE if already marked as invalid,
-  // if super is marked invalid, or if is_invalid_super_for_inline_type()
-  // returns true
-  if (invalid_inline_super() ||
-      (_super_klass != NULL && _super_klass->invalid_inline_super()) ||
-      is_invalid_super_for_inline_type(ik)) {
-    ik->set_invalid_inline_super();
-  }
-
   JFR_ONLY(INIT_ID(ik);)
 
   // If we reach here, all is well.
@@ -6533,11 +6538,14 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_final_method(false),
   _has_contended_fields(false),
   _has_flattenable_fields(false),
+  _has_nonstatic_fields(false),
   _is_empty_value(false),
   _is_naturally_atomic(false),
   _is_declared_atomic(false),
   _invalid_inline_super(false),
   _invalid_identity_super(false),
+  _implements_identityObject(false),
+  _has_injected_identityObject(false),
   _has_finalizer(false),
   _has_empty_finalizer(false),
   _has_vanilla_constructor(false),
@@ -6881,7 +6889,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
                    &_is_declared_atomic,
                    CHECK);
 
-  assert(_local_interfaces != NULL, "invariant");
+  assert(_temp_local_interfaces != NULL, "invariant");
 
   // Fields (offsets are filled in later)
   _fac = new FieldAllocationCount();
@@ -6942,9 +6950,9 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   assert(_loader_data != NULL, "invariant");
 
   if (_class_name == vmSymbols::java_lang_Object()) {
-    check_property(_local_interfaces == Universe::the_empty_instance_klass_array(),
-                   "java.lang.Object cannot implement an interface in class file %s",
-                   CHECK);
+    check_property(_temp_local_interfaces->length() == 0,
+        "java.lang.Object cannot implement an interface in class file %s",
+        CHECK);
   }
   // We check super class after class file is parsed and format is checked
   if (_super_class_index > 0 && NULL ==_super_klass) {
@@ -7017,6 +7025,30 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     const char* class_name_str = _class_name->as_C_string();
     if (StringUtils::class_list_match(ForceNonTearable, class_name_str)) {
       _is_declared_atomic = true;
+    }
+  }
+
+  // Set ik->invalid_inline_super field to TRUE if already marked as invalid,
+  // if super is marked invalid, or if is_invalid_super_for_inline_type()
+  // returns true
+  if (invalid_inline_super() ||
+      (_super_klass != NULL && _super_klass->invalid_inline_super()) ||
+      is_invalid_super_for_inline_type()) {
+    set_invalid_inline_super();
+  }
+
+  if (!is_value_type() && invalid_inline_super() && (_super_klass == NULL || !_super_klass->invalid_inline_super())
+      && !_implements_identityObject && class_name() != vmSymbols::java_lang_IdentityObject()) {
+    _temp_local_interfaces->at_put_grow(_temp_local_interfaces->length(), SystemDictionary::IdentityObject_klass());
+    _has_injected_identityObject = true;
+  }
+  int itfs_len = _temp_local_interfaces->length();
+  if (itfs_len == 0) {
+    _local_interfaces = Universe::the_empty_instance_klass_array();
+  } else {
+    _local_interfaces = MetadataFactory::new_array<InstanceKlass*>(_loader_data, itfs_len, NULL, CHECK);
+    for (int i = 0; i < itfs_len; i++) {
+      _local_interfaces->at_put(i, _temp_local_interfaces->at(i));
     }
   }
 

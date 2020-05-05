@@ -64,7 +64,8 @@ bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Sym
     // Otherwise, we treat interfaces as java.lang.Object.
     return !from_is_array ||
       this_class == SystemDictionary::Cloneable_klass() ||
-      this_class == SystemDictionary::Serializable_klass();
+      this_class == SystemDictionary::Serializable_klass() ||
+      this_class == SystemDictionary::IdentityObject_klass();
   } else if (from_is_object) {
     Klass* from_class = SystemDictionary::resolve_or_fail(
         from_name, Handle(THREAD, klass->class_loader()),
