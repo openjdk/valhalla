@@ -50,19 +50,19 @@ public inline class CheckFieldDescriptors {
                     throw new Exception("Bad descriptor for field1");
             } else if (fld.getName(cls.constant_pool).equals("f2")) {
                 fCount++;
-                if (!fld.descriptor.getValue(cls.constant_pool).equals("LCheckFieldDescriptors;"))
+                if (!fld.descriptor.getValue(cls.constant_pool).equals("LCheckFieldDescriptors$ref;"))
                     throw new Exception("Bad descriptor for field2");
             } else if (fld.getName(cls.constant_pool).equals("f3")) {
                 fCount++;
-                if (!fld.descriptor.getValue(cls.constant_pool).equals("LCheckFieldDescriptors;"))
+                if (!fld.descriptor.getValue(cls.constant_pool).equals("LCheckFieldDescriptors$ref;"))
                     throw new Exception("Bad descriptor for field3");
             } else if (fld.getName(cls.constant_pool).equals("a1")) {
                 fCount++;
-                if (!fld.descriptor.getValue(cls.constant_pool).equals("[LCheckFieldDescriptors;"))
+                if (!fld.descriptor.getValue(cls.constant_pool).equals("[LCheckFieldDescriptors$ref;"))
                     throw new Exception("Bad descriptor for field4");
             } else if (fld.getName(cls.constant_pool).equals("a2")) {
                 fCount++;
-                if (!fld.descriptor.getValue(cls.constant_pool).equals("[LCheckFieldDescriptors;"))
+                if (!fld.descriptor.getValue(cls.constant_pool).equals("[LCheckFieldDescriptors$ref;"))
                     throw new Exception("Bad descriptor for field5");
             } else if (fld.getName(cls.constant_pool).equals("a3")) {
                 fCount++;
@@ -83,11 +83,11 @@ public inline class CheckFieldDescriptors {
 class CheckFieldDescriptorsAuxilliary {
 
     CheckFieldDescriptors f1;
-    CheckFieldDescriptors? f2;
-    CheckFieldDescriptors? f3;
+    CheckFieldDescriptors.ref f2;
+    CheckFieldDescriptors.ref f3;
 
-    CheckFieldDescriptors?[] a1 = new CheckFieldDescriptors?[42];
-    CheckFieldDescriptors?[] a2 = new CheckFieldDescriptors?[42];
+    CheckFieldDescriptors.ref[] a1 = new CheckFieldDescriptors.ref[42];
+    CheckFieldDescriptors.ref[] a2 = new CheckFieldDescriptors.ref[42];
     CheckFieldDescriptors[] a3 = new CheckFieldDescriptors[42];
     CheckFieldDescriptors[] a4 = new CheckFieldDescriptors[42];
 }
