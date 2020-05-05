@@ -35,7 +35,7 @@ public inline class ArrayRelationsTest {
     int x = 42;
 
     public static void main(String [] args) {
-        ArrayRelationsTest? [] la = new ArrayRelationsTest?[10];
+        ArrayRelationsTest.ref [] la = new ArrayRelationsTest.ref[10];
         ArrayRelationsTest [] qa = new ArrayRelationsTest[10];
         boolean cce = false;
         try {
@@ -47,7 +47,7 @@ public inline class ArrayRelationsTest {
             throw new AssertionError("Missing CCE");
         }
         la = qa;
-        ArrayRelationsTest?[] la2 = qa;
+        ArrayRelationsTest.ref[] la2 = qa;
         ArrayRelationsTest [] qa2 = (ArrayRelationsTest []) la2;
         boolean npe = false;
         try {
@@ -71,7 +71,7 @@ public inline class ArrayRelationsTest {
 
         // round trip;
         Object o = oa = la = qa;
-        qa = (ArrayRelationsTest[]) (la = (ArrayRelationsTest? []) (oa = (Object []) o));
+        qa = (ArrayRelationsTest[]) (la = (ArrayRelationsTest.ref []) (oa = (Object []) o));
         qa [0] = new ArrayRelationsTest();
 
         npe = false;
@@ -84,7 +84,7 @@ public inline class ArrayRelationsTest {
             throw new AssertionError("Missing NPE");
         }
 
-        la = new ArrayRelationsTest? [10];
+        la = new ArrayRelationsTest.ref [10];
 
         cce = false;
         try {

@@ -91,9 +91,8 @@ void Parse::array_load(BasicType bt) {
     // Load from non-flattened but flattenable value type array (elements can never be null)
     bt = T_VALUETYPE;
   } else if (!ary_t->is_not_flat()) {
-    assert(is_reference_type(bt), "");
     // Cannot statically determine if array is flattened, emit runtime check
-    assert(ValueArrayFlatten && elemptr->can_be_value_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
+    assert(ValueArrayFlatten && is_reference_type(bt) && elemptr->can_be_value_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
            (!elemptr->is_valuetypeptr() || elemptr->value_klass()->flatten_array()), "array can't be flattened");
     Node* ctl = control();
     IdealKit ideal(this);
@@ -184,12 +183,10 @@ void Parse::array_load(BasicType bt) {
         alloc_obj->set_req(0, control());
         alloc_obj = _gvn.transform(alloc_obj);
 
-        const Type* unknown_value = TypeInstPtr::BOTTOM->cast_to_flat_array();
-
+        const Type* unknown_value = elemptr->is_instptr()->cast_to_flat_array();
         alloc_obj = _gvn.transform(new CheckCastPPNode(control(), alloc_obj, unknown_value));
 
         ideal.sync_kit(this);
-
         ideal.set(res, alloc_obj);
       }
     } ideal.else_(); {

@@ -27,7 +27,7 @@
  * @test
  * @bug 8222784
  * @summary Check generics and values interplay
- * @compile -XDallowGenericsOverValues GenericsAndValues2.java
+ * @compile GenericsAndValues2.java
  */
 
 import java.util.function.Consumer;
@@ -39,7 +39,7 @@ import java.util.function.Consumer;
       this.value = value;
     }
   
-    private static void accept(Consumer<? super CaptureBug> consumer) {
+    private static void accept(Consumer<? super CaptureBug.ref> consumer) {
       consumer.accept(new CaptureBug(3));
     }
   

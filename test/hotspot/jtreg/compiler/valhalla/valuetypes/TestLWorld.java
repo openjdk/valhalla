@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -436,10 +436,10 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertEQ(result, 11*vt.hash() + 2*def.hashPrimitive());
     }
 
-    class MyObject implements MyInterface {
+    class MyObject1 implements MyInterface {
         public int x;
 
-        public MyObject(int x) {
+        public MyObject1(int x) {
             this.x = x;
         }
 
@@ -454,7 +454,7 @@ public class TestLWorld extends ValueTypeTest {
     public MyInterface test13(int state) {
         MyInterface res = null;
         if (state == 0) {
-            res = new MyObject(rI);
+            res = new MyObject1(rI);
         } else if (state == 1) {
             res = MyValue1.createWithFieldsInline(rI, rL);
         } else if (state == 2) {
@@ -474,7 +474,7 @@ public class TestLWorld extends ValueTypeTest {
         objectField1 = valueField1;
         MyInterface result = null;
         result = test13(0);
-        Asserts.assertEQ(((MyObject)result).x, rI);
+        Asserts.assertEQ(((MyObject1)result).x, rI);
         result = test13(1);
         Asserts.assertEQ(((MyValue1)result).hash(), hash());
         result = test13(2);
@@ -490,9 +490,9 @@ public class TestLWorld extends ValueTypeTest {
     // Test merging value types and interfaces in loops
     @Test()
     public MyInterface test14(int iters) {
-        MyInterface res = new MyObject(rI);
+        MyInterface res = new MyObject1(rI);
         for (int i = 0; i < iters; ++i) {
-            if (res instanceof MyObject) {
+            if (res instanceof MyObject1) {
                 res = MyValue1.createWithFieldsInline(rI, rL);
             } else {
                 res = MyValue1.createWithFieldsInline(((MyValue1)res).x + 1, rL);
@@ -503,7 +503,7 @@ public class TestLWorld extends ValueTypeTest {
 
     @DontCompile
     public void test14_verifier(boolean warmup) {
-        MyObject result1 = (MyObject)test14(0);
+        MyObject1 result1 = (MyObject1)test14(0);
         Asserts.assertEQ(result1.x, rI);
         int iters = (Math.abs(rI) % 10) + 1;
         MyValue1 result2 = (MyValue1)test14(iters);
@@ -644,18 +644,29 @@ public class TestLWorld extends ValueTypeTest {
 
     // Test load from (flattened) value type array disguised as interface array
     @Test()
-    public Object test22(MyInterface[] ia, int index) {
+    public Object test22Interface(MyInterface[] ia, int index) {
         return ia[index];
     }
 
     @DontCompile
-    public void test22_verifier(boolean warmup) {
-        MyValue1 result = (MyValue1)test22(testValue1Array, Math.abs(rI) % 3);
+    public void test22Interface_verifier(boolean warmup) {
+        MyValue1 result = (MyValue1)test22Interface(testValue1Array, Math.abs(rI) % 3);
+        Asserts.assertEQ(result.hash(), hash());
+    }
+
+    // Test load from (flattened) value type array disguised as abstract array
+    @Test()
+    public Object test22Abstract(MyAbstract[] ia, int index) {
+        return ia[index];
+    }
+
+    @DontCompile
+    public void test22Abstract_verifier(boolean warmup) {
+        MyValue1 result = (MyValue1)test22Abstract(testValue1Array, Math.abs(rI) % 3);
         Asserts.assertEQ(result.hash(), hash());
     }
 
     // Test value store to (flattened) value type array disguised as object array
-
     @ForceInline
     public void test23_inline(Object[] oa, Object o, int index) {
         oa[index] = o;
@@ -726,24 +737,24 @@ public class TestLWorld extends ValueTypeTest {
 
     // Test value store to (flattened) value type array disguised as interface array
     @ForceInline
-    public void test26_inline(MyInterface[] ia, MyInterface i, int index) {
+    public void test26Interface_inline(MyInterface[] ia, MyInterface i, int index) {
         ia[index] = i;
     }
 
     @Test()
-    public void test26(MyInterface[] ia, MyValue1 vt, int index) {
-      test26_inline(ia, vt, index);
+    public void test26Interface(MyInterface[] ia, MyValue1 vt, int index) {
+      test26Interface_inline(ia, vt, index);
     }
 
     @DontCompile
-    public void test26_verifier(boolean warmup) {
+    public void test26Interface_verifier(boolean warmup) {
         int index = Math.abs(rI) % 3;
         MyValue1 vt = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
-        test26(testValue1Array, vt, index);
+        test26Interface(testValue1Array, vt, index);
         Asserts.assertEQ(testValue1Array[index].hash(), vt.hash());
         testValue1Array[index] = testValue1;
         try {
-            test26(testValue2Array, vt, index);
+            test26Interface(testValue2Array, vt, index);
             throw new RuntimeException("No ArrayStoreException thrown");
         } catch (ArrayStoreException e) {
             // Expected
@@ -752,20 +763,68 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @ForceInline
-    public void test27_inline(MyInterface[] ia, MyInterface i, int index) {
+    public void test27Interface_inline(MyInterface[] ia, MyInterface i, int index) {
         ia[index] = i;
     }
 
     @Test()
-    public void test27(MyInterface[] ia, MyValue1 vt, int index) {
-        test27_inline(ia, vt, index);
+    public void test27Interface(MyInterface[] ia, MyValue1 vt, int index) {
+        test27Interface_inline(ia, vt, index);
     }
 
     @DontCompile
-    public void test27_verifier(boolean warmup) {
+    public void test27Interface_verifier(boolean warmup) {
         int index = Math.abs(rI) % 3;
         try {
-            test27(null, testValue1, index);
+            test27Interface(null, testValue1, index);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    // Test value store to (flattened) value type array disguised as abstract array
+    @ForceInline
+    public void test26Abstract_inline(MyAbstract[] ia, MyAbstract i, int index) {
+        ia[index] = i;
+    }
+
+    @Test()
+    public void test26Abstract(MyAbstract[] ia, MyValue1 vt, int index) {
+      test26Abstract_inline(ia, vt, index);
+    }
+
+    @DontCompile
+    public void test26Abstract_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
+        test26Abstract(testValue1Array, vt, index);
+        Asserts.assertEQ(testValue1Array[index].hash(), vt.hash());
+        testValue1Array[index] = testValue1;
+        try {
+            test26Abstract(testValue2Array, vt, index);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue2Array[index].hash(), testValue2.hash());
+    }
+
+    @ForceInline
+    public void test27Abstract_inline(MyAbstract[] ia, MyAbstract i, int index) {
+        ia[index] = i;
+    }
+
+    @Test()
+    public void test27Abstract(MyAbstract[] ia, MyValue1 vt, int index) {
+        test27Abstract_inline(ia, vt, index);
+    }
+
+    @DontCompile
+    public void test27Abstract_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        try {
+            test27Abstract(null, testValue1, index);
             throw new RuntimeException("No NPE thrown");
         } catch (NullPointerException e) {
             // Expected
@@ -844,23 +903,23 @@ public class TestLWorld extends ValueTypeTest {
 
     // Test value store to (flattened) value type array disguised as interface array
     @ForceInline
-    public void test31_inline(MyInterface[] ia, MyInterface i, int index) {
+    public void test31Interface_inline(MyInterface[] ia, MyInterface i, int index) {
         ia[index] = i;
     }
 
     @Test()
-    public void test31(MyInterface[] ia, MyInterface i, int index) {
-        test31_inline(ia, i, index);
+    public void test31Interface(MyInterface[] ia, MyInterface i, int index) {
+        test31Interface_inline(ia, i, index);
     }
 
     @DontCompile
-    public void test31_verifier(boolean warmup) {
+    public void test31Interface_verifier(boolean warmup) {
         int index = Math.abs(rI) % 3;
         MyValue1 vt1 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
-        test31(testValue1Array, vt1, index);
+        test31Interface(testValue1Array, vt1, index);
         Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
         try {
-            test31(testValue1Array, testValue2, index);
+            test31Interface(testValue1Array, testValue2, index);
             throw new RuntimeException("No ArrayStoreException thrown");
         } catch (ArrayStoreException e) {
             // Expected
@@ -870,20 +929,68 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     @ForceInline
-    public void test32_inline(MyInterface[] ia, MyInterface i, int index) {
+    public void test32Interface_inline(MyInterface[] ia, MyInterface i, int index) {
         ia[index] = i;
     }
 
     @Test()
-    public void test32(MyInterface[] ia, MyInterface i, int index) {
-        test32_inline(ia, i, index);
+    public void test32Interface(MyInterface[] ia, MyInterface i, int index) {
+        test32Interface_inline(ia, i, index);
     }
 
     @DontCompile
-    public void test32_verifier(boolean warmup) {
+    public void test32Interface_verifier(boolean warmup) {
         int index = Math.abs(rI) % 3;
         try {
-            test32(testValue2Array, testValue1, index);
+            test32Interface(testValue2Array, testValue1, index);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+    }
+
+    // Test value store to (flattened) value type array disguised as abstract array
+    @ForceInline
+    public void test31Abstract_inline(MyAbstract[] ia, MyAbstract i, int index) {
+        ia[index] = i;
+    }
+
+    @Test()
+    public void test31Abstract(MyAbstract[] ia, MyAbstract i, int index) {
+        test31Abstract_inline(ia, i, index);
+    }
+
+    @DontCompile
+    public void test31Abstract_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        MyValue1 vt1 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
+        test31Abstract(testValue1Array, vt1, index);
+        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        try {
+            test31Abstract(testValue1Array, testValue2, index);
+            throw new RuntimeException("No ArrayStoreException thrown");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        Asserts.assertEQ(testValue1Array[index].hash(), vt1.hash());
+        testValue1Array[index] = testValue1;
+    }
+
+    @ForceInline
+    public void test32Abstract_inline(MyAbstract[] ia, MyAbstract i, int index) {
+        ia[index] = i;
+    }
+
+    @Test()
+    public void test32Abstract(MyAbstract[] ia, MyAbstract i, int index) {
+        test32Abstract_inline(ia, i, index);
+    }
+
+    @DontCompile
+    public void test32Abstract_verifier(boolean warmup) {
+        int index = Math.abs(rI) % 3;
+        try {
+            test32Abstract(testValue2Array, testValue1, index);
             throw new RuntimeException("No ArrayStoreException thrown");
         } catch (ArrayStoreException e) {
             // Expected
@@ -1701,18 +1808,34 @@ public class TestLWorld extends ValueTypeTest {
 
     // type system test with interface and value type
     @ForceInline
-    public MyInterface test64_helper(MyValue1 vt) {
+    public MyInterface test64Interface_helper(MyValue1 vt) {
         return vt;
     }
 
     @Test()
-    public MyInterface test64(MyValue1 vt) {
-        return test64_helper(vt);
+    public MyInterface test64Interface(MyValue1 vt) {
+        return test64Interface_helper(vt);
     }
 
     @DontCompile
-    public void test64_verifier(boolean warmup) {
-        test64(testValue1);
+    public void test64Interface_verifier(boolean warmup) {
+        test64Interface(testValue1);
+    }
+
+    // type system test with abstract and value type
+    @ForceInline
+    public MyAbstract test64Abstract_helper(MyValue1 vt) {
+        return vt;
+    }
+
+    @Test()
+    public MyAbstract test64Abstract(MyValue1 vt) {
+        return test64Abstract_helper(vt);
+    }
+
+    @DontCompile
+    public void test64Abstract_verifier(boolean warmup) {
+        test64Abstract(testValue1);
     }
 
     // Array store tests
@@ -1788,23 +1911,45 @@ public class TestLWorld extends ValueTypeTest {
 
     // Same as test69 but with an Interface
     @ForceInline
-    public MyInterface test70_sum(MyInterface a, MyInterface b) {
+    public MyInterface test70Interface_sum(MyInterface a, MyInterface b) {
         int sum = ((MyValue1)a).x + ((MyValue1)b).x;
         return MyValue1.setX(((MyValue1)a), sum);
     }
 
     @Test(failOn = ALLOC + STORE)
-    public int test70(MyValue1[] array) {
+    public int test70Interface(MyValue1[] array) {
         MyValue1 result = MyValue1.createDefaultInline();
         for (int i = 0; i < array.length; ++i) {
-            result = (MyValue1)test70_sum(result, array[i]);
+            result = (MyValue1)test70Interface_sum(result, array[i]);
         }
         return result.x;
     }
 
     @DontCompile
-    public void test70_verifier(boolean warmup) {
-        int result = test70(testValue1Array);
+    public void test70Interface_verifier(boolean warmup) {
+        int result = test70Interface(testValue1Array);
+        Asserts.assertEQ(result, rI * testValue1Array.length);
+    }
+
+    // Same as test69 but with an Abstract
+    @ForceInline
+    public MyAbstract test70Abstract_sum(MyAbstract a, MyAbstract b) {
+        int sum = ((MyValue1)a).x + ((MyValue1)b).x;
+        return MyValue1.setX(((MyValue1)a), sum);
+    }
+
+    @Test(failOn = ALLOC + STORE)
+    public int test70Abstract(MyValue1[] array) {
+        MyValue1 result = MyValue1.createDefaultInline();
+        for (int i = 0; i < array.length; ++i) {
+            result = (MyValue1)test70Abstract_sum(result, array[i]);
+        }
+        return result.x;
+    }
+
+    @DontCompile
+    public void test70Abstract_verifier(boolean warmup) {
+        int result = test70Abstract(testValue1Array);
         Asserts.assertEQ(result, rI * testValue1Array.length);
     }
 
@@ -2389,5 +2534,327 @@ public class TestLWorld extends ValueTypeTest {
             Asserts.assertTrue(test96(null, null));
             Asserts.assertFalse(test96(o1, null));
         }
+    }
+
+    // Abstract class tests
+
+    @DontInline
+    public MyAbstract test97_dontinline1(MyAbstract o) {
+        return o;
+    }
+
+    @DontInline
+    public MyValue1 test97_dontinline2(MyAbstract o) {
+        return (MyValue1)o;
+    }
+
+    @ForceInline
+    public MyAbstract test97_inline1(MyAbstract o) {
+        return o;
+    }
+
+    @ForceInline
+    public MyValue1 test97_inline2(MyAbstract o) {
+        return (MyValue1)o;
+    }
+
+    @Test()
+    public MyValue1 test97() {
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
+        vt = (MyValue1)test97_dontinline1(vt);
+        vt =           test97_dontinline2(vt);
+        vt = (MyValue1)test97_inline1(vt);
+        vt =           test97_inline2(vt);
+        return vt;
+    }
+
+    @DontCompile
+    public void test97_verifier(boolean warmup) {
+        Asserts.assertEQ(test97().hash(), hash());
+    }
+
+    // Test storing/loading value types to/from abstract and value type fields
+    MyAbstract abstractField1 = null;
+    MyAbstract abstractField2 = null;
+    MyAbstract abstractField3 = null;
+    MyAbstract abstractField4 = null;
+    MyAbstract abstractField5 = null;
+    MyAbstract abstractField6 = null;
+
+    @DontInline
+    public MyAbstract readValueField5AsAbstract() {
+        return (MyAbstract)valueField5;
+    }
+
+    @DontInline
+    public MyAbstract readStaticValueField4AsAbstract() {
+        return (MyAbstract)staticValueField4;
+    }
+
+    @Test()
+    public long test98(MyValue1 vt1, MyAbstract vt2) {
+        abstractField1 = vt1;
+        abstractField2 = (MyValue1)vt2;
+        abstractField3 = MyValue1.createWithFieldsInline(rI, rL);
+        abstractField4 = MyValue1.createWithFieldsDontInline(rI, rL);
+        abstractField5 = valueField1;
+        abstractField6 = valueField3;
+        valueField1 = (MyValue1)abstractField1;
+        valueField2 = (MyValue1)vt2;
+        valueField3 = (MyValue1)vt2;
+        staticValueField1 = (MyValue1)abstractField1;
+        staticValueField2 = (MyValue1)vt1;
+        // Don't inline these methods because reading NULL will trigger a deoptimization
+        if (readValueField5AsAbstract() != null || readStaticValueField4AsAbstract() != null) {
+            throw new RuntimeException("Should be null");
+        }
+        return ((MyValue1)abstractField1).hash() + ((MyValue1)abstractField2).hash() +
+               ((MyValue1)abstractField3).hash() + ((MyValue1)abstractField4).hash() +
+               ((MyValue1)abstractField5).hash() + ((MyValue1)abstractField6).hash() +
+                valueField1.hash() + valueField2.hash() + valueField3.hash() + valueField4.hashPrimitive() +
+                staticValueField1.hash() + staticValueField2.hash() + staticValueField3.hashPrimitive();
+    }
+
+    @DontCompile
+    public void test98_verifier(boolean warmup) {
+        MyValue1 vt = testValue1;
+        MyValue1 def = MyValue1.createDefaultDontInline();
+        long result = test98(vt, vt);
+        Asserts.assertEQ(result, 11*vt.hash() + 2*def.hashPrimitive());
+    }
+
+    class MyObject2 extends MyAbstract {
+        public int x;
+
+        public MyObject2(int x) {
+            this.x = x;
+        }
+
+        @ForceInline
+        public long hash() {
+            return x;
+        }
+    }
+
+    // Test merging value types and abstract classes
+    @Test()
+    public MyAbstract test99(int state) {
+        MyAbstract res = null;
+        if (state == 0) {
+            res = new MyObject2(rI);
+        } else if (state == 1) {
+            res = MyValue1.createWithFieldsInline(rI, rL);
+        } else if (state == 2) {
+            res = MyValue1.createWithFieldsDontInline(rI, rL);
+        } else if (state == 3) {
+            res = (MyValue1)objectField1;
+        } else if (state == 4) {
+            res = valueField1;
+        } else if (state == 5) {
+            res = null;
+        }
+        return res;
+    }
+
+    @DontCompile
+    public void test99_verifier(boolean warmup) {
+        objectField1 = valueField1;
+        MyAbstract result = null;
+        result = test99(0);
+        Asserts.assertEQ(((MyObject2)result).x, rI);
+        result = test99(1);
+        Asserts.assertEQ(((MyValue1)result).hash(), hash());
+        result = test99(2);
+        Asserts.assertEQ(((MyValue1)result).hash(), hash());
+        result = test99(3);
+        Asserts.assertEQ(((MyValue1)result).hash(), hash());
+        result = test99(4);
+        Asserts.assertEQ(((MyValue1)result).hash(), hash());
+        result = test99(5);
+        Asserts.assertEQ(result, null);
+    }
+
+    // Test merging value types and abstract classes in loops
+    @Test()
+    public MyAbstract test100(int iters) {
+        MyAbstract res = new MyObject2(rI);
+        for (int i = 0; i < iters; ++i) {
+            if (res instanceof MyObject2) {
+                res = MyValue1.createWithFieldsInline(rI, rL);
+            } else {
+                res = MyValue1.createWithFieldsInline(((MyValue1)res).x + 1, rL);
+            }
+        }
+        return res;
+    }
+
+    @DontCompile
+    public void test100_verifier(boolean warmup) {
+        MyObject2 result1 = (MyObject2)test100(0);
+        Asserts.assertEQ(result1.x, rI);
+        int iters = (Math.abs(rI) % 10) + 1;
+        MyValue1 result2 = (MyValue1)test100(iters);
+        MyValue1 vt = MyValue1.createWithFieldsInline(rI + iters - 1, rL);
+        Asserts.assertEQ(result2.hash(), vt.hash());
+    }
+
+    // Test value types in abstract class variables that are live at safepoint
+    @Test(failOn = ALLOC + STORE + LOOP)
+    public long test101(MyValue1 arg, boolean deopt) {
+        MyAbstract vt1 = MyValue1.createWithFieldsInline(rI, rL);
+        MyAbstract vt2 = MyValue1.createWithFieldsDontInline(rI, rL);
+        MyAbstract vt3 = arg;
+        MyAbstract vt4 = valueField1;
+        if (deopt) {
+            // uncommon trap
+            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test101"));
+        }
+        return ((MyValue1)vt1).hash() + ((MyValue1)vt2).hash() +
+               ((MyValue1)vt3).hash() + ((MyValue1)vt4).hash();
+    }
+
+    @DontCompile
+    public void test101_verifier(boolean warmup) {
+        long result = test101(valueField1, !warmup);
+        Asserts.assertEQ(result, 4*hash());
+    }
+
+    // Test comparing value types with abstract classes
+    @Test(failOn = LOAD + LOOP)
+    public boolean test102(Object arg) {
+        MyAbstract vt = MyValue1.createWithFieldsInline(rI, rL);
+        if (vt == arg || vt == (MyAbstract)valueField1 || vt == abstractField1 || vt == null ||
+            arg == vt || (MyAbstract)valueField1 == vt || abstractField1 == vt || null == vt) {
+            return true;
+        }
+        return false;
+    }
+
+    @DontCompile
+    public void test102_verifier(boolean warmup) {
+        boolean result = test102(null);
+        Asserts.assertFalse(result);
+    }
+
+    // An abstract class with a non-static field can never be implemented by a value type
+    abstract class NoValueImplementors1 {
+        int field = 42;
+    }
+
+    class MyObject3 extends NoValueImplementors1 {
+
+    }
+
+    class MyObject4 extends NoValueImplementors1 {
+
+    }
+
+    // Loading from an abstract class array does not require a flatness check if the abstract class has a non-static field
+    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD)
+    public NoValueImplementors1 test103(NoValueImplementors1[] array, int i) {
+        return array[i];
+    }
+
+    @DontCompile
+    public void test103_verifier(boolean warmup) {
+        NoValueImplementors1[] array1 = new NoValueImplementors1[3];
+        MyObject3[] array2 = new MyObject3[3];
+        MyObject4[] array3 = new MyObject4[3];
+        NoValueImplementors1 result = test103(array1, 0);
+        Asserts.assertEquals(result, array1[0]);
+
+        result = test103(array2, 1);
+        Asserts.assertEquals(result, array1[1]);
+
+        result = test103(array3, 2);
+        Asserts.assertEquals(result, array1[2]);
+    }
+
+    // Storing to an abstract class array does not require a flatness/null check if the abstract class has a non-static field
+    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD)
+    public NoValueImplementors1 test104(NoValueImplementors1[] array, NoValueImplementors1 v, MyObject3 o, int i) {
+        array[0] = v;
+        array[1] = array[0];
+        array[2] = o;
+        return array[i];
+    }
+
+    @DontCompile
+    public void test104_verifier(boolean warmup) {
+        MyObject4 v = new MyObject4();
+        MyObject3 o = new MyObject3();
+        NoValueImplementors1[] array1 = new NoValueImplementors1[3];
+        MyObject3[] array2 = new MyObject3[3];
+        MyObject4[] array3 = new MyObject4[3];
+        NoValueImplementors1 result = test104(array1, v, o, 0);
+        Asserts.assertEquals(array1[0], v);
+        Asserts.assertEquals(array1[1], v);
+        Asserts.assertEquals(array1[2], o);
+        Asserts.assertEquals(result, v);
+
+        result = test104(array2, o, o, 1);
+        Asserts.assertEquals(array2[0], o);
+        Asserts.assertEquals(array2[1], o);
+        Asserts.assertEquals(array2[2], o);
+        Asserts.assertEquals(result, o);
+
+        result = test104(array3, v, null, 1);
+        Asserts.assertEquals(array3[0], v);
+        Asserts.assertEquals(array3[1], v);
+        Asserts.assertEquals(array3[2], null);
+        Asserts.assertEquals(result, v);
+    }
+
+    // An abstract class with a single, non-value implementor
+    abstract class NoValueImplementors2 {
+
+    }
+
+    class MyObject5 extends NoValueImplementors2 {
+
+    }
+
+    // Loading from an abstract class array does not require a flatness check if the abstract class has no value implementor
+    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD)
+    public NoValueImplementors2 test105(NoValueImplementors2[] array, int i) {
+        return array[i];
+    }
+
+    @DontCompile
+    public void test105_verifier(boolean warmup) {
+        NoValueImplementors2[] array1 = new NoValueImplementors2[3];
+        MyObject5[] array2 = new MyObject5[3];
+        NoValueImplementors2 result = test105(array1, 0);
+        Asserts.assertEquals(result, array1[0]);
+
+        result = test105(array2, 1);
+        Asserts.assertEquals(result, array1[1]);
+    }
+
+    // Storing to an abstract class array does not require a flatness/null check if the abstract class has no value implementor
+    @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD)
+    public NoValueImplementors2 test106(NoValueImplementors2[] array, NoValueImplementors2 v, MyObject5 o, int i) {
+        array[0] = v;
+        array[1] = array[0];
+        array[2] = o;
+        return array[i];
+    }
+
+    @DontCompile
+    public void test106_verifier(boolean warmup) {
+        MyObject5 v = new MyObject5();
+        NoValueImplementors2[] array1 = new NoValueImplementors2[3];
+        MyObject5[] array2 = new MyObject5[3];
+        NoValueImplementors2 result = test106(array1, v, null, 0);
+        Asserts.assertEquals(array1[0], v);
+        Asserts.assertEquals(array1[1], v);
+        Asserts.assertEquals(array1[2], null);
+        Asserts.assertEquals(result, v);
+
+        result = test106(array2, v, v, 1);
+        Asserts.assertEquals(array2[0], v);
+        Asserts.assertEquals(array2[1], v);
+        Asserts.assertEquals(array2[2], v);
+        Asserts.assertEquals(result, v);
     }
 }

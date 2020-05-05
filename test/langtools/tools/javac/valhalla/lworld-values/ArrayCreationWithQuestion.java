@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8222634
- * @summary Check array creation with V and V?
+ * @summary Check array creation with V and V.ref
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile ArrayCreationWithQuestion.java
  * @run main/othervm -Xverify:none ArrayCreationWithQuestion
@@ -38,8 +38,8 @@ import java.nio.file.Paths;
 public class ArrayCreationWithQuestion {
 
     static inline class VT {
-        VT?[] a1 = new VT?[42];
-        VT?[] a2 = new VT?[42];
+        VT.ref[] a1 = new VT.ref[42];
+        VT.ref[] a2 = new VT.ref[42];
         VT[] a3 = new VT[42];
         VT[] a4 = new VT[42];
     }
@@ -53,10 +53,10 @@ public class ArrayCreationWithQuestion {
                                             Paths.get(System.getProperty("test.classes"),
                                                 "ArrayCreationWithQuestion$VT.class").toString() };
         runCheck(params, new String [] {
-        "         6: anewarray     #3                  // class ArrayCreationWithQuestion$VT",
-        "        17: anewarray     #3                  // class ArrayCreationWithQuestion$VT",
-        "        28: anewarray     #11                 // class \"QArrayCreationWithQuestion$VT;\"",
-        "        39: anewarray     #11                 // class \"QArrayCreationWithQuestion$VT;\"",
+        "         6: anewarray     #3                  // class ArrayCreationWithQuestion$VT$ref",
+        "        17: anewarray     #3                  // class ArrayCreationWithQuestion$VT$ref",
+        "        28: anewarray     #12                 // class \"QArrayCreationWithQuestion$VT;\"",
+        "        39: anewarray     #12                 // class \"QArrayCreationWithQuestion$VT;\"",
          });
 
      }

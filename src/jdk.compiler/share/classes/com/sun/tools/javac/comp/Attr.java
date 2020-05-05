@@ -171,7 +171,6 @@ public class Attr extends JCTree.Visitor {
                 (!preview.isPreview(Feature.REIFIABLE_TYPES_INSTANCEOF) || preview.isEnabled());
         sourceName = source.name;
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
-        allowGenericsOverValues = options.isSet("allowGenericsOverValues");
         allowEmptyValues = options.isSet("allowEmptyValues");
         allowValueMemberCycles = options.isSet("allowValueMemberCycles");
 
@@ -217,11 +216,6 @@ public class Attr extends JCTree.Visitor {
      * RFE: 6425594
      */
     boolean useBeforeDeclarationWarning;
-
-    /**
-     * Switch: Allow value types to parameterize generic types?
-     */
-    boolean allowGenericsOverValues;
 
     /**
      * Switch: Allow value types with no instance state?
@@ -831,9 +825,9 @@ public class Attr extends JCTree.Visitor {
             a.tsym.flags_field |= UNATTRIBUTED;
             a.setUpperBound(Type.noType);
             if (!tvar.bounds.isEmpty()) {
-                List<Type> bounds = List.of(attribType(tvar.bounds.head, env));
+                List<Type> bounds = List.of(chk.checkRefType(tvar.bounds.head, attribType(tvar.bounds.head, env), false));
                 for (JCExpression bound : tvar.bounds.tail)
-                    bounds = bounds.prepend(attribType(bound, env));
+                    bounds = bounds.prepend(chk.checkRefType(bound, attribType(bound, env), false));
                 types.setBounds(a, bounds.reverse());
             } else {
                 // if no bounds are given, assume a single bound of
@@ -4077,13 +4071,7 @@ public class Attr extends JCTree.Visitor {
         } else if (tree.sym != null && tree.sym.kind != VAR) {
             sym = tree.sym;
         } else {
-            boolean wasQuestioned = env.info.isQuestioned;
-            try {
-                env.info.isQuestioned = tree.isQuestioned();
-                sym = rs.resolveIdent(tree.pos(), env, tree.name, pkind());
-            } finally {
-                env.info.isQuestioned = wasQuestioned;
-            }
+            sym = rs.resolveIdent(tree.pos(), env, tree.name, pkind());
         }
         tree.sym = sym;
 
@@ -4199,12 +4187,6 @@ public class Attr extends JCTree.Visitor {
         // protected symbols are accessible.
         Symbol sitesym = TreeInfo.symbol(tree.selected);
 
-        /* As we simply attach the members from the value type to its light weight box type
-           without reassigning ownership, always perform any lookups on the value type.
-         */
-        if (site.tsym.isProjectedNullable())
-            site = site.tsym.nullFreeTypeSymbol().type;
-
         boolean selectSuperPrev = env.info.selectSuper;
         env.info.selectSuper =
             sitesym != null &&
@@ -4212,14 +4194,7 @@ public class Attr extends JCTree.Visitor {
 
         // Determine the symbol represented by the selection.
         env.info.pendingResolutionPhase = null;
-        boolean wasQuestioned = env.info.isQuestioned;
-        Symbol sym;
-        try {
-            env.info.isQuestioned = tree.isQuestioned();
-            sym = selectSym(tree, sitesym, site, env, resultInfo);
-        } finally {
-            env.info.isQuestioned = wasQuestioned;
-        }
+        Symbol sym = selectSym(tree, sitesym, site, env, resultInfo);
         if (sym.kind == VAR && sym.name != names._super && env.info.defaultSuperCallSite != null) {
             log.error(tree.selected.pos(), Errors.NotEnclClass(site.tsym));
             sym = syms.errSymbol;
@@ -4349,6 +4324,10 @@ public class Attr extends JCTree.Visitor {
                     return syms.getClassField(site, types);
                 } else if (name == names._default) {
                     return new VarSymbol(STATIC, names._default, site, site.tsym);
+                } else if (name == names.ref && site.isValue() && resultInfo.pkind.contains(KindSelector.TYP)) {
+                    return site.tsym.referenceProjection();
+                } else if (name == names.val && site.isValue() && resultInfo.pkind.contains(KindSelector.TYP)) {
+                    return site.tsym;
                 } else {
                     // We are seeing a plain identifier as selector.
                     Symbol sym = rs.findIdentInType(pos, env, site, name, resultInfo.pkind);
@@ -4841,9 +4820,6 @@ public class Attr extends JCTree.Visitor {
 
         // Attribute functor part of application and make sure it's a class.
         Type clazztype = chk.checkClassType(tree.clazz.pos(), attribType(tree.clazz, env));
-        if (tree.isQuestioned() && clazztype != null && clazztype.tsym != null && clazztype.tsym.isValue()) {
-            clazztype = types.projectedNullableType((ClassSymbol) clazztype.tsym).type;
-        }
 
         // Attribute type parameters
         List<Type> actuals = attribTypes(tree.arguments, env);
@@ -5030,7 +5006,7 @@ public class Attr extends JCTree.Visitor {
         Type type = (tree.kind.kind == BoundKind.UNBOUND)
             ? syms.objectType
             : attribType(tree.inner, env);
-        result = check(tree, new WildcardType(chk.checkRefType(tree.pos(), type, allowGenericsOverValues),
+        result = check(tree, new WildcardType(chk.checkRefType(tree.pos(), type, false),
                                               tree.kind.kind,
                                               syms.boundClass),
                 KindSelector.TYP, resultInfo);

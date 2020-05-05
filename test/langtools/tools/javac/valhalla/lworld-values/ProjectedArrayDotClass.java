@@ -24,7 +24,7 @@
 /*
  * @test
  * @bug 8222722
- * @summary  Javac fails to compile V?[].class
+ * @summary  Javac fails to compile V?[].class (syntax dead)
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
  * @compile ProjectedArrayDotClass.java
  * @run main/othervm -Xverify:none ProjectedArrayDotClass
@@ -40,9 +40,9 @@ public class ProjectedArrayDotClass {
     static inline class VT {
         int x = 42;
         public static void main(String[] args) {
-            System.out.println(VT?[].class);
+            System.out.println(VT.ref[].class);
             System.out.println(VT[].class);
-            System.out.println(ProjectedArrayDotClass.VT?[].class);
+            System.out.println(ProjectedArrayDotClass.VT.ref[].class);
             System.out.println(ProjectedArrayDotClass.VT[].class);
         }
     }
@@ -56,9 +56,9 @@ public class ProjectedArrayDotClass {
                                             Paths.get(System.getProperty("test.classes"),
                                                 "ProjectedArrayDotClass$VT.class").toString() };
         runCheck(params, new String [] {
-        "         3: ldc           #13                 // class \"[LProjectedArrayDotClass$VT;\"",
+        "         3: ldc           #13                 // class \"[LProjectedArrayDotClass$VT$ref;\"",
         "        11: ldc           #21                 // class \"[QProjectedArrayDotClass$VT;\"",
-        "        19: ldc           #13                 // class \"[LProjectedArrayDotClass$VT;\"",
+        "        19: ldc           #13                 // class \"[LProjectedArrayDotClass$VT$ref;\"",
         "        27: ldc           #21                 // class \"[QProjectedArrayDotClass$VT;\"",
          });
 

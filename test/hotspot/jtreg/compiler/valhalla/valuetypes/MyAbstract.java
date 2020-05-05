@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,34 +21,9 @@
  * questions.
  */
 
-/*
- * @test
- * @bug 8221330
- * @summary Javac adds InnerClass attribute missing value flag
- * @modules jdk.jdeps/com.sun.tools.classfile
- * @run main/othervm InnerClassAttributeValuenessTest
- */
+package compiler.valhalla.valuetypes;
 
-import com.sun.tools.classfile.AccessFlags;
+public abstract class MyAbstract implements MyInterface {
 
-public class InnerClassAttributeValuenessTest {
-
-    static inline class Inner {
-        int f;
-        private Inner() { f=0; }
-        private Inner(int v) { f=v; }
-
-        public static Inner create(int v) {
-            return new Inner(v);
-        }
-
-        // Uncomment the next line, and Inner ceases to be a value type
-        public static final Inner.ref ZERO = Inner.create(0);
-        public static final Inner.ref ZERO2 = Inner.create(0);
-    }
-
-    public static void main(String[] args) {
-        if ((Inner.class.getModifiers() & AccessFlags.ACC_VALUE) == 0)
-            throw new AssertionError("Value flag missing");
-    }
 }
+

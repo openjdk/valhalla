@@ -87,16 +87,16 @@ public final class GenericsAndValues5 {
 
    public static void main(String[] args) {
 
-       List<Optional<Integer>?> opts = new ArrayList<>();
+       List<Optional.ref<Integer>> opts = new ArrayList<>();
        for (int i=0; i < 6; i++) {
            Optional<Integer> oi = Optional.of(i);
-           opts.add((Optional<Integer>?)oi);
+           opts.add((Optional.ref<Integer>)oi);
            Optional<Integer> oe = Optional.empty();
-           opts.add((Optional<Integer>?)oe);
+           opts.add((Optional.ref<Integer>)oe);
        }
 
        Integer total = opts.stream()
-           .map((Optional<Integer>? o) -> {
+           .map((Optional.ref<Integer> o) -> {
                Optional<Integer> op = (Optional<Integer>)o;
                return op.orElse(0);
            })

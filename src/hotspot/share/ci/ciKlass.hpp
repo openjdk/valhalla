@@ -110,7 +110,7 @@ public:
   }
 
   virtual bool can_be_value_klass(bool is_exact = false) {
-    return EnableValhalla && (!is_loaded() || is_valuetype() || ((is_java_lang_Object() || is_interface()) && !is_exact));
+    return false;
   }
 
   virtual bool can_be_value_array_klass() {

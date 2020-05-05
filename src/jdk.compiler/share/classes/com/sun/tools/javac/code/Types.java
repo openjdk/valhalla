@@ -95,7 +95,6 @@ public class Types {
     final boolean allowDefaultMethods;
     final boolean mapCapturesToBounds;
     final boolean allowValueBasedClasses;
-    final boolean nonCovariantValueArrays;
     final boolean injectTopInterfaceTypes;
     final Check chk;
     final Enter enter;
@@ -128,7 +127,6 @@ public class Types {
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
-        nonCovariantValueArrays = options.isSet("nonCovariantValueArrays");
         injectTopInterfaceTypes = Options.instance(context).isUnset("noTopInterfaceInjection") &&
                 Feature.INLINE_TYPES.allowedInSource(source) &&
                 Target.instance(context).hasTopInterfaces();
@@ -612,6 +610,14 @@ public class Types {
             return true;
         }
 
+        boolean tValue = t.isValue();
+        boolean sValue = s.isValue();
+        if (tValue != sValue) {
+            return tValue ?
+                    isSubtype(t.referenceProjection(), s) :
+                    (!t.hasTag(BOT) || isValueBased(s)) && isSubtype(t, s.referenceProjection());
+        }
+
         boolean tPrimitive = t.isPrimitive();
         boolean sPrimitive = s.isPrimitive();
         if (tPrimitive == sPrimitive) {
@@ -1013,46 +1019,6 @@ public class Types {
         return allowValueBasedClasses && t != null && t.tsym != null && (t.tsym.flags() & Flags.VALUEBASED) != 0;
     }
 
-    private final HashMap<ClassSymbol, ClassSymbol> nullableProjectionsMap = new HashMap<>();
-
-    public ClassSymbol projectedNullableType(ClassSymbol c) {
-        if (!c.isValue() || !c.type.hasTag(CLASS))
-            return null;
-        ClassSymbol lox = nullableProjectionsMap.get(c);
-        if (lox != null)
-            return lox;
-
-        ClassType ct = (ClassType) c.type;
-        ClassType loxType = new ClassType(ct.getEnclosingType(), ct.typarams_field, null);
-        loxType.allparams_field = ct.allparams_field;
-        loxType.supertype_field = ct.supertype_field;
-        loxType.interfaces_field = List.nil();
-        for (Type t :ct.interfaces_field) {
-            if (t.tsym == syms.inlineObjectType.tsym) {
-                loxType.interfaces_field  = loxType.interfaces_field.append(syms.identityObjectType);
-            } else {
-                loxType.interfaces_field  = loxType.interfaces_field.append(t);
-            }
-        }
-        loxType.all_interfaces_field = ct.all_interfaces_field;
-        lox = new ClassSymbol((c.flags() & ~VALUE), c.name, loxType, c.owner) {
-            @Override
-            public boolean isProjectedNullable() {
-                return true;
-            }
-
-            @Override
-            public ClassSymbol nullFreeTypeSymbol() {
-                return c;
-            }
-        };
-        lox.members_field = c.members();
-        loxType.tsym = lox;
-
-        nullableProjectionsMap.put(c, lox);
-        return lox;
-    }
-
     // <editor-fold defaultstate="collapsed" desc="isSubtype">
     /**
      * Is t an unchecked subtype of s?
@@ -1076,15 +1042,16 @@ public class Types {
                 if (((ArrayType)t).elemtype.isPrimitive()) {
                     return isSameType(elemtype(t), elemtype(s));
                 } else {
-                    Type et = elemtype(t);
+                    // if T.ref <: S, then T[] <: S[]
                     Type es = elemtype(s);
+                    Type et = elemtype(t);
+                    if (isValue(et)) {
+                        et = et.referenceProjection();
+                        if (isValue(es))
+                            es = es.referenceProjection();  // V <: V, surely
+                    }
                     if (!isSubtypeUncheckedInternal(et, es, false, warn))
                         return false;
-                    if (nonCovariantValueArrays) {
-                        if (isValue(et) || isValue(es)) {
-                            return isSameType(erasure(et), erasure(es));
-                        }
-                    }
                     return true;
                 }
             } else if (isSubtype(t, s, capture)) {
@@ -1260,8 +1227,17 @@ public class Types {
                 if (s.hasTag(ARRAY)) {
                     if (t.elemtype.isPrimitive())
                         return isSameType(t.elemtype, elemtype(s));
-                    else
-                        return isSubtypeNoCapture(t.elemtype, elemtype(s));
+                    else {
+                        // if T.ref <: S, then T[] <: S[]
+                        Type es = elemtype(s);
+                        Type et = elemtype(t);
+                        if (isValue(et)) {
+                            et = et.referenceProjection();
+                            if (isValue(es))
+                                es = es.referenceProjection();  // V <: V, surely
+                        }
+                        return isSubtypeNoCapture(et, es);
+                    }
                 }
 
                 if (s.hasTag(CLASS)) {
@@ -1647,6 +1623,15 @@ public class Types {
                     return containedBy(s, t);
                 else {
 //                    debugContainsType(t, s);
+
+                    // -----------------------------------  Unspecified behavior ----------------
+
+                    /* If a value class V implements an interface I, then does "? extends I" contain V?
+                       It seems widening must be applied here to answer yes to compile some common code
+                       patterns.
+                    */
+
+                    // ---------------------------------------------------------------------------
                     return isSameWildcard(t, s)
                         || isCaptureOf(s, t)
                         || ((t.isExtendsBound() || isSubtypeNoCapture(wildLowerBound(t), wildLowerBound(s))) &&
@@ -1771,6 +1756,14 @@ public class Types {
                 }
 
                 if (s.hasTag(CLASS) || s.hasTag(ARRAY)) {
+                    if (isValue(t)) {
+                        // (s) Value ? == (s) Value.ref
+                        t = t.referenceProjection();
+                    }
+                    if (isValue(s)) {
+                        // (Value) t ? == (Value.ref) t
+                        s = s.referenceProjection();
+                    }
                     boolean upcast;
                     if ((upcast = isSubtype(erasure(t), erasure(s)))
                         || isSubtype(erasure(s), erasure(t))) {
@@ -1880,11 +1873,6 @@ public class Types {
                         Type es = elemtype(s);
                         if (!visit(et, es))
                             return false;
-                        if (nonCovariantValueArrays) {
-                            if (isValue(et) || isValue(es)) {
-                                return isSameType(erasure(et), erasure(es));
-                            }
-                        }
                         return true;
                     }
                 default:
@@ -2186,7 +2174,8 @@ public class Types {
          *     Iterable<capture#160 of ? extends c.s.s.d.DocTree>
          */
         if (sym.type == syms.objectType) { //optimization
-            return syms.objectType;
+            if (!isValue(t))
+                return syms.objectType;
         }
         return asSuper.visit(t, sym);
     }
@@ -2202,12 +2191,9 @@ public class Types {
                 if (t.tsym == sym)
                     return t;
 
-                /* For inline types, the wired in super type is j.l.O.
-                   So we need a special check for V <: V?
-                */
-                if (t.tsym == sym.nullFreeTypeSymbol()) {
-                    return new ClassType(t.getEnclosingType(), t.getTypeArguments(), (TypeSymbol)sym, t.getMetadata());
-                }
+                // No man may be an island, but the bell tolls for a value.
+                if (isValue(t))
+                    return null;
 
                 Type st = supertype(t);
                 if (st.hasTag(CLASS) || st.hasTag(TYPEVAR)) {
@@ -2312,9 +2298,21 @@ public class Types {
      * @param sym a symbol
      */
     public Type memberType(Type t, Symbol sym) {
-        return (sym.flags() & STATIC) != 0
-            ? sym.type
-            : memberType.visit(t, sym);
+
+        if ((sym.flags() & STATIC) != 0)
+            return sym.type;
+
+        /* If any inline types are involved, switch over to the reference universe,
+           where the hierarchy is navigable. V and V.ref have identical membership
+           with no bridging needs.
+        */
+        if (t.isValue())
+            t = t.referenceProjection();
+
+        if (sym.owner.isValue())
+            sym = sym.referenceProjection();
+
+        return memberType.visit(t, sym);
         }
     // where
         private SimpleVisitor<Type,Symbol> memberType = new SimpleVisitor<Type,Symbol>() {

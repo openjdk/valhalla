@@ -95,7 +95,6 @@ public class Check {
     private final Profile profile;
     private final Preview preview;
     private final boolean warnOnAnyAccessToMembers;
-    private final boolean allowGenericsOverValues;
     private final boolean allowValueBasedClasses;
 
     // The set of lint options currently in effect. It is initialized
@@ -137,7 +136,6 @@ public class Check {
         source = Source.instance(context);
         target = Target.instance(context);
         warnOnAnyAccessToMembers = options.isSet("warnOnAccessToMembers");
-        allowGenericsOverValues = options.isSet("allowGenericsOverValues");
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
         Target target = Target.instance(context);
         syntheticNameChar = target.syntheticNameChar();
@@ -601,7 +599,8 @@ public class Check {
                     solvedContext -> checkType(pos, solvedContext.asInstType(found), solvedContext.asInstType(req), checkContext));
         } else {
             if (found.hasTag(CLASS)) {
-                checkParameterizationWithValues(pos, found);
+                if (inferenceContext != infer.emptyContext)
+                    checkParameterizationWithValues(pos, found);
             }
         }
         if (req.hasTag(ERROR))
@@ -862,7 +861,7 @@ public class Check {
     List<Type> checkRefTypes(List<JCExpression> trees, List<Type> types) {
         List<JCExpression> tl = trees;
         for (List<Type> l = types; l.nonEmpty(); l = l.tail) {
-            l.head = checkRefType(tl.head.pos(), l.head, allowGenericsOverValues);
+            l.head = checkRefType(tl.head.pos(), l.head, false);
             tl = tl.tail;
         }
         return types;
@@ -899,7 +898,7 @@ public class Check {
     }
 
     void checkParameterizationWithValues(DiagnosticPosition pos, Type t) {
-        if (!allowGenericsOverValues && t.tsym != syms.classType.tsym) { // tolerate Value.class for now.
+        if (t.tsym != syms.classType.tsym) { // tolerate Value.class.
             valueParameterizationChecker.visit(t, pos);
         }
     }
@@ -917,7 +916,7 @@ public class Check {
         @Override
         public Void visitClassType(ClassType t, DiagnosticPosition pos) {
             for (Type targ : t.allparams()) {
-                if (types.isValue(targ) && !allowGenericsOverValues) {
+                if (types.isValue(targ)) {
                     log.error(pos, Errors.GenericParameterizationWithValueType(t));
                 }
                 visit(targ, pos);
@@ -2675,11 +2674,16 @@ public class Check {
                     return;
         }
         checkCompatibleConcretes(pos, c);
-        boolean isIdentityObject = types.asSuper(c, syms.identityObjectType.tsym) != null;
-        boolean isInlineObject = types.asSuper(c, syms.inlineObjectType.tsym) != null;
-        if (types.isValue(c) && isIdentityObject) {
+
+        /* Check for inline/identity incompatibilities: But first, we may need to switch to the
+           reference universe to make the hierarchy navigable.
+        */
+        Type asRefType = c.isValue() ? c.referenceProjection() : c;
+        boolean isIdentityObject = types.asSuper(asRefType, syms.identityObjectType.tsym) != null;
+        boolean isInlineObject = types.asSuper(asRefType, syms.inlineObjectType.tsym) != null;
+        if (c.isValue() && isIdentityObject) {
             log.error(pos, Errors.InlineTypeMustNotImplementIdentityObject(c));
-        } else if (!c.isInterface() && !types.isValue(c) && isInlineObject) {
+        } else if (!c.isInterface() && !c.tsym.isAbstract() && !c.isValue() && isInlineObject) {
             log.error(pos, Errors.IdentityTypeMustNotImplementInlineObject(c));
         } else if (isIdentityObject && isInlineObject) {
             log.error(pos, Errors.MutuallyIncompatibleInterfaces(c));

@@ -32,7 +32,7 @@
 
 class CompilesFine {
 
-    static Point? nfspQm;
+    static Point.ref nfspQm;
 
     public static void main(String[] args) {
         nfspQm = null;
@@ -51,7 +51,7 @@ inline final class Point {
 class CompilesJustFine {
 
     static final inline class Value {
-        final PointBug2? nfpQm;
+        final PointBug2.ref nfpQm;
 
         private Value() {
             nfpQm = PointBug2.createPoint(0, 0);
