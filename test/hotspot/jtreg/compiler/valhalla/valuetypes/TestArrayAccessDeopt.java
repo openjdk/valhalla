@@ -43,15 +43,15 @@ public class TestArrayAccessDeopt {
         va[0] = vt;
     }
 
-    public static void test2(Object[] va, MyValue1? vt) {
+    public static void test2(Object[] va, MyValue1.ref vt) {
         va[0] = vt;
     }
 
-    public static void test3(MyValue1?[] va, Object vt) {
-        va[0] = (MyValue1?)vt;
+    public static void test3(MyValue1.ref[] va, Object vt) {
+        va[0] = (MyValue1.ref)vt;
     }
 
-    public static void test4(MyValue1?[] va, MyValue1? vt) {
+    public static void test4(MyValue1.ref[] va, MyValue1.ref vt) {
         va[0] = vt;
     }
 
@@ -67,11 +67,11 @@ public class TestArrayAccessDeopt {
         va[0] = vt;
     }
 
-    public static void test8(MyValue1?[] va, MyValue1 vt) {
+    public static void test8(MyValue1.ref[] va, MyValue1 vt) {
         va[0] = vt;
     }
 
-    public static void test9(MyValue1[] va, MyValue1? vt) {
+    public static void test9(MyValue1[] va, MyValue1.ref vt) {
         va[0] = (MyValue1)vt;
     }
 
@@ -79,7 +79,7 @@ public class TestArrayAccessDeopt {
         va[0] = null;
     }
 
-    public static void test11(MyValue1?[] va) {
+    public static void test11(MyValue1.ref[] va) {
         va[0] = null;
     }
 
@@ -93,7 +93,7 @@ public class TestArrayAccessDeopt {
             oa.shouldNotContain("Uncommon trap occurred");
         } else {
             MyValue1[] va = new MyValue1[1];
-            MyValue1?[] vaB = new MyValue1?[1];
+            MyValue1.ref[] vaB = new MyValue1.ref[1];
             MyValue1 vt = new MyValue1();
             for (int i = 0; i < 10_000; ++i) {
                 test1(va, vt);

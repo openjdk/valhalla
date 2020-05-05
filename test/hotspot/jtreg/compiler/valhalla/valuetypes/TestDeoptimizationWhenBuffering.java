@@ -78,7 +78,7 @@ final inline class MyValue1 {
     static int cnt = 0;
     final int x;
     final MyValue2 vtField1;
-    final MyValue2? vtField2;
+    final MyValue2.ref vtField2;
 
     public MyValue1() {
         this.x = ++cnt;
@@ -162,7 +162,7 @@ public class TestDeoptimizationWhenBuffering {
         return obj[0];
     }
 
-    MyValue1? test8(MyValue1?[] obj) {
+    MyValue1.ref test8(MyValue1.ref[] obj) {
         return obj[0];
     }
 

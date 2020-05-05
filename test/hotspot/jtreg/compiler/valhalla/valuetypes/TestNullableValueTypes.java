@@ -63,11 +63,11 @@ public class TestNullableValueTypes extends ValueTypeTest {
             Class<?> clazz = TestNullableValueTypes.class;
             MethodHandles.Lookup lookup = MethodHandles.lookup();
 
-            MethodType test18_mt = MethodType.methodType(void.class, MyValue1.class.asNullableType());
+            MethodType test18_mt = MethodType.methodType(void.class, MyValue1.ref.class);
             test18_mh1 = lookup.findStatic(clazz, "test18_target1", test18_mt);
             test18_mh2 = lookup.findStatic(clazz, "test18_target2", test18_mt);
 
-            MethodType test19_mt = MethodType.methodType(void.class, MyValue1.class.asNullableType());
+            MethodType test19_mt = MethodType.methodType(void.class, MyValue1.ref.class);
             test19_mh1 = lookup.findStatic(clazz, "test19_target1", test19_mt);
             test19_mh2 = lookup.findStatic(clazz, "test19_target2", test19_mt);
         } catch (NoSuchMethodException | IllegalAccessException e) {
@@ -81,11 +81,11 @@ public class TestNullableValueTypes extends ValueTypeTest {
                                                                       testValue1,
                                                                       testValue1};
 
-    MyValue1? nullField;
+    MyValue1.ref nullField;
     MyValue1 valueField1 = testValue1;
 
     @Test
-    public long test1(MyValue1? vt) {
+    public long test1(MyValue1.ref vt) {
         long result = 0;
         try {
             result = vt.hash();
@@ -103,7 +103,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     @Test
-    public long test2(MyValue1? vt) {
+    public long test2(MyValue1.ref vt) {
         long result = 0;
         try {
             result = vt.hashInterpreted();
@@ -157,7 +157,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     @Test
-    public MyValue1? test5(MyValue1? vt) {
+    public MyValue1.ref test5(MyValue1.ref vt) {
         try {
             Object o = vt;
             vt = (MyValue1)o;
@@ -174,17 +174,17 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     @DontCompile
     public void test5_verifier(boolean warmup) {
-        MyValue1? vt = test5(nullField);
+        MyValue1.ref vt = test5(nullField);
         Asserts.assertEquals((Object)vt, null);
     }
 
     @DontInline
-    public MyValue1? test5_dontinline(MyValue1? vt) {
+    public MyValue1.ref test5_dontinline(MyValue1.ref vt) {
         return vt;
     }
 
     @ForceInline
-    public MyValue1? test5_inline(MyValue1? vt) {
+    public MyValue1.ref test5_inline(MyValue1.ref vt) {
         return vt;
     }
 
@@ -207,12 +207,12 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     @ForceInline
-    public MyValue1? getNullInline() {
+    public MyValue1.ref getNullInline() {
         return null;
     }
 
     @DontInline
-    public MyValue1? getNullDontInline() {
+    public MyValue1.ref getNullDontInline() {
         return null;
     }
 
@@ -280,7 +280,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     // null constant
     @Test
     public void test10(boolean flag) throws Throwable {
-        MyValue1? val = flag ? valueField1 : null;
+        MyValue1.ref val = flag ? valueField1 : null;
         valueField1 = (MyValue1) val;
     }
 
@@ -298,7 +298,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     // null constant
     @Test
     public void test11(boolean flag) throws Throwable {
-        MyValue1? val = flag ? null : valueField1;
+        MyValue1.ref val = flag ? null : valueField1;
         valueField1 = (MyValue1) val;
     }
 
@@ -317,7 +317,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     int test12_cnt;
 
     @DontInline
-    public MyValue1? test12_helper() {
+    public MyValue1.ref test12_helper() {
         test12_cnt++;
         return nullField;
     }
@@ -343,7 +343,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     // null return at virtual call
     class A {
-        public MyValue1? test13_helper() {
+        public MyValue1.ref test13_helper() {
             return nullField;
         }
     }
@@ -355,7 +355,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     class C extends A {
-        public MyValue1? test13_helper() {
+        public MyValue1.ref test13_helper() {
             return nullField;
         }
     }
@@ -427,7 +427,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     @DontInline
-    MyValue1? getNullField1() {
+    MyValue1.ref getNullField1() {
         return nullField;
     }
 
@@ -459,7 +459,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     @DontInline
-    public boolean test16_dontinline(MyValue1? vt) {
+    public boolean test16_dontinline(MyValue1.ref vt) {
         return (Object)vt == null;
     }
 
@@ -467,7 +467,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     @Test
     @Warmup(10000) // Warmup to make sure 'test17_dontinline' is compiled
     public boolean test16(Object arg) throws Exception {
-        Method test16method = getClass().getMethod("test16_dontinline", MyValue1.class.asNullableType());
+        Method test16method = getClass().getMethod("test16_dontinline", MyValue1.ref.class);
         return (boolean)test16method.invoke(this, arg);
     }
 
@@ -479,10 +479,10 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     // Test scalarization of default value type with non-flattenable field
     final inline class Test17Value {
-        public final MyValue1? valueField;
+        public final MyValue1.ref valueField;
 
         @ForceInline
-        public Test17Value(MyValue1? valueField) {
+        public Test17Value(MyValue1.ref valueField) {
             this.valueField = valueField;
         }
     }
@@ -506,15 +506,15 @@ public class TestNullableValueTypes extends ValueTypeTest {
     static final MethodHandle test18_mh1;
     static final MethodHandle test18_mh2;
 
-    static MyValue1? nullValue;
+    static MyValue1.ref nullValue;
 
     @DontInline
-    static void test18_target1(MyValue1? vt) {
+    static void test18_target1(MyValue1.ref vt) {
         nullValue = vt;
     }
 
     @ForceInline
-    static void test18_target2(MyValue1? vt) {
+    static void test18_target2(MyValue1.ref vt) {
         nullValue = vt;
     }
 
@@ -539,12 +539,12 @@ public class TestNullableValueTypes extends ValueTypeTest {
     static MethodHandle test19_mh2;
 
     @DontInline
-    static void test19_target1(MyValue1? vt) {
+    static void test19_target1(MyValue1.ref vt) {
         nullValue = vt;
     }
 
     @ForceInline
-    static void test19_target2(MyValue1? vt) {
+    static void test19_target2(MyValue1.ref vt) {
         nullValue = vt;
     }
 
@@ -586,12 +586,12 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     // Test writing null to a flattenable/non-flattenable value type field in a value type
     final inline class Test21Value {
-        final MyValue1? valueField1;
+        final MyValue1.ref valueField1;
         final MyValue1 valueField2;
-        final MyValue1? alwaysNull = null;
+        final MyValue1.ref alwaysNull = null;
 
         @ForceInline
-        public Test21Value(MyValue1? valueField1, MyValue1 valueField2) {
+        public Test21Value(MyValue1.ref valueField1, MyValue1 valueField2) {
             this.valueField1 = testValue1;
             this.valueField2 = testValue1;
         }
@@ -645,14 +645,14 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     @Test
-    public void test23(MyValue1[] arr, MyValue1? b) {
+    public void test23(MyValue1[] arr, MyValue1.ref b) {
         arr[0] = (MyValue1) b;
     }
 
     @DontCompile
     public void test23_verifier(boolean warmup) {
         MyValue1[] arr = new MyValue1[2];
-        MyValue1? b = null;
+        MyValue1.ref b = null;
         try {
             test23(arr, b);
             throw new RuntimeException("NullPointerException expected");
@@ -661,7 +661,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
         }
     }
 
-    static MyValue1? nullBox;
+    static MyValue1.ref nullBox;
 
     @Test
     public MyValue1 test24() {
@@ -684,7 +684,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     // Test that when checkcasting from null-ok to null-free and back to null-ok we
     // keep track of the information that the value can never be null.
     @Test(failOn = ALLOC + STORE)
-    public int test25(boolean b, MyValue1? vt1, MyValue1 vt2) {
+    public int test25(boolean b, MyValue1.ref vt1, MyValue1 vt2) {
         vt1 = (MyValue1)vt1;
         Object obj = b ? vt1 : vt2; // We should not allocate here
         test25_callee((MyValue1) vt1);
@@ -702,7 +702,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     // Test that chains of casts are folded and don't trigger an allocation
     @Test(failOn = ALLOC + STORE)
     public MyValue3 test26(MyValue3 vt) {
-        return ((MyValue3)((Object)((MyValue3?)(MyValue3)((MyValue3?)((Object)vt)))));
+        return ((MyValue3)((Object)((MyValue3.ref)(MyValue3)((MyValue3.ref)((Object)vt)))));
     }
 
     @DontCompile
@@ -713,8 +713,8 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     @Test(failOn = ALLOC + STORE)
-    public MyValue3? test27(MyValue3? vt) {
-        return ((MyValue3?)((Object)((MyValue3)(MyValue3?)((MyValue3)((Object)vt)))));
+    public MyValue3.ref test27(MyValue3.ref vt) {
+        return ((MyValue3.ref)((Object)((MyValue3)(MyValue3.ref)((MyValue3)((Object)vt)))));
     }
 
     @DontCompile
@@ -726,13 +726,13 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     // Some more casting tests
     @Test()
-    public MyValue1? test28(MyValue1 vt, MyValue1? vtBox, int i) {
-        MyValue1? result = null;
+    public MyValue1.ref test28(MyValue1 vt, MyValue1.ref vtBox, int i) {
+        MyValue1.ref result = null;
         if (i == 0) {
-            result = (MyValue1?)vt;
+            result = (MyValue1.ref)vt;
             result = null;
         } else if (i == 1) {
-            result = (MyValue1?)vt;
+            result = (MyValue1.ref)vt;
         } else if (i == 2) {
             result = vtBox;
         }
@@ -741,7 +741,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     @DontCompile
     public void test28_verifier(boolean warmup) {
-        MyValue1? result = test28(testValue1, null, 0);
+        MyValue1.ref result = test28(testValue1, null, 0);
         Asserts.assertEquals(result, null);
         result = test28(testValue1, testValue1, 1);
         Asserts.assertEquals(result, testValue1);
@@ -752,15 +752,15 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     @Test()
-    public long test29(MyValue1 vt, MyValue1? vtBox) {
+    public long test29(MyValue1 vt, MyValue1.ref vtBox) {
         long result = 0;
         for (int i = 0; i < 100; ++i) {
-            MyValue1? box;
+            MyValue1.ref box;
             if (i == 0) {
-                box = (MyValue1?)vt;
+                box = (MyValue1.ref)vt;
                 box = null;
             } else if (i < 99) {
-                box = (MyValue1?)vt;
+                box = (MyValue1.ref)vt;
             } else {
                 box = vtBox;
             }
@@ -780,7 +780,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     // Test null check of value type receiver with incremental inlining
-    public long test30_callee(MyValue1? vt) {
+    public long test30_callee(MyValue1.ref vt) {
         long result = 0;
         try {
             result = vt.hashInterpreted();
@@ -822,16 +822,16 @@ public class TestNullableValueTypes extends ValueTypeTest {
         test31(null);
     }
 
-    private static final MyValue1? constNullField = null;
+    private static final MyValue1.ref constNullField = null;
 
     @Test
-    public MyValue1? test32() {
+    public MyValue1.ref test32() {
         return constNullField;
     }
 
     @DontCompile
     public void test32_verifier(boolean warmup) {
-        MyValue1? result = test32();
+        MyValue1.ref result = test32();
         Asserts.assertEquals(result, null);
     }
 
@@ -840,7 +840,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
     }
 
     static inline class Test33Value2 {
-        Test33Value1? vt;
+        Test33Value1.ref vt;
 
         public Test33Value2() {
             vt = new Test33Value1();
@@ -862,7 +862,7 @@ public class TestNullableValueTypes extends ValueTypeTest {
 
     // Verify that static nullable inline-type fields are not
     // treated as never-null by C2 when initialized at compile time.
-    private static MyValue1? test34Val;
+    private static MyValue1.ref test34Val;
 
     @Test
     public void test34(MyValue1 vt) {
