@@ -53,11 +53,11 @@ public class TestFieldNullability {
     }
 
     static inline class TestValue {
-        final MyValue? nullableField;
+        final MyValue.ref nullableField;
         final MyValue nullfreeField;        // flattened
-        final MyValue? nullField;           // src of null
+        final MyValue.ref nullField;           // src of null
         final MyBigValue nullfreeBigField;  // not flattened
-        final MyBigValue? nullBigField;     // src of null
+        final MyBigValue.ref nullBigField;     // src of null
 
         public void test() {
             Asserts.assertNull(nullField, "Invalid non null value for uninitialized non flattenable field");
@@ -94,11 +94,11 @@ public class TestFieldNullability {
     }
 
     static class TestClass {
-        MyValue? nullableField;
+        MyValue.ref nullableField;
         MyValue nullfreeField;       // flattened
-        MyValue? nullField;
+        MyValue.ref nullField;
         MyBigValue nullfreeBigField; // not flattened
-        MyBigValue? nullBigField;
+        MyBigValue.ref nullBigField;
 
         public void test() {
             Asserts.assertNull(nullField, "Invalid non null value for uninitialized non flattenable field");

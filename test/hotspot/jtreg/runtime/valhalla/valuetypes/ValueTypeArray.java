@@ -223,23 +223,23 @@ public class ValueTypeArray {
 
         // Now create ObjArrays of ValueArray...
         cls = (Class<?>) Point.class.asIndirectType();
-        Point?[][] barray = (Point?[][]) Array.newInstance(cls, 1, 2);
+        Point.ref[][] barray = (Point.ref[][]) Array.newInstance(cls, 1, 2);
         assertEquals(barray.length, 1, "Incorrect length");
         assertEquals(barray[0].length, 2, "Incorrect length");
         barray[0][1] = Point.createPoint(1, 2);
-        Point? pb = barray[0][1];
+        Point.ref pb = barray[0][1];
         int x = pb.getX();
         assertEquals(x, 1, "Bad Point Value");
     }
 
-    static final inline class MyInt implements Comparable<MyInt?> {
+    static final inline class MyInt implements Comparable<MyInt.ref> {
         final int value;
 
         private MyInt() { this(0); }
         private MyInt(int v) { value = v; }
         public int getValue() { return value; }
         public String toString() { return "MyInt: " + getValue(); }
-        public int compareTo(MyInt? that) { return Integer.compare(this.getValue(), that.getValue()); }
+        public int compareTo(MyInt.ref that) { return Integer.compare(this.getValue(), that.getValue()); }
         public boolean equals(Object o) {
             if (o instanceof MyInt) {
                 return this.getValue() == ((MyInt) o).getValue();
@@ -252,9 +252,9 @@ public class ValueTypeArray {
         }
 
         // Null-able fields here are a temp hack to avoid ClassCircularityError
-        public static final MyInt? MIN = MyInt.create(Integer.MIN_VALUE);
-        public static final MyInt? ZERO = MyInt.create(0);
-        public static final MyInt? MAX = MyInt.create(Integer.MAX_VALUE);
+        public static final MyInt.ref MIN = MyInt.create(Integer.MIN_VALUE);
+        public static final MyInt.ref ZERO = MyInt.create(0);
+        public static final MyInt.ref MAX = MyInt.create(Integer.MAX_VALUE);
     }
 
     static MyInt staticMyInt = MyInt.create(-1);
@@ -274,7 +274,7 @@ public class ValueTypeArray {
         MyInt[] myInts = new MyInt[1];
         assertTrue(myInts instanceof Object[]);
         assertTrue(myInts instanceof Comparable[]);
-        assertTrue(myInts instanceof MyInt?[]);
+        assertTrue(myInts instanceof MyInt.ref[]);
 
         Class<?> cls = MyInt.class;
         assertTrue(cls.isInlineClass());
@@ -293,26 +293,26 @@ public class ValueTypeArray {
         MyOtherInt[][] matrix = new MyOtherInt[1][1];
         assertTrue(matrix[0] instanceof MyOtherInt[]);
         assertTrue(matrix[0] instanceof SomeSecondaryType[]);
-        assertTrue(matrix[0] instanceof MyOtherInt?[]);
+        assertTrue(matrix[0] instanceof MyOtherInt.ref[]);
 
         // Box types vs Inline...
-        MyInt?[] myValueRefs = new MyInt?[1];
-        assertTrue(myValueRefs instanceof MyInt?[]);
+        MyInt.ref[] myValueRefs = new MyInt.ref[1];
+        assertTrue(myValueRefs instanceof MyInt.ref[]);
         assertTrue(myValueRefs instanceof Object[]);
         assertTrue(myValueRefs instanceof Comparable[]);
         assertFalse(myValueRefs instanceof MyInt[]);
 
-        MyInt?[][] myMdValueRefs = new MyInt?[1][1];
-        assertTrue(myMdValueRefs[0] instanceof MyInt?[]);
+        MyInt.ref[][] myMdValueRefs = new MyInt.ref[1][1];
+        assertTrue(myMdValueRefs[0] instanceof MyInt.ref[]);
         assertTrue(myMdValueRefs[0] instanceof Object[]);
         assertTrue(myMdValueRefs[0] instanceof Comparable[]);
         assertFalse(myMdValueRefs[0] instanceof MyInt[]);
 
         // Did we break checkcast...
-        MyInt?[]     va1 = (MyInt?[])null;
-        MyInt?[]     va2 = null;
-        MyInt?[][]   va3 = (MyInt?[][])null;
-        MyInt?[][][] va4 = (MyInt?[][][])null;
+        MyInt.ref[]     va1 = (MyInt.ref[])null;
+        MyInt.ref[]     va2 = null;
+        MyInt.ref[][]   va3 = (MyInt.ref[][])null;
+        MyInt.ref[][][] va4 = (MyInt.ref[][][])null;
         MyInt[]      va5 = null;
         MyInt[]      va6 = (MyInt[])null;
         MyInt[][]    va7 = (MyInt[][])null;
@@ -323,7 +323,7 @@ public class ValueTypeArray {
     void testUtilArrays() {
         // Sanity check j.u.Arrays
 
-        // cast to q-type temp effect of avoiding circularity error (decl static MyInt?)
+        // cast to q-type temp effect of avoiding circularity error (decl static MyInt.ref)
         MyInt[] myInts = new MyInt[] { (MyInt) MyInt.MAX, (MyInt) MyInt.MIN };
         // Sanity sort another copy
         MyInt[] copyMyInts = Arrays.copyOf(myInts, myInts.length + 1);
@@ -385,12 +385,12 @@ public class ValueTypeArray {
         comparables[1] = null;
         assertTrue(comparables[0] == null && comparables[1] == null, "Not null ?");
 
-        MyInt?[] myIntRefArray = new MyInt?[1];
+        MyInt.ref[] myIntRefArray = new MyInt.ref[1];
         assertTrue(myIntRefArray[0] == null, "Got: " + myIntRefArray[0]);
         myIntRefArray[0] = null;
 
-        MyInt?[] srcNulls = new MyInt?[2];
-        MyInt?[] dstNulls = new MyInt?[2];
+        MyInt.ref[] srcNulls = new MyInt.ref[2];
+        MyInt.ref[] dstNulls = new MyInt.ref[2];
         System.arraycopy(srcNulls, 0, dstNulls, 0, 2);
         checkArrayElementsEqual(srcNulls, dstNulls);
         srcNulls[1] = MyInt.create(1);
@@ -432,7 +432,7 @@ public class ValueTypeArray {
             throw new RuntimeException("Expected ArrayStoreException");
         } catch (ArrayStoreException ase) {}
 
-        MyInt?[] myIntRefArray = new MyInt?[3];
+        MyInt.ref[] myIntRefArray = new MyInt.ref[3];
         System.arraycopy(valArray, 0, myIntRefArray, 0, 3);
         checkArrayElementsEqual(valArray, myIntRefArray);
 
@@ -465,7 +465,7 @@ public class ValueTypeArray {
         static MyPoint create(int x, int y) {
             return new MyPoint(x, y);
         }
-        static final MyPoint? ORIGIN = create(0);
+        static final MyPoint.ref ORIGIN = create(0);
     }
 
     void testComposition() {
