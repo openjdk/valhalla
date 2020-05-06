@@ -539,7 +539,10 @@ FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, const InstanceKl
   _has_nonstatic_fields(false),
   _is_contended(is_contended),
   _is_value_type(is_value_type),
-  _has_flattening_information(is_value_type) {}
+  _has_flattening_information(is_value_type),
+  _has_nonatomic_values(false),
+  _atomic_field_count(0)
+ {}
 
 FieldGroup* FieldLayoutBuilder::get_or_create_contended_group(int g) {
   assert(g > 0, "must only be called for named contended groups");
@@ -579,6 +582,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
       group = _static_fields;
     } else {
       _has_nonstatic_fields = true;
+      _atomic_field_count++;  // we might decrement this
       if (fs.is_contended()) {
         int g = fs.contended_group();
         if (g == 0) {
@@ -626,14 +630,23 @@ void FieldLayoutBuilder::regular_field_sorting() {
                                                                 _protection_domain, true, THREAD);
         assert(klass != NULL, "Sanity check");
         ValueKlass* vk = ValueKlass::cast(klass);
-        bool has_flattenable_size = (ValueFieldMaxFlatSize < 0)
-                                   || (vk->size_helper() * HeapWordSize) <= ValueFieldMaxFlatSize;
-        // volatile fields are currently never flattened, this could change in the future
-        bool flattened = !fs.access_flags().is_volatile() && has_flattenable_size;
-        if (flattened) {
+        bool too_big_to_flatten = (ValueFieldMaxFlatSize >= 0 &&
+                                   (vk->size_helper() * HeapWordSize) > ValueFieldMaxFlatSize);
+        bool too_atomic_to_flatten = vk->is_declared_atomic();
+        bool too_volatile_to_flatten = fs.access_flags().is_volatile();
+        if (vk->is_naturally_atomic()) {
+          too_atomic_to_flatten = false;
+          //too_volatile_to_flatten = false; //FIXME
+          // volatile fields are currently never flattened, this could change in the future
+        }
+        if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten)) {
           group->add_flattened_field(fs, vk);
           _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
           fs.set_flattened(true);
+          if (!vk->is_atomic()) {  // flat and non-atomic: take note
+            _has_nonatomic_values = true;
+            _atomic_field_count--;  // every other field is atomic but this one
+          }
         } else {
           _nonstatic_oopmap_count++;
           group->add_oop_field(fs);
@@ -674,6 +687,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
       group = _static_fields;
     } else {
       _has_nonstatic_fields = true;
+      _atomic_field_count++;  // we might decrement this
       group = _root_group;
     }
     assert(group != NULL, "invariant");
@@ -716,13 +730,24 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
                 _protection_domain, true, CHECK);
         assert(klass != NULL, "Sanity check");
         ValueKlass* vk = ValueKlass::cast(klass);
-        bool flattened = (ValueFieldMaxFlatSize < 0)
-                         || (vk->size_helper() * HeapWordSize) <= ValueFieldMaxFlatSize;
-        if (flattened) {
+        bool too_big_to_flatten = (ValueFieldMaxFlatSize >= 0 &&
+                                   (vk->size_helper() * HeapWordSize) > ValueFieldMaxFlatSize);
+        bool too_atomic_to_flatten = vk->is_declared_atomic();
+        bool too_volatile_to_flatten = fs.access_flags().is_volatile();
+        if (vk->is_naturally_atomic()) {
+          too_atomic_to_flatten = false;
+          //too_volatile_to_flatten = false; //FIXME
+          // volatile fields are currently never flattened, this could change in the future
+        }
+        if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten)) {
           group->add_flattened_field(fs, vk);
           _nonstatic_oopmap_count += vk->nonstatic_oop_map_count();
           field_alignment = vk->get_alignment();
           fs.set_flattened(true);
+          if (!vk->is_atomic()) {  // flat and non-atomic: take note
+            _has_nonatomic_values = true;
+            _atomic_field_count--;  // every other field is atomic but this one
+          }
         } else {
           _nonstatic_oopmap_count++;
           field_alignment = type2aelembytes(T_OBJECT);
@@ -982,6 +1007,19 @@ void FieldLayoutBuilder::epilogue() {
   _info->_static_field_size = static_fields_size;
   _info->_nonstatic_field_size = (nonstatic_field_end - instanceOopDesc::base_offset_in_bytes()) / heapOopSize;
   _info->_has_nonstatic_fields = _has_nonstatic_fields;
+
+  // A value type is naturally atomic if it has just one field, and
+  // that field is simple enough.
+  _info->_is_naturally_atomic = (_is_value_type &&
+                                 (_atomic_field_count <= 1) &&
+                                 !_has_nonatomic_values &&
+                                 _contended_groups.is_empty());
+  // This may be too restrictive, since if all the fields fit in 64
+  // bits we could make the decision to align instances of this class
+  // to 64-bit boundaries, and load and store them as single words.
+  // And on machines which supported larger atomics we could similarly
+  // allow larger values to be atomic, if properly aligned.
+
 
   if (PrintFieldLayout) {
     ResourceMark rm;

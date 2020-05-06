@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
 // This code is free software; you can redistribute it and/or modify it
@@ -459,13 +459,6 @@ int MachCallRuntimeNode::ret_addr_offset() {
   return offset;
 }
 
-// Indicate if the safepoint node needs the polling page as an input,
-// it does if the polling page is more than disp32 away.
-bool SafePointNode::needs_polling_address_input()
-{
-  return SafepointMechanism::uses_thread_local_poll() || Assembler::is_polling_page_far();
-}
-
 //
 // Compute padding required for nodes which need alignment
 //
@@ -785,7 +778,7 @@ void emit_fp_min_max(MacroAssembler& _masm, XMMRegister dst,
 //=============================================================================
 const RegMask& MachConstantBaseNode::_out_RegMask = RegMask::Empty;
 
-int Compile::ConstantTable::calculate_table_base_offset() const {
+int ConstantTable::calculate_table_base_offset() const {
   return 0;  // absolute addressing, no offset
 }
 
@@ -814,13 +807,13 @@ void MachConstantBaseNode::format(PhaseRegAlloc* ra_, outputStream* st) const {
 void MachPrologNode::format(PhaseRegAlloc* ra_, outputStream* st) const {
   Compile* C = ra_->C;
 
-  int framesize = C->frame_size_in_bytes();
-  int bangsize = C->bang_size_in_bytes();
+  int framesize = C->output()->frame_size_in_bytes();
+  int bangsize = C->output()->bang_size_in_bytes();
   assert((framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
   // Remove wordSize for return addr which is already pushed.
   framesize -= wordSize;
 
-  if (C->need_stack_bang(bangsize)) {
+  if (C->output()->need_stack_bang(bangsize)) {
     framesize -= wordSize;
     st->print("# stack bang (%d bytes)", bangsize);
     st->print("\n\t");
@@ -897,12 +890,12 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
     bs->nmethod_entry_barrier(&_masm);
   }
 
-  C->set_frame_complete(cbuf.insts_size());
+  C->output()->set_frame_complete(cbuf.insts_size());
 
   if (C->has_mach_constant_base_node()) {
     // NOTE: We set the table base offset here because users might be
     // emitted before MachConstantBaseNode.
-    Compile::ConstantTable& constant_table = C->constant_table();
+    ConstantTable& constant_table = C->output()->constant_table();
     constant_table.set_table_base_offset(constant_table.calculate_table_base_offset());
   }
 }
@@ -922,7 +915,7 @@ void MachEpilogNode::format(PhaseRegAlloc* ra_, outputStream* st) const
     st->cr(); st->print("\t");
   }
 
-  int framesize = C->frame_size_in_bytes();
+  int framesize = C->output()->frame_size_in_bytes();
   assert((framesize & (StackAlignmentInBytes-1)) == 0, "frame size not aligned");
   // Remove word for return adr already pushed
   // and RBP
@@ -936,18 +929,9 @@ void MachEpilogNode::format(PhaseRegAlloc* ra_, outputStream* st) const
   st->print_cr("popq    rbp");
   if (do_polling() && C->is_method_compilation()) {
     st->print("\t");
-    if (SafepointMechanism::uses_thread_local_poll()) {
-      st->print_cr("movq    rscratch1, poll_offset[r15_thread] #polling_page_address\n\t"
-                   "testl   rax, [rscratch1]\t"
-                   "# Safepoint: poll for GC");
-    } else if (Assembler::is_polling_page_far()) {
-      st->print_cr("movq    rscratch1, #polling_page_address\n\t"
-                   "testl   rax, [rscratch1]\t"
-                   "# Safepoint: poll for GC");
-    } else {
-      st->print_cr("testl   rax, [rip + #offset_to_poll_page]\t"
-                   "# Safepoint: poll for GC");
-    }
+    st->print_cr("movq    rscratch1, poll_offset[r15_thread] #polling_page_address\n\t"
+                 "testl   rax, [rscratch1]\t"
+                 "# Safepoint: poll for GC");
   }
 }
 #endif
@@ -963,8 +947,9 @@ void MachEpilogNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
     __ vzeroupper();
   }
 
-  __ restore_stack(C);
-
+  // Subtract two words to account for return address and rbp
+  int initial_framesize = C->output()->frame_size_in_bytes() - 2*wordSize;
+  __ remove_frame(initial_framesize, C->needs_stack_repair(), C->output()->sp_inc_offset());
 
   if (StackReservedPages > 0 && C->has_reserved_stack_access()) {
     __ reserved_stack_check();
@@ -972,20 +957,9 @@ void MachEpilogNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
 
   if (do_polling() && C->is_method_compilation()) {
     MacroAssembler _masm(&cbuf);
-    if (SafepointMechanism::uses_thread_local_poll()) {
-      __ movq(rscratch1, Address(r15_thread, Thread::polling_page_offset()));
-      __ relocate(relocInfo::poll_return_type);
-      __ testl(rax, Address(rscratch1, 0));
-    } else {
-      AddressLiteral polling_page(os::get_polling_page(), relocInfo::poll_return_type);
-      if (Assembler::is_polling_page_far()) {
-        __ lea(rscratch1, polling_page);
-        __ relocate(relocInfo::poll_return_type);
-        __ testl(rax, Address(rscratch1, 0));
-      } else {
-        __ testl(rax, polling_page);
-      }
-    }
+    __ movq(rscratch1, Address(r15_thread, Thread::polling_page_offset()));
+    __ relocate(relocInfo::poll_return_type);
+    __ testl(rax, Address(rscratch1, 0));
   }
 }
 
@@ -997,11 +971,6 @@ int MachEpilogNode::reloc() const
 const Pipeline* MachEpilogNode::pipeline() const
 {
   return MachNode::pipeline_class();
-}
-
-int MachEpilogNode::safepoint_offset() const
-{
-  return 0;
 }
 
 //=============================================================================
@@ -3111,7 +3080,7 @@ operand immL32()
 
 operand immL_Pow2()
 %{
-  predicate(is_power_of_2(n->get_long()));
+  predicate(is_power_of_2((julong)n->get_long()));
   match(ConL);
 
   op_cost(15);
@@ -3121,7 +3090,7 @@ operand immL_Pow2()
 
 operand immL_NotPow2()
 %{
-  predicate(is_power_of_2(~n->get_long()));
+  predicate(is_power_of_2((julong)~n->get_long()));
   match(ConL);
 
   op_cost(15);
@@ -10076,7 +10045,7 @@ instruct btsL_mem_imm(memory dst, immL_Pow2 con, rFlagsReg cr)
   ins_cost(125);
   format %{ "btsq    $dst, log2($con)\t# long" %}
   ins_encode %{
-    __ btsq($dst$$Address, log2_long($con$$constant));
+    __ btsq($dst$$Address, log2_long((julong)$con$$constant));
   %}
   ins_pipe(ialu_mem_imm);
 %}
@@ -12721,41 +12690,8 @@ instruct cmpFastUnlock(rFlagsReg cr, rRegP object, rax_RegP box, rRegP tmp) %{
 
 // ============================================================================
 // Safepoint Instructions
-instruct safePoint_poll(rFlagsReg cr)
-%{
-  predicate(!Assembler::is_polling_page_far() && SafepointMechanism::uses_global_page_poll());
-  match(SafePoint);
-  effect(KILL cr);
-
-  format %{ "testl   rax, [rip + #offset_to_poll_page]\t"
-            "# Safepoint: poll for GC" %}
-  ins_cost(125);
-  ins_encode %{
-    AddressLiteral addr(os::get_polling_page(), relocInfo::poll_type);
-    __ testl(rax, addr);
-  %}
-  ins_pipe(ialu_reg_mem);
-%}
-
-instruct safePoint_poll_far(rFlagsReg cr, rRegP poll)
-%{
-  predicate(Assembler::is_polling_page_far() && SafepointMechanism::uses_global_page_poll());
-  match(SafePoint poll);
-  effect(KILL cr, USE poll);
-
-  format %{ "testl   rax, [$poll]\t"
-            "# Safepoint: poll for GC" %}
-  ins_cost(125);
-  ins_encode %{
-    __ relocate(relocInfo::poll_type);
-    __ testl(rax, Address($poll$$Register, 0));
-  %}
-  ins_pipe(ialu_reg_mem);
-%}
-
 instruct safePoint_poll_tls(rFlagsReg cr, rRegP poll)
 %{
-  predicate(SafepointMechanism::uses_thread_local_poll());
   match(SafePoint poll);
   effect(KILL cr, USE poll);
 

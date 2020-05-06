@@ -164,7 +164,7 @@
   experimental(bool, UseEpsilonGC, false,                                   \
           "Use the Epsilon (no-op) garbage collector")                      \
                                                                             \
-  experimental(bool, UseZGC, false,                                         \
+  product(bool, UseZGC, false,                                              \
           "Use the Z garbage collector")                                    \
                                                                             \
   experimental(bool, UseShenandoahGC, false,                                \
@@ -186,10 +186,6 @@
   diagnostic(bool, InjectGCWorkerCreationFailure, false,                    \
              "Inject thread creation failures for "                         \
              "UseDynamicNumberOfGCThreads")                                 \
-                                                                            \
-  diagnostic(bool, ForceDynamicNumberOfGCThreads, false,                    \
-          "Force dynamic selection of the number of "                       \
-          "parallel threads parallel gc will use to aid debugging")         \
                                                                             \
   product(size_t, HeapSizePerGCThread, ScaleForWordSize(32*M),              \
           "Size of heap (bytes) per GC thread used in calculating the "     \
@@ -262,6 +258,7 @@
   product(size_t, MarkStackSize, NOT_LP64(32*K) LP64_ONLY(4*M),             \
           "Size of marking stack")                                          \
           constraint(MarkStackSizeConstraintFunc,AfterErgo)                 \
+          range(1, (max_jint - 1))                                          \
                                                                             \
   product(intx, RefDiscoveryPolicy, 0,                                      \
           "Select type of reference discovery policy: "                     \

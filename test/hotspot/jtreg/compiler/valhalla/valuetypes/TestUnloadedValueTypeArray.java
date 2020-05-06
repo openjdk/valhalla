@@ -141,7 +141,7 @@ final inline class MyValue6Box {
         foo = n;
     }
 
-    public MyValue6Box(MyValue6Box v, MyValue6Box?[] dummy) {
+    public MyValue6Box(MyValue6Box v, MyValue6Box.ref[] dummy) {
         foo = v.foo + 1;
     }
 }
@@ -196,8 +196,8 @@ public class TestUnloadedValueTypeArray {
         target1();
     }
 
-    static MyValue1Box?[] target1Box() {
-        return new MyValue1Box?[10];
+    static MyValue1Box.ref[] target1Box() {
+        return new MyValue1Box.ref[10];
     }
 
     static void test1Box() {
@@ -230,7 +230,7 @@ public class TestUnloadedValueTypeArray {
         Asserts.assertEQ(m, 5678);
     }
 
-    static int test2Box(MyValue2Box?[] arr) {
+    static int test2Box(MyValue2Box.ref[] arr) {
         if (arr != null) {
             return arr[1].foo;
         } else {
@@ -247,7 +247,7 @@ public class TestUnloadedValueTypeArray {
         }
         Asserts.assertEQ(m, 1234);
 
-        MyValue2Box?[] arr = new MyValue2Box?[2];
+        MyValue2Box.ref[] arr = new MyValue2Box.ref[2];
         arr[1] = new MyValue2Box(5678);
         m = 9999;
         for (int i=0; i<n; i++) {
@@ -276,7 +276,7 @@ public class TestUnloadedValueTypeArray {
         Asserts.assertEQ(arr[1].foo, 2345);
     }
 
-    static void test3Box(MyValue3Box?[] arr) {
+    static void test3Box(MyValue3Box.ref[] arr) {
         if (arr != null) {
             arr[0] = null;
             arr[1] = new MyValue3Box(2345);
@@ -290,7 +290,7 @@ public class TestUnloadedValueTypeArray {
             test3Box(null);
         }
 
-        MyValue3Box?[] arr = new MyValue3Box?[2];
+        MyValue3Box.ref[] arr = new MyValue3Box.ref[2];
         for (int i=0; i<n; i++) {
             test3Box(arr);
         }
@@ -323,10 +323,10 @@ public class TestUnloadedValueTypeArray {
         Asserts.assertEQ(arr[1].foo, 2345);
     }
 
-    static MyValue4Box?[] test4Box(boolean b) {
+    static MyValue4Box.ref[] test4Box(boolean b) {
         // range check elimination
         if (b) {
-            MyValue4Box?[] arr = new MyValue4Box?[10];
+            MyValue4Box.ref[] arr = new MyValue4Box.ref[10];
             arr[0] = null;
             arr[1] = new MyValue4Box(2345);
             return arr;
@@ -342,7 +342,7 @@ public class TestUnloadedValueTypeArray {
             test4Box(false);
         }
 
-        MyValue4Box?[] arr = null;
+        MyValue4Box.ref[] arr = null;
         for (int i=0; i<n; i++) {
             arr = test4Box(true);
         }
@@ -359,7 +359,7 @@ public class TestUnloadedValueTypeArray {
             arr[1] = new MyValue5(12345);
             return arr;
         } else {
-            MyValue5?[] arr = new MyValue5?[10];
+            MyValue5.ref[] arr = new MyValue5.ref[10];
             arr[1] = new MyValue5(22345);
             return arr;
         }
@@ -380,9 +380,9 @@ public class TestUnloadedValueTypeArray {
             Asserts.assertEQ(arr[1].foo, 12345);
         }
         {
-            MyValue5?[] arr = null;
+            MyValue5.ref[] arr = null;
             for (int i=0; i<n; i++) {
-                arr = (MyValue5?[])test5(2);
+                arr = (MyValue5.ref[])test5(2);
             }
             Asserts.assertEQ(arr[1].foo, 22345);
         }
@@ -435,7 +435,7 @@ public class TestUnloadedValueTypeArray {
         Asserts.assertEQ(m, 5678);
     }
 
-    static int test7Box(MyValue7Box?[][] arr) {
+    static int test7Box(MyValue7Box.ref[][] arr) {
         if (arr != null) {
             arr[0][0] = null;
             return arr[0][1].foo;
@@ -453,7 +453,7 @@ public class TestUnloadedValueTypeArray {
         }
         Asserts.assertEQ(m, 1234);
 
-        MyValue7Box?[][] arr = new MyValue7Box?[2][2];
+        MyValue7Box.ref[][] arr = new MyValue7Box.ref[2][2];
         Object[] oa = arr[1];
         Asserts.assertEQ(oa[0], null);
 
@@ -467,7 +467,7 @@ public class TestUnloadedValueTypeArray {
     }
 
     static void test8() {
-        MyValue8? a[] = new MyValue8?[0];
+        MyValue8.ref a[] = new MyValue8.ref[0];
         Asserts.assertEQ(MyValue8_inited, false);
 
         MyValue8  b[] = new MyValue8 [0];
@@ -475,20 +475,20 @@ public class TestUnloadedValueTypeArray {
     }
 
     static void test9() {
-        MyValue9? a[][] = new MyValue9?[10][0];
+        MyValue9.ref a[][] = new MyValue9.ref[10][0];
         Asserts.assertEQ(MyValue9_inited, false);
 
         MyValue9  b[][] = new MyValue9 [10][0];
         Asserts.assertEQ(MyValue9_inited, true);
     }
 
-    static void test10(MyValue10? dummy) {
+    static void test10(MyValue10.ref dummy) {
         MyValue10[][] a = new MyValue10[1][1];
         if (a[0][0].equals(null)) throw new RuntimeException("test10 failed");
     }
 
-    static void test11(MyValue10? dummy) {
-        MyValue11?[][] a = new MyValue11?[1][1];
+    static void test11(MyValue10.ref dummy) {
+        MyValue11.ref[][] a = new MyValue11.ref[1][1];
         if (a[0][0] != null) throw new RuntimeException("test11 failed");
     }
 

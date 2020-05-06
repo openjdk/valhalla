@@ -144,19 +144,16 @@ bool Instruction::maybe_flattened_array() {
     ciType* type = declared_type();
     if (type != NULL) {
       if (type->is_obj_array_klass()) {
-        // Check for array covariance. One of the following declared types may be a flattened array:
+        // Due to array covariance, the runtime type might be a flattened array.
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
-        if (!element_klass->is_loaded() ||
-            element_klass->is_java_lang_Object() ||                                                // (ValueType[] <: Object[])
-            element_klass->is_interface() ||                                                       // (ValueType[] <: <any interface>[])
-            (element_klass->is_valuetype() && element_klass->as_value_klass()->flatten_array())) { // (ValueType[] <: ValueType?[])
+        if (element_klass->can_be_value_klass() && (!element_klass->is_valuetype() || element_klass->as_value_klass()->flatten_array())) {
           // We will add a runtime check for flat-ness.
           return true;
         }
       } else if (type->is_value_array_klass()) {
         ciKlass* element_klass = type->as_value_array_klass()->element_klass();
         if (!element_klass->is_loaded() ||
-            (element_klass->is_valuetype() && element_klass->as_value_klass()->flatten_array())) { // (ValueType[] <: ValueType?[])
+            (element_klass->is_valuetype() && element_klass->as_value_klass()->flatten_array())) {
           // We will add a runtime check for flat-ness.
           return true;
         }
@@ -170,7 +167,6 @@ bool Instruction::maybe_flattened_array() {
       return true;
     }
   }
-
   return false;
 }
 
@@ -178,22 +174,18 @@ bool Instruction::maybe_null_free_array() {
   ciType* type = declared_type();
   if (type != NULL) {
     if (type->is_obj_array_klass()) {
-      // Check for array covariance. One of the following declared types may be a null-free array:
+      // Due to array covariance, the runtime type might be a null-free array.
       ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
-      if (!element_klass->is_loaded() ||
-          element_klass->is_java_lang_Object() ||   // (ValueType[] <: Object[])
-          element_klass->is_interface() ||          // (ValueType[] <: <any interface>[])
-          element_klass->is_valuetype()) {          // (ValueType[] <: ValueType?[])
-          // We will add a runtime check for flat-ness.
+      if (element_klass->can_be_value_klass()) {
+          // We will add a runtime check for null-free-ness.
           return true;
       }
     }
   } else {
     // Type info gets lost during Phi merging (Phi, IfOp, etc), but we might be storing into a
-    // flattened array, so we should do a runtime check.
+    // null-free array, so we should do a runtime check.
     return true;
   }
-
   return false;
 }
 

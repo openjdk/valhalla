@@ -688,8 +688,6 @@ public class TypeEnter implements Completer {
             final boolean isValueType = (tree.mods.flags & Flags.VALUE) != 0;
 
             if (tree.extending != null) {
-                if (isValueType)
-                    log.error(tree.pos(), Errors.ValueMayNotExtend);
                 extending = clearTypeParams(tree.extending);
                 supertype = attr.attribBase(extending, baseEnv, true, false, true);
                 if (supertype == syms.recordType) {
@@ -710,7 +708,7 @@ public class TypeEnter implements Completer {
             if (injectTopInterfaceTypes) {
                 if (isValueType || types.isValue(supertype)) {
                     interfaceToInject = syms.inlineObjectType;
-                } else if ((sym.flags_field & INTERFACE) == 0) { // skip interfaces and annotations.
+                } else if ((sym.flags_field & (INTERFACE | ABSTRACT)) == 0) { // skip interfaces, abstract classes and annotations.
                     if (sym.fullname != names.java_lang_Object) {
                         interfaceToInject = syms.identityObjectType;
                     }
@@ -747,6 +745,15 @@ public class TypeEnter implements Completer {
                 ct.interfaces_field = interfaces.toList();
                 ct.all_interfaces_field = (all_interfaces == null)
                         ? ct.interfaces_field : all_interfaces.toList();
+            }
+            if (ct.isValue()) {
+                ClassSymbol cSym = (ClassSymbol) ct.tsym;
+                if (cSym.projection != null) {
+                    ClassType projectedType = (ClassType) cSym.projection.type;
+                    projectedType.supertype_field = ct.supertype_field;
+                    projectedType.interfaces_field = ct.interfaces_field;
+                    projectedType.all_interfaces_field = ct.all_interfaces_field;
+                }
             }
         }
             //where:
@@ -946,7 +953,10 @@ public class TypeEnter implements Completer {
                 List<JCVariableDecl> fields = TreeInfo.recordFields(tree);
                 memberEnter.memberEnter(fields, env);
                 for (JCVariableDecl field : fields) {
-                    sym.getRecordComponent(field, true);
+                    sym.getRecordComponent(field, true,
+                            field.mods.annotations.isEmpty() ?
+                                    List.nil() :
+                                    new TreeCopier<JCTree>(make.at(field.pos)).copy(field.mods.annotations));
                 }
 
                 enterThisAndSuper(sym, env);
@@ -1071,7 +1081,9 @@ public class TypeEnter implements Completer {
                  * it could be that some of those annotations are not applicable to the accessor, they will be striped
                  * away later at Check::validateAnnotation
                  */
-                List<JCAnnotation> originalAnnos = rec.getOriginalAnnos();
+                List<JCAnnotation> originalAnnos = rec.getOriginalAnnos().isEmpty() ?
+                        rec.getOriginalAnnos() :
+                        new TreeCopier<JCTree>(make.at(tree.pos)).copy(rec.getOriginalAnnos());
                 JCMethodDecl getter = make.at(tree.pos).
                         MethodDef(
                                 make.Modifiers(Flags.PUBLIC | Flags.GENERATED_MEMBER, originalAnnos),
@@ -1470,7 +1482,9 @@ public class TypeEnter implements Completer {
                  * parameter in the constructor.
                  */
                 RecordComponent rc = ((ClassSymbol) owner).getRecordComponent(arg.sym);
-                arg.mods.annotations = rc.getOriginalAnnos();
+                arg.mods.annotations = rc.getOriginalAnnos().isEmpty() ?
+                        List.nil() :
+                        new TreeCopier<JCTree>(make.at(arg.pos)).copy(rc.getOriginalAnnos());
                 arg.vartype = tmpRecordFieldDecls.head.vartype;
                 tmpRecordFieldDecls = tmpRecordFieldDecls.tail;
             }

@@ -105,6 +105,10 @@ public final class KeychainStore extends KeyStoreSpi {
 
     private static final Debug debug = Debug.getInstance("keystore");
 
+    static {
+        jdk.internal.loader.BootLoader.loadLibrary("osxsecurity");
+    }
+
     private static void permissionCheck() {
         SecurityManager sec = System.getSecurityManager();
 
@@ -123,7 +127,7 @@ public final class KeychainStore extends KeyStoreSpi {
     public KeychainStore() { }
 
     /**
-        * Returns the key associated with the given alias, using the given
+     * Returns the key associated with the given alias, using the given
      * password to recover it.
      *
      * @param alias the alias name
@@ -236,10 +240,10 @@ public final class KeychainStore extends KeyStoreSpi {
      * @param alias the alias name
      *
      * @return the certificate chain (ordered with the user's certificate first
-                                      * and the root certificate authority last), or null if the given alias
+     * and the root certificate authority last), or null if the given alias
      * does not exist or does not contain a certificate chain (i.e., the given
-                                                               * alias identifies either a <i>trusted certificate entry</i> or a
-                                                               * <i>key entry</i> without a certificate chain).
+     * alias identifies either a <i>trusted certificate entry</i> or a
+     * <i>key entry</i> without a certificate chain).
      */
     public Certificate[] engineGetCertificateChain(String alias) {
         permissionCheck();
@@ -293,7 +297,7 @@ public final class KeychainStore extends KeyStoreSpi {
     }
 
     /**
-        * Returns the creation date of the entry identified by the given alias.
+     * Returns the creation date of the entry identified by the given alias.
      *
      * @param alias the alias name
      *
@@ -317,7 +321,7 @@ public final class KeychainStore extends KeyStoreSpi {
     }
 
     /**
-        * Assigns the given key to the given alias, protecting it with the given
+     * Assigns the given key to the given alias, protecting it with the given
      * password.
      *
      * <p>If the given key is of type <code>java.security.PrivateKey</code>,
@@ -326,14 +330,14 @@ public final class KeychainStore extends KeyStoreSpi {
      *
      * <p>If the given alias already exists, the keystore information
      * associated with it is overridden by the given key (and possibly
-                                                          * certificate chain).
+     * certificate chain).
      *
      * @param alias the alias name
      * @param key the key to be associated with the alias
      * @param password the password to protect the key
      * @param chain the certificate chain for the corresponding public
      * key (only required if the given key is of type
-            * <code>java.security.PrivateKey</code>).
+     * <code>java.security.PrivateKey</code>).
      *
      * @exception KeyStoreException if the given key cannot be protected, or
      * this operation fails for some other reason
@@ -387,7 +391,7 @@ public final class KeychainStore extends KeyStoreSpi {
     }
 
     /**
-        * Assigns the given key (that has already been protected) to the given
+     * Assigns the given key (that has already been protected) to the given
      * alias.
      *
      * <p>If the protected key is of type
@@ -399,13 +403,13 @@ public final class KeychainStore extends KeyStoreSpi {
      *
      * <p>If the given alias already exists, the keystore information
      * associated with it is overridden by the given key (and possibly
-                                                          * certificate chain).
+     * certificate chain).
      *
      * @param alias the alias name
      * @param key the key (in protected format) to be associated with the alias
      * @param chain the certificate chain for the corresponding public
      * key (only useful if the protected key is of type
-            * <code>java.security.PrivateKey</code>).
+     * <code>java.security.PrivateKey</code>).
      *
      * @exception KeyStoreException if this operation fails.
      */
@@ -445,7 +449,7 @@ public final class KeychainStore extends KeyStoreSpi {
     }
 
     /**
-        * Assigns the given certificate to the given alias.
+     * Assigns the given certificate to the given alias.
      *
      * <p>If the given alias already exists in this keystore and identifies a
      * <i>trusted certificate entry</i>, the certificate associated with it is
@@ -497,7 +501,7 @@ public final class KeychainStore extends KeyStoreSpi {
     }
 
     /**
-        * Deletes the entry identified by the given alias from this keystore.
+     * Deletes the entry identified by the given alias from this keystore.
      *
      * @param alias the alias name
      *
@@ -515,7 +519,7 @@ public final class KeychainStore extends KeyStoreSpi {
     }
 
     /**
-        * Lists all the alias names of this keystore.
+     * Lists all the alias names of this keystore.
      *
      * @return enumeration of the alias names
      */
@@ -525,7 +529,7 @@ public final class KeychainStore extends KeyStoreSpi {
     }
 
     /**
-        * Checks if the given alias exists in this keystore.
+     * Checks if the given alias exists in this keystore.
      *
      * @param alias the alias name
      *
@@ -537,7 +541,7 @@ public final class KeychainStore extends KeyStoreSpi {
     }
 
     /**
-        * Retrieves the number of entries in this keystore.
+     * Retrieves the number of entries in this keystore.
      *
      * @return the number of entries in this keystore
      */
@@ -547,7 +551,7 @@ public final class KeychainStore extends KeyStoreSpi {
     }
 
     /**
-        * Returns true if the entry identified by the given alias is a
+     * Returns true if the entry identified by the given alias is a
      * <i>key entry</i>, and false otherwise.
      *
      * @return true if the entry identified by the given alias is a
@@ -564,7 +568,7 @@ public final class KeychainStore extends KeyStoreSpi {
     }
 
     /**
-        * Returns true if the entry identified by the given alias is a
+     * Returns true if the entry identified by the given alias is a
      * <i>trusted certificate entry</i>, and false otherwise.
      *
      * @return true if the entry identified by the given alias is a
@@ -581,7 +585,7 @@ public final class KeychainStore extends KeyStoreSpi {
     }
 
     /**
-        * Returns the (alias) name of the first keystore entry whose certificate
+     * Returns the (alias) name of the first keystore entry whose certificate
      * matches the given certificate.
      *
      * <p>This method attempts to match the given certificate with each
@@ -620,7 +624,7 @@ public final class KeychainStore extends KeyStoreSpi {
     }
 
     /**
-        * Stores this keystore to the given output stream, and protects its
+     * Stores this keystore to the given output stream, and protects its
      * integrity with the given password.
      *
      * @param stream Ignored. the output stream to which this keystore is written.
@@ -714,7 +718,7 @@ public final class KeychainStore extends KeyStoreSpi {
     private native void _releaseKeychainItemRef(long keychainItemRef);
 
     /**
-      * Loads the keystore from the Keychain.
+     * Loads the keystore from the Keychain.
      *
      * @param stream Ignored - here for API compatibility.
      * @param password Ignored - if user needs to unlock keychain Security
@@ -914,7 +918,7 @@ public final class KeychainStore extends KeyStoreSpi {
         }
 
         /*
-            * Read the authSafe.
+         * Read the authSafe.
          */
         byte[] authSafeData;
         ContentInfo authSafe = new ContentInfo(s);
@@ -999,7 +1003,7 @@ public final class KeychainStore extends KeyStoreSpi {
     }
 
     /*
-        * Generate PBE Algorithm Parameters
+     * Generate PBE Algorithm Parameters
      */
     private AlgorithmParameters getAlgorithmParameters(String algorithm)
         throws IOException

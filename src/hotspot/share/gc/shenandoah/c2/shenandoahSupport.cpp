@@ -859,8 +859,8 @@ static void hide_strip_mined_loop(OuterStripMinedLoopNode* outer, CountedLoopNod
   inner->clear_strip_mined();
 }
 
-void ShenandoahBarrierC2Support::test_heap_stable(Node*& ctrl, Node* raw_mem, Node*& heap_stable_ctrl,
-                                                  PhaseIdealLoop* phase) {
+void ShenandoahBarrierC2Support::test_heap_state(Node*& ctrl, Node* raw_mem, Node*& heap_stable_ctrl,
+                                                 PhaseIdealLoop* phase, int flags) {
   IdealLoopTree* loop = phase->get_loop(ctrl);
   Node* thread = new ThreadLocalNode();
   phase->register_new_node(thread, ctrl);
@@ -874,7 +874,7 @@ void ShenandoahBarrierC2Support::test_heap_stable(Node*& ctrl, Node* raw_mem, No
 
   Node* gc_state = new LoadBNode(ctrl, raw_mem, gc_state_addr, gc_state_adr_type, TypeInt::BYTE, MemNode::unordered);
   phase->register_new_node(gc_state, ctrl);
-  Node* heap_stable_and = new AndINode(gc_state, phase->igvn().intcon(ShenandoahHeap::HAS_FORWARDED));
+  Node* heap_stable_and = new AndINode(gc_state, phase->igvn().intcon(flags));
   phase->register_new_node(heap_stable_and, ctrl);
   Node* heap_stable_cmp = new CmpINode(heap_stable_and, phase->igvn().zerocon(T_INT));
   phase->register_new_node(heap_stable_cmp, ctrl);
@@ -888,7 +888,7 @@ void ShenandoahBarrierC2Support::test_heap_stable(Node*& ctrl, Node* raw_mem, No
   ctrl = new IfTrueNode(heap_stable_iff);
   phase->register_control(ctrl, loop, heap_stable_iff);
 
-  assert(is_heap_stable_test(heap_stable_iff), "Should match the shape");
+  assert(is_heap_state_test(heap_stable_iff, flags), "Should match the shape");
 }
 
 void ShenandoahBarrierC2Support::test_null(Node*& ctrl, Node* val, Node*& null_ctrl, PhaseIdealLoop* phase) {
@@ -1143,7 +1143,7 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
   Node_List clones;
   for (int i = state->load_reference_barriers_count() - 1; i >= 0; i--) {
     ShenandoahLoadReferenceBarrierNode* lrb = state->load_reference_barrier(i);
-    if (lrb->get_barrier_strength() == ShenandoahLoadReferenceBarrierNode::NONE) {
+    if (lrb->is_redundant()) {
       continue;
     }
 
@@ -1372,7 +1372,7 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
 
   for (int i = 0; i < state->load_reference_barriers_count(); i++) {
     ShenandoahLoadReferenceBarrierNode* lrb = state->load_reference_barrier(i);
-    if (lrb->get_barrier_strength() == ShenandoahLoadReferenceBarrierNode::NONE) {
+    if (lrb->is_redundant()) {
       continue;
     }
     Node* ctrl = phase->get_ctrl(lrb);
@@ -1391,7 +1391,7 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
   Unique_Node_List uses_to_ignore;
   for (int i = state->load_reference_barriers_count() - 1; i >= 0; i--) {
     ShenandoahLoadReferenceBarrierNode* lrb = state->load_reference_barrier(i);
-    if (lrb->get_barrier_strength() == ShenandoahLoadReferenceBarrierNode::NONE) {
+    if (lrb->is_redundant()) {
       phase->igvn().replace_node(lrb, lrb->in(ShenandoahLoadReferenceBarrierNode::ValueIn));
       continue;
     }
@@ -1434,7 +1434,7 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
     Node* raw_mem_phi = PhiNode::make(region, raw_mem, Type::MEMORY, TypeRawPtr::BOTTOM);
 
     // Stable path.
-    test_heap_stable(ctrl, raw_mem, heap_stable_ctrl, phase);
+    test_heap_state(ctrl, raw_mem, heap_stable_ctrl, phase, ShenandoahHeap::HAS_FORWARDED);
     IfNode* heap_stable_iff = heap_stable_ctrl->in(0)->as_If();
 
     // Heap stable case
@@ -1605,7 +1605,7 @@ void ShenandoahBarrierC2Support::pin_and_expand(PhaseIdealLoop* phase) {
     Node* phi2 = PhiNode::make(region2, raw_mem, Type::MEMORY, TypeRawPtr::BOTTOM);
 
     // Stable path.
-    test_heap_stable(ctrl, raw_mem, heap_stable_ctrl, phase);
+    test_heap_state(ctrl, raw_mem, heap_stable_ctrl, phase, ShenandoahHeap::MARKING);
     region->init_req(_heap_stable, heap_stable_ctrl);
     phi->init_req(_heap_stable, raw_mem);
 
@@ -2640,41 +2640,6 @@ void MemoryGraphFixer::fix_mem(Node* ctrl, Node* new_ctrl, Node* mem, Node* mem_
               bool create_phi = true;
               if (_phase->is_dominator(new_ctrl, u)) {
                 create_phi = false;
-              } else if (!_phase->C->has_irreducible_loop()) {
-                IdealLoopTree* loop = _phase->get_loop(ctrl);
-                bool do_check = true;
-                IdealLoopTree* l = loop;
-                create_phi = false;
-                while (l != _phase->ltree_root()) {
-                  Node* head = l->_head;
-                  if (head->in(0) == NULL) {
-                    head = _phase->get_ctrl(head);
-                  }
-                  if (_phase->is_dominator(head, u) && _phase->is_dominator(_phase->idom(u), head)) {
-                    create_phi = true;
-                    do_check = false;
-                    break;
-                  }
-                  l = l->_parent;
-                }
-
-                if (do_check) {
-                  assert(!create_phi, "");
-                  IdealLoopTree* u_loop = _phase->get_loop(u);
-                  if (u_loop != _phase->ltree_root() && u_loop->is_member(loop)) {
-                    Node* c = ctrl;
-                    while (!_phase->is_dominator(c, u_loop->tail())) {
-                      c = _phase->idom(c);
-                    }
-                    if (!_phase->is_dominator(c, u)) {
-                      do_check = false;
-                    }
-                  }
-                }
-
-                if (do_check && _phase->is_dominator(_phase->idom(u), new_ctrl)) {
-                  create_phi = true;
-                }
               }
               if (create_phi) {
                 Node* phi = new PhiNode(u, Type::MEMORY, _phase->C->get_adr_type(_alias));
@@ -3186,16 +3151,15 @@ bool ShenandoahLoadReferenceBarrierNode::needs_barrier_impl(PhaseGVN* phase, Nod
   return true;
 }
 
-ShenandoahLoadReferenceBarrierNode::Strength ShenandoahLoadReferenceBarrierNode::get_barrier_strength() {
+bool ShenandoahLoadReferenceBarrierNode::is_redundant() {
   Unique_Node_List visited;
   Node_Stack stack(0);
   stack.push(this, 0);
 
-  // Look for strongest strength: go over nodes looking for STRONG ones.
-  // Stop once we encountered STRONG. Otherwise, walk until we ran out of nodes,
-  // and then the overall strength is NONE.
-  Strength strength = NONE;
-  while (strength != STRONG && stack.size() > 0) {
+  // Check if the barrier is actually useful: go over nodes looking for useful uses
+  // (e.g. memory accesses). Stop once we detected a required use. Otherwise, walk
+  // until we ran out of nodes, and then declare the barrier redundant.
+  while (stack.size() > 0) {
     Node* n = stack.node();
     if (visited.member(n)) {
       stack.pop();
@@ -3271,14 +3235,13 @@ ShenandoahLoadReferenceBarrierNode::Strength ShenandoahLoadReferenceBarrierNode:
       case Op_StrIndexOfChar:
       case Op_HasNegatives:
         // Known to require barriers
-        strength = STRONG;
-        break;
+        return false;
       case Op_CmpP: {
         if (n->in(1)->bottom_type()->higher_equal(TypePtr::NULL_PTR) ||
             n->in(2)->bottom_type()->higher_equal(TypePtr::NULL_PTR)) {
           // One of the sides is known null, no need for barrier.
         } else {
-          strength = STRONG;
+          return false;
         }
         break;
       }
@@ -3304,7 +3267,7 @@ ShenandoahLoadReferenceBarrierNode::Strength ShenandoahLoadReferenceBarrierNode:
           // Loading the constant does not require barriers: it should be handled
           // as part of GC roots already.
         } else {
-          strength = STRONG;
+          return false;
         }
         break;
       }
@@ -3325,10 +3288,10 @@ ShenandoahLoadReferenceBarrierNode::Strength ShenandoahLoadReferenceBarrierNode:
         break;
       default: {
 #ifdef ASSERT
-        fatal("Unknown node in get_barrier_strength: %s", NodeClassNames[n->Opcode()]);
+        fatal("Unknown node in is_redundant: %s", NodeClassNames[n->Opcode()]);
 #else
-        // Default to strong: better to have excess barriers, rather than miss some.
-        strength = STRONG;
+        // Default to have excess barriers, rather than miss some.
+        return false;
 #endif
       }
     }
@@ -3343,7 +3306,9 @@ ShenandoahLoadReferenceBarrierNode::Strength ShenandoahLoadReferenceBarrierNode:
       }
     }
   }
-  return strength;
+
+  // No need for barrier found.
+  return true;
 }
 
 CallStaticJavaNode* ShenandoahLoadReferenceBarrierNode::pin_and_expand_null_check(PhaseIterGVN& igvn) {

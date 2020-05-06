@@ -156,7 +156,7 @@ public class ArrayElementVarHandleTest {
             Point.makePoint(100, 200)
     };
 
-    private static final Point?[] NULLABLE_POINTS = new Point?[]{
+    private static final Point.ref[] NULLABLE_POINTS = new Point.ref[]{
         Point.makePoint(11, 22),
                 Point.makePoint(110, 220),
                 null
@@ -181,13 +181,13 @@ public class ArrayElementVarHandleTest {
     @Test
     public static void testObjectArrayVarHandle() throws Throwable {
         ArrayElementVarHandleTest test = new ArrayElementVarHandleTest(Object[].class);
-        // Point[] <: Point?[] <: Object
+        // Point[] <: Point.ref[] <: Object
         Object[] array1 = test.newArray(POINTS.length);
         test.setElements(array1, POINTS);
         test.setElements(array1, NULLABLE_POINTS);
         test.setElements(array1, new Object[] { "abc", Point.makePoint(1, 2) });
 
-        Point ?[]array2 = new Point ?[NULLABLE_POINTS.length];
+        Point.ref []array2 = new Point.ref [NULLABLE_POINTS.length];
         test.setElements(array2, POINTS);
         test.setElements(array2, NULLABLE_POINTS);
 
@@ -196,20 +196,20 @@ public class ArrayElementVarHandleTest {
     }
 
     /*
-     * VarHandle of Point?[].class
+     * VarHandle of Point.ref[].class
      */
     @Test
     public static void testIndirectPointVarHandle() throws Throwable {
-        Object o = new Point?[0];
+        Object o = new Point.ref[0];
         ArrayElementVarHandleTest test = new ArrayElementVarHandleTest(o.getClass());
         assertTrue(test.componentType.isIndirectType());
 
-        // Point[] <: Point?[] <: Object
-        Point?[] array1 = (Point?[])test.newArray(POINTS.length);
+        // Point[] <: Point.ref[] <: Object
+        Point.ref[] array1 = (Point.ref[])test.newArray(POINTS.length);
         test.setElements(array1, POINTS);
         test.setElements(array1, NULLABLE_POINTS);
 
-        Point?[] array2 = new Point?[NULLABLE_POINTS.length];
+        Point.ref[] array2 = new Point.ref[NULLABLE_POINTS.length];
         test.setElements(array2, POINTS);
         test.setElements(array2, NULLABLE_POINTS);
 
@@ -225,7 +225,7 @@ public class ArrayElementVarHandleTest {
         ArrayElementVarHandleTest test = new ArrayElementVarHandleTest(Point[].class);
         assertFalse(test.componentType.isIndirectType());
 
-        // Point[] <: Point?[] <: Object
+        // Point[] <: Point.ref[] <: Object
         Point[] array1 = (Point[]) test.newArray(POINTS.length);
         test.setElements(array1, POINTS);
 
@@ -234,20 +234,20 @@ public class ArrayElementVarHandleTest {
     }
 
     /*
-     * VarHandle of Line?[].class
+     * VarHandle of Line.ref[].class
      */
     @Test
     public static void testIndirectLineVarHandle() throws Throwable {
-        Line?[] nullableLines = new Line?[] { null, null };
+        Line.ref[] nullableLines = new Line.ref[] { null, null };
         ArrayElementVarHandleTest test = new ArrayElementVarHandleTest(nullableLines.getClass());
         assertTrue(test.componentType.isIndirectType());
 
-        // Line[] <: Line?[]
-        Line?[] array1 = (Line?[])test.newArray(LINES.length);
+        // Line[] <: Line.ref[]
+        Line.ref[] array1 = (Line.ref[])test.newArray(LINES.length);
         test.setElements(array1, LINES);
         test.setElements(array1, nullableLines);
 
-        Line?[] array2 = new Line?[LINES.length];
+        Line.ref[] array2 = new Line.ref[LINES.length];
         test.setElements(array2, LINES);
         test.setElements(array2, nullableLines);
 

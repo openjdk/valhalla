@@ -234,6 +234,10 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* thread, ConstantPool* pool,
   Klass* k = pool->klass_at(index, CHECK);
   InstanceKlass* klass = InstanceKlass::cast(k);
 
+  if (klass->is_value()) {
+    THROW(vmSymbols::java_lang_InstantiationError());
+  }
+
   // Make sure we are not instantiating an abstract klass
   klass->check_valid_for_instantiation(true, CHECK);
 
@@ -297,6 +301,11 @@ void copy_primitive_argument(intptr_t* addr, Handle instance, int offset, BasicT
 JRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* thread, ConstantPool* pool, int index))
   // Getting the ValueKlass
   Klass* k = pool->klass_at(index, CHECK);
+  if (!k->is_value()) {
+    // inconsistency with 'new' which throws an InstantiationError
+    // in the future, defaultvalue will just return null instead of throwing an exception
+    THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
+  }
   assert(k->is_value(), "defaultvalue argument must be the value type class");
   ValueKlass* vklass = ValueKlass::cast(k);
 
@@ -879,6 +888,10 @@ JRT_ENTRY(void, InterpreterRuntime::throw_AbstractMethodErrorVerbose(JavaThread*
   ResourceMark rm(thread);
   methodHandle mh = methodHandle(thread, missingMethod);
   LinkResolver::throw_abstract_method_error(mh, recvKlass, THREAD);
+JRT_END
+
+JRT_ENTRY(void, InterpreterRuntime::throw_InstantiationError(JavaThread* thread))
+  THROW(vmSymbols::java_lang_InstantiationError());
 JRT_END
 
 

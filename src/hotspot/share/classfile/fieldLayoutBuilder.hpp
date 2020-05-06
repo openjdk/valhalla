@@ -256,6 +256,8 @@ class FieldLayoutBuilder : public ResourceObj {
   bool _is_contended;
   bool _is_value_type;
   bool _has_flattening_information;
+  bool _has_nonatomic_values;
+  int _atomic_field_count;
 
   FieldGroup* get_or_create_contended_group(int g);
 

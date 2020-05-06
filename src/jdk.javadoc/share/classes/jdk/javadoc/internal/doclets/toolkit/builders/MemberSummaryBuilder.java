@@ -39,7 +39,6 @@ import com.sun.source.doctree.DocCommentTree;
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.DocTree.Kind;
 import com.sun.source.doctree.UnknownBlockTagTree;
-import jdk.javadoc.internal.doclets.toolkit.AnnotationTypeWriter;
 import jdk.javadoc.internal.doclets.toolkit.ClassWriter;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.MemberSummaryWriter;
@@ -85,7 +84,7 @@ public abstract class MemberSummaryBuilder extends AbstractMemberBuilder {
     private MemberSummaryBuilder(Context context, TypeElement typeElement) {
         super(context, typeElement);
         memberSummaryWriters = new EnumMap<>(VisibleMemberTable.Kind.class);
-        comparator = utils.makeIndexUseComparator();
+        comparator = utils.comparators.makeIndexElementComparator();
         pHelper = new PropertyHelper(this);
     }
 
@@ -101,13 +100,15 @@ public abstract class MemberSummaryBuilder extends AbstractMemberBuilder {
             ClassWriter classWriter, Context context) {
         MemberSummaryBuilder builder = new MemberSummaryBuilder(context, classWriter.getTypeElement()) {
             @Override
-            public void build(Content contentTree) {
-                buildPropertiesSummary(contentTree);
-                buildNestedClassesSummary(contentTree);
-                buildEnumConstantsSummary(contentTree);
-                buildFieldsSummary(contentTree);
-                buildConstructorsSummary(contentTree);
-                buildMethodsSummary(contentTree);
+            public void build(Content summariesList) {
+                buildPropertiesSummary(summariesList);
+                buildNestedClassesSummary(summariesList);
+                buildEnumConstantsSummary(summariesList);
+                buildAnnotationTypeRequiredMemberSummary(summariesList);
+                buildAnnotationTypeOptionalMemberSummary(summariesList);
+                buildFieldsSummary(summariesList);
+                buildConstructorsSummary(summariesList);
+                buildMethodsSummary(summariesList);
             }
 
             @Override
@@ -119,40 +120,6 @@ public abstract class MemberSummaryBuilder extends AbstractMemberBuilder {
         for (VisibleMemberTable.Kind kind : VisibleMemberTable.Kind.values()) {
             MemberSummaryWriter msw = builder.getVisibleMemberTable().hasVisibleMembers(kind)
                     ? wf.getMemberSummaryWriter(classWriter, kind)
-                    : null;
-            builder.memberSummaryWriters.put(kind, msw);
-        }
-        return builder;
-    }
-
-    /**
-     * Construct a new MemberSummaryBuilder for an annotation type.
-     *
-     * @param annotationTypeWriter the writer for the class whose members are
-     *                             being summarized.
-     * @param context       the build context.
-     * @return              the instance
-     */
-    public static MemberSummaryBuilder getInstance(
-            AnnotationTypeWriter annotationTypeWriter, Context context) {
-        MemberSummaryBuilder builder = new MemberSummaryBuilder(context,
-                annotationTypeWriter.getAnnotationTypeElement()) {
-            @Override
-            public void build(Content contentTree) {
-                buildAnnotationTypeFieldsSummary(contentTree);
-                buildAnnotationTypeRequiredMemberSummary(contentTree);
-                buildAnnotationTypeOptionalMemberSummary(contentTree);
-            }
-
-            @Override
-            public boolean hasMembersToDocument() {
-                return !utils.getAnnotationMembers(typeElement).isEmpty();
-            }
-        };
-        WriterFactory wf = context.configuration.getWriterFactory();
-        for (VisibleMemberTable.Kind kind : VisibleMemberTable.Kind.values()) {
-            MemberSummaryWriter msw = builder.getVisibleMemberTable().hasVisibleMembers(kind)
-                    ? wf.getMemberSummaryWriter(annotationTypeWriter, kind)
                     : null;
             builder.memberSummaryWriters.put(kind, msw);
         }
@@ -207,93 +174,83 @@ public abstract class MemberSummaryBuilder extends AbstractMemberBuilder {
     }
 
     /**
-     * Build the summary for the enum constants.
+     * Builds the summary for any optional members of an annotation type.
      *
-     * @param memberSummaryTree the content tree to which the documentation will be added
+     * @param summariesList the list of summaries to which the summary will be added
      */
-    protected void buildEnumConstantsSummary(Content memberSummaryTree) {
-        MemberSummaryWriter writer = memberSummaryWriters.get(ENUM_CONSTANTS);
-        addSummary(writer, ENUM_CONSTANTS, false, memberSummaryTree);
-    }
-
-    /**
-     * Build the summary for fields.
-     *
-     * @param memberSummaryTree the content tree to which the documentation will be added
-     */
-    protected void buildAnnotationTypeFieldsSummary(Content memberSummaryTree) {
-        MemberSummaryWriter writer = memberSummaryWriters.get(ANNOTATION_TYPE_FIELDS);
-        addSummary(writer, ANNOTATION_TYPE_FIELDS, false, memberSummaryTree);
-    }
-
-    /**
-     * Build the summary for the optional members.
-     *
-     * @param memberSummaryTree the content tree to which the documentation will be added
-     */
-    protected void buildAnnotationTypeOptionalMemberSummary(Content memberSummaryTree) {
+    protected void buildAnnotationTypeOptionalMemberSummary(Content summariesList) {
         MemberSummaryWriter writer = memberSummaryWriters.get(ANNOTATION_TYPE_MEMBER_OPTIONAL);
-        addSummary(writer, ANNOTATION_TYPE_MEMBER_OPTIONAL, false, memberSummaryTree);
+        addSummary(writer, ANNOTATION_TYPE_MEMBER_OPTIONAL, false, summariesList);
     }
 
     /**
-     * Build the summary for the optional members.
+     * Builds the summary for any required members of an annotation type.
      *
-     * @param memberSummaryTree the content tree to which the documentation will be added
+     * @param summariesList the list of summaries to which the summary will be added
      */
-    protected void buildAnnotationTypeRequiredMemberSummary(Content memberSummaryTree) {
+    protected void buildAnnotationTypeRequiredMemberSummary(Content summariesList) {
         MemberSummaryWriter writer = memberSummaryWriters.get(ANNOTATION_TYPE_MEMBER_REQUIRED);
-        addSummary(writer, ANNOTATION_TYPE_MEMBER_REQUIRED, false, memberSummaryTree);
+        addSummary(writer, ANNOTATION_TYPE_MEMBER_REQUIRED, false, summariesList);
     }
 
     /**
-     * Build the summary for the fields.
+     * Builds the summary for any enum constants of an enum type.
      *
-     * @param memberSummaryTree the content tree to which the documentation will be added
+     * @param summariesList the list of summaries to which the summary will be added
      */
-    protected void buildFieldsSummary(Content memberSummaryTree) {
+    protected void buildEnumConstantsSummary(Content summariesList) {
+        MemberSummaryWriter writer = memberSummaryWriters.get(ENUM_CONSTANTS);
+        addSummary(writer, ENUM_CONSTANTS, false, summariesList);
+    }
+
+    /**
+     * Builds the summary for any fields.
+     *
+     * @param summariesList the list of summaries to which the summary will be added
+     */
+    protected void buildFieldsSummary(Content summariesList) {
         MemberSummaryWriter writer = memberSummaryWriters.get(FIELDS);
-        addSummary(writer, FIELDS, true, memberSummaryTree);
+        addSummary(writer, FIELDS, true, summariesList);
     }
 
     /**
-     * Build the summary for the fields.
+     * Builds the summary for any properties.
      *
-     * @param memberSummaryTree the content tree to which the documentation will be added
+     * @param summariesList the list of summaries to which the summary will be added
      */
-    protected void buildPropertiesSummary(Content memberSummaryTree) {
+    protected void buildPropertiesSummary(Content summariesList) {
         MemberSummaryWriter writer = memberSummaryWriters.get(PROPERTIES);
-        addSummary(writer, PROPERTIES, true, memberSummaryTree);
+        addSummary(writer, PROPERTIES, true, summariesList);
     }
 
     /**
-     * Build the summary for the nested classes.
+     * Builds the summary for any nested classes.
      *
-     * @param memberSummaryTree the content tree to which the documentation will be added
+     * @param summariesList the list of summaries to which the summary will be added
      */
-    protected void buildNestedClassesSummary(Content memberSummaryTree) {
+    protected void buildNestedClassesSummary(Content summariesList) {
         MemberSummaryWriter writer = memberSummaryWriters.get(INNER_CLASSES);
-        addSummary(writer, INNER_CLASSES, true, memberSummaryTree);
+        addSummary(writer, INNER_CLASSES, true, summariesList);
     }
 
     /**
-     * Build the method summary.
+     * Builds the summary for any methods.
      *
-     * @param memberSummaryTree the content tree to which the documentation will be added
+     * @param summariesList the content tree to which the documentation will be added
      */
-    protected void buildMethodsSummary(Content memberSummaryTree) {
+    protected void buildMethodsSummary(Content summariesList) {
         MemberSummaryWriter writer = memberSummaryWriters.get(METHODS);
-        addSummary(writer, METHODS, true, memberSummaryTree);
+        addSummary(writer, METHODS, true, summariesList);
     }
 
     /**
-     * Build the constructor summary.
+     * Builds the summary for any constructors.
      *
-     * @param memberSummaryTree the content tree to which the documentation will be added
+     * @param summariesList the content tree to which the documentation will be added
      */
-    protected void buildConstructorsSummary(Content memberSummaryTree) {
+    protected void buildConstructorsSummary(Content summariesList) {
         MemberSummaryWriter writer = memberSummaryWriters.get(CONSTRUCTORS);
-        addSummary(writer, CONSTRUCTORS, false, memberSummaryTree);
+        addSummary(writer, CONSTRUCTORS, false, summariesList);
     }
 
     /**
@@ -477,26 +434,26 @@ public abstract class MemberSummaryBuilder extends AbstractMemberBuilder {
     }
 
     /**
-     * Add the summary for the documentation.
+     * Adds the summary for the documentation.
      *
-     * @param writer the writer for this member summary.
-     * @param kind the kind of members to document.
-     * @param showInheritedSummary true if inherited summary should be documented
-     * @param memberSummaryTree the content tree to which the documentation will be added
+     * @param writer               the writer for this member summary
+     * @param kind                 the kind of members to document
+     * @param showInheritedSummary true if a summary of any inherited elements should be documented
+     * @param summariesList        the list of summaries to which the summary will be added
      */
     private void addSummary(MemberSummaryWriter writer,
                             VisibleMemberTable.Kind kind,
                             boolean showInheritedSummary,
-                            Content memberSummaryTree)
+                            Content summariesList)
     {
         LinkedList<Content> summaryTreeList = new LinkedList<>();
         buildSummary(writer, kind, summaryTreeList);
         if (showInheritedSummary)
             buildInheritedSummary(writer, kind, summaryTreeList);
         if (!summaryTreeList.isEmpty()) {
-            Content memberTree = writer.getMemberSummaryHeader(typeElement, memberSummaryTree);
+            Content memberTree = writer.getMemberSummaryHeader(typeElement, summariesList);
             summaryTreeList.forEach(memberTree::add);
-            writer.addMemberTree(memberSummaryTree, memberTree);
+            writer.addSummary(summariesList, memberTree);
         }
     }
 

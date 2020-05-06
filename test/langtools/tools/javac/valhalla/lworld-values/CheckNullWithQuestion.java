@@ -26,23 +26,23 @@
 /*
  * @test
  * @bug 8222634
- * @summary Check null assignment/comparisons against VT?
+ * @summary Check null assignment/comparisons against VT.ref
  * @compile CheckNullWithQuestion.java
  */
 
 inline class CheckNullWithQuestion {
     final int x = 0;
     void foo(boolean flag) {
-        CheckNullWithQuestion? vBox = null;
+        CheckNullWithQuestion.ref vBox = null;
         if (vBox != null) {}
-        CheckNullWithQuestion? val = flag ? vBox : null;
+        CheckNullWithQuestion.ref val = flag ? vBox : null;
     }
 }
 
 class X {
     void foo(boolean flag) {
-        CheckNullWithQuestion? vBox = null;
+        CheckNullWithQuestion.ref vBox = null;
         if (vBox != null) {}
-        CheckNullWithQuestion? val = flag ? vBox : null;
+        CheckNullWithQuestion.ref val = flag ? vBox : null;
     }
 }

@@ -88,9 +88,9 @@ public class TestWithfieldC1 extends ValueTypeTest {
         return null;
     }
 
-    static FooValue? foo_static;
-    static FooValue? foo_static_arr[] = new FooValue?[1];
-    FooValue? foo_instance;
+    static FooValue.ref foo_static;
+    static FooValue.ref foo_static_arr[] = new FooValue.ref[1];
+    FooValue.ref foo_instance;
 
     @DontInline
     static void set_foo_static_if_null(FooValue v) {

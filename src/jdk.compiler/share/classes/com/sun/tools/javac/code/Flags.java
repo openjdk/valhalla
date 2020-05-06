@@ -126,6 +126,19 @@ public class Flags {
      */
     public static final int HASINIT          = 1<<18;
 
+    /** Flag is set for a class symbol if it defines one or more non-empty
+     *  instance initializer block(s). This is relevenat only for class symbols
+     *  that originate from source types. For binary types the instance initializer
+     *  blocks are "normalized" into the constructors.
+     */
+    public static final int HASINITBLOCK         = 1<<18;
+
+    /** Flag is set for a method symbol if it is an empty no-arg ctor.
+     *  i.e one that simply returns (jlO) or merely chains to a super's
+     *  EMPTYNOARGCONSTR
+     */
+    public static final int EMPTYNOARGCONSTR         = 1<<18;
+
     /** Flag is set for a value based class.
      */
     public static final int VALUEBASED       = 1<<19;
@@ -458,6 +471,8 @@ public class Flags {
         ANNOTATION(Flags.ANNOTATION),
         DEPRECATED(Flags.DEPRECATED),
         HASINIT(Flags.HASINIT),
+        HASINITBLOCK(Flags.HASINITBLOCK),
+        EMPTYNOARGCONSTR(Flags.EMPTYNOARGCONSTR),
         BLOCK(Flags.BLOCK),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),

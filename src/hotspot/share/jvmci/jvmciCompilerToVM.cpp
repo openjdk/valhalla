@@ -28,6 +28,7 @@
 #include "classfile/symbolTable.hpp"
 #include "code/scopeDesc.hpp"
 #include "compiler/compileBroker.hpp"
+#include "compiler/compilerEvent.hpp"
 #include "compiler/disassembler.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "interpreter/bytecodeStream.hpp"
@@ -534,7 +535,7 @@ C2V_VMENTRY_NULL(jobject, lookupType, (JNIEnv* env, jobject, jstring jname, jcla
   }
 
   if (resolve) {
-    resolved_klass = SystemDictionary::resolve_or_null(class_name, class_loader, protection_domain, CHECK_0);
+    resolved_klass = SystemDictionary::resolve_or_null(class_name, class_loader, protection_domain, CHECK_NULL);
     if (resolved_klass == NULL) {
       JVMCI_THROW_MSG_NULL(ClassNotFoundException, str);
     }
@@ -543,7 +544,7 @@ C2V_VMENTRY_NULL(jobject, lookupType, (JNIEnv* env, jobject, jstring jname, jcla
       // This is a name from a signature.  Strip off the trimmings.
       // Call recursive to keep scope of strippedsym.
       TempNewSymbol strippedsym = Signature::strip_envelope(class_name);
-      resolved_klass = SystemDictionary::find(strippedsym, class_loader, protection_domain, CHECK_0);
+      resolved_klass = SystemDictionary::find(strippedsym, class_loader, protection_domain, CHECK_NULL);
     } else if (Signature::is_array(class_name)) {
       SignatureStream ss(class_name, false);
       int ndim = ss.skip_array_prefix();
@@ -552,15 +553,15 @@ C2V_VMENTRY_NULL(jobject, lookupType, (JNIEnv* env, jobject, jstring jname, jcla
         resolved_klass = SystemDictionary::find(strippedsym,
                                                 class_loader,
                                                 protection_domain,
-                                                CHECK_0);
+                                                CHECK_NULL);
         if (!resolved_klass.is_null()) {
-          resolved_klass = resolved_klass->array_klass(ndim, CHECK_0);
+          resolved_klass = resolved_klass->array_klass(ndim, CHECK_NULL);
         }
       } else {
-        resolved_klass = TypeArrayKlass::cast(Universe::typeArrayKlassObj(ss.type()))->array_klass(ndim, CHECK_0);
+        resolved_klass = TypeArrayKlass::cast(Universe::typeArrayKlassObj(ss.type()))->array_klass(ndim, CHECK_NULL);
       }
     } else {
-      resolved_klass = SystemDictionary::find(class_name, class_loader, protection_domain, CHECK_0);
+      resolved_klass = SystemDictionary::find(class_name, class_loader, protection_domain, CHECK_NULL);
     }
   }
   JVMCIObject result = JVMCIENV->get_jvmci_type(resolved_klass, JVMCI_CHECK_NULL);
@@ -704,8 +705,8 @@ C2V_VMENTRY_NULL(jobject, resolveFieldInPool, (JNIEnv* env, jobject, jobject jvm
   Bytecodes::Code code = (Bytecodes::Code)(((int) opcode) & 0xFF);
   fieldDescriptor fd;
   methodHandle mh(THREAD, (jvmci_method != NULL) ? JVMCIENV->asMethod(jvmci_method) : NULL);
-  LinkInfo link_info(cp, index, mh, CHECK_0);
-  LinkResolver::resolve_field(fd, link_info, Bytecodes::java_code(code), false, CHECK_0);
+  LinkInfo link_info(cp, index, mh, CHECK_NULL);
+  LinkResolver::resolve_field(fd, link_info, Bytecodes::java_code(code), false, CHECK_NULL);
   JVMCIPrimitiveArray info = JVMCIENV->wrap(info_handle);
   if (info.is_null() || JVMCIENV->get_length(info) != 3) {
     JVMCI_ERROR_NULL("info must not be null and have a length of 3");
@@ -1825,7 +1826,7 @@ C2V_VMENTRY_0(jboolean, isInternedString, (JNIEnv* env, jobject, jobject object)
     return false;
   }
   int len;
-  jchar* name = java_lang_String::as_unicode_string(str(), len, CHECK_0);
+  jchar* name = java_lang_String::as_unicode_string(str(), len, CHECK_false);
   return (StringTable::lookup(name, len) != NULL);
 C2V_END
 
@@ -2628,6 +2629,45 @@ C2V_VMENTRY(void, callSystemExit, (JNIEnv* env, jobject, jint status))
                        CHECK);
 }
 
+C2V_VMENTRY_0(jlong, ticksNow, (JNIEnv* env, jobject))
+  return CompilerEvent::ticksNow();
+}
+
+C2V_VMENTRY_0(jint, registerCompilerPhases, (JNIEnv* env, jobject, jobjectArray jphases))
+#if INCLUDE_JFR
+  if (jphases == NULL) {
+    return -1;
+  }
+  JVMCIObjectArray phases = JVMCIENV->wrap(jphases);
+  int len = JVMCIENV->get_length(phases);
+  GrowableArray<const char*>* jvmci_phase_names = new GrowableArray<const char*>(len);
+  for (int i = 0; i < len; i++) {
+    JVMCIObject phase = JVMCIENV->get_object_at(phases, i);
+    jvmci_phase_names->append(strdup(JVMCIENV->as_utf8_string(phase)));
+  }
+  return CompilerEvent::PhaseEvent::register_phases(jvmci_phase_names);
+#else
+  return -1;
+#endif // !INCLUDE_JFR
+}
+
+C2V_VMENTRY(void, notifyCompilerPhaseEvent, (JNIEnv* env, jobject, jlong startTime, jint phase, jint compileId, jint level))
+  EventCompilerPhase event;
+  if (event.should_commit()) {
+    CompilerEvent::PhaseEvent::post(event, startTime, phase, compileId, level);
+  }
+}
+
+C2V_VMENTRY(void, notifyCompilerInliningEvent, (JNIEnv* env, jobject, jint compileId, jobject caller, jobject callee, jboolean succeeded, jstring jmessage, jint bci))
+  EventCompilerInlining event;
+  if (event.should_commit()) {
+    Method* caller_method = JVMCIENV->asMethod(caller);
+    Method* callee_method = JVMCIENV->asMethod(callee);
+    JVMCIObject message = JVMCIENV->wrap(jmessage);
+    CompilerEvent::InlineEvent::post(event, compileId, caller_method, callee_method, succeeded, JVMCIENV->as_utf8_string(message), bci);
+  }
+}
+
 #define CC (char*)  /*cast a literal from (const char*)*/
 #define FN_PTR(f) CAST_FROM_FN_PTR(void*, &(c2v_ ## f))
 
@@ -2775,6 +2815,10 @@ JNINativeMethod CompilerToVM::methods[] = {
   {CC "releaseFailedSpeculations",                    CC "(J)V",                                                                            FN_PTR(releaseFailedSpeculations)},
   {CC "addFailedSpeculation",                         CC "(J[B)Z",                                                                          FN_PTR(addFailedSpeculation)},
   {CC "callSystemExit",                               CC "(I)V",                                                                            FN_PTR(callSystemExit)},
+  {CC "ticksNow",                                     CC "()J",                                                                             FN_PTR(ticksNow)},
+  {CC "registerCompilerPhases",                       CC "([" STRING ")I",                                                                  FN_PTR(registerCompilerPhases)},
+  {CC "notifyCompilerPhaseEvent",                     CC "(JIII)V",                                                                         FN_PTR(notifyCompilerPhaseEvent)},
+  {CC "notifyCompilerInliningEvent",                  CC "(I" HS_RESOLVED_METHOD HS_RESOLVED_METHOD "ZLjava/lang/String;I)V",               FN_PTR(notifyCompilerInliningEvent)},
 };
 
 int CompilerToVM::methods_count() {

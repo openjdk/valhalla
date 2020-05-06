@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,7 +57,7 @@ final inline class MyValue2Inline {
     }
 }
 
-public final inline class MyValue2 implements MyInterface {
+public final inline class MyValue2 extends MyAbstract {
     final int x;
     final byte y;
     final MyValue2Inline v1;

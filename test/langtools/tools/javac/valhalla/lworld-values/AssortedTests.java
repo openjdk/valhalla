@@ -38,7 +38,7 @@ class X {
     static final MyValue1 vField = new MyValue1();
 
     inline class MyValue2 {
-        final MyValue1? vBoxField;
+        final MyValue1.ref vBoxField;
 
         public MyValue2() {
             vBoxField = new MyValue1();
@@ -56,7 +56,7 @@ inline class MyValue3 {
 class Y {
 
     inline class MyValue4 {
-        final MyValue3? vBoxField = null;
+        final MyValue3.ref vBoxField = null;
 
         public int test() {
             return vBoxField.hash();
@@ -67,12 +67,12 @@ class Y {
 }
 
 interface MyInterface {
-    public void test(MyValue5? vt);
+    public void test(MyValue5.ref vt);
 }
 
 inline class MyValue5 implements MyInterface {
     final int x = 0;
 
     @Override
-    public void test(MyValue5? vt) { }
+    public void test(MyValue5.ref vt) { }
 }

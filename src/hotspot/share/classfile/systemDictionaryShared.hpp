@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -132,6 +132,8 @@ private:
                                                TRAPS);
   static Handle get_package_name(Symbol*  class_name, TRAPS);
 
+  static PackageEntry* get_package_entry_from_class_name(Handle class_loader, Symbol* class_name);
+
 
   // Package handling:
   //
@@ -180,7 +182,7 @@ private:
                                              TRAPS);
   static Handle get_shared_protection_domain(Handle class_loader,
                                              ModuleEntry* mod, TRAPS);
-  static Handle init_security_info(Handle class_loader, InstanceKlass* ik, TRAPS);
+  static Handle init_security_info(Handle class_loader, InstanceKlass* ik, PackageEntry* pkg_entry, TRAPS);
 
   static void atomic_set_array_index(objArrayOop array, int index, oop o) {
     // Benign race condition:  array.obj_at(index) may already be filled in.
@@ -246,14 +248,6 @@ public:
                                                       PackageEntry* pkg_entry,
                                                       ModuleEntry* mod_entry,
                                                       TRAPS);
-  static PackageEntry* get_package_entry(Symbol* pkg,
-                                         ClassLoaderData *loader_data) {
-    if (loader_data != NULL) {
-      PackageEntryTable* pkgEntryTable = loader_data->packages();
-      return pkgEntryTable->lookup_only(pkg);
-    }
-    return NULL;
-  }
 
   static bool add_unregistered_class(InstanceKlass* k, TRAPS);
   static InstanceKlass* dump_time_resolve_super_or_fail(Symbol* child_name,
@@ -292,6 +286,8 @@ public:
                   bool from_is_array, bool from_is_object) NOT_CDS_RETURN_(false);
   static void check_verification_constraints(InstanceKlass* klass,
                                              TRAPS) NOT_CDS_RETURN;
+  static void set_class_has_failed_verification(InstanceKlass* ik) NOT_CDS_RETURN;
+  static bool has_class_failed_verification(InstanceKlass* ik) NOT_CDS_RETURN_(false);
   static bool is_builtin(InstanceKlass* k) {
     return (k->shared_classpath_index() != UNREGISTERED_INDEX);
   }
@@ -303,6 +299,7 @@ public:
   static void write_to_archive(bool is_static_archive = true);
   static void serialize_dictionary_headers(class SerializeClosure* soc,
                                            bool is_static_archive = true);
+  static void serialize_well_known_klasses(class SerializeClosure* soc);
   static void print() { return print_on(tty); }
   static void print_on(outputStream* st) NOT_CDS_RETURN;
   static void print_table_statistics(outputStream* st) NOT_CDS_RETURN;

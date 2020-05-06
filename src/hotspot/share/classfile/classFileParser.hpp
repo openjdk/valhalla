@@ -73,6 +73,7 @@ class FieldLayoutInfo : public ResourceObj {
   int _nonstatic_field_size;
   int _static_field_size;
   bool  _has_nonstatic_fields;
+  bool  _is_naturally_atomic;
 };
 
 // Parser for for .class files
@@ -199,6 +200,8 @@ class ClassFileParser {
 
   bool _has_flattenable_fields;
   bool _is_empty_value;
+  bool _is_naturally_atomic;
+  bool _is_declared_atomic;
 
   // precomputed flags
   bool _has_finalizer;
@@ -246,6 +249,7 @@ class ClassFileParser {
                         const int itfs_len,
                         ConstantPool* const cp,
                         bool* has_nonstatic_concrete_methods,
+                        bool* is_declared_atomic,
                         TRAPS);
 
   const InstanceKlass* parse_super_class(ConstantPool* const cp,

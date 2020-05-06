@@ -69,6 +69,10 @@ class ArrayKlass: public Klass {
   // Presented with an ArrayKlass, which storage_properties should be encoded into arrayOop
   virtual ArrayStorageProperties storage_properties() { return ArrayStorageProperties::empty; }
 
+  // Are loads and stores to this concrete array type atomic?
+  // Note that Object[] is naturally atomic, but its subtypes may not be.
+  virtual bool element_access_is_atomic() { return true; }
+
   // Testing operation
   DEBUG_ONLY(bool is_array_klass_slow() const { return true; })
 
@@ -142,7 +146,7 @@ class ArrayKlass: public Klass {
   // CDS support - remove and restore oops from metadata. Oops are not shared.
   virtual void remove_unshareable_info();
   virtual void remove_java_mirror();
-  virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
+  void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
 
   // Printing
   void print_on(outputStream* st) const;

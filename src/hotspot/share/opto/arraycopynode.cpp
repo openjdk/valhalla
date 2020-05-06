@@ -58,7 +58,7 @@ ArrayCopyNode* ArrayCopyNode::make(GraphKit* kit, bool may_throw,
                                    Node* src_length, Node* dest_length) {
 
   ArrayCopyNode* ac = new ArrayCopyNode(kit->C, alloc_tightly_coupled, has_negative_length_guard);
-  Node* prev_mem = kit->set_predefined_input_for_runtime_call(ac);
+  kit->set_predefined_input_for_runtime_call(ac);
 
   ac->init_req(ArrayCopyNode::Src, src);
   ac->init_req(ArrayCopyNode::SrcPos, src_offset);
@@ -181,17 +181,12 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
     return NULL;
   }
 
-  Node* src = in(ArrayCopyNode::Src);
-  Node* dest = in(ArrayCopyNode::Dest);
+  Node* base_src = in(ArrayCopyNode::Src);
+  Node* base_dest = in(ArrayCopyNode::Dest);
   Node* ctl = in(TypeFunc::Control);
   Node* in_mem = in(TypeFunc::Memory);
 
-  const Type* src_type = phase->type(src);
-
-  assert(src->is_AddP(), "should be base + off");
-  assert(dest->is_AddP(), "should be base + off");
-  Node* base_src = src->in(AddPNode::Base);
-  Node* base_dest = dest->in(AddPNode::Base);
+  const Type* src_type = phase->type(base_src);
 
   MergeMemNode* mem = MergeMemNode::make(in_mem);
 
@@ -213,7 +208,6 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   for (int i = 0; i < count; i++) {
     ciField* field = ik->nonstatic_field_at(i);
-    int fieldidx = phase->C->alias_type(field)->index();
     const TypePtr* adr_type = phase->C->alias_type(field)->adr_type();
     Node* off = phase->MakeConX(field->offset());
     Node* next_src = phase->transform(new AddPNode(base_src,base_src,off));
@@ -252,16 +246,17 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
                                        BasicType& copy_type,
                                        const Type*& value_type,
                                        bool& disjoint_bases) {
-  Node* src = in(ArrayCopyNode::Src);
-  Node* dest = in(ArrayCopyNode::Dest);
-  const Type* src_type = phase->type(src);
+  base_src = in(ArrayCopyNode::Src);
+  base_dest = in(ArrayCopyNode::Dest);
+  const Type* src_type = phase->type(base_src);
   const TypeAryPtr* ary_src = src_type->isa_aryptr();
 
+  Node* src_offset = in(ArrayCopyNode::SrcPos);
+  Node* dest_offset = in(ArrayCopyNode::DestPos);
+
   if (is_arraycopy() || is_copyofrange() || is_copyof()) {
-    const Type* dest_type = phase->type(dest);
+    const Type* dest_type = phase->type(base_dest);
     const TypeAryPtr* ary_dest = dest_type->isa_aryptr();
-    Node* src_offset = in(ArrayCopyNode::SrcPos);
-    Node* dest_offset = in(ArrayCopyNode::DestPos);
 
     // newly allocated object is guaranteed to not overlap with source object
     disjoint_bases = is_alloc_tightly_coupled();
@@ -298,18 +293,12 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     value_type = ary_src->elem();
 
-    base_src = src;
-    base_dest = dest;
-
     uint shift  = exact_log2(type2aelembytes(dest_elem));
     if (dest_elem == T_VALUETYPE) {
       ciValueArrayKlass* vak = ary_src->klass()->as_value_array_klass();
       shift = vak->log2_element_size();
     }
     uint header = arrayOopDesc::base_offset_in_bytes(dest_elem);
-
-    adr_src = src;
-    adr_dest = dest;
 
     src_offset = Compile::conv_I2X_index(phase, src_offset, ary_src->size());
     dest_offset = Compile::conv_I2X_index(phase, dest_offset, ary_dest->size());
@@ -318,14 +307,14 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
       return false;
     }
 
-    Node* src_scale = phase->transform(new LShiftXNode(src_offset, phase->intcon(shift)));
+    Node* src_scale  = phase->transform(new LShiftXNode(src_offset, phase->intcon(shift)));
     Node* dest_scale = phase->transform(new LShiftXNode(dest_offset, phase->intcon(shift)));
 
-    adr_src = phase->transform(new AddPNode(base_src, adr_src, phase->MakeConX(header)));
-    adr_dest = phase->transform(new AddPNode(base_dest, adr_dest, phase->MakeConX(header)));
+    adr_src          = phase->transform(new AddPNode(base_src, base_src, src_scale));
+    adr_dest         = phase->transform(new AddPNode(base_dest, base_dest, dest_scale));
 
-    adr_src = phase->transform(new AddPNode(base_src, adr_src, src_scale));
-    adr_dest = phase->transform(new AddPNode(base_dest, adr_dest, dest_scale));
+    adr_src          = phase->transform(new AddPNode(base_src, adr_src, phase->MakeConX(header)));
+    adr_dest         = phase->transform(new AddPNode(base_dest, adr_dest, phase->MakeConX(header)));
 
     copy_type = dest_elem;
   } else {
@@ -333,19 +322,14 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     assert(is_clonebasic(), "should be");
 
     disjoint_bases = true;
-    assert(src->is_AddP(), "should be base + off");
-    assert(dest->is_AddP(), "should be base + off");
-    adr_src = src;
-    base_src = src->in(AddPNode::Base);
-    adr_dest = dest;
-    base_dest = dest->in(AddPNode::Base);
-
-    assert(phase->type(src->in(AddPNode::Offset))->is_intptr_t()->get_con() == phase->type(dest->in(AddPNode::Offset))->is_intptr_t()->get_con(), "same start offset?");
 
     if (ary_src->elem()->make_oopptr() != NULL &&
         ary_src->elem()->make_oopptr()->can_be_value_type()) {
       return false;
     }
+
+    adr_src  = phase->transform(new AddPNode(base_src, base_src, src_offset));
+    adr_dest = phase->transform(new AddPNode(base_dest, base_dest, dest_offset));
 
     BasicType elem = ary_src->klass()->as_array_klass()->element_type()->basic_type();
     if (elem == T_ARRAY ||
@@ -360,13 +344,17 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
       return false;
     }
 
-    int diff = arrayOopDesc::base_offset_in_bytes(elem) - phase->type(src->in(AddPNode::Offset))->is_intptr_t()->get_con();
+    // The address is offseted to an aligned address where a raw copy would start.
+    // If the clone copy is decomposed into load-stores - the address is adjusted to
+    // point at where the array starts.
+    const Type* toff = phase->type(src_offset);
+    int offset = toff->isa_long() ? (int) toff->is_long()->get_con() : (int) toff->is_int()->get_con();
+    int diff = arrayOopDesc::base_offset_in_bytes(elem) - offset;
     assert(diff >= 0, "clone should not start after 1st array element");
     if (diff > 0) {
       adr_src = phase->transform(new AddPNode(base_src, adr_src, phase->MakeConX(diff)));
       adr_dest = phase->transform(new AddPNode(base_dest, adr_dest, phase->MakeConX(diff)));
     }
-
     copy_type = elem;
     value_type = ary_src->elem();
   }
@@ -590,8 +578,8 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
          in(ArrayCopyNode::Src) != NULL &&
          in(ArrayCopyNode::Dest) != NULL &&
          in(ArrayCopyNode::Length) != NULL &&
-         ((in(ArrayCopyNode::SrcPos) != NULL && in(ArrayCopyNode::DestPos) != NULL) ||
-          is_clonebasic()), "broken inputs");
+         in(ArrayCopyNode::SrcPos) != NULL &&
+         in(ArrayCopyNode::DestPos) != NULL, "broken inputs");
 
   if (in(TypeFunc::Control)->is_top() ||
       in(TypeFunc::Memory)->is_top() ||
@@ -659,8 +647,6 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
 
   const TypeAryPtr* atp_src = get_address_type(phase, _src_type, src);
   const TypeAryPtr* atp_dest = get_address_type(phase, _dest_type, dest);
-  uint alias_idx_src = phase->C->get_alias_index(atp_src);
-  uint alias_idx_dest = phase->C->get_alias_index(atp_dest);
 
   if (can_reshape) {
     assert(!phase->is_IterGVN()->delay_transform(), "cannot delay transforms");

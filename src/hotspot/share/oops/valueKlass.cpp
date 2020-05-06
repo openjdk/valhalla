@@ -139,10 +139,6 @@ instanceOop ValueKlass::allocate_instance_buffer(TRAPS) {
   return oop;
 }
 
-bool ValueKlass::is_atomic() {
-  return (nonstatic_field_size() * heapOopSize) <= longSize;
-}
-
 int ValueKlass::nonstatic_oop_count() {
   int oops = 0;
   int map_count = nonstatic_oop_map_count();
@@ -195,6 +191,11 @@ bool ValueKlass::flatten_array() {
     return false;
   }
 
+  // Declared atomic but not naturally atomic.
+  if (is_declared_atomic() && !is_naturally_atomic()) {
+    return false;
+  }
+
   return true;
 }
 
@@ -210,8 +211,8 @@ void ValueKlass::remove_unshareable_info() {
   *((Klass**)adr_value_array_klass()) = NULL;
 }
 
-void ValueKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS) {
-  InstanceKlass::restore_unshareable_info(loader_data, protection_domain, CHECK);
+void ValueKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
+  InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
   oop val = allocate_instance(CHECK);
   set_default_value(val);
 }
@@ -253,7 +254,7 @@ Klass* ValueKlass::value_array_klass(ArrayStorageProperties storage_props, bool 
 }
 
 Klass* ValueKlass::allocate_value_array_klass(TRAPS) {
-  if (flatten_array() && (is_atomic() || (!ValueArrayAtomicAccess))) {
+  if (flatten_array() && (is_naturally_atomic() || (!ValueArrayAtomicAccess))) {
     return ValueArrayKlass::allocate_klass(ArrayStorageProperties::flattened_and_null_free, this, THREAD);
   }
   return ObjArrayKlass::allocate_objArray_klass(ArrayStorageProperties::null_free, 1, this, THREAD);

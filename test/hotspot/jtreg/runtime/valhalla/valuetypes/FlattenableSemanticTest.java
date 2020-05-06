@@ -37,21 +37,23 @@ import jdk.test.lib.Asserts;
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Point.java JumboValue.java
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator FlattenableSemanticTest.java
  * @run main/othervm -Xint -XX:ValueFieldMaxFlatSize=64 runtime.valhalla.valuetypes.FlattenableSemanticTest
+ * @run main/othervm -Xint -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.valuetypes.FlattenableSemanticTest
  * @run main/othervm -Xcomp -XX:ValueFieldMaxFlatSize=64 runtime.valhalla.valuetypes.FlattenableSemanticTest
+ * @run main/othervm -Xcomp -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.valuetypes.FlattenableSemanticTest
  * // debug: -XX:+PrintValueLayout -XX:-ShowMessageBoxOnError
  */
 public class FlattenableSemanticTest {
 
-    static Point? nfsp;
+    static Point.ref nfsp;
     static Point fsp;
 
-    Point? nfip;
+    Point.ref nfip;
     Point fip;
 
-    static JumboValue? nfsj;
+    static JumboValue.ref nfsj;
     static JumboValue fsj;
 
-    JumboValue? nfij;
+    JumboValue.ref nfij;
     JumboValue fij;
 
     static Object getNull() {
@@ -80,7 +82,7 @@ public class FlattenableSemanticTest {
         // Assigning null must be allowed for non flattenable inline fields
         boolean exception = true;
         try {
-            nfsp = (Point?)getNull();
+            nfsp = (Point.ref)getNull();
             nfsp = null;
             exception = false;
         } catch (NullPointerException e) {
@@ -89,7 +91,7 @@ public class FlattenableSemanticTest {
         Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
 
         try {
-            nfsj = (JumboValue?)getNull();
+            nfsj = (JumboValue.ref)getNull();
             nfsj = null;
             exception = false;
         } catch (NullPointerException e) {
@@ -98,7 +100,7 @@ public class FlattenableSemanticTest {
         Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
 
         try {
-            test.nfip = (Point?)getNull();
+            test.nfip = (Point.ref)getNull();
             test.nfip = null;
             exception = false;
         } catch (NullPointerException e) {
@@ -107,7 +109,7 @@ public class FlattenableSemanticTest {
         Asserts.assertFalse(exception, "Invalid NPE when assigning null to a non flattenable field");
 
         try {
-            test.nfij = (JumboValue?)getNull();
+            test.nfij = (JumboValue.ref)getNull();
             test.nfij = null;
             exception = false;
         } catch (NullPointerException e) {

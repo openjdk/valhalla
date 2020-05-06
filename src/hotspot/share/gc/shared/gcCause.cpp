@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,6 +60,9 @@ const char* GCCause::to_string(GCCause::Cause cause) {
     case _wb_full_gc:
       return "WhiteBox Initiated Full GC";
 
+    case _wb_breakpoint:
+      return "WhiteBox Initiated Run to Breakpoint";
+
     case _archive_time_gc:
       return "Full GC for -Xshare:dump";
 
@@ -107,9 +110,6 @@ const char* GCCause::to_string(GCCause::Cause cause) {
 
     case _shenandoah_concurrent_gc:
       return "Concurrent GC";
-
-    case _shenandoah_traversal_gc:
-      return "Traversal GC";
 
     case _shenandoah_upgrade_to_full_gc:
       return "Upgrade To Full GC";

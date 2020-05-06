@@ -83,7 +83,7 @@ public class TestLWorldProfiling extends ValueTypeTest {
     private static final Integer[] testIntegerArray = new Integer[] {42};
     private static final Long[] testLongArray = new Long[] {42L};
     private static final Double[] testDoubleArray = new Double[] {42.0D};
-    private static final MyValue1?[] testValue1NotFlatArray = new MyValue1?[] {testValue1};
+    private static final MyValue1.ref[] testValue1NotFlatArray = new MyValue1.ref[] {testValue1};
     private static final MyValue1[][] testValue1ArrayArray = new MyValue1[][] {testValue1Array};
 
     // aaload
@@ -190,7 +190,7 @@ public class TestLWorldProfiling extends ValueTypeTest {
     @Warmup(10000)
     @Test(valid = ArrayLoadStoreProfileOn, match = { CALL, CLASS_CHECK_TRAP, NULL_CHECK_TRAP, RANGE_CHECK_TRAP }, matchCount = { 3, 1, 1, 1 })
     @Test(valid = TypeProfileOn, match = { CALL, CLASS_CHECK_TRAP, NULL_CHECK_TRAP, RANGE_CHECK_TRAP }, matchCount = { 3, 1, 1, 1 })
-    @Test(match = { CALL, RANGE_CHECK_TRAP, NULL_CHECK_TRAP }, matchCount = { 3, 1, 1 })
+    @Test(match = { CALL, RANGE_CHECK_TRAP, NULL_CHECK_TRAP }, matchCount = { 5, 1, 1 })
     public Object test6(Number[] array) {
         Number v = array[0];
         test6_helper(array);
@@ -218,10 +218,10 @@ public class TestLWorldProfiling extends ValueTypeTest {
         }
     }
 
-
     @Warmup(10000)
     @Test(valid = ArrayLoadStoreProfileOn, match = { CALL, CLASS_CHECK_TRAP, NULL_CHECK_TRAP, RANGE_CHECK_TRAP }, matchCount = { 4, 1, 2, 1 })
-    @Test(match = { CALL, RANGE_CHECK_TRAP, NULL_CHECK_TRAP }, matchCount = { 4, 1, 2 })
+    @Test(valid = TypeProfileOn, match = { CALL, CLASS_CHECK_TRAP, NULL_CHECK_TRAP, RANGE_CHECK_TRAP }, matchCount = { 4, 1, 2, 1 })
+    @Test(match = { CALL, RANGE_CHECK_TRAP, NULL_CHECK_TRAP }, matchCount = { 6, 1, 2 })
     public Object test7(Number[] array) {
         Number v = array[0];
         test7_helper(v);
@@ -355,12 +355,10 @@ public class TestLWorldProfiling extends ValueTypeTest {
                     deopt = true;
                 }
             }
-            if (!TieredCompilation && (deopt && (UseArrayLoadStoreProfile || TypeProfileLevel == 222))) {
+            if (!TieredCompilation && !STRESS_CC && (deopt && (UseArrayLoadStoreProfile || TypeProfileLevel == 222))) {
                 throw new RuntimeException("Monomorphic array check should rely on profiling and be accurate");
             }
-
         }
-
     }
 
     // null free array profiling

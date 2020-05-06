@@ -440,7 +440,7 @@ public class TestCallingConvention extends ValueTypeTest {
     }
 
     // Test returning a non-flattened value type as fields
-    MyValue3? test22_vt = MyValue3.create();
+    MyValue3.ref test22_vt = MyValue3.create();
 
     @Test
     public MyValue3 test22() {
@@ -492,19 +492,19 @@ public class TestCallingConvention extends ValueTypeTest {
 
     // Should not return a nullable value type as fields
     @Test
-    public MyValue2? test24() {
+    public MyValue2.ref test24() {
         return null;
     }
 
     @DontCompile
     public void test24_verifier(boolean warmup) {
-        MyValue2? vt = test24();
+        MyValue2.ref vt = test24();
         Asserts.assertEQ(vt, null);
     }
 
     // Same as test24 but with control flow and inlining
     @ForceInline
-    public MyValue2? test26_callee(boolean b) {
+    public MyValue2.ref test26_callee(boolean b) {
         if (b) {
             return null;
         } else {
@@ -513,13 +513,13 @@ public class TestCallingConvention extends ValueTypeTest {
     }
 
     @Test
-    public MyValue2? test26(boolean b) {
+    public MyValue2.ref test26(boolean b) {
         return test26_callee(b);
     }
 
     @DontCompile
     public void test26_verifier(boolean warmup) {
-        MyValue2? vt = test26(true);
+        MyValue2.ref vt = test26(true);
         Asserts.assertEQ(vt, null);
         vt = test26(false);
         Asserts.assertEQ(vt.hash(), MyValue2.createWithFieldsInline(rI, true).hash());
@@ -579,7 +579,7 @@ public class TestCallingConvention extends ValueTypeTest {
         Asserts.assertEQ(result, 8*rI);
     }
 
-    static final MyValue1? test28Val = MyValue1.createWithFieldsDontInline(rI, rL);
+    static final MyValue1.ref test28Val = MyValue1.createWithFieldsDontInline(rI, rL);
 
     @Test
     @Warmup(0)

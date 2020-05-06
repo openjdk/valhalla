@@ -878,6 +878,35 @@ bool Type::interface_vs_oop(const Type *t) const {
 
 #endif
 
+void Type::check_symmetrical(const Type *t, const Type *mt) const {
+#ifdef ASSERT
+  assert(mt == t->xmeet(this), "meet not commutative");
+  const Type* dual_join = mt->_dual;
+  const Type *t2t    = dual_join->xmeet(t->_dual);
+  const Type *t2this = dual_join->xmeet(this->_dual);
+
+  // Interface meet Oop is Not Symmetric:
+  // Interface:AnyNull meet Oop:AnyNull == Interface:AnyNull
+  // Interface:NotNull meet Oop:NotNull == java/lang/Object:NotNull
+
+  if( !interface_vs_oop(t) && (t2t != t->_dual || t2this != this->_dual)) {
+    tty->print_cr("=== Meet Not Symmetric ===");
+    tty->print("t   =                   ");              t->dump(); tty->cr();
+    tty->print("this=                   ");                 dump(); tty->cr();
+    tty->print("mt=(t meet this)=       ");             mt->dump(); tty->cr();
+
+    tty->print("t_dual=                 ");       t->_dual->dump(); tty->cr();
+    tty->print("this_dual=              ");          _dual->dump(); tty->cr();
+    tty->print("mt_dual=                ");      mt->_dual->dump(); tty->cr();
+
+    tty->print("mt_dual meet t_dual=    "); t2t           ->dump(); tty->cr();
+    tty->print("mt_dual meet this_dual= "); t2this        ->dump(); tty->cr();
+
+    fatal("meet not symmetric" );
+  }
+#endif
+}
+
 //------------------------------meet-------------------------------------------
 // Compute the MEET of two types.  NOT virtual.  It enforces that meet is
 // commutative and the lattice is symmetric.
@@ -895,33 +924,28 @@ const Type *Type::meet_helper(const Type *t, bool include_speculative) const {
   t = t->maybe_remove_speculative(include_speculative);
 
   const Type *mt = this_t->xmeet(t);
+#ifdef ASSERT
   if (isa_narrowoop() || t->isa_narrowoop()) return mt;
   if (isa_narrowklass() || t->isa_narrowklass()) return mt;
-#ifdef ASSERT
-  assert(mt == t->xmeet(this_t), "meet not commutative");
-  const Type* dual_join = mt->_dual;
-  const Type *t2t    = dual_join->xmeet(t->_dual);
-  const Type *t2this = dual_join->xmeet(this_t->_dual);
-
-  // Interface meet Oop is Not Symmetric:
-  // Interface:AnyNull meet Oop:AnyNull == Interface:AnyNull
-  // Interface:NotNull meet Oop:NotNull == java/lang/Object:NotNull
-
-  if( !interface_vs_oop(t) && (t2t != t->_dual || t2this != this_t->_dual) ) {
-    tty->print_cr("=== Meet Not Symmetric ===");
-    tty->print("t   =                   ");              t->dump(); tty->cr();
-    tty->print("this=                   ");         this_t->dump(); tty->cr();
-    tty->print("mt=(t meet this)=       ");             mt->dump(); tty->cr();
-
-    tty->print("t_dual=                 ");       t->_dual->dump(); tty->cr();
-    tty->print("this_dual=              ");  this_t->_dual->dump(); tty->cr();
-    tty->print("mt_dual=                ");      mt->_dual->dump(); tty->cr();
-
-    tty->print("mt_dual meet t_dual=    "); t2t           ->dump(); tty->cr();
-    tty->print("mt_dual meet this_dual= "); t2this        ->dump(); tty->cr();
-
-    fatal("meet not symmetric" );
+  Compile* C = Compile::current();
+  if (!C->_type_verify_symmetry) {
+    return mt;
   }
+  this_t->check_symmetrical(t, mt);
+  // In the case of an array, computing the meet above, caused the
+  // computation of the meet of the elements which at verification
+  // time caused the computation of the meet of the dual of the
+  // elements. Computing the meet of the dual of the arrays here
+  // causes the meet of the dual of the elements to be computed which
+  // would cause the meet of the dual of the dual of the elements,
+  // that is the meet of the elements already computed above to be
+  // computed. Avoid redundant computations by requesting no
+  // verification.
+  C->_type_verify_symmetry = false;
+  const Type *mt_dual = this_t->_dual->xmeet(t->_dual);
+  this_t->_dual->check_symmetrical(t->_dual, mt_dual);
+  assert(!C->_type_verify_symmetry, "shouldn't have changed");
+  C->_type_verify_symmetry = true;
 #endif
   return mt;
 }
@@ -3458,7 +3482,7 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     return TypeInstPtr::make(TypePtr::BotPTR, klass, klass_is_exact, NULL, Offset(0), klass->flatten_array());
   } else if (klass->is_obj_array_klass()) {
     // Element is an object or value array. Recursively call ourself.
-    const TypeOopPtr* etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), false, try_for_exact);
+    const TypeOopPtr* etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ false, try_for_exact);
     bool null_free = klass->is_loaded() && klass->as_array_klass()->storage_properties().is_null_free();
     if (null_free) {
       assert(etype->is_valuetypeptr(), "must be a valuetypeptr");
@@ -3466,8 +3490,13 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
     }
     // [V? has a subtype: [V. So even though V is final, [V? is not exact.
     bool xk = etype->klass_is_exact() && (!etype->is_valuetypeptr() || null_free);
-    bool not_null_free = !etype->can_be_value_type() || xk;
-    bool not_flat = !ValueArrayFlatten || not_null_free || (etype->is_valuetypeptr() && !etype->value_klass()->flatten_array());
+
+    // Use exact element type to determine null-free/flattened properties
+    const TypeOopPtr* exact_etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ true, try_for_exact);
+    bool not_null_free = !exact_etype->can_be_value_type();
+    assert(!(not_null_free && null_free), "inconsistent null-free information");
+    bool not_flat = !ValueArrayFlatten || not_null_free || (exact_etype->is_valuetypeptr() && !exact_etype->value_klass()->flatten_array());
+
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, false, not_flat, not_null_free);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
@@ -4171,30 +4200,30 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
     ciKlass *subtype = NULL;
     bool subtype_exact = false;
     bool flat_array = false;
-    if( tinst_klass->equals(this_klass) ) {
+    if (tinst_klass->equals(this_klass)) {
       subtype = this_klass;
       subtype_exact = below_centerline(ptr) ? (this_xk && tinst_xk) : (this_xk || tinst_xk);
       flat_array = below_centerline(ptr) ? (this_flat_array && tinst_flat_array) : (this_flat_array || tinst_flat_array);
-    } else if( !tinst_xk && this_klass->is_subtype_of( tinst_klass ) ) {
+    } else if(!tinst_xk && this_klass->is_subtype_of(tinst_klass) && (!tinst_flat_array || this_flat_array)) {
       subtype = this_klass;     // Pick subtyping class
       subtype_exact = this_xk;
       flat_array = this_flat_array;
-    } else if( !this_xk && tinst_klass->is_subtype_of( this_klass ) ) {
+    } else if(!this_xk && tinst_klass->is_subtype_of(this_klass) && (!this_flat_array || tinst_flat_array)) {
       subtype = tinst_klass;    // Pick subtyping class
       subtype_exact = tinst_xk;
       flat_array = tinst_flat_array;
     }
 
-    if( subtype ) {
-      if( above_centerline(ptr) ) { // both are up?
+    if (subtype) {
+      if (above_centerline(ptr)) { // both are up?
         this_klass = tinst_klass = subtype;
         this_xk = tinst_xk = subtype_exact;
         this_flat_array = tinst_flat_array = flat_array;
-      } else if( above_centerline(this ->_ptr) && !above_centerline(tinst->_ptr) ) {
+      } else if (above_centerline(this ->_ptr) && !above_centerline(tinst->_ptr)) {
         this_klass = tinst_klass; // tinst is down; keep down man
         this_xk = tinst_xk;
         this_flat_array = tinst_flat_array;
-      } else if( above_centerline(tinst->_ptr) && !above_centerline(this ->_ptr) ) {
+      } else if (above_centerline(tinst->_ptr) && !above_centerline(this ->_ptr)) {
         tinst_klass = this_klass; // this is down; keep down man
         tinst_xk = this_xk;
         tinst_flat_array = this_flat_array;
@@ -4244,7 +4273,7 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
       if (tv->value_klass()->is_subtype_of(_klass)) {
         return t;
       } else {
-        return TypeInstPtr::make(NotNull, _klass);
+        return TypeInstPtr::NOTNULL;
       }
     } else {
       PTR ptr = this->_ptr;
@@ -4677,18 +4706,6 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         instance_id = InstanceBot;
         tary = TypeAry::make(Type::BOTTOM, tary->_size, tary->_stable, tary->_not_flat, tary->_not_null_free);
       }
-    } else if (klass() != NULL && tap->klass() != NULL &&
-               klass()->as_array_klass()->storage_properties().value() != tap->klass()->as_array_klass()->storage_properties().value()) {
-      // Meeting value type arrays with conflicting storage properties
-      if (tary->_elem->isa_valuetype()) {
-        // Result is flattened
-        off = Offset(elem()->isa_valuetype() ? offset() : tap->offset());
-        field_off = elem()->isa_valuetype() ? field_offset() : tap->field_offset();
-      } else if (tary->_elem->make_oopptr() != NULL && tary->_elem->make_oopptr()->isa_instptr() && below_centerline(ptr)) {
-        // Result is non-flattened
-        off = Offset(flattened_offset()).meet(Offset(tap->flattened_offset()));
-        field_off = Offset::bottom;
-      }
     } else // Non integral arrays.
       // Must fall to bottom if exact klasses in upper lattice
       // are not equal or super klass is exact.
@@ -4701,10 +4718,22 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
            (tap->_klass_is_exact && !tap->klass()->is_subtype_of(klass())) ||
            // 'this' is exact and super or unrelated:
            (this->_klass_is_exact && !klass()->is_subtype_of(tap->klass())))) {
-      if (above_centerline(ptr)) {
+      if (above_centerline(ptr) || (tary->_elem->make_ptr() && above_centerline(tary->_elem->make_ptr()->_ptr))) {
         tary = TypeAry::make(Type::BOTTOM, tary->_size, tary->_stable, tary->_not_flat, tary->_not_null_free);
       }
       return make(NotNull, NULL, tary, lazy_klass, false, off, field_off, InstanceBot, speculative, depth);
+    } else if (klass() != NULL && tap->klass() != NULL &&
+               klass()->as_array_klass()->storage_properties().value() != tap->klass()->as_array_klass()->storage_properties().value()) {
+      // Meeting value type arrays with conflicting storage properties
+      if (tary->_elem->isa_valuetype()) {
+        // Result is flattened
+        off = Offset(elem()->isa_valuetype() ? offset() : tap->offset());
+        field_off = elem()->isa_valuetype() ? field_offset() : tap->field_offset();
+      } else if (tary->_elem->make_oopptr() != NULL && tary->_elem->make_oopptr()->isa_instptr() && below_centerline(ptr)) {
+        // Result is non-flattened
+        off = Offset(flattened_offset()).meet(Offset(tap->flattened_offset()));
+        field_off = Offset::bottom;
+      }
     }
 
     bool xk = false;
@@ -4799,14 +4828,17 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
   }
 
   case ValueType: {
-    // All value types inherit from Object
-    PTR ptr = this->_ptr;
-    if (ptr == Constant) {
-      ptr = NotNull;
+    const TypeValueType* tv = t->is_valuetype();
+    if (above_centerline(ptr())) {
+      return TypeInstPtr::NOTNULL;
+    } else {
+      PTR ptr = this->_ptr;
+      if (ptr == Constant) {
+        ptr = NotNull;
+      }
+      return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass());
     }
-    return TypeInstPtr::make(ptr, ciEnv::current()->Object_klass());
   }
-
   }
   return this;                  // Lint noise
 }

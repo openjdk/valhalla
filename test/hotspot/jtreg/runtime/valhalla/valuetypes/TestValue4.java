@@ -25,14 +25,14 @@ package runtime.valhalla.valuetypes;
 import java.nio.ByteBuffer;
 
 final class ContainerValue4 {
-    static TestValue4? staticValueField;
+    static TestValue4.ref staticValueField;
     TestValue4 nonStaticValueField;
     TestValue4[] valueArray;
 }
 
 public inline final class TestValue4 {
 
-    static TestValue4? staticValue = getInstance();
+    static TestValue4.ref staticValue = getInstance();
 
     final byte b1;
     final byte b2;

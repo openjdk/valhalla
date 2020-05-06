@@ -259,6 +259,10 @@ public:
     return (impl != this ? impl : NULL);
   }
 
+  virtual bool can_be_value_klass(bool is_exact = false) {
+    return EnableValhalla && (!is_loaded() || is_valuetype() || ((is_java_lang_Object() || is_interface() || (is_abstract() && !has_nonstatic_fields())) && !is_exact));
+  }
+
   // Is the defining class loader of this class the default loader?
   bool uses_default_loader() const;
 

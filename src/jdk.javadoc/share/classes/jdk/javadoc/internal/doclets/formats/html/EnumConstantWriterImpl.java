@@ -69,9 +69,9 @@ public class EnumConstantWriterImpl extends AbstractMemberWriter
     }
 
     @Override
-    public void addMemberTree(Content memberSummaryTree, Content memberTree) {
-        writer.addMemberTree(HtmlStyle.constantsSummary,
-                SectionName.ENUM_CONSTANT_SUMMARY, memberSummaryTree, memberTree);
+    public void addSummary(Content summariesList, Content content) {
+        writer.addSummary(HtmlStyle.constantsSummary,
+                SectionName.ENUM_CONSTANT_SUMMARY, summariesList, content);
     }
 
     @Override
@@ -89,7 +89,7 @@ public class EnumConstantWriterImpl extends AbstractMemberWriter
     public Content getEnumConstantsTreeHeader(VariableElement enumConstant,
             Content enumConstantsDetailsTree) {
         Content enumConstantsTree = new ContentBuilder();
-        HtmlTree heading = new HtmlTree(Headings.TypeDeclaration.MEMBER_HEADING,
+        HtmlTree heading = HtmlTree.HEADING(Headings.TypeDeclaration.MEMBER_HEADING,
                 new StringContent(name(enumConstant)));
         enumConstantsTree.add(heading);
         return HtmlTree.SECTION(HtmlStyle.detail, enumConstantsTree)
@@ -121,15 +121,11 @@ public class EnumConstantWriterImpl extends AbstractMemberWriter
     @Override
     public Content getEnumConstantsDetails(Content enumConstantsDetailsTreeHeader,
             Content enumConstantsDetailsTree) {
-        Content enumConstantsDetails =
-                new ContentBuilder(enumConstantsDetailsTreeHeader, enumConstantsDetailsTree);
-        return getMemberTree(HtmlTree.SECTION(HtmlStyle.constantDetails, enumConstantsDetails)
-                .setId(SectionName.ENUM_CONSTANT_DETAIL.getName()));
-    }
-
-    @Override
-    public Content getEnumConstants(Content enumConstantsTree) {
-        return getMemberTree(enumConstantsTree);
+        return writer.getDetailsListItem(
+                HtmlTree.SECTION(HtmlStyle.constantDetails)
+                        .setId(SectionName.ENUM_CONSTANT_DETAIL.getName())
+                        .add(enumConstantsDetailsTreeHeader)
+                        .add(enumConstantsDetailsTree));
     }
 
     @Override

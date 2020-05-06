@@ -14,6 +14,7 @@ import jdk.test.lib.process.OutputAnalyzer;
 import jtreg.SkippedException;
 
 import sun.hotspot.gc.GC;
+import sun.hotspot.code.Compiler;
 
 public class TestZGCWithCDS {
     public final static String HELLO = "Hello World";
@@ -28,6 +29,8 @@ public class TestZGCWithCDS {
          // Platform must support ZGC
          if (!GC.Z.isSupported()) {
              throw new SkippedException("Platform does not support ZGC, skipped");
+         } else if (Compiler.isGraalEnabled()) {
+             throw new SkippedException("Graal does not support ZGC, skipped");
          }
 
          String helloJar = JarBuilder.build("hello", "Hello");
@@ -36,7 +39,6 @@ public class TestZGCWithCDS {
          OutputAnalyzer out = TestCommon
                                   .dump(helloJar,
                                         new String[] {"Hello"},
-                                        "-XX:+UnlockExperimentalVMOptions",
                                         "-XX:+UseZGC",
                                         "-Xlog:cds");
          out.shouldContain("Dumping shared data to file:");
@@ -46,7 +48,6 @@ public class TestZGCWithCDS {
          System.out.println("1. Run with same args of dump");
          out = TestCommon
                    .exec(helloJar,
-                         "-XX:+UnlockExperimentalVMOptions",
                          "-XX:+UseZGC",
                          "-Xlog:cds",
                          "Hello");
@@ -57,8 +58,9 @@ public class TestZGCWithCDS {
          System.out.println("2. Run with ZGC turned off");
          out = TestCommon
                    .exec(helloJar,
-                         "-XX:+UnlockExperimentalVMOptions",
                          "-XX:-UseZGC",
+                         "-XX:+UseCompressedOops",           // in case turned off by vmoptions
+                         "-XX:+UseCompressedClassPointers",  // by jtreg
                          "-Xlog:cds",
                          "Hello");
          out.shouldContain(UNABLE_TO_USE_ARCHIVE);
@@ -115,7 +117,6 @@ public class TestZGCWithCDS {
          System.out.println("7. Run with ZGC");
          out = TestCommon
                    .exec(helloJar,
-                         "-XX:+UnlockExperimentalVMOptions",
                          "-XX:+UseZGC",
                          "-Xlog:cds",
                          "Hello");

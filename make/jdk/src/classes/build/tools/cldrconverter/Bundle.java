@@ -191,6 +191,7 @@ class Bundle {
         String[] cldrBundles = getCLDRPath().split(",");
 
         // myMap contains resources for id.
+        @SuppressWarnings("unchecked")
         Map<String, Object> myMap = new HashMap<>();
         int index;
         for (index = 0; index < cldrBundles.length; index++) {
@@ -230,10 +231,12 @@ class Bundle {
         }
 
         for (String k : COMPACT_NUMBER_PATTERN_KEYS) {
+            @SuppressWarnings("unchecked")
             List<String> patterns = (List<String>) myMap.remove(k);
             if (patterns != null) {
                 // Convert the map value from List<String> to String[], replacing any missing
                 // entry from the parents map, if any.
+                @SuppressWarnings("unchecked")
                 final List<String> pList = (List<String>)parentsMap.get(k);
                 int size = patterns.size();
                 int psize = pList != null ? pList.size() : 0;
@@ -286,7 +289,7 @@ class Bundle {
             handleMultipleInheritance(myMap, parentsMap, calendarPrefix + "QuarterAbbreviations");
             handleMultipleInheritance(myMap, parentsMap, calendarPrefix + "QuarterNarrows");
 
-            adjustEraNames(myMap, calendarType);
+            adjustEraNames(myMap, parentsMap, calendarType);
 
             handleDateTimeFormatPatterns(TIME_PATTERN_KEYS, myMap, parentsMap, calendarType, "TimePatterns");
             handleDateTimeFormatPatterns(DATE_PATTERN_KEYS, myMap, parentsMap, calendarType, "DatePatterns");
@@ -410,8 +413,9 @@ class Bundle {
     }
 
     /**
-     * Fills in any empty elements with its parent element. Returns true if the resulting array is
-     * identical to its parent array.
+     * Fills in any empty elements with its parent element, falling back to
+     * aliased one if parent element is not found. Returns true if the resulting
+     * array is identical to its parent array.
      *
      * @param parents
      * @param key
@@ -423,7 +427,7 @@ class Bundle {
             return false;
         }
         if (value instanceof String[]) {
-            Object pvalue = parents.get(key);
+            Object pvalue = parents.getOrDefault(key, parents.get(CLDRConverter.aliases.get(key)));
             if (pvalue != null && pvalue instanceof String[]) {
                 String[] strings = (String[]) value;
                 String[] pstrings = (String[]) pvalue;
@@ -442,7 +446,7 @@ class Bundle {
      * Adjusts String[] for era names because JRE's Calendars use different
      * ERA value indexes in the Buddhist, Japanese Imperial, and Islamic calendars.
      */
-    private void adjustEraNames(Map<String, Object> map, CalendarType type) {
+    private void adjustEraNames(Map<String, Object> map, Map<String, Object> pMap, CalendarType type) {
         String[][] eraNames = new String[ERA_KEYS.length][];
         String[] realKeys = new String[ERA_KEYS.length];
         int index = 0;
@@ -450,6 +454,9 @@ class Bundle {
             String realKey = type.keyElementName() + key;
             String[] value = (String[]) map.get(realKey);
             if (value != null) {
+                // first fill in missing elements from parents map.
+                fillInElements(pMap, realKey, value);
+
                 switch (type) {
                 case GREGORIAN:
                     break;

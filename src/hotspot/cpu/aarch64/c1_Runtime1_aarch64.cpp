@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -959,7 +959,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       break;
 
       case substitutability_check_id:
-      { 
+      {
         StubFrame f(sasm, "substitutability_check", dont_gc_arguments);
         OopMap* map = save_live_registers(sasm, 3);
 
@@ -1220,8 +1220,19 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
+    case dtrace_object_alloc_id:
+      { // c_rarg0: object
+        StubFrame f(sasm, "dtrace_object_alloc", dont_gc_arguments);
+        save_live_registers(sasm);
+
+        __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_object_alloc), c_rarg0);
+
+        restore_live_registers(sasm);
+      }
+      break;
+
     default:
-      // FIXME: For unhandled trap_id this code fails with assert during vm intialization 
+      // FIXME: For unhandled trap_id this code fails with assert during vm intialization
       // rather than insert a call to unimplemented_entry
       { StubFrame f(sasm, "unimplemented entry", dont_gc_arguments);
         __ mov(r0, (int)id);

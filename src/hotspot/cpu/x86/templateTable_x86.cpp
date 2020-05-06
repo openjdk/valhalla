@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2776,7 +2776,7 @@ void TemplateTable::_return(TosState state) {
     __ bind(skip_register_finalizer);
   }
 
-  if (SafepointMechanism::uses_thread_local_poll() && _desc->bytecode() != Bytecodes::_return_register_finalizer) {
+  if (_desc->bytecode() != Bytecodes::_return_register_finalizer) {
     Label no_safepoint;
     NOT_PRODUCT(__ block_comment("Thread-local Safepoint poll"));
 #ifdef _LP64
@@ -4084,7 +4084,6 @@ void TemplateTable::invokevirtual_helper(Register index,
   __ profile_virtual_call(rax, rlocals, rdx);
   // get target Method* & entry point
   __ lookup_virtual_method(rax, index, method);
-  __ profile_called_method(method, rdx, rbcp);
 
   __ profile_arguments_type(rdx, method, rbcp, true);
   __ jump_from_interpreted(method, rdx);
@@ -4236,7 +4235,6 @@ void TemplateTable::invokeinterface(int byte_no) {
   __ testptr(rbx, rbx);
   __ jcc(Assembler::zero, no_such_method);
 
-  __ profile_called_method(rbx, rbcp, rdx);
   __ profile_arguments_type(rdx, rbx, rbcp, true);
 
   // do the call
@@ -4339,6 +4337,7 @@ void TemplateTable::_new() {
   __ get_unsigned_2_byte_index_at_bcp(rdx, 1);
   Label slow_case;
   Label done;
+  Label is_not_value;
 
   __ get_cpool_and_tags(rcx, rax);
 
@@ -4351,6 +4350,15 @@ void TemplateTable::_new() {
 
   // get InstanceKlass
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
+
+  __ movl(rdx, Address(rcx, InstanceKlass::misc_flags_offset()));
+  __ andl(rdx, InstanceKlass::_misc_kind_field_mask);
+  __ cmpl(rdx, InstanceKlass::_misc_kind_value_type);
+  __ jcc(Assembler::notEqual, is_not_value);
+
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_InstantiationError));
+
+  __ bind(is_not_value);
 
   // make sure klass is initialized & doesn't have finalizer
   __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
@@ -4379,6 +4387,7 @@ void TemplateTable::defaultvalue() {
 
   Label slow_case;
   Label done;
+  Label is_value;
 
   __ get_unsigned_2_byte_index_at_bcp(rdx, 1);
   __ get_cpool_and_tags(rcx, rax);
@@ -4392,6 +4401,16 @@ void TemplateTable::defaultvalue() {
 
   // get InstanceKlass
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
+
+  __ movl(rdx, Address(rcx, InstanceKlass::misc_flags_offset()));
+  __ andl(rdx, InstanceKlass::_misc_kind_field_mask);
+  __ cmpl(rdx, InstanceKlass::_misc_kind_value_type);
+  __ jcc(Assembler::equal, is_value);
+
+  // in the future, defaultvalue will just return null instead of throwing an exception
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_IncompatibleClassChangeError));
+
+  __ bind(is_value);
 
   // make sure klass is fully initialized
   __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);

@@ -64,9 +64,9 @@ public class PropertyWriterImpl extends AbstractMemberWriter
     }
 
     @Override
-    public void addMemberTree(Content memberSummaryTree, Content memberTree) {
-        writer.addMemberTree(HtmlStyle.propertySummary,
-                SectionName.PROPERTY_SUMMARY, memberSummaryTree, memberTree);
+    public void addSummary(Content summariesList, Content content) {
+        writer.addSummary(HtmlStyle.propertySummary,
+                SectionName.PROPERTY_SUMMARY, summariesList, content);
     }
 
     @Override
@@ -82,7 +82,7 @@ public class PropertyWriterImpl extends AbstractMemberWriter
     @Override
     public Content getPropertyDocTreeHeader(ExecutableElement property) {
         Content propertyDocTree = new ContentBuilder();
-        Content heading = new HtmlTree(Headings.TypeDeclaration.MEMBER_HEADING,
+        Content heading = HtmlTree.HEADING(Headings.TypeDeclaration.MEMBER_HEADING,
                 new StringContent(utils.getPropertyLabel(name(property))));
         propertyDocTree.add(heading);
         return HtmlTree.SECTION(HtmlStyle.detail, propertyDocTree)
@@ -134,14 +134,11 @@ public class PropertyWriterImpl extends AbstractMemberWriter
 
     @Override
     public Content getPropertyDetails(Content propertyDetailsTreeHeader, Content propertyDetailsTree) {
-        Content propertyDetails = new ContentBuilder(propertyDetailsTreeHeader, propertyDetailsTree);
-        return getMemberTree(HtmlTree.SECTION(HtmlStyle.propertyDetails, propertyDetails)
-                .setId(SectionName.PROPERTY_DETAIL.getName()));
-    }
-
-    @Override
-    public Content getPropertyDoc(Content propertyDocTree) {
-        return getMemberTree(propertyDocTree);
+        return writer.getDetailsListItem(
+                HtmlTree.SECTION(HtmlStyle.propertyDetails)
+                        .setId(SectionName.PROPERTY_DETAIL.getName())
+                        .add(propertyDetailsTreeHeader)
+                        .add(propertyDetailsTree));
     }
 
     @Override

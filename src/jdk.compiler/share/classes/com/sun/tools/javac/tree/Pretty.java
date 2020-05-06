@@ -1339,8 +1339,6 @@ public class Pretty extends JCTree.Visitor {
         try {
             printExpr(tree.selected, TreeInfo.postfixPrec);
             print("." + tree.name);
-            if (tree.isQuestioned())
-                print('?');
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -1364,8 +1362,6 @@ public class Pretty extends JCTree.Visitor {
     public void visitIdent(JCIdent tree) {
         try {
             print(tree.name);
-            if (tree.isQuestioned())
-                print('?');
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -1488,8 +1484,6 @@ public class Pretty extends JCTree.Visitor {
             print("<");
             printExprs(tree.arguments);
             print(">");
-            if (tree.isQuestioned())
-                print('?');
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }

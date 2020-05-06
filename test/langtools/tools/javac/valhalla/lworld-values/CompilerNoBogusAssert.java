@@ -43,7 +43,7 @@ public class CompilerNoBogusAssert {
     }
 
 
-    static void testCastingFromBoxToVal(Point? p) {
+    static void testCastingFromBoxToVal(Point.ref p) {
         boolean npe = false;
         try {
             Point pv = (Point) p;

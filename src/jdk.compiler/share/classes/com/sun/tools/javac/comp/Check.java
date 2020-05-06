@@ -95,7 +95,6 @@ public class Check {
     private final Profile profile;
     private final Preview preview;
     private final boolean warnOnAnyAccessToMembers;
-    private final boolean allowGenericsOverValues;
     private final boolean allowValueBasedClasses;
 
     // The set of lint options currently in effect. It is initialized
@@ -137,7 +136,6 @@ public class Check {
         source = Source.instance(context);
         target = Target.instance(context);
         warnOnAnyAccessToMembers = options.isSet("warnOnAccessToMembers");
-        allowGenericsOverValues = options.isSet("allowGenericsOverValues");
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
         Target target = Target.instance(context);
         syntheticNameChar = target.syntheticNameChar();
@@ -160,6 +158,9 @@ public class Check {
                 enforceMandatoryWarnings, "sunapi", null);
 
         deferredLintHandler = DeferredLintHandler.instance(context);
+
+        allowRecords = (!preview.isPreview(Feature.RECORDS) || preview.isEnabled()) &&
+                Feature.RECORDS.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -190,6 +191,10 @@ public class Check {
     /** A handler for deferred lint warnings.
      */
     private DeferredLintHandler deferredLintHandler;
+
+    /** Are records allowed
+     */
+    private final boolean allowRecords;
 
 /* *************************************************************************
  * Errors and Warnings
@@ -594,7 +599,8 @@ public class Check {
                     solvedContext -> checkType(pos, solvedContext.asInstType(found), solvedContext.asInstType(req), checkContext));
         } else {
             if (found.hasTag(CLASS)) {
-                checkParameterizationWithValues(pos, found);
+                if (inferenceContext != infer.emptyContext)
+                    checkParameterizationWithValues(pos, found);
             }
         }
         if (req.hasTag(ERROR))
@@ -736,6 +742,50 @@ public class Check {
                                     : t;
         }
 
+    void checkConstraintsOfInlineSuper(DiagnosticPosition pos, ClassSymbol c) {
+        boolean indirectSuper = false;
+        for(Type st = types.supertype(c.type); st != Type.noType; indirectSuper = true, st = types.supertype(st)) {
+            if (st == null || st.tsym == null || st.tsym.kind == ERR)
+                return;
+            if  (indirectSuper && st.tsym == syms.objectType.tsym)
+                return;
+            if (!st.tsym.isAbstract()) {
+                log.error(pos, Errors.ConcreteSupertypeForInlineClass(c, st));
+            }
+            if ((st.tsym.flags() & HASINITBLOCK) != 0) {
+                log.error(pos, Errors.SuperClassDeclaresInitBlock(c, st));
+            }
+            // No instance fields and no arged constructors both mean inner classes cannot be inline supers.
+            Type encl = st.getEnclosingType();
+            if (encl != null && encl.hasTag(CLASS)) {
+                log.error(pos, Errors.SuperClassCannotBeInner(c, st));
+            }
+            for (Symbol s : st.tsym.members().getSymbols(NON_RECURSIVE)) {
+                switch (s.kind) {
+                case VAR:
+                    if ((s.flags() & STATIC) == 0) {
+                        log.error(pos, Errors.SuperFieldNotAllowed(s, c, st));
+                    }
+                    break;
+                case MTH:
+                    if ((s.flags() & SYNCHRONIZED) != 0) {
+                        log.error(pos, Errors.SuperMethodCannotBeSynchronized(s, c, st));
+                    } else if (s.isConstructor()) {
+                        MethodSymbol m = (MethodSymbol)s;
+                        if (m.getParameters().size() > 0) {
+                            log.error(pos, Errors.SuperConstructorCannotTakeArguments(m, c, st));
+                        } else {
+                            if ((m.flags() & (GENERATEDCONSTR | EMPTYNOARGCONSTR)) == 0) {
+                                log.error(pos, Errors.SuperNoArgConstructorMustBeEmpty(m, c, st));
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
     /** Check that type is a valid qualifier for a constructor reference expression
      */
     Type checkConstructorRefType(DiagnosticPosition pos, Type t) {
@@ -811,7 +861,7 @@ public class Check {
     List<Type> checkRefTypes(List<JCExpression> trees, List<Type> types) {
         List<JCExpression> tl = trees;
         for (List<Type> l = types; l.nonEmpty(); l = l.tail) {
-            l.head = checkRefType(tl.head.pos(), l.head, allowGenericsOverValues);
+            l.head = checkRefType(tl.head.pos(), l.head, false);
             tl = tl.tail;
         }
         return types;
@@ -848,7 +898,7 @@ public class Check {
     }
 
     void checkParameterizationWithValues(DiagnosticPosition pos, Type t) {
-        if (!allowGenericsOverValues && t.tsym != syms.classType.tsym) { // tolerate Value.class for now.
+        if (t.tsym != syms.classType.tsym) { // tolerate Value.class.
             valueParameterizationChecker.visit(t, pos);
         }
     }
@@ -866,7 +916,7 @@ public class Check {
         @Override
         public Void visitClassType(ClassType t, DiagnosticPosition pos) {
             for (Type targ : t.allparams()) {
-                if (types.isValue(targ) && !allowGenericsOverValues) {
+                if (types.isValue(targ)) {
                     log.error(pos, Errors.GenericParameterizationWithValueType(t));
                 }
                 visit(targ, pos);
@@ -2624,11 +2674,16 @@ public class Check {
                     return;
         }
         checkCompatibleConcretes(pos, c);
-        boolean isIdentityObject = types.asSuper(c, syms.identityObjectType.tsym) != null;
-        boolean isInlineObject = types.asSuper(c, syms.inlineObjectType.tsym) != null;
-        if (types.isValue(c) && isIdentityObject) {
+
+        /* Check for inline/identity incompatibilities: But first, we may need to switch to the
+           reference universe to make the hierarchy navigable.
+        */
+        Type asRefType = c.isValue() ? c.referenceProjection() : c;
+        boolean isIdentityObject = types.asSuper(asRefType, syms.identityObjectType.tsym) != null;
+        boolean isInlineObject = types.asSuper(asRefType, syms.inlineObjectType.tsym) != null;
+        if (c.isValue() && isIdentityObject) {
             log.error(pos, Errors.InlineTypeMustNotImplementIdentityObject(c));
-        } else if (!c.isInterface() && !types.isValue(c) && isInlineObject) {
+        } else if (!c.isInterface() && !c.tsym.isAbstract() && !c.isValue() && isInlineObject) {
             log.error(pos, Errors.IdentityTypeMustNotImplementInlineObject(c));
         } else if (isIdentityObject && isInlineObject) {
             log.error(pos, Errors.MutuallyIncompatibleInterfaces(c));
@@ -3349,7 +3404,9 @@ public class Check {
             targets.add(names.ANNOTATION_TYPE);
             targets.add(names.CONSTRUCTOR);
             targets.add(names.FIELD);
-            targets.add(names.RECORD_COMPONENT);
+            if (allowRecords) {
+                targets.add(names.RECORD_COMPONENT);
+            }
             targets.add(names.LOCAL_VARIABLE);
             targets.add(names.METHOD);
             targets.add(names.PACKAGE);

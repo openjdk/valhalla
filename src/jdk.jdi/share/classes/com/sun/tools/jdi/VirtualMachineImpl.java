@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -315,17 +315,6 @@ class VirtualMachineImpl extends MirrorImpl
         return Collections.unmodifiableList(modules);
     }
 
-     List<ReferenceType> classesBySignature(String signature) {
-        validateVM();
-        List<ReferenceType> list;
-        if (retrievedAllTypes) {
-            list = findReferenceTypes(signature);
-        } else {
-            list = retrieveClassesBySignature(signature);
-        }
-        return Collections.unmodifiableList(list);
-    }
-
     private static boolean isReferenceArray(String signature) {
         int i = signature.lastIndexOf('[');
         if (i > -1 && signature.charAt(i+1) == 'L') {
@@ -336,12 +325,16 @@ class VirtualMachineImpl extends MirrorImpl
 
     public List<ReferenceType> classesByName(String className) {
         validateVM();
-        String signature = JNITypeParser.typeNameToSignature(className);
+        return classesBySignature(JNITypeParser.typeNameToSignature(className));
+    }
+
+    List<ReferenceType> classesBySignature(String signature) {
+        validateVM();
         List<ReferenceType> list;
         if (retrievedAllTypes) {
-           list = findReferenceTypes(signature);
+            list = findReferenceTypes(signature);
         } else {
-           list = retrieveClassesBySignature(signature);
+            list = retrieveClassesBySignature(signature);
         }
         // HACK: add second request to cover the case where className
         // is the name of an inline type. This is done only if the
@@ -350,7 +343,7 @@ class VirtualMachineImpl extends MirrorImpl
         if (signature.length() > 1 &&
                 (signature.charAt(0) == 'L' || isReferenceArray((signature)))) {
             List<ReferenceType> listInlineTypes;
-            signature = JNITypeParser.inlineTypeNameToSignature(className);
+            signature = signature.replaceFirst("L", "Q");
             if (retrievedAllTypes) {
                 listInlineTypes = findReferenceTypes(signature);
             } else {

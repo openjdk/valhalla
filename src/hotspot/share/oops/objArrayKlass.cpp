@@ -90,13 +90,13 @@ Klass* ObjArrayKlass::allocate_objArray_klass(ArrayStorageProperties storage_pro
         Klass* ek = NULL;
         {
           MutexUnlocker mu(MultiArray_lock);
-          super_klass = element_super->array_klass(CHECK_0);
+          super_klass = element_super->array_klass(CHECK_NULL);
           for( int i = element_supers->length()-1; i >= 0; i-- ) {
             Klass* elem_super = element_supers->at(i);
-            elem_super->array_klass(CHECK_0);
+            elem_super->array_klass(CHECK_NULL);
           }
           // Now retry from the beginning
-          ek = element_klass->array_klass(storage_props, n, CHECK_0);
+          ek = element_klass->array_klass(storage_props, n, CHECK_NULL);
         }  // re-lock
         return ek;
       }
@@ -111,13 +111,13 @@ Klass* ObjArrayKlass::allocate_objArray_klass(ArrayStorageProperties storage_pro
 
   // Initialize instance variables
   ClassLoaderData* loader_data = element_klass->class_loader_data();
-  ObjArrayKlass* oak = ObjArrayKlass::allocate(loader_data, n, element_klass, name, CHECK_0);
+  ObjArrayKlass* oak = ObjArrayKlass::allocate(loader_data, n, element_klass, name, CHECK_NULL);
 
   ModuleEntry* module = oak->module();
   assert(module != NULL, "No module entry for array");
 
   // Call complete_create_array_klass after all instance variables has been initialized.
-  ArrayKlass::complete_create_array_klass(oak, super_klass, module, CHECK_0);
+  ArrayKlass::complete_create_array_klass(oak, super_klass, module, CHECK_NULL);
 
   // Add all classes to our internal class loader list here,
   // including classes in the bootstrap (NULL) class loader.
@@ -161,7 +161,7 @@ int ObjArrayKlass::oop_size(oop obj) const {
 }
 
 objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
-  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_0);
+  check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   int size = objArrayOopDesc::object_size(length);
   bool populate_null_free = storage_properties().is_null_free();
   objArrayOop array =  (objArrayOop)Universe::heap()->array_allocate(this, size, length,

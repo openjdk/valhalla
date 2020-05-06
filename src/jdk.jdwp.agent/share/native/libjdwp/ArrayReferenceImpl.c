@@ -413,6 +413,9 @@ readLongComponents(JNIEnv *env, PacketInputStream *in,
                    jarray array, int index, int length)
 {
     int i;
+#if defined (_WIN32) && defined (_MSC_VER)
+    __declspec(align(8))
+#endif
     jlong component;
 
     for (i = 0; (i < length) && !inStream_error(in); i++) {
@@ -441,6 +444,9 @@ readDoubleComponents(JNIEnv *env, PacketInputStream *in,
                    jarray array, int index, int length)
 {
     int i;
+#if defined (_WIN32) && defined (_MSC_VER)
+    __declspec(align(8))
+#endif
     jdouble component;
 
     for (i = 0; (i < length) && !inStream_error(in); i++) {
@@ -524,7 +530,7 @@ setValues(PacketInputStream *in, PacketOutputStream *out)
         switch (componentSignature[0]) {
             case JDWP_TAG(OBJECT):
             case JDWP_TAG(ARRAY):
-	    case JDWP_TAG(INLINE_OBJECT):
+            case JDWP_TAG(INLINE_OBJECT):
                 serror = readObjectComponents(env, in, array, index, length);
                 break;
 

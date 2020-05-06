@@ -39,14 +39,14 @@ public class InlineReferenceTest {
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     static void test1() {
-        Point? p = new Point(10,20);
-        WeakReference<Point?> r = new WeakReference<>(p);
+        Point.ref p = new Point(10,20);
+        WeakReference<Point.ref> r = new WeakReference<>(p);
     }
 
     @Test(expectedExceptions = IllegalArgumentException.class)
     static void test2() {
         ReferenceQueue<Object> q = new ReferenceQueue<>();
-        Point? p = new Point(1,2);
-        WeakReference<Point?> r = new WeakReference<>(p, q);
+        Point.ref p = new Point(1,2);
+        WeakReference<Point.ref> r = new WeakReference<>(p, q);
     }
 }

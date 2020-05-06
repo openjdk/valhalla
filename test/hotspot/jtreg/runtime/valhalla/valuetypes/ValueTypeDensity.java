@@ -39,6 +39,9 @@ import jdk.test.lib.Asserts;
  * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=-1
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI ValueTypeDensity
+ * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions
+ *                   -Xbootclasspath/a:. -XX:ForceNonTearable=*
+ *                   -XX:+WhiteBoxAPI ValueTypeDensity
  */
 
 public class ValueTypeDensity {

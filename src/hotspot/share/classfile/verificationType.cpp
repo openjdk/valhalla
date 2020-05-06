@@ -162,7 +162,7 @@ bool VerificationType::is_ref_assignable_from_value_type(const VerificationType&
     return true;
   }
 
-  // Need to load 'this' to see if it is an interface.
+  // Need to load 'this' to see if it is an interface or supertype.
   InstanceKlass* klass = context->current_class();
   {
     HandleMark hm(THREAD);
@@ -173,7 +173,17 @@ bool VerificationType::is_ref_assignable_from_value_type(const VerificationType&
     if (log_is_enabled(Debug, class, resolve)) {
       Verifier::trace_class_resolution(this_class, klass);
     }
-    return (this_class->is_interface());
+    if (this_class->is_interface()) {
+      return true;
+    } else {
+      Klass* from_class = SystemDictionary::resolve_or_fail(
+        from.name(), Handle(THREAD, klass->class_loader()),
+        Handle(THREAD, klass->protection_domain()), true, CHECK_false);
+      if (log_is_enabled(Debug, class, resolve)) {
+        Verifier::trace_class_resolution(from_class, klass);
+      }
+      return from_class->is_subclass_of(this_class);
+    }
   }
 }
 

@@ -40,6 +40,10 @@ public:
 
   // Compute string similarity based on Dice's coefficient
   static double similarity(const char* str1, size_t len1, const char* str2, size_t len2);
+
+  // Match a wildcarded class list to a proposed class name (in internal form).
+  // Commas separate multiple possible matches; stars are shell-style wildcards.
+  static bool class_list_match(const char* class_list, const char* class_name);
 };
 
 #endif // SHARE_UTILITIES_STRINGUTILS_HPP

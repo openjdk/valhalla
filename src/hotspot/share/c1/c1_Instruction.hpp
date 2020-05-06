@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -226,9 +226,10 @@ class InstructionVisitor: public StackObj {
 //       of ValueMap - make changes carefully!
 
 #define HASH1(x1            )                    ((intx)(x1))
-#define HASH2(x1, x2        )                    ((HASH1(x1        ) << 7) ^ HASH1(x2))
-#define HASH3(x1, x2, x3    )                    ((HASH2(x1, x2    ) << 7) ^ HASH1(x3))
-#define HASH4(x1, x2, x3, x4)                    ((HASH3(x1, x2, x3) << 7) ^ HASH1(x4))
+#define HASH2(x1, x2        )                    ((HASH1(x1            ) << 7) ^ HASH1(x2))
+#define HASH3(x1, x2, x3    )                    ((HASH2(x1, x2        ) << 7) ^ HASH1(x3))
+#define HASH4(x1, x2, x3, x4)                    ((HASH3(x1, x2, x3    ) << 7) ^ HASH1(x4))
+#define HASH5(x1, x2, x3, x4, x5)                ((HASH4(x1, x2, x3, x4) << 7) ^ HASH1(x5))
 
 
 // The following macros are used to implement instruction-specific hashing.
@@ -274,7 +275,7 @@ class InstructionVisitor: public StackObj {
 
 
 #define HASHING3(class_name, enabled, f1, f2, f3)     \
-  virtual intx hash() const {                          \
+  virtual intx hash() const {                         \
     return (enabled) ? HASH4(name(), f1, f2, f3) : 0; \
   }                                                   \
   virtual bool is_equal(Value v) const {              \
@@ -284,6 +285,21 @@ class InstructionVisitor: public StackObj {
     if (f1 != _v->f1) return false;                   \
     if (f2 != _v->f2) return false;                   \
     if (f3 != _v->f3) return false;                   \
+    return true;                                      \
+  }                                                   \
+
+#define HASHING4(class_name, enabled, f1, f2, f3, f4) \
+  virtual intx hash() const {                         \
+    return (enabled) ? HASH5(name(), f1, f2, f3, f4) : 0; \
+  }                                                   \
+  virtual bool is_equal(Value v) const {              \
+    if (!(enabled)  ) return false;                   \
+    class_name* _v = v->as_##class_name();            \
+    if (_v == NULL  ) return false;                   \
+    if (f1 != _v->f1) return false;                   \
+    if (f2 != _v->f2) return false;                   \
+    if (f3 != _v->f3) return false;                   \
+    if (f4 != _v->f4) return false;                   \
     return true;                                      \
   }                                                   \
 
@@ -462,6 +478,8 @@ class Instruction: public CompilationResourceObj {
   bool is_never_null() const                     { return check_flag(NeverNullFlag); }
   bool is_linked() const                         { return check_flag(IsLinkedInBlockFlag); }
   bool can_be_linked()                           { return as_Local() == NULL && as_Phi() == NULL; }
+
+  bool is_null_obj()                             { return as_Constant() != NULL && type()->as_ObjectType()->constant_value()->is_null_object(); }
 
   bool has_uses() const                          { return use_count() > 0; }
   ValueStack* state_before() const               { return _state_before; }
@@ -859,8 +877,8 @@ LEAF(LoadField, AccessField)
 
   ciType* declared_type() const;
 
-  // generic
-  HASHING2(LoadField, !needs_patching() && !field()->is_volatile(), obj()->subst(), offset())  // cannot be eliminated if needs patching or if volatile
+  // generic; cannot be eliminated if needs patching or if volatile.
+  HASHING3(LoadField, !needs_patching() && !field()->is_volatile(), obj()->subst(), offset(), declared_type())
 };
 
 
@@ -1006,7 +1024,7 @@ LEAF(LoadIndexed, AccessIndexed)
   void set_vt(NewValueTypeInstance* vt) { _vt = vt; }
 
   // generic
-  HASHING3(LoadIndexed, !should_profile(), array()->subst(), index()->subst(), vt())
+  HASHING4(LoadIndexed, !should_profile(), type()->tag(), array()->subst(), index()->subst(), vt())
 };
 
 

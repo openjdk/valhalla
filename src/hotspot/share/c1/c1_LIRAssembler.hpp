@@ -212,7 +212,7 @@ class LIR_Assembler: public CompilationResourceObj {
   void emit_profile_type(LIR_OpProfileType* op);
   void emit_delay(LIR_OpDelay* op);
   void emit_std_entries();
-  int  emit_std_entry(CodeOffsets::Entries entry, const CompiledEntrySignature* ces);
+  void emit_std_entry(CodeOffsets::Entries entry, const CompiledEntrySignature* ces);
   void add_scalarized_entry_info(int call_offset);
 
   void arith_op(LIR_Code code, LIR_Opr left, LIR_Opr right, LIR_Opr dest, CodeEmitInfo* info, bool pop_fpu_stack);
@@ -262,6 +262,7 @@ class LIR_Assembler: public CompilationResourceObj {
   void membar_storeload();
   void on_spin_wait();
   void get_thread(LIR_Opr result);
+  void check_orig_pc();
 
   void verify_oop_map(CodeEmitInfo* info);
 

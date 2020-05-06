@@ -76,6 +76,7 @@ public:
   };
 
   InstanceKlass*               _klass;
+  bool                         _failed_verification;
   int                          _id;
   int                          _clsfile_size;
   int                          _clsfile_crc32;
@@ -84,6 +85,7 @@ public:
 
   DumpTimeSharedClassInfo() {
     _klass = NULL;
+    _failed_verification = false;
     _id = -1;
     _clsfile_size = -1;
     _clsfile_crc32 = -1;
@@ -124,7 +126,15 @@ public:
 
   bool is_excluded() {
     // _klass may become NULL due to DynamicArchiveBuilder::set_to_null
-    return _excluded || _klass == NULL;
+    return _excluded || _failed_verification || _klass == NULL;
+  }
+
+  void set_failed_verification() {
+    _failed_verification = true;
+  }
+
+  bool failed_verification() {
+    return _failed_verification;
   }
 };
 
@@ -433,9 +443,9 @@ Handle SystemDictionaryShared::get_shared_jar_url(int shared_path_index, TRAPS) 
 Handle SystemDictionaryShared::get_package_name(Symbol* class_name, TRAPS) {
   ResourceMark rm(THREAD);
   Handle pkgname_string;
-  char* pkgname = (char*) ClassLoader::package_from_name((const char*) class_name->as_C_string());
-  if (pkgname != NULL) { // Package prefix found
-    StringUtils::replace_no_expand(pkgname, "/", ".");
+  Symbol* pkg = ClassLoader::package_from_class_name(class_name);
+  if (pkg != NULL) { // Package prefix found
+    const char* pkgname = pkg->as_klass_external_name();
     pkgname_string = java_lang_String::create_from_str(pkgname,
                                                        CHECK_(pkgname_string));
   }
@@ -575,7 +585,7 @@ Handle SystemDictionaryShared::get_shared_protection_domain(Handle class_loader,
 // Initializes the java.lang.Package and java.security.ProtectionDomain objects associated with
 // the given InstanceKlass.
 // Returns the ProtectionDomain for the InstanceKlass.
-Handle SystemDictionaryShared::init_security_info(Handle class_loader, InstanceKlass* ik, TRAPS) {
+Handle SystemDictionaryShared::init_security_info(Handle class_loader, InstanceKlass* ik, PackageEntry* pkg_entry, TRAPS) {
   Handle pd;
 
   if (ik != NULL) {
@@ -588,18 +598,10 @@ Handle SystemDictionaryShared::init_security_info(Handle class_loader, InstanceK
       // For shared app/platform classes originated from the run-time image:
       //   The ProtectionDomains are cached in the corresponding ModuleEntries
       //   for fast access by the VM.
-      ResourceMark rm;
-      ClassLoaderData *loader_data =
-                ClassLoaderData::class_loader_data(class_loader());
-      PackageEntryTable* pkgEntryTable = loader_data->packages();
-      TempNewSymbol pkg_name = InstanceKlass::package_from_name(class_name, CHECK_(pd));
-      if (pkg_name != NULL) {
-        PackageEntry* pkg_entry = pkgEntryTable->lookup_only(pkg_name);
-        if (pkg_entry != NULL) {
-          ModuleEntry* mod_entry = pkg_entry->module();
-          pd = get_shared_protection_domain(class_loader, mod_entry, THREAD);
-          define_shared_package(class_name, class_loader, mod_entry, CHECK_(pd));
-        }
+      if (pkg_entry != NULL) {
+        ModuleEntry* mod_entry = pkg_entry->module();
+        pd = get_shared_protection_domain(class_loader, mod_entry, THREAD);
+        define_shared_package(class_name, class_loader, mod_entry, CHECK_(pd));
       }
     } else {
       // For shared app/platform classes originated from JAR files on the class path:
@@ -701,8 +703,11 @@ bool SystemDictionaryShared::is_shared_class_visible_for_classloader(
         // It's not guaranteed that the class is from the classpath if the
         // PackageEntry cannot be found from the AppClassloader. Need to check
         // the boot and platform classloader as well.
-        if (get_package_entry(pkg_name, ClassLoaderData::class_loader_data_or_null(SystemDictionary::java_platform_loader())) == NULL &&
-            get_package_entry(pkg_name, ClassLoaderData::the_null_class_loader_data()) == NULL) {
+        ClassLoaderData* platform_loader_data =
+          ClassLoaderData::class_loader_data_or_null(SystemDictionary::java_platform_loader()); // can be NULL during bootstrap
+        if ((platform_loader_data == NULL ||
+             ClassLoader::get_package_entry(pkg_name, platform_loader_data) == NULL) &&
+             ClassLoader::get_package_entry(pkg_name, ClassLoaderData::the_null_class_loader_data()) == NULL) {
           // The PackageEntry is not defined in any of the boot/platform/app classloaders.
           // The archived class must from -cp path and not from the runtime image.
           if (!ent->is_modules_image() && path_index >= ClassLoaderExt::app_class_paths_start_index() &&
@@ -839,6 +844,15 @@ InstanceKlass* SystemDictionaryShared::find_or_load_shared_class(
   return k;
 }
 
+PackageEntry* SystemDictionaryShared::get_package_entry_from_class_name(Handle class_loader, Symbol* class_name) {
+  PackageEntry* pkg_entry = NULL;
+  TempNewSymbol pkg_name = ClassLoader::package_from_class_name(class_name);
+  if (pkg_name != NULL) {
+    pkg_entry = class_loader_data(class_loader)->packages()->lookup_only(pkg_name);
+  }
+  return pkg_entry;
+}
+
 InstanceKlass* SystemDictionaryShared::load_shared_class_for_builtin_loader(
                  Symbol* class_name, Handle class_loader, TRAPS) {
   assert(UseSharedSpaces, "must be");
@@ -849,9 +863,10 @@ InstanceKlass* SystemDictionaryShared::load_shared_class_for_builtin_loader(
          SystemDictionary::is_system_class_loader(class_loader()))  ||
         (ik->is_shared_platform_class() &&
          SystemDictionary::is_platform_class_loader(class_loader()))) {
+      PackageEntry* pkg_entry = get_package_entry_from_class_name(class_loader, class_name);
       Handle protection_domain =
-        SystemDictionaryShared::init_security_info(class_loader, ik, CHECK_NULL);
-      return load_shared_class(ik, class_loader, protection_domain, NULL, THREAD);
+        SystemDictionaryShared::init_security_info(class_loader, ik, pkg_entry, CHECK_NULL);
+      return load_shared_class(ik, class_loader, protection_domain, NULL, pkg_entry, THREAD);
     }
   }
   return NULL;
@@ -950,9 +965,12 @@ InstanceKlass* SystemDictionaryShared::acquire_class_for_current_thread(
   // No need to lock, as <ik> can be held only by a single thread.
   loader_data->add_class(ik);
 
+  // Get the package entry.
+  PackageEntry* pkg_entry = get_package_entry_from_class_name(class_loader, ik->name());
+
   // Load and check super/interfaces, restore unsharable info
   InstanceKlass* shared_klass = load_shared_class(ik, class_loader, protection_domain,
-                                                  cfs, THREAD);
+                                                  cfs, pkg_entry, THREAD);
   if (shared_klass == NULL || HAS_PENDING_EXCEPTION) {
     // TODO: clean up <ik> so it can be used again
     return NULL;
@@ -979,7 +997,7 @@ bool SystemDictionaryShared::add_unregistered_class(InstanceKlass* k, TRAPS) {
     bool isnew = _loaded_unregistered_classes.put(name, true);
     assert(isnew, "sanity");
     MutexLocker mu_r(THREAD, Compile_lock); // add_to_hierarchy asserts this.
-    SystemDictionary::add_to_hierarchy(k, CHECK_0);
+    SystemDictionary::add_to_hierarchy(k, CHECK_false);
     return true;
   }
 }
@@ -1086,6 +1104,10 @@ bool SystemDictionaryShared::should_be_excluded(InstanceKlass* k) {
     warn_excluded(k, "In error state");
     return true;
   }
+  if (k->has_been_redefined()) {
+    warn_excluded(k, "Has been redefined");
+    return true;
+  }
   if (k->shared_classpath_index() < 0 && is_builtin(k)) {
     // These are classes loaded from unsupported locations (such as those loaded by JVMTI native
     // agent during dump time).
@@ -1108,9 +1130,9 @@ bool SystemDictionaryShared::should_be_excluded(InstanceKlass* k) {
     return true;
   }
   if (k->init_state() < InstanceKlass::linked) {
-    // In static dumping, we will attempt to link all classes. Those that fail to link will
-    // be marked as in error state.
-    assert(DynamicDumpSharedSpaces, "must be");
+    // In CDS dumping, we will attempt to link all classes. Those that fail to link will
+    // be recorded in DumpTimeSharedClassInfo.
+    Arguments::assert_is_dumping_archive();
 
     // TODO -- rethink how this can be handled.
     // We should try to link ik, however, we can't do it here because
@@ -1118,7 +1140,11 @@ bool SystemDictionaryShared::should_be_excluded(InstanceKlass* k) {
     // 2. linking a class may cause other classes to be loaded, which means
     //    a custom ClassLoader.loadClass() may be called, at a point where the
     //    class loader doesn't expect it.
-    warn_excluded(k, "Not linked");
+    if (has_class_failed_verification(k)) {
+      warn_excluded(k, "Failed verification");
+    } else {
+      warn_excluded(k, "Not linked");
+    }
     return true;
   }
   if (k->major_version() < 50 /*JAVA_6_VERSION*/) {
@@ -1157,10 +1183,10 @@ void SystemDictionaryShared::validate_before_archiving(InstanceKlass* k) {
   guarantee(info != NULL, "Class %s must be entered into _dumptime_table", name);
   guarantee(!info->is_excluded(), "Should not attempt to archive excluded class %s", name);
   if (is_builtin(k)) {
-    guarantee(k->loader_type() != 0,
+    guarantee(!k->is_shared_unregistered_class(),
               "Class loader type must be set for BUILTIN class %s", name);
   } else {
-    guarantee(k->loader_type() == 0,
+    guarantee(k->is_shared_unregistered_class(),
               "Class loader type must not be set for UNREGISTERED class %s", name);
   }
 }
@@ -1185,6 +1211,22 @@ bool SystemDictionaryShared::is_excluded_class(InstanceKlass* k) {
   assert(_no_class_loading_should_happen, "sanity");
   Arguments::assert_is_dumping_archive();
   return find_or_allocate_info_for(k)->is_excluded();
+}
+
+void SystemDictionaryShared::set_class_has_failed_verification(InstanceKlass* ik) {
+  Arguments::assert_is_dumping_archive();
+  find_or_allocate_info_for(ik)->set_failed_verification();
+}
+
+bool SystemDictionaryShared::has_class_failed_verification(InstanceKlass* ik) {
+  Arguments::assert_is_dumping_archive();
+  if (_dumptime_table == NULL) {
+    assert(DynamicDumpSharedSpaces, "sanity");
+    assert(ik->is_shared(), "must be a shared class in the static archive");
+    return false;
+  }
+  DumpTimeSharedClassInfo* p = _dumptime_table->get(ik);
+  return (p == NULL) ? false : p->failed_verification();
 }
 
 class IterateDumpTimeSharedClassTable : StackObj {
@@ -1407,6 +1449,12 @@ void SystemDictionaryShared::serialize_dictionary_headers(SerializeClosure* soc,
   } else {
     _dynamic_builtin_dictionary.serialize_header(soc);
     _dynamic_unregistered_dictionary.serialize_header(soc);
+  }
+}
+
+void SystemDictionaryShared::serialize_well_known_klasses(SerializeClosure* soc) {
+  for (int i = FIRST_WKID; i < WKID_LIMIT; i++) {
+    soc->do_ptr((void**)&_well_known_klasses[i]);
   }
 }
 

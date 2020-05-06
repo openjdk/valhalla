@@ -852,8 +852,7 @@ class CompileReplay : public StackObj {
         break;
       }
       case T_VALUETYPE: {
-        SignatureStream ss(fd->signature(), false);
-        ValueKlass* vk = ss.as_value_klass(fd->field_holder());
+        ValueKlass* vk = ValueKlass::cast(fd->field_holder()->get_value_field_klass(fd->index()));
         if (fd->is_flattened()) {
           int field_offset = fd->offset() - vk->first_field_offset();
           oop obj = (oop)(cast_from_oop<address>(_vt) + field_offset);

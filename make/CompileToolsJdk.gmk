@@ -43,7 +43,7 @@ BUILD_TOOLS_SRC_DIRS += \
     $(BUILDTOOLS_OUTPUTDIR)/interim_tzdb_classes \
     #
 
-$(eval $(call SetupJavaCompilation,BUILD_TOOLS_JDK, \
+$(eval $(call SetupJavaCompilation, BUILD_TOOLS_JDK, \
     SETUP := GENERATE_OLDBYTECODE, \
     SRC := $(BUILD_TOOLS_SRC_DIRS), \
     EXCLUDES := \

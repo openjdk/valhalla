@@ -809,13 +809,19 @@ public class TreeMaker implements JCTree.Factory {
                 break;
             }
             default: {
-                Type outer = t.getEnclosingType();
-                JCExpression clazz = outer.hasTag(CLASS) && t.tsym.owner.kind == TYP
-                        ? Select(Type(outer), t.tsym)
-                        : QualIdent(t.tsym);
-                tp = t.getTypeArguments().isEmpty()
-                        ? clazz
-                        : TypeApply(clazz, Types(t.getTypeArguments()));
+                if (t.isReferenceProjection()) {
+                    JCFieldAccess f = (JCFieldAccess) Select(Type(t.valueProjection()), t.tsym);
+                    f.name = names.ref;
+                    tp = f;
+                } else {
+                    Type outer = t.getEnclosingType();
+                    JCExpression clazz = outer.hasTag(CLASS) && t.tsym.owner.kind == TYP
+                            ? Select(Type(outer), t.tsym)
+                            : QualIdent(t.tsym);
+                    tp = t.getTypeArguments().isEmpty()
+                            ? clazz
+                            : TypeApply(clazz, Types(t.getTypeArguments()));
+                }
                 break;
             }
             }
@@ -829,8 +835,6 @@ public class TreeMaker implements JCTree.Factory {
         default:
             throw new AssertionError("unexpected type: " + t);
         }
-        if (t.tsym.isProjectedNullable())
-            tp.setQuestioned();
         return tp.setType(t);
     }
 

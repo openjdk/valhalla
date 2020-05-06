@@ -54,7 +54,11 @@
 #include "runtime/vframe.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
 
-static void trace_class_resolution(const Klass* to_class) {
+static void trace_class_resolution(oop mirror) {
+  if (mirror == NULL || java_lang_Class::is_primitive(mirror)) {
+    return;
+  }
+  Klass* to_class = java_lang_Class::as_Klass(mirror);
   ResourceMark rm;
   int line_number = -1;
   const char * source_file = NULL;
@@ -757,44 +761,6 @@ void Reflection::check_for_inner_class(const InstanceKlass* outer, const Instanc
   );
 }
 
-// Returns Q-mirror if qtype_if_value is true and k is a ValueKlass;
-// otherwise returns java_mirror or L-mirror for ValueKlass
-static oop java_mirror(Klass* k, jboolean qtype_if_value) {
-  if (k->is_value()) {
-    ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(k));
-    return qtype_if_value ? vk->value_mirror() : vk->indirect_mirror();
-  } else {
-    return k->java_mirror();
-  }
-}
-
-// Utility method converting a single SignatureStream element into java.lang.Class instance
-static oop get_mirror_from_signature(const methodHandle& method,
-                                     SignatureStream* ss,
-                                     TRAPS) {
-
-  BasicType bt = ss->type();
-  if (is_reference_type(ss->type())) {
-    Symbol* name = ss->as_symbol();
-    oop loader = method->method_holder()->class_loader();
-    oop protection_domain = method->method_holder()->protection_domain();
-    const Klass* k = SystemDictionary::resolve_or_fail(name,
-                                                       Handle(THREAD, loader),
-                                                       Handle(THREAD, protection_domain),
-                                                       true,
-                                                       CHECK_NULL);
-    if (log_is_enabled(Debug, class, resolve)) {
-      trace_class_resolution(k);
-    }
-    return java_mirror((Klass*)k, bt == T_VALUETYPE);
-  }
-
-  assert(bt != T_VOID || ss->at_return_type(),
-    "T_VOID should only appear as return type");
-
-  return java_lang_Class::primitive_mirror(bt);
-}
-
 static objArrayHandle get_parameter_types(const methodHandle& method,
                                           int parameter_count,
                                           oop* return_type,
@@ -805,19 +771,20 @@ static objArrayHandle get_parameter_types(const methodHandle& method,
   int index = 0;
   // Collect parameter types
   ResourceMark rm(THREAD);
-  Symbol*  signature = method->signature();
-  SignatureStream ss(signature);
-  while (!ss.at_return_type()) {
-    oop mirror = get_mirror_from_signature(method, &ss, CHECK_(objArrayHandle()));
-    mirrors->obj_at_put(index++, mirror);
-    ss.next();
+  for (ResolvingSignatureStream ss(method()); !ss.is_done(); ss.next()) {
+    oop mirror = ss.as_java_mirror(SignatureStream::NCDFError, CHECK_(objArrayHandle()));
+    if (log_is_enabled(Debug, class, resolve)) {
+      trace_class_resolution(mirror);
+    }
+    if (!ss.at_return_type()) {
+      mirrors->obj_at_put(index++, mirror);
+    } else if (return_type != NULL) {
+      // Collect return type as well
+      assert(ss.at_return_type(), "return type should be present");
+      *return_type = mirror;
+    }
   }
   assert(index == parameter_count, "invalid parameter count");
-  if (return_type != NULL) {
-    // Collect return type as well
-    assert(ss.at_return_type(), "return type should be present");
-    *return_type = get_mirror_from_signature(method, &ss, CHECK_(objArrayHandle()));
-  }
   return mirrors;
 }
 
@@ -826,23 +793,8 @@ static objArrayHandle get_exception_types(const methodHandle& method, TRAPS) {
 }
 
 static Handle new_type(Symbol* signature, Klass* k, TRAPS) {
-  SignatureStream ss(signature, false);
-  // Basic types
-  BasicType type = ss.type();
-  if (!ss.is_reference()) {
-    return Handle(THREAD, Universe::java_mirror(type));
-  }
-
-  Klass* result =
-    SystemDictionary::resolve_or_fail(signature,
-                                      Handle(THREAD, k->class_loader()),
-                                      Handle(THREAD, k->protection_domain()),
-                                      true, CHECK_(Handle()));
-
-  if (log_is_enabled(Debug, class, resolve)) {
-    trace_class_resolution(result);
-  }
-  oop nt = java_mirror(result, type == T_VALUETYPE);
+  ResolvingSignatureStream ss(signature, k, false);
+  oop nt = ss.as_java_mirror(SignatureStream::NCDFError, CHECK_NH);
   return Handle(THREAD, nt);
 }
 

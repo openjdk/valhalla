@@ -62,6 +62,12 @@ import javax.tools.*;
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
  *                   runtime.valhalla.valuetypes.ValueTypesTest
+ * @run main/othervm -Xbatch -Xmx128m -XX:-ShowMessageBoxOnError
+ *                   -XX:+ExplicitGCInvokesConcurrent
+ *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
+ *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
+ *                   -XX:ForceNonTearable=*
+ *                   runtime.valhalla.valuetypes.ValueTypesTest
  */
 public class ValueTypesTest {
 
@@ -140,7 +146,7 @@ public class ValueTypesTest {
         String sig = "()Q" + inlineClass.getName() + ";";
         final String methodSignature = sig.replace('.', '/');
         final String fieldQSignature = "Q" + inlineClass.getName().replace('.', '/') + ";";
-        final String fieldLSignature = "L" + inlineClass.getName().replace('.', '/') + ";";
+        final String fieldLSignature = "L" + inlineClass.getName().replace('.', '/') + "$ref;";
         System.out.println(methodSignature);
         MethodHandle fromExecStackToFields = MethodHandleBuilder.loadCode(
                 LOOKUP,
@@ -181,6 +187,7 @@ public class ValueTypesTest {
                     .putstatic(containerClass, "staticValueField", fieldLSignature)
                     .invokestatic(System.class, "gc", "()V", false)
                     .getstatic(containerClass, "staticValueField", fieldLSignature)
+                    .checkcast(inlineClass)
                     .invokevirtual(inlineClass, "verify", "()Z", false)
                     .iconst_1()
                     .ifcmp(TypeTag.I, CondKind.NE, "failed")
@@ -188,6 +195,7 @@ public class ValueTypesTest {
                     .putstatic(containerClass, "staticValueField", fieldLSignature)
                     .invokestatic(System.class, "gc", "()V", false)
                     .getstatic(containerClass, "staticValueField", fieldLSignature)
+                    .checkcast(inlineClass)
                     .invokevirtual(inlineClass, "verify", "()Z", false)
                     .iconst_1()
                     .ifcmp(TypeTag.I, CondKind.NE, "failed")

@@ -179,7 +179,7 @@ class TypePrinter extends Printer {
         } else {
             s = sym.name.toString();
         }
-        return sym.isProjectedNullable() ? s + '?' : s;
+        return s;
     }
 
     @Override

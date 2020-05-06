@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,9 +94,13 @@ LIR_Opr LIRGenerator::result_register_for(ValueType* type, bool callee) {
     case intTag:     opr = FrameMap::rax_opr;          break;
     case objectTag:  opr = FrameMap::rax_oop_opr;      break;
     case longTag:    opr = FrameMap::long0_opr;        break;
+#ifdef _LP64
+    case floatTag:   opr = FrameMap::xmm0_float_opr;   break;
+    case doubleTag:  opr = FrameMap::xmm0_double_opr;  break;
+#else
     case floatTag:   opr = UseSSE >= 1 ? FrameMap::xmm0_float_opr  : FrameMap::fpu0_float_opr;  break;
     case doubleTag:  opr = UseSSE >= 2 ? FrameMap::xmm0_double_opr : FrameMap::fpu0_double_opr;  break;
-
+#endif // _LP64
     case addressTag:
     default: ShouldNotReachHere(); return LIR_OprFact::illegalOpr;
   }
@@ -159,7 +163,7 @@ bool LIRGenerator::can_inline_as_constant(LIR_Const* c) const {
 
 
 LIR_Opr LIRGenerator::safepoint_poll_register() {
-  NOT_LP64( if (SafepointMechanism::uses_thread_local_poll()) { return new_register(T_ADDRESS); } )
+  NOT_LP64( return new_register(T_ADDRESS); )
   return LIR_OprFact::illegalOpr;
 }
 
@@ -376,6 +380,7 @@ void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) {
     left.dont_load_item();
   }
 
+#ifndef _LP64
   // do not load right operand if it is a constant.  only 0 and 1 are
   // loaded because there are special instructions for loading them
   // without memory access (not needed for SSE2 instructions)
@@ -391,13 +396,18 @@ void LIRGenerator::do_ArithmeticOp_FPU(ArithmeticOp* x) {
       must_load_right = UseSSE < 2 && (c->is_one_double() || c->is_zero_double());
     }
   }
+#endif // !LP64
 
   if (must_load_both) {
     // frem and drem destroy also right operand, so move it to a new register
     right.set_destroys_register();
     right.load_item();
-  } else if (right.is_register() || must_load_right) {
+  } else if (right.is_register()) {
     right.load_item();
+#ifndef _LP64
+  } else if (must_load_right) {
+    right.load_item();
+#endif // !LP64
   } else {
     right.dont_load_item();
   }
@@ -808,9 +818,11 @@ void LIRGenerator::do_MathIntrinsic(Intrinsic* x) {
   LIRItem value(x->argument_at(0), this);
 
   bool use_fpu = false;
+#ifndef _LP64
   if (UseSSE < 2) {
     value.set_destroys_register();
   }
+#endif // !LP64
   value.load_item();
 
   LIR_Opr calc_input = value.result();
@@ -1599,10 +1611,12 @@ void LIRGenerator::volatile_field_load(LIR_Address* address, LIR_Opr result,
     LIR_Opr temp_double = new_register(T_DOUBLE);
     __ volatile_move(LIR_OprFact::address(address), temp_double, T_LONG, info);
     __ volatile_move(temp_double, result, T_LONG);
+#ifndef _LP64
     if (UseSSE < 2) {
       // no spill slot needed in SSE2 mode because xmm->cpu register move is possible
       set_vreg_flag(result, must_start_in_memory);
     }
+#endif // !LP64
   } else {
     __ load(address, result, info);
   }

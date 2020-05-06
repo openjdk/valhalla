@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1994, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1994, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,8 @@ package java.lang;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
 
+import java.util.Objects;
+
 /**
  * Class {@code Object} is the root of the class hierarchy.
  * Every class has {@code Object} as a superclass. All objects,
@@ -40,6 +42,9 @@ public class Object {
 
     /**
      * Constructs a new object.
+     *
+     * @apiNote {@link Objects#newIdentity java.util.Objects.newIdentity()}
+     * should be used instead of {@code new Object()}.
      */
     @HotSpotIntrinsicCandidate
     public Object() {}

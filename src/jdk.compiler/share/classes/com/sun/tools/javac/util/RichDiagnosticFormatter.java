@@ -394,7 +394,7 @@ public class RichDiagnosticFormatter extends
             else
                 s = sym.name.toString();
 
-            return sym.isProjectedNullable() ? s + '?' : s;
+            return s;
         }
 
         @Override

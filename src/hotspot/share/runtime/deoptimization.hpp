@@ -172,7 +172,10 @@ class Deoptimization : AllStatic {
   static void reassign_fields(frame* fr, RegisterMap* reg_map, GrowableArray<ScopeValue*>* objects, bool realloc_failures, bool skip_internal, TRAPS);
   static void relock_objects(GrowableArray<MonitorInfo*>* monitors, JavaThread* thread, bool realloc_failures);
   static void pop_frames_failed_reallocs(JavaThread* thread, vframeArray* array);
-  NOT_PRODUCT(static void print_objects(GrowableArray<ScopeValue*>* objects, bool realloc_failures);)
+#ifndef PRODUCT
+  static void print_objects(GrowableArray<ScopeValue*>* objects, bool realloc_failures);
+  static void print_object(Klass* k, Handle obj, bool realloc_failures);
+#endif
 #endif // COMPILER2_OR_JVMCI
 
   public:

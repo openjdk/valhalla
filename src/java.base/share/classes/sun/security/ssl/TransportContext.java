@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ import javax.net.ssl.SSLSocket;
 /**
  * SSL/(D)TLS transportation context.
  */
-class TransportContext implements ConnectionContext {
+final class TransportContext implements ConnectionContext {
     final SSLTransport              transport;
 
     // registered plaintext consumers
@@ -89,7 +89,7 @@ class TransportContext implements ConnectionContext {
     // Called by SSLEngineImpl
     TransportContext(SSLContextImpl sslContext, SSLTransport transport,
             InputRecord inputRecord, OutputRecord outputRecord) {
-        this(sslContext, transport, new SSLConfiguration(sslContext, true),
+        this(sslContext, transport, new SSLConfiguration(sslContext, false),
                 inputRecord, outputRecord, true);
     }
 
@@ -130,7 +130,7 @@ class TransportContext implements ConnectionContext {
         this.isUnsureMode = isUnsureMode;
 
         // initial security parameters
-        this.conSession = SSLSessionImpl.nullSession;
+        this.conSession = new SSLSessionImpl();
         this.protocolVersion = this.sslConfig.maximumProtocolVersion;
         this.clientVerifyData = emptyByteArray;
         this.serverVerifyData = emptyByteArray;
@@ -164,12 +164,13 @@ class TransportContext implements ConnectionContext {
                                             " message: " +
                                             SSLHandshake.nameOf(type));
                         }
-                        if (type == SSLHandshake.KEY_UPDATE.id &&
-                                !protocolVersion.useTLS13PlusSpec()) {
+
+                        if (!PostHandshakeContext.isConsumable(this, type)) {
                             throw fatal(Alert.UNEXPECTED_MESSAGE,
                                     "Unexpected post-handshake message: " +
                                     SSLHandshake.nameOf(type));
                         }
+
                         handshakeContext = new PostHandshakeContext(this);
                     } else {
                         handshakeContext = sslConfig.isClientMode ?

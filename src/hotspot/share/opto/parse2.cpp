@@ -91,9 +91,8 @@ void Parse::array_load(BasicType bt) {
     // Load from non-flattened but flattenable value type array (elements can never be null)
     bt = T_VALUETYPE;
   } else if (!ary_t->is_not_flat()) {
-    assert(is_reference_type(bt), "");
     // Cannot statically determine if array is flattened, emit runtime check
-    assert(ValueArrayFlatten && elemptr->can_be_value_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
+    assert(ValueArrayFlatten && is_reference_type(bt) && elemptr->can_be_value_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
            (!elemptr->is_valuetypeptr() || elemptr->value_klass()->flatten_array()), "array can't be flattened");
     Node* ctl = control();
     IdealKit ideal(this);
@@ -143,7 +142,8 @@ void Parse::array_load(BasicType bt) {
 
         BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
         // Unknown value type might contain reference fields
-        if (!bs->array_copy_requires_gc_barriers(false, T_OBJECT, false, BarrierSetC2::Parsing)) {
+        if (false && !bs->array_copy_requires_gc_barriers(false, T_OBJECT, false, BarrierSetC2::Parsing)) {
+          // FIXME 8230656 also merge changes from 8238759 in
           int base_off = sizeof(instanceOopDesc);
           Node* dst_base = basic_plus_adr(alloc_obj, base_off);
           Node* countx = obj_size;
@@ -183,12 +183,10 @@ void Parse::array_load(BasicType bt) {
         alloc_obj->set_req(0, control());
         alloc_obj = _gvn.transform(alloc_obj);
 
-        const Type* unknown_value = TypeInstPtr::BOTTOM->cast_to_flat_array();
-
+        const Type* unknown_value = elemptr->is_instptr()->cast_to_flat_array();
         alloc_obj = _gvn.transform(new CheckCastPPNode(control(), alloc_obj, unknown_value));
 
         ideal.sync_kit(this);
-
         ideal.set(res, alloc_obj);
       }
     } ideal.else_(); {
@@ -2282,7 +2280,7 @@ void Parse::maybe_add_predicate_after_if(Block* path) {
     // Add predicates at bci of if dominating the loop so traps can be
     // recorded on the if's profile data
     int bc_depth = repush_if_args();
-    add_predicate();
+    add_empty_predicates();
     dec_sp(bc_depth);
     path->set_has_predicates();
   }

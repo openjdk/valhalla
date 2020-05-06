@@ -43,7 +43,7 @@ import com.sun.source.doctree.DocTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
 import jdk.javadoc.internal.doclets.formats.html.markup.Entity;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
+import jdk.javadoc.internal.doclets.formats.html.markup.TagName;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.Links;
 import jdk.javadoc.internal.doclets.formats.html.markup.StringContent;
@@ -51,6 +51,7 @@ import jdk.javadoc.internal.doclets.formats.html.markup.Table;
 import jdk.javadoc.internal.doclets.formats.html.markup.TableHeader;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.MemberSummaryWriter;
+import jdk.javadoc.internal.doclets.toolkit.MemberWriter;
 import jdk.javadoc.internal.doclets.toolkit.Resources;
 import jdk.javadoc.internal.doclets.toolkit.taglets.DeprecatedTaglet;
 import jdk.javadoc.internal.doclets.toolkit.util.DocletConstants;
@@ -70,7 +71,7 @@ import static javax.lang.model.element.Modifier.SYNCHRONIZED;
  *  This code and its internal interfaces are subject to change or
  *  deletion without notice.</b>
  */
-public abstract class AbstractMemberWriter implements MemberSummaryWriter {
+public abstract class AbstractMemberWriter implements MemberSummaryWriter, MemberWriter {
 
     protected final HtmlConfiguration configuration;
     protected final HtmlOptions options;
@@ -205,7 +206,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
      */
     protected void addModifierAndType(Element member, TypeMirror type,
             Content tdSummaryType) {
-        HtmlTree code = new HtmlTree(HtmlTag.CODE);
+        HtmlTree code = new HtmlTree(TagName.CODE);
         addModifier(member, code);
         if (type == null) {
             code.add(utils.isClass(member) ? "class" : "interface");
@@ -220,7 +221,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
                     code.add(typeParameters);
                 //Code to avoid ugly wrapping in member summary table.
                 if (typeParameters.charCount() > 10) {
-                    code.add(new HtmlTree(HtmlTag.BR));
+                    code.add(new HtmlTree(TagName.BR));
                 } else {
                     code.add(Entity.NO_BREAK_SPACE);
                 }
@@ -347,7 +348,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
                         && !utils.isClass(element)
                         && !utils.isInterface(element)
                         && !utils.isAnnotationType(element)) {
-                    HtmlTree name = new HtmlTree(HtmlTag.SPAN);
+                    HtmlTree name = new HtmlTree(TagName.SPAN);
                     name.setStyle(HtmlStyle.typeNameLabel);
                     name.add(name(te) + ".");
                     typeContent.add(name);
@@ -360,7 +361,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
                 writer.addSummaryLinkComment(this, element, desc);
                 useTable.addRow(summaryType, typeContent, desc);
             }
-            contentTree.add(useTable.toContent());
+            contentTree.add(useTable);
         }
     }
 
@@ -435,7 +436,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
      */
     @Override
     public Content getInheritedSummaryLinksTree() {
-        return new HtmlTree(HtmlTag.CODE);
+        return new HtmlTree(TagName.CODE);
     }
 
     /**
@@ -453,7 +454,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
         if (table.needsScript()) {
             writer.getMainBodyScript().append(table.getScript());
         }
-        return table.toContent();
+        return table;
     }
 
     /**
@@ -465,6 +466,16 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
     @Override
     public Content getMemberTree(Content memberTree) {
         return writer.getMemberTree(memberTree);
+    }
+
+    @Override
+    public Content getMemberList() {
+        return writer.getMemberList();
+    }
+
+    @Override
+    public Content getMemberListItem(Content memberTree) {
+        return writer.getMemberListItem(memberTree);
     }
 
     /**
@@ -581,7 +592,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
             }
 
             // Name
-            HtmlTree nameSpan = new HtmlTree(HtmlTag.SPAN);
+            HtmlTree nameSpan = new HtmlTree(TagName.SPAN);
             nameSpan.setStyle(HtmlStyle.memberName);
             if (options.linkSource()) {
                 Content name = new StringContent(name(element));
@@ -615,21 +626,16 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
             set.remove(STRICTFP);
 
             // According to JLS, we should not be showing public modifier for
-            // interface methods.
-            if ((utils.isField(element) || utils.isMethod(element))
-                    && ((writer instanceof ClassWriterImpl
-                    && utils.isInterface(((ClassWriterImpl) writer).getTypeElement())  ||
-                    writer instanceof AnnotationTypeWriterImpl) )) {
-                // Remove the implicit abstract and public modifiers
-                if (utils.isMethod(element) &&
-                        (utils.isInterface(element.getEnclosingElement()) ||
-                                utils.isAnnotationType(element.getEnclosingElement()))) {
-                    set.remove(ABSTRACT);
-                    set.remove(PUBLIC);
-                }
-                if (!utils.isMethod(element)) {
-                    set.remove(PUBLIC);
-                }
+            // interface methods and fields.
+            if ((utils.isField(element) || utils.isMethod(element))) {
+               Element te = element.getEnclosingElement();
+               if (utils.isInterface(te) || utils.isAnnotationType(te)) {
+                   // Remove the implicit abstract and public modifiers
+                   if (utils.isMethod(element)) {
+                       set.remove(ABSTRACT);
+                   }
+                   set.remove(PUBLIC);
+               }
             }
             if (!set.isEmpty()) {
                 String mods = set.stream().map(Modifier::toString).collect(Collectors.joining(" "));
@@ -686,7 +692,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter {
                 parameters.add(")");
                 htmltree.add(Entity.ZERO_WIDTH_SPACE);
                 htmltree.add("(");
-                htmltree.add(HtmlTree.SPAN(HtmlStyle.arguments, parameters));
+                htmltree.add(HtmlTree.SPAN(HtmlStyle.parameters, parameters));
             }
 
             // Exceptions

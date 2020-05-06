@@ -32,8 +32,9 @@ import javax.lang.model.element.TypeElement;
 
 import com.sun.source.doctree.DocTree;
 import jdk.javadoc.internal.doclets.formats.html.markup.BodyContents;
+import jdk.javadoc.internal.doclets.formats.html.markup.ContentBuilder;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle;
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTag;
+import jdk.javadoc.internal.doclets.formats.html.markup.TagName;
 import jdk.javadoc.internal.doclets.formats.html.markup.HtmlTree;
 import jdk.javadoc.internal.doclets.toolkit.Content;
 import jdk.javadoc.internal.doclets.toolkit.util.DocPath;
@@ -179,9 +180,7 @@ public abstract class SubWriterHolderWriter extends HtmlDocletWriter {
      * @return a content tree the document content header
      */
     public Content getContentHeader() {
-        HtmlTree div = new HtmlTree(HtmlTag.DIV);
-        div.setStyle(HtmlStyle.contentContainer);
-        return div;
+        return new ContentBuilder();
     }
 
     /**
@@ -208,28 +207,87 @@ public abstract class SubWriterHolderWriter extends HtmlDocletWriter {
      * @return a content tree for the member header
      */
     public Content getMemberTreeHeader() {
-        HtmlTree ul = new HtmlTree(HtmlTag.UL);
+        HtmlTree ul = new HtmlTree(TagName.UL);
         ul.setStyle(HtmlStyle.blockList);
         return ul;
     }
 
+    /**
+     * Returns a list to be used for the list of summaries for members of a given kind.
+     *
+     * @return a list to be used for the list of summaries for members of a given kind
+     */
+    public Content getSummariesList() {
+        return new HtmlTree(TagName.UL).setStyle(HtmlStyle.summaryList);
+    }
+
+    /**
+     * Returns an item for the list of summaries for members of a given kind.
+     *
+     * @param content content for the item
+     * @return an item for the list of summaries for members of a given kind
+     */
+    public Content getSummariesListItem(Content content) {
+        return HtmlTree.LI(content);
+    }
+
+
+    /**
+     * Returns a list to be used for the list of details for members of a given kind.
+     *
+     * @return a list to be used for the list of details for members of a given kind
+     */
+    public Content getDetailsList() {
+        return new HtmlTree(TagName.UL).setStyle(HtmlStyle.detailsList);
+    }
+
+    /**
+     * Returns an item for the list of details for members of a given kind.
+     *
+     * @param content content for the item
+     * @return an item for the list of details for members of a given kind
+     */
+    public Content getDetailsListItem(Content content) {
+        return HtmlTree.LI(content);
+    }
+
+    /**
+     * Returns a list to be used for the list of members of a given kind.
+     *
+     * @return a list to be used for the list of members of a given kind
+     */
+    public Content getMemberList() {
+        return new HtmlTree(TagName.UL).setStyle(HtmlStyle.memberList);
+    }
+
+    /**
+     * Returns an item for the list of elements of a given kind
+     *
+     * @param content content for the item
+     * @return an item for the list of elements of a given kind
+     */
+    public Content getMemberListItem(Content content) {
+        return HtmlTree.LI(content);
+    }
+
     public Content getMemberInheritedTree() {
-        HtmlTree div = new HtmlTree(HtmlTag.DIV);
+        HtmlTree div = new HtmlTree(TagName.DIV);
         div.setStyle(HtmlStyle.inheritedList);
         return div;
     }
 
     /**
-     * Adds the member tree with css style and id attribute.
-     * @param style the css style to be applied to member tree
-     * @param sectionName the section name to use for the section id attribute
-     * @param memberSummaryTree the content tree representing the member summary
-     * @param memberTree the content tree representing the member
+     * Adds a section for a summary tree with the given CSS {@code class} and {@code id} attribute.
+     *
+     * @param style         the CSS class for the section
+     * @param sectionName   the section name to use for the section id attribute
+     * @param summariesList the list of summary sections to which the summary will be added
+     * @param content       the content tree representing the summary
      */
-    public void addMemberTree(HtmlStyle style, SectionName sectionName, Content memberSummaryTree, Content memberTree) {
-        HtmlTree htmlTree = HtmlTree.SECTION(style, memberTree)
+    public void addSummary(HtmlStyle style, SectionName sectionName, Content summariesList, Content content) {
+        HtmlTree htmlTree = HtmlTree.SECTION(style, content)
                 .setId(sectionName.getName());
-        memberSummaryTree.add(getMemberTree(htmlTree));
+        summariesList.add(getSummariesListItem(htmlTree));
     }
 
     /**
@@ -239,7 +297,7 @@ public abstract class SubWriterHolderWriter extends HtmlDocletWriter {
      * @return a content tree for the member
      */
     public Content getMemberTree(Content contentTree) {
-        return HtmlTree.LI(HtmlStyle.blockList, contentTree);
+        return HtmlTree.LI(contentTree);
     }
 
     /**

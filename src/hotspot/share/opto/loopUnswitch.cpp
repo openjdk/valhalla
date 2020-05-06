@@ -182,29 +182,32 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
   ProjNode* proj_true = create_slow_version_of_loop(loop, old_new, unswitch_iff->Opcode(), CloneIncludesStripMined);
 
 #ifdef ASSERT
-  Node* uniqc = proj_true->unique_ctrl_out();
+  assert(proj_true->is_IfTrue(), "must be true projection");
   entry = head->skip_strip_mined()->in(LoopNode::EntryControl);
   Node* predicate = find_predicate(entry);
-  if (predicate != NULL) {
-    entry = skip_loop_predicates(entry);
-  }
-  if (predicate != NULL && UseLoopPredicate) {
-    // We may have two predicates, find first.
-    Node* n = find_predicate(entry);
-    if (n != NULL) {
-      predicate = n;
-      entry = skip_loop_predicates(entry);
+  if (predicate == NULL) {
+    // No empty predicate
+    Node* uniqc = proj_true->unique_ctrl_out();
+    assert((uniqc == head && !head->is_strip_mined()) || (uniqc == head->in(LoopNode::EntryControl)
+           && head->is_strip_mined()), "must hold by construction if no predicates");
+  } else {
+    // There is at least one empty predicate. When calling 'skip_loop_predicates' on each found empty predicate,
+    // we should end up at 'proj_true'.
+    Node* proj_before_first_empty_predicate = skip_loop_predicates(entry);
+    if (UseProfiledLoopPredicate) {
+      predicate = find_predicate(proj_before_first_empty_predicate);
+      if (predicate != NULL) {
+        proj_before_first_empty_predicate = skip_loop_predicates(predicate);
+      }
     }
+    if (UseLoopPredicate) {
+      predicate = find_predicate(proj_before_first_empty_predicate);
+      if (predicate != NULL) {
+        proj_before_first_empty_predicate = skip_loop_predicates(predicate);
+      }
+    }
+    assert(proj_true == proj_before_first_empty_predicate, "must hold by construction if at least one predicate");
   }
-  if (predicate != NULL && UseProfiledLoopPredicate) {
-    entry = find_predicate(entry);
-    if (entry != NULL) predicate = entry;
-  }
-  if (predicate != NULL) predicate = predicate->in(0);
-  assert(proj_true->is_IfTrue() &&
-         (predicate == NULL && uniqc == head && !head->is_strip_mined() ||
-          predicate == NULL && uniqc == head->in(LoopNode::EntryControl) && head->is_strip_mined() ||
-          predicate != NULL && uniqc == predicate), "by construction");
 #endif
   // Increment unswitch count
   LoopNode* head_clone = old_new[head->_idx]->as_Loop();
@@ -314,15 +317,16 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
     for (uint i = 0; i < flattened_checks.size(); i++) {
       IfNode* iff = flattened_checks.at(i)->as_If();
       _igvn.rehash_node_delayed(iff);
-      short_circuit_if(old_new[iff->_idx]->as_If(), proj_false);
+      dominated_by(proj_false, old_new[iff->_idx]->as_If(), false, false);
     }
   } else {
     // Hardwire the control paths in the loops into if(true) and if(false)
     _igvn.rehash_node_delayed(unswitch_iff);
-    short_circuit_if(unswitch_iff, proj_true);
+    dominated_by(proj_true, unswitch_iff, false, false);
 
+    IfNode* unswitch_iff_clone = old_new[unswitch_iff->_idx]->as_If();
     _igvn.rehash_node_delayed(unswitch_iff_clone);
-    short_circuit_if(unswitch_iff_clone, proj_false);
+    dominated_by(proj_false, unswitch_iff_clone, false, false);
   }
 
   // Reoptimize loops
@@ -373,6 +377,7 @@ ProjNode* PhaseIdealLoop::create_slow_version_of_loop(IdealLoopTree *loop,
   register_node(iffast, outer_loop, iff, dom_depth(iff));
   ProjNode* ifslow = new IfFalseNode(iff);
   register_node(ifslow, outer_loop, iff, dom_depth(iff));
+  uint idx_before_clone = Compile::current()->unique();
 
   // Clone the loop body.  The clone becomes the slow loop.  The
   // original pre-header will (illegally) have 3 control users
@@ -381,10 +386,10 @@ ProjNode* PhaseIdealLoop::create_slow_version_of_loop(IdealLoopTree *loop,
   assert(old_new[head->_idx]->is_Loop(), "" );
 
   // Fast (true) control
-  Node* iffast_pred = clone_loop_predicates(entry, iffast, !counted_loop);
+  Node* iffast_pred = clone_loop_predicates(entry, iffast, !counted_loop, false, idx_before_clone, old_new);
 
   // Slow (false) control
-  Node* ifslow_pred = clone_loop_predicates(entry, ifslow, !counted_loop);
+  Node* ifslow_pred = clone_loop_predicates(entry, ifslow, !counted_loop, true, idx_before_clone, old_new);
 
   Node* l = head->skip_strip_mined();
   _igvn.replace_input_of(l, LoopNode::EntryControl, iffast_pred);

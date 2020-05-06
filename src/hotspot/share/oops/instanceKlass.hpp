@@ -163,6 +163,7 @@ class InstanceKlass: public Klass {
   friend class JVMCIVMStructs;
   friend class ClassFileParser;
   friend class CompileReplay;
+  friend class TemplateTable;
 
  public:
   static const KlassID ID = InstanceKlassID;
@@ -291,9 +292,11 @@ class InstanceKlass: public Klass {
     _misc_is_being_redefined                  = 1 << 17, // used for locking redefinition
     _misc_has_contended_annotations           = 1 << 18, // has @Contended annotation
     _misc_has_value_fields                    = 1 << 19, // has value fields and related embedded section is not empty
-    _misc_is_empty_value                      = 1 << 20  // empty value type
+    _misc_is_empty_value                      = 1 << 20, // empty value type
+    _misc_is_naturally_atomic                 = 1 << 21, // loaded/stored in one instruction
+    _misc_is_declared_atomic                  = 1 << 22  // implements jl.NonTearable
   };
-  u2 loader_type_bits() {
+  u2 shared_loader_type_bits() const {
     return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
   }
   u4              _misc_flags;
@@ -387,10 +390,7 @@ class InstanceKlass: public Klass {
   static bool _disable_method_binary_search;
 
  public:
-  u2 loader_type() {
-    return _misc_flags & loader_type_bits();
-  }
-
+  // The three BUILTIN class loader types
   bool is_shared_boot_class() const {
     return (_misc_flags & _misc_is_shared_boot_class) != 0;
   }
@@ -400,12 +400,16 @@ class InstanceKlass: public Klass {
   bool is_shared_app_class() const {
     return (_misc_flags & _misc_is_shared_app_class) != 0;
   }
-
-  void clear_class_loader_type() {
-    _misc_flags &= ~loader_type_bits();
+  // The UNREGISTERED class loader type
+  bool is_shared_unregistered_class() const {
+    return (_misc_flags & shared_loader_type_bits()) == 0;
   }
 
-  void set_class_loader_type(s2 loader_type);
+  void clear_shared_class_loader_type() {
+    _misc_flags &= ~shared_loader_type_bits();
+  }
+
+  void set_shared_class_loader_type(s2 loader_type);
 
   bool has_nonstatic_fields() const        {
     return (_misc_flags & _misc_has_nonstatic_fields) != 0;
@@ -430,6 +434,32 @@ class InstanceKlass: public Klass {
   }
   void set_is_empty_value() {
     _misc_flags |= _misc_is_empty_value;
+  }
+
+  // Note:  The naturally_atomic property only applies to
+  // inline classes; it is never true on identity classes.
+  // The bit is placed on instanceKlass for convenience.
+
+  // Query if h/w provides atomic load/store for instances.
+  bool is_naturally_atomic() const {
+    return (_misc_flags & _misc_is_naturally_atomic) != 0;
+  }
+  // Initialized in the class file parser, not changed later.
+  void set_is_naturally_atomic() {
+    _misc_flags |= _misc_is_naturally_atomic;
+  }
+
+  // Query if this class implements jl.NonTearable or was
+  // mentioned in the JVM option AlwaysAtomicValueTypes.
+  // This bit can occur anywhere, but is only significant
+  // for inline classes *and* their super types.
+  // It inherits from supers along with NonTearable.
+  bool is_declared_atomic() const {
+    return (_misc_flags & _misc_is_declared_atomic) != 0;
+  }
+  // Initialized in the class file parser, not changed later.
+  void set_is_declared_atomic() {
+    _misc_flags |= _misc_is_declared_atomic;
   }
 
   // field sizes
@@ -560,7 +590,7 @@ public:
   ModuleEntry* module() const;
   bool in_unnamed_package() const   { return (_package_entry == NULL); }
   void set_package(PackageEntry* p) { _package_entry = p; }
-  void set_package(ClassLoaderData* loader_data, TRAPS);
+  void set_package(ClassLoaderData* loader_data, PackageEntry* pkg_entry, TRAPS);
   bool is_same_class_package(const Klass* class2) const;
   bool is_same_class_package(oop other_class_loader, const Symbol* other_class_name) const;
 
@@ -662,11 +692,11 @@ public:
 
   // find a local method, but skip static methods
   Method* find_instance_method(const Symbol* name, const Symbol* signature,
-                               PrivateLookupMode private_mode = find_private) const;
+                               PrivateLookupMode private_mode) const;
   static Method* find_instance_method(const Array<Method*>* methods,
                                       const Symbol* name,
                                       const Symbol* signature,
-                                      PrivateLookupMode private_mode = find_private);
+                                      PrivateLookupMode private_mode);
 
   // find a local method (returns NULL if not found)
   Method* find_local_method(const Symbol* name,
@@ -1318,7 +1348,6 @@ public:
   // Naming
   const char* signature_name() const;
   const char* signature_name_of(char c) const;
-  static Symbol* package_from_name(const Symbol* name, TRAPS);
 
   // Oop fields (and metadata) iterators
   //
@@ -1372,13 +1401,6 @@ public:
 
  public:
   u2 idnum_allocated_count() const      { return _idnum_allocated_count; }
-
-public:
-  void set_in_error_state() {
-    assert(DumpSharedSpaces, "only call this when dumping archive");
-    _init_state = initialization_error;
-  }
-  bool check_sharing_error_state();
 
 private:
   // initialization state
@@ -1446,7 +1468,7 @@ public:
   // CDS support - remove and restore oops from metadata. Oops are not shared.
   virtual void remove_unshareable_info();
   virtual void remove_java_mirror();
-  virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, TRAPS);
+  virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS);
 
   // jvm support
   jint compute_modifier_flags(TRAPS) const;

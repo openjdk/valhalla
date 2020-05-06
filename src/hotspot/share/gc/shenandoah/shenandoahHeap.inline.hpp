@@ -48,6 +48,10 @@
 #include "utilities/copy.hpp"
 #include "utilities/globalDefinitions.hpp"
 
+inline ShenandoahHeap* ShenandoahHeap::heap() {
+  assert(_heap != NULL, "Heap is not initialized yet");
+  return _heap;
+}
 
 inline ShenandoahHeapRegion* ShenandoahRegionIterator::next() {
   size_t new_index = Atomic::add(&_index, (size_t) 1);
@@ -326,14 +330,12 @@ inline bool ShenandoahHeap::requires_marking(const void* entry) const {
 
 inline bool ShenandoahHeap::in_collection_set(oop p) const {
   assert(collection_set() != NULL, "Sanity");
-  assert(is_in(p), "should be in heap");
   return collection_set()->is_in(p);
 }
 
 inline bool ShenandoahHeap::in_collection_set_loc(void* p) const {
   assert(collection_set() != NULL, "Sanity");
-  assert(is_in(p), "should be in heap");
-  return collection_set()->is_in((HeapWord*)p);
+  return collection_set()->is_in_loc(p);
 }
 
 inline bool ShenandoahHeap::is_stable() const {
@@ -341,15 +343,11 @@ inline bool ShenandoahHeap::is_stable() const {
 }
 
 inline bool ShenandoahHeap::is_idle() const {
-  return _gc_state.is_unset(MARKING | EVACUATION | UPDATEREFS | TRAVERSAL);
+  return _gc_state.is_unset(MARKING | EVACUATION | UPDATEREFS);
 }
 
 inline bool ShenandoahHeap::is_concurrent_mark_in_progress() const {
   return _gc_state.is_set(MARKING);
-}
-
-inline bool ShenandoahHeap::is_concurrent_traversal_in_progress() const {
-  return _gc_state.is_set(TRAVERSAL);
 }
 
 inline bool ShenandoahHeap::is_evacuation_in_progress() const {
@@ -380,8 +378,12 @@ inline bool ShenandoahHeap::is_stw_gc_in_progress() const {
   return is_full_gc_in_progress() || is_degenerated_gc_in_progress();
 }
 
-inline bool ShenandoahHeap::is_concurrent_root_in_progress() const {
-  return _concurrent_root_in_progress.is_set();
+inline bool ShenandoahHeap::is_concurrent_strong_root_in_progress() const {
+  return _concurrent_strong_root_in_progress.is_set();
+}
+
+inline bool ShenandoahHeap::is_concurrent_weak_root_in_progress() const {
+  return _concurrent_weak_root_in_progress.is_set();
 }
 
 template<class T>

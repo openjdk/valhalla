@@ -72,9 +72,9 @@ public class FieldWriterImpl extends AbstractMemberWriter
     }
 
     @Override
-    public void addMemberTree(Content memberSummaryTree, Content memberTree) {
-        writer.addMemberTree(HtmlStyle.fieldSummary,
-                SectionName.FIELD_SUMMARY, memberSummaryTree, memberTree);
+    public void addSummary(Content summariesList, Content content) {
+        writer.addSummary(HtmlStyle.fieldSummary,
+                SectionName.FIELD_SUMMARY, summariesList, content);
     }
 
     @Override
@@ -90,7 +90,7 @@ public class FieldWriterImpl extends AbstractMemberWriter
     @Override
     public Content getFieldDocTreeHeader(VariableElement field) {
         Content fieldTree = new ContentBuilder();
-        Content heading = new HtmlTree(Headings.TypeDeclaration.MEMBER_HEADING,
+        Content heading = HtmlTree.HEADING(Headings.TypeDeclaration.MEMBER_HEADING,
                 new StringContent(name(field)));
         fieldTree.add(heading);
         return HtmlTree.SECTION(HtmlStyle.detail, fieldTree).setId(name(field));
@@ -122,14 +122,11 @@ public class FieldWriterImpl extends AbstractMemberWriter
 
     @Override
     public Content getFieldDetails(Content fieldDetailsTreeHeader, Content fieldDetailsTree) {
-        Content fieldDetails = new ContentBuilder(fieldDetailsTreeHeader, fieldDetailsTree);
-        return getMemberTree(HtmlTree.SECTION(HtmlStyle.fieldDetails, fieldDetails)
-                .setId(SectionName.FIELD_DETAIL.getName()));
-    }
-
-    @Override
-    public Content getFieldDoc(Content fieldTree) {
-        return getMemberTree(fieldTree);
+        return writer.getDetailsListItem(
+                HtmlTree.SECTION(HtmlStyle.fieldDetails)
+                        .setId(SectionName.FIELD_DETAIL.getName())
+                        .add(fieldDetailsTreeHeader)
+                        .add(fieldDetailsTree));
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -434,12 +434,9 @@ int LIR_Assembler::emit_unwind_handler() {
   }
 
   if (compilation()->env()->dtrace_method_probes()) {
-    __ call_Unimplemented();
-#if 0
-    __ movptr(Address(rsp, 0), rax);
-    __ mov_metadata(Address(rsp, sizeof(void*)), method()->constant_encoding());
-    __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_exit)));
-#endif
+    __ mov(c_rarg0, rthread);
+    __ mov_metadata(c_rarg1, method()->constant_encoding());
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, SharedRuntime::dtrace_method_exit), c_rarg0, c_rarg1);
   }
 
   if (method()->is_synchronized() || compilation()->env()->dtrace_method_probes()) {
@@ -522,8 +519,7 @@ void LIR_Assembler::return_op(LIR_Opr result) {
     __ reserved_stack_check();
   }
 
-  address polling_page(os::get_polling_page());
-  __ read_polling_page(rscratch1, polling_page, relocInfo::poll_return_type);
+  __ fetch_and_read_polling_page(rscratch1, relocInfo::poll_return_type);
   __ ret(lr);
 }
 
@@ -532,10 +528,8 @@ int LIR_Assembler::store_value_type_fields_to_buf(ciValueKlass* vk) {
 }
 
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
-  address polling_page(os::get_polling_page());
   guarantee(info != NULL, "Shouldn't be NULL");
-  assert(os::is_poll_address(polling_page), "should be");
-  __ get_polling_page(rscratch1, polling_page, relocInfo::poll_type);
+  __ get_polling_page(rscratch1, relocInfo::poll_type);
   add_debug_info_for_branch(info);  // This isn't just debug info:
                                     // it's the oop map
   __ read_polling_page(rscratch1, relocInfo::poll_type);
@@ -692,7 +686,7 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
     assert(c->as_jint() == 0, "should be");
     insn = &Assembler::strw;
     break;
-  case T_VALUETYPE: 
+  case T_VALUETYPE:
   case T_OBJECT:
   case T_ARRAY:
     // Non-null case is not handled on aarch64 but handled on x86
@@ -955,7 +949,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
   LIR_Address* addr = src->as_address_ptr();
   LIR_Address* from_addr = src->as_address_ptr();
 
-  if (addr->base()->type() == T_OBJECT || addr->base()->type() == T_VALUETYPE) { 
+  if (addr->base()->type() == T_OBJECT || addr->base()->type() == T_VALUETYPE) {
     __ verify_oop(addr->base()->as_pointer_register());
   }
 
@@ -1637,10 +1631,10 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
     __ andr(tmp1, tmp1, tmp2);
 
     __ ldr(tmp2, Address(right, oopDesc::mark_offset_in_bytes()));
-    __ andr(tmp1, tmp1, tmp2); 
+    __ andr(tmp1, tmp1, tmp2);
 
     __ mov(tmp2, (intptr_t)markWord::always_locked_pattern);
-    __ cmp(tmp1, tmp2); 
+    __ cmp(tmp1, tmp2);
     __ br(Assembler::NE, L_oops_not_equal);
   }
 
@@ -2302,7 +2296,7 @@ void LIR_Assembler::shift_op(LIR_Code code, LIR_Opr left, LIR_Opr count, LIR_Opr
       }
       break;
     case T_LONG:
-    case T_VALUETYPE: 
+    case T_VALUETYPE:
     case T_ADDRESS:
     case T_OBJECT:
       switch (code) {

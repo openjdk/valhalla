@@ -241,7 +241,6 @@ public class JavacParser implements Parser {
      *     mode = NOPARAMS    : no parameters allowed for type
      *     mode = TYPEARG     : type argument
      *     mode |= NOLAMBDA   : lambdas are not allowed
-     *     mode |= NOQUESTION   : type terminal ? is not allowed
      */
     protected static final int EXPR = 0x1;
     protected static final int TYPE = 0x2;
@@ -249,7 +248,6 @@ public class JavacParser implements Parser {
     protected static final int TYPEARG = 0x8;
     protected static final int DIAMOND = 0x10;
     protected static final int NOLAMBDA = 0x20;
-    protected static final int NOQUESTION = 0x40;
 
     protected void selectExprMode() {
         mode = (mode & NOLAMBDA) | EXPR;
@@ -638,7 +636,7 @@ public class JavacParser implements Parser {
     }
 
     /**
-     * Qualident = Ident { DOT [Annotations] Ident } {?}
+     * Qualident = Ident { DOT [Annotations] Ident }
      */
     public JCExpression qualident(boolean allowAnnos) {
         JCExpression t = toP(F.at(token.pos).Ident(ident()));
@@ -653,13 +651,6 @@ public class JavacParser implements Parser {
             if (tyannos != null && tyannos.nonEmpty()) {
                 t = toP(F.at(tyannos.head.pos).AnnotatedType(tyannos, t));
             }
-        }
-        /* if the qualified identifier being parsed is for a type name (as indicated by allowAnnos),
-           also process any terminal ? to signal nullable projection for a value type.
-        */
-        if (allowAnnos && token.kind == QUES) {
-            t.setQuestioned();
-            nextToken();
         }
         return t;
     }
@@ -804,25 +795,13 @@ public class JavacParser implements Parser {
         return parseType(false);
     }
 
-    public JCExpression parseTypeSansQuestion() {
-        List<JCAnnotation> annotations = typeAnnotationsOpt();
-        boolean questionOK = peekToken(0, QUES) && peekToken(1, LBRACKET)  && peekToken(2, RBRACKET);
-        JCExpression result = unannotatedType(false, TYPE | (questionOK ? 0 : NOQUESTION));
-        mode &= ~NOQUESTION;
-        if (annotations.nonEmpty()) {
-            result = insertAnnotationsToMostInner(result, annotations, false);
-        }
-
-        return result;
-    }
-
     public JCExpression parseType(boolean allowVar) {
         List<JCAnnotation> annotations = typeAnnotationsOpt();
         return parseType(allowVar, annotations);
     }
 
     public JCExpression parseType(boolean allowVar, List<JCAnnotation> annotations) {
-        JCExpression result = unannotatedType(allowVar, TYPE);
+        JCExpression result = unannotatedType(allowVar);
 
         if (annotations.nonEmpty()) {
             result = insertAnnotationsToMostInner(result, annotations, false);
@@ -831,8 +810,8 @@ public class JavacParser implements Parser {
         return result;
     }
 
-    public JCExpression unannotatedType(boolean allowVar, int termMode) {
-        JCExpression result = term(termMode);
+    public JCExpression unannotatedType(boolean allowVar) {
+        JCExpression result = term(TYPE);
         Name restrictedTypeName = restrictedTypeName(result, !allowVar);
 
         if (restrictedTypeName != null && (!allowVar || restrictedTypeName != names.var)) {
@@ -869,7 +848,7 @@ public class JavacParser implements Parser {
     JCExpression term() {
         JCExpression t = term1();
         if ((mode & EXPR) != 0 &&
-            token.kind == EQ || PLUSEQ.compareTo(token.kind) <= 0 && token.kind.compareTo(GTGTGTEQ) <= 0)
+            (token.kind == EQ || PLUSEQ.compareTo(token.kind) <= 0 && token.kind.compareTo(GTGTGTEQ) <= 0))
             return termRest(t);
         else
             return t;
@@ -978,7 +957,7 @@ public class JavacParser implements Parser {
             if (token.kind == INSTANCEOF) {
                 int pos = token.pos;
                 nextToken();
-                JCTree pattern = parseTypeSansQuestion();
+                JCTree pattern = parseType();
                 if (token.kind == IDENTIFIER) {
                     checkSourceLevel(token.pos, Feature.PATTERN_MATCHING_IN_INSTANCEOF);
                     pattern = toP(F.at(token.pos).BindingPattern(ident(), pattern));
@@ -1295,7 +1274,6 @@ public class JavacParser implements Parser {
                 t = lambdaExpressionOrStatement(false, false, pos);
             } else {
                 t = toP(F.at(token.pos).Ident(ident()));
-                handleQuestion(t);
                 loop: while (true) {
                     pos = token.pos;
                     final List<JCAnnotation> annos = typeAnnotationsOpt();
@@ -1387,7 +1365,6 @@ public class JavacParser implements Parser {
                         }
                         // typeArgs saved for next loop iteration.
                         t = toP(F.at(pos).Select(t, ident()));
-                        handleQuestion(t);
                         if (tyannos != null && tyannos.nonEmpty()) {
                             t = toP(F.at(tyannos.head.pos).AnnotatedType(tyannos, t));
                         }
@@ -1500,17 +1477,6 @@ public class JavacParser implements Parser {
         }
         return term3Rest(t, typeArgs);
     }
-
-    // where
-        private void handleQuestion(JCExpression t) {
-            if (token.kind == QUES) {
-                if (((mode & NOQUESTION) == 0 && (mode & TYPE) != 0) ||
-                        (peekToken(0, LBRACKET) && peekToken(1, RBRACKET) && peekToken(2, DOT) && peekToken(3, CLASS))) {
-                    t.setQuestioned();
-                    nextToken();
-                }
-            }
-        }
 
     private List<JCCase> switchExpressionStatementGroup() {
         ListBuffer<JCCase> caseExprs = new ListBuffer<>();
@@ -2183,16 +2149,13 @@ public class JavacParser implements Parser {
         if (!annotations.isEmpty()) {
             result = toP(F.at(annotations.head.pos).AnnotatedType(annotations,result));
         }
-        handleQuestion(result);
         return result;
     }
 
     JCTypeApply typeArguments(JCExpression t, boolean diamondAllowed) {
         int pos = token.pos;
         List<JCExpression> args = typeArguments(diamondAllowed);
-        JCTypeApply ta = toP(F.at(pos).TypeApply(t, args));
-        handleQuestion(ta);
-        return ta;
+        return toP(F.at(pos).TypeApply(t, args));
     }
 
     /**
@@ -2700,7 +2663,7 @@ public class JavacParser implements Parser {
                 boolean isYieldStatement;
                 switch (next.kind) {
                     case PLUS: case SUB: case STRINGLITERAL: case CHARLITERAL:
-                    case INTLITERAL: case FLOATLITERAL: case DOUBLELITERAL:
+                    case INTLITERAL: case LONGLITERAL: case FLOATLITERAL: case DOUBLELITERAL:
                     case NULL: case IDENTIFIER: case TRUE: case FALSE:
                     case NEW: case SWITCH: case THIS: case SUPER:
                         isYieldStatement = true;
@@ -3395,7 +3358,7 @@ public class JavacParser implements Parser {
         int startPos = Position.NOPOS;
         if (elemType.hasTag(IDENT)) {
             Name typeName = ((JCIdent)elemType).name;
-            if (isRestrictedTypeName(typeName, pos, !compound && localDecl)) {
+            if (restrictedTypeNameStartingAtSource(typeName, pos, !compound && localDecl) != null) {
                 if (type.hasTag(TYPEARRAY) && !compound) {
                     //error - 'var' and arrays
                     reportSyntaxError(pos, Errors.RestrictedTypeNotAllowedArray(typeName));
@@ -3457,7 +3420,7 @@ public class JavacParser implements Parser {
     Name restrictedTypeName(JCExpression e, boolean shouldWarn) {
         switch (e.getTag()) {
             case IDENT:
-                return isRestrictedTypeName(((JCIdent)e).name, e.pos, shouldWarn) ? ((JCIdent)e).name : null;
+                return restrictedTypeNameStartingAtSource(((JCIdent)e).name, e.pos, shouldWarn) != null ? ((JCIdent)e).name : null;
             case TYPEARRAY:
                 return restrictedTypeName(((JCArrayTypeTree)e).elemtype, shouldWarn);
             default:
@@ -3465,29 +3428,29 @@ public class JavacParser implements Parser {
         }
     }
 
-    boolean isRestrictedTypeName(Name name, int pos, boolean shouldWarn) {
+    Source restrictedTypeNameStartingAtSource(Name name, int pos, boolean shouldWarn) {
         if (name == names.var) {
             if (Feature.LOCAL_VARIABLE_TYPE_INFERENCE.allowedInSource(source)) {
-                return true;
+                return Source.JDK10;
             } else if (shouldWarn) {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowed(name, Source.JDK10));
             }
         }
         if (name == names.yield) {
             if (allowYieldStatement) {
-                return true;
+                return Source.JDK14;
             } else if (shouldWarn) {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowed(name, Source.JDK14));
             }
         }
         if (name == names.record) {
             if (allowRecords) {
-                return true;
+                return Source.JDK14;
             } else if (shouldWarn) {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK14));
             }
         }
-        return false;
+        return null;
     }
 
     /** VariableDeclaratorId = Ident BracketsOpt
@@ -3935,8 +3898,9 @@ public class JavacParser implements Parser {
     Name typeName() {
         int pos = token.pos;
         Name name = ident();
-        if (isRestrictedTypeName(name, pos, true)) {
-            reportSyntaxError(pos, Errors.RestrictedTypeNotAllowed(name, name == names.var ? Source.JDK10 : Source.JDK13));
+        Source source = restrictedTypeNameStartingAtSource(name, pos, true);
+        if (source != null) {
+            reportSyntaxError(pos, Errors.RestrictedTypeNotAllowed(name, source));
         }
         return name;
     }
@@ -4232,7 +4196,7 @@ public class JavacParser implements Parser {
                     nextToken();
                 } else {
                     // method returns types are un-annotated types
-                    type = unannotatedType(false, TYPE);
+                    type = unannotatedType(false);
                 }
                 if ((token.kind == LPAREN && !isInterface ||
                         isRecord && token.kind == LBRACE) && type.hasTag(IDENT)) {

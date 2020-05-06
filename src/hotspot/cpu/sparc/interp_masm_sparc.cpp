@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -271,7 +271,7 @@ void InterpreterMacroAssembler::dispatch_Lbyte_code(TosState state, address* tab
   AddressLiteral tbl(table);
   Label dispatch;
 
-  if (SafepointMechanism::uses_thread_local_poll() && generate_poll) {
+  if (generate_poll) {
     AddressLiteral sfpt_tbl(Interpreter::safept_table(state));
     Label no_safepoint;
 
@@ -1646,36 +1646,10 @@ void InterpreterMacroAssembler::profile_virtual_call(Register receiver,
     bind(skip_receiver_profile);
 
     // The method data pointer needs to be updated to reflect the new target.
-#if INCLUDE_JVMCI
-    if (MethodProfileWidth == 0) {
-      update_mdp_by_constant(in_bytes(VirtualCallData::virtual_call_data_size()));
-    }
-#else
-    update_mdp_by_constant(in_bytes(VirtualCallData::virtual_call_data_size()));
-#endif
-    bind(profile_continue);
-  }
-}
-
-#if INCLUDE_JVMCI
-void InterpreterMacroAssembler::profile_called_method(Register method, Register scratch) {
-  assert_different_registers(method, scratch);
-  if (ProfileInterpreter && MethodProfileWidth > 0) {
-    Label profile_continue;
-
-    // If no method data exists, go to profile_continue.
-    test_method_data_pointer(profile_continue);
-
-    Label done;
-    record_item_in_profile_helper(method, scratch, 0, done, MethodProfileWidth,
-      &VirtualCallData::method_offset, &VirtualCallData::method_count_offset, in_bytes(VirtualCallData::nonprofiled_receiver_count_offset()));
-    bind(done);
-
     update_mdp_by_constant(in_bytes(VirtualCallData::virtual_call_data_size()));
     bind(profile_continue);
   }
 }
-#endif // INCLUDE_JVMCI
 
 void InterpreterMacroAssembler::record_klass_in_profile_helper(Register receiver, Register scratch,
                                                                Label& done, bool is_virtual_call) {

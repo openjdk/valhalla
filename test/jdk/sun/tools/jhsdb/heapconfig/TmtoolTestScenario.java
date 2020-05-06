@@ -35,6 +35,7 @@ import java.util.logging.Logger;
 
 import jdk.test.lib.apps.LingeredApp;
 import jdk.test.lib.JDKToolLauncher;
+import jdk.test.lib.SA.SATestUtils;
 import jdk.test.lib.Utils;
 
 public class TmtoolTestScenario {
@@ -98,7 +99,8 @@ public class TmtoolTestScenario {
                 List<String> vmArgsExtended = new ArrayList<String>();
                 vmArgsExtended.add("-XX:+UsePerfData");
                 Collections.addAll(vmArgsExtended, vmArgs);
-                theApp = LingeredApp.startApp(vmArgsExtended.toArray(new String[0]));
+                theApp = new LingeredApp();
+                LingeredApp.startAppExactJvmOpts(theApp, vmArgsExtended.toArray(new String[0]));
 
                 System.out.println("Starting " + toolName + " against " + theApp.getPid());
                 JDKToolLauncher launcher = JDKToolLauncher.createUsingTestJDK("jhsdb");
@@ -110,7 +112,7 @@ public class TmtoolTestScenario {
                 launcher.addToolArg("--pid");
                 launcher.addToolArg(Long.toString(theApp.getPid()));
 
-                ProcessBuilder processBuilder = new ProcessBuilder(launcher.getCommand());
+                ProcessBuilder processBuilder = SATestUtils.createProcessBuilder(launcher);
                 processBuilder.redirectError(ProcessBuilder.Redirect.INHERIT);
                 Process toolProcess = processBuilder.start();
 

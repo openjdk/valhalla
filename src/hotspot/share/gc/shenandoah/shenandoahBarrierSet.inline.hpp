@@ -49,8 +49,32 @@ inline oop ShenandoahBarrierSet::resolve_forwarded(oop p) {
   }
 }
 
+inline oop ShenandoahBarrierSet::resolve_forwarded_not_null_mutator(oop p) {
+  return ShenandoahForwarding::get_forwardee_mutator(p);
+}
+
+template <class T>
+inline oop ShenandoahBarrierSet::load_reference_barrier_mutator(oop obj, T* load_addr) {
+  assert(ShenandoahLoadRefBarrier, "should be enabled");
+  shenandoah_assert_in_cset(load_addr, obj);
+
+  oop fwd = resolve_forwarded_not_null_mutator(obj);
+  if (obj == fwd) {
+    assert(_heap->is_evacuation_in_progress(),
+           "evac should be in progress");
+    ShenandoahEvacOOMScope scope;
+    fwd = _heap->evacuate_object(obj, Thread::current());
+  }
+
+  if (load_addr != NULL && fwd != obj) {
+    // Since we are here and we know the load address, update the reference.
+    ShenandoahHeap::cas_oop(fwd, load_addr, obj);
+  }
+
+  return fwd;
+}
+
 inline void ShenandoahBarrierSet::enqueue(oop obj) {
-  shenandoah_assert_not_forwarded_if(NULL, obj, _heap->is_concurrent_traversal_in_progress());
   assert(_satb_mark_queue_set.is_active(), "only get here when SATB active");
 
   // Filter marked objects before hitting the SATB queues. The same predicate would
@@ -83,15 +107,8 @@ inline void ShenandoahBarrierSet::satb_enqueue(oop value) {
 }
 
 inline void ShenandoahBarrierSet::storeval_barrier(oop obj) {
-  if (obj != NULL && ShenandoahStoreValEnqueueBarrier && _heap->is_concurrent_traversal_in_progress()) {
+  if (ShenandoahStoreValEnqueueBarrier && obj != NULL && _heap->is_concurrent_mark_in_progress()) {
     enqueue(obj);
-  }
-}
-
-inline void ShenandoahBarrierSet::keep_alive_barrier(oop value) {
-  assert(value != NULL, "checked before");
-  if (ShenandoahKeepAliveBarrier && _heap->is_concurrent_mark_in_progress()) {
-    enqueue(value);
   }
 }
 
@@ -100,7 +117,7 @@ inline void ShenandoahBarrierSet::keep_alive_if_weak(DecoratorSet decorators, oo
   const bool on_strong_oop_ref = (decorators & ON_STRONG_OOP_REF) != 0;
   const bool peek              = (decorators & AS_NO_KEEPALIVE) != 0;
   if (!peek && !on_strong_oop_ref) {
-    keep_alive_barrier(value);
+    satb_enqueue(value);
   }
 }
 
@@ -109,7 +126,7 @@ inline void ShenandoahBarrierSet::keep_alive_if_weak(oop value) {
   assert((decorators & ON_UNKNOWN_OOP_REF) == 0, "Reference strength must be known");
   if (!HasDecorator<decorators, ON_STRONG_OOP_REF>::value &&
       !HasDecorator<decorators, AS_NO_KEEPALIVE>::value) {
-    keep_alive_barrier(value);
+    satb_enqueue(value);
   }
 }
 
@@ -253,14 +270,16 @@ void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::oop_arraycopy
                                                                                          arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                                                                                          size_t length) {
   ShenandoahBarrierSet* bs = ShenandoahBarrierSet::barrier_set();
-  bs->arraycopy_pre(arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw),
-                    arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw),
-                    length);
+  bs->arraycopy_barrier(arrayOopDesc::obj_offset_to_raw(src_obj, src_offset_in_bytes, src_raw),
+                        arrayOopDesc::obj_offset_to_raw(dst_obj, dst_offset_in_bytes, dst_raw),
+                        length);
   Raw::oop_arraycopy_in_heap(src_obj, src_offset_in_bytes, src_raw, dst_obj, dst_offset_in_bytes, dst_raw, length);
 }
 
 template <class T, bool HAS_FWD, bool EVAC, bool ENQUEUE>
 void ShenandoahBarrierSet::arraycopy_work(T* src, size_t count) {
+  assert(HAS_FWD == _heap->has_forwarded_objects(), "Forwarded object status is sane");
+
   Thread* thread = Thread::current();
   SATBMarkQueue& queue = ShenandoahThreadLocalData::satb_mark_queue(thread);
   ShenandoahMarkingContext* ctx = _heap->marking_context();
@@ -271,7 +290,6 @@ void ShenandoahBarrierSet::arraycopy_work(T* src, size_t count) {
     if (!CompressedOops::is_null(o)) {
       oop obj = CompressedOops::decode_not_null(o);
       if (HAS_FWD && cset->is_in(obj)) {
-        assert(_heap->has_forwarded_objects(), "only get here with forwarded objects");
         oop fwd = resolve_forwarded_not_null(obj);
         if (EVAC && obj == fwd) {
           fwd = _heap->evacuate_object(obj, thread);
@@ -288,45 +306,48 @@ void ShenandoahBarrierSet::arraycopy_work(T* src, size_t count) {
 }
 
 template <class T>
-void ShenandoahBarrierSet::arraycopy_pre_work(T* src, T* dst, size_t count) {
-  if (_heap->is_concurrent_mark_in_progress()) {
-    if (_heap->has_forwarded_objects()) {
-      arraycopy_work<T, true, false, true>(dst, count);
-    } else {
-      arraycopy_work<T, false, false, true>(dst, count);
-    }
+void ShenandoahBarrierSet::arraycopy_barrier(T* src, T* dst, size_t count) {
+  if (count == 0) {
+    return;
   }
-
-  arraycopy_update_impl(src, count);
-}
-
-void ShenandoahBarrierSet::arraycopy_pre(oop* src, oop* dst, size_t count) {
-  arraycopy_pre_work(src, dst, count);
-}
-
-void ShenandoahBarrierSet::arraycopy_pre(narrowOop* src, narrowOop* dst, size_t count) {
-  arraycopy_pre_work(src, dst, count);
+  int gc_state = _heap->gc_state();
+  if ((gc_state & ShenandoahHeap::MARKING) != 0) {
+    arraycopy_marking(src, dst, count);
+  } else if ((gc_state & ShenandoahHeap::EVACUATION) != 0) {
+    arraycopy_evacuation(src, count);
+  } else if ((gc_state & ShenandoahHeap::UPDATEREFS) != 0) {
+    arraycopy_update(src, count);
+  }
 }
 
 template <class T>
-void ShenandoahBarrierSet::arraycopy_update_impl(T* src, size_t count) {
-  if (_heap->is_evacuation_in_progress()) {
-    ShenandoahEvacOOMScope oom_evac;
-    arraycopy_work<T, true, true, false>(src, count);
-  } else if (_heap->is_concurrent_traversal_in_progress()){
-    ShenandoahEvacOOMScope oom_evac;
-    arraycopy_work<T, true, true, true>(src, count);
-  } else if (_heap->has_forwarded_objects()) {
-    arraycopy_work<T, true, false, false>(src, count);
+void ShenandoahBarrierSet::arraycopy_marking(T* src, T* dst, size_t count) {
+  assert(_heap->is_concurrent_mark_in_progress(), "only during marking");
+  T* array = ShenandoahSATBBarrier ? dst : src;
+  if (!_heap->marking_context()->allocated_after_mark_start(reinterpret_cast<HeapWord*>(array))) {
+    arraycopy_work<T, false, false, true>(array, count);
   }
 }
 
-void ShenandoahBarrierSet::arraycopy_update(oop* src, size_t count) {
-  arraycopy_update_impl(src, count);
+inline bool ShenandoahBarrierSet::need_bulk_update(HeapWord* ary) {
+  return ary < _heap->heap_region_containing(ary)->get_update_watermark();
 }
 
-void ShenandoahBarrierSet::arraycopy_update(narrowOop* src, size_t count) {
-  arraycopy_update_impl(src, count);
+template <class T>
+void ShenandoahBarrierSet::arraycopy_evacuation(T* src, size_t count) {
+  assert(_heap->is_evacuation_in_progress(), "only during evacuation");
+  if (need_bulk_update(reinterpret_cast<HeapWord*>(src))) {
+    ShenandoahEvacOOMScope oom_evac;
+    arraycopy_work<T, true, true, false>(src, count);
+  }
+}
+
+template <class T>
+void ShenandoahBarrierSet::arraycopy_update(T* src, size_t count) {
+  assert(_heap->is_update_refs_in_progress(), "only during update-refs");
+  if (need_bulk_update(reinterpret_cast<HeapWord*>(src))) {
+    arraycopy_work<T, true, false, false>(src, count);
+  }
 }
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHBARRIERSET_INLINE_HPP
