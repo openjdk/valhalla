@@ -26,28 +26,24 @@
 /*
  * @test
  * @bug 8244458 8244414
- * @summary Diamond inference does not work with value classes
- * @run main InlineDiamondTest
+ * @summary Check that javac does not crash while computing LUB involving values.
+ * @run main LubWithInlines
  */
 
-public class InlineDiamondTest<E> {
-
-    interface I<T> {
+public class LubWithInlines {
+    interface I {}
+    static class Node implements I {
     }
-
-    public I<E> get() {
-        return new Y<>();
+    static I foo(Node e) {
+        var ret = (e == null) ? new XNodeWrapper() : e;
+        return ret;
     }
-
-    private inline class Y<U> implements I<U> {
-        int x = 42;
+    static inline class XNodeWrapper implements I {
+        int i = 42;
     }
-
     public static void main(String [] args) {
-        InlineDiamondTest<String> idt = new InlineDiamondTest<>();
-        I<String> is = idt.get();
-        String toString = is.toString();
-        if (!toString.equals("[InlineDiamondTest$Y x=42]"))
-            throw new AssertionError("Expected: " + toString);
+        I i = foo(null);
+        if (!i.toString().equals("[LubWithInlines$XNodeWrapper i=42]"))
+            throw new AssertionError("Unexpected: " + i);
     }
 }
