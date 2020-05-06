@@ -1290,6 +1290,7 @@ void Parse::do_method_entry() {
       lock_obj = makecon(t_lock);
     } else {                  // Else pass the "this" pointer,
       lock_obj = local(0);    // which is Parm0 from StartNode
+      assert(!_gvn.type(lock_obj)->make_oopptr()->can_be_value_type(), "can't be an inline type");
     }
     // Clear out dead values from the debug info.
     kill_dead_locals();

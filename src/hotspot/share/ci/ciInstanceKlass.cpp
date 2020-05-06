@@ -67,7 +67,6 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   _is_unsafe_anonymous = ik->is_unsafe_anonymous();
   _nonstatic_fields = NULL;            // initialized lazily by compute_nonstatic_fields
   _has_injected_fields = -1;
-  _vcc_klass = NULL;
   _implementor = NULL; // we will fill these lazily
 
   // Ensure that the metadata wrapped by the ciMetadata is kept alive by GC.
@@ -126,7 +125,6 @@ ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
   _has_nonstatic_fields = false;
   _nonstatic_fields = NULL;            // initialized lazily by compute_nonstatic_fields
   _has_injected_fields = -1;
-  _vcc_klass = NULL;
   _is_unsafe_anonymous = false;
   _loader = loader;
   _protection_domain = protection_domain;
@@ -672,6 +670,36 @@ ciInstanceKlass* ciInstanceKlass::implementor() {
   return impl;
 }
 
+bool ciInstanceKlass::can_be_value_klass(bool is_exact) {
+  if (!EnableValhalla) {
+    return false;
+  }
+  if (!is_loaded() ||   // Not loaded, might be a value klass
+      is_valuetype() || // Known to be a value klass
+      // Non-exact j.l.Object or interface klass
+      ((is_java_lang_Object() || is_interface()) && !is_exact)) {
+    return true;
+  }
+  if (is_abstract() && !has_nonstatic_fields()) {
+    // TODO Factor out and re-use similar code from the ClassFileParser
+    // An abstract class can only be implemented by a value type if it has no instance
+    // fields, no synchronized instance methods and an empty, no-arg constructor.
+    VM_ENTRY_MARK;
+    Array<Method*>* methods = get_instanceKlass()->methods();
+    for (int i = 0; i < methods->length(); i++) {
+      Method* m = methods->at(i);
+      if ((m->is_synchronized() && !m->is_static()) ||
+          (m->is_object_constructor() &&
+           (!m->signature()->is_void_method_signature() ||
+            !m->is_vanilla_constructor()))) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
 ciInstanceKlass* ciInstanceKlass::unsafe_anonymous_host() {
   assert(is_loaded(), "must be loaded");
   if (is_unsafe_anonymous()) {
@@ -679,10 +707,6 @@ ciInstanceKlass* ciInstanceKlass::unsafe_anonymous_host() {
     Klass* unsafe_anonymous_host = get_instanceKlass()->unsafe_anonymous_host();
     return CURRENT_ENV->get_instance_klass(unsafe_anonymous_host);
   }
-  return NULL;
-}
-
-ciInstanceKlass* ciInstanceKlass::vcc_klass() {
   return NULL;
 }
 
