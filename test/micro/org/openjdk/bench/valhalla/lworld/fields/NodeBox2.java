@@ -3,7 +3,7 @@ package org.openjdk.bench.valhalla.lworld.fields;
 import org.openjdk.bench.valhalla.lworld.types.Val2;
 
 public class NodeBox2 {
-    public Val2? f;
+    public Val2.ref f;
 
     public static NodeBox2[] set(NodeBox2[] a) {
         for (int i = 0; i < a.length; i++) {

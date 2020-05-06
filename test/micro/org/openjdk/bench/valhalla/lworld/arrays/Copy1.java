@@ -15,8 +15,8 @@ public class Copy1 extends SizedBase {
     Vector[] srcCovariance;
     Vector[] dstCovariance;
 
-    Val1?[] srcBoxed;
-    Val1?[] dstBoxed;
+    Val1.ref[] srcBoxed;
+    Val1.ref[] dstBoxed;
 
 
 
@@ -26,8 +26,8 @@ public class Copy1 extends SizedBase {
         dstValue = new Val1[size];
         srcCovariance = Utils.fillV(new Val1[size]);
         dstCovariance = new Val1[size];
-        srcBoxed = Utils.fillB(new Val1?[size]);
-        dstBoxed = new Val1?[size];
+        srcBoxed = Utils.fillB(new Val1.ref[size]);
+        dstBoxed = new Val1.ref[size];
     }
 
     @Benchmark
@@ -50,8 +50,8 @@ public class Copy1 extends SizedBase {
 
     @Benchmark
     public void boxed() {
-        Val1?[] s = srcBoxed;
-        Val1?[] d = dstBoxed;
+        Val1.ref[] s = srcBoxed;
+        Val1.ref[] d = dstBoxed;
         for (int i = 0; i < size; i++) {
             d[i] = s[i];
         }
