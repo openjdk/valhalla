@@ -690,7 +690,7 @@ bool ciInstanceKlass::can_be_value_klass(bool is_exact) {
       Method* m = methods->at(i);
       if ((m->is_synchronized() && !m->is_static()) ||
           (m->is_object_constructor() &&
-           (!m->signature()->is_void_method_signature() ||
+           (m->signature() != vmSymbols::void_method_signature() ||
             !m->is_vanilla_constructor()))) {
         return false;
       }
