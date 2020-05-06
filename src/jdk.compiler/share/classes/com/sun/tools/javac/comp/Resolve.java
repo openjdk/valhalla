@@ -2949,6 +2949,13 @@ public class Resolve {
                             return sym;
                         }
                     };
+                    ClassSymbol refProjection = newConstr.owner.isValue() ?
+                                                     (ClassSymbol) newConstr.owner.referenceProjection() : null;
+                    if (refProjection != null) {
+                        MethodSymbol clone = newConstr.clone(refProjection);
+                        clone.projection = newConstr;
+                        newConstr.projection = clone;
+                    }
                     bestSoFar = selectBest(env, site, argtypes, typeargtypes,
                             newConstr,
                             bestSoFar,

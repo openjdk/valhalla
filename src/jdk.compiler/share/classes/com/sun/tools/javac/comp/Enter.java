@@ -471,6 +471,10 @@ public class Enter extends JCTree.Visitor {
         c.flags_field = chk.checkFlags(tree.pos(), tree.mods.flags, c, tree);
         c.sourcefile = env.toplevel.sourcefile;
         c.members_field = WriteableScope.create(c);
+        if (c.projection != null) {
+            // Do not carry around symbols from prior round.
+            c.projection.members_field = WriteableScope.create(c.projection);
+        }
         c.clearAnnotationMetadata();
 
         ClassType ct = (ClassType)c.type;
@@ -492,6 +496,12 @@ public class Enter extends JCTree.Visitor {
         // Enter type parameters.
         ct.typarams_field = classEnter(tree.typarams, localEnv);
         ct.allparams_field = null;
+        if (ct.isValue()) {
+            if (ct.projection != null) {
+                ct.projection.typarams_field = ct.typarams_field;
+                ct.projection.allparams_field = ct.allparams_field;
+            }
+        }
 
         // install further completer for this type.
         c.completer = typeEnter;

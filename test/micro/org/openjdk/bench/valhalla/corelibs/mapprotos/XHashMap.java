@@ -309,9 +309,9 @@ public class XHashMap<K,V> extends XAbstractMap<K,V>
         final int hash;
         final K key;
         V value;
-        Node?<K,V> next;
+        Node<K,V> next;
 
-        XNode(int hash, K key, V value, Node?<K,V> next) {
+        XNode(int hash, K key, V value, Node<K,V> next) {
             this.hash = hash;
             this.key = key;
             this.value = value;

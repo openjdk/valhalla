@@ -45,7 +45,7 @@ public class Ackermann2 extends AckermannBase {
                ack_value(new Val2(0, X3), new Val2(0, Y3)).reduce();
     }
 
-    private static Val2? ack_boxed(Val2? x, Val2? y) {
+    private static Val2.ref ack_boxed(Val2.ref x, Val2.ref y) {
         return x.reduce() == 0 ?
                 y.inc() :
                 (y.reduce() == 0 ?

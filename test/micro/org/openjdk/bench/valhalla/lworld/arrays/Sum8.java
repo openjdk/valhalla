@@ -9,12 +9,12 @@ import org.openjdk.bench.valhalla.lworld.types.Val8;
 public class Sum8 extends SizedBase {
 
     Val8[] values;
-    Val8?[] boxed;
+    Val8.ref[] boxed;
 
     @Setup
     public void setup() {
         values = Utils.fillV(new Val8[size]);
-        boxed = Utils.fillB(new Val8?[size]);
+        boxed = Utils.fillB(new Val8.ref[size]);
     }
 
     @Benchmark
@@ -53,8 +53,8 @@ public class Sum8 extends SizedBase {
 
     @Benchmark
     public int boxed() {
-        Val8?[] v = this.boxed;
-        Val8? sum = new Val8(0,0,0,0,0,0,0,0);
+        Val8.ref[] v = this.boxed;
+        Val8.ref sum = new Val8(0,0,0,0,0,0,0,0);
         for (int i = 0; i < size; i++) {
             sum = sum.add((Val8)v[i]);
         }
@@ -63,7 +63,7 @@ public class Sum8 extends SizedBase {
 
     @Benchmark
     public int boxScalarized() {
-        Val8?[] v = this.boxed;
+        Val8.ref[] v = this.boxed;
         int f0 = 0;
         int f1 = 0;
         int f2 = 0;

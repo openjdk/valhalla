@@ -9,17 +9,17 @@ import org.openjdk.bench.valhalla.lworld.types.Val1;
 
 public abstract class Boxed extends TraversalBase {
 
-    Val1?[] values;
+    Val1.ref[] values;
 
     public void setup(int[] a) {
-        values = new Val1?[a.length];
+        values = new Val1.ref[a.length];
         for (int i = 0; i < a.length; i++) {
             values[i] = new Val1(a[i]);
         }
     }
 
     @CompilerControl(CompilerControl.Mode.INLINE)
-    public static int walk(Val1?[] a) {
+    public static int walk(Val1.ref[] a) {
         int steps = 0;
         for(int i = a[0].reduce(); i!=0; i=a[i].reduce()) steps++;
         return steps;

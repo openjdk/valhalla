@@ -42,7 +42,7 @@ public class Sum2 extends SizedBase {
     @Benchmark
     public int boxed() {
         NodeBox2[] v = this.boxed;
-        Val2? sum = new Val2(0, 0);
+        Val2.ref sum = new Val2(0, 0);
         for (int i = 0; i < size; i++) {
             sum = sum.add((Val2)v[i].f);
         }
