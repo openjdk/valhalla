@@ -42,7 +42,7 @@ public class InlineDiamondTest<E> {
     private inline class Y<U> implements I<U> {
         int x = 42;
     }
-    
+
     public static void main(String [] args) {
         InlineDiamondTest<String> idt = new InlineDiamondTest<>();
         I<String> is = idt.get();
