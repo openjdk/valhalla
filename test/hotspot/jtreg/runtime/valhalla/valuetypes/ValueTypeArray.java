@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,7 +34,7 @@ import static jdk.test.lib.Asserts.*;
  * @test ValueTypeArray
  * @summary Plain array test for Inline Types
  * @library /test/lib
- * @compile -XDallowGenericsOverValues ValueTypeArray.java Point.java Long8Value.java Person.java
+ * @compile ValueTypeArray.java Point.java Long8Value.java Person.java
  * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=-1 runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=0  runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=-1 runtime.valhalla.valuetypes.ValueTypeArray
@@ -326,7 +326,7 @@ public class ValueTypeArray {
         // cast to q-type temp effect of avoiding circularity error (decl static MyInt.ref)
         MyInt[] myInts = new MyInt[] { (MyInt) MyInt.MAX, (MyInt) MyInt.MIN };
         // Sanity sort another copy
-        MyInt[] copyMyInts = Arrays.copyOf(myInts, myInts.length + 1);
+        MyInt[] copyMyInts = (MyInt[]) Arrays.copyOf(myInts, myInts.length + 1);
         checkArrayElementsEqual(copyMyInts, new MyInt[] { myInts[0], myInts[1], (MyInt) MyInt.ZERO});
 
         Arrays.sort(copyMyInts);
@@ -338,7 +338,7 @@ public class ValueTypeArray {
         checkArrayElementsEqual(copyMyInts, myIntList.toArray());
 
         // Sanity check j.u.ArrayList
-        ArrayList<MyInt> aList = new ArrayList<MyInt>(Arrays.asList(copyMyInts));
+        ArrayList<MyInt.ref> aList = new ArrayList<MyInt.ref>(Arrays.asList(copyMyInts));
         assertTrue(aList.indexOf(MyInt.MIN) == 0, "Bad Index");
         assertTrue(aList.indexOf(MyInt.ZERO) == 1, "Bad Index");
         assertTrue(aList.indexOf(MyInt.MAX) == 2, "Bad Index");
