@@ -107,9 +107,8 @@ public class TestIntrinsics extends ValueTypeTest {
 
     public void test3_verifier(boolean warmup) {
         Asserts.assertTrue(test3(Object.class) == null, "test3_1 failed");
-
-        Asserts.assertTrue(test3(MyValue1.class.asIndirectType()) == MyAbstract.class, "test3_2 failed");
-        Asserts.assertTrue(test3(MyValue1.class.asPrimaryType()) == MyAbstract.class, "test3_3 failed");
+        Asserts.assertTrue(test3(MyValue1.class.asIndirectType()) == MyValue1.ref.class, "test3_2 failed");
+        Asserts.assertTrue(test3(MyValue1.class.asPrimaryType()) == MyValue1.ref.class, "test3_3 failed");
         Asserts.assertTrue(test3(Class.class) == Object.class, "test3_4 failed");
     }
 
@@ -117,11 +116,10 @@ public class TestIntrinsics extends ValueTypeTest {
     @Test(failOn = LOADK)
     public boolean test4() {
         boolean check1 = Object.class.getSuperclass() == null;
-
         // TODO Remove cast as workaround once javac is fixed
-        boolean check2 = (Class<?>)MyValue1.class.asIndirectType().getSuperclass() == MyAbstract.class;
+        boolean check2 = (Class<?>)MyValue1.class.asIndirectType().getSuperclass() == MyValue1.ref.class;
         // TODO Remove cast as workaround once javac is fixed
-        boolean check3 = (Class<?>)MyValue1.class.asPrimaryType().getSuperclass() == MyAbstract.class;
+        boolean check3 = (Class<?>)MyValue1.class.asPrimaryType().getSuperclass() == MyValue1.ref.class;
         boolean check4 = Class.class.getSuperclass() == Object.class;
         return check1 && check2 && check3 && check4;
     }
