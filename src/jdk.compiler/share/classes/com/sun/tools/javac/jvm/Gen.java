@@ -2330,8 +2330,10 @@ public class Gen extends JCTree.Visitor {
         // which is not statically a supertype of the expression's type.
         // For basic types, the coerce(...) in genExpr(...) will do
         // the conversion.
+        // inline widening conversion is a nop, as the VM sees a subtyping relationship.
         if (!tree.clazz.type.isPrimitive() &&
            !types.isSameType(tree.expr.type, tree.clazz.type) &&
+            (!tree.clazz.type.tsym.isReferenceProjection() || tree.clazz.type.tsym.valueProjection() != tree.expr.type.tsym) &&
            types.asSuper(tree.expr.type, tree.clazz.type.tsym) == null) {
             checkDimension(tree.pos(), tree.clazz.type);
             if (types.isValue(tree.clazz.type)) {

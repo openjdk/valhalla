@@ -23,14 +23,14 @@
 package runtime.valhalla.valuetypes;
 
 final class ContainerValue1 {
-    static TestValue1? staticValueField;
+    static TestValue1.ref staticValueField;
     TestValue1 nonStaticValueField;
     TestValue1[] inlineArray;
 }
 
 public inline final class TestValue1 {
 
-    static TestValue1? staticValue = getInstance();
+    static TestValue1.ref staticValue = getInstance();
 
     final int i;
     final String name;

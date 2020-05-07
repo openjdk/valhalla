@@ -10,7 +10,7 @@ public class Utils {
         return a;
     }
 
-    public static Val1?[] fillB(Val1?[] a) {
+    public static Val1.ref[] fillB(Val1.ref[] a) {
         for (int i = 0; i < a.length; i++) {
             a[i] = new Val1(i);
         }
@@ -24,7 +24,7 @@ public class Utils {
         return a;
     }
 
-    public static Val2?[] fillB(Val2?[] a) {
+    public static Val2.ref[] fillB(Val2.ref[] a) {
         for (int i = 0, k = 0; i < a.length; i++, k += 2) {
             a[i] = new Val2(k, k + 1);
         }
@@ -38,7 +38,7 @@ public class Utils {
         return a;
     }
 
-    public static Val8?[] fillB(Val8?[] a) {
+    public static Val8.ref[] fillB(Val8.ref[] a) {
         for (int i = 0, k = 0; i < a.length; i++, k += 8) {
             a[i] = new Val8(k, k + 1, k + 2, k + 3, k + 4, k + 5, k + 6, k + 7);
         }

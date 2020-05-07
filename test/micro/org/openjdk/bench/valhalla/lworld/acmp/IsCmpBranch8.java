@@ -61,11 +61,11 @@ public class IsCmpBranch8 extends ACmpBase {
     Val8[] value1_75, value2_75;
     Val8[] value1_100, value2_100;
 
-    Val8?[] boxed1_00, boxed2_00;
-    Val8?[] boxed1_25, boxed2_25;
-    Val8?[] boxed1_50, boxed2_50;
-    Val8?[] boxed1_75, boxed2_75;
-    Val8?[] boxed1_100, boxed2_100;
+    Val8.ref[] boxed1_00, boxed2_00;
+    Val8.ref[] boxed1_25, boxed2_25;
+    Val8.ref[] boxed1_50, boxed2_50;
+    Val8.ref[] boxed1_75, boxed2_75;
+    Val8.ref[] boxed1_100, boxed2_100;
 
     Vector[] covariance1_00, covariance2_00;
     Vector[] covariance1_25, covariance2_25;
@@ -86,16 +86,16 @@ public class IsCmpBranch8 extends ACmpBase {
         value2_75 = populateValues2(value1_75, 75);
         value1_100 = populateValues1();
         value2_100 = populateValues2(value1_100, 100);
-        boxed1_00 = new Val8?[SIZE];
-        boxed2_00 = new Val8?[SIZE];
-        boxed1_25 = new Val8?[SIZE];
-        boxed2_25 = new Val8?[SIZE];
-        boxed1_50 = new Val8?[SIZE];
-        boxed2_50 = new Val8?[SIZE];
-        boxed1_75 = new Val8?[SIZE];
-        boxed2_75 = new Val8?[SIZE];
-        boxed1_100 = new Val8?[SIZE];
-        boxed2_100 = new Val8?[SIZE];
+        boxed1_00 = new Val8.ref[SIZE];
+        boxed2_00 = new Val8.ref[SIZE];
+        boxed1_25 = new Val8.ref[SIZE];
+        boxed2_25 = new Val8.ref[SIZE];
+        boxed1_50 = new Val8.ref[SIZE];
+        boxed2_50 = new Val8.ref[SIZE];
+        boxed1_75 = new Val8.ref[SIZE];
+        boxed2_75 = new Val8.ref[SIZE];
+        boxed1_100 = new Val8.ref[SIZE];
+        boxed2_100 = new Val8.ref[SIZE];
         for(int i = 0; i< SIZE; i++) {
             boxed1_00[i] = value1_00[i];
             boxed2_00[i] = value2_00[i];
@@ -200,7 +200,7 @@ public class IsCmpBranch8 extends ACmpBase {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    private static int boxed_comparison(Val8?[] objects1, Val8?[] objects2) {
+    private static int boxed_comparison(Val8.ref[] objects1, Val8.ref[] objects2) {
         int s = 0;
         for (int i = 0; i < SIZE; i++) {
             if (objects1[i] == objects2[i]) {

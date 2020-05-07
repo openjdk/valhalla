@@ -36,18 +36,20 @@ import jdk.internal.misc.Unsafe;
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @modules java.base/jdk.internal.misc
  * @run main/othervm -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0
- *                   -XX:+StressGCM -XX:+StressLCM
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.valuetypes.TestBufferTearing
  * @run main/othervm -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0
- *                   -XX:+StressGCM -XX:+StressLCM -XX:+AlwaysIncrementalInline
- *                   compiler.valhalla.valuetypes.TestBufferTearing
- * @run main/othervm -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0
- *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
- *                   -XX:+StressGCM -XX:+StressLCM
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.valuetypes.TestBufferTearing
  * @run main/othervm -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
- *                   -XX:+StressGCM -XX:+StressLCM -XX:+AlwaysIncrementalInline
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
+ *                   compiler.valhalla.valuetypes.TestBufferTearing
+ * @run main/othervm -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0
+ *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
+ *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.valuetypes.TestBufferTearing
  */
 

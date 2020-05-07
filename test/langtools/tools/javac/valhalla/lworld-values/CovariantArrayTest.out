@@ -1,0 +1,4 @@
+CovariantArrayTest.java:15:33: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: int[], java.lang.Object[])
+CovariantArrayTest.java:16:14: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: int[], java.lang.Object[])
+CovariantArrayTest.java:21:14: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: java.lang.Object[], CovariantArrayTest.V[])
+3 errors

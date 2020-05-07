@@ -37,7 +37,7 @@ import jdk.test.lib.Asserts;
 public class QuickeningTest {
 
     static class Parent {
-    Point? nfp;       /* Not flattenable inline field */
+    Point.ref nfp;       /* Not flattenable inline field */
     Point fp;         /* Flattenable and flattened inline field */
     JumboValue fj;    /* Flattenable not flattened inline field */
 
@@ -48,7 +48,7 @@ public class QuickeningTest {
 
     static class Child extends Parent {
         // This class inherited fields from the Parent class
-        Point? nfp2;      /* Not flattenable inline field */
+        Point.ref nfp2;      /* Not flattenable inline field */
         Point fp2;        /* Flattenable and flattened inline field */
         JumboValue fj2;   /* Flattenable not flattened inline field */
 
@@ -58,7 +58,7 @@ public class QuickeningTest {
     }
 
     static final inline class Value {
-        final Point? nfp;       /* Not flattenable inline field */
+        final Point.ref nfp;       /* Not flattenable inline field */
         final Point fp;         /* Flattenable and flattened inline field */
         final JumboValue fj;    /* Flattenable not flattened inline field */
 

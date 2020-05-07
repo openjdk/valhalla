@@ -67,8 +67,8 @@ public class StreamTest {
     static inline class Value {
         int i;
         Point p;
-        Point? nullable;
-        Value(int i, Point p, Point? np) {
+        Point.ref nullable;
+        Value(int i, Point p, Point.ref np) {
             this.i = i;
             this.p = p;
             this.nullable = np;
@@ -78,7 +78,7 @@ public class StreamTest {
             return p;
         }
 
-        Point? nullablePoint() {
+        Point.ref nullablePoint() {
             return nullable;
         }
     }

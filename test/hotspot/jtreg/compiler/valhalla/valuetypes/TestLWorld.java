@@ -117,14 +117,14 @@ public class TestLWorld extends ValueTypeTest {
 
     MyValue1 valueField1 = testValue1;
     MyValue1 valueField2 = testValue1;
-    MyValue1? valueField3 = testValue1;
+    MyValue1.ref valueField3 = testValue1;
     MyValue1 valueField4;
-    MyValue1? valueField5;
+    MyValue1.ref valueField5;
 
-    static MyValue1? staticValueField1 = testValue1;
+    static MyValue1.ref staticValueField1 = testValue1;
     static MyValue1 staticValueField2 = testValue1;
     static MyValue1 staticValueField3;
-    static MyValue1? staticValueField4;
+    static MyValue1.ref staticValueField4;
 
     @DontInline
     public Object readValueField5() {
@@ -1340,8 +1340,8 @@ public class TestLWorld extends ValueTypeTest {
     }
 
     // Test for bug in Escape Analysis
-    private static final MyValue1? test42VT1 = MyValue1.createWithFieldsInline(rI, rL);
-    private static final MyValue1? test42VT2 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
+    private static final MyValue1.ref test42VT1 = MyValue1.createWithFieldsInline(rI, rL);
+    private static final MyValue1.ref test42VT2 = MyValue1.createWithFieldsInline(rI + 1, rL + 1);
 
     @Test()
     public void test42() {
@@ -1501,9 +1501,9 @@ public class TestLWorld extends ValueTypeTest {
 
         final MyValue1 valueField1;
         final MyValue1 valueField2;
-        final MyValue1? valueField3;
+        final MyValue1.ref valueField3;
         final MyValue1 valueField4;
-        final MyValue1? valueField5;
+        final MyValue1.ref valueField5;
 
         public Test51Value() {
             objectField1 = null;
@@ -1520,7 +1520,7 @@ public class TestLWorld extends ValueTypeTest {
         }
 
         public Test51Value(Object o1, Object o2, Object o3, Object o4, Object o5, Object o6,
-                           MyValue1 vt1, MyValue1 vt2, MyValue1? vt3, MyValue1 vt4, MyValue1? vt5) {
+                           MyValue1 vt1, MyValue1 vt2, MyValue1.ref vt3, MyValue1 vt4, MyValue1.ref vt5) {
             objectField1 = o1;
             objectField2 = o2;
             objectField3 = o3;
@@ -2091,12 +2091,12 @@ public class TestLWorld extends ValueTypeTest {
 
     // Casting a null Integer to a nullable value type should not throw
     @ForceInline
-    public MyValue1? test78_helper(Object o) {
-        return (MyValue1?)o;
+    public MyValue1.ref test78_helper(Object o) {
+        return (MyValue1.ref)o;
     }
 
     @Test
-    public MyValue1? test78(Integer i) throws Throwable {
+    public MyValue1.ref test78(Integer i) throws Throwable {
         return test78_helper(i);
     }
 
@@ -2111,12 +2111,12 @@ public class TestLWorld extends ValueTypeTest {
 
     // Casting an Integer to a nullable value type should throw a ClassCastException
     @ForceInline
-    public MyValue1? test79_helper(Object o) {
-        return (MyValue1?)o;
+    public MyValue1.ref test79_helper(Object o) {
+        return (MyValue1.ref)o;
     }
 
     @Test
-    public MyValue1? test79(Integer i) throws Throwable {
+    public MyValue1.ref test79(Integer i) throws Throwable {
         return test79_helper(i);
     }
 

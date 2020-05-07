@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,16 +23,27 @@
  * questions.
  */
 
-// key: compiler.err.generic.parameterization.with.value.type
+/*
+ * @test
+ * @bug 8244458 8244414
+ * @summary Check that javac does not crash while computing LUB involving values.
+ * @run main LubWithInlines
+ */
 
-import java.util.List;
-
-inline class X {
-
-    int x = 10;
-    
+public class LubWithInlines {
+    interface I {}
+    static class Node implements I {
+    }
+    static I foo(Node e) {
+        var ret = (e == null) ? new XNodeWrapper() : e;
+        return ret;
+    }
+    static inline class XNodeWrapper implements I {
+        int i = 42;
+    }
     public static void main(String [] args) {
-       var list = List.of(new X());
+        I i = foo(null);
+        if (!i.toString().equals("[LubWithInlines$XNodeWrapper i=42]"))
+            throw new AssertionError("Unexpected: " + i);
     }
 }
-

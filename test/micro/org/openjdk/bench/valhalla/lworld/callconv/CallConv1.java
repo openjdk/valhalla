@@ -20,10 +20,10 @@ public class CallConv1 extends CallBase {
 
     abstract static class InvocationLogic {
 
-        public abstract Val? computeBox(Val? v1);
-        public abstract Val? computeBox(Val? v1, Val? v2);
-        public abstract Val? computeBox(Val? v1, Val? v2, Val? v3, Val? v4);
-        public abstract Val? computeBox(Val? v1, Val? v2, Val? v3, Val? v4, Val? v5, Val? v6, Val? v7, Val? v8);
+        public abstract Val.ref computeBox(Val.ref v1);
+        public abstract Val.ref computeBox(Val.ref v1, Val.ref v2);
+        public abstract Val.ref computeBox(Val.ref v1, Val.ref v2, Val.ref v3, Val.ref v4);
+        public abstract Val.ref computeBox(Val.ref v1, Val.ref v2, Val.ref v3, Val.ref v4, Val.ref v5, Val.ref v6, Val.ref v7, Val.ref v8);
 
         public abstract Val compute(Val v1);
         public abstract Val compute(Val v1, Val v2);
@@ -35,22 +35,22 @@ public class CallConv1 extends CallBase {
     static class InvokeImpl1 extends InvocationLogic {
 
         @Override
-        public Val? computeBox(Val? v1) {
+        public Val.ref computeBox(Val.ref v1) {
             return v1;
         }
 
         @Override
-        public Val? computeBox(Val? v1, Val? v2) {
+        public Val.ref computeBox(Val.ref v1, Val.ref v2) {
             return v1;
         }
 
         @Override
-        public Val? computeBox(Val? v1, Val? v2, Val? v3, Val? v4) {
+        public Val.ref computeBox(Val.ref v1, Val.ref v2, Val.ref v3, Val.ref v4) {
             return v1;
         }
 
         @Override
-        public Val? computeBox(Val? v1, Val? v2, Val? v3, Val? v4, Val? v5, Val? v6, Val? v7, Val? v8) {
+        public Val.ref computeBox(Val.ref v1, Val.ref v2, Val.ref v3, Val.ref v4, Val.ref v5, Val.ref v6, Val.ref v7, Val.ref v8) {
             return v1;
         }
 
@@ -79,22 +79,22 @@ public class CallConv1 extends CallBase {
     static class InvokeImpl2 extends InvocationLogic {
 
         @Override
-        public Val? computeBox(Val? v1) {
+        public Val.ref computeBox(Val.ref v1) {
             return v1;
         }
 
         @Override
-        public Val? computeBox(Val? v1, Val? v2) {
+        public Val.ref computeBox(Val.ref v1, Val.ref v2) {
             return v1;
         }
 
         @Override
-        public Val? computeBox(Val? v1, Val? v2, Val? v3, Val? v4) {
+        public Val.ref computeBox(Val.ref v1, Val.ref v2, Val.ref v3, Val.ref v4) {
             return v1;
         }
 
         @Override
-        public Val? computeBox(Val? v1, Val? v2, Val? v3, Val? v4, Val? v5, Val? v6, Val? v7, Val? v8) {
+        public Val.ref computeBox(Val.ref v1, Val.ref v2, Val.ref v3, Val.ref v4, Val.ref v5, Val.ref v6, Val.ref v7, Val.ref v8) {
             return v1;
         }
 
@@ -123,22 +123,22 @@ public class CallConv1 extends CallBase {
     static class InvokeImpl3 extends InvocationLogic {
 
         @Override
-        public Val? computeBox(Val? v1) {
+        public Val.ref computeBox(Val.ref v1) {
             return v1;
         }
 
         @Override
-        public Val? computeBox(Val? v1, Val? v2) {
+        public Val.ref computeBox(Val.ref v1, Val.ref v2) {
             return v1;
         }
 
         @Override
-        public Val? computeBox(Val? v1, Val? v2, Val? v3, Val? v4) {
+        public Val.ref computeBox(Val.ref v1, Val.ref v2, Val.ref v3, Val.ref v4) {
             return v1;
         }
 
         @Override
-        public Val? computeBox(Val? v1, Val? v2, Val? v3, Val? v4, Val? v5, Val? v6, Val? v7, Val? v8) {
+        public Val.ref computeBox(Val.ref v1, Val.ref v2, Val.ref v3, Val.ref v4, Val.ref v5, Val.ref v6, Val.ref v7, Val.ref v8) {
             return v1;
         }
 
@@ -203,14 +203,14 @@ public class CallConv1 extends CallBase {
         return logic;
     }
 
-    Val? b1 = new Val(42);
-    Val? b2 = new Val(43);
-    Val? b3 = new Val(44);
-    Val? b4 = new Val(45);
-    Val? b5 = new Val(46);
-    Val? b6 = new Val(47);
-    Val? b7 = new Val(48);
-    Val? b8 = new Val(49);
+    Val.ref b1 = new Val(42);
+    Val.ref b2 = new Val(43);
+    Val.ref b3 = new Val(44);
+    Val.ref b4 = new Val(45);
+    Val.ref b5 = new Val(46);
+    Val.ref b6 = new Val(47);
+    Val.ref b7 = new Val(48);
+    Val.ref b8 = new Val(49);
 
     @CompilerControl(CompilerControl.Mode.INLINE)
     public int boxed1(InvocationLogic[] logic) {

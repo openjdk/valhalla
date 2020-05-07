@@ -15,8 +15,8 @@ public class Arraycopy2 extends SizedBase {
     Vector[] srcCovariance;
     Vector[] dstCovariance;
 
-    Val2?[] srcBoxed;
-    Val2?[] dstBoxed;
+    Val2.ref[] srcBoxed;
+    Val2.ref[] dstBoxed;
 
     @Setup
     public void setup() {
@@ -24,8 +24,8 @@ public class Arraycopy2 extends SizedBase {
         dstValue = new Val2[size];
         srcCovariance = Utils.fillV(new Val2[size]);
         dstCovariance = new Val2[size];
-        srcBoxed = Utils.fillB(new Val2?[size]);
-        dstBoxed = new Val2?[size];
+        srcBoxed = Utils.fillB(new Val2.ref[size]);
+        dstBoxed = new Val2.ref[size];
     }
 
     @Benchmark

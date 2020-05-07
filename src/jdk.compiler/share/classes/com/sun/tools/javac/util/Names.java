@@ -207,6 +207,9 @@ public class Names {
 
     // values
     public final Name dollarValue;
+    public final Name ref;
+    public final Name val;
+
 
     // record related
     // members of java.lang.runtime.ObjectMethods
@@ -384,6 +387,8 @@ public class Names {
 
         // value types
         dollarValue = fromString("$value");
+        ref = fromString("ref");
+        val = fromString("val");
 
         bootstrap = fromString("bootstrap");
         record = fromString("record");

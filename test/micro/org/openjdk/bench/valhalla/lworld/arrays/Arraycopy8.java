@@ -15,8 +15,8 @@ public class Arraycopy8 extends SizedBase {
     Vector[] srcCovariance;
     Vector[] dstCovariance;
 
-    Val8?[] srcBoxed;
-    Val8?[] dstBoxed;
+    Val8.ref[] srcBoxed;
+    Val8.ref[] dstBoxed;
 
     @Setup
     public void setup() {
@@ -24,8 +24,8 @@ public class Arraycopy8 extends SizedBase {
         dstValue = new Val8[size];
         srcCovariance = Utils.fillV(new Val8[size]);
         dstCovariance = new Val8[size];
-        srcBoxed = Utils.fillB(new Val8?[size]);
-        dstBoxed = new Val8?[size];
+        srcBoxed = Utils.fillB(new Val8.ref[size]);
+        dstBoxed = new Val8.ref[size];
     }
 
     @Benchmark

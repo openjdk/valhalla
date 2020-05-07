@@ -1763,15 +1763,15 @@ public class TestCallingConventionC1 extends ValueTypeTest {
     // Tests for how C1 handles ValueTypeReturnedAsFields in both calls and returns (RefPoint?)
     //-------------------------------------------------------------------------------
 
-    // C2->C1 invokestatic with ValueTypeReturnedAsFields (RefPoint?)
+    // C2->C1 invokestatic with ValueTypeReturnedAsFields (RefPoint.ref)
     @Test(compLevel = C2)
-    public RefPoint? test87(RefPoint? p) {
+    public RefPoint.ref test87(RefPoint.ref p) {
         return test87_helper(p);
     }
 
     @DontInline
     @ForceCompile(compLevel = C1)
-    private static RefPoint? test87_helper(RefPoint? p) {
+    private static RefPoint.ref test87_helper(RefPoint.ref p) {
         return p;
     }
 
@@ -1781,15 +1781,15 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         Asserts.assertEQ(result, null);
     }
 
-    // C2->C1 invokestatic with ValueTypeReturnedAsFields (RefPoint? with constant null)
+    // C2->C1 invokestatic with ValueTypeReturnedAsFields (RefPoint.ref with constant null)
     @Test(compLevel = C2)
-    public RefPoint? test88() {
+    public RefPoint.ref test88() {
         return test88_helper();
     }
 
     @DontInline
     @ForceCompile(compLevel = C1)
-    private static RefPoint? test88_helper() {
+    private static RefPoint.ref test88_helper() {
         return null;
     }
 
@@ -1799,15 +1799,15 @@ public class TestCallingConventionC1 extends ValueTypeTest {
         Asserts.assertEQ(result, null);
     }
 
-    // C1->C2 invokestatic with ValueTypeReturnedAsFields (RefPoint?)
+    // C1->C2 invokestatic with ValueTypeReturnedAsFields (RefPoint.ref)
     @Test(compLevel = C1)
-    public RefPoint? test89(RefPoint? p) {
+    public RefPoint.ref test89(RefPoint.ref p) {
         return test89_helper(p);
     }
 
     @DontInline
     @ForceCompile(compLevel = C2)
-    private static RefPoint? test89_helper(RefPoint? p) {
+    private static RefPoint.ref test89_helper(RefPoint.ref p) {
         return p;
     }
 

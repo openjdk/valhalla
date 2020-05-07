@@ -34,9 +34,9 @@ public inline class TypeRelationsTest {
 
     int x = 42;
 
-    static boolean foo(TypeRelationsTest x, TypeRelationsTest? xq, boolean nullPassed) {
+    static boolean foo(TypeRelationsTest x, TypeRelationsTest.ref xq, boolean nullPassed) {
         TypeRelationsTest xl;
-        TypeRelationsTest? xql;
+        TypeRelationsTest.ref xql;
         boolean npe = false;
 
         xl = x;
@@ -48,9 +48,9 @@ public inline class TypeRelationsTest {
         }
 
         xql = x;
-        xql = (TypeRelationsTest ?) x;
+        xql = (TypeRelationsTest.ref ) x;
         xql = xq;
-        xql = (TypeRelationsTest?) xq;
+        xql = (TypeRelationsTest.ref) xq;
         return npe;
     }
 
@@ -62,8 +62,8 @@ public inline class TypeRelationsTest {
         return "TypeRelationsTest";
     }
 
-    static String foo(TypeRelationsTest? xq) {
-        return "TypeRelationsTest?";
+    static String foo(TypeRelationsTest.ref xq) {
+        return "TypeRelationsTest.ref";
     }
 
     public static void main(String [] args) {
@@ -73,12 +73,12 @@ public inline class TypeRelationsTest {
             throw new AssertionError("Missing NPE");
 
        TypeRelationsTest x = new TypeRelationsTest();
-       TypeRelationsTest? xq = null;
+       TypeRelationsTest.ref xq = null;
        if (!foo(x).equals("TypeRelationsTest"))
             throw new AssertionError("Wrong overload");
-       if (!foo(xq).equals("TypeRelationsTest?"))
+       if (!foo(xq).equals("TypeRelationsTest.ref"))
             throw new AssertionError("Wrong overload");
-       if (!foo((TypeRelationsTest?) x).equals("TypeRelationsTest?"))
+       if (!foo((TypeRelationsTest.ref) x).equals("TypeRelationsTest.ref"))
             throw new AssertionError("Wrong overload");
 
        boolean npe = false;
@@ -91,23 +91,23 @@ public inline class TypeRelationsTest {
             throw new AssertionError("Missing NPE");
        }
        xq = x;
-       if (!foo((TypeRelationsTest?) xq).equals("TypeRelationsTest?"))
+       if (!foo((TypeRelationsTest.ref) xq).equals("TypeRelationsTest.ref"))
             throw new AssertionError("Wrong overload");
        checkArrays();
     }
 
     static void checkArrays() {
         TypeRelationsTest [] xa = new TypeRelationsTest[10];
-        TypeRelationsTest? [] xqa;
+        TypeRelationsTest.ref [] xqa;
         Object [] oa;
         Object o;
 
         o = oa = xqa = xa;
-        xa = (TypeRelationsTest []) (xqa = (TypeRelationsTest?[]) (oa = (Object []) o));
+        xa = (TypeRelationsTest []) (xqa = (TypeRelationsTest.ref[]) (oa = (Object []) o));
         xa[0] = new TypeRelationsTest(); // OK, after round trip back and forth.
 
 
-        xqa = (TypeRelationsTest?[]) xa;
+        xqa = (TypeRelationsTest.ref[]) xa;
         boolean npe = false;
         try {
             xqa[0] = null;

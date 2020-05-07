@@ -33,9 +33,9 @@ public class ObjectHashCodeImplicit extends CallBase {
     Val1[] values1;
     Val2[] values2;
     Val3[] values3;
-    Val1?[] boxed1;
-    Val2?[] boxed2;
-    Val3?[] boxed3;
+    Val1.ref[] boxed1;
+    Val2.ref[] boxed2;
+    Val3.ref[] boxed3;
 
     @Setup
     public void setup() {
@@ -51,15 +51,15 @@ public class ObjectHashCodeImplicit extends CallBase {
         for (int i = 0; i < SIZE; i++) {
             values3[i] = new Val3(42);
         }
-        boxed1 = new Val1?[SIZE];
+        boxed1 = new Val1.ref[SIZE];
         for (int i = 0; i < SIZE; i++) {
             boxed1[i] = new Val1(42);
         }
-        boxed2 = new Val2?[SIZE];
+        boxed2 = new Val2.ref[SIZE];
         for (int i = 0; i < SIZE; i++) {
             boxed2[i] = new Val2(42);
         }
-        boxed3 = new Val3?[SIZE];
+        boxed3 = new Val3.ref[SIZE];
         for (int i = 0; i < SIZE; i++) {
             boxed3[i] = new Val3(42);
         }
@@ -85,9 +85,9 @@ public class ObjectHashCodeImplicit extends CallBase {
     }
 
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
-    public int hashExactBoxed(Val1?[] arr) {
+    public int hashExactBoxed(Val1.ref[] arr) {
         int r = 0;
-        for(Val1? o : arr) {
+        for(Val1.ref o : arr) {
             r += o.hashCode();
         }
         return r;

@@ -55,7 +55,7 @@ public inline class LookupOnLoxTest2 {
             return new Tuple(index, array[index]);
         }
 
-        Cursor? next() {
+        Cursor.ref next() {
             if (index + 1 == array.length) {
                 return null;
             }
@@ -63,7 +63,7 @@ public inline class LookupOnLoxTest2 {
         }
     }
 
-    private static Cursor? indexedElements(int[] array) {
+    private static Cursor.ref indexedElements(int[] array) {
         if (array.length == 0) {
             return null;
         }
@@ -72,7 +72,7 @@ public inline class LookupOnLoxTest2 {
 
     public int sum() {
         int sum = 0;
-        for (Cursor? cursor = indexedElements(ARRAY); cursor != null; cursor = cursor.next()) {
+        for (Cursor.ref cursor = indexedElements(ARRAY); cursor != null; cursor = cursor.next()) {
             Tuple tuple = cursor.current();
             sum += tuple.index + tuple.element;
         }
@@ -84,7 +84,7 @@ public inline class LookupOnLoxTest2 {
         if (x.sum() != 63 || x.ARRAY.length != 3) {
             throw new AssertionError("Broken");
         }
-        LookupOnLoxTest2? xbox = x;
+        LookupOnLoxTest2.ref xbox = x;
         if (xbox.sum() != 63 || xbox.ARRAY.length != 3) {
             throw new AssertionError("Broken");
         }

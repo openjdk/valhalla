@@ -141,6 +141,8 @@ public class ClassWriter extends ClassFile {
     /** The name table. */
     private final Names names;
 
+    private final Symtab syms;
+
     /** Access to files. */
     private final JavaFileManager fileManager;
 
@@ -174,6 +176,7 @@ public class ClassWriter extends ClassFile {
         check = Check.instance(context);
         fileManager = context.get(JavaFileManager.class);
         poolWriter = Gen.instance(context).poolWriter;
+        syms = Symtab.instance(context);
 
         verbose        = options.isSet(VERBOSE);
         genCrt         = options.isSet(XJCOV);
@@ -896,6 +899,9 @@ public class ClassWriter extends ClassFile {
         ClassSymbol csym = (ClassSymbol)sym;
         if (csym.owner.kind != PCK) {
             seen.add(csym);
+            if (csym.isValue()) {
+                seen.add(csym.referenceProjection());
+            }
         }
         if (csym.members() != null) {
             for (Symbol s : sym.members().getSymbols()) {
@@ -1475,6 +1481,18 @@ public class ClassWriter extends ClassFile {
     public JavaFileObject writeClass(ClassSymbol c)
         throws IOException, PoolOverflow, StringOverflow
     {
+        JavaFileObject javaFileObject = writeClassInternal(c);
+        if (c.isValue()) {
+            ClassSymbol refProjection = c.referenceProjection();
+            refProjection.flags_field = (refProjection.flags_field & ~FINAL) | ABSTRACT;
+            writeClassInternal(refProjection);
+        }
+        return javaFileObject;
+    }
+
+    private JavaFileObject writeClassInternal(ClassSymbol c)
+        throws IOException, PoolOverflow, StringOverflow
+    {
         String name = (c.owner.kind == MDL ? c.name : c.flatname).toString();
         Location outLocn;
         if (multiModuleMode) {
@@ -1516,8 +1534,8 @@ public class ClassWriter extends ClassFile {
         databuf.reset();
         poolbuf.reset();
 
-        Type supertype = types.supertype(c.type);
-        List<Type> interfaces = types.interfaces(c.type);
+        Type supertype = c.isValue() ? c.type.referenceProjection() : types.supertype(c.type);
+        List<Type> interfaces = c.isValue() ? List.of(syms.inlineObjectType) : types.interfaces(c.type);
         List<Type> typarams = c.type.getTypeArguments();
 
         int flags;
@@ -1550,26 +1568,37 @@ public class ClassWriter extends ClassFile {
             databuf.appendChar(poolWriter.putClass((ClassSymbol)l.head.tsym));
         int fieldsCount = 0;
         int methodsCount = 0;
-        for (Symbol sym : c.members().getSymbols(NON_RECURSIVE)) {
-            switch (sym.kind) {
-            case VAR: fieldsCount++; break;
-            case MTH: if ((sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
-                      break;
-            case TYP: poolWriter.enterInner((ClassSymbol)sym); break;
-            default : Assert.error();
+        boolean referenceProjection = c.isReferenceProjection();
+        if (!referenceProjection) {
+            for (Symbol sym : c.members().getSymbols(NON_RECURSIVE)) {
+                switch (sym.kind) {
+                    case VAR:
+                        fieldsCount++;
+                        break;
+                    case MTH:
+                        if ((sym.flags() & HYPOTHETICAL) == 0) methodsCount++;
+                        break;
+                    case TYP:
+                        poolWriter.enterInner((ClassSymbol)sym);
+                        break;
+                    default:
+                        Assert.error();
+                }
             }
-        }
 
-        if (c.trans_local != null) {
-            for (ClassSymbol local : c.trans_local) {
-                poolWriter.enterInner(local);
+            if (c.trans_local != null) {
+                for (ClassSymbol local : c.trans_local) {
+                    poolWriter.enterInner(local);
+                }
             }
         }
 
         databuf.appendChar(fieldsCount);
-        writeFields(c.members());
+        if (!referenceProjection)
+            writeFields(c.members());
         databuf.appendChar(methodsCount);
-        writeMethods(c.members());
+        if (!referenceProjection)
+            writeMethods(c.members());
 
         int acountIdx = beginAttrs();
         int acount = 0;

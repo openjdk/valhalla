@@ -25,12 +25,12 @@ import java.util.List;
 
 public class MixedValues {
     static Point staticPoint = Point.makePoint(10, 10);
-    static Line? staticLine;   // null static field of non-flattened type
+    static Line.ref staticLine;   // null static field of non-flattened type
     Point p;
     Line l;
     MutablePath mutablePath;
     List<String> list;
-    Point? nfp;
+    Point.ref nfp;
 
     public MixedValues(Point p, Line l, MutablePath path, String... names) {
         this.p = p;

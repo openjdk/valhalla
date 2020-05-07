@@ -2601,6 +2601,32 @@ public class ClassReader {
     }
 
     public void readClassFile(ClassSymbol c) {
+        readClassFileInternal(c);
+        if (c.isValue()) {
+            /* http://cr.openjdk.java.net/~briangoetz/valhalla/sov/04-translation.html
+               The relationship of value and reference projections differs between the language model
+               and the VM model. In the language, the value projection is not a subtype of the
+               reference projection; instead, the two are related by inline narrowing and widening
+               conversions, whereas in the VM, the two are related by actual subtyping.
+               Sever the subtyping relationship by rewiring the supertypes here and now.
+             */
+
+            Name flatname = TypeSymbol.formFlatName(names.ref, c);
+            ClassSymbol referenceProjection = syms.getClass(currentModule, flatname);
+            if (referenceProjection != null) {
+                if (referenceProjection.name != names.ref && referenceProjection.owner.kind == PCK) {
+                    readClassFileInternal(referenceProjection);
+                    ClassType classType = (ClassType) c.type;
+                    classType.supertype_field = ((ClassType) referenceProjection.type).supertype_field;
+                    classType.interfaces_field = ((ClassType) referenceProjection.type).interfaces_field;
+                    // Discard the projection, it will be recomputed on the fly.
+                    referenceProjection.owner.members().remove(referenceProjection);
+                }
+            }
+        }
+    }
+
+    private void readClassFileInternal(ClassSymbol c) {
         currentOwner = c;
         currentClassFile = c.classfile;
         warnedAttrs.clear();

@@ -11,16 +11,16 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class Boxed extends MatrixBase {
 
-    Complex?[][] A;
-    Complex?[][] B;
+    Complex.ref[][] A;
+    Complex.ref[][] B;
 
     @Setup
     public void setup() {
-        A = populate(new Complex?[size][size]);
-        B = populate(new Complex?[size][size]);
+        A = populate(new Complex.ref[size][size]);
+        B = populate(new Complex.ref[size][size]);
     }
 
-    private Complex?[][] populate(Complex?[][] m) {
+    private Complex.ref[][] populate(Complex.ref[][] m) {
         int size = m.length;
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
@@ -31,9 +31,9 @@ public class Boxed extends MatrixBase {
     }
 
     @Benchmark
-    public Complex?[][] multiply() {
+    public Complex.ref[][] multiply() {
         int size = A.length;
-        Complex?[][] R = new Complex?[size][size];
+        Complex.ref[][] R = new Complex.ref[size][size];
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
                 Complex s = Complex.H.ZERO;
@@ -47,15 +47,15 @@ public class Boxed extends MatrixBase {
     }
 
     @Benchmark
-    public Complex?[][] multiplyCacheFriendly() {
+    public Complex.ref[][] multiplyCacheFriendly() {
         int size = A.length;
-        Complex?[][] R = new Complex?[size][size];
+        Complex.ref[][] R = new Complex.ref[size][size];
         for (int i = 0; i < size; i++) {
             Arrays.fill(R[i], Complex.H.ZERO);
         }
         for (int i = 0; i < size; i++) {
             for (int k = 0; k < size; k++) {
-                Complex? aik = A[i][k];
+                Complex.ref aik = A[i][k];
                 for (int j = 0; j < size; j++) {
                     R[i][j] = R[i][j].add(aik.mul((Complex)B[k][j]));
                 }
@@ -65,9 +65,9 @@ public class Boxed extends MatrixBase {
     }
 
     @Benchmark
-    public Complex?[][] multiplyCacheFriendly1() {
+    public Complex.ref[][] multiplyCacheFriendly1() {
         int size = A.length;
-        Complex?[][] R = new Complex?[size][size];
+        Complex.ref[][] R = new Complex.ref[size][size];
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
                 R[i][j] = Complex.H.ZERO;
@@ -75,7 +75,7 @@ public class Boxed extends MatrixBase {
         }
         for (int i = 0; i < size; i++) {
             for (int k = 0; k < size; k++) {
-                Complex? aik = A[i][k];
+                Complex.ref aik = A[i][k];
                 for (int j = 0; j < size; j++) {
                     R[i][j] = R[i][j].add(aik.mul((Complex)B[k][j]));
                 }

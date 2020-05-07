@@ -9,20 +9,20 @@ import org.openjdk.bench.valhalla.types.Vector;
 public class Set2 extends SizedBase {
 
     Val2[] values;
-    Val2?[] boxed;
+    Val2.ref[] boxed;
     Vector[] covariance;
 
     @Setup
     public void setup() {
         values = new Val2[size];
-        boxed = new Val2?[size];
+        boxed = new Val2.ref[size];
         covariance = new Val2[size];
     }
 
 
     @Benchmark
     public Object boxed() {
-        Val2?[] values = boxed;
+        Val2.ref[] values = boxed;
         for (int i = 0, k = 0; i < size; i++, k += 2) {
             values[i] = new Val2(k, k + 1);
         }
@@ -52,7 +52,7 @@ public class Set2 extends SizedBase {
      */
     @Benchmark
     public Object newBoxed() {
-        Val2?[] values = new Val2?[size];
+        Val2.ref[] values = new Val2.ref[size];
         for (int i = 0, k = 0; i < size; i++, k += 2) {
             values[i] = new Val2(k, k + 1);
         }

@@ -75,7 +75,7 @@ public class ValueTypeCreation {
 
     static final inline class StaticSelf {
 
-        static final StaticSelf? DEFAULT = create(0);
+        static final StaticSelf.ref DEFAULT = create(0);
         final int f1;
 
         private StaticSelf() { f1 = 0; }

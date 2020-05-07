@@ -125,9 +125,9 @@ public class QTypeDescriptorTest {
 
     @DataProvider
     static Object[][] descriptors() {
-        Class<?> pointLType = Point.class.asIndirectType();
+        Class<?> pointLType = Point.ref.class;
         Class<?> pointQType = Point.class;
-        Class<?> nonFlattenValueLType = NonFlattenValue.class.asIndirectType();
+        Class<?> nonFlattenValueLType = NonFlattenValue.ref.class;
         Class<?> nonFlattenValueQType = NonFlattenValue.class;
         return new Object[][]{
             { QTypeDescriptorTest.class, "toLine", new Class<?>[] {pointQType, nonFlattenValueQType}, true},
@@ -152,7 +152,7 @@ public class QTypeDescriptorTest {
 
     @DataProvider
     static Object[][] methodTypes() {
-        Class<?> pointLType = Point.class.asIndirectType();
+        Class<?> pointLType = Point.ref.class;
         Class<?> pointQType = Point.class;
         ClassLoader loader = QTypeDescriptorTest.class.getClassLoader();
         return new Object[][]{
@@ -162,12 +162,12 @@ public class QTypeDescriptorTest {
             { "point",      MethodType.methodType(pointQType),                            false },
             { "pointValue", MethodType.methodType(pointLType),                            false },
             { "has",        MethodType.methodType(boolean.class, pointLType, pointQType), false },
-            { "point",      MethodType.fromMethodDescriptorString("()LPoint;", loader),         true },
+            { "point",      MethodType.fromMethodDescriptorString("()LPoint$ref;", loader),         true },
             { "point",      MethodType.fromMethodDescriptorString("()QPoint;", loader),         false },
             { "pointValue", MethodType.fromMethodDescriptorString("()QPoint;", loader),         true },
             { "pointValue", MethodType.fromMethodDescriptorString("()LPoint;", loader),         false },
-            { "has",        MethodType.fromMethodDescriptorString("(QPoint;LPoint;)Z", loader), true },
-            { "has",        MethodType.fromMethodDescriptorString("(LPoint;LPoint;)Z", loader), false },
+            { "has",        MethodType.fromMethodDescriptorString("(QPoint;LPoint$ref;)Z", loader), true },
+            { "has",        MethodType.fromMethodDescriptorString("(LPoint$ref;LPoint$ref;)Z", loader), false },
         };
     }
 

@@ -70,8 +70,6 @@ private:
 
   int                    _has_injected_fields; // any non static injected fields? lazily initialized.
 
-  ciInstanceKlass*       _vcc_klass; // points to the value-capable class corresponding to the current derived value type class.
-
   // The possible values of the _implementor fall into following three cases:
   //   NULL: no implementor.
   //   A ciInstanceKlass that's not itself: one implementor.
@@ -251,7 +249,6 @@ public:
 
   bool is_leaf_type();
   ciInstanceKlass* implementor();
-  ciInstanceKlass* vcc_klass();
 
   ciInstanceKlass* unique_implementor() {
     assert(is_loaded(), "must be loaded");
@@ -259,9 +256,7 @@ public:
     return (impl != this ? impl : NULL);
   }
 
-  virtual bool can_be_value_klass(bool is_exact = false) {
-    return EnableValhalla && (!is_loaded() || is_valuetype() || ((is_java_lang_Object() || is_interface() || (is_abstract() && !has_nonstatic_fields())) && !is_exact));
-  }
+  virtual bool can_be_value_klass(bool is_exact = false);
 
   // Is the defining class loader of this class the default loader?
   bool uses_default_loader() const;

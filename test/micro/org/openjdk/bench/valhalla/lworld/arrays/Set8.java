@@ -9,20 +9,20 @@ import org.openjdk.bench.valhalla.types.Vector;
 public class Set8 extends SizedBase {
 
     Val8[] values;
-    Val8?[] boxed;
+    Val8.ref[] boxed;
     Vector[] covariance;
 
     @Setup
     public void setup() {
         values = new Val8[size];
-        boxed = new Val8?[size];
+        boxed = new Val8.ref[size];
         covariance = new Val8[size];
     }
 
 
     @Benchmark
     public Object boxed() {
-        Val8?[] values = boxed;
+        Val8.ref[] values = boxed;
         for (int i = 0, k = 0; i < size; i++, k += 8) {
             values[i] = new Val8(k, k + 1, k + 2, k + 3, k + 4, k + 5, k + 6, k + 7);
         }
@@ -52,7 +52,7 @@ public class Set8 extends SizedBase {
      */
     @Benchmark
     public Object newBoxed() {
-        Val8?[] values = new Val8?[size];
+        Val8.ref[] values = new Val8.ref[size];
         for (int i = 0, k = 0; i < size; i++, k += 8) {
             values[i] = new Val8(k, k + 1, k + 2, k + 3, k + 4, k + 5, k + 6, k + 7);
         }

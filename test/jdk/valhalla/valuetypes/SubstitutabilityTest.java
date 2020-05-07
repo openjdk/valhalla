@@ -39,8 +39,8 @@ public class SubstitutabilityTest {
     Object[][] substitutableCases() {
         Point p1 = Point.makePoint(10, 10);
         Point p2 = Point.makePoint(20, 20);
-        Point? box1 = p1;
-        Point? box2 = p2;
+        Point.ref box1 = p1;
+        Point.ref box2 = p2;
         Line l1 = Line.makeLine(p1, p2);
         var mpath = MutablePath.makePath(10, 20, 30, 40);
         var mixedValues = new MixedValues(p1, l1, mpath, "value");

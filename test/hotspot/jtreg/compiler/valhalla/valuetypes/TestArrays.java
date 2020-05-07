@@ -1251,7 +1251,8 @@ public class TestArrays extends ValueTypeTest {
 
     @Test
     public MyValue1[] test51(MyValue1[] va) {
-        return Arrays.copyOf(va, va.length, MyValue1[].class);
+        // TODO Remove cast as workaround once javac is fixed
+        return (MyValue1[])Arrays.copyOf(va, va.length, MyValue1[].class);
     }
 
     @DontCompile
@@ -1269,7 +1270,8 @@ public class TestArrays extends ValueTypeTest {
 
     @Test
     public MyValue1[] test52() {
-        return Arrays.copyOf(test52_va, 8, MyValue1[].class);
+        // TODO Remove cast as workaround once javac is fixed
+        return (MyValue1[])Arrays.copyOf(test52_va, 8, MyValue1[].class);
     }
 
     @DontCompile
@@ -1283,7 +1285,8 @@ public class TestArrays extends ValueTypeTest {
 
     @Test
     public MyValue1[] test53(Object[] va) {
-        return Arrays.copyOf(va, va.length, MyValue1[].class);
+        // TODO Remove cast as workaround once javac is fixed
+        return (MyValue1[])Arrays.copyOf(va, va.length, MyValue1[].class);
     }
 
     @DontCompile
@@ -1331,7 +1334,8 @@ public class TestArrays extends ValueTypeTest {
 
     @Test
     public MyValue1[] test56(Object[] va) {
-        return Arrays.copyOf(va, va.length, MyValue1[].class);
+        // TODO Remove cast as workaround once javac is fixed
+        return (MyValue1[])Arrays.copyOf(va, va.length, MyValue1[].class);
     }
 
     @DontCompile
@@ -1967,7 +1971,7 @@ public class TestArrays extends ValueTypeTest {
 
     @DontCompile
     public void test84_verifier(boolean warmup) {
-        NotFlattenable?[] array1 = new NotFlattenable?[2];
+        NotFlattenable.ref[] array1 = new NotFlattenable.ref[2];
         Object[] array2 = new Object[2];
         Object result = test84(array1, 0);
         Asserts.assertEquals(array1[0], null);
@@ -2023,7 +2027,7 @@ public class TestArrays extends ValueTypeTest {
 
     // Same as test85 but with not-flattenable inline type array
     @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE, match = { VALUE_ARRAY_NULL_GUARD }, matchCount = { 2 })
-    public void test86(NotFlattenable?[] array, NotFlattenable? o, boolean b) {
+    public void test86(NotFlattenable.ref[] array, NotFlattenable.ref o, boolean b) {
         if (b) {
             array[0] = null;
         } else {
@@ -2035,7 +2039,7 @@ public class TestArrays extends ValueTypeTest {
     @DontCompile
     public void test86_verifier(boolean warmup) {
         NotFlattenable vt = new NotFlattenable();
-        NotFlattenable?[] array1 = new NotFlattenable?[2];
+        NotFlattenable.ref[] array1 = new NotFlattenable.ref[2];
         test86(array1, vt, true);
         Asserts.assertEquals(array1[1], vt);
         test86(array1, null, false);
@@ -2053,7 +2057,7 @@ public class TestArrays extends ValueTypeTest {
 
     // Same as test85 but with inline type array
     @Test(failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE, match = { VALUE_ARRAY_NULL_GUARD }, matchCount = { 2 })
-    public void test87(MyValue1?[] array, MyValue1? o, boolean b) {
+    public void test87(MyValue1.ref[] array, MyValue1.ref o, boolean b) {
         if (b) {
             array[0] = null;
         } else {
@@ -2065,7 +2069,7 @@ public class TestArrays extends ValueTypeTest {
     @DontCompile
     public void test87_verifier(boolean warmup) {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1?[] array1 = new MyValue1?[2];
+        MyValue1.ref[] array1 = new MyValue1.ref[2];
         test87(array1, vt, true);
         Asserts.assertEquals(array1[1], vt);
         test87(array1, null, false);
@@ -2107,14 +2111,14 @@ public class TestArrays extends ValueTypeTest {
     }
 
     @Test()
-    public void test89(MyValue1?[] array, Integer v) {
+    public void test89(MyValue1.ref[] array, Integer v) {
         Object o = v;
-        array[0] = (MyValue1?)o;
+        array[0] = (MyValue1.ref)o;
     }
 
     @DontCompile
     public void test89_verifier(boolean warmup) {
-        MyValue1?[] array1 = new MyValue1?[1];
+        MyValue1.ref[] array1 = new MyValue1.ref[1];
         test89(array1, null);
         Asserts.assertEquals(array1[0], null);
         if (!warmup) {
@@ -2133,16 +2137,16 @@ public class TestArrays extends ValueTypeTest {
         boolean b = true;
 
         MyValue1[] qArray = new MyValue1[0];
-        MyValue1?[] lArray = new MyValue1?[0];
+        MyValue1.ref[] lArray = new MyValue1.ref[0];
 
         b = b && (qArray instanceof MyValue1[]);
-        b = b && (lArray instanceof MyValue1?[]);
+        b = b && (lArray instanceof MyValue1.ref[]);
 
         MyValue1[][] qArray2 = new MyValue1[0][0];
-        MyValue1?[][] lArray2 = new MyValue1?[0][0];
+        MyValue1.ref[][] lArray2 = new MyValue1.ref[0][0];
 
         b = b && (qArray2 instanceof MyValue1[][]);
-        b = b && (lArray2 instanceof MyValue1?[][]);
+        b = b && (lArray2 instanceof MyValue1.ref[][]);
 
         return b;
     }

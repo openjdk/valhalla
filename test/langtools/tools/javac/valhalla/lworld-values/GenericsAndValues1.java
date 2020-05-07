@@ -27,10 +27,10 @@
  * @test
  * @bug 8222784
  * @summary Check generics and values interplay
- * @compile -XDallowGenericsOverValues GenericsAndValues1.java
+ * @compile GenericsAndValues1.java
  */
 
- @__inline__ class Foo implements Comparable<Foo>{
+ @__inline__ class Foo implements Comparable<Foo.ref>{
     final int value;
   
     public Foo(int value) {
@@ -38,7 +38,7 @@
     }
 
     @Override
-    public int compareTo(Foo o) {
+    public int compareTo(Foo.ref o) {
       return Integer.compare(value, o.value);
     }
  }
