@@ -117,7 +117,7 @@ public class TestIntrinsics extends ValueTypeTest {
     public boolean test4() {
         boolean check1 = Object.class.getSuperclass() == null;
         // TODO Remove cast as workaround once javac is fixed
-        boolean check2 = MyValue1.class.asIndirectType().getSuperclass() == MyValue1.ref.class;
+        boolean check2 = (Class<?>)MyValue1.class.asIndirectType().getSuperclass() == MyValue1.ref.class;
         // TODO Remove cast as workaround once javac is fixed
         boolean check3 = (Class<?>)MyValue1.class.asPrimaryType().getSuperclass() == MyValue1.ref.class;
         boolean check4 = Class.class.getSuperclass() == Object.class;
