@@ -653,7 +653,8 @@ bool Method::is_vanilla_constructor() const {
   if (size == 0 || size % 5 != 0) return false;
   address cb = code_base();
   int last = size - 1;
-  if (cb[0] != Bytecodes::_aload_0 || cb[1] != Bytecodes::_invokespecial || cb[last] != Bytecodes::_return) {
+  if ((cb[0] != Bytecodes::_aload_0 && cb[0] != Bytecodes::_fast_aload_0 && cb[0] != Bytecodes::_nofast_aload_0) ||
+       cb[1] != Bytecodes::_invokespecial || cb[last] != Bytecodes::_return) {
     // Does not call superclass default constructor
     return false;
   }
