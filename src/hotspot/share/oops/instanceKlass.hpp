@@ -258,6 +258,9 @@ class InstanceKlass: public Klass {
   // _misc_flags.
   bool            _is_marked_dependent;  // used for marking during flushing and deoptimization
 
+  bool _invalid_inline_super;   // if true, invalid super type for an inline type.
+  bool _invalid_identity_super; // if true, invalid super type for an identity type.
+
   // The low three bits of _misc_flags contains the kind field.
   // This can be used to quickly discriminate among the five kinds of
   // InstanceKlass.
@@ -632,6 +635,15 @@ public:
   // marking
   bool is_marked_dependent() const         { return _is_marked_dependent; }
   void set_is_marked_dependent(bool value) { _is_marked_dependent = value; }
+
+  bool invalid_inline_super() const { return _invalid_inline_super; }
+  void set_invalid_inline_super(bool set_invalid_inline_super) {
+    _invalid_inline_super = set_invalid_inline_super;
+  }
+  bool invalid_identity_super() const { return _invalid_identity_super; }
+  void set_invalid_identity_super(bool set_invalid_identity_super) {
+    _invalid_identity_super = set_invalid_identity_super;
+  }
 
   static ByteSize misc_flags_offset() { return in_ByteSize(offset_of(InstanceKlass, _misc_flags)); }
   static u4 misc_flags_is_empty_value() { return _misc_is_empty_value; }

@@ -26,7 +26,8 @@
  * @bug 8243204
  * @summary test that the JVM detects illegal super classes for inline types.
  * @compile NotAbstract.java HasNonStaticFields.java CtorHasArgs.java CtorIsNotEmpty.java
- * @compile HasSynchMethod.java ValidSuper.java InlineClassWithBadSupers.jcod
+ * @compile HasSynchMethod.java ValidSuper.java ImplementsIdentityObject.java
+ * @compile IntfImplementsIdentityObject.java InlineClassWithBadSupers.jcod
  * @run main/othervm -verify TestSuperClasses
  */
 
@@ -48,22 +49,34 @@ public class TestSuperClasses {
 
         // Test that the super class of an inline type must be java.lang.Object or an abstract class.
         runTestIncompatibleClassChangeError("SuperNotAbstract",
-            "has a super class NotAbstract that is not abstract");
+            "class SuperNotAbstract has an invalid super class NotAbstract");
 
         // Test that the super class of an inline type cannot have instance fields.
         runTestIncompatibleClassChangeError("SuperHasNonStaticFields",
-            "has a super class HasNonStaticFields containing instance fields");
+            "SuperHasNonStaticFields has an invalid super class HasNonStaticFields");
 
         // Test that the super class of an inline type cannot contain a synchronized instance method.
         runTestIncompatibleClassChangeError("SuperHasSynchMethod",
-            "has a super class HasSynchMethod containing a synchronized instance method");
+            "SuperHasSynchMethod has an invalid super class ValidSuper");
 
         // Test that the constructor in a super class of an inline type must have a signature of "()V".
         runTestIncompatibleClassChangeError("SuperCtorHasArgs",
-            "has a super class CtorHasArgs containing a constructor with a non-void signature");
+            "SuperCtorHasArgs has an invalid super class CtorHasArgs");
 
         // Test that the constructor in a super class of an inline type must be empty.
         runTestIncompatibleClassChangeError("SuperCtorIsNotEmpty",
-            "has a super class CtorIsNotEmpty containing a non-empty constructor");
+            "SuperCtorIsNotEmpty has an invalid super class CtorIsNotEmpty");
+
+        // Test that an inline class cannot implement java.lang.IdentityObject.
+        runTestIncompatibleClassChangeError("InlineImplementsIdentityObject",
+            "attempts to implement interface java.lang.IdentityObject");
+
+        // Test that an inline class's super type cannot implement java.lang.IdentityObject.
+        runTestIncompatibleClassChangeError("SuperImplementsIdentityObject",
+            "SuperImplementsIdentityObject has an invalid super class ImplementsIdentityObject");
+
+        // Test that an inline class's super type's interfaces cannot implement java.lang.IdentityObject.
+        runTestIncompatibleClassChangeError("SuperIntfImplementsIdentityObject",
+            "SuperIntfImplementsIdentityObject has an invalid super class IntfImplementsIdentityObject");
     }
 }
