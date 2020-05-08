@@ -211,8 +211,6 @@ class ClassFileParser {
   bool _has_vanilla_constructor;
   int _max_bootstrap_specifier_index;  // detects BSS values
 
-  bool is_invalid_super_for_inline_type(const InstanceKlass* ik);
-
   void parse_stream(const ClassFileStream* const stream, TRAPS);
 
   void post_process_parsed_stream(const ClassFileStream* const stream,
@@ -593,13 +591,9 @@ class ClassFileParser {
   bool is_value_capable_class() const;
   bool has_flattenable_fields() const { return _has_flattenable_fields; }
   bool invalid_inline_super() const { return _invalid_inline_super; }
+  void set_invalid_inline_super() { _invalid_inline_super = true; }
   bool invalid_identity_super() const { return _invalid_identity_super; }
-  void set_invalid_inline_super(bool set_invalid_inline_super) {
-    _invalid_inline_super = set_invalid_inline_super;
-  }
-  void set_invalid_identity_super(bool set_invalid_identity_super) {
-    _invalid_identity_super = set_invalid_identity_super;
-  }
+  void set_invalid_identity_super() { _invalid_identity_super = true; }
 
   u2 java_fields_count() const { return _java_fields_count; }
 

@@ -1014,7 +1014,7 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
         return;
       }
       if (ik->invalid_inline_super()) {
-        set_invalid_inline_super(true);
+        set_invalid_inline_super();
       }
       if (ik->has_nonstatic_concrete_methods()) {
         *has_nonstatic_concrete_methods = true;
@@ -6074,6 +6074,41 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook, 
   return ik;
 }
 
+// Return true if the specified class is not a valid super class for an inline type.
+// A valid super class for an inline type is abstract, has no instance fields,
+// does not implement interface java.lang.IdentityObject (checked elsewhere), has
+// an empty body-less no-arg constructor, and no synchronized instance methods.
+// This function doesn't check if the class's super types are invalid.  Those checks
+// are done elsewhere.  The final determination of whether or not a class is an
+// invalid super type for an inline class is done in fill_instance_klass().
+static bool is_invalid_super_for_inline_type(const InstanceKlass* ik) {
+  if (ik->name() == vmSymbols::java_lang_IdentityObject()) {
+    return true;
+  }
+  if (ik->is_interface() || ik->name() == vmSymbols::java_lang_Object()) {
+    return false;
+  }
+  if (!ik->is_abstract() || ik->has_nonstatic_fields()) {
+    return true;
+  } else {
+    Array<Method*>* methods = ik->methods();
+    // Look at each method.
+    for (int x = 0; x < methods->length(); x++) {
+      const Method* const method = methods->at(x);
+      if (method->is_synchronized() && !method->is_static()) {
+        return true;
+
+      } else if (method->name() == vmSymbols::object_initializer_name()) {
+        if (method->signature() != vmSymbols::void_method_signature() ||
+            !method->is_vanilla_constructor()) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
+}
+
 void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loadhook, TRAPS) {
   assert(ik != NULL, "invariant");
 
@@ -6342,7 +6377,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   if (invalid_inline_super() ||
       (_super_klass != NULL && _super_klass->invalid_inline_super()) ||
       is_invalid_super_for_inline_type(ik)) {
-    ik->set_invalid_inline_super(true);
+    ik->set_invalid_inline_super();
   }
 
   JFR_ONLY(INIT_ID(ik);)
@@ -6896,38 +6931,6 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
                      CHECK);
 
   // all bytes in stream read and parsed
-}
-
-// Return true if the specified class is not a valid super class for an inline type.
-// A valid super class for an inline type is abstract, has no instance fields,
-// does not implement interface java.lang.IdentityObject (checked elsewhere), has
-// an empty body-less no-arg constructor, and no synchronized instance methods.
-bool ClassFileParser::is_invalid_super_for_inline_type(const InstanceKlass* ik) {
-  if (ik->name() == vmSymbols::java_lang_IdentityObject()) {
-    return true;
-  }
-  if (ik->is_interface() || ik->name() == vmSymbols::java_lang_Object()) {
-    return false;
-  }
-  if (!ik->is_abstract() || ik->has_nonstatic_fields()) {
-    return true;
-  } else {
-    Array<Method*>* methods = ik->methods();
-    // Look at each method.
-    for (int x = 0; x < methods->length(); x++) {
-      const Method* const method = methods->at(x);
-      if (method->is_synchronized() && !method->is_static()) {
-        return true;
-
-      } else if (method->name() == vmSymbols::object_initializer_name()) {
-        if (method->signature() != vmSymbols::void_method_signature() ||
-            !method->is_vanilla_constructor()) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
 }
 
 void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const stream,

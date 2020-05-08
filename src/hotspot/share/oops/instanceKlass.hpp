@@ -258,9 +258,6 @@ class InstanceKlass: public Klass {
   // _misc_flags.
   bool            _is_marked_dependent;  // used for marking during flushing and deoptimization
 
-  bool _invalid_inline_super;   // if true, invalid super type for an inline type.
-  bool _invalid_identity_super; // if true, invalid super type for an identity type.
-
   // The low three bits of _misc_flags contains the kind field.
   // This can be used to quickly discriminate among the five kinds of
   // InstanceKlass.
@@ -297,7 +294,9 @@ class InstanceKlass: public Klass {
     _misc_has_value_fields                    = 1 << 19, // has value fields and related embedded section is not empty
     _misc_is_empty_value                      = 1 << 20, // empty value type
     _misc_is_naturally_atomic                 = 1 << 21, // loaded/stored in one instruction
-    _misc_is_declared_atomic                  = 1 << 22  // implements jl.NonTearable
+    _misc_is_declared_atomic                  = 1 << 22, // implements jl.NonTearable
+    _misc_invalid_inline_super                = 1 << 23, // invalid super type for an inline type
+    _misc_invalid_identity_super              = 1 << 24  // invalid super type for an identity type
   };
   u2 shared_loader_type_bits() const {
     return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
@@ -463,6 +462,23 @@ class InstanceKlass: public Klass {
   // Initialized in the class file parser, not changed later.
   void set_is_declared_atomic() {
     _misc_flags |= _misc_is_declared_atomic;
+  }
+
+  // Query if class is an invalid super class for an inline type.
+  bool invalid_inline_super() const {
+    return (_misc_flags & _misc_invalid_inline_super) != 0;
+  }
+  // Initialized in the class file parser, not changed later.
+  void set_invalid_inline_super() {
+    _misc_flags |= _misc_invalid_inline_super;
+  }
+  // Query if class is an invalid super class for an identity type.
+  bool invalid_identity_super() const {
+    return (_misc_flags & _misc_invalid_identity_super) != 0;
+  }
+  // Initialized in the class file parser, not changed later.
+  void set_invalid_identity_super() {
+    _misc_flags |= _misc_invalid_identity_super;
   }
 
   // field sizes
@@ -635,15 +651,6 @@ public:
   // marking
   bool is_marked_dependent() const         { return _is_marked_dependent; }
   void set_is_marked_dependent(bool value) { _is_marked_dependent = value; }
-
-  bool invalid_inline_super() const { return _invalid_inline_super; }
-  void set_invalid_inline_super(bool set_invalid_inline_super) {
-    _invalid_inline_super = set_invalid_inline_super;
-  }
-  bool invalid_identity_super() const { return _invalid_identity_super; }
-  void set_invalid_identity_super(bool set_invalid_identity_super) {
-    _invalid_identity_super = set_invalid_identity_super;
-  }
 
   static ByteSize misc_flags_offset() { return in_ByteSize(offset_of(InstanceKlass, _misc_flags)); }
   static u4 misc_flags_is_empty_value() { return _misc_is_empty_value; }

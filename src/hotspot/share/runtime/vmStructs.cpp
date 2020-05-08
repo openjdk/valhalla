@@ -230,8 +230,6 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   nonstatic_field(InstanceKlass,               _static_oop_field_count,                       u2)                                    \
   nonstatic_field(InstanceKlass,               _nonstatic_oop_map_size,                       int)                                   \
   nonstatic_field(InstanceKlass,               _is_marked_dependent,                          bool)                                  \
-  nonstatic_field(InstanceKlass,               _invalid_inline_super,                         bool)                                  \
-  nonstatic_field(InstanceKlass,               _invalid_identity_super,                       bool)                                  \
   nonstatic_field(InstanceKlass,               _misc_flags,                                   u4)                                    \
   nonstatic_field(InstanceKlass,               _minor_version,                                u2)                                    \
   nonstatic_field(InstanceKlass,               _major_version,                                u2)                                    \
@@ -2302,6 +2300,8 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   declare_constant(InstanceKlass::_misc_is_shared_boot_class)             \
   declare_constant(InstanceKlass::_misc_is_shared_platform_class)         \
   declare_constant(InstanceKlass::_misc_is_shared_app_class)              \
+  declare_constant(InstanceKlass::_misc_invalid_inline_super)             \
+  declare_constant(InstanceKlass::_misc_invalid_identity_super)           \
                                                                           \
   /*********************************/                                     \
   /* Symbol* - symbol max length */                                       \
