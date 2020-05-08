@@ -810,9 +810,18 @@ public class TreeMaker implements JCTree.Factory {
             }
             default: {
                 if (t.isReferenceProjection()) {
-                    JCFieldAccess f = (JCFieldAccess) Select(Type(t.valueProjection()), t.tsym);
-                    f.name = names.ref;
-                    tp = f;
+                    // For parameterized types, we want V.ref<A1 ... An> not V<A1 ... An>.ref
+                    JCExpression vp = Type(t.valueProjection());
+                    if (vp.hasTag(Tag.TYPEAPPLY)) {
+                        // vp now is V<A1 ... An>, build V.ref<A1 ... An>
+                        JCFieldAccess f = (JCFieldAccess) Select(((JCTypeApply) vp).clazz, t.tsym);
+                        f.name = names.ref;
+                        tp = TypeApply(f, ((JCTypeApply) vp).arguments);
+                    } else {
+                        JCFieldAccess f = (JCFieldAccess) Select(vp, t.tsym);
+                        f.name = names.ref;
+                        tp = f;
+                    }
                 } else {
                     Type outer = t.getEnclosingType();
                     JCExpression clazz = outer.hasTag(CLASS) && t.tsym.owner.kind == TYP
