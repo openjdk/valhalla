@@ -294,7 +294,9 @@ class InstanceKlass: public Klass {
     _misc_has_value_fields                    = 1 << 19, // has value fields and related embedded section is not empty
     _misc_is_empty_value                      = 1 << 20, // empty value type
     _misc_is_naturally_atomic                 = 1 << 21, // loaded/stored in one instruction
-    _misc_is_declared_atomic                  = 1 << 22  // implements jl.NonTearable
+    _misc_is_declared_atomic                  = 1 << 22, // implements jl.NonTearable
+    _misc_invalid_inline_super                = 1 << 23, // invalid super type for an inline type
+    _misc_invalid_identity_super              = 1 << 24  // invalid super type for an identity type
   };
   u2 shared_loader_type_bits() const {
     return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
@@ -460,6 +462,23 @@ class InstanceKlass: public Klass {
   // Initialized in the class file parser, not changed later.
   void set_is_declared_atomic() {
     _misc_flags |= _misc_is_declared_atomic;
+  }
+
+  // Query if class is an invalid super class for an inline type.
+  bool invalid_inline_super() const {
+    return (_misc_flags & _misc_invalid_inline_super) != 0;
+  }
+  // Initialized in the class file parser, not changed later.
+  void set_invalid_inline_super() {
+    _misc_flags |= _misc_invalid_inline_super;
+  }
+  // Query if class is an invalid super class for an identity type.
+  bool invalid_identity_super() const {
+    return (_misc_flags & _misc_invalid_identity_super) != 0;
+  }
+  // Initialized in the class file parser, not changed later.
+  void set_invalid_identity_super() {
+    _misc_flags |= _misc_invalid_identity_super;
   }
 
   // field sizes

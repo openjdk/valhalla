@@ -202,6 +202,8 @@ class ClassFileParser {
   bool _is_empty_value;
   bool _is_naturally_atomic;
   bool _is_declared_atomic;
+  bool _invalid_inline_super;   // if true, invalid super type for an inline type.
+  bool _invalid_identity_super; // if true, invalid super type for an identity type.
 
   // precomputed flags
   bool _has_finalizer;
@@ -248,6 +250,7 @@ class ClassFileParser {
   void parse_interfaces(const ClassFileStream* const stream,
                         const int itfs_len,
                         ConstantPool* const cp,
+                        bool is_inline_type,
                         bool* has_nonstatic_concrete_methods,
                         bool* is_declared_atomic,
                         TRAPS);
@@ -587,6 +590,10 @@ class ClassFileParser {
   bool is_value_type() const { return _access_flags.is_value_type(); }
   bool is_value_capable_class() const;
   bool has_flattenable_fields() const { return _has_flattenable_fields; }
+  bool invalid_inline_super() const { return _invalid_inline_super; }
+  void set_invalid_inline_super() { _invalid_inline_super = true; }
+  bool invalid_identity_super() const { return _invalid_identity_super; }
+  void set_invalid_identity_super() { _invalid_identity_super = true; }
 
   u2 java_fields_count() const { return _java_fields_count; }
 

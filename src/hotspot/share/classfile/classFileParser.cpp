@@ -947,6 +947,7 @@ static bool put_after_lookup(const Symbol* name, const Symbol* sig, NameSigHash*
 void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
                                        int itfs_len,
                                        ConstantPool* cp,
+                                       bool is_inline_type,
                                        bool* const has_nonstatic_concrete_methods,
                                        // FIXME: lots of these functions
                                        // declare their parameters as const,
@@ -1003,6 +1004,18 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
       }
 
       InstanceKlass* ik = InstanceKlass::cast(interf);
+      if (is_inline_type && ik->invalid_inline_super()) {
+        ResourceMark rm(THREAD);
+        Exceptions::fthrow(
+          THREAD_AND_LOCATION,
+          vmSymbols::java_lang_IncompatibleClassChangeError(),
+          "Inline type %s attempts to implement interface java.lang.IdentityObject",
+          _class_name->as_klass_external_name());
+        return;
+      }
+      if (ik->invalid_inline_super()) {
+        set_invalid_inline_super();
+      }
       if (ik->has_nonstatic_concrete_methods()) {
         *has_nonstatic_concrete_methods = true;
       }
@@ -6031,7 +6044,6 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook, 
     InstanceKlass::allocate_instance_klass(*this, CHECK_NULL);
 
   fill_instance_klass(ik, changed_by_loadhook, CHECK_NULL);
-
   assert(_klass == ik, "invariant");
 
 
@@ -6060,6 +6072,41 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook, 
   }
 
   return ik;
+}
+
+// Return true if the specified class is not a valid super class for an inline type.
+// A valid super class for an inline type is abstract, has no instance fields,
+// does not implement interface java.lang.IdentityObject (checked elsewhere), has
+// an empty body-less no-arg constructor, and no synchronized instance methods.
+// This function doesn't check if the class's super types are invalid.  Those checks
+// are done elsewhere.  The final determination of whether or not a class is an
+// invalid super type for an inline class is done in fill_instance_klass().
+static bool is_invalid_super_for_inline_type(const InstanceKlass* ik) {
+  if (ik->name() == vmSymbols::java_lang_IdentityObject()) {
+    return true;
+  }
+  if (ik->is_interface() || ik->name() == vmSymbols::java_lang_Object()) {
+    return false;
+  }
+  if (!ik->is_abstract() || ik->has_nonstatic_fields()) {
+    return true;
+  } else {
+    Array<Method*>* methods = ik->methods();
+    // Look at each method.
+    for (int x = 0; x < methods->length(); x++) {
+      const Method* const method = methods->at(x);
+      if (method->is_synchronized() && !method->is_static()) {
+        return true;
+
+      } else if (method->name() == vmSymbols::object_initializer_name()) {
+        if (method->signature() != vmSymbols::void_method_signature() ||
+            !method->is_vanilla_constructor()) {
+          return true;
+        }
+      }
+    }
+  }
+  return false;
 }
 
 void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loadhook, TRAPS) {
@@ -6324,6 +6371,15 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
     }
   }
 
+  // Set ik->invalid_inline_super field to TRUE if already marked as invalid,
+  // if super is marked invalid, or if is_invalid_super_for_inline_type()
+  // returns true
+  if (invalid_inline_super() ||
+      (_super_klass != NULL && _super_klass->invalid_inline_super()) ||
+      is_invalid_super_for_inline_type(ik)) {
+    ik->set_invalid_inline_super();
+  }
+
   JFR_ONLY(INIT_ID(ik);)
 
   // If we reach here, all is well.
@@ -6480,6 +6536,8 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _is_empty_value(false),
   _is_naturally_atomic(false),
   _is_declared_atomic(false),
+  _invalid_inline_super(false),
+  _invalid_identity_super(false),
   _has_finalizer(false),
   _has_empty_finalizer(false),
   _has_vanilla_constructor(false),
@@ -6818,6 +6876,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   parse_interfaces(stream,
                    _itfs_len,
                    cp,
+                   is_value_type(),
                    &_has_nonstatic_concrete_methods,
                    &_is_declared_atomic,
                    CHECK);
@@ -6927,19 +6986,25 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       return;
     }
 
-    // For an inline class, only java/lang/Object or special abstract classes
-    // are acceptable super classes.
-    if (_access_flags.get_flags() & JVM_ACC_VALUE) {
-      if (_super_klass->name() != vmSymbols::java_lang_Object()) {
-        guarantee_property(_super_klass->is_abstract(),
-          "Inline type must have java.lang.Object or an abstract class as its superclass, class file %s",
-          CHECK);
-      }
-    }
-
     // Make sure super class is not final
     if (_super_klass->is_final()) {
       THROW_MSG(vmSymbols::java_lang_VerifyError(), "Cannot inherit from final class");
+    }
+
+    // For an inline class, only java/lang/Object or special abstract classes
+    // are acceptable super classes.
+    if (is_value_type()) {
+      const InstanceKlass* super_ik = _super_klass;
+      if (super_ik->invalid_inline_super()) {
+        ResourceMark rm(THREAD);
+        Exceptions::fthrow(
+          THREAD_AND_LOCATION,
+          vmSymbols::java_lang_IncompatibleClassChangeError(),
+          "inline class %s has an invalid super class %s",
+          _class_name->as_klass_external_name(),
+          _super_klass->external_name());
+        return;
+      }
     }
   }
 
@@ -7019,7 +7084,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
   // Compute reference type
   _rt = (NULL ==_super_klass) ? REF_NONE : _super_klass->reference_type();
-
 }
 
 void ClassFileParser::set_klass(InstanceKlass* klass) {

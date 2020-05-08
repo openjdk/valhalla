@@ -629,7 +629,7 @@ bool Method::is_vanilla_constructor() const {
   // which only calls the superclass vanilla constructor and possibly does stores of
   // zero constants to local fields:
   //
-  //   aload_0
+  //   aload_0, _fast_aload_0, or _nofast_aload_0
   //   invokespecial
   //   indexbyte1
   //   indexbyte2

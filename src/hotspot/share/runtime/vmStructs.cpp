@@ -2300,6 +2300,8 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   declare_constant(InstanceKlass::_misc_is_shared_boot_class)             \
   declare_constant(InstanceKlass::_misc_is_shared_platform_class)         \
   declare_constant(InstanceKlass::_misc_is_shared_app_class)              \
+  declare_constant(InstanceKlass::_misc_invalid_inline_super)             \
+  declare_constant(InstanceKlass::_misc_invalid_identity_super)           \
                                                                           \
   /*********************************/                                     \
   /* Symbol* - symbol max length */                                       \
