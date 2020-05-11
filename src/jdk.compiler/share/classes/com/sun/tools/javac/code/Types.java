@@ -2152,6 +2152,30 @@ public class Types {
     // </editor-fold>
 
     // <editor-fold defaultstate="collapsed" desc="asSuper">
+
+    /**
+     * Return the (most specific) base type of t that starts with the
+     * given symbol.  If none exists, return null.
+     *
+     * Caveat Emptor: Since javac represents the class of all arrays with a singleton
+     * symbol Symtab.arrayClass, which by being a singleton cannot hold any discriminant,
+     * this method could yield surprising answers when invoked on arrays. For example when
+     * invoked with t being byte [] and sym being t.sym itself, asSuper would answer null.
+     *
+     * @param t a type
+     * @param sym a symbol
+     * @param checkReferenceProjection if true, first compute reference projection of t
+     */
+    public Type asSuper(Type t, Symbol sym, boolean checkReferenceProjection) {
+        /* For a (value or identity) class V, whether it implements an interface I, boils down to whether
+           V.ref is a subtype of I. OIOW, whether asSuper(V.ref, sym) != null. (Likewise for an abstract
+           superclass)
+        */
+        if (checkReferenceProjection)
+            t = t.isValue() ? t.referenceProjection() : t;
+        return asSuper(t, sym);
+    }
+
     /**
      * Return the (most specific) base type of t that starts with the
      * given symbol.  If none exists, return null.

@@ -2678,12 +2678,8 @@ public class Check {
         }
         checkCompatibleConcretes(pos, c);
 
-        /* Check for inline/identity incompatibilities: But first, we may need to switch to the
-           reference universe to make the hierarchy navigable.
-        */
-        Type asRefType = c.isValue() ? c.referenceProjection() : c;
-        boolean isIdentityObject = types.asSuper(asRefType, syms.identityObjectType.tsym) != null;
-        boolean isInlineObject = types.asSuper(asRefType, syms.inlineObjectType.tsym) != null;
+        boolean isIdentityObject = types.asSuper(c, syms.identityObjectType.tsym, true) != null;
+        boolean isInlineObject = types.asSuper(c, syms.inlineObjectType.tsym, true) != null;
         if (c.isValue() && isIdentityObject) {
             log.error(pos, Errors.InlineTypeMustNotImplementIdentityObject(c));
         } else if (!c.isInterface() && !c.tsym.isAbstract() && !c.isValue() && isInlineObject) {
