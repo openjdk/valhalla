@@ -1572,7 +1572,7 @@ public class Attr extends JCTree.Visitor {
             Type elemtype = types.elemtype(exprType); // perhaps expr is an array?
             if (elemtype == null) {
                 // or perhaps expr implements Iterable<T>?
-                Type base = types.asSuper(exprType, syms.iterableType.tsym);
+                Type base = types.asSuper(exprType, syms.iterableType.tsym, true);
                 if (base == null) {
                     log.error(tree.expr.pos(),
                               Errors.ForeachNotApplicableToType(exprType,
@@ -1867,7 +1867,7 @@ public class Attr extends JCTree.Visitor {
 
     void checkAutoCloseable(DiagnosticPosition pos, Env<AttrContext> env, Type resource) {
         if (!resource.isErroneous() &&
-            types.asSuper(resource, syms.autoCloseableType.tsym) != null &&
+            types.asSuper(resource, syms.autoCloseableType.tsym, true) != null &&
             !types.isSameType(resource, syms.autoCloseableType)) { // Don't emit warning for AutoCloseable itself
             Symbol close = syms.noSymbol;
             Log.DiagnosticHandler discardHandler = new Log.DiscardDiagnosticHandler(log);
