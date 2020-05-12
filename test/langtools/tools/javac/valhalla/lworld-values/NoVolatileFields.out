@@ -1,0 +1,3 @@
+NoVolatileFields.java:11:28: compiler.err.illegal.combination.of.modifiers: final, volatile
+NoVolatileFields.java:15:22: compiler.err.illegal.combination.of.modifiers: final, volatile
+2 errors
