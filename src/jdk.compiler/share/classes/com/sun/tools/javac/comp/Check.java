@@ -1453,7 +1453,7 @@ public class Check {
                                PRIVATE,
                                PUBLIC | PROTECTED)
                  &&
-                 checkDisjoint(pos, flags,
+                 checkDisjoint(pos, (flags | implicit), // complain against volatile & implcitly final entities too.
                                FINAL,
                                VOLATILE)
                  &&
