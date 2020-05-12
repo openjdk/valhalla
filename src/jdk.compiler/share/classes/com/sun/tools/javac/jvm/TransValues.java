@@ -279,7 +279,7 @@ public class TransValues extends TreeTranslator {
                 default:
                     break;
             }
-            if (isInstanceAccess(symbol)) {
+            if (isInstanceMemberAccess(symbol)) {
                 final JCIdent facHandle = make.Ident(currentMethod.factoryProduct);
                 result = make.Assign(facHandle, make.WithField(make.Select(facHandle, symbol), translate(tree.rhs)).setType(currentClass.type)).setType(currentClass.type);
                 if (requireRVal) {
@@ -305,9 +305,12 @@ public class TransValues extends TreeTranslator {
     public void visitIdent(JCIdent ident) {
         if (constructingValue()) {
             Symbol symbol = ident.sym;
-            if (isInstanceAccess(symbol)) {
+            if (isInstanceMemberAccess(symbol)) {
                 final JCIdent facHandle = make.Ident(currentMethod.factoryProduct);
                 result = make.Select(facHandle, symbol);
+                return;
+            } else if (symbol.name == names._this) {
+                result = make.Ident(currentMethod.factoryProduct);
                 return;
             }
         }
@@ -319,7 +322,7 @@ public class TransValues extends TreeTranslator {
         if (constructingValue()) { // Qualified this would have been lowered already.
             if (fieldAccess.selected.hasTag(IDENT) && ((JCIdent)fieldAccess.selected).name == names._this) {
                 Symbol symbol = fieldAccess.sym;
-                if (isInstanceAccess(symbol)) {
+                if (isInstanceMemberAccess(symbol)) {
                     final JCIdent facHandle = make.Ident(currentMethod.factoryProduct);
                     result = make.Select(facHandle, symbol);
                     return;
@@ -376,8 +379,11 @@ public class TransValues extends TreeTranslator {
         return currentClass != null && (currentClass.sym.flags() & Flags.VALUE) != 0 && currentMethod != null && currentMethod.sym.isConstructor();
     }
 
-    private boolean isInstanceAccess(Symbol symbol) {
-        return symbol != null && (symbol.kind == VAR || symbol.kind == MTH) && symbol.owner == currentClass.sym && !symbol.isStatic();
+    private boolean isInstanceMemberAccess(Symbol symbol) {
+        return symbol != null
+                && (symbol.name != names._this && symbol.name != names._super)
+                && (symbol.kind == VAR || symbol.kind == MTH)
+                && symbol.owner == currentClass.sym && !symbol.isStatic();
     }
 
     private MethodSymbol getValueFactory(MethodSymbol init) {
