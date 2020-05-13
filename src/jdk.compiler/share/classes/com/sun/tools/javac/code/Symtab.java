@@ -52,6 +52,7 @@ import com.sun.tools.javac.code.Type.JCPrimitiveType;
 import com.sun.tools.javac.code.Type.JCVoidType;
 import com.sun.tools.javac.code.Type.MethodType;
 import com.sun.tools.javac.code.Type.UnknownType;
+import com.sun.tools.javac.code.Type.WildcardType;
 import com.sun.tools.javac.code.Types.UniqueType;
 import com.sun.tools.javac.comp.Modules;
 import com.sun.tools.javac.jvm.Target;
@@ -268,8 +269,17 @@ public class Symtab {
         return classFields.computeIfAbsent(
             new UniqueType(type, types), k -> {
                 Type arg = null;
-                if (type.getTag() == ARRAY || type.getTag() == CLASS)
-                    arg = types.erasure(type);
+                if (type.getTag() == ARRAY || type.getTag() == CLASS) {
+                    /* Temporary treatment for inline class: Given an inline class V that implements
+                       I1, I2, ... In, V.class is typed to be Class<? extends Object & I1 & I2 .. & In>
+                    */
+                    if (type.isValue()) {
+                        Type it = types.makeIntersectionType(((ClassType)type).interfaces_field, true);
+                        arg = new WildcardType(it, BoundKind.EXTENDS, boundClass);
+                    } else {
+                        arg = types.erasure(type);
+                    }
+                }
                 else if (type.isPrimitiveOrVoid())
                     arg = types.boxedClass(type).type;
                 else
