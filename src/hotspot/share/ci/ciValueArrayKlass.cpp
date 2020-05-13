@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -133,8 +133,7 @@ ciValueArrayKlass* ciValueArrayKlass::make_impl(ciKlass* element_klass) {
   {
     EXCEPTION_CONTEXT;
     // The element klass is loaded
-    Klass* array = element_klass->get_Klass()->array_klass(ArrayStorageProperties::flattened_and_null_free, 1, THREAD);
-    assert(ValueArrayKlass::cast(array)->storage_properties().is_flattened(), "should be flattened");
+    Klass* array = element_klass->get_Klass()->array_klass(1, THREAD);
     assert(ValueArrayKlass::cast(array)->storage_properties().is_null_free(), "should be null free");
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;

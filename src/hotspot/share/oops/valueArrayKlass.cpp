@@ -82,6 +82,7 @@ void ValueArrayKlass::set_element_klass(Klass* k) {
 }
 
 ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass* element_klass, TRAPS) {
+  guarantee((!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()), "Really ?!");
   assert(ValueArrayFlatten, "Flatten array required");
   assert(ValueKlass::cast(element_klass)->is_naturally_atomic() || (!ValueArrayAtomicAccess), "Atomic by-default");
 
@@ -89,34 +90,54 @@ ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass* element_klass, TRAPS) {
    *  MVT->LWorld, now need to allocate secondaries array types, just like objArrayKlass...
    *  ...so now we are trying out covariant array types, just copy objArrayKlass
    *  TODO refactor any remaining commonality
+   *
    */
-
-  // Eagerly allocate the direct array supertype, which would be "[L<vt>;" for this "[Q<vt>;"
-  Klass* super_klass = element_klass->array_klass_or_null(ArrayStorageProperties::empty);
-  if (super_klass == NULL) {
-    MutexUnlocker mu(MultiArray_lock);
-    // allocate super...need to drop the lock
-    element_klass->array_klass(ArrayStorageProperties::empty, 1, CHECK_NULL);
-    // retry, start from the beginning since lock dropped...
-    Klass* ak = element_klass->array_klass(ArrayStorageProperties::flattened_and_null_free, 1, CHECK_NULL);
-    return ValueArrayKlass::cast(ak);
+  // Eagerly allocate the direct array supertype.
+  Klass* super_klass = NULL;
+  Klass* element_super = element_klass->super();
+  if (element_super != NULL) {
+    // The element type has a direct super.  E.g., String[] has direct super of Object[].
+    super_klass = element_super->array_klass_or_null();
+    bool supers_exist = super_klass != NULL;
+    // Also, see if the element has secondary supertypes.
+    // We need an array type for each.
+    const Array<Klass*>* element_supers = element_klass->secondary_supers();
+    for( int i = element_supers->length()-1; i >= 0; i-- ) {
+      Klass* elem_super = element_supers->at(i);
+      if (elem_super->array_klass_or_null() == NULL) {
+        supers_exist = false;
+        break;
+      }
+    }
+    if (!supers_exist) {
+      // Oops.  Not allocated yet.  Back out, allocate it, and retry.
+      Klass* ek = NULL;
+      {
+        MutexUnlocker mu(MultiArray_lock);
+        super_klass = element_super->array_klass(CHECK_NULL);
+        for( int i = element_supers->length()-1; i >= 0; i-- ) {
+          Klass* elem_super = element_supers->at(i);
+          elem_super->array_klass(CHECK_NULL);
+        }
+        // Now retry from the beginning
+        ek = element_klass->array_klass(CHECK_NULL);
+      }  // re-lock
+      return ValueArrayKlass::cast(ek);
+    }
   }
 
-  Symbol* name = ArrayKlass::create_element_klass_array_name(true, element_klass, CHECK_NULL);
+  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
   ClassLoaderData* loader_data = element_klass->class_loader_data();
   int size = ArrayKlass::static_size(ValueArrayKlass::header_size());
   ValueArrayKlass* vak = new (loader_data, size, THREAD) ValueArrayKlass(element_klass, name);
-  loader_data->add_class(vak);
 
   ModuleEntry* module = vak->module();
   assert(module != NULL, "No module entry for array");
   complete_create_array_klass(vak, super_klass, module, CHECK_NULL);
-  return vak;
-}
 
-ValueArrayKlass* ValueArrayKlass::allocate_klass(ArrayStorageProperties storage_props, Klass* element_klass, TRAPS) {
-  assert(storage_props.is_flattened(), "Expected flat storage");
-  return allocate_klass(element_klass, THREAD);
+  loader_data->add_class(vak);
+
+  return vak;
 }
 
 void ValueArrayKlass::initialize(TRAPS) {
@@ -310,8 +331,7 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
 }
 
 
-Klass* ValueArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, bool or_null, int n, TRAPS) {
-  assert(storage_props.is_flattened() || n > 1, "Expected flat storage");
+Klass* ValueArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
   assert(dimension() <= n, "check order of chain");
   int dim = dimension();
   if (dim == n) return this;
@@ -329,7 +349,7 @@ Klass* ValueArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, b
 
         // Create multi-dim klass object and link them together
         Klass* k =
-          ObjArrayKlass::allocate_objArray_klass(storage_props, dim + 1, this, CHECK_NULL);
+          ObjArrayKlass::allocate_objArray_klass(dim + 1, this, CHECK_NULL);
         ObjArrayKlass* ak = ObjArrayKlass::cast(k);
         ak->set_lower_dimension(this);
         OrderAccess::storestore();
@@ -343,13 +363,13 @@ Klass* ValueArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, b
 
   ObjArrayKlass *ak = ObjArrayKlass::cast(higher_dimension());
   if (or_null) {
-    return ak->array_klass_or_null(storage_props, n);
+    return ak->array_klass_or_null(n);
   }
-  return ak->array_klass(storage_props, n, THREAD);
+  return ak->array_klass(n, THREAD);
 }
 
-Klass* ValueArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, bool or_null, TRAPS) {
-  return array_klass_impl(storage_props, or_null, dimension() +  1, THREAD);
+Klass* ValueArrayKlass::array_klass_impl(bool or_null, TRAPS) {
+  return array_klass_impl(or_null, dimension() +  1, THREAD);
 }
 
 ModuleEntry* ValueArrayKlass::module() const {
@@ -384,7 +404,7 @@ GrowableArray<Klass*>* ValueArrayKlass::compute_secondary_supers(int num_extra_s
     secondaries->push(SystemDictionary::Serializable_klass());
     for (int i = 0; i < num_elem_supers; i++) {
       Klass* elem_super = (Klass*) elem_supers->at(i);
-      Klass* array_super = elem_super->array_klass_or_null(ArrayStorageProperties::empty);
+      Klass* array_super = elem_super->array_klass_or_null();
       assert(array_super != NULL, "must already have been created");
       secondaries->push(array_super);
     }

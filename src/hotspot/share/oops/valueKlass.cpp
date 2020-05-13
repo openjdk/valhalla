@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -180,9 +180,8 @@ bool ValueKlass::flatten_array() {
   if (!ValueArrayFlatten) {
     return false;
   }
-
-  int elem_bytes = raw_value_byte_size();
   // Too big
+  int elem_bytes = raw_value_byte_size();
   if ((ValueArrayElemMaxFlatSize >= 0) && (elem_bytes > ValueArrayElemMaxFlatSize)) {
     return false;
   }
@@ -190,12 +189,14 @@ bool ValueKlass::flatten_array() {
   if ((ValueArrayElemMaxFlatOops >= 0) && (nonstatic_oop_count() > ValueArrayElemMaxFlatOops)) {
     return false;
   }
-
   // Declared atomic but not naturally atomic.
   if (is_declared_atomic() && !is_naturally_atomic()) {
     return false;
   }
-
+  // VM enforcing ValueArrayAtomicAccess only...
+  if (ValueArrayAtomicAccess && (!is_naturally_atomic())) {
+    return false;
+  }
   return true;
 }
 
@@ -218,19 +219,19 @@ void ValueKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle p
 }
 
 
-Klass* ValueKlass::array_klass_impl(ArrayStorageProperties storage_props, bool or_null, int n, TRAPS) {
-  if (storage_props.is_null_free()) {
-    return value_array_klass(storage_props, or_null, n, THREAD);
+Klass* ValueKlass::array_klass_impl(bool or_null, int n, TRAPS) {
+  if (flatten_array()) {
+    return value_array_klass(or_null, n, THREAD);
   } else {
-    return InstanceKlass::array_klass_impl(storage_props, or_null, n, THREAD);
+    return InstanceKlass::array_klass_impl(or_null, n, THREAD);
   }
 }
 
-Klass* ValueKlass::array_klass_impl(ArrayStorageProperties storage_props, bool or_null, TRAPS) {
-  return array_klass_impl(storage_props, or_null, 1, THREAD);
+Klass* ValueKlass::array_klass_impl(bool or_null, TRAPS) {
+  return array_klass_impl(or_null, 1, THREAD);
 }
 
-Klass* ValueKlass::value_array_klass(ArrayStorageProperties storage_props, bool or_null, int rank, TRAPS) {
+Klass* ValueKlass::value_array_klass(bool or_null, int rank, TRAPS) {
   Klass* vak = acquire_value_array_klass();
   if (vak == NULL) {
     if (or_null) return NULL;
@@ -244,20 +245,17 @@ Klass* ValueKlass::value_array_klass(ArrayStorageProperties storage_props, bool 
       }
     }
   }
-  if (!vak->is_valueArray_klass()) {
-    storage_props.clear_flattened();
-  }
   if (or_null) {
-    return vak->array_klass_or_null(storage_props, rank);
+    return vak->array_klass_or_null(rank);
   }
-  return vak->array_klass(storage_props, rank, THREAD);
+  return vak->array_klass(rank, THREAD);
 }
 
 Klass* ValueKlass::allocate_value_array_klass(TRAPS) {
-  if (flatten_array() && (is_naturally_atomic() || (!ValueArrayAtomicAccess))) {
-    return ValueArrayKlass::allocate_klass(ArrayStorageProperties::flattened_and_null_free, this, THREAD);
+  if (flatten_array()) {
+    return ValueArrayKlass::allocate_klass(this, THREAD);
   }
-  return ObjArrayKlass::allocate_objArray_klass(ArrayStorageProperties::null_free, 1, this, THREAD);
+  return ObjArrayKlass::allocate_objArray_klass(1, this, THREAD);
 }
 
 void ValueKlass::array_klasses_do(void f(Klass* k)) {

@@ -99,8 +99,9 @@ ArrayKlass::ArrayKlass(Symbol* name, KlassID id) :
     JFR_ONLY(INIT_ID(this);)
 }
 
-Symbol* ArrayKlass::create_element_klass_array_name(bool is_qtype, Klass* element_klass, TRAPS) {
+Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS) {
   Symbol* name = NULL;
+  bool is_qtype = element_klass->is_value();
   if (!element_klass->is_instance_klass() || is_qtype ||
       (name = InstanceKlass::cast(element_klass)->array_name()) == NULL) {
 
@@ -123,10 +124,10 @@ Symbol* ArrayKlass::create_element_klass_array_name(bool is_qtype, Klass* elemen
       new_str[idx++] = JVM_SIGNATURE_ENDCLASS;
     }
     new_str[idx++] = '\0';
-    name = SymbolTable::new_permanent_symbol(new_str);
-    if (element_klass->is_instance_klass() && (!is_qtype)) {
+    name = SymbolTable::new_symbol(new_str);
+    if (element_klass->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(element_klass);
-      ik->set_array_name(name); // CMH: only cache and deref array_name for L-type...missing for Q-type
+      ik->set_array_name(name);
     }
   }
 
@@ -161,7 +162,7 @@ GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
 objArrayOop ArrayKlass::allocate_arrayArray(int n, int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_ARRAY), CHECK_NULL);
   int size = objArrayOopDesc::object_size(length);
-  Klass* k = array_klass(ArrayStorageProperties::for_signature(name()), n+dimension(), CHECK_NULL);
+  Klass* k = array_klass(n+dimension(), CHECK_NULL);
   ArrayKlass* ak = ArrayKlass::cast(k);
   objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
                                                                 /* do_zero */ true, CHECK_NULL);

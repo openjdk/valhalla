@@ -1094,7 +1094,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
         { Bytecode_anewarray anew(caller_method(), caller_method->bcp_from(bci));
           Klass* ek = caller_method->constants()->klass_at(anew.index(), CHECK);
           if (ek->is_value() && caller_method->constants()->klass_at_noresolve(anew.index())->is_Q_signature()) {
-            k = ek->array_klass(ArrayStorageProperties::flattened_and_null_free, 1, CHECK);
+            k = ek->array_klass(1, CHECK);
             assert(ArrayKlass::cast(k)->storage_properties().is_null_free(), "Expect a null-free array class here");
           } else {
             k = ek->array_klass(CHECK);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,10 +94,10 @@ class TypeArrayKlass : public ArrayKlass {
 
  protected:
   // Find n'th dimensional array
-  virtual Klass* array_klass_impl(ArrayStorageProperties storage_props, bool or_null, int n, TRAPS);
+  virtual Klass* array_klass_impl(bool or_null, int n, TRAPS);
 
   // Returns the array class with this class as element type
-  virtual Klass* array_klass_impl(ArrayStorageProperties storage_props, bool or_null, TRAPS);
+  virtual Klass* array_klass_impl(bool or_null, TRAPS);
 
  public:
   static TypeArrayKlass* cast(Klass* k) {

@@ -55,32 +55,21 @@ ObjArrayKlass* ObjArrayKlass::allocate(ClassLoaderData* loader_data, int n, Klas
   return new (loader_data, size, THREAD) ObjArrayKlass(n, k, name);
 }
 
-Klass* ObjArrayKlass::allocate_objArray_klass(ArrayStorageProperties storage_props,
-                                              int n, Klass* element_klass, TRAPS) {
+Klass* ObjArrayKlass::allocate_objArray_klass(int n, Klass* element_klass, TRAPS) {
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = NULL;
-  if (storage_props.is_null_free()) {
-    assert(!Universe::is_bootstrapping(), "Need bootstrap");
-    // Arrange null ok as direct super
-    super_klass = element_klass->array_klass_or_null(ArrayStorageProperties::empty, n);
-    if (super_klass == NULL) { // allocate super...need to drop the lock
-      MutexUnlocker mu(MultiArray_lock);
-      element_klass->array_klass(ArrayStorageProperties::empty, n, CHECK_NULL);
-      // retry, start from the beginning since lock dropped...
-      return element_klass->array_klass(storage_props, n, CHECK_NULL);
-    }
-  } else if (!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()) {
+  if (!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()) {
     Klass* element_super = element_klass->super();
     if (element_super != NULL) {
       // The element type has a direct super.  E.g., String[] has direct super of Object[].
-      super_klass = element_super->array_klass_or_null(ArrayStorageProperties::empty);
+      super_klass = element_super->array_klass_or_null();
       bool supers_exist = super_klass != NULL;
       // Also, see if the element has secondary supertypes.
       // We need an array type for each.
       const Array<Klass*>* element_supers = element_klass->secondary_supers();
       for( int i = element_supers->length()-1; i >= 0; i-- ) {
         Klass* elem_super = element_supers->at(i);
-        if (elem_super->array_klass_or_null(ArrayStorageProperties::empty) == NULL) {
+        if (elem_super->array_klass_or_null() == NULL) {
           supers_exist = false;
           break;
         }
@@ -96,7 +85,7 @@ Klass* ObjArrayKlass::allocate_objArray_klass(ArrayStorageProperties storage_pro
             elem_super->array_klass(CHECK_NULL);
           }
           // Now retry from the beginning
-          ek = element_klass->array_klass(storage_props, n, CHECK_NULL);
+          ek = element_klass->array_klass(n, CHECK_NULL);
         }  // re-lock
         return ek;
       }
@@ -107,7 +96,7 @@ Klass* ObjArrayKlass::allocate_objArray_klass(ArrayStorageProperties storage_pro
   }
 
   // Create type name for klass.
-  Symbol* name = ArrayKlass::create_element_klass_array_name(storage_props.is_null_free(), element_klass, CHECK_NULL);
+  Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
 
   // Initialize instance variables
   ClassLoaderData* loader_data = element_klass->class_loader_data();
@@ -334,8 +323,7 @@ void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
 }
 
 
-Klass* ObjArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, bool or_null, int n, TRAPS) {
-  assert(!storage_props.is_flattened() || n > 1, "Cannot flatten");
+Klass* ObjArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
   assert(dimension() <= n, "check order of chain");
   int dim = dimension();
   if (dim == n) return this;
@@ -353,7 +341,7 @@ Klass* ObjArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, boo
       if (higher_dimension() == NULL) {
 
         // Create multi-dim klass object and link them together
-        Klass* k = ObjArrayKlass::allocate_objArray_klass(storage_props, dim + 1, this, CHECK_NULL);
+        Klass* k = ObjArrayKlass::allocate_objArray_klass(dim + 1, this, CHECK_NULL);
         ObjArrayKlass* ak = ObjArrayKlass::cast(k);
         ak->set_lower_dimension(this);
         // use 'release' to pair with lock-free load
@@ -365,14 +353,14 @@ Klass* ObjArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, boo
 
   ObjArrayKlass *ak = ObjArrayKlass::cast(higher_dimension());
   if (or_null) {
-    return ak->array_klass_or_null(storage_props, n);
+    return ak->array_klass_or_null(n);
   }
   THREAD->check_possible_safepoint();
-  return ak->array_klass(storage_props, n, THREAD);
+  return ak->array_klass(n, THREAD);
 }
 
-Klass* ObjArrayKlass::array_klass_impl(ArrayStorageProperties storage_props, bool or_null, TRAPS) {
-  return array_klass_impl(storage_props, or_null, dimension() +  1, THREAD);
+Klass* ObjArrayKlass::array_klass_impl(bool or_null, TRAPS) {
+  return array_klass_impl(or_null, dimension() +  1, THREAD);
 }
 
 bool ObjArrayKlass::can_be_primary_super_slow() const {
@@ -400,7 +388,7 @@ GrowableArray<Klass*>* ObjArrayKlass::compute_secondary_supers(int num_extra_slo
     secondaries->push(SystemDictionary::Serializable_klass());
     for (int i = 0; i < num_elem_supers; i++) {
       Klass* elem_super = elem_supers->at(i);
-      Klass* array_super = elem_super->array_klass_or_null(ArrayStorageProperties::empty);
+      Klass* array_super = elem_super->array_klass_or_null();
       assert(array_super != NULL, "must already have been created");
       secondaries->push(array_super);
     }

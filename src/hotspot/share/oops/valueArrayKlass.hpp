@@ -43,13 +43,12 @@ class ValueArrayKlass : public ArrayKlass {
   // Constructor
   ValueArrayKlass(Klass* element_klass, Symbol* name);
 
-  static ValueArrayKlass* allocate_klass(Klass* element_klass, TRAPS);
  protected:
   // Returns the ArrayKlass for n'th dimension.
-  Klass* array_klass_impl(ArrayStorageProperties storage_props, bool or_null, int n, TRAPS);
+  Klass* array_klass_impl(bool or_null, int n, TRAPS);
 
   // Returns the array class with this class as element type.
-  Klass* array_klass_impl(ArrayStorageProperties storage_props, bool or_null, TRAPS);
+  Klass* array_klass_impl(bool or_null, TRAPS);
 
  public:
 
@@ -68,7 +67,7 @@ class ValueArrayKlass : public ArrayKlass {
   }
 
   // klass allocation
-  static ValueArrayKlass* allocate_klass(ArrayStorageProperties storage_props, Klass* element_klass, TRAPS);
+  static ValueArrayKlass* allocate_klass(Klass* element_klass, TRAPS);
 
   void initialize(TRAPS);
 

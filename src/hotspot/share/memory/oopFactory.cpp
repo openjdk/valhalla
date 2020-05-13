@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -136,7 +136,7 @@ objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
 arrayOop oopFactory::new_valueArray(Klass* klass, int length, TRAPS) {
   assert(klass->is_value(), "Klass must be value type");
   // Request flattened, but we might not actually get it...either way "null-free" are the aaload/aastore semantics
-  Klass* array_klass = klass->array_klass(ArrayStorageProperties::flattened_and_null_free, 1, CHECK_NULL);
+  Klass* array_klass = klass->array_klass(1, CHECK_NULL);
   assert(ArrayKlass::cast(array_klass)->storage_properties().is_null_free(), "Expect a null-free array class here");
 
   arrayOop oop;
@@ -152,7 +152,7 @@ arrayOop oopFactory::new_valueArray(Klass* klass, int length, TRAPS) {
 objArrayHandle oopFactory::copy_valueArray_to_objArray(valueArrayHandle array, TRAPS) {
   int len = array->length();
   ValueArrayKlass* vak = ValueArrayKlass::cast(array->klass());
-  objArrayHandle oarray = new_objArray_handle(vak->element_klass(),
+  objArrayHandle oarray = new_objArray_handle(vak->element_klass()->super(),
                                               array->length(), CHECK_(objArrayHandle()));
   vak->copy_array(array(), 0, oarray(), 0, len, CHECK_(objArrayHandle()));
   return oarray;
