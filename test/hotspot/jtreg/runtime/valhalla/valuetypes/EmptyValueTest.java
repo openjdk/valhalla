@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2019 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@ import java.lang.reflect.Field;
  * @library /test/lib
  * @compile -XDallowEmptyValues EmptyValueTest.java
  * @run main/othervm -XX:+EnableValhalla runtime.valhalla.valuetypes.EmptyValueTest
- 
+
  */
 
 public class EmptyValueTest {
@@ -54,7 +54,7 @@ public class EmptyValueTest {
     static class WithInt {
 	int i;
     }
-    
+
     static class WithEmptyField extends WithInt  {
 	// With current layout strategy for reference classs, the empty
 	// value field would be placed between the int and the Object
@@ -62,7 +62,7 @@ public class EmptyValueTest {
 	Object o;
 	EmptyValue empty;
     }
-    
+
     public static void main(String[] args) {
 	// Create an empty value
 	EmptyValue empty = new EmptyValue();
@@ -81,7 +81,7 @@ public class EmptyValueTest {
 	w.empty = new EmptyValue();
 	Asserts.assertEquals(w.empty.getClass(), EmptyValue.class);
 	Asserts.assertTrue(w.empty.isEmpty());
-	
+
 	// Create an array of empty values
 	EmptyValue[] emptyArray = new EmptyValue[100];
 	for(EmptyValue element : emptyArray) {
@@ -109,7 +109,7 @@ public class EmptyValueTest {
 	    Asserts.assertEquals(element.getClass(), EmptyValue.class);
 	    Asserts.assertTrue(element.isEmpty());
 	}
-	
+
 	// Passing an empty value in argument
 	assert isEmpty(empty);
 

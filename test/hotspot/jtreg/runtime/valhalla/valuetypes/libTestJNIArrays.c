@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2019 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -115,7 +115,7 @@ Java_TestJNIArrays_initializeIntIntArrayBuffer(JNIEnv* env, jobject receiver, ja
   *(int*)(buffer + i1_offset) = i1;
   void* base = (void*)(*env)->GetFlattenedArrayElements(env, array, NULL);
   for (int i = 0; i < len; i++) {
-    memcpy((char*)base + i * elm_sz, buffer, elm_sz); 
+    memcpy((char*)base + i * elm_sz, buffer, elm_sz);
   }
   (*env)->ReleaseFlattenedArrayElements(env, array, base, 0);
   free(buffer);
@@ -148,7 +148,7 @@ static int compare_IntInt(void* offsets, const void* x, const void* y)  {
 #endif // __APPLE__
 #ifdef __linux__
 static int compare_IntInt(const void* x, const void* y, void* offsets)  {
-#endif // __linux__  
+#endif // __linux__
   int i0_offset = ((struct IntInt_offsets*)offsets)->i0_offset;
   int x_i0 = *(int*)((char*)x + i0_offset);
   int y_i0 = *(int*)((char*)y + i0_offset);
