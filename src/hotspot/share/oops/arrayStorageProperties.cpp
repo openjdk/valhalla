@@ -30,7 +30,6 @@
 STATIC_ASSERT((int)ArrayStorageProperties::nof_oop_properties <= (int)oopDesc::storage_props_nof_bits);
 
 const ArrayStorageProperties ArrayStorageProperties::empty     = ArrayStorageProperties(empty_value);
-const ArrayStorageProperties ArrayStorageProperties::flattened = ArrayStorageProperties(flattened_value);
 const ArrayStorageProperties ArrayStorageProperties::null_free = ArrayStorageProperties(null_free_value);
 const ArrayStorageProperties ArrayStorageProperties::flattened_and_null_free =
         ArrayStorageProperties(flattened_value | null_free_value);

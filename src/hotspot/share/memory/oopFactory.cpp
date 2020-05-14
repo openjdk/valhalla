@@ -152,10 +152,10 @@ arrayOop oopFactory::new_valueArray(Klass* klass, int length, TRAPS) {
 objArrayHandle oopFactory::copy_valueArray_to_objArray(valueArrayHandle array, TRAPS) {
   int len = array->length();
   ValueArrayKlass* vak = ValueArrayKlass::cast(array->klass());
-  objArrayHandle oarray = new_objArray_handle(vak->element_klass()->super(),
-                                              array->length(), CHECK_(objArrayHandle()));
-  vak->copy_array(array(), 0, oarray(), 0, len, CHECK_(objArrayHandle()));
-  return oarray;
+  objArrayOop oarray = new_objectArray(array->length(), CHECK_(objArrayHandle()));
+  objArrayHandle oarrayh(THREAD, oarray);
+  vak->copy_array(array(), 0, oarrayh(), 0, len, CHECK_(objArrayHandle()));
+  return oarrayh;
 }
 
 objArrayHandle  oopFactory::ensure_objArray(oop array, TRAPS) {
