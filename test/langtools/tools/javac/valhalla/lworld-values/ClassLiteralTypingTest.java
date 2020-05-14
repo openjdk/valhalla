@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8244796
+ * @bug 8244796 8244799
  * @summary Temporary typing of inline class literals.
  */
 
