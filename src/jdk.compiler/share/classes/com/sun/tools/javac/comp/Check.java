@@ -898,9 +898,7 @@ public class Check {
     }
 
     void checkParameterizationWithValues(DiagnosticPosition pos, Type t) {
-        if (t.tsym != syms.classType.tsym) { // tolerate Value.class.
-            valueParameterizationChecker.visit(t, pos);
-        }
+        valueParameterizationChecker.visit(t, pos);
     }
 
     /** valueParameterizationChecker: A type visitor that descends down the given type looking for instances of value types
