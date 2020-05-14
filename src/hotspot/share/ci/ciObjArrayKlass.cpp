@@ -138,10 +138,8 @@ ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool never_n
   if (element_klass->is_loaded()) {
     EXCEPTION_CONTEXT;
     // The element klass is loaded
-    ArrayStorageProperties props = never_null ? ArrayStorageProperties::flattened_and_null_free : ArrayStorageProperties::empty;
-    Klass* array = element_klass->get_Klass()->array_klass(props, THREAD);
+    Klass* array = element_klass->get_Klass()->array_klass(THREAD);
     if (element_klass->is_valuetype()) {
-      assert(!ObjArrayKlass::cast(array)->storage_properties().is_flattened(), "should not be flattened");
       assert(ObjArrayKlass::cast(array)->storage_properties().is_null_free() == never_null, "wrong nullability storage property");
     }
     if (HAS_PENDING_EXCEPTION) {

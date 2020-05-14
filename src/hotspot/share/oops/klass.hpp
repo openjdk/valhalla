@@ -28,7 +28,6 @@
 #include "classfile/classLoaderData.hpp"
 #include "memory/iterator.hpp"
 #include "memory/memRegion.hpp"
-#include "oops/arrayStorageProperties.hpp"
 #include "oops/markWord.hpp"
 #include "oops/metadata.hpp"
 #include "oops/oop.hpp"
@@ -480,27 +479,15 @@ protected:
   }
 
   // array class with specific rank
-  Klass* array_klass(int rank, TRAPS) {
-    return array_klass_impl(ArrayStorageProperties::empty, false, rank, THREAD);
-  }
-
-  Klass* array_klass(ArrayStorageProperties storage_props, int rank, TRAPS) {
-    return array_klass_impl(storage_props, false, rank, THREAD);
-  }
+  Klass* array_klass(int rank, TRAPS)         {  return array_klass_impl(false, rank, THREAD); }
 
   // array class with this klass as element type
-  Klass* array_klass(TRAPS) {
-    return array_klass_impl(ArrayStorageProperties::empty, false, THREAD);
-  }
-
-  Klass* array_klass(ArrayStorageProperties storage_props, TRAPS) {
-    return array_klass_impl(storage_props, false, THREAD);
-  }
+   Klass* array_klass(TRAPS)                   {  return array_klass_impl(false, THREAD); }
 
   // These will return NULL instead of allocating on the heap:
   // NB: these can block for a mutex, like other functions with TRAPS arg.
-  Klass* array_klass_or_null(ArrayStorageProperties storage_props, int rank);
-  Klass* array_klass_or_null(ArrayStorageProperties storage_props);
+  Klass* array_klass_or_null(int rank);
+  Klass* array_klass_or_null();
 
   virtual oop protection_domain() const = 0;
 
@@ -513,8 +500,8 @@ protected:
   oop klass_holder() const { return class_loader_data()->holder_phantom(); }
 
  protected:
-  virtual Klass* array_klass_impl(ArrayStorageProperties storage_props, bool or_null, int rank, TRAPS);
-  virtual Klass* array_klass_impl(ArrayStorageProperties storage_props, bool or_null, TRAPS);
+  virtual Klass* array_klass_impl(bool or_null, int rank, TRAPS);
+  virtual Klass* array_klass_impl(bool or_null, TRAPS);
 
   // Error handling when length > max_length or length < 0
   static void check_array_allocation_length(int length, int max_length, TRAPS);

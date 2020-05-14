@@ -393,8 +393,7 @@ arrayOop Reflection::reflect_new_multi_array(oop element_mirror, typeArrayOop di
       dim += k_dim;
     }
   }
-  ArrayStorageProperties storage_props = ArrayStorageProperties::for_signature(klass->name());
-  klass = klass->array_klass(storage_props, dim, CHECK_NULL);
+  klass = klass->array_klass(dim, CHECK_NULL);
   oop obj = ArrayKlass::cast(klass)->multi_allocate(len, dimensions, CHECK_NULL);
   assert(obj->is_array(), "just checking");
   return arrayOop(obj);

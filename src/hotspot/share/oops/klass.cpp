@@ -631,29 +631,29 @@ void Klass::set_archived_java_mirror_raw(oop m) {
 }
 #endif // INCLUDE_CDS_JAVA_HEAP
 
-Klass* Klass::array_klass_or_null(ArrayStorageProperties storage_props, int rank) {
+Klass* Klass::array_klass_or_null(int rank) {
   EXCEPTION_MARK;
   // No exception can be thrown by array_klass_impl when called with or_null == true.
   // (In anycase, the execption mark will fail if it do so)
-  return array_klass_impl(storage_props, true, rank, THREAD);
+  return array_klass_impl(true, rank, THREAD);
 }
 
 
-Klass* Klass::array_klass_or_null(ArrayStorageProperties storage_props) {
+Klass* Klass::array_klass_or_null() {
   EXCEPTION_MARK;
   // No exception can be thrown by array_klass_impl when called with or_null == true.
   // (In anycase, the execption mark will fail if it do so)
-  return array_klass_impl(storage_props, true, THREAD);
+  return array_klass_impl(true, THREAD);
 }
 
 
-Klass* Klass::array_klass_impl(ArrayStorageProperties storage_props, bool or_null, int rank, TRAPS) {
+Klass* Klass::array_klass_impl(bool or_null, int rank, TRAPS) {
   fatal("array_klass should be dispatched to InstanceKlass, ObjArrayKlass or TypeArrayKlass");
   return NULL;
 }
 
 
-Klass* Klass::array_klass_impl(ArrayStorageProperties storage_props, bool or_null, TRAPS) {
+Klass* Klass::array_klass_impl(bool or_null, TRAPS) {
   fatal("array_klass should be dispatched to InstanceKlass, ObjArrayKlass or TypeArrayKlass");
   return NULL;
 }
@@ -743,16 +743,6 @@ void Klass::oop_print_on(oop obj, outputStream* st) {
      st->cr();
      st->print(BULLET"prototype_header: " INTPTR_FORMAT, _prototype_header.value());
      st->cr();
-     ArrayStorageProperties props = obj->array_storage_properties();
-     if (props.value() != 0) {
-       st->print(" - array storage properties: ");
-       if (props.is_flattened()) {
-         st->print(" flat");
-       }
-       if (props.is_null_free()) {
-         st->print(" non nullable");
-       }
-     }
   }
 
   // print class

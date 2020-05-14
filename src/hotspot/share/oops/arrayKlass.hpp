@@ -26,6 +26,7 @@
 #define SHARE_OOPS_ARRAYKLASS_HPP
 
 #include "oops/klass.hpp"
+#include "oops/arrayStorageProperties.hpp"
 
 class fieldDescriptor;
 class klassVtable;
@@ -55,8 +56,8 @@ class ArrayKlass: public Klass {
   ArrayKlass(Symbol* name, KlassID id);
   ArrayKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
 
-  // Create array_name for element klass, creates a permanent symbol, returns result
-  static Symbol* create_element_klass_array_name(bool is_qtype, Klass* element_klass, TRAPS);
+  // Create array_name for element klass
+  static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
 
  public:
   // Instance variables

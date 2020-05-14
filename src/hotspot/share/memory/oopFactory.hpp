@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,10 +60,10 @@ class oopFactory: AllStatic {
   // Value arrays...
   // LWorld:
   //    - Q-type signature allocation should use this path.
-  //    - L-type signature allocation should use new_objArray (even with value type elements)
+  //    - L-type signature allocation should use new_objArray
   //
-  // Method specifically creates ArrayStorageProperties::null_free and possibly flattened if possible
-  // i.e. valueArrayOop if flattening can be done, else objArrayOop with "null free" storage properties
+  // Method specifically null free and possibly flattened if possible
+  // i.e. valueArrayOop if flattening can be done, else "null free" objArrayOop
   static arrayOop        new_valueArray(Klass* klass, int length, TRAPS);
 
   // Helper conversions from value to obj array...

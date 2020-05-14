@@ -65,15 +65,12 @@ public class ValueTypeArray {
     }
 
     void testClassForName() {
-        String arrayClsName = "[Lruntime.valhalla.valuetypes.Point;";
+        String arrayClsName = "[Lruntime.valhalla.valuetypes.Point$ref;";
         String qarrayClsName = "[Qruntime.valhalla.valuetypes.Point;";
         try {
             // L-type..
             Class<?> arrayCls = Class.forName(arrayClsName);
             assertTrue(arrayCls.isArray(), "Expected an array class");
-
-            assertTrue(arrayCls.getComponentType() == Point.class.asIndirectType(),
-                       "Expected component type of Point.class got: " + arrayCls.getComponentType());
 
             arrayClsName = "[" + arrayClsName;
             Class<?> mulArrayCls = Class.forName(arrayClsName);

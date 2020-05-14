@@ -1449,8 +1449,7 @@ void InstanceKlass::check_valid_for_instantiation(bool throwError, TRAPS) {
   }
 }
 
-Klass* InstanceKlass::array_klass_impl(ArrayStorageProperties storage_props, bool or_null, int n, TRAPS) {
-  assert(storage_props.is_empty(), "Unexpected");
+Klass* InstanceKlass::array_klass_impl(bool or_null, int n, TRAPS) {
   // Need load-acquire for lock-free read
   if (array_klasses_acquire() == NULL) {
     if (or_null) return NULL;
@@ -1463,7 +1462,7 @@ Klass* InstanceKlass::array_klass_impl(ArrayStorageProperties storage_props, boo
 
       // Check if update has already taken place
       if (array_klasses() == NULL) {
-        Klass*    k = ObjArrayKlass::allocate_objArray_klass(storage_props, 1, this, CHECK_NULL);
+        Klass*    k = ObjArrayKlass::allocate_objArray_klass(1, this, CHECK_NULL);
         // use 'release' to pair with lock-free load
         release_set_array_klasses(k);
       }
@@ -1472,13 +1471,13 @@ Klass* InstanceKlass::array_klass_impl(ArrayStorageProperties storage_props, boo
   // _this will always be set at this point
   ObjArrayKlass* oak = (ObjArrayKlass*)array_klasses();
   if (or_null) {
-    return oak->array_klass_or_null(storage_props, n);
+    return oak->array_klass_or_null(n);
   }
-  return oak->array_klass(storage_props, n, THREAD);
+  return oak->array_klass(n, THREAD);
 }
 
-Klass* InstanceKlass::array_klass_impl(ArrayStorageProperties storage_props, bool or_null, TRAPS) {
-  return array_klass_impl(storage_props, or_null, 1, THREAD);
+Klass* InstanceKlass::array_klass_impl(bool or_null, TRAPS) {
+  return array_klass_impl(or_null, 1, THREAD);
 }
 
 static int call_class_initializer_counter = 0;   // for debugging
