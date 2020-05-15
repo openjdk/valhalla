@@ -743,11 +743,10 @@ public class Check {
         }
 
     void checkConstraintsOfInlineSuper(DiagnosticPosition pos, ClassSymbol c) {
-        boolean indirectSuper = false;
-        for(Type st = types.supertype(c.type); st != Type.noType; indirectSuper = true, st = types.supertype(st)) {
+        for(Type st = types.supertype(c.type); st != Type.noType; st = types.supertype(st)) {
             if (st == null || st.tsym == null || st.tsym.kind == ERR)
                 return;
-            if  (indirectSuper && st.tsym == syms.objectType.tsym)
+            if  (st.tsym == syms.objectType.tsym)
                 return;
             if (!st.tsym.isAbstract()) {
                 log.error(pos, Errors.ConcreteSupertypeForInlineClass(c, st));
