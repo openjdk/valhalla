@@ -12,7 +12,7 @@ public class SuperclassConstraints {
     // Test that super class cannot be concrete, including express jlO
     static class BadSuper {}
     inline class I0 extends BadSuper {} // ERROR: concrete super class
-    inline class I1 extends Object {}   // ERROR: concrete jlO cannot be express-superclass
+    inline class I1 extends Object {}   // OK: concrete jlO can be express-superclass
     inline class I2 {} // OK
 
     // Test that abstract class is allowed to be super including when extending jlO

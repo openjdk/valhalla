@@ -1,2 +1,2 @@
-CheckExtends.java:8:14: compiler.err.concrete.supertype.for.inline.class: CheckExtends, java.lang.Object
+CheckExtends.java:8:14: compiler.err.empty.value.not.yet
 1 error
