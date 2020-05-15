@@ -54,12 +54,12 @@ public class StreamTest {
     @Test
     public void testInlineType() {
         Arrays.stream(values)
-                .map(Value::point)
+                .map(Value.ref::point)
                 .filter(p -> p.x >= 5)
                 .forEach(System.out::println);
 
         Arrays.stream(values)
-                .map(Value::nullablePoint)
+                .map(Value.ref::nullablePoint)
                 .filter(p -> p != null)
                 .forEach(System.out::println);
     }

@@ -2253,6 +2253,15 @@ public class LambdaToMethod extends TreeTranslator {
                 return tree.ownerAccessible;
             }
 
+            /* Per our interim inline class translation scheme, the reference projection classes
+               are completely empty, so we want the methods in the value class to be invoked instead.
+               As the lambda meta factory isn't clued into this, it will try to invoke the method in
+               C$ref.class and fail with a NoSuchMethodError. we need to workaround it ourselves.
+            */
+            boolean receiverIsReferenceProjection() {
+                return tree.sym.kind == MTH && tree.sym.owner.isReferenceProjection();
+            }
+
             /**
              * The VM does not support access across nested classes (8010319).
              * Were that ever to change, this should be removed.
@@ -2307,6 +2316,7 @@ public class LambdaToMethod extends TreeTranslator {
                         isPrivateInOtherClass() ||
                         isProtectedInSuperClassOfEnclosingClassInOtherPackage() ||
                         !receiverAccessible() ||
+                        receiverIsReferenceProjection() ||
                         (tree.getMode() == ReferenceMode.NEW &&
                           tree.kind != ReferenceKind.ARRAY_CTOR &&
                           (tree.sym.owner.isLocal() || tree.sym.owner.isInner() || tree.sym.owner.isValue()));

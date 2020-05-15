@@ -341,7 +341,7 @@ public class TransValues extends TreeTranslator {
                         fieldAccess.selected =
                                 make.TypeCast(types.erasure(selectedType.valueProjection().type), fieldAccess.selected);
                         if (sym.owner.isReferenceProjection()) // is an empty class file.
-                            sym = sym.valueProjection();
+                            TreeInfo.setSymbol(fieldAccess, sym.valueProjection());
                         break;
                     case TYP:
                         fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection().type));
