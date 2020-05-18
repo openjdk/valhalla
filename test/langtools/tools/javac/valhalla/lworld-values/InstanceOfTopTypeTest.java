@@ -33,7 +33,7 @@ public class InstanceOfTopTypeTest {
     static inline class V implements InlineObject {
         int x = 42;
     }
-    
+
     public static void main(String [] args) {
         int points = 0;
         Object o = new InstanceOfTopTypeTest();
