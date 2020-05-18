@@ -2520,9 +2520,17 @@ public class Attr extends JCTree.Visitor {
                 // as a special case, x.getClass() has type Class<? extends |X|>
                 // Temporary treatment for inline class: Given an inline class V that implements
                 // I1, I2, ... In, v.getClass() is typed to be Class<? extends Object & I1 & I2 .. & In>
-                Type wcb = qualifierType.isValue()
-                              ? types.makeIntersectionType(((ClassType) qualifierType).interfaces_field, true)
-                              : types.erasure(qualifierType);
+                Type wcb;
+                if (qualifierType.isValue()) {
+                    ClassType ct = (ClassType) qualifierType;
+                    if (ct.interfaces_field == null || ct.interfaces_field.isEmpty()) {
+                        wcb = syms.objectType;
+                    } else {
+                        wcb = types.makeIntersectionType(ct.interfaces_field, true);
+                    }
+                } else {
+                    wcb = types.erasure(qualifierType);
+                }
                 return new ClassType(restype.getEnclosingType(),
                         List.of(new WildcardType(wcb,
                                 BoundKind.EXTENDS,

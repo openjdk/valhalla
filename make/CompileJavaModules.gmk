@@ -232,7 +232,7 @@ java.management_ADD_JAVAC_FLAGS += -Xdoclint:all/protected,-reference,-accessibi
 
 ################################################################################
 
-java.management.rmi_ADD_JAVAC_FLAGS += -Xdoclint:all/protected '-Xdoclint/package:javax.*' -XDnoTopInterfaceInjection
+java.management.rmi_ADD_JAVAC_FLAGS += -Xdoclint:all/protected '-Xdoclint/package:javax.*'
 
 ################################################################################
 
@@ -255,7 +255,7 @@ java.sql.rowset_CLEAN_FILES += $(wildcard \
 
 ################################################################################
 
-java.rmi_ADD_JAVAC_FLAGS += -Xdoclint:all/protected '-Xdoclint/package:java.*,javax.*' -XDnoTopInterfaceInjection
+java.rmi_ADD_JAVAC_FLAGS += -Xdoclint:all/protected '-Xdoclint/package:java.*,javax.*'
 java.rmi_CLEAN_FILES += $(wildcard \
     $(TOPDIR)/src/java.rmi/share/classes/sun/rmi/registry/resources/*.properties \
     $(TOPDIR)/src/java.rmi/share/classes/sun/rmi/server/resources/*.properties)
@@ -275,10 +275,6 @@ java.naming_CLEAN += jndiprovider.properties
 ################################################################################
 
 java.security.jgss_ADD_JAVAC_FLAGS += -Xdoclint:all/protected '-Xdoclint/package:java.*,javax.*'
-
-################################################################################
-
-jdk.naming.rmi_ADD_JAVAC_FLAGS += -XDnoTopInterfaceInjection
 
 ################################################################################
 
