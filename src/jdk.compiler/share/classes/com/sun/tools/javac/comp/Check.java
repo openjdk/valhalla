@@ -2675,14 +2675,8 @@ public class Check {
         }
         checkCompatibleConcretes(pos, c);
 
-        boolean isIdentityObject = types.asSuper(c, syms.identityObjectType.tsym, true) != null;
-        boolean isInlineObject = types.asSuper(c, syms.inlineObjectType.tsym, true) != null;
-        if (c.isValue() && isIdentityObject) {
+        if (c.isValue() && types.asSuper(c, syms.identityObjectType.tsym, true) != null) {
             log.error(pos, Errors.InlineTypeMustNotImplementIdentityObject(c));
-        } else if (!c.isInterface() && !c.tsym.isAbstract() && !c.isValue() && isInlineObject) {
-            log.error(pos, Errors.IdentityTypeMustNotImplementInlineObject(c));
-        } else if (isIdentityObject && isInlineObject) {
-            log.error(pos, Errors.MutuallyIncompatibleInterfaces(c));
         }
     }
 

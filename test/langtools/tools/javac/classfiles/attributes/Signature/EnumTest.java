@@ -34,7 +34,7 @@
  * @run main Driver EnumTest
  */
 
-@ExpectedSignature(descriptor = "EnumTest", signature = "Ljava/lang/Enum<LEnumTest;>;Ljava/lang/IdentityObject;")
+@ExpectedSignature(descriptor = "EnumTest", signature = "Ljava/lang/Enum<LEnumTest;>;")
 public enum EnumTest {;
     // see 8026480
     @ExpectedSignature(descriptor = "<init>(java.lang.String, int)", signature = "()V")

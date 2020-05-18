@@ -223,10 +223,7 @@ public class Symtab {
     public final Type typeDescriptorType;
     public final Type recordType;
     public final Type valueBasedType;
-    public final Type inlineObjectType;
     public final Type identityObjectType;
-
-    public final boolean injectTopInterfaceTypes;
 
     /** The symbol representing the length field of an array.
      */
@@ -274,8 +271,8 @@ public class Symtab {
                        I1, I2, ... In, V.class is typed to be Class<? extends Object & I1 & I2 .. & In>
                     */
                     if (type.isValue()) {
-                        Type it = types.makeIntersectionType(((ClassType)type).interfaces_field, true);
-                        arg = new WildcardType(it, BoundKind.EXTENDS, boundClass);
+                        List<Type> bounds = List.of(objectType).appendList(((ClassSymbol) type.tsym).getInterfaces());
+                        arg = new WildcardType(types.makeIntersectionType(bounds), BoundKind.EXTENDS, boundClass);
                     } else {
                         arg = types.erasure(type);
                     }
@@ -599,7 +596,6 @@ public class Symtab {
         recordType = enterClass("java.lang.Record");
         valueBasedType = enterClass("java.lang.ValueBased");
         identityObjectType = enterClass("java.lang.IdentityObject");
-        inlineObjectType = enterClass("java.lang.InlineObject");
 
         synthesizeEmptyInterfaceIfMissing(autoCloseableType);
         synthesizeEmptyInterfaceIfMissing(cloneableType);
@@ -607,7 +603,6 @@ public class Symtab {
         synthesizeEmptyInterfaceIfMissing(lambdaMetafactory);
         synthesizeEmptyInterfaceIfMissing(serializedLambdaType);
         synthesizeEmptyInterfaceIfMissing(stringConcatFactory);
-        synthesizeEmptyInterfaceIfMissing(inlineObjectType);
         synthesizeEmptyInterfaceIfMissing(identityObjectType);
         synthesizeBoxTypeIfMissing(doubleType);
         synthesizeBoxTypeIfMissing(floatType);
@@ -624,18 +619,13 @@ public class Symtab {
         MethodSymbol m = new MethodSymbol(PUBLIC | ABSTRACT, names.value, intType, profileType.tsym);
         profileType.tsym.members().enter(m);
 
-        injectTopInterfaceTypes = Options.instance(context).isUnset("noTopInterfaceInjection") &&
-                Feature.INLINE_TYPES.allowedInSource(source) &&
-                Target.instance(context).hasTopInterfaces();
-
         // Enter a class for arrays.
         // The class implements java.lang.Cloneable and java.io.Serializable.
         // It has a final length field and a clone method.
         ClassType arrayClassType = (ClassType)arrayClass.type;
         arrayClassType.supertype_field = objectType;
-        arrayClassType.interfaces_field = injectTopInterfaceTypes ?
-                List.of(cloneableType, serializableType, identityObjectType):
-                List.of(cloneableType, serializableType);
+        arrayClassType.interfaces_field =
+                List.of(cloneableType, serializableType, identityObjectType);
 
         arrayClass.members_field = WriteableScope.create(arrayClass);
         lengthVar = new VarSymbol(

@@ -2,7 +2,7 @@
 /**
  * CLASS XprintDocComments
  */
-class XPrintDocComments implements java.lang.IdentityObject {
+class XPrintDocComments {
 
   XPrintDocComments();
   /**

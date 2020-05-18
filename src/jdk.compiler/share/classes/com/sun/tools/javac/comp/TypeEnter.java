@@ -144,9 +144,6 @@ public class TypeEnter implements Completer {
         Source source = Source.instance(context);
         allowTypeAnnos = Feature.TYPE_ANNOTATIONS.allowedInSource(source);
         allowDeprecationOnImport = Feature.DEPRECATION_ON_IMPORT.allowedInSource(source);
-        injectTopInterfaceTypes = Options.instance(context).isUnset("noTopInterfaceInjection") &&
-                                        Feature.INLINE_TYPES.allowedInSource(source) &&
-                                            Target.instance(context).hasTopInterfaces();
     }
 
     /** Switch: support type annotations.
@@ -157,10 +154,6 @@ public class TypeEnter implements Completer {
      * Switch: should deprecation warnings be issued on import
      */
     boolean allowDeprecationOnImport;
-
-    /** Switch: inject top interface types.
-     */
-    boolean injectTopInterfaceTypes;
 
     /** A flag to disable completion from time to time during member
      *  enter, as we only need to look up types.  This avoids
@@ -704,17 +697,6 @@ public class TypeEnter implements Completer {
             }
             ct.supertype_field = modelMissingTypes(baseEnv, supertype, extending, false);
 
-            Type interfaceToInject = Type.noType;
-            if (injectTopInterfaceTypes) {
-                if (isValueType || types.isValue(supertype)) {
-                    interfaceToInject = syms.inlineObjectType;
-                } else if ((sym.flags_field & (INTERFACE | ABSTRACT)) == 0) { // skip interfaces, abstract classes and annotations.
-                    if (sym.fullname != names.java_lang_Object) {
-                        interfaceToInject = syms.identityObjectType;
-                    }
-                }
-            }
-
             // Determine interfaces.
             ListBuffer<Type> interfaces = new ListBuffer<>();
             ListBuffer<Type> all_interfaces = null; // lazy init
@@ -722,9 +704,6 @@ public class TypeEnter implements Completer {
             for (JCExpression iface : interfaceTrees) {
                 iface = clearTypeParams(iface);
                 Type it = attr.attribBase(iface, baseEnv, false, true, true);
-                if (it.tsym == interfaceToInject.tsym) {
-                    interfaceToInject = Type.noType;
-                }
                 if (it.hasTag(CLASS)) {
                     interfaces.append(it);
                     if (all_interfaces != null) all_interfaces.append(it);
@@ -739,9 +718,6 @@ public class TypeEnter implements Completer {
                 ct.interfaces_field = List.of(syms.annotationType);
                 ct.all_interfaces_field = ct.interfaces_field;
             }  else {
-                if (interfaceToInject != Type.noType) {
-                    interfaces.append(interfaceToInject);
-                }
                 ct.interfaces_field = interfaces.toList();
                 ct.all_interfaces_field = (all_interfaces == null)
                         ? ct.interfaces_field : all_interfaces.toList();

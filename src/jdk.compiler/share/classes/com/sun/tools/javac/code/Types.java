@@ -95,7 +95,6 @@ public class Types {
     final boolean allowDefaultMethods;
     final boolean mapCapturesToBounds;
     final boolean allowValueBasedClasses;
-    final boolean injectTopInterfaceTypes;
     final Check chk;
     final Enter enter;
     JCDiagnostic.Factory diags;
@@ -127,9 +126,6 @@ public class Types {
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
-        injectTopInterfaceTypes = Options.instance(context).isUnset("noTopInterfaceInjection") &&
-                Feature.INLINE_TYPES.allowedInSource(source) &&
-                Target.instance(context).hasTopInterfaces();
     }
     // </editor-fold>
 
@@ -1245,7 +1241,7 @@ public class Types {
                     return sname == names.java_lang_Object
                         || sname == names.java_lang_Cloneable
                         || sname == names.java_io_Serializable
-                        || (injectTopInterfaceTypes && sname == names.java_lang_IdentityObject);
+                        || sname == names.java_lang_IdentityObject;
                 }
 
                 return false;
@@ -2201,6 +2197,16 @@ public class Types {
         if (sym.type == syms.objectType) { //optimization
             if (!isValue(t))
                 return syms.objectType;
+        }
+        if (sym.type == syms.identityObjectType) {
+            // IdentityObject is super interface of every concrete identity class other than jlO
+            if (t.isValue() || t.tsym == syms.objectType.tsym)
+                return null;
+            if (t.hasTag(ARRAY))
+                return syms.identityObjectType;
+            if (t.hasTag(CLASS) && !t.isReferenceProjection() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
+                return syms.identityObjectType;
+            } // else fall through and look for explicit coded super interface
         }
         return asSuper.visit(t, sym);
     }
@@ -4161,9 +4167,8 @@ public class Types {
                 synchronized (this) {
                     if (arraySuperType == null) {
                         // JLS 10.8: all arrays implement Cloneable and Serializable.
-                        List<Type> ifaces = injectTopInterfaceTypes ?
-                                List.of(syms.serializableType, syms.cloneableType, syms.identityObjectType):
-                                List.of(syms.serializableType, syms.cloneableType);
+                        List<Type> ifaces =
+                                List.of(syms.serializableType, syms.cloneableType, syms.identityObjectType);
                         arraySuperType = makeIntersectionType(ifaces, true);
                     }
                 }

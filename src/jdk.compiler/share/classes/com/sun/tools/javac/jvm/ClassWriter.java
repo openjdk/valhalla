@@ -1535,7 +1535,7 @@ public class ClassWriter extends ClassFile {
         poolbuf.reset();
 
         Type supertype = c.isValue() ? c.type.referenceProjection() : types.supertype(c.type);
-        List<Type> interfaces = c.isValue() ? List.of(syms.inlineObjectType) : types.interfaces(c.type);
+        List<Type> interfaces = c.isValue() ? List.nil() : types.interfaces(c.type);
         List<Type> typarams = c.type.getTypeArguments();
 
         int flags;

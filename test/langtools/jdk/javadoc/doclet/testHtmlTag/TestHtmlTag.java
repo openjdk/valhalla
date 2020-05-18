@@ -22,7 +22,6 @@
  */
 
 /*
- * @ignore
  * @test
  * @bug 6786682 4649116 8182765
  * @summary This test verifies the use of lang attribute by <HTML>.

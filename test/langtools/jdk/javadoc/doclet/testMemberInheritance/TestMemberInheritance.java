@@ -22,7 +22,6 @@
  */
 
 /*
- * @ignore
  * @test
  * @bug 4638588 4635809 6256068 6270645 8025633 8026567 8162363 8175200
  *      8192850 8182765 8220217 8224052 8237383
@@ -109,8 +108,7 @@ public class TestMemberInheritance extends JavadocTester {
                 "<section class=\"description\">\n<hr>\n"
                 + "<pre>public abstract class <span class=\"type-name-label\">"
                 + "DocumentedNonGenericChild</span>\n"
-                + "extends java.lang.Object\n"
-                + "implements java.lang.IdentityObject</pre>\n"
+                + "extends java.lang.Object</pre>\n"
                 + "</section>");
 
         checkOutput("pkg2/DocumentedNonGenericChild.html", true,

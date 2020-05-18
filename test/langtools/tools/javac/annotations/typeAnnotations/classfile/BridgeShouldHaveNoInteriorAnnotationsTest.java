@@ -74,15 +74,14 @@ public class BridgeShouldHaveNoInteriorAnnotationsTest
     // Expected output can't be directly encoded into NestedLambdasCastedTest !!!
     static class OutputExpectedOnceHolder {
         public String[] outputs = {
-            "0: #123(): CAST, offset=1, type_index=0, location=[TYPE_ARGUMENT(0)]",
-            "1: #123(): LOCAL_VARIABLE, {start_pc=5, length=2, index=1}, location=[TYPE_ARGUMENT(0)]",
-            "#123 = Utf8               LBridgeShouldHaveNoInteriorAnnotationsTest$NonNull;",
+            "0: #120(): CAST, offset=1, type_index=0, location=[TYPE_ARGUMENT(0)]",
+            "1: #120(): LOCAL_VARIABLE, {start_pc=5, length=2, index=1}, location=[TYPE_ARGUMENT(0)]",
         };
     }
 
     static class OutputExpectedTwiceHolder {
         public String[] outputs = {
-            "0: #123(): METHOD_RETURN, location=[TYPE_ARGUMENT(0)]",
+            "0: #120(): METHOD_RETURN, location=[TYPE_ARGUMENT(0)]",
         };
     }
 
@@ -99,13 +98,13 @@ public class BridgeShouldHaveNoInteriorAnnotationsTest
         for (String s : holder.outputs) {
             String newOutput = javapOut.replace(s, "");
             if (((javapOut.length() - newOutput.length()) / s.length()) != 1)
-                throw new AssertionError("Interior annotations carried over to bridge ?" + javapOut);
+                throw new AssertionError("Interior annotations carried over to bridge ?");
         }
         OutputExpectedTwiceHolder holder2 = new OutputExpectedTwiceHolder();
         for (String s : holder2.outputs) {
             String newOutput = javapOut.replace(s, "");
             if (((javapOut.length() - newOutput.length()) / s.length()) != 2)
-                throw new AssertionError("Exterior annotations not properly carried over to bridge" + javapOut);
+                throw new AssertionError("Exterior annotations not properly carried over to bridge");
         }
     }
 }

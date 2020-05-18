@@ -174,11 +174,4 @@ public enum Target {
     public boolean hasVirtualPrivateInvoke() {
         return compareTo(JDK1_11) >= 0;
     }
-
-    /** Does the target VM support new top interfaces?
-     */
-    public boolean hasTopInterfaces() {
-        return compareTo(JDK1_14) >= 0;
-    }
-
 }

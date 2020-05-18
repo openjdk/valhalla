@@ -430,8 +430,7 @@ public class TestRecordTypes extends JavadocTester {
                 "<pre>public record <span class=\"type-name-label\">R</span>("
                         + rcAnno
                         + "int&nbsp;i)\n" +
-                        "extends java.lang.Record\n" +
-                        "implements java.lang.IdentityObject</pre>",
+                        "extends java.lang.Record</pre>",
                 "<div class=\"member-signature\">"
                         + fAnno
                         + "<span class=\"modifiers\">private final</span>&nbsp;<span class=\"return-type\">int</span>"

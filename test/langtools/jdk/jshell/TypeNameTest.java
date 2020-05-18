@@ -22,7 +22,6 @@
  */
 
 /*
- * @ignore
  * @test
  * @bug 8144903 8171981 8191802 8191842
  * @summary Tests for determining the type from the expression

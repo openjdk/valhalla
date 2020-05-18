@@ -41,7 +41,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 
 @ExpectedSignature(descriptor = "ReturnTypeTest",
-        signature = "<T:Ljava/awt/Frame;:Ljava/lang/Runnable;:Ljava/util/concurrent/Callable<[TT;>;>Ljava/lang/Object;Ljava/lang/IdentityObject;")
+        signature = "<T:Ljava/awt/Frame;:Ljava/lang/Runnable;:Ljava/util/concurrent/Callable<[TT;>;>Ljava/lang/Object;")
 public class ReturnTypeTest<T extends Frame & Runnable & Callable<T[]>> {
 
     @ExpectedSignature(descriptor = "byteArrayReturnType(java.awt.Frame)",

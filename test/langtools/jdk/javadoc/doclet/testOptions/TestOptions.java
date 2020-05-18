@@ -22,7 +22,6 @@
  */
 
 /*
- * @ignore
  * @test
  * @bug      4749567 8071982 8175200 8186332 8185371 8182765 8217034
  * @summary  Test the output for -header, -footer, -nooverview, -nodeprecatedlist, -nonavbar, -notree,

@@ -1,7 +1,7 @@
 round: 1
 round: 2
 
-public class T implements java.lang.IdentityObject {
+public class T {
 
   public T();
 
@@ -9,7 +9,7 @@ public class T implements java.lang.IdentityObject {
 }
 round: 3
 
-public class T implements java.lang.IdentityObject {
+public class T {
 
   public T();
 
