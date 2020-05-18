@@ -2522,12 +2522,8 @@ public class Attr extends JCTree.Visitor {
                 // I1, I2, ... In, v.getClass() is typed to be Class<? extends Object & I1 & I2 .. & In>
                 Type wcb;
                 if (qualifierType.isValue()) {
-                    ClassType ct = (ClassType) qualifierType;
-                    if (ct.interfaces_field == null || ct.interfaces_field.isEmpty()) {
-                        wcb = syms.objectType;
-                    } else {
-                        wcb = types.makeIntersectionType(ct.interfaces_field, true);
-                    }
+                    List<Type> bounds = List.of(syms.objectType).appendList(((ClassSymbol) qualifierType.tsym).getInterfaces());
+                    wcb = types.makeIntersectionType(bounds);
                 } else {
                     wcb = types.erasure(qualifierType);
                 }

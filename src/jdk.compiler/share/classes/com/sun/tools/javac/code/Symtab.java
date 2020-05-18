@@ -271,14 +271,8 @@ public class Symtab {
                        I1, I2, ... In, V.class is typed to be Class<? extends Object & I1 & I2 .. & In>
                     */
                     if (type.isValue()) {
-                        ClassType ct = (ClassType) type;
-                        Type it;
-                        if (ct.interfaces_field == null || ct.interfaces_field.isEmpty()) {
-                            it = objectType;
-                        } else {
-                            it = types.makeIntersectionType(ct.interfaces_field, true);
-                        }
-                        arg = new WildcardType(it, BoundKind.EXTENDS, boundClass);
+                        List<Type> bounds = List.of(objectType).appendList(((ClassSymbol) type.tsym).getInterfaces());
+                        arg = new WildcardType(types.makeIntersectionType(bounds), BoundKind.EXTENDS, boundClass);
                     } else {
                         arg = types.erasure(type);
                     }
