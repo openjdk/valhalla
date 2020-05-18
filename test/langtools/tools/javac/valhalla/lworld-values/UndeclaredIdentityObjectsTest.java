@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8237955
  * @summary Identity types that have no declaration sites fail to be IdentityObjects
- * @compile/fail/ref=UndeclaredIdentityObjectsTest.out -XDrawDiagnostics UndeclaredIdentityObjectsTest.java
+ * @compile -XDrawDiagnostics UndeclaredIdentityObjectsTest.java
  */
 
 public class UndeclaredIdentityObjectsTest {
@@ -18,9 +18,5 @@ public class UndeclaredIdentityObjectsTest {
             throw new AssertionError("Parameterized type are broken");
         if (!(oa[0] instanceof IdentityObject)) // can only be determined at runtime
             System.out.println("Arrays are broken!");
-        if (oa[0] instanceof InlineObject) // can only be determined at runtime
-            System.out.println("Arrays are broken!");
-        if (oa instanceof InlineObject) // compile error.
-            throw new AssertionError("Arrays are broken");
     }
 }

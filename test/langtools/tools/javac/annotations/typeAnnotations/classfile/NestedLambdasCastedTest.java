@@ -53,14 +53,10 @@ public class NestedLambdasCastedTest {
                       "private static strictfp void lambda$main$2();",
                       "private static strictfp void lambda$main$1();",
                       "private static strictfp void lambda$main$0();",
-                      "0: #115(#116=s#117): CAST, offset=5, type_index=0",
-                      "0: #115(#116=s#123): CAST, offset=5, type_index=0",
-                      "0: #115(#116=s#126): CAST, offset=5, type_index=0",
-                      "0: #115(#116=s#129): CAST, offset=5, type_index=0",
-                      "#117 = Utf8               1",
-                      "#123 = Utf8               2",
-                      "#126 = Utf8               3",
-                      "#129 = Utf8               4"
+                      "0: #111(#112=s#113): CAST, offset=5, type_index=0",
+                      "0: #111(#112=s#119): CAST, offset=5, type_index=0",
+                      "0: #111(#112=s#122): CAST, offset=5, type_index=0",
+                      "0: #111(#112=s#125): CAST, offset=5, type_index=0"
         };
     }
 
@@ -88,7 +84,7 @@ public class NestedLambdasCastedTest {
         ExpectedOutputHolder holder = new ExpectedOutputHolder();
         for (String s : holder.outputs) {
             if (!javapOut.contains(s))
-                throw new AssertionError("Expected type annotation on LOCAL_VARIABLE missing" + javapOut);
+                throw new AssertionError("Expected type annotation on LOCAL_VARIABLE missing");
         }
     }
 }

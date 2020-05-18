@@ -1,7 +1,7 @@
 round: 1
 
 @java.lang.Deprecated
-public class GeneratedSource<T> extends java.util.ArrayList<java.lang.String> implements java.lang.Runnable, java.lang.IdentityObject {
+public class GeneratedSource<T> extends java.util.ArrayList<java.lang.String> implements java.lang.Runnable {
 
   public GeneratedSource();
 
@@ -11,7 +11,7 @@ public class GeneratedSource<T> extends java.util.ArrayList<java.lang.String> im
 }
 
 @java.lang.Deprecated
-public class GeneratedClass<T> extends java.util.ArrayList<java.lang.String> implements java.lang.Runnable, java.lang.IdentityObject {
+public class GeneratedClass<T> extends java.util.ArrayList<java.lang.String> implements java.lang.Runnable {
 
   public GeneratedClass();
 

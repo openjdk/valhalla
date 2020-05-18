@@ -41,12 +41,12 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 
 @ExpectedSignature(descriptor = "InnerClassTest",
-        signature = "<T:Ljava/util/ArrayList<TT;>;:Ljava/lang/Runnable;>Ljava/lang/Object;Ljava/lang/IdentityObject;")
+        signature = "<T:Ljava/util/ArrayList<TT;>;:Ljava/lang/Runnable;>Ljava/lang/Object;")
 @ExpectedSignature(descriptor = "InnerClassTest$1",
-        signature = "LInnerClassTest$1Local1;Ljava/lang/IdentityObject;", isAnonymous = true)
+        signature = "LInnerClassTest$1Local1;", isAnonymous = true)
 @ExpectedSignature(descriptor = "InnerClassTest$2",
         signature = "LInnerClassTest$1Local2<Ljava/util/ArrayList<TT;>;" +
-                "Ljava/util/Map<Ljava/util/ArrayList<TT;>;Ljava/util/ArrayList<TT;>;>;>;Ljava/lang/IdentityObject;", isAnonymous = true)
+                "Ljava/util/Map<Ljava/util/ArrayList<TT;>;Ljava/util/ArrayList<TT;>;>;>;", isAnonymous = true)
 public class InnerClassTest<T extends ArrayList<T> & Runnable> {
 
     {
@@ -63,7 +63,7 @@ public class InnerClassTest<T extends ArrayList<T> & Runnable> {
         }
 
         @ExpectedSignature(descriptor = "InnerClassTest$1Local2",
-                signature = "<T:Ljava/lang/Object;U::Ljava/util/Map<+TT;-TT;>;>Ljava/lang/Object;Ljava/lang/IdentityObject;")
+                signature = "<T:Ljava/lang/Object;U::Ljava/util/Map<+TT;-TT;>;>Ljava/lang/Object;")
         class Local2<T, U extends Map<? extends T, ? super T>> {
             // no Signature attribute
             Local2() {
@@ -83,7 +83,7 @@ public class InnerClassTest<T extends ArrayList<T> & Runnable> {
 
         @ExpectedSignature(descriptor = "InnerClassTest$1Local3",
                 signature = "LInnerClassTest$1Local2<Ljava/util/ArrayList<TT;>;" +
-                        "Ljava/util/Map<Ljava/util/ArrayList<TT;>;Ljava/util/ArrayList<TT;>;>;>;Ljava/lang/IdentityObject;")
+                        "Ljava/util/Map<Ljava/util/ArrayList<TT;>;Ljava/util/ArrayList<TT;>;>;>;")
         class Local3 extends Local2<ArrayList<T>, Map<ArrayList<T>, ArrayList<T>>> {
         }
 
@@ -100,7 +100,7 @@ public class InnerClassTest<T extends ArrayList<T> & Runnable> {
     }
 
     @ExpectedSignature(descriptor = "InnerClassTest$InnerClass1",
-            signature = "<E:TT;U::Ljava/util/Set<-TE;>;>Ljava/lang/Object;Ljava/lang/IdentityObject;")
+            signature = "<E:TT;U::Ljava/util/Set<-TE;>;>Ljava/lang/Object;")
     class InnerClass1<E extends T, U extends Set<? super E>> {
         @ExpectedSignature(descriptor = "genericTypeArray", signature = "[TT;")
         T[] genericTypeArray;
@@ -191,7 +191,7 @@ public class InnerClassTest<T extends ArrayList<T> & Runnable> {
     }
 
     @ExpectedSignature(descriptor = "InnerClassTest$InnerClass2",
-            signature = "LInnerClassTest<TT;>.InnerClass1<TT;Ljava/util/Set<TT;>;>;LInnerClassTest$InnerInterface<TT;>;Ljava/lang/IdentityObject;")
+            signature = "LInnerClassTest<TT;>.InnerClass1<TT;Ljava/util/Set<TT;>;>;LInnerClassTest$InnerInterface<TT;>;")
     class InnerClass2 extends InnerClass1<T, Set<T>> implements InnerInterface<T> {
 
         // no Signature attribute
@@ -241,7 +241,7 @@ public class InnerClassTest<T extends ArrayList<T> & Runnable> {
 
     @ExpectedSignature(descriptor = "InnerClassTest$StaticInnerClass",
             signature = "<T:Ljava/lang/String;E::Ljava/util/Set<TT;>;>" +
-                    "Ljava/lang/Object;LInnerClassTest$InnerInterface<TE;>;Ljava/lang/IdentityObject;")
+                    "Ljava/lang/Object;LInnerClassTest$InnerInterface<TE;>;")
     static class StaticInnerClass<T extends String, E extends Set<T>> implements InnerInterface<E> {
         // no Signature attribute
         StaticInnerClass(List a) {
@@ -331,7 +331,7 @@ public class InnerClassTest<T extends ArrayList<T> & Runnable> {
 
     @ExpectedSignature(descriptor = "InnerClassTest$InnerClass3",
             signature = "Ljava/lang/Object;LInnerClassTest$ExceptionHolder" +
-                    "<Ljava/lang/RuntimeException;>;Ljava/util/concurrent/Callable<Ljava/util/Map<**>;>;Ljava/lang/IdentityObject;")
+                    "<Ljava/lang/RuntimeException;>;Ljava/util/concurrent/Callable<Ljava/util/Map<**>;>;")
     public static class InnerClass3 implements  ExceptionHolder<RuntimeException>, Callable<Map<?, ?>> {
         @ExpectedSignature(descriptor = "call()", signature = "()Ljava/util/Map<**>;")
         @Override

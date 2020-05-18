@@ -22,7 +22,6 @@
  */
 
 /*
- * @ignore
  * @test 8190939 8191842
  * @summary test expressions whose type is inaccessible
  * @modules jdk.compiler/com.sun.tools.javac.api

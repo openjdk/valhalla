@@ -22,7 +22,6 @@
  */
 
 /*
- * @ignore
  * @test
  * @bug      4780441 4874845 4978816 8014017 8016328 8025633 8026567 8175200 8182765
  * @summary  Make sure that when the -private flag is not used, members

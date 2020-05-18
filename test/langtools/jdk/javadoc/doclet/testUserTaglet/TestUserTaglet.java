@@ -53,7 +53,7 @@ public class TestUserTaglet extends JavadocTester {
         // derived from the context information available to the taglet.
         checkOutput("pkg/C.html", true,
             "<li>Element: CLASS C",
-            "<li>Element supertypes: [java.lang.Object, java.lang.IdentityObject]",
+            "<li>Element supertypes: [java.lang.Object]",
             "<li>Doclet: class jdk.javadoc.doclet.StandardDoclet"
         );
     }

@@ -10,28 +10,28 @@ public class TopInterfaceNegativeTest  {
     interface ID extends IdentityObject {}
     interface II extends InlineObject {}
 
-    interface IID0 extends IdentityObject, IdentityObject {} // Error.
-    interface IID1 extends IdentityObject, InlineObject {} // Error.
-    interface IID2 extends IdentityObject, II {} // Error.
-    interface IID3 extends IdentityObject, ID {} // OK.
-    interface IID4 extends InlineObject, II {} // OK.
-    interface IID5 extends ID, II {} // Error
+    interface IID0 extends IdentityObject, IdentityObject {}
+    interface IID1 extends IdentityObject, InlineObject {}
+    interface IID2 extends IdentityObject, II {}
+    interface IID3 extends IdentityObject, ID {}
+    interface IID4 extends InlineObject, II {}
+    interface IID5 extends ID, II {}
 
-    static class C1 implements InlineObject {} // Error
-    static class C2 implements II {} // Error
-    static class C3 implements IdentityObject {} // Ok
-    static class C4 implements ID {} // Ok
-    static class C5 implements IdentityObject, IdentityObject {} // Error.
-    static class C6 implements IdentityObject, ID {} // OK
-    static class C7 implements II, ID {} // Error
+    static class C1 implements InlineObject {}
+    static class C2 implements II {}
+    static class C3 implements IdentityObject {}
+    static class C4 implements ID {}
+    static class C5 implements IdentityObject, IdentityObject {}
+    static class C6 implements IdentityObject, ID {}
+    static class C7 implements II, ID {}
 
-    static inline class V1 implements IdentityObject {} // error.
-    static inline class V2 implements InlineObject {} // Ok.
-    static inline class V3 implements InlineObject, InlineObject  {} // error.
+    static inline class V1 implements IdentityObject { int x = 0; }
+    static inline class V2 implements InlineObject {}
+    static inline class V3 implements InlineObject, InlineObject  {}
 
     void foo(V2 v) {
         if (v instanceof IdentityObject)
             throw new AssertionError("Expected inline object but found identity object");
     }
-    abstract class abs implements IdentityObject {} // OK
+    abstract class abs implements IdentityObject {}
 }
