@@ -277,9 +277,10 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     public HotSpotResolvedObjectTypeImpl[] getInterfaces() {
         if (interfaces == null) {
             if (isArray()) {
-                HotSpotResolvedObjectTypeImpl[] types = new HotSpotResolvedObjectTypeImpl[2];
+                HotSpotResolvedObjectTypeImpl[] types = new HotSpotResolvedObjectTypeImpl[3];
                 types[0] = runtime().getJavaLangCloneable();
                 types[1] = runtime().getJavaLangSerializable();
+                types[2] = runtime().getJavaLangIdentityObject();
                 this.interfaces = types;
             } else {
                 interfaces = runtime().compilerToVm.getInterfaces(this);
