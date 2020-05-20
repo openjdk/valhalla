@@ -962,10 +962,10 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
   assert(has_nonstatic_concrete_methods != NULL, "invariant");
 
   if (itfs_len == 0) {
-    _temp_local_interfaces = new GrowableArray<InstanceKlass*>(1);
+    _temp_local_interfaces = new GrowableArray<InstanceKlass*>(0);
   } else {
     assert(itfs_len > 0, "only called for len>0");
-    _temp_local_interfaces = new GrowableArray<InstanceKlass*>(itfs_len+1);
+    _temp_local_interfaces = new GrowableArray<InstanceKlass*>(itfs_len);
     int index = 0;
     for (index = 0; index < itfs_len; index++) {
       const u2 interface_index = stream->get_u2(CHECK);
@@ -1024,7 +1024,7 @@ void ClassFileParser::parse_interfaces(const ClassFileStream* stream,
       if (ik->name() == vmSymbols::java_lang_IdentityObject()) {
         _implements_identityObject = true;
       }
-      _temp_local_interfaces->at_put_grow(index, ik);
+      _temp_local_interfaces->append(ik);
     }
 
     if (!_need_verify || itfs_len <= 1) {
@@ -5033,9 +5033,10 @@ static Array<InstanceKlass*>* compute_transitive_interfaces(const InstanceKlass*
   } else if (max_transitive_size == super_size) {
     // no new local interfaces added, share superklass' transitive interface array
     return super->transitive_interfaces();
-  } else if (max_transitive_size == local_size) {
-    // only local interfaces added, share local interface array
-    return local_ifs;
+    // The three lines below are commented to work around bug JDK-8245487
+//  } else if (max_transitive_size == local_size) {
+//    // only local interfaces added, share local interface array
+//    return local_ifs;
   } else {
     ResourceMark rm;
     GrowableArray<InstanceKlass*>* const result = new GrowableArray<InstanceKlass*>(max_transitive_size);
@@ -6498,6 +6499,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _nest_members(NULL),
   _nest_host(0),
   _record_components(NULL),
+  _temp_local_interfaces(NULL),
   _local_interfaces(NULL),
   _transitive_interfaces(NULL),
   _combined_annotations(NULL),
@@ -7039,7 +7041,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
   if (!is_value_type() && invalid_inline_super() && (_super_klass == NULL || !_super_klass->invalid_inline_super())
       && !_implements_identityObject && class_name() != vmSymbols::java_lang_IdentityObject()) {
-    _temp_local_interfaces->at_put_grow(_temp_local_interfaces->length(), SystemDictionary::IdentityObject_klass());
+    _temp_local_interfaces->append(SystemDictionary::IdentityObject_klass());
     _has_injected_identityObject = true;
   }
   int itfs_len = _temp_local_interfaces->length();
@@ -7051,6 +7053,8 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
       _local_interfaces->at_put(i, _temp_local_interfaces->at(i));
     }
   }
+  _temp_local_interfaces = NULL;
+  assert(_local_interfaces != NULL, "invariant");
 
   // Compute the transitive list of all unique interfaces implemented by this class
   _transitive_interfaces =
