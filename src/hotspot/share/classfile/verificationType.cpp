@@ -60,7 +60,8 @@ bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Sym
       from_name != vmSymbols::java_lang_Object())) {
     // If we are not trying to access a protected field or method in
     // java.lang.Object then, for arrays, we only allow assignability
-    // to interfaces java.lang.Cloneable and java.io.Serializable.
+    // to interfaces java.lang.Cloneable, java.io.Serializable,
+    // and java.lang.IdentityObject.
     // Otherwise, we treat interfaces as java.lang.Object.
     return !from_is_array ||
       this_class == SystemDictionary::Cloneable_klass() ||
