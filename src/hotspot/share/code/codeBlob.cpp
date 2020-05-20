@@ -242,8 +242,8 @@ BufferBlob* BufferBlob::create(const char* name, int buffer_size) {
 }
 
 
-BufferBlob::BufferBlob(const char* name, int size, CodeBuffer* cb)
-  : RuntimeBlob(name, cb, sizeof(BufferBlob), size, CodeOffsets::frame_never_safe, 0, NULL)
+BufferBlob::BufferBlob(const char* name, int header_size, int size, CodeBuffer* cb)
+  : RuntimeBlob(name, cb, header_size, size, CodeOffsets::frame_never_safe, 0, NULL)
 {}
 
 BufferBlob* BufferBlob::create(const char* name, CodeBuffer* cb) {
@@ -254,7 +254,7 @@ BufferBlob* BufferBlob::create(const char* name, CodeBuffer* cb) {
   assert(name != NULL, "must provide a name");
   {
     MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size) BufferBlob(name, size, cb);
+    blob = new (size) BufferBlob(name, sizeof(BufferBlob), size, cb);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();
@@ -356,7 +356,7 @@ MethodHandlesAdapterBlob* MethodHandlesAdapterBlob::create(int buffer_size) {
 //----------------------------------------------------------------------------------------------------
 // Implementation of BufferedValueTypeBlob
 BufferedValueTypeBlob::BufferedValueTypeBlob(int size, CodeBuffer* cb, int pack_fields_off, int pack_fields_jobject_off, int unpack_fields_off) :
-  BufferBlob("buffered value type", size, cb),
+  BufferBlob("buffered value type", sizeof(BufferedValueTypeBlob), size, cb),
   _pack_fields_off(pack_fields_off),
   _pack_fields_jobject_off(pack_fields_jobject_off),
   _unpack_fields_off(unpack_fields_off) {
