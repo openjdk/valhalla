@@ -402,7 +402,7 @@ class BufferBlob: public RuntimeBlob {
  private:
   // Creation support
   BufferBlob(const char* name, int size);
-  BufferBlob(const char* name, int size, CodeBuffer* cb);
+  BufferBlob(const char* name, int header_size, int size, CodeBuffer* cb);
   BufferBlob(const char* name, int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments = false);
 
   // This ordinary operator delete is needed even though not used, so the
