@@ -76,8 +76,8 @@ public class Reflection {
         Class<?> inlineClass = Point.class;
         assertTrue(inlineClass.isInlineClass());
         assertFalse(Point.ref.class.isInlineClass());
-        assertEquals(inlineClass.valueType(), Point.class);
-        assertEquals(inlineClass.referenceType(), Point.ref.class);
+        assertEquals(inlineClass.valueType().get(), Point.class);
+        assertEquals(inlineClass.referenceType().get(), Point.ref.class);
 
 
         Point o = Point.makePoint(10, 20);
@@ -121,8 +121,8 @@ public class Reflection {
 
         // V.class, Class.forName, and the type of the object return the primary mirror
         assertEquals(type, o.getClass());
-        assertEquals(type, c.valueType());
-        assertEquals(c, c.valueType());
+        assertEquals(type, c.valueType().get());
+        assertEquals(c, c.valueType().get());
 
         this.ctor = c.getDeclaredConstructor();
         this.o = o;
@@ -131,13 +131,13 @@ public class Reflection {
         // test the primary mirror and secondary mirror
         testMirrors(this.c);
         // test array of Q-type and L-type
-        testArray(c.valueType());
-        testArray(c.referenceType());
+        testArray(c.valueType().get());
+        testArray(c.referenceType().get());
     }
 
     private static void testMirrors(Class<?> c) {
-        Class<?> valType = c.valueType();
-        Class<?> refType = c.referenceType();
+        Class<?> valType = c.valueType().get();
+        Class<?> refType = c.referenceType().get();
 
         assertTrue(valType != null);
         assertEquals(refType.getTypeName(), c.getTypeName() + "$ref");
@@ -147,8 +147,8 @@ public class Reflection {
         assertEquals(refType.getTypeName(), valType.getTypeName() + "$ref");
         assertEquals(refType.getSimpleName(), valType.getSimpleName() + "$ref");
 
-        assertEquals(valType.referenceType(), refType);
-        assertEquals(refType.valueType(), valType);
+        assertEquals(valType.referenceType().get(), refType);
+        assertEquals(refType.valueType().get(), valType);
     }
 
     void testArray(Class<?> elementType) {
@@ -156,10 +156,10 @@ public class Reflection {
         Class<?> arrayType = array.getClass();
         assertTrue(arrayType.isArray());
         Class<?> componentType = arrayType.getComponentType();
-        assertTrue(componentType.isInlineClass() || componentType.valueType() != null);
+        assertTrue(componentType.isInlineClass() || componentType.valueType().isPresent());
         assertEquals(componentType, elementType);
         // Array is a reference type
-        assertEquals(arrayType.referenceType(), arrayType);
+        assertEquals(arrayType.referenceType().get(), arrayType);
         if (array[0] == null) {
             System.out.println("array[0] = null");
         } else {

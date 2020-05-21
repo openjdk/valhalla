@@ -58,7 +58,7 @@ public class ValueArray {
 
         if (componentType.isInlineClass()) {
             Object[] qArray = (Object[]) Array.newInstance(componentType, 0);
-            Object[] lArray = (Object[]) Array.newInstance(componentType.referenceType(), 0);
+            Object[] lArray = (Object[]) Array.newInstance(componentType.referenceType().get(), 0);
             testInlineArrayCovariance(componentType, qArray, lArray);
         }
     }

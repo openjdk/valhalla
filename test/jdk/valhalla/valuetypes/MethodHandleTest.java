@@ -119,7 +119,7 @@ public class MethodHandleTest {
 
         Class<?> elementType = c.getComponentType();
         if (elementType.isInlineClass()) {
-            assertTrue(elementType == elementType.valueType());
+            assertTrue(elementType == elementType.valueType().get());
         }
         // set an array element to null
         try {
@@ -194,7 +194,7 @@ public class MethodHandleTest {
     void setValueField(String name, Object obj, Object value) throws Throwable {
         Field f = c.getDeclaredField(name);
         boolean isStatic = Modifier.isStatic(f.getModifiers());
-        assertTrue(f.getType().isInlineClass() || f.getType().valueType() != null);
+        assertTrue(f.getType().isInlineClass() || f.getType().valueType().isPresent());
         assertTrue((isStatic && obj == null) || (!isStatic && obj != null));
         Object v = f.get(obj);
 

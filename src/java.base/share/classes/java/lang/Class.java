@@ -529,36 +529,33 @@ public final class Class<T> implements java.io.Serializable,
     /**
      * Returns a {@code Class} object representing the <em>value projection</em>
      * type of this class if this {@code Class} is the reference projection type
-     * of an {@linkplain #isInlineClass() inline class}.  Otherwise {@code null}
-     * is returned.
+     * of an {@linkplain #isInlineClass() inline class}.  Otherwise an empty
+     * {@link Optional} is returned.
      *
      * @return the {@code Class} object representing the value projection type of
      *         this class if this class is the reference projection type of an
-     *         inline class; {@code null} otherwise
+     *         inline class; an empty {@link Optional} otherwise
      * @since Valhalla
      */
-    public Class<T> valueType() {
-        return valType;
+    public Optional<Class<T>> valueType() {
+        return Optional.ofNullable(valType);
     }
 
     /**
      * Returns a {@code Class} object representing the <em>reference projection</em>
-     * type of this class.
+     * type of this class if this class is an {@linkplain #isInlineClass() inline class}
+     * with a reference projection.
      * If this class is an {@linkplain #isInlineClass() inline class}
-     * with a reference projection, then this method returns its
-     * reference projection type.
-     * If this class is an {@linkplain #isInlineClass() inline class}
-     * without a reference projection, then this method returns {@code null}.
-     * If this class is not an inline class, then this method returns
-     * this {@code Class} object.
+     * without a reference projection or this class is not an inline class,
+     * then this method returns an empty {@link Optional}.
      *
      * @return the {@code Class} object representing the value projection type of
      *         this class if this class is the reference projection type of an
-     *         inline class; {@code null} otherwise
+     *         inline class; an empty {@link Optional} otherwise
      * @since Valhalla
      */
-    public Class<T> referenceType() {
-        return valType != null ? refType : this;
+    public Optional<Class<T>> referenceType() {
+        return valType != null ? Optional.ofNullable(refType) : Optional.of(this);
     }
 
     // TO BE REMOVED together with the C2 intrinsic implementation
