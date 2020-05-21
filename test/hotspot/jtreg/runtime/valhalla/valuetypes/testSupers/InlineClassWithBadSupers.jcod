@@ -66,7 +66,7 @@ class SuperNotAbstract {
     class #23; // #22     at 0xE8
     Utf8 "NotAbstract"; // #23     at 0xEB
     class #25; // #24     at 0xF9
-    Utf8 "java/lang/InlineObject"; // #25     at 0xFC
+    Utf8 "Unused"; // #25     at 0xFC
     Utf8 "getX"; // #26     at 0x0115
     Utf8 "()I"; // #27     at 0x011C
     Utf8 "Code"; // #28     at 0x0122
@@ -98,8 +98,7 @@ class SuperNotAbstract {
   #1;// this_cpx
   #22;// super_cpx
 
-  [1] { // Interfaces
-    #24;
+  [0] { // Interfaces
   } // Interfaces
 
   [2] { // fields
@@ -327,7 +326,7 @@ class SuperHasNonStaticFields {
     class #23; // #22     at 0xE8
     Utf8 "HasNonStaticFields"; // #23     at 0xEB
     class #25; // #24     at 0xF9
-    Utf8 "java/lang/InlineObject"; // #25     at 0xFC
+    Utf8 "Unused"; // #25     at 0xFC
     Utf8 "getX"; // #26     at 0x0115
     Utf8 "()I"; // #27     at 0x011C
     Utf8 "Code"; // #28     at 0x0122
@@ -359,8 +358,7 @@ class SuperHasNonStaticFields {
   #1;// this_cpx
   #22;// super_cpx
 
-  [1] { // Interfaces
-    #24;
+  [0] { // Interfaces
   } // Interfaces
 
   [2] { // fields
@@ -588,7 +586,7 @@ class SuperHasSynchMethod {
     class #23; // #22     at 0xE8
     Utf8 "ValidSuper"; // #23     at 0xEB
     class #25; // #24     at 0xF9
-    Utf8 "java/lang/InlineObject"; // #25     at 0xFC
+    Utf8 "Unused"; // #25     at 0xFC
     Utf8 "getX"; // #26     at 0x0115
     Utf8 "()I"; // #27     at 0x011C
     Utf8 "Code"; // #28     at 0x0122
@@ -620,8 +618,7 @@ class SuperHasSynchMethod {
   #1;// this_cpx
   #22;// super_cpx
 
-  [1] { // Interfaces
-    #24;
+  [0] { // Interfaces
   } // Interfaces
 
   [2] { // fields
@@ -848,7 +845,7 @@ class SuperCtorHasArgs {
     class #23; // #22     at 0xE8
     Utf8 "CtorHasArgs"; // #23     at 0xEB
     class #25; // #24     at 0xF9
-    Utf8 "java/lang/InlineObject"; // #25     at 0xFC
+    Utf8 "Unused"; // #25     at 0xFC
     Utf8 "getX"; // #26     at 0x0115
     Utf8 "()I"; // #27     at 0x011C
     Utf8 "Code"; // #28     at 0x0122
@@ -880,8 +877,7 @@ class SuperCtorHasArgs {
   #1;// this_cpx
   #22;// super_cpx
 
-  [1] { // Interfaces
-    #24;
+  [0] { // Interfaces
   } // Interfaces
 
   [2] { // fields
@@ -1110,7 +1106,7 @@ class SuperCtorIsNotEmpty {
     class #23; // #22     at 0xE8
     Utf8 "CtorIsNotEmpty"; // #23     at 0xEB
     class #25; // #24     at 0xF9
-    Utf8 "java/lang/InlineObject"; // #25     at 0xFC
+    Utf8 "Unused"; // #25     at 0xFC
     Utf8 "getX"; // #26     at 0x0115
     Utf8 "()I"; // #27     at 0x011C
     Utf8 "Code"; // #28     at 0x0122
@@ -1142,8 +1138,7 @@ class SuperCtorIsNotEmpty {
   #1;// this_cpx
   #22;// super_cpx
 
-  [1] { // Interfaces
-    #24;
+  [0] { // Interfaces
   } // Interfaces
 
   [2] { // fields
@@ -1373,7 +1368,7 @@ class InlineImplementsIdentityObject {
     class #25; // #24     at 0x011E
     Utf8 "java/lang/IdentityObject"; // #25     at 0x0121
     class #27; // #26     at 0x0126
-    Utf8 "java/lang/InlineObject"; // #27     at 0x0129
+    Utf8 "Unused"; // #27     at 0x0129
     Utf8 "getX"; // #28     at 0x0142
     Utf8 "()I"; // #29     at 0x0149
     Utf8 "Code"; // #30     at 0x014F
@@ -1405,9 +1400,8 @@ class InlineImplementsIdentityObject {
   #1;// this_cpx
   #22;// super_cpx
 
-  [2] { // Interfaces
+  [1] { // Interfaces
     #24;
-    #26;
   } // Interfaces
 
   [2] { // fields
@@ -1636,7 +1630,7 @@ class SuperImplementsIdentityObject {
     class #23; // #22     at 0xE8
     Utf8 "ImplementsIdentityObject"; // #23     at 0xEB
     class #25; // #24     at 0xF9
-    Utf8 "java/lang/InlineObject"; // #25     at 0xFC
+    Utf8 "Unused"; // #25     at 0xFC
     Utf8 "getX"; // #26     at 0x0115
     Utf8 "()I"; // #27     at 0x011C
     Utf8 "Code"; // #28     at 0x0122
@@ -1668,8 +1662,7 @@ class SuperImplementsIdentityObject {
   #1;// this_cpx
   #22;// super_cpx
 
-  [1] { // Interfaces
-    #24;
+  [0] { // Interfaces
   } // Interfaces
 
   [2] { // fields
@@ -1897,7 +1890,7 @@ class SuperIntfImplementsIdentityObject {
     class #23; // #22     at 0xE8
     Utf8 "IntfImplementsIdentityObject"; // #23     at 0xEB
     class #25; // #24     at 0xF9
-    Utf8 "java/lang/InlineObject"; // #25     at 0xFC
+    Utf8 "Unused"; // #25     at 0xFC
     Utf8 "getX"; // #26     at 0x0115
     Utf8 "()I"; // #27     at 0x011C
     Utf8 "Code"; // #28     at 0x0122
@@ -1929,8 +1922,7 @@ class SuperIntfImplementsIdentityObject {
   #1;// this_cpx
   #22;// super_cpx
 
-  [1] { // Interfaces
-    #24;
+  [0] { // Interfaces
   } // Interfaces
 
   [2] { // fields

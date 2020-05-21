@@ -131,6 +131,7 @@ class ClassFileParser {
   Array<u2>* _nest_members;
   u2 _nest_host;
   Array<RecordComponent*>* _record_components;
+  GrowableArray<InstanceKlass*>* _temp_local_interfaces;
   Array<InstanceKlass*>* _local_interfaces;
   Array<InstanceKlass*>* _transitive_interfaces;
   Annotations* _combined_annotations;
@@ -199,11 +200,14 @@ class ClassFileParser {
   bool _has_contended_fields;
 
   bool _has_flattenable_fields;
+  bool _has_nonstatic_fields;
   bool _is_empty_value;
   bool _is_naturally_atomic;
   bool _is_declared_atomic;
   bool _invalid_inline_super;   // if true, invalid super type for an inline type.
   bool _invalid_identity_super; // if true, invalid super type for an identity type.
+  bool _implements_identityObject;
+  bool _has_injected_identityObject;
 
   // precomputed flags
   bool _has_finalizer;
@@ -594,6 +598,7 @@ class ClassFileParser {
   void set_invalid_inline_super() { _invalid_inline_super = true; }
   bool invalid_identity_super() const { return _invalid_identity_super; }
   void set_invalid_identity_super() { _invalid_identity_super = true; }
+  bool is_invalid_super_for_inline_type();
 
   u2 java_fields_count() const { return _java_fields_count; }
 

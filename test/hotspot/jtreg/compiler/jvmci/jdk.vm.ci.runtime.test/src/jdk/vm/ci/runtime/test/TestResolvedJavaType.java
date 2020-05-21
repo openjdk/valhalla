@@ -259,7 +259,9 @@ public class TestResolvedJavaType extends TypeUniverse {
             ResolvedJavaType type = metaAccess.lookupJavaType(c);
             Class<?>[] expected = c.getInterfaces();
             ResolvedJavaType[] actual = type.getInterfaces();
-            assertEquals(expected.length, actual.length);
+            // With injection of the IdentityObject interface by the JVM, the number of
+            // interfaces visible through reflection and through JVMCI could differ by one
+            assertTrue(expected.length == actual.length || (actual.length - expected.length) == 1);
             for (int i = 0; i < expected.length; i++) {
                 assertTrue(actual[i].equals(metaAccess.lookupJavaType(expected[i])));
             }

@@ -296,7 +296,8 @@ class InstanceKlass: public Klass {
     _misc_is_naturally_atomic                 = 1 << 21, // loaded/stored in one instruction
     _misc_is_declared_atomic                  = 1 << 22, // implements jl.NonTearable
     _misc_invalid_inline_super                = 1 << 23, // invalid super type for an inline type
-    _misc_invalid_identity_super              = 1 << 24  // invalid super type for an identity type
+    _misc_invalid_identity_super              = 1 << 24, // invalid super type for an identity type
+    _misc_has_injected_identityObject         = 1 << 25  // IdentityObject has been injected by the JVM
   };
   u2 shared_loader_type_bits() const {
     return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
@@ -479,6 +480,14 @@ class InstanceKlass: public Klass {
   // Initialized in the class file parser, not changed later.
   void set_invalid_identity_super() {
     _misc_flags |= _misc_invalid_identity_super;
+  }
+
+  bool has_injected_identityObject() const {
+    return (_misc_flags & _misc_has_injected_identityObject);
+  }
+
+  void set_has_injected_identityObject() {
+    _misc_flags |= _misc_has_injected_identityObject;
   }
 
   // field sizes

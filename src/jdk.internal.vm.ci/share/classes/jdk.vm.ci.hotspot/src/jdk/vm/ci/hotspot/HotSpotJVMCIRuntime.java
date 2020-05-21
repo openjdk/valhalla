@@ -83,6 +83,7 @@ public final class HotSpotJVMCIRuntime implements JVMCIRuntime {
     private HotSpotResolvedObjectTypeImpl serializableType;
     private HotSpotResolvedObjectTypeImpl cloneableType;
     private HotSpotResolvedObjectTypeImpl enumType;
+    private HotSpotResolvedObjectTypeImpl identityObjectType;
 
     HotSpotResolvedObjectTypeImpl getJavaLangObject() {
         if (javaLangObject == null) {
@@ -117,6 +118,13 @@ public final class HotSpotJVMCIRuntime implements JVMCIRuntime {
             serializableType = (HotSpotResolvedObjectTypeImpl) fromClass(Serializable.class);
         }
         return serializableType;
+    }
+
+    HotSpotResolvedObjectTypeImpl getJavaLangIdentityObject() {
+        if (identityObjectType == null) {
+            identityObjectType = (HotSpotResolvedObjectTypeImpl) fromClass(IdentityObject.class);
+        }
+        return identityObjectType;
     }
 
     HotSpotResolvedObjectTypeImpl getJavaLangThrowable() {
