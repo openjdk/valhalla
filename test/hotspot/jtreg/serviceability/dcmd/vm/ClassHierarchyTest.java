@@ -67,10 +67,12 @@ public class ClassHierarchyTest {
     // java.lang.Object/null
     // |--DcmdBaseClass/0xa4abcd48
     // |  implements Intf2/0xa4abcd48 (declared intf)
+    // |  implements java.lang.IdentityObject/null (declared intf)
     // |  implements Intf1/0xa4abcd48 (inherited intf)
     // |  |--DcmdTestClass/0xa4abcd48
     // |  |  implements Intf1/0xa4abcd48 (inherited intf)
     // |  |  implements Intf2/0xa4abcd48 (inherited intf)
+    // |  |  implements java.lang.IdentityObject/null (inherited intf)
 
     static Pattern expected_lambda_line =
         Pattern.compile("\\|--DcmdTestClass\\$\\$Lambda.*");
