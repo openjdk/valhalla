@@ -163,7 +163,7 @@ public final class Class<T> implements java.io.Serializable,
     private static final int ANNOTATION = 0x00002000;
     private static final int ENUM       = 0x00004000;
     private static final int SYNTHETIC  = 0x00001000;
-    private static final int VALUE_TYPE = 0x00000100;
+    private static final int INLINE     = 0x00000100;
 
     private static native void registerNatives();
     static {
@@ -197,7 +197,7 @@ public final class Class<T> implements java.io.Serializable,
     public String toString() {
         return (isInlineClass() ? "inline " : "")
                + (isInterface() ? "interface " : (isPrimitive() ? "" : "class "))
-               + getName() + (isInlineClass() && isIndirectType() ? "?" : "");
+               + getName();
     }
 
     /**
@@ -519,90 +519,63 @@ public final class Class<T> implements java.io.Serializable,
     /**
      * Returns {@code true} if this class is an inline class.
      *
-     * @return {@code true} if this class is an inline class.
+     * @return {@code true} if this class is an inline class
+     * @since Valhalla
      */
     public boolean isInlineClass() {
-        return (this.getModifiers() & VALUE_TYPE) != 0;
+        return (this.getModifiers() & INLINE) != 0;
     }
 
     /**
-     * Returns a {@code Class} object representing the primary type of
-     * this class.
+     * Returns a {@code Class} object representing the <em>value projection</em>
+     * type of this class if this {@code Class} is the reference projection type
+     * of an {@linkplain #isInlineClass() inline class}.  Otherwise {@code null}
+     * is returned.
      *
-     * <p> For class {@code C}, {@code C.class} is the primary type of {@code C}.
-     * For a primitive type, the {@code Class} instance representing
-     * that primitive type is its primary type, for example {@code int.class}.
-     *
-     * @return the {@code Class} object representing the primary type of
-     *         this class
+     * @return the {@code Class} object representing the value projection type of
+     *         this class if this class is the reference projection type of an
+     *         inline class; {@code null} otherwise
+     * @since Valhalla
      */
+    public Class<T> valueType() {
+        return valType;
+    }
+
+    /**
+     * Returns a {@code Class} object representing the <em>reference projection</em>
+     * type of this class.
+     * If this class is an {@linkplain #isInlineClass() inline class}
+     * with a reference projection, then this method returns its
+     * reference projection type.
+     * If this class is an {@linkplain #isInlineClass() inline class}
+     * without a reference projection, then this method returns {@code null}.
+     * If this class is not an inline class, then this method returns
+     * this {@code Class} object.
+     *
+     * @return the {@code Class} object representing the value projection type of
+     *         this class if this class is the reference projection type of an
+     *         inline class; {@code null} otherwise
+     * @since Valhalla
+     */
+    public Class<T> referenceType() {
+        return valType != null ? refType : this;
+    }
+
+    // TO BE REMOVED together with the C2 intrinsic implementation
     @HotSpotIntrinsicCandidate
-    public Class<T> asPrimaryType() {
-        return isInlineClass() ? inlineType : this;
+    private Class<T> asPrimaryType() {
+        return valType == null ? this : valType;
     }
-
-    /**
-     * Returns a {@code Class} object representing the <em>indirect projection</em>
-     * type if this class is an {@linkplain #isInlineClass() inline class};
-     * otherwise, returns this class.
-     *
-     * <p> An inline class, {@code V}, has two {@code Class} representations,
-     * {@code V.class} and its {@linkplain #asIndirectType() indirect projection
-     * type}.  The indirect projection type is always
-     * {@linkplain #isNullableType() nullable}.
-     * The indirect projection type of a zero-default inline class
-     * is also its nullable projection type.
-     *
-     * @return the {@code Class} object representing the indirect projection type of
-     *         this class if this class is an inline class; otherwise, this class.
-     */
+    // TO BE REMOVED together with the C2 intrinsic implementation
     @HotSpotIntrinsicCandidate
-    public Class<T> asIndirectType() {
-        return isInlineClass() ? indirectType : this;
-    }
-
-    /**
-     * Returns a {@code Class} object representing the <em>nullable projection</em>
-     * type if this class is an {@linkplain #isInlineClass() inline class};
-     * otherwise, returns this class.
-     *
-     * <p> An inline class, {@code V}, has two {@code Class} representations,
-     * {@code V.class} and its {@linkplain #asIndirectType() indirect projection
-     * type}.  The indirect projection type is always
-     * {@linkplain #isNullableType() nullable}.
-     * The indirect projection type of a zero-default inline class
-     * is also its nullable projection type.
-     *
-     * @return the {@code Class} object representing the nullable projection type of
-     *         this class if this class is an inline class; otherwise, this class.
-     */
-    public Class<T> asNullableType() {
-        return asIndirectType();
-    }
-
-    /**
-     * Returns {@code true} if this class is an indirect type.
-     * An indirect type is always {@linkplain #isNullableType() nullable}.
-     *
-     * @return {@code true} if this class is an indirect type.
-     */
-    public boolean isIndirectType() {
-        return indirectType == null || this == indirectType;
-    }
-
-    /**
-     * Returns {@code true} if this class is a nullable type.
-     *
-     * @return {@code true} if this class is a nullable type.
-     */
-    public boolean isNullableType() {
-        return isIndirectType();
+    private Class<T> asIndirectType() {
+        return valType != null ? refType : this;
     }
 
     // set by VM if this class is an inline type
     // otherwise, these two fields are null
-    private transient Class<T> inlineType;
-    private transient Class<T> indirectType;
+    private transient Class<T> valType;
+    private transient Class<T> refType;
 
     /**
      * Creates a new instance of the class represented by this {@code Class}
@@ -878,7 +851,7 @@ public final class Class<T> implements java.io.Serializable,
      * <tr><th scope="row"> char         <td style="text-align:center"> C
      * <tr><th scope="row"> class or interface
      *                                   <td style="text-align:center"> L<i>classname</i>;
-     * <tr><th scope="row"> non-nullable {@linkplain #isInlineClass() inline class}
+     * <tr><th scope="row"> {@linkplain #isInlineClass() inline class}
      *                                   <td style="text-align:center"> Q<i>classname</i>;
      * <tr><th scope="row"> double       <td style="text-align:center"> D
      * <tr><th scope="row"> float        <td style="text-align:center"> F
@@ -903,8 +876,8 @@ public final class Class<T> implements java.io.Serializable,
      *     returns "[Ljava.lang.Object;"
      * (new Point[3]).getClass().getName()
      *     returns "[QPoint;"
-     * (new Point?[3][4]).getClass().getName()
-     *     returns "[[LPoint;"
+     * (new Point.ref[3][4]).getClass().getName()
+     *     returns "[[LPoint$ref;"
      * (new int[3][4][5][6][7][8][9]).getClass().getName()
      *     returns "[[[[[[[I"
      * </pre></blockquote>
@@ -1323,20 +1296,12 @@ public final class Class<T> implements java.io.Serializable,
      *          a primitive type or void.
      * @since   1.1
      */
-    public Object[] getSigners() {
-        return asPrimaryType().getSigners0();
-    }
-
-    private native Object[] getSigners0();
+    public native Object[] getSigners();
 
     /**
      * Set the signers of this class.
      */
-    void setSigners(Object[] signers) {
-        asPrimaryType().setSigners0(signers);
-    }
-
-    native void setSigners0(Object[] signers);
+    native void setSigners(Object[] signers);
 
 
     /**
@@ -1695,7 +1660,7 @@ public final class Class<T> implements java.io.Serializable,
             simpleName = getName();
             simpleName = simpleName.substring(simpleName.lastIndexOf('.') + 1); // strip the package name
         }
-        return isInlineClass() && isIndirectType() ? simpleName + "?" : simpleName;
+        return simpleName;
     }
 
     /**
@@ -1716,7 +1681,7 @@ public final class Class<T> implements java.io.Serializable,
                 return cl.getTypeName() + "[]".repeat(dimensions);
             } catch (Throwable e) { /*FALLTHRU*/ }
         }
-        return toTypeName();
+        return getName();
     }
 
     /**
@@ -3610,16 +3575,8 @@ public final class Class<T> implements java.io.Serializable,
                 ((argTypes == null || argTypes.length == 0) ?
                 "()" :
                 Arrays.stream(argTypes)
-                        .map(c -> c == null ? "null" : c.toTypeName())
+                        .map(c -> c == null ? "null" : c.getName())
                         .collect(Collectors.joining(",", "(", ")")));
-    }
-
-    /*
-     * Returns the class name appended with "?" if it is the nullable projection
-     * of an inline class.
-     */
-    private String toTypeName() {
-        return isInlineClass() && isIndirectType() ? getName() + "?" : getName();
     }
 
     /** use serialVersionUID from JDK 1.1 for interoperability */
@@ -3847,15 +3804,15 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @throws ClassCastException if the object is not
      * {@code null} and is not assignable to the type T.
-     * @throws NullPointerException if this is not a {@linkplain #isNullableType()
-     * nullable type} and the object is {@code null}
+     * @throws NullPointerException if this is an {@linkplain #isInlineClass()
+     * inline type} and the object is {@code null}
      *
      * @since 1.5
      */
     @SuppressWarnings("unchecked")
     @HotSpotIntrinsicCandidate
     public T cast(Object obj) {
-        if (!isNullableType() && obj == null)
+        if (isInlineClass() && obj == null)
             throw new NullPointerException(getName() + " is an inline class");
 
         if (obj != null && !isInstance(obj))
@@ -4333,7 +4290,8 @@ public final class Class<T> implements java.io.Serializable,
             return "[" + componentType.descriptorString();
         }
         else {
-            return "L" + getName().replace('.', '/') + ";";
+            return (isInlineClass() ? "Q" : "L")
+                    + getName().replace('.', '/') + ";";
         }
     }
 

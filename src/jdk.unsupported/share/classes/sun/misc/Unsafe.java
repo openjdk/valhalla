@@ -636,6 +636,12 @@ public final class Unsafe {
      */
     @ForceInline
     public long objectFieldOffset(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
+        if (f.getDeclaringClass().isInlineClass()) {
+            throw new UnsupportedOperationException("can't get field offset on an inline class: " + f);
+        }
         return theInternalUnsafe.objectFieldOffset(f);
     }
 
@@ -658,6 +664,12 @@ public final class Unsafe {
      */
     @ForceInline
     public long staticFieldOffset(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
+        if (f.getDeclaringClass().isInlineClass()) {
+            throw new UnsupportedOperationException("can't get static field offset on an inline class: " + f);
+        }
         return theInternalUnsafe.staticFieldOffset(f);
     }
 
@@ -673,6 +685,12 @@ public final class Unsafe {
      */
     @ForceInline
     public Object staticFieldBase(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
+        if (f.getDeclaringClass().isInlineClass()) {
+            throw new UnsupportedOperationException("can't get base address on an inline class: " + f);
+        }
         return theInternalUnsafe.staticFieldBase(f);
     }
 

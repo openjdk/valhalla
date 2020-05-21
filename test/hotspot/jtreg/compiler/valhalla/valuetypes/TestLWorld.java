@@ -1378,7 +1378,7 @@ public class TestLWorld extends ValueTypeTest {
     // Tests writing an array element with a (statically known) incompatible type
     private static final MethodHandle setArrayElementIncompatible = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
         "setArrayElementIncompatible",
-        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class.asPrimaryType()),
+        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class.valueType()),
         CODE -> {
             CODE.
             aload_1().

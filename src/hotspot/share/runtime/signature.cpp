@@ -422,13 +422,7 @@ oop SignatureStream::as_java_mirror(Handle class_loader, Handle protection_domai
   if (klass == NULL) {
     return NULL;
   }
-  if (klass->is_value()) {
-    ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(klass));
-    return _type == T_VALUETYPE ? vk->value_mirror() : vk->indirect_mirror();
-  } else {
-    assert(_type != T_VALUETYPE, "must not be value type");
-    return klass->java_mirror();
-  }
+  return klass->java_mirror();
 }
 
 void SignatureStream::skip_to_return_type() {

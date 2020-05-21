@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -125,18 +125,14 @@ public class QTypeDescriptorTest {
 
     @DataProvider
     static Object[][] descriptors() {
-        Class<?> pointLType = Point.ref.class;
-        Class<?> pointQType = Point.class;
-        Class<?> nonFlattenValueLType = NonFlattenValue.ref.class;
-        Class<?> nonFlattenValueQType = NonFlattenValue.class;
         return new Object[][]{
-            { QTypeDescriptorTest.class, "toLine", new Class<?>[] {pointQType, nonFlattenValueQType}, true},
-            { QTypeDescriptorTest.class, "toLine", new Class<?>[] {pointLType, nonFlattenValueQType}, false},
-            { QTypeDescriptorTest.class, "toLine", new Class<?>[] { Point[].class },                  true},
-            { NonFlattenValue.class, "point",      null,                                              true},
-            { NonFlattenValue.class, "pointValue", null,                                              true},
-            { NonFlattenValue.class, "has",        new Class<?>[] {pointQType, pointLType},           true},
-            { NonFlattenValue.class, "has",        new Class<?>[] {pointQType, pointQType},           false},
+            { QTypeDescriptorTest.class, "toLine", new Class<?>[] { Point.class, NonFlattenValue.class},     true},
+            { QTypeDescriptorTest.class, "toLine", new Class<?>[] { Point.ref.class, NonFlattenValue.class}, false},
+            { QTypeDescriptorTest.class, "toLine", new Class<?>[] { Point[].class },                         true},
+            { NonFlattenValue.class, "point",      null,                                                     true},
+            { NonFlattenValue.class, "pointValue", null,                                                     true},
+            { NonFlattenValue.class, "has",        new Class<?>[] { Point.class, Point.ref.class},           true},
+            { NonFlattenValue.class, "has",        new Class<?>[] { Point.class, Point.class},               false},
         };
     }
 
@@ -152,21 +148,19 @@ public class QTypeDescriptorTest {
 
     @DataProvider
     static Object[][] methodTypes() {
-        Class<?> pointLType = Point.ref.class;
-        Class<?> pointQType = Point.class;
         ClassLoader loader = QTypeDescriptorTest.class.getClassLoader();
         return new Object[][]{
-            { "point",      MethodType.methodType(pointLType),                            true },
-            { "pointValue", MethodType.methodType(pointQType),                            true },
-            { "has",        MethodType.methodType(boolean.class, pointQType, pointLType), true },
-            { "point",      MethodType.methodType(pointQType),                            false },
-            { "pointValue", MethodType.methodType(pointLType),                            false },
-            { "has",        MethodType.methodType(boolean.class, pointLType, pointQType), false },
-            { "point",      MethodType.fromMethodDescriptorString("()LPoint$ref;", loader),         true },
-            { "point",      MethodType.fromMethodDescriptorString("()QPoint;", loader),         false },
-            { "pointValue", MethodType.fromMethodDescriptorString("()QPoint;", loader),         true },
-            { "pointValue", MethodType.fromMethodDescriptorString("()LPoint;", loader),         false },
-            { "has",        MethodType.fromMethodDescriptorString("(QPoint;LPoint$ref;)Z", loader), true },
+            { "point",      MethodType.methodType(Point.ref.class),                                     true },
+            { "pointValue", MethodType.methodType(Point.class),                                         true },
+            { "has",        MethodType.methodType(boolean.class, Point.class, Point.ref.class),         true },
+            { "point",      MethodType.methodType(Point.class),                                         false },
+            { "pointValue", MethodType.methodType(Point.ref.class),                                     false },
+            { "has",        MethodType.methodType(boolean.class, Point.ref.class, Point.class),         false },
+            { "point",      MethodType.fromMethodDescriptorString("()LPoint$ref;", loader),             true },
+            { "point",      MethodType.fromMethodDescriptorString("()QPoint;", loader),                 false },
+            { "pointValue", MethodType.fromMethodDescriptorString("()QPoint;", loader),                 true },
+            { "pointValue", MethodType.fromMethodDescriptorString("()LPoint$ref;", loader),             false },
+            { "has",        MethodType.fromMethodDescriptorString("(QPoint;LPoint$ref;)Z", loader),     true },
             { "has",        MethodType.fromMethodDescriptorString("(LPoint$ref;LPoint$ref;)Z", loader), false },
         };
     }

@@ -668,11 +668,10 @@ public final class Type {
             stringBuilder.append(descriptor);
         } else {
             String name = currentClass.getName();
-            if (Helper.isIndirectType(currentClass)) {
-                stringBuilder.append('L');
-            } else {
+            if (isInlineClass(currentClass)) {
                 stringBuilder.append('Q');
-
+            } else {
+                stringBuilder.append('L');
             }
             int nameLength = name.length();
             for (int i = 0; i < nameLength; ++i) {
@@ -683,32 +682,9 @@ public final class Type {
         }
     }
 
-    // Workarounds nasgen build that depends on ASM but compiled with
-    // the bootstrap JDK.  Can't reference Class::isIndirectType
-    static class Helper {
-        static final Method isIndirectTypeMethod = isIndirectTypeMethod();
-        static Method isIndirectTypeMethod() {
-            try {
-                return Class.class.getMethod("isIndirectType");
-            } catch (NoSuchMethodException e) {
-                return null;
-            }
-        }
-
-        static boolean isIndirectType(Class<?> clazz) {
-            int mods = clazz.getModifiers();
-            if ((mods & 0x00000100) != 0) {            // inline class
-                assert isIndirectTypeMethod != null;
-                try {
-                    return (boolean) isIndirectTypeMethod.invoke(clazz);
-                } catch (InvocationTargetException e) {
-                    throw new InternalError(e.getCause());
-                } catch (IllegalAccessException e) {
-                    throw new InternalError(e);
-                }
-            }
-            return true;
-        }
+    static boolean isInlineClass(Class<?> clazz) {
+        int mods = clazz.getModifiers();
+        return (mods & 0x00000100) != 0;
     }
 
     // -----------------------------------------------------------------------------------------------

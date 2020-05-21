@@ -3544,9 +3544,9 @@ Node* GraphKit::is_always_locked(Node* obj) {
 }
 
 Node* GraphKit::is_value_mirror(Node* mirror) {
-  Node* p = basic_plus_adr(mirror, java_lang_Class::inline_mirror_offset_in_bytes());
-  Node* inline_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
-  Node* cmp = _gvn.transform(new CmpPNode(mirror, inline_mirror));
+  Node* p = basic_plus_adr(mirror, java_lang_Class::val_type_mirror_offset_in_bytes());
+  Node* val_type_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
+  Node* cmp = _gvn.transform(new CmpPNode(mirror, val_type_mirror));
   return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
 }
 
