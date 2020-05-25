@@ -355,6 +355,13 @@ protected:
   static const unsigned int _lh_array_tag_vt_value   = 0Xfffffffd;
   static const unsigned int _lh_array_tag_obj_value  = 0Xfffffffe;
 
+  // null-free array flag bit under the array tag bits, shift one more to get array tag value
+  static const int _lh_null_free_shift = _lh_array_tag_shift - 1;
+  static const int _lh_null_free_mask  = 1;
+
+  static const jint _lh_array_tag_vt_value_bit_inplace = (jint) (1 << _lh_array_tag_shift);
+  static const jint _lh_null_free_bit_inplace = (jint) (_lh_null_free_mask << _lh_null_free_shift);
+
   static int layout_helper_size_in_bytes(jint lh) {
     assert(lh > (jint)_lh_neutral_value, "must be instance");
     return (int) lh & ~_lh_instance_slow_path_bit;
@@ -377,6 +384,15 @@ protected:
   }
   static bool layout_helper_is_valueArray(jint lh) {
     return (juint)_lh_array_tag_vt_value == (juint)(lh >> _lh_array_tag_shift);
+  }
+  static bool layout_helper_is_null_free(jint lh) {
+    assert(layout_helper_is_valueArray(lh) || layout_helper_is_objArray(lh), "must be array of inline types");
+    return ((lh >> _lh_null_free_shift) & _lh_null_free_mask);
+  }
+  static jint layout_helper_set_null_free(jint lh) {
+    lh |= (_lh_null_free_mask << _lh_null_free_shift);
+    assert(layout_helper_is_null_free(lh), "Bad encoding");
+    return lh;
   }
   static int layout_helper_header_size(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
@@ -412,8 +428,9 @@ protected:
            "sanity. l2esz: 0x%x for lh: 0x%x", (uint)l2esz, (uint)lh);
     return l2esz;
   }
-  static jint array_layout_helper(jint tag, int hsize, BasicType etype, int log2_esize) {
+  static jint array_layout_helper(jint tag, bool null_free, int hsize, BasicType etype, int log2_esize) {
     return (tag        << _lh_array_tag_shift)
+      |    ((null_free ? 1 : 0) <<  _lh_null_free_shift)
       |    (hsize      << _lh_header_size_shift)
       |    ((int)etype << _lh_element_type_shift)
       |    (log2_esize << _lh_log2_element_size_shift);
@@ -606,6 +623,8 @@ protected:
                                                     is_valueArray_klass_slow()); }
 
   #undef assert_same_query
+
+  inline bool is_null_free_array_klass()      const { return layout_helper_is_null_free(layout_helper()); }
 
   // Access flags
   AccessFlags access_flags() const         { return _access_flags;  }

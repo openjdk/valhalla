@@ -161,20 +161,17 @@ oop ValueArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
 
 jint ValueArrayKlass::array_layout_helper(ValueKlass* vk) {
   BasicType etype = T_VALUETYPE;
-  int atag  = _lh_array_tag_vt_value;
   int esize = upper_log2(vk->raw_value_byte_size());
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
 
-  int lh = (atag       << _lh_array_tag_shift)
-    |      (hsize      << _lh_header_size_shift)
-    |      ((int)etype << _lh_element_type_shift)
-    |      ((esize)    << _lh_log2_element_size_shift);
+  int lh = Klass::array_layout_helper(_lh_array_tag_vt_value, true, hsize, etype, esize);
 
   assert(lh < (int)_lh_neutral_value, "must look like an array layout");
   assert(layout_helper_is_array(lh), "correct kind");
   assert(layout_helper_is_valueArray(lh), "correct kind");
   assert(!layout_helper_is_typeArray(lh), "correct kind");
   assert(!layout_helper_is_objArray(lh), "correct kind");
+  assert(layout_helper_is_null_free(lh), "correct kind");
   assert(layout_helper_header_size(lh) == hsize, "correct decode");
   assert(layout_helper_element_type(lh) == etype, "correct decode");
   assert(layout_helper_log2_element_size(lh) == esize, "correct decode");
