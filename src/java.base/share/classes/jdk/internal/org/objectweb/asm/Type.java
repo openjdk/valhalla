@@ -667,12 +667,8 @@ public final class Type {
             }
             stringBuilder.append(descriptor);
         } else {
+            stringBuilder.append(isInlineClass(currentClass) ? 'Q' : 'L');
             String name = currentClass.getName();
-            if (isInlineClass(currentClass)) {
-                stringBuilder.append('Q');
-            } else {
-                stringBuilder.append('L');
-            }
             int nameLength = name.length();
             for (int i = 0; i < nameLength; ++i) {
                 char car = name.charAt(i);
