@@ -134,14 +134,11 @@ ciSymbol* ciObjArrayKlass::construct_array_name(ciSymbol* element_name,
 // ciObjArrayKlass::make_impl
 //
 // Implementation of make.
-ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool never_null) {
+ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass) {
   if (element_klass->is_loaded()) {
     EXCEPTION_CONTEXT;
     // The element klass is loaded
     Klass* array = element_klass->get_Klass()->array_klass(THREAD);
-    if (element_klass->is_valuetype()) {
-      assert(ObjArrayKlass::cast(array)->storage_properties().is_null_free() == never_null, "wrong nullability storage property");
-    }
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;
       CURRENT_THREAD_ENV->record_out_of_memory_failure();
@@ -164,21 +161,12 @@ ciObjArrayKlass* ciObjArrayKlass::make_impl(ciKlass* element_klass, bool never_n
 // ciObjArrayKlass::make
 //
 // Make an array klass corresponding to the specified primitive type.
-ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass, bool never_null) {
-  GUARDED_VM_ENTRY(return make_impl(element_klass, never_null);)
+ciObjArrayKlass* ciObjArrayKlass::make(ciKlass* element_klass) {
+  GUARDED_VM_ENTRY(return make_impl(element_klass);)
 }
 
 ciKlass* ciObjArrayKlass::exact_klass() {
   ciType* base = base_element_type();
-
-  if (!is_loaded()) {
-    return NULL;
-  }
-
-  if (!storage_properties().is_null_free() && element_klass()->is_valuetype()) {
-    return NULL;
-  }
-
   if (base->is_instance_klass()) {
     ciInstanceKlass* ik = base->as_instance_klass();
     if (ik->exact_klass() != NULL) {

@@ -1156,7 +1156,8 @@ void TemplateTable::aastore() {
   // Move array class to rdi
   __ load_klass(rdi, rdx);
   if (ValueArrayFlatten) {
-    __ test_flattened_array_oop(rdx, rbx, is_flat_array);
+    __ movl(rbx, Address(rdi, Klass::layout_helper_offset()));
+    __ test_flattened_array_layout(rbx, is_flat_array);
   }
 
   // Move subklass into rbx

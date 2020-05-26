@@ -1224,7 +1224,7 @@ public:
   void do_unswitching (IdealLoopTree *loop, Node_List &old_new);
 
   // Find candidate "if" for unswitching
-  IfNode* find_unswitching_candidate(const IdealLoopTree *loop, Node_List& flattened_checks) const;
+  IfNode* find_unswitching_candidate(const IdealLoopTree *loop, Node_List& unswitch_iffs) const;
 
   // Range Check Elimination uses this function!
   // Constrain the main loop iterations so the affine function:

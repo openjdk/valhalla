@@ -1868,7 +1868,7 @@ public class TestArrays extends ValueTypeTest {
         private final Object o6 = null;
     }
 
-    // Same as test80 but with not-flattenable inline type
+    // Same as test79 but with not-flattenable inline type
     @Test(valid = ValueTypeArrayFlattenOn, match = { ALLOC_G, LOAD_UNKNOWN_VALUE }, matchCount = { 1, 1 })
     @Test(valid = ValueTypeArrayFlattenOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE)
     public Object test80(Object[] array, int i) {

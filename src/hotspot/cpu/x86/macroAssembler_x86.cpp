@@ -2626,7 +2626,7 @@ void MacroAssembler::test_klass_is_empty_value(Register klass, Register temp_reg
   {
     Label done_check;
     test_klass_is_value(klass, temp_reg, done_check);
-    stop("test_klass_is_empty_value with none value klass");
+    stop("test_klass_is_empty_value with non value klass");
     bind(done_check);
   }
 #endif
@@ -2661,29 +2661,49 @@ void MacroAssembler::test_field_is_flattened(Register flags, Register temp_reg, 
 
 void MacroAssembler::test_flattened_array_oop(Register oop, Register temp_reg,
                                               Label&is_flattened_array) {
-  load_storage_props(temp_reg, oop);
-  testb(temp_reg, ArrayStorageProperties::flattened_value);
-  jcc(Assembler::notZero, is_flattened_array);
+  load_klass(temp_reg, oop);
+  movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
+  test_flattened_array_layout(temp_reg, is_flattened_array);
 }
 
 void MacroAssembler::test_non_flattened_array_oop(Register oop, Register temp_reg,
                                                   Label&is_non_flattened_array) {
-  load_storage_props(temp_reg, oop);
-  testb(temp_reg, ArrayStorageProperties::flattened_value);
-  jcc(Assembler::zero, is_non_flattened_array);
+  load_klass(temp_reg, oop);
+  movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
+  test_non_flattened_array_layout(temp_reg, is_non_flattened_array);
 }
 
 void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array) {
-  load_storage_props(temp_reg, oop);
-  testb(temp_reg, ArrayStorageProperties::null_free_value);
-  jcc(Assembler::notZero, is_null_free_array);
+  load_klass(temp_reg, oop);
+  movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
+  test_null_free_array_layout(temp_reg, is_null_free_array);
 }
 
 void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array) {
-  load_storage_props(temp_reg, oop);
-  testb(temp_reg, ArrayStorageProperties::null_free_value);
+  load_klass(temp_reg, oop);
+  movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
+  test_non_null_free_array_layout(temp_reg, is_non_null_free_array);
+}
+
+void MacroAssembler::test_flattened_array_layout(Register lh, Label& is_flattened_array) {
+  testl(lh, Klass::_lh_array_tag_vt_value_bit_inplace);
+  jcc(Assembler::notZero, is_flattened_array);
+}
+void MacroAssembler::test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array) {
+  testl(lh, Klass::_lh_array_tag_vt_value_bit_inplace);
+  jcc(Assembler::zero, is_non_flattened_array);
+}
+
+void MacroAssembler::test_null_free_array_layout(Register lh, Label& is_null_free_array) {
+  testl(lh, Klass::_lh_null_free_bit_inplace);
+  jcc(Assembler::notZero, is_null_free_array);
+}
+
+void MacroAssembler::test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array) {
+  testl(lh, Klass::_lh_null_free_bit_inplace);
   jcc(Assembler::zero, is_non_null_free_array);
 }
+
 
 void MacroAssembler::os_breakpoint() {
   // instead of directly emitting a breakpoint, call os:breakpoint for better debugability
@@ -4587,15 +4607,6 @@ void MacroAssembler::load_metadata(Register dst, Register src) {
     movl(dst, Address(src, oopDesc::klass_offset_in_bytes()));
   } else {
     movptr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
-  }
-}
-
-void MacroAssembler::load_storage_props(Register dst, Register src) {
-  load_metadata(dst, src);
-  if (UseCompressedClassPointers) {
-    shrl(dst, oopDesc::narrow_storage_props_shift);
-  } else {
-    shrq(dst, oopDesc::wide_storage_props_shift);
   }
 }
 

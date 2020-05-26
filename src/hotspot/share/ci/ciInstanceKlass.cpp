@@ -680,7 +680,7 @@ bool ciInstanceKlass::can_be_value_klass(bool is_exact) {
       ((is_java_lang_Object() || is_interface()) && !is_exact)) {
     return true;
   }
-  if (is_abstract() && !has_nonstatic_fields()) {
+  if (is_abstract() && !is_exact && !has_nonstatic_fields()) {
     // TODO Factor out and re-use similar code from the ClassFileParser
     // An abstract class can only be implemented by a value type if it has no instance
     // fields, no synchronized instance methods and an empty, no-arg constructor.

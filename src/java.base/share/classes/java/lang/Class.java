@@ -558,17 +558,6 @@ public final class Class<T> implements java.io.Serializable,
         return valType != null ? Optional.ofNullable(refType) : Optional.of(this);
     }
 
-    // TO BE REMOVED together with the C2 intrinsic implementation
-    @HotSpotIntrinsicCandidate
-    private Class<T> asPrimaryType() {
-        return valType == null ? this : valType;
-    }
-    // TO BE REMOVED together with the C2 intrinsic implementation
-    @HotSpotIntrinsicCandidate
-    private Class<T> asIndirectType() {
-        return valType != null ? refType : this;
-    }
-
     // set by VM if this class is an inline type
     // otherwise, these two fields are null
     private transient Class<T> valType;

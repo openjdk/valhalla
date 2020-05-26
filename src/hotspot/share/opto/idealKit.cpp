@@ -79,10 +79,13 @@ void IdealKit::if_then(Node* left, BoolTest::mask relop,
       assert(left->bottom_type()->isa_long() != NULL, "what else?");
       bol = Bool(CmpL(left, right), relop);
     }
-
   } else {
     bol = Bool(CmpP(left, right), relop);
   }
+  if_then(bol, prob, cnt, push_new_state);
+}
+
+void IdealKit::if_then(Node* bol, float prob, float cnt, bool push_new_state) {
   // Delay gvn.tranform on if-nodes until construction is finished
   // to prevent a constant bool input from discarding a control output.
   IfNode* iff = delay_transform(new IfNode(ctrl(), bol, prob, cnt))->as_If();

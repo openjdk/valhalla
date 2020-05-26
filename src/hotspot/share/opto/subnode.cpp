@@ -1085,16 +1085,6 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if (con2 != (intptr_t) superklass->super_check_offset())
     return NULL;                // Might be element-klass loading from array klass
 
-  // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
-  // [V is a subtype of [V? but the klass for [V is not equal to the klass for [V?. Perform a full test.
-  if (superklass->is_obj_array_klass()) {
-    ciObjArrayKlass* ak = superklass->as_obj_array_klass();
-    if (!ak->storage_properties().is_null_free() && ak->element_klass()->is_valuetype()) {
-      // Do not bypass the klass load from the primary supertype array
-      return NULL;
-    }
-  }
-
   // If 'superklass' has no subklasses and is not an interface, then we are
   // assured that the only input which will pass the type check is
   // 'superklass' itself.

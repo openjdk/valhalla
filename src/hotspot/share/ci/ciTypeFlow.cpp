@@ -323,13 +323,9 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     // When an array meets a non-array, we get Object.
     // When (obj/value)Array meets typeArray, we also get Object.
     // And when typeArray meets different typeArray, we again get Object.
-    // But when (obj/value)Array meets (obj/value)Array, we look carefully at element types and storage properties.
+    // But when (obj/value)Array meets (obj/value)Array, we look carefully at element types.
     if ((k1->is_obj_array_klass() || k1->is_value_array_klass()) &&
         (k2->is_obj_array_klass() || k2->is_value_array_klass())) {
-      bool prop_mismatch = k1->as_array_klass()->storage_properties().value() !=
-                           k2->as_array_klass()->storage_properties().value();
-      bool never_null = k1->as_array_klass()->storage_properties().is_null_free() &&
-                        k2->as_array_klass()->storage_properties().is_null_free();
       ciType* elem1 = k1->as_array_klass()->element_klass();
       ciType* elem2 = k2->as_array_klass()->element_klass();
       ciType* elem = elem1;
@@ -337,14 +333,14 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
         elem = type_meet_internal(elem1, elem2, analyzer)->as_klass();
       }
       // Do an easy shortcut if one type is a super of the other.
-      if (elem == elem1 && !prop_mismatch) {
-        assert(k1 == ciArrayKlass::make(elem, never_null), "shortcut is OK");
+      if (elem == elem1) {
+        assert(k1 == ciArrayKlass::make(elem), "shortcut is OK");
         return k1;
-      } else if (elem == elem2 && !prop_mismatch) {
-        assert(k2 == ciArrayKlass::make(elem, never_null), "shortcut is OK");
+      } else if (elem == elem2) {
+        assert(k2 == ciArrayKlass::make(elem), "shortcut is OK");
         return k2;
       } else {
-        return ciArrayKlass::make(elem, never_null);
+        return ciArrayKlass::make(elem);
       }
     } else {
       return object_klass;
@@ -611,9 +607,8 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
          (Deoptimization::Reason_unloaded,
           Deoptimization::Action_reinterpret));
   } else {
-    if (array_klass->storage_properties().is_null_free()) {
+    if (element_klass->is_valuetype()) {
       // Value type array elements are never null
-      assert(element_klass->is_valuetype(), "must be a value type array");
       push(outer()->mark_as_never_null(element_klass));
     } else {
       push_object(element_klass);
@@ -1002,8 +997,7 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
       if (!will_link) {
         trap(str, element_klass, str->get_klass_index());
       } else {
-        bool never_null = str->is_klass_never_null();
-        push_object(ciArrayKlass::make(element_klass, never_null));
+        push_object(ciArrayKlass::make(element_klass));
       }
       break;
     }

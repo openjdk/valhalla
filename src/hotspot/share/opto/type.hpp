@@ -1150,10 +1150,6 @@ class TypeInstPtr : public TypeOopPtr {
   ciSymbol*  _name;        // class name
   bool _flat_array;
 
-  bool meet_flat_array(bool other_flat_array) const {
-    return (_flat_array && other_flat_array) ? true : false;
-  }
-
  public:
   ciSymbol* name()         const { return _name; }
 
@@ -1196,7 +1192,7 @@ class TypeInstPtr : public TypeOopPtr {
   // If this is a java.lang.Class constant, return the type for it or NULL.
   // Pass to Type::get_const_type to turn it to a type, which will usually
   // be a TypeInstPtr, but may also be a TypeInt::INT for int.class, etc.
-  ciType* java_mirror_type(bool* is_indirect_type = NULL) const;
+  ciType* java_mirror_type() const;
 
   virtual const Type *cast_to_ptr_type(PTR ptr) const;
 

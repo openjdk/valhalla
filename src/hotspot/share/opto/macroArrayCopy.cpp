@@ -1276,7 +1276,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     if (top_src->klass_is_exact()) {
       src_elem = T_OBJECT;
     } else {
-      assert(!top_src->klass()->as_obj_array_klass()->storage_properties().is_null_free(), "klass should be exact");
+      assert(!top_src->klass()->is_valuetype(), "klass should be exact");
       src_elem = T_CONFLICT; // either flattened or not
     }
   }
@@ -1286,7 +1286,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     if (top_dest->klass_is_exact()) {
       dest_elem = T_OBJECT;
     } else {
-      assert(!top_dest->klass()->as_obj_array_klass()->storage_properties().is_null_free(), "klass should be exact");
+      assert(!top_dest->klass()->is_valuetype(), "klass should be exact");
       dest_elem = T_CONFLICT; // either flattened or not
     }
   }

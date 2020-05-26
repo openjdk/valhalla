@@ -2392,16 +2392,8 @@ bool TypeAry::ary_must_be_exact() const {
     tinst = _elem->make_ptr()->isa_instptr();
   else
     tinst = _elem->isa_instptr();
-  if (tinst) {
-    // [V? has a subtype: [V. So even though V is final, [V? is not exact.
-    if (tklass->as_instance_klass()->is_final()) {
-      if (tinst->is_valuetypeptr() && (tinst->ptr() == TypePtr::BotPTR || tinst->ptr() == TypePtr::TopPTR)) {
-        return false;
-      }
-      return true;
-    }
-    return false;
-  }
+  if (tinst)
+    return tklass->as_instance_klass()->is_final();
   const TypeAryPtr*  tap;
   if (_elem->isa_narrowoop())
     tap = _elem->make_ptr()->isa_aryptr();
@@ -3483,20 +3475,19 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
   } else if (klass->is_obj_array_klass()) {
     // Element is an object or value array. Recursively call ourself.
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ false, try_for_exact);
-    bool null_free = klass->is_loaded() && klass->as_array_klass()->storage_properties().is_null_free();
-    if (null_free) {
-      assert(etype->is_valuetypeptr(), "must be a valuetypeptr");
+    if (etype->is_valuetypeptr()) {
       etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
     }
-    // [V? has a subtype: [V. So even though V is final, [V? is not exact.
-    bool xk = etype->klass_is_exact() && (!etype->is_valuetypeptr() || null_free);
-
-    // Use exact element type to determine null-free/flattened properties
-    const TypeOopPtr* exact_etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ true, try_for_exact);
+    // Determine null-free/flattened properties
+    const TypeOopPtr* exact_etype = etype;
+    if (etype->can_be_value_type()) {
+      // Use exact type if element can be a value type
+      exact_etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ true, /* try_for_exact= */ true);
+    }
     bool not_null_free = !exact_etype->can_be_value_type();
-    assert(!(not_null_free && null_free), "inconsistent null-free information");
     bool not_flat = !ValueArrayFlatten || not_null_free || (exact_etype->is_valuetypeptr() && !exact_etype->value_klass()->flatten_array());
 
+    bool xk = etype->klass_is_exact();
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, false, not_flat, not_null_free);
     // We used to pass NotNull in here, asserting that the sub-arrays
     // are all not-null.  This is not true in generally, as code can
@@ -3541,9 +3532,9 @@ const TypeOopPtr* TypeOopPtr::make_from_constant(ciObject* o, bool require_const
   } else if (klass->is_obj_array_klass()) {
     // Element is an object array. Recursively call ourself.
     const TypeOopPtr* etype = TypeOopPtr::make_from_klass_raw(klass->as_array_klass()->element_klass());
-    bool null_free = klass->is_loaded() && klass->as_array_klass()->storage_properties().is_null_free();
-    if (null_free) {
-      assert(etype->is_valuetypeptr(), "must be a valuetypeptr");
+    bool null_free = false;
+    if (etype->is_valuetypeptr()) {
+      null_free = true;
       etype = etype->join_speculative(TypePtr::NOTNULL)->is_oopptr();
     }
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::make(o->as_array()->length()),
@@ -3981,7 +3972,7 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
       // For instances when a subclass meets a superclass we fall
       // below the centerline when the superclass is exact. We need to
       // do the same here.
-      if (klass()->equals(ciEnv::current()->Object_klass()) && !klass_is_exact()) {
+      if (klass()->equals(ciEnv::current()->Object_klass()) && !klass_is_exact() && !flat_array()) {
         return TypeAryPtr::make(ptr, tp->ary(), tp->klass(), tp->klass_is_exact(), offset, tp->field_offset(), instance_id, speculative, depth);
       } else {
         // cannot subclass, so the meet has to fall badly below the centerline
@@ -3999,7 +3990,7 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
         // For instances when a subclass meets a superclass we fall
         // below the centerline when the superclass is exact. We need
         // to do the same here.
-        if (klass()->equals(ciEnv::current()->Object_klass()) && !klass_is_exact()) {
+        if (klass()->equals(ciEnv::current()->Object_klass()) && !klass_is_exact() && !flat_array()) {
           // that is, tp's array type is a subtype of my klass
           return TypeAryPtr::make(ptr, (ptr == Constant ? tp->const_oop() : NULL),
                                   tp->ary(), tp->klass(), tp->klass_is_exact(), offset, tp->field_offset(), instance_id, speculative, depth);
@@ -4294,14 +4285,13 @@ const Type *TypeInstPtr::xmeet_helper(const Type *t) const {
 
 
 //------------------------java_mirror_type--------------------------------------
-ciType* TypeInstPtr::java_mirror_type(bool* is_indirect_type) const {
+ciType* TypeInstPtr::java_mirror_type() const {
   // must be a singleton type
   if( const_oop() == NULL )  return NULL;
 
   // must be of type java.lang.Class
   if( klass() != ciEnv::current()->Class_klass() )  return NULL;
-
-  return const_oop()->as_instance()->java_mirror_type(is_indirect_type);
+  return const_oop()->as_instance()->java_mirror_type();
 }
 
 
@@ -4722,9 +4712,8 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         tary = TypeAry::make(Type::BOTTOM, tary->_size, tary->_stable, tary->_not_flat, tary->_not_null_free);
       }
       return make(NotNull, NULL, tary, lazy_klass, false, off, field_off, InstanceBot, speculative, depth);
-    } else if (klass() != NULL && tap->klass() != NULL &&
-               klass()->as_array_klass()->storage_properties().value() != tap->klass()->as_array_klass()->storage_properties().value()) {
-      // Meeting value type arrays with conflicting storage properties
+    } else if (klass() != NULL && tap->klass() != NULL && klass()->is_value_array_klass() != tap->klass()->is_value_array_klass()) {
+      // Meeting flattened value type array with non-flattened array. Adjust (field) offset accordingly.
       if (tary->_elem->isa_valuetype()) {
         // Result is flattened
         off = Offset(elem()->isa_valuetype() ? offset() : tap->offset());
@@ -4793,7 +4782,7 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
       // For instances when a subclass meets a superclass we fall
       // below the centerline when the superclass is exact. We need to
       // do the same here.
-      if (tp->klass()->equals(ciEnv::current()->Object_klass()) && !tp->klass_is_exact()) {
+      if (tp->klass()->equals(ciEnv::current()->Object_klass()) && !tp->klass_is_exact() && !tp->flat_array()) {
         return TypeAryPtr::make(ptr, _ary, _klass, _klass_is_exact, offset, _field_offset, instance_id, speculative, depth);
       } else {
         // cannot subclass, so the meet has to fall badly below the centerline
@@ -4811,7 +4800,7 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
         // For instances when a subclass meets a superclass we fall
         // below the centerline when the superclass is exact. We need
         // to do the same here.
-        if (tp->klass()->equals(ciEnv::current()->Object_klass()) && !tp->klass_is_exact()) {
+        if (tp->klass()->equals(ciEnv::current()->Object_klass()) && !tp->klass_is_exact() && !tp->flat_array()) {
           // that is, my array type is a subtype of 'tp' klass
           return make(ptr, (ptr == Constant ? const_oop() : NULL),
                       _ary, _klass, _klass_is_exact, offset, _field_offset, instance_id, speculative, depth);
@@ -5439,11 +5428,11 @@ ciKlass* TypeAryPtr::compute_klass(DEBUG_ONLY(bool verify)) const {
   // Get element klass
   if (el->isa_instptr()) {
     // Compute object array klass from element klass
-    bool null_free = el->is_valuetypeptr() && el->isa_instptr()->ptr() != TypePtr::TopPTR && !el->isa_instptr()->maybe_null();
-    k_ary = ciArrayKlass::make(el->is_oopptr()->klass(), null_free);
+    k_ary = ciArrayKlass::make(el->is_oopptr()->klass());
   } else if (el->isa_valuetype()) {
+    // If element type is TypeValueType::BOTTOM, value_klass() will be null.
     if (el->value_klass() != NULL) {
-      k_ary = ciArrayKlass::make(el->value_klass(), /* null_free */ true);
+      k_ary = ciArrayKlass::make(el->value_klass());
     }
   } else if ((tary = el->isa_aryptr()) != NULL) {
     // Compute array klass from element klass

@@ -461,7 +461,7 @@ static void profile_flat_array(JavaThread* thread) {
 }
 
 JRT_ENTRY(void, Runtime1::load_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index))
-  assert(ArrayKlass::cast(array->klass())->storage_properties().is_flattened(), "should not be called");
+  assert(array->klass()->is_valueArray_klass(), "should not be called");
   profile_flat_array(thread);
 
   NOT_PRODUCT(_load_flattened_array_slowcase_cnt++;)
@@ -473,16 +473,16 @@ JRT_END
 
 
 JRT_ENTRY(void, Runtime1::store_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index, oopDesc* value))
-  if (ArrayKlass::cast(array->klass())->storage_properties().is_flattened()) {
+  if (array->klass()->is_valueArray_klass()) {
     profile_flat_array(thread);
   }
 
   NOT_PRODUCT(_store_flattened_array_slowcase_cnt++;)
   if (value == NULL) {
-    assert(ArrayKlass::cast(array->klass())->storage_properties().is_flattened() || ArrayKlass::cast(array->klass())->storage_properties().is_null_free(), "should not be called");
+    assert(array->klass()->is_valueArray_klass() || array->klass()->is_null_free_array_klass(), "should not be called");
     SharedRuntime::throw_and_post_jvmti_exception(thread, vmSymbols::java_lang_NullPointerException());
   } else {
-    assert(ArrayKlass::cast(array->klass())->storage_properties().is_flattened(), "should not be called");
+    assert(array->klass()->is_valueArray_klass(), "should not be called");
     array->value_copy_to_index(value, index);
   }
 JRT_END
@@ -1093,12 +1093,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
       case Bytecodes::_anewarray:
         { Bytecode_anewarray anew(caller_method(), caller_method->bcp_from(bci));
           Klass* ek = caller_method->constants()->klass_at(anew.index(), CHECK);
-          if (ek->is_value() && caller_method->constants()->klass_at_noresolve(anew.index())->is_Q_signature()) {
-            k = ek->array_klass(1, CHECK);
-            assert(ArrayKlass::cast(k)->storage_properties().is_null_free(), "Expect a null-free array class here");
-          } else {
-            k = ek->array_klass(CHECK);
-          }
+          k = ek->array_klass(CHECK);
         }
         break;
       case Bytecodes::_ldc:

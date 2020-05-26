@@ -121,6 +121,12 @@ class MacroAssembler: public Assembler {
   void test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array);
   void test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array);
 
+  // Check array klass layout helper for flatten or null-free arrays...
+  void test_flattened_array_layout(Register lh, Label& is_flattened_array);
+  void test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array);
+  void test_null_free_array_layout(Register lh, Label& is_null_free_array);
+  void test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array);
+
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
   void pd_patch_instruction(address branch, address target, const char* file, int line) {
@@ -339,7 +345,6 @@ class MacroAssembler: public Assembler {
 
   // oop manipulations
   void load_metadata(Register dst, Register src);
-  void load_storage_props(Register dst, Register src);
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
 

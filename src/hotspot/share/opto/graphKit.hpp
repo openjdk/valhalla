@@ -853,10 +853,9 @@ class GraphKit : public Phase {
   // and the array-store bytecode
   Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = NULL, bool never_null = false);
 
-  Node* is_always_locked(Node* obj);
-  Node* is_value_mirror(Node* mirror);
-  Node* gen_null_free_array_check(Node* ary);
-  Node* gen_flattened_array_test(Node* ary);
+  Node* is_value_type(Node* obj);
+  Node* is_non_flattened_array(Node* ary);
+  Node* is_nullable_array(Node* ary);
   Node* gen_value_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace = false);
   Node* load_lh_array_tag(Node* kls);
   Node* gen_lh_array_test(Node* kls, unsigned int lh_value);
@@ -886,8 +885,7 @@ class GraphKit : public Phase {
                      ValueTypeBaseNode* value_node = NULL);
   Node* new_array(Node* klass_node, Node* count_val, int nargs,
                   Node* *return_size_val = NULL,
-                  bool deoptimize_on_exception = false,
-                  Node* elem_mirror = NULL);
+                  bool deoptimize_on_exception = false);
 
   // java.lang.String helpers
   Node* load_String_length(Node* str, bool set_ctrl);

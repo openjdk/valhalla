@@ -564,47 +564,6 @@ public:
   bool clear_prop_bits() const { return _clear_prop_bits; }
 };
 
-// Retrieve the null free/flattened property from an array klass. This
-// is treated a bit like a field that would be read from the klass
-// structure at runtime except, the implementation encodes the
-// property as a bit in the klass header field of the array. This
-// implementation detail is hidden under this node so it doesn't make
-// a difference for high level optimizations. At final graph reshaping
-// time, this node is turned into the actual logical operations that
-// extract the property from the klass pointer. For this to work
-// correctly, GeStoragePropertyNodes must take a LoadKlass/LoadNKlass
-// input. The Ideal transformation splits the GetStoragePropertyNode
-// through phis, Value returns a constant if the node's input is a
-// constant. These 2 should guarantee GetStoragePropertyNode does
-// indeed have a LoadKlass/LoadNKlass input at final graph reshaping
-// time.
-class GetStoragePropertyNode : public Node {
-protected:
-  GetStoragePropertyNode(Node* klass) : Node(NULL, klass) {}
-public:
-  virtual const Type* Value(PhaseGVN* phase) const;
-  virtual Node* Ideal(PhaseGVN *phase, bool can_reshape);
-  virtual const Type* bottom_type() const {
-    if (in(1)->bottom_type()->isa_klassptr()) {
-      return TypeLong::LONG;
-    }
-    return TypeInt::INT;
-  }
-};
-
-
-class GetNullFreePropertyNode : public GetStoragePropertyNode {
-public:
-  GetNullFreePropertyNode(Node* klass) : GetStoragePropertyNode(klass) {}
-  virtual int Opcode() const;
-};
-
-class GetFlattenedPropertyNode : public GetStoragePropertyNode {
-public:
-  GetFlattenedPropertyNode(Node* klass) : GetStoragePropertyNode(klass) {}
-  virtual int Opcode() const;
-};
-
 //------------------------------StoreNode--------------------------------------
 // Store value; requires Store, Address and Value
 class StoreNode : public MemNode {
