@@ -54,9 +54,6 @@ class ValueArrayKlass : public ArrayKlass {
 
   ValueArrayKlass() {}
 
-  // Properties of an LWorld (LW2) flattened array
-  ArrayStorageProperties storage_properties() { return ArrayStorageProperties::flattened_and_null_free; }
-
   virtual ValueKlass* element_klass() const;
   virtual void set_element_klass(Klass* k);
 

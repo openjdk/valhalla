@@ -3387,48 +3387,6 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
       assert( !tp || oop_offset_is_sane(tp), "" );
     }
 #endif
-    // TODO remove clear_prop_bits bits stuff once the runtime does not set it anymore
-    if (EnableValhalla &&
-        ((nop == Op_LoadKlass && ((LoadKlassNode*)n)->clear_prop_bits()) ||
-         (nop == Op_LoadNKlass && ((LoadNKlassNode*)n)->clear_prop_bits()))) {
-      const TypeKlassPtr* tk = n->bottom_type()->make_ptr()->is_klassptr();
-      assert(!tk->klass_is_exact(), "should have been folded");
-      assert(n->as_Mem()->adr_type()->offset() == oopDesc::klass_offset_in_bytes(), "unexpected LoadKlass");
-      if (tk->klass()->can_be_value_array_klass()) {
-        // Array load klass needs to filter out property bits
-        uint last = unique();
-        Node* pointer = NULL;
-        if (nop == Op_LoadKlass) {
-          Node* cast = new CastP2XNode(NULL, n);
-          Node* masked = new LShiftXNode(cast, new ConINode(TypeInt::make(oopDesc::storage_props_nof_bits)));
-          masked = new RShiftXNode(masked, new ConINode(TypeInt::make(oopDesc::storage_props_nof_bits)));
-          pointer = new CastX2PNode(masked);
-          pointer = new CheckCastPPNode(NULL, pointer, n->bottom_type());
-        } else {
-          Node* cast = new CastN2INode(n);
-          Node* masked = new AndINode(cast, new ConINode(TypeInt::make(oopDesc::compressed_klass_mask())));
-          pointer = new CastI2NNode(masked, n->bottom_type());
-        }
-        for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
-          Node* u = n->fast_out(i);
-          if (u->_idx < last) {
-            // If user is a comparison with a klass that can't be a value type
-            // array klass, we don't need to clear the storage property bits.
-            Node* cmp = (u->is_DecodeNKlass() && u->outcnt() == 1) ? u->unique_out() : u;
-            if (cmp->is_Cmp()) {
-              const TypeKlassPtr* kp1 = cmp->in(1)->bottom_type()->make_ptr()->isa_klassptr();
-              const TypeKlassPtr* kp2 = cmp->in(2)->bottom_type()->make_ptr()->isa_klassptr();
-              if ((kp1 != NULL && !kp1->klass()->can_be_value_array_klass()) ||
-                  (kp2 != NULL && !kp2->klass()->can_be_value_array_klass())) {
-                continue;
-              }
-            }
-            int nb = u->replace_edge(n, pointer);
-            --i, imax -= nb;
-          }
-        }
-      }
-    }
     break;
   }
 

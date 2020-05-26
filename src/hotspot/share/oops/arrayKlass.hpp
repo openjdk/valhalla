@@ -26,7 +26,6 @@
 #define SHARE_OOPS_ARRAYKLASS_HPP
 
 #include "oops/klass.hpp"
-#include "oops/arrayStorageProperties.hpp"
 
 class fieldDescriptor;
 class klassVtable;
@@ -66,9 +65,6 @@ class ArrayKlass: public Klass {
 
   // Compiler/Interpreter offset
   static ByteSize element_klass_offset() { return in_ByteSize(offset_of(ArrayKlass, _element_klass)); }
-
-  // Presented with an ArrayKlass, which storage_properties should be encoded into arrayOop
-  virtual ArrayStorageProperties storage_properties() { return ArrayStorageProperties::empty; }
 
   // Are loads and stores to this concrete array type atomic?
   // Note that Object[] is naturally atomic, but its subtypes may not be.
