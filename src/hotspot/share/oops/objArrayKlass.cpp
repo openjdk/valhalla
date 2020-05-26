@@ -139,7 +139,11 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name) : ArrayK
   this->set_bottom_klass(bk);
   this->set_class_loader_data(bk->class_loader_data());
 
-  this->set_layout_helper(array_layout_helper(T_OBJECT));
+  jint lh = array_layout_helper(T_OBJECT);
+  if (element_klass->is_value()) {
+    lh = layout_helper_set_null_free(lh);
+  }
+  this->set_layout_helper(lh);
   assert(this->is_array_klass(), "sanity");
   assert(this->is_objArray_klass(), "sanity");
 }
@@ -223,8 +227,8 @@ void ObjArrayKlass::do_copy(arrayOop s, size_t src_offset,
     Klass* bound = ObjArrayKlass::cast(d->klass())->element_klass();
     Klass* stype = ObjArrayKlass::cast(s->klass())->element_klass();
     // Perform null check if dst is null-free but src has no such guarantee
-    bool null_check = ((!ArrayKlass::cast(s->klass())->storage_properties().is_null_free()) &&
-        ArrayKlass::cast(d->klass())->storage_properties().is_null_free());
+    bool null_check = ((!s->klass()->is_null_free_array_klass()) &&
+        d->klass()->is_null_free_array_klass());
     if (stype == bound || stype->is_subtype_of(bound)) {
       if (null_check) {
         ArrayAccess<ARRAYCOPY_DISJOINT | ARRAYCOPY_NOTNULL>::oop_arraycopy(s, src_offset, d, dst_offset, length);
