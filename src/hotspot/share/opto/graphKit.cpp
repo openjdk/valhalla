@@ -1182,6 +1182,7 @@ Node* GraphKit::load_object_klass(Node* obj, bool clear_prop_bits) {
   Node* akls = AllocateNode::Ideal_klass(obj, &_gvn);
   if (akls != NULL)  return akls;
   Node* k_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
+  // TODO remove clear_prop_bits bits stuff once the runtime does not set it anymore
   return _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, clear_prop_bits));
 }
 
@@ -3502,10 +3503,11 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
       }
     } else if (obj->is_Phi()) {
       Node* region = obj->in(0);
-      if (region->req() == 3 && region->in(1) != NULL && region->in(1)->in(0) != NULL) {
-        IfNode* iff = region->in(1)->in(0)->isa_If();
+      // TODO make this more robust (see JDK-8231346)
+      if (region->req() == 3 && region->in(2) != NULL && region->in(2)->in(0) != NULL) {
+        IfNode* iff = region->in(2)->in(0)->isa_If();
         if (iff != NULL) {
-          iff->is_flattened_array_check(&_gvn, array);
+          iff->is_non_flattened_array_check(&_gvn, &array);
         }
       }
     }
@@ -3534,7 +3536,8 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   return res;
 }
 
-Node* GraphKit::is_always_locked(Node* obj) {
+// Check if 'obj' is a value type by checking if it has the always_locked markWord pattern set.
+Node* GraphKit::is_value_type(Node* obj) {
   Node* mark_addr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
   Node* mask = _gvn.MakeConX(markWord::always_locked_pattern);
@@ -3543,47 +3546,23 @@ Node* GraphKit::is_always_locked(Node* obj) {
   return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
 }
 
-Node* GraphKit::is_value_mirror(Node* mirror) {
-  Node* p = basic_plus_adr(mirror, java_lang_Class::inline_mirror_offset_in_bytes());
-  Node* inline_mirror = access_load_at(mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR->cast_to_ptr_type(TypePtr::BotPTR), T_OBJECT, IN_HEAP);
-  Node* cmp = _gvn.transform(new CmpPNode(mirror, inline_mirror));
-  return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+// Check if 'ary' is a non-flattened array
+Node* GraphKit::is_non_flattened_array(Node* ary) {
+  Node* kls = load_object_klass(ary);
+  Node* tag = load_lh_array_tag(kls);
+  Node* cmp = gen_lh_array_test(kls, Klass::_lh_array_tag_vt_value);
+  return _gvn.transform(new BoolNode(cmp, BoolTest::ne));
 }
 
-// Check if 'ary' is a null-free value type array
-Node* GraphKit::gen_null_free_array_check(Node* ary) {
-  assert(EnableValhalla, "should only be used if value types are enabled");
-  // Extract null free property from klass pointer
-  Node* k_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
-  const TypePtr* k_adr_type = k_adr->bottom_type()->isa_ptr();
-  Node* klass = NULL;
-  if (k_adr_type->is_ptr_to_narrowklass()) {
-    klass = _gvn.transform(new LoadNKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT->make_narrowklass(), MemNode::unordered, true));
-  } else {
-    klass = _gvn.transform(new LoadKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, MemNode::unordered, true));
-  }
-  Node* null_free = _gvn.transform(new GetNullFreePropertyNode(klass));
-  Node* cmp = NULL;
-  if (_gvn.type(klass)->isa_klassptr()) {
-    cmp = _gvn.transform(new CmpLNode(null_free, zerocon(T_LONG)));
-  } else {
-    cmp = _gvn.transform(new CmpINode(null_free, zerocon(T_INT)));
-  }
+// Check if 'ary' is a nullable array
+Node* GraphKit::is_nullable_array(Node* ary) {
+  Node* kls = load_object_klass(ary);
+  Node* lhp = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
+  Node* layout_val = _gvn.transform(LoadNode::make(_gvn, NULL, immutable_memory(), lhp, lhp->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
+  Node* null_free = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_null_free_shift)));
+  null_free = _gvn.transform(new AndINode(null_free, intcon(Klass::_lh_null_free_mask)));
+  Node* cmp = _gvn.transform(new CmpINode(null_free, intcon(0)));
   return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
-}
-
-Node* GraphKit::gen_flattened_array_test(Node* ary) {
-  assert(EnableValhalla, "should only be used if value types are enabled");
-  // Extract flattened property from klass pointer
-  Node* k_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
-  const TypePtr* k_adr_type = k_adr->bottom_type()->isa_ptr();
-  Node* klass = NULL;
-  if (k_adr_type->is_ptr_to_narrowklass()) {
-    klass = _gvn.transform(new LoadNKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT->make_narrowklass(), MemNode::unordered, true));
-  } else {
-    klass = _gvn.transform(new LoadKlassNode(NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, MemNode::unordered, true));
-  }
-  return _gvn.transform(new GetFlattenedPropertyNode(klass));
 }
 
 // Deoptimize if 'ary' is a null-free value type array and 'val' is null
@@ -3598,9 +3577,9 @@ Node* GraphKit::gen_value_array_null_guard(Node* ary, Node* val, int nargs, bool
   if (null_ctl != top()) {
     PreserveJVMState pjvms(this);
     set_control(null_ctl);
-    // Deoptimize if null-free array
-    Node* bol = gen_null_free_array_check(ary);
-    { BuildCutout unless(this, bol, PROB_MAX);
+    {
+      // Deoptimize if null-free array
+      BuildCutout unless(this, is_nullable_array(ary), PROB_MAX);
       inc_sp(nargs);
       uncommon_trap(Deoptimization::Reason_null_check,
                     Deoptimization::Action_none);
@@ -3626,17 +3605,14 @@ Node* GraphKit::gen_value_array_null_guard(Node* ary, Node* val, int nargs, bool
 Node* GraphKit::load_lh_array_tag(Node* kls) {
   Node* lhp = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
   Node* layout_val = _gvn.transform(LoadNode::make(_gvn, NULL, immutable_memory(), lhp, lhp->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
-
   return _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
 }
-
 
 Node* GraphKit::gen_lh_array_test(Node* kls, unsigned int lh_value) {
   Node* layout_val = load_lh_array_tag(kls);
   Node* cmp = _gvn.transform(new CmpINode(layout_val, intcon(lh_value)));
   return cmp;
 }
-
 
 //------------------------------next_monitor-----------------------------------
 // What number should be given to the next monitor?
@@ -4059,8 +4035,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
                           Node* length,         // number of array elements
                           int   nargs,          // number of arguments to push back for uncommon trap
                           Node* *return_size_val,
-                          bool deoptimize_on_exception,
-                          Node* elem_mirror) {
+                          bool deoptimize_on_exception) {
   jint  layout_con = Klass::_lh_neutral_value;
   Node* layout_val = get_layout_helper(klass_node, layout_con);
   bool  layout_is_con = (layout_val == NULL);
@@ -4207,90 +4182,78 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     initial_slow_test = initial_slow_test->as_Bool()->as_int_value(&_gvn);
   }
 
-  const TypeOopPtr* ary_type = _gvn.type(klass_node)->is_klassptr()->as_instance_type();
+  const TypeKlassPtr* ary_klass = _gvn.type(klass_node)->isa_klassptr();
+  const TypeOopPtr* ary_type = ary_klass->as_instance_type();
   const TypeAryPtr* ary_ptr = ary_type->isa_aryptr();
-  const Type* elem = NULL;
-  ciKlass* elem_klass = NULL;
 
-  // Compute default value and storage properties for value type arrays:
-  // - null-ok:              MyValue.box[] (ciObjArrayKlass "[LMyValue")
-  // - null-free:            MyValue.val[] (ciObjArrayKlass "[QMyValue")
-  // - null-free, flattened: MyValue.val[] (ciValueArrayKlass "[QMyValue")
-  Node* storage_properties = NULL;
+  // Value type array variants:
+  // - null-ok:              MyValue.ref[] (ciObjArrayKlass "[LMyValue$ref")
+  // - null-free:            MyValue.val[] (ciObjArrayKlass "[QMyValue$val")
+  // - null-free, flattened: MyValue.val[] (ciValueArrayKlass "[QMyValue$val")
+  // Check if array is a null-free, non-flattened value type array
+  // that needs to be initialized with the default value type.
   Node* default_value = NULL;
   Node* raw_default_value = NULL;
-  int props_shift = UseCompressedClassPointers ? oopDesc::narrow_storage_props_shift : oopDesc::wide_storage_props_shift;
   if (ary_ptr != NULL && ary_ptr->klass_is_exact()) {
     // Array type is known
-    elem = ary_ptr->elem();
-    ciArrayKlass* ary_klass = ary_ptr->klass()->as_array_klass();
-    elem_klass = ary_klass->element_klass();
-
-    ArrayStorageProperties props = ary_klass->storage_properties();
-    if (!props.is_empty() && elem_klass->is_valuetype()) {
-      if (props.is_null_free() && !props.is_flattened()) {
-        default_value = ValueTypeNode::default_oop(gvn(), elem_klass->as_value_klass());
-        if (elem->isa_narrowoop()) {
-          default_value = _gvn.transform(new EncodePNode(default_value, elem));
+    ciKlass* elem_klass = ary_ptr->klass()->as_array_klass()->element_klass();
+    if (elem_klass != NULL && elem_klass->is_valuetype()) {
+      ciValueKlass* vk = elem_klass->as_value_klass();
+      if (!vk->flatten_array()) {
+        default_value = ValueTypeNode::default_oop(gvn(), vk);
+        if (UseCompressedOops) {
+          default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));
           raw_default_value = raw_default_for_coops(default_value, *this);
         } else {
           raw_default_value = _gvn.transform(new CastP2XNode(control(), default_value));
         }
       }
-      storage_properties = MakeConX(props.encode<NOT_LP64(jint) LP64_ONLY(jlong)>(props_shift));
     }
-  }
-
-  if (EnableValhalla && (elem == NULL || (elem_klass != NULL && (elem_klass->is_java_lang_Object() || elem_klass->is_valuetype()) &&
-                                          !ary_type->klass_is_exact()))) {
-    // Array type is not known, compute default value and storage properties for initialization.
-    assert(default_value == NULL && raw_default_value == NULL && storage_properties == NULL, "shouldn't be set yet");
-    assert(elem_mirror != NULL, "should not be null");
-
+  } else if (ary_klass->klass()->can_be_value_array_klass()) {
+    // Array type is not known, add runtime checks
+    assert(!ary_klass->klass_is_exact(), "unexpected exact type");
     Node* r = new RegionNode(4);
     default_value = new PhiNode(r, TypeInstPtr::BOTTOM);
-    storage_properties = new PhiNode(r, TypeX_X);
 
-    Node* empty     = MakeConX(ArrayStorageProperties::empty.encode<NOT_LP64(jint) LP64_ONLY(jlong)>(props_shift));
-    Node* null_free = MakeConX(ArrayStorageProperties::null_free.encode<NOT_LP64(jint) LP64_ONLY(jlong)>(props_shift));
-    Node* flat      = MakeConX(ArrayStorageProperties::flattened_and_null_free.encode<NOT_LP64(jint) LP64_ONLY(jlong)>(props_shift));
+    // Check if array is an object array
+    Node* cmp = gen_lh_array_test(klass_node, Klass::_lh_array_tag_obj_value);
+    Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+    IfNode* iff = create_and_map_if(control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
-    // Check if element mirror is a value mirror
-    IfNode* iff = create_and_map_if(control(), is_value_mirror(elem_mirror), PROB_FAIR, COUNT_UNKNOWN);
-
-    // Not a value mirror but a box mirror or not a value type array, initialize with all zero
+    // Not an object array, initialize with all zero
     r->init_req(1, _gvn.transform(new IfFalseNode(iff)));
     default_value->init_req(1, null());
-    storage_properties->init_req(1, empty);
 
-    // Value mirror (= null-free), check if flattened
+    // Object array, check if null-free
     set_control(_gvn.transform(new IfTrueNode(iff)));
-    Node* cmp = gen_lh_array_test(klass_node, Klass::_lh_array_tag_vt_value);
-    Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+    Node* lhp = basic_plus_adr(klass_node, in_bytes(Klass::layout_helper_offset()));
+    Node* layout_val = _gvn.transform(LoadNode::make(_gvn, NULL, immutable_memory(), lhp, lhp->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
+    Node* null_free = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_null_free_shift)));
+    null_free = _gvn.transform(new AndINode(null_free, intcon(Klass::_lh_null_free_mask)));
+    cmp = _gvn.transform(new CmpINode(null_free, intcon(0)));
+    bol = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
     iff = create_and_map_if(control(), bol, PROB_FAIR, COUNT_UNKNOWN);
 
-    // Flattened, initialize with all zero
-    r->init_req(2, _gvn.transform(new IfTrueNode(iff)));
+    // Not null-free, initialize with all zero
+    r->init_req(2, _gvn.transform(new IfFalseNode(iff)));
     default_value->init_req(2, null());
-    storage_properties->init_req(2, flat);
 
-    // Non-flattened, initialize with the default value
-    set_control(_gvn.transform(new IfFalseNode(iff)));
+    // Null-free, non-flattened value array, initialize with the default value
+    set_control(_gvn.transform(new IfTrueNode(iff)));
     Node* p = basic_plus_adr(klass_node, in_bytes(ArrayKlass::element_klass_offset()));
     Node* eklass = _gvn.transform(LoadKlassNode::make(_gvn, control(), immutable_memory(), p, TypeInstPtr::KLASS));
     Node* adr_fixed_block_addr = basic_plus_adr(eklass, in_bytes(InstanceKlass::adr_valueklass_fixed_block_offset()));
     Node* adr_fixed_block = make_load(control(), adr_fixed_block_addr, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
     Node* default_value_offset_addr = basic_plus_adr(adr_fixed_block, in_bytes(ValueKlass::default_value_offset_offset()));
     Node* default_value_offset = make_load(control(), default_value_offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
+    Node* elem_mirror = load_mirror_from_klass(eklass);
     Node* default_value_addr = basic_plus_adr(elem_mirror, ConvI2X(default_value_offset));
     Node* val = access_load_at(elem_mirror, default_value_addr, _gvn.type(default_value_addr)->is_ptr(), TypeInstPtr::BOTTOM, T_OBJECT, IN_HEAP);
     r->init_req(3, control());
     default_value->init_req(3, val);
-    storage_properties->init_req(3, null_free);
 
     set_control(_gvn.transform(r));
     default_value = _gvn.transform(default_value);
-    storage_properties = _gvn.transform(storage_properties);
     if (UseCompressedOops) {
       default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));
       raw_default_value = raw_default_for_coops(default_value, *this);
@@ -4305,8 +4268,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
                                                    size, klass_node,
                                                    initial_slow_test,
                                                    length, default_value,
-                                                   raw_default_value,
-                                                   storage_properties);
+                                                   raw_default_value);
 
   // Cast to correct type.  Note that the klass_node may be constant or not,
   // and in the latter case the actual array type will be inexact also.

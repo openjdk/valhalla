@@ -194,6 +194,7 @@ class LibraryCallKit : public GraphKit {
                                     int modifier_mask, int modifier_bits,
                                     RegionNode* region);
   Node* generate_interface_guard(Node* kls, RegionNode* region);
+  Node* generate_value_guard(Node* kls, RegionNode* region);
 
   enum ArrayKind {
     AnyArray,
@@ -291,7 +292,6 @@ class LibraryCallKit : public GraphKit {
   bool inline_native_getEventWriter();
 #endif
   bool inline_native_Class_query(vmIntrinsics::ID id);
-  bool inline_value_Class_conversion(vmIntrinsics::ID id);
   bool inline_native_subtype_check();
   bool inline_native_getLength();
   bool inline_array_copyOf(bool is_copyOfRange);
@@ -816,9 +816,6 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_isPrimitive:
   case vmIntrinsics::_getSuperclass:
   case vmIntrinsics::_getClassAccessFlags:      return inline_native_Class_query(intrinsic_id());
-
-  case vmIntrinsics::_asPrimaryType:
-  case vmIntrinsics::_asIndirectType:           return inline_value_Class_conversion(intrinsic_id());
 
   case vmIntrinsics::_floatToRawIntBits:
   case vmIntrinsics::_floatToIntBits:
@@ -3289,8 +3286,13 @@ Node* LibraryCallKit::generate_access_flags_guard(Node* kls, int modifier_mask, 
   Node* bol  = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
   return generate_fair_guard(bol, region);
 }
+
 Node* LibraryCallKit::generate_interface_guard(Node* kls, RegionNode* region) {
   return generate_access_flags_guard(kls, JVM_ACC_INTERFACE, 0, region);
+}
+
+Node* LibraryCallKit::generate_value_guard(Node* kls, RegionNode* region) {
+  return generate_access_flags_guard(kls, JVM_ACC_VALUE, 0, region);
 }
 
 //-------------------------inline_native_Class_query-------------------
@@ -3466,33 +3468,6 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
   return true;
 }
 
-//-------------------------inline_value_Class_conversion-------------------
-// public Class<T> java.lang.Class.asPrimaryType();
-// public Class<T> java.lang.Class.asIndirectType()
-bool LibraryCallKit::inline_value_Class_conversion(vmIntrinsics::ID id) {
-  Node* mirror = argument(0); // Receiver Class
-  const TypeInstPtr* mirror_con = _gvn.type(mirror)->isa_instptr();
-  if (mirror_con == NULL) {
-    return false;
-  }
-
-  bool is_indirect_type = true;
-  ciType* tm = mirror_con->java_mirror_type(&is_indirect_type);
-  if (tm != NULL) {
-    Node* result = mirror;
-    if (tm->is_valuetype()) {
-      if (id == vmIntrinsics::_asPrimaryType && is_indirect_type) {
-        result = _gvn.makecon(TypeInstPtr::make(tm->as_value_klass()->inline_mirror_instance()));
-      } else if (id == vmIntrinsics::_asIndirectType && !is_indirect_type) {
-        result = _gvn.makecon(TypeInstPtr::make(tm->as_value_klass()->indirect_mirror_instance()));
-      }
-    }
-    set_result(result);
-    return true;
-  }
-  return false;
-}
-
 //-------------------------inline_Class_cast-------------------
 bool LibraryCallKit::inline_Class_cast() {
   Node* mirror = argument(0); // Class
@@ -3504,32 +3479,29 @@ bool LibraryCallKit::inline_Class_cast() {
   if (obj == NULL || obj->is_top()) {
     return false;  // dead path
   }
-
   ciKlass* obj_klass = NULL;
+  const Type* obj_t = _gvn.type(obj);
   if (obj->is_ValueType()) {
-    obj_klass = _gvn.type(obj)->value_klass();
-  } else {
-    const TypeOopPtr* tp = _gvn.type(obj)->isa_oopptr();
-    if (tp != NULL) {
-      obj_klass = tp->klass();
-    }
+    obj_klass = obj_t->value_klass();
+  } else if (obj_t->isa_oopptr()) {
+    obj_klass = obj_t->is_oopptr()->klass();
   }
 
   // First, see if Class.cast() can be folded statically.
   // java_mirror_type() returns non-null for compile-time Class constants.
-  bool is_indirect_type = true;
-  ciType* tm = mirror_con->java_mirror_type(&is_indirect_type);
-  if (!obj->is_ValueType() && !is_indirect_type) {
-    obj = null_check(obj);
-    if (stopped()) {
-      return true;
-    }
-  }
+  ciType* tm = mirror_con->java_mirror_type();
   if (tm != NULL && tm->is_klass() && obj_klass != NULL) {
     if (!obj_klass->is_loaded()) {
       // Don't use intrinsic when class is not loaded.
       return false;
     } else {
+      if (!obj->is_ValueType() && tm->as_klass()->is_valuetype()) {
+        // Casting to .val, check for null
+        obj = null_check(obj);
+        if (stopped()) {
+          return true;
+        }
+      }
       int static_res = C->static_subtype_check(tm->as_klass(), obj_klass);
       if (static_res == Compile::SSC_always_true) {
         // isInstance() is true - fold the code.
@@ -3571,17 +3543,17 @@ bool LibraryCallKit::inline_Class_cast() {
 
   Node* res = top();
   if (!stopped()) {
-    if (EnableValhalla && !obj->is_ValueType() && is_indirect_type) {
-      // Check if (mirror == inline_mirror && obj == null)
-      Node* is_val_mirror = generate_fair_guard(is_value_mirror(mirror), NULL);
-      if (is_val_mirror != NULL) {
+    if (EnableValhalla && !obj->is_ValueType()) {
+      // Check if we are casting to .val
+      Node* is_val_kls = generate_value_guard(kls, NULL);
+      if (is_val_kls != NULL) {
         RegionNode* r = new RegionNode(3);
         record_for_igvn(r);
         r->init_req(1, control());
 
         // Casting to .val, check for null
-        set_control(is_val_mirror);
-        Node *null_ctr = top();
+        set_control(is_val_kls);
+        Node* null_ctr = top();
         null_check_oop(obj, &null_ctr);
         region->init_req(_npe_path, null_ctr);
         r->init_req(2, control());
@@ -3676,9 +3648,6 @@ bool LibraryCallKit::inline_native_subtype_check() {
     Node* subk   = klasses[1];  // the argument to isAssignableFrom
     Node* superk = klasses[0];  // the receiver
     region->set_req(_both_ref_path, gen_subtype_check(subk, superk));
-    // If superc is a value mirror, we also need to check if superc == subc because
-    // V? is not a subtype of V but due to subk == superk the subtype check will pass.
-    generate_fair_guard(is_value_mirror(args[0]), prim_region);
     // now we have a successful reference subtype check
     region->set_req(_ref_subtype_path, control());
   }
@@ -3841,7 +3810,7 @@ bool LibraryCallKit::inline_unsafe_newArray(bool uninitialized) {
     // Normal case:  The array type has been cached in the java.lang.Class.
     // The following call works fine even if the array type is polymorphic.
     // It could be a dynamic mix of int[], boolean[], Object[], etc.
-    Node* obj = new_array(klass_node, count_val, 0, NULL, false, mirror);  // no arguments to push
+    Node* obj = new_array(klass_node, count_val, 0);  // no arguments to push
     result_reg->init_req(_normal_path, control());
     result_val->init_req(_normal_path, obj);
     result_io ->init_req(_normal_path, i_o());
@@ -4049,11 +4018,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       }
 
       if (!stopped()) {
-        // Load element mirror
-        Node* p = basic_plus_adr(array_type_mirror, java_lang_Class::component_mirror_offset_in_bytes());
-        Node* elem_mirror = access_load_at(array_type_mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR, T_OBJECT, IN_HEAP);
-
-        newcopy = new_array(klass_node, length, 0, NULL, false, elem_mirror);
+        newcopy = new_array(klass_node, length, 0);  // no arguments to push
 
         ArrayCopyNode* ac = ArrayCopyNode::make(this, true, original, start, newcopy, intcon(0), moved, true, false,
                                                 original_kls, klass_node);
@@ -4689,12 +4654,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       if (!stopped()) {
         Node* obj_length = load_array_length(obj);
         Node* obj_size  = NULL;
-        // Load element mirror
-        Node* array_type_mirror = load_mirror_from_klass(obj_klass);
-        Node* p = basic_plus_adr(array_type_mirror, java_lang_Class::component_mirror_offset_in_bytes());
-        Node* elem_mirror = access_load_at(array_type_mirror, p, _gvn.type(p)->is_ptr(), TypeInstPtr::MIRROR, T_OBJECT, IN_HEAP);
-
-        Node* alloc_obj = new_array(obj_klass, obj_length, 0, &obj_size, false, elem_mirror);
+        Node* alloc_obj = new_array(obj_klass, obj_length, 0, &obj_size);  // no arguments to push
 
         BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
         if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Parsing)) {

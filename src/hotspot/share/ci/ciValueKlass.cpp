@@ -109,20 +109,6 @@ ciInstance* ciValueKlass::default_value_instance() const {
   )
 }
 
-ciInstance* ciValueKlass::inline_mirror_instance() const {
-  GUARDED_VM_ENTRY(
-    oop value_mirror = to_ValueKlass()->value_mirror();
-    return CURRENT_ENV->get_instance(value_mirror);
-  )
-}
-
-ciInstance* ciValueKlass::indirect_mirror_instance() const {
-  GUARDED_VM_ENTRY(
-    oop mirror = to_ValueKlass()->indirect_mirror();
-    return CURRENT_ENV->get_instance(mirror);
-  )
-}
-
 bool ciValueKlass::contains_oops() const {
   GUARDED_VM_ENTRY(return get_ValueKlass()->contains_oops();)
 }

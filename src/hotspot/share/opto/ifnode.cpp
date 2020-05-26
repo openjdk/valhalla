@@ -1178,41 +1178,51 @@ bool IfNode::is_null_check(ProjNode* proj, PhaseIterGVN* igvn) {
   return false;
 }
 
-// Returns true if this IfNode belongs to a flattened array check
+// Returns true if this IfNode belongs to a non-flattened array check
 // and returns the corresponding array in the 'array' parameter.
-bool IfNode::is_flattened_array_check(PhaseTransform* phase, Node*& array) {
+bool IfNode::is_non_flattened_array_check(PhaseTransform* phase, Node** array) {
   Node* bol = in(1);
-  if (!bol->is_Bool() || bol->as_Bool()->_test._test != BoolTest::ne) {
+  if (!bol->is_Bool()) {
     return false;
   }
   Node* cmp = bol->in(1);
-  if (cmp->Opcode() != Op_CmpI && cmp->Opcode() != Op_CmpL) {
+  if (cmp->Opcode() != Op_CmpI) {
     return false;
   }
   Node* cmp_in1 = cmp->in(1);
   Node* cmp_in2 = cmp->in(2);
-  
-  if (cmp_in1->Opcode() != Op_GetFlattenedProperty) {
+  if ((unsigned int)cmp_in2->find_int_con(0) != Klass::_lh_array_tag_vt_value) {
     return false;
   }
-
-  jlong in2 = -1;
-  if (cmp->Opcode() == Op_CmpI) {
-    in2 = cmp_in2->find_int_con(-1);
-  } else {
-    in2 = cmp_in2->find_long_con(-1);
-  }
-  
-  if (in2 != 0) {
+  if (cmp_in1->Opcode() != Op_RShiftI) {
     return false;
   }
-
-  Node* klass_load = cmp_in1->in(1);
-
-  if (klass_load->is_Load()) {
+  Node* shift_in1 = cmp_in1->in(1);
+  Node* shift_in2 = cmp_in1->in(2);
+  if ((unsigned int)shift_in2->find_int_con(0) != Klass::_lh_array_tag_shift) {
+    return false;
+  }
+  if (shift_in1->Opcode() != Op_LoadI) {
+    return false;
+  }
+  intptr_t offset;
+  Node* ptr = shift_in1->in(MemNode::Address);
+  Node* addr = AddPNode::Ideal_base_and_offset(ptr, phase, offset);
+  if (addr == NULL || offset != in_bytes(Klass::layout_helper_offset())) {
+    return false;
+  }
+  if (!phase->type(addr)->isa_klassptr()) {
+    return false;
+  }
+  Node* klass_load = ptr->as_AddP()->in(AddPNode::Base)->uncast();
+  if (klass_load->is_DecodeNKlass()) {
+    klass_load = klass_load->in(1);
+  }
+  if (array != NULL && klass_load->is_Load()) {
     Node* address = klass_load->in(MemNode::Address);
-    array = address->as_AddP()->in(AddPNode::Base);
+    *array = address->as_AddP()->in(AddPNode::Base);
   }
+  assert(bol->isa_Bool()->_test._test == BoolTest::ne, "IfTrue proj must point to non-flattened array");
   return true;
 }
 

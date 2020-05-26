@@ -98,15 +98,23 @@ void Parse::array_load(BasicType bt) {
     IdealKit ideal(this);
     IdealVariable res(ideal);
     ideal.declarations_done();
-    Node* flattened = gen_flattened_array_test(ary);
-    ideal.if_then(flattened, BoolTest::ne, zerocon(flattened->bottom_type()->basic_type())); {
+    ideal.if_then(is_non_flattened_array(ary)); {
+      // non-flattened
+      assert(ideal.ctrl()->in(0)->as_If()->is_non_flattened_array_check(&_gvn), "Should be found");
+      sync_kit(ideal);
+      const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+      Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt,
+                                IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD, ctl);
+      ideal.sync_kit(this);
+      ideal.set(res, ld);
+    } ideal.else_(); {
       // flattened
       sync_kit(ideal);
       if (elemptr->is_valuetypeptr()) {
         // Element type is known, cast and load from flattened representation
         ciValueKlass* vk = elemptr->value_klass();
         assert(vk->flatten_array() && elemptr->maybe_null(), "must be a flattenable and nullable array");
-        ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* never_null */ true);
+        ciArrayKlass* array_klass = ciArrayKlass::make(vk);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
         Node* casted_adr = array_element_address(cast, idx, T_VALUETYPE, ary_t->size(), control());
@@ -118,8 +126,8 @@ void Parse::array_load(BasicType bt) {
         ideal.set(res, vt);
         ideal.sync_kit(this);
       } else {
-        Node* kls = load_object_klass(ary);
         // Element type is unknown, emit runtime call
+        Node* kls = load_object_klass(ary);
         Node* k_adr = basic_plus_adr(kls, in_bytes(ArrayKlass::element_klass_offset()));
         Node* elem_klass = _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS));
         Node* obj_size  = NULL;
@@ -189,14 +197,6 @@ void Parse::array_load(BasicType bt) {
         ideal.sync_kit(this);
         ideal.set(res, alloc_obj);
       }
-    } ideal.else_(); {
-      // non-flattened
-      sync_kit(ideal);
-      const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
-      Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt,
-                                IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD, ctl);
-      ideal.sync_kit(this);
-      ideal.set(res, ld);
     } ideal.end_if();
     sync_kit(ideal);
     Node* ld = _gvn.transform(ideal.value(res));
@@ -302,8 +302,16 @@ void Parse::array_store(BasicType bt) {
       assert(ValueArrayFlatten && !not_flattenable && elemtype->is_oopptr()->can_be_value_type() &&
              !ary_t->klass_is_exact() && !ary_t->is_not_null_free(), "array can't be flattened");
       IdealKit ideal(this);
-      Node* flattened = gen_flattened_array_test(ary);
-      ideal.if_then(flattened, BoolTest::ne, zerocon(flattened->bottom_type()->basic_type())); {
+      ideal.if_then(is_non_flattened_array(ary)); {
+        // non-flattened
+        assert(ideal.ctrl()->in(0)->as_If()->is_non_flattened_array_check(&_gvn), "Should be found");
+        sync_kit(ideal);
+        gen_value_array_null_guard(ary, cast_val, 3);
+        inc_sp(3);
+        access_store_at(ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
+        dec_sp(3);
+        ideal.sync_kit(this);
+      } ideal.else_(); {
         Node* val = cast_val;
         // flattened
         if (!val->is_ValueType() && tval->maybe_null()) {
@@ -334,7 +342,7 @@ void Parse::array_store(BasicType bt) {
           // Element type is known, cast and store to flattened representation
           sync_kit(ideal);
           assert(vk->flatten_array() && elemtype->maybe_null(), "must be a flattenable and nullable array");
-          ciArrayKlass* array_klass = ciArrayKlass::make(vk, /* never_null */ true);
+          ciArrayKlass* array_klass = ciArrayKlass::make(vk);
           const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
           casted_ary = _gvn.transform(new CheckCastPPNode(control(), casted_ary, arytype));
           Node* casted_adr = array_element_address(casted_ary, idx, T_OBJECT, arytype->size(), control());
@@ -370,16 +378,6 @@ void Parse::array_store(BasicType bt) {
           insert_mem_bar_volatile(Op_MemBarCPUOrder, C->get_alias_index(TypeAryPtr::VALUES));
           ideal.sync_kit(this);
         }
-      }
-      ideal.else_();
-      {
-        // non-flattened
-        sync_kit(ideal);
-        gen_value_array_null_guard(ary, cast_val, 3);
-        inc_sp(3);
-        access_store_at(ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
-        dec_sp(3);
-        ideal.sync_kit(this);
       }
       ideal.end_if();
       sync_kit(ideal);
@@ -572,15 +570,14 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
       reason = Deoptimization::Reason_class_check;
     }
     if (!null_free_array) {
-      Node* tst = gen_null_free_array_check(ary);
-      {
-        BuildCutout unless(this, tst, PROB_MAX);
+      { // Deoptimize if null-free array
+        BuildCutout unless(this, is_nullable_array(ary), PROB_MAX);
         uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
       }
       Node* better_ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype->cast_to_not_null_free()));
       replace_in_map(ary, better_ary);
       ary = better_ary;
-      arytype  = _gvn.type(ary)->is_aryptr();
+      arytype = _gvn.type(ary)->is_aryptr();
     }
   }
 
@@ -602,23 +599,14 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
       reason = Deoptimization::Reason_class_check;
     }
     if (!flat_array) {
-      Node* flattened = gen_flattened_array_test(ary);
-      Node* chk = NULL;
-      if (_gvn.type(flattened)->isa_int()) {
-        chk = _gvn.transform(new CmpINode(flattened, intcon(0)));
-      } else {
-        assert(_gvn.type(flattened)->isa_long(), "flattened property is int or long");
-        chk = _gvn.transform(new CmpLNode(flattened, longcon(0)));
-      }
-      Node* tst = _gvn.transform(new BoolNode(chk, BoolTest::eq));
-      {
-        BuildCutout unless(this, tst, PROB_MAX);
+      { // Deoptimize if flat array
+        BuildCutout unless(this, is_non_flattened_array(ary), PROB_MAX);
         uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
       }
       Node* better_ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype->cast_to_not_flat()));
       replace_in_map(ary, better_ary);
       ary = better_ary;
-      arytype  = _gvn.type(ary)->is_aryptr();
+      arytype = _gvn.type(ary)->is_aryptr();
     }
   }
 
@@ -2147,7 +2135,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
   }
 
   // First operand is non-null, check if it is a value type
-  Node* is_value = is_always_locked(not_null_a);
+  Node* is_value = is_value_type(not_null_a);
   IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
   Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
   ne_region->init_req(2, not_value);

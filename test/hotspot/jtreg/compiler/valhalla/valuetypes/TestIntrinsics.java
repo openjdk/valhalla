@@ -68,14 +68,14 @@ public class TestIntrinsics extends ValueTypeTest {
 
     public void test1_verifier(boolean warmup) {
         Asserts.assertTrue(test1(java.util.AbstractList.class, java.util.ArrayList.class), "test1_1 failed");
-        Asserts.assertTrue(test1(MyValue1.class.asIndirectType(), MyValue1.class.asIndirectType()), "test1_2 failed");
+        Asserts.assertTrue(test1(MyValue1.ref.class, MyValue1.ref.class), "test1_2 failed");
         Asserts.assertTrue(test1(MyValue1.class, MyValue1.class), "test1_3 failed");
-        Asserts.assertTrue(test1(MyValue1.class.asIndirectType(), MyValue1.class), "test1_4 failed");
-        Asserts.assertFalse(test1(MyValue1.class, MyValue1.class.asIndirectType()), "test1_5 failed");
+        Asserts.assertTrue(test1(MyValue1.ref.class, MyValue1.class), "test1_4 failed");
+        Asserts.assertFalse(test1(MyValue1.class, MyValue1.ref.class), "test1_5 failed");
         Asserts.assertTrue(test1(Object.class, java.util.ArrayList.class), "test1_6 failed");
-        Asserts.assertTrue(test1(Object.class, MyValue1.class.asIndirectType()), "test1_7 failed");
+        Asserts.assertTrue(test1(Object.class, MyValue1.ref.class), "test1_7 failed");
         Asserts.assertTrue(test1(Object.class, MyValue1.class), "test1_8 failed");
-        Asserts.assertTrue(!test1(MyValue1.class.asIndirectType(), Object.class), "test1_9 failed");
+        Asserts.assertTrue(!test1(MyValue1.ref.class, Object.class), "test1_9 failed");
         Asserts.assertTrue(!test1(MyValue1.class, Object.class), "test1_10 failed");
     }
 
@@ -83,14 +83,14 @@ public class TestIntrinsics extends ValueTypeTest {
     @Test(failOn = LOADK)
     public boolean test2() {
         boolean check1 = java.util.AbstractList.class.isAssignableFrom(java.util.ArrayList.class);
-        boolean check2 = MyValue1.class.asIndirectType().isAssignableFrom(MyValue1.class.asIndirectType());
+        boolean check2 = MyValue1.ref.class.isAssignableFrom(MyValue1.ref.class);
         boolean check3 = MyValue1.class.isAssignableFrom(MyValue1.class);
-        boolean check4 = MyValue1.class.asIndirectType().isAssignableFrom(MyValue1.class);
-        boolean check5 = !MyValue1.class.isAssignableFrom(MyValue1.class.asIndirectType());
+        boolean check4 = MyValue1.ref.class.isAssignableFrom(MyValue1.class);
+        boolean check5 = !MyValue1.class.isAssignableFrom(MyValue1.ref.class);
         boolean check6 = Object.class.isAssignableFrom(java.util.ArrayList.class);
-        boolean check7 = Object.class.isAssignableFrom(MyValue1.class.asIndirectType());
+        boolean check7 = Object.class.isAssignableFrom(MyValue1.ref.class);
         boolean check8 = Object.class.isAssignableFrom(MyValue1.class);
-        boolean check9 = !MyValue1.class.asIndirectType().isAssignableFrom(Object.class);
+        boolean check9 = !MyValue1.ref.class.isAssignableFrom(Object.class);
         boolean check10 = !MyValue1.class.isAssignableFrom(Object.class);
         return check1 && check2 && check3 && check4 && check5 && check6 && check7 && check8 && check9 && check10;
     }
@@ -107,8 +107,8 @@ public class TestIntrinsics extends ValueTypeTest {
 
     public void test3_verifier(boolean warmup) {
         Asserts.assertTrue(test3(Object.class) == null, "test3_1 failed");
-        Asserts.assertTrue(test3(MyValue1.class.asIndirectType()) == MyValue1.ref.class, "test3_2 failed");
-        Asserts.assertTrue(test3(MyValue1.class.asPrimaryType()) == MyValue1.ref.class, "test3_3 failed");
+        Asserts.assertTrue(test3(MyValue1.ref.class) == MyAbstract.class, "test3_2 failed");
+        Asserts.assertTrue(test3(MyValue1.val.class) == MyValue1.ref.class, "test3_3 failed");
         Asserts.assertTrue(test3(Class.class) == Object.class, "test3_4 failed");
     }
 
@@ -117,9 +117,9 @@ public class TestIntrinsics extends ValueTypeTest {
     public boolean test4() {
         boolean check1 = Object.class.getSuperclass() == null;
         // TODO Remove cast as workaround once javac is fixed
-        boolean check2 = (Class<?>)MyValue1.class.asIndirectType().getSuperclass() == MyValue1.ref.class;
+        boolean check2 = (Class<?>)MyValue1.ref.class.getSuperclass() == MyAbstract.class;
         // TODO Remove cast as workaround once javac is fixed
-        boolean check3 = (Class<?>)MyValue1.class.asPrimaryType().getSuperclass() == MyValue1.ref.class;
+        boolean check3 = (Class<?>)MyValue1.val.class.getSuperclass() == MyValue1.ref.class;
         boolean check4 = Class.class.getSuperclass() == Object.class;
         return check1 && check2 && check3 && check4;
     }
@@ -181,7 +181,7 @@ public class TestIntrinsics extends ValueTypeTest {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         boolean result = test8(MyValue1.class, vt);
         Asserts.assertTrue(result);
-        result = test8(MyValue1.class.asIndirectType(), vt);
+        result = test8(MyValue1.ref.class, vt);
         Asserts.assertTrue(result);
     }
 
@@ -195,7 +195,7 @@ public class TestIntrinsics extends ValueTypeTest {
         MyValue1 vt = MyValue1.createWithFieldsInline(rI, rL);
         boolean result = test9(MyValue2.class, vt);
         Asserts.assertFalse(result);
-        result = test9(MyValue2.class.asIndirectType(), vt);
+        result = test9(MyValue2.ref.class, vt);
         Asserts.assertFalse(result);
     }
 
@@ -257,7 +257,7 @@ public class TestIntrinsics extends ValueTypeTest {
     // value type array creation via reflection
     @Test()
     public void test14(int len, long hash) {
-        Object[] va = (Object[])Array.newInstance(MyValue1.class.asPrimaryType().asIndirectType().asPrimaryType(), len);
+        Object[] va = (Object[])Array.newInstance(MyValue1.val.class, len);
         for (int i = 0; i < len; ++i) {
             Asserts.assertEQ(((MyValue1)va[i]).hashPrimitive(), hash);
         }
@@ -453,7 +453,7 @@ public class TestIntrinsics extends ValueTypeTest {
         Class<?>[] ca = new Class<?>[1];
         for (int i = 0; i < 1; ++i) {
           // Folds during loop opts
-          ca[i] = MyValue1.class.asPrimaryType();
+          ca[i] = MyValue1.val.class;
         }
         return Array.newInstance(ca[0], 1);
     }
@@ -538,7 +538,7 @@ public class TestIntrinsics extends ValueTypeTest {
     @Test(failOn=CALL_Unsafe)
     public MyValue2 test30(MyValue1 v) {
         if (V1_FLATTENED) {
-            return U.getValue(v, V1_OFFSET, MyValue2.class.asPrimaryType().asIndirectType().asPrimaryType());
+            return U.getValue(v, V1_OFFSET, MyValue2.val.class);
         }
         return (MyValue2)U.getReference(v, V1_OFFSET);
     }
@@ -567,7 +567,7 @@ public class TestIntrinsics extends ValueTypeTest {
     @Test(failOn=CALL_Unsafe)
     public MyValue1 test31() {
         if (TEST31_VT_FLATTENED) {
-            return U.getValue(this, TEST31_VT_OFFSET, MyValue1.class.asPrimaryType().asIndirectType().asPrimaryType());
+            return U.getValue(this, TEST31_VT_OFFSET, MyValue1.val.class);
         }
         return (MyValue1)U.getReference(this, TEST31_VT_OFFSET);
     }
@@ -583,7 +583,7 @@ public class TestIntrinsics extends ValueTypeTest {
     @Test(failOn=CALL_Unsafe)
     public void test32(MyValue1 vt) {
         if (TEST31_VT_FLATTENED) {
-            U.putValue(this, TEST31_VT_OFFSET, MyValue1.class.asPrimaryType().asIndirectType().asPrimaryType(), vt);
+            U.putValue(this, TEST31_VT_OFFSET, MyValue1.val.class, vt);
         } else {
             U.putReference(this, TEST31_VT_OFFSET, vt);
         }
@@ -613,7 +613,7 @@ public class TestIntrinsics extends ValueTypeTest {
     @Test(failOn=CALL_Unsafe)
     public MyValue1 test33(MyValue1[] arr) {
         if (TEST33_FLATTENED_ARRAY) {
-            return U.getValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class.asPrimaryType().asIndirectType().asPrimaryType());
+            return U.getValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.val.class);
         }
         return (MyValue1)U.getReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE);
     }
@@ -631,7 +631,7 @@ public class TestIntrinsics extends ValueTypeTest {
     @Test(failOn=CALL_Unsafe)
     public void test34(MyValue1[] arr, MyValue1 vt) {
         if (TEST33_FLATTENED_ARRAY) {
-            U.putValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.class.asPrimaryType().asIndirectType().asPrimaryType(), vt);
+            U.putValue(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, MyValue1.val.class, vt);
         } else {
             U.putReference(arr, TEST33_BASE_OFFSET + TEST33_INDEX_SCALE, vt);
         }
@@ -650,7 +650,7 @@ public class TestIntrinsics extends ValueTypeTest {
     @Test(failOn=CALL_Unsafe)
     public MyValue1 test35(Object o) {
         if (TEST31_VT_FLATTENED) {
-            return U.getValue(o, TEST31_VT_OFFSET, MyValue1.class.asPrimaryType().asIndirectType().asPrimaryType());
+            return U.getValue(o, TEST31_VT_OFFSET, MyValue1.val.class);
         }
         return (MyValue1)U.getReference(o, TEST31_VT_OFFSET);
     }
@@ -667,7 +667,7 @@ public class TestIntrinsics extends ValueTypeTest {
     @Test(failOn=CALL_Unsafe)
     public MyValue1 test36(long offset) {
         if (TEST31_VT_FLATTENED) {
-            return U.getValue(this, offset, MyValue1.class.asPrimaryType().asIndirectType().asPrimaryType());
+            return U.getValue(this, offset, MyValue1.val.class);
         }
         return (MyValue1)U.getReference(this, offset);
     }
@@ -684,7 +684,7 @@ public class TestIntrinsics extends ValueTypeTest {
     @Test(failOn=CALL_Unsafe)
     public void test37(Object o, MyValue1 vt) {
         if (TEST31_VT_FLATTENED) {
-            U.putValue(o, TEST31_VT_OFFSET, MyValue1.class.asPrimaryType().asIndirectType().asPrimaryType(), vt);
+            U.putValue(o, TEST31_VT_OFFSET, MyValue1.val.class, vt);
         } else {
             U.putReference(o, TEST31_VT_OFFSET, vt);
         }
@@ -703,7 +703,7 @@ public class TestIntrinsics extends ValueTypeTest {
     @Test(match = { CALL_Unsafe }, matchCount = { 1 })
     public void test38(Object o) {
         if (TEST31_VT_FLATTENED) {
-            U.putValue(this, TEST31_VT_OFFSET, MyValue1.class.asPrimaryType().asIndirectType().asPrimaryType(), o);
+            U.putValue(this, TEST31_VT_OFFSET, MyValue1.val.class, o);
         } else {
             U.putReference(this, TEST31_VT_OFFSET, o);
         }
@@ -742,7 +742,7 @@ public class TestIntrinsics extends ValueTypeTest {
     @DontCompile
     public void test40_verifier(boolean warmup) {
         int len = Math.abs(rI) % 42;
-        Object[] va = test40(MyValue1.class.asIndirectType(), len);
+        Object[] va = test40(MyValue1.ref.class, len);
         for (int i = 0; i < len; ++i) {
             Asserts.assertEQ(va[i], null);
         }
@@ -757,7 +757,7 @@ public class TestIntrinsics extends ValueTypeTest {
     @DontCompile
     public void test41_verifier(boolean warmup) {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
-        boolean result = test41(MyValue1.class.asIndirectType(), vt);
+        boolean result = test41(MyValue1.ref.class, vt);
         Asserts.assertTrue(result);
         result = test41(MyValue1.class, vt);
         Asserts.assertTrue(result);
@@ -771,7 +771,7 @@ public class TestIntrinsics extends ValueTypeTest {
     @DontCompile
     public void test42_verifier(boolean warmup) {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
-        boolean result = test42(MyValue2.class.asIndirectType(), vt);
+        boolean result = test42(MyValue2.ref.class, vt);
         Asserts.assertFalse(result);
         result = test42(MyValue2.class, vt);
         Asserts.assertFalse(result);
@@ -786,9 +786,9 @@ public class TestIntrinsics extends ValueTypeTest {
     @DontCompile
     public void test43_verifier(boolean warmup) {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
-        Object result = test43(MyValue1.class.asIndirectType(), vt);
+        Object result = test43(MyValue1.ref.class, vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
-        result = test43(MyValue1.class.asIndirectType(), null);
+        result = test43(MyValue1.ref.class, null);
         Asserts.assertEQ(result, null);
     }
 
@@ -801,7 +801,7 @@ public class TestIntrinsics extends ValueTypeTest {
     public void test44_verifier(boolean warmup) {
         MyValue1.ref vt = MyValue1.createWithFieldsInline(rI, rL);
         try {
-            test44(MyValue2.class.asIndirectType(), vt);
+            test44(MyValue2.ref.class, vt);
             throw new RuntimeException("should have thrown");
         } catch (ClassCastException cce) {
         }
@@ -809,7 +809,7 @@ public class TestIntrinsics extends ValueTypeTest {
 
     @Test()
     public Object test45(MyValue1.ref vt) {
-        return MyValue1.class.asIndirectType().cast(vt);
+        return MyValue1.ref.class.cast(vt);
     }
 
     @DontCompile
@@ -823,7 +823,7 @@ public class TestIntrinsics extends ValueTypeTest {
 
     @Test()
     public Object test46(MyValue1.ref vt) {
-        return MyValue2.class.asIndirectType().cast(vt);
+        return MyValue2.ref.class.cast(vt);
     }
 
     @DontCompile
@@ -839,7 +839,7 @@ public class TestIntrinsics extends ValueTypeTest {
 
     @Test()
     public Object test47(MyValue1.ref vt) {
-        return MyValue1.class.asPrimaryType().cast(vt);
+        return MyValue1.val.class.cast(vt);
     }
 
     @DontCompile
@@ -873,7 +873,7 @@ public class TestIntrinsics extends ValueTypeTest {
 
     @Test()
     public Object test49(MyValue1 vt) {
-        return MyValue1.class.asIndirectType().cast(vt);
+        return MyValue1.ref.class.cast(vt);
     }
 
     @DontCompile
@@ -895,7 +895,7 @@ public class TestIntrinsics extends ValueTypeTest {
         MyValue1.ref[] vba = new MyValue1.ref[42];
         Object result = test50(MyValue1.class, vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
-        result = test50(MyValue1.class.asIndirectType(), vt);
+        result = test50(MyValue1.ref.class, vt);
         Asserts.assertEQ(((MyValue1)result).hash(), vt.hash());
         result = test50(MyValue1[].class, va);
         Asserts.assertEQ(result, va);
@@ -918,7 +918,7 @@ public class TestIntrinsics extends ValueTypeTest {
     // value type array creation via reflection
     @Test()
     public void test51(int len) {
-        Object[] va = (Object[])Array.newInstance(MyValue1.class.asIndirectType().asPrimaryType().asIndirectType(), len);
+        Object[] va = (Object[])Array.newInstance(MyValue1.ref.class, len);
         for (int i = 0; i < len; ++i) {
             Asserts.assertEQ(va[i], null);
         }
@@ -1005,55 +1005,25 @@ public class TestIntrinsics extends ValueTypeTest {
         test53(MyValue1[].class, MyValue1.ref[].class, len, 4);
     }
 
-    // Test asIndirectType intrinsic with non-value mirror
-    @Test()
-    public Class<?> test54(Class<?> c) {
-        if (c.asIndirectType() != Integer.class) {
-            throw new RuntimeException("Unexpected class");
-        }
-        return Integer.class.asIndirectType();
-    }
-
-    @DontCompile
-    public void test54_verifier(boolean warmup) {
-        Class<?> result = test54(Integer.class);
-        Asserts.assertEQ(result, Integer.class);
-    }
-
-    // Test asPrimaryType intrinsic with non-value mirror
-    @Test()
-    public Class<?> test55(Class<?> c) {
-        if (c.asPrimaryType() != Integer.class) {
-            throw new RuntimeException("Unexpected class");
-        }
-        return Integer.class.asPrimaryType();
-    }
-
-    @DontCompile
-    public void test55_verifier(boolean warmup) {
-        Class<?> result = test55(Integer.class);
-        Asserts.assertEQ(result, Integer.class);
-    }
-
     // Same as test39 but Unsafe.putInt to buffer is not intrinsified/compiled
     @DontCompile
-    public void test56_callee(MyValue1.ref v) { // Use .ref here to make sure the argument is not scalarized (otherwise larval information is lost)
+    public void test54_callee(MyValue1.ref v) { // Use .ref here to make sure the argument is not scalarized (otherwise larval information is lost)
         U.putInt(v, X_OFFSET, rI);
     }
 
     @Test()
     @Warmup(10000) // Fill up the TLAB to trigger slow path allocation
-    public MyValue1 test56(MyValue1 v) {
+    public MyValue1 test54(MyValue1 v) {
         v = U.makePrivateBuffer(v);
-        test56_callee(v);
+        test54_callee(v);
         v = U.finishPrivateBuffer(v);
         return v;
     }
 
     @DontCompile
-    public void test56_verifier(boolean warmup) {
+    public void test54_verifier(boolean warmup) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue1 res = test56(v.setX(v, 0));
+        MyValue1 res = test54(v.setX(v, 0));
         Asserts.assertEQ(res.hash(), v.hash());
     }
 }

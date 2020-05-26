@@ -882,10 +882,6 @@
    do_signature(currentThread_signature,                         "()Ljava/lang/Thread;")                                \
                                                                                                                         \
   /* reflective intrinsics, for java/lang/Class, etc. */                                                                \
-  do_intrinsic(_asPrimaryType,           java_lang_Class,         asPrimaryType_name, void_class_signature,     F_R)    \
-   do_name(     asPrimaryType_name,                              "asPrimaryType")                                       \
-  do_intrinsic(_asIndirectType,          java_lang_Class,         asIndirectType_name, void_class_signature,    F_R)    \
-   do_name(     asIndirectType_name,                             "asIndirectType")                                      \
   do_intrinsic(_isAssignableFrom,         java_lang_Class,        isAssignableFrom_name, class_boolean_signature, F_RN) \
    do_name(     isAssignableFrom_name,                           "isAssignableFrom")                                    \
   do_intrinsic(_isInstance,               java_lang_Class,        isInstance_name, object_boolean_signature,     F_RN)  \

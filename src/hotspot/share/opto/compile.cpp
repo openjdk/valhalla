@@ -3387,6 +3387,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
       assert( !tp || oop_offset_is_sane(tp), "" );
     }
 #endif
+    // TODO remove clear_prop_bits bits stuff once the runtime does not set it anymore
     if (EnableValhalla &&
         ((nop == Op_LoadKlass && ((LoadKlassNode*)n)->clear_prop_bits()) ||
          (nop == Op_LoadNKlass && ((LoadNKlassNode*)n)->clear_prop_bits()))) {
@@ -3394,9 +3395,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
       assert(!tk->klass_is_exact(), "should have been folded");
       assert(n->as_Mem()->adr_type()->offset() == oopDesc::klass_offset_in_bytes(), "unexpected LoadKlass");
       if (tk->klass()->can_be_value_array_klass()) {
-        // Array load klass needs to filter out property bits (but not
-        // GetNullFreePropertyNode or GetFlattenedPropertyNode which
-        // needs to extract the storage property bits)
+        // Array load klass needs to filter out property bits
         uint last = unique();
         Node* pointer = NULL;
         if (nop == Op_LoadKlass) {
@@ -3412,7 +3411,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
         }
         for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
           Node* u = n->fast_out(i);
-          if (u->_idx < last && u->Opcode() != Op_GetNullFreeProperty && u->Opcode() != Op_GetFlattenedProperty) {
+          if (u->_idx < last) {
             // If user is a comparison with a klass that can't be a value type
             // array klass, we don't need to clear the storage property bits.
             Node* cmp = (u->is_DecodeNKlass() && u->outcnt() == 1) ? u->unique_out() : u;
@@ -3954,23 +3953,6 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     break;
   }
 #endif
-  case Op_GetNullFreeProperty:
-  case Op_GetFlattenedProperty: {
-    // Extract the null free bits
-    uint last = unique();
-    Node* null_free = NULL;
-    int bit = nop == Op_GetNullFreeProperty ? ArrayStorageProperties::null_free_bit : ArrayStorageProperties::flattened_bit;
-    if (n->in(1)->Opcode() == Op_LoadKlass) {
-      Node* cast = new CastP2XNode(NULL, n->in(1));
-      null_free = new AndLNode(cast, new ConLNode(TypeLong::make(((jlong)1)<<(oopDesc::wide_storage_props_shift + bit))));
-    } else {
-      assert(n->in(1)->Opcode() == Op_LoadNKlass, "not a compressed klass?");
-      Node* cast = new CastN2INode(n->in(1));
-      null_free = new AndINode(cast, new ConINode(TypeInt::make(1<<(oopDesc::narrow_storage_props_shift + bit))));
-    }
-    n->subsume_by(null_free, this);
-    break;
-  }
   default:
     assert(!n->is_Call(), "");
     assert(!n->is_Mem(), "");
@@ -4474,11 +4456,6 @@ int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
     }
   }
 
-  // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
-  // [V is a subtype of [V? but the klass for [V is not equal to the klass for [V?. Perform a full test.
-  if (superk->is_obj_array_klass() && !superk->as_array_klass()->storage_properties().is_null_free() && superk->as_array_klass()->element_klass()->is_valuetype()) {
-    return SSC_full_test;
-  }
   // If casting to an instance klass, it must have no subtypes
   if (superk->is_interface()) {
     // Cannot trust interfaces yet.

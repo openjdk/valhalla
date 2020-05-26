@@ -616,8 +616,6 @@ bool C2Compiler::is_intrinsic_supported(const methodHandle& method, bool is_virt
   case vmIntrinsics::_longBitsToDouble:
   case vmIntrinsics::_Reference_get:
   case vmIntrinsics::_Class_cast:
-  case vmIntrinsics::_asPrimaryType:
-  case vmIntrinsics::_asIndirectType:
   case vmIntrinsics::_aescrypt_encryptBlock:
   case vmIntrinsics::_aescrypt_decryptBlock:
   case vmIntrinsics::_cipherBlockChaining_encryptAESCrypt:

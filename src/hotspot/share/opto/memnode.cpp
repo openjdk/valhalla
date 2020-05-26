@@ -1886,22 +1886,6 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
     const TypeInstPtr* tinst = tp->is_instptr();
     BasicType bt = memory_type();
 
-    // Fold component and value mirror loads
-    ciInstanceKlass* ik = tinst->klass()->as_instance_klass();
-    if (ik == phase->C->env()->Class_klass() && (off == java_lang_Class::component_mirror_offset_in_bytes() ||
-                                                 off == java_lang_Class::inline_mirror_offset_in_bytes())) {
-      ciType* mirror_type = tinst->java_mirror_type();
-      if (mirror_type != NULL) {
-        const Type* const_oop = TypePtr::NULL_PTR;
-        if (mirror_type->is_array_klass()) {
-          const_oop = TypeInstPtr::make(mirror_type->as_array_klass()->component_mirror_instance());
-        } else if (mirror_type->is_valuetype()) {
-          const_oop = TypeInstPtr::make(mirror_type->as_value_klass()->inline_mirror_instance());
-        }
-        return (bt == T_NARROWOOP) ? const_oop->make_narrowoop() : const_oop;
-      }
-    }
-
     // Optimize loads from constant fields.
     ciObject* const_oop = tinst->const_oop();
     if (!is_mismatched_access() && off != Type::OffsetBot && const_oop != NULL && const_oop->is_instance()) {
@@ -2247,8 +2231,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             offset == java_lang_Class::array_klass_offset_in_bytes())) {
       // We are loading a special hidden field from a Class mirror object,
       // the field which points to the VM's Klass metaobject.
-      bool is_indirect_type = true;
-      ciType* t = tinst->java_mirror_type(&is_indirect_type);
+      ciType* t = tinst->java_mirror_type();
       // java_mirror_type returns non-null for compile-time Class constants.
       if (t != NULL) {
         // constant oop => constant klass
@@ -2258,7 +2241,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             // klass.  Users of this result need to do a null check on the returned klass.
             return TypePtr::NULL_PTR;
           }
-          return TypeKlassPtr::make(ciArrayKlass::make(t, /* never_null */ !is_indirect_type));
+          return TypeKlassPtr::make(ciArrayKlass::make(t));
         }
         if (!t->is_klass()) {
           // a primitive Class (e.g., int.class) has NULL for a klass field
@@ -2299,13 +2282,10 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
     ciKlass *tary_klass = tary->klass();
     if (tary_klass != NULL   // can be NULL when at BOTTOM or TOP
         && tary->offset() == oopDesc::klass_offset_in_bytes()) {
-      ciArrayKlass* ak = tary_klass->as_array_klass();
-      // Do not fold klass loads from [V?. The runtime type might be [V due to [V <: [V?
-      // and the klass for [V is not equal to the klass for [V?.
       if (tary->klass_is_exact()) {
         return TypeKlassPtr::make(tary_klass);
       }
-
+      ciArrayKlass* ak = tary_klass->as_array_klass();
       // If the klass is an object array, we defer the question to the
       // array component klass.
       if (ak->is_obj_array_klass()) {
@@ -2314,7 +2294,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
         if (base_k->is_loaded() && base_k->is_instance_klass()) {
           ciInstanceKlass *ik = base_k->as_instance_klass();
           // See if we can become precise: no subklasses and no interface
-          if (!ik->is_interface() && !ik->has_subklass() && (!ik->is_valuetype() || ak->storage_properties().is_null_free())) {
+          if (!ik->is_interface() && !ik->has_subklass()) {
             //assert(!UseExactTypes, "this code should be useless with exact types");
             // Add a dependence; if any subclass added we need to recompile
             if (!ik->is_final()) {
@@ -2352,7 +2332,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
     } else if (klass->is_value_array_klass() &&
                tkls->offset() == in_bytes(ObjArrayKlass::element_klass_offset())) {
       ciKlass* elem = klass->as_value_array_klass()->element_klass();
-      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0), true);
+      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0), /* flat_array= */ true);
     }
     if( klass->is_instance_klass() && tkls->klass_is_exact() &&
         tkls->offset() == in_bytes(Klass::super_offset())) {
@@ -2372,52 +2352,6 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
 // Also feed through the klass in Allocate(...klass...)._klass.
 Node* LoadKlassNode::Identity(PhaseGVN* phase) {
   return klass_identity_common(phase);
-}
-
-const Type* GetStoragePropertyNode::Value(PhaseGVN* phase) const {
-  if (in(1) != NULL) {
-    const Type* in1_t = phase->type(in(1));
-    if (in1_t == Type::TOP) {
-      return Type::TOP;
-    }
-    const TypeKlassPtr* tk = in1_t->make_ptr()->is_klassptr();
-    ciArrayKlass* ak = tk->klass()->as_array_klass();
-    ciKlass* elem = ak->element_klass();
-    if (tk->klass_is_exact() || !elem->can_be_value_klass()) {
-      int props_shift = in1_t->isa_narrowklass() ? oopDesc::narrow_storage_props_shift : oopDesc::wide_storage_props_shift;
-      ArrayStorageProperties props = ak->storage_properties();
-      intptr_t storage_properties = 0;
-      if ((Opcode() == Op_GetFlattenedProperty && props.is_flattened()) ||
-          (Opcode() == Op_GetNullFreeProperty && props.is_null_free())) {
-        storage_properties = 1;
-      }
-      if (in1_t->isa_narrowklass()) {
-        return TypeInt::make((int)storage_properties);
-      }
-      return TypeX::make(storage_properties);
-    }
-  }
-  return bottom_type();
-}
-
-Node* GetStoragePropertyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
-  if (!can_reshape) {
-    return NULL;
-  }
-  if (in(1) != NULL && in(1)->is_Phi()) {
-    Node* phi = in(1);
-    Node* r = phi->in(0);
-    Node* new_phi = new PhiNode(r, bottom_type());
-    for (uint i = 1; i < r->req(); i++) {
-      Node* in = phi->in(i);
-      if (in == NULL) continue;
-      Node* n = clone();
-      n->set_req(1, in);
-      new_phi->init_req(i, phase->transform(n));
-    }
-    return new_phi;
-  }
-  return NULL;
 }
 
 Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
