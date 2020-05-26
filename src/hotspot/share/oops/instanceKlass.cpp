@@ -537,14 +537,16 @@ void InstanceKlass::deallocate_interfaces(ClassLoaderData* loader_data,
     // check that the interfaces don't come from super class
     Array<InstanceKlass*>* sti = (super_klass == NULL) ? NULL :
                     InstanceKlass::cast(super_klass)->transitive_interfaces();
-    if (ti != sti && ti != NULL && !ti->is_shared()) {
+    if (ti != sti && ti != NULL && !ti->is_shared() &&
+        ti != Universe::the_single_IdentityObject_klass_array()) {
       MetadataFactory::free_array<InstanceKlass*>(loader_data, ti);
     }
   }
 
   // local interfaces can be empty
   if (local_interfaces != Universe::the_empty_instance_klass_array() &&
-      local_interfaces != NULL && !local_interfaces->is_shared()) {
+      local_interfaces != NULL && !local_interfaces->is_shared() &&
+      local_interfaces != Universe::the_single_IdentityObject_klass_array()) {
     MetadataFactory::free_array<InstanceKlass*>(loader_data, local_interfaces);
   }
 }

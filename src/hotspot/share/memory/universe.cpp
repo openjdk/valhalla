@@ -139,6 +139,7 @@ Array<int>* Universe::_the_empty_int_array            = NULL;
 Array<u2>* Universe::_the_empty_short_array           = NULL;
 Array<Klass*>* Universe::_the_empty_klass_array     = NULL;
 Array<InstanceKlass*>* Universe::_the_empty_instance_klass_array  = NULL;
+Array<InstanceKlass*>* Universe::_the_single_IdentityObject_klass_array = NULL;
 Array<Method*>* Universe::_the_empty_method_array   = NULL;
 
 // These variables are guarded by FullGCALot_lock.
@@ -224,6 +225,7 @@ void Universe::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_the_empty_instance_klass_array);
   it->push(&_the_empty_method_array);
   it->push(&_the_array_interfaces_array);
+  it->push(&_the_single_IdentityObject_klass_array);
 
   _finalizer_register_cache->metaspace_pointers_do(it);
   _loader_addClass_cache->metaspace_pointers_do(it);
@@ -262,6 +264,7 @@ void Universe::serialize(SerializeClosure* f) {
   f->do_ptr((void**)&_the_empty_method_array);
   f->do_ptr((void**)&_the_empty_klass_array);
   f->do_ptr((void**)&_the_empty_instance_klass_array);
+  f->do_ptr((void**)&_the_single_IdentityObject_klass_array);
   _finalizer_register_cache->serialize(f);
   _loader_addClass_cache->serialize(f);
   _throw_illegal_access_error_cache->serialize(f);
@@ -343,6 +346,8 @@ void Universe::genesis(TRAPS) {
       assert(_the_array_interfaces_array->at(2) ==
                    SystemDictionary::IdentityObject_klass(), "u3");
 
+      assert(_the_single_IdentityObject_klass_array->at(0) ==
+          SystemDictionary::IdentityObject_klass(), "u3");
     } else
 #endif
     {
@@ -470,6 +475,14 @@ void Universe::initialize_basic_type_mirrors(TRAPS) {
   //_mirrors[T_OBJECT]  = _object_klass->java_mirror();
   //_mirrors[T_ARRAY]   = _object_klass->java_mirror();
 }
+
+void Universe::initialize_the_single_IdentityObject_klass_array(InstanceKlass* ik, TRAPS) {
+    assert(_the_single_IdentityObject_klass_array == NULL, "Must not be initialized twice");
+    assert(ik->name() == vmSymbols::java_lang_IdentityObject(), "Must be");
+    Array<InstanceKlass*>* array = MetadataFactory::new_array<InstanceKlass*>(ik->class_loader_data(), 1, NULL, CHECK);
+    array->at_put(0, ik);
+    _the_single_IdentityObject_klass_array = array;
+  }
 
 void Universe::fixup_mirrors(TRAPS) {
   // Bootstrap problem: all classes gets a mirror (java.lang.Class instance) assigned eagerly,
