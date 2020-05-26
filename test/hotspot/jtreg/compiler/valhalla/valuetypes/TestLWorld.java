@@ -1378,7 +1378,7 @@ public class TestLWorld extends ValueTypeTest {
     // Tests writing an array element with a (statically known) incompatible type
     private static final MethodHandle setArrayElementIncompatible = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
         "setArrayElementIncompatible",
-        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class.asPrimaryType()),
+        MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class),
         CODE -> {
             CODE.
             aload_1().
@@ -2257,9 +2257,8 @@ public class TestLWorld extends ValueTypeTest {
         }
     }
 
-
-    // Following: should make 2 copies of the loop, one for non
-    // flattened arrays, one for other cases
+    // Tests for the Loop Unswitching optimization
+    // Should make 2 copies of the loop, one for non flattened arrays, one for other cases.
     @Test(match = { COUNTEDLOOP_MAIN }, matchCount = { 2 } )
     @Warmup(0)
     public void test84(Object[] src, Object[] dst) {
@@ -2314,7 +2313,7 @@ public class TestLWorld extends ValueTypeTest {
         MyValue2[] src = new MyValue2[100];
         Arrays.fill(src, testValue2);
         Object[] dst = new Object[100];
-        rerun_and_recompile_for("TestLWorld::test85", 10,
+        rerun_and_recompile_for("TestLWorld::test86", 10,
                                 () -> { test86(src, dst);
                                         Asserts.assertTrue(Arrays.equals(src, dst)); });
     }
@@ -2856,5 +2855,62 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertEquals(array2[1], v);
         Asserts.assertEquals(array2[2], v);
         Asserts.assertEquals(result, v);
+    }
+
+    // More tests for the Loop Unswitching optimization (similar to test84 and following)
+    Object oFld1, oFld2;
+
+    @Test(valid = G1GCOn, failOn = STORE_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD, match = { COUNTEDLOOP, LOAD_UNKNOWN_VALUE }, matchCount = { 2, 2 } )
+    @Test(valid = G1GCOff, failOn = STORE_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD, match = { COUNTEDLOOP, LOAD_UNKNOWN_VALUE }, matchCount = { 3, 2 } )
+    @Warmup(0)
+    public void test107(Object[] src1, Object[] src2) {
+        for (int i = 0; i < src1.length; i++) {
+            oFld1 = src1[i];
+            oFld2 = src2[i];
+        }
+    }
+
+    @DontCompile
+    public void test107_verifier(boolean warmup) {
+        MyValue2[] src1 = new MyValue2[100];
+        Arrays.fill(src1, testValue2);
+        Object[] src2 = new Object[100];
+        Object obj = new Object();
+        Arrays.fill(src2, obj);
+        rerun_and_recompile_for("TestLWorld::test107", 10,
+                                () -> { test107(src1, src2);
+                                        Asserts.assertEquals(oFld1, testValue2);
+                                        Asserts.assertEquals(oFld2, obj);
+                                        test107(src2, src1);
+                                        Asserts.assertEquals(oFld1, obj);
+                                        Asserts.assertEquals(oFld2, testValue2);  });
+    }
+
+    @Test(valid = G1GCOn, failOn = LOAD_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD, match = { COUNTEDLOOP, STORE_UNKNOWN_VALUE }, matchCount = { 4, 9 } )
+    @Test(valid = G1GCOff, failOn = LOAD_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD, match = { COUNTEDLOOP, STORE_UNKNOWN_VALUE }, matchCount = { 4, 12 } )
+    @Warmup(0)
+    public void test108(Object[] dst1, Object[] dst2, Object o1, Object o2) {
+        for (int i = 0; i < dst1.length; i++) {
+            dst1[i] = o1;
+            dst2[i] = o2;
+        }
+    }
+
+    @DontCompile
+    public void test108_verifier(boolean warmup) {
+        MyValue2[] dst1 = new MyValue2[100];
+        Object[] dst2 = new Object[100];
+        Object o1 = new Object();
+        rerun_and_recompile_for("TestLWorld::test108", 10,
+                                () -> { test108(dst1, dst2, testValue2, o1);
+                                        for (int i = 0; i < dst1.length; i++) {
+                                            Asserts.assertEquals(dst1[i], testValue2);
+                                            Asserts.assertEquals(dst2[i], o1);
+                                        }
+                                        test108(dst2, dst1, o1, testValue2);
+                                        for (int i = 0; i < dst1.length; i++) {
+                                            Asserts.assertEquals(dst1[i], testValue2);
+                                            Asserts.assertEquals(dst2[i], o1);
+                                        } });
     }
 }

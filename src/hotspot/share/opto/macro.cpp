@@ -1800,26 +1800,7 @@ Node* PhaseMacroExpand::initialize_object(AllocateNode* alloc,
   }
   rawmem = make_store(control, rawmem, object, oopDesc::mark_offset_in_bytes(), mark_node, TypeX_X->basic_type());
 
-  BasicType bt = T_METADATA;
-  Node* metadata = klass_node;
-  Node* properties = alloc->in(AllocateNode::StorageProperties);
-  if (properties != NULL) {
-    // Encode array storage properties into klass pointer
-    assert(EnableValhalla, "array storage properties not supported");
-    if (UseCompressedClassPointers) {
-      // Compress the klass pointer before inserting the storage properties value
-      metadata = transform_later(new EncodePKlassNode(metadata, metadata->bottom_type()->make_narrowklass()));
-      metadata = transform_later(new CastN2INode(metadata));
-      metadata = transform_later(new OrINode(metadata, transform_later(new ConvL2INode(properties))));
-      bt = T_INT;
-    } else {
-      metadata = transform_later(new CastP2XNode(NULL, metadata));
-      metadata = transform_later(new OrXNode(metadata, properties));
-      bt = T_LONG;
-    }
-  }
-  rawmem = make_store(control, rawmem, object, oopDesc::klass_offset_in_bytes(), metadata, bt);
-
+  rawmem = make_store(control, rawmem, object, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
   int header_size = alloc->minimum_header_size();  // conservatively small
 
   // Array length

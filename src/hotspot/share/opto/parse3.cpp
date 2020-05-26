@@ -318,14 +318,13 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
 void Parse::do_newarray() {
   bool will_link;
   ciKlass* klass = iter().get_klass(will_link);
-  bool never_null = iter().is_klass_never_null();
 
   // Uncommon Trap when class that array contains is not loaded
   // we need the loaded class for the rest of graph; do not
   // initialize the container class (see Java spec)!!!
   assert(will_link, "newarray: typeflow responsibility");
 
-  ciArrayKlass* array_klass = ciArrayKlass::make(klass, never_null);
+  ciArrayKlass* array_klass = ciArrayKlass::make(klass);
 
   // Check that array_klass object is loaded
   if (!array_klass->is_loaded()) {

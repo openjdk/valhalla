@@ -499,7 +499,7 @@ protected:
   Klass* array_klass(int rank, TRAPS)         {  return array_klass_impl(false, rank, THREAD); }
 
   // array class with this klass as element type
-   Klass* array_klass(TRAPS)                   {  return array_klass_impl(false, THREAD); }
+  Klass* array_klass(TRAPS)                   {  return array_klass_impl(false, THREAD); }
 
   // These will return NULL instead of allocating on the heap:
   // NB: these can block for a mutex, like other functions with TRAPS arg.

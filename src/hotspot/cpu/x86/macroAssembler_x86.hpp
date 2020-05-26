@@ -345,7 +345,6 @@ class MacroAssembler: public Assembler {
 
   // oop manipulations
   void load_metadata(Register dst, Register src);
-  void load_storage_props(Register dst, Register src);
   void load_klass(Register dst, Register src);
   void store_klass(Register dst, Register src);
 

@@ -83,8 +83,6 @@ public:
   int value_arg_slots();
   int default_value_offset() const;
   ciInstance* default_value_instance() const;
-  ciInstance* inline_mirror_instance() const;
-  ciInstance* indirect_mirror_instance() const;
   bool contains_oops() const;
   Array<SigEntry>* extended_sig() const;
   address pack_handler() const;

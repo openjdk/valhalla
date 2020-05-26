@@ -1093,12 +1093,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
       case Bytecodes::_anewarray:
         { Bytecode_anewarray anew(caller_method(), caller_method->bcp_from(bci));
           Klass* ek = caller_method->constants()->klass_at(anew.index(), CHECK);
-          if (ek->is_value() && caller_method->constants()->klass_at_noresolve(anew.index())->is_Q_signature()) {
-            k = ek->array_klass(1, CHECK);
-            assert(k->is_null_free_array_klass(), "Expect a null-free array class here");
-          } else {
-            k = ek->array_klass(CHECK);
-          }
+          k = ek->array_klass(CHECK);
         }
         break;
       case Bytecodes::_ldc:

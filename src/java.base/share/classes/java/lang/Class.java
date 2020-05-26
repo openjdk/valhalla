@@ -536,7 +536,6 @@ public final class Class<T> implements java.io.Serializable,
      * @return the {@code Class} object representing the primary type of
      *         this class
      */
-    @HotSpotIntrinsicCandidate
     public Class<T> asPrimaryType() {
         return isInlineClass() ? inlineType : this;
     }
@@ -556,7 +555,6 @@ public final class Class<T> implements java.io.Serializable,
      * @return the {@code Class} object representing the indirect projection type of
      *         this class if this class is an inline class; otherwise, this class.
      */
-    @HotSpotIntrinsicCandidate
     public Class<T> asIndirectType() {
         return isInlineClass() ? indirectType : this;
     }

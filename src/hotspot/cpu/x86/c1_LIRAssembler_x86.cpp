@@ -1400,6 +1400,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       __ verify_oop(dest->as_register());
     }
   } else if (type == T_ADDRESS && addr->disp() == oopDesc::klass_offset_in_bytes()) {
+    // TODO remove clear_prop_bits bits stuff once the runtime does not set it anymore
 #ifdef _LP64
     if (UseCompressedClassPointers) {
       __ andl(dest->as_register(), oopDesc::compressed_klass_mask());
@@ -1996,32 +1997,33 @@ void LIR_Assembler::emit_opTypeCheck(LIR_OpTypeCheck* op) {
 }
 
 void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
-  // We are loading/storing an array that *may* be a flattened array (the declared type
-  // Object[], interface[], or VT?[]). If this array is flattened, take slow path.
-
-  __ load_storage_props(op->tmp()->as_register(), op->array()->as_register());
-  __ testb(op->tmp()->as_register(), ArrayStorageProperties::flattened_value);
+  // We are loading/storing from/to an array that *may* be flattened (the
+  // declared type is Object[], abstract[], interface[] or VT.ref[]).
+  // If this array is flattened, take the slow path.
+  Register klass = op->tmp()->as_register();
+  __ load_klass(klass, op->array()->as_register());
+  __ movl(klass, Address(klass, Klass::layout_helper_offset()));
+  __ testl(klass, Klass::_lh_array_tag_vt_value_bit_inplace);
   __ jcc(Assembler::notZero, *op->stub()->entry());
   if (!op->value()->is_illegal()) {
-    // We are storing into the array.
+    // The array is not flattened, but it might be null-free. If we are storing
+    // a null into a null-free array, take the slow path (which will throw NPE).
     Label skip;
-    __ testb(op->tmp()->as_register(), ArrayStorageProperties::null_free_value);
-    __ jcc(Assembler::zero, skip);
-    // The array is not flattened, but it is null_free. If we are storing
-    // a null, take the slow path (which will throw NPE).
     __ cmpptr(op->value()->as_register(), (int32_t)NULL_WORD);
-    __ jcc(Assembler::zero, *op->stub()->entry());
+    __ jcc(Assembler::notEqual, skip);
+    __ testl(klass, Klass::_lh_null_free_bit_inplace);
+    __ jcc(Assembler::notZero, *op->stub()->entry());
     __ bind(skip);
   }
 }
 
 void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
-  // This is called when we use aastore into a an array declared as "[LVT;",
-  // where we know VT is not flattenable (due to ValueArrayElemMaxFlatOops, etc).
-  // However, we need to do a NULL check if the actual array is a "[QVT;".
-
-  __ load_storage_props(op->tmp()->as_register(), op->array()->as_register());
-  __ testb(op->tmp()->as_register(), ArrayStorageProperties::null_free_value);
+  // We are storing into an array that *may* be null-free (the declared type is
+  // Object[], abstract[], interface[] or VT.ref[]).
+  Register klass = op->tmp()->as_register();
+  __ load_klass(klass, op->array()->as_register());
+  __ movl(klass, Address(klass, Klass::layout_helper_offset()));
+  __ testl(klass, Klass::_lh_null_free_bit_inplace);
 }
 
 void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op) {
@@ -3263,15 +3265,16 @@ void LIR_Assembler::arraycopy_valuetype_check(Register obj, Register tmp, CodeSt
     __ testptr(obj, obj);
     __ jcc(Assembler::zero, *slow_path->entry());
   }
-  __ load_storage_props(tmp, obj);
+  __ load_klass(tmp, obj);
+  __ movl(tmp, Address(tmp, Klass::layout_helper_offset()));
   if (is_dest) {
     // We also take slow path if it's a null_free destination array, just in case the source array
     // contains NULLs.
-    __ testb(tmp, ArrayStorageProperties::flattened_value | ArrayStorageProperties::null_free_value);
+    __ testl(tmp, Klass::_lh_null_free_bit_inplace);
   } else {
-    __ testb(tmp, ArrayStorageProperties::flattened_value);
+    __ testl(tmp, Klass::_lh_array_tag_vt_value_bit_inplace);
   }
-  __ jcc(Assembler::notEqual, *slow_path->entry());
+  __ jcc(Assembler::notZero, *slow_path->entry());
 }
 
 

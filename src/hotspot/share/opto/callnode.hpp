@@ -882,7 +882,6 @@ public:
     ValueNode,
     DefaultValue,                     // default value in case of non flattened value array
     RawDefaultValue,                  // same as above but as raw machine word
-    StorageProperties,                // storage properties for arrays
     ParmLimit
   };
 
@@ -895,7 +894,6 @@ public:
     fields[ValueNode]   = Type::BOTTOM;
     fields[DefaultValue] = TypeInstPtr::NOTNULL;
     fields[RawDefaultValue] = TypeX_X;
-    fields[StorageProperties] = TypeX_X;
 
     const TypeTuple *domain = TypeTuple::make(ParmLimit, fields);
 
@@ -1001,14 +999,13 @@ class AllocateArrayNode : public AllocateNode {
 public:
   AllocateArrayNode(Compile* C, const TypeFunc *atype, Node *ctrl, Node *mem, Node *abio,
                     Node* size, Node* klass_node, Node* initial_test,
-                    Node* count_val, Node* default_value, Node* raw_default_value, Node* storage_properties)
+                    Node* count_val, Node* default_value, Node* raw_default_value)
     : AllocateNode(C, atype, ctrl, mem, abio, size, klass_node, initial_test)
   {
     init_class_id(Class_AllocateArray);
     set_req(AllocateNode::ALength,        count_val);
     init_req(AllocateNode::DefaultValue,  default_value);
     init_req(AllocateNode::RawDefaultValue, raw_default_value);
-    init_req(AllocateNode::StorageProperties, storage_properties);
   }
   virtual int Opcode() const;
   virtual Node *Ideal(PhaseGVN *phase, bool can_reshape);

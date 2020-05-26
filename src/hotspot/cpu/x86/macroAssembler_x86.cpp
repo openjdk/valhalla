@@ -4610,15 +4610,6 @@ void MacroAssembler::load_metadata(Register dst, Register src) {
   }
 }
 
-void MacroAssembler::load_storage_props(Register dst, Register src) {
-  load_metadata(dst, src);
-  if (UseCompressedClassPointers) {
-    shrl(dst, oopDesc::narrow_storage_props_shift);
-  } else {
-    shrq(dst, oopDesc::wide_storage_props_shift);
-  }
-}
-
 void MacroAssembler::load_method_holder(Register holder, Register method) {
   movptr(holder, Address(method, Method::const_offset()));                      // ConstMethod*
   movptr(holder, Address(holder, ConstMethod::constants_offset()));             // ConstantPool*

@@ -129,13 +129,8 @@ ciKlass* Instruction::as_loaded_klass_or_null() const {
 bool Instruction::is_loaded_flattened_array() const {
   if (ValueArrayFlatten) {
     ciType* type = declared_type();
-    if (type != NULL && type->is_value_array_klass()) {
-      ciValueArrayKlass* vak = type->as_value_array_klass();
-      ArrayStorageProperties props = vak->storage_properties();
-      return (!props.is_empty() && props.is_null_free() && props.is_flattened());
-    }
+    return type != NULL && type->is_value_array_klass();
   }
-
   return false;
 }
 
@@ -147,16 +142,12 @@ bool Instruction::maybe_flattened_array() {
         // Due to array covariance, the runtime type might be a flattened array.
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
         if (element_klass->can_be_value_klass() && (!element_klass->is_valuetype() || element_klass->as_value_klass()->flatten_array())) {
-          // We will add a runtime check for flat-ness.
           return true;
         }
       } else if (type->is_value_array_klass()) {
         ciKlass* element_klass = type->as_value_array_klass()->element_klass();
-        if (!element_klass->is_loaded() ||
-            (element_klass->is_valuetype() && element_klass->as_value_klass()->flatten_array())) {
-          // We will add a runtime check for flat-ness.
-          return true;
-        }
+        assert(!element_klass->is_loaded() || element_klass->as_value_klass()->flatten_array(), "must be flattened");
+        return true;
       } else if (type->is_klass() && type->as_klass()->is_java_lang_Object()) {
         // This can happen as a parameter to System.arraycopy()
         return true;
@@ -177,8 +168,7 @@ bool Instruction::maybe_null_free_array() {
       // Due to array covariance, the runtime type might be a null-free array.
       ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
       if (element_klass->can_be_value_klass()) {
-          // We will add a runtime check for null-free-ness.
-          return true;
+        return true;
       }
     }
   } else {
@@ -298,16 +288,7 @@ ciType* NewTypeArray::exact_type() const {
 }
 
 ciType* NewObjectArray::exact_type() const {
-  ciKlass* element_klass = klass();
-  if (is_never_null() && element_klass->is_valuetype()) {
-    if (element_klass->as_value_klass()->flatten_array()) {
-      return ciValueArrayKlass::make(element_klass);
-    } else {
-      return ciObjArrayKlass::make(element_klass, /*never_null =*/true);
-    }
-  } else {
-    return ciObjArrayKlass::make(element_klass);
-  }
+  return ciArrayKlass::make(klass());
 }
 
 ciType* NewMultiArray::exact_type() const {
