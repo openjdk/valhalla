@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -156,7 +156,7 @@ public class ArrayElementVarHandleTest {
             Point.makePoint(100, 200)
     };
 
-    private static final Point.ref[] NULLABLE_POINTS = new Point.ref[]{
+    private static final Point.ref[] NULL_POINTS = new Point.ref[]{
         Point.makePoint(11, 22),
                 Point.makePoint(110, 220),
                 null
@@ -168,6 +168,8 @@ public class ArrayElementVarHandleTest {
             Line.makeLine(15, 25, 35, 45),
             Line.makeLine(20, 30, 40, 50)
     };
+
+    private static final Line.ref[] NULL_LINES = new Line.ref[] { null, null };
 
     private static final NonFlattenValue[] NFV_ARRAY = new NonFlattenValue[]{
             NonFlattenValue.make(1, 2),
@@ -184,12 +186,12 @@ public class ArrayElementVarHandleTest {
         // Point[] <: Point.ref[] <: Object
         Object[] array1 = test.newArray(POINTS.length);
         test.setElements(array1, POINTS);
-        test.setElements(array1, NULLABLE_POINTS);
+        test.setElements(array1, NULL_POINTS);
         test.setElements(array1, new Object[] { "abc", Point.makePoint(1, 2) });
 
-        Point.ref []array2 = new Point.ref [NULLABLE_POINTS.length];
+        Point.ref []array2 = new Point.ref [NULL_POINTS.length];
         test.setElements(array2, POINTS);
-        test.setElements(array2, NULLABLE_POINTS);
+        test.setElements(array2, NULL_POINTS);
 
         Point[] array3 = new Point[POINTS.length];
         test.setElements(array3, POINTS);
@@ -199,19 +201,18 @@ public class ArrayElementVarHandleTest {
      * VarHandle of Point.ref[].class
      */
     @Test
-    public static void testIndirectPointVarHandle() throws Throwable {
-        Object o = new Point.ref[0];
-        ArrayElementVarHandleTest test = new ArrayElementVarHandleTest(o.getClass());
-        assertTrue(test.componentType.isIndirectType());
+    public static void testPointRefVarHandle() throws Throwable {
+        ArrayElementVarHandleTest test = new ArrayElementVarHandleTest(Point.ref[].class);
+        assertTrue(test.componentType == Point.ref.class);
 
         // Point[] <: Point.ref[] <: Object
         Point.ref[] array1 = (Point.ref[])test.newArray(POINTS.length);
         test.setElements(array1, POINTS);
-        test.setElements(array1, NULLABLE_POINTS);
+        test.setElements(array1, NULL_POINTS);
 
-        Point.ref[] array2 = new Point.ref[NULLABLE_POINTS.length];
+        Point.ref[] array2 = new Point.ref[NULL_POINTS.length];
         test.setElements(array2, POINTS);
-        test.setElements(array2, NULLABLE_POINTS);
+        test.setElements(array2, NULL_POINTS);
 
         Point[] array3 = new Point[POINTS.length];
         test.setElements(array3, POINTS);
@@ -223,7 +224,7 @@ public class ArrayElementVarHandleTest {
     @Test
     public static void testPointArrayVarHandle()  throws Throwable {
         ArrayElementVarHandleTest test = new ArrayElementVarHandleTest(Point[].class);
-        assertFalse(test.componentType.isIndirectType());
+        assertTrue(test.componentType == Point.class);
 
         // Point[] <: Point.ref[] <: Object
         Point[] array1 = (Point[]) test.newArray(POINTS.length);
@@ -237,19 +238,18 @@ public class ArrayElementVarHandleTest {
      * VarHandle of Line.ref[].class
      */
     @Test
-    public static void testIndirectLineVarHandle() throws Throwable {
-        Line.ref[] nullableLines = new Line.ref[] { null, null };
-        ArrayElementVarHandleTest test = new ArrayElementVarHandleTest(nullableLines.getClass());
-        assertTrue(test.componentType.isIndirectType());
+    public static void testLineRefVarHandle() throws Throwable {
+        ArrayElementVarHandleTest test = new ArrayElementVarHandleTest(Line.ref[].class);
+        assertTrue(test.componentType == Line.ref.class);
 
         // Line[] <: Line.ref[]
         Line.ref[] array1 = (Line.ref[])test.newArray(LINES.length);
         test.setElements(array1, LINES);
-        test.setElements(array1, nullableLines);
+        test.setElements(array1, NULL_LINES);
 
         Line.ref[] array2 = new Line.ref[LINES.length];
         test.setElements(array2, LINES);
-        test.setElements(array2, nullableLines);
+        test.setElements(array2, NULL_LINES);
 
         Line[] array3 = new Line[LINES.length];
         test.setElements(array3, LINES);
@@ -261,7 +261,7 @@ public class ArrayElementVarHandleTest {
     @Test
     public static void testLineVarHandle() throws Throwable {
         ArrayElementVarHandleTest test = new ArrayElementVarHandleTest(Line[].class);
-        assertFalse(test.componentType.isIndirectType());
+        assertTrue(test.componentType == Line.class);
 
         Line[] array1 = (Line[]) test.newArray(LINES.length);
         test.setElements(array1, LINES);
@@ -276,7 +276,7 @@ public class ArrayElementVarHandleTest {
     @Test
     public static void testNonFlattenedValueVarHandle() throws Throwable {
         ArrayElementVarHandleTest test = new ArrayElementVarHandleTest(NonFlattenValue[].class);
-        assertFalse(test.componentType.isIndirectType());
+        assertTrue(test.componentType == NonFlattenValue.class);
 
         NonFlattenValue[] array1 = (NonFlattenValue[]) test.newArray(NFV_ARRAY.length);
         test.setElements(array1, NFV_ARRAY);

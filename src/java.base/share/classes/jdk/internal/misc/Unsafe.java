@@ -265,7 +265,7 @@ public final class Unsafe {
      */
     public Object getReference(Object o, long offset, Class<?> vc) {
         Object ref = getReference(o, offset);
-        if (ref == null && vc.isInlineClass() && !vc.isIndirectType()) {
+        if (ref == null && vc.isInlineClass()) {
             // If the type of the returned reference is a regular inline type
             // return an uninitialized default value if null
             ref = uninitializedDefaultValue(vc);
@@ -275,7 +275,7 @@ public final class Unsafe {
 
     public Object getReferenceVolatile(Object o, long offset, Class<?> vc) {
         Object ref = getReferenceVolatile(o, offset);
-        if (ref == null && vc.isInlineClass() && !vc.isIndirectType()) {
+        if (ref == null && vc.isInlineClass()) {
             // If the type of the returned reference is a regular inline type
             // return an uninitialized default value if null
             ref = uninitializedDefaultValue(vc);

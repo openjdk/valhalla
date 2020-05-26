@@ -348,10 +348,10 @@ arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
     if (k->is_array_klass() && ArrayKlass::cast(k)->dimension() >= MAX_DIM) {
       THROW_0(vmSymbols::java_lang_IllegalArgumentException());
     }
-    if (java_lang_Class::is_indirect_type(element_mirror)) {
-      return oopFactory::new_objArray(k, length, THREAD);
-    } else {
+    if (k->is_value()) {
       return oopFactory::new_valueArray(k, length, THREAD);
+    } else {
+      return oopFactory::new_objArray(k, length, THREAD);
     }
   }
 }
@@ -1186,7 +1186,7 @@ oop Reflection::invoke_method(oop method_mirror, Handle receiver, objArrayHandle
   BasicType rtype;
   if (java_lang_Class::is_primitive(return_type_mirror)) {
     rtype = basic_type_mirror_to_basic_type(return_type_mirror, CHECK_NULL);
-  } else if (java_lang_Class::inline_type_mirror(return_type_mirror) == return_type_mirror) {
+  } else if (java_lang_Class::as_Klass(return_type_mirror)->is_value()) {
     rtype = T_VALUETYPE;
   } else {
     rtype = T_OBJECT;

@@ -78,7 +78,7 @@ class DirectMethodHandle extends MethodHandle {
         if (!member.isStatic()) {
             if (!member.getDeclaringClass().isAssignableFrom(refc) || member.isObjectConstructor())
                 throw new InternalError(member.toString());
-            mtype = mtype.insertParameterTypes(0, refc.asPrimaryType());
+            mtype = mtype.insertParameterTypes(0, refc);
         }
         if (!member.isField()) {
             // refKind reflects the original type of lookup via findSpecial or
@@ -600,7 +600,7 @@ class DirectMethodHandle extends MethodHandle {
 
         // zero-default inline type is not-nullable
         @Override Object checkCast(Object obj) {
-            assert !fieldType.isNullableType() : "null-default inline type not yet supported";
+            assert fieldType.isInlineClass() : "null-default inline type not yet supported";
             return fieldType.cast(Objects.requireNonNull(obj));
         }
         @Override

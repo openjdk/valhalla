@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,7 @@
 /*
  * @test
  * @summary test reflection on inline types
- * @run main/othervm Reflection
+ * @run testng/othervm Reflection
  */
 
 import java.lang.reflect.Array;
@@ -34,16 +34,12 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.Method;
 
-public class Reflection {
-    public static void main(String... args) throws Exception {
-        testPointClass();
-        testLineClass();
-        testNonFlattenValue();
-        testMirrors();
-        testClassName();
-    }
+import org.testng.annotations.Test;
+import static org.testng.Assert.*;
 
-    static void testPointClass() throws Exception  {
+public class Reflection {
+    @Test
+    public static void testPointClass() throws Exception  {
         Point o = Point.makePoint(10, 20);
         Reflection test = new Reflection(Point.class, "Point", o);
         test.newInstance();
@@ -52,7 +48,8 @@ public class Reflection {
         test.staticField();
     }
 
-    static void testLineClass() throws Exception {
+    @Test
+    public static void testLineClass() throws Exception {
         Line l = Line.makeLine(10, 20, 30, 40);
         Reflection test = new Reflection(Line.class, "Line", l);
         test.checkField("public final Point Line.p1", "p1", Point.class);
@@ -61,7 +58,8 @@ public class Reflection {
         test.checkMethod("public Point Line.p2()",           "p2", Point.class);
     }
 
-    static void testNonFlattenValue() throws Exception {
+    @Test
+    public static void testNonFlattenValue() throws Exception {
         NonFlattenValue nfv = NonFlattenValue.make(10, 20);
         Reflection test = new Reflection(NonFlattenValue.class, "NonFlattenValue", nfv);
         test.checkField("final Point$ref NonFlattenValue.nfp", "nfp", Point.ref.class);
@@ -71,49 +69,42 @@ public class Reflection {
     }
 
     /*
-     * Tests reflection APIs with the primary type and indirect/nullable projection type
+     * Tests reflection APIs with the value and reference projection type
      */
-    static void testMirrors() throws Exception {
-        Class<?> primary = Point.class;
-        Class<?> indirect = Point.ref.class;
+    @Test
+    public static void testMirrors() throws Exception {
+        Class<?> inlineClass = Point.class;
+        assertTrue(inlineClass.isInlineClass());
+        assertFalse(Point.ref.class.isInlineClass());
+        assertEquals(inlineClass.valueType().get(), Point.class);
+        assertEquals(inlineClass.referenceType().get(), Point.ref.class);
 
-        assertEquals(primary, Point.class);
-        assertEquals(indirect, Point.ref.class);
-        assertTrue(primary.isInlineClass());
-        assertFalse(primary.isIndirectType());
-        assertFalse(primary.isNullableType());
-
-        assertTrue(!indirect.isInlineClass());
-        assertTrue(indirect.isIndirectType());
-        assertTrue(indirect.isNullableType());
 
         Point o = Point.makePoint(10, 20);
-        assertTrue(primary.isInstance(o));
-        assertTrue(indirect.isInstance(o));
+        assertTrue(Point.class.isInstance(o));
+        assertTrue(Point.ref.class.isInstance(o));
 
-        // V <: V? and V <: Object
-        assertTrue(indirect.isAssignableFrom(primary));
-        assertTrue(Object.class.isAssignableFrom(primary));
-        assertFalse(primary.isAssignableFrom(indirect));
-        assertTrue(Object.class.isAssignableFrom(indirect));
-
-        assertEquals(primary, primary.asSubclass(indirect));
-        try {
-            Class<?> c = indirect.asSubclass(primary);
-            assertTrue(false);
-        } catch (ClassCastException e) { }
-
-        // indirect class
-        assertEquals(Reflection.class.asPrimaryType(), Reflection.class);
-        assertEquals(Reflection.class.asIndirectType(), Reflection.class);
-        assertEquals(Reflection.class.asNullableType(), Reflection.class);
-        assertTrue(Reflection.class.isIndirectType());
-        assertTrue(Reflection.class.isNullableType());
     }
 
-    static void testClassName() {
+    @Test
+    public static void testAssignableFrom() {
+        // V <: V? and V <: Object
+        assertTrue(Point.ref.class.isAssignableFrom(Point.class));
+        assertTrue(Object.class.isAssignableFrom(Point.class));
+        assertFalse(Point.class.isAssignableFrom(Point.ref.class));
+        assertTrue(Object.class.isAssignableFrom(Point.ref.class));
+
+        assertEquals(Point.class, Point.class.asSubclass(Point.ref.class));
+        try {
+            Class<?> c = Point.ref.class.asSubclass(Point.class);
+            assertTrue(false);
+        } catch (ClassCastException e) { }
+    }
+
+    @Test
+    public static void testClassName() {
         assertEquals(Point.class.getName(), "Point");
-        assertEquals(Point.class.asNullableType().getName(), "Point");
+        assertEquals(Point.ref.class.getName(), "Point$ref");
         assertEquals(Line.class.getName(), "Line");
         assertEquals((new Point[0]).getClass().getName(), "[QPoint;");
         assertEquals((new Point.ref[0][0]).getClass().getName(), "[[LPoint$ref;");
@@ -130,8 +121,8 @@ public class Reflection {
 
         // V.class, Class.forName, and the type of the object return the primary mirror
         assertEquals(type, o.getClass());
-        assertEquals(type, c.asPrimaryType());
-        assertEquals(c, c.asPrimaryType());
+        assertEquals(type, c.valueType().get());
+        assertEquals(c, c.valueType().get());
 
         this.ctor = c.getDeclaredConstructor();
         this.o = o;
@@ -140,24 +131,24 @@ public class Reflection {
         // test the primary mirror and secondary mirror
         testMirrors(this.c);
         // test array of Q-type and L-type
-        testArray(c.asPrimaryType());
-        testArray(c.asNullableType());
+        testArray(c.valueType().get());
+        testArray(c.referenceType().get());
     }
 
     private static void testMirrors(Class<?> c) {
-        Class<?> inlineType = c.asPrimaryType();
-        Class<?> nullableType = c.asNullableType();
+        Class<?> valType = c.valueType().get();
+        Class<?> refType = c.referenceType().get();
 
-        assertTrue(inlineType != null);
-        assertEquals(nullableType.getTypeName(), c.getTypeName() + "?");
-        assertEquals(nullableType.getSimpleName(), c.getSimpleName() + "?");
+        assertTrue(valType != null);
+        assertEquals(refType.getTypeName(), c.getTypeName() + "$ref");
+        assertEquals(refType.getSimpleName(), c.getSimpleName() + "$ref");
 
-        assertEquals(nullableType.getName(), inlineType.getName());
-        assertEquals(nullableType.getTypeName(), inlineType.getTypeName() + "?");
-        assertEquals(nullableType.getSimpleName(), inlineType.getSimpleName() + "?");
+        assertEquals(refType.getName(), valType.getName() + "$ref");
+        assertEquals(refType.getTypeName(), valType.getTypeName() + "$ref");
+        assertEquals(refType.getSimpleName(), valType.getSimpleName() + "$ref");
 
-        assertEquals(inlineType.asNullableType(), nullableType);
-        assertEquals(nullableType.asPrimaryType(), inlineType);
+        assertEquals(valType.referenceType().get(), refType);
+        assertEquals(refType.valueType().get(), valType);
     }
 
     void testArray(Class<?> elementType) {
@@ -165,10 +156,10 @@ public class Reflection {
         Class<?> arrayType = array.getClass();
         assertTrue(arrayType.isArray());
         Class<?> componentType = arrayType.getComponentType();
-        assertTrue(componentType.isInlineClass());
+        assertTrue(componentType.isInlineClass() || componentType.valueType().isPresent());
         assertEquals(componentType, elementType);
         // Array is a reference type
-        assertEquals(arrayType.asNullableType(), arrayType);
+        assertEquals(arrayType.referenceType().get(), arrayType);
         if (array[0] == null) {
             System.out.println("array[0] = null");
         } else {
@@ -219,22 +210,5 @@ public class Reflection {
     void checkMethod(String source, String name, Class<?> returnType, Class<?>... params) throws Exception {
         Method m = c.getDeclaredMethod(name, params);
         assertEquals(m.toString(), source);
-    }
-
-    static void assertEquals(Object o1, Object o2) {
-        if (o1 == o2 || o1.equals(o2))
-            return;
-
-        throw new AssertionError(o1 + " != " + o2);
-    }
-
-    static void assertTrue(boolean value) {
-        if (!value)
-            throw new AssertionError("expected true");
-    }
-
-    static void assertFalse(boolean value) {
-        if (value)
-            throw new AssertionError("expected false");
     }
 }

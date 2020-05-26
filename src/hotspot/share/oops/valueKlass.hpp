@@ -183,10 +183,6 @@ class ValueKlass: public InstanceKlass {
   // Type testing
   bool is_value_slow() const        { return true; }
 
-  // value_mirror is the primary mirror
-  oop value_mirror() const    { return java_lang_Class::inline_type_mirror(java_mirror()); }
-  oop indirect_mirror() const { return java_lang_Class::indirect_type_mirror(java_mirror()); }
-
   // Casting from Klass*
   static ValueKlass* cast(Klass* k);
 
@@ -301,7 +297,6 @@ class ValueKlass: public InstanceKlass {
 
   void set_default_value(oop val) {
     java_mirror()->obj_field_put(default_value_offset(), val);
-    indirect_mirror()->obj_field_put(default_value_offset(), val);
   }
 
   oop default_value();

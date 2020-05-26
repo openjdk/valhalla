@@ -264,8 +264,8 @@ class java_lang_Class : AllStatic {
   static int _component_mirror_offset;
   static int _name_offset;
   static int _source_file_offset;
-  static int _inline_mirror_offset;
-  static int _indirect_mirror_offset;
+  static int _val_type_mirror_offset;
+  static int _ref_type_mirror_offset;
 
   static bool offsets_computed;
   static int classRedefinedCount_offset;
@@ -288,7 +288,6 @@ class java_lang_Class : AllStatic {
                             Handle protection_domain, TRAPS);
   static void fixup_mirror(Klass* k, TRAPS);
   static oop  create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS);
-  static oop  create_indirect_type_mirror(Klass* k, Handle mirror, TRAPS);
   static void update_archived_primitive_mirror_native_pointers(oop archived_mirror) NOT_CDS_JAVA_HEAP_RETURN;
   static void update_archived_mirror_native_pointers(oop archived_mirror) NOT_CDS_JAVA_HEAP_RETURN;
 
@@ -324,7 +323,6 @@ class java_lang_Class : AllStatic {
   // compiler support for class operations
   static int klass_offset_in_bytes()                { return _klass_offset; }
   static int array_klass_offset_in_bytes()          { return _array_klass_offset; }
-  static int inline_mirror_offset_in_bytes()        { return _inline_mirror_offset; }
   static int component_mirror_offset_in_bytes()     { return _component_mirror_offset; }
   // Support for classRedefinedCount field
   static int classRedefinedCount(oop the_class_mirror);
@@ -341,14 +339,11 @@ class java_lang_Class : AllStatic {
   static void set_module(oop java_class, oop module);
   static oop module(oop java_class);
 
-  static void set_indirect_type_mirror(oop java_class, oop mirror);
-  static oop indirect_type_mirror(oop java_class);
-  static bool is_indirect_type(oop java_class) { // Must match "Class.isIndirectType()"
-    return indirect_type_mirror(java_class) == NULL || indirect_type_mirror(java_class) == java_class;
-  }
+  static void set_ref_type_mirror(oop java_class, oop mirror);
+  static oop ref_type_mirror(oop java_class);
 
-  static void set_inline_type_mirror(oop java_class, oop mirror);
-  static oop inline_type_mirror(oop java_class);
+  static void set_val_type_mirror(oop java_class, oop mirror);
+  static oop val_type_mirror(oop java_class);
 
   static oop name(Handle java_class, TRAPS);
 

@@ -851,8 +851,6 @@ public class Proxy implements java.io.Serializable {
         private static void ensureVisible(ClassLoader ld, Class<?> c) {
             Class<?> type = null;
             try {
-                if (c.isInlineClass() && c.isIndirectType())
-                    c = c.asPrimaryType();
                 type = Class.forName(c.getName(), false, ld);
             } catch (ClassNotFoundException e) {
             }

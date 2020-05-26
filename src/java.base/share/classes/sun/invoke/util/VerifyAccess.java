@@ -273,7 +273,7 @@ public class VerifyAccess {
      * @param refc the class attempting to make the reference
      */
     public static boolean isTypeVisible(Class<?> type, Class<?> refc) {
-        if (type.asPrimaryType() == refc.asPrimaryType()) {
+        if (type == refc) {
             return true;  // easy check
         }
         while (type.isArray())  type = type.getComponentType();
@@ -333,7 +333,7 @@ public class VerifyAccess {
                         }
                     }
             });
-        return (type.asPrimaryType() == res);
+        return (type == res);
     }
 
     /**

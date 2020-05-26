@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,6 @@
 import java.lang.reflect.Array;
 import java.util.Arrays;
 
-import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
@@ -58,8 +57,8 @@ public class ValueArray {
         testArrayElements();
 
         if (componentType.isInlineClass()) {
-            Object[] qArray = (Object[]) Array.newInstance(componentType.asPrimaryType(), 0);
-            Object[] lArray = (Object[]) Array.newInstance(componentType.asIndirectType(), 0);
+            Object[] qArray = (Object[]) Array.newInstance(componentType, 0);
+            Object[] lArray = (Object[]) Array.newInstance(componentType.referenceType().get(), 0);
             testInlineArrayCovariance(componentType, qArray, lArray);
         }
     }
@@ -73,9 +72,8 @@ public class ValueArray {
             sb.append("[");
             c = c.getComponentType();
         }
-        sb.append(c.isIndirectType() ? "L" : "Q").append(c.getName()).append(";");
+        sb.append(c.isInlineClass() ? "Q" : "L").append(c.getName()).append(";");
         assertEquals(sb.toString(), arrayClassName);
-        assertEquals(c.getTypeName(), c.getName() + (c.isInlineClass() && c.isIndirectType() ? "?" : ""));
     }
 
     void testArrayElements() {
@@ -94,7 +92,7 @@ public class ValueArray {
         Arrays.setAll(array, i -> this.array[i]);
 
         // test nullable
-        if (componentType.isNullableType()) {
+        if (!componentType.isInlineClass()) {
             for (int i=0; i < array.length; i++) {
                 Array.set(array, i, null);
             }

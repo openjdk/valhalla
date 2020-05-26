@@ -814,7 +814,7 @@ final class ProxyGenerator extends ClassWriter {
                 }
             } else {
                 String internalName = dotToSlash(type.getName());
-                if (type.isInlineClass() && !type.isIndirectType()) {
+                if (type.isInlineClass()) {
                     internalName = 'Q' + internalName + ";";
                 }
                 mv.visitTypeInsn(CHECKCAST, internalName);
@@ -879,11 +879,6 @@ final class ProxyGenerator extends ClassWriter {
             mv.visitMethodInsn(INVOKESTATIC,
                     JL_CLASS,
                     "forName", "(Ljava/lang/String;)Ljava/lang/Class;", false);
-            if (cl.isInlineClass() && cl == cl.asPrimaryType()) {
-                mv.visitMethodInsn(INVOKEVIRTUAL,
-                    JL_CLASS,
-                    "asPrimaryType", "()Ljava/lang/Class;", false);
-            }
         }
 
         /**

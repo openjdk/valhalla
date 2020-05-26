@@ -193,11 +193,10 @@ final class MemberName implements Member, Cloneable {
      */
     public MethodType getInvocationType() {
         MethodType itype = getMethodOrFieldType();
-        Class<?> c = clazz.asPrimaryType();
         if (isObjectConstructor() && getReferenceKind() == REF_newInvokeSpecial)
-            return itype.changeReturnType(c);
+            return itype.changeReturnType(clazz);
         if (!isStatic())
-            return itype.insertParameterTypes(0, c);
+            return itype.insertParameterTypes(0, clazz);
         return itype;
     }
 
@@ -481,14 +480,14 @@ final class MemberName implements Member, Cloneable {
     public boolean isInlineable()  {
         if (isField()) {
             Class<?> type = getFieldType();
-            return type.isInlineClass() && type == type.asPrimaryType();
+            return type.isInlineClass();
         }
         return false;
     }
 
     public boolean isIndirect()  {
         if (isField()) {
-            return getFieldType().isIndirectType();
+            return !getFieldType().isInlineClass();
         }
         return false;
     }
@@ -957,18 +956,9 @@ final class MemberName implements Member, Cloneable {
     }
     private static String getName(Object obj) {
         if (obj instanceof Class<?>)
-            return toTypeName((Class<?>)obj);
+            return ((Class<?>)obj).getName();
         return String.valueOf(obj);
     }
-
-    /*
-     * Returns the class name appended with "?" if it is the nullable projection
-     * of an inline class.
-     */
-    private static String toTypeName(Class<?> type) {
-        return type.isInlineClass() && type.isIndirectType() ? type.getName() + "?" : type.getName();
-    }
-
 
     public IllegalAccessException makeAccessException(String message, Object from) {
         message = message + ": "+ toString();

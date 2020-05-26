@@ -111,7 +111,7 @@ final class VarHandle$Type$s {
 #if[Object]
         @ForceInline
         static Object checkCast(FieldInstanceReadWrite handle, $type$ value) {
-            if (!handle.fieldType.isNullableType())
+            if (handle.fieldType.isInlineClass())
                 Objects.requireNonNull(value);
             return handle.fieldType.cast(value);
         }
@@ -400,7 +400,7 @@ final class VarHandle$Type$s {
 
 #if[Object]
         static Object checkCast(FieldStaticReadWrite handle, $type$ value) {
-            if (!handle.fieldType.isNullableType())
+            if (handle.fieldType.isInlineClass())
                 Objects.requireNonNull(value);
             return handle.fieldType.cast(value);
         }
@@ -657,7 +657,7 @@ final class VarHandle$Type$s {
 #if[Object]
         @ForceInline
         static Object runtimeTypeCheck(Array handle, Object[] oarray, Object value) {
-            if (!handle.componentType.isNullableType())
+            if (handle.componentType.isInlineClass())
                  Objects.requireNonNull(value);
 
             if (handle.arrayType == oarray.getClass()) {

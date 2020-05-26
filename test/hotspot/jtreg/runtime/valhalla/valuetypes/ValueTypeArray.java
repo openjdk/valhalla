@@ -219,8 +219,7 @@ public class ValueTypeArray {
         assertTrue(array3[0][0] == null, "Expected NULL");
 
         // Now create ObjArrays of ValueArray...
-        cls = (Class<?>) Point.class.asIndirectType();
-        Point.ref[][] barray = (Point.ref[][]) Array.newInstance(cls, 1, 2);
+        Point.ref[][] barray = (Point.ref[][]) Array.newInstance(Point.ref.class, 1, 2);
         assertEquals(barray.length, 1, "Incorrect length");
         assertEquals(barray[0].length, 2, "Incorrect length");
         barray[0][1] = Point.createPoint(1, 2);
