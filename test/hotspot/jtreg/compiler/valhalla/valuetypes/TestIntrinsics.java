@@ -1005,7 +1005,6 @@ public class TestIntrinsics extends ValueTypeTest {
         test53(MyValue1[].class, MyValue1.ref[].class, len, 4);
     }
 
-
     // Same as test39 but Unsafe.putInt to buffer is not intrinsified/compiled
     @DontCompile
     public void test54_callee(MyValue1.ref v) { // Use .ref here to make sure the argument is not scalarized (otherwise larval information is lost)

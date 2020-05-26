@@ -323,7 +323,6 @@ class java_lang_Class : AllStatic {
   // compiler support for class operations
   static int klass_offset_in_bytes()                { return _klass_offset; }
   static int array_klass_offset_in_bytes()          { return _array_klass_offset; }
-  static int val_type_mirror_offset_in_bytes()      { return _val_type_mirror_offset; }
   static int component_mirror_offset_in_bytes()     { return _component_mirror_offset; }
   // Support for classRedefinedCount field
   static int classRedefinedCount(oop the_class_mirror);

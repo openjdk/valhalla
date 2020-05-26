@@ -183,9 +183,6 @@ class ValueKlass: public InstanceKlass {
   // Type testing
   bool is_value_slow() const        { return true; }
 
-  // ## Remove this function when its dependencies are removed
-  oop ref_mirror() const { return java_lang_Class::ref_type_mirror(java_mirror()); }
-
   // Casting from Klass*
   static ValueKlass* cast(Klass* k);
 
