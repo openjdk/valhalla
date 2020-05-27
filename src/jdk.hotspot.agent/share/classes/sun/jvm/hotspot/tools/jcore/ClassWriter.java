@@ -360,8 +360,10 @@ public class ClassWriter implements /* imports */ ClassConstants
         for (int i = 0; i < len; i++) {
            Klass k = interfaces.getAt(i);
            Short index = (Short) classToIndex.get(k.getName().asString());
-           dos.writeShort(index.shortValue());
-           if (DEBUG) debugMessage("\t" + index);
+           if (index != null) { // Injected interfaces have no constant pool entry
+               dos.writeShort(index.shortValue());
+               if (DEBUG) debugMessage("\t" + index);
+           }
         }
     }
 
