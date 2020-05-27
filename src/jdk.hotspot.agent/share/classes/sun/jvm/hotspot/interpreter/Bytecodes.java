@@ -241,50 +241,54 @@ public class Bytecodes {
   public static final int _goto_w               = 200; // 0xc8
   public static final int _jsr_w                = 201; // 0xc9
   public static final int _breakpoint           = 202; // 0xca
+  public static final int _defaultvalue         = 203; // 0xcb
+  public static final int _withfield            = 204; // 0xcc
 
-  public static final int number_of_java_codes  = 203;
+  public static final int number_of_java_codes  = 205;
 
   // JVM bytecodes
   public static final int _fast_agetfield       = number_of_java_codes;
-  public static final int _fast_bgetfield       = 204;
-  public static final int _fast_cgetfield       = 205;
-  public static final int _fast_dgetfield       = 206;
-  public static final int _fast_fgetfield       = 207;
-  public static final int _fast_igetfield       = 208;
-  public static final int _fast_lgetfield       = 209;
-  public static final int _fast_sgetfield       = 210;
-  public static final int _fast_aputfield       = 211;
-  public static final int _fast_bputfield       = 212;
-  public static final int _fast_zputfield       = 213;
-  public static final int _fast_cputfield       = 214;
-  public static final int _fast_dputfield       = 215;
-  public static final int _fast_fputfield       = 216;
-  public static final int _fast_iputfield       = 217;
-  public static final int _fast_lputfield       = 218;
-  public static final int _fast_sputfield       = 219;
-  public static final int _fast_aload_0         = 220;
-  public static final int _fast_iaccess_0       = 221;
-  public static final int _fast_aaccess_0       = 222;
-  public static final int _fast_faccess_0       = 223;
-  public static final int _fast_iload           = 224;
-  public static final int _fast_iload2          = 225;
-  public static final int _fast_icaload         = 226;
-  public static final int _fast_invokevfinal    = 227;
-  public static final int _fast_linearswitch    = 228;
-  public static final int _fast_binaryswitch    = 229;
-  public static final int _fast_aldc            = 230;
-  public static final int _fast_aldc_w          = 231;
-  public static final int _return_register_finalizer = 232;
-  public static final int _invokehandle         = 233;
+    public static final int _fast_qgetfield       = 206;
+  public static final int _fast_bgetfield       = 207;
+  public static final int _fast_cgetfield       = 208;
+  public static final int _fast_dgetfield       = 209;
+  public static final int _fast_fgetfield       = 210;
+  public static final int _fast_igetfield       = 211;
+  public static final int _fast_lgetfield       = 212;
+  public static final int _fast_sgetfield       = 213;
+  public static final int _fast_aputfield       = 214;
+  public static final int _fast_qputfield       = 215;
+  public static final int _fast_bputfield       = 216;
+  public static final int _fast_zputfield       = 217;
+  public static final int _fast_cputfield       = 218;
+  public static final int _fast_dputfield       = 219;
+  public static final int _fast_fputfield       = 220;
+  public static final int _fast_iputfield       = 221;
+  public static final int _fast_lputfield       = 222;
+  public static final int _fast_sputfield       = 223;
+  public static final int _fast_aload_0         = 224;
+  public static final int _fast_iaccess_0       = 225;
+  public static final int _fast_aaccess_0       = 226;
+  public static final int _fast_faccess_0       = 227;
+  public static final int _fast_iload           = 228;
+  public static final int _fast_iload2          = 229;
+  public static final int _fast_icaload         = 230;
+  public static final int _fast_invokevfinal    = 231;
+  public static final int _fast_linearswitch    = 232;
+  public static final int _fast_binaryswitch    = 233;
+  public static final int _fast_aldc            = 234;
+  public static final int _fast_aldc_w          = 235;
+  public static final int _return_register_finalizer = 236;
+  public static final int _invokehandle         = 237;
 
   // Bytecodes rewritten at CDS dump time
-  public static final int _nofast_getfield      = 234;
-  public static final int _nofast_putfield      = 235;
-  public static final int _nofast_aload_0       = 236;
-  public static final int _nofast_iload         = 237;
-  public static final int _shouldnotreachhere   = 238; // For debugging
+  public static final int _nofast_getfield      = 238;
+  public static final int _nofast_putfield      = 239;
+  public static final int _nofast_aload_0       = 240;
+  public static final int _nofast_iload         = 241;
+  public static final int _shouldnotreachhere   = 242; // For debugging
 
-  public static final int number_of_codes       = 239;
+  public static final int number_of_codes       = 243;
 
   // Flag bits derived from format strings, can_trap, can_rewrite, etc.:
   // semantic flags:
