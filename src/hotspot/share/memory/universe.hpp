@@ -136,6 +136,7 @@ class Universe: AllStatic {
   static Array<u2>*             _the_empty_short_array;          // Canonicalized short array
   static Array<Klass*>*         _the_empty_klass_array;          // Canonicalized klass array
   static Array<InstanceKlass*>* _the_empty_instance_klass_array; // Canonicalized instance klass array
+  static Array<InstanceKlass*>* _the_single_IdentityObject_klass_array;
   static Array<Method*>*        _the_empty_method_array;         // Canonicalized method array
 
   static Array<Klass*>*  _the_array_interfaces_array;
@@ -312,6 +313,12 @@ class Universe: AllStatic {
   static Array<Method*>*         the_empty_method_array() { return _the_empty_method_array; }
   static Array<Klass*>*          the_empty_klass_array()  { return _the_empty_klass_array; }
   static Array<InstanceKlass*>*  the_empty_instance_klass_array() { return _the_empty_instance_klass_array; }
+  static Array<InstanceKlass*>*  the_single_IdentityObject_klass_array() {
+    assert(_the_single_IdentityObject_klass_array != NULL, "Must be initialized before use");
+    assert(_the_single_IdentityObject_klass_array->length() == 1, "Sanity check");
+    return _the_single_IdentityObject_klass_array;
+  }
+  static void initialize_the_single_IdentityObject_klass_array(InstanceKlass* ik, TRAPS);
 
   // OutOfMemoryError support. Returns an error with the required message. The returned error
   // may or may not have a backtrace. If error has a backtrace then the stack trace is already
