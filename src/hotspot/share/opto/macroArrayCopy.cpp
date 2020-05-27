@@ -203,7 +203,7 @@ Node* PhaseMacroExpand::generate_array_guard(Node** ctrl, Node* mem, Node* obj_o
   Node* kls = NULL;
   if (_igvn.type(obj_or_klass)->isa_oopptr()) {
     Node* k_adr = basic_plus_adr(obj_or_klass, oopDesc::klass_offset_in_bytes());
-    kls = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, /* clear_prop_bits = */ true));
+    kls = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT));
   } else {
     assert(_igvn.type(obj_or_klass)->isa_klassptr(), "what else?");
     kls = obj_or_klass;

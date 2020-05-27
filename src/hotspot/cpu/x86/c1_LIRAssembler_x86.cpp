@@ -1400,7 +1400,6 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       __ verify_oop(dest->as_register());
     }
   } else if (type == T_ADDRESS && addr->disp() == oopDesc::klass_offset_in_bytes()) {
-    // TODO remove clear_prop_bits bits stuff once the runtime does not set it anymore
 #ifdef _LP64
     if (UseCompressedClassPointers) {
       __ decode_klass_not_null(dest->as_register());

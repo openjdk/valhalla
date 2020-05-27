@@ -342,7 +342,7 @@ class GraphKit : public Phase {
   Node* ConvI2UL(Node* offset);
   Node* ConvL2I(Node* offset);
   // Find out the klass of an object.
-  Node* load_object_klass(Node* object, bool clear_prop_bits = true);
+  Node* load_object_klass(Node* object);
   // Find out the length of an array.
   Node* load_array_length(Node* array);
 

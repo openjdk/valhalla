@@ -787,7 +787,7 @@ public class TestArrays extends ValueTypeTest {
         Object[] result = test33(va);
         for (int i = 0; i < len; ++i) {
             Asserts.assertEQ(((MyValue1)result[i]).hash(), ((MyValue1)va[i]).hash());
-            // Check that array has correct storage properties (null-ok)
+            // Check that array has correct properties (null-ok)
             result[i] = null;
         }
     }
@@ -822,7 +822,7 @@ public class TestArrays extends ValueTypeTest {
         for (int i = 0; i < 10; i++) { // make sure we do deopt
             Object[] result = test34(true);
             verify(test34_orig, result);
-            // Check that array has correct storage properties (null-free)
+            // Check that array has correct properties (null-free)
             try {
                 result[0] = null;
                 throw new RuntimeException("Should throw NullPointerException");
@@ -833,7 +833,7 @@ public class TestArrays extends ValueTypeTest {
         if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test34")) {
             Object[] result = test34(true);
             verify(test34_orig, result);
-            // Check that array has correct storage properties (null-free)
+            // Check that array has correct properties (null-free)
             try {
                 result[0] = null;
                 throw new RuntimeException("Should throw NullPointerException");
@@ -1750,7 +1750,7 @@ public class TestArrays extends ValueTypeTest {
 
         for (int i = 0; i < va.length; ++i) {
             Asserts.assertEQ(oa[i], result[i]);
-            // Check that array has correct storage properties (null-ok)
+            // Check that array has correct properties (null-ok)
             result[i] = null;
         }
     }
@@ -1788,7 +1788,7 @@ public class TestArrays extends ValueTypeTest {
         test76_helper(42, va, oa);
         Object[] result = test76(va, oa);
         verify(verif, result);
-        // Check that array has correct storage properties (null-free)
+        // Check that array has correct properties (null-free)
         if (len > 0) {
             try {
                 result[0] = null;

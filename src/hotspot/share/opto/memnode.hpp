@@ -515,44 +515,29 @@ public:
 //------------------------------LoadKlassNode----------------------------------
 // Load a Klass from an object
 class LoadKlassNode : public LoadPNode {
-private:
-  bool _clear_prop_bits; // Clear the ArrayStorageProperties bits
 protected:
   // In most cases, LoadKlassNode does not have the control input set. If the control
   // input is set, it must not be removed (by LoadNode::Ideal()).
   virtual bool can_remove_control() const;
 public:
-  LoadKlassNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypeKlassPtr *tk, MemOrd mo, bool clear_prop_bits)
-    : LoadPNode(c, mem, adr, at, tk, mo), _clear_prop_bits(clear_prop_bits) {}
-  virtual uint hash() const { return LoadPNode::hash() + _clear_prop_bits; }
-  virtual bool cmp(const Node &n) const {
-    return (_clear_prop_bits == ((LoadKlassNode&)n)._clear_prop_bits) && LoadPNode::cmp(n);
-  }
-  virtual uint size_of() const { return sizeof(*this); }
+  LoadKlassNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypeKlassPtr *tk, MemOrd mo)
+    : LoadPNode(c, mem, adr, at, tk, mo) {}
   virtual int Opcode() const;
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node* Identity(PhaseGVN* phase);
   virtual bool depends_only_on_test() const { return true; }
-  bool clear_prop_bits() const { return _clear_prop_bits; }
 
   // Polymorphic factory method:
   static Node* make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypePtr* at,
-                    const TypeKlassPtr* tk = TypeKlassPtr::OBJECT, bool clear_prop_bits = false);
+                    const TypeKlassPtr* tk = TypeKlassPtr::OBJECT);
 };
 
 //------------------------------LoadNKlassNode---------------------------------
 // Load a narrow Klass from an object.
 class LoadNKlassNode : public LoadNNode {
-private:
-  bool _clear_prop_bits; // Clear the ArrayStorageProperties bits
 public:
-  LoadNKlassNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypeNarrowKlass *tk, MemOrd mo, bool clear_prop_bits)
-    : LoadNNode(c, mem, adr, at, tk, mo), _clear_prop_bits(clear_prop_bits) {}
-  virtual uint hash() const { return LoadNNode::hash() + _clear_prop_bits; }
-  virtual bool cmp(const Node &n) const {
-    return (_clear_prop_bits == ((LoadNKlassNode&)n)._clear_prop_bits) && LoadNNode::cmp(n);
-  }
-  virtual uint size_of() const { return sizeof(*this); }
+  LoadNKlassNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypeNarrowKlass *tk, MemOrd mo)
+    : LoadNNode(c, mem, adr, at, tk, mo) {}
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegN; }
   virtual int store_Opcode() const { return Op_StoreNKlass; }
@@ -561,7 +546,6 @@ public:
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node* Identity(PhaseGVN* phase);
   virtual bool depends_only_on_test() const { return true; }
-  bool clear_prop_bits() const { return _clear_prop_bits; }
 };
 
 //------------------------------StoreNode--------------------------------------
