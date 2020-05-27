@@ -156,7 +156,7 @@ int ObjArrayKlass::oop_size(oop obj) const {
 objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_OBJECT), CHECK_NULL);
   int size = objArrayOopDesc::object_size(length);
-  bool populate_null_free = storage_properties().is_null_free();
+  bool populate_null_free = is_null_free_array_klass();
   objArrayOop array =  (objArrayOop)Universe::heap()->array_allocate(this, size, length,
                                                        /* do_zero */ true, THREAD);
   if (populate_null_free) {
@@ -178,7 +178,7 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
   if (rank == 1) { // last dim may be valueArray, check if we have any special storage requirements
-    if ((!element_klass()->is_array_klass()) && storage_properties().is_null_free()) {
+    if (element_klass()->is_value()) {
       return oopFactory::new_valueArray(element_klass(), length, CHECK_NULL);
     } else {
       return oopFactory::new_objArray(element_klass(), length, CHECK_NULL);
@@ -209,10 +209,6 @@ oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
     }
   }
   return h_array();
-}
-
-ArrayStorageProperties ObjArrayKlass::storage_properties() {
-  return name()->is_Q_singledim_array_signature() ? ArrayStorageProperties::null_free : ArrayStorageProperties::empty;
 }
 
 // Either oop or narrowOop depending on UseCompressedOops.

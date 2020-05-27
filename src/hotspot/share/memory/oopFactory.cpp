@@ -145,7 +145,7 @@ arrayOop oopFactory::new_valueArray(Klass* klass, int length, TRAPS) {
   } else {
     oop = (arrayOop) ObjArrayKlass::cast(array_klass)->allocate(length, THREAD);
   }
-  assert(oop == NULL || oop->array_storage_properties().is_null_free(), "Bad array storage encoding");
+  assert(oop == NULL || oop->klass()->is_null_free_array_klass(), "Bad array storage encoding");
   return oop;
 }
 

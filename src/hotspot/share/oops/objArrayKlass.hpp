@@ -50,10 +50,6 @@ class ObjArrayKlass : public ArrayKlass {
   // For dummy objects
   ObjArrayKlass() {}
 
-  // if ObjArrayKlass is used to represent an LWorld "Q-type" value type array, the only thing we can give null-free (i.e. not flattened)
-  // ArrayStorageProperties::empty meaning nothing special, array of references (possibly even to value types)
-  ArrayStorageProperties storage_properties();
-
   Klass* bottom_klass() const       { return _bottom_klass; }
   void set_bottom_klass(Klass* k)   { _bottom_klass = k; }
   Klass** bottom_klass_addr()       { return &_bottom_klass; }

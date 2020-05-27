@@ -973,7 +973,7 @@ bool Metaspace::_initialized = false;
 #define VIRTUALSPACEMULTIPLIER 2
 
 #ifdef _LP64
-static uint64_t UnscaledClassSpaceMax = (uint64_t(max_juint) + 1);
+static const uint64_t UnscaledClassSpaceMax = (uint64_t(max_juint) + 1);
 
 void Metaspace::set_narrow_klass_base_and_shift(ReservedSpace metaspace_rs, address cds_base) {
   assert(!DumpSharedSpaces, "narrow_klass is set by MetaspaceShared class.");
@@ -987,8 +987,8 @@ void Metaspace::set_narrow_klass_base_and_shift(ReservedSpace metaspace_rs, addr
     assert(UseSharedSpaces, "must be");
     lower_base = MIN2(lower_base, cds_base);
   } else {
+    uint64_t klass_encoding_max = UnscaledClassSpaceMax << LogKlassAlignmentInBytes;
     // Using oopDesc::_metadata high bits so LogKlassAlignmentInBytes shift is no longer possible
-    uint64_t klass_encoding_max = UnscaledClassSpaceMax;
     // If compressed class space fits in lower 32G, we don't need a base.
     if (higher_address <= (address)klass_encoding_max) {
       lower_base = 0; // Effectively lower base is zero.
@@ -1230,11 +1230,6 @@ void Metaspace::ergo_initialize() {
 void Metaspace::global_initialize() {
   MetaspaceGC::initialize();
   bool class_space_inited = false;
-#ifdef _LP64
-  if (EnableValhalla) {
-    UnscaledClassSpaceMax >>= oopDesc::storage_props_nof_bits;
-  }
-#endif
 #if INCLUDE_CDS
   if (DumpSharedSpaces) {
     MetaspaceShared::initialize_dumptime_shared_and_meta_spaces();

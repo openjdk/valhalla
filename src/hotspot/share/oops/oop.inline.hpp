@@ -88,26 +88,19 @@ void oopDesc::init_mark_raw() {
   set_mark_raw(markWord::prototype_for_klass(klass()));
 }
 
-narrowKlass oopDesc::compressed_klass_mask() { return ((narrowKlass) 1 << narrow_storage_props_shift) - 1; }
-uintptr_t   oopDesc::klass_mask()   { return ((uintptr_t) 1 << wide_storage_props_shift) - 1; }
-
-narrowKlass oopDesc::compressed_klass_masked(narrowKlass raw) { return raw & compressed_klass_mask(); }
-Klass*      oopDesc::klass_masked(uintptr_t raw)     { return reinterpret_cast<Klass*>(raw & klass_mask()); }
-
-
 Klass* oopDesc::klass() const {
   if (UseCompressedClassPointers) {
-    return CompressedKlassPointers::decode_not_null(compressed_klass_masked(_metadata._compressed_klass));
+    return CompressedKlassPointers::decode_not_null(_metadata._compressed_klass);
   } else {
-    return klass_masked(_metadata._wide_storage_props);
+    return _metadata._klass;
   }
 }
 
 Klass* oopDesc::klass_or_null() const volatile {
   if (UseCompressedClassPointers) {
-    return CompressedKlassPointers::decode(compressed_klass_masked(_metadata._compressed_klass));
+    return CompressedKlassPointers::decode(_metadata._compressed_klass);
   } else {
-    return klass_masked(_metadata._wide_storage_props);
+    return _metadata._klass;
   }
 }
 
@@ -116,9 +109,9 @@ Klass* oopDesc::klass_or_null_acquire() const volatile {
     // Workaround for non-const load_acquire parameter.
     const volatile narrowKlass* addr = &_metadata._compressed_klass;
     volatile narrowKlass* xaddr = const_cast<volatile narrowKlass*>(addr);
-    return CompressedKlassPointers::decode(compressed_klass_masked(Atomic::load_acquire(xaddr)));
+    return CompressedKlassPointers::decode(Atomic::load_acquire(xaddr));
   } else {
-    return klass_masked(Atomic::load_acquire(&_metadata._wide_storage_props));
+    return Atomic::load_acquire(&_metadata._klass);
   }
 }
 
@@ -128,12 +121,6 @@ Klass** oopDesc::klass_addr(HeapWord* mem) {
   assert(!UseCompressedClassPointers, "only supported with uncompressed klass pointers");
   ByteSize offset = byte_offset_of(oopDesc, _metadata._klass);
   return (Klass**) (((char*)mem) + in_bytes(offset));
-}
-
-uintptr_t* oopDesc::wide_metadata_addr(HeapWord* mem) {
-  assert(!UseCompressedClassPointers, "only supported with uncompressed klass pointers");
-  ByteSize offset = byte_offset_of(oopDesc, _metadata._wide_storage_props);
-  return (uintptr_t*) (((char*)mem) + in_bytes(offset));
 }
 
 narrowKlass* oopDesc::compressed_klass_addr(HeapWord* mem) {
@@ -154,8 +141,6 @@ narrowKlass* oopDesc::compressed_klass_addr() {
   do {                                                                    \
     assert(Universe::is_bootstrapping() || k != NULL, "NULL Klass");      \
     assert(Universe::is_bootstrapping() || k->is_klass(), "not a Klass"); \
-    assert(((reinterpret_cast<uintptr_t>(k) & (~ oopDesc::klass_mask())) == 0), \
-      "No room for storage props "); \
   } while (0)
 
 void oopDesc::set_klass(Klass* k) {
@@ -178,36 +163,7 @@ void oopDesc::release_set_klass(HeapWord* mem, Klass* klass) {
   assert(((oopDesc*)mem)->klass() == klass, "failed oopDesc::klass() encode/decode");
 }
 
-void oopDesc::set_metadata(ArrayStorageProperties storage_props, Klass* klass) {
-  CHECK_SET_KLASS(klass);
-  if (UseCompressedClassPointers) {
-    *compressed_klass_addr() = (CompressedKlassPointers::encode_not_null(klass) | storage_props.encode<narrowKlass>(narrow_storage_props_shift));
-  } else {
-    *wide_metadata_addr((HeapWord*)this) = (reinterpret_cast<uintptr_t>(klass) | storage_props.encode<uintptr_t>(wide_storage_props_shift));
-  }
-}
-
-void oopDesc::release_set_metadata(HeapWord* mem, ArrayStorageProperties storage_props, Klass* klass) {
-  CHECK_SET_KLASS(klass);
-  if (UseCompressedClassPointers) {
-    Atomic::release_store(oopDesc::compressed_klass_addr(mem),
-                               CompressedKlassPointers::encode_not_null(klass) | storage_props.encode<narrowKlass>(narrow_storage_props_shift));
-  } else {
-    Atomic::release_store(oopDesc::wide_metadata_addr(mem),
-                               (reinterpret_cast<uintptr_t>(klass) | storage_props.encode<uintptr_t>(wide_storage_props_shift)));
-  }
-}
 #undef CHECK_SET_KLASS
-
-
-ArrayStorageProperties oopDesc::array_storage_properties() const {
-  if (UseCompressedClassPointers) {
-    return ArrayStorageProperties(_metadata._narrow_storage_props >> narrow_storage_props_shift);
-  } else {
-    return ArrayStorageProperties(_metadata._wide_storage_props >> wide_storage_props_shift);
-  }
-}
-
 
 int oopDesc::klass_gap() const {
   return *(int*)(((intptr_t)this) + klass_gap_offset_in_bytes());

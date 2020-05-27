@@ -4617,21 +4617,13 @@ void MacroAssembler::load_method_holder(Register holder, Register method) {
 }
 
 void MacroAssembler::load_klass(Register dst, Register src) {
-  load_metadata(dst, src);
 #ifdef _LP64
   if (UseCompressedClassPointers) {
-    andl(dst, oopDesc::compressed_klass_mask());
+    movl(dst, Address(src, oopDesc::klass_offset_in_bytes()));
     decode_klass_not_null(dst);
   } else
 #endif
-  {
-#ifdef _LP64
-    shlq(dst, oopDesc::storage_props_nof_bits);
-    shrq(dst, oopDesc::storage_props_nof_bits);
-#else
-    andl(dst, oopDesc::wide_klass_mask());
-#endif
-  }
+  movptr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
 }
 
 void MacroAssembler::load_prototype_header(Register dst, Register src) {

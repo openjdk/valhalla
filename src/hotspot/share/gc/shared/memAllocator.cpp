@@ -390,12 +390,6 @@ oop MemAllocator::finish(HeapWord* mem) const {
   return oop(mem);
 }
 
-oop MemAllocator::finish_with_properties(HeapWord* mem, ArrayStorageProperties storage_props) const {
-  oop res = finish(mem); // finish() returns on purpose (can be overloaded, clearing memory might safepoint)
-  oopDesc::release_set_metadata(cast_from_oop<HeapWord*>(res), storage_props, _klass);
-  return res;
-}
-
 oop ObjAllocator::initialize(HeapWord* mem) const {
   mem_clear(mem);
   return finish(mem);
@@ -425,9 +419,7 @@ oop ObjArrayAllocator::initialize(HeapWord* mem) const {
     mem_clear(mem);
   }
   arrayOopDesc::set_length(mem, _length);
-  assert(ArrayKlass::cast(_klass)->storage_properties().is_empty() ||
-      ArrayKlass::cast(_klass)->dimension() == 1, "Multidim should have no storage props");
-  return finish_with_properties(mem, ArrayKlass::cast(_klass)->storage_properties());
+  return finish(mem);
 }
 
 oop ClassAllocator::initialize(HeapWord* mem) const {

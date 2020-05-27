@@ -60,8 +60,6 @@ protected:
   // last. At the point when the Klass pointer is initialized, this is a constructed object
   // that must be parseable as an oop by concurrent collectors.
   virtual oop finish(HeapWord* mem) const;
-  // Encode any extra metadata properties for arrays
-  oop finish_with_properties(HeapWord* mem, ArrayStorageProperties storage_props) const;
 
   // Raw memory allocation. This will try to do a TLAB allocation, and otherwise fall
   // back to calling CollectedHeap::mem_allocate().

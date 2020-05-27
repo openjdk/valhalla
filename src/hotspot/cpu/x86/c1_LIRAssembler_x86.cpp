@@ -1403,14 +1403,8 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
     // TODO remove clear_prop_bits bits stuff once the runtime does not set it anymore
 #ifdef _LP64
     if (UseCompressedClassPointers) {
-      __ andl(dest->as_register(), oopDesc::compressed_klass_mask());
       __ decode_klass_not_null(dest->as_register());
-    } else {
-      __ shlq(dest->as_register(), oopDesc::storage_props_nof_bits);
-      __ shrq(dest->as_register(), oopDesc::storage_props_nof_bits);
     }
-#else
-    __ andl(dest->as_register(), oopDesc::wide_klass_mask());
 #endif
   }
 }
