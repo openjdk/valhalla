@@ -2162,10 +2162,9 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
     return;
   }
 
-  // Check if both operands are of the same class. We don't need to clear the array property
-  // bits in the klass pointer for the cmp because we know that the first operand is a value type.
-  Node* kls_a = load_object_klass(not_null_a, /* clear_prop_bits = */ false);
-  Node* kls_b = load_object_klass(not_null_b, /* clear_prop_bits = */ false);
+  // Check if both operands are of the same class.
+  Node* kls_a = load_object_klass(not_null_a);
+  Node* kls_b = load_object_klass(not_null_b);
   Node* kls_cmp = CmpP(kls_a, kls_b);
   Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
   IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);

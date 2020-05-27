@@ -2361,10 +2361,7 @@ public class TestLWorld extends ValueTypeTest {
                                         Asserts.assertTrue(Arrays.equals(src2, dst2)); });
     }
 
-    // Verify that the storage property bits in the klass pointer are
-    // not cleared if we are comparing to a klass that can't be a inline
-    // type array klass anyway.
-    @Test(failOn = STORAGE_PROPERTY_CLEARING)
+    @Test
     public boolean test89(Object obj) {
         return obj.getClass() == Integer.class;
     }
@@ -2375,8 +2372,7 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertFalse(test89(new Object()));
     }
 
-    // Same as test89 but with a cast
-    @Test(failOn = STORAGE_PROPERTY_CLEARING)
+    @Test
     public Integer test90(Object obj) {
         return (Integer)obj;
     }
@@ -2392,9 +2388,7 @@ public class TestLWorld extends ValueTypeTest {
         }
     }
 
-    // Same as test89 but bit clearing can not be removed because
-    // we are comparing to a inline type array klass.
-    @Test(match = {STORAGE_PROPERTY_CLEARING}, matchCount = { 1 })
+    @Test
     public boolean test91(Object obj) {
         return obj.getClass() == MyValue2[].class;
     }
@@ -2498,10 +2492,8 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertEquals(result, 0x42 * 2);
     }
 
-    // Test that no code for clearing the array klass property bits is emitted for acmp
-    // because when loading the klass, we already know that the operand is a value type.
     @Warmup(10000)
-    @Test(failOn = STORAGE_PROPERTY_CLEARING)
+    @Test
     public boolean test95(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -2516,9 +2508,8 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertFalse(test95(o1, o2));
     }
 
-    // Same as test95 but operands are never null
     @Warmup(10000)
-    @Test(failOn = STORAGE_PROPERTY_CLEARING)
+    @Test
     public boolean test96(Object o1, Object o2) {
         return o1 == o2;
     }

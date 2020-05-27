@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1933,7 +1933,7 @@ public class TestNullableArrays extends ValueTypeTest {
 
         for (int i = 0; i < va.length; ++i) {
             Asserts.assertEQ(oa[i], result[i]);
-            // Check that array has correct storage properties (null-ok)
+            // Check that array has correct properties (null-ok)
             result[i] = null;
         }
     }
@@ -1972,7 +1972,7 @@ public class TestNullableArrays extends ValueTypeTest {
         Object[] result = test75(va, oa);
         verify(verif, result);
         if (len > 0) {
-            // Check that array has correct storage properties (null-ok)
+            // Check that array has correct properties (null-ok)
             result[0] = null;
         }
     }

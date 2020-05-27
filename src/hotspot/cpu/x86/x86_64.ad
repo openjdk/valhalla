@@ -11760,21 +11760,6 @@ instruct testI_mem_imm(rFlagsReg cr, memory mem, immI con, immI0 zero)
   ins_pipe(ialu_mem_imm);
 %}
 
-// Clear array property bits
-instruct clear_property_bits(rRegN dst, memory mem, immU31 mask, rFlagsReg cr)
-%{
-  match(Set dst (CastI2N (AndI (CastN2I (LoadNKlass mem)) mask)));
-  effect(KILL cr);
-
-  format %{ "movl    $dst, $mem\t# clear property bits\n\t"
-            "andl    $dst, $mask" %}
-  ins_encode %{
-    __ movl($dst$$Register, $mem$$Address);
-    __ andl($dst$$Register, $mask$$constant);
-  %}
-  ins_pipe(ialu_reg_mem);
-%}
-
 // Unsigned compare Instructions; really, same as signed except they
 // produce an rFlagsRegU instead of rFlagsReg.
 instruct compU_rReg(rFlagsRegU cr, rRegI op1, rRegI op2)

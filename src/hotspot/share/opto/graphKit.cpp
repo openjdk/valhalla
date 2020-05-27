@@ -1177,13 +1177,12 @@ Node* GraphKit::ConvL2I(Node* offset) {
 }
 
 //-------------------------load_object_klass-----------------------------------
-Node* GraphKit::load_object_klass(Node* obj, bool clear_prop_bits) {
+Node* GraphKit::load_object_klass(Node* obj) {
   // Special-case a fresh allocation to avoid building nodes:
   Node* akls = AllocateNode::Ideal_klass(obj, &_gvn);
   if (akls != NULL)  return akls;
   Node* k_adr = basic_plus_adr(obj, oopDesc::klass_offset_in_bytes());
-  // TODO remove clear_prop_bits bits stuff once the runtime does not set it anymore
-  return _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT, clear_prop_bits));
+  return _gvn.transform(LoadKlassNode::make(_gvn, NULL, immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT));
 }
 
 //-------------------------load_array_length-----------------------------------
