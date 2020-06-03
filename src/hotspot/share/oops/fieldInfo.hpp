@@ -270,10 +270,6 @@ class FieldInfo {
     else   _shorts[access_flags_offset] &= ~JVM_ACC_FIELD_STABLE;
   }
 
-  bool is_flattenable() const {
-    return (access_flags() & JVM_ACC_FLATTENABLE) != 0;
-  }
-
   Symbol* lookup_symbol(int symbol_index) const {
     assert(is_internal(), "only internal fields");
     return vmSymbols::symbol_at((vmSymbols::SID)symbol_index);

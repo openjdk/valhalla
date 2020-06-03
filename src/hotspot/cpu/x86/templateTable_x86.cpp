@@ -3068,14 +3068,14 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   } else {
     if (is_static) {
       __ load_heap_oop(rax, field);
-      Label isFlattenable, uninitialized;
+      Label is_inline, uninitialized;
       // Issue below if the static field has not been initialized yet
-      __ test_field_is_flattenable(flags2, rscratch1, isFlattenable);
-        // Not flattenable case
+      __ test_field_is_inline(flags2, rscratch1, is_inline);
+        // Not inline case
         __ push(atos);
         __ jmp(Done);
-      // Flattenable case, must not return null even if uninitialized
-      __ bind(isFlattenable);
+      // inline case, must not return null even if uninitialized
+      __ bind(is_inline);
         __ testptr(rax, rax);
         __ jcc(Assembler::zero, uninitialized);
           __ push(atos);
@@ -3099,9 +3099,9 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ push(atos);
           __ jmp(Done);
     } else {
-      Label isFlattened, nonnull, isFlattenable, rewriteFlattenable;
-      __ test_field_is_flattenable(flags2, rscratch1, isFlattenable);
-        // Non-flattenable field case, also covers the object case
+      Label isFlattened, nonnull, is_inline, rewrite_inline;
+      __ test_field_is_inline(flags2, rscratch1, is_inline);
+        // Non-inline field case, also covers the object case
         pop_and_check_object(obj);
         __ load_heap_oop(rax, field);
         __ push(atos);
@@ -3109,7 +3109,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           patch_bytecode(Bytecodes::_fast_agetfield, bc, rbx);
         }
         __ jmp(Done);
-      __ bind(isFlattenable);
+      __ bind(is_inline);
         __ test_field_is_flattened(flags2, rscratch1, isFlattened);
           // Non-flattened field case
           __ movptr(rax, rcx);  // small dance required to preserve the klass_holder somewhere
@@ -3125,14 +3125,14 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ bind(nonnull);
           __ verify_oop(rax);
           __ push(atos);
-          __ jmp(rewriteFlattenable);
+          __ jmp(rewrite_inline);
         __ bind(isFlattened);
           __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
           pop_and_check_object(rax);
           __ read_flattened_field(rcx, flags2, rbx, rax);
           __ verify_oop(rax);
           __ push(atos);
-      __ bind(rewriteFlattenable);
+      __ bind(rewrite_inline);
       if (rc == may_rewrite) {
         patch_bytecode(Bytecodes::_fast_qgetfield, bc, rbx);
       }
@@ -3447,33 +3447,33 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
     } else {
       __ pop(atos);
       if (is_static) {
-        Label notFlattenable, notBuffered;
-        __ test_field_is_not_flattenable(flags2, rscratch1, notFlattenable);
+        Label is_inline;
+        __ test_field_is_not_inline(flags2, rscratch1, is_inline);
         __ null_check(rax);
-        __ bind(notFlattenable);
+        __ bind(is_inline);
         do_oop_store(_masm, field, rax);
         __ jmp(Done);
       } else {
-        Label isFlattenable, isFlattened, notBuffered, notBuffered2, rewriteNotFlattenable, rewriteFlattenable;
-        __ test_field_is_flattenable(flags2, rscratch1, isFlattenable);
-        // Not flattenable case, covers not flattenable values and objects
+        Label is_inline, isFlattened, rewrite_not_inline, rewrite_inline;
+        __ test_field_is_inline(flags2, rscratch1, is_inline);
+        // Not inline case
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, rax);
-        __ bind(rewriteNotFlattenable);
+        __ bind(rewrite_not_inline);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
         }
         __ jmp(Done);
-        // Implementation of the flattenable semantic
-        __ bind(isFlattenable);
+        // Implementation of the inline semantic
+        __ bind(is_inline);
         __ null_check(rax);
         __ test_field_is_flattened(flags2, rscratch1, isFlattened);
         // Not flattened case
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, rax);
-        __ jmp(rewriteFlattenable);
+        __ jmp(rewrite_inline);
         __ bind(isFlattened);
         pop_and_check_object(obj);
         assert_different_registers(rax, rdx, obj, off);
@@ -3481,7 +3481,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
         __ data_for_oop(rax, rax, rdx);
         __ addptr(obj, off);
         __ access_value_copy(IN_HEAP, rax, obj, rdx);
-        __ bind(rewriteFlattenable);
+        __ bind(rewrite_inline);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_qputfield, bc, rbx, true, byte_no);
         }

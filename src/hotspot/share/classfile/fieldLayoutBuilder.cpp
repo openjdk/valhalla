@@ -537,6 +537,7 @@ FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, const InstanceKl
   _first_field_offset(-1),
   _exact_size_in_bytes(-1),
   _has_nonstatic_fields(false),
+  _has_inline_fields(false),
   _is_contended(is_contended),
   _is_inline_type(is_inline_type),
   _has_flattening_information(is_inline_type),
@@ -614,18 +615,19 @@ void FieldLayoutBuilder::regular_field_sorting() {
       group->add_oop_field(fs);
       break;
     case T_VALUETYPE:
+//      fs.set_inline(true);
+      _has_inline_fields = true;
       if (group == _static_fields) {
         // static fields are never flattened
         group->add_oop_field(fs);
       } else {
         _has_flattening_information = true;
         // Flattening decision to be taken here
-        // This code assumes all verification have been performed before
-        // (field is a flattenable field, field's type has been loaded
-        // and it is an inline klass
+        // This code assumes all verification already have been performed
+        // (field's type has been loaded and it is an inline klass)
         Thread* THREAD = Thread::current();
         Klass* klass =
-            SystemDictionary::resolve_flattenable_field_or_fail(&fs,
+            SystemDictionary::resolve_inline_field_or_fail(&fs,
                                                                 Handle(THREAD, _class_loader_data->class_loader()),
                                                                 _protection_domain, true, THREAD);
         assert(klass != NULL, "Sanity check");
@@ -715,17 +717,18 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
       group->add_oop_field(fs);
       break;
     case T_VALUETYPE: {
+//      fs.set_inline(true);
+      _has_inline_fields = true;
       if (group == _static_fields) {
         // static fields are never flattened
         group->add_oop_field(fs);
       } else {
         // Flattening decision to be taken here
-        // This code assumes all verifications have been performed before
-        // (field is a flattenable field, field's type has been loaded
-        // and it is an inline klass
+        // This code assumes all verifications have already been performed
+        // (field's type has been loaded and it is an inline klass)
         Thread* THREAD = Thread::current();
         Klass* klass =
-            SystemDictionary::resolve_flattenable_field_or_fail(&fs,
+            SystemDictionary::resolve_inline_field_or_fail(&fs,
                 Handle(THREAD, _class_loader_data->class_loader()),
                 _protection_domain, true, CHECK);
         assert(klass != NULL, "Sanity check");
@@ -945,6 +948,7 @@ void FieldLayoutBuilder::epilogue() {
   _info->_static_field_size = static_fields_size;
   _info->_nonstatic_field_size = (nonstatic_field_end - instanceOopDesc::base_offset_in_bytes()) / heapOopSize;
   _info->_has_nonstatic_fields = _has_nonstatic_fields;
+  _info->_has_inline_fields = _has_inline_fields;
 
   // An inline type is naturally atomic if it has just one field, and
   // that field is simple enough.

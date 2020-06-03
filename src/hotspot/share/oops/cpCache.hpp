@@ -51,7 +51,7 @@ class PSPromotionManager;
 // _indices   [ b2 | b1 |  index  ]  index = constant_pool_index
 // _f1        [  entry specific   ]  metadata ptr (method or klass)
 // _f2        [  entry specific   ]  vtable or res_ref index, or vfinal method ptr
-// _flags     [tos|0|F=1|0|N|i|f|v|0 |0000|field_index] (for field entries)
+// _flags     [tos|0|F=1|0|I|i|f|v|0 |0000|field_index] (for field entries)
 // bit length [ 4 |1| 1 |1|1|1|1|1|1 |1     |-3-|----16-----]
 // _flags     [tos|0|F=0|S|A|I|f|0|vf|indy_rf|000|00000|psize] (for method entries)
 // bit length [ 4 |1| 1 |1|1|1|1|1|1 |-4--|--8--|--8--]
@@ -77,7 +77,7 @@ class PSPromotionManager;
 //
 // The flags after TosState have the following interpretation:
 // bit 27: 0 for fields, 1 for methods
-// N  flag true if field is marked flattenable (must never be null)
+// I  flag true if field is an inline type (must never be null)
 // i  flag true if field is inlined (flattened)
 // f  flag true if field is marked final
 // v  flag true if field is volatile (only for fields)
@@ -186,7 +186,7 @@ class ConstantPoolCacheEntry {
     is_field_entry_shift       = 26,  // (F) is it a field or a method?
     has_local_signature_shift  = 25,  // (S) does the call site have a per-site signature (sig-poly methods)?
     has_appendix_shift         = 24,  // (A) does the call site have an appendix argument?
-    is_flattenable_field_shift = 24,  // (N) is the field flattenable (must never be null)
+    is_inline_field_shift      = 24,  // (I) is the field inline (must never be null)
     is_forced_virtual_shift    = 23,  // (I) is the interface reference forced to virtual mode?
     is_flattened_field_shift   = 23,  // (i) is the value field flattened?
     is_final_shift             = 22,  // (f) is the field or method final?
@@ -229,7 +229,7 @@ class ConstantPoolCacheEntry {
     bool            is_final,                    // the field is final
     bool            is_volatile,                 // the field is volatile
     bool            is_flattened,                // the field is flattened (value field)
-    bool            is_flattenable,              // the field is flattenable (must never be null)
+    bool            is_inline,                   // the field is inline (must never be null)
     Klass*          root_klass                   // needed by the GC to dirty the klass
   );
 
@@ -363,7 +363,7 @@ class ConstantPoolCacheEntry {
   bool is_field_entry() const                    { return (_flags & (1 << is_field_entry_shift))    != 0; }
   bool is_long() const                           { return flag_state() == ltos; }
   bool is_double() const                         { return flag_state() == dtos; }
-  bool is_flattenable() const                    { return (_flags & (1 << is_flattenable_field_shift))       != 0; }
+  bool is_inline() const                         { return (_flags & (1 << is_inline_field_shift))       != 0; }
   TosState flag_state() const                    { assert((uint)number_of_states <= (uint)tos_state_mask+1, "");
                                                    return (TosState)((_flags >> tos_state_shift) & tos_state_mask); }
   void set_indy_resolution_failed();

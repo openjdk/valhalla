@@ -94,7 +94,7 @@ class fieldDescriptor {
   bool is_volatile()              const    { return access_flags().is_volatile(); }
   bool is_transient()             const    { return access_flags().is_transient(); }
   inline bool is_flattened()      const;
-  inline bool is_flattenable()    const;
+  inline bool is_inline()         const;
 
   bool is_synthetic()             const    { return access_flags().is_synthetic(); }
 

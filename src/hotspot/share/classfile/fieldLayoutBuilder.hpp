@@ -253,6 +253,7 @@ class FieldLayoutBuilder : public ResourceObj {
   int _first_field_offset;
   int _exact_size_in_bytes;
   bool _has_nonstatic_fields;
+  bool _has_inline_fields;
   bool _is_contended;
   bool _is_inline_type;
   bool _has_flattening_information;

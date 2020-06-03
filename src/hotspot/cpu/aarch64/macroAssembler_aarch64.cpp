@@ -1507,14 +1507,14 @@ void MacroAssembler::test_klass_is_value(Register klass, Register temp_reg, Labe
   cbnz(temp_reg, is_value);
 }
 
-void MacroAssembler::test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable) {
+void MacroAssembler::test_field_is_inline(Register flags, Register temp_reg, Label& is_inline) {
   (void) temp_reg; // keep signature uniform with x86
-  tbnz(flags, ConstantPoolCacheEntry::is_flattenable_field_shift, is_flattenable);
+  tbnz(flags, ConstantPoolCacheEntry::is_inline_field_shift, is_inline);
 }
 
-void MacroAssembler::test_field_is_not_flattenable(Register flags, Register temp_reg, Label& not_flattenable) {
+void MacroAssembler::test_field_is_not_inline(Register flags, Register temp_reg, Label& not_inline) {
   (void) temp_reg; // keep signature uniform with x86
-  tbz(flags, ConstantPoolCacheEntry::is_flattenable_field_shift, not_flattenable);
+  tbz(flags, ConstantPoolCacheEntry::is_inline_field_shift, not_inline);
 }
 
 void MacroAssembler::test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened) {

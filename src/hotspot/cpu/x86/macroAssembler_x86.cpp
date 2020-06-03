@@ -2637,20 +2637,20 @@ void MacroAssembler::test_klass_is_empty_value(Register klass, Register temp_reg
   jcc(Assembler::notZero, is_empty_value);
 }
 
-void MacroAssembler::test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable) {
+void MacroAssembler::test_field_is_inline(Register flags, Register temp_reg, Label& is_inline) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_flattenable_field_shift);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_inline_field_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_flattenable);
+  jcc(Assembler::notZero, is_inline);
 }
 
-void MacroAssembler::test_field_is_not_flattenable(Register flags, Register temp_reg, Label& notFlattenable) {
+void MacroAssembler::test_field_is_not_inline(Register flags, Register temp_reg, Label& not_inline) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_flattenable_field_shift);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_inline_field_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
-  jcc(Assembler::zero, notFlattenable);
+  jcc(Assembler::zero, not_inline);
 }
 
 void MacroAssembler::test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened) {

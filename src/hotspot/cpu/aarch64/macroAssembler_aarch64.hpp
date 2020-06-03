@@ -615,8 +615,8 @@ public:
 
   void test_klass_is_value(Register klass, Register temp_reg, Label& is_value);
 
-  void test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable);
-  void test_field_is_not_flattenable(Register flags, Register temp_reg, Label& notFlattenable);
+  void test_field_is_inline(Register flags, Register temp_reg, Label& is_inline);
+  void test_field_is_not_inline(Register flags, Register temp_reg, Label& not_inline);
   void test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened);
 
   // Check klass/oops is flat value type array (oop->_klass->_layout_helper & vt_bit)

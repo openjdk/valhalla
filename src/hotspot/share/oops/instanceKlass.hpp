@@ -543,7 +543,7 @@ class InstanceKlass: public Klass {
   Symbol* field_name        (int index) const { return field(index)->name(constants()); }
   Symbol* field_signature   (int index) const { return field(index)->signature(constants()); }
   bool    field_is_flattened(int index) const { return field(index)->is_flattened(); }
-  bool    field_is_flattenable(int index) const { return field(index)->is_flattenable(); }
+  bool    field_is_inline   (int index) const;
 
   // Number of Java declared fields
   int java_fields_count() const           { return (int)_java_fields_count; }

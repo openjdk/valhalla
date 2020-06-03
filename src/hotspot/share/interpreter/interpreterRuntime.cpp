@@ -360,7 +360,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
       field_vk->write_flattened_field(new_value_h(), offset, vt_oop, CHECK_(return_offset));
     } else { // not flattened
       oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      if (voop == NULL && cp_entry->is_flattenable()) {
+      if (voop == NULL && cp_entry->is_inline()) {
         THROW_(vmSymbols::java_lang_NullPointerException(), return_offset);
       }
       assert(voop == NULL || oopDesc::is_oop(voop),"checking argument");
@@ -377,7 +377,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread* thread, oopDesc* mirror, int index))
-  // The interpreter tries to access a flattenable static field that has not been initialized.
+  // The interpreter tries to access an inline static field that has not been initialized.
   // This situation can happen in different scenarios:
   //   1 - if the load or initialization of the field failed during step 8 of
   //       the initialization of the holder of the field, in this case the access to the field
@@ -992,7 +992,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
     info.access_flags().is_final(),
     info.access_flags().is_volatile(),
     info.is_flattened(),
-    info.is_flattenable(),
+    info.is_inline(),
     pool->pool_holder()
   );
 }

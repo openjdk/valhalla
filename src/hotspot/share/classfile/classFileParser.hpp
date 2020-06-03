@@ -76,6 +76,7 @@ class FieldLayoutInfo : public ResourceObj {
   int _static_field_size;
   bool  _has_nonstatic_fields;
   bool  _is_naturally_atomic;
+  bool _has_inline_fields;
 };
 
 // Parser for for .class files
@@ -202,7 +203,7 @@ class ClassFileParser {
   bool _has_final_method;
   bool _has_contended_fields;
 
-  bool _has_flattenable_fields;
+  bool _has_inline_fields;
   bool _has_nonstatic_fields;
   bool _is_empty_inline_type;
   bool _is_naturally_atomic;
@@ -599,7 +600,7 @@ class ClassFileParser {
   bool is_interface() const { return _access_flags.is_interface(); }
   bool is_inline_type() const { return _access_flags.is_inline_type(); }
   bool is_value_capable_class() const;
-  bool has_flattenable_fields() const { return _has_flattenable_fields; }
+  bool has_inline_fields() const { return _has_inline_fields; }
   bool invalid_inline_super() const { return _invalid_inline_super; }
   void set_invalid_inline_super() { _invalid_inline_super = true; }
   bool invalid_identity_super() const { return _invalid_identity_super; }

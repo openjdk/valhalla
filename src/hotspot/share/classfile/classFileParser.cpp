@@ -1518,13 +1518,13 @@ enum FieldAllocationType {
   STATIC_SHORT,         // shorts
   STATIC_WORD,          // ints
   STATIC_DOUBLE,        // aligned long or double
-  STATIC_FLATTENABLE,   // flattenable field
+  STATIC_INLINE,        // inline field
   NONSTATIC_OOP,
   NONSTATIC_BYTE,
   NONSTATIC_SHORT,
   NONSTATIC_WORD,
   NONSTATIC_DOUBLE,
-  NONSTATIC_FLATTENABLE,
+  NONSTATIC_INLINE,
   MAX_FIELD_ALLOCATION_TYPE,
   BAD_ALLOCATION_TYPE = -1
 };
@@ -1574,12 +1574,12 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   BAD_ALLOCATION_TYPE, // T_CONFLICT    = 20
 };
 
-static FieldAllocationType basic_type_to_atype(bool is_static, BasicType type, bool is_flattenable) {
+static FieldAllocationType basic_type_to_atype(bool is_static, BasicType type, bool is_inline) {
   assert(type >= T_BOOLEAN && type < T_VOID, "only allowable values");
   FieldAllocationType result = _basic_type_to_atype[type + (is_static ? (T_CONFLICT + 1) : 0)];
   assert(result != BAD_ALLOCATION_TYPE, "bad type");
-  if (is_flattenable) {
-    result = is_static ? STATIC_FLATTENABLE : NONSTATIC_FLATTENABLE;
+  if (is_inline) {
+    result = is_static ? STATIC_INLINE : NONSTATIC_INLINE;
   }
   return result;
 }
@@ -1594,8 +1594,8 @@ class ClassFileParser::FieldAllocationCount : public ResourceObj {
     }
   }
 
-  FieldAllocationType update(bool is_static, BasicType type, bool is_flattenable) {
-    FieldAllocationType atype = basic_type_to_atype(is_static, type, is_flattenable);
+  FieldAllocationType update(bool is_static, BasicType type, bool is_inline) {
+    FieldAllocationType atype = basic_type_to_atype(is_static, type, is_inline);
     if (atype != BAD_ALLOCATION_TYPE) {
       // Make sure there is no overflow with injected fields.
       assert(count[atype] < 0xFFFF, "More than 65535 fields");
@@ -1691,22 +1691,6 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       signature_index, CHECK);
     const Symbol* const sig = cp->symbol_at(signature_index);
     verify_legal_field_signature(name, sig, CHECK);
-    assert(!access_flags.is_flattenable(), "ACC_FLATTENABLE should have been filtered out");
-    if (sig->is_Q_signature()) {
-      // assert(_major_version >= CONSTANT_CLASS_DESCRIPTORS, "Q-descriptors are only supported in recent classfiles");
-      access_flags.set_is_flattenable();
-    }
-    if (access_flags.is_flattenable()) {
-      // Array flattenability cannot be specified.  Arrays of value classes are
-      // are always flattenable.  Arrays of other classes are not flattenable.
-      if (sig->utf8_length() > 1 && sig->char_at(0) == '[') {
-        classfile_parse_error(
-            "Field \"%s\" with signature \"%s\" in class file %s is invalid."
-            " ACC_FLATTENABLE cannot be specified for an array",
-            name->as_C_string(), sig->as_klass_external_name(), CHECK);
-      }
-      _has_flattenable_fields = true;
-    }
     if (!access_flags.is_static()) instance_fields_count++;
 
     u2 constantvalue_index = 0;
@@ -1767,7 +1751,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
 
     // Remember how many oops we encountered and compute allocation type
-    const FieldAllocationType atype = fac->update(is_static, type, access_flags.is_flattenable());
+    const FieldAllocationType atype = fac->update(is_static, type, type == T_VALUETYPE);
     field->set_allocation_type(atype);
 
     // After field is initialized with type, we can augment it with aux info
@@ -4326,7 +4310,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   int next_static_oop_offset    = InstanceMirrorKlass::offset_of_static_fields();
   // Inline types in static fields are not embedded, they are handled with oops
   int next_static_double_offset = next_static_oop_offset +
-                                  ((fac->count[STATIC_OOP] + fac->count[STATIC_FLATTENABLE]) * heapOopSize);
+                                  ((fac->count[STATIC_OOP] + fac->count[STATIC_INLINE]) * heapOopSize);
   if (fac->count[STATIC_DOUBLE]) {
     next_static_double_offset = align_up(next_static_double_offset, BytesPerLong);
   }
@@ -4343,7 +4327,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
   // First field of inline types is aligned on a long boundary in order to ease
   // in-lining of inline types (with header removal) in packed arrays and
-  // flatten inline types
+  // flattened inline types
   int initial_inline_type_padding = 0;
   if (is_inline_type()) {
     int old = nonstatic_fields_start;
@@ -4386,7 +4370,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   int not_flattened_inline_types = 0;
   int not_atomic_inline_types = 0;
 
-  int max_nonstatic_inline_type = fac->count[NONSTATIC_FLATTENABLE] + 1;
+  int max_nonstatic_inline_type = fac->count[NONSTATIC_INLINE] + 1;
 
   nonstatic_inline_type_indexes = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, int,
                                                                max_nonstatic_inline_type);
@@ -4397,20 +4381,20 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
                                                                max_nonstatic_inline_type);
 
   for (AllFieldStream fs(_fields, _cp); !fs.done(); fs.next()) {
-    if (fs.allocation_type() == STATIC_FLATTENABLE) {
+    if (fs.allocation_type() == STATIC_INLINE) {
       ResourceMark rm;
       if (!fs.signature()->is_Q_signature()) {
         THROW(vmSymbols::java_lang_ClassFormatError());
       }
       static_inline_type_count++;
-    } else if (fs.allocation_type() == NONSTATIC_FLATTENABLE) {
-      // Pre-resolve the flattenable field and check for inline type circularity issues.
+    } else if (fs.allocation_type() == NONSTATIC_INLINE) {
+      // Pre-resolve the inline field and check for inline type circularity issues.
       ResourceMark rm;
       if (!fs.signature()->is_Q_signature()) {
         THROW(vmSymbols::java_lang_ClassFormatError());
       }
       Klass* klass =
-        SystemDictionary::resolve_flattenable_field_or_fail(&fs,
+        SystemDictionary::resolve_inline_field_or_fail(&fs,
                                                             Handle(THREAD, _loader_data->class_loader()),
                                                             _protection_domain, true, CHECK);
       assert(klass != NULL, "Sanity check");
@@ -4454,7 +4438,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   // Total non-static fields count, including every contended field
   unsigned int nonstatic_fields_count = fac->count[NONSTATIC_DOUBLE] + fac->count[NONSTATIC_WORD] +
                                         fac->count[NONSTATIC_SHORT] + fac->count[NONSTATIC_BYTE] +
-                                        fac->count[NONSTATIC_OOP] + fac->count[NONSTATIC_FLATTENABLE];
+                                        fac->count[NONSTATIC_OOP] + fac->count[NONSTATIC_INLINE];
 
   const bool super_has_nonstatic_fields =
           (_super_klass != NULL && _super_klass->has_nonstatic_fields());
@@ -4603,7 +4587,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
     // pack the rest of the fields
     switch (atype) {
       // Inline types in static fields are handled with oops
-      case STATIC_FLATTENABLE:   // Fallthrough
+      case STATIC_INLINE:   // Fallthrough
       case STATIC_OOP:
         real_offset = next_static_oop_offset;
         next_static_oop_offset += heapOopSize;
@@ -4624,7 +4608,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         real_offset = next_static_double_offset;
         next_static_double_offset += BytesPerLong;
         break;
-      case NONSTATIC_FLATTENABLE:
+      case NONSTATIC_INLINE:
         if (fs.is_flattened()) {
           Klass* klass = nonstatic_inline_type_klasses[next_inline_type_index];
           assert(klass != NULL, "Klass should have been loaded and resolved earlier");
@@ -4768,7 +4752,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
             break;
 
             // Inline types in static fields are handled with oops
-          case NONSTATIC_FLATTENABLE:
+          case NONSTATIC_INLINE:
             throwInlineTypeLimitation(THREAD_AND_LOCATION,
                                       "@Contended annotation not supported for inline types yet", fs.name(), fs.signature());
             return;
@@ -4882,6 +4866,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   info->_static_field_size = static_field_size;
   info->_nonstatic_field_size = nonstatic_field_size;
   info->_has_nonstatic_fields = has_nonstatic_fields;
+  info->_has_inline_fields = nonstatic_inline_type_count > 0;
 
   // An inline type is naturally atomic if it has just one field, and
   // that field is simple enough.
@@ -6164,7 +6149,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   }
 
   assert(_fac != NULL, "invariant");
-  ik->set_static_oop_field_count(_fac->count[STATIC_OOP] + _fac->count[STATIC_FLATTENABLE]);
+  ik->set_static_oop_field_count(_fac->count[STATIC_OOP] + _fac->count[STATIC_INLINE]);
 
   // this transfers ownership of a lot of arrays from
   // the parser onto the InstanceKlass*
@@ -6329,7 +6314,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   int nfields = ik->java_fields_count();
   if (ik->is_value()) nfields++;
   for (int i = 0; i < nfields; i++) {
-    if (ik->field_is_flattenable(i)) {
+    if (ik->field_is_inline(i)) {
       Symbol* klass_name = ik->field_signature(i)->fundamental_name(CHECK);
       // Inline classes for instance fields must have been pre-loaded
       // Inline classes for static fields might not have been loaded yet
@@ -6554,7 +6539,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _declares_nonstatic_concrete_methods(false),
   _has_final_method(false),
   _has_contended_fields(false),
-  _has_flattenable_fields(false),
+  _has_inline_fields(false),
   _has_nonstatic_fields(false),
   _is_empty_inline_type(false),
   _is_naturally_atomic(false),
@@ -7175,14 +7160,13 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
 
   for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
-    if (fs.is_flattenable() && !fs.access_flags().is_static()) {
+    if (Signature::basic_type(fs.signature()) == T_VALUETYPE  && !fs.access_flags().is_static()) {
       // Pre-load value class
-      Klass* klass = SystemDictionary::resolve_flattenable_field_or_fail(&fs,
+      Klass* klass = SystemDictionary::resolve_inline_field_or_fail(&fs,
           Handle(THREAD, _loader_data->class_loader()),
           _protection_domain, true, CHECK);
       assert(klass != NULL, "Sanity check");
-      assert(klass->access_flags().is_inline_type(), "Inline type expected");
-      _has_flattenable_fields = true;
+      assert(klass->access_flags().is_inline_type(), "Value type expected");
     }
   }
 
@@ -7200,6 +7184,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   } else {
     layout_fields(cp, _fac, _parsed_annotations, _field_info, CHECK);
   }
+  _has_inline_fields = _field_info->_has_inline_fields;
 
   // Compute reference type
   _rt = (NULL ==_super_klass) ? REF_NONE : _super_klass->reference_type();

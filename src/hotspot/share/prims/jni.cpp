@@ -3496,7 +3496,7 @@ JNI_ENTRY(jobject, jni_CreateSubElementSelector(JNIEnv* env, jarray array))
   jdk_internal_vm_jni_SubElementSelector::setSubElementType(ses_h(), elementKlass->java_mirror());
   jdk_internal_vm_jni_SubElementSelector::setOffset(ses_h(), 0);
   jdk_internal_vm_jni_SubElementSelector::setIsFlattened(ses_h(), true);   // by definition, top element of a flattened array is flattened
-  jdk_internal_vm_jni_SubElementSelector::setIsFlattenable(ses_h(), true); // by definition, top element of a flattened array is flattenable
+  jdk_internal_vm_jni_SubElementSelector::setIsInline(ses_h(), true); // by definition, top element of a flattened array is an inline type
   return JNIHandles::make_local(ses_h());
 JNI_END
 
@@ -3542,7 +3542,7 @@ JNI_ENTRY(jobject, jni_GetSubElementSelector(JNIEnv* env, jobject selector, jfie
   }
   jdk_internal_vm_jni_SubElementSelector::setOffset(res_h(), offset);
   jdk_internal_vm_jni_SubElementSelector::setIsFlattened(res_h(), fd.is_flattened());
-  jdk_internal_vm_jni_SubElementSelector::setIsFlattenable(res_h(), fd.is_flattenable());
+  jdk_internal_vm_jni_SubElementSelector::setIsInline(res_h(), fd.is_inline());
   return JNIHandles::make_local(res_h());
 JNI_END
 
@@ -3583,7 +3583,7 @@ JNI_ENTRY(void, jni_SetObjectSubElement(JNIEnv* env, jarray array, jobject selec
   }
   oop val = JNIHandles::resolve(value);
   if (val == NULL) {
-    if (jdk_internal_vm_jni_SubElementSelector::getIsFlattenable(slct)) {
+    if (jdk_internal_vm_jni_SubElementSelector::getIsInline(slct)) {
       THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), "null cannot be stored in a flattened array");
     }
   } else {

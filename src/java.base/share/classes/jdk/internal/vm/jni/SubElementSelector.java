@@ -30,5 +30,5 @@ public /*inline*/ class SubElementSelector {
     public final Class<?> subElementType = null;
     public final int offset = -1;
     public final boolean isFlattened = false;
-    public final boolean isFlattenable = false;
+    public final boolean isInline = false;
 }

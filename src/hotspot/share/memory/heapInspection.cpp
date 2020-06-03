@@ -528,23 +528,23 @@ private:
   const int index() { return _index; }
   const InstanceKlass* holder() { return _holder; }
   const AccessFlags& access_flags() { return _access_flags; }
-  const bool is_flattenable() { return _access_flags.is_flattenable(); }
+  const bool is_inline() { return Signature::basic_type(_signature) == T_VALUETYPE; }
 };
 
 static int compare_offset(FieldDesc* f1, FieldDesc* f2) {
    return f1->offset() > f2->offset() ? 1 : -1;
 }
 
-static void print_field(outputStream* st, int level, int offset, FieldDesc& fd, bool flattenable, bool flattened ) {
+static void print_field(outputStream* st, int level, int offset, FieldDesc& fd, bool is_inline, bool flattened ) {
   const char* flattened_msg = "";
-  if (flattenable) {
+  if (is_inline) {
     flattened_msg = flattened ? "and flattened" : "not flattened";
   }
   st->print_cr("  @ %d %*s \"%s\" %s %s %s",
       offset, level * 3, "",
       fd.name()->as_C_string(),
       fd.signature()->as_C_string(),
-      flattenable ? " // flattenable" : "",
+      is_inline ? " // inline " : "",
       flattened_msg);
 }
 
@@ -562,7 +562,7 @@ static void print_flattened_field(outputStream* st, int level, int offset, Insta
     FieldDesc fd = fields->at(i);
     int offset2 = offset + fd.offset() - vklass->first_field_offset();
     print_field(st, level, offset2, fd,
-        fd.is_flattenable(), fd.holder()->field_is_flattened(fd.index()));
+        fd.is_inline(), fd.holder()->field_is_flattened(fd.index()));
     if (fd.holder()->field_is_flattened(fd.index())) {
       print_flattened_field(st, level + 1, offset2 ,
           InstanceKlass::cast(fd.holder()->get_value_field_klass(fd.index())));
@@ -603,7 +603,7 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
     fields->sort(compare_offset);
     for(int i = 0; i < fields->length(); i++) {
       FieldDesc fd = fields->at(i);
-      print_field(st, 0, fd.offset(), fd, fd.is_flattenable(), fd.holder()->field_is_flattened(fd.index()));
+      print_field(st, 0, fd.offset(), fd, fd.is_inline(), fd.holder()->field_is_flattened(fd.index()));
       if (fd.holder()->field_is_flattened(fd.index())) {
         print_flattened_field(st, 1, fd.offset(),
             InstanceKlass::cast(fd.holder()->get_value_field_klass(fd.index())));
