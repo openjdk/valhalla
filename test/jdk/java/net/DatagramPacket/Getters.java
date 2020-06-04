@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,19 +21,27 @@
  * questions.
  */
 
-
-/*
- * @test
- * @key gc
- *
- * @summary converted from VM Testbase gc/huge/quicklook/largeheap/MemOptions.
- * VM Testbase keywords: [gc, nonconcurrent]
- *
- * @library /vmTestbase
- *          /test/lib
- * @run driver jdk.test.lib.FileInstaller . .
- * @build nsk.share.PrintProperties
- *        gc.huge.quicklook.largeheap.MemOptions.MemStat
- * @run shell MemOptions.sh
+/* @test
+ * @bug 8237890
+ * @summary Check that DatagramPacket's get methods perform as expected
+ * @run testng Getters
  */
 
+import org.testng.annotations.Test;
+
+import java.net.DatagramPacket;
+import java.net.InetSocketAddress;
+
+import static org.testng.Assert.assertTrue;
+
+public class Getters {
+
+    @Test
+    public void testDefaultGetSocketAddress() {
+        DatagramPacket packet = new DatagramPacket(new byte[128], 0);
+        InetSocketAddress addr = (InetSocketAddress)packet.getSocketAddress();
+
+        assertTrue(addr.getAddress().isAnyLocalAddress());
+        assertTrue(addr.getPort() == 0);
+    }
+}
