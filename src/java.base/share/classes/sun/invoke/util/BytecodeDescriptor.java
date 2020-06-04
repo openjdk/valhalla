@@ -154,11 +154,7 @@ public class BytecodeDescriptor {
         } else if (t == Object.class) {
             sb.append("Ljava/lang/Object;");
         } else {
-            boolean lsemi = (!t.isArray());
-            if (lsemi)  sb.append(t.isInlineClass() ? 'Q' : 'L');
-            sb.append(t.getName().replace('.', '/'));
-            if (lsemi)  sb.append(';');
+            sb.append(t.descriptorString());
         }
     }
-
 }

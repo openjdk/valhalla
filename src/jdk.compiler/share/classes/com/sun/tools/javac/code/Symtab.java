@@ -404,7 +404,10 @@ public class Symtab {
 
         MissingInfoHandler missingInfoHandler = MissingInfoHandler.instance(context);
 
-        rootPackage = new RootPackageSymbol(names.empty, null, missingInfoHandler);
+        Target target = Target.instance(context);
+        rootPackage = new RootPackageSymbol(names.empty, null,
+                                            missingInfoHandler,
+                                            target.runtimeUseNestAccess());
 
         // create the basic builtin symbols
         unnamedModule = new ModuleSymbol(names.empty, null) {
