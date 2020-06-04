@@ -55,7 +55,7 @@ bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Sym
     Verifier::trace_class_resolution(this_class, klass);
   }
 
-  if (this_class->access_flags().is_value_type()) return false;
+  if (this_class->access_flags().is_inline_type()) return false;
   if (this_class->is_interface() && (!from_field_is_protected ||
       from_name != vmSymbols::java_lang_Object())) {
     // If we are not trying to access a protected field or method in

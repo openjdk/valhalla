@@ -455,7 +455,7 @@ void ConstantPool::trace_class_resolution(const constantPoolHandle& this_cp, Kla
   }
 }
 
-void check_is_value_type(Klass* k, TRAPS) {
+void check_is_inline_type(Klass* k, TRAPS) {
   if (!k->is_value()) {
     THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
   }
@@ -495,10 +495,10 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
 
   Handle mirror_handle;
   Symbol* name = this_cp->symbol_at(name_index);
-  bool value_type_signature = false;
+  bool inline_type_signature = false;
   if (name->is_Q_signature()) {
     name = name->fundamental_name(THREAD);
-    value_type_signature = true;
+    inline_type_signature = true;
   }
   Handle loader (THREAD, this_cp->pool_holder()->class_loader());
   Handle protection_domain (THREAD, this_cp->pool_holder()->protection_domain());
@@ -509,7 +509,7 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
     JvmtiHideSingleStepping jhss(javaThread);
     k = SystemDictionary::resolve_or_fail(name, loader, protection_domain, true, THREAD);
   } //  JvmtiHideSingleStepping jhss(javaThread);
-  if (value_type_signature) {
+  if (inline_type_signature) {
     name->decrement_refcount();
   }
 
@@ -520,8 +520,8 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
     verify_constant_pool_resolve(this_cp, k, THREAD);
   }
 
-  if (!HAS_PENDING_EXCEPTION && value_type_signature) {
-    check_is_value_type(k, THREAD);
+  if (!HAS_PENDING_EXCEPTION && inline_type_signature) {
+    check_is_inline_type(k, THREAD);
   }
 
   if (!HAS_PENDING_EXCEPTION) {

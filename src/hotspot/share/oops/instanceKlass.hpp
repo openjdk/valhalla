@@ -152,7 +152,7 @@ class ValueKlassFixedBlock {
   friend class ValueKlass;
 };
 
-class ValueTypes {
+class InlineTypes {
 public:
   u2 _class_info_index;
   Symbol* _class_name;
@@ -226,7 +226,7 @@ class InstanceKlass: public Klass {
   // By always being set it makes nest-member access checks simpler.
   InstanceKlass* _nest_host;
 
-  Array<ValueTypes>* _value_types;
+  Array<InlineTypes>* _inline_types;
 
   // The contents of the Record attribute.
   Array<RecordComponent*>* _record_components;
@@ -270,7 +270,7 @@ class InstanceKlass: public Klass {
   static const unsigned _misc_kind_reference    = 1; // InstanceRefKlass
   static const unsigned _misc_kind_class_loader = 2; // InstanceClassLoaderKlass
   static const unsigned _misc_kind_mirror       = 3; // InstanceMirrorKlass
-  static const unsigned _misc_kind_value_type   = 4; // ValueKlass
+  static const unsigned _misc_kind_inline_type  = 4; // InlineKlass
 
   // Start after _misc_kind field.
   enum {
@@ -291,8 +291,8 @@ class InstanceKlass: public Klass {
     _misc_has_resolved_methods                = 1 << 16, // resolved methods table entries added for this class
     _misc_is_being_redefined                  = 1 << 17, // used for locking redefinition
     _misc_has_contended_annotations           = 1 << 18, // has @Contended annotation
-    _misc_has_value_fields                    = 1 << 19, // has value fields and related embedded section is not empty
-    _misc_is_empty_value                      = 1 << 20, // empty value type
+    _misc_has_inline_fields                   = 1 << 19, // has inline fields and related embedded section is not empty
+    _misc_is_empty_inline_type                = 1 << 20, // empty inline type
     _misc_is_naturally_atomic                 = 1 << 21, // loaded/stored in one instruction
     _misc_is_declared_atomic                  = 1 << 22, // implements jl.NonTearable
     _misc_invalid_inline_super                = 1 << 23, // invalid super type for an inline type
@@ -425,18 +425,18 @@ class InstanceKlass: public Klass {
     }
   }
 
-  bool has_value_fields() const          {
-    return (_misc_flags & _misc_has_value_fields) != 0;
+  bool has_inline_fields() const          {
+    return (_misc_flags & _misc_has_inline_fields) != 0;
   }
-  void set_has_value_fields()  {
-    _misc_flags |= _misc_has_value_fields;
+  void set_has_inline_fields()  {
+    _misc_flags |= _misc_has_inline_fields;
   }
 
-  bool is_empty_value() const {
-    return (_misc_flags & _misc_is_empty_value) != 0;
+  bool is_empty_inline_type() const {
+    return (_misc_flags & _misc_is_empty_inline_type) != 0;
   }
-  void set_is_empty_value() {
-    _misc_flags |= _misc_is_empty_value;
+  void set_is_empty_inline_type() {
+    _misc_flags |= _misc_is_empty_inline_type;
   }
 
   // Note:  The naturally_atomic property only applies to
@@ -662,7 +662,7 @@ public:
   void set_is_marked_dependent(bool value) { _is_marked_dependent = value; }
 
   static ByteSize misc_flags_offset() { return in_ByteSize(offset_of(InstanceKlass, _misc_flags)); }
-  static u4 misc_flags_is_empty_value() { return _misc_is_empty_value; }
+  static u4 misc_flags_is_empty_inline_type() { return _misc_is_empty_inline_type; }
 
   // initialization (virtuals from Klass)
   bool should_be_initialized() const;  // means that initialize should be called
@@ -965,7 +965,7 @@ public:
   bool is_reference_instance_klass() const    { return is_kind(_misc_kind_reference); }
   bool is_mirror_instance_klass() const       { return is_kind(_misc_kind_mirror); }
   bool is_class_loader_instance_klass() const { return is_kind(_misc_kind_class_loader); }
-  bool is_value_type_klass()            const { return is_kind(_misc_kind_value_type); }
+  bool is_inline_type_klass()           const { return is_kind(_misc_kind_inline_type); }
 
 #if INCLUDE_JVMTI
 
@@ -1200,7 +1200,7 @@ public:
   static int size(int vtable_length, int itable_length,
                   int nonstatic_oop_map_size,
                   bool is_interface, bool is_unsafe_anonymous, bool has_stored_fingerprint,
-                  int java_fields, bool is_value_type) {
+                  int java_fields, bool is_inline_type) {
     return align_metadata_size(header_size() +
            vtable_length +
            itable_length +
@@ -1209,7 +1209,7 @@ public:
            (is_unsafe_anonymous ? (int)sizeof(Klass*)/wordSize : 0) +
            (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0) +
            (java_fields * (int)sizeof(Klass*)/wordSize) +
-           (is_value_type ? (int)sizeof(ValueKlassFixedBlock) : 0));
+           (is_inline_type ? (int)sizeof(ValueKlassFixedBlock) : 0));
   }
   int size() const                    { return size(vtable_length(),
                                                itable_length(),
@@ -1217,7 +1217,7 @@ public:
                                                is_interface(),
                                                is_unsafe_anonymous(),
                                                has_stored_fingerprint(),
-                                               has_value_fields() ? java_fields_count() : 0,
+                                               has_inline_fields() ? java_fields_count() : 0,
                                                is_value());
   }
 
@@ -1279,7 +1279,7 @@ public:
   }
 
   address adr_value_fields_klasses() const {
-    if (has_value_fields()) {
+    if (has_inline_fields()) {
       address adr_fing = adr_fingerprint();
       if (adr_fing != NULL) {
         return adr_fingerprint() + sizeof(u8);
@@ -1302,22 +1302,22 @@ public:
   }
 
   Klass* get_value_field_klass(int idx) const {
-    assert(has_value_fields(), "Sanity checking");
+    assert(has_inline_fields(), "Sanity checking");
     Klass* k = ((Klass**)adr_value_fields_klasses())[idx];
     assert(k != NULL, "Should always be set before being read");
-    assert(k->is_value(), "Must be a value type");
+    assert(k->is_value(), "Must be a inline type");
     return k;
   }
 
   Klass* get_value_field_klass_or_null(int idx) const {
-    assert(has_value_fields(), "Sanity checking");
+    assert(has_inline_fields(), "Sanity checking");
     Klass* k = ((Klass**)adr_value_fields_klasses())[idx];
-    assert(k == NULL || k->is_value(), "Must be a value type");
+    assert(k == NULL || k->is_value(), "Must be a inline type");
     return k;
   }
 
   void set_value_field_klass(int idx, Klass* k) {
-    assert(has_value_fields(), "Sanity checking");
+    assert(has_inline_fields(), "Sanity checking");
     assert(k != NULL, "Should not be set to NULL");
     assert(((Klass**)adr_value_fields_klasses())[idx] == NULL, "Should not be set twice");
     ((Klass**)adr_value_fields_klasses())[idx] = k;

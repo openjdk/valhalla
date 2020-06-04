@@ -201,7 +201,7 @@ class ClassFileParser {
 
   bool _has_flattenable_fields;
   bool _has_nonstatic_fields;
-  bool _is_empty_value;
+  bool _is_empty_inline_type;
   bool _is_naturally_atomic;
   bool _is_declared_atomic;
   bool _invalid_inline_super;   // if true, invalid super type for an inline type.
@@ -277,7 +277,7 @@ class ClassFileParser {
 
   void parse_fields(const ClassFileStream* const cfs,
                     bool is_interface,
-                    bool is_value_type,
+                    bool is_inline_type,
                     FieldAllocationCount* const fac,
                     ConstantPool* cp,
                     const int cp_size,
@@ -287,14 +287,14 @@ class ClassFileParser {
   // Method parsing
   Method* parse_method(const ClassFileStream* const cfs,
                        bool is_interface,
-                       bool is_value_type,
+                       bool is_inline_type,
                        const ConstantPool* cp,
                        AccessFlags* const promoted_flags,
                        TRAPS);
 
   void parse_methods(const ClassFileStream* const cfs,
                      bool is_interface,
-                     bool is_value_type,
+                     bool is_inline_type,
                      AccessFlags* const promoted_flags,
                      bool* const has_final_method,
                      bool* const declares_nonstatic_concrete_methods,
@@ -451,10 +451,10 @@ class ClassFileParser {
                              const Symbol* sig,
                              TRAPS) const;
 
-  void throwValueTypeLimitation(THREAD_AND_LOCATION_DECL,
-                                const char* msg,
-                                const Symbol* name = NULL,
-                                const Symbol* sig  = NULL) const;
+  void throwInlineTypeLimitation(THREAD_AND_LOCATION_DECL,
+                                 const char* msg,
+                                 const Symbol* name = NULL,
+                                 const Symbol* sig  = NULL) const;
 
   void verify_constantvalue(const ConstantPool* const cp,
                             int constantvalue_index,
@@ -476,11 +476,11 @@ class ClassFileParser {
   void verify_legal_class_modifiers(jint flags, TRAPS) const;
   void verify_legal_field_modifiers(jint flags,
                                     bool is_interface,
-                                    bool is_value_type,
+                                    bool is_inline_type,
                                     TRAPS) const;
   void verify_legal_method_modifiers(jint flags,
                                      bool is_interface,
-                                     bool is_value_type,
+                                     bool is_inline_type,
                                      const Symbol* name,
                                      TRAPS) const;
 
@@ -559,8 +559,8 @@ class ClassFileParser {
 
    void update_class_name(Symbol* new_name);
 
-  // Check if the class file supports value types
-  bool supports_value_types() const;
+  // Check if the class file supports inline types
+  bool supports_inline_types() const;
 
  public:
   ClassFileParser(ClassFileStream* stream,
@@ -591,7 +591,7 @@ class ClassFileParser {
 
   bool is_unsafe_anonymous() const { return _unsafe_anonymous_host != NULL; }
   bool is_interface() const { return _access_flags.is_interface(); }
-  bool is_value_type() const { return _access_flags.is_value_type(); }
+  bool is_inline_type() const { return _access_flags.is_inline_type(); }
   bool is_value_capable_class() const;
   bool has_flattenable_fields() const { return _has_flattenable_fields; }
   bool invalid_inline_super() const { return _invalid_inline_super; }

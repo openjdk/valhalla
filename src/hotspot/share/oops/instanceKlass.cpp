@@ -376,7 +376,7 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
                                        parser.is_unsafe_anonymous(),
                                        should_store_fingerprint(parser.is_unsafe_anonymous()),
                                        parser.has_flattenable_fields() ? parser.java_fields_count() : 0,
-                                       parser.is_value_type());
+                                       parser.is_inline_type());
 
   const Symbol* const class_name = parser.class_name();
   assert(class_name != NULL, "invariant");
@@ -393,8 +393,8 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
     } else if (is_class_loader(class_name, parser)) {
       // class loader
       ik = new (loader_data, size, THREAD) InstanceClassLoaderKlass(parser);
-    } else if (parser.is_value_type()) {
-      // value type
+    } else if (parser.is_inline_type()) {
+      // inline type
       ik = new (loader_data, size, THREAD) ValueKlass(parser);
     } else {
       // normal
@@ -488,7 +488,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
                                                     false));
     if (parser.has_flattenable_fields()) {
-      set_has_value_fields();
+      set_has_inline_fields();
     }
     _java_fields_count = parser.java_fields_count();
 
@@ -505,7 +505,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   if (UseBiasedLocking && BiasedLocking::enabled()) {
     set_prototype_header(markWord::biased_locking_prototype());
   }
-  if (has_value_fields()) {
+  if (has_inline_fields()) {
     _value_field_klasses = (const Klass**) adr_value_fields_klasses();
   }
 }
@@ -862,10 +862,10 @@ bool InstanceKlass::link_class_impl(TRAPS) {
   }
 
 
-  // If a class declares a method that uses a value class as an argument
-  // type or return value type, this value class must be loaded during the
-  // linking of this class because size and properties of the value class
-  // must be known in order to be able to perform value type optimizations.
+  // If a class declares a method that uses an inline class as an argument
+  // type or return inline type, this inline class must be loaded during the
+  // linking of this class because size and properties of the inline class
+  // must be known in order to be able to perform inline type optimizations.
   // The implementation below is an approximation of this rule, the code
   // iterates over all methods of the current class (including overridden
   // methods), not only the methods declared by this class. This
@@ -873,19 +873,17 @@ bool InstanceKlass::link_class_impl(TRAPS) {
   // because classes declaring methods overridden by the current class are
   // linked (and have performed their own pre-loading) before the linking
   // of the current class.
-  // This is also the moment to detect potential mismatch between the
-  // ValueTypes attribute and the kind of the class effectively loaded.
 
 
   // Note:
-  // Value class types used for flattenable fields are loaded during
+  // Inline class types used for flattenable fields are loaded during
   // the loading phase (see ClassFileParser::post_process_parsed_stream()).
-  // Value class types used as element types for array creation
+  // Inline class types used as element types for array creation
   // are not pre-loaded. Their loading is triggered by either anewarray
   // or multianewarray bytecodes.
 
   // Could it be possible to do the following processing only if the
-  // class uses value types?
+  // class uses inline types?
   {
     ResourceMark rm(THREAD);
     for (int i = 0; i < methods()->length(); i++) {
@@ -2726,9 +2724,9 @@ void InstanceKlass::release_C_heap_structures() {
   // unreference array name derived from this class name (arrays of an unloaded
   // class can't be referenced anymore).
   if (_array_name != NULL)  _array_name->decrement_refcount();
-  if (_value_types != NULL) {
-    for (int i = 0; i < _value_types->length(); i++) {
-      Symbol* s = _value_types->at(i)._class_name;
+  if (_inline_types != NULL) {
+    for (int i = 0; i < _inline_types->length(); i++) {
+      Symbol* s = _inline_types->at(i)._class_name;
       if (s != NULL) {
         s->decrement_refcount();
       }
