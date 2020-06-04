@@ -207,7 +207,7 @@ public class JNITypeParser {
                 return "char";
 
             case (JDWP.Tag.OBJECT):
-	        case (JDWP.Tag.INLINE_OBJECT):
+            case (JDWP.Tag.INLINE_OBJECT):
                 int endClass = signature.indexOf(SIGNATURE_ENDCLASS,
                                                  currentIndex);
                 String retVal = signature.substring(currentIndex,
