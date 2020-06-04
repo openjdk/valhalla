@@ -2631,7 +2631,7 @@ void MacroAssembler::test_klass_is_empty_value(Register klass, Register temp_reg
   }
 #endif
   movl(temp_reg, Address(klass, InstanceKlass::misc_flags_offset()));
-  testl(temp_reg, InstanceKlass::misc_flags_is_empty_value());
+  testl(temp_reg, InstanceKlass::misc_flags_is_empty_inline_type());
   jcc(Assembler::notZero, is_empty_value);
 }
 

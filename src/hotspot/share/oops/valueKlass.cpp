@@ -49,7 +49,7 @@
 
   // Constructor
 ValueKlass::ValueKlass(const ClassFileParser& parser)
-    : InstanceKlass(parser, InstanceKlass::_misc_kind_value_type, InstanceKlass::ID) {
+    : InstanceKlass(parser, InstanceKlass::_misc_kind_inline_type, InstanceKlass::ID) {
   _adr_valueklass_fixed_block = valueklass_static_block();
   // Addresses used for value type calling convention
   *((Array<SigEntry>**)adr_extended_sig()) = NULL;
@@ -154,7 +154,7 @@ int ValueKlass::nonstatic_oop_count() {
 oop ValueKlass::read_flattened_field(oop obj, int offset, TRAPS) {
   oop res = NULL;
   this->initialize(CHECK_NULL); // will throw an exception if in error state
-  if (is_empty_value()) {
+  if (is_empty_inline_type()) {
     res = (instanceOop)default_value();
   } else {
     Handle obj_h(THREAD, obj);
@@ -169,7 +169,7 @@ void ValueKlass::write_flattened_field(oop obj, int offset, oop value, TRAPS) {
   if (value == NULL) {
     THROW(vmSymbols::java_lang_NullPointerException());
   }
-  if (!is_empty_value()) {
+  if (!is_empty_inline_type()) {
     value_copy_oop_to_payload(value, ((char*)(oopDesc*)obj) + offset);
   }
 }

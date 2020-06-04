@@ -254,7 +254,7 @@ class FieldLayoutBuilder : public ResourceObj {
   int _exact_size_in_bytes;
   bool _has_nonstatic_fields;
   bool _is_contended;
-  bool _is_value_type;
+  bool _is_inline_type;
   bool _has_flattening_information;
   bool _has_nonatomic_values;
   int _atomic_field_count;
@@ -263,7 +263,7 @@ class FieldLayoutBuilder : public ResourceObj {
 
  public:
   FieldLayoutBuilder(const Symbol* classname, const InstanceKlass* super_klass, ConstantPool* constant_pool,
-      Array<u2>* fields, bool is_contended, bool is_value_type, ClassLoaderData* class_loader_data,
+      Array<u2>* fields, bool is_contended, bool is_inline_type, ClassLoaderData* class_loader_data,
       Handle protection_domain, FieldLayoutInfo* info);
 
   int get_alignment() {

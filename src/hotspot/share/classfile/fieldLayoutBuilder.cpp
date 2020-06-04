@@ -518,7 +518,7 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
 }
 
 FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, const InstanceKlass* super_klass, ConstantPool* constant_pool,
-                                       Array<u2>* fields, bool is_contended, bool is_value_type, ClassLoaderData* class_loader_data,
+                                       Array<u2>* fields, bool is_contended, bool is_inline_type, ClassLoaderData* class_loader_data,
                                        Handle protection_domain, FieldLayoutInfo* info) :
   _classname(classname),
   _super_klass(super_klass),
@@ -538,8 +538,8 @@ FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, const InstanceKl
   _exact_size_in_bytes(-1),
   _has_nonstatic_fields(false),
   _is_contended(is_contended),
-  _is_value_type(is_value_type),
-  _has_flattening_information(is_value_type),
+  _is_inline_type(is_inline_type),
+  _has_flattening_information(is_inline_type),
   _has_nonatomic_values(false),
   _atomic_field_count(0)
  {}
@@ -678,7 +678,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
  *     of the resulting instance is not considered)
  */
 void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
-  assert(_is_value_type, "Should only be used for inline classes");
+  assert(_is_inline_type, "Should only be used for inline classes");
   int alignment = 1;
   for (AllFieldStream fs(_fields, _constant_pool); !fs.done(); fs.next()) {
     FieldGroup* group = NULL;
@@ -1008,9 +1008,9 @@ void FieldLayoutBuilder::epilogue() {
   _info->_nonstatic_field_size = (nonstatic_field_end - instanceOopDesc::base_offset_in_bytes()) / heapOopSize;
   _info->_has_nonstatic_fields = _has_nonstatic_fields;
 
-  // A value type is naturally atomic if it has just one field, and
+  // An inline type is naturally atomic if it has just one field, and
   // that field is simple enough.
-  _info->_is_naturally_atomic = (_is_value_type &&
+  _info->_is_naturally_atomic = (_is_inline_type &&
                                  (_atomic_field_count <= 1) &&
                                  !_has_nonatomic_values &&
                                  _contended_groups.is_empty());
@@ -1029,7 +1029,7 @@ void FieldLayoutBuilder::epilogue() {
     tty->print_cr("Static fields:");
     _static_layout->print(tty, true, NULL);
     tty->print_cr("Instance size = %d bytes", _info->_instance_size * wordSize);
-    if (_is_value_type) {
+    if (_is_inline_type) {
       tty->print_cr("First field offset = %d", _first_field_offset);
       tty->print_cr("Alignment = %d bytes", _alignment);
       tty->print_cr("Exact size = %d bytes", _exact_size_in_bytes);
@@ -1050,7 +1050,7 @@ void FieldLayoutBuilder::build_layout(TRAPS) {
              _classname == vmSymbols::java_lang_Integer() ||
              _classname == vmSymbols::java_lang_Long()) {
       compute_boxing_class_layout();
-  } else if (_is_value_type) {
+  } else if (_is_inline_type) {
     compute_inline_class_layout(CHECK);
   } else {
     compute_regular_layout();

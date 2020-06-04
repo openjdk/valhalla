@@ -49,7 +49,7 @@ inline int valueArrayOopDesc::object_size() const {
 inline oop valueArrayOopDesc::value_alloc_copy_from_index(valueArrayHandle vah, int index, TRAPS) {
   ValueArrayKlass* vaklass = ValueArrayKlass::cast(vah->klass());
   ValueKlass* vklass = vaklass->element_klass();
-  if (vklass->is_empty_value()) {
+  if (vklass->is_empty_inline_type()) {
     return vklass->default_value();
   } else {
     oop buf = vklass->allocate_instance(CHECK_NULL);
@@ -61,7 +61,7 @@ inline oop valueArrayOopDesc::value_alloc_copy_from_index(valueArrayHandle vah, 
 inline void valueArrayOopDesc::value_copy_from_index(int index, oop dst) const {
   ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass());
   ValueKlass* vklass = vaklass->element_klass();
-  if (vklass->is_empty_value()) {
+  if (vklass->is_empty_inline_type()) {
     return; // Assumes dst was a new and clean buffer (OptoRuntime::load_unknown_value())
   } else {
     void* src = value_at_addr(index, vaklass->layout_helper());
@@ -72,7 +72,7 @@ inline void valueArrayOopDesc::value_copy_from_index(int index, oop dst) const {
 inline void valueArrayOopDesc::value_copy_to_index(oop src, int index) const {
   ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass());
   ValueKlass* vklass = vaklass->element_klass();
-  if (vklass->is_empty_value()) {
+  if (vklass->is_empty_inline_type()) {
     return;
   }
   void* dst = value_at_addr(index, vaklass->layout_helper());

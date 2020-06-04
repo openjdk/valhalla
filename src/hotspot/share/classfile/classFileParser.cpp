@@ -1607,7 +1607,7 @@ class ClassFileParser::FieldAllocationCount : public ResourceObj {
 // _fields_type_annotations fields
 void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                                    bool is_interface,
-                                   bool is_value_type,
+                                   bool is_inline_type,
                                    FieldAllocationCount* const fac,
                                    ConstantPool* cp,
                                    const int cp_size,
@@ -1634,7 +1634,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   // two more slots are required for inline classes:
   // one for the static field with a reference to the pre-allocated default value
   // one for the field the JVM injects when detecting an empty inline class
-  const int total_fields = length + num_injected + (is_value_type ? 2 : 0);
+  const int total_fields = length + num_injected + (is_inline_type ? 2 : 0);
 
   // The field array starts with tuples of shorts
   // [access, name index, sig index, initial value index, byte offset].
@@ -1672,7 +1672,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     jint recognized_modifiers = JVM_RECOGNIZED_FIELD_MODIFIERS;
 
     const jint flags = cfs->get_u2_fast() & recognized_modifiers;
-    verify_legal_field_modifiers(flags, is_interface, is_value_type, CHECK);
+    verify_legal_field_modifiers(flags, is_interface, is_inline_type, CHECK);
     AccessFlags access_flags;
     access_flags.set_flags(flags);
 
@@ -1816,7 +1816,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     }
   }
 
-  if (is_value_type) {
+  if (is_inline_type) {
     FieldInfo* const field = FieldInfo::from_field_array(fa, index);
     field->initialize(JVM_ACC_FIELD_INTERNAL | JVM_ACC_STATIC,
                       vmSymbols::default_value_name_enum,
@@ -1828,8 +1828,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     index++;
   }
 
-  if (is_value_type && instance_fields_count == 0) {
-    _is_empty_value = true;
+  if (is_inline_type && instance_fields_count == 0) {
+    _is_empty_inline_type = true;
     FieldInfo* const field = FieldInfo::from_field_array(fa, index);
     field->initialize(JVM_ACC_FIELD_INTERNAL,
         vmSymbols::empty_marker_name_enum,
@@ -2161,7 +2161,7 @@ void ClassFileParser::throwIllegalSignature(const char* type,
   assert(sig != NULL, "invariant");
 
   const char* class_note = "";
-  if (is_value_type() && name == vmSymbols::object_initializer_name()) {
+  if (is_inline_type() && name == vmSymbols::object_initializer_name()) {
     class_note = " (an inline class)";
   }
 
@@ -2433,7 +2433,7 @@ void ClassFileParser::copy_method_annotations(ConstMethod* cm,
 
 Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
                                       bool is_interface,
-                                      bool is_value_type,
+                                      bool is_inline_type,
                                       const ConstantPool* cp,
                                       AccessFlags* const promoted_flags,
                                       TRAPS) {
@@ -2474,15 +2474,15 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
       classfile_parse_error("Method <clinit> is not static in class file %s", CHECK_NULL);
     }
   } else {
-    verify_legal_method_modifiers(flags, is_interface, is_value_type, name, CHECK_NULL);
+    verify_legal_method_modifiers(flags, is_interface, is_inline_type, name, CHECK_NULL);
   }
 
   if (name == vmSymbols::object_initializer_name()) {
     if (is_interface) {
       classfile_parse_error("Interface cannot have a method named <init>, class file %s", CHECK_NULL);
-    } else if (!is_value_type && signature->is_void_method_signature()) {
+    } else if (!is_inline_type && signature->is_void_method_signature()) {
       // OK, a constructor
-    } else if (is_value_type && !signature->is_void_method_signature()) {
+    } else if (is_inline_type && !signature->is_void_method_signature()) {
       // also OK, a static factory, as long as the return value is good
       bool ok = false;
       SignatureStream ss((Symbol*) signature, true);
@@ -3066,7 +3066,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
 // Side-effects: populates the _methods field in the parser
 void ClassFileParser::parse_methods(const ClassFileStream* const cfs,
                                     bool is_interface,
-                                    bool is_value_type,
+                                    bool is_inline_type,
                                     AccessFlags* promoted_flags,
                                     bool* has_final_method,
                                     bool* declares_nonstatic_concrete_methods,
@@ -3091,7 +3091,7 @@ void ClassFileParser::parse_methods(const ClassFileStream* const cfs,
     for (int index = 0; index < length; index++) {
       Method* method = parse_method(cfs,
                                     is_interface,
-                                    is_value_type,
+                                    is_inline_type,
                                     _cp,
                                     promoted_flags,
                                     CHECK);
@@ -3291,7 +3291,7 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
       recognized_modifiers |= JVM_ACC_MODULE;
     }
     // JVM_ACC_VALUE is defined for class file version 55 and later
-    if (supports_value_types()) {
+    if (supports_inline_types()) {
       recognized_modifiers |= JVM_ACC_VALUE;
     }
 
@@ -3674,8 +3674,6 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
   bool parsed_source_debug_ext_annotations_exist = false;
   const u1* inner_classes_attribute_start = NULL;
   u4  inner_classes_attribute_length = 0;
-  const u1* value_types_attribute_start = NULL;
-  u4 value_types_attribute_length = 0;
   u2  enclosing_method_class_index = 0;
   u2  enclosing_method_method_index = 0;
   const u1* nest_members_attribute_start = NULL;
@@ -4260,10 +4258,10 @@ void OopMapBlocksBuilder::print_value_on(outputStream* st) const {
   print_on(st);
 }
 
-void ClassFileParser::throwValueTypeLimitation(THREAD_AND_LOCATION_DECL,
-                                               const char* msg,
-                                               const Symbol* name,
-                                               const Symbol* sig) const {
+void ClassFileParser::throwInlineTypeLimitation(THREAD_AND_LOCATION_DECL,
+                                                const char* msg,
+                                                const Symbol* name,
+                                                const Symbol* sig) const {
 
   ResourceMark rm(THREAD);
   if (name == NULL || sig == NULL) {
@@ -4291,10 +4289,10 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   // Field size and offset computation
   int nonstatic_field_size = _super_klass == NULL ? 0 :
                                _super_klass->nonstatic_field_size();
-  int next_nonstatic_valuetype_offset = 0;
-  int first_nonstatic_valuetype_offset = 0;
+  int next_nonstatic_inline_type_offset = 0;
+  int first_nonstatic_inline_type_offset = 0;
 
-  // Fields that are value types are handled differently depending if they are static or not:
+  // Fields that are inline types are handled differently depending if they are static or not:
   // - static fields are oops
   // - non-static fields are embedded
 
@@ -4317,7 +4315,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
   // Calculate the starting byte offsets
   int next_static_oop_offset    = InstanceMirrorKlass::offset_of_static_fields();
-  // Value types in static fields are not embedded, they are handled with oops
+  // Inline types in static fields are not embedded, they are handled with oops
   int next_static_double_offset = next_static_oop_offset +
                                   ((fac->count[STATIC_OOP] + fac->count[STATIC_FLATTENABLE]) * heapOopSize);
   if (fac->count[STATIC_DOUBLE]) {
@@ -4334,14 +4332,14 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   int nonstatic_fields_start  = instanceOopDesc::base_offset_in_bytes() +
                                 nonstatic_field_size * heapOopSize;
 
-  // First field of value types is aligned on a long boundary in order to ease
-  // in-lining of value types (with header removal) in packed arrays and
-  // flatten value types
-  int initial_value_type_padding = 0;
-  if (is_value_type()) {
+  // First field of inline types is aligned on a long boundary in order to ease
+  // in-lining of inline types (with header removal) in packed arrays and
+  // flatten inline types
+  int initial_inline_type_padding = 0;
+  if (is_inline_type()) {
     int old = nonstatic_fields_start;
     nonstatic_fields_start = align_up(nonstatic_fields_start, BytesPerLong);
-    initial_value_type_padding = nonstatic_fields_start - old;
+    initial_inline_type_padding = nonstatic_fields_start - old;
   }
 
   int next_nonstatic_field_offset = nonstatic_fields_start;
@@ -4353,10 +4351,10 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
     next_nonstatic_field_offset += ContendedPaddingWidth;
   }
 
-  // Temporary value types restrictions
-  if (is_value_type()) {
+  // Temporary inline types restrictions
+  if (is_inline_type()) {
     if (is_contended_class) {
-      throwValueTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support @Contended annotation yet");
+      throwInlineTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support @Contended annotation yet");
       return;
     }
   }
@@ -4371,23 +4369,23 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   unsigned int nonstatic_byte_count   = fac->count[NONSTATIC_BYTE]   - fac_contended.count[NONSTATIC_BYTE];
   unsigned int nonstatic_oop_count    = fac->count[NONSTATIC_OOP]    - fac_contended.count[NONSTATIC_OOP];
 
-  int static_value_type_count = 0;
-  int nonstatic_value_type_count = 0;
-  int* nonstatic_value_type_indexes = NULL;
-  Klass** nonstatic_value_type_klasses = NULL;
-  unsigned int value_type_oop_map_count = 0;
-  int not_flattened_value_types = 0;
-  int not_atomic_value_types = 0;
+  int static_inline_type_count = 0;
+  int nonstatic_inline_type_count = 0;
+  int* nonstatic_inline_type_indexes = NULL;
+  Klass** nonstatic_inline_type_klasses = NULL;
+  unsigned int inline_type_oop_map_count = 0;
+  int not_flattened_inline_types = 0;
+  int not_atomic_inline_types = 0;
 
-  int max_nonstatic_value_type = fac->count[NONSTATIC_FLATTENABLE] + 1;
+  int max_nonstatic_inline_type = fac->count[NONSTATIC_FLATTENABLE] + 1;
 
-  nonstatic_value_type_indexes = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, int,
-                                                              max_nonstatic_value_type);
-  for (int i = 0; i < max_nonstatic_value_type; i++) {
-    nonstatic_value_type_indexes[i] = -1;
+  nonstatic_inline_type_indexes = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, int,
+                                                               max_nonstatic_inline_type);
+  for (int i = 0; i < max_nonstatic_inline_type; i++) {
+    nonstatic_inline_type_indexes[i] = -1;
   }
-  nonstatic_value_type_klasses = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, Klass*,
-                                                              max_nonstatic_value_type);
+  nonstatic_inline_type_klasses = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, Klass*,
+                                                               max_nonstatic_inline_type);
 
   for (AllFieldStream fs(_fields, _cp); !fs.done(); fs.next()) {
     if (fs.allocation_type() == STATIC_FLATTENABLE) {
@@ -4395,9 +4393,9 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
       if (!fs.signature()->is_Q_signature()) {
         THROW(vmSymbols::java_lang_ClassFormatError());
       }
-      static_value_type_count++;
+      static_inline_type_count++;
     } else if (fs.allocation_type() == NONSTATIC_FLATTENABLE) {
-      // Pre-resolve the flattenable field and check for value type circularity issues.
+      // Pre-resolve the flattenable field and check for inline type circularity issues.
       ResourceMark rm;
       if (!fs.signature()->is_Q_signature()) {
         THROW(vmSymbols::java_lang_ClassFormatError());
@@ -4407,7 +4405,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
                                                             Handle(THREAD, _loader_data->class_loader()),
                                                             _protection_domain, true, CHECK);
       assert(klass != NULL, "Sanity check");
-      if (!klass->access_flags().is_value_type()) {
+      if (!klass->access_flags().is_inline_type()) {
         THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
       }
       ValueKlass* vk = ValueKlass::cast(klass);
@@ -4422,27 +4420,27 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         // volatile fields are currently never flattened, this could change in the future
       }
       if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten)) {
-        nonstatic_value_type_indexes[nonstatic_value_type_count] = fs.index();
-        nonstatic_value_type_klasses[nonstatic_value_type_count] = klass;
-        nonstatic_value_type_count++;
+        nonstatic_inline_type_indexes[nonstatic_inline_type_count] = fs.index();
+        nonstatic_inline_type_klasses[nonstatic_inline_type_count] = klass;
+        nonstatic_inline_type_count++;
 
         ValueKlass* vklass = ValueKlass::cast(klass);
         if (vklass->contains_oops()) {
-          value_type_oop_map_count += vklass->nonstatic_oop_map_count();
+          inline_type_oop_map_count += vklass->nonstatic_oop_map_count();
         }
         fs.set_flattened(true);
         if (!vk->is_atomic()) {  // flat and non-atomic: take note
-          not_atomic_value_types++;
+          not_atomic_inline_types++;
         }
       } else {
-        not_flattened_value_types++;
+        not_flattened_inline_types++;
         fs.set_flattened(false);
       }
     }
   }
 
-  // Adjusting non_static_oop_count to take into account not flattened value types;
-  nonstatic_oop_count += not_flattened_value_types;
+  // Adjusting non_static_oop_count to take into account not flattened inline types;
+  nonstatic_oop_count += not_flattened_inline_types;
 
   // Total non-static fields count, including every contended field
   unsigned int nonstatic_fields_count = fac->count[NONSTATIC_DOUBLE] + fac->count[NONSTATIC_WORD] +
@@ -4453,11 +4451,11 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
           (_super_klass != NULL && _super_klass->has_nonstatic_fields());
   const bool has_nonstatic_fields =
     super_has_nonstatic_fields || (nonstatic_fields_count != 0);
-  const bool has_nonstatic_value_fields = nonstatic_value_type_count > 0;
+  const bool has_nonstatic_value_fields = nonstatic_inline_type_count > 0;
 
-  if (is_value_type() && (!has_nonstatic_fields)) {
+  if (is_inline_type() && (!has_nonstatic_fields)) {
     // There are a number of fixes required throughout the type system and JIT
-    throwValueTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support zero instance size yet");
+    throwInlineTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support zero instance size yet");
     return;
   }
 
@@ -4473,8 +4471,8 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   int max_oop_map_count =
       super_oop_map_count +
       fac->count[NONSTATIC_OOP] +
-      value_type_oop_map_count +
-      not_flattened_value_types;
+      inline_type_oop_map_count +
+      not_flattened_inline_types;
 
   OopMapBlocksBuilder* nonstatic_oop_maps = new OopMapBlocksBuilder(max_oop_map_count);
   if (super_oop_map_count > 0) {
@@ -4586,15 +4584,15 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
     next_nonstatic_padded_offset = next_nonstatic_oop_offset + (nonstatic_oop_count * heapOopSize);
   }
 
-  // Aligning embedded value types
-  // bug below, the current algorithm to layout embedded value types always put them at the
+  // Aligning embedded inline types
+  // bug below, the current algorithm to layout embedded inline types always put them at the
   // end of the layout, which doesn't match the different allocation policies the VM is
   // supposed to provide => FixMe
-  // Note also that the current alignment policy is to make each value type starting on a
+  // Note also that the current alignment policy is to make each inline type starting on a
   // 64 bits boundary. This could be optimized later. For instance, it could be nice to
-  // align value types according to their most constrained internal type.
-  next_nonstatic_valuetype_offset = align_up(next_nonstatic_padded_offset, BytesPerLong);
-  int next_value_type_index = 0;
+  // align inline types according to their most constrained internal type.
+  next_nonstatic_inline_type_offset = align_up(next_nonstatic_padded_offset, BytesPerLong);
+  int next_inline_type_index = 0;
 
   // Iterate over fields again and compute correct offsets.
   // The field allocation type was temporarily stored in the offset slot.
@@ -4612,7 +4610,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
     // pack the rest of the fields
     switch (atype) {
-      // Value types in static fields are handled with oops
+      // Inline types in static fields are handled with oops
       case STATIC_FLATTENABLE:   // Fallthrough
       case STATIC_OOP:
         real_offset = next_static_oop_offset;
@@ -4636,15 +4634,15 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         break;
       case NONSTATIC_FLATTENABLE:
         if (fs.is_flattened()) {
-          Klass* klass = nonstatic_value_type_klasses[next_value_type_index];
+          Klass* klass = nonstatic_inline_type_klasses[next_inline_type_index];
           assert(klass != NULL, "Klass should have been loaded and resolved earlier");
-          assert(klass->access_flags().is_value_type(),"Must be a value type");
+          assert(klass->access_flags().is_inline_type(),"Must be an inline type");
           ValueKlass* vklass = ValueKlass::cast(klass);
-          real_offset = next_nonstatic_valuetype_offset;
-          next_nonstatic_valuetype_offset += (vklass->size_helper()) * wordSize - vklass->first_field_offset();
-          // aligning next value type on a 64 bits boundary
-          next_nonstatic_valuetype_offset = align_up(next_nonstatic_valuetype_offset, BytesPerLong);
-          next_value_type_index += 1;
+          real_offset = next_nonstatic_inline_type_offset;
+          next_nonstatic_inline_type_offset += (vklass->size_helper()) * wordSize - vklass->first_field_offset();
+          // aligning next inline type on a 64 bits boundary
+          next_nonstatic_inline_type_offset = align_up(next_nonstatic_inline_type_offset, BytesPerLong);
+          next_inline_type_index += 1;
 
           if (vklass->contains_oops()) { // add flatten oop maps
             int diff = real_offset - vklass->first_field_offset();
@@ -4777,10 +4775,10 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
             next_nonstatic_padded_offset += BytesPerLong;
             break;
 
-            // Value types in static fields are handled with oops
+            // Inline types in static fields are handled with oops
           case NONSTATIC_FLATTENABLE:
-            throwValueTypeLimitation(THREAD_AND_LOCATION,
-                                     "@Contended annotation not supported for inline types yet", fs.name(), fs.signature());
+            throwInlineTypeLimitation(THREAD_AND_LOCATION,
+                                      "@Contended annotation not supported for inline types yet", fs.name(), fs.signature());
             return;
 
           case NONSTATIC_OOP:
@@ -4822,19 +4820,19 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   // This helps to alleviate memory contention effects for subclass fields
   // and/or adjacent object.
   if (is_contended_class) {
-    assert(!is_value_type(), "@Contended not supported for value types yet");
+    assert(!is_inline_type(), "@Contended not supported for inline types yet");
     next_nonstatic_padded_offset += ContendedPaddingWidth;
   }
 
   int notaligned_nonstatic_fields_end;
-  if (nonstatic_value_type_count != 0) {
-    notaligned_nonstatic_fields_end = next_nonstatic_valuetype_offset;
+  if (nonstatic_inline_type_count != 0) {
+    notaligned_nonstatic_fields_end = next_nonstatic_inline_type_offset;
   } else {
     notaligned_nonstatic_fields_end = next_nonstatic_padded_offset;
   }
 
   int nonstatic_field_sz_align = heapOopSize;
-  if (is_value_type()) {
+  if (is_inline_type()) {
     if ((notaligned_nonstatic_fields_end - nonstatic_fields_start) > heapOopSize) {
       nonstatic_field_sz_align = BytesPerLong; // value copy of fields only uses jlong copy
     }
@@ -4852,7 +4850,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
   assert(instance_size == align_object_size(align_up(
          (instanceOopDesc::base_offset_in_bytes() + nonstatic_field_size*heapOopSize)
-         + initial_value_type_padding, wordSize) / wordSize), "consistent layout helper value");
+         + initial_inline_type_padding, wordSize) / wordSize), "consistent layout helper value");
 
 
   // Invariant: nonstatic_field end/start should only change if there are
@@ -4867,8 +4865,8 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   nonstatic_oop_maps->compact();
 
 #ifndef PRODUCT
-  if ((PrintFieldLayout && !is_value_type()) ||
-      (PrintValueLayout && (is_value_type() || has_nonstatic_value_fields))) {
+  if ((PrintFieldLayout && !is_inline_type()) ||
+      (PrintValueLayout && (is_inline_type() || has_nonstatic_value_fields))) {
     print_field_layout(_class_name,
           _fields,
           cp,
@@ -4893,12 +4891,12 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   info->_nonstatic_field_size = nonstatic_field_size;
   info->_has_nonstatic_fields = has_nonstatic_fields;
 
-  // A value type is naturally atomic if it has just one field, and
+  // An inline type is naturally atomic if it has just one field, and
   // that field is simple enough.
-  info->_is_naturally_atomic = (is_value_type() &&
+  info->_is_naturally_atomic = (is_inline_type() &&
                                 !super_has_nonstatic_fields &&
                                 (nonstatic_fields_count <= 1) &&
-                                (not_atomic_value_types == 0) &&
+                                (not_atomic_inline_types == 0) &&
                                 (nonstatic_contended_count == 0));
   // This may be too restrictive, since if all the fields fit in 64
   // bits we could make the decision to align instances of this class
@@ -4942,7 +4940,7 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
     if (ik->is_subtype_of(SystemDictionary::Cloneable_klass())) {
       if (ik->is_value()) {
         Thread *THREAD = Thread::current();
-        throwValueTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support Cloneable");
+        throwInlineTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support Cloneable");
         return;
       }
       ik->set_is_cloneable();
@@ -4985,8 +4983,8 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
   }
 }
 
-bool ClassFileParser::supports_value_types() const {
-  // Value types are only supported by class file version 55 and later
+bool ClassFileParser::supports_inline_types() const {
+  // Inline types are only supported by class file version 55 and later
   return _major_version >= JAVA_11_VERSION;
 }
 
@@ -5259,9 +5257,9 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
 
 void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
   const bool is_module = (flags & JVM_ACC_MODULE) != 0;
-  const bool is_value_type = (flags & JVM_ACC_VALUE) != 0;
+  const bool is_inline_type = (flags & JVM_ACC_VALUE) != 0;
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
-  assert(supports_value_types() || !is_value_type, "JVM_ACC_VALUE should not be set");
+  assert(supports_inline_types() || !is_inline_type, "JVM_ACC_VALUE should not be set");
   if (is_module) {
     ResourceMark rm(THREAD);
     Exceptions::fthrow(
@@ -5272,7 +5270,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
     return;
   }
 
-  if (is_value_type && !EnableValhalla) {
+  if (is_inline_type && !EnableValhalla) {
     ResourceMark rm(THREAD);
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
@@ -5297,10 +5295,10 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
       (is_interface && !is_abstract) ||
       (is_interface && major_gte_1_5 && (is_super || is_enum)) ||
       (!is_interface && major_gte_1_5 && is_annotation) ||
-      (is_value_type && (is_interface || is_abstract || is_enum || !is_final))) {
+      (is_inline_type && (is_interface || is_abstract || is_enum || !is_final))) {
     ResourceMark rm(THREAD);
     const char* class_note = "";
-    if (is_value_type)  class_note = " (an inline class)";
+    if (is_inline_type)  class_note = " (an inline class)";
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
@@ -5384,7 +5382,7 @@ static void verify_class_version(u2 major, u2 minor, Symbol* class_name, TRAPS){
 
 void ClassFileParser::verify_legal_field_modifiers(jint flags,
                                                    bool is_interface,
-                                                   bool is_value_type,
+                                                   bool is_inline_type,
                                                    TRAPS) const {
   if (!_need_verify) { return; }
 
@@ -5410,7 +5408,7 @@ void ClassFileParser::verify_legal_field_modifiers(jint flags,
     if (has_illegal_visibility(flags) || (is_final && is_volatile)) {
       is_illegal = true;
     } else {
-      if (is_value_type && !is_static && !is_final) {
+      if (is_inline_type && !is_static && !is_final) {
         is_illegal = true;
       }
     }
@@ -5429,7 +5427,7 @@ void ClassFileParser::verify_legal_field_modifiers(jint flags,
 
 void ClassFileParser::verify_legal_method_modifiers(jint flags,
                                                     bool is_interface,
-                                                    bool is_value_type,
+                                                    bool is_inline_type,
                                                     const Symbol* name,
                                                     TRAPS) const {
   if (!_need_verify) { return; }
@@ -5490,17 +5488,17 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
             is_abstract || (major_gte_1_5 && is_bridge)) {
           is_illegal = true;
         }
-        if (!is_static && !is_value_type) {
+        if (!is_static && !is_inline_type) {
           // OK, an object constructor in a regular class
-        } else if (is_static && is_value_type) {
+        } else if (is_static && is_inline_type) {
           // OK, a static init factory in an inline class
         } else {
           // but no other combinations are allowed
           is_illegal = true;
-          class_note = (is_value_type ? " (an inline class)" : " (not an inline class)");
+          class_note = (is_inline_type ? " (an inline class)" : " (not an inline class)");
         }
       } else { // not initializer
-        if (is_value_type && is_synchronized && !is_static) {
+        if (is_inline_type && is_synchronized && !is_static) {
           is_illegal = true;
           class_note = " (an inline class)";
         } else {
@@ -6152,8 +6150,8 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
   if (_field_info->_is_naturally_atomic && ik->is_value()) {
     ik->set_is_naturally_atomic();
   }
-  if (_is_empty_value) {
-    ik->set_is_empty_value();
+  if (_is_empty_inline_type) {
+    ik->set_is_empty_inline_type();
   }
 
   if (this->_invalid_inline_super) {
@@ -6329,18 +6327,18 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik, bool changed_by_loa
           Handle(THREAD, ik->class_loader()),
           Handle(THREAD, ik->protection_domain()), CHECK);
       if (klass != NULL) {
-        assert(klass->access_flags().is_value_type(), "Value type expected");
+        assert(klass->access_flags().is_inline_type(), "Inline type expected");
         ik->set_value_field_klass(i, klass);
       }
       klass_name->decrement_refcount();
     } else
-      if (is_value_type() && ((ik->field_access_flags(i) & JVM_ACC_FIELD_INTERNAL) != 0)
+      if (is_inline_type() && ((ik->field_access_flags(i) & JVM_ACC_FIELD_INTERNAL) != 0)
         && ((ik->field_access_flags(i) & JVM_ACC_STATIC) != 0)) {
       ValueKlass::cast(ik)->set_default_value_offset(ik->field_offset(i));
     }
   }
 
-  if (is_value_type()) {
+  if (is_inline_type()) {
     ValueKlass* vk = ValueKlass::cast(ik);
     if (UseNewFieldLayout) {
       vk->set_alignment(_alignment);
@@ -6550,7 +6548,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _has_contended_fields(false),
   _has_flattenable_fields(false),
   _has_nonstatic_fields(false),
-  _is_empty_value(false),
+  _is_empty_inline_type(false),
   _is_naturally_atomic(false),
   _is_declared_atomic(false),
   _invalid_inline_super(false),
@@ -6763,7 +6761,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
     recognized_modifiers |= JVM_ACC_MODULE;
   }
   // JVM_ACC_VALUE is defined for class file version 55 and later
-  if (supports_value_types()) {
+  if (supports_inline_types()) {
     recognized_modifiers |= JVM_ACC_VALUE;
   }
 
@@ -6895,7 +6893,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   parse_interfaces(stream,
                    _itfs_len,
                    cp,
-                   is_value_type(),
+                   is_inline_type(),
                    &_has_nonstatic_concrete_methods,
                    &_is_declared_atomic,
                    CHECK);
@@ -6906,7 +6904,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   _fac = new FieldAllocationCount();
   parse_fields(stream,
                is_interface(),
-               is_value_type(),
+               is_inline_type(),
                _fac,
                cp,
                cp_size,
@@ -6919,7 +6917,7 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   AccessFlags promoted_flags;
   parse_methods(stream,
                 is_interface(),
-                is_value_type(),
+                is_inline_type(),
                 &promoted_flags,
                 &_has_final_method,
                 &_declares_nonstatic_concrete_methods,
@@ -7012,7 +7010,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
     // For an inline class, only java/lang/Object or special abstract classes
     // are acceptable super classes.
-    if (is_value_type()) {
+    if (is_inline_type()) {
       const InstanceKlass* super_ik = _super_klass;
       if (super_ik->invalid_inline_super()) {
         ResourceMark rm(THREAD);
@@ -7048,7 +7046,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     set_invalid_inline_super();
   }
 
-  if (!is_value_type() && invalid_inline_super() && (_super_klass == NULL || !_super_klass->invalid_inline_super())
+  if (!is_inline_type() && invalid_inline_super() && (_super_klass == NULL || !_super_klass->invalid_inline_super())
       && !_implements_identityObject && class_name() != vmSymbols::java_lang_IdentityObject()) {
     _temp_local_interfaces->append(SystemDictionary::IdentityObject_klass());
     _has_injected_identityObject = true;
@@ -7109,7 +7107,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           Handle(THREAD, _loader_data->class_loader()),
           _protection_domain, true, CHECK);
       assert(klass != NULL, "Sanity check");
-      assert(klass->access_flags().is_value_type(), "Value type expected");
+      assert(klass->access_flags().is_inline_type(), "Inline type expected");
       _has_flattenable_fields = true;
     }
   }
@@ -7117,10 +7115,10 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   _field_info = new FieldLayoutInfo();
   if (UseNewFieldLayout) {
     FieldLayoutBuilder lb(class_name(), super_klass(), _cp, _fields,
-        _parsed_annotations->is_contended(), is_value_type(),
+        _parsed_annotations->is_contended(), is_inline_type(),
         loader_data(), _protection_domain, _field_info);
     lb.build_layout(CHECK);
-    if (is_value_type()) {
+    if (is_inline_type()) {
       _alignment = lb.get_alignment();
       _first_field_offset = lb.get_first_field_offset();
       _exact_size_in_bytes = lb.get_exact_size_in_byte();

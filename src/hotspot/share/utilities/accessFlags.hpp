@@ -126,7 +126,7 @@ class AccessFlags {
   bool is_interface   () const         { return (_flags & JVM_ACC_INTERFACE   ) != 0; }
   bool is_abstract    () const         { return (_flags & JVM_ACC_ABSTRACT    ) != 0; }
   bool is_strict      () const         { return (_flags & JVM_ACC_STRICT      ) != 0; }
-  bool is_value_type  () const         { return (_flags & JVM_ACC_VALUE       ) != 0; }
+  bool is_inline_type () const         { return (_flags & JVM_ACC_VALUE       ) != 0; }
   bool is_flattenable () const         { return (_flags & JVM_ACC_FLATTENABLE ) != 0; }
 
   // Attribute flags
