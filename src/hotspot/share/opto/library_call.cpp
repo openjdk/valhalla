@@ -205,6 +205,8 @@ class LibraryCallKit : public GraphKit {
     ValueArray
   };
 
+  Node* generate_hidden_class_guard(Node* kls, RegionNode* region);
+
   Node* generate_array_guard(Node* kls, RegionNode* region) {
     return generate_array_guard_common(kls, region, AnyArray);
   }
@@ -814,6 +816,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_isInterface:
   case vmIntrinsics::_isArray:
   case vmIntrinsics::_isPrimitive:
+  case vmIntrinsics::_isHidden:
   case vmIntrinsics::_getSuperclass:
   case vmIntrinsics::_getClassAccessFlags:      return inline_native_Class_query(intrinsic_id());
 
@@ -3290,6 +3293,9 @@ Node* LibraryCallKit::generate_access_flags_guard(Node* kls, int modifier_mask, 
 Node* LibraryCallKit::generate_interface_guard(Node* kls, RegionNode* region) {
   return generate_access_flags_guard(kls, JVM_ACC_INTERFACE, 0, region);
 }
+Node* LibraryCallKit::generate_hidden_class_guard(Node* kls, RegionNode* region) {
+  return generate_access_flags_guard(kls, JVM_ACC_IS_HIDDEN_CLASS, 0, region);
+}
 
 Node* LibraryCallKit::generate_value_guard(Node* kls, RegionNode* region) {
   return generate_access_flags_guard(kls, JVM_ACC_VALUE, 0, region);
@@ -3328,6 +3334,9 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
   case vmIntrinsics::_isPrimitive:
     prim_return_value = intcon(1);
     expect_prim = true;  // obviously
+    break;
+  case vmIntrinsics::_isHidden:
+    prim_return_value = intcon(0);
     break;
   case vmIntrinsics::_getSuperclass:
     prim_return_value = null();
@@ -3420,6 +3429,16 @@ bool LibraryCallKit::inline_native_Class_query(vmIntrinsics::ID id) {
   case vmIntrinsics::_isPrimitive:
     query_value = intcon(0); // "normal" path produces false
     break;
+
+  case vmIntrinsics::_isHidden:
+    // (To verify this code sequence, check the asserts in JVM_IsHiddenClass.)
+    if (generate_hidden_class_guard(kls, region) != NULL)
+      // A guard was added.  If the guard is taken, it was an hidden class.
+      phi->add_req(intcon(1));
+    // If we fall through, it's a plain class.
+    query_value = intcon(0);
+    break;
+
 
   case vmIntrinsics::_getSuperclass:
     // The rules here are somewhat unfortunate, but we can still do better

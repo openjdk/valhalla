@@ -882,12 +882,13 @@ void java_lang_Class::fixup_mirror(Klass* k, TRAPS) {
       k->clear_has_raw_archived_mirror();
     }
   }
-  create_mirror(k, Handle(), Handle(), Handle(), CHECK);
+  create_mirror(k, Handle(), Handle(), Handle(), Handle(), CHECK);
 }
 
 void java_lang_Class::initialize_mirror_fields(Klass* k,
                                                Handle mirror,
                                                Handle protection_domain,
+                                               Handle classData,
                                                TRAPS) {
   // Allocate a simple java object for a lock.
   // This needs to be a java object because during class initialization
@@ -900,6 +901,9 @@ void java_lang_Class::initialize_mirror_fields(Klass* k,
 
   // Initialize static fields
   InstanceKlass::cast(k)->do_local_static_fields(&initialize_static_field, mirror, CHECK);
+
+ // Set classData
+  set_class_data(mirror(), classData());
 }
 
 // Set the java.lang.Module module field in the java_lang_Class mirror
@@ -953,7 +957,8 @@ void java_lang_Class::allocate_fixup_lists() {
 }
 
 void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
-                                    Handle module, Handle protection_domain, TRAPS) {
+                                    Handle module, Handle protection_domain,
+                                    Handle classData, TRAPS) {
   assert(k != NULL, "Use create_basic_type_mirror for primitive types");
   assert(k->java_mirror() == NULL, "should only assign mirror once");
 
@@ -1005,7 +1010,7 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
     } else {
       assert(k->is_instance_klass(), "Must be");
 
-      initialize_mirror_fields(k, mirror, protection_domain, THREAD);
+      initialize_mirror_fields(k, mirror, protection_domain, classData, THREAD);
       if (HAS_PENDING_EXCEPTION) {
         // If any of the fields throws an exception like OOM remove the klass field
         // from the mirror so GC doesn't follow it after the klass has been deallocated.
@@ -1454,6 +1459,14 @@ void java_lang_Class::set_signers(oop java_class, objArrayOop signers) {
   java_class->obj_field_put(_signers_offset, (oop)signers);
 }
 
+oop java_lang_Class::class_data(oop java_class) {
+  assert(_classData_offset != 0, "must be set");
+  return java_class->obj_field(_classData_offset);
+}
+void java_lang_Class::set_class_data(oop java_class, oop class_data) {
+  assert(_classData_offset != 0, "must be set");
+  java_class->obj_field_put(_classData_offset, class_data);
+}
 
 void java_lang_Class::set_class_loader(oop java_class, oop loader) {
   assert(_class_loader_offset != 0, "offsets should have been initialized");
@@ -1687,6 +1700,7 @@ int  java_lang_Class::classRedefinedCount_offset = -1;
   macro(_name_offset,               k, "name",                string_signature,      false); \
   macro(_val_type_mirror_offset,    k, "valType",             class_signature,       false); \
   macro(_ref_type_mirror_offset,    k, "refType",             class_signature,       false); \
+  macro(_classData_offset,          k, "classData",           object_signature,      false);
 
 void java_lang_Class::compute_offsets() {
   if (offsets_computed) {
@@ -4357,6 +4371,7 @@ int java_lang_Class::_init_lock_offset;
 int java_lang_Class::_signers_offset;
 int java_lang_Class::_name_offset;
 int java_lang_Class::_source_file_offset;
+int java_lang_Class::_classData_offset;
 GrowableArray<Klass*>* java_lang_Class::_fixup_mirror_list = NULL;
 GrowableArray<Klass*>* java_lang_Class::_fixup_module_field_list = NULL;
 int java_lang_Throwable::backtrace_offset;
