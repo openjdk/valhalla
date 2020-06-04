@@ -651,15 +651,43 @@ int java_lang_String::utf8_length(oop java_string) {
 }
 
 char* java_lang_String::as_utf8_string(oop java_string) {
-  typeArrayOop value  = java_lang_String::value(java_string);
-  int          length = java_lang_String::length(java_string, value);
-  bool      is_latin1 = java_lang_String::is_latin1(java_string);
+  int length;
+  return as_utf8_string(java_string, length);
+}
+
+char* java_lang_String::as_utf8_string(oop java_string, int& length) {
+  typeArrayOop value = java_lang_String::value(java_string);
+  length             = java_lang_String::length(java_string, value);
+  bool     is_latin1 = java_lang_String::is_latin1(java_string);
   if (!is_latin1) {
     jchar* position = (length == 0) ? NULL : value->char_at_addr(0);
     return UNICODE::as_utf8(position, length);
   } else {
     jbyte* position = (length == 0) ? NULL : value->byte_at_addr(0);
     return UNICODE::as_utf8(position, length);
+  }
+}
+
+// Uses a provided buffer if it's sufficiently large, otherwise allocates
+// a resource array to fit
+char* java_lang_String::as_utf8_string_full(oop java_string, char* buf, int buflen, int& utf8_len) {
+  typeArrayOop value = java_lang_String::value(java_string);
+  int            len = java_lang_String::length(java_string, value);
+  bool     is_latin1 = java_lang_String::is_latin1(java_string);
+  if (!is_latin1) {
+    jchar *position = (len == 0) ? NULL : value->char_at_addr(0);
+    utf8_len = UNICODE::utf8_length(position, len);
+    if (utf8_len >= buflen) {
+      buf = NEW_RESOURCE_ARRAY(char, utf8_len + 1);
+    }
+    return UNICODE::as_utf8(position, len, buf, utf8_len + 1);
+  } else {
+    jbyte *position = (len == 0) ? NULL : value->byte_at_addr(0);
+    utf8_len = UNICODE::utf8_length(position, len);
+    if (utf8_len >= buflen) {
+      buf = NEW_RESOURCE_ARRAY(char, utf8_len + 1);
+    }
+    return UNICODE::as_utf8(position, len, buf, utf8_len + 1);
   }
 }
 
@@ -1285,16 +1313,16 @@ void java_lang_Class::update_archived_primitive_mirror_native_pointers(oop archi
 }
 
 void java_lang_Class::update_archived_mirror_native_pointers(oop archived_mirror) {
-  if (MetaspaceShared::relocation_delta() != 0) {
-    Klass* k = ((Klass*)archived_mirror->metadata_field(_klass_offset));
-    archived_mirror->metadata_field_put(_klass_offset,
-        (Klass*)(address(k) + MetaspaceShared::relocation_delta()));
+  assert(MetaspaceShared::relocation_delta() != 0, "must be");
 
-    Klass* ak = ((Klass*)archived_mirror->metadata_field(_array_klass_offset));
-    if (ak != NULL) {
-      archived_mirror->metadata_field_put(_array_klass_offset,
-          (Klass*)(address(ak) + MetaspaceShared::relocation_delta()));
-    }
+  Klass* k = ((Klass*)archived_mirror->metadata_field(_klass_offset));
+  archived_mirror->metadata_field_put(_klass_offset,
+      (Klass*)(address(k) + MetaspaceShared::relocation_delta()));
+
+  Klass* ak = ((Klass*)archived_mirror->metadata_field(_array_klass_offset));
+  if (ak != NULL) {
+    archived_mirror->metadata_field_put(_array_klass_offset,
+        (Klass*)(address(ak) + MetaspaceShared::relocation_delta()));
   }
 }
 
@@ -1321,7 +1349,6 @@ bool java_lang_Class::restore_archived_mirror(Klass *k,
   // mirror is archived, restore
   log_debug(cds, mirror)("Archived mirror is: " PTR_FORMAT, p2i(m));
   assert(HeapShared::is_archived_object(m), "must be archived mirror object");
-  update_archived_mirror_native_pointers(m);
   assert(as_Klass(m) == k, "must be");
   Handle mirror(THREAD, m);
 
