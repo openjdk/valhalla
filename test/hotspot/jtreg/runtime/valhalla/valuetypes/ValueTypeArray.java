@@ -35,10 +35,10 @@ import static jdk.test.lib.Asserts.*;
  * @summary Plain array test for Inline Types
  * @library /test/lib
  * @compile ValueTypeArray.java Point.java Long8Value.java Person.java
- * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=-1 runtime.valhalla.valuetypes.ValueTypeArray
- * @run main/othervm -Xint  -XX:ValueArrayElemMaxFlatSize=0  runtime.valhalla.valuetypes.ValueTypeArray
- * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=-1 runtime.valhalla.valuetypes.ValueTypeArray
- * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=0  runtime.valhalla.valuetypes.ValueTypeArray
+ * @run main/othervm -Xint  -XX:InlineArrayElemMaxFlatSize=-1 runtime.valhalla.valuetypes.ValueTypeArray
+ * @run main/othervm -Xint  -XX:InlineArrayElemMaxFlatSize=0  runtime.valhalla.valuetypes.ValueTypeArray
+ * @run main/othervm -Xcomp -XX:InlineArrayElemMaxFlatSize=-1 runtime.valhalla.valuetypes.ValueTypeArray
+ * @run main/othervm -Xcomp -XX:InlineArrayElemMaxFlatSize=0  runtime.valhalla.valuetypes.ValueTypeArray
  * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.valuetypes.ValueTypeArray
  */
 public class ValueTypeArray {

@@ -49,7 +49,7 @@ public class TestIntrinsics extends ValueTypeTest {
     @Override
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
-        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:ValueArrayElemMaxFlatSize=-1"};
+        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:InlineArrayElemMaxFlatSize=-1"};
         case 4: return new String[] {"-XX:-MonomorphicArrayCheck"};
         }
         return null;

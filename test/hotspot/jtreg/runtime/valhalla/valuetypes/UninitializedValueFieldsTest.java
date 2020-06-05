@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,8 @@ import jdk.test.lib.Asserts;
  * @summary Uninitialized inline fields test
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java JumboValue.java UninitializedValueFieldsTest.java
- * @run main/othervm -Xint -XX:ValueFieldMaxFlatSize=64 runtime.valhalla.valuetypes.UninitializedValueFieldsTest
- * @run main/othervm -Xcomp -XX:ValueFieldMaxFlatSize=64 runtime.valhalla.valuetypes.UninitializedValueFieldsTest
+ * @run main/othervm -Xint -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.valuetypes.UninitializedValueFieldsTest
+ * @run main/othervm -Xcomp -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.valuetypes.UninitializedValueFieldsTest
  */
 public class UninitializedValueFieldsTest {
     static Point.ref nonFlattenableStaticPoint;

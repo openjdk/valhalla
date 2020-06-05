@@ -1284,8 +1284,8 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
 
   if (is_virtual) {
     Klass* receiver_klass = NULL;
-    if (ValueTypePassFieldsAsArgs && !caller_is_c1 && callee_method->method_holder()->is_value()) {
-      // If the receiver is a value type that is passed as fields, no oop is available
+    if (InlineTypePassFieldsAsArgs && !caller_is_c1 && callee_method->method_holder()->is_value()) {
+      // If the receiver is an inline type that is passed as fields, no oop is available
       receiver_klass = callee_method->method_holder();
     } else {
       assert(receiver.not_null() || invoke_code == Bytecodes::_invokehandle, "sanity check");
@@ -2360,8 +2360,8 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
       case T_SHORT:
       case T_CHAR: {
         if (is_valuetype) {
-          // Do not widen value type field types
-          assert(ValueTypePassFieldsAsArgs, "must be enabled");
+          // Do not widen inline type field types
+          assert(InlineTypePassFieldsAsArgs, "must be enabled");
           return in;
         } else {
           // They are all promoted to T_INT in the calling convention
@@ -2370,9 +2370,9 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
       }
 
       case T_VALUETYPE: {
-        // If value types are passed as fields, return 'in' to differentiate
+        // If inline types are passed as fields, return 'in' to differentiate
         // between a T_VALUETYPE and a T_OBJECT in the signature.
-        return ValueTypePassFieldsAsArgs ? in : adapter_encoding(T_OBJECT, false);
+        return InlineTypePassFieldsAsArgs ? in : adapter_encoding(T_OBJECT, false);
       }
 
       case T_OBJECT:
@@ -2428,17 +2428,17 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
         int bt = 0;
         if (sig_index < total_args_passed) {
           BasicType sbt = sig->at(sig_index++)._bt;
-          if (ValueTypePassFieldsAsArgs && sbt == T_VALUETYPE) {
-            // Found start of value type in signature
+          if (InlineTypePassFieldsAsArgs && sbt == T_VALUETYPE) {
+            // Found start of inline type in signature
             vt_count++;
             if (sig_index == 1 && has_ro_adapter) {
               // With a ro_adapter, replace receiver value type delimiter by T_VOID to prevent matching
               // with other adapters that have the same value type as first argument and no receiver.
               sbt = T_VOID;
             }
-          } else if (ValueTypePassFieldsAsArgs && sbt == T_VOID &&
+          } else if (InlineTypePassFieldsAsArgs && sbt == T_VOID &&
                      prev_sbt != T_LONG && prev_sbt != T_DOUBLE) {
-            // Found end of value type in signature
+            // Found end of inline type in signature
             vt_count--;
             assert(vt_count >= 0, "invalid vt_count");
           }
@@ -2848,7 +2848,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
     }
     SigEntry::add_entry(_sig, bt);
   }
-  if (_method->is_abstract() && !(ValueTypePassFieldsAsArgs && has_value_arg())) {
+  if (_method->is_abstract() && !(InlineTypePassFieldsAsArgs && has_value_arg())) {
     return;
   }
 
@@ -2864,7 +2864,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
   _args_on_stack_cc = _args_on_stack;
   _args_on_stack_cc_ro = _args_on_stack;
 
-  if (ValueTypePassFieldsAsArgs && has_value_arg() && !_method->is_native()) {
+  if (InlineTypePassFieldsAsArgs && has_value_arg() && !_method->is_native()) {
     _args_on_stack_cc = compute_scalarized_cc(_sig_cc, _regs_cc, /* scalar_receiver = */ true);
 
     _sig_cc_ro = _sig_cc;
@@ -3579,7 +3579,7 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* thread) {
 // hold them (convenient because once we're done with it we don't have
 // to worry about freeing it).
 oop SharedRuntime::allocate_value_types_impl(JavaThread* thread, methodHandle callee, bool allocate_receiver, TRAPS) {
-  assert(ValueTypePassFieldsAsArgs, "no reason to call this");
+  assert(InlineTypePassFieldsAsArgs, "no reason to call this");
   ResourceMark rm;
 
   int nb_slots = 0;
@@ -3625,7 +3625,7 @@ JRT_END
 // This is called from the C2I adapter after value type arguments are heap allocated and initialized.
 JRT_LEAF(void, SharedRuntime::apply_post_barriers(JavaThread* thread, objArrayOopDesc* array))
 {
-  assert(ValueTypePassFieldsAsArgs, "no reason to call this");
+  assert(InlineTypePassFieldsAsArgs, "no reason to call this");
   assert(oopDesc::is_oop(array), "should be oop");
   for (int i = 0; i < array->length(); ++i) {
     instanceOop valueOop = (instanceOop)array->obj_at(i);

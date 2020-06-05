@@ -182,19 +182,19 @@ bool ValueKlass::flatten_array() {
   }
   // Too big
   int elem_bytes = raw_value_byte_size();
-  if ((ValueArrayElemMaxFlatSize >= 0) && (elem_bytes > ValueArrayElemMaxFlatSize)) {
+  if ((InlineArrayElemMaxFlatSize >= 0) && (elem_bytes > InlineArrayElemMaxFlatSize)) {
     return false;
   }
   // Too many embedded oops
-  if ((ValueArrayElemMaxFlatOops >= 0) && (nonstatic_oop_count() > ValueArrayElemMaxFlatOops)) {
+  if ((InlineArrayElemMaxFlatOops >= 0) && (nonstatic_oop_count() > InlineArrayElemMaxFlatOops)) {
     return false;
   }
   // Declared atomic but not naturally atomic.
   if (is_declared_atomic() && !is_naturally_atomic()) {
     return false;
   }
-  // VM enforcing ValueArrayAtomicAccess only...
-  if (ValueArrayAtomicAccess && (!is_naturally_atomic())) {
+  // VM enforcing InlineArrayAtomicAccess only...
+  if (InlineArrayAtomicAccess && (!is_naturally_atomic())) {
     return false;
   }
   return true;
@@ -316,7 +316,7 @@ void ValueKlass::initialize_calling_convention(TRAPS) {
   // Because the pack and unpack handler addresses need to be loadable from generated code,
   // they are stored at a fixed offset in the klass metadata. Since value type klasses do
   // not have a vtable, the vtable offset is used to store these addresses.
-  if (is_scalarizable() && (ValueTypeReturnedAsFields || ValueTypePassFieldsAsArgs)) {
+  if (is_scalarizable() && (InlineTypeReturnedAsFields || InlineTypePassFieldsAsArgs)) {
     ResourceMark rm;
     GrowableArray<SigEntry> sig_vk;
     int nb_fields = collect_fields(&sig_vk);
@@ -326,7 +326,7 @@ void ValueKlass::initialize_calling_convention(TRAPS) {
       extended_sig->at_put(i, sig_vk.at(i));
     }
 
-    if (ValueTypeReturnedAsFields) {
+    if (InlineTypeReturnedAsFields) {
       nb_fields++;
       BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, nb_fields);
       sig_bt[0] = T_METADATA;
@@ -377,9 +377,9 @@ void ValueKlass::cleanup_blobs() {
   }
 }
 
-// Can this value type be scalarized?
+// Can this inline type be scalarized?
 bool ValueKlass::is_scalarizable() const {
-  return ScalarizeValueTypes;
+  return ScalarizeInlineTypes;
 }
 
 // Can this value type be returned as multiple values?
@@ -419,7 +419,7 @@ void ValueKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Handl
 
 // Update oop fields in registers from handles after a safepoint
 void ValueKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle>& handles) const {
-  assert(ValueTypeReturnedAsFields, "inconsistent");
+  assert(InlineTypeReturnedAsFields, "inconsistent");
   const Array<SigEntry>* sig_vk = extended_sig();
   const Array<VMRegPair>* regs = return_regs();
   assert(regs != NULL, "inconsistent");

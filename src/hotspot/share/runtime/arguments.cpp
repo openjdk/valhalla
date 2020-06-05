@@ -2124,14 +2124,14 @@ bool Arguments::check_vm_args_consistency() {
 
   status = status && GCArguments::check_args_consistency();
 
-  if (AMD64_ONLY(false &&) !FLAG_IS_DEFAULT(ValueTypePassFieldsAsArgs)) {
-    FLAG_SET_CMDLINE(ValueTypePassFieldsAsArgs, false);
-    warning("ValueTypePassFieldsAsArgs is not supported on this platform");
+  if (AMD64_ONLY(false &&) !FLAG_IS_DEFAULT(InlineTypePassFieldsAsArgs)) {
+    FLAG_SET_CMDLINE(InlineTypePassFieldsAsArgs, false);
+    warning("InlineTypePassFieldsAsArgs is not supported on this platform");
   }
 
-  if (AMD64_ONLY(false &&) !FLAG_IS_DEFAULT(ValueTypeReturnedAsFields)) {
-    FLAG_SET_CMDLINE(ValueTypeReturnedAsFields, false);
-    warning("ValueTypeReturnedAsFields is not supported on this platform");
+  if (AMD64_ONLY(false &&) !FLAG_IS_DEFAULT(InlineTypeReturnedAsFields)) {
+    FLAG_SET_CMDLINE(InlineTypeReturnedAsFields, false);
+    warning("InlineTypeReturnedAsFields is not supported on this platform");
   }
 
   return status;
@@ -4139,8 +4139,8 @@ jint Arguments::apply_ergo() {
   }
   if (!EnableValhalla || (is_interpreter_only() && !is_dumping_archive())) {
     // Disable calling convention optimizations if value types are not supported
-    ValueTypePassFieldsAsArgs = false;
-    ValueTypeReturnedAsFields = false;
+    InlineTypePassFieldsAsArgs = false;
+    InlineTypeReturnedAsFields = false;
   }
 
 #ifndef PRODUCT

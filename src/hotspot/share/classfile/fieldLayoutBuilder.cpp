@@ -630,8 +630,8 @@ void FieldLayoutBuilder::regular_field_sorting() {
                                                                 _protection_domain, true, THREAD);
         assert(klass != NULL, "Sanity check");
         ValueKlass* vk = ValueKlass::cast(klass);
-        bool too_big_to_flatten = (ValueFieldMaxFlatSize >= 0 &&
-                                   (vk->size_helper() * HeapWordSize) > ValueFieldMaxFlatSize);
+        bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
+                                   (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
         bool too_atomic_to_flatten = vk->is_declared_atomic();
         bool too_volatile_to_flatten = fs.access_flags().is_volatile();
         if (vk->is_naturally_atomic()) {
@@ -730,8 +730,8 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
                 _protection_domain, true, CHECK);
         assert(klass != NULL, "Sanity check");
         ValueKlass* vk = ValueKlass::cast(klass);
-        bool too_big_to_flatten = (ValueFieldMaxFlatSize >= 0 &&
-                                   (vk->size_helper() * HeapWordSize) > ValueFieldMaxFlatSize);
+        bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
+                                   (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
         bool too_atomic_to_flatten = vk->is_declared_atomic();
         bool too_volatile_to_flatten = fs.access_flags().is_volatile();
         if (vk->is_naturally_atomic()) {

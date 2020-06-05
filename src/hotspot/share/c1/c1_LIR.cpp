@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1044,7 +1044,7 @@ void LIR_OpJavaCall::emit_code(LIR_Assembler* masm) {
 }
 
 bool LIR_OpJavaCall::maybe_return_as_fields(ciValueKlass** vk_ret) const {
-  if (ValueTypeReturnedAsFields) {
+  if (InlineTypeReturnedAsFields) {
     if (method()->signature()->maybe_returns_never_null()) {
       ciType* return_type = method()->return_type();
       if (return_type->is_valuetype()) {

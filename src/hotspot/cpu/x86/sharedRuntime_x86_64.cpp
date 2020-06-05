@@ -658,7 +658,7 @@ static void patch_callers_callsite(MacroAssembler *masm) {
 // calling convention the interpreter expects).
 static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_extended) {
   int total_args_passed = 0;
-  if (ValueTypePassFieldsAsArgs) {
+  if (InlineTypePassFieldsAsArgs) {
     for (int i = 0; i < sig_extended->length(); i++) {
       BasicType bt = sig_extended->at(i)._bt;
       if (SigEntry::is_reserved_entry(sig_extended, i)) {
@@ -706,7 +706,7 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
                                    const Address& to,
                                    int extraspace,
                                    bool is_oop) {
-  assert(bt != T_VALUETYPE || !ValueTypePassFieldsAsArgs, "no value type here");
+  assert(bt != T_VALUETYPE || !InlineTypePassFieldsAsArgs, "no inline type here");
   if (bt == T_VOID) {
     assert(prev_bt == T_LONG || prev_bt == T_DOUBLE, "missing half");
     return;
@@ -779,8 +779,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   __ bind(skip_fixup);
 
-  if (ValueTypePassFieldsAsArgs) {
-    // Is there a value type argument?
+  if (InlineTypePassFieldsAsArgs) {
+    // Is there an inline type argument?
     bool has_value_argument = false;
     for (int i = 0; i < sig_extended->length() && !has_value_argument; i++) {
       has_value_argument = (sig_extended->at(i)._bt == T_VALUETYPE);
@@ -860,7 +860,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     assert(next_arg_int <= total_args_passed, "more arguments for the interpreter than expected?");
     BasicType bt = sig_extended->at(next_arg_comp)._bt;
     int st_off = (total_args_passed - next_arg_int) * Interpreter::stackElementSize;
-    if (!ValueTypePassFieldsAsArgs || bt != T_VALUETYPE) {
+    if (!InlineTypePassFieldsAsArgs || bt != T_VALUETYPE) {
       if (SigEntry::is_reserved_entry(sig_extended, next_arg_comp)) {
         continue; // Ignore reserved entry
       }
@@ -4422,7 +4422,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
   }
   assert(j == regs->length(), "missed a field?");
 
-  if (StressValueTypeReturnedAsFields) {
+  if (StressInlineTypeReturnedAsFields) {
     __ load_klass(rax, rax);
     __ orptr(rax, 1);
   }
