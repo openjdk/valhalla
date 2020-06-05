@@ -1044,7 +1044,7 @@ void ThreadSafepointState::handle_polling_page_exception() {
     GrowableArray<Handle> return_values;
     ValueKlass* vk = NULL;
 
-    if (return_oop && ValueTypeReturnedAsFields) {
+    if (return_oop && InlineTypeReturnedAsFields) {
       SignatureStream ss(method->signature());
       while (!ss.at_return_type()) {
         ss.next();

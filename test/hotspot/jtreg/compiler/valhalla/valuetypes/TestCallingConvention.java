@@ -47,7 +47,7 @@ public class TestCallingConvention extends ValueTypeTest {
         switch (scenario) {
         case 0: return new String[] {"-Dsun.reflect.inflationThreshold=10000"}; // Don't generate bytecodes but call through runtime for reflective calls
         case 1: return new String[] {"-Dsun.reflect.inflationThreshold=10000"};
-        case 3: return new String[] {"-XX:ValueArrayElemMaxFlatSize=0"};
+        case 3: return new String[] {"-XX:InlineArrayElemMaxFlatSize=0"};
         }
         return null;
     }
@@ -309,8 +309,8 @@ public class TestCallingConvention extends ValueTypeTest {
     }
 
     MyValue3 test15_vt2;
-    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + LOAD + TRAP)
-    @Test(valid = ValueTypeReturnedAsFieldsOff)
+    @Test(valid = InlineTypeReturnedAsFieldsOn, failOn = ALLOC + LOAD + TRAP)
+    @Test(valid = InlineTypeReturnedAsFieldsOff)
     public void test15() {
         test15_vt2 = test15_interp();
     }
@@ -323,8 +323,8 @@ public class TestCallingConvention extends ValueTypeTest {
 
     // Return value types in registers from compiled -> interpreter
     final MyValue3 test16_vt = MyValue3.create();
-    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + STORE + TRAP)
-    @Test(valid = ValueTypeReturnedAsFieldsOff)
+    @Test(valid = InlineTypeReturnedAsFieldsOn, failOn = ALLOC + STORE + TRAP)
+    @Test(valid = InlineTypeReturnedAsFieldsOff)
     public MyValue3 test16() {
         return test16_vt;
     }
@@ -343,8 +343,8 @@ public class TestCallingConvention extends ValueTypeTest {
     }
 
     MyValue3 test17_vt2;
-    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + LOAD + TRAP)
-    @Test(valid = ValueTypeReturnedAsFieldsOff)
+    @Test(valid = InlineTypeReturnedAsFieldsOn, failOn = ALLOC + LOAD + TRAP)
+    @Test(valid = InlineTypeReturnedAsFieldsOff)
     public void test17() {
         test17_vt2 = test17_comp();
     }

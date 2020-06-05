@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -377,7 +377,7 @@ void C1_MacroAssembler::verified_value_entry() {
 }
 
 int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, int bang_size_in_bytes, Label& verified_value_entry_label, bool is_value_ro_entry) {
-  // This function required to support for ValueTypePassFieldsAsArgs
+  // This function required to support for InlineTypePassFieldsAsArgs
   if (C1Breakpoint || VerifyFPU || !UseStackBanging) {
     // Verified Entry first instruction should be 5 bytes long for correct
     // patching by patch_verified_entry().
@@ -392,7 +392,7 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   nop();
   // verify_FPU(0, "method_entry");
 
-  assert(ValueTypePassFieldsAsArgs, "sanity");
+  assert(InlineTypePassFieldsAsArgs, "sanity");
 
   GrowableArray<SigEntry>* sig   = &ces->sig();
   GrowableArray<SigEntry>* sig_cc = is_value_ro_entry ? &ces->sig_cc_ro() : &ces->sig_cc();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -660,7 +660,7 @@ public:
   bool is_call_to_arraycopystub() const;
 
   virtual void copy_call_debug_info(PhaseIterGVN* phase, CallNode *oldcall) {}
-  
+
 #ifndef PRODUCT
   virtual void        dump_req(outputStream *st = tty) const;
   virtual void        dump_spec(outputStream *st) const;
@@ -733,7 +733,7 @@ public:
       C->add_macro_node(this);
     }
     const TypeTuple *r = tf->range_sig();
-    if (ValueTypeReturnedAsFields &&
+    if (InlineTypeReturnedAsFields &&
         method != NULL &&
         method->is_method_handle_intrinsic() &&
         r->cnt() > TypeFunc::Parms &&

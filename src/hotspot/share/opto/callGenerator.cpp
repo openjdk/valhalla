@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -126,7 +126,7 @@ class DirectCallGenerator : public CallGenerator {
       _call_node(NULL),
       _separate_io_proj(separate_io_proj)
   {
-    if (ValueTypeReturnedAsFields && method->is_method_handle_intrinsic()) {
+    if (InlineTypeReturnedAsFields && method->is_method_handle_intrinsic()) {
       // If that call has not been optimized by the time optimizations are over,
       // we'll need to add a call to create a value type instance from the klass
       // returned by the call (see PhaseMacroExpand::expand_mh_intrinsic_return).

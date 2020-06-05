@@ -1153,9 +1153,9 @@ void InterpreterMacroAssembler::remove_activation(
   movptr(rbx,
          Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
 
-  if (state == atos && ValueTypeReturnedAsFields) {
+  if (state == atos && InlineTypeReturnedAsFields) {
     Label skip;
-    // Test if the return type is a value type
+    // Test if the return type is an inline type
     movptr(rdi, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
     movptr(rdi, Address(rdi, Method::const_offset()));
     load_unsigned_byte(rdi, Address(rdi, ConstMethod::result_type_offset()));

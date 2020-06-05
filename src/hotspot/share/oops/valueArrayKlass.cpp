@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,7 +67,7 @@ ValueArrayKlass::ValueArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlas
 
   CMH("tweak name symbol refcnt ?")
 #ifndef PRODUCT
-  if (PrintValueArrayLayout) {
+  if (PrintInlineArrayLayout) {
     print();
   }
 #endif
@@ -84,7 +84,7 @@ void ValueArrayKlass::set_element_klass(Klass* k) {
 ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass* element_klass, TRAPS) {
   guarantee((!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()), "Really ?!");
   assert(ValueArrayFlatten, "Flatten array required");
-  assert(ValueKlass::cast(element_klass)->is_naturally_atomic() || (!ValueArrayAtomicAccess), "Atomic by-default");
+  assert(ValueKlass::cast(element_klass)->is_naturally_atomic() || (!InlineArrayAtomicAccess), "Atomic by-default");
 
   /*
    *  MVT->LWorld, now need to allocate secondaries array types, just like objArrayKlass...

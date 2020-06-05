@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -651,7 +651,7 @@ void LIR_Assembler::emit_std_entries() {
   _masm->align(CodeEntryAlignment);
   const CompiledEntrySignature* ces = compilation()->compiled_entry_signature();
   if (ces->has_scalarized_args()) {
-    assert(ValueTypePassFieldsAsArgs && method()->get_Method()->has_scalarized_args(), "must be");
+    assert(InlineTypePassFieldsAsArgs && method()->get_Method()->has_scalarized_args(), "must be");
     CodeOffsets::Entries ro_entry_type = ces->c1_value_ro_entry_type();
 
     // UEP: check icache and fall-through

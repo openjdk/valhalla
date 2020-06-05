@@ -933,7 +933,7 @@ void Compile::return_values(JVMState* jvms) {
       assert(res->is_ValueType(), "what else supports multi value return?");
       ValueTypeNode* vt = res->as_ValueType();
       ret->add_req_batch(NULL, tf()->range_cc()->cnt() - TypeFunc::Parms);
-      if (vt->is_allocated(&kit.gvn()) && !StressValueTypeReturnedAsFields) {
+      if (vt->is_allocated(&kit.gvn()) && !StressInlineTypeReturnedAsFields) {
         ret->init_req(TypeFunc::Parms, vt->get_oop());
       } else {
         ret->init_req(TypeFunc::Parms, vt->tagged_klass(kit.gvn()));

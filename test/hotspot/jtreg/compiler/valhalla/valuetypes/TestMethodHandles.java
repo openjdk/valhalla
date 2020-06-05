@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -146,8 +146,8 @@ public class TestMethodHandles extends ValueTypeTest {
 
     static final MethodHandle test1_mh;
 
-    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + STORE + CALL)
-    @Test(valid = ValueTypeReturnedAsFieldsOff, match = { ALLOC, STORE }, matchCount = { 1, 14 })
+    @Test(valid = InlineTypeReturnedAsFieldsOn, failOn = ALLOC + STORE + CALL)
+    @Test(valid = InlineTypeReturnedAsFieldsOff, match = { ALLOC, STORE }, matchCount = { 1, 14 })
     public MyValue3 test1() throws Throwable {
         return (MyValue3)test1_mh.invokeExact(this);
     }
@@ -274,8 +274,8 @@ public class TestMethodHandles extends ValueTypeTest {
 
     static final MethodHandle test6_mh;
 
-    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
-    @Test(valid = ValueTypeReturnedAsFieldsOff)
+    @Test(valid = InlineTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
+    @Test(valid = InlineTypeReturnedAsFieldsOff)
     public MyValue3 test6() throws Throwable {
         return (MyValue3)test6_mh.invokeExact(this);
     }
@@ -387,8 +387,8 @@ public class TestMethodHandles extends ValueTypeTest {
 
     static final MethodHandle test9_mh;
 
-    @Test(valid = ValueTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
-    @Test(valid = ValueTypeReturnedAsFieldsOff)
+    @Test(valid = InlineTypeReturnedAsFieldsOn, failOn = ALLOC + ALLOCA + STORE + STOREVALUETYPEFIELDS)
+    @Test(valid = InlineTypeReturnedAsFieldsOff)
     public MyValue3 test9() throws Throwable {
         return (MyValue3)test9_mh.invokeExact(this);
     }

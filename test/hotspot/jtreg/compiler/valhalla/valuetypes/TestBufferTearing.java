@@ -35,18 +35,18 @@ import jdk.internal.misc.Unsafe;
  * @summary Detect tearing on value type buffer writes due to missing barriers.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @modules java.base/jdk.internal.misc
- * @run main/othervm -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:InlineArrayElemMaxFlatSize=0
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.valuetypes.TestBufferTearing
- * @run main/othervm -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:InlineArrayElemMaxFlatSize=0
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline
  *                   compiler.valhalla.valuetypes.TestBufferTearing
- * @run main/othervm -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:InlineArrayElemMaxFlatSize=0
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   compiler.valhalla.valuetypes.TestBufferTearing
- * @run main/othervm -XX:ValueFieldMaxFlatSize=0 -XX:ValueArrayElemMaxFlatSize=0
+ * @run main/othervm -XX:InlineFieldMaxFlatSize=0 -XX:InlineArrayElemMaxFlatSize=0
  *                   -XX:CompileCommand=dontinline,*::incrementAndCheck*
  *                   -XX:+UnlockDiagnosticVMOptions -XX:+StressGCM -XX:+StressLCM
  *                   -XX:+IgnoreUnrecognizedVMOptions -XX:+AlwaysIncrementalInline

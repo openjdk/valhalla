@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -1159,7 +1159,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
             // new "[QVT;"
             __ cmpl(t0, Klass::_lh_array_tag_vt_value);  // the array can be flattened.
             __ jcc(Assembler::equal, ok);
-            __ cmpl(t0, Klass::_lh_array_tag_obj_value); // the array cannot be flattened (due to ValueArrayElemMaxFlatSize, etc)
+            __ cmpl(t0, Klass::_lh_array_tag_obj_value); // the array cannot be flattened (due to InlineArrayElementMaxFlatSize, etc)
             __ jcc(Assembler::equal, ok);
             __ stop("assert(is an object or value array klass)");
             break;

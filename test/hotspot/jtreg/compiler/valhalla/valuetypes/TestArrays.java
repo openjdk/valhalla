@@ -61,7 +61,7 @@ public class TestArrays extends ValueTypeTest {
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
         case 2: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode"};
-        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:ValueArrayElemMaxFlatSize=-1", "-XX:-UncommonNullCast"};
+        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:InlineArrayElemMaxFlatSize=-1", "-XX:-UncommonNullCast"};
         case 4: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast"};
         case 5: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode"};
         }
@@ -1916,8 +1916,8 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // Verify that writing an object of a non-flattenable inline type to an array marks the array as not-flat
-    @Test(valid = ValueTypePassFieldsAsArgsOn, failOn = ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE)
-    @Test(valid = ValueTypePassFieldsAsArgsOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE)
+    @Test(valid = InlineTypePassFieldsAsArgsOn, failOn = ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE)
+    @Test(valid = InlineTypePassFieldsAsArgsOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE)
     public Object test82(Object[] array, NotFlattenable vt, Object o, int i) {
         array[0] = vt;
         array[1] = array[0];

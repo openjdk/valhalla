@@ -528,7 +528,7 @@ void LIR_Assembler::return_op(LIR_Opr result) {
   }
 
   ciMethod* method = compilation()->method();
-  if (ValueTypeReturnedAsFields && method->signature()->returns_never_null()) {
+  if (InlineTypeReturnedAsFields && method->signature()->returns_never_null()) {
     ciType* return_type = method->return_type();
     if (return_type->is_valuetype()) {
       ciValueKlass* vk = return_type->as_value_klass();

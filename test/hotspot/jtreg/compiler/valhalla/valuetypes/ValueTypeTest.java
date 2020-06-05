@@ -163,12 +163,12 @@ public abstract class ValueTypeTest {
         "-XX:+VerifyOops", "-XX:+VerifyStack", "-XX:+VerifyLastFrame", "-XX:+VerifyBeforeGC", "-XX:+VerifyAfterGC",
         "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing"};
 
-    protected static final int ValueTypePassFieldsAsArgsOn = 0x1;
-    protected static final int ValueTypePassFieldsAsArgsOff = 0x2;
+    protected static final int InlineTypePassFieldsAsArgsOn = 0x1;
+    protected static final int InlineTypePassFieldsAsArgsOff = 0x2;
     protected static final int ValueTypeArrayFlattenOn = 0x4;
     protected static final int ValueTypeArrayFlattenOff = 0x8;
-    protected static final int ValueTypeReturnedAsFieldsOn = 0x10;
-    protected static final int ValueTypeReturnedAsFieldsOff = 0x20;
+    protected static final int InlineTypeReturnedAsFieldsOn = 0x10;
+    protected static final int InlineTypeReturnedAsFieldsOff = 0x20;
     protected static final int AlwaysIncrementalInlineOn = 0x40;
     protected static final int AlwaysIncrementalInlineOff = 0x80;
     protected static final int G1GCOn = 0x100;
@@ -179,9 +179,9 @@ public abstract class ValueTypeTest {
     protected static final int ArrayLoadStoreProfileOff = 0x2000;
     protected static final int TypeProfileOn = 0x4000;
     protected static final int TypeProfileOff = 0x8000;
-    protected static final boolean ValueTypePassFieldsAsArgs = (Boolean)WHITE_BOX.getVMFlag("ValueTypePassFieldsAsArgs");
-    protected static final boolean ValueTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("ValueArrayElemMaxFlatSize") == -1); // FIXME - fix this if default of ValueArrayElemMaxFlatSize is changed
-    protected static final boolean ValueTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("ValueTypeReturnedAsFields");
+    protected static final boolean InlineTypePassFieldsAsArgs = (Boolean)WHITE_BOX.getVMFlag("InlineTypePassFieldsAsArgs");
+    protected static final boolean ValueTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("InlineArrayElemMaxFlatSize") == -1); // FIXME - fix this if default of InlineArrayElemMaxFlatSize is changed
+    protected static final boolean InlineTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("InlineTypeReturnedAsFields");
     protected static final boolean AlwaysIncrementalInline = (Boolean)WHITE_BOX.getVMFlag("AlwaysIncrementalInline");
     protected static final boolean G1GC = (Boolean)WHITE_BOX.getVMFlag("UseG1GC");
     protected static final boolean ZGC = (Boolean)WHITE_BOX.getVMFlag("UseZGC");
@@ -257,54 +257,54 @@ public abstract class ValueTypeTest {
         case 0: return new String[] {
                 "-XX:-UseArrayLoadStoreProfile",
                 "-XX:+AlwaysIncrementalInline",
-                "-XX:ValueArrayElemMaxFlatOops=5",
-                "-XX:ValueArrayElemMaxFlatSize=-1",
-                "-XX:ValueFieldMaxFlatSize=-1",
-                "-XX:+ValueTypePassFieldsAsArgs",
-                "-XX:+ValueTypeReturnedAsFields"};
+                "-XX:InlineArrayElemMaxFlatOops=5",
+                "-XX:InlineArrayElemMaxFlatSize=-1",
+                "-XX:InlineFiledMaxFlatSize=-1",
+                "-XX:+InlineTypePassFieldsAsArgs",
+                "-XX:+InlineTypeReturnedAsFields"};
         case 1: return new String[] {
                 "-XX:-UseArrayLoadStoreProfile",
                 "-XX:-UseCompressedOops",
-                "-XX:ValueArrayElemMaxFlatOops=5",
-                "-XX:ValueArrayElemMaxFlatSize=-1",
-                "-XX:ValueFieldMaxFlatSize=-1",
-                "-XX:-ValueTypePassFieldsAsArgs",
-                "-XX:-ValueTypeReturnedAsFields"};
+                "-XX:InlineArrayElemMaxFlatOops=5",
+                "-XX:InlineArrayElemMaxFlatSize=-1",
+                "-XX:InlineFiledMaxFlatSize=-1",
+                "-XX:-InlineTypePassFieldsAsArgs",
+                "-XX:-InlineTypeReturnedAsFields"};
         case 2: return new String[] {
                 "-XX:-UseArrayLoadStoreProfile",
                 "-XX:-UseCompressedOops",
-                "-XX:ValueArrayElemMaxFlatOops=0",
-                "-XX:ValueArrayElemMaxFlatSize=0",
-                "-XX:ValueFieldMaxFlatSize=-1",
-                "-XX:+ValueTypePassFieldsAsArgs",
-                "-XX:+ValueTypeReturnedAsFields",
-                "-XX:+StressValueTypeReturnedAsFields"};
+                "-XX:InlineArrayElemMaxFlatOops=0",
+                "-XX:InlineArrayElemMaxFlatSize=0",
+                "-XX:InlineFiledMaxFlatSize=-1",
+                "-XX:+InlineTypePassFieldsAsArgs",
+                "-XX:+InlineTypeReturnedAsFields",
+                "-XX:+StressInlineTypeReturnedAsFields"};
         case 3: return new String[] {
                 "-XX:-UseArrayLoadStoreProfile",
                 "-DVerifyIR=false",
                 "-XX:+AlwaysIncrementalInline",
-                "-XX:ValueArrayElemMaxFlatOops=0",
-                "-XX:ValueArrayElemMaxFlatSize=0",
-                "-XX:ValueFieldMaxFlatSize=0",
-                "-XX:+ValueTypePassFieldsAsArgs",
-                "-XX:+ValueTypeReturnedAsFields"};
+                "-XX:InlineArrayElemMaxFlatOops=0",
+                "-XX:InlineArrayElemMaxFlatSize=0",
+                "-XX:InlineFiledMaxFlatSize=0",
+                "-XX:+InlineTypePassFieldsAsArgs",
+                "-XX:+InlineTypeReturnedAsFields"};
         case 4: return new String[] {
                 "-XX:-UseArrayLoadStoreProfile",
                 "-DVerifyIR=false",
-                "-XX:ValueArrayElemMaxFlatOops=-1",
-                "-XX:ValueArrayElemMaxFlatSize=-1",
-                "-XX:ValueFieldMaxFlatSize=0",
-                "-XX:+ValueTypePassFieldsAsArgs",
-                "-XX:-ValueTypeReturnedAsFields",
+                "-XX:InlineArrayElemMaxFlatOops=-1",
+                "-XX:InlineArrayElemMaxFlatSize=-1",
+                "-XX:InlineFiledMaxFlatSize=0",
+                "-XX:+InlineTypePassFieldsAsArgs",
+                "-XX:-InlineTypeReturnedAsFields",
                 "-XX:-ReduceInitialCardMarks"};
         case 5: return new String[] {
                 "-XX:-UseArrayLoadStoreProfile",
                 "-XX:+AlwaysIncrementalInline",
-                "-XX:ValueArrayElemMaxFlatOops=5",
-                "-XX:ValueArrayElemMaxFlatSize=-1",
-                "-XX:ValueFieldMaxFlatSize=-1",
-                "-XX:-ValueTypePassFieldsAsArgs",
-                "-XX:-ValueTypeReturnedAsFields"};
+                "-XX:InlineArrayElemMaxFlatOops=5",
+                "-XX:InlineArrayElemMaxFlatSize=-1",
+                "-XX:InlineFiledMaxFlatSize=-1",
+                "-XX:-InlineTypePassFieldsAsArgs",
+                "-XX:-InlineTypeReturnedAsFields"};
         }
         return null;
     }
@@ -473,12 +473,12 @@ public abstract class ValueTypeTest {
         private final BooleanSupplier predicate;
 
         private static final TestAnnotation testAnnotations[] = {
-            new TestAnnotation(ValueTypePassFieldsAsArgsOn, () -> ValueTypePassFieldsAsArgs),
-            new TestAnnotation(ValueTypePassFieldsAsArgsOff, () -> !ValueTypePassFieldsAsArgs),
+            new TestAnnotation(InlineTypePassFieldsAsArgsOn, () -> InlineTypePassFieldsAsArgs),
+            new TestAnnotation(InlineTypePassFieldsAsArgsOff, () -> !InlineTypePassFieldsAsArgs),
             new TestAnnotation(ValueTypeArrayFlattenOn, () -> ValueTypeArrayFlatten),
             new TestAnnotation(ValueTypeArrayFlattenOff, () -> !ValueTypeArrayFlatten),
-            new TestAnnotation(ValueTypeReturnedAsFieldsOn, () -> ValueTypeReturnedAsFields),
-            new TestAnnotation(ValueTypeReturnedAsFieldsOff, () -> !ValueTypeReturnedAsFields),
+            new TestAnnotation(InlineTypeReturnedAsFieldsOn, () -> InlineTypeReturnedAsFields),
+            new TestAnnotation(InlineTypeReturnedAsFieldsOff, () -> !InlineTypeReturnedAsFields),
             new TestAnnotation(AlwaysIncrementalInlineOn, () -> AlwaysIncrementalInline),
             new TestAnnotation(AlwaysIncrementalInlineOff, () -> !AlwaysIncrementalInline),
             new TestAnnotation(G1GCOn, () -> G1GC),

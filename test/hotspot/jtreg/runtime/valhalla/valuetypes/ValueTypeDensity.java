@@ -33,10 +33,10 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator ValueTypeDensity.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -Xint -XX:ValueArrayElemMaxFlatSize=-1
+ * @run main/othervm -Xint -XX:InlineArrayElemMaxFlatSize=-1
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI ValueTypeDensity
- * @run main/othervm -Xcomp -XX:ValueArrayElemMaxFlatSize=-1
+ * @run main/othervm -Xcomp -XX:InlineArrayElemMaxFlatSize=-1
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI ValueTypeDensity
  * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions
@@ -49,8 +49,8 @@ public class ValueTypeDensity {
     private static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
 
     public ValueTypeDensity() {
-        if (WHITE_BOX.getIntxVMFlag("ValueArrayElemMaxFlatSize") != -1) {
-            throw new IllegalStateException("ValueArrayElemMaxFlatSize should be -1");
+        if (WHITE_BOX.getIntxVMFlag("InlineArrayElemMaxFlatSize") != -1) {
+            throw new IllegalStateException("InlineArrayElemMaxFlatSize should be -1");
         }
     }
 

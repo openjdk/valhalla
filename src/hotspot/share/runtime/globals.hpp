@@ -765,23 +765,23 @@ const size_t minimumSymbolTableSize = 1024;
   notproduct(bool, PrintFieldLayout, false,                                 \
           "Print field layout for each class")                              \
                                                                             \
-  notproduct(bool, PrintValueLayout, false,                                 \
-          "Print field layout for each value type")                         \
+  notproduct(bool, PrintInlineLayout, false,                                \
+          "Print field layout for each inline type")                        \
                                                                             \
-  notproduct(bool, PrintValueArrayLayout, false,                            \
-          "Print array layout for each value type array")                   \
+  notproduct(bool, PrintInlineArrayLayout, false,                           \
+          "Print array layout for each inline type array")                  \
                                                                             \
-  product(intx, ValueArrayElemMaxFlatSize, -1,                              \
-          "Max size for flattening value array elements, <0 no limit")      \
+  product(intx, InlineArrayElemMaxFlatSize, -1,                             \
+          "Max size for flattening inline array elements, <0 no limit")     \
                                                                             \
-  product(intx, ValueFieldMaxFlatSize, 128,                                 \
-          "Max size for flattening value type fields, <0 no limit")         \
+  product(intx, InlineFieldMaxFlatSize, 128,                                \
+          "Max size for flattening inline type fields, <0 no limit")        \
                                                                             \
-  product(intx, ValueArrayElemMaxFlatOops, 4,                               \
-          "Max nof embedded object references in a value type to flatten, <0 no limit")  \
+  product(intx, InlineArrayElemMaxFlatOops, 4,                              \
+          "Max nof embedded object references in an inline type to flatten, <0 no limit")  \
                                                                             \
-  product(bool, ValueArrayAtomicAccess, false,                              \
-          "Atomic value array accesses by-default, for all value arrays")   \
+  product(bool, InlineArrayAtomicAccess, false,                             \
+          "Atomic inline array accesses by-default, for all inline arrays") \
                                                                             \
   /* Need to limit the extent of the padding to reasonable size.          */\
   /* 8K is well beyond the reasonable HW cache line size, even with       */\
@@ -2498,17 +2498,17 @@ const size_t minimumSymbolTableSize = 1024;
   product(bool, EnableValhalla, true,                                       \
           "Enable experimental Valhalla features")                          \
                                                                             \
-  product_pd(bool, ValueTypePassFieldsAsArgs,                               \
-          "Pass each value type field as an argument at calls")             \
+  product_pd(bool, InlineTypePassFieldsAsArgs,                              \
+          "Pass each inline type field as an argument at calls")            \
                                                                             \
-  product_pd(bool, ValueTypeReturnedAsFields,                               \
-          "Return fields instead of a value type reference")                \
+  product_pd(bool, InlineTypeReturnedAsFields,                              \
+          "Return fields instead of an inline type reference")              \
                                                                             \
-  develop(bool, StressValueTypeReturnedAsFields, false,                     \
-          "Stress return of fields instead of a value type reference")      \
+  develop(bool, StressInlineTypeReturnedAsFields, false,                    \
+          "Stress return of fields instead of an inline type reference")    \
                                                                             \
-  develop(bool, ScalarizeValueTypes, true,                                  \
-          "Scalarize value types in compiled code")                         \
+  develop(bool, ScalarizeInlineTypes, true,                                 \
+          "Scalarize inline types in compiled code")                        \
                                                                             \
   diagnostic(ccstrlist, ForceNonTearable, "",                               \
           "List of inline classes which are forced to be atomic "           \
