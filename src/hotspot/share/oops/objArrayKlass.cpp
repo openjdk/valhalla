@@ -119,12 +119,8 @@ Klass* ObjArrayKlass::allocate_objArray_klass(int n, Klass* element_klass, TRAPS
 }
 
 ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name) : ArrayKlass(name, ID) {
-  this->set_dimension(n);
-  this->set_element_klass(element_klass);
-  // decrement refcount because object arrays are not explicitly freed.  The
-  // InstanceKlass array_name() keeps the name counted while the klass is
-  // loaded.
-  name->decrement_refcount();
+  set_dimension(n);
+  set_element_klass(element_klass);
 
   Klass* bk;
   if (element_klass->is_objArray_klass()) {
@@ -134,18 +130,17 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name) : ArrayK
   } else {
     bk = element_klass;
   }
-  assert(bk != NULL && (bk->is_instance_klass()
-      || bk->is_typeArray_klass()), "invalid bottom klass");
-  this->set_bottom_klass(bk);
-  this->set_class_loader_data(bk->class_loader_data());
+  assert(bk != NULL && (bk->is_instance_klass() || bk->is_typeArray_klass()), "invalid bottom klass");
+  set_bottom_klass(bk);
+  set_class_loader_data(bk->class_loader_data());
 
   jint lh = array_layout_helper(T_OBJECT);
   if (element_klass->is_value()) {
     lh = layout_helper_set_null_free(lh);
   }
-  this->set_layout_helper(lh);
-  assert(this->is_array_klass(), "sanity");
-  assert(this->is_objArray_klass(), "sanity");
+  set_layout_helper(lh);
+  assert(is_array_klass(), "sanity");
+  assert(is_objArray_klass(), "sanity");
 }
 
 int ObjArrayKlass::oop_size(oop obj) const {

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, 2019, Red Hat Inc. All rights reserved.
+ * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -181,6 +181,8 @@ class MacroAssembler: public Assembler {
 
   using Assembler::ldr;
   using Assembler::str;
+  using Assembler::ldrw;
+  using Assembler::strw;
 
   void ldr(Register Rx, const Address &adr);
   void ldrw(Register Rw, const Address &adr);
@@ -824,6 +826,7 @@ public:
   // C 'boolean' to Java boolean: x == 0 ? 0 : 1
   void c2bool(Register x);
 
+  void load_method_holder_cld(Register rresult, Register rmethod);
   void load_method_holder(Register holder, Register method);
 
   // oop manipulations
@@ -834,6 +837,7 @@ public:
   void store_klass(Register dst, Register src);
   void cmp_klass(Register oop, Register trial_klass, Register tmp);
 
+  void resolve_weak_handle(Register result, Register tmp);
   void resolve_oop_handle(Register result, Register tmp = r5);
   void load_mirror(Register dst, Register method, Register tmp = r5);
 

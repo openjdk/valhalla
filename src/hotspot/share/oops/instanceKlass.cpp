@@ -447,7 +447,7 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
       ik = new (loader_data, size, THREAD) ValueKlass(parser);
     } else {
       // normal
-      ik = new (loader_data, size, THREAD) InstanceKlass(parser, InstanceKlass::_misc_kind_other);
+      ik = new (loader_data, size, THREAD) InstanceKlass(parser, InstanceKlass::_kind_other);
     }
   } else {
     // reference
@@ -518,17 +518,17 @@ Array<int>* InstanceKlass::create_new_default_vtable_indices(int len, TRAPS) {
 InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, KlassID id) :
   Klass(id),
   _nest_members(NULL),
-  _nest_host_index(0),
   _nest_host(NULL),
   _record_components(NULL),
   _static_field_size(parser.static_field_size()),
   _nonstatic_oop_map_size(nonstatic_oop_map_size(parser.total_oop_map_count())),
   _itable_len(parser.itable_size()),
-  _init_thread(NULL),
+  _nest_host_index(0),
   _init_state(allocated),
   _reference_type(parser.reference_type()),
   _value_field_klasses(NULL),
-  _adr_valueklass_fixed_block(NULL)
+  _adr_valueklass_fixed_block(NULL),
+  _init_thread(NULL)
 {
   set_vtable_length(parser.vtable_size());
   set_kind(kind);
@@ -633,9 +633,9 @@ void InstanceKlass::deallocate_contents(ClassLoaderData* loader_data) {
   // to deallocate.
   assert(array_klasses() == NULL, "array classes shouldn't be created for this class yet");
 
-  // Release C heap allocated data that this might point to, which includes
+  // Release C heap allocated data that this points to, which includes
   // reference counting symbol names.
-  release_C_heap_structures();
+  release_C_heap_structures_internal();
 
   deallocate_methods(loader_data, methods());
   set_methods(NULL);
@@ -2522,7 +2522,6 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push((Klass**)&_array_klasses);
   it->push(&_constants);
   it->push(&_inner_classes);
-  it->push(&_array_name);
 #if INCLUDE_JVMTI
   it->push(&_previous_versions);
 #endif
@@ -2721,17 +2720,19 @@ static void method_release_C_heap_structures(Method* m) {
   m->release_C_heap_structures();
 }
 
-void InstanceKlass::release_C_heap_structures(InstanceKlass* ik) {
+void InstanceKlass::release_C_heap_structures() {
+
   // Clean up C heap
-  ik->release_C_heap_structures();
-  ik->constants()->release_C_heap_structures();
+  release_C_heap_structures_internal();
+  constants()->release_C_heap_structures();
 
   // Deallocate and call destructors for MDO mutexes
-  ik->methods_do(method_release_C_heap_structures);
-
+  methods_do(method_release_C_heap_structures);
 }
 
-void InstanceKlass::release_C_heap_structures() {
+void InstanceKlass::release_C_heap_structures_internal() {
+  Klass::release_C_heap_structures();
+
   // Can't release the constant pool here because the constant pool can be
   // deallocated separately from the InstanceKlass for default methods and
   // redefine classes.
@@ -2769,20 +2770,6 @@ void InstanceKlass::release_C_heap_structures() {
   }
 #endif
 
-  // Decrement symbol reference counts associated with the unloaded class.
-  if (_name != NULL) _name->decrement_refcount();
-
-  // unreference array name derived from this class name (arrays of an unloaded
-  // class can't be referenced anymore).
-  if (_array_name != NULL)  _array_name->decrement_refcount();
-  if (_inline_types != NULL) {
-    for (int i = 0; i < _inline_types->length(); i++) {
-      Symbol* s = _inline_types->at(i)._class_name;
-      if (s != NULL) {
-        s->decrement_refcount();
-      }
-    }
-  }
   FREE_C_HEAP_ARRAY(char, _source_debug_extension);
 }
 
