@@ -302,7 +302,7 @@ class InstanceKlass: public Klass {
   u2 shared_loader_type_bits() const {
     return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
   }
-  u2              _misc_flags;           // There is more space in access_flags for more flags.
+  u4              _misc_flags;           // There is more space in access_flags for more flags.
 
   Thread*         _init_thread;          // Pointer to current thread doing initialization (to handle recursive initialization)
   OopMapCache*    volatile _oop_map_cache;   // OopMapCache for all methods in the klass (allocated lazily)
@@ -664,6 +664,7 @@ public:
   bool is_marked_dependent() const         { return _is_marked_dependent; }
   void set_is_marked_dependent(bool value) { _is_marked_dependent = value; }
 
+  static ByteSize kind_offset() { return in_ByteSize(offset_of(InstanceKlass, _kind)); }
   static ByteSize misc_flags_offset() { return in_ByteSize(offset_of(InstanceKlass, _misc_flags)); }
   static u4 misc_flags_is_empty_inline_type() { return _misc_is_empty_inline_type; }
 

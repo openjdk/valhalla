@@ -526,9 +526,9 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _nest_host_index(0),
   _init_state(allocated),
   _reference_type(parser.reference_type()),
+  _init_thread(NULL),
   _value_field_klasses(NULL),
-  _adr_valueklass_fixed_block(NULL),
-  _init_thread(NULL)
+  _adr_valueklass_fixed_block(NULL)
 {
   set_vtable_length(parser.vtable_size());
   set_kind(kind);

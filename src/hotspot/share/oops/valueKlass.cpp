@@ -49,7 +49,7 @@
 
   // Constructor
 ValueKlass::ValueKlass(const ClassFileParser& parser)
-    : InstanceKlass(parser, InstanceKlass::_misc_kind_inline_type, InstanceKlass::ID) {
+    : InstanceKlass(parser, InstanceKlass::_kind_inline_type, InstanceKlass::ID) {
   _adr_valueklass_fixed_block = valueklass_static_block();
   // Addresses used for value type calling convention
   *((Array<SigEntry>**)adr_extended_sig()) = NULL;
