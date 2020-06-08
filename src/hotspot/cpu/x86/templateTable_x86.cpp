@@ -4352,8 +4352,7 @@ void TemplateTable::_new() {
   // get InstanceKlass
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
 
-  __ movl(rdx, Address(rcx, InstanceKlass::kind_offset()));
-  __ cmpl(rdx, InstanceKlass::_kind_inline_type);
+  __ cmpb(Address(rcx, InstanceKlass::kind_offset()), InstanceKlass::_kind_inline_type);
   __ jcc(Assembler::notEqual, is_not_value);
 
   __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_InstantiationError));
@@ -4402,8 +4401,7 @@ void TemplateTable::defaultvalue() {
   // get InstanceKlass
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
 
-  __ movl(rdx, Address(rcx, InstanceKlass::kind_offset()));
-  __ cmpl(rdx, InstanceKlass::_kind_inline_type);
+  __ cmpb(Address(rcx, InstanceKlass::kind_offset()), InstanceKlass::_kind_inline_type);
   __ jcc(Assembler::equal, is_value);
 
   // in the future, defaultvalue will just return null instead of throwing an exception

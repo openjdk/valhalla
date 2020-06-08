@@ -61,6 +61,7 @@ ValueKlass::ValueKlass(const ClassFileParser& parser)
   *((int*)adr_default_value_offset()) = 0;
   *((Klass**)adr_value_array_klass()) = NULL;
   set_prototype_header(markWord::always_locked_prototype());
+  assert(is_inline_type_klass(), "invariant");
 }
 
 oop ValueKlass::default_value() {
