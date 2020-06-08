@@ -256,7 +256,13 @@ Klass* ValueKlass::allocate_value_array_klass(TRAPS) {
   if (flatten_array()) {
     return ValueArrayKlass::allocate_klass(this, THREAD);
   }
-  return ObjArrayKlass::allocate_objArray_klass(1, this, THREAD);
+  return ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, THREAD);
+}
+
+void ValueKlass::array_klasses_do(void f(Klass* k, TRAPS), TRAPS) {
+  InstanceKlass::array_klasses_do(f, THREAD);
+  if (get_value_array_klass() != NULL)
+    ArrayKlass::cast(get_value_array_klass())->array_klasses_do(f, THREAD);
 }
 
 void ValueKlass::array_klasses_do(void f(Klass* k)) {

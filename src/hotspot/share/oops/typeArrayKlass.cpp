@@ -187,7 +187,8 @@ Klass* TypeArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
       MutexLocker mu(THREAD, MultiArray_lock);
 
       if (higher_dimension() == NULL) {
-        Klass* oak = ObjArrayKlass::allocate_objArray_klass(dim + 1, this, CHECK_NULL);
+        Klass* oak = ObjArrayKlass::allocate_objArray_klass(
+              class_loader_data(), dim + 1, this, CHECK_NULL);
         ObjArrayKlass* h_ak = ObjArrayKlass::cast(oak);
         h_ak->set_lower_dimension(this);
         // use 'release' to pair with lock-free load
