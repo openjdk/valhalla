@@ -4419,8 +4419,8 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
       }
       ValueKlass* vk = ValueKlass::cast(klass);
       // Conditions to apply flattening or not should be defined in a single place
-      bool too_big_to_flatten = (ValueFieldMaxFlatSize >= 0 &&
-                                 (vk->size_helper() * HeapWordSize) > ValueFieldMaxFlatSize);
+      bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
+                                 (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
       bool too_atomic_to_flatten = vk->is_declared_atomic();
       bool too_volatile_to_flatten = fs.access_flags().is_volatile();
       if (vk->is_naturally_atomic()) {
@@ -4875,7 +4875,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
 #ifndef PRODUCT
   if ((PrintFieldLayout && !is_inline_type()) ||
-      (PrintValueLayout && (is_inline_type() || has_nonstatic_value_fields))) {
+      (PrintInlineLayout && (is_inline_type() || has_nonstatic_value_fields))) {
     print_field_layout(_class_name,
           _fields,
           cp,

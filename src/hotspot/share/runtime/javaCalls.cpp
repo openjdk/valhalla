@@ -442,7 +442,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
 #endif
 
   jobject value_buffer = NULL;
-  if (ValueTypeReturnedAsFields && result->get_type() == T_VALUETYPE) {
+  if (InlineTypeReturnedAsFields && result->get_type() == T_VALUETYPE) {
     // Pre allocate buffered value in case the result is returned
     // flattened by compiled code
     ValueKlass* vk = method->returned_value_type(thread);

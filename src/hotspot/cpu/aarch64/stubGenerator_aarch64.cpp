@@ -369,7 +369,7 @@ class StubGenerator: public StubCodeGenerator {
 
     // handle return types different from T_INT
     __ BIND(is_value);
-    if (ValueTypeReturnedAsFields) {
+    if (InlineTypeReturnedAsFields) {
       // Check for flattened return value
       __ cbz(r0, is_long);
       // Initialize pre-allocated buffer

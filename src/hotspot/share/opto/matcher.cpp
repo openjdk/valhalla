@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -181,7 +181,7 @@ RegMask* Matcher::return_values_mask(const TypeTuple *range) {
   }
   RegMask* mask = NEW_RESOURCE_ARRAY(RegMask, cnt);
 
-  if (!ValueTypeReturnedAsFields) {
+  if (!InlineTypeReturnedAsFields) {
     // Get ideal-register return type
     uint ireg = range->field_at(TypeFunc::Parms)->ideal_reg();
     // Get machine return register

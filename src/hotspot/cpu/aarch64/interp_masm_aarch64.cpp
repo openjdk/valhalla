@@ -687,7 +687,7 @@ void InterpreterMacroAssembler::remove_activation(
   }
 
 
-  if (state == atos && ValueTypeReturnedAsFields) {
+  if (state == atos && InlineTypeReturnedAsFields) {
     Label skip;
     // Test if the return type is a value type
     ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));

@@ -445,7 +445,7 @@ static void patch_callers_callsite(MacroAssembler *masm) {
 // calling convention the interpreter expects).
 static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_extended) {
   int total_args_passed = 0;
-  if (ValueTypePassFieldsAsArgs) {
+  if (InlineTypePassFieldsAsArgs) {
      for (int i = 0; i < sig_extended->length(); i++) {
        BasicType bt = sig_extended->at(i)._bt;
        if (SigEntry::is_reserved_entry(sig_extended, i)) {
@@ -488,7 +488,7 @@ static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_exte
 
 static void gen_c2i_adapter_helper(MacroAssembler* masm, BasicType bt, const VMRegPair& reg_pair, int extraspace, const Address& to) {
 
-    assert(bt != T_VALUETYPE || !ValueTypePassFieldsAsArgs, "no value type here");
+    assert(bt != T_VALUETYPE || !InlineTypePassFieldsAsArgs, "no inline type here");
 
     // Say 4 args:
     // i   st_off
@@ -561,8 +561,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   bool has_value_argument = false;
 
-  if (ValueTypePassFieldsAsArgs) {
-      // Is there a value type argument?
+  if (InlineTypePassFieldsAsArgs) {
+      // Is there an inline type argument?
      for (int i = 0; i < sig_extended->length() && !has_value_argument; i++) {
        has_value_argument = (sig_extended->at(i)._bt == T_VALUETYPE);
      }
@@ -631,7 +631,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     // offset to start parameters
     int st_off   = (total_args_passed - next_arg_int - 1) * Interpreter::stackElementSize;
 
-    if (!ValueTypePassFieldsAsArgs || bt != T_VALUETYPE) {
+    if (!InlineTypePassFieldsAsArgs || bt != T_VALUETYPE) {
 
             if (SigEntry::is_reserved_entry(sig_extended, next_arg_comp)) {
                continue; // Ignore reserved entry

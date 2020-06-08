@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,11 +36,11 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Point.java JumboValue.java
  * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator FlattenableSemanticTest.java
- * @run main/othervm -Xint -XX:ValueFieldMaxFlatSize=64 runtime.valhalla.valuetypes.FlattenableSemanticTest
+ * @run main/othervm -Xint -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.valuetypes.FlattenableSemanticTest
  * @run main/othervm -Xint -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.valuetypes.FlattenableSemanticTest
- * @run main/othervm -Xcomp -XX:ValueFieldMaxFlatSize=64 runtime.valhalla.valuetypes.FlattenableSemanticTest
+ * @run main/othervm -Xcomp -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.valuetypes.FlattenableSemanticTest
  * @run main/othervm -Xcomp -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.valuetypes.FlattenableSemanticTest
- * // debug: -XX:+PrintValueLayout -XX:-ShowMessageBoxOnError
+ * // debug: -XX:+PrintInlineLayout -XX:-ShowMessageBoxOnError
  */
 public class FlattenableSemanticTest {
 
