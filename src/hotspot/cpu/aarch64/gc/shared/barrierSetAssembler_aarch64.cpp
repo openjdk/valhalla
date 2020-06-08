@@ -102,7 +102,7 @@ void BarrierSetAssembler::store_at(MacroAssembler* masm, DecoratorSet decorators
           } else {
             __ encode_heap_oop(val);
           }
-          __ strw(val, dst); 
+          __ strw(val, dst);
         } else {
           __ str(val, dst);
         }
