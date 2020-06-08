@@ -49,7 +49,7 @@
 
   // Constructor
 ValueKlass::ValueKlass(const ClassFileParser& parser)
-    : InstanceKlass(parser, InstanceKlass::_misc_kind_inline_type, InstanceKlass::ID) {
+    : InstanceKlass(parser, InstanceKlass::_kind_inline_type, InstanceKlass::ID) {
   _adr_valueklass_fixed_block = valueklass_static_block();
   // Addresses used for value type calling convention
   *((Array<SigEntry>**)adr_extended_sig()) = NULL;
@@ -61,6 +61,7 @@ ValueKlass::ValueKlass(const ClassFileParser& parser)
   *((int*)adr_default_value_offset()) = 0;
   *((Klass**)adr_value_array_klass()) = NULL;
   set_prototype_header(markWord::always_locked_prototype());
+  assert(is_inline_type_klass(), "invariant");
 }
 
 oop ValueKlass::default_value() {

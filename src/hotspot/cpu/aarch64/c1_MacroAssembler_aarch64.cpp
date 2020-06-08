@@ -27,6 +27,7 @@
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
@@ -350,6 +351,10 @@ void C1_MacroAssembler::build_frame(int framesize, int bang_size_in_bytes, bool 
   }
 
   MacroAssembler::build_frame(framesize + 2 * wordSize);
+
+  // Insert nmethod entry barrier into frame.
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->nmethod_entry_barrier(this);
 }
 
 void C1_MacroAssembler::remove_frame(int framesize, bool needs_stack_repair) {

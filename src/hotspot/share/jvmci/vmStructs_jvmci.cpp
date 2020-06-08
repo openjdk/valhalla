@@ -116,7 +116,8 @@
   nonstatic_field(ConstantPool,                _tags,                                  Array<u1>*)                                   \
   nonstatic_field(ConstantPool,                _pool_holder,                           InstanceKlass*)                               \
   nonstatic_field(ConstantPool,                _length,                                int)                                          \
-  nonstatic_field(ConstantPool,                _flags,                                 int)                                          \
+  nonstatic_field(ConstantPool,                _flags,                                 u2)                                           \
+  nonstatic_field(ConstantPool,                _source_file_name_index,                u2)                                           \
                                                                                                                                      \
   nonstatic_field(ConstMethod,                 _constants,                             ConstantPool*)                                \
   nonstatic_field(ConstMethod,                 _flags,                                 u2)                                           \
@@ -155,7 +156,6 @@
                                                                                                                                      \
   nonstatic_field(InstanceKlass,               _fields,                                       Array<u2>*)                            \
   nonstatic_field(InstanceKlass,               _constants,                                    ConstantPool*)                         \
-  nonstatic_field(InstanceKlass,               _source_file_name_index,                       u2)                                    \
   nonstatic_field(InstanceKlass,               _init_state,                                   u1)                                    \
   nonstatic_field(InstanceKlass,               _init_thread,                                  Thread*)                               \
   nonstatic_field(InstanceKlass,               _misc_flags,                                   u4)                                    \
@@ -397,6 +397,7 @@
   declare_constant(JVM_ACC_HAS_MONITOR_BYTECODES)                         \
   declare_constant(JVM_ACC_HAS_FINALIZER)                                 \
   declare_constant(JVM_ACC_IS_CLONEABLE_FAST)                             \
+  declare_constant(JVM_ACC_IS_HIDDEN_CLASS)                               \
   declare_constant(JVM_ACC_FIELD_INTERNAL)                                \
   declare_constant(JVM_ACC_FIELD_STABLE)                                  \
   declare_constant(JVM_ACC_FIELD_HAS_GENERIC_SIGNATURE)                   \

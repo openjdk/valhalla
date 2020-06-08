@@ -100,38 +100,28 @@ ArrayKlass::ArrayKlass(Symbol* name, KlassID id) :
 }
 
 Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS) {
+  ResourceMark rm(THREAD);
   Symbol* name = NULL;
   bool is_qtype = element_klass->is_value();
-  if (!element_klass->is_instance_klass() || is_qtype ||
-      (name = InstanceKlass::cast(element_klass)->array_name()) == NULL) {
-
-    ResourceMark rm(THREAD);
-    char *name_str = element_klass->name()->as_C_string();
-    int len = element_klass->name()->utf8_length();
-    char *new_str = NEW_RESOURCE_ARRAY(char, len + 4);
-    int idx = 0;
-    new_str[idx++] = JVM_SIGNATURE_ARRAY;
-    if (element_klass->is_instance_klass()) { // it could be an array or simple type
-      if (is_qtype) {
-        new_str[idx++] = JVM_SIGNATURE_VALUETYPE;
-      } else {
-        new_str[idx++] = JVM_SIGNATURE_CLASS;
-      }
-    }
-    memcpy(&new_str[idx], name_str, len * sizeof(char));
-    idx += len;
-    if (element_klass->is_instance_klass()) {
-      new_str[idx++] = JVM_SIGNATURE_ENDCLASS;
-    }
-    new_str[idx++] = '\0';
-    name = SymbolTable::new_symbol(new_str);
-    if (element_klass->is_instance_klass()) {
-      InstanceKlass* ik = InstanceKlass::cast(element_klass);
-      ik->set_array_name(name);
+  char *name_str = element_klass->name()->as_C_string();
+  int len = element_klass->name()->utf8_length();
+  char *new_str = NEW_RESOURCE_ARRAY(char, len + 4);
+  int idx = 0;
+  new_str[idx++] = JVM_SIGNATURE_ARRAY;
+  if (element_klass->is_instance_klass()) { // it could be an array or simple type
+    if (is_qtype) {
+      new_str[idx++] = JVM_SIGNATURE_VALUETYPE;
+    } else {
+      new_str[idx++] = JVM_SIGNATURE_CLASS;
     }
   }
-
-  return name;
+  memcpy(&new_str[idx], name_str, len * sizeof(char));
+  idx += len;
+  if (element_klass->is_instance_klass()) {
+    new_str[idx++] = JVM_SIGNATURE_ENDCLASS;
+  }
+  new_str[idx++] = '\0';
+  return SymbolTable::new_symbol(new_str);
 }
 
 // Initialization of vtables and mirror object is done separatly from base_create_array_klass,
