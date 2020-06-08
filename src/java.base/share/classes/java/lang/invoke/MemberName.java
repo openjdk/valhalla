@@ -477,17 +477,10 @@ final class MemberName implements Member, Cloneable {
     public boolean isFlattened() { return (flags & FLATTENED) == FLATTENED; }
 
     /** Query whether this member is a field of an inline class. */
-    public boolean isInlineable()  {
+    public boolean isInlineableField()  {
         if (isField()) {
             Class<?> type = getFieldType();
             return type.isInlineClass();
-        }
-        return false;
-    }
-
-    public boolean isIndirect()  {
-        if (isField()) {
-            return !getFieldType().isInlineClass();
         }
         return false;
     }

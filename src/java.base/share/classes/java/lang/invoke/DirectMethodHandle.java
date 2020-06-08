@@ -113,13 +113,13 @@ class DirectMethodHandle extends MethodHandle {
             if (member.isStatic()) {
                 long offset = MethodHandleNatives.staticFieldOffset(member);
                 Object base = MethodHandleNatives.staticFieldBase(member);
-                return member.isIndirect() ? new IndirectStaticAccessor(mtype, lform, member, base, offset)
-                                           : new InlineStaticAccessor(mtype, lform, member, base, offset);
+                return member.isInlineableField() ? new InlineStaticAccessor(mtype, lform, member, true, base, offset)
+                                                  : new StaticAccessor(mtype, lform, member, true, base, offset);
             } else {
                 long offset = MethodHandleNatives.objectFieldOffset(member);
                 assert(offset == (int)offset);
-                return  member.isIndirect() ? new IndirectAccessor(mtype, lform, member, (int)offset)
-                                            : new InlineAccessor(mtype, lform, member, (int)offset);
+                return  member.isInlineableField() ? new InlineAccessor(mtype, lform, member, true, (int)offset)
+                                                   : new Accessor(mtype, lform, member, true, (int)offset);
             }
         }
     }
@@ -522,7 +522,7 @@ class DirectMethodHandle extends MethodHandle {
     }
 
     /** This subclass handles non-static field references. */
-    static abstract class Accessor extends DirectMethodHandle {
+    static class Accessor extends DirectMethodHandle {
         final Class<?> fieldType;
         final int      fieldOffset;
         private Accessor(MethodType mtype, LambdaForm form, MemberName member,
@@ -531,36 +531,26 @@ class DirectMethodHandle extends MethodHandle {
             this.fieldType   = member.getFieldType();
             this.fieldOffset = fieldOffset;
         }
-        abstract Object checkCast(Object obj);
-        abstract MethodHandle copyWith(MethodType mt, LambdaForm lf);
-    }
-
-    /** This subclass handles non-static field references of indirect type */
-    static class IndirectAccessor extends Accessor {
-        private IndirectAccessor(MethodType mtype, LambdaForm form, MemberName member,
-                                 int fieldOffset) {
-            super(mtype, form, member, true, fieldOffset);
-        }
 
         @Override Object checkCast(Object obj) {
             return fieldType.cast(obj);
         }
         @Override
         MethodHandle copyWith(MethodType mt, LambdaForm lf) {
-            return new IndirectAccessor(mt, lf, member, fieldOffset);
+            return new Accessor(mt, lf, member, crackable, fieldOffset);
         }
         @Override
         MethodHandle viewAsType(MethodType newType, boolean strict) {
             assert(viewAsTypeChecks(newType, strict));
-            return new IndirectAccessor(newType, form, member, fieldOffset);
+            return new Accessor(newType, form, member, false, fieldOffset);
         }
     }
 
     /** This subclass handles non-static field references of inline type */
     static class InlineAccessor extends Accessor {
         private InlineAccessor(MethodType mtype, LambdaForm form, MemberName member,
-                               int fieldOffset) {
-            super(mtype, form, member, true, fieldOffset);
+                               boolean crackable, int fieldOffset) {
+            super(mtype, form, member, crackable, fieldOffset);
         }
 
         @Override Object checkCast(Object obj) {
@@ -568,7 +558,12 @@ class DirectMethodHandle extends MethodHandle {
         }
         @Override
         MethodHandle copyWith(MethodType mt, LambdaForm lf) {
-            return new InlineAccessor(mt, lf, member, fieldOffset);
+            return new InlineAccessor(mt, lf, member, crackable, fieldOffset);
+        }
+        @Override
+        MethodHandle viewAsType(MethodType newType, boolean strict) {
+            assert(viewAsTypeChecks(newType, strict));
+            return new InlineAccessor(newType, form, member, false, fieldOffset);
         }
     }
 
@@ -593,7 +588,7 @@ class DirectMethodHandle extends MethodHandle {
         return Objects.requireNonNull(obj);
     }
 
-    static abstract class StaticAccessor extends DirectMethodHandle {
+    static class StaticAccessor extends DirectMethodHandle {
         final Class<?> fieldType;
         final Object staticBase;
         final long staticOffset;
@@ -605,37 +600,26 @@ class DirectMethodHandle extends MethodHandle {
             this.staticBase   = staticBase;
             this.staticOffset = staticOffset;
         }
-        abstract Object checkCast(Object obj);
-        abstract MethodHandle copyWith(MethodType mt, LambdaForm lf);
-    }
 
-    /** This subclass handles static field references of indirect type. */
-    static class IndirectStaticAccessor extends StaticAccessor {
-        private IndirectStaticAccessor(MethodType mtype, LambdaForm form, MemberName member,
-                                     Object staticBase, long staticOffset) {
-            super(mtype, form, member, true, staticBase, staticOffset);
-        }
-
-        // indirect type is always nullable
         @Override Object checkCast(Object obj) {
             return fieldType.cast(obj);
         }
         @Override
         MethodHandle copyWith(MethodType mt, LambdaForm lf) {
-            return new IndirectStaticAccessor(mt, lf, member, staticBase, staticOffset);
+            return new StaticAccessor(mt, lf, member, crackable, staticBase, staticOffset);
         }
         @Override
         MethodHandle viewAsType(MethodType newType, boolean strict) {
             assert(viewAsTypeChecks(newType, strict));
-            return new IndirectStaticAccessor(newType, form, member, staticBase, staticOffset);
+            return new StaticAccessor(newType, form, member, false, staticBase, staticOffset);
         }
     }
 
     /** This subclass handles static field references of inline type . */
     static class InlineStaticAccessor extends StaticAccessor {
         private InlineStaticAccessor(MethodType mtype, LambdaForm form, MemberName member,
-                                     Object staticBase, long staticOffset) {
-            super(mtype, form, member, true, staticBase, staticOffset);
+                                     boolean crackable, Object staticBase, long staticOffset) {
+            super(mtype, form, member, crackable, staticBase, staticOffset);
         }
 
         // zero-default inline type is not-nullable
@@ -645,7 +629,12 @@ class DirectMethodHandle extends MethodHandle {
         }
         @Override
         MethodHandle copyWith(MethodType mt, LambdaForm lf) {
-            return new InlineStaticAccessor(mt, lf, member, staticBase, staticOffset);
+            return new InlineStaticAccessor(mt, lf, member, crackable, staticBase, staticOffset);
+        }
+        @Override
+        MethodHandle viewAsType(MethodType newType, boolean strict) {
+            assert(viewAsTypeChecks(newType, strict));
+            return new InlineStaticAccessor(newType, form, member, false, staticBase, staticOffset);
         }
     }
 
@@ -740,12 +729,12 @@ class DirectMethodHandle extends MethodHandle {
         }
         if (shouldBeInitialized(m)) {
             // precompute the barrier-free version:
-            preparedFieldLambdaForm(formOp, m.isVolatile(), m.isInlineable(), m.isFlattened(), ftype);
+            preparedFieldLambdaForm(formOp, m.isVolatile(), m.isInlineableField(), m.isFlattened(), ftype);
             assert((AF_GETSTATIC_INIT - AF_GETSTATIC) ==
                    (AF_PUTSTATIC_INIT - AF_PUTSTATIC));
             formOp += (AF_GETSTATIC_INIT - AF_GETSTATIC);
         }
-        LambdaForm lform = preparedFieldLambdaForm(formOp, m.isVolatile(), m.isInlineable(), m.isFlattened(), ftype);
+        LambdaForm lform = preparedFieldLambdaForm(formOp, m.isVolatile(), m.isInlineableField(), m.isFlattened(), ftype);
         maybeCompile(lform, m);
         assert(lform.methodType().dropParameterTypes(0, 1)
                 .equals(m.getInvocationType().basicType()))
