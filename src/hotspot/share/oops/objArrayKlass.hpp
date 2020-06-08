@@ -65,7 +65,8 @@ class ObjArrayKlass : public ArrayKlass {
   int oop_size(oop obj) const;
 
   // Allocation
-  static Klass* allocate_objArray_klass(int n, Klass* element_klass, TRAPS);
+  static ObjArrayKlass* allocate_objArray_klass(ClassLoaderData* loader_data,
+                                                int n, Klass* element_klass, TRAPS);
 
   objArrayOop allocate(int length, TRAPS);
   oop multi_allocate(int rank, jint* sizes, TRAPS);

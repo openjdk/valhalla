@@ -197,7 +197,7 @@ class InstanceKlass: public Klass {
   // Package this class is defined in
   PackageEntry*   _package_entry;
   // Array classes holding elements of this class.
-  Klass* volatile _array_klasses;
+  ObjArrayKlass* volatile _array_klasses;
   // Constant pool for this class.
   ConstantPool* _constants;
   // The InnerClasses attribute and EnclosingMethod attribute. The
@@ -495,10 +495,10 @@ class InstanceKlass: public Klass {
   void set_itable_length(int len)          { _itable_len = len; }
 
   // array klasses
-  Klass* array_klasses() const             { return _array_klasses; }
-  inline Klass* array_klasses_acquire() const; // load with acquire semantics
-  void set_array_klasses(Klass* k)         { _array_klasses = k; }
-  inline void release_set_array_klasses(Klass* k); // store with release semantics
+  ObjArrayKlass* array_klasses() const     { return _array_klasses; }
+  inline ObjArrayKlass* array_klasses_acquire() const; // load with acquire semantics
+  void set_array_klasses(ObjArrayKlass* k) { _array_klasses = k; }
+  inline void release_set_array_klasses(ObjArrayKlass* k); // store with release semantics
 
   // methods
   Array<Method*>* methods() const          { return _methods; }
@@ -1161,6 +1161,7 @@ public:
 
   void methods_do(void f(Method* method));
   virtual void array_klasses_do(void f(Klass* k));
+  virtual void array_klasses_do(void f(Klass* k, TRAPS), TRAPS);
 
   static InstanceKlass* cast(Klass* k) {
     return const_cast<InstanceKlass*>(cast(const_cast<const Klass*>(k)));

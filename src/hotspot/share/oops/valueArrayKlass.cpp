@@ -346,7 +346,7 @@ Klass* ValueArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
 
         // Create multi-dim klass object and link them together
         Klass* k =
-          ObjArrayKlass::allocate_objArray_klass(dim + 1, this, CHECK_NULL);
+          ObjArrayKlass::allocate_objArray_klass(class_loader_data(), dim + 1, this, CHECK_NULL);
         ObjArrayKlass* ak = ObjArrayKlass::cast(k);
         ak->set_lower_dimension(this);
         OrderAccess::storestore();

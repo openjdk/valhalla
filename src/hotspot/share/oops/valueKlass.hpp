@@ -195,6 +195,7 @@ class ValueKlass: public InstanceKlass {
 
   // Metadata iterators
   void array_klasses_do(void f(Klass* k));
+  void array_klasses_do(void f(Klass* k, TRAPS), TRAPS);
 
   // allocate_instance() allocates a stand alone value in the Java heap
   // initialized to default value (cleared memory)
