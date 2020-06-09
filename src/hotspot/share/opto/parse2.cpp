@@ -122,7 +122,7 @@ void Parse::array_load(BasicType bt) {
         PreserveReexecuteState preexecs(this);
         jvms()->set_should_reexecute(true);
         inc_sp(2);
-        Node* vt = ValueTypeNode::make_from_flattened(this, vk, cast, casted_adr)->allocate(this, false)->get_oop();
+        Node* vt = ValueTypeNode::make_from_flattened(this, vk, cast, casted_adr)->buffer(this, false);
         ideal.set(res, vt);
         ideal.sync_kit(this);
       } else {
@@ -2067,13 +2067,13 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
     PreserveReexecuteState preexecs(this);
     inc_sp(2);
     jvms()->set_should_reexecute(true);
-    a = a->as_ValueType()->allocate(this)->get_oop();
+    a = a->as_ValueType()->buffer(this)->get_oop();
   }
   if (b->is_ValueType()) {
     PreserveReexecuteState preexecs(this);
     inc_sp(2);
     jvms()->set_should_reexecute(true);
-    b = b->as_ValueType()->allocate(this)->get_oop();
+    b = b->as_ValueType()->buffer(this)->get_oop();
   }
 
   // First, do a normal pointer comparison

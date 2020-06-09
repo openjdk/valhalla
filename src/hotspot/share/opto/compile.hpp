@@ -318,7 +318,7 @@ class Compile : public Phase {
   GrowableArray<Node*>* _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>* _range_check_casts;     // List of CastII nodes with a range check dependency
   GrowableArray<Node*>* _opaque4_nodes;         // List of Opaque4 nodes that have a default value
-  Unique_Node_List*     _value_type_nodes;      // List of ValueType nodes
+  GrowableArray<Node*>* _value_type_nodes;      // List of ValueType nodes
   ConnectionGraph*      _congraph;
 #ifndef PRODUCT
   IdealGraphPrinter*    _printer;
@@ -743,8 +743,7 @@ class Compile : public Phase {
   // Keep track of value type nodes for later processing
   void add_value_type(Node* n);
   void remove_value_type(Node* n);
-  void process_value_types(PhaseIterGVN &igvn);
-  bool can_add_value_type() const { return _value_type_nodes != NULL; }
+  void process_value_types(PhaseIterGVN &igvn, bool post_ea = false);
 
   void adjust_flattened_array_access_aliases(PhaseIterGVN& igvn);
 

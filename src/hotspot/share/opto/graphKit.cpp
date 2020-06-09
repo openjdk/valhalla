@@ -1622,7 +1622,7 @@ Node* GraphKit::access_store_at(Node* obj,
     // the store is re-executed if the allocation triggers deoptimization.
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
-    val = val->as_ValueType()->allocate(this, safe_for_replace)->get_oop();
+    val = val->as_ValueType()->buffer(this, safe_for_replace);
   }
 
   C2AccessValuePtr addr(adr, adr_type);
@@ -1815,10 +1815,9 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       continue;
     } else if (arg->is_ValueType()) {
       // Pass value type argument via oop to callee
-      if (is_late_inline) {
-        arg = ValueTypePtrNode::make_from_value_type(this, arg->as_ValueType());
-      } else {
-        arg = arg->as_ValueType()->allocate(this)->get_oop();
+      arg = arg->as_ValueType()->buffer(this);
+      if (!is_late_inline) {
+        arg = arg->as_ValueTypePtr()->get_oop();
       }
     }
     call->init_req(idx++, arg);

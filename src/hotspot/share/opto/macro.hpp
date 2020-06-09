@@ -110,7 +110,7 @@ private:
   bool eliminate_allocate_node(AllocateNode *alloc);
   bool can_eliminate_allocation(AllocateNode *alloc, GrowableArray <SafePointNode *>& safepoints);
   bool scalar_replacement(AllocateNode *alloc, GrowableArray <SafePointNode *>& safepoints_done);
-  void process_users_of_allocation(CallNode *alloc);
+  void process_users_of_allocation(CallNode *alloc, bool inline_alloc = false);
 
   void eliminate_gc_barrier(Node *p2x);
   void mark_eliminated_box(Node* box, Node* obj);

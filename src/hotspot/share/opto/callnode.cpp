@@ -1646,61 +1646,6 @@ void AllocateNode::compute_MemBar_redundancy(ciMethod* initializer)
   }
 }
 
-Node* AllocateNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  // Check for unused value type allocation
-  if (can_reshape && in(AllocateNode::ValueNode) != NULL &&
-      outcnt() != 0 && result_cast() == NULL) {
-    // Remove allocation by replacing the projection nodes with its inputs
-    InitializeNode* init = initialization();
-    PhaseIterGVN* igvn = phase->is_IterGVN();
-    CallProjections* projs = extract_projections(true, false);
-    assert(projs->nb_resproj <= 1, "unexpected number of results");
-    if (projs->fallthrough_catchproj != NULL) {
-      igvn->replace_node(projs->fallthrough_catchproj, in(TypeFunc::Control));
-    }
-    if (projs->fallthrough_memproj != NULL) {
-      igvn->replace_node(projs->fallthrough_memproj, in(TypeFunc::Memory));
-    }
-    if (projs->catchall_memproj != NULL) {
-      igvn->replace_node(projs->catchall_memproj, phase->C->top());
-    }
-    if (projs->fallthrough_ioproj != NULL) {
-      igvn->replace_node(projs->fallthrough_ioproj, in(TypeFunc::I_O));
-    }
-    if (projs->catchall_ioproj != NULL) {
-      igvn->replace_node(projs->catchall_ioproj, phase->C->top());
-    }
-    if (projs->catchall_catchproj != NULL) {
-      igvn->replace_node(projs->catchall_catchproj, phase->C->top());
-    }
-    if (projs->resproj[0] != NULL) {
-      // Remove MemBarStoreStore user as well
-      for (DUIterator_Fast imax, i = projs->resproj[0]->fast_outs(imax); i < imax; i++) {
-        MemBarStoreStoreNode* mb = projs->resproj[0]->fast_out(i)->isa_MemBarStoreStore();
-        if (mb != NULL && mb->outcnt() == 2) {
-          mb->remove(igvn);
-          --i; --imax;
-        }
-      }
-      igvn->replace_node(projs->resproj[0], phase->C->top());
-    }
-    igvn->replace_node(this, phase->C->top());
-    if (init != NULL) {
-      Node* ctrl_proj = init->proj_out_or_null(TypeFunc::Control);
-      Node* mem_proj = init->proj_out_or_null(TypeFunc::Memory);
-      if (ctrl_proj != NULL) {
-        igvn->replace_node(ctrl_proj, init->in(TypeFunc::Control));
-      }
-      if (mem_proj != NULL) {
-        igvn->replace_node(mem_proj, init->in(TypeFunc::Memory));
-      }
-    }
-    return NULL;
-  }
-
-  return CallNode::Ideal(phase, can_reshape);
-}
-
 Node* AllocateNode::make_ideal_mark(PhaseGVN* phase, Node* control, Node* mem) {
   Node* mark_node = NULL;
   // For now only enable fast locking for non-array types

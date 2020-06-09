@@ -874,14 +874,14 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
     const Type* t = gvn.type(m)->meet_speculative(gvn.type(n));
     if (m->is_ValueType() && !t->isa_valuetype()) {
       // Allocate value type in fast path
-      m = ValueTypePtrNode::make_from_value_type(&kit, m->as_ValueType());
+      m = m->as_ValueType()->buffer(&kit);
       kit.map()->set_req(i, m);
     }
     if (n->is_ValueType() && !t->isa_valuetype()) {
       // Allocate value type in slow path
       PreserveJVMState pjvms(&kit);
       kit.set_map(slow_map);
-      n = ValueTypePtrNode::make_from_value_type(&kit, n->as_ValueType());
+      n = n->as_ValueType()->buffer(&kit);
       kit.map()->set_req(i, n);
       slow_map = kit.stop();
     }

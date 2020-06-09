@@ -86,7 +86,7 @@ public:
   void load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
 
   // Allocates the value type (if not yet allocated)
-  ValueTypeBaseNode* allocate(GraphKit* kit, bool safe_for_replace = true);
+  ValueTypePtrNode* buffer(GraphKit* kit, bool safe_for_replace = true);
   bool is_allocated(PhaseGVN* phase) const;
 
   void replace_call_results(GraphKit* kit, Node* call, Compile* C);
@@ -152,21 +152,20 @@ public:
 //------------------------------ValueTypePtrNode-------------------------------------
 // Node representing a value type as a pointer in C2 IR
 class ValueTypePtrNode : public ValueTypeBaseNode {
+  friend class ValueTypeBaseNode;
 private:
   const TypeInstPtr* value_ptr() const { return type()->isa_instptr(); }
 
-  ValueTypePtrNode(ciValueKlass* vk, Node* oop)
-    : ValueTypeBaseNode(TypeInstPtr::make(TypePtr::NotNull, vk), Values + vk->nof_declared_nonstatic_fields()) {
+  ValueTypePtrNode(ValueTypeBaseNode* vt)
+    : ValueTypeBaseNode(TypeInstPtr::make(TypePtr::NotNull, vt->type()->value_klass()), vt->req()) {
     init_class_id(Class_ValueTypePtr);
-    init_req(Oop, oop);
+    init_req(Oop, vt->get_oop());
+    for (uint i = Oop+1; i < vt->req(); i++) {
+      init_req(i, vt->in(i));
+    }
   }
 
 public:
-  // Create and initialize with the values of a ValueTypeNode
-  static ValueTypePtrNode* make_from_value_type(GraphKit* kit, ValueTypeNode* vt);
-  // Create and initialize by loading the field values from an oop
-  static ValueTypePtrNode* make_from_oop(GraphKit* kit, Node* oop);
-
   virtual int Opcode() const;
 };
 
