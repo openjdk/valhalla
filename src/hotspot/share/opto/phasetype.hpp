@@ -61,7 +61,7 @@ enum CompilerPhaseType {
   PHASE_FAILURE,
   PHASE_SPLIT_VALUES_ARRAY,
   PHASE_SPLIT_VALUES_ARRAY_IGVN,
-
+  PHASE_DEBUG,
   PHASE_NUM_TYPES
 };
 
@@ -104,6 +104,7 @@ class CompilerPhaseTypeHelper {
       case PHASE_FAILURE:                    return "Failure";
       case PHASE_SPLIT_VALUES_ARRAY:         return "Split values array";
       case PHASE_SPLIT_VALUES_ARRAY_IGVN:    return "IGVN after split values array";
+      case PHASE_DEBUG:                      return "Debug";
       default:
         ShouldNotReachHere();
         return NULL;
