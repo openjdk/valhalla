@@ -5942,11 +5942,18 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_dcos = generate_dsin_dcos(/* isCos = */ true);
     }
 
-
     StubRoutines::_load_value_type_fields_in_regs =
          generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_value_type_fields_in_regs), "load_value_type_fields_in_regs", false);
     StubRoutines::_store_value_type_fields_to_buf =
          generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_value_type_fields_to_buf), "store_value_type_fields_to_buf", true);
+
+    // Safefetch stubs.
+    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
+                                                       &StubRoutines::_safefetch32_fault_pc,
+                                                       &StubRoutines::_safefetch32_continuation_pc);
+    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
+                                                       &StubRoutines::_safefetchN_fault_pc,
+                                                       &StubRoutines::_safefetchN_continuation_pc);
   }
 
   void generate_all() {
@@ -6050,13 +6057,6 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_updateBytesAdler32 = generate_updateBytesAdler32();
     }
 
-    // Safefetch stubs.
-    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
-                                                       &StubRoutines::_safefetch32_fault_pc,
-                                                       &StubRoutines::_safefetch32_continuation_pc);
-    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
-                                                       &StubRoutines::_safefetchN_fault_pc,
-                                                       &StubRoutines::_safefetchN_continuation_pc);
     StubRoutines::aarch64::set_completed();
   }
 

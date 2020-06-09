@@ -48,7 +48,6 @@ class oopFactory: AllStatic {
   static objArrayOop     new_objectArray(int length, TRAPS);
 
   static typeArrayOop    new_charArray(const char* utf8_str,  TRAPS);
-  static typeArrayOop    new_tenured_charArray(int length, TRAPS);
 
   static typeArrayOop    new_typeArray(BasicType type, int length, TRAPS);
   static typeArrayOop    new_typeArray_nozero(BasicType type, int length, TRAPS);
@@ -70,9 +69,8 @@ class oopFactory: AllStatic {
   static objArrayHandle  copy_valueArray_to_objArray(valueArrayHandle array, TRAPS);
   static objArrayHandle  ensure_objArray(oop array, TRAPS); // copy into new objArray if not already an objArray
 
-  // Helpers that return handles
+  // Helper that returns a Handle
   static objArrayHandle  new_objArray_handle(Klass* klass, int length, TRAPS);
-  static typeArrayHandle new_byteArray_handle(int length, TRAPS);
 };
 
 #endif // SHARE_MEMORY_OOPFACTORY_HPP
