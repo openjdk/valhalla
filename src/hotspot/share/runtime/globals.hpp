@@ -795,7 +795,7 @@ const size_t minimumSymbolTableSize = 1024;
   product(bool, RestrictContended, true,                                    \
           "Restrict @Contended to trusted classes")                         \
                                                                             \
-  product(bool, UseBiasedLocking, false,                                    \
+  product(bool, UseBiasedLocking, true,                                     \
           "(Deprecated) Enable biased locking in JVM")                      \
                                                                             \
   product(intx, BiasedLockingStartupDelay, 0,                               \
