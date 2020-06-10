@@ -449,6 +449,14 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return (flags() & ENUM) != 0;
     }
 
+    public boolean isSealed() {
+        return (flags_field & SEALED) != 0;
+    }
+
+    public boolean isNonSealed() {
+        return (flags_field & NON_SEALED) != 0;
+    }
+
     public boolean isFinal() {
         return (flags_field & FINAL) != 0;
     }
@@ -1326,6 +1334,13 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         public ClassSymbol projection;
 
 
+        // sealed classes related fields
+        /** The classes, or interfaces, permitted to extend this class, or interface
+         */
+        public List<Symbol> permitted;
+
+        public boolean isPermittedExplicit = false;
+
         public ClassSymbol(long flags, Name name, Type type, Symbol owner) {
             super(TYP, flags, name, type, owner);
             this.members_field = null;
@@ -1334,6 +1349,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             this.sourcefile = null;
             this.classfile = null;
             this.annotationTypeMetadata = AnnotationTypeMetadata.notAnAnnotationType();
+            this.permitted = List.nil();
         }
 
         public ClassSymbol(long flags, Name name, Symbol owner) {
@@ -1696,6 +1712,11 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             projection.projection = this;
             projectedType.tsym = projection;
             return projection;
+        }
+
+        @DefinedBy(Api.LANGUAGE_MODEL)
+        public List<Type> getPermittedSubclasses() {
+            return permitted.map(s -> s.type);
         }
     }
 

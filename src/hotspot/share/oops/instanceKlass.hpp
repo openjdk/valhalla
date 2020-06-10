@@ -227,6 +227,10 @@ class InstanceKlass: public Klass {
 
   Array<InlineTypes>* _inline_types;
 
+  // The PermittedSubclasses attribute. An array of shorts, where each is a
+  // class info index for the class that is a permitted subclass.
+  Array<jushort>* _permitted_subclasses;
+
   // The contents of the Record attribute.
   Array<RecordComponent*>* _record_components;
 
@@ -576,6 +580,10 @@ class InstanceKlass: public Klass {
   }
   bool is_record() const { return _record_components != NULL; }
 
+  // permitted subclasses
+  Array<u2>* permitted_subclasses() const     { return _permitted_subclasses; }
+  void set_permitted_subclasses(Array<u2>* s) { _permitted_subclasses = s; }
+
 private:
   // Called to verify that k is a member of this nest - does not look at k's nest-host
   bool has_nest_member(InstanceKlass* k, TRAPS) const;
@@ -590,6 +598,9 @@ public:
   InstanceKlass* nest_host(TRAPS);
   // Check if this klass is a nestmate of k - resolves this nest-host and k's
   bool has_nestmate_access_to(InstanceKlass* k, TRAPS);
+
+  // Called to verify that k is a permitted subclass of this class
+  bool has_as_permitted_subclass(const InstanceKlass* k) const;
 
   enum InnerClassAttributeOffset {
     // From http://mirror.eng/products/jdk/1.1/docs/guide/innerclasses/spec/innerclasses.doc10.html#18814
@@ -647,6 +658,9 @@ public:
   bool is_reentrant_initialization(Thread *thread)  { return thread == _init_thread; }
   ClassState  init_state()                 { return (ClassState)_init_state; }
   bool is_rewritten() const                { return (_misc_flags & _misc_rewritten) != 0; }
+
+  // is this a sealed class
+  bool is_sealed() const;
 
   // defineClass specified verification
   bool should_verify_class() const         {
