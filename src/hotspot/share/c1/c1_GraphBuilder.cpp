@@ -2414,8 +2414,8 @@ void GraphBuilder::new_instance(int klass_index) {
 
 void GraphBuilder::default_value(int klass_index) {
   bool will_link;
-  ciValueKlass* vk = stream()->get_klass(will_link)->as_value_klass();
   if (!stream()->is_unresolved_klass()) {
+    ciValueKlass* vk = stream()->get_klass(will_link)->as_value_klass();
     apush(append(new Constant(new InstanceConstant(vk->default_value_instance()))));
   } else {
     ValueStack* state_before = copy_state_before();
