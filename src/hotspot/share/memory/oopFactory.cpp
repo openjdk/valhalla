@@ -93,10 +93,6 @@ typeArrayOop oopFactory::new_charArray(const char* utf8_str, TRAPS) {
   return result;
 }
 
-typeArrayOop oopFactory::new_tenured_charArray(int length, TRAPS) {
-  return TypeArrayKlass::cast(Universe::charArrayKlassObj())->allocate(length, THREAD);
-}
-
 typeArrayOop oopFactory::new_typeArray(BasicType type, int length, TRAPS) {
   Klass* type_asKlassOop = Universe::typeArrayKlassObj(type);
   TypeArrayKlass* type_asArrayKlass = TypeArrayKlass::cast(type_asKlassOop);
@@ -169,9 +165,4 @@ objArrayHandle  oopFactory::ensure_objArray(oop array, TRAPS) {
 objArrayHandle oopFactory::new_objArray_handle(Klass* klass, int length, TRAPS) {
   objArrayOop obj = new_objArray(klass, length, CHECK_(objArrayHandle()));
   return objArrayHandle(THREAD, obj);
-}
-
-typeArrayHandle oopFactory::new_byteArray_handle(int length, TRAPS) {
-  typeArrayOop obj = new_byteArray(length, CHECK_(typeArrayHandle()));
-  return typeArrayHandle(THREAD, obj);
 }

@@ -390,7 +390,7 @@ public class Flags {
     public static final int
         AccessFlags           = PUBLIC | PROTECTED | PRIVATE,
         LocalClassFlags       = FINAL | ABSTRACT | STRICTFP | ENUM | SYNTHETIC | VALUE,
-        LocalRecordFlags      = LocalClassFlags | STATIC,
+        StaticLocalFlags      = LocalClassFlags | STATIC | INTERFACE | ANNOTATION,
         MemberClassFlags      = LocalClassFlags | INTERFACE | AccessFlags,
         MemberRecordFlags     = MemberClassFlags | STATIC,
         ClassFlags            = LocalClassFlags | INTERFACE | PUBLIC | ANNOTATION,
