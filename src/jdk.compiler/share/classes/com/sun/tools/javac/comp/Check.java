@@ -161,6 +161,8 @@ public class Check {
 
         allowRecords = (!preview.isPreview(Feature.RECORDS) || preview.isEnabled()) &&
                 Feature.RECORDS.allowedInSource(source);
+        allowSealed = (!preview.isPreview(Feature.SEALED_CLASSES) || preview.isEnabled()) &&
+                Feature.SEALED_CLASSES.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -195,6 +197,10 @@ public class Check {
     /** Are records allowed
      */
     private final boolean allowRecords;
+
+    /** Are sealed classes allowed
+     */
+    private final boolean allowSealed;
 
 /* *************************************************************************
  * Errors and Warnings
@@ -1382,7 +1388,7 @@ public class Check {
                     }
                 }
             } else if (sym.owner.kind == TYP) {
-                mask = (flags & RECORD) != 0 ? MemberRecordFlags : MemberClassFlags;
+                mask = (flags & RECORD) != 0 ? MemberRecordFlags : ExtendedMemberClassFlags;
                 if (sym.owner.owner.kind == PCK ||
                     (sym.owner.flags_field & STATIC) != 0)
                     mask |= STATIC;
@@ -1392,14 +1398,14 @@ public class Check {
                 // Nested interfaces and enums are always STATIC (Spec ???)
                 if ((flags & (INTERFACE | ENUM | RECORD)) != 0 ) implicit = STATIC;
             } else {
-                mask = ClassFlags;
+                mask = ExtendedClassFlags;
             }
             // Interfaces are always ABSTRACT
             if ((flags & INTERFACE) != 0) implicit |= ABSTRACT;
 
             if ((flags & ENUM) != 0) {
-                // enums can't be declared abstract or final or value type
-                mask &= ~(ABSTRACT | FINAL | VALUE);
+                // enums can't be declared abstract, final, sealed or non-sealed or value type
+                mask &= ~(ABSTRACT | FINAL | SEALED | NON_SEALED | VALUE);
                 implicit |= implicitEnumFinalFlag(tree);
             }
             if ((flags & RECORD) != 0) {
@@ -1454,7 +1460,13 @@ public class Check {
                  (sym.kind == TYP ||
                   checkDisjoint(pos, flags,
                                 ABSTRACT | NATIVE,
-                                STRICTFP))) {
+                                STRICTFP))
+                 && checkDisjoint(pos, flags,
+                                FINAL,
+                           SEALED | NON_SEALED)
+                 && checkDisjoint(pos, flags,
+                                SEALED,
+                           FINAL | NON_SEALED)) {
             // skip
         }
         return flags & (mask | ~ExtendedStandardFlags) | implicit;
@@ -1494,7 +1506,7 @@ public class Check {
         JCClassDecl cdef = (JCClassDecl) tree;
         for (JCTree defs: cdef.defs) {
             defs.accept(sts);
-            if (sts.specialized) return 0;
+            if (sts.specialized) return allowSealed ? SEALED : 0;
         }
         return FINAL;
     }
