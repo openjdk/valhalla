@@ -230,6 +230,8 @@ module java.base {
         jdk.internal.vm.ci,
         jdk.incubator.foreign,
         jdk.unsupported;
+    exports jdk.internal.util to
+            jdk.incubator.foreign;
     exports jdk.internal.util.jar to
         jdk.jartool;
     exports jdk.internal.util.xml to
