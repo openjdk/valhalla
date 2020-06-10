@@ -29,6 +29,8 @@
 #include "compiler/disassembler.hpp"
 #include "gc/shared/gcConfig.hpp"
 #include "logging/logConfiguration.hpp"
+#include "memory/metaspace.hpp"
+#include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/compressedOops.hpp"
@@ -82,7 +84,7 @@ const char *env_list[] = {
   "JAVA_HOME", "JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "CLASSPATH",
   "PATH", "USERNAME",
 
-  // Env variables that are defined on Solaris/Linux/BSD
+  // Env variables that are defined on Linux/BSD
   "LD_LIBRARY_PATH", "LD_PRELOAD", "SHELL", "DISPLAY",
   "HOSTTYPE", "OSTYPE", "ARCH", "MACHTYPE",
   "LANG", "LC_ALL", "LC_CTYPE", "TZ",
@@ -907,15 +909,19 @@ void VMError::report(outputStream* st, bool _verbose) {
        st->cr();
      }
 
+#ifdef _LP64
   STEP("printing compressed oops mode")
 
      if (_verbose && UseCompressedOops) {
        CompressedOops::print_mode(st);
        if (UseCompressedClassPointers) {
+         CDS_ONLY(MetaspaceShared::print_on(st);)
          Metaspace::print_compressed_class_space(st);
+         CompressedKlassPointers::print_mode(st);
        }
        st->cr();
      }
+#endif
 
   STEP("printing heap information")
 
@@ -1108,15 +1114,18 @@ void VMError::print_vm_info(outputStream* st) {
     st->cr();
   }
 
+#ifdef _LP64
   // STEP("printing compressed oops mode")
-
   if (UseCompressedOops) {
     CompressedOops::print_mode(st);
     if (UseCompressedClassPointers) {
+      CDS_ONLY(MetaspaceShared::print_on(st);)
       Metaspace::print_compressed_class_space(st);
+      CompressedKlassPointers::print_mode(st);
     }
     st->cr();
   }
+#endif
 
   // STEP("printing heap information")
 
@@ -1589,8 +1598,6 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
       out.print_raw   ("#   Executing ");
 #if defined(LINUX) || defined(_ALLBSD_SOURCE)
       out.print_raw   ("/bin/sh -c ");
-#elif defined(SOLARIS)
-      out.print_raw   ("/usr/bin/sh -c ");
 #elif defined(_WINDOWS)
       out.print_raw   ("cmd /C ");
 #endif
@@ -1652,8 +1659,6 @@ void VM_ReportJavaOutOfMemory::doit() {
     tty->print("#   Executing ");
 #if defined(LINUX)
     tty->print  ("/bin/sh -c ");
-#elif defined(SOLARIS)
-    tty->print  ("/usr/bin/sh -c ");
 #endif
     tty->print_cr("\"%s\"...", cmd);
 
@@ -1731,9 +1736,6 @@ bool VMError::check_timeout() {
 }
 
 #ifndef PRODUCT
-#if defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x5140
-#pragma error_messages(off, SEC_NULL_PTR_DEREF)
-#endif
 typedef void (*voidfun_t)();
 // Crash with an authentic sigfpe
 static void crash_with_sigfpe() {
