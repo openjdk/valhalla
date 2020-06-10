@@ -1814,7 +1814,12 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         if (!const_oop->is_null_object() && const_oop->is_loaded()) {
           ciConstant field_value = field->constant_value_of(const_oop);
           if (field_value.is_valid()) {
-            constant = make_constant(field_value, field);
+            if (field->is_flattenable() && field_value.is_null_or_zero()) {
+              // Non-flattened but flattenable inline type field. Replace null by the default value.
+              constant = new Constant(new InstanceConstant(field->type()->as_value_klass()->default_value_instance()));
+            } else {
+              constant = make_constant(field_value, field);
+            }
             // For CallSite objects add a dependency for invalidation of the optimization.
             if (field->is_call_site_target()) {
               ciCallSite* call_site = const_oop->as_call_site();
