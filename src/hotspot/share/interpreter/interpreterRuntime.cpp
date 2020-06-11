@@ -352,15 +352,15 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
     assert(aoop == NULL || oopDesc::is_oop(aoop),"argument must be a reference type");
     new_value_h()->obj_field_put(field_offset, aoop);
   } else if (field_type == T_VALUETYPE) {
-    if (cp_entry->is_flattened()) {
+    if (cp_entry->is_allocated_inline()) {
       oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
       assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_value(),"argument must be a value type");
       ValueKlass* field_vk = ValueKlass::cast(vklass->get_value_field_klass(field_index));
       assert(vt_oop != NULL && field_vk == vt_oop->klass(), "Must match");
-      field_vk->write_flattened_field(new_value_h(), offset, vt_oop, CHECK_(return_offset));
-    } else { // not flattened
+      field_vk->write_field_allocated_inline(new_value_h(), offset, vt_oop, CHECK_(return_offset));
+    } else { // not allocated inline
       oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      if (voop == NULL && cp_entry->is_inline()) {
+      if (voop == NULL && cp_entry->is_inline_type()) {
         THROW_(vmSymbols::java_lang_NullPointerException(), return_offset);
       }
       assert(voop == NULL || oopDesc::is_oop(voop),"checking argument");
@@ -425,7 +425,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread*
   }
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::read_flattened_field(JavaThread* thread, oopDesc* obj, int index, Klass* field_holder))
+JRT_ENTRY(void, InterpreterRuntime::read_field_allocated_inline(JavaThread* thread, oopDesc* obj, int index, Klass* field_holder))
   Handle obj_h(THREAD, obj);
 
   assert(oopDesc::is_oop(obj), "Sanity check");
@@ -433,12 +433,12 @@ JRT_ENTRY(void, InterpreterRuntime::read_flattened_field(JavaThread* thread, oop
   assert(field_holder->is_instance_klass(), "Sanity check");
   InstanceKlass* klass = InstanceKlass::cast(field_holder);
 
-  assert(klass->field_is_flattened(index), "Sanity check");
+  assert(klass->field_is_allocated_inline(index), "Sanity check");
 
   ValueKlass* field_vklass = ValueKlass::cast(klass->get_value_field_klass(index));
   assert(field_vklass->is_initialized(), "Must be initialized at this point");
 
-  oop res = field_vklass->read_flattened_field(obj_h(), klass->field_offset(index), CHECK);
+  oop res = field_vklass->read_field_allocated_inline(obj_h(), klass->field_offset(index), CHECK);
   thread->set_vm_result(res);
 JRT_END
 
@@ -991,8 +991,8 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
     state,
     info.access_flags().is_final(),
     info.access_flags().is_volatile(),
-    info.is_flattened(),
-    info.is_inline(),
+    info.is_allocated_inline(),
+    info.is_inline_type(),
     pool->pool_holder()
   );
 }
@@ -1469,7 +1469,7 @@ ConstantPoolCacheEntry *cp_entry))
   if ((ik->field_access_flags(index) & JVM_ACC_FIELD_ACCESS_WATCHED) == 0) return;
 
   bool is_static = (obj == NULL);
-  bool is_flattened = cp_entry->is_flattened();
+  bool is_allocated_inline = cp_entry->is_allocated_inline();
   HandleMark hm(thread);
 
   Handle h_obj;
@@ -1478,7 +1478,7 @@ ConstantPoolCacheEntry *cp_entry))
     h_obj = Handle(thread, obj);
   }
   InstanceKlass* cp_entry_f1 = InstanceKlass::cast(cp_entry->f1_as_klass());
-  jfieldID fid = jfieldIDWorkaround::to_jfieldID(cp_entry_f1, cp_entry->f2_as_index(), is_static, is_flattened);
+  jfieldID fid = jfieldIDWorkaround::to_jfieldID(cp_entry_f1, cp_entry->f2_as_index(), is_static, is_allocated_inline);
   LastFrameAccessor last_frame(thread);
   JvmtiExport::post_field_access(thread, last_frame.method(), last_frame.bcp(), cp_entry_f1, h_obj, fid);
 JRT_END
@@ -1515,10 +1515,10 @@ JRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread *thread,
   }
 
   bool is_static = (obj == NULL);
-  bool is_flattened = cp_entry->is_flattened();
+  bool is_allocated_inline = cp_entry->is_allocated_inline();
 
   HandleMark hm(thread);
-  jfieldID fid = jfieldIDWorkaround::to_jfieldID(ik, cp_entry->f2_as_index(), is_static, is_flattened);
+  jfieldID fid = jfieldIDWorkaround::to_jfieldID(ik, cp_entry->f2_as_index(), is_static, is_allocated_inline);
   jvalue fvalue;
 #ifdef _LP64
   fvalue = *value;

@@ -294,7 +294,7 @@ static void assert_and_log_unsafe_value_access(oop p, jlong offset, ValueKlass* 
     bool found = get_field_descriptor(p, offset, &fd);
     if (found) {
       assert(found, "value field not found");
-      assert(fd.is_flattened(), "field not flat");
+      assert(fd.is_allocated_inline(), "field not flat");
     } else {
       if (log_is_enabled(Trace, valuetypes)) {
         log_trace(valuetypes)("not a field in %s at offset " SIZE_FORMAT_HEX,
@@ -367,7 +367,7 @@ UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, 
   ValueKlass* vk = ValueKlass::cast(k);
   assert_and_log_unsafe_value_access(base, offset, vk);
   Handle base_h(THREAD, base);
-  oop v = vk->read_flattened_field(base_h(), offset, CHECK_NULL);
+  oop v = vk->read_field_allocated_inline(base_h(), offset, CHECK_NULL);
   return JNIHandles::make_local(env, v);
 } UNSAFE_END
 
@@ -378,7 +378,7 @@ UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlo
   assert(!base->is_value() || base->mark().is_larval_state(), "must be an object instance or a larval value");
   assert_and_log_unsafe_value_access(base, offset, vk);
   oop v = JNIHandles::resolve(value);
-  vk->write_flattened_field(base, offset, v, CHECK);
+  vk->write_field_allocated_inline(base, offset, v, CHECK);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {

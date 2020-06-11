@@ -508,7 +508,7 @@ InstanceKlass* SystemDictionary::resolve_super_or_fail(Symbol* child_name,
   return superk;
 }
 
-Klass* SystemDictionary::resolve_inline_field_or_fail(AllFieldStream* fs,
+Klass* SystemDictionary::resolve_inline_type_field_or_fail(AllFieldStream* fs,
                                                            Handle class_loader,
                                                            Handle protection_domain,
                                                            bool throw_error,
@@ -525,12 +525,12 @@ Klass* SystemDictionary::resolve_inline_field_or_fail(AllFieldStream* fs,
     MutexLocker mu(THREAD, SystemDictionary_lock);
     oldprobe = placeholders()->get_entry(p_index, p_hash, class_name, loader_data);
     if (oldprobe != NULL &&
-      oldprobe->check_seen_thread(THREAD, PlaceholderTable::INLINE_FIELD)) {
+      oldprobe->check_seen_thread(THREAD, PlaceholderTable::INLINE_TYPE_FIELD)) {
       throw_circularity_error = true;
 
     } else {
       placeholders()->find_and_add(p_index, p_hash, class_name, loader_data,
-                                   PlaceholderTable::INLINE_FIELD, NULL, THREAD);
+                                   PlaceholderTable::INLINE_TYPE_FIELD, NULL, THREAD);
     }
   }
 
@@ -546,7 +546,7 @@ Klass* SystemDictionary::resolve_inline_field_or_fail(AllFieldStream* fs,
   {
     MutexLocker mu(THREAD, SystemDictionary_lock);
     placeholders()->find_and_remove(p_index, p_hash, class_name, loader_data,
-                                    PlaceholderTable::INLINE_FIELD, THREAD);
+                                    PlaceholderTable::INLINE_TYPE_FIELD, THREAD);
   }
 
   class_name->decrement_refcount();

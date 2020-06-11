@@ -2669,7 +2669,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
       __ load_heap_oop(r0, field);
       Label is_inline, isUninitialized;
       // Issue below if the static field has not been initialized yet
-      __ test_field_is_inline(raw_flags, r8 /*temp*/, is_inline);
+      __ test_field_is_inline_type(raw_flags, r8 /*temp*/, is_inline);
         // Not inline case
         __ push(atos);
         __ b(Done);
@@ -2686,7 +2686,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ b(Done);
     } else {
       Label isFlattened, isInitialized, is_inline, rewrite_inline;
-        __ test_field_is_inline(raw_flags, r8 /*temp*/, is_inline);
+        __ test_field_is_inline_type(raw_flags, r8 /*temp*/, is_inline);
         // Non-inline field case
         __ load_heap_oop(r0, field);
         __ push(atos);
@@ -2695,7 +2695,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
         }
         __ b(Done);
       __ bind(is_inline);
-        __ test_field_is_flattened(raw_flags, r8 /* temp */, isFlattened);
+        __ test_field_is_allocated_inline(raw_flags, r8 /* temp */, isFlattened);
          // Non-inline field case
           __ load_heap_oop(r0, field);
           __ cbnz(r0, isInitialized);
@@ -2968,14 +2968,14 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
       __ pop(atos);
       if (is_static) {
         Label not_inline;
-         __ test_field_is_not_inline(flags2, r8 /* temp */, not_inline);
+         __ test_field_is_not_inline_type(flags2, r8 /* temp */, not_inline);
          __ null_check(r0);
          __ bind(not_inline);
          do_oop_store(_masm, field, r0, IN_HEAP);
          __ b(Done);
       } else {
         Label is_inline, isFlattened, rewrite_not_inline, rewrite_inline;
-        __ test_field_is_inline(flags2, r8 /*temp*/, is_inline);
+        __ test_field_is_inline_type(flags2, r8 /*temp*/, is_inline);
         // Not inline case
         pop_and_check_object(obj);
         // Store into the field
@@ -2988,7 +2988,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         // Implementation of the inline semantic
         __ bind(is_inline);
         __ null_check(r0);
-        __ test_field_is_flattened(flags2, r8 /*temp*/, isFlattened);
+        __ test_field_is_allocated_inline(flags2, r8 /*temp*/, isFlattened);
         // Not inline case
         pop_and_check_object(obj);
         // Store into the field
@@ -3332,7 +3332,7 @@ void TemplateTable::fast_accessfield(TosState state)
        Label isFlattened, isInitialized, Done;
        // FIXME: We don't need to reload registers multiple times, but stay close to x86 code
        __ ldrw(r9, Address(r2, in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::flags_offset())));
-       __ test_field_is_flattened(r9, r8 /* temp */, isFlattened);
+       __ test_field_is_allocated_inline(r9, r8 /* temp */, isFlattened);
         // Non-flattened field case
         __ mov(r9, r0);
         __ load_heap_oop(r0, field);

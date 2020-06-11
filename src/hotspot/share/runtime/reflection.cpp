@@ -903,8 +903,8 @@ oop Reflection::new_field(fieldDescriptor* fd, TRAPS) {
   java_lang_reflect_Field::set_type(rh(), type());
   // Note the ACC_ANNOTATION bit, which is a per-class access flag, is never set here.
   int modifiers = fd->access_flags().as_int() & JVM_RECOGNIZED_FIELD_MODIFIERS;
-  if (fd->is_flattened()) {
-    modifiers |= JVM_ACC_FIELD_FLATTENED;
+  if (fd->is_allocated_inline()) {
+    modifiers |= JVM_ACC_FIELD_ALLOCATED_INLINE;
   }
   java_lang_reflect_Field::set_modifiers(rh(), modifiers);
   java_lang_reflect_Field::set_override(rh(), false);

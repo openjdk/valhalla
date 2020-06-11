@@ -1656,8 +1656,8 @@ class jdk_internal_vm_jni_SubElementSelector : AllStatic {
   static int _arrayElementType_offset;
   static int _subElementType_offset;
   static int _offset_offset;
-  static int _isFlattened_offset;
-  static int _isInline_offset;
+  static int _isAllocatedInline_offset;
+  static int _isInlineType_offset;
  public:
   static Symbol* symbol();
   static void compute_offsets();
@@ -1669,10 +1669,10 @@ class jdk_internal_vm_jni_SubElementSelector : AllStatic {
   static void setSubElementType(oop obj, oop type);
   static int getOffset(oop obj);
   static void setOffset(oop obj, int offset);
-  static bool getIsFlattened(oop obj);
-  static void setIsFlattened(oop obj, bool b);
-  static bool getIsInline(oop obj);
-  static void setIsInline(oop obj, bool b);
+  static bool getIsAllocatedInline(oop obj);
+  static void setIsAllocatedInline(oop obj, bool b);
+  static bool getIsInlineType(oop obj);
+  static void setIsInlineType(oop obj, bool b);
 };
 
 // Use to declare fields that need to be injected into Java classes

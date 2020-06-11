@@ -2592,7 +2592,7 @@ JvmtiEnv::GetClassFields(oop k_mirror, jint* field_count_ptr, jfieldID** fields_
     result_list[id_index--] = jfieldIDWorkaround::to_jfieldID(
                                             ik, src_st.offset(),
                                             src_st.access_flags().is_static(),
-                                            src_st.field_descriptor().is_flattened());
+                                            src_st.field_descriptor().is_allocated_inline());
   }
   assert(id_index == -1, "just checking");
   // Fill in the results

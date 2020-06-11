@@ -1518,7 +1518,7 @@ enum FieldAllocationType {
   STATIC_SHORT,         // shorts
   STATIC_WORD,          // ints
   STATIC_DOUBLE,        // aligned long or double
-  STATIC_INLINE,        // inline field
+  STATIC_INLINE,        // inline type field
   NONSTATIC_OOP,
   NONSTATIC_BYTE,
   NONSTATIC_SHORT,
@@ -1574,11 +1574,11 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   BAD_ALLOCATION_TYPE, // T_CONFLICT    = 20
 };
 
-static FieldAllocationType basic_type_to_atype(bool is_static, BasicType type, bool is_inline) {
+static FieldAllocationType basic_type_to_atype(bool is_static, BasicType type, bool is_inline_type) {
   assert(type >= T_BOOLEAN && type < T_VOID, "only allowable values");
   FieldAllocationType result = _basic_type_to_atype[type + (is_static ? (T_CONFLICT + 1) : 0)];
   assert(result != BAD_ALLOCATION_TYPE, "bad type");
-  if (is_inline) {
+  if (is_inline_type) {
     result = is_static ? STATIC_INLINE : NONSTATIC_INLINE;
   }
   return result;
@@ -1594,8 +1594,8 @@ class ClassFileParser::FieldAllocationCount : public ResourceObj {
     }
   }
 
-  FieldAllocationType update(bool is_static, BasicType type, bool is_inline) {
-    FieldAllocationType atype = basic_type_to_atype(is_static, type, is_inline);
+  FieldAllocationType update(bool is_static, BasicType type, bool is_inline_type) {
+    FieldAllocationType atype = basic_type_to_atype(is_static, type, is_inline_type);
     if (atype != BAD_ALLOCATION_TYPE) {
       // Make sure there is no overflow with injected fields.
       assert(count[atype] < 0xFFFF, "More than 65535 fields");
@@ -4406,7 +4406,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
   // First field of inline types is aligned on a long boundary in order to ease
   // in-lining of inline types (with header removal) in packed arrays and
-  // flattened inline types
+  // fields allocated inline
   int initial_inline_type_padding = 0;
   if (is_inline_type()) {
     int old = nonstatic_fields_start;
@@ -4446,7 +4446,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   int* nonstatic_inline_type_indexes = NULL;
   Klass** nonstatic_inline_type_klasses = NULL;
   unsigned int inline_type_oop_map_count = 0;
-  int not_flattened_inline_types = 0;
+  int inline_types_not_allocated_inline = 0;
   int not_atomic_inline_types = 0;
 
   int max_nonstatic_inline_type = fac->count[NONSTATIC_INLINE] + 1;
@@ -4473,7 +4473,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         THROW(vmSymbols::java_lang_ClassFormatError());
       }
       Klass* klass =
-        SystemDictionary::resolve_inline_field_or_fail(&fs,
+        SystemDictionary::resolve_inline_type_field_or_fail(&fs,
                                                             Handle(THREAD, _loader_data->class_loader()),
                                                             _protection_domain, true, CHECK);
       assert(klass != NULL, "Sanity check");
@@ -4482,16 +4482,16 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
       }
       ValueKlass* vk = ValueKlass::cast(klass);
       // Conditions to apply flattening or not should be defined in a single place
-      bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
+      bool too_big_to_allocate_inline = (InlineFieldMaxFlatSize >= 0 &&
                                  (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
-      bool too_atomic_to_flatten = vk->is_declared_atomic();
-      bool too_volatile_to_flatten = fs.access_flags().is_volatile();
+      bool too_atomic_to_allocate_inline = vk->is_declared_atomic();
+      bool too_volatile_to_allocate_inline = fs.access_flags().is_volatile();
       if (vk->is_naturally_atomic()) {
-        too_atomic_to_flatten = false;
-        //too_volatile_to_flatten = false; //FIXME
-        // volatile fields are currently never flattened, this could change in the future
+        too_atomic_to_allocate_inline = false;
+        // too_volatile_to_allocate_inline = false; //FIXME
+        // volatile fields are currently never allocated inline, this could change in the future
       }
-      if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten)) {
+      if (!(too_big_to_allocate_inline | too_atomic_to_allocate_inline | too_volatile_to_allocate_inline)) {
         nonstatic_inline_type_indexes[nonstatic_inline_type_count] = fs.index();
         nonstatic_inline_type_klasses[nonstatic_inline_type_count] = klass;
         nonstatic_inline_type_count++;
@@ -4500,19 +4500,19 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         if (vklass->contains_oops()) {
           inline_type_oop_map_count += vklass->nonstatic_oop_map_count();
         }
-        fs.set_flattened(true);
+        fs.set_allocated_inline(true);
         if (!vk->is_atomic()) {  // flat and non-atomic: take note
           not_atomic_inline_types++;
         }
       } else {
-        not_flattened_inline_types++;
-        fs.set_flattened(false);
+        inline_types_not_allocated_inline++;
+        fs.set_allocated_inline(false);
       }
     }
   }
 
-  // Adjusting non_static_oop_count to take into account not flattened inline types;
-  nonstatic_oop_count += not_flattened_inline_types;
+  // Adjusting non_static_oop_count to take into account not inline types not allocated inline;
+  nonstatic_oop_count += inline_types_not_allocated_inline;
 
   // Total non-static fields count, including every contended field
   unsigned int nonstatic_fields_count = fac->count[NONSTATIC_DOUBLE] + fac->count[NONSTATIC_WORD] +
@@ -4544,7 +4544,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
       super_oop_map_count +
       fac->count[NONSTATIC_OOP] +
       inline_type_oop_map_count +
-      not_flattened_inline_types;
+      inline_types_not_allocated_inline;
 
   OopMapBlocksBuilder* nonstatic_oop_maps = new OopMapBlocksBuilder(max_oop_map_count);
   if (super_oop_map_count > 0) {
@@ -4688,7 +4688,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         next_static_double_offset += BytesPerLong;
         break;
       case NONSTATIC_INLINE:
-        if (fs.is_flattened()) {
+        if (fs.is_allocated_inline()) {
           Klass* klass = nonstatic_inline_type_klasses[next_inline_type_index];
           assert(klass != NULL, "Klass should have been loaded and resolved earlier");
           assert(klass->access_flags().is_inline_type(),"Must be an inline type");
@@ -6429,7 +6429,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   int nfields = ik->java_fields_count();
   if (ik->is_value()) nfields++;
   for (int i = 0; i < nfields; i++) {
-    if (ik->field_is_inline(i)) {
+    if (ik->field_is_inline_type(i)) {
       Symbol* klass_name = ik->field_signature(i)->fundamental_name(CHECK);
       // Inline classes for instance fields must have been pre-loaded
       // Inline classes for static fields might not have been loaded yet
@@ -6655,7 +6655,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _declares_nonstatic_concrete_methods(false),
   _has_final_method(false),
   _has_contended_fields(false),
-  _has_inline_fields(false),
+  _has_inline_type_fields(false),
   _has_nonstatic_fields(false),
   _is_empty_inline_type(false),
   _is_naturally_atomic(false),
@@ -7278,7 +7278,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
     if (Signature::basic_type(fs.signature()) == T_VALUETYPE  && !fs.access_flags().is_static()) {
       // Pre-load value class
-      Klass* klass = SystemDictionary::resolve_inline_field_or_fail(&fs,
+      Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
           Handle(THREAD, _loader_data->class_loader()),
           _protection_domain, true, CHECK);
       assert(klass != NULL, "Sanity check");
@@ -7300,7 +7300,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
   } else {
     layout_fields(cp, _fac, _parsed_annotations, _field_info, CHECK);
   }
-  _has_inline_fields = _field_info->_has_inline_fields;
+  _has_inline_type_fields = _field_info->_has_inline_fields;
 
   // Compute reference type
   _rt = (NULL ==_super_klass) ? REF_NONE : _super_klass->reference_type();

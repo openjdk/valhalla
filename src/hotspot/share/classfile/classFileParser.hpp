@@ -204,7 +204,7 @@ class ClassFileParser {
   bool _has_final_method;
   bool _has_contended_fields;
 
-  bool _has_inline_fields;
+  bool _has_inline_type_fields;
   bool _has_nonstatic_fields;
   bool _is_empty_inline_type;
   bool _is_naturally_atomic;
@@ -606,7 +606,7 @@ class ClassFileParser {
   bool is_interface() const { return _access_flags.is_interface(); }
   bool is_inline_type() const { return _access_flags.is_inline_type(); }
   bool is_value_capable_class() const;
-  bool has_inline_fields() const { return _has_inline_fields; }
+  bool has_inline_fields() const { return _has_inline_type_fields; }
   bool invalid_inline_super() const { return _invalid_inline_super; }
   void set_invalid_inline_super() { _invalid_inline_super = true; }
   bool invalid_identity_super() const { return _invalid_identity_super; }

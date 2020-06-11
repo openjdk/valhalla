@@ -3068,14 +3068,14 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   } else {
     if (is_static) {
       __ load_heap_oop(rax, field);
-      Label is_inline, uninitialized;
+      Label is_inline_type, uninitialized;
       // Issue below if the static field has not been initialized yet
-      __ test_field_is_inline(flags2, rscratch1, is_inline);
-        // Not inline case
+      __ test_field_is_inline_type(flags2, rscratch1, is_inline_type);
+        // field is not an inline type
         __ push(atos);
         __ jmp(Done);
-      // inline case, must not return null even if uninitialized
-      __ bind(is_inline);
+      // field is an inline type, must not return null even if uninitialized
+      __ bind(is_inline_type);
         __ testptr(rax, rax);
         __ jcc(Assembler::zero, uninitialized);
           __ push(atos);
@@ -3099,9 +3099,9 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ push(atos);
           __ jmp(Done);
     } else {
-      Label isFlattened, nonnull, is_inline, rewrite_inline;
-      __ test_field_is_inline(flags2, rscratch1, is_inline);
-        // Non-inline field case, also covers the object case
+      Label is_allocated_inline, nonnull, is_inline_type, rewrite_inline;
+      __ test_field_is_inline_type(flags2, rscratch1, is_inline_type);
+        // field is not an inline type
         pop_and_check_object(obj);
         __ load_heap_oop(rax, field);
         __ push(atos);
@@ -3109,9 +3109,9 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           patch_bytecode(Bytecodes::_fast_agetfield, bc, rbx);
         }
         __ jmp(Done);
-      __ bind(is_inline);
-        __ test_field_is_flattened(flags2, rscratch1, isFlattened);
-          // Non-flattened field case
+      __ bind(is_inline_type);
+        __ test_field_is_allocated_inline(flags2, rscratch1, is_allocated_inline);
+          // field is not allocated inline
           __ movptr(rax, rcx);  // small dance required to preserve the klass_holder somewhere
           pop_and_check_object(obj);
           __ push(rax);
@@ -3126,10 +3126,11 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ verify_oop(rax);
           __ push(atos);
           __ jmp(rewrite_inline);
-        __ bind(isFlattened);
+        __ bind(is_allocated_inline);
+        // field is allocated inline
           __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
           pop_and_check_object(rax);
-          __ read_flattened_field(rcx, flags2, rbx, rax);
+          __ read_field_allocated_inline(rcx, flags2, rbx, rax);
           __ verify_oop(rax);
           __ push(atos);
       __ bind(rewrite_inline);
@@ -3447,16 +3448,16 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
     } else {
       __ pop(atos);
       if (is_static) {
-        Label is_inline;
-        __ test_field_is_not_inline(flags2, rscratch1, is_inline);
+        Label is_inline_type;
+        __ test_field_is_not_inline_type(flags2, rscratch1, is_inline_type);
         __ null_check(rax);
-        __ bind(is_inline);
+        __ bind(is_inline_type);
         do_oop_store(_masm, field, rax);
         __ jmp(Done);
       } else {
-        Label is_inline, isFlattened, rewrite_not_inline, rewrite_inline;
-        __ test_field_is_inline(flags2, rscratch1, is_inline);
-        // Not inline case
+        Label is_inline_type, is_allocated_inline, rewrite_not_inline, rewrite_inline;
+        __ test_field_is_inline_type(flags2, rscratch1, is_inline_type);
+        // Not an inline type
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, rax);
@@ -3465,16 +3466,17 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
           patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
         }
         __ jmp(Done);
-        // Implementation of the inline semantic
-        __ bind(is_inline);
+        // Implementation of the inline type semantic
+        __ bind(is_inline_type);
         __ null_check(rax);
-        __ test_field_is_flattened(flags2, rscratch1, isFlattened);
-        // Not flattened case
+        __ test_field_is_allocated_inline(flags2, rscratch1, is_allocated_inline);
+        // field is not allocated inline
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, rax);
         __ jmp(rewrite_inline);
-        __ bind(isFlattened);
+        __ bind(is_allocated_inline);
+        // field is allocated inline
         pop_and_check_object(obj);
         assert_different_registers(rax, rdx, obj, off);
         __ load_klass(rdx, rax, rscratch1);
@@ -3693,7 +3695,7 @@ void TemplateTable::fast_storefield(TosState state) {
 
   Label notVolatile, Done;
   if (bytecode() == Bytecodes::_fast_qputfield) {
-    __ movl(rscratch2, rdx);  // saving flags for isFlattened test
+    __ movl(rscratch2, rdx);  // saving flags for is_allocated_inline test
   }
 
   __ shrl(rdx, ConstantPoolCacheEntry::is_volatile_shift);
@@ -3710,7 +3712,7 @@ void TemplateTable::fast_storefield(TosState state) {
   __ jcc(Assembler::zero, notVolatile);
 
   if (bytecode() == Bytecodes::_fast_qputfield) {
-    __ movl(rdx, rscratch2);  // restoring flags for isFlattened test
+    __ movl(rdx, rscratch2);  // restoring flags for is_allocated_inline test
   }
   fast_storefield_helper(field, rax, rdx);
   volatile_barrier(Assembler::Membar_mask_bits(Assembler::StoreLoad |
@@ -3719,7 +3721,7 @@ void TemplateTable::fast_storefield(TosState state) {
   __ bind(notVolatile);
 
   if (bytecode() == Bytecodes::_fast_qputfield) {
-    __ movl(rdx, rscratch2);  // restoring flags for isFlattened test
+    __ movl(rdx, rscratch2);  // restoring flags for is_allocated_inline test
   }
   fast_storefield_helper(field, rax, rdx);
 
@@ -3732,14 +3734,14 @@ void TemplateTable::fast_storefield_helper(Address field, Register rax, Register
   switch (bytecode()) {
   case Bytecodes::_fast_qputfield:
     {
-      Label isFlattened, done;
+      Label is_allocated_inline, done;
       __ null_check(rax);
-      __ test_field_is_flattened(flags, rscratch1, isFlattened);
-      // No Flattened case
+      __ test_field_is_allocated_inline(flags, rscratch1, is_allocated_inline);
+      // field is not allocated inline
       do_oop_store(_masm, field, rax);
       __ jmp(done);
-      __ bind(isFlattened);
-      // Flattened case
+      __ bind(is_allocated_inline);
+      // field is allocated inline
       __ load_klass(rdx, rax, rscratch1);
       __ data_for_oop(rax, rax, rdx);
       __ lea(rcx, field);
@@ -3833,12 +3835,12 @@ void TemplateTable::fast_accessfield(TosState state) {
   switch (bytecode()) {
   case Bytecodes::_fast_qgetfield:
     {
-      Label isFlattened, nonnull, Done;
+      Label is_allocated_inline, nonnull, Done;
       __ movptr(rscratch1, Address(rcx, rbx, Address::times_ptr,
                                    in_bytes(ConstantPoolCache::base_offset() +
                                             ConstantPoolCacheEntry::flags_offset())));
-      __ test_field_is_flattened(rscratch1, rscratch2, isFlattened);
-        // Non-flattened field case
+      __ test_field_is_allocated_inline(rscratch1, rscratch2, is_allocated_inline);
+        // Case where field is not allocated inlines
         __ load_heap_oop(rax, field);
         __ testptr(rax, rax);
         __ jcc(Assembler::notZero, nonnull);
@@ -3854,7 +3856,7 @@ void TemplateTable::fast_accessfield(TosState state) {
         __ bind(nonnull);
         __ verify_oop(rax);
         __ jmp(Done);
-      __ bind(isFlattened);
+      __ bind(is_allocated_inline);
         __ push(rdx); // save offset
         __ movl(rdx, Address(rcx, rbx, Address::times_ptr,
                            in_bytes(ConstantPoolCache::base_offset() +
@@ -3864,7 +3866,7 @@ void TemplateTable::fast_accessfield(TosState state) {
                                      in_bytes(ConstantPoolCache::base_offset() +
                                               ConstantPoolCacheEntry::f1_offset())));
         __ pop(rbx); // restore offset
-        __ read_flattened_field(rcx, rdx, rbx, rax);
+        __ read_field_allocated_inline(rcx, rdx, rbx, rax);
       __ bind(Done);
       __ verify_oop(rax);
     }

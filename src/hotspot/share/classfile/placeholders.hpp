@@ -74,12 +74,12 @@ public:
 // on a class/classloader basis
 // so the head of that queue owns the token
 // and the rest of the threads return the result the first thread gets
-// INLINE_FIELD: needed to check for inline type fields circularity
+// INLINE_TYPE_FIELD: needed to check for inline type fields circularity
  enum classloadAction {
     LOAD_INSTANCE = 1,             // calling load_instance_class
     LOAD_SUPER = 2,                // loading superclass for this class
     DEFINE_CLASS = 3,              // find_or_define class
-    INLINE_FIELD = 4               // inline type fields
+    INLINE_TYPE_FIELD = 4          // inline type fields
  };
 
   // find_and_add returns probe pointer - old or new
@@ -164,7 +164,7 @@ class PlaceholderEntry : public HashtableEntry<Symbol*, mtClass> {
                                     // including _definer
                                     // _definer owns token
                                     // queue waits for and returns results from _definer
-  SeenThread*       _inlineFieldQ;  // queue of inline types for circularity checking
+  SeenThread*       _inlineTypeFieldQ;  // queue of inline types for circularity checking
 
  public:
   // Simple accessors, used only by SystemDictionary
@@ -197,8 +197,8 @@ class PlaceholderEntry : public HashtableEntry<Symbol*, mtClass> {
   SeenThread*        defineThreadQ()        const { return _defineThreadQ; }
   void               set_defineThreadQ(SeenThread* SeenThread) { _defineThreadQ = SeenThread; }
 
-  SeenThread*        inlineFieldQ()    const { return _inlineFieldQ; }
-  void               set_inlineFieldQ(SeenThread* SeenThread) { _inlineFieldQ = SeenThread; }
+  SeenThread*        inlineTypeFieldQ()    const { return _inlineTypeFieldQ; }
+  void               set_inlineTypeFieldQ(SeenThread* SeenThread) { _inlineTypeFieldQ = SeenThread; }
 
   PlaceholderEntry* next() const {
     return (PlaceholderEntry*)HashtableEntry<Symbol*, mtClass>::next();
@@ -226,8 +226,8 @@ class PlaceholderEntry : public HashtableEntry<Symbol*, mtClass> {
       case PlaceholderTable::DEFINE_CLASS:
 	 queuehead = _defineThreadQ;
 	 break;
-      case PlaceholderTable::INLINE_FIELD:
-         queuehead = _inlineFieldQ;
+      case PlaceholderTable::INLINE_TYPE_FIELD:
+         queuehead = _inlineTypeFieldQ;
          break;
       default: Unimplemented();
     }
@@ -245,8 +245,8 @@ class PlaceholderEntry : public HashtableEntry<Symbol*, mtClass> {
       case PlaceholderTable::DEFINE_CLASS:
          _defineThreadQ = seenthread;
          break;
-      case PlaceholderTable::INLINE_FIELD:
-         _inlineFieldQ = seenthread;
+      case PlaceholderTable::INLINE_TYPE_FIELD:
+         _inlineTypeFieldQ = seenthread;
          break;
       default: Unimplemented();
     }
@@ -265,8 +265,8 @@ class PlaceholderEntry : public HashtableEntry<Symbol*, mtClass> {
     return (_defineThreadQ != NULL);
   }
 
-  bool inline_field_in_progress() {
-    return (_inlineFieldQ != NULL);
+  bool inline_type_field_in_progress() {
+    return (_inlineTypeFieldQ != NULL);
   }
 
 // Doubly-linked list of Threads per action for class/classloader pair
