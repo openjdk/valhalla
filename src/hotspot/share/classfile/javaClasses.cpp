@@ -1234,7 +1234,7 @@ oop java_lang_Class::archive_mirror(Klass* k, TRAPS) {
 
   if (k->is_value()) {
     // Values have a val type mirror and a ref type mirror. Don't handle this for now. TODO:CDS
-    k->set_java_mirror_handle(NULL);
+    k->set_java_mirror_handle(OopHandle());
     return NULL;
   }
 
