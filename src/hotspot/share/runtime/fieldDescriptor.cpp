@@ -200,6 +200,13 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
         FieldPrinter print_field(st, obj);
         vk->do_nonstatic_fields(&print_field);
         return; // Do not print underlying representation
+    case T_ARRAY:
+      st->print(" ");
+      NOT_LP64(as_int = obj->int_field(offset()));
+      if (obj->obj_field(offset()) != NULL) {
+        obj->obj_field(offset())->print_value_on(st);
+      } else {
+        st->print("NULL");
       }
       // Non-flattened field, fall through
     case T_ARRAY:
@@ -209,7 +216,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
       if (obj->obj_field(offset()) != NULL) {
         obj->obj_field(offset())->print_value_on(st);
       } else {
-        st->print_cr("NULL");
+        st->print("NULL");
       }
       break;
     default:
