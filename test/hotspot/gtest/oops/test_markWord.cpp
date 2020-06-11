@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -85,11 +85,6 @@ TEST_VM(markWord, printing) {
   ThreadInVMfromNative invm(THREAD);
   ResourceMark rm(THREAD);
 
-  if (!UseBiasedLocking || !BiasedLocking::enabled()) {
-    // Can't test this with biased locking disabled.
-    return;
-  }
-
   oop obj = SystemDictionary::Byte_klass()->allocate_instance(THREAD);
 
   FlagSetting fs(WizardMode, true);
@@ -97,22 +92,25 @@ TEST_VM(markWord, printing) {
   HandleMark hm(THREAD);
   Handle h_obj(THREAD, obj);
 
-  // Biased locking is initially enabled for this java.lang.Byte object.
-  assert_test_pattern(h_obj, "is_biased");
+  if (UseBiasedLocking && BiasedLocking::enabled()) {
+    // Can't test this with biased locking disabled.
+    // Biased locking is initially enabled for this java.lang.Byte object.
+    assert_test_pattern(h_obj, "is_biased");
 
-  // Lock using biased locking.
-  BasicObjectLock lock;
-  lock.set_obj(obj);
-  markWord prototype_header = obj->klass()->prototype_header();
-  markWord mark = obj->mark();
-  markWord biased_mark = markWord::encode((JavaThread*) THREAD, mark.age(), prototype_header.bias_epoch());
-  obj->set_mark(biased_mark);
-  // Look for the biased_locker in markWord, not prototype_header.
+    // Lock using biased locking.
+    BasicObjectLock lock;
+    lock.set_obj(obj);
+    markWord prototype_header = obj->klass()->prototype_header();
+    markWord mark = obj->mark();
+    markWord biased_mark = markWord::encode((JavaThread*) THREAD, mark.age(), prototype_header.bias_epoch());
+    obj->set_mark(biased_mark);
+    // Look for the biased_locker in markWord, not prototype_header.
 #ifdef _LP64
-  assert_not_test_pattern(h_obj, "mark(is_biased biased_locker=0x0000000000000000");
+    assert_not_test_pattern(h_obj, "mark(is_biased biased_locker=0x0000000000000000");
 #else
-  assert_not_test_pattern(h_obj, "mark(is_biased biased_locker=0x00000000");
+    assert_not_test_pattern(h_obj, "mark(is_biased biased_locker=0x00000000");
 #endif
+  }
 
   // Same thread tries to lock it again.
   {
@@ -122,6 +120,10 @@ TEST_VM(markWord, printing) {
 
   // This is no longer biased, because ObjectLocker revokes the bias.
   assert_test_pattern(h_obj, "is_neutral no_hash");
+
+  // Hash the object then print it.
+  intx hash = h_obj->identity_hash();
+  assert_test_pattern(h_obj, "is_neutral hash=0x");
 
   // Wait gets the lock inflated.
   {
@@ -137,14 +139,18 @@ TEST_VM(markWord, printing) {
     done.wait_with_safepoint_check(THREAD);  // wait till the thread is done.
   }
 
-  // Make the object older. Not all GCs use this field.
-  Universe::heap()->collect(GCCause::_java_lang_system_gc);
-  if (UseParallelGC) {
-    assert_test_pattern(h_obj, "is_neutral no_hash age 1");
-  }
+  if (!AsyncDeflateIdleMonitors) {
+    // With AsyncDeflateIdleMonitors, the collect() call below
+    // does not guarantee monitor deflation.
+    // Make the object older. Not all GCs use this field.
+    Universe::heap()->collect(GCCause::_java_lang_system_gc);
+    if (UseParallelGC) {
+      assert_test_pattern(h_obj, "is_neutral no_hash age 1");
+    }
 
-  // Hash the object then print it.
-  intx hash = h_obj->identity_hash();
-  assert_test_pattern(h_obj, "is_neutral hash=0x");
+    // Hash the object then print it.
+    intx hash = h_obj->identity_hash();
+    assert_test_pattern(h_obj, "is_neutral hash=0x");
+  }
 }
 #endif // PRODUCT

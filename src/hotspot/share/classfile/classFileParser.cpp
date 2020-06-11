@@ -3378,6 +3378,41 @@ u2 ClassFileParser::parse_classfile_nest_members_attribute(const ClassFileStream
   return length;
 }
 
+u2 ClassFileParser::parse_classfile_permitted_subclasses_attribute(const ClassFileStream* const cfs,
+                                                                   const u1* const permitted_subclasses_attribute_start,
+                                                                   TRAPS) {
+  const u1* const current_mark = cfs->current();
+  u2 length = 0;
+  if (permitted_subclasses_attribute_start != NULL) {
+    cfs->set_current(permitted_subclasses_attribute_start);
+    cfs->guarantee_more(2, CHECK_0);  // length
+    length = cfs->get_u2_fast();
+  }
+  if (length < 1) {
+    classfile_parse_error("PermittedSubclasses attribute is empty in class file %s", CHECK_0);
+  }
+  const int size = length;
+  Array<u2>* const permitted_subclasses = MetadataFactory::new_array<u2>(_loader_data, size, CHECK_0);
+  _permitted_subclasses = permitted_subclasses;
+
+  int index = 0;
+  cfs->guarantee_more(2 * length, CHECK_0);
+  for (int n = 0; n < length; n++) {
+    const u2 class_info_index = cfs->get_u2_fast();
+    check_property(
+      valid_klass_reference_at(class_info_index),
+      "Permitted subclass class_info_index %u has bad constant type in class file %s",
+      class_info_index, CHECK_0);
+    permitted_subclasses->at_put(index++, class_info_index);
+  }
+  assert(index == size, "wrong size");
+
+  // Restore buffer's current position.
+  cfs->set_current(current_mark);
+
+  return length;
+}
+
 //  Record {
 //    u2 attribute_name_index;
 //    u4 attribute_length;
@@ -3642,10 +3677,16 @@ void ClassFileParser::parse_classfile_bootstrap_methods_attribute(const ClassFil
                      CHECK);
 }
 
+bool ClassFileParser::supports_sealed_types() {
+  return _major_version == JVM_CLASSFILE_MAJOR_VERSION &&
+         _minor_version == JAVA_PREVIEW_MINOR_VERSION &&
+         Arguments::enable_preview();
+}
+
 bool ClassFileParser::supports_records() {
   return _major_version == JVM_CLASSFILE_MAJOR_VERSION &&
-    _minor_version == JAVA_PREVIEW_MINOR_VERSION &&
-    Arguments::enable_preview();
+         _minor_version == JAVA_PREVIEW_MINOR_VERSION &&
+         Arguments::enable_preview();
 }
 
 void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cfs,
@@ -3660,11 +3701,14 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
   _inner_classes = Universe::the_empty_short_array();
   // Set nest members attribute to default sentinel
   _nest_members = Universe::the_empty_short_array();
+  // Set _permitted_subclasses attribute to default sentinel
+  _permitted_subclasses = Universe::the_empty_short_array();
   cfs->guarantee_more(2, CHECK);  // attributes_count
   u2 attributes_count = cfs->get_u2_fast();
   bool parsed_sourcefile_attribute = false;
   bool parsed_innerclasses_attribute = false;
   bool parsed_nest_members_attribute = false;
+  bool parsed_permitted_subclasses_attribute = false;
   bool parsed_nest_host_attribute = false;
   bool parsed_record_attribute = false;
   bool parsed_enclosingmethod_attribute = false;
@@ -3688,6 +3732,8 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
   u4  nest_members_attribute_length = 0;
   const u1* record_attribute_start = NULL;
   u4  record_attribute_length = 0;
+  const u1* permitted_subclasses_attribute_start = NULL;
+  u4  permitted_subclasses_attribute_length = 0;
 
   // Iterate over attributes
   while (attributes_count--) {
@@ -3904,6 +3950,26 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
               }
             }
             cfs->skip_u1(attribute_length, CHECK);
+          } else if (_major_version >= JAVA_15_VERSION) {
+            // Check for PermittedSubclasses tag
+            if (tag == vmSymbols::tag_permitted_subclasses()) {
+              if (supports_sealed_types()) {
+                if (parsed_permitted_subclasses_attribute) {
+                  classfile_parse_error("Multiple PermittedSubclasses attributes in class file %s", CHECK);
+                }
+                // Classes marked ACC_FINAL cannot have a PermittedSubclasses attribute.
+                if (_access_flags.is_final()) {
+                  classfile_parse_error("PermittedSubclasses attribute in final class file %s", CHECK);
+                }
+                parsed_permitted_subclasses_attribute = true;
+                permitted_subclasses_attribute_start = cfs->current();
+                permitted_subclasses_attribute_length = attribute_length;
+              }
+              cfs->skip_u1(attribute_length, CHECK);
+            } else {
+              // Unknown attribute
+              cfs->skip_u1(attribute_length, CHECK);
+            }
           } else {
             // Unknown attribute
             cfs->skip_u1(attribute_length, CHECK);
@@ -3972,6 +4038,18 @@ void ClassFileParser::parse_classfile_attributes(const ClassFileStream* const cf
     }
   }
 
+  if (parsed_permitted_subclasses_attribute) {
+    const u2 num_subclasses = parse_classfile_permitted_subclasses_attribute(
+                            cfs,
+                            permitted_subclasses_attribute_start,
+                            CHECK);
+    if (_need_verify) {
+      guarantee_property(
+        permitted_subclasses_attribute_length == sizeof(num_subclasses) + sizeof(u2) * num_subclasses,
+        "Wrong PermittedSubclasses attribute length in class file %s", CHECK);
+    }
+  }
+
   if (_max_bootstrap_specifier_index >= 0) {
     guarantee_property(parsed_bootstrap_methods_attribute,
                        "Missing BootstrapMethods attribute in class file %s", CHECK);
@@ -4037,11 +4115,12 @@ void ClassFileParser::apply_parsed_class_metadata(
   this_klass->set_inner_classes(_inner_classes);
   this_klass->set_nest_members(_nest_members);
   this_klass->set_nest_host_index(_nest_host);
-  this_klass->set_local_interfaces(_local_interfaces);
   this_klass->set_annotations(_combined_annotations);
+  this_klass->set_permitted_subclasses(_permitted_subclasses);
   this_klass->set_record_components(_record_components);
-  // Delay the setting of _transitive_interfaces until after initialize_supers() in
-  // fill_instance_klass(). It is because the _transitive_interfaces may be shared with
+  // Delay the setting of _local_interfaces and _transitive_interfaces until after
+  // initialize_supers() in fill_instance_klass(). It is because the _local_interfaces could
+  // be shared with _transitive_interfaces and _transitive_interfaces may be shared with
   // its _super. If an OOM occurs while loading the current klass, its _super field
   // may not have been set. When GC tries to free the klass, the _transitive_interfaces
   // may be deallocated mistakenly in InstanceKlass::deallocate_interfaces(). Subsequent
@@ -4493,23 +4572,6 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
   bool compact_fields  = true;
   bool allocate_oops_first = false;
-
-  // The next classes have predefined hard-coded fields offsets
-  // (see in JavaClasses::compute_hard_coded_offsets()).
-  // Use default fields allocation order for them.
-  if (_loader_data->class_loader() == NULL &&
-      (_class_name == vmSymbols::java_lang_ref_Reference() ||
-       _class_name == vmSymbols::java_lang_Boolean() ||
-       _class_name == vmSymbols::java_lang_Character() ||
-       _class_name == vmSymbols::java_lang_Float() ||
-       _class_name == vmSymbols::java_lang_Double() ||
-       _class_name == vmSymbols::java_lang_Byte() ||
-       _class_name == vmSymbols::java_lang_Short() ||
-       _class_name == vmSymbols::java_lang_Integer() ||
-       _class_name == vmSymbols::java_lang_Long())) {
-    allocate_oops_first = true;     // Allocate oops first
-    compact_fields   = false; // Don't compact fields
-  }
 
   int next_nonstatic_oop_offset = 0;
   int next_nonstatic_double_offset = 0;
@@ -5085,12 +5147,34 @@ static void check_super_class_access(const InstanceKlass* this_klass, TRAPS) {
   const Klass* const super = this_klass->super();
 
   if (super != NULL) {
+    const InstanceKlass* super_ik = InstanceKlass::cast(super);
+
+    if (super->is_final()) {
+      ResourceMark rm(THREAD);
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_VerifyError(),
+        "class %s cannot inherit from final class %s",
+        this_klass->external_name(),
+        super_ik->external_name());
+      return;
+    }
+
+    if (super_ik->is_sealed() && !super_ik->has_as_permitted_subclass(this_klass)) {
+      ResourceMark rm(THREAD);
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_IncompatibleClassChangeError(),
+        "class %s cannot inherit from sealed class %s",
+        this_klass->external_name(),
+        super_ik->external_name());
+      return;
+    }
 
     // If the loader is not the boot loader then throw an exception if its
     // superclass is in package jdk.internal.reflect and its loader is not a
     // special reflection class loader
     if (!this_klass->class_loader_data()->is_the_null_class_loader_data()) {
-      assert(super->is_instance_klass(), "super is not instance klass");
       PackageEntry* super_package = super->package();
       if (super_package != NULL &&
           super_package->name()->fast_compare(vmSymbols::jdk_internal_reflect()) == 0 &&
@@ -5146,6 +5230,19 @@ static void check_super_interface_access(const InstanceKlass* this_klass, TRAPS)
   for (int i = lng - 1; i >= 0; i--) {
     InstanceKlass* const k = local_interfaces->at(i);
     assert (k != NULL && k->is_interface(), "invalid interface");
+
+    if (k->is_sealed() && !k->has_as_permitted_subclass(this_klass)) {
+      ResourceMark rm(THREAD);
+      Exceptions::fthrow(
+        THREAD_AND_LOCATION,
+        vmSymbols::java_lang_IncompatibleClassChangeError(),
+        "class %s cannot %s sealed interface %s",
+        this_klass->external_name(),
+        this_klass->is_interface() ? "extend" : "implement",
+        k->external_name());
+      return;
+    }
+
     Reflection::VerifyClassAccessResults vca_result =
       Reflection::verify_class_access(this_klass, k, false);
     if (vca_result != Reflection::ACCESS_OK) {
@@ -6198,9 +6295,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   assert(NULL == _methods, "invariant");
   assert(NULL == _inner_classes, "invariant");
   assert(NULL == _nest_members, "invariant");
-  assert(NULL == _local_interfaces, "invariant");
   assert(NULL == _combined_annotations, "invariant");
   assert(NULL == _record_components, "invariant");
+  assert(NULL == _permitted_subclasses, "invariant");
 
   if (_has_final_method) {
     ik->set_has_final_method();
@@ -6274,7 +6371,9 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   // Fill in information needed to compute superclasses.
   ik->initialize_supers(const_cast<InstanceKlass*>(_super_klass), _transitive_interfaces, CHECK);
   ik->set_transitive_interfaces(_transitive_interfaces);
+  ik->set_local_interfaces(_local_interfaces);
   _transitive_interfaces = NULL;
+  _local_interfaces = NULL;
 
   // Initialize itable offset tables
   klassItable::setup_itable_offset_table(ik);
@@ -6530,6 +6629,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _inner_classes(NULL),
   _nest_members(NULL),
   _nest_host(0),
+  _permitted_subclasses(NULL),
   _record_components(NULL),
   _temp_local_interfaces(NULL),
   _local_interfaces(NULL),
@@ -6648,7 +6748,7 @@ void ClassFileParser::clear_class_metadata() {
   _methods = NULL;
   _inner_classes = NULL;
   _nest_members = NULL;
-  _local_interfaces = NULL;
+  _permitted_subclasses = NULL;
   _combined_annotations = NULL;
   _class_annotations = _class_type_annotations = NULL;
   _fields_annotations = _fields_type_annotations = NULL;
@@ -6684,6 +6784,10 @@ ClassFileParser::~ClassFileParser() {
     InstanceKlass::deallocate_record_components(_loader_data, _record_components);
   }
 
+  if (_permitted_subclasses != NULL && _permitted_subclasses != Universe::the_empty_short_array()) {
+    MetadataFactory::free_array<u2>(_loader_data, _permitted_subclasses);
+  }
+
   // Free interfaces
   InstanceKlass::deallocate_interfaces(_loader_data, _super_klass,
                                        _local_interfaces, _transitive_interfaces);
@@ -6712,6 +6816,7 @@ ClassFileParser::~ClassFileParser() {
 
   clear_class_metadata();
   _transitive_interfaces = NULL;
+  _local_interfaces = NULL;
 
   // deallocate the klass if already created.  Don't directly deallocate, but add
   // to the deallocate list so that the klass is removed from the CLD::_klasses list
@@ -7092,11 +7197,6 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         _super_klass->external_name()
       );
       return;
-    }
-
-    // Make sure super class is not final
-    if (_super_klass->is_final()) {
-      THROW_MSG(vmSymbols::java_lang_VerifyError(), "Cannot inherit from final class");
     }
 
     // For an inline class, only java/lang/Object or special abstract classes

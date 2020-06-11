@@ -28,8 +28,10 @@
 #include "compiler/compileBroker.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/gcConfig.hpp"
+#include "gc/shared/gcLogPrecious.hpp"
 #include "logging/logConfiguration.hpp"
-#include "jfr/jfrEvents.hpp"
+#include "memory/metaspace.hpp"
+#include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/compressedOops.hpp"
@@ -83,7 +85,7 @@ const char *env_list[] = {
   "JAVA_HOME", "JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "CLASSPATH",
   "PATH", "USERNAME",
 
-  // Env variables that are defined on Solaris/Linux/BSD
+  // Env variables that are defined on Linux/BSD
   "LD_LIBRARY_PATH", "LD_PRELOAD", "SHELL", "DISPLAY",
   "HOSTTYPE", "OSTYPE", "ARCH", "MACHTYPE",
   "LANG", "LC_ALL", "LC_CTYPE", "TZ",
@@ -620,6 +622,9 @@ void VMError::report(outputStream* st, bool _verbose) {
     st->cr();
     st->print_cr("#");
 
+  JFR_ONLY(STEP("printing jfr information"))
+  JFR_ONLY(Jfr::on_vm_error_report(st);)
+
   STEP("printing bug submit message")
 
      if (should_report_bug(_id) && _verbose) {
@@ -772,7 +777,8 @@ void VMError::report(outputStream* st, bool _verbose) {
   STEP("printing register info")
 
      // decode register contents if possible
-     if (_verbose && _context && Universe::is_fully_initialized()) {
+     if (_verbose && _context && _thread && Universe::is_fully_initialized()) {
+       ResourceMark rm(_thread);
        os::print_register_info(st, _context);
        st->cr();
      }
@@ -788,7 +794,7 @@ void VMError::report(outputStream* st, bool _verbose) {
   STEP("inspecting top of stack")
 
      // decode stack contents if possible
-     if (_verbose && _context && Universe::is_fully_initialized()) {
+     if (_verbose && _context && _thread && Universe::is_fully_initialized()) {
        frame fr = os::fetch_frame_from_context(_context);
        const int slots = 8;
        const intptr_t *start = fr.sp();
@@ -797,6 +803,7 @@ void VMError::report(outputStream* st, bool _verbose) {
          st->print_cr("Stack slot to memory mapping:");
          for (int i = 0; i < slots; ++i) {
            st->print("stack at sp + %d slots: ", i);
+           ResourceMark rm(_thread);
            os::print_location(st, *(start + i));
          }
        }
@@ -871,7 +878,7 @@ void VMError::report(outputStream* st, bool _verbose) {
 
      if (_verbose) {
        // Safepoint state
-       st->print("VM state:");
+       st->print("VM state: ");
 
        if (SafepointSynchronize::is_synchronizing()) st->print("synchronizing");
        else if (SafepointSynchronize::is_at_safepoint()) st->print("at safepoint");
@@ -905,23 +912,34 @@ void VMError::report(outputStream* st, bool _verbose) {
        st->cr();
      }
 
+#ifdef _LP64
   STEP("printing compressed oops mode")
 
      if (_verbose && UseCompressedOops) {
        CompressedOops::print_mode(st);
        if (UseCompressedClassPointers) {
+         CDS_ONLY(MetaspaceShared::print_on(st);)
          Metaspace::print_compressed_class_space(st);
+         CompressedKlassPointers::print_mode(st);
        }
        st->cr();
      }
+#endif
 
   STEP("printing heap information")
 
-     if (_verbose && Universe::is_fully_initialized()) {
-       Universe::heap()->print_on_error(st);
-       st->cr();
-       st->print_cr("Polling page: " INTPTR_FORMAT, p2i(SafepointMechanism::get_polling_page()));
-       st->cr();
+     if (_verbose) {
+       GCLogPrecious::print_on_error(st);
+
+       if (Universe::heap() != NULL) {
+         Universe::heap()->print_on_error(st);
+         st->cr();
+       }
+
+       if (Universe::is_fully_initialized()) {
+         st->print_cr("Polling page: " INTPTR_FORMAT, p2i(SafepointMechanism::get_polling_page()));
+         st->cr();
+       }
      }
 
   STEP("printing metaspace information")
@@ -1106,20 +1124,24 @@ void VMError::print_vm_info(outputStream* st) {
     st->cr();
   }
 
+#ifdef _LP64
   // STEP("printing compressed oops mode")
-
   if (UseCompressedOops) {
     CompressedOops::print_mode(st);
     if (UseCompressedClassPointers) {
+      CDS_ONLY(MetaspaceShared::print_on(st);)
       Metaspace::print_compressed_class_space(st);
+      CompressedKlassPointers::print_mode(st);
     }
     st->cr();
   }
+#endif
 
   // STEP("printing heap information")
 
   if (Universe::is_fully_initialized()) {
     MutexLocker hl(Heap_lock);
+    GCLogPrecious::print_on_error(st);
     Universe::heap()->print_on_error(st);
     st->cr();
     st->print_cr("Polling page: " INTPTR_FORMAT, p2i(SafepointMechanism::get_polling_page()));
@@ -1410,15 +1432,6 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
     // reset signal handlers or exception filter; make sure recursive crashes
     // are handled properly.
     reset_signal_handlers();
-
-    EventShutdown e;
-    if (e.should_commit()) {
-      e.set_reason("VM Error");
-      e.commit();
-    }
-
-    JFR_ONLY(Jfr::on_vm_shutdown(true);)
-
   } else {
     // If UseOsErrorReporting we call this for each level of the call stack
     // while searching for the exception handler.  Only the first level needs
@@ -1540,6 +1553,8 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
     log.set_fd(-1);
   }
 
+  JFR_ONLY(Jfr::on_vm_shutdown(true);)
+
   if (PrintNMTStatistics) {
     fdStream fds(fd_out);
     MemTracker::final_report(&fds);
@@ -1594,8 +1609,6 @@ void VMError::report_and_die(int id, const char* message, const char* detail_fmt
       out.print_raw   ("#   Executing ");
 #if defined(LINUX) || defined(_ALLBSD_SOURCE)
       out.print_raw   ("/bin/sh -c ");
-#elif defined(SOLARIS)
-      out.print_raw   ("/usr/bin/sh -c ");
 #elif defined(_WINDOWS)
       out.print_raw   ("cmd /C ");
 #endif
@@ -1657,8 +1670,6 @@ void VM_ReportJavaOutOfMemory::doit() {
     tty->print("#   Executing ");
 #if defined(LINUX)
     tty->print  ("/bin/sh -c ");
-#elif defined(SOLARIS)
-    tty->print  ("/usr/bin/sh -c ");
 #endif
     tty->print_cr("\"%s\"...", cmd);
 
@@ -1736,22 +1747,23 @@ bool VMError::check_timeout() {
 }
 
 #ifndef PRODUCT
-#if defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x5140
-#pragma error_messages(off, SEC_NULL_PTR_DEREF)
-#endif
 typedef void (*voidfun_t)();
+
 // Crash with an authentic sigfpe
+volatile int sigfpe_int = 0;
 static void crash_with_sigfpe() {
+
   // generate a native synchronous SIGFPE where possible;
+  sigfpe_int = sigfpe_int/sigfpe_int;
+
   // if that did not cause a signal (e.g. on ppc), just
   // raise the signal.
-  volatile int x = 0;
-  volatile int y = 1/x;
 #ifndef _WIN32
   // OSX implements raise(sig) incorrectly so we need to
   // explicitly target the current thread
   pthread_kill(pthread_self(), SIGFPE);
 #endif
+
 } // end: crash_with_sigfpe
 
 // crash with sigsegv at non-null address.

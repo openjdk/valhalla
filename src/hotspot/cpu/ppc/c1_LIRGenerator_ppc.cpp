@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2019, SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -309,7 +309,7 @@ void LIRGenerator::store_stack_parameter(LIR_Opr item, ByteSize offset_from_sp) 
   BasicType t = item->type();
   LIR_Opr sp_opr = FrameMap::SP_opr;
   if ((t == T_LONG || t == T_DOUBLE) &&
-      ((in_bytes(offset_from_sp) - STACK_BIAS) % 8 != 0)) {
+      (in_bytes(offset_from_sp) % 8 != 0)) {
     __ unaligned_move(item, new LIR_Address(sp_opr, in_bytes(offset_from_sp), t));
   } else {
     __ move(item, new LIR_Address(sp_opr, in_bytes(offset_from_sp), t));
@@ -440,7 +440,7 @@ void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) {
     if (divisor->is_register()) {
       CodeEmitInfo* null_check_info = state_for(x);
       __ cmp(lir_cond_equal, divisor, LIR_OprFact::longConst(0));
-      __ branch(lir_cond_equal, T_LONG, new DivByZeroStub(null_check_info));
+      __ branch(lir_cond_equal, new DivByZeroStub(null_check_info));
     } else {
       jlong const_divisor = divisor->as_constant_ptr()->as_jlong();
       if (const_divisor == 0) {
@@ -494,7 +494,7 @@ void LIRGenerator::do_ArithmeticOp_Int(ArithmeticOp* x) {
     if (divisor->is_register()) {
       CodeEmitInfo* null_check_info = state_for(x);
       __ cmp(lir_cond_equal, divisor, LIR_OprFact::intConst(0));
-      __ branch(lir_cond_equal, T_INT, new DivByZeroStub(null_check_info));
+      __ branch(lir_cond_equal, new DivByZeroStub(null_check_info));
     } else {
       jint const_divisor = divisor->as_constant_ptr()->as_jint();
       if (const_divisor == 0) {
@@ -1171,9 +1171,9 @@ void LIRGenerator::do_If(If* x) {
   profile_branch(x, cond);
   move_to_phi(x->state());
   if (x->x()->type()->is_float_kind()) {
-    __ branch(lir_cond(cond), right->type(), x->tsux(), x->usux());
+    __ branch(lir_cond(cond), x->tsux(), x->usux());
   } else {
-    __ branch(lir_cond(cond), right->type(), x->tsux());
+    __ branch(lir_cond(cond), x->tsux());
   }
   assert(x->default_sux() == x->fsux(), "wrong destination above");
   __ jump(x->default_sux());

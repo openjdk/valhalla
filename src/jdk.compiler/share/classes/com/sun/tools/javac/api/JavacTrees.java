@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -432,6 +432,31 @@ public class JavacTrees extends DocTrees {
     }
 
     @Override @DefinedBy(Api.COMPILER_TREE)
+    public TypeMirror getType(DocTreePath path) {
+        DocTree tree = path.getLeaf();
+        if (tree instanceof DCReference) {
+            JCTree qexpr = ((DCReference)tree).qualifierExpression;
+            if (qexpr != null) {
+                Log.DeferredDiagnosticHandler deferredDiagnosticHandler =
+                        new Log.DeferredDiagnosticHandler(log);
+                try {
+                    Env<AttrContext> env = getAttrContext(path.getTreePath());
+                    Type t = attr.attribType(((DCReference) tree).qualifierExpression, env);
+                    if (t != null && !t.isErroneous()) {
+                        return t;
+                    }
+                } catch (Abort e) { // may be thrown by Check.completionError in case of bad class file
+                    return null;
+                } finally {
+                    log.popDiagnosticHandler(deferredDiagnosticHandler);
+                }
+            }
+        }
+        Element e = getElement(path);
+        return e == null ? null : e.asType();
+    }
+
+    @Override @DefinedBy(Api.COMPILER_TREE)
     public java.util.List<DocTree> getFirstSentence(java.util.List<? extends DocTree> list) {
         return docTreeMaker.getFirstSentence(list);
     }
@@ -439,31 +464,50 @@ public class JavacTrees extends DocTrees {
     private Symbol attributeDocReference(TreePath path, DCReference ref) {
         Env<AttrContext> env = getAttrContext(path);
         if (env == null) return null;
-
+        if (ref.moduleName != null && ref.qualifierExpression == null && ref.memberName != null) {
+            // module name and member name without type
+            return null;
+        }
         Log.DeferredDiagnosticHandler deferredDiagnosticHandler =
                 new Log.DeferredDiagnosticHandler(log);
         try {
             final TypeSymbol tsym;
             final Name memberName;
+            final ModuleSymbol mdlsym;
+
+            if (ref.moduleName != null) {
+                mdlsym = modules.modulesInitialized() ?
+                        modules.getObservableModule(names.fromString(ref.moduleName.toString()))
+                        : null;
+                if (mdlsym == null) {
+                    return null;
+                } else if (ref.qualifierExpression == null) {
+                    return mdlsym;
+                }
+            } else {
+                mdlsym = modules.getDefaultModule();
+            }
+
             if (ref.qualifierExpression == null) {
                 tsym = env.enclClass.sym;
                 memberName = (Name) ref.memberName;
             } else {
-                // newSeeTree if the qualifierExpression is a type or package name.
-                // javac does not provide the exact method required, so
-                // we first check if qualifierExpression identifies a type,
-                // and if not, then we check to see if it identifies a package.
-                Type t = attr.attribType(ref.qualifierExpression, env);
-                if (t.isErroneous()) {
+                // Check if qualifierExpression is a type or package, using the methods javac provides.
+                // If no module name is given we check if qualifierExpression identifies a type.
+                // If that fails or we have a module name, use that to resolve qualifierExpression to
+                // a package or type.
+                Type t = ref.moduleName == null ? attr.attribType(ref.qualifierExpression, env) : null;
+
+                if (t == null || t.isErroneous()) {
                     JCCompilationUnit toplevel =
                         treeMaker.TopLevel(List.nil());
-                    final ModuleSymbol msym = modules.getDefaultModule();
-                    toplevel.modle = msym;
-                    toplevel.packge = msym.unnamedPackage;
+                    toplevel.modle = mdlsym;
+                    toplevel.packge = mdlsym.unnamedPackage;
                     Symbol sym = attr.attribIdent(ref.qualifierExpression, toplevel);
 
-                    if (sym == null)
+                    if (sym == null) {
                         return null;
+                    }
 
                     sym.complete();
 
@@ -475,7 +519,15 @@ public class JavacTrees extends DocTrees {
                             return null;
                         }
                     } else {
-                        if (ref.qualifierExpression.hasTag(JCTree.Tag.IDENT)) {
+                        if (modules.modulesInitialized() && ref.moduleName == null && ref.memberName == null) {
+                            // package/type does not exist, check if there is a matching module
+                            ModuleSymbol moduleSymbol = modules.getObservableModule(names.fromString(ref.signature));
+                            if (moduleSymbol != null) {
+                                return moduleSymbol;
+                            }
+                        }
+                        if (ref.qualifierExpression.hasTag(JCTree.Tag.IDENT) && ref.moduleName == null
+                                && ref.memberName == null) {
                             // fixup:  allow "identifier" instead of "#identifier"
                             // for compatibility with javadoc
                             tsym = env.enclClass.sym;
@@ -488,7 +540,7 @@ public class JavacTrees extends DocTrees {
                     Type e = t;
                     // If this is an array type convert to element type
                     while (e instanceof ArrayType)
-                        e = ((ArrayType)e).elemtype;
+                        e = ((ArrayType) e).elemtype;
                     tsym = e.tsym;
                     memberName = (Name) ref.memberName;
                 }
@@ -721,77 +773,14 @@ public class JavacTrees extends DocTrees {
         if (method.params().size() != paramTypes.size())
             return false;
 
-        List<Type> methodParamTypes = types.erasureRecursive(method.asType()).getParameterTypes();
+        List<Type> methodParamTypes = method.asType().getParameterTypes();
+        if (!Type.isErroneous(paramTypes) && types.isSubtypes(paramTypes, methodParamTypes)) {
+            return true;
+        }
 
-        return (Type.isErroneous(paramTypes))
-            ? fuzzyMatch(paramTypes, methodParamTypes)
-            : types.isSameTypes(paramTypes, methodParamTypes);
+        methodParamTypes = types.erasureRecursive(methodParamTypes);
+        return types.isSameTypes(paramTypes, methodParamTypes);
     }
-
-    boolean fuzzyMatch(List<Type> paramTypes, List<Type> methodParamTypes) {
-        List<Type> l1 = paramTypes;
-        List<Type> l2 = methodParamTypes;
-        while (l1.nonEmpty()) {
-            if (!fuzzyMatch(l1.head, l2.head))
-                return false;
-            l1 = l1.tail;
-            l2 = l2.tail;
-        }
-        return true;
-    }
-
-    boolean fuzzyMatch(Type paramType, Type methodParamType) {
-        Boolean b = fuzzyMatcher.visit(paramType, methodParamType);
-        return (b == Boolean.TRUE);
-    }
-
-    TypeRelation fuzzyMatcher = new TypeRelation() {
-        @Override
-        public Boolean visitType(Type t, Type s) {
-            if (t == s)
-                return true;
-
-            if (s.isPartial())
-                return visit(s, t);
-
-            switch (t.getTag()) {
-            case BYTE: case CHAR: case SHORT: case INT: case LONG: case FLOAT:
-            case DOUBLE: case BOOLEAN: case VOID: case BOT: case NONE:
-                return t.hasTag(s.getTag());
-            default:
-                throw new AssertionError("fuzzyMatcher " + t.getTag());
-            }
-        }
-
-        @Override
-        public Boolean visitArrayType(ArrayType t, Type s) {
-            if (t == s)
-                return true;
-
-            if (s.isPartial())
-                return visit(s, t);
-
-            return s.hasTag(ARRAY)
-                && visit(t.elemtype, types.elemtype(s));
-        }
-
-        @Override
-        public Boolean visitClassType(ClassType t, Type s) {
-            if (t == s)
-                return true;
-
-            if (s.isPartial())
-                return visit(s, t);
-
-            return t.tsym == s.tsym;
-        }
-
-        @Override
-        public Boolean visitErrorType(ErrorType t, Type s) {
-            return s.hasTag(CLASS)
-                    && t.tsym.name == ((ClassType) s).tsym.name;
-        }
-    };
 
     @Override @DefinedBy(Api.COMPILER_TREE)
     public TypeMirror getTypeMirror(TreePath path) {
@@ -909,6 +898,7 @@ public class JavacTrees extends DocTrees {
                 case CLASS:
                 case ENUM:
                 case INTERFACE:
+                case RECORD:
 //                    System.err.println("CLASS: " + ((JCClassDecl)tree).sym.getSimpleName());
                     env = enter.getClassEnv(((JCClassDecl)tree).sym);
                     if (env == null) return null;

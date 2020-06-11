@@ -133,6 +133,7 @@ class ClassFileParser {
   Array<u2>* _inner_classes;
   Array<u2>* _nest_members;
   u2 _nest_host;
+  Array<u2>* _permitted_subclasses;
   Array<RecordComponent*>* _record_components;
   GrowableArray<InstanceKlass*>* _temp_local_interfaces;
   Array<InstanceKlass*>* _local_interfaces;
@@ -348,11 +349,16 @@ class ClassFileParser {
                                             const u1* const nest_members_attribute_start,
                                             TRAPS);
 
+  u2 parse_classfile_permitted_subclasses_attribute(const ClassFileStream* const cfs,
+                                                    const u1* const permitted_subclasses_attribute_start,
+                                                    TRAPS);
+
   u2 parse_classfile_record_attribute(const ClassFileStream* const cfs,
                                       const ConstantPool* cp,
                                       const u1* const record_attribute_start,
                                       TRAPS);
 
+  bool supports_sealed_types();
   bool supports_records();
 
   void parse_classfile_attributes(const ClassFileStream* const cfs,

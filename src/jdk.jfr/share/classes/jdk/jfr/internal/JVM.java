@@ -521,8 +521,9 @@ public final class JVM {
      *
      * @param cutoff the cutoff in ticks
      * @param emitAll emit all samples in old object queue
+     * @param skipBFS don't use BFS when searching for path to GC root
      */
-    public native void emitOldObjectSamples(long cutoff, boolean emitAll);
+    public native void emitOldObjectSamples(long cutoff, boolean emitAll, boolean skipBFS);
 
     /**
      * Test if a chunk rotation is warranted.
@@ -576,4 +577,13 @@ public final class JVM {
      * @return the handler, may be {@code null}
      */
     public native Object getHandler(Class<? extends jdk.internal.event.Event> eventClass);
+
+    /**
+     * Returns the id for the Java types defined in metadata.xml.
+     *
+     * @param name the name of the type
+     *
+     * @return the id, or a negative value if it does not exists.
+     */
+    public native long getTypeId(String name);
 }

@@ -26,8 +26,9 @@
 #include "code/codeCache.hpp"
 #include "code/icBuffer.hpp"
 #include "code/nmethod.hpp"
+#include "gc/shenandoah/shenandoahClosures.inline.hpp"
 #include "gc/shenandoah/shenandoahCodeRoots.hpp"
-#include "gc/shenandoah/shenandoahEvacOOMHandler.hpp"
+#include "gc/shenandoah/shenandoahEvacOOMHandler.inline.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahNMethod.inline.hpp"
 #include "gc/shenandoah/shenandoahUtils.hpp"
@@ -194,6 +195,7 @@ public:
   ShenandoahDisarmNMethodsTask() :
     AbstractGangTask("ShenandoahDisarmNMethodsTask"),
     _iterator(ShenandoahCodeRoots::table()) {
+    assert(SafepointSynchronize::is_at_safepoint(), "Only at a safepoint");
     MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
     _iterator.nmethods_do_begin();
   }
@@ -204,6 +206,7 @@ public:
   }
 
   virtual void work(uint worker_id) {
+    ShenandoahParallelWorkerSession worker_session(worker_id);
     _iterator.nmethods_do(&_cl);
   }
 };
@@ -270,7 +273,7 @@ public:
 
     // Heal oops and disarm
     if (_bs->is_armed(nm)) {
-      ShenandoahNMethod::heal_nmethod(nm);
+      ShenandoahNMethod::heal_nmethod_metadata(nm_data);
       _bs->disarm(nm);
     }
 
@@ -308,6 +311,7 @@ public:
 
   virtual void work(uint worker_id) {
     ICRefillVerifierMark mark(_verifier);
+    ShenandoahEvacOOMScope evac_scope;
     _iterator.nmethods_do(&_cl);
   }
 
@@ -419,8 +423,7 @@ ShenandoahCodeRootsIterator::~ShenandoahCodeRootsIterator() {
   }
 }
 
-template<bool CSET_FILTER>
-void ShenandoahCodeRootsIterator::dispatch_parallel_blobs_do(CodeBlobClosure *f) {
+void ShenandoahCodeRootsIterator::possibly_parallel_blobs_do(CodeBlobClosure *f) {
   switch (ShenandoahCodeRootsStyle) {
     case 0: {
       if (_seq_claimed.try_set()) {
@@ -433,7 +436,7 @@ void ShenandoahCodeRootsIterator::dispatch_parallel_blobs_do(CodeBlobClosure *f)
       break;
     }
     case 2: {
-      ShenandoahCodeRootsIterator::fast_parallel_blobs_do<CSET_FILTER>(f);
+      ShenandoahCodeRootsIterator::fast_parallel_blobs_do(f);
       break;
     }
     default:
@@ -441,18 +444,9 @@ void ShenandoahCodeRootsIterator::dispatch_parallel_blobs_do(CodeBlobClosure *f)
   }
 }
 
-void ShenandoahAllCodeRootsIterator::possibly_parallel_blobs_do(CodeBlobClosure *f) {
-  ShenandoahCodeRootsIterator::dispatch_parallel_blobs_do<false>(f);
-}
-
-void ShenandoahCsetCodeRootsIterator::possibly_parallel_blobs_do(CodeBlobClosure *f) {
-  ShenandoahCodeRootsIterator::dispatch_parallel_blobs_do<true>(f);
-}
-
-template <bool CSET_FILTER>
 void ShenandoahCodeRootsIterator::fast_parallel_blobs_do(CodeBlobClosure *f) {
   assert(SafepointSynchronize::is_at_safepoint(), "Must be at safepoint");
   assert(_table_snapshot != NULL, "Sanity");
-  _table_snapshot->parallel_blobs_do<CSET_FILTER>(f);
+  _table_snapshot->parallel_blobs_do(f);
 }
 

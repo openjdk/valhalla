@@ -37,6 +37,7 @@
 #include "gc/shared/gcLocker.hpp"
 #include "gc/shared/gcWhen.hpp"
 #include "gc/shared/genArguments.hpp"
+#include "gc/shared/gcInitLogger.hpp"
 #include "gc/shared/locationPrinter.inline.hpp"
 #include "gc/shared/scavengableNMethods.hpp"
 #include "logging/log.hpp"
@@ -100,8 +101,8 @@ jint ParallelScavengeHeap::initialize() {
       MaxOldSize,
       "old", 1);
 
-  assert(young_gen()->gen_size_limit() == young_rs.size(),"Consistency check");
-  assert(old_gen()->gen_size_limit() == old_rs.size(), "Consistency check");
+  assert(young_gen()->max_gen_size() == young_rs.size(),"Consistency check");
+  assert(old_gen()->max_gen_size() == old_rs.size(), "Consistency check");
 
   double max_gc_pause_sec = ((double) MaxGCPauseMillis)/1000.0;
   double max_gc_minor_pause_sec = ((double) MaxGCMinorPauseMillis)/1000.0;
@@ -133,6 +134,8 @@ jint ParallelScavengeHeap::initialize() {
 
   // Set up WorkGang
   _workers.initialize_workers();
+
+  GCInitLogger::print();
 
   return JNI_OK;
 }
@@ -207,7 +210,7 @@ bool ParallelScavengeHeap::is_maximal_no_gc() const {
 size_t ParallelScavengeHeap::max_capacity() const {
   size_t estimated = reserved_region().byte_size();
   if (UseAdaptiveSizePolicy) {
-    estimated -= _size_policy->max_survivor_size(young_gen()->max_size());
+    estimated -= _size_policy->max_survivor_size(young_gen()->max_gen_size());
   } else {
     estimated -= young_gen()->to_space()->capacity_in_bytes();
   }
@@ -592,8 +595,12 @@ bool ParallelScavengeHeap::print_location(outputStream* st, void* addr) const {
 }
 
 void ParallelScavengeHeap::print_on(outputStream* st) const {
-  young_gen()->print_on(st);
-  old_gen()->print_on(st);
+  if (young_gen() != NULL) {
+    young_gen()->print_on(st);
+  }
+  if (old_gen() != NULL) {
+    old_gen()->print_on(st);
+  }
   MetaspaceUtils::print_on(st);
 }
 
@@ -606,10 +613,6 @@ void ParallelScavengeHeap::print_on_error(outputStream* st) const {
 
 void ParallelScavengeHeap::gc_threads_do(ThreadClosure* tc) const {
   ParallelScavengeHeap::heap()->workers().threads_do(tc);
-}
-
-void ParallelScavengeHeap::print_gc_threads_on(outputStream* st) const {
-  ParallelScavengeHeap::heap()->workers().print_worker_threads_on(st);
 }
 
 void ParallelScavengeHeap::print_tracing_info() const {

@@ -1157,7 +1157,7 @@ static void gen_inline_cache_check(MacroAssembler *masm, Label& skip_fixup) {
   Register receiver = j_rarg0;
   Register temp = rbx;
 
-  __ load_klass(temp, receiver);
+  __ load_klass(temp, receiver, rscratch1);
   __ cmpptr(temp, Address(holder, CompiledICHolder::holder_klass_offset()));
   __ movptr(rbx, Address(holder, CompiledICHolder::holder_metadata_offset()));
   __ jcc(Assembler::equal, ok);
@@ -2404,7 +2404,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   assert_different_registers(ic_reg, receiver, rscratch1);
   __ verify_oop(receiver);
-  __ load_klass(rscratch1, receiver);
+  __ load_klass(rscratch1, receiver, rscratch2);
   __ cmpq(ic_reg, rscratch1);
   __ jcc(Assembler::equal, hit);
 
@@ -2749,7 +2749,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
     __ resolve(IS_NOT_NULL, obj_reg);
     if (UseBiasedLocking) {
-      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch1, false, lock_done, &slow_path_lock);
+      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch1, rscratch2, false, lock_done, &slow_path_lock);
     }
 
     // Load immediate 1 into swap_reg %rax
@@ -4423,7 +4423,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
   assert(j == regs->length(), "missed a field?");
 
   if (StressInlineTypeReturnedAsFields) {
-    __ load_klass(rax, rax);
+    __ load_klass(rax, rax, rscratch1);
     __ orptr(rax, 1);
   }
 

@@ -25,7 +25,6 @@
 /*
  * @test TestHeuristicsUnlock
  * @summary Test that Shenandoah heuristics are unlocked properly
- * @key gc
  * @requires vm.gc.Shenandoah & !vm.graal.enabled
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
@@ -45,18 +44,14 @@ public class TestHeuristicsUnlock {
     }
 
     public static void main(String[] args) throws Exception {
-        testWith("-XX:ShenandoahGCHeuristics=adaptive", Mode.PRODUCT);
-        testWith("-XX:ShenandoahGCHeuristics=static", Mode.PRODUCT);
-        testWith("-XX:ShenandoahGCHeuristics=compact", Mode.PRODUCT);
-
-        testWith("-XX:ShenandoahGCMode=iu", Mode.EXPERIMENTAL);
-
+        testWith("-XX:ShenandoahGCHeuristics=adaptive",   Mode.PRODUCT);
+        testWith("-XX:ShenandoahGCHeuristics=static",     Mode.PRODUCT);
+        testWith("-XX:ShenandoahGCHeuristics=compact",    Mode.PRODUCT);
         testWith("-XX:ShenandoahGCHeuristics=aggressive", Mode.DIAGNOSTIC);
-        testWith("-XX:ShenandoahGCHeuristics=passive", Mode.DIAGNOSTIC);
     }
 
     private static void testWith(String h, Mode mode) throws Exception {
-        if (false) { // When ShenandoahGC is experimental flag, this makes no sense to test
+        {
             ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
                     "-XX:-UnlockDiagnosticVMOptions",
                     "-XX:-UnlockExperimentalVMOptions",
@@ -76,7 +71,7 @@ public class TestHeuristicsUnlock {
             }
         }
 
-        if (false) { // When ShenandoahGC is experimental flag, this makes no sense to test
+        {
             ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
                     "-XX:+UnlockDiagnosticVMOptions",
                     "-XX:-UnlockExperimentalVMOptions",

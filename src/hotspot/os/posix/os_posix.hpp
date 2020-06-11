@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -128,18 +128,18 @@ public:
 #ifdef SUPPORTS_CLOCK_MONOTONIC
 
 private:
+  static bool _supports_monotonic_clock;
   // These need to be members so we can access them from inline functions
   static int (*_clock_gettime)(clockid_t, struct timespec *);
   static int (*_clock_getres)(clockid_t, struct timespec *);
 public:
   static bool supports_monotonic_clock();
+  static bool supports_clock_gettime();
   static int clock_gettime(clockid_t clock_id, struct timespec *tp);
   static int clock_getres(clockid_t clock_id, struct timespec *tp);
-
 #else
-
   static bool supports_monotonic_clock() { return false; }
-
+  static bool supports_clock_gettime() { return false; }
 #endif
 
   static void to_RTC_abstime(timespec* abstime, int64_t millis);
@@ -171,8 +171,6 @@ private:
   void restore();
   sigjmp_buf _jmpbuf;
 };
-
-#ifndef SOLARIS
 
 /*
  * This is the platform-specific implementation underpinning
@@ -335,7 +333,5 @@ class PlatformMonitor : public PlatformMutex {
   void notify();
   void notify_all();
 };
-
-#endif // !SOLARIS
 
 #endif // OS_POSIX_OS_POSIX_HPP

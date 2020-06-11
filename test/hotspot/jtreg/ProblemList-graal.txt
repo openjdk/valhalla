@@ -87,13 +87,12 @@ serviceability/tmtools/jstat/GcTest02.java                      8196611 generic-
 serviceability/tmtools/jstat/GcCapacityTest.java                8196611 generic-all
 
 serviceability/sa/ClhsdbInspect.java                            8230419 generic-all
+serviceability/sa/ClhsdbJstackXcompStress.java                  8244656 generic-all
 
 gc/g1/ihop/TestIHOPErgo.java                                    8191048   generic-all
 gc/g1/plab/TestPLABEvacuationFailure.java                       8191048   generic-all
 gc/g1/plab/TestPLABPromotion.java                               8191048   generic-all
 gc/g1/plab/TestPLABResize.java                                  8191048   generic-all
-
-gc/stress/TestStressG1Humongous.java                            8218176   generic-all
 
 compiler/compilercontrol/directives/LogTest.java                8181753   generic-all
 
@@ -241,5 +240,3 @@ org.graalvm.compiler.replacements.test.classfile.ClassfileBytecodeProviderTest  
 org.graalvm.compiler.core.test.deopt.CompiledMethodTest          8202955
 
 org.graalvm.compiler.hotspot.test.ReservedStackAccessTest        8213567   windows-all
-
-org.graalvm.compiler.hotspot.test.LambdaStableNameTest           8243381   generic-all

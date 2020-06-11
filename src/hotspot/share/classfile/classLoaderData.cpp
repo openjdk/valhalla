@@ -184,7 +184,7 @@ ClassLoaderData::ChunkedHandleList::~ChunkedHandleList() {
   }
 }
 
-oop* ClassLoaderData::ChunkedHandleList::add(oop o) {
+OopHandle ClassLoaderData::ChunkedHandleList::add(oop o) {
   if (_head == NULL || _head->_size == Chunk::CAPACITY) {
     Chunk* next = new Chunk(_head);
     Atomic::release_store(&_head, next);
@@ -192,7 +192,7 @@ oop* ClassLoaderData::ChunkedHandleList::add(oop o) {
   oop* handle = &_head->_data[_head->_size];
   NativeAccess<IS_DEST_UNINITIALIZED>::oop_store(handle, o);
   Atomic::release_store(&_head->_size, _head->_size + 1);
-  return handle;
+  return OopHandle(handle);
 }
 
 int ClassLoaderData::ChunkedHandleList::count() const {
@@ -498,7 +498,7 @@ void ClassLoaderData::add_class(Klass* k, bool publicize /* true */) {
 void ClassLoaderData::initialize_holder(Handle loader_or_mirror) {
   if (loader_or_mirror() != NULL) {
     assert(_holder.is_null(), "never replace holders");
-    _holder = WeakHandle<vm_class_loader_data>::create(loader_or_mirror);
+    _holder = WeakHandle<vm_weak_data>::create(loader_or_mirror);
   }
 }
 
@@ -789,7 +789,7 @@ ClassLoaderMetaspace* ClassLoaderData::metaspace_non_null() {
 OopHandle ClassLoaderData::add_handle(Handle h) {
   MutexLocker ml(metaspace_lock(),  Mutex::_no_safepoint_check_flag);
   record_modified_oops();
-  return OopHandle(_handles.add(h()));
+  return _handles.add(h());
 }
 
 void ClassLoaderData::remove_handle(OopHandle h) {
@@ -892,12 +892,6 @@ void ClassLoaderData::free_deallocate_list_C_heap_structures() {
       remove_class(ik);
     }
   }
-}
-
-// These CLDs are to contain non-strong hidden classes or unsafe anonymous classes used for JSR292
-ClassLoaderData* ClassLoaderData::has_class_mirror_holder_cld(Handle loader) {
-  // Add a new class loader data to the graph.
-  return ClassLoaderDataGraph::add(loader, true);
 }
 
 // Caller needs ResourceMark

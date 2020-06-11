@@ -962,9 +962,9 @@ public:
   INSN(smc, 0b000, 0, 0b11);
   INSN(brk, 0b001, 0, 0b00);
   INSN(hlt, 0b010, 0, 0b00);
-  INSN(dpcs1, 0b101, 0, 0b01);
-  INSN(dpcs2, 0b101, 0, 0b10);
-  INSN(dpcs3, 0b101, 0, 0b11);
+  INSN(dcps1, 0b101, 0, 0b01);
+  INSN(dcps2, 0b101, 0, 0b10);
+  INSN(dcps3, 0b101, 0, 0b11);
 
 #undef INSN
 
@@ -2278,12 +2278,12 @@ public:
     rf(Vn, 5), rf(Vd, 0);                                                               \
   }
 
-  INSN(absr,   0, 0b100000101110, 1); // accepted arrangements: T8B, T16B, T4H, T8H,      T4S
+  INSN(absr,   0, 0b100000101110, 3); // accepted arrangements: T8B, T16B, T4H, T8H, T2S, T4S, T2D
   INSN(negr,   1, 0b100000101110, 3); // accepted arrangements: T8B, T16B, T4H, T8H, T2S, T4S, T2D
   INSN(notr,   1, 0b100000010110, 0); // accepted arrangements: T8B, T16B
   INSN(addv,   0, 0b110001101110, 1); // accepted arrangements: T8B, T16B, T4H, T8H,      T4S
-  INSN(cls,    0, 0b100000010010, 1); // accepted arrangements: T8B, T16B, T4H, T8H,      T4S
-  INSN(clz,    1, 0b100000010010, 1); // accepted arrangements: T8B, T16B, T4H, T8H,      T4S
+  INSN(cls,    0, 0b100000010010, 2); // accepted arrangements: T8B, T16B, T4H, T8H, T2S, T4S
+  INSN(clz,    1, 0b100000010010, 2); // accepted arrangements: T8B, T16B, T4H, T8H, T2S, T4S
   INSN(cnt,    0, 0b100000010110, 0); // accepted arrangements: T8B, T16B
   INSN(uaddlp, 1, 0b100000001010, 2); // accepted arrangements: T8B, T16B, T4H, T8H, T2S, T4S
   INSN(uaddlv, 1, 0b110000001110, 1); // accepted arrangements: T8B, T16B, T4H, T8H,      T4S

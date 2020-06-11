@@ -37,6 +37,7 @@
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/gcArguments.hpp"
 #include "gc/shared/gcConfig.hpp"
+#include "gc/shared/gcLogPrecious.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
@@ -207,6 +208,7 @@ void Universe::oops_do(OopClosure* f) {
   f->do_oop((oop*)&_vm_exception);
   f->do_oop((oop*)&_reference_pending_list);
   debug_only(f->do_oop((oop*)&_fullgc_alot_dummy_array);)
+  ThreadsSMRSupport::exiting_threads_oops_do(f);
 }
 
 void LatestMethodCache::metaspace_pointers_do(MetaspaceClosure* it) {
@@ -668,9 +670,9 @@ jint universe_init() {
 
   TraceTime timer("Genesis", TRACETIME_LOG(Info, startuptime));
 
-  JavaClasses::compute_hard_coded_offsets();
-
   initialize_global_behaviours();
+
+  GCLogPrecious::initialize();
 
   GCConfig::arguments()->initialize_heap_sizes();
 
@@ -740,13 +742,9 @@ jint universe_init() {
 jint Universe::initialize_heap() {
   assert(_collectedHeap == NULL, "Heap already created");
   _collectedHeap = GCConfig::arguments()->create_heap();
-  jint status = _collectedHeap->initialize();
 
-  if (status == JNI_OK) {
-    log_info(gc)("Using %s", _collectedHeap->name());
-  }
-
-  return status;
+  log_info(gc)("Using %s", _collectedHeap->name());
+  return _collectedHeap->initialize();
 }
 
 void Universe::initialize_tlab() {
@@ -1123,12 +1121,10 @@ void Universe::verify(VerifyOption option, const char* prefix) {
     log_debug(gc, verify)("SystemDictionary");
     SystemDictionary::verify();
   }
-#ifndef PRODUCT
   if (should_verify_subset(Verify_ClassLoaderDataGraph)) {
     log_debug(gc, verify)("ClassLoaderDataGraph");
     ClassLoaderDataGraph::verify();
   }
-#endif
   if (should_verify_subset(Verify_MetaspaceUtils)) {
     log_debug(gc, verify)("MetaspaceUtils");
     MetaspaceUtils::verify_free_chunks();

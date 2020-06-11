@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -54,8 +54,6 @@ import static jdk.incubator.jpackage.internal.StandardBundlerParam.LICENSE_FILE;
 import static jdk.incubator.jpackage.internal.StandardBundlerParam.TEMP_ROOT;
 import static jdk.incubator.jpackage.internal.StandardBundlerParam.VENDOR;
 import static jdk.incubator.jpackage.internal.StandardBundlerParam.VERSION;
-import static jdk.incubator.jpackage.internal.WindowsBundlerParam.INSTALLDIR_CHOOSER;
-import static jdk.incubator.jpackage.internal.WindowsBundlerParam.INSTALLER_FILE_NAME;
 
 /**
  * WinMsiBundler
@@ -105,15 +103,8 @@ import static jdk.incubator.jpackage.internal.WindowsBundlerParam.INSTALLER_FILE
  */
 public class WinMsiBundler  extends AbstractBundler {
 
-    public static final BundlerParamInfo<WinAppBundler> APP_BUNDLER =
-            new WindowsBundlerParam<>(
-            "win.app.bundler",
-            WinAppBundler.class,
-            params -> new WinAppBundler(),
-            null);
-
     public static final BundlerParamInfo<File> MSI_IMAGE_DIR =
-            new WindowsBundlerParam<>(
+            new StandardBundlerParam<>(
             "win.msi.imageDir",
             File.class,
             params -> {
@@ -124,7 +115,7 @@ public class WinMsiBundler  extends AbstractBundler {
             (s, p) -> null);
 
     public static final BundlerParamInfo<File> WIN_APP_IMAGE =
-            new WindowsBundlerParam<>(
+            new StandardBundlerParam<>(
             "win.app.image",
             File.class,
             null,
@@ -151,11 +142,40 @@ public class WinMsiBundler  extends AbstractBundler {
             );
 
     private static final BundlerParamInfo<String> UPGRADE_UUID =
-            new WindowsBundlerParam<>(
+            new StandardBundlerParam<>(
             Arguments.CLIOptions.WIN_UPGRADE_UUID.getId(),
             String.class,
             null,
             (s, p) -> s);
+
+    private static final BundlerParamInfo<String> INSTALLER_FILE_NAME =
+            new StandardBundlerParam<> (
+            "win.installerName",
+            String.class,
+            params -> {
+                String nm = APP_NAME.fetchFrom(params);
+                if (nm == null) return null;
+
+                String version = VERSION.fetchFrom(params);
+                if (version == null) {
+                    return nm;
+                } else {
+                    return nm + "-" + version;
+                }
+            },
+            (s, p) -> s);
+
+    private static final BundlerParamInfo<Boolean> INSTALLDIR_CHOOSER =
+            new StandardBundlerParam<> (
+            Arguments.CLIOptions.WIN_DIR_CHOOSER.getId(),
+            Boolean.class,
+            params -> Boolean.FALSE,
+            (s, p) -> Boolean.valueOf(s)
+    );
+
+    public WinMsiBundler() {
+        appImageBundler = new WinAppBundler().setDependentTask(true);
+    }
 
     @Override
     public String getName() {
@@ -170,12 +190,6 @@ public class WinMsiBundler  extends AbstractBundler {
     @Override
     public String getBundleType() {
         return "INSTALLER";
-    }
-
-    @Override
-    public File execute(Map<String, ? super Object> params,
-            File outputParentDir) throws PackagerException {
-        return bundle(params, outputParentDir);
     }
 
     @Override
@@ -226,6 +240,8 @@ public class WinMsiBundler  extends AbstractBundler {
     public boolean validate(Map<String, ? super Object> params)
             throws ConfigException {
         try {
+            appImageBundler.validate(params);
+
             if (wixToolset == null) {
                 wixToolset = WixTool.toolset();
             }
@@ -248,14 +264,12 @@ public class WinMsiBundler  extends AbstractBundler {
 
             /********* validate bundle parameters *************/
 
-            String version = PRODUCT_VERSION.fetchFrom(params);
-            if (!isVersionStringValid(version)) {
-                throw new ConfigException(
-                        MessageFormat.format(I18N.getString(
-                                "error.version-string-wrong-format"), version),
-                        MessageFormat.format(I18N.getString(
-                                "error.version-string-wrong-format.advice"),
-                                PRODUCT_VERSION.getID()));
+            try {
+                String version = PRODUCT_VERSION.fetchFrom(params);
+                MsiVersion.of(version);
+            } catch (IllegalArgumentException ex) {
+                throw new ConfigException(ex.getMessage(), I18N.getString(
+                        "error.version-string-wrong-format.advice"), ex);
             }
 
             FileAssociation.verify(FileAssociation.fetchFrom(params));
@@ -270,57 +284,6 @@ public class WinMsiBundler  extends AbstractBundler {
         }
     }
 
-    // https://msdn.microsoft.com/en-us/library/aa370859%28v=VS.85%29.aspx
-    // The format of the string is as follows:
-    //     major.minor.build
-    // The first field is the major version and has a maximum value of 255.
-    // The second field is the minor version and has a maximum value of 255.
-    // The third field is called the build version or the update version and
-    // has a maximum value of 65,535.
-    static boolean isVersionStringValid(String v) {
-        if (v == null) {
-            return true;
-        }
-
-        String p[] = v.split("\\.");
-        if (p.length > 3) {
-            Log.verbose(I18N.getString(
-                    "message.version-string-too-many-components"));
-            return false;
-        }
-
-        try {
-            int val = Integer.parseInt(p[0]);
-            if (val < 0 || val > 255) {
-                Log.verbose(I18N.getString(
-                        "error.version-string-major-out-of-range"));
-                return false;
-            }
-            if (p.length > 1) {
-                val = Integer.parseInt(p[1]);
-                if (val < 0 || val > 255) {
-                    Log.verbose(I18N.getString(
-                            "error.version-string-minor-out-of-range"));
-                    return false;
-                }
-            }
-            if (p.length > 2) {
-                val = Integer.parseInt(p[2]);
-                if (val < 0 || val > 65535) {
-                    Log.verbose(I18N.getString(
-                            "error.version-string-build-out-of-range"));
-                    return false;
-                }
-            }
-        } catch (NumberFormatException ne) {
-            Log.verbose(I18N.getString("error.version-string-part-not-number"));
-            Log.verbose(ne);
-            return false;
-        }
-
-        return true;
-    }
-
     private void prepareProto(Map<String, ? super Object> params)
                 throws PackagerException, IOException {
         File appImage = StandardBundlerParam.getPredefinedAppImage(params);
@@ -333,8 +296,8 @@ public class WinMsiBundler  extends AbstractBundler {
             // copy everything from appImage dir into appDir/name
             IOUtils.copyRecursive(appImage.toPath(), appDir.toPath());
         } else {
-            appDir = APP_BUNDLER.fetchFrom(params).doBundle(params,
-                    MSI_IMAGE_DIR.fetchFrom(params), true);
+            appDir = appImageBundler.execute(params, MSI_IMAGE_DIR.fetchFrom(
+                    params));
         }
 
         // Configure installer icon
@@ -368,10 +331,11 @@ public class WinMsiBundler  extends AbstractBundler {
         }
     }
 
-    public File bundle(Map<String, ? super Object> params, File outdir)
-            throws PackagerException {
+    @Override
+    public File execute(Map<String, ? super Object> params,
+            File outputParentDir) throws PackagerException {
 
-        IOUtils.writableOutputDir(outdir.toPath());
+        IOUtils.writableOutputDir(outputParentDir.toPath());
 
         Path imageDir = MSI_IMAGE_DIR.fetchFrom(params).toPath();
         try {
@@ -393,14 +357,14 @@ public class WinMsiBundler  extends AbstractBundler {
             .setEnvironmentVariable("JpAppImageDir", imageDir.toAbsolutePath().toString())
             .run(params);
 
-            return buildMSI(params, wixVars, outdir);
+            return buildMSI(params, wixVars, outputParentDir);
         } catch (IOException ex) {
             Log.verbose(ex);
             throw new PackagerException(ex);
         }
     }
 
-    Map<String, String> prepareMainProjectFile(
+    private Map<String, String> prepareMainProjectFile(
             Map<String, ? super Object> params) throws IOException {
         Map<String, String> data = new HashMap<>();
 
@@ -518,7 +482,7 @@ public class WinMsiBundler  extends AbstractBundler {
         return msiOut;
     }
 
-    public static void ensureByMutationFileIsRTF(File f) {
+    private static void ensureByMutationFileIsRTF(File f) {
         if (f == null || !f.isFile()) return;
 
         try {
@@ -591,6 +555,7 @@ public class WinMsiBundler  extends AbstractBundler {
 
     private Path installerIcon;
     private Map<WixTool, WixTool.ToolInfo> wixToolset;
+    private AppImageBundler appImageBundler;
     private WixSourcesBuilder wixSourcesBuilder = new WixSourcesBuilder();
 
 }

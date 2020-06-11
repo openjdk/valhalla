@@ -49,6 +49,8 @@
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/isGCActiveMark.hpp"
+#include "gc/shared/oopStorage.inline.hpp"
+#include "gc/shared/oopStorageSet.hpp"
 #include "gc/shared/referencePolicy.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
@@ -1865,7 +1867,7 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
         }
 
         // Calculate optimal free space amounts
-        assert(young_gen->max_size() >
+        assert(young_gen->max_gen_size() >
           young_gen->from_space()->capacity_in_bytes() +
           young_gen->to_space()->capacity_in_bytes(),
           "Sizes of space in young gen are out-of-bounds");
@@ -1875,7 +1877,7 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
         size_t old_live = old_gen->used_in_bytes();
         size_t cur_eden = young_gen->eden_space()->capacity_in_bytes();
         size_t max_old_gen_size = old_gen->max_gen_size();
-        size_t max_eden_size = young_gen->max_size() -
+        size_t max_eden_size = young_gen->max_gen_size() -
           young_gen->from_space()->capacity_in_bytes() -
           young_gen->to_space()->capacity_in_bytes();
 
@@ -2030,8 +2032,8 @@ static void mark_from_roots_work(ParallelRootType::Value root_type, uint worker_
       JvmtiExport::oops_do(&mark_and_push_closure);
       break;
 
-    case ParallelRootType::system_dictionary:
-      SystemDictionary::oops_do(&mark_and_push_closure);
+    case ParallelRootType::vm_global:
+      OopStorageSet::vm_global()->oops_do(&mark_and_push_closure);
       break;
 
     case ParallelRootType::class_loader_data:
@@ -2239,7 +2241,7 @@ void PSParallelCompact::adjust_roots(ParCompactionManager* cm) {
   ObjectSynchronizer::oops_do(&oop_closure);
   Management::oops_do(&oop_closure);
   JvmtiExport::oops_do(&oop_closure);
-  SystemDictionary::oops_do(&oop_closure);
+  OopStorageSet::vm_global()->oops_do(&oop_closure);
   CLDToOopClosure cld_closure(&oop_closure, ClassLoaderData::_claim_strong);
   ClassLoaderDataGraph::cld_do(&cld_closure);
 

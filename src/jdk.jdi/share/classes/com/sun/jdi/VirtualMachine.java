@@ -214,17 +214,9 @@ public interface VirtualMachine extends Mirror {
      * attempting to add a method will throw this exception.
      * <LI>If {@link #canUnrestrictedlyRedefineClasses()
      *            canUnrestrictedlyRedefineClasses()}
-     * is false, attempting any of the following will throw
-     * this exception
-     *   <UL>
-     *   <LI>changing the schema (the fields)
-     *   <LI>changing the hierarchy (superclasses, interfaces)
-     *   <LI>deleting a method
-     *   <LI>changing class modifiers
-     *   <LI>changing method modifiers
-     *   <LI>changing the {@code NestHost}, {@code NestMembers}, or {@code Record} class attributes
-     *   </UL>
-     * </UL>
+     * is false attempting any of the unsupported class file changes described
+     * in <a href="{@docRoot}/../specs/jvmti.html#RedefineClasses">
+     * JVM TI RedefineClasses</a> will throw this exception.
      *
      * @throws java.lang.NoClassDefFoundError if the bytes
      * don't correspond to the reference type (the names
@@ -586,12 +578,14 @@ public interface VirtualMachine extends Mirror {
      * Determines if the target VM supports the addition
      * of methods when performing class redefinition.
      * @see #redefineClasses
+     * @deprecated A JVM TI based JDWP back-end will never set this capability to true.
      *
      * @return <code>true</code> if the feature is supported,
      * <code>false</code> otherwise.
      *
      * @since 1.4
      */
+    @Deprecated(since="15")
     boolean canAddMethod();
 
     /**
@@ -599,12 +593,14 @@ public interface VirtualMachine extends Mirror {
      * changes when performing class redefinition that are
      * otherwise restricted by {@link #redefineClasses}.
      * @see #redefineClasses
+     * @deprecated A JVM TI based JDWP back-end will never set this capability to true.
      *
      * @return <code>true</code> if the feature is supported,
      * <code>false</code> otherwise.
      *
      * @since 1.4
      */
+    @Deprecated(since="15")
     boolean canUnrestrictedlyRedefineClasses();
 
     /**

@@ -33,7 +33,7 @@ import java.util.Scanner;
 
 import jdk.test.lib.Asserts;
 import jdk.test.lib.JDKToolLauncher;
-import jdk.test.lib.Platform;
+import jdk.test.lib.Utils;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.SA.SATestUtils;
@@ -41,7 +41,6 @@ import jdk.test.lib.SA.SATestUtils;
 /**
  * @test
  * @bug 6313383
- * @key regression
  * @requires vm.hasSA
  * @summary Regression test for hprof export issue due to large heaps (>2G)
  * @library /test/lib
@@ -98,6 +97,7 @@ public class JMapHProfLargeHeapTest {
 
             JDKToolLauncher jMapLauncher = JDKToolLauncher
                     .createUsingTestJDK("jhsdb");
+            jMapLauncher.addVMArgs(Utils.getTestJavaOpts());
             jMapLauncher.addToolArg("jmap");
             jMapLauncher.addToolArg("--binaryheap");
             jMapLauncher.addToolArg("--pid");

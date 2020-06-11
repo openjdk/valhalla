@@ -1050,8 +1050,8 @@ static void simple_move32(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
   if (src.first()->is_stack()) {
     if (dst.first()->is_stack()) {
       // stack to stack
-      // __ ld(FP, reg2offset(src.first()) + STACK_BIAS, L5);
-      // __ st(L5, SP, reg2offset(dst.first()) + STACK_BIAS);
+      // __ ld(FP, reg2offset(src.first()), L5);
+      // __ st(L5, SP, reg2offset(dst.first()));
       __ movl2ptr(rax, Address(rbp, reg2offset_in(src.first())));
       __ movptr(Address(rsp, reg2offset_out(dst.first())), rax);
     } else {
@@ -2128,7 +2128,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
     if (UseBiasedLocking) {
       // Note that oop_handle_reg is trashed during this call
-      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, oop_handle_reg, false, lock_done, &slow_path_lock);
+      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, oop_handle_reg, noreg, false, lock_done, &slow_path_lock);
     }
 
     // Load immediate 1 into swap_reg %rax,

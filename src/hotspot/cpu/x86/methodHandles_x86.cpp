@@ -53,7 +53,7 @@ void MethodHandles::load_klass_from_Class(MacroAssembler* _masm, Register klass_
   if (VerifyMethodHandles)
     verify_klass(_masm, klass_reg, SystemDictionary::WK_KLASS_ENUM_NAME(java_lang_Class),
                  "MH argument is a Class");
-  __ movptr(klass_reg, Address(klass_reg, java_lang_Class::klass_offset_in_bytes()));
+  __ movptr(klass_reg, Address(klass_reg, java_lang_Class::klass_offset()));
 }
 
 #ifdef ASSERT
@@ -74,7 +74,7 @@ void MethodHandles::verify_klass(MacroAssembler* _masm,
   Klass* klass = SystemDictionary::well_known_klass(klass_id);
   Register temp = rdi;
   Register temp2 = noreg;
-  LP64_ONLY(temp2 = rscratch1);  // used by MacroAssembler::cmpptr
+  LP64_ONLY(temp2 = rscratch1);  // used by MacroAssembler::cmpptr and load_klass
   Label L_ok, L_bad;
   BLOCK_COMMENT("verify_klass {");
   __ verify_oop(obj);
@@ -82,7 +82,7 @@ void MethodHandles::verify_klass(MacroAssembler* _masm,
   __ jcc(Assembler::zero, L_bad);
   __ push(temp); if (temp2 != noreg)  __ push(temp2);
 #define UNPUSH { if (temp2 != noreg)  __ pop(temp2);  __ pop(temp); }
-  __ load_klass(temp, obj);
+  __ load_klass(temp, obj, temp2);
   __ cmpptr(temp, ExternalAddress((address) klass_addr));
   __ jcc(Assembler::equal, L_ok);
   intptr_t super_check_offset = klass->super_check_offset();
@@ -100,7 +100,7 @@ void MethodHandles::verify_klass(MacroAssembler* _masm,
 void MethodHandles::verify_ref_kind(MacroAssembler* _masm, int ref_kind, Register member_reg, Register temp) {
   Label L;
   BLOCK_COMMENT("verify_ref_kind {");
-  __ movl(temp, Address(member_reg, NONZERO(java_lang_invoke_MemberName::flags_offset_in_bytes())));
+  __ movl(temp, Address(member_reg, NONZERO(java_lang_invoke_MemberName::flags_offset())));
   __ shrl(temp, java_lang_invoke_MemberName::MN_REFERENCE_KIND_SHIFT);
   __ andl(temp, java_lang_invoke_MemberName::MN_REFERENCE_KIND_MASK);
   __ cmpl(temp, ref_kind);
@@ -175,14 +175,14 @@ void MethodHandles::jump_to_lambda_form(MacroAssembler* _masm,
 
   // Load the invoker, as MH -> MH.form -> LF.vmentry
   __ verify_oop(recv);
-  __ load_heap_oop(method_temp, Address(recv, NONZERO(java_lang_invoke_MethodHandle::form_offset_in_bytes())), temp2);
+  __ load_heap_oop(method_temp, Address(recv, NONZERO(java_lang_invoke_MethodHandle::form_offset())), temp2);
   __ verify_oop(method_temp);
-  __ load_heap_oop(method_temp, Address(method_temp, NONZERO(java_lang_invoke_LambdaForm::vmentry_offset_in_bytes())), temp2);
+  __ load_heap_oop(method_temp, Address(method_temp, NONZERO(java_lang_invoke_LambdaForm::vmentry_offset())), temp2);
   __ verify_oop(method_temp);
-  __ load_heap_oop(method_temp, Address(method_temp, NONZERO(java_lang_invoke_MemberName::method_offset_in_bytes())), temp2);
+  __ load_heap_oop(method_temp, Address(method_temp, NONZERO(java_lang_invoke_MemberName::method_offset())), temp2);
   __ verify_oop(method_temp);
   __ access_load_at(T_ADDRESS, IN_HEAP, method_temp,
-                    Address(method_temp, NONZERO(java_lang_invoke_ResolvedMethodName::vmtarget_offset_in_bytes())),
+                    Address(method_temp, NONZERO(java_lang_invoke_ResolvedMethodName::vmtarget_offset())),
                     noreg, noreg);
 
   if (VerifyMethodHandles && !for_compiler_entry) {
@@ -342,10 +342,10 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
                    "MemberName required for invokeVirtual etc.");
     }
 
-    Address member_clazz(    member_reg, NONZERO(java_lang_invoke_MemberName::clazz_offset_in_bytes()));
-    Address member_vmindex(  member_reg, NONZERO(java_lang_invoke_MemberName::vmindex_offset_in_bytes()));
-    Address member_vmtarget( member_reg, NONZERO(java_lang_invoke_MemberName::method_offset_in_bytes()));
-    Address vmtarget_method( rbx_method, NONZERO(java_lang_invoke_ResolvedMethodName::vmtarget_offset_in_bytes()));
+    Address member_clazz(    member_reg, NONZERO(java_lang_invoke_MemberName::clazz_offset()));
+    Address member_vmindex(  member_reg, NONZERO(java_lang_invoke_MemberName::vmindex_offset()));
+    Address member_vmtarget( member_reg, NONZERO(java_lang_invoke_MemberName::method_offset()));
+    Address vmtarget_method( rbx_method, NONZERO(java_lang_invoke_ResolvedMethodName::vmtarget_offset()));
 
     Register temp1_recv_klass = temp1;
     if (iid != vmIntrinsics::_linkToStatic) {
@@ -356,7 +356,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
       } else {
         // load receiver klass itself
         __ null_check(receiver_reg, oopDesc::klass_offset_in_bytes());
-        __ load_klass(temp1_recv_klass, receiver_reg);
+        __ load_klass(temp1_recv_klass, receiver_reg, temp2);
         __ verify_klass_ptr(temp1_recv_klass);
       }
       BLOCK_COMMENT("check_receiver {");
@@ -364,7 +364,7 @@ void MethodHandles::generate_method_handle_dispatch(MacroAssembler* _masm,
       // Check the receiver against the MemberName.clazz
       if (VerifyMethodHandles && iid == vmIntrinsics::_linkToSpecial) {
         // Did not load it above...
-        __ load_klass(temp1_recv_klass, receiver_reg);
+        __ load_klass(temp1_recv_klass, receiver_reg, temp2);
         __ verify_klass_ptr(temp1_recv_klass);
       }
       if (VerifyMethodHandles && iid != vmIntrinsics::_linkToInterface) {
@@ -506,12 +506,23 @@ void trace_method_handle_stub(const char* adaptername,
                 p2i(mh), p2i(entry_sp));
 
   if (Verbose) {
+    ResourceMark rm;
     tty->print_cr("Registers:");
     const int saved_regs_count = RegisterImpl::number_of_registers;
     for (int i = 0; i < saved_regs_count; i++) {
       Register r = as_Register(i);
       // The registers are stored in reverse order on the stack (by pusha).
+#ifdef AMD64
+      assert(RegisterImpl::number_of_registers == 16, "sanity");
+      if (r == rsp) {
+        // rsp is actually not stored by pusha(), compute the old rsp from saved_regs (rsp after pusha): saved_regs + 16 = old rsp
+        tty->print("%3s=" PTR_FORMAT, r->name(), (intptr_t)(&saved_regs[16]));
+      } else {
+        tty->print("%3s=" PTR_FORMAT, r->name(), saved_regs[((saved_regs_count - 1) - i)]);
+      }
+#else
       tty->print("%3s=" PTR_FORMAT, r->name(), saved_regs[((saved_regs_count - 1) - i)]);
+#endif
       if ((i + 1) % 4 == 0) {
         tty->cr();
       } else {
@@ -521,12 +532,11 @@ void trace_method_handle_stub(const char* adaptername,
     tty->cr();
 
     {
-     // dumping last frame with frame::describe
+      // dumping last frame with frame::describe
 
       JavaThread* p = JavaThread::active();
 
-      ResourceMark rm;
-      PRESERVE_EXCEPTION_MARK; // may not be needed by safer and unexpensive here
+      PRESERVE_EXCEPTION_MARK; // may not be needed but safer and inexpensive here
       FrameValues values;
 
       // Note: We want to allow trace_method_handle from any call site.
@@ -575,8 +585,7 @@ void trace_method_handle_stub(const char* adaptername,
     if (has_mh && oopDesc::is_oop(mh)) {
       mh->print();
       if (java_lang_invoke_MethodHandle::is_instance(mh)) {
-        if (java_lang_invoke_MethodHandle::form_offset_in_bytes() != 0)
-          java_lang_invoke_MethodHandle::form(mh)->print();
+        java_lang_invoke_MethodHandle::form(mh)->print();
       }
     }
   }

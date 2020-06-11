@@ -120,6 +120,11 @@ class SystemProperty : public PathString {
     }
     return false;
   }
+  void append_writeable_value(const char *value) {
+    if (writeable()) {
+      append_value(value);
+    }
+  }
 
   // Constructor
   SystemProperty(const char* key, const char* value, bool writeable, bool internal = false);
@@ -370,7 +375,7 @@ class Arguments : AllStatic {
   static void set_use_compressed_oops();
   static void set_use_compressed_klass_ptrs();
   static jint set_ergonomics_flags();
-  static void set_shared_spaces_flags();
+  static jint set_shared_spaces_flags_and_archive_paths();
   // limits the given memory size by the maximum amount of memory this process is
   // currently allowed to allocate or reserve.
   static julong limit_by_allocatable_memory(julong size);
@@ -389,8 +394,11 @@ class Arguments : AllStatic {
   static bool add_property(const char* prop, PropertyWriteable writeable=WriteableProperty,
                            PropertyInternal internal=ExternalProperty);
 
-  static bool create_property(const char* prop_name, const char* prop_value, PropertyInternal internal);
-  static bool create_numbered_property(const char* prop_base_name, const char* prop_value, unsigned int count);
+  // Used for module system related properties: converted from command-line flags.
+  // Basic properties are writeable as they operate as "last one wins" and will get overwritten.
+  // Numbered properties are never writeable, and always internal.
+  static bool create_module_property(const char* prop_name, const char* prop_value, PropertyInternal internal);
+  static bool create_numbered_module_property(const char* prop_base_name, const char* prop_value, unsigned int count);
 
   static int process_patch_mod_option(const char* patch_mod_tail, bool* patch_mod_javabase);
 
@@ -481,7 +489,7 @@ class Arguments : AllStatic {
 
   static char*  SharedArchivePath;
   static char*  SharedDynamicArchivePath;
-  static size_t _SharedBaseAddress; // The default value specified in globals.hpp
+  static size_t _default_SharedBaseAddress; // The default value specified in globals.hpp
   static int num_archives(const char* archive_path) NOT_CDS_RETURN_(0);
   static void extract_shared_archive_paths(const char* archive_path,
                                          char** base_archive_path,
@@ -564,7 +572,7 @@ class Arguments : AllStatic {
 
   static const char* GetSharedArchivePath() { return SharedArchivePath; }
   static const char* GetSharedDynamicArchivePath() { return SharedDynamicArchivePath; }
-  static size_t default_SharedBaseAddress() { return _SharedBaseAddress; }
+  static size_t default_SharedBaseAddress() { return _default_SharedBaseAddress; }
   // Java launcher properties
   static void process_sun_java_launcher_properties(JavaVMInitArgs* args);
 

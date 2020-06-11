@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -42,6 +43,7 @@ import jdk.jpackage.test.Functional.ThrowingConsumer;
 import jdk.jpackage.test.Functional.ThrowingSupplier;
 import jdk.jpackage.test.PackageTest.PackageHandlers;
 import org.xml.sax.SAXException;
+import org.w3c.dom.NodeList;
 
 public class MacHelper {
 
@@ -64,7 +66,11 @@ public class MacHelper {
                     cmd.outputBundle(), dmgImage));
             ThrowingConsumer.toConsumer(consumer).accept(dmgImage);
         } finally {
-            Executor.of("/usr/bin/hdiutil", "detach").addArgument(mountPoint).execute();
+            // detach might not work right away due to resource busy error, so
+            // repeat detach several times or fail. Try 10 times with 3 seconds
+            // delay.
+            Executor.of("/usr/bin/hdiutil", "detach").addArgument(mountPoint).
+                    executeAndRepeatUntilExitCode(0, 10, 3);
         }
     }
 
@@ -96,20 +102,27 @@ public class MacHelper {
             withExplodedDmg(cmd, dmgImage -> {
                 Executor.of("sudo", "cp", "-r")
                 .addArgument(dmgImage)
-                .addArgument("/Applications")
+                .addArgument(getInstallationDirectory(cmd).getParent())
                 .execute();
             });
         };
         dmg.unpackHandler = (cmd, destinationDir) -> {
-            Path[] unpackedFolder = new Path[1];
+            Path unpackDir = destinationDir.resolve(
+                    TKit.removeRootFromAbsolutePath(
+                            getInstallationDirectory(cmd)).getParent());
+            try {
+                Files.createDirectories(unpackDir);
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+
             withExplodedDmg(cmd, dmgImage -> {
                 Executor.of("cp", "-r")
                 .addArgument(dmgImage)
-                .addArgument(destinationDir)
+                .addArgument(unpackDir)
                 .execute();
-                unpackedFolder[0] = destinationDir.resolve(dmgImage.getFileName());
             });
-            return unpackedFolder[0];
+            return destinationDir;
         };
         dmg.uninstallHandler = cmd -> {
             cmd.verifyIsOfType(PackageType.MAC_DMG);
@@ -130,6 +143,32 @@ public class MacHelper {
             .addArgument(cmd.outputBundle())
             .addArguments("-target", "/")
             .execute();
+        };
+        pkg.unpackHandler = (cmd, destinationDir) -> {
+            cmd.verifyIsOfType(PackageType.MAC_PKG);
+            Executor.of("pkgutil", "--expand")
+            .addArgument(cmd.outputBundle())
+            .addArgument(destinationDir.resolve("data")) // We need non-existing folder
+            .execute();
+
+            final Path unpackRoot = destinationDir.resolve("unpacked");
+
+            Path installDir = TKit.removeRootFromAbsolutePath(
+                    getInstallationDirectory(cmd)).getParent();
+            final Path unpackDir = unpackRoot.resolve(installDir);
+            try {
+                Files.createDirectories(unpackDir);
+            } catch (IOException ex) {
+                throw new RuntimeException(ex);
+            }
+
+            Executor.of("tar", "-C")
+            .addArgument(unpackDir)
+            .addArgument("-xvf")
+            .addArgument(Path.of(destinationDir.toString(), "data",
+                                 cmd.name() + "-app.pkg", "Payload"))
+            .execute();
+            return unpackRoot;
         };
         pkg.uninstallHandler = cmd -> {
             cmd.verifyIsOfType(PackageType.MAC_PKG);
@@ -167,6 +206,40 @@ public class MacHelper {
                     "//string[preceding-sibling::key = \"%s\"][1]", keyName);
             return ThrowingSupplier.toSupplier(() -> (String) xPath.evaluate(
                     query, doc, XPathConstants.STRING)).get();
+        }
+
+        public Boolean queryBoolValue(String keyName) {
+            XPath xPath = XPathFactory.newInstance().newXPath();
+            // Query boolean element preceding <key> element
+            // with value equal to `keyName`
+            String query = String.format(
+                    "name(//*[preceding-sibling::key = \"%s\"])", keyName);
+            String value = ThrowingSupplier.toSupplier(() -> (String) xPath.evaluate(
+                    query, doc, XPathConstants.STRING)).get();
+            return Boolean.valueOf(value);
+        }
+
+        public List<String> queryArrayValue(String keyName) {
+            XPath xPath = XPathFactory.newInstance().newXPath();
+            // Query string array preceding <key> element with value equal to `keyName`
+            String query = String.format(
+                    "//array[preceding-sibling::key = \"%s\"]", keyName);
+            NodeList list = ThrowingSupplier.toSupplier(() -> (NodeList) xPath.evaluate(
+                    query, doc, XPathConstants.NODESET)).get();
+            if (list.getLength() != 1) {
+                throw new RuntimeException(
+                        String.format("Unable to find <array> element for key = \"%s\"]",
+                                keyName));
+            }
+
+            NodeList childList = list.item(0).getChildNodes();
+            List<String> values = new ArrayList(childList.getLength());
+            for (int i = 0; i < childList.getLength(); i++) {
+                if (childList.item(i).getNodeName().equals("string")) {
+                    values.add(childList.item(i).getTextContent());
+                }
+            }
+            return values;
         }
 
         PListWrapper(String xml) throws ParserConfigurationException,

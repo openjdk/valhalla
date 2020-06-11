@@ -209,6 +209,17 @@ final public class TKit {
         }
     }
 
+    static Path removeRootFromAbsolutePath(Path v) {
+        if (!v.isAbsolute()) {
+            throw new IllegalArgumentException();
+        }
+
+        if (v.getNameCount() == 0) {
+            return Path.of("");
+        }
+        return v.subpath(0, v.getNameCount());
+    }
+
     public static void createTextFile(Path propsFilename, Collection<String> lines) {
         createTextFile(propsFilename, lines.stream());
     }
@@ -397,6 +408,15 @@ final public class TKit {
 
         private String msg;
         private boolean contentsOnly;
+    }
+
+    public static boolean deleteIfExists(Path path) throws IOException {
+        if (isWindows()) {
+            if (path.toFile().exists()) {
+                Files.setAttribute(path, "dos:readonly", false);
+            }
+        }
+        return Files.deleteIfExists(path);
     }
 
     /**

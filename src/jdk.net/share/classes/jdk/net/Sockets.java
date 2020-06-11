@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -262,7 +262,8 @@ public class Sockets {
     @SuppressWarnings("removal")
     private static Map<Class<?>,Set<SocketOption<?>>> optionSets() {
         Map<Class<?>,Set<SocketOption<?>>> options = new HashMap<>();
-        boolean flowsupported = PlatformSocketOptions.get().flowSupported();
+        boolean incomingNapiIdsupported = PlatformSocketOptions.get().incomingNapiIdSupported();
+
         boolean reuseportsupported = isReusePortAvailable();
         // Socket
 
@@ -277,9 +278,6 @@ public class Sockets {
         set.add(StandardSocketOptions.SO_LINGER);
         set.add(StandardSocketOptions.IP_TOS);
         set.add(StandardSocketOptions.TCP_NODELAY);
-        if (flowsupported) {
-            set.add(ExtendedSocketOptions.SO_FLOW_SLA);
-        }
         if (QuickAck.available) {
             set.add(ExtendedSocketOptions.TCP_QUICKACK);
         }
@@ -287,6 +285,9 @@ public class Sockets {
             set.addAll(Set.of(ExtendedSocketOptions.TCP_KEEPCOUNT,
                     ExtendedSocketOptions.TCP_KEEPIDLE,
                     ExtendedSocketOptions.TCP_KEEPINTERVAL));
+        }
+        if (incomingNapiIdsupported) {
+            set.add(ExtendedSocketOptions.SO_INCOMING_NAPI_ID);
         }
         set = Collections.unmodifiableSet(set);
         options.put(Socket.class, set);
@@ -308,6 +309,9 @@ public class Sockets {
                     ExtendedSocketOptions.TCP_KEEPINTERVAL));
         }
         set.add(StandardSocketOptions.IP_TOS);
+        if (incomingNapiIdsupported) {
+            set.add(ExtendedSocketOptions.SO_INCOMING_NAPI_ID);
+        }
         set = Collections.unmodifiableSet(set);
         options.put(ServerSocket.class, set);
 
@@ -321,8 +325,8 @@ public class Sockets {
             set.add(StandardSocketOptions.SO_REUSEPORT);
         }
         set.add(StandardSocketOptions.IP_TOS);
-        if (flowsupported) {
-            set.add(ExtendedSocketOptions.SO_FLOW_SLA);
+        if (incomingNapiIdsupported) {
+            set.add(ExtendedSocketOptions.SO_INCOMING_NAPI_ID);
         }
         set = Collections.unmodifiableSet(set);
         options.put(DatagramSocket.class, set);
@@ -340,9 +344,6 @@ public class Sockets {
         set.add(StandardSocketOptions.IP_MULTICAST_IF);
         set.add(StandardSocketOptions.IP_MULTICAST_TTL);
         set.add(StandardSocketOptions.IP_MULTICAST_LOOP);
-        if (flowsupported) {
-            set.add(ExtendedSocketOptions.SO_FLOW_SLA);
-        }
         set = Collections.unmodifiableSet(set);
         options.put(MulticastSocket.class, set);
 

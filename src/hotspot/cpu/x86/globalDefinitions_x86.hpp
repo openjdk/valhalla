@@ -65,8 +65,14 @@ const bool CCallingConventionRequiresIntsAsLongs = false;
 #define INCLUDE_RTM_OPT 1
 #endif
 
-#if defined(LINUX) || defined(SOLARIS) || defined(__APPLE__)
+#if defined(LINUX) || defined(__APPLE__)
 #define SUPPORT_RESERVED_STACK_AREA
+#endif
+
+#if INCLUDE_JVMCI
+#define COMPRESSED_CLASS_POINTERS_DEPENDS_ON_COMPRESSED_OOPS (EnableJVMCI || UseAOT)
+#else
+#define COMPRESSED_CLASS_POINTERS_DEPENDS_ON_COMPRESSED_OOPS false
 #endif
 
 #endif // CPU_X86_GLOBALDEFINITIONS_X86_HPP

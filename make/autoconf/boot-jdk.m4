@@ -74,7 +74,8 @@ AC_DEFUN([BOOTJDK_DO_CHECK],
           BOOT_JDK_FOUND=no
         else
           # Oh, this is looking good! We probably have found a proper JDK. Is it the correct version?
-          BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java$EXE_SUFFIX" $USER_BOOT_JDK_OPTIONS -version 2>&1 | $HEAD -n 1`
+          # Additional [] needed to keep m4 from mangling shell constructs.
+          [ BOOT_JDK_VERSION=`"$BOOT_JDK/bin/java$EXE_SUFFIX" $USER_BOOT_JDK_OPTIONS -version 2>&1 | $AWK '/version \"[0-9a-zA-Z\._\-]+\"/{print $ 0; exit;}'` ]
           if [ [[ "$BOOT_JDK_VERSION" =~ "Picked up" ]] ]; then
             AC_MSG_NOTICE([You have _JAVA_OPTIONS or JAVA_TOOL_OPTIONS set. This can mess up the build. Please use --with-boot-jdk-jvmargs instead.])
             AC_MSG_NOTICE([Java reports: "$BOOT_JDK_VERSION".])
@@ -380,21 +381,6 @@ AC_DEFUN_ONCE([BOOTJDK_SETUP_BOOT_JDK],
     BOOTJDK_USE_LOCAL_CDS=false
     AC_MSG_RESULT([no, -XX:SharedArchiveFile not supported])
   fi
-
-  # Check for jjs in bootjdk
-  UTIL_SETUP_TOOL(JJS,
-  [
-    AC_MSG_CHECKING([for jjs in Boot JDK])
-    JJS=$BOOT_JDK/bin/jjs
-    if test ! -x $JJS; then
-      AC_MSG_RESULT(not found)
-      JJS=""
-      AC_MSG_NOTICE([Cannot use pandoc without jjs])
-      ENABLE_PANDOC=false
-    fi
-    AC_MSG_RESULT(ok)
-    AC_SUBST(JJS)
-  ])
 ])
 
 AC_DEFUN_ONCE([BOOTJDK_SETUP_BOOT_JDK_ARGUMENTS],
@@ -529,7 +515,8 @@ AC_DEFUN([BOOTJDK_CHECK_BUILD_JDK],
         BUILD_JDK_FOUND=no
       else
         # Oh, this is looking good! We probably have found a proper JDK. Is it the correct version?
-        BUILD_JDK_VERSION=`"$BUILD_JDK/bin/java" -version 2>&1 | $HEAD -n 1`
+        # Additional [] needed to keep m4 from mangling shell constructs.
+        [ BUILD_JDK_VERSION=`"$BUILD_JDK/bin/java" -version 2>&1 | $AWK '/version \"[0-9a-zA-Z\._\-]+\"/{print $ 0; exit;}'` ]
 
         # Extra M4 quote needed to protect [] in grep expression.
         [FOUND_CORRECT_VERSION=`echo $BUILD_JDK_VERSION | $EGREP "\"$VERSION_FEATURE([\.+-].*)?\""`]

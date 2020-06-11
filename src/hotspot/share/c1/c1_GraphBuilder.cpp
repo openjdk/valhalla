@@ -38,6 +38,7 @@
 #include "compiler/compileBroker.hpp"
 #include "compiler/compilerEvent.hpp"
 #include "interpreter/bytecode.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -712,10 +713,10 @@ GraphBuilder::ScopeData::ScopeData(ScopeData* parent)
   if (parent != NULL) {
     _max_inline_size = (intx) ((float) NestedInliningSizeRatio * (float) parent->max_inline_size() / 100.0f);
   } else {
-    _max_inline_size = MaxInlineSize;
+    _max_inline_size = C1MaxInlineSize;
   }
-  if (_max_inline_size < MaxTrivialSize) {
-    _max_inline_size = MaxTrivialSize;
+  if (_max_inline_size < C1MaxTrivialSize) {
+    _max_inline_size = C1MaxTrivialSize;
   }
 }
 
@@ -1813,7 +1814,12 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         if (!const_oop->is_null_object() && const_oop->is_loaded()) {
           ciConstant field_value = field->constant_value_of(const_oop);
           if (field_value.is_valid()) {
-            constant = make_constant(field_value, field);
+            if (field->is_flattenable() && field_value.is_null_or_zero()) {
+              // Non-flattened but flattenable inline type field. Replace null by the default value.
+              constant = new Constant(new InstanceConstant(field->type()->as_value_klass()->default_value_instance()));
+            } else {
+              constant = make_constant(field_value, field);
+            }
             // For CallSite objects add a dependency for invalidation of the optimization.
             if (field->is_call_site_target()) {
               ciCallSite* call_site = const_oop->as_call_site();
@@ -2320,23 +2326,6 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
   Value recv = has_receiver ? apop() : NULL;
   int vtable_index = Method::invalid_vtable_index;
 
-#ifdef SPARC
-  // Currently only supported on Sparc.
-  // The UseInlineCaches only controls dispatch to invokevirtuals for
-  // loaded classes which we weren't able to statically bind.
-  if (!UseInlineCaches && target->is_loaded() && code == Bytecodes::_invokevirtual
-      && !target->can_be_statically_bound()) {
-    // Find a vtable index if one is available
-    // For arrays, callee_holder is Object. Resolving the call with
-    // Object would allow an illegal call to finalize() on an
-    // array. We use holder instead: illegal calls to finalize() won't
-    // be compiled as vtable calls (IC call resolution will catch the
-    // illegal call) and the few legal calls on array types won't be
-    // either.
-    vtable_index = target->resolve_vtable_index(calling_klass, holder);
-  }
-#endif
-
   // A null check is required here (when there is a receiver) for any of the following cases
   // - invokespecial, always need a null check.
   // - invokevirtual, when the target is final and loaded. Calls to final targets will become optimized
@@ -2413,8 +2402,8 @@ void GraphBuilder::new_instance(int klass_index) {
 
 void GraphBuilder::default_value(int klass_index) {
   bool will_link;
-  ciValueKlass* vk = stream()->get_klass(will_link)->as_value_klass();
   if (!stream()->is_unresolved_klass()) {
+    ciValueKlass* vk = stream()->get_klass(will_link)->as_value_klass();
     apush(append(new Constant(new InstanceConstant(vk->default_value_instance()))));
   } else {
     ValueStack* state_before = copy_state_before();
@@ -4098,8 +4087,8 @@ bool GraphBuilder::try_inline_full(ciMethod* callee, bool holder_known, bool ign
   // now perform tests that are based on flag settings
   bool inlinee_by_directive = compilation()->directive()->should_inline(callee);
   if (callee->force_inline() || inlinee_by_directive) {
-    if (inline_level() > MaxForceInlineLevel                    ) INLINE_BAILOUT("MaxForceInlineLevel");
-    if (recursive_inline_level(callee) > MaxRecursiveInlineLevel) INLINE_BAILOUT("recursive inlining too deep");
+    if (inline_level() > MaxForceInlineLevel                      ) INLINE_BAILOUT("MaxForceInlineLevel");
+    if (recursive_inline_level(callee) > C1MaxRecursiveInlineLevel) INLINE_BAILOUT("recursive inlining too deep");
 
     const char* msg = "";
     if (callee->force_inline())  msg = "force inline by annotation";
@@ -4107,9 +4096,15 @@ bool GraphBuilder::try_inline_full(ciMethod* callee, bool holder_known, bool ign
     print_inlining(callee, msg);
   } else {
     // use heuristic controls on inlining
-    if (inline_level() > MaxInlineLevel                         ) INLINE_BAILOUT("inlining too deep");
-    if (recursive_inline_level(callee) > MaxRecursiveInlineLevel) INLINE_BAILOUT("recursive inlining too deep");
+    if (inline_level() > C1MaxInlineLevel                       ) INLINE_BAILOUT("inlining too deep");
+    int callee_recursive_level = recursive_inline_level(callee);
+    if (callee_recursive_level > C1MaxRecursiveInlineLevel      ) INLINE_BAILOUT("recursive inlining too deep");
     if (callee->code_size_for_inlining() > max_inline_size()    ) INLINE_BAILOUT("callee is too large");
+    // Additional condition to limit stack usage for non-recursive calls.
+    if ((callee_recursive_level == 0) &&
+        (callee->max_stack() + callee->max_locals() - callee->size_of_parameters() > C1InlineStackLimit)) {
+      INLINE_BAILOUT("callee uses too much stack");
+    }
 
     // don't inline throwable methods unless the inlining tree is rooted in a throwable class
     if (callee->name() == ciSymbol::object_initializer_name() &&
@@ -4342,7 +4337,7 @@ bool GraphBuilder::try_method_handle_inline(ciMethod* callee, bool ignore_return
           if (ciMethod::is_consistent_info(callee, target)) {
             Bytecodes::Code bc = target->is_static() ? Bytecodes::_invokestatic : Bytecodes::_invokevirtual;
             ignore_return = ignore_return || (callee->return_type()->is_void() && !target->return_type()->is_void());
-            if (try_inline(target, /*holder_known*/ true, ignore_return, bc)) {
+            if (try_inline(target, /*holder_known*/ !callee->is_static(), ignore_return, bc)) {
               return true;
             }
           } else {
@@ -4408,7 +4403,7 @@ bool GraphBuilder::try_method_handle_inline(ciMethod* callee, bool ignore_return
           // We don't do CHA here so only inline static and statically bindable methods.
           if (target->is_static() || target->can_be_statically_bound()) {
             Bytecodes::Code bc = target->is_static() ? Bytecodes::_invokestatic : Bytecodes::_invokevirtual;
-            if (try_inline(target, /*holder_known*/ true, ignore_return, bc)) {
+            if (try_inline(target, /*holder_known*/ !callee->is_static(), ignore_return, bc)) {
               return true;
             }
           } else {

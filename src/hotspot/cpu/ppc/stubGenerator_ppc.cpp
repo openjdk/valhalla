@@ -547,7 +547,7 @@ class StubGenerator: public StubCodeGenerator {
     address frame_complete_pc = __ pc();
 
     if (restore_saved_exception_pc) {
-      __ unimplemented("StubGenerator::throw_exception with restore_saved_exception_pc", 74);
+      __ unimplemented("StubGenerator::throw_exception with restore_saved_exception_pc");
     }
 
     // Note that we always have a runtime stub frame on the top of
@@ -921,7 +921,7 @@ class StubGenerator: public StubCodeGenerator {
   inline void assert_positive_int(Register count) {
 #ifdef ASSERT
     __ srdi_(R0, count, 31);
-    __ asm_assert_eq("missing zero extend", 0xAFFE);
+    __ asm_assert_eq("missing zero extend");
 #endif
   }
 
@@ -2181,7 +2181,7 @@ class StubGenerator: public StubCodeGenerator {
     // Overlaps if Src before dst and distance smaller than size.
     // Branch to forward copy routine otherwise.
     __ blt(CCR0, no_overlap);
-    __ stop("overlap in checkcast_copy", 0x9543);
+    __ stop("overlap in checkcast_copy");
     __ bind(no_overlap);
     }
 #endif
@@ -3577,6 +3577,14 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_crc32c_table_addr = StubRoutines::generate_crc_constants(REVERSE_CRC32C_POLY);
       StubRoutines::_updateBytesCRC32C = generate_CRC32_updateBytes(true);
     }
+
+    // Safefetch stubs.
+    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
+                                                       &StubRoutines::_safefetch32_fault_pc,
+                                                       &StubRoutines::_safefetch32_continuation_pc);
+    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
+                                                       &StubRoutines::_safefetchN_fault_pc,
+                                                       &StubRoutines::_safefetchN_continuation_pc);
   }
 
   void generate_all() {
@@ -3594,14 +3602,6 @@ class StubGenerator: public StubCodeGenerator {
 
     // arraycopy stubs used by compilers
     generate_arraycopy_stubs();
-
-    // Safefetch stubs.
-    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
-                                                       &StubRoutines::_safefetch32_fault_pc,
-                                                       &StubRoutines::_safefetch32_continuation_pc);
-    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
-                                                       &StubRoutines::_safefetchN_fault_pc,
-                                                       &StubRoutines::_safefetchN_continuation_pc);
 
 #ifdef COMPILER2
     if (UseMultiplyToLenIntrinsic) {

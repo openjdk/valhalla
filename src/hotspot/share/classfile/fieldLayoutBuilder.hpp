@@ -283,8 +283,6 @@ class FieldLayoutBuilder : public ResourceObj {
 
   void build_layout(TRAPS);
   void compute_regular_layout();
-  void compute_java_lang_ref_Reference_layout();
-  void compute_boxing_class_layout();
   void compute_inline_class_layout(TRAPS);
   void insert_contended_padding(LayoutRawBlock* slot);
 

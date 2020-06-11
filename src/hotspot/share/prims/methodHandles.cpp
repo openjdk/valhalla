@@ -1506,8 +1506,6 @@ JVM_END
 
 /// JVM_RegisterMethodHandleMethods
 
-#undef CS  // Solaris builds complain
-
 #define LANG "Ljava/lang/"
 #define JLINV "Ljava/lang/invoke/"
 
