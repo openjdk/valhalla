@@ -4673,7 +4673,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       if (!stopped()) {
         Node* obj_length = load_array_length(obj);
         Node* obj_size  = NULL;
-        Node* alloc_obj = new_array(obj_klass, obj_length, 0, &obj_size);  // no arguments to push
+        Node* alloc_obj = new_array(obj_klass, obj_length, 0, &obj_size, true);  // no arguments to push
 
         BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
         if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Parsing)) {

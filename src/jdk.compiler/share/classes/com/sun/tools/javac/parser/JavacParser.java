@@ -3492,6 +3492,13 @@ public class JavacParser implements Parser {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK15));
             }
         }
+        if (name == names.permits) {
+            if (allowSealedTypes) {
+                return Source.JDK15;
+            } else if (shouldWarn) {
+                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK15));
+            }
+        }
         return null;
     }
 
