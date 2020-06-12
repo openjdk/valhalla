@@ -4581,9 +4581,10 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
   if (con_type != NULL) {
     Node* con = makecon(con_type);
     assert(!field->is_flattenable() || (field->is_static() && !con_type->is_zero_type()), "sanity");
-    if (field->layout_type() == T_VALUETYPE && field->type()->as_value_klass()->is_scalarizable()) {
+    // Check type of constant which might be more precise
+    if (con_type->is_valuetypeptr() && con_type->value_klass()->is_scalarizable()) {
       // Load value type from constant oop
-      con = ValueTypeNode::make_from_oop(this, con, field->type()->as_value_klass());
+      con = ValueTypeNode::make_from_oop(this, con, con_type->value_klass());
     }
     return con;
   }

@@ -297,8 +297,10 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
         const Type* con_type = Type::make_from_constant(constant, /*require_const=*/ true);
         assert(con_type != NULL, "type not found");
         value = kit->gvn().transform(kit->makecon(con_type));
-        if (ft->is_valuetype() && !constant.as_object()->is_null_object()) {
+        // Check type of constant which might be more precise
+        if (con_type->is_valuetypeptr() && !con_type->is_zero_type()) {
           // Null-free, treat as flattenable
+          ft = con_type->value_klass();
           is_flattenable = true;
         }
       } else {

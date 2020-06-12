@@ -88,10 +88,28 @@ public class TestBoxing {
     }
 
     @Benchmark
+    public int box_intf_loop_sharp() {
+        int sum = 0;
+        for (int i = 0; i < ELEM_SIZE; i++) {
+            sum += BoxInterface.from_sharp(arr[i]).box().value();
+        }
+        return sum;
+    }
+
+    @Benchmark
     public int box_ref_loop() {
         int sum = 0;
         for (int i = 0; i < ELEM_SIZE; i++) {
             sum += BoxRef.from(arr[i]).box().value();
+        }
+        return sum;
+    }
+
+    @Benchmark
+    public int box_ref_loop_sharp() {
+        int sum = 0;
+        for (int i = 0; i < ELEM_SIZE; i++) {
+            sum += BoxRef.from_sharp(arr[i]).box().value();
         }
         return sum;
     }
@@ -105,11 +123,26 @@ public class TestBoxing {
         return sum;
     }
 
-    interface ValueBox {
-        long value();
+    @Benchmark
+    public int box_generic_loop_sharp() {
+        int sum = 0;
+        for (int i = 0; i < ELEM_SIZE; i++) {
+            sum += BoxGeneric.from_sharp(arr[i]).box().value();
+        }
+        return sum;
     }
 
-    static class PojoWrapper implements ValueBox {
+    interface ValueBox {
+        long value();
+
+        final static LongWrapper ZERO = new LongWrapper(0);
+
+        static ValueBox from(long i) {
+            return (i == 0L) ? ZERO : new LongWrapper(i);
+        }
+    }
+
+    static class PojoWrapper {
         final long i;
 
         PojoWrapper(long i) {
@@ -123,7 +156,7 @@ public class TestBoxing {
         final static PojoWrapper ZERO = new PojoWrapper(0);
 
         static PojoWrapper from(long i) {
-            return i == 0L ? ZERO : new PojoWrapper(i);
+            return (i == 0L) ? ZERO : new PojoWrapper(i);
         }
     }
 
@@ -141,14 +174,14 @@ public class TestBoxing {
         final static LongWrapper ZERO = new LongWrapper(0);
 
         static LongWrapper from(long i) {
-            return i == 0L ? ZERO : new LongWrapper(i);
+            return (i == 0L) ? ZERO : new LongWrapper(i);
         }
     }
 
     static class BoxInterface {
         final ValueBox inlineBox;
 
-        public BoxInterface(LongWrapper inlineBox) {
+        public BoxInterface(ValueBox inlineBox) {
             this.inlineBox = inlineBox;
         }
 
@@ -156,8 +189,13 @@ public class TestBoxing {
             return inlineBox;
         }
 
-        static BoxInterface from(long i) {
+        static BoxInterface from_sharp(long i) {
             LongWrapper box = LongWrapper.from(i);
+            return new BoxInterface(box);
+        }
+
+        static BoxInterface from(long i) {
+            ValueBox box = ValueBox.from(i);
             return new BoxInterface(box);
         }
     }
@@ -182,7 +220,7 @@ public class TestBoxing {
     static class BoxRef {
         final LongWrapper.ref inlineBox;
 
-        public BoxRef(LongWrapper inlineBox) {
+        public BoxRef(LongWrapper.ref inlineBox) {
             this.inlineBox = inlineBox;
         }
 
@@ -190,8 +228,13 @@ public class TestBoxing {
             return inlineBox;
         }
 
-        static BoxRef from(long i) {
+        static BoxRef from_sharp(long i) {
             LongWrapper box = LongWrapper.from(i);
+            return new BoxRef(box);
+        }
+
+        static BoxRef from(long i) {
+            LongWrapper.ref box = LongWrapper.from(i);
             return new BoxRef(box);
         }
     }
@@ -207,9 +250,14 @@ public class TestBoxing {
             return inlineBox;
         }
 
-        static BoxGeneric<LongWrapper.ref> from(long i) {
+        static BoxGeneric<LongWrapper.ref> from_sharp(long i) {
             LongWrapper box = LongWrapper.from(i);
             return new BoxGeneric<LongWrapper.ref>(box);
+        }
+
+        static BoxGeneric<ValueBox> from(long i) {
+            ValueBox box = ValueBox.from(i);
+            return new BoxGeneric<ValueBox>(box);
         }
     }
 }

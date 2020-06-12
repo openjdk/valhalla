@@ -2909,18 +2909,24 @@ public class TestLWorld extends ValueTypeTest {
 
     static interface WrapperInterface {
         long value();
+
+        final static WrapperInterface ZERO = new LongWrapper(0);
+
+        static WrapperInterface wrap(long val) {
+            return (val == 0L) ? ZERO : new LongWrapper(val);
+        }
     }
 
     static inline class LongWrapper implements WrapperInterface {
         final static LongWrapper ZERO = new LongWrapper(0);
-        long val;
+        private long val;
 
         LongWrapper(long val) {
             this.val = val;
         }
 
         static LongWrapper wrap(long val) {
-            return (val == 0L) ? LongWrapper.ZERO : new LongWrapper(val);
+            return (val == 0L) ? ZERO : new LongWrapper(val);
         }
 
         public long value() {
@@ -2931,36 +2937,48 @@ public class TestLWorld extends ValueTypeTest {
     static class InterfaceBox {
         WrapperInterface content;
 
-        InterfaceBox(long val) {
-            this.content = LongWrapper.wrap(val);
+        InterfaceBox(WrapperInterface content) {
+            this.content = content;
+        }
+
+        static InterfaceBox box_sharp(long val) {
+            return new InterfaceBox(LongWrapper.wrap(val));
         }
 
         static InterfaceBox box(long val) {
-            return new InterfaceBox(val);
+            return new InterfaceBox(WrapperInterface.wrap(val));
         }
     }
 
     static class ObjectBox {
         Object content;
 
-        ObjectBox(long val) {
-            this.content = LongWrapper.wrap(val);
+        ObjectBox(Object content) {
+            this.content = content;
+        }
+
+        static ObjectBox box_sharp(long val) {
+            return new ObjectBox(LongWrapper.wrap(val));
         }
 
         static ObjectBox box(long val) {
-            return new ObjectBox(val);
+            return new ObjectBox(WrapperInterface.wrap(val));
         }
     }
 
     static class RefBox {
         LongWrapper.ref content;
 
-        RefBox(long val) {
-            this.content = LongWrapper.wrap(val);
+        RefBox(LongWrapper.ref content) {
+            this.content = content;
+        }
+
+        static RefBox box_sharp(long val) {
+            return new RefBox(LongWrapper.wrap(val));
         }
 
         static RefBox box(long val) {
-            return new RefBox(val);
+            return new RefBox((LongWrapper.ref)WrapperInterface.wrap(val));
         }
     }
 
@@ -2979,9 +2997,15 @@ public class TestLWorld extends ValueTypeTest {
     static class GenericBox<T> {
         T content;
 
-        static GenericBox<LongWrapper.ref> box(long val) {
+        static GenericBox<LongWrapper.ref> box_sharp(long val) {
             GenericBox<LongWrapper.ref> res = new GenericBox<>();
             res.content = LongWrapper.wrap(val);
+            return res;
+        }
+
+        static GenericBox<WrapperInterface> box(long val) {
+            GenericBox<WrapperInterface> res = new GenericBox<>();
+            res.content = WrapperInterface.wrap(val);
             return res;
         }
     }
@@ -2989,7 +3013,7 @@ public class TestLWorld extends ValueTypeTest {
     long[] lArr = {0L, rL, 0L, rL, 0L, rL, 0L, rL, 0L, rL};
 
     // Test removal of allocations when inline type instance is wrapped into box object
-    @Warmup(10000) // Make sure value() call on WrapperInterface is inlined
+    @Warmup(10000) // Make sure interface calls are inlined
     @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
     public long test109() {
         long res = 0;
@@ -3005,12 +3029,28 @@ public class TestLWorld extends ValueTypeTest {
         Asserts.assertEquals(res, 5*rL);
     }
 
+    @Warmup(10000) // Make sure interface calls are inlined
+    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
+    public long test109_sharp() {
+        long res = 0;
+        for (int i = 0 ; i < lArr.length; i++) {
+            res += InterfaceBox.box_sharp(lArr[i]).content.value();
+        }
+        return res;
+    }
+
+    @DontCompile
+    public void test109_sharp_verifier(boolean warmup) {
+        long res = test109_sharp();
+        Asserts.assertEquals(res, 5*rL);
+    }
+
     // Same as test109 but with ObjectBox
     @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
-    @Warmup(10000) // Make sure value() call on WrapperInterface is inlined
-    public long test110(long[] arr) {
+    @Warmup(10000) // Make sure interface calls are inlined
+    public long test110() {
         long res = 0;
-        for (int i = 0 ; i < arr.length; i++) {
+        for (int i = 0 ; i < lArr.length; i++) {
             res += ((WrapperInterface)ObjectBox.box(lArr[i]).content).value();
         }
         return res;
@@ -3018,16 +3058,31 @@ public class TestLWorld extends ValueTypeTest {
 
     @DontCompile
     public void test110_verifier(boolean warmup) {
-        long[] arr = {0L, rL, 0L, rL, 0L};
-        long res = test110(arr);
-        Asserts.assertEquals(res, 2*rL);
+        long res = test110();
+        Asserts.assertEquals(res, 5*rL);
+    }
+
+    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
+    @Warmup(10000) // Make sure interface calls are inlined
+    public long test110_sharp() {
+        long res = 0;
+        for (int i = 0 ; i < lArr.length; i++) {
+            res += ((WrapperInterface)ObjectBox.box_sharp(lArr[i]).content).value();
+        }
+        return res;
+    }
+
+    @DontCompile
+    public void test110_sharp_verifier(boolean warmup) {
+        long res = test110_sharp();
+        Asserts.assertEquals(res, 5*rL);
     }
 
     // Same as test109 but with RefBox
     @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
-    public long test111(long[] arr) {
+    public long test111() {
         long res = 0;
-        for (int i = 0 ; i < arr.length; i++) {
+        for (int i = 0 ; i < lArr.length; i++) {
             res += RefBox.box(lArr[i]).content.value();
         }
         return res;
@@ -3035,16 +3090,30 @@ public class TestLWorld extends ValueTypeTest {
 
     @DontCompile
     public void test111_verifier(boolean warmup) {
-        long[] arr = {0L, rL, 0L, rL, 0L};
-        long res = test111(arr);
-        Asserts.assertEquals(res, 2*rL);
+        long res = test111();
+        Asserts.assertEquals(res, 5*rL);
+    }
+
+    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
+    public long test111_sharp() {
+        long res = 0;
+        for (int i = 0 ; i < lArr.length; i++) {
+            res += RefBox.box_sharp(lArr[i]).content.value();
+        }
+        return res;
+    }
+
+    @DontCompile
+    public void test111_sharp_verifier(boolean warmup) {
+        long res = test111_sharp();
+        Asserts.assertEquals(res, 5*rL);
     }
 
     // Same as test109 but with InlineBox
     @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
-    public long test112(long[] arr) {
+    public long test112() {
         long res = 0;
-        for (int i = 0 ; i < arr.length; i++) {
+        for (int i = 0 ; i < lArr.length; i++) {
             res += InlineBox.box(lArr[i]).content.value();
         }
         return res;
@@ -3052,16 +3121,16 @@ public class TestLWorld extends ValueTypeTest {
 
     @DontCompile
     public void test112_verifier(boolean warmup) {
-        long[] arr = {0L, rL, 0L, rL, 0L};
-        long res = test112(arr);
-        Asserts.assertEquals(res, 2*rL);
+        long res = test112();
+        Asserts.assertEquals(res, 5*rL);
     }
 
     // Same as test109 but with GenericBox
     @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
-    public long test113(long[] arr) {
+    @Warmup(10000) // Make sure interface calls are inlined
+    public long test113() {
         long res = 0;
-        for (int i = 0 ; i < arr.length; i++) {
+        for (int i = 0 ; i < lArr.length; i++) {
             res += GenericBox.box(lArr[i]).content.value();
         }
         return res;
@@ -3069,8 +3138,107 @@ public class TestLWorld extends ValueTypeTest {
 
     @DontCompile
     public void test113_verifier(boolean warmup) {
-        long[] arr = {0L, rL, 0L, rL, 0L};
-        long res = test113(arr);
-        Asserts.assertEquals(res, 2*rL);
+        long res = test113();
+        Asserts.assertEquals(res, 5*rL);
+    }
+
+    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
+    @Warmup(10000) // Make sure interface calls are inlined
+    public long test113_sharp() {
+        long res = 0;
+        for (int i = 0 ; i < lArr.length; i++) {
+            res += GenericBox.box_sharp(lArr[i]).content.value();
+        }
+        return res;
+    }
+
+    @DontCompile
+    public void test113_sharp_verifier(boolean warmup) {
+        long res = test113_sharp();
+        Asserts.assertEquals(res, 5*rL);
+    }
+
+    static interface WrapperInterface2 {
+        public long value();
+
+        static final InlineWrapper.ref ZERO = new InlineWrapper(0);
+
+        public static WrapperInterface2 wrap(long val) {
+            return (val == 0) ? ZERO.content : new LongWrapper2(val);
+        }
+
+        public static WrapperInterface2 wrap_default(long val) {
+            return (val == 0) ? LongWrapper2.default : new LongWrapper2(val);
+        }
+    }
+
+    static inline class LongWrapper2 implements WrapperInterface2 {
+        private long val;
+
+        public LongWrapper2(long val) {
+            this.val = val;
+        }
+
+        public long value() {
+            return val;
+        }
+    }
+
+    static inline class InlineWrapper {
+        WrapperInterface2 content;
+
+        public InlineWrapper(long val) {
+            content = new LongWrapper2(val);
+        }
+    }
+
+    static class InterfaceBox2 {
+        WrapperInterface2 content;
+
+        public InterfaceBox2(long val, boolean def) {
+            this.content = def ? WrapperInterface2.wrap_default(val) : WrapperInterface2.wrap(val);
+        }
+
+        static InterfaceBox2 box(long val) {
+            return new InterfaceBox2(val, false);
+        }
+
+        static InterfaceBox2 box_default(long val) {
+            return new InterfaceBox2(val, true);
+        }
+    }
+
+    // Same as tests above but with ZERO hidden in field of another inline type
+    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
+    @Warmup(10000)
+    public long test114() {
+        long res = 0;
+        for (int i = 0; i < lArr.length; i++) {
+            res += InterfaceBox2.box(lArr[i]).content.value();
+        }
+        return res;
+    }
+
+    @DontCompile
+    public void test114_verifier(boolean warmup) {
+        long res = test114();
+        Asserts.assertEquals(res, 5*rL);
+    }
+
+    // Same as test114 but with .default instead of ZERO field
+    @Test(failOn = ALLOC_G + MEMBAR, match = { PREDICATE_TRAP }, matchCount = { 1 })
+    @Warmup(10000)
+    public long test115() {
+        long res = 0;
+        for (int i = 0; i < lArr.length; i++) {
+            res += InterfaceBox2.box_default(lArr[i]).content.value();
+        }
+        return res;
+    }
+
+    @DontCompile
+    public void test115_verifier(boolean warmup) {
+        long res = test115();
+        Asserts.assertEquals(res, 5*rL);
     }
 }
