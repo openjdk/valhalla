@@ -362,6 +362,20 @@ char* os::reserve_memory_aligned(size_t size, size_t alignment, int file_desc) {
   return aligned_base;
 }
 
+// On Posix platforms, reservations are done using mmap which can be released in parts. So splitting is a no-op.
+void os::split_reserved_memory(char *base, size_t size, size_t split) {
+  char* const split_address = base + split;
+  assert(size > 0, "Sanity");
+  assert(size > split, "Sanity");
+  assert(split > 0, "Sanity");
+  assert(is_aligned(base, os::vm_allocation_granularity()), "Sanity");
+  assert(is_aligned(split_address, os::vm_allocation_granularity()), "Sanity");
+
+  // NMT: tell NMT to track both parts individually from now on.
+  MemTracker::record_virtual_memory_split_reserved(base, size, split);
+
+}
+
 int os::vsnprintf(char* buf, size_t len, const char* fmt, va_list args) {
   // All supported POSIX platforms provide C99 semantics.
   int result = ::vsnprintf(buf, len, fmt, args);
@@ -382,7 +396,7 @@ struct tm* os::gmtime_pd(const time_t* clock, struct tm*  res) {
 }
 
 void os::Posix::print_load_average(outputStream* st) {
-  st->print("load average:");
+  st->print("load average: ");
   double loadavg[3];
   int res = os::loadavg(loadavg, 3);
   if (res != -1) {
@@ -448,7 +462,7 @@ void os::Posix::print_rlimit_info(outputStream* st) {
   st->print("%d", sysconf(_SC_CHILD_MAX));
 
   print_rlimit(st, ", THREADS", RLIMIT_THREADS);
-#elif !defined(SOLARIS)
+#else
   print_rlimit(st, ", NPROC", RLIMIT_NPROC);
 #endif
 
@@ -466,12 +480,6 @@ void os::Posix::print_rlimit_info(outputStream* st) {
   print_rlimit(st, ", MEMLOCK", RLIMIT_MEMLOCK, true);
 #endif
 
-#if defined(SOLARIS)
-  // maximum size of mapped address space of a process in bytes;
-  // if the limit is exceeded, mmap and brk fail
-  print_rlimit(st, ", VMEM", RLIMIT_VMEM, true);
-#endif
-
   // MacOS; The maximum size (in bytes) to which a process's resident set size may grow.
 #if defined(__APPLE__)
   print_rlimit(st, ", RSS", RLIMIT_RSS, true);
@@ -482,7 +490,7 @@ void os::Posix::print_rlimit_info(outputStream* st) {
 
 void os::Posix::print_uname_info(outputStream* st) {
   // kernel
-  st->print("uname:");
+  st->print("uname: ");
   struct utsname name;
   uname(&name);
   st->print("%s ", name.sysname);
@@ -1095,21 +1103,6 @@ static bool get_signal_code_description(const siginfo_t* si, enum_sigcode_desc_t
 #if defined(IA64) && !defined(AIX)
     { SIGSEGV, SEGV_PSTKOVF, "SEGV_PSTKOVF", "Paragraph stack overflow" },
 #endif
-#if defined(__sparc) && defined(SOLARIS)
-// define Solaris Sparc M7 ADI SEGV signals
-#if !defined(SEGV_ACCADI)
-#define SEGV_ACCADI 3
-#endif
-    { SIGSEGV, SEGV_ACCADI,  "SEGV_ACCADI",  "ADI not enabled for mapped object." },
-#if !defined(SEGV_ACCDERR)
-#define SEGV_ACCDERR 4
-#endif
-    { SIGSEGV, SEGV_ACCDERR, "SEGV_ACCDERR", "ADI disrupting exception." },
-#if !defined(SEGV_ACCPERR)
-#define SEGV_ACCPERR 5
-#endif
-    { SIGSEGV, SEGV_ACCPERR, "SEGV_ACCPERR", "ADI precise exception." },
-#endif // defined(__sparc) && defined(SOLARIS)
     { SIGBUS,  BUS_ADRALN,   "BUS_ADRALN",   "Invalid address alignment." },
     { SIGBUS,  BUS_ADRERR,   "BUS_ADRERR",   "Nonexistent physical address." },
     { SIGBUS,  BUS_OBJERR,   "BUS_OBJERR",   "Object-specific hardware error." },
@@ -1268,13 +1261,7 @@ void os::print_siginfo(outputStream* os, const void* si0) {
 bool os::signal_thread(Thread* thread, int sig, const char* reason) {
   OSThread* osthread = thread->osthread();
   if (osthread) {
-#if defined (SOLARIS)
-    // Note: we cannot use pthread_kill on Solaris - not because
-    // its missing, but because we do not have the pthread_t id.
-    int status = thr_kill(osthread->thread_id(), sig);
-#else
     int status = pthread_kill(osthread->pthread_id(), sig);
-#endif
     if (status == 0) {
       Events::log(Thread::current(), "sent signal %d to Thread " INTPTR_FORMAT " because %s.",
                   sig, p2i(thread), reason);
@@ -1295,8 +1282,6 @@ address os::Posix::ucontext_get_pc(const ucontext_t* ctx) {
    return Bsd::ucontext_get_pc(ctx);
 #elif defined(LINUX)
    return Linux::ucontext_get_pc(ctx);
-#elif defined(SOLARIS)
-   return Solaris::ucontext_get_pc(ctx);
 #else
    VMError::report_and_die("unimplemented ucontext_get_pc");
 #endif
@@ -1309,8 +1294,6 @@ void os::Posix::ucontext_set_pc(ucontext_t* ctx, address pc) {
    Bsd::ucontext_set_pc(ctx, pc);
 #elif defined(LINUX)
    Linux::ucontext_set_pc(ctx, pc);
-#elif defined(SOLARIS)
-   Solaris::ucontext_set_pc(ctx, pc);
 #else
    VMError::report_and_die("unimplemented ucontext_get_pc");
 #endif
@@ -1415,7 +1398,7 @@ bool os::same_files(const char* file1, const char* file2) {
 // page size which again depends on the concrete system the VM is running
 // on. Space for libc guard pages is not included in this size.
 jint os::Posix::set_minimum_stack_sizes() {
-  size_t os_min_stack_allowed = SOLARIS_ONLY(thr_min_stack()) NOT_SOLARIS(PTHREAD_STACK_MIN);
+  size_t os_min_stack_allowed = PTHREAD_STACK_MIN;
 
   _java_thread_min_stack_allowed = _java_thread_min_stack_allowed +
                                    JavaThread::stack_guard_zone_size() +
@@ -1625,11 +1608,9 @@ static void pthread_init_common(void) {
   if ((status = pthread_mutexattr_settype(_mutexAttr, PTHREAD_MUTEX_NORMAL)) != 0) {
     fatal("pthread_mutexattr_settype: %s", os::strerror(status));
   }
-  // Solaris has it's own PlatformMutex, distinct from the one for POSIX.
-  NOT_SOLARIS(os::PlatformMutex::init();)
+  os::PlatformMutex::init();
 }
 
-#ifndef SOLARIS
 sigset_t sigs;
 struct sigaction sigact[NSIG];
 
@@ -1645,7 +1626,6 @@ void os::Posix::save_preinstalled_handler(int sig, struct sigaction& oldAct) {
   sigact[sig] = oldAct;
   sigaddset(&sigs, sig);
 }
-#endif
 
 // Not all POSIX types and API's are available on all notionally "posix"
 // platforms. If we have build-time support then we will check for actual
@@ -1662,6 +1642,8 @@ void os::Posix::save_preinstalled_handler(int sig, struct sigaction& oldAct) {
 int (*os::Posix::_clock_gettime)(clockid_t, struct timespec *) = NULL;
 int (*os::Posix::_clock_getres)(clockid_t, struct timespec *) = NULL;
 
+bool os::Posix::_supports_monotonic_clock = false;
+
 static int (*_pthread_condattr_setclock)(pthread_condattr_t *, clockid_t) = NULL;
 
 static bool _use_clock_monotonic_condattr = false;
@@ -1677,7 +1659,7 @@ void os::Posix::init(void) {
 
   void* handle = NULL;
 
-  // For linux we need librt, for other OS we can find
+  // For older linux we need librt, for other OS we can find
   // this function in regular libc.
 #ifdef NEEDS_LIBRT
   // We do dlopen's in this particular order due to bug in linux
@@ -1697,6 +1679,8 @@ void os::Posix::init(void) {
   int (*clock_gettime_func)(clockid_t, struct timespec*) =
     (int(*)(clockid_t, struct timespec*))dlsym(handle, "clock_gettime");
   if (clock_getres_func != NULL && clock_gettime_func != NULL) {
+    _clock_gettime = clock_gettime_func;
+    _clock_getres = clock_getres_func;
     // We assume that if both clock_gettime and clock_getres support
     // CLOCK_MONOTONIC then the OS provides true high-res monotonic clock.
     struct timespec res;
@@ -1704,15 +1688,7 @@ void os::Posix::init(void) {
     if (clock_getres_func(CLOCK_MONOTONIC, &res) == 0 &&
         clock_gettime_func(CLOCK_MONOTONIC, &tp) == 0) {
       // Yes, monotonic clock is supported.
-      _clock_gettime = clock_gettime_func;
-      _clock_getres = clock_getres_func;
-    } else {
-#ifdef NEEDS_LIBRT
-      // Close librt if there is no monotonic clock.
-      if (handle != RTLD_DEFAULT) {
-        dlclose(handle);
-      }
-#endif
+      _supports_monotonic_clock = true;
     }
   }
 
@@ -1730,7 +1706,6 @@ void os::Posix::init(void) {
 
   pthread_init_common();
 
-#ifndef SOLARIS
   int status;
   if (_pthread_condattr_setclock != NULL && _clock_gettime != NULL) {
     if ((status = _pthread_condattr_setclock(_condAttr, CLOCK_MONOTONIC)) != 0) {
@@ -1745,12 +1720,9 @@ void os::Posix::init(void) {
       _use_clock_monotonic_condattr = true;
     }
   }
-#endif // !SOLARIS
-
 }
 
 void os::Posix::init_2(void) {
-#ifndef SOLARIS
   log_info(os)("Use of CLOCK_MONOTONIC is%s supported",
                (_clock_gettime != NULL ? "" : " not"));
   log_info(os)("Use of pthread_condattr_setclock is%s supported",
@@ -1758,7 +1730,6 @@ void os::Posix::init_2(void) {
   log_info(os)("Relative timed-wait using pthread_cond_timedwait is associated with %s",
                _use_clock_monotonic_condattr ? "CLOCK_MONOTONIC" : "the default clock");
   sigemptyset(&sigs);
-#endif // !SOLARIS
 }
 
 #else // !SUPPORTS_CLOCK_MONOTONIC
@@ -1768,12 +1739,10 @@ void os::Posix::init(void) {
 }
 
 void os::Posix::init_2(void) {
-#ifndef SOLARIS
   log_info(os)("Use of CLOCK_MONOTONIC is not supported");
   log_info(os)("Use of pthread_condattr_setclock is not supported");
   log_info(os)("Relative timed-wait using pthread_cond_timedwait is associated with the default clock");
   sigemptyset(&sigs);
-#endif // !SOLARIS
 }
 
 #endif // SUPPORTS_CLOCK_MONOTONIC
@@ -1914,7 +1883,6 @@ void os::Posix::to_RTC_abstime(timespec* abstime, int64_t millis) {
 // Shared pthread_mutex/cond based PlatformEvent implementation.
 // Not currently usable by Solaris.
 
-#ifndef SOLARIS
 
 // PlatformEvent
 //
@@ -2346,5 +2314,3 @@ int os::PlatformMonitor::wait(jlong millis) {
     return OS_OK;
   }
 }
-
-#endif // !SOLARIS

@@ -27,6 +27,7 @@
 
 #include "classfile/classLoaderData.hpp"
 #include "oops/objArrayOop.hpp"
+#include "oops/oopHandle.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/java.hpp"
 #include "runtime/mutexLocker.hpp"
@@ -132,6 +133,7 @@ class SymbolPropertyTable;
 class ProtectionDomainCacheTable;
 class ProtectionDomainCacheEntry;
 class GCTimer;
+class EventClassLoad;
 
 #define WK_KLASS_ENUM_NAME(kname)    kname##_knum
 
@@ -391,13 +393,8 @@ public:
   // loaders.  Returns "true" iff something was unloaded.
   static bool do_unloading(GCTimer* gc_timer);
 
-  // Applies "f->do_oop" to all root oops in the system dictionary.
-  // If include_handles is true (the default), then the handles in the
-  // vm_global OopStorage object are included.
-  static void oops_do(OopClosure* f, bool include_handles = true);
-
   // System loader lock
-  static oop system_loader_lock()           { return _system_loader_lock_obj; }
+  static oop system_loader_lock();
 
   // Protection Domain Table
   static ProtectionDomainCacheTable* pd_cache_table() { return _pd_cache_table; }
@@ -596,7 +593,7 @@ public:
   static PlaceholderTable*       _placeholders;
 
   // Lock object for system class loader
-  static oop                     _system_loader_lock_obj;
+  static OopHandle               _system_loader_lock_obj;
 
   // Constraints on class loaders
   static LoaderConstraintTable*  _loader_constraints;
@@ -621,6 +618,7 @@ protected:
   static LoaderConstraintTable* constraints() { return _loader_constraints; }
   static ResolutionErrorTable* resolution_errors() { return _resolution_errors; }
   static SymbolPropertyTable* invoke_method_table() { return _invoke_method_table; }
+  static void post_class_load_event(EventClassLoad* event, const InstanceKlass* k, const ClassLoaderData* init_cld);
 
   // Basic loading operations
   static InstanceKlass* resolve_instance_class_or_null_helper(Symbol* name,
@@ -647,6 +645,11 @@ protected:
                                             bool is_superclass, TRAPS);
   static bool check_shared_class_super_types(InstanceKlass* ik, Handle class_loader,
                                                Handle protection_domain, TRAPS);
+  static InstanceKlass* load_shared_lambda_proxy_class(InstanceKlass* ik,
+                                                       Handle class_loader,
+                                                       Handle protection_domain,
+                                                       PackageEntry* pkg_entry,
+                                                       TRAPS);
   static InstanceKlass* load_shared_class(InstanceKlass* ik,
                                           Handle class_loader,
                                           Handle protection_domain,
@@ -678,6 +681,9 @@ public:
     assert(m != NULL, "Unexpected NULL Method*");
     return !m->is_public() && m->method_holder() == SystemDictionary::Object_klass();
   }
+
+  // Return Symbol or throw exception if name given is can not be a valid Symbol.
+  static Symbol* class_name_symbol(const char* name, Symbol* exception, TRAPS);
 
 protected:
   // Setup link to hierarchy
@@ -711,8 +717,8 @@ protected:
   static InstanceKlass* _box_klasses[T_VOID+1];
 
 private:
-  static oop  _java_system_loader;
-  static oop  _java_platform_loader;
+  static OopHandle  _java_system_loader;
+  static OopHandle  _java_platform_loader;
 
 public:
   static TableStatistics placeholders_statistics();

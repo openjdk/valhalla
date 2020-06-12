@@ -41,11 +41,13 @@
 #include "gc/g1/g1DirtyCardQueue.hpp"
 #include "gc/g1/g1EvacStats.inline.hpp"
 #include "gc/g1/g1FullCollector.hpp"
+#include "gc/g1/g1GCParPhaseTimesTracker.hpp"
 #include "gc/g1/g1GCPhaseTimes.hpp"
 #include "gc/g1/g1HeapSizingPolicy.hpp"
 #include "gc/g1/g1HeapTransition.hpp"
 #include "gc/g1/g1HeapVerifier.hpp"
 #include "gc/g1/g1HotCardCache.hpp"
+#include "gc/g1/g1InitLogger.hpp"
 #include "gc/g1/g1MemoryPool.hpp"
 #include "gc/g1/g1OopClosures.inline.hpp"
 #include "gc/g1/g1ParallelCleaning.hpp"
@@ -869,7 +871,8 @@ HeapWord* G1CollectedHeap::attempt_allocation_humongous(size_t word_size) {
       result = humongous_obj_allocate(word_size);
       if (result != NULL) {
         size_t size_in_regions = humongous_obj_size_in_regions(word_size);
-        policy()->add_bytes_allocated_in_old_since_last_gc(size_in_regions * HeapRegion::GrainBytes);
+        policy()->old_gen_alloc_tracker()->
+          add_allocated_bytes_since_last_gc(size_in_regions * HeapRegion::GrainBytes);
         return result;
       }
 
@@ -1541,12 +1544,12 @@ G1CollectedHeap::G1CollectedHeap() :
   _filler_array_max_size = _humongous_object_threshold_in_words;
 
   uint n_queues = ParallelGCThreads;
-  _task_queues = new RefToScanQueueSet(n_queues);
+  _task_queues = new G1ScannerTasksQueueSet(n_queues);
 
   _evacuation_failed_info_array = NEW_C_HEAP_ARRAY(EvacuationFailedInfo, n_queues, mtGC);
 
   for (uint i = 0; i < n_queues; i++) {
-    RefToScanQueue* q = new RefToScanQueue();
+    G1ScannerTasksQueue* q = new G1ScannerTasksQueue();
     q->initialize();
     _task_queues->register_queue(i, q);
     ::new (&_evacuation_failed_info_array[i]) EvacuationFailedInfo();
@@ -1822,6 +1825,8 @@ jint G1CollectedHeap::initialize() {
   _preserved_marks_set.init(ParallelGCThreads);
 
   _collection_set.initialize(max_regions());
+
+  G1InitLogger::print();
 
   return JNI_OK;
 }
@@ -2503,11 +2508,13 @@ void G1CollectedHeap::print_heap_regions() const {
 
 void G1CollectedHeap::print_on(outputStream* st) const {
   st->print(" %-20s", "garbage-first heap");
-  st->print(" total " SIZE_FORMAT "K, used " SIZE_FORMAT "K",
-            capacity()/K, used_unlocked()/K);
-  st->print(" [" PTR_FORMAT ", " PTR_FORMAT ")",
-            p2i(_hrm->reserved().start()),
-            p2i(_hrm->reserved().end()));
+  if (_hrm != NULL) {
+    st->print(" total " SIZE_FORMAT "K, used " SIZE_FORMAT "K",
+              capacity()/K, used_unlocked()/K);
+    st->print(" [" PTR_FORMAT ", " PTR_FORMAT ")",
+              p2i(_hrm->reserved().start()),
+              p2i(_hrm->reserved().end()));
+  }
   st->cr();
   st->print("  region size " SIZE_FORMAT "K, ", HeapRegion::GrainBytes / K);
   uint young_regions = young_regions_count();
@@ -2522,7 +2529,8 @@ void G1CollectedHeap::print_on(outputStream* st) const {
     st->print("  remaining free region(s) on each NUMA node: ");
     const int* node_ids = _numa->node_ids();
     for (uint node_index = 0; node_index < num_nodes; node_index++) {
-      st->print("%d=%u ", node_ids[node_index], _hrm->num_free_regions(node_index));
+      uint num_free_regions = (_hrm != NULL ? _hrm->num_free_regions(node_index) : 0);
+      st->print("%d=%u ", node_ids[node_index], num_free_regions);
     }
     st->cr();
   }
@@ -2530,6 +2538,10 @@ void G1CollectedHeap::print_on(outputStream* st) const {
 }
 
 void G1CollectedHeap::print_regions_on(outputStream* st) const {
+  if (_hrm == NULL) {
+    return;
+  }
+
   st->print_cr("Heap Regions: E=young(eden), S=young(survivor), O=old, "
                "HS=humongous(starts), HC=humongous(continues), "
                "CS=collection set, F=free, "
@@ -2543,7 +2555,10 @@ void G1CollectedHeap::print_extended_on(outputStream* st) const {
   print_on(st);
 
   // Print the per-region information.
-  print_regions_on(st);
+  if (_hrm != NULL) {
+    st->cr();
+    print_regions_on(st);
+  }
 }
 
 void G1CollectedHeap::print_on_error(outputStream* st) const {
@@ -2552,18 +2567,6 @@ void G1CollectedHeap::print_on_error(outputStream* st) const {
   if (_cm != NULL) {
     st->cr();
     _cm->print_on_error(st);
-  }
-}
-
-void G1CollectedHeap::print_gc_threads_on(outputStream* st) const {
-  workers()->print_worker_threads_on(st);
-  _cm_thread->print_on(st);
-  st->cr();
-  _cm->print_worker_threads_on(st);
-  _cr->print_threads_on(st);
-  _young_gen_sampling_thread->print_on(st);
-  if (G1StringDedup::is_enabled()) {
-    G1StringDedup::print_worker_threads_on(st);
   }
 }
 
@@ -3398,7 +3401,7 @@ public:
       // When the queue is drained (after each phase of reference processing)
       // the object and it's followers will be copied, the reference field set
       // to point to the new location, and the RSet updated.
-      _par_scan_state->push_on_queue(p);
+      _par_scan_state->push_on_queue(ScannerTask(p));
     }
   }
 };
@@ -3435,14 +3438,14 @@ class G1STWRefProcTaskExecutor: public AbstractRefProcTaskExecutor {
 private:
   G1CollectedHeap*          _g1h;
   G1ParScanThreadStateSet*  _pss;
-  RefToScanQueueSet*        _queues;
+  G1ScannerTasksQueueSet*   _queues;
   WorkGang*                 _workers;
 
 public:
   G1STWRefProcTaskExecutor(G1CollectedHeap* g1h,
                            G1ParScanThreadStateSet* per_thread_states,
                            WorkGang* workers,
-                           RefToScanQueueSet *task_queues) :
+                           G1ScannerTasksQueueSet *task_queues) :
     _g1h(g1h),
     _pss(per_thread_states),
     _queues(task_queues),
@@ -3462,14 +3465,14 @@ class G1STWRefProcTaskProxy: public AbstractGangTask {
   ProcessTask&     _proc_task;
   G1CollectedHeap* _g1h;
   G1ParScanThreadStateSet* _pss;
-  RefToScanQueueSet* _task_queues;
+  G1ScannerTasksQueueSet* _task_queues;
   TaskTerminator* _terminator;
 
 public:
   G1STWRefProcTaskProxy(ProcessTask& proc_task,
                         G1CollectedHeap* g1h,
                         G1ParScanThreadStateSet* per_thread_states,
-                        RefToScanQueueSet *task_queues,
+                        G1ScannerTasksQueueSet *task_queues,
                         TaskTerminator* terminator) :
     AbstractGangTask("Process reference objects in parallel"),
     _proc_task(proc_task),
@@ -3800,7 +3803,7 @@ class G1EvacuateRegionsBaseTask : public AbstractGangTask {
 protected:
   G1CollectedHeap* _g1h;
   G1ParScanThreadStateSet* _per_thread_states;
-  RefToScanQueueSet* _task_queues;
+  G1ScannerTasksQueueSet* _task_queues;
   TaskTerminator _terminator;
   uint _num_workers;
 
@@ -3838,7 +3841,10 @@ protected:
   virtual void evacuate_live_objects(G1ParScanThreadState* pss, uint worker_id) = 0;
 
 public:
-  G1EvacuateRegionsBaseTask(const char* name, G1ParScanThreadStateSet* per_thread_states, RefToScanQueueSet* task_queues, uint num_workers) :
+  G1EvacuateRegionsBaseTask(const char* name,
+                            G1ParScanThreadStateSet* per_thread_states,
+                            G1ScannerTasksQueueSet* task_queues,
+                            uint num_workers) :
     AbstractGangTask(name),
     _g1h(G1CollectedHeap::heap()),
     _per_thread_states(per_thread_states),
@@ -3889,7 +3895,7 @@ class G1EvacuateRegionsTask : public G1EvacuateRegionsBaseTask {
 public:
   G1EvacuateRegionsTask(G1CollectedHeap* g1h,
                         G1ParScanThreadStateSet* per_thread_states,
-                        RefToScanQueueSet* task_queues,
+                        G1ScannerTasksQueueSet* task_queues,
                         G1RootProcessor* root_processor,
                         uint num_workers) :
     G1EvacuateRegionsBaseTask("G1 Evacuate Regions", per_thread_states, task_queues, num_workers),
@@ -3937,7 +3943,7 @@ class G1EvacuateOptionalRegionsTask : public G1EvacuateRegionsBaseTask {
 
 public:
   G1EvacuateOptionalRegionsTask(G1ParScanThreadStateSet* per_thread_states,
-                                RefToScanQueueSet* queues,
+                                G1ScannerTasksQueueSet* queues,
                                 uint num_workers) :
     G1EvacuateRegionsBaseTask("G1 Evacuate Optional Regions", per_thread_states, queues, num_workers) {
   }
@@ -4078,7 +4084,8 @@ void G1CollectedHeap::post_evacuate_collection_set(G1EvacuationInfo& evacuation_
 }
 
 void G1CollectedHeap::record_obj_copy_mem_stats() {
-  policy()->add_bytes_allocated_in_old_since_last_gc(_old_evac_stats.allocated() * HeapWordSize);
+  policy()->old_gen_alloc_tracker()->
+    add_allocated_bytes_since_last_gc(_old_evac_stats.allocated() * HeapWordSize);
 
   _gc_tracer_stw->report_evacuation_statistics(create_g1_evac_summary(&_survivor_evac_stats),
                                                create_g1_evac_summary(&_old_evac_stats));
@@ -4179,7 +4186,7 @@ class G1FreeCollectionSetTask : public AbstractGangTask {
       g1h->alloc_buffer_stats(G1HeapRegionAttr::Old)->add_failure_used_and_waste(_failure_used_words, _failure_waste_words);
 
       G1Policy *policy = g1h->policy();
-      policy->add_bytes_allocated_in_old_since_last_gc(_bytes_allocated_in_old_since_last_gc);
+      policy->old_gen_alloc_tracker()->add_allocated_bytes_since_last_gc(_bytes_allocated_in_old_since_last_gc);
       policy->record_rs_length(_rs_length);
       policy->cset_regions_freed();
     }

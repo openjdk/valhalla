@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -57,6 +57,40 @@ AC_DEFUN_ONCE([LIB_TESTS_SETUP_GRAALUNIT],
 
 ###############################################################################
 #
+# Setup and check for gtest framework source files
+#
+AC_DEFUN_ONCE([LIB_TESTS_SETUP_GTEST],
+[
+  AC_ARG_WITH(gtest, [AS_HELP_STRING([--with-gtest],
+      [specify prefix directory for the gtest framework])])
+
+  if test "x${with_gtest}" != x; then
+    AC_MSG_CHECKING([for gtest])
+    if test "x${with_gtest}" = xno; then
+      AC_MSG_RESULT([no, disabled])
+    elif test "x${with_gtest}" = xyes; then
+      AC_MSG_RESULT([no, error])
+      AC_MSG_ERROR([--with-gtest must have a value])
+    else
+      if ! test -s "${with_gtest}/googletest/include/gtest/gtest.h"; then
+        AC_MSG_RESULT([no])
+        AC_MSG_ERROR([Can't find 'googletest/include/gtest/gtest.h' under ${with_gtest} given with the --with-gtest option.])
+      elif ! test -s "${with_gtest}/googlemock/include/gmock/gmock.h"; then
+        AC_MSG_RESULT([no])
+        AC_MSG_ERROR([Can't find 'googlemock/include/gmock/gmock.h' under ${with_gtest} given with the --with-gtest option.])
+      else
+        GTEST_FRAMEWORK_SRC=${with_gtest}
+        AC_MSG_RESULT([$GTEST_FRAMEWORK_SRC])
+        UTIL_FIXUP_PATH([GTEST_FRAMEWORK_SRC])
+      fi
+    fi
+  fi
+
+  AC_SUBST(GTEST_FRAMEWORK_SRC)
+])
+
+###############################################################################
+#
 # Setup and check the Java Microbenchmark Harness
 #
 AC_DEFUN_ONCE([LIB_TESTS_SETUP_JMH],
@@ -77,6 +111,8 @@ AC_DEFUN_ONCE([LIB_TESTS_SETUP_JMH],
       AC_MSG_RESULT([no, error])
       AC_MSG_ERROR([$JMH_HOME does not exist or is not a directory])
     fi
+    AC_MSG_RESULT([yes, $JMH_HOME])
+
     UTIL_FIXUP_PATH([JMH_HOME])
 
     jar_names="jmh-core jmh-generator-annprocess jopt-simple commons-math3"
@@ -84,17 +120,14 @@ AC_DEFUN_ONCE([LIB_TESTS_SETUP_JMH],
       found_jar_files=$($ECHO $(ls $JMH_HOME/$jar-*.jar 2> /dev/null))
 
       if test "x$found_jar_files" = x; then
-        AC_MSG_RESULT([no])
         AC_MSG_ERROR([--with-jmh does not contain $jar-*.jar])
       elif ! test -e "$found_jar_files"; then
-        AC_MSG_RESULT([no])
         AC_MSG_ERROR([--with-jmh contain multiple $jar-*.jar: $found_jar_files])
       fi
 
       found_jar_var_name=found_${jar//-/_}
       eval $found_jar_var_name='"'$found_jar_files'"'
     done
-    AC_MSG_RESULT([yes])
 
     JMH_CORE_JAR=$found_jmh_core
     JMH_GENERATOR_JAR=$found_jmh_generator_annprocess

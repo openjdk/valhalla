@@ -276,15 +276,6 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
     item.setMnemonic(KeyEvent.VK_D);
     toolsMenu.add(item);
 
-    item = createMenuItem("Find Object by Query",
-                          new ActionListener() {
-                              public void actionPerformed(ActionEvent e) {
-                                showFindByQueryPanel();
-                              }
-                            });
-    item.setMnemonic(KeyEvent.VK_Q);
-    toolsMenu.add(item);
-
 
     item = createMenuItem("Find Pointer",
                           new ActionListener() {
@@ -481,7 +472,7 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
     panel.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
     JTextArea ta = new JTextArea(
                                  "Enter the process ID of a currently-running HotSpot process. On " +
-                                 "Solaris and most Unix operating systems, this can be determined by " +
+                                 "most Unix operating systems, this can be determined by " +
                                  "typing \"ps -u <your username> | grep java\"; the process ID is the " +
                                  "first number which appears on the resulting line. On Windows, the " +
                                  "process ID is present in the Task Manager, which can be brought up " +
@@ -1529,10 +1520,6 @@ public class HSDB implements ObjectHistogramPanel.Listener, SAListener {
           };
 
       showPanel("Command Line", new CommandProcessorPanel(new CommandProcessor(di, null, null, null)));
-  }
-
-  private void showFindByQueryPanel() {
-    showPanel("Find Object by Query", new FindByQueryPanel());
   }
 
   private void showFindPanel() {

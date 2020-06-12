@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,6 +32,10 @@
 // Exported clock functionality
 
 inline bool os::Posix::supports_monotonic_clock() {
+  return _supports_monotonic_clock;
+}
+
+inline bool os::Posix::supports_clock_gettime() {
   return _clock_gettime != NULL;
 }
 
@@ -44,8 +48,6 @@ inline int os::Posix::clock_getres(clockid_t clock_id, struct timespec *tp) {
 }
 
 #endif // SUPPORTS_CLOCK_MONOTONIC
-
-#ifndef SOLARIS
 
 // Platform Mutex/Monitor implementation
 
@@ -74,7 +76,5 @@ inline void os::PlatformMonitor::notify_all() {
   int status = pthread_cond_broadcast(cond());
   assert_status(status == 0, status, "cond_broadcast");
 }
-
-#endif // !SOLARIS
 
 #endif // OS_POSIX_OS_POSIX_INLINE_HPP

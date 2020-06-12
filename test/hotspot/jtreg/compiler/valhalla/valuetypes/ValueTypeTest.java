@@ -261,7 +261,7 @@ public abstract class ValueTypeTest {
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:InlineArrayElemMaxFlatOops=5",
                 "-XX:InlineArrayElemMaxFlatSize=-1",
-                "-XX:InlineFiledMaxFlatSize=-1",
+                "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields"};
         case 1: return new String[] {
@@ -269,7 +269,7 @@ public abstract class ValueTypeTest {
                 "-XX:-UseCompressedOops",
                 "-XX:InlineArrayElemMaxFlatOops=5",
                 "-XX:InlineArrayElemMaxFlatSize=-1",
-                "-XX:InlineFiledMaxFlatSize=-1",
+                "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:-InlineTypePassFieldsAsArgs",
                 "-XX:-InlineTypeReturnedAsFields"};
         case 2: return new String[] {
@@ -277,7 +277,7 @@ public abstract class ValueTypeTest {
                 "-XX:-UseCompressedOops",
                 "-XX:InlineArrayElemMaxFlatOops=0",
                 "-XX:InlineArrayElemMaxFlatSize=0",
-                "-XX:InlineFiledMaxFlatSize=-1",
+                "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields",
                 "-XX:+StressInlineTypeReturnedAsFields"};
@@ -287,7 +287,7 @@ public abstract class ValueTypeTest {
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:InlineArrayElemMaxFlatOops=0",
                 "-XX:InlineArrayElemMaxFlatSize=0",
-                "-XX:InlineFiledMaxFlatSize=0",
+                "-XX:InlineFieldMaxFlatSize=0",
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields"};
         case 4: return new String[] {
@@ -295,7 +295,7 @@ public abstract class ValueTypeTest {
                 "-DVerifyIR=false",
                 "-XX:InlineArrayElemMaxFlatOops=-1",
                 "-XX:InlineArrayElemMaxFlatSize=-1",
-                "-XX:InlineFiledMaxFlatSize=0",
+                "-XX:InlineFieldMaxFlatSize=0",
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:-InlineTypeReturnedAsFields",
                 "-XX:-ReduceInitialCardMarks"};
@@ -304,7 +304,7 @@ public abstract class ValueTypeTest {
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:InlineArrayElemMaxFlatOops=5",
                 "-XX:InlineArrayElemMaxFlatSize=-1",
-                "-XX:InlineFiledMaxFlatSize=-1",
+                "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:-InlineTypePassFieldsAsArgs",
                 "-XX:-InlineTypeReturnedAsFields"};
         }

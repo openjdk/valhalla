@@ -119,8 +119,6 @@ class os: AllStatic {
                                   size_t alignment_hint = 0);
   static char*  pd_attempt_reserve_memory_at(size_t bytes, char* addr);
   static char*  pd_attempt_reserve_memory_at(size_t bytes, char* addr, int file_desc);
-  static void   pd_split_reserved_memory(char *base, size_t size,
-                                      size_t split, bool realloc);
   static bool   pd_commit_memory(char* addr, size_t bytes, bool executable);
   static bool   pd_commit_memory(char* addr, size_t size, size_t alignment_hint,
                                  bool executable);
@@ -320,8 +318,18 @@ class os: AllStatic {
                                size_t alignment_hint, MEMFLAGS flags);
   static char*  reserve_memory_aligned(size_t size, size_t alignment, int file_desc = -1);
   static char*  attempt_reserve_memory_at(size_t bytes, char* addr, int file_desc = -1);
-  static void   split_reserved_memory(char *base, size_t size,
-                                      size_t split, bool realloc);
+
+
+  // Split a reserved memory region [base, base+size) into two regions [base, base+split) and
+  //  [base+split, base+size).
+  //  This may remove the original mapping, so its content may be lost.
+  // Both base and split point must be aligned to allocation granularity; split point shall
+  //  be >0 and <size.
+  // Splitting guarantees that the resulting two memory regions can be released independently
+  //  from each other using os::release_memory(). It also means NMT will track these regions
+  //  individually, allowing different tags to be set.
+  static void   split_reserved_memory(char *base, size_t size, size_t split);
+
   static bool   commit_memory(char* addr, size_t bytes, bool executable);
   static bool   commit_memory(char* addr, size_t size, size_t alignment_hint,
                               bool executable);
@@ -361,7 +369,7 @@ class os: AllStatic {
 
   static char*  map_memory(int fd, const char* file_name, size_t file_offset,
                            char *addr, size_t bytes, bool read_only = false,
-                           bool allow_exec = false);
+                           bool allow_exec = false, MEMFLAGS flags = mtNone);
   static char*  remap_memory(int fd, const char* file_name, size_t file_offset,
                              char *addr, size_t bytes, bool read_only,
                              bool allow_exec);
@@ -444,7 +452,7 @@ class os: AllStatic {
 
   static void free_thread(OSThread* osthread);
 
-  // thread id on Linux/64bit is 64bit, on Windows and Solaris, it's 32bit
+  // thread id on Linux/64bit is 64bit, on Windows it's 32bit
   static intx current_thread_id();
   static int current_process_id();
 
@@ -771,10 +779,8 @@ class os: AllStatic {
   // JVMTI & JVM monitoring and management support
   // The thread_cpu_time() and current_thread_cpu_time() are only
   // supported if is_thread_cpu_time_supported() returns true.
-  // They are not supported on Solaris T1.
 
   // Thread CPU Time - return the fast estimate on a platform
-  // On Solaris - call gethrvtime (fast) - user time only
   // On Linux   - fast clock_gettime where available - user+sys
   //            - otherwise: very slow /proc fs - user+sys
   // On Windows - GetThreadTimes - user+sys

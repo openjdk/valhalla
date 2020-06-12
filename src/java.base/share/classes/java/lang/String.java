@@ -684,6 +684,7 @@ public final class String
      *
      * @since 1.6
      */
+    @Override
     public boolean isEmpty() {
         return value.length == 0;
     }
@@ -2916,22 +2917,34 @@ public final class String
      * |    &lt;/body&gt;
      * |&lt;/html&gt;
      * </pre></blockquote>
-     * First, the individual lines of this string are extracted as if by using
-     * {@link String#lines()}.
+     * First, the individual lines of this string are extracted. A <i>line</i>
+     * is a sequence of zero or more characters followed by either a line
+     * terminator or the end of the string.
+     * If the string has at least one line terminator, the last line consists
+     * of the characters between the last terminator and the end of the string.
+     * Otherwise, if the string has no terminators, the last line is the start
+     * of the string to the end of the string, in other words, the entire
+     * string.
+     * A line does not include the line terminator.
      * <p>
-     * Then, the <i>minimum indentation</i> (min) is determined as follows.
-     * For each non-blank line (as defined by {@link String#isBlank()}), the
-     * leading {@linkplain Character#isWhitespace(int) white space} characters are
-     * counted. The leading {@linkplain Character#isWhitespace(int) white space}
-     * characters on the last line are also counted even if
-     * {@linkplain String#isBlank() blank}. The <i>min</i> value is the smallest
-     * of these counts.
+     * Then, the <i>minimum indentation</i> (min) is determined as follows:
+     * <ul>
+     *   <li><p>For each non-blank line (as defined by {@link String#isBlank()}),
+     *   the leading {@linkplain Character#isWhitespace(int) white space}
+     *   characters are counted.</p>
+     *   </li>
+     *   <li><p>The leading {@linkplain Character#isWhitespace(int) white space}
+     *   characters on the last line are also counted even if
+     *   {@linkplain String#isBlank() blank}.</p>
+     *   </li>
+     * </ul>
+     * <p>The <i>min</i> value is the smallest of these counts.
      * <p>
      * For each {@linkplain String#isBlank() non-blank} line, <i>min</i> leading
-     * {@linkplain Character#isWhitespace(int) white space} characters are removed,
-     * and any trailing {@linkplain Character#isWhitespace(int) white space}
-     * characters are removed. {@linkplain String#isBlank() Blank} lines are
-     * replaced with the empty string.
+     * {@linkplain Character#isWhitespace(int) white space} characters are
+     * removed, and any trailing {@linkplain Character#isWhitespace(int) white
+     * space} characters are removed. {@linkplain String#isBlank() Blank} lines
+     * are replaced with the empty string.
      *
      * <p>
      * Finally, the lines are joined into a new string, using the LF character
@@ -2942,12 +2955,11 @@ public final class String
      * possible to the left, while preserving relative indentation. Lines
      * that were indented the least will thus have no leading
      * {@linkplain Character#isWhitespace(int) white space}.
-     * The line count of the result will be the same as line count of this
-     * string.
+     * The result will have the same number of line terminators as this string.
      * If this string ends with a line terminator then the result will end
      * with a line terminator.
      *
-     * @implNote
+     * @implSpec
      * This method treats all {@linkplain Character#isWhitespace(int) white space}
      * characters as having equal width. As long as the indentation on every
      * line is consistently composed of the same character sequences, then the
@@ -3322,15 +3334,6 @@ public final class String
     }
 
     /**
-     * {@preview Associated with text blocks, a preview feature of
-     *           the Java language.
-     *
-     *           This method is associated with <i>text blocks</i>, a preview
-     *           feature of the Java language. Programs can only use this
-     *           method when preview features are enabled. Preview features
-     *           may be removed in a future release, or upgraded to permanent
-     *           features of the Java language.}
-     *
      * Formats using this string as the format string, and the supplied
      * arguments.
      *
@@ -3344,7 +3347,7 @@ public final class String
      * @see  java.lang.String#format(String,Object...)
      * @see  java.util.Formatter
      *
-     * @since 13
+     * @since 15
      *
      */
     public String formatted(Object... args) {

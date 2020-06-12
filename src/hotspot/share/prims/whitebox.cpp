@@ -75,6 +75,7 @@
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sweeper.hpp"
+#include "runtime/synchronizer.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/vm_version.hpp"
@@ -479,6 +480,12 @@ WB_END
 
 WB_ENTRY(jboolean, WB_G1StartMarkCycle(JNIEnv* env, jobject o))
   if (UseG1GC) {
+    if (AsyncDeflateIdleMonitors) {
+      // AsyncDeflateIdleMonitors needs to know when System.gc() or
+      // the equivalent is called so any special clean up can be done
+      // at a safepoint, e.g., TestHumongousClassLoader.java.
+      ObjectSynchronizer::set_is_special_deflation_requested(true);
+    }
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
     if (!g1h->concurrent_mark()->cm_thread()->during_cycle()) {
       g1h->collect(GCCause::_wb_conc_mark);
@@ -1450,6 +1457,12 @@ WB_ENTRY(jboolean, WB_IsInStringTable(JNIEnv* env, jobject o, jstring javaString
 WB_END
 
 WB_ENTRY(void, WB_FullGC(JNIEnv* env, jobject o))
+  if (AsyncDeflateIdleMonitors) {
+    // AsyncDeflateIdleMonitors needs to know when System.gc() or
+    // the equivalent is called so any special clean up can be done
+    // at a safepoint, e.g., TestHumongousClassLoader.java.
+    ObjectSynchronizer::set_is_special_deflation_requested(true);
+  }
   Universe::heap()->soft_ref_policy()->set_should_clear_all_soft_refs(true);
   Universe::heap()->collect(GCCause::_wb_full_gc);
 #if INCLUDE_G1GC
@@ -1799,6 +1812,13 @@ WB_ENTRY(jboolean, WB_IsMonitorInflated(JNIEnv* env, jobject wb, jobject obj))
 WB_END
 
 WB_ENTRY(void, WB_ForceSafepoint(JNIEnv* env, jobject wb))
+  if (AsyncDeflateIdleMonitors) {
+    // AsyncDeflateIdleMonitors needs to know when System.gc() or
+    // the equivalent is called so any special clean up can be done
+    // at a safepoint, e.g., TestRTMTotalCountIncrRate.java or
+    // TestUseRTMForStackLocks.java.
+    ObjectSynchronizer::set_is_special_deflation_requested(true);
+  }
   VM_ForceSafepoint force_safepoint_op;
   VMThread::execute(&force_safepoint_op);
 WB_END
@@ -2316,6 +2336,60 @@ WB_ENTRY(jint, WB_GetKlassMetadataSize(JNIEnv* env, jobject wb, jclass mirror))
   return k->size() * wordSize;
 WB_END
 
+// See test/hotspot/jtreg/runtime/Thread/ThreadObjAccessAtExit.java.
+// It explains how the thread's priority field is used for test state coordination.
+//
+WB_ENTRY(void, WB_CheckThreadObjOfTerminatingThread(JNIEnv* env, jobject wb, jobject target_handle))
+  oop target_oop = JNIHandles::resolve_non_null(target_handle);
+  jlong tid = java_lang_Thread::thread_id(target_oop);
+  JavaThread* target = java_lang_Thread::thread(target_oop);
+
+  // Grab a ThreadsListHandle to protect the target thread whilst terminating
+  ThreadsListHandle tlh;
+
+  // Look up the target thread by tid to ensure it is present
+  JavaThread* t = tlh.list()->find_JavaThread_from_java_tid(tid);
+  if (t == NULL) {
+    THROW_MSG(vmSymbols::java_lang_RuntimeException(), "Target thread not found in ThreadsList!");
+  }
+
+  tty->print_cr("WB_CheckThreadObjOfTerminatingThread: target thread is protected");
+  // Allow target to terminate by boosting priority
+  java_lang_Thread::set_priority(t->threadObj(), ThreadPriority(NormPriority + 1));
+
+  // Now wait for the target to terminate
+  while (!target->is_terminated()) {
+    ThreadBlockInVM tbivm(thread);  // just in case target is involved in a safepoint
+    os::naked_short_sleep(0);
+  }
+
+  tty->print_cr("WB_CheckThreadObjOfTerminatingThread: target thread is terminated");
+
+  // Now release the GC inducing thread - we have to re-resolve the external oop that
+  // was passed in as GC may have occurred and we don't know if we can trust t->threadObj() now.
+  oop original = JNIHandles::resolve_non_null(target_handle);
+  java_lang_Thread::set_priority(original, ThreadPriority(NormPriority + 2));
+
+  tty->print_cr("WB_CheckThreadObjOfTerminatingThread: GC has been initiated - checking threadObj:");
+
+  // The Java code should be creating garbage and triggering GC, which would potentially move
+  // the threadObj oop. If the exiting thread is properly protected then its threadObj should
+  // remain valid and equal to our initial target_handle. Loop a few times to give GC a chance to
+  // kick in.
+  for (int i = 0; i < 5; i++) {
+    oop original = JNIHandles::resolve_non_null(target_handle);
+    oop current = t->threadObj();
+    if (original != current) {
+      tty->print_cr("WB_CheckThreadObjOfTerminatingThread: failed comparison on iteration %d", i);
+      THROW_MSG(vmSymbols::java_lang_RuntimeException(), "Target thread oop has changed!");
+    } else {
+      tty->print_cr("WB_CheckThreadObjOfTerminatingThread: successful comparison on iteration %d", i);
+      ThreadBlockInVM tbivm(thread);
+      os::naked_short_sleep(50);
+    }
+  }
+WB_END
+
 #define CC (char*)
 
 static JNINativeMethod methods[] = {
@@ -2547,6 +2621,7 @@ static JNINativeMethod methods[] = {
 
   {CC"clearInlineCaches0",  CC"(Z)V",                 (void*)&WB_ClearInlineCaches },
   {CC"handshakeWalkStack", CC"(Ljava/lang/Thread;Z)I", (void*)&WB_HandshakeWalkStack },
+  {CC"checkThreadObjOfTerminatingThread", CC"(Ljava/lang/Thread;)V", (void*)&WB_CheckThreadObjOfTerminatingThread },
   {CC"addCompilerDirective",    CC"(Ljava/lang/String;)I",
                                                       (void*)&WB_AddCompilerDirective },
   {CC"removeCompilerDirective",   CC"(I)V",           (void*)&WB_RemoveCompilerDirective },

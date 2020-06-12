@@ -819,7 +819,7 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     @Override
     public String getSourceFileName() {
         if (isArray()) {
-            throw new JVMCIError("Cannot call getSourceFileName() on an array klass type: %s", this);
+            return null;
         }
         return getConstantPool().getSourceFileName();
     }

@@ -27,11 +27,9 @@ package gc.g1;
  * @test TestLargePageUseForHeap.java
  * @summary Test that Java heap is allocated using large pages of the appropriate size if available.
  * @bug 8221517
- * @key gc
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
  * @requires vm.gc.G1
- * @requires os.family != "solaris"
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xbootclasspath/a:. -XX:+UseG1GC -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI

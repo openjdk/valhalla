@@ -357,13 +357,6 @@
           "Limit of ops to make speculative when using CMOVE")              \
           range(0, max_jint)                                                \
                                                                             \
-  /* Set BranchOnRegister == false. See 4965987. */                         \
-  product(bool, BranchOnRegister, false,                                    \
-          "Use Sparc V9 branch-on-register opcodes")                        \
-                                                                            \
-  develop(bool, SparcV9RegsHiBitsZero, true,                                \
-          "Assume Sparc V9 I&L registers on V8+ systems are zero-extended") \
-                                                                            \
   product(bool, UseRDPCForConstantTableBase, false,                         \
           "Use Sparc RDPC instruction for the constant table base.")        \
                                                                             \
@@ -497,7 +490,8 @@
           "Print precise statistics on the dynamic lock usage")             \
                                                                             \
   diagnostic(bool, PrintPreciseBiasedLockingStatistics, false,              \
-          "Print per-lock-site statistics of biased locking in JVM")        \
+          "(Deprecated) Print per-lock-site statistics of biased locking "  \
+          "in JVM")                                                         \
                                                                             \
   diagnostic(bool, PrintPreciseRTMLockingStatistics, false,                 \
           "Print per-lock-site statistics of rtm locking in JVM")           \
@@ -551,7 +545,7 @@
           "Verify Connection Graph construction in Escape Analysis")        \
                                                                             \
   product(bool, UseOptoBiasInlining, true,                                  \
-          "Generate biased locking code in C2 ideal graph")                 \
+          "(Deprecated) Generate biased locking code in C2 ideal graph")    \
                                                                             \
   product(bool, OptimizeStringConcat, true,                                 \
           "Optimize the construction of Strings by StringBuilder")          \
@@ -683,6 +677,35 @@
                                                                             \
   develop(bool, VerifyAliases, false,                                       \
           "perform extra checks on the results of alias analysis")          \
+                                                                            \
+  product(intx, MaxInlineLevel, 15,                                         \
+          "maximum number of nested calls that are inlined by high tier "   \
+          "compiler")                                                       \
+          range(0, max_jint)                                                \
+                                                                            \
+  product(intx, MaxRecursiveInlineLevel, 1,                                 \
+          "maximum number of nested recursive calls that are inlined by "   \
+          "high tier compiler")                                             \
+          range(0, max_jint)                                                \
+                                                                            \
+  product_pd(intx, InlineSmallCode,                                         \
+          "Only inline already compiled methods if their code size is "     \
+          "less than this")                                                 \
+          range(0, max_jint)                                                \
+                                                                            \
+  product(intx, MaxInlineSize, 35,                                          \
+          "The maximum bytecode size of a method to be inlined by high "    \
+          "tier compiler")                                                  \
+          range(0, max_jint)                                                \
+                                                                            \
+  product_pd(intx, FreqInlineSize,                                          \
+          "The maximum bytecode size of a frequent method to be inlined")   \
+          range(0, max_jint)                                                \
+                                                                            \
+  product(intx, MaxTrivialSize, 6,                                          \
+          "The maximum bytecode size of a trivial method to be inlined by " \
+          "high tier compiler")                                             \
+          range(0, max_jint)                                                \
                                                                             \
   product(bool, IncrementalInline, true,                                    \
           "do post parse inlining")                                         \

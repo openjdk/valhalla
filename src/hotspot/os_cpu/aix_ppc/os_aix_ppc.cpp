@@ -365,11 +365,11 @@ JVM_handle_aix_signal(int sig, siginfo_t* info, void* ucVoid, int abort_if_unrec
         goto report_and_die;
       }
 
+      int stop_type = -1;
       // Handle signal from NativeJump::patch_verified_entry().
-      if (( TrapBasedNotEntrantChecks && sig == SIGTRAP && nativeInstruction_at(pc)->is_sigtrap_zombie_not_entrant()) ||
-          (!TrapBasedNotEntrantChecks && sig == SIGILL  && nativeInstruction_at(pc)->is_sigill_zombie_not_entrant())) {
+      if (sig == SIGILL && nativeInstruction_at(pc)->is_sigill_zombie_not_entrant()) {
         if (TraceTraps) {
-          tty->print_cr("trap: zombie_not_entrant (%s)", (sig == SIGTRAP) ? "SIGTRAP" : "SIGILL");
+          tty->print_cr("trap: zombie_not_entrant");
         }
         stub = SharedRuntime::get_handle_wrong_method_stub();
         goto run_stub;
@@ -434,6 +434,33 @@ JVM_handle_aix_signal(int sig, siginfo_t* info, void* ucVoid, int abort_if_unrec
         }
         stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_DIVIDE_BY_ZERO);
         goto run_stub;
+      }
+
+      // stop on request
+      else if (sig == SIGTRAP && (stop_type = nativeInstruction_at(pc)->get_stop_type()) != -1) {
+        bool msg_present = (stop_type & MacroAssembler::stop_msg_present);
+        stop_type = (stop_type &~ MacroAssembler::stop_msg_present);
+
+        const char *msg = NULL;
+        switch (stop_type) {
+          case MacroAssembler::stop_stop              : msg = "stop"; break;
+          case MacroAssembler::stop_untested          : msg = "untested"; break;
+          case MacroAssembler::stop_unimplemented     : msg = "unimplemented"; break;
+          case MacroAssembler::stop_shouldnotreachhere: msg = "shouldnotreachhere"; break;
+          default: msg = "unknown"; break;
+        }
+
+        const char **detail_msg_ptr = (const char**)(pc + 4);
+        const char *detail_msg = msg_present ? *detail_msg_ptr : "no details provided";
+
+        if (TraceTraps) {
+          tty->print_cr("trap: %s: %s (SIGTRAP, stop type %d)", msg, detail_msg, stop_type);
+        }
+
+        va_list detail_args;
+        VMError::report_and_die(INTERNAL_ERROR, msg, detail_msg, detail_args, thread,
+                                pc, info, ucVoid, NULL, 0, 0);
+        va_end(detail_args);
       }
 
       else if (sig == SIGBUS) {

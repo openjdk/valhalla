@@ -43,6 +43,8 @@
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/isGCActiveMark.hpp"
+#include "gc/shared/oopStorage.inline.hpp"
+#include "gc/shared/oopStorageSet.hpp"
 #include "gc/shared/referencePolicy.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
@@ -102,8 +104,8 @@ static void scavenge_roots_work(ParallelRootType::Value root_type, uint worker_i
       ObjectSynchronizer::oops_do(&roots_closure);
       break;
 
-    case ParallelRootType::system_dictionary:
-      SystemDictionary::oops_do(&roots_closure);
+    case ParallelRootType::vm_global:
+      OopStorageSet::vm_global()->oops_do(&roots_closure);
       break;
 
     case ParallelRootType::class_loader_data:
@@ -149,10 +151,10 @@ static void steal_work(TaskTerminator& terminator, uint worker_id) {
             "stacks should be empty at this point");
 
   while (true) {
-    StarTask p;
-    if (PSPromotionManager::steal_depth(worker_id, p)) {
-      TASKQUEUE_STATS_ONLY(pm->record_steal(p));
-      pm->process_popped_location_depth(p);
+    ScannerTask task;
+    if (PSPromotionManager::steal_depth(worker_id, task)) {
+      TASKQUEUE_STATS_ONLY(pm->record_steal(task));
+      pm->process_popped_location_depth(task);
       pm->drain_stacks_depth(true);
     } else {
       if (terminator.offer_termination()) {
@@ -192,7 +194,7 @@ public:
 
     // Weak refs may be visited more than once.
     if (PSScavenge::should_scavenge(p, _to_space)) {
-      _promotion_manager->copy_and_push_safe_barrier<T, /*promote_immediately=*/false>(p);
+      _promotion_manager->copy_and_push_safe_barrier</*promote_immediately=*/false>(p);
     }
   }
   virtual void do_oop(oop* p)       { PSKeepAliveClosure::do_oop_work(p); }
@@ -592,7 +594,7 @@ bool PSScavenge::invoke_no_policy() {
           counters->update_survivor_overflowed(_survivor_overflow);
         }
 
-        size_t max_young_size = young_gen->max_size();
+        size_t max_young_size = young_gen->max_gen_size();
 
         // Deciding a free ratio in the young generation is tricky, so if
         // MinHeapFreeRatio or MaxHeapFreeRatio are in use (implicating
@@ -600,7 +602,8 @@ bool PSScavenge::invoke_no_policy() {
         // should then limit our young generation size using NewRatio to have it
         // follow the old generation size.
         if (MinHeapFreeRatio != 0 || MaxHeapFreeRatio != 100) {
-          max_young_size = MIN2(old_gen->capacity_in_bytes() / NewRatio, young_gen->max_size());
+          max_young_size = MIN2(old_gen->capacity_in_bytes() / NewRatio,
+                                young_gen->max_gen_size());
         }
 
         size_t survivor_limit =
@@ -625,12 +628,12 @@ bool PSScavenge::invoke_no_policy() {
         // Don't check if the size_policy is ready at this
         // level.  Let the size_policy check that internally.
         if (UseAdaptiveGenerationSizePolicyAtMinorCollection &&
-            (AdaptiveSizePolicy::should_update_eden_stats(gc_cause))) {
+            AdaptiveSizePolicy::should_update_eden_stats(gc_cause)) {
           // Calculate optimal free space amounts
-          assert(young_gen->max_size() >
-            young_gen->from_space()->capacity_in_bytes() +
-            young_gen->to_space()->capacity_in_bytes(),
-            "Sizes of space in young gen are out-of-bounds");
+          assert(young_gen->max_gen_size() >
+                 young_gen->from_space()->capacity_in_bytes() +
+                 young_gen->to_space()->capacity_in_bytes(),
+                 "Sizes of space in young gen are out-of-bounds");
 
           size_t young_live = young_gen->used_in_bytes();
           size_t eden_live = young_gen->eden_space()->used_in_bytes();
