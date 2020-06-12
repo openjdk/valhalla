@@ -377,7 +377,7 @@ void Parse::do_withfield() {
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
     inc_sp(nargs);
-    val = ValueTypePtrNode::make_from_value_type(this, val->as_ValueType());
+    val = val->as_ValueType()->buffer(this);
   }
 
   // Clone the value type node and set the new field value
@@ -392,7 +392,7 @@ void Parse::do_withfield() {
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
     inc_sp(nargs);
-    res = new_vt->allocate(this)->get_oop();
+    res = new_vt->buffer(this)->get_oop();
   }
   push(_gvn.transform(res));
 }

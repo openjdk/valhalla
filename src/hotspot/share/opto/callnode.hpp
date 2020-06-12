@@ -928,8 +928,6 @@ public:
   virtual uint ideal_reg() const { return Op_RegP; }
   virtual bool        guaranteed_safepoint()  { return false; }
 
-  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
-
   // allocations do not modify their arguments
   virtual bool        may_modify(const TypeOopPtr *t_oop, PhaseTransform *phase) { return false;}
 

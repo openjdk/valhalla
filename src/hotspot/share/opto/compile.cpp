@@ -407,8 +407,11 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
     }
   }
   // Remove useless value type nodes
-  if (_value_type_nodes != NULL) {
-    _value_type_nodes->remove_useless_nodes(useful.member_set());
+  for (int i = _value_type_nodes->length() - 1; i >= 0; i--) {
+    Node* vt = _value_type_nodes->at(i);
+    if (!useful.member(vt)) {
+      _value_type_nodes->remove(vt);
+    }
   }
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   bs->eliminate_useless_gc_barriers(useful, this);
@@ -1020,7 +1023,7 @@ void Compile::Init(int aliaslevel) {
   _expensive_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _range_check_casts = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _opaque4_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
-  _value_type_nodes = new (comp_arena()) Unique_Node_List(comp_arena());
+  _value_type_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   register_library_intrinsics();
 #ifdef ASSERT
   _type_verify_symmetry = true;
@@ -1876,13 +1879,12 @@ void Compile::add_value_type(Node* n) {
 
 void Compile::remove_value_type(Node* n) {
   assert(n->is_ValueTypeBase(), "unexpected node");
-  if (_value_type_nodes != NULL) {
+  if (_value_type_nodes != NULL && _value_type_nodes->contains(n)) {
     _value_type_nodes->remove(n);
   }
 }
 
-// Does the return value keep otherwise useless value type allocations
-// alive?
+// Does the return value keep otherwise useless value type allocations alive?
 static bool return_val_keeps_allocations_alive(Node* ret_val) {
   ResourceMark rm;
   Unique_Node_List wq;
@@ -1890,10 +1892,12 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
   bool some_allocations = false;
   for (uint i = 0; i < wq.size(); i++) {
     Node* n = wq.at(i);
-    assert(!n->is_ValueTypeBase(), "chain of value type nodes");
+    assert(!n->is_ValueType(), "chain of value type nodes");
     if (n->outcnt() > 1) {
       // Some other use for the allocation
       return false;
+    } else if (n->is_ValueTypePtr()) {
+      wq.push(n->in(1));
     } else if (n->is_Phi()) {
       for (uint j = 1; j < n->req(); j++) {
         wq.push(n->in(j));
@@ -1907,18 +1911,24 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
   return some_allocations;
 }
 
-void Compile::process_value_types(PhaseIterGVN &igvn) {
+void Compile::process_value_types(PhaseIterGVN &igvn, bool post_ea) {
   // Make value types scalar in safepoints
-  while (_value_type_nodes->size() != 0) {
-    ValueTypeBaseNode* vt = _value_type_nodes->pop()->as_ValueTypeBase();
+  for (int i = _value_type_nodes->length()-1; i >= 0; i--) {
+    ValueTypeBaseNode* vt = _value_type_nodes->at(i)->as_ValueTypeBase();
     vt->make_scalar_in_safepoints(&igvn);
-    if (vt->is_ValueTypePtr()) {
-      igvn.replace_node(vt, vt->get_oop());
-    } else if (vt->outcnt() == 0) {
-      igvn.remove_dead_node(vt);
+  }
+  // Remove ValueTypePtr nodes only after EA to give scalar replacement a chance
+  // to remove buffer allocations. ValueType nodes are kept until loop opts and
+  // removed via ValueTypeNode::remove_redundant_allocations.
+  if (post_ea) {
+    while (_value_type_nodes->length() > 0) {
+      ValueTypeBaseNode* vt = _value_type_nodes->pop()->as_ValueTypeBase();
+      if (vt->is_ValueTypePtr()) {
+        igvn.replace_node(vt, vt->get_oop());
+      }
     }
   }
-  _value_type_nodes = NULL;
+  // Make sure that the return value does not keep an unused allocation alive
   if (tf()->returns_value_type_as_fields()) {
     Node* ret = NULL;
     for (uint i = 1; i < root()->req(); i++){
@@ -2487,7 +2497,7 @@ void Compile::Optimize() {
     igvn.optimize();
   }
 
-  if (_value_type_nodes->size() > 0) {
+  if (_value_type_nodes->length() > 0) {
     // Do this once all inlining is over to avoid getting inconsistent debug info
     process_value_types(igvn);
   }
@@ -2524,6 +2534,11 @@ void Compile::Optimize() {
 
       if (failing())  return;
     }
+  }
+
+  if (_value_type_nodes->length() > 0) {
+    // Process value types again now that EA might have simplified the graph
+    process_value_types(igvn, /* post_ea= */ true);
   }
 
   // Loop transforms on the ideal graph.  Range Check Elimination,

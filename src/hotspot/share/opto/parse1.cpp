@@ -1725,7 +1725,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       if (t != NULL && t != Type::BOTTOM) {
         if (n->is_ValueType() && !t->isa_valuetype()) {
           // Allocate value type in src block to be able to merge it with oop in target block
-          map()->set_req(j, ValueTypePtrNode::make_from_value_type(this, n->as_ValueType()));
+          map()->set_req(j, n->as_ValueType()->buffer(this));
         }
         assert(!t->isa_valuetype() || n->is_ValueType(), "inconsistent typeflow info");
       }
@@ -2365,7 +2365,7 @@ void Parse::return_current(Node* value) {
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
       inc_sp(1);
-      value = ValueTypePtrNode::make_from_value_type(this, value->as_ValueType());
+      value = value->as_ValueType()->buffer(this);
       if (Compile::current()->inlining_incrementally()) {
         value = value->as_ValueTypeBase()->allocate_fields(this);
       }
