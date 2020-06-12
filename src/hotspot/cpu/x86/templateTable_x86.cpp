@@ -3857,7 +3857,7 @@ void TemplateTable::fast_accessfield(TosState state) {
         __ verify_oop(rax);
         __ jmp(Done);
       __ bind(is_inlined);
-      // fiel is inlined
+      // field is inlined
         __ push(rdx); // save offset
         __ movl(rdx, Address(rcx, rbx, Address::times_ptr,
                            in_bytes(ConstantPoolCache::base_offset() +
