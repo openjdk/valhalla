@@ -467,7 +467,7 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
                        fi->signature(_cp)->as_C_string(),
                        b->size(),
                        b->alignment(),
-                       "ALLOCATED INLINE");
+                       "INLINED");
       break;
     }
     case LayoutRawBlock::RESERVED: {
@@ -618,7 +618,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
 //      fs.set_inline(true);
       _has_inline_type_fields = true;
       if (group == _static_fields) {
-        // static fields are never allocated inline
+        // static fields are never inlined
         group->add_oop_field(fs);
       } else {
         _has_flattening_information = true;
@@ -639,7 +639,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
         if (vk->is_naturally_atomic()) {
           too_atomic_to_flatten = false;
           //too_volatile_to_flatten = false; //FIXME
-          // volatile fields are currently never allocated inline, this could change in the future
+          // volatile fields are currently never inlined, this could change in the future
         }
         if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten)) {
           group->add_inlined_field(fs, vk);
@@ -676,7 +676,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
  *     constraining alignment, this value is then used as the alignment
  *     constraint when flattening this inline type into another container
  *   - field flattening decisions are taken in this method (those decisions are
- *     currently only based in the size of the fields to be allocated inline, the size
+ *     currently only based in the size of the fields to be inlined, the size
  *     of the resulting instance is not considered)
  */
 void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
@@ -720,7 +720,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
 //      fs.set_inline(true);
       _has_inline_type_fields = true;
       if (group == _static_fields) {
-        // static fields are never allocated inline
+        // static fields are never inlined
         group->add_oop_field(fs);
       } else {
         // Flattening decision to be taken here
@@ -740,7 +740,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
         if (vk->is_naturally_atomic()) {
           too_atomic_to_flatten = false;
           //too_volatile_to_flatten = false; //FIXME
-          // volatile fields are currently never allocated inline, this could change in the future
+          // volatile fields are currently never inlined, this could change in the future
         }
         if (!(too_big_to_flatten | too_atomic_to_flatten | too_volatile_to_flatten)) {
           group->add_inlined_field(fs, vk);
@@ -783,7 +783,7 @@ void FieldLayoutBuilder::insert_contended_padding(LayoutRawBlock* slot) {
 
 /* Computation of regular classes layout is an evolution of the previous default layout
  * (FieldAllocationStyle 1):
- *   - fields allocated inline are processed first (because they have potentially the
+ *   - inlined fields are allocated first (because they have potentially the
  *     least regular shapes, and are more likely to create empty slots between them,
  *     which can then be used to allocation primitive or oop fields). Allocation is
  *     performed from the biggest to the smallest field.
@@ -835,7 +835,7 @@ void FieldLayoutBuilder::compute_regular_layout() {
  * of inline classes is to be embedded into other containers, it is critical
  * to keep their size as small as possible. For this reason, the allocation
  * strategy is:
- *   - fields allocated inline are processed first (because they have potentially the
+ *   - inlined fields are allocated first (because they have potentially the
  *     least regular shapes, and are more likely to create empty slots between them,
  *     which can then be used to allocation primitive or oop fields). Allocation is
  *     performed from the biggest to the smallest field.

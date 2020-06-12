@@ -273,7 +273,7 @@ void ValueKlass::array_klasses_do(void f(Klass* k)) {
 
 // Value type arguments are not passed by reference, instead each
 // field of the value type is passed as an argument. This helper
-// function collects the field allocated inline (recursively)
+// function collects the inlined field (recursively)
 // in a list. Included with the field's type is
 // the offset of each field in the inline type: i2c and c2i adapters
 // need that to load or store fields. Finally, the list of fields is
@@ -298,7 +298,7 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
     if (fs.is_inlined()) {
-      // Resolve klass of field allocated inline and recursively collect fields
+      // Resolve klass of inlined field and recursively collect fields
       Klass* vk = get_value_field_klass(fs.index());
       count += ValueKlass::cast(vk)->collect_fields(sig, offset);
     } else {

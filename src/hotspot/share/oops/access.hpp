@@ -220,7 +220,7 @@ public:
     AccessInternal::clone<decorators>(src, dst, size);
   }
 
-  // inline type heap access (when allocated inline)...
+  // inline type heap access (when inlined)...
 
   // Copy value type data from src to dst
   static inline void value_copy(void* src, void* dst, ValueKlass* md) {

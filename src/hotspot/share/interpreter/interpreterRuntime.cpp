@@ -358,7 +358,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
       ValueKlass* field_vk = ValueKlass::cast(vklass->get_value_field_klass(field_index));
       assert(vt_oop != NULL && field_vk == vt_oop->klass(), "Must match");
       field_vk->write_inlined_field(new_value_h(), offset, vt_oop, CHECK_(return_offset));
-    } else { // not allocated inline
+    } else { // not inlined
       oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
       if (voop == NULL && cp_entry->is_inline_type()) {
         THROW_(vmSymbols::java_lang_NullPointerException(), return_offset);

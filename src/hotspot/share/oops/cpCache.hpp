@@ -78,7 +78,7 @@ class PSPromotionManager;
 // The flags after TosState have the following interpretation:
 // bit 27: 0 for fields, 1 for methods
 // I  flag true if field is an inline type (must never be null)
-// i  flag true if field is allocated inline
+// i  flag true if field is inlined
 // f  flag true if field is marked final
 // v  flag true if field is volatile (only for fields)
 // f2 flag true if f2 contains an oop (e.g., virtual final method)

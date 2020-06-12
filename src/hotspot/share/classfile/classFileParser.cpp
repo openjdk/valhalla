@@ -4406,7 +4406,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
   // First field of inline types is aligned on a long boundary in order to ease
   // in-lining of inline types (with header removal) in packed arrays and
-  // fields allocated inline
+  // inlined fields
   int initial_inline_type_padding = 0;
   if (is_inline_type()) {
     int old = nonstatic_fields_start;
@@ -4489,7 +4489,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
       if (vk->is_naturally_atomic()) {
         too_atomic_to_allocate_inline = false;
         // too_volatile_to_allocate_inline = false; //FIXME
-        // volatile fields are currently never allocated inline, this could change in the future
+        // volatile fields are currently never inlined, this could change in the future
       }
       if (!(too_big_to_allocate_inline | too_atomic_to_allocate_inline | too_volatile_to_allocate_inline)) {
         nonstatic_inline_type_indexes[nonstatic_inline_type_count] = fs.index();
@@ -4511,7 +4511,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
     }
   }
 
-  // Adjusting non_static_oop_count to take into account not inline types not allocated inline;
+  // Adjusting non_static_oop_count to take into account inline types fields not inlined;
   nonstatic_oop_count += inline_types_not_inlined;
 
   // Total non-static fields count, including every contended field

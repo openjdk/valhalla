@@ -1962,7 +1962,7 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
   if (!jfieldIDWorkaround::is_inlined_jfieldID(fieldID)) {
     res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(o, offset);
   } else {
-    assert(k->is_instance_klass(), "Only instance can have fields allocated inline");
+    assert(k->is_instance_klass(), "Only instance can have inlined fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
@@ -2071,7 +2071,7 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
   if (!jfieldIDWorkaround::is_inlined_jfieldID(fieldID)) {
     HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(o, offset, JNIHandles::resolve(value));
   } else {
-    assert(k->is_instance_klass(), "Only instances can have fields allocated inline");
+    assert(k->is_instance_klass(), "Only instances can have inlined fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);
@@ -3495,7 +3495,7 @@ JNI_ENTRY(jobject, jni_CreateSubElementSelector(JNIEnv* env, jarray array))
   jdk_internal_vm_jni_SubElementSelector::setArrayElementType(ses_h(), elementKlass->java_mirror());
   jdk_internal_vm_jni_SubElementSelector::setSubElementType(ses_h(), elementKlass->java_mirror());
   jdk_internal_vm_jni_SubElementSelector::setOffset(ses_h(), 0);
-  jdk_internal_vm_jni_SubElementSelector::setIsInlined(ses_h(), true);   // by definition, top element of a flattened array is allocated inline
+  jdk_internal_vm_jni_SubElementSelector::setIsInlined(ses_h(), true);   // by definition, top element of a flattened array is inlined
   jdk_internal_vm_jni_SubElementSelector::setIsInlineType(ses_h(), true); // by definition, top element of a flattened array is an inline type
   return JNIHandles::make_local(ses_h());
 JNI_END

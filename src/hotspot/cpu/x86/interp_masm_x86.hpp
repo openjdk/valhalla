@@ -227,7 +227,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void allocate_instance(Register klass, Register new_obj,
                          Register t1, Register t2,
                          bool clear_fields, Label& alloc_failed);
-  // Allocate instance in "obj" and read in the content of the field allocated inline
+  // Allocate instance in "obj" and read in the content of the inline field
   // NOTES:
   //   - input holder object via "obj", which must be rax,
   //     will return new instance via the same reg
