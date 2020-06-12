@@ -79,7 +79,7 @@ inline BasicType fieldDescriptor::field_type() const {
   return Signature::basic_type(signature());
 }
 
-inline bool fieldDescriptor::is_flattened()  const  { return field()->is_flattened(); }
-inline bool fieldDescriptor::is_flattenable() const { return field()->is_flattenable(); }
+inline bool fieldDescriptor::is_inlined()  const  { return field()->is_inlined(); }
+inline bool fieldDescriptor::is_inline_type() const { return Signature::basic_type(field()->signature(_cp())) == T_VALUETYPE; }
 
 #endif // SHARE_RUNTIME_FIELDDESCRIPTOR_INLINE_HPP

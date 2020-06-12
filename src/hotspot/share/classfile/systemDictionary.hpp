@@ -324,7 +324,7 @@ public:
                                               bool is_superclass,
                                               TRAPS);
 
-  static Klass* resolve_flattenable_field_or_fail(AllFieldStream* fs,
+  static Klass* resolve_inline_type_field_or_fail(AllFieldStream* fs,
                                                   Handle class_loader,
                                                   Handle protection_domain,
                                                   bool throw_error,

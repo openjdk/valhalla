@@ -40,8 +40,8 @@ import jdk.internal.vm.jni.SubElementSelector;
  * @requires (os.simpleArch == "x64")
  * @requires (os.family == "linux" | os.family == "mac")
  * @compile -XDallowWithFieldOperator TestJNIArrays.java
- * @run main/othervm/native/timeout=3000 -XX:InlineArrayElemMaxFlatSize=128 -XX:+PrintFlattenableLayouts -XX:+UseCompressedOops TestJNIArrays
- * @run main/othervm/native/timeout=3000 -XX:InlineArrayElemMaxFlatSize=128 -XX:+PrintFlattenableLayouts -XX:-UseCompressedOops TestJNIArrays
+ * @run main/othervm/native/timeout=3000 -XX:InlineArrayElemMaxFlatSize=128 -XX:+UseCompressedOops TestJNIArrays
+ * @run main/othervm/native/timeout=3000 -XX:InlineArrayElemMaxFlatSize=128 -XX:-UseCompressedOops TestJNIArrays
  */
 public class TestJNIArrays {
 

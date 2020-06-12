@@ -133,19 +133,19 @@ void ConstantPoolCacheEntry::set_field(Bytecodes::Code get_code,
                                        TosState field_type,
                                        bool is_final,
                                        bool is_volatile,
-                                       bool is_flattened,
-                                       bool is_flattenable,
+                                       bool is_inlined,
+                                       bool is_inline_type,
                                        Klass* root_klass) {
   set_f1(field_holder);
   set_f2(field_offset);
   assert((field_index & field_index_mask) == field_index,
          "field index does not fit in low flag bits");
-  assert(!is_flattened || is_flattenable, "Sanity check");
+  assert(!is_inlined || is_inline_type, "Sanity check");
   set_field_flags(field_type,
                   ((is_volatile ? 1 : 0) << is_volatile_shift) |
                   ((is_final    ? 1 : 0) << is_final_shift) |
-                  ((is_flattened  ? 1 : 0) << is_flattened_field_shift) |
-                  ((is_flattenable ? 1 : 0) << is_flattenable_field_shift),
+                  ((is_inlined  ? 1 : 0) << is_inlined_shift) |
+                  ((is_inline_type ? 1 : 0) << is_inline_type_shift),
                   field_index);
   set_bytecode_1(get_code);
   set_bytecode_2(put_code);

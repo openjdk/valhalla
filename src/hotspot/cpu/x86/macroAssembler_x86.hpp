@@ -111,9 +111,9 @@ class MacroAssembler: public Assembler {
   // get_default_value_oop with extra assertion for empty value klass
   void get_empty_value_oop(Register value_klass, Register temp_reg, Register obj);
 
-  void test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable);
-  void test_field_is_not_flattenable(Register flags, Register temp_reg, Label& notFlattenable);
-  void test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened);
+  void test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline);
+  void test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline);
+  void test_field_is_inlined(Register flags, Register temp_reg, Label& is_inlined);
 
   // Check oops array storage properties, i.e. flattened and/or null-free
   void test_flattened_array_oop(Register oop, Register temp_reg, Label&is_flattened_array);

@@ -2488,13 +2488,6 @@ const size_t minimumSymbolTableSize = 1024;
           "(whitespace and commas separate names, "                         \
           "and leading and trailing stars '*' are wildcards)")              \
                                                                             \
-  product(bool, PrintNewLayout, false,                                      \
-               "Print layout compute by new algorithm")                     \
-                                                                            \
-  product(bool, PrintFlattenableLayouts, false,                             \
-                "Print layout of inline classes and classes with "          \
-                "flattenable fields")                                       \
-                                                                            \
   product(bool, UseNewFieldLayout, true,                                    \
                 "(Deprecated) Use new algorithm to compute field layouts")  \
                                                                             \

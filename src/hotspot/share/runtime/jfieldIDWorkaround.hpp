@@ -53,8 +53,8 @@ class jfieldIDWorkaround: AllStatic {
   enum {
     checked_bits           = 1,
     instance_bits          = 1,
-    flattened_bits         = 1,
-    address_bits           = BitsPerWord - checked_bits - instance_bits - flattened_bits,
+    inlined_bits           = 1,
+    address_bits           = BitsPerWord - checked_bits - instance_bits - inlined_bits,
 
     large_offset_bits      = address_bits,  // unioned with address
     small_offset_bits      = 7,
@@ -62,15 +62,15 @@ class jfieldIDWorkaround: AllStatic {
 
     checked_shift          = 0,
     instance_shift         = checked_shift  + checked_bits,
-    flattened_shift        = instance_shift + instance_bits,
-    address_shift          = flattened_shift + flattened_bits,
+    inlined_shift          = instance_shift + instance_bits,
+    address_shift          = inlined_shift + inlined_bits,
 
     offset_shift           = address_shift,  // unioned with address
     klass_shift            = offset_shift + small_offset_bits,
 
     checked_mask_in_place  = right_n_bits(checked_bits)  << checked_shift,
     instance_mask_in_place = right_n_bits(instance_bits) << instance_shift,
-    flattened_mask_in_place = right_n_bits(flattened_bits) << flattened_shift,
+    inlined_mask_in_place  = right_n_bits(inlined_bits) << inlined_shift,
 #ifndef _WIN64
     large_offset_mask      = right_n_bits(large_offset_bits),
     small_offset_mask      = right_n_bits(small_offset_bits),
@@ -113,16 +113,16 @@ class jfieldIDWorkaround: AllStatic {
     return ((as_uint & instance_mask_in_place) == 0);
   }
 
-  static bool is_flattened_field(jfieldID id) {
+  static bool is_inlined_jfieldID(jfieldID id) {
     uintptr_t as_uint = (uintptr_t) id;
-    return ((as_uint & flattened_mask_in_place) != 0);
+    return ((as_uint & inlined_mask_in_place) != 0);
   }
 
-  static jfieldID to_instance_jfieldID(Klass* k, int offset, bool flattened) {
+  static jfieldID to_instance_jfieldID(Klass* k, int offset, bool inlined) {
     intptr_t as_uint = ((offset & large_offset_mask) << offset_shift) |
                         instance_mask_in_place;
-    if (flattened) {
-      as_uint |= flattened_mask_in_place;
+    if (inlined) {
+      as_uint |= inlined_mask_in_place;
     }
     if (VerifyJNIFields) {
       as_uint |= encode_klass_hash(k, offset);
@@ -165,13 +165,13 @@ class jfieldIDWorkaround: AllStatic {
     return result;
   }
 
-  static jfieldID to_jfieldID(InstanceKlass* k, int offset, bool is_static, bool is_flattened) {
+  static jfieldID to_jfieldID(InstanceKlass* k, int offset, bool is_static, bool inlined) {
     if (is_static) {
       JNIid *id = k->jni_id_for(offset);
       debug_only(id->set_is_static_field_id());
       return jfieldIDWorkaround::to_static_jfieldID(id);
     } else {
-      return jfieldIDWorkaround::to_instance_jfieldID(k, offset, is_flattened);
+      return jfieldIDWorkaround::to_instance_jfieldID(k, offset, inlined);
     }
   }
 };

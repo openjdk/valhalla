@@ -69,7 +69,7 @@ class InterpreterRuntime: AllStatic {
   static int     withfield     (JavaThread* thread, ConstantPoolCache* cp_cache);
   static void    uninitialized_static_value_field(JavaThread* thread, oopDesc* mirror, int offset);
   static void    write_heap_copy (JavaThread* thread, oopDesc* value, int offset, oopDesc* rcv);
-  static void    read_flattened_field(JavaThread* thread, oopDesc* value, int index, Klass* field_holder);
+  static void    read_inlined_field(JavaThread* thread, oopDesc* value, int index, Klass* field_holder);
 
   static void value_array_load(JavaThread* thread, arrayOopDesc* array, int index);
   static void value_array_store(JavaThread* thread, void* val, arrayOopDesc* array, int index);
