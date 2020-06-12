@@ -2156,6 +2156,8 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     // see if this phi should be sliced
     uint merge_width = 0;
     bool saw_self = false;
+    // TODO revisit this with JDK-8247216
+    bool mergemem_only = true;
     for( uint i=1; i<req(); ++i ) {// For all paths in
       Node *ii = in(i);
       // TOP inputs should not be counted as safe inputs because if the
@@ -2168,11 +2170,13 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
         MergeMemNode* n = ii->as_MergeMem();
         merge_width = MAX2(merge_width, n->req());
         saw_self = saw_self || phase->eqv(n->base_memory(), this);
+      } else {
+        mergemem_only = false;
       }
     }
 
     // This restriction is temporarily necessary to ensure termination:
-    if (!saw_self && adr_type() == TypePtr::BOTTOM)  merge_width = 0;
+    if (!mergemem_only && !saw_self && adr_type() == TypePtr::BOTTOM)  merge_width = 0;
 
     if (merge_width > Compile::AliasIdxRaw) {
       // found at least one non-empty MergeMem

@@ -143,7 +143,7 @@ class LibraryCallKit : public GraphKit {
         // inline type. Make sure the call is re-executed if the allocation triggers a deoptimization.
         PreserveReexecuteState preexecs(this);
         jvms()->set_should_reexecute(true);
-        res = ValueTypePtrNode::make_from_value_type(this, res->as_ValueType());
+        res = res->as_ValueType()->buffer(this);
       }
       push_node(bt, res);
     }
@@ -2522,8 +2522,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       // Re-execute the unsafe access if allocation triggers deoptimization.
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
-      vt = vt->allocate(this)->as_ValueType();
-      base = vt->get_oop();
+      base = vt->buffer(this)->get_oop();
     }
   }
 

@@ -1622,7 +1622,7 @@ Node* GraphKit::access_store_at(Node* obj,
     // the store is re-executed if the allocation triggers deoptimization.
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
-    val = val->as_ValueType()->allocate(this, safe_for_replace)->get_oop();
+    val = val->as_ValueType()->buffer(this, safe_for_replace);
   }
 
   C2AccessValuePtr addr(adr, adr_type);
@@ -1815,10 +1815,9 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       continue;
     } else if (arg->is_ValueType()) {
       // Pass value type argument via oop to callee
-      if (is_late_inline) {
-        arg = ValueTypePtrNode::make_from_value_type(this, arg->as_ValueType());
-      } else {
-        arg = arg->as_ValueType()->allocate(this)->get_oop();
+      arg = arg->as_ValueType()->buffer(this);
+      if (!is_late_inline) {
+        arg = arg->as_ValueTypePtr()->get_oop();
       }
     }
     call->init_req(idx++, arg);
@@ -4582,9 +4581,10 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
   if (con_type != NULL) {
     Node* con = makecon(con_type);
     assert(!field->is_flattenable() || (field->is_static() && !con_type->is_zero_type()), "sanity");
-    if (field->layout_type() == T_VALUETYPE && field->type()->as_value_klass()->is_scalarizable()) {
+    // Check type of constant which might be more precise
+    if (con_type->is_valuetypeptr() && con_type->value_klass()->is_scalarizable()) {
       // Load value type from constant oop
-      con = ValueTypeNode::make_from_oop(this, con, field->type()->as_value_klass());
+      con = ValueTypeNode::make_from_oop(this, con, con_type->value_klass());
     }
     return con;
   }

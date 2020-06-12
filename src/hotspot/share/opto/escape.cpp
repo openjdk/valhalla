@@ -431,6 +431,7 @@ void ConnectionGraph::add_node_to_connection_graph(Node *n, Unique_Node_List *de
       map_ideal_node(n, phantom_obj);
       break;
     }
+    case Op_ValueTypePtr:
     case Op_CastPP:
     case Op_CheckCastPP:
     case Op_EncodeP:
@@ -602,6 +603,7 @@ void ConnectionGraph::add_final_edges(Node *n) {
       add_base(n_ptn->as_Field(), ptn_base);
       break;
     }
+    case Op_ValueTypePtr:
     case Op_CastPP:
     case Op_CheckCastPP:
     case Op_EncodeP:
@@ -3258,7 +3260,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
               op == Op_FastLock || op == Op_AryEq || op == Op_StrComp || op == Op_HasNegatives ||
               op == Op_StrCompressedCopy || op == Op_StrInflatedCopy ||
               op == Op_StrEquals || op == Op_StrIndexOf || op == Op_StrIndexOfChar ||
-              op == Op_SubTypeCheck || op == Op_ValueType ||
+              op == Op_SubTypeCheck || op == Op_ValueType || op == Op_ValueTypePtr ||
               BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(use))) {
           n->dump();
           use->dump();
