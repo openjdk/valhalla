@@ -191,7 +191,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
       st->print(" %s", obj->bool_field(offset()) ? "true" : "false");
       break;
     case T_VALUETYPE:
-      if (is_allocated_inline()) {
+      if (is_inlined()) {
         // Print fields of fields allocated inline (recursively)
         ValueKlass* vk = ValueKlass::cast(field_holder()->get_value_field_klass(index()));
         int field_offset = offset() - vk->first_field_offset();

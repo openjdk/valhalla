@@ -113,7 +113,7 @@ class MacroAssembler: public Assembler {
 
   void test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline);
   void test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline);
-  void test_field_is_allocated_inline(Register flags, Register temp_reg, Label& is_allocated_inline);
+  void test_field_is_inlined(Register flags, Register temp_reg, Label& is_inlined);
 
   // Check oops array storage properties, i.e. flattened and/or null-free
   void test_flattened_array_oop(Register oop, Register temp_reg, Label&is_flattened_array);

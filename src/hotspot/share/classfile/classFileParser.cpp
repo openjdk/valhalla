@@ -4446,7 +4446,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
   int* nonstatic_inline_type_indexes = NULL;
   Klass** nonstatic_inline_type_klasses = NULL;
   unsigned int inline_type_oop_map_count = 0;
-  int inline_types_not_allocated_inline = 0;
+  int inline_types_not_inlined = 0;
   int not_atomic_inline_types = 0;
 
   int max_nonstatic_inline_type = fac->count[NONSTATIC_INLINE] + 1;
@@ -4500,19 +4500,19 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         if (vklass->contains_oops()) {
           inline_type_oop_map_count += vklass->nonstatic_oop_map_count();
         }
-        fs.set_allocated_inline(true);
+        fs.set_inlined(true);
         if (!vk->is_atomic()) {  // flat and non-atomic: take note
           not_atomic_inline_types++;
         }
       } else {
-        inline_types_not_allocated_inline++;
-        fs.set_allocated_inline(false);
+        inline_types_not_inlined++;
+        fs.set_inlined(false);
       }
     }
   }
 
   // Adjusting non_static_oop_count to take into account not inline types not allocated inline;
-  nonstatic_oop_count += inline_types_not_allocated_inline;
+  nonstatic_oop_count += inline_types_not_inlined;
 
   // Total non-static fields count, including every contended field
   unsigned int nonstatic_fields_count = fac->count[NONSTATIC_DOUBLE] + fac->count[NONSTATIC_WORD] +
@@ -4544,7 +4544,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
       super_oop_map_count +
       fac->count[NONSTATIC_OOP] +
       inline_type_oop_map_count +
-      inline_types_not_allocated_inline;
+      inline_types_not_inlined;
 
   OopMapBlocksBuilder* nonstatic_oop_maps = new OopMapBlocksBuilder(max_oop_map_count);
   if (super_oop_map_count > 0) {
@@ -4688,7 +4688,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         next_static_double_offset += BytesPerLong;
         break;
       case NONSTATIC_INLINE:
-        if (fs.is_allocated_inline()) {
+        if (fs.is_inlined()) {
           Klass* klass = nonstatic_inline_type_klasses[next_inline_type_index];
           assert(klass != NULL, "Klass should have been loaded and resolved earlier");
           assert(klass->access_flags().is_inline_type(),"Must be an inline type");

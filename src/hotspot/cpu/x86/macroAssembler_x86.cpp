@@ -2653,12 +2653,12 @@ void MacroAssembler::test_field_is_not_inline_type(Register flags, Register temp
   jcc(Assembler::zero, not_inline_type);
 }
 
-void MacroAssembler::test_field_is_allocated_inline(Register flags, Register temp_reg, Label& is_allocated_inline) {
+void MacroAssembler::test_field_is_inlined(Register flags, Register temp_reg, Label& is_inlined) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_allocated_inline_shift);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_inlined_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_allocated_inline);
+  jcc(Assembler::notZero, is_inlined);
 }
 
 void MacroAssembler::test_flattened_array_oop(Register oop, Register temp_reg,

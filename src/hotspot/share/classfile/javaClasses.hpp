@@ -1656,7 +1656,7 @@ class jdk_internal_vm_jni_SubElementSelector : AllStatic {
   static int _arrayElementType_offset;
   static int _subElementType_offset;
   static int _offset_offset;
-  static int _isAllocatedInline_offset;
+  static int _isInlined_offset;
   static int _isInlineType_offset;
  public:
   static Symbol* symbol();
@@ -1669,8 +1669,8 @@ class jdk_internal_vm_jni_SubElementSelector : AllStatic {
   static void setSubElementType(oop obj, oop type);
   static int getOffset(oop obj);
   static void setOffset(oop obj, int offset);
-  static bool getIsAllocatedInline(oop obj);
-  static void setIsAllocatedInline(oop obj, bool b);
+  static bool getIsInlined(oop obj);
+  static void setIsInlined(oop obj, bool b);
   static bool getIsInlineType(oop obj);
   static void setIsInlineType(oop obj, bool b);
 };

@@ -188,7 +188,7 @@ class ConstantPoolCacheEntry {
     has_appendix_shift         = 24,  // (A) does the call site have an appendix argument?
     is_inline_type_shift       = 24,  // (I) is the type of the field an inline type (must never be null)
     is_forced_virtual_shift    = 23,  // (I) is the interface reference forced to virtual mode?
-    is_allocated_inline_shift  = 23,  // (i) is the field allocated inline?
+    is_inlined_shift           = 23,  // (i) is the field inlined?
     is_final_shift             = 22,  // (f) is the field or method final?
     is_volatile_shift          = 21,  // (v) is the field volatile?
     is_vfinal_shift            = 20,  // (vf) did the call resolve to a final method?
@@ -228,7 +228,7 @@ class ConstantPoolCacheEntry {
     TosState        field_type,                  // the (machine) field type
     bool            is_final,                    // the field is final
     bool            is_volatile,                 // the field is volatile
-    bool            is_allocated_inline,         // the field is allocated inline
+    bool            is_inlined,                  // the field is inlined
     bool            is_inline_type,              // the field is an inline type (must never be null)
     Klass*          root_klass                   // needed by the GC to dirty the klass
   );
@@ -353,7 +353,7 @@ class ConstantPoolCacheEntry {
   int  parameter_size() const                    { assert(is_method_entry(), ""); return (_flags & parameter_size_mask); }
   bool is_volatile() const                       { return (_flags & (1 << is_volatile_shift))       != 0; }
   bool is_final() const                          { return (_flags & (1 << is_final_shift))          != 0; }
-  bool is_allocated_inline() const               { return  (_flags & (1 << is_allocated_inline_shift))       != 0; }
+  bool is_inlined() const                        { return  (_flags & (1 << is_inlined_shift))       != 0; }
   bool is_forced_virtual() const                 { return (_flags & (1 << is_forced_virtual_shift)) != 0; }
   bool is_vfinal() const                         { return (_flags & (1 << is_vfinal_shift))         != 0; }
   bool indy_resolution_failed() const;

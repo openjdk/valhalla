@@ -548,7 +548,7 @@ class InstanceKlass: public Klass {
   int     field_access_flags(int index) const { return field(index)->access_flags(); }
   Symbol* field_name        (int index) const { return field(index)->name(constants()); }
   Symbol* field_signature   (int index) const { return field(index)->signature(constants()); }
-  bool    field_is_allocated_inline(int index) const { return field(index)->is_allocated_inline(); }
+  bool    field_is_inlined(int index) const { return field(index)->is_inlined(); }
   bool    field_is_inline_type(int index) const;
 
   // Number of Java declared fields

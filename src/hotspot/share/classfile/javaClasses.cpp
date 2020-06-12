@@ -4764,14 +4764,14 @@ void java_lang_Byte_ByteCache::serialize_offsets(SerializeClosure* f) {
 int jdk_internal_vm_jni_SubElementSelector::_arrayElementType_offset;
 int jdk_internal_vm_jni_SubElementSelector::_subElementType_offset;
 int jdk_internal_vm_jni_SubElementSelector::_offset_offset;
-int jdk_internal_vm_jni_SubElementSelector::_isAllocatedInline_offset;
+int jdk_internal_vm_jni_SubElementSelector::_isInlined_offset;
 int jdk_internal_vm_jni_SubElementSelector::_isInlineType_offset;
 
 #define SUBELEMENT_SELECTOR_FIELDS_DO(macro) \
   macro(_arrayElementType_offset,  k, "arrayElementType", class_signature, false); \
   macro(_subElementType_offset,    k, "subElementType",   class_signature, false); \
   macro(_offset_offset,            k, "offset",           int_signature,   false); \
-  macro(_isAllocatedInline_offset, k, "isAllocatedInline", bool_signature,  false); \
+  macro(_isInlined_offset,         k, "isInlined",        bool_signature,  false); \
   macro(_isInlineType_offset,      k, "isInlineType",     bool_signature,  false);
 
 void jdk_internal_vm_jni_SubElementSelector::compute_offsets() {
@@ -4814,12 +4814,12 @@ void jdk_internal_vm_jni_SubElementSelector::setOffset(oop obj, int offset) {
   obj->int_field_put(_offset_offset, offset);
 }
 
-bool jdk_internal_vm_jni_SubElementSelector::getIsAllocatedInline(oop obj) {
-  return obj->bool_field(_isAllocatedInline_offset);
+bool jdk_internal_vm_jni_SubElementSelector::getIsInlined(oop obj) {
+  return obj->bool_field(_isInlined_offset);
 }
 
-void jdk_internal_vm_jni_SubElementSelector::setIsAllocatedInline(oop obj, bool b) {
-  obj->bool_field_put(_isAllocatedInline_offset, b);
+void jdk_internal_vm_jni_SubElementSelector::setIsInlined(oop obj, bool b) {
+  obj->bool_field_put(_isInlined_offset, b);
 }
 
 bool jdk_internal_vm_jni_SubElementSelector::getIsInlineType(oop obj) {

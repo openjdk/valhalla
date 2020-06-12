@@ -282,7 +282,7 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   Klass* field_holder = fd->field_holder();
   assert(field_holder != NULL, "null field_holder");
   _holder = CURRENT_ENV->get_instance_klass(field_holder);
-  _is_flattened = fd->is_allocated_inline();
+  _is_flattened = fd->is_inlined();
   _is_flattenable = fd->is_inline_type();
 
   // Check to see if the field is constant.

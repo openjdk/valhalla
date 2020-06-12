@@ -152,7 +152,7 @@ int ValueKlass::nonstatic_oop_count() {
   return oops;
 }
 
-oop ValueKlass::read_field_allocated_inline(oop obj, int offset, TRAPS) {
+oop ValueKlass::read_inlined_field(oop obj, int offset, TRAPS) {
   oop res = NULL;
   this->initialize(CHECK_NULL); // will throw an exception if in error state
   if (is_empty_inline_type()) {
@@ -166,7 +166,7 @@ oop ValueKlass::read_field_allocated_inline(oop obj, int offset, TRAPS) {
   return res;
 }
 
-void ValueKlass::write_field_allocated_inline(oop obj, int offset, oop value, TRAPS) {
+void ValueKlass::write_inlined_field(oop obj, int offset, oop value, TRAPS) {
   if (value == NULL) {
     THROW(vmSymbols::java_lang_NullPointerException());
   }
@@ -297,7 +297,7 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   for (AllFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
-    if (fs.is_allocated_inline()) {
+    if (fs.is_inlined()) {
       // Resolve klass of field allocated inline and recursively collect fields
       Klass* vk = get_value_field_klass(fs.index());
       count += ValueKlass::cast(vk)->collect_fields(sig, offset);

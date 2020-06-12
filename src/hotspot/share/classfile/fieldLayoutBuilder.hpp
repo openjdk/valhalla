@@ -56,8 +56,8 @@ class LayoutRawBlock : public ResourceObj {
     EMPTY,            // empty slot, space is taken from this to allocate fields
     RESERVED,         // reserved for JVM usage (for instance object header)
     PADDING,          // padding (because of alignment constraints or @Contended)
-    REGULAR,          // primitive or oop field (including inline type fields not allocated inline)
-    ALLOCATED_INLINE, // field allocated inline
+    REGULAR,          // primitive or oop field (including inline type fields not inlined)
+    INLINED,          // field inlined
     INHERITED         // field(s) inherited from super classes
   };
 
@@ -123,7 +123,7 @@ class LayoutRawBlock : public ResourceObj {
 // A Field group represents a set of fields that have to be allocated together,
 // this is the way the @Contended annotation is supported.
 // Inside a FieldGroup, fields are sorted based on their kind: primitive,
-// oop, or allocated inline.
+// oop, or inlined.
 //
 class FieldGroup : public ResourceObj {
 
@@ -132,7 +132,7 @@ class FieldGroup : public ResourceObj {
 
   GrowableArray<LayoutRawBlock*>* _primitive_fields;
   GrowableArray<LayoutRawBlock*>* _oop_fields;
-  GrowableArray<LayoutRawBlock*>* _fields_allocated_inline;
+  GrowableArray<LayoutRawBlock*>* _inlined_fields;
   int _contended_group;
   int _oop_count;
   static const int INITIAL_LIST_SIZE = 16;
@@ -144,13 +144,13 @@ class FieldGroup : public ResourceObj {
   void set_next(FieldGroup* next) { _next = next; }
   GrowableArray<LayoutRawBlock*>* primitive_fields() const { return _primitive_fields; }
   GrowableArray<LayoutRawBlock*>* oop_fields() const { return _oop_fields; }
-  GrowableArray<LayoutRawBlock*>* fields_allocated_inline() const { return _fields_allocated_inline; }
+  GrowableArray<LayoutRawBlock*>* inlined_fields() const { return _inlined_fields; }
   int contended_group() const { return _contended_group; }
   int oop_count() const { return _oop_count; }
 
   void add_primitive_field(AllFieldStream fs, BasicType type);
   void add_oop_field(AllFieldStream fs);
-  void add_field_allocated_inline(AllFieldStream fs, ValueKlass* vk);
+  void add_inlined_field(AllFieldStream fs, ValueKlass* vk);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
 };
@@ -292,7 +292,7 @@ class FieldLayoutBuilder : public ResourceObj {
   void epilogue();
   void regular_field_sorting();
   void inline_class_field_sorting(TRAPS);
-  void add_field__allocated_inline_oopmap(OopMapBlocksBuilder* nonstatic_oop_map, ValueKlass* vk, int offset);
+  void add_inlined_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_map, ValueKlass* vk, int offset);
 };
 
 #endif // SHARE_CLASSFILE_FIELDLAYOUTBUILDER_HPP

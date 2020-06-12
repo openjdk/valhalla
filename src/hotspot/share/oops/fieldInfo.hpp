@@ -52,7 +52,7 @@ class FieldInfo {
 #define FIELDINFO_TAG_TYPE_CONTENDED   3
 #define FIELDINFO_TAG_TYPE_MASK        3
 #define FIELDINFO_TAG_MASK             7
-#define FIELDINFO_TAG_ALLOCATED_INLINE 4
+#define FIELDINFO_TAG_INLINED          4
 
   // Packed field has the tag, and can be either of:
   //    hi bits <--------------------------- lo bits
@@ -62,7 +62,7 @@ class FieldInfo {
   //    ......................[-------type------]I10  - plain field with type
   //    [--contention_group--][-------type------]I11  - contended field with type and contention group
   //
-  // Bit I indicates if the field has been allocated inline  (I=1) or nor (I=0)
+  // Bit I indicates if the field has been inlined  (I=1) or nor (I=0)
 
   enum FieldOffset {
     access_flags_offset      = 0,
@@ -200,22 +200,22 @@ class FieldInfo {
   void set_access_flags(u2 val)                  { _shorts[access_flags_offset] = val;             }
   void set_offset(u4 val)                        {
     val = val << FIELDINFO_TAG_SIZE; // make room for tag
-    bool allocated_inline = is_allocated_inline();
+    bool inlined = is_inlined();
     _shorts[low_packed_offset] = extract_low_short_from_int(val) | FIELDINFO_TAG_OFFSET;
-    if (allocated_inline) set_allocated_inline(true);
+    if (inlined) set_inlined(true);
     _shorts[high_packed_offset] = extract_high_short_from_int(val);
-    assert(is_allocated_inline() || !allocated_inline, "just checking");
+    assert(is_inlined() || !inlined, "just checking");
   }
 
   void set_allocation_type(int type) {
-    bool b = is_allocated_inline();
+    bool b = is_inlined();
     u2 lo = _shorts[low_packed_offset];
     switch(lo & FIELDINFO_TAG_TYPE_MASK) {
       case FIELDINFO_TAG_BLANK:
         _shorts[low_packed_offset] |= ((type << FIELDINFO_TAG_SIZE)) & 0xFFFF;
         _shorts[low_packed_offset] &= ~FIELDINFO_TAG_TYPE_MASK;
         _shorts[low_packed_offset] |= FIELDINFO_TAG_TYPE_PLAIN;
-        assert(is_allocated_inline() || !b, "Just checking");
+        assert(is_inlined() || !b, "Just checking");
         return;
 #ifndef PRODUCT
       case FIELDINFO_TAG_TYPE_PLAIN:
@@ -227,16 +227,16 @@ class FieldInfo {
     ShouldNotReachHere();
   }
 
-  void set_allocated_inline(bool b) {
+  void set_inlined(bool b) {
     if (b) {
-      _shorts[low_packed_offset] |= FIELDINFO_TAG_ALLOCATED_INLINE;
+      _shorts[low_packed_offset] |= FIELDINFO_TAG_INLINED;
     } else {
-      _shorts[low_packed_offset] &= ~FIELDINFO_TAG_ALLOCATED_INLINE;
+      _shorts[low_packed_offset] &= ~FIELDINFO_TAG_INLINED;
     }
   }
 
-  bool is_allocated_inline() {
-    return (_shorts[low_packed_offset] & FIELDINFO_TAG_ALLOCATED_INLINE) != 0;
+  bool is_inlined() {
+    return (_shorts[low_packed_offset] & FIELDINFO_TAG_INLINED) != 0;
   }
 
   void set_contended_group(u2 val) {

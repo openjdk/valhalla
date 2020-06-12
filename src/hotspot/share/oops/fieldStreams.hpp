@@ -139,12 +139,12 @@ class FieldStreamBase : public StackObj {
     return field()->allocation_type();
   }
 
-  bool is_allocated_inline() {
-    return field()->is_allocated_inline();
+  bool is_inlined() {
+    return field()->is_inlined();
   }
 
-  void set_allocated_inline(bool b) {
-    field()->set_allocated_inline(b);
+  void set_inlined(bool b) {
+    field()->set_inlined(b);
   }
 
   void set_offset(int offset) {

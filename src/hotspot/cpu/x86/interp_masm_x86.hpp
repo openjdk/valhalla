@@ -233,7 +233,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   //     will return new instance via the same reg
   //   - assumes holder_klass and valueKlass field klass have both been resolved
   //   - 32 bits: kills rdi and rsi
-  void read_field_allocated_inline(Register holder_klass,
+  void read_inlined_field(Register holder_klass,
                             Register field_index, Register field_offset,
                             Register obj = rax);
 
