@@ -166,10 +166,6 @@ class Field extends AccessibleObject implements Member {
     public void setAccessible(boolean flag) {
         AccessibleObject.checkPermission();
 
-        if (clazz.isInlineClass()) {
-            throw new InaccessibleObjectException("cannot make a field accessible of inline class "
-                    + clazz.getName());
-        }
         if (flag) {
             checkCanSetAccessible(Reflection.getCallerClass());
         }
