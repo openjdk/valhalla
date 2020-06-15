@@ -63,6 +63,7 @@ import java.util.Map;
 
 import static com.sun.tools.javac.code.Flags.STATIC;
 import static com.sun.tools.javac.code.Kinds.Kind.MTH;
+import static com.sun.tools.javac.code.Kinds.Kind.TYP;
 import static com.sun.tools.javac.code.Kinds.Kind.VAR;
 import static com.sun.tools.javac.tree.JCTree.Tag.APPLY;
 import static com.sun.tools.javac.tree.JCTree.Tag.EXEC;
@@ -329,19 +330,27 @@ public class TransValues extends TreeTranslator {
                 }
             }
         }
-        // Rewrite any accesses of the form V.ref.member to ((V) V.ref).member
+        /* Rewrite any accesses of the form V.ref.member to ((V) V.ref).member OR
+           if a static member is being selected via a V.ref as a TYP, rewrite
+           V.ref.member to V.member
+        */
         fieldAccess.selected = translate(fieldAccess.selected);
         if (fieldAccess.name != names._class && fieldAccess.name != names._default) {  // TODO: this and super ??
             Symbol sym = TreeInfo.symbol(fieldAccess);
+            Symbol sitesym = TreeInfo.symbol(fieldAccess.selected);
             TypeSymbol selectedType = fieldAccess.selected.type.tsym;
             if (selectedType.isReferenceProjection()) {
                 switch (sym.kind) {
                     case MTH:
                     case VAR:
-                        fieldAccess.selected =
-                                make.TypeCast(types.erasure(selectedType.valueProjection().type), fieldAccess.selected);
-                        if (sym.owner.isReferenceProjection()) // is an empty class file.
-                            TreeInfo.setSymbol(fieldAccess, sym.valueProjection());
+                        if (sym.isStatic() && sitesym != null && sitesym.kind == TYP) {
+                            fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection().type));
+                        } else {
+                            fieldAccess.selected =
+                                    make.TypeCast(types.erasure(selectedType.valueProjection().type), fieldAccess.selected);
+                            if (sym.owner.isReferenceProjection()) // is an empty class file.
+                                TreeInfo.setSymbol(fieldAccess, sym.valueProjection());
+                        }
                         break;
                     case TYP:
                         fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection().type));
