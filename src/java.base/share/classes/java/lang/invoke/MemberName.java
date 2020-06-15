@@ -458,7 +458,7 @@ final class MemberName implements Member, Cloneable {
     static final int SYNTHETIC   = 0x00001000;
     static final int ANNOTATION  = 0x00002000;
     static final int ENUM        = 0x00004000;
-    static final int FLATTENED   = 0x00008000;
+    static final int FLATTENED   = 0x00004000;
 
     /** Utility method to query the modifier flags of this member; returns false if the member is not a method. */
     public boolean isBridge() {
