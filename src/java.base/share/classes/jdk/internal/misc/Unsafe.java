@@ -177,7 +177,7 @@ public final class Unsafe {
     @HotSpotIntrinsicCandidate
     public native void putInt(Object o, long offset, int x);
 
-    private static final int JVM_ACC_FIELD_INLINED = 0x00004000; // HotSpot-specific bit
+    private static final int JVM_ACC_FIELD_INLINED = 0x00008000; // HotSpot-specific bit
 
     /**
      * Returns true if the given field is flattened.
