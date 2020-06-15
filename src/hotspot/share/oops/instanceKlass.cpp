@@ -2893,7 +2893,7 @@ const char* InstanceKlass::signature_name() const {
 
   // Add L or Q as type indicator
   int dest_index = 0;
-  dest[dest_index++] = is_value() ? JVM_SIGNATURE_VALUETYPE : JVM_SIGNATURE_CLASS;
+  dest[dest_index++] = is_value() ? JVM_SIGNATURE_INLINETYPE : JVM_SIGNATURE_CLASS;
 
   // Add the actual class name
   for (int src_index = 0; src_index < src_length; ) {

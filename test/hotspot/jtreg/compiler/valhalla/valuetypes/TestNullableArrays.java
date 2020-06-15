@@ -29,7 +29,7 @@ import java.util.Arrays;
 
 /*
  * @test
- * @summary Test nullable value type arrays
+ * @summary Test nullable inline type arrays
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile TestNullableArrays.java
@@ -77,9 +77,9 @@ public class TestNullableArrays extends ValueTypeTest {
 
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
 
-    // Test nullable value type array creation and initialization
-    @Test(valid = ValueTypeArrayFlattenOn, match = { ALLOCA }, matchCount = { 1 })
-    @Test(valid = ValueTypeArrayFlattenOff, match = { ALLOCA }, matchCount = { 1 }, failOn = LOAD)
+    // Test nullable inline type array creation and initialization
+    @Test(valid = InlineTypeArrayFlattenOn, match = { ALLOCA }, matchCount = { 1 })
+    @Test(valid = InlineTypeArrayFlattenOff, match = { ALLOCA }, matchCount = { 1 }, failOn = LOAD)
     public MyValue1.ref[] test1(int len) {
         MyValue1.ref[] va = new MyValue1.ref[len];
         if (len > 0) {
@@ -103,7 +103,7 @@ public class TestNullableArrays extends ValueTypeTest {
         }
     }
 
-    // Test creation of a value type array and element access
+    // Test creation of a inline type array and element access
     @Test
     // TODO 8227588
     // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
@@ -119,7 +119,7 @@ public class TestNullableArrays extends ValueTypeTest {
         Asserts.assertEQ(result, hash());
     }
 
-    // Test receiving a value type array from the interpreter,
+    // Test receiving a inline type array from the interpreter,
     // updating its elements in a loop and computing a hash.
     @Test(failOn = ALLOCA)
     public long test3(MyValue1.ref[] va) {
@@ -152,7 +152,7 @@ public class TestNullableArrays extends ValueTypeTest {
         }
     }
 
-    // Test returning a value type array received from the interpreter
+    // Test returning an inline type array received from the interpreter
     @Test(failOn = ALLOC + ALLOCA + LOAD + STORE + LOOP + TRAP)
     public MyValue1.ref[] test4(MyValue1.ref[] va) {
         return va;
@@ -170,7 +170,7 @@ public class TestNullableArrays extends ValueTypeTest {
         }
     }
 
-    // Merge value type arrays created from two branches
+    // Merge inline type arrays created from two branches
     @Test
     public MyValue1.ref[] test5(boolean b) {
         MyValue1.ref[] va;
@@ -214,7 +214,7 @@ public class TestNullableArrays extends ValueTypeTest {
         Asserts.assertEQ(va[9], null);
     }
 
-    // Test creation of value type array with single element
+    // Test creation of inline type array with single element
     @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     public MyValue1.ref test6() {
         MyValue1.ref[] va = new MyValue1.ref[1];
@@ -228,7 +228,7 @@ public class TestNullableArrays extends ValueTypeTest {
         Asserts.assertEQ(v, null);
     }
 
-    // Test default initialization of value type arrays
+    // Test default initialization of inline type arrays
     @Test(failOn = LOAD)
     public MyValue1.ref[] test7(int len) {
         return new MyValue1.ref[len];
@@ -244,7 +244,7 @@ public class TestNullableArrays extends ValueTypeTest {
         }
     }
 
-    // Test creation of value type array with zero length
+    // Test creation of inline type array with zero length
     @Test(failOn = ALLOC + LOAD + STORE + LOOP + TRAP)
     public MyValue1.ref[] test8() {
         return new MyValue1.ref[0];
@@ -258,7 +258,7 @@ public class TestNullableArrays extends ValueTypeTest {
 
     static MyValue1.ref[] test9_va;
 
-    // Test that value type array loaded from field has correct type
+    // Test that inline type array loaded from field has correct type
     @Test(failOn = LOOP)
     public long test9() {
         return test9_va[0].hash();
@@ -546,7 +546,7 @@ public class TestNullableArrays extends ValueTypeTest {
         }
     }
 
-    // arraycopy() of value type array with oop fields
+    // arraycopy() of inline type array with oop fields
     @Test
     public void test20(MyValue1.ref[] src, MyValue1.ref[] dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
@@ -590,7 +590,7 @@ public class TestNullableArrays extends ValueTypeTest {
         }
     }
 
-    // arraycopy() of value type array with no oop field
+    // arraycopy() of inline type array with no oop field
     @Test
     public void test21(MyValue2.ref[] src, MyValue2.ref[] dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
@@ -634,7 +634,7 @@ public class TestNullableArrays extends ValueTypeTest {
         }
     }
 
-    // arraycopy() of value type array with oop field and tightly
+    // arraycopy() of inline type array with oop field and tightly
     // coupled allocation as dest
     @Test
     public MyValue1.ref[] test22(MyValue1.ref[] src) {
@@ -664,7 +664,7 @@ public class TestNullableArrays extends ValueTypeTest {
         }
     }
 
-    // arraycopy() of value type array with oop fields and tightly
+    // arraycopy() of inline type array with oop fields and tightly
     // coupled allocation as dest
     @Test
     public MyValue1.ref[] test23(MyValue1.ref[] src) {
@@ -694,7 +694,7 @@ public class TestNullableArrays extends ValueTypeTest {
         }
     }
 
-    // arraycopy() of value type array passed as Object
+    // arraycopy() of inline type array passed as Object
     @Test
     public void test24(MyValue1.ref[] src, Object dst) {
         System.arraycopy(src, 0, dst, 0, src.length);
@@ -894,7 +894,7 @@ public class TestNullableArrays extends ValueTypeTest {
     }
 
     // non escaping allocation with uncommon trap that needs
-    // eliminated value type array element as debug info
+    // eliminated inline type array element as debug info
     @Test
     @Warmup(10000)
     public MyValue2.ref test30(MyValue2.ref[] src, boolean flag) {
@@ -1079,7 +1079,7 @@ public class TestNullableArrays extends ValueTypeTest {
         if (!warmup) {
             Method m = tests.get(test);
             if (USE_COMPILER &&  !WHITE_BOX.isMethodCompiled(m, false)) {
-                if (!ValueTypeArrayFlatten && !XCOMP && !STRESS_CC) {
+                if (!InlineTypeArrayFlatten && !XCOMP && !STRESS_CC) {
                     throw new RuntimeException("Unexpected deoptimization");
                 }
                 enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
@@ -1089,7 +1089,7 @@ public class TestNullableArrays extends ValueTypeTest {
         return false;
     }
 
-    // arraycopy() of value type array of unknown size
+    // arraycopy() of inline type array of unknown size
     @Test
     public void test35(Object src, Object dst, int len) {
         System.arraycopy(src, 0, dst, 0, len);
@@ -1711,7 +1711,7 @@ public class TestNullableArrays extends ValueTypeTest {
         verify(verif, result);
     }
 
-    // Test default initialization of value type arrays: small array
+    // Test default initialization of inline type arrays: small array
     @Test
     public MyValue1.ref[] test64() {
         return new MyValue1.ref[8];
@@ -1725,7 +1725,7 @@ public class TestNullableArrays extends ValueTypeTest {
         }
     }
 
-    // Test default initialization of value type arrays: large array
+    // Test default initialization of inline type arrays: large array
     @Test
     public MyValue1.ref[] test65() {
         return new MyValue1.ref[32];
@@ -2058,7 +2058,7 @@ public class TestNullableArrays extends ValueTypeTest {
         }
     }
 
-    // Same as test76 but with non value type array cases
+    // Same as test76 but with non inline type array cases
     @Test
     public Object[] test78(MyValue1[] vva, MyValue1.ref[] vba, Object val, Object[] out, int n) {
         Object[] result = null;
@@ -2243,8 +2243,8 @@ public class TestNullableArrays extends ValueTypeTest {
         Asserts.assertEquals(res, testValue1.hash());
     }
 
-    @Test(valid = ValueTypeArrayFlattenOn, failOn = ALLOC + LOOP + STORE + TRAP)
-    @Test(valid = ValueTypeArrayFlattenOff)
+    @Test(valid = InlineTypeArrayFlattenOn, failOn = ALLOC + LOOP + STORE + TRAP)
+    @Test(valid = InlineTypeArrayFlattenOff)
     public static MyValue1.ref[] test84(MyValue1 vt1, MyValue1.ref vt2) {
         MyValue1.ref[] result = new MyValue1[2];
         result[0] = vt1;

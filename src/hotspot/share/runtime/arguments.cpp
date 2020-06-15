@@ -4202,7 +4202,7 @@ jint Arguments::apply_ergo() {
     FLAG_SET_DEFAULT(BytecodeVerificationRemote, true);
   }
   if (!EnableValhalla || (is_interpreter_only() && !is_dumping_archive())) {
-    // Disable calling convention optimizations if value types are not supported
+    // Disable calling convention optimizations if inline types are not supported
     InlineTypePassFieldsAsArgs = false;
     InlineTypeReturnedAsFields = false;
   }

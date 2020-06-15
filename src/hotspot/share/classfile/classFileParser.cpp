@@ -4523,7 +4523,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
           (_super_klass != NULL && _super_klass->has_nonstatic_fields());
   const bool has_nonstatic_fields =
     super_has_nonstatic_fields || (nonstatic_fields_count != 0);
-  const bool has_nonstatic_value_fields = nonstatic_inline_type_count > 0;
+  const bool has_nonstatic_inline_fields = nonstatic_inline_type_count > 0;
 
   if (is_inline_type() && (!has_nonstatic_fields)) {
     // There are a number of fixes required throughout the type system and JIT
@@ -4921,7 +4921,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
 
 #ifndef PRODUCT
   if ((PrintFieldLayout && !is_inline_type()) ||
-      (PrintInlineLayout && (is_inline_type() || has_nonstatic_value_fields))) {
+      (PrintInlineLayout && (is_inline_type() || has_nonstatic_inline_fields))) {
     print_field_layout(_class_name,
           _fields,
           cp,
@@ -5768,7 +5768,7 @@ const char* ClassFileParser::skip_over_field_signature(const char* signature,
     case JVM_SIGNATURE_LONG:
     case JVM_SIGNATURE_DOUBLE:
       return signature + 1;
-    case JVM_SIGNATURE_VALUETYPE:
+    case JVM_SIGNATURE_INLINETYPE:
       // Can't enable this check until JDK upgrades the bytecode generators
       // if (_major_version < CONSTANT_CLASS_DESCRIPTORS ) {
       //   classfile_parse_error("Class name contains illegal Q-signature "
@@ -7278,7 +7278,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
   for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
     if (Signature::basic_type(fs.signature()) == T_VALUETYPE  && !fs.access_flags().is_static()) {
-      // Pre-load value class
+      // Pre-load inline class
       Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
           Handle(THREAD, _loader_data->class_loader()),
           _protection_domain, true, CHECK);
