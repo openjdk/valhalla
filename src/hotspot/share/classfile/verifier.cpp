@@ -60,7 +60,7 @@
 #define NOFAILOVER_MAJOR_VERSION                       51
 #define NONZERO_PADDING_BYTES_IN_SWITCH_MAJOR_VERSION  51
 #define STATIC_METHOD_IN_INTERFACE_MAJOR_VERSION       52
-#define INLINETYPE_MAJOR_VERSION                       56
+#define INLINE_TYPE_MAJOR_VERSION                       56
 #define MAX_ARRAY_DIMENSIONS 255
 
 // Access to external entry for VerifyClassForMajorVersion - old byte code verifier
@@ -1708,7 +1708,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             &bcs, &current_frame, cp, false, CHECK_VERIFY(this));
           no_control_flow = false; break;
         case Bytecodes::_withfield :
-          if (_klass->major_version() < INLINETYPE_MAJOR_VERSION) {
+          if (_klass->major_version() < INLINE_TYPE_MAJOR_VERSION) {
             class_format_error(
               "withfield not supported by this class file version (%d.%d), class %s",
               _klass->major_version(), _klass->minor_version(), _klass->external_name());
@@ -1745,7 +1745,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         }
         case Bytecodes::_defaultvalue :
         {
-          if (_klass->major_version() < INLINETYPE_MAJOR_VERSION) {
+          if (_klass->major_version() < INLINE_TYPE_MAJOR_VERSION) {
             class_format_error(
               "defaultvalue not supported by this class file version (%d.%d), class %s",
               _klass->major_version(), _klass->minor_version(), _klass->external_name());
@@ -3119,7 +3119,7 @@ void ClassVerifier::verify_anewarray(
     assert(n == length, "Unexpected number of characters in string");
   } else {         // it's an object or interface
     const char* component_name = component_type.name()->as_utf8();
-    char Q_or_L = component_type.is_inlinetype() ? JVM_SIGNATURE_INLINETYPE : JVM_SIGNATURE_CLASS;
+    char Q_or_L = component_type.is_inlinetype() ? JVM_SIGNATURE_INLINE_TYPE : JVM_SIGNATURE_CLASS;
     // add one dimension to component with 'L' or 'Q' prepended and ';' appended.
     length = (int)strlen(component_name) + 3;
     arr_sig_str = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, length + 1);

@@ -1511,7 +1511,7 @@ JRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread *thread,
 
   // Both Q-signatures and L-signatures are mapped to atos
   if (cp_entry->flag_state() == atos && ik->field_signature(index)->is_Q_signature()) {
-    sig_type = JVM_SIGNATURE_INLINETYPE;
+    sig_type = JVM_SIGNATURE_INLINE_TYPE;
   }
 
   bool is_static = (obj == NULL);

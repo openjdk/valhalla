@@ -242,7 +242,7 @@ class VerificationType {
   bool is_double_array() const { return is_x_array(JVM_SIGNATURE_DOUBLE); }
   bool is_object_array() const { return is_x_array(JVM_SIGNATURE_CLASS); }
   bool is_array_array() const { return is_x_array(JVM_SIGNATURE_ARRAY); }
-  bool is_inline_array() const { return is_x_array(JVM_SIGNATURE_INLINETYPE); }
+  bool is_inline_array() const { return is_x_array(JVM_SIGNATURE_INLINE_TYPE); }
   bool is_reference_array() const
     { return is_object_array() || is_array_array(); }
   bool is_nonscalar_array() const
