@@ -513,7 +513,7 @@ bool VM_GetOrSetLocal::is_assignable(const char* ty_sign, Klass* klass, Thread* 
 
   int len = (int) strlen(ty_sign);
   if ((ty_sign[0] == JVM_SIGNATURE_CLASS ||
-       ty_sign[0] == JVM_SIGNATURE_VALUETYPE) &&
+       ty_sign[0] == JVM_SIGNATURE_INLINE_TYPE) &&
       ty_sign[len-1] == JVM_SIGNATURE_ENDCLASS) { // Need pure class/interface name
     ty_sign++;
     len -= 2;

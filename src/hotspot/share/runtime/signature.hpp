@@ -124,7 +124,7 @@ class Signature : AllStatic {
   // Determine if this signature char introduces an
   // envelope, which is a class name plus ';'.
   static bool has_envelope(char signature_char) {
-    return (signature_char == JVM_SIGNATURE_CLASS) || (signature_char == JVM_SIGNATURE_VALUETYPE);
+    return (signature_char == JVM_SIGNATURE_CLASS) || (signature_char == JVM_SIGNATURE_INLINE_TYPE);
   }
 
   // Assuming has_envelope is true, return the symbol

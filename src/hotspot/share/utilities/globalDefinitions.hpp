@@ -646,7 +646,7 @@ enum BasicType {
     F(JVM_SIGNATURE_LONG,    T_LONG,    N)      \
     F(JVM_SIGNATURE_CLASS,   T_OBJECT,  N)      \
     F(JVM_SIGNATURE_ARRAY,   T_ARRAY,   N)      \
-    F(JVM_SIGNATURE_VALUETYPE,  T_VALUETYPE, N) \
+    F(JVM_SIGNATURE_INLINE_TYPE, T_VALUETYPE, N) \
     F(JVM_SIGNATURE_VOID,    T_VOID,    N)      \
     /*end*/
 

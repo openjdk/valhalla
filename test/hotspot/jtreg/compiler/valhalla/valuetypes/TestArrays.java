@@ -83,9 +83,9 @@ public class TestArrays extends ValueTypeTest {
         return MyValue1.createWithFieldsInline(x, y).hash();
     }
 
-    // Test value type array creation and initialization
-    @Test(valid = ValueTypeArrayFlattenOn, match = { ALLOCA }, matchCount = { 1 })
-    @Test(valid = ValueTypeArrayFlattenOff, match = { ALLOCA }, matchCount = { 1 }, failOn = LOAD)
+    // Test inline type array creation and initialization
+    @Test(valid = InlineTypeArrayFlattenOn, match = { ALLOCA }, matchCount = { 1 })
+    @Test(valid = InlineTypeArrayFlattenOff, match = { ALLOCA }, matchCount = { 1 }, failOn = LOAD)
     public MyValue1[] test1(int len) {
         MyValue1[] va = new MyValue1[len];
         for (int i = 0; i < len; ++i) {
@@ -103,10 +103,10 @@ public class TestArrays extends ValueTypeTest {
         }
     }
 
-    // Test creation of a value type array and element access
+    // Test creation of an inline type array and element access
     // TODO 8227588
-    @Test(valid = ValueTypeArrayFlattenOn, failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
-    @Test(valid = ValueTypeArrayFlattenOff)
+    @Test(valid = InlineTypeArrayFlattenOn, failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    @Test(valid = InlineTypeArrayFlattenOff)
     public long test2() {
         MyValue1[] va = new MyValue1[1];
         va[0] = MyValue1.createWithFieldsInline(rI, rL);
@@ -685,8 +685,8 @@ public class TestArrays extends ValueTypeTest {
 
     // non escaping allocations
     // TODO 8227588: shouldn't this have the same IR matching rules as test6?
-    @Test(valid = ValueTypeArrayFlattenOn, failOn = ALLOCA + LOOP + LOAD + TRAP)
-    @Test(valid = ValueTypeArrayFlattenOff)
+    @Test(valid = InlineTypeArrayFlattenOn, failOn = ALLOCA + LOOP + LOAD + TRAP)
+    @Test(valid = InlineTypeArrayFlattenOff)
     public MyValue2 test29(MyValue2[] src) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, 0, dst, 0, 10);
@@ -726,8 +726,8 @@ public class TestArrays extends ValueTypeTest {
 
     // non escaping allocation with memory phi
     // TODO 8227588
-    @Test(valid = ValueTypeArrayFlattenOn, failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
-    @Test(valid = ValueTypeArrayFlattenOff)
+    @Test(valid = InlineTypeArrayFlattenOn, failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    @Test(valid = InlineTypeArrayFlattenOff)
     public long test31(boolean b, boolean deopt) {
         MyValue2[] src = new MyValue2[1];
         if (b) {
@@ -877,7 +877,7 @@ public class TestArrays extends ValueTypeTest {
         if (!warmup) {
             Method m = tests.get(test);
             if (USE_COMPILER && !WHITE_BOX.isMethodCompiled(m, false)) {
-                if (!ValueTypeArrayFlatten && !XCOMP && !STRESS_CC) {
+                if (!InlineTypeArrayFlatten && !XCOMP && !STRESS_CC) {
                     throw new RuntimeException("Unexpected deoptimization");
                 }
                 enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
@@ -1842,8 +1842,8 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // Verify that casting an array element to a non-flattenable type marks the array as not-flat
-    @Test(valid = ValueTypeArrayFlattenOn, match = { ALLOC_G, LOAD_UNKNOWN_VALUE }, matchCount = { 1, 1 })
-    @Test(valid = ValueTypeArrayFlattenOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE)
+    @Test(valid = InlineTypeArrayFlattenOn, match = { ALLOC_G, LOAD_UNKNOWN_VALUE }, matchCount = { 1, 1 })
+    @Test(valid = InlineTypeArrayFlattenOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE)
     public Object test79(Object[] array, int i) {
         Integer i1 = (Integer)array[0];
         Object o = array[1];
@@ -1869,8 +1869,8 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // Same as test79 but with not-flattenable inline type
-    @Test(valid = ValueTypeArrayFlattenOn, match = { ALLOC_G, LOAD_UNKNOWN_VALUE }, matchCount = { 1, 1 })
-    @Test(valid = ValueTypeArrayFlattenOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE)
+    @Test(valid = InlineTypeArrayFlattenOn, match = { ALLOC_G, LOAD_UNKNOWN_VALUE }, matchCount = { 1, 1 })
+    @Test(valid = InlineTypeArrayFlattenOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE)
     public Object test80(Object[] array, int i) {
         NotFlattenable vt = (NotFlattenable)array[0];
         Object o = array[1];
@@ -1943,8 +1943,8 @@ public class TestArrays extends ValueTypeTest {
     }
 
     // Verify that casting an array element to a non-inline type type marks the array as not-null-free and not-flat
-    @Test(valid = ValueTypeArrayFlattenOn, match = { ALLOC_G, LOAD_UNKNOWN_VALUE }, matchCount = { 1, 1 }, failOn = ALLOCA_G + STORE_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD)
-    @Test(valid = ValueTypeArrayFlattenOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD)
+    @Test(valid = InlineTypeArrayFlattenOn, match = { ALLOC_G, LOAD_UNKNOWN_VALUE }, matchCount = { 1, 1 }, failOn = ALLOCA_G + STORE_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD)
+    @Test(valid = InlineTypeArrayFlattenOff, failOn = ALLOC_G + ALLOCA_G + LOAD_UNKNOWN_VALUE + STORE_UNKNOWN_VALUE + VALUE_ARRAY_NULL_GUARD)
     public void test83(Object[] array, Object o) {
         Integer i = (Integer)array[0];
         array[1] = o;

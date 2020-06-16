@@ -114,7 +114,7 @@ ciSymbol* ciValueArrayKlass::construct_array_name(ciSymbol* element_name,
     for ( ; pos < dimension; pos++) {
       name[pos] = JVM_SIGNATURE_ARRAY;
     }
-    name[pos++] = JVM_SIGNATURE_VALUETYPE;
+    name[pos++] = JVM_SIGNATURE_INLINE_TYPE;
     strncpy(name+pos, (char*)element_name->base(), element_len);
     name[new_len-2] = JVM_SIGNATURE_ENDCLASS;
     name[new_len-1] = '\0';

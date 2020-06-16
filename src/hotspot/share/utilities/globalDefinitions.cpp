@@ -206,7 +206,7 @@ char type2char_tab[T_CONFLICT+1] = {
   JVM_SIGNATURE_BYTE,    JVM_SIGNATURE_SHORT,
   JVM_SIGNATURE_INT,     JVM_SIGNATURE_LONG,
   JVM_SIGNATURE_CLASS,   JVM_SIGNATURE_ARRAY,
-  JVM_SIGNATURE_VALUETYPE, JVM_SIGNATURE_VOID,
+  JVM_SIGNATURE_INLINE_TYPE, JVM_SIGNATURE_VOID,
   0, 0, 0, 0, 0
 };
 
@@ -223,7 +223,7 @@ const char* type2name_tab[T_CONFLICT+1] = {
   "long",
   "object",
   "array",
-  "valuetype",
+  "inline_type",
   "void",
   "*address*",
   "*narrowoop*",
