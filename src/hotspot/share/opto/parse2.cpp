@@ -94,7 +94,6 @@ void Parse::array_load(BasicType bt) {
     // Cannot statically determine if array is flattened, emit runtime check
     assert(ValueArrayFlatten && is_reference_type(bt) && elemptr->can_be_value_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
            (!elemptr->is_valuetypeptr() || elemptr->value_klass()->flatten_array()), "array can't be flattened");
-    Node* ctl = control();
     IdealKit ideal(this);
     IdealVariable res(ideal);
     ideal.declarations_done();
@@ -104,7 +103,7 @@ void Parse::array_load(BasicType bt) {
       sync_kit(ideal);
       const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
       Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt,
-                                IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD, ctl);
+                                IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
       ideal.sync_kit(this);
       ideal.set(res, ld);
     } ideal.else_(); {
