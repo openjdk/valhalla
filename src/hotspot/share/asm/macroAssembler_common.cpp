@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -148,7 +148,7 @@ int MacroAssembler::unpack_value_args_common(Compile* C, bool receiver_only) {
   } else {
     // Only unpack the receiver, all other arguments are already scalarized
     InstanceKlass* holder = method->method_holder();
-    int rec_len = holder->is_value() ? ValueKlass::cast(holder)->extended_sig()->length() : 1;
+    int rec_len = holder->is_inline_klass() ? ValueKlass::cast(holder)->extended_sig()->length() : 1;
     // Copy scalarized signature but skip receiver, value type delimiters and reserved entries
     for (int i = 0; i < sig_cc->length(); i++) {
       if (!SigEntry::is_reserved_entry(sig_cc, i)) {

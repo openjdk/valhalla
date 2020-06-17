@@ -137,7 +137,7 @@ bool oopDesc::is_instance_noinline()          const { return is_instance();     
 bool oopDesc::is_array_noinline()             const { return is_array();               }
 bool oopDesc::is_objArray_noinline()          const { return is_objArray();            }
 bool oopDesc::is_typeArray_noinline()         const { return is_typeArray();           }
-bool oopDesc::is_value_noinline()             const { return is_value();               }
+bool oopDesc::is_value_noinline()             const { return is_inline_type();         }
 bool oopDesc::is_valueArray_noinline()        const { return is_valueArray();          }
 
 bool oopDesc::has_klass_gap() {

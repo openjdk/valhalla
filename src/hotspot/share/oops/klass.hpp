@@ -605,7 +605,7 @@ protected:
   virtual bool is_valueArray_klass_slow()   const { return false; }
 #endif // ASSERT
   // current implementation uses this method even in non debug builds
-  virtual bool is_value_slow()          const { return false; }
+  virtual bool is_inline_klass_slow()       const { return false; }
  public:
 
   // Fast non-virtual versions
@@ -631,7 +631,7 @@ protected:
   inline  bool is_typeArray_klass()           const { return assert_same_query(
                                                     layout_helper_is_typeArray(layout_helper()),
                                                     is_typeArray_klass_slow()); }
-  inline  bool is_value()                     const { return is_value_slow(); } //temporary hack
+  inline  bool is_inline_klass()              const { return is_inline_klass_slow(); } //temporary hack
   inline  bool is_valueArray_klass()          const { return assert_same_query(
                                                     layout_helper_is_valueArray(layout_helper()),
                                                     is_valueArray_klass_slow()); }

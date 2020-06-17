@@ -1017,7 +1017,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
             if (klass == NULL) {
               THROW_(vmSymbols::java_lang_LinkageError(), false);
             }
-            if (!klass->is_value()) {
+            if (!klass->is_inline_klass()) {
               Exceptions::fthrow(
                 THREAD_AND_LOCATION,
                 vmSymbols::java_lang_IncompatibleClassChangeError(),
@@ -1270,7 +1270,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
           if (klass == NULL) {
             THROW(vmSymbols::java_lang_NoClassDefFoundError());
           }
-          if (!klass->is_value()) {
+          if (!klass->is_inline_klass()) {
             THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
           }
           this->set_value_field_klass(fs.index(), klass);
@@ -1720,7 +1720,7 @@ Klass* InstanceKlass::find_field(Symbol* name, Symbol* sig, bool is_static, fiel
 }
 
 bool InstanceKlass::contains_field_offset(int offset) {
-  if (this->is_value()) {
+  if (this->is_inline_klass()) {
     ValueKlass* vk = ValueKlass::cast(this);
     return offset >= vk->first_field_offset() && offset < (vk->first_field_offset() + vk->get_exact_size_in_bytes());
   } else {
@@ -2697,7 +2697,7 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
   set_package(loader_data, pkg_entry, CHECK);
   Klass::restore_unshareable_info(loader_data, protection_domain, CHECK);
 
-  if (is_value()) {
+  if (is_inline_klass()) {
     ValueKlass::cast(this)->initialize_calling_convention(CHECK);
   }
 
@@ -2726,7 +2726,7 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
   }
 
   // Initialize current biased locking state.
-  if (UseBiasedLocking && BiasedLocking::enabled() && !is_value()) {
+  if (UseBiasedLocking && BiasedLocking::enabled() && !is_inline_klass()) {
     set_prototype_header(markWord::biased_locking_prototype());
   }
 }
@@ -2893,7 +2893,7 @@ const char* InstanceKlass::signature_name() const {
 
   // Add L or Q as type indicator
   int dest_index = 0;
-  dest[dest_index++] = is_value() ? JVM_SIGNATURE_INLINE_TYPE : JVM_SIGNATURE_CLASS;
+  dest[dest_index++] = is_inline_klass() ? JVM_SIGNATURE_INLINE_TYPE : JVM_SIGNATURE_CLASS;
 
   // Add the actual class name
   for (int src_index = 0; src_index < src_length; ) {

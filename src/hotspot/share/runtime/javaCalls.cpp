@@ -303,7 +303,7 @@ Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* construct
 
   // Special case for factory methods
   if (!constructor_signature->is_void_method_signature()) {
-    assert(klass->is_value(), "inline classes must use factory methods");
+    assert(klass->is_inline_klass(), "inline classes must use factory methods");
     JavaValue factory_result(T_OBJECT);
     JavaCalls::call_static(&factory_result, klass,
                            vmSymbols::object_initializer_name(),
@@ -312,7 +312,7 @@ Handle JavaCalls::construct_new_instance(InstanceKlass* klass, Symbol* construct
   }
 
   // main branch of code creates a non-inline object:
-  assert(!klass->is_value(), "classic constructors are only for non-inline classes");
+  assert(!klass->is_inline_klass(), "classic constructors are only for non-inline classes");
   Handle obj = klass->allocate_instance_handle(CHECK_NH);
   JavaValue void_result(T_VOID);
   args->set_receiver(obj); // inserts <obj> as the first argument.

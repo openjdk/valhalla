@@ -958,7 +958,7 @@ intptr_t* MetaspaceShared::fix_cpp_vtable_for_dynamic_archive(MetaspaceObj::Type
     {
       Klass* k = (Klass*)obj;
       assert(k->is_klass(), "must be");
-      if (k->is_value()) {
+      if (k->is_inline_klass()) {
         kind = ValueKlass_Kind;
       } else if (k->is_instance_klass()) {
         InstanceKlass* ik = InstanceKlass::cast(k);

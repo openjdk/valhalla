@@ -67,7 +67,7 @@ ValueKlass::ValueKlass(const ClassFileParser& parser)
 oop ValueKlass::default_value() {
   oop val = java_mirror()->obj_field_acquire(default_value_offset());
   assert(oopDesc::is_oop(val), "Sanity check");
-  assert(val->is_value(), "Sanity check");
+  assert(val->is_inline_type(), "Sanity check");
   assert(val->klass() == this, "sanity check");
   return val;
 }
