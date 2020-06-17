@@ -93,7 +93,7 @@ public class MethodHandleBuilder {
         IsolatedMethodBuilder isolatedMethodBuilder = new IsolatedMethodBuilder(className, lookup);
         isolatedMethodBuilder
                 .withSuperclass(Object.class)
-                .withMajorVersion(59)
+                .withMajorVersion(60)
                 .withMinorVersion(0)
                 .withFlags(Flag.ACC_PUBLIC)
                 .withMethod(methodName, type, M ->
