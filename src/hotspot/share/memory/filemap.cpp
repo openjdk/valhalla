@@ -217,6 +217,7 @@ void FileMapHeader::populate(FileMapInfo* mapinfo, size_t alignment) {
   _compressed_class_ptrs = UseCompressedClassPointers;
   _max_heap_size = MaxHeapSize;
   _narrow_klass_shift = CompressedKlassPointers::shift();
+  _use_optimized_module_handling = MetaspaceShared::use_optimized_module_handling();
 
   // The following fields are for sanity checks for whether this archive
   // will function correctly with this JVM and the bootclasspath it's
@@ -2130,11 +2131,23 @@ bool FileMapHeader::validate() {
     return false;
   }
 
+  if (!_use_optimized_module_handling) {
+    MetaspaceShared::disable_optimized_module_handling();
+    log_info(cds)("use_optimized_module_handling disabled: archive was created without optimized module handling");
+  }
+
   return true;
 }
 
 bool FileMapInfo::validate_header() {
-  return header()->validate();
+  if (!header()->validate()) {
+    return false;
+  }
+  if (_is_static) {
+    return true;
+  } else {
+    return DynamicArchive::validate(this);
+  }
 }
 
 // Check if a given address is within one of the shared regions

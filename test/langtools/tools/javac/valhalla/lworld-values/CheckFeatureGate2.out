@@ -1,2 +1,2 @@
-CheckFeatureGate2.java:11:17: compiler.err.feature.not.supported.in.source: (compiler.misc.feature.inline.type), 13, 15
+CheckFeatureGate2.java:11:17: compiler.err.feature.not.supported.in.source: (compiler.misc.feature.inline.type), 13, 16
 1 error

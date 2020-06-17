@@ -749,7 +749,7 @@ public final class Unsafe {
 
         long p = allocateMemory0(bytes);
         if (p == 0) {
-            throw new OutOfMemoryError();
+            throw new OutOfMemoryError("Unable to allocate " + bytes + " bytes");
         }
 
         return p;
@@ -805,7 +805,7 @@ public final class Unsafe {
 
         long p = (address == 0) ? allocateMemory0(bytes) : reallocateMemory0(address, bytes);
         if (p == 0) {
-            throw new OutOfMemoryError();
+            throw new OutOfMemoryError("Unable to allocate " + bytes + " bytes");
         }
 
         return p;
