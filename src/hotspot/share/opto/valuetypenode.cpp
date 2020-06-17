@@ -819,26 +819,31 @@ Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
         Node* user = fast_out(i);
         AllocateNode* alloc = user->isa_Allocate();
-        if (alloc != NULL && alloc->result_cast() != NULL && alloc->in(AllocateNode::ValueNode) == this) {
+        if (alloc != NULL && alloc->in(AllocateNode::ValueNode) == this) {
           // Found an allocation of the default value type.
-          // If the code in StoreNode::Identity() that removes useless stores was not yet
-          // executed or ReduceFieldZeroing is disabled, there can still be initializing
-          // stores (only zero-type or default value stores, because value types are immutable).
           Node* res = alloc->result_cast();
-          for (DUIterator_Fast jmax, j = res->fast_outs(jmax); j < jmax; j++) {
-            AddPNode* addp = res->fast_out(j)->isa_AddP();
-            if (addp != NULL) {
-              for (DUIterator_Fast kmax, k = addp->fast_outs(kmax); k < kmax; k++) {
-                StoreNode* store = addp->fast_out(k)->isa_Store();
-                if (store != NULL && store->outcnt() != 0) {
-                  // Remove the useless store
-                  igvn->replace_in_uses(store, store->in(MemNode::Memory));
+          if (res != NULL) {
+            // If the code in StoreNode::Identity() that removes useless stores was not yet
+            // executed or ReduceFieldZeroing is disabled, there can still be initializing
+            // stores (only zero-type or default value stores, because value types are immutable).
+            for (DUIterator_Fast jmax, j = res->fast_outs(jmax); j < jmax; j++) {
+              AddPNode* addp = res->fast_out(j)->isa_AddP();
+              if (addp != NULL) {
+                for (DUIterator_Fast kmax, k = addp->fast_outs(kmax); k < kmax; k++) {
+                  StoreNode* store = addp->fast_out(k)->isa_Store();
+                  if (store != NULL && store->outcnt() != 0) {
+                    // Remove the useless store
+                    igvn->replace_in_uses(store, store->in(MemNode::Memory));
+                  }
                 }
               }
             }
+            // Replace allocation by pre-allocated oop
+            igvn->replace_node(res, default_oop(*phase, value_klass()));
           }
-          // Replace allocation by pre-allocated oop
-          igvn->replace_node(res, default_oop(*phase, value_klass()));
+          // Unlink AllocateNode
+          igvn->replace_input_of(alloc, AllocateNode::ValueNode, igvn->C->top());
+          --i; --imax;
         } else if (user->is_ValueType()) {
           // Add value type user to worklist to give it a chance to get optimized as well
           igvn->_worklist.push(user);
@@ -907,9 +912,11 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     Node* out = fast_out(i);
     if (out->is_ValueType()) {
-      // Recursively process value type users
+      // Unlink and recursively process value type users
+      igvn->hash_delete(out);
+      int nb = out->replace_edge(this, igvn->C->top());
       out->as_ValueType()->remove_redundant_allocations(igvn, phase);
-      --i; --imax;
+      --i; imax -= nb;
     } else if (out->isa_Allocate() != NULL) {
       // Unlink AllocateNode
       assert(out->in(AllocateNode::ValueNode) == this, "should be linked");

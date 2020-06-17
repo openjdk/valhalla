@@ -993,19 +993,14 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
           Node *n = use->last_out(k);
           uint oc2 = use->outcnt();
           if (n->is_Store()) {
-#ifdef ASSERT
-            // Verify that there is no dependent MemBarVolatile nodes,
-            // they should be removed during IGVN, see MemBarNode::Ideal().
-            for (DUIterator_Fast pmax, p = n->fast_outs(pmax);
-                                       p < pmax; p++) {
-              Node* mb = n->fast_out(p);
-              assert(mb->is_Initialize() || !mb->is_MemBar() ||
-                     mb->req() <= MemBarNode::Precedent ||
-                     mb->in(MemBarNode::Precedent) != n ||
-                     (inline_alloc && !ReduceInitialCardMarks),
-                     "MemBarVolatile should be eliminated for non-escaping object");
+            for (DUIterator_Fast pmax, p = n->fast_outs(pmax); p < pmax; p++) {
+              MemBarNode* mb = n->fast_out(p)->isa_MemBar();
+              if (mb != NULL && mb->req() <= MemBarNode::Precedent && mb->in(MemBarNode::Precedent) == n) {
+                // MemBarVolatiles should have been removed by MemBarNode::Ideal() for non-inline allocations
+                assert(inline_alloc, "MemBarVolatile should be eliminated for non-escaping object");
+                mb->remove(&_igvn);
+              }
             }
-#endif
             _igvn.replace_node(n, n->in(MemNode::Memory));
           } else {
             eliminate_gc_barrier(n);
