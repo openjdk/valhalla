@@ -48,6 +48,14 @@ public class HelloInlineClassApp {
         }
     }
 
+    static inline class Rectangle {
+        Point p0 = new Point(0,0);
+        Point p1 = new Point(1,1);
+    }
+
+    Point point;
+    static Rectangle rectangle;
+
     public static void main(String[] args) throws Exception {
         Point p = new Point(0, 123);
         System.out.println("Point = " + p);
@@ -83,6 +91,16 @@ public class HelloInlineClassApp {
 
         if (p.x != expectedX || p.y != expectedY) {
             throw new RuntimeException("Expected (" + expectedX + ", " + expectedY + " but got " + p);
+        }
+
+        Point pzero = new Point(0,0);
+        if (HelloInlineClassApp.rectangle.p0 != pzero || HelloInlineClassApp.rectangle.p1 != pzero) {
+            throw new RuntimeException("Static field rectangle not as expected");
+        }
+
+        HelloInlineClassApp app = new HelloInlineClassApp();
+        if (app.point != pzero) {
+            throw new RuntimeException("Non-static field point not as expected");
         }
 
     }

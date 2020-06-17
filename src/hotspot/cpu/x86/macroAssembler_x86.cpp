@@ -3616,7 +3616,7 @@ void MacroAssembler::zero_memory(Register address, Register length_in_bytes, int
 }
 
 void MacroAssembler::get_value_field_klass(Register klass, Register index, Register value_klass) {
-  movptr(value_klass, Address(klass, InstanceKlass::value_field_klasses_offset()));
+  movptr(value_klass, Address(klass, InstanceKlass::inline_type_field_klasses_offset()));
 #ifdef ASSERT
   {
     Label done;

@@ -1286,7 +1286,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         }
         if (fs.is_inlined()) {
           // Resolve klass of flattened value type field
-          Klass* vk = klass->get_value_field_klass(fs.index());
+          Klass* vk = klass->get_inline_type_field_klass(fs.index());
           field._klass = ValueKlass::cast(vk);
           field._type = T_VALUETYPE;
         }

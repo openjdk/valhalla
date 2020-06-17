@@ -1071,6 +1071,8 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
         // set the reference projection type
         set_ref_type_mirror(mirror(), ref_type_oop);
 
+        assert(oopDesc::is_oop(ref_type_oop), "Sanity check");
+
         // set the value and reference projection types
         set_val_type_mirror(ref_type_oop, mirror());
         set_ref_type_mirror(ref_type_oop, ref_type_oop);
@@ -1128,6 +1130,7 @@ class ResetMirrorField: public FieldClosure {
       case T_BOOLEAN:
         _m()->bool_field_put(fd->offset(), false);
         break;
+      case T_VALUETYPE:
       case T_ARRAY:
       case T_OBJECT: {
         // It might be useful to cache the String field, but

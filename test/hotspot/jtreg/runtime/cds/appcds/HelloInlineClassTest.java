@@ -28,7 +28,7 @@
  * @requires vm.cds
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds/test-classes
  * @build HelloInlineClassApp
- * @run driver ClassFileInstaller -jar hello_inline.jar HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Point$ref
+ * @run driver ClassFileInstaller -jar hello_inline.jar HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Point$ref HelloInlineClassApp$Rectangle HelloInlineClassApp$Rectangle$ref
  * @run driver HelloInlineClassTest
  */
 
@@ -40,7 +40,8 @@ public class HelloInlineClassTest {
         String mainClass = "HelloInlineClassApp";
         OutputAnalyzer output =
             TestCommon.dump(appJar, TestCommon.list(mainClass,
-                                                    "HelloInlineClassApp$Point"));
+                                                    "HelloInlineClassApp$Point",
+                                                    "HelloInlineClassApp$Rectangle"));
         output.shouldHaveExitValue(0);
 
         TestCommon.run("-Xint", "-cp", appJar,  mainClass)

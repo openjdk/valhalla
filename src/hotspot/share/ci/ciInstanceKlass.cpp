@@ -552,7 +552,7 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
       // Value type fields are embedded
       int field_offset = fd.offset();
       // Get ValueKlass and adjust number of fields
-      Klass* k = get_instanceKlass()->get_value_field_klass(fd.index());
+      Klass* k = get_instanceKlass()->get_inline_type_field_klass(fd.index());
       ciValueKlass* vk = CURRENT_ENV->get_klass(k)->as_value_klass();
       flen += vk->nof_nonstatic_fields() - 1;
       // Iterate over fields of the flattened value type and copy them to 'this'

@@ -402,6 +402,7 @@ void ConstantPool::remove_unshareable_info() {
   _flags |= (_on_stack | _is_shared);
   int num_klasses = 0;
   for (int index = 1; index < length(); index++) { // Index 0 is unused
+    jbyte qdesc_bit = tag_at(index).is_Qdescriptor_klass() ? (jbyte) JVM_CONSTANT_QDescBit : 0;
     if (!DynamicDumpSharedSpaces) {
       assert(!tag_at(index).is_unresolved_klass_in_error(), "This must not happen during static dump time");
     } else {
@@ -409,7 +410,7 @@ void ConstantPool::remove_unshareable_info() {
           tag_at(index).is_method_handle_in_error()    ||
           tag_at(index).is_method_type_in_error()      ||
           tag_at(index).is_dynamic_constant_in_error()) {
-        tag_at_put(index, JVM_CONSTANT_UnresolvedClass);
+        tag_at_put(index, JVM_CONSTANT_UnresolvedClass | qdesc_bit);
       }
     }
     if (tag_at(index).is_klass()) {
@@ -429,7 +430,7 @@ void ConstantPool::remove_unshareable_info() {
         int name_index = kslot.name_index();
         assert(tag_at(name_index).is_symbol(), "sanity");
         resolved_klasses()->at_put(resolved_klass_index, NULL);
-        tag_at_put(index, JVM_CONSTANT_UnresolvedClass);
+        tag_at_put(index, JVM_CONSTANT_UnresolvedClass | qdesc_bit);
         assert(klass_name_at(index) == symbol_at(name_index), "sanity");
       }
     }
@@ -564,7 +565,11 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
   // to resolve this constant pool entry fail with the same error (JVMS 5.4.3).
   if (HAS_PENDING_EXCEPTION) {
     if (save_resolution_error) {
-      save_and_throw_exception(this_cp, which, constantTag(JVM_CONSTANT_UnresolvedClass), CHECK_NULL);
+      jbyte tag = JVM_CONSTANT_UnresolvedClass;
+      if (this_cp->tag_at(which).is_Qdescriptor_klass()) {
+        tag |= JVM_CONSTANT_QDescBit;
+      }
+      save_and_throw_exception(this_cp, which, constantTag(tag), CHECK_NULL);
       // If CHECK_NULL above doesn't return the exception, that means that
       // some other thread has beaten us and has resolved the class.
       // To preserve old behavior, we return the resolved class.
