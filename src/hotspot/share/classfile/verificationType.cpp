@@ -128,7 +128,7 @@ bool VerificationType::is_reference_assignable_from(
     // This code implements non-covariance between inline type arrays and both
     // arrays of objects and arrays of interface types.  If covariance is
     // supported for inline type arrays then this code should be removed.
-    if (comp_from.is_inlinetype() && !comp_this.is_null() && comp_this.is_reference()) {
+    if (comp_from.is_inline_type() && !comp_this.is_null() && comp_this.is_reference()) {
       // An array of inline types is not assignable to an array of java.lang.Objects.
       if (comp_this.name() == vmSymbols::java_lang_Object()) {
         return false;
@@ -160,11 +160,11 @@ bool VerificationType::is_reference_assignable_from(
   return false;
 }
 
-bool VerificationType::is_inlinetype_assignable_from(const VerificationType& from) const {
+bool VerificationType::is_inline_type_assignable_from(const VerificationType& from) const {
   // Check that 'from' is not null, is an inline type, and is the same inline type.
-  assert(is_inlinetype(), "called with a non-inlinetype type");
-  assert(!is_null(), "inlinetype is not null");
-  return (!from.is_null() && from.is_inlinetype() && name() == from.name());
+  assert(is_inline_type(), "called with a non-inline type");
+  assert(!is_null(), "inline type is not null");
+  return (!from.is_null() && from.is_inline_type() && name() == from.name());
 }
 
 bool VerificationType::is_ref_assignable_from_inline_type(const VerificationType& from, ClassVerifier* context, TRAPS) const {
@@ -221,7 +221,7 @@ VerificationType VerificationType::get_component(ClassVerifier *context, TRAPS) 
       Symbol* component_copy = context->create_temporary_symbol(component);
       assert(component_copy == component, "symbols don't match");
       return (ss.type() == T_VALUETYPE) ?
-        VerificationType::inlinetype_type(component_copy) :
+        VerificationType::inline_type(component_copy) :
         VerificationType::reference_type(component_copy);
    }
    default:
@@ -258,7 +258,7 @@ void VerificationType::print_on(outputStream* st) const {
         st->print("uninitializedThis");
       } else if (is_uninitialized()) {
         st->print("uninitialized %d", bci());
-      } else if (is_inlinetype()) {
+      } else if (is_inline_type()) {
         name()->print_Qvalue_on(st);
       } else {
         if (name() != NULL) {

@@ -1009,7 +1009,7 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
     if (k->is_array_klass()) {
       if (k->is_valueArray_klass()) {
         Klass* element_klass = (Klass*) ValueArrayKlass::cast(k)->element_klass();
-        assert(element_klass->is_value(), "Must be value type component");
+        assert(element_klass->is_inline_klass(), "Must be inline type component");
         ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(element_klass));
         comp_mirror = Handle(THREAD, vk->java_mirror());
       } else if (k->is_typeArray_klass()) {
@@ -1060,7 +1060,7 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
       release_set_array_klass(comp_mirror(), k);
     }
 
-    if (k->is_value()) {
+    if (k->is_inline_klass()) {
       InstanceKlass* super = k->java_super();
       set_val_type_mirror(mirror(), mirror());
 
@@ -1232,8 +1232,8 @@ oop java_lang_Class::archive_mirror(Klass* k, TRAPS) {
     }
   }
 
-  if (k->is_value()) {
-    // Values have a val type mirror and a ref type mirror. Don't handle this for now. TODO:CDS
+  if (k->is_inline_klass()) {
+    // Inline types have a val type mirror and a ref type mirror. Don't handle this for now. TODO:CDS
     k->set_java_mirror_handle(OopHandle());
     return NULL;
   }
@@ -1591,7 +1591,7 @@ void java_lang_Class::print_signature(oop java_class, outputStream* st) {
   } else {
     Klass* k = as_Klass(java_class);
     is_instance = k->is_instance_klass();
-    is_value = k->is_value();
+    is_value = k->is_inline_klass();
     name = k->name();
   }
   if (name == NULL) {

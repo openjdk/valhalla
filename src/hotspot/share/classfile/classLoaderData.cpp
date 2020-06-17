@@ -377,7 +377,7 @@ void ClassLoaderData::classes_do(void f(InstanceKlass*)) {
 void ClassLoaderData::value_classes_do(void f(ValueKlass*)) {
   // Lock-free access requires load_acquire
   for (Klass* k = Atomic::load_acquire(&_klasses); k != NULL; k = k->next_link()) {
-    if (k->is_value()) {
+    if (k->is_inline_klass()) {
       f(ValueKlass::cast(k));
     }
     assert(k != k->next_link(), "no loops!");
@@ -846,7 +846,7 @@ void ClassLoaderData::free_deallocate_list() {
       } else if (m->is_constantPool()) {
         MetadataFactory::free_metadata(this, (ConstantPool*)m);
       } else if (m->is_klass()) {
-        if (!((Klass*)m)->is_value()) {
+        if (!((Klass*)m)->is_inline_klass()) {
           MetadataFactory::free_metadata(this, (InstanceKlass*)m);
         } else {
           MetadataFactory::free_metadata(this, (ValueKlass*)m);

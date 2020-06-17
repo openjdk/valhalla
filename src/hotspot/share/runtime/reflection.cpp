@@ -348,7 +348,7 @@ arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
     if (k->is_array_klass() && ArrayKlass::cast(k)->dimension() >= MAX_DIM) {
       THROW_0(vmSymbols::java_lang_IllegalArgumentException());
     }
-    if (k->is_value()) {
+    if (k->is_inline_klass()) {
       return oopFactory::new_valueArray(k, length, THREAD);
     } else {
       return oopFactory::new_objArray(k, length, THREAD);
@@ -1181,7 +1181,7 @@ oop Reflection::invoke_method(oop method_mirror, Handle receiver, objArrayHandle
   BasicType rtype;
   if (java_lang_Class::is_primitive(return_type_mirror)) {
     rtype = basic_type_mirror_to_basic_type(return_type_mirror, CHECK_NULL);
-  } else if (java_lang_Class::as_Klass(return_type_mirror)->is_value()) {
+  } else if (java_lang_Class::as_Klass(return_type_mirror)->is_inline_klass()) {
     rtype = T_VALUETYPE;
   } else {
     rtype = T_OBJECT;
@@ -1220,13 +1220,13 @@ oop Reflection::invoke_constructor(oop constructor_mirror, objArrayHandle args, 
 
   // Special case for factory methods
   if (!method->signature()->is_void_method_signature()) {
-    assert(klass->is_value(), "inline classes must use factory methods");
+    assert(klass->is_inline_klass(), "inline classes must use factory methods");
     Handle no_receiver; // null instead of receiver
     return invoke(klass, method, no_receiver, override, ptypes, T_VALUETYPE, args, false, CHECK_NULL);
   }
 
   // main branch of code creates a non-inline object:
-  assert(!klass->is_value(), "classic constructors are only for non-inline classes");
+  assert(!klass->is_inline_klass(), "classic constructors are only for non-inline classes");
   Handle receiver = klass->allocate_instance_handle(CHECK_NULL);
 
   // Ignore result from call and return receiver

@@ -836,7 +836,7 @@ void GenerateOopMap::merge_state(GenerateOopMap *gom, int bci, int* data) {
 }
 
 void GenerateOopMap::set_var(int localNo, CellTypeState cts) {
-  assert(cts.is_reference() || cts.is_value() || cts.is_address(),
+  assert(cts.is_reference() || cts.is_inline_type() || cts.is_address(),
          "wrong celltypestate");
   if (localNo < 0 || localNo > _max_locals) {
     verify_error("variable write error: r%d", localNo);
@@ -1729,7 +1729,7 @@ void GenerateOopMap::ppop(CellTypeState *out) {
 }
 
 void GenerateOopMap::ppush1(CellTypeState in) {
-  assert(in.is_reference() || in.is_value(), "sanity check");
+  assert(in.is_reference() || in.is_inline_type(), "sanity check");
   push(in);
 }
 

@@ -588,9 +588,9 @@ void ErrorContext::stackmap_details(outputStream* ss, const Method* method) cons
 
 // Methods in ClassVerifier
 
-VerificationType reference_or_inlinetype(InstanceKlass* klass) {
-  if (klass->is_value()) {
-    return VerificationType::inlinetype_type(klass->name());
+VerificationType reference_or_inline_type(InstanceKlass* klass) {
+  if (klass->is_inline_klass()) {
+    return VerificationType::inline_type(klass->name());
   } else {
     return VerificationType::reference_type(klass->name());
   }
@@ -600,7 +600,7 @@ ClassVerifier::ClassVerifier(
     InstanceKlass* klass, TRAPS)
     : _thread(THREAD), _previous_symbol(NULL), _symbols(NULL), _exception_type(NULL),
       _message(NULL), _method_signatures_table(NULL), _klass(klass) {
-  _this_type = reference_or_inlinetype(klass);
+  _this_type = reference_or_inline_type(klass);
 }
 
 ClassVerifier::~ClassVerifier() {
@@ -1761,7 +1761,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             return;
           }
           VerificationType inline_type =
-            VerificationType::change_ref_to_inlinetype(ref_type);
+            VerificationType::change_ref_to_inline_type(ref_type);
           current_frame.push_stack(inline_type, CHECK_VERIFY(this));
           no_control_flow = false; break;
         }
@@ -2402,9 +2402,9 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
       }
       // stack_object_type and target_class_type must be the same inline type.
       stack_object_type =
-        current_frame->pop_stack(VerificationType::inlinetype_check(), CHECK_VERIFY(this));
+        current_frame->pop_stack(VerificationType::inline_type_check(), CHECK_VERIFY(this));
       VerificationType target_inline_type =
-        VerificationType::change_ref_to_inlinetype(target_class_type);
+        VerificationType::change_ref_to_inline_type(target_class_type);
       if (!stack_object_type.equals(target_inline_type)) {
         verify_error(ErrorContext::bad_inline_type(bci,
             current_frame->stack_top_ctx(),
@@ -2941,7 +2941,7 @@ void ClassVerifier::verify_invoke_instructions(
                  current_type(), this, false, CHECK_VERIFY(this));
     } else {
       InstanceKlass* unsafe_host = current_class()->unsafe_anonymous_host();
-      VerificationType unsafe_anonymous_host_type = reference_or_inlinetype(unsafe_host);
+      VerificationType unsafe_anonymous_host_type = reference_or_inline_type(unsafe_host);
       subtype = ref_class_type.is_assignable_from(unsafe_anonymous_host_type, this, false, CHECK_VERIFY(this));
 
       // If invokespecial of IMR, need to recheck for same or
@@ -2995,7 +2995,7 @@ void ClassVerifier::verify_invoke_instructions(
           VerificationType top = current_frame->pop_stack(CHECK_VERIFY(this));
 
           InstanceKlass* unsafe_host = current_class()->unsafe_anonymous_host();
-          VerificationType host_type = reference_or_inlinetype(unsafe_host);
+          VerificationType host_type = reference_or_inline_type(unsafe_host);
           bool subtype = host_type.is_assignable_from(top, this, false, CHECK_VERIFY(this));
           if (!subtype) {
             verify_error( ErrorContext::bad_type(current_frame->offset(),
@@ -3119,7 +3119,7 @@ void ClassVerifier::verify_anewarray(
     assert(n == length, "Unexpected number of characters in string");
   } else {         // it's an object or interface
     const char* component_name = component_type.name()->as_utf8();
-    char Q_or_L = component_type.is_inlinetype() ? JVM_SIGNATURE_INLINE_TYPE : JVM_SIGNATURE_CLASS;
+    char Q_or_L = component_type.is_inline_type() ? JVM_SIGNATURE_INLINE_TYPE : JVM_SIGNATURE_CLASS;
     // add one dimension to component with 'L' or 'Q' prepended and ';' appended.
     length = (int)strlen(component_name) + 3;
     arr_sig_str = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, length + 1);

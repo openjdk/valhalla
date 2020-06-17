@@ -237,7 +237,7 @@ public:
       GuardUnsafeAccess guard(_thread);
       RawAccess<>::store(addr(), normalize_for_write(x));
     } else {
-      assert(!_obj->is_value() || _obj->mark().is_larval_state(), "must be an object instance or a larval value");
+      assert(!_obj->is_inline_type() || _obj->mark().is_larval_state(), "must be an object instance or a larval inline type");
       HeapAccess<>::store_at(_obj, _offset, normalize_for_write(x));
     }
   }
@@ -339,7 +339,7 @@ UNSAFE_ENTRY(void, Unsafe_PutReference(JNIEnv *env, jobject unsafe, jobject obj,
   oop x = JNIHandles::resolve(x_h);
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
-  assert(!p->is_value() || p->mark().is_larval_state(), "must be an object instance or a larval value");
+  assert(!p->is_inline_type() || p->mark().is_larval_state(), "must be an object instance or a larval inline type");
   HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(p, offset, x);
 } UNSAFE_END
 
@@ -375,7 +375,7 @@ UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlo
   oop base = JNIHandles::resolve(obj);
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(vc));
   ValueKlass* vk = ValueKlass::cast(k);
-  assert(!base->is_value() || base->mark().is_larval_state(), "must be an object instance or a larval value");
+  assert(!base->is_inline_type() || base->mark().is_larval_state(), "must be an object instance or a larval inline type");
   assert_and_log_unsafe_value_access(base, offset, vk);
   oop v = JNIHandles::resolve(value);
   vk->write_inlined_field(base, offset, v, CHECK);
@@ -383,7 +383,7 @@ UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlo
 
 UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {
   oop v = JNIHandles::resolve_non_null(value);
-  assert(v->is_value(), "must be a value instance");
+  assert(v->is_inline_type(), "must be an inline type instance");
   Handle vh(THREAD, v);
   ValueKlass* vk = ValueKlass::cast(v->klass());
   instanceOop new_value = vk->allocate_instance(CHECK_NULL);

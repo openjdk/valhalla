@@ -714,7 +714,7 @@ JVM_ENTRY(jobject, JVM_Clone(JNIEnv* env, jobject handle))
   // All arrays are considered to be cloneable (See JLS 20.1.5).
   // All j.l.r.Reference classes are considered non-cloneable.
   if (!klass->is_cloneable() ||
-       klass->is_value() ||
+       klass->is_inline_klass() ||
       (klass->is_instance_klass() &&
        InstanceKlass::cast(klass)->reference_type() != REF_NONE)) {
     ResourceMark rm(THREAD);

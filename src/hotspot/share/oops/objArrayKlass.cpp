@@ -136,7 +136,7 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name) : ArrayK
   set_class_loader_data(bk->class_loader_data());
 
   jint lh = array_layout_helper(T_OBJECT);
-  if (element_klass->is_value()) {
+  if (element_klass->is_inline_klass()) {
     lh = layout_helper_set_null_free(lh);
   }
   set_layout_helper(lh);
@@ -157,7 +157,7 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
                                                        /* do_zero */ true, THREAD);
   if (populate_null_free) {
     assert(dimension() == 1, "Can only populate the final dimension");
-    assert(element_klass()->is_value(), "Unexpected");
+    assert(element_klass()->is_inline_klass(), "Unexpected");
     assert(!element_klass()->is_array_klass(), "ArrayKlass unexpected here");
     assert(!ValueKlass::cast(element_klass())->flatten_array(), "Expected valueArrayOop allocation");
     element_klass()->initialize(CHECK_NULL);
@@ -174,7 +174,7 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
   if (rank == 1) { // last dim may be valueArray, check if we have any special storage requirements
-    if (element_klass()->is_value()) {
+    if (element_klass()->is_inline_klass()) {
       return oopFactory::new_valueArray(element_klass(), length, CHECK_NULL);
     } else {
       return oopFactory::new_objArray(element_klass(), length, CHECK_NULL);

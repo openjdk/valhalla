@@ -234,7 +234,7 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* thread, ConstantPool* pool,
   Klass* k = pool->klass_at(index, CHECK);
   InstanceKlass* klass = InstanceKlass::cast(k);
 
-  if (klass->is_value()) {
+  if (klass->is_inline_klass()) {
     THROW(vmSymbols::java_lang_InstantiationError());
   }
 
@@ -301,12 +301,12 @@ void copy_primitive_argument(intptr_t* addr, Handle instance, int offset, BasicT
 JRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* thread, ConstantPool* pool, int index))
   // Getting the ValueKlass
   Klass* k = pool->klass_at(index, CHECK);
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     // inconsistency with 'new' which throws an InstantiationError
     // in the future, defaultvalue will just return null instead of throwing an exception
     THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
   }
-  assert(k->is_value(), "defaultvalue argument must be the value type class");
+  assert(k->is_inline_klass(), "defaultvalue argument must be the inline type class");
   ValueKlass* vklass = ValueKlass::cast(k);
 
   vklass->initialize(THREAD);
@@ -321,7 +321,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
   ConstantPoolCacheEntry* cp_entry = cp_cache->entry_at(index);
   assert(cp_entry->is_resolved(Bytecodes::_withfield), "Should have been resolved");
   Klass* klass = cp_entry->f1_as_klass();
-  assert(klass->is_value(), "withfield only applies to value types");
+  assert(klass->is_inline_klass(), "withfield only applies to inline types");
   ValueKlass* vklass = ValueKlass::cast(klass);
 
   // Getting Field information
@@ -337,7 +337,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
   jint tos_idx = f.interpreter_frame_expression_stack_size() - 1;
   int vt_offset = type2size[field_type];
   oop old_value = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx - vt_offset);
-  assert(old_value != NULL && oopDesc::is_oop(old_value) && old_value->is_value(),"Verifying receiver");
+  assert(old_value != NULL && oopDesc::is_oop(old_value) && old_value->is_inline_type(),"Verifying receiver");
   Handle old_value_h(THREAD, old_value);
 
   // Creating new value by copying the one passed in argument
@@ -354,7 +354,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
   } else if (field_type == T_VALUETYPE) {
     if (cp_entry->is_inlined()) {
       oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_value(),"argument must be a value type");
+      assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_inline_type(),"argument must be an inline type");
       ValueKlass* field_vk = ValueKlass::cast(vklass->get_value_field_klass(field_index));
       assert(vt_oop != NULL && field_vk == vt_oop->klass(), "Must match");
       field_vk->write_inlined_field(new_value_h(), offset, vt_oop, CHECK_(return_offset));
@@ -926,7 +926,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
   bool is_put    = (bytecode == Bytecodes::_putfield  || bytecode == Bytecodes::_nofast_putfield ||
                     bytecode == Bytecodes::_putstatic || bytecode == Bytecodes::_withfield);
   bool is_static = (bytecode == Bytecodes::_getstatic || bytecode == Bytecodes::_putstatic);
-  bool is_value  = bytecode == Bytecodes::_withfield;
+  bool is_inline_type  = bytecode == Bytecodes::_withfield;
 
   {
     JvmtiHideSingleStepping jhss(thread);
@@ -975,7 +975,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
     } else {
       get_code = Bytecodes::_getfield;
     }
-    if (is_put && is_value) {
+    if (is_put && is_inline_type) {
         put_code = ((is_static) ? Bytecodes::_putstatic : Bytecodes::_withfield);
     } else if ((is_put && !has_initialized_final_update) || !info.access_flags().is_final()) {
         put_code = ((is_static) ? Bytecodes::_putstatic : Bytecodes::_putfield);

@@ -181,7 +181,7 @@ class ValueKlass: public InstanceKlass {
 
  public:
   // Type testing
-  bool is_value_slow() const        { return true; }
+  bool is_inline_klass_slow() const        { return true; }
 
   // Casting from Klass*
   static ValueKlass* cast(Klass* k);

@@ -4996,7 +4996,7 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
   // Check if this klass supports the java.lang.Cloneable interface
   if (SystemDictionary::Cloneable_klass_loaded()) {
     if (ik->is_subtype_of(SystemDictionary::Cloneable_klass())) {
-      if (ik->is_value()) {
+      if (ik->is_inline_klass()) {
         Thread *THREAD = Thread::current();
         throwInlineTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support Cloneable");
         return;
@@ -6174,7 +6174,7 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
     }
   }
 
-  if (ik->is_value()) {
+  if (ik->is_inline_klass()) {
     ValueKlass* vk = ValueKlass::cast(ik);
     oop val = ik->allocate_instance(CHECK_NULL);
     vk->set_default_value(val);
@@ -6249,7 +6249,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   // Not yet: supers are done below to support the new subtype-checking fields
   ik->set_nonstatic_field_size(_field_info->_nonstatic_field_size);
   ik->set_has_nonstatic_fields(_field_info->_has_nonstatic_fields);
-  if (_field_info->_is_naturally_atomic && ik->is_value()) {
+  if (_field_info->_is_naturally_atomic && ik->is_inline_klass()) {
     ik->set_is_naturally_atomic();
   }
   if (_is_empty_inline_type) {
@@ -6430,7 +6430,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   }
 
   int nfields = ik->java_fields_count();
-  if (ik->is_value()) nfields++;
+  if (ik->is_inline_klass()) nfields++;
   for (int i = 0; i < nfields; i++) {
     if (ik->field_is_inline_type(i)) {
       Symbol* klass_name = ik->field_signature(i)->fundamental_name(CHECK);

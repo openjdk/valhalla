@@ -56,7 +56,7 @@
 // Allocation...
 
 ValueArrayKlass::ValueArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlass(name, ID) {
-  assert(element_klass->is_value(), "Expected Value");
+  assert(element_klass->is_inline_klass(), "Expected Inline");
 
   set_element_klass(ValueKlass::cast(element_klass));
   set_class_loader_data(element_klass->class_loader_data());
@@ -497,5 +497,5 @@ void ValueArrayKlass::oop_verify_on(oop obj, outputStream* st) {
 
 void ValueArrayKlass::verify_on(outputStream* st) {
   ArrayKlass::verify_on(st);
-  guarantee(element_klass()->is_value(), "should be value type klass");
+  guarantee(element_klass()->is_inline_klass(), "should be inline type klass");
 }

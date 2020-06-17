@@ -51,7 +51,7 @@ static GrowableArray<Handle>*   _preserved_oop_stack  = NULL;
 static GrowableArray<markWord>* _preserved_mark_stack = NULL;
 
 static void enable_biased_locking(InstanceKlass* k) {
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     k->set_prototype_header(markWord::biased_locking_prototype());
   }
 }

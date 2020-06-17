@@ -32,7 +32,7 @@
 #include "utilities/macros.hpp"
 
 inline ValueKlass* ValueKlass::cast(Klass* k) {
-  assert(k->is_value(), "cast to ValueKlass");
+  assert(k->is_inline_klass(), "cast to ValueKlass");
   return (ValueKlass*) k;
 }
 

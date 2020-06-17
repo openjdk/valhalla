@@ -549,7 +549,7 @@ static void print_field(outputStream* st, int level, int offset, FieldDesc& fd, 
 }
 
 static void print_inlined_field(outputStream* st, int level, int offset, InstanceKlass* klass) {
-  assert(klass->is_value(), "Only inline types can be inlined");
+  assert(klass->is_inline_klass(), "Only inline types can be inlined");
   ValueKlass* vklass = ValueKlass::cast(klass);
   GrowableArray<FieldDesc>* fields = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<FieldDesc>(100, true);
   for (FieldStream fd(klass, false, false); !fd.eos(); fd.next()) {

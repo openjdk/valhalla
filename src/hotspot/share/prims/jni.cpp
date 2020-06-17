@@ -1080,7 +1080,7 @@ JNI_ENTRY(jobject, jni_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
     THROW_(vmSymbols::java_lang_InstantiationException(), NULL);
   }
 
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
     obj = JNIHandles::make_local(env, i);
     JavaValue jvalue(T_VOID);
@@ -1114,7 +1114,7 @@ JNI_ENTRY(jobject, jni_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
     THROW_(vmSymbols::java_lang_InstantiationException(), NULL);
   }
 
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
     obj = JNIHandles::make_local(env, i);
     JavaValue jvalue(T_VOID);
@@ -1148,7 +1148,7 @@ JNI_ENTRY(jobject, jni_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, 
     THROW_(vmSymbols::java_lang_InstantiationException(), NULL);
   }
 
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
     obj = JNIHandles::make_local(env, i);
     va_list args;
@@ -3446,7 +3446,7 @@ JNI_ENTRY(jsize, jni_GetFieldOffsetInFlattenedLayout(JNIEnv* env, jclass clazz, 
 
   oop mirror = JNIHandles::resolve_non_null(clazz);
   Klass* k = java_lang_Class::as_Klass(mirror);
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     ResourceMark rm;
         THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s has not flattened layout", k->external_name()));
   }
@@ -3513,7 +3513,7 @@ JNI_ENTRY(jobject, jni_GetSubElementSelector(JNIEnv* env, jobject selector, jfie
   }
   oop semirror = jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct);
   Klass* k = java_lang_Class::as_Klass(semirror);
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     ResourceMark rm;
         THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s is not an inline type", k->external_name()));
   }

@@ -102,7 +102,7 @@ ArrayKlass::ArrayKlass(Symbol* name, KlassID id) :
 Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS) {
   ResourceMark rm(THREAD);
   Symbol* name = NULL;
-  bool is_qtype = element_klass->is_value();
+  bool is_qtype = element_klass->is_inline_klass();
   char *name_str = element_klass->name()->as_C_string();
   int len = element_klass->name()->utf8_length();
   char *new_str = NEW_RESOURCE_ARRAY(char, len + 4);
