@@ -68,12 +68,13 @@ public class ArchiveRelocationTest {
         String runRelocArg  = run_reloc  ? forceRelocation : "-showversion";
         String logArg = "-Xlog:cds=debug,cds+reloc=debug";
         String unlockArg = "-XX:+UnlockDiagnosticVMOptions";
+        String nmtArg = "-XX:NativeMemoryTracking=detail";
 
         OutputAnalyzer out = TestCommon.dump(appJar,
                                              TestCommon.list(mainClass,
                                                              "HelloInlineClassApp",
                                                              "HelloInlineClassApp$Point"),
-                                             unlockArg, dumpRelocArg, logArg);
+                                             unlockArg, dumpRelocArg, logArg, nmtArg);
         if (dump_reloc) {
             out.shouldContain("ArchiveRelocationMode == 1: always allocate class space at an alternative address");
             out.shouldContain("Relocating archive from");
