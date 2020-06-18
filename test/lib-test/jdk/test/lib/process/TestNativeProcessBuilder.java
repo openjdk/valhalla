@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,36 +23,28 @@
 
 /*
  * @test
- * @bug 4421066
- * @summary Verify the contents of an enum type.
- * @ignore 8152313 convert to doclet test framework
- * @library ../../lib
- * @modules jdk.javadoc
- * @compile  ../../lib/Tester.java Main.java
- * @run main Main
+ * @summary Test the native process builder API.
+ * @library /test/lib
+ * @run main/native TestNativeProcessBuilder
  */
 
-import java.io.IOException;
-import com.sun.javadoc.*;
 
-public class Main extends Tester.Doclet {
+import jdk.test.lib.Utils;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
 
-    private static final Tester tester = new Tester("Main", "pkg1");
-
-    public static void main(String[] args) throws IOException {
-        tester.run();
-        tester.verify();
+public class TestNativeProcessBuilder {
+    public static void main(String args[]) throws Exception {
+        ProcessBuilder pb = ProcessTools.createNativeTestProcessBuilder("jvm-test-launcher");
+        pb.environment().put("CLASSPATH", Utils.TEST_CLASS_PATH);
+        new OutputAnalyzer(pb.start())
+            .shouldHaveExitValue(0)
+            .stdoutShouldContain("Hello Test");
     }
 
-    public static boolean run(DocletEnvironment root) {
-        try {
-            for (ClassDoc cd : root.classes()) {
-                tester.printClass(cd);
-            }
-
-            return true;
-        } catch (IOException e) {
-            return false;
+    public static class Test {
+        public static void test() {
+            System.out.println("Hello Test");
         }
     }
 }

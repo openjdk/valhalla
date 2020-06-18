@@ -21,24 +21,59 @@
  * questions.
  */
 
-/*
- * @test
- * @summary Test the native process builder API.
- * @library /test/lib
- * @build Test
- * @run main/native TestNativeProcessBuilder
- */
+#include <jni.h>
+#include <stdio.h>
+#include <stdlib.h>
 
+JNIEnv* create_vm(JavaVM **jvm)
+{
+    JNIEnv* env;
+    JavaVMInitArgs args;
+    JavaVMOption options[1];
 
-import jdk.test.lib.Utils;
-import jdk.test.lib.process.ProcessTools;
-import jdk.test.lib.process.OutputAnalyzer;
+    char classpath[4096];
+    snprintf(classpath, sizeof classpath,
+             "-Djava.class.path=%s", getenv("CLASSPATH"));
+    options[0].optionString = classpath;
 
-public class TestNativeProcessBuilder {
-    public static void main(String args[]) throws Exception {
-        ProcessBuilder pb = ProcessTools.createNativeTestProcessBuilder("jvm-test-launcher");
-        pb.environment().put("CLASSPATH", Utils.TEST_CLASS_PATH);
-        new OutputAnalyzer(pb.start())
-            .shouldHaveExitValue(0);
+    args.version = JNI_VERSION_1_8;
+    args.nOptions = 1;
+    args.options = &options[0];
+    args.ignoreUnrecognized = 0;
+
+    int ret = JNI_CreateJavaVM(jvm, (void**)&env, &args);
+    if (ret < 0) {
+      exit(10);
     }
+
+    return env;
+}
+
+
+void run(JNIEnv *env) {
+  jclass test_class;
+  jmethodID test_method;
+
+  test_class = (*env)->FindClass(env, "TestNativeProcessBuilder$Test");
+  if (test_class == NULL) {
+    exit(11);
+  }
+
+  test_method = (*env)->GetStaticMethodID(env, test_class, "test", "()V");
+  if (test_method == NULL) {
+    exit(12);
+  }
+
+  (*env)->CallStaticVoidMethod(env, test_class, test_method);
+}
+
+
+int main(int argc, char **argv)
+{
+  JavaVM *jvm;
+  JNIEnv *env = create_vm(&jvm);
+
+  run(env);
+
+  return 0;
 }
