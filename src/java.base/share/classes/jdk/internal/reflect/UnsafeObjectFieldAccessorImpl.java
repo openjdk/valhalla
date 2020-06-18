@@ -81,7 +81,7 @@ class UnsafeObjectFieldAccessorImpl extends UnsafeFieldAccessorImpl {
         if (isFlattened()) {
             unsafe.putValue(obj, fieldOffset, field.getType(), value);
         } else {
-        unsafe.putReference(obj, fieldOffset, value);
+            unsafe.putReference(obj, fieldOffset, value);
         }
     }
 

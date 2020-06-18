@@ -31,7 +31,6 @@
 import java.lang.reflect.Array;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.InaccessibleObjectException;
 import java.lang.reflect.Method;
 
 import org.testng.annotations.Test;
@@ -192,13 +191,8 @@ public class Reflection {
 
     void staticField() throws Exception {
         Field f = c.getDeclaredField("STATIC_FIELD");
-        if (f.trySetAccessible()) {
-            throw new RuntimeException("trySetAccessible should not succeed");
-        }
-        try {
-            f.setAccessible(true);
-            throw new RuntimeException("IllegalAccessException not thrown");
-        } catch (InaccessibleObjectException e) { }
+        f.trySetAccessible();
+        assertTrue(f.isAccessible());
     }
 
     void checkField(String source, String name, Class<?> type) throws Exception {
