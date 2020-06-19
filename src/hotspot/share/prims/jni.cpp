@@ -499,7 +499,7 @@ JNI_ENTRY(jobject, jni_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID meth
   methodHandle m (THREAD, Method::resolve_jmethod_id(method_id));
   assert(m->is_static() == (isStatic != 0), "jni_ToReflectedMethod access flags doesn't match");
   oop reflection_method;
-  if (m->is_object_constructor()) {
+  if (m->is_object_constructor() || m->is_static_init_factory()) {
     reflection_method = Reflection::new_constructor(m, CHECK_NULL);
   } else {
     reflection_method = Reflection::new_method(m, false, CHECK_NULL);
