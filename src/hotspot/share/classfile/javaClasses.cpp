@@ -969,11 +969,11 @@ void java_lang_Class::set_mirror_module_field(Klass* k, Handle mirror, Handle mo
 // Statically allocate fixup lists because they always get created.
 void java_lang_Class::allocate_fixup_lists() {
   GrowableArray<Klass*>* mirror_list =
-    new (ResourceObj::C_HEAP, mtClass) GrowableArray<Klass*>(40, true);
+    new (ResourceObj::C_HEAP, mtClass) GrowableArray<Klass*>(40, mtClass);
   set_fixup_mirror_list(mirror_list);
 
   GrowableArray<Klass*>* module_list =
-    new (ResourceObj::C_HEAP, mtModule) GrowableArray<Klass*>(500, true);
+    new (ResourceObj::C_HEAP, mtModule) GrowableArray<Klass*>(500, mtModule);
   set_fixup_module_field_list(module_list);
 }
 
@@ -1009,7 +1009,7 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
     if (k->is_array_klass()) {
       if (k->is_valueArray_klass()) {
         Klass* element_klass = (Klass*) ValueArrayKlass::cast(k)->element_klass();
-        assert(element_klass->is_value(), "Must be value type component");
+        assert(element_klass->is_inline_klass(), "Must be inline type component");
         ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(element_klass));
         comp_mirror = Handle(THREAD, vk->java_mirror());
       } else if (k->is_typeArray_klass()) {
@@ -1060,7 +1060,7 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
       release_set_array_klass(comp_mirror(), k);
     }
 
-    if (k->is_value()) {
+    if (k->is_inline_klass()) {
       InstanceKlass* super = k->java_super();
       set_val_type_mirror(mirror(), mirror());
 
@@ -1232,8 +1232,8 @@ oop java_lang_Class::archive_mirror(Klass* k, TRAPS) {
     }
   }
 
-  if (k->is_value()) {
-    // Values have a val type mirror and a ref type mirror. Don't handle this for now. TODO:CDS
+  if (k->is_inline_klass()) {
+    // Inline types have a val type mirror and a ref type mirror. Don't handle this for now. TODO:CDS
     k->set_java_mirror_handle(OopHandle());
     return NULL;
   }
@@ -1591,7 +1591,7 @@ void java_lang_Class::print_signature(oop java_class, outputStream* st) {
   } else {
     Klass* k = as_Klass(java_class);
     is_instance = k->is_instance_klass();
-    is_value = k->is_value();
+    is_value = k->is_inline_klass();
     name = k->name();
   }
   if (name == NULL) {
@@ -4764,15 +4764,15 @@ void java_lang_Byte_ByteCache::serialize_offsets(SerializeClosure* f) {
 int jdk_internal_vm_jni_SubElementSelector::_arrayElementType_offset;
 int jdk_internal_vm_jni_SubElementSelector::_subElementType_offset;
 int jdk_internal_vm_jni_SubElementSelector::_offset_offset;
-int jdk_internal_vm_jni_SubElementSelector::_isFlattened_offset;
-int jdk_internal_vm_jni_SubElementSelector::_isFlattenable_offset;
+int jdk_internal_vm_jni_SubElementSelector::_isInlined_offset;
+int jdk_internal_vm_jni_SubElementSelector::_isInlineType_offset;
 
 #define SUBELEMENT_SELECTOR_FIELDS_DO(macro) \
   macro(_arrayElementType_offset,  k, "arrayElementType", class_signature, false); \
   macro(_subElementType_offset,    k, "subElementType",   class_signature, false); \
   macro(_offset_offset,            k, "offset",           int_signature,   false); \
-  macro(_isFlattened_offset,       k, "isFlattened",      bool_signature,  false); \
-  macro(_isFlattenable_offset,     k, "isFlattenable",    bool_signature,  false);
+  macro(_isInlined_offset,         k, "isInlined",        bool_signature,  false); \
+  macro(_isInlineType_offset,      k, "isInlineType",     bool_signature,  false);
 
 void jdk_internal_vm_jni_SubElementSelector::compute_offsets() {
   InstanceKlass* k = SystemDictionary::jdk_internal_vm_jni_SubElementSelector_klass();
@@ -4814,20 +4814,20 @@ void jdk_internal_vm_jni_SubElementSelector::setOffset(oop obj, int offset) {
   obj->int_field_put(_offset_offset, offset);
 }
 
-bool jdk_internal_vm_jni_SubElementSelector::getIsFlattened(oop obj) {
-  return obj->bool_field(_isFlattened_offset);
+bool jdk_internal_vm_jni_SubElementSelector::getIsInlined(oop obj) {
+  return obj->bool_field(_isInlined_offset);
 }
 
-void jdk_internal_vm_jni_SubElementSelector::setIsFlattened(oop obj, bool b) {
-  obj->bool_field_put(_isFlattened_offset, b);
+void jdk_internal_vm_jni_SubElementSelector::setIsInlined(oop obj, bool b) {
+  obj->bool_field_put(_isInlined_offset, b);
 }
 
-bool jdk_internal_vm_jni_SubElementSelector::getIsFlattenable(oop obj) {
-  return obj->bool_field(_isFlattenable_offset);
+bool jdk_internal_vm_jni_SubElementSelector::getIsInlineType(oop obj) {
+  return obj->bool_field(_isInlineType_offset);
 }
 
-void jdk_internal_vm_jni_SubElementSelector::setIsFlattenable(oop obj, bool b) {
-  obj->bool_field_put(_isFlattenable_offset, b);
+void jdk_internal_vm_jni_SubElementSelector::setIsInlineType(oop obj, bool b) {
+  obj->bool_field_put(_isInlineType_offset, b);
 }
 
 jbyte java_lang_Byte::value(oop obj) {

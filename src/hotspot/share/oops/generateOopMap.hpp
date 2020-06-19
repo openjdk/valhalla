@@ -201,7 +201,7 @@ class CellTypeState {
 
   bool is_address() const               { return ((_state & bits_mask) == addr_bit); }
   bool is_reference() const             { return ((_state & bits_mask) == ref_bit); }
-  bool is_value() const                 { return ((_state & bits_mask) == val_bit); }
+  bool is_inline_type() const           { return ((_state & bits_mask) == val_bit); }
   bool is_uninit() const                { return ((_state & bits_mask) == (uint)uninit_bit); }
 
   bool can_be_address() const           { return ((_state & addr_bit) != 0); }

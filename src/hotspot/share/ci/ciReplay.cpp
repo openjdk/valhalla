@@ -853,7 +853,7 @@ class CompileReplay : public StackObj {
       }
       case T_VALUETYPE: {
         ValueKlass* vk = ValueKlass::cast(fd->field_holder()->get_value_field_klass(fd->index()));
-        if (fd->is_flattened()) {
+        if (fd->is_inlined()) {
           int field_offset = fd->offset() - vk->first_field_offset();
           oop obj = (oop)(cast_from_oop<address>(_vt) + field_offset);
           ValueTypeFieldInitializer init_fields(obj, _replay);
@@ -912,7 +912,7 @@ class CompileReplay : public StackObj {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
           value = oopFactory::new_objArray(kelem, length, CHECK_(true));
         } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
-                   field_signature[1] == JVM_SIGNATURE_VALUETYPE) {
+                   field_signature[1] == JVM_SIGNATURE_INLINE_TYPE) {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
           value = oopFactory::new_valueArray(kelem, length, CHECK_(true));
         } else {
@@ -999,7 +999,7 @@ class CompileReplay : public StackObj {
       const char* string_value = parse_escaped_string();
       double value = atof(string_value);
       java_mirror->double_field_put(fd.offset(), value);
-    } else if (field_signature[0] == JVM_SIGNATURE_VALUETYPE) {
+    } else if (field_signature[0] == JVM_SIGNATURE_INLINE_TYPE) {
       Klass* kelem = resolve_klass(field_signature, CHECK);
       ValueKlass* vk = ValueKlass::cast(kelem);
       oop value = vk->allocate_instance(CHECK);

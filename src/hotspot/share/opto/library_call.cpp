@@ -143,7 +143,7 @@ class LibraryCallKit : public GraphKit {
         // inline type. Make sure the call is re-executed if the allocation triggers a deoptimization.
         PreserveReexecuteState preexecs(this);
         jvms()->set_should_reexecute(true);
-        res = ValueTypePtrNode::make_from_value_type(this, res->as_ValueType());
+        res = res->as_ValueType()->buffer(this);
       }
       push_node(bt, res);
     }
@@ -2522,8 +2522,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       // Re-execute the unsafe access if allocation triggers deoptimization.
       PreserveReexecuteState preexecs(this);
       jvms()->set_should_reexecute(true);
-      vt = vt->allocate(this)->as_ValueType();
-      base = vt->get_oop();
+      base = vt->buffer(this)->get_oop();
     }
   }
 
@@ -4673,7 +4672,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       if (!stopped()) {
         Node* obj_length = load_array_length(obj);
         Node* obj_size  = NULL;
-        Node* alloc_obj = new_array(obj_klass, obj_length, 0, &obj_size, true);  // no arguments to push
+        Node* alloc_obj = new_array(obj_klass, obj_length, 0, &obj_size, /*deoptimize_on_exception=*/true);
 
         BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
         if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Parsing)) {
@@ -4689,7 +4688,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
             ac->set_clone_oop_array();
             Node* n = _gvn.transform(ac);
             assert(n == ac, "cannot disappear");
-            ac->connect_outputs(this);
+            ac->connect_outputs(this, /*deoptimize_on_exception=*/true);
 
             result_reg->init_req(_objArray_path, control());
             result_val->init_req(_objArray_path, alloc_obj);

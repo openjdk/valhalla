@@ -422,7 +422,7 @@ JRT_ENTRY(void, Runtime1::new_value_array(JavaThread* thread, Klass* array_klass
   assert(array_klass->is_klass(), "not a class");
   Handle holder(THREAD, array_klass->klass_holder()); // keep the klass alive
   Klass* elem_klass = ArrayKlass::cast(array_klass)->element_klass();
-  assert(elem_klass->is_value(), "must be");
+  assert(elem_klass->is_inline_klass(), "must be");
   // Logically creates elements, ensure klass init
   elem_klass->initialize(CHECK);
   arrayOop obj = oopFactory::new_valueArray(elem_klass, length, CHECK);

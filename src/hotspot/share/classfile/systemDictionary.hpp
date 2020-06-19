@@ -324,7 +324,7 @@ public:
                                               bool is_superclass,
                                               TRAPS);
 
-  static Klass* resolve_flattenable_field_or_fail(AllFieldStream* fs,
+  static Klass* resolve_inline_type_field_or_fail(AllFieldStream* fs,
                                                   Handle class_loader,
                                                   Handle protection_domain,
                                                   bool throw_error,
@@ -640,6 +640,10 @@ protected:
   static bool is_shared_class_visible(Symbol* class_name, InstanceKlass* ik,
                                       PackageEntry* pkg_entry,
                                       Handle class_loader, TRAPS);
+  static bool is_shared_class_visible_impl(Symbol* class_name,
+                                           InstanceKlass* ik,
+                                           PackageEntry* pkg_entry,
+                                           Handle class_loader, TRAPS);
   static bool check_shared_class_super_type(InstanceKlass* child, InstanceKlass* super,
                                             Handle class_loader,  Handle protection_domain,
                                             bool is_superclass, TRAPS);

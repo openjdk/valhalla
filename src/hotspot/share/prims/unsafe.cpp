@@ -237,7 +237,7 @@ public:
       GuardUnsafeAccess guard(_thread);
       RawAccess<>::store(addr(), normalize_for_write(x));
     } else {
-      assert(!_obj->is_value() || _obj->mark().is_larval_state(), "must be an object instance or a larval value");
+      assert(!_obj->is_inline_type() || _obj->mark().is_larval_state(), "must be an object instance or a larval inline type");
       HeapAccess<>::store_at(_obj, _offset, normalize_for_write(x));
     }
   }
@@ -294,7 +294,7 @@ static void assert_and_log_unsafe_value_access(oop p, jlong offset, ValueKlass* 
     bool found = get_field_descriptor(p, offset, &fd);
     if (found) {
       assert(found, "value field not found");
-      assert(fd.is_flattened(), "field not flat");
+      assert(fd.is_inlined(), "field not flat");
     } else {
       if (log_is_enabled(Trace, valuetypes)) {
         log_trace(valuetypes)("not a field in %s at offset " SIZE_FORMAT_HEX,
@@ -339,7 +339,7 @@ UNSAFE_ENTRY(void, Unsafe_PutReference(JNIEnv *env, jobject unsafe, jobject obj,
   oop x = JNIHandles::resolve(x_h);
   oop p = JNIHandles::resolve(obj);
   assert_field_offset_sane(p, offset);
-  assert(!p->is_value() || p->mark().is_larval_state(), "must be an object instance or a larval value");
+  assert(!p->is_inline_type() || p->mark().is_larval_state(), "must be an object instance or a larval inline type");
   HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(p, offset, x);
 } UNSAFE_END
 
@@ -367,7 +367,7 @@ UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, 
   ValueKlass* vk = ValueKlass::cast(k);
   assert_and_log_unsafe_value_access(base, offset, vk);
   Handle base_h(THREAD, base);
-  oop v = vk->read_flattened_field(base_h(), offset, CHECK_NULL);
+  oop v = vk->read_inlined_field(base_h(), offset, CHECK_NULL);
   return JNIHandles::make_local(env, v);
 } UNSAFE_END
 
@@ -375,15 +375,15 @@ UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlo
   oop base = JNIHandles::resolve(obj);
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(vc));
   ValueKlass* vk = ValueKlass::cast(k);
-  assert(!base->is_value() || base->mark().is_larval_state(), "must be an object instance or a larval value");
+  assert(!base->is_inline_type() || base->mark().is_larval_state(), "must be an object instance or a larval inline type");
   assert_and_log_unsafe_value_access(base, offset, vk);
   oop v = JNIHandles::resolve(value);
-  vk->write_flattened_field(base, offset, v, CHECK);
+  vk->write_inlined_field(base, offset, v, CHECK);
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobject value)) {
   oop v = JNIHandles::resolve_non_null(value);
-  assert(v->is_value(), "must be a value instance");
+  assert(v->is_inline_type(), "must be an inline type instance");
   Handle vh(THREAD, v);
   ValueKlass* vk = ValueKlass::cast(v->klass());
   instanceOop new_value = vk->allocate_instance(CHECK_NULL);

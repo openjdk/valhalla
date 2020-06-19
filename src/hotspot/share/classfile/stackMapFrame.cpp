@@ -112,7 +112,7 @@ VerificationType StackMapFrame::set_locals_from_arg(
         sig = sig_copy;
       }
       if (ss.type() == T_VALUETYPE) {
-        return VerificationType::valuetype_type(sig);
+        return VerificationType::inline_type(sig);
       }
       return VerificationType::reference_type(sig);
     }

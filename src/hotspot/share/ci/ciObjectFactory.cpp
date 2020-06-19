@@ -388,7 +388,7 @@ ciMetadata* ciObjectFactory::create_new_metadata(Metadata* o) {
 
   if (o->is_klass()) {
     Klass* k = (Klass*)o;
-    if (k->is_value()) {
+    if (k->is_inline_klass()) {
       return new (arena()) ciValueKlass(k);
     } else if (k->is_instance_klass()) {
       return new (arena()) ciInstanceKlass(k);

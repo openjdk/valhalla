@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,8 +19,32 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
- *
  */
 
-var path = new java.io.File("/Users/someone").toPath();
-path.toString();
+/*
+ * @test
+ * @summary Test the native process builder API.
+ * @library /test/lib
+ * @run main/native TestNativeProcessBuilder
+ */
+
+
+import jdk.test.lib.Utils;
+import jdk.test.lib.process.ProcessTools;
+import jdk.test.lib.process.OutputAnalyzer;
+
+public class TestNativeProcessBuilder {
+    public static void main(String args[]) throws Exception {
+        ProcessBuilder pb = ProcessTools.createNativeTestProcessBuilder("jvm-test-launcher");
+        pb.environment().put("CLASSPATH", Utils.TEST_CLASS_PATH);
+        new OutputAnalyzer(pb.start())
+            .shouldHaveExitValue(0)
+            .stdoutShouldContain("Hello Test");
+    }
+
+    public static class Test {
+        public static void test() {
+            System.out.println("Hello Test");
+        }
+    }
+}

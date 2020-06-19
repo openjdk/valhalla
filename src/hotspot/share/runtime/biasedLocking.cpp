@@ -51,7 +51,7 @@ static GrowableArray<Handle>*   _preserved_oop_stack  = NULL;
 static GrowableArray<markWord>* _preserved_mark_stack = NULL;
 
 static void enable_biased_locking(InstanceKlass* k) {
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     k->set_prototype_header(markWord::biased_locking_prototype());
   }
 }
@@ -905,8 +905,8 @@ void BiasedLocking::preserve_marks() {
   // monitors in a prepass and, if they are biased, preserve their
   // mark words here. This should be a relatively small set of objects
   // especially compared to the number of objects in the heap.
-  _preserved_mark_stack = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<markWord>(10, true);
-  _preserved_oop_stack = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<Handle>(10, true);
+  _preserved_mark_stack = new (ResourceObj::C_HEAP, mtGC) GrowableArray<markWord>(10, mtGC);
+  _preserved_oop_stack = new (ResourceObj::C_HEAP, mtGC) GrowableArray<Handle>(10, mtGC);
 
   ResourceMark rm;
   Thread* cur = Thread::current();

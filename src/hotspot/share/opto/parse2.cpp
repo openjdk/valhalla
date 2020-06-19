@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,7 +94,6 @@ void Parse::array_load(BasicType bt) {
     // Cannot statically determine if array is flattened, emit runtime check
     assert(ValueArrayFlatten && is_reference_type(bt) && elemptr->can_be_value_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
            (!elemptr->is_valuetypeptr() || elemptr->value_klass()->flatten_array()), "array can't be flattened");
-    Node* ctl = control();
     IdealKit ideal(this);
     IdealVariable res(ideal);
     ideal.declarations_done();
@@ -104,7 +103,7 @@ void Parse::array_load(BasicType bt) {
       sync_kit(ideal);
       const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
       Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt,
-                                IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD, ctl);
+                                IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
       ideal.sync_kit(this);
       ideal.set(res, ld);
     } ideal.else_(); {
@@ -122,7 +121,7 @@ void Parse::array_load(BasicType bt) {
         PreserveReexecuteState preexecs(this);
         jvms()->set_should_reexecute(true);
         inc_sp(2);
-        Node* vt = ValueTypeNode::make_from_flattened(this, vk, cast, casted_adr)->allocate(this, false)->get_oop();
+        Node* vt = ValueTypeNode::make_from_flattened(this, vk, cast, casted_adr)->buffer(this, false);
         ideal.set(res, vt);
         ideal.sync_kit(this);
       } else {
@@ -2067,13 +2066,13 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
     PreserveReexecuteState preexecs(this);
     inc_sp(2);
     jvms()->set_should_reexecute(true);
-    a = a->as_ValueType()->allocate(this)->get_oop();
+    a = a->as_ValueType()->buffer(this)->get_oop();
   }
   if (b->is_ValueType()) {
     PreserveReexecuteState preexecs(this);
     inc_sp(2);
     jvms()->set_should_reexecute(true);
-    b = b->as_ValueType()->allocate(this)->get_oop();
+    b = b->as_ValueType()->buffer(this)->get_oop();
   }
 
   // First, do a normal pointer comparison
@@ -3476,8 +3475,8 @@ void Parse::do_one_bytecode() {
   }
 
 #ifndef PRODUCT
-  IdealGraphPrinter *printer = C->printer();
-  if (printer && printer->should_print(1)) {
+  if (C->should_print(1)) {
+    IdealGraphPrinter* printer = C->printer();
     char buffer[256];
     jio_snprintf(buffer, sizeof(buffer), "Bytecode %d: %s", bci(), Bytecodes::name(bc()));
     bool old = printer->traverse_outs();

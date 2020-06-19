@@ -1019,7 +1019,7 @@ void LinkResolver::resolve_field(fieldDescriptor& fd,
       // If byte code is a withfield check if they are nestmates.
       bool are_nestmates = false;
       if (sel_klass->is_instance_klass() &&
-          InstanceKlass::cast(sel_klass)->is_value() &&
+          InstanceKlass::cast(sel_klass)->is_inline_klass() &&
           current_klass->is_instance_klass()) {
         are_nestmates = InstanceKlass::cast(link_info.current_klass())->has_nestmate_access_to(
                                                         InstanceKlass::cast(sel_klass), THREAD);

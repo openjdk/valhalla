@@ -408,7 +408,7 @@ Node *PhaseMacroExpand::value_from_mem_phi(Node *mem, BasicType ft, const Type *
   Node *alloc_mem = alloc->in(TypeFunc::Memory);
 
   uint length = mem->req();
-  GrowableArray <Node *> values(length, length, NULL, false);
+  GrowableArray <Node *> values(length, length, NULL);
 
   // create a new Phi for the value
   PhiNode *phi = new PhiNode(mem->in(0), phi_type, NULL, mem->_idx, instance_id, alias_idx, offset);
@@ -981,7 +981,7 @@ static void disconnect_projections(MultiNode* n, PhaseIterGVN& igvn) {
 }
 
 // Process users of eliminated allocation.
-void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc) {
+void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_alloc) {
   Node* res = alloc->result_cast();
   if (res != NULL) {
     for (DUIterator_Last jmin, j = res->last_outs(jmin); j >= jmin; ) {
@@ -993,18 +993,14 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc) {
           Node *n = use->last_out(k);
           uint oc2 = use->outcnt();
           if (n->is_Store()) {
-#ifdef ASSERT
-            // Verify that there is no dependent MemBarVolatile nodes,
-            // they should be removed during IGVN, see MemBarNode::Ideal().
-            for (DUIterator_Fast pmax, p = n->fast_outs(pmax);
-                                       p < pmax; p++) {
-              Node* mb = n->fast_out(p);
-              assert(mb->is_Initialize() || !mb->is_MemBar() ||
-                     mb->req() <= MemBarNode::Precedent ||
-                     mb->in(MemBarNode::Precedent) != n,
-                     "MemBarVolatile should be eliminated for non-escaping object");
+            for (DUIterator_Fast pmax, p = n->fast_outs(pmax); p < pmax; p++) {
+              MemBarNode* mb = n->fast_out(p)->isa_MemBar();
+              if (mb != NULL && mb->req() <= MemBarNode::Precedent && mb->in(MemBarNode::Precedent) == n) {
+                // MemBarVolatiles should have been removed by MemBarNode::Ideal() for non-inline allocations
+                assert(inline_alloc, "MemBarVolatile should be eliminated for non-escaping object");
+                mb->remove(&_igvn);
+              }
             }
-#endif
             _igvn.replace_node(n, n->in(MemNode::Memory));
           } else {
             eliminate_gc_barrier(n);
@@ -1088,6 +1084,11 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc) {
         assert(init->outcnt() <= 2, "only a control and memory projection expected");
         Node *ctrl_proj = init->proj_out_or_null(TypeFunc::Control);
         if (ctrl_proj != NULL) {
+          // Inline type buffer allocations are followed by a membar
+          Node* membar_after = ctrl_proj->unique_ctrl_out();
+          if (inline_alloc && membar_after->Opcode() == Op_MemBarCPUOrder) {
+            membar_after->as_MemBar()->remove(&_igvn);
+          }
           _igvn.replace_node(ctrl_proj, init->in(TypeFunc::Control));
 #ifdef ASSERT
           Node* tmp = init->in(TypeFunc::Control);
@@ -1106,6 +1107,10 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc) {
 #endif
           _igvn.replace_node(mem_proj, mem);
         }
+      } else if (use->Opcode() == Op_MemBarStoreStore) {
+        // Inline type buffer allocations are followed by a membar
+        assert(inline_alloc, "Unexpected MemBarStoreStore");
+        use->as_MemBar()->remove(&_igvn);
       } else  {
         assert(false, "only Initialize or AddP expected");
       }
@@ -1137,18 +1142,25 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
   // if reallocation fails during deoptimization we'll pop all
   // interpreter frames for this compiled frame and that won't play
   // nice with JVMTI popframe.
-  if (!EliminateAllocations || JvmtiExport::can_pop_frame() || !alloc->_is_non_escaping) {
+  if (!EliminateAllocations || JvmtiExport::can_pop_frame()) {
     return false;
   }
   Node* klass = alloc->in(AllocateNode::KlassNode);
   const TypeKlassPtr* tklass = _igvn.type(klass)->is_klassptr();
-  Node* res = alloc->result_cast();
+
+  // Attempt to eliminate inline type buffer allocations
+  // regardless of usage and escape/replaceable status.
+  bool inline_alloc = tklass->klass()->is_valuetype();
+  if (!alloc->_is_non_escaping && !inline_alloc) {
+    return false;
+  }
   // Eliminate boxing allocations which are not used
-  // regardless scalar replacable status.
-  bool boxing_alloc = C->eliminate_boxing() &&
-                      tklass->klass()->is_instance_klass()  &&
+  // regardless of scalar replaceable status.
+  Node* res = alloc->result_cast();
+  bool boxing_alloc = (res == NULL) && C->eliminate_boxing() &&
+                      tklass->klass()->is_instance_klass() &&
                       tklass->klass()->as_instance_klass()->is_box_klass();
-  if (!alloc->_is_scalar_replaceable && (!boxing_alloc || (res != NULL))) {
+  if (!alloc->_is_scalar_replaceable && !boxing_alloc && !inline_alloc) {
     return false;
   }
 
@@ -1160,11 +1172,12 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
   }
 
   if (!alloc->_is_scalar_replaceable) {
-    assert(res == NULL, "sanity");
+    assert(res == NULL || inline_alloc, "sanity");
     // We can only eliminate allocation if all debug info references
     // are already replaced with SafePointScalarObject because
     // we can't search for a fields value without instance_id.
     if (safepoints.length() > 0) {
+      assert(!inline_alloc, "Inline type allocations should not have safepoint uses");
       return false;
     }
   }
@@ -1185,7 +1198,7 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
     log->tail("eliminate_allocation");
   }
 
-  process_users_of_allocation(alloc);
+  process_users_of_allocation(alloc, inline_alloc);
 
 #ifndef PRODUCT
   if (PrintEliminateAllocations) {

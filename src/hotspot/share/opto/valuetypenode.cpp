@@ -47,9 +47,9 @@ ValueTypeBaseNode* ValueTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* regio
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* type = vt->field_type(i);
     Node*  value = vt->field_value(i);
-    if (type->is_valuetype() && value->isa_ValueType()) {
+    if (value->is_ValueTypeBase()) {
       // Handle flattened value type fields recursively
-      value = value->as_ValueType()->clone_with_phis(gvn, region);
+      value = value->as_ValueTypeBase()->clone_with_phis(gvn, region);
     } else {
       phi_type = Type::get_const_type(type);
       value = PhiNode::make(region, value, phi_type);
@@ -95,8 +95,8 @@ ValueTypeBaseNode* ValueTypeBaseNode::merge_with(PhaseGVN* gvn, const ValueTypeB
   for (uint i = 0; i < field_count(); ++i) {
     Node* val1 =        field_value(i);
     Node* val2 = other->field_value(i);
-    if (val1->is_ValueType()) {
-      val1->as_ValueType()->merge_with(gvn, val2->as_ValueType(), pnum, transform);
+    if (val1->is_ValueTypeBase()) {
+      val1->as_ValueTypeBase()->merge_with(gvn, val2->as_ValueTypeBase(), pnum, transform);
     } else {
       assert(val1->is_Phi(), "must be a phi node");
       assert(!val2->is_ValueType(), "inconsistent merge values");
@@ -253,6 +253,7 @@ void ValueTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn) {
     Node* vt = worklist.at(i);
     vt->as_ValueType()->make_scalar_in_safepoints(igvn);
   }
+  igvn->record_for_igvn(this);
 }
 
 const TypePtr* ValueTypeBaseNode::field_adr_type(Node* base, int offset, ciInstanceKlass* holder, DecoratorSet decorators, PhaseGVN& gvn) const {
@@ -296,8 +297,10 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
         const Type* con_type = Type::make_from_constant(constant, /*require_const=*/ true);
         assert(con_type != NULL, "type not found");
         value = kit->gvn().transform(kit->makecon(con_type));
-        if (ft->is_valuetype() && !constant.as_object()->is_null_object()) {
+        // Check type of constant which might be more precise
+        if (con_type->is_valuetypeptr() && !con_type->is_zero_type()) {
           // Null-free, treat as flattenable
+          ft = con_type->value_klass();
           is_flattenable = true;
         }
       } else {
@@ -364,13 +367,14 @@ void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
   }
 }
 
-ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool safe_for_replace) {
+ValueTypePtrNode* ValueTypeBaseNode::buffer(GraphKit* kit, bool safe_for_replace) {
+  assert(is_ValueType(), "sanity");
   // Check if value type is already allocated
   Node* null_ctl = kit->top();
   Node* not_null_oop = kit->null_check_oop(get_oop(), &null_ctl);
   if (null_ctl->is_top()) {
     // Value type is allocated
-    return this;
+    return kit->gvn().transform(new ValueTypePtrNode(this))->as_ValueTypePtr();
   }
   assert(!is_allocated(&kit->gvn()), "should not be allocated");
   RegionNode* region = new RegionNode(3);
@@ -430,7 +434,7 @@ ValueTypeBaseNode* ValueTypeBaseNode::allocate(GraphKit* kit, bool safe_for_repl
   // Make sure it gets a chance to remove this allocation.
   kit->C->set_has_split_ifs(true);
   assert(vt->is_allocated(&kit->gvn()), "must be allocated");
-  return vt;
+  return kit->gvn().transform(new ValueTypePtrNode(vt))->as_ValueTypePtr();
 }
 
 bool ValueTypeBaseNode::is_allocated(PhaseGVN* phase) const {
@@ -481,7 +485,7 @@ Node* ValueTypeBaseNode::allocate_fields(GraphKit* kit) {
        vt->set_field_value(i, value->allocate_fields(kit));
      } else if (value != NULL) {
        // Non-flattened value type field
-       vt->set_field_value(i, value->allocate(kit));
+       vt->set_field_value(i, value->buffer(kit));
      }
   }
   vt = kit->gvn().transform(vt)->as_ValueTypeBase();
@@ -718,7 +722,7 @@ void ValueTypeNode::pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig, 
         // Non-flattened value type field
         ValueTypeNode* vt = arg->as_ValueType();
         assert(n->Opcode() != Op_Return || vt->is_allocated(&kit->gvn()), "value type field should be allocated on return");
-        arg = vt->allocate(kit)->get_oop();
+        arg = vt->buffer(kit);
       }
       // Initialize call/return arguments
       BasicType bt = field_type(i)->basic_type();
@@ -815,26 +819,31 @@ Node* ValueTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
       for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
         Node* user = fast_out(i);
         AllocateNode* alloc = user->isa_Allocate();
-        if (alloc != NULL && alloc->result_cast() != NULL && alloc->in(AllocateNode::ValueNode) == this) {
+        if (alloc != NULL && alloc->in(AllocateNode::ValueNode) == this) {
           // Found an allocation of the default value type.
-          // If the code in StoreNode::Identity() that removes useless stores was not yet
-          // executed or ReduceFieldZeroing is disabled, there can still be initializing
-          // stores (only zero-type or default value stores, because value types are immutable).
           Node* res = alloc->result_cast();
-          for (DUIterator_Fast jmax, j = res->fast_outs(jmax); j < jmax; j++) {
-            AddPNode* addp = res->fast_out(j)->isa_AddP();
-            if (addp != NULL) {
-              for (DUIterator_Fast kmax, k = addp->fast_outs(kmax); k < kmax; k++) {
-                StoreNode* store = addp->fast_out(k)->isa_Store();
-                if (store != NULL && store->outcnt() != 0) {
-                  // Remove the useless store
-                  igvn->replace_in_uses(store, store->in(MemNode::Memory));
+          if (res != NULL) {
+            // If the code in StoreNode::Identity() that removes useless stores was not yet
+            // executed or ReduceFieldZeroing is disabled, there can still be initializing
+            // stores (only zero-type or default value stores, because value types are immutable).
+            for (DUIterator_Fast jmax, j = res->fast_outs(jmax); j < jmax; j++) {
+              AddPNode* addp = res->fast_out(j)->isa_AddP();
+              if (addp != NULL) {
+                for (DUIterator_Fast kmax, k = addp->fast_outs(kmax); k < kmax; k++) {
+                  StoreNode* store = addp->fast_out(k)->isa_Store();
+                  if (store != NULL && store->outcnt() != 0) {
+                    // Remove the useless store
+                    igvn->replace_in_uses(store, store->in(MemNode::Memory));
+                  }
                 }
               }
             }
+            // Replace allocation by pre-allocated oop
+            igvn->replace_node(res, default_oop(*phase, value_klass()));
           }
-          // Replace allocation by pre-allocated oop
-          igvn->replace_node(res, default_oop(*phase, value_klass()));
+          // Unlink AllocateNode
+          igvn->replace_input_of(alloc, AllocateNode::ValueNode, igvn->C->top());
+          --i; --imax;
         } else if (user->is_ValueType()) {
           // Add value type user to worklist to give it a chance to get optimized as well
           igvn->_worklist.push(user);
@@ -892,16 +901,9 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
       if (res_dom != res) {
         // Move users to dominating allocation
         igvn->replace_node(res, res_dom);
-        // The result of the dominated allocation is now unused and will be
-        // removed later in AllocateNode::Ideal() to not confuse loop opts.
+        // The result of the dominated allocation is now unused and will be removed
+        // later in PhaseMacroExpand::eliminate_allocate_node to not confuse loop opts.
         igvn->record_for_igvn(alloc);
-#ifdef ASSERT
-        if (PrintEliminateAllocations) {
-          tty->print("++++ Eliminated: %d Allocate ", alloc->_idx);
-          dump_spec(tty);
-          tty->cr();
-        }
-#endif
       }
     }
   }
@@ -910,9 +912,11 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     Node* out = fast_out(i);
     if (out->is_ValueType()) {
-      // Recursively process value type users
+      // Unlink and recursively process value type users
+      igvn->hash_delete(out);
+      int nb = out->replace_edge(this, igvn->C->top());
       out->as_ValueType()->remove_redundant_allocations(igvn, phase);
-      --i; --imax;
+      --i; imax -= nb;
     } else if (out->isa_Allocate() != NULL) {
       // Unlink AllocateNode
       assert(out->in(AllocateNode::ValueNode) == this, "should be linked");
@@ -927,22 +931,4 @@ void ValueTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealL
     }
   }
   igvn->remove_dead_node(this);
-}
-
-ValueTypePtrNode* ValueTypePtrNode::make_from_value_type(GraphKit* kit, ValueTypeNode* vt) {
-  Node* oop = vt->allocate(kit)->get_oop();
-  ValueTypePtrNode* vtptr = new ValueTypePtrNode(vt->value_klass(), oop);
-  for (uint i = Oop+1; i < vt->req(); i++) {
-    vtptr->init_req(i, vt->in(i));
-  }
-  return kit->gvn().transform(vtptr)->as_ValueTypePtr();
-}
-
-ValueTypePtrNode* ValueTypePtrNode::make_from_oop(GraphKit* kit, Node* oop) {
-  // Create and initialize a ValueTypePtrNode by loading all field
-  // values from a heap-allocated version and also save the oop.
-  ciValueKlass* vk = kit->gvn().type(oop)->value_klass();
-  ValueTypePtrNode* vtptr = new ValueTypePtrNode(vk, oop);
-  vtptr->load(kit, oop, oop, vk);
-  return kit->gvn().transform(vtptr)->as_ValueTypePtr();
 }

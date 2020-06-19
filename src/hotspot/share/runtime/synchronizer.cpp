@@ -450,7 +450,7 @@ bool ObjectSynchronizer::quick_notify(oopDesc* obj, Thread* self, bool all) {
   assert(((JavaThread *) self)->thread_state() == _thread_in_Java, "invariant");
   NoSafepointVerifier nsv;
   if (obj == NULL) return false;  // slow-path for invalid obj
-  assert(!EnableValhalla || !obj->klass()->is_value(), "monitor op on value type");
+  assert(!EnableValhalla || !obj->klass()->is_inline_klass(), "monitor op on inline type");
   const markWord mark = obj->mark();
 
   if (mark.has_locker() && self->is_lock_owned((address)mark.locker())) {
@@ -501,7 +501,7 @@ bool ObjectSynchronizer::quick_enter(oop obj, Thread* self,
   assert(((JavaThread *) self)->thread_state() == _thread_in_Java, "invariant");
   NoSafepointVerifier nsv;
   if (obj == NULL) return false;       // Need to throw NPE
-  assert(!EnableValhalla || !obj->klass()->is_value(), "monitor op on value type");
+  assert(!EnableValhalla || !obj->klass()->is_inline_klass(), "monitor op on inline type");
   const markWord mark = obj->mark();
 
   if (mark.has_monitor()) {
@@ -612,7 +612,7 @@ void ObjectSynchronizer::exit(oop object, BasicLock* lock, TRAPS) {
   if (EnableValhalla && mark.is_always_locked()) {
     return;
   }
-  assert(!EnableValhalla || !object->klass()->is_value(), "monitor op on value type");
+  assert(!EnableValhalla || !object->klass()->is_inline_klass(), "monitor op on inline type");
   // We cannot check for Biased Locking if we are racing an inflation.
   assert(mark == markWord::INFLATING() ||
          !mark.has_bias_pattern(), "should not see bias pattern here");
@@ -676,7 +676,7 @@ void ObjectSynchronizer::exit(oop object, BasicLock* lock, TRAPS) {
 //  5) lock lock2
 // NOTE: must use heavy weight monitor to handle complete_exit/reenter()
 intx ObjectSynchronizer::complete_exit(Handle obj, TRAPS) {
-  assert(!EnableValhalla || !obj->klass()->is_value(), "monitor op on value type");
+  assert(!EnableValhalla || !obj->klass()->is_inline_klass(), "monitor op on inline type");
   if (UseBiasedLocking) {
     BiasedLocking::revoke(obj, THREAD);
     assert(!obj->mark().has_bias_pattern(), "biases should be revoked by now");
@@ -691,7 +691,7 @@ intx ObjectSynchronizer::complete_exit(Handle obj, TRAPS) {
 
 // NOTE: must use heavy weight monitor to handle complete_exit/reenter()
 void ObjectSynchronizer::reenter(Handle obj, intx recursions, TRAPS) {
-  assert(!EnableValhalla || !obj->klass()->is_value(), "monitor op on value type");
+  assert(!EnableValhalla || !obj->klass()->is_inline_klass(), "monitor op on inline type");
   if (UseBiasedLocking) {
     BiasedLocking::revoke(obj, THREAD);
     assert(!obj->mark().has_bias_pattern(), "biases should be revoked by now");
@@ -1012,8 +1012,8 @@ static inline intptr_t get_next_hash(Thread* self, oop obj) {
 }
 
 intptr_t ObjectSynchronizer::FastHashCode(Thread* self, oop obj) {
-  if (EnableValhalla && obj->klass()->is_value()) {
-    // Expected tooling to override hashCode for value type, just don't crash
+  if (EnableValhalla && obj->klass()->is_inline_klass()) {
+    // Expected tooling to override hashCode for inline type, just don't crash
     if (log_is_enabled(Debug, monitorinflation)) {
       ResourceMark rm;
       log_debug(monitorinflation)("FastHashCode for value type: %s", obj->klass()->external_name());
@@ -1811,7 +1811,7 @@ ObjectMonitor* ObjectSynchronizer::inflate(Thread* self, oop object,
          !SafepointSynchronize::is_at_safepoint(), "invariant");
 
   if (EnableValhalla) {
-    guarantee(!object->klass()->is_value(), "Attempt to inflate value type");
+    guarantee(!object->klass()->is_inline_klass(), "Attempt to inflate inline type");
   }
 
   EventJavaMonitorInflate event;

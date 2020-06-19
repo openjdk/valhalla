@@ -1347,7 +1347,7 @@ var versionArgs = function(input, common) {
         args = concat(args, "--with-version-pre=" + preString,
                      "--with-version-opt=" + optString);
     } else {
-        args = concat(args, "--with-version-pre=lworld2ea");
+        args = concat(args, "--with-version-pre=" + version_numbers.get("DEFAULT_PROMOTED_VERSION_PRE"));
         args = concat(args, "--with-version-opt=" + common.build_id);
     }
     return args;

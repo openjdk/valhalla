@@ -1,0 +1,3 @@
+ProjectionInstantiationTest.java:12:9: compiler.err.projection.cant.be.instantiated
+ProjectionInstantiationTest.java:13:9: compiler.err.projection.cant.be.instantiated
+2 errors

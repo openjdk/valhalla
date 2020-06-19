@@ -67,7 +67,7 @@ ValueKlass::ValueKlass(const ClassFileParser& parser)
 oop ValueKlass::default_value() {
   oop val = java_mirror()->obj_field_acquire(default_value_offset());
   assert(oopDesc::is_oop(val), "Sanity check");
-  assert(val->is_value(), "Sanity check");
+  assert(val->is_inline_type(), "Sanity check");
   assert(val->klass() == this, "sanity check");
   return val;
 }
@@ -152,7 +152,7 @@ int ValueKlass::nonstatic_oop_count() {
   return oops;
 }
 
-oop ValueKlass::read_flattened_field(oop obj, int offset, TRAPS) {
+oop ValueKlass::read_inlined_field(oop obj, int offset, TRAPS) {
   oop res = NULL;
   this->initialize(CHECK_NULL); // will throw an exception if in error state
   if (is_empty_inline_type()) {
@@ -166,7 +166,7 @@ oop ValueKlass::read_flattened_field(oop obj, int offset, TRAPS) {
   return res;
 }
 
-void ValueKlass::write_flattened_field(oop obj, int offset, oop value, TRAPS) {
+void ValueKlass::write_inlined_field(oop obj, int offset, oop value, TRAPS) {
   if (value == NULL) {
     THROW(vmSymbols::java_lang_NullPointerException());
   }
@@ -273,9 +273,9 @@ void ValueKlass::array_klasses_do(void f(Klass* k)) {
 
 // Value type arguments are not passed by reference, instead each
 // field of the value type is passed as an argument. This helper
-// function collects the fields of the value types (including embedded
-// value type's fields) in a list. Included with the field's type is
-// the offset of each field in the value type: i2c and c2i adapters
+// function collects the inlined field (recursively)
+// in a list. Included with the field's type is
+// the offset of each field in the inline type: i2c and c2i adapters
 // need that to load or store fields. Finally, the list of fields is
 // sorted in order of increasing offsets: the adapters and the
 // compiled code need to agree upon the order of fields.
@@ -283,7 +283,7 @@ void ValueKlass::array_klasses_do(void f(Klass* k)) {
 // The list of basic types that is returned starts with a T_VALUETYPE
 // and ends with an extra T_VOID. T_VALUETYPE/T_VOID pairs are used as
 // delimiters. Every entry between the two is a field of the value
-// type. If there's an embedded value type in the list, it also starts
+// type. If there's an embedded inline type in the list, it also starts
 // with a T_VALUETYPE and ends with a T_VOID. This is so we can
 // generate a unique fingerprint for the method's adapters and we can
 // generate the list of basic types from the interpreter point of view
@@ -297,8 +297,8 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   for (AllFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
-    if (fs.is_flattened()) {
-      // Resolve klass of flattened value type field and recursively collect fields
+    if (fs.is_inlined()) {
+      // Resolve klass of inlined field and recursively collect fields
       Klass* vk = get_value_field_klass(fs.index());
       count += ValueKlass::cast(vk)->collect_fields(sig, offset);
     } else {

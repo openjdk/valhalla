@@ -96,7 +96,7 @@ Klass* oopDesc::klass() const {
   }
 }
 
-Klass* oopDesc::klass_or_null() const volatile {
+Klass* oopDesc::klass_or_null() const {
   if (UseCompressedClassPointers) {
     return CompressedKlassPointers::decode(_metadata._compressed_klass);
   } else {
@@ -104,12 +104,10 @@ Klass* oopDesc::klass_or_null() const volatile {
   }
 }
 
-Klass* oopDesc::klass_or_null_acquire() const volatile {
+Klass* oopDesc::klass_or_null_acquire() const {
   if (UseCompressedClassPointers) {
-    // Workaround for non-const load_acquire parameter.
-    const volatile narrowKlass* addr = &_metadata._compressed_klass;
-    volatile narrowKlass* xaddr = const_cast<volatile narrowKlass*>(addr);
-    return CompressedKlassPointers::decode(Atomic::load_acquire(xaddr));
+    narrowKlass nklass = Atomic::load_acquire(&_metadata._compressed_klass);
+    return CompressedKlassPointers::decode(nklass);
   } else {
     return Atomic::load_acquire(&_metadata._klass);
   }
@@ -247,7 +245,7 @@ bool oopDesc::is_instance()  const { return klass()->is_instance_klass();  }
 bool oopDesc::is_array()     const { return klass()->is_array_klass();     }
 bool oopDesc::is_objArray()  const { return klass()->is_objArray_klass();  }
 bool oopDesc::is_typeArray() const { return klass()->is_typeArray_klass(); }
-bool oopDesc::is_value()     const { return klass()->is_value(); }
+bool oopDesc::is_inline_type() const { return klass()->is_inline_klass(); }
 bool oopDesc::is_valueArray()  const { return klass()->is_valueArray_klass(); }
 
 void*    oopDesc::field_addr_raw(int offset)     const { return reinterpret_cast<void*>(cast_from_oop<intptr_t>(as_oop()) + offset); }

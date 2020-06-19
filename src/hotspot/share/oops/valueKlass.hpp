@@ -181,7 +181,7 @@ class ValueKlass: public InstanceKlass {
 
  public:
   // Type testing
-  bool is_value_slow() const        { return true; }
+  bool is_inline_klass_slow() const        { return true; }
 
   // Casting from Klass*
   static ValueKlass* cast(Klass* k);
@@ -231,8 +231,8 @@ class ValueKlass: public InstanceKlass {
   void value_copy_oop_to_new_payload(oop src, void* dst);
   void value_copy_oop_to_payload(oop src, void* dst);
 
-  oop read_flattened_field(oop obj, int offset, TRAPS);
-  void write_flattened_field(oop obj, int offset, oop value, TRAPS);
+  oop read_inlined_field(oop obj, int offset, TRAPS);
+  void write_inlined_field(oop obj, int offset, oop value, TRAPS);
 
   // oop iterate raw value type data pointer (where oop_addr may not be an oop, but backing/array-element)
   template <typename T, class OopClosureType>

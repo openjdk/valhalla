@@ -49,7 +49,6 @@ enum {
     JVM_ACC_TRANSIENT     = 0x0080,
     JVM_ACC_VARARGS       = 0x0080,
     JVM_ACC_VALUE         = 0x0100,
-    JVM_ACC_FLATTENABLE   = 0x0100,
     JVM_ACC_NATIVE        = 0x0100,
     JVM_ACC_INTERFACE     = 0x0200,
     JVM_ACC_ABSTRACT      = 0x0400,
@@ -113,7 +112,7 @@ enum {
     JVM_CONSTANT_InvokeDynamic          = 18,
     JVM_CONSTANT_Module                 = 19,
     JVM_CONSTANT_Package                = 20,
-    JVM_CONSTANT_ExternalMax            = 20 
+    JVM_CONSTANT_ExternalMax            = 20
 };
 
 /* JVM_CONSTANT_MethodHandle subtypes */
@@ -154,7 +153,7 @@ enum {
     JVM_SIGNATURE_BYTE          = 'B',
     JVM_SIGNATURE_CHAR          = 'C',
     JVM_SIGNATURE_CLASS         = 'L',
-    JVM_SIGNATURE_VALUETYPE     = 'Q',
+    JVM_SIGNATURE_INLINE_TYPE   = 'Q',
     JVM_SIGNATURE_ENDCLASS      = ';',
     JVM_SIGNATURE_ENUM          = 'E',
     JVM_SIGNATURE_FLOAT         = 'F',

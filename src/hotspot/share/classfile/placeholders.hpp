@@ -74,12 +74,12 @@ public:
 // on a class/classloader basis
 // so the head of that queue owns the token
 // and the rest of the threads return the result the first thread gets
-// FLATTENABLE_FIELD: needed to check for value type flattenable fields circularity
+// INLINE_TYPE_FIELD: needed to check for inline type fields circularity
  enum classloadAction {
     LOAD_INSTANCE = 1,             // calling load_instance_class
     LOAD_SUPER = 2,                // loading superclass for this class
     DEFINE_CLASS = 3,              // find_or_define class
-    FLATTENABLE_FIELD = 4          // flattenable value type fields
+    INLINE_TYPE_FIELD = 4          // inline type fields
  };
 
   // find_and_add returns probe pointer - old or new
@@ -111,7 +111,7 @@ public:
 // For DEFINE_CLASS, the head of the queue owns the
 // define token and the rest of the threads wait to return the
 // result the first thread gets.
-// For FLATTENABLE_FIELD, set when loading value type fields for
+// For INLINE_FIELD, set when loading inline type fields for
 // class circularity checking.
 class SeenThread: public CHeapObj<mtInternal> {
 private:
@@ -164,7 +164,7 @@ class PlaceholderEntry : public HashtableEntry<Symbol*, mtClass> {
                                     // including _definer
                                     // _definer owns token
                                     // queue waits for and returns results from _definer
-  SeenThread*       _flattenableFieldQ; // queue of value types for circularity checking
+  SeenThread*       _inlineTypeFieldQ;  // queue of inline types for circularity checking
 
  public:
   // Simple accessors, used only by SystemDictionary
@@ -197,8 +197,8 @@ class PlaceholderEntry : public HashtableEntry<Symbol*, mtClass> {
   SeenThread*        defineThreadQ()        const { return _defineThreadQ; }
   void               set_defineThreadQ(SeenThread* SeenThread) { _defineThreadQ = SeenThread; }
 
-  SeenThread*        flattenableFieldQ()    const { return _flattenableFieldQ; }
-  void               set_flattenableFieldQ(SeenThread* SeenThread) { _flattenableFieldQ = SeenThread; }
+  SeenThread*        inlineTypeFieldQ()    const { return _inlineTypeFieldQ; }
+  void               set_inlineTypeFieldQ(SeenThread* SeenThread) { _inlineTypeFieldQ = SeenThread; }
 
   PlaceholderEntry* next() const {
     return (PlaceholderEntry*)HashtableEntry<Symbol*, mtClass>::next();
@@ -226,8 +226,8 @@ class PlaceholderEntry : public HashtableEntry<Symbol*, mtClass> {
       case PlaceholderTable::DEFINE_CLASS:
 	 queuehead = _defineThreadQ;
 	 break;
-      case PlaceholderTable::FLATTENABLE_FIELD:
-         queuehead = _flattenableFieldQ;
+      case PlaceholderTable::INLINE_TYPE_FIELD:
+         queuehead = _inlineTypeFieldQ;
          break;
       default: Unimplemented();
     }
@@ -245,8 +245,8 @@ class PlaceholderEntry : public HashtableEntry<Symbol*, mtClass> {
       case PlaceholderTable::DEFINE_CLASS:
          _defineThreadQ = seenthread;
          break;
-      case PlaceholderTable::FLATTENABLE_FIELD:
-         _flattenableFieldQ = seenthread;
+      case PlaceholderTable::INLINE_TYPE_FIELD:
+         _inlineTypeFieldQ = seenthread;
          break;
       default: Unimplemented();
     }
@@ -265,8 +265,8 @@ class PlaceholderEntry : public HashtableEntry<Symbol*, mtClass> {
     return (_defineThreadQ != NULL);
   }
 
-  bool flattenable_field_in_progress() {
-    return (_flattenableFieldQ != NULL);
+  bool inline_type_field_in_progress() {
+    return (_inlineTypeFieldQ != NULL);
   }
 
 // Doubly-linked list of Threads per action for class/classloader pair

@@ -511,7 +511,7 @@ InstanceKlass* SystemDictionary::resolve_super_or_fail(Symbol* child_name,
   return superk;
 }
 
-Klass* SystemDictionary::resolve_flattenable_field_or_fail(AllFieldStream* fs,
+Klass* SystemDictionary::resolve_inline_type_field_or_fail(AllFieldStream* fs,
                                                            Handle class_loader,
                                                            Handle protection_domain,
                                                            bool throw_error,
@@ -528,12 +528,12 @@ Klass* SystemDictionary::resolve_flattenable_field_or_fail(AllFieldStream* fs,
     MutexLocker mu(THREAD, SystemDictionary_lock);
     oldprobe = placeholders()->get_entry(p_index, p_hash, class_name, loader_data);
     if (oldprobe != NULL &&
-      oldprobe->check_seen_thread(THREAD, PlaceholderTable::FLATTENABLE_FIELD)) {
+      oldprobe->check_seen_thread(THREAD, PlaceholderTable::INLINE_TYPE_FIELD)) {
       throw_circularity_error = true;
 
     } else {
       placeholders()->find_and_add(p_index, p_hash, class_name, loader_data,
-                                   PlaceholderTable::FLATTENABLE_FIELD, NULL, THREAD);
+                                   PlaceholderTable::INLINE_TYPE_FIELD, NULL, THREAD);
     }
   }
 
@@ -549,7 +549,7 @@ Klass* SystemDictionary::resolve_flattenable_field_or_fail(AllFieldStream* fs,
   {
     MutexLocker mu(THREAD, SystemDictionary_lock);
     placeholders()->find_and_remove(p_index, p_hash, class_name, loader_data,
-                                    PlaceholderTable::FLATTENABLE_FIELD, THREAD);
+                                    PlaceholderTable::INLINE_TYPE_FIELD, THREAD);
   }
 
   class_name->decrement_refcount();
@@ -1279,6 +1279,7 @@ InstanceKlass* SystemDictionary::resolve_from_stream(Symbol* class_name,
 InstanceKlass* SystemDictionary::load_shared_boot_class(Symbol* class_name,
                                                         PackageEntry* pkg_entry,
                                                         TRAPS) {
+  assert(UseSharedSpaces, "Sanity check");
   InstanceKlass* ik = SystemDictionaryShared::find_builtin_class(class_name);
   if (ik != NULL && ik->is_shared_boot_class()) {
     return load_shared_class(ik, Handle(), Handle(), NULL, pkg_entry, THREAD);
@@ -1298,18 +1299,30 @@ bool SystemDictionary::is_shared_class_visible(Symbol* class_name,
                                                Handle class_loader, TRAPS) {
   assert(!ModuleEntryTable::javabase_moduleEntry()->is_patched(),
          "Cannot use sharing if java.base is patched");
-  ResourceMark rm(THREAD);
-  int path_index = ik->shared_classpath_index();
-  ClassLoaderData* loader_data = class_loader_data(class_loader);
-  if (path_index < 0) {
+  if (ik->shared_classpath_index() < 0) {
     // path_index < 0 indicates that the class is intended for a custom loader
     // and should not be loaded by boot/platform/app loaders
-    if (loader_data->is_builtin_class_loader_data()) {
+    if (is_builtin_class_loader(class_loader())) {
       return false;
     } else {
       return true;
     }
   }
+
+  // skip class visibility check
+  if (MetaspaceShared::use_optimized_module_handling()) {
+    assert(SystemDictionary::is_shared_class_visible_impl(class_name, ik, pkg_entry, class_loader, THREAD), "Optimizing module handling failed.");
+    return true;
+  }
+  return is_shared_class_visible_impl(class_name, ik, pkg_entry, class_loader, THREAD);
+}
+
+bool SystemDictionary::is_shared_class_visible_impl(Symbol* class_name,
+                                               InstanceKlass* ik,
+                                               PackageEntry* pkg_entry,
+                                               Handle class_loader, TRAPS) {
+  int path_index = ik->shared_classpath_index();
+  ClassLoaderData* loader_data = class_loader_data(class_loader);
   SharedClassPathEntry* ent =
             (SharedClassPathEntry*)FileMapInfo::shared_path(path_index);
   if (!Universe::is_module_initialized()) {
@@ -1643,12 +1656,14 @@ InstanceKlass* SystemDictionary::load_instance_class(Symbol* class_name, Handle 
 
     // Search for classes in the CDS archive.
     InstanceKlass* k = NULL;
-    {
+
 #if INCLUDE_CDS
+    if (UseSharedSpaces)
+    {
       PerfTraceTime vmtimer(ClassLoader::perf_shared_classload_time());
       k = load_shared_boot_class(class_name, pkg_entry, THREAD);
-#endif
     }
+#endif
 
     if (k == NULL) {
       // Use VM class loader

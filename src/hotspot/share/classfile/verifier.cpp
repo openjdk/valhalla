@@ -60,7 +60,7 @@
 #define NOFAILOVER_MAJOR_VERSION                       51
 #define NONZERO_PADDING_BYTES_IN_SWITCH_MAJOR_VERSION  51
 #define STATIC_METHOD_IN_INTERFACE_MAJOR_VERSION       52
-#define VALUETYPE_MAJOR_VERSION                        56
+#define INLINE_TYPE_MAJOR_VERSION                       56
 #define MAX_ARRAY_DIMENSIONS 255
 
 // Access to external entry for VerifyClassForMajorVersion - old byte code verifier
@@ -135,8 +135,15 @@ void Verifier::trace_class_resolution(Klass* resolve_class, InstanceKlass* verif
 void Verifier::log_end_verification(outputStream* st, const char* klassName, Symbol* exception_name, TRAPS) {
   if (HAS_PENDING_EXCEPTION) {
     st->print("Verification for %s has", klassName);
-    st->print_cr(" exception pending %s ",
+    oop message = java_lang_Throwable::message(PENDING_EXCEPTION);
+    if (message != NULL) {
+      char* ex_msg = java_lang_String::as_utf8_string(message);
+      st->print_cr(" exception pending '%s %s'",
+                 PENDING_EXCEPTION->klass()->external_name(), ex_msg);
+    } else {
+      st->print_cr(" exception pending %s ",
                  PENDING_EXCEPTION->klass()->external_name());
+    }
   } else if (exception_name != NULL) {
     st->print_cr("Verification for %s failed", klassName);
   }
@@ -487,7 +494,7 @@ void ErrorContext::reason_details(outputStream* ss) const {
     case BAD_STACKMAP:
       ss->print("Invalid stackmap specification.");
       break;
-    case WRONG_VALUE_TYPE:
+    case WRONG_INLINE_TYPE:
       ss->print("Type ");
       _type.details(ss);
       ss->print(" and type ");
@@ -588,9 +595,9 @@ void ErrorContext::stackmap_details(outputStream* ss, const Method* method) cons
 
 // Methods in ClassVerifier
 
-VerificationType reference_or_valuetype(InstanceKlass* klass) {
-  if (klass->is_value()) {
-    return VerificationType::valuetype_type(klass->name());
+VerificationType reference_or_inline_type(InstanceKlass* klass) {
+  if (klass->is_inline_klass()) {
+    return VerificationType::inline_type(klass->name());
   } else {
     return VerificationType::reference_type(klass->name());
   }
@@ -600,7 +607,7 @@ ClassVerifier::ClassVerifier(
     InstanceKlass* klass, TRAPS)
     : _thread(THREAD), _previous_symbol(NULL), _symbols(NULL), _exception_type(NULL),
       _message(NULL), _method_signatures_table(NULL), _klass(klass) {
-  _this_type = reference_or_valuetype(klass);
+  _this_type = reference_or_inline_type(klass);
 }
 
 ClassVerifier::~ClassVerifier() {
@@ -1708,7 +1715,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
             &bcs, &current_frame, cp, false, CHECK_VERIFY(this));
           no_control_flow = false; break;
         case Bytecodes::_withfield :
-          if (_klass->major_version() < VALUETYPE_MAJOR_VERSION) {
+          if (_klass->major_version() < INLINE_TYPE_MAJOR_VERSION) {
             class_format_error(
               "withfield not supported by this class file version (%d.%d), class %s",
               _klass->major_version(), _klass->minor_version(), _klass->external_name());
@@ -1745,7 +1752,7 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
         }
         case Bytecodes::_defaultvalue :
         {
-          if (_klass->major_version() < VALUETYPE_MAJOR_VERSION) {
+          if (_klass->major_version() < INLINE_TYPE_MAJOR_VERSION) {
             class_format_error(
               "defaultvalue not supported by this class file version (%d.%d), class %s",
               _klass->major_version(), _klass->minor_version(), _klass->external_name());
@@ -1760,9 +1767,9 @@ void ClassVerifier::verify_method(const methodHandle& m, TRAPS) {
                 "Illegal defaultvalue instruction");
             return;
           }
-          VerificationType value_type =
-            VerificationType::change_ref_to_valuetype(ref_type);
-          current_frame.push_stack(value_type, CHECK_VERIFY(this));
+          VerificationType inline_type =
+            VerificationType::change_ref_to_inline_type(ref_type);
+          current_frame.push_stack(inline_type, CHECK_VERIFY(this));
           no_control_flow = false; break;
         }
         case Bytecodes::_newarray :
@@ -2400,19 +2407,19 @@ void ClassVerifier::verify_field_instructions(RawBytecodeStream* bcs,
       for (int i = n - 1; i >= 0; i--) {
         current_frame->pop_stack(field_type[i], CHECK_VERIFY(this));
       }
-      // stack_object_type and target_class_type must be the same value type.
+      // stack_object_type and target_class_type must be the same inline type.
       stack_object_type =
-        current_frame->pop_stack(VerificationType::valuetype_check(), CHECK_VERIFY(this));
-      VerificationType target_value_type =
-        VerificationType::change_ref_to_valuetype(target_class_type);
-      if (!stack_object_type.equals(target_value_type)) {
-        verify_error(ErrorContext::bad_value_type(bci,
+        current_frame->pop_stack(VerificationType::inline_type_check(), CHECK_VERIFY(this));
+      VerificationType target_inline_type =
+        VerificationType::change_ref_to_inline_type(target_class_type);
+      if (!stack_object_type.equals(target_inline_type)) {
+        verify_error(ErrorContext::bad_inline_type(bci,
             current_frame->stack_top_ctx(),
             TypeOrigin::cp(index, target_class_type)),
             "Invalid type on operand stack in withfield instruction");
         return;
       }
-      current_frame->push_stack(target_value_type, CHECK_VERIFY(this));
+      current_frame->push_stack(target_inline_type, CHECK_VERIFY(this));
       break;
     }
     case Bytecodes::_getfield: {
@@ -2933,7 +2940,7 @@ void ClassVerifier::verify_invoke_instructions(
   } else if (opcode == Bytecodes::_invokespecial
              && !is_same_or_direct_interface(current_class(), current_type(), ref_class_type)
              && !ref_class_type.equals(VerificationType::reference_type(
-                  current_class()->super()->name()))) { // super() can never be a value_type.
+                  current_class()->super()->name()))) { // super() can never be an inline_type.
     bool subtype = false;
     bool have_imr_indirect = cp->tag_at(index).value() == JVM_CONSTANT_InterfaceMethodref;
     if (!current_class()->is_unsafe_anonymous()) {
@@ -2941,7 +2948,7 @@ void ClassVerifier::verify_invoke_instructions(
                  current_type(), this, false, CHECK_VERIFY(this));
     } else {
       InstanceKlass* unsafe_host = current_class()->unsafe_anonymous_host();
-      VerificationType unsafe_anonymous_host_type = reference_or_valuetype(unsafe_host);
+      VerificationType unsafe_anonymous_host_type = reference_or_inline_type(unsafe_host);
       subtype = ref_class_type.is_assignable_from(unsafe_anonymous_host_type, this, false, CHECK_VERIFY(this));
 
       // If invokespecial of IMR, need to recheck for same or
@@ -2995,7 +3002,7 @@ void ClassVerifier::verify_invoke_instructions(
           VerificationType top = current_frame->pop_stack(CHECK_VERIFY(this));
 
           InstanceKlass* unsafe_host = current_class()->unsafe_anonymous_host();
-          VerificationType host_type = reference_or_valuetype(unsafe_host);
+          VerificationType host_type = reference_or_inline_type(unsafe_host);
           bool subtype = host_type.is_assignable_from(top, this, false, CHECK_VERIFY(this));
           if (!subtype) {
             verify_error( ErrorContext::bad_type(current_frame->offset(),
@@ -3119,7 +3126,7 @@ void ClassVerifier::verify_anewarray(
     assert(n == length, "Unexpected number of characters in string");
   } else {         // it's an object or interface
     const char* component_name = component_type.name()->as_utf8();
-    char Q_or_L = component_type.is_valuetype() ? JVM_SIGNATURE_VALUETYPE : JVM_SIGNATURE_CLASS;
+    char Q_or_L = component_type.is_inline_type() ? JVM_SIGNATURE_INLINE_TYPE : JVM_SIGNATURE_CLASS;
     // add one dimension to component with 'L' or 'Q' prepended and ';' appended.
     length = (int)strlen(component_name) + 3;
     arr_sig_str = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char, length + 1);

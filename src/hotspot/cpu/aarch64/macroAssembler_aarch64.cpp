@@ -1335,7 +1335,7 @@ void MacroAssembler::verify_oop(Register reg, const char* s) {
   stp(rscratch2, lr, Address(pre(sp, -2 * wordSize)));
 
   mov(r0, reg);
-  mov(rscratch1, (address)b);
+  movptr(rscratch1, (uintptr_t)(address)b);
 
   // call indirectly to solve generation ordering problem
   lea(rscratch2, ExternalAddress(StubRoutines::verify_oop_subroutine_entry_address()));
@@ -1375,7 +1375,7 @@ void MacroAssembler::verify_oop_addr(Address addr, const char* s) {
   } else {
     ldr(r0, addr);
   }
-  mov(rscratch1, (address)b);
+  movptr(rscratch1, (uintptr_t)(address)b);
 
   // call indirectly to solve generation ordering problem
   lea(rscratch2, ExternalAddress(StubRoutines::verify_oop_subroutine_entry_address()));
@@ -1505,17 +1505,17 @@ void MacroAssembler::test_klass_is_value(Register klass, Register temp_reg, Labe
   cbnz(temp_reg, is_value);
 }
 
-void MacroAssembler::test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable) {
+void MacroAssembler::test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline) {
   (void) temp_reg; // keep signature uniform with x86
-  tbnz(flags, ConstantPoolCacheEntry::is_flattenable_field_shift, is_flattenable);
+  tbnz(flags, ConstantPoolCacheEntry::is_inline_field_shift, is_inline);
 }
 
-void MacroAssembler::test_field_is_not_flattenable(Register flags, Register temp_reg, Label& not_flattenable) {
+void MacroAssembler::test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline) {
   (void) temp_reg; // keep signature uniform with x86
-  tbz(flags, ConstantPoolCacheEntry::is_flattenable_field_shift, not_flattenable);
+  tbz(flags, ConstantPoolCacheEntry::is_inline_field_shift, not_inline);
 }
 
-void MacroAssembler::test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened) {
+void MacroAssembler::test_field_is_inlined(Register flags, Register temp_reg, Label& is_flattened) {
   (void) temp_reg; // keep signature uniform with x86
   tbnz(flags, ConstantPoolCacheEntry::is_flattened_field_shift, is_flattened);
 }

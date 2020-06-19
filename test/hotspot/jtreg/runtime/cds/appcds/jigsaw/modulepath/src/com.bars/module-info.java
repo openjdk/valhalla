@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -19,40 +19,9 @@
  * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
  * or visit www.oracle.com if you need additional information or have any
  * questions.
+ *
  */
 
-/*
- * @test
- * @bug 4421066
- * @summary Verify the contents of an enum type.
- * @ignore 8152313 convert to doclet test framework
- * @library ../../lib
- * @modules jdk.javadoc
- * @compile  ../../lib/Tester.java Main.java
- * @run main Main
- */
-
-import java.io.IOException;
-import com.sun.javadoc.*;
-
-public class Main extends Tester.Doclet {
-
-    private static final Tester tester = new Tester("Main", "pkg1");
-
-    public static void main(String[] args) throws IOException {
-        tester.run();
-        tester.verify();
-    }
-
-    public static boolean run(DocletEnvironment root) {
-        try {
-            for (ClassDoc cd : root.classes()) {
-                tester.printClass(cd);
-            }
-
-            return true;
-        } catch (IOException e) {
-            return false;
-        }
-    }
+module com.bars {
+    requires com.foos;
 }

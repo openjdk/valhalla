@@ -2637,28 +2637,28 @@ void MacroAssembler::test_klass_is_empty_value(Register klass, Register temp_reg
   jcc(Assembler::notZero, is_empty_value);
 }
 
-void MacroAssembler::test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable) {
+void MacroAssembler::test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_flattenable_field_shift);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_inline_type_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_flattenable);
+  jcc(Assembler::notZero, is_inline_type);
 }
 
-void MacroAssembler::test_field_is_not_flattenable(Register flags, Register temp_reg, Label& notFlattenable) {
+void MacroAssembler::test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_flattenable_field_shift);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_inline_type_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
-  jcc(Assembler::zero, notFlattenable);
+  jcc(Assembler::zero, not_inline_type);
 }
 
-void MacroAssembler::test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened) {
+void MacroAssembler::test_field_is_inlined(Register flags, Register temp_reg, Label& is_inlined) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_flattened_field_shift);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_inlined_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_flattened);
+  jcc(Assembler::notZero, is_inlined);
 }
 
 void MacroAssembler::test_flattened_array_oop(Register oop, Register temp_reg,

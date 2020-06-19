@@ -303,8 +303,27 @@ public class ClassReader {
     private void enterMember(ClassSymbol c, Symbol sym) {
         // Synthetic members are not entered -- reason lost to history (optimization?).
         // Lambda methods must be entered because they may have inner classes (which reference them)
-        if ((sym.flags_field & (SYNTHETIC|BRIDGE)) != SYNTHETIC || sym.name.startsWith(names.lambda))
+        ClassSymbol refProjection =  c.isValue() ? c.referenceProjection() : null;
+        if ((sym.flags_field & (SYNTHETIC|BRIDGE)) != SYNTHETIC || sym.name.startsWith(names.lambda)) {
             c.members_field.enter(sym);
+            if (refProjection != null) {
+                Symbol clone = null;
+                if (sym.kind == MTH) {
+                    MethodSymbol valMethod = (MethodSymbol)sym;
+                    MethodSymbol refMethod = valMethod.clone(refProjection);
+                    valMethod.projection = refMethod;
+                    refMethod.projection = valMethod;
+                    clone = refMethod;
+                } else if (sym.kind == VAR) {
+                    VarSymbol valVar = (VarSymbol)sym;
+                    VarSymbol refVar = valVar.clone(refProjection);
+                    valVar.projection = refVar;
+                    refVar.projection = valVar;
+                    clone = refVar;
+                }
+                refProjection.members_field.enter(clone);
+            }
+        }
     }
 
 /************************************************************************
@@ -2466,6 +2485,10 @@ public class ClassReader {
     }
 
     protected ClassSymbol enterClass(Name name) {
+        if (allowInlineTypes && name.toString().endsWith("$ref")) {
+            ClassSymbol v = syms.enterClass(currentModule, name.subName(0, name.length() - 4));
+            return v.referenceProjection();
+        }
         return syms.enterClass(currentModule, name);
     }
 

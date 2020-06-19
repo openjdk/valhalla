@@ -480,7 +480,7 @@ void ConstantPool::trace_class_resolution(const constantPoolHandle& this_cp, Kla
 }
 
 void check_is_inline_type(Klass* k, TRAPS) {
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
   }
 }

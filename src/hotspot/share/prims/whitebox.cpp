@@ -1913,7 +1913,7 @@ class CollectOops : public BasicOopIterateClosure {
 
   void add_oop(oop o) {
     // Value might be oop, but JLS can't see as Object, just iterate through it...
-    if (o != NULL && o->is_value()) {
+    if (o != NULL && o->is_inline_type()) {
       o->oop_iterate(this);
     } else {
       array->append(Handle(Thread::current(), o));

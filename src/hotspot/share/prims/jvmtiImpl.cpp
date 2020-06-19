@@ -146,7 +146,7 @@ GrowableCache::~GrowableCache() {
 void GrowableCache::initialize(void *this_obj, void listener_fun(void *, address*) ) {
   _this_obj       = this_obj;
   _listener_fun   = listener_fun;
-  _elements       = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<GrowableElement*>(5,true);
+  _elements       = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<GrowableElement*>(5, mtServiceability);
   recache();
 }
 
@@ -513,7 +513,7 @@ bool VM_GetOrSetLocal::is_assignable(const char* ty_sign, Klass* klass, Thread* 
 
   int len = (int) strlen(ty_sign);
   if ((ty_sign[0] == JVM_SIGNATURE_CLASS ||
-       ty_sign[0] == JVM_SIGNATURE_VALUETYPE) &&
+       ty_sign[0] == JVM_SIGNATURE_INLINE_TYPE) &&
       ty_sign[len-1] == JVM_SIGNATURE_ENDCLASS) { // Need pure class/interface name
     ty_sign++;
     len -= 2;

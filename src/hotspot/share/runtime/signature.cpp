@@ -298,7 +298,7 @@ bool Signature::is_valid_array_signature(const Symbol* sig) {
     // If it is an array, the type is the last character
     return (i + 1 == len);
   case JVM_SIGNATURE_CLASS:
-  case JVM_SIGNATURE_VALUETYPE:
+  case JVM_SIGNATURE_INLINE_TYPE:
     // If it is an object, the last character must be a ';'
     return sig->char_at(len - 1) == JVM_SIGNATURE_ENDCLASS;
   }
@@ -548,7 +548,7 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
     case JVM_SIGNATURE_BOOLEAN:
     case JVM_SIGNATURE_VOID:
       return index + 1;
-    case JVM_SIGNATURE_VALUETYPE: // fall through
+    case JVM_SIGNATURE_INLINE_TYPE: // fall through
     case JVM_SIGNATURE_CLASS:
       for (index = index + 1; index < limit; ++index) {
         char c = type[index];

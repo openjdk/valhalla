@@ -165,8 +165,8 @@ public abstract class ValueTypeTest {
 
     protected static final int InlineTypePassFieldsAsArgsOn = 0x1;
     protected static final int InlineTypePassFieldsAsArgsOff = 0x2;
-    protected static final int ValueTypeArrayFlattenOn = 0x4;
-    protected static final int ValueTypeArrayFlattenOff = 0x8;
+    protected static final int InlineTypeArrayFlattenOn = 0x4;
+    protected static final int InlineTypeArrayFlattenOff = 0x8;
     protected static final int InlineTypeReturnedAsFieldsOn = 0x10;
     protected static final int InlineTypeReturnedAsFieldsOff = 0x20;
     protected static final int AlwaysIncrementalInlineOn = 0x40;
@@ -180,7 +180,7 @@ public abstract class ValueTypeTest {
     protected static final int TypeProfileOn = 0x4000;
     protected static final int TypeProfileOff = 0x8000;
     protected static final boolean InlineTypePassFieldsAsArgs = (Boolean)WHITE_BOX.getVMFlag("InlineTypePassFieldsAsArgs");
-    protected static final boolean ValueTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("InlineArrayElemMaxFlatSize") == -1); // FIXME - fix this if default of InlineArrayElemMaxFlatSize is changed
+    protected static final boolean InlineTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("InlineArrayElemMaxFlatSize") == -1); // FIXME - fix this if default of InlineArrayElemMaxFlatSize is changed
     protected static final boolean InlineTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("InlineTypeReturnedAsFields");
     protected static final boolean AlwaysIncrementalInline = (Boolean)WHITE_BOX.getVMFlag("AlwaysIncrementalInline");
     protected static final boolean G1GC = (Boolean)WHITE_BOX.getVMFlag("UseG1GC");
@@ -223,6 +223,8 @@ public abstract class ValueTypeTest {
     protected static final String NULL_CHECK_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*null_check" + END;
     protected static final String RANGE_CHECK_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*range_check" + END;
     protected static final String UNHANDLED_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*unhandled" + END;
+    protected static final String PREDICATE_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*predicate" + END;
+    protected static final String MEMBAR = START + "MemBar" + MID + END;
 
     public static String[] concat(String prefix[], String... extra) {
         ArrayList<String> list = new ArrayList<String>();
@@ -475,8 +477,8 @@ public abstract class ValueTypeTest {
         private static final TestAnnotation testAnnotations[] = {
             new TestAnnotation(InlineTypePassFieldsAsArgsOn, () -> InlineTypePassFieldsAsArgs),
             new TestAnnotation(InlineTypePassFieldsAsArgsOff, () -> !InlineTypePassFieldsAsArgs),
-            new TestAnnotation(ValueTypeArrayFlattenOn, () -> ValueTypeArrayFlatten),
-            new TestAnnotation(ValueTypeArrayFlattenOff, () -> !ValueTypeArrayFlatten),
+            new TestAnnotation(InlineTypeArrayFlattenOn, () -> InlineTypeArrayFlatten),
+            new TestAnnotation(InlineTypeArrayFlattenOff, () -> !InlineTypeArrayFlatten),
             new TestAnnotation(InlineTypeReturnedAsFieldsOn, () -> InlineTypeReturnedAsFields),
             new TestAnnotation(InlineTypeReturnedAsFieldsOff, () -> !InlineTypeReturnedAsFields),
             new TestAnnotation(AlwaysIncrementalInlineOn, () -> AlwaysIncrementalInline),

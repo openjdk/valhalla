@@ -156,6 +156,8 @@ static inline bool is_class_loader(const Symbol* class_name,
   return false;
 }
 
+bool InstanceKlass::field_is_inline_type(int index) const { return Signature::basic_type(field(index)->signature(constants())) == T_VALUETYPE; }
+
 // private: called to verify that k is a static member of this nest.
 // We know that k is an instance class in the same package and hence the
 // same classloader.
@@ -475,7 +477,7 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
                                        parser.is_interface(),
                                        parser.is_unsafe_anonymous(),
                                        should_store_fingerprint(is_hidden_or_anonymous),
-                                       parser.has_flattenable_fields() ? parser.java_fields_count() : 0,
+                                       parser.has_inline_fields() ? parser.java_fields_count() : 0,
                                        parser.is_inline_type());
 
   const Symbol* const class_name = parser.class_name();
@@ -589,7 +591,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   set_is_unsafe_anonymous(parser.is_unsafe_anonymous());
   set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
                                                     false));
-    if (parser.has_flattenable_fields()) {
+    if (parser.has_inline_fields()) {
       set_has_inline_fields();
     }
     _java_fields_count = parser.java_fields_count();
@@ -987,7 +989,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
 
 
   // Note:
-  // Inline class types used for flattenable fields are loaded during
+  // Inline class types are loaded during
   // the loading phase (see ClassFileParser::post_process_parsed_stream()).
   // Inline class types used as element types for array creation
   // are not pre-loaded. Their loading is triggered by either anewarray
@@ -1015,7 +1017,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
             if (klass == NULL) {
               THROW_(vmSymbols::java_lang_LinkageError(), false);
             }
-            if (!klass->is_value()) {
+            if (!klass->is_inline_klass()) {
               Exceptions::fthrow(
                 THREAD_AND_LOCATION,
                 vmSymbols::java_lang_IncompatibleClassChangeError(),
@@ -1254,14 +1256,13 @@ void InstanceKlass::initialize_impl(TRAPS) {
   }
 
   // Step 8
-  // Initialize classes of flattenable fields
+  // Initialize classes of inline fields
   {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-      if (fs.is_flattenable()) {
+      if (Signature::basic_type(fs.signature()) == T_VALUETYPE) {
         Klass* klass = this->get_value_field_klass_or_null(fs.index());
         if (klass == NULL) {
-          assert(fs.access_flags().is_static() && fs.access_flags().is_flattenable(),
-              "Otherwise should have been pre-loaded");
+          assert(fs.access_flags().is_static(), "Otherwise should have been pre-loaded");
           klass = SystemDictionary::resolve_or_fail(field_signature(fs.index())->fundamental_name(THREAD),
               Handle(THREAD, class_loader()),
               Handle(THREAD, protection_domain()),
@@ -1269,7 +1270,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
           if (klass == NULL) {
             THROW(vmSymbols::java_lang_NoClassDefFoundError());
           }
-          if (!klass->is_value()) {
+          if (!klass->is_inline_klass()) {
             THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
           }
           this->set_value_field_klass(fs.index(), klass);
@@ -1719,7 +1720,7 @@ Klass* InstanceKlass::find_field(Symbol* name, Symbol* sig, bool is_static, fiel
 }
 
 bool InstanceKlass::contains_field_offset(int offset) {
-  if (this->is_value()) {
+  if (this->is_inline_klass()) {
     ValueKlass* vk = ValueKlass::cast(this);
     return offset >= vk->first_field_offset() && offset < (vk->first_field_offset() + vk->get_exact_size_in_bytes());
   } else {
@@ -2696,7 +2697,7 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
   set_package(loader_data, pkg_entry, CHECK);
   Klass::restore_unshareable_info(loader_data, protection_domain, CHECK);
 
-  if (is_value()) {
+  if (is_inline_klass()) {
     ValueKlass::cast(this)->initialize_calling_convention(CHECK);
   }
 
@@ -2725,7 +2726,7 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
   }
 
   // Initialize current biased locking state.
-  if (UseBiasedLocking && BiasedLocking::enabled() && !is_value()) {
+  if (UseBiasedLocking && BiasedLocking::enabled() && !is_inline_klass()) {
     set_prototype_header(markWord::biased_locking_prototype());
   }
 }
@@ -2892,7 +2893,7 @@ const char* InstanceKlass::signature_name() const {
 
   // Add L or Q as type indicator
   int dest_index = 0;
-  dest[dest_index++] = is_value() ? JVM_SIGNATURE_VALUETYPE : JVM_SIGNATURE_CLASS;
+  dest[dest_index++] = is_inline_klass() ? JVM_SIGNATURE_INLINE_TYPE : JVM_SIGNATURE_CLASS;
 
   // Add the actual class name
   for (int src_index = 0; src_index < src_length; ) {

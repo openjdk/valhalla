@@ -116,7 +116,7 @@ ciSymbol* ciObjArrayKlass::construct_array_name(ciSymbol* element_name,
     name[pos] = JVM_SIGNATURE_ARRAY;
   }
   Symbol* base_name_sym = element_name->get_symbol();
-  assert(base_name_sym->char_at(0) != JVM_SIGNATURE_VALUETYPE, "unloaded array klass element should not have Q-type");
+  assert(base_name_sym->char_at(0) != JVM_SIGNATURE_INLINE_TYPE, "unloaded array klass element should not have Q-type");
   if (Signature::is_array(base_name_sym) ||
       Signature::has_envelope(base_name_sym)) {
     strncpy(&name[pos], (char*)element_name->base(), element_len);

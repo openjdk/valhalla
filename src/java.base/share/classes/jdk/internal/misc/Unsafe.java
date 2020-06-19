@@ -177,13 +177,13 @@ public final class Unsafe {
     @HotSpotIntrinsicCandidate
     public native void putInt(Object o, long offset, int x);
 
-    private static final int JVM_ACC_FLATTENED = 0x00008000; // HotSpot-specific bit
+    private static final int JVM_ACC_FIELD_INLINED = 0x00008000; // HotSpot-specific bit
 
     /**
      * Returns true if the given field is flattened.
      */
     public boolean isFlattened(Field f) {
-        return (f.getModifiers() & JVM_ACC_FLATTENED) == JVM_ACC_FLATTENED;
+        return (f.getModifiers() & JVM_ACC_FIELD_INLINED) == JVM_ACC_FIELD_INLINED;
     }
 
     /**
@@ -749,7 +749,7 @@ public final class Unsafe {
 
         long p = allocateMemory0(bytes);
         if (p == 0) {
-            throw new OutOfMemoryError();
+            throw new OutOfMemoryError("Unable to allocate " + bytes + " bytes");
         }
 
         return p;
@@ -805,7 +805,7 @@ public final class Unsafe {
 
         long p = (address == 0) ? allocateMemory0(bytes) : reallocateMemory0(address, bytes);
         if (p == 0) {
-            throw new OutOfMemoryError();
+            throw new OutOfMemoryError("Unable to allocate " + bytes + " bytes");
         }
 
         return p;

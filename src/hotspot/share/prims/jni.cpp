@@ -478,9 +478,9 @@ JNI_ENTRY(jfieldID, jni_FromReflectedField(JNIEnv *env, jobject field))
   // The jfieldID is the offset of the field within the object
   // It may also have hash bits for k, if VerifyJNIFields is turned on.
   intptr_t offset = InstanceKlass::cast(k1)->field_offset( slot );
-  bool is_flattened = InstanceKlass::cast(k1)->field_is_flattened(slot);
+  bool is_inlined = InstanceKlass::cast(k1)->field_is_inlined(slot);
   assert(InstanceKlass::cast(k1)->contains_field_offset(offset), "stay within object");
-  ret = jfieldIDWorkaround::to_instance_jfieldID(k1, offset, is_flattened);
+  ret = jfieldIDWorkaround::to_instance_jfieldID(k1, offset, is_inlined);
   return ret;
 JNI_END
 
@@ -1080,7 +1080,7 @@ JNI_ENTRY(jobject, jni_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
     THROW_(vmSymbols::java_lang_InstantiationException(), NULL);
   }
 
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
     obj = JNIHandles::make_local(env, i);
     JavaValue jvalue(T_VOID);
@@ -1114,7 +1114,7 @@ JNI_ENTRY(jobject, jni_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
     THROW_(vmSymbols::java_lang_InstantiationException(), NULL);
   }
 
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
     obj = JNIHandles::make_local(env, i);
     JavaValue jvalue(T_VOID);
@@ -1148,7 +1148,7 @@ JNI_ENTRY(jobject, jni_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, 
     THROW_(vmSymbols::java_lang_InstantiationException(), NULL);
   }
 
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
     obj = JNIHandles::make_local(env, i);
     va_list args;
@@ -1942,7 +1942,7 @@ JNI_ENTRY(jfieldID, jni_GetFieldID(JNIEnv *env, jclass clazz,
 
   // A jfieldID for a non-static field is simply the offset of the field within the instanceOop
   // It may also have hash bits for k, if VerifyJNIFields is turned on.
-  ret = jfieldIDWorkaround::to_instance_jfieldID(k, fd.offset(), fd.is_flattened());
+  ret = jfieldIDWorkaround::to_instance_jfieldID(k, fd.offset(), fd.is_inlined());
   return ret;
 JNI_END
 
@@ -1959,16 +1959,16 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
   if (JvmtiExport::should_post_field_access()) {
     o = JvmtiExport::jni_GetField_probe(thread, obj, o, k, fieldID, false);
   }
-  if (!jfieldIDWorkaround::is_flattened_field(fieldID)) {
+  if (!jfieldIDWorkaround::is_inlined_jfieldID(fieldID)) {
     res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(o, offset);
   } else {
-    assert(k->is_instance_klass(), "Only instance can have flattened fields");
+    assert(k->is_instance_klass(), "Only instance can have inlined fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
     InstanceKlass* holder = fd.field_holder();
     ValueKlass* field_vklass = ValueKlass::cast(holder->get_value_field_klass(fd.index()));
-    res = field_vklass->read_flattened_field(o, ik->field_offset(fd.index()), CHECK_NULL);
+    res = field_vklass->read_inlined_field(o, ik->field_offset(fd.index()), CHECK_NULL);
   }
   jobject ret = JNIHandles::make_local(env, res);
   HOTSPOT_JNI_GETOBJECTFIELD_RETURN(ret);
@@ -2068,17 +2068,17 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     field_value.l = value;
     o = JvmtiExport::jni_SetField_probe_nh(thread, obj, o, k, fieldID, false, JVM_SIGNATURE_CLASS, (jvalue *)&field_value);
   }
-  if (!jfieldIDWorkaround::is_flattened_field(fieldID)) {
+  if (!jfieldIDWorkaround::is_inlined_jfieldID(fieldID)) {
     HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(o, offset, JNIHandles::resolve(value));
   } else {
-    assert(k->is_instance_klass(), "Only instances can have flattened fields");
+    assert(k->is_instance_klass(), "Only instances can have inlined fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);
     InstanceKlass* holder = fd.field_holder();
     ValueKlass* vklass = ValueKlass::cast(holder->get_value_field_klass(fd.index()));
     oop v = JNIHandles::resolve_non_null(value);
-    vklass->write_flattened_field(o, offset, v, CHECK);
+    vklass->write_inlined_field(o, offset, v, CHECK);
   }
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();
 JNI_END
@@ -3441,12 +3441,12 @@ JNI_ENTRY(jclass, jni_GetFlattenedArrayElementClass(JNIEnv* env, jarray array))
   return (jclass) JNIHandles::make_local(vk->java_mirror());
 JNI_END
 
-JNI_ENTRY(jsize, jni_GetFieldOffsetInFlattenedLayout(JNIEnv* env, jclass clazz, const char *name, const char *signature, jboolean* isFlattened))
+JNI_ENTRY(jsize, jni_GetFieldOffsetInFlattenedLayout(JNIEnv* env, jclass clazz, const char *name, const char *signature, jboolean* is_inlined))
   JNIWrapper("jni_GetFieldOffsetInFlattenedLayout");
 
   oop mirror = JNIHandles::resolve_non_null(clazz);
   Klass* k = java_lang_Class::as_Klass(mirror);
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     ResourceMark rm;
         THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s has not flattened layout", k->external_name()));
   }
@@ -3469,8 +3469,8 @@ JNI_ENTRY(jsize, jni_GetFieldOffsetInFlattenedLayout(JNIEnv* env, jclass clazz, 
   }
 
   int offset = fd.offset() - vk->first_field_offset();
-  if (isFlattened != NULL) {
-    *isFlattened = fd.is_flattened();
+  if (is_inlined != NULL) {
+    *is_inlined = fd.is_inlined();
   }
   return (jsize)offset;
 JNI_END
@@ -3495,8 +3495,8 @@ JNI_ENTRY(jobject, jni_CreateSubElementSelector(JNIEnv* env, jarray array))
   jdk_internal_vm_jni_SubElementSelector::setArrayElementType(ses_h(), elementKlass->java_mirror());
   jdk_internal_vm_jni_SubElementSelector::setSubElementType(ses_h(), elementKlass->java_mirror());
   jdk_internal_vm_jni_SubElementSelector::setOffset(ses_h(), 0);
-  jdk_internal_vm_jni_SubElementSelector::setIsFlattened(ses_h(), true);   // by definition, top element of a flattened array is flattened
-  jdk_internal_vm_jni_SubElementSelector::setIsFlattenable(ses_h(), true); // by definition, top element of a flattened array is flattenable
+  jdk_internal_vm_jni_SubElementSelector::setIsInlined(ses_h(), true);   // by definition, top element of a flattened array is inlined
+  jdk_internal_vm_jni_SubElementSelector::setIsInlineType(ses_h(), true); // by definition, top element of a flattened array is an inline type
   return JNIHandles::make_local(ses_h());
 JNI_END
 
@@ -3507,13 +3507,13 @@ JNI_ENTRY(jobject, jni_GetSubElementSelector(JNIEnv* env, jobject selector, jfie
   if (slct->klass()->name() != vmSymbols::jdk_internal_vm_jni_SubElementSelector()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a SubElementSelector");
   }
-  jboolean isflattened = jdk_internal_vm_jni_SubElementSelector::getIsFlattened(slct);
-  if (!isflattened) {
-    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "SubElement is not flattened");
+  jboolean is_inlined = jdk_internal_vm_jni_SubElementSelector::getIsInlined(slct);
+  if (!is_inlined) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "SubElement is not inlined");
   }
   oop semirror = jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct);
   Klass* k = java_lang_Class::as_Klass(semirror);
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     ResourceMark rm;
         THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s is not an inline type", k->external_name()));
   }
@@ -3541,8 +3541,8 @@ JNI_ENTRY(jobject, jni_GetSubElementSelector(JNIEnv* env, jobject selector, jfie
     jdk_internal_vm_jni_SubElementSelector::setSubElementType(res_h(),fieldKlass->java_mirror());
   }
   jdk_internal_vm_jni_SubElementSelector::setOffset(res_h(), offset);
-  jdk_internal_vm_jni_SubElementSelector::setIsFlattened(res_h(), fd.is_flattened());
-  jdk_internal_vm_jni_SubElementSelector::setIsFlattenable(res_h(), fd.is_flattenable());
+  jdk_internal_vm_jni_SubElementSelector::setIsInlined(res_h(), fd.is_inlined());
+  jdk_internal_vm_jni_SubElementSelector::setIsInlineType(res_h(), fd.is_inline_type());
   return JNIHandles::make_local(res_h());
 JNI_END
 
@@ -3556,7 +3556,7 @@ JNI_ENTRY(jobject, jni_GetObjectSubElement(JNIEnv* env, jarray array, jobject se
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Array/Selector mismatch");
   }
   oop res = NULL;
-  if (!jdk_internal_vm_jni_SubElementSelector::getIsFlattened(slct)) {
+  if (!jdk_internal_vm_jni_SubElementSelector::getIsInlined(slct)) {
     int offset = (address)ar->base() - cast_from_oop<address>(ar) + index * vak->element_byte_size()
                       + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
     res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(ar, offset);
@@ -3583,7 +3583,7 @@ JNI_ENTRY(void, jni_SetObjectSubElement(JNIEnv* env, jarray array, jobject selec
   }
   oop val = JNIHandles::resolve(value);
   if (val == NULL) {
-    if (jdk_internal_vm_jni_SubElementSelector::getIsFlattenable(slct)) {
+    if (jdk_internal_vm_jni_SubElementSelector::getIsInlineType(slct)) {
       THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), "null cannot be stored in a flattened array");
     }
   } else {
@@ -3591,7 +3591,7 @@ JNI_ENTRY(void, jni_SetObjectSubElement(JNIEnv* env, jarray array, jobject selec
       THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), "type mismatch");
     }
   }
-  if (!jdk_internal_vm_jni_SubElementSelector::getIsFlattened(slct)) {
+  if (!jdk_internal_vm_jni_SubElementSelector::getIsInlined(slct)) {
     int offset = (address)ar->base() - cast_from_oop<address>(ar) + index * vak->element_byte_size()
                   + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
     HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(ar, offset, JNIHandles::resolve(value));

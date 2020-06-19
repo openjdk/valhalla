@@ -42,6 +42,7 @@
 #include "compiler/compileBroker.hpp"
 #include "compiler/compilerEvent.hpp"
 #include "compiler/compileLog.hpp"
+#include "compiler/compileTask.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/linkResolver.hpp"
@@ -231,7 +232,7 @@ ciEnv::~ciEnv() {
 
 // ------------------------------------------------------------------
 // Cache Jvmti state
-void ciEnv::cache_jvmti_state() {
+bool ciEnv::cache_jvmti_state() {
   VM_ENTRY_MARK;
   // Get Jvmti capabilities under lock to get consistant values.
   MutexLocker mu(JvmtiThreadState_lock);
@@ -241,6 +242,7 @@ void ciEnv::cache_jvmti_state() {
   _jvmti_can_post_on_exceptions         = JvmtiExport::can_post_on_exceptions();
   _jvmti_can_pop_frame                  = JvmtiExport::can_pop_frame();
   _jvmti_can_get_owned_monitor_info     = JvmtiExport::can_get_owned_monitor_info();
+  return _task != NULL && _task->method()->is_old();
 }
 
 bool ciEnv::jvmti_state_changed() const {
@@ -469,7 +471,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   if (Signature::is_array(sym) &&
       (sym->char_at(1) == JVM_SIGNATURE_ARRAY ||
        sym->char_at(1) == JVM_SIGNATURE_CLASS ||
-       sym->char_at(1) == JVM_SIGNATURE_VALUETYPE )) {
+       sym->char_at(1) == JVM_SIGNATURE_INLINE_TYPE )) {
     // We have an unloaded array.
     // Build it on the fly if the element class exists.
     SignatureStream ss(sym, false);
@@ -512,7 +514,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   while (sym->char_at(i) == JVM_SIGNATURE_ARRAY) {
     i++;
   }
-  if (i > 0 && sym->char_at(i) == JVM_SIGNATURE_VALUETYPE) {
+  if (i > 0 && sym->char_at(i) == JVM_SIGNATURE_INLINE_TYPE) {
     // An unloaded array class of value types is an ObjArrayKlass, an
     // unloaded value type class is an InstanceKlass. For consistency,
     // make the signature of the unloaded array of value type use L

@@ -52,7 +52,7 @@ inline KlassInfoEntry::~KlassInfoEntry() {
 
 inline void KlassInfoEntry::add_subclass(KlassInfoEntry* cie) {
   if (_subclasses == NULL) {
-    _subclasses = new  (ResourceObj::C_HEAP, mtInternal) GrowableArray<KlassInfoEntry*>(4, true);
+    _subclasses = new  (ResourceObj::C_HEAP, mtServiceability) GrowableArray<KlassInfoEntry*>(4, mtServiceability);
   }
   _subclasses->append(cie);
 }
@@ -245,7 +245,7 @@ int KlassInfoHisto::sort_helper(KlassInfoEntry** e1, KlassInfoEntry** e2) {
 
 KlassInfoHisto::KlassInfoHisto(KlassInfoTable* cit) :
   _cit(cit) {
-  _elements = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<KlassInfoEntry*>(_histo_initial_size, true);
+  _elements = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<KlassInfoEntry*>(_histo_initial_size, mtServiceability);
 }
 
 KlassInfoHisto::~KlassInfoHisto() {
@@ -528,30 +528,30 @@ private:
   const int index() { return _index; }
   const InstanceKlass* holder() { return _holder; }
   const AccessFlags& access_flags() { return _access_flags; }
-  const bool is_flattenable() { return _access_flags.is_flattenable(); }
+  const bool is_inline_type() { return Signature::basic_type(_signature) == T_VALUETYPE; }
 };
 
 static int compare_offset(FieldDesc* f1, FieldDesc* f2) {
    return f1->offset() > f2->offset() ? 1 : -1;
 }
 
-static void print_field(outputStream* st, int level, int offset, FieldDesc& fd, bool flattenable, bool flattened ) {
-  const char* flattened_msg = "";
-  if (flattenable) {
-    flattened_msg = flattened ? "and flattened" : "not flattened";
+static void print_field(outputStream* st, int level, int offset, FieldDesc& fd, bool is_inline_type, bool is_inlined ) {
+  const char* inlined_msg = "";
+  if (is_inline_type) {
+    inlined_msg = is_inlined ? "inlined" : "not inlined";
   }
   st->print_cr("  @ %d %*s \"%s\" %s %s %s",
       offset, level * 3, "",
       fd.name()->as_C_string(),
       fd.signature()->as_C_string(),
-      flattenable ? " // flattenable" : "",
-      flattened_msg);
+      is_inline_type ? " // inline type " : "",
+      inlined_msg);
 }
 
-static void print_flattened_field(outputStream* st, int level, int offset, InstanceKlass* klass) {
-  assert(klass->is_value(), "Only value classes can be flattened");
+static void print_inlined_field(outputStream* st, int level, int offset, InstanceKlass* klass) {
+  assert(klass->is_inline_klass(), "Only inline types can be inlined");
   ValueKlass* vklass = ValueKlass::cast(klass);
-  GrowableArray<FieldDesc>* fields = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<FieldDesc>(100, true);
+  GrowableArray<FieldDesc>* fields = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<FieldDesc>(100, mtServiceability);
   for (FieldStream fd(klass, false, false); !fd.eos(); fd.next()) {
     if (!fd.access_flags().is_static()) {
       fields->append(FieldDesc(fd.field_descriptor()));
@@ -562,9 +562,9 @@ static void print_flattened_field(outputStream* st, int level, int offset, Insta
     FieldDesc fd = fields->at(i);
     int offset2 = offset + fd.offset() - vklass->first_field_offset();
     print_field(st, level, offset2, fd,
-        fd.is_flattenable(), fd.holder()->field_is_flattened(fd.index()));
-    if (fd.holder()->field_is_flattened(fd.index())) {
-      print_flattened_field(st, level + 1, offset2 ,
+        fd.is_inline_type(), fd.holder()->field_is_inlined(fd.index()));
+    if (fd.holder()->field_is_inlined(fd.index())) {
+      print_inlined_field(st, level + 1, offset2 ,
           InstanceKlass::cast(fd.holder()->get_value_field_klass(fd.index())));
     }
   }
@@ -581,7 +581,7 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
 
   Symbol* classname = SymbolTable::probe(class_name, (int)strlen(class_name));
 
-  GrowableArray<Klass*>* klasses = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<Klass*>(100, true);
+  GrowableArray<Klass*>* klasses = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<Klass*>(100, mtServiceability);
 
   FindClassByNameClosure fbnc(klasses, classname);
   cit.iterate(&fbnc);
@@ -594,7 +594,7 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
     st->print_cr("Class %s [@%s]:", klass->name()->as_C_string(),
         klass->class_loader_data()->name()->as_C_string());
     ResourceMark rm;
-    GrowableArray<FieldDesc>* fields = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<FieldDesc>(100, true);
+    GrowableArray<FieldDesc>* fields = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<FieldDesc>(100, mtServiceability);
     for (FieldStream fd(ik, false, false); !fd.eos(); fd.next()) {
       if (!fd.access_flags().is_static()) {
         fields->append(FieldDesc(fd.field_descriptor()));
@@ -603,9 +603,9 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
     fields->sort(compare_offset);
     for(int i = 0; i < fields->length(); i++) {
       FieldDesc fd = fields->at(i);
-      print_field(st, 0, fd.offset(), fd, fd.is_flattenable(), fd.holder()->field_is_flattened(fd.index()));
-      if (fd.holder()->field_is_flattened(fd.index())) {
-        print_flattened_field(st, 1, fd.offset(),
+      print_field(st, 0, fd.offset(), fd, fd.is_inline_type(), fd.holder()->field_is_inlined(fd.index()));
+      if (fd.holder()->field_is_inlined(fd.index())) {
+        print_inlined_field(st, 1, fd.offset(),
             InstanceKlass::cast(fd.holder()->get_value_field_klass(fd.index())));
       }
     }

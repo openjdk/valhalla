@@ -154,7 +154,7 @@ class ErrorContext {
     STACK_UNDERFLOW,      // Attempt to pop and empty expression stack
     MISSING_STACKMAP,     // No stackmap for this location and there should be
     BAD_STACKMAP,         // Format error in stackmap
-    WRONG_VALUE_TYPE,     // Mismatched value type
+    WRONG_INLINE_TYPE,    // Mismatched inline type
     NO_FAULT,             // No error
     UNKNOWN
   } FaultType;
@@ -218,8 +218,8 @@ class ErrorContext {
   static ErrorContext bad_stackmap(int index, StackMapFrame* frame) {
     return ErrorContext(0, BAD_STACKMAP, TypeOrigin::frame(frame));
   }
-  static ErrorContext bad_value_type(u2 bci, TypeOrigin type, TypeOrigin exp) {
-    return ErrorContext(bci, WRONG_VALUE_TYPE, type, exp);
+  static ErrorContext bad_inline_type(u2 bci, TypeOrigin type, TypeOrigin exp) {
+    return ErrorContext(bci, WRONG_INLINE_TYPE, type, exp);
   }
 
   bool is_valid() const { return _fault != NO_FAULT; }
@@ -458,7 +458,7 @@ class ClassVerifier : public StackObj {
       // Remove the Q and ;
       // TBD need error msg if fundamental_name() returns NULL?
       Symbol* fund_name = name->fundamental_name(CHECK_(VerificationType::bogus_type()));
-      return VerificationType::valuetype_type(fund_name);
+      return VerificationType::inline_type(fund_name);
     }
     return VerificationType::reference_type(name);
   }
@@ -507,7 +507,7 @@ inline int ClassVerifier::change_sig_to_verificationType(
         // Create another symbol to save as signature stream unreferences this symbol.
         Symbol* vname_copy = create_temporary_symbol(vname);
         assert(vname_copy == vname, "symbols don't match");
-        *inference_type = VerificationType::valuetype_type(vname_copy);
+        *inference_type = VerificationType::inline_type(vname_copy);
         return 1;
       }
     case T_LONG:

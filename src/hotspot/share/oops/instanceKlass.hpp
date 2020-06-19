@@ -548,8 +548,8 @@ class InstanceKlass: public Klass {
   int     field_access_flags(int index) const { return field(index)->access_flags(); }
   Symbol* field_name        (int index) const { return field(index)->name(constants()); }
   Symbol* field_signature   (int index) const { return field(index)->signature(constants()); }
-  bool    field_is_flattened(int index) const { return field(index)->is_flattened(); }
-  bool    field_is_flattenable(int index) const { return field(index)->is_flattenable(); }
+  bool    field_is_inlined(int index) const { return field(index)->is_inlined(); }
+  bool    field_is_inline_type(int index) const;
 
   // Number of Java declared fields
   int java_fields_count() const           { return (int)_java_fields_count; }
@@ -1218,7 +1218,7 @@ public:
                                                is_unsafe_anonymous(),
                                                has_stored_fingerprint(),
                                                has_inline_fields() ? java_fields_count() : 0,
-                                               is_value());
+                                               is_inline_klass());
   }
 
   intptr_t* start_of_itable()   const { return (intptr_t*)start_of_vtable() + vtable_length(); }
@@ -1305,14 +1305,14 @@ public:
     assert(has_inline_fields(), "Sanity checking");
     Klass* k = ((Klass**)adr_value_fields_klasses())[idx];
     assert(k != NULL, "Should always be set before being read");
-    assert(k->is_value(), "Must be a inline type");
+    assert(k->is_inline_klass(), "Must be a inline type");
     return k;
   }
 
   Klass* get_value_field_klass_or_null(int idx) const {
     assert(has_inline_fields(), "Sanity checking");
     Klass* k = ((Klass**)adr_value_fields_klasses())[idx];
-    assert(k == NULL || k->is_value(), "Must be a inline type");
+    assert(k == NULL || k->is_inline_klass(), "Must be a inline type");
     return k;
   }
 

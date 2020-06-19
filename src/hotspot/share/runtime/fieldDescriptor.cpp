@@ -191,17 +191,17 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
       st->print(" %s", obj->bool_field(offset()) ? "true" : "false");
       break;
     case T_VALUETYPE:
-      if (is_flattened()) {
-        // Print fields of flattened value type field
+      if (is_inlined()) {
+        // Print fields of inlined fields (recursively)
         ValueKlass* vk = ValueKlass::cast(field_holder()->get_value_field_klass(index()));
         int field_offset = offset() - vk->first_field_offset();
         obj = (oop)(cast_from_oop<address>(obj) + field_offset);
-        st->print_cr("Flattened value type '%s':", vk->name()->as_C_string());
+        st->print_cr("Inline type field inlined '%s':", vk->name()->as_C_string());
         FieldPrinter print_field(st, obj);
         vk->do_nonstatic_fields(&print_field);
         return; // Do not print underlying representation
       }
-      // Non-flattened field, fall through
+      // inline type field not inlined, fall through
     case T_ARRAY:
     case T_OBJECT:
       st->print(" ");

@@ -1107,7 +1107,7 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
       }
     } else {
       assert(attached_method->has_scalarized_args(), "invalid use of attached method");
-      if (!attached_method->method_holder()->is_value()) {
+      if (!attached_method->method_holder()->is_inline_klass()) {
         // Ignore the attached method in this case to not confuse below code
         attached_method = methodHandle(thread, NULL);
       }
@@ -1142,7 +1142,7 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
         THROW_(vmSymbols::java_lang_NoSuchMethodException(), nullHandle);
       }
     }
-    if (!caller_is_c1 && callee->has_scalarized_args() && callee->method_holder()->is_value()) {
+    if (!caller_is_c1 && callee->has_scalarized_args() && callee->method_holder()->is_inline_klass()) {
       // If the receiver is a value type that is passed as fields, no oop is available.
       // Resolve the call without receiver null checking.
       assert(attached_method.not_null() && !attached_method->is_abstract(), "must have non-abstract attached method");
@@ -1285,7 +1285,7 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
 
   if (is_virtual) {
     Klass* receiver_klass = NULL;
-    if (InlineTypePassFieldsAsArgs && !caller_is_c1 && callee_method->method_holder()->is_value()) {
+    if (InlineTypePassFieldsAsArgs && !caller_is_c1 && callee_method->method_holder()->is_inline_klass()) {
       // If the receiver is an inline type that is passed as fields, no oop is available
       receiver_klass = callee_method->method_holder();
     } else {
@@ -2746,7 +2746,7 @@ int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_
   InstanceKlass* holder = _method->method_holder();
   sig_cc = new GrowableArray<SigEntry>(_method->size_of_parameters());
   if (!_method->is_static()) {
-    if (holder->is_value() && scalar_receiver && ValueKlass::cast(holder)->is_scalarizable()) {
+    if (holder->is_inline_klass() && scalar_receiver && ValueKlass::cast(holder)->is_scalarizable()) {
       sig_cc->appendAll(ValueKlass::cast(holder)->extended_sig());
     } else {
       SigEntry::add_entry(sig_cc, T_OBJECT);
@@ -2833,7 +2833,7 @@ CodeOffsets::Entries CompiledEntrySignature::c1_value_ro_entry_type() const {
 void CompiledEntrySignature::compute_calling_conventions() {
   // Get the (non-scalarized) signature and check for value type arguments
   if (!_method->is_static()) {
-    if (_method->method_holder()->is_value() && ValueKlass::cast(_method->method_holder())->is_scalarizable()) {
+    if (_method->method_holder()->is_inline_klass() && ValueKlass::cast(_method->method_holder())->is_scalarizable()) {
       _has_value_recv = true;
       _num_value_args++;
     }
@@ -2971,7 +2971,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
                                                  StubRoutines::throw_AbstractMethodError_entry(),
                                                  wrong_method_abstract, wrong_method_abstract, wrong_method_abstract,
                                                  wrong_method_abstract, wrong_method_abstract);
-        GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(sig_cc_ro.length(), true);
+        GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(sig_cc_ro.length(), mtInternal);
         heap_sig->appendAll(&sig_cc_ro);
         entry->set_sig_cc(heap_sig);
         return entry;
@@ -3027,7 +3027,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
 
       if (ces.has_scalarized_args()) {
         // Save a C heap allocated version of the scalarized signature and store it in the adapter
-        GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(sig_cc.length(), true);
+        GrowableArray<SigEntry>* heap_sig = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<SigEntry>(sig_cc.length(), mtInternal);
         heap_sig->appendAll(&sig_cc);
         entry->set_sig_cc(heap_sig);
       }
@@ -3596,7 +3596,7 @@ oop SharedRuntime::allocate_value_types_impl(JavaThread* thread, methodHandle ca
 
   int nb_slots = 0;
   InstanceKlass* holder = callee->method_holder();
-  allocate_receiver &= !callee->is_static() && holder->is_value();
+  allocate_receiver &= !callee->is_static() && holder->is_inline_klass();
   if (allocate_receiver) {
     nb_slots++;
   }
@@ -3661,7 +3661,7 @@ JRT_END
 // register following the calling convention
 JRT_LEAF(void, SharedRuntime::load_value_type_fields_in_regs(JavaThread* thread, oopDesc* res))
 {
-  assert(res->klass()->is_value(), "only value types here");
+  assert(res->klass()->is_inline_klass(), "only inline types here");
   ResourceMark rm;
   RegisterMap reg_map(thread);
   frame stubFrame = thread->last_frame();

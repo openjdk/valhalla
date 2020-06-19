@@ -86,17 +86,14 @@ enum {
   JVM_ACC_FIELD_STABLE                    = 0x00000020, // @Stable field, same as JVM_ACC_SYNCHRONIZED and JVM_ACC_SUPER
   JVM_ACC_FIELD_INITIALIZED_FINAL_UPDATE  = 0x00000200, // (static) final field updated outside (class) initializer, same as JVM_ACC_NATIVE
   JVM_ACC_FIELD_HAS_GENERIC_SIGNATURE     = 0x00000800, // field has generic signature
-  JVM_ACC_FIELD_FLATTENABLE               = 0x00004000, // flattenable field
-  JVM_ACC_FIELD_FLATTENED                 = 0x00008000, // flattened field
+  JVM_ACC_FIELD_INLINED                   = 0x00008000, // field is inlined
 
   JVM_ACC_FIELD_INTERNAL_FLAGS       = JVM_ACC_FIELD_ACCESS_WATCHED |
                                        JVM_ACC_FIELD_MODIFICATION_WATCHED |
                                        JVM_ACC_FIELD_INTERNAL |
                                        JVM_ACC_FIELD_STABLE |
                                        JVM_ACC_FIELD_HAS_GENERIC_SIGNATURE |
-                                       JVM_ACC_FLATTENABLE |
-                                       JVM_ACC_FIELD_FLATTENABLE |
-                                       JVM_ACC_FIELD_FLATTENED,
+                                       JVM_ACC_FIELD_INLINED,
 
                                                     // flags accepted by set_field_flags()
   JVM_ACC_FIELD_FLAGS                = JVM_RECOGNIZED_FIELD_MODIFIERS | JVM_ACC_FIELD_INTERNAL_FLAGS
@@ -128,7 +125,6 @@ class AccessFlags {
   bool is_abstract    () const         { return (_flags & JVM_ACC_ABSTRACT    ) != 0; }
   bool is_strict      () const         { return (_flags & JVM_ACC_STRICT      ) != 0; }
   bool is_inline_type () const         { return (_flags & JVM_ACC_VALUE       ) != 0; }
-  bool is_flattenable () const         { return (_flags & JVM_ACC_FLATTENABLE ) != 0; }
 
   // Attribute flags
   bool is_synthetic   () const         { return (_flags & JVM_ACC_SYNTHETIC   ) != 0; }
@@ -219,7 +215,6 @@ class AccessFlags {
   void set_is_obsolete()               { atomic_set_bits(JVM_ACC_IS_OBSOLETE);             }
   void set_is_deleted()                { atomic_set_bits(JVM_ACC_IS_DELETED);              }
   void set_is_prefixed_native()        { atomic_set_bits(JVM_ACC_IS_PREFIXED_NATIVE);      }
-  void set_is_flattenable()            { atomic_set_bits(JVM_ACC_FLATTENABLE);             }
 
   void clear_not_c1_compilable()       { atomic_clear_bits(JVM_ACC_NOT_C1_COMPILABLE);       }
   void clear_not_c2_compilable()       { atomic_clear_bits(JVM_ACC_NOT_C2_COMPILABLE);       }

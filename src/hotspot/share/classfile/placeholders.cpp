@@ -44,7 +44,7 @@ PlaceholderEntry* PlaceholderTable::new_entry(int hash, Symbol* name,
   entry->set_superThreadQ(NULL);
   entry->set_loadInstanceThreadQ(NULL);
   entry->set_defineThreadQ(NULL);
-  entry->set_flattenableFieldQ(NULL);
+  entry->set_inlineTypeFieldQ(NULL);
   entry->set_definer(NULL);
   entry->set_instance_klass(NULL);
   return entry;
@@ -167,7 +167,7 @@ void PlaceholderTable::find_and_remove(int index, unsigned int hash,
        // If no other threads using this entry, and this thread is not using this entry for other states
        if ((probe->superThreadQ() == NULL) && (probe->loadInstanceThreadQ() == NULL)
           && (probe->defineThreadQ() == NULL) && (probe->definer() == NULL)
-          && (probe->flattenableFieldQ() == NULL)) {
+          && (probe->inlineTypeFieldQ() == NULL)) {
          remove_entry(index, hash, name, loader_data);
        }
     }
@@ -222,8 +222,8 @@ void PlaceholderEntry::print_entry(outputStream* st) const {
   st->print("defineThreadQ threads:");
   defineThreadQ()->print_action_queue(st);
   st->cr();
-  st->print("flattenableFieldQ threads:");
-  flattenableFieldQ()->print_action_queue(st);
+  st->print("inlineTypeFieldQ threads:");
+  inlineTypeFieldQ()->print_action_queue(st);
   st->cr();
 }
 

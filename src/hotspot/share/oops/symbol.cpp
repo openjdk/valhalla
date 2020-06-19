@@ -107,7 +107,7 @@ void Symbol::set_permanent() {
 
 bool Symbol::is_Q_signature() const {
   int len = utf8_length();
-  return len > 2 && char_at(0) == JVM_SIGNATURE_VALUETYPE && char_at(len - 1) == JVM_SIGNATURE_ENDCLASS;
+  return len > 2 && char_at(0) == JVM_SIGNATURE_INLINE_TYPE && char_at(len - 1) == JVM_SIGNATURE_ENDCLASS;
 }
 
 bool Symbol::is_Q_array_signature() const {
@@ -117,7 +117,7 @@ bool Symbol::is_Q_array_signature() const {
   }
   for (int i = 1; i < (l - 2); i++) {
     char c = char_at(i);
-    if (c == JVM_SIGNATURE_VALUETYPE) {
+    if (c == JVM_SIGNATURE_INLINE_TYPE) {
       return true;
     }
     if (c != JVM_SIGNATURE_ARRAY) {
@@ -132,7 +132,7 @@ bool Symbol::is_Q_method_signature() const {
   int len = utf8_length();
   if (len > 4 && char_at(0) == JVM_SIGNATURE_FUNC) {
     for (int i=1; i<len-3; i++) { // Must end with ")Qx;", where x is at least one character or more.
-      if (char_at(i) == JVM_SIGNATURE_ENDFUNC && char_at(i+1) == JVM_SIGNATURE_VALUETYPE) {
+      if (char_at(i) == JVM_SIGNATURE_ENDFUNC && char_at(i+1) == JVM_SIGNATURE_INLINE_TYPE) {
         return true;
       }
     }
@@ -142,12 +142,12 @@ bool Symbol::is_Q_method_signature() const {
 
 bool Symbol::is_Q_singledim_array_signature() const {
   int len = utf8_length();
-  return len > 3 && char_at(0) == JVM_SIGNATURE_ARRAY && char_at(1) == JVM_SIGNATURE_VALUETYPE &&
+  return len > 3 && char_at(0) == JVM_SIGNATURE_ARRAY && char_at(1) == JVM_SIGNATURE_INLINE_TYPE &&
                     char_at(len - 1) == JVM_SIGNATURE_ENDCLASS;
 }
 
 Symbol* Symbol::fundamental_name(TRAPS) {
-  if ((char_at(0) == JVM_SIGNATURE_VALUETYPE || char_at(0) == JVM_SIGNATURE_CLASS) && ends_with(JVM_SIGNATURE_ENDCLASS)) {
+  if ((char_at(0) == JVM_SIGNATURE_INLINE_TYPE || char_at(0) == JVM_SIGNATURE_CLASS) && ends_with(JVM_SIGNATURE_ENDCLASS)) {
     return SymbolTable::new_symbol(this, 1, utf8_length() - 1);
   } else {
     // reference count is incremented to be consistent with the behavior with
@@ -162,7 +162,7 @@ bool Symbol::is_same_fundamental_type(Symbol* s) const {
   if (utf8_length() < 3) return false;
   int offset1, offset2, len;
   if (ends_with(JVM_SIGNATURE_ENDCLASS)) {
-    if (char_at(0) != JVM_SIGNATURE_VALUETYPE && char_at(0) != JVM_SIGNATURE_CLASS) return false;
+    if (char_at(0) != JVM_SIGNATURE_INLINE_TYPE && char_at(0) != JVM_SIGNATURE_CLASS) return false;
     offset1 = 1;
     len = utf8_length() - 2;
   } else {
@@ -170,7 +170,7 @@ bool Symbol::is_same_fundamental_type(Symbol* s) const {
     len = utf8_length();
   }
   if (ends_with(JVM_SIGNATURE_ENDCLASS)) {
-    if (s->char_at(0) != JVM_SIGNATURE_VALUETYPE && s->char_at(0) != JVM_SIGNATURE_CLASS) return false;
+    if (s->char_at(0) != JVM_SIGNATURE_INLINE_TYPE && s->char_at(0) != JVM_SIGNATURE_CLASS) return false;
     offset2 = 1;
   } else {
     offset2 = 0;
