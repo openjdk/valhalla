@@ -1493,8 +1493,6 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
             // oops, the app has substituted a different version of k!
             return NULL;
           }
-        } else {
-         ik->reset_inline_type_field_klass(fs.index());
         }
       }
     }
