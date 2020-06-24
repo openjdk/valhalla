@@ -36,7 +36,7 @@ import jdk.test.lib.Asserts;
  * @modules java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile TestLWorld.java
+ * @compile -XDallowEmptyValues TestLWorld.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
@@ -3240,5 +3240,55 @@ public class TestLWorld extends ValueTypeTest {
     public void test115_verifier(boolean warmup) {
         long res = test115();
         Asserts.assertEquals(res, 5*rL);
+    }
+
+    static MyValueEmpty     fEmpty1;
+    static MyValueEmpty.ref fEmpty2 = MyValueEmpty.default;
+           MyValueEmpty     fEmpty3;
+           MyValueEmpty.ref fEmpty4 = MyValueEmpty.default;
+
+    // Test fields loads/stores with empty inline types
+    @Test(failOn = ALLOC + ALLOC_G + LOAD + STORE + TRAP)
+    public void test116() {
+        fEmpty1 = fEmpty4;
+        fEmpty2 = fEmpty1;
+        fEmpty3 = fEmpty2;
+        fEmpty4 = fEmpty3;
+    }
+
+    @DontCompile
+    public void test116_verifier(boolean warmup) {
+        test116();
+        Asserts.assertEquals(fEmpty1, fEmpty2);
+        Asserts.assertEquals(fEmpty2, fEmpty3);
+        Asserts.assertEquals(fEmpty3, fEmpty4);
+    }
+
+    // Test array loads/stores with empty inline types
+    @Test(failOn = ALLOC + ALLOC_G)
+    public MyValueEmpty test117(MyValueEmpty[] arr1, MyValueEmpty.ref[] arr2) {
+        arr1[0] = arr2[0];
+        arr2[0] = new MyValueEmpty();
+        return arr1[0];
+    }
+
+    @DontCompile
+    public void test117_verifier(boolean warmup) {
+        MyValueEmpty[] arr1 = new MyValueEmpty[]{MyValueEmpty.default};
+        MyValueEmpty res = test117(arr1, arr1);
+        Asserts.assertEquals(res, MyValueEmpty.default);
+        Asserts.assertEquals(arr1[0], MyValueEmpty.default);
+    }
+
+    // Test acmp with empty inline types
+    @Test(failOn = ALLOC + ALLOC_G)
+    public boolean test118(MyValueEmpty v1, MyValueEmpty.ref v2, Object o1) {
+        return (v1 == v2) && (v2 == o1);
+    }
+
+    @DontCompile
+    public void test118_verifier(boolean warmup) {
+        boolean res = test118(MyValueEmpty.default, MyValueEmpty.default, new MyValueEmpty());
+        Asserts.assertTrue(res);
     }
 }

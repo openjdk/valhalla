@@ -495,7 +495,8 @@ Node* ValueTypeBaseNode::allocate_fields(GraphKit* kit) {
 
 ValueTypeNode* ValueTypeNode::make_uninitialized(PhaseGVN& gvn, ciValueKlass* vk) {
   // Create a new ValueTypeNode with uninitialized values and NULL oop
-  return new ValueTypeNode(vk, gvn.zerocon(T_VALUETYPE));
+  Node* oop = vk->is_empty() ? default_oop(gvn, vk) : gvn.zerocon(T_VALUETYPE);
+  return new ValueTypeNode(vk, oop);
 }
 
 Node* ValueTypeNode::default_oop(PhaseGVN& gvn, ciValueKlass* vk) {

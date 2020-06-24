@@ -2037,7 +2037,7 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
   const Type** field_array = fields(arg_cnt);
   if (!method->is_static()) {
     ciInstanceKlass* recv = method->holder();
-    if (vt_fields_as_args && recv->is_valuetype() && recv->as_value_klass()->is_scalarizable()) {
+    if (vt_fields_as_args && recv->is_valuetype() && recv->as_value_klass()->can_be_passed_as_fields()) {
       collect_value_fields(recv->as_value_klass(), field_array, pos, sig_cc);
     } else {
       field_array[pos++] = get_const_type(recv)->join_speculative(TypePtr::NOTNULL);
@@ -2076,7 +2076,7 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
       break;
     case T_VALUETYPE: {
       bool never_null = sig->is_never_null_at(i);
-      if (vt_fields_as_args && type->as_value_klass()->is_scalarizable() && never_null) {
+      if (vt_fields_as_args && type->as_value_klass()->can_be_passed_as_fields() && never_null) {
         is_flattened = true;
         collect_value_fields(type->as_value_klass(), field_array, pos, sig_cc);
       } else {

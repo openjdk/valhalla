@@ -33,7 +33,7 @@ import java.lang.reflect.Method;
  * @summary Test value type calling convention optimizations
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile TestCallingConvention.java
+ * @compile -XDallowEmptyValues TestCallingConvention.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
@@ -785,5 +785,18 @@ public class TestCallingConvention extends ValueTypeTest {
         Test37Value vt = new Test37Value();
         int res = test37(vt);
         Asserts.assertEQ(res, rI);
+    }
+
+    // Test passing/returning an empty inline type
+    @Test(failOn = ALLOC + LOAD + STORE + TRAP)
+    public MyValueEmpty test38(MyValueEmpty vt) {
+        return vt.copy(vt);
+    }
+
+    @DontCompile
+    public void test38_verifier(boolean warmup) {
+        MyValueEmpty vt = new MyValueEmpty();
+        MyValueEmpty res = test38(vt);
+        Asserts.assertEQ(res, vt);
     }
 }

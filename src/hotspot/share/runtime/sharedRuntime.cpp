@@ -1142,8 +1142,9 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
         THROW_(vmSymbols::java_lang_NoSuchMethodException(), nullHandle);
       }
     }
-    if (!caller_is_c1 && callee->has_scalarized_args() && callee->method_holder()->is_inline_klass()) {
-      // If the receiver is a value type that is passed as fields, no oop is available.
+    if (!caller_is_c1 && callee->has_scalarized_args() && callee->method_holder()->is_inline_klass() &&
+        ValueKlass::cast(callee->method_holder())->can_be_passed_as_fields()) {
+      // If the receiver is an inline type that is passed as fields, no oop is available
       // Resolve the call without receiver null checking.
       assert(attached_method.not_null() && !attached_method->is_abstract(), "must have non-abstract attached method");
       if (bc == Bytecodes::_invokeinterface) {
@@ -1285,7 +1286,8 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
 
   if (is_virtual) {
     Klass* receiver_klass = NULL;
-    if (InlineTypePassFieldsAsArgs && !caller_is_c1 && callee_method->method_holder()->is_inline_klass()) {
+    if (!caller_is_c1 && callee_method->has_scalarized_args() && callee_method->method_holder()->is_inline_klass() &&
+        ValueKlass::cast(callee_method->method_holder())->can_be_passed_as_fields()) {
       // If the receiver is an inline type that is passed as fields, no oop is available
       receiver_klass = callee_method->method_holder();
     } else {
@@ -2746,7 +2748,7 @@ int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_
   InstanceKlass* holder = _method->method_holder();
   sig_cc = new GrowableArray<SigEntry>(_method->size_of_parameters());
   if (!_method->is_static()) {
-    if (holder->is_inline_klass() && scalar_receiver && ValueKlass::cast(holder)->is_scalarizable()) {
+    if (holder->is_inline_klass() && scalar_receiver && ValueKlass::cast(holder)->can_be_passed_as_fields()) {
       sig_cc->appendAll(ValueKlass::cast(holder)->extended_sig());
     } else {
       SigEntry::add_entry(sig_cc, T_OBJECT);
@@ -2756,7 +2758,7 @@ int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
     if (ss.type() == T_VALUETYPE) {
       ValueKlass* vk = ss.as_value_klass(holder);
-      if (vk->is_scalarizable()) {
+      if (vk->can_be_passed_as_fields()) {
         sig_cc->appendAll(vk->extended_sig());
       } else {
         SigEntry::add_entry(sig_cc, T_OBJECT);
@@ -2833,7 +2835,7 @@ CodeOffsets::Entries CompiledEntrySignature::c1_value_ro_entry_type() const {
 void CompiledEntrySignature::compute_calling_conventions() {
   // Get the (non-scalarized) signature and check for value type arguments
   if (!_method->is_static()) {
-    if (_method->method_holder()->is_inline_klass() && ValueKlass::cast(_method->method_holder())->is_scalarizable()) {
+    if (_method->method_holder()->is_inline_klass() && ValueKlass::cast(_method->method_holder())->can_be_passed_as_fields()) {
       _has_value_recv = true;
       _num_value_args++;
     }
@@ -2842,14 +2844,14 @@ void CompiledEntrySignature::compute_calling_conventions() {
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
     BasicType bt = ss.type();
     if (bt == T_VALUETYPE) {
-      if (ss.as_value_klass(_method->method_holder())->is_scalarizable()) {
+      if (ss.as_value_klass(_method->method_holder())->can_be_passed_as_fields()) {
         _num_value_args++;
       }
       bt = T_OBJECT;
     }
     SigEntry::add_entry(_sig, bt);
   }
-  if (_method->is_abstract() && !(InlineTypePassFieldsAsArgs && has_value_arg())) {
+  if (_method->is_abstract() && !has_value_arg()) {
     return;
   }
 
@@ -2865,7 +2867,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
   _args_on_stack_cc = _args_on_stack;
   _args_on_stack_cc_ro = _args_on_stack;
 
-  if (InlineTypePassFieldsAsArgs && has_value_arg() && !_method->is_native()) {
+  if (has_value_arg() && !_method->is_native()) {
     _args_on_stack_cc = compute_scalarized_cc(_sig_cc, _regs_cc, /* scalar_receiver = */ true);
 
     _sig_cc_ro = _sig_cc;
