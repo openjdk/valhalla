@@ -1142,7 +1142,7 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
         THROW_(vmSymbols::java_lang_NoSuchMethodException(), nullHandle);
       }
     }
-    if (!caller_is_c1 && callee->method_holder()->is_inline_klass() &&
+    if (!caller_is_c1 && callee->has_scalarized_args() && callee->method_holder()->is_inline_klass() &&
         ValueKlass::cast(callee->method_holder())->can_be_passed_as_fields()) {
       // If the receiver is an inline type that is passed as fields, no oop is available
       // Resolve the call without receiver null checking.
@@ -1286,7 +1286,7 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
 
   if (is_virtual) {
     Klass* receiver_klass = NULL;
-    if (!caller_is_c1 && callee_method->method_holder()->is_inline_klass() &&
+    if (!caller_is_c1 && callee_method->has_scalarized_args() && callee_method->method_holder()->is_inline_klass() &&
         ValueKlass::cast(callee_method->method_holder())->can_be_passed_as_fields()) {
       // If the receiver is an inline type that is passed as fields, no oop is available
       receiver_klass = callee_method->method_holder();
