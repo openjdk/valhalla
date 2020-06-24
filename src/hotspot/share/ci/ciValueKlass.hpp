@@ -78,8 +78,10 @@ public:
   int field_index_by_offset(int offset);
 
   bool flatten_array() const;
-  bool can_be_returned_as_fields() const;
   bool is_scalarizable() const;
+  bool can_be_passed_as_fields() const;
+  bool can_be_returned_as_fields() const;
+  bool is_empty() const;
   int value_arg_slots();
   int default_value_offset() const;
   ciInstance* default_value_instance() const;

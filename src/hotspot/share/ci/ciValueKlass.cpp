@@ -76,14 +76,23 @@ bool ciValueKlass::flatten_array() const {
   GUARDED_VM_ENTRY(return to_ValueKlass()->flatten_array();)
 }
 
+// Can this value type be scalarized?
+bool ciValueKlass::is_scalarizable() const {
+  GUARDED_VM_ENTRY(return to_ValueKlass()->is_scalarizable();)
+}
+
+// Can this value type be passed as multiple values?
+bool ciValueKlass::can_be_passed_as_fields() const {
+  GUARDED_VM_ENTRY(return to_ValueKlass()->can_be_passed_as_fields();)
+}
+
 // Can this value type be returned as multiple values?
 bool ciValueKlass::can_be_returned_as_fields() const {
   GUARDED_VM_ENTRY(return to_ValueKlass()->can_be_returned_as_fields();)
 }
 
-// Can this value type be scalarized?
-bool ciValueKlass::is_scalarizable() const {
-  GUARDED_VM_ENTRY(return to_ValueKlass()->is_scalarizable();)
+bool ciValueKlass::is_empty() const {
+  GUARDED_VM_ENTRY(return to_ValueKlass()->is_empty_inline_type();)
 }
 
 // When passing a value type's fields as arguments, count the number
