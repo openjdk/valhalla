@@ -2479,9 +2479,12 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
       if (ss.is_reference()) {
         Symbol* ret = ss.as_symbol();
         const Symbol* required = class_name();
-        if (is_hidden() || is_unsafe_anonymous()) {
-          // The original class name in hidden classes and in the UAC byte stream gets
-          // changed.  So using the original name in the return type is no longer valid.
+        if (is_hidden()) {
+          // The original class name in hidden classes gets changed.  So using
+          // the original name in the return type is no longer valid.
+          // Note that expecting the return type for inline hidden class factory
+          // methods to be java.lang.Object works around a JVM Spec issue for
+          // hidden classes.
           required = vmSymbols::java_lang_Object();
         }
         ok = (ret == required);

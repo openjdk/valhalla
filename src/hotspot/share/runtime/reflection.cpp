@@ -1223,7 +1223,7 @@ oop Reflection::invoke_constructor(oop constructor_mirror, objArrayHandle args, 
     assert(klass->is_inline_klass(), "inline classes must use factory methods");
     Handle no_receiver; // null instead of receiver
     BasicType rtype;
-    if (klass->is_hidden() || klass->is_unsafe_anonymous()) {
+    if (klass->is_hidden()) {
       rtype = T_OBJECT;
     } else {
       rtype = T_VALUETYPE;

@@ -912,6 +912,8 @@ UNSAFE_ENTRY(jclass, Unsafe_DefineClass0(JNIEnv *env, jobject unsafe, jstring na
 // Note the cast (Object), which tells the verifier to expect an arbitrary object,
 // not just a literal string.  For such ldc instructions, the verifier uses the
 // type Object instead of String, if the loaded constant is not in fact a String.
+//
+// An anonymous class cannot be an inline type.
 
 static InstanceKlass*
 Unsafe_DefineAnonymousClass_impl(JNIEnv *env,
@@ -1006,6 +1008,8 @@ Unsafe_DefineAnonymousClass_impl(JNIEnv *env,
   if (anonk == NULL) {
     return NULL;
   }
+
+  assert(!anonk->is_inline_klass(), "unsafe anonymous class cannot be inline class");
 
   return InstanceKlass::cast(anonk);
 }
