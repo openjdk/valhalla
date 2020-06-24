@@ -39,8 +39,10 @@ public class RewriteBytecodesInline {
       throw new RuntimeException("Mismatched field class");
     }
 
-    // Even if the Point class is not loaded from the CDS archive, make sure the WithInlineField class
+    // Even if the Point class is not loaded from the CDS archive, make sure the WithInlinedField class
     // can still be loaded successfully, and properly get the rewritten version of Point.
+    // The archived version of WithInlinedField must not be loaded, because it references the archived
+    // version of Point, but a different version of Point has been loaded.
 
     if (!wif.p.msg().equals(to)) {
       throw new RuntimeException("Wrong output, expected: " + to + ", but got: " + wif.p.msg());
