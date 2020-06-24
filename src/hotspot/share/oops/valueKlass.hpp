@@ -46,7 +46,7 @@ class ValueKlass: public InstanceKlass {
   ValueKlass(const ClassFileParser& parser);
 
   ValueKlassFixedBlock* valueklass_static_block() const {
-    address adr_jf = adr_value_fields_klasses();
+    address adr_jf = adr_inline_type_field_klasses();
     if (adr_jf != NULL) {
       return (ValueKlassFixedBlock*)(adr_jf + this->java_fields_count() * sizeof(Klass*));
     }

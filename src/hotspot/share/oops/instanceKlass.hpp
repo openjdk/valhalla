@@ -55,6 +55,7 @@ class RecordComponent;
 //    [EMBEDDED implementor of the interface] only exist for interface
 //    [EMBEDDED unsafe_anonymous_host klass] only exist for an unsafe anonymous class (JSR 292 enabled)
 //    [EMBEDDED fingerprint       ] only if should_store_fingerprint()==true
+//    [EMBEDDED inline_type_field_klasses] only if has_inline_fields() == true
 //    [EMBEDDED ValueKlassFixedBlock] only if is a ValueKlass instance
 
 
@@ -225,8 +226,6 @@ class InstanceKlass: public Klass {
   // By always being set it makes nest-member access checks simpler.
   InstanceKlass* _nest_host;
 
-  Array<InlineTypes>* _inline_types;
-
   // The PermittedSubclasses attribute. An array of shorts, where each is a
   // class info index for the class that is a permitted subclass.
   Array<jushort>* _permitted_subclasses;
@@ -295,7 +294,7 @@ class InstanceKlass: public Klass {
     _misc_has_resolved_methods                = 1 << 13, // resolved methods table entries added for this class
     _misc_is_being_redefined                  = 1 << 14, // used for locking redefinition
     _misc_has_contended_annotations           = 1 << 15,  // has @Contended annotation
-    _misc_has_inline_fields                   = 1 << 16, // has inline fields and related embedded section is not empty
+    _misc_has_inline_type_fields              = 1 << 16, // has inline fields and related embedded section is not empty
     _misc_is_empty_inline_type                = 1 << 17, // empty inline type
     _misc_is_naturally_atomic                 = 1 << 18, // loaded/stored in one instruction
     _misc_is_declared_atomic                  = 1 << 19, // implements jl.NonTearable
@@ -358,7 +357,7 @@ class InstanceKlass: public Klass {
   //     [generic signature index]
   //     ...
   Array<u2>*      _fields;
-  const Klass**   _value_field_klasses; // For "inline class" fields, NULL if none present
+  const Klass**   _inline_type_field_klasses; // For "inline class" fields, NULL if none present
 
   const ValueKlassFixedBlock* _adr_valueklass_fixed_block;
 
@@ -421,11 +420,11 @@ class InstanceKlass: public Klass {
     }
   }
 
-  bool has_inline_fields() const          {
-    return (_misc_flags & _misc_has_inline_fields) != 0;
+  bool has_inline_type_fields() const          {
+    return (_misc_flags & _misc_has_inline_type_fields) != 0;
   }
-  void set_has_inline_fields()  {
-    _misc_flags |= _misc_has_inline_fields;
+  void set_has_inline_type_fields()  {
+    _misc_flags |= _misc_has_inline_type_fields;
   }
 
   bool is_empty_inline_type() const {
@@ -1140,7 +1139,7 @@ public:
   JFR_ONLY(DEFINE_KLASS_TRACE_ID_OFFSET;)
   static ByteSize init_thread_offset() { return in_ByteSize(offset_of(InstanceKlass, _init_thread)); }
 
-  static ByteSize value_field_klasses_offset() { return in_ByteSize(offset_of(InstanceKlass, _value_field_klasses)); }
+  static ByteSize inline_type_field_klasses_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_type_field_klasses)); }
   static ByteSize adr_valueklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_valueklass_fixed_block)); }
 
   // subclass/subinterface checks
@@ -1217,7 +1216,7 @@ public:
                                                is_interface(),
                                                is_unsafe_anonymous(),
                                                has_stored_fingerprint(),
-                                               has_inline_fields() ? java_fields_count() : 0,
+                                               has_inline_type_fields() ? java_fields_count() : 0,
                                                is_inline_klass());
   }
 
@@ -1278,8 +1277,8 @@ public:
     }
   }
 
-  address adr_value_fields_klasses() const {
-    if (has_inline_fields()) {
+  address adr_inline_type_field_klasses() const {
+    if (has_inline_type_fields()) {
       address adr_fing = adr_fingerprint();
       if (adr_fing != NULL) {
         return adr_fingerprint() + sizeof(u8);
@@ -1301,26 +1300,35 @@ public:
     }
   }
 
-  Klass* get_value_field_klass(int idx) const {
-    assert(has_inline_fields(), "Sanity checking");
-    Klass* k = ((Klass**)adr_value_fields_klasses())[idx];
+  Klass* get_inline_type_field_klass(int idx) const {
+    assert(has_inline_type_fields(), "Sanity checking");
+    assert(idx < java_fields_count(), "IOOB");
+    Klass* k = ((Klass**)adr_inline_type_field_klasses())[idx];
     assert(k != NULL, "Should always be set before being read");
     assert(k->is_inline_klass(), "Must be a inline type");
     return k;
   }
 
-  Klass* get_value_field_klass_or_null(int idx) const {
-    assert(has_inline_fields(), "Sanity checking");
-    Klass* k = ((Klass**)adr_value_fields_klasses())[idx];
+  Klass* get_inline_type_field_klass_or_null(int idx) const {
+    assert(has_inline_type_fields(), "Sanity checking");
+    assert(idx < java_fields_count(), "IOOB");
+    Klass* k = ((Klass**)adr_inline_type_field_klasses())[idx];
     assert(k == NULL || k->is_inline_klass(), "Must be a inline type");
     return k;
   }
 
-  void set_value_field_klass(int idx, Klass* k) {
-    assert(has_inline_fields(), "Sanity checking");
+  void set_inline_type_field_klass(int idx, Klass* k) {
+    assert(has_inline_type_fields(), "Sanity checking");
+    assert(idx < java_fields_count(), "IOOB");
     assert(k != NULL, "Should not be set to NULL");
-    assert(((Klass**)adr_value_fields_klasses())[idx] == NULL, "Should not be set twice");
-    ((Klass**)adr_value_fields_klasses())[idx] = k;
+    assert(((Klass**)adr_inline_type_field_klasses())[idx] == NULL, "Should not be set twice");
+    ((Klass**)adr_inline_type_field_klasses())[idx] = k;
+  }
+
+  void reset_inline_type_field_klass(int idx) {
+    assert(has_inline_type_fields(), "Sanity checking");
+    assert(idx < java_fields_count(), "IOOB");
+    ((Klass**)adr_inline_type_field_klasses())[idx] = NULL;
   }
 
   // Use this to return the size of an instance in heap words:

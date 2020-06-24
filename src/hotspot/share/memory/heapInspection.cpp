@@ -565,7 +565,7 @@ static void print_inlined_field(outputStream* st, int level, int offset, Instanc
         fd.is_inline_type(), fd.holder()->field_is_inlined(fd.index()));
     if (fd.holder()->field_is_inlined(fd.index())) {
       print_inlined_field(st, level + 1, offset2 ,
-          InstanceKlass::cast(fd.holder()->get_value_field_klass(fd.index())));
+          InstanceKlass::cast(fd.holder()->get_inline_type_field_klass(fd.index())));
     }
   }
 }
@@ -606,7 +606,7 @@ void PrintClassLayout::print_class_layout(outputStream* st, char* class_name) {
       print_field(st, 0, fd.offset(), fd, fd.is_inline_type(), fd.holder()->field_is_inlined(fd.index()));
       if (fd.holder()->field_is_inlined(fd.index())) {
         print_inlined_field(st, 1, fd.offset(),
-            InstanceKlass::cast(fd.holder()->get_value_field_klass(fd.index())));
+            InstanceKlass::cast(fd.holder()->get_inline_type_field_klass(fd.index())));
       }
     }
   }

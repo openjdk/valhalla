@@ -581,7 +581,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _init_state(allocated),
   _reference_type(parser.reference_type()),
   _init_thread(NULL),
-  _value_field_klasses(NULL),
+  _inline_type_field_klasses(NULL),
   _adr_valueklass_fixed_block(NULL)
 {
   set_vtable_length(parser.vtable_size());
@@ -592,7 +592,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   set_layout_helper(Klass::instance_layout_helper(parser.layout_size(),
                                                     false));
     if (parser.has_inline_fields()) {
-      set_has_inline_fields();
+      set_has_inline_type_fields();
     }
     _java_fields_count = parser.java_fields_count();
 
@@ -605,8 +605,8 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   if (UseBiasedLocking && BiasedLocking::enabled()) {
     set_prototype_header(markWord::biased_locking_prototype());
   }
-  if (has_inline_fields()) {
-    _value_field_klasses = (const Klass**) adr_value_fields_klasses();
+  if (has_inline_type_fields()) {
+    _inline_type_field_klasses = (const Klass**) adr_inline_type_field_klasses();
   }
 }
 
@@ -1260,9 +1260,8 @@ void InstanceKlass::initialize_impl(TRAPS) {
   {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
       if (Signature::basic_type(fs.signature()) == T_VALUETYPE) {
-        Klass* klass = this->get_value_field_klass_or_null(fs.index());
-        if (klass == NULL) {
-          assert(fs.access_flags().is_static(), "Otherwise should have been pre-loaded");
+        Klass* klass = get_inline_type_field_klass_or_null(fs.index());
+        if (fs.access_flags().is_static() && klass == NULL) {
           klass = SystemDictionary::resolve_or_fail(field_signature(fs.index())->fundamental_name(THREAD),
               Handle(THREAD, class_loader()),
               Handle(THREAD, protection_domain()),
@@ -1273,7 +1272,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
           if (!klass->is_inline_klass()) {
             THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
           }
-          this->set_value_field_klass(fs.index(), klass);
+          set_inline_type_field_klass(fs.index(), klass);
         }
         InstanceKlass::cast(klass)->initialize(CHECK);
         if (fs.access_flags().is_static()) {
@@ -2623,6 +2622,12 @@ void InstanceKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   it->push(&_nest_members);
   it->push(&_permitted_subclasses);
   it->push(&_record_components);
+
+  if (has_inline_type_fields()) {
+    for (int i = 0; i < java_fields_count(); i++) {
+      it->push(&((Klass**)adr_inline_type_field_klasses())[i]);
+    }
+  }
 }
 
 void InstanceKlass::remove_unshareable_info() {
@@ -2656,6 +2661,14 @@ void InstanceKlass::remove_unshareable_info() {
   // do array classes also.
   if (array_klasses() != NULL) {
     array_klasses()->remove_unshareable_info();
+  }
+
+  if (has_inline_type_fields()) {
+    for (AllFieldStream fs(fields(), constants()); !fs.done(); fs.next()) {
+      if (Signature::basic_type(fs.signature()) == T_VALUETYPE) {
+        reset_inline_type_field_klass(fs.index());
+      }
+    }
   }
 
   // These are not allocated from metaspace. They are safe to set to NULL.

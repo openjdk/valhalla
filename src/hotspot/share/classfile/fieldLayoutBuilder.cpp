@@ -321,7 +321,7 @@ bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
       has_instance_fields = true;
       LayoutRawBlock* block;
       if (type == T_VALUETYPE) {
-        ValueKlass* vk = ValueKlass::cast(ik->get_value_field_klass(fs.index()));
+        ValueKlass* vk = ValueKlass::cast(ik->get_inline_type_field_klass(fs.index()));
         block = new LayoutRawBlock(fs.index(), LayoutRawBlock::INHERITED, vk->get_exact_size_in_bytes(),
                                    vk->get_alignment(), false);
 

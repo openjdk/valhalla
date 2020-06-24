@@ -6432,7 +6432,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   int nfields = ik->java_fields_count();
   if (ik->is_inline_klass()) nfields++;
   for (int i = 0; i < nfields; i++) {
-    if (ik->field_is_inline_type(i)) {
+    if (ik->field_is_inline_type(i) && ((ik->field_access_flags(i) & JVM_ACC_STATIC) == 0)) {
       Symbol* klass_name = ik->field_signature(i)->fundamental_name(CHECK);
       // Inline classes for instance fields must have been pre-loaded
       // Inline classes for static fields might not have been loaded yet
@@ -6441,7 +6441,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
           Handle(THREAD, ik->protection_domain()), CHECK);
       if (klass != NULL) {
         assert(klass->access_flags().is_inline_type(), "Inline type expected");
-        ik->set_value_field_klass(i, klass);
+        ik->set_inline_type_field_klass(i, klass);
       }
       klass_name->decrement_refcount();
     } else

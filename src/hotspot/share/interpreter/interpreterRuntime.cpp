@@ -355,7 +355,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
     if (cp_entry->is_inlined()) {
       oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
       assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_inline_type(),"argument must be an inline type");
-      ValueKlass* field_vk = ValueKlass::cast(vklass->get_value_field_klass(field_index));
+      ValueKlass* field_vk = ValueKlass::cast(vklass->get_inline_type_field_klass(field_index));
       assert(vt_oop != NULL && field_vk == vt_oop->klass(), "Must match");
       field_vk->write_inlined_field(new_value_h(), offset, vt_oop, CHECK_(return_offset));
     } else { // not inlined
@@ -392,14 +392,14 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread*
   InstanceKlass* klass = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
   if (klass->is_being_initialized() && klass->is_reentrant_initialization(THREAD)) {
     int offset = klass->field_offset(index);
-    Klass* field_k = klass->get_value_field_klass_or_null(index);
+    Klass* field_k = klass->get_inline_type_field_klass_or_null(index);
     if (field_k == NULL) {
       field_k = SystemDictionary::resolve_or_fail(klass->field_signature(index)->fundamental_name(THREAD),
           Handle(THREAD, klass->class_loader()),
           Handle(THREAD, klass->protection_domain()),
           true, CHECK);
       assert(field_k != NULL, "Should have been loaded or an exception thrown above");
-      klass->set_value_field_klass(index, field_k);
+      klass->set_inline_type_field_klass(index, field_k);
     }
     field_k->initialize(CHECK);
     oop defaultvalue = ValueKlass::cast(field_k)->default_value();
@@ -435,7 +435,7 @@ JRT_ENTRY(void, InterpreterRuntime::read_inlined_field(JavaThread* thread, oopDe
 
   assert(klass->field_is_inlined(index), "Sanity check");
 
-  ValueKlass* field_vklass = ValueKlass::cast(klass->get_value_field_klass(index));
+  ValueKlass* field_vklass = ValueKlass::cast(klass->get_inline_type_field_klass(index));
   assert(field_vklass->is_initialized(), "Must be initialized at this point");
 
   oop res = field_vklass->read_inlined_field(obj_h(), klass->field_offset(index), CHECK);

@@ -215,8 +215,6 @@ void ValueKlass::remove_unshareable_info() {
 
 void ValueKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
   InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
-  oop val = allocate_instance(CHECK);
-  set_default_value(val);
 }
 
 
@@ -299,7 +297,7 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
     if (fs.is_inlined()) {
       // Resolve klass of inlined field and recursively collect fields
-      Klass* vk = get_value_field_klass(fs.index());
+      Klass* vk = get_inline_type_field_klass(fs.index());
       count += ValueKlass::cast(vk)->collect_fields(sig, offset);
     } else {
       BasicType bt = Signature::basic_type(fs.signature());

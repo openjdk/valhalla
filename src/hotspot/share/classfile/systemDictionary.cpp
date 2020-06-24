@@ -70,7 +70,7 @@
 #include "oops/oopHandle.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/valueKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/arguments.hpp"
@@ -1480,6 +1480,24 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
     return NULL;
   }
 
+
+  if (ik->has_inline_type_fields()) {
+    for (AllFieldStream fs(ik->fields(), ik->constants()); !fs.done(); fs.next()) {
+      if (Signature::basic_type(fs.signature()) == T_VALUETYPE) {
+        if (!fs.access_flags().is_static()) {
+          // Pre-load inline class
+          Klass* real_k = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
+            class_loader, protection_domain, true, CHECK_NULL);
+          Klass* k = ik->get_inline_type_field_klass_or_null(fs.index());
+          if (real_k != k) {
+            // oops, the app has substituted a different version of k!
+            return NULL;
+          }
+        }
+      }
+    }
+  }
+
   InstanceKlass* new_ik = NULL;
   // CFLH check is skipped for VM hidden or anonymous classes (see KlassFactory::create_from_stream).
   // It will be skipped for shared VM hidden lambda proxy classes.
@@ -1516,6 +1534,13 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
   }
 
   load_shared_class_misc(ik, loader_data, CHECK_NULL);
+
+  if (ik->is_inline_klass()) {
+    ValueKlass* vk = ValueKlass::cast(ik);
+    oop val = ik->allocate_instance(CHECK_NULL);
+    vk->set_default_value(val);
+  }
+
   return ik;
 }
 
@@ -1576,6 +1601,21 @@ void SystemDictionary::quick_resolve(InstanceKlass* klass, ClassLoaderData* load
     InstanceKlass* ik = ifs->at(i);
     if (ik->class_loader_data()  == NULL) {
       quick_resolve(ik, loader_data, domain, CHECK);
+    }
+  }
+
+  if (klass->has_inline_type_fields()) {
+    for (AllFieldStream fs(klass->fields(), klass->constants()); !fs.done(); fs.next()) {
+      if (Signature::basic_type(fs.signature()) == T_VALUETYPE) {
+        if (!fs.access_flags().is_static()) {
+          Klass* real_k = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
+            Handle(THREAD, loader_data->class_loader()), domain, true, CHECK);
+          Klass* k = klass->get_inline_type_field_klass_or_null(fs.index());
+          assert(real_k == k, "oops, the app has substituted a different version of k!");
+        } else {
+          klass->reset_inline_type_field_klass(fs.index());
+        }
+      }
     }
   }
 
