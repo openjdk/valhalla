@@ -2537,7 +2537,7 @@ C2V_VMENTRY_NULL(jobject, asReflectionExecutable, (JNIEnv* env, jobject, jobject
       JVMCI_THROW_MSG_NULL(IllegalArgumentException,
           "Cannot create java.lang.reflect.Method for class initializer");
   }
-  else if (m->is_object_constructor()) {
+  else if (m->is_object_constructor() || m->is_static_init_factory()) {
     executable = Reflection::new_constructor(m, CHECK_NULL);
   } else {
     executable = Reflection::new_method(m, false, CHECK_NULL);

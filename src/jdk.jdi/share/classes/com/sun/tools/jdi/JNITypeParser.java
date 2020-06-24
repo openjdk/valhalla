@@ -142,7 +142,8 @@ public class JNITypeParser {
     boolean isReference() {
         byte tag = jdwpTag();
         return tag == JDWP.Tag.ARRAY ||
-                tag == JDWP.Tag.OBJECT;
+                tag == JDWP.Tag.OBJECT ||
+                tag == JDWP.Tag.INLINE_OBJECT;
     }
 
     boolean isPrimitive() {
