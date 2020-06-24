@@ -195,7 +195,7 @@ check_hidden_class_impl_interf(jvmtiEnv* jvmti, JNIEnv* jni, jclass klass) {
   // check that hidden class implements just one interface
   err = jvmti->GetImplementedInterfaces(klass, &count, &interfaces);
   CHECK_JVMTI_ERROR(jni, err, "check_hidden_class_impl_interf: Error in JVMTI GetImplementedInterfaces");
-  if (count != 1) {
+  if (count != 2) {
     LOG1("check_hidden_class_impl_interf: FAIL: implemented interfaces count: %d, expected to be 1\n", count);
     failed = true;
     return;
