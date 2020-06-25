@@ -2632,16 +2632,21 @@ JvmtiEnv::GetImplementedInterfaces(oop k_mirror, jint* interface_count_ptr, jcla
       return JVMTI_ERROR_NONE;
     }
 
-    Array<InstanceKlass*>* interface_list = InstanceKlass::cast(k)->local_interfaces();
-    const int result_length = (interface_list == NULL ? 0 : interface_list->length());
+    InstanceKlass* ik = InstanceKlass::cast(k);
+    Array<InstanceKlass*>* interface_list = ik->local_interfaces();
+    int result_length = (interface_list == NULL ? 0 : interface_list->length());
+    if (ik->has_injected_identityObject()) result_length--;
     jclass* result_list = (jclass*) jvmtiMalloc(result_length * sizeof(jclass));
+    int cursor = 0;
     for (int i_index = 0; i_index < result_length; i_index += 1) {
       InstanceKlass* klass_at = interface_list->at(i_index);
       assert(klass_at->is_klass(), "interfaces must be Klass*s");
       assert(klass_at->is_interface(), "interfaces must be interfaces");
-      oop mirror_at = klass_at->java_mirror();
-      Handle handle_at = Handle(current_thread, mirror_at);
-      result_list[i_index] = (jclass) jni_reference(handle_at);
+      if (klass_at != SystemDictionary::IdentityObject_klass() || !ik->has_injected_identityObject()) {
+        oop mirror_at = klass_at->java_mirror();
+        Handle handle_at = Handle(current_thread, mirror_at);
+        result_list[cursor++] = (jclass) jni_reference(handle_at);
+      }
     }
     *interface_count_ptr = result_length;
     *interfaces_ptr = result_list;
