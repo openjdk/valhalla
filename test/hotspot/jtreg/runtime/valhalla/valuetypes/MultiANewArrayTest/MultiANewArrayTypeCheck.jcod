@@ -1,0 +1,120 @@
+class MultiANewArrayTypeCheck {
+  0xCAFEBABE;
+  0; // minor version
+  60; // version
+  [] { // Constant Pool
+    ; // first element is empty
+    Method #2 #3; // #1
+    class #4; // #2
+    NameAndType #5 #6; // #3
+    Utf8 "java/lang/Object"; // #4
+    Utf8 "<init>"; // #5
+    Utf8 "()V"; // #6
+    class #8; // #7
+    Utf8 "[[QElement0;"; // #8
+    class #10; // #9
+    Utf8 "[[LElement1;"; // #10
+    class #12; // #11
+    Utf8 "MultiANewArrayTypeCheck"; // #12
+    Utf8 "Code"; // #13
+    Utf8 "LineNumberTable"; // #14
+    Utf8 "createArray0"; // #15
+    Utf8 "createArray1"; // #16
+    Utf8 "SourceFile"; // #17
+    Utf8 "MultiANewArrayTypeCheck.java"; // #18
+  } // Constant Pool
+
+  0x0021; // access
+  #11;// this_cpx
+  #2;// super_cpx
+
+  [] { // Interfaces
+  } // Interfaces
+
+  [] { // Fields
+  } // Fields
+
+  [] { // Methods
+    {  // method
+      0x0001; // access
+      #5; // name_index
+      #6; // descriptor_index
+      [] { // Attributes
+        Attr(#13) { // Code
+          1; // max_stack
+          1; // max_locals
+          Bytes[]{
+            0x2AB70001B1;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#14) { // LineNumberTable
+              [] { // line_number_table
+                0  1;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+    ;
+    {  // method
+      0x0009; // access
+      #15; // name_index
+      #6; // descriptor_index
+      [] { // Attributes
+        Attr(#13) { // Code
+          2; // max_stack
+          1; // max_locals
+          Bytes[]{
+            0x100A100AC5000702;
+            0x4BB1;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#14) { // LineNumberTable
+              [] { // line_number_table
+                0  4;
+                9  5;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+    ;
+    {  // method
+      0x0009; // access
+      #16; // name_index
+      #6; // descriptor_index
+      [] { // Attributes
+        Attr(#13) { // Code
+          2; // max_stack
+          1; // max_locals
+          Bytes[]{
+            0x100A100AC5000902;
+            0x4BB1;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#14) { // LineNumberTable
+              [] { // line_number_table
+                0  8;
+                9  9;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+  } // Methods
+
+  [] { // Attributes
+    Attr(#17) { // SourceFile
+      #18;
+    } // end SourceFile
+  } // Attributes
+} // end class MultiANewArrayTypeCheck
