@@ -28,10 +28,11 @@
  * @run testng StreamTest
  */
 
-import java.util.Arrays;
-import java.util.stream.*;
-
 import org.testng.annotations.Test;
+
+import java.util.Arrays;
+import java.util.stream.Stream;
+
 import static org.testng.Assert.*;
 
 public class StreamTest {
@@ -64,6 +65,14 @@ public class StreamTest {
                 .forEach(System.out::println);
     }
 
+    @Test
+    public void mapToInt() {
+        Stream<Point.ref> stream = Arrays.stream(values)
+                                         .filter(v -> (v.getI() % 2) == 0)
+                                         .map(Value.ref::point);
+        stream.forEach(p -> assertTrue((p.x % 2) == 0));
+    }
+
     static inline class Value {
         int i;
         Point p;
@@ -81,5 +90,7 @@ public class StreamTest {
         Point.ref nullablePoint() {
             return nullable;
         }
+
+        int getI() { return i; }
     }
 }

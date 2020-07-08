@@ -77,7 +77,8 @@ public class Reflection {
         assertFalse(Point.ref.class.isInlineClass());
         assertEquals(inlineClass.valueType().get(), Point.class);
         assertEquals(inlineClass.referenceType().get(), Point.ref.class);
-
+        assertEquals(Point.ref.class.valueType().get(), Point.class);
+        assertEquals(Point.ref.class.referenceType().get(), Point.ref.class);
 
         Point o = Point.makePoint(10, 20);
         assertTrue(Point.class.isInstance(o));

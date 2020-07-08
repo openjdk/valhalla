@@ -366,10 +366,45 @@ import static sun.invoke.util.Wrapper.isWrapperType;
                     return !strict;
                 }
             } else {
-                // both are reference types: fromType should be a superclass of toType.
-                return !strict || toType.isAssignableFrom(fromType);
+                // inline types: fromType and toType are projection types of the same inline class
+                // identity types: fromType should be a superclass of toType.
+                return !strict || canConvert(fromType, toType);
             }
         }
+    }
+
+    /**
+     * Tests if {@code fromType} can be converted to {@code toType}
+     * via an identity conversion, via a widening reference conversion or
+     * via inline narrowing and widening conversions.
+     * <p>
+     * If {@code fromType} represents a class or interface, this method
+     * returns {@code true} if {@code toType} is the same as,
+     * or is a superclass or superinterface of, {@code fromType}.
+     * <p>
+     * If {@code fromType} is an inline class, this method returns {@code true}
+     * if {@code toType} is the {@linkplain Class#referenceType() reference projection type}
+     * of {@code fromType}.
+     * If {@code toType} is an inline class, this method returns {@code true}
+     * if {@code toType} is the {@linkplain Class#valueType() value projection type}
+     * of {@code fromType}.
+     * <p>
+     * Otherwise, this method returns {@code false}.
+     *
+     * @param     fromType the {@code Class} object to be converted from
+     * @param     toType the {@code Class} object to be converted to
+     * @return    {@code true} if {@code fromType} can be converted to {@code toType}
+     */
+    private boolean canConvert(Class<?> fromType, Class<?> toType) {
+        if (toType.isAssignableFrom(fromType)) {
+            return true;
+        }
+
+        if (!fromType.isInlineClass() && !toType.isInlineClass()) {
+            return false;
+        }
+
+        return fromType.valueType().equals(toType.valueType());
     }
 
     /**
