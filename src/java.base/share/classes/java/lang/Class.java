@@ -567,13 +567,16 @@ public final class Class<T> implements java.io.Serializable,
 
     /**
      * Returns a {@code Class} object representing the <em>value projection</em>
-     * type of this class if this {@code Class} is the reference projection type
-     * of an {@linkplain #isInlineClass() inline class}.  Otherwise an empty
-     * {@link Optional} is returned.
+     * type of this class if this {@code Class} represents the reference projection
+     * type of an {@linkplain #isInlineClass() inline class}.
+     * If this {@code Class} represents the value projection type
+     * of an inline class, then this method returns this class.
+     * Otherwise an empty {@link Optional} is returned.
      *
      * @return the {@code Class} object representing the value projection type of
-     *         this class if this class is the reference projection type of an
-     *         inline class; an empty {@link Optional} otherwise
+     *         this class if this class is the value projection type
+     *         or the reference projection type of an inline class;
+     *         an empty {@link Optional} otherwise
      * @since Valhalla
      */
     public Optional<Class<T>> valueType() {
@@ -582,15 +585,18 @@ public final class Class<T> implements java.io.Serializable,
 
     /**
      * Returns a {@code Class} object representing the <em>reference projection</em>
-     * type of this class if this class is an {@linkplain #isInlineClass() inline class}
-     * with a reference projection.
-     * If this class is an {@linkplain #isInlineClass() inline class}
-     * without a reference projection or this class is not an inline class,
+     * type of this class if this {@code Class} represents an
+     * {@linkplain #isInlineClass() inline class} with a reference projection
+     * type. If this {@code Class} represents the reference projection type
+     * of an inline class, then this method returns this class.
+     * If this class is not an {@linkplain #isInlineClass() inline class}
+     * or this class is an inline class without a reference projection,
      * then this method returns an empty {@link Optional}.
      *
      * @return the {@code Class} object representing the value projection type of
-     *         this class if this class is the reference projection type of an
-     *         inline class; an empty {@link Optional} otherwise
+     *         this class if this class is an inline class with a reference
+     *         projection type or this class is the reference projection type;
+     *         an empty {@link Optional} otherwise
      * @since Valhalla
      */
     public Optional<Class<T>> referenceType() {

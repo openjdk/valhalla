@@ -404,16 +404,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
             return false;
         }
 
-        Class<?> valType = fromType.valueType().orElse(null);
-        Class<?> refType = fromType.referenceType().orElse(null);
-        if (fromType.isInlineClass()) {
-            return refType == toType;
-        }
-        if (toType.isInlineClass()) {
-            return valType == toType;
-        }
-
-        return false;
+        return fromType.valueType().equals(toType.valueType());
     }
 
     /**

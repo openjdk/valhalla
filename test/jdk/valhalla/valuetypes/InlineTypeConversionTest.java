@@ -67,12 +67,12 @@ public class InlineTypeConversionTest {
         assertEquals(v, VALUE);
         try {
             Object v1 = mh1.invoke((Object)null);
-            assertTrue(false);
+            fail("Expected NullPointerException but not thrown");
         } catch (NullPointerException e) {}
 
         try {
             Object v2 = mh2.invoke((Object)null);
-            assertTrue(false);
+            fail("Expected NullPointerException but not thrown");
         } catch (NullPointerException e) {}
     }
 
@@ -84,14 +84,14 @@ public class InlineTypeConversionTest {
         assertTrue(v == null);
         try {
             Object v1 = mh.invoke((Object)null);
-            assertTrue(false);
+            fail("Expected NullPointerException but not thrown");
         } catch (NullPointerException e) {
             e.printStackTrace();
         }
         MethodHandle mh2 = mh.asType(methodType(Value.class, Value.ref.class));
         try {
             Value v2 = (Value) mh2.invoke((Value.ref)null);
-            assertTrue(false);
+            fail("Expected NullPointerException but not thrown");
         } catch (NullPointerException e) {
             e.printStackTrace();
         }
@@ -153,7 +153,7 @@ public class InlineTypeConversionTest {
         Point.ref p1 = (Point.ref) mh1.invokeExact(v);
         try {
             Point p2 = (Point) mh2.invokeExact(v);
-            assertFalse(true);
+            fail("Expected NullPointerException but not thrown");
         } catch (NullPointerException e) {}
     }
 }
