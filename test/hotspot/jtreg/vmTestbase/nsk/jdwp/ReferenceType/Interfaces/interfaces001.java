@@ -126,8 +126,7 @@ public class interfaces001 {
                     int interfaces = reply.getInt();
                     log.display("  interfaces: " + interfaces);
 
-                    // Adding one to the number of interfaces because of the injection of IdentityObject by the VM
-                    if (interfaces != DECLARED_INTERFACES + 1) {
+                    if (interfaces != DECLARED_INTERFACES) {
                         log.complain("Unexpected number of declared interfaces in the reply packet:" + interfaces
                                     + " (expected: " + DECLARED_INTERFACES + ")");
                         success = false;

@@ -961,11 +961,16 @@ JvmtiEnvBase::get_object_monitor_usage(JavaThread* calling_thread, jobject objec
   uint32_t debug_bits = 0;
   // first derive the object's owner and entry_count (if any)
   {
-    // Revoke any biases before querying the mark word
-    if (at_safepoint) {
-      BiasedLocking::revoke_at_safepoint(hobj);
-    } else {
-      BiasedLocking::revoke(hobj, calling_thread);
+    // Inline types instances don't support synchronization operations
+    // they are marked as always locked and no attempt to remove a
+    // potential bias (which cannot exist) should be made
+    if (!hobj()->mark().is_always_locked()) {
+      // Revoke any biases before querying the mark word
+      if (at_safepoint) {
+        BiasedLocking::revoke_at_safepoint(hobj);
+      } else {
+        BiasedLocking::revoke(hobj, calling_thread);
+      }
     }
 
     address owner = NULL;
