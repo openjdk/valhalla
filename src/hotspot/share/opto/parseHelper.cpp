@@ -382,7 +382,7 @@ void Parse::do_withfield() {
 
   // Clone the value type node and set the new field value
   ValueTypeNode* new_vt = holder->clone()->as_ValueType();
-  new_vt->set_oop(_gvn.zerocon(T_VALUETYPE));
+  new_vt->set_oop(_gvn.zerocon(T_INLINE_TYPE));
   gvn().set_type(new_vt, new_vt->bottom_type());
   new_vt->set_field_value_by_offset(field->offset(), val);
   Node* res = new_vt;

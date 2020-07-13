@@ -108,7 +108,7 @@ int ValueKlass::raw_value_byte_size() {
       BasicType type = Signature::basic_type(fs.signature());
       if (is_java_primitive(type)) {
         last_tsz = type2aelembytes(type);
-      } else if (type == T_VALUETYPE) {
+      } else if (type == T_INLINE_TYPE) {
         // Not just primitives. Layout aligns embedded value, so use jlong aligned it is
         return heapOopAlignedSize;
       } else {
@@ -278,20 +278,20 @@ void ValueKlass::array_klasses_do(void f(Klass* k)) {
 // sorted in order of increasing offsets: the adapters and the
 // compiled code need to agree upon the order of fields.
 //
-// The list of basic types that is returned starts with a T_VALUETYPE
-// and ends with an extra T_VOID. T_VALUETYPE/T_VOID pairs are used as
+// The list of basic types that is returned starts with a T_INLINE_TYPE
+// and ends with an extra T_VOID. T_INLINE_TYPE/T_VOID pairs are used as
 // delimiters. Every entry between the two is a field of the value
 // type. If there's an embedded inline type in the list, it also starts
-// with a T_VALUETYPE and ends with a T_VOID. This is so we can
+// with a T_INLINE_TYPE and ends with a T_VOID. This is so we can
 // generate a unique fingerprint for the method's adapters and we can
 // generate the list of basic types from the interpreter point of view
 // (value types passed as reference: iterate on the list until a
-// T_VALUETYPE, drop everything until and including the closing
+// T_INLINE_TYPE, drop everything until and including the closing
 // T_VOID) or the compiler point of view (each field of the value
-// types is an argument: drop all T_VALUETYPE/T_VOID from the list).
+// types is an argument: drop all T_INLINE_TYPE/T_VOID from the list).
 int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   int count = 0;
-  SigEntry::add_entry(sig, T_VALUETYPE, base_off);
+  SigEntry::add_entry(sig, T_INLINE_TYPE, base_off);
   for (AllFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
@@ -301,7 +301,7 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
       count += ValueKlass::cast(vk)->collect_fields(sig, offset);
     } else {
       BasicType bt = Signature::basic_type(fs.signature());
-      if (bt == T_VALUETYPE) {
+      if (bt == T_INLINE_TYPE) {
         bt = T_OBJECT;
       }
       SigEntry::add_entry(sig, bt, offset);
@@ -313,7 +313,7 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   if (base_off == 0) {
     sig->sort(SigEntry::compare);
   }
-  assert(sig->at(0)._bt == T_VALUETYPE && sig->at(sig->length()-1)._bt == T_VOID, "broken structure");
+  assert(sig->at(0)._bt == T_INLINE_TYPE && sig->at(sig->length()-1)._bt == T_VOID, "broken structure");
   return count;
 }
 
@@ -418,7 +418,7 @@ void ValueKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Handl
       assert(Universe::heap()->is_in_or_null(v), "must be heap pointer");
       handles.push(Handle(thread, v));
     }
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       continue;
     }
     if (bt == T_VOID &&
@@ -446,7 +446,7 @@ void ValueKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle>
       address loc = reg_map.location(pair.first());
       *(oop*)loc = handles.at(k++)();
     }
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       continue;
     }
     if (bt == T_VOID &&
@@ -470,7 +470,7 @@ oop ValueKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<H
   int k = 0;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       continue;
     }
     if (bt == T_VOID) {

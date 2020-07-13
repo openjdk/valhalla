@@ -802,7 +802,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
       elem_type = klass->as_array_klass()->element_type();
       basic_elem_type = elem_type->basic_type();
       if (elem_type->is_valuetype() && !klass->is_value_array_klass()) {
-        assert(basic_elem_type == T_VALUETYPE, "unexpected element basic type");
+        assert(basic_elem_type == T_INLINE_TYPE, "unexpected element basic type");
         basic_elem_type = T_OBJECT;
       }
       array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
@@ -1048,7 +1048,7 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
       } else if (use->is_ValueType()) {
         assert(use->isa_ValueType()->get_oop() == res, "unexpected value type use");
          _igvn.rehash_node_delayed(use);
-        use->isa_ValueType()->set_oop(_igvn.zerocon(T_VALUETYPE));
+        use->isa_ValueType()->set_oop(_igvn.zerocon(T_INLINE_TYPE));
       } else if (use->is_Store()) {
         _igvn.replace_node(use, use->in(MemNode::Memory));
       } else {

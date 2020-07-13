@@ -174,7 +174,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
       assert(type != NULL, "field singleton type must be consistent");
     } else {
       type = TypeOopPtr::make_from_klass(field_klass->as_klass());
-      if (bt == T_VALUETYPE && field->is_static() && flattenable) {
+      if (bt == T_INLINE_TYPE && field->is_static() && flattenable) {
         // Check if static value type field is already initialized
         assert(!flattened, "static fields should not be flattened");
         ciInstance* mirror = field->holder()->java_mirror();

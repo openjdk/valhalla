@@ -4713,7 +4713,7 @@ void MacroAssembler::data_for_value_array_index(Register array, Register array_k
   andl(rcx, Klass::_lh_log2_element_size_mask);
   shlptr(index); // index << rcx
 
-  lea(data, Address(array, index, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_VALUETYPE)));
+  lea(data, Address(array, index, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE)));
 }
 
 void MacroAssembler::resolve(DecoratorSet decorators, Register obj) {
@@ -5360,7 +5360,7 @@ bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int
   do {
     sig_index--;
     BasicType bt = sig->at(sig_index)._bt;
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       vt--;
     } else if (bt == T_VOID &&
                sig->at(sig_index-1)._bt != T_LONG &&
@@ -5434,7 +5434,7 @@ bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int
 bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
                                        VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
                                        int ret_off, int extra_stack_offset) {
-  assert(sig->at(sig_index)._bt == T_VALUETYPE, "should be at end delimiter");
+  assert(sig->at(sig_index)._bt == T_INLINE_TYPE, "should be at end delimiter");
   assert(to->is_valid(), "must be");
 
   if (reg_state[to->value()] == reg_written) {
@@ -5458,7 +5458,7 @@ bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& 
     val_obj = val_obj_tmp;
   }
 
-  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_VALUETYPE);
+  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_INLINE_TYPE);
   load_heap_oop(val_obj, Address(val_array, index));
 
   ScalarizedValueArgsStream stream(sig, sig_index, regs_from, regs_from_count, from_index);

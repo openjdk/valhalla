@@ -93,7 +93,7 @@ LIR_Address::Scale LIR_Address::scale(BasicType type) {
 char LIR_OprDesc::type_char(BasicType t) {
   switch (t) {
     case T_ARRAY:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
       t = T_OBJECT;
     case T_BOOLEAN:
     case T_CHAR:
@@ -152,7 +152,7 @@ void LIR_OprDesc::validate_type() const {
     case T_OBJECT:
     case T_METADATA:
     case T_ARRAY:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
       assert((kindfield == cpu_register || kindfield == stack_value) &&
              size_field() == single_size, "must match");
       break;
@@ -1059,7 +1059,7 @@ bool LIR_OpJavaCall::maybe_return_as_fields(ciValueKlass** vk_ret) const {
       }
     } else if (is_method_handle_invoke()) {
       BasicType bt = method()->return_type()->basic_type();
-      if (bt == T_OBJECT || bt == T_VALUETYPE) {
+      if (bt == T_OBJECT || bt == T_INLINE_TYPE) {
         // A value type might be returned from the call but we don't know its
         // type. Either we get a buffered value (and nothing needs to be done)
         // or one of the values being returned is the klass of the value type

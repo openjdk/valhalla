@@ -214,13 +214,13 @@ VerificationType VerificationType::get_component(ClassVerifier *context, TRAPS) 
     case T_DOUBLE:  return VerificationType(Double);
     case T_ARRAY:
     case T_OBJECT:
-    case T_VALUETYPE: {
+    case T_INLINE_TYPE: {
       guarantee(ss.is_reference(), "unchecked verifier input?");
       Symbol* component = ss.as_symbol();
       // Create another symbol to save as signature stream unreferences this symbol.
       Symbol* component_copy = context->create_temporary_symbol(component);
       assert(component_copy == component, "symbols don't match");
-      return (ss.type() == T_VALUETYPE) ?
+      return (ss.type() == T_INLINE_TYPE) ?
         VerificationType::inline_type(component_copy) :
         VerificationType::reference_type(component_copy);
    }
