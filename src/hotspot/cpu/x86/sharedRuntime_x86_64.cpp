@@ -494,7 +494,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     case T_OBJECT:
     case T_ARRAY:
     case T_ADDRESS:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
       if (int_args < Argument::n_int_register_parameters_j) {
         regs[i].set2(INT_ArgReg[int_args++]->as_VMReg());
       } else {
@@ -573,7 +573,7 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt,
       assert(sig_bt[i + 1] == T_VOID, "expecting half");
       // fall through
     case T_OBJECT:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
     case T_ARRAY:
     case T_ADDRESS:
     case T_METADATA:
@@ -663,23 +663,23 @@ static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_exte
       BasicType bt = sig_extended->at(i)._bt;
       if (SigEntry::is_reserved_entry(sig_extended, i)) {
         // Ignore reserved entry
-      } else if (bt == T_VALUETYPE) {
+      } else if (bt == T_INLINE_TYPE) {
         // In sig_extended, a value type argument starts with:
-        // T_VALUETYPE, followed by the types of the fields of the
+        // T_INLINE_TYPE, followed by the types of the fields of the
         // value type and T_VOID to mark the end of the value
         // type. Value types are flattened so, for instance, in the
         // case of a value type with an int field and a value type
         // field that itself has 2 fields, an int and a long:
-        // T_VALUETYPE T_INT T_VALUETYPE T_INT T_LONG T_VOID (second
-        // slot for the T_LONG) T_VOID (inner T_VALUETYPE) T_VOID
-        // (outer T_VALUETYPE)
+        // T_INLINE_TYPE T_INT T_INLINE_TYPE T_INT T_LONG T_VOID (second
+        // slot for the T_LONG) T_VOID (inner T_INLINE_TYPE) T_VOID
+        // (outer T_INLINE_TYPE)
         total_args_passed++;
         int vt = 1;
         do {
           i++;
           BasicType bt = sig_extended->at(i)._bt;
           BasicType prev_bt = sig_extended->at(i-1)._bt;
-          if (bt == T_VALUETYPE) {
+          if (bt == T_INLINE_TYPE) {
             vt++;
           } else if (bt == T_VOID &&
                      prev_bt != T_LONG &&
@@ -706,7 +706,7 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
                                    const Address& to,
                                    int extraspace,
                                    bool is_oop) {
-  assert(bt != T_VALUETYPE || !InlineTypePassFieldsAsArgs, "no inline type here");
+  assert(bt != T_INLINE_TYPE || !InlineTypePassFieldsAsArgs, "no inline type here");
   if (bt == T_VOID) {
     assert(prev_bt == T_LONG || prev_bt == T_DOUBLE, "missing half");
     return;
@@ -783,7 +783,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     // Is there an inline type argument?
     bool has_value_argument = false;
     for (int i = 0; i < sig_extended->length() && !has_value_argument; i++) {
-      has_value_argument = (sig_extended->at(i)._bt == T_VALUETYPE);
+      has_value_argument = (sig_extended->at(i)._bt == T_INLINE_TYPE);
     }
     if (has_value_argument) {
       // There is at least a value type argument: we're coming from
@@ -846,10 +846,10 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   // next_arg_comp is the next argument from the compiler point of
   // view (value type fields are passed in registers/on the stack). In
-  // sig_extended, a value type argument starts with: T_VALUETYPE,
+  // sig_extended, a value type argument starts with: T_INLINE_TYPE,
   // followed by the types of the fields of the value type and T_VOID
   // to mark the end of the value type. ignored counts the number of
-  // T_VALUETYPE/T_VOID. next_vt_arg is the next value type argument:
+  // T_INLINE_TYPE/T_VOID. next_vt_arg is the next value type argument:
   // used to get the buffer for that argument from the pool of buffers
   // we allocated above and want to pass to the
   // interpreter. next_arg_int is the next argument from the
@@ -860,7 +860,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     assert(next_arg_int <= total_args_passed, "more arguments for the interpreter than expected?");
     BasicType bt = sig_extended->at(next_arg_comp)._bt;
     int st_off = (total_args_passed - next_arg_int) * Interpreter::stackElementSize;
-    if (!InlineTypePassFieldsAsArgs || bt != T_VALUETYPE) {
+    if (!InlineTypePassFieldsAsArgs || bt != T_INLINE_TYPE) {
       if (SigEntry::is_reserved_entry(sig_extended, next_arg_comp)) {
         continue; // Ignore reserved entry
       }
@@ -881,7 +881,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     } else {
       ignored++;
       // get the buffer from the just allocated pool of buffers
-      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_VALUETYPE);
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_INLINE_TYPE);
       __ load_heap_oop(r14, Address(rscratch2, index));
       next_vt_arg++; next_arg_int++;
       int vt = 1;
@@ -895,7 +895,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
         next_arg_comp++;
         BasicType bt = sig_extended->at(next_arg_comp)._bt;
         BasicType prev_bt = sig_extended->at(next_arg_comp-1)._bt;
-        if (bt == T_VALUETYPE) {
+        if (bt == T_INLINE_TYPE) {
           vt++;
           ignored++;
         } else if (bt == T_VOID &&
@@ -1051,7 +1051,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   // rest through the floating point stack top.
   for (int i = 0; i < total_args_passed; i++) {
     BasicType bt = sig->at(i)._bt;
-    assert(bt != T_VALUETYPE, "i2c adapter doesn't unpack value args");
+    assert(bt != T_INLINE_TYPE, "i2c adapter doesn't unpack value args");
     if (bt == T_VOID) {
       // Longs and doubles are passed in native word order, but misaligned
       // in the 32-bit build.
@@ -1322,7 +1322,7 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
         // fall through
       case T_OBJECT:
       case T_ARRAY:
-      case T_VALUETYPE:
+      case T_INLINE_TYPE:
       case T_ADDRESS:
       case T_METADATA:
         if (int_args < Argument::n_int_register_parameters_c) {
@@ -1707,7 +1707,7 @@ static void save_or_restore_arguments(MacroAssembler* masm,
           // handled above
           break;
         case T_OBJECT:
-        case T_VALUETYPE:
+        case T_INLINE_TYPE:
         default: ShouldNotReachHere();
       }
     } else if (in_regs[i].first()->is_XMMRegister()) {
@@ -2621,7 +2621,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 #endif
           break;
         }
-      case T_VALUETYPE:
+      case T_INLINE_TYPE:
       case T_OBJECT:
         assert(!is_critical_native, "no oop arguments");
         object_move(masm, map, oop_handle_offset, stack_slots, in_regs[i], out_regs[c_arg],
@@ -2822,7 +2822,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Result is in xmm0 we'll save as needed
     break;
   case T_ARRAY:                 // Really a handle
-  case T_VALUETYPE:             // Really a handle
+  case T_INLINE_TYPE:           // Really a handle
   case T_OBJECT:                // Really a handle
       break; // can't de-handlize until after safepoint check
   case T_VOID: break;
@@ -4349,7 +4349,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       continue;
     }
     if (bt == T_VOID) {
@@ -4389,7 +4389,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       continue;
     }
     if (bt == T_VOID) {

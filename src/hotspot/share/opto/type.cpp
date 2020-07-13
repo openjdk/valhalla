@@ -128,7 +128,7 @@ const Type::TypeInfo Type::_type_info[Type::lastype] = {
   { Bad,             T_ILLEGAL,    "vectory:",      false, Op_VecY,              relocInfo::none          },  // VectorY
   { Bad,             T_ILLEGAL,    "vectorz:",      false, Op_VecZ,              relocInfo::none          },  // VectorZ
 #endif
-  { Bad,             T_VALUETYPE,  "value:",        false, Node::NotAMachineReg, relocInfo::none          },  // ValueType
+  { Bad,             T_INLINE_TYPE, "value:",       false, Node::NotAMachineReg, relocInfo::none          },  // ValueType
   { Bad,             T_ADDRESS,    "anyptr:",       false, Op_RegP,              relocInfo::none          },  // AnyPtr
   { Bad,             T_ADDRESS,    "rawptr:",       false, Op_RegP,              relocInfo::none          },  // RawPtr
   { Bad,             T_OBJECT,     "oop:",          true,  Op_RegP,              relocInfo::oop_type      },  // OopPtr
@@ -259,7 +259,7 @@ const Type* Type::get_typeflow_type(ciType* type) {
     assert(type->is_return_address(), "");
     return TypeRawPtr::make((address)(intptr_t)type->as_return_address()->bci());
 
-  case T_VALUETYPE: {
+  case T_INLINE_TYPE: {
     bool is_never_null = type->is_never_null();
     ciValueKlass* vk = type->unwrap()->as_value_klass();
     if (vk->is_scalarizable() && is_never_null) {
@@ -297,7 +297,7 @@ const Type* Type::make_from_constant(ciConstant constant, bool require_constant,
     case T_FLOAT:    return TypeF::make(constant.as_float());
     case T_DOUBLE:   return TypeD::make(constant.as_double());
     case T_ARRAY:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
     case T_OBJECT: {
         const Type* con_type = NULL;
         ciObject* oop_constant = constant.as_object();
@@ -335,14 +335,14 @@ static ciConstant check_mismatched_access(ciConstant con, BasicType loadbt, bool
   switch (conbt) {
     case T_BOOLEAN: conbt = T_BYTE;   break;
     case T_ARRAY:   conbt = T_OBJECT; break;
-    case T_VALUETYPE: conbt = T_OBJECT; break;
+    case T_INLINE_TYPE: conbt = T_OBJECT; break;
     default:                          break;
   }
   switch (loadbt) {
     case T_BOOLEAN:   loadbt = T_BYTE;   break;
     case T_NARROWOOP: loadbt = T_OBJECT; break;
     case T_ARRAY:     loadbt = T_OBJECT; break;
-    case T_VALUETYPE: loadbt = T_OBJECT; break;
+    case T_INLINE_TYPE: loadbt = T_OBJECT; break;
     case T_ADDRESS:   loadbt = T_OBJECT; break;
     default:                             break;
   }
@@ -639,7 +639,7 @@ void Type::Initialize_shared(Compile* current) {
   // Nobody should ask _array_body_type[T_NARROWOOP]. Use NULL as assert.
   TypeAryPtr::_array_body_type[T_NARROWOOP] = NULL;
   TypeAryPtr::_array_body_type[T_OBJECT]  = TypeAryPtr::OOPS;
-  TypeAryPtr::_array_body_type[T_VALUETYPE] = TypeAryPtr::OOPS;
+  TypeAryPtr::_array_body_type[T_INLINE_TYPE] = TypeAryPtr::OOPS;
   TypeAryPtr::_array_body_type[T_ARRAY]   = TypeAryPtr::OOPS; // arrays are stored in oop arrays
   TypeAryPtr::_array_body_type[T_BYTE]    = TypeAryPtr::BYTES;
   TypeAryPtr::_array_body_type[T_BOOLEAN] = TypeAryPtr::BYTES;  // boolean[] is a byte array
@@ -690,7 +690,7 @@ void Type::Initialize_shared(Compile* current) {
   _const_basic_type[T_DOUBLE]      = Type::DOUBLE;
   _const_basic_type[T_OBJECT]      = TypeInstPtr::BOTTOM;
   _const_basic_type[T_ARRAY]       = TypeInstPtr::BOTTOM; // there is no separate bottom for arrays
-  _const_basic_type[T_VALUETYPE]   = TypeInstPtr::BOTTOM;
+  _const_basic_type[T_INLINE_TYPE] = TypeInstPtr::BOTTOM;
   _const_basic_type[T_VOID]        = TypePtr::NULL_PTR;   // reflection represents void this way
   _const_basic_type[T_ADDRESS]     = TypeRawPtr::BOTTOM;  // both interpreter return addresses & random raw ptrs
   _const_basic_type[T_CONFLICT]    = Type::BOTTOM;        // why not?
@@ -707,7 +707,7 @@ void Type::Initialize_shared(Compile* current) {
   _zero_type[T_DOUBLE]      = TypeD::ZERO;
   _zero_type[T_OBJECT]      = TypePtr::NULL_PTR;
   _zero_type[T_ARRAY]       = TypePtr::NULL_PTR; // null array is null oop
-  _zero_type[T_VALUETYPE]   = TypePtr::NULL_PTR;
+  _zero_type[T_INLINE_TYPE] = TypePtr::NULL_PTR;
   _zero_type[T_ADDRESS]     = TypePtr::NULL_PTR; // raw pointers use the same null
   _zero_type[T_VOID]        = Type::TOP;         // the only void value is no value at all
 
@@ -2001,7 +2001,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
   case T_INT:
     field_array[TypeFunc::Parms] = get_const_type(return_type);
     break;
-  case T_VALUETYPE:
+  case T_INLINE_TYPE:
     if (ret_vt_fields) {
       uint pos = TypeFunc::Parms;
       field_array[pos] = TypePtr::BOTTOM;
@@ -2074,7 +2074,7 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
     case T_SHORT:
       field_array[pos++] = TypeInt::INT;
       break;
-    case T_VALUETYPE: {
+    case T_INLINE_TYPE: {
       bool never_null = sig->is_never_null_at(i);
       if (vt_fields_as_args && type->as_value_klass()->can_be_passed_as_fields() && never_null) {
         is_flattened = true;
@@ -3256,7 +3256,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offse
         ciField* field = vk->get_field_by_offset(foffset, false);
         assert(field != NULL, "missing field");
         BasicType bt = field->layout_type();
-        _is_ptr_to_narrowoop = (bt == T_OBJECT || bt == T_ARRAY || T_VALUETYPE);
+        _is_ptr_to_narrowoop = (bt == T_OBJECT || bt == T_ARRAY || T_INLINE_TYPE);
       }
     } else if (klass()->is_instance_klass()) {
       if (this->isa_klassptr()) {
@@ -3280,7 +3280,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offse
           BasicType basic_elem_type;
           if (ik->is_valuetype() && this->offset() == ik->as_value_klass()->default_value_offset()) {
             // Special hidden field that contains the oop of the default value type
-            basic_elem_type = T_VALUETYPE;
+            basic_elem_type = T_INLINE_TYPE;
           } else {
             ciField* field = ik->get_field_by_offset(this->offset(), true);
             assert(field != NULL, "missing field");

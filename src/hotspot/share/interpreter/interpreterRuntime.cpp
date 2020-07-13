@@ -290,7 +290,7 @@ void copy_primitive_argument(intptr_t* addr, Handle instance, int offset, BasicT
     break;
   case T_OBJECT:
   case T_ARRAY:
-  case T_VALUETYPE:
+  case T_INLINE_TYPE:
     fatal("Should not be handled with this method");
     break;
   default:
@@ -351,7 +351,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
     oop aoop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
     assert(aoop == NULL || oopDesc::is_oop(aoop),"argument must be a reference type");
     new_value_h()->obj_field_put(field_offset, aoop);
-  } else if (field_type == T_VALUETYPE) {
+  } else if (field_type == T_INLINE_TYPE) {
     if (cp_entry->is_inlined()) {
       oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
       assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_inline_type(),"argument must be an inline type");
@@ -366,7 +366,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
       assert(voop == NULL || oopDesc::is_oop(voop),"checking argument");
       new_value_h()->obj_field_put(field_offset, voop);
     }
-  } else { // not T_OBJECT nor T_ARRAY nor T_VALUETYPE
+  } else { // not T_OBJECT nor T_ARRAY nor T_INLINE_TYPE
     intptr_t* addr = f.interpreter_frame_expression_stack_at(tos_idx);
     copy_primitive_argument(addr, new_value_h, field_offset, field_type);
   }

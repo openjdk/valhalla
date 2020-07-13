@@ -274,7 +274,7 @@ class SignatureTypeNames : public SignatureIterator {
     case T_VOID:    type_name("void"    ); break;
     case T_ARRAY:
     case T_OBJECT:
-    case T_VALUETYPE:  type_name("jobject" ); break;
+    case T_INLINE_TYPE:  type_name("jobject" ); break;
     default: ShouldNotReachHere();
     }
   }
@@ -408,7 +408,7 @@ class NativeSignatureIterator: public SignatureIterator {
     }
     case T_ARRAY:
     case T_OBJECT:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
       pass_object(); _jni_offset++; _offset++;
       break;
     default:
@@ -596,16 +596,16 @@ class SigEntry {
     }
     assert((e1->_bt == T_LONG && (e2->_bt == T_LONG || e2->_bt == T_VOID)) ||
            (e1->_bt == T_DOUBLE && (e2->_bt == T_DOUBLE || e2->_bt == T_VOID)) ||
-           e1->_bt == T_VALUETYPE || e2->_bt == T_VALUETYPE || e1->_bt == T_VOID || e2->_bt == T_VOID, "bad bt");
+           e1->_bt == T_INLINE_TYPE || e2->_bt == T_INLINE_TYPE || e1->_bt == T_VOID || e2->_bt == T_VOID, "bad bt");
     if (e1->_bt == e2->_bt) {
-      assert(e1->_bt == T_VALUETYPE || e1->_bt == T_VOID, "only ones with duplicate offsets");
+      assert(e1->_bt == T_INLINE_TYPE || e1->_bt == T_VOID, "only ones with duplicate offsets");
       return 0;
     }
     if (e1->_bt == T_VOID ||
-        e2->_bt == T_VALUETYPE) {
+        e2->_bt == T_INLINE_TYPE) {
       return 1;
     }
-    if (e1->_bt == T_VALUETYPE ||
+    if (e1->_bt == T_INLINE_TYPE ||
         e2->_bt == T_VOID) {
       return -1;
     }
@@ -624,7 +624,7 @@ class SigEntry {
 
 class SigEntryFilter {
 public:
-  bool operator()(const SigEntry& entry) { return entry._bt != T_VALUETYPE && entry._bt != T_VOID; }
+  bool operator()(const SigEntry& entry) { return entry._bt != T_INLINE_TYPE && entry._bt != T_VOID; }
 };
 
 // Specialized SignatureStream: used for invoking SystemDictionary to either find

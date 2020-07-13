@@ -528,7 +528,7 @@ private:
   const int index() { return _index; }
   const InstanceKlass* holder() { return _holder; }
   const AccessFlags& access_flags() { return _access_flags; }
-  const bool is_inline_type() { return Signature::basic_type(_signature) == T_VALUETYPE; }
+  const bool is_inline_type() { return Signature::basic_type(_signature) == T_INLINE_TYPE; }
 };
 
 static int compare_offset(FieldDesc* f1, FieldDesc* f2) {

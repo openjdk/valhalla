@@ -52,7 +52,7 @@ protected:
   };
 
   ciValueKlass(ciSymbol* name, jobject loader, jobject protection_domain) :
-    ciInstanceKlass(name, loader, protection_domain, T_VALUETYPE) {}
+    ciInstanceKlass(name, loader, protection_domain, T_INLINE_TYPE) {}
 
   int compute_nonstatic_fields();
   const char* type_string() { return "ciValueKlass"; }

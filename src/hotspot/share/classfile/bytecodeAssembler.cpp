@@ -186,7 +186,7 @@ void BytecodeAssembler::load(BasicType bt, u4 index) {
     case T_FLOAT:   fload(index); break;
     case T_DOUBLE:  dload(index); break;
     case T_LONG:    lload(index); break;
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
     default:
       if (is_reference_type(bt)) {
                     aload(index);
@@ -256,7 +256,7 @@ void BytecodeAssembler::_return(BasicType bt) {
     case T_FLOAT:   freturn(); break;
     case T_DOUBLE:  dreturn(); break;
     case T_LONG:    lreturn(); break;
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
     case T_VOID:    _return(); break;
     default:
       if (is_reference_type(bt)) {

@@ -304,7 +304,7 @@ class StubGenerator: public StubCodeGenerator {
     return_address = __ pc();
 
     // store result depending on type (everything that is not
-    // T_OBJECT, T_VALUETYPE, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
+    // T_OBJECT, T_INLINE_TYPE, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
     // n.b. this assumes Java returns an integral result in r0
     // and a floating result in j_farg0
     __ ldr(j_rarg2, result);
@@ -312,7 +312,7 @@ class StubGenerator: public StubCodeGenerator {
     __ ldr(j_rarg1, result_type);
     __ cmp(j_rarg1, (u1)T_OBJECT);
     __ br(Assembler::EQ, is_long);
-    __ cmp(j_rarg1, (u1)T_VALUETYPE);
+    __ cmp(j_rarg1, (u1)T_INLINE_TYPE);
     __ br(Assembler::EQ, is_value);
     __ cmp(j_rarg1, (u1)T_LONG);
     __ br(Assembler::EQ, is_long);

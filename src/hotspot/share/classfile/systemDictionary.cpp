@@ -1088,7 +1088,7 @@ Klass* SystemDictionary::find_instance_or_array_klass(Symbol* class_name,
     SignatureStream ss(class_name, false);
     int ndims = ss.skip_array_prefix();  // skip all '['s
     BasicType t = ss.type();
-    if (t != T_OBJECT && t != T_VALUETYPE) {
+    if (t != T_OBJECT && t != T_INLINE_TYPE) {
       k = Universe::typeArrayKlassObj(t);
     } else {
       k = SystemDictionary::find(ss.as_symbol(), class_loader, protection_domain, THREAD);
@@ -1487,7 +1487,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
 
   if (ik->has_inline_type_fields()) {
     for (AllFieldStream fs(ik->fields(), ik->constants()); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_VALUETYPE) {
+      if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE) {
         if (!fs.access_flags().is_static()) {
           // Pre-load inline class
           Klass* real_k = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
@@ -1610,7 +1610,7 @@ void SystemDictionary::quick_resolve(InstanceKlass* klass, ClassLoaderData* load
 
   if (klass->has_inline_type_fields()) {
     for (AllFieldStream fs(klass->fields(), klass->constants()); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_VALUETYPE) {
+      if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE) {
         if (!fs.access_flags().is_static()) {
           Klass* real_k = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
             Handle(THREAD, loader_data->class_loader()), domain, true, CHECK);
@@ -2438,7 +2438,7 @@ Klass* SystemDictionary::find_constrained_instance_or_array_klass(
     SignatureStream ss(class_name, false);
     int ndims = ss.skip_array_prefix();  // skip all '['s
     BasicType t = ss.type();
-    if (t != T_OBJECT && t != T_VALUETYPE) {
+    if (t != T_OBJECT && t != T_INLINE_TYPE) {
       klass = Universe::typeArrayKlassObj(t);
     } else {
       MutexLocker mu(THREAD, SystemDictionary_lock);

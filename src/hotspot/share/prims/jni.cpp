@@ -896,7 +896,7 @@ class JNI_ArgumentPusherVaArg : public JNI_ArgumentPusher {
 
     case T_ARRAY:
     case T_OBJECT:
-    case T_VALUETYPE:   push_object(va_arg(_ap, jobject)); break;
+    case T_INLINE_TYPE: push_object(va_arg(_ap, jobject)); break;
     default:            ShouldNotReachHere();
     }
   }
@@ -933,7 +933,7 @@ class JNI_ArgumentPusherArray : public JNI_ArgumentPusher {
     case T_DOUBLE:      push_double((_ap++)->d); break;
     case T_ARRAY:
     case T_OBJECT:
-    case T_VALUETYPE:   push_object((_ap++)->l); break;
+    case T_INLINE_TYPE: push_object((_ap++)->l); break;
     default:            ShouldNotReachHere();
     }
   }
@@ -1087,7 +1087,7 @@ JNI_ENTRY(jobject, jni_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
     JNI_ArgumentPusherArray ap(methodID, args);
     jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
   } else {
-    JavaValue jvalue(T_VALUETYPE);
+    JavaValue jvalue(T_INLINE_TYPE);
     JNI_ArgumentPusherArray ap(methodID, args);
     jni_invoke_static(env, &jvalue, NULL, JNI_STATIC, methodID, &ap, CHECK_NULL);
     obj = jvalue.get_jobject();
@@ -1121,7 +1121,7 @@ JNI_ENTRY(jobject, jni_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
     JNI_ArgumentPusherVaArg ap(methodID, args);
     jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
   } else {
-    JavaValue jvalue(T_VALUETYPE);
+    JavaValue jvalue(T_INLINE_TYPE);
     JNI_ArgumentPusherVaArg ap(methodID, args);
     jni_invoke_static(env, &jvalue, NULL, JNI_STATIC, methodID, &ap, CHECK_NULL);
     obj = jvalue.get_jobject();
@@ -1160,7 +1160,7 @@ JNI_ENTRY(jobject, jni_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, 
   } else {
     va_list args;
     va_start(args, methodID);
-    JavaValue jvalue(T_VALUETYPE);
+    JavaValue jvalue(T_INLINE_TYPE);
     JNI_ArgumentPusherVaArg ap(methodID, args);
     jni_invoke_static(env, &jvalue, NULL, JNI_STATIC, methodID, &ap, CHECK_NULL);
     va_end(args);

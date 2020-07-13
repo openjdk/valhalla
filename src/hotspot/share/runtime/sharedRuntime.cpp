@@ -2372,9 +2372,9 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
         }
       }
 
-      case T_VALUETYPE: {
+      case T_INLINE_TYPE: {
         // If inline types are passed as fields, return 'in' to differentiate
-        // between a T_VALUETYPE and a T_OBJECT in the signature.
+        // between a T_INLINE_TYPE and a T_OBJECT in the signature.
         return InlineTypePassFieldsAsArgs ? in : adapter_encoding(T_OBJECT, false);
       }
 
@@ -2431,7 +2431,7 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
         int bt = 0;
         if (sig_index < total_args_passed) {
           BasicType sbt = sig->at(sig_index++)._bt;
-          if (InlineTypePassFieldsAsArgs && sbt == T_VALUETYPE) {
+          if (InlineTypePassFieldsAsArgs && sbt == T_INLINE_TYPE) {
             // Found start of inline type in signature
             vt_count++;
             if (sig_index == 1 && has_ro_adapter) {
@@ -2756,7 +2756,7 @@ int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_
   }
   Thread* THREAD = Thread::current();
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
-    if (ss.type() == T_VALUETYPE) {
+    if (ss.type() == T_INLINE_TYPE) {
       ValueKlass* vk = ss.as_value_klass(holder);
       if (vk->can_be_passed_as_fields()) {
         sig_cc->appendAll(vk->extended_sig());
@@ -2843,7 +2843,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
   }
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
     BasicType bt = ss.type();
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       if (ss.as_value_klass(_method->method_holder())->can_be_passed_as_fields()) {
         _num_value_args++;
       }
@@ -3603,7 +3603,7 @@ oop SharedRuntime::allocate_value_types_impl(JavaThread* thread, methodHandle ca
     nb_slots++;
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
-    if (ss.type() == T_VALUETYPE) {
+    if (ss.type() == T_INLINE_TYPE) {
       nb_slots++;
     }
   }
@@ -3617,7 +3617,7 @@ oop SharedRuntime::allocate_value_types_impl(JavaThread* thread, methodHandle ca
     i++;
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
-    if (ss.type() == T_VALUETYPE) {
+    if (ss.type() == T_INLINE_TYPE) {
       ValueKlass* vk = ss.as_value_klass(holder);
       oop res = vk->allocate_instance(CHECK_NULL);
       array->obj_at_put(i, res);
@@ -3683,7 +3683,7 @@ JRT_LEAF(void, SharedRuntime::load_value_type_fields_in_regs(JavaThread* thread,
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       continue;
     }
     if (bt == T_VOID) {

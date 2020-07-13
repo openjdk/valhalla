@@ -218,7 +218,7 @@ inline int SignatureStream::scan_type(BasicType type) {
   const u1* tem;
   switch (type) {
   case T_OBJECT:
-  case T_VALUETYPE:
+  case T_INLINE_TYPE:
     tem = (const u1*) memchr(&base[end], JVM_SIGNATURE_ENDCLASS, limit - end);
     return (tem == NULL ? limit : tem + 1 - base);
 
@@ -578,7 +578,7 @@ void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, int offset)
 
 // Inserts a reserved argument at position 'i'
 void SigEntry::insert_reserved_entry(GrowableArray<SigEntry>* sig, int i, BasicType bt) {
-  if (bt == T_OBJECT || bt == T_ARRAY || bt == T_VALUETYPE) {
+  if (bt == T_OBJECT || bt == T_ARRAY || bt == T_INLINE_TYPE) {
     // Treat this as INT to not confuse the GC
     bt = T_INT;
   } else if (bt == T_LONG || bt == T_DOUBLE) {
@@ -595,7 +595,7 @@ bool SigEntry::is_reserved_entry(const GrowableArray<SigEntry>* sig, int i) {
 
 // Returns true if the argument at index 'i' is not a value type delimiter
 bool SigEntry::skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i) {
-  return (sig->at(i)._bt != T_VALUETYPE &&
+  return (sig->at(i)._bt != T_INLINE_TYPE &&
           (sig->at(i)._bt != T_VOID || sig->at(i-1)._bt == T_LONG || sig->at(i-1)._bt == T_DOUBLE));
 }
 
@@ -619,7 +619,7 @@ TempNewSymbol SigEntry::create_symbol(const GrowableArray<SigEntry>* sig) {
   sig_str[idx++] = '(';
   for (int i = 0; i < length; i++) {
     BasicType bt = sig->at(i)._bt;
-    if (bt == T_VALUETYPE || bt == T_VOID) {
+    if (bt == T_INLINE_TYPE || bt == T_VOID) {
       // Ignore
     } else {
       if (bt == T_ARRAY) {

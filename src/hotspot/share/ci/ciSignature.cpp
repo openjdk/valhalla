@@ -62,7 +62,7 @@ ciSignature::ciSignature(ciKlass* accessing_klass, const constantPoolHandle& cpo
       ciSymbol* klass_name = env->get_symbol(ss.as_symbol());
       type = env->get_klass_by_name_impl(_accessing_klass, cpool, klass_name, false);
     }
-    if (type->is_valuetype() && ss.type() == T_VALUETYPE) {
+    if (type->is_valuetype() && ss.type() == T_INLINE_TYPE) {
       type = env->make_never_null_wrapper(type);
     }
     _types->append(type);

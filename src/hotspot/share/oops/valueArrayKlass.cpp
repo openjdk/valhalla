@@ -160,7 +160,7 @@ oop ValueArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
 }
 
 jint ValueArrayKlass::array_layout_helper(ValueKlass* vk) {
-  BasicType etype = T_VALUETYPE;
+  BasicType etype = T_INLINE_TYPE;
   int esize = upper_log2(vk->raw_value_byte_size());
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
 
@@ -192,7 +192,7 @@ int ValueArrayKlass::oop_size(oop obj) const {
 jint ValueArrayKlass::max_elements() const {
   // Check the max number of heap words limit first (because of int32_t in oopDesc_oop_size() etc)
   size_t max_size = max_jint;
-  max_size -= arrayOopDesc::header_size(T_VALUETYPE);
+  max_size -= arrayOopDesc::header_size(T_INLINE_TYPE);
   max_size = align_down(max_size, MinObjAlignment);
   max_size <<= LogHeapWordSize;                                  // convert to max payload size in bytes
   max_size >>= layout_helper_log2_element_size(_layout_helper);  // divide by element size (in bytes) = max elements

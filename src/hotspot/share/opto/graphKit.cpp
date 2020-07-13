@@ -1225,7 +1225,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
   switch(type) {
     case T_LONG   : chk = new CmpLNode(value, _gvn.zerocon(T_LONG)); break;
     case T_INT    : chk = new CmpINode(value, _gvn.intcon(0)); break;
-    case T_VALUETYPE : // fall through
+    case T_INLINE_TYPE : // fall through
     case T_ARRAY  : // fall through
       type = T_OBJECT;  // simplify further tests
     case T_OBJECT : {
@@ -1552,7 +1552,7 @@ Node* GraphKit::make_load(Node* ctl, Node* adr, const Type* t, BasicType bt,
   }
   ld = _gvn.transform(ld);
 
-  if (((bt == T_OBJECT || bt == T_VALUETYPE) && C->do_escape_analysis()) || C->eliminate_boxing()) {
+  if (((bt == T_OBJECT || bt == T_INLINE_TYPE) && C->do_escape_analysis()) || C->eliminate_boxing()) {
     // Improve graph before escape analysis and boxing elimination.
     record_for_igvn(ld);
   }
@@ -1778,7 +1778,7 @@ Node* GraphKit::array_element_address(Node* ary, Node* idx, BasicType elembt,
 Node* GraphKit::load_array_element(Node* ctl, Node* ary, Node* idx, const TypeAryPtr* arytype) {
   const Type* elemtype = arytype->elem();
   BasicType elembt = elemtype->array_element_basic_type();
-  assert(elembt != T_VALUETYPE, "value types are not supported by this method");
+  assert(elembt != T_INLINE_TYPE, "value types are not supported by this method");
   Node* adr = array_element_address(ary, idx, elembt, arytype->size());
   if (elembt == T_NARROWOOP) {
     elembt = T_OBJECT; // To satisfy switch in LoadNode::make()
