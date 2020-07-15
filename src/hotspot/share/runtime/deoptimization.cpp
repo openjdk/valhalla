@@ -1391,13 +1391,13 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
   return svIndex;
 }
 
-// restore fields of an eliminated value type array
+// restore fields of an eliminated inline type array
 void Deoptimization::reassign_value_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, valueArrayOop obj, ValueArrayKlass* vak, TRAPS) {
   InlineKlass* vk = vak->element_klass();
-  assert(vk->flatten_array(), "should only be used for flattened value type arrays");
+  assert(vk->flatten_array(), "should only be used for flattened inline type arrays");
   // Adjust offset to omit oop header
   int base_offset = arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE) - InlineKlass::cast(vk)->first_field_offset();
-  // Initialize all elements of the flattened value type array
+  // Initialize all elements of the flattened inline type array
   for (int i = 0; i < sv->field_size(); i++) {
     ScopeValue* val = sv->field_at(i);
     int offset = base_offset + (i << Klass::layout_helper_log2_element_size(vak->layout_helper()));

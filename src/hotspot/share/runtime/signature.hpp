@@ -572,7 +572,7 @@ class SigEntryFilter;
 typedef GrowableArrayFilterIterator<SigEntry, SigEntryFilter> ExtendedSignature;
 
 // Used for adapter generation. One SigEntry is used per element of
-// the signature of the method. Value type arguments are treated
+// the signature of the method. Inline type arguments are treated
 // specially. See comment for InlineKlass::collect_fields().
 class SigEntry {
  public:

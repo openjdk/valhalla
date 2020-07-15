@@ -2833,7 +2833,7 @@ CodeOffsets::Entries CompiledEntrySignature::c1_value_ro_entry_type() const {
 
 
 void CompiledEntrySignature::compute_calling_conventions() {
-  // Get the (non-scalarized) signature and check for value type arguments
+  // Get the (non-scalarized) signature and check for inline type arguments
   if (!_method->is_static()) {
     if (_method->method_holder()->is_inline_klass() && InlineKlass::cast(_method->method_holder())->can_be_passed_as_fields()) {
       _has_value_recv = true;
@@ -2914,7 +2914,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
     // bailing out of compilation ("unsupported incoming calling sequence").
     // TODO we need a reasonable limit (flag?) here
     if (_args_on_stack_cc > 50) {
-      // Don't scalarize value type arguments
+      // Don't scalarize inline type arguments
       _sig_cc = _sig;
       _sig_cc_ro = _sig;
       _regs_cc = _regs;
@@ -2967,7 +2967,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
 
     if (method->is_abstract()) {
       if (ces.has_scalarized_args()) {
-        // Save a C heap allocated version of the signature for abstract methods with scalarized value type arguments
+        // Save a C heap allocated version of the signature for abstract methods with scalarized inline type arguments
         address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
         entry = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(NULL),
                                                  StubRoutines::throw_AbstractMethodError_entry(),
@@ -3589,7 +3589,7 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* thread) {
 }
 
 // We are at a compiled code to interpreter call. We need backing
-// buffers for all value type arguments. Allocate an object array to
+// buffers for all inline type arguments. Allocate an object array to
 // hold them (convenient because once we're done with it we don't have
 // to worry about freeing it).
 oop SharedRuntime::allocate_value_types_impl(JavaThread* thread, methodHandle callee, bool allocate_receiver, TRAPS) {
@@ -3636,7 +3636,7 @@ JRT_END
 
 // TODO remove this once the AARCH64 dependency is gone
 // Iterate over the array of heap allocated value types and apply the GC post barrier to all reference fields.
-// This is called from the C2I adapter after value type arguments are heap allocated and initialized.
+// This is called from the C2I adapter after inline type arguments are heap allocated and initialized.
 JRT_LEAF(void, SharedRuntime::apply_post_barriers(JavaThread* thread, objArrayOopDesc* array))
 {
   assert(InlineTypePassFieldsAsArgs, "no reason to call this");

@@ -3248,7 +3248,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         intptr_t ptr = igvn->type(klass)->isa_rawptr()->get_con();
         clear_nth_bit(ptr, 0);
         assert(Metaspace::contains((void*)ptr), "should be klass");
-        assert(((InlineKlass*)ptr)->contains_oops(), "returned value type must contain a reference field");
+        assert(((InlineKlass*)ptr)->contains_oops(), "returned inline type must contain a reference field");
       } else {
         uint op = use->Opcode();
         if ((op == Op_StrCompressedCopy || op == Op_StrInflatedCopy) &&

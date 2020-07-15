@@ -186,9 +186,8 @@ class InlineKlass: public InstanceKlass {
   // Casting from Klass*
   static InlineKlass* cast(Klass* k);
 
-  // Use this to return the size of an instance in heap words
-  // Implementation is currently simple because all inline types are allocated
-  // in Java heap like Java objects.
+  // Use this to return the size of an instance in heap words.
+  // Note that this size only applies to heap allocated stand-alone instances.
   virtual int size_helper() const {
     return layout_helper_to_size_helper(layout_helper());
   }
