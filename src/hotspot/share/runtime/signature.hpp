@@ -564,7 +564,7 @@ class SignatureStream : public StackObj {
   enum FailureMode { ReturnNull, NCDFError, CachedOrNull };
 
   Klass* as_klass(Handle class_loader, Handle protection_domain, FailureMode failure_mode, TRAPS);
-  ValueKlass* as_value_klass(InstanceKlass* holder);
+  InlineKlass* as_inline_klass(InstanceKlass* holder);
   oop as_java_mirror(Handle class_loader, Handle protection_domain, FailureMode failure_mode, TRAPS);
 };
 
@@ -573,7 +573,7 @@ typedef GrowableArrayFilterIterator<SigEntry, SigEntryFilter> ExtendedSignature;
 
 // Used for adapter generation. One SigEntry is used per element of
 // the signature of the method. Value type arguments are treated
-// specially. See comment for ValueKlass::collect_fields().
+// specially. See comment for InlineKlass::collect_fields().
 class SigEntry {
  public:
   BasicType _bt;

@@ -2770,8 +2770,8 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   if (UseCompressedClassPointers) {
     rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::klass_gap_offset_in_bytes(), intcon(0), T_INT);
   }
-  Node* fixed_block  = make_load(slowpath_false, rawmem, klass_node, in_bytes(InstanceKlass::adr_valueklass_fixed_block_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
-  Node* pack_handler = make_load(slowpath_false, rawmem, fixed_block, in_bytes(ValueKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+  Node* fixed_block  = make_load(slowpath_false, rawmem, klass_node, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
+  Node* pack_handler = make_load(slowpath_false, rawmem, fixed_block, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
 
   CallLeafNoFPNode* handler_call = new CallLeafNoFPNode(OptoRuntime::pack_value_type_Type(),
                                                         NULL,

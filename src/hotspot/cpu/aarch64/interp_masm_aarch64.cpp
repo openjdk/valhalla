@@ -35,7 +35,7 @@
 #include "oops/markWord.hpp"
 #include "oops/method.hpp"
 #include "oops/methodData.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
@@ -700,8 +700,8 @@ void InterpreterMacroAssembler::remove_activation(
     // Load fields from a buffered value with a value class specific handler
 
     load_klass(rscratch1 /*dst*/, r0 /*src*/);
-    ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_valueklass_fixed_block_offset()));
-    ldr(rscratch1, Address(rscratch1, ValueKlass::unpack_handler_offset()));
+    ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+    ldr(rscratch1, Address(rscratch1, InlineKlass::unpack_handler_offset()));
     cbz(rscratch1, skip);
 
     blr(rscratch1);

@@ -42,7 +42,7 @@
 // Constructor for loaded value array klasses.
 ciValueArrayKlass::ciValueArrayKlass(Klass* h_k) : ciArrayKlass(h_k) {
   assert(get_Klass()->is_valueArray_klass(), "wrong type");
-  ValueKlass* element_Klass = get_ValueArrayKlass()->element_klass();
+  InlineKlass* element_Klass = get_ValueArrayKlass()->element_klass();
   _base_element_klass = CURRENT_ENV->get_klass(element_Klass);
   assert(_base_element_klass->is_valuetype(), "bad base klass");
   if (dimension() == 1) {

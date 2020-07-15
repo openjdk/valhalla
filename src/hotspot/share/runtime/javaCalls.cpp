@@ -33,7 +33,7 @@
 #include "memory/universe.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/jniCheck.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -445,7 +445,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
   if (InlineTypeReturnedAsFields && result->get_type() == T_INLINE_TYPE) {
     // Pre allocate buffered value in case the result is returned
     // flattened by compiled code
-    ValueKlass* vk = method->returned_value_type(thread);
+    InlineKlass* vk = method->returned_inline_type(thread);
     if (vk->can_be_returned_as_fields()) {
       oop instance = vk->allocate_instance(CHECK);
       value_buffer = JNIHandles::make_local(thread, instance);

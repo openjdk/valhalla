@@ -31,7 +31,7 @@
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/klass.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 
 LayoutRawBlock::LayoutRawBlock(Kind kind, int size) :
@@ -101,7 +101,7 @@ void FieldGroup::add_oop_field(AllFieldStream fs) {
   _oop_count++;
 }
 
-void FieldGroup::add_inlined_field(AllFieldStream fs, ValueKlass* vk) {
+void FieldGroup::add_inlined_field(AllFieldStream fs, InlineKlass* vk) {
   // _inlined_fields list might be merged with the _primitive_fields list in the future
   LayoutRawBlock* block = new LayoutRawBlock(fs.index(), LayoutRawBlock::INLINED, vk->get_exact_size_in_bytes(), vk->get_alignment(), false);
   block->set_value_klass(vk);
@@ -321,7 +321,7 @@ bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
       has_instance_fields = true;
       LayoutRawBlock* block;
       if (type == T_INLINE_TYPE) {
-        ValueKlass* vk = ValueKlass::cast(ik->get_inline_type_field_klass(fs.index()));
+        InlineKlass* vk = InlineKlass::cast(ik->get_inline_type_field_klass(fs.index()));
         block = new LayoutRawBlock(fs.index(), LayoutRawBlock::INHERITED, vk->get_exact_size_in_bytes(),
                                    vk->get_alignment(), false);
 
@@ -631,7 +631,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
                                                                 Handle(THREAD, _class_loader_data->class_loader()),
                                                                 _protection_domain, true, THREAD);
         assert(klass != NULL, "Sanity check");
-        ValueKlass* vk = ValueKlass::cast(klass);
+        InlineKlass* vk = InlineKlass::cast(klass);
         bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
                                    (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
         bool too_atomic_to_flatten = vk->is_declared_atomic();
@@ -732,7 +732,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
                 Handle(THREAD, _class_loader_data->class_loader()),
                 _protection_domain, true, CHECK);
         assert(klass != NULL, "Sanity check");
-        ValueKlass* vk = ValueKlass::cast(klass);
+        InlineKlass* vk = InlineKlass::cast(klass);
         bool too_big_to_flatten = (InlineFieldMaxFlatSize >= 0 &&
                                    (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
         bool too_atomic_to_flatten = vk->is_declared_atomic();
@@ -882,7 +882,7 @@ void FieldLayoutBuilder::compute_inline_class_layout(TRAPS) {
 }
 
 void FieldLayoutBuilder::add_inlined_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_maps,
-                ValueKlass* vklass, int offset) {
+                InlineKlass* vklass, int offset) {
   int diff = offset - vklass->first_field_offset();
   const OopMapBlock* map = vklass->start_of_nonstatic_oop_maps();
   const OopMapBlock* last_map = map + vklass->nonstatic_oop_map_count();
@@ -915,7 +915,7 @@ void FieldLayoutBuilder::epilogue() {
   if (ff != NULL) {
     for (int i = 0; i < ff->length(); i++) {
       LayoutRawBlock* f = ff->at(i);
-      ValueKlass* vk = f->value_klass();
+      InlineKlass* vk = f->value_klass();
       assert(vk != NULL, "Should have been initialized");
       if (vk->contains_oops()) {
         add_inlined_field_oopmap(nonstatic_oop_maps, vk, f->offset());

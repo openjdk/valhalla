@@ -37,7 +37,7 @@
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/valueArrayKlass.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
@@ -48,10 +48,10 @@
 #include "utilities/copy.hpp"
 
   // Constructor
-ValueKlass::ValueKlass(const ClassFileParser& parser)
+InlineKlass::InlineKlass(const ClassFileParser& parser)
     : InstanceKlass(parser, InstanceKlass::_kind_inline_type, InstanceKlass::ID) {
-  _adr_valueklass_fixed_block = valueklass_static_block();
-  // Addresses used for value type calling convention
+  _adr_inlineklass_fixed_block = inlineklass_static_block();
+  // Addresses used for inline type calling convention
   *((Array<SigEntry>**)adr_extended_sig()) = NULL;
   *((Array<VMRegPair>**)adr_return_regs()) = NULL;
   *((address*)adr_pack_handler()) = NULL;
@@ -64,7 +64,7 @@ ValueKlass::ValueKlass(const ClassFileParser& parser)
   assert(is_inline_type_klass(), "invariant");
 }
 
-oop ValueKlass::default_value() {
+oop InlineKlass::default_value() {
   oop val = java_mirror()->obj_field_acquire(default_value_offset());
   assert(oopDesc::is_oop(val), "Sanity check");
   assert(val->is_inline_type(), "Sanity check");
@@ -72,7 +72,7 @@ oop ValueKlass::default_value() {
   return val;
 }
 
-int ValueKlass::first_field_offset_old() {
+int InlineKlass::first_field_offset_old() {
 #ifdef ASSERT
   int first_offset = INT_MAX;
   for (AllFieldStream fs(this); !fs.done(); fs.next()) {
@@ -80,13 +80,13 @@ int ValueKlass::first_field_offset_old() {
   }
 #endif
   int base_offset = instanceOopDesc::base_offset_in_bytes();
-  // The first field of value types is aligned on a long boundary
+  // The first field of line types is aligned on a long boundary
   base_offset = align_up(base_offset, BytesPerLong);
   assert(base_offset == first_offset, "inconsistent offsets");
   return base_offset;
 }
 
-int ValueKlass::raw_value_byte_size() {
+int InlineKlass::raw_value_byte_size() {
   int heapOopAlignedSize = nonstatic_field_size() << LogBytesPerHeapOop;
   // If bigger than 64 bits or needs oop alignment, then use jlong aligned
   // which for values should be jlong aligned, asserts in raw_field_copy otherwise
@@ -124,23 +124,23 @@ int ValueKlass::raw_value_byte_size() {
   return 1 << upper_log2(last_offset - first_offset);
 }
 
-instanceOop ValueKlass::allocate_instance(TRAPS) {
+instanceOop InlineKlass::allocate_instance(TRAPS) {
   int size = size_helper();  // Query before forming handle.
 
   instanceOop oop = (instanceOop)Universe::heap()->obj_allocate(this, size, CHECK_NULL);
-  assert(oop->mark().is_always_locked(), "Unlocked value type");
+  assert(oop->mark().is_always_locked(), "Unlocked inline type");
   return oop;
 }
 
-instanceOop ValueKlass::allocate_instance_buffer(TRAPS) {
+instanceOop InlineKlass::allocate_instance_buffer(TRAPS) {
   int size = size_helper();  // Query before forming handle.
 
   instanceOop oop = (instanceOop)Universe::heap()->obj_buffer_allocate(this, size, CHECK_NULL);
-  assert(oop->mark().is_always_locked(), "Unlocked value type");
+  assert(oop->mark().is_always_locked(), "Unlocked inline type");
   return oop;
 }
 
-int ValueKlass::nonstatic_oop_count() {
+int InlineKlass::nonstatic_oop_count() {
   int oops = 0;
   int map_count = nonstatic_oop_map_count();
   OopMapBlock* block = start_of_nonstatic_oop_maps();
@@ -152,7 +152,7 @@ int ValueKlass::nonstatic_oop_count() {
   return oops;
 }
 
-oop ValueKlass::read_inlined_field(oop obj, int offset, TRAPS) {
+oop InlineKlass::read_inlined_field(oop obj, int offset, TRAPS) {
   oop res = NULL;
   this->initialize(CHECK_NULL); // will throw an exception if in error state
   if (is_empty_inline_type()) {
@@ -160,24 +160,24 @@ oop ValueKlass::read_inlined_field(oop obj, int offset, TRAPS) {
   } else {
     Handle obj_h(THREAD, obj);
     res = allocate_instance_buffer(CHECK_NULL);
-    value_copy_payload_to_new_oop(((char*)(oopDesc*)obj_h()) + offset, res);
+    inline_copy_payload_to_new_oop(((char*)(oopDesc*)obj_h()) + offset, res);
   }
   assert(res != NULL, "Must be set in one of two paths above");
   return res;
 }
 
-void ValueKlass::write_inlined_field(oop obj, int offset, oop value, TRAPS) {
+void InlineKlass::write_inlined_field(oop obj, int offset, oop value, TRAPS) {
   if (value == NULL) {
     THROW(vmSymbols::java_lang_NullPointerException());
   }
   if (!is_empty_inline_type()) {
-    value_copy_oop_to_payload(value, ((char*)(oopDesc*)obj) + offset);
+    inline_copy_oop_to_payload(value, ((char*)(oopDesc*)obj) + offset);
   }
 }
 
 // Arrays of...
 
-bool ValueKlass::flatten_array() {
+bool InlineKlass::flatten_array() {
   if (!ValueArrayFlatten) {
     return false;
   }
@@ -201,7 +201,7 @@ bool ValueKlass::flatten_array() {
   return true;
 }
 
-void ValueKlass::remove_unshareable_info() {
+void InlineKlass::remove_unshareable_info() {
   InstanceKlass::remove_unshareable_info();
 
   *((Array<SigEntry>**)adr_extended_sig()) = NULL;
@@ -213,12 +213,12 @@ void ValueKlass::remove_unshareable_info() {
   *((Klass**)adr_value_array_klass()) = NULL;
 }
 
-void ValueKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
+void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
   InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
 }
 
 
-Klass* ValueKlass::array_klass_impl(bool or_null, int n, TRAPS) {
+Klass* InlineKlass::array_klass_impl(bool or_null, int n, TRAPS) {
   if (flatten_array()) {
     return value_array_klass(or_null, n, THREAD);
   } else {
@@ -226,11 +226,11 @@ Klass* ValueKlass::array_klass_impl(bool or_null, int n, TRAPS) {
   }
 }
 
-Klass* ValueKlass::array_klass_impl(bool or_null, TRAPS) {
+Klass* InlineKlass::array_klass_impl(bool or_null, TRAPS) {
   return array_klass_impl(or_null, 1, THREAD);
 }
 
-Klass* ValueKlass::value_array_klass(bool or_null, int rank, TRAPS) {
+Klass* InlineKlass::value_array_klass(bool or_null, int rank, TRAPS) {
   Klass* vak = acquire_value_array_klass();
   if (vak == NULL) {
     if (or_null) return NULL;
@@ -250,27 +250,27 @@ Klass* ValueKlass::value_array_klass(bool or_null, int rank, TRAPS) {
   return vak->array_klass(rank, THREAD);
 }
 
-Klass* ValueKlass::allocate_value_array_klass(TRAPS) {
+Klass* InlineKlass::allocate_value_array_klass(TRAPS) {
   if (flatten_array()) {
     return ValueArrayKlass::allocate_klass(this, THREAD);
   }
   return ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, THREAD);
 }
 
-void ValueKlass::array_klasses_do(void f(Klass* k, TRAPS), TRAPS) {
+void InlineKlass::array_klasses_do(void f(Klass* k, TRAPS), TRAPS) {
   InstanceKlass::array_klasses_do(f, THREAD);
   if (get_value_array_klass() != NULL)
     ArrayKlass::cast(get_value_array_klass())->array_klasses_do(f, THREAD);
 }
 
-void ValueKlass::array_klasses_do(void f(Klass* k)) {
+void InlineKlass::array_klasses_do(void f(Klass* k)) {
   InstanceKlass::array_klasses_do(f);
   if (get_value_array_klass() != NULL)
     ArrayKlass::cast(get_value_array_klass())->array_klasses_do(f);
 }
 
-// Value type arguments are not passed by reference, instead each
-// field of the value type is passed as an argument. This helper
+// Inline type arguments are not passed by reference, instead each
+// field of the inline type is passed as an argument. This helper
 // function collects the inlined field (recursively)
 // in a list. Included with the field's type is
 // the offset of each field in the inline type: i2c and c2i adapters
@@ -280,16 +280,16 @@ void ValueKlass::array_klasses_do(void f(Klass* k)) {
 //
 // The list of basic types that is returned starts with a T_INLINE_TYPE
 // and ends with an extra T_VOID. T_INLINE_TYPE/T_VOID pairs are used as
-// delimiters. Every entry between the two is a field of the value
+// delimiters. Every entry between the two is a field of the inline
 // type. If there's an embedded inline type in the list, it also starts
 // with a T_INLINE_TYPE and ends with a T_VOID. This is so we can
 // generate a unique fingerprint for the method's adapters and we can
 // generate the list of basic types from the interpreter point of view
-// (value types passed as reference: iterate on the list until a
+// (inline types passed as reference: iterate on the list until a
 // T_INLINE_TYPE, drop everything until and including the closing
-// T_VOID) or the compiler point of view (each field of the value
+// T_VOID) or the compiler point of view (each field of the inline
 // types is an argument: drop all T_INLINE_TYPE/T_VOID from the list).
-int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
+int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   int count = 0;
   SigEntry::add_entry(sig, T_INLINE_TYPE, base_off);
   for (AllFieldStream fs(this); !fs.done(); fs.next()) {
@@ -298,7 +298,7 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
     if (fs.is_inlined()) {
       // Resolve klass of inlined field and recursively collect fields
       Klass* vk = get_inline_type_field_klass(fs.index());
-      count += ValueKlass::cast(vk)->collect_fields(sig, offset);
+      count += InlineKlass::cast(vk)->collect_fields(sig, offset);
     } else {
       BasicType bt = Signature::basic_type(fs.signature());
       if (bt == T_INLINE_TYPE) {
@@ -317,9 +317,9 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   return count;
 }
 
-void ValueKlass::initialize_calling_convention(TRAPS) {
+void InlineKlass::initialize_calling_convention(TRAPS) {
   // Because the pack and unpack handler addresses need to be loadable from generated code,
-  // they are stored at a fixed offset in the klass metadata. Since value type klasses do
+  // they are stored at a fixed offset in the klass metadata. Since inline type klasses do
   // not have a vtable, the vtable offset is used to store these addresses.
   if (InlineTypeReturnedAsFields || InlineTypePassFieldsAsArgs) {
     ResourceMark rm;
@@ -345,7 +345,7 @@ void ValueKlass::initialize_calling_convention(TRAPS) {
           return_regs->at_put(i, regs[i]);
         }
 
-        BufferedValueTypeBlob* buffered_blob = SharedRuntime::generate_buffered_value_type_adapter(this);
+        BufferedValueTypeBlob* buffered_blob = SharedRuntime::generate_buffered_inline_type_adapter(this);
         *((address*)adr_pack_handler()) = buffered_blob->pack_fields();
         *((address*)adr_pack_handler_jobject()) = buffered_blob->pack_fields_jobject();
         *((address*)adr_unpack_handler()) = buffered_blob->unpack_fields();
@@ -360,7 +360,7 @@ void ValueKlass::initialize_calling_convention(TRAPS) {
   }
 }
 
-void ValueKlass::deallocate_contents(ClassLoaderData* loader_data) {
+void InlineKlass::deallocate_contents(ClassLoaderData* loader_data) {
   if (extended_sig() != NULL) {
     MetadataFactory::free_array<SigEntry>(loader_data, extended_sig());
   }
@@ -371,11 +371,11 @@ void ValueKlass::deallocate_contents(ClassLoaderData* loader_data) {
   InstanceKlass::deallocate_contents(loader_data);
 }
 
-void ValueKlass::cleanup(ValueKlass* ik) {
+void InlineKlass::cleanup(InlineKlass* ik) {
   ik->cleanup_blobs();
 }
 
-void ValueKlass::cleanup_blobs() {
+void InlineKlass::cleanup_blobs() {
   if (pack_handler() != NULL) {
     CodeBlob* buffered_blob = CodeCache::find_blob(pack_handler());
     assert(buffered_blob->is_buffered_value_type_blob(), "bad blob type");
@@ -387,22 +387,22 @@ void ValueKlass::cleanup_blobs() {
 }
 
 // Can this inline type be scalarized?
-bool ValueKlass::is_scalarizable() const {
+bool InlineKlass::is_scalarizable() const {
   return ScalarizeInlineTypes;
 }
 
-// Can this value type be passed as multiple values?
-bool ValueKlass::can_be_passed_as_fields() const {
+// Can this inline type be passed as multiple values?
+bool InlineKlass::can_be_passed_as_fields() const {
   return InlineTypePassFieldsAsArgs && is_scalarizable() && !is_empty_inline_type();
 }
 
-// Can this value type be returned as multiple values?
-bool ValueKlass::can_be_returned_as_fields(bool init) const {
+// Can this inline type be returned as multiple values?
+bool InlineKlass::can_be_returned_as_fields(bool init) const {
   return InlineTypeReturnedAsFields && is_scalarizable() && !is_empty_inline_type() && (init || return_regs() != NULL);
 }
 
 // Create handles for all oop fields returned in registers that are going to be live across a safepoint
-void ValueKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Handle>& handles) const {
+void InlineKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Handle>& handles) const {
   Thread* thread = Thread::current();
   const Array<SigEntry>* sig_vk = extended_sig();
   const Array<VMRegPair>* regs = return_regs();
@@ -432,7 +432,7 @@ void ValueKlass::save_oop_fields(const RegisterMap& reg_map, GrowableArray<Handl
 }
 
 // Update oop fields in registers from handles after a safepoint
-void ValueKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle>& handles) const {
+void InlineKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle>& handles) const {
   assert(InlineTypeReturnedAsFields, "inconsistent");
   const Array<SigEntry>* sig_vk = extended_sig();
   const Array<VMRegPair>* regs = return_regs();
@@ -459,9 +459,9 @@ void ValueKlass::restore_oop_results(RegisterMap& reg_map, GrowableArray<Handle>
   assert(j == regs->length(), "missed a field?");
 }
 
-// Fields are in registers. Create an instance of the value type and
+// Fields are in registers. Create an instance of the inline type and
 // initialize it with the values of the fields.
-oop ValueKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, TRAPS) {
+oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, TRAPS) {
   oop new_vt = allocate_instance(CHECK_NULL);
   const Array<SigEntry>* sig_vk = extended_sig();
   const Array<VMRegPair>* regs = return_regs();
@@ -538,8 +538,8 @@ oop ValueKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<H
   return new_vt;
 }
 
-// Check the return register for a ValueKlass oop
-ValueKlass* ValueKlass::returned_value_klass(const RegisterMap& map) {
+// Check the return register for a InlineKlass oop
+InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
   BasicType bt = T_METADATA;
   VMRegPair pair;
   int nb = SharedRuntime::java_return_convention(&bt, &pair, 1);
@@ -548,10 +548,10 @@ ValueKlass* ValueKlass::returned_value_klass(const RegisterMap& map) {
   address loc = map.location(pair.first());
   intptr_t ptr = *(intptr_t*)loc;
   if (is_set_nth_bit(ptr, 0)) {
-    // Oop is tagged, must be a ValueKlass oop
+    // Oop is tagged, must be a InlineKlass oop
     clear_nth_bit(ptr, 0);
     assert(Metaspace::contains((void*)ptr), "should be klass");
-    ValueKlass* vk = (ValueKlass*)ptr;
+    InlineKlass* vk = (InlineKlass*)ptr;
     assert(vk->can_be_returned_as_fields(), "must be able to return as fields");
     return vk;
   }
@@ -564,19 +564,19 @@ ValueKlass* ValueKlass::returned_value_klass(const RegisterMap& map) {
   return NULL;
 }
 
-void ValueKlass::verify_on(outputStream* st) {
+void InlineKlass::verify_on(outputStream* st) {
   InstanceKlass::verify_on(st);
   guarantee(prototype_header().is_always_locked(), "Prototype header is not always locked");
 }
 
-void ValueKlass::oop_verify_on(oop obj, outputStream* st) {
+void InlineKlass::oop_verify_on(oop obj, outputStream* st) {
   InstanceKlass::oop_verify_on(obj, st);
   guarantee(obj->mark().is_always_locked(), "Header is not always locked");
 }
 
-void ValueKlass::metaspace_pointers_do(MetaspaceClosure* it) {
+void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {
   InstanceKlass::metaspace_pointers_do(it);
 
-  ValueKlass* this_ptr = this;
-  it->push_internal_pointer(&this_ptr, (intptr_t*)&_adr_valueklass_fixed_block);
+  InlineKlass* this_ptr = this;
+  it->push_internal_pointer(&this_ptr, (intptr_t*)&_adr_inlineklass_fixed_block);
 }

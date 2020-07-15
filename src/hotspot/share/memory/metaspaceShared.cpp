@@ -60,7 +60,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/valueArrayKlass.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/jvmtiRedefineClasses.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/os.hpp"
@@ -770,7 +770,7 @@ void MetaspaceShared::rewrite_nofast_bytecodes_and_calculate_fingerprints(Thread
   f(ObjArrayKlass) \
   f(TypeArrayKlass) \
   f(ValueArrayKlass) \
-  f(ValueKlass)
+  f(InlineKlass)
 
 class CppVtableInfo {
   intptr_t _vtable_size;
@@ -959,7 +959,7 @@ intptr_t* MetaspaceShared::fix_cpp_vtable_for_dynamic_archive(MetaspaceObj::Type
       Klass* k = (Klass*)obj;
       assert(k->is_klass(), "must be");
       if (k->is_inline_klass()) {
-        kind = ValueKlass_Kind;
+        kind = InlineKlass_Kind;
       } else if (k->is_instance_klass()) {
         InstanceKlass* ik = InstanceKlass::cast(k);
         if (ik->is_class_loader_instance_klass()) {

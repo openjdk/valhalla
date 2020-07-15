@@ -26,7 +26,7 @@
 #include "ci/ciField.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "ci/ciValueKlass.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 
 int ciValueKlass::compute_nonstatic_fields() {
   int result = ciInstanceKlass::compute_nonstatic_fields();
@@ -134,6 +134,6 @@ address ciValueKlass::unpack_handler() const {
   GUARDED_VM_ENTRY(return get_ValueKlass()->unpack_handler();)
 }
 
-ValueKlass* ciValueKlass::get_ValueKlass() const {
+InlineKlass* ciValueKlass::get_ValueKlass() const {
   GUARDED_VM_ENTRY(return to_ValueKlass();)
 }

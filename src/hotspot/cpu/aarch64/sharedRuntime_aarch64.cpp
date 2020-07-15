@@ -3324,7 +3324,7 @@ void OptoRuntime::generate_exception_blob() {
   _exception_blob =  ExceptionBlob::create(&buffer, oop_maps, SimpleRuntimeFrame::framesize >> 1);
 }
 
-BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const ValueKlass* vk) {
+BufferedValueTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
   BufferBlob* buf = BufferBlob::create("value types pack/unpack", 16 * K);
   CodeBuffer buffer(buf);
   short buffer_locs[20];

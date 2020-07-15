@@ -37,7 +37,7 @@
 #include "oops/constantPool.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "utilities/copy.hpp"
@@ -852,7 +852,7 @@ class CompileReplay : public StackObj {
         break;
       }
       case T_INLINE_TYPE: {
-        ValueKlass* vk = ValueKlass::cast(fd->field_holder()->get_inline_type_field_klass(fd->index()));
+        InlineKlass* vk = InlineKlass::cast(fd->field_holder()->get_inline_type_field_klass(fd->index()));
         if (fd->is_inlined()) {
           int field_offset = fd->offset() - vk->first_field_offset();
           oop obj = (oop)(cast_from_oop<address>(_vt) + field_offset);
@@ -1001,7 +1001,7 @@ class CompileReplay : public StackObj {
       java_mirror->double_field_put(fd.offset(), value);
     } else if (field_signature[0] == JVM_SIGNATURE_INLINE_TYPE) {
       Klass* kelem = resolve_klass(field_signature, CHECK);
-      ValueKlass* vk = ValueKlass::cast(kelem);
+      InlineKlass* vk = InlineKlass::cast(kelem);
       oop value = vk->allocate_instance(CHECK);
       ValueTypeFieldInitializer init_fields(value, this);
       vk->do_nonstatic_fields(&init_fields);

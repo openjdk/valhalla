@@ -554,7 +554,7 @@ class SharedRuntime: AllStatic {
 
   static address handle_unsafe_access(JavaThread* thread, address next_pc);
 
-  static BufferedValueTypeBlob* generate_buffered_value_type_adapter(const ValueKlass* vk);
+  static BufferedValueTypeBlob* generate_buffered_inline_type_adapter(const InlineKlass* vk);
 #ifndef PRODUCT
 
   // Collect and print inline cache miss statistics

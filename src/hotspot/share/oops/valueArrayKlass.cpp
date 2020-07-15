@@ -42,7 +42,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/valueArrayOop.hpp"
 #include "oops/valueArrayOop.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
@@ -58,9 +58,9 @@
 ValueArrayKlass::ValueArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlass(name, ID) {
   assert(element_klass->is_inline_klass(), "Expected Inline");
 
-  set_element_klass(ValueKlass::cast(element_klass));
+  set_element_klass(InlineKlass::cast(element_klass));
   set_class_loader_data(element_klass->class_loader_data());
-  set_layout_helper(array_layout_helper(ValueKlass::cast(element_klass)));
+  set_layout_helper(array_layout_helper(InlineKlass::cast(element_klass)));
 
   assert(is_array_klass(), "sanity");
   assert(is_valueArray_klass(), "sanity");
@@ -73,8 +73,8 @@ ValueArrayKlass::ValueArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlas
 #endif
 }
 
-ValueKlass* ValueArrayKlass::element_klass() const {
-  return ValueKlass::cast(_element_klass);
+InlineKlass* ValueArrayKlass::element_klass() const {
+  return InlineKlass::cast(_element_klass);
 }
 
 void ValueArrayKlass::set_element_klass(Klass* k) {
@@ -84,7 +84,7 @@ void ValueArrayKlass::set_element_klass(Klass* k) {
 ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass* element_klass, TRAPS) {
   guarantee((!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()), "Really ?!");
   assert(ValueArrayFlatten, "Flatten array required");
-  assert(ValueKlass::cast(element_klass)->is_naturally_atomic() || (!InlineArrayAtomicAccess), "Atomic by-default");
+  assert(InlineKlass::cast(element_klass)->is_naturally_atomic() || (!InlineArrayAtomicAccess), "Atomic by-default");
 
   /*
    *  MVT->LWorld, now need to allocate secondaries array types, just like objArrayKlass...
@@ -159,7 +159,7 @@ oop ValueArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
   return allocate(length, THREAD);
 }
 
-jint ValueArrayKlass::array_layout_helper(ValueKlass* vk) {
+jint ValueArrayKlass::array_layout_helper(InlineKlass* vk) {
   BasicType etype = T_INLINE_TYPE;
   int esize = upper_log2(vk->raw_value_byte_size());
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
@@ -251,7 +251,7 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
      }
 
      valueArrayOop sa = valueArrayOop(s);
-     ValueKlass* s_elem_vklass = element_klass();
+     InlineKlass* s_elem_vklass = element_klass();
 
      // valueArray-to-valueArray
      if (dk->is_valueArray_klass()) {
@@ -305,7 +305,7 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
      assert(s->is_objArray(), "Expected objArray");
      objArrayOop sa = objArrayOop(s);
      assert(d->is_valueArray(), "Excepted valueArray");  // objArray-to-valueArray
-     ValueKlass* d_elem_vklass = ValueKlass::cast(d_elem_klass);
+     InlineKlass* d_elem_vklass = InlineKlass::cast(d_elem_klass);
      valueArrayOop da = valueArrayOop(d);
 
      int src_end = src_pos + length;
@@ -320,7 +320,7 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
        if (se->klass() != d_elem_klass) {
          THROW(vmSymbols::java_lang_ArrayStoreException());
        }
-       d_elem_vklass->value_copy_oop_to_payload(se, dst);
+       d_elem_vklass->inline_copy_oop_to_payload(se, dst);
        dst += delem_incr;
        src_pos++;
      }
@@ -440,7 +440,7 @@ void ValueArrayKlass::print_value_on(outputStream* st) const {
 void ValueArrayKlass::oop_print_on(oop obj, outputStream* st) {
   ArrayKlass::oop_print_on(obj, st);
   valueArrayOop va = valueArrayOop(obj);
-  ValueKlass* vk = element_klass();
+  InlineKlass* vk = element_klass();
   int print_len = MIN2((intx) va->length(), MaxElementPrintSize);
   for(int index = 0; index < print_len; index++) {
     int off = (address) va->value_at_addr(index, layout_helper()) - cast_from_oop<address>(obj);

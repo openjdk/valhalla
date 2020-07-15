@@ -22,7 +22,7 @@
  *
  */
 
-#include <oops/valueKlass.hpp>
+#include <oops/inlineKlass.hpp>
 #include "precompiled.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/dictionary.hpp"
@@ -78,7 +78,7 @@ public:
       for (Klass* l = k->array_klass_or_null(); l != NULL; l = l->array_klass_or_null()) {
         _classStack.push((jclass) _env->jni_reference(Handle(_cur_thread, l->java_mirror())));
       }
-      // CMH flat arrays (ValueKlass)
+      // CMH flat arrays (InlineKlass)
     }
   }
 

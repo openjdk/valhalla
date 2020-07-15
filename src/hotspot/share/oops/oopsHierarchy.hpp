@@ -179,7 +179,7 @@ class   InstanceKlass;
 class     InstanceMirrorKlass;
 class     InstanceClassLoaderKlass;
 class     InstanceRefKlass;
-class     ValueKlass;
+class     InlineKlass;
 class   ArrayKlass;
 class     ObjArrayKlass;
 class     TypeArrayKlass;

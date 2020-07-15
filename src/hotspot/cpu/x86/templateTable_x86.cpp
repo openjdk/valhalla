@@ -33,7 +33,7 @@
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
@@ -4421,7 +4421,7 @@ void TemplateTable::defaultvalue() {
   __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
   __ jcc(Assembler::notEqual, slow_case);
 
-  // have a resolved ValueKlass in rcx, return the default value oop from it
+  // have a resolved InlineKlass in rcx, return the default value oop from it
   __ get_default_value_oop(rcx, rdx, rax);
   __ jmp(done);
 

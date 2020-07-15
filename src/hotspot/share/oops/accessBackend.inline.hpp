@@ -31,7 +31,7 @@
 #include "oops/oopsHierarchy.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/orderAccess.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 
 template <DecoratorSet decorators>
 template <DecoratorSet idecorators, typename T>
@@ -366,7 +366,7 @@ inline void RawAccessBarrier<decorators>::clone(oop src, oop dst, size_t size) {
 }
 
 template <DecoratorSet decorators>
-inline void RawAccessBarrier<decorators>::value_copy(void* src, void* dst, ValueKlass* md) {
+inline void RawAccessBarrier<decorators>::value_copy(void* src, void* dst, InlineKlass* md) {
   assert(is_aligned(src, md->get_alignment()) && is_aligned(dst, md->get_alignment()), "Unalign value_copy");
   AccessInternal::arraycopy_conjoint_atomic(src, dst, static_cast<size_t>(md->get_exact_size_in_bytes()));
 }

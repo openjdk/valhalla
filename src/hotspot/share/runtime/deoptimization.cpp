@@ -1,5 +1,3 @@
-
-
 /*
  * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -51,7 +49,7 @@
 #include "oops/typeArrayOop.inline.hpp"
 #include "oops/valueArrayKlass.hpp"
 #include "oops/valueArrayOop.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/atomic.hpp"
@@ -190,9 +188,9 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
   // In case of the return of multiple values, we must take care
   // of all oop return values.
   GrowableArray<Handle> return_oops;
-  ValueKlass* vk = NULL;
+  InlineKlass* vk = NULL;
   if (save_oop_result && scope->return_vt()) {
-    vk = ValueKlass::returned_value_klass(map);
+    vk = InlineKlass::returned_inline_klass(map);
     if (vk != NULL) {
       vk->save_oop_fields(map, return_oops);
       save_oop_result = false;
@@ -214,7 +212,7 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
     bool skip_internal = (compiled_method != NULL) && !compiled_method->is_compiled_by_jvmci();
     JRT_BLOCK
       if (vk != NULL) {
-        realloc_failures = Deoptimization::realloc_value_type_result(vk, map, return_oops, THREAD);
+        realloc_failures = Deoptimization::realloc_inline_type_result(vk, map, return_oops, THREAD);
       }
       if (objects != NULL) {
         realloc_failures = realloc_failures || Deoptimization::realloc_objects(thread, &deoptee, &map, objects, THREAD);
@@ -1069,11 +1067,11 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
   return failures;
 }
 
-// We're deoptimizing at the return of a call, value type fields are
+// We're deoptimizing at the return of a call, inline type fields are
 // in registers. When we go back to the interpreter, it will expect a
-// reference to a value type instance. Allocate and initialize it from
+// reference to an inline type instance. Allocate and initialize it from
 // the register values here.
-bool Deoptimization::realloc_value_type_result(ValueKlass* vk, const RegisterMap& map, GrowableArray<Handle>& return_oops, TRAPS) {
+bool Deoptimization::realloc_inline_type_result(InlineKlass* vk, const RegisterMap& map, GrowableArray<Handle>& return_oops, TRAPS) {
   oop new_vt = vk->realloc_result(map, return_oops, THREAD);
   if (new_vt == NULL) {
     CLEAR_PENDING_EXCEPTION;
@@ -1287,7 +1285,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         if (fs.is_inlined()) {
           // Resolve klass of flattened value type field
           Klass* vk = klass->get_inline_type_field_klass(fs.index());
-          field._klass = ValueKlass::cast(vk);
+          field._klass = InlineKlass::cast(vk);
           field._type = T_INLINE_TYPE;
         }
         fields->append(field);
@@ -1313,7 +1311,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         // Recursively re-assign flattened value type fields
         InstanceKlass* vk = fields->at(i)._klass;
         assert(vk != NULL, "must be resolved");
-        offset -= ValueKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header
+        offset -= InlineKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header
         svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, skip_internal, offset, CHECK_0);
         continue; // Continue because we don't need to increment svIndex
       }
@@ -1395,10 +1393,10 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
 
 // restore fields of an eliminated value type array
 void Deoptimization::reassign_value_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, valueArrayOop obj, ValueArrayKlass* vak, TRAPS) {
-  ValueKlass* vk = vak->element_klass();
+  InlineKlass* vk = vak->element_klass();
   assert(vk->flatten_array(), "should only be used for flattened value type arrays");
   // Adjust offset to omit oop header
-  int base_offset = arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE) - ValueKlass::cast(vk)->first_field_offset();
+  int base_offset = arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE) - InlineKlass::cast(vk)->first_field_offset();
   // Initialize all elements of the flattened value type array
   for (int i = 0; i < sv->field_size(); i++) {
     ScopeValue* val = sv->field_at(i);

@@ -70,7 +70,7 @@
 #include "oops/oopHandle.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/arguments.hpp"
@@ -1540,7 +1540,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
   load_shared_class_misc(ik, loader_data, CHECK_NULL);
 
   if (ik->is_inline_klass()) {
-    ValueKlass* vk = ValueKlass::cast(ik);
+    InlineKlass* vk = InlineKlass::cast(ik);
     oop val = ik->allocate_instance(CHECK_NULL);
     vk->set_default_value(val);
   }

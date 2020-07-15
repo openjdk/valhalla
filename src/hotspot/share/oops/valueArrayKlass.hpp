@@ -27,7 +27,7 @@
 
 #include "classfile/classLoaderData.hpp"
 #include "oops/arrayKlass.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "utilities/macros.hpp"
 
 /**
@@ -54,7 +54,7 @@ class ValueArrayKlass : public ArrayKlass {
 
   ValueArrayKlass() {}
 
-  virtual ValueKlass* element_klass() const;
+  virtual InlineKlass* element_klass() const;
   virtual void set_element_klass(Klass* k);
 
   // Casting from Klass*
@@ -90,7 +90,7 @@ class ValueArrayKlass : public ArrayKlass {
 
   oop protection_domain() const;
 
-  static jint array_layout_helper(ValueKlass* vklass); // layout helper for values
+  static jint array_layout_helper(InlineKlass* vklass); // layout helper for values
 
   // sizing
   static int header_size()  { return sizeof(ValueArrayKlass)/HeapWordSize; }

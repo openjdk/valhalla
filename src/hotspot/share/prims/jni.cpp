@@ -60,7 +60,7 @@
 #include "oops/typeArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "oops/valueArrayOop.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "prims/jniCheck.hpp"
 #include "prims/jniExport.hpp"
 #include "prims/jniFastGetField.hpp"
@@ -1967,7 +1967,7 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
     InstanceKlass* holder = fd.field_holder();
-    ValueKlass* field_vklass = ValueKlass::cast(holder->get_inline_type_field_klass(fd.index()));
+    InlineKlass* field_vklass = InlineKlass::cast(holder->get_inline_type_field_klass(fd.index()));
     res = field_vklass->read_inlined_field(o, ik->field_offset(fd.index()), CHECK_NULL);
   }
   jobject ret = JNIHandles::make_local(env, res);
@@ -2076,7 +2076,7 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);
     InstanceKlass* holder = fd.field_holder();
-    ValueKlass* vklass = ValueKlass::cast(holder->get_inline_type_field_klass(fd.index()));
+    InlineKlass* vklass = InlineKlass::cast(holder->get_inline_type_field_klass(fd.index()));
     oop v = JNIHandles::resolve_non_null(value);
     vklass->write_inlined_field(o, offset, v, CHECK);
   }
@@ -2557,7 +2557,7 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
        valueArrayOop a = valueArrayOop(JNIHandles::resolve_non_null(array));
        oop v = JNIHandles::resolve(value);
        ValueArrayKlass* vaklass = ValueArrayKlass::cast(a->klass());
-       ValueKlass* element_vklass = vaklass->element_klass();
+       InlineKlass* element_vklass = vaklass->element_klass();
        if (v != NULL && v->is_a(element_vklass)) {
          a->value_copy_to_index(v, index);
        } else {
@@ -3437,7 +3437,7 @@ JNI_ENTRY(jclass, jni_GetFlattenedArrayElementClass(JNIEnv* env, jarray array))
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
   }
   ValueArrayKlass* vak = ValueArrayKlass::cast(a->klass());
-  ValueKlass* vk = vak->element_klass();
+  InlineKlass* vk = vak->element_klass();
   return (jclass) JNIHandles::make_local(vk->java_mirror());
 JNI_END
 
@@ -3450,7 +3450,7 @@ JNI_ENTRY(jsize, jni_GetFieldOffsetInFlattenedLayout(JNIEnv* env, jclass clazz, 
     ResourceMark rm;
         THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s has not flattened layout", k->external_name()));
   }
-  ValueKlass* vk = ValueKlass::cast(k);
+  InlineKlass* vk = InlineKlass::cast(k);
 
   TempNewSymbol fieldname = SymbolTable::probe(name, (int)strlen(name));
   TempNewSymbol signame = SymbolTable::probe(signature, (int)strlen(signature));
@@ -3517,7 +3517,7 @@ JNI_ENTRY(jobject, jni_GetSubElementSelector(JNIEnv* env, jobject selector, jfie
     ResourceMark rm;
         THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s is not an inline type", k->external_name()));
   }
-  ValueKlass* vk = ValueKlass::cast(k);
+  InlineKlass* vk = InlineKlass::cast(k);
   assert(vk->is_initialized(), "If a flattened array has been created, the element klass must have been initialized");
   int field_offset = jfieldIDWorkaround::from_instance_jfieldID(vk, fieldID);
   fieldDescriptor fd;
@@ -3561,13 +3561,13 @@ JNI_ENTRY(jobject, jni_GetObjectSubElement(JNIEnv* env, jarray array, jobject se
                       + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
     res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(ar, offset);
   } else {
-    ValueKlass* fieldKlass = ValueKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
+    InlineKlass* fieldKlass = InlineKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
     res = fieldKlass->allocate_instance(CHECK_NULL);
     // The array might have been moved by the GC, refreshing the arrayOop
     ar =  (valueArrayOop)JNIHandles::resolve_non_null(array);
     address addr = (address)ar->value_at_addr(index, vak->layout_helper())
               + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
-    fieldKlass->value_copy_payload_to_new_oop(addr, res);
+    fieldKlass->inline_copy_payload_to_new_oop(addr, res);
   }
   return JNIHandles::make_local(res);
 JNI_END
@@ -3596,10 +3596,10 @@ JNI_ENTRY(void, jni_SetObjectSubElement(JNIEnv* env, jarray array, jobject selec
                   + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
     HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(ar, offset, JNIHandles::resolve(value));
   } else {
-    ValueKlass* fieldKlass = ValueKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
+    InlineKlass* fieldKlass = InlineKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
     address addr = (address)ar->value_at_addr(index, vak->layout_helper())
                   + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
-    fieldKlass->value_copy_oop_to_payload(JNIHandles::resolve_non_null(value), addr);
+    fieldKlass->inline_copy_oop_to_payload(JNIHandles::resolve_non_null(value), addr);
   }
 JNI_END
 

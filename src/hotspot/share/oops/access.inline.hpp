@@ -200,7 +200,7 @@ namespace AccessInternal {
 
   template <class GCBarrierType, DecoratorSet decorators>
   struct PostRuntimeDispatch<GCBarrierType, BARRIER_VALUE_COPY, decorators>: public AllStatic {
-    static void access_barrier(void* src, void* dst, ValueKlass* md) {
+    static void access_barrier(void* src, void* dst, InlineKlass* md) {
       GCBarrierType::value_copy_in_heap(src, dst, md);
     }
   };
@@ -361,7 +361,7 @@ namespace AccessInternal {
   }
 
   template <DecoratorSet decorators, typename T>
-  void RuntimeDispatch<decorators, T, BARRIER_VALUE_COPY>::value_copy_init(void* src, void* dst, ValueKlass* md) {
+  void RuntimeDispatch<decorators, T, BARRIER_VALUE_COPY>::value_copy_init(void* src, void* dst, InlineKlass* md) {
     func_t function = BarrierResolver<decorators, func_t, BARRIER_VALUE_COPY>::resolve_barrier();
     _value_copy_func = function;
     function(src, dst, md);

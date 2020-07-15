@@ -3640,8 +3640,8 @@ void MacroAssembler::get_default_value_oop(Register value_klass, Register temp_r
 #endif
   Register offset = temp_reg;
   // Getting the offset of the pre-allocated default value
-  movptr(offset, Address(value_klass, in_bytes(InstanceKlass::adr_valueklass_fixed_block_offset())));
-  movl(offset, Address(offset, in_bytes(ValueKlass::default_value_offset_offset())));
+  movptr(offset, Address(value_klass, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())));
+  movl(offset, Address(offset, in_bytes(InlineKlass::default_value_offset_offset())));
 
   // Getting the mirror
   movptr(obj, Address(value_klass, in_bytes(Klass::java_mirror_offset())));
@@ -4683,8 +4683,8 @@ void MacroAssembler::access_value_copy(DecoratorSet decorators, Register src, Re
 }
 
 void MacroAssembler::first_field_offset(Register value_klass, Register offset) {
-  movptr(offset, Address(value_klass, InstanceKlass::adr_valueklass_fixed_block_offset()));
-  movl(offset, Address(offset, ValueKlass::first_field_offset_offset()));
+  movptr(offset, Address(value_klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+  movl(offset, Address(offset, InlineKlass::first_field_offset_offset()));
 }
 
 void MacroAssembler::data_for_oop(Register oop, Register data, Register value_klass) {
@@ -5228,7 +5228,7 @@ int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_i
       assert(lh != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
       movl(r14, lh);
     } else {
-      // Call from interpreter. RAX contains ((the ValueKlass* of the return type) | 0x01)
+      // Call from interpreter. RAX contains ((the InlineKlass* of the return type) | 0x01)
       mov(rbx, rax);
       andptr(rbx, -2);
       movl(r14, Address(rbx, Klass::layout_helper_offset()));
@@ -5258,8 +5258,8 @@ int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_i
       mov(rax, r13);
       call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
-      movptr(rbx, Address(rax, InstanceKlass::adr_valueklass_fixed_block_offset()));
-      movptr(rbx, Address(rbx, ValueKlass::pack_handler_offset()));
+      movptr(rbx, Address(rax, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      movptr(rbx, Address(rbx, InlineKlass::pack_handler_offset()));
       mov(rax, r13);
       call(rbx);
     }

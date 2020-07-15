@@ -47,7 +47,7 @@
 #include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
@@ -1047,7 +1047,7 @@ void ThreadSafepointState::handle_polling_page_exception() {
     bool return_oop = method->is_returning_oop();
 
     GrowableArray<Handle> return_values;
-    ValueKlass* vk = NULL;
+    InlineKlass* vk = NULL;
 
     if (return_oop && InlineTypeReturnedAsFields) {
       SignatureStream ss(method->signature());
@@ -1056,12 +1056,12 @@ void ThreadSafepointState::handle_polling_page_exception() {
       }
       if (ss.type() == T_INLINE_TYPE) {
         // Check if value type is returned as fields
-        vk = ValueKlass::returned_value_klass(map);
+        vk = InlineKlass::returned_inline_klass(map);
         if (vk != NULL) {
           // We're at a safepoint at the return of a method that returns
           // multiple values. We must make sure we preserve the oop values
           // across the safepoint.
-          assert(vk == method->returned_value_type(thread()), "bad value klass");
+          assert(vk == method->returned_inline_type(thread()), "bad value klass");
           vk->save_oop_fields(map, return_values);
           return_oop = false;
         }
