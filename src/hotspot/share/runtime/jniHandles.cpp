@@ -334,26 +334,29 @@ bool JNIHandles::is_same_object(jobject handle1, jobject handle2) {
 
   if (EnableValhalla) {
     if (!ret && obj1 != NULL && obj2 != NULL && obj1->klass() == obj2->klass() && obj1->klass()->is_inline_klass()) {
+      // The two references are different, they are not null and they are both inline types,
+      // a full substitutability test is required, calling ValueBootstrapMethods.isSubstitutable()
+      // (similarly to InterpreterRuntime::is_substitutable)
       Thread* THREAD = Thread::current();
-        Handle ha(THREAD, obj1);
-        Handle hb(THREAD, obj2);
-        JavaValue result(T_BOOLEAN);
-        JavaCallArguments args;
-        args.push_oop(ha);
-        args.push_oop(hb);
-        methodHandle method(THREAD, Universe::is_substitutable_method());
-        JavaCalls::call(&result, method, &args, THREAD);
-        if (HAS_PENDING_EXCEPTION) {
-          // Something really bad happened because isSubstitutable() should not throw exceptions
-          // If it is an error, just let it propagate
-          // If it is an exception, wrap it into an InternalError
-          if (!PENDING_EXCEPTION->is_a(SystemDictionary::Error_klass())) {
-            Handle e(THREAD, PENDING_EXCEPTION);
-            CLEAR_PENDING_EXCEPTION;
-            THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in substitutability test", e, false);
-          }
+      Handle ha(THREAD, obj1);
+      Handle hb(THREAD, obj2);
+      JavaValue result(T_BOOLEAN);
+      JavaCallArguments args;
+      args.push_oop(ha);
+      args.push_oop(hb);
+      methodHandle method(THREAD, Universe::is_substitutable_method());
+      JavaCalls::call(&result, method, &args, THREAD);
+      if (HAS_PENDING_EXCEPTION) {
+        // Something really bad happened because isSubstitutable() should not throw exceptions
+        // If it is an error, just let it propagate
+        // If it is an exception, wrap it into an InternalError
+        if (!PENDING_EXCEPTION->is_a(SystemDictionary::Error_klass())) {
+          Handle e(THREAD, PENDING_EXCEPTION);
+          CLEAR_PENDING_EXCEPTION;
+          THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in substitutability test", e, false);
         }
-        ret = result.get_jboolean();
+      }
+      ret = result.get_jboolean();
     }
   }
 
