@@ -56,7 +56,7 @@ class RecordComponent;
 //    [EMBEDDED unsafe_anonymous_host klass] only exist for an unsafe anonymous class (JSR 292 enabled)
 //    [EMBEDDED fingerprint       ] only if should_store_fingerprint()==true
 //    [EMBEDDED inline_type_field_klasses] only if has_inline_fields() == true
-//    [EMBEDDED ValueKlassFixedBlock] only if is a ValueKlass instance
+//    [EMBEDDED InlineKlassFixedBlock] only if is a InlineKlass instance
 
 
 // forward declaration for class -- see below for definition
@@ -138,7 +138,7 @@ struct JvmtiCachedClassFileData;
 
 class SigEntry;
 
-class ValueKlassFixedBlock {
+class InlineKlassFixedBlock {
   Array<SigEntry>** _extended_sig;
   Array<VMRegPair>** _return_regs;
   address* _pack_handler;
@@ -150,7 +150,7 @@ class ValueKlassFixedBlock {
   int _first_field_offset;
   int _exact_size_in_bytes;
 
-  friend class ValueKlass;
+  friend class InlineKlass;
 };
 
 class InlineTypes {
@@ -359,7 +359,7 @@ class InstanceKlass: public Klass {
   Array<u2>*      _fields;
   const Klass**   _inline_type_field_klasses; // For "inline class" fields, NULL if none present
 
-  const ValueKlassFixedBlock* _adr_valueklass_fixed_block;
+  const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
 
   // embedded Java vtable follows here
   // embedded Java itables follows here
@@ -1140,7 +1140,7 @@ public:
   static ByteSize init_thread_offset() { return in_ByteSize(offset_of(InstanceKlass, _init_thread)); }
 
   static ByteSize inline_type_field_klasses_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_type_field_klasses)); }
-  static ByteSize adr_valueklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_valueklass_fixed_block)); }
+  static ByteSize adr_inlineklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_inlineklass_fixed_block)); }
 
   // subclass/subinterface checks
   bool implements_interface(Klass* k) const;
@@ -1208,7 +1208,7 @@ public:
            (is_unsafe_anonymous ? (int)sizeof(Klass*)/wordSize : 0) +
            (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0) +
            (java_fields * (int)sizeof(Klass*)/wordSize) +
-           (is_inline_type ? (int)sizeof(ValueKlassFixedBlock) : 0));
+           (is_inline_type ? (int)sizeof(InlineKlassFixedBlock) : 0));
   }
   int size() const                    { return size(vtable_length(),
                                                itable_length(),

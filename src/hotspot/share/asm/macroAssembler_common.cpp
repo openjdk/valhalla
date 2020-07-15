@@ -27,7 +27,7 @@
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
 #include "asm/macroAssembler.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "runtime/signature_cc.hpp"
 #include "runtime/sharedRuntime.hpp"
 #ifdef COMPILER2
@@ -148,7 +148,7 @@ int MacroAssembler::unpack_value_args_common(Compile* C, bool receiver_only) {
   } else {
     // Only unpack the receiver, all other arguments are already scalarized
     InstanceKlass* holder = method->method_holder();
-    int rec_len = holder->is_inline_klass() ? ValueKlass::cast(holder)->extended_sig()->length() : 1;
+    int rec_len = holder->is_inline_klass() ? InlineKlass::cast(holder)->extended_sig()->length() : 1;
     // Copy scalarized signature but skip receiver, value type delimiters and reserved entries
     for (int i = 0; i < sig_cc->length(); i++) {
       if (!SigEntry::is_reserved_entry(sig_cc, i)) {

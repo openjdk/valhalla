@@ -22,87 +22,87 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_VALUEKLASS_HPP
-#define SHARE_VM_OOPS_VALUEKLASS_HPP
+#ifndef SHARE_VM_OOPS_INLINEKLASS_HPP
+#define SHARE_VM_OOPS_INLINEKLASS_HPP
 
 #include "classfile/javaClasses.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
 //#include "oops/oop.inline.hpp"
 
-// A ValueKlass is a specialized InstanceKlass for value types.
+// An InlineKlass is a specialized InstanceKlass for inline types.
 
 
-class ValueKlass: public InstanceKlass {
+class InlineKlass: public InstanceKlass {
   friend class VMStructs;
   friend class InstanceKlass;
 
  public:
-  ValueKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
+  InlineKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for CDS"); }
 
  private:
 
   // Constructor
-  ValueKlass(const ClassFileParser& parser);
+  InlineKlass(const ClassFileParser& parser);
 
-  ValueKlassFixedBlock* valueklass_static_block() const {
+  InlineKlassFixedBlock* inlineklass_static_block() const {
     address adr_jf = adr_inline_type_field_klasses();
     if (adr_jf != NULL) {
-      return (ValueKlassFixedBlock*)(adr_jf + this->java_fields_count() * sizeof(Klass*));
+      return (InlineKlassFixedBlock*)(adr_jf + this->java_fields_count() * sizeof(Klass*));
     }
 
     address adr_fing = adr_fingerprint();
     if (adr_fing != NULL) {
-      return (ValueKlassFixedBlock*)(adr_fingerprint() + sizeof(u8));
+      return (InlineKlassFixedBlock*)(adr_fingerprint() + sizeof(u8));
     }
 
     InstanceKlass** adr_host = adr_unsafe_anonymous_host();
     if (adr_host != NULL) {
-      return (ValueKlassFixedBlock*)(adr_host + 1);
+      return (InlineKlassFixedBlock*)(adr_host + 1);
     }
 
     Klass* volatile* adr_impl = adr_implementor();
     if (adr_impl != NULL) {
-      return (ValueKlassFixedBlock*)(adr_impl + 1);
+      return (InlineKlassFixedBlock*)(adr_impl + 1);
     }
 
-    return (ValueKlassFixedBlock*)end_of_nonstatic_oop_maps();
+    return (InlineKlassFixedBlock*)end_of_nonstatic_oop_maps();
   }
 
   address adr_extended_sig() const {
-    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
-    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _extended_sig));
+    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _extended_sig));
   }
 
   address adr_return_regs() const {
-    ValueKlassFixedBlock* vkst = valueklass_static_block();
-    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _return_regs));
+    InlineKlassFixedBlock* vkst = inlineklass_static_block();
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _return_regs));
   }
 
-  // pack and unpack handlers for value types return
+  // pack and unpack handlers for inline types return
   address adr_pack_handler() const {
-    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
-    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _pack_handler));
+    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _pack_handler));
   }
 
   address adr_pack_handler_jobject() const {
-    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
-    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _pack_handler_jobject));
+    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _pack_handler_jobject));
   }
 
   address adr_unpack_handler() const {
-    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
-    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _unpack_handler));
+    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _unpack_handler));
   }
 
   address adr_default_value_offset() const {
-    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
-    return ((address)_adr_valueklass_fixed_block) + in_bytes(default_value_offset_offset());
+    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(default_value_offset_offset());
   }
 
   address adr_value_array_klass() const {
-    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
-    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _value_array_klass));
+    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _value_array_klass));
   }
 
   Klass* get_value_array_klass() const {
@@ -116,18 +116,18 @@ class ValueKlass: public InstanceKlass {
   Klass* allocate_value_array_klass(TRAPS);
 
   address adr_alignment() const {
-    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
-    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _alignment));
+    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _alignment));
   }
 
   address adr_first_field_offset() const {
-    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
-    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _first_field_offset));
+    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _first_field_offset));
   }
 
   address adr_exact_size_in_bytes() const {
-    assert(_adr_valueklass_fixed_block != NULL, "Should have been initialized");
-    return ((address)_adr_valueklass_fixed_block) + in_bytes(byte_offset_of(ValueKlassFixedBlock, _exact_size_in_bytes));
+    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _exact_size_in_bytes));
   }
 
  public:
@@ -184,11 +184,10 @@ class ValueKlass: public InstanceKlass {
   bool is_inline_klass_slow() const        { return true; }
 
   // Casting from Klass*
-  static ValueKlass* cast(Klass* k);
+  static InlineKlass* cast(Klass* k);
 
-  // Use this to return the size of an instance in heap words
-  // Implementation is currently simple because all value types are allocated
-  // in Java heap like Java objects.
+  // Use this to return the size of an instance in heap words.
+  // Note that this size only applies to heap allocated stand-alone instances.
   virtual int size_helper() const {
     return layout_helper_to_size_helper(layout_helper());
   }
@@ -200,9 +199,9 @@ class ValueKlass: public InstanceKlass {
   // allocate_instance() allocates a stand alone value in the Java heap
   // initialized to default value (cleared memory)
   instanceOop allocate_instance(TRAPS);
-  // allocates a stand alone value buffer in the Java heap
+  // allocates a stand alone inline buffer in the Java heap
   // DOES NOT have memory cleared, user MUST initialize payload before
-  // returning to Java (i.e.: value_copy)
+  // returning to Java (i.e.: inline_copy)
   instanceOop allocate_instance_buffer(TRAPS);
 
   // minimum number of bytes occupied by nonstatic fields, HeapWord aligned or pow2
@@ -222,19 +221,19 @@ class ValueKlass: public InstanceKlass {
   // General store methods
   //
   // Normally loads and store methods would be found in *Oops classes, but since values can be
-  // "in-lined" (flattened) into containing oops, these methods reside here in ValueKlass.
+  // "in-lined" (flattened) into containing oops, these methods reside here in InlineKlass.
   //
-  // "value_copy_*_to_new_*" assume new memory (i.e. IS_DEST_UNINITIALIZED for write barriers)
+  // "inline_copy_*_to_new_*" assume new memory (i.e. IS_DEST_UNINITIALIZED for write barriers)
 
-  void value_copy_payload_to_new_oop(void* src, oop dst);
-  void value_copy_oop_to_new_oop(oop src, oop dst);
-  void value_copy_oop_to_new_payload(oop src, void* dst);
-  void value_copy_oop_to_payload(oop src, void* dst);
+  void inline_copy_payload_to_new_oop(void* src, oop dst);
+  void inline_copy_oop_to_new_oop(oop src, oop dst);
+  void inline_copy_oop_to_new_payload(oop src, void* dst);
+  void inline_copy_oop_to_payload(oop src, void* dst);
 
   oop read_inlined_field(oop obj, int offset, TRAPS);
   void write_inlined_field(oop obj, int offset, oop value, TRAPS);
 
-  // oop iterate raw value type data pointer (where oop_addr may not be an oop, but backing/array-element)
+  // oop iterate raw inline type data pointer (where oop_addr may not be an oop, but backing/array-element)
   template <typename T, class OopClosureType>
   inline void oop_iterate_specialized(const address oop_addr, OopClosureType* closure);
 
@@ -255,7 +254,7 @@ class ValueKlass: public InstanceKlass {
   void save_oop_fields(const RegisterMap& map, GrowableArray<Handle>& handles) const;
   void restore_oop_results(RegisterMap& map, GrowableArray<Handle>& handles) const;
   oop realloc_result(const RegisterMap& reg_map, const GrowableArray<Handle>& handles, TRAPS);
-  static ValueKlass* returned_value_klass(const RegisterMap& reg_map);
+  static InlineKlass* returned_inline_klass(const RegisterMap& reg_map);
 
   address pack_handler() const {
     return *(address*)adr_pack_handler();
@@ -268,23 +267,23 @@ class ValueKlass: public InstanceKlass {
   // pack and unpack handlers. Need to be loadable from generated code
   // so at a fixed offset from the base of the klass pointer.
   static ByteSize pack_handler_offset() {
-    return byte_offset_of(ValueKlassFixedBlock, _pack_handler);
+    return byte_offset_of(InlineKlassFixedBlock, _pack_handler);
   }
 
   static ByteSize pack_handler_jobject_offset() {
-    return byte_offset_of(ValueKlassFixedBlock, _pack_handler_jobject);
+    return byte_offset_of(InlineKlassFixedBlock, _pack_handler_jobject);
   }
 
   static ByteSize unpack_handler_offset() {
-    return byte_offset_of(ValueKlassFixedBlock, _unpack_handler);
+    return byte_offset_of(InlineKlassFixedBlock, _unpack_handler);
   }
 
   static ByteSize default_value_offset_offset() {
-    return byte_offset_of(ValueKlassFixedBlock, _default_value_offset);
+    return byte_offset_of(InlineKlassFixedBlock, _default_value_offset);
   }
 
   static ByteSize first_field_offset_offset() {
-    return byte_offset_of(ValueKlassFixedBlock, _first_field_offset);
+    return byte_offset_of(InlineKlassFixedBlock, _first_field_offset);
   }
 
   void set_default_value_offset(int offset) {
@@ -303,7 +302,7 @@ class ValueKlass: public InstanceKlass {
 
   oop default_value();
   void deallocate_contents(ClassLoaderData* loader_data);
-  static void cleanup(ValueKlass* ik) ;
+  static void cleanup(InlineKlass* ik) ;
 
   // Verification
   void verify_on(outputStream* st);
@@ -311,4 +310,4 @@ class ValueKlass: public InstanceKlass {
 
 };
 
-#endif /* SHARE_VM_OOPS_VALUEKLASS_HPP */
+#endif /* SHARE_VM_OOPS_INLINEKLASS_HPP */

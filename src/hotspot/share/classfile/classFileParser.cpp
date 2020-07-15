@@ -59,7 +59,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/recordComponent.hpp"
 #include "oops/symbol.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/arguments.hpp"
@@ -4485,7 +4485,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
       if (!klass->access_flags().is_inline_type()) {
         THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
       }
-      ValueKlass* vk = ValueKlass::cast(klass);
+      InlineKlass* vk = InlineKlass::cast(klass);
       // Conditions to apply flattening or not should be defined in a single place
       bool too_big_to_allocate_inline = (InlineFieldMaxFlatSize >= 0 &&
                                  (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
@@ -4501,7 +4501,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         nonstatic_inline_type_klasses[nonstatic_inline_type_count] = klass;
         nonstatic_inline_type_count++;
 
-        ValueKlass* vklass = ValueKlass::cast(klass);
+        InlineKlass* vklass = InlineKlass::cast(klass);
         if (vklass->contains_oops()) {
           inline_type_oop_map_count += vklass->nonstatic_oop_map_count();
         }
@@ -4697,7 +4697,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
           Klass* klass = nonstatic_inline_type_klasses[next_inline_type_index];
           assert(klass != NULL, "Klass should have been loaded and resolved earlier");
           assert(klass->access_flags().is_inline_type(),"Must be an inline type");
-          ValueKlass* vklass = ValueKlass::cast(klass);
+          InlineKlass* vklass = InlineKlass::cast(klass);
           real_offset = next_nonstatic_inline_type_offset;
           next_nonstatic_inline_type_offset += (vklass->size_helper()) * wordSize - vklass->first_field_offset();
           // aligning next inline type on a 64 bits boundary
@@ -6178,7 +6178,7 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
   }
 
   if (ik->is_inline_klass()) {
-    ValueKlass* vk = ValueKlass::cast(ik);
+    InlineKlass* vk = InlineKlass::cast(ik);
     oop val = ik->allocate_instance(CHECK_NULL);
     vk->set_default_value(val);
   }
@@ -6450,12 +6450,12 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     } else
       if (is_inline_type() && ((ik->field_access_flags(i) & JVM_ACC_FIELD_INTERNAL) != 0)
         && ((ik->field_access_flags(i) & JVM_ACC_STATIC) != 0)) {
-      ValueKlass::cast(ik)->set_default_value_offset(ik->field_offset(i));
+      InlineKlass::cast(ik)->set_default_value_offset(ik->field_offset(i));
     }
   }
 
   if (is_inline_type()) {
-    ValueKlass* vk = ValueKlass::cast(ik);
+    InlineKlass* vk = InlineKlass::cast(ik);
     if (UseNewFieldLayout) {
       vk->set_alignment(_alignment);
       vk->set_first_field_offset(_first_field_offset);
@@ -6463,7 +6463,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     } else {
       vk->set_first_field_offset(vk->first_field_offset_old());
     }
-    ValueKlass::cast(ik)->initialize_calling_convention(CHECK);
+    InlineKlass::cast(ik)->initialize_calling_convention(CHECK);
   }
 
   ClassLoadingService::notify_class_loaded(ik, false /* not shared class */);

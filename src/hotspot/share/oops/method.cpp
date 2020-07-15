@@ -54,7 +54,7 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "prims/nativeLookup.hpp"
@@ -602,10 +602,10 @@ void Method::compute_from_signature(Symbol* sig) {
   constMethod()->set_fingerprint(fp.fingerprint());
 }
 
-// ValueKlass the method is declared to return. This must not
+// InlineKlass the method is declared to return. This must not
 // safepoint as it is called with references live on the stack at
 // locations the GC is unaware of.
-ValueKlass* Method::returned_value_type(Thread* thread) const {
+InlineKlass* Method::returned_inline_type(Thread* thread) const {
   SignatureStream ss(signature());
   while (!ss.at_return_type()) {
     ss.next();
@@ -618,7 +618,7 @@ ValueKlass* Method::returned_value_type(Thread* thread) const {
     k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, thread);
   }
   assert(k != NULL && !thread->has_pending_exception(), "can't resolve klass");
-  return ValueKlass::cast(k);
+  return InlineKlass::cast(k);
 }
 bool Method::is_empty_method() const {
   return  code_size() == 1

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,50 +21,50 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_OOPS_VALUEKLASS_INLINE_HPP
-#define SHARE_VM_OOPS_VALUEKLASS_INLINE_HPP
+#ifndef SHARE_VM_OOPS_INLINEKLASS_INLINE_HPP
+#define SHARE_VM_OOPS_INLINEKLASS_INLINE_HPP
 
 #include "memory/iterator.hpp"
 #include "oops/klass.hpp"
 #include "oops/valueArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "utilities/macros.hpp"
 
-inline ValueKlass* ValueKlass::cast(Klass* k) {
-  assert(k->is_inline_klass(), "cast to ValueKlass");
-  return (ValueKlass*) k;
+inline InlineKlass* InlineKlass::cast(Klass* k) {
+  assert(k->is_inline_klass(), "cast to InlineKlass");
+  return (InlineKlass*) k;
 }
 
-inline address ValueKlass::data_for_oop(oop o) const {
+inline address InlineKlass::data_for_oop(oop o) const {
   return ((address) (void*) o) + first_field_offset();
 }
 
-inline oop ValueKlass::oop_for_data(address data) const {
+inline oop InlineKlass::oop_for_data(address data) const {
   oop o = (oop) (data - first_field_offset());
   assert(oopDesc::is_oop(o, false), "Not an oop");
   return o;
 }
 
-inline void ValueKlass::value_copy_payload_to_new_oop(void* src, oop dst) {
+inline void InlineKlass::inline_copy_payload_to_new_oop(void* src, oop dst) {
   HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(src, data_for_oop(dst), this);
 }
 
-inline void ValueKlass::value_copy_oop_to_new_oop(oop src, oop dst) {
+inline void InlineKlass::inline_copy_oop_to_new_oop(oop src, oop dst) {
   HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(data_for_oop(src), data_for_oop(dst), this);
 }
 
-inline void ValueKlass::value_copy_oop_to_new_payload(oop src, void* dst) {
+inline void InlineKlass::inline_copy_oop_to_new_payload(oop src, void* dst) {
   HeapAccess<IS_DEST_UNINITIALIZED>::value_copy(data_for_oop(src), dst, this);
 }
 
-inline void ValueKlass::value_copy_oop_to_payload(oop src, void* dst) {
+inline void InlineKlass::inline_copy_oop_to_payload(oop src, void* dst) {
   HeapAccess<>::value_copy(data_for_oop(src), dst, this);
 }
 
 
 template <typename T, class OopClosureType>
-void ValueKlass::oop_iterate_specialized(const address oop_addr, OopClosureType* closure) {
+void InlineKlass::oop_iterate_specialized(const address oop_addr, OopClosureType* closure) {
   OopMapBlock* map = start_of_nonstatic_oop_maps();
   OopMapBlock* const end_map = map + nonstatic_oop_map_count();
 
@@ -78,7 +78,7 @@ void ValueKlass::oop_iterate_specialized(const address oop_addr, OopClosureType*
 }
 
 template <typename T, class OopClosureType>
-inline void ValueKlass::oop_iterate_specialized_bounded(const address oop_addr, OopClosureType* closure, void* lo, void* hi) {
+inline void InlineKlass::oop_iterate_specialized_bounded(const address oop_addr, OopClosureType* closure, void* lo, void* hi) {
   OopMapBlock* map = start_of_nonstatic_oop_maps();
   OopMapBlock* const end_map = map + nonstatic_oop_map_count();
 
@@ -101,4 +101,4 @@ inline void ValueKlass::oop_iterate_specialized_bounded(const address oop_addr, 
 }
 
 
-#endif // SHARE_VM_OOPS_VALUEKLASS_INLINE_HPP
+#endif // SHARE_VM_OOPS_INLINEKLASS_INLINE_HPP

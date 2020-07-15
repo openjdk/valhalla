@@ -58,7 +58,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "prims/jvm_misc.hpp"
 #include "prims/jvmtiExport.hpp"

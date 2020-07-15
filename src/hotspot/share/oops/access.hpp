@@ -223,7 +223,7 @@ public:
   // inline type heap access (when inlined)...
 
   // Copy value type data from src to dst
-  static inline void value_copy(void* src, void* dst, ValueKlass* md) {
+  static inline void value_copy(void* src, void* dst, InlineKlass* md) {
     verify_heap_value_decorators<IN_HEAP>();
     AccessInternal::value_copy<decorators>(src, dst, md);
   }

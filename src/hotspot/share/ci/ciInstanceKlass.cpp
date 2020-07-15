@@ -34,7 +34,7 @@
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
@@ -551,7 +551,7 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
     if (fd.is_inlined() && flatten) {
       // Value type fields are embedded
       int field_offset = fd.offset();
-      // Get ValueKlass and adjust number of fields
+      // Get InlineKlass and adjust number of fields
       Klass* k = get_instanceKlass()->get_inline_type_field_klass(fd.index());
       ciValueKlass* vk = CURRENT_ENV->get_klass(k)->as_value_klass();
       flen += vk->nof_nonstatic_fields() - 1;
@@ -821,7 +821,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
       Klass* k = SystemDictionary::find(name, Handle(THREAD, holder->class_loader()),
                                         Handle(THREAD, holder->protection_domain()), THREAD);
       assert(k != NULL && !HAS_PENDING_EXCEPTION, "can resolve klass?");
-      ValueKlass* vk = ValueKlass::cast(k);
+      InlineKlass* vk = InlineKlass::cast(k);
       oop obj;
       if (flattened) {
         int field_offset = fd->offset() - vk->first_field_offset();

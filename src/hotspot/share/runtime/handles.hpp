@@ -29,7 +29,7 @@
 #include "oops/oop.hpp"
 #include "oops/oopsHierarchy.hpp"
 
-class ValueKlass;
+class InlineKlass;
 class InstanceKlass;
 class Klass;
 class Thread;

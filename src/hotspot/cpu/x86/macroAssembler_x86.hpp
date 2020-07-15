@@ -105,10 +105,10 @@ class MacroAssembler: public Assembler {
   void test_klass_is_value(Register klass, Register temp_reg, Label& is_value);
   void test_klass_is_empty_value(Register klass, Register temp_reg, Label& is_empty_value);
 
-  // Get the default value oop for the given ValueKlass
+  // Get the default value oop for the given InlineKlass
   void get_default_value_oop(Register value_klass, Register temp_reg, Register obj);
-  // The empty value oop, for the given ValueKlass ("empty" as in no instance fields)
-  // get_default_value_oop with extra assertion for empty value klass
+  // The empty value oop, for the given InlineKlass ("empty" as in no instance fields)
+  // get_default_value_oop with extra assertion for empty inline klass
   void get_empty_value_oop(Register value_klass, Register temp_reg, Register obj);
 
   void test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline);

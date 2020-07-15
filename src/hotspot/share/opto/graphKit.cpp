@@ -4239,9 +4239,9 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     set_control(_gvn.transform(new IfTrueNode(iff)));
     Node* p = basic_plus_adr(klass_node, in_bytes(ArrayKlass::element_klass_offset()));
     Node* eklass = _gvn.transform(LoadKlassNode::make(_gvn, control(), immutable_memory(), p, TypeInstPtr::KLASS));
-    Node* adr_fixed_block_addr = basic_plus_adr(eklass, in_bytes(InstanceKlass::adr_valueklass_fixed_block_offset()));
+    Node* adr_fixed_block_addr = basic_plus_adr(eklass, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset()));
     Node* adr_fixed_block = make_load(control(), adr_fixed_block_addr, TypeRawPtr::NOTNULL, T_ADDRESS, MemNode::unordered);
-    Node* default_value_offset_addr = basic_plus_adr(adr_fixed_block, in_bytes(ValueKlass::default_value_offset_offset()));
+    Node* default_value_offset_addr = basic_plus_adr(adr_fixed_block, in_bytes(InlineKlass::default_value_offset_offset()));
     Node* default_value_offset = make_load(control(), default_value_offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
     Node* elem_mirror = load_mirror_from_klass(eklass);
     Node* default_value_addr = basic_plus_adr(elem_mirror, ConvI2X(default_value_offset));
