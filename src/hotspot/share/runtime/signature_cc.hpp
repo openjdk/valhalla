@@ -39,7 +39,7 @@ class ScalarizedValueArgsStream : public StackObj {
 public:
   ScalarizedValueArgsStream(const GrowableArray<SigEntry>* sig_cc, int sig_cc_index, VMRegPair* regs_cc, int regs_cc_count, int regs_cc_index) :
     _sig_cc(sig_cc), _sig_cc_index(sig_cc_index), _regs_cc(regs_cc), _regs_cc_count(regs_cc_count), _regs_cc_index(regs_cc_index) {
-    assert(_sig_cc->at(_sig_cc_index)._bt == T_VALUETYPE, "should be at end delimiter");
+    assert(_sig_cc->at(_sig_cc_index)._bt == T_INLINE_TYPE, "should be at end delimiter");
     _vt = 1;
     DEBUG_ONLY(_finished = false);
   }
@@ -49,7 +49,7 @@ public:
     do {
       _sig_cc_index++;
       bt = _sig_cc->at(_sig_cc_index)._bt;
-      if (bt == T_VALUETYPE) {
+      if (bt == T_INLINE_TYPE) {
         _vt++;
       } else if (bt == T_VOID &&
                  _sig_cc->at(_sig_cc_index-1)._bt != T_LONG &&

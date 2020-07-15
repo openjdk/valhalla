@@ -559,7 +559,7 @@ address TemplateInterpreterGenerator::generate_result_handler_for(
   case T_VOID   : /* nothing to do */        break;
   case T_FLOAT  : /* nothing to do */        break;
   case T_DOUBLE : /* nothing to do */        break;
-  case T_VALUETYPE: // fall through (value types are handled with oops)
+  case T_INLINE_TYPE: // fall through (value types are handled with oops)
   case T_OBJECT :
     // retrieve result from frame
     __ ldr(r0, Address(rfp, frame::interpreter_frame_oop_temp_offset*wordSize));

@@ -503,7 +503,7 @@ ciKlass* ciObjectFactory::get_unloaded_klass(ciKlass* accessing_klass,
     BasicType element_type = ss.type();
     assert(element_type != T_ARRAY, "unsuccessful decomposition");
     ciKlass* element_klass = NULL;
-    if (element_type == T_OBJECT || element_type == T_VALUETYPE) {
+    if (element_type == T_OBJECT || element_type == T_INLINE_TYPE) {
       ciEnv *env = CURRENT_THREAD_ENV;
       ciSymbol* ci_name = env->get_symbol(ss.as_symbol());
       element_klass =

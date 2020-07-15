@@ -1160,7 +1160,7 @@ void InterpreterMacroAssembler::remove_activation(
     movptr(rdi, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
     movptr(rdi, Address(rdi, Method::const_offset()));
     load_unsigned_byte(rdi, Address(rdi, ConstMethod::result_type_offset()));
-    cmpl(rdi, T_VALUETYPE);
+    cmpl(rdi, T_INLINE_TYPE);
     jcc(Assembler::notEqual, skip);
 
     // We are returning a value type, load its fields into registers

@@ -501,7 +501,7 @@ inline int ClassVerifier::change_sig_to_verificationType(
         *inference_type = VerificationType::reference_type(name_copy);
         return 1;
       }
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
       {
         Symbol* vname = sig_type->as_symbol();
         // Create another symbol to save as signature stream unreferences this symbol.

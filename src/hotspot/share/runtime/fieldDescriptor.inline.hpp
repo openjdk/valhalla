@@ -80,6 +80,6 @@ inline BasicType fieldDescriptor::field_type() const {
 }
 
 inline bool fieldDescriptor::is_inlined()  const  { return field()->is_inlined(); }
-inline bool fieldDescriptor::is_inline_type() const { return Signature::basic_type(field()->signature(_cp())) == T_VALUETYPE; }
+inline bool fieldDescriptor::is_inline_type() const { return Signature::basic_type(field()->signature(_cp())) == T_INLINE_TYPE; }
 
 #endif // SHARE_RUNTIME_FIELDDESCRIPTOR_INLINE_HPP

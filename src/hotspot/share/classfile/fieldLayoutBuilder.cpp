@@ -320,7 +320,7 @@ bool FieldLayout::reconstruct_layout(const InstanceKlass* ik) {
       if (fs.access_flags().is_static()) continue;
       has_instance_fields = true;
       LayoutRawBlock* block;
-      if (type == T_VALUETYPE) {
+      if (type == T_INLINE_TYPE) {
         ValueKlass* vk = ValueKlass::cast(ik->get_inline_type_field_klass(fs.index()));
         block = new LayoutRawBlock(fs.index(), LayoutRawBlock::INHERITED, vk->get_exact_size_in_bytes(),
                                    vk->get_alignment(), false);
@@ -614,7 +614,7 @@ void FieldLayoutBuilder::regular_field_sorting() {
       if (group != _static_fields) _nonstatic_oopmap_count++;
       group->add_oop_field(fs);
       break;
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
 //      fs.set_inline(true);
       _has_inline_type_fields = true;
       if (group == _static_fields) {
@@ -716,7 +716,7 @@ void FieldLayoutBuilder::inline_class_field_sorting(TRAPS) {
       }
       group->add_oop_field(fs);
       break;
-    case T_VALUETYPE: {
+    case T_INLINE_TYPE: {
 //      fs.set_inline(true);
       _has_inline_type_fields = true;
       if (group == _static_fields) {

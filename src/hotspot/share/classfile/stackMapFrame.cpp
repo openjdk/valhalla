@@ -100,7 +100,7 @@ VerificationType StackMapFrame::set_locals_from_arg(
   switch (ss.type()) {
     case T_OBJECT:
     case T_ARRAY:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
     {
       Symbol* sig = ss.as_symbol();
       if (!sig->is_permanent()) {
@@ -111,7 +111,7 @@ VerificationType StackMapFrame::set_locals_from_arg(
         assert(sig_copy == sig, "symbols don't match");
         sig = sig_copy;
       }
-      if (ss.type() == T_VALUETYPE) {
+      if (ss.type() == T_INLINE_TYPE) {
         return VerificationType::inline_type(sig);
       }
       return VerificationType::reference_type(sig);

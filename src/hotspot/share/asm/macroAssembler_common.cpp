@@ -79,7 +79,7 @@ void MacroAssembler::mark_reserved_entries_writable(const GrowableArray<SigEntry
       do {
         sig_index++;
         BasicType bt = sig_cc->at(sig_index)._bt;
-        if (bt == T_VALUETYPE) {
+        if (bt == T_INLINE_TYPE) {
           vt++;
         } else if (bt == T_VOID &&
                    sig_cc->at(sig_index-1)._bt != T_LONG &&

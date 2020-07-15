@@ -715,7 +715,7 @@ void Parse::do_call() {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
             const Type*       sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
             if (declared_signature->returns_never_null()) {
-              assert(ct == T_VALUETYPE, "should be a value type");
+              assert(ct == T_INLINE_TYPE, "should be a value type");
               sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
             }
             if (arg_type != NULL && !arg_type->higher_equal(sig_type) && !peek()->is_ValueType()) {
@@ -744,12 +744,12 @@ void Parse::do_call() {
              "mismatched return types: rtype=%s, ctype=%s", rtype->name(), ctype->name());
     }
 
-    if (rtype->basic_type() == T_VALUETYPE && !peek()->is_ValueType()) {
+    if (rtype->basic_type() == T_INLINE_TYPE && !peek()->is_ValueType()) {
       Node* retnode = pop();
       if (!gvn().type(retnode)->maybe_null() && rtype->as_value_klass()->is_scalarizable()) {
         retnode = ValueTypeNode::make_from_oop(this, retnode, rtype->as_value_klass());
       }
-      push_node(T_VALUETYPE, retnode);
+      push_node(T_INLINE_TYPE, retnode);
     }
 
     // If the return type of the method is not loaded, assert that the

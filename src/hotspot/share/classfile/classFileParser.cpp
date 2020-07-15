@@ -1546,7 +1546,7 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   NONSTATIC_DOUBLE,    // T_LONG        = 11,
   NONSTATIC_OOP,       // T_OBJECT      = 12,
   NONSTATIC_OOP,       // T_ARRAY       = 13,
-  NONSTATIC_OOP,       // T_VALUETYPE   = 14,
+  NONSTATIC_OOP,       // T_INLINE_TYPE = 14,
   BAD_ALLOCATION_TYPE, // T_VOID        = 15,
   BAD_ALLOCATION_TYPE, // T_ADDRESS     = 16,
   BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
@@ -1567,7 +1567,7 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   STATIC_DOUBLE,       // T_LONG        = 11,
   STATIC_OOP,          // T_OBJECT      = 12,
   STATIC_OOP,          // T_ARRAY       = 13,
-  STATIC_OOP,          // T_VALUETYPE   = 14,
+  STATIC_OOP,          // T_INLINE_TYPE = 14,
   BAD_ALLOCATION_TYPE, // T_VOID        = 15,
   BAD_ALLOCATION_TYPE, // T_ADDRESS     = 16,
   BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
@@ -1753,7 +1753,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
 
     // Remember how many oops we encountered and compute allocation type
-    const FieldAllocationType atype = fac->update(is_static, type, type == T_VALUETYPE);
+    const FieldAllocationType atype = fac->update(is_static, type, type == T_INLINE_TYPE);
     field->set_allocation_type(atype);
 
     // After field is initialized with type, we can augment it with aux info
@@ -7282,7 +7282,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
 
   for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
-    if (Signature::basic_type(fs.signature()) == T_VALUETYPE  && !fs.access_flags().is_static()) {
+    if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE  && !fs.access_flags().is_static()) {
       // Pre-load inline class
       Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
           Handle(THREAD, _loader_data->class_loader()),

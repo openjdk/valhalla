@@ -58,7 +58,7 @@ ciValueArrayKlass::ciValueArrayKlass(Klass* h_k) : ciArrayKlass(h_k) {
 ciValueArrayKlass::ciValueArrayKlass(ciSymbol* array_name,
                                      ciValueKlass* base_element_klass,
                                      int dimension)
-  : ciArrayKlass(array_name, dimension, T_VALUETYPE) {
+  : ciArrayKlass(array_name, dimension, T_INLINE_TYPE) {
   _base_element_klass = base_element_klass;
   _element_klass = base_element_klass;
 }

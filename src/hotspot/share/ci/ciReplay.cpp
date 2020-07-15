@@ -798,7 +798,7 @@ class CompileReplay : public StackObj {
 
     void do_field(fieldDescriptor* fd) {
       BasicType bt = fd->field_type();
-      const char* string_value = bt != T_VALUETYPE ? _replay->parse_escaped_string() : NULL;
+      const char* string_value = bt != T_INLINE_TYPE ? _replay->parse_escaped_string() : NULL;
       switch (bt) {
       case T_BYTE: {
         int value = atoi(string_value);
@@ -851,7 +851,7 @@ class CompileReplay : public StackObj {
         assert(res, "should succeed for arrays & objects");
         break;
       }
-      case T_VALUETYPE: {
+      case T_INLINE_TYPE: {
         ValueKlass* vk = ValueKlass::cast(fd->field_holder()->get_inline_type_field_klass(fd->index()));
         if (fd->is_inlined()) {
           int field_offset = fd->offset() - vk->first_field_offset();

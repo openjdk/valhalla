@@ -641,7 +641,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_getLong:                  return inline_unsafe_access(!is_store, T_LONG,     Relaxed, false);
   case vmIntrinsics::_getFloat:                 return inline_unsafe_access(!is_store, T_FLOAT,    Relaxed, false);
   case vmIntrinsics::_getDouble:                return inline_unsafe_access(!is_store, T_DOUBLE,   Relaxed, false);
-  case vmIntrinsics::_getValue:                 return inline_unsafe_access(!is_store, T_VALUETYPE,Relaxed, false);
+  case vmIntrinsics::_getValue:                 return inline_unsafe_access(!is_store, T_INLINE_TYPE,Relaxed, false);
 
   case vmIntrinsics::_putReference:             return inline_unsafe_access( is_store, T_OBJECT,   Relaxed, false);
   case vmIntrinsics::_putBoolean:               return inline_unsafe_access( is_store, T_BOOLEAN,  Relaxed, false);
@@ -652,7 +652,7 @@ bool LibraryCallKit::try_to_inline(int predicate) {
   case vmIntrinsics::_putLong:                  return inline_unsafe_access( is_store, T_LONG,     Relaxed, false);
   case vmIntrinsics::_putFloat:                 return inline_unsafe_access( is_store, T_FLOAT,    Relaxed, false);
   case vmIntrinsics::_putDouble:                return inline_unsafe_access( is_store, T_DOUBLE,   Relaxed, false);
-  case vmIntrinsics::_putValue:                 return inline_unsafe_access( is_store, T_VALUETYPE,Relaxed, false);
+  case vmIntrinsics::_putValue:                 return inline_unsafe_access( is_store, T_INLINE_TYPE,Relaxed, false);
 
   case vmIntrinsics::_getReferenceVolatile:     return inline_unsafe_access(!is_store, T_OBJECT,   Volatile, false);
   case vmIntrinsics::_getBooleanVolatile:       return inline_unsafe_access(!is_store, T_BOOLEAN,  Volatile, false);
@@ -2428,18 +2428,18 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     if (!is_store) {
       // Object getReference(Object base, int/long offset), etc.
       BasicType rtype = sig->return_type()->basic_type();
-      assert(rtype == type || (rtype == T_OBJECT && type == T_VALUETYPE), "getter must return the expected value");
-      assert(sig->count() == 2 || (type == T_VALUETYPE && sig->count() == 3), "oop getter has 2 or 3 arguments");
+      assert(rtype == type || (rtype == T_OBJECT && type == T_INLINE_TYPE), "getter must return the expected value");
+      assert(sig->count() == 2 || (type == T_INLINE_TYPE && sig->count() == 3), "oop getter has 2 or 3 arguments");
       assert(sig->type_at(0)->basic_type() == T_OBJECT, "getter base is object");
       assert(sig->type_at(1)->basic_type() == T_LONG, "getter offset is correct");
     } else {
       // void putReference(Object base, int/long offset, Object x), etc.
       assert(sig->return_type()->basic_type() == T_VOID, "putter must not return a value");
-      assert(sig->count() == 3 || (type == T_VALUETYPE && sig->count() == 4), "oop putter has 3 arguments");
+      assert(sig->count() == 3 || (type == T_INLINE_TYPE && sig->count() == 4), "oop putter has 3 arguments");
       assert(sig->type_at(0)->basic_type() == T_OBJECT, "putter base is object");
       assert(sig->type_at(1)->basic_type() == T_LONG, "putter offset is correct");
       BasicType vtype = sig->type_at(sig->count()-1)->basic_type();
-      assert(vtype == type || (type == T_VALUETYPE && vtype == T_OBJECT), "putter must accept the expected value");
+      assert(vtype == type || (type == T_INLINE_TYPE && vtype == T_OBJECT), "putter must accept the expected value");
     }
 #endif // ASSERT
  }
@@ -2466,7 +2466,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
          "fieldOffset must be byte-scaled");
 
   ciValueKlass* value_klass = NULL;
-  if (type == T_VALUETYPE) {
+  if (type == T_INLINE_TYPE) {
     Node* cls = null_check(argument(4));
     if (stopped()) {
       return true;
@@ -2512,7 +2512,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
             bt = T_OBJECT;
           }
           if (bt == type) {
-            if (bt != T_VALUETYPE || f->type() == value_klass) {
+            if (bt != T_INLINE_TYPE || f->type() == value_klass) {
               set_result(vt->field_value_by_offset((int)off, false));
               return true;
             }
@@ -2547,7 +2547,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     decorators |= IN_HEAP;
   }
 
-  val = is_store ? argument(4 + (type == T_VALUETYPE ? 1 : 0)) : NULL;
+  val = is_store ? argument(4 + (type == T_INLINE_TYPE ? 1 : 0)) : NULL;
 
   const TypePtr* adr_type = _gvn.type(adr)->isa_ptr();
   if (adr_type == TypePtr::NULL_PTR) {
@@ -2581,8 +2581,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     if (field != NULL) {
       bt = field->layout_type();
     }
-    assert(bt == alias_type->basic_type() || bt == T_VALUETYPE, "should match");
-    if (field != NULL && bt == T_VALUETYPE && !field->is_flattened()) {
+    assert(bt == alias_type->basic_type() || bt == T_INLINE_TYPE, "should match");
+    if (field != NULL && bt == T_INLINE_TYPE && !field->is_flattened()) {
       bt = T_OBJECT;
     }
   } else {
@@ -2609,7 +2609,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     mismatched = true; // conservatively mark all "wide" on-heap accesses as mismatched
   }
 
-  if (type == T_VALUETYPE) {
+  if (type == T_INLINE_TYPE) {
     if (adr_type->isa_instptr()) {
       if (field == NULL || field->type() != value_klass) {
         mismatched = true;
@@ -2648,7 +2648,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       if (tjp != NULL) {
         value_type = tjp;
       }
-    } else if (type == T_VALUETYPE) {
+    } else if (type == T_INLINE_TYPE) {
       value_type = NULL;
     }
   }
@@ -2668,7 +2668,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     }
 
     if (p == NULL) { // Could not constant fold the load
-      if (type == T_VALUETYPE) {
+      if (type == T_INLINE_TYPE) {
         if (adr_type->isa_instptr() && !mismatched) {
           ciInstanceKlass* holder = adr_type->is_instptr()->klass()->as_instance_klass();
           int offset = adr_type->is_instptr()->offset();
@@ -2724,7 +2724,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       val = ConvL2X(val);
       val = gvn().transform(new CastX2PNode(val));
     }
-    if (type == T_VALUETYPE) {
+    if (type == T_INLINE_TYPE) {
       if (adr_type->isa_instptr() && !mismatched) {
         ciInstanceKlass* holder = adr_type->is_instptr()->klass()->as_instance_klass();
         int offset = adr_type->is_instptr()->offset();

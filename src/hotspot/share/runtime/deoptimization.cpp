@@ -1281,14 +1281,14 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         ReassignedField field;
         field._offset = fs.offset();
         field._type = Signature::basic_type(fs.signature());
-        if (field._type == T_VALUETYPE) {
+        if (field._type == T_INLINE_TYPE) {
           field._type = T_OBJECT;
         }
         if (fs.is_inlined()) {
           // Resolve klass of flattened value type field
           Klass* vk = klass->get_inline_type_field_klass(fs.index());
           field._klass = ValueKlass::cast(vk);
-          field._type = T_VALUETYPE;
+          field._type = T_INLINE_TYPE;
         }
         fields->append(field);
       }
@@ -1309,7 +1309,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         obj->obj_field_put(offset, value->get_obj()());
         break;
 
-      case T_VALUETYPE: {
+      case T_INLINE_TYPE: {
         // Recursively re-assign flattened value type fields
         InstanceKlass* vk = fields->at(i)._klass;
         assert(vk != NULL, "must be resolved");
@@ -1398,7 +1398,7 @@ void Deoptimization::reassign_value_array_elements(frame* fr, RegisterMap* reg_m
   ValueKlass* vk = vak->element_klass();
   assert(vk->flatten_array(), "should only be used for flattened value type arrays");
   // Adjust offset to omit oop header
-  int base_offset = arrayOopDesc::base_offset_in_bytes(T_VALUETYPE) - ValueKlass::cast(vk)->first_field_offset();
+  int base_offset = arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE) - ValueKlass::cast(vk)->first_field_offset();
   // Initialize all elements of the flattened value type array
   for (int i = 0; i < sv->field_size(); i++) {
     ScopeValue* val = sv->field_at(i);

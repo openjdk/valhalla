@@ -1054,7 +1054,7 @@ void ThreadSafepointState::handle_polling_page_exception() {
       while (!ss.at_return_type()) {
         ss.next();
       }
-      if (ss.type() == T_VALUETYPE) {
+      if (ss.type() == T_INLINE_TYPE) {
         // Check if value type is returned as fields
         vk = ValueKlass::returned_value_klass(map);
         if (vk != NULL) {

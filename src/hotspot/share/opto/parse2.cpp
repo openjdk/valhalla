@@ -89,7 +89,7 @@ void Parse::array_load(BasicType bt) {
     return;
   } else if (elemptr != NULL && elemptr->is_valuetypeptr() && !elemptr->maybe_null()) {
     // Load from non-flattened but flattenable value type array (elements can never be null)
-    bt = T_VALUETYPE;
+    bt = T_INLINE_TYPE;
   } else if (!ary_t->is_not_flat()) {
     // Cannot statically determine if array is flattened, emit runtime check
     assert(ValueArrayFlatten && is_reference_type(bt) && elemptr->can_be_value_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
@@ -116,7 +116,7 @@ void Parse::array_load(BasicType bt) {
         ciArrayKlass* array_klass = ciArrayKlass::make(vk);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
-        Node* casted_adr = array_element_address(cast, idx, T_VALUETYPE, ary_t->size(), control());
+        Node* casted_adr = array_element_address(cast, idx, T_INLINE_TYPE, ary_t->size(), control());
         // Re-execute flattened array load if buffering triggers deoptimization
         PreserveReexecuteState preexecs(this);
         jvms()->set_should_reexecute(true);
@@ -160,7 +160,7 @@ void Parse::array_load(BasicType bt) {
           assert(Klass::_lh_log2_element_size_shift == 0, "use shift in place");
           Node* lhp = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
           Node* elem_shift = make_load(NULL, lhp, TypeInt::INT, T_INT, MemNode::unordered);
-          uint header = arrayOopDesc::base_offset_in_bytes(T_VALUETYPE);
+          uint header = arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE);
           Node* base  = basic_plus_adr(ary, header);
           idx = Compile::conv_I2X_index(&_gvn, idx, TypeInt::POS, control());
           Node* scale = _gvn.transform(new LShiftXNode(idx, elem_shift));
@@ -210,7 +210,7 @@ void Parse::array_load(BasicType bt) {
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
   Node* ld = access_load_at(ary, adr, adr_type, elemtype, bt,
                             IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
-  if (bt == T_VALUETYPE) {
+  if (bt == T_INLINE_TYPE) {
     // Loading a non-flattened (but flattenable) value type from an array
     assert(!gvn().type(ld)->maybe_null(), "value type array elements should never be null");
     if (elemptr->value_klass()->is_scalarizable()) {

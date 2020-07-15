@@ -70,7 +70,7 @@ ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset) {
     case T_FLOAT:   return ciConstant(obj->float_field(offset));
     case T_DOUBLE:  return ciConstant(obj->double_field(offset));
     case T_LONG:    return ciConstant(obj->long_field(offset));
-    case T_VALUETYPE:  // fall through
+    case T_INLINE_TYPE:  // fall through
     case T_OBJECT:  // fall through
     case T_ARRAY: {
       oop o = obj->obj_field(offset);
