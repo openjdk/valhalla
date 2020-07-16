@@ -3562,7 +3562,7 @@ JNI_ENTRY(jobject, jni_GetObjectSubElement(JNIEnv* env, jarray array, jobject se
     res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(ar, offset);
   } else {
     InlineKlass* fieldKlass = InlineKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
-    res = fieldKlass->allocate_instance(CHECK_NULL);
+    res = fieldKlass->allocate_instance_buffer(CHECK_NULL);
     // The array might have been moved by the GC, refreshing the arrayOop
     ar =  (valueArrayOop)JNIHandles::resolve_non_null(array);
     address addr = (address)ar->value_at_addr(index, vak->layout_helper())
