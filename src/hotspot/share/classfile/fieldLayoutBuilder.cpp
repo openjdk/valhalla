@@ -37,7 +37,7 @@
 LayoutRawBlock::LayoutRawBlock(Kind kind, int size) :
   _next_block(NULL),
   _prev_block(NULL),
-  _value_klass(NULL),
+  _inline_klass(NULL),
   _kind(kind),
   _offset(-1),
   _alignment(1),
@@ -53,7 +53,7 @@ LayoutRawBlock::LayoutRawBlock(Kind kind, int size) :
 LayoutRawBlock::LayoutRawBlock(int index, Kind kind, int size, int alignment, bool is_reference) :
  _next_block(NULL),
  _prev_block(NULL),
- _value_klass(NULL),
+ _inline_klass(NULL),
  _kind(kind),
  _offset(-1),
  _alignment(alignment),
@@ -104,7 +104,7 @@ void FieldGroup::add_oop_field(AllFieldStream fs) {
 void FieldGroup::add_inlined_field(AllFieldStream fs, InlineKlass* vk) {
   // _inlined_fields list might be merged with the _primitive_fields list in the future
   LayoutRawBlock* block = new LayoutRawBlock(fs.index(), LayoutRawBlock::INLINED, vk->get_exact_size_in_bytes(), vk->get_alignment(), false);
-  block->set_value_klass(vk);
+  block->set_inline_klass(vk);
   if (_inlined_fields == NULL) {
     _inlined_fields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
   }
@@ -915,7 +915,7 @@ void FieldLayoutBuilder::epilogue() {
   if (ff != NULL) {
     for (int i = 0; i < ff->length(); i++) {
       LayoutRawBlock* f = ff->at(i);
-      InlineKlass* vk = f->value_klass();
+      InlineKlass* vk = f->inline_klass();
       assert(vk != NULL, "Should have been initialized");
       if (vk->contains_oops()) {
         add_inlined_field_oopmap(nonstatic_oop_maps, vk, f->offset());

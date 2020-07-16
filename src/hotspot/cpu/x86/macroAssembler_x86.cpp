@@ -2617,24 +2617,24 @@ void MacroAssembler::null_check(Register reg, int offset) {
   }
 }
 
-void MacroAssembler::test_klass_is_value(Register klass, Register temp_reg, Label& is_value) {
+void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type) {
   movl(temp_reg, Address(klass, Klass::access_flags_offset()));
   testl(temp_reg, JVM_ACC_VALUE);
-  jcc(Assembler::notZero, is_value);
+  jcc(Assembler::notZero, is_inline_type);
 }
 
-void MacroAssembler::test_klass_is_empty_value(Register klass, Register temp_reg, Label& is_empty_value) {
+void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type) {
 #ifdef ASSERT
   {
     Label done_check;
-    test_klass_is_value(klass, temp_reg, done_check);
-    stop("test_klass_is_empty_value with non value klass");
+    test_klass_is_inline_type(klass, temp_reg, done_check);
+    stop("test_klass_is_empty_inline_type with non inline type klass");
     bind(done_check);
   }
 #endif
   movl(temp_reg, Address(klass, InstanceKlass::misc_flags_offset()));
   testl(temp_reg, InstanceKlass::misc_flags_is_empty_inline_type());
-  jcc(Assembler::notZero, is_empty_value);
+  jcc(Assembler::notZero, is_empty_inline_type);
 }
 
 void MacroAssembler::test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline_type) {
@@ -3615,26 +3615,26 @@ void MacroAssembler::zero_memory(Register address, Register length_in_bytes, int
   bind(done);
 }
 
-void MacroAssembler::get_value_field_klass(Register klass, Register index, Register value_klass) {
-  movptr(value_klass, Address(klass, InstanceKlass::inline_type_field_klasses_offset()));
+void MacroAssembler::get_inline_type_field_klass(Register klass, Register index, Register inline_klass) {
+  movptr(inline_klass, Address(klass, InstanceKlass::inline_type_field_klasses_offset()));
 #ifdef ASSERT
   {
     Label done;
-    cmpptr(value_klass, 0);
+    cmpptr(inline_klass, 0);
     jcc(Assembler::notEqual, done);
-    stop("get_value_field_klass contains no inline klasses");
+    stop("get_inline_type_field_klass contains no inline klass");
     bind(done);
   }
 #endif
-  movptr(value_klass, Address(value_klass, index, Address::times_ptr));
+  movptr(inline_klass, Address(inline_klass, index, Address::times_ptr));
 }
 
 void MacroAssembler::get_default_value_oop(Register value_klass, Register temp_reg, Register obj) {
 #ifdef ASSERT
   {
     Label done_check;
-    test_klass_is_value(value_klass, temp_reg, done_check);
-    stop("get_default_value_oop from non-value klass");
+    test_klass_is_inline_type(value_klass, temp_reg, done_check);
+    stop("get_default_value_oop from non inline type klass");
     bind(done_check);
   }
 #endif
@@ -3652,16 +3652,16 @@ void MacroAssembler::get_default_value_oop(Register value_klass, Register temp_r
   load_heap_oop(obj, field);
 }
 
-void MacroAssembler::get_empty_value_oop(Register value_klass, Register temp_reg, Register obj) {
+void MacroAssembler::get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj) {
 #ifdef ASSERT
   {
     Label done_check;
-    test_klass_is_empty_value(value_klass, temp_reg, done_check);
-    stop("get_empty_value from non-empty value klass");
+    test_klass_is_empty_inline_type(inline_klass, temp_reg, done_check);
+    stop("get_empty_value from non-empty inline klass");
     bind(done_check);
   }
 #endif
-  get_default_value_oop(value_klass, temp_reg, obj);
+  get_default_value_oop(inline_klass, temp_reg, obj);
 }
 
 

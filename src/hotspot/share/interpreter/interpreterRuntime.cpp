@@ -376,7 +376,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
   return return_offset;
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread* thread, oopDesc* mirror, int index))
+JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaThread* thread, oopDesc* mirror, int index))
   // The interpreter tries to access an inline static field that has not been initialized.
   // This situation can happen in different scenarios:
   //   1 - if the load or initialization of the field failed during step 8 of
