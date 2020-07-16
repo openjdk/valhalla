@@ -27,22 +27,22 @@
 
 #include "ci/ciArray.hpp"
 #include "ci/ciClassList.hpp"
-#include "oops/valueArrayOop.hpp"
+#include "oops/inlineArrayOop.hpp"
 
 // ciValueArray
 //
-// This class represents a valueArrayOop in the HotSpot virtual
+// This class represents an inlineArrayOop in the HotSpot virtual
 // machine.
 class ciValueArray : public ciArray {
   CI_PACKAGE_ACCESS
 
 protected:
-  ciValueArray(valueArrayHandle h_o) : ciArray(h_o) {}
+  ciValueArray(inlineArrayHandle h_o) : ciArray(h_o) {}
 
   ciValueArray(ciValueKlass* klass, int len) : ciArray(klass, len) {}
 
-  valueArrayOop get_valueArrayOop() {
-    return (valueArrayOop)get_oop();
+  inlineArrayOop get_valueArrayOop() {
+    return (inlineArrayOop)get_oop();
   }
 
   const char* type_string() { return "ciValuejArray"; }

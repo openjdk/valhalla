@@ -25,10 +25,10 @@
 #define SHARE_VM_OOPS_INLINEKLASS_INLINE_HPP
 
 #include "memory/iterator.hpp"
-#include "oops/klass.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/oop.inline.hpp"
+#include "oops/inlineArrayKlass.hpp"
 #include "oops/inlineKlass.hpp"
+#include "oops/klass.hpp"
+#include "oops/oop.inline.hpp"
 #include "utilities/macros.hpp"
 
 inline InlineKlass* InlineKlass::cast(Klass* k) {

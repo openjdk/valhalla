@@ -51,6 +51,8 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/compressedOops.inline.hpp"
+#include "oops/inlineArrayKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/instanceClassLoaderKlass.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/instanceRefKlass.hpp"
@@ -59,8 +61,6 @@
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayKlass.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/inlineKlass.hpp"
 #include "prims/jvmtiRedefineClasses.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/os.hpp"
@@ -769,7 +769,7 @@ void MetaspaceShared::rewrite_nofast_bytecodes_and_calculate_fingerprints(Thread
   f(Method) \
   f(ObjArrayKlass) \
   f(TypeArrayKlass) \
-  f(ValueArrayKlass) \
+  f(InlineArrayKlass) \
   f(InlineKlass)
 
 class CppVtableInfo {

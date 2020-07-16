@@ -43,15 +43,15 @@
 #include "memory/universe.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/cpCache.inline.hpp"
+#include "oops/inlineArrayKlass.hpp"
+#include "oops/inlineArrayOop.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/valueArrayOop.inline.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/atomic.hpp"
@@ -454,7 +454,7 @@ JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* thread, ConstantPool* 
   arrayOop obj;
   if ((!klass->is_array_klass()) && is_qtype_desc) { // Logically creates elements, ensure klass init
     klass->initialize(CHECK);
-    obj = oopFactory::new_valueArray(klass, size, CHECK);
+    obj = oopFactory::new_inlineArray(klass, size, CHECK);
   } else {
     obj = oopFactory::new_objArray(klass, size, CHECK);
   }
@@ -462,14 +462,14 @@ JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* thread, ConstantPool* 
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::value_array_load(JavaThread* thread, arrayOopDesc* array, int index))
-  valueArrayHandle vah(thread, (valueArrayOop)array);
-  oop value_holder = valueArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
+  inlineArrayHandle vah(thread, (inlineArrayOop)array);
+  oop value_holder = inlineArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
   thread->set_vm_result(value_holder);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::value_array_store(JavaThread* thread, void* val, arrayOopDesc* array, int index))
   assert(val != NULL, "can't store null into flat array");
-  ((valueArrayOop)array)->value_copy_to_index((oop)val, index);
+  ((inlineArrayOop)array)->value_copy_to_index((oop)val, index);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* thread, jint* first_size_address))

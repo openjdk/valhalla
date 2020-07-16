@@ -158,8 +158,8 @@ class Runtime1: public AllStatic {
   static void new_object_array(JavaThread* thread, Klass* klass, jint length);
   static void new_value_array (JavaThread* thread, Klass* klass, jint length);
   static void new_multi_array (JavaThread* thread, Klass* klass, int rank, jint* dims);
-  static void load_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index);
-  static void store_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index, oopDesc* value);
+  static void load_flattened_array(JavaThread* thread, inlineArrayOopDesc* array, int index);
+  static void store_flattened_array(JavaThread* thread, inlineArrayOopDesc* array, int index, oopDesc* value);
   static int  substitutability_check(JavaThread* thread, oopDesc* left, oopDesc* right);
   static void buffer_value_args(JavaThread* thread, Method* method);
   static void buffer_value_args_no_receiver(JavaThread* thread, Method* method);

@@ -45,12 +45,12 @@
 #include "oops/array.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/cpCache.inline.hpp"
+#include "oops/inlineArrayKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
@@ -555,8 +555,8 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
       bottom_klass = ObjArrayKlass::cast(k)->bottom_klass();
       assert(bottom_klass != NULL, "Should be set");
       assert(bottom_klass->is_instance_klass() || bottom_klass->is_typeArray_klass(), "Sanity check");
-    } else if (k->is_valueArray_klass()) {
-      bottom_klass = ValueArrayKlass::cast(k)->element_klass();
+    } else if (k->is_inlineArray_klass()) {
+      bottom_klass = InlineArrayKlass::cast(k)->element_klass();
       assert(bottom_klass != NULL, "Should be set");
     }
   }

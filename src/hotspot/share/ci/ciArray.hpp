@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,9 +29,9 @@
 #include "ci/ciConstant.hpp"
 #include "ci/ciObject.hpp"
 #include "oops/arrayOop.hpp"
+#include "oops/inlineArrayOop.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/typeArrayOop.hpp"
-#include "oops/valueArrayOop.hpp"
 
 // ciArray
 //
@@ -45,7 +45,7 @@ protected:
   ciArray(    arrayHandle h_a) : ciObject(h_a), _length(h_a()->length()) {}
   ciArray( objArrayHandle h_a) : ciObject(h_a), _length(h_a()->length()) {}
   ciArray(typeArrayHandle h_a) : ciObject(h_a), _length(h_a()->length()) {}
-  ciArray(valueArrayHandle h_a): ciObject(h_a), _length(h_a()->length()) {}
+  ciArray(inlineArrayHandle h_a): ciObject(h_a), _length(h_a()->length()) {}
 
   ciArray(ciKlass* klass, int len) : ciObject(klass), _length(len) {}
 

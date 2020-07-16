@@ -45,7 +45,7 @@ enum KlassID {
   InstanceMirrorKlassID,
   InstanceClassLoaderKlassID,
   TypeArrayKlassID,
-  ValueArrayKlassID,
+  InlineArrayKlassID,
   ObjArrayKlassID
 };
 
@@ -396,11 +396,11 @@ protected:
   static bool layout_helper_is_objArray(jint lh) {
     return (juint)_lh_array_tag_obj_value == (juint)(lh >> _lh_array_tag_shift);
   }
-  static bool layout_helper_is_valueArray(jint lh) {
+  static bool layout_helper_is_inlineArray(jint lh) {
     return (juint)_lh_array_tag_vt_value == (juint)(lh >> _lh_array_tag_shift);
   }
   static bool layout_helper_is_null_free(jint lh) {
-    assert(layout_helper_is_valueArray(lh) || layout_helper_is_objArray(lh), "must be array of inline types");
+    assert(layout_helper_is_inlineArray(lh) || layout_helper_is_objArray(lh), "must be array of inline types");
     return ((lh >> _lh_null_free_shift) & _lh_null_free_mask);
   }
   static jint layout_helper_set_null_free(jint lh) {
@@ -602,7 +602,7 @@ protected:
   virtual bool is_array_klass_slow()        const { return false; }
   virtual bool is_objArray_klass_slow()     const { return false; }
   virtual bool is_typeArray_klass_slow()    const { return false; }
-  virtual bool is_valueArray_klass_slow()   const { return false; }
+  virtual bool is_inlineArray_klass_slow()  const { return false; }
 #endif // ASSERT
   // current implementation uses this method even in non debug builds
   virtual bool is_inline_klass_slow()       const { return false; }
@@ -632,9 +632,9 @@ protected:
                                                     layout_helper_is_typeArray(layout_helper()),
                                                     is_typeArray_klass_slow()); }
   inline  bool is_inline_klass()              const { return is_inline_klass_slow(); } //temporary hack
-  inline  bool is_valueArray_klass()          const { return assert_same_query(
-                                                    layout_helper_is_valueArray(layout_helper()),
-                                                    is_valueArray_klass_slow()); }
+  inline  bool is_inlineArray_klass()         const { return assert_same_query(
+                                                    layout_helper_is_inlineArray(layout_helper()),
+                                                    is_inlineArray_klass_slow()); }
 
   #undef assert_same_query
 

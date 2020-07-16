@@ -43,6 +43,8 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/fieldStreams.inline.hpp"
+#include "oops/inlineArrayKlass.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/instanceMirrorKlass.inline.hpp"
 #include "oops/klass.hpp"
@@ -52,8 +54,6 @@
 #include "oops/symbol.hpp"
 #include "oops/recordComponent.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/resolvedMethodTable.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -1007,8 +1007,8 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
 
     // It might also have a component mirror.  This mirror must already exist.
     if (k->is_array_klass()) {
-      if (k->is_valueArray_klass()) {
-        Klass* element_klass = (Klass*) ValueArrayKlass::cast(k)->element_klass();
+      if (k->is_inlineArray_klass()) {
+        Klass* element_klass = (Klass*) InlineArrayKlass::cast(k)->element_klass();
         assert(element_klass->is_inline_klass(), "Must be inline type component");
         InlineKlass* vk = InlineKlass::cast(InstanceKlass::cast(element_klass));
         comp_mirror = Handle(THREAD, vk->java_mirror());

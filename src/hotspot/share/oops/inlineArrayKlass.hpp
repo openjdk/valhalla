@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_VALUEARRAYKLASS_HPP
-#define SHARE_VM_OOPS_VALUEARRAYKLASS_HPP
+#ifndef SHARE_VM_OOPS_INLINEARRAYKLASS_HPP
+#define SHARE_VM_OOPS_INLINEARRAYKLASS_HPP
 
 #include "classfile/classLoaderData.hpp"
 #include "oops/arrayKlass.hpp"
@@ -31,17 +31,17 @@
 #include "utilities/macros.hpp"
 
 /**
- * Array of values, gives a layout of typeArrayOop, but needs oops iterators
+ * Array of inline types, gives a layout of typeArrayOop, but needs oops iterators
  */
-class ValueArrayKlass : public ArrayKlass {
+class InlineArrayKlass : public ArrayKlass {
   friend class VMStructs;
 
  public:
-  static const KlassID ID = ValueArrayKlassID;
+  static const KlassID ID = InlineArrayKlassID;
 
  private:
   // Constructor
-  ValueArrayKlass(Klass* element_klass, Symbol* name);
+  InlineArrayKlass(Klass* element_klass, Symbol* name);
 
  protected:
   // Returns the ArrayKlass for n'th dimension.
@@ -52,19 +52,19 @@ class ValueArrayKlass : public ArrayKlass {
 
  public:
 
-  ValueArrayKlass() {}
+  InlineArrayKlass() {}
 
   virtual InlineKlass* element_klass() const;
   virtual void set_element_klass(Klass* k);
 
   // Casting from Klass*
-  static ValueArrayKlass* cast(Klass* k) {
-    assert(k->is_valueArray_klass(), "cast to ValueArrayKlass");
-    return (ValueArrayKlass*) k;
+  static InlineArrayKlass* cast(Klass* k) {
+    assert(k->is_inlineArray_klass(), "cast to InlineArrayKlass");
+    return (InlineArrayKlass*) k;
   }
 
   // klass allocation
-  static ValueArrayKlass* allocate_klass(Klass* element_klass, TRAPS);
+  static InlineArrayKlass* allocate_klass(Klass* element_klass, TRAPS);
 
   void initialize(TRAPS);
 
@@ -77,7 +77,7 @@ class ValueArrayKlass : public ArrayKlass {
 
   int element_byte_size() const { return 1 << layout_helper_log2_element_size(_layout_helper); }
 
-  bool is_valueArray_klass_slow() const { return true; }
+  bool is_inlineArray_klass_slow() const { return true; }
 
   bool contains_oops() {
     return element_klass()->contains_oops();
@@ -93,7 +93,7 @@ class ValueArrayKlass : public ArrayKlass {
   static jint array_layout_helper(InlineKlass* vklass); // layout helper for values
 
   // sizing
-  static int header_size()  { return sizeof(ValueArrayKlass)/HeapWordSize; }
+  static int header_size()  { return sizeof(InlineArrayKlass)/HeapWordSize; }
   int size() const          { return ArrayKlass::static_size(header_size()); }
 
   jint max_elements() const;
@@ -101,7 +101,7 @@ class ValueArrayKlass : public ArrayKlass {
   int oop_size(oop obj) const;
 
   // Oop Allocation
-  valueArrayOop allocate(int length, TRAPS);
+  inlineArrayOop allocate(int length, TRAPS);
   oop multi_allocate(int rank, jint* sizes, TRAPS);
 
   // Naming
@@ -126,17 +126,17 @@ class ValueArrayKlass : public ArrayKlass {
   inline void oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr);
 
   template <typename T, class OopClosureType>
-  inline void oop_oop_iterate_elements(valueArrayOop a, OopClosureType* closure);
+  inline void oop_oop_iterate_elements(inlineArrayOop a, OopClosureType* closure);
 
 private:
   template <typename T, class OopClosureType>
-  inline void oop_oop_iterate_elements_specialized(valueArrayOop a, OopClosureType* closure);
+  inline void oop_oop_iterate_elements_specialized(inlineArrayOop a, OopClosureType* closure);
 
   template <typename T, class OopClosureType>
-  inline void oop_oop_iterate_elements_bounded(valueArrayOop a, OopClosureType* closure, MemRegion mr);
+  inline void oop_oop_iterate_elements_bounded(inlineArrayOop a, OopClosureType* closure, MemRegion mr);
 
   template <typename T, class OopClosureType>
-  inline void oop_oop_iterate_elements_specialized_bounded(valueArrayOop a, OopClosureType* closure, void* low, void* high);
+  inline void oop_oop_iterate_elements_specialized_bounded(inlineArrayOop a, OopClosureType* closure, void* low, void* high);
 
  public:
   // Printing
@@ -154,4 +154,3 @@ private:
 };
 
 #endif
-

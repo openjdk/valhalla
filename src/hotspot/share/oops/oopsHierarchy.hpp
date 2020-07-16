@@ -47,7 +47,7 @@ typedef class   instanceOopDesc*            instanceOop;
 typedef class   arrayOopDesc*               arrayOop;
 typedef class     objArrayOopDesc*            objArrayOop;
 typedef class     typeArrayOopDesc*           typeArrayOop;
-typedef class     valueArrayOopDesc*          valueArrayOop;
+typedef class     inlineArrayOopDesc*         inlineArrayOop;
 
 #else
 
@@ -145,7 +145,7 @@ DEF_OOP(instance);
 DEF_OOP(array);
 DEF_OOP(objArray);
 DEF_OOP(typeArray);
-DEF_OOP(valueArray);
+DEF_OOP(inlineArray);
 
 #endif // CHECK_UNHANDLED_OOPS
 
@@ -183,6 +183,6 @@ class     InlineKlass;
 class   ArrayKlass;
 class     ObjArrayKlass;
 class     TypeArrayKlass;
-class     ValueArrayKlass;
+class     InlineArrayKlass;
 
 #endif // SHARE_OOPS_OOPSHIERARCHY_HPP

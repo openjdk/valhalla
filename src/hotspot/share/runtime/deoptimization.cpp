@@ -46,10 +46,10 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
-#include "oops/typeArrayOop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/valueArrayOop.hpp"
+#include "oops/inlineArrayKlass.hpp"
+#include "oops/inlineArrayOop.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "oops/typeArrayOop.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/atomic.hpp"
@@ -1034,8 +1034,8 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
       if (obj == NULL) {
         obj = ik->allocate_instance(THREAD);
       }
-    } else if (k->is_valueArray_klass()) {
-      ValueArrayKlass* ak = ValueArrayKlass::cast(k);
+    } else if (k->is_inlineArray_klass()) {
+      InlineArrayKlass* ak = InlineArrayKlass::cast(k);
       // Value type array must be zeroed because not all memory is reassigned
       obj = ak->allocate(sv->field_size(), THREAD);
     } else if (k->is_typeArray_klass()) {
@@ -1392,7 +1392,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
 }
 
 // restore fields of an eliminated inline type array
-void Deoptimization::reassign_value_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, valueArrayOop obj, ValueArrayKlass* vak, TRAPS) {
+void Deoptimization::reassign_inline_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, inlineArrayOop obj, InlineArrayKlass* vak, TRAPS) {
   InlineKlass* vk = vak->element_klass();
   assert(vk->flatten_array(), "should only be used for flattened inline type arrays");
   // Adjust offset to omit oop header
@@ -1427,9 +1427,9 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
       reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), skip_internal, 0, CHECK);
-    } else if (k->is_valueArray_klass()) {
-      ValueArrayKlass* vak = ValueArrayKlass::cast(k);
-      reassign_value_array_elements(fr, reg_map, sv, (valueArrayOop) obj(), vak, CHECK);
+    } else if (k->is_inlineArray_klass()) {
+      InlineArrayKlass* vak = InlineArrayKlass::cast(k);
+      reassign_inline_array_elements(fr, reg_map, sv, (inlineArrayOop) obj(), vak, CHECK);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
       reassign_type_array_elements(fr, reg_map, sv, (typeArrayOop) obj(), ak->element_type());

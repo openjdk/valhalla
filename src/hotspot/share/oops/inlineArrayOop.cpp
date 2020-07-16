@@ -24,6 +24,6 @@
 
 #include "precompiled.hpp"
 
-#include "valueArrayOop.hpp"
-#include "valueArrayKlass.inline.hpp"
+#include "inlineArrayOop.hpp"
+#include "inlineArrayKlass.inline.hpp"
 

@@ -36,13 +36,13 @@
 #include "logging/logStream.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
+#include "oops/inlineArrayKlass.hpp"
+#include "oops/inlineArrayOop.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/valueArrayOop.inline.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "prims/unsafe.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/globals.hpp"
@@ -301,20 +301,20 @@ static void assert_and_log_unsafe_value_access(oop p, jlong offset, InlineKlass*
                               p->klass()->external_name(), offset);
       }
     }
-  } else if (k->is_valueArray_klass()) {
-    ValueArrayKlass* vak = ValueArrayKlass::cast(k);
+  } else if (k->is_inlineArray_klass()) {
+    InlineArrayKlass* vak = InlineArrayKlass::cast(k);
     int index = (offset - vak->array_header_in_bytes()) / vak->element_byte_size();
-    address dest = (address)((valueArrayOop)p)->value_at_addr(index, vak->layout_helper());
+    address dest = (address)((inlineArrayOop)p)->value_at_addr(index, vak->layout_helper());
     assert(dest == (cast_from_oop<address>(p) + offset), "invalid offset");
   } else {
     ShouldNotReachHere();
   }
 #endif // ASSERT
   if (log_is_enabled(Trace, valuetypes)) {
-    if (k->is_valueArray_klass()) {
-      ValueArrayKlass* vak = ValueArrayKlass::cast(k);
+    if (k->is_inlineArray_klass()) {
+      InlineArrayKlass* vak = InlineArrayKlass::cast(k);
       int index = (offset - vak->array_header_in_bytes()) / vak->element_byte_size();
-      address dest = (address)((valueArrayOop)p)->value_at_addr(index, vak->layout_helper());
+      address dest = (address)((inlineArrayOop)p)->value_at_addr(index, vak->layout_helper());
       log_trace(valuetypes)("%s array type %s index %d element size %d offset " SIZE_FORMAT_HEX " at " INTPTR_FORMAT,
                             p->klass()->external_name(), vak->external_name(),
                             index, vak->element_byte_size(), offset, p2i(dest));
@@ -351,7 +351,7 @@ UNSAFE_ENTRY(jlong, Unsafe_ValueHeaderSize(JNIEnv *env, jobject unsafe, jclass c
 
 UNSAFE_ENTRY(jboolean, Unsafe_IsFlattenedArray(JNIEnv *env, jobject unsafe, jclass c)) {
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
-  return k->is_valueArray_klass();
+  return k->is_inlineArray_klass();
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_UninitializedDefaultValue(JNIEnv *env, jobject unsafe, jclass vc)) {
@@ -737,8 +737,8 @@ static void getBaseAndScale(int& base, int& scale, jclass clazz, TRAPS) {
     base  = tak->array_header_in_bytes();
     assert(base == arrayOopDesc::base_offset_in_bytes(tak->element_type()), "array_header_size semantics ok");
     scale = (1 << tak->log2_element_size());
-  } else if (k->is_valueArray_klass()) {
-    ValueArrayKlass* vak = ValueArrayKlass::cast(k);
+  } else if (k->is_inlineArray_klass()) {
+    InlineArrayKlass* vak = InlineArrayKlass::cast(k);
     InlineKlass* vklass = vak->element_klass();
     base = vak->array_header_in_bytes();
     scale = vak->element_byte_size();

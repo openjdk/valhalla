@@ -36,11 +36,11 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/inlineKlass.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/arguments.hpp"
@@ -349,7 +349,7 @@ arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
       THROW_0(vmSymbols::java_lang_IllegalArgumentException());
     }
     if (k->is_inline_klass()) {
-      return oopFactory::new_valueArray(k, length, THREAD);
+      return oopFactory::new_inlineArray(k, length, THREAD);
     } else {
       return oopFactory::new_objArray(k, length, THREAD);
     }

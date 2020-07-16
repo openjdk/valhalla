@@ -52,11 +52,11 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/inlineArrayKlass.hpp"
+#include "oops/inlineArrayOop.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/valueArrayOop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -425,7 +425,7 @@ JRT_ENTRY(void, Runtime1::new_value_array(JavaThread* thread, Klass* array_klass
   assert(elem_klass->is_inline_klass(), "must be");
   // Logically creates elements, ensure klass init
   elem_klass->initialize(CHECK);
-  arrayOop obj = oopFactory::new_valueArray(elem_klass, length, CHECK);
+  arrayOop obj = oopFactory::new_inlineArray(elem_klass, length, CHECK);
   thread->set_vm_result(obj);
   // This is pretty rare but this runtime patch is stressful to deoptimization
   // if we deoptimize here so force a deopt to stress the path.
@@ -461,29 +461,29 @@ static void profile_flat_array(JavaThread* thread) {
   }
 }
 
-JRT_ENTRY(void, Runtime1::load_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index))
-  assert(array->klass()->is_valueArray_klass(), "should not be called");
+JRT_ENTRY(void, Runtime1::load_flattened_array(JavaThread* thread, inlineArrayOopDesc* array, int index))
+  assert(array->klass()->is_inlineArray_klass(), "should not be called");
   profile_flat_array(thread);
 
   NOT_PRODUCT(_load_flattened_array_slowcase_cnt++;)
   assert(array->length() > 0 && index < array->length(), "already checked");
-  valueArrayHandle vah(thread, array);
-  oop obj = valueArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
+  inlineArrayHandle vah(thread, array);
+  oop obj = inlineArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
   thread->set_vm_result(obj);
 JRT_END
 
 
-JRT_ENTRY(void, Runtime1::store_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index, oopDesc* value))
-  if (array->klass()->is_valueArray_klass()) {
+JRT_ENTRY(void, Runtime1::store_flattened_array(JavaThread* thread, inlineArrayOopDesc* array, int index, oopDesc* value))
+  if (array->klass()->is_inlineArray_klass()) {
     profile_flat_array(thread);
   }
 
   NOT_PRODUCT(_store_flattened_array_slowcase_cnt++;)
   if (value == NULL) {
-    assert(array->klass()->is_valueArray_klass() || array->klass()->is_null_free_array_klass(), "should not be called");
+    assert(array->klass()->is_inlineArray_klass() || array->klass()->is_null_free_array_klass(), "should not be called");
     SharedRuntime::throw_and_post_jvmti_exception(thread, vmSymbols::java_lang_NullPointerException());
   } else {
-    assert(array->klass()->is_valueArray_klass(), "should not be called");
+    assert(array->klass()->is_inlineArray_klass(), "should not be called");
     array->value_copy_to_index(value, index);
   }
 JRT_END

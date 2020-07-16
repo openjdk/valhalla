@@ -145,7 +145,7 @@ class InlineKlassFixedBlock {
   address* _pack_handler_jobject;
   address* _unpack_handler;
   int* _default_value_offset;
-  Klass** _value_array_klass;
+  Klass** _inline_array_klass;
   int _alignment;
   int _first_field_offset;
   int _exact_size_in_bytes;

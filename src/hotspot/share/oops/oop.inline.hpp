@@ -246,7 +246,7 @@ bool oopDesc::is_array()     const { return klass()->is_array_klass();     }
 bool oopDesc::is_objArray()  const { return klass()->is_objArray_klass();  }
 bool oopDesc::is_typeArray() const { return klass()->is_typeArray_klass(); }
 bool oopDesc::is_inline_type() const { return klass()->is_inline_klass(); }
-bool oopDesc::is_valueArray()  const { return klass()->is_valueArray_klass(); }
+bool oopDesc::is_inlineArray() const { return klass()->is_inlineArray_klass(); }
 
 void*    oopDesc::field_addr_raw(int offset)     const { return reinterpret_cast<void*>(cast_from_oop<intptr_t>(as_oop()) + offset); }
 void*    oopDesc::field_addr(int offset)         const { return Access<>::resolve(as_oop())->field_addr_raw(offset); }

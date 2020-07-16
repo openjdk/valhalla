@@ -33,12 +33,12 @@
 #include "oops/access.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
+#include "oops/inlineArrayKlass.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
-#include "oops/inlineKlass.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/safepointVerifiers.hpp"
@@ -59,7 +59,7 @@ InlineKlass::InlineKlass(const ClassFileParser& parser)
   *((address*)adr_unpack_handler()) = NULL;
   assert(pack_handler() == NULL, "pack handler not null");
   *((int*)adr_default_value_offset()) = 0;
-  *((Klass**)adr_value_array_klass()) = NULL;
+  *((Klass**)adr_inline_array_klass()) = NULL;
   set_prototype_header(markWord::always_locked_prototype());
   assert(is_inline_type_klass(), "invariant");
 }
@@ -178,7 +178,7 @@ void InlineKlass::write_inlined_field(oop obj, int offset, oop value, TRAPS) {
 // Arrays of...
 
 bool InlineKlass::flatten_array() {
-  if (!ValueArrayFlatten) {
+  if (!InlineArrayFlatten) {
     return false;
   }
   // Too big
@@ -210,7 +210,7 @@ void InlineKlass::remove_unshareable_info() {
   *((address*)adr_pack_handler_jobject()) = NULL;
   *((address*)adr_unpack_handler()) = NULL;
   assert(pack_handler() == NULL, "pack handler not null");
-  *((Klass**)adr_value_array_klass()) = NULL;
+  *((Klass**)adr_inline_array_klass()) = NULL;
 }
 
 void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
@@ -220,7 +220,7 @@ void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle 
 
 Klass* InlineKlass::array_klass_impl(bool or_null, int n, TRAPS) {
   if (flatten_array()) {
-    return value_array_klass(or_null, n, THREAD);
+    return inline_array_klass(or_null, n, THREAD);
   } else {
     return InstanceKlass::array_klass_impl(or_null, n, THREAD);
   }
@@ -230,17 +230,17 @@ Klass* InlineKlass::array_klass_impl(bool or_null, TRAPS) {
   return array_klass_impl(or_null, 1, THREAD);
 }
 
-Klass* InlineKlass::value_array_klass(bool or_null, int rank, TRAPS) {
-  Klass* vak = acquire_value_array_klass();
+Klass* InlineKlass::inline_array_klass(bool or_null, int rank, TRAPS) {
+  Klass* vak = acquire_inline_array_klass();
   if (vak == NULL) {
     if (or_null) return NULL;
     ResourceMark rm;
     {
       // Atomic creation of array_klasses
       MutexLocker ma(THREAD, MultiArray_lock);
-      if (get_value_array_klass() == NULL) {
-        vak = allocate_value_array_klass(CHECK_NULL);
-        Atomic::release_store((Klass**)adr_value_array_klass(), vak);
+      if (get_inline_array_klass() == NULL) {
+        vak = allocate_inline_array_klass(CHECK_NULL);
+        Atomic::release_store((Klass**)adr_inline_array_klass(), vak);
       }
     }
   }
@@ -250,23 +250,23 @@ Klass* InlineKlass::value_array_klass(bool or_null, int rank, TRAPS) {
   return vak->array_klass(rank, THREAD);
 }
 
-Klass* InlineKlass::allocate_value_array_klass(TRAPS) {
+Klass* InlineKlass::allocate_inline_array_klass(TRAPS) {
   if (flatten_array()) {
-    return ValueArrayKlass::allocate_klass(this, THREAD);
+    return InlineArrayKlass::allocate_klass(this, THREAD);
   }
   return ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, THREAD);
 }
 
 void InlineKlass::array_klasses_do(void f(Klass* k, TRAPS), TRAPS) {
   InstanceKlass::array_klasses_do(f, THREAD);
-  if (get_value_array_klass() != NULL)
-    ArrayKlass::cast(get_value_array_klass())->array_klasses_do(f, THREAD);
+  if (get_inline_array_klass() != NULL)
+    ArrayKlass::cast(get_inline_array_klass())->array_klasses_do(f, THREAD);
 }
 
 void InlineKlass::array_klasses_do(void f(Klass* k)) {
   InstanceKlass::array_klasses_do(f);
-  if (get_value_array_klass() != NULL)
-    ArrayKlass::cast(get_value_array_klass())->array_klasses_do(f);
+  if (get_inline_array_klass() != NULL)
+    ArrayKlass::cast(get_inline_array_klass())->array_klasses_do(f);
 }
 
 // Inline type arguments are not passed by reference, instead each

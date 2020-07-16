@@ -62,11 +62,11 @@ class oopFactory: AllStatic {
   //    - L-type signature allocation should use new_objArray
   //
   // Method specifically null free and possibly flattened if possible
-  // i.e. valueArrayOop if flattening can be done, else "null free" objArrayOop
-  static arrayOop        new_valueArray(Klass* klass, int length, TRAPS);
+  // i.e. inlineArrayOop if flattening can be done, else "null free" objArrayOop
+  static arrayOop        new_inlineArray(Klass* klass, int length, TRAPS);
 
   // Helper conversions from value to obj array...
-  static objArrayHandle  copy_valueArray_to_objArray(valueArrayHandle array, TRAPS);
+  static objArrayHandle  copy_inlineArray_to_objArray(inlineArrayHandle array, TRAPS);
   static objArrayHandle  ensure_objArray(oop array, TRAPS); // copy into new objArray if not already an objArray
 
   // Helper that returns a Handle

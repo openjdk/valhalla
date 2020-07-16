@@ -366,8 +366,8 @@ ciObject* ciObjectFactory::create_new_object(oop o) {
   } else if (o->is_typeArray()) {
     typeArrayHandle h_ta(THREAD, (typeArrayOop)o);
     return new (arena()) ciTypeArray(h_ta);
-  } else if (o->is_valueArray()) {
-    valueArrayHandle h_ta(THREAD, (valueArrayOop)o);
+  } else if (o->is_inlineArray()) {
+    inlineArrayHandle h_ta(THREAD, (inlineArrayOop)o);
     return new (arena()) ciValueArray(h_ta);
   }
 
@@ -392,7 +392,7 @@ ciMetadata* ciObjectFactory::create_new_metadata(Metadata* o) {
       return new (arena()) ciValueKlass(k);
     } else if (k->is_instance_klass()) {
       return new (arena()) ciInstanceKlass(k);
-    } else if (k->is_valueArray_klass()) {
+    } else if (k->is_inlineArray_klass()) {
       return new (arena()) ciValueArrayKlass(k);
     } else if (k->is_objArray_klass()) {
       return new (arena()) ciObjArrayKlass(k);
