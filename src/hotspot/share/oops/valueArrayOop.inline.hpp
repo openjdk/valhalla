@@ -52,7 +52,7 @@ inline oop valueArrayOopDesc::value_alloc_copy_from_index(valueArrayHandle vah, 
   if (vklass->is_empty_inline_type()) {
     return vklass->default_value();
   } else {
-    oop buf = vklass->allocate_instance(CHECK_NULL);
+    oop buf = vklass->allocate_instance_buffer(CHECK_NULL);
     vklass->inline_copy_payload_to_new_oop(vah->value_at_addr(index, vaklass->layout_helper()) ,buf);
     return buf;
   }

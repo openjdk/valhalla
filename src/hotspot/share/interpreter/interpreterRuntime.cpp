@@ -341,7 +341,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
   Handle old_value_h(THREAD, old_value);
 
   // Creating new value by copying the one passed in argument
-  instanceOop new_value = vklass->allocate_instance(
+  instanceOop new_value = vklass->allocate_instance_buffer(
       CHECK_((type2size[field_type]) * AbstractInterpreter::stackElementSize));
   Handle new_value_h = Handle(THREAD, new_value);
   vklass->inline_copy_oop_to_new_oop(old_value_h(), new_value_h());
