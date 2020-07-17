@@ -368,9 +368,9 @@ check_primitive_array_type(JavaThread* thr, jarray jArray, BasicType elementType
 }
 
 static inline void
-check_is_obj_array(JavaThread* thr, jarray jArray) {
+check_is_obj_or_inline_array(JavaThread* thr, jarray jArray) {
   arrayOop aOop = check_is_array(thr, jArray);
-  if (!aOop->is_objArray()) {
+  if (!aOop->is_objArray() && !aOop->is_valueArray()) {
     ReportJNIFatalError(thr, fatal_object_array_expected);
   }
 }
@@ -487,7 +487,7 @@ void jniCheck::validate_class_descriptor(JavaThread* thr, const char* name) {
   size_t len = strlen(name);
 
   if (len >= 2 &&
-      name[0] == JVM_SIGNATURE_CLASS &&            // 'L'
+      (name[0] == JVM_SIGNATURE_CLASS || name[0] == JVM_SIGNATURE_INLINE_TYPE) && // 'L' or 'Q'
       name[len-1] == JVM_SIGNATURE_ENDCLASS ) {    // ';'
     char msg[JVM_MAXPATHLEN];
     jio_snprintf(msg, JVM_MAXPATHLEN, "%s%s%s",
@@ -1636,7 +1636,7 @@ JNI_ENTRY_CHECKED(jobject,
                                     jsize index))
     functionEnter(thr);
     IN_VM(
-      check_is_obj_array(thr, array);
+      check_is_obj_or_inline_array(thr, array);
     )
     jobject result = UNCHECKED()->GetObjectArrayElement(env,array,index);
     functionExit(thr);
@@ -1650,7 +1650,7 @@ JNI_ENTRY_CHECKED(void,
                                     jobject val))
     functionEnter(thr);
     IN_VM(
-      check_is_obj_array(thr, array);
+      check_is_obj_or_inline_array(thr, array);
     )
     UNCHECKED()->SetObjectArrayElement(env,array,index,val);
     functionExit(thr);
