@@ -64,7 +64,7 @@ class LayoutRawBlock : public ResourceObj {
  private:
   LayoutRawBlock* _next_block;
   LayoutRawBlock* _prev_block;
-  InlineKlass* _value_klass;
+  InlineKlass* _inline_klass;
   Kind _kind;
   int _offset;
   int _alignment;
@@ -93,11 +93,11 @@ class LayoutRawBlock : public ResourceObj {
     return _field_index;
   }
   bool is_reference() const { return _is_reference; }
-  InlineKlass* value_klass() const {
-    assert(_value_klass != NULL, "Must be initialized");
-    return _value_klass;
+  InlineKlass* inline_klass() const {
+    assert(_inline_klass != NULL, "Must be initialized");
+    return _inline_klass;
   }
-  void set_value_klass(InlineKlass* value_klass) { _value_klass = value_klass; }
+  void set_inline_klass(InlineKlass* inline_klass) { _inline_klass = inline_klass; }
 
   bool fit(int size, int alignment);
 

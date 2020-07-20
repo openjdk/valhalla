@@ -1227,10 +1227,10 @@ void InterpreterMacroAssembler::read_inlined_field(Register holder_klass,
   // Grap the inline field klass
   push(holder_klass);
   const Register field_klass = holder_klass;
-  get_value_field_klass(holder_klass, field_index, field_klass);
+  get_inline_type_field_klass(holder_klass, field_index, field_klass);
 
   //check for empty value klass
-  test_klass_is_empty_value(field_klass, dst_temp, empty_value);
+  test_klass_is_empty_inline_type(field_klass, dst_temp, empty_value);
 
   // allocate buffer
   push(obj); // save holder
@@ -1248,7 +1248,7 @@ void InterpreterMacroAssembler::read_inlined_field(Register holder_klass,
   jmp(done);
 
   bind(empty_value);
-  get_empty_value_oop(field_klass, dst_temp, obj);
+  get_empty_inline_type_oop(field_klass, dst_temp, obj);
   pop(holder_klass);
   jmp(done);
 
@@ -1277,7 +1277,7 @@ void InterpreterMacroAssembler::read_flattened_element(Register array, Register 
   movptr(elem_klass, Address(array_klass, ArrayKlass::element_klass_offset()));
 
   //check for empty value klass
-  test_klass_is_empty_value(elem_klass, dst_temp, empty_value);
+  test_klass_is_empty_inline_type(elem_klass, dst_temp, empty_value);
 
   // calc source into "array_klass" and free up some regs
   const Register src = array_klass;
@@ -1293,7 +1293,7 @@ void InterpreterMacroAssembler::read_flattened_element(Register array, Register 
   jmp(done);
 
   bind(empty_value);
-  get_empty_value_oop(elem_klass, dst_temp, obj);
+  get_empty_inline_type_oop(elem_klass, dst_temp, obj);
   jmp(done);
 
   bind(alloc_failed);

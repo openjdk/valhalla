@@ -1225,7 +1225,7 @@ void TemplateTable::aastore() {
     // rbx: value's klass
     // rdx: array
     // rdi: array klass
-    __ test_klass_is_empty_value(rbx, rax, done);
+    __ test_klass_is_empty_inline_type(rbx, rax, done);
 
     // calc dst for copy
     __ movl(rax, at_tos_p1()); // index
@@ -2486,7 +2486,7 @@ void TemplateTable::if_acmp(Condition cc) {
   Label taken, not_taken;
   __ pop_ptr(rdx);
 
-  const int is_value_mask = markWord::always_locked_pattern;
+  const int is_inline_type_mask = markWord::always_locked_pattern;
   if (EnableValhalla) {
     __ cmpoop(rdx, rax);
     __ jcc(Assembler::equal, (cc == equal) ? taken : not_taken);
@@ -2499,11 +2499,11 @@ void TemplateTable::if_acmp(Condition cc) {
 
     // and both are values ?
     __ movptr(rbx, Address(rdx, oopDesc::mark_offset_in_bytes()));
-    __ andptr(rbx, is_value_mask);
+    __ andptr(rbx, is_inline_type_mask);
     __ movptr(rcx, Address(rax, oopDesc::mark_offset_in_bytes()));
-    __ andptr(rbx, is_value_mask);
+    __ andptr(rbx, is_inline_type_mask);
     __ andptr(rbx, rcx);
-    __ cmpl(rbx, is_value_mask);
+    __ cmpl(rbx, is_inline_type_mask);
     __ jcc(Assembler::notEqual, (cc == equal) ? not_taken : taken);
 
     // same value klass ?
@@ -3011,7 +3011,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 
   const Address field(obj, off, Address::times_1, 0*wordSize);
 
-  Label Done, notByte, notBool, notInt, notShort, notChar, notLong, notFloat, notObj, notValueType;
+  Label Done, notByte, notBool, notInt, notShort, notChar, notLong, notFloat, notObj, notInlineType;
 
   if (!is_static) {
     __ movptr(rcx, Address(cache, index, Address::times_ptr,
@@ -3090,7 +3090,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
         __ jmp(finish);
         __ bind(slow_case);
 #endif // LP64
-          __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_value_field),
+          __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_inline_type_field),
                  obj, flags2);
 #ifdef _LP64
           __ bind(finish);
@@ -3120,7 +3120,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ testptr(rax, rax);
           __ jcc(Assembler::notZero, nonnull);
             __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
-            __ get_value_field_klass(rcx, flags2, rbx);
+            __ get_inline_type_field_klass(rcx, flags2, rbx);
             __ get_default_value_oop(rbx, rcx, rax);
           __ bind(nonnull);
           __ verify_oop(rax);
@@ -3393,7 +3393,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
   NOT_LP64( const Address hi(obj, off, Address::times_1, 1*wordSize);)
 
   Label notByte, notBool, notInt, notShort, notChar,
-        notLong, notFloat, notObj, notValueType;
+        notLong, notFloat, notObj, notInlineType;
   Label Done;
 
   const Register bc    = LP64_ONLY(c_rarg3) NOT_LP64(rcx);
@@ -3851,7 +3851,7 @@ void TemplateTable::fast_accessfield(TosState state) {
           __ movptr(rcx, Address(rcx, rbx, Address::times_ptr,
                                        in_bytes(ConstantPoolCache::base_offset() +
                                                 ConstantPoolCacheEntry::f1_offset())));
-          __ get_value_field_klass(rcx, rdx, rbx);
+          __ get_inline_type_field_klass(rcx, rdx, rbx);
           __ get_default_value_oop(rbx, rcx, rax);
         __ bind(nonnull);
         __ verify_oop(rax);
@@ -4675,11 +4675,11 @@ void TemplateTable::monitorenter() {
 
   __ resolve(IS_NOT_NULL, rax);
 
-  const int is_value_mask = markWord::always_locked_pattern;
+  const int is_inline_type_mask = markWord::always_locked_pattern;
   Label has_identity;
   __ movptr(rbx, Address(rax, oopDesc::mark_offset_in_bytes()));
-  __ andptr(rbx, is_value_mask);
-  __ cmpl(rbx, is_value_mask);
+  __ andptr(rbx, is_inline_type_mask);
+  __ cmpl(rbx, is_inline_type_mask);
   __ jcc(Assembler::notEqual, has_identity);
   __ call_VM(noreg, CAST_FROM_FN_PTR(address,
                      InterpreterRuntime::throw_illegal_monitor_state_exception));
@@ -4785,11 +4785,11 @@ void TemplateTable::monitorexit() {
 
   __ resolve(IS_NOT_NULL, rax);
 
-  const int is_value_mask = markWord::always_locked_pattern;
+  const int is_inline_type_mask = markWord::always_locked_pattern;
   Label has_identity;
   __ movptr(rbx, Address(rax, oopDesc::mark_offset_in_bytes()));
-  __ andptr(rbx, is_value_mask);
-  __ cmpl(rbx, is_value_mask);
+  __ andptr(rbx, is_inline_type_mask);
+  __ cmpl(rbx, is_inline_type_mask);
   __ jcc(Assembler::notEqual, has_identity);
   __ call_VM(noreg, CAST_FROM_FN_PTR(address,
                      InterpreterRuntime::throw_illegal_monitor_state_exception));
