@@ -3479,7 +3479,7 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
       exact_etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ true, /* try_for_exact= */ true);
     }
     bool not_null_free = !exact_etype->can_be_value_type();
-    bool not_flat = !ValueArrayFlatten || not_null_free || (exact_etype->is_valuetypeptr() && !exact_etype->value_klass()->flatten_array());
+    bool not_flat = !FlatArrayFlatten || not_null_free || (exact_etype->is_valuetypeptr() && !exact_etype->value_klass()->flatten_array());
 
     bool xk = etype->klass_is_exact();
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, false, not_flat, not_null_free);

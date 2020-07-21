@@ -763,7 +763,7 @@ const size_t minimumSymbolTableSize = 1024;
   notproduct(bool, PrintInlineLayout, false,                                \
           "Print field layout for each inline type")                        \
                                                                             \
-  notproduct(bool, PrintInlineArrayLayout, false,                           \
+  notproduct(bool, PrintFlatArrayLayout, false,                             \
           "Print array layout for each inline type array")                  \
                                                                             \
   product(intx, InlineArrayElemMaxFlatSize, -1,                             \

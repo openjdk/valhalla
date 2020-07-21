@@ -189,7 +189,7 @@ Node* PhaseMacroExpand::generate_nonpositive_guard(Node** ctrl, Node* index, boo
 }
 
 Node* PhaseMacroExpand::generate_flattened_array_guard(Node** ctrl, Node* mem, Node* obj_or_klass, RegionNode* region) {
-  assert(ValueArrayFlatten, "can never be flattened");
+  assert(FlatArrayFlatten, "can never be flattened");
   return generate_array_guard(ctrl, mem, obj_or_klass, region, Klass::_lh_array_tag_vt_value);
 }
 
@@ -1311,7 +1311,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     RegionNode* slow_region = new RegionNode(1);
     transform_later(slow_region);
 
-    if (ValueArrayFlatten && (top_dest == NULL || !top_dest->is_not_flat())) {
+    if (FlatArrayFlatten && (top_dest == NULL || !top_dest->is_not_flat())) {
       generate_flattened_array_guard(&ctrl, merge_mem, dest, slow_region);
     }
 

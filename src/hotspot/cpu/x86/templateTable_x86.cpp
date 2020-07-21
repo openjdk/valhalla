@@ -827,7 +827,7 @@ void TemplateTable::aaload() {
 
   index_check(array, index); // kills rbx
   __ profile_array(rbx, array, rcx);
-  if (ValueArrayFlatten) {
+  if (FlatArrayFlatten) {
     Label is_flat_array, done;
     __ test_flattened_array_oop(array, rbx, is_flat_array);
     do_oop_load(_masm,
@@ -1156,7 +1156,7 @@ void TemplateTable::aastore() {
   // Move array class to rdi
   Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
   __ load_klass(rdi, rdx, tmp_load_klass);
-  if (ValueArrayFlatten) {
+  if (FlatArrayFlatten) {
     __ movl(rbx, Address(rdi, Klass::layout_helper_offset()));
     __ test_flattened_array_layout(rbx, is_flat_array);
   }
