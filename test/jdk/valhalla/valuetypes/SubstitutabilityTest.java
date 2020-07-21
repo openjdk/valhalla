@@ -25,7 +25,8 @@
  * @test
  * @summary test MethodHandle/VarHandle on inline types
  * @modules java.base/java.lang.invoke:open
- * @run testng/othervm SubstitutabilityTest
+ * @run testng/othervm -Xint SubstitutabilityTest
+ * @run testng/othervm -Xcomp SubstitutabilityTest
  */
 
 import java.lang.invoke.ValueBootstrapMethods;
@@ -34,7 +35,6 @@ import java.util.List;
 
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
 import static org.testng.Assert.*;
 
 public class SubstitutabilityTest {
@@ -161,7 +161,6 @@ public class SubstitutabilityTest {
         Point p = Point.makePoint(10, 10);
         Integer i = Integer.valueOf(10);
         return new Object[][] {
-                new Object[] { null,  null },
                 new Object[] { va[0], null },
                 new Object[] { null,  va[0] },
                 new Object[] { va[0], oa },
@@ -182,7 +181,12 @@ public class SubstitutabilityTest {
      */
     @Test(dataProvider="negativeSubstitutableCases")
     public void testIsSubstitutable0(Object a, Object b) throws Exception {
-        isSubstitutable(a, b);
+        assertFalse(isSubstitutable(a, b));
+    }
+
+    @Test
+    public void nullArguments() throws Exception {
+        assertTrue(isSubstitutable(null, null));
     }
 
     private static Object zerothElement(Object[] oa) {

@@ -540,6 +540,7 @@ public final class ValueBootstrapMethods {
 
     /**
      * Called directly from the VM.
+     *
      * DO NOT: Use "==" or "!=" on args "a" and "b", with this code or any of
      * its callees. Could be inside of if_acmp<eq|ne> bytecode implementation.
      *
@@ -554,6 +555,7 @@ public final class ValueBootstrapMethods {
             System.out.println("substitutable " + a + " vs " + b);
         }
 
+        if (a == null && b == null) return true;
         if (a == null || b == null) return false;
         if (a.getClass() != b.getClass()) return false;
 
