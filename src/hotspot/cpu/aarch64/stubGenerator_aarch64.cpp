@@ -375,8 +375,8 @@ class StubGenerator: public StubCodeGenerator {
       // Initialize pre-allocated buffer
       __ mov(r1, r0);
       __ andr(r1, r1, -2);
-      __ ldr(r1, Address(r1, InstanceKlass::adr_valueklass_fixed_block_offset()));
-      __ ldr(r1, Address(r1, ValueKlass::pack_handler_offset()));
+      __ ldr(r1, Address(r1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      __ ldr(r1, Address(r1, InlineKlass::pack_handler_offset()));
       __ ldr(r0, Address(j_rarg2, 0));
       __ blr(r1);
       __ b(exit);

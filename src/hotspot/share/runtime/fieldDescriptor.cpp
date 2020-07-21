@@ -31,7 +31,7 @@
 #include "oops/instanceKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/signature.hpp"
@@ -193,7 +193,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj) {
     case T_INLINE_TYPE:
       if (is_inlined()) {
         // Print fields of inlined fields (recursively)
-        ValueKlass* vk = ValueKlass::cast(field_holder()->get_inline_type_field_klass(index()));
+        InlineKlass* vk = InlineKlass::cast(field_holder()->get_inline_type_field_klass(index()));
         int field_offset = offset() - vk->first_field_offset();
         obj = (oop)(cast_from_oop<address>(obj) + field_offset);
         st->print_cr("Inline type field inlined '%s':", vk->name()->as_C_string());

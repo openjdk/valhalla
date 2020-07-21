@@ -64,7 +64,7 @@ class LayoutRawBlock : public ResourceObj {
  private:
   LayoutRawBlock* _next_block;
   LayoutRawBlock* _prev_block;
-  ValueKlass* _value_klass;
+  InlineKlass* _inline_klass;
   Kind _kind;
   int _offset;
   int _alignment;
@@ -93,11 +93,11 @@ class LayoutRawBlock : public ResourceObj {
     return _field_index;
   }
   bool is_reference() const { return _is_reference; }
-  ValueKlass* value_klass() const {
-    assert(_value_klass != NULL, "Must be initialized");
-    return _value_klass;
+  InlineKlass* inline_klass() const {
+    assert(_inline_klass != NULL, "Must be initialized");
+    return _inline_klass;
   }
-  void set_value_klass(ValueKlass* value_klass) { _value_klass = value_klass; }
+  void set_inline_klass(InlineKlass* inline_klass) { _inline_klass = inline_klass; }
 
   bool fit(int size, int alignment);
 
@@ -150,7 +150,7 @@ class FieldGroup : public ResourceObj {
 
   void add_primitive_field(AllFieldStream fs, BasicType type);
   void add_oop_field(AllFieldStream fs);
-  void add_inlined_field(AllFieldStream fs, ValueKlass* vk);
+  void add_inlined_field(AllFieldStream fs, InlineKlass* vk);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
 };
@@ -292,7 +292,7 @@ class FieldLayoutBuilder : public ResourceObj {
   void epilogue();
   void regular_field_sorting();
   void inline_class_field_sorting(TRAPS);
-  void add_inlined_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_map, ValueKlass* vk, int offset);
+  void add_inlined_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_map, InlineKlass* vk, int offset);
 };
 
 #endif // SHARE_CLASSFILE_FIELDLAYOUTBUILDER_HPP

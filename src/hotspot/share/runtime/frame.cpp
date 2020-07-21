@@ -37,7 +37,7 @@
 #include "oops/method.hpp"
 #include "oops/methodData.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/frame.inline.hpp"

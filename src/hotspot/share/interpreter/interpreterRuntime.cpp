@@ -51,7 +51,7 @@
 #include "oops/symbol.hpp"
 #include "oops/valueArrayKlass.hpp"
 #include "oops/valueArrayOop.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/atomic.hpp"
@@ -299,7 +299,7 @@ void copy_primitive_argument(intptr_t* addr, Handle instance, int offset, BasicT
 }
 
 JRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* thread, ConstantPool* pool, int index))
-  // Getting the ValueKlass
+  // Getting the InlineKlass
   Klass* k = pool->klass_at(index, CHECK);
   if (!k->is_inline_klass()) {
     // inconsistency with 'new' which throws an InstantiationError
@@ -307,7 +307,7 @@ JRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* thread, ConstantPoo
     THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
   }
   assert(k->is_inline_klass(), "defaultvalue argument must be the inline type class");
-  ValueKlass* vklass = ValueKlass::cast(k);
+  InlineKlass* vklass = InlineKlass::cast(k);
 
   vklass->initialize(THREAD);
   oop res = vklass->default_value();
@@ -316,13 +316,13 @@ JRT_END
 
 JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCache* cp_cache))
   LastFrameAccessor last_frame(thread);
-  // Getting the ValueKlass
+  // Getting the InlineKlass
   int index = ConstantPool::decode_cpcache_index(last_frame.get_index_u2_cpcache(Bytecodes::_withfield));
   ConstantPoolCacheEntry* cp_entry = cp_cache->entry_at(index);
   assert(cp_entry->is_resolved(Bytecodes::_withfield), "Should have been resolved");
   Klass* klass = cp_entry->f1_as_klass();
   assert(klass->is_inline_klass(), "withfield only applies to inline types");
-  ValueKlass* vklass = ValueKlass::cast(klass);
+  InlineKlass* vklass = InlineKlass::cast(klass);
 
   // Getting Field information
   int offset = cp_entry->f2_as_index();
@@ -341,10 +341,10 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
   Handle old_value_h(THREAD, old_value);
 
   // Creating new value by copying the one passed in argument
-  instanceOop new_value = vklass->allocate_instance(
+  instanceOop new_value = vklass->allocate_instance_buffer(
       CHECK_((type2size[field_type]) * AbstractInterpreter::stackElementSize));
   Handle new_value_h = Handle(THREAD, new_value);
-  vklass->value_copy_oop_to_new_oop(old_value_h(), new_value_h());
+  vklass->inline_copy_oop_to_new_oop(old_value_h(), new_value_h());
 
   // Updating the field specified in arguments
   if (field_type == T_ARRAY || field_type == T_OBJECT) {
@@ -355,7 +355,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
     if (cp_entry->is_inlined()) {
       oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
       assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_inline_type(),"argument must be an inline type");
-      ValueKlass* field_vk = ValueKlass::cast(vklass->get_inline_type_field_klass(field_index));
+      InlineKlass* field_vk = InlineKlass::cast(vklass->get_inline_type_field_klass(field_index));
       assert(vt_oop != NULL && field_vk == vt_oop->klass(), "Must match");
       field_vk->write_inlined_field(new_value_h(), offset, vt_oop, CHECK_(return_offset));
     } else { // not inlined
@@ -376,7 +376,7 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
   return return_offset;
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread* thread, oopDesc* mirror, int index))
+JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaThread* thread, oopDesc* mirror, int index))
   // The interpreter tries to access an inline static field that has not been initialized.
   // This situation can happen in different scenarios:
   //   1 - if the load or initialization of the field failed during step 8 of
@@ -402,7 +402,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread*
       klass->set_inline_type_field_klass(index, field_k);
     }
     field_k->initialize(CHECK);
-    oop defaultvalue = ValueKlass::cast(field_k)->default_value();
+    oop defaultvalue = InlineKlass::cast(field_k)->default_value();
     // It is safe to initialized the static field because 1) the current thread is the initializing thread
     // and is the only one that can access it, and 2) the field is actually not initialized (i.e. null)
     // otherwise the JVM should not be executing this code.
@@ -435,7 +435,7 @@ JRT_ENTRY(void, InterpreterRuntime::read_inlined_field(JavaThread* thread, oopDe
 
   assert(klass->field_is_inlined(index), "Sanity check");
 
-  ValueKlass* field_vklass = ValueKlass::cast(klass->get_inline_type_field_klass(index));
+  InlineKlass* field_vklass = InlineKlass::cast(klass->get_inline_type_field_klass(index));
   assert(field_vklass->is_initialized(), "Must be initialized at this point");
 
   oop res = field_vklass->read_inlined_field(obj_h(), klass->field_offset(index), CHECK);

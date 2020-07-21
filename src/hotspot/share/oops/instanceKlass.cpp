@@ -65,7 +65,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/recordComponent.hpp"
 #include "oops/symbol.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiRedefineClasses.hpp"
 #include "prims/jvmtiThreadState.hpp"
@@ -497,7 +497,7 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
       ik = new (loader_data, size, THREAD) InstanceClassLoaderKlass(parser);
     } else if (parser.is_inline_type()) {
       // inline type
-      ik = new (loader_data, size, THREAD) ValueKlass(parser);
+      ik = new (loader_data, size, THREAD) InlineKlass(parser);
     } else {
       // normal
       ik = new (loader_data, size, THREAD) InstanceKlass(parser, InstanceKlass::_kind_other);
@@ -582,7 +582,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _reference_type(parser.reference_type()),
   _init_thread(NULL),
   _inline_type_field_klasses(NULL),
-  _adr_valueklass_fixed_block(NULL)
+  _adr_inlineklass_fixed_block(NULL)
 {
   set_vtable_length(parser.vtable_size());
   set_kind(kind);
@@ -1277,7 +1277,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
         InstanceKlass::cast(klass)->initialize(CHECK);
         if (fs.access_flags().is_static()) {
           if (java_mirror()->obj_field(fs.offset()) == NULL) {
-            java_mirror()->obj_field_put(fs.offset(), ValueKlass::cast(klass)->default_value());
+            java_mirror()->obj_field_put(fs.offset(), InlineKlass::cast(klass)->default_value());
           }
         }
       }
@@ -1720,7 +1720,7 @@ Klass* InstanceKlass::find_field(Symbol* name, Symbol* sig, bool is_static, fiel
 
 bool InstanceKlass::contains_field_offset(int offset) {
   if (this->is_inline_klass()) {
-    ValueKlass* vk = ValueKlass::cast(this);
+    InlineKlass* vk = InlineKlass::cast(this);
     return offset >= vk->first_field_offset() && offset < (vk->first_field_offset() + vk->get_exact_size_in_bytes());
   } else {
     fieldDescriptor fd;
@@ -2711,7 +2711,7 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
   Klass::restore_unshareable_info(loader_data, protection_domain, CHECK);
 
   if (is_inline_klass()) {
-    ValueKlass::cast(this)->initialize_calling_convention(CHECK);
+    InlineKlass::cast(this)->initialize_calling_convention(CHECK);
   }
 
   Array<Method*>* methods = this->methods();

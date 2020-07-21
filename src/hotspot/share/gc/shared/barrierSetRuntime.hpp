@@ -27,7 +27,7 @@
 
 #include "memory/allocation.hpp"
 #include "oops/oopsHierarchy.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
@@ -37,8 +37,8 @@ class JavaThread;
 class BarrierSetRuntime: public AllStatic {
 public:
   // Template interpreter...
-  static void value_copy(void* src, void* dst, ValueKlass* md);
-  static void value_copy_is_dest_uninitialized(void* src, void* dst, ValueKlass* md);
+  static void value_copy(void* src, void* dst, InlineKlass* md);
+  static void value_copy_is_dest_uninitialized(void* src, void* dst, InlineKlass* md);
 };
 
 #endif // SHARE_GC_SHARED_BARRIERSETRUNTIME_HPP

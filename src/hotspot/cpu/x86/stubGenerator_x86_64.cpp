@@ -421,8 +421,8 @@ class StubGenerator: public StubCodeGenerator {
       __ jcc(Assembler::zero, is_long);
       // Load pack handler address
       __ andptr(rax, -2);
-      __ movptr(rax, Address(rax, InstanceKlass::adr_valueklass_fixed_block_offset()));
-      __ movptr(rbx, Address(rax, ValueKlass::pack_handler_jobject_offset()));
+      __ movptr(rax, Address(rax, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      __ movptr(rbx, Address(rax, InlineKlass::pack_handler_jobject_offset()));
       // Call pack handler to initialize the buffer
       __ call(rbx);
       __ jmp(exit);

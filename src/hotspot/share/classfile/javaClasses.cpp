@@ -53,7 +53,7 @@
 #include "oops/recordComponent.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "oops/valueArrayKlass.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/resolvedMethodTable.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -1010,7 +1010,7 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
       if (k->is_valueArray_klass()) {
         Klass* element_klass = (Klass*) ValueArrayKlass::cast(k)->element_klass();
         assert(element_klass->is_inline_klass(), "Must be inline type component");
-        ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(element_klass));
+        InlineKlass* vk = InlineKlass::cast(InstanceKlass::cast(element_klass));
         comp_mirror = Handle(THREAD, vk->java_mirror());
       } else if (k->is_typeArray_klass()) {
         BasicType type = TypeArrayKlass::cast(k)->element_type();

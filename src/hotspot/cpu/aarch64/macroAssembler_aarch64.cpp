@@ -5281,12 +5281,12 @@ int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_i
 
     if (vk != NULL) {
       // Called from C1, where the return type is statically known.
-      mov(r1, (intptr_t)vk->get_ValueKlass());
+      mov(r1, (intptr_t)vk->get_InlineKlass());
       jint lh = vk->layout_helper();
       assert(lh != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
       mov(r14, lh);
     } else {
-       // Call from interpreter. R0 contains ((the ValueKlass* of the return type) | 0x01)
+       // Call from interpreter. R0 contains ((the InlineKlass* of the return type) | 0x01)
        andr(r1, r0, -2);
        // get obj size
        ldrw(r14, Address(rscratch1 /*klass*/, Klass::layout_helper_offset()));
@@ -5326,8 +5326,8 @@ int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_i
 
         // We have our new buffered value, initialize its fields with a
         // value class specific handler
-        ldr(r1, Address(r0, InstanceKlass::adr_valueklass_fixed_block_offset()));
-        ldr(r1, Address(r1, ValueKlass::pack_handler_offset()));
+        ldr(r1, Address(r0, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+        ldr(r1, Address(r1, InlineKlass::pack_handler_offset()));
 
         // Mov new class to r0 and call pack_handler
         mov(r0, r13);

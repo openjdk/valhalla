@@ -31,7 +31,7 @@
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 
 // count is number of array elements being written
 void ModRefBarrierSet::write_ref_array(HeapWord* start, size_t count) {
@@ -155,7 +155,7 @@ clone_in_heap(oop src, oop dst, size_t size) {
 
 template <DecoratorSet decorators, typename BarrierSetT>
 inline void ModRefBarrierSet::AccessBarrier<decorators, BarrierSetT>::
-value_copy_in_heap(void* src, void* dst, ValueKlass* md) {
+value_copy_in_heap(void* src, void* dst, InlineKlass* md) {
   if (HasDecorator<decorators, IS_DEST_UNINITIALIZED>::value || (!md->contains_oops())) {
     Raw::value_copy(src, dst, md);
   } else {

@@ -63,7 +63,7 @@
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/oopHandle.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/weakHandle.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
@@ -374,11 +374,11 @@ void ClassLoaderData::classes_do(void f(InstanceKlass*)) {
   }
 }
 
-void ClassLoaderData::value_classes_do(void f(ValueKlass*)) {
+void ClassLoaderData::inline_classes_do(void f(InlineKlass*)) {
   // Lock-free access requires load_acquire
   for (Klass* k = Atomic::load_acquire(&_klasses); k != NULL; k = k->next_link()) {
     if (k->is_inline_klass()) {
-      f(ValueKlass::cast(k));
+      f(InlineKlass::cast(k));
     }
     assert(k != k->next_link(), "no loops!");
   }
@@ -550,7 +550,7 @@ void ClassLoaderData::unload() {
   // if they are not already on the _klasses list.
   free_deallocate_list_C_heap_structures();
 
-  value_classes_do(ValueKlass::cleanup);
+  inline_classes_do(InlineKlass::cleanup);
 
   // Clean up class dependencies and tell serviceability tools
   // these classes are unloading.  Must be called
@@ -849,7 +849,7 @@ void ClassLoaderData::free_deallocate_list() {
         if (!((Klass*)m)->is_inline_klass()) {
           MetadataFactory::free_metadata(this, (InstanceKlass*)m);
         } else {
-          MetadataFactory::free_metadata(this, (ValueKlass*)m);
+          MetadataFactory::free_metadata(this, (InlineKlass*)m);
         }
       } else {
         ShouldNotReachHere();

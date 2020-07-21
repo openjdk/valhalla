@@ -28,7 +28,7 @@
 #include "oops/access.inline.hpp"
 #include "oops/arrayOop.inline.hpp"
 #include "oops/valueArrayOop.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
 
@@ -48,35 +48,35 @@ inline int valueArrayOopDesc::object_size() const {
 
 inline oop valueArrayOopDesc::value_alloc_copy_from_index(valueArrayHandle vah, int index, TRAPS) {
   ValueArrayKlass* vaklass = ValueArrayKlass::cast(vah->klass());
-  ValueKlass* vklass = vaklass->element_klass();
+  InlineKlass* vklass = vaklass->element_klass();
   if (vklass->is_empty_inline_type()) {
     return vklass->default_value();
   } else {
-    oop buf = vklass->allocate_instance(CHECK_NULL);
-    vklass->value_copy_payload_to_new_oop(vah->value_at_addr(index, vaklass->layout_helper()) ,buf);
+    oop buf = vklass->allocate_instance_buffer(CHECK_NULL);
+    vklass->inline_copy_payload_to_new_oop(vah->value_at_addr(index, vaklass->layout_helper()) ,buf);
     return buf;
   }
 }
 
 inline void valueArrayOopDesc::value_copy_from_index(int index, oop dst) const {
   ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass());
-  ValueKlass* vklass = vaklass->element_klass();
+  InlineKlass* vklass = vaklass->element_klass();
   if (vklass->is_empty_inline_type()) {
     return; // Assumes dst was a new and clean buffer (OptoRuntime::load_unknown_value())
   } else {
     void* src = value_at_addr(index, vaklass->layout_helper());
-    return vklass->value_copy_payload_to_new_oop(src ,dst);
+    return vklass->inline_copy_payload_to_new_oop(src ,dst);
   }
 }
 
 inline void valueArrayOopDesc::value_copy_to_index(oop src, int index) const {
   ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass());
-  ValueKlass* vklass = vaklass->element_klass();
+  InlineKlass* vklass = vaklass->element_klass();
   if (vklass->is_empty_inline_type()) {
     return;
   }
   void* dst = value_at_addr(index, vaklass->layout_helper());
-  vklass->value_copy_oop_to_payload(src, dst);
+  vklass->inline_copy_oop_to_payload(src, dst);
 }
 
 

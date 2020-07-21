@@ -30,7 +30,7 @@
 #include "ci/ciFlags.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciSymbol.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 
 // ciValueKlass
 //
@@ -42,13 +42,13 @@ private:
   // Fields declared in the bytecode (without flattened value type fields)
   GrowableArray<ciField*>* _declared_nonstatic_fields;
 
-  ValueKlass* to_ValueKlass() const {
-    return ValueKlass::cast(get_Klass());
+  InlineKlass* to_ValueKlass() const {
+    return InlineKlass::cast(get_Klass());
   }
 
 protected:
   ciValueKlass(Klass* h_k) : ciInstanceKlass(h_k), _declared_nonstatic_fields(NULL) {
-    assert(is_final(), "ValueKlass must be final");
+    assert(is_final(), "InlineKlass must be final");
   };
 
   ciValueKlass(ciSymbol* name, jobject loader, jobject protection_domain) :
@@ -89,7 +89,7 @@ public:
   Array<SigEntry>* extended_sig() const;
   address pack_handler() const;
   address unpack_handler() const;
-  ValueKlass* get_ValueKlass() const;
+  InlineKlass* get_ValueKlass() const;
 };
 
 #endif // SHARE_VM_CI_CIVALUEKLASS_HPP

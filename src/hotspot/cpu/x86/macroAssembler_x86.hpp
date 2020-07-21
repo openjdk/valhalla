@@ -102,14 +102,14 @@ class MacroAssembler: public Assembler {
   static bool uses_implicit_null_check(void* address);
 
   // valueKlass queries, kills temp_reg
-  void test_klass_is_value(Register klass, Register temp_reg, Label& is_value);
-  void test_klass_is_empty_value(Register klass, Register temp_reg, Label& is_empty_value);
+  void test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type);
+  void test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type);
 
-  // Get the default value oop for the given ValueKlass
-  void get_default_value_oop(Register value_klass, Register temp_reg, Register obj);
-  // The empty value oop, for the given ValueKlass ("empty" as in no instance fields)
-  // get_default_value_oop with extra assertion for empty value klass
-  void get_empty_value_oop(Register value_klass, Register temp_reg, Register obj);
+  // Get the default value oop for the given InlineKlass
+  void get_default_value_oop(Register inline_klass, Register temp_reg, Register obj);
+  // The empty value oop, for the given InlineKlass ("empty" as in no instance fields)
+  // get_default_value_oop with extra assertion for empty inline klass
+  void get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj);
 
   void test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline);
   void test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline);
@@ -577,7 +577,7 @@ class MacroAssembler: public Assembler {
   void zero_memory(Register address, Register length_in_bytes, int offset_in_bytes, Register temp);
 
   // For field "index" within "klass", return value_klass ...
-  void get_value_field_klass(Register klass, Register index, Register value_klass);
+  void get_inline_type_field_klass(Register klass, Register index, Register value_klass);
 
   // interface method calling
   void lookup_interface_method(Register recv_klass,

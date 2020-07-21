@@ -32,7 +32,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/safepointVerifiers.hpp"
@@ -374,13 +374,13 @@ Symbol* SignatureStream::find_symbol() {
   return name;
 }
 
-ValueKlass* SignatureStream::as_value_klass(InstanceKlass* holder) {
+InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
   Thread* THREAD = Thread::current();
   Handle class_loader(THREAD, holder->class_loader());
   Handle protection_domain(THREAD, holder->protection_domain());
   Klass* k = as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);
   assert(k != NULL && !HAS_PENDING_EXCEPTION, "unresolved value klass");
-  return ValueKlass::cast(k);
+  return InlineKlass::cast(k);
 }
 
 Klass* SignatureStream::as_klass(Handle class_loader, Handle protection_domain,

@@ -2680,7 +2680,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ b(Done);
         __ bind(isUninitialized);
           __ andw(raw_flags, raw_flags, ConstantPoolCacheEntry::field_index_mask);
-          __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_value_field), obj, raw_flags);
+          __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_inline_type_field), obj, raw_flags);
           __ verify_oop(r0);
           __ push(atos);
           __ b(Done);
@@ -2700,7 +2700,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ load_heap_oop(r0, field);
           __ cbnz(r0, isInitialized);
             __ andw(raw_flags, raw_flags, ConstantPoolCacheEntry::field_index_mask);
-            __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_value_field), obj, raw_flags);
+            __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_inline_type_field), obj, raw_flags);
           __ bind(isInitialized);
           __ verify_oop(r0);
           __ push(atos);
@@ -3340,7 +3340,7 @@ void TemplateTable::fast_accessfield(TosState state)
           __ mov(r0, r9);
           __ ldrw(r9, Address(r2, in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::flags_offset())));
           __ andw(r9, r9, ConstantPoolCacheEntry::field_index_mask);
-          __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_value_field), r0, r9);
+          __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_inline_type_field), r0, r9);
         __ bind(isInitialized);
         __ verify_oop(r0);
         __ b(Done);

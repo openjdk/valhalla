@@ -215,7 +215,7 @@ inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(o
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>
-inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_heap(void* src, void* dst, ValueKlass* md) {
+inline void ZBarrierSet::AccessBarrier<decorators, BarrierSetT>::value_copy_in_heap(void* src, void* dst, InlineKlass* md) {
   if (md->contains_oops()) {
     // src/dst aren't oops, need offset to adjust oop map offset
     const address src_oop_addr_offset = ((address) src) - md->first_field_offset();

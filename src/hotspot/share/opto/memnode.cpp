@@ -1932,14 +1932,14 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
         }
       }
     } else {
-      // Check for a load of the default value offset from the ValueKlassFixedBlock:
-      // LoadI(LoadP(value_klass, adr_valueklass_fixed_block_offset), default_value_offset_offset)
+      // Check for a load of the default value offset from the InlineKlassFixedBlock:
+      // LoadI(LoadP(value_klass, adr_inlineklass_fixed_block_offset), default_value_offset_offset)
       intptr_t offset = 0;
       Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
-      if (base != NULL && base->is_Load() && offset == in_bytes(ValueKlass::default_value_offset_offset())) {
+      if (base != NULL && base->is_Load() && offset == in_bytes(InlineKlass::default_value_offset_offset())) {
         const TypeKlassPtr* tkls = phase->type(base->in(MemNode::Address))->isa_klassptr();
         if (tkls != NULL && tkls->is_loaded() && tkls->klass_is_exact() && tkls->isa_valuetype() &&
-            tkls->offset() == in_bytes(InstanceKlass::adr_valueklass_fixed_block_offset())) {
+            tkls->offset() == in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())) {
           assert(base->Opcode() == Op_LoadP, "must load an oop from klass");
           assert(Opcode() == Op_LoadI, "must load an int from fixed block");
           return TypeInt::make(tkls->klass()->as_value_klass()->default_value_offset());

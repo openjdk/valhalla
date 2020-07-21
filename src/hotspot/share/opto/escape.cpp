@@ -3243,12 +3243,12 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         }
       } else if (use->Opcode() == Op_Return) {
         assert(_compile->tf()->returns_value_type_as_fields(), "must return a value type");
-        // Get ValueKlass by removing the tag bit from the metadata pointer
+        // Get InlineKlass by removing the tag bit from the metadata pointer
         Node* klass = use->in(TypeFunc::Parms);
         intptr_t ptr = igvn->type(klass)->isa_rawptr()->get_con();
         clear_nth_bit(ptr, 0);
         assert(Metaspace::contains((void*)ptr), "should be klass");
-        assert(((ValueKlass*)ptr)->contains_oops(), "returned value type must contain a reference field");
+        assert(((InlineKlass*)ptr)->contains_oops(), "returned inline type must contain a reference field");
       } else {
         uint op = use->Opcode();
         if ((op == Op_StrCompressedCopy || op == Op_StrInflatedCopy) &&
