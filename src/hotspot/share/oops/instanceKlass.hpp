@@ -153,12 +153,6 @@ class InlineKlassFixedBlock {
   friend class InlineKlass;
 };
 
-class InlineTypes {
-public:
-  u2 _class_info_index;
-  Symbol* _class_name;
-};
-
 class InstanceKlass: public Klass {
   friend class VMStructs;
   friend class JVMCIVMStructs;
