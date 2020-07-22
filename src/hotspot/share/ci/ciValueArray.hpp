@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,22 +27,22 @@
 
 #include "ci/ciArray.hpp"
 #include "ci/ciClassList.hpp"
-#include "oops/valueArrayOop.hpp"
+#include "oops/flatArrayOop.hpp"
 
 // ciValueArray
 //
-// This class represents a valueArrayOop in the HotSpot virtual
+// This class represents a flatArrayOop in the HotSpot virtual
 // machine.
 class ciValueArray : public ciArray {
   CI_PACKAGE_ACCESS
 
 protected:
-  ciValueArray(valueArrayHandle h_o) : ciArray(h_o) {}
+  ciValueArray(flatArrayHandle h_o) : ciArray(h_o) {}
 
   ciValueArray(ciValueKlass* klass, int len) : ciArray(klass, len) {}
 
-  valueArrayOop get_valueArrayOop() {
-    return (valueArrayOop)get_oop();
+  flatArrayOop get_valueArrayOop() {
+    return (flatArrayOop)get_oop();
   }
 
   const char* type_string() { return "ciValuejArray"; }

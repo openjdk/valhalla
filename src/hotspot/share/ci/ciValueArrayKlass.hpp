@@ -30,7 +30,7 @@
 // ciValueArrayKlass
 //
 // This class represents a Klass* in the HotSpot virtual machine
-// whose Klass part is a ValueArrayKlass.
+// whose Klass part is a FlatArrayKlass.
 class ciValueArrayKlass : public ciArrayKlass {
   CI_PACKAGE_ACCESS
   friend class ciEnv;
@@ -45,8 +45,8 @@ protected:
                     ciValueKlass* element_klass,
                     int dimension);
 
-  ValueArrayKlass* get_ValueArrayKlass() {
-    return (ValueArrayKlass*)get_Klass();
+  FlatArrayKlass* get_ValueArrayKlass() {
+    return (FlatArrayKlass*)get_Klass();
   }
 
   static ciValueArrayKlass* make_impl(ciKlass* element_klass);

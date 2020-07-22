@@ -370,7 +370,7 @@ check_primitive_array_type(JavaThread* thr, jarray jArray, BasicType elementType
 static inline void
 check_is_obj_or_inline_array(JavaThread* thr, jarray jArray) {
   arrayOop aOop = check_is_array(thr, jArray);
-  if (!aOop->is_objArray() && !aOop->is_valueArray()) {
+  if (!aOop->is_objArray() && !aOop->is_flatArray()) {
     ReportJNIFatalError(thr, fatal_object_array_expected);
   }
 }

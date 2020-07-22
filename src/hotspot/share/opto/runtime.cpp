@@ -46,11 +46,11 @@
 #include "logging/logStream.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/flatArrayKlass.hpp"
+#include "oops/flatArrayOop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/valueArrayOop.inline.hpp"
 #include "opto/ad.hpp"
 #include "opto/addnode.hpp"
 #include "opto/callnode.hpp"
@@ -247,9 +247,9 @@ JRT_BLOCK_ENTRY(void, OptoRuntime::new_array_C(Klass* array_type, int len, JavaT
   // Scavenge and allocate an instance.
   oop result;
 
-  if (array_type->is_valueArray_klass()) {
-    Klass* elem_type = ValueArrayKlass::cast(array_type)->element_klass();
-    result = oopFactory::new_valueArray(elem_type, len, THREAD);
+  if (array_type->is_flatArray_klass()) {
+    Klass* elem_type = FlatArrayKlass::cast(array_type)->element_klass();
+    result = oopFactory::new_flatArray(elem_type, len, THREAD);
   } else if (array_type->is_typeArray_klass()) {
     // The oopFactory likes to work with the element type.
     // (We could bypass the oopFactory, since it doesn't add much value.)
@@ -1767,7 +1767,7 @@ const TypeFunc *OptoRuntime::pack_value_type_Type() {
   return TypeFunc::make(domain, range);
 }
 
-JRT_LEAF(void, OptoRuntime::load_unknown_value(valueArrayOopDesc* array, int index, instanceOopDesc* buffer))
+JRT_LEAF(void, OptoRuntime::load_unknown_value(flatArrayOopDesc* array, int index, instanceOopDesc* buffer))
 {
   array->value_copy_from_index(index, buffer);
 }
@@ -1792,7 +1792,7 @@ const TypeFunc *OptoRuntime::load_unknown_value_Type() {
   return TypeFunc::make(domain, range);
 }
 
-JRT_LEAF(void, OptoRuntime::store_unknown_value(instanceOopDesc* buffer, valueArrayOopDesc* array, int index))
+JRT_LEAF(void, OptoRuntime::store_unknown_value(instanceOopDesc* buffer, flatArrayOopDesc* array, int index))
 {
   assert(buffer != NULL, "can't store null into flat array");
   array->value_copy_to_index(buffer, index);

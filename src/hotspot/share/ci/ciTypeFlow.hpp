@@ -342,7 +342,7 @@ public:
       ciType* array = pop_value();
       if (array == null_type())  return NULL;
       // Value type arrays may contain oop or flattened representation
-      assert(array->is_obj_array_klass() || (ValueArrayFlatten && array->is_value_array_klass()),
+      assert(array->is_obj_array_klass() || (UseFlatArray && array->is_value_array_klass()),
           "must be value or object array type");
       return array->as_array_klass();
     }

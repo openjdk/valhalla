@@ -31,6 +31,9 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/flatArrayKlass.hpp"
+#include "oops/flatArrayOop.inline.hpp"
+#include "oops/flatArrayOop.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/instanceOop.hpp"
 #include "oops/objArrayKlass.hpp"
@@ -39,9 +42,6 @@
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/valueArrayOop.inline.hpp"
-#include "oops/valueArrayOop.hpp"
 #include "runtime/handles.inline.hpp"
 #include "utilities/utf8.hpp"
 
@@ -128,15 +128,15 @@ objArrayOop oopFactory::new_objArray(Klass* klass, int length, TRAPS) {
   }
 }
 
-arrayOop oopFactory::new_valueArray(Klass* klass, int length, TRAPS) {
+arrayOop oopFactory::new_flatArray(Klass* klass, int length, TRAPS) {
   assert(klass->is_inline_klass(), "Klass must be inline type");
   // Request flattened, but we might not actually get it...either way "null-free" are the aaload/aastore semantics
   Klass* array_klass = klass->array_klass(1, CHECK_NULL);
   assert(array_klass->is_null_free_array_klass(), "Expect a null-free array class here");
 
   arrayOop oop;
-  if (array_klass->is_valueArray_klass()) {
-    oop = (arrayOop) ValueArrayKlass::cast(array_klass)->allocate(length, THREAD);
+  if (array_klass->is_flatArray_klass()) {
+    oop = (arrayOop) FlatArrayKlass::cast(array_klass)->allocate(length, THREAD);
   } else {
     oop = (arrayOop) ObjArrayKlass::cast(array_klass)->allocate(length, THREAD);
   }
@@ -144,9 +144,9 @@ arrayOop oopFactory::new_valueArray(Klass* klass, int length, TRAPS) {
   return oop;
 }
 
-objArrayHandle oopFactory::copy_valueArray_to_objArray(valueArrayHandle array, TRAPS) {
+objArrayHandle oopFactory::copy_flatArray_to_objArray(flatArrayHandle array, TRAPS) {
   int len = array->length();
-  ValueArrayKlass* vak = ValueArrayKlass::cast(array->klass());
+  FlatArrayKlass* vak = FlatArrayKlass::cast(array->klass());
   objArrayOop oarray = new_objectArray(array->length(), CHECK_(objArrayHandle()));
   objArrayHandle oarrayh(THREAD, oarray);
   vak->copy_array(array(), 0, oarrayh(), 0, len, CHECK_(objArrayHandle()));
@@ -154,8 +154,8 @@ objArrayHandle oopFactory::copy_valueArray_to_objArray(valueArrayHandle array, T
 }
 
 objArrayHandle  oopFactory::ensure_objArray(oop array, TRAPS) {
-  if (array != NULL && array->is_valueArray()) {
-    return copy_valueArray_to_objArray(valueArrayHandle(THREAD, valueArrayOop(array)), THREAD);
+  if (array != NULL && array->is_flatArray()) {
+    return copy_flatArray_to_objArray(flatArrayHandle(THREAD, flatArrayOop(array)), THREAD);
   } else {
     return objArrayHandle(THREAD, objArrayOop(array));
   }

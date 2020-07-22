@@ -92,7 +92,7 @@ void Parse::array_load(BasicType bt) {
     bt = T_INLINE_TYPE;
   } else if (!ary_t->is_not_flat()) {
     // Cannot statically determine if array is flattened, emit runtime check
-    assert(ValueArrayFlatten && is_reference_type(bt) && elemptr->can_be_value_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
+    assert(UseFlatArray && is_reference_type(bt) && elemptr->can_be_value_type() && !ary_t->klass_is_exact() && !ary_t->is_not_null_free() &&
            (!elemptr->is_valuetypeptr() || elemptr->value_klass()->flatten_array()), "array can't be flattened");
     IdealKit ideal(this);
     IdealVariable res(ideal);
@@ -298,7 +298,7 @@ void Parse::array_store(BasicType bt) {
       }
     } else if (!ary_t->is_not_flat()) {
       // Array might be flattened, emit runtime checks
-      assert(ValueArrayFlatten && !not_flattenable && elemtype->is_oopptr()->can_be_value_type() &&
+      assert(UseFlatArray && !not_flattenable && elemtype->is_oopptr()->can_be_value_type() &&
              !ary_t->klass_is_exact() && !ary_t->is_not_null_free(), "array can't be flattened");
       IdealKit ideal(this);
       ideal.if_then(is_non_flattened_array(ary)); {

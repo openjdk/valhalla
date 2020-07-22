@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -21,19 +21,19 @@
  * questions.
  *
  */
-#ifndef SHARE_VM_OOPS_VALUEARRAYKLASS_INLINE_HPP
-#define SHARE_VM_OOPS_VALUEARRAYKLASS_INLINE_HPP
+#ifndef SHARE_VM_OOPS_FLATARRAYKLASS_INLINE_HPP
+#define SHARE_VM_OOPS_FLATARRAYKLASS_INLINE_HPP
 
 #include "memory/memRegion.hpp"
 #include "memory/iterator.hpp"
 #include "oops/arrayKlass.hpp"
-#include "oops/klass.hpp"
-#include "oops/oop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/valueArrayOop.hpp"
-#include "oops/valueArrayOop.inline.hpp"
+#include "oops/flatArrayKlass.hpp"
+#include "oops/flatArrayOop.hpp"
+#include "oops/flatArrayOop.inline.hpp"
 #include "oops/inlineKlass.hpp"
 #include "oops/inlineKlass.inline.hpp"
+#include "oops/klass.hpp"
+#include "oops/oop.inline.hpp"
 #include "utilities/macros.hpp"
 
 /*
@@ -41,8 +41,8 @@
  */
 
 template <typename T, class OopClosureType>
-void ValueArrayKlass::oop_oop_iterate_elements_specialized(valueArrayOop a,
-                                                           OopClosureType* closure) {
+void FlatArrayKlass::oop_oop_iterate_elements_specialized(flatArrayOop a,
+                                                          OopClosureType* closure) {
   assert(contains_oops(), "Nothing to iterate");
 
   const int shift = Klass::layout_helper_log2_element_size(layout_helper());
@@ -58,9 +58,9 @@ void ValueArrayKlass::oop_oop_iterate_elements_specialized(valueArrayOop a,
 }
 
 template <typename T, class OopClosureType>
-void ValueArrayKlass::oop_oop_iterate_elements_specialized_bounded(valueArrayOop a,
-                                                                   OopClosureType* closure,
-                                                                   void* lo, void* hi) {
+void FlatArrayKlass::oop_oop_iterate_elements_specialized_bounded(flatArrayOop a,
+                                                                  OopClosureType* closure,
+                                                                  void* lo, void* hi) {
   assert(contains_oops(), "Nothing to iterate");
 
   const int shift = Klass::layout_helper_log2_element_size(layout_helper());
@@ -86,33 +86,33 @@ void ValueArrayKlass::oop_oop_iterate_elements_specialized_bounded(valueArrayOop
 }
 
 template <typename T, class OopClosureType>
-void ValueArrayKlass::oop_oop_iterate_elements(valueArrayOop a, OopClosureType* closure) {
+void FlatArrayKlass::oop_oop_iterate_elements(flatArrayOop a, OopClosureType* closure) {
   if (contains_oops()) {
     oop_oop_iterate_elements_specialized<T>(a, closure);
   }
 }
 
 template <typename T, typename OopClosureType>
-void ValueArrayKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
-  assert(obj->is_valueArray(),"must be a value array");
-  valueArrayOop a = valueArrayOop(obj);
+void FlatArrayKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
+  assert(obj->is_flatArray(),"must be a flat array");
+  flatArrayOop a = flatArrayOop(obj);
 
   if (Devirtualizer::do_metadata(closure)) {
     Devirtualizer::do_klass(closure, obj->klass());
-    Devirtualizer::do_klass(closure, ValueArrayKlass::cast(obj->klass())->element_klass());
+    Devirtualizer::do_klass(closure, FlatArrayKlass::cast(obj->klass())->element_klass());
   }
 
   oop_oop_iterate_elements<T>(a, closure);
 }
 
 template <typename T, typename OopClosureType>
-void ValueArrayKlass::oop_oop_iterate_reverse(oop obj, OopClosureType* closure) {
+void FlatArrayKlass::oop_oop_iterate_reverse(oop obj, OopClosureType* closure) {
   // TODO
   oop_oop_iterate<T>(obj, closure);
 }
 
 template <typename T, class OopClosureType>
-void ValueArrayKlass::oop_oop_iterate_elements_bounded(valueArrayOop a, OopClosureType* closure, MemRegion mr) {
+void FlatArrayKlass::oop_oop_iterate_elements_bounded(flatArrayOop a, OopClosureType* closure, MemRegion mr) {
   if (contains_oops()) {
     oop_oop_iterate_elements_specialized_bounded<T>(a, closure, mr.start(), mr.end());
   }
@@ -120,13 +120,13 @@ void ValueArrayKlass::oop_oop_iterate_elements_bounded(valueArrayOop a, OopClosu
 
 
 template <typename T, typename OopClosureType>
-void ValueArrayKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr) {
-  valueArrayOop a = valueArrayOop(obj);
+void FlatArrayKlass::oop_oop_iterate_bounded(oop obj, OopClosureType* closure, MemRegion mr) {
+  flatArrayOop a = flatArrayOop(obj);
   if (Devirtualizer::do_metadata(closure)) {
     Devirtualizer::do_klass(closure, a->klass());
-    Devirtualizer::do_klass(closure, ValueArrayKlass::cast(obj->klass())->element_klass());
+    Devirtualizer::do_klass(closure, FlatArrayKlass::cast(obj->klass())->element_klass());
   }
   oop_oop_iterate_elements_bounded<T>(a, closure, mr);
 }
 
-#endif // SHARE_VM_OOPS_VALUEARRAYKLASS_INLINE_HPP
+#endif // SHARE_VM_OOPS_FLATARRAYKLASS_INLINE_HPP
