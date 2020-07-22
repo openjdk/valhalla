@@ -127,7 +127,7 @@ ciKlass* Instruction::as_loaded_klass_or_null() const {
 }
 
 bool Instruction::is_loaded_flattened_array() const {
-  if (FlatArrayFlatten) {
+  if (UseFlatArray) {
     ciType* type = declared_type();
     return type != NULL && type->is_value_array_klass();
   }
@@ -135,7 +135,7 @@ bool Instruction::is_loaded_flattened_array() const {
 }
 
 bool Instruction::maybe_flattened_array() {
-  if (FlatArrayFlatten) {
+  if (UseFlatArray) {
     ciType* type = declared_type();
     if (type != NULL) {
       if (type->is_obj_array_klass()) {

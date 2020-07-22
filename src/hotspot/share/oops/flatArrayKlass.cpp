@@ -83,7 +83,7 @@ void FlatArrayKlass::set_element_klass(Klass* k) {
 
 FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* element_klass, TRAPS) {
   guarantee((!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()), "Really ?!");
-  assert(FlatArrayFlatten, "Flatten array required");
+  assert(UseFlatArray, "Flatten array required");
   assert(InlineKlass::cast(element_klass)->is_naturally_atomic() || (!InlineArrayAtomicAccess), "Atomic by-default");
 
   /*

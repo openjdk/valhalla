@@ -1214,6 +1214,6 @@ template<typename K> bool primitive_equals(const K& k0, const K& k1) {
 // It's an alias to (EnableValhalla && (InlineArrayElemMaxFlatSize != 0)),
 // which is actually not 100% correct, but works for the current set of C1/C2
 // implementation and test cases.
-#define FlatArrayFlatten (EnableValhalla && (InlineArrayElemMaxFlatSize != 0))
+#define UseFlatArray (EnableValhalla && (InlineArrayElemMaxFlatSize != 0))
 
 #endif // SHARE_UTILITIES_GLOBALDEFINITIONS_HPP

@@ -178,7 +178,7 @@ void InlineKlass::write_inlined_field(oop obj, int offset, oop value, TRAPS) {
 // Arrays of...
 
 bool InlineKlass::flatten_array() {
-  if (!FlatArrayFlatten) {
+  if (!UseFlatArray) {
     return false;
   }
   // Too big

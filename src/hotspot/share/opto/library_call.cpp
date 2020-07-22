@@ -223,7 +223,7 @@ class LibraryCallKit : public GraphKit {
     return generate_array_guard_common(kls, region, TypeArray);
   }
   Node* generate_valueArray_guard(Node* kls, RegionNode* region) {
-    assert(FlatArrayFlatten, "can never be flattened");
+    assert(UseFlatArray, "can never be flattened");
     return generate_array_guard_common(kls, region, ValueArray);
   }
   Node* generate_array_guard_common(Node* kls, RegionNode* region, ArrayKind kind);
@@ -3895,7 +3895,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
 
   const TypeAryPtr* original_t = _gvn.type(original)->isa_aryptr();
   const TypeInstPtr* mirror_t = _gvn.type(array_type_mirror)->isa_instptr();
-  if (EnableValhalla && FlatArrayFlatten &&
+  if (EnableValhalla && UseFlatArray &&
       (original_t == NULL || mirror_t == NULL ||
        (mirror_t->java_mirror_type() == NULL &&
         (original_t->elem()->isa_valuetype() ||
@@ -3965,7 +3965,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       }
     }
 
-    if (FlatArrayFlatten) {
+    if (UseFlatArray) {
       // Either both or neither new array klass and original array
       // klass must be flattened
       Node* is_flat = generate_valueArray_guard(klass_node, NULL);

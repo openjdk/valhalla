@@ -3488,7 +3488,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   record_for_igvn(region);
 
   bool not_null_free = !toop->can_be_value_type();
-  bool not_flattenable = !FlatArrayFlatten || not_null_free || (toop->is_valuetypeptr() && !toop->value_klass()->flatten_array());
+  bool not_flattenable = !UseFlatArray || not_null_free || (toop->is_valuetypeptr() && !toop->value_klass()->flatten_array());
   if (EnableValhalla && not_flattenable) {
     // Check if obj has been loaded from an array
     obj = obj->isa_DecodeN() ? obj->in(1) : obj;
@@ -3793,7 +3793,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     assert(klass != NULL, "klass should not be NULL");
     bool    xklass = inst_klass->klass_is_exact();
     bool can_be_flattened = false;
-    if (FlatArrayFlatten && klass->is_obj_array_klass()) {
+    if (UseFlatArray && klass->is_obj_array_klass()) {
       ciKlass* elem = klass->as_obj_array_klass()->element_klass();
       can_be_flattened = elem->can_be_value_klass() && (!elem->is_valuetype() || elem->as_value_klass()->flatten_array());
     }

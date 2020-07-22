@@ -127,7 +127,7 @@ ciSymbol* ciValueArrayKlass::construct_array_name(ciSymbol* element_name,
 //
 // Implementation of make.
 ciValueArrayKlass* ciValueArrayKlass::make_impl(ciKlass* element_klass) {
-  assert(FlatArrayFlatten, "should only be used for flattened value type arrays");
+  assert(UseFlatArray, "should only be used for flattened value type arrays");
   assert(element_klass->is_valuetype(), "element type must be value type");
   assert(element_klass->is_loaded(), "unloaded Q klasses are represented by ciInstanceKlass");
   {
