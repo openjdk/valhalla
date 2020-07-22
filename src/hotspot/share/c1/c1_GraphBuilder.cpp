@@ -1933,6 +1933,11 @@ void GraphBuilder::withfield(int field_index)
     ValueStack* state_before = copy_state_before();
     Value val = pop(type);
     Value obj = apop();
+    {
+    ResourceMark rm;
+    tty->print("Withfield receiver is [1]: ");
+    obj->print_on(tty);
+  }
     apush(append_split(new WithField(state_before)));
     return;
   }
@@ -1940,6 +1945,12 @@ void GraphBuilder::withfield(int field_index)
 
   Value val = pop(type);
   Value obj = apop();
+
+  {
+    ResourceMark rm;
+    tty->print("Withfield receiver is [2]: ");
+    obj->print();
+  }
 
   if (!needs_patching && obj->is_optimizable_for_withfield()) {
     int astore_index;
