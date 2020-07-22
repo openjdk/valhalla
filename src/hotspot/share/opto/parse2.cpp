@@ -88,7 +88,7 @@ void Parse::array_load(BasicType bt) {
     push(vt);
     return;
   } else if (elemptr != NULL && elemptr->is_valuetypeptr() && !elemptr->maybe_null()) {
-    // Load from non-flattened but flattenable value type array (elements can never be null)
+    // Load from non-flattened inline type array (elements can never be null)
     bt = T_INLINE_TYPE;
   } else if (!ary_t->is_not_flat()) {
     // Cannot statically determine if array is flattened, emit runtime check
@@ -112,7 +112,7 @@ void Parse::array_load(BasicType bt) {
       if (elemptr->is_valuetypeptr()) {
         // Element type is known, cast and load from flattened representation
         ciValueKlass* vk = elemptr->value_klass();
-        assert(vk->flatten_array() && elemptr->maybe_null(), "must be a flattenable and nullable array");
+        assert(vk->flatten_array() && elemptr->maybe_null(), "never/always flat - should be optimized");
         ciArrayKlass* array_klass = ciArrayKlass::make(vk);
         const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
         Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, arytype));
@@ -211,7 +211,7 @@ void Parse::array_load(BasicType bt) {
   Node* ld = access_load_at(ary, adr, adr_type, elemtype, bt,
                             IN_HEAP | IS_ARRAY | C2_CONTROL_DEPENDENT_LOAD);
   if (bt == T_INLINE_TYPE) {
-    // Loading a non-flattened (but flattenable) value type from an array
+    // Loading a non-flattened value type from an array
     assert(!gvn().type(ld)->maybe_null(), "value type array elements should never be null");
     if (elemptr->value_klass()->is_scalarizable()) {
       ld = ValueTypeNode::make_from_oop(this, ld, elemptr->value_klass());
@@ -251,25 +251,23 @@ void Parse::array_store(BasicType bt) {
     // emitted by the array_store_check code (see JDK-6312651)
     // TODO Remove this code once JDK-6312651 is in.
     const Type* tval_init = _gvn.type(val);
-    bool can_be_value_type = tval->isa_valuetype() || (tval != TypePtr::NULL_PTR && tval_init->is_oopptr()->can_be_value_type() && tval->is_oopptr()->can_be_value_type());
-    bool not_flattenable = !can_be_value_type || ((tval_init->is_valuetypeptr() || tval_init->isa_valuetype()) && !tval_init->value_klass()->flatten_array());
+    bool not_inline = !tval->isa_valuetype() && (tval == TypePtr::NULL_PTR || !tval_init->is_oopptr()->can_be_value_type() || !tval->is_oopptr()->can_be_value_type());
+    bool not_flattened = !ValueArrayFlatten || not_inline || ((tval_init->is_valuetypeptr() || tval_init->isa_valuetype()) && !tval_init->value_klass()->flatten_array());
 
-    if (!ary_t->is_not_null_free() && !can_be_value_type && (!tval->maybe_null() || !tval_init->maybe_null())) {
-      // Storing a non-inline-type, mark array as not null-free.
-      // This is only legal for non-null stores because the array_store_check passes for null.
+    if (!ary_t->is_not_null_free() && not_inline && (!tval->maybe_null() || !tval_init->maybe_null())) {
+      // Storing a non-inline type, mark array as not null-free (-> not flat).
+      // This is only legal for non-null stores because the array_store_check always passes for null.
+      // Null stores are handled in GraphKit::gen_value_array_null_guard().
       ary_t = ary_t->cast_to_not_null_free();
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, ary_t));
       replace_in_map(ary, cast);
       ary = cast;
-    } else if (!ary_t->is_not_flat() && not_flattenable) {
-      // Storing a non-flattenable value, mark array as not flat.
+    } else if (!ary_t->is_not_flat() && not_flattened) {
+      // Storing a non-flattened value, mark array as not flat.
       ary_t = ary_t->cast_to_not_flat();
-      if (tval != TypePtr::NULL_PTR) {
-        // For NULL, this transformation is only valid after the null guard below
-        Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, ary_t));
-        replace_in_map(ary, cast);
-        ary = cast;
-      }
+      Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, ary_t));
+      replace_in_map(ary, cast);
+      ary = cast;
     }
 
     if (ary_t->elem()->isa_valuetype() != NULL) {
@@ -289,7 +287,7 @@ void Parse::array_store(BasicType bt) {
       cast_val->as_ValueType()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
       return;
     } else if (elemtype->is_valuetypeptr() && !elemtype->maybe_null()) {
-      // Store to non-flattened but flattenable value type array (elements can never be null)
+      // Store to non-flattened inline type array (elements can never be null)
       if (!cast_val->is_ValueType() && tval->maybe_null()) {
         inc_sp(3);
         cast_val = null_check(cast_val);
@@ -298,7 +296,7 @@ void Parse::array_store(BasicType bt) {
       }
     } else if (!ary_t->is_not_flat()) {
       // Array might be flattened, emit runtime checks
-      assert(ValueArrayFlatten && !not_flattenable && elemtype->is_oopptr()->can_be_value_type() &&
+      assert(ValueArrayFlatten && !not_flattened && elemtype->is_oopptr()->can_be_value_type() &&
              !ary_t->klass_is_exact() && !ary_t->is_not_null_free(), "array can't be flattened");
       IdealKit ideal(this);
       ideal.if_then(is_non_flattened_array(ary)); {
@@ -340,7 +338,7 @@ void Parse::array_store(BasicType bt) {
         if (vk != NULL && !stopped()) {
           // Element type is known, cast and store to flattened representation
           sync_kit(ideal);
-          assert(vk->flatten_array() && elemtype->maybe_null(), "must be a flattenable and nullable array");
+          assert(vk->flatten_array() && elemtype->maybe_null(), "never/always flat - should be optimized");
           ciArrayKlass* array_klass = ciArrayKlass::make(vk);
           const TypeAryPtr* arytype = TypeOopPtr::make_from_klass(array_klass)->isa_aryptr();
           casted_ary = _gvn.transform(new CheckCastPPNode(control(), casted_ary, arytype));

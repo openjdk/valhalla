@@ -528,21 +528,19 @@ void LIR_Assembler::return_op(LIR_Opr result) {
   }
 
   ciMethod* method = compilation()->method();
-  if (InlineTypeReturnedAsFields && method->signature()->returns_never_null()) {
-    ciType* return_type = method->return_type();
-    if (return_type->is_valuetype()) {
-      ciValueKlass* vk = return_type->as_value_klass();
-      if (vk->can_be_returned_as_fields()) {
+  ciType* return_type = method->return_type();
+  if (InlineTypeReturnedAsFields && return_type->is_valuetype()) {
+    ciValueKlass* vk = return_type->as_value_klass();
+    if (vk->can_be_returned_as_fields()) {
 #ifndef _LP64
-        Unimplemented();
+      Unimplemented();
 #else
-        address unpack_handler = vk->unpack_handler();
-        assert(unpack_handler != NULL, "must be");
-        __ call(RuntimeAddress(unpack_handler));
-        // At this point, rax points to the value object (for interpreter or C1 caller).
-        // The fields of the object are copied into registers (for C2 caller).
+      address unpack_handler = vk->unpack_handler();
+      assert(unpack_handler != NULL, "must be");
+      __ call(RuntimeAddress(unpack_handler));
+      // At this point, rax points to the value object (for interpreter or C1 caller).
+      // The fields of the object are copied into registers (for C2 caller).
 #endif
-      }
     }
   }
 

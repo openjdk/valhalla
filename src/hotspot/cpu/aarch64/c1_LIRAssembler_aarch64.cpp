@@ -498,19 +498,18 @@ void LIR_Assembler::return_op(LIR_Opr result) {
 
   ciMethod* method = compilation()->method();
 
-  if (InlineTypeReturnedAsFields && method->signature()->returns_never_null()) {
-    ciType* return_type = method->return_type();
-    if (return_type->is_valuetype()) {
-      ciValueKlass* vk = return_type->as_value_klass();
-      if (vk->can_be_returned_as_fields()) {
-        address unpack_handler = vk->unpack_handler();
-        assert(unpack_handler != NULL, "must be");
-        __ far_call(RuntimeAddress(unpack_handler));
-        // At this point, rax points to the value object (for interpreter or C1 caller).
-        // The fields of the object are copied into registers (for C2 caller).
-      }
+  ciType* return_type = method->return_type();
+  if (InlineTypeReturnedAsFields && return_type->is_valuetype()) {
+    ciValueKlass* vk = return_type->as_value_klass();
+    if (vk->can_be_returned_as_fields()) {
+      address unpack_handler = vk->unpack_handler();
+      assert(unpack_handler != NULL, "must be");
+      __ far_call(RuntimeAddress(unpack_handler));
+      // At this point, rax points to the value object (for interpreter or C1 caller).
+      // The fields of the object are copied into registers (for C2 caller).
     }
   }
+
 
   // Pop the stack before the safepoint code
   __ remove_frame(initial_frame_size_in_bytes(), needs_stack_repair());
@@ -1586,7 +1585,7 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
 
 void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
   // This is called when we use aastore into a an array declared as "[LVT;",
-  // where we know VT is not flattenable (due to InlineArrayElemMaxFlatSize, etc).
+  // where we know VT is not flattened (due to InlineArrayElemMaxFlatSize, etc).
   // However, we need to do a NULL check if the actual array is a "[QVT;".
 
   __ load_storage_props(op->tmp()->as_register(), op->array()->as_register());

@@ -61,7 +61,6 @@ class ciMetadata: public ciBaseObject {
   virtual bool is_value_array_klass() const { return false; }
   virtual bool is_obj_array_klass() const   { return false; }
   virtual bool is_type_array_klass() const  { return false; }
-  virtual bool is_wrapper() const           { return false; }
   virtual bool flatten_array() const        { return false; }
   virtual void dump_replay_data(outputStream* st) { /* do nothing */ }
 
@@ -112,10 +111,6 @@ class ciMetadata: public ciBaseObject {
   ciValueKlass*            as_value_klass() {
     assert(is_valuetype(), "bad cast");
     return (ciValueKlass*)this;
-  }
-  ciWrapper*               as_wrapper() {
-    assert(is_wrapper(), "bad cast");
-    return (ciWrapper*)this;
   }
 
   Metadata* constant_encoding() { return _metadata; }

@@ -608,10 +608,10 @@ ciKlass* ciEnv::get_klass_by_index(const constantPoolHandle& cpool,
 }
 
 // ------------------------------------------------------------------
-// ciEnv::is_klass_never_null
+// ciEnv::is_inline_klass
 //
-// Get information about nullability from the constant pool.
-bool ciEnv::is_klass_never_null(const constantPoolHandle& cpool, int index) {
+// Check if the klass is an inline klass.
+bool ciEnv::is_inline_klass(const constantPoolHandle& cpool, int index) {
   GUARDED_VM_ENTRY(return cpool->klass_name_at(index)->is_Q_signature();)
 }
 

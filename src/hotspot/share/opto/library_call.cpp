@@ -2705,8 +2705,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       p = gvn().transform(new CastP2XNode(NULL, p));
       p = ConvX2UL(p);
     }
-    if (field != NULL && field->is_flattenable() && !field->is_flattened()) {
-      // Load a non-flattened but flattenable value type from memory
+    if (field != NULL && field->type()->is_valuetype() && !field->is_flattened()) {
+      // Load a non-flattened value type from memory
       if (value_type->value_klass()->is_scalarizable()) {
         p = ValueTypeNode::make_from_oop(this, p, value_type->value_klass());
       } else {

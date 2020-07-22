@@ -140,12 +140,6 @@ bool Symbol::is_Q_method_signature() const {
   return false;
 }
 
-bool Symbol::is_Q_singledim_array_signature() const {
-  int len = utf8_length();
-  return len > 3 && char_at(0) == JVM_SIGNATURE_ARRAY && char_at(1) == JVM_SIGNATURE_INLINE_TYPE &&
-                    char_at(len - 1) == JVM_SIGNATURE_ENDCLASS;
-}
-
 Symbol* Symbol::fundamental_name(TRAPS) {
   if ((char_at(0) == JVM_SIGNATURE_INLINE_TYPE || char_at(0) == JVM_SIGNATURE_CLASS) && ends_with(JVM_SIGNATURE_ENDCLASS)) {
     return SymbolTable::new_symbol(this, 1, utf8_length() - 1);

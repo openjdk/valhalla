@@ -192,13 +192,13 @@ ciKlass* ciBytecodeStream::get_klass(bool& will_link) {
 }
 
 // ------------------------------------------------------------------
-// ciBytecodeStream::is_klass_never_null
+// ciBytecodeStream::is_inline_klass
 //
-// Get information about nullability from the constant pool.
-bool ciBytecodeStream::is_klass_never_null() const {
+// Check if the klass is an inline klass.
+bool ciBytecodeStream::is_inline_klass() const {
   VM_ENTRY_MARK;
   constantPoolHandle cpool(THREAD, _method->get_Method()->constants());
-  return CURRENT_ENV->is_klass_never_null(cpool, get_klass_index());
+  return CURRENT_ENV->is_inline_klass(cpool, get_klass_index());
 }
 
 // ------------------------------------------------------------------

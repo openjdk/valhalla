@@ -140,7 +140,6 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   ciType* field_klass = field->type();
   bool is_vol = field->is_volatile();
   bool flattened = field->is_flattened();
-  bool flattenable = field->is_flattenable();
 
   // Compute address and memory type.
   int offset = field->offset_in_bytes();
@@ -174,7 +173,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
       assert(type != NULL, "field singleton type must be consistent");
     } else {
       type = TypeOopPtr::make_from_klass(field_klass->as_klass());
-      if (bt == T_INLINE_TYPE && field->is_static() && flattenable) {
+      if (bt == T_INLINE_TYPE && field->is_static()) {
         // Check if static value type field is already initialized
         assert(!flattened, "static fields should not be flattened");
         ciInstance* mirror = field->holder()->java_mirror();
@@ -196,8 +195,8 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     DecoratorSet decorators = IN_HEAP;
     decorators |= is_vol ? MO_SEQ_CST : MO_UNORDERED;
     ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
-    if (flattenable) {
-      // Load a non-flattened but flattenable value type from memory
+    if (bt == T_INLINE_TYPE) {
+      // Load a non-flattened value type from memory
       if (field_klass->as_value_klass()->is_scalarizable()) {
         ld = ValueTypeNode::make_from_oop(this, ld, field_klass->as_value_klass());
       } else {
@@ -264,11 +263,13 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     }
   }
 
-  if (field->is_flattenable() && !val->is_ValueType()) {
-    inc_sp(1);
-    val = null_check(val);
-    dec_sp(1);
-    if (stopped()) return;
+  if (bt == T_INLINE_TYPE && !val->is_ValueType()) {
+    // We can see a null constant here
+    assert(val->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
+    push(null());
+    uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+    assert(stopped(), "dead path");
+    return;
   }
 
   if (field->is_flattened()) {
