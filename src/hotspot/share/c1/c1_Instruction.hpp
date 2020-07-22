@@ -872,7 +872,7 @@ LEAF(LoadField, AccessField)
             ciValueKlass* value_klass = NULL, Value default_value = NULL )
   : AccessField(obj, offset, field, is_static, state_before, needs_patching)
   {
-    set_never_null(field->type()->is_valuetype());
+    set_never_null(field->signature()->is_Q_signature());
   }
 
   ciType* declared_type() const;

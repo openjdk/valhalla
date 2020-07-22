@@ -1554,7 +1554,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   if (x->needs_null_check() &&
       (needs_patching ||
        MacroAssembler::needs_explicit_null_check(x->offset()))) {
-    if (needs_patching && field_type == T_INLINE_TYPE) {
+    if (needs_patching && x->field()->signature()->is_Q_signature()) {
       // We are storing a field of type "QT;" into holder class H, but H is not yet
       // loaded. (If H had been loaded, then T must also have already been loaded
       // due to the "Q" signature, and needs_patching would be false).
@@ -2004,7 +2004,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
 #endif
 
   Constant* default_value = NULL;
-  if (field_type == T_INLINE_TYPE) {
+  if (x->field()->signature()->is_Q_signature()) {
     default_value = flattened_field_load_prolog(x, info);
   }
 

@@ -1811,7 +1811,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         if (!const_oop->is_null_object() && const_oop->is_loaded()) {
           ciConstant field_value = field->constant_value_of(const_oop);
           if (field_value.is_valid()) {
-            if (field_type == T_INLINE_TYPE && field_value.is_null_or_zero()) {
+            if (field->signature()->is_Q_signature() && field_value.is_null_or_zero()) {
               // Non-flattened inline type field. Replace null by the default value.
               constant = new Constant(new InstanceConstant(field->type()->as_value_klass()->default_value_instance()));
             } else {
