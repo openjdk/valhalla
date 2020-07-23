@@ -957,6 +957,9 @@ void GraphBuilder::load_local(ValueType* type, int index) {
 void GraphBuilder::store_local(ValueType* type, int index) {
   Value x = pop(type);
   store_local(state(), x, index);
+  if (x->as_NewInlineTypeInstance() != NULL) {
+    x->as_NewInlineTypeInstance()->set_local_index(index);
+  }
 }
 
 
@@ -986,6 +989,9 @@ void GraphBuilder::store_local(ValueStack* state, Value x, int index) {
 
   x->set_local_index(index);
   state->store_local(index, round_fp(x));
+  if (x->as_NewInlineTypeInstance() != NULL) {
+    x->as_NewInlineTypeInstance()->set_local_index(index);
+  }
 }
 
 
@@ -1085,6 +1091,7 @@ void GraphBuilder::store_indexed(BasicType type) {
 
 }
 
+#define UPDATE_LARVA(x) if (x != NULL && x->as_NewInlineTypeInstance() != NULL) { x->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
 
 void GraphBuilder::stack_op(Bytecodes::Code code) {
   switch (code) {
@@ -1099,6 +1106,7 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
       break;
     case Bytecodes::_dup:
       { Value w = state()->raw_pop();
+        UPDATE_LARVA(w);
         state()->raw_push(w);
         state()->raw_push(w);
       }
@@ -1106,6 +1114,7 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
     case Bytecodes::_dup_x1:
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
+        UPDATE_LARVA(w1);
         state()->raw_push(w1);
         state()->raw_push(w2);
         state()->raw_push(w1);
@@ -1115,6 +1124,7 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
         Value w3 = state()->raw_pop();
+        UPDATE_LARVA(w1);
         state()->raw_push(w1);
         state()->raw_push(w3);
         state()->raw_push(w2);
@@ -1124,6 +1134,8 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
     case Bytecodes::_dup2:
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
+        UPDATE_LARVA(w1);
+        UPDATE_LARVA(w2);
         state()->raw_push(w2);
         state()->raw_push(w1);
         state()->raw_push(w2);
@@ -1134,6 +1146,8 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
         Value w3 = state()->raw_pop();
+        UPDATE_LARVA(w1);
+        UPDATE_LARVA(w2);
         state()->raw_push(w2);
         state()->raw_push(w1);
         state()->raw_push(w3);
@@ -1146,6 +1160,8 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
         Value w2 = state()->raw_pop();
         Value w3 = state()->raw_pop();
         Value w4 = state()->raw_pop();
+        UPDATE_LARVA(w1);
+        UPDATE_LARVA(w2);
         state()->raw_push(w2);
         state()->raw_push(w1);
         state()->raw_push(w4);
@@ -1933,11 +1949,6 @@ void GraphBuilder::withfield(int field_index)
     ValueStack* state_before = copy_state_before();
     Value val = pop(type);
     Value obj = apop();
-    {
-    ResourceMark rm;
-    tty->print("Withfield receiver is [1]: ");
-    obj->print_on(tty);
-  }
     apush(append_split(new WithField(state_before)));
     return;
   }
@@ -1946,71 +1957,35 @@ void GraphBuilder::withfield(int field_index)
   Value val = pop(type);
   Value obj = apop();
 
-  {
-    ResourceMark rm;
-    tty->print("Withfield receiver is [2]: ");
-    obj->print();
-  }
-
-  if (!needs_patching && obj->is_optimizable_for_withfield()) {
-    int astore_index;
-    ciBytecodeStream s(method());
-    s.force_bci(bci());
-    s.next();
-    switch (s.cur_bc()) {
-    case Bytecodes::_astore:    astore_index = s.get_index(); break;
-    case Bytecodes::_astore_0:  astore_index = 0; break;
-    case Bytecodes::_astore_1:  astore_index = 1; break;
-    case Bytecodes::_astore_2:  astore_index = 2; break;
-    case Bytecodes::_astore_3:  astore_index = 3; break;
-    default: astore_index = -1;
-    }
-
-    if (astore_index >= 0 && obj == state()->local_at(astore_index)) {
-      // We have a sequence like this, where we load a value object from a local slot,
-      // and overwrite the same local slot with a modified copy of the inline object.
-      //      defaultvalue #1 // class compiler/valhalla/valuetypes/MyValue1
-      //      astore 9
-      //      ...
-      //      iload_0
-      //      aload 9
-      //      swap
-      //      withfield #7 // Field x:I
-      //      astore 9
-      // If this object was created by defaultvalue, and has not escaped, and is not stored
-      // in any other local slots, we can effectively treat the withfield/astore
-      // sequence as a single putfield bytecode.
-      push(objectType, obj);
-      push(type, val);
-      access_field(Bytecodes::_withfield);
-      stream()->next(); // skip the next astore/astore_n bytecode.
-      return;
-    }
-  }
-
-  assert(holder->is_inlinetype(), "must be an inline klass");
+  assert(holder->is_inlinetype(), "must be a value klass");
   // Save the entire state and re-execute on deopt when executing withfield
   state_before->set_should_reexecute(true);
-  NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(holder->as_inline_klass(), state_before, false);
-  _memory->new_instance(new_instance);
-  apush(append_split(new_instance));
+  NewInlineTypeInstance* new_instance;
+  if (obj->as_NewInlineTypeInstance() != NULL && obj->as_NewInlineTypeInstance()->in_larva_state()) {
+    new_instance = obj->as_NewInlineTypeInstance();
+    apush(append_split(new_instance));
+  } else {
+    new_instance = new NewInlineTypeInstance(holder->as_inline_klass(), state_before, false);
+    _memory->new_instance(new_instance);
+    apush(append_split(new_instance));
 
-  for (int i = 0; i < holder->nof_nonstatic_fields(); i++) {
-    ciField* field = holder->nonstatic_field_at(i);
-    int off = field->offset();
+    for (int i = 0; i < holder->nof_nonstatic_fields(); i++) {
+      ciField* field = holder->nonstatic_field_at(i);
+      int off = field->offset();
 
-    if (field->offset() != offset) {
-      if (field->is_flattened()) {
-        assert(field->type()->is_inlinetype(), "Sanity check");
-        assert(field->type()->is_inlinetype(), "Only inline types can be flattened");
-        ciInlineKlass* vk = field->type()->as_inline_klass();
-        copy_inline_content(vk, obj, off, new_instance, vk->first_field_offset(), state_before, needs_patching);
-      } else {
-        // Only load those fields who are not modified
-        LoadField* load = new LoadField(obj, off, field, false, state_before, needs_patching);
-        Value replacement = append(load);
-        StoreField* store = new StoreField(new_instance, off, field, replacement, false, state_before, needs_patching);
-        append(store);
+      if (field->offset() != offset) {
+        if (field->is_flattened()) {
+          assert(field->type()->is_inlinetype(), "Sanity check");
+          assert(field->type()->is_inlinetype(), "Only inline types can be flattened");
+          ciInlineKlass* vk = field->type()->as_inline_klass();
+          copy_inline_content(vk, obj, off, new_instance, vk->first_field_offset(), state_before, needs_patching);
+        } else {
+          // Only load those fields who are not modified
+          LoadField* load = new LoadField(obj, off, field, false, state_before, needs_patching);
+          Value replacement = append(load);
+          StoreField* store = new StoreField(new_instance, off, field, replacement, false, state_before, needs_patching);
+          append(store);
+        }
       }
     }
   }
