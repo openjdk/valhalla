@@ -871,7 +871,9 @@ LEAF(LoadField, AccessField)
             ValueStack* state_before, bool needs_patching,
             ciValueKlass* value_klass = NULL, Value default_value = NULL )
   : AccessField(obj, offset, field, is_static, state_before, needs_patching)
-  {}
+  {
+    set_never_null(field->signature()->is_Q_signature());
+  }
 
   ciType* declared_type() const;
 

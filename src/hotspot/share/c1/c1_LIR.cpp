@@ -1040,7 +1040,7 @@ void LIR_OpJavaCall::emit_code(LIR_Assembler* masm) {
 
 bool LIR_OpJavaCall::maybe_return_as_fields(ciValueKlass** vk_ret) const {
   if (InlineTypeReturnedAsFields) {
-    if (method()->signature()->maybe_returns_never_null()) {
+    if (method()->signature()->maybe_returns_value_type()) {
       ciType* return_type = method()->return_type();
       if (return_type->is_valuetype()) {
         ciValueKlass* vk = return_type->as_value_klass();

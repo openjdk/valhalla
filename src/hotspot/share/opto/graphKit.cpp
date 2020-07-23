@@ -3308,12 +3308,14 @@ Node* GraphKit::gen_instanceof(Node* obj, Node* superklass, bool safe_for_replac
 // If failure_control is supplied and not null, it is filled in with
 // the control edge for the cast failure.  Otherwise, an appropriate
 // uncommon trap or exception is thrown.
-Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_control, bool never_null) {
+Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_control) {
   kill_dead_locals();           // Benefit all the uncommon traps
   const TypeKlassPtr* tk = _gvn.type(superklass)->is_klassptr();
   const TypeOopPtr* toop = TypeOopPtr::make_from_klass(tk->klass());
-  assert(!never_null || toop->is_valuetypeptr(), "must be a value type pointer");
-  bool is_value = obj->is_ValueType();
+
+  // Check if inline types are involved
+  bool from_inline = obj->is_ValueType();
+  bool to_inline = tk->klass()->is_valuetype();
 
   // Fast cutout:  Check the case that the cast is vacuously true.
   // This detects the common cases where the test will short-circuit
@@ -3323,7 +3325,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   // for example, in some objArray manipulations, such as a[i]=a[j].)
   if (tk->singleton()) {
     ciKlass* klass = NULL;
-    if (is_value) {
+    if (from_inline) {
       klass = _gvn.type(obj)->value_klass();
     } else {
       const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
@@ -3337,19 +3339,19 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
         // If we know the type check always succeed then we don't use
         // the profiling data at this bytecode. Don't lose it, feed it
         // to the type system as a speculative type.
-        if (!is_value) {
+        if (!from_inline) {
           obj = record_profiled_receiver_for_speculation(obj);
-          if (never_null) {
+          if (to_inline) {
             obj = null_check(obj);
-          }
-          if (toop->is_valuetypeptr() && toop->value_klass()->is_scalarizable() && !gvn().type(obj)->maybe_null()) {
-            obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass());
+            if (toop->value_klass()->is_scalarizable()) {
+              obj = ValueTypeNode::make_from_oop(this, obj, toop->value_klass());
+            }
           }
         }
         return obj;
       case Compile::SSC_always_false:
-        if (is_value || never_null) {
-          if (!is_value) {
+        if (from_inline || to_inline) {
+          if (!from_inline) {
             null_check(obj);
           }
           // Value type is never null. Always throw an exception.
@@ -3392,9 +3394,9 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   // Null check; get casted pointer; set region slot 3
   Node* null_ctl = top();
   Node* not_null_obj = NULL;
-  if (is_value) {
+  if (from_inline) {
     not_null_obj = obj;
-  } else if (never_null) {
+  } else if (to_inline) {
     not_null_obj = null_check(obj);
   } else {
     not_null_obj = null_check_oop(obj, &null_ctl, never_see_null, safe_for_replace, speculative_not_null);
@@ -3416,7 +3418,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   }
 
   Node* cast_obj = NULL;
-  if (!is_value && tk->klass_is_exact()) {
+  if (!from_inline && tk->klass_is_exact()) {
     // The following optimization tries to statically cast the speculative type of the object
     // (for example obtained during profiling) to the type of the superklass and then do a
     // dynamic check that the type of the object is what we expect. To work correctly
@@ -3448,14 +3450,14 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     Node* not_subtype_ctrl = gen_subtype_check(not_null_obj, superklass);
 
     // Plug in success path into the merge
-    cast_obj = is_value ? not_null_obj : _gvn.transform(new CheckCastPPNode(control(), not_null_obj, toop));
+    cast_obj = from_inline ? not_null_obj : _gvn.transform(new CheckCastPPNode(control(), not_null_obj, toop));
     // Failure path ends in uncommon trap (or may be dead - failure impossible)
     if (failure_control == NULL) {
       if (not_subtype_ctrl != top()) { // If failure is possible
         PreserveJVMState pjvms(this);
         set_control(not_subtype_ctrl);
         Node* obj_klass = NULL;
-        if (is_value) {
+        if (from_inline) {
           obj_klass = makecon(TypeKlassPtr::make(_gvn.type(not_null_obj)->value_klass()));
         } else {
           obj_klass = load_object_klass(not_null_obj);
@@ -3487,9 +3489,9 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   set_control( _gvn.transform(region) );
   record_for_igvn(region);
 
-  bool not_null_free = !toop->can_be_value_type();
-  bool not_flattenable = !UseFlatArray || not_null_free || (toop->is_valuetypeptr() && !toop->value_klass()->flatten_array());
-  if (EnableValhalla && not_flattenable) {
+  bool not_inline = !toop->can_be_value_type();
+  bool not_flattened = !UseFlatArray || not_inline || (toop->is_valuetypeptr() && !toop->value_klass()->flatten_array());
+  if (EnableValhalla && not_flattened) {
     // Check if obj has been loaded from an array
     obj = obj->isa_DecodeN() ? obj->in(1) : obj;
     Node* array = NULL;
@@ -3511,12 +3513,12 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     if (array != NULL) {
       const TypeAryPtr* ary_t = _gvn.type(array)->isa_aryptr();
       if (ary_t != NULL) {
-        if (!ary_t->is_not_null_free() && not_null_free) {
+        if (!ary_t->is_not_null_free() && not_inline) {
           // Casting array element to a non-inline-type, mark array as not null-free.
           Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, ary_t->cast_to_not_null_free()));
           replace_in_map(array, cast);
         } else if (!ary_t->is_not_flat()) {
-          // Casting array element to a non-flattenable type, mark array as not flat.
+          // Casting array element to a non-flattened type, mark array as not flat.
           Node* cast = _gvn.transform(new CheckCastPPNode(control(), array, ary_t->cast_to_not_flat()));
           replace_in_map(array, cast);
         }
@@ -3524,9 +3526,10 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     }
   }
 
-  if (!is_value) {
+  if (!from_inline) {
     res = record_profiled_receiver_for_speculation(res);
-    if (toop->is_valuetypeptr() && toop->value_klass()->is_scalarizable() && !gvn().type(res)->maybe_null()) {
+    if (to_inline && toop->value_klass()->is_scalarizable()) {
+      assert(!gvn().type(res)->maybe_null(), "Inline types are null-free");
       res = ValueTypeNode::make_from_oop(this, res, toop->value_klass());
     }
   }
@@ -4580,7 +4583,7 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
                                                         /*is_unsigned_load=*/false);
   if (con_type != NULL) {
     Node* con = makecon(con_type);
-    assert(!field->is_flattenable() || (field->is_static() && !con_type->is_zero_type()), "sanity");
+    assert(!field->type()->is_valuetype() || (field->is_static() && !con_type->is_zero_type()), "sanity");
     // Check type of constant which might be more precise
     if (con_type->is_valuetypeptr() && con_type->value_klass()->is_scalarizable()) {
       // Load value type from constant oop

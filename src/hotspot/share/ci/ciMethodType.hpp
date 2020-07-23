@@ -40,12 +40,12 @@ public:
   // What kind of ciObject is this?
   bool is_method_type() const { return true; }
 
-  ciType* rtype(bool& never_null) const;
+  ciType* rtype() const;
 
   int ptype_count() const;
   int ptype_slot_count() const ;
 
-  ciType* ptype_at(int index, bool& never_null) const;
+  ciType* ptype_at(int index) const;
 };
 
 #endif // SHARE_CI_CIMETHODTYPE_HPP
