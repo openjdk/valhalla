@@ -183,11 +183,11 @@ bool InlineKlass::flatten_array() {
   }
   // Too big
   int elem_bytes = raw_value_byte_size();
-  if ((InlineArrayElemMaxFlatSize >= 0) && (elem_bytes > InlineArrayElemMaxFlatSize)) {
+  if ((FlatArrayElemMaxFlatSize >= 0) && (elem_bytes > FlatArrayElemMaxFlatSize)) {
     return false;
   }
   // Too many embedded oops
-  if ((InlineArrayElemMaxFlatOops >= 0) && (nonstatic_oop_count() > InlineArrayElemMaxFlatOops)) {
+  if ((FlatArrayElemMaxFlatOops >= 0) && (nonstatic_oop_count() > FlatArrayElemMaxFlatOops)) {
     return false;
   }
   // Declared atomic but not naturally atomic.
