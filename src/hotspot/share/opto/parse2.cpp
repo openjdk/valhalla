@@ -252,7 +252,7 @@ void Parse::array_store(BasicType bt) {
     // TODO Remove this code once JDK-6312651 is in.
     const Type* tval_init = _gvn.type(val);
     bool not_inline = !tval->isa_valuetype() && (tval == TypePtr::NULL_PTR || !tval_init->is_oopptr()->can_be_value_type() || !tval->is_oopptr()->can_be_value_type());
-    bool not_flattened = !ValueArrayFlatten || not_inline || ((tval_init->is_valuetypeptr() || tval_init->isa_valuetype()) && !tval_init->value_klass()->flatten_array());
+    bool not_flattened = !UseFlatArray || not_inline || ((tval_init->is_valuetypeptr() || tval_init->isa_valuetype()) && !tval_init->value_klass()->flatten_array());
 
     if (!ary_t->is_not_null_free() && not_inline && (!tval->maybe_null() || !tval_init->maybe_null())) {
       // Storing a non-inline type, mark array as not null-free (-> not flat).
