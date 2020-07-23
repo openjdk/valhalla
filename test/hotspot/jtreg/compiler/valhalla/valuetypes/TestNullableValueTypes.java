@@ -898,4 +898,63 @@ public class TestNullableValueTypes extends ValueTypeTest {
         test35(true);
         test35(false);
     }
+
+    // Test that when explicitly null checking a value type, we keep
+    // track of the information that the value can never be null.
+    @Test(failOn = ALLOC + STORE)
+    public int test37(boolean b, MyValue1.ref vt1, MyValue1.val vt2) {
+        if (vt1 == null) {
+            return 0;
+        }
+        // vt1 should be scalarized because it's always non-null
+        Object obj = b ? vt1 : vt2; // We should not allocate vt2 here
+        test25_callee(vt1);
+        return ((MyValue1)obj).x;
+    }
+
+    @DontCompile
+    public void test37_verifier(boolean warmup) {
+        int res = test37(true, testValue1, testValue1);
+        Asserts.assertEquals(res, testValue1.x);
+        res = test37(false, testValue1, testValue1);
+        Asserts.assertEquals(res, testValue1.x);
+    }
+
+    // Test that when explicitly null checking a value type receiver,
+    // we keep track of the information that the value can never be null.
+    @Test(failOn = ALLOC + STORE)
+    public int test38(boolean b, MyValue1.ref vt1, MyValue1.val vt2) {
+        vt1.hash(); // Inlined - Explicit null check
+        // vt1 should be scalarized because it's always non-null
+        Object obj = b ? vt1 : vt2; // We should not allocate vt2 here
+        test25_callee(vt1);
+        return ((MyValue1)obj).x;
+    }
+
+    @DontCompile
+    public void test38_verifier(boolean warmup) {
+        int res = test38(true, testValue1, testValue1);
+        Asserts.assertEquals(res, testValue1.x);
+        res = test38(false, testValue1, testValue1);
+        Asserts.assertEquals(res, testValue1.x);
+    }
+
+    // Test that when implicitly null checking a value type receiver,
+    // we keep track of the information that the value can never be null.
+    @Test(failOn = ALLOC + STORE)
+    public int test39(boolean b, MyValue1.ref vt1, MyValue1.val vt2) {
+        vt1.hashInterpreted(); // Not inlined - Implicit null check
+        // vt1 should be scalarized because it's always non-null
+        Object obj = b ? vt1 : vt2; // We should not allocate vt2 here
+        test25_callee(vt1);
+        return ((MyValue1)obj).x;
+    }
+
+    @DontCompile
+    public void test39_verifier(boolean warmup) {
+        int res = test39(true, testValue1, testValue1);
+        Asserts.assertEquals(res, testValue1.x);
+        res = test39(false, testValue1, testValue1);
+        Asserts.assertEquals(res, testValue1.x);
+    }
 }

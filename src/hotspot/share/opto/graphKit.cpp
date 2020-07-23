@@ -1428,6 +1428,11 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
   cast->init_req(0, control());
   cast = _gvn.transform( cast );
 
+  if (t->is_valuetypeptr() && t->value_klass()->is_scalarizable()) {
+    // Scalarize inline type know that we know it's non-null
+    cast = ValueTypeNode::make_from_oop(this, cast, t->value_klass())->buffer(this, false);
+  }
+
   // Scan for instances of 'obj' in the current JVM mapping.
   // These instances are known to be not-null after the test.
   if (do_replace_in_map)
