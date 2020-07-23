@@ -29,7 +29,7 @@
 #include "ci/ciSymbol.hpp"
 #include "ci/ciUtilities.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
+#include "oops/flatArrayKlass.hpp"
 
 // ciValueArrayKlass
 //
@@ -41,7 +41,7 @@
 //
 // Constructor for loaded value array klasses.
 ciValueArrayKlass::ciValueArrayKlass(Klass* h_k) : ciArrayKlass(h_k) {
-  assert(get_Klass()->is_valueArray_klass(), "wrong type");
+  assert(get_Klass()->is_flatArray_klass(), "wrong type");
   InlineKlass* element_Klass = get_ValueArrayKlass()->element_klass();
   _base_element_klass = CURRENT_ENV->get_klass(element_Klass);
   assert(_base_element_klass->is_valuetype(), "bad base klass");
@@ -127,7 +127,7 @@ ciSymbol* ciValueArrayKlass::construct_array_name(ciSymbol* element_name,
 //
 // Implementation of make.
 ciValueArrayKlass* ciValueArrayKlass::make_impl(ciKlass* element_klass) {
-  assert(ValueArrayFlatten, "should only be used for flattened value type arrays");
+  assert(UseFlatArray, "should only be used for flattened value type arrays");
   assert(element_klass->is_valuetype(), "element type must be value type");
   assert(element_klass->is_loaded(), "unloaded Q klasses are represented by ciInstanceKlass");
   {

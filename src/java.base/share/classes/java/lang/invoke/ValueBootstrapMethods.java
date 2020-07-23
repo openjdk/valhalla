@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -538,14 +538,27 @@ public final class ValueBootstrapMethods {
         return isSubstitutable0(a, b);
     }
 
-    // Called directly from the VM, null and class checks already done
-    // DO NOT: Use "==" or "!=" on args "a" and "b", with this code or any of
-    //         its callees. Could be inside of if_acmp<eq|ne> bytecode
-    //         implementation
+    /**
+     * Called directly from the VM.
+     *
+     * DO NOT: Use "==" or "!=" on args "a" and "b", with this code or any of
+     * its callees. Could be inside of if_acmp<eq|ne> bytecode implementation.
+     *
+     * @param a an object
+     * @param b an object to be compared with {@code a} for substitutability
+     * @return {@code true} if the arguments are substitutable to each other;
+     *         {@code false} otherwise.
+     * @param <T> type
+     */
     private static <T> boolean isSubstitutable0(T a, Object b) {
         if (VERBOSE) {
             System.out.println("substitutable " + a + " vs " + b);
         }
+
+        if (a == null && b == null) return true;
+        if (a == null || b == null) return false;
+        if (a.getClass() != b.getClass()) return false;
+
         try {
             Class<?> type = a.getClass();
             return (boolean) substitutableInvoker(type).invoke(a, b);

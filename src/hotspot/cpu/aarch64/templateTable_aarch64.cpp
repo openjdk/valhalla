@@ -810,7 +810,7 @@ void TemplateTable::aaload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  if (ValueArrayFlatten) {
+  if (UseFlatArray) {
     Label is_flat_array, done;
 
     __ test_flattened_array_oop(r0, r8 /*temp*/, is_flat_array);
@@ -1129,7 +1129,7 @@ void TemplateTable::aastore() {
   __ cbz(r0, is_null);
 
   Label  is_flat_array;
-  if (ValueArrayFlatten) {
+  if (UseFlatArray) {
     __ test_flattened_array_oop(r3, r8 /*temp*/, is_flat_array);
   }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,19 +22,19 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_VALUEARRAYOOP_INLINE_HPP
-#define SHARE_VM_OOPS_VALUEARRAYOOP_INLINE_HPP
+#ifndef SHARE_VM_OOPS_FLATARRAYOOP_INLINE_HPP
+#define SHARE_VM_OOPS_FLATARRAYOOP_INLINE_HPP
 
 #include "oops/access.inline.hpp"
 #include "oops/arrayOop.inline.hpp"
-#include "oops/valueArrayOop.hpp"
+#include "oops/flatArrayOop.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/globals.hpp"
 
-inline void* valueArrayOopDesc::base() const { return arrayOopDesc::base(T_INLINE_TYPE); }
+inline void* flatArrayOopDesc::base() const { return arrayOopDesc::base(T_INLINE_TYPE); }
 
-inline void* valueArrayOopDesc::value_at_addr(int index, jint lh) const {
+inline void* flatArrayOopDesc::value_at_addr(int index, jint lh) const {
   assert(is_within_bounds(index), "index out of bounds");
 
   address addr = (address) base();
@@ -42,12 +42,12 @@ inline void* valueArrayOopDesc::value_at_addr(int index, jint lh) const {
   return (void*) addr;
 }
 
-inline int valueArrayOopDesc::object_size() const {
+inline int flatArrayOopDesc::object_size() const {
   return object_size(klass()->layout_helper(), length());
 }
 
-inline oop valueArrayOopDesc::value_alloc_copy_from_index(valueArrayHandle vah, int index, TRAPS) {
-  ValueArrayKlass* vaklass = ValueArrayKlass::cast(vah->klass());
+inline oop flatArrayOopDesc::value_alloc_copy_from_index(flatArrayHandle vah, int index, TRAPS) {
+  FlatArrayKlass* vaklass = FlatArrayKlass::cast(vah->klass());
   InlineKlass* vklass = vaklass->element_klass();
   if (vklass->is_empty_inline_type()) {
     return vklass->default_value();
@@ -58,8 +58,8 @@ inline oop valueArrayOopDesc::value_alloc_copy_from_index(valueArrayHandle vah, 
   }
 }
 
-inline void valueArrayOopDesc::value_copy_from_index(int index, oop dst) const {
-  ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass());
+inline void flatArrayOopDesc::value_copy_from_index(int index, oop dst) const {
+  FlatArrayKlass* vaklass = FlatArrayKlass::cast(klass());
   InlineKlass* vklass = vaklass->element_klass();
   if (vklass->is_empty_inline_type()) {
     return; // Assumes dst was a new and clean buffer (OptoRuntime::load_unknown_value())
@@ -69,8 +69,8 @@ inline void valueArrayOopDesc::value_copy_from_index(int index, oop dst) const {
   }
 }
 
-inline void valueArrayOopDesc::value_copy_to_index(oop src, int index) const {
-  ValueArrayKlass* vaklass = ValueArrayKlass::cast(klass());
+inline void flatArrayOopDesc::value_copy_to_index(oop src, int index) const {
+  FlatArrayKlass* vaklass = FlatArrayKlass::cast(klass());
   InlineKlass* vklass = vaklass->element_klass();
   if (vklass->is_empty_inline_type()) {
     return;
@@ -81,4 +81,4 @@ inline void valueArrayOopDesc::value_copy_to_index(oop src, int index) const {
 
 
 
-#endif // SHARE_VM_OOPS_VALUEARRAYOOP_INLINE_HPP
+#endif // SHARE_VM_OOPS_FLATARRAYOOP_INLINE_HPP
