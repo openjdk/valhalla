@@ -43,7 +43,7 @@ public class TestOnStackReplacement extends ValueTypeTest {
     @Override
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
-        case 3: return new String[] {"-XX:FlatArrayElemMaxFlatSize=0"};
+        case 3: return new String[] {"-XX:FlatArrayElementMaxSize=0"};
         }
         return null;
     }
