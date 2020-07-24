@@ -26,8 +26,8 @@
 #include "ci/ciValueKlass.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "compiler/compileLog.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/objArrayKlass.hpp"
-#include "oops/valueArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
 #include "opto/memnode.hpp"
@@ -69,8 +69,6 @@ void GraphKit::make_dtrace_method_entry_exit(ciMethod* method, bool is_entry) {
 void Parse::do_checkcast() {
   bool will_link;
   ciKlass* klass = iter().get_klass(will_link);
-  bool never_null = iter().is_klass_never_null();
-
   Node *obj = peek();
 
   // Throw uncommon trap if class is not loaded or the value we are casting
@@ -78,7 +76,7 @@ void Parse::do_checkcast() {
   // then the checkcast does nothing.
   const TypeOopPtr *tp = _gvn.type(obj)->isa_oopptr();
   if (!will_link || (tp && tp->klass() && !tp->klass()->is_loaded())) {
-    assert(!never_null, "Null-free value type should be loaded");
+    assert(!iter().is_inline_klass(), "Inline type should be loaded");
     if (C->log() != NULL) {
       if (!will_link) {
         C->log()->elem("assert_null reason='checkcast' klass='%d'",
@@ -98,7 +96,7 @@ void Parse::do_checkcast() {
     return;
   }
 
-  Node* res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass)), NULL, never_null);
+  Node* res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass)));
   if (stopped()) {
     return;
   }
@@ -357,23 +355,17 @@ void Parse::do_withfield() {
   int nargs = 1 + field->type()->size();
 
   if (!holder->is_ValueType()) {
-    // Null check and scalarize value type holder
-    inc_sp(nargs);
-    holder = null_check(holder);
-    dec_sp(nargs);
-    if (stopped()) return;
+    // Scalarize value type holder
+    assert(!gvn().type(holder)->maybe_null(), "Inline types are null-free");
     holder = ValueTypeNode::make_from_oop(this, holder, holder_klass);
   }
-  if (!val->is_ValueType() && field->is_flattenable()) {
-    // Null check and scalarize value type field value
-    inc_sp(nargs);
-    val = null_check(val);
-    dec_sp(nargs);
-    if (stopped()) return;
+  if (!val->is_ValueType() && field->type()->is_valuetype()) {
+    // Scalarize value type field value
+    assert(!gvn().type(holder)->maybe_null(), "Inline types are null-free");
     val = ValueTypeNode::make_from_oop(this, val, gvn().type(val)->value_klass());
-  } else if (val->is_ValueType() && !field->is_flattenable()) {
-    // Non-flattenable field value needs to be allocated because it can be merged
-    // with an oop. Re-execute withfield if buffering triggers deoptimization.
+  } else if (val->is_ValueType() && !field->type()->is_valuetype()) {
+    // Field value needs to be allocated because it can be merged with an oop.
+    // Re-execute withfield if buffering triggers deoptimization.
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
     inc_sp(nargs);

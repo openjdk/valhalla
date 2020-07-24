@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,22 +22,22 @@
  *
  */
 
-#ifndef SHARE_VM_OOPS_VALUEARRAYOOP_HPP
-#define SHARE_VM_OOPS_VALUEARRAYOOP_HPP
+#ifndef SHARE_VM_OOPS_FLATARRAYOOP_HPP
+#define SHARE_VM_OOPS_FLATARRAYOOP_HPP
 
 #include "oops/arrayOop.hpp"
 #include "oops/klass.hpp"
 
-// A valueArrayOop is an array containing value types (may include flatten embedded oop elements).
+// A flatArrayOop is an array containing inline types (may include flatten embedded oop elements).
 
-class valueArrayOopDesc : public arrayOopDesc {
+class flatArrayOopDesc : public arrayOopDesc {
 
  public:
   void*  base() const;
   void* value_at_addr(int index, jint lh) const;
 
   // Return a buffered element from index
-  static oop value_alloc_copy_from_index(valueArrayHandle vah, int index, TRAPS);
+  static oop value_alloc_copy_from_index(flatArrayHandle vah, int index, TRAPS);
   void value_copy_from_index(int index, oop dst) const;
   void value_copy_to_index(oop src, int index) const;
 
@@ -58,4 +58,4 @@ class valueArrayOopDesc : public arrayOopDesc {
 
 };
 
-#endif // SHARE_VM_OOPS_VALUEARRAYOOP_HPP
+#endif // SHARE_VM_OOPS_FLATARRAYOOP_HPP

@@ -223,7 +223,7 @@ class LibraryCallKit : public GraphKit {
     return generate_array_guard_common(kls, region, TypeArray);
   }
   Node* generate_valueArray_guard(Node* kls, RegionNode* region) {
-    assert(ValueArrayFlatten, "can never be flattened");
+    assert(UseFlatArray, "can never be flattened");
     return generate_array_guard_common(kls, region, ValueArray);
   }
   Node* generate_array_guard_common(Node* kls, RegionNode* region, ArrayKind kind);
@@ -2705,8 +2705,8 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
       p = gvn().transform(new CastP2XNode(NULL, p));
       p = ConvX2UL(p);
     }
-    if (field != NULL && field->is_flattenable() && !field->is_flattened()) {
-      // Load a non-flattened but flattenable value type from memory
+    if (field != NULL && field->type()->is_valuetype() && !field->is_flattened()) {
+      // Load a non-flattened value type from memory
       if (value_type->value_klass()->is_scalarizable()) {
         p = ValueTypeNode::make_from_oop(this, p, value_type->value_klass());
       } else {
@@ -3725,7 +3725,7 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
       case ObjectArray:    query = Klass::layout_helper_is_objArray(layout_con); break;
       case NonObjectArray: query = !Klass::layout_helper_is_objArray(layout_con); break;
       case TypeArray:      query = Klass::layout_helper_is_typeArray(layout_con); break;
-      case ValueArray:     query = Klass::layout_helper_is_valueArray(layout_con); break;
+      case ValueArray:     query = Klass::layout_helper_is_flatArray(layout_con); break;
       case AnyArray:       query = Klass::layout_helper_is_array(layout_con); break;
       case NonArray:       query = !Klass::layout_helper_is_array(layout_con); break;
       default:
@@ -3895,7 +3895,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
 
   const TypeAryPtr* original_t = _gvn.type(original)->isa_aryptr();
   const TypeInstPtr* mirror_t = _gvn.type(array_type_mirror)->isa_instptr();
-  if (EnableValhalla && ValueArrayFlatten &&
+  if (EnableValhalla && UseFlatArray &&
       (original_t == NULL || mirror_t == NULL ||
        (mirror_t->java_mirror_type() == NULL &&
         (original_t->elem()->isa_valuetype() ||
@@ -3965,7 +3965,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       }
     }
 
-    if (ValueArrayFlatten) {
+    if (UseFlatArray) {
       // Either both or neither new array klass and original array
       // klass must be flattened
       Node* is_flat = generate_valueArray_guard(klass_node, NULL);

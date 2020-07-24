@@ -43,7 +43,7 @@ public class TestBasicFunctionality extends ValueTypeTest {
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
         case 2: return new String[] {"-DVerifyIR=false"};
-        case 3: return new String[] {"-XX:InlineArrayElemMaxFlatSize=0"};
+        case 3: return new String[] {"-XX:FlatArrayElementMaxSize=0"};
         }
         return null;
     }

@@ -144,8 +144,6 @@ public:
 
   void print_contents();
   void print();
-
-  ciWrapper* make_never_null_wrapper(ciType* type);
 };
 
 #endif // SHARE_CI_CIOBJECTFACTORY_HPP

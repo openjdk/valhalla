@@ -260,12 +260,11 @@ const Type* Type::get_typeflow_type(ciType* type) {
     return TypeRawPtr::make((address)(intptr_t)type->as_return_address()->bci());
 
   case T_INLINE_TYPE: {
-    bool is_never_null = type->is_never_null();
-    ciValueKlass* vk = type->unwrap()->as_value_klass();
-    if (vk->is_scalarizable() && is_never_null) {
+    ciValueKlass* vk = type->as_value_klass();
+    if (vk->is_scalarizable()) {
       return TypeValueType::make(vk);
     } else {
-      return TypeOopPtr::make_from_klass(vk)->join_speculative(is_never_null ? TypePtr::NOTNULL : TypePtr::BOTTOM);
+      return TypeOopPtr::make_from_klass(vk)->join_speculative(TypePtr::NOTNULL);
     }
   }
 
@@ -2009,7 +2008,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
       ExtendedSignature sig = ExtendedSignature(NULL, SigEntryFilter());
       collect_value_fields(return_type->as_value_klass(), field_array, pos, sig);
     } else {
-      field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(sig->returns_never_null() ? TypePtr::NOTNULL : TypePtr::BOTTOM);
+      field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(TypePtr::NOTNULL);
     }
     break;
   case T_VOID:
@@ -2075,12 +2074,11 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
       field_array[pos++] = TypeInt::INT;
       break;
     case T_INLINE_TYPE: {
-      bool never_null = sig->is_never_null_at(i);
-      if (vt_fields_as_args && type->as_value_klass()->can_be_passed_as_fields() && never_null) {
+      if (vt_fields_as_args && type->as_value_klass()->can_be_passed_as_fields()) {
         is_flattened = true;
         collect_value_fields(type->as_value_klass(), field_array, pos, sig_cc);
       } else {
-        field_array[pos++] = get_const_type(type)->join_speculative(never_null ? TypePtr::NOTNULL : TypePtr::BOTTOM);
+        field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
       }
       break;
     }
@@ -3479,7 +3477,7 @@ const TypeOopPtr* TypeOopPtr::make_from_klass_common(ciKlass *klass, bool klass_
       exact_etype = TypeOopPtr::make_from_klass_common(klass->as_array_klass()->element_klass(), /* klass_change= */ true, /* try_for_exact= */ true);
     }
     bool not_null_free = !exact_etype->can_be_value_type();
-    bool not_flat = !ValueArrayFlatten || not_null_free || (exact_etype->is_valuetypeptr() && !exact_etype->value_klass()->flatten_array());
+    bool not_flat = !UseFlatArray || not_null_free || (exact_etype->is_valuetypeptr() && !exact_etype->value_klass()->flatten_array());
 
     bool xk = etype->klass_is_exact();
     const TypeAry* arr0 = TypeAry::make(etype, TypeInt::POS, false, not_flat, not_null_free);
@@ -5778,7 +5776,7 @@ const TypeFunc* TypeFunc::make(ciMethod* method, bool is_osr_compilation) {
   const TypeTuple* domain_sig = is_osr_compilation ? osr_domain() : TypeTuple::make_domain(method, false);
   const TypeTuple* domain_cc = has_scalar_args ? TypeTuple::make_domain(method, true) : domain_sig;
   ciSignature* sig = method->signature();
-  bool has_scalar_ret = sig->returns_never_null() && sig->return_type()->as_value_klass()->can_be_returned_as_fields();
+  bool has_scalar_ret = sig->return_type()->is_valuetype() && sig->return_type()->as_value_klass()->can_be_returned_as_fields();
   const TypeTuple* range_sig = TypeTuple::make_range(sig, false);
   const TypeTuple* range_cc = has_scalar_ret ? TypeTuple::make_range(sig, true) : range_sig;
   tf = TypeFunc::make(domain_sig, domain_cc, range_sig, range_cc);

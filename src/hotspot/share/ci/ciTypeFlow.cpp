@@ -276,26 +276,21 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     return t2;
   } else if (t2->equals(top_type())) {
     return t1;
-  }
-
-  // Unwrap after saving nullness information and handling top meets
-  bool never_null1 = t1->is_never_null();
-  bool never_null2 = t2->is_never_null();
-  if (t1->unwrap() == t2->unwrap() && never_null1 == never_null2) {
-    return t1;
-  }
-  t1 = t1->unwrap();
-  t2 = t2->unwrap();
-
-  if (t1->is_primitive_type() || t2->is_primitive_type()) {
+  } else if (t1->is_primitive_type() || t2->is_primitive_type()) {
     // Special case null_type.  null_type meet any reference type T
-    // is T.  null_type meet null_type is null_type.
+    // is T (except for inline types).  null_type meet null_type is null_type.
     if (t1->equals(null_type())) {
-      if (!t2->is_primitive_type() || t2->equals(null_type())) {
+      if (t2->is_valuetype()) {
+        // Inline types are null-free, return the super type
+        return t2->as_value_klass()->super();
+      } else if (!t2->is_primitive_type() || t2->equals(null_type())) {
         return t2;
       }
     } else if (t2->equals(null_type())) {
-      if (!t1->is_primitive_type()) {
+      if (t1->is_valuetype()) {
+        // Inline types are null-free, return the super type
+        return t1->as_value_klass()->super();
+      } else if (!t1->is_primitive_type()) {
         return t1;
       }
     }
@@ -349,12 +344,7 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     // Must be two plain old instance klasses.
     assert(k1->is_instance_klass(), "previous cases handle non-instances");
     assert(k2->is_instance_klass(), "previous cases handle non-instances");
-    ciType* result = k1->least_common_ancestor(k2);
-    if (never_null1 && never_null2 && result->is_valuetype()) {
-      // Both value types are never null, mark the result as never null
-      result = analyzer->mark_as_never_null(result);
-    }
-    return result;
+    return k1->least_common_ancestor(k2);
   }
 }
 
@@ -416,22 +406,13 @@ const ciTypeFlow::StateVector* ciTypeFlow::get_start_state() {
   // "Push" the method signature into the first few locals.
   state->set_stack_size(-max_locals());
   if (!method()->is_static()) {
-    ciType* holder = method()->holder();
-    if (holder->is_valuetype()) {
-      // The receiver is never null
-      holder = mark_as_never_null(holder);
-    }
-    state->push(holder);
+    state->push(method()->holder());
     assert(state->tos() == state->local(0), "");
   }
   for (ciSignatureStream str(method()->signature());
        !str.at_return_type();
        str.next()) {
-    ciType* arg = str.type();
-    if (str.is_never_null()) {
-      arg = mark_as_never_null(arg);
-    }
-    state->push_translate(arg);
+    state->push_translate(str.type());
   }
   // Set the rest of the locals to bottom.
   Cell cell = state->next_cell(state->tos());
@@ -607,12 +588,7 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
          (Deoptimization::Reason_unloaded,
           Deoptimization::Action_reinterpret));
   } else {
-    if (element_klass->is_valuetype()) {
-      // Value type array elements are never null
-      push(outer()->mark_as_never_null(element_klass));
-    } else {
-      push_object(element_klass);
-    }
+    push_object(element_klass);
   }
 }
 
@@ -622,9 +598,8 @@ void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
 void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
-  bool never_null = str->is_klass_never_null();
   if (!will_link) {
-    if (never_null) {
+    if (str->is_inline_klass()) {
       trap(str, klass,
            Deoptimization::make_trap_request
            (Deoptimization::Reason_unloaded,
@@ -638,13 +613,8 @@ void ciTypeFlow::StateVector::do_checkcast(ciBytecodeStream* str) {
       do_null_assert(klass);
     }
   } else {
-    ciType* type = pop_value();
-    if (klass->is_valuetype() && (never_null || type->is_never_null())) {
-      // Casting to a Q-Type contains a NULL check
-      push(outer()->mark_as_never_null(klass));
-    } else {
-      push_object(klass);
-    }
+    pop_object();
+    push_object(klass);
   }
 }
 
@@ -686,10 +656,6 @@ void ciTypeFlow::StateVector::do_getstatic(ciBytecodeStream* str) {
       // (See bug 4379915.)
       do_null_assert(field_type->as_klass());
     } else {
-      if (field->is_flattenable()) {
-        // A flattenable field is never null
-        field_type = outer()->mark_as_never_null(field_type);
-      }
       push_translate(field_type);
     }
   }
@@ -757,9 +723,6 @@ void ciTypeFlow::StateVector::do_invoke(ciBytecodeStream* str,
         // See do_getstatic() for similar explanation, as well as bug 4684993.
         do_null_assert(return_type->as_klass());
       } else {
-        if (sigstr.is_never_null()) {
-          return_type = outer()->mark_as_never_null(return_type);
-        }
         push_translate(return_type);
       }
     }
@@ -789,11 +752,7 @@ void ciTypeFlow::StateVector::do_ldc(ciBytecodeStream* str) {
       push_null();
     } else {
       assert(obj->is_instance() || obj->is_array(), "must be java_mirror of klass");
-      ciType* type = obj->klass();
-      if (type->is_valuetype()) {
-        type = outer()->mark_as_never_null(type);
-      }
-      push(type);
+      push_object(obj->klass());
     }
   } else {
     push_translate(ciType::make(basic_type));
@@ -836,8 +795,8 @@ void ciTypeFlow::StateVector::do_defaultvalue(ciBytecodeStream* str) {
   if (!will_link) {
     trap(str, klass, str->get_klass_index());
   } else {
-    // The default value type is never null
-    push(outer()->mark_as_never_null(klass));
+    assert(klass->is_valuetype(), "should be value type");
+    push_object(klass);
   }
 }
 
@@ -859,8 +818,8 @@ void ciTypeFlow::StateVector::do_withfield(ciBytecodeStream* str) {
       assert(type == half_type(type2), "must be 2nd half");
     }
     pop_object();
-    // The newly created value type can never be null
-    push(outer()->mark_as_never_null(klass));
+    assert(klass->is_valuetype(), "should be value type");
+    push_object(klass);
   }
 }
 
@@ -3077,11 +3036,6 @@ void ciTypeFlow::record_failure(const char* reason) {
     // Record the first failure reason.
     _failure_reason = reason;
   }
-}
-
-ciType* ciTypeFlow::mark_as_never_null(ciType* type) {
-  // Wrap the type to carry the information that it is never null
-  return env()->make_never_null_wrapper(type);
 }
 
 #ifndef PRODUCT

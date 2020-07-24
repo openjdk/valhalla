@@ -366,8 +366,8 @@ ciObject* ciObjectFactory::create_new_object(oop o) {
   } else if (o->is_typeArray()) {
     typeArrayHandle h_ta(THREAD, (typeArrayOop)o);
     return new (arena()) ciTypeArray(h_ta);
-  } else if (o->is_valueArray()) {
-    valueArrayHandle h_ta(THREAD, (valueArrayOop)o);
+  } else if (o->is_flatArray()) {
+    flatArrayHandle h_ta(THREAD, (flatArrayOop)o);
     return new (arena()) ciValueArray(h_ta);
   }
 
@@ -392,7 +392,7 @@ ciMetadata* ciObjectFactory::create_new_metadata(Metadata* o) {
       return new (arena()) ciValueKlass(k);
     } else if (k->is_instance_klass()) {
       return new (arena()) ciInstanceKlass(k);
-    } else if (k->is_valueArray_klass()) {
+    } else if (k->is_flatArray_klass()) {
       return new (arena()) ciValueArrayKlass(k);
     } else if (k->is_objArray_klass()) {
       return new (arena()) ciObjArrayKlass(k);
@@ -632,12 +632,6 @@ ciReturnAddress* ciObjectFactory::get_return_address(int bci) {
   init_ident_of(new_ret_addr);
   _return_addresses->append(new_ret_addr);
   return new_ret_addr;
-}
-
-ciWrapper* ciObjectFactory::make_never_null_wrapper(ciType* type) {
-  ciWrapper* wrapper = new (arena()) ciWrapper(type, /* never_null */ true);
-  init_ident_of(wrapper);
-  return wrapper;
 }
 
 // ------------------------------------------------------------------

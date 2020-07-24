@@ -29,22 +29,22 @@
  * @run main/othervm -Xcomp
  *                   -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test*
  *                   TestUnloadedValueTypeArray
- * @run main/othervm -Xcomp -XX:InlineArrayElemMaxFlatSize=0
+ * @run main/othervm -Xcomp -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test*
  *                   TestUnloadedValueTypeArray
  * @run main/othervm -Xcomp
  *                   TestUnloadedValueTypeArray
- * @run main/othervm -Xcomp -XX:InlineArrayElemMaxFlatSize=0
+ * @run main/othervm -Xcomp -XX:FlatArrayElementMaxSize=0
  *                   TestUnloadedValueTypeArray
  * @run main/othervm -Xcomp -XX:-TieredCompilation
  *                   -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test*
  *                   TestUnloadedValueTypeArray
- * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:InlineArrayElemMaxFlatSize=0
+ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:FlatArrayElementMaxSize=0
  *                   -XX:CompileCommand=compileonly,TestUnloadedValueTypeArray::test*
  *                   TestUnloadedValueTypeArray
  * @run main/othervm -Xcomp -XX:-TieredCompilation
  *                   TestUnloadedValueTypeArray
- * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:InlineArrayElemMaxFlatSize=0
+ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:FlatArrayElementMaxSize=0
  *                   TestUnloadedValueTypeArray
  */
 

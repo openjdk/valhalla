@@ -37,25 +37,25 @@
 #include "memory/universe.hpp"
 #include "oops/arrayKlass.inline.hpp"
 #include "oops/arrayOop.hpp"
+#include "oops/flatArrayOop.hpp"
+#include "oops/flatArrayOop.inline.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/inlineKlass.hpp"
-#include "oops/valueArrayOop.hpp"
-#include "oops/valueArrayOop.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
 
-#include "oops/valueArrayKlass.hpp"
+#include "oops/flatArrayKlass.hpp"
 
 // Allocation...
 
-ValueArrayKlass::ValueArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlass(name, ID) {
+FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlass(name, ID) {
   assert(element_klass->is_inline_klass(), "Expected Inline");
 
   set_element_klass(InlineKlass::cast(element_klass));
@@ -63,27 +63,27 @@ ValueArrayKlass::ValueArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlas
   set_layout_helper(array_layout_helper(InlineKlass::cast(element_klass)));
 
   assert(is_array_klass(), "sanity");
-  assert(is_valueArray_klass(), "sanity");
+  assert(is_flatArray_klass(), "sanity");
 
   CMH("tweak name symbol refcnt ?")
 #ifndef PRODUCT
-  if (PrintInlineArrayLayout) {
+  if (PrintFlatArrayLayout) {
     print();
   }
 #endif
 }
 
-InlineKlass* ValueArrayKlass::element_klass() const {
+InlineKlass* FlatArrayKlass::element_klass() const {
   return InlineKlass::cast(_element_klass);
 }
 
-void ValueArrayKlass::set_element_klass(Klass* k) {
+void FlatArrayKlass::set_element_klass(Klass* k) {
   _element_klass = k;
 }
 
-ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass* element_klass, TRAPS) {
+FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* element_klass, TRAPS) {
   guarantee((!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()), "Really ?!");
-  assert(ValueArrayFlatten, "Flatten array required");
+  assert(UseFlatArray, "Flatten array required");
   assert(InlineKlass::cast(element_klass)->is_naturally_atomic() || (!InlineArrayAtomicAccess), "Atomic by-default");
 
   /*
@@ -122,14 +122,14 @@ ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass* element_klass, TRAPS) {
         // Now retry from the beginning
         ek = element_klass->array_klass(CHECK_NULL);
       }  // re-lock
-      return ValueArrayKlass::cast(ek);
+      return FlatArrayKlass::cast(ek);
     }
   }
 
   Symbol* name = ArrayKlass::create_element_klass_array_name(element_klass, CHECK_NULL);
   ClassLoaderData* loader_data = element_klass->class_loader_data();
-  int size = ArrayKlass::static_size(ValueArrayKlass::header_size());
-  ValueArrayKlass* vak = new (loader_data, size, THREAD) ValueArrayKlass(element_klass, name);
+  int size = ArrayKlass::static_size(FlatArrayKlass::header_size());
+  FlatArrayKlass* vak = new (loader_data, size, THREAD) FlatArrayKlass(element_klass, name);
 
   ModuleEntry* module = vak->module();
   assert(module != NULL, "No module entry for array");
@@ -140,26 +140,26 @@ ValueArrayKlass* ValueArrayKlass::allocate_klass(Klass* element_klass, TRAPS) {
   return vak;
 }
 
-void ValueArrayKlass::initialize(TRAPS) {
+void FlatArrayKlass::initialize(TRAPS) {
   element_klass()->initialize(THREAD);
 }
 
 // Oops allocation...
-valueArrayOop ValueArrayKlass::allocate(int length, TRAPS) {
+flatArrayOop FlatArrayKlass::allocate(int length, TRAPS) {
   check_array_allocation_length(length, max_elements(), CHECK_NULL);
-  int size = valueArrayOopDesc::object_size(layout_helper(), length);
-  return (valueArrayOop) Universe::heap()->array_allocate(this, size, length, true, THREAD);
+  int size = flatArrayOopDesc::object_size(layout_helper(), length);
+  return (flatArrayOop) Universe::heap()->array_allocate(this, size, length, true, THREAD);
 }
 
 
-oop ValueArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
-  // For valueArrays this is only called for the last dimension
+oop FlatArrayKlass::multi_allocate(int rank, jint* last_size, TRAPS) {
+  // For flatArrays this is only called for the last dimension
   assert(rank == 1, "just checking");
   int length = *last_size;
   return allocate(length, THREAD);
 }
 
-jint ValueArrayKlass::array_layout_helper(InlineKlass* vk) {
+jint FlatArrayKlass::array_layout_helper(InlineKlass* vk) {
   BasicType etype = T_INLINE_TYPE;
   int esize = upper_log2(vk->raw_value_byte_size());
   int hsize = arrayOopDesc::base_offset_in_bytes(etype);
@@ -168,7 +168,7 @@ jint ValueArrayKlass::array_layout_helper(InlineKlass* vk) {
 
   assert(lh < (int)_lh_neutral_value, "must look like an array layout");
   assert(layout_helper_is_array(lh), "correct kind");
-  assert(layout_helper_is_valueArray(lh), "correct kind");
+  assert(layout_helper_is_flatArray(lh), "correct kind");
   assert(!layout_helper_is_typeArray(lh), "correct kind");
   assert(!layout_helper_is_objArray(lh), "correct kind");
   assert(layout_helper_is_null_free(lh), "correct kind");
@@ -180,16 +180,16 @@ jint ValueArrayKlass::array_layout_helper(InlineKlass* vk) {
   return lh;
 }
 
-int ValueArrayKlass::oop_size(oop obj) const {
-  assert(obj->is_valueArray(),"must be a value array");
-  valueArrayOop array = valueArrayOop(obj);
+int FlatArrayKlass::oop_size(oop obj) const {
+  assert(obj->is_flatArray(),"must be an flat array");
+  flatArrayOop array = flatArrayOop(obj);
   return array->object_size();
 }
 
 // For now return the maximum number of array elements that will not exceed:
 // nof bytes = "max_jint * HeapWord" since the "oopDesc::oop_iterate_size"
 // returns "int" HeapWords, need fix for JDK-4718400 and JDK-8233189
-jint ValueArrayKlass::max_elements() const {
+jint FlatArrayKlass::max_elements() const {
   // Check the max number of heap words limit first (because of int32_t in oopDesc_oop_size() etc)
   size_t max_size = max_jint;
   max_size -= arrayOopDesc::header_size(T_INLINE_TYPE);
@@ -204,7 +204,7 @@ jint ValueArrayKlass::max_elements() const {
   return (jint) max_size;
 }
 
-oop ValueArrayKlass::protection_domain() const {
+oop FlatArrayKlass::protection_domain() const {
   return element_klass()->protection_domain();
 }
 
@@ -214,13 +214,13 @@ static bool needs_backwards_copy(arrayOop s, int src_pos,
   return (s == d) && (dst_pos > src_pos) && (dst_pos - src_pos) < length;
 }
 
-void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
-                                 arrayOop d, int dst_pos, int length, TRAPS) {
+void FlatArrayKlass::copy_array(arrayOop s, int src_pos,
+                                arrayOop d, int dst_pos, int length, TRAPS) {
 
-  assert(s->is_objArray() || s->is_valueArray(), "must be obj or value array");
+  assert(s->is_objArray() || s->is_flatArray(), "must be obj or flat array");
 
    // Check destination
-   if ((!d->is_valueArray()) && (!d->is_objArray())) {
+   if ((!d->is_flatArray()) && (!d->is_objArray())) {
      THROW(vmSymbols::java_lang_ArrayStoreException());
    }
 
@@ -243,24 +243,24 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
    Klass* s_elem_klass = sk->element_klass();
    /**** CMH: compare and contrast impl, re-factor once we find edge cases... ****/
 
-   if (sk->is_valueArray_klass()) {
+   if (sk->is_flatArray_klass()) {
      assert(sk == this, "Unexpected call to copy_array");
      // Check subtype, all src homogeneous, so just once
      if (!s_elem_klass->is_subtype_of(d_elem_klass)) {
        THROW(vmSymbols::java_lang_ArrayStoreException());
      }
 
-     valueArrayOop sa = valueArrayOop(s);
+     flatArrayOop sa = flatArrayOop(s);
      InlineKlass* s_elem_vklass = element_klass();
 
-     // valueArray-to-valueArray
-     if (dk->is_valueArray_klass()) {
+     // flatArray-to-flatArray
+     if (dk->is_flatArray_klass()) {
        // element types MUST be exact, subtype check would be dangerous
        if (dk != this) {
          THROW(vmSymbols::java_lang_ArrayStoreException());
        }
 
-       valueArrayOop da = valueArrayOop(d);
+       flatArrayOop da = flatArrayOop(d);
        address dst = (address) da->value_at_addr(dst_pos, layout_helper());
        address src = (address) sa->value_at_addr(src_pos, layout_helper());
        if (contains_oops()) {
@@ -288,14 +288,14 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
          Copy::conjoint_memory_atomic(src, dst, (size_t)length << log2_element_size());
        }
      }
-     else { // valueArray-to-objArray
+     else { // flatArray-to-objArray
        assert(dk->is_objArray_klass(), "Expected objArray here");
        // Need to allocate each new src elem payload -> dst oop
        objArrayHandle dh(THREAD, (objArrayOop)d);
-       valueArrayHandle sh(THREAD, sa);
+       flatArrayHandle sh(THREAD, sa);
        int dst_end = dst_pos + length;
        while (dst_pos < dst_end) {
-         oop o = valueArrayOopDesc::value_alloc_copy_from_index(sh, src_pos, CHECK);
+         oop o = flatArrayOopDesc::value_alloc_copy_from_index(sh, src_pos, CHECK);
          dh->obj_at_put(dst_pos, o);
          dst_pos++;
          src_pos++;
@@ -304,9 +304,9 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
    } else {
      assert(s->is_objArray(), "Expected objArray");
      objArrayOop sa = objArrayOop(s);
-     assert(d->is_valueArray(), "Excepted valueArray");  // objArray-to-valueArray
+     assert(d->is_flatArray(), "Excepted flatArray");  // objArray-to-flatArray
      InlineKlass* d_elem_vklass = InlineKlass::cast(d_elem_klass);
-     valueArrayOop da = valueArrayOop(d);
+     flatArrayOop da = flatArrayOop(d);
 
      int src_end = src_pos + length;
      int delem_incr = 1 << dk->log2_element_size();
@@ -328,7 +328,7 @@ void ValueArrayKlass::copy_array(arrayOop s, int src_pos,
 }
 
 
-Klass* ValueArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
+Klass* FlatArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
   assert(dimension() <= n, "check order of chain");
   int dim = dimension();
   if (dim == n) return this;
@@ -365,27 +365,27 @@ Klass* ValueArrayKlass::array_klass_impl(bool or_null, int n, TRAPS) {
   return ak->array_klass(n, THREAD);
 }
 
-Klass* ValueArrayKlass::array_klass_impl(bool or_null, TRAPS) {
+Klass* FlatArrayKlass::array_klass_impl(bool or_null, TRAPS) {
   return array_klass_impl(or_null, dimension() +  1, THREAD);
 }
 
-ModuleEntry* ValueArrayKlass::module() const {
-  assert(element_klass() != NULL, "ValueArrayKlass returned unexpected NULL bottom_klass");
+ModuleEntry* FlatArrayKlass::module() const {
+  assert(element_klass() != NULL, "FlatArrayKlass returned unexpected NULL bottom_klass");
   // The array is defined in the module of its bottom class
   return element_klass()->module();
 }
 
-PackageEntry* ValueArrayKlass::package() const {
-  assert(element_klass() != NULL, "ValuerrayKlass returned unexpected NULL bottom_klass");
+PackageEntry* FlatArrayKlass::package() const {
+  assert(element_klass() != NULL, "FlatArrayKlass returned unexpected NULL bottom_klass");
   return element_klass()->package();
 }
 
-bool ValueArrayKlass::can_be_primary_super_slow() const {
+bool FlatArrayKlass::can_be_primary_super_slow() const {
     return true;
 }
 
-GrowableArray<Klass*>* ValueArrayKlass::compute_secondary_supers(int num_extra_slots,
-                                                                 Array<InstanceKlass*>* transitive_interfaces) {
+GrowableArray<Klass*>* FlatArrayKlass::compute_secondary_supers(int num_extra_slots,
+                                                                Array<InstanceKlass*>* transitive_interfaces) {
   assert(transitive_interfaces == NULL, "sanity");
   // interfaces = { cloneable_klass, serializable_klass, elemSuper[], ... };
   Array<Klass*>* elem_supers = element_klass()->secondary_supers();
@@ -410,11 +410,11 @@ GrowableArray<Klass*>* ValueArrayKlass::compute_secondary_supers(int num_extra_s
   }
 }
 
-void ValueArrayKlass::print_on(outputStream* st) const {
+void FlatArrayKlass::print_on(outputStream* st) const {
 #ifndef PRODUCT
   assert(!is_objArray_klass(), "Unimplemented");
 
-  st->print("Value Type Array: ");
+  st->print("Flat Type Array: ");
   Klass::print_on(st);
 
   st->print(" - element klass: ");
@@ -428,7 +428,7 @@ void ValueArrayKlass::print_on(outputStream* st) const {
 #endif //PRODUCT
 }
 
-void ValueArrayKlass::print_value_on(outputStream* st) const {
+void FlatArrayKlass::print_value_on(outputStream* st) const {
   assert(is_klass(), "must be klass");
 
   element_klass()->print_value_on(st);
@@ -437,9 +437,9 @@ void ValueArrayKlass::print_value_on(outputStream* st) const {
 
 
 #ifndef PRODUCT
-void ValueArrayKlass::oop_print_on(oop obj, outputStream* st) {
+void FlatArrayKlass::oop_print_on(oop obj, outputStream* st) {
   ArrayKlass::oop_print_on(obj, st);
-  valueArrayOop va = valueArrayOop(obj);
+  flatArrayOop va = flatArrayOop(obj);
   InlineKlass* vk = element_klass();
   int print_len = MIN2((intx) va->length(), MaxElementPrintSize);
   for(int index = 0; index < print_len; index++) {
@@ -457,11 +457,11 @@ void ValueArrayKlass::oop_print_on(oop obj, outputStream* st) {
 }
 #endif //PRODUCT
 
-void ValueArrayKlass::oop_print_value_on(oop obj, outputStream* st) {
-  assert(obj->is_valueArray(), "must be valueArray");
+void FlatArrayKlass::oop_print_value_on(oop obj, outputStream* st) {
+  assert(obj->is_flatArray(), "must be flatArray");
   st->print("a ");
   element_klass()->print_value_on(st);
-  int len = valueArrayOop(obj)->length();
+  int len = flatArrayOop(obj)->length();
   st->print("[%d] ", len);
   obj->print_address_on(st);
   if (PrintMiscellaneous && (WizardMode || Verbose)) {
@@ -471,7 +471,7 @@ void ValueArrayKlass::oop_print_value_on(oop obj, outputStream* st) {
       if (i > 4) {
         st->print("..."); break;
       }
-      st->print(" " INTPTR_FORMAT, (intptr_t)(void*)valueArrayOop(obj)->value_at_addr(i , lh));
+      st->print(" " INTPTR_FORMAT, (intptr_t)(void*)flatArrayOop(obj)->value_at_addr(i , lh));
     }
     st->print(" }");
   }
@@ -484,18 +484,18 @@ class VerifyElementClosure: public BasicOopIterateClosure {
   virtual void do_oop(narrowOop* p) { VerifyOopClosure::verify_oop.do_oop(p); }
 };
 
-void ValueArrayKlass::oop_verify_on(oop obj, outputStream* st) {
+void FlatArrayKlass::oop_verify_on(oop obj, outputStream* st) {
   ArrayKlass::oop_verify_on(obj, st);
-  guarantee(obj->is_valueArray(), "must be valueArray");
+  guarantee(obj->is_flatArray(), "must be flatArray");
 
   if (contains_oops()) {
-    valueArrayOop va = valueArrayOop(obj);
+    flatArrayOop va = flatArrayOop(obj);
     VerifyElementClosure ec;
     va->oop_iterate(&ec);
   }
 }
 
-void ValueArrayKlass::verify_on(outputStream* st) {
+void FlatArrayKlass::verify_on(outputStream* st) {
   ArrayKlass::verify_on(st);
   guarantee(element_klass()->is_inline_klass(), "should be inline type klass");
 }

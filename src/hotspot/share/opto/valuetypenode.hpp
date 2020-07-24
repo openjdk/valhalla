@@ -73,7 +73,6 @@ public:
   uint          field_index(int offset) const;
   ciType*       field_type(uint index) const;
   bool          field_is_flattened(uint index) const;
-  bool          field_is_flattenable(uint index) const;
 
   // Replace ValueTypeNodes in debug info at safepoints with SafePointScalarObjectNodes
   void make_scalar_in_safepoints(PhaseIterGVN* igvn);

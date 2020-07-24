@@ -714,8 +714,7 @@ void Parse::do_call() {
           if (ctype->is_loaded()) {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
             const Type*       sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
-            if (declared_signature->returns_never_null()) {
-              assert(ct == T_INLINE_TYPE, "should be a value type");
+            if (ct == T_INLINE_TYPE) {
               sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
             }
             if (arg_type != NULL && !arg_type->higher_equal(sig_type) && !peek()->is_ValueType()) {
@@ -746,7 +745,8 @@ void Parse::do_call() {
 
     if (rtype->basic_type() == T_INLINE_TYPE && !peek()->is_ValueType()) {
       Node* retnode = pop();
-      if (!gvn().type(retnode)->maybe_null() && rtype->as_value_klass()->is_scalarizable()) {
+      assert(!gvn().type(retnode)->maybe_null(), "should never be null");
+      if (rtype->as_value_klass()->is_scalarizable()) {
         retnode = ValueTypeNode::make_from_oop(this, retnode, rtype->as_value_klass());
       }
       push_node(T_INLINE_TYPE, retnode);

@@ -100,20 +100,20 @@ class InlineKlass: public InstanceKlass {
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(default_value_offset_offset());
   }
 
-  address adr_value_array_klass() const {
+  address adr_flat_array_klass() const {
     assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
-    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _value_array_klass));
+    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _flat_array_klass));
   }
 
-  Klass* get_value_array_klass() const {
-    return *(Klass**)adr_value_array_klass();
+  Klass* get_flat_array_klass() const {
+    return *(Klass**)adr_flat_array_klass();
   }
 
-  Klass* acquire_value_array_klass() const {
-    return Atomic::load_acquire((Klass**)adr_value_array_klass());
+  Klass* acquire_flat_array_klass() const {
+    return Atomic::load_acquire((Klass**)adr_flat_array_klass());
   }
 
-  Klass* allocate_value_array_klass(TRAPS);
+  Klass* allocate_flat_array_klass(TRAPS);
 
   address adr_alignment() const {
     assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
@@ -177,7 +177,7 @@ class InlineKlass: public InstanceKlass {
   Klass* array_klass_impl(bool or_null, TRAPS);
 
   // Specifically flat array klass
-  Klass* value_array_klass(bool or_null, int rank, TRAPS);
+  Klass* flat_array_klass(bool or_null, int rank, TRAPS);
 
  public:
   // Type testing

@@ -342,7 +342,7 @@ public:
       ciType* array = pop_value();
       if (array == null_type())  return NULL;
       // Value type arrays may contain oop or flattened representation
-      assert(array->is_obj_array_klass() || (ValueArrayFlatten && array->is_value_array_klass()),
+      assert(array->is_obj_array_klass() || (UseFlatArray && array->is_value_array_klass()),
           "must be value or object array type");
       return array->as_array_klass();
     }
@@ -846,8 +846,6 @@ public:
   Block* rpo_at(int rpo) const      { assert(0 <= rpo && rpo < block_count(), "out of bounds");
                                       return _block_map[rpo]; }
   int inc_next_pre_order()          { return _next_pre_order++; }
-
-  ciType* mark_as_never_null(ciType* type);
 
 private:
   // A work list used during flow analysis.

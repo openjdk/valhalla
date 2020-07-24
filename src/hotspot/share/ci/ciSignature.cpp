@@ -62,9 +62,6 @@ ciSignature::ciSignature(ciKlass* accessing_klass, const constantPoolHandle& cpo
       ciSymbol* klass_name = env->get_symbol(ss.as_symbol());
       type = env->get_klass_by_name_impl(_accessing_klass, cpool, klass_name, false);
     }
-    if (type->is_valuetype() && ss.type() == T_INLINE_TYPE) {
-      type = env->make_never_null_wrapper(type);
-    }
     _types->append(type);
     if (ss.at_return_type()) {
       // Done processing the return type; do not add it into the count.
@@ -90,20 +87,10 @@ ciSignature::ciSignature(ciKlass* accessing_klass, ciSymbol* symbol, ciMethodTyp
   ciEnv* env =  CURRENT_ENV;
   Arena* arena = env->arena();
   _types = new (arena) GrowableArray<ciType*>(arena, _count + 1, 0, NULL);
-  ciType* type = NULL;
-  bool never_null = false;
   for (int i = 0; i < _count; i++) {
-    type = method_type->ptype_at(i, never_null);
-    if (type->is_valuetype() && never_null) {
-      type = env->make_never_null_wrapper(type);
-    }
-    _types->append(type);
+    _types->append(method_type->ptype_at(i));
   }
-  type = method_type->rtype(never_null);
-  if (type->is_valuetype() && never_null) {
-    type = env->make_never_null_wrapper(type);
-  }
-  _types->append(type);
+  _types->append(method_type->rtype());
 }
 
 // ------------------------------------------------------------------
@@ -111,7 +98,7 @@ ciSignature::ciSignature(ciKlass* accessing_klass, ciSymbol* symbol, ciMethodTyp
 //
 // What is the return type of this signature?
 ciType* ciSignature::return_type() const {
-  return _types->at(_count)->unwrap();
+  return _types->at(_count);
 }
 
 // ------------------------------------------------------------------
@@ -122,40 +109,23 @@ ciType* ciSignature::return_type() const {
 ciType* ciSignature::type_at(int index) const {
   assert(index < _count, "out of bounds");
   // The first _klasses element holds the return klass.
-  return _types->at(index)->unwrap();
+  return _types->at(index);
 }
 
 // ------------------------------------------------------------------
-// ciSignature::return_never_null
-//
-// True if we statically know that the return value is never null.
-bool ciSignature::returns_never_null() const {
-  return _types->at(_count)->is_never_null();
-}
-
-// ------------------------------------------------------------------
-// ciSignature::maybe_return_never_null
+// ciSignature::maybe_returns_value_type
 //
 // True if we statically know that the return value is never null, or
 // if the return type has a Q signature but is not yet loaded, in which case
 // it could be a never-null type.
-bool ciSignature::maybe_returns_never_null() const {
+bool ciSignature::maybe_returns_value_type() const {
   ciType* ret_type = _types->at(_count);
-  if (ret_type->is_never_null()) {
+  if (ret_type->is_valuetype()) {
     return true;
   } else if (ret_type->is_instance_klass() && !ret_type->as_instance_klass()->is_loaded()) {
     GUARDED_VM_ENTRY(if (get_symbol()->is_Q_method_signature()) { return true; })
   }
   return false;
-}
-
-// ------------------------------------------------------------------
-// ciSignature::never_null_at
-//
-// True if we statically know that the argument at 'index' is never null.
-bool ciSignature::is_never_null_at(int index) const {
-  assert(index < _count, "out of bounds");
-  return _types->at(index)->is_never_null();
 }
 
 // ------------------------------------------------------------------

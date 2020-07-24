@@ -192,13 +192,6 @@ bool ValueTypeBaseNode::field_is_flattened(uint index) const {
   return field->is_flattened();
 }
 
-bool ValueTypeBaseNode::field_is_flattenable(uint index) const {
-  assert(index < field_count(), "index out of bounds");
-  ciField* field = value_klass()->declared_nonstatic_field_at(index);
-  assert(!field->is_flattenable() || field->type()->is_valuetype(), "must be a value type");
-  return field->is_flattenable();
-}
-
 int ValueTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node_List& worklist, SafePointNode* sfpt) {
   ciValueKlass* vk = value_klass();
   uint nfields = vk->nof_nonstatic_fields();
@@ -280,7 +273,6 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
     int offset = holder_offset + field_offset(i);
     Node* value = NULL;
     ciType* ft = field_type(i);
-    bool is_flattenable = field_is_flattenable(i);
     if (field_is_flattened(i)) {
       // Recursively load the flattened value type field
       value = ValueTypeNode::make_from_flattened(kit, ft->as_value_klass(), base, ptr, holder, offset, decorators);
@@ -297,11 +289,10 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
         const Type* con_type = Type::make_from_constant(constant, /*require_const=*/ true);
         assert(con_type != NULL, "type not found");
         value = kit->gvn().transform(kit->makecon(con_type));
-        // Check type of constant which might be more precise
-        if (con_type->is_valuetypeptr() && !con_type->is_zero_type()) {
-          // Null-free, treat as flattenable
+        // Check type of constant which might be more precise than the static field type
+        if (con_type->is_valuetypeptr()) {
+          assert(!con_type->is_zero_type(), "Value types are null-free");
           ft = con_type->value_klass();
-          is_flattenable = true;
         }
       } else {
         // Load field value from memory
@@ -315,8 +306,8 @@ void ValueTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKla
         }
         value = kit->access_load_at(base, adr, adr_type, val_type, bt, decorators);
       }
-      if (is_flattenable) {
-        // Loading a non-flattened but flattenable value type from memory
+      if (ft->is_valuetype()) {
+        // Loading a non-flattened value type from memory
         if (ft->as_value_klass()->is_scalarizable()) {
           value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass());
         } else {
@@ -347,7 +338,7 @@ void ValueTypeBaseNode::store(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
     if (field_is_flattened(i)) {
       // Recursively store the flattened value type field
       if (!value->is_ValueType()) {
-        assert(!kit->gvn().type(value)->maybe_null(), "should never be null");
+        assert(!kit->gvn().type(value)->maybe_null(), "Inline types are null-free");
         value = ValueTypeNode::make_from_oop(kit, value, ft->as_value_klass());
       }
       value->as_ValueType()->store_flattened(kit, base, ptr, holder, offset, decorators);
@@ -510,7 +501,7 @@ ValueTypeNode* ValueTypeNode::make_default(PhaseGVN& gvn, ciValueKlass* vk) {
   for (uint i = 0; i < vt->field_count(); ++i) {
     ciType* field_type = vt->field_type(i);
     Node* value = NULL;
-    if (field_type->is_valuetype() && vt->field_is_flattenable(i)) {
+    if (field_type->is_valuetype()) {
       ciValueKlass* field_klass = field_type->as_value_klass();
       if (field_klass->is_scalarizable() || vt->field_is_flattened(i)) {
         value = ValueTypeNode::make_default(gvn, field_klass);
@@ -764,8 +755,8 @@ void ValueTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, ExtendedS
       } else {
         parm = gvn.transform(new ProjNode(multi->as_Call(), base_input));
       }
-      if (field_is_flattenable(idx)) {
-        // Non-flattened but flattenable value type
+      if (type->is_valuetype()) {
+        // Non-flattened value type field
         if (type->as_value_klass()->is_scalarizable()) {
           parm = ValueTypeNode::make_from_oop(kit, parm, type->as_value_klass());
         } else {

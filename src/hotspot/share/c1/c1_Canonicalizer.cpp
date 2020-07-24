@@ -647,7 +647,7 @@ void Canonicalizer::do_NewMultiArray  (NewMultiArray*   x) {}
 void Canonicalizer::do_WithField      (WithField*       x) {}
 void Canonicalizer::do_DefaultValue   (DefaultValue*    x) {}
 void Canonicalizer::do_CheckCast      (CheckCast*       x) {
-  if (x->klass()->is_loaded() && !x->is_never_null()) {
+  if (x->klass()->is_loaded() && !x->klass()->is_valuetype()) {
     // Don't canonicalize for non-nullable types -- we need to throw NPE.
     Value obj = x->obj();
     ciType* klass = obj->exact_type();

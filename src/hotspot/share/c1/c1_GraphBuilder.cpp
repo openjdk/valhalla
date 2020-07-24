@@ -1779,9 +1779,6 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         }
         LoadField* load_field = new LoadField(append(obj), offset, field, true,
                                         state_before, needs_patching);
-        if (field->is_flattenable()) {
-          load_field->set_never_null(true);
-        }
         push(type, append(load_field));
       }
       break;
@@ -1792,7 +1789,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (state_before == NULL) {
         state_before = copy_state_for_exception();
       }
-      if (field->type()->basic_type() == T_BOOLEAN) {
+      if (field_type == T_BOOLEAN) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
@@ -1814,8 +1811,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         if (!const_oop->is_null_object() && const_oop->is_loaded()) {
           ciConstant field_value = field->constant_value_of(const_oop);
           if (field_value.is_valid()) {
-            if (field->is_flattenable() && field_value.is_null_or_zero()) {
-              // Non-flattened but flattenable inline type field. Replace null by the default value.
+            if (field->signature()->is_Q_signature() && field_value.is_null_or_zero()) {
+              // Non-flattened inline type field. Replace null by the default value.
               constant = new Constant(new InstanceConstant(field->type()->as_value_klass()->default_value_instance()));
             } else {
               constant = make_constant(field_value, field);
@@ -2372,7 +2369,7 @@ void GraphBuilder::invoke(Bytecodes::Code code) {
   }
 
   Invoke* result = new Invoke(code, result_type, recv, args, vtable_index, target, state_before,
-                              declared_signature->returns_never_null());
+                              declared_signature->return_type()->is_valuetype());
   // push result
   append_split(result);
 
@@ -2420,7 +2417,7 @@ void GraphBuilder::new_type_array() {
 void GraphBuilder::new_object_array() {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
-  bool never_null = stream()->is_klass_never_null();
+  bool never_null = stream()->is_inline_klass();
   ValueStack* state_before = !klass->is_loaded() || PatchALot ? copy_state_before() : copy_state_exhandling();
   NewArray* n = new NewObjectArray(klass, ipop(), state_before, never_null);
   apush(append_split(n));
@@ -2447,7 +2444,7 @@ bool GraphBuilder::direct_compare(ciKlass* k) {
 void GraphBuilder::check_cast(int klass_index) {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
-  bool never_null = stream()->is_klass_never_null();
+  bool never_null = stream()->is_inline_klass();
   ValueStack* state_before = !klass->is_loaded() || PatchALot ? copy_state_before() : copy_state_for_exception();
   CheckCast* c = new CheckCast(klass, apop(), state_before, never_null);
   apush(append_split(c));
@@ -3471,7 +3468,7 @@ ValueStack* GraphBuilder::state_at_entry() {
     // don't allow T_ARRAY to propagate into locals types
     if (is_reference_type(basic_type)) basic_type = T_OBJECT;
     ValueType* vt = as_ValueType(basic_type);
-    state->store_local(idx, new Local(type, vt, idx, false, sig->is_never_null_at(i)));
+    state->store_local(idx, new Local(type, vt, idx, false, type->is_valuetype()));
     idx += type->size();
   }
 
