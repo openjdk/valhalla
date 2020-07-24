@@ -180,7 +180,7 @@ public abstract class ValueTypeTest {
     protected static final int TypeProfileOn = 0x4000;
     protected static final int TypeProfileOff = 0x8000;
     protected static final boolean InlineTypePassFieldsAsArgs = (Boolean)WHITE_BOX.getVMFlag("InlineTypePassFieldsAsArgs");
-    protected static final boolean InlineTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("InlineArrayElemMaxFlatSize") == -1); // FIXME - fix this if default of InlineArrayElemMaxFlatSize is changed
+    protected static final boolean InlineTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("FlatArrayElementMaxSize") == -1); // FIXME - fix this if default of FlatArrayElementMaxSize is changed
     protected static final boolean InlineTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("InlineTypeReturnedAsFields");
     protected static final boolean AlwaysIncrementalInline = (Boolean)WHITE_BOX.getVMFlag("AlwaysIncrementalInline");
     protected static final boolean G1GC = (Boolean)WHITE_BOX.getVMFlag("UseG1GC");
@@ -259,24 +259,24 @@ public abstract class ValueTypeTest {
         case 0: return new String[] {
                 "-XX:-UseArrayLoadStoreProfile",
                 "-XX:+AlwaysIncrementalInline",
-                "-XX:InlineArrayElemMaxFlatOops=5",
-                "-XX:InlineArrayElemMaxFlatSize=-1",
+                "-XX:FlatArrayElementMaxOops=5",
+                "-XX:FlatArrayElementMaxSize=-1",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields"};
         case 1: return new String[] {
                 "-XX:-UseArrayLoadStoreProfile",
                 "-XX:-UseCompressedOops",
-                "-XX:InlineArrayElemMaxFlatOops=5",
-                "-XX:InlineArrayElemMaxFlatSize=-1",
+                "-XX:FlatArrayElementMaxOops=5",
+                "-XX:FlatArrayElementMaxSize=-1",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:-InlineTypePassFieldsAsArgs",
                 "-XX:-InlineTypeReturnedAsFields"};
         case 2: return new String[] {
                 "-XX:-UseArrayLoadStoreProfile",
                 "-XX:-UseCompressedOops",
-                "-XX:InlineArrayElemMaxFlatOops=0",
-                "-XX:InlineArrayElemMaxFlatSize=0",
+                "-XX:FlatArrayElementMaxOops=0",
+                "-XX:FlatArrayElementMaxSize=0",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields",
@@ -285,16 +285,16 @@ public abstract class ValueTypeTest {
                 "-XX:-UseArrayLoadStoreProfile",
                 "-DVerifyIR=false",
                 "-XX:+AlwaysIncrementalInline",
-                "-XX:InlineArrayElemMaxFlatOops=0",
-                "-XX:InlineArrayElemMaxFlatSize=0",
+                "-XX:FlatArrayElementMaxOops=0",
+                "-XX:FlatArrayElementMaxSize=0",
                 "-XX:InlineFieldMaxFlatSize=0",
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields"};
         case 4: return new String[] {
                 "-XX:-UseArrayLoadStoreProfile",
                 "-DVerifyIR=false",
-                "-XX:InlineArrayElemMaxFlatOops=-1",
-                "-XX:InlineArrayElemMaxFlatSize=-1",
+                "-XX:FlatArrayElementMaxOops=-1",
+                "-XX:FlatArrayElementMaxSize=-1",
                 "-XX:InlineFieldMaxFlatSize=0",
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:-InlineTypeReturnedAsFields",
@@ -302,8 +302,8 @@ public abstract class ValueTypeTest {
         case 5: return new String[] {
                 "-XX:-UseArrayLoadStoreProfile",
                 "-XX:+AlwaysIncrementalInline",
-                "-XX:InlineArrayElemMaxFlatOops=5",
-                "-XX:InlineArrayElemMaxFlatSize=-1",
+                "-XX:FlatArrayElementMaxOops=5",
+                "-XX:FlatArrayElementMaxSize=-1",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:-InlineTypePassFieldsAsArgs",
                 "-XX:-InlineTypeReturnedAsFields"};

@@ -61,7 +61,7 @@ public class TestArrays extends ValueTypeTest {
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
         case 2: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode"};
-        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:InlineArrayElemMaxFlatSize=-1", "-XX:-UncommonNullCast"};
+        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1", "-XX:-UncommonNullCast"};
         case 4: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast"};
         case 5: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UncommonNullCast", "-XX:+StressArrayCopyMacroNode"};
         }

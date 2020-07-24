@@ -44,32 +44,32 @@ import sun.hotspot.WhiteBox;
  *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
- *                   -XX:-InlineTypePassFieldsAsArgs -XX:-InlineTypeReturnedAsFields -XX:InlineArrayElemMaxFlatSize=1
+ *                   -XX:-InlineTypePassFieldsAsArgs -XX:-InlineTypeReturnedAsFields -XX:FlatArrayElementMaxSize=1
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.*::test*
  *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
- *                   -XX:-InlineTypePassFieldsAsArgs -XX:-InlineTypeReturnedAsFields -XX:InlineArrayElemMaxFlatSize=1
+ *                   -XX:-InlineTypePassFieldsAsArgs -XX:-InlineTypeReturnedAsFields -XX:FlatArrayElementMaxSize=1
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.*::test*
  *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
- *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:InlineArrayElemMaxFlatSize=-1
+ *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:FlatArrayElementMaxSize=-1
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.*::test*
  *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
- *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:InlineArrayElemMaxFlatSize=-1
+ *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:FlatArrayElementMaxSize=-1
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.*::test*
  *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:-AlwaysIncrementalInline
- *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:InlineArrayElemMaxFlatSize=-1 -XX:InlineFieldMaxFlatSize=0
+ *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=0
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.*::test*
  *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering
  * @run main/othervm -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   -XX:+DeoptimizeALot -XX:-UseTLAB -Xbatch -XX:-MonomorphicArrayCheck -XX:+AlwaysIncrementalInline
- *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:InlineArrayElemMaxFlatSize=-1 -XX:InlineFieldMaxFlatSize=0
+ *                   -XX:+InlineTypePassFieldsAsArgs -XX:+InlineTypeReturnedAsFields -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=0
  *                   -XX:CompileCommand=dontinline,compiler.valhalla.valuetypes.*::test*
  *                   compiler.valhalla.valuetypes.TestDeoptimizationWhenBuffering
  */
