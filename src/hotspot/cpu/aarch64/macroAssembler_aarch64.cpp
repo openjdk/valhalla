@@ -5264,9 +5264,9 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   }
 }
 
-int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_interpreter) {
-  // A value type might be returned. If fields are in registers we
-  // need to allocate a value type instance and initialize it with
+int MacroAssembler::store_inline_type_fields_to_buf(ciValueKlass* vk, bool from_interpreter) {
+  // An inline type might be returned. If fields are in registers we
+  // need to allocate an inline type instance and initialize it with
   // the value of the fields.
   Label skip;
   // We only need a new buffered value if a new one is not returned
@@ -5344,9 +5344,9 @@ int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_i
 
 
   if (from_interpreter) {
-    super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
+    super_call_VM_leaf(StubRoutines::store_inline_type_fields_to_buf());
   } else {
-    ldr(rscratch1, RuntimeAddress(StubRoutines::store_value_type_fields_to_buf()));
+    ldr(rscratch1, RuntimeAddress(StubRoutines::store_inline_type_fields_to_buf()));
     blr(rscratch1);
     call_offset = offset();
   }

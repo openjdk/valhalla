@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -2727,7 +2727,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   transform_later(slowpath_true);
 
   CallStaticJavaNode* slow_call = new CallStaticJavaNode(OptoRuntime::store_value_type_fields_Type(),
-                                                         StubRoutines::store_value_type_fields_to_buf(),
+                                                         StubRoutines::store_inline_type_fields_to_buf(),
                                                          "store_value_type_fields",
                                                          call->jvms()->bci(),
                                                          TypePtr::BOTTOM);

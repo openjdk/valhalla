@@ -1163,9 +1163,9 @@ void InterpreterMacroAssembler::remove_activation(
     cmpl(rdi, T_INLINE_TYPE);
     jcc(Assembler::notEqual, skip);
 
-    // We are returning a value type, load its fields into registers
+    // We are returning an inline type, load its fields into registers
 #ifndef _LP64
-    super_call_VM_leaf(StubRoutines::load_value_type_fields_in_regs());
+    super_call_VM_leaf(StubRoutines::load_inline_type_fields_in_regs());
 #else
     // Load fields from a buffered value with a value class specific handler
     Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);

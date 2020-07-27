@@ -1654,7 +1654,7 @@ public:
     reg_written
   };
 
-  int store_value_type_fields_to_buf(ciValueKlass* vk, bool from_interpreter = true);
+  int store_inline_type_fields_to_buf(ciValueKlass* vk, bool from_interpreter = true);
 
   // Unpack all value type arguments passed as oops
   void unpack_value_args(Compile* C, bool receiver_only);

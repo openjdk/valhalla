@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -263,8 +263,8 @@ class StubRoutines: AllStatic {
   static address _safefetchN_fault_pc;
   static address _safefetchN_continuation_pc;
 
-  static address _load_value_type_fields_in_regs;
-  static address _store_value_type_fields_to_buf;
+  static address _load_inline_type_fields_in_regs;
+  static address _store_inline_type_fields_to_buf;
 
  public:
   // Initialization/Testing
@@ -485,8 +485,8 @@ class StubRoutines: AllStatic {
   static void arrayof_oop_copy       (HeapWord* src, HeapWord* dest, size_t count);
   static void arrayof_oop_copy_uninit(HeapWord* src, HeapWord* dest, size_t count);
 
-  static address load_value_type_fields_in_regs() { return _load_value_type_fields_in_regs; }
-  static address store_value_type_fields_to_buf() { return _store_value_type_fields_to_buf; }
+  static address load_inline_type_fields_in_regs() { return _load_inline_type_fields_in_regs; }
+  static address store_inline_type_fields_to_buf() { return _store_inline_type_fields_to_buf; }
 };
 
 // Safefetch allows to load a value from a location that's not known

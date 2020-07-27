@@ -535,8 +535,8 @@ class SharedRuntime: AllStatic {
   static address resolve_virtual_call_C    (JavaThread *thread);
   static address resolve_opt_virtual_call_C(JavaThread *thread);
 
-  static void load_value_type_fields_in_regs(JavaThread *thread, oopDesc* res);
-  static void store_value_type_fields_to_buf(JavaThread *thread, intptr_t res);
+  static void load_inline_type_fields_in_regs(JavaThread *thread, oopDesc* res);
+  static void store_inline_type_fields_to_buf(JavaThread *thread, intptr_t res);
 
   // arraycopy, the non-leaf version.  (See StubRoutines for all the leaf calls.)
   static void slow_arraycopy_C(oopDesc* src,  jint src_pos,
