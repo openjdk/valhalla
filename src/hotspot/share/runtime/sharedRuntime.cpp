@@ -3661,7 +3661,7 @@ JRT_END
 
 // We're returning from an interpreted method: load each field into a
 // register following the calling convention
-JRT_LEAF(void, SharedRuntime::load_value_type_fields_in_regs(JavaThread* thread, oopDesc* res))
+JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* thread, oopDesc* res))
 {
   assert(res->klass()->is_inline_klass(), "only inline types here");
   ResourceMark rm;
@@ -3676,7 +3676,7 @@ JRT_LEAF(void, SharedRuntime::load_value_type_fields_in_regs(JavaThread* thread,
   const Array<VMRegPair>* regs = vk->return_regs();
 
   if (regs == NULL) {
-    // The fields of the value klass don't fit in registers, bail out
+    // The fields of the inline klass don't fit in registers, bail out
     return;
   }
 
@@ -3750,9 +3750,9 @@ JRT_LEAF(void, SharedRuntime::load_value_type_fields_in_regs(JavaThread* thread,
 JRT_END
 
 // We've returned to an interpreted method, the interpreter needs a
-// reference to a value type instance. Allocate it and initialize it
+// reference to an inline type instance. Allocate it and initialize it
 // from field's values in registers.
-JRT_BLOCK_ENTRY(void, SharedRuntime::store_value_type_fields_to_buf(JavaThread* thread, intptr_t res))
+JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread* thread, intptr_t res))
 {
   ResourceMark rm;
   RegisterMap reg_map(thread);
@@ -3764,8 +3764,8 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_value_type_fields_to_buf(JavaThread* 
 #endif
 
   if (!is_set_nth_bit(res, 0)) {
-    // We're not returning with value type fields in registers (the
-    // calling convention didn't allow it for this value klass)
+    // We're not returning with inline type fields in registers (the
+    // calling convention didn't allow it for this inline klass)
     assert(!Metaspace::contains((void*)res), "should be oop or pointer in buffer area");
     thread->set_vm_result((oopDesc*)res);
     assert(verif_vk == NULL, "broken calling convention");

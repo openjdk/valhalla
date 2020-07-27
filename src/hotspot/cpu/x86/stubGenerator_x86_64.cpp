@@ -6481,8 +6481,8 @@ address generate_avx_ghash_processBlocks() {
     StubRoutines::_forward_exception_entry = generate_forward_exception();
 
     // Generate these first because they are called from other stubs
-    StubRoutines::_load_value_type_fields_in_regs = generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_value_type_fields_in_regs), "load_value_type_fields_in_regs", false);
-    StubRoutines::_store_value_type_fields_to_buf = generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_value_type_fields_to_buf), "store_value_type_fields_to_buf", true);
+    StubRoutines::_load_inline_type_fields_in_regs = generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_inline_type_fields_in_regs), "load_inline_type_fields_in_regs", false);
+    StubRoutines::_store_inline_type_fields_to_buf = generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf), "store_inline_type_fields_to_buf", true);
 
     StubRoutines::_call_stub_entry = generate_call_stub(StubRoutines::_call_stub_return_address);
 

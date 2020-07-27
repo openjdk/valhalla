@@ -207,7 +207,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), (int32_t)NULL_WORD);
 
   if (state == atos && InlineTypeReturnedAsFields) {
-    __ store_value_type_fields_to_buf(NULL);
+    __ store_inline_type_fields_to_buf(NULL);
   }
 
   __ restore_bcp();

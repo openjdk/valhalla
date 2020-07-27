@@ -487,7 +487,7 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
 
   ciValueKlass* vk;
   if (op->maybe_return_as_fields(&vk)) {
-    int offset = store_value_type_fields_to_buf(vk);
+    int offset = store_inline_type_fields_to_buf(vk);
     add_call_info(offset, op->info(), true);
   }
 
