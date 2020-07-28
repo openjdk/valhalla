@@ -25,7 +25,6 @@
 #include "precompiled.hpp"
 #include "c1/c1_InstructionPrinter.hpp"
 #include "c1/c1_LIR.hpp"
-
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciInlineKlass.hpp"

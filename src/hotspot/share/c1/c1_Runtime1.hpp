@@ -51,12 +51,12 @@ class StubAssembler;
   stub(fast_new_instance_init_check) \
   stub(new_type_array)               \
   stub(new_object_array)             \
-  stub(new_flat_array)              \
+  stub(new_flat_array)               \
   stub(new_multi_array)              \
   stub(load_flattened_array)         \
   stub(store_flattened_array)        \
   stub(substitutability_check)       \
-  stub(buffer_inline_args)            \
+  stub(buffer_inline_args)           \
   stub(buffer_inline_args_no_receiver)\
   stub(handle_exception_nofpu)         /* optimized version that does not preserve fpu registers */ \
   stub(handle_exception)             \

@@ -381,7 +381,7 @@ void C1_MacroAssembler::verified_inline_entry() {
   // verify_FPU(0, "method_entry");
 }
 
-int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, int bang_size_in_bytes, Label& verified_inline_entry_label, bool is_inline_ro_entry) {
+int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int frame_size_in_bytes, int bang_size_in_bytes, Label& verified_inline_entry_label, bool is_inline_ro_entry) {
   // This function required to support for InlineTypePassFieldsAsArgs
   if (C1Breakpoint || VerifyFPU || !UseStackBanging) {
     // Verified Entry first instruction should be 5 bytes long for correct
@@ -445,8 +445,8 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   add(sp, sp, frame_size_in_bytes);
 
   int n = shuffle_inline_args(true, is_inline_ro_entry, extra_stack_offset, sig_bt, sig_cc,
-                             args_passed_cc, args_on_stack_cc, regs_cc, // from
-                             args_passed, args_on_stack, regs);         // to
+                              args_passed_cc, args_on_stack_cc, regs_cc, // from
+                              args_passed, args_on_stack, regs);         // to
   assert(sp_inc == n, "must be");
 
   if (sp_inc != 0) {

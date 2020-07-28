@@ -174,16 +174,16 @@ int MacroAssembler::unpack_inline_args_common(Compile* C, bool receiver_only) {
     sp_inc = align_up(sp_inc, StackAlignmentInBytes);
   }
   shuffle_inline_args(false, receiver_only, extra_stack_offset, sig_bt, sig_cc,
-                     args_passed, args_on_stack, regs,
-                     args_passed_cc, args_on_stack_cc, regs_cc, sp_inc);
+                      args_passed, args_on_stack, regs,
+                      args_passed_cc, args_on_stack_cc, regs_cc, sp_inc);
   return sp_inc;
 }
 
 void MacroAssembler::shuffle_inline_args_common(bool is_packing, bool receiver_only, int extra_stack_offset,
-                                               BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                                               int args_passed, int args_on_stack, VMRegPair* regs,
-                                               int args_passed_to, int args_on_stack_to, VMRegPair* regs_to,
-                                               int sp_inc, int ret_off) {
+                                                BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
+                                                int args_passed, int args_on_stack, VMRegPair* regs,
+                                                int args_passed_to, int args_on_stack_to, VMRegPair* regs_to,
+                                                int sp_inc, int ret_off) {
   int max_stack = MAX2(args_on_stack + sp_inc/VMRegImpl::stack_slot_size, args_on_stack_to);
   RegState* reg_state = init_reg_state(is_packing, sig_cc, regs, args_passed, sp_inc, max_stack);
 
@@ -214,7 +214,7 @@ void MacroAssembler::shuffle_inline_args_common(bool is_packing, bool receiver_o
         if (spill) {
           // This call returns true IFF we should keep trying to spill in this round.
           spill = shuffle_inline_args_spill(is_packing, sig_cc, sig_index, regs, from_index, args_passed,
-                                           reg_state, ret_off, extra_stack_offset);
+                                            reg_state, ret_off, extra_stack_offset);
         }
         BasicType bt = sig_cc->at(sig_index)._bt;
         if (SigEntry::skip_value_delimiters(sig_cc, sig_index)) {
@@ -225,7 +225,7 @@ void MacroAssembler::shuffle_inline_args_common(bool is_packing, bool receiver_o
           if (is_packing) {
             VMReg reg_to = regs_to[to_index].first();
             done &= pack_inline_helper(sig_cc, sig_index, vtarg_index, reg_to, regs, args_passed, from_index,
-                                      reg_state, ret_off, extra_stack_offset);
+                                       reg_state, ret_off, extra_stack_offset);
             vtarg_index ++;
             to_index ++;
             continue; // from_index already adjusted
@@ -244,8 +244,8 @@ void MacroAssembler::shuffle_inline_args_common(bool is_packing, bool receiver_o
 }
 
 bool MacroAssembler::shuffle_inline_args_spill(bool is_packing, const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
-                                              VMRegPair* regs_from, int from_index, int regs_from_count,
-                                              RegState* reg_state, int ret_off, int extra_stack_offset) {
+                                               VMRegPair* regs_from, int from_index, int regs_from_count,
+                                               RegState* reg_state, int ret_off, int extra_stack_offset) {
   VMReg reg;
 
   if (!is_packing || SigEntry::skip_value_delimiters(sig_cc, sig_cc_index)) {

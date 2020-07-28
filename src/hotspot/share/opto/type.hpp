@@ -95,7 +95,7 @@ public:
     VectorX,                    // 128bit Vector types
     VectorY,                    // 256bit Vector types
     VectorZ,                    // 512bit Vector types
-    InlineType,                  // Inline type
+    InlineType,                 // Inline type
 
     AnyPtr,                     // Any old raw, klass, inst, or array pointer
     RawPtr,                     // Raw (non-oop) pointers
@@ -333,8 +333,8 @@ public:
   const TypeInstPtr  *is_instptr() const;        // Instance
   const TypeAryPtr   *isa_aryptr() const;        // Returns NULL if not AryPtr
   const TypeAryPtr   *is_aryptr() const;         // Array oop
-  const TypeInlineType* isa_inlinetype() const;    // Returns NULL if not Inline Type
-  const TypeInlineType* is_inlinetype() const;     // Inline Type
+  const TypeInlineType* isa_inlinetype() const;  // Returns NULL if not Inline Type
+  const TypeInlineType* is_inlinetype() const;   // Inline Type
 
   const TypeMetadataPtr   *isa_metadataptr() const;   // Returns NULL if not oop ptr type
   const TypeMetadataPtr   *is_metadataptr() const;    // Java-style GC'd pointer

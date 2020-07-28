@@ -810,9 +810,9 @@ nmethod::nmethod(
 #endif
     _entry_point             = code_begin()          + offsets->value(CodeOffsets::Entry);
     _verified_entry_point    = code_begin()          + offsets->value(CodeOffsets::Verified_Entry);
-    _inline_entry_point       = code_begin()          + offsets->value(CodeOffsets::Inline_Entry);
-    _verified_inline_entry_point = code_begin()       + offsets->value(CodeOffsets::Verified_Inline_Entry);
-    _verified_inline_ro_entry_point = code_begin()    + offsets->value(CodeOffsets::Verified_Inline_Entry_RO);
+    _inline_entry_point       = code_begin()         + offsets->value(CodeOffsets::Inline_Entry);
+    _verified_inline_entry_point = code_begin()      + offsets->value(CodeOffsets::Verified_Inline_Entry);
+    _verified_inline_ro_entry_point = code_begin()   + offsets->value(CodeOffsets::Verified_Inline_Entry_RO);
     _osr_entry_point         = code_begin()          + offsets->value(CodeOffsets::OSR_Entry);
     _exception_cache         = NULL;
     _scopes_data_begin       = (address) this + scopes_data_offset;
@@ -3092,10 +3092,10 @@ const char* nmethod::nmethod_section_label(address pos) const {
   const char* label = NULL;
   if (pos == code_begin())                                              label = "[Instructions begin]";
   if (pos == entry_point())                                             label = "[Entry Point]";
-  if (pos == inline_entry_point())                                       label = "[Value Entry Point]";
+  if (pos == inline_entry_point())                                      label = "[Value Entry Point]";
   if (pos == verified_entry_point())                                    label = "[Verified Entry Point]";
-  if (pos == verified_inline_entry_point())                              label = "[Verified Value Entry Point]";
-  if (pos == verified_inline_ro_entry_point())                           label = "[Verified Value Entry Point (RO)]";
+  if (pos == verified_inline_entry_point())                             label = "[Verified Value Entry Point]";
+  if (pos == verified_inline_ro_entry_point())                          label = "[Verified Value Entry Point (RO)]";
   if (has_method_handle_invokes() && (pos == deopt_mh_handler_begin())) label = "[Deopt MH Handler Code]";
   if (pos == consts_begin() && pos != insts_begin())                    label = "[Constants]";
   // Check stub_code before checking exception_handler or deopt_handler.
@@ -3119,9 +3119,9 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
   if (print_section_labels) {
     int n = 0;
     // Multiple entry points may be at the same position. Print them all.
-    n += maybe_print_entry_label(stream, block_begin, entry_point(),                   "[Entry Point]");
+    n += maybe_print_entry_label(stream, block_begin, entry_point(),                    "[Entry Point]");
     n += maybe_print_entry_label(stream, block_begin, inline_entry_point(),             "[Value Entry Point]");
-    n += maybe_print_entry_label(stream, block_begin, verified_entry_point(),          "[Verified Entry Point]");
+    n += maybe_print_entry_label(stream, block_begin, verified_entry_point(),           "[Verified Entry Point]");
     n += maybe_print_entry_label(stream, block_begin, verified_inline_entry_point(),    "[Verified Value Entry Point]");
     n += maybe_print_entry_label(stream, block_begin, verified_inline_ro_entry_point(), "[Verified Value Entry Point (RO)]");
     if (n == 0) {

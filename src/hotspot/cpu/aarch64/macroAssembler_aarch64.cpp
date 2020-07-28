@@ -5410,7 +5410,7 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
 
 // Read all fields from an inline type oop and store the values in registers/stack slots
 bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to,
-                                         int& to_index, RegState reg_state[], int ret_off, int extra_stack_offset) {
+                                          int& to_index, RegState reg_state[], int ret_off, int extra_stack_offset) {
   Register fromReg = from->is_reg() ? from->as_Register() : noreg;
   assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
 
@@ -5498,8 +5498,8 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 
 // Pack fields back into an inline type oop
 bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                                       VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
-                                       int ret_off, int extra_stack_offset) {
+                                        VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
+                                        int ret_off, int extra_stack_offset) {
   assert(sig->at(sig_index)._bt == T_INLINE_TYPE, "should be at end delimiter");
   assert(to->is_valid(), "must be");
 
@@ -5587,9 +5587,9 @@ void MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
 }
 
 int MacroAssembler::shuffle_inline_args(bool is_packing, bool receiver_only, int extra_stack_offset,
-                                       BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                                       int args_passed, int args_on_stack, VMRegPair* regs,            // from
-                                       int args_passed_to, int args_on_stack_to, VMRegPair* regs_to) { // to
+                                        BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
+                                        int args_passed, int args_on_stack, VMRegPair* regs,            // from
+                                        int args_passed_to, int args_on_stack_to, VMRegPair* regs_to) { // to
   // Check if we need to extend the stack for packing/unpacking
   int sp_inc = (args_on_stack_to - args_on_stack) * VMRegImpl::stack_slot_size;
   if (sp_inc > 0) {
@@ -5620,10 +5620,10 @@ int MacroAssembler::shuffle_inline_args(bool is_packing, bool receiver_only, int
   }
 
   return shuffle_inline_args_common(is_packing, receiver_only, extra_stack_offset,
-                                   sig_bt, sig_cc,
-                                   args_passed, args_on_stack, regs,
-                                   args_passed_to, args_on_stack_to, regs_to,
-                                   sp_inc, ret_off);
+                                    sig_bt, sig_cc,
+                                    args_passed, args_on_stack, regs,
+                                    args_passed_to, args_on_stack_to, regs_to,
+                                    sp_inc, ret_off);
 }
 
 VMReg MacroAssembler::spill_reg_for(VMReg reg) {

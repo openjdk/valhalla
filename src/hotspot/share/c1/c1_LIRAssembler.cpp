@@ -28,7 +28,6 @@
 #include "c1/c1_Instruction.hpp"
 #include "c1/c1_InstructionPrinter.hpp"
 #include "c1/c1_LIRAssembler.hpp"
-
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciInlineKlass.hpp"
@@ -624,15 +623,15 @@ void LIR_Assembler::add_scalarized_entry_info(int pc_offset) {
 //     Separate VEP, VIEP and VIEP_RO
 //
 // (1)               (2)                 (3)                    (4)
-// UEP/UVEP:         VEP:                UEP:                   UEP:
+// UEP/UIEP:         VEP:                UEP:                   UEP:
 //   check_icache      pack receiver       check_icache           check_icache
 // VEP/VIEP/VIEP_RO    jump to VIEP      VEP/VIEP_RO:           VIEP_RO:
-//   body            UEP/UVEP:             pack inline args       pack inline args (except receiver)
+//   body            UEP/UIEP:             pack inline args       pack inline args (except receiver)
 //                     check_icache        jump to VIEP           jump to VIEP
-//                   VIEP/VIEP_RO        UVEP:                  VEP:
+//                   VIEP/VIEP_RO        UIEP:                  VEP:
 //                     body                check_icache           pack all inline args
 //                                       VIEP:                    jump to VIEP
-//                                         body                 UVEP:
+//                                         body                 UIEP:
 //                                                                check_icache
 //                                                              VIEP:
 //                                                                body
@@ -662,12 +661,12 @@ void LIR_Assembler::emit_std_entries() {
     _masm->align(CodeEntryAlignment);
     emit_std_entry(CodeOffsets::Verified_Entry, ces);
 
-    // UVEP: check icache and fall-through
+    // UIEP: check icache and fall-through
     _masm->align(CodeEntryAlignment);
     offsets()->set_value(CodeOffsets::Inline_Entry, _masm->offset());
     if (ro_entry_type == CodeOffsets::Verified_Inline_Entry) {
       // Special case if we have VIEP == VIEP(RO):
-      // this means UVEP (called by C1) == UEP (called by C2).
+      // this means UIEP (called by C1) == UEP (called by C2).
       offsets()->set_value(CodeOffsets::Entry, _masm->offset());
     }
     if (needs_icache(method())) {

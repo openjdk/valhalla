@@ -24,7 +24,6 @@
 
 #include "precompiled.hpp"
 #include "c1/c1_InstructionPrinter.hpp"
-
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArray.hpp"
 #include "ci/ciInlineKlass.hpp"

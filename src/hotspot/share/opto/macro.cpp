@@ -1048,7 +1048,7 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         _igvn._worklist.push(ac);
       } else if (use->is_InlineType()) {
         assert(use->isa_InlineType()->get_oop() == res, "unexpected inline type use");
-         _igvn.rehash_node_delayed(use);
+        _igvn.rehash_node_delayed(use);
         use->isa_InlineType()->set_oop(_igvn.zerocon(T_INLINE_TYPE));
       } else if (use->is_Store()) {
         _igvn.replace_node(use, use->in(MemNode::Memory));

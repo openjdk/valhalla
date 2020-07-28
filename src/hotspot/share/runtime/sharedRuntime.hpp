@@ -744,14 +744,14 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
 // For details, see comments around Method::link_method()
 class CDSAdapterHandlerEntry: public AdapterHandlerEntry {
   address               _c2i_entry_trampoline;           // allocated from shared spaces "MC" region
-  address               _c2i_inline_ro_entry_trampoline;  // allocated from shared spaces "MC" region
-  address               _c2i_inline_entry_trampoline;     // allocated from shared spaces "MC" region
+  address               _c2i_inline_ro_entry_trampoline; // allocated from shared spaces "MC" region
+  address               _c2i_inline_entry_trampoline;    // allocated from shared spaces "MC" region
   AdapterHandlerEntry** _adapter_trampoline;             // allocated from shared spaces "MD" region
 
 public:
   address get_c2i_entry_trampoline()             const { return _c2i_entry_trampoline; }
-  address get_c2i_inline_ro_entry_trampoline()    const { return _c2i_inline_ro_entry_trampoline; }
-  address get_c2i_inline_entry_trampoline()       const { return _c2i_inline_entry_trampoline; }
+  address get_c2i_inline_ro_entry_trampoline()   const { return _c2i_inline_ro_entry_trampoline; }
+  address get_c2i_inline_entry_trampoline()      const { return _c2i_inline_entry_trampoline; }
   AdapterHandlerEntry** get_adapter_trampoline() const { return _adapter_trampoline; }
   void init() NOT_CDS_RETURN;
 };
@@ -786,8 +786,8 @@ class AdapterHandlerLibrary: public AllStatic {
 // Utility class for computing the calling convention of the 3 types
 // of compiled method entries:
 //     Method::_from_compiled_entry               - sig_cc
-//     Method::_from_compiled_inline_ro_entry      - sig_cc_ro
-//     Method::_from_compiled_inline_entry         - sig
+//     Method::_from_compiled_inline_ro_entry     - sig_cc_ro
+//     Method::_from_compiled_inline_entry        - sig
 class CompiledEntrySignature : public StackObj {
   Method* _method;
   int  _num_inline_args;
@@ -829,7 +829,7 @@ public:
   int args_on_stack_cc_ro()            const { return _args_on_stack_cc_ro; }
 
   int  num_inline_args()               const { return _num_inline_args; }
-  bool has_inline_arg()                const { return _num_inline_args > 0;  }
+  bool has_inline_arg()                const { return _num_inline_args > 0; }
   bool has_inline_recv()               const { return _has_inline_recv; }
 
   bool has_scalarized_args()           const { return _has_scalarized_args; }

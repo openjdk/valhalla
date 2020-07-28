@@ -3842,7 +3842,7 @@ const Type* TypeInstPtr::get_const_boxed_value() const {
     case T_LONG:     return TypeLong::make(constant.as_long());
     default:         break;
   }
-  fatal("Invalid boxed inline type '%s'", type2name(bt));
+  fatal("Invalid boxed value type '%s'", type2name(bt));
   return NULL;
 }
 

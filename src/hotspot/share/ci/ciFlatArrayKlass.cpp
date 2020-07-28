@@ -22,7 +22,6 @@
  *
  */
 
-
 #include "precompiled.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"

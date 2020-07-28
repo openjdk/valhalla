@@ -384,7 +384,7 @@ void C1_MacroAssembler::verified_entry() {
   IA32_ONLY( verify_FPU(0, "method_entry"); )
 }
 
-int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_inline_entry_label, bool is_inline_ro_entry) {
+int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_inline_entry_label, bool is_inline_ro_entry) {
   assert(InlineTypePassFieldsAsArgs, "sanity");
   // Make sure there is enough stack space for this method's activation.
   assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
@@ -434,8 +434,8 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   pop(rbp);
 
   shuffle_inline_args(true, is_inline_ro_entry, extra_stack_offset, sig_bt, sig_cc,
-                     args_passed_cc, args_on_stack_cc, regs_cc, // from
-                     args_passed, args_on_stack, regs, sp_inc); // to
+                      args_passed_cc, args_on_stack_cc, regs_cc, // from
+                      args_passed, args_on_stack, regs, sp_inc); // to
 
   if (ces->c1_needs_stack_repair()) {
     // Create the real frame. Below jump will then skip over the stack banging and frame

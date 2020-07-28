@@ -452,11 +452,11 @@ class nmethod : public CompiledMethod {
   bool scopes_pcs_contains   (PcDesc* addr) const { return scopes_pcs_begin   () <= addr && addr < scopes_pcs_end   (); }
 
   // entry points
-  address entry_point() const                     { return _entry_point;             }       // normal entry point
-  address verified_entry_point() const            { return _verified_entry_point;    }       // normal entry point without class check
-  address inline_entry_point() const               { return _inline_entry_point; }             // inline type entry point (unpack all inline type args)
-  address verified_inline_entry_point() const      { return _verified_inline_entry_point; }    // inline type entry point (unpack all inline type args) without class check
-  address verified_inline_ro_entry_point() const   { return _verified_inline_ro_entry_point; } // inline type entry point (only unpack receiver) without class check
+  address entry_point() const                     { return _entry_point;             }        // normal entry point
+  address verified_entry_point() const            { return _verified_entry_point;    }        // normal entry point without class check
+  address inline_entry_point() const              { return _inline_entry_point; }             // inline type entry point (unpack all inline type args)
+  address verified_inline_entry_point() const     { return _verified_inline_entry_point; }    // inline type entry point (unpack all inline type args) without class check
+  address verified_inline_ro_entry_point() const  { return _verified_inline_ro_entry_point; } // inline type entry point (only unpack receiver) without class check
 
   // flag accessing and manipulation
   bool  is_not_installed() const                  { return _state == not_installed; }

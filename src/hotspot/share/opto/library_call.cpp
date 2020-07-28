@@ -3725,7 +3725,7 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
       case ObjectArray:    query = Klass::layout_helper_is_objArray(layout_con); break;
       case NonObjectArray: query = !Klass::layout_helper_is_objArray(layout_con); break;
       case TypeArray:      query = Klass::layout_helper_is_typeArray(layout_con); break;
-      case FlatArray:     query = Klass::layout_helper_is_flatArray(layout_con); break;
+      case FlatArray:      query = Klass::layout_helper_is_flatArray(layout_con); break;
       case AnyArray:       query = Klass::layout_helper_is_array(layout_con); break;
       case NonArray:       query = !Klass::layout_helper_is_array(layout_con); break;
       default:

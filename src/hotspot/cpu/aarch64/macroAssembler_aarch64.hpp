@@ -1205,19 +1205,19 @@ public:
   void unpack_inline_args(Compile* C, bool receiver_only);
   bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset);
   bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index,
-                           RegState reg_state[], int ret_off, int extra_stack_offset);
+                            RegState reg_state[], int ret_off, int extra_stack_offset);
   bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                         VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
-                         int ret_off, int extra_stack_offset);
+                          VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
+                          int ret_off, int extra_stack_offset);
   void restore_stack(Compile* C);
 
   int shuffle_inline_args(bool is_packing, bool receiver_only, int extra_stack_offset,
-                         BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                         int args_passed, int args_on_stack, VMRegPair* regs,
-                         int args_passed_to, int args_on_stack_to, VMRegPair* regs_to);
+                          BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
+                          int args_passed, int args_on_stack, VMRegPair* regs,
+                          int args_passed_to, int args_on_stack_to, VMRegPair* regs_to);
   bool shuffle_inline_args_spill(bool is_packing,  const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
-                                VMRegPair* regs_from, int from_index, int regs_from_count,
-                                RegState* reg_state, int sp_inc, int extra_stack_offset);
+                                 VMRegPair* regs_from, int from_index, int regs_from_count,
+                                 RegState* reg_state, int sp_inc, int extra_stack_offset);
   VMReg spill_reg_for(VMReg reg);
 
 

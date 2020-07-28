@@ -2725,7 +2725,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
     if (method->adapter() == NULL) {
       method->update_adapter_trampoline(entry);
     }
-    generate_trampoline(method->from_compiled_entry(),          entry->get_c2i_entry());
+    generate_trampoline(method->from_compiled_entry(),           entry->get_c2i_entry());
     generate_trampoline(method->from_compiled_inline_ro_entry(), entry->get_c2i_inline_ro_entry());
     generate_trampoline(method->from_compiled_inline_entry(),    entry->get_c2i_inline_entry());
   }

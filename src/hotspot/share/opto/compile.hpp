@@ -318,7 +318,7 @@ class Compile : public Phase {
   GrowableArray<Node*>* _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>* _range_check_casts;     // List of CastII nodes with a range check dependency
   GrowableArray<Node*>* _opaque4_nodes;         // List of Opaque4 nodes that have a default value
-  GrowableArray<Node*>* _inline_type_nodes;      // List of InlineType nodes
+  GrowableArray<Node*>* _inline_type_nodes;     // List of InlineType nodes
   ConnectionGraph*      _congraph;
 #ifndef PRODUCT
   IdealGraphPrinter*    _printer;

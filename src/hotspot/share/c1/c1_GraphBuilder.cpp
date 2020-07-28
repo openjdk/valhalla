@@ -27,7 +27,6 @@
 #include "c1/c1_Canonicalizer.hpp"
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_GraphBuilder.hpp"
-
 #include "c1/c1_InstructionPrinter.hpp"
 #include "ci/ciCallSite.hpp"
 #include "ci/ciField.hpp"

@@ -29,7 +29,6 @@
 #include "c1/c1_Instruction.hpp"
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_LIRGenerator.hpp"
-
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArrayKlass.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
