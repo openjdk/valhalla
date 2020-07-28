@@ -244,7 +244,7 @@ NewObjectArrayStub::NewObjectArrayStub(LIR_Opr klass_reg, LIR_Opr length, LIR_Op
   _result = result;
   _length = length;
   _info = new CodeEmitInfo(info);
-  _is_inline_type = is_inline_type; 
+  _is_inline_type = is_inline_type;
 }
 
 
