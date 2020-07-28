@@ -1167,7 +1167,7 @@ void InterpreterMacroAssembler::remove_activation(
 #ifndef _LP64
     super_call_VM_leaf(StubRoutines::load_inline_type_fields_in_regs());
 #else
-    // Load fields from a buffered value with a value class specific handler
+    // Load fields from a buffered value with an inline class specific handler
     Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
     load_klass(rdi, rax, tmp_load_klass);
     movptr(rdi, Address(rdi, InstanceKlass::adr_inlineklass_fixed_block_offset()));

@@ -33,12 +33,12 @@
 #include "opto/callGenerator.hpp"
 #include "opto/castnode.hpp"
 #include "opto/cfgnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/mulnode.hpp"
 #include "opto/parse.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
 #include "opto/subnode.hpp"
-#include "opto/valuetypenode.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/sharedRuntime.hpp"
 
@@ -542,8 +542,8 @@ void Parse::do_call() {
   if (is_virtual_or_interface) {
     Node* receiver_node             = stack(sp() - nargs);
     const TypeOopPtr* receiver_type = NULL;
-    if (receiver_node->is_ValueType()) {
-      receiver_type = TypeInstPtr::make(TypePtr::NotNull, _gvn.type(receiver_node)->value_klass());
+    if (receiver_node->is_InlineType()) {
+      receiver_type = TypeInstPtr::make(TypePtr::NotNull, _gvn.type(receiver_node)->inline_klass());
     } else {
       receiver_type = _gvn.type(receiver_node)->isa_oopptr();
     }
@@ -633,7 +633,7 @@ void Parse::do_call() {
   Node* receiver = has_receiver ? argument(0) : NULL;
 
   // The extra CheckCastPPs for speculative types mess with PhaseStringOpts
-  if (receiver != NULL && !receiver->is_ValueType() && !call_does_dispatch && !cg->is_string_late_inline()) {
+  if (receiver != NULL && !receiver->is_InlineType() && !call_does_dispatch && !cg->is_string_late_inline()) {
     // Feed profiling data for a single receiver to the type system so
     // it can propagate it as a speculative type
     receiver = record_profiled_receiver_for_speculation(receiver);
@@ -717,7 +717,7 @@ void Parse::do_call() {
             if (ct == T_INLINE_TYPE) {
               sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
             }
-            if (arg_type != NULL && !arg_type->higher_equal(sig_type) && !peek()->is_ValueType()) {
+            if (arg_type != NULL && !arg_type->higher_equal(sig_type) && !peek()->is_InlineType()) {
               Node* retnode = pop();
               Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
               push(cast_obj);
@@ -743,11 +743,11 @@ void Parse::do_call() {
              "mismatched return types: rtype=%s, ctype=%s", rtype->name(), ctype->name());
     }
 
-    if (rtype->basic_type() == T_INLINE_TYPE && !peek()->is_ValueType()) {
+    if (rtype->basic_type() == T_INLINE_TYPE && !peek()->is_InlineType()) {
       Node* retnode = pop();
       assert(!gvn().type(retnode)->maybe_null(), "should never be null");
-      if (rtype->as_value_klass()->is_scalarizable()) {
-        retnode = ValueTypeNode::make_from_oop(this, retnode, rtype->as_value_klass());
+      if (rtype->as_inline_klass()->is_scalarizable()) {
+        retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass());
       }
       push_node(T_INLINE_TYPE, retnode);
     }

@@ -345,7 +345,7 @@ void InlineKlass::initialize_calling_convention(TRAPS) {
           return_regs->at_put(i, regs[i]);
         }
 
-        BufferedValueTypeBlob* buffered_blob = SharedRuntime::generate_buffered_inline_type_adapter(this);
+        BufferedInlineTypeBlob* buffered_blob = SharedRuntime::generate_buffered_inline_type_adapter(this);
         *((address*)adr_pack_handler()) = buffered_blob->pack_fields();
         *((address*)adr_pack_handler_jobject()) = buffered_blob->pack_fields_jobject();
         *((address*)adr_unpack_handler()) = buffered_blob->unpack_fields();
@@ -378,7 +378,7 @@ void InlineKlass::cleanup(InlineKlass* ik) {
 void InlineKlass::cleanup_blobs() {
   if (pack_handler() != NULL) {
     CodeBlob* buffered_blob = CodeCache::find_blob(pack_handler());
-    assert(buffered_blob->is_buffered_value_type_blob(), "bad blob type");
+    assert(buffered_blob->is_buffered_inline_type_blob(), "bad blob type");
     BufferBlob::free((BufferBlob*)buffered_blob);
     *((address*)adr_pack_handler()) = NULL;
     *((address*)adr_pack_handler_jobject()) = NULL;

@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "ci/ciFlatArrayKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "opto/arraycopynode.hpp"
 #include "oops/objArrayKlass.hpp"
@@ -1157,8 +1158,8 @@ void PhaseMacroExpand::generate_unchecked_arraycopy(Node** ctrl, MergeMemNode** 
 const TypePtr* PhaseMacroExpand::adjust_parameters_for_vt(const TypeAryPtr* top_dest, Node*& src_offset,
                                                           Node*& dest_offset, Node*& length, BasicType& dest_elem,
                                                           Node*& dest_length) {
-  assert(top_dest->klass()->is_value_array_klass(), "inconsistent");
-  int elem_size = ((ciValueArrayKlass*)top_dest->klass())->element_byte_size();
+  assert(top_dest->klass()->is_flat_array_klass(), "inconsistent");
+  int elem_size = ((ciFlatArrayKlass*)top_dest->klass())->element_byte_size();
   if (elem_size >= 8) {
     if (elem_size > 8) {
       // treat as array of long but scale length, src offset and dest offset
@@ -1276,7 +1277,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     if (top_src->klass_is_exact()) {
       src_elem = T_OBJECT;
     } else {
-      assert(!top_src->klass()->is_valuetype(), "klass should be exact");
+      assert(!top_src->klass()->is_inlinetype(), "klass should be exact");
       src_elem = T_CONFLICT; // either flattened or not
     }
   }
@@ -1286,7 +1287,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     if (top_dest->klass_is_exact()) {
       dest_elem = T_OBJECT;
     } else {
-      assert(!top_dest->klass()->is_valuetype(), "klass should be exact");
+      assert(!top_dest->klass()->is_inlinetype(), "klass should be exact");
       dest_elem = T_CONFLICT; // either flattened or not
     }
   }
@@ -1333,7 +1334,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   // (2) src and dest arrays must have elements of the same BasicType
   // Figure out the size and type of the elements we will be copying.
   //
-  // We have no stub to copy flattened value type arrays with oop
+  // We have no stub to copy flattened inline type arrays with oop
   // fields if we need to emit write barriers.
   //
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
@@ -1413,11 +1414,11 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     // (9) each element of an oop array must be assignable
     // The generate_arraycopy subroutine checks this.
 
-    if (dest_elem == T_OBJECT && !top_dest->elem()->isa_valuetype() && !top_dest->is_not_flat()) {
+    if (dest_elem == T_OBJECT && !top_dest->elem()->isa_inlinetype() && !top_dest->is_not_flat()) {
       generate_flattened_array_guard(&ctrl, merge_mem, dest, slow_region);
     }
 
-    if (src_elem == T_OBJECT && !top_src->elem()->isa_valuetype() && !top_src->is_not_flat()) {
+    if (src_elem == T_OBJECT && !top_src->elem()->isa_inlinetype() && !top_src->is_not_flat()) {
       generate_flattened_array_guard(&ctrl, merge_mem, src, slow_region);
     }
   }

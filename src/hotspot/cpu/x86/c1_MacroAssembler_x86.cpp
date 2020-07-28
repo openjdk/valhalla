@@ -65,7 +65,7 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   // and mark it as unlocked
   orptr(hdr, markWord::unlocked_value);
   if (EnableValhalla && !UseBiasedLocking) {
-    // Mask always_locked bit such that we go to the slow path if object is a value type
+    // Mask always_locked bit such that we go to the slow path if object is an inline type
     andptr(hdr, ~((int) markWord::biased_lock_bit_in_place));
   }
   // save unlocked object header into the displaced header location on the stack
@@ -341,13 +341,13 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_inc, 
   }
 }
 
-void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, bool needs_stack_repair, bool has_scalarized_args, Label* verified_value_entry_label) {
+void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, bool needs_stack_repair, bool has_scalarized_args, Label* verified_inline_entry_label) {
   if (has_scalarized_args) {
     // Initialize orig_pc to detect deoptimization during buffering in the entry points
     movptr(Address(rsp, sp_offset_for_orig_pc - frame_size_in_bytes - wordSize), 0);
   }
-  if (!needs_stack_repair && verified_value_entry_label != NULL) {
-    bind(*verified_value_entry_label);
+  if (!needs_stack_repair && verified_inline_entry_label != NULL) {
+    bind(*verified_inline_entry_label);
   }
   // Make sure there is enough stack space for this method's activation.
   // Note that we do this before doing an enter(). This matches the
@@ -359,10 +359,10 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
 
   build_frame_helper(frame_size_in_bytes, 0, needs_stack_repair);
 
-  if (needs_stack_repair && verified_value_entry_label != NULL) {
+  if (needs_stack_repair && verified_inline_entry_label != NULL) {
     // Jump here from the scalarized entry points that require additional stack space
     // for packing scalarized arguments and therefore already created the frame.
-    bind(*verified_value_entry_label);
+    bind(*verified_inline_entry_label);
   }
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->nmethod_entry_barrier(this);
@@ -384,20 +384,20 @@ void C1_MacroAssembler::verified_entry() {
   IA32_ONLY( verify_FPU(0, "method_entry"); )
 }
 
-int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_value_entry_label, bool is_value_ro_entry) {
+int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_inline_entry_label, bool is_inline_ro_entry) {
   assert(InlineTypePassFieldsAsArgs, "sanity");
   // Make sure there is enough stack space for this method's activation.
   assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
   generate_stack_overflow_check(bang_size_in_bytes);
 
   GrowableArray<SigEntry>* sig    = &ces->sig();
-  GrowableArray<SigEntry>* sig_cc = is_value_ro_entry ? &ces->sig_cc_ro() : &ces->sig_cc();
+  GrowableArray<SigEntry>* sig_cc = is_inline_ro_entry ? &ces->sig_cc_ro() : &ces->sig_cc();
   VMRegPair* regs      = ces->regs();
-  VMRegPair* regs_cc   = is_value_ro_entry ? ces->regs_cc_ro() : ces->regs_cc();
+  VMRegPair* regs_cc   = is_inline_ro_entry ? ces->regs_cc_ro() : ces->regs_cc();
   int args_on_stack    = ces->args_on_stack();
-  int args_on_stack_cc = is_value_ro_entry ? ces->args_on_stack_cc_ro() : ces->args_on_stack_cc();
+  int args_on_stack_cc = is_inline_ro_entry ? ces->args_on_stack_cc_ro() : ces->args_on_stack_cc();
 
-  assert(sig->length() <= sig_cc->length(), "Zero-sized value class not allowed!");
+  assert(sig->length() <= sig_cc->length(), "Zero-sized inline class not allowed!");
   BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, sig_cc->length());
   int args_passed = sig->length();
   int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
@@ -420,12 +420,12 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   // Initialize orig_pc to detect deoptimization during buffering in below runtime call
   movptr(Address(rsp, sp_offset_for_orig_pc), 0);
 
-  // FIXME -- call runtime only if we cannot in-line allocate all the incoming value args.
+  // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   movptr(rbx, (intptr_t)(ces->method()));
-  if (is_value_ro_entry) {
-    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_value_args_no_receiver_id)));
+  if (is_inline_ro_entry) {
+    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_inline_args_no_receiver_id)));
   } else {
-    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_value_args_id)));
+    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_inline_args_id)));
   }
   int rt_call_offset = offset();
 
@@ -433,17 +433,17 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   addptr(rsp, frame_size_in_bytes);
   pop(rbp);
 
-  shuffle_value_args(true, is_value_ro_entry, extra_stack_offset, sig_bt, sig_cc,
+  shuffle_inline_args(true, is_inline_ro_entry, extra_stack_offset, sig_bt, sig_cc,
                      args_passed_cc, args_on_stack_cc, regs_cc, // from
                      args_passed, args_on_stack, regs, sp_inc); // to
 
   if (ces->c1_needs_stack_repair()) {
     // Create the real frame. Below jump will then skip over the stack banging and frame
-    // setup code in the verified_value_entry (which has a different real_frame_size).
+    // setup code in the verified_inline_entry (which has a different real_frame_size).
     build_frame_helper(frame_size_in_bytes, sp_inc, true);
   }
 
-  jmp(verified_value_entry_label);
+  jmp(verified_inline_entry_label);
   return rt_call_offset;
 }
 

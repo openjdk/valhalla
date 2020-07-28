@@ -73,7 +73,7 @@ class JNIid;
 class JvmtiCachedClassFieldMap;
 class nmethodBucket;
 class OopMapCache;
-class BufferedValueTypeBlob;
+class BufferedInlineTypeBlob;
 class InterpreterOopMap;
 class PackageEntry;
 class ModuleEntry;
@@ -442,7 +442,7 @@ class InstanceKlass: public Klass {
   }
 
   // Query if this class implements jl.NonTearable or was
-  // mentioned in the JVM option AlwaysAtomicValueTypes.
+  // mentioned in the JVM option ForceNonTearable.
   // This bit can occur anywhere, but is only significant
   // for inline classes *and* their super types.
   // It inherits from supers along with NonTearable.

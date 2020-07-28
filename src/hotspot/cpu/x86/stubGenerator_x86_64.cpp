@@ -6326,9 +6326,9 @@ address generate_avx_ghash_processBlocks() {
   }
 
   // Call here from the interpreter or compiled code to either load
-  // multiple returned values from the value type instance being
+  // multiple returned values from the inline type instance being
   // returned to registers or to store returned values to a newly
-  // allocated value type instance.
+  // allocated inline type instance.
   address generate_return_value_stub(address destination, const char* name, bool has_res) {
     // We need to save all registers the calling convention may use so
     // the runtime calls read or update those registers. This needs to

@@ -46,7 +46,7 @@ class ciKlass : public ciType {
   friend class ciObjArrayKlass;
   friend class ciReceiverTypeData;
   friend class ciSignature;
-  friend class ciValueArrayKlass;
+  friend class ciFlatArrayKlass;
 
 private:
   ciSymbol* _name;
@@ -109,11 +109,11 @@ public:
     return false;
   }
 
-  virtual bool can_be_value_klass(bool is_exact = false) {
+  virtual bool can_be_inline_klass(bool is_exact = false) {
     return false;
   }
 
-  virtual bool can_be_value_array_klass() {
+  virtual bool can_be_inline_array_klass() {
     return EnableValhalla && is_java_lang_Object();
   }
 

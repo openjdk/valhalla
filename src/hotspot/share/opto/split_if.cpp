@@ -25,9 +25,9 @@
 #include "precompiled.hpp"
 #include "memory/allocation.inline.hpp"
 #include "opto/callnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/movenode.hpp"
-#include "opto/valuetypenode.hpp"
 
 
 //------------------------------split_thru_region------------------------------
@@ -239,12 +239,12 @@ bool PhaseIdealLoop::split_up( Node *n, Node *blk1, Node *blk2 ) {
     rtype = TypeLong::INT;
   }
 
-  // Value types should not be split through Phis but each value input
-  // needs to be merged individually. At this point, value types should
+  // Inline types should not be split through Phis but each value input
+  // needs to be merged individually. At this point, inline types should
   // only be used by AllocateNodes. Try to remove redundant allocations
-  // and unlink the now dead value type node.
-  if (n->is_ValueType()) {
-    n->as_ValueType()->remove_redundant_allocations(&_igvn, this);
+  // and unlink the now dead inline type node.
+  if (n->is_InlineType()) {
+    n->as_InlineType()->remove_redundant_allocations(&_igvn, this);
     return true; // n is now dead
   }
 

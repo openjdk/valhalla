@@ -25,12 +25,13 @@
 #include "precompiled.hpp"
 #include "c1/c1_IR.hpp"
 #include "c1/c1_Instruction.hpp"
+
 #include "c1/c1_InstructionPrinter.hpp"
 #include "c1/c1_ValueStack.hpp"
+#include "ci/ciFlatArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
-#include "ci/ciValueArrayKlass.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "utilities/bitMap.inline.hpp"
 
 
@@ -129,7 +130,7 @@ ciKlass* Instruction::as_loaded_klass_or_null() const {
 bool Instruction::is_loaded_flattened_array() const {
   if (UseFlatArray) {
     ciType* type = declared_type();
-    return type != NULL && type->is_value_array_klass();
+    return type != NULL && type->is_flat_array_klass();
   }
   return false;
 }
@@ -141,12 +142,12 @@ bool Instruction::maybe_flattened_array() {
       if (type->is_obj_array_klass()) {
         // Due to array covariance, the runtime type might be a flattened array.
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
-        if (element_klass->can_be_value_klass() && (!element_klass->is_valuetype() || element_klass->as_value_klass()->flatten_array())) {
+        if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->flatten_array())) {
           return true;
         }
-      } else if (type->is_value_array_klass()) {
-        ciKlass* element_klass = type->as_value_array_klass()->element_klass();
-        assert(!element_klass->is_loaded() || element_klass->as_value_klass()->flatten_array(), "must be flattened");
+      } else if (type->is_flat_array_klass()) {
+        ciKlass* element_klass = type->as_flat_array_klass()->element_klass();
+        assert(!element_klass->is_loaded() || element_klass->as_inline_klass()->flatten_array(), "must be flattened");
         return true;
       } else if (type->is_klass() && type->as_klass()->is_java_lang_Object()) {
         // This can happen as a parameter to System.arraycopy()
@@ -167,7 +168,7 @@ bool Instruction::maybe_null_free_array() {
     if (type->is_obj_array_klass()) {
       // Due to array covariance, the runtime type might be a null-free array.
       ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
-      if (element_klass->can_be_value_klass()) {
+      if (element_klass->can_be_inline_klass()) {
         return true;
       }
     }
@@ -265,7 +266,7 @@ ciType* LoadIndexed::declared_type() const {
 
 bool StoreIndexed::is_exact_flattened_array_store() const {
   if (array()->is_loaded_flattened_array() && value()->as_Constant() == NULL && value()->declared_type() != NULL) {
-    ciKlass* element_klass = array()->declared_type()->as_value_array_klass()->element_klass();
+    ciKlass* element_klass = array()->declared_type()->as_flat_array_klass()->element_klass();
     ciKlass* actual_klass = value()->declared_type()->as_klass();
 
     // The following check can fail with inlining:
@@ -307,20 +308,20 @@ ciType* NewInstance::declared_type() const {
   return exact_type();
 }
 
-Value NewValueTypeInstance::depends_on() {
+Value NewInlineTypeInstance::depends_on() {
   if (_depends_on != this) {
-    if (_depends_on->as_NewValueTypeInstance() != NULL) {
-      return _depends_on->as_NewValueTypeInstance()->depends_on();
+    if (_depends_on->as_NewInlineTypeInstance() != NULL) {
+      return _depends_on->as_NewInlineTypeInstance()->depends_on();
     }
   }
   return _depends_on;
 }
 
-ciType* NewValueTypeInstance::exact_type() const {
+ciType* NewInlineTypeInstance::exact_type() const {
   return klass();
 }
 
-ciType* NewValueTypeInstance::declared_type() const {
+ciType* NewInlineTypeInstance::declared_type() const {
   return exact_type();
 }
 

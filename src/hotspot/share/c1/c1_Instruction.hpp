@@ -72,7 +72,7 @@ class   ExceptionObject;
 class   StateSplit;
 class     Invoke;
 class     NewInstance;
-class     NewValueTypeInstance;
+class     NewInlineTypeInstance;
 class     NewArray;
 class       NewTypeArray;
 class       NewObjectArray;
@@ -180,7 +180,7 @@ class InstructionVisitor: public StackObj {
   virtual void do_TypeCast       (TypeCast*        x) = 0;
   virtual void do_Invoke         (Invoke*          x) = 0;
   virtual void do_NewInstance    (NewInstance*     x) = 0;
-  virtual void do_NewValueTypeInstance(NewValueTypeInstance* x) = 0;
+  virtual void do_NewInlineTypeInstance(NewInlineTypeInstance* x) = 0;
   virtual void do_NewTypeArray   (NewTypeArray*    x) = 0;
   virtual void do_NewObjectArray (NewObjectArray*  x) = 0;
   virtual void do_NewMultiArray  (NewMultiArray*   x) = 0;
@@ -586,7 +586,7 @@ class Instruction: public CompilationResourceObj {
   virtual StateSplit*       as_StateSplit()      { return NULL; }
   virtual Invoke*           as_Invoke()          { return NULL; }
   virtual NewInstance*      as_NewInstance()     { return NULL; }
-  virtual NewValueTypeInstance* as_NewValueTypeInstance() { return NULL; }
+  virtual NewInlineTypeInstance* as_NewInlineTypeInstance() { return NULL; }
   virtual NewArray*         as_NewArray()        { return NULL; }
   virtual NewTypeArray*     as_NewTypeArray()    { return NULL; }
   virtual NewObjectArray*   as_NewObjectArray()  { return NULL; }
@@ -869,7 +869,7 @@ LEAF(LoadField, AccessField)
   // creation
   LoadField(Value obj, int offset, ciField* field, bool is_static,
             ValueStack* state_before, bool needs_patching,
-            ciValueKlass* value_klass = NULL, Value default_value = NULL )
+            ciInlineKlass* inline_klass = NULL, Value default_value = NULL )
   : AccessField(obj, offset, field, is_static, state_before, needs_patching)
   {
     set_never_null(field->signature()->is_Q_signature());
@@ -1002,7 +1002,7 @@ BASE(AccessIndexed, AccessArray)
 LEAF(LoadIndexed, AccessIndexed)
  private:
   NullCheck*  _explicit_null_check;              // For explicit null check elimination
-  NewValueTypeInstance* _vt;
+  NewInlineTypeInstance* _vt;
 
  public:
   // creation
@@ -1020,8 +1020,8 @@ LEAF(LoadIndexed, AccessIndexed)
   ciType* exact_type() const;
   ciType* declared_type() const;
 
-  NewValueTypeInstance* vt() const { return _vt; }
-  void set_vt(NewValueTypeInstance* vt) { _vt = vt; }
+  NewInlineTypeInstance* vt() const { return _vt; }
+  void set_vt(NewInlineTypeInstance* vt) { _vt = vt; }
 
   // generic
   HASHING4(LoadIndexed, !should_profile(), type()->tag(), array()->subst(), index()->subst(), vt())
@@ -1371,16 +1371,16 @@ LEAF(NewInstance, StateSplit)
   ciType* declared_type() const;
 };
 
-LEAF(NewValueTypeInstance, StateSplit)
+LEAF(NewInlineTypeInstance, StateSplit)
   bool _is_unresolved;
-  ciValueKlass* _klass;
+  ciInlineKlass* _klass;
   Value _depends_on;      // Link to instance on with withfield was called on
   bool _is_optimizable_for_withfield;
   int _first_local_index;
 public:
 
   // Default creation, always allocated for now
-  NewValueTypeInstance(ciValueKlass* klass, ValueStack* state_before, bool is_unresolved, Value depends_on = NULL, bool from_default_value = false)
+  NewInlineTypeInstance(ciInlineKlass* klass, ValueStack* state_before, bool is_unresolved, Value depends_on = NULL, bool from_default_value = false)
   : StateSplit(instanceType, state_before)
    , _is_unresolved(is_unresolved)
    , _klass(klass)
@@ -1399,7 +1399,7 @@ public:
   bool is_unresolved() const                     { return _is_unresolved; }
   Value depends_on();
 
-  ciValueKlass* klass() const { return _klass; }
+  ciInlineKlass* klass() const { return _klass; }
 
   virtual bool needs_exception_state() const     { return false; }
 
@@ -1637,18 +1637,18 @@ BASE(AccessMonitor, StateSplit)
 
 
 LEAF(MonitorEnter, AccessMonitor)
-  bool _maybe_valuetype;
+  bool _maybe_inlinetype;
  public:
   // creation
-  MonitorEnter(Value obj, int monitor_no, ValueStack* state_before, bool maybe_valuetype)
+  MonitorEnter(Value obj, int monitor_no, ValueStack* state_before, bool maybe_inlinetype)
   : AccessMonitor(obj, monitor_no, state_before)
-  , _maybe_valuetype(maybe_valuetype)
+  , _maybe_inlinetype(maybe_inlinetype)
   {
     ASSERT_VALUES
   }
 
   // accessors
-  bool maybe_valuetype() const                   { return _maybe_valuetype; }
+  bool maybe_inlinetype() const                   { return _maybe_inlinetype; }
 
   // generic
   virtual bool can_trap() const                  { return true; }

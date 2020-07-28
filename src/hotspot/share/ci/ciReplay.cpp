@@ -789,11 +789,11 @@ class CompileReplay : public StackObj {
     }
   }
 
-  class ValueTypeFieldInitializer : public FieldClosure {
+  class InlineTypeFieldInitializer : public FieldClosure {
     oop _vt;
     CompileReplay* _replay;
   public:
-    ValueTypeFieldInitializer(oop vt, CompileReplay* replay)
+    InlineTypeFieldInitializer(oop vt, CompileReplay* replay)
   : _vt(vt), _replay(replay) {}
 
     void do_field(fieldDescriptor* fd) {
@@ -856,7 +856,7 @@ class CompileReplay : public StackObj {
         if (fd->is_inlined()) {
           int field_offset = fd->offset() - vk->first_field_offset();
           oop obj = (oop)(cast_from_oop<address>(_vt) + field_offset);
-          ValueTypeFieldInitializer init_fields(obj, _replay);
+          InlineTypeFieldInitializer init_fields(obj, _replay);
           vk->do_nonstatic_fields(&init_fields);
         } else {
           oop value = vk->allocate_instance(Thread::current());
@@ -1003,7 +1003,7 @@ class CompileReplay : public StackObj {
       Klass* kelem = resolve_klass(field_signature, CHECK);
       InlineKlass* vk = InlineKlass::cast(kelem);
       oop value = vk->allocate_instance(CHECK);
-      ValueTypeFieldInitializer init_fields(value, this);
+      InlineTypeFieldInitializer init_fields(value, this);
       vk->do_nonstatic_fields(&init_fields);
       java_mirror->obj_field_put(fd.offset(), value);
     } else {

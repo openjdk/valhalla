@@ -60,7 +60,7 @@ public:
 
   ciType*   return_type() const;
   ciType*   type_at(int index) const;
-  bool      maybe_returns_value_type() const;
+  bool      maybe_returns_inline_type() const;
 
   int       size() const                         { return _size; }
   int       count() const                        { return _count; }

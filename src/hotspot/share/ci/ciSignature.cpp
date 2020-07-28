@@ -113,14 +113,14 @@ ciType* ciSignature::type_at(int index) const {
 }
 
 // ------------------------------------------------------------------
-// ciSignature::maybe_returns_value_type
+// ciSignature::maybe_returns_inline_type
 //
 // True if we statically know that the return value is never null, or
 // if the return type has a Q signature but is not yet loaded, in which case
 // it could be a never-null type.
-bool ciSignature::maybe_returns_value_type() const {
+bool ciSignature::maybe_returns_inline_type() const {
   ciType* ret_type = _types->at(_count);
-  if (ret_type->is_valuetype()) {
+  if (ret_type->is_inlinetype()) {
     return true;
   } else if (ret_type->is_instance_klass() && !ret_type->as_instance_klass()->is_loaded()) {
     GUARDED_VM_ENTRY(if (get_symbol()->is_Q_method_signature()) { return true; })

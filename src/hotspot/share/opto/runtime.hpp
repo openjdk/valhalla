@@ -321,13 +321,13 @@ private:
   static const TypeFunc* dtrace_method_entry_exit_Type();
   static const TypeFunc* dtrace_object_alloc_Type();
 
-  static const TypeFunc* store_value_type_fields_Type();
-  static const TypeFunc* pack_value_type_Type();
+  static const TypeFunc* store_inline_type_fields_Type();
+  static const TypeFunc* pack_inline_type_Type();
 
-  static void load_unknown_value(flatArrayOopDesc* array, int index, instanceOopDesc* buffer);
-  static const TypeFunc *load_unknown_value_Type();
-  static void store_unknown_value(instanceOopDesc* buffer, flatArrayOopDesc* array, int index);
-  static const TypeFunc *store_unknown_value_Type();
+  static void load_unknown_inline(flatArrayOopDesc* array, int index, instanceOopDesc* buffer);
+  static const TypeFunc *load_unknown_inline_type();
+  static void store_unknown_inline(instanceOopDesc* buffer, flatArrayOopDesc* array, int index);
+  static const TypeFunc *store_unknown_inline_type();
 
  private:
  static NamedCounter * volatile _named_counters;

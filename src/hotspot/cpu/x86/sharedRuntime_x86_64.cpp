@@ -652,9 +652,9 @@ static void patch_callers_callsite(MacroAssembler *masm) {
   __ bind(L);
 }
 
-// For each value type argument, sig includes the list of fields of
-// the value type. This utility function computes the number of
-// arguments for the call if value types are passed by reference (the
+// For each inline type argument, sig includes the list of fields of
+// the inline type. This utility function computes the number of
+// arguments for the call if inline types are passed by reference (the
 // calling convention the interpreter expects).
 static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_extended) {
   int total_args_passed = 0;
@@ -664,11 +664,11 @@ static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_exte
       if (SigEntry::is_reserved_entry(sig_extended, i)) {
         // Ignore reserved entry
       } else if (bt == T_INLINE_TYPE) {
-        // In sig_extended, a value type argument starts with:
+        // In sig_extended, an inline type argument starts with:
         // T_INLINE_TYPE, followed by the types of the fields of the
-        // value type and T_VOID to mark the end of the value
-        // type. Value types are flattened so, for instance, in the
-        // case of a value type with an int field and a value type
+        // inline type and T_VOID to mark the end of the value
+        // type. Inline types are flattened so, for instance, in the
+        // case of an inline type with an int field and an inline type
         // field that itself has 2 fields, an int and a long:
         // T_INLINE_TYPE T_INT T_INLINE_TYPE T_INT T_LONG T_VOID (second
         // slot for the T_LONG) T_VOID (inner T_INLINE_TYPE) T_VOID
@@ -769,7 +769,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                             OopMapSet* oop_maps,
                             int& frame_complete,
                             int& frame_size_in_words,
-                            bool alloc_value_receiver) {
+                            bool alloc_inline_receiver) {
   // Before we get into the guts of the C2I adapter, see if we should be here
   // at all.  We've come from compiled code and are attempting to jump to the
   // interpreter, which means the caller made a static call to get here
@@ -781,14 +781,14 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   if (InlineTypePassFieldsAsArgs) {
     // Is there an inline type argument?
-    bool has_value_argument = false;
-    for (int i = 0; i < sig_extended->length() && !has_value_argument; i++) {
-      has_value_argument = (sig_extended->at(i)._bt == T_INLINE_TYPE);
+    bool has_inline_argument = false;
+    for (int i = 0; i < sig_extended->length() && !has_inline_argument; i++) {
+      has_inline_argument = (sig_extended->at(i)._bt == T_INLINE_TYPE);
     }
-    if (has_value_argument) {
-      // There is at least a value type argument: we're coming from
-      // compiled code so we have no buffers to back the value
-      // types. Allocate the buffers here with a runtime call.
+    if (has_inline_argument) {
+      // There is at least an inline type argument: we're coming from
+      // compiled code so we have no buffers to back the inline types.
+      // Allocate the buffers here with a runtime call.
       OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
 
       frame_complete = __ offset();
@@ -797,8 +797,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
       __ mov(c_rarg0, r15_thread);
       __ mov(c_rarg1, rbx);
-      __ mov64(c_rarg2, (int64_t)alloc_value_receiver);
-      __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_value_types)));
+      __ mov64(c_rarg2, (int64_t)alloc_inline_receiver);
+      __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_inline_types)));
 
       oop_maps->add_gc_map((int)(__ pc() - start), map);
       __ reset_last_Java_frame(false);
@@ -845,15 +845,15 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   // Now write the args into the outgoing interpreter space
 
   // next_arg_comp is the next argument from the compiler point of
-  // view (value type fields are passed in registers/on the stack). In
-  // sig_extended, a value type argument starts with: T_INLINE_TYPE,
-  // followed by the types of the fields of the value type and T_VOID
-  // to mark the end of the value type. ignored counts the number of
-  // T_INLINE_TYPE/T_VOID. next_vt_arg is the next value type argument:
+  // view (inline type fields are passed in registers/on the stack). In
+  // sig_extended, an inline type argument starts with: T_INLINE_TYPE,
+  // followed by the types of the fields of the inline type and T_VOID
+  // to mark the end of the inline type. ignored counts the number of
+  // T_INLINE_TYPE/T_VOID. next_vt_arg is the next inline type argument:
   // used to get the buffer for that argument from the pool of buffers
   // we allocated above and want to pass to the
   // interpreter. next_arg_int is the next argument from the
-  // interpreter point of view (value types are passed by reference).
+  // interpreter point of view (inline types are passed by reference).
   for (int next_arg_comp = 0, ignored = 0, next_vt_arg = 0, next_arg_int = 0;
        next_arg_comp < sig_extended->length(); next_arg_comp++) {
     assert(ignored <= next_arg_comp, "shouldn't skip over more slots than there are arguments");
@@ -886,10 +886,10 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       next_vt_arg++; next_arg_int++;
       int vt = 1;
       // write fields we get from compiled code in registers/stack
-      // slots to the buffer: we know we are done with that value type
+      // slots to the buffer: we know we are done with that inline type
       // argument when we hit the T_VOID that acts as an end of value
-      // type delimiter for this value type. Value types are flattened
-      // so we might encounter embedded value types. Each entry in
+      // type delimiter for this inline type. Inline types are flattened
+      // so we might encounter embedded inline types. Each entry in
       // sig_extended contains a field offset in the buffer.
       do {
         next_arg_comp++;
@@ -1031,7 +1031,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 
   // Will jump to the compiled code just as if compiled code was doing it.
   // Pre-load the register-jump target early, to schedule it better.
-  __ movptr(r11, Address(rbx, in_bytes(Method::from_compiled_value_offset())));
+  __ movptr(r11, Address(rbx, in_bytes(Method::from_compiled_inline_offset())));
 
 #if INCLUDE_JVMCI
   if (EnableJVMCI || UseAOT) {
@@ -1051,7 +1051,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   // rest through the floating point stack top.
   for (int i = 0; i < total_args_passed; i++) {
     BasicType bt = sig->at(i)._bt;
-    assert(bt != T_INLINE_TYPE, "i2c adapter doesn't unpack value args");
+    assert(bt != T_INLINE_TYPE, "i2c adapter doesn't unpack inline type args");
     if (bt == T_VOID) {
       // Longs and doubles are passed in native word order, but misaligned
       // in the 32-bit build.
@@ -1205,7 +1205,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   int frame_size_in_words = 0;
 
   // Scalarized c2i adapter with non-scalarized receiver (i.e., don't pack receiver)
-  address c2i_value_ro_entry = __ pc();
+  address c2i_inline_ro_entry = __ pc();
   if (regs_cc != regs_cc_ro) {
     Label unused;
     gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
@@ -1243,18 +1243,18 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
   gen_c2i_adapter(masm, sig_cc, regs_cc, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, true);
 
-  address c2i_unverified_value_entry = c2i_unverified_entry;
+  address c2i_unverified_inline_entry = c2i_unverified_entry;
 
   // Non-scalarized c2i adapter
-  address c2i_value_entry = c2i_entry;
+  address c2i_inline_entry = c2i_entry;
   if (regs != regs_cc) {
-    Label value_entry_skip_fixup;
-    c2i_unverified_value_entry = __ pc();
-    gen_inline_cache_check(masm, value_entry_skip_fixup);
+    Label inline_entry_skip_fixup;
+    c2i_unverified_inline_entry = __ pc();
+    gen_inline_cache_check(masm, inline_entry_skip_fixup);
 
-    c2i_value_entry = __ pc();
+    c2i_inline_entry = __ pc();
     Label unused;
-    gen_c2i_adapter(masm, sig, regs, value_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
+    gen_c2i_adapter(masm, sig, regs, inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
   }
 
   __ flush();
@@ -1264,7 +1264,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   bool caller_must_gc_arguments = (regs != regs_cc);
   new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
 
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry, c2i_unverified_value_entry, c2i_no_clinit_check_entry);
+  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry, c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
 }
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
@@ -4323,8 +4323,8 @@ void OptoRuntime::generate_exception_blob() {
 }
 #endif // COMPILER2
 
-BufferedValueTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
-  BufferBlob* buf = BufferBlob::create("value types pack/unpack", 16 * K);
+BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
+  BufferBlob* buf = BufferBlob::create("inline types pack/unpack", 16 * K);
   CodeBuffer buffer(buf);
   short buffer_locs[20];
   buffer.insts()->initialize_shared_locs((relocInfo*)buffer_locs,
@@ -4431,5 +4431,5 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(cons
 
   __ flush();
 
-  return BufferedValueTypeBlob::create(&buffer, pack_fields_off, pack_fields_jobject_off, unpack_fields_off);
+  return BufferedInlineTypeBlob::create(&buffer, pack_fields_off, pack_fields_jobject_off, unpack_fields_off);
 }

@@ -1226,7 +1226,7 @@ class LIR_OpJavaCall: public LIR_OpCall {
   virtual LIR_OpJavaCall* as_OpJavaCall() { return this; }
   virtual void print_instr(outputStream* out) const PRODUCT_RETURN;
 
-  bool maybe_return_as_fields(ciValueKlass** vk = NULL) const;
+  bool maybe_return_as_fields(ciInlineKlass** vk = NULL) const;
 };
 
 // --------------------------------------------------
@@ -1279,8 +1279,8 @@ public:
     src_objarray           = 1 << 10,
     dst_objarray           = 1 << 11,
     always_slow_path       = 1 << 12,
-    src_valuetype_check    = 1 << 13,
-    dst_valuetype_check    = 1 << 14,
+    src_inlinetype_check   = 1 << 13,
+    dst_inlinetype_check   = 1 << 14,
     all_flags              = (1 << 15) - 1
   };
 

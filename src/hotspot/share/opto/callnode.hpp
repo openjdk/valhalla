@@ -645,7 +645,7 @@ public:
   // Does this node returns pointer?
   bool returns_pointer() const {
     const TypeTuple *r = tf()->range_sig();
-    return (!tf()->returns_value_type_as_fields() &&
+    return (!tf()->returns_inline_type_as_fields() &&
             r->cnt() > TypeFunc::Parms &&
             r->field_at(TypeFunc::Parms)->isa_ptr());
   }
@@ -738,7 +738,7 @@ public:
         method->is_method_handle_intrinsic() &&
         r->cnt() > TypeFunc::Parms &&
         r->field_at(TypeFunc::Parms)->isa_oopptr() &&
-        r->field_at(TypeFunc::Parms)->is_oopptr()->can_be_value_type()) {
+        r->field_at(TypeFunc::Parms)->is_oopptr()->can_be_inline_type()) {
       // Make sure this call is processed by PhaseMacroExpand::expand_mh_intrinsic_return
       init_flags(Flag_is_macro);
       C->add_macro_node(this);
@@ -879,8 +879,8 @@ public:
     KlassNode,                        // type (maybe dynamic) of the obj.
     InitialTest,                      // slow-path test (may be constant)
     ALength,                          // array length (or TOP if none)
-    ValueNode,
-    DefaultValue,                     // default value in case of non flattened value array
+    InlineTypeNode,                   // InlineTypeNode if this is an inline type allocation
+    DefaultValue,                     // default value in case of non-flattened inline array
     RawDefaultValue,                  // same as above but as raw machine word
     ParmLimit
   };
@@ -891,7 +891,7 @@ public:
     fields[KlassNode]   = TypeInstPtr::NOTNULL;
     fields[InitialTest] = TypeInt::BOOL;
     fields[ALength]     = t;  // length (can be a bad length)
-    fields[ValueNode]   = Type::BOTTOM;
+    fields[InlineTypeNode] = Type::BOTTOM;
     fields[DefaultValue] = TypeInstPtr::NOTNULL;
     fields[RawDefaultValue] = TypeX_X;
 
@@ -916,7 +916,7 @@ public:
   virtual uint size_of() const; // Size is bigger
   AllocateNode(Compile* C, const TypeFunc *atype, Node *ctrl, Node *mem, Node *abio,
                Node *size, Node *klass_node, Node *initial_test,
-               ValueTypeBaseNode* value_node = NULL);
+               InlineTypeBaseNode* inline_type_node = NULL);
   // Expansion modifies the JVMState, so we need to clone it
   virtual void  clone_jvms(Compile* C) {
     if (jvms() != NULL) {

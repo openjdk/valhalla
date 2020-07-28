@@ -239,12 +239,12 @@ void NewTypeArrayStub::emit_code(LIR_Assembler* ce) {
 
 // Implementation of NewObjectArrayStub
 
-NewObjectArrayStub::NewObjectArrayStub(LIR_Opr klass_reg, LIR_Opr length, LIR_Opr result, CodeEmitInfo* info, bool is_value_type) {
+NewObjectArrayStub::NewObjectArrayStub(LIR_Opr klass_reg, LIR_Opr length, LIR_Opr result, CodeEmitInfo* info, bool is_inline_type) {
   _klass_reg = klass_reg;
   _result = result;
   _length = length;
   _info = new CodeEmitInfo(info);
-  _is_value_type = is_value_type; 
+  _is_inline_type = is_inline_type; 
 }
 
 
@@ -254,8 +254,8 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
   assert(_length->as_register() == r19, "length must in r19,");
   assert(_klass_reg->as_register() == r3, "klass_reg must in r3");
 
-  if (_is_value_type) {
-    __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_value_array_id)));
+  if (_is_inline_type) {
+    __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_flat_array_id)));
   } else {
     __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_object_array_id)));
   }

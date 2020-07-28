@@ -24,10 +24,10 @@
 
 #include "precompiled.hpp"
 #include "ci/ciField.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
@@ -549,20 +549,20 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
     if (fs.access_flags().is_static())  continue;
     fieldDescriptor& fd = fs.field_descriptor();
     if (fd.is_inlined() && flatten) {
-      // Value type fields are embedded
+      // Inline type fields are embedded
       int field_offset = fd.offset();
       // Get InlineKlass and adjust number of fields
       Klass* k = get_instanceKlass()->get_inline_type_field_klass(fd.index());
-      ciValueKlass* vk = CURRENT_ENV->get_klass(k)->as_value_klass();
+      ciInlineKlass* vk = CURRENT_ENV->get_klass(k)->as_inline_klass();
       flen += vk->nof_nonstatic_fields() - 1;
-      // Iterate over fields of the flattened value type and copy them to 'this'
+      // Iterate over fields of the flattened inline type and copy them to 'this'
       for (int i = 0; i < vk->nof_nonstatic_fields(); ++i) {
         ciField* flattened_field = vk->nonstatic_field_at(i);
         // Adjust offset to account for missing oop header
         int offset = field_offset + (flattened_field->offset() - vk->first_field_offset());
         // A flattened field can be treated as final if the non-flattened
-        // field is declared final or the holder klass is a value type itself.
-        bool is_final = fd.is_final() || is_valuetype();
+        // field is declared final or the holder klass is an inline type itself.
+        bool is_final = fd.is_final() || is_inlinetype();
         ciField* field = new (arena) ciField(flattened_field, this, offset, is_final);
         fields->append(field);
       }
@@ -672,19 +672,19 @@ ciInstanceKlass* ciInstanceKlass::implementor() {
   return impl;
 }
 
-bool ciInstanceKlass::can_be_value_klass(bool is_exact) {
+bool ciInstanceKlass::can_be_inline_klass(bool is_exact) {
   if (!EnableValhalla) {
     return false;
   }
-  if (!is_loaded() ||   // Not loaded, might be a value klass
-      is_valuetype() || // Known to be a value klass
+  if (!is_loaded() ||   // Not loaded, might be an inline klass
+      is_inlinetype() || // Known to be an inline klass
       // Non-exact j.l.Object or interface klass
       ((is_java_lang_Object() || is_interface()) && !is_exact)) {
     return true;
   }
   if (is_abstract() && !is_exact && !has_nonstatic_fields()) {
     // TODO Factor out and re-use similar code from the ClassFileParser
-    // An abstract class can only be implemented by a value type if it has no instance
+    // An abstract class can only be implemented by an inline type if it has no instance
     // fields, no synchronized instance methods and an empty, no-arg constructor.
     VM_ENTRY_MARK;
     Array<Method*>* methods = get_instanceKlass()->methods();
@@ -752,10 +752,10 @@ class StaticFinalFieldPrinter : public StaticFieldPrinter {
   }
 };
 
-class ValueTypeFieldPrinter : public StaticFieldPrinter {
+class InlineTypeFieldPrinter : public StaticFieldPrinter {
   oop _obj;
 public:
-  ValueTypeFieldPrinter(outputStream* out, oop obj) :
+  InlineTypeFieldPrinter(outputStream* out, oop obj) :
     StaticFieldPrinter(out), _obj(obj) {
   }
   void do_field(fieldDescriptor* fd) {
@@ -829,7 +829,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
       } else {
         obj =  mirror->obj_field_acquire(fd->offset());
       }
-      ValueTypeFieldPrinter print_field(_out, obj);
+      InlineTypeFieldPrinter print_field(_out, obj);
       vk->do_nonstatic_fields(&print_field);
       break;
     }

@@ -384,7 +384,7 @@ const class TypePtr *MachNode::adr_type() const {
   assert(tp->base() != Type::AnyPtr, "not a bare pointer");
 
   if (tp->isa_aryptr()) {
-    // In the case of a flattened value type array, each field has its
+    // In the case of a flattened inline type array, each field has its
     // own slice so we need to extract the field being accessed from
     // the address computation
     if (offset == Type::OffsetBot) {
@@ -703,7 +703,7 @@ bool MachCallNode::return_value_is_used() const {
     return false;
   }
 
-  assert(tf()->returns_value_type_as_fields(), "multiple return values not supported");
+  assert(tf()->returns_inline_type_as_fields(), "multiple return values not supported");
 
   // find the projection corresponding to the return value
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
@@ -726,7 +726,7 @@ bool MachCallNode::returns_pointer() const {
 }
 
 bool MachCallNode::returns_vt() const {
-  return tf()->returns_value_type_as_fields();
+  return tf()->returns_inline_type_as_fields();
 }
 
 //------------------------------Registers--------------------------------------

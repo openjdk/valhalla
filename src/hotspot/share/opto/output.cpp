@@ -308,10 +308,10 @@ void PhaseOutput::Output() {
   } else {
     if (C->method()) {
       if (C->method()->has_scalarized_args()) {
-        // Add entry point to unpack all value type arguments
+        // Add entry point to unpack all inline type arguments
         C->cfg()->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ true, /* receiver_only */ false));
         if (!C->method()->is_static()) {
-          // Add verified/unverified entry points to only unpack value type receiver at interface calls
+          // Add verified/unverified entry points to only unpack inline type receiver at interface calls
           C->cfg()->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ false, /* receiver_only */ false));
           C->cfg()->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ true,  /* receiver_only */ true));
           C->cfg()->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ false, /* receiver_only */ true));
@@ -361,27 +361,27 @@ void PhaseOutput::Output() {
   shorten_branches(blk_starts);
 
   if (!C->is_osr_compilation() && C->has_scalarized_args()) {
-    // Compute the offsets of the entry points required by the value type calling convention
+    // Compute the offsets of the entry points required by the inline type calling convention
     if (!C->method()->is_static()) {
       // We have entries at the beginning of the method, implemented by the first 4 nodes.
       // Entry                     (unverified) @ offset 0
-      // Verified_Value_Entry_RO
-      // Value_Entry               (unverified)
-      // Verified_Value_Entry
+      // Verified_Inline_Entry_RO
+      // Inline_Entry               (unverified)
+      // Verified_Inline_Entry
       uint offset = 0;
       _code_offsets.set_value(CodeOffsets::Entry, offset);
 
       offset += ((MachVEPNode*)broot->get_node(0))->size(C->regalloc());
-      _code_offsets.set_value(CodeOffsets::Verified_Value_Entry_RO, offset);
+      _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry_RO, offset);
 
       offset += ((MachVEPNode*)broot->get_node(1))->size(C->regalloc());
-      _code_offsets.set_value(CodeOffsets::Value_Entry, offset);
+      _code_offsets.set_value(CodeOffsets::Inline_Entry, offset);
 
       offset += ((MachVEPNode*)broot->get_node(2))->size(C->regalloc());
-      _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, offset);
+      _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry, offset);
     } else {
       _code_offsets.set_value(CodeOffsets::Entry, -1); // will be patched later
-      _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, 0);
+      _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry, 0);
     }
   }
 
@@ -3236,7 +3236,7 @@ void PhaseOutput::init_scratch_buffer_blob(int const_size) {
     int size = C2Compiler::initial_code_buffer_size(const_size);
 #ifdef ASSERT
     if (C->has_scalarized_args()) {
-      // Oop verification for loading object fields from scalarized value types in the new entry point requires lots of space
+      // Oop verification for loading object fields from scalarized inline types in the new entry point requires lots of space
       size += 5120;
     }
 #endif
@@ -3366,11 +3366,11 @@ void PhaseOutput::install_code(ciMethod*         target,
       _code_offsets.set_value(CodeOffsets::OSR_Entry, _first_block_size);
     } else {
       _code_offsets.set_value(CodeOffsets::Verified_Entry, _first_block_size);
-      if (_code_offsets.value(CodeOffsets::Verified_Value_Entry) == -1) {
-        _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, _first_block_size);
+      if (_code_offsets.value(CodeOffsets::Verified_Inline_Entry) == -1) {
+        _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry, _first_block_size);
       }
-      if (_code_offsets.value(CodeOffsets::Verified_Value_Entry_RO) == -1) {
-        _code_offsets.set_value(CodeOffsets::Verified_Value_Entry_RO, _first_block_size);
+      if (_code_offsets.value(CodeOffsets::Verified_Inline_Entry_RO) == -1) {
+        _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry_RO, _first_block_size);
       }
       if (_code_offsets.value(CodeOffsets::Entry) == -1) {
         _code_offsets.set_value(CodeOffsets::Entry, _first_block_size);

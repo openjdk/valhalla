@@ -195,9 +195,9 @@ private:
 
   virtual int comp_level() const { return CompLevel_aot; }
   virtual address verified_entry_point() const { return _code + _meta->verified_entry_offset(); }
-  virtual address value_entry_point() const { return NULL; }
-  virtual address verified_value_entry_point() const { return NULL; }
-  virtual address verified_value_ro_entry_point() const { return NULL; }
+  virtual address inline_entry_point() const { return NULL; }
+  virtual address verified_inline_entry_point() const { return NULL; }
+  virtual address verified_inline_ro_entry_point() const { return NULL; }
   virtual void log_identity(xmlStream* stream) const;
   virtual void log_state_change() const;
   virtual bool make_entrant() NOT_TIERED({ ShouldNotReachHere(); return false; });

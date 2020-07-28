@@ -24,11 +24,12 @@
 
 #include "precompiled.hpp"
 #include "c1/c1_InstructionPrinter.hpp"
+
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArray.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciObject.hpp"
-#include "ci/ciValueKlass.hpp"
 
 
 #ifndef PRODUCT
@@ -511,8 +512,8 @@ void InstructionPrinter::do_NewTypeArray(NewTypeArray* x) {
   output()->put(']');
 }
 
-void InstructionPrinter::do_NewValueTypeInstance(NewValueTypeInstance* x) {
-  output()->print("new value type instance ");
+void InstructionPrinter::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {
+  output()->print("new inline type instance ");
   if (x->is_optimizable_for_withfield()) {
     output()->print("(optimizable) ");
   }

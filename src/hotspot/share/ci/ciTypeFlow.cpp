@@ -25,13 +25,13 @@
 #include "precompiled.hpp"
 #include "ci/ciConstant.hpp"
 #include "ci/ciField.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciMethod.hpp"
 #include "ci/ciMethodData.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciStreams.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciTypeFlow.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "compiler/compileLog.hpp"
 #include "interpreter/bytecode.hpp"
 #include "interpreter/bytecodes.hpp"
@@ -280,16 +280,16 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     // Special case null_type.  null_type meet any reference type T
     // is T (except for inline types).  null_type meet null_type is null_type.
     if (t1->equals(null_type())) {
-      if (t2->is_valuetype()) {
+      if (t2->is_inlinetype()) {
         // Inline types are null-free, return the super type
-        return t2->as_value_klass()->super();
+        return t2->as_inline_klass()->super();
       } else if (!t2->is_primitive_type() || t2->equals(null_type())) {
         return t2;
       }
     } else if (t2->equals(null_type())) {
-      if (t1->is_valuetype()) {
+      if (t1->is_inlinetype()) {
         // Inline types are null-free, return the super type
-        return t1->as_value_klass()->super();
+        return t1->as_inline_klass()->super();
       } else if (!t1->is_primitive_type()) {
         return t1;
       }
@@ -316,11 +316,11 @@ ciType* ciTypeFlow::StateVector::type_meet_internal(ciType* t1, ciType* t2, ciTy
     return object_klass;
   } else if (k1->is_array_klass() || k2->is_array_klass()) {
     // When an array meets a non-array, we get Object.
-    // When (obj/value)Array meets typeArray, we also get Object.
+    // When (obj/flat)Array meets typeArray, we also get Object.
     // And when typeArray meets different typeArray, we again get Object.
-    // But when (obj/value)Array meets (obj/value)Array, we look carefully at element types.
-    if ((k1->is_obj_array_klass() || k1->is_value_array_klass()) &&
-        (k2->is_obj_array_klass() || k2->is_value_array_klass())) {
+    // But when (obj/flat)Array meets (obj/flat)Array, we look carefully at element types.
+    if ((k1->is_obj_array_klass() || k1->is_flat_array_klass()) &&
+        (k2->is_obj_array_klass() || k2->is_flat_array_klass())) {
       ciType* elem1 = k1->as_array_klass()->element_klass();
       ciType* elem2 = k2->as_array_klass()->element_klass();
       ciType* elem = elem1;
@@ -561,7 +561,7 @@ void ciTypeFlow::StateVector::push_translate(ciType* type) {
 // ciTypeFlow::StateVector::do_aload
 void ciTypeFlow::StateVector::do_aload(ciBytecodeStream* str) {
   pop_int();
-  ciArrayKlass* array_klass = pop_objOrValueArray();
+  ciArrayKlass* array_klass = pop_objOrFlatArray();
   if (array_klass == NULL) {
     // Did aload on a null reference; push a null and ignore the exception.
     // This instruction will never continue normally.  All we have to do
@@ -795,7 +795,7 @@ void ciTypeFlow::StateVector::do_defaultvalue(ciBytecodeStream* str) {
   if (!will_link) {
     trap(str, klass, str->get_klass_index());
   } else {
-    assert(klass->is_valuetype(), "should be value type");
+    assert(klass->is_inlinetype(), "should be inline type");
     push_object(klass);
   }
 }
@@ -818,7 +818,7 @@ void ciTypeFlow::StateVector::do_withfield(ciBytecodeStream* str) {
       assert(type == half_type(type2), "must be 2nd half");
     }
     pop_object();
-    assert(klass->is_valuetype(), "should be value type");
+    assert(klass->is_inlinetype(), "should be inline type");
     push_object(klass);
   }
 }
@@ -934,7 +934,7 @@ bool ciTypeFlow::StateVector::apply_one_bytecode(ciBytecodeStream* str) {
     {
       pop_object();
       pop_int();
-      pop_objOrValueArray();
+      pop_objOrFlatArray();
       break;
     }
   case Bytecodes::_aconst_null:

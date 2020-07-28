@@ -234,7 +234,7 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
   }
   if (save_oop_result || vk != NULL) {
     // Restore result.
-    assert(return_oops.length() == 1, "no value type");
+    assert(return_oops.length() == 1, "no inline type");
     deoptee.set_saved_oop_result(&map, return_oops.pop()());
   }
   return realloc_failures;
@@ -1036,7 +1036,7 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
       }
     } else if (k->is_flatArray_klass()) {
       FlatArrayKlass* ak = FlatArrayKlass::cast(k);
-      // Value type array must be zeroed because not all memory is reassigned
+      // Inline type array must be zeroed because not all memory is reassigned
       obj = ak->allocate(sv->field_size(), THREAD);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
@@ -1283,7 +1283,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
           field._type = T_OBJECT;
         }
         if (fs.is_inlined()) {
-          // Resolve klass of flattened value type field
+          // Resolve klass of flattened inline type field
           Klass* vk = klass->get_inline_type_field_klass(fs.index());
           field._klass = InlineKlass::cast(vk);
           field._type = T_INLINE_TYPE;
@@ -1308,7 +1308,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         break;
 
       case T_INLINE_TYPE: {
-        // Recursively re-assign flattened value type fields
+        // Recursively re-assign flattened inline type fields
         InstanceKlass* vk = fields->at(i)._klass;
         assert(vk != NULL, "must be resolved");
         offset -= InlineKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header

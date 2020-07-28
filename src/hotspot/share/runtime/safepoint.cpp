@@ -1055,13 +1055,13 @@ void ThreadSafepointState::handle_polling_page_exception() {
         ss.next();
       }
       if (ss.type() == T_INLINE_TYPE) {
-        // Check if value type is returned as fields
+        // Check if inline type is returned as fields
         vk = InlineKlass::returned_inline_klass(map);
         if (vk != NULL) {
           // We're at a safepoint at the return of a method that returns
           // multiple values. We must make sure we preserve the oop values
           // across the safepoint.
-          assert(vk == method->returned_inline_type(thread()), "bad value klass");
+          assert(vk == method->returned_inline_type(thread()), "bad inline klass");
           vk->save_oop_fields(map, return_values);
           return_oop = false;
         }

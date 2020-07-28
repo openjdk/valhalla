@@ -350,14 +350,14 @@ class SharedRuntime: AllStatic {
 
   static address entry_for_handle_wrong_method(methodHandle callee_method, bool is_static_call, bool is_optimized, bool caller_is_c1) {
     assert(callee_method->verified_code_entry() != NULL, "Jump to zero!");
-    assert(callee_method->verified_value_code_entry() != NULL, "Jump to zero!");
-    assert(callee_method->verified_value_ro_code_entry() != NULL, "Jump to zero!");
+    assert(callee_method->verified_inline_code_entry() != NULL, "Jump to zero!");
+    assert(callee_method->verified_inline_ro_code_entry() != NULL, "Jump to zero!");
     if (caller_is_c1) {
-      return callee_method->verified_value_code_entry();
+      return callee_method->verified_inline_code_entry();
     } else if (is_static_call || is_optimized) {
       return callee_method->verified_code_entry();
     } else {
-      return callee_method->verified_value_ro_code_entry();
+      return callee_method->verified_inline_ro_code_entry();
     }
   }
 
@@ -548,13 +548,13 @@ class SharedRuntime: AllStatic {
   static address handle_wrong_method(JavaThread* thread);
   static address handle_wrong_method_abstract(JavaThread* thread);
   static address handle_wrong_method_ic_miss(JavaThread* thread);
-  static void allocate_value_types(JavaThread* thread, Method* callee, bool allocate_receiver);
-  static oop allocate_value_types_impl(JavaThread* thread, methodHandle callee, bool allocate_receiver, TRAPS);
+  static void allocate_inline_types(JavaThread* thread, Method* callee, bool allocate_receiver);
+  static oop allocate_inline_types_impl(JavaThread* thread, methodHandle callee, bool allocate_receiver, TRAPS);
   static void apply_post_barriers(JavaThread* thread, objArrayOopDesc* array);
 
   static address handle_unsafe_access(JavaThread* thread, address next_pc);
 
-  static BufferedValueTypeBlob* generate_buffered_inline_type_adapter(const InlineKlass* vk);
+  static BufferedInlineTypeBlob* generate_buffered_inline_type_adapter(const InlineKlass* vk);
 #ifndef PRODUCT
 
   // Collect and print inline cache miss statistics
@@ -669,13 +669,13 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   AdapterFingerPrint* _fingerprint;
   address _i2c_entry;
   address _c2i_entry;
-  address _c2i_value_entry;
-  address _c2i_value_ro_entry;
+  address _c2i_inline_entry;
+  address _c2i_inline_ro_entry;
   address _c2i_unverified_entry;
-  address _c2i_unverified_value_entry;
+  address _c2i_unverified_inline_entry;
   address _c2i_no_clinit_check_entry;
 
-  // Support for scalarized value type calling convention
+  // Support for scalarized inline type calling convention
   const GrowableArray<SigEntry>* _sig_cc;
 
 #ifdef ASSERT
@@ -685,15 +685,15 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   int            _saved_code_length;
 #endif
 
-  void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_value_entry,
-            address c2i_value_ro_entry, address c2i_unverified_entry, address c2i_unverified_value_entry, address c2i_no_clinit_check_entry) {
+  void init(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry, address c2i_inline_entry,
+            address c2i_inline_ro_entry, address c2i_unverified_entry, address c2i_unverified_inline_entry, address c2i_no_clinit_check_entry) {
     _fingerprint = fingerprint;
     _i2c_entry = i2c_entry;
     _c2i_entry = c2i_entry;
-    _c2i_value_entry = c2i_value_entry;
-    _c2i_value_ro_entry = c2i_value_ro_entry;
+    _c2i_inline_entry = c2i_inline_entry;
+    _c2i_inline_ro_entry = c2i_inline_ro_entry;
     _c2i_unverified_entry = c2i_unverified_entry;
-    _c2i_unverified_value_entry = c2i_unverified_value_entry;
+    _c2i_unverified_inline_entry = c2i_unverified_inline_entry;
     _c2i_no_clinit_check_entry = c2i_no_clinit_check_entry;
     _sig_cc = NULL;
 #ifdef ASSERT
@@ -710,16 +710,16 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
  public:
   address get_i2c_entry()                  const { return _i2c_entry; }
   address get_c2i_entry()                  const { return _c2i_entry; }
-  address get_c2i_value_entry()            const { return _c2i_value_entry; }
-  address get_c2i_value_ro_entry()         const { return _c2i_value_ro_entry; }
+  address get_c2i_inline_entry()            const { return _c2i_inline_entry; }
+  address get_c2i_inline_ro_entry()         const { return _c2i_inline_ro_entry; }
   address get_c2i_unverified_entry()       const { return _c2i_unverified_entry; }
-  address get_c2i_unverified_value_entry() const { return _c2i_unverified_value_entry; }
+  address get_c2i_unverified_inline_entry() const { return _c2i_unverified_inline_entry; }
   address get_c2i_no_clinit_check_entry()  const { return _c2i_no_clinit_check_entry; }
 
   address base_address();
   void relocate(address new_base);
 
-  // Support for scalarized value type calling convention
+  // Support for scalarized inline type calling convention
   void set_sig_cc(const GrowableArray<SigEntry>* sig)  { _sig_cc = sig; }
   const GrowableArray<SigEntry>* get_sig_cc()    const { return _sig_cc; }
 
@@ -744,14 +744,14 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
 // For details, see comments around Method::link_method()
 class CDSAdapterHandlerEntry: public AdapterHandlerEntry {
   address               _c2i_entry_trampoline;           // allocated from shared spaces "MC" region
-  address               _c2i_value_ro_entry_trampoline;  // allocated from shared spaces "MC" region
-  address               _c2i_value_entry_trampoline;     // allocated from shared spaces "MC" region
+  address               _c2i_inline_ro_entry_trampoline;  // allocated from shared spaces "MC" region
+  address               _c2i_inline_entry_trampoline;     // allocated from shared spaces "MC" region
   AdapterHandlerEntry** _adapter_trampoline;             // allocated from shared spaces "MD" region
 
 public:
   address get_c2i_entry_trampoline()             const { return _c2i_entry_trampoline; }
-  address get_c2i_value_ro_entry_trampoline()    const { return _c2i_value_ro_entry_trampoline; }
-  address get_c2i_value_entry_trampoline()       const { return _c2i_value_entry_trampoline; }
+  address get_c2i_inline_ro_entry_trampoline()    const { return _c2i_inline_ro_entry_trampoline; }
+  address get_c2i_inline_entry_trampoline()       const { return _c2i_inline_entry_trampoline; }
   AdapterHandlerEntry** get_adapter_trampoline() const { return _adapter_trampoline; }
   void init() NOT_CDS_RETURN;
 };
@@ -769,8 +769,8 @@ class AdapterHandlerLibrary: public AllStatic {
  public:
 
   static AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint,
-                                        address i2c_entry, address c2i_entry, address c2i_value_entry, address c2i_value_ro_entry,
-                                        address c2i_unverified_entry, address c2i_unverified_value_entry, address c2i_no_clinit_check_entry = NULL);
+                                        address i2c_entry, address c2i_entry, address c2i_inline_entry, address c2i_inline_ro_entry,
+                                        address c2i_unverified_entry, address c2i_unverified_inline_entry, address c2i_no_clinit_check_entry = NULL);
   static void create_native_wrapper(const methodHandle& method);
   static AdapterHandlerEntry* get_adapter(const methodHandle& method);
 
@@ -786,12 +786,12 @@ class AdapterHandlerLibrary: public AllStatic {
 // Utility class for computing the calling convention of the 3 types
 // of compiled method entries:
 //     Method::_from_compiled_entry               - sig_cc
-//     Method::_from_compiled_value_ro_entry      - sig_cc_ro
-//     Method::_from_compiled_value_entry         - sig
+//     Method::_from_compiled_inline_ro_entry      - sig_cc_ro
+//     Method::_from_compiled_inline_entry         - sig
 class CompiledEntrySignature : public StackObj {
   Method* _method;
-  int  _num_value_args;
-  bool _has_value_recv;
+  int  _num_inline_args;
+  bool _has_inline_recv;
   GrowableArray<SigEntry> *_sig;
   GrowableArray<SigEntry> *_sig_cc;
   GrowableArray<SigEntry> *_sig_cc_ro;
@@ -811,13 +811,13 @@ class CompiledEntrySignature : public StackObj {
 public:
   Method* method()                     const { return _method; }
 
-  // Used by Method::_from_compiled_value_entry
+  // Used by Method::_from_compiled_inline_entry
   GrowableArray<SigEntry>& sig()       const { return *_sig; }
 
   // Used by Method::_from_compiled_entry
   GrowableArray<SigEntry>& sig_cc()    const { return *_sig_cc; }
 
-  // Used by Method::_from_compiled_value_ro_entry
+  // Used by Method::_from_compiled_inline_ro_entry
   GrowableArray<SigEntry>& sig_cc_ro() const { return *_sig_cc_ro; }
 
   VMRegPair* regs()                    const { return _regs; }
@@ -828,14 +828,14 @@ public:
   int args_on_stack_cc()               const { return _args_on_stack_cc; }
   int args_on_stack_cc_ro()            const { return _args_on_stack_cc_ro; }
 
-  int  num_value_args()                const { return _num_value_args; }
-  bool has_value_arg()                 const { return _num_value_args > 0;  }
-  bool has_value_recv()                const { return _has_value_recv; }
+  int  num_inline_args()               const { return _num_inline_args; }
+  bool has_inline_arg()                const { return _num_inline_args > 0;  }
+  bool has_inline_recv()               const { return _has_inline_recv; }
 
   bool has_scalarized_args()           const { return _has_scalarized_args; }
   bool c1_needs_stack_repair()         const { return _c1_needs_stack_repair; }
   bool c2_needs_stack_repair()         const { return _c2_needs_stack_repair; }
-  CodeOffsets::Entries c1_value_ro_entry_type() const;
+  CodeOffsets::Entries c1_inline_ro_entry_type() const;
 
   CompiledEntrySignature(Method* method);
   void compute_calling_conventions();

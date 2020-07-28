@@ -5264,19 +5264,19 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   }
 }
 
-int MacroAssembler::store_inline_type_fields_to_buf(ciValueKlass* vk, bool from_interpreter) {
+int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter) {
   // An inline type might be returned. If fields are in registers we
   // need to allocate an inline type instance and initialize it with
   // the value of the fields.
   Label skip;
-  // We only need a new buffered value if a new one is not returned
+  // We only need a new buffered inline type if a new one is not returned
   cmp(r0, (u1) 1);
   br(Assembler::EQ, skip);
   int call_offset = -1;
 
   Label slow_case;
 
-  // Try to allocate a new buffered value (from the heap)
+  // Try to allocate a new buffered inline type (from the heap)
   if (UseTLAB) {
 
     if (vk != NULL) {
@@ -5324,8 +5324,7 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciValueKlass* vk, bool from_
         far_call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
       } else {
 
-        // We have our new buffered value, initialize its fields with a
-        // value class specific handler
+        // We have our new buffered inline type, initialize its fields with an inline class specific handler
         ldr(r1, Address(r0, InstanceKlass::adr_inlineklass_fixed_block_offset()));
         ldr(r1, Address(r1, InlineKlass::pack_handler_offset()));
 
@@ -5337,7 +5336,7 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciValueKlass* vk, bool from_
   }
 
   bind(slow_case);
-  // We failed to allocate a new value, fall back to a runtime
+  // We failed to allocate a new inline type, fall back to a runtime
   // call. Some oop field may be live in some registers but we can't
   // tell. That runtime call will take care of preserving them
   // across a GC if there's one.
@@ -5409,8 +5408,8 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
   return true;
 }
 
-// Read all fields from a value type oop and store the values in registers/stack slots
-bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to,
+// Read all fields from an inline type oop and store the values in registers/stack slots
+bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to,
                                          int& to_index, RegState reg_state[], int ret_off, int extra_stack_offset) {
   Register fromReg = from->is_reg() ? from->as_Register() : noreg;
   assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
@@ -5497,8 +5496,8 @@ bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int
   return done;
 }
 
-// Pack fields back into a value type oop
-bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
+// Pack fields back into an inline type oop
+bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
                                        VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
                                        int ret_off, int extra_stack_offset) {
   assert(sig->at(sig_index)._bt == T_INLINE_TYPE, "should be at end delimiter");
@@ -5580,14 +5579,14 @@ bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& 
   return true;
 }
 
-// Unpack all value type arguments passed as oops
-void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
-  int sp_inc = unpack_value_args_common(C, receiver_only);
+// Unpack all inline type arguments passed as oops
+void MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
+  int sp_inc = unpack_inline_args_common(C, receiver_only);
   // Emit code for verified entry and save increment for stack repair on return
   verified_entry(C, sp_inc);
 }
 
-int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
+int MacroAssembler::shuffle_inline_args(bool is_packing, bool receiver_only, int extra_stack_offset,
                                        BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
                                        int args_passed, int args_on_stack, VMRegPair* regs,            // from
                                        int args_passed_to, int args_on_stack_to, VMRegPair* regs_to) { // to
@@ -5612,7 +5611,7 @@ int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int 
 
   int ret_off; // make sure we don't overwrite the return address
   if (is_packing) {
-    // For C1 code, the VVEP doesn't have reserved slots, so we store the returned address at
+    // For C1 code, the VIEP doesn't have reserved slots, so we store the returned address at
     // rsp[0] during shuffling.
     ret_off = 0;
   } else {
@@ -5620,7 +5619,7 @@ int MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int 
     ret_off = sp_inc;
   }
 
-  return shuffle_value_args_common(is_packing, receiver_only, extra_stack_offset,
+  return shuffle_inline_args_common(is_packing, receiver_only, extra_stack_offset,
                                    sig_bt, sig_cc,
                                    args_passed, args_on_stack, regs,
                                    args_passed_to, args_on_stack_to, regs_to,

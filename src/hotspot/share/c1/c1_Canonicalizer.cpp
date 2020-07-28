@@ -640,14 +640,14 @@ void Canonicalizer::do_NullCheck      (NullCheck*       x) {
 void Canonicalizer::do_TypeCast       (TypeCast*        x) {}
 void Canonicalizer::do_Invoke         (Invoke*          x) {}
 void Canonicalizer::do_NewInstance    (NewInstance*     x) {}
-void Canonicalizer::do_NewValueTypeInstance(NewValueTypeInstance* x) {}
+void Canonicalizer::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {}
 void Canonicalizer::do_NewTypeArray   (NewTypeArray*    x) {}
 void Canonicalizer::do_NewObjectArray (NewObjectArray*  x) {}
 void Canonicalizer::do_NewMultiArray  (NewMultiArray*   x) {}
 void Canonicalizer::do_WithField      (WithField*       x) {}
 void Canonicalizer::do_DefaultValue   (DefaultValue*    x) {}
 void Canonicalizer::do_CheckCast      (CheckCast*       x) {
-  if (x->klass()->is_loaded() && !x->klass()->is_valuetype()) {
+  if (x->klass()->is_loaded() && !x->klass()->is_inlinetype()) {
     // Don't canonicalize for non-nullable types -- we need to throw NPE.
     Value obj = x->obj();
     ciType* klass = obj->exact_type();
