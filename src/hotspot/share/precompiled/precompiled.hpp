@@ -32,7 +32,6 @@
 // *.include.hpp, since including them decreased build performance.
 
 #include "classfile/classLoaderData.hpp"
-# include "ci/ciValueArrayKlass.hpp"
 #include "classfile/javaClasses.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "gc/shared/collectedHeap.hpp"

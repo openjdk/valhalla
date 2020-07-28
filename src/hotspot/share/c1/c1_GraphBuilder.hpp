@@ -267,11 +267,11 @@ class GraphBuilder {
   void throw_op(int bci);
   Value round_fp(Value fp_value);
 
-  // value types
+  // inline types
   void default_value(int klass_index);
   void withfield(int field_index);
-  void copy_value_content(ciValueKlass* vk, Value src, int src_off, Value dest, int dest_off,
-       ValueStack* state_before, bool needs_patching);
+  void copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off,
+                           ValueStack* state_before, bool needs_patching);
 
   // stack/code manipulation helpers
   Instruction* append_with_bci(Instruction* instr, int bci);

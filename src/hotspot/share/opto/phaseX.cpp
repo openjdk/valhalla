@@ -1426,8 +1426,8 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
       if (dead->Opcode() == Op_Opaque4) {
         C->remove_opaque4_node(dead);
       }
-      if (dead->is_ValueTypeBase()) {
-        C->remove_value_type(dead);
+      if (dead->is_InlineTypeBase()) {
+        C->remove_inline_type(dead);
       }
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       bs->unregister_potential_barrier_node(dead);

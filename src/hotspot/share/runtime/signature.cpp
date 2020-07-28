@@ -379,7 +379,7 @@ InlineKlass* SignatureStream::as_inline_klass(InstanceKlass* holder) {
   Handle class_loader(THREAD, holder->class_loader());
   Handle protection_domain(THREAD, holder->protection_domain());
   Klass* k = as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, THREAD);
-  assert(k != NULL && !HAS_PENDING_EXCEPTION, "unresolved value klass");
+  assert(k != NULL && !HAS_PENDING_EXCEPTION, "unresolved inline klass");
   return InlineKlass::cast(k);
 }
 
@@ -593,7 +593,7 @@ bool SigEntry::is_reserved_entry(const GrowableArray<SigEntry>* sig, int i) {
   return sig->at(i)._offset == SigEntry::ReservedOffset;
 }
 
-// Returns true if the argument at index 'i' is not a value type delimiter
+// Returns true if the argument at index 'i' is not an inline type delimiter
 bool SigEntry::skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i) {
   return (sig->at(i)._bt != T_INLINE_TYPE &&
           (sig->at(i)._bt != T_VOID || sig->at(i-1)._bt == T_LONG || sig->at(i-1)._bt == T_DOUBLE));
@@ -638,7 +638,7 @@ TempNewSymbol SigEntry::create_symbol(const GrowableArray<SigEntry>* sig) {
   return SymbolTable::new_symbol(sig_str);
 }
 
-// Increment signature iterator (skips value type delimiters and T_VOID) and check if next entry is reserved
+// Increment signature iterator (skips inline type delimiters and T_VOID) and check if next entry is reserved
 bool SigEntry::next_is_reserved(ExtendedSignature& sig, BasicType& bt, bool can_be_void) {
   assert(can_be_void || bt != T_VOID, "should never see void");
   if (sig.at_end() || (can_be_void && type2size[bt] == 2 && (*sig)._offset != SigEntry::ReservedOffset)) {

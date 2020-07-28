@@ -548,8 +548,8 @@ Node *Node::clone() const {
   if (n->is_SafePoint()) {
     n->as_SafePoint()->clone_replaced_nodes();
   }
-  if (n->is_ValueTypeBase()) {
-    C->add_value_type(n);
+  if (n->is_InlineTypeBase()) {
+    C->add_inline_type(n);
   }
   return n;                     // Return the clone
 }
@@ -628,8 +628,8 @@ void Node::destruct() {
   if (Opcode() == Op_Opaque4) {
     compile->remove_opaque4_node(this);
   }
-  if (is_ValueTypeBase()) {
-    compile->remove_value_type(this);
+  if (is_InlineTypeBase()) {
+    compile->remove_inline_type(this);
   }
 
   if (is_SafePoint()) {
@@ -1404,8 +1404,8 @@ static void kill_dead_code( Node *dead, PhaseIterGVN *igvn ) {
       if (dead->Opcode() == Op_Opaque4) {
         igvn->C->remove_opaque4_node(dead);
       }
-      if (dead->is_ValueTypeBase()) {
-        igvn->C->remove_value_type(dead);
+      if (dead->is_InlineTypeBase()) {
+        igvn->C->remove_inline_type(dead);
       }
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       bs->unregister_potential_barrier_node(dead);
@@ -2147,7 +2147,7 @@ void Node::verify_edges(Unique_Node_List &visited) {
       assert( cnt == 0,"Mismatched edge count.");
     } else if (n == NULL) {
       assert(i >= req() || i == 0 || is_Region() || is_Phi() || is_ArrayCopy() ||
-             (is_Allocate() && i >= AllocateNode::ValueNode) ||
+             (is_Allocate() && i >= AllocateNode::InlineTypeNode) ||
              (is_Unlock() && i == req()-1),
              "only region, phi, arraycopy, allocate or unlock nodes have null data edges");
     } else {

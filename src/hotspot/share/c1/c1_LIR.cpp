@@ -27,8 +27,8 @@
 #include "c1/c1_LIR.hpp"
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_ValueStack.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 Register LIR_OprDesc::as_register() const {
@@ -1038,12 +1038,12 @@ void LIR_OpJavaCall::emit_code(LIR_Assembler* masm) {
   masm->emit_call(this);
 }
 
-bool LIR_OpJavaCall::maybe_return_as_fields(ciValueKlass** vk_ret) const {
+bool LIR_OpJavaCall::maybe_return_as_fields(ciInlineKlass** vk_ret) const {
   if (InlineTypeReturnedAsFields) {
-    if (method()->signature()->maybe_returns_value_type()) {
+    if (method()->signature()->maybe_returns_inline_type()) {
       ciType* return_type = method()->return_type();
-      if (return_type->is_valuetype()) {
-        ciValueKlass* vk = return_type->as_value_klass();
+      if (return_type->is_inlinetype()) {
+        ciInlineKlass* vk = return_type->as_inline_klass();
         if (vk->can_be_returned_as_fields()) {
           if (vk_ret != NULL) {
             *vk_ret = vk;
@@ -1060,10 +1060,10 @@ bool LIR_OpJavaCall::maybe_return_as_fields(ciValueKlass** vk_ret) const {
     } else if (is_method_handle_invoke()) {
       BasicType bt = method()->return_type()->basic_type();
       if (bt == T_OBJECT || bt == T_INLINE_TYPE) {
-        // A value type might be returned from the call but we don't know its
-        // type. Either we get a buffered value (and nothing needs to be done)
-        // or one of the values being returned is the klass of the value type
-        // (RAX on x64, with LSB set to 1) and we need to allocate a value
+        // An inline type might be returned from the call but we don't know its
+        // type. Either we get a buffered inline type (and nothing needs to be done)
+        // or one of the inlines being returned is the klass of the inline type
+        // (RAX on x64, with LSB set to 1) and we need to allocate an inline
         // type instance of that type and initialize it with other values being
         // returned (in other registers).
         // type.

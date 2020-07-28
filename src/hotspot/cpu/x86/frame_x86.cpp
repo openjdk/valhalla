@@ -141,7 +141,7 @@ bool frame::safe_for_sender(JavaThread *thread) {
       intptr_t** saved_fp_addr = (intptr_t**) (sender_sp - frame::sender_sp_offset);
       saved_fp = *saved_fp_addr;
 
-      // Repair the sender sp if this is a method with scalarized value type args
+      // Repair the sender sp if this is a method with scalarized inline type args
       sender_sp = repair_sender_sp(sender_sp, saved_fp_addr);
       sender_unextended_sp = sender_sp;
     }
@@ -476,16 +476,16 @@ frame frame::sender_for_compiled_frame(RegisterMap* map) const {
     if (!caller_args) {
       nmethod* nm = _cb->as_nmethod_or_null();
       if (nm != NULL && nm->is_compiled_by_c1() && nm->method()->has_scalarized_args() &&
-          pc() < nm->verified_value_entry_point()) {
-        // The VEP and VVEP(RO) of C1-compiled methods call buffer_value_args_xxx
+          pc() < nm->verified_inline_entry_point()) {
+        // The VEP and VIEP(RO) of C1-compiled methods call buffer_inline_args_xxx
         // before doing any argument shuffling, so we need to scan the oops
         // as the caller passes them.
         caller_args = true;
 #ifdef ASSERT
         NativeCall* call = nativeCall_before(pc());
         address dest = call->destination();
-        assert(dest == Runtime1::entry_for(Runtime1::buffer_value_args_no_receiver_id) ||
-               dest == Runtime1::entry_for(Runtime1::buffer_value_args_id), "unexpected safepoint in entry point");
+        assert(dest == Runtime1::entry_for(Runtime1::buffer_inline_args_no_receiver_id) ||
+               dest == Runtime1::entry_for(Runtime1::buffer_inline_args_id), "unexpected safepoint in entry point");
 #endif
       }
     }
@@ -706,7 +706,7 @@ frame::frame(void* sp, void* fp, void* pc) {
 void frame::pd_ps() {}
 #endif
 
-// Check for a method with scalarized value type arguments that needs
+// Check for a method with scalarized inline type arguments that needs
 // a stack repair and return the repaired sender stack pointer.
 intptr_t* frame::repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const {
   CompiledMethod* cm = _cb->as_compiled_method_or_null();

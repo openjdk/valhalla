@@ -443,7 +443,7 @@ void JavaCalls::call_helper(JavaValue* result, const methodHandle& method, JavaC
 
   jobject value_buffer = NULL;
   if (InlineTypeReturnedAsFields && result->get_type() == T_INLINE_TYPE) {
-    // Pre allocate buffered value in case the result is returned
+    // Pre allocate a buffered inline type in case the result is returned
     // flattened by compiled code
     InlineKlass* vk = method->returned_inline_type(thread);
     if (vk->can_be_returned_as_fields()) {

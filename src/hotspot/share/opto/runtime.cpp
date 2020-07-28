@@ -1712,7 +1712,7 @@ static void trace_exception(outputStream* st, oop exception_oop, address excepti
   st->print_raw_cr(tempst.as_string());
 }
 
-const TypeFunc *OptoRuntime::store_value_type_fields_Type() {
+const TypeFunc *OptoRuntime::store_inline_type_fields_Type() {
   // create input type (domain)
   uint total = SharedRuntime::java_return_convention_max_int + SharedRuntime::java_return_convention_max_float*2;
   const Type **fields = TypeTuple::fields(total);
@@ -1739,7 +1739,7 @@ const TypeFunc *OptoRuntime::store_value_type_fields_Type() {
   return TypeFunc::make(domain, range);
 }
 
-const TypeFunc *OptoRuntime::pack_value_type_Type() {
+const TypeFunc *OptoRuntime::pack_inline_type_Type() {
   // create input type (domain)
   uint total = 1 + SharedRuntime::java_return_convention_max_int + SharedRuntime::java_return_convention_max_float*2;
   const Type **fields = TypeTuple::fields(total);
@@ -1767,15 +1767,15 @@ const TypeFunc *OptoRuntime::pack_value_type_Type() {
   return TypeFunc::make(domain, range);
 }
 
-JRT_LEAF(void, OptoRuntime::load_unknown_value(flatArrayOopDesc* array, int index, instanceOopDesc* buffer))
+JRT_LEAF(void, OptoRuntime::load_unknown_inline(flatArrayOopDesc* array, int index, instanceOopDesc* buffer))
 {
   array->value_copy_from_index(index, buffer);
 }
 JRT_END
 
-const TypeFunc *OptoRuntime::load_unknown_value_Type() {
+const TypeFunc* OptoRuntime::load_unknown_inline_type() {
   // create input type (domain)
-  const Type **fields = TypeTuple::fields(3);
+  const Type** fields = TypeTuple::fields(3);
   // We don't know the number of returned values and their
   // types. Assume all registers available to the return convention
   // are used.
@@ -1787,21 +1787,21 @@ const TypeFunc *OptoRuntime::load_unknown_value_Type() {
 
   // create result type (range)
   fields = TypeTuple::fields(0);
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0, fields);
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+0, fields);
 
   return TypeFunc::make(domain, range);
 }
 
-JRT_LEAF(void, OptoRuntime::store_unknown_value(instanceOopDesc* buffer, flatArrayOopDesc* array, int index))
+JRT_LEAF(void, OptoRuntime::store_unknown_inline(instanceOopDesc* buffer, flatArrayOopDesc* array, int index))
 {
   assert(buffer != NULL, "can't store null into flat array");
   array->value_copy_to_index(buffer, index);
 }
 JRT_END
 
-const TypeFunc *OptoRuntime::store_unknown_value_Type() {
+const TypeFunc* OptoRuntime::store_unknown_inline_type() {
   // create input type (domain)
-  const Type **fields = TypeTuple::fields(3);
+  const Type** fields = TypeTuple::fields(3);
   // We don't know the number of returned values and their
   // types. Assume all registers available to the return convention
   // are used.
@@ -1813,7 +1813,7 @@ const TypeFunc *OptoRuntime::store_unknown_value_Type() {
 
   // create result type (range)
   fields = TypeTuple::fields(0);
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0, fields);
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+0, fields);
 
   return TypeFunc::make(domain, range);
 }

@@ -121,14 +121,14 @@ int Runtime1::_arraycopy_checkcast_cnt = 0;
 int Runtime1::_arraycopy_checkcast_attempt_cnt = 0;
 int Runtime1::_new_type_array_slowcase_cnt = 0;
 int Runtime1::_new_object_array_slowcase_cnt = 0;
-int Runtime1::_new_value_array_slowcase_cnt = 0;
+int Runtime1::_new_flat_array_slowcase_cnt = 0;
 int Runtime1::_new_instance_slowcase_cnt = 0;
 int Runtime1::_new_multi_array_slowcase_cnt = 0;
 int Runtime1::_load_flattened_array_slowcase_cnt = 0;
 int Runtime1::_store_flattened_array_slowcase_cnt = 0;
 int Runtime1::_substitutability_check_slowcase_cnt = 0;
-int Runtime1::_buffer_value_args_slowcase_cnt = 0;
-int Runtime1::_buffer_value_args_no_receiver_slowcase_cnt = 0;
+int Runtime1::_buffer_inline_args_slowcase_cnt = 0;
+int Runtime1::_buffer_inline_args_no_receiver_slowcase_cnt = 0;
 int Runtime1::_monitorenter_slowcase_cnt = 0;
 int Runtime1::_monitorexit_slowcase_cnt = 0;
 int Runtime1::_patch_code_slowcase_cnt = 0;
@@ -413,8 +413,8 @@ JRT_ENTRY(void, Runtime1::new_object_array(JavaThread* thread, Klass* array_klas
 JRT_END
 
 
-JRT_ENTRY(void, Runtime1::new_value_array(JavaThread* thread, Klass* array_klass, jint length))
-  NOT_PRODUCT(_new_value_array_slowcase_cnt++;)
+JRT_ENTRY(void, Runtime1::new_flat_array(JavaThread* thread, Klass* array_klass, jint length))
+  NOT_PRODUCT(_new_flat_array_slowcase_cnt++;)
 
   // Note: no handle for klass needed since they are not used
   //       anymore after new_objArray() and no GC can happen before.
@@ -506,21 +506,21 @@ JRT_END
 
 extern "C" void ps();
 
-void Runtime1::buffer_value_args_impl(JavaThread* thread, Method* m, bool allocate_receiver) {
+void Runtime1::buffer_inline_args_impl(JavaThread* thread, Method* m, bool allocate_receiver) {
   Thread* THREAD = thread;
-  methodHandle method(thread, m); // We are inside the verified_entry or verified_value_ro_entry of this method.
-  oop obj = SharedRuntime::allocate_value_types_impl(thread, method, allocate_receiver, CHECK);
+  methodHandle method(thread, m); // We are inside the verified_entry or verified_inline_ro_entry of this method.
+  oop obj = SharedRuntime::allocate_inline_types_impl(thread, method, allocate_receiver, CHECK);
   thread->set_vm_result(obj);
 }
 
-JRT_ENTRY(void, Runtime1::buffer_value_args(JavaThread* thread, Method* method))
-  NOT_PRODUCT(_buffer_value_args_slowcase_cnt++;)
-  buffer_value_args_impl(thread, method, true);
+JRT_ENTRY(void, Runtime1::buffer_inline_args(JavaThread* thread, Method* method))
+  NOT_PRODUCT(_buffer_inline_args_slowcase_cnt++;)
+  buffer_inline_args_impl(thread, method, true);
 JRT_END
 
-JRT_ENTRY(void, Runtime1::buffer_value_args_no_receiver(JavaThread* thread, Method* method))
-  NOT_PRODUCT(_buffer_value_args_no_receiver_slowcase_cnt++;)
-  buffer_value_args_impl(thread, method, false);
+JRT_ENTRY(void, Runtime1::buffer_inline_args_no_receiver(JavaThread* thread, Method* method))
+  NOT_PRODUCT(_buffer_inline_args_no_receiver_slowcase_cnt++;)
+  buffer_inline_args_impl(thread, method, false);
 JRT_END
 
 JRT_ENTRY(void, Runtime1::unimplemented_entry(JavaThread* thread, StubID id))
@@ -1585,14 +1585,14 @@ void Runtime1::print_statistics() {
 
   tty->print_cr(" _new_type_array_slowcase_cnt:    %d", _new_type_array_slowcase_cnt);
   tty->print_cr(" _new_object_array_slowcase_cnt:  %d", _new_object_array_slowcase_cnt);
-  tty->print_cr(" _new_value_array_slowcase_cnt:   %d", _new_value_array_slowcase_cnt);
+  tty->print_cr(" _new_flat_array_slowcase_cnt:   %d", _new_flat_array_slowcase_cnt);
   tty->print_cr(" _new_instance_slowcase_cnt:      %d", _new_instance_slowcase_cnt);
   tty->print_cr(" _new_multi_array_slowcase_cnt:   %d", _new_multi_array_slowcase_cnt);
   tty->print_cr(" _load_flattened_array_slowcase_cnt:   %d", _load_flattened_array_slowcase_cnt);
   tty->print_cr(" _store_flattened_array_slowcase_cnt:  %d", _store_flattened_array_slowcase_cnt);
   tty->print_cr(" _substitutability_check_slowcase_cnt: %d", _substitutability_check_slowcase_cnt);
-  tty->print_cr(" _buffer_value_args_slowcase_cnt:%d", _buffer_value_args_slowcase_cnt);
-  tty->print_cr(" _buffer_value_args_no_receiver_slowcase_cnt:%d", _buffer_value_args_no_receiver_slowcase_cnt);
+  tty->print_cr(" _buffer_inline_args_slowcase_cnt:%d", _buffer_inline_args_slowcase_cnt);
+  tty->print_cr(" _buffer_inline_args_no_receiver_slowcase_cnt:%d", _buffer_inline_args_no_receiver_slowcase_cnt);
 
   tty->print_cr(" _monitorenter_slowcase_cnt:      %d", _monitorenter_slowcase_cnt);
   tty->print_cr(" _monitorexit_slowcase_cnt:       %d", _monitorexit_slowcase_cnt);

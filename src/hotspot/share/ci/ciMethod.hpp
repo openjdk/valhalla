@@ -379,7 +379,7 @@ class ciMethod : public ciMetadata {
 
   static bool is_consistent_info(ciMethod* declared_method, ciMethod* resolved_method);
 
-  // Support for the value type calling convention
+  // Support for the inline type calling convention
   bool has_scalarized_args() const;
   const GrowableArray<SigEntry>* get_sig_cc();
 };

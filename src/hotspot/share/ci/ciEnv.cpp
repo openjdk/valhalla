@@ -27,13 +27,13 @@
 #include "ci/ciConstant.hpp"
 #include "ci/ciEnv.hpp"
 #include "ci/ciField.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciMethod.hpp"
 #include "ci/ciNullObject.hpp"
 #include "ci/ciReplay.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -515,9 +515,9 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
     i++;
   }
   if (i > 0 && sym->char_at(i) == JVM_SIGNATURE_INLINE_TYPE) {
-    // An unloaded array class of value types is an ObjArrayKlass, an
-    // unloaded value type class is an InstanceKlass. For consistency,
-    // make the signature of the unloaded array of value type use L
+    // An unloaded array class of inline types is an ObjArrayKlass, an
+    // unloaded inline type class is an InstanceKlass. For consistency,
+    // make the signature of the unloaded array of inline type use L
     // rather than Q.
     char *new_name = CURRENT_THREAD_ENV->name_buffer(sym->utf8_length()+1);
     strncpy(new_name, (char*)sym->base(), sym->utf8_length());

@@ -78,7 +78,7 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
     }
     // Ignore exactness of constant supertype (the type of the corresponding object may be non-exact).
     const TypeKlassPtr* casted_sup = super_t->is_klassptr()->cast_to_exactness(false)->is_klassptr();
-    if (sub_t->is_ptr()->flat_array() && (!casted_sup->can_be_value_type() || (superk->is_valuetype() && !superk->flatten_array()))) {
+    if (sub_t->is_ptr()->flat_array() && (!casted_sup->can_be_inline_type() || (superk->is_inlinetype() && !superk->flatten_array()))) {
       // Subtype is flattened in arrays but supertype is not. Must be unrelated.
       unrelated_classes = true;
     }

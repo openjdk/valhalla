@@ -28,12 +28,12 @@
 #include "opto/castnode.hpp"
 #include "opto/connode.hpp"
 #include "opto/graphKit.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/subnode.hpp"
 #include "opto/type.hpp"
-#include "opto/valuetypenode.hpp"
 
 //=============================================================================
 // If input is already higher or equal to cast type, then this is an identity.
@@ -286,7 +286,7 @@ void CastIINode::dump_spec(outputStream* st) const {
 //------------------------------Identity---------------------------------------
 // If input is already higher or equal to cast type, then this is an identity.
 Node* CheckCastPPNode::Identity(PhaseGVN* phase) {
-  if (in(1)->is_ValueTypeBase() && _type->isa_oopptr() && phase->type(in(1))->value_klass()->is_subtype_of(_type->is_oopptr()->klass())) {
+  if (in(1)->is_InlineTypeBase() && _type->isa_oopptr() && phase->type(in(1))->inline_klass()->is_subtype_of(_type->is_oopptr()->klass())) {
     return in(1);
   }
   Node* dom = dominating_cast(phase, phase);

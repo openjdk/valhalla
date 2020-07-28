@@ -49,7 +49,7 @@ class LIR_Assembler: public CompilationResourceObj {
   int                _pending_non_safepoint_offset;
 
   Label              _unwind_handler_entry;
-  Label              _verified_value_entry;
+  Label              _verified_inline_entry;
 
 #ifdef ASSERT
   BlockList          _branch_target_blocks;
@@ -235,7 +235,7 @@ class LIR_Assembler: public CompilationResourceObj {
   void call(        LIR_OpJavaCall* op, relocInfo::relocType rtype);
   void ic_call(     LIR_OpJavaCall* op);
   void vtable_call( LIR_OpJavaCall* op);
-  int  store_inline_type_fields_to_buf(ciValueKlass* vk);
+  int  store_inline_type_fields_to_buf(ciInlineKlass* vk);
 
   void osr_entry();
 

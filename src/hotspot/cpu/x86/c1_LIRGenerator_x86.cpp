@@ -31,9 +31,9 @@
 #include "c1/c1_Runtime1.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArray.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "gc/shared/c1/barrierSetC1.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -304,7 +304,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   LIR_Opr lock = new_register(T_INT);
   // Need a scratch register for biased locking on x86
   LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if (UseBiasedLocking || x->maybe_valuetype()) {
+  if (UseBiasedLocking || x->maybe_inlinetype()) {
     scratch = new_register(T_INT);
   }
 
@@ -313,7 +313,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
     info_for_exception = state_for(x);
   }
 
-  CodeStub* throw_imse_stub = x->maybe_valuetype() ?
+  CodeStub* throw_imse_stub = x->maybe_inlinetype() ?
       new SimpleExceptionStub(Runtime1::throw_illegal_monitor_state_exception_id,
                               LIR_OprFact::illegalOpr, state_for(x))
     : NULL;
@@ -1297,7 +1297,7 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   __ move(reg, result);
 }
 
-void LIRGenerator::do_NewValueTypeInstance(NewValueTypeInstance* x) {
+void LIRGenerator::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {
   // Mapping to do_NewInstance (same code) but use state_before for reexecution.
   CodeEmitInfo* info = state_for(x, x->state_before());
   x->set_to_object_type();

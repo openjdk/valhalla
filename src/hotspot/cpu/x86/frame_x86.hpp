@@ -123,7 +123,7 @@
     return (intptr_t*) addr_at(offset);
   }
 
-  // Support for scalarized value type calling convention
+  // Support for scalarized inline type calling convention
   intptr_t* repair_sender_sp(intptr_t* sender_sp, intptr_t** saved_fp_addr) const;
 
 #ifdef ASSERT

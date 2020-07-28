@@ -101,7 +101,7 @@ ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset) {
 ciConstant ciInstance::field_value(ciField* field) {
   assert(is_loaded(), "invalid access - must be loaded");
   assert(field->holder()->is_loaded(), "invalid access - holder must be loaded");
-  assert(field->is_static() || field->holder()->is_valuetype() || klass()->is_subclass_of(field->holder()),
+  assert(field->is_static() || field->holder()->is_inlinetype() || klass()->is_subclass_of(field->holder()),
          "invalid access - must be subclass");
 
   GUARDED_VM_ENTRY(return field_value_impl(field->type()->basic_type(), field->offset());)

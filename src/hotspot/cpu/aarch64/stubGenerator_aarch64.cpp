@@ -5715,9 +5715,9 @@ class StubGenerator: public StubCodeGenerator {
 
 
   // Call here from the interpreter or compiled code to either load
-  // multiple returned values from the value type instance being
+  // multiple returned values from the inline type instance being
   // returned to registers or to store returned values to a newly
-  // allocated value type instance.
+  // allocated inline type instance.
   address generate_return_value_stub(address destination, const char* name, bool has_res) {
 
     // Information about frame layout at time of blocking runtime call.

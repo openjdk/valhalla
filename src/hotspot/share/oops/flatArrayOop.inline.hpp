@@ -62,7 +62,7 @@ inline void flatArrayOopDesc::value_copy_from_index(int index, oop dst) const {
   FlatArrayKlass* vaklass = FlatArrayKlass::cast(klass());
   InlineKlass* vklass = vaklass->element_klass();
   if (vklass->is_empty_inline_type()) {
-    return; // Assumes dst was a new and clean buffer (OptoRuntime::load_unknown_value())
+    return; // Assumes dst was a new and clean buffer (OptoRuntime::load_unknown_inline())
   } else {
     void* src = value_at_addr(index, vaklass->layout_helper());
     return vklass->inline_copy_payload_to_new_oop(src ,dst);
