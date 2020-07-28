@@ -1773,9 +1773,9 @@ JRT_LEAF(void, OptoRuntime::load_unknown_inline(flatArrayOopDesc* array, int ind
 }
 JRT_END
 
-const TypeFunc *OptoRuntime::load_unknown_inline_type() {
+const TypeFunc* OptoRuntime::load_unknown_inline_type() {
   // create input type (domain)
-  const Type **fields = TypeTuple::fields(3);
+  const Type** fields = TypeTuple::fields(3);
   // We don't know the number of returned values and their
   // types. Assume all registers available to the return convention
   // are used.
@@ -1787,7 +1787,7 @@ const TypeFunc *OptoRuntime::load_unknown_inline_type() {
 
   // create result type (range)
   fields = TypeTuple::fields(0);
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0, fields);
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+0, fields);
 
   return TypeFunc::make(domain, range);
 }
@@ -1799,9 +1799,9 @@ JRT_LEAF(void, OptoRuntime::store_unknown_inline(instanceOopDesc* buffer, flatAr
 }
 JRT_END
 
-const TypeFunc *OptoRuntime::store_unknown_inline_type() {
+const TypeFunc* OptoRuntime::store_unknown_inline_type() {
   // create input type (domain)
-  const Type **fields = TypeTuple::fields(3);
+  const Type** fields = TypeTuple::fields(3);
   // We don't know the number of returned values and their
   // types. Assume all registers available to the return convention
   // are used.
@@ -1813,7 +1813,7 @@ const TypeFunc *OptoRuntime::store_unknown_inline_type() {
 
   // create result type (range)
   fields = TypeTuple::fields(0);
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0, fields);
+  const TypeTuple* range = TypeTuple::make(TypeFunc::Parms+0, fields);
 
   return TypeFunc::make(domain, range);
 }

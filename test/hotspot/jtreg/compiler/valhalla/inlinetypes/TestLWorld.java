@@ -71,7 +71,7 @@ public class TestLWorld extends InlineTypeTest {
         return testValue1.hash();
     }
 
-    // Test passing a inline type as an Object
+    // Test passing an inline type as an Object
     @DontInline
     public Object test1_dontinline1(Object o) {
         return o;
@@ -1075,7 +1075,7 @@ public class TestLWorld extends InlineTypeTest {
         Asserts.assertEQ(testValue1Array[index].hash(), hash());
     }
 
-    // Test writing a inline type to a null inline type array
+    // Test writing an inline type to a null inline type array
     @Test()
     public void test36(MyValue1[] va, MyValue1 vt, int index) {
         va[index] = vt;
@@ -1565,7 +1565,7 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    // Same as test2 but with field holder being a inline type
+    // Same as test2 but with field holder being an inline type
     @Test()
     public long test51(Test51Value holder, MyValue1 vt1, Object vt2) {
         return holder.test(holder, vt1, vt2);
@@ -1884,7 +1884,7 @@ public class TestLWorld extends InlineTypeTest {
         Asserts.assertEQ(array[0], Integer.valueOf(1));
     }
 
-    // Test convertion between a inline type and java.lang.Object without an allocation
+    // Test convertion between an inline type and java.lang.Object without an allocation
     @ForceInline
     public Object test69_sum(Object a, Object b) {
         int sum = ((MyValue1)a).x + ((MyValue1)b).x;
@@ -2723,7 +2723,7 @@ public class TestLWorld extends InlineTypeTest {
         Asserts.assertFalse(result);
     }
 
-    // An abstract class with a non-static field can never be implemented by a inline type
+    // An abstract class with a non-static field can never be implemented by an inline type
     abstract class NoValueImplementors1 {
         int field = 42;
     }

@@ -533,7 +533,7 @@ bool InlineTypeNode::is_default(PhaseGVN& gvn) const {
 InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk) {
   PhaseGVN& gvn = kit->gvn();
 
-  // Create and initialize a InlineTypeNode by loading all field
+  // Create and initialize an InlineTypeNode by loading all field
   // values from a heap-allocated version and also save the oop.
   InlineTypeNode* vt = new InlineTypeNode(vk, oop);
 
@@ -581,7 +581,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInline
 
 // GraphKit wrapper for the 'make_from_flattened' method
 InlineTypeNode* InlineTypeNode::make_from_flattened(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) {
-  // Create and initialize a InlineTypeNode by loading all field values from
+  // Create and initialize an InlineTypeNode by loading all field values from
   // a flattened inline type field at 'holder_offset' or from an inline type array.
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk);
   // The inline type is flattened into the object without an oop header. Subtract the

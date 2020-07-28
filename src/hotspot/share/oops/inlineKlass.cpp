@@ -538,7 +538,7 @@ oop InlineKlass::realloc_result(const RegisterMap& reg_map, const GrowableArray<
   return new_vt;
 }
 
-// Check the return register for a InlineKlass oop
+// Check the return register for an InlineKlass oop
 InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
   BasicType bt = T_METADATA;
   VMRegPair pair;
@@ -548,7 +548,7 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
   address loc = map.location(pair.first());
   intptr_t ptr = *(intptr_t*)loc;
   if (is_set_nth_bit(ptr, 0)) {
-    // Oop is tagged, must be a InlineKlass oop
+    // Oop is tagged, must be an InlineKlass oop
     clear_nth_bit(ptr, 0);
     assert(Metaspace::contains((void*)ptr), "should be klass");
     InlineKlass* vk = (InlineKlass*)ptr;

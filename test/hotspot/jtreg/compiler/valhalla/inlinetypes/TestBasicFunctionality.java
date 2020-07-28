@@ -104,7 +104,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         Asserts.assertEQ(v1.y, v2.y);
     }
 
-    // Create a inline type in compiled code and only use fields.
+    // Create an inline type in compiled code and only use fields.
     // Allocation should go away because inline type does not escape.
     @Test(failOn = ALLOC + LOAD + STORE + TRAP)
     public long test4() {
@@ -118,7 +118,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create a inline type in compiled code and pass it to
+    // Create an inline type in compiled code and pass it to
     // an inlined compiled method via a call.
     @Test(failOn = ALLOC + LOAD + STORE + TRAP)
     public long test5() {
@@ -137,7 +137,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create a inline type in compiled code and pass it to
+    // Create an inline type in compiled code and pass it to
     // the interpreter via a call.
     @Test(valid = InlineTypePassFieldsAsArgsOn, failOn = LOAD + TRAP + ALLOC)
     @Test(valid = InlineTypePassFieldsAsArgsOff, match = {ALLOC}, matchCount = {1}, failOn = LOAD + TRAP)
@@ -153,7 +153,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create a inline type in compiled code and pass it to
+    // Create an inline type in compiled code and pass it to
     // the interpreter by returning.
     @Test(match = {ALLOC}, matchCount = {1}, failOn = LOAD + TRAP)
     public MyValue1 test7(int x, long y) {
@@ -252,7 +252,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         Asserts.assertEQ(result, hash(rI + 10, rL + 10));
     }
 
-    // Test loop with uncommon trap referencing a inline type
+    // Test loop with uncommon trap referencing an inline type
     @Test(match = {SCOBJ}, matchCount = {-1 /* at least 1 */}, failOn = LOAD)
     public long test12(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsInline(rI, rL);
@@ -282,7 +282,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         Asserts.assertEQ(result, warmup ? rL + (1000 * rI) : ((Math.abs(rI) % 10) + 1) * hash());
     }
 
-    // Test loop with uncommon trap referencing a inline type
+    // Test loop with uncommon trap referencing an inline type
     @Test
     public long test13(boolean b) {
         MyValue1 v = MyValue1.createWithFieldsDontInline(rI, rL);
@@ -312,7 +312,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         Asserts.assertEQ(result, warmup ? rL + (1000 * rI) : ((Math.abs(rI) % 10) + 1) * hash());
     }
 
-    // Create a inline type in a non-inlined method and then call a
+    // Create an inline type in a non-inlined method and then call a
     // non-inlined method on that inline type.
     @Test(valid = InlineTypePassFieldsAsArgsOn, failOn = (ALLOC + STORE + TRAP), match = {LOAD}, matchCount = {12})
     @Test(valid = InlineTypePassFieldsAsArgsOff, failOn = (ALLOC + LOAD + STORE + TRAP))
@@ -327,7 +327,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create a inline type in an inlined method and then call a
+    // Create an inline type in an inlined method and then call a
     // non-inlined method on that inline type.
     @Test(valid = InlineTypePassFieldsAsArgsOn, failOn = (LOAD + TRAP + ALLOC))
     @Test(valid = InlineTypePassFieldsAsArgsOff, failOn = (LOAD + TRAP), match = {ALLOC}, matchCount = {1})
@@ -342,7 +342,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create a inline type in a non-inlined method and then call an
+    // Create an inline type in a non-inlined method and then call an
     // inlined method on that inline type.
     @Test(failOn = (ALLOC + STORE + TRAP))
     public long test16() {
@@ -356,7 +356,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create a inline type in an inlined method and then call an
+    // Create an inline type in an inlined method and then call an
     // inlined method on that inline type.
     @Test(failOn = (ALLOC + LOAD + STORE + TRAP))
     public long test17() {
@@ -370,7 +370,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create a inline type in compiled code and pass it to the
+    // Create an inline type in compiled code and pass it to the
     // interpreter via a call. The inline type is live at the first call so
     // debug info should include a reference to all its fields.
     @Test(valid = InlineTypePassFieldsAsArgsOn, failOn = ALLOC + LOAD + TRAP)
@@ -387,7 +387,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create a inline type in compiled code and pass it to the
+    // Create an inline type in compiled code and pass it to the
     // interpreter via a call. The inline type is passed twice but
     // should only be allocated once.
     @Test(valid = InlineTypePassFieldsAsArgsOn, failOn = ALLOC + LOAD + TRAP)
@@ -408,7 +408,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         Asserts.assertEQ(result, hash());
     }
 
-    // Create a inline type (array) in compiled code and pass it to the
+    // Create an inline type (array) in compiled code and pass it to the
     // interpreter via a call. The inline type is live at the uncommon
     // trap: verify that deoptimization causes the inline type to be
     // correctly allocated.

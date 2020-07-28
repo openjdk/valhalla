@@ -58,7 +58,7 @@ public class TestJNICalls extends InlineTypeTest {
     public native Object testMethod1(MyValue1 o);
     public native long testMethod2(MyValue1 o);
 
-    // Pass a inline type to a native method that calls back into Java code and returns an inline type
+    // Pass an inline type to a native method that calls back into Java code and returns an inline type
     @Test
     @Warmup(10000) // Make sure native method is compiled
     public MyValue1 test1(MyValue1 vt, boolean callback) {
@@ -78,7 +78,7 @@ public class TestJNICalls extends InlineTypeTest {
         Asserts.assertEQ(result.hash(), vt.hash());
     }
 
-    // Pass a inline type to a native method that calls the hash method and returns the result
+    // Pass an inline type to a native method that calls the hash method and returns the result
     @Test
     @Warmup(10000) // Make sure native method is compiled
     public long test2(MyValue1 vt) {
@@ -102,7 +102,7 @@ public class TestJNICalls extends InlineTypeTest {
         public native int testMethod3();
     }
 
-    // Call a native method with a inline type receiver
+    // Call a native method with an inline type receiver
     @Test
     @Warmup(10000) // Make sure native method is compiled
     public int test3(MyValueWithNative vt) {

@@ -103,7 +103,7 @@ public class TestNullableArrays extends InlineTypeTest {
         }
     }
 
-    // Test creation of a inline type array and element access
+    // Test creation of an inline type array and element access
     @Test
     // TODO 8227588
     // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
@@ -119,7 +119,7 @@ public class TestNullableArrays extends InlineTypeTest {
         Asserts.assertEQ(result, hash());
     }
 
-    // Test receiving a inline type array from the interpreter,
+    // Test receiving an inline type array from the interpreter,
     // updating its elements in a loop and computing a hash.
     @Test(failOn = ALLOCA)
     public long test3(MyValue1.ref[] va) {

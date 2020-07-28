@@ -24,7 +24,7 @@
 /**
  * @test
  * @bug 8187679
- * @summary The VM should exit gracefully when unable to resolve a inline type argument
+ * @summary The VM should exit gracefully when unable to resolve an inline type argument
  * @library /test/lib
  * @build SimpleInlineType
  * @run main/othervm TestUnresolvedInlineClass

@@ -142,7 +142,7 @@ public:
   virtual bool is_method_handles_adapter_blob() const { return false; }
   virtual bool is_aot() const                         { return false; }
   virtual bool is_compiled() const                    { return false; }
-  virtual bool is_buffered_inline_type_blob() const    { return false; }
+  virtual bool is_buffered_inline_type_blob() const   { return false; }
 
   inline bool is_compiled_by_c1() const    { return _type == compiler_c1; };
   inline bool is_compiled_by_c2() const    { return _type == compiler_c2; };

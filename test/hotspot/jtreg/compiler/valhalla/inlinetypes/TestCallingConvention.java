@@ -360,7 +360,7 @@ public class TestCallingConvention extends InlineTypeTest {
         test17_vt.verify(test17_vt2);
     }
 
-    // Same tests as above but with a inline type that cannot be returned in registers
+    // Same tests as above but with an inline type that cannot be returned in registers
 
     // Return inline types in registers from interpreter -> compiled
     final MyValue4 test18_vt = MyValue4.create();
@@ -592,7 +592,7 @@ public class TestCallingConvention extends InlineTypeTest {
         String result = test28();
     }
 
-    // Test calling a method returning a inline type as fields via reflection
+    // Test calling a method returning an inline type as fields via reflection
     MyValue3 test29_vt = MyValue3.create();
 
     @Test

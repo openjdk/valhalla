@@ -67,7 +67,7 @@ int ciInlineKlass::field_index_by_offset(int offset) {
     }
   }
   assert(best_index >= 0, "field not found");
-  assert(best_offset == offset || _declared_nonstatic_fields->at(best_index)->type()->is_inlinetype(), "offset should match for non-VTs");
+  assert(best_offset == offset || _declared_nonstatic_fields->at(best_index)->type()->is_inlinetype(), "offset should match for non-inline types");
   return best_index;
 }
 

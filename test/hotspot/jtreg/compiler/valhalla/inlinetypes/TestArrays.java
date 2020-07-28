@@ -119,7 +119,7 @@ public class TestArrays extends InlineTypeTest {
         Asserts.assertEQ(result, hash());
     }
 
-    // Test receiving a inline type array from the interpreter,
+    // Test receiving an inline type array from the interpreter,
     // updating its elements in a loop and computing a hash.
     @Test(failOn = ALLOCA)
     public long test3(MyValue1[] va) {
@@ -148,7 +148,7 @@ public class TestArrays extends InlineTypeTest {
         }
     }
 
-    // Test returning a inline type array received from the interpreter
+    // Test returning an inline type array received from the interpreter
     @Test(failOn = ALLOC + ALLOCA + LOAD + STORE + LOOP + TRAP)
     public MyValue1[] test4(MyValue1[] va) {
         return va;

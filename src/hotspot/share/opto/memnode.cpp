@@ -1159,7 +1159,7 @@ bool LoadNode::is_instance_field_load_with_local_phi(Node* ctrl) {
 //------------------------------Identity---------------------------------------
 // Loads are identity if previous store is to same address
 Node* LoadNode::Identity(PhaseGVN* phase) {
-  // Loading from a InlineTypePtr? The InlineTypePtr has the values of
+  // Loading from an InlineTypePtr? The InlineTypePtr has the values of
   // all fields as input. Look for the field with matching offset.
   Node* addr = in(Address);
   intptr_t offset;

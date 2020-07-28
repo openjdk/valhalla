@@ -463,7 +463,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         return (Object)vt == null;
     }
 
-    // Test c2c call passing null for a inline type
+    // Test c2c call passing null for an inline type
     @Test
     @Warmup(10000) // Warmup to make sure 'test17_dontinline' is compiled
     public boolean test16(Object arg) throws Exception {
@@ -518,7 +518,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         nullValue = vt;
     }
 
-    // Test passing null for a inline type
+    // Test passing null for an inline type
     @Test
     @Warmup(11000) // Make sure lambda forms get compiled
     public void test18() throws Throwable {
@@ -584,7 +584,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         }
     }
 
-    // Test writing null to a flattenable/non-flattenable inline type field in a inline type
+    // Test writing null to a flattenable/non-flattenable inline type field in an inline type
     final inline class Test21Value {
         final MyValue1.ref valueField1;
         final MyValue1 valueField2;
@@ -899,7 +899,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         test35(false);
     }
 
-    // Test that when explicitly null checking a inline type, we keep
+    // Test that when explicitly null checking an inline type, we keep
     // track of the information that the inline type can never be null.
     @Test(failOn = ALLOC + STORE)
     public int test37(boolean b, MyValue1.ref vt1, MyValue1.val vt2) {
@@ -920,7 +920,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         Asserts.assertEquals(res, testValue1.x);
     }
 
-    // Test that when explicitly null checking a inline type receiver,
+    // Test that when explicitly null checking an inline type receiver,
     // we keep track of the information that the inline type can never be null.
     @Test(failOn = ALLOC + STORE)
     public int test38(boolean b, MyValue1.ref vt1, MyValue1.val vt2) {
@@ -939,7 +939,7 @@ public class TestNullableInlineTypes extends InlineTypeTest {
         Asserts.assertEquals(res, testValue1.x);
     }
 
-    // Test that when implicitly null checking a inline type receiver,
+    // Test that when implicitly null checking an inline type receiver,
     // we keep track of the information that the inline type can never be null.
     @Test(failOn = ALLOC + STORE)
     public int test39(boolean b, MyValue1.ref vt1, MyValue1.val vt2) {

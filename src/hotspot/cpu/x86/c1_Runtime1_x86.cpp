@@ -1153,7 +1153,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
             __ jcc(Assembler::equal, ok);
             __ cmpl(t0, Klass::_lh_array_tag_vt_value);  // new "[LVT;"
             __ jcc(Assembler::equal, ok);
-            __ stop("assert(is an object or inline array klass)");
+            __ stop("assert(is an object or inline type array klass)");
             break;
           case new_flat_array_id:
             // new "[QVT;"
@@ -1161,7 +1161,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
             __ jcc(Assembler::equal, ok);
             __ cmpl(t0, Klass::_lh_array_tag_obj_value); // the array cannot be flattened (due to InlineArrayElementMaxFlatSize, etc)
             __ jcc(Assembler::equal, ok);
-            __ stop("assert(is an object or inline array klass)");
+            __ stop("assert(is an object or inline type array klass)");
             break;
           default:  ShouldNotReachHere();
           }

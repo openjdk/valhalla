@@ -325,9 +325,9 @@ private:
   static const TypeFunc* pack_inline_type_Type();
 
   static void load_unknown_inline(flatArrayOopDesc* array, int index, instanceOopDesc* buffer);
-  static const TypeFunc *load_unknown_inline_type();
+  static const TypeFunc* load_unknown_inline_type();
   static void store_unknown_inline(instanceOopDesc* buffer, flatArrayOopDesc* array, int index);
-  static const TypeFunc *store_unknown_inline_type();
+  static const TypeFunc* store_unknown_inline_type();
 
  private:
  static NamedCounter * volatile _named_counters;

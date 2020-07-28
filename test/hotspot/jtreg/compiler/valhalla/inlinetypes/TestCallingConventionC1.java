@@ -1821,10 +1821,10 @@ public class TestCallingConventionC1 extends InlineTypeTest {
     // Tests for unverified entries: there are 6 cases:
     // C1 -> Unverified Value Entry compiled by C1
     // C1 -> Unverified Value Entry compiled by C2
-    // C2 -> Unverified Entry compiled by C1 (target is NOT a inline type)
-    // C2 -> Unverified Entry compiled by C2 (target is NOT a inline type)
-    // C2 -> Unverified Entry compiled by C1 (target IS a inline type, i.e., has VVEP_RO)
-    // C2 -> Unverified Entry compiled by C2 (target IS a inline type, i.e., has VVEP_RO)
+    // C2 -> Unverified Entry compiled by C1 (target is NOT an inline type)
+    // C2 -> Unverified Entry compiled by C2 (target is NOT an inline type)
+    // C2 -> Unverified Entry compiled by C1 (target IS an inline type, i.e., has VVEP_RO)
+    // C2 -> Unverified Entry compiled by C2 (target IS an inline type, i.e., has VVEP_RO)
     //----------------------------------------------------------------------------------
 
     // C1->C1 invokeinterface -- call Unverified Value Entry of MyImplPojo1.func2 (compiled by C1)

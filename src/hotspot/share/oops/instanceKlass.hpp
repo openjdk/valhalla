@@ -56,7 +56,7 @@ class RecordComponent;
 //    [EMBEDDED unsafe_anonymous_host klass] only exist for an unsafe anonymous class (JSR 292 enabled)
 //    [EMBEDDED fingerprint       ] only if should_store_fingerprint()==true
 //    [EMBEDDED inline_type_field_klasses] only if has_inline_fields() == true
-//    [EMBEDDED InlineKlassFixedBlock] only if is a InlineKlass instance
+//    [EMBEDDED InlineKlassFixedBlock] only if is an InlineKlass instance
 
 
 // forward declaration for class -- see below for definition
@@ -1299,7 +1299,7 @@ public:
     assert(idx < java_fields_count(), "IOOB");
     Klass* k = ((Klass**)adr_inline_type_field_klasses())[idx];
     assert(k != NULL, "Should always be set before being read");
-    assert(k->is_inline_klass(), "Must be a inline type");
+    assert(k->is_inline_klass(), "Must be an inline type");
     return k;
   }
 
@@ -1307,7 +1307,7 @@ public:
     assert(has_inline_type_fields(), "Sanity checking");
     assert(idx < java_fields_count(), "IOOB");
     Klass* k = ((Klass**)adr_inline_type_field_klasses())[idx];
-    assert(k == NULL || k->is_inline_klass(), "Must be a inline type");
+    assert(k == NULL || k->is_inline_klass(), "Must be an inline type");
     return k;
   }
 

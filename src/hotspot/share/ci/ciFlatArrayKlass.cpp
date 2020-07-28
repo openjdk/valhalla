@@ -39,7 +39,7 @@
 // ------------------------------------------------------------------
 // ciFlatArrayKlass::ciFlatArrayKlass
 //
-// Constructor for loaded inline array klasses.
+// Constructor for loaded inline type array klasses.
 ciFlatArrayKlass::ciFlatArrayKlass(Klass* h_k) : ciArrayKlass(h_k) {
   assert(get_Klass()->is_flatArray_klass(), "wrong type");
   InlineKlass* element_Klass = get_FlatArrayKlass()->element_klass();

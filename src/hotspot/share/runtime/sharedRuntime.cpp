@@ -2807,7 +2807,7 @@ CodeOffsets::Entries CompiledEntrySignature::c1_inline_ro_entry_type() const {
   if (has_inline_recv()) {
     if (num_inline_args() == 1) {
       // Share same entry for VIEP and VIEP(RO).
-      // This is quite common: we have an instance method in a InlineKlass that has
+      // This is quite common: we have an instance method in an InlineKlass that has
       // no inline type args other than <this>.
       return CodeOffsets::Verified_Inline_Entry;
     } else {

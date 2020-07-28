@@ -1166,7 +1166,7 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   __ move(reg, result);
 }
 
-void LIRGenerator::do_NewInlineTypeInstance  (NewInlineTypeInstance* x) {
+void LIRGenerator::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {
   // Mapping to do_NewInstance (same code)
   CodeEmitInfo* info = state_for(x, x->state());
   x->set_to_object_type();

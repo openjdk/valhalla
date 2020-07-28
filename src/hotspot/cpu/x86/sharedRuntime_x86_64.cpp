@@ -887,7 +887,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       int vt = 1;
       // write fields we get from compiled code in registers/stack
       // slots to the buffer: we know we are done with that inline type
-      // argument when we hit the T_VOID that acts as an end of value
+      // argument when we hit the T_VOID that acts as an end of inline
       // type delimiter for this inline type. Inline types are flattened
       // so we might encounter embedded inline types. Each entry in
       // sig_extended contains a field offset in the buffer.

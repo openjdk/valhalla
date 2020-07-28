@@ -2399,7 +2399,7 @@ bool TypeAry::ary_must_be_exact() const {
 
 //==============================TypeInlineType=======================================
 
-const TypeInlineType *TypeInlineType::BOTTOM;
+const TypeInlineType* TypeInlineType::BOTTOM;
 
 //------------------------------make-------------------------------------------
 const TypeInlineType* TypeInlineType::make(ciInlineKlass* vk, bool larval) {

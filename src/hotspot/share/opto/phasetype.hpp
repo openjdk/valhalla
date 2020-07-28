@@ -102,8 +102,8 @@ class CompilerPhaseTypeHelper {
       case PHASE_ADD_UNSAFE_BARRIER:         return "Add barrier to unsafe op";
       case PHASE_END:                        return "End";
       case PHASE_FAILURE:                    return "Failure";
-      case PHASE_SPLIT_INLINES_ARRAY:         return "Split values array";
-      case PHASE_SPLIT_INLINES_ARRAY_IGVN:    return "IGVN after split values array";
+      case PHASE_SPLIT_INLINES_ARRAY:        return "Split inlines array";
+      case PHASE_SPLIT_INLINES_ARRAY_IGVN:   return "IGVN after split inlines array";
       case PHASE_DEBUG:                      return "Debug";
       default:
         ShouldNotReachHere();

@@ -703,7 +703,7 @@ void NullCheckVisitor::do_NullCheck      (NullCheck*       x) { nce()->handle_Nu
 void NullCheckVisitor::do_TypeCast       (TypeCast*        x) {}
 void NullCheckVisitor::do_Invoke         (Invoke*          x) { nce()->handle_Invoke(x); }
 void NullCheckVisitor::do_NewInstance    (NewInstance*     x) { nce()->handle_NewInstance(x); }
-void NullCheckVisitor::do_NewInlineTypeInstance(NewInlineTypeInstance*     x) { nce()->handle_NewInlineTypeInstance(x); }
+void NullCheckVisitor::do_NewInlineTypeInstance(NewInlineTypeInstance* x) { nce()->handle_NewInlineTypeInstance(x); }
 void NullCheckVisitor::do_NewTypeArray   (NewTypeArray*    x) { nce()->handle_NewArray(x); }
 void NullCheckVisitor::do_NewObjectArray (NewObjectArray*  x) { nce()->handle_NewArray(x); }
 void NullCheckVisitor::do_NewMultiArray  (NewMultiArray*   x) { nce()->handle_NewArray(x); }
