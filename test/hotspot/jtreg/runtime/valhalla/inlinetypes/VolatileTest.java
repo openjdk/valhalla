@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,27 +40,27 @@ public class VolatileTest {
     static final Unsafe U = Unsafe.getUnsafe();
 
     static inline class MyValue {
-	int i = 0;
-	int j = 0;
+        int i = 0;
+        int j = 0;
     }
 
     static class MyContainer {
-	MyValue mv0;
-	volatile MyValue mv1;
+        MyValue mv0;
+        volatile MyValue mv1;
     }
 
     static public void main (String[] args) {
-	Class<?> c = MyContainer.class;
-	Field f0 = null;
-	Field f1 = null;
-	try {
-	    f0 = c.getDeclaredField("mv0");
-	    f1 = c.getDeclaredField("mv1");
-	} catch(NoSuchFieldException e) {
-	    e.printStackTrace();
-	    return;
-	}
-	Asserts.assertTrue(U.isFlattened(f0), "mv0 should be flattened");
-	Asserts.assertFalse(U.isFlattened(f1), "mv1 should not be flattened");
+        Class<?> c = MyContainer.class;
+        Field f0 = null;
+        Field f1 = null;
+        try {
+            f0 = c.getDeclaredField("mv0");
+            f1 = c.getDeclaredField("mv1");
+        } catch(NoSuchFieldException e) {
+            e.printStackTrace();
+            return;
+        }
+        Asserts.assertTrue(U.isFlattened(f0), "mv0 should be flattened");
+        Asserts.assertFalse(U.isFlattened(f1), "mv1 should not be flattened");
     }
 }

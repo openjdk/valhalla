@@ -183,7 +183,7 @@ Java_TestJNIArrays_sortIntIntArray(JNIEnv* env, jobject receiver, jarray array) 
 
 JNIEXPORT void JNICALL
 Java_TestJNIArrays_initializeContainerArray(JNIEnv* env, jobject receiver, jarray array,
-					       jdouble d, jfloat f, jshort s, jbyte b) {
+                                            jdouble d, jfloat f, jshort s, jbyte b) {
   int len = (*env)->GetArrayLength(env, array);
   jsize elm_sz = (*env)->GetFlattenedArrayElementSize(env, array);
   jclass clazz = (*env)->GetFlattenedArrayElementClass(env, array);
@@ -216,7 +216,7 @@ Java_TestJNIArrays_initializeContainerArray(JNIEnv* env, jobject receiver, jarra
 
 JNIEXPORT void JNICALL
 Java_TestJNIArrays_updateContainerArray(JNIEnv* env, jobject receiver, jarray array,
-					       jfloat f, jshort s) {
+                                        jfloat f, jshort s) {
   int len = (*env)->GetArrayLength(env, array);
   jsize elm_sz = (*env)->GetFlattenedArrayElementSize(env, array);
   jclass clazz = (*env)->GetFlattenedArrayElementClass(env, array);

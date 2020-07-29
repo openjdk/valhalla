@@ -38,139 +38,139 @@ public class CircularityTest {
     static int counter = 0;
 
     static inline class A {
-	static B b;
-	static C c;
-	int i = 0;
+        static B b;
+        static C c;
+        int i = 0;
     }
 
     static inline class B {
-	static {
-	    Asserts.assertNotNull(A.c, "Should have returned C's default value");
-	}
-	int i = 0;
+        static {
+            Asserts.assertNotNull(A.c, "Should have returned C's default value");
+        }
+        int i = 0;
     }
 
     static inline class C {
-	int i;
-	public C(int i) {
-	    this.i = i;
-	}
+        int i;
+        public C(int i) {
+            this.i = i;
+        }
     }
 
     static inline class D {
-	static C c;
-	int i = 0;
-	static {
-	    if (CircularityTest.b) {
-		// throw an exception to cause D's initialization to fail
-		throw new RuntimeException();
-	    }
-	}
+        static C c;
+        int i = 0;
+        static {
+            if (CircularityTest.b) {
+                // throw an exception to cause D's initialization to fail
+                throw new RuntimeException();
+            }
+        }
     }
 
     static inline class E {
-	static F f;
-	static C c;
-	int i = 0;
+        static F f;
+        static C c;
+        int i = 0;
     }
 
     static inline class F {
-	int i = 0;
-	static {
-	    E.c = new C(5);
-	}
+        int i = 0;
+        static {
+            E.c = new C(5);
+        }
     }
 
     static inline class G {
-	static H h;
-	int i = 0;
+        static H h;
+        int i = 0;
     }
 
     static inline class H {
-	int i = 0;
-	static {
-	    if (CircularityTest.b) {
-		// throw an exception to cause H's initialization to fail
-		throw new RuntimeException();
-	    }
-	}
+        int i = 0;
+        static {
+            if (CircularityTest.b) {
+                // throw an exception to cause H's initialization to fail
+                throw new RuntimeException();
+            }
+        }
     }
 
     static inline class I {
-	static J j;
-	static H h;
-	int i = 0;
+        static J j;
+        static H h;
+        int i = 0;
     }
 
     static inline class J {
-	int i = 0;
-	static {
-	    CircularityTest.counter = 1;
-	    H h = I.h;
-	    CircularityTest.counter = 2;
-	}
+        int i = 0;
+        static {
+            CircularityTest.counter = 1;
+            H h = I.h;
+            CircularityTest.counter = 2;
+        }
     }
 
     static public void main(String[] args) {
-	Throwable exception = null;
-	// Test 1:
-	// Initialization of A will trigger initialization of B which, in its static
-	// initializer will access a static inline field c of A that has not been initialized
-	// yet. The access must succeed (no exception) because the field is being
-	// accessed during the initialization of D, by the thread initializing D,
-	// and the value must be the default value of C (not null).
-	try {
-	    A a = new A();
-	} catch (Throwable t) {
-	    exception = t;
-	}
-	Asserts.assertNull(exception, "Circularity should not have caused exceptions");
+        Throwable exception = null;
+        // Test 1:
+        // Initialization of A will trigger initialization of B which, in its static
+        // initializer will access a static inline field c of A that has not been initialized
+        // yet. The access must succeed (no exception) because the field is being
+        // accessed during the initialization of D, by the thread initializing D,
+        // and the value must be the default value of C (not null).
+        try {
+            A a = new A();
+        } catch (Throwable t) {
+            exception = t;
+        }
+        Asserts.assertNull(exception, "Circularity should not have caused exceptions");
 
-	// Test 2:
-	// Class D will fail to initialized (exception thrown in its static initializer).
-	// Attempt to access a static inline field of D *after* its failed initialization
-	// should trigger an exception.
-	exception = null;
-	try {
-	    D d = new D();
-	} catch (Throwable t) {
-	    // ignoring the exception thrown to cause initialization failure
-	}
-	try {
-	    C c = D.c;
-	} catch (Throwable t) {
-	    exception = t;
-	}
-	Asserts.assertNotNull(exception, "Accessing static fields of a class which failed to initialized should throw an exception");
-	Asserts.assertEquals(exception.getClass(), java.lang.NoClassDefFoundError.class, "Wrong exception class");
-	// Test 3:
-	// Initialization of E will trigger the initialization of F which, in its static initalizer,
-	// will initialized a static inline field of F before the JVM does. The JVM must not
-	// overwrite the value set by user code.
-	E e = new E();
-	Asserts.assertEquals(E.c.i, 5, "JVM must not overwrite fields initialized by user code");
+        // Test 2:
+        // Class D will fail to initialized (exception thrown in its static initializer).
+        // Attempt to access a static inline field of D *after* its failed initialization
+        // should trigger an exception.
+        exception = null;
+        try {
+            D d = new D();
+        } catch (Throwable t) {
+            // ignoring the exception thrown to cause initialization failure
+        }
+        try {
+            C c = D.c;
+        } catch (Throwable t) {
+            exception = t;
+        }
+        Asserts.assertNotNull(exception, "Accessing static fields of a class which failed to initialized should throw an exception");
+        Asserts.assertEquals(exception.getClass(), java.lang.NoClassDefFoundError.class, "Wrong exception class");
+        // Test 3:
+        // Initialization of E will trigger the initialization of F which, in its static initalizer,
+        // will initialized a static inline field of F before the JVM does. The JVM must not
+        // overwrite the value set by user code.
+        E e = new E();
+        Asserts.assertEquals(E.c.i, 5, "JVM must not overwrite fields initialized by user code");
 
-	// Test 4:
-	// Initialization of G should fail because its static inline field h
-	exception = null;
-	try {
-	    G g = new G();
-	} catch(Throwable t) {
-	    exception = t;
-	}
-	Asserts.assertNotNull(exception, "G's initialization should have failed");
-	Asserts.assertEquals(exception.getClass(), java.lang.ExceptionInInitializerError.class, "Wrong exception");
+        // Test 4:
+        // Initialization of G should fail because its static inline field h
+        exception = null;
+        try {
+            G g = new G();
+        } catch(Throwable t) {
+            exception = t;
+        }
+        Asserts.assertNotNull(exception, "G's initialization should have failed");
+        Asserts.assertEquals(exception.getClass(), java.lang.ExceptionInInitializerError.class, "Wrong exception");
 
-	// Test 5:
-	// Initialization of of I should fail when J tries to access I.h
-	exception = null;
-	try {
-	    I i = new I();
-	} catch(Throwable t) {
-	    exception = t;
-	}
-	Asserts.assertNotNull(exception, "I's initialization should have failed");
-	Asserts.assertEquals(exception.getClass(), java.lang.NoClassDefFoundError.class, "Wrong exception");
-	Asserts.assertEquals(CircularityTest.counter, 1, "Didn't failed at the right place");
+        // Test 5:
+        // Initialization of of I should fail when J tries to access I.h
+        exception = null;
+        try {
+            I i = new I();
+        } catch(Throwable t) {
+            exception = t;
+        }
+        Asserts.assertNotNull(exception, "I's initialization should have failed");
+        Asserts.assertEquals(exception.getClass(), java.lang.NoClassDefFoundError.class, "Wrong exception");
+        Asserts.assertEquals(CircularityTest.counter, 1, "Didn't failed at the right place");
     }
 }

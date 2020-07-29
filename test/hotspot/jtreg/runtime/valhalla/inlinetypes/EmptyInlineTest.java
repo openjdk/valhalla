@@ -38,126 +38,126 @@ import java.lang.reflect.Field;
 public class EmptyInlineTest {
 
     static inline class EmptyInline {
-	public boolean isEmpty() {
-	    return true;
-	}
+        public boolean isEmpty() {
+            return true;
+        }
     }
 
     static inline class EmptyField {
-	EmptyInline empty;
+        EmptyInline empty;
 
-	EmptyField() {
-	    this.empty = new EmptyInline();
-	}
+        EmptyField() {
+            this.empty = new EmptyInline();
+        }
     }
 
     static class WithInt {
-	int i;
+        int i;
     }
 
     static class WithEmptyField extends WithInt  {
-	// With current layout strategy for reference classs, the empty
-	// inline field would be placed between the int and the Object
-	// fields, along with some padding.
-	Object o;
-	EmptyInline empty;
+        // With current layout strategy for reference classs, the empty
+        // inline field would be placed between the int and the Object
+        // fields, along with some padding.
+        Object o;
+        EmptyInline empty;
     }
 
     public static void main(String[] args) {
-	// Create an empty inline
-	EmptyInline empty = new EmptyInline();
-	Asserts.assertTrue(empty.isEmpty());
+        // Create an empty inline
+        EmptyInline empty = new EmptyInline();
+        Asserts.assertTrue(empty.isEmpty());
 
-	// Create an inline with an empty inline field
-	EmptyField emptyField = new EmptyField();
-	Asserts.assertEquals(emptyField.empty.getClass(), EmptyInline.class);
-	Asserts.assertTrue(emptyField.empty.isEmpty());
-	System.out.println(emptyField.empty.isEmpty());
+        // Create an inline with an empty inline field
+        EmptyField emptyField = new EmptyField();
+        Asserts.assertEquals(emptyField.empty.getClass(), EmptyInline.class);
+        Asserts.assertTrue(emptyField.empty.isEmpty());
+        System.out.println(emptyField.empty.isEmpty());
 
-	// Regular instance with an empty field inside
-	WithEmptyField w = new WithEmptyField();
-	Asserts.assertEquals(w.empty.getClass(), EmptyInline.class);
-	Asserts.assertTrue(w.empty.isEmpty());
-	w.empty = new EmptyInline();
-	Asserts.assertEquals(w.empty.getClass(), EmptyInline.class);
-	Asserts.assertTrue(w.empty.isEmpty());
+        // Regular instance with an empty field inside
+        WithEmptyField w = new WithEmptyField();
+        Asserts.assertEquals(w.empty.getClass(), EmptyInline.class);
+        Asserts.assertTrue(w.empty.isEmpty());
+        w.empty = new EmptyInline();
+        Asserts.assertEquals(w.empty.getClass(), EmptyInline.class);
+        Asserts.assertTrue(w.empty.isEmpty());
 
-	// Create an array of empty inlines
-	EmptyInline[] emptyArray = new EmptyInline[100];
-	for(EmptyInline element : emptyArray) {
-	    Asserts.assertEquals(element.getClass(), EmptyInline.class);
-	    Asserts.assertTrue(element.isEmpty());
-	}
-
-	// Testing arrayCopy
-	EmptyInline[] array2 = new EmptyInline[100];
-	// with two arrays
-	System.arraycopy(emptyArray, 10, array2, 20, 50);
-	for(EmptyInline element : array2) {
-	    Asserts.assertEquals(element.getClass(), EmptyInline.class);
-	    Asserts.assertTrue(element.isEmpty());
-	}
-	// single array, no overlap
-	System.arraycopy(emptyArray, 10, emptyArray, 50, 20);
+        // Create an array of empty inlines
+        EmptyInline[] emptyArray = new EmptyInline[100];
         for(EmptyInline element : emptyArray) {
-	    Asserts.assertEquals(element.getClass(), EmptyInline.class);
-	    Asserts.assertTrue(element.isEmpty());
-	}
-	// single array with overlap
-	System.arraycopy(emptyArray, 10, emptyArray, 20, 50);
-	for(EmptyInline element : emptyArray) {
-	    Asserts.assertEquals(element.getClass(), EmptyInline.class);
-	    Asserts.assertTrue(element.isEmpty());
-	}
+            Asserts.assertEquals(element.getClass(), EmptyInline.class);
+            Asserts.assertTrue(element.isEmpty());
+        }
 
-	// Passing an empty inline in argument
-	assert isEmpty(empty);
+        // Testing arrayCopy
+        EmptyInline[] array2 = new EmptyInline[100];
+        // with two arrays
+        System.arraycopy(emptyArray, 10, array2, 20, 50);
+        for(EmptyInline element : array2) {
+            Asserts.assertEquals(element.getClass(), EmptyInline.class);
+            Asserts.assertTrue(element.isEmpty());
+        }
+        // single array, no overlap
+        System.arraycopy(emptyArray, 10, emptyArray, 50, 20);
+        for(EmptyInline element : emptyArray) {
+            Asserts.assertEquals(element.getClass(), EmptyInline.class);
+            Asserts.assertTrue(element.isEmpty());
+        }
+        // single array with overlap
+        System.arraycopy(emptyArray, 10, emptyArray, 20, 50);
+        for(EmptyInline element : emptyArray) {
+            Asserts.assertEquals(element.getClass(), EmptyInline.class);
+            Asserts.assertTrue(element.isEmpty());
+        }
 
-	// Returning an empty inline
-	assert getEmpty().isEmpty();
+        // Passing an empty inline in argument
+        assert isEmpty(empty);
 
-	// Checking fields with reflection
-	Class<?> c = empty.getClass();
-	try {
-	    Field[] fields = c.getDeclaredFields();
-	    Asserts.assertTrue(fields.length == 0);
-	} catch (Throwable t) {
-	    t.printStackTrace();
-	    throw t;
-	}
-	WithEmptyField w0 = new WithEmptyField();
-	Class<?> c2 = w0.getClass();
-	try {
-	    Field emptyfield = c2.getDeclaredField("empty");
-	    EmptyInline e = (EmptyInline)emptyfield.get(w0);
-	    Asserts.assertEquals(e.getClass(), EmptyInline.class);
-	    Asserts.assertTrue(e.isEmpty());
-	    emptyfield.set(w0, new EmptyInline());
-	    e = (EmptyInline)emptyfield.get(w0);
-	    Asserts.assertEquals(e.getClass(), EmptyInline.class);
-	    Asserts.assertTrue(e.isEmpty());
-	} catch(Throwable t) {
-	    t.printStackTrace();
-	    throw new RuntimeException("Reflection tests failed: " + t);
-	}
+        // Returning an empty inline
+        assert getEmpty().isEmpty();
 
-	// Testing JIT compiler
-	// for(int i=0; i < 100000; i++) {
-	//     test();
-	// }
+        // Checking fields with reflection
+        Class<?> c = empty.getClass();
+        try {
+            Field[] fields = c.getDeclaredFields();
+            Asserts.assertTrue(fields.length == 0);
+        } catch (Throwable t) {
+            t.printStackTrace();
+            throw t;
+        }
+        WithEmptyField w0 = new WithEmptyField();
+        Class<?> c2 = w0.getClass();
+        try {
+            Field emptyfield = c2.getDeclaredField("empty");
+            EmptyInline e = (EmptyInline)emptyfield.get(w0);
+            Asserts.assertEquals(e.getClass(), EmptyInline.class);
+            Asserts.assertTrue(e.isEmpty());
+            emptyfield.set(w0, new EmptyInline());
+            e = (EmptyInline)emptyfield.get(w0);
+            Asserts.assertEquals(e.getClass(), EmptyInline.class);
+            Asserts.assertTrue(e.isEmpty());
+        } catch(Throwable t) {
+            t.printStackTrace();
+            throw new RuntimeException("Reflection tests failed: " + t);
+        }
+
+        // Testing JIT compiler
+        // for(int i=0; i < 100000; i++) {
+        //     test();
+        // }
     }
 
     static boolean isEmpty(EmptyInline empty) {
-	return empty.isEmpty();
+        return empty.isEmpty();
     }
 
     static EmptyInline getEmpty() {
-	return new EmptyInline();
+        return new EmptyInline();
     }
 
     static void test() {
-	for(int i=0; i < 10000; i++) {
-	    Asserts.assertTrue(getEmpty().isEmpty());
-	}
+        for(int i=0; i < 10000; i++) {
+            Asserts.assertTrue(getEmpty().isEmpty());
+        }
     }
 }
