@@ -333,11 +333,11 @@ void ciInstanceKlass::print_impl(outputStream* st) {
               bool_to_str(has_subklass()),
               layout_helper());
 
-    _flags.print_klass_flags();
+    _flags.print_klass_flags(st);
 
     if (_super) {
       st->print(" super=");
-      _super->print_name();
+      _super->print_name_on(st);
     }
     if (_java_mirror) {
       st->print(" mirror=PRESENT");

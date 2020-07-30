@@ -416,7 +416,7 @@ class BlockMerger: public BlockClosure {
             con  = if_->x()->as_Constant();
             swapped = true;
           }
-          if (con && ifop) {
+          if (con && ifop && !ifop->substitutability_check()) {
             Constant* tval = ifop->tval()->as_Constant();
             Constant* fval = ifop->fval()->as_Constant();
             if (tval && fval) {
@@ -441,7 +441,7 @@ class BlockMerger: public BlockClosure {
                 BlockBegin* fblock = fval->compare(cond, con, tsux, fsux);
                 if (tblock != fblock && !if_->is_safepoint()) {
                   If* newif = new If(ifop->x(), ifop->cond(), false, ifop->y(),
-                                     tblock, fblock, if_->state_before(), if_->is_safepoint(), if_->substitutability_check());
+                                     tblock, fblock, if_->state_before(), if_->is_safepoint(), ifop->substitutability_check());
                   newif->set_state(if_->state()->copy());
 
                   assert(prev->next() == if_, "must be guaranteed by above search");
