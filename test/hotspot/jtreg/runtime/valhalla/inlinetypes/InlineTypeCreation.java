@@ -28,7 +28,7 @@ import jdk.test.lib.Asserts;
  * @test InlineTypeCreation
  * @summary Inline Type creation test
  * @library /test/lib
- * @compile  -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers InlineTypeCreation.java Point.java Long8Inline.java Person.java
+ * @compile  -XDallowWithFieldOperator -XDallowFlattenabilityModifiers InlineTypeCreation.java Point.java Long8Inline.java Person.java
  * @run main/othervm -Xint runtime.valhalla.inlinetypes.InlineTypeCreation
  * @run main/othervm -Xcomp runtime.valhalla.inlinetypes.InlineTypeCreation
  */

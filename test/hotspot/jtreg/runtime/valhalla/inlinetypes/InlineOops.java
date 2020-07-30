@@ -40,8 +40,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator InlineOops.java
+ * @compile -XDallowWithFieldOperator Person.java
+ * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UseSerialGC -Xmx128m
@@ -56,8 +56,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator InlineOops.java
+ * @compile -XDallowWithFieldOperator Person.java
+ * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint  -XX:+UseG1GC -Xmx128m
@@ -72,8 +72,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator InlineOops.java
+ * @compile -XDallowWithFieldOperator Person.java
+ * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UseParallelGC -Xmx128m
@@ -88,8 +88,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator InlineOops.java
+ * @compile -XDallowWithFieldOperator Person.java
+ * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
@@ -105,8 +105,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator InlineOops.java
+ * @compile -XDallowWithFieldOperator Person.java
+ * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xcomp -XX:+UseSerialGC -Xmx128m
@@ -121,8 +121,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator InlineOops.java
+ * @compile -XDallowWithFieldOperator Person.java
+ * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xcomp -XX:+UseG1GC -Xmx128m
@@ -137,8 +137,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator InlineOops.java
+ * @compile -XDallowWithFieldOperator Person.java
+ * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xcomp -XX:+UseParallelGC -Xmx128m
@@ -153,8 +153,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Person.java
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator InlineOops.java
+ * @compile -XDallowWithFieldOperator Person.java
+ * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xcomp -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m

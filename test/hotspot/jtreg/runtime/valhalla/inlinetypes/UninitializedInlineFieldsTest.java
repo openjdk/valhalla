@@ -28,7 +28,7 @@ import jdk.test.lib.Asserts;
  * @test
  * @summary Uninitialized inline fields test
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java JumboInline.java UninitializedInlineFieldsTest.java
+ * @compile -XDallowWithFieldOperator -XDallowFlattenabilityModifiers Point.java JumboInline.java UninitializedInlineFieldsTest.java
  * @run main/othervm -Xint -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.inlinetypes.UninitializedInlineFieldsTest
  * @run main/othervm -Xcomp -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.inlinetypes.UninitializedInlineFieldsTest
  */

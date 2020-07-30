@@ -29,8 +29,8 @@ import jdk.test.lib.Asserts;
  * @test VWithFieldTest
  * @summary vwithfield bytecode test
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Point.java
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator VWithFieldTest.java
+ * @compile -XDallowWithFieldOperator Point.java
+ * @compile -XDallowWithFieldOperator VWithFieldTest.java
  * @run main/othervm -Xint runtime.valhalla.inlinetypes.VWithFieldTest
  * @run main/othervm -Xcomp runtime.valhalla.inlinetypes.VWithFieldTest
  */

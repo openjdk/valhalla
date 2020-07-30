@@ -24,7 +24,7 @@
 /**
  * @test TestFieldNullability
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator TestFieldNullability.java
+ * @compile -XDallowWithFieldOperator TestFieldNullability.java
  * @run main/othervm -Xint -Xmx128m -XX:-ShowMessageBoxOnError -XX:InlineFieldMaxFlatSize=32
  *                   runtime.valhalla.inlinetypes.TestFieldNullability
  */

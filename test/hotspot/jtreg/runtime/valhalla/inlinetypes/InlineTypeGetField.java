@@ -28,7 +28,7 @@ import jdk.test.lib.Asserts;
  * @test InlineTypeGetField
  * @summary Inline Type get field test
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Point.java InlineTypeGetField.java
+ * @compile -XDallowWithFieldOperator Point.java InlineTypeGetField.java
  * @run main/othervm -Xint runtime.valhalla.inlinetypes.InlineTypeGetField
  * @run main/othervm -Xcomp runtime.valhalla.inlinetypes.InlineTypeGetField
  */

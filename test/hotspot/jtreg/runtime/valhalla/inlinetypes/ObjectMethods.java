@@ -32,7 +32,7 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator ObjectMethods.java
+ * @compile -XDallowWithFieldOperator ObjectMethods.java
  * @run main/othervm -Xint -XX:+UseBiasedLocking -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
  * @run main/othervm -Xint -XX:-UseBiasedLocking -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
  * @run main/othervm -Xint -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify

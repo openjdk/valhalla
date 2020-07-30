@@ -25,7 +25,7 @@ package runtime.valhalla.inlinetypes;
 
 /* @test
  * @summary test JNI functions with inline types
- * @compile -XDemitQtypes -XDallowWithFieldOperator InlineWithJni.java
+ * @compile -XDallowWithFieldOperator InlineWithJni.java
  * @run main/othervm/native -Xint runtime.valhalla.inlinetypes.InlineWithJni
  * @run main/othervm/native -Xcomp runtime.valhalla.inlinetypes.InlineWithJni
  */

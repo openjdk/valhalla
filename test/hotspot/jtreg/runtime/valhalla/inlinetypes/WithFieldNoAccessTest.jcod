@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,7 +28,7 @@
  * @summary Check that IllegalAccessError exceptions get thrown if a class that
  *          is not a nestmate of an inline type tries to write to the inline type's
  *          final fields.
- * @compile -XDemitQtypes WithFieldNoAccessTest.jcod
+ * @compile WithFieldNoAccessTest.jcod
  * @run main/othervm WithFieldNoAccessTest
  */
 

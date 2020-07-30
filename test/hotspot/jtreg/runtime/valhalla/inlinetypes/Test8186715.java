@@ -27,7 +27,7 @@ package runtime.valhalla.inlinetypes;
  * @test Test8186715
  * @summary test return of buffered inline type passed in argument by caller
  * @library /test/lib
- * @compile -XDemitQtypes -XDallowWithFieldOperator -XDenableValueTypes Test8186715.java
+ * @compile -XDallowWithFieldOperator Test8186715.java
  * @run main/othervm -Xint runtime.valhalla.inlinetypes.Test8186715
  * @run main/othervm runtime.valhalla.inlinetypes.Test8186715
  */

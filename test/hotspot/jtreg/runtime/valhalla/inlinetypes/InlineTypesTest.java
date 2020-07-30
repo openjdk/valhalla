@@ -51,7 +51,7 @@ import javax.tools.*;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator TestValue1.java TestValue2.java TestValue3.java TestValue4.java InlineTypesTest.java
+ * @compile -XDallowWithFieldOperator TestValue1.java TestValue2.java TestValue3.java TestValue4.java InlineTypesTest.java
  * @run main/othervm -Xint -Xmx128m -XX:-ShowMessageBoxOnError
  *                   -XX:+ExplicitGCInvokesConcurrent
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions

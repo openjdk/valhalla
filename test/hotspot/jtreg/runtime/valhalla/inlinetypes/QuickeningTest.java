@@ -29,7 +29,7 @@ import jdk.test.lib.Asserts;
  * @test QuickeningTest
  * @summary Test quickening of getfield and putfield applied to inline fields
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Point.java JumboInline.java QuickeningTest.java
+ * @compile -XDallowWithFieldOperator Point.java JumboInline.java QuickeningTest.java
  * @run main/othervm -Xint runtime.valhalla.inlinetypes.QuickeningTest
  * @run main/othervm -Xcomp runtime.valhalla.inlinetypes.QuickeningTest
  */

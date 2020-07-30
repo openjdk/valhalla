@@ -34,8 +34,8 @@ import jdk.test.lib.Asserts;
  * @modules java.base/jdk.experimental.bytecode
  *          java.base/jdk.experimental.value
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator Point.java JumboInline.java
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator FlattenableSemanticTest.java
+ * @compile -XDallowWithFieldOperator Point.java JumboInline.java
+ * @compile -XDallowWithFieldOperator FlattenableSemanticTest.java
  * @run main/othervm -Xint -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.inlinetypes.FlattenableSemanticTest
  * @run main/othervm -Xint -XX:+UnlockDiagnosticVMOptions -XX:ForceNonTearable=* runtime.valhalla.inlinetypes.FlattenableSemanticTest
  * @run main/othervm -Xcomp -XX:InlineFieldMaxFlatSize=64 runtime.valhalla.inlinetypes.FlattenableSemanticTest

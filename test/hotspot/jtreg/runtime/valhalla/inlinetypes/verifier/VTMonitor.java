@@ -25,7 +25,7 @@
  * @test
  * @bug 8227373
  * @summary Test that verifier allows monitor operations on inline types.
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator VTMonitor.java
+ * @compile -XDallowWithFieldOperator VTMonitor.java
  * @run main/othervm -Xverify:remote VTMonitor
  */
 

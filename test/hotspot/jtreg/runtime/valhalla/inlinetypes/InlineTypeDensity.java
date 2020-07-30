@@ -31,7 +31,7 @@ import jdk.test.lib.Asserts;
  * @test InlineTypeDensity
  * @summary Heap density test for InlineTypes
  * @library /test/lib
- * @compile -XDemitQtypes -XDenableValueTypes -XDallowWithFieldOperator InlineTypeDensity.java
+ * @compile -XDallowWithFieldOperator InlineTypeDensity.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm -Xint -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
@@ -221,12 +221,12 @@ public class InlineTypeDensity {
                         WHITE_BOX.getObjectSize(objectArray[0].getDate()) +
                         WHITE_BOX.getObjectSize(objectArray[0].getTime())));
 
-        LocalDateTimeValue[] inlineArray = new LocalDateTimeValue[arrayLength];
+        LocalDateTimeValue[] flatArray = new LocalDateTimeValue[arrayLength];
         // CMH: add "isFlatValueArray" to WhiteBox API, to ensure we are correctly account size
 
-        long inlineArraySize = WHITE_BOX.getObjectSize(inlineArray);
-        System.out.println("Object array and elements: " + objectArraySize + " versus Value Array: " + inlineArraySize);
-        Asserts.assertLessThan(inlineArraySize, objectArraySize, "Inline array accounts for more heap than object array + elements !");
+        long flatArraySize = WHITE_BOX.getObjectSize(flatArray);
+        System.out.println("Object array and elements: " + objectArraySize + " versus Flat Array: " + flatArraySize);
+        Asserts.assertLessThan(flatArraySize, objectArraySize, "Flat array accounts for more heap than object array + elements !");
     }
 
     public void test() {
