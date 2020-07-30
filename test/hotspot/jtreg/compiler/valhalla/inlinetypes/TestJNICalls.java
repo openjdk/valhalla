@@ -29,6 +29,7 @@ import java.lang.reflect.Method;
 
 /*
  * @test
+ * @key randomness
  * @summary Test calling native methods with inline type arguments from compiled code.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")

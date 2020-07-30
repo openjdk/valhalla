@@ -1781,7 +1781,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (is_loaded_flattened_array) {
-    if (!x->value()->is_never_null()) {
+    if (!x->value()->is_null_free()) {
       __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }
     access_flattened_array(false, array, index, value);

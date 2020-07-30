@@ -1360,12 +1360,12 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
   LIR_Opr len = length.result();
 
   ciKlass* obj = (ciKlass*) x->exact_type();
-  CodeStub* slow_path = new NewObjectArrayStub(klass_reg, len, reg, info, x->is_never_null());
+  CodeStub* slow_path = new NewObjectArrayStub(klass_reg, len, reg, info, x->is_null_free());
   if (obj == ciEnv::unloaded_ciobjarrayklass()) {
     BAILOUT("encountered unloaded_ciobjarrayklass due to out of memory error");
   }
   klass2reg_with_patching(klass_reg, obj, patching_info);
-  if (x->is_never_null()) {
+  if (x->is_null_free()) {
     __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_INLINE_TYPE, klass_reg, slow_path);
   } else {
     __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path);
@@ -1448,7 +1448,7 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
       (x->needs_exception_state() ? state_for(x) :
                                     state_for(x, x->state_before(), true /*ignore_xhandler*/));
 
-  if (x->is_never_null()) {
+  if (x->is_null_free()) {
     __ null_check(obj.result(), new CodeEmitInfo(info_for_exception));
   }
 
@@ -1470,7 +1470,7 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
   __ checkcast(reg, obj.result(), x->klass(),
                new_register(objectType), new_register(objectType), tmp3,
                x->direct_compare(), info_for_exception, patching_info, stub,
-               x->profiled_method(), x->profiled_bci(), x->is_never_null());
+               x->profiled_method(), x->profiled_bci(), x->is_null_free());
 }
 
 

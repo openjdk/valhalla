@@ -28,6 +28,7 @@ import jdk.test.lib.Asserts;
 
 /**
  * @test
+ * @key randomness
  * @bug 8209009
  * @summary Test bimorphic inlining with inline type receivers.
  * @library /testlibrary /test/lib

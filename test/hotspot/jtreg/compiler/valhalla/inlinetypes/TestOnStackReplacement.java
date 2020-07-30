@@ -28,6 +28,7 @@ import java.lang.reflect.Method;
 
 /*
  * @test
+ * @key randomness
  * @summary Test on stack replacement (OSR) with inline types
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")

@@ -28,6 +28,7 @@ import java.lang.reflect.Method;
 
 /*
  * @test
+ * @key randomness
  * @summary Test inline type specific profiling
  * @modules java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /

@@ -1399,6 +1399,7 @@ Node* GraphKit::null_check_common(Node* value, BasicType type,
 }
 
 Node* GraphKit::null2default(Node* value, ciInlineKlass* vk) {
+  assert(!vk->is_scalarizable(), "Should only be used for non scalarizable inline klasses");
   Node* null_ctl = top();
   value = null_check_oop(value, &null_ctl);
   if (!null_ctl->is_top()) {
@@ -1431,7 +1432,7 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
 
   if (t->is_inlinetypeptr() && t->inline_klass()->is_scalarizable()) {
     // Scalarize inline type now that we know it's non-null
-    cast = InlineTypeNode::make_from_oop(this, cast, t->inline_klass())->buffer(this, false);
+    cast = InlineTypeNode::make_from_oop(this, cast, t->inline_klass())->as_ptr(&gvn());
   }
 
   // Scan for instances of 'obj' in the current JVM mapping.

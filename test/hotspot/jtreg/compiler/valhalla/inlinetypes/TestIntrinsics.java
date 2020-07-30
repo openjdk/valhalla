@@ -33,6 +33,7 @@ import jdk.internal.misc.Unsafe;
 
 /*
  * @test
+ * @key randomness
  * @summary Test intrinsic support for inline types
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @modules java.base/jdk.internal.misc

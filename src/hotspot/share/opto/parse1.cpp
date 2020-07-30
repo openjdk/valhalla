@@ -875,7 +875,6 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
       kit.set_control(map->control());
       Node* old_mem = map->memory();
       // Use immutable memory for inline type loads and restore it below
-      // TODO make sure inline types are always loaded from immutable memory
       kit.set_all_memory(C->immutable_memory());
       parm = InlineTypeNode::make_from_multi(&kit, start, sig_cc, t->inline_klass(), j, true);
       map->set_control(kit.control());

@@ -30,6 +30,7 @@ import jdk.test.lib.Asserts;
 
 /*
  * @test
+ * @key randomness
  * @summary Test method handle support for inline types
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
