@@ -423,7 +423,7 @@ void BlockBegin::state_values_do(ValueVisitor* f) {
 
 
 Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values* args,
-               int vtable_index, ciMethod* target, ValueStack* state_before, bool never_null)
+               int vtable_index, ciMethod* target, ValueStack* state_before, bool null_free)
   : StateSplit(result_type, state_before)
   , _code(code)
   , _recv(recv)
@@ -434,7 +434,7 @@ Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values*
   set_flag(TargetIsLoadedFlag,   target->is_loaded());
   set_flag(TargetIsFinalFlag,    target_is_loaded() && target->is_final_method());
   set_flag(TargetIsStrictfpFlag, target_is_loaded() && target->is_strict());
-  set_never_null(never_null);
+  set_null_free(null_free);
 
   assert(args != NULL, "args must exist");
 #ifdef ASSERT

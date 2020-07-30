@@ -49,7 +49,7 @@ protected:
     return (FlatArrayKlass*)get_Klass();
   }
 
-  static ciFlatArrayKlass* make_impl(ciKlass* element_klass);
+  static ciArrayKlass* make_impl(ciKlass* element_klass);
   static ciSymbol* construct_array_name(ciSymbol* element_name,
                                         int       dimension);
 
@@ -77,7 +77,7 @@ public:
   // What kind of ciObject is this?
   bool is_flat_array_klass() const { return true; }
 
-  static ciFlatArrayKlass* make(ciKlass* element_klass);
+  static ciArrayKlass* make(ciKlass* element_klass);
 
   virtual ciKlass* exact_klass();
 

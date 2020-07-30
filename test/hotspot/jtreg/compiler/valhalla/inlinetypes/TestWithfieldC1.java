@@ -33,6 +33,7 @@ import jdk.test.lib.Asserts;
 
 /*
  * @test
+ * @key randomness
  * @summary Verify that C1 performs escape analysis before optimizing withfield bytecode to putfield.
  * @modules java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /

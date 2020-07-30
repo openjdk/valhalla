@@ -1212,7 +1212,7 @@ static Node* is_inner_of_stripmined_loop(const Node* out) {
 
 bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
   // If the CmpP is a subtype check for a value that has just been
-  // loaded from an array, the subtype checks guarantees the value
+  // loaded from an array, the subtype check guarantees the value
   // can't be stored in a flattened array and the load of the value
   // happens with a flattened array check then: push the type check
   // through the phi of the flattened array check. This needs special
@@ -1286,7 +1286,7 @@ bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
     _igvn.set_type(klassptr_clone, klassptr_clone->Value(&_igvn));
     if (klassptr != n->in(1)) {
       Node* decode = n->in(1);
-      assert(decode->is_DecodeNarrowPtr(), "inconcistent subgraph");
+      assert(decode->is_DecodeNarrowPtr(), "inconsistent subgraph");
       Node* decode_clone = decode->clone();
       decode_clone->set_req(1, klassptr_clone);
       register_new_node(decode_clone, ctrl);

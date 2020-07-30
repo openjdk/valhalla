@@ -676,28 +676,14 @@ bool ciInstanceKlass::can_be_inline_klass(bool is_exact) {
   if (!EnableValhalla) {
     return false;
   }
-  if (!is_loaded() ||   // Not loaded, might be an inline klass
-      is_inlinetype() || // Known to be an inline klass
-      // Non-exact j.l.Object or interface klass
-      ((is_java_lang_Object() || is_interface()) && !is_exact)) {
+  if (!is_loaded() || is_inlinetype()) {
+    // Not loaded or known to be an inline klass
     return true;
   }
-  if (is_abstract() && !is_exact && !has_nonstatic_fields()) {
-    // TODO Factor out and re-use similar code from the ClassFileParser
-    // An abstract class can only be implemented by an inline type if it has no instance
-    // fields, no synchronized instance methods and an empty, no-arg constructor.
+  if (!is_exact) {
+    // Not exact, check if this is a valid super for an inline klass
     VM_ENTRY_MARK;
-    Array<Method*>* methods = get_instanceKlass()->methods();
-    for (int i = 0; i < methods->length(); i++) {
-      Method* m = methods->at(i);
-      if ((m->is_synchronized() && !m->is_static()) ||
-          (m->is_object_constructor() &&
-           (m->signature() != vmSymbols::void_method_signature() ||
-            !m->is_vanilla_constructor()))) {
-        return false;
-      }
-    }
-    return true;
+    return !get_instanceKlass()->invalid_inline_super();
   }
   return false;
 }

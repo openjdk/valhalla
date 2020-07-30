@@ -29,6 +29,7 @@ import java.util.Arrays;
 
 /*
  * @test
+ * @key randomness
  * @summary Test nullable inline type arrays
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")

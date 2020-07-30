@@ -88,6 +88,7 @@ public:
   // Allocates the inline type (if not yet allocated)
   InlineTypePtrNode* buffer(GraphKit* kit, bool safe_for_replace = true);
   bool is_allocated(PhaseGVN* phase) const;
+  InlineTypePtrNode* as_ptr(PhaseGVN* phase) const;
 
   void replace_call_results(GraphKit* kit, Node* call, Compile* C);
 
@@ -111,7 +112,7 @@ private:
   Node* is_loaded(PhaseGVN* phase, ciInlineKlass* vk = NULL, Node* base = NULL, int holder_offset = 0);
 
   // Checks if the inline type fields are all set to default values
-  bool is_default(PhaseGVN& gvn) const;
+  bool is_default(PhaseGVN* gvn) const;
 
   const TypeInstPtr* inline_ptr() const { return TypeInstPtr::make(TypePtr::BotPTR, inline_klass()); }
 
@@ -156,7 +157,7 @@ class InlineTypePtrNode : public InlineTypeBaseNode {
 private:
   const TypeInstPtr* inline_ptr() const { return type()->isa_instptr(); }
 
-  InlineTypePtrNode(InlineTypeBaseNode* vt)
+  InlineTypePtrNode(const InlineTypeBaseNode* vt)
     : InlineTypeBaseNode(TypeInstPtr::make(TypePtr::NotNull, vt->type()->inline_klass()), vt->req()) {
     init_class_id(Class_InlineTypePtr);
     init_req(Oop, vt->get_oop());

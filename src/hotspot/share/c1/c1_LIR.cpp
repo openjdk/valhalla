@@ -1506,10 +1506,10 @@ void check_LIR() {
 void LIR_List::checkcast (LIR_Opr result, LIR_Opr object, ciKlass* klass,
                           LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3, bool fast_check,
                           CodeEmitInfo* info_for_exception, CodeEmitInfo* info_for_patch, CodeStub* stub,
-                          ciMethod* profiled_method, int profiled_bci, bool is_never_null) {
+                          ciMethod* profiled_method, int profiled_bci, bool is_null_free) {
   // If klass is non-nullable,  LIRGenerator::do_CheckCast has already performed null-check
   // on the object.
-  bool need_null_check = !is_never_null;
+  bool need_null_check = !is_null_free;
   LIR_OpTypeCheck* c = new LIR_OpTypeCheck(lir_checkcast, result, object, klass,
                                            tmp1, tmp2, tmp3, fast_check, info_for_exception, info_for_patch, stub,
                                            need_null_check);

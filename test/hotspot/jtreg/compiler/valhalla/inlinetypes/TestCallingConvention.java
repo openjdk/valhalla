@@ -30,6 +30,7 @@ import java.lang.reflect.Method;
 
 /*
  * @test
+ * @key randomness
  * @summary Test inline type calling convention optimizations
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")

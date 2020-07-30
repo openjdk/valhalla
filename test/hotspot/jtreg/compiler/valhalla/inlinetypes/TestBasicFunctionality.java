@@ -27,6 +27,7 @@ import jdk.test.lib.Asserts;
 
 /*
  * @test
+ * @key randomness
  * @summary Test the basic inline type implementation in C2
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"

@@ -32,6 +32,7 @@ import jdk.internal.misc.Unsafe;
 
 /**
  * @test TestBufferTearing
+ * @key randomness
  * @summary Detect tearing on inline type buffer writes due to missing barriers.
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @modules java.base/jdk.internal.misc

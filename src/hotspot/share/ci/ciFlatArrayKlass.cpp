@@ -26,6 +26,7 @@
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstanceKlass.hpp"
+#include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciSymbol.hpp"
 #include "ci/ciUtilities.hpp"
 #include "ci/ciUtilities.inline.hpp"
@@ -126,20 +127,19 @@ ciSymbol* ciFlatArrayKlass::construct_array_name(ciSymbol* element_name,
 // ciFlatArrayKlass::make_impl
 //
 // Implementation of make.
-ciFlatArrayKlass* ciFlatArrayKlass::make_impl(ciKlass* element_klass) {
-  assert(UseFlatArray, "should only be used for arrays");
-  assert(element_klass->is_inlinetype(), "element type must be inline type");
-  assert(element_klass->is_loaded(), "unloaded Q klasses are represented by ciInstanceKlass");
+ciArrayKlass* ciFlatArrayKlass::make_impl(ciKlass* element_klass) {
+  assert(UseFlatArray, "should only be used for flat arrays");
+  assert(element_klass->is_inlinetype(), "element type must be an inline type");
+  assert(element_klass->is_loaded(), "unloaded inline klasses are represented by ciInstanceKlass");
   {
     EXCEPTION_CONTEXT;
-    // The element klass is loaded
     Klass* array = element_klass->get_Klass()->array_klass(THREAD);
     if (HAS_PENDING_EXCEPTION) {
       CLEAR_PENDING_EXCEPTION;
       CURRENT_THREAD_ENV->record_out_of_memory_failure();
-      // TODO handle this
-      guarantee(false, "out of memory");
-      return NULL;
+      // Use unloaded ciObjArrayKlass here because flatArrayKlasses are always loaded
+      // and since this is only used for OOM detection, the actual type does not matter.
+      return ciEnv::unloaded_ciobjarrayklass();
     }
     return CURRENT_THREAD_ENV->get_flat_array_klass(array);
   }
@@ -149,7 +149,7 @@ ciFlatArrayKlass* ciFlatArrayKlass::make_impl(ciKlass* element_klass) {
 // ciFlatArrayKlass::make
 //
 // Make an array klass corresponding to the specified primitive type.
-ciFlatArrayKlass* ciFlatArrayKlass::make(ciKlass* element_klass) {
+ciArrayKlass* ciFlatArrayKlass::make(ciKlass* element_klass) {
   GUARDED_VM_ENTRY(return make_impl(element_klass);)
 }
 

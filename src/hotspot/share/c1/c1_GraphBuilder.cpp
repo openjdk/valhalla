@@ -2418,9 +2418,9 @@ void GraphBuilder::new_type_array() {
 void GraphBuilder::new_object_array() {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
-  bool never_null = stream()->is_inline_klass();
+  bool null_free = stream()->is_inline_klass();
   ValueStack* state_before = !klass->is_loaded() || PatchALot ? copy_state_before() : copy_state_exhandling();
-  NewArray* n = new NewObjectArray(klass, ipop(), state_before, never_null);
+  NewArray* n = new NewObjectArray(klass, ipop(), state_before, null_free);
   apush(append_split(n));
 }
 
@@ -2445,9 +2445,9 @@ bool GraphBuilder::direct_compare(ciKlass* k) {
 void GraphBuilder::check_cast(int klass_index) {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
-  bool never_null = stream()->is_inline_klass();
+  bool null_free = stream()->is_inline_klass();
   ValueStack* state_before = !klass->is_loaded() || PatchALot ? copy_state_before() : copy_state_for_exception();
-  CheckCast* c = new CheckCast(klass, apop(), state_before, never_null);
+  CheckCast* c = new CheckCast(klass, apop(), state_before, null_free);
   apush(append_split(c));
   c->set_direct_compare(direct_compare(klass));
 
@@ -3457,7 +3457,7 @@ ValueStack* GraphBuilder::state_at_entry() {
   if (!method()->is_static()) {
     // we should always see the receiver
     state->store_local(idx, new Local(method()->holder(), objectType, idx,
-             /*receiver*/ true, /*never_null*/ method()->holder()->is_flat_array_klass()));
+             /*receiver*/ true, /*null_free*/ method()->holder()->is_flat_array_klass()));
     idx = 1;
   }
 

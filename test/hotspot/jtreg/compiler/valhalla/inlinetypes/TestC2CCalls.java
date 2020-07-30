@@ -23,6 +23,7 @@
 
 /**
  * @test
+ * @key randomness
  * @summary Test inline type calling convention with compiled to compiled calls.
  * @library /test/lib /test/lib /compiler/whitebox /
  * @compile TestC2CCalls.java

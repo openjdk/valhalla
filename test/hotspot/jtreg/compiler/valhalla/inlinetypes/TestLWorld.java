@@ -32,6 +32,7 @@ import jdk.test.lib.Asserts;
 
 /*
  * @test
+ * @key randomness
  * @summary Test inline types in LWorld.
  * @modules java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /

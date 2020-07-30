@@ -26,6 +26,7 @@ import jdk.test.lib.Asserts;
 
 /**
  * @test
+ * @key randomness
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @summary Test the handling of fields of unloaded inline classes.
  * @compile hack/GetUnresolvedInlineFieldWrongSignature.java
@@ -37,7 +38,7 @@ import jdk.test.lib.Asserts;
  *                               compiler.valhalla.inlinetypes.TestUnloadedInlineTypeField
  */
 
-public class TestUnloadedInlineTypeField extends compiler.valhalla.inlinetypes.InlineTypeTest {
+public class TestUnloadedInlineTypeField extends InlineTypeTest {
     public static void main(String[] args) throws Throwable {
         TestUnloadedInlineTypeField test = new TestUnloadedInlineTypeField();
         test.run(args);

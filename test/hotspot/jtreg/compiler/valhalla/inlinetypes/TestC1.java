@@ -33,6 +33,7 @@ import jdk.test.lib.Asserts;
 
 /*
  * @test
+ * @key randomness
  * @summary Various tests that are specific for C1.
  * @modules java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /

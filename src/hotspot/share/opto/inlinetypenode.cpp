@@ -365,7 +365,7 @@ InlineTypePtrNode* InlineTypeBaseNode::buffer(GraphKit* kit, bool safe_for_repla
   Node* not_null_oop = kit->null_check_oop(get_oop(), &null_ctl);
   if (null_ctl->is_top()) {
     // Inline type is allocated
-    return kit->gvn().transform(new InlineTypePtrNode(this))->as_InlineTypePtr();
+    return as_ptr(&kit->gvn());
   }
   assert(!is_allocated(&kit->gvn()), "should not be allocated");
   RegionNode* region = new RegionNode(3);
@@ -424,14 +424,21 @@ InlineTypePtrNode* InlineTypeBaseNode::buffer(GraphKit* kit, bool safe_for_repla
   // InlineTypeNode::remove_redundant_allocations piggybacks on split if.
   // Make sure it gets a chance to remove this allocation.
   kit->C->set_has_split_ifs(true);
-  assert(vt->is_allocated(&kit->gvn()), "must be allocated");
-  return kit->gvn().transform(new InlineTypePtrNode(vt))->as_InlineTypePtr();
+  return vt->as_ptr(&kit->gvn());
 }
 
 bool InlineTypeBaseNode::is_allocated(PhaseGVN* phase) const {
   Node* oop = get_oop();
   const Type* oop_type = (phase != NULL) ? phase->type(oop) : oop->bottom_type();
   return !oop_type->maybe_null();
+}
+
+InlineTypePtrNode* InlineTypeBaseNode::as_ptr(PhaseGVN* phase) const {
+  assert(is_allocated(phase), "must be allocated");
+  if (is_InlineTypePtr()) {
+    return as_InlineTypePtr();
+  }
+  return phase->transform(new InlineTypePtrNode(this))->as_InlineTypePtr();
 }
 
 // When a call returns multiple values, it has several result
@@ -503,7 +510,7 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
     Node* value = NULL;
     if (field_type->is_inlinetype()) {
       ciInlineKlass* field_klass = field_type->as_inline_klass();
-      if (field_klass->is_scalarizable() || vt->field_is_flattened(i)) {
+      if (field_klass->is_scalarizable()) {
         value = InlineTypeNode::make_default(gvn, field_klass);
       } else {
         value = default_oop(gvn, field_klass);
@@ -514,16 +521,16 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
     vt->set_field_value(i, value);
   }
   vt = gvn.transform(vt)->as_InlineType();
-  assert(vt->is_default(gvn), "must be the default inline type");
+  assert(vt->is_default(&gvn), "must be the default inline type");
   return vt;
 }
 
-bool InlineTypeNode::is_default(PhaseGVN& gvn) const {
+bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
   for (uint i = 0; i < field_count(); ++i) {
     Node* value = field_value(i);
-    if (!gvn.type(value)->is_zero_type() &&
+    if (!gvn->type(value)->is_zero_type() &&
         !(value->is_InlineType() && value->as_InlineType()->is_default(gvn)) &&
-        !(field_type(i)->is_inlinetype() && value == default_oop(gvn, field_type(i)->as_inline_klass()))) {
+        !(field_type(i)->is_inlinetype() && value == default_oop(*gvn, field_type(i)->as_inline_klass()))) {
       return false;
     }
   }
@@ -776,11 +783,29 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, Extended
   }
 }
 
+// Replace a buffer allocation by a dominating allocation
+static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
+  // Remove initializing stores
+  for (DUIterator_Fast imax, i = res->fast_outs(imax); i < imax; i++) {
+    AddPNode* addp = res->fast_out(i)->isa_AddP();
+    if (addp != NULL) {
+      for (DUIterator_Fast jmax, j = addp->fast_outs(jmax); j < jmax; j++) {
+        StoreNode* store = addp->fast_out(j)->isa_Store();
+        if (store != NULL) {
+          igvn->replace_in_uses(store, store->in(MemNode::Memory));
+        }
+      }
+    }
+  }
+  igvn->replace_node(res, dom);
+}
+
 Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   Node* oop = get_oop();
-  if (is_default(*phase) && (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
+  if (is_default(phase) && (!oop->is_Con() || phase->type(oop)->is_zero_type())) {
     // Use the pre-allocated oop for default inline types
     set_oop(default_oop(*phase, inline_klass()));
+    assert(is_allocated(phase), "should now be allocated");
     return this;
   } else if (oop->isa_InlineTypePtr()) {
     // Can happen with late inlining
@@ -806,51 +831,21 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   if (can_reshape) {
     PhaseIterGVN* igvn = phase->is_IterGVN();
 
-    if (is_default(*phase)) {
-      // Search for users of the default inline type
+    if (is_allocated(phase)) {
+      // Search for and remove re-allocations of this inline type.
+      // This can happen with late inlining when we first allocate an inline type argument
+      // but later decide to inline the call after the callee code also triggered allocation.
       for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
-        Node* user = fast_out(i);
-        AllocateNode* alloc = user->isa_Allocate();
+        AllocateNode* alloc = fast_out(i)->isa_Allocate();
         if (alloc != NULL && alloc->in(AllocateNode::InlineTypeNode) == this) {
-          // Found an allocation of the default inline type.
+          // Found a re-allocation
           Node* res = alloc->result_cast();
-          if (res != NULL) {
-            // If the code in StoreNode::Identity() that removes useless stores was not yet
-            // executed or ReduceFieldZeroing is disabled, there can still be initializing
-            // stores (only zero-type or default value stores, because inline types are immutable).
-            for (DUIterator_Fast jmax, j = res->fast_outs(jmax); j < jmax; j++) {
-              AddPNode* addp = res->fast_out(j)->isa_AddP();
-              if (addp != NULL) {
-                for (DUIterator_Fast kmax, k = addp->fast_outs(kmax); k < kmax; k++) {
-                  StoreNode* store = addp->fast_out(k)->isa_Store();
-                  if (store != NULL && store->outcnt() != 0) {
-                    // Remove the useless store
-                    igvn->replace_in_uses(store, store->in(MemNode::Memory));
-                  }
-                }
-              }
-            }
-            // Replace allocation by pre-allocated oop
-            igvn->replace_node(res, default_oop(*phase, inline_klass()));
+          if (res != NULL && res->is_CheckCastPP()) {
+            // Replace allocation by oop and unlink AllocateNode
+            replace_allocation(igvn, res, get_oop());
+            igvn->replace_input_of(alloc, AllocateNode::InlineTypeNode, igvn->C->top());
+            --i; --imax;
           }
-          // Unlink AllocateNode
-          igvn->replace_input_of(alloc, AllocateNode::InlineTypeNode, igvn->C->top());
-          --i; --imax;
-        } else if (user->is_InlineType()) {
-          // Add inline type user to worklist to give it a chance to get optimized as well
-          igvn->_worklist.push(user);
-        }
-      }
-    }
-
-    if (is_allocated(igvn)) {
-      // Inline type is heap allocated, search for safepoint uses
-      for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
-        Node* out = fast_out(i);
-        if (out->is_SafePoint()) {
-          // Let SafePointNode::Ideal() take care of re-wiring the
-          // safepoint to the oop input instead of the inline type node.
-          igvn->rehash_node_delayed(out);
         }
       }
     }
@@ -866,33 +861,26 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     AllocateNode* alloc = fast_out(i)->isa_Allocate();
     if (alloc != NULL && alloc->in(AllocateNode::InlineTypeNode) == this) {
-      assert(!is_default(*igvn), "default inline type allocation");
       Node* res = alloc->result_cast();
       if (res == NULL || !res->is_CheckCastPP()) {
         break; // No unique CheckCastPP
       }
+      assert(!is_default(igvn) && !is_allocated(igvn), "re-allocation should be removed by Ideal transformation");
+      // Search for a dominating allocation of the same inline type
       Node* res_dom = res;
-      if (is_allocated(igvn)) {
-        // The inline type is already allocated but still connected to an AllocateNode.
-        // This can happen with late inlining when we first allocate an inline type argument
-        // but later decide to inline the call with the callee code also allocating.
-        res_dom = get_oop();
-      } else {
-        // Search for a dominating allocation of the same inline type
-        for (DUIterator_Fast jmax, j = fast_outs(jmax); j < jmax; j++) {
-          AllocateNode* alloc_other = fast_out(j)->isa_Allocate();
-          if (alloc_other != NULL && alloc_other->in(AllocateNode::InlineTypeNode) == this) {
-            Node* res_other = alloc_other->result_cast();
-            if (res_other != NULL && res_other->is_CheckCastPP() && res_other != res_dom &&
-                phase->is_dominator(res_other->in(0), res_dom->in(0))) {
-              res_dom = res_other;
-            }
+      for (DUIterator_Fast jmax, j = fast_outs(jmax); j < jmax; j++) {
+        AllocateNode* alloc_other = fast_out(j)->isa_Allocate();
+        if (alloc_other != NULL && alloc_other->in(AllocateNode::InlineTypeNode) == this) {
+          Node* res_other = alloc_other->result_cast();
+          if (res_other != NULL && res_other->is_CheckCastPP() && res_other != res_dom &&
+              phase->is_dominator(res_other->in(0), res_dom->in(0))) {
+            res_dom = res_other;
           }
         }
       }
       if (res_dom != res) {
-        // Move users to dominating allocation
-        igvn->replace_node(res, res_dom);
+        // Replace allocation by dominating one.
+        replace_allocation(igvn, res, res_dom);
         // The result of the dominated allocation is now unused and will be removed
         // later in PhaseMacroExpand::eliminate_allocate_node to not confuse loop opts.
         igvn->record_for_igvn(alloc);
