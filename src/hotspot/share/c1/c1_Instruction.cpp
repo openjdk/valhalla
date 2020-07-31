@@ -430,8 +430,8 @@ void BlockBegin::state_values_do(ValueVisitor* f) {
   values_do(&assert_value);
 #endif
     pin();
-    if (value->as_NewValueTypeInstance() != NULL) {
-      value->as_NewValueTypeInstance()->set_not_larva_anymore();
+    if (value->as_NewInlineTypeInstance() != NULL) {
+      value->as_NewInlineTypeInstance()->set_not_larva_anymore();
     }
   }
 
@@ -447,8 +447,8 @@ void BlockBegin::state_values_do(ValueVisitor* f) {
   values_do(&assert_value);
 #endif
     pin();
-    if (value->as_NewValueTypeInstance() != NULL) {
-      value->as_NewValueTypeInstance()->set_not_larva_anymore();
+    if (value->as_NewInlineTypeInstance() != NULL) {
+      value->as_NewInlineTypeInstance()->set_not_larva_anymore();
     }
   }
 
@@ -480,8 +480,8 @@ Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values*
   _signature = new BasicTypeList(number_of_arguments() + (has_receiver() ? 1 : 0));
   if (has_receiver()) {
     _signature->append(as_BasicType(receiver()->type()));
-    if (receiver()->as_NewValueTypeInstance() != NULL) {
-      receiver()->as_NewValueTypeInstance()->set_not_larva_anymore();
+    if (receiver()->as_NewInlineTypeInstance() != NULL) {
+      receiver()->as_NewInlineTypeInstance()->set_not_larva_anymore();
     }
   }
   for (int i = 0; i < number_of_arguments(); i++) {
@@ -489,8 +489,8 @@ Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values*
     ValueType* t = v->type();
     BasicType bt = as_BasicType(t);
     _signature->append(bt);
-    if (v->as_NewValueTypeInstance() != NULL) {
-      v->as_NewValueTypeInstance()->set_not_larva_anymore();
+    if (v->as_NewInlineTypeInstance() != NULL) {
+      v->as_NewInlineTypeInstance()->set_not_larva_anymore();
     }
   }
 }
@@ -1004,8 +1004,8 @@ bool BlockBegin::try_merge(ValueStack* new_state) {
         if (new_value != existing_value && (existing_phi == NULL || existing_phi->block() != this)) {
           existing_state->setup_phi_for_stack(this, index);
           TRACE_PHI(tty->print_cr("creating phi-function %c%d for stack %d", existing_state->stack_at(index)->type()->tchar(), existing_state->stack_at(index)->id(), index));
-          if (new_value->as_NewValueTypeInstance() != NULL) {new_value->as_NewValueTypeInstance()->set_not_larva_anymore(); }
-          if (existing_value->as_NewValueTypeInstance() != NULL) {existing_value->as_NewValueTypeInstance()->set_not_larva_anymore(); }
+          if (new_value->as_NewInlineTypeInstance() != NULL) {new_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
+          if (existing_value->as_NewInlineTypeInstance() != NULL) {existing_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
         }
       }
 
@@ -1020,8 +1020,8 @@ bool BlockBegin::try_merge(ValueStack* new_state) {
         } else if (new_value != existing_value && (existing_phi == NULL || existing_phi->block() != this)) {
           existing_state->setup_phi_for_local(this, index);
           TRACE_PHI(tty->print_cr("creating phi-function %c%d for local %d", existing_state->local_at(index)->type()->tchar(), existing_state->local_at(index)->id(), index));
-          if (new_value->as_NewValueTypeInstance() != NULL) {new_value->as_NewValueTypeInstance()->set_not_larva_anymore(); }
-          if (existing_value->as_NewValueTypeInstance() != NULL) {existing_value->as_NewValueTypeInstance()->set_not_larva_anymore(); }
+          if (new_value->as_NewInlineTypeInstance() != NULL) {new_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
+          if (existing_value->as_NewInlineTypeInstance() != NULL) {existing_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
         }
       }
     }

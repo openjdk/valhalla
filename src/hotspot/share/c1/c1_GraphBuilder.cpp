@@ -1124,12 +1124,12 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
         Value w3 = state()->raw_pop();
-        if (w1 != NULL && w1->as_NewValueTypeInstance() != NULL) {
+        if (w1 != NULL && w1->as_NewInlineTypeInstance() != NULL) {
           ciBytecodeStream s(method());
           s.force_bci(bci());
           s.next();
           if (s.cur_bc() != Bytecodes::_pop) {
-            w1->as_NewValueTypeInstance()->set_not_larva_anymore();
+            w1->as_NewInlineTypeInstance()->set_not_larva_anymore();
           }
         }
         state()->raw_push(w1);
