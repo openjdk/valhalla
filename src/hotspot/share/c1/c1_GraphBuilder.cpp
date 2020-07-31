@@ -951,6 +951,13 @@ void GraphBuilder::load_local(ValueType* type, int index) {
   Value x = state()->local_at(index);
   assert(x != NULL && !x->type()->is_illegal(), "access of illegal local variable");
   push(type, x);
+  if (x->as_NewInlineTypeInstance() != NULL && x->as_NewInlineTypeInstance()->in_larva_state()) {
+    if (x->as_NewInlineTypeInstance()->on_stack_count() == 1) {
+      x->as_NewInlineTypeInstance()->set_not_larva_anymore();
+    } else {
+      x->as_NewInlineTypeInstance()->increment_on_stack_count();
+    }
+  }
 }
 
 
@@ -959,6 +966,7 @@ void GraphBuilder::store_local(ValueType* type, int index) {
   store_local(state(), x, index);
   if (x->as_NewInlineTypeInstance() != NULL) {
     x->as_NewInlineTypeInstance()->set_local_index(index);
+    x->as_NewInlineTypeInstance()->decrement_on_stack_count();
   }
 }
 
@@ -991,6 +999,7 @@ void GraphBuilder::store_local(ValueStack* state, Value x, int index) {
   state->store_local(index, round_fp(x));
   if (x->as_NewInlineTypeInstance() != NULL) {
     x->as_NewInlineTypeInstance()->set_local_index(index);
+    x->as_NewInlineTypeInstance()->decrement_on_stack_count();
   }
 }
 
@@ -1092,16 +1101,20 @@ void GraphBuilder::store_indexed(BasicType type) {
 }
 
 #define UPDATE_LARVA(x) if (x != NULL && x->as_NewInlineTypeInstance() != NULL) { x->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
+#define UPDATE_STACK_COUNT(x) if (x != NULL && x->as_NewInlineTypeInstance() != NULL && x->as_NewInlineTypeInstance()->in_larva_state()) { x->as_NewInlineTypeInstance()->decrement_on_stack_count(); }
 
 void GraphBuilder::stack_op(Bytecodes::Code code) {
   switch (code) {
     case Bytecodes::_pop:
-      { state()->raw_pop();
+      { Value w = state()->raw_pop();
+        UPDATE_STACK_COUNT(w);
       }
       break;
     case Bytecodes::_pop2:
-      { state()->raw_pop();
-        state()->raw_pop();
+      { Value w1 = state()->raw_pop();
+        Value w2 = state()->raw_pop();
+        UPDATE_STACK_COUNT(w1);
+        UPDATE_STACK_COUNT(w2);
       }
       break;
     case Bytecodes::_dup:
@@ -1130,7 +1143,9 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
           s.next();
           if (s.cur_bc() != Bytecodes::_pop) {
             w1->as_NewInlineTypeInstance()->set_not_larva_anymore();
-          }
+          }  else {
+            w1->as_NewInlineTypeInstance()->increment_on_stack_count();
+           }
         }
         state()->raw_push(w1);
         state()->raw_push(w3);

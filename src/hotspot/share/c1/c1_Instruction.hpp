@@ -1363,6 +1363,7 @@ LEAF(NewInlineTypeInstance, StateSplit)
   bool _is_optimizable_for_withfield;
   bool _in_larva_state;
   int _first_local_index;
+  int _on_stack_count;
 public:
 
   // Default creation, always allocated for now
@@ -1373,6 +1374,7 @@ public:
    , _is_optimizable_for_withfield(from_default_value)
    , _in_larva_state(true)
    , _first_local_index(-1)
+   , _on_stack_count(1)
   {
     if (depends_on == NULL) {
       _depends_on = this;
@@ -1415,6 +1417,11 @@ public:
   virtual bool in_larva_state() const { return _in_larva_state; }
   virtual void set_not_larva_anymore() {
     _in_larva_state = false; }
+
+  virtual int on_stack_count() { return _on_stack_count; }
+  virtual void increment_on_stack_count() { _on_stack_count++; }
+  virtual void decrement_on_stack_count() { _on_stack_count--; }
+
 };
 
 BASE(NewArray, StateSplit)
