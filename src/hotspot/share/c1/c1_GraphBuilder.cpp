@@ -951,7 +951,7 @@ void GraphBuilder::load_local(ValueType* type, int index) {
   Value x = state()->local_at(index);
   assert(x != NULL && !x->type()->is_illegal(), "access of illegal local variable");
   push(type, x);
-  if (x->as_NewInlineTypeInstance() != NULL && x->as_NewInlineTypeInstance()->in_larva_state()) {
+  if (x->as_NewInlineTypeInstance() != NULL && x->as_NewInlineTypeInstance()->in_larval_state()) {
     if (x->as_NewInlineTypeInstance()->on_stack_count() == 1) {
       x->as_NewInlineTypeInstance()->set_not_larva_anymore();
     } else {
@@ -1100,26 +1100,23 @@ void GraphBuilder::store_indexed(BasicType type) {
 
 }
 
-#define UPDATE_LARVA(x) if (x != NULL && x->as_NewInlineTypeInstance() != NULL) { x->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
-#define UPDATE_STACK_COUNT(x) if (x != NULL && x->as_NewInlineTypeInstance() != NULL && x->as_NewInlineTypeInstance()->in_larva_state()) { x->as_NewInlineTypeInstance()->decrement_on_stack_count(); }
-
 void GraphBuilder::stack_op(Bytecodes::Code code) {
   switch (code) {
     case Bytecodes::_pop:
       { Value w = state()->raw_pop();
-        UPDATE_STACK_COUNT(w);
+        NewInlineTypeInstance::update_stack_count(w);
       }
       break;
     case Bytecodes::_pop2:
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
-        UPDATE_STACK_COUNT(w1);
-        UPDATE_STACK_COUNT(w2);
+        NewInlineTypeInstance::update_stack_count(w1);
+        NewInlineTypeInstance::update_stack_count(w2);
       }
       break;
     case Bytecodes::_dup:
       { Value w = state()->raw_pop();
-        UPDATE_LARVA(w);
+        NewInlineTypeInstance::update_larval_state(w);
         state()->raw_push(w);
         state()->raw_push(w);
       }
@@ -1127,7 +1124,7 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
     case Bytecodes::_dup_x1:
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
-        UPDATE_LARVA(w1);
+        NewInlineTypeInstance::update_larval_state(w1);
         state()->raw_push(w1);
         state()->raw_push(w2);
         state()->raw_push(w1);
@@ -1156,8 +1153,8 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
     case Bytecodes::_dup2:
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
-        UPDATE_LARVA(w1);
-        UPDATE_LARVA(w2);
+        NewInlineTypeInstance::update_larval_state(w1);
+        NewInlineTypeInstance::update_larval_state(w2);
         state()->raw_push(w2);
         state()->raw_push(w1);
         state()->raw_push(w2);
@@ -1168,8 +1165,8 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
         Value w3 = state()->raw_pop();
-        UPDATE_LARVA(w1);
-        UPDATE_LARVA(w2);
+        NewInlineTypeInstance::update_larval_state(w1);
+        NewInlineTypeInstance::update_larval_state(w2);
         state()->raw_push(w2);
         state()->raw_push(w1);
         state()->raw_push(w3);
@@ -1182,8 +1179,8 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
         Value w2 = state()->raw_pop();
         Value w3 = state()->raw_pop();
         Value w4 = state()->raw_pop();
-        UPDATE_LARVA(w1);
-        UPDATE_LARVA(w2);
+        NewInlineTypeInstance::update_larval_state(w1);
+        NewInlineTypeInstance::update_larval_state(w2);
         state()->raw_push(w2);
         state()->raw_push(w1);
         state()->raw_push(w4);
@@ -1983,7 +1980,7 @@ void GraphBuilder::withfield(int field_index)
   // Save the entire state and re-execute on deopt when executing withfield
   state_before->set_should_reexecute(true);
   NewInlineTypeInstance* new_instance;
-  if (obj->as_NewInlineTypeInstance() != NULL && obj->as_NewInlineTypeInstance()->in_larva_state()) {
+  if (obj->as_NewInlineTypeInstance() != NULL && obj->as_NewInlineTypeInstance()->in_larval_state()) {
     new_instance = obj->as_NewInlineTypeInstance();
     apush(append_split(new_instance));
   } else {

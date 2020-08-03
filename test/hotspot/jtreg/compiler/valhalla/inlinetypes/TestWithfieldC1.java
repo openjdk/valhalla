@@ -331,4 +331,34 @@ public class TestWithfieldC1 extends InlineTypeTest {
         FooValue v = test8();
         validate_foo_static_and(v);
     }
+
+    // duplicate reference with local variables
+    @Test(compLevel=C1)
+    public FooValue test9() {
+        FooValue v = FooValue.default;
+
+        v = __WithField(v.x, 1);
+        v = __WithField(v.y, 1);
+
+        FooValue v2 = v;
+
+        v = __WithField(v.x, 2);
+        v = __WithField(v.y, 2);
+
+        v2 = __WithField(v2.x, 3);
+        v2 = __WithField(v2.y, 3);
+
+        foo_instance = v2;
+        return v;
+    }
+
+    @DontCompile
+    public void test9_verifier(boolean warmup) {
+        foo_instance = null;
+        FooValue v = test9();
+        Asserts.assertEQ(foo_instance.x, 3);
+        Asserts.assertEQ(foo_instance.y, 3);
+        Asserts.assertEQ(v.x, 2);
+        Asserts.assertEQ(v.y, 2);
+    }
 }

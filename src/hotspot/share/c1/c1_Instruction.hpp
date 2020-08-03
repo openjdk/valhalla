@@ -1361,7 +1361,7 @@ LEAF(NewInlineTypeInstance, StateSplit)
   ciInlineKlass* _klass;
   Value _depends_on;      // Link to instance on with withfield was called on
   bool _is_optimizable_for_withfield;
-  bool _in_larva_state;
+  bool _in_larval_state;
   int _first_local_index;
   int _on_stack_count;
 public:
@@ -1372,7 +1372,7 @@ public:
    , _is_unresolved(is_unresolved)
    , _klass(klass)
    , _is_optimizable_for_withfield(from_default_value)
-   , _in_larva_state(true)
+   , _in_larval_state(true)
    , _first_local_index(-1)
    , _on_stack_count(1)
   {
@@ -1414,13 +1414,25 @@ public:
     }
   }
 
-  virtual bool in_larva_state() const { return _in_larva_state; }
+  virtual bool in_larval_state() const { return _in_larval_state; }
   virtual void set_not_larva_anymore() {
-    _in_larva_state = false; }
+    _in_larval_state = false; }
 
   virtual int on_stack_count() { return _on_stack_count; }
   virtual void increment_on_stack_count() { _on_stack_count++; }
   virtual void decrement_on_stack_count() { _on_stack_count--; }
+
+  static void update_larval_state(Value v) {
+    if (v != NULL && v->as_NewInlineTypeInstance() != NULL) {
+      v->as_NewInlineTypeInstance()->set_not_larva_anymore();
+    }
+  }
+
+  static void update_stack_count(Value v) {
+    if (v != NULL && v->as_NewInlineTypeInstance() != NULL && v->as_NewInlineTypeInstance()->in_larval_state()) {
+      v->as_NewInlineTypeInstance()->decrement_on_stack_count();
+    }
+  }
 
 };
 
