@@ -250,13 +250,15 @@ void Parse::array_store(BasicType bt) {
     // emitted by the array_store_check code (see JDK-6312651)
     // TODO Remove this code once JDK-6312651 is in.
     const Type* tval_init = _gvn.type(val);
-    bool not_inline = !tval->isa_inlinetype() && (tval == TypePtr::NULL_PTR || !tval_init->is_oopptr()->can_be_inline_type() || !tval->is_oopptr()->can_be_inline_type());
-    bool not_flattened = !UseFlatArray || not_inline || ((tval_init->is_inlinetypeptr() || tval_init->isa_inlinetype()) && !tval_init->inline_klass()->flatten_array());
-
-    if (!ary_t->is_not_null_free() && not_inline && (!tval->maybe_null() || !tval_init->maybe_null())) {
+    // Based on the value to be stored, try to determine if the array is not null-free and/or not flat.
+    // This is only legal for non-null stores because the array_store_check always passes for null, even
+    // if the array is null-free. Null stores are handled in GraphKit::gen_inline_array_null_guard().
+    bool not_inline = !tval->isa_inlinetype() &&
+                      ((!tval_init->maybe_null() && !tval_init->is_oopptr()->can_be_inline_type()) ||
+                       (!tval->maybe_null() && !tval->is_oopptr()->can_be_inline_type()));
+    bool not_flattened = not_inline || ((tval_init->is_inlinetypeptr() || tval_init->isa_inlinetype()) && !tval_init->inline_klass()->flatten_array());
+    if (!ary_t->is_not_null_free() && not_inline) {
       // Storing a non-inline type, mark array as not null-free (-> not flat).
-      // This is only legal for non-null stores because the array_store_check always passes for null.
-      // Null stores are handled in GraphKit::gen_inline_array_null_guard().
       ary_t = ary_t->cast_to_not_null_free();
       Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, ary_t));
       replace_in_map(ary, cast);
@@ -293,8 +295,8 @@ void Parse::array_store(BasicType bt) {
         if (stopped()) return;
         dec_sp(3);
       }
-    } else if (!ary_t->is_not_flat()) {
-      // Array might be flattened, emit runtime checks
+    } else if (!ary_t->is_not_flat() && tval != TypePtr::NULL_PTR) {
+      // Array might be flattened, emit runtime checks (for NULL, a simple inline_array_null_guard is sufficient).
       assert(UseFlatArray && !not_flattened && elemtype->is_oopptr()->can_be_inline_type() &&
              !ary_t->klass_is_exact() && !ary_t->is_not_null_free(), "array can't be flattened");
       IdealKit ideal(this);
@@ -380,7 +382,7 @@ void Parse::array_store(BasicType bt) {
       return;
     } else if (!ary_t->is_not_null_free()) {
       // Array is not flattened but may be null free
-      assert(elemtype->is_oopptr()->can_be_inline_type() && !ary_t->klass_is_exact(), "array can't be null free");
+      assert(elemtype->is_oopptr()->can_be_inline_type() && !ary_t->klass_is_exact(), "array can't be null-free");
       ary = gen_inline_array_null_guard(ary, cast_val, 3, true);
     }
   }
