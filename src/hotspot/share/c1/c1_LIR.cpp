@@ -2136,8 +2136,16 @@ void LIR_OpSubstitutabilityCheck::print_instr(outputStream* out) const {
   not_equal_result()->print(out);        out->print(" ");
   tmp1()->print(out);                    out->print(" ");
   tmp2()->print(out);                    out->print(" ");
-  left_klass()->print(out);              out->print(" ");
-  right_klass()->print(out);             out->print(" ");
+  if (left_klass() != NULL) {
+    left_klass()->print(out);              out->print(" ");
+  } else {
+    out->print("unknown ");
+  }
+  if (right_klass() != NULL) {
+    right_klass()->print(out);             out->print(" ");
+  } else {
+    out->print("unknown ");
+  }
   left_klass_op()->print(out);           out->print(" ");
   right_klass_op()->print(out);          out->print(" ");
   if (stub() != NULL) {

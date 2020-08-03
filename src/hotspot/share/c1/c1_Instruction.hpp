@@ -2135,6 +2135,10 @@ LEAF(If, BlockEnd)
     s->append(tsux);
     s->append(fsux);
     set_sux(s);
+    if (!_substitutability_check) {
+      assert(x->as_NewInlineTypeInstance() == NULL || y->type() == objectNull, "Sanity check");
+      assert(y->as_NewInlineTypeInstance() == NULL || x->type() == objectNull, "Sanity check");
+    }
   }
 
   // accessors
