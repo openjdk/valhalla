@@ -24,7 +24,7 @@
 /*
  * @test
  * @summary Basic test for Array::get, Array::set, Arrays::setAll on inline class array
- * @compile -XDallowGenericsOverValues StreamTest.java
+ * @compile StreamTest.java
  * @run testng StreamTest
  */
 
