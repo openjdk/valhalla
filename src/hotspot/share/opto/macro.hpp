@@ -191,9 +191,9 @@ private:
                                     Node* src,  Node* src_offset,
                                     Node* dest, Node* dest_offset,
                                     Node* copy_length, bool dest_uninitialized);
-  const TypePtr* adjust_parameters_for_vt(const TypeAryPtr* top_dest, Node*& src_offset,
-                                          Node*& dest_offset, Node*& length, BasicType& dest_elem,
-                                          Node*& dest_length);
+  const TypePtr* adjust_for_flat_array(const TypeAryPtr* top_dest, Node*& src_offset,
+                                       Node*& dest_offset, Node*& length, BasicType& dest_elem,
+                                       Node*& dest_length);
   void expand_arraycopy_node(ArrayCopyNode *ac);
 
   void expand_subtypecheck_node(SubTypeCheckNode *check);
