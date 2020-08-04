@@ -832,12 +832,13 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     PhaseIterGVN* igvn = phase->is_IterGVN();
 
     if (is_allocated(phase)) {
-      // Search for and remove re-allocations of this inline type.
+      // Search for and remove re-allocations of this inline type. Ignore scalar replaceable ones,
+      // they will be removed anyway and changing the memory chain will confuse other optimizations.
       // This can happen with late inlining when we first allocate an inline type argument
       // but later decide to inline the call after the callee code also triggered allocation.
       for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
         AllocateNode* alloc = fast_out(i)->isa_Allocate();
-        if (alloc != NULL && alloc->in(AllocateNode::InlineTypeNode) == this) {
+        if (alloc != NULL && alloc->in(AllocateNode::InlineTypeNode) == this && !alloc->_is_scalar_replaceable) {
           // Found a re-allocation
           Node* res = alloc->result_cast();
           if (res != NULL && res->is_CheckCastPP()) {
@@ -853,14 +854,14 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
   return NULL;
 }
 
-// Search for multiple allocations of this inline type
-// and try to replace them by dominating allocations.
+// Search for multiple allocations of this inline type and try to replace them by dominating allocations.
 // Then unlink the inline type node and remove it.
 void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealLoop* phase) {
-  // Search for allocations of this inline type
+  // Search for allocations of this inline type. Ignore scalar replaceable ones, they
+  // will be removed anyway and changing the memory chain will confuse other optimizations.
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     AllocateNode* alloc = fast_out(i)->isa_Allocate();
-    if (alloc != NULL && alloc->in(AllocateNode::InlineTypeNode) == this) {
+    if (alloc != NULL && alloc->in(AllocateNode::InlineTypeNode) == this && !alloc->_is_scalar_replaceable) {
       Node* res = alloc->result_cast();
       if (res == NULL || !res->is_CheckCastPP()) {
         break; // No unique CheckCastPP
@@ -870,7 +871,7 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
       Node* res_dom = res;
       for (DUIterator_Fast jmax, j = fast_outs(jmax); j < jmax; j++) {
         AllocateNode* alloc_other = fast_out(j)->isa_Allocate();
-        if (alloc_other != NULL && alloc_other->in(AllocateNode::InlineTypeNode) == this) {
+        if (alloc_other != NULL && alloc_other->in(AllocateNode::InlineTypeNode) == this && !alloc_other->_is_scalar_replaceable) {
           Node* res_other = alloc_other->result_cast();
           if (res_other != NULL && res_other->is_CheckCastPP() && res_other != res_dom &&
               phase->is_dominator(res_other->in(0), res_dom->in(0))) {
