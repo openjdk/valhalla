@@ -1,11 +1,12 @@
 /**
  * @test /nodynamiccopyright/
- * @bug 8237069
+ * @bug 8237069 8251107
  * @summary Introduce and wire-in the new top interfaces
  * @compile/fail/ref=TopInterfaceNegativeTest.out -XDrawDiagnostics TopInterfaceNegativeTest.java
  */
 
 public class TopInterfaceNegativeTest  {
+    interface InlineObject {}
 
     interface ID extends IdentityObject {}
     interface II extends InlineObject {}
