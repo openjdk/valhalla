@@ -1,7 +1,7 @@
-TopInterfaceNegativeTest.java:7:44: compiler.err.repeated.interface
-TopInterfaceNegativeTest.java:18:48: compiler.err.repeated.interface
-TopInterfaceNegativeTest.java:24:53: compiler.err.repeated.interface
-TopInterfaceNegativeTest.java:22:19: compiler.err.inline.type.must.not.implement.identity.object: TopInterfaceNegativeTest.V1
-TopInterfaceNegativeTest.java:23:19: compiler.err.empty.value.not.yet
-TopInterfaceNegativeTest.java:24:19: compiler.err.empty.value.not.yet
+TopInterfaceNegativeTest.java:14:44: compiler.err.repeated.interface
+TopInterfaceNegativeTest.java:25:48: compiler.err.repeated.interface
+TopInterfaceNegativeTest.java:31:53: compiler.err.repeated.interface
+TopInterfaceNegativeTest.java:29:19: compiler.err.inline.type.must.not.implement.identity.object: TopInterfaceNegativeTest.V1
+TopInterfaceNegativeTest.java:30:19: compiler.err.empty.value.not.yet
+TopInterfaceNegativeTest.java:31:19: compiler.err.empty.value.not.yet
 6 errors
