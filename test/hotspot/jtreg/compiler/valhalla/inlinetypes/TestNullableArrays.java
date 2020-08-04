@@ -886,12 +886,18 @@ public class TestNullableArrays extends InlineTypeTest {
 
     @DontCompile
     public void test29_verifier(boolean warmup) {
-        MyValue2.ref[] src = new MyValue2.ref[10];
+        MyValue2.ref[] src1 = new MyValue2.ref[10];
+        MyValue2.val[] src2 = new MyValue2.val[10];
         for (int i = 0; i < 10; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src1[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src2[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
         }
-        MyValue2.ref v = test29(src);
-        Asserts.assertEQ(src[0].hash(), v.hash());
+        MyValue2.ref v = test29(src1);
+        Asserts.assertEQ(src1[0].hash(), v.hash());
+        if (!warmup) {
+            v = test29(src2);
+            Asserts.assertEQ(src2[0].hash(), v.hash());
+        }
     }
 
     // non escaping allocation with uncommon trap that needs
@@ -907,12 +913,18 @@ public class TestNullableArrays extends InlineTypeTest {
 
     @DontCompile
     public void test30_verifier(boolean warmup) {
-        MyValue2.ref[] src = new MyValue2.ref[10];
+        MyValue2.ref[] src1 = new MyValue2.ref[10];
+        MyValue2.val[] src2 = new MyValue2.val[10];
         for (int i = 0; i < 10; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src1[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src2[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
         }
-        MyValue2.ref v = test30(src, !warmup);
-        Asserts.assertEQ(src[0].hash(), v.hash());
+        MyValue2.ref v = test30(src1, !warmup);
+        Asserts.assertEQ(src1[0].hash(), v.hash());
+        if (!warmup) {
+            v = test30(src2, true);
+            Asserts.assertEQ(src2[0].hash(), v.hash());
+        }
     }
 
     // non escaping allocation with memory phi
@@ -2812,7 +2824,6 @@ public class TestNullableArrays extends InlineTypeTest {
         test107();
     }
 
-
     @Test
     @Warmup(10000)
     public Object test108(MyValue1.ref[] src, boolean flag) {
@@ -2828,4 +2839,33 @@ public class TestNullableArrays extends InlineTypeTest {
         test108(src, !warmup);
     }
 
+    // Test LoadNode::can_see_arraycopy_value optimization
+    @Test()
+    public static void test109() {
+        MyValue1[] src = new MyValue1[1];
+        MyValue1.ref[] dst = new MyValue1.ref[1];
+        src[0] = testValue1;
+        System.arraycopy(src, 0, dst, 0, 1);
+        Asserts.assertEquals(src[0], dst[0]);
+    }
+
+    @DontCompile
+    public void test109_verifier(boolean warmup) {
+        test109();
+    }
+
+    // Same as test109 but with Object destination array
+    @Test()
+    public static void test110() {
+        MyValue1[] src = new MyValue1[1];
+        Object[] dst = new Object[1];
+        src[0] = testValue1;
+        System.arraycopy(src, 0, dst, 0, 1);
+        Asserts.assertEquals(src[0], dst[0]);
+    }
+
+    @DontCompile
+    public void test110_verifier(boolean warmup) {
+        test110();
+    }
 }

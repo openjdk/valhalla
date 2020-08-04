@@ -1155,9 +1155,9 @@ void PhaseMacroExpand::generate_unchecked_arraycopy(Node** ctrl, MergeMemNode** 
   finish_arraycopy_call(call, ctrl, mem, adr_type);
 }
 
-const TypePtr* PhaseMacroExpand::adjust_parameters_for_vt(const TypeAryPtr* top_dest, Node*& src_offset,
-                                                          Node*& dest_offset, Node*& length, BasicType& dest_elem,
-                                                          Node*& dest_length) {
+const TypePtr* PhaseMacroExpand::adjust_for_flat_array(const TypeAryPtr* top_dest, Node*& src_offset,
+                                                       Node*& dest_offset, Node*& length, BasicType& dest_elem,
+                                                       Node*& dest_length) {
   assert(top_dest->klass()->is_flat_array_klass(), "inconsistent");
   int elem_size = ((ciFlatArrayKlass*)top_dest->klass())->element_byte_size();
   if (elem_size >= 8) {
@@ -1225,7 +1225,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
 
     const TypePtr* adr_type = NULL;
     if (dest_elem == T_INLINE_TYPE) {
-      adr_type = adjust_parameters_for_vt(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
+      adr_type = adjust_for_flat_array(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
     } else {
       adr_type = dest_type->is_oopptr()->add_offset(Type::OffsetBot);
       if (ac->_dest_type != TypeOopPtr::BOTTOM) {
@@ -1429,7 +1429,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
   Node* dest_length = alloc != NULL ? alloc->in(AllocateNode::ALength) : NULL;
 
   if (dest_elem == T_INLINE_TYPE) {
-    adr_type = adjust_parameters_for_vt(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
+    adr_type = adjust_for_flat_array(top_dest, src_offset, dest_offset, length, dest_elem, dest_length);
   } else if (ac->_dest_type != TypeOopPtr::BOTTOM) {
     adr_type = ac->_dest_type->add_offset(Type::OffsetBot)->is_ptr();
   } else {

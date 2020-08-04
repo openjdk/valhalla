@@ -222,6 +222,11 @@ Node *MemNode::optimize_memory_chain(Node *mchain, const TypePtr *t_adr, Node *l
       // clone the Phi with our address type
       result = mphi->split_out_instance(t_adr, igvn);
     } else {
+      if (t->isa_aryptr()) {
+        // In the case of a flattened inline type array, each field has its own slice.
+        // TODO This should be re-evaluated with JDK-8251039
+        t = t->is_aryptr()->with_field_offset(t_adr->is_aryptr()->field_offset().get());
+      }
       assert(phase->C->get_alias_index(t) == phase->C->get_alias_index(t_adr), "correct memory chain");
     }
   }
@@ -962,7 +967,7 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
       addp->set_req(AddPNode::Address, src);
 
       const TypeAryPtr* ary_t = phase->type(in(MemNode::Address))->isa_aryptr();
-      BasicType ary_elem  = ary_t->klass()->as_array_klass()->element_type()->basic_type();
+      BasicType ary_elem = ary_t->klass()->as_array_klass()->element_type()->basic_type();
       uint header = arrayOopDesc::base_offset_in_bytes(ary_elem);
       uint shift  = exact_log2(type2aelembytes(ary_elem));
       if (ary_t->klass()->is_flat_array_klass()) {
