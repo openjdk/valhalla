@@ -1685,7 +1685,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             ct.projection = projectedType;
 
             Name projectionName = this.name.append('$', this.name.table.names.ref);
-            long projectionFlags = (this.flags() & ~(VALUE | UNATTRIBUTED));
+            long projectionFlags = (this.flags() & ~(VALUE | UNATTRIBUTED | FINAL)) | SEALED;
 
             projection = new ClassSymbol(projectionFlags, projectionName, projectedType, this.owner);
             projection.members_field = WriteableScope.create(projection);
@@ -1709,6 +1709,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             projection.completer = Completer.NULL_COMPLETER;
             projection.sourcefile = this.sourcefile;
             projection.flatname = this.flatname.append('$', this.name.table.names.ref);
+            projection.permitted = List.of(this);
             projection.projection = this;
             projectedType.tsym = projection;
             return projection;
