@@ -17,6 +17,6 @@ final inline class ProjectionInstantiationTest {
         foo(ProjectionInstantiationTest.val::new);
     }
     static void foo(Supplier<ProjectionInstantiationTest.ref> sx) {
-		sx.get();
-	}
+        sx.get();
+    }
 }
