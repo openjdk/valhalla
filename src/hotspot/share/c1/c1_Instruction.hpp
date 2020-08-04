@@ -72,7 +72,7 @@ class   ExceptionObject;
 class   StateSplit;
 class     Invoke;
 class     NewInstance;
-class     NewValueTypeInstance;
+class     NewInlineTypeInstance;
 class     NewArray;
 class       NewTypeArray;
 class       NewObjectArray;
@@ -180,7 +180,7 @@ class InstructionVisitor: public StackObj {
   virtual void do_TypeCast       (TypeCast*        x) = 0;
   virtual void do_Invoke         (Invoke*          x) = 0;
   virtual void do_NewInstance    (NewInstance*     x) = 0;
-  virtual void do_NewValueTypeInstance(NewValueTypeInstance* x) = 0;
+  virtual void do_NewInlineTypeInstance(NewInlineTypeInstance* x) = 0;
   virtual void do_NewTypeArray   (NewTypeArray*    x) = 0;
   virtual void do_NewObjectArray (NewObjectArray*  x) = 0;
   virtual void do_NewMultiArray  (NewMultiArray*   x) = 0;
@@ -472,8 +472,8 @@ class Instruction: public CompilationResourceObj {
 
   void set_needs_null_check(bool f)              { set_flag(NeedsNullCheckFlag, f); }
   bool needs_null_check() const                  { return check_flag(NeedsNullCheckFlag); }
-  void set_never_null(bool f)                    { set_flag(NeverNullFlag, f); }
-  bool is_never_null() const                     { return check_flag(NeverNullFlag); }
+  void set_null_free(bool f)                    { set_flag(NeverNullFlag, f); }
+  bool is_null_free() const                     { return check_flag(NeverNullFlag); }
   bool is_linked() const                         { return check_flag(IsLinkedInBlockFlag); }
   bool can_be_linked()                           { return as_Local() == NULL && as_Phi() == NULL; }
 
@@ -586,7 +586,7 @@ class Instruction: public CompilationResourceObj {
   virtual StateSplit*       as_StateSplit()      { return NULL; }
   virtual Invoke*           as_Invoke()          { return NULL; }
   virtual NewInstance*      as_NewInstance()     { return NULL; }
-  virtual NewValueTypeInstance* as_NewValueTypeInstance() { return NULL; }
+  virtual NewInlineTypeInstance* as_NewInlineTypeInstance() { return NULL; }
   virtual NewArray*         as_NewArray()        { return NULL; }
   virtual NewTypeArray*     as_NewTypeArray()    { return NULL; }
   virtual NewObjectArray*   as_NewObjectArray()  { return NULL; }
@@ -742,13 +742,13 @@ LEAF(Local, Instruction)
   ciType*  _declared_type;
  public:
   // creation
-  Local(ciType* declared, ValueType* type, int index, bool receiver, bool never_null)
+  Local(ciType* declared, ValueType* type, int index, bool receiver, bool null_free)
     : Instruction(type)
     , _java_index(index)
     , _is_receiver(receiver)
     , _declared_type(declared)
   {
-    set_never_null(never_null);
+    set_null_free(null_free);
     NOT_PRODUCT(set_printable_bci(-1));
   }
 
@@ -869,10 +869,10 @@ LEAF(LoadField, AccessField)
   // creation
   LoadField(Value obj, int offset, ciField* field, bool is_static,
             ValueStack* state_before, bool needs_patching,
-            ciValueKlass* value_klass = NULL, Value default_value = NULL )
+            ciInlineKlass* inline_klass = NULL, Value default_value = NULL )
   : AccessField(obj, offset, field, is_static, state_before, needs_patching)
   {
-    set_never_null(field->signature()->is_Q_signature());
+    set_null_free(field->signature()->is_Q_signature());
   }
 
   ciType* declared_type() const;
@@ -1002,7 +1002,7 @@ BASE(AccessIndexed, AccessArray)
 LEAF(LoadIndexed, AccessIndexed)
  private:
   NullCheck*  _explicit_null_check;              // For explicit null check elimination
-  NewValueTypeInstance* _vt;
+  NewInlineTypeInstance* _vt;
 
  public:
   // creation
@@ -1020,8 +1020,8 @@ LEAF(LoadIndexed, AccessIndexed)
   ciType* exact_type() const;
   ciType* declared_type() const;
 
-  NewValueTypeInstance* vt() const { return _vt; }
-  void set_vt(NewValueTypeInstance* vt) { _vt = vt; }
+  NewInlineTypeInstance* vt() const { return _vt; }
+  void set_vt(NewInlineTypeInstance* vt) { _vt = vt; }
 
   // generic
   HASHING4(LoadIndexed, !should_profile(), type()->tag(), array()->subst(), index()->subst(), vt())
@@ -1310,7 +1310,7 @@ LEAF(Invoke, StateSplit)
  public:
   // creation
   Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values* args,
-         int vtable_index, ciMethod* target, ValueStack* state_before, bool never_null);
+         int vtable_index, ciMethod* target, ValueStack* state_before, bool null_free);
 
   // accessors
   Bytecodes::Code code() const                   { return _code; }
@@ -1371,16 +1371,16 @@ LEAF(NewInstance, StateSplit)
   ciType* declared_type() const;
 };
 
-LEAF(NewValueTypeInstance, StateSplit)
+LEAF(NewInlineTypeInstance, StateSplit)
   bool _is_unresolved;
-  ciValueKlass* _klass;
+  ciInlineKlass* _klass;
   Value _depends_on;      // Link to instance on with withfield was called on
   bool _is_optimizable_for_withfield;
   int _first_local_index;
 public:
 
   // Default creation, always allocated for now
-  NewValueTypeInstance(ciValueKlass* klass, ValueStack* state_before, bool is_unresolved, Value depends_on = NULL, bool from_default_value = false)
+  NewInlineTypeInstance(ciInlineKlass* klass, ValueStack* state_before, bool is_unresolved, Value depends_on = NULL, bool from_default_value = false)
   : StateSplit(instanceType, state_before)
    , _is_unresolved(is_unresolved)
    , _klass(klass)
@@ -1392,14 +1392,14 @@ public:
     } else {
       _depends_on = depends_on;
     }
-    set_never_null(true);
+    set_null_free(true);
   }
 
   // accessors
   bool is_unresolved() const                     { return _is_unresolved; }
   Value depends_on();
 
-  ciValueKlass* klass() const { return _klass; }
+  ciInlineKlass* klass() const { return _klass; }
 
   virtual bool needs_exception_state() const     { return false; }
 
@@ -1477,9 +1477,9 @@ LEAF(NewObjectArray, NewArray)
 
  public:
   // creation
-  NewObjectArray(ciKlass* klass, Value length, ValueStack* state_before, bool never_null)
+  NewObjectArray(ciKlass* klass, Value length, ValueStack* state_before, bool null_free)
   : NewArray(length, state_before), _klass(klass) {
-    set_never_null(never_null);
+    set_null_free(null_free);
   }
 
   // accessors
@@ -1576,9 +1576,9 @@ BASE(TypeCheck, StateSplit)
 LEAF(CheckCast, TypeCheck)
  public:
   // creation
-  CheckCast(ciKlass* klass, Value obj, ValueStack* state_before, bool never_null = false)
+  CheckCast(ciKlass* klass, Value obj, ValueStack* state_before, bool null_free = false)
   : TypeCheck(klass, obj, objectType, state_before) {
-    set_never_null(never_null);
+    set_null_free(null_free);
   }
 
   void set_incompatible_class_change_check() {
@@ -1637,18 +1637,18 @@ BASE(AccessMonitor, StateSplit)
 
 
 LEAF(MonitorEnter, AccessMonitor)
-  bool _maybe_valuetype;
+  bool _maybe_inlinetype;
  public:
   // creation
-  MonitorEnter(Value obj, int monitor_no, ValueStack* state_before, bool maybe_valuetype)
+  MonitorEnter(Value obj, int monitor_no, ValueStack* state_before, bool maybe_inlinetype)
   : AccessMonitor(obj, monitor_no, state_before)
-  , _maybe_valuetype(maybe_valuetype)
+  , _maybe_inlinetype(maybe_inlinetype)
   {
     ASSERT_VALUES
   }
 
   // accessors
-  bool maybe_valuetype() const                   { return _maybe_valuetype; }
+  bool maybe_inlinetype() const                   { return _maybe_inlinetype; }
 
   // generic
   virtual bool can_trap() const                  { return true; }
@@ -2135,6 +2135,10 @@ LEAF(If, BlockEnd)
     s->append(tsux);
     s->append(fsux);
     set_sux(s);
+    if (!_substitutability_check) {
+      assert(x->as_NewInlineTypeInstance() == NULL || y->type() == objectNull, "Sanity check");
+      assert(y->as_NewInlineTypeInstance() == NULL || x->type() == objectNull, "Sanity check");
+    }
   }
 
   // accessors

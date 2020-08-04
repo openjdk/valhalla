@@ -86,7 +86,7 @@ class TypeOopPtr;
 class TypeFunc;
 class TypeVect;
 class Unique_Node_List;
-class ValueTypeBaseNode;
+class InlineTypeBaseNode;
 class nmethod;
 class WarmCallInfo;
 class Node_Stack;
@@ -318,7 +318,7 @@ class Compile : public Phase {
   GrowableArray<Node*>* _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>* _range_check_casts;     // List of CastII nodes with a range check dependency
   GrowableArray<Node*>* _opaque4_nodes;         // List of Opaque4 nodes that have a default value
-  GrowableArray<Node*>* _value_type_nodes;      // List of ValueType nodes
+  GrowableArray<Node*>* _inline_type_nodes;     // List of InlineType nodes
   ConnectionGraph*      _congraph;
 #ifndef PRODUCT
   IdealGraphPrinter*    _printer;
@@ -601,7 +601,7 @@ class Compile : public Phase {
   bool          flattened_accesses_share_alias() const { return _flattened_accesses_share_alias; }
   void          set_flattened_accesses_share_alias(bool z) { _flattened_accesses_share_alias = z; }
 
-  // Support for scalarized value type calling convention
+  // Support for scalarized inline type calling convention
   bool              has_scalarized_args() const  { return _method != NULL && _method->has_scalarized_args(); }
   bool              needs_stack_repair()  const  { return _method != NULL && _method->get_Method()->c2_needs_stack_repair(); }
 
@@ -721,10 +721,10 @@ class Compile : public Phase {
   int   opaque4_count()       const { return _opaque4_nodes->length(); }
   void  remove_opaque4_nodes(PhaseIterGVN &igvn);
 
-  // Keep track of value type nodes for later processing
-  void add_value_type(Node* n);
-  void remove_value_type(Node* n);
-  void process_value_types(PhaseIterGVN &igvn, bool post_ea = false);
+  // Keep track of inline type nodes for later processing
+  void add_inline_type(Node* n);
+  void remove_inline_type(Node* n);
+  void process_inline_types(PhaseIterGVN &igvn, bool post_ea = false);
 
   void adjust_flattened_array_access_aliases(PhaseIterGVN& igvn);
 

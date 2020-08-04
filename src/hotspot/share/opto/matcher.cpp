@@ -172,7 +172,7 @@ void Matcher::verify_new_nodes_only(Node* xroot) {
 }
 #endif
 
-// Array of RegMask, one per returned values (value type instances can
+// Array of RegMask, one per returned values (inline type instances can
 // be returned as multiple return values, one per field)
 RegMask* Matcher::return_values_mask(const TypeTuple *range) {
   uint cnt = range->cnt() - TypeFunc::Parms;

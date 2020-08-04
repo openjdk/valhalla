@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @summary Test that values code like a class - i.e are accepted in some places where only references used be, when invoked with the experimental mode -XDallowGenericsOverValues
+ * @summary Test that values code like a class - i.e are accepted in some places where only references used be, when suitable reference projection is used.
    @compile  ValuesAsRefs.java
  * @run main/othervm ValuesAsRefs
  */

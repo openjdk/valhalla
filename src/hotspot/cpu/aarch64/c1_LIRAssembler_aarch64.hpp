@@ -82,7 +82,7 @@ public:
   void store_parameter(Register r, int offset_from_esp_in_words);
   void store_parameter(jint c,     int offset_from_esp_in_words);
   void store_parameter(jobject c,  int offset_from_esp_in_words);
-  void arraycopy_valuetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest);
+  void arraycopy_inlinetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest);
   void move(LIR_Opr src, LIR_Opr dst);
 
 #endif // CPU_AARCH64_C1_LIRASSEMBLER_AARCH64_HPP

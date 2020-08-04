@@ -689,15 +689,15 @@ void InterpreterMacroAssembler::remove_activation(
 
   if (state == atos && InlineTypeReturnedAsFields) {
     Label skip;
-    // Test if the return type is a value type
+    // Test if the return type is an inline type
     ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
     ldr(rscratch1, Address(rscratch1, Method::const_offset()));
     ldrb(rscratch1, Address(rscratch1, ConstMethod::result_type_offset()));
     cmpw(rscratch1, (u1) T_INLINE_TYPE);
     br(Assembler::NE, skip);
 
-    // We are returning a value type, load its fields into registers
-    // Load fields from a buffered value with a value class specific handler
+    // We are returning an inline type, load its fields into registers
+    // Load fields from a buffered value with an inline class specific handler
 
     load_klass(rscratch1 /*dst*/, r0 /*src*/);
     ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_inlineklass_fixed_block_offset()));

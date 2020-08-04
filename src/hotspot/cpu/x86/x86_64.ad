@@ -1519,9 +1519,9 @@ void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
     }
     masm.jump_cc(Assembler::notEqual, RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
   } else {
-    // Unpack value type args passed as oop and then jump to
+    // Unpack inline type args passed as oop and then jump to
     // the verified entry point (skipping the unverified entry).
-    masm.unpack_value_args(ra_->C, _receiver_only);
+    masm.unpack_inline_args(ra_->C, _receiver_only);
     masm.jmp(*_verified_entry);
   }
 }

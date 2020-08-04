@@ -837,15 +837,15 @@ void DynamicArchiveBuilder::make_trampolines() {
       assert(p >= mc_space->base() && p <= mc_space->top(), "must be");
       m->set_from_compiled_entry(to_target(c2i_entry_trampoline));
 
-      address c2i_value_ro_entry_trampoline = (address)p;
+      address c2i_inline_ro_entry_trampoline = (address)p;
       p += SharedRuntime::trampoline_size();
       assert(p >= mc_space->base() && p <= mc_space->top(), "must be");
-      m->set_from_compiled_value_ro_entry(to_target(c2i_value_ro_entry_trampoline));
+      m->set_from_compiled_inline_ro_entry(to_target(c2i_inline_ro_entry_trampoline));
 
-      address c2i_value_entry_trampoline = (address)p;
+      address c2i_inline_entry_trampoline = (address)p;
       p +=  SharedRuntime::trampoline_size();
       assert(p >= mc_space->base() && p <= mc_space->top(), "must be");
-      m->set_from_compiled_value_entry(to_target(c2i_value_entry_trampoline));
+      m->set_from_compiled_inline_entry(to_target(c2i_inline_entry_trampoline));
 
       AdapterHandlerEntry** adapter_trampoline =(AdapterHandlerEntry**)p;
       p += sizeof(AdapterHandlerEntry*);

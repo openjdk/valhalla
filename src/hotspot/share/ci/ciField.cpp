@@ -212,10 +212,10 @@ ciField::ciField(fieldDescriptor *fd) :
          "bootstrap classes must not create & cache unshared fields");
 }
 
-// Special copy constructor used to flatten value type fields by
-// copying the fields of the value type to a new holder klass.
+// Special copy constructor used to flatten inline type fields by
+// copying the fields of the inline type to a new holder klass.
 ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_final) {
-  assert(field->holder()->is_valuetype(), "should only be used for value type field flattening");
+  assert(field->holder()->is_inlinetype(), "should only be used for inline type field flattening");
   // Set the is_final flag
   jint final = is_final ? JVM_ACC_FINAL : ~JVM_ACC_FINAL;
   AccessFlags flags(field->flags().as_int() & final);
@@ -252,7 +252,7 @@ static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
   if (holder->is_hidden() || holder->is_unsafe_anonymous())
     return true;
   // Trust final fields in inline type buffers
-  if (holder->is_valuetype())
+  if (holder->is_inlinetype())
     return true;
   // Trust final fields in all boxed classes
   if (holder->is_box_klass())

@@ -222,7 +222,7 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
   BoolNode* bol       = unswitch_iff->in(1)->as_Bool();
   if (unswitch_iffs.size() > 1) {
     // Flattened array checks are used on array access to switch between
-    // a legacy object array access and a flattened value type array
+    // a legacy object array access and a flattened inline type array
     // access. We want the performance impact on legacy accesses to be
     // as small as possible so we make two copies of the loop: a fast
     // one where all accesses are known to be legacy, a slow one where

@@ -29,7 +29,7 @@
 
 // ciType
 //
-// This class represents a Java reference, value type or primitive type.
+// This class represents a Java reference, inline type or primitive type.
 
 class ciType : public ciMetadata {
   CI_PACKAGE_ACCESS

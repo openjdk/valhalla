@@ -24,9 +24,10 @@
 
 #include "precompiled.hpp"
 #include "ci/ciCallSite.hpp"
+#include "ci/ciFlatArray.hpp"
+#include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciInstanceKlass.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "ci/ciMemberName.hpp"
 #include "ci/ciMethod.hpp"
 #include "ci/ciMethodData.hpp"
@@ -41,8 +42,7 @@
 #include "ci/ciTypeArray.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "ci/ciValueArray.hpp"
-#include "ci/ciValueArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -368,7 +368,7 @@ ciObject* ciObjectFactory::create_new_object(oop o) {
     return new (arena()) ciTypeArray(h_ta);
   } else if (o->is_flatArray()) {
     flatArrayHandle h_ta(THREAD, (flatArrayOop)o);
-    return new (arena()) ciValueArray(h_ta);
+    return new (arena()) ciFlatArray(h_ta);
   }
 
   // The oop is of some type not supported by the compiler interface.
@@ -389,11 +389,11 @@ ciMetadata* ciObjectFactory::create_new_metadata(Metadata* o) {
   if (o->is_klass()) {
     Klass* k = (Klass*)o;
     if (k->is_inline_klass()) {
-      return new (arena()) ciValueKlass(k);
+      return new (arena()) ciInlineKlass(k);
     } else if (k->is_instance_klass()) {
       return new (arena()) ciInstanceKlass(k);
     } else if (k->is_flatArray_klass()) {
-      return new (arena()) ciValueArrayKlass(k);
+      return new (arena()) ciFlatArrayKlass(k);
     } else if (k->is_objArray_klass()) {
       return new (arena()) ciObjArrayKlass(k);
     } else if (k->is_typeArray_klass()) {

@@ -774,7 +774,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
 
     case new_type_array_id:
     case new_object_array_id:
-    case new_value_array_id:
+    case new_flat_array_id:
       {
         Register length   = r19; // Incoming
         Register klass    = r3; // Incoming
@@ -787,7 +787,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           __ set_info("new_object_array", dont_gc_arguments);
         }
         else {
-          __ set_info("new_value_array", dont_gc_arguments);
+          __ set_info("new_flat_array", dont_gc_arguments);
         }
 
 #ifdef ASSERT
@@ -802,7 +802,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
           switch (id) {
            case new_type_array_id: tag = Klass::_lh_array_tag_type_value; break;
            case new_object_array_id: tag = Klass::_lh_array_tag_obj_value; break;
-           case new_value_array_id: tag = Klass::_lh_array_tag_vt_value; break;
+           case new_flat_array_id: tag = Klass::_lh_array_tag_vt_value; break;
            default:  ShouldNotReachHere();
           }
           __ mov(rscratch1, tag);
@@ -865,7 +865,7 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
         if (id == new_type_array_id) {
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_type_array), klass, length);
         } else {
-          // Runtime1::new_object_array handles both object and value arrays
+          // Runtime1::new_object_array handles both object and flat arrays
           call_offset = __ call_RT(obj, noreg, CAST_FROM_FN_PTR(address, new_object_array), klass, length);
         }
 
@@ -901,17 +901,17 @@ OopMapSet* Runtime1::generate_code_for(StubID id, StubAssembler* sasm) {
       }
       break;
 
-    case buffer_value_args_id:
-    case buffer_value_args_no_receiver_id:
+    case buffer_inline_args_id:
+    case buffer_inline_args_no_receiver_id:
     {
-        const char* name = (id == buffer_value_args_id) ?
-          "buffer_value_args" : "buffer_value_args_no_receiver";
+        const char* name = (id == buffer_inline_args_id) ?
+          "buffer_inline_args" : "buffer_inline_args_no_receiver";
         StubFrame f(sasm, name, dont_gc_arguments);
         OopMap* map = save_live_registers(sasm, 2);
         Register method = r1;
-        address entry = (id == buffer_value_args_id) ?
-          CAST_FROM_FN_PTR(address, buffer_value_args) :
-          CAST_FROM_FN_PTR(address, buffer_value_args_no_receiver);
+        address entry = (id == buffer_inline_args_id) ?
+          CAST_FROM_FN_PTR(address, buffer_inline_args) :
+          CAST_FROM_FN_PTR(address, buffer_inline_args_no_receiver);
         int call_offset = __ call_RT(r0, noreg, entry, method);
         oop_maps = new OopMapSet();
         oop_maps->add_gc_map(call_offset, map);

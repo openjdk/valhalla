@@ -33,11 +33,11 @@
 #include "opto/cfgnode.hpp"
 #include "opto/compile.hpp"
 #include "opto/divnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/mulnode.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/subnode.hpp"
 #include "opto/type.hpp"
-#include "opto/valuetypenode.hpp"
 #include "runtime/deoptimization.hpp"
 
 class BarrierSetC2;
@@ -378,7 +378,7 @@ class GraphKit : public Phase {
     return null_check_common(value, type, true, NULL, _gvn.type(value)->speculative_always_null());
   }
 
-  Node* null2default(Node* value, ciValueKlass* vk = NULL);
+  Node* null2default(Node* value, ciInlineKlass* vk = NULL);
 
   // Check if value is null and abort if it is
   Node* must_be_not_null(Node* value, bool do_replace_in_map);
@@ -685,7 +685,7 @@ class GraphKit : public Phase {
   // callee (with all arguments still on the stack).
   Node* null_check_receiver_before_call(ciMethod* callee, bool replace_value = true) {
     assert(!callee->is_static(), "must be a virtual method");
-    if (argument(0)->is_ValueType()) {
+    if (argument(0)->is_InlineType()) {
       return argument(0);
     }
     // Callsite signature can be different from actual method being called (i.e _linkTo* sites).
@@ -695,15 +695,15 @@ class GraphKit : public Phase {
     inc_sp(nargs);
     Node* n = null_check_receiver();
     dec_sp(nargs);
-    // Scalarize value type receiver
+    // Scalarize inline type receiver
     const Type* recv_type = gvn().type(n);
-    if (recv_type->is_valuetypeptr() && recv_type->value_klass()->is_scalarizable()) {
+    if (recv_type->is_inlinetypeptr() && recv_type->inline_klass()->is_scalarizable()) {
       assert(!recv_type->maybe_null(), "should never be null");
-      ValueTypeNode* vt = ValueTypeNode::make_from_oop(this, n, recv_type->value_klass());
+      InlineTypeNode* vt = InlineTypeNode::make_from_oop(this, n, recv_type->inline_klass());
       set_argument(0, vt);
       if (replace_value && !Compile::current()->inlining_incrementally()) {
         // Only replace in map if we are not incrementally inlining because we
-        // share a map with the caller which might expect the value type as oop.
+        // share a map with the caller which might expect the inline type as oop.
         replace_in_map(n, vt);
       }
       n = vt;
@@ -853,10 +853,10 @@ class GraphKit : public Phase {
   // and the array-store bytecode
   Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = NULL);
 
-  Node* is_value_type(Node* obj);
+  Node* is_inline_type(Node* obj);
   Node* is_non_flattened_array(Node* ary);
   Node* is_nullable_array(Node* ary);
-  Node* gen_value_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace = false);
+  Node* gen_inline_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace = false);
   Node* load_lh_array_tag(Node* kls);
   Node* gen_lh_array_test(Node* kls, unsigned int lh_value);
 
@@ -882,7 +882,7 @@ class GraphKit : public Phase {
                      Node* slow_test = NULL,
                      Node* *return_size_val = NULL,
                      bool deoptimize_on_exception = false,
-                     ValueTypeBaseNode* value_node = NULL);
+                     InlineTypeBaseNode* inline_type_node = NULL);
   Node* new_array(Node* klass_node, Node* count_val, int nargs,
                   Node* *return_size_val = NULL,
                   bool deoptimize_on_exception = false);

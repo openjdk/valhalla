@@ -30,7 +30,7 @@
 #include "runtime/rtmLocking.hpp"
 #include "runtime/signature.hpp"
 
-class ciValueKlass;
+class ciInlineKlass;
 
 // MacroAssembler extends Assembler by frequently used macros.
 //
@@ -353,11 +353,11 @@ class MacroAssembler: public Assembler {
   void access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register src,
                        Register tmp1, Register tmp2, Register tmp3 = noreg);
 
-  void access_value_copy(DecoratorSet decorators, Register src, Register dst, Register value_klass);
+  void access_value_copy(DecoratorSet decorators, Register src, Register dst, Register inline_klass);
 
-  // value type data payload offsets...
-  void first_field_offset(Register value_klass, Register offset);
-  void data_for_oop(Register oop, Register data, Register value_klass);
+  // inline type data payload offsets...
+  void first_field_offset(Register inline_klass, Register offset);
+  void data_for_oop(Register oop, Register data, Register inline_klass);
   // get data payload ptr a flat value array at index, kills rcx and index
   void data_for_value_array_index(Register array, Register array_klass,
                                   Register index, Register data);
@@ -576,8 +576,8 @@ class MacroAssembler: public Assembler {
   );
   void zero_memory(Register address, Register length_in_bytes, int offset_in_bytes, Register temp);
 
-  // For field "index" within "klass", return value_klass ...
-  void get_inline_type_field_klass(Register klass, Register index, Register value_klass);
+  // For field "index" within "klass", return inline_klass ...
+  void get_inline_type_field_klass(Register klass, Register index, Register inline_klass);
 
   // interface method calling
   void lookup_interface_method(Register recv_klass,
@@ -1654,25 +1654,25 @@ public:
     reg_written
   };
 
-  int store_value_type_fields_to_buf(ciValueKlass* vk, bool from_interpreter = true);
+  int store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter = true);
 
-  // Unpack all value type arguments passed as oops
-  void unpack_value_args(Compile* C, bool receiver_only);
+  // Unpack all inline type arguments passed as oops
+  void unpack_inline_args(Compile* C, bool receiver_only);
   bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset);
-  bool unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index,
-                           RegState reg_state[], int ret_off, int extra_stack_offset);
-  bool pack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                         VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
-                         int ret_off, int extra_stack_offset);
+  bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index,
+                            RegState reg_state[], int ret_off, int extra_stack_offset);
+  bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
+                          VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
+                          int ret_off, int extra_stack_offset);
   void remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset);
 
-  void shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
-                          BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                          int args_passed, int args_on_stack, VMRegPair* regs,
-                          int args_passed_to, int args_on_stack_to, VMRegPair* regs_to, int sp_inc);
-  bool shuffle_value_args_spill(bool is_packing,  const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
-                                VMRegPair* regs_from, int from_index, int regs_from_count,
-                                RegState* reg_state, int sp_inc, int extra_stack_offset);
+  void shuffle_inline_args(bool is_packing, bool receiver_only, int extra_stack_offset,
+                           BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
+                           int args_passed, int args_on_stack, VMRegPair* regs,
+                           int args_passed_to, int args_on_stack_to, VMRegPair* regs_to, int sp_inc);
+  bool shuffle_inline_args_spill(bool is_packing,  const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
+                                 VMRegPair* regs_from, int from_index, int regs_from_count,
+                                 RegState* reg_state, int sp_inc, int extra_stack_offset);
   VMReg spill_reg_for(VMReg reg);
 
   // clear memory of size 'cnt' qwords, starting at 'base';

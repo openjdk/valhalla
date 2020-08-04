@@ -33,6 +33,7 @@
 #include "opto/connode.hpp"
 #include "opto/castnode.hpp"
 #include "opto/divnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/mulnode.hpp"
@@ -41,7 +42,6 @@
 #include "opto/rootnode.hpp"
 #include "opto/subnode.hpp"
 #include "opto/subtypenode.hpp"
-#include "opto/valuetypenode.hpp"
 #include "utilities/macros.hpp"
 
 //=============================================================================
@@ -62,9 +62,9 @@ Node *PhaseIdealLoop::split_thru_phi( Node *n, Node *region, int policy ) {
     return NULL;
   }
 
-  // Value types should not be split through Phis because they cannot be merged
+  // Inline types should not be split through Phis because they cannot be merged
   // through Phi nodes but each value input needs to be merged individually.
-  if (n->is_ValueType()) {
+  if (n->is_InlineType()) {
     return NULL;
   }
 
@@ -1212,7 +1212,7 @@ static Node* is_inner_of_stripmined_loop(const Node* out) {
 
 bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
   // If the CmpP is a subtype check for a value that has just been
-  // loaded from an array, the subtype checks guarantees the value
+  // loaded from an array, the subtype check guarantees the value
   // can't be stored in a flattened array and the load of the value
   // happens with a flattened array check then: push the type check
   // through the phi of the flattened array check. This needs special
@@ -1286,7 +1286,7 @@ bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
     _igvn.set_type(klassptr_clone, klassptr_clone->Value(&_igvn));
     if (klassptr != n->in(1)) {
       Node* decode = n->in(1);
-      assert(decode->is_DecodeNarrowPtr(), "inconcistent subgraph");
+      assert(decode->is_DecodeNarrowPtr(), "inconsistent subgraph");
       Node* decode_clone = decode->clone();
       decode_clone->set_req(1, klassptr_clone);
       register_new_node(decode_clone, ctrl);
@@ -1580,9 +1580,9 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
 
   try_move_store_after_loop(n);
 
-  // Remove multiple allocations of the same value type
-  if (n->is_ValueType()) {
-    n->as_ValueType()->remove_redundant_allocations(&_igvn, this);
+  // Remove multiple allocations of the same inline type
+  if (n->is_InlineType()) {
+    n->as_InlineType()->remove_redundant_allocations(&_igvn, this);
     return; // n is now dead
   }
 

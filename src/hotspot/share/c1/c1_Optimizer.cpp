@@ -416,7 +416,7 @@ class BlockMerger: public BlockClosure {
             con  = if_->x()->as_Constant();
             swapped = true;
           }
-          if (con && ifop) {
+          if (con && ifop && !ifop->substitutability_check()) {
             Constant* tval = ifop->tval()->as_Constant();
             Constant* fval = ifop->fval()->as_Constant();
             if (tval && fval) {
@@ -441,7 +441,7 @@ class BlockMerger: public BlockClosure {
                 BlockBegin* fblock = fval->compare(cond, con, tsux, fsux);
                 if (tblock != fblock && !if_->is_safepoint()) {
                   If* newif = new If(ifop->x(), ifop->cond(), false, ifop->y(),
-                                     tblock, fblock, if_->state_before(), if_->is_safepoint(), if_->substitutability_check());
+                                     tblock, fblock, if_->state_before(), if_->is_safepoint(), ifop->substitutability_check());
                   newif->set_state(if_->state()->copy());
 
                   assert(prev->next() == if_, "must be guaranteed by above search");
@@ -513,7 +513,7 @@ public:
   void do_TypeCast       (TypeCast*        x);
   void do_Invoke         (Invoke*          x);
   void do_NewInstance    (NewInstance*     x);
-  void do_NewValueTypeInstance(NewValueTypeInstance* x);
+  void do_NewInlineTypeInstance(NewInlineTypeInstance* x);
   void do_NewTypeArray   (NewTypeArray*    x);
   void do_NewObjectArray (NewObjectArray*  x);
   void do_NewMultiArray  (NewMultiArray*   x);
@@ -664,7 +664,7 @@ class NullCheckEliminator: public ValueVisitor {
   void handle_NullCheck       (NullCheck* x);
   void handle_Invoke          (Invoke* x);
   void handle_NewInstance     (NewInstance* x);
-  void handle_NewValueTypeInstance(NewValueTypeInstance* x);
+  void handle_NewInlineTypeInstance(NewInlineTypeInstance* x);
   void handle_NewArray        (NewArray* x);
   void handle_AccessMonitor   (AccessMonitor* x);
   void handle_Intrinsic       (Intrinsic* x);
@@ -703,7 +703,7 @@ void NullCheckVisitor::do_NullCheck      (NullCheck*       x) { nce()->handle_Nu
 void NullCheckVisitor::do_TypeCast       (TypeCast*        x) {}
 void NullCheckVisitor::do_Invoke         (Invoke*          x) { nce()->handle_Invoke(x); }
 void NullCheckVisitor::do_NewInstance    (NewInstance*     x) { nce()->handle_NewInstance(x); }
-void NullCheckVisitor::do_NewValueTypeInstance(NewValueTypeInstance*     x) { nce()->handle_NewValueTypeInstance(x); }
+void NullCheckVisitor::do_NewInlineTypeInstance(NewInlineTypeInstance* x) { nce()->handle_NewInlineTypeInstance(x); }
 void NullCheckVisitor::do_NewTypeArray   (NewTypeArray*    x) { nce()->handle_NewArray(x); }
 void NullCheckVisitor::do_NewObjectArray (NewObjectArray*  x) { nce()->handle_NewArray(x); }
 void NullCheckVisitor::do_NewMultiArray  (NewMultiArray*   x) { nce()->handle_NewArray(x); }
@@ -1058,10 +1058,10 @@ void NullCheckEliminator::handle_NewInstance(NewInstance* x) {
   }
 }
 
-void NullCheckEliminator::handle_NewValueTypeInstance(NewValueTypeInstance* x) {
+void NullCheckEliminator::handle_NewInlineTypeInstance(NewInlineTypeInstance* x) {
   set_put(x);
   if (PrintNullCheckElimination) {
-    tty->print_cr("NewValueTypeInstance %d is non-null", x->id());
+    tty->print_cr("NewInlineTypeInstance %d is non-null", x->id());
   }
 }
 

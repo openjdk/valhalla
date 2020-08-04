@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "ci/ciFlatArrayKlass.hpp"
 #include "compiler/compileLog.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "libadt/vectset.hpp"
@@ -35,6 +36,7 @@
 #include "opto/compile.hpp"
 #include "opto/convertnode.hpp"
 #include "opto/graphKit.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/intrinsicnode.hpp"
 #include "opto/locknode.hpp"
 #include "opto/loopnode.hpp"
@@ -49,7 +51,6 @@
 #include "opto/subnode.hpp"
 #include "opto/subtypenode.hpp"
 #include "opto/type.hpp"
-#include "opto/valuetypenode.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
@@ -355,7 +356,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
 
         Node* off = _igvn.transform(new AddXNode(MakeConX(offset), diff));
         adr = _igvn.transform(new AddPNode(base, base, off));
-        // In the case of a flattened value type array, each field has its
+        // In the case of a flattened inline type array, each field has its
         // own slice so we need to extract the field being accessed from
         // the address computation
         adr_type = adr_type->is_aryptr()->add_field_offset_and_offset(offset)->add_offset(Type::OffsetBot);
@@ -598,20 +599,20 @@ Node *PhaseMacroExpand::value_from_mem(Node *sfpt_mem, Node *sfpt_ctl, BasicType
   return NULL;
 }
 
-// Search the last value stored into the value type's fields.
-Node* PhaseMacroExpand::value_type_from_mem(Node* mem, Node* ctl, ciValueKlass* vk, const TypeAryPtr* adr_type, int offset, AllocateNode* alloc) {
+// Search the last value stored into the inline type's fields.
+Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass* vk, const TypeAryPtr* adr_type, int offset, AllocateNode* alloc) {
   // Subtract the offset of the first field to account for the missing oop header
   offset -= vk->first_field_offset();
-  // Create a new ValueTypeNode and retrieve the field values from memory
-  ValueTypeNode* vt = ValueTypeNode::make_uninitialized(_igvn, vk)->as_ValueType();
+  // Create a new InlineTypeNode and retrieve the field values from memory
+  InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk)->as_InlineType();
   for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
     ciType* field_type = vt->field_type(i);
     int field_offset = offset + vt->field_offset(i);
-    // Each value type field has its own memory slice
+    // Each inline type field has its own memory slice
     adr_type = adr_type->with_field_offset(field_offset);
     Node* value = NULL;
     if (vt->field_is_flattened(i)) {
-      value = value_type_from_mem(mem, ctl, field_type->as_value_klass(), adr_type, field_offset, alloc);
+      value = inline_type_from_mem(mem, ctl, field_type->as_inline_klass(), adr_type, field_offset, alloc);
     } else {
       const Type* ft = Type::get_const_type(field_type);
       BasicType bt = field_type->basic_type();
@@ -715,7 +716,7 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
         } else {
           safepoints.append_if_missing(sfpt);
         }
-      } else if (use->is_ValueType() && use->isa_ValueType()->get_oop() == res) {
+      } else if (use->is_InlineType() && use->isa_InlineType()->get_oop() == res) {
         // ok to eliminate
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
         // store to mark work
@@ -801,15 +802,15 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
       assert(klass->is_array_klass() && nfields >= 0, "must be an array klass.");
       elem_type = klass->as_array_klass()->element_type();
       basic_elem_type = elem_type->basic_type();
-      if (elem_type->is_valuetype() && !klass->is_value_array_klass()) {
+      if (elem_type->is_inlinetype() && !klass->is_flat_array_klass()) {
         assert(basic_elem_type == T_INLINE_TYPE, "unexpected element basic type");
         basic_elem_type = T_OBJECT;
       }
       array_base = arrayOopDesc::base_offset_in_bytes(basic_elem_type);
       element_size = type2aelembytes(basic_elem_type);
-      if (klass->is_value_array_klass()) {
-        // Flattened value type array
-        element_size = klass->as_value_array_klass()->element_byte_size();
+      if (klass->is_flat_array_klass()) {
+        // Flattened inline type array
+        element_size = klass->as_flat_array_klass()->element_byte_size();
       }
     }
   }
@@ -843,7 +844,7 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
         offset = field->offset();
         elem_type = field->type();
         basic_elem_type = field->layout_type();
-        assert(!field->is_flattened(), "flattened value type fields should not have safepoint uses");
+        assert(!field->is_flattened(), "flattened inline type fields should not have safepoint uses");
       } else {
         offset = array_base + j * (intptr_t)element_size;
       }
@@ -873,10 +874,10 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
 
       Node* field_val = NULL;
       const TypeOopPtr* field_addr_type = res_type->add_offset(offset)->isa_oopptr();
-      if (klass->is_value_array_klass()) {
-        ciValueKlass* vk = elem_type->as_value_klass();
+      if (klass->is_flat_array_klass()) {
+        ciInlineKlass* vk = elem_type->as_inline_klass();
         assert(vk->flatten_array(), "must be flattened");
-        field_val = value_type_from_mem(mem, ctl, vk, field_addr_type->isa_aryptr(), 0, alloc);
+        field_val = inline_type_from_mem(mem, ctl, vk, field_addr_type->isa_aryptr(), 0, alloc);
       } else {
         field_val = value_from_mem(mem, ctl, basic_elem_type, field_type, field_addr_type, alloc);
       }
@@ -937,8 +938,8 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
 #endif
         return false;
       }
-      if (field_val->is_ValueType()) {
-        // Keep track of value types to scalarize them later
+      if (field_val->is_InlineType()) {
+        // Keep track of inline types to scalarize them later
         value_worklist.push(field_val);
       } else if (UseCompressedOops && field_type->isa_narrowoop()) {
         // Enable "DecodeN(EncodeP(Allocate)) --> Allocate" transformation
@@ -961,10 +962,10 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
     _igvn._worklist.push(sfpt);
     safepoints_done.append_if_missing(sfpt); // keep it for rollback
   }
-  // Scalarize value types that were added to the safepoint
+  // Scalarize inline types that were added to the safepoint
   for (uint i = 0; i < value_worklist.size(); ++i) {
     Node* vt = value_worklist.at(i);
-    vt->as_ValueType()->make_scalar_in_safepoints(&_igvn);
+    vt->as_InlineType()->make_scalar_in_safepoints(&_igvn);
   }
   return true;
 }
@@ -1045,10 +1046,10 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
           }
         }
         _igvn._worklist.push(ac);
-      } else if (use->is_ValueType()) {
-        assert(use->isa_ValueType()->get_oop() == res, "unexpected value type use");
-         _igvn.rehash_node_delayed(use);
-        use->isa_ValueType()->set_oop(_igvn.zerocon(T_INLINE_TYPE));
+      } else if (use->is_InlineType()) {
+        assert(use->isa_InlineType()->get_oop() == res, "unexpected inline type use");
+        _igvn.rehash_node_delayed(use);
+        use->isa_InlineType()->set_oop(_igvn.zerocon(T_INLINE_TYPE));
       } else if (use->is_Store()) {
         _igvn.replace_node(use, use->in(MemNode::Memory));
       } else {
@@ -1150,7 +1151,7 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
 
   // Attempt to eliminate inline type buffer allocations
   // regardless of usage and escape/replaceable status.
-  bool inline_alloc = tklass->klass()->is_valuetype();
+  bool inline_alloc = tklass->klass()->is_inlinetype();
   if (!alloc->_is_non_escaping && !inline_alloc) {
     return false;
   }
@@ -2222,7 +2223,7 @@ bool PhaseMacroExpand::eliminate_locking_node(AbstractLockNode *alock) {
   }
 #ifdef ASSERT
   const Type* obj_type = _igvn.type(alock->obj_node());
-  assert(!obj_type->isa_valuetype() && !obj_type->is_valuetypeptr(), "Eliminating lock on value type");
+  assert(!obj_type->isa_inlinetype() && !obj_type->is_inlinetypeptr(), "Eliminating lock on inline type");
   if (!alock->is_coarsened()) {
     // Check that new "eliminated" BoxLock node is created.
     BoxLockNode* oldbox = alock->box_node()->as_BoxLock();
@@ -2505,9 +2506,9 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
   }
 
   const TypeOopPtr* objptr = _igvn.type(obj)->make_oopptr();
-  if (objptr->can_be_value_type()) {
+  if (objptr->can_be_inline_type()) {
     // Deoptimize and re-execute if a value
-    assert(EnableValhalla, "should only be used if value types are enabled");
+    assert(EnableValhalla, "should only be used if inline types are enabled");
     Node* mark = make_load(slow_path, mem, obj, oopDesc::mark_offset_in_bytes(), TypeX_X, TypeX_X->basic_type());
     Node* value_mask = _igvn.MakeConX(markWord::always_locked_pattern);
     Node* is_value = _igvn.transform(new AndXNode(mark, value_mask));
@@ -2647,13 +2648,13 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
   _igvn.replace_node(_memproj_fallthrough, mem_phi);
 }
 
-// A value type might be returned from the call but we don't know its
-// type. Either we get a buffered value (and nothing needs to be done)
-// or one of the values being returned is the klass of the value type
-// and we need to allocate a value type instance of that type and
+// An inline type might be returned from the call but we don't know its
+// type. Either we get a buffered inline type (and nothing needs to be done)
+// or one of the inlines being returned is the klass of the inline type
+// and we need to allocate an inline type instance of that type and
 // initialize it with other values being returned. In that case, we
 // first try a fast path allocation and initialize the value with the
-// value klass's pack handler or we fall back to a runtime call.
+// inline klass's pack handler or we fall back to a runtime call.
 void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   assert(call->method()->is_method_handle_intrinsic(), "must be a method handle intrinsic call");
   Node* ret = call->proj_out_or_null(TypeFunc::Parms);
@@ -2661,7 +2662,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
     return;
   }
   const TypeFunc* tf = call->_tf;
-  const TypeTuple* domain = OptoRuntime::store_value_type_fields_Type()->domain_cc();
+  const TypeTuple* domain = OptoRuntime::store_inline_type_fields_Type()->domain_cc();
   const TypeFunc* new_tf = TypeFunc::make(tf->domain_sig(), tf->domain_cc(), tf->range_sig(), domain);
   call->_tf = new_tf;
   // Make sure the change of type is applied before projections are processed by igvn
@@ -2726,9 +2727,9 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   Node* slowpath_true = new IfTrueNode(slowpath_iff);
   transform_later(slowpath_true);
 
-  CallStaticJavaNode* slow_call = new CallStaticJavaNode(OptoRuntime::store_value_type_fields_Type(),
-                                                         StubRoutines::store_value_type_fields_to_buf(),
-                                                         "store_value_type_fields",
+  CallStaticJavaNode* slow_call = new CallStaticJavaNode(OptoRuntime::store_inline_type_fields_Type(),
+                                                         StubRoutines::store_inline_type_fields_to_buf(),
+                                                         "store_inline_type_fields",
                                                          call->jvms()->bci(),
                                                          TypePtr::BOTTOM);
   slow_call->init_req(TypeFunc::Control, slowpath_true);
@@ -2773,7 +2774,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   Node* fixed_block  = make_load(slowpath_false, rawmem, klass_node, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
   Node* pack_handler = make_load(slowpath_false, rawmem, fixed_block, in_bytes(InlineKlass::pack_handler_offset()), TypeRawPtr::BOTTOM, T_ADDRESS);
 
-  CallLeafNoFPNode* handler_call = new CallLeafNoFPNode(OptoRuntime::pack_value_type_Type(),
+  CallLeafNoFPNode* handler_call = new CallLeafNoFPNode(OptoRuntime::pack_inline_type_Type(),
                                                         NULL,
                                                         "pack handler",
                                                         TypeRawPtr::BOTTOM);

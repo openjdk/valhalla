@@ -31,8 +31,8 @@
 #include "c1/c1_Runtime1.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "nativeInst_x86.hpp"
 #include "oops/oop.inline.hpp"
@@ -529,8 +529,8 @@ void LIR_Assembler::return_op(LIR_Opr result) {
 
   ciMethod* method = compilation()->method();
   ciType* return_type = method->return_type();
-  if (InlineTypeReturnedAsFields && return_type->is_valuetype()) {
-    ciValueKlass* vk = return_type->as_value_klass();
+  if (InlineTypeReturnedAsFields && return_type->is_inlinetype()) {
+    ciInlineKlass* vk = return_type->as_inline_klass();
     if (vk->can_be_returned_as_fields()) {
 #ifndef _LP64
       Unimplemented();
@@ -572,8 +572,8 @@ void LIR_Assembler::return_op(LIR_Opr result) {
 }
 
 
-int LIR_Assembler::store_value_type_fields_to_buf(ciValueKlass* vk) {
-  return (__ store_value_type_fields_to_buf(vk, false));
+int LIR_Assembler::store_inline_type_fields_to_buf(ciInlineKlass* vk) {
+  return (__ store_inline_type_fields_to_buf(vk, false));
 }
 
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
@@ -2051,7 +2051,7 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   //     they are not substitutable. We do this only if we are not sure that the
   //     operands are value objects
   if ((left_klass == NULL || right_klass == NULL) ||// The klass is still unloaded, or came from a Phi node.
-      !left_klass->is_valuetype() || !right_klass->is_valuetype()) {
+      !left_klass->is_inlinetype() || !right_klass->is_inlinetype()) {
     Register tmp1  = op->tmp1()->as_register();
     __ movptr(tmp1, (intptr_t)markWord::always_locked_pattern);
     __ andl(tmp1, Address(left, oopDesc::mark_offset_in_bytes()));
@@ -2061,8 +2061,8 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   }
 
   // (3) Same klass check: if the operands are of different klasses, they are not substitutable.
-  if (left_klass != NULL && left_klass->is_valuetype() && left_klass == right_klass) {
-    // No need to load klass -- the operands are statically known to be the same value klass.
+  if (left_klass != NULL && left_klass->is_inlinetype() && left_klass == right_klass) {
+    // No need to load klass -- the operands are statically known to be the same inline klass.
     __ jmp(*op->stub()->entry());
   } else {
     Register left_klass_op = op->left_klass_op()->as_register();
@@ -3256,7 +3256,7 @@ void LIR_Assembler::store_parameter(Metadata* m,  int offset_from_rsp_in_words) 
 }
 
 
-void LIR_Assembler::arraycopy_valuetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest, bool null_check) {
+void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest, bool null_check) {
   if (null_check) {
     __ testptr(obj, obj);
     __ jcc(Assembler::zero, *slow_path->entry());
@@ -3302,12 +3302,12 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     return;
   }
 
-  if (flags & LIR_OpArrayCopy::src_valuetype_check) {
-    arraycopy_valuetype_check(src, tmp, stub, false, (flags & LIR_OpArrayCopy::src_null_check));
+  if (flags & LIR_OpArrayCopy::src_inlinetype_check) {
+    arraycopy_inlinetype_check(src, tmp, stub, false, (flags & LIR_OpArrayCopy::src_null_check));
   }
 
-  if (flags & LIR_OpArrayCopy::dst_valuetype_check) {
-    arraycopy_valuetype_check(dst, tmp, stub, true, (flags & LIR_OpArrayCopy::dst_null_check));
+  if (flags & LIR_OpArrayCopy::dst_inlinetype_check) {
+    arraycopy_inlinetype_check(dst, tmp, stub, true, (flags & LIR_OpArrayCopy::dst_null_check));
   }
 
   // if we don't know anything, just go through the generic arraycopy

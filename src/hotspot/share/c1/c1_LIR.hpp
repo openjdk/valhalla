@@ -1226,7 +1226,7 @@ class LIR_OpJavaCall: public LIR_OpCall {
   virtual LIR_OpJavaCall* as_OpJavaCall() { return this; }
   virtual void print_instr(outputStream* out) const PRODUCT_RETURN;
 
-  bool maybe_return_as_fields(ciValueKlass** vk = NULL) const;
+  bool maybe_return_as_fields(ciInlineKlass** vk = NULL) const;
 };
 
 // --------------------------------------------------
@@ -1279,8 +1279,8 @@ public:
     src_objarray           = 1 << 10,
     dst_objarray           = 1 << 11,
     always_slow_path       = 1 << 12,
-    src_valuetype_check    = 1 << 13,
-    dst_valuetype_check    = 1 << 14,
+    src_inlinetype_check   = 1 << 13,
+    dst_inlinetype_check   = 1 << 14,
     all_flags              = (1 << 15) - 1
   };
 
@@ -2341,7 +2341,7 @@ class LIR_List: public CompilationResourceObj {
   void checkcast (LIR_Opr result, LIR_Opr object, ciKlass* klass,
                   LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3, bool fast_check,
                   CodeEmitInfo* info_for_exception, CodeEmitInfo* info_for_patch, CodeStub* stub,
-                  ciMethod* profiled_method, int profiled_bci, bool is_never_null);
+                  ciMethod* profiled_method, int profiled_bci, bool is_null_free);
   // MethodData* profiling
   void profile_call(ciMethod* method, int bci, ciMethod* callee, LIR_Opr mdo, LIR_Opr recv, LIR_Opr t1, ciKlass* cha_klass) {
     append(new LIR_OpProfileCall(method, bci, callee, mdo, recv, t1, cha_klass));

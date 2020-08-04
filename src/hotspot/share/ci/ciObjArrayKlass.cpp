@@ -66,7 +66,7 @@ ciObjArrayKlass::ciObjArrayKlass(ciSymbol* array_name,
     _base_element_klass = base_element_klass;
     assert(_base_element_klass->is_instance_klass() ||
            _base_element_klass->is_type_array_klass() ||
-           _base_element_klass->is_value_array_klass(), "bad base klass");
+           _base_element_klass->is_flat_array_klass(), "bad base klass");
     if (dimension == 1) {
       _element_klass = base_element_klass;
     } else {
