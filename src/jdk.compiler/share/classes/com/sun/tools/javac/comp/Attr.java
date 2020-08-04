@@ -2543,7 +2543,7 @@ public class Attr extends JCTree.Visitor {
                 Type wcb;
                 if (qualifierType.isValue()) {
                     List<Type> bounds = List.of(syms.objectType).appendList(((ClassSymbol) qualifierType.tsym).getInterfaces());
-                    wcb = types.makeIntersectionType(bounds);
+                    wcb = bounds.size() > 1 ? types.makeIntersectionType(bounds) : syms.objectType;
                 } else {
                     wcb = types.erasure(qualifierType);
                 }
