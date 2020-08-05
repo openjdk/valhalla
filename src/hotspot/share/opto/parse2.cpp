@@ -2049,11 +2049,7 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
 }
 
 void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
-  ciMethod* subst_method = ciEnv::current()->ValueBootstrapMethods_klass()->find_method(ciSymbol::isSubstitutable_name(), ciSymbol::object_object_boolean_signature());
-  // If current method is ValueBootstrapMethods::isSubstitutable(),
-  // compile the acmp as a regular pointer comparison otherwise we
-  // could call ValueBootstrapMethods::isSubstitutable() back
-  if (!EnableValhalla || (method() == subst_method)) {
+  if (!EnableValhalla) {
     Node* cmp = CmpP(a, b);
     cmp = optimize_cmp_with_klass(cmp);
     do_if(btest, cmp);
@@ -2201,6 +2197,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
   set_all_memory(mem);
 
   kill_dead_locals();
+  ciMethod* subst_method = ciEnv::current()->ValueBootstrapMethods_klass()->find_method(ciSymbol::isSubstitutable_name(), ciSymbol::object_object_boolean_signature());
   CallStaticJavaNode *call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method, bci());
   call->set_override_symbolic_info(true);
   call->init_req(TypeFunc::Parms, not_null_a);

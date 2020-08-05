@@ -1279,11 +1279,7 @@ void GraphBuilder::if_node(Value x, If::Condition cond, Value y, ValueStack* sta
   bool is_bb = tsux->bci() < stream()->cur_bci() || fsux->bci() < stream()->cur_bci();
 
   bool subst_check = false;
-  if (EnableValhalla && (stream()->cur_bc() == Bytecodes::_if_acmpeq || stream()->cur_bc() == Bytecodes::_if_acmpne) &&
-      method() != ciEnv::current()->ValueBootstrapMethods_klass()->find_method(ciSymbol::isSubstitutable_name(), ciSymbol::object_object_boolean_signature())) {
-    // If current method is ValueBootstrapMethods::isSubstitutable(),
-    // compile the acmp as a regular pointer comparison otherwise we
-    // could call ValueBootstrapMethods::isSubstitutable() back
+  if (EnableValhalla && (stream()->cur_bc() == Bytecodes::_if_acmpeq || stream()->cur_bc() == Bytecodes::_if_acmpne)) {
     ValueType* left_vt = x->type();
     ValueType* right_vt = y->type();
     if (left_vt->is_object()) {
