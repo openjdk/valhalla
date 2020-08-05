@@ -33,11 +33,11 @@ import jdk.experimental.value.MethodHandleBuilder;
  *          java.base/jdk.experimental.value
  * @library /test/lib
  * @compile -XDallowWithFieldOperator ObjectMethods.java
- * @run main/othervm -Xint -XX:+UseBiasedLocking -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -Xint -XX:-UseBiasedLocking -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -Xint -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -Xint -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
  * @run main/othervm -Xint -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
- * @run main/othervm -Xcomp -XX:+UseBiasedLocking -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
- * @run main/othervm -Xcomp -XX:-UseBiasedLocking -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -Xcomp -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
+ * @run main/othervm -Xcomp -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
  * @run main/othervm -Xcomp -noverify runtime.valhalla.inlinetypes.ObjectMethods noverify
  */
 
@@ -89,8 +89,14 @@ public class ObjectMethods {
 
     // Just check we don't crash the VM
     static void checkHashCodes(Object val, int expectedHashCode) {
-        if (val.hashCode() != expectedHashCode) {
-            throw new RuntimeException("Hash code mismatch value: " + val.hashCode() +
+        int hash = val.hashCode();
+        if (hash != expectedHashCode) {
+            throw new RuntimeException("Hash code mismatch value: " + hash +
+                                       " expected: " + expectedHashCode);
+        }
+        hash = System.identityHashCode(val);
+        if (hash != expectedHashCode) {
+            throw new RuntimeException("Identity hash code mismatch value: " + hash +
                                        " expected: " + expectedHashCode);
         }
     }

@@ -658,7 +658,28 @@ JVM_END
 JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
   JVMWrapper("JVM_IHashCode");
   // as implemented in the classic virtual machine; return 0 if object is NULL
-  return handle == NULL ? 0 : ObjectSynchronizer::FastHashCode (THREAD, JNIHandles::resolve_non_null(handle)) ;
+  if (handle == NULL) {
+    return 0;
+  }
+  oop obj = JNIHandles::resolve_non_null(handle);
+  if (EnableValhalla && InlineTypeIHashCodeViaMethod && obj->klass()->is_inline_klass()) {
+      JavaValue result(T_INT);
+      JavaCallArguments args;
+      Handle ho(THREAD, obj);
+      args.push_oop(ho);
+      methodHandle method(THREAD, Universe::inline_type_hash_code_method());
+      JavaCalls::call(&result, method, &args, THREAD);
+      if (HAS_PENDING_EXCEPTION) {
+        if (!PENDING_EXCEPTION->is_a(SystemDictionary::Error_klass())) {
+          Handle e(THREAD, PENDING_EXCEPTION);
+          CLEAR_PENDING_EXCEPTION;
+          THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in hashCode", e, false);
+        }
+      }
+      return result.get_jint();
+  } else {
+    return ObjectSynchronizer::FastHashCode(THREAD, obj);
+  }
 JVM_END
 
 

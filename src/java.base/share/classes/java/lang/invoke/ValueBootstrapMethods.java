@@ -459,6 +459,35 @@ public final class ValueBootstrapMethods {
     }
 
     /**
+     * Invoke the bootstrap methods hashCode for the given instance.
+     * @param o the instance to hash.
+     * @return the hash code of the given instance {code o}.
+     */
+    public static int invokeHashCode(Object o) {
+        try {
+            Class<?> type = o.getClass();
+            // Note: javac disallows user to call super.hashCode if user implementated
+            // risk for recursion for experts crafting byte-code
+            return (int) hashCodeInvoker(type).invoke(o);
+        } catch (Error|RuntimeException e) {
+            throw e;
+        } catch (Throwable e) {
+            if (VERBOSE) e.printStackTrace();
+            throw new InternalError(e);
+        }
+    }
+
+    static <T> MethodHandle hashCodeInvoker(Class<T> type) {
+        return HASHCODE_METHOD_HANDLES.get(type);
+    }
+
+    private static ClassValue<MethodHandle> HASHCODE_METHOD_HANDLES = new ClassValue<>() {
+        @Override protected MethodHandle computeValue(Class<?> type) {
+            return MethodHandleBuilder.hashCodeForType(type);
+        }
+    };
+
+    /**
      * Returns {@code true} if the arguments are <em>substitutable</em> to each
      * other and {@code false} otherwise.
      * <em>Substitutability</em> means that they cannot be distinguished from

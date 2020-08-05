@@ -2471,6 +2471,9 @@ const size_t minimumSymbolTableSize = 1024;
   product(bool, EnableValhalla, true,                                       \
           "Enable experimental Valhalla features")                          \
                                                                             \
+  product(bool, InlineTypeIHashCodeViaMethod, true,                         \
+         "Use generated hashCode for identity hash code")                   \
+                                                                            \
   product_pd(bool, InlineTypePassFieldsAsArgs,                              \
           "Pass each inline type field as an argument at calls")            \
                                                                             \

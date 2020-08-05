@@ -118,6 +118,7 @@ LatestMethodCache* Universe::_throw_illegal_access_error_cache = NULL;
 LatestMethodCache* Universe::_throw_no_such_method_error_cache = NULL;
 LatestMethodCache* Universe::_do_stack_walk_cache     = NULL;
 LatestMethodCache* Universe::_is_substitutable_cache  = NULL;
+LatestMethodCache* Universe::_inline_type_hash_code_cache = NULL;
 oop Universe::_out_of_memory_error_java_heap          = NULL;
 oop Universe::_out_of_memory_error_metaspace          = NULL;
 oop Universe::_out_of_memory_error_class_metaspace    = NULL;
@@ -235,6 +236,7 @@ void Universe::metaspace_pointers_do(MetaspaceClosure* it) {
   _throw_no_such_method_error_cache->metaspace_pointers_do(it);
   _do_stack_walk_cache->metaspace_pointers_do(it);
   _is_substitutable_cache->metaspace_pointers_do(it);
+  _inline_type_hash_code_cache->metaspace_pointers_do(it);
 }
 
 #define ASSERT_MIRROR_NULL(m) \
@@ -273,6 +275,7 @@ void Universe::serialize(SerializeClosure* f) {
   _throw_no_such_method_error_cache->serialize(f);
   _do_stack_walk_cache->serialize(f);
   _is_substitutable_cache->serialize(f);
+  _inline_type_hash_code_cache->serialize(f);
 }
 
 void Universe::check_alignment(uintx size, uintx alignment, const char* name) {
@@ -707,6 +710,7 @@ jint universe_init() {
   Universe::_throw_no_such_method_error_cache = new LatestMethodCache();
   Universe::_do_stack_walk_cache = new LatestMethodCache();
   Universe::_is_substitutable_cache = new LatestMethodCache();
+  Universe::_inline_type_hash_code_cache = new LatestMethodCache();
 
 #if INCLUDE_CDS
   if (UseSharedSpaces) {
@@ -865,6 +869,10 @@ void Universe::initialize_known_methods(TRAPS) {
                           SystemDictionary::ValueBootstrapMethods_klass(),
                           vmSymbols::isSubstitutable_name()->as_C_string(),
                           vmSymbols::object_object_boolean_signature(), true, CHECK);
+  initialize_known_method(_inline_type_hash_code_cache,
+                          SystemDictionary::ValueBootstrapMethods_klass(),
+                          vmSymbols::invokeHashCode_name()->as_C_string(),
+                          vmSymbols::object_int_signature(), true, CHECK);
 }
 
 void universe2_init() {
