@@ -637,6 +637,10 @@ class Instruction: public CompilationResourceObj {
   virtual const char* name() const               = 0;
   HASHING1(Instruction, false, id())             // hashing disabled by default
 
+  // inline type support
+  virtual void update_stack_count() { }
+  virtual void update_larval_state() { }
+
   // debugging
   static void check_state(ValueStack* state)     PRODUCT_RETURN;
   void print()                                   PRODUCT_RETURN;
@@ -1415,22 +1419,19 @@ public:
   }
 
   virtual bool in_larval_state() const { return _in_larval_state; }
-  virtual void set_not_larva_anymore() {
-    _in_larval_state = false; }
+  virtual void set_not_larva_anymore() { _in_larval_state = false; }
 
   virtual int on_stack_count() { return _on_stack_count; }
   virtual void increment_on_stack_count() { _on_stack_count++; }
   virtual void decrement_on_stack_count() { _on_stack_count--; }
 
-  static void update_larval_state(Value v) {
-    if (v != NULL && v->as_NewInlineTypeInstance() != NULL) {
-      v->as_NewInlineTypeInstance()->set_not_larva_anymore();
-    }
+  virtual void update_larval_state() {
+    set_not_larva_anymore();
   }
 
-  static void update_stack_count(Value v) {
-    if (v != NULL && v->as_NewInlineTypeInstance() != NULL && v->as_NewInlineTypeInstance()->in_larval_state()) {
-      v->as_NewInlineTypeInstance()->decrement_on_stack_count();
+  virtual void update_stack_count() {
+    if (in_larval_state()) {
+      decrement_on_stack_count();
     }
   }
 
