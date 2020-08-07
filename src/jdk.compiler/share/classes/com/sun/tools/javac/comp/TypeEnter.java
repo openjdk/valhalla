@@ -1163,7 +1163,7 @@ public class TypeEnter implements Completer {
          */
         private void addValueMembers(JCClassDecl tree, Env<AttrContext> env) {
 
-            boolean requireHashCode = true, requireEquals = true, requireToString = true;
+            boolean requireToString = true;
 
             for (JCTree def : tree.defs) {
                 if (def.getTag() == METHODDEF) {
@@ -1176,15 +1176,8 @@ public class TypeEnter implements Completer {
                         switch (parameterTypes.size()) {
                             case 0:
                                 String name = methodDecl.name.toString();
-                                if (name.equals("hashCode"))
-                                    requireHashCode = false;
-                                else if (name.equals("toString"))
+                                if (name.equals("toString"))
                                     requireToString = false;
-                                break;
-                            case 1:
-                                name = methodDecl.name.toString();
-                                if (name.equals("equals") && parameterTypes.head.tsym == syms.objectType.tsym)
-                                    requireEquals = false;
                                 break;
                         }
                     }
@@ -1199,36 +1192,6 @@ public class TypeEnter implements Completer {
                             make.Ident(names.fromString("RuntimeException")),
                             List.of(make.Literal(CLASS, "Internal error: This method must have been replaced by javac")),
                             null))));
-
-            if (requireHashCode) {
-                // public int hashCode() { throw new RuntimeException(message); }
-                JCMethodDecl hashCode = make.
-                        MethodDef(make.Modifiers(Flags.PUBLIC | Flags.FINAL),
-                                names.hashCode,
-                                make.TypeIdent(TypeTag.INT),
-                                List.nil(),
-                                List.nil(),
-                                List.nil(), // thrown
-                                body,
-                                null);
-                memberEnter.memberEnter(hashCode, env);
-                tree.defs = tree.defs.append(hashCode);
-            }
-
-            if (requireEquals) {
-                // public boolean equals(Object o) { throw new RuntimeException(message); }
-                JCMethodDecl equals = make.
-                        MethodDef(make.Modifiers(Flags.PUBLIC | Flags.FINAL),
-                                names.equals,
-                                make.TypeIdent(TypeTag.BOOLEAN),
-                                List.nil(),
-                                List.of(make.VarDef(make.Modifiers(PARAMETER), names.fromString("o"), make.Ident(names.fromString("Object")), null )),
-                                List.nil(), // thrown
-                                body,
-                                null);
-                memberEnter.memberEnter(equals, env);
-                tree.defs = tree.defs.append(equals);
-            }
 
             if (requireToString) {
                 // public String toString() { throw new RuntimeException(message); }

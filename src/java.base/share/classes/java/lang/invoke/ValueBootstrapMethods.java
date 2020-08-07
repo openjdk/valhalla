@@ -193,6 +193,36 @@ public final class ValueBootstrapMethods {
                                                instanceFalse));
         }
 
+        static MethodHandle inlineTypeHashCode(Class<?> type) {
+            assert type.isInlineClass();
+            MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
+            MethodHandle cls = dropArguments(constant(Class.class, type),0, type);
+            MethodHandle classHashCode = filterReturnValue(cls, hashCodeForType(Class.class));
+            MethodHandle combiner = filterArguments(HASH_COMBINER, 0, target, classHashCode);
+            // int v = SALT * 31 + type.hashCode();
+            MethodHandle init = permuteArguments(combiner, target.type(), 0, 0);
+            MethodHandles.Lookup lookup = new MethodHandles.Lookup(type);
+            MethodHandle[] getters = MethodHandleBuilder.getters(lookup);
+            MethodHandle iterations = dropArguments(constant(int.class, getters.length), 0, type);
+            MethodHandle[] hashers = new MethodHandle[getters.length];
+            for (int i=0; i < getters.length; i++) {
+                MethodHandle getter = getters[i];
+                // For inline type or reference type, this calls Objects::hashCode.
+                // If the instance is of inline type and the hashCode method is not
+                // overridden, VM will call invokeHashCode to compute the
+                // hash code.
+                MethodHandle hasher = hashCodeForType(getter.type().returnType());
+                hashers[i] = filterReturnValue(getter, hasher);
+            }
+
+            // for (int i=0; i < getters.length; i++) {
+            //   v = computeHash(v, i, a);
+            // }
+            MethodHandle body = COMPUTE_HASH.bindTo(hashers)
+                    .asType(methodType(int.class, int.class, int.class, type));
+            return countedLoop(iterations, init, body);
+        }
+
         // ------ utility methods ------
         private static boolean eq(byte a, byte b)       { return a == b; }
         private static boolean eq(short a, short b)     { return a == b; }
@@ -365,28 +395,7 @@ public final class ValueBootstrapMethods {
      * Produces a method handle that computes the hashcode
      */
     private static MethodHandle hashCodeInvoker(Lookup lookup, String name, MethodType mt) {
-        Class<?> type = lookup.lookupClass();
-        MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
-        MethodHandle cls = dropArguments(constant(Class.class, type),0, type);
-        MethodHandle classHashCode = filterReturnValue(cls, hashCodeForType(Class.class));
-        MethodHandle combiner = filterArguments(HASH_COMBINER, 0, target, classHashCode);
-        // int v = SALT * 31 + type.hashCode();
-        MethodHandle init = permuteArguments(combiner, target.type(), 0, 0);
-        MethodHandle[] getters = MethodHandleBuilder.getters(lookup);
-        MethodHandle iterations = dropArguments(constant(int.class, getters.length), 0, type);
-        MethodHandle[] hashers = new MethodHandle[getters.length];
-        for (int i=0; i < getters.length; i++) {
-            MethodHandle getter = getters[i];
-            MethodHandle hasher = hashCodeForType(getter.type().returnType());
-            hashers[i] = filterReturnValue(getter, hasher);
-        }
-
-        // for (int i=0; i < getters.length; i++) {
-        //   v = computeHash(v, i, a);
-        // }
-        MethodHandle body = COMPUTE_HASH.bindTo(hashers)
-                                        .asType(methodType(int.class, int.class, int.class, type));
-        return countedLoop(iterations, init, body);
+        return inlineTypeHashCode(lookup.lookupClass());
     }
 
     /*
@@ -463,12 +472,14 @@ public final class ValueBootstrapMethods {
      * @param o the instance to hash.
      * @return the hash code of the given instance {code o}.
      */
-    public static int invokeHashCode(Object o) {
+    private static int invokeHashCode(Object o) {
         try {
             Class<?> type = o.getClass();
             // Note: javac disallows user to call super.hashCode if user implementated
             // risk for recursion for experts crafting byte-code
-            return (int) hashCodeInvoker(type).invoke(o);
+            if (!type.isInlineClass())
+                throw new InternalError("must be inline type: " + type.getName());
+            return (int) HASHCODE_METHOD_HANDLES.get(type).invoke(o);
         } catch (Error|RuntimeException e) {
             throw e;
         } catch (Throwable e) {
@@ -477,13 +488,9 @@ public final class ValueBootstrapMethods {
         }
     }
 
-    static <T> MethodHandle hashCodeInvoker(Class<T> type) {
-        return HASHCODE_METHOD_HANDLES.get(type);
-    }
-
     private static ClassValue<MethodHandle> HASHCODE_METHOD_HANDLES = new ClassValue<>() {
         @Override protected MethodHandle computeValue(Class<?> type) {
-            return MethodHandleBuilder.hashCodeForType(type);
+            return MethodHandleBuilder.inlineTypeHashCode(type);
         }
     };
 
