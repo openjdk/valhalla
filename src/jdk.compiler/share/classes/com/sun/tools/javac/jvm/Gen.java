@@ -1115,13 +1115,9 @@ public class Gen extends JCTree.Visitor {
                     indyType,
                     List.nil().toArray(new LoadableConstant[0]));
 
-            switch (methodDecl.name.toString()) {
-                case "toString":
-                    code.emitop0(aload_0);
-                    items.makeDynamicItem(dynSym).invoke();
-                    code.emitop0(areturn);
-                    return;
-            }
+            code.emitop0(aload_0);
+            items.makeDynamicItem(dynSym).invoke();
+            code.emitop0(areturn);
         }
 
     public void visitVarDef(JCVariableDecl tree) {

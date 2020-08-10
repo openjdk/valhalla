@@ -1173,27 +1173,25 @@ public class TypeEnter implements Completer {
                             && !methodDecl.sym.type.isErroneous()
                             && (methodDecl.sym.flags() & STATIC) == 0) {
                         final List<Type> parameterTypes = methodDecl.sym.type.getParameterTypes();
-                        switch (parameterTypes.size()) {
-                            case 0:
-                                String name = methodDecl.name.toString();
-                                if (name.equals("toString"))
-                                    requireToString = false;
-                                break;
+                        if (parameterTypes.size() == 0) {
+                            String name = methodDecl.name.toString();
+                            if (name.equals("toString")) {
+                                requireToString = false;
+                            }
                         }
                     }
                 }
             }
 
-            make.at(tree.pos);
-            // Make a body comprising { throw new RuntimeException(""Internal error: This method must have been replaced by javac"); }
-            JCBlock body = make.Block(Flags.SYNTHETIC, List.of(make.Throw(
-                    make.NewClass(null,
-                            null,
-                            make.Ident(names.fromString("RuntimeException")),
-                            List.of(make.Literal(CLASS, "Internal error: This method must have been replaced by javac")),
-                            null))));
-
             if (requireToString) {
+                make.at(tree.pos);
+                // Make a body comprising { throw new RuntimeException(""Internal error: This method must have been replaced by javac"); }
+                JCBlock body = make.Block(Flags.SYNTHETIC, List.of(make.Throw(
+                        make.NewClass(null,
+                                null,
+                                make.Ident(names.fromString("RuntimeException")),
+                                List.of(make.Literal(CLASS, "Internal error: This method must have been replaced by javac")),
+                                null))));
                 // public String toString() { throw new RuntimeException(message); }
                 JCMethodDecl toString = make.
                         MethodDef(make.Modifiers(Flags.PUBLIC | Flags.FINAL),
