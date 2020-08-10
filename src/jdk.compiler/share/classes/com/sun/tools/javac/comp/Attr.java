@@ -5260,7 +5260,7 @@ public class Attr extends JCTree.Visitor {
                         log.error(TreeInfo.diagnosticPositionFor(c, env.tree), Errors.NonSealedWithNoSealedSupertype(c));
                     }
                 }
-            } else {
+            } else if ((c.flags_field & Flags.COMPOUND) == 0) {
                 if (c.isLocal() && !c.isEnum()) {
                     log.error(TreeInfo.diagnosticPositionFor(c, env.tree), Errors.LocalClassesCantExtendSealed);
                 }
