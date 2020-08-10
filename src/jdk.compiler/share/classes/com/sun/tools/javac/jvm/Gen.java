@@ -1080,18 +1080,13 @@ public class Gen extends JCTree.Visitor {
         }
 
         private void synthesizeValueMethod(JCMethodDecl methodDecl) {
-
-            Name name; List<Type> argTypes; Type resType;
-
-            switch (methodDecl.name.toString()) {
-                case "toString":
-                    name = names.toString;
-                    argTypes = List.of(methodDecl.sym.owner.type);
-                    resType = methodDecl.restype.type;
-                    break;
-                default:
-                    throw new AssertionError("Unexpected synthetic method body");
+            if (!methodDecl.name.toString().equals("toString")) {
+                throw new AssertionError("Unexpected synthetic method body");
             }
+
+            Name name = names.toString;
+            List<Type> argTypes = List.of(methodDecl.sym.owner.type);
+            Type resType = methodDecl.restype.type;
 
             Type.MethodType indyType = new Type.MethodType(argTypes,
                     resType,
