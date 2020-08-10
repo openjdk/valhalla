@@ -889,14 +889,7 @@ LEAF(StoreField, AccessField)
  public:
   // creation
   StoreField(Value obj, int offset, ciField* field, Value value, bool is_static,
-             ValueStack* state_before, bool needs_patching)
-  : AccessField(obj, offset, field, is_static, state_before, needs_patching)
-  , _value(value)
-  {
-    set_flag(NeedsWriteBarrierFlag, as_ValueType(field_type())->is_object());
-    ASSERT_VALUES
-    pin();
-  }
+             ValueStack* state_before, bool needs_patching);
 
   // accessors
   Value value() const                            { return _value; }
@@ -1037,15 +1030,7 @@ LEAF(StoreIndexed, AccessIndexed)
  public:
   // creation
   StoreIndexed(Value array, Value index, Value length, BasicType elt_type, Value value, ValueStack* state_before,
-               bool check_boolean, bool mismatched = false)
-  : AccessIndexed(array, index, length, elt_type, state_before, mismatched)
-  , _value(value), _check_boolean(check_boolean)
-  {
-    set_flag(NeedsWriteBarrierFlag, (as_ValueType(elt_type)->is_object()));
-    set_flag(NeedsStoreCheckFlag, (as_ValueType(elt_type)->is_object()));
-    ASSERT_VALUES
-    pin();
-  }
+               bool check_boolean, bool mismatched = false);
 
   // accessors
   Value value() const                            { return _value; }
@@ -1376,7 +1361,9 @@ LEAF(NewInlineTypeInstance, StateSplit)
   ciInlineKlass* _klass;
   Value _depends_on;      // Link to instance on with withfield was called on
   bool _is_optimizable_for_withfield;
+  bool _in_larval_state;
   int _first_local_index;
+  int _on_stack_count;
 public:
 
   // Default creation, always allocated for now
@@ -1385,7 +1372,9 @@ public:
    , _is_unresolved(is_unresolved)
    , _klass(klass)
    , _is_optimizable_for_withfield(from_default_value)
+   , _in_larval_state(true)
    , _first_local_index(-1)
+   , _on_stack_count(1)
   {
     if (depends_on == NULL) {
       _depends_on = this;
@@ -1420,11 +1409,28 @@ public:
       if (_first_local_index == -1) {
         _first_local_index = index;
       } else {
-        _is_optimizable_for_withfield = false;
+        set_not_larva_anymore();
       }
     }
   }
-  virtual bool is_optimizable_for_withfield() const {  return _is_optimizable_for_withfield; }
+
+  virtual bool in_larval_state() const { return _in_larval_state; }
+  virtual void set_not_larva_anymore() { _in_larval_state = false; }
+
+  virtual int on_stack_count() { return _on_stack_count; }
+  virtual void increment_on_stack_count() { _on_stack_count++; }
+  virtual void decrement_on_stack_count() { _on_stack_count--; }
+
+  void update_larval_state() {
+    set_not_larva_anymore();
+  }
+
+  void update_stack_count() {
+    if (in_larval_state()) {
+      decrement_on_stack_count();
+    }
+  }
+
 };
 
 BASE(NewArray, StateSplit)
