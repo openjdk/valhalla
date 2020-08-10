@@ -113,13 +113,11 @@ class DirectMethodHandle extends MethodHandle {
             if (member.isStatic()) {
                 long offset = MethodHandleNatives.staticFieldOffset(member);
                 Object base = MethodHandleNatives.staticFieldBase(member);
-                return member.isInlineableField() ? new InlineStaticAccessor(mtype, lform, member, true, base, offset)
-                                                  : new StaticAccessor(mtype, lform, member, true, base, offset);
+                return new StaticAccessor(mtype, lform, member, true, base, offset);
             } else {
                 long offset = MethodHandleNatives.objectFieldOffset(member);
                 assert(offset == (int)offset);
-                return  member.isInlineableField() ? new InlineAccessor(mtype, lform, member, true, (int)offset)
-                                                   : new Accessor(mtype, lform, member, true, (int)offset);
+                return new Accessor(mtype, lform, member, true, (int)offset);
             }
         }
     }
@@ -546,27 +544,6 @@ class DirectMethodHandle extends MethodHandle {
         }
     }
 
-    /** This subclass handles non-static field references of inline type */
-    static class InlineAccessor extends Accessor {
-        private InlineAccessor(MethodType mtype, LambdaForm form, MemberName member,
-                               boolean crackable, int fieldOffset) {
-            super(mtype, form, member, crackable, fieldOffset);
-        }
-
-        @Override Object checkCast(Object obj) {
-            return fieldType.cast(Objects.requireNonNull(obj));
-        }
-        @Override
-        MethodHandle copyWith(MethodType mt, LambdaForm lf) {
-            return new InlineAccessor(mt, lf, member, crackable, fieldOffset);
-        }
-        @Override
-        MethodHandle viewAsType(MethodType newType, boolean strict) {
-            assert(viewAsTypeChecks(newType, strict));
-            return new InlineAccessor(newType, form, member, false, fieldOffset);
-        }
-    }
-
     @ForceInline
     /*non-public*/
     static long fieldOffset(Object accessorObj) {
@@ -612,29 +589,6 @@ class DirectMethodHandle extends MethodHandle {
         MethodHandle viewAsType(MethodType newType, boolean strict) {
             assert(viewAsTypeChecks(newType, strict));
             return new StaticAccessor(newType, form, member, false, staticBase, staticOffset);
-        }
-    }
-
-    /** This subclass handles static field references of inline type . */
-    static class InlineStaticAccessor extends StaticAccessor {
-        private InlineStaticAccessor(MethodType mtype, LambdaForm form, MemberName member,
-                                     boolean crackable, Object staticBase, long staticOffset) {
-            super(mtype, form, member, crackable, staticBase, staticOffset);
-        }
-
-        // zero-default inline type is not-nullable
-        @Override Object checkCast(Object obj) {
-            assert fieldType.isInlineClass() : "null-default inline type not yet supported";
-            return fieldType.cast(Objects.requireNonNull(obj));
-        }
-        @Override
-        MethodHandle copyWith(MethodType mt, LambdaForm lf) {
-            return new InlineStaticAccessor(mt, lf, member, crackable, staticBase, staticOffset);
-        }
-        @Override
-        MethodHandle viewAsType(MethodType newType, boolean strict) {
-            assert(viewAsTypeChecks(newType, strict));
-            return new InlineStaticAccessor(newType, form, member, false, staticBase, staticOffset);
         }
     }
 
