@@ -662,7 +662,7 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
     return 0;
   }
   oop obj = JNIHandles::resolve_non_null(handle);
-  if (EnableValhalla && InlineTypeIHashCodeViaMethod && obj->klass()->is_inline_klass()) {
+  if (EnableValhalla && obj->klass()->is_inline_klass()) {
       JavaValue result(T_INT);
       JavaCallArguments args;
       Handle ho(THREAD, obj);
