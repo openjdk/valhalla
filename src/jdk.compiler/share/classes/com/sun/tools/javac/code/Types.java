@@ -1818,7 +1818,7 @@ public class Types {
                     // Sidecast
                     if (s.hasTag(CLASS)) {
                         if ((s.tsym.flags() & INTERFACE) != 0) {
-                            return ((t.tsym.flags() & FINAL) == 0)
+                            return (dynamicTypeMayImplementAdditionalInterfaces(t.tsym))
                                 ? sideCast(t, s, warnStack.head)
                                 : sideCastFinal(t, s, warnStack.head);
                         } else if ((t.tsym.flags() & INTERFACE) != 0) {
@@ -4616,7 +4616,7 @@ public class Types {
             to = from;
             from = target;
         }
-        Assert.check((from.tsym.flags() & FINAL) != 0);
+        Assert.check(!dynamicTypeMayImplementAdditionalInterfaces(from.tsym));
         Type t1 = asSuper(from, to.tsym);
         if (t1 == null) return false;
         Type t2 = to;
@@ -4626,6 +4626,10 @@ public class Types {
             (reverse ? giveWarning(t2, t1) : giveWarning(t1, t2)))
             warn.warn(LintCategory.UNCHECKED);
         return true;
+    }
+
+    private boolean dynamicTypeMayImplementAdditionalInterfaces(TypeSymbol tsym) {
+        return (tsym.flags() & FINAL) == 0 && !tsym.isReferenceProjection();
     }
 
     private boolean giveWarning(Type from, Type to) {
