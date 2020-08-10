@@ -419,8 +419,8 @@ void BlockBegin::state_values_do(ValueVisitor* f) {
 }
 
 
-  StoreField::StoreField(Value obj, int offset, ciField* field, Value value, bool is_static,
-                         ValueStack* state_before, bool needs_patching)
+StoreField::StoreField(Value obj, int offset, ciField* field, Value value, bool is_static,
+                       ValueStack* state_before, bool needs_patching)
   : AccessField(obj, offset, field, is_static, state_before, needs_patching)
   , _value(value)
   {
@@ -435,8 +435,8 @@ void BlockBegin::state_values_do(ValueVisitor* f) {
     }
   }
 
-  StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt_type, Value value,
-                             ValueStack* state_before, bool check_boolean, bool mismatched)
+StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt_type, Value value,
+                           ValueStack* state_before, bool check_boolean, bool mismatched)
   : AccessIndexed(array, index, length, elt_type, state_before, mismatched)
   , _value(value), _check_boolean(check_boolean)
   {
