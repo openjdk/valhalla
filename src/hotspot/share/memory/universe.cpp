@@ -871,7 +871,7 @@ void Universe::initialize_known_methods(TRAPS) {
                           vmSymbols::object_object_boolean_signature(), true, CHECK);
   initialize_known_method(_inline_type_hash_code_cache,
                           SystemDictionary::ValueBootstrapMethods_klass(),
-                          vmSymbols::invokeHashCode_name()->as_C_string(),
+                          vmSymbols::inlineObjectHashCode_name()->as_C_string(),
                           vmSymbols::object_int_signature(), true, CHECK);
 }
 

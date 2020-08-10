@@ -675,7 +675,7 @@
                                                                                                                   \
   template(java_lang_invoke_ValueBootstrapMethods, "java/lang/invoke/ValueBootstrapMethods")                      \
   template(isSubstitutable_name,                   "isSubstitutable0")                                            \
-  template(invokeHashCode_name,                    "invokeHashCode")                                              \
+  template(inlineObjectHashCode_name,              "inlineObjectHashCode")                                        \
                                                                                                                   \
   template(jdk_internal_vm_jni_SubElementSelector, "jdk/internal/vm/jni/SubElementSelector")                      \
   /*end*/

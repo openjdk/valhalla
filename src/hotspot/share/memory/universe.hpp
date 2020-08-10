@@ -119,7 +119,7 @@ class Universe: AllStatic {
   static LatestMethodCache* _throw_no_such_method_error_cache; // Unsafe.throwNoSuchMethodError() method
   static LatestMethodCache* _do_stack_walk_cache;      // method for stack walker callback
   static LatestMethodCache* _is_substitutable_cache;   // ValueBootstrapMethods.isSubstitutable() method
-  static LatestMethodCache* _inline_type_hash_code_cache;  // ValueBootstrapMethods.invokeHashCode() method
+  static LatestMethodCache* _inline_type_hash_code_cache;  // ValueBootstrapMethods.inlineObjectHashCode() method
 
   // preallocated error objects (no backtrace)
   static oop          _out_of_memory_error_java_heap;

@@ -209,7 +209,7 @@ public final class ValueBootstrapMethods {
                 MethodHandle getter = getters[i];
                 // For inline type or reference type, this calls Objects::hashCode.
                 // If the instance is of inline type and the hashCode method is not
-                // overridden, VM will call invokeHashCode to compute the
+                // overridden, VM will call inlineObjectHashCode to compute the
                 // hash code.
                 MethodHandle hasher = hashCodeForType(getter.type().returnType());
                 hashers[i] = filterReturnValue(getter, hasher);
@@ -472,7 +472,7 @@ public final class ValueBootstrapMethods {
      * @param o the instance to hash.
      * @return the hash code of the given instance {code o}.
      */
-    private static int invokeHashCode(Object o) {
+    private static int inlineObjectHashCode(Object o) {
         try {
             Class<?> type = o.getClass();
             // Note: javac disallows user to call super.hashCode if user implementated
