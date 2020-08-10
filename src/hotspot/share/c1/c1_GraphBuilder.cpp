@@ -1104,19 +1104,19 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
   switch (code) {
     case Bytecodes::_pop:
       { Value w = state()->raw_pop();
-        if (w != NULL) { w->update_stack_count(); }
+        update_larva_stack_count(w);
       }
       break;
     case Bytecodes::_pop2:
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
-        if (w1 != NULL) { w1->update_stack_count(); }
-        if (w2 != NULL) { w2->update_stack_count(); }
+        update_larva_stack_count(w1);
+        update_larva_stack_count(w2);
       }
       break;
     case Bytecodes::_dup:
       { Value w = state()->raw_pop();
-        if (w != NULL) { w->update_larval_state(); }
+        update_larval_state(w);
         state()->raw_push(w);
         state()->raw_push(w);
       }
@@ -1124,7 +1124,7 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
     case Bytecodes::_dup_x1:
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
-        if (w1 != NULL) { w1->update_larval_state(); }
+        update_larval_state(w1);
         state()->raw_push(w1);
         state()->raw_push(w2);
         state()->raw_push(w1);
@@ -1154,8 +1154,8 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
     case Bytecodes::_dup2:
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
-        if (w1 != NULL) { w1->update_larval_state(); }
-        if (w2 != NULL) { w2->update_larval_state(); }
+        update_larval_state(w1);
+        update_larval_state(w2);
         state()->raw_push(w2);
         state()->raw_push(w1);
         state()->raw_push(w2);
@@ -1166,8 +1166,8 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
       { Value w1 = state()->raw_pop();
         Value w2 = state()->raw_pop();
         Value w3 = state()->raw_pop();
-        if (w1 != NULL) { w1->update_larval_state(); }
-        if (w2 != NULL) { w2->update_larval_state(); }
+        update_larval_state(w1);
+        update_larval_state(w2);
         state()->raw_push(w2);
         state()->raw_push(w1);
         state()->raw_push(w3);
@@ -1180,8 +1180,8 @@ void GraphBuilder::stack_op(Bytecodes::Code code) {
         Value w2 = state()->raw_pop();
         Value w3 = state()->raw_pop();
         Value w4 = state()->raw_pop();
-        if (w1 != NULL) { w1->update_larval_state(); }
-        if (w2 != NULL) { w2->update_larval_state(); }
+        update_larval_state(w1);
+        update_larval_state(w2);
         state()->raw_push(w2);
         state()->raw_push(w1);
         state()->raw_push(w4);
