@@ -97,7 +97,7 @@ public class ValueBootstrapMethodsTest {
             throw new RuntimeException("expected != and unequals");
         }
 
-        // v2 and v3 are of different values but Value::equals 
+        // v2 and v3 are of different values but Value::equals
         // returns true because v2::l and v3::l field contain the same elements
         Value v3 = new Value(20, 5.03, "foo", "bar", "goo");
         if (v2 == v3 || !v2.equals(v3)) {
