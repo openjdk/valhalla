@@ -423,34 +423,34 @@ StoreField::StoreField(Value obj, int offset, ciField* field, Value value, bool 
                        ValueStack* state_before, bool needs_patching)
   : AccessField(obj, offset, field, is_static, state_before, needs_patching)
   , _value(value)
-  {
-    set_flag(NeedsWriteBarrierFlag, as_ValueType(field_type())->is_object());
+{
+  set_flag(NeedsWriteBarrierFlag, as_ValueType(field_type())->is_object());
 #ifdef ASSERT
   AssertValues assert_value;
   values_do(&assert_value);
 #endif
-    pin();
-    if (value->as_NewInlineTypeInstance() != NULL) {
-      value->as_NewInlineTypeInstance()->set_not_larva_anymore();
-    }
+  pin();
+  if (value->as_NewInlineTypeInstance() != NULL) {
+    value->as_NewInlineTypeInstance()->set_not_larva_anymore();
   }
+}
 
 StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt_type, Value value,
                            ValueStack* state_before, bool check_boolean, bool mismatched)
   : AccessIndexed(array, index, length, elt_type, state_before, mismatched)
   , _value(value), _check_boolean(check_boolean)
-  {
-    set_flag(NeedsWriteBarrierFlag, (as_ValueType(elt_type)->is_object()));
-    set_flag(NeedsStoreCheckFlag, (as_ValueType(elt_type)->is_object()));
+{
+  set_flag(NeedsWriteBarrierFlag, (as_ValueType(elt_type)->is_object()));
+  set_flag(NeedsStoreCheckFlag, (as_ValueType(elt_type)->is_object()));
 #ifdef ASSERT
   AssertValues assert_value;
   values_do(&assert_value);
 #endif
-    pin();
-    if (value->as_NewInlineTypeInstance() != NULL) {
-      value->as_NewInlineTypeInstance()->set_not_larva_anymore();
-    }
+  pin();
+  if (value->as_NewInlineTypeInstance() != NULL) {
+    value->as_NewInlineTypeInstance()->set_not_larva_anymore();
   }
+}
 
 
 // Implementation of Invoke
