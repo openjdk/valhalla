@@ -35,6 +35,29 @@
 
 class MemoryBuffer;
 
+class DelayedFlattenedFieldAccess : public CompilationResourceObj {
+private:
+  Value _obj;
+  ciField* _field;
+  ValueStack* _state_before;
+  int _offset;
+public:
+  DelayedFlattenedFieldAccess(Value obj, ciField* field, ValueStack* state_before, int offset)
+  : _obj(obj)
+  , _field(field)
+  , _state_before(state_before)
+  , _offset(offset) { }
+
+  void update(ciField* field, int offset) {
+    _field = field;
+    _offset += offset;
+  }
+  Value obj() { return _obj; }
+  ciField* field() { return _field; }
+  ValueStack* state_before() { return _state_before; }
+  int offset() { return _offset; }
+};
+
 class GraphBuilder {
  private:
   // Per-scope data. These are pushed and popped as we descend into
@@ -190,6 +213,10 @@ class GraphBuilder {
   ValueStack*       _state;                      // the current execution state
   Instruction*      _last;                       // the last instruction added
   bool              _skip_block;                 // skip processing of the rest of this block
+
+  DelayedFlattenedFieldAccess* _delayed_flattened_field_access;
+  bool              has_delayed_flattened_field_access() { return _delayed_flattened_field_access != NULL; }
+
 
   // accessors
   ScopeData*        scope_data() const           { return _scope_data; }

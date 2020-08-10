@@ -1837,25 +1837,27 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         assert(Interpreter::bytecode_should_reexecute(code), "should reexecute");
         state_before = copy_state_before();
       }
-      obj = apop();
-      ObjectType* obj_type = obj->type()->as_ObjectType();
-      if (field->is_constant() && !field->is_flattened() && obj_type->is_constant() && !PatchALot) {
-        ciObject* const_oop = obj_type->constant_value();
-        if (!const_oop->is_null_object() && const_oop->is_loaded()) {
-          ciConstant field_value = field->constant_value_of(const_oop);
-          if (field_value.is_valid()) {
-            if (field->signature()->is_Q_signature() && field_value.is_null_or_zero()) {
-              // Non-flattened inline type field. Replace null by the default value.
-              constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
-            } else {
-              constant = make_constant(field_value, field);
-            }
-            // For CallSite objects add a dependency for invalidation of the optimization.
-            if (field->is_call_site_target()) {
-              ciCallSite* call_site = const_oop->as_call_site();
-              if (!call_site->is_fully_initialized_constant_call_site()) {
-                ciMethodHandle* target = field_value.as_object()->as_method_handle();
-                dependency_recorder()->assert_call_site_target_value(call_site, target);
+      if (!has_delayed_flattened_field_access()) {
+        obj = apop();
+        ObjectType* obj_type = obj->type()->as_ObjectType();
+        if (field->is_constant() && !field->is_flattened() && obj_type->is_constant() && !PatchALot) {
+          ciObject* const_oop = obj_type->constant_value();
+          if (!const_oop->is_null_object() && const_oop->is_loaded()) {
+            ciConstant field_value = field->constant_value_of(const_oop);
+            if (field_value.is_valid()) {
+              if (field->signature()->is_Q_signature() && field_value.is_null_or_zero()) {
+                // Non-flattened inline type field. Replace null by the default value.
+                constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
+              } else {
+                constant = make_constant(field_value, field);
+              }
+              // For CallSite objects add a dependency for invalidation of the optimization.
+              if (field->is_call_site_target()) {
+                ciCallSite* call_site = const_oop->as_call_site();
+                if (!call_site->is_fully_initialized_constant_call_site()) {
+                  ciMethodHandle* target = field_value.as_object()->as_method_handle();
+                  dependency_recorder()->assert_call_site_target_value(call_site, target);
+                }
               }
             }
           }
@@ -1868,7 +1870,17 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           state_before = copy_state_for_exception();
         }
         if (!field->is_flattened()) {
-          LoadField* load = new LoadField(obj, offset, field, false, state_before, needs_patching);
+          LoadField* load;
+          if (!has_delayed_flattened_field_access()) {
+            load = new LoadField(obj, offset, field, false, state_before, needs_patching);
+          } else {
+            assert(offset != -1, "sanity check");
+            tty->print_cr("Using delayed flattened field access");
+            load = new LoadField(_delayed_flattened_field_access->obj(),
+                                 _delayed_flattened_field_access->offset() + offset - field->holder()->as_inline_klass()->first_field_offset(),
+                                 field, false, /*_delayed_flattened_field_access->state_before()*/ state_before, needs_patching);
+            _delayed_flattened_field_access = NULL;
+          }
           Value replacement = !needs_patching ? _memory->load(load) : load;
           if (replacement != load) {
             assert(replacement->is_linked() || !replacement->can_be_linked(), "should already by linked");
@@ -1894,17 +1906,43 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             push(type, append(load));
           }
         } else { // flattened field, not optimized solution: re-instantiate the flattened value
-          assert(field->type()->is_inlinetype(), "Sanity check");
-          ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-          int flattening_offset = field->offset() - inline_klass->first_field_offset();
-          assert(field->type()->is_inlinetype(), "Sanity check");
-          scope()->set_wrote_final();
-          scope()->set_wrote_fields();
-          NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(inline_klass, state_before, false);
-          _memory->new_instance(new_instance);
-          apush(append_split(new_instance));
-          copy_inline_content(inline_klass, obj, field->offset(), new_instance, inline_klass->first_field_offset(),
-                       state_before, needs_patching);
+          ciBytecodeStream s(method());
+          s.force_bci(bci());
+          s.next();
+          if (s.cur_bc() == Bytecodes::_getfield && !needs_patching) {
+            tty->print_cr("Getfield optimization opportunity");
+            if (!has_delayed_flattened_field_access()) {
+              DelayedFlattenedFieldAccess* dffa = new DelayedFlattenedFieldAccess(obj, field, state_before, field->offset());
+              _delayed_flattened_field_access = dffa;
+            } else {
+              _delayed_flattened_field_access->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+            }
+          } else {
+            assert(field->type()->is_inlinetype(), "Sanity check");
+            ciInlineKlass* inline_klass = field->type()->as_inline_klass();
+            // int flattening_offset = field->offset() - inline_klass->first_field_offset();
+            assert(field->type()->is_inlinetype(), "Sanity check");
+            scope()->set_wrote_final();
+            scope()->set_wrote_fields();
+            NewInlineTypeInstance* new_instance;
+            if (!has_delayed_flattened_field_access()) {
+              new_instance = new NewInlineTypeInstance(inline_klass, state_before, false);
+            } else {
+              new_instance = new NewInlineTypeInstance(inline_klass, _delayed_flattened_field_access->state_before(), false);
+            }
+            _memory->new_instance(new_instance);
+            apush(append_split(new_instance));
+            if (!has_delayed_flattened_field_access()) {
+              copy_inline_content(inline_klass, obj, field->offset(), new_instance, inline_klass->first_field_offset(),
+                          state_before, needs_patching);
+            } else {
+              copy_inline_content(inline_klass, _delayed_flattened_field_access->obj(),
+                                  _delayed_flattened_field_access->offset() + field->offset(), new_instance,
+                                  inline_klass->first_field_offset(),
+                                  /*_delayed_flattened_field_access->state_before()*/ state_before, needs_patching);
+              _delayed_flattened_field_access = NULL;
+            }
+          }
         }
       }
       break;
@@ -3491,6 +3529,7 @@ GraphBuilder::GraphBuilder(Compilation* compilation, IRScope* scope)
   , _inline_bailout_msg(NULL)
   , _instruction_count(0)
   , _osr_entry(NULL)
+  , _delayed_flattened_field_access(NULL)
 {
   int osr_bci = compilation->osr_bci();
 
