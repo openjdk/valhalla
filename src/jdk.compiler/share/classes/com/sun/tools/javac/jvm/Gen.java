@@ -1080,28 +1080,13 @@ public class Gen extends JCTree.Visitor {
         }
 
         private void synthesizeValueMethod(JCMethodDecl methodDecl) {
-
-            Name name; List<Type> argTypes; Type resType;
-
-            switch (methodDecl.name.toString()) {
-                case "hashCode":
-                    name = names.hashCode;
-                    argTypes = List.of(methodDecl.sym.owner.type);
-                    resType = methodDecl.restype.type;
-                    break;
-                case "equals":
-                    name = names.equals;
-                    argTypes = List.of(methodDecl.sym.owner.type, syms.objectType);
-                    resType = methodDecl.restype.type;
-                    break;
-                case "toString":
-                    name = names.toString;
-                    argTypes = List.of(methodDecl.sym.owner.type);
-                    resType = methodDecl.restype.type;
-                    break;
-                default:
-                    throw new AssertionError("Unexpected synthetic method body");
+            if (!methodDecl.name.toString().equals("toString")) {
+                throw new AssertionError("Unexpected synthetic method body");
             }
+
+            Name name = names.toString;
+            List<Type> argTypes = List.of(methodDecl.sym.owner.type);
+            Type resType = methodDecl.restype.type;
 
             Type.MethodType indyType = new Type.MethodType(argTypes,
                     resType,
@@ -1125,25 +1110,9 @@ public class Gen extends JCTree.Visitor {
                     indyType,
                     List.nil().toArray(new LoadableConstant[0]));
 
-
-            switch (methodDecl.name.toString()) {
-                case "hashCode":
-                    code.emitop0(aload_0);
-                    items.makeDynamicItem(dynSym).invoke();
-                    code.emitop0(ireturn);
-                    return;
-                case "equals":
-                    code.emitop0(aload_0);
-                    code.emitop0(aload_1);
-                    items.makeDynamicItem(dynSym).invoke();
-                    code.emitop0(ireturn);
-                    return;
-                case "toString":
-                    code.emitop0(aload_0);
-                    items.makeDynamicItem(dynSym).invoke();
-                    code.emitop0(areturn);
-                    return;
-            }
+            code.emitop0(aload_0);
+            items.makeDynamicItem(dynSym).invoke();
+            code.emitop0(areturn);
         }
 
     public void visitVarDef(JCVariableDecl tree) {

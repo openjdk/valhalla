@@ -1013,12 +1013,8 @@ static inline intptr_t get_next_hash(Thread* self, oop obj) {
 
 intptr_t ObjectSynchronizer::FastHashCode(Thread* self, oop obj) {
   if (EnableValhalla && obj->klass()->is_inline_klass()) {
-    // Expected tooling to override hashCode for inline type, just don't crash
-    if (log_is_enabled(Debug, monitorinflation)) {
-      ResourceMark rm;
-      log_debug(monitorinflation)("FastHashCode for value type: %s", obj->klass()->external_name());
-    }
-    return obj->klass()->java_mirror()->identity_hash();
+    // VM should be calling bootstrap method
+    ShouldNotReachHere();
   }
   if (UseBiasedLocking) {
     // NOTE: many places throughout the JVM do not expect a safepoint

@@ -45,16 +45,9 @@ public class UnsafeTest {
     static inline class Value1 {
         Point point;
         Point[] array;
-        Value1() {
-            this.point = Point.createPoint(1, 1);
-            this.array = new Point[0];
-        }
-
-        static Value1 create(Point p, Point... points) {
-            Value1 o = Value1.default;
-            o = __WithField(o.point, p);
-            o = __WithField(o.array, points);
-            return o;
+        Value1(Point p, Point... points) {
+            this.point = p;
+            this.array = points;
         }
     }
 
@@ -62,16 +55,9 @@ public class UnsafeTest {
         int i;
         Value1 v;
 
-        Value2() {
-            this.i = 0;
-            this.v = Value1.create(Point.createPoint(0,0), new Point[0]);
-        }
-
-        static Value2 create(Value1 v, int i) {
-            Value2 o = Value2.default;
-            o = __WithField(o.v, v);
-            o = __WithField(o.i, i);
-            return o;
+        Value2(Value1 v, int i) {
+            this.v = v;
+            this.i = i;
         }
     }
 
@@ -79,26 +65,20 @@ public class UnsafeTest {
         Object o;
         Value2 v;
 
-        Value3() {
-            this.v = Value2.create(Value1.create(Point.createPoint(0,0), new Point[0]), 0);
-            this.o = new Object();
+        Value3(Value2 v, Object ref) {
+            this.v = v;
+            this.o = ref;
         }
 
-        static Value3 create(Value2 v, Object ref) {
-            Value3 o = Value3.default;
-            o = __WithField(o.v, v);
-            o = __WithField(o.o, ref);
-            return o;
-        }
     }
 
 
     public static void main(String[] args) throws Throwable {
         printValueClass(Value3.class, 0);
 
-        Value1 v1 = Value1.create(Point.createPoint(10,10), Point.createPoint(20,20), Point.createPoint(30,30));
-        Value2 v2 = Value2.create(v1, 20);
-        Value3 v3 = Value3.create(v2, List.of("Value3"));
+        Value1 v1 = new Value1(Point.createPoint(10,10), Point.createPoint(20,20), Point.createPoint(30,30));
+        Value2 v2 = new Value2(v1, 20);
+        Value3 v3 = new Value3(v2, List.of("Value3"));
         long off_o = U.objectFieldOffset(Value3.class, "o");
         long off_v = U.objectFieldOffset(Value3.class, "v");
         long off_i = U.objectFieldOffset(Value2.class, "i");
@@ -118,11 +98,12 @@ public class UnsafeTest {
          *                   ^-------------------^
          *                    Value2
          */
+        List<String> list = List.of("Value1", "Value2", "Value3");
         Value3 v = v3;
         try {
             v = U.makePrivateBuffer(v);
             // patch v3.o
-            U.putObject(v, off_o, List.of("Value1", "Value2", "Value3"));
+            U.putObject(v, off_o, list);
             // patch v3.v.i;
             U.putInt(v, off_v + off_i - U.valueHeaderSize(Value2.class), 999);
             // patch v3.v.v.point
@@ -134,12 +115,12 @@ public class UnsafeTest {
 
         assertEquals(v.v.v.point, Point.createPoint(100, 100));
         assertEquals(v.v.i, 999);
-        assertEquals(v.o, List.of("Value1", "Value2", "Value3"));
+        assertEquals(v.o, list);
         assertEquals(v.v.v.array, v1.array);
 
-        Value1 nv1 = Value1.create(Point.createPoint(70,70), Point.createPoint(80,80), Point.createPoint(90,90));
-        Value2 nv2 = Value2.create(nv1, 100);
-        Value3 nv3 = Value3.create(nv2, List.of("Value1", "Value2", "Value3"));
+        Value1 nv1 = new Value1(Point.createPoint(70,70), Point.createPoint(80,80), Point.createPoint(90,90));
+        Value2 nv2 = new Value2(nv1, 100);
+        Value3 nv3 = new Value3(nv2, list);
 
         try {
             v = U.makePrivateBuffer(v);
