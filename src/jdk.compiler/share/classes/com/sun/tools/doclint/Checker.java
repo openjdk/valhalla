@@ -1170,7 +1170,7 @@ public class Checker extends DocTreePathScanner<Void, Void> {
                     return;
             }
         }
-        env.messages.warning(SYNTAX, tree, "dc.empty", tree.getKind().tagName);
+        env.messages.warning(MISSING, tree, "dc.empty", tree.getKind().tagName);
     }
 
     boolean hasNonWhitespace(TextTree tree) {
