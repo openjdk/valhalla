@@ -2187,8 +2187,10 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             if (origin.isValue())
                 origin = (TypeSymbol) origin.referenceProjection();
 
-            if (this.owner.isValue())
-                return this.projection.overrides(_other, origin, types, checkResult, requireConcreteIfInherited);
+            if (this.owner.isValue()) {
+                return this.projection != null &&
+                        this.projection.overrides(_other, origin, types, checkResult, requireConcreteIfInherited);
+            }
 
             if (this == _other) return true;
             MethodSymbol other = (MethodSymbol)_other;
