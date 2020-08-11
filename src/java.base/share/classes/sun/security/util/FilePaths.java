@@ -1,10 +1,12 @@
 /*
- * Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,12 +23,15 @@
  * questions.
  */
 
-// key: compiler.err.dc.bad.gt
-// key: compiler.note.note
-// key: compiler.note.proc.messager
-// run: backdoor
-// options: -processor DocCommentProcessor -proc:only
+package sun.security.util;
 
-/** > */
-class BadGreaterThan { }
+import jdk.internal.util.StaticProperty;
 
+import java.io.File;
+
+public class FilePaths {
+    public static String cacerts() {
+        return StaticProperty.javaHome() + File.separator + "lib"
+                + File.separator + "security" + File.separator + "cacerts";
+    }
+}
