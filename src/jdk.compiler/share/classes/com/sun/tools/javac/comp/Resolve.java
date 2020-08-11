@@ -418,6 +418,11 @@ public class Resolve {
                 sym = sym.referenceProjection();
             if (env.enclClass.sym.isValue())
                 env.enclClass.sym = env.enclClass.sym.referenceProjection();
+        } else if (sym.kind == TYP) {
+            // A type is accessible in a reference projection if it was
+            // accessible in the value projection.
+            if (site.isReferenceProjection())
+                site = site.valueProjection();
         }
         try {
             switch ((short)(sym.flags() & AccessFlags)) {
@@ -2200,6 +2205,10 @@ public class Resolve {
                                    Type site,
                                    Name name,
                                    TypeSymbol c) {
+        // ATM, inner/nested types are members of only the declaring inline class,
+        // although accessible via the reference projection.
+        if (c.isReferenceProjection())
+            c = (TypeSymbol) c.valueProjection();
         for (Symbol sym : c.members().getSymbolsByName(name)) {
             if (sym.kind == TYP) {
                 return isAccessible(env, site, sym)
