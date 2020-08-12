@@ -1875,10 +1875,9 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             load = new LoadField(obj, offset, field, false, state_before, needs_patching);
           } else {
             assert(offset != -1, "sanity check");
-            tty->print_cr("Using delayed flattened field access");
             load = new LoadField(_delayed_flattened_field_access->obj(),
                                  _delayed_flattened_field_access->offset() + offset - field->holder()->as_inline_klass()->first_field_offset(),
-                                 field, false, /*_delayed_flattened_field_access->state_before()*/ state_before, needs_patching);
+                                 field, false, state_before, needs_patching);
             _delayed_flattened_field_access = NULL;
           }
           Value replacement = !needs_patching ? _memory->load(load) : load;
@@ -1910,8 +1909,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           s.force_bci(bci());
           s.next();
           if (s.cur_bc() == Bytecodes::_getfield && !needs_patching) {
-            tty->print_cr("Getfield optimization opportunity");
             if (!has_delayed_flattened_field_access()) {
+              null_check(obj);
               DelayedFlattenedFieldAccess* dffa = new DelayedFlattenedFieldAccess(obj, field, state_before, field->offset());
               _delayed_flattened_field_access = dffa;
             } else {
@@ -1920,7 +1919,6 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           } else {
             assert(field->type()->is_inlinetype(), "Sanity check");
             ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-            // int flattening_offset = field->offset() - inline_klass->first_field_offset();
             assert(field->type()->is_inlinetype(), "Sanity check");
             scope()->set_wrote_final();
             scope()->set_wrote_fields();
@@ -1937,9 +1935,9 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                           state_before, needs_patching);
             } else {
               copy_inline_content(inline_klass, _delayed_flattened_field_access->obj(),
-                                  _delayed_flattened_field_access->offset() + field->offset(), new_instance,
-                                  inline_klass->first_field_offset(),
-                                  /*_delayed_flattened_field_access->state_before()*/ state_before, needs_patching);
+                                  _delayed_flattened_field_access->offset() + field->offset() - field->holder()->as_inline_klass()->first_field_offset(),
+                                  new_instance, inline_klass->first_field_offset(),
+                                  state_before, needs_patching);
               _delayed_flattened_field_access = NULL;
             }
           }
