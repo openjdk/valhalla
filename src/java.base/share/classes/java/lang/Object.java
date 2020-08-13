@@ -26,7 +26,9 @@
 package java.lang;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
+import jdk.internal.access.SharedSecrets;
 
+import java.lang.invoke.ValueBootstrapMethods;
 import java.util.Objects;
 
 /**
@@ -241,7 +243,11 @@ public class Object {
      * @return  a string representation of the object.
      */
     public String toString() {
-        return getClass().getName() + "@" + Integer.toHexString(hashCode());
+        if (getClass().isInlineClass()) {
+            return SharedSecrets.getJavaLangInvokeAccess().inlineObjectToString(this);
+        } else {
+            return getClass().getName() + "@" + Integer.toHexString(hashCode());
+        }
     }
 
     /**

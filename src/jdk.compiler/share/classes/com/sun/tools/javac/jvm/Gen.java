@@ -1079,42 +1079,6 @@ public class Gen extends JCTree.Visitor {
             return startpcCrt;
         }
 
-        private void synthesizeValueMethod(JCMethodDecl methodDecl) {
-            if (!methodDecl.name.toString().equals("toString")) {
-                throw new AssertionError("Unexpected synthetic method body");
-            }
-
-            Name name = names.toString;
-            List<Type> argTypes = List.of(methodDecl.sym.owner.type);
-            Type resType = methodDecl.restype.type;
-
-            Type.MethodType indyType = new Type.MethodType(argTypes,
-                    resType,
-                    List.nil(),
-                    syms.methodClass);
-
-            List<Type> bsm_staticArgs = List.of(syms.methodHandleLookupType,
-                                                syms.stringType,
-                                                syms.methodTypeType);
-
-            Symbol bsm = rs.resolveInternalMethod(methodDecl.pos(),
-                    getAttrEnv(),
-                    syms.valueBootstrapMethods,
-                    names.fromString("makeBootstrapMethod"),
-                    bsm_staticArgs,
-                    null);
-
-            Symbol.DynamicMethodSymbol dynSym = new Symbol.DynamicMethodSymbol(name,
-                    syms.noSymbol,
-                    ((MethodSymbol)bsm).asHandle(),
-                    indyType,
-                    List.nil().toArray(new LoadableConstant[0]));
-
-            code.emitop0(aload_0);
-            items.makeDynamicItem(dynSym).invoke();
-            code.emitop0(areturn);
-        }
-
     public void visitVarDef(JCVariableDecl tree) {
         VarSymbol v = tree.sym;
         if (tree.init != null) {
@@ -1136,10 +1100,6 @@ public class Gen extends JCTree.Visitor {
     }
 
     public void visitBlock(JCBlock tree) {
-        if ((tree.flags & SYNTHETIC) != 0 && env.tree.hasTag(METHODDEF) && (((JCMethodDecl) env.tree).sym.owner.flags() & VALUE) != 0) {
-            synthesizeValueMethod((JCMethodDecl) env.tree);
-            return;
-        }
         int limit = code.nextreg;
         Env<GenContext> localEnv = env.dup(tree, new GenContext());
         genStats(tree.stats, localEnv);

@@ -57,6 +57,10 @@ public class SubstitutabilityTest {
             new Object[] { mixedValues, mixedValues},
             new Object[] { valueBuilder().setPoint(p1).build(),
                            valueBuilder().setPoint(Point.makePoint(10, 10)).build() },
+            new Object[] { valueBuilder().setPointRef(p2).build(),
+                           valueBuilder().setPointRef(Point.makePoint(20, 20)).build() },
+            new Object[] { valueBuilder().setReference(p2).build(),
+                           valueBuilder().setReference(Point.makePoint(20, 20)).build() },
             new Object[] { valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setPoint(p1).build(),
                            valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setPoint(l1.p1).build() },
             new Object[] { valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setNumber(number).build(),
@@ -90,6 +94,8 @@ public class SubstitutabilityTest {
                            valueBuilder().setFloat(+0.0f).setDouble(-0.0).build() },
             new Object[] { valueBuilder().setPoint(point).build(),
                            valueBuilder().setPoint(Point.makePoint(20, 20)).build() },
+            new Object[] { valueBuilder().setPointRef(point).build(),
+                           valueBuilder().setPointRef(Point.makePoint(20, 20)).build() },
             new Object[] { valueBuilder().setNumber(number).build(),
                            valueBuilder().setNumber(new Value.IntNumber(99)).build() },
             new Object[] { valueBuilder().setNumber(Value.Number.intValue(1)).build(),
@@ -193,18 +199,18 @@ public class SubstitutabilityTest {
         return oa[0];
     }
 
-    private static final Method IS_SUBSTITUTABLE0;
+    private static final Method IS_SUBSTITUTABLE;
     static {
         Method m = null;
         try {
-            m = ValueBootstrapMethods.class.getDeclaredMethod("isSubstitutable0", Object.class, Object.class);
+            m = ValueBootstrapMethods.class.getDeclaredMethod("isSubstitutable", Object.class, Object.class);
             m.setAccessible(true);
         } catch (ReflectiveOperationException e) {
             throw new RuntimeException(e);
         }
-        IS_SUBSTITUTABLE0 = m;
+        IS_SUBSTITUTABLE = m;
     }
     private static boolean isSubstitutable(Object a, Object b) throws ReflectiveOperationException {
-        return (boolean) IS_SUBSTITUTABLE0.invoke(null, a, b);
+        return (boolean) IS_SUBSTITUTABLE.invoke(null, a, b);
     }
 }

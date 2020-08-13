@@ -189,4 +189,6 @@ public interface JavaLangInvokeAccess {
      * Used by {@code jdk.incubator.foreign.MemoryHandles}.
      */
     VarHandle insertCoordinates(VarHandle target, int pos, Object... values);
+
+    String inlineObjectToString(Object o);
 }
