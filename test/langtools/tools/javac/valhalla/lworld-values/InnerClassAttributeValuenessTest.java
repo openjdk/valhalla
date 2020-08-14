@@ -48,7 +48,7 @@ public class InnerClassAttributeValuenessTest {
     }
 
     public static void main(String[] args) {
-        if ((Inner.class.getModifiers() & AccessFlags.ACC_VALUE) == 0)
+        if ((Inner.class.getModifiers() & AccessFlags.ACC_INLINE) == 0)
             throw new AssertionError("Value flag missing");
     }
 }

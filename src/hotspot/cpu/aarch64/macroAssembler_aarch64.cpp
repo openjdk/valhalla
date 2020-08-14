@@ -1501,7 +1501,7 @@ void MacroAssembler::null_check(Register reg, int offset) {
 
 void MacroAssembler::test_klass_is_value(Register klass, Register temp_reg, Label& is_value) {
   ldrw(temp_reg, Address(klass, Klass::access_flags_offset()));
-  andr(temp_reg, temp_reg, JVM_ACC_VALUE);
+  andr(temp_reg, temp_reg, JVM_ACC_INLINE);
   cbnz(temp_reg, is_value);
 }
 

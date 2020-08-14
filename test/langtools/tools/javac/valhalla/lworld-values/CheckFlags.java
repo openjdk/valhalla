@@ -37,7 +37,7 @@ public class CheckFlags {
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(CheckFlags.class.getResourceAsStream("Point.class"));
 
-        if (!cls.access_flags.is(AccessFlags.ACC_VALUE))
+        if (!cls.access_flags.is(AccessFlags.ACC_INLINE))
             throw new Exception("Value flag not set");
 
         if (!cls.access_flags.is(AccessFlags.ACC_FINAL))
