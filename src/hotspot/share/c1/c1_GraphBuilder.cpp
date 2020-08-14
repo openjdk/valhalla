@@ -1874,7 +1874,6 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           if (!has_delayed_flattened_field_access()) {
             load = new LoadField(obj, offset, field, false, state_before, needs_patching);
           } else {
-            assert(offset != -1, "sanity check");
             load = new LoadField(_delayed_flattened_field_access->obj(),
                                  _delayed_flattened_field_access->offset() + offset - field->holder()->as_inline_klass()->first_field_offset(),
                                  field, false, state_before, needs_patching);
@@ -1904,14 +1903,14 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           } else {
             push(type, append(load));
           }
-        } else { // flattened field, not optimized solution: re-instantiate the flattened value
+        } else {
           ciBytecodeStream s(method());
           s.force_bci(bci());
           s.next();
           if (s.cur_bc() == Bytecodes::_getfield && !needs_patching) {
             if (!has_delayed_flattened_field_access()) {
               null_check(obj);
-              DelayedFlattenedFieldAccess* dffa = new DelayedFlattenedFieldAccess(obj, field, state_before, field->offset());
+              DelayedFlattenedFieldAccess* dffa = new DelayedFlattenedFieldAccess(obj, field, field->offset());
               _delayed_flattened_field_access = dffa;
             } else {
               _delayed_flattened_field_access->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
@@ -1922,12 +1921,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             assert(field->type()->is_inlinetype(), "Sanity check");
             scope()->set_wrote_final();
             scope()->set_wrote_fields();
-            NewInlineTypeInstance* new_instance;
-            if (!has_delayed_flattened_field_access()) {
-              new_instance = new NewInlineTypeInstance(inline_klass, state_before, false);
-            } else {
-              new_instance = new NewInlineTypeInstance(inline_klass, _delayed_flattened_field_access->state_before(), false);
-            }
+            NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(inline_klass, state_before, false);
             _memory->new_instance(new_instance);
             apush(append_split(new_instance));
             if (!has_delayed_flattened_field_access()) {

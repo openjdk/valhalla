@@ -39,13 +39,11 @@ class DelayedFlattenedFieldAccess : public CompilationResourceObj {
 private:
   Value _obj;
   ciField* _field;
-  ValueStack* _state_before;
   int _offset;
 public:
-  DelayedFlattenedFieldAccess(Value obj, ciField* field, ValueStack* state_before, int offset)
+  DelayedFlattenedFieldAccess(Value obj, ciField* field, int offset)
   : _obj(obj)
   , _field(field)
-  , _state_before(state_before)
   , _offset(offset) { }
 
   void update(ciField* field, int offset) {
@@ -54,7 +52,6 @@ public:
   }
   Value obj() { return _obj; }
   ciField* field() { return _field; }
-  ValueStack* state_before() { return _state_before; }
   int offset() { return _offset; }
 };
 
