@@ -3297,7 +3297,7 @@ Node* LibraryCallKit::generate_hidden_class_guard(Node* kls, RegionNode* region)
 }
 
 Node* LibraryCallKit::generate_value_guard(Node* kls, RegionNode* region) {
-  return generate_access_flags_guard(kls, JVM_ACC_VALUE, 0, region);
+  return generate_access_flags_guard(kls, JVM_ACC_INLINE, 0, region);
 }
 
 //-------------------------inline_native_Class_query-------------------

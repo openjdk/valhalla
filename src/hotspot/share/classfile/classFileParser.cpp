@@ -3287,9 +3287,9 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     if (_major_version >= JAVA_9_VERSION) {
       recognized_modifiers |= JVM_ACC_MODULE;
     }
-    // JVM_ACC_VALUE is defined for class file version 55 and later
+    // JVM_ACC_INLINE is defined for class file version 55 and later
     if (supports_inline_types()) {
-      recognized_modifiers |= JVM_ACC_VALUE;
+      recognized_modifiers |= JVM_ACC_INLINE;
     }
 
     // Access flags
@@ -4155,7 +4155,7 @@ const InstanceKlass* ClassFileParser::parse_super_class(ConstantPool* const cp,
 
   if (super_class_index == 0) {
     check_property(_class_name == vmSymbols::java_lang_Object()
-                   || (_access_flags.get_flags() & JVM_ACC_VALUE),
+                   || (_access_flags.get_flags() & JVM_ACC_INLINE),
                    "Invalid superclass index %u in class file %s",
                    super_class_index,
                    CHECK_NULL);
@@ -5353,9 +5353,9 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
 
 void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
   const bool is_module = (flags & JVM_ACC_MODULE) != 0;
-  const bool is_inline_type = (flags & JVM_ACC_VALUE) != 0;
+  const bool is_inline_type = (flags & JVM_ACC_INLINE) != 0;
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
-  assert(supports_inline_types() || !is_inline_type, "JVM_ACC_VALUE should not be set");
+  assert(supports_inline_types() || !is_inline_type, "JVM_ACC_INLINE should not be set");
   if (is_module) {
     ResourceMark rm(THREAD);
     Exceptions::fthrow(
@@ -5371,7 +5371,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
-      "Class modifier ACC_VALUE in class %s requires option -XX:+EnableValhalla",
+      "Class modifier ACC_INLINE in class %s requires option -XX:+EnableValhalla",
       _class_name->as_C_string()
     );
   }
@@ -6885,9 +6885,9 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   if (_major_version >= JAVA_9_VERSION) {
     recognized_modifiers |= JVM_ACC_MODULE;
   }
-  // JVM_ACC_VALUE is defined for class file version 55 and later
+  // JVM_ACC_INLINE is defined for class file version 55 and later
   if (supports_inline_types()) {
-    recognized_modifiers |= JVM_ACC_VALUE;
+    recognized_modifiers |= JVM_ACC_INLINE;
   }
 
   // Access flags

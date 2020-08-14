@@ -43,7 +43,7 @@
 // }
 
 
-// Test that class modifiers cannot have both ACC_VALUE and ACC_ABSTRACT set.
+// Test that class modifiers cannot have both ACC_INLINE and ACC_ABSTRACT set.
 //
 class ValueAbstract {
   0xCAFEBABE;
@@ -80,7 +80,7 @@ class ValueAbstract {
     Utf8 "java/lang/Object"; // #27     at 0xD3
   } // Constant Pool
 
-  0x0530; // access [  ACC_VALUE ACC_ABSTRACT(bad) ACC_SUPER ACC_FINAL ]
+  0x0530; // access [  ACC_INLINE ACC_ABSTRACT(bad) ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -199,7 +199,7 @@ class ValueAbstract {
 
 //////////////////////////////////////////////////////////////////////
 
-// Test that class modifiers cannot have both ACC_VALUE and ACC_ENUM set.
+// Test that class modifiers cannot have both ACC_INLINE and ACC_ENUM set.
 //
 class ValueEnum {
   0xCAFEBABE;
@@ -236,7 +236,7 @@ class ValueEnum {
     Utf8 "java/lang/Object"; // #27     at 0xD3
   } // Constant Pool
 
-  0x04130; // access [  ACC_VALUE ACC_ENUM(bad) ACC_SUPER ACC_FINAL ]
+  0x04130; // access [  ACC_INLINE ACC_ENUM(bad) ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -392,7 +392,7 @@ class ValueFieldNotFinal {
     Utf8 "java/lang/Object"; // #27     at 0xD3
   } // Constant Pool
 
-  0x0130; // access [ ACC_VALUE ACC_SUPER ACC_FINAL ]
+  0x0130; // access [ ACC_INLINE ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
@@ -511,7 +511,7 @@ class ValueFieldNotFinal {
 
 //////////////////////////////////////////////////////////////////////
 
-// Test that class modifiers cannot have both ACC_VALUE and ACC_INTERFACE set.
+// Test that class modifiers cannot have both ACC_INLINE and ACC_INTERFACE set.
 //
 class ValueInterface {
   0xCAFEBABE;
@@ -547,7 +547,7 @@ class ValueInterface {
     Utf8 "java/lang/Object"; // #26     at 0xDA
   } // Constant Pool
 
-  0x0330; // access [ ACC_VALUE ACC_INTERFACE(bad) ACC_SUPER ACC_FINAL ]
+  0x0330; // access [ ACC_INLINE ACC_INTERFACE(bad) ACC_SUPER ACC_FINAL ]
   #3;// this_cpx
   #7;// super_cpx
 
