@@ -2072,9 +2072,11 @@ public class Attr extends JCTree.Visitor {
                 }
             }
 
-            // Those were all the cases that could result in a primitive
+            // Those were all the cases that could result in a primitive. See if primitive boxing and inline
+            // narrowing conversions bring about a convergence.
             condTypes = condTypes.stream()
-                                 .map(t -> t.isPrimitive() ? types.boxedClass(t).type : t)
+                                 .map(t -> t.isPrimitive() ? types.boxedClass(t).type
+                                         : t.isReferenceProjection() ? t.valueProjection() : t)
                                  .collect(List.collector());
 
             for (Type type : condTypes) {
@@ -2085,10 +2087,10 @@ public class Attr extends JCTree.Visitor {
             Iterator<DiagnosticPosition> posIt = positions.iterator();
 
             condTypes = condTypes.stream()
-                                 .map(t -> chk.checkNonVoid(posIt.next(), t))
+                                 .map(t -> chk.checkNonVoid(posIt.next(), t.isValue() ? t.referenceProjection() : t))
                                  .collect(List.collector());
 
-            // both are known to be reference types.  The result is
+            // both are known to be reference types (or projections).  The result is
             // lub(thentype,elsetype). This cannot fail, as it will
             // always be possible to infer "Object" if nothing better.
             return types.lub(condTypes.stream().map(t -> t.baseType()).collect(List.collector()));

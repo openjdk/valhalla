@@ -4039,23 +4039,6 @@ public class Types {
         final int CLASS_BOUND = 2;
 
         int[] kinds = new int[ts.length];
-
-        boolean haveValues = false;
-        boolean haveRefs = false;
-        for (int i = 0 ; i < ts.length ; i++) {
-            if (ts[i].isValue())
-                haveValues = true;
-            else
-                haveRefs = true;
-        }
-        if (haveRefs && haveValues) {
-            System.arraycopy(ts, 0, ts = new Type[ts.length], 0, ts.length);
-            for (int i = 0; i < ts.length; i++) {
-                if (ts[i].isValue())
-                    ts[i] = ts[i].referenceProjection();
-            }
-        }
-
         int boundkind = UNKNOWN_BOUND;
         for (int i = 0 ; i < ts.length ; i++) {
             Type t = ts[i];
