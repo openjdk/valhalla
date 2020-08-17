@@ -1,3 +1,2 @@
 ValueAnnotationOnAnonymousClass.java:11:24: compiler.err.mod.not.allowed.here: inline
-ValueAnnotationOnAnonymousClass.java:12:29: compiler.err.empty.value.not.yet
-2 errors
+1 error

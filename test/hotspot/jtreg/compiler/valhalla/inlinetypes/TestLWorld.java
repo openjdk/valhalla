@@ -37,7 +37,7 @@ import jdk.test.lib.Asserts;
  * @modules java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDallowEmptyValues TestLWorld.java
+ * @compile TestLWorld.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI

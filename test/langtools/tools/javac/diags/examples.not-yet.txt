@@ -205,7 +205,6 @@ compiler.err.cyclic.value.type.membership
 compiler.err.value.does.not.support
 compiler.err.value.may.not.extend
 compiler.warn.potential.null.pollution
-compiler.err.empty.value.not.yet
 compiler.err.this.exposed.prematurely
 compiler.warn.this.exposed.prematurely
 compiler.err.inline.type.must.not.implement.identity.object
