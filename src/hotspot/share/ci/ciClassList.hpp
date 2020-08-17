@@ -62,12 +62,11 @@ class   ciType;
 class    ciReturnAddress;
 class    ciKlass;
 class     ciInstanceKlass;
-class       ciValueKlass;
+class       ciInlineKlass;
 class     ciArrayKlass;
-class       ciValueArrayKlass;
+class       ciFlatArrayKlass;
 class       ciObjArrayKlass;
 class       ciTypeArrayKlass;
-class    ciWrapper;
 
 // Simulate Java Language style package-private access with
 // friend declarations.
@@ -115,12 +114,11 @@ friend class ciReplay;                 \
 friend class ciTypeArray;              \
 friend class ciType;                   \
 friend class ciReturnAddress;          \
-friend class ciWrapper;                \
 friend class ciKlass;                  \
 friend class ciInstanceKlass;          \
-friend class ciValueKlass;             \
+friend class ciInlineKlass;            \
 friend class ciArrayKlass;             \
-friend class ciValueArrayKlass;        \
+friend class ciFlatArrayKlass;         \
 friend class ciObjArrayKlass;          \
 friend class ciTypeArrayKlass;         \
 

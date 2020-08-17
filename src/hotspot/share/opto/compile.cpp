@@ -51,6 +51,7 @@
 #include "opto/divnode.hpp"
 #include "opto/escape.hpp"
 #include "opto/idealGraphPrinter.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/machnode.hpp"
 #include "opto/macro.hpp"
@@ -68,7 +69,6 @@
 #include "opto/runtime.hpp"
 #include "opto/stringopts.hpp"
 #include "opto/type.hpp"
-#include "opto/valuetypenode.hpp"
 #include "opto/vectornode.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -406,11 +406,11 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
       remove_opaque4_node(opaq);
     }
   }
-  // Remove useless value type nodes
-  for (int i = _value_type_nodes->length() - 1; i >= 0; i--) {
-    Node* vt = _value_type_nodes->at(i);
+  // Remove useless inline type nodes
+  for (int i = _inline_type_nodes->length() - 1; i >= 0; i--) {
+    Node* vt = _inline_type_nodes->at(i);
     if (!useful.member(vt)) {
-      _value_type_nodes->remove(vt);
+      _inline_type_nodes->remove(vt);
     }
   }
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
@@ -1014,10 +1014,11 @@ void Compile::Init(int aliaslevel) {
   _expensive_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _range_check_casts = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _opaque4_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
-  _value_type_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
+  _inline_type_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   register_library_intrinsics();
 #ifdef ASSERT
   _type_verify_symmetry = true;
+  _phase_optimize_finished = false;
 #endif
 }
 
@@ -1275,7 +1276,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
     // For arrays indexed by constant indices, we flatten the alias
     // space to include all of the array body.  Only the header, klass
     // and array length can be accessed un-aliased.
-    // For flattened value type array, each field has its own slice so
+    // For flattened inline type array, each field has its own slice so
     // we must include the field offset.
     if( offset != Type::OffsetBot ) {
       if( ta->const_oop() ) { // MethodData* or Method*
@@ -1312,8 +1313,8 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), ta->field_offset());
     }
     // Initially all flattened array accesses share a single slice
-    if (ta->elem()->isa_valuetype() && ta->elem() != TypeValueType::BOTTOM && _flattened_accesses_share_alias) {
-      const TypeAry *tary = TypeAry::make(TypeValueType::BOTTOM, ta->size());
+    if (ta->elem()->isa_inlinetype() && ta->elem() != TypeInlineType::BOTTOM && _flattened_accesses_share_alias) {
+      const TypeAry *tary = TypeAry::make(TypeInlineType::BOTTOM, ta->size());
       tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), Type::Offset(Type::OffsetBot));
     }
     // Arrays of bytes and of booleans both use 'bastore' and 'baload' so
@@ -1627,10 +1628,10 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
         alias_type(idx)->set_element(elemtype);
       }
       int field_offset = flat->is_aryptr()->field_offset().get();
-      if (elemtype->isa_valuetype() &&
-          elemtype->value_klass() != NULL &&
+      if (elemtype->isa_inlinetype() &&
+          elemtype->inline_klass() != NULL &&
           field_offset != Type::OffsetBot) {
-        ciValueKlass* vk = elemtype->value_klass();
+        ciInlineKlass* vk = elemtype->inline_klass();
         field_offset += vk->first_field_offset();
         field = vk->get_field_by_offset(field_offset, false);
       }
@@ -1662,9 +1663,9 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
         // static field
         ciInstanceKlass* k = tinst->const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
         field = k->get_field_by_offset(tinst->offset(), true);
-      } else if (tinst->klass()->is_valuetype()) {
-        // Value type field
-        ciValueKlass* vk = tinst->value_klass();
+      } else if (tinst->klass()->is_inlinetype()) {
+        // Inline type field
+        ciInlineKlass* vk = tinst->inline_klass();
         field = vk->get_field_by_offset(tinst->offset(), false);
       } else {
         ciInstanceKlass* k = tinst->klass()->as_instance_klass();
@@ -1680,8 +1681,8 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
     if (field != NULL) {
       alias_type(idx)->set_field(field);
       if (flat->isa_aryptr()) {
-        // Fields of flattened inline type arrays are rewritable although they are declared final
-        assert(flat->is_aryptr()->elem()->isa_valuetype(), "must be a flattened value array");
+        // Fields of flat arrays are rewritable although they are declared final
+        assert(flat->is_aryptr()->elem()->isa_inlinetype(), "must be a flat array");
         alias_type(idx)->set_rewritable(true);
       }
     }
@@ -1861,21 +1862,21 @@ void Compile::remove_opaque4_nodes(PhaseIterGVN &igvn) {
   assert(opaque4_count() == 0, "should be empty");
 }
 
-void Compile::add_value_type(Node* n) {
-  assert(n->is_ValueTypeBase(), "unexpected node");
-  if (_value_type_nodes != NULL) {
-    _value_type_nodes->push(n);
+void Compile::add_inline_type(Node* n) {
+  assert(n->is_InlineTypeBase(), "unexpected node");
+  if (_inline_type_nodes != NULL) {
+    _inline_type_nodes->push(n);
   }
 }
 
-void Compile::remove_value_type(Node* n) {
-  assert(n->is_ValueTypeBase(), "unexpected node");
-  if (_value_type_nodes != NULL && _value_type_nodes->contains(n)) {
-    _value_type_nodes->remove(n);
+void Compile::remove_inline_type(Node* n) {
+  assert(n->is_InlineTypeBase(), "unexpected node");
+  if (_inline_type_nodes != NULL && _inline_type_nodes->contains(n)) {
+    _inline_type_nodes->remove(n);
   }
 }
 
-// Does the return value keep otherwise useless value type allocations alive?
+// Does the return value keep otherwise useless inline type allocations alive?
 static bool return_val_keeps_allocations_alive(Node* ret_val) {
   ResourceMark rm;
   Unique_Node_List wq;
@@ -1883,11 +1884,11 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
   bool some_allocations = false;
   for (uint i = 0; i < wq.size(); i++) {
     Node* n = wq.at(i);
-    assert(!n->is_ValueType(), "chain of value type nodes");
+    assert(!n->is_InlineType(), "chain of inline type nodes");
     if (n->outcnt() > 1) {
       // Some other use for the allocation
       return false;
-    } else if (n->is_ValueTypePtr()) {
+    } else if (n->is_InlineTypePtr()) {
       wq.push(n->in(1));
     } else if (n->is_Phi()) {
       for (uint j = 1; j < n->req(); j++) {
@@ -1902,25 +1903,25 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
   return some_allocations;
 }
 
-void Compile::process_value_types(PhaseIterGVN &igvn, bool post_ea) {
-  // Make value types scalar in safepoints
-  for (int i = _value_type_nodes->length()-1; i >= 0; i--) {
-    ValueTypeBaseNode* vt = _value_type_nodes->at(i)->as_ValueTypeBase();
+void Compile::process_inline_types(PhaseIterGVN &igvn, bool post_ea) {
+  // Make inline types scalar in safepoints
+  for (int i = _inline_type_nodes->length()-1; i >= 0; i--) {
+    InlineTypeBaseNode* vt = _inline_type_nodes->at(i)->as_InlineTypeBase();
     vt->make_scalar_in_safepoints(&igvn);
   }
-  // Remove ValueTypePtr nodes only after EA to give scalar replacement a chance
-  // to remove buffer allocations. ValueType nodes are kept until loop opts and
-  // removed via ValueTypeNode::remove_redundant_allocations.
+  // Remove InlineTypePtr nodes only after EA to give scalar replacement a chance
+  // to remove buffer allocations. InlineType nodes are kept until loop opts and
+  // removed via InlineTypeNode::remove_redundant_allocations.
   if (post_ea) {
-    while (_value_type_nodes->length() > 0) {
-      ValueTypeBaseNode* vt = _value_type_nodes->pop()->as_ValueTypeBase();
-      if (vt->is_ValueTypePtr()) {
+    while (_inline_type_nodes->length() > 0) {
+      InlineTypeBaseNode* vt = _inline_type_nodes->pop()->as_InlineTypeBase();
+      if (vt->is_InlineTypePtr()) {
         igvn.replace_node(vt, vt->get_oop());
       }
     }
   }
   // Make sure that the return value does not keep an unused allocation alive
-  if (tf()->returns_value_type_as_fields()) {
+  if (tf()->returns_inline_type_as_fields()) {
     Node* ret = NULL;
     for (uint i = 1; i < root()->req(); i++){
       Node* in = root()->in(i);
@@ -1933,7 +1934,7 @@ void Compile::process_value_types(PhaseIterGVN &igvn, bool post_ea) {
       Node* ret_val = ret->in(TypeFunc::Parms);
       if (igvn.type(ret_val)->isa_oopptr() &&
           return_val_keeps_allocations_alive(ret_val)) {
-        igvn.replace_input_of(ret, TypeFunc::Parms, ValueTypeNode::tagged_klass(igvn.type(ret_val)->value_klass(), igvn));
+        igvn.replace_input_of(ret, TypeFunc::Parms, InlineTypeNode::tagged_klass(igvn.type(ret_val)->inline_klass(), igvn));
         assert(ret_val->outcnt() == 0, "should be dead now");
         igvn.remove_dead_node(ret_val);
       }
@@ -1961,7 +1962,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
   Node_List memnodes;
 
   // Alias index currently shared by all flattened memory accesses
-  int index = get_alias_index(TypeAryPtr::VALUES);
+  int index = get_alias_index(TypeAryPtr::INLINES);
 
   // Find MergeMem nodes and flattened array accesses
   for (uint i = 0; i < wq.size(); i++) {
@@ -1973,7 +1974,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
       } else {
         adr_type = get_adr_type(get_alias_index(n->adr_type()));
       }
-      if (adr_type == TypeAryPtr::VALUES) {
+      if (adr_type == TypeAryPtr::INLINES) {
         memnodes.push(n);
       }
     } else if (n->is_MergeMem()) {
@@ -2000,7 +2001,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
       AliasCacheEntry* ace = &_alias_cache[i];
       if (ace->_adr_type != NULL &&
           ace->_adr_type->isa_aryptr() &&
-          ace->_adr_type->is_aryptr()->elem()->isa_valuetype()) {
+          ace->_adr_type->is_aryptr()->elem()->isa_inlinetype()) {
         ace->_adr_type = NULL;
         ace->_index = (i != 0) ? 0 : AliasIdxTop; // Make sure the NULL adr_type resolves to AliasIdxTop
       }
@@ -2050,7 +2051,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
         // bottom memory, we pop element off the stack one at a
         // time, in reverse order, and move them to the right slice
         // by changing their memory edges.
-        if ((n->is_Phi() && n->adr_type() != TypePtr::BOTTOM) || n->is_Mem() || n->adr_type() == TypeAryPtr::VALUES) {
+        if ((n->is_Phi() && n->adr_type() != TypePtr::BOTTOM) || n->is_Mem() || n->adr_type() == TypeAryPtr::INLINES) {
           assert(!seen.test_set(n->_idx), "");
           // Uses (a load for instance) will need to be moved to the
           // right slice as well and will get a new memory state
@@ -2123,7 +2124,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
                 Node* r = m->in(0);
                 for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
                   const Type* adr_type = get_adr_type(j);
-                  if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_valuetype()) {
+                  if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_inlinetype()) {
                     continue;
                   }
                   Node* phi = new PhiNode(r, Type::MEMORY, get_adr_type(j));
@@ -2153,7 +2154,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
               igvn.replace_input_of(m->in(0), TypeFunc::Control, top());
               for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
                 const Type* adr_type = get_adr_type(j);
-                if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_valuetype()) {
+                if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_inlinetype()) {
                   continue;
                 }
                 MemBarNode* mb = new MemBarCPUOrderNode(this, j, NULL);
@@ -2196,7 +2197,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
       igvn.rehash_node_delayed(current);
       for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
         const Type* adr_type = get_adr_type(j);
-        if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_valuetype()) {
+        if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_inlinetype()) {
           continue;
         }
         current->set_memory_at(j, mm);
@@ -2205,7 +2206,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
     }
     igvn.optimize();
   }
-  print_method(PHASE_SPLIT_VALUES_ARRAY, 2);
+  print_method(PHASE_SPLIT_INLINES_ARRAY, 2);
 }
 
 
@@ -2488,9 +2489,9 @@ void Compile::Optimize() {
     igvn.optimize();
   }
 
-  if (_value_type_nodes->length() > 0) {
+  if (_inline_type_nodes->length() > 0) {
     // Do this once all inlining is over to avoid getting inconsistent debug info
-    process_value_types(igvn);
+    process_inline_types(igvn);
   }
 
   adjust_flattened_array_access_aliases(igvn);
@@ -2527,9 +2528,9 @@ void Compile::Optimize() {
     }
   }
 
-  if (_value_type_nodes->length() > 0) {
-    // Process value types again now that EA might have simplified the graph
-    process_value_types(igvn, /* post_ea= */ true);
+  if (_inline_type_nodes->length() > 0) {
+    // Process inline types again now that EA might have simplified the graph
+    process_inline_types(igvn, /* post_ea= */ true);
   }
 
   // Loop transforms on the ideal graph.  Range Check Elimination,
@@ -2659,6 +2660,7 @@ void Compile::Optimize() {
  }
 
  print_method(PHASE_OPTIMIZE_FINISHED, 2);
+ DEBUG_ONLY(set_phase_optimize_finished();)
 }
 
 //---------------------------- Bitwise operation packing optimization ---------------------------
@@ -3103,8 +3105,7 @@ struct Final_Reshape_Counts : public StackObj {
 
   Final_Reshape_Counts() :
     _call_count(0), _float_count(0), _double_count(0),
-    _java_call_count(0), _inner_loop_count(0),
-    _visited( Thread::current()->resource_area() ) { }
+    _java_call_count(0), _inner_loop_count(0) { }
 
   void inc_call_count  () { _call_count  ++; }
   void inc_float_count () { _float_count ++; }
@@ -3914,10 +3915,10 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     break;
   }
 #ifdef ASSERT
-  case Op_ValueTypePtr:
-  case Op_ValueType: {
+  case Op_InlineTypePtr:
+  case Op_InlineType: {
     n->dump(-1);
-    assert(false, "value type node was not removed");
+    assert(false, "inline type node was not removed");
     break;
   }
 #endif
@@ -3933,8 +3934,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
 // Replacing Opaque nodes with their input in final_graph_reshaping_impl(),
 // requires that the walk visits a node's inputs before visiting the node.
 void Compile::final_graph_reshaping_walk( Node_Stack &nstack, Node *root, Final_Reshape_Counts &frc ) {
-  ResourceArea *area = Thread::current()->resource_area();
-  Unique_Node_List sfpt(area);
+  Unique_Node_List sfpt;
 
   frc._visited.set(root->_idx); // first, mark node as visited
   uint cnt = root->req();
@@ -4296,14 +4296,13 @@ bool Compile::needs_clinit_barrier(ciInstanceKlass* holder, ciMethod* accessing_
 // between Use-Def edges and Def-Use edges in the graph.
 void Compile::verify_graph_edges(bool no_dead_code) {
   if (VerifyGraphEdges) {
-    ResourceArea *area = Thread::current()->resource_area();
-    Unique_Node_List visited(area);
+    Unique_Node_List visited;
     // Call recursive graph walk to check edges
     _root->verify_edges(visited);
     if (no_dead_code) {
       // Now make sure that no visited node is used by an unvisited node.
       bool dead_nodes = false;
-      Unique_Node_List checked(area);
+      Unique_Node_List checked;
       while (visited.size() > 0) {
         Node* n = visited.pop();
         checked.push(n);
@@ -4878,11 +4877,11 @@ Node* Compile::optimize_acmp(PhaseGVN* phase, Node* a, Node* b) {
   const TypeInstPtr* tb = phase->type(b)->isa_instptr();
   if (!EnableValhalla || ta == NULL || tb == NULL ||
       ta->is_zero_type() || tb->is_zero_type() ||
-      !ta->can_be_value_type() || !tb->can_be_value_type()) {
-    // Use old acmp if one operand is null or not a value type
+      !ta->can_be_inline_type() || !tb->can_be_inline_type()) {
+    // Use old acmp if one operand is null or not an inline type
     return new CmpPNode(a, b);
-  } else if (ta->is_valuetypeptr() || tb->is_valuetypeptr()) {
-    // We know that one operand is a value type. Therefore,
+  } else if (ta->is_inlinetypeptr() || tb->is_inlinetypeptr()) {
+    // We know that one operand is an inline type. Therefore,
     // new acmp will only return true if both operands are NULL.
     // Check if both operands are null by or'ing the oops.
     a = phase->transform(new CastP2XNode(NULL, a));

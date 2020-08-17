@@ -793,21 +793,30 @@ public class Check {
 
     /** Check that type is a valid qualifier for a constructor reference expression
      */
-    Type checkConstructorRefType(DiagnosticPosition pos, Type t) {
-        t = checkClassOrArrayType(pos, t);
+    Type checkConstructorRefType(JCExpression expr, Type t) {
+        t = checkClassOrArrayType(expr, t);
         if (t.hasTag(CLASS)) {
             if ((t.tsym.flags() & (ABSTRACT | INTERFACE)) != 0) {
-                log.error(pos, Errors.AbstractCantBeInstantiated(t.tsym));
+                log.error(expr, Errors.AbstractCantBeInstantiated(t.tsym));
                 t = types.createErrorType(t);
             } else if ((t.tsym.flags() & ENUM) != 0) {
-                log.error(pos, Errors.EnumCantBeInstantiated);
+                log.error(expr, Errors.EnumCantBeInstantiated);
                 t = types.createErrorType(t);
             } else {
-                t = checkClassType(pos, t, true);
+                // Projection types may not be mentioned in constructor references
+                if (expr.hasTag(SELECT)) {
+                    JCFieldAccess fieldAccess = (JCFieldAccess) expr;
+                    if (fieldAccess.selected.type.isValue() &&
+                            (fieldAccess.name == names.ref || fieldAccess.name == names.val)) {
+                        log.error(expr, Errors.ProjectionCantBeInstantiated);
+                        t = types.createErrorType(t);
+                    }
+                }
+                t = checkClassType(expr, t, true);
             }
         } else if (t.hasTag(ARRAY)) {
             if (!types.isReifiable(((ArrayType)t).elemtype)) {
-                log.error(pos, Errors.GenericArrayCreation);
+                log.error(expr, Errors.GenericArrayCreation);
                 t = types.createErrorType(t);
             }
         }

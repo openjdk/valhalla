@@ -581,7 +581,7 @@ bool VM_GetOrSetLocal::check_slot_type_lvt(javaVFrame* jvf) {
     slot_type = T_INT;
     break;
   case T_ARRAY:
-  case T_VALUETYPE:
+  case T_INLINE_TYPE:
     slot_type = T_OBJECT;
     break;
   default:
@@ -701,7 +701,7 @@ void VM_GetOrSetLocal::doit() {
       // since the handle will be long gone by the time the deopt
       // happens. The oop stored in the deferred local will be
       // gc'd on its own.
-      if (_type == T_OBJECT || _type == T_VALUETYPE) {
+      if (_type == T_OBJECT || _type == T_INLINE_TYPE) {
         _value.l = cast_from_oop<jobject>(JNIHandles::resolve_external_guard(_value.l));
       }
       // Re-read the vframe so we can see that it is deoptimized
@@ -719,7 +719,7 @@ void VM_GetOrSetLocal::doit() {
       case T_FLOAT:  locals->set_float_at (_index, _value.f); break;
       case T_DOUBLE: locals->set_double_at(_index, _value.d); break;
       case T_OBJECT:
-      case T_VALUETYPE: {
+      case T_INLINE_TYPE: {
         Handle ob_h(Thread::current(), JNIHandles::resolve_external_guard(_value.l));
         locals->set_obj_at (_index, ob_h);
         break;
@@ -741,7 +741,7 @@ void VM_GetOrSetLocal::doit() {
         case T_FLOAT:  _value.f = locals->float_at (_index);   break;
         case T_DOUBLE: _value.d = locals->double_at(_index);   break;
         case T_OBJECT:
-        case T_VALUETYPE: {
+        case T_INLINE_TYPE: {
           // Wrap the oop to be returned in a local JNI handle since
           // oops_do() no longer applies after doit() is finished.
           oop obj = locals->obj_at(_index)();

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -46,10 +46,6 @@ class InterpreterRuntime: AllStatic {
   static void      note_trap_inner(JavaThread* thread, int reason,
                                    const methodHandle& trap_method, int trap_bci, TRAPS);
   static void      note_trap(JavaThread *thread, int reason, TRAPS);
-#ifdef CC_INTERP
-  // Profile traps in C++ interpreter.
-  static void      note_trap(JavaThread* thread, int reason, Method *method, int trap_bci);
-#endif // CC_INTERP
 
   // Inner work method for Interpreter's frequency counter overflow.
   static nmethod* frequency_counter_overflow_inner(JavaThread* thread, address branch_bcp);
@@ -67,7 +63,7 @@ class InterpreterRuntime: AllStatic {
   static void    register_finalizer(JavaThread* thread, oopDesc* obj);
   static void    defaultvalue  (JavaThread* thread, ConstantPool* pool, int index);
   static int     withfield     (JavaThread* thread, ConstantPoolCache* cp_cache);
-  static void    uninitialized_static_value_field(JavaThread* thread, oopDesc* mirror, int offset);
+  static void    uninitialized_static_inline_type_field(JavaThread* thread, oopDesc* mirror, int offset);
   static void    write_heap_copy (JavaThread* thread, oopDesc* value, int offset, oopDesc* rcv);
   static void    read_inlined_field(JavaThread* thread, oopDesc* value, int index, Klass* field_holder);
 
@@ -102,17 +98,6 @@ class InterpreterRuntime: AllStatic {
   static void    member_name_arg_or_null(JavaThread* thread, address dmh, Method* m, address bcp);
 #endif
   static void    throw_pending_exception(JavaThread* thread);
-
-#ifdef CC_INTERP
-  // Profile traps in C++ interpreter.
-  static void    note_nullCheck_trap (JavaThread* thread, Method *method, int trap_bci);
-  static void    note_div0Check_trap (JavaThread* thread, Method *method, int trap_bci);
-  static void    note_rangeCheck_trap(JavaThread* thread, Method *method, int trap_bci);
-  static void    note_classCheck_trap(JavaThread* thread, Method *method, int trap_bci);
-  static void    note_arrayCheck_trap(JavaThread* thread, Method *method, int trap_bci);
-  // A dummy for macros that shall not profile traps.
-  static void    note_no_trap(JavaThread* thread, Method *method, int trap_bci) {}
-#endif // CC_INTERP
 
   static void resolve_from_cache(JavaThread* thread, Bytecodes::Code bytecode);
  private:

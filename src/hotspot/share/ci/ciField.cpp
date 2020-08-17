@@ -101,9 +101,6 @@ ciField::ciField(ciInstanceKlass* klass, int index) :
 
   _name = (ciSymbol*)ciEnv::current(THREAD)->get_symbol(name);
 
-  // this is needed if the field class is not yet loaded.
-  _is_flattenable = _signature->is_Q_signature();
-
   // Get the field's declared holder.
   //
   // Note: we actually create a ciInstanceKlass for this klass,
@@ -215,10 +212,10 @@ ciField::ciField(fieldDescriptor *fd) :
          "bootstrap classes must not create & cache unshared fields");
 }
 
-// Special copy constructor used to flatten value type fields by
-// copying the fields of the value type to a new holder klass.
+// Special copy constructor used to flatten inline type fields by
+// copying the fields of the inline type to a new holder klass.
 ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_final) {
-  assert(field->holder()->is_valuetype(), "should only be used for value type field flattening");
+  assert(field->holder()->is_inlinetype(), "should only be used for inline type field flattening");
   // Set the is_final flag
   jint final = is_final ? JVM_ACC_FINAL : ~JVM_ACC_FINAL;
   AccessFlags flags(field->flags().as_int() & final);
@@ -236,7 +233,6 @@ ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_fi
   _constant_value = field->_constant_value;
   assert(!field->is_flattened(), "field must not be flattened");
   _is_flattened = false;
-  _is_flattenable = field->is_flattenable();
 }
 
 static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
@@ -256,10 +252,13 @@ static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
   if (holder->is_hidden() || holder->is_unsafe_anonymous())
     return true;
   // Trust final fields in inline type buffers
-  if (holder->is_valuetype())
+  if (holder->is_inlinetype())
     return true;
   // Trust final fields in all boxed classes
   if (holder->is_box_klass())
+    return true;
+  // Trust final fields in records
+  if (holder->is_record())
     return true;
   // Trust final fields in String
   if (holder->name() == ciSymbol::java_lang_String())
@@ -283,7 +282,6 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   assert(field_holder != NULL, "null field_holder");
   _holder = CURRENT_ENV->get_instance_klass(field_holder);
   _is_flattened = fd->is_inlined();
-  _is_flattenable = fd->is_inline_type();
 
   // Check to see if the field is constant.
   Klass* k = _holder->get_Klass();
@@ -462,7 +460,6 @@ void ciField::print() {
     tty->print(" constant_value=");
     _constant_value.print();
   }
-  tty->print(" is_flattenable=%s", bool_to_str(_is_flattenable));
   tty->print(" is_flattened=%s", bool_to_str(_is_flattened));
   tty->print(">");
 }

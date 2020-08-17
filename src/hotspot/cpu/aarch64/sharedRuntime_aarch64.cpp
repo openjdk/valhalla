@@ -291,7 +291,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     case T_OBJECT:
     case T_ARRAY:
     case T_ADDRESS:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
       if (int_args < Argument::n_int_register_parameters_j) {
         regs[i].set2(INT_ArgReg[int_args++]->as_VMReg());
       } else {
@@ -375,7 +375,7 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *re
     case T_ADDRESS:
       // Should T_METADATA be added to java_calling_convention as well ?
     case T_METADATA:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
       if (int_args < SharedRuntime::java_return_convention_max_int) {
         regs[i].set2(INT_ArgReg[int_args]->as_VMReg());
         int_args ++;
@@ -439,9 +439,9 @@ static void patch_callers_callsite(MacroAssembler *masm) {
   __ bind(L);
 }
 
-// For each value type argument, sig includes the list of fields of
-// the value type. This utility function computes the number of
-// arguments for the call if value types are passed by reference (the
+// For each inline type argument, sig includes the list of fields of
+// the inline type. This utility function computes the number of
+// arguments for the call if inline types are passed by reference (the
 // calling convention the interpreter expects).
 static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_extended) {
   int total_args_passed = 0;
@@ -450,23 +450,23 @@ static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_exte
        BasicType bt = sig_extended->at(i)._bt;
        if (SigEntry::is_reserved_entry(sig_extended, i)) {
          // Ignore reserved entry
-       } else if (bt == T_VALUETYPE) {
-         // In sig_extended, a value type argument starts with:
-         // T_VALUETYPE, followed by the types of the fields of the
-         // value type and T_VOID to mark the end of the value
-         // type. Value types are flattened so, for instance, in the
-         // case of a value type with an int field and a value type
+       } else if (bt == T_INLINE_TYPE) {
+         // In sig_extended, an inline type argument starts with:
+         // T_INLINE_TYPE, followed by the types of the fields of the
+         // inline type and T_VOID to mark the end of the value
+         // type. Inline types are flattened so, for instance, in the
+         // case of an inline type with an int field and an inline type
          // field that itself has 2 fields, an int and a long:
-         // T_VALUETYPE T_INT T_VALUETYPE T_INT T_LONG T_VOID (second
-         // slot for the T_LONG) T_VOID (inner T_VALUETYPE) T_VOID
-         // (outer T_VALUETYPE)
+         // T_INLINE_TYPE T_INT T_INLINE_TYPE T_INT T_LONG T_VOID (second
+         // slot for the T_LONG) T_VOID (inner T_INLINE_TYPE) T_VOID
+         // (outer T_INLINE_TYPE)
          total_args_passed++;
          int vt = 1;
          do {
            i++;
            BasicType bt = sig_extended->at(i)._bt;
            BasicType prev_bt = sig_extended->at(i-1)._bt;
-           if (bt == T_VALUETYPE) {
+           if (bt == T_INLINE_TYPE) {
              vt++;
            } else if (bt == T_VOID &&
                       prev_bt != T_LONG &&
@@ -488,7 +488,7 @@ static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_exte
 
 static void gen_c2i_adapter_helper(MacroAssembler* masm, BasicType bt, const VMRegPair& reg_pair, int extraspace, const Address& to) {
 
-    assert(bt != T_VALUETYPE || !InlineTypePassFieldsAsArgs, "no inline type here");
+    assert(bt != T_INLINE_TYPE || !InlineTypePassFieldsAsArgs, "no inline type here");
 
     // Say 4 args:
     // i   st_off
@@ -548,7 +548,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                             OopMapSet* oop_maps,
                             int& frame_complete,
                             int& frame_size_in_words,
-                            bool alloc_value_receiver) {
+                            bool alloc_inline_receiver) {
 
   // Before we get into the guts of the C2I adapter, see if we should be here
   // at all.  We've come from compiled code and are attempting to jump to the
@@ -559,17 +559,17 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   __ bind(skip_fixup);
 
-  bool has_value_argument = false;
+  bool has_inline_argument = false;
 
   if (InlineTypePassFieldsAsArgs) {
       // Is there an inline type argument?
-     for (int i = 0; i < sig_extended->length() && !has_value_argument; i++) {
-       has_value_argument = (sig_extended->at(i)._bt == T_VALUETYPE);
+     for (int i = 0; i < sig_extended->length() && !has_inline_argument; i++) {
+       has_inline_argument = (sig_extended->at(i)._bt == T_INLINE_TYPE);
      }
-     if (has_value_argument) {
-      // There is at least a value type argument: we're coming from
-      // compiled code so we have no buffers to back the value
-      // types. Allocate the buffers here with a runtime call.
+     if (has_inline_argument) {
+      // There is at least an inline type argument: we're coming from
+      // compiled code so we have no buffers to back the inline types
+      // Allocate the buffers here with a runtime call.
       OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
 
       frame_complete = __ offset();
@@ -579,9 +579,9 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
       __ mov(c_rarg0, rthread);
       __ mov(c_rarg1, r1);
-      __ mov(c_rarg2, (int64_t)alloc_value_receiver);
+      __ mov(c_rarg2, (int64_t)alloc_inline_receiver);
 
-      __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_value_types)));
+      __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_inline_types)));
       __ blr(rscratch1);
 
       oop_maps->add_gc_map((int)(__ pc() - start), map);
@@ -631,7 +631,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     // offset to start parameters
     int st_off   = (total_args_passed - next_arg_int - 1) * Interpreter::stackElementSize;
 
-    if (!InlineTypePassFieldsAsArgs || bt != T_VALUETYPE) {
+    if (!InlineTypePassFieldsAsArgs || bt != T_INLINE_TYPE) {
 
             if (SigEntry::is_reserved_entry(sig_extended, next_arg_comp)) {
                continue; // Ignore reserved entry
@@ -651,22 +651,22 @@ static void gen_c2i_adapter(MacroAssembler *masm,
    } else {
        ignored++;
       // get the buffer from the just allocated pool of buffers
-      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_VALUETYPE);
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_INLINE_TYPE);
       __ load_heap_oop(rscratch1, Address(r10, index));
       next_vt_arg++;
       next_arg_int++;
       int vt = 1;
       // write fields we get from compiled code in registers/stack
-      // slots to the buffer: we know we are done with that value type
+      // slots to the buffer: we know we are done with that inline type
       // argument when we hit the T_VOID that acts as an end of value
-      // type delimiter for this value type. Value types are flattened
-      // so we might encounter embedded value types. Each entry in
+      // type delimiter for this inline type. Inline types are flattened
+      // so we might encounter embedded inline types. Each entry in
       // sig_extended contains a field offset in the buffer.
       do {
         next_arg_comp++;
         BasicType bt = sig_extended->at(next_arg_comp)._bt;
         BasicType prev_bt = sig_extended->at(next_arg_comp - 1)._bt;
-        if (bt == T_VALUETYPE) {
+        if (bt == T_INLINE_TYPE) {
           vt++;
           ignored++;
         } else if (bt == T_VOID && prev_bt != T_LONG && prev_bt != T_DOUBLE) {
@@ -690,8 +690,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   }
 
-// If a value type was allocated and initialized, apply post barrier to all oop fields
-  if (has_value_argument && has_oop_field) {
+// If an inline type was allocated and initialized, apply post barrier to all oop fields
+  if (has_inline_argument && has_oop_field) {
     __ push(r13); // save senderSP
     __ push(r1); // save callee
     // Allocate argument register save area
@@ -803,7 +803,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
   for (int i = 0; i < total_args_passed; i++) {
     BasicType bt = sig->at(i)._bt;
 
-    assert(bt != T_VALUETYPE, "i2c adapter doesn't unpack value args");
+    assert(bt != T_INLINE_TYPE, "i2c adapter doesn't unpack inline typ args");
     if (bt == T_VOID) {
       assert(i > 0 && (sig->at(i - 1)._bt == T_LONG || sig->at(i - 1)._bt == T_DOUBLE), "missing half");
       continue;
@@ -954,7 +954,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   int frame_size_in_words = 0;
 
   // Scalarized c2i adapter with non-scalarized receiver (i.e., don't pack receiver)
-  address c2i_value_ro_entry = __ pc();
+  address c2i_inline_ro_entry = __ pc();
   if (regs_cc != regs_cc_ro) {
     Label unused;
     gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
@@ -992,18 +992,18 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
   gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
 
-  address c2i_unverified_value_entry = c2i_unverified_entry;
+  address c2i_unverified_inline_entry = c2i_unverified_entry;
 
  // Non-scalarized c2i adapter
-  address c2i_value_entry = c2i_entry;
+  address c2i_inline_entry = c2i_entry;
   if (regs != regs_cc) {
-    Label value_entry_skip_fixup;
-    c2i_unverified_value_entry = __ pc();
-    gen_inline_cache_check(masm, value_entry_skip_fixup);
+    Label inline_entry_skip_fixup;
+    c2i_unverified_inline_entry = __ pc();
+    gen_inline_cache_check(masm, inline_entry_skip_fixup);
 
-    c2i_value_entry = __ pc();
+    c2i_inline_entry = __ pc();
     Label unused;
-    gen_c2i_adapter(masm, sig, regs, value_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
+    gen_c2i_adapter(masm, sig, regs, inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
   }
 
   __ flush();
@@ -1014,7 +1014,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   bool caller_must_gc_arguments = (regs != regs_cc);
   new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words + 10, oop_maps, caller_must_gc_arguments);
 
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry, c2i_unverified_value_entry, c2i_no_clinit_check_entry);
+  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry, c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
 }
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
@@ -1057,7 +1057,7 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
         // fall through
       case T_OBJECT:
       case T_ARRAY:
-      case T_VALUETYPE:
+      case T_INLINE_TYPE:
       case T_ADDRESS:
       case T_METADATA:
         if (int_args < Argument::n_int_register_parameters_c) {
@@ -1909,7 +1909,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
           int_args++;
           break;
         }
-      case T_VALUETYPE:
+      case T_INLINE_TYPE:
       case T_OBJECT:
         assert(!is_critical_native, "no oop arguments");
         object_move(masm, map, oop_handle_offset, stack_slots, in_regs[i], out_regs[c_arg],
@@ -2097,7 +2097,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Result is in v0 we'll save as needed
     break;
   case T_ARRAY:                 // Really a handle
-  case T_VALUETYPE:
+  case T_INLINE_TYPE:
   case T_OBJECT:                // Really a handle
       break; // can't de-handlize until after safepoint check
   case T_VOID: break;
@@ -3324,8 +3324,8 @@ void OptoRuntime::generate_exception_blob() {
   _exception_blob =  ExceptionBlob::create(&buffer, oop_maps, SimpleRuntimeFrame::framesize >> 1);
 }
 
-BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const ValueKlass* vk) {
-  BufferBlob* buf = BufferBlob::create("value types pack/unpack", 16 * K);
+BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
+  BufferBlob* buf = BufferBlob::create("inline types pack/unpack", 16 * K);
   CodeBuffer buffer(buf);
   short buffer_locs[20];
   buffer.insts()->initialize_shared_locs((relocInfo*)buffer_locs,
@@ -3342,7 +3342,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       continue;
     }
     if (bt == T_VOID) {
@@ -3389,7 +3389,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       continue;
     }
     if (bt == T_VOID) {
@@ -3426,6 +3426,6 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
 
   __ flush();
 
-  return BufferedValueTypeBlob::create(&buffer, pack_fields_off, unpack_fields_off);
+  return BufferedInlineTypeBlob::create(&buffer, pack_fields_off, unpack_fields_off);
 }
 #endif // COMPILER2

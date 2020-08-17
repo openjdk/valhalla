@@ -866,17 +866,26 @@ public class ClassWriter extends ClassFile {
      * Write NestMembers attribute (if needed)
      */
     int writeNestMembersIfNeeded(ClassSymbol csym) {
-        ListBuffer<ClassSymbol> nested = new ListBuffer<>();
-        listNested(csym, nested);
-        Set<ClassSymbol> nestedUnique = new LinkedHashSet<>(nested);
-        if (csym.owner.kind == PCK && !nestedUnique.isEmpty()) {
-            int alenIdx = writeAttr(names.NestMembers);
-            databuf.appendChar(nestedUnique.size());
-            for (ClassSymbol s : nestedUnique) {
-                databuf.appendChar(poolWriter.putClass(s));
+        Set<ClassSymbol> nestedUnique = new LinkedHashSet<>();
+        if (csym.owner.kind == PCK) {
+            if (csym.isValue()) {
+                // reference projection is the host
+            } else if (csym.isReferenceProjection()) {
+                ClassSymbol valueProjection = csym.valueProjection();
+                nestedUnique.add(valueProjection);
+                listNested(valueProjection, nestedUnique);
+            } else {
+                listNested(csym, nestedUnique);
             }
-            endAttr(alenIdx);
-            return 1;
+            if (!nestedUnique.isEmpty()) {
+                int alenIdx = writeAttr(names.NestMembers);
+                databuf.appendChar(nestedUnique.size());
+                for (ClassSymbol s : nestedUnique) {
+                    databuf.appendChar(poolWriter.putClass(s));
+                }
+                endAttr(alenIdx);
+                return 1;
+            }
         }
         return 0;
     }
@@ -885,16 +894,20 @@ public class ClassWriter extends ClassFile {
      * Write NestHost attribute (if needed)
      */
     int writeNestHostIfNeeded(ClassSymbol csym) {
-        if (csym.owner.kind != PCK) {
+        if (csym.owner.kind != PCK || csym.isValue()) {
             int alenIdx = writeAttr(names.NestHost);
-            databuf.appendChar(poolWriter.putClass(csym.outermostClass()));
+            ClassSymbol outerMost = csym.outermostClass();
+            if (outerMost.isValue()) {
+                outerMost = outerMost.referenceProjection();
+            }
+            databuf.appendChar(poolWriter.putClass(outerMost));
             endAttr(alenIdx);
             return 1;
         }
         return 0;
     }
 
-    private void listNested(Symbol sym, ListBuffer<ClassSymbol> seen) {
+    private void listNested(Symbol sym, Set<ClassSymbol> seen) {
         if (sym.kind != TYP) return;
         ClassSymbol csym = (ClassSymbol)sym;
         if (csym.owner.kind != PCK) {
@@ -1559,7 +1572,7 @@ public class ClassWriter extends ClassFile {
         } else {
             flags = adjustFlags(c.flags() & ~DEFAULT);
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
-            flags = flags & (ClassFlags | ACC_VALUE) & ~STRICTFP;
+            flags = flags & (ClassFlags | ACC_INLINE) & ~STRICTFP;
             if ((flags & INTERFACE) == 0) flags |= ACC_SUPER;
         }
 
@@ -1737,7 +1750,7 @@ public class ClassWriter extends ClassFile {
         if ((flags & DEFAULT) != 0)
             result &= ~ABSTRACT;
         if ((flags & VALUE) != 0)
-            result |= ACC_VALUE;
+            result |= ACC_INLINE;
         return result;
     }
 

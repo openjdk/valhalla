@@ -123,7 +123,7 @@ namespace AccessInternal {
                                      arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                                      size_t length);
     typedef void (*clone_func_t)(oop src, oop dst, size_t size);
-    typedef void (*value_copy_func_t)(void* src, void* dst, ValueKlass* md);
+    typedef void (*value_copy_func_t)(void* src, void* dst, InlineKlass* md);
     typedef oop (*resolve_func_t)(oop obj);
   };
 
@@ -403,7 +403,7 @@ public:
 
   static void clone(oop src, oop dst, size_t size);
 
-  static void value_copy(void* src, void* dst, ValueKlass* md);
+  static void value_copy(void* src, void* dst, InlineKlass* md);
 
   static oop resolve(oop obj) { return obj; }
 };
@@ -592,9 +592,9 @@ namespace AccessInternal {
     typedef typename AccessFunction<decorators, T, BARRIER_VALUE_COPY>::type func_t;
     static func_t _value_copy_func;
 
-    static void value_copy_init(void* src, void* dst, ValueKlass* md);
+    static void value_copy_init(void* src, void* dst, InlineKlass* md);
 
-    static inline void value_copy(void* src, void* dst, ValueKlass* md) {
+    static inline void value_copy(void* src, void* dst, InlineKlass* md) {
       _value_copy_func(src, dst, md);
     }
   };
@@ -979,7 +979,7 @@ namespace AccessInternal {
     template <DecoratorSet decorators>
     inline static typename EnableIf<
       HasDecorator<decorators, AS_RAW>::value>::type
-    value_copy(void* src, void* dst, ValueKlass* md) {
+    value_copy(void* src, void* dst, InlineKlass* md) {
       typedef RawAccessBarrier<decorators & RAW_DECORATOR_MASK> Raw;
       Raw::value_copy(src, dst, md);
     }
@@ -987,7 +987,7 @@ namespace AccessInternal {
     template <DecoratorSet decorators>
     inline static typename EnableIf<
       !HasDecorator<decorators, AS_RAW>::value>::type
-      value_copy(void* src, void* dst, ValueKlass* md) {
+      value_copy(void* src, void* dst, InlineKlass* md) {
       const DecoratorSet expanded_decorators = decorators;
       RuntimeDispatch<expanded_decorators, void*, BARRIER_VALUE_COPY>::value_copy(src, dst, md);
     }
@@ -1300,7 +1300,7 @@ namespace AccessInternal {
   }
 
   template <DecoratorSet decorators>
-  inline void value_copy(void* src, void* dst, ValueKlass* md) {
+  inline void value_copy(void* src, void* dst, InlineKlass* md) {
     const DecoratorSet expanded_decorators = DecoratorFixup<decorators>::value;
     PreRuntimeDispatch::value_copy<expanded_decorators>(src, dst, md);
   }

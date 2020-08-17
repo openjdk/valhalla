@@ -221,7 +221,7 @@ public:
   // or checkcast, get the referenced klass.
   ciKlass* get_klass(bool& will_link);
   int get_klass_index() const;
-  bool is_klass_never_null() const;
+  bool is_inline_klass() const;
 
   // If this bytecode is one of the ldc variants, get the referenced
   // constant.  Do not attempt to resolve it, since that would require
@@ -285,14 +285,6 @@ public:
       return _sig->return_type();
     } else {
       return _sig->type_at(_pos);
-    }
-  }
-
-  bool is_never_null() {
-    if (at_return_type()) {
-      return _sig->returns_never_null();
-    } else {
-      return _sig->is_never_null_at(_pos);
     }
   }
 

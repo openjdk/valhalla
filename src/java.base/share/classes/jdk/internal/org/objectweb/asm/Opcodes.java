@@ -342,6 +342,7 @@ public interface Opcodes {
     int ACC_VARARGS = 0x0080; // method
     int ACC_TRANSIENT = 0x0080; // field
     int ACC_NATIVE = 0x0100; // method
+    int ACC_INLINE = 0x0100; // inline class
     int ACC_INTERFACE = 0x0200; // class
     int ACC_ABSTRACT = 0x0400; // class, method
     int ACC_STRICT = 0x0800; // method

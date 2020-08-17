@@ -55,6 +55,7 @@
 #include "classfile/packageEntry.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "gc/shared/oopStorageSet.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
@@ -63,7 +64,7 @@
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/oopHandle.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/weakHandle.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
@@ -374,11 +375,11 @@ void ClassLoaderData::classes_do(void f(InstanceKlass*)) {
   }
 }
 
-void ClassLoaderData::value_classes_do(void f(ValueKlass*)) {
+void ClassLoaderData::inline_classes_do(void f(InlineKlass*)) {
   // Lock-free access requires load_acquire
   for (Klass* k = Atomic::load_acquire(&_klasses); k != NULL; k = k->next_link()) {
     if (k->is_inline_klass()) {
-      f(ValueKlass::cast(k));
+      f(InlineKlass::cast(k));
     }
     assert(k != k->next_link(), "no loops!");
   }
@@ -498,7 +499,7 @@ void ClassLoaderData::add_class(Klass* k, bool publicize /* true */) {
 void ClassLoaderData::initialize_holder(Handle loader_or_mirror) {
   if (loader_or_mirror() != NULL) {
     assert(_holder.is_null(), "never replace holders");
-    _holder = WeakHandle<vm_weak_data>::create(loader_or_mirror);
+    _holder = WeakHandle(OopStorageSet::vm_weak(), loader_or_mirror);
   }
 }
 
@@ -550,7 +551,7 @@ void ClassLoaderData::unload() {
   // if they are not already on the _klasses list.
   free_deallocate_list_C_heap_structures();
 
-  value_classes_do(ValueKlass::cleanup);
+  inline_classes_do(InlineKlass::cleanup);
 
   // Clean up class dependencies and tell serviceability tools
   // these classes are unloading.  Must be called
@@ -667,7 +668,7 @@ ClassLoaderData::~ClassLoaderData() {
   ClassLoaderDataGraph::dec_instance_classes(cl.instance_class_released());
 
   // Release the WeakHandle
-  _holder.release();
+  _holder.release(OopStorageSet::vm_weak());
 
   // Release C heap allocated hashtable for all the packages.
   if (_packages != NULL) {
@@ -849,7 +850,7 @@ void ClassLoaderData::free_deallocate_list() {
         if (!((Klass*)m)->is_inline_klass()) {
           MetadataFactory::free_metadata(this, (InstanceKlass*)m);
         } else {
-          MetadataFactory::free_metadata(this, (ValueKlass*)m);
+          MetadataFactory::free_metadata(this, (InlineKlass*)m);
         }
       } else {
         ShouldNotReachHere();

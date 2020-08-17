@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -180,8 +180,8 @@ address StubRoutines::_safefetchN_entry                  = NULL;
 address StubRoutines::_safefetchN_fault_pc               = NULL;
 address StubRoutines::_safefetchN_continuation_pc        = NULL;
 
-address StubRoutines::_load_value_type_fields_in_regs = NULL;
-address StubRoutines::_store_value_type_fields_to_buf = NULL;
+address StubRoutines::_load_inline_type_fields_in_regs = NULL;
+address StubRoutines::_store_inline_type_fields_to_buf = NULL;
 
 // Initialization
 //
@@ -520,7 +520,7 @@ address StubRoutines::select_fill_function(BasicType t, bool aligned, const char
   case T_DOUBLE:
   case T_LONG:
   case T_ARRAY:
-  case T_VALUETYPE:
+  case T_INLINE_TYPE:
   case T_OBJECT:
   case T_NARROWOOP:
   case T_NARROWKLASS:

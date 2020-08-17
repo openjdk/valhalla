@@ -134,8 +134,8 @@ private:
   ciMethod*  get_method_by_index(const constantPoolHandle& cpool,
                                  int method_index, Bytecodes::Code bc,
                                  ciInstanceKlass* loading_klass);
-  bool       is_klass_never_null(const constantPoolHandle& cpool,
-                                 int klass_index);
+  bool       is_inline_klass(const constantPoolHandle& cpool,
+                             int klass_index);
 
   // Implementation methods for loading and constant pool access.
   ciKlass* get_klass_by_name_impl(ciKlass* accessing_klass,
@@ -200,9 +200,9 @@ private:
     if (o == NULL) return NULL;
     return get_object(o)->as_instance();
   }
-  ciValueArrayKlass* get_value_array_klass(Klass* o) {
+  ciFlatArrayKlass* get_flat_array_klass(Klass* o) {
     if (o == NULL) return NULL;
-    return get_metadata(o)->as_value_array_klass();
+    return get_metadata(o)->as_flat_array_klass();
   }
   ciObjArrayKlass* get_obj_array_klass(Klass* o) {
     if (o == NULL) return NULL;
@@ -475,10 +475,6 @@ public:
   void dump_replay_data(outputStream* out);
   void dump_replay_data_unsafe(outputStream* out);
   void dump_compile_data(outputStream* out);
-
-  ciWrapper* make_never_null_wrapper(ciType* type) {
-    return _factory->make_never_null_wrapper(type);
-  }
 };
 
 #endif // SHARE_CI_CIENV_HPP

@@ -31,7 +31,7 @@
 #include "oops/markWord.hpp"
 #include "oops/methodData.hpp"
 #include "oops/method.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
@@ -1160,18 +1160,18 @@ void InterpreterMacroAssembler::remove_activation(
     movptr(rdi, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
     movptr(rdi, Address(rdi, Method::const_offset()));
     load_unsigned_byte(rdi, Address(rdi, ConstMethod::result_type_offset()));
-    cmpl(rdi, T_VALUETYPE);
+    cmpl(rdi, T_INLINE_TYPE);
     jcc(Assembler::notEqual, skip);
 
-    // We are returning a value type, load its fields into registers
+    // We are returning an inline type, load its fields into registers
 #ifndef _LP64
-    super_call_VM_leaf(StubRoutines::load_value_type_fields_in_regs());
+    super_call_VM_leaf(StubRoutines::load_inline_type_fields_in_regs());
 #else
-    // Load fields from a buffered value with a value class specific handler
+    // Load fields from a buffered value with an inline class specific handler
     Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
     load_klass(rdi, rax, tmp_load_klass);
-    movptr(rdi, Address(rdi, InstanceKlass::adr_valueklass_fixed_block_offset()));
-    movptr(rdi, Address(rdi, ValueKlass::unpack_handler_offset()));
+    movptr(rdi, Address(rdi, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+    movptr(rdi, Address(rdi, InlineKlass::unpack_handler_offset()));
 
     testptr(rdi, rdi);
     jcc(Assembler::equal, skip);
@@ -1227,10 +1227,10 @@ void InterpreterMacroAssembler::read_inlined_field(Register holder_klass,
   // Grap the inline field klass
   push(holder_klass);
   const Register field_klass = holder_klass;
-  get_value_field_klass(holder_klass, field_index, field_klass);
+  get_inline_type_field_klass(holder_klass, field_index, field_klass);
 
   //check for empty value klass
-  test_klass_is_empty_value(field_klass, dst_temp, empty_value);
+  test_klass_is_empty_inline_type(field_klass, dst_temp, empty_value);
 
   // allocate buffer
   push(obj); // save holder
@@ -1248,7 +1248,7 @@ void InterpreterMacroAssembler::read_inlined_field(Register holder_klass,
   jmp(done);
 
   bind(empty_value);
-  get_empty_value_oop(field_klass, dst_temp, obj);
+  get_empty_inline_type_oop(field_klass, dst_temp, obj);
   pop(holder_klass);
   jmp(done);
 
@@ -1277,7 +1277,7 @@ void InterpreterMacroAssembler::read_flattened_element(Register array, Register 
   movptr(elem_klass, Address(array_klass, ArrayKlass::element_klass_offset()));
 
   //check for empty value klass
-  test_klass_is_empty_value(elem_klass, dst_temp, empty_value);
+  test_klass_is_empty_inline_type(elem_klass, dst_temp, empty_value);
 
   // calc source into "array_klass" and free up some regs
   const Register src = array_klass;
@@ -1293,7 +1293,7 @@ void InterpreterMacroAssembler::read_flattened_element(Register array, Register 
   jmp(done);
 
   bind(empty_value);
-  get_empty_value_oop(elem_klass, dst_temp, obj);
+  get_empty_inline_type_oop(elem_klass, dst_temp, obj);
   jmp(done);
 
   bind(alloc_failed);

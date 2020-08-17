@@ -304,7 +304,7 @@ class StubGenerator: public StubCodeGenerator {
     return_address = __ pc();
 
     // store result depending on type (everything that is not
-    // T_OBJECT, T_VALUETYPE, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
+    // T_OBJECT, T_INLINE_TYPE, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
     // n.b. this assumes Java returns an integral result in r0
     // and a floating result in j_farg0
     __ ldr(j_rarg2, result);
@@ -312,7 +312,7 @@ class StubGenerator: public StubCodeGenerator {
     __ ldr(j_rarg1, result_type);
     __ cmp(j_rarg1, (u1)T_OBJECT);
     __ br(Assembler::EQ, is_long);
-    __ cmp(j_rarg1, (u1)T_VALUETYPE);
+    __ cmp(j_rarg1, (u1)T_INLINE_TYPE);
     __ br(Assembler::EQ, is_value);
     __ cmp(j_rarg1, (u1)T_LONG);
     __ br(Assembler::EQ, is_long);
@@ -375,8 +375,8 @@ class StubGenerator: public StubCodeGenerator {
       // Initialize pre-allocated buffer
       __ mov(r1, r0);
       __ andr(r1, r1, -2);
-      __ ldr(r1, Address(r1, InstanceKlass::adr_valueklass_fixed_block_offset()));
-      __ ldr(r1, Address(r1, ValueKlass::pack_handler_offset()));
+      __ ldr(r1, Address(r1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      __ ldr(r1, Address(r1, InlineKlass::pack_handler_offset()));
       __ ldr(r0, Address(j_rarg2, 0));
       __ blr(r1);
       __ b(exit);
@@ -5715,9 +5715,9 @@ class StubGenerator: public StubCodeGenerator {
 
 
   // Call here from the interpreter or compiled code to either load
-  // multiple returned values from the value type instance being
+  // multiple returned values from the inline type instance being
   // returned to registers or to store returned values to a newly
-  // allocated value type instance.
+  // allocated inline type instance.
   address generate_return_value_stub(address destination, const char* name, bool has_res) {
 
     // Information about frame layout at time of blocking runtime call.
@@ -5942,10 +5942,10 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_dcos = generate_dsin_dcos(/* isCos = */ true);
     }
 
-    StubRoutines::_load_value_type_fields_in_regs =
-         generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_value_type_fields_in_regs), "load_value_type_fields_in_regs", false);
-    StubRoutines::_store_value_type_fields_to_buf =
-         generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_value_type_fields_to_buf), "store_value_type_fields_to_buf", true);
+    StubRoutines::_load_inline_type_fields_in_regs =
+         generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_inline_type_fields_in_regs), "load_inline_type_fields_in_regs", false);
+    StubRoutines::_store_inline_type_fields_to_buf =
+         generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf), "store_inline_type_fields_to_buf", true);
 
     // Safefetch stubs.
     generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,

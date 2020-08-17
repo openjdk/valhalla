@@ -36,13 +36,13 @@
 #include "logging/logStream.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
+#include "oops/flatArrayKlass.hpp"
+#include "oops/flatArrayOop.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/valueArrayOop.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
 #include "prims/unsafe.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/globals.hpp"
@@ -285,7 +285,7 @@ static bool get_field_descriptor(oop p, jlong offset, fieldDescriptor* fd) {
 }
 #endif // ASSERT
 
-static void assert_and_log_unsafe_value_access(oop p, jlong offset, ValueKlass* vk) {
+static void assert_and_log_unsafe_value_access(oop p, jlong offset, InlineKlass* vk) {
   Klass* k = p->klass();
 #ifdef ASSERT
   if (k->is_instance_klass()) {
@@ -301,20 +301,20 @@ static void assert_and_log_unsafe_value_access(oop p, jlong offset, ValueKlass* 
                               p->klass()->external_name(), offset);
       }
     }
-  } else if (k->is_valueArray_klass()) {
-    ValueArrayKlass* vak = ValueArrayKlass::cast(k);
+  } else if (k->is_flatArray_klass()) {
+    FlatArrayKlass* vak = FlatArrayKlass::cast(k);
     int index = (offset - vak->array_header_in_bytes()) / vak->element_byte_size();
-    address dest = (address)((valueArrayOop)p)->value_at_addr(index, vak->layout_helper());
+    address dest = (address)((flatArrayOop)p)->value_at_addr(index, vak->layout_helper());
     assert(dest == (cast_from_oop<address>(p) + offset), "invalid offset");
   } else {
     ShouldNotReachHere();
   }
 #endif // ASSERT
   if (log_is_enabled(Trace, valuetypes)) {
-    if (k->is_valueArray_klass()) {
-      ValueArrayKlass* vak = ValueArrayKlass::cast(k);
+    if (k->is_flatArray_klass()) {
+      FlatArrayKlass* vak = FlatArrayKlass::cast(k);
       int index = (offset - vak->array_header_in_bytes()) / vak->element_byte_size();
-      address dest = (address)((valueArrayOop)p)->value_at_addr(index, vak->layout_helper());
+      address dest = (address)((flatArrayOop)p)->value_at_addr(index, vak->layout_helper());
       log_trace(valuetypes)("%s array type %s index %d element size %d offset " SIZE_FORMAT_HEX " at " INTPTR_FORMAT,
                             p->klass()->external_name(), vak->external_name(),
                             index, vak->element_byte_size(), offset, p2i(dest));
@@ -345,18 +345,18 @@ UNSAFE_ENTRY(void, Unsafe_PutReference(JNIEnv *env, jobject unsafe, jobject obj,
 
 UNSAFE_ENTRY(jlong, Unsafe_ValueHeaderSize(JNIEnv *env, jobject unsafe, jclass c)) {
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
-  ValueKlass* vk = ValueKlass::cast(k);
+  InlineKlass* vk = InlineKlass::cast(k);
   return vk->first_field_offset();
 } UNSAFE_END
 
 UNSAFE_ENTRY(jboolean, Unsafe_IsFlattenedArray(JNIEnv *env, jobject unsafe, jclass c)) {
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(c));
-  return k->is_valueArray_klass();
+  return k->is_flatArray_klass();
 } UNSAFE_END
 
 UNSAFE_ENTRY(jobject, Unsafe_UninitializedDefaultValue(JNIEnv *env, jobject unsafe, jclass vc)) {
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(vc));
-  ValueKlass* vk = ValueKlass::cast(k);
+  InlineKlass* vk = InlineKlass::cast(k);
   oop v = vk->default_value();
   return JNIHandles::make_local(env, v);
 } UNSAFE_END
@@ -364,7 +364,7 @@ UNSAFE_ENTRY(jobject, Unsafe_UninitializedDefaultValue(JNIEnv *env, jobject unsa
 UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jclass vc)) {
   oop base = JNIHandles::resolve(obj);
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(vc));
-  ValueKlass* vk = ValueKlass::cast(k);
+  InlineKlass* vk = InlineKlass::cast(k);
   assert_and_log_unsafe_value_access(base, offset, vk);
   Handle base_h(THREAD, base);
   oop v = vk->read_inlined_field(base_h(), offset, CHECK_NULL);
@@ -374,7 +374,7 @@ UNSAFE_ENTRY(jobject, Unsafe_GetValue(JNIEnv *env, jobject unsafe, jobject obj, 
 UNSAFE_ENTRY(void, Unsafe_PutValue(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jclass vc, jobject value)) {
   oop base = JNIHandles::resolve(obj);
   Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(vc));
-  ValueKlass* vk = ValueKlass::cast(k);
+  InlineKlass* vk = InlineKlass::cast(k);
   assert(!base->is_inline_type() || base->mark().is_larval_state(), "must be an object instance or a larval inline type");
   assert_and_log_unsafe_value_access(base, offset, vk);
   oop v = JNIHandles::resolve(value);
@@ -385,9 +385,9 @@ UNSAFE_ENTRY(jobject, Unsafe_MakePrivateBuffer(JNIEnv *env, jobject unsafe, jobj
   oop v = JNIHandles::resolve_non_null(value);
   assert(v->is_inline_type(), "must be an inline type instance");
   Handle vh(THREAD, v);
-  ValueKlass* vk = ValueKlass::cast(v->klass());
-  instanceOop new_value = vk->allocate_instance(CHECK_NULL);
-  vk->value_copy_oop_to_new_oop(vh(),  new_value);
+  InlineKlass* vk = InlineKlass::cast(v->klass());
+  instanceOop new_value = vk->allocate_instance_buffer(CHECK_NULL);
+  vk->inline_copy_oop_to_new_oop(vh(),  new_value);
   markWord mark = new_value->mark();
   new_value->set_mark(mark.enter_larval_state());
   return JNIHandles::make_local(env, new_value);
@@ -737,9 +737,9 @@ static void getBaseAndScale(int& base, int& scale, jclass clazz, TRAPS) {
     base  = tak->array_header_in_bytes();
     assert(base == arrayOopDesc::base_offset_in_bytes(tak->element_type()), "array_header_size semantics ok");
     scale = (1 << tak->log2_element_size());
-  } else if (k->is_valueArray_klass()) {
-    ValueArrayKlass* vak = ValueArrayKlass::cast(k);
-    ValueKlass* vklass = vak->element_klass();
+  } else if (k->is_flatArray_klass()) {
+    FlatArrayKlass* vak = FlatArrayKlass::cast(k);
+    InlineKlass* vklass = vak->element_klass();
     base = vak->array_header_in_bytes();
     scale = vak->element_byte_size();
   } else {
@@ -1091,6 +1091,7 @@ UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetReference(JNIEnv *env, jobject unsafe
 
 UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetInt(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jint e, jint x)) {
   oop p = JNIHandles::resolve(obj);
+  GuardUnsafeAccess guard(thread);
   if (p == NULL) {
     volatile jint* addr = (volatile jint*)index_oop_from_field_offset_long(p, offset);
     return RawAccess<>::atomic_cmpxchg(addr, e, x) == e;
@@ -1102,6 +1103,7 @@ UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetInt(JNIEnv *env, jobject unsafe, jobj
 
 UNSAFE_ENTRY(jboolean, Unsafe_CompareAndSetLong(JNIEnv *env, jobject unsafe, jobject obj, jlong offset, jlong e, jlong x)) {
   oop p = JNIHandles::resolve(obj);
+  GuardUnsafeAccess guard(thread);
   if (p == NULL) {
     volatile jlong* addr = (volatile jlong*)index_oop_from_field_offset_long(p, offset);
     return RawAccess<>::atomic_cmpxchg(addr, e, x) == e;

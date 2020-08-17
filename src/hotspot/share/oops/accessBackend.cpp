@@ -26,7 +26,7 @@
 #include "accessBackend.inline.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/vm_version.hpp"
 #include "utilities/copy.hpp"

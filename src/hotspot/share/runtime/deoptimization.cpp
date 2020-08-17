@@ -1,5 +1,3 @@
-
-
 /*
  * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -43,15 +41,15 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/constantPool.hpp"
+#include "oops/flatArrayKlass.hpp"
+#include "oops/flatArrayOop.hpp"
 #include "oops/method.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/valueArrayOop.hpp"
-#include "oops/valueKlass.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/atomic.hpp"
@@ -190,9 +188,9 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
   // In case of the return of multiple values, we must take care
   // of all oop return values.
   GrowableArray<Handle> return_oops;
-  ValueKlass* vk = NULL;
+  InlineKlass* vk = NULL;
   if (save_oop_result && scope->return_vt()) {
-    vk = ValueKlass::returned_value_klass(map);
+    vk = InlineKlass::returned_inline_klass(map);
     if (vk != NULL) {
       vk->save_oop_fields(map, return_oops);
       save_oop_result = false;
@@ -214,7 +212,7 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
     bool skip_internal = (compiled_method != NULL) && !compiled_method->is_compiled_by_jvmci();
     JRT_BLOCK
       if (vk != NULL) {
-        realloc_failures = Deoptimization::realloc_value_type_result(vk, map, return_oops, THREAD);
+        realloc_failures = Deoptimization::realloc_inline_type_result(vk, map, return_oops, THREAD);
       }
       if (objects != NULL) {
         realloc_failures = realloc_failures || Deoptimization::realloc_objects(thread, &deoptee, &map, objects, THREAD);
@@ -236,7 +234,7 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
   }
   if (save_oop_result || vk != NULL) {
     // Restore result.
-    assert(return_oops.length() == 1, "no value type");
+    assert(return_oops.length() == 1, "no inline type");
     deoptee.set_saved_oop_result(&map, return_oops.pop()());
   }
   return realloc_failures;
@@ -621,16 +619,9 @@ void Deoptimization::cleanup_deopt_info(JavaThread *thread,
 
 
   if (JvmtiExport::can_pop_frame()) {
-#ifndef CC_INTERP
     // Regardless of whether we entered this routine with the pending
     // popframe condition bit set, we should always clear it now
     thread->clear_popframe_condition();
-#else
-    // C++ interpreter will clear has_pending_popframe when it enters
-    // with method_resume. For deopt_resume2 we clear it now.
-    if (thread->popframe_forcing_deopt_reexecution())
-        thread->clear_popframe_condition();
-#endif /* CC_INTERP */
   }
 
   // unpack_frames() is called at the end of the deoptimization handler
@@ -1036,9 +1027,9 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
       if (obj == NULL) {
         obj = ik->allocate_instance(THREAD);
       }
-    } else if (k->is_valueArray_klass()) {
-      ValueArrayKlass* ak = ValueArrayKlass::cast(k);
-      // Value type array must be zeroed because not all memory is reassigned
+    } else if (k->is_flatArray_klass()) {
+      FlatArrayKlass* ak = FlatArrayKlass::cast(k);
+      // Inline type array must be zeroed because not all memory is reassigned
       obj = ak->allocate(sv->field_size(), THREAD);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
@@ -1069,11 +1060,11 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
   return failures;
 }
 
-// We're deoptimizing at the return of a call, value type fields are
+// We're deoptimizing at the return of a call, inline type fields are
 // in registers. When we go back to the interpreter, it will expect a
-// reference to a value type instance. Allocate and initialize it from
+// reference to an inline type instance. Allocate and initialize it from
 // the register values here.
-bool Deoptimization::realloc_value_type_result(ValueKlass* vk, const RegisterMap& map, GrowableArray<Handle>& return_oops, TRAPS) {
+bool Deoptimization::realloc_inline_type_result(InlineKlass* vk, const RegisterMap& map, GrowableArray<Handle>& return_oops, TRAPS) {
   oop new_vt = vk->realloc_result(map, return_oops, THREAD);
   if (new_vt == NULL) {
     CLEAR_PENDING_EXCEPTION;
@@ -1281,14 +1272,14 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         ReassignedField field;
         field._offset = fs.offset();
         field._type = Signature::basic_type(fs.signature());
-        if (field._type == T_VALUETYPE) {
+        if (field._type == T_INLINE_TYPE) {
           field._type = T_OBJECT;
         }
         if (fs.is_inlined()) {
-          // Resolve klass of flattened value type field
+          // Resolve klass of flattened inline type field
           Klass* vk = klass->get_inline_type_field_klass(fs.index());
-          field._klass = ValueKlass::cast(vk);
-          field._type = T_VALUETYPE;
+          field._klass = InlineKlass::cast(vk);
+          field._type = T_INLINE_TYPE;
         }
         fields->append(field);
       }
@@ -1309,11 +1300,11 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         obj->obj_field_put(offset, value->get_obj()());
         break;
 
-      case T_VALUETYPE: {
-        // Recursively re-assign flattened value type fields
+      case T_INLINE_TYPE: {
+        // Recursively re-assign flattened inline type fields
         InstanceKlass* vk = fields->at(i)._klass;
         assert(vk != NULL, "must be resolved");
-        offset -= ValueKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header
+        offset -= InlineKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header
         svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, skip_internal, offset, CHECK_0);
         continue; // Continue because we don't need to increment svIndex
       }
@@ -1393,13 +1384,13 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
   return svIndex;
 }
 
-// restore fields of an eliminated value type array
-void Deoptimization::reassign_value_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, valueArrayOop obj, ValueArrayKlass* vak, TRAPS) {
-  ValueKlass* vk = vak->element_klass();
-  assert(vk->flatten_array(), "should only be used for flattened value type arrays");
+// restore fields of an eliminated inline type array
+void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, flatArrayOop obj, FlatArrayKlass* vak, TRAPS) {
+  InlineKlass* vk = vak->element_klass();
+  assert(vk->flatten_array(), "should only be used for flattened inline type arrays");
   // Adjust offset to omit oop header
-  int base_offset = arrayOopDesc::base_offset_in_bytes(T_VALUETYPE) - ValueKlass::cast(vk)->first_field_offset();
-  // Initialize all elements of the flattened value type array
+  int base_offset = arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE) - InlineKlass::cast(vk)->first_field_offset();
+  // Initialize all elements of the flattened inline type array
   for (int i = 0; i < sv->field_size(); i++) {
     ScopeValue* val = sv->field_at(i);
     int offset = base_offset + (i << Klass::layout_helper_log2_element_size(vak->layout_helper()));
@@ -1429,9 +1420,9 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
       reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), skip_internal, 0, CHECK);
-    } else if (k->is_valueArray_klass()) {
-      ValueArrayKlass* vak = ValueArrayKlass::cast(k);
-      reassign_value_array_elements(fr, reg_map, sv, (valueArrayOop) obj(), vak, CHECK);
+    } else if (k->is_flatArray_klass()) {
+      FlatArrayKlass* vak = FlatArrayKlass::cast(k);
+      reassign_flat_array_elements(fr, reg_map, sv, (flatArrayOop) obj(), vak, CHECK);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
       reassign_type_array_elements(fr, reg_map, sv, (typeArrayOop) obj(), ak->element_type());

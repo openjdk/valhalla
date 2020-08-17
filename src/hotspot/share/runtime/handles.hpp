@@ -29,7 +29,7 @@
 #include "oops/oop.hpp"
 #include "oops/oopsHierarchy.hpp"
 
-class ValueKlass;
+class InlineKlass;
 class InstanceKlass;
 class Klass;
 class Thread;
@@ -125,7 +125,7 @@ DEF_HANDLE(instance         , is_instance_noinline         )
 DEF_HANDLE(array            , is_array_noinline            )
 DEF_HANDLE(objArray         , is_objArray_noinline         )
 DEF_HANDLE(typeArray        , is_typeArray_noinline        )
-DEF_HANDLE(valueArray       , is_valueArray_noinline       )
+DEF_HANDLE(flatArray        , is_flatArray_noinline        )
 
 //------------------------------------------------------------------------------------------------------------------------
 

@@ -151,9 +151,9 @@ class SubTypeCheckNode;
 class Type;
 class TypeNode;
 class UnlockNode;
-class ValueTypeBaseNode;
-class ValueTypeNode;
-class ValueTypePtrNode;
+class InlineTypeBaseNode;
+class InlineTypeNode;
+class InlineTypePtrNode;
 class VectorNode;
 class LoadVectorNode;
 class StoreVectorNode;
@@ -682,9 +682,9 @@ public:
       DEFINE_CLASS_ID(EncodeNarrowPtr, Type, 6)
         DEFINE_CLASS_ID(EncodeP, EncodeNarrowPtr, 0)
         DEFINE_CLASS_ID(EncodePKlass, EncodeNarrowPtr, 1)
-      DEFINE_CLASS_ID(ValueTypeBase, Type, 8)
-        DEFINE_CLASS_ID(ValueType, ValueTypeBase, 0)
-        DEFINE_CLASS_ID(ValueTypePtr, ValueTypeBase, 1)
+      DEFINE_CLASS_ID(InlineTypeBase, Type, 8)
+        DEFINE_CLASS_ID(InlineType, InlineTypeBase, 0)
+        DEFINE_CLASS_ID(InlineTypePtr, InlineTypeBase, 1)
 
     DEFINE_CLASS_ID(Proj,  Node, 3)
       DEFINE_CLASS_ID(CatchProj, Proj, 0)
@@ -892,9 +892,9 @@ public:
   DEFINE_CLASS_QUERY(Sub)
   DEFINE_CLASS_QUERY(SubTypeCheck)
   DEFINE_CLASS_QUERY(Type)
-  DEFINE_CLASS_QUERY(ValueType)
-  DEFINE_CLASS_QUERY(ValueTypeBase)
-  DEFINE_CLASS_QUERY(ValueTypePtr)
+  DEFINE_CLASS_QUERY(InlineType)
+  DEFINE_CLASS_QUERY(InlineTypeBase)
+  DEFINE_CLASS_QUERY(InlineTypePtr)
   DEFINE_CLASS_QUERY(Vector)
   DEFINE_CLASS_QUERY(LoadVector)
   DEFINE_CLASS_QUERY(StoreVector)
@@ -1535,7 +1535,7 @@ class Unique_Node_List : public Node_List {
   VectorSet _in_worklist;
   uint _clock_index;            // Index in list where to pop from next
 public:
-  Unique_Node_List() : Node_List(), _in_worklist(Thread::current()->resource_area()), _clock_index(0) {}
+  Unique_Node_List() : Node_List(), _clock_index(0) {}
   Unique_Node_List(Arena *a) : Node_List(a), _in_worklist(a), _clock_index(0) {}
 
   void remove( Node *n );

@@ -54,7 +54,7 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "prims/nativeLookup.hpp"
@@ -150,9 +150,9 @@ address Method::get_c2i_entry() {
   return adapter()->get_c2i_entry();
 }
 
-address Method::get_c2i_value_entry() {
+address Method::get_c2i_inline_entry() {
   assert(adapter() != NULL, "must have");
-  return adapter()->get_c2i_value_entry();
+  return adapter()->get_c2i_inline_entry();
 }
 
 address Method::get_c2i_unverified_entry() {
@@ -160,9 +160,9 @@ address Method::get_c2i_unverified_entry() {
   return adapter()->get_c2i_unverified_entry();
 }
 
-address Method::get_c2i_unverified_value_entry() {
+address Method::get_c2i_unverified_inline_entry() {
   assert(adapter() != NULL, "must have");
-  return adapter()->get_c2i_unverified_value_entry();
+  return adapter()->get_c2i_unverified_inline_entry();
 }
 
 address Method::get_c2i_no_clinit_check_entry() {
@@ -357,8 +357,8 @@ void Method::metaspace_pointers_do(MetaspaceClosure* it) {
   Method* this_ptr = this;
   it->push_method_entry(&this_ptr, (intptr_t*)&_i2i_entry);
   it->push_method_entry(&this_ptr, (intptr_t*)&_from_compiled_entry);
-  it->push_method_entry(&this_ptr, (intptr_t*)&_from_compiled_value_ro_entry);
-  it->push_method_entry(&this_ptr, (intptr_t*)&_from_compiled_value_entry);
+  it->push_method_entry(&this_ptr, (intptr_t*)&_from_compiled_inline_ro_entry);
+  it->push_method_entry(&this_ptr, (intptr_t*)&_from_compiled_inline_entry);
   it->push_method_entry(&this_ptr, (intptr_t*)&_from_interpreted_entry);
 }
 
@@ -369,6 +369,7 @@ void Method::metaspace_pointers_do(MetaspaceClosure* it) {
 
 void Method::remove_unshareable_info() {
   unlink_method();
+  JFR_ONLY(REMOVE_METHOD_ID(this);)
 }
 
 void Method::set_vtable_index(int index) {
@@ -602,10 +603,10 @@ void Method::compute_from_signature(Symbol* sig) {
   constMethod()->set_fingerprint(fp.fingerprint());
 }
 
-// ValueKlass the method is declared to return. This must not
+// InlineKlass the method is declared to return. This must not
 // safepoint as it is called with references live on the stack at
 // locations the GC is unaware of.
-ValueKlass* Method::returned_value_type(Thread* thread) const {
+InlineKlass* Method::returned_inline_type(Thread* thread) const {
   SignatureStream ss(signature());
   while (!ss.at_return_type()) {
     ss.next();
@@ -618,7 +619,7 @@ ValueKlass* Method::returned_value_type(Thread* thread) const {
     k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, thread);
   }
   assert(k != NULL && !thread->has_pending_exception(), "can't resolve klass");
-  return ValueKlass::cast(k);
+  return InlineKlass::cast(k);
 }
 bool Method::is_empty_method() const {
   return  code_size() == 1
@@ -1072,12 +1073,12 @@ void Method::clear_code() {
   // Only should happen at allocate time.
   if (adapter() == NULL) {
     _from_compiled_entry    = NULL;
-    _from_compiled_value_entry = NULL;
-    _from_compiled_value_ro_entry = NULL;
+    _from_compiled_inline_entry = NULL;
+    _from_compiled_inline_ro_entry = NULL;
   } else {
     _from_compiled_entry    = adapter()->get_c2i_entry();
-    _from_compiled_value_entry = adapter()->get_c2i_value_entry();
-    _from_compiled_value_ro_entry = adapter()->get_c2i_value_ro_entry();
+    _from_compiled_inline_entry = adapter()->get_c2i_inline_entry();
+    _from_compiled_inline_ro_entry = adapter()->get_c2i_inline_ro_entry();
   }
   OrderAccess::storestore();
   _from_interpreted_entry = _i2i_entry;
@@ -1127,12 +1128,12 @@ void Method::unlink_method() {
     assert(*((int*)_from_compiled_entry) == 0,
            "instructions must be zeros during dump time, to be initialized at run time");
 
-    _from_compiled_value_ro_entry = cds_adapter->get_c2i_value_ro_entry_trampoline();
-    assert(*((int*)_from_compiled_value_ro_entry) == 0,
+    _from_compiled_inline_ro_entry = cds_adapter->get_c2i_inline_ro_entry_trampoline();
+    assert(*((int*)_from_compiled_inline_ro_entry) == 0,
            "instructions must be zeros during dump time, to be initialized at run time");
 
-    _from_compiled_value_entry = cds_adapter->get_c2i_value_entry_trampoline();
-    assert(*((int*)_from_compiled_value_entry) == 0,
+    _from_compiled_inline_entry = cds_adapter->get_c2i_inline_entry_trampoline();
+    assert(*((int*)_from_compiled_inline_entry) == 0,
            "instructions must be zeros during dump time, to be initialized at run time");
   }
 
@@ -1286,13 +1287,13 @@ address Method::make_adapters(const methodHandle& mh, TRAPS) {
   if (mh->is_shared()) {
     assert(mh->adapter() == adapter, "must be");
     assert(mh->_from_compiled_entry != NULL, "must be");
-    assert(mh->_from_compiled_value_entry != NULL, "must be");
-    assert(mh->_from_compiled_value_ro_entry != NULL, "must be");
+    assert(mh->_from_compiled_inline_entry != NULL, "must be");
+    assert(mh->_from_compiled_inline_ro_entry != NULL, "must be");
   } else {
     mh->set_adapter_entry(adapter);
     mh->_from_compiled_entry = adapter->get_c2i_entry();
-    mh->_from_compiled_value_entry = adapter->get_c2i_value_entry();
-    mh->_from_compiled_value_ro_entry = adapter->get_c2i_value_ro_entry();
+    mh->_from_compiled_inline_entry = adapter->get_c2i_inline_entry();
+    mh->_from_compiled_inline_ro_entry = adapter->get_c2i_inline_ro_entry();
   }
   return adapter->get_c2i_entry();
 }
@@ -1324,14 +1325,14 @@ void Method::restore_unshareable_info(TRAPS) {
 address Method::from_compiled_entry_no_trampoline(bool caller_is_c1) const {
   CompiledMethod *code = Atomic::load_acquire(&_code);
   if (caller_is_c1) {
-    // C1 - value arguments are passed as objects
+    // C1 - inline type arguments are passed as objects
     if (code) {
-      return code->verified_value_entry_point();
+      return code->verified_inline_entry_point();
     } else {
-      return adapter()->get_c2i_value_entry();
+      return adapter()->get_c2i_inline_entry();
     }
   } else {
-    // C2 - value arguments may be passed as fields
+    // C2 - inline type arguments may be passed as fields
     if (code) {
       return code->verified_entry_point();
     } else {
@@ -1353,16 +1354,16 @@ address Method::verified_code_entry() {
   return _from_compiled_entry;
 }
 
-address Method::verified_value_code_entry() {
+address Method::verified_inline_code_entry() {
   debug_only(NoSafepointVerifier nsv;)
-  assert(_from_compiled_value_entry != NULL, "must be set");
-  return _from_compiled_value_entry;
+  assert(_from_compiled_inline_entry != NULL, "must be set");
+  return _from_compiled_inline_entry;
 }
 
-address Method::verified_value_ro_code_entry() {
+address Method::verified_inline_ro_code_entry() {
   debug_only(NoSafepointVerifier nsv;)
-  assert(_from_compiled_value_ro_entry != NULL, "must be set");
-  return _from_compiled_value_ro_entry;
+  assert(_from_compiled_inline_ro_entry != NULL, "must be set");
+  return _from_compiled_inline_ro_entry;
 }
 
 // Check that if an nmethod ref exists, it has a backlink to this or no backlink at all
@@ -1396,8 +1397,8 @@ void Method::set_code(const methodHandle& mh, CompiledMethod *code) {
 
   OrderAccess::storestore();
   mh->_from_compiled_entry = code->verified_entry_point();
-  mh->_from_compiled_value_entry = code->verified_value_entry_point();
-  mh->_from_compiled_value_ro_entry = code->verified_value_ro_entry_point();
+  mh->_from_compiled_inline_entry = code->verified_inline_entry_point();
+  mh->_from_compiled_inline_ro_entry = code->verified_inline_ro_entry_point();
   OrderAccess::storestore();
   // Instantly compiled code can execute.
   if (!mh->is_method_handle_intrinsic())

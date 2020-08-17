@@ -84,7 +84,7 @@ public:
 
     static void clone_in_heap(oop src, oop dst, size_t size);
 
-    static void value_copy_in_heap(void* src, void* dst, ValueKlass* md);
+    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md);
 
     //
     // Not in heap

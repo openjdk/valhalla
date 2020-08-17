@@ -31,8 +31,8 @@
 #include "c1/c1_Runtime1.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "nativeInst_x86.hpp"
 #include "oops/oop.inline.hpp"
@@ -193,7 +193,7 @@ void LIR_Assembler::push(LIR_Opr opr) {
     __ push_addr(frame_map()->address_for_slot(opr->single_stack_ix()));
   } else if (opr->is_constant()) {
     LIR_Const* const_opr = opr->as_constant_ptr();
-    if (const_opr->type() == T_OBJECT || const_opr->type() == T_VALUETYPE) {
+    if (const_opr->type() == T_OBJECT || const_opr->type() == T_INLINE_TYPE) {
       __ push_oop(const_opr->as_jobject());
     } else if (const_opr->type() == T_INT) {
       __ push_jint(const_opr->as_jint());
@@ -528,21 +528,19 @@ void LIR_Assembler::return_op(LIR_Opr result) {
   }
 
   ciMethod* method = compilation()->method();
-  if (InlineTypeReturnedAsFields && method->signature()->returns_never_null()) {
-    ciType* return_type = method->return_type();
-    if (return_type->is_valuetype()) {
-      ciValueKlass* vk = return_type->as_value_klass();
-      if (vk->can_be_returned_as_fields()) {
+  ciType* return_type = method->return_type();
+  if (InlineTypeReturnedAsFields && return_type->is_inlinetype()) {
+    ciInlineKlass* vk = return_type->as_inline_klass();
+    if (vk->can_be_returned_as_fields()) {
 #ifndef _LP64
-        Unimplemented();
+      Unimplemented();
 #else
-        address unpack_handler = vk->unpack_handler();
-        assert(unpack_handler != NULL, "must be");
-        __ call(RuntimeAddress(unpack_handler));
-        // At this point, rax points to the value object (for interpreter or C1 caller).
-        // The fields of the object are copied into registers (for C2 caller).
+      address unpack_handler = vk->unpack_handler();
+      assert(unpack_handler != NULL, "must be");
+      __ call(RuntimeAddress(unpack_handler));
+      // At this point, rax points to the value object (for interpreter or C1 caller).
+      // The fields of the object are copied into registers (for C2 caller).
 #endif
-      }
     }
   }
 
@@ -574,8 +572,8 @@ void LIR_Assembler::return_op(LIR_Opr result) {
 }
 
 
-int LIR_Assembler::store_value_type_fields_to_buf(ciValueKlass* vk) {
-  return (__ store_value_type_fields_to_buf(vk, false));
+int LIR_Assembler::store_inline_type_fields_to_buf(ciInlineKlass* vk) {
+  return (__ store_inline_type_fields_to_buf(vk, false));
 }
 
 int LIR_Assembler::safepoint_poll(LIR_Opr tmp, CodeEmitInfo* info) {
@@ -638,7 +636,7 @@ void LIR_Assembler::const2reg(LIR_Opr src, LIR_Opr dest, LIR_PatchCode patch_cod
       break;
     }
 
-    case T_VALUETYPE: // Fall through
+    case T_INLINE_TYPE: // Fall through
     case T_OBJECT: {
       if (patch_code != lir_patch_none) {
         jobject2reg_with_patching(dest->as_register(), info);
@@ -729,7 +727,7 @@ void LIR_Assembler::const2stack(LIR_Opr src, LIR_Opr dest) {
       __ movptr(frame_map()->address_for_slot(dest->single_stack_ix()), c->as_jint_bits());
       break;
 
-    case T_VALUETYPE: // Fall through
+    case T_INLINE_TYPE: // Fall through
     case T_OBJECT:
       __ movoop(frame_map()->address_for_slot(dest->single_stack_ix()), c->as_jobject());
       break;
@@ -769,7 +767,7 @@ void LIR_Assembler::const2mem(LIR_Opr src, LIR_Opr dest, BasicType type, CodeEmi
       __ movptr(as_Address(addr), c->as_jint_bits());
       break;
 
-    case T_VALUETYPE: // fall through
+    case T_INLINE_TYPE: // fall through
     case T_OBJECT:  // fall through
     case T_ARRAY:
       if (c->as_jobject() == NULL) {
@@ -858,7 +856,7 @@ void LIR_Assembler::reg2reg(LIR_Opr src, LIR_Opr dest) {
     }
 #endif
     assert(src->is_single_cpu(), "must match");
-    if (src->type() == T_OBJECT || src->type() == T_VALUETYPE) {
+    if (src->type() == T_OBJECT || src->type() == T_INLINE_TYPE) {
       __ verify_oop(src->as_register());
     }
     move_regs(src->as_register(), dest->as_register());
@@ -1044,7 +1042,7 @@ void LIR_Assembler::reg2mem(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       break;
     }
 
-    case T_VALUETYPE: // fall through
+    case T_INLINE_TYPE: // fall through
     case T_ARRAY:   // fall through
     case T_OBJECT:  // fall through
       if (UseCompressedOops && !wide) {
@@ -1218,7 +1216,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
   Address from_addr = as_Address(addr);
   Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
 
-  if (addr->base()->type() == T_OBJECT || addr->base()->type() == T_VALUETYPE) {
+  if (addr->base()->type() == T_OBJECT || addr->base()->type() == T_INLINE_TYPE) {
     __ verify_oop(addr->base()->as_pointer_register());
   }
 
@@ -1279,7 +1277,7 @@ void LIR_Assembler::mem2reg(LIR_Opr src, LIR_Opr dest, BasicType type, LIR_Patch
       break;
     }
 
-    case T_VALUETYPE: // fall through
+    case T_INLINE_TYPE: // fall through
     case T_OBJECT:  // fall through
     case T_ARRAY:   // fall through
       if (UseCompressedOops && !wide) {
@@ -1666,7 +1664,7 @@ void LIR_Assembler::emit_alloc_array(LIR_OpAllocArray* op) {
   Register len =  op->len()->as_register();
   LP64_ONLY( __ movslq(len, len); )
 
-  if (UseSlowPath || op->type() == T_VALUETYPE ||
+  if (UseSlowPath || op->type() == T_INLINE_TYPE ||
       (!UseFastNewObjectArray && is_reference_type(op->type())) ||
       (!UseFastNewTypeArray   && !is_reference_type(op->type()))) {
     __ jmp(*op->stub()->entry());
@@ -2053,7 +2051,7 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   //     they are not substitutable. We do this only if we are not sure that the
   //     operands are value objects
   if ((left_klass == NULL || right_klass == NULL) ||// The klass is still unloaded, or came from a Phi node.
-      !left_klass->is_valuetype() || !right_klass->is_valuetype()) {
+      !left_klass->is_inlinetype() || !right_klass->is_inlinetype()) {
     Register tmp1  = op->tmp1()->as_register();
     __ movptr(tmp1, (intptr_t)markWord::always_locked_pattern);
     __ andl(tmp1, Address(left, oopDesc::mark_offset_in_bytes()));
@@ -2063,8 +2061,8 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   }
 
   // (3) Same klass check: if the operands are of different klasses, they are not substitutable.
-  if (left_klass != NULL && left_klass->is_valuetype() && left_klass == right_klass) {
-    // No need to load klass -- the operands are statically known to be the same value klass.
+  if (left_klass != NULL && left_klass->is_inlinetype() && left_klass == right_klass) {
+    // No need to load klass -- the operands are statically known to be the same inline klass.
     __ jmp(*op->stub()->entry());
   } else {
     Register left_klass_op = op->left_klass_op()->as_register();
@@ -3258,7 +3256,7 @@ void LIR_Assembler::store_parameter(Metadata* m,  int offset_from_rsp_in_words) 
 }
 
 
-void LIR_Assembler::arraycopy_valuetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest, bool null_check) {
+void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest, bool null_check) {
   if (null_check) {
     __ testptr(obj, obj);
     __ jcc(Assembler::zero, *slow_path->entry());
@@ -3304,12 +3302,12 @@ void LIR_Assembler::emit_arraycopy(LIR_OpArrayCopy* op) {
     return;
   }
 
-  if (flags & LIR_OpArrayCopy::src_valuetype_check) {
-    arraycopy_valuetype_check(src, tmp, stub, false, (flags & LIR_OpArrayCopy::src_null_check));
+  if (flags & LIR_OpArrayCopy::src_inlinetype_check) {
+    arraycopy_inlinetype_check(src, tmp, stub, false, (flags & LIR_OpArrayCopy::src_null_check));
   }
 
-  if (flags & LIR_OpArrayCopy::dst_valuetype_check) {
-    arraycopy_valuetype_check(dst, tmp, stub, true, (flags & LIR_OpArrayCopy::dst_null_check));
+  if (flags & LIR_OpArrayCopy::dst_inlinetype_check) {
+    arraycopy_inlinetype_check(dst, tmp, stub, true, (flags & LIR_OpArrayCopy::dst_null_check));
   }
 
   // if we don't know anything, just go through the generic arraycopy

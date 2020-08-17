@@ -51,13 +51,13 @@
 #include "oops/access.inline.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/fieldStreams.inline.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/method.hpp"
 #include "oops/recordComponent.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
 #include "prims/jvm_misc.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
@@ -494,11 +494,6 @@ JVM_END
 JVM_ENTRY_NO_ENV(void, JVM_GC(void))
   JVMWrapper("JVM_GC");
   if (!DisableExplicitGC) {
-    if (AsyncDeflateIdleMonitors) {
-      // AsyncDeflateIdleMonitors needs to know when System.gc() is
-      // called so any special deflation can be done at a safepoint.
-      ObjectSynchronizer::set_is_special_deflation_requested(true);
-    }
     Universe::heap()->collect(GCCause::_java_lang_system_gc);
   }
 JVM_END
@@ -658,7 +653,28 @@ JVM_END
 JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
   JVMWrapper("JVM_IHashCode");
   // as implemented in the classic virtual machine; return 0 if object is NULL
-  return handle == NULL ? 0 : ObjectSynchronizer::FastHashCode (THREAD, JNIHandles::resolve_non_null(handle)) ;
+  if (handle == NULL) {
+    return 0;
+  }
+  oop obj = JNIHandles::resolve_non_null(handle);
+  if (EnableValhalla && obj->klass()->is_inline_klass()) {
+      JavaValue result(T_INT);
+      JavaCallArguments args;
+      Handle ho(THREAD, obj);
+      args.push_oop(ho);
+      methodHandle method(THREAD, Universe::inline_type_hash_code_method());
+      JavaCalls::call(&result, method, &args, THREAD);
+      if (HAS_PENDING_EXCEPTION) {
+        if (!PENDING_EXCEPTION->is_a(SystemDictionary::Error_klass())) {
+          Handle e(THREAD, PENDING_EXCEPTION);
+          CLEAR_PENDING_EXCEPTION;
+          THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in hashCode", e, false);
+        }
+      }
+      return result.get_jint();
+  } else {
+    return ObjectSynchronizer::FastHashCode(THREAD, obj);
+  }
 JVM_END
 
 
@@ -2544,8 +2560,8 @@ JVM_ENTRY(jobject, JVM_ArrayEnsureAccessAtomic(JNIEnv *env, jclass unused, jobje
   if ((o == NULL) || (!k->is_array_klass())) {
     THROW_0(vmSymbols::java_lang_IllegalArgumentException());
   }
-  if (k->is_valueArray_klass()) {
-    ValueArrayKlass* vk = ValueArrayKlass::cast(k);
+  if (k->is_flatArray_klass()) {
+    FlatArrayKlass* vk = FlatArrayKlass::cast(k);
     if (!vk->element_access_is_atomic()) {
       /**
        * Need to decide how to implement:
@@ -2554,7 +2570,7 @@ JVM_ENTRY(jobject, JVM_ArrayEnsureAccessAtomic(JNIEnv *env, jclass unused, jobje
        * then "<atomic>[Qfoo;" klass needs to subclass "[Qfoo;" to pass through
        * "checkcast" & "instanceof"
        *
-       * 2) Use extra header in the valueArrayOop to flag atomicity required and
+       * 2) Use extra header in the flatArrayOop to flag atomicity required and
        * possibly per instance lock structure. Said info, could be placed in
        * "trailer" rather than disturb the current arrayOop
        */

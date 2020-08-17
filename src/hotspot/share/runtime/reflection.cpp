@@ -36,11 +36,11 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/arguments.hpp"
@@ -349,7 +349,7 @@ arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
       THROW_0(vmSymbols::java_lang_IllegalArgumentException());
     }
     if (k->is_inline_klass()) {
-      return oopFactory::new_valueArray(k, length, THREAD);
+      return oopFactory::new_flatArray(k, length, THREAD);
     } else {
       return oopFactory::new_objArray(k, length, THREAD);
     }
@@ -901,6 +901,9 @@ oop Reflection::new_field(fieldDescriptor* fd, TRAPS) {
   java_lang_reflect_Field::set_slot(rh(), fd->index());
   java_lang_reflect_Field::set_name(rh(), name());
   java_lang_reflect_Field::set_type(rh(), type());
+  if (fd->is_trusted_final()) {
+    java_lang_reflect_Field::set_trusted_final(rh());
+  }
   // Note the ACC_ANNOTATION bit, which is a per-class access flag, is never set here.
   int modifiers = fd->access_flags().as_int() & JVM_RECOGNIZED_FIELD_MODIFIERS;
   if (fd->is_inlined()) {
@@ -1182,7 +1185,7 @@ oop Reflection::invoke_method(oop method_mirror, Handle receiver, objArrayHandle
   if (java_lang_Class::is_primitive(return_type_mirror)) {
     rtype = basic_type_mirror_to_basic_type(return_type_mirror, CHECK_NULL);
   } else if (java_lang_Class::as_Klass(return_type_mirror)->is_inline_klass()) {
-    rtype = T_VALUETYPE;
+    rtype = T_INLINE_TYPE;
   } else {
     rtype = T_OBJECT;
   }
@@ -1226,7 +1229,7 @@ oop Reflection::invoke_constructor(oop constructor_mirror, objArrayHandle args, 
     if (klass->is_hidden()) {
       rtype = T_OBJECT;
     } else {
-      rtype = T_VALUETYPE;
+      rtype = T_INLINE_TYPE;
     }
     return invoke(klass, method, no_receiver, override, ptypes, rtype, args, false, CHECK_NULL);
   }

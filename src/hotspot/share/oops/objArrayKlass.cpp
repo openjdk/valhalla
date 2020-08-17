@@ -126,8 +126,8 @@ ObjArrayKlass::ObjArrayKlass(int n, Klass* element_klass, Symbol* name) : ArrayK
   Klass* bk;
   if (element_klass->is_objArray_klass()) {
     bk = ObjArrayKlass::cast(element_klass)->bottom_klass();
-  } else if (element_klass->is_valueArray_klass()) {
-    bk = ValueArrayKlass::cast(element_klass)->element_klass();
+  } else if (element_klass->is_flatArray_klass()) {
+    bk = FlatArrayKlass::cast(element_klass)->element_klass();
   } else {
     bk = element_klass;
   }
@@ -159,11 +159,11 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
     assert(dimension() == 1, "Can only populate the final dimension");
     assert(element_klass()->is_inline_klass(), "Unexpected");
     assert(!element_klass()->is_array_klass(), "ArrayKlass unexpected here");
-    assert(!ValueKlass::cast(element_klass())->flatten_array(), "Expected valueArrayOop allocation");
+    assert(!InlineKlass::cast(element_klass())->flatten_array(), "Expected flatArrayOop allocation");
     element_klass()->initialize(CHECK_NULL);
     // Populate default values...
     objArrayHandle array_h(THREAD, array);
-    instanceOop value = (instanceOop) ValueKlass::cast(element_klass())->default_value();
+    instanceOop value = (instanceOop) InlineKlass::cast(element_klass())->default_value();
     for (int i = 0; i < length; i++) {
       array_h->obj_at_put(i, value);
     }
@@ -173,9 +173,9 @@ objArrayOop ObjArrayKlass::allocate(int length, TRAPS) {
 
 oop ObjArrayKlass::multi_allocate(int rank, jint* sizes, TRAPS) {
   int length = *sizes;
-  if (rank == 1) { // last dim may be valueArray, check if we have any special storage requirements
+  if (rank == 1) { // last dim may be flatArray, check if we have any special storage requirements
     if (element_klass()->is_inline_klass()) {
-      return oopFactory::new_valueArray(element_klass(), length, CHECK_NULL);
+      return oopFactory::new_flatArray(element_klass(), length, CHECK_NULL);
     } else {
       return oopFactory::new_objArray(element_klass(), length, CHECK_NULL);
     }
@@ -242,8 +242,8 @@ void ObjArrayKlass::copy_array(arrayOop s, int src_pos, arrayOop d,
   assert(s->is_objArray(), "must be obj array");
 
   if (EnableValhalla) {
-    if (d->is_valueArray()) {
-      ValueArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
+    if (d->is_flatArray()) {
+      FlatArrayKlass::cast(d->klass())->copy_array(s, src_pos, d, dst_pos, length, THREAD);
       return;
     }
   }
@@ -496,7 +496,7 @@ void ObjArrayKlass::verify_on(outputStream* st) {
   guarantee(element_klass()->is_klass(), "should be klass");
   guarantee(bottom_klass()->is_klass(), "should be klass");
   Klass* bk = bottom_klass();
-  guarantee(bk->is_instance_klass() || bk->is_typeArray_klass() || bk->is_valueArray_klass(),
+  guarantee(bk->is_instance_klass() || bk->is_typeArray_klass() || bk->is_flatArray_klass(),
             "invalid bottom klass");
 }
 

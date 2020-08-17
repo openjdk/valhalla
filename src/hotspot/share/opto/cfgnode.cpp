@@ -34,6 +34,7 @@
 #include "opto/cfgnode.hpp"
 #include "opto/connode.hpp"
 #include "opto/convertnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/machnode.hpp"
 #include "opto/movenode.hpp"
@@ -43,7 +44,6 @@
 #include "opto/regmask.hpp"
 #include "opto/runtime.hpp"
 #include "opto/subnode.hpp"
-#include "opto/valuetypenode.hpp"
 #include "utilities/vmError.hpp"
 
 // Portions of code courtesy of Clifford Click
@@ -347,9 +347,8 @@ bool RegionNode::is_unreachable_region(PhaseGVN *phase) const {
   // Unsafe case - check if the Region node is reachable from root.
   ResourceMark rm;
 
-  Arena *a = Thread::current()->resource_area();
-  Node_List nstack(a);
-  VectorSet visited(a);
+  Node_List nstack;
+  VectorSet visited;
 
   // Mark all control nodes reachable from root outputs
   Node *n = (Node*)phase->C->root();
@@ -903,7 +902,7 @@ const TypePtr* flatten_phi_adr_type(const TypePtr* at) {
 // create a new phi with edges matching r and set (initially) to x
 PhiNode* PhiNode::make(Node* r, Node* x, const Type *t, const TypePtr* at) {
   uint preds = r->req();   // Number of predecessor paths
-  assert(t != Type::MEMORY || at == flatten_phi_adr_type(at) || (flatten_phi_adr_type(at) == TypeAryPtr::VALUES && Compile::current()->flattened_accesses_share_alias()), "flatten at");
+  assert(t != Type::MEMORY || at == flatten_phi_adr_type(at) || (flatten_phi_adr_type(at) == TypeAryPtr::INLINES && Compile::current()->flattened_accesses_share_alias()), "flatten at");
   PhiNode* p = new PhiNode(r, t, at);
   for (uint j = 1; j < preds; j++) {
     // Fill in all inputs, except those which the region does not yet have
@@ -1047,7 +1046,7 @@ void PhiNode::verify_adr_type(bool recursive) const {
          "Phi::adr_type must be pre-normalized");
 
   if (recursive) {
-    VectorSet visited(Thread::current()->resource_area());
+    VectorSet visited;
     verify_adr_type(visited, _adr_type);
   }
 }
@@ -1790,9 +1789,8 @@ bool PhiNode::is_unsafe_data_reference(Node *in) const {
 
   ResourceMark rm;
 
-  Arena *a = Thread::current()->resource_area();
-  Node_List nstack(a);
-  VectorSet visited(a);
+  Node_List nstack;
+  VectorSet visited;
 
   nstack.push(in); // Start with unique input.
   visited.set(in->_idx);
@@ -1868,19 +1866,19 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if( phase->type_or_null(r) == Type::TOP ) // Dead code?
     return NULL;                // No change
 
-  // If all inputs are value types of the same type, push the value type node down
-  // through the phi because value type nodes should be merged through their input values.
-  if (req() > 2 && in(1) != NULL && in(1)->is_ValueTypeBase() && (can_reshape || in(1)->is_ValueType())) {
+  // If all inputs are inline types of the same type, push the inline type node down
+  // through the phi because inline type nodes should be merged through their input values.
+  if (req() > 2 && in(1) != NULL && in(1)->is_InlineTypeBase() && (can_reshape || in(1)->is_InlineType())) {
     int opcode = in(1)->Opcode();
     uint i = 2;
     // Check if inputs are values of the same type
-    for (; i < req() && in(i) && in(i)->is_ValueTypeBase() && in(i)->cmp(*in(1)); i++) {
+    for (; i < req() && in(i) && in(i)->is_InlineTypeBase() && in(i)->cmp(*in(1)); i++) {
       assert(in(i)->Opcode() == opcode, "mixing pointers and values?");
     }
     if (i == req()) {
-      ValueTypeBaseNode* vt = in(1)->as_ValueTypeBase()->clone_with_phis(phase, in(0));
+      InlineTypeBaseNode* vt = in(1)->as_InlineTypeBase()->clone_with_phis(phase, in(0));
       for (uint i = 2; i < req(); ++i) {
-        vt->merge_with(phase, in(i)->as_ValueTypeBase(), i, i == (req()-1));
+        vt->merge_with(phase, in(i)->as_InlineTypeBase(), i, i == (req()-1));
       }
       return vt;
     }
@@ -2634,7 +2632,7 @@ Node* CreateExNode::Identity(PhaseGVN* phase) {
   // If the CatchProj is optimized away, then we just carry the
   // exception oop through.
 
-  // CheckCastPPNode::Ideal() for value types reuses the exception
+  // CheckCastPPNode::Ideal() for inline types reuses the exception
   // paths of a call to perform an allocation: we can see a Phi here.
   if (in(1)->is_Phi()) {
     return this;

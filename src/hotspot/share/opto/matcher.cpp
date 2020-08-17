@@ -153,7 +153,7 @@ void Matcher::verify_new_nodes_only(Node* xroot) {
   // Make sure that the new graph only references new nodes
   ResourceMark rm;
   Unique_Node_List worklist;
-  VectorSet visited(Thread::current()->resource_area());
+  VectorSet visited;
   worklist.push(xroot);
   while (worklist.size() > 0) {
     Node* n = worklist.pop();
@@ -172,7 +172,7 @@ void Matcher::verify_new_nodes_only(Node* xroot) {
 }
 #endif
 
-// Array of RegMask, one per returned values (value type instances can
+// Array of RegMask, one per returned values (inline type instances can
 // be returned as multiple return values, one per field)
 RegMask* Matcher::return_values_mask(const TypeTuple *range) {
   uint cnt = range->cnt() - TypeFunc::Parms;
@@ -2026,7 +2026,7 @@ void Matcher::find_shared(Node* n) {
   // Allocate stack of size C->live_nodes() * 2 to avoid frequent realloc
   MStack mstack(C->live_nodes() * 2);
   // Mark nodes as address_visited if they are inputs to an address expression
-  VectorSet address_visited(Thread::current()->resource_area());
+  VectorSet address_visited;
   mstack.push(n, Visit);     // Don't need to pre-visit root node
   while (mstack.is_nonempty()) {
     n = mstack.node();       // Leave node on stack

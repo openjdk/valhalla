@@ -31,9 +31,9 @@
 #include "c1/c1_Runtime1.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArray.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "gc/shared/c1/barrierSetC1.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -304,7 +304,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   LIR_Opr lock = new_register(T_INT);
   // Need a scratch register for biased locking on x86
   LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if (UseBiasedLocking || x->maybe_valuetype()) {
+  if (UseBiasedLocking || x->maybe_inlinetype()) {
     scratch = new_register(T_INT);
   }
 
@@ -313,7 +313,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
     info_for_exception = state_for(x);
   }
 
-  CodeStub* throw_imse_stub = x->maybe_valuetype() ?
+  CodeStub* throw_imse_stub = x->maybe_inlinetype() ?
       new SimpleExceptionStub(Runtime1::throw_illegal_monitor_state_exception_id,
                               LIR_OprFact::illegalOpr, state_for(x))
     : NULL;
@@ -1297,7 +1297,7 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   __ move(reg, result);
 }
 
-void LIRGenerator::do_NewValueTypeInstance(NewValueTypeInstance* x) {
+void LIRGenerator::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {
   // Mapping to do_NewInstance (same code) but use state_before for reexecution.
   CodeEmitInfo* info = state_for(x, x->state_before());
   x->set_to_object_type();
@@ -1360,13 +1360,13 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
   LIR_Opr len = length.result();
 
   ciKlass* obj = (ciKlass*) x->exact_type();
-  CodeStub* slow_path = new NewObjectArrayStub(klass_reg, len, reg, info, x->is_never_null());
+  CodeStub* slow_path = new NewObjectArrayStub(klass_reg, len, reg, info, x->is_null_free());
   if (obj == ciEnv::unloaded_ciobjarrayklass()) {
     BAILOUT("encountered unloaded_ciobjarrayklass due to out of memory error");
   }
   klass2reg_with_patching(klass_reg, obj, patching_info);
-  if (x->is_never_null()) {
-    __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_VALUETYPE, klass_reg, slow_path);
+  if (x->is_null_free()) {
+    __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_INLINE_TYPE, klass_reg, slow_path);
   } else {
     __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path);
   }
@@ -1448,7 +1448,7 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
       (x->needs_exception_state() ? state_for(x) :
                                     state_for(x, x->state_before(), true /*ignore_xhandler*/));
 
-  if (x->is_never_null()) {
+  if (x->is_null_free()) {
     __ null_check(obj.result(), new CodeEmitInfo(info_for_exception));
   }
 
@@ -1470,7 +1470,7 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
   __ checkcast(reg, obj.result(), x->klass(),
                new_register(objectType), new_register(objectType), tmp3,
                x->direct_compare(), info_for_exception, patching_info, stub,
-               x->profiled_method(), x->profiled_bci(), x->is_never_null());
+               x->profiled_method(), x->profiled_bci(), x->is_null_free());
 }
 
 

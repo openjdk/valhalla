@@ -104,7 +104,7 @@ private:
   void yank_alloc_node(AllocateNode* alloc);
   Node *value_from_mem(Node *mem, Node *ctl, BasicType ft, const Type *ftype, const TypeOopPtr *adr_t, AllocateNode *alloc);
   Node *value_from_mem_phi(Node *mem, BasicType ft, const Type *ftype, const TypeOopPtr *adr_t, AllocateNode *alloc, Node_Stack *value_phis, int level);
-  Node* value_type_from_mem(Node* mem, Node* ctl, ciValueKlass* vk, const TypeAryPtr* adr_type, int offset, AllocateNode* alloc);
+  Node* inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass* vk, const TypeAryPtr* adr_type, int offset, AllocateNode* alloc);
 
   bool eliminate_boxing_node(CallStaticJavaNode *boxing);
   bool eliminate_allocate_node(AllocateNode *alloc);
@@ -191,9 +191,9 @@ private:
                                     Node* src,  Node* src_offset,
                                     Node* dest, Node* dest_offset,
                                     Node* copy_length, bool dest_uninitialized);
-  const TypePtr* adjust_parameters_for_vt(const TypeAryPtr* top_dest, Node*& src_offset,
-                                          Node*& dest_offset, Node*& length, BasicType& dest_elem,
-                                          Node*& dest_length);
+  const TypePtr* adjust_for_flat_array(const TypeAryPtr* top_dest, Node*& src_offset,
+                                       Node*& dest_offset, Node*& length, BasicType& dest_elem,
+                                       Node*& dest_length);
   void expand_arraycopy_node(ArrayCopyNode *ac);
 
   void expand_subtypecheck_node(SubTypeCheckNode *check);

@@ -941,8 +941,8 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
       } else {                  // Neither subtypes the other
         unrelated_classes = true;
       }
-      if ((r0->flat_array() && (!r1->can_be_value_type() || (klass1->is_valuetype() && !klass1->flatten_array()))) ||
-          (r1->flat_array() && (!r0->can_be_value_type() || (klass0->is_valuetype() && !klass0->flatten_array())))) {
+      if ((r0->flat_array() && (!r1->can_be_inline_type() || (klass1->is_inlinetype() && !klass1->flatten_array()))) ||
+          (r1->flat_array() && (!r0->can_be_inline_type() || (klass0->is_inlinetype() && !klass0->flatten_array())))) {
         // One type is flattened in arrays and the other type is not. Must be unrelated.
         unrelated_classes = true;
       }
@@ -1444,6 +1444,34 @@ Node *BoolNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     cmp->swap_edges(1, 2);
     cmp = phase->transform( cmp );
     return new BoolNode( cmp, _test.commute() );
+  }
+
+  // Change "bool eq/ne (cmp (and X 16) 16)" into "bool ne/eq (cmp (and X 16) 0)".
+  if (cop == Op_CmpI &&
+      (_test._test == BoolTest::eq || _test._test == BoolTest::ne) &&
+      cmp1->Opcode() == Op_AndI && cmp2->Opcode() == Op_ConI &&
+      cmp1->in(2)->Opcode() == Op_ConI) {
+    const TypeInt *t12 = phase->type(cmp2)->isa_int();
+    const TypeInt *t112 = phase->type(cmp1->in(2))->isa_int();
+    if (t12 && t12->is_con() && t112 && t112->is_con() &&
+        t12->get_con() == t112->get_con() && is_power_of_2(t12->get_con())) {
+      Node *ncmp = phase->transform(new CmpINode(cmp1, phase->intcon(0)));
+      return new BoolNode(ncmp, _test.negate());
+    }
+  }
+
+  // Same for long type: change "bool eq/ne (cmp (and X 16) 16)" into "bool ne/eq (cmp (and X 16) 0)".
+  if (cop == Op_CmpL &&
+      (_test._test == BoolTest::eq || _test._test == BoolTest::ne) &&
+      cmp1->Opcode() == Op_AndL && cmp2->Opcode() == Op_ConL &&
+      cmp1->in(2)->Opcode() == Op_ConL) {
+    const TypeLong *t12 = phase->type(cmp2)->isa_long();
+    const TypeLong *t112 = phase->type(cmp1->in(2))->isa_long();
+    if (t12 && t12->is_con() && t112 && t112->is_con() &&
+        t12->get_con() == t112->get_con() && is_power_of_2(t12->get_con())) {
+      Node *ncmp = phase->transform(new CmpLNode(cmp1, phase->longcon(0)));
+      return new BoolNode(ncmp, _test.negate());
+    }
   }
 
   // Change "bool eq/ne (cmp (xor X 1) 0)" into "bool ne/eq (cmp X 0)".

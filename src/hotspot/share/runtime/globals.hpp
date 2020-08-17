@@ -262,9 +262,6 @@ const size_t minimumSymbolTableSize = 1024;
           "A thread requesting compilation is not blocked during "          \
           "compilation")                                                    \
                                                                             \
-  product(bool, PrintVMQWaitTime, false,                                    \
-          "(Deprecated) Print out the waiting time in VM operation queue")  \
-                                                                            \
   product(bool, MethodFlushing, true,                                       \
           "Reclamation of zombie and not-entrant methods")                  \
                                                                             \
@@ -352,6 +349,10 @@ const size_t minimumSymbolTableSize = 1024;
                                                                             \
   diagnostic(ccstrlist, DisableIntrinsic, "",                               \
          "do not expand intrinsics whose (internal) names appear here")     \
+                                                                            \
+  diagnostic(ccstrlist, ControlIntrinsic, "",                               \
+         "Control intrinsics using a list of +/- (internal) names, "        \
+         "separated by commas")                                             \
                                                                             \
   develop(bool, TraceCallFixup, false,                                      \
           "Trace all call fixups")                                          \
@@ -617,7 +618,7 @@ const size_t minimumSymbolTableSize = 1024;
   product(bool, OmitStackTraceInFastThrow, true,                            \
           "Omit backtraces for some 'hot' exceptions in optimized code")    \
                                                                             \
-  manageable(bool, ShowCodeDetailsInExceptionMessages, false,               \
+  manageable(bool, ShowCodeDetailsInExceptionMessages, true,                \
           "Show exception messages from RuntimeExceptions that contain "    \
           "snippets of the failing code. Disable this to improve privacy.") \
                                                                             \
@@ -763,16 +764,16 @@ const size_t minimumSymbolTableSize = 1024;
   notproduct(bool, PrintInlineLayout, false,                                \
           "Print field layout for each inline type")                        \
                                                                             \
-  notproduct(bool, PrintInlineArrayLayout, false,                           \
+  notproduct(bool, PrintFlatArrayLayout, false,                             \
           "Print array layout for each inline type array")                  \
                                                                             \
-  product(intx, InlineArrayElemMaxFlatSize, -1,                             \
+  product(intx, FlatArrayElementMaxSize, -1,                                \
           "Max size for flattening inline array elements, <0 no limit")     \
                                                                             \
   product(intx, InlineFieldMaxFlatSize, 128,                                \
           "Max size for flattening inline type fields, <0 no limit")        \
                                                                             \
-  product(intx, InlineArrayElemMaxFlatOops, 4,                              \
+  product(intx, FlatArrayElementMaxOops, 4,                                 \
           "Max nof embedded object references in an inline type to flatten, <0 no limit")  \
                                                                             \
   product(bool, InlineArrayAtomicAccess, false,                             \

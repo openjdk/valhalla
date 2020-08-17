@@ -57,6 +57,7 @@ private:
   bool                   _has_nonstatic_concrete_methods;
   bool                   _is_unsafe_anonymous;
   bool                   _is_hidden;
+  bool                   _is_record;
 
   ciFlags                _flags;
   jint                   _nonstatic_field_size;
@@ -201,6 +202,10 @@ public:
     return _is_hidden;
   }
 
+  bool is_record() const {
+    return _is_record;
+  }
+
   ciInstanceKlass* get_canonical_holder(int offset);
   ciField* get_field_by_offset(int field_offset, bool is_static);
   ciField* get_field_by_name(ciSymbol* name, ciSymbol* signature, bool is_static);
@@ -261,7 +266,7 @@ public:
     return (impl != this ? impl : NULL);
   }
 
-  virtual bool can_be_value_klass(bool is_exact = false);
+  virtual bool can_be_inline_klass(bool is_exact = false);
 
   // Is the defining class loader of this class the default loader?
   bool uses_default_loader() const;

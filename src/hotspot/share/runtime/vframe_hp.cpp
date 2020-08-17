@@ -388,7 +388,7 @@ void jvmtiDeferredLocalVariableSet::update_value(StackValueCollection* locals, B
       locals->set_long_at(index, value.j);
       break;
     case T_OBJECT:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
       {
         Handle obj(Thread::current(), (oop)value.l);
         locals->set_obj_at(index, obj);

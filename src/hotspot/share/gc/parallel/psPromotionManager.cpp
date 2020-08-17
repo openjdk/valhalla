@@ -41,7 +41,7 @@
 #include "memory/resourceArea.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
-#include "oops/valueArrayKlass.inline.hpp"
+#include "oops/flatArrayKlass.inline.hpp"
 
 PaddedEnd<PSPromotionManager>* PSPromotionManager::_manager_array = NULL;
 PSPromotionManager::PSScannerTasksQueueSet* PSPromotionManager::_stack_array_depth = NULL;

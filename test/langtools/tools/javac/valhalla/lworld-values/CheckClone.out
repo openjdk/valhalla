@@ -1,8 +1,6 @@
 CheckClone.java:11:21: compiler.err.value.does.not.support: clone
 CheckClone.java:12:18: compiler.err.value.does.not.support: clone
-CheckClone.java:9:18: compiler.err.empty.value.not.yet
 CheckClone.java:16:16: compiler.err.value.does.not.support: clone
 CheckClone.java:17:14: compiler.err.value.does.not.support: clone
 CheckClone.java:20:22: compiler.err.inline.class.may.not.override: clone
-CheckClone.java:8:14: compiler.err.empty.value.not.yet
-7 errors
+5 errors

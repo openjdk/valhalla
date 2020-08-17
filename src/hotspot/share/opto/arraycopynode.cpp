@@ -23,12 +23,13 @@
  */
 
 #include "precompiled.hpp"
+#include "ci/ciFlatArrayKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "gc/shared/c2/cardTableBarrierSetC2.hpp"
 #include "opto/arraycopynode.hpp"
 #include "opto/graphKit.hpp"
-#include "opto/valuetypenode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
@@ -142,7 +143,7 @@ int ArrayCopyNode::get_count(PhaseGVN *phase) const {
       // array must be too.
 
       assert((get_length_if_constant(phase) == -1) == !ary_src->size()->is_con() ||
-             (ValueArrayFlatten && ary_src->elem()->make_oopptr() != NULL && ary_src->elem()->make_oopptr()->can_be_value_type()) ||
+             (UseFlatArray && ary_src->elem()->make_oopptr() != NULL && ary_src->elem()->make_oopptr()->can_be_inline_type()) ||
              phase->is_IterGVN() || phase->C->inlining_incrementally() || StressReflectiveCode, "inconsistent");
       if (ary_src->size()->is_con()) {
         return ary_src->size()->get_con();
@@ -270,11 +271,11 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     BasicType src_elem  = ary_src->klass()->as_array_klass()->element_type()->basic_type();
     BasicType dest_elem = ary_dest->klass()->as_array_klass()->element_type()->basic_type();
     if (src_elem  == T_ARRAY ||
-        (src_elem == T_VALUETYPE && ary_src->klass()->is_obj_array_klass())) {
+        (src_elem == T_INLINE_TYPE && ary_src->klass()->is_obj_array_klass())) {
       src_elem  = T_OBJECT;
     }
     if (dest_elem == T_ARRAY ||
-        (dest_elem == T_VALUETYPE && ary_dest->klass()->is_obj_array_klass())) {
+        (dest_elem == T_INLINE_TYPE && ary_dest->klass()->is_obj_array_klass())) {
       dest_elem = T_OBJECT;
     }
 
@@ -285,7 +286,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     if (bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), dest_elem, false, BarrierSetC2::Optimization) ||
-        (src_elem == T_VALUETYPE && ary_src->elem()->value_klass()->contains_oops() &&
+        (src_elem == T_INLINE_TYPE && ary_src->elem()->inline_klass()->contains_oops() &&
          bs->array_copy_requires_gc_barriers(is_alloc_tightly_coupled(), T_OBJECT, false, BarrierSetC2::Optimization))) {
       // It's an object array copy but we can't emit the card marking that is needed
       return false;
@@ -294,8 +295,8 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     value_type = ary_src->elem();
 
     uint shift  = exact_log2(type2aelembytes(dest_elem));
-    if (dest_elem == T_VALUETYPE) {
-      ciValueArrayKlass* vak = ary_src->klass()->as_value_array_klass();
+    if (dest_elem == T_INLINE_TYPE) {
+      ciFlatArrayKlass* vak = ary_src->klass()->as_flat_array_klass();
       shift = vak->log2_element_size();
     }
     uint header = arrayOopDesc::base_offset_in_bytes(dest_elem);
@@ -324,7 +325,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     disjoint_bases = true;
 
     if (ary_src->elem()->make_oopptr() != NULL &&
-        ary_src->elem()->make_oopptr()->can_be_value_type()) {
+        ary_src->elem()->make_oopptr()->can_be_inline_type()) {
       return false;
     }
 
@@ -333,13 +334,13 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     BasicType elem = ary_src->klass()->as_array_klass()->element_type()->basic_type();
     if (elem == T_ARRAY ||
-        (elem == T_VALUETYPE && ary_src->klass()->is_obj_array_klass())) {
+        (elem == T_INLINE_TYPE && ary_src->klass()->is_obj_array_klass())) {
       elem = T_OBJECT;
     }
 
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     if (bs->array_copy_requires_gc_barriers(true, elem, true, BarrierSetC2::Optimization) ||
-        (elem == T_VALUETYPE && ary_src->elem()->value_klass()->contains_oops() &&
+        (elem == T_INLINE_TYPE && ary_src->elem()->inline_klass()->contains_oops() &&
          bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Optimization))) {
       return false;
     }
@@ -399,9 +400,9 @@ void ArrayCopyNode::copy(GraphKit& kit,
                          const Type* value_type) {
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   Node* ctl = kit.control();
-  if (copy_type == T_VALUETYPE) {
-    ciValueArrayKlass* vak = atp_src->klass()->as_value_array_klass();
-    ciValueKlass* vk = vak->element_klass()->as_value_klass();
+  if (copy_type == T_INLINE_TYPE) {
+    ciFlatArrayKlass* vak = atp_src->klass()->as_flat_array_klass();
+    ciInlineKlass* vk = vak->element_klass()->as_inline_klass();
     for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
       ciField* field = vk->nonstatic_field_at(j);
       int off_in_vt = field->offset() - vk->first_field_offset();
@@ -409,7 +410,7 @@ void ArrayCopyNode::copy(GraphKit& kit,
       ciType* ft = field->type();
       BasicType bt = type2field[ft->basic_type()];
       assert(!field->is_flattened(), "flattened field encountered");
-      if (bt == T_VALUETYPE) {
+      if (bt == T_INLINE_TYPE) {
         bt = T_OBJECT;
       }
       const Type* rt = Type::get_const_type(ft);
@@ -538,7 +539,7 @@ bool ArrayCopyNode::finish_transform(PhaseGVN *phase, bool can_reshape,
       BasicType elem = ary_src != NULL ? ary_src->klass()->as_array_klass()->element_type()->basic_type() : T_CONFLICT;
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       assert(!is_clonebasic() || bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Optimization) ||
-             (ary_src != NULL && elem == T_VALUETYPE && ary_src->klass()->is_obj_array_klass()), "added control for clone?");
+             (ary_src != NULL && elem == T_INLINE_TYPE && ary_src->klass()->is_obj_array_klass()), "added control for clone?");
 #endif
       assert(!is_clonebasic() || UseShenandoahGC, "added control for clone?");
       phase->record_for_igvn(this);
@@ -602,7 +603,7 @@ Node *ArrayCopyNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   const Type* dest_type = phase->type(dest);
 
   if (src_type->isa_aryptr() && dest_type->isa_instptr()) {
-    // clone used for load of unknown value type can't be optimized at
+    // clone used for load of unknown inline type can't be optimized at
     // this point
     return NULL;
   }
@@ -803,8 +804,8 @@ bool ArrayCopyNode::modifies(intptr_t offset_lo, intptr_t offset_hi, PhaseTransf
   BasicType ary_elem = klass->element_type()->basic_type();
   uint header = arrayOopDesc::base_offset_in_bytes(ary_elem);
   uint elemsize = type2aelembytes(ary_elem);
-  if (klass->is_value_array_klass()) {
-    elemsize = klass->as_value_array_klass()->element_byte_size();
+  if (klass->is_flat_array_klass()) {
+    elemsize = klass->as_flat_array_klass()->element_byte_size();
   }
 
   jlong dest_pos_plus_len_lo = (((jlong)dest_pos_t->_lo) + len_t->_lo) * elemsize + header;

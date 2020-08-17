@@ -43,6 +43,8 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/fieldStreams.inline.hpp"
+#include "oops/flatArrayKlass.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/instanceMirrorKlass.inline.hpp"
 #include "oops/klass.hpp"
@@ -52,8 +54,6 @@
 #include "oops/symbol.hpp"
 #include "oops/recordComponent.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/valueKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/resolvedMethodTable.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -1007,10 +1007,10 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
 
     // It might also have a component mirror.  This mirror must already exist.
     if (k->is_array_klass()) {
-      if (k->is_valueArray_klass()) {
-        Klass* element_klass = (Klass*) ValueArrayKlass::cast(k)->element_klass();
+      if (k->is_flatArray_klass()) {
+        Klass* element_klass = (Klass*) FlatArrayKlass::cast(k)->element_klass();
         assert(element_klass->is_inline_klass(), "Must be inline type component");
-        ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(element_klass));
+        InlineKlass* vk = InlineKlass::cast(InstanceKlass::cast(element_klass));
         comp_mirror = Handle(THREAD, vk->java_mirror());
       } else if (k->is_typeArray_klass()) {
         BasicType type = TypeArrayKlass::cast(k)->element_type();
@@ -1130,7 +1130,7 @@ class ResetMirrorField: public FieldClosure {
       case T_BOOLEAN:
         _m()->bool_field_put(fd->offset(), false);
         break;
-      case T_VALUETYPE:
+      case T_INLINE_TYPE:
       case T_ARRAY:
       case T_OBJECT: {
         // It might be useful to cache the String field, but
@@ -3206,6 +3206,7 @@ int java_lang_reflect_Field::_name_offset;
 int java_lang_reflect_Field::_type_offset;
 int java_lang_reflect_Field::_slot_offset;
 int java_lang_reflect_Field::_modifiers_offset;
+int java_lang_reflect_Field::_trusted_final_offset;
 int java_lang_reflect_Field::_signature_offset;
 int java_lang_reflect_Field::_annotations_offset;
 
@@ -3215,6 +3216,7 @@ int java_lang_reflect_Field::_annotations_offset;
   macro(_type_offset,      k, vmSymbols::type_name(),      class_signature,  false); \
   macro(_slot_offset,      k, vmSymbols::slot_name(),      int_signature,    false); \
   macro(_modifiers_offset, k, vmSymbols::modifiers_name(), int_signature,    false); \
+  macro(_trusted_final_offset,    k, vmSymbols::trusted_final_name(),    bool_signature,       false); \
   macro(_signature_offset,        k, vmSymbols::signature_name(),        string_signature,     false); \
   macro(_annotations_offset,      k, vmSymbols::annotations_name(),      byte_array_signature, false);
 
@@ -3277,6 +3279,10 @@ int java_lang_reflect_Field::modifiers(oop field) {
 
 void java_lang_reflect_Field::set_modifiers(oop field, int value) {
   field->int_field_put(_modifiers_offset, value);
+}
+
+void java_lang_reflect_Field::set_trusted_final(oop field) {
+  field->bool_field_put(_trusted_final_offset, true);
 }
 
 void java_lang_reflect_Field::set_signature(oop field, oop value) {

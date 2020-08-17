@@ -1,2 +1,2 @@
-CheckExtends.java:8:14: compiler.err.empty.value.not.yet
+CheckExtends.java:10:19: compiler.err.inline.type.must.not.implement.identity.object: CheckExtends.NestedValue
 1 error

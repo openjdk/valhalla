@@ -268,6 +268,7 @@
   template(returnType_name,                           "returnType")                               \
   template(signature_name,                            "signature")                                \
   template(slot_name,                                 "slot")                                     \
+  template(trusted_final_name,                        "trustedFinal")                             \
                                                                                                   \
   /* Support for annotations (JDK 1.5 and above) */                                               \
                                                                                                   \
@@ -675,6 +676,7 @@
                                                                                                                   \
   template(java_lang_invoke_ValueBootstrapMethods, "java/lang/invoke/ValueBootstrapMethods")                      \
   template(isSubstitutable_name,                   "isSubstitutable0")                                            \
+  template(inlineObjectHashCode_name,              "inlineObjectHashCode")                                        \
                                                                                                                   \
   template(jdk_internal_vm_jni_SubElementSelector, "jdk/internal/vm/jni/SubElementSelector")                      \
   /*end*/
@@ -1654,7 +1656,10 @@ private:
                          vmSymbols::SID sig,
                          jshort flags);
 
+  // check if the intrinsic is disabled by course-grained flags.
+  static bool disabled_by_jvm_flags(vmIntrinsics::ID id);
 public:
+  static ID find_id(const char* name);
   // Given a method's class, name, signature, and access flags, report its ID.
   static ID find_id(vmSymbols::SID holder,
                     vmSymbols::SID name,
@@ -1704,12 +1709,25 @@ public:
   // 'method' requires predicated logic.
   static int predicates_needed(vmIntrinsics::ID id);
 
-  // Returns true if a compiler intrinsic is disabled by command-line flags
-  // and false otherwise.
-  static bool is_disabled_by_flags(const methodHandle& method);
+  // There are 2 kinds of JVM options to control intrinsics.
+  // 1. Disable/Control Intrinsic accepts a list of intrinsic IDs.
+  //    ControlIntrinsic is recommended. DisableIntrinic will be deprecated.
+  //    Currently, the DisableIntrinsic list prevails if an intrinsic appears on
+  //    both lists.
+  //
+  // 2. Explicit UseXXXIntrinsics options. eg. UseAESIntrinsics, UseCRC32Intrinsics etc.
+  //    Each option can control a group of intrinsics. The user can specify them but
+  //    their final values are subject to hardware inspection (VM_Version::initialize).
+  //    Stub generators are controlled by them.
+  //
+  // An intrinsic is enabled if and only if neither the fine-grained control(1) nor
+  // the corresponding coarse-grained control(2) disables it.
   static bool is_disabled_by_flags(vmIntrinsics::ID id);
-  static bool is_intrinsic_disabled(vmIntrinsics::ID id);
-  static bool is_intrinsic_available(vmIntrinsics::ID id);
+
+  static bool is_disabled_by_flags(const methodHandle& method);
+  static bool is_intrinsic_available(vmIntrinsics::ID id) {
+    return !is_disabled_by_flags(id);
+  }
 };
 
 #endif // SHARE_CLASSFILE_VMSYMBOLS_HPP

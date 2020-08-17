@@ -522,7 +522,6 @@ static SpecialFlag const special_jvm_flags[] = {
   { "UseMembar",                    JDK_Version::jdk(10), JDK_Version::jdk(12), JDK_Version::undefined() },
   { "AllowRedefinitionToAddDeleteMethods", JDK_Version::jdk(13), JDK_Version::undefined(), JDK_Version::undefined() },
   { "FlightRecorder",               JDK_Version::jdk(13), JDK_Version::undefined(), JDK_Version::undefined() },
-  { "PrintVMQWaitTime",             JDK_Version::jdk(15), JDK_Version::jdk(16), JDK_Version::jdk(17) },
   { "UseNewFieldLayout",            JDK_Version::jdk(15), JDK_Version::jdk(16), JDK_Version::jdk(17) },
   { "ForceNUMA",                    JDK_Version::jdk(15), JDK_Version::jdk(16), JDK_Version::jdk(17) },
   { "UseBiasedLocking",             JDK_Version::jdk(15), JDK_Version::jdk(16), JDK_Version::jdk(17) },
@@ -552,6 +551,7 @@ static SpecialFlag const special_jvm_flags[] = {
   { "UseBsdPosixThreadCPUClocks",    JDK_Version::undefined(), JDK_Version::jdk(16), JDK_Version::jdk(17) },
   { "UseOprofile",                   JDK_Version::undefined(), JDK_Version::jdk(16), JDK_Version::jdk(17) },
 #endif
+  { "PrintVMQWaitTime",              JDK_Version::jdk(15), JDK_Version::jdk(16), JDK_Version::jdk(17) },
 
 #ifdef TEST_VERIFY_SPECIAL_JVM_FLAGS
   // These entries will generate build errors.  Their purpose is to test the macros.
@@ -3335,7 +3335,7 @@ class ScopedVMInitArgs : public StackObj {
   // allocated memory is deleted by the destructor.  If this method
   // returns anything other than JNI_OK, then this object is in a
   // partially constructed state, and should be abandoned.
-  jint set_args(GrowableArray<JavaVMOption>* options) {
+  jint set_args(const GrowableArrayView<JavaVMOption>* options) {
     _is_set = true;
     JavaVMOption* options_arr = NEW_C_HEAP_ARRAY_RETURN_NULL(
         JavaVMOption, options->length(), mtArguments);
@@ -3393,23 +3393,21 @@ class ScopedVMInitArgs : public StackObj {
     assert(vm_options_file_pos != -1, "vm_options_file_pos should be set");
 
     int length = args->nOptions + args_to_insert->nOptions - 1;
-    GrowableArray<JavaVMOption> *options = new (ResourceObj::C_HEAP, mtArguments)
-              GrowableArray<JavaVMOption>(length, mtArguments);    // Construct new option array
+    // Construct new option array
+    GrowableArrayCHeap<JavaVMOption, mtArguments> options(length);
     for (int i = 0; i < args->nOptions; i++) {
       if (i == vm_options_file_pos) {
         // insert the new options starting at the same place as the
         // -XX:VMOptionsFile option
         for (int j = 0; j < args_to_insert->nOptions; j++) {
-          options->push(args_to_insert->options[j]);
+          options.push(args_to_insert->options[j]);
         }
       } else {
-        options->push(args->options[i]);
+        options.push(args->options[i]);
       }
     }
     // make into options array
-    jint result = set_args(options);
-    delete options;
-    return result;
+    return set_args(&options);
   }
 };
 
@@ -3506,7 +3504,8 @@ jint Arguments::parse_vm_options_file(const char* file_name, ScopedVMInitArgs* v
 }
 
 jint Arguments::parse_options_buffer(const char* name, char* buffer, const size_t buf_len, ScopedVMInitArgs* vm_args) {
-  GrowableArray<JavaVMOption> *options = new (ResourceObj::C_HEAP, mtArguments) GrowableArray<JavaVMOption>(2, mtArguments);    // Construct option array
+  // Construct option array
+  GrowableArrayCHeap<JavaVMOption, mtArguments> options(2);
 
   // some pointers to help with parsing
   char *buffer_end = buffer + buf_len;
@@ -3546,7 +3545,6 @@ jint Arguments::parse_options_buffer(const char* name, char* buffer, const size_
                                             // did not see closing quote
           jio_fprintf(defaultStream::error_stream(),
                       "Unmatched quote in %s\n", name);
-          delete options;
           return JNI_ERR;
         }
       } else {
@@ -3562,16 +3560,13 @@ jint Arguments::parse_options_buffer(const char* name, char* buffer, const size_
     option.optionString = opt_hd;
     option.extraInfo = NULL;
 
-    options->append(option);                // Fill in option
+    options.append(option);                // Fill in option
 
     rd++;  // Advance to next character
   }
 
   // Fill out JavaVMInitArgs structure.
-  jint status = vm_args->set_args(options);
-
-  delete options;
-  return status;
+  return vm_args->set_args(&options);
 }
 
 jint Arguments::set_shared_spaces_flags_and_archive_paths() {
@@ -4176,13 +4171,13 @@ jint Arguments::apply_ergo() {
     UseBiasedLocking = false;
   }
 
-#ifdef CC_INTERP
+#ifdef ZERO
   // Clear flags not supported on zero.
   FLAG_SET_DEFAULT(ProfileInterpreter, false);
   FLAG_SET_DEFAULT(UseBiasedLocking, false);
   LP64_ONLY(FLAG_SET_DEFAULT(UseCompressedOops, false));
   LP64_ONLY(FLAG_SET_DEFAULT(UseCompressedClassPointers, false));
-#endif // CC_INTERP
+#endif // ZERO
 
   if (PrintAssembly && FLAG_IS_DEFAULT(DebugNonSafepoints)) {
     warning("PrintAssembly is enabled; turning on DebugNonSafepoints to gain additional output");

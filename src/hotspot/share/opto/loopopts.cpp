@@ -33,6 +33,7 @@
 #include "opto/connode.hpp"
 #include "opto/castnode.hpp"
 #include "opto/divnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/mulnode.hpp"
@@ -41,7 +42,6 @@
 #include "opto/rootnode.hpp"
 #include "opto/subnode.hpp"
 #include "opto/subtypenode.hpp"
-#include "opto/valuetypenode.hpp"
 #include "utilities/macros.hpp"
 
 //=============================================================================
@@ -62,9 +62,9 @@ Node *PhaseIdealLoop::split_thru_phi( Node *n, Node *region, int policy ) {
     return NULL;
   }
 
-  // Value types should not be split through Phis because they cannot be merged
+  // Inline types should not be split through Phis because they cannot be merged
   // through Phi nodes but each value input needs to be merged individually.
-  if (n->is_ValueType()) {
+  if (n->is_InlineType()) {
     return NULL;
   }
 
@@ -916,6 +916,9 @@ void PhaseIdealLoop::try_move_store_after_loop(Node* n) {
 
             // Compute latest point this store can go
             Node* lca = get_late_ctrl(n, get_ctrl(n));
+            if (lca->is_OuterStripMinedLoop()) {
+              lca = lca->in(LoopNode::EntryControl);
+            }
             if (n_loop->is_member(get_loop(lca))) {
               // LCA is in the loop - bail out
               _igvn.replace_node(hook, n);
@@ -1212,7 +1215,7 @@ static Node* is_inner_of_stripmined_loop(const Node* out) {
 
 bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
   // If the CmpP is a subtype check for a value that has just been
-  // loaded from an array, the subtype checks guarantees the value
+  // loaded from an array, the subtype check guarantees the value
   // can't be stored in a flattened array and the load of the value
   // happens with a flattened array check then: push the type check
   // through the phi of the flattened array check. This needs special
@@ -1286,7 +1289,7 @@ bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
     _igvn.set_type(klassptr_clone, klassptr_clone->Value(&_igvn));
     if (klassptr != n->in(1)) {
       Node* decode = n->in(1);
-      assert(decode->is_DecodeNarrowPtr(), "inconcistent subgraph");
+      assert(decode->is_DecodeNarrowPtr(), "inconsistent subgraph");
       Node* decode_clone = decode->clone();
       decode_clone->set_req(1, klassptr_clone);
       register_new_node(decode_clone, ctrl);
@@ -1580,9 +1583,9 @@ void PhaseIdealLoop::split_if_with_blocks_post(Node *n) {
 
   try_move_store_after_loop(n);
 
-  // Remove multiple allocations of the same value type
-  if (n->is_ValueType()) {
-    n->as_ValueType()->remove_redundant_allocations(&_igvn, this);
+  // Remove multiple allocations of the same inline type
+  if (n->is_InlineType()) {
+    n->as_InlineType()->remove_redundant_allocations(&_igvn, this);
     return; // n is now dead
   }
 
@@ -1852,22 +1855,19 @@ void PhaseIdealLoop::clone_loop_handle_data_uses(Node* old, Node_List &old_new,
         // Since this code is highly unlikely, we lazily build the worklist
         // of such Nodes to go split.
         if (!split_if_set) {
-          ResourceArea *area = Thread::current()->resource_area();
-          split_if_set = new Node_List(area);
+          split_if_set = new Node_List();
         }
         split_if_set->push(use);
       }
       if (use->is_Bool()) {
         if (!split_bool_set) {
-          ResourceArea *area = Thread::current()->resource_area();
-          split_bool_set = new Node_List(area);
+          split_bool_set = new Node_List();
         }
         split_bool_set->push(use);
       }
       if (use->Opcode() == Op_CreateEx) {
         if (!split_cex_set) {
-          ResourceArea *area = Thread::current()->resource_area();
-          split_cex_set = new Node_List(area);
+          split_cex_set = new Node_List();
         }
         split_cex_set->push(use);
       }
@@ -2200,8 +2200,7 @@ void PhaseIdealLoop::clone_loop( IdealLoopTree *loop, Node_List &old_new, int dd
     _igvn.hash_find_insert(nnn);
   }
 
-  ResourceArea *area = Thread::current()->resource_area();
-  Node_List extra_data_nodes(area); // data nodes in the outer strip mined loop
+  Node_List extra_data_nodes; // data nodes in the outer strip mined loop
   clone_outer_loop(head, mode, loop, outer_loop, dd, old_new, extra_data_nodes);
 
   // Step 3: Now fix control uses.  Loop varying control uses have already
@@ -2209,7 +2208,7 @@ void PhaseIdealLoop::clone_loop( IdealLoopTree *loop, Node_List &old_new, int dd
   // control uses must be either an IfFalse or an IfTrue.  Make a merge
   // point to merge the old and new IfFalse/IfTrue nodes; make the use
   // refer to this.
-  Node_List worklist(area);
+  Node_List worklist;
   uint new_counter = C->unique();
   for( i = 0; i < loop->_body.size(); i++ ) {
     Node* old = loop->_body.at(i);
@@ -2690,9 +2689,8 @@ void PhaseIdealLoop::remove_cmpi_loop_exit(IfNode* if_cmp, IdealLoopTree *loop) 
 void PhaseIdealLoop::scheduled_nodelist( IdealLoopTree *loop, VectorSet& member, Node_List &sched ) {
 
   assert(member.test(loop->_head->_idx), "loop head must be in member set");
-  Arena *a = Thread::current()->resource_area();
-  VectorSet visited(a);
-  Node_Stack nstack(a, loop->_body.size());
+  VectorSet visited;
+  Node_Stack nstack(loop->_body.size());
 
   Node* n  = loop->_head;  // top of stack is cached in "n"
   uint idx = 0;
@@ -3268,12 +3266,11 @@ bool PhaseIdealLoop::partial_peel( IdealLoopTree *loop, Node_List &old_new ) {
     }
   }
 #endif
-  ResourceArea *area = Thread::current()->resource_area();
-  VectorSet peel(area);
-  VectorSet not_peel(area);
-  Node_List peel_list(area);
-  Node_List worklist(area);
-  Node_List sink_list(area);
+  VectorSet peel;
+  VectorSet not_peel;
+  Node_List peel_list;
+  Node_List worklist;
+  Node_List sink_list;
 
   uint estimate = loop->est_loop_clone_sz(1);
   if (exceeding_node_budget(estimate)) {
@@ -3540,7 +3537,7 @@ bool PhaseIdealLoop::partial_peel( IdealLoopTree *loop, Node_List &old_new ) {
 #ifndef PRODUCT
   if (TracePartialPeeling) {
     tty->print_cr("\nafter partial peel one iteration");
-    Node_List wl(area);
+    Node_List wl;
     Node* t = last_peel;
     while (true) {
       wl.push(t);

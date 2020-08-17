@@ -67,21 +67,27 @@ extern int nodes_created;
 void Node::verify_construction() {
   _debug_orig = NULL;
   int old_debug_idx = Compile::debug_idx();
-  int new_debug_idx = old_debug_idx+1;
+  int new_debug_idx = old_debug_idx + 1;
   if (new_debug_idx > 0) {
     // Arrange that the lowest five decimal digits of _debug_idx
     // will repeat those of _idx. In case this is somehow pathological,
     // we continue to assign negative numbers (!) consecutively.
     const int mod = 100000;
     int bump = (int)(_idx - new_debug_idx) % mod;
-    if (bump < 0)  bump += mod;
+    if (bump < 0) {
+      bump += mod;
+    }
     assert(bump >= 0 && bump < mod, "");
     new_debug_idx += bump;
   }
   Compile::set_debug_idx(new_debug_idx);
-  set_debug_idx( new_debug_idx );
-  assert(Compile::current()->unique() < (INT_MAX - 1), "Node limit exceeded INT_MAX");
-  assert(Compile::current()->live_nodes() < Compile::current()->max_node_limit(), "Live Node limit exceeded limit");
+  set_debug_idx(new_debug_idx);
+  Compile* C = Compile::current();
+  assert(C->unique() < (INT_MAX - 1), "Node limit exceeded INT_MAX");
+  if (!C->phase_optimize_finished()) {
+    // Only check assert during parsing and optimization phase. Skip it while generating code.
+    assert(C->live_nodes() <= C->max_node_limit(), "Live Node limit exceeded limit");
+  }
   if (BreakAtNode != 0 && (_debug_idx == BreakAtNode || (int)_idx == BreakAtNode)) {
     tty->print_cr("BreakAtNode: _idx=%d _debug_idx=%d", _idx, _debug_idx);
     BREAKPOINT;
@@ -548,8 +554,8 @@ Node *Node::clone() const {
   if (n->is_SafePoint()) {
     n->as_SafePoint()->clone_replaced_nodes();
   }
-  if (n->is_ValueTypeBase()) {
-    C->add_value_type(n);
+  if (n->is_InlineTypeBase()) {
+    C->add_inline_type(n);
   }
   return n;                     // Return the clone
 }
@@ -628,8 +634,8 @@ void Node::destruct() {
   if (Opcode() == Op_Opaque4) {
     compile->remove_opaque4_node(this);
   }
-  if (is_ValueTypeBase()) {
-    compile->remove_value_type(this);
+  if (is_InlineTypeBase()) {
+    compile->remove_inline_type(this);
   }
 
   if (is_SafePoint()) {
@@ -1334,7 +1340,7 @@ static void kill_dead_code( Node *dead, PhaseIterGVN *igvn ) {
   if( dead->is_Con() ) return;
 
   ResourceMark rm;
-  Node_List  nstack(Thread::current()->resource_area());
+  Node_List nstack;
 
   Node *top = igvn->C->top();
   nstack.push(dead);
@@ -1404,8 +1410,8 @@ static void kill_dead_code( Node *dead, PhaseIterGVN *igvn ) {
       if (dead->Opcode() == Op_Opaque4) {
         igvn->C->remove_opaque4_node(dead);
       }
-      if (dead->is_ValueTypeBase()) {
-        igvn->C->remove_value_type(dead);
+      if (dead->is_InlineTypeBase()) {
+        igvn->C->remove_inline_type(dead);
       }
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       bs->unregister_potential_barrier_node(dead);
@@ -1610,20 +1616,18 @@ Node* find_node(int idx) {
 
 //------------------------------find-------------------------------------------
 Node* Node::find(int idx) const {
-  ResourceArea *area = Thread::current()->resource_area();
-  VectorSet old_space(area), new_space(area);
+  VectorSet old_space, new_space;
   Node* result = NULL;
-  find_recur(Compile::current(), result, (Node*) this, idx, false, &old_space, &new_space );
+  find_recur(Compile::current(), result, (Node*) this, idx, false, &old_space, &new_space);
   return result;
 }
 
 //------------------------------find_ctrl--------------------------------------
 // Find an ancestor to this node in the control history with given _idx
 Node* Node::find_ctrl(int idx) const {
-  ResourceArea *area = Thread::current()->resource_area();
-  VectorSet old_space(area), new_space(area);
+  VectorSet old_space, new_space;
   Node* result = NULL;
-  find_recur(Compile::current(), result, (Node*) this, idx, true, &old_space, &new_space );
+  find_recur(Compile::current(), result, (Node*)this, idx, true, &old_space, &new_space);
   return result;
 }
 #endif
@@ -2147,7 +2151,7 @@ void Node::verify_edges(Unique_Node_List &visited) {
       assert( cnt == 0,"Mismatched edge count.");
     } else if (n == NULL) {
       assert(i >= req() || i == 0 || is_Region() || is_Phi() || is_ArrayCopy() ||
-             (is_Allocate() && i >= AllocateNode::ValueNode) ||
+             (is_Allocate() && i >= AllocateNode::InlineTypeNode) ||
              (is_Unlock() && i == req()-1),
              "only region, phi, arraycopy, allocate or unlock nodes have null data edges");
     } else {
@@ -2167,10 +2171,9 @@ void Node::verify_edges(Unique_Node_List &visited) {
 void Node::verify(Node* n, int verify_depth) {
   assert(verify_depth != 0, "depth should not be 0");
   ResourceMark rm;
-  ResourceArea* area = Thread::current()->resource_area();
-  VectorSet old_space(area);
-  VectorSet new_space(area);
-  Node_List worklist(area);
+  VectorSet old_space;
+  VectorSet new_space;
+  Node_List worklist;
   worklist.push(n);
   Compile* C = Compile::current();
   uint last_index_on_current_depth = 0;
@@ -2239,7 +2242,7 @@ void Node::verify(Node* n, int verify_depth) {
 //------------------------------walk-------------------------------------------
 // Graph walk, with both pre-order and post-order functions
 void Node::walk(NFunc pre, NFunc post, void *env) {
-  VectorSet visited(Thread::current()->resource_area()); // Setup for local walk
+  VectorSet visited; // Setup for local walk
   walk_(pre, post, env, visited);
 }
 

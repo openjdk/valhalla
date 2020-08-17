@@ -54,7 +54,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "prims/forte.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
@@ -774,17 +774,12 @@ address SharedRuntime::continuation_for_implicit_exception(JavaThread* thread,
   address target_pc = NULL;
 
   if (Interpreter::contains(pc)) {
-#ifdef CC_INTERP
-    // C++ interpreter doesn't throw implicit exceptions
-    ShouldNotReachHere();
-#else
     switch (exception_kind) {
       case IMPLICIT_NULL:           return Interpreter::throw_NullPointerException_entry();
       case IMPLICIT_DIVIDE_BY_ZERO: return Interpreter::throw_ArithmeticException_entry();
       case STACK_OVERFLOW:          return Interpreter::throw_StackOverflowError_entry();
       default:                      ShouldNotReachHere();
     }
-#endif // !CC_INTERP
   } else {
     switch (exception_kind) {
       case STACK_OVERFLOW: {
@@ -1143,7 +1138,7 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
       }
     }
     if (!caller_is_c1 && callee->has_scalarized_args() && callee->method_holder()->is_inline_klass() &&
-        ValueKlass::cast(callee->method_holder())->can_be_passed_as_fields()) {
+        InlineKlass::cast(callee->method_holder())->can_be_passed_as_fields()) {
       // If the receiver is an inline type that is passed as fields, no oop is available
       // Resolve the call without receiver null checking.
       assert(attached_method.not_null() && !attached_method->is_abstract(), "must have non-abstract attached method");
@@ -1287,7 +1282,7 @@ bool SharedRuntime::resolve_sub_helper_internal(methodHandle callee_method, cons
   if (is_virtual) {
     Klass* receiver_klass = NULL;
     if (!caller_is_c1 && callee_method->has_scalarized_args() && callee_method->method_holder()->is_inline_klass() &&
-        ValueKlass::cast(callee_method->method_holder())->can_be_passed_as_fields()) {
+        InlineKlass::cast(callee_method->method_holder())->can_be_passed_as_fields()) {
       // If the receiver is an inline type that is passed as fields, no oop is available
       receiver_klass = callee_method->method_holder();
     } else {
@@ -1569,7 +1564,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_static_call_C(JavaThread *thread
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
   address entry = caller_is_c1 ?
-    callee_method->verified_value_code_entry() : callee_method->verified_code_entry();
+    callee_method->verified_inline_code_entry() : callee_method->verified_code_entry();
   assert(entry != NULL, "Jump to zero!");
   return entry;
 JRT_END
@@ -1585,7 +1580,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_virtual_call_C(JavaThread *threa
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
   address entry = caller_is_c1 ?
-    callee_method->verified_value_code_entry() : callee_method->verified_value_ro_code_entry();
+    callee_method->verified_inline_code_entry() : callee_method->verified_inline_ro_code_entry();
   assert(entry != NULL, "Jump to zero!");
   return entry;
 JRT_END
@@ -1602,7 +1597,7 @@ JRT_BLOCK_ENTRY(address, SharedRuntime::resolve_opt_virtual_call_C(JavaThread *t
   JRT_BLOCK_END
   // return compiled code entry point after potential safepoints
   address entry = caller_is_c1 ?
-    callee_method->verified_value_code_entry() : callee_method->verified_code_entry();
+    callee_method->verified_inline_code_entry() : callee_method->verified_code_entry();
   assert(entry != NULL, "Jump to zero!");
   return entry;
 JRT_END
@@ -2356,13 +2351,13 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
   // Remap BasicTypes that are handled equivalently by the adapters.
   // These are correct for the current system but someday it might be
   // necessary to make this mapping platform dependent.
-  static int adapter_encoding(BasicType in, bool is_valuetype) {
+  static int adapter_encoding(BasicType in, bool is_inlinetype) {
     switch (in) {
       case T_BOOLEAN:
       case T_BYTE:
       case T_SHORT:
       case T_CHAR: {
-        if (is_valuetype) {
+        if (is_inlinetype) {
           // Do not widen inline type field types
           assert(InlineTypePassFieldsAsArgs, "must be enabled");
           return in;
@@ -2372,9 +2367,9 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
         }
       }
 
-      case T_VALUETYPE: {
+      case T_INLINE_TYPE: {
         // If inline types are passed as fields, return 'in' to differentiate
-        // between a T_VALUETYPE and a T_OBJECT in the signature.
+        // between a T_INLINE_TYPE and a T_OBJECT in the signature.
         return InlineTypePassFieldsAsArgs ? in : adapter_encoding(T_OBJECT, false);
       }
 
@@ -2431,12 +2426,12 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
         int bt = 0;
         if (sig_index < total_args_passed) {
           BasicType sbt = sig->at(sig_index++)._bt;
-          if (InlineTypePassFieldsAsArgs && sbt == T_VALUETYPE) {
+          if (InlineTypePassFieldsAsArgs && sbt == T_INLINE_TYPE) {
             // Found start of inline type in signature
             vt_count++;
             if (sig_index == 1 && has_ro_adapter) {
-              // With a ro_adapter, replace receiver value type delimiter by T_VOID to prevent matching
-              // with other adapters that have the same value type as first argument and no receiver.
+              // With a ro_adapter, replace receiver inline type delimiter by T_VOID to prevent matching
+              // with other adapters that have the same inline type as first argument and no receiver.
               sbt = T_VOID;
             }
           } else if (InlineTypePassFieldsAsArgs && sbt == T_VOID &&
@@ -2540,11 +2535,11 @@ class AdapterHandlerTable : public BasicHashtable<mtCode> {
 
   // Create a new entry suitable for insertion in the table
   AdapterHandlerEntry* new_entry(AdapterFingerPrint* fingerprint, address i2c_entry, address c2i_entry,
-                                 address c2i_value_entry, address c2i_value_ro_entry,
-                                 address c2i_unverified_entry, address c2i_unverified_value_entry, address c2i_no_clinit_check_entry) {
+                                 address c2i_inline_entry, address c2i_inline_ro_entry,
+                                 address c2i_unverified_entry, address c2i_unverified_inline_entry, address c2i_no_clinit_check_entry) {
     AdapterHandlerEntry* entry = (AdapterHandlerEntry*)BasicHashtable<mtCode>::new_entry(fingerprint->compute_hash());
-    entry->init(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry,
-                c2i_unverified_entry, c2i_unverified_value_entry, c2i_no_clinit_check_entry);
+    entry->init(fingerprint, i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry,
+                c2i_unverified_entry, c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
     if (DumpSharedSpaces) {
       ((CDSAdapterHandlerEntry*)entry)->init();
     }
@@ -2694,13 +2689,13 @@ void AdapterHandlerLibrary::initialize() {
 AdapterHandlerEntry* AdapterHandlerLibrary::new_entry(AdapterFingerPrint* fingerprint,
                                                       address i2c_entry,
                                                       address c2i_entry,
-                                                      address c2i_value_entry,
-                                                      address c2i_value_ro_entry,
+                                                      address c2i_inline_entry,
+                                                      address c2i_inline_ro_entry,
                                                       address c2i_unverified_entry,
-                                                      address c2i_unverified_value_entry,
+                                                      address c2i_unverified_inline_entry,
                                                       address c2i_no_clinit_check_entry) {
-  return _adapters->new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry,
-                              c2i_unverified_value_entry, c2i_no_clinit_check_entry);
+  return _adapters->new_entry(fingerprint, i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry,
+                              c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
 }
 
 static void generate_trampoline(address trampoline, address destination) {
@@ -2725,9 +2720,9 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
     if (method->adapter() == NULL) {
       method->update_adapter_trampoline(entry);
     }
-    generate_trampoline(method->from_compiled_entry(),          entry->get_c2i_entry());
-    generate_trampoline(method->from_compiled_value_ro_entry(), entry->get_c2i_value_ro_entry());
-    generate_trampoline(method->from_compiled_value_entry(),    entry->get_c2i_value_entry());
+    generate_trampoline(method->from_compiled_entry(),           entry->get_c2i_entry());
+    generate_trampoline(method->from_compiled_inline_ro_entry(), entry->get_c2i_inline_ro_entry());
+    generate_trampoline(method->from_compiled_inline_entry(),    entry->get_c2i_inline_entry());
   }
 
   return entry;
@@ -2735,7 +2730,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter(const methodHandle& meth
 
 
 CompiledEntrySignature::CompiledEntrySignature(Method* method) :
-  _method(method), _num_value_args(0), _has_value_recv(false),
+  _method(method), _num_inline_args(0), _has_inline_recv(false),
   _sig_cc(NULL), _sig_cc_ro(NULL), _regs(NULL), _regs_cc(NULL), _regs_cc_ro(NULL),
   _args_on_stack(0), _args_on_stack_cc(0), _args_on_stack_cc_ro(0),
   _c1_needs_stack_repair(false), _c2_needs_stack_repair(false), _has_scalarized_args(false) {
@@ -2748,16 +2743,16 @@ int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_
   InstanceKlass* holder = _method->method_holder();
   sig_cc = new GrowableArray<SigEntry>(_method->size_of_parameters());
   if (!_method->is_static()) {
-    if (holder->is_inline_klass() && scalar_receiver && ValueKlass::cast(holder)->can_be_passed_as_fields()) {
-      sig_cc->appendAll(ValueKlass::cast(holder)->extended_sig());
+    if (holder->is_inline_klass() && scalar_receiver && InlineKlass::cast(holder)->can_be_passed_as_fields()) {
+      sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
     } else {
       SigEntry::add_entry(sig_cc, T_OBJECT);
     }
   }
   Thread* THREAD = Thread::current();
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
-    if (ss.type() == T_VALUETYPE) {
-      ValueKlass* vk = ss.as_value_klass(holder);
+    if (ss.type() == T_INLINE_TYPE) {
+      InlineKlass* vk = ss.as_inline_klass(holder);
       if (vk->can_be_passed_as_fields()) {
         sig_cc->appendAll(vk->extended_sig());
       } else {
@@ -2792,66 +2787,66 @@ int CompiledEntrySignature::insert_reserved_entry(int ret_off) {
   return SharedRuntime::java_calling_convention(_sig_cc, _regs_cc);
 }
 
-// See if we can save space by sharing the same entry for VVEP and VVEP(RO),
-// or the same entry for VEP and VVEP(RO).
-CodeOffsets::Entries CompiledEntrySignature::c1_value_ro_entry_type() const {
+// See if we can save space by sharing the same entry for VIEP and VIEP(RO),
+// or the same entry for VEP and VIEP(RO).
+CodeOffsets::Entries CompiledEntrySignature::c1_inline_ro_entry_type() const {
   if (!has_scalarized_args()) {
-    // VEP/VVEP/VVEP(RO) all share the same entry. There's no packing.
+    // VEP/VIEP/VIEP(RO) all share the same entry. There's no packing.
     return CodeOffsets::Verified_Entry;
   }
   if (_method->is_static()) {
-    // Static methods don't need VVEP(RO)
+    // Static methods don't need VIEP(RO)
     return CodeOffsets::Verified_Entry;
   }
 
-  if (has_value_recv()) {
-    if (num_value_args() == 1) {
-      // Share same entry for VVEP and VVEP(RO).
-      // This is quite common: we have an instance method in a ValueKlass that has
-      // no value args other than <this>.
-      return CodeOffsets::Verified_Value_Entry;
+  if (has_inline_recv()) {
+    if (num_inline_args() == 1) {
+      // Share same entry for VIEP and VIEP(RO).
+      // This is quite common: we have an instance method in an InlineKlass that has
+      // no inline type args other than <this>.
+      return CodeOffsets::Verified_Inline_Entry;
     } else {
-      assert(num_value_args() > 1, "must be");
+      assert(num_inline_args() > 1, "must be");
       // No sharing:
-      //   VVEP(RO) -- <this> is passed as object
+      //   VIEP(RO) -- <this> is passed as object
       //   VEP      -- <this> is passed as fields
-      return CodeOffsets::Verified_Value_Entry_RO;
+      return CodeOffsets::Verified_Inline_Entry_RO;
     }
   }
 
-  // Either a static method, or <this> is not a value type
+  // Either a static method, or <this> is not an inline type
   if (args_on_stack_cc() != args_on_stack_cc_ro() || _has_reserved_entries) {
     // No sharing:
     // Some arguments are passed on the stack, and we have inserted reserved entries
-    // into the VEP, but we never insert reserved entries into the VVEP(RO).
-    return CodeOffsets::Verified_Value_Entry_RO;
+    // into the VEP, but we never insert reserved entries into the VIEP(RO).
+    return CodeOffsets::Verified_Inline_Entry_RO;
   } else {
-    // Share same entry for VEP and VVEP(RO).
+    // Share same entry for VEP and VIEP(RO).
     return CodeOffsets::Verified_Entry;
   }
 }
 
 
 void CompiledEntrySignature::compute_calling_conventions() {
-  // Get the (non-scalarized) signature and check for value type arguments
+  // Get the (non-scalarized) signature and check for inline type arguments
   if (!_method->is_static()) {
-    if (_method->method_holder()->is_inline_klass() && ValueKlass::cast(_method->method_holder())->can_be_passed_as_fields()) {
-      _has_value_recv = true;
-      _num_value_args++;
+    if (_method->method_holder()->is_inline_klass() && InlineKlass::cast(_method->method_holder())->can_be_passed_as_fields()) {
+      _has_inline_recv = true;
+      _num_inline_args++;
     }
     SigEntry::add_entry(_sig, T_OBJECT);
   }
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
     BasicType bt = ss.type();
-    if (bt == T_VALUETYPE) {
-      if (ss.as_value_klass(_method->method_holder())->can_be_passed_as_fields()) {
-        _num_value_args++;
+    if (bt == T_INLINE_TYPE) {
+      if (ss.as_inline_klass(_method->method_holder())->can_be_passed_as_fields()) {
+        _num_inline_args++;
       }
       bt = T_OBJECT;
     }
     SigEntry::add_entry(_sig, bt);
   }
-  if (_method->is_abstract() && !has_value_arg()) {
+  if (_method->is_abstract() && !has_inline_arg()) {
     return;
   }
 
@@ -2859,7 +2854,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
   _regs = NEW_RESOURCE_ARRAY(VMRegPair, _sig->length());
   _args_on_stack = SharedRuntime::java_calling_convention(_sig, _regs);
 
-  // Now compute the scalarized calling convention if there are value types in the signature
+  // Now compute the scalarized calling convention if there are inline types in the signature
   _sig_cc = _sig;
   _sig_cc_ro = _sig;
   _regs_cc = _regs;
@@ -2867,13 +2862,13 @@ void CompiledEntrySignature::compute_calling_conventions() {
   _args_on_stack_cc = _args_on_stack;
   _args_on_stack_cc_ro = _args_on_stack;
 
-  if (has_value_arg() && !_method->is_native()) {
+  if (has_inline_arg() && !_method->is_native()) {
     _args_on_stack_cc = compute_scalarized_cc(_sig_cc, _regs_cc, /* scalar_receiver = */ true);
 
     _sig_cc_ro = _sig_cc;
     _regs_cc_ro = _regs_cc;
     _args_on_stack_cc_ro = _args_on_stack_cc;
-    if (_has_value_recv || _args_on_stack_cc > _args_on_stack) {
+    if (_has_inline_recv || _args_on_stack_cc > _args_on_stack) {
       // For interface calls, we need another entry point / adapter to unpack the receiver
       _args_on_stack_cc_ro = compute_scalarized_cc(_sig_cc_ro, _regs_cc_ro, /* scalar_receiver = */ false);
     }
@@ -2914,7 +2909,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
     // bailing out of compilation ("unsupported incoming calling sequence").
     // TODO we need a reasonable limit (flag?) here
     if (_args_on_stack_cc > 50) {
-      // Don't scalarize value type arguments
+      // Don't scalarize inline type arguments
       _sig_cc = _sig;
       _sig_cc_ro = _sig;
       _regs_cc = _regs;
@@ -2967,7 +2962,7 @@ AdapterHandlerEntry* AdapterHandlerLibrary::get_adapter0(const methodHandle& met
 
     if (method->is_abstract()) {
       if (ces.has_scalarized_args()) {
-        // Save a C heap allocated version of the signature for abstract methods with scalarized value type arguments
+        // Save a C heap allocated version of the signature for abstract methods with scalarized inline type arguments
         address wrong_method_abstract = SharedRuntime::get_handle_wrong_method_abstract_stub();
         entry = AdapterHandlerLibrary::new_entry(new AdapterFingerPrint(NULL),
                                                  StubRoutines::throw_AbstractMethodError_entry(),
@@ -3105,10 +3100,10 @@ address AdapterHandlerEntry::base_address() {
   address base = _i2c_entry;
   if (base == NULL)  base = _c2i_entry;
   assert(base <= _c2i_entry || _c2i_entry == NULL, "");
-  assert(base <= _c2i_value_entry || _c2i_value_entry == NULL, "");
-  assert(base <= _c2i_value_ro_entry || _c2i_value_ro_entry == NULL, "");
+  assert(base <= _c2i_inline_entry || _c2i_inline_entry == NULL, "");
+  assert(base <= _c2i_inline_ro_entry || _c2i_inline_ro_entry == NULL, "");
   assert(base <= _c2i_unverified_entry || _c2i_unverified_entry == NULL, "");
-  assert(base <= _c2i_unverified_value_entry || _c2i_unverified_value_entry == NULL, "");
+  assert(base <= _c2i_unverified_inline_entry || _c2i_unverified_inline_entry == NULL, "");
   assert(base <= _c2i_no_clinit_check_entry || _c2i_no_clinit_check_entry == NULL, "");
   return base;
 }
@@ -3121,14 +3116,14 @@ void AdapterHandlerEntry::relocate(address new_base) {
     _i2c_entry += delta;
   if (_c2i_entry != NULL)
     _c2i_entry += delta;
-  if (_c2i_value_entry != NULL)
-    _c2i_value_entry += delta;
-  if (_c2i_value_ro_entry != NULL)
-    _c2i_value_ro_entry += delta;
+  if (_c2i_inline_entry != NULL)
+    _c2i_inline_entry += delta;
+  if (_c2i_inline_ro_entry != NULL)
+    _c2i_inline_ro_entry += delta;
   if (_c2i_unverified_entry != NULL)
     _c2i_unverified_entry += delta;
-  if (_c2i_unverified_value_entry != NULL)
-    _c2i_unverified_value_entry += delta;
+  if (_c2i_unverified_inline_entry != NULL)
+    _c2i_unverified_inline_entry += delta;
   if (_c2i_no_clinit_check_entry != NULL)
     _c2i_no_clinit_check_entry += delta;
   assert(base_address() == new_base, "");
@@ -3478,16 +3473,16 @@ void AdapterHandlerEntry::print_adapter_on(outputStream* st) const {
     st->print(" c2i: " INTPTR_FORMAT, p2i(get_c2i_entry()));
   }
   if (get_c2i_entry() != NULL) {
-    st->print(" c2iVE: " INTPTR_FORMAT, p2i(get_c2i_value_entry()));
+    st->print(" c2iVE: " INTPTR_FORMAT, p2i(get_c2i_inline_entry()));
   }
   if (get_c2i_entry() != NULL) {
-    st->print(" c2iVROE: " INTPTR_FORMAT, p2i(get_c2i_value_ro_entry()));
+    st->print(" c2iVROE: " INTPTR_FORMAT, p2i(get_c2i_inline_ro_entry()));
   }
   if (get_c2i_unverified_entry() != NULL) {
     st->print(" c2iUE: " INTPTR_FORMAT, p2i(get_c2i_unverified_entry()));
   }
   if (get_c2i_unverified_entry() != NULL) {
-    st->print(" c2iUVE: " INTPTR_FORMAT, p2i(get_c2i_unverified_value_entry()));
+    st->print(" c2iUVE: " INTPTR_FORMAT, p2i(get_c2i_unverified_inline_entry()));
   }
   if (get_c2i_no_clinit_check_entry() != NULL) {
     st->print(" c2iNCI: " INTPTR_FORMAT, p2i(get_c2i_no_clinit_check_entry()));
@@ -3500,8 +3495,8 @@ void AdapterHandlerEntry::print_adapter_on(outputStream* st) const {
 void CDSAdapterHandlerEntry::init() {
   assert(DumpSharedSpaces, "used during dump time only");
   _c2i_entry_trampoline = (address)MetaspaceShared::misc_code_space_alloc(SharedRuntime::trampoline_size());
-  _c2i_value_ro_entry_trampoline = (address)MetaspaceShared::misc_code_space_alloc(SharedRuntime::trampoline_size());
-  _c2i_value_entry_trampoline = (address)MetaspaceShared::misc_code_space_alloc(SharedRuntime::trampoline_size());
+  _c2i_inline_ro_entry_trampoline = (address)MetaspaceShared::misc_code_space_alloc(SharedRuntime::trampoline_size());
+  _c2i_inline_entry_trampoline = (address)MetaspaceShared::misc_code_space_alloc(SharedRuntime::trampoline_size());
   _adapter_trampoline = (AdapterHandlerEntry**)MetaspaceShared::misc_code_space_alloc(sizeof(AdapterHandlerEntry*));
 };
 
@@ -3589,10 +3584,10 @@ void SharedRuntime::on_slowpath_allocation_exit(JavaThread* thread) {
 }
 
 // We are at a compiled code to interpreter call. We need backing
-// buffers for all value type arguments. Allocate an object array to
+// buffers for all inline type arguments. Allocate an object array to
 // hold them (convenient because once we're done with it we don't have
 // to worry about freeing it).
-oop SharedRuntime::allocate_value_types_impl(JavaThread* thread, methodHandle callee, bool allocate_receiver, TRAPS) {
+oop SharedRuntime::allocate_inline_types_impl(JavaThread* thread, methodHandle callee, bool allocate_receiver, TRAPS) {
   assert(InlineTypePassFieldsAsArgs, "no reason to call this");
   ResourceMark rm;
 
@@ -3603,7 +3598,7 @@ oop SharedRuntime::allocate_value_types_impl(JavaThread* thread, methodHandle ca
     nb_slots++;
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
-    if (ss.type() == T_VALUETYPE) {
+    if (ss.type() == T_INLINE_TYPE) {
       nb_slots++;
     }
   }
@@ -3611,14 +3606,14 @@ oop SharedRuntime::allocate_value_types_impl(JavaThread* thread, methodHandle ca
   objArrayHandle array(THREAD, array_oop);
   int i = 0;
   if (allocate_receiver) {
-    ValueKlass* vk = ValueKlass::cast(holder);
+    InlineKlass* vk = InlineKlass::cast(holder);
     oop res = vk->allocate_instance(CHECK_NULL);
     array->obj_at_put(i, res);
     i++;
   }
   for (SignatureStream ss(callee->signature()); !ss.at_return_type(); ss.next()) {
-    if (ss.type() == T_VALUETYPE) {
-      ValueKlass* vk = ss.as_value_klass(holder);
+    if (ss.type() == T_INLINE_TYPE) {
+      InlineKlass* vk = ss.as_inline_klass(holder);
       oop res = vk->allocate_instance(CHECK_NULL);
       array->obj_at_put(i, res);
       i++;
@@ -3627,23 +3622,23 @@ oop SharedRuntime::allocate_value_types_impl(JavaThread* thread, methodHandle ca
   return array();
 }
 
-JRT_ENTRY(void, SharedRuntime::allocate_value_types(JavaThread* thread, Method* callee_method, bool allocate_receiver))
+JRT_ENTRY(void, SharedRuntime::allocate_inline_types(JavaThread* thread, Method* callee_method, bool allocate_receiver))
   methodHandle callee(thread, callee_method);
-  oop array = SharedRuntime::allocate_value_types_impl(thread, callee, allocate_receiver, CHECK);
+  oop array = SharedRuntime::allocate_inline_types_impl(thread, callee, allocate_receiver, CHECK);
   thread->set_vm_result(array);
   thread->set_vm_result_2(callee()); // TODO: required to keep callee live?
 JRT_END
 
 // TODO remove this once the AARCH64 dependency is gone
-// Iterate over the array of heap allocated value types and apply the GC post barrier to all reference fields.
-// This is called from the C2I adapter after value type arguments are heap allocated and initialized.
+// Iterate over the array of heap allocated inline types and apply the GC post barrier to all reference fields.
+// This is called from the C2I adapter after inline type arguments are heap allocated and initialized.
 JRT_LEAF(void, SharedRuntime::apply_post_barriers(JavaThread* thread, objArrayOopDesc* array))
 {
   assert(InlineTypePassFieldsAsArgs, "no reason to call this");
   assert(oopDesc::is_oop(array), "should be oop");
   for (int i = 0; i < array->length(); ++i) {
     instanceOop valueOop = (instanceOop)array->obj_at(i);
-    ValueKlass* vk = ValueKlass::cast(valueOop->klass());
+    InlineKlass* vk = InlineKlass::cast(valueOop->klass());
     if (vk->contains_oops()) {
       const address dst_oop_addr = ((address) (void*) valueOop);
       OopMapBlock* map = vk->start_of_nonstatic_oop_maps();
@@ -3661,7 +3656,7 @@ JRT_END
 
 // We're returning from an interpreted method: load each field into a
 // register following the calling convention
-JRT_LEAF(void, SharedRuntime::load_value_type_fields_in_regs(JavaThread* thread, oopDesc* res))
+JRT_LEAF(void, SharedRuntime::load_inline_type_fields_in_regs(JavaThread* thread, oopDesc* res))
 {
   assert(res->klass()->is_inline_klass(), "only inline types here");
   ResourceMark rm;
@@ -3670,20 +3665,20 @@ JRT_LEAF(void, SharedRuntime::load_value_type_fields_in_regs(JavaThread* thread,
   frame callerFrame = stubFrame.sender(&reg_map);
   assert(callerFrame.is_interpreted_frame(), "should be coming from interpreter");
 
-  ValueKlass* vk = ValueKlass::cast(res->klass());
+  InlineKlass* vk = InlineKlass::cast(res->klass());
 
   const Array<SigEntry>* sig_vk = vk->extended_sig();
   const Array<VMRegPair>* regs = vk->return_regs();
 
   if (regs == NULL) {
-    // The fields of the value klass don't fit in registers, bail out
+    // The fields of the inline klass don't fit in registers, bail out
     return;
   }
 
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       continue;
     }
     if (bt == T_VOID) {
@@ -3750,9 +3745,9 @@ JRT_LEAF(void, SharedRuntime::load_value_type_fields_in_regs(JavaThread* thread,
 JRT_END
 
 // We've returned to an interpreted method, the interpreter needs a
-// reference to a value type instance. Allocate it and initialize it
+// reference to an inline type instance. Allocate it and initialize it
 // from field's values in registers.
-JRT_BLOCK_ENTRY(void, SharedRuntime::store_value_type_fields_to_buf(JavaThread* thread, intptr_t res))
+JRT_BLOCK_ENTRY(void, SharedRuntime::store_inline_type_fields_to_buf(JavaThread* thread, intptr_t res))
 {
   ResourceMark rm;
   RegisterMap reg_map(thread);
@@ -3760,12 +3755,12 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_value_type_fields_to_buf(JavaThread* 
   frame callerFrame = stubFrame.sender(&reg_map);
 
 #ifdef ASSERT
-  ValueKlass* verif_vk = ValueKlass::returned_value_klass(reg_map);
+  InlineKlass* verif_vk = InlineKlass::returned_inline_klass(reg_map);
 #endif
 
   if (!is_set_nth_bit(res, 0)) {
-    // We're not returning with value type fields in registers (the
-    // calling convention didn't allow it for this value klass)
+    // We're not returning with inline type fields in registers (the
+    // calling convention didn't allow it for this inline klass)
     assert(!Metaspace::contains((void*)res), "should be oop or pointer in buffer area");
     thread->set_vm_result((oopDesc*)res);
     assert(verif_vk == NULL, "broken calling convention");
@@ -3773,7 +3768,7 @@ JRT_BLOCK_ENTRY(void, SharedRuntime::store_value_type_fields_to_buf(JavaThread* 
   }
 
   clear_nth_bit(res, 0);
-  ValueKlass* vk = (ValueKlass*)res;
+  InlineKlass* vk = (InlineKlass*)res;
   assert(verif_vk == vk, "broken calling convention");
   assert(Metaspace::contains((void*)res), "should be klass");
 

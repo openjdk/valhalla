@@ -267,11 +267,11 @@ class GraphBuilder {
   void throw_op(int bci);
   Value round_fp(Value fp_value);
 
-  // value types
+  // inline types
   void default_value(int klass_index);
   void withfield(int field_index);
-  void copy_value_content(ciValueKlass* vk, Value src, int src_off, Value dest, int dest_off,
-       ValueStack* state_before, bool needs_patching);
+  void copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off,
+                           ValueStack* state_before, bool needs_patching);
 
   // stack/code manipulation helpers
   Instruction* append_with_bci(Instruction* instr, int bci);
@@ -365,6 +365,18 @@ class GraphBuilder {
 
   // JSR 292 support
   bool try_method_handle_inline(ciMethod* callee, bool ignore_return);
+
+  // Inline type support
+  void update_larval_state(Value v) {
+    if (v != NULL && v->as_NewInlineTypeInstance() != NULL) {
+      v->as_NewInlineTypeInstance()->update_larval_state();
+    }
+  }
+  void update_larva_stack_count(Value v) {
+    if (v != NULL && v->as_NewInlineTypeInstance() != NULL) {
+      v->as_NewInlineTypeInstance()->update_stack_count();
+    }
+  }
 
   // helpers
   void inline_bailout(const char* msg);

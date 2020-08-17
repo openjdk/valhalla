@@ -35,7 +35,7 @@
 #include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/reflectionAccessorImplKlassHelper.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -528,7 +528,7 @@ private:
   const int index() { return _index; }
   const InstanceKlass* holder() { return _holder; }
   const AccessFlags& access_flags() { return _access_flags; }
-  const bool is_inline_type() { return Signature::basic_type(_signature) == T_VALUETYPE; }
+  const bool is_inline_type() { return Signature::basic_type(_signature) == T_INLINE_TYPE; }
 };
 
 static int compare_offset(FieldDesc* f1, FieldDesc* f2) {
@@ -550,7 +550,7 @@ static void print_field(outputStream* st, int level, int offset, FieldDesc& fd, 
 
 static void print_inlined_field(outputStream* st, int level, int offset, InstanceKlass* klass) {
   assert(klass->is_inline_klass(), "Only inline types can be inlined");
-  ValueKlass* vklass = ValueKlass::cast(klass);
+  InlineKlass* vklass = InlineKlass::cast(klass);
   GrowableArray<FieldDesc>* fields = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<FieldDesc>(100, mtServiceability);
   for (FieldStream fd(klass, false, false); !fd.eos(); fd.next()) {
     if (!fd.access_flags().is_static()) {

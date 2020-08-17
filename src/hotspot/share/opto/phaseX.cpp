@@ -401,8 +401,7 @@ void NodeHash::operator=(const NodeHash& nh) {
 //=============================================================================
 //------------------------------PhaseRemoveUseless-----------------------------
 // 1) Use a breadthfirst walk to collect useful nodes reachable from root.
-PhaseRemoveUseless::PhaseRemoveUseless(PhaseGVN *gvn, Unique_Node_List *worklist, PhaseNumber phase_num) : Phase(phase_num),
-  _useful(Thread::current()->resource_area()) {
+PhaseRemoveUseless::PhaseRemoveUseless(PhaseGVN* gvn, Unique_Node_List* worklist, PhaseNumber phase_num) : Phase(phase_num) {
 
   // Implementation requires 'UseLoopSafepoints == true' and an edge from root
   // to each SafePointNode at a backward branch.  Inserted in add_safepoint().
@@ -456,7 +455,6 @@ PhaseRenumberLive::PhaseRenumberLive(PhaseGVN* gvn,
   PhaseRemoveUseless(gvn, worklist, Remove_Useless_And_Renumber_Live),
   _new_type_array(C->comp_arena()),
   _old2new_map(C->unique(), C->unique(), -1),
-  _delayed(Thread::current()->resource_area()),
   _is_pass_finished(false),
   _live_node_count(C->live_nodes())
 {
@@ -662,9 +660,9 @@ void PhaseTransform::dump_types( ) const {
 }
 
 //------------------------------dump_nodes_and_types---------------------------
-void PhaseTransform::dump_nodes_and_types(const Node *root, uint depth, bool only_ctrl) {
-  VectorSet visited(Thread::current()->resource_area());
-  dump_nodes_and_types_recur( root, depth, only_ctrl, visited );
+void PhaseTransform::dump_nodes_and_types(const Node* root, uint depth, bool only_ctrl) {
+  VectorSet visited;
+  dump_nodes_and_types_recur(root, depth, only_ctrl, visited);
 }
 
 //------------------------------dump_nodes_and_types_recur---------------------
@@ -1426,8 +1424,8 @@ void PhaseIterGVN::remove_globally_dead_node( Node *dead ) {
       if (dead->Opcode() == Op_Opaque4) {
         C->remove_opaque4_node(dead);
       }
-      if (dead->is_ValueTypeBase()) {
-        C->remove_value_type(dead);
+      if (dead->is_InlineTypeBase()) {
+        C->remove_inline_type(dead);
       }
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       bs->unregister_potential_barrier_node(dead);
@@ -1606,6 +1604,15 @@ void PhaseIterGVN::add_users_to_worklist( Node *n ) {
       }
     }
 
+    // Inline type nodes can have other inline types as users. If an input gets
+    // updated, make sure that inline type users get a chance for optimization.
+    if (use->is_InlineTypeBase()) {
+      for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {
+        Node* u = use->fast_out(i2);
+        if (u->is_InlineTypeBase())
+          _worklist.push(u);
+      }
+    }
     // If changed Cast input, check Phi users for simple cycles
     if (use->is_ConstraintCast()) {
       for (DUIterator_Fast i2max, i2 = use->fast_outs(i2max); i2 < i2max; i2++) {

@@ -26,16 +26,16 @@
 #include "compiler/compileLog.hpp"
 #include "interpreter/linkResolver.hpp"
 #include "memory/universe.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/objArrayKlass.hpp"
-#include "oops/valueArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/memnode.hpp"
 #include "opto/parse.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
 #include "opto/subnode.hpp"
-#include "opto/valuetypenode.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/handles.inline.hpp"
 
@@ -50,9 +50,9 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 
   ciInstanceKlass* field_holder = field->holder();
 
-  if (is_field && field_holder->is_valuetype() && peek()->is_ValueType()) {
-    assert(is_get, "value type field store not supported");
-    ValueTypeNode* vt = pop()->as_ValueType();
+  if (is_field && field_holder->is_inlinetype() && peek()->is_InlineType()) {
+    assert(is_get, "inline type field store not supported");
+    InlineTypeNode* vt = pop()->as_InlineType();
     Node* value = vt->field_value_by_offset(field->offset());
     push_node(field->layout_type(), value);
     return;
@@ -140,7 +140,6 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   ciType* field_klass = field->type();
   bool is_vol = field->is_volatile();
   bool flattened = field->is_flattened();
-  bool flattenable = field->is_flattenable();
 
   // Compute address and memory type.
   int offset = field->offset_in_bytes();
@@ -174,8 +173,8 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
       assert(type != NULL, "field singleton type must be consistent");
     } else {
       type = TypeOopPtr::make_from_klass(field_klass->as_klass());
-      if (bt == T_VALUETYPE && field->is_static() && flattenable) {
-        // Check if static value type field is already initialized
+      if (bt == T_INLINE_TYPE && field->is_static()) {
+        // Check if static inline type field is already initialized
         assert(!flattened, "static fields should not be flattened");
         ciInstance* mirror = field->holder()->java_mirror();
         ciObject* val = mirror->field_value(field).as_object();
@@ -190,18 +189,18 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
 
   Node* ld = NULL;
   if (flattened) {
-    // Load flattened value type
-    ld = ValueTypeNode::make_from_flattened(this, field_klass->as_value_klass(), obj, obj, field->holder(), offset);
+    // Load flattened inline type
+    ld = InlineTypeNode::make_from_flattened(this, field_klass->as_inline_klass(), obj, obj, field->holder(), offset);
   } else {
     DecoratorSet decorators = IN_HEAP;
     decorators |= is_vol ? MO_SEQ_CST : MO_UNORDERED;
     ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
-    if (flattenable) {
-      // Load a non-flattened but flattenable value type from memory
-      if (field_klass->as_value_klass()->is_scalarizable()) {
-        ld = ValueTypeNode::make_from_oop(this, ld, field_klass->as_value_klass());
+    if (bt == T_INLINE_TYPE) {
+      // Load a non-flattened inline type from memory
+      if (field_klass->as_inline_klass()->is_scalarizable()) {
+        ld = InlineTypeNode::make_from_oop(this, ld, field_klass->as_inline_klass());
       } else {
-        ld = null2default(ld, field_klass->as_value_klass());
+        ld = null2default(ld, field_klass->as_inline_klass());
       }
     }
   }
@@ -264,20 +263,22 @@ void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
     }
   }
 
-  if (field->is_flattenable() && !val->is_ValueType()) {
-    inc_sp(1);
-    val = null_check(val);
-    dec_sp(1);
-    if (stopped()) return;
+  if (bt == T_INLINE_TYPE && !val->is_InlineType()) {
+    // We can see a null constant here
+    assert(val->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
+    push(null());
+    uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
+    assert(stopped(), "dead path");
+    return;
   }
 
   if (field->is_flattened()) {
-    // Store flattened value type to a non-static field
-    if (!val->is_ValueType()) {
+    // Store flattened inline type to a non-static field
+    if (!val->is_InlineType()) {
       assert(!gvn().type(val)->maybe_null(), "should never be null");
-      val = ValueTypeNode::make_from_oop(this, val, field->type()->as_value_klass());
+      val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());
     }
-    val->as_ValueType()->store_flattened(this, obj, obj, field->holder(), offset, decorators);
+    val->as_InlineType()->store_flattened(this, obj, obj, field->holder(), offset, decorators);
   } else {
     inc_sp(1);
     access_store_at(obj, adr, adr_type, val, field_type, bt, decorators);
@@ -334,8 +335,8 @@ void Parse::do_newarray() {
                   array_klass);
     return;
   } else if (array_klass->element_klass() != NULL &&
-             array_klass->element_klass()->is_valuetype() &&
-             !array_klass->element_klass()->as_value_klass()->is_initialized()) {
+             array_klass->element_klass()->is_inlinetype() &&
+             !array_klass->element_klass()->as_inline_klass()->is_initialized()) {
     uncommon_trap(Deoptimization::Reason_uninitialized,
                   Deoptimization::Action_reinterpret,
                   NULL);
@@ -405,7 +406,7 @@ void Parse::do_multianewarray() {
     length[j] = pop();
     elem_klass = elem_klass->as_array_klass()->element_klass();
   }
-  if (elem_klass != NULL && elem_klass->is_valuetype() && !elem_klass->as_value_klass()->is_initialized()) {
+  if (elem_klass != NULL && elem_klass->is_inlinetype() && !elem_klass->as_inline_klass()->is_initialized()) {
     inc_sp(ndimensions);
     uncommon_trap(Deoptimization::Reason_uninitialized,
                   Deoptimization::Action_reinterpret,

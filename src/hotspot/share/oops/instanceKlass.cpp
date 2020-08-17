@@ -65,7 +65,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/recordComponent.hpp"
 #include "oops/symbol.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiRedefineClasses.hpp"
 #include "prims/jvmtiThreadState.hpp"
@@ -156,7 +156,7 @@ static inline bool is_class_loader(const Symbol* class_name,
   return false;
 }
 
-bool InstanceKlass::field_is_inline_type(int index) const { return Signature::basic_type(field(index)->signature(constants())) == T_VALUETYPE; }
+bool InstanceKlass::field_is_inline_type(int index) const { return Signature::basic_type(field(index)->signature(constants())) == T_INLINE_TYPE; }
 
 // private: called to verify that k is a static member of this nest.
 // We know that k is an instance class in the same package and hence the
@@ -497,7 +497,7 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
       ik = new (loader_data, size, THREAD) InstanceClassLoaderKlass(parser);
     } else if (parser.is_inline_type()) {
       // inline type
-      ik = new (loader_data, size, THREAD) ValueKlass(parser);
+      ik = new (loader_data, size, THREAD) InlineKlass(parser);
     } else {
       // normal
       ik = new (loader_data, size, THREAD) InstanceKlass(parser, InstanceKlass::_kind_other);
@@ -582,7 +582,7 @@ InstanceKlass::InstanceKlass(const ClassFileParser& parser, unsigned kind, Klass
   _reference_type(parser.reference_type()),
   _init_thread(NULL),
   _inline_type_field_klasses(NULL),
-  _adr_valueklass_fixed_block(NULL)
+  _adr_inlineklass_fixed_block(NULL)
 {
   set_vtable_length(parser.vtable_size());
   set_kind(kind);
@@ -1006,7 +1006,7 @@ bool InstanceKlass::link_class_impl(TRAPS) {
           if (ss.is_array()) {
             ss.skip_array_prefix();
           }
-          if (ss.type() == T_VALUETYPE) {
+          if (ss.type() == T_INLINE_TYPE) {
             Symbol* symb = ss.as_symbol();
 
             oop loader = class_loader();
@@ -1259,7 +1259,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
   // Initialize classes of inline fields
   {
     for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_VALUETYPE) {
+      if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE) {
         Klass* klass = get_inline_type_field_klass_or_null(fs.index());
         if (fs.access_flags().is_static() && klass == NULL) {
           klass = SystemDictionary::resolve_or_fail(field_signature(fs.index())->fundamental_name(THREAD),
@@ -1277,7 +1277,7 @@ void InstanceKlass::initialize_impl(TRAPS) {
         InstanceKlass::cast(klass)->initialize(CHECK);
         if (fs.access_flags().is_static()) {
           if (java_mirror()->obj_field(fs.offset()) == NULL) {
-            java_mirror()->obj_field_put(fs.offset(), ValueKlass::cast(klass)->default_value());
+            java_mirror()->obj_field_put(fs.offset(), InlineKlass::cast(klass)->default_value());
           }
         }
       }
@@ -1720,7 +1720,7 @@ Klass* InstanceKlass::find_field(Symbol* name, Symbol* sig, bool is_static, fiel
 
 bool InstanceKlass::contains_field_offset(int offset) {
   if (this->is_inline_klass()) {
-    ValueKlass* vk = ValueKlass::cast(this);
+    InlineKlass* vk = InlineKlass::cast(this);
     return offset >= vk->first_field_offset() && offset < (vk->first_field_offset() + vk->get_exact_size_in_bytes());
   } else {
     fieldDescriptor fd;
@@ -2665,7 +2665,7 @@ void InstanceKlass::remove_unshareable_info() {
 
   if (has_inline_type_fields()) {
     for (AllFieldStream fs(fields(), constants()); !fs.done(); fs.next()) {
-      if (Signature::basic_type(fs.signature()) == T_VALUETYPE) {
+      if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE) {
         reset_inline_type_field_klass(fs.index());
       }
     }
@@ -2711,7 +2711,7 @@ void InstanceKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handl
   Klass::restore_unshareable_info(loader_data, protection_domain, CHECK);
 
   if (is_inline_klass()) {
-    ValueKlass::cast(this)->initialize_calling_convention(CHECK);
+    InlineKlass::cast(this)->initialize_calling_convention(CHECK);
   }
 
   Array<Method*>* methods = this->methods();

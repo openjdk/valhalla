@@ -52,11 +52,11 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/flatArrayKlass.hpp"
+#include "oops/flatArrayOop.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/valueArrayOop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/biasedLocking.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
@@ -121,14 +121,14 @@ int Runtime1::_arraycopy_checkcast_cnt = 0;
 int Runtime1::_arraycopy_checkcast_attempt_cnt = 0;
 int Runtime1::_new_type_array_slowcase_cnt = 0;
 int Runtime1::_new_object_array_slowcase_cnt = 0;
-int Runtime1::_new_value_array_slowcase_cnt = 0;
+int Runtime1::_new_flat_array_slowcase_cnt = 0;
 int Runtime1::_new_instance_slowcase_cnt = 0;
 int Runtime1::_new_multi_array_slowcase_cnt = 0;
 int Runtime1::_load_flattened_array_slowcase_cnt = 0;
 int Runtime1::_store_flattened_array_slowcase_cnt = 0;
 int Runtime1::_substitutability_check_slowcase_cnt = 0;
-int Runtime1::_buffer_value_args_slowcase_cnt = 0;
-int Runtime1::_buffer_value_args_no_receiver_slowcase_cnt = 0;
+int Runtime1::_buffer_inline_args_slowcase_cnt = 0;
+int Runtime1::_buffer_inline_args_no_receiver_slowcase_cnt = 0;
 int Runtime1::_monitorenter_slowcase_cnt = 0;
 int Runtime1::_monitorexit_slowcase_cnt = 0;
 int Runtime1::_patch_code_slowcase_cnt = 0;
@@ -413,8 +413,8 @@ JRT_ENTRY(void, Runtime1::new_object_array(JavaThread* thread, Klass* array_klas
 JRT_END
 
 
-JRT_ENTRY(void, Runtime1::new_value_array(JavaThread* thread, Klass* array_klass, jint length))
-  NOT_PRODUCT(_new_value_array_slowcase_cnt++;)
+JRT_ENTRY(void, Runtime1::new_flat_array(JavaThread* thread, Klass* array_klass, jint length))
+  NOT_PRODUCT(_new_flat_array_slowcase_cnt++;)
 
   // Note: no handle for klass needed since they are not used
   //       anymore after new_objArray() and no GC can happen before.
@@ -425,7 +425,7 @@ JRT_ENTRY(void, Runtime1::new_value_array(JavaThread* thread, Klass* array_klass
   assert(elem_klass->is_inline_klass(), "must be");
   // Logically creates elements, ensure klass init
   elem_klass->initialize(CHECK);
-  arrayOop obj = oopFactory::new_valueArray(elem_klass, length, CHECK);
+  arrayOop obj = oopFactory::new_flatArray(elem_klass, length, CHECK);
   thread->set_vm_result(obj);
   // This is pretty rare but this runtime patch is stressful to deoptimization
   // if we deoptimize here so force a deopt to stress the path.
@@ -461,29 +461,29 @@ static void profile_flat_array(JavaThread* thread) {
   }
 }
 
-JRT_ENTRY(void, Runtime1::load_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index))
-  assert(array->klass()->is_valueArray_klass(), "should not be called");
+JRT_ENTRY(void, Runtime1::load_flattened_array(JavaThread* thread, flatArrayOopDesc* array, int index))
+  assert(array->klass()->is_flatArray_klass(), "should not be called");
   profile_flat_array(thread);
 
   NOT_PRODUCT(_load_flattened_array_slowcase_cnt++;)
   assert(array->length() > 0 && index < array->length(), "already checked");
-  valueArrayHandle vah(thread, array);
-  oop obj = valueArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
+  flatArrayHandle vah(thread, array);
+  oop obj = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
   thread->set_vm_result(obj);
 JRT_END
 
 
-JRT_ENTRY(void, Runtime1::store_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index, oopDesc* value))
-  if (array->klass()->is_valueArray_klass()) {
+JRT_ENTRY(void, Runtime1::store_flattened_array(JavaThread* thread, flatArrayOopDesc* array, int index, oopDesc* value))
+  if (array->klass()->is_flatArray_klass()) {
     profile_flat_array(thread);
   }
 
   NOT_PRODUCT(_store_flattened_array_slowcase_cnt++;)
   if (value == NULL) {
-    assert(array->klass()->is_valueArray_klass() || array->klass()->is_null_free_array_klass(), "should not be called");
+    assert(array->klass()->is_flatArray_klass() || array->klass()->is_null_free_array_klass(), "should not be called");
     SharedRuntime::throw_and_post_jvmti_exception(thread, vmSymbols::java_lang_NullPointerException());
   } else {
-    assert(array->klass()->is_valueArray_klass(), "should not be called");
+    assert(array->klass()->is_flatArray_klass(), "should not be called");
     array->value_copy_to_index(value, index);
   }
 JRT_END
@@ -506,21 +506,21 @@ JRT_END
 
 extern "C" void ps();
 
-void Runtime1::buffer_value_args_impl(JavaThread* thread, Method* m, bool allocate_receiver) {
+void Runtime1::buffer_inline_args_impl(JavaThread* thread, Method* m, bool allocate_receiver) {
   Thread* THREAD = thread;
-  methodHandle method(thread, m); // We are inside the verified_entry or verified_value_ro_entry of this method.
-  oop obj = SharedRuntime::allocate_value_types_impl(thread, method, allocate_receiver, CHECK);
+  methodHandle method(thread, m); // We are inside the verified_entry or verified_inline_ro_entry of this method.
+  oop obj = SharedRuntime::allocate_inline_types_impl(thread, method, allocate_receiver, CHECK);
   thread->set_vm_result(obj);
 }
 
-JRT_ENTRY(void, Runtime1::buffer_value_args(JavaThread* thread, Method* method))
-  NOT_PRODUCT(_buffer_value_args_slowcase_cnt++;)
-  buffer_value_args_impl(thread, method, true);
+JRT_ENTRY(void, Runtime1::buffer_inline_args(JavaThread* thread, Method* method))
+  NOT_PRODUCT(_buffer_inline_args_slowcase_cnt++;)
+  buffer_inline_args_impl(thread, method, true);
 JRT_END
 
-JRT_ENTRY(void, Runtime1::buffer_value_args_no_receiver(JavaThread* thread, Method* method))
-  NOT_PRODUCT(_buffer_value_args_no_receiver_slowcase_cnt++;)
-  buffer_value_args_impl(thread, method, false);
+JRT_ENTRY(void, Runtime1::buffer_inline_args_no_receiver(JavaThread* thread, Method* method))
+  NOT_PRODUCT(_buffer_inline_args_no_receiver_slowcase_cnt++;)
+  buffer_inline_args_impl(thread, method, false);
 JRT_END
 
 JRT_ENTRY(void, Runtime1::unimplemented_entry(JavaThread* thread, StubID id))
@@ -1585,14 +1585,14 @@ void Runtime1::print_statistics() {
 
   tty->print_cr(" _new_type_array_slowcase_cnt:    %d", _new_type_array_slowcase_cnt);
   tty->print_cr(" _new_object_array_slowcase_cnt:  %d", _new_object_array_slowcase_cnt);
-  tty->print_cr(" _new_value_array_slowcase_cnt:   %d", _new_value_array_slowcase_cnt);
+  tty->print_cr(" _new_flat_array_slowcase_cnt:   %d", _new_flat_array_slowcase_cnt);
   tty->print_cr(" _new_instance_slowcase_cnt:      %d", _new_instance_slowcase_cnt);
   tty->print_cr(" _new_multi_array_slowcase_cnt:   %d", _new_multi_array_slowcase_cnt);
   tty->print_cr(" _load_flattened_array_slowcase_cnt:   %d", _load_flattened_array_slowcase_cnt);
   tty->print_cr(" _store_flattened_array_slowcase_cnt:  %d", _store_flattened_array_slowcase_cnt);
   tty->print_cr(" _substitutability_check_slowcase_cnt: %d", _substitutability_check_slowcase_cnt);
-  tty->print_cr(" _buffer_value_args_slowcase_cnt:%d", _buffer_value_args_slowcase_cnt);
-  tty->print_cr(" _buffer_value_args_no_receiver_slowcase_cnt:%d", _buffer_value_args_no_receiver_slowcase_cnt);
+  tty->print_cr(" _buffer_inline_args_slowcase_cnt:%d", _buffer_inline_args_slowcase_cnt);
+  tty->print_cr(" _buffer_inline_args_no_receiver_slowcase_cnt:%d", _buffer_inline_args_no_receiver_slowcase_cnt);
 
   tty->print_cr(" _monitorenter_slowcase_cnt:      %d", _monitorenter_slowcase_cnt);
   tty->print_cr(" _monitorexit_slowcase_cnt:       %d", _monitorexit_slowcase_cnt);

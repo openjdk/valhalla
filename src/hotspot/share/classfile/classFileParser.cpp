@@ -50,6 +50,7 @@
 #include "oops/annotations.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/instanceMirrorKlass.hpp"
 #include "oops/klass.inline.hpp"
@@ -59,7 +60,6 @@
 #include "oops/oop.inline.hpp"
 #include "oops/recordComponent.hpp"
 #include "oops/symbol.hpp"
-#include "oops/valueKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/arguments.hpp"
@@ -1546,7 +1546,7 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   NONSTATIC_DOUBLE,    // T_LONG        = 11,
   NONSTATIC_OOP,       // T_OBJECT      = 12,
   NONSTATIC_OOP,       // T_ARRAY       = 13,
-  NONSTATIC_OOP,       // T_VALUETYPE   = 14,
+  NONSTATIC_OOP,       // T_INLINE_TYPE = 14,
   BAD_ALLOCATION_TYPE, // T_VOID        = 15,
   BAD_ALLOCATION_TYPE, // T_ADDRESS     = 16,
   BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
@@ -1567,7 +1567,7 @@ static FieldAllocationType _basic_type_to_atype[2 * (T_CONFLICT + 1)] = {
   STATIC_DOUBLE,       // T_LONG        = 11,
   STATIC_OOP,          // T_OBJECT      = 12,
   STATIC_OOP,          // T_ARRAY       = 13,
-  STATIC_OOP,          // T_VALUETYPE   = 14,
+  STATIC_OOP,          // T_INLINE_TYPE = 14,
   BAD_ALLOCATION_TYPE, // T_VOID        = 15,
   BAD_ALLOCATION_TYPE, // T_ADDRESS     = 16,
   BAD_ALLOCATION_TYPE, // T_NARROWOOP   = 17,
@@ -1753,7 +1753,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
 
     // Remember how many oops we encountered and compute allocation type
-    const FieldAllocationType atype = fac->update(is_static, type, type == T_VALUETYPE);
+    const FieldAllocationType atype = fac->update(is_static, type, type == T_INLINE_TYPE);
     field->set_allocation_type(atype);
 
     // After field is initialized with type, we can augment it with aux info
@@ -3287,9 +3287,9 @@ u2 ClassFileParser::parse_classfile_inner_classes_attribute(const ClassFileStrea
     if (_major_version >= JAVA_9_VERSION) {
       recognized_modifiers |= JVM_ACC_MODULE;
     }
-    // JVM_ACC_VALUE is defined for class file version 55 and later
+    // JVM_ACC_INLINE is defined for class file version 55 and later
     if (supports_inline_types()) {
-      recognized_modifiers |= JVM_ACC_VALUE;
+      recognized_modifiers |= JVM_ACC_INLINE;
     }
 
     // Access flags
@@ -4155,7 +4155,7 @@ const InstanceKlass* ClassFileParser::parse_super_class(ConstantPool* const cp,
 
   if (super_class_index == 0) {
     check_property(_class_name == vmSymbols::java_lang_Object()
-                   || (_access_flags.get_flags() & JVM_ACC_VALUE),
+                   || (_access_flags.get_flags() & JVM_ACC_INLINE),
                    "Invalid superclass index %u in class file %s",
                    super_class_index,
                    CHECK_NULL);
@@ -4485,7 +4485,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
       if (!klass->access_flags().is_inline_type()) {
         THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
       }
-      ValueKlass* vk = ValueKlass::cast(klass);
+      InlineKlass* vk = InlineKlass::cast(klass);
       // Conditions to apply flattening or not should be defined in a single place
       bool too_big_to_allocate_inline = (InlineFieldMaxFlatSize >= 0 &&
                                  (vk->size_helper() * HeapWordSize) > InlineFieldMaxFlatSize);
@@ -4501,7 +4501,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
         nonstatic_inline_type_klasses[nonstatic_inline_type_count] = klass;
         nonstatic_inline_type_count++;
 
-        ValueKlass* vklass = ValueKlass::cast(klass);
+        InlineKlass* vklass = InlineKlass::cast(klass);
         if (vklass->contains_oops()) {
           inline_type_oop_map_count += vklass->nonstatic_oop_map_count();
         }
@@ -4697,7 +4697,7 @@ void ClassFileParser::layout_fields(ConstantPool* cp,
           Klass* klass = nonstatic_inline_type_klasses[next_inline_type_index];
           assert(klass != NULL, "Klass should have been loaded and resolved earlier");
           assert(klass->access_flags().is_inline_type(),"Must be an inline type");
-          ValueKlass* vklass = ValueKlass::cast(klass);
+          InlineKlass* vklass = InlineKlass::cast(klass);
           real_offset = next_nonstatic_inline_type_offset;
           next_nonstatic_inline_type_offset += (vklass->size_helper()) * wordSize - vklass->first_field_offset();
           // aligning next inline type on a 64 bits boundary
@@ -5353,9 +5353,9 @@ static void check_illegal_static_method(const InstanceKlass* this_klass, TRAPS) 
 
 void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
   const bool is_module = (flags & JVM_ACC_MODULE) != 0;
-  const bool is_inline_type = (flags & JVM_ACC_VALUE) != 0;
+  const bool is_inline_type = (flags & JVM_ACC_INLINE) != 0;
   assert(_major_version >= JAVA_9_VERSION || !is_module, "JVM_ACC_MODULE should not be set");
-  assert(supports_inline_types() || !is_inline_type, "JVM_ACC_VALUE should not be set");
+  assert(supports_inline_types() || !is_inline_type, "JVM_ACC_INLINE should not be set");
   if (is_module) {
     ResourceMark rm(THREAD);
     Exceptions::fthrow(
@@ -5371,7 +5371,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
     Exceptions::fthrow(
       THREAD_AND_LOCATION,
       vmSymbols::java_lang_ClassFormatError(),
-      "Class modifier ACC_VALUE in class %s requires option -XX:+EnableValhalla",
+      "Class modifier ACC_INLINE in class %s requires option -XX:+EnableValhalla",
       _class_name->as_C_string()
     );
   }
@@ -6178,7 +6178,7 @@ InstanceKlass* ClassFileParser::create_instance_klass(bool changed_by_loadhook,
   }
 
   if (ik->is_inline_klass()) {
-    ValueKlass* vk = ValueKlass::cast(ik);
+    InlineKlass* vk = InlineKlass::cast(ik);
     oop val = ik->allocate_instance(CHECK_NULL);
     vk->set_default_value(val);
   }
@@ -6450,12 +6450,12 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     } else
       if (is_inline_type() && ((ik->field_access_flags(i) & JVM_ACC_FIELD_INTERNAL) != 0)
         && ((ik->field_access_flags(i) & JVM_ACC_STATIC) != 0)) {
-      ValueKlass::cast(ik)->set_default_value_offset(ik->field_offset(i));
+      InlineKlass::cast(ik)->set_default_value_offset(ik->field_offset(i));
     }
   }
 
   if (is_inline_type()) {
-    ValueKlass* vk = ValueKlass::cast(ik);
+    InlineKlass* vk = InlineKlass::cast(ik);
     if (UseNewFieldLayout) {
       vk->set_alignment(_alignment);
       vk->set_first_field_offset(_first_field_offset);
@@ -6463,7 +6463,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     } else {
       vk->set_first_field_offset(vk->first_field_offset_old());
     }
-    ValueKlass::cast(ik)->initialize_calling_convention(CHECK);
+    InlineKlass::cast(ik)->initialize_calling_convention(CHECK);
   }
 
   ClassLoadingService::notify_class_loaded(ik, false /* not shared class */);
@@ -6885,9 +6885,9 @@ void ClassFileParser::parse_stream(const ClassFileStream* const stream,
   if (_major_version >= JAVA_9_VERSION) {
     recognized_modifiers |= JVM_ACC_MODULE;
   }
-  // JVM_ACC_VALUE is defined for class file version 55 and later
+  // JVM_ACC_INLINE is defined for class file version 55 and later
   if (supports_inline_types()) {
-    recognized_modifiers |= JVM_ACC_VALUE;
+    recognized_modifiers |= JVM_ACC_INLINE;
   }
 
   // Access flags
@@ -7282,7 +7282,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
 
   for (AllFieldStream fs(_fields, cp); !fs.done(); fs.next()) {
-    if (Signature::basic_type(fs.signature()) == T_VALUETYPE  && !fs.access_flags().is_static()) {
+    if (Signature::basic_type(fs.signature()) == T_INLINE_TYPE  && !fs.access_flags().is_static()) {
       // Pre-load inline class
       Klass* klass = SystemDictionary::resolve_inline_type_field_or_fail(&fs,
           Handle(THREAD, _loader_data->class_loader()),

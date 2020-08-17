@@ -151,11 +151,11 @@ public abstract class BaseConfiguration {
     public abstract Resources getDocResources();
 
     /**
-     * Returns a string identifying the version of the doclet.
+     * Returns the version of the {@link #doclet doclet}.
      *
-     * @return a version string
+     * @return the version
      */
-    public abstract String getDocletVersion();
+    public abstract Runtime.Version getDocletVersion();
 
     /**
      * This method should be defined in all those doclets (configurations),

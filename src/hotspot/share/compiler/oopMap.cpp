@@ -33,7 +33,7 @@
 #include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/compressedOops.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/handles.inline.hpp"

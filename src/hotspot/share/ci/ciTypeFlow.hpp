@@ -335,15 +335,14 @@ public:
              type_at_tos()->is_array_klass(), "must be array type");
       pop();
     }
-    // pop_valueOrobjArray and pop_typeArray narrow the tos to ciObjArrayKlass,
-    // ciValueArrayKlass or ciTypeArrayKlass (resp.). In the rare case that an explicit
+    // pop_objOrFlatArray and pop_typeArray narrow the tos to ciObjArrayKlass,
+    // ciFlatArrayKlass or ciTypeArrayKlass (resp.). In the rare case that an explicit
     // null is popped from the stack, we return NULL.  Caller beware.
-    ciArrayKlass* pop_objOrValueArray() {
+    ciArrayKlass* pop_objOrFlatArray() {
       ciType* array = pop_value();
       if (array == null_type())  return NULL;
-      // Value type arrays may contain oop or flattened representation
-      assert(array->is_obj_array_klass() || (ValueArrayFlatten && array->is_value_array_klass()),
-          "must be value or object array type");
+      assert(array->is_obj_array_klass() || array->is_flat_array_klass(),
+             "must be a flat or an object array type");
       return array->as_array_klass();
     }
     ciTypeArrayKlass* pop_typeArray() {
@@ -846,8 +845,6 @@ public:
   Block* rpo_at(int rpo) const      { assert(0 <= rpo && rpo < block_count(), "out of bounds");
                                       return _block_map[rpo]; }
   int inc_next_pre_order()          { return _next_pre_order++; }
-
-  ciType* mark_as_never_null(ciType* type);
 
 private:
   // A work list used during flow analysis.

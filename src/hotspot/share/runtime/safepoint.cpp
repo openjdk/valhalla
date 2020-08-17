@@ -47,7 +47,7 @@
 #include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
@@ -503,12 +503,10 @@ bool SafepointSynchronize::is_cleanup_needed() {
 
 class ParallelSPCleanupThreadClosure : public ThreadClosure {
 private:
-  CodeBlobClosure* _nmethod_cl;
   DeflateMonitorCounters* _counters;
 
 public:
   ParallelSPCleanupThreadClosure(DeflateMonitorCounters* counters) :
-    _nmethod_cl(UseCodeAging ? NMethodSweeper::prepare_reset_hotness_counters() : NULL),
     _counters(counters) {}
 
   void do_thread(Thread* thread) {
@@ -517,11 +515,6 @@ public:
     // there is a special cleanup request, deflation is handled now.
     // Otherwise, async deflation is requested via a flag.
     ObjectSynchronizer::deflate_thread_local_monitors(thread, _counters);
-    if (_nmethod_cl != NULL && thread->is_Java_thread() &&
-        ! thread->is_Code_cache_sweeper_thread()) {
-      JavaThread* jt = (JavaThread*) thread;
-      jt->nmethods_do(_nmethod_cl);
-    }
   }
 };
 
@@ -1047,21 +1040,21 @@ void ThreadSafepointState::handle_polling_page_exception() {
     bool return_oop = method->is_returning_oop();
 
     GrowableArray<Handle> return_values;
-    ValueKlass* vk = NULL;
+    InlineKlass* vk = NULL;
 
     if (return_oop && InlineTypeReturnedAsFields) {
       SignatureStream ss(method->signature());
       while (!ss.at_return_type()) {
         ss.next();
       }
-      if (ss.type() == T_VALUETYPE) {
-        // Check if value type is returned as fields
-        vk = ValueKlass::returned_value_klass(map);
+      if (ss.type() == T_INLINE_TYPE) {
+        // Check if inline type is returned as fields
+        vk = InlineKlass::returned_inline_klass(map);
         if (vk != NULL) {
           // We're at a safepoint at the return of a method that returns
           // multiple values. We must make sure we preserve the oop values
           // across the safepoint.
-          assert(vk == method->returned_value_type(thread()), "bad value klass");
+          assert(vk == method->returned_inline_type(thread()), "bad inline klass");
           vk->save_oop_fields(map, return_values);
           return_oop = false;
         }
@@ -1209,8 +1202,6 @@ void SafepointTracing::statistics_exit_log() {
     }
   }
 
-  log_info(safepoint, stats)("VM operations coalesced during safepoint " INT64_FORMAT,
-                              VMThread::get_coalesced_count());
   log_info(safepoint, stats)("Maximum sync time  " INT64_FORMAT" ns",
                               (int64_t)(_max_sync_time));
   log_info(safepoint, stats)("Maximum vm operation time (except for Exit VM operation)  "

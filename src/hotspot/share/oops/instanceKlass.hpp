@@ -56,7 +56,7 @@ class RecordComponent;
 //    [EMBEDDED unsafe_anonymous_host klass] only exist for an unsafe anonymous class (JSR 292 enabled)
 //    [EMBEDDED fingerprint       ] only if should_store_fingerprint()==true
 //    [EMBEDDED inline_type_field_klasses] only if has_inline_fields() == true
-//    [EMBEDDED ValueKlassFixedBlock] only if is a ValueKlass instance
+//    [EMBEDDED InlineKlassFixedBlock] only if is an InlineKlass instance
 
 
 // forward declaration for class -- see below for definition
@@ -73,7 +73,7 @@ class JNIid;
 class JvmtiCachedClassFieldMap;
 class nmethodBucket;
 class OopMapCache;
-class BufferedValueTypeBlob;
+class BufferedInlineTypeBlob;
 class InterpreterOopMap;
 class PackageEntry;
 class ModuleEntry;
@@ -138,25 +138,19 @@ struct JvmtiCachedClassFileData;
 
 class SigEntry;
 
-class ValueKlassFixedBlock {
+class InlineKlassFixedBlock {
   Array<SigEntry>** _extended_sig;
   Array<VMRegPair>** _return_regs;
   address* _pack_handler;
   address* _pack_handler_jobject;
   address* _unpack_handler;
   int* _default_value_offset;
-  Klass** _value_array_klass;
+  Klass** _flat_array_klass;
   int _alignment;
   int _first_field_offset;
   int _exact_size_in_bytes;
 
-  friend class ValueKlass;
-};
-
-class InlineTypes {
-public:
-  u2 _class_info_index;
-  Symbol* _class_name;
+  friend class InlineKlass;
 };
 
 class InstanceKlass: public Klass {
@@ -359,7 +353,7 @@ class InstanceKlass: public Klass {
   Array<u2>*      _fields;
   const Klass**   _inline_type_field_klasses; // For "inline class" fields, NULL if none present
 
-  const ValueKlassFixedBlock* _adr_valueklass_fixed_block;
+  const InlineKlassFixedBlock* _adr_inlineklass_fixed_block;
 
   // embedded Java vtable follows here
   // embedded Java itables follows here
@@ -448,7 +442,7 @@ class InstanceKlass: public Klass {
   }
 
   // Query if this class implements jl.NonTearable or was
-  // mentioned in the JVM option AlwaysAtomicValueTypes.
+  // mentioned in the JVM option ForceNonTearable.
   // This bit can occur anywhere, but is only significant
   // for inline classes *and* their super types.
   // It inherits from supers along with NonTearable.
@@ -1140,7 +1134,7 @@ public:
   static ByteSize init_thread_offset() { return in_ByteSize(offset_of(InstanceKlass, _init_thread)); }
 
   static ByteSize inline_type_field_klasses_offset() { return in_ByteSize(offset_of(InstanceKlass, _inline_type_field_klasses)); }
-  static ByteSize adr_valueklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_valueklass_fixed_block)); }
+  static ByteSize adr_inlineklass_fixed_block_offset() { return in_ByteSize(offset_of(InstanceKlass, _adr_inlineklass_fixed_block)); }
 
   // subclass/subinterface checks
   bool implements_interface(Klass* k) const;
@@ -1208,7 +1202,7 @@ public:
            (is_unsafe_anonymous ? (int)sizeof(Klass*)/wordSize : 0) +
            (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0) +
            (java_fields * (int)sizeof(Klass*)/wordSize) +
-           (is_inline_type ? (int)sizeof(ValueKlassFixedBlock) : 0));
+           (is_inline_type ? (int)sizeof(InlineKlassFixedBlock) : 0));
   }
   int size() const                    { return size(vtable_length(),
                                                itable_length(),
@@ -1305,7 +1299,7 @@ public:
     assert(idx < java_fields_count(), "IOOB");
     Klass* k = ((Klass**)adr_inline_type_field_klasses())[idx];
     assert(k != NULL, "Should always be set before being read");
-    assert(k->is_inline_klass(), "Must be a inline type");
+    assert(k->is_inline_klass(), "Must be an inline type");
     return k;
   }
 
@@ -1313,7 +1307,7 @@ public:
     assert(has_inline_type_fields(), "Sanity checking");
     assert(idx < java_fields_count(), "IOOB");
     Klass* k = ((Klass**)adr_inline_type_field_klasses())[idx];
-    assert(k == NULL || k->is_inline_klass(), "Must be a inline type");
+    assert(k == NULL || k->is_inline_klass(), "Must be an inline type");
     return k;
   }
 

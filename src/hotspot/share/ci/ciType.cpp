@@ -35,7 +35,7 @@ ciType* ciType::_basic_types[T_CONFLICT+1];
 
 // ciType
 //
-// This class represents a Java reference, value type or primitive type.
+// This class represents a Java reference, inline type or primitive type.
 
 // ------------------------------------------------------------------
 // ciType::ciType
@@ -46,7 +46,7 @@ ciType::ciType(BasicType basic_type) : ciMetadata() {
 }
 
 ciType::ciType(Klass* k) : ciMetadata(k) {
-  _basic_type = k->is_array_klass() ? T_ARRAY : (k->is_inline_klass() ? T_VALUETYPE : T_OBJECT);
+  _basic_type = k->is_array_klass() ? T_ARRAY : (k->is_inline_klass() ? T_INLINE_TYPE : T_OBJECT);
 }
 
 
@@ -105,7 +105,7 @@ ciInstance* ciType::java_mirror() {
 // ciType::box_klass
 //
 ciKlass* ciType::box_klass() {
-  assert(basic_type() != T_VALUETYPE, "value type boxing not yet supported");
+  assert(basic_type() != T_INLINE_TYPE, "inline type boxing not supported");
   if (!is_primitive_type())  return this->as_klass();  // reference types are "self boxing"
 
   // Void is "boxed" with a null.

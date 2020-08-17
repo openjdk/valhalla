@@ -45,7 +45,7 @@ enum KlassID {
   InstanceMirrorKlassID,
   InstanceClassLoaderKlassID,
   TypeArrayKlassID,
-  ValueArrayKlassID,
+  FlatArrayKlassID,
   ObjArrayKlassID
 };
 
@@ -396,11 +396,11 @@ protected:
   static bool layout_helper_is_objArray(jint lh) {
     return (juint)_lh_array_tag_obj_value == (juint)(lh >> _lh_array_tag_shift);
   }
-  static bool layout_helper_is_valueArray(jint lh) {
+  static bool layout_helper_is_flatArray(jint lh) {
     return (juint)_lh_array_tag_vt_value == (juint)(lh >> _lh_array_tag_shift);
   }
   static bool layout_helper_is_null_free(jint lh) {
-    assert(layout_helper_is_valueArray(lh) || layout_helper_is_objArray(lh), "must be array of inline types");
+    assert(layout_helper_is_flatArray(lh) || layout_helper_is_objArray(lh), "must be array of inline types");
     return ((lh >> _lh_null_free_shift) & _lh_null_free_mask);
   }
   static jint layout_helper_set_null_free(jint lh) {
@@ -417,7 +417,7 @@ protected:
   static BasicType layout_helper_element_type(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
     int btvalue = (lh >> _lh_element_type_shift) & _lh_element_type_mask;
-    assert((btvalue >= T_BOOLEAN && btvalue <= T_OBJECT) || btvalue == T_VALUETYPE, "sanity");
+    assert((btvalue >= T_BOOLEAN && btvalue <= T_OBJECT) || btvalue == T_INLINE_TYPE, "sanity");
     return (BasicType) btvalue;
   }
 
@@ -438,7 +438,7 @@ protected:
   static int layout_helper_log2_element_size(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
     int l2esz = (lh >> _lh_log2_element_size_shift) & _lh_log2_element_size_mask;
-    assert(layout_helper_element_type(lh) == T_VALUETYPE || l2esz <= LogBytesPerLong,
+    assert(layout_helper_element_type(lh) == T_INLINE_TYPE || l2esz <= LogBytesPerLong,
            "sanity. l2esz: 0x%x for lh: 0x%x", (uint)l2esz, (uint)lh);
     return l2esz;
   }
@@ -602,7 +602,7 @@ protected:
   virtual bool is_array_klass_slow()        const { return false; }
   virtual bool is_objArray_klass_slow()     const { return false; }
   virtual bool is_typeArray_klass_slow()    const { return false; }
-  virtual bool is_valueArray_klass_slow()   const { return false; }
+  virtual bool is_flatArray_klass_slow()    const { return false; }
 #endif // ASSERT
   // current implementation uses this method even in non debug builds
   virtual bool is_inline_klass_slow()       const { return false; }
@@ -632,9 +632,9 @@ protected:
                                                     layout_helper_is_typeArray(layout_helper()),
                                                     is_typeArray_klass_slow()); }
   inline  bool is_inline_klass()              const { return is_inline_klass_slow(); } //temporary hack
-  inline  bool is_valueArray_klass()          const { return assert_same_query(
-                                                    layout_helper_is_valueArray(layout_helper()),
-                                                    is_valueArray_klass_slow()); }
+  inline  bool is_flatArray_klass()           const { return assert_same_query(
+                                                    layout_helper_is_flatArray(layout_helper()),
+                                                    is_flatArray_klass_slow()); }
 
   #undef assert_same_query
 

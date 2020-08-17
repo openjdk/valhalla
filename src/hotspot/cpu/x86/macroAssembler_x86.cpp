@@ -2617,24 +2617,24 @@ void MacroAssembler::null_check(Register reg, int offset) {
   }
 }
 
-void MacroAssembler::test_klass_is_value(Register klass, Register temp_reg, Label& is_value) {
+void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type) {
   movl(temp_reg, Address(klass, Klass::access_flags_offset()));
-  testl(temp_reg, JVM_ACC_VALUE);
-  jcc(Assembler::notZero, is_value);
+  testl(temp_reg, JVM_ACC_INLINE);
+  jcc(Assembler::notZero, is_inline_type);
 }
 
-void MacroAssembler::test_klass_is_empty_value(Register klass, Register temp_reg, Label& is_empty_value) {
+void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type) {
 #ifdef ASSERT
   {
     Label done_check;
-    test_klass_is_value(klass, temp_reg, done_check);
-    stop("test_klass_is_empty_value with non value klass");
+    test_klass_is_inline_type(klass, temp_reg, done_check);
+    stop("test_klass_is_empty_inline_type with non inline type klass");
     bind(done_check);
   }
 #endif
   movl(temp_reg, Address(klass, InstanceKlass::misc_flags_offset()));
   testl(temp_reg, InstanceKlass::misc_flags_is_empty_inline_type());
-  jcc(Assembler::notZero, is_empty_value);
+  jcc(Assembler::notZero, is_empty_inline_type);
 }
 
 void MacroAssembler::test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline_type) {
@@ -3615,53 +3615,53 @@ void MacroAssembler::zero_memory(Register address, Register length_in_bytes, int
   bind(done);
 }
 
-void MacroAssembler::get_value_field_klass(Register klass, Register index, Register value_klass) {
-  movptr(value_klass, Address(klass, InstanceKlass::inline_type_field_klasses_offset()));
+void MacroAssembler::get_inline_type_field_klass(Register klass, Register index, Register inline_klass) {
+  movptr(inline_klass, Address(klass, InstanceKlass::inline_type_field_klasses_offset()));
 #ifdef ASSERT
   {
     Label done;
-    cmpptr(value_klass, 0);
+    cmpptr(inline_klass, 0);
     jcc(Assembler::notEqual, done);
-    stop("get_value_field_klass contains no inline klasses");
+    stop("get_inline_type_field_klass contains no inline klass");
     bind(done);
   }
 #endif
-  movptr(value_klass, Address(value_klass, index, Address::times_ptr));
+  movptr(inline_klass, Address(inline_klass, index, Address::times_ptr));
 }
 
-void MacroAssembler::get_default_value_oop(Register value_klass, Register temp_reg, Register obj) {
+void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {
 #ifdef ASSERT
   {
     Label done_check;
-    test_klass_is_value(value_klass, temp_reg, done_check);
-    stop("get_default_value_oop from non-value klass");
+    test_klass_is_inline_type(inline_klass, temp_reg, done_check);
+    stop("get_default_value_oop from non inline type klass");
     bind(done_check);
   }
 #endif
   Register offset = temp_reg;
   // Getting the offset of the pre-allocated default value
-  movptr(offset, Address(value_klass, in_bytes(InstanceKlass::adr_valueklass_fixed_block_offset())));
-  movl(offset, Address(offset, in_bytes(ValueKlass::default_value_offset_offset())));
+  movptr(offset, Address(inline_klass, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())));
+  movl(offset, Address(offset, in_bytes(InlineKlass::default_value_offset_offset())));
 
   // Getting the mirror
-  movptr(obj, Address(value_klass, in_bytes(Klass::java_mirror_offset())));
-  resolve_oop_handle(obj, value_klass);
+  movptr(obj, Address(inline_klass, in_bytes(Klass::java_mirror_offset())));
+  resolve_oop_handle(obj, inline_klass);
 
   // Getting the pre-allocated default value from the mirror
   Address field(obj, offset, Address::times_1);
   load_heap_oop(obj, field);
 }
 
-void MacroAssembler::get_empty_value_oop(Register value_klass, Register temp_reg, Register obj) {
+void MacroAssembler::get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj) {
 #ifdef ASSERT
   {
     Label done_check;
-    test_klass_is_empty_value(value_klass, temp_reg, done_check);
-    stop("get_empty_value from non-empty value klass");
+    test_klass_is_empty_inline_type(inline_klass, temp_reg, done_check);
+    stop("get_empty_value from non-empty inline klass");
     bind(done_check);
   }
 #endif
-  get_default_value_oop(value_klass, temp_reg, obj);
+  get_default_value_oop(inline_klass, temp_reg, obj);
 }
 
 
@@ -4677,20 +4677,20 @@ void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators, Ad
 }
 
 void MacroAssembler::access_value_copy(DecoratorSet decorators, Register src, Register dst,
-                                       Register value_klass) {
+                                       Register inline_klass) {
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->value_copy(this, decorators, src, dst, value_klass);
+  bs->value_copy(this, decorators, src, dst, inline_klass);
 }
 
-void MacroAssembler::first_field_offset(Register value_klass, Register offset) {
-  movptr(offset, Address(value_klass, InstanceKlass::adr_valueklass_fixed_block_offset()));
-  movl(offset, Address(offset, ValueKlass::first_field_offset_offset()));
+void MacroAssembler::first_field_offset(Register inline_klass, Register offset) {
+  movptr(offset, Address(inline_klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+  movl(offset, Address(offset, InlineKlass::first_field_offset_offset()));
 }
 
-void MacroAssembler::data_for_oop(Register oop, Register data, Register value_klass) {
+void MacroAssembler::data_for_oop(Register oop, Register data, Register inline_klass) {
   // ((address) (void*) o) + vk->first_field_offset();
   Register offset = (data == oop) ? rscratch1 : data;
-  first_field_offset(value_klass, offset);
+  first_field_offset(inline_klass, offset);
   if (data == oop) {
     addptr(data, offset);
   } else {
@@ -4713,7 +4713,7 @@ void MacroAssembler::data_for_value_array_index(Register array, Register array_k
   andl(rcx, Klass::_lh_log2_element_size_mask);
   shlptr(index); // index << rcx
 
-  lea(data, Address(array, index, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_VALUETYPE)));
+  lea(data, Address(array, index, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE)));
 }
 
 void MacroAssembler::resolve(DecoratorSet decorators, Register obj) {
@@ -5205,12 +5205,12 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XM
   BIND(L_end);
 }
 
-int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_interpreter) {
-  // A value type might be returned. If fields are in registers we
-  // need to allocate a value type instance and initialize it with
+int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter) {
+  // An inline type might be returned. If fields are in registers we
+  // need to allocate an inline type instance and initialize it with
   // the value of the fields.
   Label skip;
-  // We only need a new buffered value if a new one is not returned
+  // We only need a new buffered inline type if a new one is not returned
   testptr(rax, 1);
   jcc(Assembler::zero, skip);
   int call_offset = -1;
@@ -5218,17 +5218,17 @@ int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_i
 #ifdef _LP64
   Label slow_case;
 
-  // Try to allocate a new buffered value (from the heap)
+  // Try to allocate a new buffered inline type (from the heap)
   if (UseTLAB) {
     // FIXME -- for smaller code, the inline allocation (and the slow case) should be moved inside the pack handler.
     if (vk != NULL) {
       // Called from C1, where the return type is statically known.
-      movptr(rbx, (intptr_t)vk->get_ValueKlass());
+      movptr(rbx, (intptr_t)vk->get_InlineKlass());
       jint lh = vk->layout_helper();
       assert(lh != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
       movl(r14, lh);
     } else {
-      // Call from interpreter. RAX contains ((the ValueKlass* of the return type) | 0x01)
+      // Call from interpreter. RAX contains ((the InlineKlass* of the return type) | 0x01)
       mov(rbx, rax);
       andptr(rbx, -2);
       movl(r14, Address(rbx, Klass::layout_helper_offset()));
@@ -5251,15 +5251,14 @@ int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_i
     Register tmp_store_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
     store_klass(r13, rbx, tmp_store_klass);  // klass
 
-    // We have our new buffered value, initialize its fields with a
-    // value class specific handler
+    // We have our new buffered inline type, initialize its fields with an inline class specific handler
     if (vk != NULL) {
       // FIXME -- do the packing in-line to avoid the runtime call
       mov(rax, r13);
       call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
-      movptr(rbx, Address(rax, InstanceKlass::adr_valueklass_fixed_block_offset()));
-      movptr(rbx, Address(rbx, ValueKlass::pack_handler_offset()));
+      movptr(rbx, Address(rax, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      movptr(rbx, Address(rbx, InlineKlass::pack_handler_offset()));
       mov(rax, r13);
       call(rbx);
     }
@@ -5267,16 +5266,16 @@ int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_i
   }
 
   bind(slow_case);
-  // We failed to allocate a new value, fall back to a runtime
+  // We failed to allocate a new inline type, fall back to a runtime
   // call. Some oop field may be live in some registers but we can't
   // tell. That runtime call will take care of preserving them
   // across a GC if there's one.
 #endif
 
   if (from_interpreter) {
-    super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
+    super_call_VM_leaf(StubRoutines::store_inline_type_fields_to_buf());
   } else {
-    call(RuntimeAddress(StubRoutines::store_value_type_fields_to_buf()));
+    call(RuntimeAddress(StubRoutines::store_inline_type_fields_to_buf()));
     call_offset = offset();
   }
 
@@ -5348,9 +5347,9 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
   return true;
 }
 
-// Read all fields from a value type oop and store the values in registers/stack slots
-bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to,
-                                         int& to_index, RegState reg_state[], int ret_off, int extra_stack_offset) {
+// Read all fields from an inline type oop and store the values in registers/stack slots
+bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to,
+                                          int& to_index, RegState reg_state[], int ret_off, int extra_stack_offset) {
   Register fromReg = from->is_reg() ? from->as_Register() : noreg;
   assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
 
@@ -5360,7 +5359,7 @@ bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int
   do {
     sig_index--;
     BasicType bt = sig->at(sig_index)._bt;
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       vt--;
     } else if (bt == T_VOID &&
                sig->at(sig_index-1)._bt != T_LONG &&
@@ -5430,11 +5429,11 @@ bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int
   return done;
 }
 
-// Pack fields back into a value type oop
-bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                                       VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
-                                       int ret_off, int extra_stack_offset) {
-  assert(sig->at(sig_index)._bt == T_VALUETYPE, "should be at end delimiter");
+// Pack fields back into an inline type oop
+bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
+                                        VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
+                                        int ret_off, int extra_stack_offset) {
+  assert(sig->at(sig_index)._bt == T_INLINE_TYPE, "should be at end delimiter");
   assert(to->is_valid(), "must be");
 
   if (reg_state[to->value()] == reg_written) {
@@ -5458,7 +5457,7 @@ bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& 
     val_obj = val_obj_tmp;
   }
 
-  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_VALUETYPE);
+  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_INLINE_TYPE);
   load_heap_oop(val_obj, Address(val_array, index));
 
   ScalarizedValueArgsStream stream(sig, sig_index, regs_from, regs_from_count, from_index);
@@ -5509,17 +5508,17 @@ bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& 
   return true;
 }
 
-// Unpack all value type arguments passed as oops
-void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
-  int sp_inc = unpack_value_args_common(C, receiver_only);
+// Unpack all inline type arguments passed as oops
+void MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
+  int sp_inc = unpack_inline_args_common(C, receiver_only);
   // Emit code for verified entry and save increment for stack repair on return
   verified_entry(C, sp_inc);
 }
 
-void MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
-                                        BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                                        int args_passed, int args_on_stack, VMRegPair* regs,
-                                        int args_passed_to, int args_on_stack_to, VMRegPair* regs_to, int sp_inc) {
+void MacroAssembler::shuffle_inline_args(bool is_packing, bool receiver_only, int extra_stack_offset,
+                                         BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
+                                         int args_passed, int args_on_stack, VMRegPair* regs,
+                                         int args_passed_to, int args_on_stack_to, VMRegPair* regs_to, int sp_inc) {
   // Check if we need to extend the stack for packing/unpacking
   if (sp_inc > 0 && !is_packing) {
     // Save the return address, adjust the stack (make sure it is properly
@@ -5532,7 +5531,7 @@ void MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int
 
   int ret_off; // make sure we don't overwrite the return address
   if (is_packing) {
-    // For C1 code, the VVEP doesn't have reserved slots, so we store the returned address at
+    // For C1 code, the VIEP doesn't have reserved slots, so we store the returned address at
     // rsp[0] during shuffling.
     ret_off = 0;
   } else {
@@ -5540,11 +5539,11 @@ void MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int
     ret_off = sp_inc;
   }
 
-  shuffle_value_args_common(is_packing, receiver_only, extra_stack_offset,
-                            sig_bt, sig_cc,
-                            args_passed, args_on_stack, regs,
-                            args_passed_to, args_on_stack_to, regs_to,
-                            sp_inc, ret_off);
+  shuffle_inline_args_common(is_packing, receiver_only, extra_stack_offset,
+                             sig_bt, sig_cc,
+                             args_passed, args_on_stack, regs,
+                             args_passed_to, args_on_stack_to, regs_to,
+                             sp_inc, ret_off);
 }
 
 VMReg MacroAssembler::spill_reg_for(VMReg reg) {

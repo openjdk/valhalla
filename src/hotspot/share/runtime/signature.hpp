@@ -274,7 +274,7 @@ class SignatureTypeNames : public SignatureIterator {
     case T_VOID:    type_name("void"    ); break;
     case T_ARRAY:
     case T_OBJECT:
-    case T_VALUETYPE:  type_name("jobject" ); break;
+    case T_INLINE_TYPE:  type_name("jobject" ); break;
     default: ShouldNotReachHere();
     }
   }
@@ -408,7 +408,7 @@ class NativeSignatureIterator: public SignatureIterator {
     }
     case T_ARRAY:
     case T_OBJECT:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
       pass_object(); _jni_offset++; _offset++;
       break;
     default:
@@ -564,7 +564,7 @@ class SignatureStream : public StackObj {
   enum FailureMode { ReturnNull, NCDFError, CachedOrNull };
 
   Klass* as_klass(Handle class_loader, Handle protection_domain, FailureMode failure_mode, TRAPS);
-  ValueKlass* as_value_klass(InstanceKlass* holder);
+  InlineKlass* as_inline_klass(InstanceKlass* holder);
   oop as_java_mirror(Handle class_loader, Handle protection_domain, FailureMode failure_mode, TRAPS);
 };
 
@@ -572,8 +572,8 @@ class SigEntryFilter;
 typedef GrowableArrayFilterIterator<SigEntry, SigEntryFilter> ExtendedSignature;
 
 // Used for adapter generation. One SigEntry is used per element of
-// the signature of the method. Value type arguments are treated
-// specially. See comment for ValueKlass::collect_fields().
+// the signature of the method. Inline type arguments are treated
+// specially. See comment for InlineKlass::collect_fields().
 class SigEntry {
  public:
   BasicType _bt;
@@ -596,16 +596,16 @@ class SigEntry {
     }
     assert((e1->_bt == T_LONG && (e2->_bt == T_LONG || e2->_bt == T_VOID)) ||
            (e1->_bt == T_DOUBLE && (e2->_bt == T_DOUBLE || e2->_bt == T_VOID)) ||
-           e1->_bt == T_VALUETYPE || e2->_bt == T_VALUETYPE || e1->_bt == T_VOID || e2->_bt == T_VOID, "bad bt");
+           e1->_bt == T_INLINE_TYPE || e2->_bt == T_INLINE_TYPE || e1->_bt == T_VOID || e2->_bt == T_VOID, "bad bt");
     if (e1->_bt == e2->_bt) {
-      assert(e1->_bt == T_VALUETYPE || e1->_bt == T_VOID, "only ones with duplicate offsets");
+      assert(e1->_bt == T_INLINE_TYPE || e1->_bt == T_VOID, "only ones with duplicate offsets");
       return 0;
     }
     if (e1->_bt == T_VOID ||
-        e2->_bt == T_VALUETYPE) {
+        e2->_bt == T_INLINE_TYPE) {
       return 1;
     }
-    if (e1->_bt == T_VALUETYPE ||
+    if (e1->_bt == T_INLINE_TYPE ||
         e2->_bt == T_VOID) {
       return -1;
     }
@@ -624,7 +624,7 @@ class SigEntry {
 
 class SigEntryFilter {
 public:
-  bool operator()(const SigEntry& entry) { return entry._bt != T_VALUETYPE && entry._bt != T_VOID; }
+  bool operator()(const SigEntry& entry) { return entry._bt != T_INLINE_TYPE && entry._bt != T_VOID; }
 };
 
 // Specialized SignatureStream: used for invoking SystemDictionary to either find

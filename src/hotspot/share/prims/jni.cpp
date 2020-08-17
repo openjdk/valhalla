@@ -49,6 +49,8 @@
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/arrayOop.inline.hpp"
+#include "oops/flatArrayOop.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/instanceOop.hpp"
 #include "oops/markWord.hpp"
@@ -59,8 +61,6 @@
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "oops/valueArrayOop.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
 #include "prims/jniCheck.hpp"
 #include "prims/jniExport.hpp"
 #include "prims/jniFastGetField.hpp"
@@ -896,7 +896,7 @@ class JNI_ArgumentPusherVaArg : public JNI_ArgumentPusher {
 
     case T_ARRAY:
     case T_OBJECT:
-    case T_VALUETYPE:   push_object(va_arg(_ap, jobject)); break;
+    case T_INLINE_TYPE: push_object(va_arg(_ap, jobject)); break;
     default:            ShouldNotReachHere();
     }
   }
@@ -933,7 +933,7 @@ class JNI_ArgumentPusherArray : public JNI_ArgumentPusher {
     case T_DOUBLE:      push_double((_ap++)->d); break;
     case T_ARRAY:
     case T_OBJECT:
-    case T_VALUETYPE:   push_object((_ap++)->l); break;
+    case T_INLINE_TYPE: push_object((_ap++)->l); break;
     default:            ShouldNotReachHere();
     }
   }
@@ -1087,7 +1087,7 @@ JNI_ENTRY(jobject, jni_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
     JNI_ArgumentPusherArray ap(methodID, args);
     jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
   } else {
-    JavaValue jvalue(T_VALUETYPE);
+    JavaValue jvalue(T_INLINE_TYPE);
     JNI_ArgumentPusherArray ap(methodID, args);
     jni_invoke_static(env, &jvalue, NULL, JNI_STATIC, methodID, &ap, CHECK_NULL);
     obj = jvalue.get_jobject();
@@ -1121,7 +1121,7 @@ JNI_ENTRY(jobject, jni_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
     JNI_ArgumentPusherVaArg ap(methodID, args);
     jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
   } else {
-    JavaValue jvalue(T_VALUETYPE);
+    JavaValue jvalue(T_INLINE_TYPE);
     JNI_ArgumentPusherVaArg ap(methodID, args);
     jni_invoke_static(env, &jvalue, NULL, JNI_STATIC, methodID, &ap, CHECK_NULL);
     obj = jvalue.get_jobject();
@@ -1160,7 +1160,7 @@ JNI_ENTRY(jobject, jni_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, 
   } else {
     va_list args;
     va_start(args, methodID);
-    JavaValue jvalue(T_VALUETYPE);
+    JavaValue jvalue(T_INLINE_TYPE);
     JNI_ArgumentPusherVaArg ap(methodID, args);
     jni_invoke_static(env, &jvalue, NULL, JNI_STATIC, methodID, &ap, CHECK_NULL);
     va_end(args);
@@ -1967,7 +1967,7 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
     InstanceKlass* holder = fd.field_holder();
-    ValueKlass* field_vklass = ValueKlass::cast(holder->get_inline_type_field_klass(fd.index()));
+    InlineKlass* field_vklass = InlineKlass::cast(holder->get_inline_type_field_klass(fd.index()));
     res = field_vklass->read_inlined_field(o, ik->field_offset(fd.index()), CHECK_NULL);
   }
   jobject ret = JNIHandles::make_local(env, res);
@@ -2076,7 +2076,7 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);
     InstanceKlass* holder = fd.field_holder();
-    ValueKlass* vklass = ValueKlass::cast(holder->get_inline_type_field_klass(fd.index()));
+    InlineKlass* vklass = InlineKlass::cast(holder->get_inline_type_field_klass(fd.index()));
     oop v = JNIHandles::resolve_non_null(value);
     vklass->write_inlined_field(o, offset, v, CHECK);
   }
@@ -2519,11 +2519,11 @@ JNI_ENTRY(jobject, jni_GetObjectArrayElement(JNIEnv *env, jobjectArray array, js
   oop res = NULL;
   arrayOop arr((arrayOop)JNIHandles::resolve_non_null(array));
   if (arr->is_within_bounds(index)) {
-    if (arr->is_valueArray()) {
-      valueArrayOop a = valueArrayOop(JNIHandles::resolve_non_null(array));
+    if (arr->is_flatArray()) {
+      flatArrayOop a = flatArrayOop(JNIHandles::resolve_non_null(array));
       arrayHandle ah(THREAD, a);
-      valueArrayHandle vah(thread, a);
-      res = valueArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK_NULL);
+      flatArrayHandle vah(thread, a);
+      res = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK_NULL);
       assert(res != NULL, "Must be set in one of two paths above");
     } else {
       assert(arr->is_objArray(), "If not a valueArray. must be an objArray");
@@ -2553,17 +2553,17 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
    oop res = NULL;
    arrayOop arr((arrayOop)JNIHandles::resolve_non_null(array));
    if (arr->is_within_bounds(index)) {
-     if (arr->is_valueArray()) {
-       valueArrayOop a = valueArrayOop(JNIHandles::resolve_non_null(array));
+     if (arr->is_flatArray()) {
+       flatArrayOop a = flatArrayOop(JNIHandles::resolve_non_null(array));
        oop v = JNIHandles::resolve(value);
-       ValueArrayKlass* vaklass = ValueArrayKlass::cast(a->klass());
-       ValueKlass* element_vklass = vaklass->element_klass();
+       FlatArrayKlass* vaklass = FlatArrayKlass::cast(a->klass());
+       InlineKlass* element_vklass = vaklass->element_klass();
        if (v != NULL && v->is_a(element_vklass)) {
          a->value_copy_to_index(v, index);
        } else {
          ResourceMark rm(THREAD);
          stringStream ss;
-         Klass *kl = ValueArrayKlass::cast(a->klass());
+         Klass *kl = FlatArrayKlass::cast(a->klass());
          ss.print("type mismatch: can not store %s to %s[%d]",
              v->klass()->external_name(),
              kl->external_name(),
@@ -3394,15 +3394,15 @@ JNI_ENTRY(void*, jni_GetFlattenedArrayElements(JNIEnv* env, jarray array, jboole
   if (!ar->is_array()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not an array");
   }
-  if (!ar->is_valueArray()) {
+  if (!ar->is_flatArray()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
   }
-  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass());
+  FlatArrayKlass* vak = FlatArrayKlass::cast(ar->klass());
   if (vak->contains_oops()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Flattened array contains oops");
   }
   oop a = lock_gc_or_pin_object(thread, array);
-  valueArrayOop vap = valueArrayOop(a);
+  flatArrayOop vap = flatArrayOop(a);
   void* ret = vap->value_at_addr(0, vak->layout_helper());
   return ret;
 JNI_END
@@ -3418,10 +3418,10 @@ JNI_ENTRY(jsize, jni_GetFlattenedArrayElementSize(JNIEnv* env, jarray array)) {
   if (!a->is_array()) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Not an array");
   }
-  if (!a->is_valueArray()) {
+  if (!a->is_flatArray()) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
   }
-  ValueArrayKlass* vak = ValueArrayKlass::cast(a->klass());
+  FlatArrayKlass* vak = FlatArrayKlass::cast(a->klass());
   jsize ret = vak->element_byte_size();
   return ret;
 }
@@ -3433,11 +3433,11 @@ JNI_ENTRY(jclass, jni_GetFlattenedArrayElementClass(JNIEnv* env, jarray array))
   if (!a->is_array()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not an array");
   }
-  if (!a->is_valueArray()) {
+  if (!a->is_flatArray()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
   }
-  ValueArrayKlass* vak = ValueArrayKlass::cast(a->klass());
-  ValueKlass* vk = vak->element_klass();
+  FlatArrayKlass* vak = FlatArrayKlass::cast(a->klass());
+  InlineKlass* vk = vak->element_klass();
   return (jclass) JNIHandles::make_local(vk->java_mirror());
 JNI_END
 
@@ -3450,7 +3450,7 @@ JNI_ENTRY(jsize, jni_GetFieldOffsetInFlattenedLayout(JNIEnv* env, jclass clazz, 
     ResourceMark rm;
         THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s has not flattened layout", k->external_name()));
   }
-  ValueKlass* vk = ValueKlass::cast(k);
+  InlineKlass* vk = InlineKlass::cast(k);
 
   TempNewSymbol fieldname = SymbolTable::probe(name, (int)strlen(name));
   TempNewSymbol signame = SymbolTable::probe(signature, (int)strlen(signature));
@@ -3482,7 +3482,7 @@ JNI_ENTRY(jobject, jni_CreateSubElementSelector(JNIEnv* env, jarray array))
   if (!ar->is_array()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not an array");
   }
-  if (!ar->is_valueArray()) {
+  if (!ar->is_flatArray()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
   }
   Klass* ses_k = SystemDictionary::resolve_or_null(vmSymbols::jdk_internal_vm_jni_SubElementSelector(),
@@ -3517,7 +3517,7 @@ JNI_ENTRY(jobject, jni_GetSubElementSelector(JNIEnv* env, jobject selector, jfie
     ResourceMark rm;
         THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s is not an inline type", k->external_name()));
   }
-  ValueKlass* vk = ValueKlass::cast(k);
+  InlineKlass* vk = InlineKlass::cast(k);
   assert(vk->is_initialized(), "If a flattened array has been created, the element klass must have been initialized");
   int field_offset = jfieldIDWorkaround::from_instance_jfieldID(vk, fieldID);
   fieldDescriptor fd;
@@ -3549,9 +3549,9 @@ JNI_END
 JNI_ENTRY(jobject, jni_GetObjectSubElement(JNIEnv* env, jarray array, jobject selector, int index))
   JNIWrapper("jni_GetObjectSubElement");
 
-  valueArrayOop ar =  (valueArrayOop)JNIHandles::resolve_non_null(array);
+  flatArrayOop ar =  (flatArrayOop)JNIHandles::resolve_non_null(array);
   oop slct = JNIHandles::resolve_non_null(selector);
-  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass());
+  FlatArrayKlass* vak = FlatArrayKlass::cast(ar->klass());
   if (jdk_internal_vm_jni_SubElementSelector::getArrayElementType(slct) != vak->element_klass()->java_mirror()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Array/Selector mismatch");
   }
@@ -3561,13 +3561,13 @@ JNI_ENTRY(jobject, jni_GetObjectSubElement(JNIEnv* env, jarray array, jobject se
                       + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
     res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(ar, offset);
   } else {
-    ValueKlass* fieldKlass = ValueKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
-    res = fieldKlass->allocate_instance(CHECK_NULL);
+    InlineKlass* fieldKlass = InlineKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
+    res = fieldKlass->allocate_instance_buffer(CHECK_NULL);
     // The array might have been moved by the GC, refreshing the arrayOop
-    ar =  (valueArrayOop)JNIHandles::resolve_non_null(array);
+    ar =  (flatArrayOop)JNIHandles::resolve_non_null(array);
     address addr = (address)ar->value_at_addr(index, vak->layout_helper())
               + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
-    fieldKlass->value_copy_payload_to_new_oop(addr, res);
+    fieldKlass->inline_copy_payload_to_new_oop(addr, res);
   }
   return JNIHandles::make_local(res);
 JNI_END
@@ -3575,9 +3575,9 @@ JNI_END
 JNI_ENTRY(void, jni_SetObjectSubElement(JNIEnv* env, jarray array, jobject selector, int index, jobject value))
   JNIWrapper("jni_SetObjectSubElement");
 
-  valueArrayOop ar =  (valueArrayOop)JNIHandles::resolve_non_null(array);
+  flatArrayOop ar =  (flatArrayOop)JNIHandles::resolve_non_null(array);
   oop slct = JNIHandles::resolve_non_null(selector);
-  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass());
+  FlatArrayKlass* vak = FlatArrayKlass::cast(ar->klass());
   if (jdk_internal_vm_jni_SubElementSelector::getArrayElementType(slct) != vak->element_klass()->java_mirror()) {
     THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "Array/Selector mismatch");
   }
@@ -3596,10 +3596,10 @@ JNI_ENTRY(void, jni_SetObjectSubElement(JNIEnv* env, jarray array, jobject selec
                   + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
     HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(ar, offset, JNIHandles::resolve(value));
   } else {
-    ValueKlass* fieldKlass = ValueKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
+    InlineKlass* fieldKlass = InlineKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
     address addr = (address)ar->value_at_addr(index, vak->layout_helper())
                   + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
-    fieldKlass->value_copy_oop_to_payload(JNIHandles::resolve_non_null(value), addr);
+    fieldKlass->inline_copy_oop_to_payload(JNIHandles::resolve_non_null(value), addr);
   }
 JNI_END
 
@@ -3608,9 +3608,9 @@ JNI_END
 JNI_ENTRY(ElementType, \
           jni_Get##Result##SubElement(JNIEnv *env, jarray array, jobject selector, int index)) \
   JNIWrapper("Get" XSTR(Result) "SubElement"); \
-  valueArrayOop ar = (valueArrayOop)JNIHandles::resolve_non_null(array); \
+  flatArrayOop ar = (flatArrayOop)JNIHandles::resolve_non_null(array); \
   oop slct = JNIHandles::resolve_non_null(selector); \
-  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass()); \
+  FlatArrayKlass* vak = FlatArrayKlass::cast(ar->klass()); \
   if (jdk_internal_vm_jni_SubElementSelector::getArrayElementType(slct) != vak->element_klass()->java_mirror()) { \
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Array/Selector mismatch"); \
   } \
@@ -3637,9 +3637,9 @@ DEFINE_GETSUBELEMENT(jdouble, Double,T_DOUBLE)
 JNI_ENTRY(void, \
           jni_Set##Result##SubElement(JNIEnv *env, jarray array, jobject selector, int index, ElementType value)) \
   JNIWrapper("Get" XSTR(Result) "SubElement"); \
-  valueArrayOop ar = (valueArrayOop)JNIHandles::resolve_non_null(array); \
+  flatArrayOop ar = (flatArrayOop)JNIHandles::resolve_non_null(array); \
   oop slct = JNIHandles::resolve_non_null(selector); \
-  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass()); \
+  FlatArrayKlass* vak = FlatArrayKlass::cast(ar->klass()); \
   if (jdk_internal_vm_jni_SubElementSelector::getArrayElementType(slct) != vak->element_klass()->java_mirror()) { \
     THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "Array/Selector mismatch"); \
   } \

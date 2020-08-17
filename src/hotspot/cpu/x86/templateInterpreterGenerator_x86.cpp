@@ -36,7 +36,7 @@
 #include "oops/methodData.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/arguments.hpp"
@@ -207,7 +207,7 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   __ movptr(Address(rbp, frame::interpreter_frame_last_sp_offset * wordSize), (int32_t)NULL_WORD);
 
   if (state == atos && InlineTypeReturnedAsFields) {
-    __ store_value_type_fields_to_buf(NULL);
+    __ store_inline_type_fields_to_buf(NULL);
   }
 
   __ restore_bcp();
@@ -352,7 +352,7 @@ address TemplateInterpreterGenerator::generate_result_handler_for(
   case T_DOUBLE : /* nothing to do */        break;
 #endif // _LP64
 
-  case T_VALUETYPE: // fall through (value types are handled with oops)
+  case T_INLINE_TYPE: // fall through (inline types are handled with oops)
   case T_OBJECT :
     // retrieve result from frame
     __ movptr(rax, Address(rbp, frame::interpreter_frame_oop_temp_offset*wordSize));
