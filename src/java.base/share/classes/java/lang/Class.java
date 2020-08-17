@@ -576,8 +576,13 @@ public final class Class<T> implements java.io.Serializable,
      *         inline class; an empty {@link Optional} otherwise
      * @since Valhalla
      */
-    public Optional<Class<T>> valueType() {
-        return Optional.ofNullable(valType);
+    public Optional<Class<?>> valueType() {
+        if (isPrimitive() || isInterface() || isArray())
+            return Optional.empty();
+
+        ensureProjectionTypesInited();
+        System.out.println(getName() + " " + Arrays.toString(projectionTypes));
+        return projectionTypes.length > 0 ? Optional.of(projectionTypes[0]) : Optional.empty();
     }
 
     /**
@@ -593,14 +598,80 @@ public final class Class<T> implements java.io.Serializable,
      *         inline class; an empty {@link Optional} otherwise
      * @since Valhalla
      */
-    public Optional<Class<T>> referenceType() {
-        return valType != null ? Optional.ofNullable(refType) : Optional.of(this);
+    public Optional<Class<?>> referenceType() {
+        if (isPrimitive() || isInterface() || isArray())
+            return Optional.empty();
+        ensureProjectionTypesInited();
+        System.out.println(getName() + " " + Arrays.toString(projectionTypes));
+        return projectionTypes.length == 2 ? Optional.of(projectionTypes[1]) : Optional.empty();
     }
 
     // set by VM if this class is an inline type
     // otherwise, these two fields are null
     private transient Class<T> valType;
     private transient Class<T> refType;
+    private transient Class<?>[] projectionTypes;
+
+    private synchronized void ensureProjectionTypesInited() {
+        if (isPrimitive() || isArray() || isInterface())
+            return;
+
+        if (projectionTypes != null)
+            return;
+
+        if (isInlineClass()) {
+            Class<?> superClass = getSuperclass();
+            System.out.println("superclass " + superClass);
+            if (superClass != Object.class && superClass.isReferenceProjectionType()) {
+                projectionTypes = new Class<?>[] { this, superClass };
+            } else {
+                projectionTypes = new Class<?>[] { this };
+            }
+        } else if (isReferenceProjectionType()) {
+            projectionTypes = new Class<?>[] { valueProjectionType(), this };
+        } else {
+            projectionTypes = EMPTY_CLASS_ARRAY;
+        }
+    }
+
+    private boolean isReferenceProjectionType() {
+        if (isPrimitive() || isInterface() || isArray() || isInlineClass())
+            return false;
+
+        if (projectionTypes != null) {
+            return projectionTypes.length == 2 && projectionTypes[1] == this;
+        }
+
+        int mods = getModifiers();
+        if (!Modifier.isAbstract(mods)) {
+            return false;
+        }
+
+        return valueProjectionType() != null;
+    }
+
+    private Class<?> valueProjectionType() {
+        // A reference projection type must be a sealed abstract class
+        // that permits the inline projection type to extend.
+        // The inline projection type and reference projection type for
+        // an inline type must be of the same package.
+        String[] subclassNames = getPermittedSubclasses0();
+        System.out.println(getName() + " permits " + Arrays.toString(subclassNames));
+        if (subclassNames.length == 1) {
+            String cn = subclassNames[0].replace('/', '.');
+            int index = cn.lastIndexOf('.');
+            String pn = index > 0 ? cn.substring(0, index) : "";
+            if (pn.equals(getPackageName())) {
+                try {
+                    Class<?> valType = Class.forName(cn, false, getClassLoader());
+                    if (valType.isInlineClass()) {
+                        return valType;
+                    }
+                } catch (ClassNotFoundException e) {}
+            }
+        }
+        return null;
+    }
 
     /**
      * Creates a new instance of the class represented by this {@code Class}
