@@ -2,7 +2,7 @@
  * @test /nodynamiccopyright/
  * @bug 8242900
  * @summary Verify various constraints for an inline class's super types.
- * @compile/fail/ref=SuperclassConstraints.out -XDallowEmptyValues -XDrawDiagnostics -XDdev SuperclassConstraints.java
+ * @compile/fail/ref=SuperclassConstraints.out -XDrawDiagnostics -XDdev SuperclassConstraints.java
  */
 
 public class SuperclassConstraints {

@@ -8,7 +8,5 @@ TopInterfaceNegativeTest.java:24:48: compiler.err.repeated.interface
 TopInterfaceNegativeTest.java:30:39: compiler.err.cant.resolve.location: kindname.class, InlineObject, , , (compiler.misc.location: kindname.class, TopInterfaceNegativeTest, null)
 TopInterfaceNegativeTest.java:30:53: compiler.err.cant.resolve.location: kindname.class, InlineObject, , , (compiler.misc.location: kindname.class, TopInterfaceNegativeTest, null)
 TopInterfaceNegativeTest.java:28:19: compiler.err.inline.type.must.not.implement.identity.object: TopInterfaceNegativeTest.V1
-TopInterfaceNegativeTest.java:29:19: compiler.err.empty.value.not.yet
-TopInterfaceNegativeTest.java:30:19: compiler.err.empty.value.not.yet
 TopInterfaceNegativeTest.java:33:13: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: TopInterfaceNegativeTest.V2, java.lang.IdentityObject)
-13 errors
+11 errors

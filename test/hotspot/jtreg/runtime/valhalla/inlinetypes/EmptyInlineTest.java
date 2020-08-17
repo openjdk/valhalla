@@ -30,7 +30,7 @@ import java.lang.reflect.Field;
  * @test
  * @summary Test support for empty inline types (no instance fields)
  * @library /test/lib
- * @compile -XDallowEmptyValues EmptyInlineTest.java
+ * @compile EmptyInlineTest.java
  * @run main/othervm -XX:+EnableValhalla runtime.valhalla.inlinetypes.EmptyInlineTest
 
  */
