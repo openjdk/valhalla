@@ -619,7 +619,7 @@ public final class Class<T> implements java.io.Serializable,
         ensureProjectionTypesInited();
         return projectionTypes.length == 2 ? Optional.of(projectionTypes[1]) : Optional.empty();
     }
-    
+
     private transient Class<?>[] projectionTypes;
 
     private synchronized void ensureProjectionTypesInited() {
