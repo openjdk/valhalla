@@ -2277,4 +2277,177 @@ public class TestArrays extends InlineTypeTest {
             Asserts.assertEQ(res, expected);
         }
     }
+
+    // Test propagation of not null-free/flat information
+    @Test(failOn = CHECKCAST_ARRAY)
+    public MyValue1[] test95(Object[] array) {
+        array[0] = null;
+        // Always throws a ClassCastException because we just successfully
+        // stored null and therefore the array can't be an inline type array.
+        return (MyValue1[])array;
+    }
+
+    @DontCompile
+    public void test95_verifier(boolean warmup) {
+        MyValue1[] array1 = new MyValue1[1];
+        Integer[] array2 = new Integer[1];
+        try {
+            test95(array1);
+            throw new RuntimeException("Should throw NullPointerException");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        try {
+            test95(array2);
+            throw new RuntimeException("Should throw ClassCastException");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+    }
+
+    // Same as test95 but with cmp user of cast result
+    @Test(failOn = CHECKCAST_ARRAY)
+    public boolean test96(Object[] array) {
+        array[0] = null;
+        // Always throws a ClassCastException because we just successfully
+        // stored null and therefore the array can't be an inline type array.
+        MyValue1[] casted = (MyValue1[])array;
+        return casted != null;
+    }
+
+    @DontCompile
+    public void test96_verifier(boolean warmup) {
+        MyValue1[] array1 = new MyValue1[1];
+        Integer[] array2 = new Integer[1];
+        try {
+            test96(array1);
+            throw new RuntimeException("Should throw NullPointerException");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+        try {
+            test96(array2);
+            throw new RuntimeException("Should throw ClassCastException");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+    }
+
+    // Same as test95 but with instanceof instead of cast
+    @Test(failOn = CHECKCAST_ARRAY)
+    public boolean test97(Object[] array) {
+        array[0] = 42;
+        // Always throws a ClassCastException because we just successfully stored
+        // a non-inline value and therefore the array can't be an inline type array.
+        return array instanceof MyValue1[];
+    }
+
+    @DontCompile
+    public void test97_verifier(boolean warmup) {
+        MyValue1[] array1 = new MyValue1[1];
+        Integer[] array2 = new Integer[1];
+        try {
+            test97(array1);
+            throw new RuntimeException("Should throw ArrayStoreException");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        boolean res = test97(array2);
+        Asserts.assertFalse(res);
+    }
+
+    // Same as test95 but with non-flattenable store
+    @Test(valid = InlineTypeArrayFlattenOn, failOn = CHECKCAST_ARRAY)
+    @Test(valid = InlineTypeArrayFlattenOff)
+    public MyValue1[] test98(Object[] array) {
+        array[0] = NotFlattenable.default;
+        // Always throws a ClassCastException because we just successfully stored a
+        // non-flattenable value and therefore the array can't be a flat array.
+        return (MyValue1[])array;
+    }
+
+    @DontCompile
+    public void test98_verifier(boolean warmup) {
+        MyValue1[] array1 = new MyValue1[1];
+        NotFlattenable[] array2 = new NotFlattenable[1];
+        try {
+            test98(array1);
+            throw new RuntimeException("Should throw ArrayStoreException");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        try {
+            test98(array2);
+            throw new RuntimeException("Should throw ClassCastException");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+    }
+
+    // Same as test98 but with cmp user of cast result
+    @Test(valid = InlineTypeArrayFlattenOn, failOn = CHECKCAST_ARRAY)
+    @Test(valid = InlineTypeArrayFlattenOff)
+    public boolean test99(Object[] array) {
+        array[0] = NotFlattenable.default;
+        // Always throws a ClassCastException because we just successfully stored a
+        // non-flattenable value and therefore the array can't be a flat array.
+        MyValue1[] casted = (MyValue1[])array;
+        return casted != null;
+    }
+
+    @DontCompile
+    public void test99_verifier(boolean warmup) {
+        MyValue1[] array1 = new MyValue1[1];
+        NotFlattenable[] array2 = new NotFlattenable[1];
+        try {
+            test99(array1);
+            throw new RuntimeException("Should throw ArrayStoreException");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        try {
+            test99(array2);
+            throw new RuntimeException("Should throw ClassCastException");
+        } catch (ClassCastException e) {
+            // Expected
+        }
+    }
+
+    // Same as test98 but with instanceof instead of cast
+    @Test(valid = InlineTypeArrayFlattenOn, failOn = CHECKCAST_ARRAY)
+    @Test(valid = InlineTypeArrayFlattenOff)
+    public boolean test100(Object[] array) {
+        array[0] = NotFlattenable.default;
+        // Always throws a ClassCastException because we just successfully stored a
+        // non-flattenable value and therefore the array can't be a flat array.
+        return array instanceof MyValue1[];
+    }
+
+    @DontCompile
+    public void test100_verifier(boolean warmup) {
+        MyValue1[] array1 = new MyValue1[1];
+        NotFlattenable[] array2 = new NotFlattenable[1];
+        try {
+            test100(array1);
+            throw new RuntimeException("Should throw ArrayStoreException");
+        } catch (ArrayStoreException e) {
+            // Expected
+        }
+        boolean res = test100(array2);
+        Asserts.assertFalse(res);
+    }
+
+    // Test that CHECKCAST_ARRAY matching works as expected
+    @Test(match = { CHECKCAST_ARRAY }, matchCount = { 1 })
+    public boolean test101(Object[] array) {
+        return array instanceof MyValue1[];
+    }
+
+    @DontCompile
+    public void test101_verifier(boolean warmup) {
+        MyValue1[] array1 = new MyValue1[1];
+        NotFlattenable[] array2 = new NotFlattenable[1];
+        Asserts.assertTrue(test101(array1));
+        Asserts.assertFalse(test101(array2));
+    }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,29 +25,26 @@
 
 /*
  * @test
- * @summary Check value flag in class file
+ * @bug 8251940
+ * @summary Incorrect Signature attribute in class file
  * @modules jdk.jdeps/com.sun.tools.classfile
- * @compile -XDallowWithFieldOperator Point.java
- * @run main CheckFlags
+ * @run main SignatureTest
  */
 
 import com.sun.tools.classfile.*;
 
-public class CheckFlags {
+public inline class SignatureTest<T> implements java.io.Serializable {
     public static void main(String[] args) throws Exception {
-        ClassFile cls = ClassFile.read(CheckFlags.class.getResourceAsStream("Point.class"));
+        ClassFile cls = ClassFile.read(SignatureTest.class.getResourceAsStream("SignatureTest$ref.class"));
+        Signature_attribute signature = (Signature_attribute) cls.attributes.get(Attribute.Signature);
+        String s = signature.getSignature(cls.constant_pool);
+        if (!s.equals("<T:Ljava/lang/Object;>Ljava/lang/Object;Ljava/io/Serializable;"))
+            throw new AssertionError("Unexpected signature: " + s);
 
-        if (!cls.access_flags.is(AccessFlags.ACC_INLINE))
-            throw new Exception("Value flag not set");
-
-        if (!cls.access_flags.is(AccessFlags.ACC_FINAL))
-            throw new Exception("Final flag not set");
-
-        Field [] flds = cls.fields;
-
-        for (Field fld : flds) {
-            if (!fld.access_flags.is(AccessFlags.ACC_FINAL))
-                throw new Exception("Final flag not set");
-        }
+        cls = ClassFile.read(SignatureTest.class.getResourceAsStream("SignatureTest.class"));
+        signature = (Signature_attribute) cls.attributes.get(Attribute.Signature);
+        s = signature.getSignature(cls.constant_pool);
+        if (!s.equals("<T:Ljava/lang/Object;>LSignatureTest$ref<TT;>;"))
+            throw new AssertionError("Unexpected signature: " + s);
     }
 }

@@ -171,7 +171,6 @@ public class Attr extends JCTree.Visitor {
                 (!preview.isPreview(Feature.REIFIABLE_TYPES_INSTANCEOF) || preview.isEnabled());
         sourceName = source.name;
         useBeforeDeclarationWarning = options.isSet("useBeforeDeclarationWarning");
-        allowEmptyValues = options.isSet("allowEmptyValues");
         allowValueMemberCycles = options.isSet("allowValueMemberCycles");
 
         statInfo = new ResultInfo(KindSelector.NIL, Type.noType);
@@ -216,11 +215,6 @@ public class Attr extends JCTree.Visitor {
      * RFE: 6425594
      */
     boolean useBeforeDeclarationWarning;
-
-    /**
-     * Switch: Allow value types with no instance state?
-     */
-    boolean allowEmptyValues;
 
     /**
      * Switch: Allow value type member cycles?
@@ -2078,9 +2072,11 @@ public class Attr extends JCTree.Visitor {
                 }
             }
 
-            // Those were all the cases that could result in a primitive
+            // Those were all the cases that could result in a primitive. See if primitive boxing and inline
+            // narrowing conversions bring about a convergence.
             condTypes = condTypes.stream()
-                                 .map(t -> t.isPrimitive() ? types.boxedClass(t).type : t)
+                                 .map(t -> t.isPrimitive() ? types.boxedClass(t).type
+                                         : t.isReferenceProjection() ? t.valueProjection() : t)
                                  .collect(List.collector());
 
             for (Type type : condTypes) {
@@ -2091,10 +2087,10 @@ public class Attr extends JCTree.Visitor {
             Iterator<DiagnosticPosition> posIt = positions.iterator();
 
             condTypes = condTypes.stream()
-                                 .map(t -> chk.checkNonVoid(posIt.next(), t))
+                                 .map(t -> chk.checkNonVoid(posIt.next(), t.isValue() ? t.referenceProjection() : t))
                                  .collect(List.collector());
 
-            // both are known to be reference types.  The result is
+            // both are known to be reference types (or projections).  The result is
             // lub(thentype,elsetype). This cannot fail, as it will
             // always be possible to infer "Object" if nothing better.
             return types.lub(condTypes.stream().map(t -> t.baseType()).collect(List.collector()));
@@ -5435,14 +5431,9 @@ public class Attr extends JCTree.Visitor {
         //check that a resource implementing AutoCloseable cannot throw InterruptedException
         checkAutoCloseable(tree.pos(), env, c.type);
 
-        boolean hasInstanceFields = false;
         for (List<JCTree> l = tree.defs; l.nonEmpty(); l = l.tail) {
             // Attribute declaration
             attribStat(l.head, env);
-
-            if (l.head.hasTag(VARDEF) && (TreeInfo.flags(l.head) & STATIC) == 0)
-                hasInstanceFields = true;
-
             // Check that declarations in inner classes are not static (JLS 8.1.2)
             // Make an exception for static constants.
             if (c.owner.kind != PCK &&
@@ -5455,9 +5446,6 @@ public class Attr extends JCTree.Visitor {
                     ((VarSymbol) sym).getConstValue() == null)
                     log.error(l.head.pos(), Errors.IclsCantHaveStaticDecl(c));
             }
-        }
-        if (!allowEmptyValues && !hasInstanceFields && (c.flags() & (VALUE | SYNTHETIC)) == VALUE) {
-            log.error(tree.pos(), Errors.EmptyValueNotYet);
         }
 
         // Check for cycles among non-initial constructors.

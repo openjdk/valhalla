@@ -44,16 +44,16 @@ public class BadInlineTypes {
 
     public static void main(String[] args) throws Exception {
 
-        // Test that ACC_VALUE with ACC_ABSTRACT is illegal.
+        // Test that ACC_INLINE with ACC_ABSTRACT is illegal.
         runTest("ValueAbstract", "Illegal class modifiers in class ValueAbstract");
 
-        // Test that ACC_VALUE with ACC_ENUM is illegal.
+        // Test that ACC_INLINE with ACC_ENUM is illegal.
         runTest("ValueEnum", "Illegal class modifiers in class ValueEnum");
 
         // Test that inline type fields must be final.
         runTest("ValueFieldNotFinal", "Illegal field modifiers in class ValueFieldNotFinal");
 
-        // Test that ACC_VALUE with ACC_INTERFACE is illegal.
+        // Test that ACC_INLINE with ACC_INTERFACE is illegal.
         runTest("ValueInterface", "Illegal class modifiers in class ValueInterface");
 
         // Test that inline type instance methods cannot be synchronized.

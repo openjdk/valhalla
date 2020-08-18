@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,29 +25,38 @@
 
 /*
  * @test
- * @summary Check value flag in class file
- * @modules jdk.jdeps/com.sun.tools.classfile
- * @compile -XDallowWithFieldOperator Point.java
- * @run main CheckFlags
+ * @bug 8244513
+ * @summary Test conditional expression typing involving inlines.
+ * @run main ConditionalInlineTypeTest
  */
 
-import com.sun.tools.classfile.*;
+public class ConditionalInlineTypeTest {
 
-public class CheckFlags {
-    public static void main(String[] args) throws Exception {
-        ClassFile cls = ClassFile.read(CheckFlags.class.getResourceAsStream("Point.class"));
+    static inline class V {}
 
-        if (!cls.access_flags.is(AccessFlags.ACC_INLINE))
-            throw new Exception("Value flag not set");
+    public static void main(String [] args) {
 
-        if (!cls.access_flags.is(AccessFlags.ACC_FINAL))
-            throw new Exception("Final flag not set");
+        var r1 = args.length == 0 ? new V() : new V();
+        System.out.println(r1.getClass());
 
-        Field [] flds = cls.fields;
+        var r2 = args.length == 0 ? (V.ref) new V() : (V.ref) new V();
+        System.out.println(r2.getClass());
 
-        for (Field fld : flds) {
-            if (!fld.access_flags.is(AccessFlags.ACC_FINAL))
-                throw new Exception("Final flag not set");
+        int npe = 0;
+        try {
+            var r3 = args.length != 0 ? new V() : (V.ref) null;
+            System.out.println(r3.getClass());
+        } catch (NullPointerException e) {
+            npe++;
+        }
+        try {
+            var r4 = args.length == 0 ? (V.ref) null : new V();
+            System.out.println(r4.getClass());
+        } catch (NullPointerException e) {
+            npe++;
+        }
+        if (npe != 2) {
+            throw new AssertionError("NPEs = " + npe);
         }
     }
 }

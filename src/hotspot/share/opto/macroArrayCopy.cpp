@@ -1414,11 +1414,11 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     // (9) each element of an oop array must be assignable
     // The generate_arraycopy subroutine checks this.
 
-    if (dest_elem == T_OBJECT && !top_dest->elem()->isa_inlinetype() && !top_dest->is_not_flat()) {
+    if (dest_elem == T_OBJECT && !top_dest->is_flat() && !top_dest->is_not_flat()) {
       generate_flattened_array_guard(&ctrl, merge_mem, dest, slow_region);
     }
 
-    if (src_elem == T_OBJECT && !top_src->elem()->isa_inlinetype() && !top_src->is_not_flat()) {
+    if (src_elem == T_OBJECT && !top_src->is_flat() && !top_src->is_not_flat()) {
       generate_flattened_array_guard(&ctrl, merge_mem, src, slow_region);
     }
   }

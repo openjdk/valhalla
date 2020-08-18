@@ -99,7 +99,6 @@ InlineTypeBaseNode* InlineTypeBaseNode::merge_with(PhaseGVN* gvn, const InlineTy
       val1->as_InlineTypeBase()->merge_with(gvn, val2->as_InlineTypeBase(), pnum, transform);
     } else {
       assert(val1->is_Phi(), "must be a phi node");
-      assert(!val2->is_InlineType(), "inconsistent merge values");
       val1->set_req(pnum, val2);
     }
     if (transform) {

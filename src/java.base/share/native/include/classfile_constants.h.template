@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,7 +48,7 @@ enum {
     JVM_ACC_BRIDGE        = 0x0040,
     JVM_ACC_TRANSIENT     = 0x0080,
     JVM_ACC_VARARGS       = 0x0080,
-    JVM_ACC_VALUE         = 0x0100,
+    JVM_ACC_INLINE        = 0x0100,
     JVM_ACC_NATIVE        = 0x0100,
     JVM_ACC_INTERFACE     = 0x0200,
     JVM_ACC_ABSTRACT      = 0x0400,

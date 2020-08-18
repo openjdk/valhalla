@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
  */
 /*
  * @test
- * @summary test that if a class file has ACC_VALUE set then it must be run
+ * @summary test that if a class file has ACC_INLINE set then it must be run
  *          with option -XX:+EnableValhalla.
  * @compile cfpTests.jcod
  * @run main/othervm -XX:-EnableValhalla BadACCValue
@@ -44,8 +44,8 @@ public class BadACCValue {
 
     public static void main(String[] args) throws Exception {
 
-        // Test ACC_VALUE causes a CFE unless -XX:+EnableValhalla is specified.
+        // Test ACC_INLINE causes a CFE unless -XX:+EnableValhalla is specified.
         runTest("ValueFieldNotFinal",
-                "Class modifier ACC_VALUE in class ValueFieldNotFinal requires option -XX:+EnableValhalla");
+                "Class modifier ACC_INLINE in class ValueFieldNotFinal requires option -XX:+EnableValhalla");
     }
 }

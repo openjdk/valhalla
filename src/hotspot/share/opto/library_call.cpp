@@ -3297,7 +3297,7 @@ Node* LibraryCallKit::generate_hidden_class_guard(Node* kls, RegionNode* region)
 }
 
 Node* LibraryCallKit::generate_value_guard(Node* kls, RegionNode* region) {
-  return generate_access_flags_guard(kls, JVM_ACC_VALUE, 0, region);
+  return generate_access_flags_guard(kls, JVM_ACC_INLINE, 0, region);
 }
 
 //-------------------------inline_native_Class_query-------------------
@@ -3893,19 +3893,6 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
   Node* end               = is_copyOfRange? argument(2): argument(1);
   Node* array_type_mirror = is_copyOfRange? argument(3): argument(2);
 
-  const TypeAryPtr* original_t = _gvn.type(original)->isa_aryptr();
-  const TypeInstPtr* mirror_t = _gvn.type(array_type_mirror)->isa_instptr();
-  if (EnableValhalla && UseFlatArray &&
-      (original_t == NULL || mirror_t == NULL ||
-       (mirror_t->java_mirror_type() == NULL &&
-        (original_t->elem()->isa_inlinetype() ||
-         (original_t->elem()->make_oopptr() != NULL &&
-          original_t->elem()->make_oopptr()->can_be_inline_type()))))) {
-    // We need to know statically if the copy is to a flattened array
-    // or not but can't tell.
-    return false;
-  }
-
   Node* newcopy = NULL;
 
   // Set the original stack and the reexecute bit for the interpreter to reexecute
@@ -3937,7 +3924,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     if (not_objArray != NULL) {
       // Improve the klass node's type from the new optimistic assumption:
       ciKlass* ak = ciArrayKlass::make(env()->Object_klass());
-      const Type* akls = TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), false);
+      const Type* akls = TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0));
       Node* cast = new CastPPNode(klass_node, akls);
       cast->init_req(0, control());
       klass_node = _gvn.transform(cast);
@@ -3968,8 +3955,9 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     if (UseFlatArray) {
       // Either both or neither new array klass and original array
       // klass must be flattened
+      const TypeAryPtr* t_original = _gvn.type(original)->isa_aryptr();
       Node* is_flat = generate_flatArray_guard(klass_node, NULL);
-      if (!original_t->is_not_flat()) {
+      if (t_original == NULL || !t_original->is_not_flat()) {
         generate_flatArray_guard(original_kls, bailout);
       }
       if (is_flat != NULL) {
@@ -3977,7 +3965,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
         record_for_igvn(r);
         r->init_req(1, control());
         set_control(is_flat);
-        if (!original_t->is_not_flat()) {
+        if (t_original == NULL || !t_original->is_not_flat()) {
           generate_flatArray_guard(original_kls, r);
         }
         bailout->add_req(control());
@@ -5065,9 +5053,13 @@ bool LibraryCallKit::inline_arraycopy() {
         // If we can have both exact types, emit the missing guards
         if (could_have_src && !src_spec) {
           src = maybe_cast_profiled_obj(src, src_k, true);
+          src_type = _gvn.type(src);
+          top_src = src_type->isa_aryptr();
         }
         if (could_have_dest && !dest_spec) {
           dest = maybe_cast_profiled_obj(dest, dest_k, true);
+          dest_type = _gvn.type(dest);
+          top_dest = dest_type->isa_aryptr();
         }
       }
     }
@@ -5143,13 +5135,16 @@ bool LibraryCallKit::inline_arraycopy() {
     src_type = _gvn.type(src);
     top_src  = src_type->isa_aryptr();
 
-    if (top_dest != NULL && !top_dest->elem()->isa_inlinetype() && !top_dest->is_not_flat()) {
+    if (top_dest != NULL && !top_dest->is_flat() && !top_dest->is_not_flat()) {
       generate_flatArray_guard(dest_klass, slow_region);
+      top_dest = top_dest->cast_to_not_flat();
+      dest = _gvn.transform(new CheckCastPPNode(control(), dest, top_dest));
     }
-
-    if (top_src != NULL && !top_src->elem()->isa_inlinetype() && !top_src->is_not_flat()) {
+    if (top_src != NULL && !top_src->is_flat() && !top_src->is_not_flat()) {
       Node* src_klass = load_object_klass(src);
       generate_flatArray_guard(src_klass, slow_region);
+      top_src = top_src->cast_to_not_flat();
+      src = _gvn.transform(new CheckCastPPNode(control(), src, top_src));
     }
 
     {

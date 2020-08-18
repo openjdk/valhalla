@@ -63,7 +63,7 @@ public class CheckLocalClasses {
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(CheckLocalClasses.class.getResourceAsStream("CheckLocalClasses$ValueOuter$1Inner.class"));
 
-        if (!cls.access_flags.is(AccessFlags.ACC_VALUE))
+        if (!cls.access_flags.is(AccessFlags.ACC_INLINE))
             throw new Exception("Value flag not set");
 
         if (!cls.access_flags.is(AccessFlags.ACC_FINAL))
@@ -71,7 +71,7 @@ public class CheckLocalClasses {
 
         cls = ClassFile.read(CheckLocalClasses.class.getResourceAsStream("CheckLocalClasses$RefOuter$1Inner.class"));
 
-        if (!cls.access_flags.is(AccessFlags.ACC_VALUE))
+        if (!cls.access_flags.is(AccessFlags.ACC_INLINE))
             throw new Exception("Value flag not set");
 
         if (!cls.access_flags.is(AccessFlags.ACC_FINAL))

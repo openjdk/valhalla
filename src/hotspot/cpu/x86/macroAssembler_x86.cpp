@@ -2619,7 +2619,7 @@ void MacroAssembler::null_check(Register reg, int offset) {
 
 void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type) {
   movl(temp_reg, Address(klass, Klass::access_flags_offset()));
-  testl(temp_reg, JVM_ACC_VALUE);
+  testl(temp_reg, JVM_ACC_INLINE);
   jcc(Assembler::notZero, is_inline_type);
 }
 

@@ -49,7 +49,7 @@ public class AccessFlags {
     public static final int ACC_BRIDGE        = 0x0040; //                      method
     public static final int ACC_TRANSIENT     = 0x0080; //               field
     public static final int ACC_VARARGS       = 0x0080; //                      method
-    public static final int ACC_VALUE         = 0x0100; // class
+    public static final int ACC_INLINE        = 0x0100; // class
     public static final int ACC_NATIVE        = 0x0100; //                      method
     public static final int ACC_INTERFACE     = 0x0200; // class, inner
     public static final int ACC_ABSTRACT      = 0x0400; // class, inner,        method
@@ -83,12 +83,12 @@ public class AccessFlags {
     }
 
     private static final int[] classModifiers = {
-        ACC_PUBLIC, ACC_FINAL, ACC_ABSTRACT, ACC_VALUE
+        ACC_PUBLIC, ACC_FINAL, ACC_ABSTRACT, ACC_INLINE
     };
 
     private static final int[] classFlags = {
         ACC_PUBLIC, ACC_FINAL, ACC_SUPER, ACC_INTERFACE, ACC_ABSTRACT,
-        ACC_SYNTHETIC, ACC_ANNOTATION, ACC_ENUM, ACC_MODULE, ACC_VALUE
+        ACC_SYNTHETIC, ACC_ANNOTATION, ACC_ENUM, ACC_MODULE, ACC_INLINE
     };
 
     public Set<String> getClassModifiers() {
@@ -102,12 +102,12 @@ public class AccessFlags {
 
     private static final int[] innerClassModifiers = {
         ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_STATIC, ACC_FINAL,
-        ACC_ABSTRACT, ACC_VALUE
+        ACC_ABSTRACT, ACC_INLINE
     };
 
     private static final int[] innerClassFlags = {
         ACC_PUBLIC, ACC_PRIVATE, ACC_PROTECTED, ACC_STATIC, ACC_FINAL, ACC_SUPER,
-        ACC_INTERFACE, ACC_ABSTRACT, ACC_SYNTHETIC, ACC_ANNOTATION, ACC_ENUM, ACC_VALUE
+        ACC_INTERFACE, ACC_ABSTRACT, ACC_SYNTHETIC, ACC_ANNOTATION, ACC_ENUM, ACC_INLINE
     };
 
     public Set<String> getInnerClassModifiers() {
@@ -236,7 +236,7 @@ public class AccessFlags {
         case 0x80:
             return (t == Kind.Field ? "ACC_TRANSIENT" : "ACC_VARARGS");
         case 0x100:
-            return (t == Kind.Class || t == Kind.InnerClass) ? "ACC_VALUE" : "ACC_NATIVE";
+            return (t == Kind.Class || t == Kind.InnerClass) ? "ACC_INLINE" : "ACC_NATIVE";
         case ACC_INTERFACE:
             return "ACC_INTERFACE";
         case ACC_ABSTRACT:

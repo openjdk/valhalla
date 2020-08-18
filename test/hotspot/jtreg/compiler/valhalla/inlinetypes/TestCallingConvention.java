@@ -34,7 +34,7 @@ import java.lang.reflect.Method;
  * @summary Test inline type calling convention optimizations
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
- * @compile -XDallowEmptyValues TestCallingConvention.java
+ * @compile TestCallingConvention.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI

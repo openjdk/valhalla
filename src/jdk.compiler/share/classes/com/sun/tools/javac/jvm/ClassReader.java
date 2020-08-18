@@ -2774,8 +2774,8 @@ public class ClassReader {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        if ((flags & ACC_VALUE) != 0) {
-            flags &= ~ACC_VALUE;
+        if ((flags & ACC_INLINE) != 0) {
+            flags &= ~ACC_INLINE;
             flags |= allowInlineTypes ? VALUE : allowValueBasedClasses ? VALUEBASED : 0;
         }
         return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded
