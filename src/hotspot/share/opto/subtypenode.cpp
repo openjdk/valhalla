@@ -76,11 +76,19 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
       // type check is known to fail.
       unrelated_classes = true;
     }
-    // Ignore exactness of constant supertype (the type of the corresponding object may be non-exact).
-    const TypeKlassPtr* casted_sup = super_t->is_klassptr()->cast_to_exactness(false)->is_klassptr();
-    if (sub_t->is_ptr()->flat_array() && (!casted_sup->can_be_inline_type() || (superk->is_inlinetype() && !superk->flatten_array()))) {
-      // Subtype is flattened in arrays but supertype is not. Must be unrelated.
-      unrelated_classes = true;
+    if (!unrelated_classes) {
+      // Handle inline type arrays
+      if (sub_t->isa_aryptr() && sub_t->is_aryptr()->is_not_flat() && superk->is_flat_array_klass()) {
+        // Subtype is not a flat array but supertype is. Must be unrelated.
+        unrelated_classes = true;
+      } else if (sub_t->isa_aryptr() && sub_t->is_aryptr()->is_not_null_free() &&
+                 superk->is_obj_array_klass() && superk->as_obj_array_klass()->element_klass()->is_inlinetype()) {
+        // Subtype is not a null-free array but supertype is. Must be unrelated.
+        unrelated_classes = true;
+      } else if (sub_t->is_ptr()->flatten_array() && (!superk->can_be_inline_klass() || (superk->is_inlinetype() && !superk->flatten_array()))) {
+        // Subtype is flattened in arrays but supertype is not. Must be unrelated.
+        unrelated_classes = true;
+      }
     }
     if (unrelated_classes) {
       TypePtr::PTR jp = sub_t->is_ptr()->join_ptr(super_t->is_ptr()->_ptr);

@@ -1313,7 +1313,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), ta->field_offset());
     }
     // Initially all flattened array accesses share a single slice
-    if (ta->elem()->isa_inlinetype() && ta->elem() != TypeInlineType::BOTTOM && _flattened_accesses_share_alias) {
+    if (ta->is_flat() && ta->elem() != TypeInlineType::BOTTOM && _flattened_accesses_share_alias) {
       const TypeAry *tary = TypeAry::make(TypeInlineType::BOTTOM, ta->size());
       tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), Type::Offset(Type::OffsetBot));
     }
@@ -1342,7 +1342,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
         // No constant oop pointers (such as Strings); they alias with
         // unknown strings.
         assert(!is_known_inst, "not scalarizable allocation");
-        tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset), to->klass()->flatten_array());
+        tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset));
       }
     } else if( is_known_inst ) {
       tj = to; // Keep NotNull and klass_is_exact for instance type
@@ -1350,7 +1350,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       // During the 2nd round of IterGVN, NotNull castings are removed.
       // Make sure the Bottom and NotNull variants alias the same.
       // Also, make sure exact and non-exact variants alias the same.
-      tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset), to->klass()->flatten_array());
+      tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset));
     }
     if (to->speculative() != NULL) {
       tj = to = TypeInstPtr::make(to->ptr(),to->klass(),to->klass_is_exact(),to->const_oop(),Type::Offset(to->offset()), to->klass()->flatten_array(), to->instance_id());
@@ -1360,7 +1360,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       // First handle header references such as a LoadKlassNode, even if the
       // object's klass is unloaded at compile time (4965979).
       if (!is_known_inst) { // Do it only for non-instance types
-        tj = to = TypeInstPtr::make(TypePtr::BotPTR, env()->Object_klass(), false, NULL, Type::Offset(offset), false);
+        tj = to = TypeInstPtr::make(TypePtr::BotPTR, env()->Object_klass(), false, NULL, Type::Offset(offset));
       }
     } else if (offset < 0 || offset >= k->size_helper() * wordSize) {
       // Static fields are in the space above the normal instance
@@ -1376,7 +1376,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
         if( is_known_inst ) {
           tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, true, NULL, Type::Offset(offset), canonical_holder->flatten_array(), to->instance_id());
         } else {
-          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, false, NULL, Type::Offset(offset), canonical_holder->flatten_array());
+          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, false, NULL, Type::Offset(offset));
         }
       }
     }
@@ -1393,8 +1393,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
 
       tj = tk = TypeKlassPtr::make(TypePtr::NotNull,
                                    TypeKlassPtr::OBJECT->klass(),
-                                   Type::Offset(offset),
-                                   false);
+                                   Type::Offset(offset));
     }
 
     ciKlass* klass = tk->klass();
@@ -1402,7 +1401,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       ciKlass* k = TypeAryPtr::OOPS->klass();
       if( !k || !k->is_loaded() )                  // Only fails for some -Xcomp runs
         k = TypeInstPtr::BOTTOM->klass();
-      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, k, Type::Offset(offset), false);
+      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, k, Type::Offset(offset));
     }
 
     // Check for precise loads from the primary supertype array and force them
@@ -1418,7 +1417,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
          offset < (int)(primary_supers_offset + Klass::primary_super_limit() * wordSize)) ||
         offset == (int)in_bytes(Klass::secondary_super_cache_offset())) {
       offset = in_bytes(Klass::secondary_super_cache_offset());
-      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, tk->klass(), Type::Offset(offset), tk->flat_array());
+      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, tk->klass(), Type::Offset(offset));
     }
   }
 
@@ -1682,7 +1681,7 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
       alias_type(idx)->set_field(field);
       if (flat->isa_aryptr()) {
         // Fields of flat arrays are rewritable although they are declared final
-        assert(flat->is_aryptr()->elem()->isa_inlinetype(), "must be a flat array");
+        assert(flat->is_aryptr()->is_flat(), "must be a flat array");
         alias_type(idx)->set_rewritable(true);
       }
     }
@@ -2001,7 +2000,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
       AliasCacheEntry* ace = &_alias_cache[i];
       if (ace->_adr_type != NULL &&
           ace->_adr_type->isa_aryptr() &&
-          ace->_adr_type->is_aryptr()->elem()->isa_inlinetype()) {
+          ace->_adr_type->is_aryptr()->is_flat()) {
         ace->_adr_type = NULL;
         ace->_index = (i != 0) ? 0 : AliasIdxTop; // Make sure the NULL adr_type resolves to AliasIdxTop
       }
@@ -2124,7 +2123,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
                 Node* r = m->in(0);
                 for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
                   const Type* adr_type = get_adr_type(j);
-                  if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_inlinetype()) {
+                  if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->is_flat()) {
                     continue;
                   }
                   Node* phi = new PhiNode(r, Type::MEMORY, get_adr_type(j));
@@ -2154,7 +2153,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
               igvn.replace_input_of(m->in(0), TypeFunc::Control, top());
               for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
                 const Type* adr_type = get_adr_type(j);
-                if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_inlinetype()) {
+                if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->is_flat()) {
                   continue;
                 }
                 MemBarNode* mb = new MemBarCPUOrderNode(this, j, NULL);
@@ -2197,7 +2196,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
       igvn.rehash_node_delayed(current);
       for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
         const Type* adr_type = get_adr_type(j);
-        if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_inlinetype()) {
+        if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->is_flat()) {
           continue;
         }
         current->set_memory_at(j, mm);

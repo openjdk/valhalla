@@ -81,13 +81,13 @@ void Parse::array_load(BasicType bt) {
   // Handle inline type arrays
   const TypeOopPtr* elemptr = elemtype->make_oopptr();
   const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
-  if (elemtype->isa_inlinetype() != NULL) {
+  if (ary_t->is_flat()) {
     C->set_flattened_accesses();
     // Load from flattened inline type array
     Node* vt = InlineTypeNode::make_from_flattened(this, elemtype->inline_klass(), ary, adr);
     push(vt);
     return;
-  } else if (elemptr != NULL && elemptr->is_inlinetypeptr() && !elemptr->maybe_null()) {
+  } else if (ary_t->is_null_free()) {
     // Load from non-flattened inline type array (elements can never be null)
     bt = T_INLINE_TYPE;
   } else if (!ary_t->is_not_flat()) {
@@ -189,7 +189,7 @@ void Parse::array_load(BasicType bt) {
         alloc_obj->set_req(0, control());
         alloc_obj = _gvn.transform(alloc_obj);
 
-        const Type* unknown_value = elemptr->is_instptr()->cast_to_flat_array();
+        const Type* unknown_value = elemptr->is_instptr()->cast_to_flatten_array();
         alloc_obj = _gvn.transform(new CheckCastPPNode(control(), alloc_obj, unknown_value));
 
         ideal.sync_kit(this);
@@ -271,7 +271,7 @@ void Parse::array_store(BasicType bt) {
       ary = cast;
     }
 
-    if (ary_t->elem()->isa_inlinetype() != NULL) {
+    if (ary_t->is_flat()) {
       // Store to flattened inline type array
       C->set_flattened_accesses();
       if (!cast_val->is_InlineType()) {
@@ -287,7 +287,7 @@ void Parse::array_store(BasicType bt) {
       jvms()->set_should_reexecute(true);
       cast_val->as_InlineType()->store_flattened(this, ary, adr, NULL, 0, MO_UNORDERED | IN_HEAP | IS_ARRAY);
       return;
-    } else if (elemtype->is_inlinetypeptr() && !elemtype->maybe_null()) {
+    } else if (ary_t->is_null_free()) {
       // Store to non-flattened inline type array (elements can never be null)
       if (!cast_val->is_InlineType() && tval->maybe_null()) {
         inc_sp(3);

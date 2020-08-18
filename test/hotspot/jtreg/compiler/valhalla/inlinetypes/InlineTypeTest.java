@@ -117,7 +117,7 @@ public abstract class InlineTypeTest {
 
     protected static final boolean TieredCompilation = (Boolean)WHITE_BOX.getVMFlag("TieredCompilation");
     protected static final long TieredStopAtLevel = (Long)WHITE_BOX.getVMFlag("TieredStopAtLevel");
-    static final boolean TEST_C1 = TieredStopAtLevel < COMP_LEVEL_FULL_OPTIMIZATION;
+    static final boolean TEST_C1 = TieredCompilation && TieredStopAtLevel < COMP_LEVEL_FULL_OPTIMIZATION;
 
     // Random test values
     public static final int  rI = Utils.getRandomInstance().nextInt() % 1000;
@@ -222,6 +222,7 @@ public abstract class InlineTypeTest {
     protected static final String UNHANDLED_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*unhandled" + END;
     protected static final String PREDICATE_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*predicate" + END;
     protected static final String MEMBAR = START + "MemBar" + MID + END;
+    protected static final String CHECKCAST_ARRAY = "(cmp.*precise klass \\[(L|Q)compiler/valhalla/inlinetypes/MyValue.*" + END;
 
     public static String[] concat(String prefix[], String... extra) {
         ArrayList<String> list = new ArrayList<String>();
@@ -676,6 +677,7 @@ public abstract class InlineTypeTest {
                 verifier.invoke(this, true);
             }
             boolean osrOnly = (test.getAnnotation(OSRCompileOnly.class) != null);
+            int compLevel = getCompLevel(test.getAnnotation(Test.class));
 
             // C1 generates a lot of code when VerifyOops is enabled and may run out of space (for a small
             // number of test cases).
@@ -686,7 +688,8 @@ public abstract class InlineTypeTest {
                 boolean stateCleared = false;
                 for (;;) {
                     long elapsed = System.currentTimeMillis() - started;
-                    if (maybeCodeBufferOverflow && elapsed > 5000 && !WHITE_BOX.isMethodCompiled(test, false)) {
+                    int level = WHITE_BOX.getMethodCompilationLevel(test);
+                    if (maybeCodeBufferOverflow && elapsed > 5000 && (!WHITE_BOX.isMethodCompiled(test, false) || level != compLevel)) {
                         System.out.println("Temporarily disabling VerifyOops");
                         try {
                             WHITE_BOX.setBooleanVMFlag("VerifyOops", false);
@@ -713,9 +716,7 @@ public abstract class InlineTypeTest {
                     }
                     Asserts.assertTrue(OSR_TEST_TIMEOUT < 0 || elapsed < OSR_TEST_TIMEOUT, test + " not compiled after " + OSR_TEST_TIMEOUT + " ms");
                 }
-                Asserts.assertTrue(XCOMP || STRESS_CC || !USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
             } else {
-                int compLevel = getCompLevel(test.getAnnotation(Test.class));
                 // Trigger compilation
                 enqueueMethodForCompilation(test, compLevel);
                 if (maybeCodeBufferOverflow && !WHITE_BOX.isMethodCompiled(test, false)) {
@@ -725,7 +726,11 @@ public abstract class InlineTypeTest {
                     enqueueMethodForCompilation(test, compLevel);
                     WHITE_BOX.setBooleanVMFlag("VerifyOops", true);
                 }
-                Asserts.assertTrue(STRESS_CC || !USE_COMPILER || WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
+                if (!STRESS_CC && USE_COMPILER) {
+                    Asserts.assertTrue(WHITE_BOX.isMethodCompiled(test, false), test + " not compiled");
+                    int level = WHITE_BOX.getMethodCompilationLevel(test);
+                    Asserts.assertEQ(level, compLevel, "Unexpected compilation level for " + test);
+                }
                 // Check result
                 verifier.invoke(this, false);
             }
@@ -785,7 +790,7 @@ public abstract class InlineTypeTest {
         if (!TEST_C1 && compLevel < COMP_LEVEL_FULL_OPTIMIZATION) {
             compLevel = COMP_LEVEL_FULL_OPTIMIZATION;
         }
-        if (compLevel > (int)TieredStopAtLevel) {
+        if (TieredCompilation && compLevel > (int)TieredStopAtLevel) {
             compLevel = (int)TieredStopAtLevel;
         }
         return compLevel;
