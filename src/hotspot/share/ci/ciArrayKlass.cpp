@@ -104,7 +104,7 @@ bool ciArrayKlass::is_leaf_type() {
 ciArrayKlass* ciArrayKlass::make(ciType* element_type) {
   if (element_type->is_primitive_type()) {
     return ciTypeArrayKlass::make(element_type->basic_type());
-  } else if (element_type->is_inlinetype() && element_type->as_inline_klass()->flatten_array()) {
+  } else if (element_type->flatten_array()) {
     return ciFlatArrayKlass::make(element_type->as_klass());
   } else {
     return ciObjArrayKlass::make(element_type->as_klass());

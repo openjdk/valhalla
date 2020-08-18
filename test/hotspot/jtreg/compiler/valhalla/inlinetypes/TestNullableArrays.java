@@ -2868,4 +2868,18 @@ public class TestNullableArrays extends InlineTypeTest {
     public void test110_verifier(boolean warmup) {
         test110();
     }
+
+    // Same as test109 but with Arrays.copyOf
+    @Test()
+    public static void test111() {
+        MyValue1[] src = new MyValue1[1];
+        src[0] = testValue1;
+        MyValue1.ref[] dst = Arrays.copyOf(src, src.length, MyValue1.ref[].class);
+        Asserts.assertEquals(src[0], dst[0]);
+    }
+
+    @DontCompile
+    public void test111_verifier(boolean warmup) {
+        test111();
+    }
 }

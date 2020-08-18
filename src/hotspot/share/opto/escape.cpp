@@ -994,7 +994,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                               (aat->isa_oopptr()->klass() == NULL || aat->isa_instptr() ||
                                (aat->isa_aryptr() && aat->isa_aryptr()->klass()->is_obj_array_klass()) ||
                                (aat->isa_aryptr() && aat->isa_aryptr()->elem() != NULL &&
-                                aat->isa_aryptr()->elem()->isa_inlinetype() &&
+                                aat->isa_aryptr()->is_flat() &&
                                 aat->isa_aryptr()->elem()->inline_klass()->contains_oops()));
           if (i == TypeFunc::Parms) {
             src_has_oops = arg_has_oops;
@@ -2498,6 +2498,11 @@ bool ConnectionGraph::split_AddP(Node *addp, Node *base) {
     // In the case of a flattened inline type array, each field has its
     // own slice so we need to keep track of the field being accessed.
     tinst = tinst->is_aryptr()->with_field_offset(t->is_aryptr()->field_offset().get());
+    // Keep array properties (not flat/null-free)
+    tinst = tinst->is_aryptr()->update_properties(t->is_aryptr());
+    if (tinst == NULL) {
+      return false; // Skip dead path with inconsistent properties
+    }
   }
 
   // Do NOT remove the next line: ensure a new alias index is allocated
@@ -3179,6 +3184,13 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
           tn_t = tn_type->isa_oopptr();
         }
         if (tn_t != NULL && tinst->klass()->is_subtype_of(tn_t->klass())) {
+          if (tn_t->isa_aryptr()) {
+            // Keep array properties (not flat/null-free)
+            tinst = tinst->is_aryptr()->update_properties(tn_t->is_aryptr());
+            if (tinst == NULL) {
+              continue; // Skip dead path with inconsistent properties
+            }
+          }
           if (tn_type->isa_narrowoop()) {
             tn_type = tinst->make_narrowoop();
           } else {

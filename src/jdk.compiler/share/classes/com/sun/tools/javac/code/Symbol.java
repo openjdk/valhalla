@@ -434,7 +434,7 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
     }
 
     /**
-     * Return the reference projection IFF 'this' happens to be value projection, null
+     * Return the reference projection IFF 'this' happens to be inline class, null
      * otherwise.
      */
     public Symbol referenceProjection() {
@@ -1671,7 +1671,10 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         @Override
         public ClassSymbol referenceProjection() {
-            if (!isValue() || projection != null)
+            if (!isValue())
+                return null;
+
+            if (projection != null)
                 return projection;
 
             ClassType ct = (ClassType) this.type;
