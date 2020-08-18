@@ -810,8 +810,6 @@ int java_lang_Class::_class_loader_offset;
 int java_lang_Class::_module_offset;
 int java_lang_Class::_protection_domain_offset;
 int java_lang_Class::_component_mirror_offset;
-int java_lang_Class::_val_type_mirror_offset;
-int java_lang_Class::_ref_type_mirror_offset;
 int java_lang_Class::_init_lock_offset;
 int java_lang_Class::_signers_offset;
 int java_lang_Class::_name_offset;
@@ -1058,25 +1056,6 @@ void java_lang_Class::create_mirror(Klass* k, Handle class_loader,
       // Set after k->java_mirror() is published, because compiled code running
       // concurrently doesn't expect a k to have a null java_mirror.
       release_set_array_klass(comp_mirror(), k);
-    }
-
-    if (k->is_inline_klass()) {
-      InstanceKlass* super = k->java_super();
-      set_val_type_mirror(mirror(), mirror());
-
-      // if the supertype is a restricted abstract class
-      if (super != SystemDictionary::Object_klass()) {
-        assert(super->access_flags().is_abstract(), "must be an abstract class");
-        oop ref_type_oop = super->java_mirror();
-        // set the reference projection type
-        set_ref_type_mirror(mirror(), ref_type_oop);
-
-        assert(oopDesc::is_oop(ref_type_oop), "Sanity check");
-
-        // set the value and reference projection types
-        set_val_type_mirror(ref_type_oop, mirror());
-        set_ref_type_mirror(ref_type_oop, ref_type_oop);
-      }
     }
   } else {
     assert(fixup_mirror_list() != NULL, "fixup_mirror_list not initialized");
@@ -1532,26 +1511,6 @@ void java_lang_Class::set_source_file(oop java_class, oop source_file) {
   java_class->obj_field_put(_source_file_offset, source_file);
 }
 
-oop java_lang_Class::val_type_mirror(oop java_class) {
-  assert(_val_type_mirror_offset != 0, "must be set");
-  return java_class->obj_field(_val_type_mirror_offset);
-}
-
-void java_lang_Class::set_val_type_mirror(oop java_class, oop mirror) {
-  assert(_val_type_mirror_offset != 0, "must be set");
-  java_class->obj_field_put(_val_type_mirror_offset, mirror);
-}
-
-oop java_lang_Class::ref_type_mirror(oop java_class) {
-  assert(_ref_type_mirror_offset != 0, "must be set");
-  return java_class->obj_field(_ref_type_mirror_offset);
-}
-
-void java_lang_Class::set_ref_type_mirror(oop java_class, oop mirror) {
-  assert(_ref_type_mirror_offset != 0, "must be set");
-  java_class->obj_field_put(_ref_type_mirror_offset, mirror);
-}
-
 oop java_lang_Class::create_basic_type_mirror(const char* basic_type_name, BasicType type, TRAPS) {
   // This should be improved by adding a field at the Java level or by
   // introducing a new VM klass (see comment in ClassFileParser)
@@ -1711,8 +1670,6 @@ oop java_lang_Class::primitive_mirror(BasicType t) {
   macro(_component_mirror_offset,    k, "componentType",       class_signature,       false); \
   macro(_module_offset,              k, "module",              module_signature,      false); \
   macro(_name_offset,                k, "name",                string_signature,      false); \
-  macro(_val_type_mirror_offset,     k, "valType",             class_signature,       false); \
-  macro(_ref_type_mirror_offset,     k, "refType",             class_signature,       false); \
   macro(_classData_offset,           k, "classData",           object_signature,      false);
 
 void java_lang_Class::compute_offsets() {

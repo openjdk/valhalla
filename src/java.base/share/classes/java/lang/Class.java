@@ -589,33 +589,37 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * Returns a {@code Class} object representing the <em>reference projection</em>
-     * type of this class if this {@code Class} represents an
-     * {@linkplain #isInlineClass() inline class} with a reference projection
-     * type. If this {@code Class} represents the reference projection type
+     * Returns a {@code Class} object representing the reference type
+     * of this class.
+     * <p>
+     * If this {@code Class} represents an {@linkplain #isInlineClass()
+     * inline class} with a reference projection type, then this method
+     * returns the <em>reference projection</em> type of this inline class.
+     * <p>
+     * If this {@code Class} represents the reference projection type
      * of an inline class, then this method returns this class.
-     * If this class is not an {@linkplain #isInlineClass() inline class}
-     * or this class is an inline class without a reference projection,
-     * then this method returns an empty {@link Optional}.
+     * <p>
+     * If this class is an {@linkplain #isInlineClass() inline class}
+     * without a reference projection, then this method returns an empty
+     * {@code Optional}.
+     * <p>
+     * If this class is an identity class, then this method returns this
+     * class.
+     * <p>
+     * Otherwise this method returns an empty {@code Optional}.
      *
-     * @return the {@code Class} object representing the value projection type of
-     *         this class if this class is an inline class with a reference
-     *         projection type or this class is the reference projection type;
-     *         an empty {@link Optional} otherwise
+     * @return the {@code Class} object representing a reference type for
+     *         this class if present; an empty {@link Optional} otherwise.
      * @since Valhalla
      */
     public Optional<Class<?>> referenceType() {
-        if (isPrimitive() || isInterface() || isArray())
-            return Optional.empty();
+        if (isPrimitive()) return Optional.empty();
+        if (isInterface() || isArray()) return Optional.of(this);
+
         ensureProjectionTypesInited();
-        System.out.println(getName() + " " + Arrays.toString(projectionTypes));
         return projectionTypes.length == 2 ? Optional.of(projectionTypes[1]) : Optional.empty();
     }
-
-    // set by VM if this class is an inline type
-    // otherwise, these two fields are null
-    private transient Class<T> valType;
-    private transient Class<T> refType;
+    
     private transient Class<?>[] projectionTypes;
 
     private synchronized void ensureProjectionTypesInited() {
@@ -627,7 +631,6 @@ public final class Class<T> implements java.io.Serializable,
 
         if (isInlineClass()) {
             Class<?> superClass = getSuperclass();
-            System.out.println("superclass " + superClass);
             if (superClass != Object.class && superClass.isReferenceProjectionType()) {
                 projectionTypes = new Class<?>[] { this, superClass };
             } else {
@@ -662,7 +665,6 @@ public final class Class<T> implements java.io.Serializable,
         // The inline projection type and reference projection type for
         // an inline type must be of the same package.
         String[] subclassNames = getPermittedSubclasses0();
-        System.out.println(getName() + " permits " + Arrays.toString(subclassNames));
         if (subclassNames.length == 1) {
             String cn = subclassNames[0].replace('/', '.');
             int index = cn.lastIndexOf('.');
