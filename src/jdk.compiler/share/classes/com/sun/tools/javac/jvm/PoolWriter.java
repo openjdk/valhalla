@@ -508,9 +508,11 @@ public class PoolWriter {
         if (typarams.nonEmpty()) {
             signatureGen.assembleParamsSig(typarams);
         }
-        signatureGen.assembleSig(types.supertype(t));
-        for (Type i : types.interfaces(t))
-            signatureGen.assembleSig(i);
+        signatureGen.assembleSig(t.isValue() ? t.referenceProjection() : types.supertype(t));
+        if (!t.isValue()) {
+            for (Type i : types.interfaces(t))
+                signatureGen.assembleSig(i);
+        }
         return signatureGen.toName();
     }
 
