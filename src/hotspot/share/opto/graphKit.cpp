@@ -3805,7 +3805,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
     bool can_be_flattened = false;
     if (UseFlatArray && klass->is_obj_array_klass()) {
       ciKlass* elem = klass->as_obj_array_klass()->element_klass();
-      can_be_flattened = elem->can_be_inline_klass() && (!elem->is_inlinetype() || elem->as_inline_klass()->flatten_array());
+      can_be_flattened = elem->can_be_inline_klass() && (!elem->is_inlinetype() || elem->flatten_array());
     }
     if (xklass || (klass->is_array_klass() && !can_be_flattened)) {
       jint lhelper = klass->layout_helper();
@@ -4439,7 +4439,7 @@ Node* GraphKit::load_String_length(Node* str, bool set_ctrl) {
 Node* GraphKit::load_String_value(Node* str, bool set_ctrl) {
   int value_offset = java_lang_String::value_offset();
   const TypeInstPtr* string_type = TypeInstPtr::make(TypePtr::NotNull, C->env()->String_klass(),
-                                                     false, NULL, Type::Offset(0), false);
+                                                     false, NULL, Type::Offset(0));
   const TypePtr* value_field_type = string_type->add_offset(value_offset);
   const TypeAryPtr* value_type = TypeAryPtr::make(TypePtr::NotNull,
                                                   TypeAry::make(TypeInt::BYTE, TypeInt::POS, false, true, true),
@@ -4456,7 +4456,7 @@ Node* GraphKit::load_String_coder(Node* str, bool set_ctrl) {
   }
   int coder_offset = java_lang_String::coder_offset();
   const TypeInstPtr* string_type = TypeInstPtr::make(TypePtr::NotNull, C->env()->String_klass(),
-                                                     false, NULL, Type::Offset(0), false);
+                                                     false, NULL, Type::Offset(0));
   const TypePtr* coder_field_type = string_type->add_offset(coder_offset);
 
   Node* p = basic_plus_adr(str, str, coder_offset);
@@ -4468,7 +4468,7 @@ Node* GraphKit::load_String_coder(Node* str, bool set_ctrl) {
 void GraphKit::store_String_value(Node* str, Node* value) {
   int value_offset = java_lang_String::value_offset();
   const TypeInstPtr* string_type = TypeInstPtr::make(TypePtr::NotNull, C->env()->String_klass(),
-                                                     false, NULL, Type::Offset(0), false);
+                                                     false, NULL, Type::Offset(0));
   const TypePtr* value_field_type = string_type->add_offset(value_offset);
 
   access_store_at(str,  basic_plus_adr(str, value_offset), value_field_type,
@@ -4478,7 +4478,7 @@ void GraphKit::store_String_value(Node* str, Node* value) {
 void GraphKit::store_String_coder(Node* str, Node* value) {
   int coder_offset = java_lang_String::coder_offset();
   const TypeInstPtr* string_type = TypeInstPtr::make(TypePtr::NotNull, C->env()->String_klass(),
-                                                     false, NULL, Type::Offset(0), false);
+                                                     false, NULL, Type::Offset(0));
   const TypePtr* coder_field_type = string_type->add_offset(coder_offset);
 
   access_store_at(str, basic_plus_adr(str, coder_offset), coder_field_type,

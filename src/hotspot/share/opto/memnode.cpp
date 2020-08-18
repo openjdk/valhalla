@@ -222,11 +222,6 @@ Node *MemNode::optimize_memory_chain(Node *mchain, const TypePtr *t_adr, Node *l
       // clone the Phi with our address type
       result = mphi->split_out_instance(t_adr, igvn);
     } else {
-      if (t->isa_aryptr()) {
-        // In the case of a flattened inline type array, each field has its own slice.
-        // TODO This should be re-evaluated with JDK-8251039
-        t = t->is_aryptr()->with_field_offset(t_adr->is_aryptr()->field_offset().get());
-      }
       assert(phase->C->get_alias_index(t) == phase->C->get_alias_index(t_adr), "correct memory chain");
     }
   }
@@ -2276,7 +2271,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
       }
 
       // Return root of possible klass
-      return TypeKlassPtr::make(TypePtr::NotNull, ik, Type::Offset(0), tinst->flat_array());
+      return TypeKlassPtr::make(TypePtr::NotNull, ik, Type::Offset(0), tinst->flatten_array());
     }
   }
 
@@ -2307,9 +2302,8 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             return TypeKlassPtr::make(ak);
           }
         }
-        return TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), false);
+        return TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0));
       } else if (ak->is_type_array_klass()) {
-        //assert(!UseExactTypes, "this code should be useless with exact types");
         return TypeKlassPtr::make(ak); // These are always precise
       }
     }
@@ -2331,11 +2325,11 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
 
       // The array's TypeKlassPtr was declared 'precise' or 'not precise'
       // according to the element type's subclassing.
-      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0), elem->flatten_array());
+      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0));
     } else if (klass->is_flat_array_klass() &&
                tkls->offset() == in_bytes(ObjArrayKlass::element_klass_offset())) {
       ciKlass* elem = klass->as_flat_array_klass()->element_klass();
-      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0), /* flat_array= */ true);
+      return TypeKlassPtr::make(tkls->ptr(), elem, Type::Offset(0), /* flatten_array= */ true);
     }
     if( klass->is_instance_klass() && tkls->klass_is_exact() &&
         tkls->offset() == in_bytes(Klass::super_offset())) {

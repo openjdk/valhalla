@@ -146,7 +146,7 @@ bool Instruction::maybe_flattened_array() {
         }
       } else if (type->is_flat_array_klass()) {
         ciKlass* element_klass = type->as_flat_array_klass()->element_klass();
-        assert(!element_klass->is_loaded() || element_klass->as_inline_klass()->flatten_array(), "must be flattened");
+        assert(!element_klass->is_loaded() || element_klass->flatten_array(), "must be flattened");
         return true;
       } else if (type->is_klass() && type->as_klass()->is_java_lang_Object()) {
         // This can happen as a parameter to System.arraycopy()
