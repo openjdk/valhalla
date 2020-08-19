@@ -584,7 +584,6 @@ public final class Class<T> implements java.io.Serializable,
             return Optional.empty();
 
         ensureProjectionTypesInited();
-        System.out.println(getName() + " " + Arrays.toString(projectionTypes));
         return projectionTypes.length > 0 ? Optional.of(projectionTypes[0]) : Optional.empty();
     }
 
