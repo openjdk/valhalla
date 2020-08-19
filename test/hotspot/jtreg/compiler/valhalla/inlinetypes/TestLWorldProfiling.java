@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -78,7 +78,7 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
-    private static final MyValue2 testValue2 = MyValue2.createWithFieldsInline(rI, true);
+    private static final MyValue2 testValue2 = MyValue2.createWithFieldsInline(rI, rD);
     private static final MyValue1[] testValue1Array = new MyValue1[] {testValue1};
     private static final MyValue2[] testValue2Array = new MyValue2[] {testValue2};
     private static final Integer[] testIntegerArray = new Integer[] {42};
@@ -389,7 +389,10 @@ public class TestLWorldProfiling extends InlineTypeTest {
         test15(testNotFlattenableArray, notFlattenable);
         try {
             test15(testNotFlattenableArray, null);
-        } catch (NullPointerException npe) {  }
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException npe) {
+            // Expected
+        }
     }
 
     @Warmup(10000)
@@ -404,7 +407,10 @@ public class TestLWorldProfiling extends InlineTypeTest {
         test16(testNotFlattenableArray, notFlattenable);
         try {
             test16(testNotFlattenableArray, null);
-        } catch (NullPointerException npe) {  }
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException npe) {
+            // Expected
+        }
         test16(testIntegerArray, 42);
     }
 
@@ -418,9 +424,8 @@ public class TestLWorldProfiling extends InlineTypeTest {
     @DontCompile
     public void test17_verifier(boolean warmup) {
         test17(testIntegerArray, 42);
-        try {
-            test17(testIntegerArray, null);
-        } catch (NullPointerException npe) {  }
+        test17(testIntegerArray, null);
+        testIntegerArray[0] = 42;
         test17(testLongArray, 42L);
     }
 
@@ -441,9 +446,8 @@ public class TestLWorldProfiling extends InlineTypeTest {
     public void test18_verifier(boolean warmup) {
         test18_helper(testValue1Array, testValue1); // pollute profile
         test18(testIntegerArray, 42);
-        try {
-            test18(testIntegerArray, null);
-        } catch (NullPointerException npe) {  }
+        test18(testIntegerArray, null);
+        testIntegerArray[0] = 42;
         test18(testLongArray, 42L);
     }
 

@@ -24,23 +24,23 @@
 package compiler.valhalla.inlinetypes;
 
 final inline class MyValue2Inline {
-    final boolean b;
-    final long c;
+    final double d;
+    final long l;
 
     @ForceInline
-    public MyValue2Inline(boolean b, long c) {
-        this.b = b;
-        this.c = c;
+    public MyValue2Inline(double d, long l) {
+        this.d = d;
+        this.l = l;
     }
 
     @ForceInline
-    static MyValue2Inline setB(MyValue2Inline v, boolean b) {
-        return new MyValue2Inline(b, v.c);
+    static MyValue2Inline setD(MyValue2Inline v, double d) {
+        return new MyValue2Inline(d, v.l);
     }
 
     @ForceInline
-    static MyValue2Inline setC(MyValue2Inline v, long c) {
-        return new MyValue2Inline(v.b, c);
+    static MyValue2Inline setL(MyValue2Inline v, long l) {
+        return new MyValue2Inline(v.d, l);
     }
 
     @ForceInline
@@ -49,10 +49,10 @@ final inline class MyValue2Inline {
     }
 
     @ForceInline
-    public static MyValue2Inline createWithFieldsInline(boolean b, long c) {
+    public static MyValue2Inline createWithFieldsInline(double d, long l) {
         MyValue2Inline v = MyValue2Inline.createDefault();
-        v = MyValue2Inline.setB(v, b);
-        v = MyValue2Inline.setC(v, c);
+        v = MyValue2Inline.setD(v, d);
+        v = MyValue2Inline.setL(v, l);
         return v;
     }
 }
@@ -60,13 +60,13 @@ final inline class MyValue2Inline {
 public final inline class MyValue2 extends MyAbstract {
     final int x;
     final byte y;
-    final MyValue2Inline v1;
+    final MyValue2Inline v;
 
     @ForceInline
-    public MyValue2(int x, byte y, MyValue2Inline v1) {
+    public MyValue2(int x, byte y, MyValue2Inline v) {
         this.x = x;
         this.y = y;
-        this.v1 = v1;
+        this.v = v;
     }
 
     @ForceInline
@@ -75,59 +75,59 @@ public final inline class MyValue2 extends MyAbstract {
     }
 
     @ForceInline
-    public static MyValue2 createWithFieldsInline(int x, long y, boolean b) {
+    public static MyValue2 createWithFieldsInline(int x, long y, double d) {
         MyValue2 v = createDefaultInline();
         v = setX(v, x);
         v = setY(v, (byte)x);
-        v = setV1(v, MyValue2Inline.createWithFieldsInline(b, y));
+        v = setV(v, MyValue2Inline.createWithFieldsInline(d, y));
         return v;
     }
 
     @ForceInline
-    public static MyValue2 createWithFieldsInline(int x, boolean b) {
+    public static MyValue2 createWithFieldsInline(int x, double d) {
         MyValue2 v = createDefaultInline();
         v = setX(v, x);
         v = setY(v, (byte)x);
-        v = setV1(v, MyValue2Inline.createWithFieldsInline(b, InlineTypeTest.rL));
+        v = setV(v, MyValue2Inline.createWithFieldsInline(d, InlineTypeTest.rL));
         return v;
     }
 
     @DontInline
-    public static MyValue2 createWithFieldsDontInline(int x, boolean b) {
+    public static MyValue2 createWithFieldsDontInline(int x, double d) {
         MyValue2 v = createDefaultInline();
         v = setX(v, x);
         v = setY(v, (byte)x);
-        v = setV1(v, MyValue2Inline.createWithFieldsInline(b, InlineTypeTest.rL));
+        v = setV(v, MyValue2Inline.createWithFieldsInline(d, InlineTypeTest.rL));
         return v;
     }
 
     @ForceInline
     public long hash() {
-        return x + y + (v1.b ? 0 : 1) + v1.c;
+        return x + y + (long)v.d + v.l;
     }
 
     @DontInline
     public long hashInterpreted() {
-        return x + y + (v1.b ? 0 : 1) + v1.c;
+        return x + y + (long)v.d + v.l;
     }
 
     @ForceInline
     public void print() {
-        System.out.print("x=" + x + ", y=" + y + ", b=" + v1.b + ", c=" + v1.c);
+        System.out.print("x=" + x + ", y=" + y + ", d=" + v.d + ", l=" + v.l);
     }
 
     @ForceInline
     static MyValue2 setX(MyValue2 v, int x) {
-        return new MyValue2(x, v.y, v.v1);
+        return new MyValue2(x, v.y, v.v);
     }
 
     @ForceInline
     static MyValue2 setY(MyValue2 v, byte y) {
-        return new MyValue2(v.x, y, v.v1);
+        return new MyValue2(v.x, y, v.v);
     }
 
     @ForceInline
-    static MyValue2 setV1(MyValue2 v, MyValue2Inline v1) {
-        return new MyValue2(v.x, v.y, v1);
+    static MyValue2 setV(MyValue2 v, MyValue2Inline vi) {
+        return new MyValue2(v.x, v.y, vi);
     }
 }

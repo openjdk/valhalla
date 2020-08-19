@@ -292,12 +292,12 @@ public class TestMethodHandles extends InlineTypeTest {
     // constant. Shouldn't cause any allocation.
     @ForceInline
     static MyValue2 test7_target1() {
-        return MyValue2.createWithFieldsInline(rI, true);
+        return MyValue2.createWithFieldsInline(rI, rD);
     }
 
     @ForceInline
     static MyValue2 test7_target2() {
-        return MyValue2.createWithFieldsInline(rI+1, false);
+        return MyValue2.createWithFieldsInline(rI+1, rD+1);
     }
 
     static boolean test7_bool = true;
@@ -318,19 +318,19 @@ public class TestMethodHandles extends InlineTypeTest {
     public void test7_verifier(boolean warmup) throws Throwable {
         test7_bool = !test7_bool;
         long hash = test7();
-        Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+(test7_bool ? 0 : 1), test7_bool).hash());
+        Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+(test7_bool ? 0 : 1), rD+(test7_bool ? 0 : 1)).hash());
     }
 
     // Same as above but with the method handle for target2 not
     // constant. Shouldn't cause any allocation.
     @ForceInline
     static MyValue2 test8_target1() {
-        return MyValue2.createWithFieldsInline(rI, true);
+        return MyValue2.createWithFieldsInline(rI, rD);
     }
 
     @ForceInline
     static MyValue2 test8_target2() {
-        return MyValue2.createWithFieldsInline(rI+1, false);
+        return MyValue2.createWithFieldsInline(rI+1, rD+1);
     }
 
     static boolean test8_bool = true;
@@ -351,7 +351,7 @@ public class TestMethodHandles extends InlineTypeTest {
     public void test8_verifier(boolean warmup) throws Throwable {
         test8_bool = !test8_bool;
         long hash = test8();
-        Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+(test8_bool ? 0 : 1), test8_bool).hash());
+        Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+(test8_bool ? 0 : 1), rD+(test8_bool ? 0 : 1)).hash());
     }
 
     // Return of target1, target2 and target3 merged in Lambda Forms
@@ -407,17 +407,17 @@ public class TestMethodHandles extends InlineTypeTest {
     // Same as above but with non constant target2 and target3
     @ForceInline
     static MyValue2 test10_target1() {
-        return MyValue2.createWithFieldsInline(rI, true);
+        return MyValue2.createWithFieldsInline(rI, rD);
     }
 
     @ForceInline
     static MyValue2 test10_target2() {
-        return MyValue2.createWithFieldsInline(rI+1, false);
+        return MyValue2.createWithFieldsInline(rI+1, rD+1);
     }
 
     @ForceInline
     static MyValue2 test10_target3() {
-        return MyValue2.createWithFieldsInline(rI+2, true);
+        return MyValue2.createWithFieldsInline(rI+2, rD+2);
     }
 
     static boolean test10_bool1 = true;
@@ -449,21 +449,21 @@ public class TestMethodHandles extends InlineTypeTest {
         test10_bool1 = (test10_i % 2) == 0;
         test10_bool2 = (test10_i % 3) == 0;
         long hash = test10();
-        int i = rI+(test10_bool1 ? 0 : (test10_bool2 ? 1 : 2));
-        boolean b = test10_bool1 ? true : (test10_bool2 ? false : true);
-        Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(i, b).hash());
+        int i = rI + (test10_bool1 ? 0 : (test10_bool2 ? 1 : 2));
+        double d = rD + (test10_bool1 ? 0 : (test10_bool2 ? 1 : 2));
+        Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(i, d).hash());
     }
 
     static int test11_i = 0;
 
     @ForceInline
     static MyValue2 test11_target1() {
-        return MyValue2.createWithFieldsInline(rI+test11_i, true);
+        return MyValue2.createWithFieldsInline(rI+test11_i, rD+test11_i);
     }
 
     @ForceInline
     static MyValue2 test11_target2() {
-        return MyValue2.createWithFieldsInline(rI-test11_i, false);
+        return MyValue2.createWithFieldsInline(rI-test11_i, rD-test11_i);
     }
 
     @ForceInline
@@ -487,6 +487,6 @@ public class TestMethodHandles extends InlineTypeTest {
         test11_i++;
         long hash = test11();
         boolean b = (test11_i % 100) == 0;
-        Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+test11_i * (b ? 1 : -1), b).hash());
+        Asserts.assertEQ(hash, MyValue2.createWithFieldsInline(rI+test11_i * (b ? 1 : -1), rD+test11_i * (b ? 1 : -1)).hash());
     }
 }

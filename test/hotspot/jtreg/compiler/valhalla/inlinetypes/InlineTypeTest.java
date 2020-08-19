@@ -39,6 +39,8 @@ import java.lang.invoke.*;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -122,6 +124,7 @@ public abstract class InlineTypeTest {
     // Random test values
     public static final int  rI = Utils.getRandomInstance().nextInt() % 1000;
     public static final long rL = Utils.getRandomInstance().nextLong() % 1000;
+    public static final double rD = Utils.getRandomInstance().nextDouble() % 1000;
 
     // User defined settings
     protected static final boolean XCOMP = Platform.isComp();
@@ -177,7 +180,7 @@ public abstract class InlineTypeTest {
     protected static final int TypeProfileOn = 0x4000;
     protected static final int TypeProfileOff = 0x8000;
     protected static final boolean InlineTypePassFieldsAsArgs = (Boolean)WHITE_BOX.getVMFlag("InlineTypePassFieldsAsArgs");
-    protected static final boolean InlineTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("FlatArrayElementMaxSize") == -1); // FIXME - fix this if default of FlatArrayElementMaxSize is changed
+    protected static final boolean InlineTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("FlatArrayElementMaxSize") == -1);
     protected static final boolean InlineTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("InlineTypeReturnedAsFields");
     protected static final boolean AlwaysIncrementalInline = (Boolean)WHITE_BOX.getVMFlag("AlwaysIncrementalInline");
     protected static final boolean G1GC = (Boolean)WHITE_BOX.getVMFlag("UseG1GC");
@@ -657,9 +660,11 @@ public abstract class InlineTypeTest {
             setup(clazz);
         }
 
-        // Execute tests
+        // Execute tests in random order (execution sequence affects profiling)
         TreeMap<Long, String> durations = (PRINT_TIMES || VERBOSE) ? new TreeMap<Long, String>() : null;
-        for (Method test : tests.values()) {
+        List<Method> testList = new ArrayList<Method>(tests.values());
+        Collections.shuffle(testList, Utils.getRandomInstance());
+        for (Method test : testList) {
             if (VERBOSE) {
                 System.out.println("Starting " + test.getName());
             }

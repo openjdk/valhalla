@@ -66,7 +66,7 @@ public class TestLWorld extends InlineTypeTest {
     // Helper methods
 
     private static final MyValue1 testValue1 = MyValue1.createWithFieldsInline(rI, rL);
-    private static final MyValue2 testValue2 = MyValue2.createWithFieldsInline(rI, true);
+    private static final MyValue2 testValue2 = MyValue2.createWithFieldsInline(rI, rD);
 
     protected long hash() {
         return testValue1.hash();
@@ -186,7 +186,7 @@ public class TestLWorld extends InlineTypeTest {
         } else if (state == 5) {
             res = null;
         } else if (state == 6) {
-            res = MyValue2.createWithFieldsInline(rI, true);
+            res = MyValue2.createWithFieldsInline(rI, rD);
         } else if (state == 7) {
             res = testValue2;
         }
@@ -1628,7 +1628,7 @@ public class TestLWorld extends InlineTypeTest {
     @Test()
     public Object test55(boolean b) {
         MyValue1 vt1 = MyValue1.createWithFieldsInline(rI, rL);
-        MyValue2 vt2 = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 vt2 = MyValue2.createWithFieldsInline(rI, rD);
         return b ? vt1 : vt2;
     }
 

@@ -85,7 +85,7 @@ public class TestCallingConvention extends InlineTypeTest {
 
     @DontCompile
     public void test1_verifier(boolean warmup) {
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         long result = test1(v);
         Asserts.assertEQ(result, v.hashInterpreted());
     }
@@ -97,7 +97,7 @@ public class TestCallingConvention extends InlineTypeTest {
 
     @DontCompile
     public void test2_verifier(boolean warmup) {
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         long result = test2(rI, v, 2*rI);
         Asserts.assertEQ(result, v.hashInterpreted() - rI);
     }
@@ -109,7 +109,7 @@ public class TestCallingConvention extends InlineTypeTest {
 
     @DontCompile
     public void test3_verifier(boolean warmup) {
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         long result = test3(rL, v, 2*rL);
         Asserts.assertEQ(result, v.hashInterpreted() - rL);
     }
@@ -121,7 +121,7 @@ public class TestCallingConvention extends InlineTypeTest {
 
     @DontCompile
     public void test4_verifier(boolean warmup) {
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         long result = test4(rI, v, rL);
         Asserts.assertEQ(result, v.hashInterpreted() + rL + rI);
     }
@@ -133,7 +133,7 @@ public class TestCallingConvention extends InlineTypeTest {
 
     @DontCompile
     public void test5_verifier(boolean warmup) {
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         long result = test5(rL, v, rI);
         Asserts.assertEQ(result, v.hashInterpreted() + rL + rI);
     }
@@ -146,7 +146,7 @@ public class TestCallingConvention extends InlineTypeTest {
     @DontCompile
     public void test6_verifier(boolean warmup) {
         MyValue1 v1 = MyValue1.createWithFieldsDontInline(rI, rL);
-        MyValue2 v2 = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v2 = MyValue2.createWithFieldsInline(rI, rD);
         long result = test6(rL, v1, rI, v2);
         Asserts.assertEQ(result, v1.hashInterpreted() + rL + rI + v2.hashInterpreted());
     }
@@ -164,7 +164,7 @@ public class TestCallingConvention extends InlineTypeTest {
 
     @DontCompile
     public void test7_verifier(boolean warmup) {
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         long result = test7(v);
         Asserts.assertEQ(result, v.hashInterpreted());
     }
@@ -181,7 +181,7 @@ public class TestCallingConvention extends InlineTypeTest {
 
     @DontCompile
     public void test8_verifier(boolean warmup) {
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         long result = test8(rI, v, 2*rI);
         Asserts.assertEQ(result, v.hashInterpreted() - rI);
     }
@@ -198,7 +198,7 @@ public class TestCallingConvention extends InlineTypeTest {
 
     @DontCompile
     public void test9_verifier(boolean warmup) {
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         long result = test9(rL, v, 2*rL);
         Asserts.assertEQ(result, v.hashInterpreted() - rL);
     }
@@ -215,7 +215,7 @@ public class TestCallingConvention extends InlineTypeTest {
 
     @DontCompile
     public void test10_verifier(boolean warmup) {
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         long result = test10(rI, v, rL);
         Asserts.assertEQ(result, v.hashInterpreted() + rL + rI);
     }
@@ -232,7 +232,7 @@ public class TestCallingConvention extends InlineTypeTest {
 
     @DontCompile
     public void test11_verifier(boolean warmup) {
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         long result = test11(rL, v, rI);
         Asserts.assertEQ(result, v.hashInterpreted() + rL + rI);
     }
@@ -250,7 +250,7 @@ public class TestCallingConvention extends InlineTypeTest {
     @DontCompile
     public void test12_verifier(boolean warmup) {
         MyValue1 v1 = MyValue1.createWithFieldsDontInline(rI, rL);
-        MyValue2 v2 = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v2 = MyValue2.createWithFieldsInline(rI, rD);
         long result = test12(rL, v1, rI, v2);
         Asserts.assertEQ(result, v1.hashInterpreted() + rL + rI + v2.hashInterpreted());
     }
@@ -272,7 +272,7 @@ public class TestCallingConvention extends InlineTypeTest {
 
     @DontCompile
     public void test13_verifier(boolean warmup) {
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         MyValue1[] va = new MyValue1[2];
         va[0] = MyValue1.createWithFieldsDontInline(rI, rL);
         va[1] = MyValue1.createWithFieldsDontInline(rI, rL);
@@ -287,7 +287,7 @@ public class TestCallingConvention extends InlineTypeTest {
             // uncommon trap
             WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test14"));
         }
-        return MyValue2.createWithFieldsInline(rI, true);
+        return MyValue2.createWithFieldsInline(rI, rD);
     }
 
     @Test()
@@ -298,7 +298,7 @@ public class TestCallingConvention extends InlineTypeTest {
     @DontCompile
     public void test14_verifier(boolean warmup) {
         MyValue2 result = test14(!warmup);
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         Asserts.assertEQ(result.hash(), v.hash());
     }
 
@@ -509,7 +509,7 @@ public class TestCallingConvention extends InlineTypeTest {
         if (b) {
             return null;
         } else {
-            return MyValue2.createWithFieldsInline(rI, true);
+            return MyValue2.createWithFieldsInline(rI, rD);
         }
     }
 
@@ -523,7 +523,7 @@ public class TestCallingConvention extends InlineTypeTest {
         MyValue2.ref vt = test26(true);
         Asserts.assertEQ(vt, null);
         vt = test26(false);
-        Asserts.assertEQ(vt.hash(), MyValue2.createWithFieldsInline(rI, true).hash());
+        Asserts.assertEQ(vt.hash(), MyValue2.createWithFieldsInline(rI, rD).hash());
     }
 
     // Test calling convention with deep hierarchy of flattened fields
@@ -646,7 +646,7 @@ public class TestCallingConvention extends InlineTypeTest {
             // uncommon trap
             WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test32"));
         }
-        return MyValue2.createWithFieldsInline(rI+32, true);
+        return MyValue2.createWithFieldsInline(rI+32, rD);
     }
 
     @Test()
@@ -657,7 +657,7 @@ public class TestCallingConvention extends InlineTypeTest {
     @DontCompile
     public void test32_verifier(boolean warmup) throws Throwable {
         MyValue2 result = test32(!warmup);
-        MyValue2 v = MyValue2.createWithFieldsInline(rI+32, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI+32, rD);
         Asserts.assertEQ(result.hash(), v.hash());
     }
 
@@ -670,7 +670,7 @@ public class TestCallingConvention extends InlineTypeTest {
             // uncommon trap
             WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test33"));
         }
-        return MyValue2.createWithFieldsInline(rI+33, true);
+        return MyValue2.createWithFieldsInline(rI+33, rD);
     }
 
     @Test()
@@ -682,7 +682,7 @@ public class TestCallingConvention extends InlineTypeTest {
     @DontCompile
     public void test33_verifier(boolean warmup) throws Throwable {
         MyValue2 result = test33(!warmup);
-        MyValue2 v = MyValue2.createWithFieldsInline(rI+33, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI+33, rD);
         Asserts.assertEQ(result.hash(), v.hash());
     }
 
@@ -715,7 +715,7 @@ public class TestCallingConvention extends InlineTypeTest {
 
     @DontCompile
     public void test34_verifier(boolean warmup) {
-        MyValue2 vt = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
         long result = test34(vt, rI, rI, rI, rI);
         Asserts.assertEQ(result, vt.hash()+4*rI);
         if (!warmup) {
@@ -740,7 +740,7 @@ public class TestCallingConvention extends InlineTypeTest {
 
     @DontCompile
     public void test35_verifier(boolean warmup) {
-        MyValue2 vt = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
         long result = test35(vt, rI, rI, rI, rI);
         Asserts.assertEQ(result, vt.hash()+10004*rI);
     }

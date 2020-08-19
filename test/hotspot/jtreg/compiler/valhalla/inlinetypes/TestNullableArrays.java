@@ -105,9 +105,7 @@ public class TestNullableArrays extends InlineTypeTest {
     }
 
     // Test creation of an inline type array and element access
-    @Test
-    // TODO 8227588
-    // @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
+    @Test(failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     public long test2() {
         MyValue1.ref[] va = new MyValue1.ref[1];
         va[0] = MyValue1.createWithFieldsInline(rI, rL);
@@ -609,13 +607,13 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue2.ref[] dst3 = new MyValue2.ref[len];
         MyValue2[]  dst4 = new MyValue2[len];
         if (len > 0) {
-            src2[0] = MyValue2.createWithFieldsInline(rI, true);
+            src2[0] = MyValue2.createWithFieldsInline(rI, rD);
         }
         for (int i = 1; i < len; ++i) {
-            src1[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
-            src2[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
-            src3[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
-            src4[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src1[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src2[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src3[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src4[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test21(src1, dst1);
         test21(src2, dst2);
@@ -755,12 +753,12 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue2[]  dst2 = new MyValue2[8];
         MyValue2.ref[] dst3 = new MyValue2.ref[8];
         MyValue2[]  dst4 = new MyValue2[8];
-        src2[0] = MyValue2.createWithFieldsInline(rI, true);
+        src2[0] = MyValue2.createWithFieldsInline(rI, rD);
         for (int i = 1; i < 8; ++i) {
-            src1[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
-            src2[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
-            src3[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
-            src4[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src1[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src2[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src3[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src4[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test25(src1, dst1);
         test25(src2, dst2);
@@ -858,7 +856,7 @@ public class TestNullableArrays extends InlineTypeTest {
     }
 
     // non escaping allocations
-    // TODO ZGC does not support the clone intrinsic, remove this once JDK-8232896 is fixed
+    // TODO 8252027: Make sure this is optimized with ZGC
     @Test(valid = ZGCOff, failOn = ALLOC + ALLOCA + LOOP + LOAD + STORE + TRAP)
     @Test(valid = ZGCOn)
     public MyValue2.ref test28() {
@@ -870,7 +868,7 @@ public class TestNullableArrays extends InlineTypeTest {
 
     @DontCompile
     public void test28_verifier(boolean warmup) {
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, false);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         MyValue2.ref result = test28();
         Asserts.assertEQ(result, null);
     }
@@ -889,8 +887,8 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue2.ref[] src1 = new MyValue2.ref[10];
         MyValue2.val[] src2 = new MyValue2.val[10];
         for (int i = 0; i < 10; ++i) {
-            src1[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
-            src2[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src1[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src2[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         MyValue2.ref v = test29(src1);
         Asserts.assertEQ(src1[0].hash(), v.hash());
@@ -916,8 +914,8 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue2.ref[] src1 = new MyValue2.ref[10];
         MyValue2.val[] src2 = new MyValue2.val[10];
         for (int i = 0; i < 10; ++i) {
-            src1[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
-            src2[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src1[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            src2[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         MyValue2.ref v = test30(src1, !warmup);
         Asserts.assertEQ(src1[0].hash(), v.hash());
@@ -934,9 +932,9 @@ public class TestNullableArrays extends InlineTypeTest {
     public long test31(boolean b, boolean deopt) {
         MyValue2.ref[] src = new MyValue2.ref[1];
         if (b) {
-            src[0] = MyValue2.createWithFieldsInline(rI, true);
+            src[0] = MyValue2.createWithFieldsInline(rI, rD);
         } else {
-            src[0] = MyValue2.createWithFieldsInline(rI, false);
+            src[0] = MyValue2.createWithFieldsInline(rI+1, rD+1);
         }
         if (deopt) {
             // uncommon trap
@@ -947,10 +945,10 @@ public class TestNullableArrays extends InlineTypeTest {
 
     @DontCompile
     public void test31_verifier(boolean warmup) {
-        MyValue2 v1 = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v1 = MyValue2.createWithFieldsInline(rI, rD);
         long result1 = test31(true, !warmup);
         Asserts.assertEQ(result1, v1.hash());
-        MyValue2 v2 = MyValue2.createWithFieldsInline(rI, false);
+        MyValue2 v2 = MyValue2.createWithFieldsInline(rI+1, rD+1);
         long result2 = test31(false, !warmup);
         Asserts.assertEQ(result2, v2.hash());
     }
@@ -1135,7 +1133,7 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue2.ref[] src = new MyValue2.ref[len];
         MyValue2.ref[] dst = new MyValue2.ref[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test36(src, dst);
         verify(src, dst);
@@ -1156,7 +1154,7 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue2.ref[] src = new MyValue2.ref[len];
         MyValue2.ref[] dst = new MyValue2.ref[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test37(src, dst);
         verify(src, dst);
@@ -1178,7 +1176,7 @@ public class TestNullableArrays extends InlineTypeTest {
         Object[] src = new Object[len];
         MyValue2.ref[] dst = new MyValue2.ref[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test38(src, dst);
         verify(dst, src);
@@ -1205,7 +1203,7 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue2.ref[] src = new MyValue2.ref[len];
         Object[] dst = new Object[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test39(src, dst);
         verify(src, dst);
@@ -1227,7 +1225,7 @@ public class TestNullableArrays extends InlineTypeTest {
         Object[] src = new Object[len];
         MyValue2.ref[] dst = new MyValue2.ref[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test40(src, dst);
         verify(dst, src);
@@ -1254,7 +1252,7 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue2.ref[] src = new MyValue2.ref[len];
         Object[] dst = new Object[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test41(src, dst);
         verify(src, dst);
@@ -1275,7 +1273,7 @@ public class TestNullableArrays extends InlineTypeTest {
         Object[] src = new Object[len];
         Object[] dst = new Object[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test42(src, dst);
         verify(src, dst);
@@ -1318,7 +1316,7 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue2.ref[] src = new MyValue2.ref[8];
         MyValue2.ref[] dst = new MyValue2.ref[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test44(src, dst);
         verify(src, dst);
@@ -1338,7 +1336,7 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue2.ref[] src = new MyValue2.ref[8];
         MyValue2.ref[] dst = new MyValue2.ref[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test45(src, dst);
         verify(src, dst);
@@ -1359,7 +1357,7 @@ public class TestNullableArrays extends InlineTypeTest {
         Object[] src = new Object[8];
         MyValue2.ref[] dst = new MyValue2.ref[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test46(src, dst);
         verify(dst, src);
@@ -1385,7 +1383,7 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue2.ref[] src = new MyValue2.ref[8];
         Object[] dst = new Object[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test47(src, dst);
         verify(src, dst);
@@ -1406,7 +1404,7 @@ public class TestNullableArrays extends InlineTypeTest {
         Object[] src = new Object[8];
         MyValue2.ref[] dst = new MyValue2.ref[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test48(src, dst);
         verify(dst, src);
@@ -1432,7 +1430,7 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue2.ref[] src = new MyValue2.ref[8];
         Object[] dst = new Object[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test49(src, dst);
         verify(src, dst);
@@ -1452,7 +1450,7 @@ public class TestNullableArrays extends InlineTypeTest {
         Object[] src = new Object[8];
         Object[] dst = new Object[8];
         for (int i = 1; i < 8; ++i) {
-            src[i] = MyValue2.createWithFieldsInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
         }
         test50(src, dst);
         verify(src, dst);
@@ -1848,7 +1846,7 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue2.ref[] src = new MyValue2.ref[len];
         MyValue2.ref[] dst = new MyValue2.ref[len];
         for (int i = 1; i < len; ++i) {
-            src[i] = MyValue2.createWithFieldsDontInline(rI, (i % 2) == 0);
+            src[i] = MyValue2.createWithFieldsDontInline(rI+i, rD+i);
         }
         System.arraycopy(src, 0, dst, 0, src.length);
         for (int i = 0; i < len; ++i) {
