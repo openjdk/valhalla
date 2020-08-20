@@ -3289,4 +3289,20 @@ public class TestLWorld extends InlineTypeTest {
         boolean res = test118(MyValueEmpty.default, MyValueEmpty.default, new MyValueEmpty());
         Asserts.assertTrue(res);
     }
+
+    // Test re-allocation of empty inline type array during deoptimization
+    @Test
+    public void test119(boolean deopt) {
+        MyValueEmpty[] arr = new MyValueEmpty[]{MyValueEmpty.default};
+        if (deopt) {
+            // uncommon trap
+            WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test119"));
+        }
+        Asserts.assertEquals(arr[0], MyValueEmpty.default);
+    }
+
+    @DontCompile
+    public void test119_verifier(boolean warmup) {
+        test119(!warmup);
+    }
 }
