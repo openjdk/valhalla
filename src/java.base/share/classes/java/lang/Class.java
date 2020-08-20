@@ -643,7 +643,25 @@ public final class Class<T> implements java.io.Serializable,
 
     private transient Class<?>[] projectionTypes;
     private Class<?>[] getProjectionTypes() {
-        ensureProjectionTypesInited();
+        if (isPrimitive() || isArray() || isInterface())
+            return null;
+
+        Class<?>[] valRefTypes = projectionTypes;
+        if (valRefTypes == null) {
+            // C.ensureProjectionTypesInited calls initProjectionTypes that may
+            // call D.ensureProjectionTypesInited where D is its superclass.
+            // So initProjectionTypes is called without holding any lock to
+            // avoid potential deadlock when multiple threads attempt to
+            // initialize the projection types for C and E where D is
+            // the superclass of both C and E (which is an error case)
+            valRefTypes = newProjectionTypeArray();
+        }
+        synchronized (this) {
+            // set the projection types if not set
+            if (projectionTypes == null) {
+                projectionTypes = valRefTypes;
+            }
+        }
         return projectionTypes;
     }
 
@@ -713,27 +731,6 @@ public final class Class<T> implements java.io.Serializable,
             }
         }
         return null;
-    }
-
-    private void ensureProjectionTypesInited() {
-        if (isPrimitive() || isArray() || isInterface())
-            return;
-
-        Class<?>[] valRefTypes = projectionTypes;
-        if (valRefTypes == null) {
-            // C.ensureProjectionTypesInited calls initProjectionTypes that may
-            // call D.ensureProjectionTypesInited where D is its superclass.
-            // So initProjectionTypes is called without holding any lock to
-            // avoid potential deadlock when multiple threads attempt to
-            // initialize the projection types for C and E where D is
-            // the superclass of both C and E (which is an error case)
-            valRefTypes = newProjectionTypeArray();
-        }
-        synchronized (this) {
-            if (projectionTypes == null) {
-                projectionTypes = valRefTypes;
-            }
-        }
     }
 
     /**
