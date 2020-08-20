@@ -724,7 +724,9 @@ public final class Class<T> implements java.io.Serializable,
             // C.ensureProjectionTypesInited calls initProjectionTypes that may
             // call D.ensureProjectionTypesInited where D is its superclass.
             // So initProjectionTypes is called without holding any lock to
-            // avoid deadlock when multiple threads attempt to ensure
+            // avoid potential deadlock when multiple threads attempt to
+            // initialize the projection types for C and E where D is
+            // the superclass of both C and E (which is an error case)
             valRefTypes = newProjectionTypeArray();
         }
         synchronized (this) {
