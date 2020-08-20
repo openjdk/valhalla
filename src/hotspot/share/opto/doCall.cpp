@@ -185,7 +185,7 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
             return CallGenerator::for_string_late_inline(callee, cg);
           } else if (should_delay_boxing_inlining(callee, jvms)) {
             return CallGenerator::for_boxing_late_inline(callee, cg);
-          } else if ((should_delay || AlwaysIncrementalInline)) {
+          } else if (should_delay || AlwaysIncrementalInline) {
             return CallGenerator::for_late_inline(callee, cg);
           }
         }

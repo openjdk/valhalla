@@ -593,7 +593,10 @@ bool LateInlineMHCallGenerator::do_late_inline_check(JVMState* jvms) {
 
   CallGenerator* cg = for_method_handle_inline(jvms, _caller, method(), _input_not_const);
 
-  if (AlwaysIncrementalInline && cg->is_late_inline()) {
+  // AlwaysIncrementalInline causes for_method_handle_inline() to
+  // return a LateInlineCallGenerator. Extract the
+  // InlineCallGenerato from it.
+  if (AlwaysIncrementalInline && cg != NULL && cg->is_late_inline()) {
     cg = cg->inline_cg();
   }
 
