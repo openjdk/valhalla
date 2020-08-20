@@ -1042,6 +1042,6 @@ public class TestIntrinsics extends InlineTypeTest {
     @DontCompile
     public void test55_verifier(boolean warmup) {
         MyValue2 res = test55();
-        Asserts.assertEQ(res.hash(), vfinal.v1.hash());
+        Asserts.assertEQ(res.hash(), test55_vt.v1.hash());
     }
 }
