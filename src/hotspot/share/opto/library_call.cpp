@@ -2490,7 +2490,6 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
 
   if (base->is_InlineType()) {
     InlineTypeNode* vt = base->as_InlineType();
-
     if (is_store) {
       if (!vt->is_allocated(&_gvn) || !_gvn.type(vt)->is_inlinetype()->larval()) {
         return false;
@@ -2504,18 +2503,15 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
           return false;
         }
 
-        ciField* f = vk->get_non_flattened_field_by_offset((int)off);
-
-        if (f != NULL) {
-          BasicType bt = f->layout_type();
-          if (bt == T_ARRAY || bt == T_NARROWOOP) {
+        ciField* field = vk->get_non_flattened_field_by_offset(off);
+        if (field != NULL) {
+          BasicType bt = field->layout_type();
+          if (bt == T_ARRAY || bt == T_NARROWOOP || (bt == T_INLINE_TYPE && !field->is_flattened())) {
             bt = T_OBJECT;
           }
-          if (bt == type) {
-            if (bt != T_INLINE_TYPE || f->type() == inline_klass) {
-              set_result(vt->field_value_by_offset((int)off, false));
-              return true;
-            }
+          if (bt == type && (bt != T_INLINE_TYPE || field->type() == inline_klass)) {
+            set_result(vt->field_value_by_offset(off, false));
+            return true;
           }
         }
       }
