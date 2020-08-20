@@ -3667,9 +3667,8 @@ void ClassFileParser::parse_classfile_bootstrap_methods_attribute(const ClassFil
 }
 
 bool ClassFileParser::supports_sealed_types() {
-  return _major_version == JVM_CLASSFILE_MAJOR_VERSION &&
-         _minor_version == JAVA_PREVIEW_MINOR_VERSION &&
-         Arguments::enable_preview();
+  // temporarily disable the sealed type preview feature check
+  return _major_version == JVM_CLASSFILE_MAJOR_VERSION;
 }
 
 bool ClassFileParser::supports_records() {

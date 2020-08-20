@@ -25,7 +25,8 @@
 /*
  * @test
  * @summary test reflection on inline types
- * @run testng/othervm Reflection
+ * @compile --enable-preview --source ${jdk.version} Reflection.java
+ * @run testng/othervm --enable-preview Reflection
  */
 
 import java.lang.reflect.Array;
@@ -37,6 +38,13 @@ import org.testng.annotations.Test;
 import static org.testng.Assert.*;
 
 public class Reflection {
+    @Test
+    public static void sanityTest() {
+        assertTrue(Point.ref.class.permittedSubclasses().length == 1);
+        assertTrue(Line.ref.class.permittedSubclasses().length == 1);
+        assertTrue(NonFlattenValue.ref.class.permittedSubclasses().length == 1);
+    }
+
     @Test
     public static void testPointClass() throws Exception  {
         Point o = Point.makePoint(10, 20);

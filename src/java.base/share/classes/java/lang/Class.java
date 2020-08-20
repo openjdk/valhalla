@@ -579,34 +579,159 @@ public final class Class<T> implements java.io.Serializable,
      *         an empty {@link Optional} otherwise
      * @since Valhalla
      */
-    public Optional<Class<T>> valueType() {
-        return Optional.ofNullable(valType);
+    public Optional<Class<?>> valueType() {
+        if (isPrimitive() || isInterface() || isArray())
+            return Optional.empty();
+
+        Class<?>[] valRefTypes = getProjectionTypes();
+        return valRefTypes.length > 0 ? Optional.of(valRefTypes[0]) : Optional.empty();
     }
 
     /**
-     * Returns a {@code Class} object representing the <em>reference projection</em>
-     * type of this class if this {@code Class} represents an
-     * {@linkplain #isInlineClass() inline class} with a reference projection
-     * type. If this {@code Class} represents the reference projection type
+     * Returns a {@code Class} object representing the reference type
+     * of this class.
+     * <p>
+     * If this {@code Class} represents an {@linkplain #isInlineClass()
+     * inline class} with a reference projection type, then this method
+     * returns the <em>reference projection</em> type of this inline class.
+     * <p>
+     * If this {@code Class} represents the reference projection type
      * of an inline class, then this method returns this class.
-     * If this class is not an {@linkplain #isInlineClass() inline class}
-     * or this class is an inline class without a reference projection,
-     * then this method returns an empty {@link Optional}.
+     * <p>
+     * If this class is an {@linkplain #isInlineClass() inline class}
+     * without a reference projection, then this method returns an empty
+     * {@code Optional}.
+     * <p>
+     * If this class is an identity class, then this method returns this
+     * class.
+     * <p>
+     * Otherwise this method returns an empty {@code Optional}.
      *
-     * @return the {@code Class} object representing the value projection type of
-     *         this class if this class is an inline class with a reference
-     *         projection type or this class is the reference projection type;
-     *         an empty {@link Optional} otherwise
+     * @return the {@code Class} object representing a reference type for
+     *         this class if present; an empty {@link Optional} otherwise.
      * @since Valhalla
      */
-    public Optional<Class<T>> referenceType() {
-        return valType != null ? Optional.ofNullable(refType) : Optional.of(this);
+    public Optional<Class<?>> referenceType() {
+        if (isPrimitive()) return Optional.empty();
+        if (isInterface() || isArray()) return Optional.of(this);
+
+        Class<?>[] valRefTypes = getProjectionTypes();
+        return valRefTypes.length == 2 ? Optional.of(valRefTypes[1]) : Optional.empty();
     }
 
-    // set by VM if this class is an inline type
-    // otherwise, these two fields are null
-    private transient Class<T> valType;
-    private transient Class<T> refType;
+    /*
+     * Returns true if this Class object represents a reference projection
+     * type for an inline class.
+     *
+     * A reference projection type must be a sealed abstract class that
+     * permits the inline projection type to extend.  The inline projection
+     * type and reference projection type for an inline type must be of
+     * the same package.
+     */
+    private boolean isReferenceProjectionType() {
+        if (isPrimitive() || isArray() || isInterface() || isInlineClass())
+            return false;
+
+        int mods = getModifiers();
+        if (!Modifier.isAbstract(mods)) {
+            return false;
+        }
+
+        Class<?>[] valRefTypes = getProjectionTypes();
+        return valRefTypes.length == 2 && valRefTypes[1] == this;
+    }
+
+    private transient Class<?>[] projectionTypes;
+    private Class<?>[] getProjectionTypes() {
+        if (isPrimitive() || isArray() || isInterface())
+            return null;
+
+        Class<?>[] valRefTypes = projectionTypes;
+        if (valRefTypes == null) {
+            // C.ensureProjectionTypesInited calls initProjectionTypes that may
+            // call D.ensureProjectionTypesInited where D is its superclass.
+            // So initProjectionTypes is called without holding any lock to
+            // avoid potential deadlock when multiple threads attempt to
+            // initialize the projection types for C and E where D is
+            // the superclass of both C and E (which is an error case)
+            valRefTypes = newProjectionTypeArray();
+        }
+        synchronized (this) {
+            // set the projection types if not set
+            if (projectionTypes == null) {
+                projectionTypes = valRefTypes;
+            }
+        }
+        return projectionTypes;
+    }
+
+    /*
+     * Returns an array of Class object whose element at index 0 represents the
+     * value projection type and element at index 1 represents the reference
+     * projection type if present.
+     *
+     * If this Class object is neither a value projection type nor
+     * a reference projection type for an inline class, then an empty array
+     * is returned.
+     */
+    private Class<?>[] newProjectionTypeArray() {
+        if (isPrimitive() || isArray() || isInterface())
+            return null;
+
+        if (isInlineClass()) {
+            Class<?> superClass = getSuperclass();
+            if (superClass != Object.class && superClass.isReferenceProjectionType()) {
+                return new Class<?>[] { this, superClass };
+            } else {
+                return new Class<?>[] { this };
+            }
+        } else {
+            Class<?> valType = valueProjectionType();
+            if (valType != null) {
+                return new Class<?>[] { valType, this};
+            } else {
+                return EMPTY_CLASS_ARRAY;
+            }
+        }
+    }
+
+    /*
+     * Returns the value projection type if this Class represents
+     * a reference projection type.  If this class is an inline class
+     * then this method returns this class.  Otherwise, returns null.
+     */
+    private Class<?> valueProjectionType() {
+        if (isPrimitive() || isArray() || isInterface())
+            return null;
+
+        if (isInlineClass())
+            return this;
+
+        int mods = getModifiers();
+        if (!Modifier.isAbstract(mods)) {
+            return null;
+        }
+
+        // A reference projection type must be a sealed abstract class
+        // that permits the inline projection type to extend.
+        // The inline projection type and reference projection type for
+        // an inline type must be of the same package.
+        String[] subclassNames = getPermittedSubclasses0();
+        if (subclassNames.length == 1) {
+            String cn = subclassNames[0].replace('/', '.');
+            int index = cn.lastIndexOf('.');
+            String pn = index > 0 ? cn.substring(0, index) : "";
+            if (pn.equals(getPackageName())) {
+                try {
+                    Class<?> valType = Class.forName(cn, false, getClassLoader());
+                    if (valType.isInlineClass()) {
+                        return valType;
+                    }
+                } catch (ClassNotFoundException e) {}
+            }
+        }
+        return null;
+    }
 
     /**
      * Creates a new instance of the class represented by this {@code Class}

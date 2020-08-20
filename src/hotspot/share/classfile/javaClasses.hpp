@@ -243,8 +243,6 @@ class java_lang_Class : AllStatic {
   static int _component_mirror_offset;
   static int _name_offset;
   static int _source_file_offset;
-  static int _val_type_mirror_offset;
-  static int _ref_type_mirror_offset;
   static int _classData_offset;
   static int _classRedefinedCount_offset;
 
@@ -324,12 +322,6 @@ class java_lang_Class : AllStatic {
   static oop class_loader(oop java_class);
   static void set_module(oop java_class, oop module);
   static oop module(oop java_class);
-
-  static void set_ref_type_mirror(oop java_class, oop mirror);
-  static oop ref_type_mirror(oop java_class);
-
-  static void set_val_type_mirror(oop java_class, oop mirror);
-  static oop val_type_mirror(oop java_class);
 
   static oop name(Handle java_class, TRAPS);
 
