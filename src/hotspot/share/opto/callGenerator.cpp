@@ -355,6 +355,10 @@ class LateInlineCallGenerator : public DirectCallGenerator {
   virtual jlong unique_id() const {
     return _unique_id;
   }
+
+  virtual CallGenerator* inline_cg() {
+    return _inline_cg;
+  }
 };
 
 void LateInlineCallGenerator::do_late_inline() {
@@ -587,7 +591,14 @@ class LateInlineMHCallGenerator : public LateInlineCallGenerator {
 
 bool LateInlineMHCallGenerator::do_late_inline_check(JVMState* jvms) {
 
-  CallGenerator* cg = for_method_handle_inline(jvms, _caller, method(), _input_not_const, AlwaysIncrementalInline);
+  CallGenerator* cg = for_method_handle_inline(jvms, _caller, method(), _input_not_const);
+
+  // AlwaysIncrementalInline causes for_method_handle_inline() to
+  // return a LateInlineCallGenerator. Extract the
+  // InlineCallGenerato from it.
+  if (AlwaysIncrementalInline && cg != NULL && cg->is_late_inline()) {
+    cg = cg->inline_cg();
+  }
 
   Compile::current()->print_inlining_update_delayed(this);
 
@@ -929,13 +940,13 @@ JVMState* PredictedCallGenerator::generate(JVMState* jvms) {
 }
 
 
-CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* caller, ciMethod* callee, bool delayed_forbidden) {
+CallGenerator* CallGenerator::for_method_handle_call(JVMState* jvms, ciMethod* caller, ciMethod* callee) {
   assert(callee->is_method_handle_intrinsic(), "for_method_handle_call mismatch");
   bool input_not_const;
-  CallGenerator* cg = CallGenerator::for_method_handle_inline(jvms, caller, callee, input_not_const, false);
+  CallGenerator* cg = CallGenerator::for_method_handle_inline(jvms, caller, callee, input_not_const);
   Compile* C = Compile::current();
   if (cg != NULL) {
-    if (!delayed_forbidden && AlwaysIncrementalInline) {
+    if (AlwaysIncrementalInline) {
       return CallGenerator::for_late_inline(callee, cg);
     } else {
       return cg;
@@ -971,7 +982,7 @@ static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit) {
   }
 }
 
-CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod* caller, ciMethod* callee, bool& input_not_const, bool delayed_forbidden) {
+CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod* caller, ciMethod* callee, bool& input_not_const) {
   GraphKit kit(jvms);
   PhaseGVN& gvn = kit.gvn();
   Compile* C = kit.C;
@@ -1000,8 +1011,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
                                               true /* allow_inline */,
                                               PROB_ALWAYS,
                                               NULL,
-                                              true,
-                                              delayed_forbidden);
+                                              true);
         return cg;
       } else {
         print_inlining_failure(C, callee, jvms->depth() - 1, jvms->bci(),
@@ -1075,8 +1085,7 @@ CallGenerator* CallGenerator::for_method_handle_inline(JVMState* jvms, ciMethod*
                                               !StressMethodHandleLinkerInlining /* allow_inline */,
                                               PROB_ALWAYS,
                                               speculative_receiver_type,
-                                              true,
-                                              delayed_forbidden);
+                                              true);
         return cg;
       } else {
         print_inlining_failure(C, callee, jvms->depth() - 1, jvms->bci(),

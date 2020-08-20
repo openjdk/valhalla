@@ -1267,14 +1267,14 @@ bool PhaseIdealLoop::flatten_array_element_type_check(Node *n) {
   Node* phi = PhiNode::make_blank(region, n->in(1));
   for (uint i = 1; i < region->req(); i++) {
     Node* in = obj->in(i);
-    Node* ctrl = get_ctrl(in);
+    Node* ctrl = region->in(i);
     if (addr->in(AddPNode::Base) != obj) {
       Node* cast = addr->in(AddPNode::Base);
       assert(cast->Opcode() == Op_CastPP && cast->in(0) != NULL, "inconsistent subgraph");
       Node* cast_clone = cast->clone();
-      cast_clone->set_req(0, region->in(i));
+      cast_clone->set_req(0, ctrl);
       cast_clone->set_req(1, in);
-      register_new_node(cast_clone, region->in(i));
+      register_new_node(cast_clone, ctrl);
       _igvn.set_type(cast_clone, cast_clone->Value(&_igvn));
       in = cast_clone;
     }
