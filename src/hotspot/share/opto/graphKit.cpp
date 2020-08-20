@@ -2955,11 +2955,22 @@ Node* GraphKit::gen_subtype_check(Node* obj_or_subklass, Node* superklass) {
 
 // Profile-driven exact type check:
 Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
-                                    float prob,
-                                    Node* *casted_receiver) {
+                                    float prob, Node* *casted_receiver) {
+  Node* fail = top();
+  const Type* rec_t = _gvn.type(receiver);
+  if (false && rec_t->isa_inlinetype()) {
+    if (klass->equals(rec_t->inline_klass())) {
+      (*casted_receiver) = receiver; // Always passes
+    } else {
+      (*casted_receiver) = top();    // Always fails
+      fail = control();
+      set_control(top());
+    }
+    return fail;
+  }
   const TypeKlassPtr* tklass = TypeKlassPtr::make(klass);
   Node* recv_klass = load_object_klass(receiver);
-  Node* fail = type_check(recv_klass, tklass, prob);
+  fail = type_check(recv_klass, tklass, prob);
   const TypeOopPtr* recv_xtype = tklass->as_instance_type();
   assert(recv_xtype->klass_is_exact(), "");
 
