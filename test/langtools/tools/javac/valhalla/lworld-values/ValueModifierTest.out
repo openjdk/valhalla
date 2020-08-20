@@ -1,5 +1,5 @@
 ValueModifierTest.java:15:13: compiler.err.cant.inherit.from.final: value
 ValueModifierTest.java:15:21: compiler.err.concrete.supertype.for.inline.class: compiler.misc.anonymous.class: ValueModifierTest$2, value
 ValueModifierTest.java:16:20: compiler.err.cant.inherit.from.final: value
-ValueModifierTest.java:16:28: compiler.err.override.meth: (compiler.misc.cant.override: toString(), compiler.misc.anonymous.class: ValueModifierTest$3, toString(), value), final
+ValueModifierTest.java:16:28: compiler.err.concrete.supertype.for.inline.class: compiler.misc.anonymous.class: ValueModifierTest$3, value
 4 errors
