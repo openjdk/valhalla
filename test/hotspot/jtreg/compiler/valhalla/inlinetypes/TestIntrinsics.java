@@ -1027,4 +1027,21 @@ public class TestIntrinsics extends InlineTypeTest {
         MyValue1 res = test54(v.setX(v, 0));
         Asserts.assertEQ(res.hash(), v.hash());
     }
+
+    static final MyValue1 test55_vt = MyValue1.createWithFieldsInline(rI, rL);
+
+    // Same as test30 but with constant field holder
+    @Test(failOn=CALL_Unsafe)
+    public MyValue2 test55() {
+        if (V1_FLATTENED) {
+            return U.getValue(test55_vt, V1_OFFSET, MyValue2.val.class);
+        }
+        return (MyValue2)U.getReference(test55_vt, V1_OFFSET);
+    }
+
+    @DontCompile
+    public void test55_verifier(boolean warmup) {
+        MyValue2 res = test55();
+        Asserts.assertEQ(res.hash(), test55_vt.v1.hash());
+    }
 }
