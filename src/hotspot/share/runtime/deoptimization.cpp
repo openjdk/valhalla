@@ -1388,6 +1388,9 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
 void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, flatArrayOop obj, FlatArrayKlass* vak, TRAPS) {
   InlineKlass* vk = vak->element_klass();
   assert(vk->flatten_array(), "should only be used for flattened inline type arrays");
+  if (vk->is_empty_inline_type()) {
+    return; // No fields to re-assign
+  }
   // Adjust offset to omit oop header
   int base_offset = arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE) - InlineKlass::cast(vk)->first_field_offset();
   // Initialize all elements of the flattened inline type array
