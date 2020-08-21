@@ -34,7 +34,6 @@
 // Clones the inline type to handle control flow merges involving multiple inline types.
 // The inputs are replaced by PhiNodes to represent the merged values for the given region.
 InlineTypeBaseNode* InlineTypeBaseNode::clone_with_phis(PhaseGVN* gvn, Node* region) {
-  assert(!has_phi_inputs(region), "already cloned with phis");
   InlineTypeBaseNode* vt = clone()->as_InlineTypeBase();
 
   // Create a PhiNode for merging the oop values
