@@ -688,9 +688,6 @@ const size_t minimumSymbolTableSize = 1024;
                "Disable the use of stack guard pages if the JVM is loaded " \
                "on the primordial process thread")                          \
                                                                             \
-  diagnostic(bool, AsyncDeflateIdleMonitors, true,                          \
-          "Deflate idle monitors using the ServiceThread.")                 \
-                                                                            \
   /* notice: the max range value here is max_jint, not max_intx  */         \
   /* because of overflow issue                                   */         \
   diagnostic(intx, AsyncDeflationInterval, 250,                             \
@@ -2492,9 +2489,6 @@ const size_t minimumSymbolTableSize = 1024;
           "List of inline classes which are forced to be atomic "           \
           "(whitespace and commas separate names, "                         \
           "and leading and trailing stars '*' are wildcards)")              \
-                                                                            \
-  product(bool, UseNewFieldLayout, true,                                    \
-                "(Deprecated) Use new algorithm to compute field layouts")  \
                                                                             \
   product(bool, UseEmptySlotsInSupers, true,                                \
                 "Allow allocating fields in empty slots of super-classes")  \

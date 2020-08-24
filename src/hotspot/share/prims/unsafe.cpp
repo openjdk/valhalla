@@ -779,7 +779,7 @@ UNSAFE_ENTRY(jint, Unsafe_ArrayIndexScale0(JNIEnv *env, jobject unsafe, jclass c
 
 UNSAFE_ENTRY(jlong, Unsafe_GetObjectSize0(JNIEnv* env, jobject o, jobject obj))
   oop p = JNIHandles::resolve(obj);
-  return Universe::heap()->obj_size(p) * HeapWordSize;
+  return p->size() * HeapWordSize;
 UNSAFE_END
 
 
