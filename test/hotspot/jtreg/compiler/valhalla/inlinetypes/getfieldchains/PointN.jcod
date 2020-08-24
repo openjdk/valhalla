@@ -1,0 +1,150 @@
+class compiler/valhalla/inlinetypes/PointN {
+  0xCAFEBABE;
+  0; // minor version
+  60; // version
+  [] { // Constant Pool
+    ; // first element is empty
+    class #2; // #1
+    Utf8 "compiler/valhalla/inlinetypes/PointN"; // #2
+    Field #1 #4; // #3
+    NameAndType #5 #6; // #4
+    Utf8 "x1"; // #5                // field name changed from x to x1
+    Utf8 "I"; // #6
+    Field #1 #8; // #7
+    NameAndType #9 #6; // #8
+    Utf8 "y"; // #9
+    InvokeDynamic 0s #11; // #10
+    NameAndType #12 #13; // #11
+    Utf8 "toString"; // #12
+    Utf8 "(Qcompiler/valhalla/inlinetypes/PointN;)Ljava/lang/String;"; // #13
+    class #15; // #14
+    Utf8 "compiler/valhalla/inlinetypes/PointN$ref"; // #15
+    Utf8 "()Ljava/lang/String;"; // #16
+    Utf8 "Code"; // #17
+    Utf8 "LineNumberTable"; // #18
+    Utf8 "<init>"; // #19
+    Utf8 "()Qcompiler/valhalla/inlinetypes/PointN;"; // #20
+    Utf8 "SourceFile"; // #21
+    Utf8 "PointN.java"; // #22
+    Utf8 "NestHost"; // #23
+    Utf8 "BootstrapMethods"; // #24
+    MethodHandle 6b #26; // #25
+    Method #27 #28; // #26
+    class #29; // #27
+    NameAndType #30 #31; // #28
+    Utf8 "java/lang/invoke/ValueBootstrapMethods"; // #29
+    Utf8 "makeBootstrapMethod"; // #30
+    Utf8 "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/invoke/MethodType;)Ljava/lang/invoke/CallSite;"; // #31
+    Utf8 "InnerClasses"; // #32
+    class #34; // #33
+    Utf8 "java/lang/invoke/MethodHandles$Lookup"; // #34
+    class #36; // #35
+    Utf8 "java/lang/invoke/MethodHandles"; // #36
+    Utf8 "Lookup"; // #37
+  } // Constant Pool
+
+  0x0131; // access
+  #1;// this_cpx
+  #14;// super_cpx
+
+  [] { // Interfaces
+  } // Interfaces
+
+  [] { // Fields
+    {  // field
+      0x0010; // access
+      #5; // name_index
+      #6; // descriptor_index
+      [] { // Attributes
+      } // Attributes
+    }
+    ;
+    {  // field
+      0x0010; // access
+      #9; // name_index
+      #6; // descriptor_index
+      [] { // Attributes
+      } // Attributes
+    }
+  } // Fields
+
+  [] { // Methods
+    {  // method
+      0x0011; // access
+      #12; // name_index
+      #16; // descriptor_index
+      [] { // Attributes
+        Attr(#17) { // Code
+          1; // max_stack
+          1; // max_locals
+          Bytes[]{
+            0x2ABA000A0000B0;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#18) { // LineNumberTable
+              [] { // line_number_table
+                0  26;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+    ;
+    {  // method
+      0x0009; // access
+      #19; // name_index
+      #20; // descriptor_index
+      [] { // Attributes
+        Attr(#17) { // Code
+          2; // max_stack
+          1; // max_locals
+          Bytes[]{
+            0xCB00014B072A5FCC;
+            0x00034B10072A5FCC;
+            0x00074B2AB0;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#18) { // LineNumberTable
+              [] { // line_number_table
+                0  26;
+                4  27;
+                11  28;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+  } // Methods
+
+  [] { // Attributes
+    Attr(#21) { // SourceFile
+      #22;
+    } // end SourceFile
+    ;
+    Attr(#23) { // NestHost
+      #14;
+    } // end NestHost
+    ;
+    Attr(#24) { // BootstrapMethods
+      [] { // bootstrap_methods
+        {  //  bootstrap_method
+          #25; // bootstrap_method_ref
+          [] { // bootstrap_arguments
+          }  //  bootstrap_arguments
+        }  //  bootstrap_method
+      }
+    } // end BootstrapMethods
+    ;
+    Attr(#32) { // InnerClasses
+      [] { // classes
+        #33 #35 #37 25;
+      }
+    } // end InnerClasses
+  } // Attributes
+} // end class compiler/valhalla/inlinetypes/PointN

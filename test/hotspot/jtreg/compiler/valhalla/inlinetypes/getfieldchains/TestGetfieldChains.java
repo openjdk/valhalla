@@ -26,6 +26,7 @@ package compiler.valhalla.inlinetypes;
 
 import java.lang.invoke.*;
 import java.lang.reflect.Method;
+import java.nio.file.NoSuchFileException;
 import java.util.Arrays;
 
 import jdk.experimental.value.MethodHandleBuilder;
@@ -39,6 +40,7 @@ import jdk.test.lib.Asserts;
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
  * @compile TestGetfieldChains.java NamedRectangle.java Rectangle.java Point.java NamedRectangleP.jcod RectangleP.jcod RectangleP$ref.jcod
+ *          NamedRectangleN.jcod PointN.jcod PointN$ref.jcod RectangleN.jcod RectangleN$ref.jcod
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
  *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
@@ -153,6 +155,26 @@ public class TestGetfieldChains extends InlineTypeTest {
         IllegalAccessError iae = test4();
         Asserts.assertNE(iae, null);
         StackTraceElement st = iae.getStackTrace()[0];
+        Asserts.assertEQ(st.getMethodName(), "getP1X");
+        Asserts.assertEQ(st.getLineNumber(), 31);       // line number depends on jcod file generated from NamedRectangle.java
+    }
+
+    @Test(compLevel=C1)
+    public NoSuchFieldError test5() {
+        NoSuchFieldError nsfe = null;
+        try {
+            int i = NamedRectangleN.getP1X(new NamedRectangleN());
+        } catch(NoSuchFieldError e) {
+            nsfe = e;
+        }
+        return nsfe;
+    }
+
+    @DontCompile
+    public void test5_verifier(boolean warmup) {
+        NoSuchFieldError nsfe = test5();
+        Asserts.assertNE(nsfe, null);
+        StackTraceElement st = nsfe.getStackTrace()[0];
         Asserts.assertEQ(st.getMethodName(), "getP1X");
         Asserts.assertEQ(st.getLineNumber(), 31);       // line number depends on jcod file generated from NamedRectangle.java
     }

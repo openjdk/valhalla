@@ -1,0 +1,159 @@
+class compiler/valhalla/inlinetypes/NamedRectangleN {
+  0xCAFEBABE;
+  0; // minor version
+  60; // version
+  [] { // Constant Pool
+    ; // first element is empty
+    Method #2 #3; // #1
+    class #4; // #2
+    NameAndType #5 #6; // #3
+    Utf8 "java/lang/Object"; // #4
+    Utf8 "<init>"; // #5
+    Utf8 "()V"; // #6
+    Method #8 #9; // #7
+    class #10; // #8
+    NameAndType #5 #11; // #9
+    Utf8 "compiler/valhalla/inlinetypes/RectangleN"; // #10
+    Utf8 "()Qcompiler/valhalla/inlinetypes/RectangleN;"; // #11
+    Field #13 #14; // #12
+    class #15; // #13
+    NameAndType #16 #17; // #14
+    Utf8 "compiler/valhalla/inlinetypes/NamedRectangleN"; // #15
+    Utf8 "rect"; // #16
+    Utf8 "Qcompiler/valhalla/inlinetypes/RectangleN;"; // #17
+    String #19; // #18
+    Utf8 ""; // #19
+    Field #13 #21; // #20
+    NameAndType #22 #23; // #21
+    Utf8 "name"; // #22
+    Utf8 "Ljava/lang/String;"; // #23
+    Field #8 #25; // #24
+    NameAndType #26 #27; // #25
+    Utf8 "p1"; // #26
+    Utf8 "Qcompiler/valhalla/inlinetypes/Point;"; // #27
+    Field #29 #30; // #28
+    class #31; // #29
+    NameAndType #32 #33; // #30
+    Utf8 "compiler/valhalla/inlinetypes/Point"; // #31
+    Utf8 "x"; // #32
+    Utf8 "I"; // #33
+    Utf8 "Code"; // #34
+    Utf8 "LineNumberTable"; // #35
+    Utf8 "getP1X"; // #36
+    Utf8 "(Lcompiler/valhalla/inlinetypes/NamedRectangleN;)I"; // #37
+    Utf8 "getP1"; // #38
+    Utf8 "(Lcompiler/valhalla/inlinetypes/NamedRectangleN;)Qcompiler/valhalla/inlinetypes/Point;"; // #39
+    Utf8 "SourceFile"; // #40
+    Utf8 "NamedRectangleN.java"; // #41
+  } // Constant Pool
+
+  0x0021; // access
+  #13;// this_cpx
+  #2;// super_cpx
+
+  [] { // Interfaces
+  } // Interfaces
+
+  [] { // Fields
+    {  // field
+      0x0000; // access
+      #16; // name_index
+      #17; // descriptor_index
+      [] { // Attributes
+      } // Attributes
+    }
+    ;
+    {  // field
+      0x0000; // access
+      #22; // name_index
+      #23; // descriptor_index
+      [] { // Attributes
+      } // Attributes
+    }
+  } // Fields
+
+  [] { // Methods
+    {  // method
+      0x0001; // access
+      #5; // name_index
+      #6; // descriptor_index
+      [] { // Attributes
+        Attr(#34) { // Code
+          2; // max_stack
+          1; // max_locals
+          Bytes[]{
+            0x2AB700012AB80007;
+            0xB5000C2A1212B500;
+            0x14B1;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#35) { // LineNumberTable
+              [] { // line_number_table
+                0  26;
+                4  27;
+                11  28;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+    ;
+    {  // method
+      0x0008; // access
+      #36; // name_index
+      #37; // descriptor_index
+      [] { // Attributes
+        Attr(#34) { // Code
+          1; // max_stack
+          1; // max_locals
+          Bytes[]{
+            0x2AB4000CB40018B4;
+            0x001CAC;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#35) { // LineNumberTable
+              [] { // line_number_table
+                0  31;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+    ;
+    {  // method
+      0x0008; // access
+      #38; // name_index
+      #39; // descriptor_index
+      [] { // Attributes
+        Attr(#34) { // Code
+          1; // max_stack
+          1; // max_locals
+          Bytes[]{
+            0x2AB4000CB40018B0;
+          }
+          [] { // Traps
+          } // end Traps
+          [] { // Attributes
+            Attr(#35) { // LineNumberTable
+              [] { // line_number_table
+                0  37;
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+  } // Methods
+
+  [] { // Attributes
+    Attr(#40) { // SourceFile
+      #41;
+    } // end SourceFile
+  } // Attributes
+} // end class compiler/valhalla/inlinetypes/NamedRectangleN
