@@ -346,8 +346,7 @@ JNI_ENTRY(jclass, jni_DefineClass(JNIEnv *env, const char *name, jobject loaderR
     trace_class_resolution(k);
   }
 
-  cls = (jclass)JNIHandles::make_local(
-    env, k->java_mirror());
+  cls = (jclass)JNIHandles::make_local(THREAD, k->java_mirror());
   return cls;
 JNI_END
 
@@ -504,7 +503,7 @@ JNI_ENTRY(jobject, jni_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID meth
   } else {
     reflection_method = Reflection::new_method(m, false, CHECK_NULL);
   }
-  ret = JNIHandles::make_local(env, reflection_method);
+  ret = JNIHandles::make_local(THREAD, reflection_method);
   return ret;
 JNI_END
 
@@ -538,7 +537,7 @@ JNI_ENTRY(jclass, jni_GetSuperclass(JNIEnv *env, jclass sub))
                                  : k->super() ) );
   assert(super == super2,
          "java_super computation depends on interface, array, other super");
-  obj = (super == NULL) ? NULL : (jclass) JNIHandles::make_local(super->java_mirror());
+  obj = (super == NULL) ? NULL : (jclass) JNIHandles::make_local(THREAD, super->java_mirror());
   return obj;
 JNI_END
 
@@ -625,7 +624,7 @@ JNI_ENTRY_NO_PRESERVE(jthrowable, jni_ExceptionOccurred(JNIEnv *env))
 
   jni_check_async_exceptions(thread);
   oop exception = thread->pending_exception();
-  jthrowable ret = (jthrowable) JNIHandles::make_local(env, exception);
+  jthrowable ret = (jthrowable) JNIHandles::make_local(THREAD, exception);
 
   HOTSPOT_JNI_EXCEPTIONOCCURRED_RETURN(ret);
   return ret;
@@ -800,7 +799,7 @@ JNI_ENTRY(jobject, jni_NewLocalRef(JNIEnv *env, jobject ref))
 
   HOTSPOT_JNI_NEWLOCALREF_ENTRY(env, ref);
 
-  jobject ret = JNIHandles::make_local(env, JNIHandles::resolve(ref));
+  jobject ret = JNIHandles::make_local(THREAD, JNIHandles::resolve(ref));
 
   HOTSPOT_JNI_NEWLOCALREF_RETURN(ret);
   return ret;
@@ -980,7 +979,7 @@ static void jni_invoke_static(JNIEnv *env, JavaValue* result, jobject receiver, 
 
   // Convert result
   if (is_reference_type(result->get_type())) {
-    result->set_jobject(JNIHandles::make_local(env, (oop) result->get_jobject()));
+    result->set_jobject(JNIHandles::make_local(THREAD, (oop) result->get_jobject()));
   }
 }
 
@@ -1042,7 +1041,7 @@ static void jni_invoke_nonstatic(JNIEnv *env, JavaValue* result, jobject receive
 
   // Convert result
   if (is_reference_type(result->get_type())) {
-    result->set_jobject(JNIHandles::make_local(env, (oop) result->get_jobject()));
+    result->set_jobject(JNIHandles::make_local(THREAD, (oop) result->get_jobject()));
   }
 }
 
@@ -1058,7 +1057,7 @@ JNI_ENTRY(jobject, jni_AllocObject(JNIEnv *env, jclass clazz))
   DT_RETURN_MARK(AllocObject, jobject, (const jobject&)ret);
 
   instanceOop i = InstanceKlass::allocate_instance(JNIHandles::resolve_non_null(clazz), CHECK_NULL);
-  ret = JNIHandles::make_local(env, i);
+  ret = JNIHandles::make_local(THREAD, i);
   return ret;
 JNI_END
 
@@ -1082,7 +1081,7 @@ JNI_ENTRY(jobject, jni_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
 
   if (!k->is_inline_klass()) {
     instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
-    obj = JNIHandles::make_local(env, i);
+    obj = JNIHandles::make_local(THREAD, i);
     JavaValue jvalue(T_VOID);
     JNI_ArgumentPusherArray ap(methodID, args);
     jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
@@ -1116,7 +1115,7 @@ JNI_ENTRY(jobject, jni_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
 
   if (!k->is_inline_klass()) {
     instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
-    obj = JNIHandles::make_local(env, i);
+    obj = JNIHandles::make_local(THREAD, i);
     JavaValue jvalue(T_VOID);
     JNI_ArgumentPusherVaArg ap(methodID, args);
     jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
@@ -1150,7 +1149,7 @@ JNI_ENTRY(jobject, jni_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, 
 
   if (!k->is_inline_klass()) {
     instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
-    obj = JNIHandles::make_local(env, i);
+    obj = JNIHandles::make_local(THREAD, i);
     va_list args;
     va_start(args, methodID);
     JavaValue jvalue(T_VOID);
@@ -1177,7 +1176,7 @@ JNI_ENTRY(jclass, jni_GetObjectClass(JNIEnv *env, jobject obj))
 
   Klass* k = JNIHandles::resolve_non_null(obj)->klass();
   jclass ret =
-    (jclass) JNIHandles::make_local(env, k->java_mirror());
+    (jclass) JNIHandles::make_local(THREAD, k->java_mirror());
 
   HOTSPOT_JNI_GETOBJECTCLASS_RETURN(ret);
   return ret;
@@ -1970,7 +1969,7 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
     InlineKlass* field_vklass = InlineKlass::cast(holder->get_inline_type_field_klass(fd.index()));
     res = field_vklass->read_inlined_field(o, ik->field_offset(fd.index()), CHECK_NULL);
   }
-  jobject ret = JNIHandles::make_local(env, res);
+  jobject ret = JNIHandles::make_local(THREAD, res);
   HOTSPOT_JNI_GETOBJECTFIELD_RETURN(ret);
   return ret;
 JNI_END
@@ -2161,7 +2160,7 @@ JNI_ENTRY(jobject, jni_ToReflectedField(JNIEnv *env, jclass cls, jfieldID fieldI
   }
   assert(found, "bad fieldID passed into jni_ToReflectedField");
   oop reflected = Reflection::new_field(&fd, CHECK_NULL);
-  ret = JNIHandles::make_local(env, reflected);
+  ret = JNIHandles::make_local(THREAD, reflected);
   return ret;
 JNI_END
 
@@ -2221,7 +2220,7 @@ JNI_ENTRY(jobject, jni_GetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID 
   if (JvmtiExport::should_post_field_access()) {
     JvmtiExport::jni_GetField_probe(thread, NULL, NULL, id->holder(), fieldID, true);
   }
-  jobject ret = JNIHandles::make_local(id->holder()->java_mirror()->obj_field(id->offset()));
+  jobject ret = JNIHandles::make_local(THREAD, id->holder()->java_mirror()->obj_field(id->offset()));
   HOTSPOT_JNI_GETSTATICOBJECTFIELD_RETURN(ret);
   return ret;
 JNI_END
@@ -2348,7 +2347,7 @@ JNI_ENTRY(jstring, jni_NewString(JNIEnv *env, const jchar *unicodeChars, jsize l
   jstring ret = NULL;
   DT_RETURN_MARK(NewString, jstring, (const jstring&)ret);
   oop string=java_lang_String::create_oop_from_unicode((jchar*) unicodeChars, len, CHECK_NULL);
-  ret = (jstring) JNIHandles::make_local(env, string);
+  ret = (jstring) JNIHandles::make_local(THREAD, string);
   return ret;
 JNI_END
 
@@ -2424,7 +2423,7 @@ JNI_ENTRY(jstring, jni_NewStringUTF(JNIEnv *env, const char *bytes))
   DT_RETURN_MARK(NewStringUTF, jstring, (const jstring&)ret);
 
   oop result = java_lang_String::create_oop_from_str((char*) bytes, CHECK_NULL);
-  ret = (jstring) JNIHandles::make_local(env, result);
+  ret = (jstring) JNIHandles::make_local(THREAD, result);
   return ret;
 JNI_END
 
@@ -2504,7 +2503,7 @@ JNI_ENTRY(jobjectArray, jni_NewObjectArray(JNIEnv *env, jsize length, jclass ele
       result->obj_at_put(index, initial_value);
     }
   }
-  ret = (jobjectArray) JNIHandles::make_local(env, result);
+  ret = (jobjectArray) JNIHandles::make_local(THREAD, result);
   return ret;
 JNI_END
 
@@ -2536,7 +2535,7 @@ JNI_ENTRY(jobject, jni_GetObjectArrayElement(JNIEnv *env, jobjectArray array, js
     ss.print("Index %d out of bounds for length %d", index,arr->length());
     THROW_MSG_0(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
   }
-  ret = JNIHandles::make_local(env, res);
+  ret = JNIHandles::make_local(THREAD, res);
   return ret;
 JNI_END
 
@@ -2617,7 +2616,7 @@ JNI_ENTRY(Return, \
   DT_RETURN_MARK(New##Result##Array, Return, (const Return&)ret);\
 \
   oop obj= oopFactory::Allocator(len, CHECK_NULL); \
-  ret = (Return) JNIHandles::make_local(env, obj); \
+  ret = (Return) JNIHandles::make_local(THREAD, obj); \
   return ret;\
 JNI_END
 
