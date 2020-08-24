@@ -137,7 +137,7 @@ void LoadFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
   __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::load_flattened_array_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
-  if (_result->as_register() != r0) { 
+  if (_result->as_register() != r0) {
     __ mov(_result->as_register(), r0);
   }
   __ b(_continuation);
@@ -289,7 +289,7 @@ void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
     __ mov(rscratch2, markWord::always_locked_pattern);
     __ andr(rscratch1, rscratch1, rscratch2);
 
-    __ cmp(rscratch1, rscratch2); 
+    __ cmp(rscratch1, rscratch2);
     __ br(Assembler::NE, *_throw_imse_stub->entry());
   }
 
