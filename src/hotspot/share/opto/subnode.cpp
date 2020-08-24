@@ -755,6 +755,13 @@ Node* CmpLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     // Degraded to a simple null check, use old acmp
     return new CmpPNode(a, b);
   }
+  const TypeLong *t2 = phase->type(in(2))->isa_long();
+  if (Opcode() == Op_CmpL && in(1)->Opcode() == Op_ConvI2L && t2 && t2->is_con()) {
+    const jlong con = t2->get_con();
+    if (con >= min_jint && con <= max_jint) {
+      return new CmpINode(in(1)->in(1), phase->intcon((jint)con));
+    }
+  }
   return NULL;
 }
 

@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "code/codeCache.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "gc/shared/gcLocker.inline.hpp"
