@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -30,6 +30,7 @@
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
+#include "classfile/javaClasses.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "vmreg_aarch64.inline.hpp"
@@ -136,7 +137,7 @@ void LoadFlattenedArrayStub::emit_code(LIR_Assembler* ce) {
   __ far_call(RuntimeAddress(Runtime1::entry_for(Runtime1::load_flattened_array_id)));
   ce->add_call_info_here(_info);
   ce->verify_oop_map(_info);
-  if (_result->as_register() != r0) { 
+  if (_result->as_register() != r0) {
     __ mov(_result->as_register(), r0);
   }
   __ b(_continuation);
@@ -288,7 +289,7 @@ void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
     __ mov(rscratch2, markWord::always_locked_pattern);
     __ andr(rscratch1, rscratch1, rscratch2);
 
-    __ cmp(rscratch1, rscratch2); 
+    __ cmp(rscratch1, rscratch2);
     __ br(Assembler::NE, *_throw_imse_stub->entry());
   }
 
