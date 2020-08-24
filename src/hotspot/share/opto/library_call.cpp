@@ -4647,6 +4647,7 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
 
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Parsing) &&
+          UseFlatArray && obj_type->klass()->can_be_inline_array_klass() &&
           (!obj_type->isa_aryptr() || !obj_type->is_aryptr()->is_not_flat())) {
         // Flattened inline type array may have object field that would require a
         // write barrier. Conservatively, go to slow path.
