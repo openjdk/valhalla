@@ -201,7 +201,7 @@ void PhaseMacroExpand::extract_call_projections(CallNode *call) {
 
 void PhaseMacroExpand::eliminate_gc_barrier(Node* p2x) {
   BarrierSetC2 *bs = BarrierSet::barrier_set()->barrier_set_c2();
-  bs->eliminate_gc_barrier(this, p2x);
+  bs->eliminate_gc_barrier(&_igvn, p2x);
 }
 
 // Search for a memory operation for the specified memory slice.
@@ -721,7 +721,8 @@ bool PhaseMacroExpand::can_eliminate_allocation(AllocateNode *alloc, GrowableArr
       } else if (use->is_InlineType() && use->isa_InlineType()->get_oop() == res) {
         // ok to eliminate
       } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
-        // store to mark work
+        // Store to mark word of inline type larval buffer
+        assert(res_type->is_inlinetypeptr(), "Unexpected store to mark word");
       } else if (use->Opcode() != Op_CastP2X) { // CastP2X is used by card mark
         if (use->is_Phi()) {
           if (use->outcnt() == 1 && use->unique_out()->Opcode() == Op_Return) {
@@ -1052,7 +1053,9 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
         assert(use->isa_InlineType()->get_oop() == res, "unexpected inline type use");
         _igvn.rehash_node_delayed(use);
         use->isa_InlineType()->set_oop(_igvn.zerocon(T_INLINE_TYPE));
-      } else if (use->is_Store()) {
+      } else if (use->Opcode() == Op_StoreX && use->in(MemNode::Address) == res) {
+        // Store to mark word of inline type larval buffer
+        assert(inline_alloc, "Unexpected store to mark word");
         _igvn.replace_node(use, use->in(MemNode::Memory));
       } else {
         eliminate_gc_barrier(use);

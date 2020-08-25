@@ -86,7 +86,7 @@ protected:
 
  public:
   virtual bool is_gc_barrier_node(Node* node) const;
-  virtual void eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const;
+  virtual void eliminate_gc_barrier(PhaseIterGVN* igvn, Node* node) const;
   virtual Node* step_over_gc_barrier(Node* c) const;
 
 #ifdef ASSERT

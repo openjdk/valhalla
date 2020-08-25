@@ -830,7 +830,7 @@ void ShenandoahBarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCo
     Node* mem_phi = new PhiNode(region, Type::MEMORY, TypeRawPtr::BOTTOM);
 
     Node* thread = phase->transform_later(new ThreadLocalNode());
-    Node* offset = phase->igvn().MakeConX(in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    Node* offset = phase->MakeConX(in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     Node* gc_state_addr = phase->transform_later(new AddPNode(phase->C->top(), thread, offset));
 
     uint gc_state_idx = Compile::AliasIdxRaw;
@@ -882,7 +882,7 @@ void ShenandoahBarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCo
     call = phase->transform_later(call);
 
     // Hook up the whole thing into the graph
-    phase->igvn().replace_node(ac, call);
+    phase->replace_node(ac, call);
   } else {
     BarrierSetC2::clone_at_expansion(phase, ac);
   }
@@ -908,9 +908,9 @@ void ShenandoahBarrierSetC2::unregister_potential_barrier_node(Node* node) const
   }
 }
 
-void ShenandoahBarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* n) const {
+void ShenandoahBarrierSetC2::eliminate_gc_barrier(PhaseIterGVN* igvn, Node* n) const {
   if (is_shenandoah_wb_pre_call(n)) {
-    shenandoah_eliminate_wb_pre(n, &macro->igvn());
+    shenandoah_eliminate_wb_pre(n, igvn);
   }
 }
 

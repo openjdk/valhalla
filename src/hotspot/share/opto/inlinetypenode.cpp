@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "ci/ciInlineKlass.hpp"
+#include "gc/shared/barrierSet.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
 #include "opto/graphKit.hpp"
@@ -783,16 +784,27 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, Extended
 
 // Replace a buffer allocation by a dominating allocation
 static void replace_allocation(PhaseIterGVN* igvn, Node* res, Node* dom) {
-  // Remove initializing stores
+  // Remove initializing stores and GC barriers
   for (DUIterator_Fast imax, i = res->fast_outs(imax); i < imax; i++) {
-    AddPNode* addp = res->fast_out(i)->isa_AddP();
-    if (addp != NULL) {
-      for (DUIterator_Fast jmax, j = addp->fast_outs(jmax); j < jmax; j++) {
-        StoreNode* store = addp->fast_out(j)->isa_Store();
+    Node* use = res->fast_out(i);
+    if (use->is_AddP()) {
+      for (DUIterator_Fast jmax, j = use->fast_outs(jmax); j < jmax; j++) {
+        Node* store = use->fast_out(j)->isa_Store();
         if (store != NULL) {
+          igvn->rehash_node_delayed(store);
           igvn->replace_in_uses(store, store->in(MemNode::Memory));
         }
       }
+    } else if (use->Opcode() == Op_CastP2X) {
+      if (UseG1GC && use->find_out_with(Op_XorX)->in(1) != use) {
+        // The G1 pre-barrier uses a CastP2X both for the pointer of the object
+        // we store into, as well as the value we are storing. Skip if this is a
+        // barrier for storing 'res' into another object.
+        continue;
+      }
+      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+      bs->eliminate_gc_barrier(igvn, use);
+      --i; --imax;
     }
   }
   igvn->replace_node(res, dom);
@@ -892,7 +904,7 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
     Node* out = fast_out(i);
     if (out->is_InlineType()) {
       // Unlink and recursively process inline type users
-      igvn->hash_delete(out);
+      igvn->rehash_node_delayed(out);
       int nb = out->replace_edge(this, igvn->C->top());
       out->as_InlineType()->remove_redundant_allocations(igvn, phase);
       --i; imax -= nb;
