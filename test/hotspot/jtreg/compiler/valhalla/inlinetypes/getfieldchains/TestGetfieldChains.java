@@ -72,6 +72,7 @@ public class TestGetfieldChains extends InlineTypeTest {
         case 1: return new String[] { // C2 only. (Make sure the tests are correctly written)
                 "-XX:TieredStopAtLevel=4",
                 "-XX:-TieredCompilation",
+                "-XX:-OmitStackTraceInFastThrow",
             };
         case 2: return new String[] { // interpreter only
                 "-Xint",
