@@ -1084,9 +1084,6 @@ public class TypeEnter implements Completer {
             if (isRecord) {
                 addRecordMembersIfNeeded(tree, env);
             }
-            if ((tree.mods.flags & (Flags.VALUE | Flags.INTERFACE)) == Flags.VALUE && !tree.sym.type.hasTag(ERROR)) {
-                addValueMembers(tree, env);
-            }
             if (tree.sym.isAnnotationType()) {
                 Assert.check(tree.sym.isCompleted());
                 tree.sym.setAnnotationTypeMetadata(new AnnotationTypeMetadata(tree.sym, annotate.annotationTypeSourceCompleter()));
@@ -1159,55 +1156,6 @@ public class TypeEnter implements Completer {
                           null,
                           null);
             memberEnter.memberEnter(valueOf, env);
-        }
-
-        /** Add the implicit members for a value type to the parse tree and the symbol table.
-         */
-        private void addValueMembers(JCClassDecl tree, Env<AttrContext> env) {
-
-            boolean requireToString = true;
-
-            for (JCTree def : tree.defs) {
-                if (def.getTag() == METHODDEF) {
-                    JCMethodDecl methodDecl = (JCMethodDecl)def;
-                    if (methodDecl.sym != null
-                            && methodDecl.sym.type != null
-                            && !methodDecl.sym.type.isErroneous()
-                            && (methodDecl.sym.flags() & STATIC) == 0) {
-                        final List<Type> parameterTypes = methodDecl.sym.type.getParameterTypes();
-                        if (parameterTypes.size() == 0) {
-                            String name = methodDecl.name.toString();
-                            if (name.equals("toString")) {
-                                requireToString = false;
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (requireToString) {
-                make.at(tree.pos);
-                // Make a body comprising { throw new RuntimeException(""Internal error: This method must have been replaced by javac"); }
-                JCBlock body = make.Block(Flags.SYNTHETIC, List.of(make.Throw(
-                        make.NewClass(null,
-                                null,
-                                make.Ident(names.fromString("RuntimeException")),
-                                List.of(make.Literal(CLASS, "Internal error: This method must have been replaced by javac")),
-                                null))));
-                // public String toString() { throw new RuntimeException(message); }
-                JCMethodDecl toString = make.
-                        MethodDef(make.Modifiers(Flags.PUBLIC | Flags.FINAL),
-                                names.toString,
-                                make.Ident(names.fromString("String")),
-                                List.nil(),
-                                List.nil(),
-                                List.nil(), // thrown
-                                body,
-                                null);
-                memberEnter.memberEnter(toString, env);
-                tree.defs = tree.defs.append(toString);
-            }
-
         }
 
         JCMethodDecl getCanonicalConstructorDecl(JCClassDecl tree) {

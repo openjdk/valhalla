@@ -91,23 +91,23 @@ public final class ValueBootstrapMethods {
         }
         switch (name) {
             case "hashCode":
-                return hashCodeInvoker(lookup, name, methodType);
+                return inlineTypeHashCode(lookup.lookupClass());
             case "equals":
-                return equalsInvoker(lookup, name, methodType);
+                return substitutableInvoker(lookup.lookupClass()).asType(methodType);
             case "toString":
-                return toStringInvoker(lookup, name, methodType);
+                return inlineTypeToString(lookup.lookupClass());
             default:
                 throw new IllegalArgumentException(name + " not valid method name");
         }
     }
 
     static class MethodHandleBuilder {
-        static MethodHandle[] getters(Lookup lookup) {
-            return getters(lookup, null);
+        static MethodHandle[] getters(Class<?> type) {
+            return getters(type, null);
         }
 
-        static MethodHandle[] getters(Lookup lookup, Comparator<MethodHandle> comparator) {
-            Class<?> type = lookup.lookupClass();
+        static MethodHandle[] getters(Class<?> type, Comparator<MethodHandle> comparator) {
+            Lookup lookup = new MethodHandles.Lookup(type);
             // filter static fields and synthetic fields
             Stream<MethodHandle> s = Arrays.stream(type.getDeclaredFields())
                 .filter(f -> !Modifier.isStatic(f.getModifiers()) && !f.isSynthetic())
@@ -139,29 +139,17 @@ public final class ValueBootstrapMethods {
         }
 
         /*
-         * For primitive types: a == b
-         * For indirect or inline class: a == b || (a != null && a.equals(b))
-         */
-        static MethodHandle equalsForType(Class<?> type) {
-            if (type.isPrimitive()) {
-                return primitiveEquals(type);
-            } else {
-                return OBJECTS_EQUALS.asType(methodType(boolean.class, type, type));
-            }
-        }
-
-        /*
          * Produces a MethodHandle that returns boolean if two instances
-         * of the given indirect interface/class are substitutable.
+         * of the given reference type are substitutable.
          *
-         * Two values of indirect interface/class are substitutable i== iff
+         * Two values of reference type are substitutable i== iff
          * 1. if o1 and o2 are both reference objects then o1 r== o2; or
          * 2. if o1 and o2 are both values then o1 v== o2
          *
          * At invocation time, it needs a dynamic check on the objects and
          * do the substitutability test if they are of an inline type.
          */
-        static MethodHandle indirectTypeEquals(Class<?> type) {
+        static MethodHandle referenceTypeEquals(Class<?> type) {
             return EQUALS[Wrapper.OBJECT.ordinal()].asType(methodType(boolean.class, type, type));
         }
 
@@ -173,8 +161,7 @@ public final class ValueBootstrapMethods {
         static MethodHandle inlineTypeEquals(Class<?> type) {
             assert type.isInlineClass();
             MethodType mt = methodType(boolean.class, type, type);
-            MethodHandles.Lookup lookup = new MethodHandles.Lookup(type);
-            MethodHandle[] getters = getters(lookup, TYPE_SORTER);
+            MethodHandle[] getters = getters(type, TYPE_SORTER);
             MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
             MethodHandle instanceFalse = dropArguments(FALSE, 0, type, Object.class).asType(mt);
             MethodHandle accumulator = dropArguments(TRUE, 0, type, type);
@@ -187,7 +174,7 @@ public final class ValueBootstrapMethods {
             // if both arguments are null, return true;
             // otherwise return accumulator;
             return guardWithTest(IS_NULL.asType(mt),
-                                 instanceTrue.asType(mt),
+                                 instanceTrue,
                                  guardWithTest(IS_SAME_INLINE_CLASS.asType(mt),
                                                accumulator,
                                                instanceFalse));
@@ -201,8 +188,7 @@ public final class ValueBootstrapMethods {
             MethodHandle combiner = filterArguments(HASH_COMBINER, 0, target, classHashCode);
             // int v = SALT * 31 + type.hashCode();
             MethodHandle init = permuteArguments(combiner, target.type(), 0, 0);
-            MethodHandles.Lookup lookup = new MethodHandles.Lookup(type);
-            MethodHandle[] getters = MethodHandleBuilder.getters(lookup);
+            MethodHandle[] getters = MethodHandleBuilder.getters(type);
             MethodHandle iterations = dropArguments(constant(int.class, getters.length), 0, type);
             MethodHandle[] hashers = new MethodHandle[getters.length];
             for (int i=0; i < getters.length; i++) {
@@ -223,6 +209,40 @@ public final class ValueBootstrapMethods {
             return countedLoop(iterations, init, body);
         }
 
+        static MethodHandle inlineTypeToString(Class<?> type) {
+            assert type.isInlineClass();
+            MethodHandle[] getters = MethodHandleBuilder.getters(type);
+            int length = getters.length;
+            StringBuilder format = new StringBuilder();
+            Class<?>[] parameterTypes = new Class<?>[length];
+            // append the value class name
+            format.append("[").append(type.getName());
+            String separator = " ";
+            Lookup lookup = new MethodHandles.Lookup(type);
+            for (int i = 0; i < length; i++) {
+                MethodHandle getter = getters[i];
+                MethodHandleInfo fieldInfo = lookup.revealDirect(getter);
+                Class<?> ftype = fieldInfo.getMethodType().returnType();
+                format.append(separator)
+                      .append(fieldInfo.getName())
+                      .append("=\1");
+                getters[i]= filterReturnValue(getter, MethodHandleBuilder.toString(ftype));
+                parameterTypes[i] = String.class;
+            }
+            format.append("]");
+            try {
+                MethodHandle target = StringConcatFactory.makeConcatWithConstants(lookup, "toString",
+                        methodType(String.class, parameterTypes), format.toString()).dynamicInvoker();
+                // apply getters
+                target = filterArguments(target, 0, getters);
+                // duplicate "this" argument from o::toString for each getter invocation
+                target = permuteArguments(target, methodType(String.class, type), new int[length]);
+                return target;
+            } catch (StringConcatException e) {
+                throw newLinkageError(e);
+            }
+
+        }
         // ------ utility methods ------
         private static boolean eq(byte a, byte b)       { return a == b; }
         private static boolean eq(short a, short b)     { return a == b; }
@@ -237,13 +257,6 @@ public final class ValueBootstrapMethods {
             if (a == null || b == null) return false;
             if (a.getClass() != b.getClass()) return false;
             return a.getClass().isInlineClass() ? inlineValueEq(a, b) : (a == b);
-        }
-
-        private static boolean objectsEquals(Object a, Object b)   {
-            if (a == null && b == null) return true;
-            if (a == null || b == null) return false;
-            if (a.getClass() != b.getClass()) return false;
-            return eq(a, b) || a.equals(b);
         }
 
         /*
@@ -324,8 +337,6 @@ public final class ValueBootstrapMethods {
             findStatic("isNull", methodType(boolean.class, Object.class, Object.class));
         static final MethodHandle TO_STRING =
             findStatic("toString", methodType(String.class, Object.class));
-        static final MethodHandle OBJECTS_EQUALS =
-            findStatic("objectsEquals", methodType(boolean.class, Object.class, Object.class));
 
         static final MethodHandle FALSE = constant(boolean.class, false);
         static final MethodHandle TRUE = constant(boolean.class, true);
@@ -391,108 +402,9 @@ public final class ValueBootstrapMethods {
         }
     }
 
-    /*
-     * Produces a method handle that computes the hashcode
-     */
-    private static MethodHandle hashCodeInvoker(Lookup lookup, String name, MethodType mt) {
-        return inlineTypeHashCode(lookup.lookupClass());
-    }
-
-    /*
-     * Produces a method handle that invokes the toString method of a value object.
-     */
-    private static MethodHandle toStringInvoker(Lookup lookup, String name, MethodType mt) {
-        Class<?> type = lookup.lookupClass();
-        MethodHandle[] getters = MethodHandleBuilder.getters(lookup);
-        int length = getters.length;
-        StringBuilder format = new StringBuilder();
-        Class<?>[] parameterTypes = new Class<?>[length];
-        // append the value class name
-        format.append("[").append(type.getName());
-        String separator = " ";
-        for (int i = 0; i < length; i++) {
-            MethodHandle getter = getters[i];
-            MethodHandleInfo fieldInfo = lookup.revealDirect(getter);
-            Class<?> ftype = fieldInfo.getMethodType().returnType();
-            format.append(separator)
-                  .append(fieldInfo.getName())
-                  .append("=\1");
-            getters[i]= filterReturnValue(getter, MethodHandleBuilder.toString(ftype));
-            parameterTypes[i] = String.class;
-        }
-        format.append("]");
-        try {
-            MethodHandle target = StringConcatFactory.makeConcatWithConstants(lookup, "toString",
-                    methodType(String.class, parameterTypes), format.toString()).dynamicInvoker();
-            // apply getters
-            target = filterArguments(target, 0, getters);
-            // duplicate "this" argument from o::toString for each getter invocation
-            target = permuteArguments(target, methodType(String.class, type), new int[length]);
-            return target;
-        } catch (StringConcatException e) {
-            throw newLinkageError(e);
-        }
-    }
-
-    /*
-     * Produces a method handle that tests if two arguments are equals.
-     */
-    private static MethodHandle equalsInvoker(Lookup lookup, String name, MethodType mt) {
-        Class<?> type = lookup.lookupClass();
-        // MethodHandle to compare all fields of two value objects
-        MethodHandle[] getters = MethodHandleBuilder.getters(lookup, TYPE_SORTER);
-        MethodHandle accumulator = dropArguments(TRUE, 0, type, type);
-        MethodHandle instanceFalse = dropArguments(FALSE, 0, type, Object.class)
-                                        .asType(methodType(boolean.class, type, type));
-        for (MethodHandle getter : getters) {
-            // for primitive types, a == b
-            // for indirect types, a == b || (a != null && a.equals(b))
-            MethodHandle eq = equalsForType(getter.type().returnType());
-            MethodHandle thisFieldEqual = filterArguments(eq, 0, getter, getter);
-            accumulator = guardWithTest(thisFieldEqual, accumulator, instanceFalse);
-        }
-
-        // if a == null && b == null then true
-        // if a and b are not-null and of the same inline class
-        // then field-to-field comparison else false
-        MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
-        return guardWithTest(IS_NULL.asType(mt),
-                             instanceTrue.asType(mt),
-                             guardWithTest(IS_SAME_INLINE_CLASS.asType(mt),
-                                           accumulator.asType(mt),
-                                           dropArguments(FALSE, 0, type, Object.class)));
-    }
-
     private static LinkageError newLinkageError(Throwable e) {
         return (LinkageError) new LinkageError().initCause(e);
     }
-
-    /**
-     * Invoke the bootstrap methods hashCode for the given instance.
-     * @param o the instance to hash.
-     * @return the hash code of the given instance {code o}.
-     */
-    private static int inlineObjectHashCode(Object o) {
-        try {
-            Class<?> type = o.getClass();
-            // Note: javac disallows user to call super.hashCode if user implementated
-            // risk for recursion for experts crafting byte-code
-            if (!type.isInlineClass())
-                throw new InternalError("must be inline type: " + type.getName());
-            return (int) HASHCODE_METHOD_HANDLES.get(type).invoke(o);
-        } catch (Error|RuntimeException e) {
-            throw e;
-        } catch (Throwable e) {
-            if (VERBOSE) e.printStackTrace();
-            throw new InternalError(e);
-        }
-    }
-
-    private static ClassValue<MethodHandle> HASHCODE_METHOD_HANDLES = new ClassValue<>() {
-        @Override protected MethodHandle computeValue(Class<?> type) {
-            return MethodHandleBuilder.inlineTypeHashCode(type);
-        }
-    };
 
     /**
      * Returns {@code true} if the arguments are <em>substitutable</em> to each
@@ -568,28 +480,14 @@ public final class ValueBootstrapMethods {
      * @see Double#equals(Object)
      */
     public static <T> boolean isSubstitutable(T a, Object b) {
-        if (a == b) return true;
-        if (a == null || b == null) return false;
-        if (a.getClass() != b.getClass()) return false;
-        return isSubstitutable0(a, b);
-    }
-
-    /**
-     * Called directly from the VM.
-     *
-     * DO NOT: Use "==" or "!=" on args "a" and "b", with this code or any of
-     * its callees. Could be inside of if_acmp<eq|ne> bytecode implementation.
-     *
-     * @param a an object
-     * @param b an object to be compared with {@code a} for substitutability
-     * @return {@code true} if the arguments are substitutable to each other;
-     *         {@code false} otherwise.
-     * @param <T> type
-     */
-    private static <T> boolean isSubstitutable0(T a, Object b) {
         if (VERBOSE) {
             System.out.println("substitutable " + a + " vs " + b);
         }
+
+        // Called directly from the VM.
+        //
+        // DO NOT use "==" or "!=" on args "a" and "b", with this code or any of
+        // its callees. Could be inside of if_acmp<eq|ne> bytecode implementation.
 
         if (a == null && b == null) return true;
         if (a == null || b == null) return false;
@@ -643,13 +541,67 @@ public final class ValueBootstrapMethods {
         if (type.isInlineClass())
             return SUBST_TEST_METHOD_HANDLES.get(type);
 
-        return MethodHandleBuilder.indirectTypeEquals(type);
+        return MethodHandleBuilder.referenceTypeEquals(type);
     }
 
     // store the method handle for value types in ClassValue
     private static ClassValue<MethodHandle> SUBST_TEST_METHOD_HANDLES = new ClassValue<>() {
         @Override protected MethodHandle computeValue(Class<?> type) {
             return MethodHandleBuilder.inlineTypeEquals(type);
+        }
+    };
+
+    /**
+     * Invoke the bootstrap methods hashCode for the given inline object.
+     * @param o the instance to hash.
+     * @return the hash code of the given inline object.
+     */
+    private static int inlineObjectHashCode(Object o) {
+        try {
+            Class<?> type = o.getClass();
+            // Note: javac disallows user to call super.hashCode if user implementated
+            // risk for recursion for experts crafting byte-code
+            if (!type.isInlineClass())
+                throw new InternalError("must be inline type: " + type.getName());
+            return (int) HASHCODE_METHOD_HANDLES.get(type).invoke(o);
+        } catch (Error|RuntimeException e) {
+            throw e;
+        } catch (Throwable e) {
+            if (VERBOSE) e.printStackTrace();
+            throw new InternalError(e);
+        }
+    }
+
+    private static ClassValue<MethodHandle> HASHCODE_METHOD_HANDLES = new ClassValue<>() {
+        @Override protected MethodHandle computeValue(Class<?> type) {
+            return MethodHandleBuilder.inlineTypeHashCode(type);
+        }
+    };
+
+    /**
+     * Invoke the bootstrap methods hashCode for the given inline object.
+     * @param o the instance to hash.
+     * @return the string representation of the given inline object.
+     */
+    static String inlineObjectToString(Object o) {
+        try {
+            Class<?> type = o.getClass();
+            // Note: javac disallows user to call super.hashCode if user implementated
+            // risk for recursion for experts crafting byte-code
+            if (!type.isInlineClass())
+                throw new InternalError("must be inline type: " + type.getName());
+            return (String) TOSTRING_METHOD_HANDLES.get(type).invoke(o);
+        } catch (Error|RuntimeException e) {
+            throw e;
+        } catch (Throwable e) {
+            if (VERBOSE) e.printStackTrace();
+            throw new InternalError(e);
+        }
+    }
+
+    private static ClassValue<MethodHandle> TOSTRING_METHOD_HANDLES = new ClassValue<>() {
+        @Override protected MethodHandle computeValue(Class<?> type) {
+            return MethodHandleBuilder.inlineTypeToString(type);
         }
     };
 

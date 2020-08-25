@@ -32,21 +32,9 @@ public inline class Value {
     float float_v;
     Number number_v;
     Point point_v;
+    Point.ref point_ref;
     Object ref_v;
 
-    Value() {
-        char_v = 'z';
-        byte_v = 0;
-        boolean_v = true;
-        int_v = 1;
-        short_v = 2;
-        long_v = 3;
-        float_v = 0.1f;
-        double_v = 0.2d;
-        number_v = null;
-        point_v = Point.makePoint(0,0);
-        ref_v = null;
-    }
     Value(char c, boolean z, byte b, int x, short y, long l, float f, double d, Number number, Point p, Object o) {
         char_v = c;
         byte_v = b;
@@ -58,9 +46,23 @@ public inline class Value {
         double_v = d;
         number_v = number;
         point_v = p;
+        point_ref = null;
         ref_v = o;
     }
-
+    Value(char c, boolean z, byte b, int x, short y, long l, float f, double d, Number number, Point p, Point.ref pref, Object o) {
+        char_v = c;
+        byte_v = b;
+        boolean_v = z;
+        int_v = x;
+        short_v = y;
+        long_v = l;
+        float_v = f;
+        double_v = d;
+        number_v = number;
+        point_v = p;
+        point_ref = pref;
+        ref_v = o;
+    }
     static class Builder {
         private char c;
         private byte b;
@@ -72,6 +74,7 @@ public inline class Value {
         private float f;
         private Number n;
         private Point p = Point.makePoint(0,0);
+        private Point.ref pref;
         private Object ref;
 
         public Builder() {}
@@ -115,12 +118,16 @@ public inline class Value {
             this.p = p;
             return this;
         }
+        Builder setPointRef(Point p) {
+            this.pref = p;
+            return this;
+        }
         Builder setReference(Object o) {
             this.ref = o;
             return this;
         }
         Value build() {
-            return new Value(c, z, b, i, s, l, f, d, n, p, ref);
+            return new Value(c, z, b, i, s, l, f, d, n, p, pref, ref);
         }
     }
 

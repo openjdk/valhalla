@@ -675,7 +675,7 @@
   template(url_void_signature,                     "(Ljava/net/URL;)V")                                           \
                                                                                                                   \
   template(java_lang_invoke_ValueBootstrapMethods, "java/lang/invoke/ValueBootstrapMethods")                      \
-  template(isSubstitutable_name,                   "isSubstitutable0")                                            \
+  template(isSubstitutable_name,                   "isSubstitutable")                                             \
   template(inlineObjectHashCode_name,              "inlineObjectHashCode")                                        \
                                                                                                                   \
   template(jdk_internal_vm_jni_SubElementSelector, "jdk/internal/vm/jni/SubElementSelector")                      \

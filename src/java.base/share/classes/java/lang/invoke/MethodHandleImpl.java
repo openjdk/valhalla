@@ -1887,6 +1887,11 @@ abstract class MethodHandleImpl {
                 }
                 return base;
             }
+
+            @Override
+            public String inlineObjectToString(Object o) {
+                return ValueBootstrapMethods.inlineObjectToString(o);
+            }
         });
     }
 

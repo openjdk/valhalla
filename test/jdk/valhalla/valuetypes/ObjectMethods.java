@@ -57,7 +57,16 @@ public class ObjectMethods {
                                         .setLong(4L)
                                         .setPoint(Point.makePoint(200, 200))
                                         .setNumber(Value.Number.intValue(10)).build();
-
+    static final Value VALUE1 = new Value.Builder()
+                                        .setChar('z')
+                                        .setBoolean(false)
+                                        .setByte((byte)0x1)
+                                        .setShort((short)3)
+                                        .setLong(4L)
+                                        .setPoint(Point.makePoint(100, 100))
+                                        .setPointRef(Point.makePoint(200, 200))
+                                        .setReference(Point.makePoint(300, 300))
+                                        .setNumber(Value.Number.intValue(20)).build();
     @DataProvider(name="equalsTests")
     Object[][] equalsTests() {
         return new Object[][]{
@@ -126,21 +135,18 @@ public class ObjectMethods {
         return new Object[][] {
             { Point.makePoint(100, 200), "[Point x=100 y=200]" },
             { Line.makeLine(1, 2, 3, 4), "[Line p1=[Point x=1 y=2] p2=[Point x=3 y=4]]"},
-            { new Value.Builder()
-                       .setChar('z')
-                       .setBoolean(false)
-                       .setByte((byte)0x1)
-                       .setShort((short)3)
-                       .setLong(4L)
-                       .setPoint(Point.makePoint(200, 200))
-                       .setNumber(Value.Number.intValue(10)).build(),
+            { VALUE,
               "[Value char_v=z byte_v=1 boolean_v=false int_v=0 short_v=3 long_v=4 double_v=0.0 " +
-              "float_v=0.0 number_v=[Value$IntValue i=10] point_v=[Point x=200 y=200] ref_v=null]" },
+              "float_v=0.0 number_v=[Value$IntValue i=10] point_v=[Point x=200 y=200] point_ref=null ref_v=null]" },
+            { VALUE1,
+              "[Value char_v=z byte_v=1 boolean_v=false int_v=0 short_v=3 long_v=4 double_v=0.0 " +
+              "float_v=0.0 number_v=[Value$IntValue i=20] point_v=[Point x=100 y=100] " +
+              "point_ref=[Point x=200 y=200] ref_v=[Point x=300 y=300]]" },
             { new Value.Builder()
-                .setReference(List.of("ref"))
-                .setNumber(new Value.IntNumber(99)).build(),
+                        .setReference(List.of("ref"))
+                        .setNumber(new Value.IntNumber(99)).build(),
               "[Value char_v=\u0000 byte_v=0 boolean_v=false int_v=0 short_v=0 long_v=0 double_v=0.0 " +
-              "float_v=0.0 number_v=99 point_v=[Point x=0 y=0] ref_v=[ref]]" },
+              "float_v=0.0 number_v=99 point_v=[Point x=0 y=0] point_ref=null ref_v=[ref]]" },
             // enclosing instance field `this$0` should be filtered
             { MyValue1.default, "[ObjectMethods$MyValue1 p=[Point x=0 y=0] np=null]" },
             { new MyValue1(0,0, null), "[ObjectMethods$MyValue1 p=[Point x=0 y=0] np=null]" },
@@ -155,22 +161,12 @@ public class ObjectMethods {
 
     @DataProvider(name="hashcodeTests")
     Object[][] hashcodeTests() {
-        Value v = new Value.Builder()
-                           .setChar('z')
-                           .setBoolean(false)
-                           .setByte((byte)0x1)
-                           .setShort((short)3)
-                           .setLong(4L)
-                           .setFloat(1.2f)
-                           .setDouble(0.5)
-                           .setPoint(Point.makePoint(200, 200))
-                           .setNumber(Value.Number.intValue(10))
-                           .setReference(new Object()).build();
         // this is sensitive to the order of the returned fields from Class::getDeclaredFields
         return new Object[][]{
             { P1,                   hash(Point.class, 1, 2) },
             { LINE1,                hash(Line.class, Point.makePoint(1, 2), Point.makePoint(3, 4)) },
-            { v,                    hash(hashCodeComponents(v))},
+            { VALUE,                hash(hashCodeComponents(VALUE))},
+            { VALUE1,                hash(hashCodeComponents(VALUE1))},
             { Point.makePoint(0,0), hash(Point.class, 0, 0) },
             { Point.default,        hash(Point.class, 0, 0) },
             { MyValue1.default,     hash(MyValue1.class, Point.default, null) },
