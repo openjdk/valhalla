@@ -28,13 +28,13 @@ public class NamedRectangle {
     String name = "";
 
     static int getP1X(NamedRectangle nr) {
-	return nr.rect
-	    .p1
-	    .x;
+        return nr.rect
+            .p1
+            .x;
     }
 
     static Point getP1(NamedRectangle nr) {
-	return nr.rect
-	    .p1;
+        return nr.rect
+            .p1;
     }
 }
