@@ -139,6 +139,7 @@ public class TestGetfieldChains extends InlineTypeTest {
         Asserts.assertEQ(st.getLineNumber(), 31);       // line number depends on file NamedRectangle.java
     }
 
+    // Chain of getfields but one getfield in the middle of the chain trigger an illegal access
     @Test(compLevel=C1)
     public IllegalAccessError test4() {
         IllegalAccessError iae = null;
@@ -157,8 +158,10 @@ public class TestGetfieldChains extends InlineTypeTest {
         StackTraceElement st = iae.getStackTrace()[0];
         Asserts.assertEQ(st.getMethodName(), "getP1X");
         Asserts.assertEQ(st.getLineNumber(), 31);       // line number depends on jcod file generated from NamedRectangle.java
+        Asserts.assertTrue(iae.getMessage().contains("class compiler.valhalla.inlinetypes.NamedRectangleP tried to access private field compiler.valhalla.inlinetypes.RectangleP.p1"));
     }
 
+    // Chain of getfields but the last getfield trigger a NoSuchFieldError
     @Test(compLevel=C1)
     public NoSuchFieldError test5() {
         NoSuchFieldError nsfe = null;
@@ -177,5 +180,6 @@ public class TestGetfieldChains extends InlineTypeTest {
         StackTraceElement st = nsfe.getStackTrace()[0];
         Asserts.assertEQ(st.getMethodName(), "getP1X");
         Asserts.assertEQ(st.getLineNumber(), 31);       // line number depends on jcod file generated from NamedRectangle.java
+        Asserts.assertEQ(nsfe.getMessage(), "x");
     }
 }

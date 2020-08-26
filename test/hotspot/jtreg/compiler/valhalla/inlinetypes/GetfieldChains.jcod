@@ -30,11 +30,11 @@ class compiler/valhalla/inlinetypes/NamedRectangleN {
     Field #8 #25; // #24
     NameAndType #26 #27; // #25
     Utf8 "p1"; // #26
-    Utf8 "Qcompiler/valhalla/inlinetypes/Point;"; // #27
+    Utf8 "Qcompiler/valhalla/inlinetypes/PointN;"; // #27
     Field #29 #30; // #28
     class #31; // #29
     NameAndType #32 #33; // #30
-    Utf8 "compiler/valhalla/inlinetypes/Point"; // #31
+    Utf8 "compiler/valhalla/inlinetypes/PointN"; // #31
     Utf8 "x"; // #32
     Utf8 "I"; // #33
     Utf8 "Code"; // #34
@@ -42,7 +42,7 @@ class compiler/valhalla/inlinetypes/NamedRectangleN {
     Utf8 "getP1X"; // #36
     Utf8 "(Lcompiler/valhalla/inlinetypes/NamedRectangleN;)I"; // #37
     Utf8 "getP1"; // #38
-    Utf8 "(Lcompiler/valhalla/inlinetypes/NamedRectangleN;)Qcompiler/valhalla/inlinetypes/Point;"; // #39
+    Utf8 "(Lcompiler/valhalla/inlinetypes/NamedRectangleN;)Qcompiler/valhalla/inlinetypes/PointN;"; // #39
     Utf8 "SourceFile"; // #40
     Utf8 "NamedRectangleN.java"; // #41
   } // Constant Pool
