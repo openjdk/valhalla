@@ -267,7 +267,7 @@ void ZBarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* a
                                            full_size,
                                            phase->top());
   phase->transform_later(call);
-  phase->igvn().replace_node(ac, call);
+  phase->replace_node(ac, call);
 }
 
 // == Dominating barrier elision ==

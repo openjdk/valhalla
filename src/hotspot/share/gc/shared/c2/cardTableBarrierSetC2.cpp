@@ -168,7 +168,7 @@ bool CardTableBarrierSetC2::is_gc_barrier_node(Node* node) const {
   return ModRefBarrierSetC2::is_gc_barrier_node(node) || node->Opcode() == Op_StoreCM;
 }
 
-void CardTableBarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const {
+void CardTableBarrierSetC2::eliminate_gc_barrier(PhaseIterGVN* igvn, Node* node) const {
   assert(node->Opcode() == Op_CastP2X, "ConvP2XNode required");
   Node *shift = node->unique_out();
   Node *addp = shift->unique_out();
@@ -178,11 +178,11 @@ void CardTableBarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* 
       assert(mem->Opcode() == Op_LoadB, "unexpected code shape");
       // The load is checking if the card has been written so
       // replace it with zero to fold the test.
-      macro->replace_node(mem, macro->intcon(0));
+      igvn->replace_node(mem, igvn->intcon(0));
       continue;
     }
     assert(mem->is_Store(), "store required");
-    macro->replace_node(mem, mem->in(MemNode::Memory));
+    igvn->replace_node(mem, mem->in(MemNode::Memory));
   }
 }
 

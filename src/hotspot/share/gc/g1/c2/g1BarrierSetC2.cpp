@@ -662,7 +662,7 @@ bool G1BarrierSetC2::is_gc_barrier_node(Node* node) const {
   return strcmp(call->_name, "write_ref_field_pre_entry") == 0 || strcmp(call->_name, "write_ref_field_post_entry") == 0;
 }
 
-void G1BarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const {
+void G1BarrierSetC2::eliminate_gc_barrier(PhaseIterGVN* igvn, Node* node) const {
   assert(node->Opcode() == Op_CastP2X, "ConvP2XNode required");
   assert(node->outcnt() <= 2, "expects 1 or 2 users: Xor and URShift nodes");
   // It could be only one user, URShift node, in Object.clone() intrinsic
@@ -690,7 +690,7 @@ void G1BarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) c
     assert(cmpx->is_Cmp() && cmpx->unique_out()->is_Bool() &&
     cmpx->unique_out()->as_Bool()->_test._test == BoolTest::ne,
     "missing region check in G1 post barrier");
-    macro->replace_node(cmpx, macro->makecon(TypeInt::CC_EQ));
+    igvn->replace_node(cmpx, igvn->makecon(TypeInt::CC_EQ));
 
     // Remove G1 pre barrier.
 
@@ -708,14 +708,14 @@ void G1BarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) c
         assert(bol->is_Bool(), "");
         cmpx = bol->in(1);
         if (bol->as_Bool()->_test._test == BoolTest::ne &&
-            cmpx->is_Cmp() && cmpx->in(2) == macro->intcon(0) &&
+            cmpx->is_Cmp() && cmpx->in(2) == igvn->intcon(0) &&
             cmpx->in(1)->is_Load()) {
           Node* adr = cmpx->in(1)->as_Load()->in(MemNode::Address);
           const int marking_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
-          if (adr->is_AddP() && adr->in(AddPNode::Base) == macro->top() &&
+          if (adr->is_AddP() && adr->in(AddPNode::Base) == igvn->C->top() &&
               adr->in(AddPNode::Address)->Opcode() == Op_ThreadLocal &&
-              adr->in(AddPNode::Offset) == macro->MakeConX(marking_offset)) {
-            macro->replace_node(cmpx, macro->makecon(TypeInt::CC_EQ));
+              adr->in(AddPNode::Offset) == igvn->MakeConX(marking_offset)) {
+            igvn->replace_node(cmpx, igvn->makecon(TypeInt::CC_EQ));
           }
         }
       }
@@ -734,13 +734,13 @@ void G1BarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) c
     assert(cmpx->is_Cmp() && cmpx->unique_out()->is_Bool() &&
            cmpx->unique_out()->as_Bool()->_test._test == BoolTest::ne,
            "missing card value check in G1 post barrier");
-    macro->replace_node(cmpx, macro->makecon(TypeInt::CC_EQ));
+    igvn->replace_node(cmpx, igvn->makecon(TypeInt::CC_EQ));
     // There is no G1 pre barrier in this case
   }
   // Now CastP2X can be removed since it is used only on dead path
   // which currently still alive until igvn optimize it.
   assert(node->outcnt() == 0 || node->unique_out()->Opcode() == Op_URShiftX, "");
-  macro->replace_node(node, macro->top());
+  igvn->replace_node(node, igvn->C->top());
 }
 
 Node* G1BarrierSetC2::step_over_gc_barrier(Node* c) const {

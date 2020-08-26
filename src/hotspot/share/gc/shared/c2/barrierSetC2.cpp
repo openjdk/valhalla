@@ -853,5 +853,5 @@ void BarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac
   Node* call = phase->make_leaf_call(ctrl, mem, call_type, copyfunc_addr, copyfunc_name, raw_adr_type, payload_src, payload_dst, length XTOP);
   phase->transform_later(call);
 
-  phase->igvn().replace_node(ac, call);
+  phase->replace_node(ac, call);
 }
