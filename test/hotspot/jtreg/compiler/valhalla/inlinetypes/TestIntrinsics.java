@@ -437,10 +437,9 @@ public class TestIntrinsics extends InlineTypeTest {
 
     @Test
     public Test25Value[] test25(Test25Value element) {
-        // TODO 8244562: Remove cast as workaround once javac is fixed
-        Test25Value[] newArray = (Test25Value[])Arrays.copyOf(test25Array, test25Array.length + 1);
+        Object[] newArray = Arrays.copyOf(test25Array, test25Array.length + 1);
         newArray[test25Array.length] = element;
-        return newArray;
+        return (Test25Value[]) newArray;
     }
 
     @DontCompile
