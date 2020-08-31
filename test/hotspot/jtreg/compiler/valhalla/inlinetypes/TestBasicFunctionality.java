@@ -186,8 +186,8 @@ public class TestBasicFunctionality extends InlineTypeTest {
     }
 
     // Merge inline types created from two branches
-    @Test(valid = InlineTypePassFieldsAsArgsOn, match = {LOAD}, matchCount = {12}, failOn = TRAP + ALLOC + STORE)
-    @Test(valid = InlineTypePassFieldsAsArgsOff, match = {ALLOC, STORE}, matchCount = {1, 12}, failOn = LOAD + TRAP)
+    @Test(valid = InlineTypePassFieldsAsArgsOn, match = {LOAD}, matchCount = {14}, failOn = TRAP + ALLOC + STORE)
+    @Test(valid = InlineTypePassFieldsAsArgsOff, match = {ALLOC, STORE}, matchCount = {1, 13}, failOn = LOAD + TRAP)
     public MyValue1 test9(boolean b, int localrI, long localrL) {
         MyValue1 v;
         if (b) {
@@ -315,7 +315,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
 
     // Create an inline type in a non-inlined method and then call a
     // non-inlined method on that inline type.
-    @Test(valid = InlineTypePassFieldsAsArgsOn, failOn = (ALLOC + STORE + TRAP), match = {LOAD}, matchCount = {12})
+    @Test(valid = InlineTypePassFieldsAsArgsOn, failOn = (ALLOC + STORE + TRAP), match = {LOAD}, matchCount = {14})
     @Test(valid = InlineTypePassFieldsAsArgsOff, failOn = (ALLOC + LOAD + STORE + TRAP))
     public long test14() {
         MyValue1 v = MyValue1.createWithFieldsDontInline(rI, rL);
@@ -447,7 +447,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         long result = val1.hash() + val2.hash() + val3.hash() + val4.hash() + val5.hash();
         // Update fields
         val1 = MyValue1.createWithFieldsInline(x, y);
-        val2 = MyValue2.createWithFieldsInline(x, true);
+        val2 = MyValue2.createWithFieldsInline(x, rD);
         val4 = MyValue1.createWithFieldsInline(x, y);
         return result;
     }
@@ -465,7 +465,7 @@ public class TestBasicFunctionality extends InlineTypeTest {
         Asserts.assertEQ(result, hash);
         // Check if inline type fields were updated
         Asserts.assertEQ(val1.hash(), hash(rI + 1, rL + 1));
-        Asserts.assertEQ(val2.hash(), MyValue2.createWithFieldsInline(rI + 1, true).hash());
+        Asserts.assertEQ(val2.hash(), MyValue2.createWithFieldsInline(rI + 1, rD).hash());
         Asserts.assertEQ(val4.hash(), hash(rI + 1, rL + 1));
     }
 
@@ -512,14 +512,14 @@ public class TestBasicFunctionality extends InlineTypeTest {
     // Test withfield
     @Test(failOn = ALLOC + LOAD + STORE + LOOP + TRAP)
     public long test25() {
-        MyValue2 v = MyValue2.createWithFieldsInline(rI, true);
+        MyValue2 v = MyValue2.createWithFieldsInline(rI, rD);
         return v.hash();
     }
 
     @DontCompile
     public void test25_verifier(boolean warmup) {
         long result = test25();
-        Asserts.assertEQ(result, MyValue2.createWithFieldsInline(rI, true).hash());
+        Asserts.assertEQ(result, MyValue2.createWithFieldsInline(rI, rD).hash());
     }
 
     // Test withfield

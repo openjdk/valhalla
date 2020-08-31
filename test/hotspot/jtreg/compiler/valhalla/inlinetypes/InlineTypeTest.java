@@ -39,6 +39,8 @@ import java.lang.invoke.*;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Hashtable;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -122,6 +124,7 @@ public abstract class InlineTypeTest {
     // Random test values
     public static final int  rI = Utils.getRandomInstance().nextInt() % 1000;
     public static final long rL = Utils.getRandomInstance().nextLong() % 1000;
+    public static final double rD = Utils.getRandomInstance().nextDouble() % 1000;
 
     // User defined settings
     protected static final boolean XCOMP = Platform.isComp();
@@ -140,6 +143,7 @@ public abstract class InlineTypeTest {
     private static final boolean GC_AFTER = Boolean.parseBoolean(System.getProperty("GCAfter", "false"));
     private static final int OSR_TEST_TIMEOUT = Integer.parseInt(System.getProperty("OSRTestTimeOut", "5000"));
     protected static final boolean STRESS_CC = Boolean.parseBoolean(System.getProperty("StressCC", "false"));
+    private static final boolean SHUFFLE_TESTS = Boolean.parseBoolean(System.getProperty("ShuffleTests", "false"));
 
     // "jtreg -DXcomp=true" runs all the scenarios with -Xcomp. This is faster than "jtreg -javaoptions:-Xcomp".
     protected static final boolean RUN_SCENARIOS_WITH_XCOMP = Boolean.parseBoolean(System.getProperty("Xcomp", "false"));
@@ -177,7 +181,7 @@ public abstract class InlineTypeTest {
     protected static final int TypeProfileOn = 0x4000;
     protected static final int TypeProfileOff = 0x8000;
     protected static final boolean InlineTypePassFieldsAsArgs = (Boolean)WHITE_BOX.getVMFlag("InlineTypePassFieldsAsArgs");
-    protected static final boolean InlineTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("FlatArrayElementMaxSize") == -1); // FIXME - fix this if default of FlatArrayElementMaxSize is changed
+    protected static final boolean InlineTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("FlatArrayElementMaxSize") == -1);
     protected static final boolean InlineTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("InlineTypeReturnedAsFields");
     protected static final boolean AlwaysIncrementalInline = (Boolean)WHITE_BOX.getVMFlag("AlwaysIncrementalInline");
     protected static final boolean G1GC = (Boolean)WHITE_BOX.getVMFlag("UseG1GC");
@@ -216,6 +220,7 @@ public abstract class InlineTypeTest {
     protected static final String LOAD_UNKNOWN_INLINE = "(.*call_leaf,runtime  load_unknown_inline.*" + END;
     protected static final String STORE_UNKNOWN_INLINE = "(.*call_leaf,runtime  store_unknown_inline.*" + END;
     protected static final String INLINE_ARRAY_NULL_GUARD = "(.*call,static  wrapper for: uncommon_trap.*reason='null_check' action='none'.*" + END;
+    protected static final String INTRINSIC_SLOW_PATH = "(.*call,static  wrapper for: uncommon_trap.*reason='intrinsic_or_type_checked_inlining'.*" + END;
     protected static final String CLASS_CHECK_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*class_check" + END;
     protected static final String NULL_CHECK_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*null_check" + END;
     protected static final String RANGE_CHECK_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*range_check" + END;
@@ -404,6 +409,13 @@ public abstract class InlineTypeTest {
             if (annos.length != 0 &&
                 ((list == null || list.contains(m.getName())) && (exclude == null || !exclude.contains(m.getName())))) {
                 tests.put(getClass().getSimpleName() + "::" + m.getName(), m);
+            } else if (annos.length == 0 && m.getName().startsWith("test")) {
+                try {
+                    getClass().getMethod(m.getName() + "_verifier", boolean.class);
+                    throw new RuntimeException(m.getName() + " has a verifier method but no @Test annotation");
+                } catch (NoSuchMethodException e) {
+                    // Expected
+                }
             }
         }
     }
@@ -576,7 +588,7 @@ public abstract class InlineTypeTest {
                     nodes += matcher.group() + "\n";
                 }
                 if (matchCount[i] < 0) {
-                    Asserts.assertLTE(Math.abs(matchCount[i]), count, "Graph for '" + testName + "' contains different number of match nodes (expected <= " + matchCount[i] + " but got " + count + "):\n" + nodes);
+                    Asserts.assertLTE(Math.abs(matchCount[i]), count, "Graph for '" + testName + "' contains different number of match nodes (expected >= " + Math.abs(matchCount[i]) + " but got " + count + "):\n" + nodes);
                 } else {
                     Asserts.assertEQ(matchCount[i], count, "Graph for '" + testName + "' contains different number of match nodes (expected " + matchCount[i] + " but got " + count + "):\n" + nodes);
                 }
@@ -657,9 +669,13 @@ public abstract class InlineTypeTest {
             setup(clazz);
         }
 
-        // Execute tests
         TreeMap<Long, String> durations = (PRINT_TIMES || VERBOSE) ? new TreeMap<Long, String>() : null;
-        for (Method test : tests.values()) {
+        List<Method> testList = new ArrayList<Method>(tests.values());
+        if (SHUFFLE_TESTS) {
+            // Execute tests in random order (execution sequence affects profiling)
+            Collections.shuffle(testList, Utils.getRandomInstance());
+        }
+        for (Method test : testList) {
             if (VERBOSE) {
                 System.out.println("Starting " + test.getName());
             }

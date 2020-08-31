@@ -33,7 +33,7 @@ public final inline class MyValue1 extends MyAbstract {
     final int[] oa;
     final MyValue2 v1;
     final MyValue2 v2;
-    static final MyValue2 v3 = MyValue2.createWithFieldsInline(InlineTypeTest.rI, true);
+    static final MyValue2 v3 = MyValue2.createWithFieldsInline(InlineTypeTest.rI, InlineTypeTest.rD);
     final int c;
 
     @ForceInline
@@ -73,8 +73,8 @@ public final inline class MyValue1 extends MyAbstract {
         v = setO(v, new Integer(x));
         int[] oa = {x};
         v = setOA(v, oa);
-        v = setV1(v, MyValue2.createWithFieldsInline(x, y, true));
-        v = setV2(v, MyValue2.createWithFieldsInline(x, y, false));
+        v = setV1(v, MyValue2.createWithFieldsInline(x, y, InlineTypeTest.rD));
+        v = setV2(v, MyValue2.createWithFieldsInline(x, y, InlineTypeTest.rD+x));
         v = setC(v, (int)(x+y));
         return v;
     }

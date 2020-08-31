@@ -117,9 +117,9 @@ public class TestIntrinsics extends InlineTypeTest {
     @Test(failOn = LOADK)
     public boolean test4() {
         boolean check1 = Object.class.getSuperclass() == null;
-        // TODO Remove cast as workaround once javac is fixed
+        // TODO 8244562: Remove cast as workaround once javac is fixed
         boolean check2 = (Class<?>)MyValue1.ref.class.getSuperclass() == MyAbstract.class;
-        // TODO Remove cast as workaround once javac is fixed
+        // TODO 8244562: Remove cast as workaround once javac is fixed
         boolean check3 = (Class<?>)MyValue1.val.class.getSuperclass() == MyValue1.ref.class;
         boolean check4 = Class.class.getSuperclass() == Object.class;
         return check1 && check2 && check3 && check4;
@@ -437,10 +437,9 @@ public class TestIntrinsics extends InlineTypeTest {
 
     @Test
     public Test25Value[] test25(Test25Value element) {
-        // TODO Remove cast as workaround once javac is fixed
-        Test25Value[] newArray = (Test25Value[])Arrays.copyOf(test25Array, test25Array.length + 1);
+        Object[] newArray = Arrays.copyOf(test25Array, test25Array.length + 1);
         newArray[test25Array.length] = element;
-        return newArray;
+        return (Test25Value[]) newArray;
     }
 
     @DontCompile
