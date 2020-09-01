@@ -697,7 +697,8 @@ void VM_GetOrSetLocal::doit() {
       return;
     }
     StackValueCollection *locals = _jvf->locals();
-    HandleMark hm;
+    Thread* current_thread = Thread::current();
+    HandleMark hm(current_thread);
 
     switch (_type) {
       case T_INT:    locals->set_int_at   (_index, _value.i); break;
@@ -706,7 +707,7 @@ void VM_GetOrSetLocal::doit() {
       case T_DOUBLE: locals->set_double_at(_index, _value.d); break;
       case T_OBJECT:
       case T_INLINE_TYPE: {
-        Handle ob_h(Thread::current(), JNIHandles::resolve_external_guard(_value.l));
+        Handle ob_h(current_thread, JNIHandles::resolve_external_guard(_value.l));
         locals->set_obj_at (_index, ob_h);
         break;
       }

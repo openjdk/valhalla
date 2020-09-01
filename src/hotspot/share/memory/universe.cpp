@@ -333,6 +333,7 @@ void initialize_basic_type_klass(Klass* k, TRAPS) {
 
 void Universe::genesis(TRAPS) {
   ResourceMark rm(THREAD);
+  HandleMark   hm(THREAD);
 
   { AutoModifyRestore<bool> temporarily(_bootstrapping, true);
 
@@ -1176,8 +1177,9 @@ void Universe::verify(VerifyOption option, const char* prefix) {
          "(of thread stacks below)");
   )
 
-  ResourceMark rm;
-  HandleMark hm;  // Handles created during verification can be zapped
+  Thread* thread = Thread::current();
+  ResourceMark rm(thread);
+  HandleMark hm(thread);  // Handles created during verification can be zapped
   _verify_count++;
 
   FormatBuffer<> title("Verifying %s", prefix);
