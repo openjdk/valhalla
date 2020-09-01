@@ -2017,7 +2017,7 @@ bool Matcher::clone_base_plus_offset_address(AddPNode* m, Matcher::MStack& mstac
 }
 
 // A method-klass-holder may be passed in the inline_cache_reg
-// and then expanded into the inline_cache_reg and a method_oop register
+// and then expanded into the inline_cache_reg and a method_ptr register
 //   defined in ad_<arch>.cpp
 
 //------------------------------find_shared------------------------------------

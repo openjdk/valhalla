@@ -241,6 +241,7 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
 }
 
 static void eliminate_locks(JavaThread* thread, GrowableArray<compiledVFrame*>* chunk, bool realloc_failures) {
+  HandleMark hm;
 #ifndef PRODUCT
   bool first = true;
 #endif
@@ -1620,6 +1621,8 @@ void Deoptimization::revoke_from_deopt_handler(JavaThread* thread, frame fr, Reg
   if (!UseBiasedLocking) {
     return;
   }
+  ResourceMark rm;
+  HandleMark hm;
   GrowableArray<Handle>* objects_to_revoke = new GrowableArray<Handle>();
   get_monitors_from_stack(objects_to_revoke, thread, fr, map);
 
