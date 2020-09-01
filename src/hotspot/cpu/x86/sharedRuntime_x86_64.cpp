@@ -1207,8 +1207,8 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   // Scalarized c2i adapter with non-scalarized receiver (i.e., don't pack receiver)
   address c2i_inline_ro_entry = __ pc();
   if (regs_cc != regs_cc_ro) {
-    Label inline_ro_skip_fixup;
-    gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, inline_ro_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
+    gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
+    skip_fixup.reset();
   }
 
   // Scalarized c2i adapter
