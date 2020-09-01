@@ -1196,7 +1196,7 @@ oop java_lang_Class::archive_mirror(Klass* k, TRAPS) {
 
   if (k->is_inline_klass()) {
     // Inline types have a val type mirror and a ref type mirror. Don't handle this for now. TODO:CDS
-    k->set_java_mirror(Handle());
+    k->clear_java_mirror_handle();
     return NULL;
   }
 
