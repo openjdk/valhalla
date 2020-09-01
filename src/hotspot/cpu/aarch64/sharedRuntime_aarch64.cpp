@@ -499,7 +499,7 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm, BasicType bt, const VMR
     // 3    8 T_BOOL
     // -    0 return address
     //
-    // However to make thing extra confusing. Because we can fit a long/double in
+    // However to make thing extra confusing. Because we can fit a Java long/double in
     // a single slot on a 64 bt vm and it would be silly to break them up, the interpreter
     // leaves one slot empty and only stores to a single slot. In this case the
     // slot that is occupied is the T_VOID slot. See I said it was confusing.
@@ -1978,7 +1978,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   Label dtrace_method_entry, dtrace_method_entry_done;
   {
-    unsigned long offset;
+    uint64_t offset;
     __ adrp(rscratch1, ExternalAddress((address)&DTraceMethodProbes), offset);
     __ ldrb(rscratch1, Address(rscratch1, offset));
     __ cbnzw(rscratch1, dtrace_method_entry);
@@ -2193,7 +2193,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   Label dtrace_method_exit, dtrace_method_exit_done;
   {
-    unsigned long offset;
+    uint64_t offset;
     __ adrp(rscratch1, ExternalAddress((address)&DTraceMethodProbes), offset);
     __ ldrb(rscratch1, Address(rscratch1, offset));
     __ cbnzw(rscratch1, dtrace_method_exit);
