@@ -3254,7 +3254,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offse
         ciField* field = vk->get_field_by_offset(foffset, false);
         assert(field != NULL, "missing field");
         BasicType bt = field->layout_type();
-        _is_ptr_to_narrowoop = (bt == T_OBJECT || bt == T_ARRAY || T_INLINE_TYPE);
+        _is_ptr_to_narrowoop = UseCompressedOops && is_reference_type(bt);
       }
     } else if (klass()->is_instance_klass()) {
       if (this->isa_klassptr()) {
@@ -3262,7 +3262,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offse
       } else if (_offset == Offset::bottom || _offset == Offset::top) {
         // unsafe access
         _is_ptr_to_narrowoop = UseCompressedOops;
-      } else { // exclude unsafe ops
+      } else {
         assert(this->isa_instptr(), "must be an instance ptr.");
         if (klass() == ciEnv::current()->Class_klass() &&
             (this->offset() == java_lang_Class::klass_offset() ||
@@ -3279,12 +3279,17 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offse
           if (ik->is_inlinetype() && this->offset() == ik->as_inline_klass()->default_value_offset()) {
             // Special hidden field that contains the oop of the default inline type
             basic_elem_type = T_INLINE_TYPE;
+           _is_ptr_to_narrowoop = UseCompressedOops;
           } else {
             ciField* field = ik->get_field_by_offset(this->offset(), true);
-            assert(field != NULL, "missing field");
-            basic_elem_type = field->layout_type();
+            if (field != NULL) {
+              BasicType basic_elem_type = field->layout_type();
+              _is_ptr_to_narrowoop = UseCompressedOops && is_reference_type(basic_elem_type);
+            } else {
+              // unsafe access
+              _is_ptr_to_narrowoop = UseCompressedOops;
+            }
           }
-          _is_ptr_to_narrowoop = UseCompressedOops && is_reference_type(basic_elem_type);
         } else {
           // Instance fields which contains a compressed oop references.
           ciInstanceKlass* ik = klass()->as_instance_klass();
