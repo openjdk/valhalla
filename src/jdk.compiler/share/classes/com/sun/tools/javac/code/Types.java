@@ -2213,6 +2213,8 @@ public class Types {
     // where
         private SimpleVisitor<Type,Symbol> asSuper = new SimpleVisitor<Type,Symbol>() {
 
+            private Set<Symbol> seenTypes = new HashSet<>();
+
             public Type visitType(Type t, Symbol sym) {
                 return null;
             }
@@ -2227,11 +2229,10 @@ public class Types {
                     return null;
 
                 Symbol c = t.tsym;
-                if ((c.flags_field & LOCKED) != 0) {
+                if (!seenTypes.add(c)) {
                     return null;
                 }
                 try {
-                    c.flags_field |= LOCKED;
                     Type st = supertype(t);
                     if (st.hasTag(CLASS) || st.hasTag(TYPEVAR)) {
                         Type x = asSuper(st, sym);
@@ -2249,7 +2250,7 @@ public class Types {
                     }
                     return null;
                 } finally {
-                    c.flags_field &= ~LOCKED;
+                    seenTypes.remove(c);
                 }
             }
 
