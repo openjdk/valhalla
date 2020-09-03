@@ -1011,6 +1011,7 @@ public class TypeEnter implements Completer {
             // Add default constructor if needed.
             DefaultConstructorHelper helper = getDefaultConstructorHelper(env);
             if (helper != null) {
+                chk.checkDefaultConstructor(sym, tree.pos());
                 defaultConstructor = defaultConstructor(make.at(tree.pos), helper);
                 tree.defs = tree.defs.prepend(defaultConstructor);
             }
