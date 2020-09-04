@@ -3568,20 +3568,24 @@ Node* GraphKit::is_inline_type(Node* obj) {
 // Check if 'ary' is a non-flattened array
 Node* GraphKit::is_non_flattened_array(Node* ary) {
   Node* kls = load_object_klass(ary);
-  Node* tag = load_lh_array_tag(kls);
   Node* cmp = gen_lh_array_test(kls, Klass::_lh_array_tag_vt_value);
   return _gvn.transform(new BoolNode(cmp, BoolTest::ne));
+}
+
+// Check bit that determines if an array is null-free
+Node* GraphKit::check_null_free_bit(Node* klass, bool null_free) {
+  Node* lhp = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
+  Node* layout_val = _gvn.transform(LoadNode::make(_gvn, NULL, immutable_memory(), lhp, lhp->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
+  Node* bit = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_null_free_shift)));
+  bit = _gvn.transform(new AndINode(bit, intcon(Klass::_lh_null_free_mask)));
+  Node* cmp = _gvn.transform(new CmpINode(bit, intcon(0)));
+  return _gvn.transform(new BoolNode(cmp, null_free ? BoolTest::ne : BoolTest::eq));
 }
 
 // Check if 'ary' is a nullable array
 Node* GraphKit::is_nullable_array(Node* ary) {
   Node* kls = load_object_klass(ary);
-  Node* lhp = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
-  Node* layout_val = _gvn.transform(LoadNode::make(_gvn, NULL, immutable_memory(), lhp, lhp->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
-  Node* null_free = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_null_free_shift)));
-  null_free = _gvn.transform(new AndINode(null_free, intcon(Klass::_lh_null_free_mask)));
-  Node* cmp = _gvn.transform(new CmpINode(null_free, intcon(0)));
-  return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+  return check_null_free_bit(kls, false);
 }
 
 // Deoptimize if 'ary' is a null-free inline type array and 'val' is null
@@ -4245,13 +4249,7 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
 
     // Object array, check if null-free
     set_control(_gvn.transform(new IfTrueNode(iff)));
-    Node* lhp = basic_plus_adr(klass_node, in_bytes(Klass::layout_helper_offset()));
-    Node* layout_val = _gvn.transform(LoadNode::make(_gvn, NULL, immutable_memory(), lhp, lhp->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
-    Node* null_free = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_null_free_shift)));
-    null_free = _gvn.transform(new AndINode(null_free, intcon(Klass::_lh_null_free_mask)));
-    cmp = _gvn.transform(new CmpINode(null_free, intcon(0)));
-    bol = _gvn.transform(new BoolNode(cmp, BoolTest::ne));
-    iff = create_and_map_if(control(), bol, PROB_FAIR, COUNT_UNKNOWN);
+    iff = create_and_map_if(control(), check_null_free_bit(klass_node, true), PROB_FAIR, COUNT_UNKNOWN);
 
     // Not null-free, initialize with all zero
     r->init_req(2, _gvn.transform(new IfFalseNode(iff)));

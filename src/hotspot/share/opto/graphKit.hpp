@@ -855,6 +855,7 @@ class GraphKit : public Phase {
 
   Node* is_inline_type(Node* obj);
   Node* is_non_flattened_array(Node* ary);
+  Node* check_null_free_bit(Node* klass, bool null_free);
   Node* is_nullable_array(Node* ary);
   Node* gen_inline_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace = false);
   Node* load_lh_array_tag(Node* kls);

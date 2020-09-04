@@ -2641,10 +2641,10 @@ class StubGenerator: public StubCodeGenerator {
 
     const int lh_offset = in_bytes(Klass::layout_helper_offset());
 
-    // Handle objArrays completely differently...
+    // Handle objArrays (including non-flat, null-free inline type arrays) completely differently...
     const jint objArray_lh = Klass::array_layout_helper(T_OBJECT);
     __ cmpl(Address(r10_src_klass, lh_offset), objArray_lh);
-    __ jcc(Assembler::equal, L_objArray);
+    __ jcc(Assembler::greaterEqual, L_objArray);
 
     //  if (src->klass() != dst->klass()) return -1;
     __ load_klass(rax, dst, rklass_tmp);
@@ -2653,6 +2653,10 @@ class StubGenerator: public StubCodeGenerator {
 
     const Register rax_lh = rax;  // layout helper
     __ movl(rax_lh, Address(r10_src_klass, lh_offset));
+
+    // Check for flat inline type array
+    __ testl(rax_lh, Klass::_lh_array_tag_vt_value_bit_inplace);
+    __ jcc(Assembler::notZero, L_failed);
 
     //  if (!src->is_Array()) return -1;
     __ cmpl(rax_lh, Klass::_lh_neutral_value);
@@ -2663,8 +2667,10 @@ class StubGenerator: public StubCodeGenerator {
     {
       BLOCK_COMMENT("assert primitive array {");
       Label L;
-      __ cmpl(rax_lh, (Klass::_lh_array_tag_type_value << Klass::_lh_array_tag_shift));
-      __ jcc(Assembler::greaterEqual, L);
+      __ movl(rklass_tmp, rax_lh);
+      __ sarl(rklass_tmp, Klass::_lh_array_tag_shift);
+      __ cmpl(rklass_tmp, Klass::_lh_array_tag_type_value);
+      __ jcc(Assembler::equal, L);
       __ stop("must be a primitive array");
       __ bind(L);
       BLOCK_COMMENT("} assert primitive array done");
@@ -2766,8 +2772,22 @@ class StubGenerator: public StubCodeGenerator {
     // live at this point:  r10_src_klass, r11_length, rax (dst_klass)
     {
       // Before looking at dst.length, make sure dst is also an objArray.
+      // This check also fails for flat/null-free arrays which are not supported.
       __ cmpl(Address(rax, lh_offset), objArray_lh);
       __ jcc(Assembler::notEqual, L_failed);
+
+#ifdef ASSERT
+      {
+        BLOCK_COMMENT("assert not null-free array {");
+        Label L;
+        __ movl(rklass_tmp, Address(rax, lh_offset));
+        __ testl(rklass_tmp, Klass::_lh_null_free_bit_inplace);
+        __ jcc(Assembler::zero, L);
+        __ stop("unexpected null-free array");
+        __ bind(L);
+        BLOCK_COMMENT("} assert not null-free array");
+      }
+#endif
 
       // It is safe to examine both src.length and dst.length.
       arraycopy_range_checks(src, src_pos, dst, dst_pos, r11_length,

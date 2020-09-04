@@ -270,12 +270,10 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
 
     BasicType src_elem  = ary_src->klass()->as_array_klass()->element_type()->basic_type();
     BasicType dest_elem = ary_dest->klass()->as_array_klass()->element_type()->basic_type();
-    if (src_elem  == T_ARRAY ||
-        (src_elem == T_INLINE_TYPE && ary_src->klass()->is_obj_array_klass())) {
+    if (src_elem == T_ARRAY || (src_elem == T_INLINE_TYPE && ary_src->klass()->is_obj_array_klass())) {
       src_elem  = T_OBJECT;
     }
-    if (dest_elem == T_ARRAY ||
-        (dest_elem == T_INLINE_TYPE && ary_dest->klass()->is_obj_array_klass())) {
+    if (dest_elem == T_ARRAY || (dest_elem == T_INLINE_TYPE && ary_dest->klass()->is_obj_array_klass())) {
       dest_elem = T_OBJECT;
     }
 
@@ -333,8 +331,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     adr_dest = phase->transform(new AddPNode(base_dest, base_dest, dest_offset));
 
     BasicType elem = ary_src->klass()->as_array_klass()->element_type()->basic_type();
-    if (elem == T_ARRAY ||
-        (elem == T_INLINE_TYPE && ary_src->klass()->is_obj_array_klass())) {
+    if (elem == T_ARRAY || (elem == T_INLINE_TYPE && ary_src->klass()->is_obj_array_klass())) {
       elem = T_OBJECT;
     }
 
@@ -342,6 +339,7 @@ bool ArrayCopyNode::prepare_array_copy(PhaseGVN *phase, bool can_reshape,
     if (bs->array_copy_requires_gc_barriers(true, elem, true, BarrierSetC2::Optimization) ||
         (elem == T_INLINE_TYPE && ary_src->elem()->inline_klass()->contains_oops() &&
          bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Optimization))) {
+      // It's an object array copy but we can't emit the card marking that is needed
       return false;
     }
 
