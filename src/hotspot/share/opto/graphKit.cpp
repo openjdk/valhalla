@@ -2959,7 +2959,7 @@ Node* GraphKit::type_check_receiver(Node* receiver, ciKlass* klass,
                                     float prob, Node* *casted_receiver) {
   Node* fail = top();
   const Type* rec_t = _gvn.type(receiver);
-  if (false && rec_t->isa_inlinetype()) {
+  if (rec_t->isa_inlinetype()) {
     if (klass->equals(rec_t->inline_klass())) {
       (*casted_receiver) = receiver; // Always passes
     } else {
