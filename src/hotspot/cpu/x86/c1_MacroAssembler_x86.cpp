@@ -366,13 +366,14 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
 
   build_frame_helper(frame_size_in_bytes, 0, needs_stack_repair);
 
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->nmethod_entry_barrier(this);
+
   if (needs_stack_repair && verified_inline_entry_label != NULL) {
     // Jump here from the scalarized entry points that require additional stack space
     // for packing scalarized arguments and therefore already created the frame.
     bind(*verified_inline_entry_label);
   }
-  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->nmethod_entry_barrier(this);
 }
 
 void C1_MacroAssembler::verified_entry() {
@@ -426,6 +427,10 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
 
   // Initialize orig_pc to detect deoptimization during buffering in below runtime call
   movptr(Address(rsp, sp_offset_for_orig_pc), 0);
+
+  // The runtime call might safepoint, make sure nmethod entry barrier is executed
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->nmethod_entry_barrier(this);
 
   // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   movptr(rbx, (intptr_t)(ces->method()));
