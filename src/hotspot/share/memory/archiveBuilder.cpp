@@ -298,10 +298,9 @@ public:
   }
 
   virtual void push_special(SpecialRef type, Ref* ref, intptr_t* p) {
-    assert(type == _method_entry_ref, "only special type allowed for now");
     address src_obj = ref->obj();
     size_t field_offset = pointer_delta(p, src_obj,  sizeof(u1));
-    _builder->add_special_ref(type, src_obj, field_offset);
+    _builder->add_special_ref(type, src_obj, field_offset, ref->size() * BytesPerWord);
   };
 
   virtual void do_pending_ref(Ref* ref) {
@@ -345,10 +344,6 @@ bool ArchiveBuilder::gather_one_source_obj(MetaspaceClosure::Ref* enclosing_ref,
   } else {
     return false;
   }
-}
-
-void ArchiveBuilder::add_special_ref(MetaspaceClosure::SpecialRef type, address src_obj, size_t field_offset) {
-  _special_refs->append(SpecialRefInfo(type, src_obj, field_offset));
 }
 
 void ArchiveBuilder::remember_embedded_pointer_in_copied_obj(MetaspaceClosure::Ref* enclosing_ref,
@@ -497,9 +492,25 @@ void ArchiveBuilder::update_special_refs() {
     address dst_obj = get_dumped_addr(src_obj);
     intptr_t* src_p = (intptr_t*)(src_obj + field_offset);
     intptr_t* dst_p = (intptr_t*)(dst_obj + field_offset);
-    assert(s.type() == MetaspaceClosure::_method_entry_ref, "only special type allowed for now");
 
-    assert(*src_p == *dst_p, "must be a copy");
+
+    MetaspaceClosure::assert_valid(s.type());
+    switch (s.type()) {
+    case MetaspaceClosure::_method_entry_ref:
+      assert(*src_p == *dst_p, "must be a copy");
+      break;
+    case MetaspaceClosure::_internal_pointer_ref:
+      {
+        // *src_p points to a location inside src_obj. Let's make *dst_p point to
+        // the same location inside dst_obj.
+        size_t off = pointer_delta(*((address*)src_p), src_obj, sizeof(u1));
+        assert(off < s.src_obj_size_in_bytes(), "must point to internal address");
+        *((address*)dst_p) = dst_obj + off;
+      }
+      break;
+    default:
+      ShouldNotReachHere();
+    }
     ArchivePtrMarker::mark_pointer((address*)dst_p);
   }
 }

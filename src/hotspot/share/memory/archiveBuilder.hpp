@@ -51,15 +51,20 @@ private:
     MetaspaceClosure::SpecialRef _type;
     address _src_obj;
     size_t _field_offset;
+    DEBUG_ONLY(size_t _src_obj_size_in_bytes;)
 
   public:
     SpecialRefInfo() {}
-    SpecialRefInfo(MetaspaceClosure::SpecialRef type, address src_obj, size_t field_offset)
-      : _type(type), _src_obj(src_obj), _field_offset(field_offset) {}
+    SpecialRefInfo(MetaspaceClosure::SpecialRef type, address src_obj, size_t field_offset, size_t src_obj_size_in_bytes)
+      : _type(type), _src_obj(src_obj), _field_offset(field_offset) {
+      DEBUG_ONLY(_src_obj_size_in_bytes = src_obj_size_in_bytes);
+    }
 
     MetaspaceClosure::SpecialRef type() const { return _type;         }
     address src_obj()                   const { return _src_obj;      }
     size_t field_offset()               const { return _field_offset; }
+
+    DEBUG_ONLY(size_t src_obj_size_in_bytes() const { return _src_obj_size_in_bytes; })
   };
 
   class SourceObjInfo {
@@ -201,7 +206,9 @@ public:
   void gather_source_objs();
   bool gather_klass_and_symbol(MetaspaceClosure::Ref* ref, bool read_only);
   bool gather_one_source_obj(MetaspaceClosure::Ref* enclosing_ref, MetaspaceClosure::Ref* ref, bool read_only);
-  void add_special_ref(MetaspaceClosure::SpecialRef type, address src_obj, size_t field_offset);
+  void add_special_ref(MetaspaceClosure::SpecialRef type, address src_obj, size_t field_offset, size_t src_obj_size_in_bytes) {
+    _special_refs->append(SpecialRefInfo(type, src_obj, field_offset, src_obj_size_in_bytes));
+  }
   void remember_embedded_pointer_in_copied_obj(MetaspaceClosure::Ref* enclosing_ref, MetaspaceClosure::Ref* ref);
 
   void dump_rw_region();
