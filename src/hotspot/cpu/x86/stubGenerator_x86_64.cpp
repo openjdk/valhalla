@@ -2641,10 +2641,10 @@ class StubGenerator: public StubCodeGenerator {
 
     const int lh_offset = in_bytes(Klass::layout_helper_offset());
 
-    // Handle objArrays (including non-flat, null-free inline type arrays) completely differently...
+    // Handle objArrays completely differently...
     const jint objArray_lh = Klass::array_layout_helper(T_OBJECT);
     __ cmpl(Address(r10_src_klass, lh_offset), objArray_lh);
-    __ jcc(Assembler::greaterEqual, L_objArray);
+    __ jcc(Assembler::equal, L_objArray);
 
     //  if (src->klass() != dst->klass()) return -1;
     __ load_klass(rax, dst, rklass_tmp);
@@ -2654,9 +2654,13 @@ class StubGenerator: public StubCodeGenerator {
     const Register rax_lh = rax;  // layout helper
     __ movl(rax_lh, Address(r10_src_klass, lh_offset));
 
-    // Check for flat inline type array
+    // Check for flat inline type array -> return -1
     __ testl(rax_lh, Klass::_lh_array_tag_vt_value_bit_inplace);
     __ jcc(Assembler::notZero, L_failed);
+
+    // Check for null-free (non-flat) inline type array -> handle as object array
+    __ testl(rax_lh, Klass::_lh_null_free_bit_inplace);
+    __ jcc(Assembler::notZero, L_objArray);
 
     //  if (!src->is_Array()) return -1;
     __ cmpl(rax_lh, Klass::_lh_neutral_value);

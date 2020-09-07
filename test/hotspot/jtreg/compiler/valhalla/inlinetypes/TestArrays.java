@@ -2984,4 +2984,26 @@ public class TestArrays extends InlineTypeTest {
             // expected
         }
     }
+
+    // Arraycopy with non-array src/dst
+    @Test
+    public void test129(Object src, Object dst, int len) {
+        System.arraycopy(src, 0, dst, 0, len);
+    }
+
+    @DontCompile
+    public void test129_verifier(boolean warmup) {
+        try {
+            test129(new Object(), new Object[0], 0);
+            throw new RuntimeException("ArrayStoreException expected");
+        } catch (ArrayStoreException e) {
+            // expected
+        }
+        try {
+            test129(new Object[0], new Object(), 0);
+            throw new RuntimeException("ArrayStoreException expected");
+        } catch (ArrayStoreException e) {
+            // expected
+        }
+    }
 }
