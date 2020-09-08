@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
+#include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -202,7 +203,8 @@ class LibraryCallKit : public GraphKit {
     ObjectArray,
     NonObjectArray,
     TypeArray,
-    FlatArray
+    FlatArray,
+    NonFlatArray
   };
 
   Node* generate_hidden_class_guard(Node* kls, RegionNode* region);
@@ -225,6 +227,10 @@ class LibraryCallKit : public GraphKit {
   Node* generate_flatArray_guard(Node* kls, RegionNode* region) {
     assert(UseFlatArray, "can never be flattened");
     return generate_array_guard_common(kls, region, FlatArray);
+  }
+  Node* generate_non_flatArray_guard(Node* kls, RegionNode* region) {
+    assert(UseFlatArray, "can never be flattened");
+    return generate_array_guard_common(kls, region, NonFlatArray);
   }
   Node* generate_array_guard_common(Node* kls, RegionNode* region, ArrayKind kind);
   Node* generate_virtual_guard(Node* obj_klass, RegionNode* slow_region);
@@ -3724,6 +3730,7 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
       case NonObjectArray: query = !Klass::layout_helper_is_objArray(layout_con); break;
       case TypeArray:      query = Klass::layout_helper_is_typeArray(layout_con); break;
       case FlatArray:      query = Klass::layout_helper_is_flatArray(layout_con); break;
+      case NonFlatArray:   query = !Klass::layout_helper_is_flatArray(layout_con); break;
       case AnyArray:       query = Klass::layout_helper_is_array(layout_con); break;
       case NonArray:       query = !Klass::layout_helper_is_array(layout_con); break;
       default:
@@ -3746,7 +3753,7 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
     case NonObjectArray: {
       value = Klass::_lh_array_tag_obj_value;
       layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
-      btest = kind == ObjectArray ? BoolTest::eq : BoolTest::ne;
+      btest = (kind == ObjectArray) ? BoolTest::eq : BoolTest::ne;
       break;
     }
     case TypeArray: {
@@ -3755,10 +3762,11 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
       btest = BoolTest::eq;
       break;
     }
-    case FlatArray: {
+    case FlatArray:
+    case NonFlatArray: {
       value = Klass::_lh_array_tag_vt_value;
       layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
-      btest = BoolTest::eq;
+      btest = (kind == FlatArray) ? BoolTest::eq : BoolTest::ne;
       break;
     }
     case AnyArray:    value = Klass::_lh_neutral_value; btest = BoolTest::lt; break;
@@ -3916,9 +3924,17 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     // Bail out if that is so.
     // Inline type array may have object field that would require a
     // write barrier. Conservatively, go to slow path.
+    // TODO 8251971: Optimize for the case when flat src/dst are later found
+    // to not contain oops (i.e., move this check to the macro expansion phase).
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-    Node* not_objArray = !bs->array_copy_requires_gc_barriers(false, T_OBJECT, false, BarrierSetC2::Parsing) ?
-        generate_typeArray_guard(klass_node, bailout) : generate_non_objArray_guard(klass_node, bailout);
+    const TypeAryPtr* orig_t = _gvn.type(original)->isa_aryptr();
+    ciKlass* klass = _gvn.type(klass_node)->is_klassptr()->klass();
+    bool exclude_flat = UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, false, BarrierSetC2::Parsing) &&
+                        // Can src array be flat and contain oops?
+                        (orig_t == NULL || (!orig_t->is_not_flat() && (!orig_t->is_flat() || orig_t->elem()->inline_klass()->contains_oops()))) &&
+                        // Can dest array be flat and contain oops?
+                        klass->can_be_inline_array_klass() && (!klass->is_flat_array_klass() || klass->as_flat_array_klass()->element_klass()->as_inline_klass()->contains_oops());
+    Node* not_objArray = exclude_flat ? generate_non_objArray_guard(klass_node, bailout) : generate_typeArray_guard(klass_node, bailout);
     if (not_objArray != NULL) {
       // Improve the klass node's type from the new optimistic assumption:
       ciKlass* ak = ciArrayKlass::make(env()->Object_klass());
@@ -3950,27 +3966,6 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       }
     }
 
-    if (UseFlatArray) {
-      // Either both or neither new array klass and original array
-      // klass must be flattened
-      const TypeAryPtr* t_original = _gvn.type(original)->isa_aryptr();
-      Node* is_flat = generate_flatArray_guard(klass_node, NULL);
-      if (t_original == NULL || !t_original->is_not_flat()) {
-        generate_flatArray_guard(original_kls, bailout);
-      }
-      if (is_flat != NULL) {
-        RegionNode* r = new RegionNode(2);
-        record_for_igvn(r);
-        r->init_req(1, control());
-        set_control(is_flat);
-        if (t_original == NULL || !t_original->is_not_flat()) {
-          generate_flatArray_guard(original_kls, r);
-        }
-        bailout->add_req(control());
-        set_control(_gvn.transform(r));
-      }
-    }
-
     // Bail out if either start or end is negative.
     generate_negative_guard(start, bailout, &start);
     generate_negative_guard(end,   bailout, &end);
@@ -3985,6 +3980,38 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
     // NegativeArraySizeException but IllegalArgumentException is what
     // should be thrown
     generate_negative_guard(length, bailout, &length);
+
+    // Handle inline type arrays
+    bool can_validate = !too_many_traps(Deoptimization::Reason_class_check);
+    if (!stopped()) {
+      orig_t = _gvn.type(original)->isa_aryptr();
+      if (orig_t != NULL && orig_t->is_flat()) {
+        // Src is flat, check that dest is flat as well
+        if (exclude_flat) {
+          // Dest can't be flat, bail out
+          bailout->add_req(control());
+          set_control(top());
+        } else {
+          generate_non_flatArray_guard(klass_node, bailout);
+        }
+      } else if (UseFlatArray && (orig_t == NULL || !orig_t->is_not_flat()) &&
+                 // If dest is flat, src must be flat as well (guaranteed by src <: dest check if validated).
+                 ((!klass->is_flat_array_klass() && klass->can_be_inline_array_klass()) || !can_validate)) {
+        // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
+        // TODO 8251971: Optimize for the case when src/dest are later found to be both flat.
+        generate_flatArray_guard(original_kls, bailout);
+        if (orig_t != NULL) {
+          orig_t = orig_t->cast_to_not_flat();
+          original = _gvn.transform(new CheckCastPPNode(control(), original, orig_t));
+        }
+      }
+      if (!can_validate) {
+        // No validation. The subtype check emitted at macro expansion time will not go to the slow
+        // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.
+        // TODO 8251971: Optimize for the case when src/dest are later found to be both flat/null-free.
+        generate_fair_guard(check_null_free_bit(klass_node, true), bailout);
+      }
+    }
 
     if (bailout->req() > 1) {
       PreserveJVMState pjvms(this);
@@ -4008,7 +4035,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
       bool validated = false;
       // Reason_class_check rather than Reason_intrinsic because we
       // want to intrinsify even if this traps.
-      if (!too_many_traps(Deoptimization::Reason_class_check)) {
+      if (can_validate) {
         Node* not_subtype_ctrl = gen_subtype_check(original, klass_node);
 
         if (not_subtype_ctrl != top()) {
@@ -4648,9 +4675,10 @@ bool LibraryCallKit::inline_native_clone(bool is_virtual) {
       set_control(array_ctl);
 
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-      if (bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Parsing) &&
-          UseFlatArray && obj_type->klass()->can_be_inline_array_klass() &&
-          (!obj_type->isa_aryptr() || !obj_type->is_aryptr()->is_not_flat())) {
+      const TypeAryPtr* ary_ptr = obj_type->isa_aryptr();
+      if (UseFlatArray && bs->array_copy_requires_gc_barriers(true, T_OBJECT, true, BarrierSetC2::Parsing) &&
+          obj_type->klass()->can_be_inline_array_klass() &&
+          (ary_ptr == NULL || (!ary_ptr->is_not_flat() && (!ary_ptr->is_flat() || ary_ptr->elem()->inline_klass()->contains_oops())))) {
         // Flattened inline type array may have object field that would require a
         // write barrier. Conservatively, go to slow path.
         generate_flatArray_guard(obj_klass, slow_region);
@@ -5074,8 +5102,7 @@ bool LibraryCallKit::inline_arraycopy() {
   bool negative_length_guard_generated = false;
 
   if (!C->too_many_traps(trap_method, trap_bci, Deoptimization::Reason_intrinsic) &&
-      can_emit_guards &&
-      !src->is_top() && !dest->is_top()) {
+      can_emit_guards && !src->is_top() && !dest->is_top()) {
     // validate arguments: enables transformation the ArrayCopyNode
     validated = true;
 
@@ -5118,14 +5145,7 @@ bool LibraryCallKit::inline_arraycopy() {
     Node* dest_klass = load_object_klass(dest);
     if (src != dest) {
       Node* not_subtype_ctrl = gen_subtype_check(src, dest_klass);
-
-      if (not_subtype_ctrl != top()) {
-        PreserveJVMState pjvms(this);
-        set_control(not_subtype_ctrl);
-        uncommon_trap(Deoptimization::Reason_intrinsic,
-                      Deoptimization::Action_make_not_entrant);
-        assert(stopped(), "Should be stopped");
-      }
+      slow_region->add_req(not_subtype_ctrl);
     }
 
     const TypeKlassPtr* dest_klass_t = _gvn.type(dest_klass)->is_klassptr();
@@ -5134,16 +5154,29 @@ bool LibraryCallKit::inline_arraycopy() {
     src_type = _gvn.type(src);
     top_src  = src_type->isa_aryptr();
 
-    if (top_dest != NULL && !top_dest->is_flat() && !top_dest->is_not_flat()) {
-      generate_flatArray_guard(dest_klass, slow_region);
-      top_dest = top_dest->cast_to_not_flat();
-      dest = _gvn.transform(new CheckCastPPNode(control(), dest, top_dest));
-    }
-    if (top_src != NULL && !top_src->is_flat() && !top_src->is_not_flat()) {
-      Node* src_klass = load_object_klass(src);
-      generate_flatArray_guard(src_klass, slow_region);
-      top_src = top_src->cast_to_not_flat();
-      src = _gvn.transform(new CheckCastPPNode(control(), src, top_src));
+    // Handle flat inline type arrays (null-free arrays are handled by the subtype check above)
+    if (!stopped() && UseFlatArray) {
+      // If dest is flat, src must be flat as well (guaranteed by src <: dest check). Handle flat src here.
+      assert(top_dest == NULL || !top_dest->is_flat() || top_src->is_flat(), "src array must be flat");
+      if (top_src != NULL && top_src->is_flat()) {
+        // Src is flat, check that dest is flat as well
+        if (top_dest != NULL && !top_dest->is_flat()) {
+          generate_non_flatArray_guard(dest_klass, slow_region);
+          // Since dest is flat and src <: dest, dest must have the same type as src.
+          top_dest = TypeOopPtr::make_from_klass(top_src->klass())->isa_aryptr();
+          assert(top_dest->is_flat(), "dest must be flat");
+          dest = _gvn.transform(new CheckCastPPNode(control(), dest, top_dest));
+        }
+      } else if (top_src == NULL || !top_src->is_not_flat()) {
+        // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
+        // TODO 8251971: Optimize for the case when src/dest are later found to be both flat.
+        assert(top_dest == NULL || !top_dest->is_flat(), "dest array must not be flat");
+        generate_flatArray_guard(load_object_klass(src), slow_region);
+        if (top_src != NULL) {
+          top_src = top_src->cast_to_not_flat();
+          src = _gvn.transform(new CheckCastPPNode(control(), src, top_src));
+        }
+      }
     }
 
     {

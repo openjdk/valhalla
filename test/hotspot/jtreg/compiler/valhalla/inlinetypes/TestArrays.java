@@ -597,13 +597,18 @@ public class TestArrays extends InlineTypeTest {
     public void test24_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
         MyValue1[] src = new MyValue1[len];
-        MyValue1[] dst = new MyValue1[len];
+        MyValue1[] dst1 = new MyValue1[len];
+        Object[] dst2 = new Object[len];
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
-        test24(src, dst);
+        test24(src, dst1);
         for (int i = 0; i < len; ++i) {
-            Asserts.assertEQ(src[i].hash(), dst[i].hash());
+            Asserts.assertEQ(src[i].hash(), dst1[i].hash());
+        }
+        test24(src, dst2);
+        for (int i = 0; i < len; ++i) {
+            Asserts.assertEQ(src[i].hash(), ((MyValue1)dst2[i]).hash());
         }
     }
 
@@ -842,8 +847,14 @@ public class TestArrays extends InlineTypeTest {
     }
 
     static void verify(Object[] src, Object[] dst) {
-        for (int i = 0; i < src.length; ++i) {
-            Asserts.assertEQ(((MyInterface)src[i]).hash(), ((MyInterface)dst[i]).hash());
+        if (src instanceof MyInterface[] && dst instanceof MyInterface[]) {
+            for (int i = 0; i < src.length; ++i) {
+                Asserts.assertEQ(((MyInterface)src[i]).hash(), ((MyInterface)dst[i]).hash());
+            }
+        } else {
+            for (int i = 0; i < src.length; ++i) {
+                Asserts.assertEQ(src[i], dst[i]);
+            }
         }
     }
 
@@ -895,15 +906,18 @@ public class TestArrays extends InlineTypeTest {
     public void test35_verifier(boolean warmup) {
         int len = Math.abs(rI) % 10;
         MyValue1[] src = new MyValue1[len];
-        MyValue1[] dst = new MyValue1[len];
+        MyValue1[] dst1 = new MyValue1[len];
+        Object[] dst2 = new Object[len];
         for (int i = 0; i < len; ++i) {
             src[i] = MyValue1.createWithFieldsInline(rI, rL);
         }
-        test35(src, dst, src.length);
-        verify(src, dst);
+        test35(src, dst1, src.length);
+        verify(src, dst1);
+        test35(src, dst2, src.length);
+        verify(src, dst2);
         if (compile_and_run_again_if_deoptimized(warmup, "TestArrays::test35")) {
-            test35(src, dst, src.length);
-            verify(src, dst);
+            test35(src, dst1, src.length);
+            verify(src, dst1);
         }
     }
 
@@ -1250,7 +1264,8 @@ public class TestArrays extends InlineTypeTest {
     @Test
     public MyValue1[] test51(MyValue1[] va) {
         // TODO 8244562: Remove cast as workaround once javac is fixed
-        return (MyValue1[])Arrays.copyOf(va, va.length, MyValue1[].class);
+        Object[] res = Arrays.copyOf(va, va.length, MyValue1[].class);
+        return (MyValue1[]) res;
     }
 
     @DontCompile
@@ -1269,7 +1284,8 @@ public class TestArrays extends InlineTypeTest {
     @Test
     public MyValue1[] test52() {
         // TODO 8244562: Remove cast as workaround once javac is fixed
-        return (MyValue1[])Arrays.copyOf(test52_va, 8, MyValue1[].class);
+        Object[] res = Arrays.copyOf(test52_va, 8, MyValue1[].class);
+        return (MyValue1[]) res;
     }
 
     @DontCompile
@@ -1284,7 +1300,8 @@ public class TestArrays extends InlineTypeTest {
     @Test
     public MyValue1[] test53(Object[] va) {
         // TODO 8244562: Remove cast as workaround once javac is fixed
-        return (MyValue1[])Arrays.copyOf(va, va.length, MyValue1[].class);
+        Object[] res = Arrays.copyOf(va, va.length, MyValue1[].class);
+        return (MyValue1[]) res;
     }
 
     @DontCompile
@@ -1333,7 +1350,8 @@ public class TestArrays extends InlineTypeTest {
     @Test
     public MyValue1[] test56(Object[] va) {
         // TODO 8244562: Remove cast as workaround once javac is fixed
-        return (MyValue1[])Arrays.copyOf(va, va.length, MyValue1[].class);
+        Object[] res = Arrays.copyOf(va, va.length, MyValue1[].class);
+        return (MyValue1[]) res;
     }
 
     @DontCompile
@@ -1690,7 +1708,7 @@ public class TestArrays extends InlineTypeTest {
         try {
             test73(arr, v0, v1);
             throw new RuntimeException("ArrayStoreException expected");
-        } catch (ArrayStoreException t) {
+        } catch (ArrayStoreException e) {
             // expected
         }
         Asserts.assertEQ(arr[0].hash(), v0.hash());
@@ -2446,5 +2464,546 @@ public class TestArrays extends InlineTypeTest {
         NotFlattenable[] array2 = new NotFlattenable[1];
         Asserts.assertTrue(test101(array1));
         Asserts.assertFalse(test101(array2));
+    }
+
+    static final MyValue2[] val_src = new MyValue2[8];
+    static final MyValue2[] val_dst = new MyValue2[8];
+    static final Object[]   obj_src = new Object[8];
+    static final Object[]   obj_null_src = new Object[8];
+    static final Object[]   obj_dst = new Object[8];
+
+    static Object get_val_src() { return val_src; }
+    static Object get_val_dst() { return val_dst; }
+    static Class get_val_class() { return MyValue2[].class; }
+    static Class get_int_class() { return Integer[].class; }
+    static Object get_obj_src() { return obj_src; }
+    static Object get_obj_null_src() { return obj_null_src; }
+    static Object get_obj_dst() { return obj_dst; }
+    static Class get_obj_class() { return Object[].class; }
+
+    static {
+        for (int i = 0; i < 8; ++i) {
+            val_src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            obj_src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+            obj_null_src[i] = MyValue2.createWithFieldsInline(rI+i, rD+i);
+        }
+        obj_null_src[0] = null;
+    }
+
+    // Arraycopy with constant source and destination arrays
+    @Test(valid = InlineTypeArrayFlattenOn, match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
+    @Test(valid = InlineTypeArrayFlattenOff, failOn = INTRINSIC_SLOW_PATH)
+    public void test102() {
+        System.arraycopy(val_src, 0, obj_dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test102_verifier(boolean warmup) {
+        test102();
+        verify(val_src, obj_dst);
+    }
+
+    // Same as test102 but with MyValue2[] dst
+    @Test(failOn = INTRINSIC_SLOW_PATH)
+    public void test103() {
+        System.arraycopy(val_src, 0, val_dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test103_verifier(boolean warmup) {
+        test103();
+        verify(val_src, val_dst);
+    }
+
+    // Same as test102 but with Object[] src
+    @Test(failOn = INTRINSIC_SLOW_PATH)
+    public void test104() {
+        System.arraycopy(obj_src, 0, obj_dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test104_verifier(boolean warmup) {
+        test104();
+        verify(obj_src, obj_dst);
+    }
+
+    // Same as test103 but with Object[] src
+    @Test(match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
+    public void test105() {
+        System.arraycopy(obj_src, 0, val_dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test105_verifier(boolean warmup) {
+        test105();
+        verify(obj_src, val_dst);
+    }
+
+    // Same as test103 but with Object[] src containing null
+    @Test(match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
+    public void test105_null() {
+        System.arraycopy(obj_null_src, 0, val_dst, 0, 8);
+    }
+
+    @DontCompile
+    public void test105_null_verifier(boolean warmup) {
+        try {
+            test105_null();
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // expected
+        }
+    }
+
+    // Below tests are equal to test102-test105 but hide the src/dst types until
+    // after the arraycopy intrinsic is emitted (with incremental inlining).
+
+    @Test(valid = InlineTypeArrayFlattenOn, match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
+    @Test(valid = InlineTypeArrayFlattenOff, failOn = INTRINSIC_SLOW_PATH)
+    public void test106() {
+        System.arraycopy(get_val_src(), 0, get_obj_dst(), 0, 8);
+    }
+
+    @DontCompile
+    public void test106_verifier(boolean warmup) {
+        test106();
+        verify(val_src, obj_dst);
+    }
+
+    // TODO 8251971: Should be optimized but we are bailing out because
+    // at parse time it looks as if src could be flat and dst could be not flat.
+    @Test(valid = InlineTypeArrayFlattenOn)
+    @Test(valid = InlineTypeArrayFlattenOff, failOn = INTRINSIC_SLOW_PATH)
+    public void test107() {
+        System.arraycopy(get_val_src(), 0, get_val_dst(), 0, 8);
+    }
+
+    @DontCompile
+    public void test107_verifier(boolean warmup) {
+        test107();
+        verify(val_src, val_dst);
+    }
+
+    @Test(failOn = INTRINSIC_SLOW_PATH)
+    public void test108() {
+        System.arraycopy(get_obj_src(), 0, get_obj_dst(), 0, 8);
+    }
+
+    @DontCompile
+    public void test108_verifier(boolean warmup) {
+        test108();
+        verify(obj_src, obj_dst);
+    }
+
+    @Test(match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
+    public void test109() {
+        System.arraycopy(get_obj_src(), 0, get_val_dst(), 0, 8);
+    }
+
+    @DontCompile
+    public void test109_verifier(boolean warmup) {
+        test109();
+        verify(obj_src, val_dst);
+    }
+
+    @Test(match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
+    public void test109_null() {
+        System.arraycopy(get_obj_null_src(), 0, get_val_dst(), 0, 8);
+    }
+
+    @DontCompile
+    public void test109_null_verifier(boolean warmup) {
+        try {
+            test109_null();
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // expected
+        }
+    }
+
+    // Arrays.copyOf with constant source and destination arrays
+    @Test(valid = InlineTypeArrayFlattenOn, match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
+    @Test(valid = InlineTypeArrayFlattenOff, failOn = INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP)
+    public Object[] test110() {
+        return Arrays.copyOf(val_src, 8, Object[].class);
+    }
+
+    @DontCompile
+    public void test110_verifier(boolean warmup) {
+        Object[] res = test110();
+        verify(val_src, res);
+    }
+
+    // Same as test110 but with MyValue2[] dst
+    @Test(failOn = INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP)
+    public Object[] test111() {
+        return Arrays.copyOf(val_src, 8, MyValue2[].class);
+    }
+
+    @DontCompile
+    public void test111_verifier(boolean warmup) {
+        Object[] res = test111();
+        verify(val_src, res);
+    }
+
+    // Same as test110 but with Object[] src
+    @Test(failOn = INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP)
+    public Object[] test112() {
+        return Arrays.copyOf(obj_src, 8, Object[].class);
+    }
+
+    @DontCompile
+    public void test112_verifier(boolean warmup) {
+        Object[] res = test112();
+        verify(obj_src, res);
+    }
+
+    // Same as test111 but with Object[] src
+    @Test(match = { INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP }, matchCount = { 1 })
+    public Object[] test113() {
+        return Arrays.copyOf(obj_src, 8, MyValue2[].class);
+    }
+
+    @DontCompile
+    public void test113_verifier(boolean warmup) {
+        Object[] res = test113();
+        verify(obj_src, res);
+    }
+
+    // Same as test111 but with Object[] src containing null
+    @Test(match = { INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP }, matchCount = { 1 })
+    public Object[] test113_null() {
+        return Arrays.copyOf(obj_null_src, 8, MyValue2[].class);
+    }
+
+    @DontCompile
+    public void test113_null_verifier(boolean warmup) {
+        try {
+            test113_null();
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // expected
+        }
+    }
+
+    // Below tests are equal to test110-test113 but hide the src/dst types until
+    // after the arraycopy intrinsic is emitted (with incremental inlining).
+
+    @Test(valid = InlineTypeArrayFlattenOn, match = { INTRINSIC_SLOW_PATH }, matchCount = { 1 })
+    @Test(valid = InlineTypeArrayFlattenOff, failOn = INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP)
+    public Object[] test114() {
+        return Arrays.copyOf((Object[])get_val_src(), 8, get_obj_class());
+    }
+
+    @DontCompile
+    public void test114_verifier(boolean warmup) {
+        Object[] res = test114();
+        verify(val_src, res);
+    }
+
+    // TODO 8251971: Should be optimized but we are bailing out because
+    // at parse time it looks as if src could be flat and dst could be not flat
+    @Test(valid = InlineTypeArrayFlattenOn)
+    @Test(valid = InlineTypeArrayFlattenOff, failOn = INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP)
+    public Object[] test115() {
+        return Arrays.copyOf((Object[])get_val_src(), 8, get_val_class());
+    }
+
+    @DontCompile
+    public void test115_verifier(boolean warmup) {
+        Object[] res = test115();
+        verify(val_src, res);
+    }
+
+    @Test(failOn = INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP)
+    public Object[] test116() {
+        return Arrays.copyOf((Object[])get_obj_src(), 8, get_obj_class());
+    }
+
+    @DontCompile
+    public void test116_verifier(boolean warmup) {
+        Object[] res = test116();
+        verify(obj_src, res);
+    }
+
+    @Test(match = { INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP }, matchCount = { 1 })
+    public Object[] test117() {
+        return Arrays.copyOf((Object[])get_obj_src(), 8, get_val_class());
+    }
+
+    @DontCompile
+    public void test117_verifier(boolean warmup) {
+        Object[] res = test117();
+        verify(obj_src, res);
+    }
+
+    @Test(match = { INTRINSIC_SLOW_PATH + CLASS_CHECK_TRAP }, matchCount = { 1 })
+    public Object[] test117_null() {
+        return Arrays.copyOf((Object[])get_obj_null_src(), 8, get_val_class());
+    }
+
+    @DontCompile
+    public void test117_null_verifier(boolean warmup) {
+        try {
+            test117_null();
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // expected
+        }
+    }
+
+    // Some more Arrays.copyOf tests with only constant class
+
+    @Test(match = { CLASS_CHECK_TRAP }, matchCount = { 1 }, failOn = INTRINSIC_SLOW_PATH)
+    public Object[] test118(Object[] src) {
+        return Arrays.copyOf(src, 8, MyValue2[].class);
+    }
+
+    @DontCompile
+    public void test118_verifier(boolean warmup) {
+        Object[] res = test118(obj_src);
+        verify(obj_src, res);
+        res = test118(val_src);
+        verify(val_src, res);
+        try {
+            test118(obj_null_src);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // expected
+        }
+    }
+
+    @Test
+    public Object[] test119(Object[] src) {
+        return Arrays.copyOf(src, 8, Object[].class);
+    }
+
+    @DontCompile
+    public void test119_verifier(boolean warmup) {
+        Object[] res = test119(obj_src);
+        verify(obj_src, res);
+        res = test119(val_src);
+        verify(val_src, res);
+    }
+
+    @Test(match = { CLASS_CHECK_TRAP }, matchCount = { 1 }, failOn = INTRINSIC_SLOW_PATH)
+    public Object[] test120(Object[] src) {
+        return Arrays.copyOf(src, 8, Integer[].class);
+    }
+
+    @DontCompile
+    public void test120_verifier(boolean warmup) {
+        Integer[] arr = new Integer[8];
+        for (int i = 0; i < 8; ++i) {
+            arr[i] = rI + i;
+        }
+        Object[] res = test120(arr);
+        verify(arr, res);
+        try {
+            test120(val_src);
+            throw new RuntimeException("ArrayStoreException expected");
+        } catch (ArrayStoreException e) {
+            // expected
+        }
+    }
+
+    @Test
+    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
+    public Object[] test121(Object[] src) {
+        return Arrays.copyOf(src, 8, MyValue2[].class);
+    }
+
+    @DontCompile
+    public void test121_verifier(boolean warmup) {
+        Object[] res = test121(obj_src);
+        verify(obj_src, res);
+        res = test121(val_src);
+        verify(val_src, res);
+        try {
+            test121(obj_null_src);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // expected
+        }
+    }
+
+    @Test
+    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
+    public Object[] test122(Object[] src) {
+        return Arrays.copyOf(src, 8, get_val_class());
+    }
+
+    @DontCompile
+    public void test122_verifier(boolean warmup) {
+        Object[] res = test122(obj_src);
+        verify(obj_src, res);
+        res = test122(val_src);
+        verify(val_src, res);
+        try {
+            test122(obj_null_src);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // expected
+        }
+    }
+
+    @Test
+    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
+    public Object[] test123(Object[] src) {
+        return Arrays.copyOf(src, 8, Integer[].class);
+    }
+
+    @DontCompile
+    public void test123_verifier(boolean warmup) {
+        Integer[] arr = new Integer[8];
+        for (int i = 0; i < 8; ++i) {
+            arr[i] = rI + i;
+        }
+        Object[] res = test123(arr);
+        verify(arr, res);
+        try {
+            test123(val_src);
+            throw new RuntimeException("ArrayStoreException expected");
+        } catch (ArrayStoreException e) {
+            // expected
+        }
+    }
+
+    @Test
+    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
+    public Object[] test124(Object[] src) {
+        return Arrays.copyOf(src, 8, get_int_class());
+    }
+
+    @DontCompile
+    public void test124_verifier(boolean warmup) {
+        Integer[] arr = new Integer[8];
+        for (int i = 0; i < 8; ++i) {
+            arr[i] = rI + i;
+        }
+        Object[] res = test124(arr);
+        verify(arr, res);
+        try {
+            test124(val_src);
+            throw new RuntimeException("ArrayStoreException expected");
+        } catch (ArrayStoreException e) {
+            // expected
+        }
+    }
+
+    @Test
+    @Warmup(10000) // Make sure we hit too_many_traps for the src <: dst check
+    public Object[] test125(Object[] src, Class klass) {
+        return Arrays.copyOf(src, 8, klass);
+    }
+
+    @DontCompile
+    public void test125_verifier(boolean warmup) {
+        Integer[] arr = new Integer[8];
+        for (int i = 0; i < 8; ++i) {
+            arr[i] = rI + i;
+        }
+        Object[] res = test125(arr, Integer[].class);
+        verify((Object[])arr, res);
+        res = test125(val_src, MyValue2[].class);
+        verify(val_src, res);
+        res = test125(obj_src, MyValue2[].class);
+        verify(val_src, res);
+        try {
+            test125(obj_null_src, MyValue2[].class);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // expected
+        }
+        try {
+            test125(arr, MyValue2[].class);
+            throw new RuntimeException("ArrayStoreException expected");
+        } catch (ArrayStoreException e) {
+            // expected
+        }
+        try {
+            test125(val_src, MyValue1[].class);
+            throw new RuntimeException("ArrayStoreException expected");
+        } catch (ArrayStoreException e) {
+            // expected
+        }
+    }
+
+    // Verify that clone from (flat) inline type array not containing oops is always optimized.
+    @Test(valid = InlineTypeArrayFlattenOn, match = { JLONG_ARRAYCOPY }, matchCount = { 1 }, failOn = CHECKCAST_ARRAYCOPY + CLONE_INTRINSIC_SLOW_PATH)
+    @Test(valid = InlineTypeArrayFlattenOff, failOn = CLONE_INTRINSIC_SLOW_PATH)
+    public Object[] test126(MyValue2[] src) {
+        return src.clone();
+    }
+
+    @DontCompile
+    public void test126_verifier(boolean warmup) {
+        Object[] res = test126(val_src);
+        verify(val_src, res);
+    }
+
+    // Verify correctness of generic_copy stub
+    @Test
+    public void test127(Object src, Object dst, int len) {
+        System.arraycopy(src, 0, dst, 0, len);
+    }
+
+    @DontCompile
+    public void test127_verifier(boolean warmup) {
+        test127(val_src, obj_dst, 8);
+        verify(val_src, obj_dst);
+        test127(val_src, val_dst, 8);
+        verify(val_src, val_dst);
+        test127(obj_src, val_dst, 8);
+        verify(obj_src, val_dst);
+        try {
+            test127(obj_null_src, val_dst, 8);
+            throw new RuntimeException("NullPointerException expected");
+        } catch (NullPointerException e) {
+            // expected
+        }
+    }
+
+    // Verify that copyOf with known source and unknown destination class is optimized
+    @Test(valid = InlineTypeArrayFlattenOn, match = { JLONG_ARRAYCOPY }, matchCount = { 1 }, failOn = CHECKCAST_ARRAYCOPY)
+    @Test(valid = InlineTypeArrayFlattenOff)
+    public Object[] test128(MyValue2[] src, Class klass) {
+        return Arrays.copyOf(src, 8, klass);
+    }
+
+    @DontCompile
+    public void test128_verifier(boolean warmup) {
+        Object[] res = test128(val_src, MyValue2[].class);
+        verify(val_src, res);
+        res = test128(val_src, Object[].class);
+        verify(val_src, res);
+        try {
+            test128(val_src, MyValue1[].class);
+            throw new RuntimeException("ArrayStoreException expected");
+        } catch (ArrayStoreException e) {
+            // expected
+        }
+    }
+
+    // Arraycopy with non-array src/dst
+    @Test
+    public void test129(Object src, Object dst, int len) {
+        System.arraycopy(src, 0, dst, 0, len);
+    }
+
+    @DontCompile
+    public void test129_verifier(boolean warmup) {
+        try {
+            test129(new Object(), new Object[0], 0);
+            throw new RuntimeException("ArrayStoreException expected");
+        } catch (ArrayStoreException e) {
+            // expected
+        }
+        try {
+            test129(new Object[0], new Object(), 0);
+            throw new RuntimeException("ArrayStoreException expected");
+        } catch (ArrayStoreException e) {
+            // expected
+        }
     }
 }
