@@ -878,6 +878,7 @@ class    LIR_OpSubstitutabilityCheck;
 class    LIR_OpCompareAndSwap;
 class    LIR_OpProfileCall;
 class    LIR_OpProfileType;
+class    LIR_OpProfileInlineType;
 #ifdef ASSERT
 class    LIR_OpAssert;
 #endif
@@ -1000,6 +1001,7 @@ enum LIR_Code {
   , begin_opMDOProfile
     , lir_profile_call
     , lir_profile_type
+    , lir_profile_inline_type
   , end_opMDOProfile
   , begin_opAssert
     , lir_assert
@@ -1148,6 +1150,7 @@ class LIR_Op: public CompilationResourceObj {
   virtual LIR_OpCompareAndSwap* as_OpCompareAndSwap() { return NULL; }
   virtual LIR_OpProfileCall* as_OpProfileCall() { return NULL; }
   virtual LIR_OpProfileType* as_OpProfileType() { return NULL; }
+  virtual LIR_OpProfileInlineType* as_OpProfileInlineType() { return NULL; }
 #ifdef ASSERT
   virtual LIR_OpAssert* as_OpAssert() { return NULL; }
 #endif
@@ -2056,6 +2059,38 @@ class LIR_OpProfileType : public LIR_Op {
   virtual void print_instr(outputStream* out) const PRODUCT_RETURN;
 };
 
+// LIR_OpProfileInlineType
+class LIR_OpProfileInlineType : public LIR_Op {
+ friend class LIR_OpVisitState;
+
+ private:
+  LIR_Opr      _mdp;
+  LIR_Opr      _obj;
+  int          _flag;
+  LIR_Opr      _tmp;
+  bool         _not_null;      // true if we know statically that _obj cannot be null
+
+ public:
+  // Destroys recv
+  LIR_OpProfileInlineType(LIR_Opr mdp, LIR_Opr obj, int flag, LIR_Opr tmp, bool not_null)
+    : LIR_Op(lir_profile_inline_type, LIR_OprFact::illegalOpr, NULL)  // no result, no info
+    , _mdp(mdp)
+    , _obj(obj)
+    , _flag(flag)
+    , _tmp(tmp)
+    , _not_null(not_null) { }
+
+  LIR_Opr      mdp()              const             { return _mdp;              }
+  LIR_Opr      obj()              const             { return _obj;              }
+  int          flag()             const             { return _flag;             }
+  LIR_Opr      tmp()              const             { return _tmp;              }
+  bool         not_null()         const             { return _not_null;         }
+
+  virtual void emit_code(LIR_Assembler* masm);
+  virtual LIR_OpProfileInlineType* as_OpProfileInlineType() { return this; }
+  virtual void print_instr(outputStream* out) const PRODUCT_RETURN;
+};
+
 class LIR_InsertionBuffer;
 
 //--------------------------------LIR_List---------------------------------------------------
@@ -2348,6 +2383,9 @@ class LIR_List: public CompilationResourceObj {
   }
   void profile_type(LIR_Address* mdp, LIR_Opr obj, ciKlass* exact_klass, intptr_t current_klass, LIR_Opr tmp, bool not_null, bool no_conflict) {
     append(new LIR_OpProfileType(LIR_OprFact::address(mdp), obj, exact_klass, current_klass, tmp, not_null, no_conflict));
+  }
+  void profile_inline_type(LIR_Address* mdp, LIR_Opr obj, int flag, LIR_Opr tmp, bool not_null) {
+    append(new LIR_OpProfileInlineType(LIR_OprFact::address(mdp), obj, flag, tmp, not_null));
   }
 
   void xadd(LIR_Opr src, LIR_Opr add, LIR_Opr res, LIR_Opr tmp) { append(new LIR_Op2(lir_xadd, src, add, res, tmp)); }

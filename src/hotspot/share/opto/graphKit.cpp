@@ -2268,7 +2268,7 @@ Node* GraphKit::record_profile_for_speculation(Node* n, ciKlass* exact_kls, Prof
     assert(xtype->klass_is_exact(), "Should be exact");
     // Any reason to believe n is not null (from this profiling or a previous one)?
     assert(ptr_kind != ProfileAlwaysNull, "impossible here");
-    const TypePtr* ptr = (ptr_kind == ProfileMaybeNull && current_type->speculative_maybe_null()) ? TypePtr::BOTTOM : TypePtr::NOTNULL;
+    const TypePtr* ptr = (ptr_kind != ProfileNeverNull && current_type->speculative_maybe_null()) ? TypePtr::BOTTOM : TypePtr::NOTNULL;
     // record the new speculative type's depth
     speculative = xtype->cast_to_ptr_type(ptr->ptr())->is_ptr();
     speculative = speculative->with_inline_depth(jvms()->depth());
@@ -3548,13 +3548,20 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
 }
 
 // Check if 'obj' is an inline type by checking if it has the always_locked markWord pattern set.
-Node* GraphKit::is_inline_type(Node* obj) {
+Node* GraphKit::inline_type_test(Node* obj) {
   Node* mark_addr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
   Node* mask = _gvn.MakeConX(markWord::always_locked_pattern);
   Node* andx = _gvn.transform(new AndXNode(mark, mask));
-  Node* cmp = _gvn.transform(new CmpXNode(andx, mask));
-  return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+  return _gvn.transform(new CmpXNode(andx, mask));
+}
+
+Node* GraphKit::is_inline_type(Node* obj) {
+  return _gvn.transform(new BoolNode(inline_type_test(obj), BoolTest::eq));
+}
+
+Node* GraphKit::is_not_inline_type(Node* obj) {
+  return _gvn.transform(new BoolNode(inline_type_test(obj), BoolTest::ne));
 }
 
 // Check if 'ary' is a non-flattened array

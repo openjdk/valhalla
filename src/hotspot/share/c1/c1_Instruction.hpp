@@ -108,6 +108,7 @@ class       UnsafePutObject;
 class         UnsafeGetAndSetObject;
 class   ProfileCall;
 class   ProfileReturnType;
+class   ProfileACmpTypes;
 class   ProfileInvoke;
 class   RuntimeCall;
 class   MemBar;
@@ -210,6 +211,7 @@ class InstructionVisitor: public StackObj {
   virtual void do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) = 0;
   virtual void do_ProfileCall    (ProfileCall*     x) = 0;
   virtual void do_ProfileReturnType (ProfileReturnType*  x) = 0;
+  virtual void do_ProfileACmpTypes(ProfileACmpTypes*  x) = 0;
   virtual void do_ProfileInvoke  (ProfileInvoke*   x) = 0;
   virtual void do_RuntimeCall    (RuntimeCall*     x) = 0;
   virtual void do_MemBar         (MemBar*          x) = 0;
@@ -2681,7 +2683,7 @@ LEAF(ProfileReturnType, Instruction)
     , _ret(ret)
   {
     set_needs_null_check(true);
-    // The ProfileType has side-effects and must occur precisely where located
+    // The ProfileReturnType has side-effects and must occur precisely where located
     pin();
   }
 
@@ -2693,6 +2695,48 @@ LEAF(ProfileReturnType, Instruction)
   virtual void input_values_do(ValueVisitor* f)   {
     if (_ret != NULL) {
       f->visit(&_ret);
+    }
+  }
+};
+
+LEAF(ProfileACmpTypes, Instruction)
+ private:
+  ciMethod*        _method;
+  int              _bci;
+  Value            _left;
+  Value            _right;
+  bool             _left_maybe_null;
+  bool             _right_maybe_null;
+
+ public:
+  ProfileACmpTypes(ciMethod* method, int bci, Value left, Value right)
+    : Instruction(voidType)
+    , _method(method)
+    , _bci(bci)
+    , _left(left)
+    , _right(right)
+  {
+    // The ProfileACmp has side-effects and must occur precisely where located
+    pin();
+    _left_maybe_null = true;
+    _right_maybe_null = true;
+  }
+
+  ciMethod* method()             const { return _method; }
+  int bci()                      const { return _bci; }
+  Value left()                 const { return _left; }
+  Value right()                 const { return _right; }
+  bool left_maybe_null()       const { return _left_maybe_null; }
+  bool right_maybe_null()       const { return _right_maybe_null; }
+  void set_left_maybe_null(bool v)   { _left_maybe_null = v; }
+  void set_right_maybe_null(bool v)   { _right_maybe_null = v; }
+
+  virtual void input_values_do(ValueVisitor* f)   {
+    if (_left != NULL) {
+      f->visit(&_left);
+    }
+    if (_right != NULL) {
+      f->visit(&_right);
     }
   }
 };

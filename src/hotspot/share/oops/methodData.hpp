@@ -124,7 +124,8 @@ public:
     virtual_call_type_data_tag,
     parameters_type_data_tag,
     speculative_trap_data_tag,
-    array_load_store_data_tag
+    array_load_store_data_tag,
+    acmp_data_tag
   };
 
   enum {
@@ -257,6 +258,7 @@ class       RetData;
 class       CallTypeData;
 class   JumpData;
 class     BranchData;
+class       ACmpData;
 class   ArrayData;
 class     MultiBranchData;
 class     ArgInfoData;
@@ -392,6 +394,7 @@ public:
   virtual bool is_ParametersTypeData() const { return false; }
   virtual bool is_SpeculativeTrapData()const { return false; }
   virtual bool is_ArrayLoadStoreData() const { return false; }
+  virtual bool is_ACmpData()          const { return false; }
 
 
   BitData* as_BitData() const {
@@ -453,6 +456,10 @@ public:
   ArrayLoadStoreData* as_ArrayLoadStoreData() const {
     assert(is_ArrayLoadStoreData(), "wrong type");
     return is_ArrayLoadStoreData() ? (ArrayLoadStoreData*)this : NULL;
+  }
+  ACmpData* as_ACmpData() const {
+    assert(is_ACmpData(), "wrong type");
+    return is_ACmpData() ? (ACmpData*)this : NULL;
   }
 
 
@@ -612,7 +619,8 @@ protected:
 public:
   JumpData(DataLayout* layout) : ProfileData(layout) {
     assert(layout->tag() == DataLayout::jump_data_tag ||
-      layout->tag() == DataLayout::branch_data_tag, "wrong type");
+      layout->tag() == DataLayout::branch_data_tag ||
+      layout->tag() == DataLayout::acmp_data_tag, "wrong type");
   }
 
   virtual bool is_JumpData() const { return true; }
@@ -1496,7 +1504,7 @@ protected:
 
 public:
   BranchData(DataLayout* layout) : JumpData(layout) {
-    assert(layout->tag() == DataLayout::branch_data_tag, "wrong type");
+    assert(layout->tag() == DataLayout::branch_data_tag || layout->tag() == DataLayout::acmp_data_tag, "wrong type");
   }
 
   virtual bool is_BranchData() const { return true; }
@@ -1920,6 +1928,79 @@ public:
   }
 
   static ByteSize array_load_store_data_size() {
+    return cell_offset(static_cell_count());
+  }
+
+  virtual void print_data_on(outputStream* st, const char* extra = NULL) const;
+};
+
+class ACmpData : public BranchData {
+private:
+  enum {
+    left_inline_type_flag = DataLayout::first_flag,
+    right_inline_type_flag
+  };
+
+  SingleTypeEntry _left;
+  SingleTypeEntry _right;
+
+public:
+  ACmpData(DataLayout* layout) :
+    BranchData(layout),
+    _left(BranchData::static_cell_count()),
+    _right(BranchData::static_cell_count() + SingleTypeEntry::static_cell_count()) {
+    assert(layout->tag() == DataLayout::acmp_data_tag, "wrong type");
+    _left.set_profile_data(this);
+    _right.set_profile_data(this);
+  }
+
+  const SingleTypeEntry* left() const {
+    return &_left;
+  }
+
+  const SingleTypeEntry* right() const {
+    return &_right;
+  }
+
+  virtual bool is_ACmpData() const { return true; }
+
+  static int static_cell_count() {
+    return BranchData::static_cell_count()+ SingleTypeEntry::static_cell_count() * 2;
+  }
+
+  virtual int cell_count() const {
+    return static_cell_count();
+  }
+
+  void set_left_inline_type() { set_flag_at(left_inline_type_flag); }
+  bool left_inline_type() const { return flag_at(left_inline_type_flag); }
+
+  void set_right_inline_type() { set_flag_at(right_inline_type_flag); }
+  bool right_inline_type() const { return flag_at(right_inline_type_flag); }
+
+  // Code generation support
+  static int left_inline_type_byte_constant() {
+    return flag_number_to_constant(left_inline_type_flag);
+  }
+
+  static int right_inline_type_byte_constant() {
+    return flag_number_to_constant(right_inline_type_flag);
+  }
+
+  static ByteSize left_offset() {
+    return cell_offset(BranchData::static_cell_count());
+  }
+
+  static ByteSize right_offset() {
+    return cell_offset(BranchData::static_cell_count() + SingleTypeEntry::static_cell_count());
+  }
+
+  virtual void clean_weak_klass_links(bool always_clean) {
+    _left.clean_weak_klass_links(always_clean);
+    _right.clean_weak_klass_links(always_clean);
+  }
+
+  static ByteSize acmp_data_size() {
     return cell_offset(static_cell_count());
   }
 

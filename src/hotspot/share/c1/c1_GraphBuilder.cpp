@@ -1353,6 +1353,11 @@ void GraphBuilder::if_node(Value x, If::Condition cond, Value y, ValueStack* sta
       }
     }
   }
+  if ((stream()->cur_bc() == Bytecodes::_if_acmpeq || stream()->cur_bc() == Bytecodes::_if_acmpne) &&
+      is_profiling() && profile_branches()) {
+    compilation()->set_would_profile(true);
+    append(new ProfileACmpTypes(method(), bci(), x, y));
+  }
 
   // In case of loop invariant code motion or predicate insertion
   // before the body of a loop the state is needed
