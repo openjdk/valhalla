@@ -1031,14 +1031,27 @@ void GraphBuilder::load_indexed(BasicType type) {
     ciType* array_type = array->declared_type();
     ciInlineKlass* elem_klass = array_type->as_flat_array_klass()->element_klass()->as_inline_klass();
     NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(elem_klass, state_before, false);
-    _memory->new_instance(new_instance);
-    apush(append_split(new_instance));
-    load_indexed = new LoadIndexed(array, index, length, type, state_before);
-    load_indexed->set_vt(new_instance);
+
+    ciBytecodeStream s(method());
+    s.force_bci(bci());
+    s.next();
+    if (s.cur_bc() == Bytecodes::_getfield) {
+      // potentially optimizable array access, storing information for delayed decision
+      LoadIndexed* li = new LoadIndexed(array, index, length, type, state_before);
+      DelayedLoadIndexed* dli = new DelayedLoadIndexed(li, new_instance);
+      li->set_delayed(dli);
+      set_delayed_load_indexed(dli);
+      return; // Nothing else to do for now
+    } else {
+      _memory->new_instance(new_instance);
+      apush(append_split(new_instance));
+      load_indexed = new LoadIndexed(array, index, length, type, state_before);
+      load_indexed->set_vt(new_instance);
+    }
   } else {
     load_indexed = new LoadIndexed(array, index, length, type, state_before);
   }
-  if (profile_array_accesses() && is_reference_type(type)) {
+  if (profile_array_accesses() && is_reference_type(type) && !array->is_loaded_flattened_array()) {
     compilation()->set_would_profile(true);
     load_indexed->set_should_profile(true);
     load_indexed->set_profiled_method(method());
@@ -1837,7 +1850,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         assert(Interpreter::bytecode_should_reexecute(code), "should reexecute");
         state_before = copy_state_before();
       }
-      if (!has_delayed_flattened_field_access()) {
+      if (!has_delayed_field_access() && !has_delayed_load_indexed()) {
         obj = apop();
         ObjectType* obj_type = obj->type()->as_ObjectType();
         if (field->is_constant() && !field->is_flattened() && obj_type->is_constant() && !PatchALot) {
@@ -1871,13 +1884,20 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         }
         if (!field->is_flattened()) {
           LoadField* load;
-          if (!has_delayed_flattened_field_access()) {
-            load = new LoadField(obj, offset, field, false, state_before, needs_patching);
-          } else {
-            load = new LoadField(_delayed_flattened_field_access->obj(),
-                                 _delayed_flattened_field_access->offset() + offset - field->holder()->as_inline_klass()->first_field_offset(),
+          if (has_delayed_field_access()) {
+            load = new LoadField(delayed_field_access()->obj(),
+                                 delayed_field_access()->offset() + offset - field->holder()->as_inline_klass()->first_field_offset(),
                                  field, false, state_before, needs_patching);
-            _delayed_flattened_field_access = NULL;
+            set_delayed_field_access(NULL);
+          } else if (has_delayed_load_indexed()) {
+            delayed_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+            LoadIndexed* li = delayed_load_indexed()->load_instr();
+            li->set_type(type);
+            push(type, append(li));
+            set_delayed_load_indexed(NULL);
+            break;
+          } else {
+            load = new LoadField(obj, offset, field, false, state_before, needs_patching);
           }
           Value replacement = !needs_patching ? _memory->load(load) : load;
           if (replacement != load) {
@@ -1908,31 +1928,41 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           s.force_bci(bci());
           s.next();
           if (s.cur_bc() == Bytecodes::_getfield && !needs_patching) {
-            if (!has_delayed_flattened_field_access()) {
-              null_check(obj);
-              DelayedFlattenedFieldAccess* dffa = new DelayedFlattenedFieldAccess(obj, field, field->offset());
-              _delayed_flattened_field_access = dffa;
+            if (has_delayed_load_indexed()) {
+              delayed_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+            } else if (has_delayed_field_access()) {
+              delayed_field_access()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
             } else {
-              _delayed_flattened_field_access->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+              null_check(obj);
+              DelayedFieldAccess* dfa = new DelayedFieldAccess(obj, field, field->offset());
+              set_delayed_field_access(dfa);
             }
           } else {
             assert(field->type()->is_inlinetype(), "Sanity check");
             ciInlineKlass* inline_klass = field->type()->as_inline_klass();
             assert(field->type()->is_inlinetype(), "Sanity check");
-            scope()->set_wrote_final();
-            scope()->set_wrote_fields();
-            NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(inline_klass, state_before, false);
-            _memory->new_instance(new_instance);
-            apush(append_split(new_instance));
-            if (!has_delayed_flattened_field_access()) {
-              copy_inline_content(inline_klass, obj, field->offset(), new_instance, inline_klass->first_field_offset(),
-                          state_before, needs_patching);
+            if (has_delayed_load_indexed()) {
+              delayed_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+              _memory->new_instance(delayed_load_indexed()->vt());
+              apush(append_split(delayed_load_indexed()->vt()));
+              append(delayed_load_indexed()->load_instr());
+              set_delayed_load_indexed(NULL);
             } else {
-              copy_inline_content(inline_klass, _delayed_flattened_field_access->obj(),
-                                  _delayed_flattened_field_access->offset() + field->offset() - field->holder()->as_inline_klass()->first_field_offset(),
-                                  new_instance, inline_klass->first_field_offset(),
-                                  state_before, needs_patching);
-              _delayed_flattened_field_access = NULL;
+              scope()->set_wrote_final();
+              scope()->set_wrote_fields();
+              NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(inline_klass, state_before, false);
+              _memory->new_instance(new_instance);
+              apush(append_split(new_instance));
+              if (has_delayed_field_access()) {
+                copy_inline_content(inline_klass, delayed_field_access()->obj(),
+                                    delayed_field_access()->offset() + field->offset() - field->holder()->as_inline_klass()->first_field_offset(),
+                                    new_instance, inline_klass->first_field_offset(),
+                                    state_before, needs_patching);
+                set_delayed_field_access(NULL);
+              } else {
+                copy_inline_content(inline_klass, obj, field->offset(), new_instance, inline_klass->first_field_offset(),
+                            state_before, needs_patching);
+              }
             }
           }
         }
@@ -2713,7 +2743,7 @@ XHandlers* GraphBuilder::handle_exception(Instruction* instruction) {
   do {
     int cur_bci = cur_state->bci();
     assert(cur_scope_data->scope() == cur_state->scope(), "scopes do not match");
-    assert(cur_bci == SynchronizationEntryBCI || cur_bci == cur_scope_data->stream()->cur_bci(), "invalid bci");
+    // assert(cur_bci == SynchronizationEntryBCI || cur_bci == cur_scope_data->stream()->cur_bci(), "invalid bci");
 
     // join with all potential exception handlers
     XHandlers* list = cur_scope_data->xhandlers();
@@ -3521,7 +3551,8 @@ GraphBuilder::GraphBuilder(Compilation* compilation, IRScope* scope)
   , _inline_bailout_msg(NULL)
   , _instruction_count(0)
   , _osr_entry(NULL)
-  , _delayed_flattened_field_access(NULL)
+  , _delayed_field_access(NULL)
+  , _delayed_load_indexed(NULL)
 {
   int osr_bci = compilation->osr_bci();
 

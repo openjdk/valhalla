@@ -1595,13 +1595,86 @@ class TempResolvedAddress: public Instruction {
   virtual const char* name() const  { return "TempResolvedAddress"; }
 };
 
-void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item) {
+void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset) {
+  assert(field != NULL, "Need a subelement type specified");
   // Find the starting address of the source (inside the array)
   ciType* array_type = array.value()->declared_type();
   ciFlatArrayKlass* flat_array_klass = array_type->as_flat_array_klass();
   assert(flat_array_klass->is_loaded(), "must be");
 
-  ciInlineKlass* elem_klass = flat_array_klass->element_klass()->as_inline_klass();
+  ciInlineKlass* elem_klass = NULL;
+  int array_header_size = flat_array_klass->array_header_in_bytes();
+  int shift = flat_array_klass->log2_element_size();
+
+  BasicType subelt_type = field->type()->basic_type();
+
+  #ifndef _LP64
+  LIR_Opr index_op = new_register(T_INT);
+  // FIXME -- on 32-bit, the shift below can overflow, so we need to check that
+  // the top (shift+1) bits of index_op must be zero, or
+  // else throw ArrayIndexOutOfBoundsException
+  if (index.result()->is_constant()) {
+    jint const_index = index.result()->as_jint();
+    __ move(LIR_OprFact::intConst(const_index << shift), index_op);
+  } else {
+    __ shift_left(index_op, shift, index.result());
+  }
+#else
+  LIR_Opr index_op = new_register(T_LONG);
+  if (index.result()->is_constant()) {
+    jint const_index = index.result()->as_jint();
+    __ move(LIR_OprFact::longConst(const_index << shift), index_op);
+  } else {
+    __ convert(Bytecodes::_i2l, index.result(), index_op);
+    // Need to shift manually, as LIR_Address can scale only up to 3.
+    __ shift_left(index_op, shift, index_op);
+  }
+#endif
+
+  LIR_Opr elm_op = new_pointer_register();
+  LIR_Address* elm_address = new LIR_Address(array.result(), index_op, array_header_size, T_ADDRESS);
+  __ leal(LIR_OprFact::address(elm_address), elm_op);
+  TempResolvedAddress* elm_resolved_addr = new TempResolvedAddress(as_ValueType(subelt_type), elm_op);
+  LIRItem elm_item(elm_resolved_addr, this);
+
+  // should the case of uninitialized unflattened inline type field be handled here? Yes!
+
+  DecoratorSet decorators = IN_HEAP;
+  access_load_at(decorators, subelt_type,
+                     elm_item, LIR_OprFact::intConst(sub_offset), result,
+                     NULL, NULL);
+
+  Constant* default_value = NULL;
+  if (field->signature()->is_Q_signature()) {
+    assert(field->type()->as_inline_klass()->is_loaded(), "Must be");
+    default_value = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
+  }
+  if (default_value != NULL) {
+    LabelObj* L_end = new LabelObj();
+    __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
+    __ branch(lir_cond_notEqual, L_end->label());
+    set_in_conditional_code(true);
+    __ move(load_constant(default_value), result);
+    __ branch_destination(L_end->label());
+    set_in_conditional_code(false);
+  }
+}
+
+void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item,
+                                          ciField* field, int sub_offset) {
+  assert(sub_offset == 0 || field != NULL, "Sanity check");
+
+  // Find the starting address of the source (inside the array)
+  ciType* array_type = array.value()->declared_type();
+  ciFlatArrayKlass* flat_array_klass = array_type->as_flat_array_klass();
+  assert(flat_array_klass->is_loaded(), "must be");
+
+  ciInlineKlass* elem_klass = NULL;
+  if (field != NULL) {
+    elem_klass = field->type()->as_inline_klass();
+  } else {
+    elem_klass = flat_array_klass->element_klass()->as_inline_klass();
+  }
   int array_header_size = flat_array_klass->array_header_in_bytes();
   int shift = flat_array_klass->log2_element_size();
 
@@ -1636,7 +1709,7 @@ void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem&
     ciField* inner_field = elem_klass->nonstatic_field_at(i);
     assert(!inner_field->is_flattened(), "flattened fields must have been expanded");
     int obj_offset = inner_field->offset();
-    int elm_offset = obj_offset - elem_klass->first_field_offset(); // object header is not stored in array.
+    int elm_offset = obj_offset - elem_klass->first_field_offset()  + sub_offset; // object header is not stored in array.
 
     BasicType field_type = inner_field->type()->basic_type();
     switch (field_type) {
@@ -2170,16 +2243,26 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   if (x->vt() != NULL) {
     assert(x->array()->is_loaded_flattened_array(), "must be");
     // Find the destination address (of the NewInlineTypeInstance).
-    LIR_Opr obj = x->vt()->operand();
+    // LIR_Opr obj = x->vt()->operand();
     LIRItem obj_item(x->vt(), this);
 
-    access_flattened_array(true, array, index, obj_item);
+    access_flattened_array(true, array, index, obj_item,
+                           x->delayed() == NULL ? 0 : x->delayed()->field(),
+                           x->delayed() == NULL ? 0 : x->delayed()->offset());
     set_no_result(x);
     element = x->vt();
     if (x->should_profile()) {
+      fatal("Loaded flattened array should not be profiled");
       int flag = ArrayLoadStoreData::flat_array_byte_constant() | ArrayLoadStoreData::null_free_array_byte_constant();
       profile_array_load_store_flags(md, load_store, flag);
     }
+  } else if (x->delayed() != NULL) {
+    assert(x->array()->is_loaded_flattened_array(), "must be");
+    LIR_Opr result = rlock_result(x, x->delayed()->field()->type()->basic_type());
+    access_sub_element(array, index, result,
+                       x->delayed() == NULL ? 0 : x->delayed()->field(),
+                       x->delayed() == NULL ? 0 : x->delayed()->offset());
+    assert(!x->should_profile(), "Loaded flattened array should not be profiled");
   } else {
     LIR_Opr result = rlock_result(x, x->elt_type());
     LoadFlattenedArrayStub* slow_path = NULL;
@@ -2189,6 +2272,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     }
 
     if (x->elt_type() == T_OBJECT && x->array()->maybe_flattened_array()) {
+      // assert(x->delayed() == NULL, "Delayed LoadIndexed only apply to load_flattened_arrays");
       index.load_item();
       // if we are loading from flattened array, load it using a runtime call
       slow_path = new LoadFlattenedArrayStub(array.result(), index.result(), result, state_for(x, x->state_before()));

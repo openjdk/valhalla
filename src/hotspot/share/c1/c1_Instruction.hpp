@@ -325,6 +325,7 @@ class Instruction: public CompilationResourceObj {
   XHandlers*   _exception_handlers;              // Flat list of exception handlers covering this instruction
 
   friend class UseCountComputer;
+  friend class GraphBuilder;
 
   void update_exception_state(ValueStack* state);
 
@@ -991,17 +992,19 @@ BASE(AccessIndexed, AccessArray)
   virtual void input_values_do(ValueVisitor* f)   { AccessArray::input_values_do(f); f->visit(&_index); if (_length != NULL) f->visit(&_length); }
 };
 
+class DelayedLoadIndexed;
 
 LEAF(LoadIndexed, AccessIndexed)
  private:
   NullCheck*  _explicit_null_check;              // For explicit null check elimination
   NewInlineTypeInstance* _vt;
+  DelayedLoadIndexed* _delayed;
 
  public:
   // creation
   LoadIndexed(Value array, Value index, Value length, BasicType elt_type, ValueStack* state_before, bool mismatched = false)
   : AccessIndexed(array, index, length, elt_type, state_before, mismatched)
-  , _explicit_null_check(NULL), _vt(NULL) {}
+  , _explicit_null_check(NULL), _vt(NULL), _delayed(NULL) {}
 
   // accessors
   NullCheck* explicit_null_check() const         { return _explicit_null_check; }
@@ -1016,10 +1019,40 @@ LEAF(LoadIndexed, AccessIndexed)
   NewInlineTypeInstance* vt() const { return _vt; }
   void set_vt(NewInlineTypeInstance* vt) { _vt = vt; }
 
+  DelayedLoadIndexed* delayed() { return _delayed; }
+  void set_delayed(DelayedLoadIndexed* delayed) { _delayed = delayed; }
+
   // generic
   HASHING4(LoadIndexed, !should_profile(), type()->tag(), array()->subst(), index()->subst(), vt())
 };
 
+class DelayedLoadIndexed : public CompilationResourceObj {
+private:
+  LoadIndexed* _load_instr;
+  NewInlineTypeInstance* _vt;
+  ciField* _field;
+  int _offset;
+ public:
+  DelayedLoadIndexed(LoadIndexed* load, NewInlineTypeInstance* vt)
+  : _load_instr(load)
+  , _vt(vt)
+  , _field(NULL)
+  , _offset(0) { }
+
+  void update(ciField* field, int offset) {
+    _field = field;
+    {
+      ResourceMark rm;
+      tty->print_cr("Updating offset from %d to %d", _offset, _offset + offset);
+    }
+    _offset += offset;
+  }
+
+  LoadIndexed* load_instr() { return _load_instr; }
+  NewInlineTypeInstance* vt() { return _vt; }
+  ciField* field() { return _field; }
+  int offset() { return _offset; }
+};
 
 LEAF(StoreIndexed, AccessIndexed)
  private:
