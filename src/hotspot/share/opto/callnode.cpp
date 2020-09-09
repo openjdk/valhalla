@@ -909,7 +909,7 @@ CallProjections* CallNode::extract_projections(bool separate_io_proj, bool do_as
         // For Control (fallthrough) and I_O (catch_all_index) we have CatchProj -> Catch -> Proj
         projs->fallthrough_proj = pn;
         const Node *cn = pn->unique_ctrl_out();
-        if (cn->is_Catch()) {
+        if (cn != NULL && cn->is_Catch()) {
           ProjNode *cpn = NULL;
           for (DUIterator_Fast kmax, k = cn->fast_outs(kmax); k < kmax; k++) {
             cpn = cn->fast_out(k)->as_Proj();
