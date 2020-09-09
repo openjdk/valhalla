@@ -3781,9 +3781,8 @@ public final class Unsafe {
      * Corresponds to C11 atomic_thread_fence(memory_order_acquire)
      * (an "acquire fence").
      *
-     * A pure LoadLoad fence is not provided, since the addition of LoadStore
-     * is almost always desired, and most current hardware instructions that
-     * provide a LoadLoad barrier also provide a LoadStore barrier for free.
+     * Provides a LoadLoad barrier followed by a LoadStore barrier.
+     *
      * @since 1.8
      */
     @HotSpotIntrinsicCandidate
@@ -3796,9 +3795,9 @@ public final class Unsafe {
      * Corresponds to C11 atomic_thread_fence(memory_order_release)
      * (a "release fence").
      *
-     * A pure StoreStore fence is not provided, since the addition of LoadStore
-     * is almost always desired, and most current hardware instructions that
-     * provide a StoreStore barrier also provide a LoadStore barrier for free.
+     * Provides a StoreStore barrier followed by a LoadStore barrier.
+     *
+     *
      * @since 1.8
      */
     @HotSpotIntrinsicCandidate
@@ -3819,6 +3818,11 @@ public final class Unsafe {
     /**
      * Ensures that loads before the fence will not be reordered with
      * loads after the fence.
+     *
+     * @implNote
+     * This method is operationally equivalent to {@link #loadFence()}.
+     *
+     * @since 9
      */
     public final void loadLoadFence() {
         loadFence();
@@ -3827,6 +3831,11 @@ public final class Unsafe {
     /**
      * Ensures that stores before the fence will not be reordered with
      * stores after the fence.
+     *
+     * @implNote
+     * This method is operationally equivalent to {@link #storeFence()}.
+     *
+     * @since 9
      */
     public final void storeStoreFence() {
         storeFence();

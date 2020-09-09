@@ -52,8 +52,6 @@
 
 // Forward declarations.
 class OopClosure;
-class ScanClosure;
-class FastScanClosure;
 class FilteringClosure;
 
 class PSPromotionManager;
