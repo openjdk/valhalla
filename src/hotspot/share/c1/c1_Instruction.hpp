@@ -1041,10 +1041,6 @@ private:
 
   void update(ciField* field, int offset) {
     _field = field;
-    {
-      ResourceMark rm;
-      tty->print_cr("Updating offset from %d to %d", _offset, _offset + offset);
-    }
     _offset += offset;
   }
 
