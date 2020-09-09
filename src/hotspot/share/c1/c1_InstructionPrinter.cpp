@@ -397,7 +397,12 @@ void InstructionPrinter::do_ArrayLength(ArrayLength* x) {
 
 void InstructionPrinter::do_LoadIndexed(LoadIndexed* x) {
   print_indexed(x);
-  output()->print(" (%c)", type2char(x->elt_type()));
+  if (x->delayed() != NULL) {
+    output()->print(" +%d ", x->delayed()->offset());
+    output()->print(" (%c)", type2char(x->delayed()->field()->type()->basic_type()));
+  } else {
+    output()->print(" (%c)", type2char(x->elt_type()));
+  }
   if (x->check_flag(Instruction::NeedsRangeCheckFlag)) {
     output()->print(" [rc]");
   }

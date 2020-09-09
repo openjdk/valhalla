@@ -1637,8 +1637,6 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
   TempResolvedAddress* elm_resolved_addr = new TempResolvedAddress(as_ValueType(subelt_type), elm_op);
   LIRItem elm_item(elm_resolved_addr, this);
 
-  // should the case of uninitialized unflattened inline type field be handled here? Yes!
-
   DecoratorSet decorators = IN_HEAP;
   access_load_at(decorators, subelt_type,
                      elm_item, LIR_OprFact::intConst(sub_offset), result,
