@@ -2248,6 +2248,7 @@ public class TestArrays extends InlineTypeTest {
 
     // Same as test30 but accessing all elements of the non-escaping array
     @Test
+    @Warmup(10000)
     public long test93(MyValue2[] src, boolean flag) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, 0, dst, 0, 10);
@@ -2272,6 +2273,7 @@ public class TestArrays extends InlineTypeTest {
 
     // Same as test93 but with variable source array offset
     @Test
+    @Warmup(10000)
     public long test94(MyValue2[] src, int i, boolean flag) {
         MyValue2[] dst = new MyValue2[10];
         System.arraycopy(src, i, dst, 0, 1);
