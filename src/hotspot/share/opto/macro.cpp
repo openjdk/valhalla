@@ -335,6 +335,10 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
       Node* base = ac->in(ArrayCopyNode::Src);
       const TypePtr* adr_type = _igvn.type(base)->is_ptr();
       assert(adr_type->isa_aryptr(), "only arrays here");
+      if (adr_type->is_aryptr()->is_flat()) {
+        ciFlatArrayKlass* vak = adr_type->is_aryptr()->klass()->as_flat_array_klass();
+        shift = vak->log2_element_size();
+      }
       if (src_pos_t->is_con() && dest_pos_t->is_con()) {
         intptr_t off = ((src_pos_t->get_con() - dest_pos_t->get_con()) << shift) + offset;
         adr = _igvn.transform(new AddPNode(base, base, MakeConX(off)));
