@@ -17,7 +17,7 @@ branches=lworld
 files=.*\.cpp|.*\.hpp|.*\.c|.*\.h|.*\.java
 
 [checks "merge"]
-message=Merge
+message=Merge jdk
 
 [checks "committer"]
 role=committer
