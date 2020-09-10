@@ -1285,9 +1285,6 @@ JVM_ENTRY(jobjectArray, JVM_GetClassInterfaces(JNIEnv *env, jclass cls))
   if (klass->is_instance_klass()) {
     InstanceKlass* ik = InstanceKlass::cast(klass);
     size = ik->local_interfaces()->length();
-    if (ik->has_injected_identityObject()) {
-      size--;
-    }
   } else {
     assert(klass->is_objArray_klass() || klass->is_typeArray_klass(), "Illegal mirror klass");
     size = 3;
@@ -1299,13 +1296,10 @@ JVM_ENTRY(jobjectArray, JVM_GetClassInterfaces(JNIEnv *env, jclass cls))
   // Fill in result
   if (klass->is_instance_klass()) {
     // Regular instance klass, fill in all local interfaces
-    int cursor = 0;
     for (int index = 0; index < size; index++) {
       InstanceKlass* ik = InstanceKlass::cast(klass);
       Klass* k = ik->local_interfaces()->at(index);
-      if (!ik->has_injected_identityObject() || k != SystemDictionary::IdentityObject_klass()) {
-        result->obj_at_put(cursor++, k->java_mirror());
-      }
+      result->obj_at_put(index, k->java_mirror());
     }
   } else {
     // All arrays implement java.lang.Cloneable, java.io.Serializable and java.lang.IdentityObject
