@@ -3234,12 +3234,16 @@ void PhaseOutput::init_scratch_buffer_blob(int const_size) {
     ResourceMark rm;
     _scratch_const_size = const_size;
     int size = C2Compiler::initial_code_buffer_size(const_size);
-#ifdef ASSERT
     if (C->has_scalarized_args()) {
-      // Oop verification for loading object fields from scalarized inline types in the new entry point requires lots of space
-      size += 5120;
+      // Inline type entry points (MachVEPNodes) require lots of space for GC barriers and oop verification
+      // when loading object fields from the buffered argument. Increase scratch buffer size accordingly.
+      int barrier_size = UseZGC ? 200 : (7 DEBUG_ONLY(+ 37));
+      for (ciSignatureStream str(C->method()->signature()); !str.at_return_type(); str.next()) {
+        if (str.type()->is_inlinetype() && str.type()->as_inline_klass()->can_be_passed_as_fields()) {
+          size += str.type()->as_inline_klass()->oop_count() * barrier_size;
+        }
+      }
     }
-#endif
     blob = BufferBlob::create("Compile::scratch_buffer", size);
     // Record the buffer blob for next time.
     set_scratch_buffer_blob(blob);

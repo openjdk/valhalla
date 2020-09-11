@@ -122,6 +122,10 @@ bool ciInlineKlass::contains_oops() const {
   GUARDED_VM_ENTRY(return get_InlineKlass()->contains_oops();)
 }
 
+int ciInlineKlass::oop_count() const {
+  GUARDED_VM_ENTRY(return get_InlineKlass()->nonstatic_oop_count();)
+}
+
 Array<SigEntry>* ciInlineKlass::extended_sig() const {
   GUARDED_VM_ENTRY(return get_InlineKlass()->extended_sig();)
 }
