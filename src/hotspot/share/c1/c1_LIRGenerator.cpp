@@ -2270,7 +2270,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     }
 
     if (x->elt_type() == T_OBJECT && x->array()->maybe_flattened_array()) {
-      // assert(x->delayed() == NULL, "Delayed LoadIndexed only apply to load_flattened_arrays");
+      assert(x->delayed() == NULL, "Delayed LoadIndexed only apply to loaded_flattened_arrays");
       index.load_item();
       // if we are loading from flattened array, load it using a runtime call
       slow_path = new LoadFlattenedArrayStub(array.result(), index.result(), result, state_for(x, x->state_before()));

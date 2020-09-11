@@ -1039,7 +1039,7 @@ void GraphBuilder::load_indexed(BasicType type) {
       LoadIndexed* li = new LoadIndexed(array, index, length, type, state_before);
       DelayedLoadIndexed* dli = new DelayedLoadIndexed(li, state_before);
       li->set_delayed(dli);
-      set_delayed_load_indexed(dli);
+      set_pending_load_indexed(dli);
       return; // Nothing else to do for now
     } else {
       NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(elem_klass, state_before, false);
@@ -1850,7 +1850,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         assert(Interpreter::bytecode_should_reexecute(code), "should reexecute");
         state_before = copy_state_before();
       }
-      if (!has_delayed_field_access() && !has_delayed_load_indexed()) {
+      if (!has_pending_field_access() && !has_pending_load_indexed()) {
         obj = apop();
         ObjectType* obj_type = obj->type()->as_ObjectType();
         if (field->is_constant() && !field->is_flattened() && obj_type->is_constant() && !PatchALot) {
@@ -1884,17 +1884,17 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         }
         if (!field->is_flattened()) {
           LoadField* load;
-          if (has_delayed_field_access()) {
-            load = new LoadField(delayed_field_access()->obj(),
-                                 delayed_field_access()->offset() + offset - field->holder()->as_inline_klass()->first_field_offset(),
+          if (has_pending_field_access()) {
+            load = new LoadField(pending_field_access()->obj(),
+                                 pending_field_access()->offset() + offset - field->holder()->as_inline_klass()->first_field_offset(),
                                  field, false, state_before, needs_patching);
-            set_delayed_field_access(NULL);
-          } else if (has_delayed_load_indexed()) {
-            delayed_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
-            LoadIndexed* li = delayed_load_indexed()->load_instr();
+            set_pending_field_access(NULL);
+          } else if (has_pending_load_indexed()) {
+            pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+            LoadIndexed* li = pending_load_indexed()->load_instr();
             li->set_type(type);
             push(type, append(li));
-            set_delayed_load_indexed(NULL);
+            set_pending_load_indexed(NULL);
             break;
           } else {
             load = new LoadField(obj, offset, field, false, state_before, needs_patching);
@@ -1928,40 +1928,40 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           s.force_bci(bci());
           s.next();
           if (s.cur_bc() == Bytecodes::_getfield && !needs_patching) {
-            if (has_delayed_load_indexed()) {
-              delayed_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
-            } else if (has_delayed_field_access()) {
-              delayed_field_access()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+            if (has_pending_load_indexed()) {
+              pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+            } else if (has_pending_field_access()) {
+              pending_field_access()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
             } else {
               null_check(obj);
               DelayedFieldAccess* dfa = new DelayedFieldAccess(obj, field, field->offset());
-              set_delayed_field_access(dfa);
+              set_pending_field_access(dfa);
             }
           } else {
             assert(field->type()->is_inlinetype(), "Sanity check");
             ciInlineKlass* inline_klass = field->type()->as_inline_klass();
             assert(field->type()->is_inlinetype(), "Sanity check");
-            if (has_delayed_load_indexed()) {
-              delayed_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+            scope()->set_wrote_final();
+            scope()->set_wrote_fields();
+            if (has_pending_load_indexed()) {
+              pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
               NewInlineTypeInstance* vt = new NewInlineTypeInstance(field->type()->as_inline_klass(),
-                                                                    delayed_load_indexed()->state_before(), false);
+                                                                    pending_load_indexed()->state_before(), false);
               _memory->new_instance(vt);
-              delayed_load_indexed()->load_instr()->set_vt(vt);
+              pending_load_indexed()->load_instr()->set_vt(vt);
               apush(append_split(vt));
-              append(delayed_load_indexed()->load_instr());
-              set_delayed_load_indexed(NULL);
+              append(pending_load_indexed()->load_instr());
+              set_pending_load_indexed(NULL);
             } else {
-              scope()->set_wrote_final();
-              scope()->set_wrote_fields();
               NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(inline_klass, state_before, false);
               _memory->new_instance(new_instance);
               apush(append_split(new_instance));
-              if (has_delayed_field_access()) {
-                copy_inline_content(inline_klass, delayed_field_access()->obj(),
-                                    delayed_field_access()->offset() + field->offset() - field->holder()->as_inline_klass()->first_field_offset(),
+              if (has_pending_field_access()) {
+                copy_inline_content(inline_klass, pending_field_access()->obj(),
+                                    pending_field_access()->offset() + field->offset() - field->holder()->as_inline_klass()->first_field_offset(),
                                     new_instance, inline_klass->first_field_offset(),
                                     state_before, needs_patching);
-                set_delayed_field_access(NULL);
+                set_pending_field_access(NULL);
               } else {
                 copy_inline_content(inline_klass, obj, field->offset(), new_instance, inline_klass->first_field_offset(),
                             state_before, needs_patching);
@@ -2746,7 +2746,9 @@ XHandlers* GraphBuilder::handle_exception(Instruction* instruction) {
   do {
     int cur_bci = cur_state->bci();
     assert(cur_scope_data->scope() == cur_state->scope(), "scopes do not match");
-    // assert(cur_bci == SynchronizationEntryBCI || cur_bci == cur_scope_data->stream()->cur_bci(), "invalid bci");
+    assert(cur_bci == SynchronizationEntryBCI || cur_bci == cur_scope_data->stream()->cur_bci()
+           || has_pending_field_access() || has_pending_load_indexed(), "invalid bci");
+
 
     // join with all potential exception handlers
     XHandlers* list = cur_scope_data->xhandlers();
@@ -3554,8 +3556,8 @@ GraphBuilder::GraphBuilder(Compilation* compilation, IRScope* scope)
   , _inline_bailout_msg(NULL)
   , _instruction_count(0)
   , _osr_entry(NULL)
-  , _delayed_field_access(NULL)
-  , _delayed_load_indexed(NULL)
+  , _pending_field_access(NULL)
+  , _pending_load_indexed(NULL)
 {
   int osr_bci = compilation->osr_bci();
 

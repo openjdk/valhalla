@@ -212,8 +212,8 @@ class GraphBuilder {
   bool              _skip_block;                 // skip processing of the rest of this block
 
   // support for optimization of accesses to flattened fields and arrays
-  DelayedFieldAccess* _delayed_field_access;
-  DelayedLoadIndexed* _delayed_load_indexed;
+  DelayedFieldAccess* _pending_field_access;
+  DelayedLoadIndexed* _pending_load_indexed;
 
   // accessors
   ScopeData*        scope_data() const           { return _scope_data; }
@@ -232,12 +232,12 @@ class GraphBuilder {
   Bytecodes::Code   code() const                 { return stream()->cur_bc(); }
   int               bci() const                  { return stream()->cur_bci(); }
   int               next_bci() const             { return stream()->next_bci(); }
-  bool              has_delayed_field_access()   { return _delayed_field_access != NULL; }
-  DelayedFieldAccess* delayed_field_access()     { return _delayed_field_access; }
-  void              set_delayed_field_access(DelayedFieldAccess* delayed) { _delayed_field_access = delayed; }
-  bool              has_delayed_load_indexed()   { return _delayed_load_indexed != NULL; }
-  DelayedLoadIndexed* delayed_load_indexed()     { return _delayed_load_indexed; }
-  void              set_delayed_load_indexed(DelayedLoadIndexed* delayed) { _delayed_load_indexed = delayed; }
+  bool              has_pending_field_access()   { return _pending_field_access != NULL; }
+  DelayedFieldAccess* pending_field_access()     { return _pending_field_access; }
+  void              set_pending_field_access(DelayedFieldAccess* delayed) { _pending_field_access = delayed; }
+  bool              has_pending_load_indexed()   { return _pending_load_indexed != NULL; }
+  DelayedLoadIndexed* pending_load_indexed()     { return _pending_load_indexed; }
+  void              set_pending_load_indexed(DelayedLoadIndexed* delayed) { _pending_load_indexed = delayed; }
 
   // unified bailout support
   void bailout(const char* msg) const            { compilation()->bailout(msg); }
