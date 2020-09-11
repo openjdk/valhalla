@@ -205,8 +205,6 @@ public class TestC1 extends InlineTypeTest {
         MyValue2 v = new MyValue2(1,(byte)2, vi);
         array[0] = v;
         MyValue2Inline vi2 = test6(array, 0);
-        System.out.println("vi.d=" + vi.d + " vi.l=" + vi.l);
-        System.out.println("vi2.d=" + vi2.d + " vi2.l=" + vi2.l);
         Asserts.assertEQ(vi, vi2);
     }
 
