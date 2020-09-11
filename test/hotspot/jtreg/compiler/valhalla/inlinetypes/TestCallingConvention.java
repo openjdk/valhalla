@@ -800,4 +800,105 @@ public class TestCallingConvention extends InlineTypeTest {
         MyValueEmpty res = test38(vt);
         Asserts.assertEQ(res, vt);
     }
+
+    static inline class LargeValueWithOops {
+        // Use all 6 int registers + 50/2 on stack = 29
+        Object o1 = null;
+        Object o2 = null;
+        Object o3 = null;
+        Object o4 = null;
+        Object o5 = null;
+        Object o6 = null;
+        Object o7 = null;
+        Object o8 = null;
+        Object o9 = null;
+        Object o10 = null;
+        Object o11 = null;
+        Object o12 = null;
+        Object o13 = null;
+        Object o14 = null;
+        Object o15 = null;
+        Object o16 = null;
+        Object o17 = null;
+        Object o18 = null;
+        Object o19 = null;
+        Object o20 = null;
+        Object o21 = null;
+        Object o22 = null;
+        Object o23 = null;
+        Object o24 = null;
+        Object o25 = null;
+        Object o26 = null;
+        Object o27 = null;
+        Object o28 = null;
+        Object o29 = null;
+    }
+
+    static inline class LargeValueWithoutOops {
+        // Use all 6 int registers + 50/2 on stack = 29
+        int i1 = 0;
+        int i2 = 0;
+        int i3 = 0;
+        int i4 = 0;
+        int i5 = 0;
+        int i6 = 0;
+        int i7 = 0;
+        int i8 = 0;
+        int i9 = 0;
+        int i10 = 0;
+        int i11 = 0;
+        int i12 = 0;
+        int i13 = 0;
+        int i14 = 0;
+        int i15 = 0;
+        int i16 = 0;
+        int i17 = 0;
+        int i18 = 0;
+        int i19 = 0;
+        int i20 = 0;
+        int i21 = 0;
+        int i22 = 0;
+        int i23 = 0;
+        int i24 = 0;
+        int i25 = 0;
+        int i26 = 0;
+        int i27 = 0;
+        int i28 = 0;
+        int i29 = 0;
+        // Use all 7 float registers
+        double d1 = 0;
+        double d2 = 0;
+        double d3 = 0;
+        double d4 = 0;
+        double d5 = 0;
+        double d6 = 0;
+        double d7 = 0;
+        double d8 = 0;
+    }
+
+    // Test passing/returning a large inline type with oop fields
+    @Test()
+    public static LargeValueWithOops test39(LargeValueWithOops vt) {
+        return vt;
+    }
+
+    @DontCompile
+    public void test39_verifier(boolean warmup) {
+        LargeValueWithOops vt = new LargeValueWithOops();
+        LargeValueWithOops res = test39(vt);
+        Asserts.assertEQ(res, vt);
+    }
+
+    // Test passing/returning a large inline type with only int/float fields
+    @Test()
+    public static LargeValueWithoutOops test40(LargeValueWithoutOops vt) {
+        return vt;
+    }
+
+    @DontCompile
+    public void test40_verifier(boolean warmup) {
+        LargeValueWithoutOops vt = new LargeValueWithoutOops();
+        LargeValueWithoutOops res = test40(vt);
+        Asserts.assertEQ(res, vt);
+    }
 }
