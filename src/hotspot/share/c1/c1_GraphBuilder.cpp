@@ -1030,7 +1030,6 @@ void GraphBuilder::load_indexed(BasicType type) {
   if (array->is_loaded_flattened_array()) {
     ciType* array_type = array->declared_type();
     ciInlineKlass* elem_klass = array_type->as_flat_array_klass()->element_klass()->as_inline_klass();
-    NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(elem_klass, state_before, false);
 
     ciBytecodeStream s(method());
     s.force_bci(bci());
@@ -1038,11 +1037,12 @@ void GraphBuilder::load_indexed(BasicType type) {
     if (s.cur_bc() == Bytecodes::_getfield) {
       // potentially optimizable array access, storing information for delayed decision
       LoadIndexed* li = new LoadIndexed(array, index, length, type, state_before);
-      DelayedLoadIndexed* dli = new DelayedLoadIndexed(li, new_instance);
+      DelayedLoadIndexed* dli = new DelayedLoadIndexed(li, state_before);
       li->set_delayed(dli);
       set_delayed_load_indexed(dli);
       return; // Nothing else to do for now
     } else {
+      NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(elem_klass, state_before, false);
       _memory->new_instance(new_instance);
       apush(append_split(new_instance));
       load_indexed = new LoadIndexed(array, index, length, type, state_before);
@@ -1943,8 +1943,11 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             assert(field->type()->is_inlinetype(), "Sanity check");
             if (has_delayed_load_indexed()) {
               delayed_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
-              _memory->new_instance(delayed_load_indexed()->vt());
-              apush(append_split(delayed_load_indexed()->vt()));
+              NewInlineTypeInstance* vt = new NewInlineTypeInstance(field->type()->as_inline_klass(),
+                                                                    delayed_load_indexed()->state_before(), false);
+              _memory->new_instance(vt);
+              delayed_load_indexed()->load_instr()->set_vt(vt);
+              apush(append_split(vt));
               append(delayed_load_indexed()->load_instr());
               set_delayed_load_indexed(NULL);
             } else {

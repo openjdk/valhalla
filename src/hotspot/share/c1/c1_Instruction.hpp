@@ -1029,13 +1029,13 @@ LEAF(LoadIndexed, AccessIndexed)
 class DelayedLoadIndexed : public CompilationResourceObj {
 private:
   LoadIndexed* _load_instr;
-  NewInlineTypeInstance* _vt;
+  ValueStack* _state_before;
   ciField* _field;
   int _offset;
  public:
-  DelayedLoadIndexed(LoadIndexed* load, NewInlineTypeInstance* vt)
+  DelayedLoadIndexed(LoadIndexed* load, ValueStack* state_before)
   : _load_instr(load)
-  , _vt(vt)
+  , _state_before(state_before)
   , _field(NULL)
   , _offset(0) { }
 
@@ -1045,7 +1045,7 @@ private:
   }
 
   LoadIndexed* load_instr() { return _load_instr; }
-  NewInlineTypeInstance* vt() { return _vt; }
+  ValueStack* state_before() { return _state_before; }
   ciField* field() { return _field; }
   int offset() { return _offset; }
 };
