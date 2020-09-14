@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,9 +26,6 @@
 package jdk.incubator.jpackage.internal;
 
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 import jdk.incubator.jpackage.internal.Arguments.CLIOptions;
 
 /**
@@ -84,7 +81,7 @@ class ValidOptions {
         options.put(CLIOptions.ARGUMENTS.getId(), USE.LAUNCHER);
         options.put(CLIOptions.JAVA_OPTIONS.getId(), USE.LAUNCHER);
         options.put(CLIOptions.ADD_LAUNCHER.getId(), USE.LAUNCHER);
-        options.put(CLIOptions.BIND_SERVICES.getId(), USE.LAUNCHER);
+        options.put(CLIOptions.JLINK_OPTIONS.getId(), USE.LAUNCHER);
 
         options.put(CLIOptions.LICENSE_FILE.getId(), USE.INSTALL);
         options.put(CLIOptions.INSTALL_DIR.getId(), USE.INSTALL);

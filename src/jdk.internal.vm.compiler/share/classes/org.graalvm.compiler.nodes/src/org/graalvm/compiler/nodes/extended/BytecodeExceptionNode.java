@@ -43,7 +43,6 @@ import org.graalvm.compiler.nodes.ValueNode;
 import org.graalvm.compiler.nodes.memory.AbstractMemoryCheckpoint;
 import org.graalvm.compiler.nodes.memory.SingleMemoryKill;
 import org.graalvm.compiler.nodes.spi.Lowerable;
-import org.graalvm.compiler.nodes.spi.LoweringTool;
 import jdk.internal.vm.compiler.word.LocationIdentity;
 
 import jdk.vm.ci.meta.JavaKind;
@@ -65,6 +64,7 @@ public final class BytecodeExceptionNode extends AbstractMemoryCheckpoint implem
         OUT_OF_BOUNDS(2, ArrayIndexOutOfBoundsException.class),
         CLASS_CAST(2, ClassCastException.class),
         ARRAY_STORE(1, ArrayStoreException.class),
+        ILLEGAL_ARGUMENT_EXCEPTION(1, IllegalArgumentException.class),
         DIVISION_BY_ZERO(0, ArithmeticException.class),
         INTEGER_EXACT_OVERFLOW(0, ArithmeticException.class),
         LONG_EXACT_OVERFLOW(0, ArithmeticException.class);
@@ -112,11 +112,6 @@ public final class BytecodeExceptionNode extends AbstractMemoryCheckpoint implem
             return null;
         }
         return this;
-    }
-
-    @Override
-    public void lower(LoweringTool tool) {
-        tool.getLowerer().lower(this, tool);
     }
 
     public NodeInputList<ValueNode> getArguments() {

@@ -29,6 +29,7 @@
 #include "gc/shenandoah/shenandoahAsserts.hpp"
 #include "gc/shenandoah/shenandoahBarrierSet.hpp"
 #include "gc/shenandoah/shenandoahCollectionSet.inline.hpp"
+#include "gc/shenandoah/shenandoahEvacOOMHandler.inline.hpp"
 #include "gc/shenandoah/shenandoahForwarding.inline.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
@@ -62,8 +63,9 @@ inline oop ShenandoahBarrierSet::load_reference_barrier_mutator(oop obj, T* load
   if (obj == fwd) {
     assert(_heap->is_evacuation_in_progress(),
            "evac should be in progress");
-    ShenandoahEvacOOMScope scope;
-    fwd = _heap->evacuate_object(obj, Thread::current());
+    Thread* const t = Thread::current();
+    ShenandoahEvacOOMScope scope(t);
+    fwd = _heap->evacuate_object(obj, t);
   }
 
   if (load_addr != NULL && fwd != obj) {
@@ -75,12 +77,13 @@ inline oop ShenandoahBarrierSet::load_reference_barrier_mutator(oop obj, T* load
 }
 
 inline void ShenandoahBarrierSet::enqueue(oop obj) {
+  assert(obj != NULL, "checked by caller");
   assert(_satb_mark_queue_set.is_active(), "only get here when SATB active");
 
   // Filter marked objects before hitting the SATB queues. The same predicate would
   // be used by SATBMQ::filter to eliminate already marked objects downstream, but
   // filtering here helps to avoid wasteful SATB queueing work to begin with.
-  if (!_heap->requires_marking<false>(obj)) return;
+  if (!_heap->requires_marking(obj)) return;
 
   ShenandoahThreadLocalData::satb_mark_queue(Thread::current()).enqueue_known_active(obj);
 }
@@ -114,6 +117,7 @@ inline void ShenandoahBarrierSet::storeval_barrier(oop obj) {
 
 inline void ShenandoahBarrierSet::keep_alive_if_weak(DecoratorSet decorators, oop value) {
   assert((decorators & ON_UNKNOWN_OOP_REF) == 0, "Reference strength must be known");
+  assert(value != NULL, "checked by caller");
   const bool on_strong_oop_ref = (decorators & ON_STRONG_OOP_REF) != 0;
   const bool peek              = (decorators & AS_NO_KEEPALIVE) != 0;
   if (!peek && !on_strong_oop_ref) {
@@ -123,6 +127,7 @@ inline void ShenandoahBarrierSet::keep_alive_if_weak(DecoratorSet decorators, oo
 
 template <DecoratorSet decorators>
 inline void ShenandoahBarrierSet::keep_alive_if_weak(oop value) {
+  assert(value != NULL, "checked by caller");
   assert((decorators & ON_UNKNOWN_OOP_REF) == 0, "Reference strength must be known");
   if (!HasDecorator<decorators, ON_STRONG_OOP_REF>::value &&
       !HasDecorator<decorators, AS_NO_KEEPALIVE>::value) {

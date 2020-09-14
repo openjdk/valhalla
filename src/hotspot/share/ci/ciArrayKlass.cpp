@@ -24,12 +24,12 @@
 
 #include "precompiled.hpp"
 #include "ci/ciArrayKlass.hpp"
+#include "ci/ciFlatArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "ci/ciValueArrayKlass.hpp"
-#include "ci/ciValueKlass.hpp"
 
 // ciArrayKlass
 //
@@ -81,7 +81,7 @@ ciType* ciArrayKlass::base_element_type() {
     }
     return ek;
   } else {
-    return as_value_array_klass()->base_element_klass();
+    return as_flat_array_klass()->base_element_klass();
   }
 }
 
@@ -101,22 +101,18 @@ bool ciArrayKlass::is_leaf_type() {
 // ciArrayKlass::base_element_type
 //
 // What type is obtained when this array is indexed as many times as possible?
-ciArrayKlass* ciArrayKlass::make(ciType* element_type, bool never_null) {
+ciArrayKlass* ciArrayKlass::make(ciType* element_type) {
   if (element_type->is_primitive_type()) {
     return ciTypeArrayKlass::make(element_type->basic_type());
-  } else if (element_type->is_valuetype() && element_type->as_value_klass()->flatten_array() && never_null) {
-    return ciValueArrayKlass::make(element_type->as_klass());
+  } else if (element_type->flatten_array()) {
+    return ciFlatArrayKlass::make(element_type->as_klass());
   } else {
-    return ciObjArrayKlass::make(element_type->as_klass(), never_null);
+    return ciObjArrayKlass::make(element_type->as_klass());
   }
 }
 
 int ciArrayKlass::array_header_in_bytes() {
   return get_ArrayKlass()->array_header_in_bytes();
-}
-
-ArrayStorageProperties ciArrayKlass::storage_properties() {
-  return get_ArrayKlass()->storage_properties();
 }
 
 ciInstance* ciArrayKlass::component_mirror_instance() const {

@@ -63,7 +63,7 @@ public class TestRemsetLoggingTools {
             "-Xms20m",
             "-Xmx20m",
             "-XX:ParallelGCThreads=1",
-            "-XX:InitiatingHeapOccupancyPercent=100", // we don't want the additional GCs due to initial marking
+            "-XX:InitiatingHeapOccupancyPercent=100", // we don't want the additional GCs due to marking
             "-XX:+UnlockDiagnosticVMOptions",
             "-XX:G1HeapRegionSize=1M",
         };
@@ -77,8 +77,7 @@ public class TestRemsetLoggingTools {
         finalargs.add(VerifySummaryOutput.class.getName());
         finalargs.add(String.valueOf(numGCs));
 
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-            finalargs.toArray(new String[0]));
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(finalargs);
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
 
         output.shouldHaveExitValue(0);

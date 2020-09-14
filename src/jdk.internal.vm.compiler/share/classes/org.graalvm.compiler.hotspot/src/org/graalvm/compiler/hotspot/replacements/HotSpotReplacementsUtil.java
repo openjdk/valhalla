@@ -24,8 +24,8 @@
 
 package org.graalvm.compiler.hotspot.replacements;
 
-import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfigBase.INJECTED_METAACCESS;
-import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfigBase.INJECTED_VMCONFIG;
+import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfig.INJECTED_METAACCESS;
+import static org.graalvm.compiler.hotspot.GraalHotSpotVMConfig.INJECTED_VMCONFIG;
 import static org.graalvm.compiler.hotspot.meta.HotSpotForeignCallsProviderImpl.VERIFY_OOP;
 
 import java.lang.ref.Reference;
@@ -41,6 +41,7 @@ import org.graalvm.compiler.graph.Node.ConstantNodeParameter;
 import org.graalvm.compiler.graph.Node.NodeIntrinsic;
 import org.graalvm.compiler.graph.spi.CanonicalizerTool;
 import org.graalvm.compiler.hotspot.GraalHotSpotVMConfig;
+import org.graalvm.compiler.hotspot.nodes.GraalHotSpotVMConfigNode;
 import org.graalvm.compiler.hotspot.word.KlassPointer;
 import org.graalvm.compiler.nodes.CanonicalizableLocation;
 import org.graalvm.compiler.nodes.CompressionNode;
@@ -192,11 +193,6 @@ public class HotSpotReplacementsUtil {
         return config.useG1GC;
     }
 
-    @Fold
-    public static boolean verifyOops(@InjectedParameter GraalHotSpotVMConfig config) {
-        return config.verifyOops;
-    }
-
     /**
      * @see GraalHotSpotVMConfig#doingUnsafeAccessOffset
      */
@@ -308,6 +304,8 @@ public class HotSpotReplacementsUtil {
      */
     public static final LocationIdentity JAVA_THREAD_THREAD_OBJECT_LOCATION = NamedLocationIdentity.immutable("JavaThread::_threadObj");
 
+    public static final LocationIdentity JAVA_THREAD_THREAD_OBJECT_HANDLE_LOCATION = NamedLocationIdentity.immutable("JavaThread::_threadObj handle");
+
     @Fold
     public static int threadObjectOffset(@InjectedParameter GraalHotSpotVMConfig config) {
         return config.threadObjectOffset;
@@ -359,6 +357,11 @@ public class HotSpotReplacementsUtil {
     @Fold
     public static int jvmAccWrittenFlags(@InjectedParameter GraalHotSpotVMConfig config) {
         return config.jvmAccWrittenFlags;
+    }
+
+    @Fold
+    public static int jvmAccIsHiddenClass(@InjectedParameter GraalHotSpotVMConfig config) {
+        return config.jvmAccIsHiddenClass;
     }
 
     public static final LocationIdentity KLASS_LAYOUT_HELPER_LOCATION = new HotSpotOptimizingLocationIdentity("Klass::_layout_helper") {
@@ -600,6 +603,11 @@ public class HotSpotReplacementsUtil {
         return WordFactory.unsigned(ComputeObjectAddressNode.get(a, ReplacementsUtil.getArrayBaseOffset(INJECTED_METAACCESS, JavaKind.Int)));
     }
 
+    @Fold
+    public static boolean verifyBeforeOrAfterGC(@InjectedParameter GraalHotSpotVMConfig config) {
+        return config.verifyBeforeGC || config.verifyAfterGC;
+    }
+
     /**
      * Idiom for making {@link GraalHotSpotVMConfig} a constant.
      */
@@ -714,7 +722,7 @@ public class HotSpotReplacementsUtil {
     }
 
     public static Object verifyOop(Object object) {
-        if (verifyOops(INJECTED_VMCONFIG)) {
+        if (GraalHotSpotVMConfigNode.verifyOops()) {
             verifyOopStub(VERIFY_OOP, object);
         }
         return object;
@@ -867,6 +875,10 @@ public class HotSpotReplacementsUtil {
         return config.gcTotalCollectionsAddress();
     }
 
+    public static String referentFieldName() {
+        return "referent";
+    }
+
     @Fold
     public static long referentOffset(@InjectedParameter MetaAccessProvider metaAccessProvider) {
         return referentField(metaAccessProvider).getOffset();
@@ -874,7 +886,7 @@ public class HotSpotReplacementsUtil {
 
     @Fold
     public static ResolvedJavaField referentField(@InjectedParameter MetaAccessProvider metaAccessProvider) {
-        return getField(metaAccessProvider.lookupJavaType(Reference.class), "referent");
+        return getField(referenceType(metaAccessProvider), referentFieldName());
     }
 
     @Fold

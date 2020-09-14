@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -182,7 +182,7 @@ public class RecordedObject {
      *
      * @param name name of the field to get, not {@code null}
      *
-     * @return {@code true} if the field exists, {@code false} otherwise.
+     * @return {@code true} if the field exists, {@code false} otherwise
      *
      * @see #getFields()
      */
@@ -222,8 +222,7 @@ public class RecordedObject {
      * <p>
      * Example
      *
-     * <pre>
-     * <code>
+     * <pre>{@literal
      * if (event.hasField("intValue")) {
      *   int intValue = event.getValue("intValue");
      *   System.out.println("Int value: " + intValue);
@@ -236,10 +235,9 @@ public class RecordedObject {
      *
      * if (event.hasField("sampledThread")) {
      *   RecordedThread sampledThread = event.getValue("sampledThread");
-     *   System.out.println("Sampled thread: " + sampledThread.getName());
+     *   System.out.println("Sampled thread: " + sampledThread.getJavaName());
      * }
-     * </code>
-     * </pre>
+     * }</pre>
      *
      * @param <T> the return type
      * @param  name of the field to get, not {@code null}
@@ -256,7 +254,7 @@ public class RecordedObject {
         return t;
     }
 
-    protected Object objectAt(int index) {
+    Object objectAt(int index) {
         return objects[index];
     }
 
@@ -504,7 +502,7 @@ public class RecordedObject {
      *         conversion
      *
      * @see #hasField(String)
-     * @set #getValue(String)
+     * @see #getValue(String)
      */
     public final short getShort(String name) {
         Object o = getValue(name, true);
@@ -551,7 +549,7 @@ public class RecordedObject {
      *         conversion
      *
      * @see #hasField(String)
-     * @set #getValue(String)
+     * @see #getValue(String)
      */
     public final int getInt(String name) {
         Object o = getValue(name, true);
@@ -604,7 +602,7 @@ public class RecordedObject {
      *         conversion
      *
      * @see #hasField(String)
-     * @set #getValue(String)
+     * @see #getValue(String)
      */
     public final float getFloat(String name) {
         Object o = getValue(name);
@@ -654,7 +652,7 @@ public class RecordedObject {
      *         conversion
      *
      * @see #hasField(String)
-     * @set #getValue(String)
+     * @see #getValue(String)
      */
     public final long getLong(String name) {
         Object o = getValue(name, true);
@@ -710,7 +708,7 @@ public class RecordedObject {
      *         conversion
      *
      * @see #hasField(String)
-     * @set #getValue(String)
+     * @see #getValue(String)
      */
     public final double getDouble(String name) {
         Object o = getValue(name);
@@ -755,7 +753,7 @@ public class RecordedObject {
      *         isn't of type {@code String}
      *
      * @see #hasField(String)
-     * @set #getValue(String)
+     * @see #getValue(String)
      */
     public final String getString(String name) {
         return getTypedValue(name, "java.lang.String");
@@ -782,7 +780,7 @@ public class RecordedObject {
      *         value can't be converted to a {@code Duration} object
      *
      * @see #hasField(String)
-     * @set #getValue(String)
+     * @see #getValue(String)
      */
     public final Duration getDuration(String name) {
         Object o = getValue(name);
@@ -813,7 +811,7 @@ public class RecordedObject {
                 return getDuration(Short.toUnsignedLong((Byte) u), name);
             }
         }
-        throw newIllegalArgumentException(name, "java,time.Duration");
+        throw newIllegalArgumentException(name, "java.time.Duration");
     }
 
     private Duration getDuration(long timespan, String name) throws InternalError {
@@ -861,7 +859,7 @@ public class RecordedObject {
      *         value can't be converted to an {@code Instant} object
      *
      * @see #hasField(String)
-     * @set #getValue(String)
+     * @see #getValue(String)
      */
     public final Instant getInstant(String name) {
         Object o = getValue(name, true);
@@ -931,7 +929,7 @@ public class RecordedObject {
      *         isn't of type {@code Class}
      *
      * @see #hasField(String)
-     * @set #getValue(String)
+     * @see #getValue(String)
      */
     public final RecordedClass getClass(String name) {
         return getTypedValue(name, "java.lang.Class");
@@ -955,7 +953,7 @@ public class RecordedObject {
      *         isn't of type {@code Thread}
      *
      * @see #hasField(String)
-     * @set #getValue(String)
+     * @see #getValue(String)
      */
     public final RecordedThread getThread(String name) {
         return getTypedValue(name, "java.lang.Thread");

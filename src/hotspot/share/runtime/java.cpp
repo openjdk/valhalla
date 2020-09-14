@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -111,7 +111,6 @@ void print_method_profiling_data() {
   if (ProfileInterpreter COMPILER1_PRESENT(|| C1UpdateMethodData) &&
      (PrintMethodData || CompilerOracle::should_print_methods())) {
     ResourceMark rm;
-    HandleMark hm;
     collected_profiled_methods = new GrowableArray<Method*>(1024);
     SystemDictionary::methods_do(collect_profiled_methods);
     collected_profiled_methods->sort(&compare_methods);
@@ -158,7 +157,6 @@ void collect_invoked_methods(Method* m) {
 
 void print_method_invocation_histogram() {
   ResourceMark rm;
-  HandleMark hm;
   collected_invoked_methods = new GrowableArray<Method*>(1024);
   SystemDictionary::methods_do(collect_invoked_methods);
   collected_invoked_methods->sort(&compare_methods);
@@ -431,7 +429,9 @@ void before_exit(JavaThread* thread) {
   }
 
 #if INCLUDE_JVMCI
-  JVMCI::shutdown();
+  if (EnableJVMCI) {
+    JVMCI::shutdown();
+  }
 #endif
 
   // Hang forever on exit if we're reporting an error.
@@ -563,7 +563,6 @@ void vm_exit(int code) {
 void notify_vm_shutdown() {
   // For now, just a dtrace probe.
   HOTSPOT_VM_SHUTDOWN();
-  HS_DTRACE_WORKAROUND_TAIL_CALL_BUG();
 }
 
 void vm_direct_exit(int code) {

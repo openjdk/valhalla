@@ -32,6 +32,8 @@
 #include "classfile/vmSymbols.hpp"
 #include "interpreter/bootstrapInfo.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/heapShared.hpp"
 #include "memory/metadataFactory.hpp"
@@ -43,12 +45,12 @@
 #include "oops/array.hpp"
 #include "oops/constantPool.inline.hpp"
 #include "oops/cpCache.inline.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
@@ -62,6 +64,20 @@ ConstantPool* ConstantPool::allocate(ClassLoaderData* loader_data, int length, T
   Array<u1>* tags = MetadataFactory::new_array<u1>(loader_data, length, 0, CHECK_NULL);
   int size = ConstantPool::size(length);
   return new (loader_data, size, MetaspaceObj::ConstantPoolType, THREAD) ConstantPool(tags);
+}
+
+void ConstantPool::copy_fields(const ConstantPool* orig) {
+  // Preserve dynamic constant information from the original pool
+  if (orig->has_dynamic_constant()) {
+    set_has_dynamic_constant();
+  }
+
+  // Copy class version
+  set_major_version(orig->major_version());
+  set_minor_version(orig->minor_version());
+
+  set_source_file_name_index(orig->source_file_name_index());
+  set_generic_signature_index(orig->generic_signature_index());
 }
 
 #ifdef ASSERT
@@ -270,7 +286,7 @@ void ConstantPool::archive_resolved_references(Thread* THREAD) {
         ik->is_shared_app_class())) {
     // Archiving resolved references for classes from non-builtin loaders
     // is not yet supported.
-    set_resolved_references(NULL);
+    set_resolved_references(OopHandle());
     return;
   }
 
@@ -280,17 +296,18 @@ void ConstantPool::archive_resolved_references(Thread* THREAD) {
     int ref_map_len = ref_map == NULL ? 0 : ref_map->length();
     int rr_len = rr->length();
     for (int i = 0; i < rr_len; i++) {
-      oop p = rr->obj_at(i);
+      oop obj = rr->obj_at(i);
       rr->obj_at_put(i, NULL);
-      if (p != NULL && i < ref_map_len) {
+      if (obj != NULL && i < ref_map_len) {
         int index = object_to_cp_index(i);
         if (tag_at(index).is_string()) {
-          oop op = StringTable::create_archived_string(p, THREAD);
-          // If the String object is not archived (possibly too large),
-          // NULL is returned. Also set it in the array, so we won't
-          // have a 'bad' reference in the archived resolved_reference
-          // array.
-          rr->obj_at_put(i, op);
+          oop archived_string = HeapShared::find_archived_heap_object(obj);
+          // Update the reference to point to the archived copy
+          // of this string.
+          // If the string is too large to archive, NULL is
+          // stored into rr. At run time, string_at_impl() will create and intern
+          // the string.
+          rr->obj_at_put(i, archived_string);
         }
       }
     }
@@ -302,7 +319,7 @@ void ConstantPool::archive_resolved_references(Thread* THREAD) {
     // resolved references will be created using the normal process
     // when there is no archived value.
     _cache->set_archived_references(archived);
-    set_resolved_references(NULL);
+    set_resolved_references(OopHandle());
   }
 }
 
@@ -319,6 +336,19 @@ void ConstantPool::resolve_class_constants(TRAPS) {
     if (tag_at(index).is_string() && !cp->is_pseudo_string_at(index)) {
       int cache_index = cp->cp_to_object_index(index);
       string_at_impl(cp, index, cache_index, CHECK);
+    }
+  }
+}
+
+void ConstantPool::add_dumped_interned_strings() {
+  objArrayOop rr = resolved_references();
+  if (rr != NULL) {
+    int rr_len = rr->length();
+    for (int i = 0; i < rr_len; i++) {
+      oop p = rr->obj_at(i);
+      if (java_lang_String::is_instance(p)) {
+        HeapShared::add_to_dumped_interned_strings(p);
+      }
     }
   }
 }
@@ -376,7 +406,7 @@ void ConstantPool::remove_unshareable_info() {
   // If DynamicDumpSharedSpaces is enabled, clear the resolved references also
   // as java objects are not archived in the top layer.
   if (!HeapShared::is_heap_object_archiving_allowed() || DynamicDumpSharedSpaces) {
-    set_resolved_references(NULL);
+    set_resolved_references(OopHandle());
   }
 
   // Shared ConstantPools are in the RO region, so the _flags cannot be modified.
@@ -386,6 +416,7 @@ void ConstantPool::remove_unshareable_info() {
   _flags |= (_on_stack | _is_shared);
   int num_klasses = 0;
   for (int index = 1; index < length(); index++) { // Index 0 is unused
+    jbyte qdesc_bit = tag_at(index).is_Qdescriptor_klass() ? (jbyte) JVM_CONSTANT_QDescBit : 0;
     if (!DynamicDumpSharedSpaces) {
       assert(!tag_at(index).is_unresolved_klass_in_error(), "This must not happen during static dump time");
     } else {
@@ -393,7 +424,7 @@ void ConstantPool::remove_unshareable_info() {
           tag_at(index).is_method_handle_in_error()    ||
           tag_at(index).is_method_type_in_error()      ||
           tag_at(index).is_dynamic_constant_in_error()) {
-        tag_at_put(index, JVM_CONSTANT_UnresolvedClass);
+        tag_at_put(index, JVM_CONSTANT_UnresolvedClass | qdesc_bit);
       }
     }
     if (tag_at(index).is_klass()) {
@@ -401,13 +432,21 @@ void ConstantPool::remove_unshareable_info() {
       // during dump time. We need to restore it back to an UnresolvedClass,
       // so that the proper class loading and initialization can happen
       // at runtime.
-      CPKlassSlot kslot = klass_slot_at(index);
-      int resolved_klass_index = kslot.resolved_klass_index();
-      int name_index = kslot.name_index();
-      assert(tag_at(name_index).is_symbol(), "sanity");
-      resolved_klasses()->at_put(resolved_klass_index, NULL);
-      tag_at_put(index, JVM_CONSTANT_UnresolvedClass);
-      assert(klass_name_at(index) == symbol_at(name_index), "sanity");
+      bool clear_it = true;
+      if (pool_holder()->is_hidden() && index == pool_holder()->this_class_index()) {
+        // All references to a hidden class's own field/methods are through this
+        // index. We cannot clear it. See comments in ClassFileParser::fill_instance_klass.
+        clear_it = false;
+      }
+      if (clear_it) {
+        CPKlassSlot kslot = klass_slot_at(index);
+        int resolved_klass_index = kslot.resolved_klass_index();
+        int name_index = kslot.name_index();
+        assert(tag_at(name_index).is_symbol(), "sanity");
+        resolved_klasses()->at_put(resolved_klass_index, NULL);
+        tag_at_put(index, JVM_CONSTANT_UnresolvedClass | qdesc_bit);
+        assert(klass_name_at(index) == symbol_at(name_index), "sanity");
+      }
     }
   }
   if (cache() != NULL) {
@@ -455,8 +494,8 @@ void ConstantPool::trace_class_resolution(const constantPoolHandle& this_cp, Kla
   }
 }
 
-void check_is_value_type(Klass* k, TRAPS) {
-  if (!k->is_value()) {
+void check_is_inline_type(Klass* k, TRAPS) {
+  if (!k->is_inline_klass()) {
     THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
   }
 }
@@ -495,10 +534,10 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
 
   Handle mirror_handle;
   Symbol* name = this_cp->symbol_at(name_index);
-  bool value_type_signature = false;
+  bool inline_type_signature = false;
   if (name->is_Q_signature()) {
     name = name->fundamental_name(THREAD);
-    value_type_signature = true;
+    inline_type_signature = true;
   }
   Handle loader (THREAD, this_cp->pool_holder()->class_loader());
   Handle protection_domain (THREAD, this_cp->pool_holder()->protection_domain());
@@ -509,7 +548,7 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
     JvmtiHideSingleStepping jhss(javaThread);
     k = SystemDictionary::resolve_or_fail(name, loader, protection_domain, true, THREAD);
   } //  JvmtiHideSingleStepping jhss(javaThread);
-  if (value_type_signature) {
+  if (inline_type_signature) {
     name->decrement_refcount();
   }
 
@@ -520,8 +559,8 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
     verify_constant_pool_resolve(this_cp, k, THREAD);
   }
 
-  if (!HAS_PENDING_EXCEPTION && value_type_signature) {
-    check_is_value_type(k, THREAD);
+  if (!HAS_PENDING_EXCEPTION && inline_type_signature) {
+    check_is_inline_type(k, THREAD);
   }
 
   if (!HAS_PENDING_EXCEPTION) {
@@ -530,8 +569,8 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
       bottom_klass = ObjArrayKlass::cast(k)->bottom_klass();
       assert(bottom_klass != NULL, "Should be set");
       assert(bottom_klass->is_instance_klass() || bottom_klass->is_typeArray_klass(), "Sanity check");
-    } else if (k->is_valueArray_klass()) {
-      bottom_klass = ValueArrayKlass::cast(k)->element_klass();
+    } else if (k->is_flatArray_klass()) {
+      bottom_klass = FlatArrayKlass::cast(k)->element_klass();
       assert(bottom_klass != NULL, "Should be set");
     }
   }
@@ -540,7 +579,11 @@ Klass* ConstantPool::klass_at_impl(const constantPoolHandle& this_cp, int which,
   // to resolve this constant pool entry fail with the same error (JVMS 5.4.3).
   if (HAS_PENDING_EXCEPTION) {
     if (save_resolution_error) {
-      save_and_throw_exception(this_cp, which, constantTag(JVM_CONSTANT_UnresolvedClass), CHECK_NULL);
+      jbyte tag = JVM_CONSTANT_UnresolvedClass;
+      if (this_cp->tag_at(which).is_Qdescriptor_klass()) {
+        tag |= JVM_CONSTANT_QDescBit;
+      }
+      save_and_throw_exception(this_cp, which, constantTag(tag), CHECK_NULL);
       // If CHECK_NULL above doesn't return the exception, that means that
       // some other thread has beaten us and has resolved the class.
       // To preserve old behavior, we return the resolved class.
@@ -978,7 +1021,7 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
       // (invocation of the BSM), of JVMS Section 5.4.3.6 occur within invoke_bootstrap_method()
       // for the bootstrap_specifier created above.
       SystemDictionary::invoke_bootstrap_method(bootstrap_specifier, THREAD);
-      Exceptions::wrap_dynamic_exception(THREAD);
+      Exceptions::wrap_dynamic_exception(/* is_indy */ false, THREAD);
       if (HAS_PENDING_EXCEPTION) {
         // Resolution failure of the dynamically-computed constant, save_and_throw_exception
         // will check for a LinkageError and store a DynamicConstantInError.
@@ -1006,8 +1049,10 @@ oop ConstantPool::resolve_constant_at_impl(const constantPoolHandle& this_cp,
         }
       }
 
-      if (TraceMethodHandles) {
-        bootstrap_specifier.print_msg_on(tty, "resolve_constant_at_impl");
+      LogTarget(Debug, methodhandles, condy) lt_condy;
+      if (lt_condy.is_enabled()) {
+        LogStream ls(lt_condy);
+        bootstrap_specifier.print_msg_on(&ls, "resolve_constant_at_impl");
       }
       break;
     }

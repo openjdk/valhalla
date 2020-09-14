@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,6 +51,11 @@ class ResourceHashtable : public ResourceObj {
 
     Node(unsigned hash, K const& key, V const& value) :
         _hash(hash), _key(key), _value(value), _next(NULL) {}
+
+    // Create a node with a default-constructed value.
+    Node(unsigned hash, K const& key) :
+        _hash(hash), _key(key), _value(), _next(NULL) {}
+
   };
 
   Node* _table[SIZE];
@@ -123,6 +128,41 @@ class ResourceHashtable : public ResourceObj {
       return true;
     }
   }
+
+  // Look up the key.
+  // If an entry for the key exists, leave map unchanged and return a pointer to its value.
+  // If no entry for the key exists, create a new entry from key and a default-created value
+  //  and return a pointer to the value.
+  // *p_created is true if entry was created, false if entry pre-existed.
+  V* put_if_absent(K const& key, bool* p_created) {
+    unsigned hv = HASH(key);
+    Node** ptr = lookup_node(hv, key);
+    if (*ptr == NULL) {
+      *ptr = new (ALLOC_TYPE, MEM_TYPE) Node(hv, key);
+      *p_created = true;
+    } else {
+      *p_created = false;
+    }
+    return &(*ptr)->_value;
+  }
+
+  // Look up the key.
+  // If an entry for the key exists, leave map unchanged and return a pointer to its value.
+  // If no entry for the key exists, create a new entry from key and value and return a
+  //  pointer to the value.
+  // *p_created is true if entry was created, false if entry pre-existed.
+  V* put_if_absent(K const& key, V const& value, bool* p_created) {
+    unsigned hv = HASH(key);
+    Node** ptr = lookup_node(hv, key);
+    if (*ptr == NULL) {
+      *ptr = new (ALLOC_TYPE, MEM_TYPE) Node(hv, key, value);
+      *p_created = true;
+    } else {
+      *p_created = false;
+    }
+    return &(*ptr)->_value;
+  }
+
 
   bool remove(K const& key) {
     unsigned hv = HASH(key);

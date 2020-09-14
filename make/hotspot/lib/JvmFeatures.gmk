@@ -45,14 +45,21 @@ else
 endif
 
 ifeq ($(call check-jvm-feature, zero), true)
-  JVM_CFLAGS_FEATURES += -DZERO -DCC_INTERP -DZERO_LIBARCH='"$(OPENJDK_TARGET_CPU_LEGACY_LIB)"' $(LIBFFI_CFLAGS)
+  JVM_EXCLUDES += opto libadt
+  JVM_EXCLUDE_PATTERNS += c1_ c1/ c2_ runtime_ /c2/
+  JVM_EXCLUDE_FILES += templateInterpreter.cpp templateInterpreterGenerator.cpp \
+                       bcEscapeAnalyzer.cpp ciTypeFlow.cpp
+  JVM_CFLAGS_FEATURES += -DZERO -DZERO_LIBARCH='"$(OPENJDK_TARGET_CPU_LEGACY_LIB)"' $(LIBFFI_CFLAGS)
   JVM_LIBS_FEATURES += $(LIBFFI_LIBS)
   ifeq ($(ENABLE_LIBFFI_BUNDLING), true)
     JVM_LDFLAGS_FEATURES += $(call SET_EXECUTABLE_ORIGIN,/..)
   endif
-  ifeq ($(call isTargetCpu, sparcv9), true)
-    BUILD_LIBJVM_EXTRA_FILES := $(TOPDIR)/src/hotspot/cpu/sparc/memset_with_concurrent_readers_sparc.cpp
-  endif
+else
+  JVM_EXCLUDE_PATTERNS += /zero/
+endif
+
+ifeq ($(JVM_VARIANT), custom)
+  JVM_CFLAGS_FEATURES += -DVMTYPE=\"Custom\"
 endif
 
 ifeq ($(call check-jvm-feature, minimal), true)
@@ -109,8 +116,11 @@ endif
 ifneq ($(call check-jvm-feature, cds), true)
   JVM_CFLAGS_FEATURES += -DINCLUDE_CDS=0
   JVM_EXCLUDE_FILES += \
+      archiveBuilder.cpp \
+      archiveUtils.cpp \
       classListParser.cpp \
       classLoaderExt.cpp \
+      dumpAllocStats.cpp \
       dynamicArchive.cpp \
       filemap.cpp \
       heapShared.cpp \
@@ -119,8 +129,7 @@ ifneq ($(call check-jvm-feature, cds), true)
       metaspaceShared_$(HOTSPOT_TARGET_CPU_ARCH).cpp \
       sharedClassUtil.cpp \
       sharedPathsMiscInfo.cpp \
-      systemDictionaryShared.cpp \
-      #
+      systemDictionaryShared.cpp
 endif
 
 ifneq ($(call check-jvm-feature, nmt), true)
@@ -151,8 +160,6 @@ endif
 ifneq ($(call check-jvm-feature, serialgc), true)
   JVM_CFLAGS_FEATURES += -DINCLUDE_SERIALGC=0
   JVM_EXCLUDE_PATTERNS += gc/serial
-  # If serial is disabled, we cannot use serial as OldGC in parallel
-  JVM_EXCLUDE_FILES += psMarkSweep.cpp psMarkSweepDecorator.cpp
 endif
 
 ifneq ($(call check-jvm-feature, epsilongc), true)

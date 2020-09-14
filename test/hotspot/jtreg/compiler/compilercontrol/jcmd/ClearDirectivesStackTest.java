@@ -31,7 +31,6 @@
  *
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run driver compiler.compilercontrol.jcmd.ClearDirectivesStackTest
  */
 
@@ -67,7 +66,6 @@ public class ClearDirectivesStackTest extends AbstractTestBase {
                     cmdGen.generateCommand(), methodDescriptor,
                     cmdGen.generateCompiler(), Scenario.Type.JCMD,
                     Scenario.JcmdType.ADD);
-            compileCommand.print();
             builder.add(compileCommand);
         }
         // clear the stack

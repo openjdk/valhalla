@@ -1,5 +1,5 @@
 //
-// Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 // DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 //
 // This code is free software; you can redistribute it and/or modify it
@@ -1188,10 +1188,7 @@ void PhaseOutput::pd_perform_mach_node_analysis() {
 }
 
 int MachNode::pd_alignment_required() const {
-  PhaseOutput* output = Compile::current()->output();
-  Block* block = output->block();
-  int index = output->index();
-  if (VM_Version::has_intel_jcc_erratum() && IntelJccErratum::is_jcc_erratum_branch(block, this, index)) {
+  if (VM_Version::has_intel_jcc_erratum() && IntelJccErratum::is_jcc_erratum_branch(this)) {
     // Conservatively add worst case padding. We assume that relocInfo::addr_unit() is 1 on x86.
     return IntelJccErratum::largest_jcc_size() + 1;
   } else {
@@ -1472,6 +1469,8 @@ const bool Matcher::match_rule_supported_vector(int opcode, int vlen, BasicType 
         return false; // implementation limitation (only vcmov8F_reg is present)
       }
       break;
+    case Op_RotateRightV:
+    case Op_RotateLeftV:
     case Op_MacroLogicV:
       if (!VM_Version::supports_evex() ||
           ((size_in_bits != 512) && !VM_Version::supports_avx512vl())) {
@@ -1490,7 +1489,7 @@ const bool Matcher::match_rule_supported_vector(int opcode, int vlen, BasicType 
 // x86 supports generic vector operands: vec and legVec.
 const bool Matcher::supports_generic_vector_operands = true;
 
-MachOper* Matcher::specialize_generic_vector_operand(MachOper* generic_opnd, uint ideal_reg, bool is_temp) {
+MachOper* Matcher::pd_specialize_generic_vector_operand(MachOper* generic_opnd, uint ideal_reg, bool is_temp) {
   assert(Matcher::is_generic_vector(generic_opnd), "not generic");
   bool legacy = (generic_opnd->opcode() == LEGVEC);
   if (!VM_Version::supports_avx512vlbwdq() && // KNL
@@ -1616,6 +1615,14 @@ const int Matcher::min_vector_size(const BasicType bt) {
   return MIN2(size,max_size);
 }
 
+const bool Matcher::supports_scalable_vector() {
+  return false;
+}
+
+const int Matcher::scalable_vector_reg_size(const BasicType bt) {
+  return -1;
+}
+
 // Vector ideal reg corresponding to specified size in bytes
 const uint Matcher::vector_ideal_reg(int size) {
   assert(MaxVectorSize >= size, "");
@@ -1628,11 +1635,6 @@ const uint Matcher::vector_ideal_reg(int size) {
   }
   ShouldNotReachHere();
   return 0;
-}
-
-// Only lowest bits of xmm reg are used for vector shift count.
-const uint Matcher::vector_shift_count_ideal_reg(int size) {
-  return Op_VecS;
 }
 
 // x86 supports misaligned vectors store/load.
@@ -2346,9 +2348,11 @@ operand cmpOp_vcmppd() %{
 
 instruct ShouldNotReachHere() %{
   match(Halt);
-  format %{ "ud2\t# ShouldNotReachHere" %}
+  format %{ "stop\t# ShouldNotReachHere" %}
   ins_encode %{
-    __ stop(_halt_reason);
+    if (is_reachable()) {
+      __ stop(_halt_reason);
+    }
   %}
   ins_pipe(pipe_slow);
 %}
@@ -4961,6 +4965,33 @@ instruct vshiftI(vec dst, vec src, vec shift) %{
   ins_pipe( pipe_slow );
 %}
 
+// Integers vector left constant shift
+instruct vshiftI_imm(vec dst, vec src, immI8 shift) %{
+  match(Set dst (LShiftVI src (LShiftCntV shift)));
+  match(Set dst (RShiftVI src (RShiftCntV shift)));
+  match(Set dst (URShiftVI src (RShiftCntV shift)));
+  effect(TEMP dst, USE src);
+  format %{ "vshiftd_imm  $dst,$src,$shift\t! shift packedI" %}
+  ins_encode %{
+    int opcode = this->ideal_Opcode();
+    if (UseAVX > 0) {
+      int vector_len = vector_length_encoding(this);
+      __ vshiftd_imm(opcode, $dst$$XMMRegister, $src$$XMMRegister, $shift$$constant, vector_len);
+    } else {
+      int vlen = vector_length(this);
+      if (vlen == 2) {
+        __ movdbl($dst$$XMMRegister, $src$$XMMRegister);
+        __ vshiftd_imm(opcode, $dst$$XMMRegister, $shift$$constant);
+      } else {
+        assert(vlen == 4, "sanity");
+        __ movdqu($dst$$XMMRegister, $src$$XMMRegister);
+        __ vshiftd_imm(opcode, $dst$$XMMRegister, $shift$$constant);
+      }
+    }
+  %}
+  ins_pipe( pipe_slow );
+%}
+
 // Longs vector shift
 instruct vshiftL(vec dst, vec src, vec shift) %{
   match(Set dst (LShiftVL src shift));
@@ -4976,6 +5007,26 @@ instruct vshiftL(vec dst, vec src, vec shift) %{
       assert(vector_length(this) == 2, "");
       __ movdqu($dst$$XMMRegister, $src$$XMMRegister);
       __ vshiftq(opcode, $dst$$XMMRegister, $shift$$XMMRegister);
+    }
+  %}
+  ins_pipe( pipe_slow );
+%}
+
+// Longs vector constant shift
+instruct vshiftL_imm(vec dst, vec src, immI8 shift) %{
+  match(Set dst (LShiftVL src (LShiftCntV shift)));
+  match(Set dst (URShiftVL src (RShiftCntV shift)));
+  effect(TEMP dst, USE src, USE shift);
+  format %{ "vshiftq_imm  $dst,$src,$shift\t! shift packedL" %}
+  ins_encode %{
+    int opcode = this->ideal_Opcode();
+    if (UseAVX > 0) {
+      int vector_len = vector_length_encoding(this);
+      __ vshiftq_imm(opcode, $dst$$XMMRegister, $src$$XMMRegister, $shift$$constant, vector_len);
+    } else {
+      assert(vector_length(this) == 2, "");
+      __ movdqu($dst$$XMMRegister, $src$$XMMRegister);
+      __ vshiftq_imm(opcode, $dst$$XMMRegister, $shift$$constant);
     }
   %}
   ins_pipe( pipe_slow );
@@ -5344,7 +5395,7 @@ instruct vpopcountI(vec dst, vec src) %{
 
 // --------------------------------- Bitwise Ternary Logic ----------------------------------
 
-instruct vpternlogdB(vec dst, vec src2, vec src3, immU8 func) %{
+instruct vpternlog(vec dst, vec src2, vec src3, immU8 func) %{
   match(Set dst (MacroLogicV (Binary dst src2) (Binary src3 func)));
   effect(TEMP dst);
   format %{ "vpternlogd $dst,$src2,$src3,$func\t! vector ternary logic" %}
@@ -5355,7 +5406,7 @@ instruct vpternlogdB(vec dst, vec src2, vec src3, immU8 func) %{
   ins_pipe( pipe_slow );
 %}
 
-instruct vpternlogdB_mem(vec dst, vec src2, memory src3, immU8 func) %{
+instruct vpternlog_mem(vec dst, vec src2, memory src3, immU8 func) %{
   match(Set dst (MacroLogicV (Binary dst src2) (Binary (LoadVector src3) func)));
   effect(TEMP dst);
   format %{ "vpternlogd $dst,$src2,$src3,$func\t! vector ternary logic" %}
@@ -5365,3 +5416,31 @@ instruct vpternlogdB_mem(vec dst, vec src2, memory src3, immU8 func) %{
   %}
   ins_pipe( pipe_slow );
 %}
+
+// --------------------------------- Rotation Operations ----------------------------------
+instruct vprotate_immI8(vec dst, vec src, immI8 shift) %{
+  match(Set dst (RotateLeftV src shift));
+  match(Set dst (RotateRightV src shift));
+  format %{ "vprotate_imm8 $dst,$src,$shift\t! vector rotate" %}
+  ins_encode %{
+    int opcode      = this->ideal_Opcode();
+    int vector_len  = vector_length_encoding(this);
+    BasicType etype = this->bottom_type()->is_vect()->element_basic_type();
+    __ vprotate_imm(opcode, etype, $dst$$XMMRegister, $src$$XMMRegister, $shift$$constant, vector_len);
+  %}
+  ins_pipe( pipe_slow );
+%}
+
+instruct vprorate(vec dst, vec src, vec shift) %{
+  match(Set dst (RotateLeftV src shift));
+  match(Set dst (RotateRightV src shift));
+  format %{ "vprotate $dst,$src,$shift\t! vector rotate" %}
+  ins_encode %{
+    int opcode      = this->ideal_Opcode();
+    int vector_len  = vector_length_encoding(this);
+    BasicType etype = this->bottom_type()->is_vect()->element_basic_type();
+    __ vprotate_var(opcode, etype, $dst$$XMMRegister, $src$$XMMRegister, $shift$$XMMRegister, vector_len);
+  %}
+  ins_pipe( pipe_slow );
+%}
+

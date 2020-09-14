@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -491,9 +491,9 @@ bool klassVtable::update_inherited_vtable(InstanceKlass* klass, const methodHand
           if (target_loader() != super_loader()) {
             ResourceMark rm(THREAD);
             Symbol* failed_type_symbol =
-              SystemDictionary::check_signature_loaders(signature, target_loader,
-                                                        super_loader, true,
-                                                        CHECK_(false));
+              SystemDictionary::check_signature_loaders(signature, _klass,
+                                                        target_loader, super_loader,
+                                                        true, CHECK_(false));
             if (failed_type_symbol != NULL) {
               stringStream ss;
               ss.print("loader constraint violation for class %s: when selecting "
@@ -692,7 +692,7 @@ bool klassVtable::needs_new_vtable_entry(const methodHandle& target_method,
   // this check for all access permissions.
   const InstanceKlass *sk = InstanceKlass::cast(super);
   if (sk->has_miranda_methods()) {
-    if (sk->lookup_method_in_all_interfaces(name, signature, Klass::find_defaults) != NULL) {
+    if (sk->lookup_method_in_all_interfaces(name, signature, Klass::DefaultsLookupMode::find) != NULL) {
       return false; // found a matching miranda; we do not need a new entry
     }
   }
@@ -797,7 +797,9 @@ bool klassVtable::is_miranda(Method* m, Array<Method*>* class_methods,
 
   // First look in local methods to see if already covered
   if (InstanceKlass::find_local_method(class_methods, name, signature,
-              Klass::find_overpass, Klass::skip_static, Klass::skip_private) != NULL)
+                                       Klass::OverpassLookupMode::find,
+                                       Klass::StaticLookupMode::skip,
+                                       Klass::PrivateLookupMode::skip) != NULL)
   {
     return false;
   }
@@ -817,7 +819,9 @@ bool klassVtable::is_miranda(Method* m, Array<Method*>* class_methods,
   for (const Klass* cursuper = super; cursuper != NULL; cursuper = cursuper->super())
   {
      Method* found_mth = InstanceKlass::cast(cursuper)->find_local_method(name, signature,
-       Klass::find_overpass, Klass::skip_static, Klass::skip_private);
+                                                                          Klass::OverpassLookupMode::find,
+                                                                          Klass::StaticLookupMode::skip,
+                                                                          Klass::PrivateLookupMode::skip);
      // Ignore non-public methods in java.lang.Object if klass is an interface.
      if (found_mth != NULL && (!is_interface ||
          !SystemDictionary::is_nonpublic_Object_method(found_mth))) {
@@ -861,7 +865,7 @@ void klassVtable::add_new_mirandas_to_lists(
       if (is_miranda(im, class_methods, default_methods, super, is_interface)) { // is it a miranda at all?
         const InstanceKlass *sk = InstanceKlass::cast(super);
         // check if it is a duplicate of a super's miranda
-        if (sk->lookup_method_in_all_interfaces(im->name(), im->signature(), Klass::find_defaults) == NULL) {
+        if (sk->lookup_method_in_all_interfaces(im->name(), im->signature(), Klass::DefaultsLookupMode::find) == NULL) {
           new_mirandas->append(im);
         }
         if (all_mirandas != NULL) {
@@ -961,6 +965,8 @@ bool klassVtable::adjust_default_method(int vtable_index, Method* old_method, Me
 // search the vtable for uses of either obsolete or EMCP methods
 void klassVtable::adjust_method_entries(bool * trace_name_printed) {
   int prn_enabled = 0;
+  ResourceMark rm;
+
   for (int index = 0; index < length(); index++) {
     Method* old_method = unchecked_method_at(index);
     if (old_method == NULL || !old_method->is_old()) {
@@ -978,27 +984,29 @@ void klassVtable::adjust_method_entries(bool * trace_name_printed) {
       updated_default = adjust_default_method(index, old_method, new_method);
     }
 
-    if (log_is_enabled(Info, redefine, class, update)) {
-      ResourceMark rm;
-      if (!(*trace_name_printed)) {
-        log_info(redefine, class, update)
-          ("adjust: klassname=%s for methods from name=%s",
-           _klass->external_name(), old_method->method_holder()->external_name());
-        *trace_name_printed = true;
-      }
-      log_debug(redefine, class, update, vtables)
-        ("vtable method update: %s(%s), updated default = %s",
-         new_method->name()->as_C_string(), new_method->signature()->as_C_string(), updated_default ? "true" : "false");
+    if (!(*trace_name_printed)) {
+      log_info(redefine, class, update)
+        ("adjust: klassname=%s for methods from name=%s",
+         _klass->external_name(), old_method->method_holder()->external_name());
+      *trace_name_printed = true;
     }
+    log_trace(redefine, class, update, vtables)
+      ("vtable method update: class: %s method: %s, updated default = %s",
+       _klass->external_name(), new_method->external_name(), updated_default ? "true" : "false");
   }
 }
 
 // a vtable should never contain old or obsolete methods
 bool klassVtable::check_no_old_or_obsolete_entries() {
+  ResourceMark rm;
+
   for (int i = 0; i < length(); i++) {
     Method* m = unchecked_method_at(i);
     if (m != NULL &&
         (NOT_PRODUCT(!m->is_valid() ||) m->is_old() || m->is_obsolete())) {
+      log_trace(redefine, class, update, vtables)
+        ("vtable check found old method entry: class: %s old: %d obsolete: %d, method: %s",
+         _klass->external_name(), m->is_old(), m->is_obsolete(), m->external_name());
       return false;
     }
   }
@@ -1195,7 +1203,7 @@ void klassItable::initialize_itable_for_interface(int method_table_offset, Insta
   assert(interf->is_interface(), "must be");
   Array<Method*>* methods = interf->methods();
   int nof_methods = methods->length();
-  HandleMark hm;
+  HandleMark hm(THREAD);
   Handle interface_loader (THREAD, interf->class_loader());
 
   int ime_count = method_count_for_interface(interf);
@@ -1210,7 +1218,7 @@ void klassItable::initialize_itable_for_interface(int method_table_offset, Insta
       // Invokespecial does not perform selection based on the receiver, so it does not use
       // the cached itable.
       target = LinkResolver::lookup_instance_method_in_klasses(_klass, m->name(), m->signature(),
-                                                               Klass::skip_private, CHECK);
+                                                               Klass::PrivateLookupMode::skip, CHECK);
     }
     if (target == NULL || !target->is_public() || target->is_abstract() || target->is_overpass()) {
       assert(target == NULL || !target->is_overpass() || target->is_public(),
@@ -1231,6 +1239,7 @@ void klassItable::initialize_itable_for_interface(int method_table_offset, Insta
           ResourceMark rm(THREAD);
           Symbol* failed_type_symbol =
             SystemDictionary::check_signature_loaders(m->signature(),
+                                                      _klass,
                                                       method_holder_loader,
                                                       interface_loader,
                                                       true, CHECK);
@@ -1281,8 +1290,9 @@ void klassItable::initialize_itable_for_interface(int method_table_offset, Insta
 #if INCLUDE_JVMTI
 // search the itable for uses of either obsolete or EMCP methods
 void klassItable::adjust_method_entries(bool * trace_name_printed) {
-
+  ResourceMark rm;
   itableMethodEntry* ime = method_entry(0);
+
   for (int i = 0; i < _size_method_table; i++, ime++) {
     Method* old_method = ime->method();
     if (old_method == NULL || !old_method->is_old()) {
@@ -1292,25 +1302,27 @@ void klassItable::adjust_method_entries(bool * trace_name_printed) {
     Method* new_method = old_method->get_new_method();
     ime->initialize(new_method);
 
-    if (log_is_enabled(Info, redefine, class, update)) {
-      ResourceMark rm;
-      if (!(*trace_name_printed)) {
-        log_info(redefine, class, update)("adjust: name=%s", old_method->method_holder()->external_name());
-        *trace_name_printed = true;
-      }
-      log_trace(redefine, class, update, itables)
-        ("itable method update: %s(%s)", new_method->name()->as_C_string(), new_method->signature()->as_C_string());
+    if (!(*trace_name_printed)) {
+      log_info(redefine, class, update)("adjust: name=%s", old_method->method_holder()->external_name());
+      *trace_name_printed = true;
     }
+    log_trace(redefine, class, update, itables)
+      ("itable method update: class: %s method: %s", _klass->external_name(), new_method->external_name());
   }
 }
 
 // an itable should never contain old or obsolete methods
 bool klassItable::check_no_old_or_obsolete_entries() {
+  ResourceMark rm;
   itableMethodEntry* ime = method_entry(0);
+
   for (int i = 0; i < _size_method_table; i++) {
     Method* m = ime->method();
     if (m != NULL &&
         (NOT_PRODUCT(!m->is_valid() ||) m->is_old() || m->is_obsolete())) {
+      log_trace(redefine, class, update, itables)
+        ("itable check found old method entry: class: %s old: %d obsolete: %d, method: %s",
+         _klass->external_name(), m->is_old(), m->is_obsolete(), m->external_name());
       return false;
     }
     ime++;
@@ -1595,7 +1607,6 @@ int VtableStats::array_entries = 0;
 
 void klassVtable::print_statistics() {
   ResourceMark rm;
-  HandleMark hm;
   VtableStats::compute();
   tty->print_cr("vtable statistics:");
   tty->print_cr("%6d classes (%d instance, %d array)", VtableStats::no_klasses, VtableStats::no_instance_klasses, VtableStats::no_array_klasses);
@@ -1606,13 +1617,14 @@ void klassVtable::print_statistics() {
   tty->print_cr("%6d bytes total", total);
 }
 
-int  klassItable::_total_classes;   // Total no. of classes with itables
-long klassItable::_total_size;      // Total no. of bytes used for itables
+int    klassItable::_total_classes;   // Total no. of classes with itables
+size_t klassItable::_total_size;      // Total no. of bytes used for itables
 
 void klassItable::print_statistics() {
  tty->print_cr("itable statistics:");
  tty->print_cr("%6d classes with itables", _total_classes);
- tty->print_cr("%6lu K uses for itables (average by class: %ld bytes)", _total_size / K, _total_size / _total_classes);
+ tty->print_cr(SIZE_FORMAT_W(6) " K uses for itables (average by class: " SIZE_FORMAT " bytes)",
+               _total_size / K, _total_size / _total_classes);
 }
 
 #endif // PRODUCT

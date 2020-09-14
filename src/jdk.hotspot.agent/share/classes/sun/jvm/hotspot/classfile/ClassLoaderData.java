@@ -46,12 +46,14 @@ public class ClassLoaderData extends VMObject {
     classLoaderFieldOffset = type.getAddressField("_class_loader").getOffset();
     nextField = type.getAddressField("_next");
     klassesField = new MetadataField(type.getAddressField("_klasses"), 0);
+    hasClassMirrorHolderField = new CIntField(type.getCIntegerField("_has_class_mirror_holder"), 0);
     dictionaryField = type.getAddressField("_dictionary");
   }
 
   private static long classLoaderFieldOffset;
   private static AddressField nextField;
   private static MetadataField  klassesField;
+  private static CIntField hasClassMirrorHolderField;
   private static AddressField dictionaryField;
 
   public ClassLoaderData(Address addr) {
@@ -76,6 +78,10 @@ public class ClassLoaderData extends VMObject {
     return vmOopHandle.resolve();
   }
 
+  public boolean gethasClassMirrorHolder() {
+    return hasClassMirrorHolderField.getValue(this) != 0;
+  }
+
   public ClassLoaderData next() {
     return instantiateWrapperFor(nextField.getValue(getAddress()));
   }
@@ -86,7 +92,11 @@ public class ClassLoaderData extends VMObject {
   public Klass find(String className) {
     for (Klass l = getKlasses(); l != null; l = l.getNextLinkKlass()) {
         if (l.getName().equals(className)) {
-            return l;
+            if (l instanceof InstanceKlass && !((InstanceKlass)l).isLoaded()) {
+                return null; // don't return partially loaded classes
+            } else {
+                return l;
+            }
         }
     }
     return null;
@@ -96,14 +106,17 @@ public class ClassLoaderData extends VMObject {
       array klasses */
   public void classesDo(ClassLoaderDataGraph.ClassVisitor v) {
       for (Klass l = getKlasses(); l != null; l = l.getNextLinkKlass()) {
+          // Only visit InstanceKlasses that are at least in the "loaded" init_state. Otherwise
+          // the InstanceKlass won't have some required fields initialized, which can cause problems.
+          if (l instanceof InstanceKlass && !((InstanceKlass)l).isLoaded()) {
+              continue;
+          }
           v.visit(l);
       }
   }
 
   /** Iterate over all klasses in the dictionary, including initiating loader. */
   public void allEntriesDo(ClassLoaderDataGraph.ClassAndLoaderVisitor v) {
-      for (Klass l = getKlasses(); l != null; l = l.getNextLinkKlass()) {
-          dictionary().allEntriesDo(v, getClassLoader());
-      }
+      dictionary().allEntriesDo(v, getClassLoader());
   }
 }

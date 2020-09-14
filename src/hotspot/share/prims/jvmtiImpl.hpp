@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -159,10 +159,10 @@ class JvmtiBreakpoint : public GrowableElement {
 private:
   Method*               _method;
   int                   _bci;
-  oop*                  _class_holder;  // keeps _method memory from being deallocated
+  OopHandle             _class_holder;  // keeps _method memory from being deallocated
 
 public:
-  JvmtiBreakpoint() : _method(NULL), _bci(0), _class_holder(NULL) {}
+  JvmtiBreakpoint() : _method(NULL), _bci(0) {}
   JvmtiBreakpoint(Method* m_method, jlocation location);
   virtual ~JvmtiBreakpoint();
   bool equals(JvmtiBreakpoint& bp);
@@ -347,7 +347,6 @@ public:
   jvalue value()         { return _value; }
   jvmtiError result()    { return _result; }
 
-  bool doit_prologue();
   void doit();
   bool allow_nested_vm_operations() const;
   const char* name() const                       { return "get/set locals"; }

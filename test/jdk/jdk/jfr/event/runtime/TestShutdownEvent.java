@@ -91,7 +91,7 @@ public class TestShutdownEvent {
     }
 
     private static void runSubtest(int subTestIndex) throws Exception {
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(true,
+        ProcessBuilder pb = ProcessTools.createTestJvm(
                                 "-Xlog:jfr=debug",
                                 "-XX:-CreateCoredumpOnCrash",
                                 "--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED",
@@ -103,7 +103,7 @@ public class TestShutdownEvent {
         int exitCode = output.getExitValue();
         System.out.println("Exit code: " + exitCode);
 
-        String recordingName = output.firstMatch("emergency jfr file: (.*.jfr)", 1);
+        String recordingName = output.firstMatch("JFR recording file will be written. Location: (.*.jfr)", 1);
         if (recordingName == null) {
             recordingName = "./dumped.jfr";
         }
@@ -228,9 +228,6 @@ public class TestShutdownEvent {
         @Override
         public int  attempts() {
             if (Platform.isWindows()) {
-                return 0;
-            }
-            if (signalName.equals("HUP") && Platform.isSolaris()) {
                 return 0;
             }
             return 1;

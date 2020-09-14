@@ -26,18 +26,17 @@
  * @bug 8232069
  * @summary Testing different combination of CompressedOops and CompressedClassPointers
  * @requires vm.cds
- * @requires (vm.gc=="null")
+ * @requires vm.gc == "null"
+ * @requires vm.bits == 64
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds
  * @compile test-classes/Hello.java
  * @modules java.base/jdk.internal.misc
- * @run main/othervm  TestCombinedCompressedFlags
+ * @run driver TestCombinedCompressedFlags
  */
 
-import jdk.test.lib.Platform;
 import jdk.test.lib.process.OutputAnalyzer;
 import java.util.List;
 import java.util.ArrayList;
-import jtreg.SkippedException;
 
 public class TestCombinedCompressedFlags {
     public static String HELLO_STRING = "Hello World";
@@ -66,7 +65,7 @@ public class TestCombinedCompressedFlags {
             initExecArgs();
         }
         private void initExecArgs() {
-           /* The combinations have four cases. Note COOP off, CCPTR must be off
+           /* The combinations have four cases.
             *          UseCompressedOops   UseCompressedClassPointers  Result
             *    1.
             *    dump: on                  on
@@ -83,13 +82,11 @@ public class TestCombinedCompressedFlags {
             *    3.
             *    dump: off                 on
             *    test: off                 on                          Pass
-            *          off                 off                         Pass
             *          on                  on                          Fail
             *          on                  off                         Fail
             *    4.
             *    dump: off                 off
             *    test: off                 off                         Pass
-            *          off                 on                          Pass
             *          on                  on                          Fail
             *          on                  off                         Fail
             **/
@@ -116,8 +113,6 @@ public class TestCombinedCompressedFlags {
 
             } else if (!dumpArg.useCompressedOops && dumpArg.useCompressedClassPointers) {
                 execArgs
-                    .add(new ConfArg(false, false, HELLO_STRING, PASS));
-                execArgs
                     .add(new ConfArg(false, true, HELLO_STRING, PASS));
                 execArgs
                     .add(new ConfArg(true, true, EXEC_ABNORMAL_MSG, FAIL));
@@ -126,8 +121,6 @@ public class TestCombinedCompressedFlags {
             } else if (!dumpArg.useCompressedOops && !dumpArg.useCompressedClassPointers) {
                 execArgs
                     .add(new ConfArg(false, false, HELLO_STRING, PASS));
-                execArgs
-                    .add(new ConfArg(false, true, HELLO_STRING, PASS));
                 execArgs
                     .add(new ConfArg(true, true, EXEC_ABNORMAL_MSG, FAIL));
                 execArgs
@@ -161,10 +154,6 @@ public class TestCombinedCompressedFlags {
     }
 
     public static void main(String[] args) throws Exception {
-        if (!Platform.is64bit()) {
-            throw new SkippedException("Platform is not 64 bit, skipped");
-        }
-
         String helloJar = JarBuilder.build("hello", "Hello");
         configureRunArgs();
         OutputAnalyzer out;
@@ -174,7 +163,8 @@ public class TestCombinedCompressedFlags {
                       new String[] {"Hello"},
                       getCompressedOopsArg(t.dumpArg.useCompressedOops),
                       getCompressedClassPointersArg(t.dumpArg.useCompressedClassPointers),
-                      "-Xlog:cds");
+                      "-Xlog:cds",
+                      "-XX:NativeMemoryTracking=detail");
             out.shouldContain("Dumping shared data to file:");
             out.shouldHaveExitValue(0);
 
@@ -183,6 +173,7 @@ public class TestCombinedCompressedFlags {
                                       "-cp",
                                       helloJar,
                                       "-Xlog:cds",
+                                      "-XX:NativeMemoryTracking=detail",
                                       getCompressedOopsArg(c.useCompressedOops),
                                       getCompressedClassPointersArg(c.useCompressedClassPointers),
                                       "Hello");

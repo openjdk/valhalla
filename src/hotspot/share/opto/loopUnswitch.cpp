@@ -82,8 +82,8 @@ bool IdealLoopTree::policy_unswitching( PhaseIdealLoop *phase ) const {
     return false;
   }
 
-  Node_List flattened_checks;
-  if (phase->find_unswitching_candidate(this, flattened_checks) == NULL && flattened_checks.size() == 0) {
+  Node_List unswitch_iffs;
+  if (phase->find_unswitching_candidate(this, unswitch_iffs) == NULL) {
     return false;
   }
 
@@ -93,7 +93,7 @@ bool IdealLoopTree::policy_unswitching( PhaseIdealLoop *phase ) const {
 
 //------------------------------find_unswitching_candidate-----------------------------
 // Find candidate "if" for unswitching
-IfNode* PhaseIdealLoop::find_unswitching_candidate(const IdealLoopTree *loop, Node_List& flattened_checks) const {
+IfNode* PhaseIdealLoop::find_unswitching_candidate(const IdealLoopTree *loop, Node_List& unswitch_iffs) const {
 
   // Find first invariant test that doesn't exit the loop
   LoopNode *head = loop->_head->as_Loop();
@@ -118,25 +118,24 @@ IfNode* PhaseIdealLoop::find_unswitching_candidate(const IdealLoopTree *loop, No
     }
     n = n_dom;
   }
-
-  Node* array;
-  if (unswitch_iff == NULL || unswitch_iff->is_flattened_array_check(&_igvn, array)) {
-    // collect all flattened array checks
-    for (uint i = 0; i < loop->_body.size(); i++) {
-      Node* n = loop->_body.at(i);
-      if (n->is_If() && n->as_If()->is_flattened_array_check(&_igvn, array) &&
-          loop->is_invariant(n->in(1)) &&
-          !loop->is_loop_exit(n)) {
-        flattened_checks.push(n);
-      }
-    }
-    if (flattened_checks.size() > 1) {
-      unswitch_iff = NULL;
-    } else {
-      flattened_checks.clear();
-    }
+  if (unswitch_iff != NULL) {
+    unswitch_iffs.push(unswitch_iff);
   }
 
+  // Collect all non-flattened array checks for unswitching to create a fast loop
+  // without checks (only non-flattened array accesses) and a slow loop with checks.
+  if (unswitch_iff == NULL || unswitch_iff->is_non_flattened_array_check(&_igvn)) {
+    for (uint i = 0; i < loop->_body.size(); i++) {
+      IfNode* n = loop->_body.at(i)->isa_If();
+      if (n != NULL && n != unswitch_iff && n->is_non_flattened_array_check(&_igvn) &&
+          loop->is_invariant(n->in(1)) && !loop->is_loop_exit(n)) {
+        unswitch_iffs.push(n);
+        if (unswitch_iff == NULL) {
+          unswitch_iff = n;
+        }
+      }
+    }
+  }
   return unswitch_iff;
 }
 
@@ -160,17 +159,18 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
     }
   }
   // Find first invariant test that doesn't exit the loop
-  Node_List flattened_checks;
-  IfNode* unswitch_iff = find_unswitching_candidate((const IdealLoopTree *)loop, flattened_checks);
-  assert(unswitch_iff != NULL || flattened_checks.size() > 0, "should be at least one");
-  if (unswitch_iff == NULL) {
-    unswitch_iff = flattened_checks.at(0)->as_If();
-  }
+  Node_List unswitch_iffs;
+  IfNode* unswitch_iff = find_unswitching_candidate((const IdealLoopTree *)loop, unswitch_iffs);
+  assert(unswitch_iff != NULL && unswitch_iffs.size() > 0, "should be at least one");
 
 #ifndef PRODUCT
   if (TraceLoopOpts) {
     tty->print("Unswitch   %d ", head->unswitch_count()+1);
     loop->dump_head();
+    for (uint i = 0; i < unswitch_iffs.size(); i++) {
+      unswitch_iffs.at(i)->dump(3);
+      tty->cr();
+    }
   }
 #endif
 
@@ -214,61 +214,49 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
   int nct = head->unswitch_count() + 1;
   head->set_unswitch_count(nct);
   head_clone->set_unswitch_count(nct);
-  if (flattened_checks.size() > 0) {
-    head->mark_flattened_arrays();
-  }
 
   // Add test to new "if" outside of loop
   IfNode* invar_iff   = proj_true->in(0)->as_If();
   Node* invar_iff_c   = invar_iff->in(0);
   invar_iff->_prob    = unswitch_iff->_prob;
-  if (flattened_checks.size() > 0) {
-    // Flattened array checks are used in
-    // Parse::array_store()/Parse::array_load() to switch between a
-    // legacy object array access and a flattened value array
+  BoolNode* bol       = unswitch_iff->in(1)->as_Bool();
+  if (unswitch_iffs.size() > 1) {
+    // Flattened array checks are used on array access to switch between
+    // a legacy object array access and a flattened inline type array
     // access. We want the performance impact on legacy accesses to be
-    // as small as possible so we make 2 copies of the loops: a fast
+    // as small as possible so we make two copies of the loop: a fast
     // one where all accesses are known to be legacy, a slow one where
     // some accesses are to flattened arrays. Flattened array checks
-    // can be removed from the first one but not from the second one
+    // can be removed from the fast loop but not from the slow loop
     // as it can have a mix of flattened/legacy accesses.
-    BoolNode* bol       = unswitch_iff->in(1)->clone()->as_Bool();
+    bol = bol->clone()->as_Bool();
     register_new_node(bol, invar_iff->in(0));
     Node* cmp = bol->in(1)->clone();
     register_new_node(cmp, invar_iff->in(0));
     bol->set_req(1, cmp);
+    // Combine all checks into a single one that fails if one array is flattened
     Node* in1 = NULL;
-    for (uint i = 0; i < flattened_checks.size(); i++) {
-      Node* v = flattened_checks.at(i)->in(1)->in(1)->in(1);
+    for (uint i = 0; i < unswitch_iffs.size(); i++) {
+      Node* array_tag = unswitch_iffs.at(i)->in(1)->in(1)->in(1);
+      array_tag = new AndINode(array_tag, _igvn.intcon(Klass::_lh_array_tag_vt_value));
+      register_new_node(array_tag, invar_iff->in(0));
       if (in1 == NULL) {
-        in1 = v;
+        in1 = array_tag;
       } else {
-        if (cmp->Opcode() == Op_CmpL) {
-          in1 = new OrLNode(in1, v);
-        } else {
-          in1 = new OrINode(in1, v);
-        }
+        in1 = new OrINode(in1, array_tag);
         register_new_node(in1, invar_iff->in(0));
       }
     }
     cmp->set_req(1, in1);
-    invar_iff->set_req(1, bol);
-  } else {
-    BoolNode* bol       = unswitch_iff->in(1)->as_Bool();
-    invar_iff->set_req(1, bol);
   }
+  invar_iff->set_req(1, bol);
 
-  ProjNode* proj_false = invar_iff->proj_out(0)->as_Proj();
-
-  // Hoist invariant casts out of each loop to the appropriate
-  // control projection.
-
+  // Hoist invariant casts out of each loop to the appropriate control projection.
   Node_List worklist;
-
-  if (flattened_checks.size() > 0) {
-    for (uint i = 0; i < flattened_checks.size(); i++) {
-      IfNode* iff = flattened_checks.at(i)->as_If();
-      ProjNode* proj= iff->proj_out(0)->as_Proj();
+  for (uint i = 0; i < unswitch_iffs.size(); i++) {
+    IfNode* iff = unswitch_iffs.at(i)->as_If();
+    for (DUIterator_Fast imax, i = iff->fast_outs(imax); i < imax; i++) {
+      ProjNode* proj = iff->fast_out(i)->as_Proj();
       // Copy to a worklist for easier manipulation
       for (DUIterator_Fast jmax, j = proj->fast_outs(jmax); j < jmax; j++) {
         Node* use = proj->fast_out(j);
@@ -283,50 +271,30 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
         nuse->set_req(0, invar_proj);
         _igvn.replace_input_of(use, 1, nuse);
         register_new_node(nuse, invar_proj);
-        // Same for the clone
-        Node* use_clone = old_new[use->_idx];
-        _igvn.replace_input_of(use_clone, 1, nuse);
-      }
-    }
-  } else {
-    for (DUIterator_Fast imax, i = unswitch_iff->fast_outs(imax); i < imax; i++) {
-      ProjNode* proj= unswitch_iff->fast_out(i)->as_Proj();
-      // Copy to a worklist for easier manipulation
-      for (DUIterator_Fast jmax, j = proj->fast_outs(jmax); j < jmax; j++) {
-        Node* use = proj->fast_out(j);
-        if (use->Opcode() == Op_CheckCastPP && loop->is_invariant(use->in(1))) {
-          worklist.push(use);
+        // Same for the clone if we are removing checks from the slow loop
+        if (unswitch_iffs.size() == 1) {
+          Node* use_clone = old_new[use->_idx];
+          _igvn.replace_input_of(use_clone, 1, nuse);
         }
-      }
-      ProjNode* invar_proj = invar_iff->proj_out(proj->_con)->as_Proj();
-      while (worklist.size() > 0) {
-        Node* use = worklist.pop();
-        Node* nuse = use->clone();
-        nuse->set_req(0, invar_proj);
-        _igvn.replace_input_of(use, 1, nuse);
-        register_new_node(nuse, invar_proj);
-        // Same for the clone
-        Node* use_clone = old_new[use->_idx];
-        _igvn.replace_input_of(use_clone, 1, nuse);
       }
     }
   }
 
+  // Hardwire the control paths in the loops into if(true) and if(false)
+  for (uint i = 0; i < unswitch_iffs.size(); i++) {
+    IfNode* iff = unswitch_iffs.at(i)->as_If();
+    _igvn.rehash_node_delayed(iff);
+    dominated_by(proj_true, iff, false, false);
+  }
   IfNode* unswitch_iff_clone = old_new[unswitch_iff->_idx]->as_If();
-  if (flattened_checks.size() > 0) {
-    for (uint i = 0; i < flattened_checks.size(); i++) {
-      IfNode* iff = flattened_checks.at(i)->as_If();
-      _igvn.rehash_node_delayed(iff);
-      dominated_by(proj_false, old_new[iff->_idx]->as_If(), false, false);
-    }
-  } else {
-    // Hardwire the control paths in the loops into if(true) and if(false)
-    _igvn.rehash_node_delayed(unswitch_iff);
-    dominated_by(proj_true, unswitch_iff, false, false);
-
-    IfNode* unswitch_iff_clone = old_new[unswitch_iff->_idx]->as_If();
+  if (unswitch_iffs.size() == 1) {
+    ProjNode* proj_false = invar_iff->proj_out(0)->as_Proj();
     _igvn.rehash_node_delayed(unswitch_iff_clone);
     dominated_by(proj_false, unswitch_iff_clone, false, false);
+  } else {
+    // Leave the flattened array checks in the slow loop and
+    // prevent it from being unswitched again based on these checks.
+    head_clone->mark_flattened_arrays();
   }
 
   // Reoptimize loops
@@ -339,9 +307,11 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
 
 #ifndef PRODUCT
   if (TraceLoopUnswitching) {
-    tty->print_cr("Loop unswitching orig: %d @ %d  new: %d @ %d",
-                  head->_idx,                unswitch_iff->_idx,
-                  old_new[head->_idx]->_idx, unswitch_iff_clone->_idx);
+    for (uint i = 0; i < unswitch_iffs.size(); i++) {
+      tty->print_cr("Loop unswitching orig: %d @ %d  new: %d @ %d",
+                    head->_idx,                unswitch_iffs.at(i)->_idx,
+                    old_new[head->_idx]->_idx, old_new[unswitch_iffs.at(i)->_idx]->_idx);
+    }
   }
 #endif
 
@@ -546,5 +516,6 @@ bool CountedLoopReserveKit::create_reserve() {
     return false;
   }
 
-  return _has_reserved = true;
+  _has_reserved = true;
+  return true;
 }

@@ -177,13 +177,13 @@ public final class Unsafe {
     @HotSpotIntrinsicCandidate
     public native void putInt(Object o, long offset, int x);
 
-    private static final int JVM_ACC_FLATTENED = 0x00008000; // HotSpot-specific bit
+    private static final int JVM_ACC_FIELD_INLINED = 0x00008000; // HotSpot-specific bit
 
     /**
      * Returns true if the given field is flattened.
      */
     public boolean isFlattened(Field f) {
-        return (f.getModifiers() & JVM_ACC_FLATTENED) == JVM_ACC_FLATTENED;
+        return (f.getModifiers() & JVM_ACC_FIELD_INLINED) == JVM_ACC_FIELD_INLINED;
     }
 
     /**
@@ -265,7 +265,7 @@ public final class Unsafe {
      */
     public Object getReference(Object o, long offset, Class<?> vc) {
         Object ref = getReference(o, offset);
-        if (ref == null && vc.isInlineClass() && !vc.isIndirectType()) {
+        if (ref == null && vc.isInlineClass()) {
             // If the type of the returned reference is a regular inline type
             // return an uninitialized default value if null
             ref = uninitializedDefaultValue(vc);
@@ -275,7 +275,7 @@ public final class Unsafe {
 
     public Object getReferenceVolatile(Object o, long offset, Class<?> vc) {
         Object ref = getReferenceVolatile(o, offset);
-        if (ref == null && vc.isInlineClass() && !vc.isIndirectType()) {
+        if (ref == null && vc.isInlineClass()) {
             // If the type of the returned reference is a regular inline type
             // return an uninitialized default value if null
             ref = uninitializedDefaultValue(vc);
@@ -749,7 +749,7 @@ public final class Unsafe {
 
         long p = allocateMemory0(bytes);
         if (p == 0) {
-            throw new OutOfMemoryError();
+            throw new OutOfMemoryError("Unable to allocate " + bytes + " bytes");
         }
 
         return p;
@@ -805,7 +805,7 @@ public final class Unsafe {
 
         long p = (address == 0) ? allocateMemory0(bytes) : reallocateMemory0(address, bytes);
         if (p == 0) {
-            throw new OutOfMemoryError();
+            throw new OutOfMemoryError("Unable to allocate " + bytes + " bytes");
         }
 
         return p;
@@ -3781,9 +3781,8 @@ public final class Unsafe {
      * Corresponds to C11 atomic_thread_fence(memory_order_acquire)
      * (an "acquire fence").
      *
-     * A pure LoadLoad fence is not provided, since the addition of LoadStore
-     * is almost always desired, and most current hardware instructions that
-     * provide a LoadLoad barrier also provide a LoadStore barrier for free.
+     * Provides a LoadLoad barrier followed by a LoadStore barrier.
+     *
      * @since 1.8
      */
     @HotSpotIntrinsicCandidate
@@ -3796,9 +3795,9 @@ public final class Unsafe {
      * Corresponds to C11 atomic_thread_fence(memory_order_release)
      * (a "release fence").
      *
-     * A pure StoreStore fence is not provided, since the addition of LoadStore
-     * is almost always desired, and most current hardware instructions that
-     * provide a StoreStore barrier also provide a LoadStore barrier for free.
+     * Provides a StoreStore barrier followed by a LoadStore barrier.
+     *
+     *
      * @since 1.8
      */
     @HotSpotIntrinsicCandidate
@@ -3819,6 +3818,11 @@ public final class Unsafe {
     /**
      * Ensures that loads before the fence will not be reordered with
      * loads after the fence.
+     *
+     * @implNote
+     * This method is operationally equivalent to {@link #loadFence()}.
+     *
+     * @since 9
      */
     public final void loadLoadFence() {
         loadFence();
@@ -3827,6 +3831,11 @@ public final class Unsafe {
     /**
      * Ensures that stores before the fence will not be reordered with
      * stores after the fence.
+     *
+     * @implNote
+     * This method is operationally equivalent to {@link #storeFence()}.
+     *
+     * @since 9
      */
     public final void storeStoreFence() {
         storeFence();

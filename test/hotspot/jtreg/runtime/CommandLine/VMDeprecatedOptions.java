@@ -31,6 +31,7 @@ import jdk.test.lib.cli.*;
  * @summary Test that various options are deprecated. See deprecated_jvm_flags in arguments.cpp.
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
+ * @run driver VMDeprecatedOptions
  */
 public class VMDeprecatedOptions {
 
@@ -46,8 +47,6 @@ public class VMDeprecatedOptions {
         {"InitialRAMFraction",        "64"},
         {"TLABStats",                 "false"},
         {"AllowRedefinitionToAddDeleteMethods", "true"},
-        {"PrintVMQWaitTime",          "true"},
-        {"UseNewFieldLayout",         "true"},
 
         // deprecated alias flags (see also aliased_jvm_flags):
         {"DefaultMaxRAMFraction", "4"},

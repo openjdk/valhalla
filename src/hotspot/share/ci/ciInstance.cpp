@@ -39,7 +39,7 @@
 
 // ------------------------------------------------------------------
 // ciObject::java_mirror_type
-ciType* ciInstance::java_mirror_type(bool* is_indirect_type) {
+ciType* ciInstance::java_mirror_type() {
   VM_ENTRY_MARK;
   oop m = get_oop();
   // Return NULL if it is not java.lang.Class.
@@ -52,9 +52,6 @@ ciType* ciInstance::java_mirror_type(bool* is_indirect_type) {
   } else {
     Klass* k = java_lang_Class::as_Klass(m);
     assert(k != NULL, "");
-    if (is_indirect_type != NULL) {
-      *is_indirect_type = java_lang_Class::is_indirect_type(m);
-    }
     return CURRENT_THREAD_ENV->get_klass(k);
   }
 }
@@ -73,7 +70,7 @@ ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset) {
     case T_FLOAT:   return ciConstant(obj->float_field(offset));
     case T_DOUBLE:  return ciConstant(obj->double_field(offset));
     case T_LONG:    return ciConstant(obj->long_field(offset));
-    case T_VALUETYPE:  // fall through
+    case T_INLINE_TYPE:  // fall through
     case T_OBJECT:  // fall through
     case T_ARRAY: {
       oop o = obj->obj_field(offset);
@@ -104,7 +101,7 @@ ciConstant ciInstance::field_value_impl(BasicType field_btype, int offset) {
 ciConstant ciInstance::field_value(ciField* field) {
   assert(is_loaded(), "invalid access - must be loaded");
   assert(field->holder()->is_loaded(), "invalid access - holder must be loaded");
-  assert(field->is_static() || field->holder()->is_valuetype() || klass()->is_subclass_of(field->holder()),
+  assert(field->is_static() || field->holder()->is_inlinetype() || klass()->is_subclass_of(field->holder()),
          "invalid access - must be subclass");
 
   GUARDED_VM_ENTRY(return field_value_impl(field->type()->basic_type(), field->offset());)

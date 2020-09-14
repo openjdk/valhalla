@@ -25,15 +25,27 @@
 
 package jdk.incubator.jpackage.internal;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.MessageFormat;
-import java.util.*;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.ResourceBundle;
 import static jdk.incubator.jpackage.internal.MacAppImageBuilder.ICON_ICNS;
+import static jdk.incubator.jpackage.internal.MacAppImageBuilder.MAC_CF_BUNDLE_IDENTIFIER;
 import static jdk.incubator.jpackage.internal.OverridableResource.createResource;
 
-import static jdk.incubator.jpackage.internal.StandardBundlerParam.*;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.APP_NAME;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.CONFIG_ROOT;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.LICENSE_FILE;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.TEMP_ROOT;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.VERBOSE;
 
 public class MacDmgBundler extends MacBaseInstallerBundler {
 
@@ -57,31 +69,29 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             params -> "",
             (s, p) -> s);
 
-    public File bundle(Map<String, ? super Object> params,
-            File outdir) throws PackagerException {
+    public Path bundle(Map<String, ? super Object> params,
+            Path outdir) throws PackagerException {
         Log.verbose(MessageFormat.format(I18N.getString("message.building-dmg"),
                 APP_NAME.fetchFrom(params)));
 
-        IOUtils.writableOutputDir(outdir.toPath());
+        IOUtils.writableOutputDir(outdir);
 
-        File appImageDir = APP_IMAGE_TEMP_ROOT.fetchFrom(params);
         try {
-            appImageDir.mkdirs();
+            Path appLocation = prepareAppBundle(params);
 
-            if (prepareAppBundle(params) != null &&
-                    prepareConfigFiles(params)) {
-                File configScript = getConfig_Script(params);
-                if (configScript.exists()) {
+            if (appLocation != null && prepareConfigFiles(params)) {
+                Path configScript = getConfig_Script(params);
+                if (IOUtils.exists(configScript)) {
                     Log.verbose(MessageFormat.format(
                             I18N.getString("message.running-script"),
-                            configScript.getAbsolutePath()));
+                            configScript.toAbsolutePath().toString()));
                     IOUtils.run("bash", configScript);
                 }
 
-                return buildDMG(params, outdir);
+                return buildDMG(params, appLocation, outdir);
             }
             return null;
-        } catch (IOException ex) {
+        } catch (IOException | PackagerException ex) {
             Log.verbose(ex);
             throw new PackagerException(ex);
         }
@@ -91,16 +101,19 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
 
     private void prepareDMGSetupScript(Map<String, ? super Object> params)
                                                                     throws IOException {
-        File dmgSetup = getConfig_VolumeScript(params);
+        Path dmgSetup = getConfig_VolumeScript(params);
         Log.verbose(MessageFormat.format(
                 I18N.getString("message.preparing-dmg-setup"),
-                dmgSetup.getAbsolutePath()));
+                dmgSetup.toAbsolutePath().toString()));
 
         // We need to use URL for DMG to find it. We cannot use volume name, since
         // user might have open DMG with same volume name already. Url should end with
         // '/' and it should be real path (no symbolic links).
-        File imageDir = IMAGES_ROOT.fetchFrom(params);
-        if (!imageDir.exists()) imageDir.mkdirs(); // Create it, since it does not exist
+        Path imageDir = IMAGES_ROOT.fetchFrom(params);
+        if (!Files.exists(imageDir)) {
+             // Create it, since it does not exist
+             Files.createDirectories(imageDir);
+        }
         Path rootPath = Path.of(imageDir.toString()).toRealPath();
         Path volumePath = rootPath.resolve(APP_NAME.fetchFrom(params));
         String volumeUrl = volumePath.toUri().toString() + File.separator;
@@ -116,8 +129,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         data.put("DEPLOY_VOLUME_PATH", volumePath.toString());
         data.put("DEPLOY_APPLICATION_NAME", APP_NAME.fetchFrom(params));
 
-        data.put("DEPLOY_INSTALL_LOCATION", "(path to applications folder)");
-        data.put("DEPLOY_INSTALL_NAME", "Applications");
+        data.put("DEPLOY_INSTALL_LOCATION", getInstallDir(params));
 
         createResource(DEFAULT_DMG_SETUP_SCRIPT, params)
                 .setCategory(I18N.getString("resource.dmg-setup-script"))
@@ -125,24 +137,24 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 .saveToFile(dmgSetup);
     }
 
-    private File getConfig_VolumeScript(Map<String, ? super Object> params) {
-        return new File(CONFIG_ROOT.fetchFrom(params),
+    private Path getConfig_VolumeScript(Map<String, ? super Object> params) {
+        return CONFIG_ROOT.fetchFrom(params).resolve(
                 APP_NAME.fetchFrom(params) + "-dmg-setup.scpt");
     }
 
-    private File getConfig_VolumeBackground(
+    private Path getConfig_VolumeBackground(
             Map<String, ? super Object> params) {
-        return new File(CONFIG_ROOT.fetchFrom(params),
+        return CONFIG_ROOT.fetchFrom(params).resolve(
                 APP_NAME.fetchFrom(params) + "-background.tiff");
     }
 
-    private File getConfig_VolumeIcon(Map<String, ? super Object> params) {
-        return new File(CONFIG_ROOT.fetchFrom(params),
+    private Path getConfig_VolumeIcon(Map<String, ? super Object> params) {
+        return CONFIG_ROOT.fetchFrom(params).resolve(
                 APP_NAME.fetchFrom(params) + "-volume.icns");
     }
 
-    private File getConfig_LicenseFile(Map<String, ? super Object> params) {
-        return new File(CONFIG_ROOT.fetchFrom(params),
+    private Path getConfig_LicenseFile(Map<String, ? super Object> params) {
+        return CONFIG_ROOT.fetchFrom(params).resolve(
                 APP_NAME.fetchFrom(params) + "-license.plist");
     }
 
@@ -153,9 +165,9 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 return;
             }
 
-            File licFile = new File(licFileStr);
+            Path licFile = Path.of(licFileStr);
             byte[] licenseContentOriginal =
-                    Files.readAllBytes(licFile.toPath());
+                    Files.readAllBytes(licFile);
             String licenseInBase64 =
                     Base64.getEncoder().encodeToString(licenseContentOriginal);
 
@@ -196,8 +208,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
     }
 
     // name of post-image script
-    private File getConfig_Script(Map<String, ? super Object> params) {
-        return new File(CONFIG_ROOT.fetchFrom(params),
+    private Path getConfig_Script(Map<String, ? super Object> params) {
+        return CONFIG_ROOT.fetchFrom(params).resolve(
                 APP_NAME.fetchFrom(params) + "-post-image.sh");
     }
 
@@ -209,9 +221,9 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 "/usr/bin/SetFile", "/Developer/usr/bin/SetFile"};
 
         String setFilePath = null;
-        for (String path: typicalPaths) {
-            File f = new File(path);
-            if (f.exists() && f.canExecute()) {
+        for (String path : typicalPaths) {
+            Path f = Path.of(path);
+            if (Files.exists(f) && Files.isExecutable(f)) {
                 setFilePath = path;
                 break;
             }
@@ -242,9 +254,9 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             BufferedReader br = new BufferedReader(isr);
             String lineRead = br.readLine();
             if (lineRead != null) {
-                File f = new File(lineRead);
-                if (f.exists() && f.canExecute()) {
-                    return f.getAbsolutePath();
+                Path f = Path.of(lineRead);
+                if (Files.exists(f) && Files.isExecutable(f)) {
+                    return f.toAbsolutePath().toString();
                 }
             }
         } catch (IOException ignored) {}
@@ -252,36 +264,55 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
         return null;
     }
 
-    private File buildDMG(
-            Map<String, ? super Object> params, File outdir)
-            throws IOException {
-        File imagesRoot = IMAGES_ROOT.fetchFrom(params);
-        if (!imagesRoot.exists()) imagesRoot.mkdirs();
+    private Path buildDMG( Map<String, ? super Object> params,
+            Path appLocation, Path outdir) throws IOException {
+        boolean copyAppImage = false;
+        Path imagesRoot = IMAGES_ROOT.fetchFrom(params);
+        if (!Files.exists(imagesRoot)) {
+            Files.createDirectories(imagesRoot);
+        }
 
-        File protoDMG = new File(imagesRoot,
-                APP_NAME.fetchFrom(params) +"-tmp.dmg");
-        File finalDMG = new File(outdir, INSTALLER_NAME.fetchFrom(params)
+        Path protoDMG = imagesRoot.resolve(APP_NAME.fetchFrom(params) +"-tmp.dmg");
+        Path finalDMG = outdir.resolve(INSTALLER_NAME.fetchFrom(params)
                 + INSTALLER_SUFFIX.fetchFrom(params) + ".dmg");
 
-        File srcFolder = APP_IMAGE_TEMP_ROOT.fetchFrom(params);
-        File predefinedImage =
-                StandardBundlerParam.getPredefinedAppImage(params);
+        Path srcFolder = APP_IMAGE_TEMP_ROOT.fetchFrom(params);
+        Path predefinedImage = StandardBundlerParam.getPredefinedAppImage(params);
         if (predefinedImage != null) {
             srcFolder = predefinedImage;
+        } else if (StandardBundlerParam.isRuntimeInstaller(params)) {
+            Path newRoot = Files.createTempDirectory(TEMP_ROOT.fetchFrom(params),
+                    "root-");
+
+            // first, is this already a runtime with
+            // <runtime>/Contents/Home - if so we need the Home dir
+            Path home = appLocation.resolve("Contents/Home");
+            Path source = (Files.exists(home)) ? home : appLocation;
+
+            // Then we need to put back the <NAME>/Content/Home
+            Path root = newRoot.resolve(
+                    MAC_CF_BUNDLE_IDENTIFIER.fetchFrom(params));
+            Path dest = root.resolve("Contents/Home");
+
+            IOUtils.copyRecursive(source, dest);
+
+            srcFolder = newRoot;
         }
 
         Log.verbose(MessageFormat.format(I18N.getString(
-                "message.creating-dmg-file"), finalDMG.getAbsolutePath()));
+                "message.creating-dmg-file"), finalDMG.toAbsolutePath()));
 
-        protoDMG.delete();
-        if (finalDMG.exists() && !finalDMG.delete()) {
+        Files.deleteIfExists(protoDMG);
+        try {
+            Files.deleteIfExists(finalDMG);
+        } catch (IOException ex) {
             throw new IOException(MessageFormat.format(I18N.getString(
                     "message.dmg-cannot-be-overwritten"),
-                    finalDMG.getAbsolutePath()));
+                    finalDMG.toAbsolutePath()));
         }
 
-        protoDMG.getParentFile().mkdirs();
-        finalDMG.getParentFile().mkdirs();
+        Files.createDirectories(protoDMG.getParent());
+        Files.createDirectories(finalDMG.getParent());
 
         String hdiUtilVerbosityFlag = VERBOSE.fetchFrom(params) ?
                 "-verbose" : "-quiet";
@@ -291,36 +322,85 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 hdiutil,
                 "create",
                 hdiUtilVerbosityFlag,
-                "-srcfolder", srcFolder.getAbsolutePath(),
+                "-srcfolder", srcFolder.toAbsolutePath().toString(),
                 "-volname", APP_NAME.fetchFrom(params),
-                "-ov", protoDMG.getAbsolutePath(),
+                "-ov", protoDMG.toAbsolutePath().toString(),
                 "-fs", "HFS+",
                 "-format", "UDRW");
-        IOUtils.exec(pb);
+        try {
+            IOUtils.exec(pb);
+        } catch (IOException ex) {
+            Log.verbose(ex); // Log exception
+
+            // Creating DMG from entire app image failed, so lets try to create empty
+            // DMG and copy files manually. See JDK-8248059.
+            copyAppImage = true;
+
+            long size = new PathGroup(Map.of(new Object(), srcFolder)).sizeInBytes();
+            size += 50 * 1024 * 1024; // Add extra 50 megabytes. Actually DMG size will
+            // not be bigger, but it will able to hold additional 50 megabytes of data.
+            // We need extra room for icons and background image. When we providing
+            // actual files to hdiutil, it will create DMG with ~50 megabytes extra room.
+            pb = new ProcessBuilder(
+                hdiutil,
+                "create",
+                hdiUtilVerbosityFlag,
+                "-size", String.valueOf(size),
+                "-volname", APP_NAME.fetchFrom(params),
+                "-ov", protoDMG.toAbsolutePath().toString(),
+                "-fs", "HFS+");
+            IOUtils.exec(pb);
+        }
 
         // mount temp image
         pb = new ProcessBuilder(
                 hdiutil,
                 "attach",
-                protoDMG.getAbsolutePath(),
+                protoDMG.toAbsolutePath().toString(),
                 hdiUtilVerbosityFlag,
-                "-mountroot", imagesRoot.getAbsolutePath());
-        IOUtils.exec(pb, false, null, true);
+                "-mountroot", imagesRoot.toAbsolutePath().toString());
+        IOUtils.exec(pb, false, null, true, Executor.INFINITE_TIMEOUT);
 
-        File mountedRoot = new File(imagesRoot.getAbsolutePath(),
-                    APP_NAME.fetchFrom(params));
+        Path mountedRoot = imagesRoot.resolve(APP_NAME.fetchFrom(params));
+
+        // Copy app image, since we did not create DMG with it, but instead we created
+        // empty one.
+        if (copyAppImage) {
+            // In case of predefine app image srcFolder will point to app bundle, so if
+            // we use it as is we will copy content of app bundle, but we need app bundle
+            // folder as well.
+            if (srcFolder.toString().toLowerCase().endsWith(".app")) {
+                Path destPath = mountedRoot
+                        .resolve(srcFolder.getFileName());
+                Files.createDirectory(destPath);
+                IOUtils.copyRecursive(srcFolder, destPath);
+            } else {
+                IOUtils.copyRecursive(srcFolder, mountedRoot);
+            }
+        }
 
         try {
+            // background image
+            Path bgdir = mountedRoot.resolve(BACKGROUND_IMAGE_FOLDER);
+            Files.createDirectories(bgdir);
+            IOUtils.copyFile(getConfig_VolumeBackground(params),
+                    bgdir.resolve(BACKGROUND_IMAGE));
+
+            // We will not consider setting background image and creating link
+            // to install-dir in DMG as critical error, since it can fail in
+            // headless enviroment.
+            try {
+                pb = new ProcessBuilder("osascript",
+                        getConfig_VolumeScript(params).toAbsolutePath().toString());
+                IOUtils.exec(pb, 180); // Wait 3 minutes. See JDK-8248248.
+            } catch (IOException ex) {
+                Log.verbose(ex);
+            }
+
             // volume icon
-            File volumeIconFile = new File(mountedRoot, ".VolumeIcon.icns");
+            Path volumeIconFile = mountedRoot.resolve(".VolumeIcon.icns");
             IOUtils.copyFile(getConfig_VolumeIcon(params),
                     volumeIconFile);
-
-            // background image
-            File bgdir = new File(mountedRoot, BACKGROUND_IMAGE_FOLDER);
-            bgdir.mkdirs();
-            IOUtils.copyFile(getConfig_VolumeBackground(params),
-                    new File(bgdir, BACKGROUND_IMAGE));
 
             // Indicate that we want a custom icon
             // NB: attributes of the root directory are ignored
@@ -330,7 +410,7 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             if (setFileUtility != null) {
                 //can not find utility => keep going without icon
                 try {
-                    volumeIconFile.setWritable(true);
+                    volumeIconFile.toFile().setWritable(true);
                     // The "creator" attribute on a file is a legacy attribute
                     // but it seems Finder excepts these bytes to be
                     // "icnC" for the volume icon
@@ -338,14 +418,14 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     pb = new ProcessBuilder(
                             setFileUtility,
                             "-c", "icnC",
-                            volumeIconFile.getAbsolutePath());
+                            volumeIconFile.toAbsolutePath().toString());
                     IOUtils.exec(pb);
-                    volumeIconFile.setReadOnly();
+                    volumeIconFile.toFile().setReadOnly();
 
                     pb = new ProcessBuilder(
                             setFileUtility,
                             "-a", "C",
-                            mountedRoot.getAbsolutePath());
+                            mountedRoot.toAbsolutePath().toString());
                     IOUtils.exec(pb);
                 } catch (IOException ex) {
                     Log.error(ex.getMessage());
@@ -355,16 +435,6 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                 Log.verbose(I18N.getString("message.setfile.dmg"));
             }
 
-            // We will not consider setting background image and creating link to
-            // /Application folder in DMG as critical error, since it can fail in
-            // headless enviroment.
-            try {
-                pb = new ProcessBuilder("osascript",
-                        getConfig_VolumeScript(params).getAbsolutePath());
-                IOUtils.exec(pb);
-            } catch (IOException ex) {
-                Log.verbose(ex);
-            }
         } finally {
             // Detach the temporary image
             pb = new ProcessBuilder(
@@ -372,27 +442,45 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
                     "detach",
                     "-force",
                     hdiUtilVerbosityFlag,
-                    mountedRoot.getAbsolutePath());
-            IOUtils.exec(pb);
+                    mountedRoot.toAbsolutePath().toString());
+            // "hdiutil detach" might not work right away due to resource busy error, so
+            // repeat detach several times.
+            RetryExecutor retryExecutor = new RetryExecutor();
+            // Image can get detach even if we got resource busy error, so stop
+            // trying to detach it if it is no longer attached.
+            retryExecutor.setExecutorInitializer(exec -> {
+                if (!Files.exists(mountedRoot)) {
+                    retryExecutor.abort();
+                }
+            });
+            try {
+                // 10 times with 3 second delays.
+                retryExecutor.setMaxAttemptsCount(10).setAttemptTimeoutMillis(3000)
+                        .execute(pb);
+            } catch (IOException ex) {
+                if (!retryExecutor.isAborted()) {
+                    throw ex;
+                }
+            }
         }
 
         // Compress it to a new image
         pb = new ProcessBuilder(
                 hdiutil,
                 "convert",
-                protoDMG.getAbsolutePath(),
+                protoDMG.toAbsolutePath().toString(),
                 hdiUtilVerbosityFlag,
                 "-format", "UDZO",
-                "-o", finalDMG.getAbsolutePath());
+                "-o", finalDMG.toAbsolutePath().toString());
         IOUtils.exec(pb);
 
         //add license if needed
-        if (getConfig_LicenseFile(params).exists()) {
+        if (Files.exists(getConfig_LicenseFile(params))) {
             //hdiutil unflatten your_image_file.dmg
             pb = new ProcessBuilder(
                     hdiutil,
                     "unflatten",
-                    finalDMG.getAbsolutePath()
+                    finalDMG.toAbsolutePath().toString()
             );
             IOUtils.exec(pb);
 
@@ -400,9 +488,9 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             pb = new ProcessBuilder(
                     hdiutil,
                     "udifrez",
-                    finalDMG.getAbsolutePath(),
+                    finalDMG.toAbsolutePath().toString(),
                     "-xml",
-                    getConfig_LicenseFile(params).getAbsolutePath()
+                    getConfig_LicenseFile(params).toAbsolutePath().toString()
             );
             IOUtils.exec(pb);
 
@@ -410,18 +498,18 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
             pb = new ProcessBuilder(
                     hdiutil,
                     "flatten",
-                    finalDMG.getAbsolutePath()
+                    finalDMG.toAbsolutePath().toString()
             );
             IOUtils.exec(pb);
 
         }
 
         //Delete the temporary image
-        protoDMG.delete();
+        Files.deleteIfExists(protoDMG);
 
         Log.verbose(MessageFormat.format(I18N.getString(
                 "message.output-to-location"),
-                APP_NAME.fetchFrom(params), finalDMG.getAbsolutePath()));
+                APP_NAME.fetchFrom(params), finalDMG.toAbsolutePath().toString()));
 
         return finalDMG;
     }
@@ -462,8 +550,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
     }
 
     @Override
-    public File execute(Map<String, ? super Object> params,
-            File outputParentDir) throws PackagerException {
+    public Path execute(Map<String, ? super Object> params,
+            Path outputParentDir) throws PackagerException {
         return bundle(params, outputParentDir);
     }
 
@@ -477,8 +565,8 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
     public static boolean isSupported() {
         try {
             for (String s : required) {
-                File f = new File(s);
-                if (!f.exists() || !f.canExecute()) {
+                Path f = Path.of(s);
+                if (!Files.exists(f) || !Files.isExecutable(f)) {
                     return false;
                 }
             }
@@ -492,5 +580,4 @@ public class MacDmgBundler extends MacBaseInstallerBundler {
     public boolean isDefault() {
         return true;
     }
-
 }

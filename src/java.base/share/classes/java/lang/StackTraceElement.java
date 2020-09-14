@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -60,13 +60,37 @@ public final class StackTraceElement implements java.io.Serializable {
     private transient Class<?> declaringClassObject;
 
     // Normally initialized by VM
+    /**
+     * The name of the class loader.
+     */
     private String classLoaderName;
+    /**
+     * The module name.
+     */
     private String moduleName;
+    /**
+     * The module version.
+     */
     private String moduleVersion;
+    /**
+     * The declaring class.
+     */
     private String declaringClass;
+    /**
+     * The method name.
+     */
     private String methodName;
+    /**
+     * The source file name.
+     */
     private String fileName;
+    /**
+     * The source line number.
+     */
     private int    lineNumber;
+    /**
+     * Control to show full or partial module, package, and class names.
+     */
     private byte   format = 0; // Default to show all
 
     /**
@@ -153,8 +177,8 @@ public final class StackTraceElement implements java.io.Serializable {
      * Returns the name of the source file containing the execution point
      * represented by this stack trace element.  Generally, this corresponds
      * to the {@code SourceFile} attribute of the relevant {@code class}
-     * file (as per <i>The Java Virtual Machine Specification</i>, Section
-     * 4.7.7).  In some systems, the name may refer to some source code unit
+     * file (as per <cite>The Java Virtual Machine Specification</cite>, Section
+     * {@jvms 4.7.7}).  In some systems, the name may refer to some source code unit
      * other than a file, such as an entry in source repository.
      *
      * @return the name of the file containing the execution point
@@ -169,8 +193,8 @@ public final class StackTraceElement implements java.io.Serializable {
      * Returns the line number of the source line containing the execution
      * point represented by this stack trace element.  Generally, this is
      * derived from the {@code LineNumberTable} attribute of the relevant
-     * {@code class} file (as per <i>The Java Virtual Machine
-     * Specification</i>, Section 4.7.8).
+     * {@code class} file (as per <cite>The Java Virtual Machine
+     * Specification</cite>, Section {@jvms 4.7.8}).
      *
      * @return the line number of the source line containing the execution
      *         point represented by this stack trace element, or a negative
@@ -242,8 +266,8 @@ public final class StackTraceElement implements java.io.Serializable {
      * represented by this stack trace element.  If the execution point is
      * contained in an instance or class initializer, this method will return
      * the appropriate <i>special method name</i>, {@code <init>} or
-     * {@code <clinit>}, as per Section 3.9 of <i>The Java Virtual
-     * Machine Specification</i>.
+     * {@code <clinit>}, as per Section {@jvms 3.9} of <cite>The Java Virtual
+     * Machine Specification</cite>.
      *
      * @return the name of the method containing the execution point
      *         represented by this stack trace element.
@@ -302,7 +326,7 @@ public final class StackTraceElement implements java.io.Serializable {
      * </ul>
      *
      * <p> The first example shows a stack trace element consisting of
-     * three elements, each separated by {@code "/"} followed with
+     * three elements, each separated by {@code "/"}, followed by
      * the source file name and the line number of the source line
      * containing the execution point.
      *

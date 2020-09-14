@@ -164,7 +164,7 @@ public:
 
   virtual bool do_operation() {
     ZStatTimer timer(ZPhasePauseMarkStart);
-    ZServiceabilityMarkStartTracer tracer;
+    ZServiceabilityPauseTracer tracer;
 
     // Set up soft reference policy
     const bool clear = should_clear_soft_references();
@@ -189,7 +189,7 @@ public:
 
   virtual bool do_operation() {
     ZStatTimer timer(ZPhasePauseMarkEnd);
-    ZServiceabilityMarkEndTracer tracer;
+    ZServiceabilityPauseTracer tracer;
     return ZHeap::heap()->mark_end();
   }
 };
@@ -206,7 +206,7 @@ public:
 
   virtual bool do_operation() {
     ZStatTimer timer(ZPhasePauseRelocateStart);
-    ZServiceabilityRelocateStartTracer tracer;
+    ZServiceabilityPauseTracer tracer;
     ZHeap::heap()->relocate_start();
     return true;
   }
@@ -354,17 +354,19 @@ void ZDriver::check_out_of_memory() {
 
 class ZDriverGCScope : public StackObj {
 private:
-  GCIdMark       _gc_id;
-  GCCause::Cause _gc_cause;
-  GCCauseSetter  _gc_cause_setter;
-  ZStatTimer     _timer;
+  GCIdMark                   _gc_id;
+  GCCause::Cause             _gc_cause;
+  GCCauseSetter              _gc_cause_setter;
+  ZStatTimer                 _timer;
+  ZServiceabilityCycleTracer _tracer;
 
 public:
   ZDriverGCScope(GCCause::Cause cause) :
       _gc_id(),
       _gc_cause(cause),
       _gc_cause_setter(ZCollectedHeap::heap(), cause),
-      _timer(ZPhaseCycle) {
+      _timer(ZPhaseCycle),
+      _tracer() {
     // Update statistics
     ZStatCycle::at_start();
   }
@@ -379,6 +381,9 @@ public:
 
     // Update data used by soft reference policy
     Universe::update_heap_info_at_gc();
+
+    // Signal that we have completed a visit to all live objects
+    Universe::heap()->record_whole_heap_examined_timestamp();
   }
 };
 

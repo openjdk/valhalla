@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
 
 /*
  * @test
- * @bug 8205418 8207229 8207230 8230847
+ * @bug 8205418 8207229 8207230 8230847 8245786 8247334 8248641
  * @summary Test the outcomes from Trees.getScope
  * @modules jdk.compiler/com.sun.tools.javac.api
  *          jdk.compiler/com.sun.tools.javac.comp
@@ -34,6 +34,7 @@
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import javax.lang.model.element.Element;
@@ -42,7 +43,9 @@ import javax.tools.SimpleJavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
+import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.BlockTree;
+import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.IdentifierTree;
@@ -58,11 +61,14 @@ import com.sun.source.util.TaskListener;
 import com.sun.source.util.TreePath;
 import com.sun.source.util.TreePathScanner;
 import com.sun.source.util.Trees;
+import com.sun.tools.javac.api.JavacScope;
 
 import com.sun.tools.javac.api.JavacTool;
 import com.sun.tools.javac.comp.Analyzer;
 import com.sun.tools.javac.comp.AttrContext;
 import com.sun.tools.javac.comp.Env;
+import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCCase;
 import com.sun.tools.javac.tree.JCTree.JCStatement;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Context.Factory;
@@ -78,6 +84,9 @@ public class TestGetScopeResult {
         new TestGetScopeResult().testAnnotations();
         new TestGetScopeResult().testAnnotationsLazy();
         new TestGetScopeResult().testCircular();
+        new TestGetScopeResult().testRecord();
+        new TestGetScopeResult().testLocalRecordAnnotation();
+        new TestGetScopeResult().testRuleCases();
     }
 
     public void run() throws IOException {
@@ -155,6 +164,34 @@ public class TestGetScopeResult {
 
         doTest("class Test { void test() { cand((t, var s) -> \"\"); } void cand(I i) { } interface I { public String test(String s); }  }",
                implicitExplicitConflict2);
+
+        String[] noFunctionInterface = {
+            "s:none",
+            ":t",
+            "super:java.lang.Object",
+            "this:Test"
+        };
+
+        doTest("class Test { void test() { cand((t, var s) -> \"\"); } void cand(String s) { } }",
+               noFunctionInterface);
+
+        String[] invocationInMethodInvocation = {
+            "d2:java.lang.Double",
+            "d1:java.lang.Double",
+            "super:java.lang.Object",
+            "this:Test"
+        };
+
+        doTest("""
+               class Test {
+                   void test() { test(reduce(0.0, (d1, d2) -> 0)); }
+                   void test(int i) {}
+                   <T> T reduce(T t, BiFunction<T, T, T> f1) {}
+                   static interface BiFunction<R, P, Q> {
+                       R apply(P p, Q q);
+                   }
+               }""",
+               invocationInMethodInvocation);
     }
 
     public void doTest(String code, String... expected) throws IOException {
@@ -179,12 +216,7 @@ public class TestGetScopeResult {
                 @Override
                 public Void visitLambdaExpression(LambdaExpressionTree node, Void p) {
                     Scope scope = Trees.instance(t).getScope(new TreePath(getCurrentPath(), node.getBody()));
-                    while (scope.getEnclosingClass() != null) {
-                        for (Element el : scope.getLocalElements()) {
-                            actual.add(el.getSimpleName() + ":" +el.asType().toString());
-                        }
-                        scope = scope.getEnclosingScope();
-                    }
+                    actual.addAll(dumpScope(scope));
                     return super.visitLambdaExpression(node, p);
                 }
             }.scan(cut, null);
@@ -493,4 +525,227 @@ public class TestGetScopeResult {
         }
     }
 
+    void testRecord() throws IOException {
+        JavacTool c = JavacTool.create();
+        try (StandardJavaFileManager fm = c.getStandardFileManager(null, null, null)) {
+            class MyFileObject extends SimpleJavaFileObject {
+                MyFileObject() {
+                    super(URI.create("myfo:///Test.java"), SOURCE);
+                }
+                @Override
+                public String getCharContent(boolean ignoreEncodingErrors) {
+                    return "record Test<T>(int mark) {}";
+                }
+            }
+            Context ctx = new Context();
+            TestAnalyzer.preRegister(ctx);
+            List<String> options = List.of("--enable-preview",
+                                           "-source", System.getProperty("java.specification.version"));
+            JavacTask t = (JavacTask) c.getTask(null, fm, null, options, null,
+                                                List.of(new MyFileObject()), ctx);
+            CompilationUnitTree cut = t.parse().iterator().next();
+            t.analyze();
+
+            List<String> actual = new ArrayList<>();
+
+            new TreePathScanner<Void, Void>() {
+                @Override
+                public Void visitClass(ClassTree node, Void p) {
+                    Scope scope = Trees.instance(t).getScope(getCurrentPath());
+                    actual.addAll(dumpScope(scope));
+                    return super.visitClass(node, p);
+                }
+            }.scan(cut, null);
+
+            List<String> expected = List.of(
+                    "super:java.lang.Record",
+                    "this:Test<T>",
+                    "T:T"
+            );
+
+            if (!expected.equals(actual)) {
+                throw new AssertionError("Unexpected Scope content: " + actual);
+            }
+        }
+    }
+
+    void testLocalRecordAnnotation() throws IOException {
+        JavacTool c = JavacTool.create();
+        try (StandardJavaFileManager fm = c.getStandardFileManager(null, null, null)) {
+            class Variant {
+                final String code;
+                final List<List<String>> expectedScopeContent;
+                public Variant(String code, List<List<String>> expectedScopeContent) {
+                    this.code = code;
+                    this.expectedScopeContent = expectedScopeContent;
+                }
+            }
+            Variant[] variants = new Variant[] {
+                new Variant("""
+                            class Test {
+                                void t() {
+                                    record R(@Annotation int i) {
+                                        void stop () {}
+                                    }
+                                }
+                            }
+                            @interface Annotation {}
+                            """,
+                            List.of(
+                                List.of("super:java.lang.Object", "this:Test"),
+                                List.of("super:java.lang.Object", "this:Test")
+                            )),
+                new Variant("""
+                            record Test(@Annotation int i) {}
+                            @interface Annotation {}
+                            """,
+                            List.of(
+                                List.of("i:int", "super:java.lang.Record", "this:Test"),
+                                List.of("super:java.lang.Record", "this:Test")
+                            ))
+            };
+            for (Variant currentVariant : variants) {
+                class MyFileObject extends SimpleJavaFileObject {
+                    MyFileObject() {
+                        super(URI.create("myfo:///Test.java"), SOURCE);
+                    }
+                    @Override
+                    public String getCharContent(boolean ignoreEncodingErrors) {
+                        return currentVariant.code;
+                    }
+                }
+                Context ctx = new Context();
+                TestAnalyzer.preRegister(ctx);
+                List<String> options = List.of("--enable-preview",
+                                               "-source", System.getProperty("java.specification.version"));
+                JavacTask t = (JavacTask) c.getTask(null, fm, null, options, null,
+                                                    List.of(new MyFileObject()), ctx);
+                CompilationUnitTree cut = t.parse().iterator().next();
+                t.analyze();
+
+                List<List<String>> actual = new ArrayList<>();
+
+                new TreePathScanner<Void, Void>() {
+                    @Override
+                    public Void visitAnnotation(AnnotationTree node, Void p) {
+                        Scope scope = Trees.instance(t).getScope(getCurrentPath());
+                        actual.add(dumpScope(scope));
+                        return super.visitAnnotation(node, p);
+                    }
+                }.scan(cut, null);
+
+                if (!currentVariant.expectedScopeContent.equals(actual)) {
+                    throw new AssertionError("Unexpected Scope content: " + actual);
+                }
+            }
+        }
+    }
+
+    void testRuleCases() throws IOException {
+        JavacTool c = JavacTool.create();
+        try (StandardJavaFileManager fm = c.getStandardFileManager(null, null, null)) {
+            String code = """
+                          class Test {
+                              void t(int i) {
+                                  long local;
+                                  System.err.println(switch (i) {
+                                    case 0 -> {
+                                        String var;
+                                        int scopeHere;
+                                        yield "";
+                                    }
+                                    default -> {
+                                        String var;
+                                        int scopeHere;
+                                        yield "";
+                                    }
+                                  });
+                                  switch (i) {
+                                    case 0 -> {
+                                        String var;
+                                        int scopeHere;
+                                    }
+                                    default -> {
+                                        String var;
+                                        int scopeHere;
+                                    }
+                                  };
+                                  switch (i) {
+                                    case 0: {
+                                        int checkTree;
+                                    }
+                                  }
+                              }
+                          }
+                          """;
+            class MyFileObject extends SimpleJavaFileObject {
+                MyFileObject() {
+                    super(URI.create("myfo:///Test.java"), SOURCE);
+                }
+                @Override
+                public String getCharContent(boolean ignoreEncodingErrors) {
+                    return code;
+                }
+            }
+            Context ctx = new Context();
+            TestAnalyzer.preRegister(ctx);
+            List<String> options = List.of("--enable-preview",
+                                           "-source", System.getProperty("java.specification.version"));
+            JavacTask t = (JavacTask) c.getTask(null, fm, null, options, null,
+                                                List.of(new MyFileObject()), ctx);
+            CompilationUnitTree cut = t.parse().iterator().next();
+            t.analyze();
+
+            List<List<String>> actual = new ArrayList<>();
+
+            new TreePathScanner<Void, Void>() {
+                @Override
+                public Void visitVariable(VariableTree node, Void p) {
+                    if (node.getName().contentEquals("scopeHere")) {
+                        Scope scope = Trees.instance(t).getScope(getCurrentPath());
+                        actual.add(dumpScope(scope));
+                        JCTree body = getCaseBody(scope);
+                        if (body == null) {
+                            throw new AssertionError("Unexpected null body.");
+                        }
+                    } else if (node.getName().contentEquals("checkTree")) {
+                        Scope scope = Trees.instance(t).getScope(getCurrentPath());
+                        JCTree body = getCaseBody(scope);
+                        if (body != null) {
+                            throw new AssertionError("Unexpected body tree: " + body);
+                        }
+                    }
+                    return super.visitVariable(node, p);
+                }
+                JCTree getCaseBody(Scope scope) {
+                    return ((JCCase) ((JavacScope) scope).getEnv().next.next.tree).body;
+                }
+            }.scan(cut, null);
+
+            List<List<String>> expected =
+                    Collections.nCopies(4,
+                                        List.of("scopeHere:int",
+                                                "var:java.lang.String",
+                                                "local:long",
+                                                "i:int",
+                                                "super:java.lang.Object",
+                                                "this:Test"
+                                            ));
+
+            if (!expected.equals(actual)) {
+                throw new AssertionError("Unexpected Scope content: " + actual);
+            }
+        }
+    }
+
+    private List<String> dumpScope(Scope scope) {
+        List<String> content = new ArrayList<>();
+        while (scope.getEnclosingClass() != null) {
+            for (Element el : scope.getLocalElements()) {
+                content.add(el.getSimpleName() + ":" +el.asType().toString());
+            }
+            scope = scope.getEnclosingScope();
+        }
+        return content;
+    }
 }

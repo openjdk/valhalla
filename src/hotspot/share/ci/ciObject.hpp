@@ -107,7 +107,6 @@ public:
   virtual bool is_array()                   { return false; }
   virtual bool is_obj_array()               { return false; }
   virtual bool is_type_array()              { return false; }
-  virtual bool is_value_array()             { return false; }
 
   // Is this a type or value which has no associated class?
   // It is true of primitive types and null objects.

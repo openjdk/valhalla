@@ -25,8 +25,7 @@
 
 package jdk.incubator.jpackage.internal;
 
-import java.io.File;
-import java.util.Collection;
+import java.nio.file.Path;
 import java.util.Map;
 
 /**
@@ -105,8 +104,8 @@ public interface Bundler {
      *      forward slashes.</li>
      *  </ul>
      */
-    public File execute(Map<String, ? super Object> params,
-            File outputParentDir) throws PackagerException;
+    public Path execute(Map<String, ? super Object> params,
+            Path outputParentDir) throws PackagerException;
 
      /**
      * Removes temporary files that are used for bundling.

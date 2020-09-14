@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,6 +38,7 @@ class MethodLiveness;
 class Arena;
 class BCEscapeAnalyzer;
 class InlineTree;
+class xmlStream;
 
 // Whether profiling found an oop to be always, never or sometimes
 // null
@@ -379,7 +380,7 @@ class ciMethod : public ciMetadata {
 
   static bool is_consistent_info(ciMethod* declared_method, ciMethod* resolved_method);
 
-  // Support for the value type calling convention
+  // Support for the inline type calling convention
   bool has_scalarized_args() const;
   const GrowableArray<SigEntry>* get_sig_cc();
 };

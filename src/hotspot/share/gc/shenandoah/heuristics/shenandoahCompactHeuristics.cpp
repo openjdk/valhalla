@@ -27,6 +27,7 @@
 #include "gc/shenandoah/shenandoahCollectionSet.hpp"
 #include "gc/shenandoah/heuristics/shenandoahCompactHeuristics.hpp"
 #include "gc/shenandoah/shenandoahFreeSet.hpp"
+#include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.inline.hpp"
 #include "logging/log.hpp"
 #include "logging/logTag.hpp"
@@ -46,8 +47,13 @@ ShenandoahCompactHeuristics::ShenandoahCompactHeuristics() : ShenandoahHeuristic
 bool ShenandoahCompactHeuristics::should_start_gc() const {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
 
-  size_t capacity = heap->max_capacity();
+  size_t max_capacity = heap->max_capacity();
+  size_t capacity = heap->soft_max_capacity();
   size_t available = heap->free_set()->available();
+
+  // Make sure the code below treats available without the soft tail.
+  size_t soft_tail = max_capacity - capacity;
+  available = (available > soft_tail) ? (available - soft_tail) : 0;
 
   size_t threshold_bytes_allocated = capacity / 100 * ShenandoahAllocationThreshold;
   size_t min_threshold = capacity / 100 * ShenandoahMinFreeThreshold;
@@ -91,16 +97,4 @@ void ShenandoahCompactHeuristics::choose_collection_set_from_regiondata(Shenando
       cset->add_region(r);
     }
   }
-}
-
-const char* ShenandoahCompactHeuristics::name() {
-  return "compact";
-}
-
-bool ShenandoahCompactHeuristics::is_diagnostic() {
-  return false;
-}
-
-bool ShenandoahCompactHeuristics::is_experimental() {
-  return false;
 }

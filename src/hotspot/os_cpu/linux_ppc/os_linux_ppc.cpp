@@ -39,7 +39,6 @@
 #include "prims/jniFastGetField.hpp"
 #include "prims/jvm_misc.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
@@ -136,19 +135,18 @@ static unsigned long ucontext_get_trap(const ucontext_t * uc) {
   return uc->uc_mcontext.regs->trap;
 }
 
-ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
+address os::fetch_frame_from_context(const void* ucVoid,
                     intptr_t** ret_sp, intptr_t** ret_fp) {
 
-  ExtendedPC  epc;
+  address epc;
   const ucontext_t* uc = (const ucontext_t*)ucVoid;
 
   if (uc != NULL) {
-    epc = ExtendedPC(os::Linux::ucontext_get_pc(uc));
+    epc = os::Linux::ucontext_get_pc(uc);
     if (ret_sp) *ret_sp = os::Linux::ucontext_get_sp(uc);
     if (ret_fp) *ret_fp = os::Linux::ucontext_get_fp(uc);
   } else {
-    // construct empty ExtendedPC for return value checking
-    epc = ExtendedPC(NULL);
+    epc = NULL;
     if (ret_sp) *ret_sp = (intptr_t *)NULL;
     if (ret_fp) *ret_fp = (intptr_t *)NULL;
   }
@@ -159,8 +157,8 @@ ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
 frame os::fetch_frame_from_context(const void* ucVoid) {
   intptr_t* sp;
   intptr_t* fp;
-  ExtendedPC epc = fetch_frame_from_context(ucVoid, &sp, &fp);
-  return frame(sp, epc.pc());
+  address epc = fetch_frame_from_context(ucVoid, &sp, &fp);
+  return frame(sp, epc);
 }
 
 bool os::Linux::get_frame_at_stack_banging_point(JavaThread* thread, ucontext_t* uc, frame* fr) {
@@ -401,11 +399,11 @@ JVM_handle_linux_signal(int sig,
       }
 
       CodeBlob *cb = NULL;
+      int stop_type = -1;
       // Handle signal from NativeJump::patch_verified_entry().
-      if (( TrapBasedNotEntrantChecks && sig == SIGTRAP && nativeInstruction_at(pc)->is_sigtrap_zombie_not_entrant()) ||
-          (!TrapBasedNotEntrantChecks && sig == SIGILL  && nativeInstruction_at(pc)->is_sigill_zombie_not_entrant())) {
+      if (sig == SIGILL && nativeInstruction_at(pc)->is_sigill_zombie_not_entrant()) {
         if (TraceTraps) {
-          tty->print_cr("trap: zombie_not_entrant (%s)", (sig == SIGTRAP) ? "SIGTRAP" : "SIGILL");
+          tty->print_cr("trap: zombie_not_entrant");
         }
         stub = SharedRuntime::get_handle_wrong_method_stub();
       }
@@ -465,6 +463,34 @@ JVM_handle_linux_signal(int sig,
         stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_NULL);
       }
 #endif
+
+      // stop on request
+      else if (sig == SIGTRAP && (stop_type = nativeInstruction_at(pc)->get_stop_type()) != -1) {
+        bool msg_present = (stop_type & MacroAssembler::stop_msg_present);
+        stop_type = (stop_type &~ MacroAssembler::stop_msg_present);
+
+        const char *msg = NULL;
+        switch (stop_type) {
+          case MacroAssembler::stop_stop              : msg = "stop"; break;
+          case MacroAssembler::stop_untested          : msg = "untested"; break;
+          case MacroAssembler::stop_unimplemented     : msg = "unimplemented"; break;
+          case MacroAssembler::stop_shouldnotreachhere: msg = "shouldnotreachhere"; break;
+          default: msg = "unknown"; break;
+        }
+
+        const char **detail_msg_ptr = (const char**)(pc + 4);
+        const char *detail_msg = msg_present ? *detail_msg_ptr : "no details provided";
+
+        if (TraceTraps) {
+          tty->print_cr("trap: %s: %s (SIGTRAP, stop type %d)", msg, detail_msg, stop_type);
+        }
+
+        va_list detail_args;
+        VMError::report_and_die(INTERNAL_ERROR, msg, detail_msg, detail_args, thread,
+                                pc, info, ucVoid, NULL, 0, 0);
+        va_end(detail_args);
+      }
+
       else if (sig == SIGBUS) {
         // BugId 4454115: A read from a MappedByteBuffer can fault here if the
         // underlying file has been truncated. Do not crash the VM in such a case.

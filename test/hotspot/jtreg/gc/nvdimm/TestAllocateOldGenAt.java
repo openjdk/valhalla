@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,13 +24,12 @@
 package gc.nvdimm;
 
 /* @test TestAllocateOldGenAt.java
- * @key gc
  * @summary Test to check allocation of Java Heap with AllocateOldGenAt option
  * @requires vm.gc=="null" & os.family != "aix"
  * @requires test.vm.gc.nvdimm
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
- * @run main gc.nvdimm.TestAllocateOldGenAt
+ * @run driver gc.nvdimm.TestAllocateOldGenAt
  */
 
 import jdk.test.lib.JDKToolFinder;
@@ -40,41 +39,26 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 public class TestAllocateOldGenAt {
-  private static ArrayList<String> commonOpts;
+  private static String[] commonFlags;
 
   public static void main(String args[]) throws Exception {
-    commonOpts = new ArrayList<>();
-
-    String testVmOptsStr = System.getProperty("test.java.opts");
-    if (!testVmOptsStr.isEmpty()) {
-      String[] testVmOpts = testVmOptsStr.split(" ");
-      Collections.addAll(commonOpts, testVmOpts);
-    }
     String test_dir = System.getProperty("test.dir", ".");
-    Collections.addAll(commonOpts, new String[] {"-XX:+UnlockExperimentalVMOptions",
-                                                 "-XX:AllocateOldGenAt=" + test_dir,
-                                                 "-Xmx32m",
-                                                 "-Xms32m",
-                                                 "-version"});
+    commonFlags = new String[] {
+        "-XX:+UnlockExperimentalVMOptions",
+        "-XX:AllocateOldGenAt=" + test_dir,
+        "-Xmx32m",
+        "-Xms32m",
+        "-version"};
 
     runTest("-XX:+UseG1GC");
-    runTest("-XX:+UseParallelGC -XX:-UseAdaptiveGCBoundary");
-    runTest("-XX:+UseParallelGC -XX:+UseAdaptiveGCBoundary");
+    runTest("-XX:+UseParallelGC");
   }
 
   private static void runTest(String... extraFlags) throws Exception {
-    ArrayList<String> testOpts = new ArrayList<>();
-    Collections.addAll(testOpts, commonOpts.toArray(new String[commonOpts.size()]));
-    Collections.addAll(testOpts, extraFlags);
-
-    System.out.print("Testing:\n" + JDKToolFinder.getJDKTool("java"));
-    for (int i = 0; i < testOpts.size(); i += 1) {
-      System.out.print(" " + testOpts.get(i));
-    }
-    System.out.println();
-
-    ProcessBuilder pb =
-      ProcessTools.createJavaProcessBuilder(testOpts.toArray(new String[testOpts.size()]));
+    ArrayList<String> flags = new ArrayList<>();
+    Collections.addAll(flags, commonFlags);
+    Collections.addAll(flags, extraFlags);
+    ProcessBuilder pb = ProcessTools.createTestJvm(flags);
     OutputAnalyzer output = new OutputAnalyzer(pb.start());
 
     output.shouldHaveExitValue(0);

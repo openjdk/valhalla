@@ -54,6 +54,29 @@ bool ShenandoahNMethod::is_unregistered() const {
   return _unregistered;
 }
 
+void ShenandoahNMethod::oops_do(OopClosure* oops, bool fix_relocations) {
+  for (int c = 0; c < _oops_count; c ++) {
+    oops->do_oop(_oops[c]);
+  }
+
+  oop* const begin = _nm->oops_begin();
+  oop* const end = _nm->oops_end();
+  for (oop* p = begin; p < end; p++) {
+    if (*p != Universe::non_oop_word()) {
+      oops->do_oop(p);
+    }
+  }
+
+  if (fix_relocations && _has_non_immed_oops) {
+    _nm->fix_oop_relocations();
+  }
+}
+
+void ShenandoahNMethod::heal_nmethod_metadata(ShenandoahNMethod* nmethod_data) {
+  ShenandoahEvacuateUpdateRootsClosure<> cl;
+  nmethod_data->oops_do(&cl, true /*fix relocation*/);
+}
+
 void ShenandoahNMethod::disarm_nmethod(nmethod* nm) {
   if (!ShenandoahConcurrentRoots::can_do_concurrent_class_unloading()) {
     return;
@@ -79,38 +102,26 @@ ShenandoahReentrantLock* ShenandoahNMethod::lock_for_nmethod(nmethod* nm) {
 }
 
 bool ShenandoahNMethodTable::iteration_in_progress() const {
-  return _iteration_in_progress;
+  shenandoah_assert_locked_or_safepoint(CodeCache_lock);
+  return _itr_cnt > 0;
 }
 
-template<bool CSET_FILTER>
-void ShenandoahNMethodTableSnapshot::parallel_blobs_do(CodeBlobClosure *f) {
-  size_t stride = 256; // educated guess
+int ShenandoahNMethodList::size() const {
+  return _size;
+}
 
-  ShenandoahNMethod** const list = _array;
+ShenandoahNMethod* ShenandoahNMethodList::at(int index) const {
+  assert(index < size(), "Index out of bound");
+  return _list[index];
+}
 
-  size_t max = (size_t)_length;
-  while (_claimed < max) {
-    size_t cur = Atomic::fetch_and_add(&_claimed, stride);
-    size_t start = cur;
-    size_t end = MIN2(cur + stride, max);
-    if (start >= max) break;
+void ShenandoahNMethodList::set(int index, ShenandoahNMethod* snm) {
+  assert(index < size(), "Index out of bound");
+  _list[index] = snm;
+}
 
-    for (size_t idx = start; idx < end; idx++) {
-      ShenandoahNMethod* nmr = list[idx];
-      assert(nmr != NULL, "Sanity");
-      if (nmr->is_unregistered()) {
-        continue;
-      }
-
-      nmr->assert_alive_and_correct();
-
-      if (CSET_FILTER && !nmr->has_cset_oops(_heap)) {
-        continue;
-      }
-
-      f->do_code_blob(nmr->nm());
-    }
-  }
+ShenandoahNMethod** ShenandoahNMethodList::list() const {
+  return _list;
 }
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHNMETHOD_INLINE_HPP

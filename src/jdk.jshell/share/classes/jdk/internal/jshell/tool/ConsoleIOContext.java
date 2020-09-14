@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@
 
 package jdk.internal.jshell.tool;
 
-
 import jdk.jshell.SourceCodeAnalysis.Documentation;
 import jdk.jshell.SourceCodeAnalysis.QualifiedNames;
 import jdk.jshell.SourceCodeAnalysis.Suggestion;
@@ -35,6 +34,7 @@ import java.io.InputStream;
 import java.io.InterruptedIOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -51,6 +51,9 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
+import javax.tools.DiagnosticListener;
+import javax.tools.JavaFileObject;
+import javax.tools.SimpleJavaFileObject;
 
 import jdk.internal.shellsupport.doc.JavadocFormatter;
 import jdk.internal.jshell.tool.StopDetectingInputStream.State;
@@ -77,6 +80,8 @@ import jdk.internal.org.jline.terminal.Size;
 import jdk.internal.org.jline.terminal.Terminal;
 import jdk.internal.org.jline.terminal.TerminalBuilder;
 import jdk.internal.org.jline.utils.Display;
+import jdk.internal.org.jline.utils.NonBlocking;
+import jdk.internal.org.jline.utils.NonBlockingInputStreamImpl;
 import jdk.internal.org.jline.utils.NonBlockingReader;
 import jdk.jshell.ExpressionSnippet;
 import jdk.jshell.Snippet;
@@ -104,14 +109,20 @@ class ConsoleIOContext extends IOContext {
         Map<String, Object> variables = new HashMap<>();
         this.input = new StopDetectingInputStream(() -> repl.stop(),
                                                   ex -> repl.hard("Error on input: %s", ex));
+        InputStream nonBlockingInput = new NonBlockingInputStreamImpl(null, input) {
+            @Override
+            public int readBuffered(byte[] b) throws IOException {
+                return input.read(b);
+            }
+        };
         Terminal terminal;
         if (System.getProperty("test.jdk") != null) {
-            terminal = new TestTerminal(input, cmdout);
+            terminal = new TestTerminal(nonBlockingInput, cmdout);
             input.setInputStream(cmdin);
         } else {
             terminal = TerminalBuilder.builder().inputStreamWrapper(in -> {
                 input.setInputStream(in);
-                return input;
+                return nonBlockingInput;
             }).build();
         }
         originalAttributes = terminal.getAttributes();
@@ -146,13 +157,34 @@ class ConsoleIOContext extends IOContext {
                 completionState.actionCount++;
                 return super.readBinding(keys, local);
             }
+            @Override
+            protected boolean insertCloseParen() {
+                Object oldIndent = getVariable(INDENTATION);
+                try {
+                    setVariable(INDENTATION, 0);
+                    return super.insertCloseParen();
+                } finally {
+                    setVariable(INDENTATION, oldIndent);
+                }
+            }
+            @Override
+            protected boolean insertCloseSquare() {
+                Object oldIndent = getVariable(INDENTATION);
+                try {
+                    setVariable(INDENTATION, 0);
+                    return super.insertCloseSquare();
+                } finally {
+                    setVariable(INDENTATION, oldIndent);
+                }
+            }
         };
 
         reader.setOpt(Option.DISABLE_EVENT_EXPANSION);
 
         reader.setParser((line, cursor, context) -> {
             if (!allowIncompleteInputs && !repl.isComplete(line)) {
-                throw new EOFError(cursor, cursor, line);
+                int pendingBraces = countPendingOpenBraces(line);
+                throw new EOFError(cursor, cursor, line, null, pendingBraces, null);
             }
             return new ArgumentLine(line, cursor);
         });
@@ -281,6 +313,11 @@ class ConsoleIOContext extends IOContext {
         }
 
         return count;
+    }
+
+    @Override
+    public void setIndent(int indent) {
+        in.variable(LineReader.INDENTATION, indent);
     }
 
     private static final String FIXES_SHORTCUT = "\033\133\132"; //Shift-TAB
@@ -802,7 +839,7 @@ class ConsoleIOContext extends IOContext {
 
     private boolean fixes() {
         try {
-            int c = in.getTerminal().input().read();
+            int c = in.getTerminal().reader().read();
 
             if (c == (-1)) {
                 return true; //TODO: true or false???
@@ -935,6 +972,34 @@ class ConsoleIOContext extends IOContext {
             }
         }
         return inputBytes[inputBytesPointer++];
+    }
+
+    private int countPendingOpenBraces(String code) {
+        int pendingBraces = 0;
+        com.sun.tools.javac.util.Context ctx =
+                new com.sun.tools.javac.util.Context();
+        SimpleJavaFileObject source = new SimpleJavaFileObject(URI.create("mem://snippet"),
+                                                               JavaFileObject.Kind.SOURCE) {
+            @Override
+            public CharSequence getCharContent(boolean ignoreEncodingErrors) throws IOException {
+                return code;
+            }
+        };
+        ctx.put(DiagnosticListener.class, d -> {});
+        com.sun.tools.javac.util.Log.instance(ctx).useSource(source);
+        com.sun.tools.javac.parser.ScannerFactory scannerFactory =
+                com.sun.tools.javac.parser.ScannerFactory.instance(ctx);
+        com.sun.tools.javac.parser.Scanner scanner =
+                scannerFactory.newScanner(code, false);
+
+        while (true) {
+            switch (scanner.token().kind) {
+                case LBRACE: pendingBraces++; break;
+                case RBRACE: pendingBraces--; break;
+                case EOF: return pendingBraces;
+            }
+            scanner.nextToken();
+        }
     }
 
     /**
@@ -1190,11 +1255,11 @@ class ConsoleIOContext extends IOContext {
 
         private static final int DEFAULT_HEIGHT = 24;
 
-        public TestTerminal(StopDetectingInputStream input, OutputStream output) throws Exception {
+        private final NonBlockingReader inputReader;
+
+        public TestTerminal(InputStream input, OutputStream output) throws Exception {
             super("test", "ansi", output, Charset.forName("UTF-8"));
-//            setAnsiSupported(true);
-//            setEchoEnabled(false);
-//            this.input = input;
+            this.inputReader = NonBlocking.nonBlocking(getName(), input, encoding());
             Attributes a = new Attributes(getAttributes());
             a.setLocalFlag(LocalFlag.ECHO, false);
             setAttributes(attributes);
@@ -1208,18 +1273,18 @@ class ConsoleIOContext extends IOContext {
                 // ignore
             }
             setSize(new Size(80, h));
-            new Thread(() -> {
-                int r;
+        }
 
-                try {
-                    while ((r = input.read()) != (-1)) {
-                        processInputByte(r);
-                    }
-                    slaveInput.close();
-                } catch (IOException ex) {
-                    throw new IllegalStateException(ex);
-                }
-            }).start();
+        @Override
+        public NonBlockingReader reader() {
+            return inputReader;
+        }
+
+        @Override
+        protected void doClose() throws IOException {
+            super.doClose();
+            slaveInput.close();
+            inputReader.close();
         }
 
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -228,15 +228,15 @@ public:
   virtual int   compile_id() const = 0;
 
   virtual address verified_entry_point() const = 0;
-  virtual address verified_value_entry_point() const = 0;
-  virtual address verified_value_ro_entry_point() const = 0;
+  virtual address verified_inline_entry_point() const = 0;
+  virtual address verified_inline_ro_entry_point() const = 0;
   virtual void log_identity(xmlStream* log) const = 0;
   virtual void log_state_change() const = 0;
   virtual bool make_not_used() = 0;
   virtual bool make_not_entrant() = 0;
   virtual bool make_entrant() = 0;
   virtual address entry_point() const = 0;
-  virtual address value_entry_point() const = 0;
+  virtual address inline_entry_point() const = 0;
   virtual bool make_zombie() = 0;
   virtual bool is_osr_method() const = 0;
   virtual int osr_entry_bci() const = 0;
@@ -343,7 +343,7 @@ public:
   // Deopt
   // Return true is the PC is one would expect if the frame is being deopted.
   inline bool is_deopt_pc(address pc);
-  bool is_deopt_mh_entry(address pc) { return pc == deopt_mh_handler_begin(); }
+  inline bool is_deopt_mh_entry(address pc);
   inline bool is_deopt_entry(address pc);
 
   virtual bool can_convert_to_zombie() = 0;

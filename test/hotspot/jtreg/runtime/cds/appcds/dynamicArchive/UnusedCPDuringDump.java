@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,8 +29,10 @@
  *          defined to the PlatformClassLoader and AppClassLoader.
  * @requires vm.cds
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds
+ * @build sun.hotspot.WhiteBox
  * @compile ../test-classes/Hello.java
- * @run main/othervm -Dtest.cds.copy.child.stdout=false UnusedCPDuringDump
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run main/othervm -Dtest.cds.copy.child.stdout=false -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. UnusedCPDuringDump
  */
 
 import java.io.File;

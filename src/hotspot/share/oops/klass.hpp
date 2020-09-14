@@ -28,7 +28,6 @@
 #include "classfile/classLoaderData.hpp"
 #include "memory/iterator.hpp"
 #include "memory/memRegion.hpp"
-#include "oops/arrayStorageProperties.hpp"
 #include "oops/markWord.hpp"
 #include "oops/metadata.hpp"
 #include "oops/oop.hpp"
@@ -46,7 +45,7 @@ enum KlassID {
   InstanceMirrorKlassID,
   InstanceClassLoaderKlassID,
   TypeArrayKlassID,
-  ValueArrayKlassID,
+  FlatArrayKlassID,
   ObjArrayKlassID
 };
 
@@ -119,6 +118,9 @@ class Klass : public Metadata {
   // Klass identifier used to implement devirtualized oop closure dispatching.
   const KlassID _id;
 
+  // vtable length
+  int _vtable_len;
+
   // The fields _super_check_offset, _secondary_super_cache, _secondary_supers
   // and _primary_supers all help make fast subtype checks.  See big discussion
   // in doc/server_compiler/checktype.txt
@@ -138,7 +140,7 @@ class Klass : public Metadata {
   // Ordered list of all primary supertypes
   Klass*      _primary_supers[_primary_super_limit];
   // java/lang/Class instance mirroring this class
-  OopHandle _java_mirror;
+  OopHandle   _java_mirror;
   // Superclass
   Klass*      _super;
   // First subclass (NULL if none); _subklass->next_sibling() is next one
@@ -164,9 +166,6 @@ class Klass : public Metadata {
   markWord _prototype_header;   // Used when biased locking is both enabled and disabled for this type
   jint     _biased_lock_revocation_count;
 
-  // vtable length
-  int _vtable_len;
-
 private:
   // This is an index into FileMapHeader::_shared_path_table[], to
   // associate this class with the JAR file where it's loaded from during
@@ -178,9 +177,11 @@ private:
   // Flags of the current shared class.
   u2     _shared_class_flags;
   enum {
-    _has_raw_archived_mirror = 1
+    _has_raw_archived_mirror = 1,
+    _archived_lambda_proxy_is_available = 2
   };
 #endif
+
   // The _archived_mirror is set at CDS dump time pointing to the cached mirror
   // in the open archive heap region when archiving java object is supported.
   CDS_JAVA_HEAP_ONLY(narrowOop _archived_mirror;)
@@ -196,12 +197,12 @@ protected:
  public:
   int id() { return _id; }
 
-  enum DefaultsLookupMode { find_defaults, skip_defaults };
-  enum OverpassLookupMode { find_overpass, skip_overpass };
-  enum StaticLookupMode   { find_static,   skip_static };
-  enum PrivateLookupMode  { find_private,  skip_private };
+  enum class DefaultsLookupMode { find, skip };
+  enum class OverpassLookupMode { find, skip };
+  enum class StaticLookupMode   { find, skip };
+  enum class PrivateLookupMode  { find, skip };
 
-  bool is_klass() const volatile { return true; }
+  virtual bool is_klass() const { return true; }
 
   // super() cannot be InstanceKlass* -- Java arrays are covariant, and _super is used
   // to implement that. NB: the _super of "[Ljava/lang/Integer;" is "[Ljava/lang/Number;"
@@ -267,12 +268,11 @@ protected:
   void set_archived_java_mirror_raw(oop m) NOT_CDS_JAVA_HEAP_RETURN; // no GC barrier
 
   // Temporary mirror switch used by RedefineClasses
-  // Both mirrors are on the ClassLoaderData::_handles list already so no
-  // barriers are needed.
-  void set_java_mirror_handle(OopHandle mirror) { _java_mirror = mirror; }
-  OopHandle java_mirror_handle() const          {
-    return _java_mirror;
-  }
+  void replace_java_mirror(oop mirror);
+
+  // Set java mirror OopHandle to NULL for CDS
+  // This leaves the OopHandle in the CLD, but that's ok, you can't release them.
+  void clear_java_mirror_handle() { _java_mirror = OopHandle(); }
 
   // modifier flags
   jint modifier_flags() const          { return _modifier_flags; }
@@ -294,6 +294,7 @@ protected:
 
   void set_next_link(Klass* k) { _next_link = k; }
   Klass* next_link() const { return _next_link; }   // The next klass defined by the class loader.
+  Klass** next_link_addr() { return &_next_link; }
 
   // class loader data
   ClassLoaderData* class_loader_data() const               { return _class_loader_data; }
@@ -315,6 +316,17 @@ protected:
   }
   bool has_raw_archived_mirror() const {
     CDS_ONLY(return (_shared_class_flags & _has_raw_archived_mirror) != 0;)
+    NOT_CDS(return false;)
+  }
+
+  void set_lambda_proxy_is_available() {
+    CDS_ONLY(_shared_class_flags |= _archived_lambda_proxy_is_available;)
+  }
+  void clear_lambda_proxy_is_available() {
+    CDS_ONLY(_shared_class_flags &= ~_archived_lambda_proxy_is_available;)
+  }
+  bool lambda_proxy_is_available() const {
+    CDS_ONLY(return (_shared_class_flags & _archived_lambda_proxy_is_available) != 0;)
     NOT_CDS(return false;)
   }
 
@@ -356,6 +368,13 @@ protected:
   static const unsigned int _lh_array_tag_vt_value   = 0Xfffffffd;
   static const unsigned int _lh_array_tag_obj_value  = 0Xfffffffe;
 
+  // null-free array flag bit under the array tag bits, shift one more to get array tag value
+  static const int _lh_null_free_shift = _lh_array_tag_shift - 1;
+  static const int _lh_null_free_mask  = 1;
+
+  static const jint _lh_array_tag_vt_value_bit_inplace = (jint) (1 << _lh_array_tag_shift);
+  static const jint _lh_null_free_bit_inplace = (jint) (_lh_null_free_mask << _lh_null_free_shift);
+
   static int layout_helper_size_in_bytes(jint lh) {
     assert(lh > (jint)_lh_neutral_value, "must be instance");
     return (int) lh & ~_lh_instance_slow_path_bit;
@@ -376,8 +395,17 @@ protected:
   static bool layout_helper_is_objArray(jint lh) {
     return (juint)_lh_array_tag_obj_value == (juint)(lh >> _lh_array_tag_shift);
   }
-  static bool layout_helper_is_valueArray(jint lh) {
+  static bool layout_helper_is_flatArray(jint lh) {
     return (juint)_lh_array_tag_vt_value == (juint)(lh >> _lh_array_tag_shift);
+  }
+  static bool layout_helper_is_null_free(jint lh) {
+    assert(layout_helper_is_flatArray(lh) || layout_helper_is_objArray(lh), "must be array of inline types");
+    return ((lh >> _lh_null_free_shift) & _lh_null_free_mask);
+  }
+  static jint layout_helper_set_null_free(jint lh) {
+    lh |= (_lh_null_free_mask << _lh_null_free_shift);
+    assert(layout_helper_is_null_free(lh), "Bad encoding");
+    return lh;
   }
   static int layout_helper_header_size(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
@@ -388,7 +416,7 @@ protected:
   static BasicType layout_helper_element_type(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
     int btvalue = (lh >> _lh_element_type_shift) & _lh_element_type_mask;
-    assert((btvalue >= T_BOOLEAN && btvalue <= T_OBJECT) || btvalue == T_VALUETYPE, "sanity");
+    assert((btvalue >= T_BOOLEAN && btvalue <= T_OBJECT) || btvalue == T_INLINE_TYPE, "sanity");
     return (BasicType) btvalue;
   }
 
@@ -409,12 +437,13 @@ protected:
   static int layout_helper_log2_element_size(jint lh) {
     assert(lh < (jint)_lh_neutral_value, "must be array");
     int l2esz = (lh >> _lh_log2_element_size_shift) & _lh_log2_element_size_mask;
-    assert(layout_helper_element_type(lh) == T_VALUETYPE || l2esz <= LogBytesPerLong,
+    assert(layout_helper_element_type(lh) == T_INLINE_TYPE || l2esz <= LogBytesPerLong,
            "sanity. l2esz: 0x%x for lh: 0x%x", (uint)l2esz, (uint)lh);
     return l2esz;
   }
-  static jint array_layout_helper(jint tag, int hsize, BasicType etype, int log2_esize) {
+  static jint array_layout_helper(jint tag, bool null_free, int hsize, BasicType etype, int log2_esize) {
     return (tag        << _lh_array_tag_shift)
+      |    ((null_free ? 1 : 0) <<  _lh_null_free_shift)
       |    (hsize      << _lh_header_size_shift)
       |    ((int)etype << _lh_element_type_shift)
       |    (log2_esize << _lh_log2_element_size_shift);
@@ -473,34 +502,22 @@ protected:
   virtual Klass* find_field(Symbol* name, Symbol* signature, fieldDescriptor* fd) const;
   virtual Method* uncached_lookup_method(const Symbol* name, const Symbol* signature,
                                          OverpassLookupMode overpass_mode,
-                                         PrivateLookupMode = find_private) const;
+                                         PrivateLookupMode = PrivateLookupMode::find) const;
  public:
   Method* lookup_method(const Symbol* name, const Symbol* signature) const {
-    return uncached_lookup_method(name, signature, find_overpass);
+    return uncached_lookup_method(name, signature, OverpassLookupMode::find);
   }
 
   // array class with specific rank
-  Klass* array_klass(int rank, TRAPS) {
-    return array_klass_impl(ArrayStorageProperties::empty, false, rank, THREAD);
-  }
-
-  Klass* array_klass(ArrayStorageProperties storage_props, int rank, TRAPS) {
-    return array_klass_impl(storage_props, false, rank, THREAD);
-  }
+  Klass* array_klass(int rank, TRAPS)         {  return array_klass_impl(false, rank, THREAD); }
 
   // array class with this klass as element type
-  Klass* array_klass(TRAPS) {
-    return array_klass_impl(ArrayStorageProperties::empty, false, THREAD);
-  }
-
-  Klass* array_klass(ArrayStorageProperties storage_props, TRAPS) {
-    return array_klass_impl(storage_props, false, THREAD);
-  }
+  Klass* array_klass(TRAPS)                   {  return array_klass_impl(false, THREAD); }
 
   // These will return NULL instead of allocating on the heap:
   // NB: these can block for a mutex, like other functions with TRAPS arg.
-  Klass* array_klass_or_null(ArrayStorageProperties storage_props, int rank);
-  Klass* array_klass_or_null(ArrayStorageProperties storage_props);
+  Klass* array_klass_or_null(int rank);
+  Klass* array_klass_or_null();
 
   virtual oop protection_domain() const = 0;
 
@@ -513,8 +530,8 @@ protected:
   oop klass_holder() const { return class_loader_data()->holder_phantom(); }
 
  protected:
-  virtual Klass* array_klass_impl(ArrayStorageProperties storage_props, bool or_null, int rank, TRAPS);
-  virtual Klass* array_klass_impl(ArrayStorageProperties storage_props, bool or_null, TRAPS);
+  virtual Klass* array_klass_impl(bool or_null, int rank, TRAPS);
+  virtual Klass* array_klass_impl(bool or_null, TRAPS);
 
   // Error handling when length > max_length or length < 0
   static void check_array_allocation_length(int length, int max_length, TRAPS);
@@ -584,10 +601,10 @@ protected:
   virtual bool is_array_klass_slow()        const { return false; }
   virtual bool is_objArray_klass_slow()     const { return false; }
   virtual bool is_typeArray_klass_slow()    const { return false; }
-  virtual bool is_valueArray_klass_slow()   const { return false; }
+  virtual bool is_flatArray_klass_slow()    const { return false; }
 #endif // ASSERT
   // current implementation uses this method even in non debug builds
-  virtual bool is_value_slow()          const { return false; }
+  virtual bool is_inline_klass_slow()       const { return false; }
  public:
 
   // Fast non-virtual versions
@@ -613,12 +630,14 @@ protected:
   inline  bool is_typeArray_klass()           const { return assert_same_query(
                                                     layout_helper_is_typeArray(layout_helper()),
                                                     is_typeArray_klass_slow()); }
-  inline  bool is_value()                     const { return is_value_slow(); } //temporary hack
-  inline  bool is_valueArray_klass()          const { return assert_same_query(
-                                                    layout_helper_is_valueArray(layout_helper()),
-                                                    is_valueArray_klass_slow()); }
+  inline  bool is_inline_klass()              const { return is_inline_klass_slow(); } //temporary hack
+  inline  bool is_flatArray_klass()           const { return assert_same_query(
+                                                    layout_helper_is_flatArray(layout_helper()),
+                                                    is_flatArray_klass_slow()); }
 
   #undef assert_same_query
+
+  inline bool is_null_free_array_klass()      const { return layout_helper_is_null_free(layout_helper()); }
 
   // Access flags
   AccessFlags access_flags() const         { return _access_flags;  }
@@ -641,6 +660,12 @@ protected:
   void set_has_miranda_methods()        { _access_flags.set_has_miranda_methods(); }
   bool is_shared() const                { return access_flags().is_shared_class(); } // shadows MetaspaceObj::is_shared)()
   void set_is_shared()                  { _access_flags.set_is_shared_class(); }
+  bool is_hidden() const                { return access_flags().is_hidden_class(); }
+  void set_is_hidden()                  { _access_flags.set_is_hidden_class(); }
+  bool is_non_strong_hidden() const     { return access_flags().is_hidden_class() &&
+                                          class_loader_data()->has_class_mirror_holder(); }
+  bool is_box() const                   { return access_flags().is_box_class(); }
+  void set_is_box()                     { _access_flags.set_is_box_class(); }
 
   bool is_cloneable() const;
   void set_is_cloneable();
@@ -698,6 +723,8 @@ protected:
   // klass name
   Symbol* name() const                   { return _name; }
   void set_name(Symbol* n);
+
+  virtual void release_C_heap_structures();
 
  public:
   // jvm support

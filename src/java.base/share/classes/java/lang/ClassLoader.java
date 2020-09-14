@@ -133,11 +133,12 @@ import sun.security.util.SecurityConstants;
  *     It is the virtual machine's built-in class loader, typically represented
  *     as {@code null}, and does not have a parent.</li>
  * <li><p>{@linkplain #getPlatformClassLoader() Platform class loader}.
- *     All <em>platform classes</em> are visible to the platform class loader
- *     that can be used as the parent of a {@code ClassLoader} instance.
- *     Platform classes include Java SE platform APIs, their implementation
- *     classes and JDK-specific run-time classes that are defined by the
- *     platform class loader or its ancestors.
+ *     The platform class loader is responsible for loading the
+ *     <em>platform classes</em>.  Platform classes include Java SE platform APIs,
+ *     their implementation classes and JDK-specific run-time classes that are
+ *     defined by the platform class loader or its ancestors.
+ *     The platform class loader can be used as the parent of a {@code ClassLoader}
+ *     instance.
  *     <p> To allow for upgrading/overriding of modules defined to the platform
  *     class loader, and where upgraded modules read modules defined to class
  *     loaders other than the platform class loader and its ancestors, then
@@ -151,8 +152,9 @@ import sun.security.util.SecurityConstants;
  *     from the platform class loader.
  *     The system class loader is typically used to define classes on the
  *     application class path, module path, and JDK-specific tools.
- *     The platform class loader is a parent or an ancestor of the system class
- *     loader that all platform classes are visible to it.</li>
+ *     The platform class loader is the parent or an ancestor of the system class
+ *     loader, so the system class loader can load platform classes by delegating
+ *     to its parent.</li>
  * </ul>
  *
  * <p> Normally, the Java virtual machine loads classes from the local file
@@ -205,7 +207,7 @@ import sun.security.util.SecurityConstants;
  *
  * <p> Any class name provided as a {@code String} parameter to methods in
  * {@code ClassLoader} must be a binary name as defined by
- * <cite>The Java&trade; Language Specification</cite>.
+ * <cite>The Java Language Specification</cite>.
  *
  * <p> Examples of valid class names include:
  * <blockquote><pre>
@@ -218,7 +220,7 @@ import sun.security.util.SecurityConstants;
  * <p> Any package name provided as a {@code String} parameter to methods in
  * {@code ClassLoader} must be either the empty string (denoting an unnamed package)
  * or a fully qualified name as defined by
- * <cite>The Java&trade; Language Specification</cite>.
+ * <cite>The Java Language Specification</cite>.
  *
  * @jls 6.7 Fully Qualified Names
  * @jls 13.1 The Form of a Binary
@@ -763,7 +765,7 @@ public abstract class ClassLoader {
      *         The bytes that make up the class data.  The bytes in positions
      *         {@code off} through {@code off+len-1} should have the format
      *         of a valid class file as defined by
-     *         <cite>The Java&trade; Virtual Machine Specification</cite>.
+     *         <cite>The Java Virtual Machine Specification</cite>.
      *
      * @param  off
      *         The start offset in {@code b} of the class data
@@ -836,7 +838,7 @@ public abstract class ClassLoader {
      *         The bytes that make up the class data.  The bytes in positions
      *         {@code off} through {@code off+len-1} should have the format
      *         of a valid class file as defined by
-     *         <cite>The Java&trade; Virtual Machine Specification</cite>.
+     *         <cite>The Java Virtual Machine Specification</cite>.
      *
      * @param  off
      *         The start offset in {@code b} of the class data
@@ -970,7 +972,7 @@ public abstract class ClassLoader {
      *         The bytes that make up the class data. The bytes in positions
      *         {@code off} through {@code off+len-1} should have the format
      *         of a valid class file as defined by
-     *         <cite>The Java&trade; Virtual Machine Specification</cite>.
+     *         <cite>The Java Virtual Machine Specification</cite>.
      *
      * @param  off
      *         The start offset in {@code b} of the class data
@@ -1054,7 +1056,7 @@ public abstract class ClassLoader {
      *         The bytes that make up the class data. The bytes from positions
      *         {@code b.position()} through {@code b.position() + b.limit() -1
      *         } should have the format of a valid class file as defined by
-     *         <cite>The Java&trade; Virtual Machine Specification</cite>.
+     *         <cite>The Java Virtual Machine Specification</cite>.
      *
      * @param  protectionDomain
      *         The {@code ProtectionDomain} of the class, or {@code null}.
@@ -1114,6 +1116,29 @@ public abstract class ClassLoader {
     static native Class<?> defineClass2(ClassLoader loader, String name, java.nio.ByteBuffer b,
                                         int off, int len, ProtectionDomain pd,
                                         String source);
+
+    /**
+     * Defines a class of the given flags via Lookup.defineClass.
+     *
+     * @param loader the defining loader
+     * @param lookup nest host of the Class to be defined
+     * @param name the binary name or {@code null} if not findable
+     * @param b class bytes
+     * @param off the start offset in {@code b} of the class bytes
+     * @param len the length of the class bytes
+     * @param pd protection domain
+     * @param initialize initialize the class
+     * @param flags flags
+     * @param classData class data
+     */
+    static native Class<?> defineClass0(ClassLoader loader,
+                                        Class<?> lookup,
+                                        String name,
+                                        byte[] b, int off, int len,
+                                        ProtectionDomain pd,
+                                        boolean initialize,
+                                        int flags,
+                                        Object classData);
 
     // true if the name is null or has the potential to be a valid binary name
     private boolean checkName(String name) {
@@ -1188,7 +1213,7 @@ public abstract class ClassLoader {
      * used by a class loader to link a class.  If the class {@code c} has
      * already been linked, then this method simply returns. Otherwise, the
      * class is linked as described in the "Execution" chapter of
-     * <cite>The Java&trade; Language Specification</cite>.
+     * <cite>The Java Language Specification</cite>.
      *
      * @param  c
      *         The class to link
@@ -2506,8 +2531,8 @@ public abstract class ClassLoader {
      *         The name of the package whose package default assertion status
      *         is to be set. A {@code null} value indicates the unnamed
      *         package that is "current"
-     *         (see section 7.4.2 of
-     *         <cite>The Java&trade; Language Specification</cite>.)
+     *         (see section {@jls 7.4.2} of
+     *         <cite>The Java Language Specification</cite>.)
      *
      * @param  enabled
      *         {@code true} if classes loaded by this classloader and

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 package jdk.jfr.internal;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.Repeatable;
 import java.lang.reflect.Field;
@@ -52,14 +53,17 @@ import jdk.jfr.Description;
 import jdk.jfr.Label;
 import jdk.jfr.MetadataDefinition;
 import jdk.jfr.Name;
+import jdk.jfr.SettingControl;
 import jdk.jfr.SettingDescriptor;
 import jdk.jfr.Timespan;
 import jdk.jfr.Timestamp;
 import jdk.jfr.ValueDescriptor;
+import jdk.jfr.internal.tool.PrettyWriter;
 
 public final class TypeLibrary {
 
     private static TypeLibrary instance;
+    private static boolean implicitFieldTypes;
     private static final Map<Long, Type> types = new LinkedHashMap<>(100);
     static final ValueDescriptor DURATION_FIELD = createDurationField();
     static final ValueDescriptor THREAD_FIELD = createThreadField();
@@ -108,7 +112,7 @@ public final class TypeLibrary {
             if (instance == null) {
                 List<Type> jvmTypes;
                 try {
-                    jvmTypes = MetadataHandler.createTypes();
+                    jvmTypes = MetadataLoader.createTypes();
                     Collections.sort(jvmTypes, (a,b) -> Long.compare(a.getId(), b.getId()));
                 } catch (IOException e) {
                     throw new Error("JFR: Could not read metadata");
@@ -165,7 +169,7 @@ public final class TypeLibrary {
         try {
             m = annotation.getClass().getMethod(methodName, new Class<?>[0]);
         } catch (NoSuchMethodException e1) {
-            throw (Error) new InternalError("Could not loacate method " + methodName + " in annotation " + annotation.getClass().getName());
+            throw (Error) new InternalError("Could not locate method " + methodName + " in annotation " + annotation.getClass().getName());
         }
         SecuritySupport.setAccessible(m);
         try {
@@ -243,7 +247,7 @@ public final class TypeLibrary {
             superType = Type.SUPER_TYPE_EVENT;
             eventType= true;
         }
-        if (Control.class.isAssignableFrom(clazz)) {
+        if (SettingControl.class.isAssignableFrom(clazz)) {
             superType = Type.SUPER_TYPE_SETTING;
         }
 
@@ -315,10 +319,13 @@ public final class TypeLibrary {
 
     // By convention all events have these fields.
     static void addImplicitFields(Type type, boolean requestable, boolean hasDuration, boolean hasThread, boolean hasStackTrace, boolean hasCutoff) {
-        createAnnotationType(Timespan.class);
-        createAnnotationType(Timestamp.class);
-        createAnnotationType(Label.class);
-        defineType(long.class, null,false);
+        if (!implicitFieldTypes) {
+            createAnnotationType(Timespan.class);
+            createAnnotationType(Timestamp.class);
+            createAnnotationType(Label.class);
+            defineType(long.class, null, false);
+            implicitFieldTypes = true;
+        }
         addFields(type, requestable, hasDuration, hasThread, hasStackTrace, hasCutoff);
     }
 

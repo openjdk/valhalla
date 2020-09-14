@@ -28,7 +28,6 @@
 #include "code/codeCache.hpp"
 #include "gc/shenandoah/shenandoahSharedVariables.hpp"
 #include "gc/shenandoah/shenandoahLock.hpp"
-#include "gc/shenandoah/shenandoahNMethod.hpp"
 #include "gc/shenandoah/shenandoahPadding.hpp"
 #include "memory/allocation.hpp"
 #include "memory/iterator.hpp"
@@ -36,6 +35,9 @@
 
 class ShenandoahHeap;
 class ShenandoahHeapRegion;
+class ShenandoahNMethodTable;
+class ShenandoahNMethodTableSnapshot;
+class WorkGang;
 
 class ShenandoahParallelCodeHeapIterator {
   friend class CodeCache;
@@ -71,27 +73,12 @@ protected:
   ShenandoahSharedFlag _seq_claimed;
   ShenandoahNMethodTableSnapshot* _table_snapshot;
 
-protected:
+public:
   ShenandoahCodeRootsIterator();
   ~ShenandoahCodeRootsIterator();
 
-  template<bool CSET_FILTER>
-  void dispatch_parallel_blobs_do(CodeBlobClosure *f);
-
-  template<bool CSET_FILTER>
-  void fast_parallel_blobs_do(CodeBlobClosure *f);
-};
-
-class ShenandoahAllCodeRootsIterator : public ShenandoahCodeRootsIterator {
-public:
-  ShenandoahAllCodeRootsIterator() : ShenandoahCodeRootsIterator() {};
   void possibly_parallel_blobs_do(CodeBlobClosure *f);
-};
-
-class ShenandoahCsetCodeRootsIterator : public ShenandoahCodeRootsIterator {
-public:
-  ShenandoahCsetCodeRootsIterator() : ShenandoahCodeRootsIterator() {};
-  void possibly_parallel_blobs_do(CodeBlobClosure* f);
+  void fast_parallel_blobs_do(CodeBlobClosure *f);
 };
 
 class ShenandoahCodeRoots : public AllStatic {

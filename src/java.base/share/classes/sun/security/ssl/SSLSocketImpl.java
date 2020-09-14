@@ -354,7 +354,7 @@ public final class SSLSocketImpl
     public SSLSession getSession() {
         try {
             // start handshaking, if failed, the connection will be closed.
-            ensureNegotiated();
+            ensureNegotiated(false);
         } catch (IOException ioe) {
             if (SSLLogger.isOn && SSLLogger.isOn("handshake")) {
                 SSLLogger.severe("handshake failed", ioe);
@@ -409,6 +409,10 @@ public final class SSLSocketImpl
 
     @Override
     public void startHandshake() throws IOException {
+        startHandshake(true);
+    }
+
+    private void startHandshake(boolean resumable) throws IOException {
         if (!isConnected) {
             throw new SocketException("Socket is not connected");
         }
@@ -437,7 +441,12 @@ public final class SSLSocketImpl
                     readHandshakeRecord();
                 }
             } catch (InterruptedIOException iioe) {
-                handleException(iioe);
+                if(resumable){
+                    handleException(iioe);
+                } else{
+                    throw conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                            "Couldn't kickstart handshaking", iioe);
+                }
             } catch (IOException ioe) {
                 throw conContext.fatal(Alert.HANDSHAKE_FAILURE,
                     "Couldn't kickstart handshaking", ioe);
@@ -619,6 +628,15 @@ public final class SSLSocketImpl
             }
         }
 
+        // Deliver the user_canceled alert and the close notify alert.
+        closeNotify(useUserCanceled);
+
+        if (!isInputShutdown()) {
+            bruteForceCloseInput(hasCloseReceipt);
+        }
+    }
+
+    void closeNotify(boolean useUserCanceled) throws IOException {
         // Need a lock here so that the user_canceled alert and the
         // close_notify alert can be delivered together.
         int linger = getSoLinger();
@@ -633,7 +651,7 @@ public final class SSLSocketImpl
                         conContext.outputRecord.recordLock.tryLock(
                                 linger, TimeUnit.SECONDS)) {
                     try {
-                        handleClosedNotifyAlert(useUserCanceled);
+                        deliverClosedNotify(useUserCanceled);
                     } finally {
                         conContext.outputRecord.recordLock.unlock();
                     }
@@ -687,18 +705,14 @@ public final class SSLSocketImpl
         } else {
             conContext.outputRecord.recordLock.lock();
             try {
-                handleClosedNotifyAlert(useUserCanceled);
+                deliverClosedNotify(useUserCanceled);
             } finally {
                 conContext.outputRecord.recordLock.unlock();
             }
         }
-
-        if (!isInputShutdown()) {
-            bruteForceCloseInput(hasCloseReceipt);
-        }
     }
 
-    private void handleClosedNotifyAlert(
+    private void deliverClosedNotify(
             boolean useUserCanceled) throws IOException {
         try {
             // send a user_canceled alert if needed.
@@ -862,7 +876,7 @@ public final class SSLSocketImpl
         }
     }
 
-    private void ensureNegotiated() throws IOException {
+    private void ensureNegotiated(boolean resumable) throws IOException {
         if (conContext.isNegotiated || conContext.isBroken ||
                 conContext.isInboundClosed() || conContext.isOutboundClosed()) {
             return;
@@ -877,7 +891,7 @@ public final class SSLSocketImpl
                 return;
             }
 
-            startHandshake();
+            startHandshake(resumable);
         } finally {
             handshakeLock.unlock();
         }
@@ -968,7 +982,7 @@ public final class SSLSocketImpl
             if (!conContext.isNegotiated && !conContext.isBroken &&
                     !conContext.isInboundClosed() &&
                     !conContext.isOutboundClosed()) {
-                ensureNegotiated();
+                ensureNegotiated(true);
             }
 
             // Check if the Socket is invalid (error or closed).
@@ -1247,7 +1261,7 @@ public final class SSLSocketImpl
             if (!conContext.isNegotiated && !conContext.isBroken &&
                     !conContext.isInboundClosed() &&
                     !conContext.isOutboundClosed()) {
-                ensureNegotiated();
+                ensureNegotiated(true);
             }
 
             // Check if the Socket is invalid (error or closed).
@@ -1532,7 +1546,7 @@ public final class SSLSocketImpl
             if (SSLLogger.isOn && SSLLogger.isOn("ssl")) {
                 SSLLogger.finest("trigger new session ticket");
             }
-            NewSessionTicket.kickstartProducer.produce(
+            NewSessionTicket.t13PosthandshakeProducer.produce(
                     new PostHandshakeContext(conContext));
         }
     }

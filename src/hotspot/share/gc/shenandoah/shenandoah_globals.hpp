@@ -63,14 +63,14 @@
           "This also caps the maximum TLAB size.")                          \
           range(1, 100)                                                     \
                                                                             \
-  experimental(ccstr, ShenandoahGCMode, "normal",                           \
+  product(ccstr, ShenandoahGCMode, "satb",                                  \
           "GC mode to use.  Among other things, this defines which "        \
           "barriers are in in use. Possible values are:"                    \
-          " normal - default concurrent GC (three pass mark-evac-update);"  \
+          " satb - snapshot-at-the-beginning concurrent GC (three pass mark-evac-update);"  \
           " iu - incremental-update concurrent GC (three pass mark-evac-update);"  \
           " passive - stop the world GC only (either degenerated or full)") \
                                                                             \
-  experimental(ccstr, ShenandoahGCHeuristics, "adaptive",                   \
+  product(ccstr, ShenandoahGCHeuristics, "adaptive",                        \
           "GC heuristics to use. This fine-tunes the GC mode selected, "    \
           "by choosing when to start the GC, how much to process on each "  \
           "cycle, and what other features to automatically enable. "        \
@@ -106,26 +106,26 @@
           "How much heap should be free before some heuristics trigger the "\
           "initial (learning) cycles. Affects cycle frequency on startup "  \
           "and after drastic state changes, e.g. after degenerated/full "   \
-          "GC cycles. In percents of total heap size.")                     \
+          "GC cycles. In percents of (soft) max heap size.")                \
           range(0,100)                                                      \
                                                                             \
   experimental(uintx, ShenandoahMinFreeThreshold, 10,                       \
           "How much heap should be free before most heuristics trigger the "\
           "collection, even without other triggers. Provides the safety "   \
-          "margin for many heuristics. In percents of total heap size.")    \
+          "margin for many heuristics. In percents of (soft) max heap size.")\
           range(0,100)                                                      \
                                                                             \
   experimental(uintx, ShenandoahAllocationThreshold, 0,                     \
           "How many new allocations should happen since the last GC cycle " \
           "before some heuristics trigger the collection. In percents of "  \
-          "total heap size. Set to zero to effectively disable.")           \
+          "(soft) max heap size. Set to zero to effectively disable.")      \
           range(0,100)                                                      \
                                                                             \
   experimental(uintx, ShenandoahAllocSpikeFactor, 5,                        \
           "How much of heap should some heuristics reserve for absorbing "  \
           "the allocation spikes. Larger value wastes more memory in "      \
           "non-emergency cases, but provides more safety in emergency "     \
-          "cases. In percents of total heap size.")                         \
+          "cases. In percents of (soft) max heap size.")                    \
           range(0,100)                                                      \
                                                                             \
   experimental(uintx, ShenandoahLearningSteps, 5,                           \
@@ -191,9 +191,6 @@
           "adjustment. Lower values make adjustments faster, at the "       \
           "expense of higher perf overhead. Time is in milliseconds.")      \
                                                                             \
-  experimental(bool, ShenandoahCriticalControlThreadPriority, false,        \
-          "Run control thread runs at critical scheduling priority.")       \
-                                                                            \
   diagnostic(bool, ShenandoahVerify, false,                                 \
           "Enable internal verification. This would catch many GC bugs, "   \
           "but it would also stall the collector during the verification, " \
@@ -210,10 +207,6 @@
                                                                             \
   diagnostic(bool, ShenandoahElasticTLAB, true,                             \
           "Use Elastic TLABs with Shenandoah")                              \
-                                                                            \
-  diagnostic(bool, ShenandoahAllowMixedAllocs, true,                        \
-          "Allow mixing mutator and collector allocations into a single "   \
-          "region. Some heuristics enable/disable it for their needs")      \
                                                                             \
   experimental(uintx, ShenandoahEvacReserve, 5,                             \
           "How much of heap to reserve for evacuations. Larger values make "\
@@ -304,9 +297,6 @@
   diagnostic(bool, ShenandoahAllocFailureALot, false,                       \
           "Testing: make lots of artificial allocation failures.")          \
                                                                             \
-  diagnostic(bool, ShenandoahAlwaysPreTouch, false,                         \
-          "Pre-touch heap memory, overrides global AlwaysPreTouch.")        \
-                                                                            \
   experimental(intx, ShenandoahMarkScanPrefetch, 32,                        \
           "How many objects to prefetch ahead when traversing mark bitmaps."\
           "Set to 0 to disable prefetching.")                               \
@@ -352,19 +342,11 @@
   diagnostic(bool, ShenandoahLoadRefBarrier, true,                          \
           "Turn on/off load-reference barriers in Shenandoah")              \
                                                                             \
-  diagnostic(bool, ShenandoahConcurrentScanCodeRoots, true,                 \
-          "Scan code roots concurrently, instead of during a pause")        \
-                                                                            \
   diagnostic(uintx, ShenandoahCodeRootsStyle, 2,                            \
           "Use this style to scan the code cache roots:"                    \
           " 0 - sequential iterator;"                                       \
           " 1 - parallel iterator;"                                         \
           " 2 - parallel iterator with cset filters;")                      \
-                                                                            \
-  diagnostic(bool, ShenandoahOptimizeStaticFinals, true,                    \
-          "Optimize barriers on static final fields. "                      \
-          "Turn it off for maximum compatibility with reflection or JNI "   \
-          "code that manipulates final fields.")                            \
                                                                             \
   develop(bool, ShenandoahVerifyOptoBarriers, false,                        \
           "Verify no missing barriers in C2.")                              \

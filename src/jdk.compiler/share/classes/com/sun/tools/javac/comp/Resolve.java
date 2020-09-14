@@ -105,6 +105,7 @@ public class Resolve {
     JCDiagnostic.Factory diags;
     public final boolean allowFunctionalInterfaceMostSpecific;
     public final boolean allowModules;
+    public final boolean allowRecords;
     public final boolean checkVarargsAccessAfterResolution;
     private final boolean compactMethodDiags;
     private final boolean allowLocalVariableTypeInference;
@@ -147,6 +148,8 @@ public class Resolve {
                 Feature.POST_APPLICABILITY_VARARGS_ACCESS_CHECK.allowedInSource(source);
         polymorphicSignatureScope = WriteableScope.create(syms.noSymbol);
         allowModules = Feature.MODULES.allowedInSource(source);
+        allowRecords = (!preview.isPreview(Feature.RECORDS) || preview.isEnabled()) &&
+                Feature.RECORDS.allowedInSource(source);
     }
 
     /** error symbols, which are returned when resolution fails
@@ -418,6 +421,11 @@ public class Resolve {
                 sym = sym.referenceProjection();
             if (env.enclClass.sym.isValue())
                 env.enclClass.sym = env.enclClass.sym.referenceProjection();
+        } else if (sym.kind == TYP) {
+            // A type is accessible in a reference projection if it was
+            // accessible in the value projection.
+            if (site.isReferenceProjection())
+                site = site.valueProjection();
         }
         try {
             switch ((short)(sym.flags() & AccessFlags)) {
@@ -1511,15 +1519,18 @@ public class Resolve {
             }
             if (sym.exists()) {
                 if (staticOnly &&
+                   (sym.flags() & STATIC) == 0 &&
                     sym.kind == VAR &&
                         // if it is a field
                         (sym.owner.kind == TYP ||
                         // or it is a local variable but it is not declared inside of the static local type
-                        // only records so far, then error
+                        // then error
+                        allowRecords &&
                         (sym.owner.kind == MTH) &&
-                        (env.enclClass.sym.flags() & STATIC) != 0 &&
-                        sym.enclClass() != env.enclClass.sym) &&
-                    (sym.flags() & STATIC) == 0)
+                        env1 != env &&
+                        !isInnerClassOfMethod(sym.owner, env.tree.hasTag(CLASSDEF) ?
+                                ((JCClassDecl)env.tree).sym :
+                                env.enclClass.sym)))
                     return new StaticError(sym);
                 else
                     return sym;
@@ -2200,6 +2211,10 @@ public class Resolve {
                                    Type site,
                                    Name name,
                                    TypeSymbol c) {
+        // ATM, inner/nested types are members of only the declaring inline class,
+        // although accessible via the reference projection.
+        if (c.isReferenceProjection())
+            c = (TypeSymbol) c.valueProjection();
         for (Symbol sym : c.members().getSymbolsByName(name)) {
             if (sym.kind == TYP) {
                 return isAccessible(env, site, sym)
@@ -2300,17 +2315,33 @@ public class Resolve {
         return bestSoFar;
     }
 
-    Symbol findTypeVar(Env<AttrContext> env, Name name, boolean staticOnly) {
-        for (Symbol sym : env.info.scope.getSymbolsByName(name)) {
+    Symbol findTypeVar(Env<AttrContext> currentEnv, Env<AttrContext> originalEnv, Name name, boolean staticOnly) {
+        for (Symbol sym : currentEnv.info.scope.getSymbolsByName(name)) {
             if (sym.kind == TYP) {
                 if (staticOnly &&
                     sym.type.hasTag(TYPEVAR) &&
-                    sym.owner.kind == TYP)
+                    ((sym.owner.kind == TYP) ||
+                    // are we trying to access a TypeVar defined in a method from a local static type: interface, enum or record?
+                    allowRecords &&
+                    (sym.owner.kind == MTH &&
+                    currentEnv != originalEnv &&
+                    !isInnerClassOfMethod(sym.owner, originalEnv.tree.hasTag(CLASSDEF) ?
+                            ((JCClassDecl)originalEnv.tree).sym :
+                            originalEnv.enclClass.sym)))) {
                     return new StaticError(sym);
+                }
                 return sym;
             }
         }
         return typeNotFound;
+    }
+
+    boolean isInnerClassOfMethod(Symbol msym, Symbol csym) {
+        while (csym.owner != msym) {
+            if (csym.isStatic()) return false;
+            csym = csym.owner.enclClass();
+        }
+        return (csym.owner == msym && !csym.isStatic());
     }
 
     /** Find an unqualified type symbol.
@@ -2334,7 +2365,7 @@ public class Resolve {
         for (Env<AttrContext> env1 = env; env1.outer != null; env1 = env1.outer) {
             if (isStatic(env1)) staticOnly = true;
             // First, look for a type variable and the first member type
-            final Symbol tyvar = findTypeVar(env1, name, staticOnly);
+            final Symbol tyvar = findTypeVar(env1, env, name, staticOnly);
             sym = findImmediateMemberType(env1, env1.enclClass.sym.type,
                                           name, env1.enclClass.sym);
 

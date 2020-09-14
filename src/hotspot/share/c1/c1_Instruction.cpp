@@ -27,10 +27,10 @@
 #include "c1/c1_Instruction.hpp"
 #include "c1/c1_InstructionPrinter.hpp"
 #include "c1/c1_ValueStack.hpp"
+#include "ci/ciFlatArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
-#include "ci/ciValueArrayKlass.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "utilities/bitMap.inline.hpp"
 
 
@@ -127,36 +127,27 @@ ciKlass* Instruction::as_loaded_klass_or_null() const {
 }
 
 bool Instruction::is_loaded_flattened_array() const {
-  if (ValueArrayFlatten) {
+  if (UseFlatArray) {
     ciType* type = declared_type();
-    if (type != NULL && type->is_value_array_klass()) {
-      ciValueArrayKlass* vak = type->as_value_array_klass();
-      ArrayStorageProperties props = vak->storage_properties();
-      return (!props.is_empty() && props.is_null_free() && props.is_flattened());
-    }
+    return type != NULL && type->is_flat_array_klass();
   }
-
   return false;
 }
 
 bool Instruction::maybe_flattened_array() {
-  if (ValueArrayFlatten) {
+  if (UseFlatArray) {
     ciType* type = declared_type();
     if (type != NULL) {
       if (type->is_obj_array_klass()) {
         // Due to array covariance, the runtime type might be a flattened array.
         ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
-        if (element_klass->can_be_value_klass() && (!element_klass->is_valuetype() || element_klass->as_value_klass()->flatten_array())) {
-          // We will add a runtime check for flat-ness.
+        if (element_klass->can_be_inline_klass() && (!element_klass->is_inlinetype() || element_klass->as_inline_klass()->flatten_array())) {
           return true;
         }
-      } else if (type->is_value_array_klass()) {
-        ciKlass* element_klass = type->as_value_array_klass()->element_klass();
-        if (!element_klass->is_loaded() ||
-            (element_klass->is_valuetype() && element_klass->as_value_klass()->flatten_array())) {
-          // We will add a runtime check for flat-ness.
-          return true;
-        }
+      } else if (type->is_flat_array_klass()) {
+        ciKlass* element_klass = type->as_flat_array_klass()->element_klass();
+        assert(!element_klass->is_loaded() || element_klass->flatten_array(), "must be flattened");
+        return true;
       } else if (type->is_klass() && type->as_klass()->is_java_lang_Object()) {
         // This can happen as a parameter to System.arraycopy()
         return true;
@@ -176,9 +167,8 @@ bool Instruction::maybe_null_free_array() {
     if (type->is_obj_array_klass()) {
       // Due to array covariance, the runtime type might be a null-free array.
       ciKlass* element_klass = type->as_obj_array_klass()->element_klass();
-      if (element_klass->can_be_value_klass()) {
-          // We will add a runtime check for null-free-ness.
-          return true;
+      if (element_klass->can_be_inline_klass()) {
+        return true;
       }
     }
   } else {
@@ -275,7 +265,7 @@ ciType* LoadIndexed::declared_type() const {
 
 bool StoreIndexed::is_exact_flattened_array_store() const {
   if (array()->is_loaded_flattened_array() && value()->as_Constant() == NULL && value()->declared_type() != NULL) {
-    ciKlass* element_klass = array()->declared_type()->as_value_array_klass()->element_klass();
+    ciKlass* element_klass = array()->declared_type()->as_flat_array_klass()->element_klass();
     ciKlass* actual_klass = value()->declared_type()->as_klass();
 
     // The following check can fail with inlining:
@@ -298,16 +288,7 @@ ciType* NewTypeArray::exact_type() const {
 }
 
 ciType* NewObjectArray::exact_type() const {
-  ciKlass* element_klass = klass();
-  if (is_never_null() && element_klass->is_valuetype()) {
-    if (element_klass->as_value_klass()->flatten_array()) {
-      return ciValueArrayKlass::make(element_klass);
-    } else {
-      return ciObjArrayKlass::make(element_klass, /*never_null =*/true);
-    }
-  } else {
-    return ciObjArrayKlass::make(element_klass);
-  }
+  return ciArrayKlass::make(klass());
 }
 
 ciType* NewMultiArray::exact_type() const {
@@ -326,20 +307,20 @@ ciType* NewInstance::declared_type() const {
   return exact_type();
 }
 
-Value NewValueTypeInstance::depends_on() {
+Value NewInlineTypeInstance::depends_on() {
   if (_depends_on != this) {
-    if (_depends_on->as_NewValueTypeInstance() != NULL) {
-      return _depends_on->as_NewValueTypeInstance()->depends_on();
+    if (_depends_on->as_NewInlineTypeInstance() != NULL) {
+      return _depends_on->as_NewInlineTypeInstance()->depends_on();
     }
   }
   return _depends_on;
 }
 
-ciType* NewValueTypeInstance::exact_type() const {
+ciType* NewInlineTypeInstance::exact_type() const {
   return klass();
 }
 
-ciType* NewValueTypeInstance::declared_type() const {
+ciType* NewInlineTypeInstance::declared_type() const {
   return exact_type();
 }
 
@@ -438,11 +419,45 @@ void BlockBegin::state_values_do(ValueVisitor* f) {
 }
 
 
+StoreField::StoreField(Value obj, int offset, ciField* field, Value value, bool is_static,
+                       ValueStack* state_before, bool needs_patching)
+  : AccessField(obj, offset, field, is_static, state_before, needs_patching)
+  , _value(value)
+{
+  set_flag(NeedsWriteBarrierFlag, as_ValueType(field_type())->is_object());
+#ifdef ASSERT
+  AssertValues assert_value;
+  values_do(&assert_value);
+#endif
+  pin();
+  if (value->as_NewInlineTypeInstance() != NULL) {
+    value->as_NewInlineTypeInstance()->set_not_larva_anymore();
+  }
+}
+
+StoreIndexed::StoreIndexed(Value array, Value index, Value length, BasicType elt_type, Value value,
+                           ValueStack* state_before, bool check_boolean, bool mismatched)
+  : AccessIndexed(array, index, length, elt_type, state_before, mismatched)
+  , _value(value), _check_boolean(check_boolean)
+{
+  set_flag(NeedsWriteBarrierFlag, (as_ValueType(elt_type)->is_object()));
+  set_flag(NeedsStoreCheckFlag, (as_ValueType(elt_type)->is_object()));
+#ifdef ASSERT
+  AssertValues assert_value;
+  values_do(&assert_value);
+#endif
+  pin();
+  if (value->as_NewInlineTypeInstance() != NULL) {
+    value->as_NewInlineTypeInstance()->set_not_larva_anymore();
+  }
+}
+
+
 // Implementation of Invoke
 
 
 Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values* args,
-               int vtable_index, ciMethod* target, ValueStack* state_before, bool never_null)
+               int vtable_index, ciMethod* target, ValueStack* state_before, bool null_free)
   : StateSplit(result_type, state_before)
   , _code(code)
   , _recv(recv)
@@ -453,7 +468,7 @@ Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values*
   set_flag(TargetIsLoadedFlag,   target->is_loaded());
   set_flag(TargetIsFinalFlag,    target_is_loaded() && target->is_final_method());
   set_flag(TargetIsStrictfpFlag, target_is_loaded() && target->is_strict());
-  set_never_null(never_null);
+  set_null_free(null_free);
 
   assert(args != NULL, "args must exist");
 #ifdef ASSERT
@@ -465,11 +480,18 @@ Invoke::Invoke(Bytecodes::Code code, ValueType* result_type, Value recv, Values*
   _signature = new BasicTypeList(number_of_arguments() + (has_receiver() ? 1 : 0));
   if (has_receiver()) {
     _signature->append(as_BasicType(receiver()->type()));
+    if (receiver()->as_NewInlineTypeInstance() != NULL) {
+      receiver()->as_NewInlineTypeInstance()->set_not_larva_anymore();
+    }
   }
   for (int i = 0; i < number_of_arguments(); i++) {
-    ValueType* t = argument_at(i)->type();
+    Value v = argument_at(i);
+    ValueType* t = v->type();
     BasicType bt = as_BasicType(t);
     _signature->append(bt);
+    if (v->as_NewInlineTypeInstance() != NULL) {
+      v->as_NewInlineTypeInstance()->set_not_larva_anymore();
+    }
   }
 }
 
@@ -982,6 +1004,8 @@ bool BlockBegin::try_merge(ValueStack* new_state) {
         if (new_value != existing_value && (existing_phi == NULL || existing_phi->block() != this)) {
           existing_state->setup_phi_for_stack(this, index);
           TRACE_PHI(tty->print_cr("creating phi-function %c%d for stack %d", existing_state->stack_at(index)->type()->tchar(), existing_state->stack_at(index)->id(), index));
+          if (new_value->as_NewInlineTypeInstance() != NULL) {new_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
+          if (existing_value->as_NewInlineTypeInstance() != NULL) {existing_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
         }
       }
 
@@ -996,6 +1020,8 @@ bool BlockBegin::try_merge(ValueStack* new_state) {
         } else if (new_value != existing_value && (existing_phi == NULL || existing_phi->block() != this)) {
           existing_state->setup_phi_for_local(this, index);
           TRACE_PHI(tty->print_cr("creating phi-function %c%d for local %d", existing_state->local_at(index)->type()->tchar(), existing_state->local_at(index)->id(), index));
+          if (new_value->as_NewInlineTypeInstance() != NULL) {new_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
+          if (existing_value->as_NewInlineTypeInstance() != NULL) {existing_value->as_NewInlineTypeInstance()->set_not_larva_anymore(); }
         }
       }
     }
@@ -1162,3 +1188,4 @@ void RangeCheckPredicate::check_state() {
 void ProfileInvoke::state_values_do(ValueVisitor* f) {
   if (state() != NULL) state()->values_do(f);
 }
+

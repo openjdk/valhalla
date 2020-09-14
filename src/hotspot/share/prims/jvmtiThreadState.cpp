@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -216,9 +216,13 @@ void JvmtiThreadState::leave_interp_only_mode() {
 
 // Helper routine used in several places
 int JvmtiThreadState::count_frames() {
-  guarantee(SafepointSynchronize::is_at_safepoint() ||
-    (JavaThread *)Thread::current() == get_thread(),
-    "must be current thread or at safepoint");
+#ifdef ASSERT
+  Thread *current_thread = Thread::current();
+#endif
+  assert(current_thread == get_thread() ||
+         SafepointSynchronize::is_at_safepoint() ||
+         current_thread == get_thread()->active_handshaker(),
+         "call by myself / at safepoint / at handshake");
 
   if (!get_thread()->has_last_Java_frame()) return 0;  // no Java frames
 
@@ -236,9 +240,10 @@ int JvmtiThreadState::count_frames() {
 
 
 void JvmtiThreadState::invalidate_cur_stack_depth() {
-  guarantee(SafepointSynchronize::is_at_safepoint() ||
-    (JavaThread *)Thread::current() == get_thread(),
-    "must be current thread or at safepoint");
+  assert(SafepointSynchronize::is_at_safepoint() ||
+         (JavaThread *)Thread::current() == get_thread() ||
+         Thread::current() == get_thread()->active_handshaker(),
+         "bad synchronization with owner thread");
 
   _cur_stack_depth = UNKNOWN_STACK_DEPTH;
 }
@@ -267,9 +272,9 @@ void JvmtiThreadState::decr_cur_stack_depth() {
 }
 
 int JvmtiThreadState::cur_stack_depth() {
-  guarantee(SafepointSynchronize::is_at_safepoint() ||
-    (JavaThread *)Thread::current() == get_thread(),
-    "must be current thread or at safepoint");
+  Thread *current = Thread::current();
+  guarantee(current == get_thread() || current == get_thread()->active_handshaker(),
+            "must be current thread or direct handshake");
 
   if (!is_interp_only_mode() || _cur_stack_depth == UNKNOWN_STACK_DEPTH) {
     _cur_stack_depth = count_frames();

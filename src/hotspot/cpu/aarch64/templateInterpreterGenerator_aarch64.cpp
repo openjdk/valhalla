@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, 2019, Red Hat Inc. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,7 @@
 #include "oops/methodData.hpp"
 #include "oops/method.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/arguments.hpp"
@@ -437,8 +437,8 @@ address TemplateInterpreterGenerator::generate_return_entry_for(TosState state, 
   // and NULL it as marker that esp is now tos until next java call
   __ str(zr, Address(rfp, frame::interpreter_frame_last_sp_offset * wordSize));
 
-  if (state == atos && ValueTypeReturnedAsFields) {
-    __ store_value_type_fields_to_buf(NULL, true);
+  if (state == atos && InlineTypeReturnedAsFields) {
+    __ store_inline_type_fields_to_buf(NULL, true);
   }
 
   __ restore_bcp();
@@ -559,7 +559,7 @@ address TemplateInterpreterGenerator::generate_result_handler_for(
   case T_VOID   : /* nothing to do */        break;
   case T_FLOAT  : /* nothing to do */        break;
   case T_DOUBLE : /* nothing to do */        break;
-  case T_VALUETYPE: // fall through (value types are handled with oops)
+  case T_INLINE_TYPE: // fall through (value types are handled with oops)
   case T_OBJECT :
     // retrieve result from frame
     __ ldr(r0, Address(rfp, frame::interpreter_frame_oop_temp_offset*wordSize));
@@ -946,8 +946,7 @@ address TemplateInterpreterGenerator::generate_Reference_get_entry(void) {
 
   address entry = __ pc();
 
-  const int referent_offset = java_lang_ref_Reference::referent_offset;
-  guarantee(referent_offset > 0, "referent offset not initialized");
+  const int referent_offset = java_lang_ref_Reference::referent_offset();
 
   Label slow_path;
   const Register local_0 = c_rarg0;
@@ -1002,7 +1001,7 @@ address TemplateInterpreterGenerator::generate_CRC32_update_entry() {
     __ ldrw(val, Address(esp, 0));              // byte value
     __ ldrw(crc, Address(esp, wordSize));       // Initial CRC
 
-    unsigned long offset;
+    uint64_t offset;
     __ adrp(tbl, ExternalAddress(StubRoutines::crc_table_addr()), offset);
     __ add(tbl, tbl, offset);
 
@@ -1380,6 +1379,11 @@ address TemplateInterpreterGenerator::generate_native_entry(bool synchronized) {
   __ push(dtos);
   __ push(ltos);
 
+  if (UseSVE > 0) {
+    // Make sure that jni code does not change SVE vector length.
+    __ verify_sve_vector_length();
+  }
+
   // change thread state
   __ mov(rscratch1, _thread_in_native_trans);
   __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
@@ -1588,6 +1592,9 @@ address TemplateInterpreterGenerator::generate_normal_entry(bool synchronized) {
 
   // Make room for locals
   __ sub(rscratch1, esp, r3, ext::uxtx, 3);
+
+  // Padding between locals and fixed part of activation frame to ensure
+  // SP is always 16-byte aligned.
   __ andr(sp, rscratch1, -16);
 
   // r3 - # of additional locals

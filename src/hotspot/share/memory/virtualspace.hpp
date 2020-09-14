@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,7 +62,6 @@ class ReservedSpace {
   ReservedSpace(size_t size, size_t preferred_page_size = 0);
   ReservedSpace(size_t size, size_t alignment, bool large,
                 char* requested_address = NULL);
-  ReservedSpace(size_t size, size_t alignment, bool large, bool executable);
 
   // Accessors
   char*  base()            const { return _base;      }
@@ -76,13 +75,18 @@ class ReservedSpace {
   void release();
 
   // Splitting
-  ReservedSpace first_part(size_t partition_size, size_t alignment,
-                           bool split = false, bool realloc = true);
+  // This splits the space into two spaces, the first part of which will be returned.
+  // If split==true, the resulting two spaces can be released independently from each other.
+  //  This may cause the original space to loose its content.
+  //  They also will be tracked individually by NMT and can be tagged with different flags.
+  //  Note that this may cause the original space to loose its content.
+  // If split==false, the resulting space will be just a hotspot-internal representation
+  //  of a sub section of the underlying mapping.
+  ReservedSpace first_part(size_t partition_size, size_t alignment, bool split = false);
   ReservedSpace last_part (size_t partition_size, size_t alignment);
 
   // These simply call the above using the default alignment.
-  inline ReservedSpace first_part(size_t partition_size,
-                                  bool split = false, bool realloc = true);
+  inline ReservedSpace first_part(size_t partition_size, bool split = false);
   inline ReservedSpace last_part (size_t partition_size);
 
   // Alignment
@@ -95,9 +99,9 @@ class ReservedSpace {
 };
 
 ReservedSpace
-ReservedSpace::first_part(size_t partition_size, bool split, bool realloc)
+ReservedSpace::first_part(size_t partition_size, bool split)
 {
-  return first_part(partition_size, alignment(), split, realloc);
+  return first_part(partition_size, alignment(), split);
 }
 
 ReservedSpace ReservedSpace::last_part(size_t partition_size)

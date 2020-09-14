@@ -46,6 +46,10 @@
 #define ATTRIBUTE_ALIGNED(x)
 #endif
 
+#ifndef ATTRIBUTE_FLATTEN
+#define ATTRIBUTE_FLATTEN
+#endif
+
 // These are #defines to selectively turn on/off the Print(Opto)Assembly
 // capabilities. Choices should be led by a tradeoff between
 // code size and improved supportability.
@@ -432,6 +436,11 @@ inline size_t pointer_delta(const MetaWord* left, const MetaWord* right) {
 #define CAST_TO_FN_PTR(func_type, value) (reinterpret_cast<func_type>(value))
 #define CAST_FROM_FN_PTR(new_type, func_ptr) ((new_type)((address_word)(func_ptr)))
 
+// Need the correct linkage to call qsort without warnings
+extern "C" {
+  typedef int (*_sort_Fn)(const void *, const void *);
+}
+
 // Unsigned byte types for os and stream.hpp
 
 // Unsigned one, two, four and eigth byte quantities used for describing
@@ -625,7 +634,7 @@ enum BasicType {
   // types in their own right.
   T_OBJECT      = 12,
   T_ARRAY       = 13,
-  T_VALUETYPE   = 14,
+  T_INLINE_TYPE = 14,
   T_VOID        = 15,
   T_ADDRESS     = 16,
   T_NARROWOOP   = 17,
@@ -646,7 +655,7 @@ enum BasicType {
     F(JVM_SIGNATURE_LONG,    T_LONG,    N)      \
     F(JVM_SIGNATURE_CLASS,   T_OBJECT,  N)      \
     F(JVM_SIGNATURE_ARRAY,   T_ARRAY,   N)      \
-    F(JVM_SIGNATURE_VALUETYPE,  T_VALUETYPE, N) \
+    F(JVM_SIGNATURE_INLINE_TYPE, T_INLINE_TYPE, N) \
     F(JVM_SIGNATURE_VOID,    T_VOID,    N)      \
     /*end*/
 
@@ -672,7 +681,7 @@ inline bool is_double_word_type(BasicType t) {
 }
 
 inline bool is_reference_type(BasicType t) {
-  return (t == T_OBJECT || t == T_ARRAY || t == T_VALUETYPE);
+  return (t == T_OBJECT || t == T_ARRAY || t == T_INLINE_TYPE);
 }
 
 extern char type2char_tab[T_CONFLICT+1];     // Map a BasicType to a jchar
@@ -702,7 +711,7 @@ enum BasicTypeSize {
   T_NARROWOOP_size   = 1,
   T_NARROWKLASS_size = 1,
   T_VOID_size        = 0,
-  T_VALUETYPE_size   = 1
+  T_INLINE_TYPE_size = 1
 };
 
 // this works on valid parameter types but not T_VOID, T_CONFLICT, etc.
@@ -732,11 +741,11 @@ enum ArrayElementSize {
 #ifdef _LP64
   T_OBJECT_aelem_bytes      = 8,
   T_ARRAY_aelem_bytes       = 8,
-  T_VALUETYPE_aelem_bytes   = 8,
+  T_INLINE_TYPE_aelem_bytes = 8,
 #else
   T_OBJECT_aelem_bytes      = 4,
   T_ARRAY_aelem_bytes       = 4,
-  T_VALUETYPE_aelem_bytes   = 4,
+  T_INLINE_TYPE_aelem_bytes = 4,
 #endif
   T_NARROWOOP_aelem_bytes   = 4,
   T_NARROWKLASS_aelem_bytes = 4,
@@ -804,15 +813,6 @@ class JavaValue {
 };
 
 
-#define STACK_BIAS      0
-// V9 Sparc CPU's running in 64 Bit mode use a stack bias of 7ff
-// in order to extend the reach of the stack pointer.
-#if defined(SPARC) && defined(_LP64)
-#undef STACK_BIAS
-#define STACK_BIAS      0x7ff
-#endif
-
-
 // TosState describes the top-of-stack state before and after the execution of
 // a bytecode or method. The top-of-stack value may be cached in one or more CPU
 // registers. The TosState corresponds to the 'machine representation' of this cached
@@ -849,7 +849,7 @@ inline TosState as_TosState(BasicType type) {
     case T_FLOAT  : return ftos;
     case T_DOUBLE : return dtos;
     case T_VOID   : return vtos;
-    case T_VALUETYPE: // fall through
+    case T_INLINE_TYPE: // fall through
     case T_ARRAY  :   // fall through
     case T_OBJECT : return atos;
     default       : return ilgl;
@@ -1114,7 +1114,11 @@ template<class T> static void swap(T& a, T& b) {
   b = tmp;
 }
 
-#define ARRAY_SIZE(array) (sizeof(array)/sizeof((array)[0]))
+// array_size_impl is a function that takes a reference to T[N] and
+// returns a reference to char[N].  It is not ODR-used, so not defined.
+template<typename T, size_t N> char (&array_size_impl(T (&)[N]))[N];
+
+#define ARRAY_SIZE(array) sizeof(array_size_impl(array))
 
 //----------------------------------------------------------------------------------------------------
 // Sum and product which can never overflow: they wrap, just like the
@@ -1220,9 +1224,9 @@ template<typename K> bool primitive_equals(const K& k0, const K& k1) {
 
 // TEMP!!!!
 // This should be removed after LW2 arrays are implemented (JDK-8220790).
-// It's an alias to (EnableValhalla && (ValueArrayElemMaxFlatSize != 0)),
+// It's an alias to (EnableValhalla && (FlatArrayElementMaxSize != 0)),
 // which is actually not 100% correct, but works for the current set of C1/C2
 // implementation and test cases.
-#define ValueArrayFlatten (EnableValhalla && (ValueArrayElemMaxFlatSize != 0))
+#define UseFlatArray (EnableValhalla && (FlatArrayElementMaxSize != 0))
 
 #endif // SHARE_UTILITIES_GLOBALDEFINITIONS_HPP

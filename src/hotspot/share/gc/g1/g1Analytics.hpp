@@ -75,10 +75,10 @@ class G1Analytics: public CHeapObj<mtGC> {
   // Statistics kept per GC stoppage, pause or full.
   TruncatedSeq* _recent_prev_end_times_for_all_gcs_sec;
 
-  // The ratio of gc time to elapsed time, computed over recent pauses,
-  // and the ratio for just the last pause.
-  double _recent_avg_pause_time_ratio;
-  double _last_pause_time_ratio;
+  // Cached values for long and short term pause time ratios. See
+  // compute_pause_time_ratios() for how they are computed.
+  double _long_term_pause_time_ratio;
+  double _short_term_pause_time_ratio;
 
   // Returns whether the sequence have enough samples to get a "good" prediction.
   // The constant used is random but "small".
@@ -88,6 +88,9 @@ class G1Analytics: public CHeapObj<mtGC> {
   size_t predict_size(TruncatedSeq const* seq) const;
   double predict_zero_bounded(TruncatedSeq const* seq) const;
 
+  double oldest_known_gc_end_time_sec() const;
+  double most_recent_gc_end_time_sec() const;
+
 public:
   G1Analytics(const G1Predictions* predictor);
 
@@ -95,12 +98,12 @@ public:
     return _prev_collection_pause_end_ms;
   }
 
-  double recent_avg_pause_time_ratio() const {
-    return _recent_avg_pause_time_ratio;
+  double long_term_pause_time_ratio() const {
+    return _long_term_pause_time_ratio;
   }
 
-  double last_pause_time_ratio() const {
-    return _last_pause_time_ratio;
+  double short_term_pause_time_ratio() const {
+    return _short_term_pause_time_ratio;
   }
 
   uint number_of_recorded_pause_times() const {
@@ -160,9 +163,7 @@ public:
 
   // Add a new GC of the given duration and end time to the record.
   void update_recent_gc_times(double end_time_sec, double elapsed_ms);
-  void compute_pause_time_ratio(double interval_ms, double pause_time_ms);
-
-  double last_known_gc_end_time_sec() const;
+  void compute_pause_time_ratios(double end_time_sec, double pause_time_ms);
 };
 
 #endif // SHARE_GC_G1_G1ANALYTICS_HPP

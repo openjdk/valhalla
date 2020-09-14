@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,6 @@
 #define SHARE_CLASSFILE_CLASSLOADER_HPP
 
 #include "jimage.hpp"
-#include "runtime/arguments.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/perfData.hpp"
 #include "utilities/exceptions.hpp"
@@ -252,20 +251,16 @@ class ClassLoader: AllStatic {
   static void load_zip_library();
   static void load_jimage_library();
 
+ private:
+  static int  _libzip_loaded; // used to sync loading zip.
+  static void release_load_zip_library();
+  static inline void load_zip_library_if_needed();
+
  public:
   static ClassPathEntry* create_class_path_entry(const char *path, const struct stat* st,
                                                  bool throw_exception,
                                                  bool is_boot_append,
                                                  bool from_class_path_attr, TRAPS);
-
-  // If the package for InstanceKlass is in the boot loader's package entry
-  // table then add_package() sets the classpath_index field so that
-  // get_system_package() will know to return a non-null value for the
-  // package's location.  And, so that the package will be added to the list of
-  // packages returned by get_system_packages().
-  // For packages whose classes are loaded from the boot loader class path, the
-  // classpath_index indicates which entry on the boot loader class path.
-  static bool add_package(const InstanceKlass* ik, s2 classpath_index, TRAPS);
 
   // Canonicalizes path names, so strcmp will work properly. This is mainly
   // to avoid confusing the zip library
@@ -392,16 +387,7 @@ class ClassLoader: AllStatic {
 
   // Helper function used by CDS code to get the number of module path
   // entries during shared classpath setup time.
-  static int num_module_path_entries() {
-    Arguments::assert_is_dumping_archive();
-    int num_entries = 0;
-    ClassPathEntry* e= ClassLoader::_module_path_entries;
-    while (e != NULL) {
-      num_entries ++;
-      e = e->next();
-    }
-    return num_entries;
-  }
+  static int num_module_path_entries();
   static void  exit_with_path_failure(const char* error, const char* message);
   static char* skip_uri_protocol(char* source);
   static void  record_result(InstanceKlass* ik, const ClassFileStream* stream, TRAPS);
@@ -454,12 +440,11 @@ class PerfClassTraceTime {
  public:
   enum {
     CLASS_LOAD   = 0,
-    PARSE_CLASS  = 1,
-    CLASS_LINK   = 2,
-    CLASS_VERIFY = 3,
-    CLASS_CLINIT = 4,
-    DEFINE_CLASS = 5,
-    EVENT_TYPE_COUNT = 6
+    CLASS_LINK   = 1,
+    CLASS_VERIFY = 2,
+    CLASS_CLINIT = 3,
+    DEFINE_CLASS = 4,
+    EVENT_TYPE_COUNT = 5
   };
  protected:
   // _t tracks time from initialization to destruction of this timer instance
@@ -496,9 +481,6 @@ class PerfClassTraceTime {
       _timep(timep), _selftimep(NULL), _eventp(NULL), _recursion_counters(NULL), _timers(timers), _event_type(type) {
     initialize();
   }
-
-  inline void suspend() { _t.stop(); _timers[_event_type].stop(); }
-  inline void resume()  { _t.start(); _timers[_event_type].start(); }
 
   ~PerfClassTraceTime();
   void initialize();

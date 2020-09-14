@@ -38,19 +38,21 @@
  *
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds /test/hotspot/jtreg/runtime/cds/appcds/dynamicArchive/test-classes
  * @build StrConcatApp
+ * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller -jar strConcatApp.jar StrConcatApp
- * @run driver NoClassToArchive
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:. NoClassToArchive
  */
 
 import java.io.File;
+import jdk.test.lib.cds.CDSTestUtils;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 
 public class NoClassToArchive extends DynamicArchiveTestBase {
     static final String warningMessage =
         "There is no class to be included in the dynamic archive";
-    static final String classList = System.getProperty("test.classes") +
-        File.separator + "NoClassToArchive.list";
+    static final String classList = CDSTestUtils.getOutputFileName("classlist");
     static final String appClass = "StrConcatApp";
 
     public static void main(String[] args) throws Exception {
@@ -61,7 +63,7 @@ public class NoClassToArchive extends DynamicArchiveTestBase {
     // (1) Test with default base archive + top archive
     static void testDefaultBase() throws Exception {
         String topArchiveName = getNewArchiveName("top");
-        doTest(null, topArchiveName);
+        doTest(topArchiveName);
     }
 
     // (2) Test with custom base archive + top archive
@@ -83,15 +85,15 @@ public class NoClassToArchive extends DynamicArchiveTestBase {
         }
     }
 
-    private static void doTest(String baseArchiveName, String topArchiveName) throws Exception {
-        dump2(baseArchiveName, topArchiveName,
+    private static void doTest(String topArchiveName) throws Exception {
+        dump(topArchiveName,
              "-Xlog:cds",
              "-Xlog:cds+dynamic=debug",
              "-Xlog:class+load=trace",
              "-version")
             .assertNormalExit(output -> checkWarning(output));
 
-        dump2(baseArchiveName, topArchiveName,
+        dump(topArchiveName,
              "-Xlog:cds",
              "-Xlog:cds+dynamic=debug",
              "-Xlog:class+load=trace",
@@ -105,8 +107,7 @@ public class NoClassToArchive extends DynamicArchiveTestBase {
     private static void doTestCustomBase(String baseArchiveName, String topArchiveName) throws Exception {
         String appJar = ClassFileInstaller.getJarPath("strConcatApp.jar");
         // dump class list by running the StrConcatApp
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
-            true,
+        ProcessBuilder pb = ProcessTools.createTestJvm(
             "-XX:DumpLoadedClassList=" + classList,
             "-cp",
             appJar,
@@ -115,7 +116,7 @@ public class NoClassToArchive extends DynamicArchiveTestBase {
         TestCommon.checkExecReturn(output, 0, true, "length = 0");
 
         // create a custom base archive based on the class list
-        dumpBaseArchive(baseArchiveName, "-XX:SharedClassListFile=" + classList);
+        TestCommon.dumpBaseArchive(baseArchiveName, "-XX:SharedClassListFile=" + classList);
 
         // create a dynamic archive with the custom base archive
         // no class should be included in the dynamic archive

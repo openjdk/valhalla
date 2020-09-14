@@ -28,11 +28,10 @@ import java.io.IOException;
 
 /*
  * @test TestGCBasherWithShenandoah
- * @key gc
  * @key stress
  * @library /
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
- * @requires vm.flavor == "server" & !vm.emulatedClient & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
+ * @requires vm.flavor == "server" & !vm.emulatedClient
  * @summary Stress the Shenandoah GC by trying to make old objects more likely to be garbage than young objects.
  *
  * @run main/othervm/timeout=200 -Xlog:gc*=info -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
@@ -48,11 +47,10 @@ import java.io.IOException;
 
 /*
  * @test TestGCBasherWithShenandoah
- * @key gc
  * @key stress
  * @library /
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
- * @requires vm.flavor == "server" & !vm.emulatedClient & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
+ * @requires vm.flavor == "server" & !vm.emulatedClient
  * @summary Stress the Shenandoah GC by trying to make old objects more likely to be garbage than young objects.
  *
  * @run main/othervm/timeout=200 -Xlog:gc*=info -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
@@ -72,11 +70,10 @@ import java.io.IOException;
 
 /*
  * @test TestGCBasherWithShenandoah
- * @key gc
  * @key stress
  * @library /
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
- * @requires vm.flavor == "server" & !vm.emulatedClient & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
+ * @requires vm.flavor == "server" & !vm.emulatedClient
  * @summary Stress the Shenandoah GC by trying to make old objects more likely to be garbage than young objects.
  *
  * @run main/othervm/timeout=200 -Xlog:gc*=info -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
@@ -87,6 +84,15 @@ import java.io.IOException;
  * @run main/othervm/timeout=200 -Xlog:gc*=info -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=adaptive
  *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
+ */
+
+/*
+ * @test TestGCBasherDeoptWithShenandoah
+ * @key stress
+ * @library /
+ * @requires vm.gc.Shenandoah
+ * @requires vm.flavor == "server" & !vm.emulatedClient & vm.opt.ClassUnloading != false
+ * @summary Stress Shenandoah GC with nmethod barrier forced deoptimization enabled.
  *
  * @run main/othervm/timeout=200 -Xlog:gc*=info -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=compact
@@ -95,11 +101,10 @@ import java.io.IOException;
 
 /*
  * @test TestGCBasherWithShenandoah
- * @key gc
  * @key stress
  * @library /
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
- * @requires vm.flavor == "server" & !vm.emulatedClient & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
+ * @requires vm.flavor == "server" & !vm.emulatedClient
  * @summary Stress the Shenandoah GC by trying to make old objects more likely to be garbage than young objects.
  *
  * @run main/othervm/timeout=200 -Xlog:gc*=info -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
@@ -119,11 +124,10 @@ import java.io.IOException;
 
 /*
  * @test TestGCBasherWithShenandoah
- * @key gc
  * @key stress
  * @library /
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
- * @requires vm.flavor == "server" & !vm.emulatedClient & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
+ * @requires vm.flavor == "server" & !vm.emulatedClient
  * @summary Stress the Shenandoah GC by trying to make old objects more likely to be garbage than young objects.
  *
  * @run main/othervm/timeout=200 -Xlog:gc*=info -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
@@ -135,6 +139,135 @@ import java.io.IOException;
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu
  *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
  */
+
+/*
+ * @test TestGCBasherDeoptWithShenandoah
+ * @key stress
+ * @library /
+ * @requires vm.gc.Shenandoah
+ * @requires vm.flavor == "server" & !vm.emulatedClient & vm.opt.ClassUnloading != false
+ * @summary Stress Shenandoah GC with nmethod barrier forced deoptimization enabled.
+ *
+ * @run main/othervm/timeout=200 -Xlog:gc*=info,nmethod+barrier=trace -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=passive
+ *      -XX:+DeoptimizeNMethodBarriersALot -XX:-Inline
+ *      -XX:+ShenandoahVerify -XX:+ShenandoahDegeneratedGC
+ *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
+ *
+ * @run main/othervm/timeout=200 -Xlog:gc*=info,nmethod+barrier=trace -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=passive
+ *      -XX:+DeoptimizeNMethodBarriersALot -XX:-Inline
+ *      -XX:+ShenandoahVerify -XX:-ShenandoahDegeneratedGC
+ *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
+ */
+
+/*
+ * @test TestGCBasherDeoptWithShenandoah
+ * @key stress
+ * @library /
+ * @requires vm.gc.Shenandoah
+ * @requires vm.flavor == "server" & !vm.emulatedClient & vm.opt.ClassUnloading != false
+ * @summary Stress Shenandoah GC with nmethod barrier forced deoptimization enabled.
+ *
+ * @run main/othervm/timeout=200 -Xlog:gc*=info,nmethod+barrier=trace -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=aggressive
+ *      -XX:+DeoptimizeNMethodBarriersALot -XX:-Inline
+ *      -XX:+ShenandoahOOMDuringEvacALot
+ *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
+ *
+ * @run main/othervm/timeout=200 -Xlog:gc*=info,nmethod+barrier=trace -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=aggressive
+ *      -XX:+DeoptimizeNMethodBarriersALot -XX:-Inline
+ *      -XX:+ShenandoahAllocFailureALot
+ *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
+ *
+ * @run main/othervm/timeout=200 -Xlog:gc*=info,nmethod+barrier=trace -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=aggressive
+ *      -XX:+DeoptimizeNMethodBarriersALot -XX:-Inline
+ *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
+ */
+
+/*
+ * @test TestGCBasherDeoptWithShenandoah
+ * @key stress
+ * @library /
+ * @requires vm.gc.Shenandoah
+ * @requires vm.flavor == "server" & !vm.emulatedClient & vm.opt.ClassUnloading != false
+ * @summary Stress Shenandoah GC with nmethod barrier forced deoptimization enabled.
+ *
+ * @run main/othervm/timeout=200 -Xlog:gc*=info,nmethod+barrier=trace -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=adaptive
+ *      -XX:+DeoptimizeNMethodBarriersALot -XX:-Inline
+ *      -XX:+ShenandoahVerify
+ *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
+ *
+ * @run main/othervm/timeout=200 -Xlog:gc*=info,nmethod+barrier=trace -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=adaptive
+ *      -XX:+DeoptimizeNMethodBarriersALot -XX:-Inline
+ *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
+ */
+
+/*
+ * @test TestGCBasherDeoptWithShenandoah
+ * @key stress
+ * @library /
+ * @requires vm.gc.Shenandoah
+ * @requires vm.flavor == "server" & !vm.emulatedClient & vm.opt.ClassUnloading != false
+ * @summary Stress Shenandoah GC with nmethod barrier forced deoptimization enabled.
+ *
+ * @run main/othervm/timeout=200 -Xlog:gc*=info,nmethod+barrier=trace -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=compact
+ *      -XX:+DeoptimizeNMethodBarriersALot -XX:-Inline
+ *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
+ */
+
+/*
+ * @test TestGCBasherDeoptWithShenandoah
+ * @key stress
+ * @library /
+ * @requires vm.gc.Shenandoah
+ * @requires vm.flavor == "server" & !vm.emulatedClient & vm.opt.ClassUnloading != false
+ * @summary Stress Shenandoah GC with nmethod barrier forced deoptimization enabled.
+ *
+ * @run main/othervm/timeout=200 -Xlog:gc*=info,nmethod+barrier=trace -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu -XX:ShenandoahGCHeuristics=aggressive
+ *      -XX:+DeoptimizeNMethodBarriersALot -XX:-Inline
+ *      -XX:+ShenandoahOOMDuringEvacALot
+ *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
+ *
+ * @run main/othervm/timeout=200 -Xlog:gc*=info,nmethod+barrier=trace -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu -XX:ShenandoahGCHeuristics=aggressive
+ *      -XX:+DeoptimizeNMethodBarriersALot -XX:-Inline
+ *      -XX:+ShenandoahAllocFailureALot
+ *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
+ *
+ * @run main/othervm/timeout=200 -Xlog:gc*=info,nmethod+barrier=trace -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu -XX:ShenandoahGCHeuristics=aggressive
+ *      -XX:+DeoptimizeNMethodBarriersALot -XX:-Inline
+ *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
+ */
+
+/*
+ * @test TestGCBasherDeoptWithShenandoah
+ * @key stress
+ * @library /
+ * @requires vm.gc.Shenandoah
+ * @requires vm.flavor == "server" & !vm.emulatedClient & vm.opt.ClassUnloading != false
+ * @summary Stress Shenandoah GC with nmethod barrier forced deoptimization enabled.
+ *
+ * @run main/othervm/timeout=200 -Xlog:gc*=info,nmethod+barrier=trace -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu
+ *      -XX:+DeoptimizeNMethodBarriersALot -XX:-Inline
+ *      -XX:+ShenandoahVerify
+ *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
+ *
+ * @run main/othervm/timeout=200 -Xlog:gc*=info,nmethod+barrier=trace -Xmx1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
+ *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu
+ *      -XX:+DeoptimizeNMethodBarriersALot -XX:-Inline
+ *      gc.stress.gcbasher.TestGCBasherWithShenandoah 120000
+ */
+
+
 public class TestGCBasherWithShenandoah {
     public static void main(String[] args) throws IOException {
         TestGCBasher.main(args);

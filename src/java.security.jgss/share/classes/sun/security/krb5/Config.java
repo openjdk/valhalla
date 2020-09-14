@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -154,6 +154,7 @@ public class Config {
         KdcComm.initStatic();
         EType.initStatic();
         Checksum.initStatic();
+        KrbAsReqBuilder.ReferralsState.initStatic();
     }
 
 
@@ -926,8 +927,6 @@ public class Config {
             if (name == null) {
                 name = "c:\\winnt\\krb5.ini";
             }
-        } else if (osname.startsWith("SunOS")) {
-            name =  "/etc/krb5/krb5.conf";
         } else if (osname.contains("OS X")) {
             name = findMacosConfigFile();
         } else {

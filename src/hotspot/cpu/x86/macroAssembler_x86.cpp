@@ -903,7 +903,8 @@ void MacroAssembler::print_state64(int64_t pc, int64_t regs[]) {
   PRINT_REG(rdi, regs[8]);
   PRINT_REG(rsi, regs[9]);
   PRINT_REG(rbp, regs[10]);
-  PRINT_REG(rsp, regs[11]);
+  // rsp is actually not stored by pusha(), compute the old rsp from regs (rsp after pusha): regs + 16 = old rsp
+  PRINT_REG(rsp, (intptr_t)(&regs[16]));
   PRINT_REG(r8 , regs[7]);
   PRINT_REG(r9 , regs[6]);
   PRINT_REG(r10, regs[5]);
@@ -913,8 +914,8 @@ void MacroAssembler::print_state64(int64_t pc, int64_t regs[]) {
   PRINT_REG(r14, regs[1]);
   PRINT_REG(r15, regs[0]);
 #undef PRINT_REG
-  // Print some words near top of staack.
-  int64_t* rsp = (int64_t*) regs[11];
+  // Print some words near the top of the stack.
+  int64_t* rsp = &regs[16];
   int64_t* dump_sp = rsp;
   for (int col1 = 0; col1 < 8; col1++) {
     tty->print("(rsp+0x%03x) 0x%016lx: ", (int)((intptr_t)dump_sp - (intptr_t)rsp), (intptr_t)dump_sp);
@@ -1085,14 +1086,15 @@ void MacroAssembler::reserved_stack_check() {
     bind(no_reserved_zone_enabling);
 }
 
-int MacroAssembler::biased_locking_enter(Register lock_reg,
-                                         Register obj_reg,
-                                         Register swap_reg,
-                                         Register tmp_reg,
-                                         bool swap_reg_contains_mark,
-                                         Label& done,
-                                         Label* slow_case,
-                                         BiasedLockingCounters* counters) {
+void MacroAssembler::biased_locking_enter(Register lock_reg,
+                                          Register obj_reg,
+                                          Register swap_reg,
+                                          Register tmp_reg,
+                                          Register tmp_reg2,
+                                          bool swap_reg_contains_mark,
+                                          Label& done,
+                                          Label* slow_case,
+                                          BiasedLockingCounters* counters) {
   assert(UseBiasedLocking, "why call this otherwise?");
   assert(swap_reg == rax, "swap_reg must be rax for cmpxchgq");
   assert(tmp_reg != noreg, "tmp_reg must be supplied");
@@ -1111,9 +1113,7 @@ int MacroAssembler::biased_locking_enter(Register lock_reg,
   // pointers to allow age to be placed into low bits
   // First check to see whether biasing is even enabled for this object
   Label cas_label;
-  int null_check_offset = -1;
   if (!swap_reg_contains_mark) {
-    null_check_offset = offset();
     movptr(swap_reg, mark_addr);
   }
   movptr(tmp_reg, swap_reg);
@@ -1130,10 +1130,7 @@ int MacroAssembler::biased_locking_enter(Register lock_reg,
   // simpler.
   movptr(saved_mark_addr, swap_reg);
 #endif
-  if (swap_reg_contains_mark) {
-    null_check_offset = offset();
-  }
-  load_prototype_header(tmp_reg, obj_reg);
+  load_prototype_header(tmp_reg, obj_reg, tmp_reg2);
 #ifdef _LP64
   orptr(tmp_reg, r15_thread);
   xorptr(tmp_reg, swap_reg);
@@ -1219,7 +1216,7 @@ int MacroAssembler::biased_locking_enter(Register lock_reg,
   //
   // FIXME: due to a lack of registers we currently blow away the age
   // bits in this situation. Should attempt to preserve them.
-  load_prototype_header(tmp_reg, obj_reg);
+  load_prototype_header(tmp_reg, obj_reg, tmp_reg2);
 #ifdef _LP64
   orptr(tmp_reg, r15_thread);
 #else
@@ -1254,7 +1251,7 @@ int MacroAssembler::biased_locking_enter(Register lock_reg,
   // FIXME: due to a lack of registers we currently blow away the age
   // bits in this situation. Should attempt to preserve them.
   NOT_LP64( movptr(swap_reg, saved_mark_addr); )
-  load_prototype_header(tmp_reg, obj_reg);
+  load_prototype_header(tmp_reg, obj_reg, tmp_reg2);
   lock();
   cmpxchgptr(tmp_reg, mark_addr); // compare tmp_reg and swap_reg
   // Fall through to the normal CAS-based lock, because no matter what
@@ -1266,8 +1263,6 @@ int MacroAssembler::biased_locking_enter(Register lock_reg,
   }
 
   bind(cas_label);
-
-  return null_check_offset;
 }
 
 void MacroAssembler::biased_locking_exit(Register obj_reg, Register temp_reg, Label& done) {
@@ -1516,7 +1511,7 @@ void MacroAssembler::call_VM_base(Register oop_result,
 #ifdef ASSERT
   // TraceBytecodes does not use r12 but saves it over the call, so don't verify
   // r12 is the heapbase.
-  LP64_ONLY(if ((UseCompressedOops || UseCompressedClassPointers) && !TraceBytecodes) verify_heapbase("call_VM_base: heap base corrupted?");)
+  LP64_ONLY(if (UseCompressedOops && !TraceBytecodes) verify_heapbase("call_VM_base: heap base corrupted?");)
 #endif // ASSERT
 
   assert(java_thread != oop_result  , "cannot use the same register for java_thread & oop_result");
@@ -2615,75 +2610,99 @@ void MacroAssembler::null_check(Register reg, int offset) {
   }
 }
 
-void MacroAssembler::test_klass_is_value(Register klass, Register temp_reg, Label& is_value) {
+void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type) {
   movl(temp_reg, Address(klass, Klass::access_flags_offset()));
-  testl(temp_reg, JVM_ACC_VALUE);
-  jcc(Assembler::notZero, is_value);
+  testl(temp_reg, JVM_ACC_INLINE);
+  jcc(Assembler::notZero, is_inline_type);
 }
 
-void MacroAssembler::test_klass_is_empty_value(Register klass, Register temp_reg, Label& is_empty_value) {
+void MacroAssembler::test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type) {
 #ifdef ASSERT
   {
     Label done_check;
-    test_klass_is_value(klass, temp_reg, done_check);
-    stop("test_klass_is_empty_value with none value klass");
+    test_klass_is_inline_type(klass, temp_reg, done_check);
+    stop("test_klass_is_empty_inline_type with non inline type klass");
     bind(done_check);
   }
 #endif
   movl(temp_reg, Address(klass, InstanceKlass::misc_flags_offset()));
-  testl(temp_reg, InstanceKlass::misc_flags_is_empty_value());
-  jcc(Assembler::notZero, is_empty_value);
+  testl(temp_reg, InstanceKlass::misc_flags_is_empty_inline_type());
+  jcc(Assembler::notZero, is_empty_inline_type);
 }
 
-void MacroAssembler::test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable) {
+void MacroAssembler::test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_flattenable_field_shift);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_inline_type_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_flattenable);
+  jcc(Assembler::notZero, is_inline_type);
 }
 
-void MacroAssembler::test_field_is_not_flattenable(Register flags, Register temp_reg, Label& notFlattenable) {
+void MacroAssembler::test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline_type) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_flattenable_field_shift);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_inline_type_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
-  jcc(Assembler::zero, notFlattenable);
+  jcc(Assembler::zero, not_inline_type);
 }
 
-void MacroAssembler::test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened) {
+void MacroAssembler::test_field_is_inlined(Register flags, Register temp_reg, Label& is_inlined) {
   movl(temp_reg, flags);
-  shrl(temp_reg, ConstantPoolCacheEntry::is_flattened_field_shift);
+  shrl(temp_reg, ConstantPoolCacheEntry::is_inlined_shift);
   andl(temp_reg, 0x1);
   testl(temp_reg, temp_reg);
-  jcc(Assembler::notZero, is_flattened);
+  jcc(Assembler::notZero, is_inlined);
 }
 
 void MacroAssembler::test_flattened_array_oop(Register oop, Register temp_reg,
                                               Label&is_flattened_array) {
-  load_storage_props(temp_reg, oop);
-  testb(temp_reg, ArrayStorageProperties::flattened_value);
-  jcc(Assembler::notZero, is_flattened_array);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  load_klass(temp_reg, oop, tmp_load_klass);
+  movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
+  test_flattened_array_layout(temp_reg, is_flattened_array);
 }
 
 void MacroAssembler::test_non_flattened_array_oop(Register oop, Register temp_reg,
                                                   Label&is_non_flattened_array) {
-  load_storage_props(temp_reg, oop);
-  testb(temp_reg, ArrayStorageProperties::flattened_value);
-  jcc(Assembler::zero, is_non_flattened_array);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  load_klass(temp_reg, oop, tmp_load_klass);
+  movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
+  test_non_flattened_array_layout(temp_reg, is_non_flattened_array);
 }
 
 void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array) {
-  load_storage_props(temp_reg, oop);
-  testb(temp_reg, ArrayStorageProperties::null_free_value);
-  jcc(Assembler::notZero, is_null_free_array);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  load_klass(temp_reg, oop, tmp_load_klass);
+  movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
+  test_null_free_array_layout(temp_reg, is_null_free_array);
 }
 
 void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array) {
-  load_storage_props(temp_reg, oop);
-  testb(temp_reg, ArrayStorageProperties::null_free_value);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  load_klass(temp_reg, oop, tmp_load_klass);
+  movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
+  test_non_null_free_array_layout(temp_reg, is_non_null_free_array);
+}
+
+void MacroAssembler::test_flattened_array_layout(Register lh, Label& is_flattened_array) {
+  testl(lh, Klass::_lh_array_tag_vt_value_bit_inplace);
+  jcc(Assembler::notZero, is_flattened_array);
+}
+void MacroAssembler::test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array) {
+  testl(lh, Klass::_lh_array_tag_vt_value_bit_inplace);
+  jcc(Assembler::zero, is_non_flattened_array);
+}
+
+void MacroAssembler::test_null_free_array_layout(Register lh, Label& is_null_free_array) {
+  testl(lh, Klass::_lh_null_free_bit_inplace);
+  jcc(Assembler::notZero, is_null_free_array);
+}
+
+void MacroAssembler::test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array) {
+  testl(lh, Klass::_lh_null_free_bit_inplace);
   jcc(Assembler::zero, is_non_null_free_array);
 }
+
 
 void MacroAssembler::os_breakpoint() {
   // instead of directly emitting a breakpoint, call os:breakpoint for better debugability
@@ -3498,7 +3517,8 @@ void MacroAssembler::allocate_instance(Register klass, Register new_obj,
     store_klass_gap(new_obj, rsi);  // zero klass gap for compressed oops
 #endif
     movptr(t2, klass);         // preserve klass
-    store_klass(new_obj, t2);  // src klass reg is potentially compressed
+    Register tmp_store_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+    store_klass(new_obj, t2, tmp_store_klass);  // src klass reg is potentially compressed
 
     jmp(done);
   }
@@ -3588,53 +3608,53 @@ void MacroAssembler::zero_memory(Register address, Register length_in_bytes, int
   bind(done);
 }
 
-void MacroAssembler::get_value_field_klass(Register klass, Register index, Register value_klass) {
-  movptr(value_klass, Address(klass, InstanceKlass::value_field_klasses_offset()));
+void MacroAssembler::get_inline_type_field_klass(Register klass, Register index, Register inline_klass) {
+  movptr(inline_klass, Address(klass, InstanceKlass::inline_type_field_klasses_offset()));
 #ifdef ASSERT
   {
     Label done;
-    cmpptr(value_klass, 0);
+    cmpptr(inline_klass, 0);
     jcc(Assembler::notEqual, done);
-    stop("get_value_field_klass contains no inline klasses");
+    stop("get_inline_type_field_klass contains no inline klass");
     bind(done);
   }
 #endif
-  movptr(value_klass, Address(value_klass, index, Address::times_ptr));
+  movptr(inline_klass, Address(inline_klass, index, Address::times_ptr));
 }
 
-void MacroAssembler::get_default_value_oop(Register value_klass, Register temp_reg, Register obj) {
+void MacroAssembler::get_default_value_oop(Register inline_klass, Register temp_reg, Register obj) {
 #ifdef ASSERT
   {
     Label done_check;
-    test_klass_is_value(value_klass, temp_reg, done_check);
-    stop("get_default_value_oop from non-value klass");
+    test_klass_is_inline_type(inline_klass, temp_reg, done_check);
+    stop("get_default_value_oop from non inline type klass");
     bind(done_check);
   }
 #endif
   Register offset = temp_reg;
   // Getting the offset of the pre-allocated default value
-  movptr(offset, Address(value_klass, in_bytes(InstanceKlass::adr_valueklass_fixed_block_offset())));
-  movl(offset, Address(offset, in_bytes(ValueKlass::default_value_offset_offset())));
+  movptr(offset, Address(inline_klass, in_bytes(InstanceKlass::adr_inlineklass_fixed_block_offset())));
+  movl(offset, Address(offset, in_bytes(InlineKlass::default_value_offset_offset())));
 
   // Getting the mirror
-  movptr(obj, Address(value_klass, in_bytes(Klass::java_mirror_offset())));
-  resolve_oop_handle(obj, value_klass);
+  movptr(obj, Address(inline_klass, in_bytes(Klass::java_mirror_offset())));
+  resolve_oop_handle(obj, inline_klass);
 
   // Getting the pre-allocated default value from the mirror
   Address field(obj, offset, Address::times_1);
   load_heap_oop(obj, field);
 }
 
-void MacroAssembler::get_empty_value_oop(Register value_klass, Register temp_reg, Register obj) {
+void MacroAssembler::get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj) {
 #ifdef ASSERT
   {
     Label done_check;
-    test_klass_is_empty_value(value_klass, temp_reg, done_check);
-    stop("get_empty_value from non-empty value klass");
+    test_klass_is_empty_inline_type(inline_klass, temp_reg, done_check);
+    stop("get_empty_value from non-empty inline klass");
     bind(done_check);
   }
 #endif
-  get_default_value_oop(value_klass, temp_reg, obj);
+  get_default_value_oop(inline_klass, temp_reg, obj);
 }
 
 
@@ -4582,6 +4602,12 @@ void MacroAssembler::load_method_holder_cld(Register rresult, Register rmethod) 
   movptr(rresult, Address(rresult, InstanceKlass::class_loader_data_offset()));
 }
 
+void MacroAssembler::load_method_holder(Register holder, Register method) {
+  movptr(holder, Address(method, Method::const_offset()));                      // ConstMethod*
+  movptr(holder, Address(holder, ConstMethod::constants_offset()));             // ConstantPool*
+  movptr(holder, Address(holder, ConstantPool::pool_holder_offset_in_bytes())); // InstanceKlass*
+}
+
 void MacroAssembler::load_metadata(Register dst, Register src) {
   if (UseCompressedClassPointers) {
     movl(dst, Address(src, oopDesc::klass_offset_in_bytes()));
@@ -4590,48 +4616,29 @@ void MacroAssembler::load_metadata(Register dst, Register src) {
   }
 }
 
-void MacroAssembler::load_storage_props(Register dst, Register src) {
-  load_metadata(dst, src);
-  if (UseCompressedClassPointers) {
-    shrl(dst, oopDesc::narrow_storage_props_shift);
-  } else {
-    shrq(dst, oopDesc::wide_storage_props_shift);
-  }
-}
-
-void MacroAssembler::load_method_holder(Register holder, Register method) {
-  movptr(holder, Address(method, Method::const_offset()));                      // ConstMethod*
-  movptr(holder, Address(holder, ConstMethod::constants_offset()));             // ConstantPool*
-  movptr(holder, Address(holder, ConstantPool::pool_holder_offset_in_bytes())); // InstanceKlass*
-}
-
-void MacroAssembler::load_klass(Register dst, Register src) {
-  load_metadata(dst, src);
+void MacroAssembler::load_klass(Register dst, Register src, Register tmp) {
+  assert_different_registers(src, tmp);
+  assert_different_registers(dst, tmp);
 #ifdef _LP64
   if (UseCompressedClassPointers) {
-    andl(dst, oopDesc::compressed_klass_mask());
-    decode_klass_not_null(dst);
+    movl(dst, Address(src, oopDesc::klass_offset_in_bytes()));
+    decode_klass_not_null(dst, tmp);
   } else
 #endif
-  {
-#ifdef _LP64
-    shlq(dst, oopDesc::storage_props_nof_bits);
-    shrq(dst, oopDesc::storage_props_nof_bits);
-#else
-    andl(dst, oopDesc::wide_klass_mask());
-#endif
-  }
+  movptr(dst, Address(src, oopDesc::klass_offset_in_bytes()));
 }
 
-void MacroAssembler::load_prototype_header(Register dst, Register src) {
-  load_klass(dst, src);
+void MacroAssembler::load_prototype_header(Register dst, Register src, Register tmp) {
+  load_klass(dst, src, tmp);
   movptr(dst, Address(dst, Klass::prototype_header_offset()));
 }
 
-void MacroAssembler::store_klass(Register dst, Register src) {
+void MacroAssembler::store_klass(Register dst, Register src, Register tmp) {
+  assert_different_registers(src, tmp);
+  assert_different_registers(dst, tmp);
 #ifdef _LP64
   if (UseCompressedClassPointers) {
-    encode_klass_not_null(src);
+    encode_klass_not_null(src, tmp);
     movl(Address(dst, oopDesc::klass_offset_in_bytes()), src);
   } else
 #endif
@@ -4663,20 +4670,20 @@ void MacroAssembler::access_store_at(BasicType type, DecoratorSet decorators, Ad
 }
 
 void MacroAssembler::access_value_copy(DecoratorSet decorators, Register src, Register dst,
-                                       Register value_klass) {
+                                       Register inline_klass) {
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-  bs->value_copy(this, decorators, src, dst, value_klass);
+  bs->value_copy(this, decorators, src, dst, inline_klass);
 }
 
-void MacroAssembler::first_field_offset(Register value_klass, Register offset) {
-  movptr(offset, Address(value_klass, InstanceKlass::adr_valueklass_fixed_block_offset()));
-  movl(offset, Address(offset, ValueKlass::first_field_offset_offset()));
+void MacroAssembler::first_field_offset(Register inline_klass, Register offset) {
+  movptr(offset, Address(inline_klass, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+  movl(offset, Address(offset, InlineKlass::first_field_offset_offset()));
 }
 
-void MacroAssembler::data_for_oop(Register oop, Register data, Register value_klass) {
+void MacroAssembler::data_for_oop(Register oop, Register data, Register inline_klass) {
   // ((address) (void*) o) + vk->first_field_offset();
   Register offset = (data == oop) ? rscratch1 : data;
-  first_field_offset(value_klass, offset);
+  first_field_offset(inline_klass, offset);
   if (data == oop) {
     addptr(data, offset);
   } else {
@@ -4699,7 +4706,7 @@ void MacroAssembler::data_for_value_array_index(Register array, Register array_k
   andl(rcx, Klass::_lh_log2_element_size_mask);
   shlptr(index); // index << rcx
 
-  lea(data, Address(array, index, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_VALUETYPE)));
+  lea(data, Address(array, index, Address::times_1, arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE)));
 }
 
 void MacroAssembler::resolve(DecoratorSet decorators, Register obj) {
@@ -4885,61 +4892,38 @@ void  MacroAssembler::decode_heap_oop_not_null(Register dst, Register src) {
   }
 }
 
-void MacroAssembler::encode_klass_not_null(Register r) {
+void MacroAssembler::encode_klass_not_null(Register r, Register tmp) {
+  assert_different_registers(r, tmp);
   if (CompressedKlassPointers::base() != NULL) {
-    // Use r12 as a scratch register in which to temporarily load the narrow_klass_base.
-    assert(r != r12_heapbase, "Encoding a klass in r12");
-    mov64(r12_heapbase, (int64_t)CompressedKlassPointers::base());
-    subq(r, r12_heapbase);
+    mov64(tmp, (int64_t)CompressedKlassPointers::base());
+    subq(r, tmp);
   }
   if (CompressedKlassPointers::shift() != 0) {
     assert (LogKlassAlignmentInBytes == CompressedKlassPointers::shift(), "decode alg wrong");
     shrq(r, LogKlassAlignmentInBytes);
   }
-  if (CompressedKlassPointers::base() != NULL) {
-    reinit_heapbase();
-  }
 }
 
-void MacroAssembler::encode_klass_not_null(Register dst, Register src) {
-  if (dst == src) {
-    encode_klass_not_null(src);
-  } else {
-    if (CompressedKlassPointers::base() != NULL) {
-      mov64(dst, (int64_t)CompressedKlassPointers::base());
-      negq(dst);
-      addq(dst, src);
-    } else {
-      movptr(dst, src);
-    }
-    if (CompressedKlassPointers::shift() != 0) {
-      assert (LogKlassAlignmentInBytes == CompressedKlassPointers::shift(), "decode alg wrong");
-      shrq(dst, LogKlassAlignmentInBytes);
-    }
-  }
-}
-
-// Function instr_size_for_decode_klass_not_null() counts the instructions
-// generated by decode_klass_not_null(register r) and reinit_heapbase(),
-// when (Universe::heap() != NULL).  Hence, if the instructions they
-// generate change, then this method needs to be updated.
-int MacroAssembler::instr_size_for_decode_klass_not_null() {
-  assert (UseCompressedClassPointers, "only for compressed klass ptrs");
+void MacroAssembler::encode_and_move_klass_not_null(Register dst, Register src) {
+  assert_different_registers(src, dst);
   if (CompressedKlassPointers::base() != NULL) {
-    // mov64 + addq + shlq? + mov64  (for reinit_heapbase()).
-    return (CompressedKlassPointers::shift() == 0 ? 20 : 24);
+    mov64(dst, -(int64_t)CompressedKlassPointers::base());
+    addq(dst, src);
   } else {
-    // longest load decode klass function, mov64, leaq
-    return 16;
+    movptr(dst, src);
+  }
+  if (CompressedKlassPointers::shift() != 0) {
+    assert (LogKlassAlignmentInBytes == CompressedKlassPointers::shift(), "decode alg wrong");
+    shrq(dst, LogKlassAlignmentInBytes);
   }
 }
 
 // !!! If the instructions that get generated here change then function
 // instr_size_for_decode_klass_not_null() needs to get updated.
-void  MacroAssembler::decode_klass_not_null(Register r) {
+void  MacroAssembler::decode_klass_not_null(Register r, Register tmp) {
+  assert_different_registers(r, tmp);
   // Note: it will change flags
-  assert (UseCompressedClassPointers, "should only be used for compressed headers");
-  assert(r != r12_heapbase, "Decoding a klass in r12");
+  assert(UseCompressedClassPointers, "should only be used for compressed headers");
   // Cannot assert, unverified entry point counts instructions (see .ad file)
   // vtableStubs also counts instructions in pd_code_size_limit.
   // Also do not verify_oop as this is called by verify_oop.
@@ -4947,24 +4931,31 @@ void  MacroAssembler::decode_klass_not_null(Register r) {
     assert(LogKlassAlignmentInBytes == CompressedKlassPointers::shift(), "decode alg wrong");
     shlq(r, LogKlassAlignmentInBytes);
   }
-  // Use r12 as a scratch register in which to temporarily load the narrow_klass_base.
   if (CompressedKlassPointers::base() != NULL) {
-    mov64(r12_heapbase, (int64_t)CompressedKlassPointers::base());
-    addq(r, r12_heapbase);
-    reinit_heapbase();
+    mov64(tmp, (int64_t)CompressedKlassPointers::base());
+    addq(r, tmp);
   }
 }
 
-void  MacroAssembler::decode_klass_not_null(Register dst, Register src) {
+void  MacroAssembler::decode_and_move_klass_not_null(Register dst, Register src) {
+  assert_different_registers(src, dst);
   // Note: it will change flags
   assert (UseCompressedClassPointers, "should only be used for compressed headers");
-  if (dst == src) {
-    decode_klass_not_null(dst);
+  // Cannot assert, unverified entry point counts instructions (see .ad file)
+  // vtableStubs also counts instructions in pd_code_size_limit.
+  // Also do not verify_oop as this is called by verify_oop.
+
+  if (CompressedKlassPointers::base() == NULL &&
+      CompressedKlassPointers::shift() == 0) {
+    // The best case scenario is that there is no base or shift. Then it is already
+    // a pointer that needs nothing but a register rename.
+    movl(dst, src);
   } else {
-    // Cannot assert, unverified entry point counts instructions (see .ad file)
-    // vtableStubs also counts instructions in pd_code_size_limit.
-    // Also do not verify_oop as this is called by verify_oop.
-    mov64(dst, (int64_t)CompressedKlassPointers::base());
+    if (CompressedKlassPointers::base() != NULL) {
+      mov64(dst, (int64_t)CompressedKlassPointers::base());
+    } else {
+      xorq(dst, dst);
+    }
     if (CompressedKlassPointers::shift() != 0) {
       assert(LogKlassAlignmentInBytes == CompressedKlassPointers::shift(), "decode alg wrong");
       assert(LogKlassAlignmentInBytes == Address::times_8, "klass not aligned on 64bits?");
@@ -5044,7 +5035,7 @@ void  MacroAssembler::cmp_narrow_klass(Address dst, Klass* k) {
 }
 
 void MacroAssembler::reinit_heapbase() {
-  if (UseCompressedOops || UseCompressedClassPointers) {
+  if (UseCompressedOops) {
     if (Universe::heap() != NULL) {
       if (CompressedOops::base() == NULL) {
         MacroAssembler::xorptr(r12_heapbase, r12_heapbase);
@@ -5207,12 +5198,12 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XM
   BIND(L_end);
 }
 
-int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_interpreter) {
-  // A value type might be returned. If fields are in registers we
-  // need to allocate a value type instance and initialize it with
+int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter) {
+  // An inline type might be returned. If fields are in registers we
+  // need to allocate an inline type instance and initialize it with
   // the value of the fields.
   Label skip;
-  // We only need a new buffered value if a new one is not returned
+  // We only need a new buffered inline type if a new one is not returned
   testptr(rax, 1);
   jcc(Assembler::zero, skip);
   int call_offset = -1;
@@ -5220,17 +5211,17 @@ int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_i
 #ifdef _LP64
   Label slow_case;
 
-  // Try to allocate a new buffered value (from the heap)
+  // Try to allocate a new buffered inline type (from the heap)
   if (UseTLAB) {
     // FIXME -- for smaller code, the inline allocation (and the slow case) should be moved inside the pack handler.
     if (vk != NULL) {
       // Called from C1, where the return type is statically known.
-      movptr(rbx, (intptr_t)vk->get_ValueKlass());
+      movptr(rbx, (intptr_t)vk->get_InlineKlass());
       jint lh = vk->layout_helper();
       assert(lh != Klass::_lh_neutral_value, "inline class in return type must have been resolved");
       movl(r14, lh);
     } else {
-      // Call from interpreter. RAX contains ((the ValueKlass* of the return type) | 0x01)
+      // Call from interpreter. RAX contains ((the InlineKlass* of the return type) | 0x01)
       mov(rbx, rax);
       andptr(rbx, -2);
       movl(r14, Address(rbx, Klass::layout_helper_offset()));
@@ -5250,17 +5241,17 @@ int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_i
       // store_klass corrupts rbx, so save it in rax for later use (interpreter case only).
       mov(rax, rbx);
     }
-    store_klass(r13, rbx);  // klass
+    Register tmp_store_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+    store_klass(r13, rbx, tmp_store_klass);  // klass
 
-    // We have our new buffered value, initialize its fields with a
-    // value class specific handler
+    // We have our new buffered inline type, initialize its fields with an inline class specific handler
     if (vk != NULL) {
       // FIXME -- do the packing in-line to avoid the runtime call
       mov(rax, r13);
       call(RuntimeAddress(vk->pack_handler())); // no need for call info as this will not safepoint.
     } else {
-      movptr(rbx, Address(rax, InstanceKlass::adr_valueklass_fixed_block_offset()));
-      movptr(rbx, Address(rbx, ValueKlass::pack_handler_offset()));
+      movptr(rbx, Address(rax, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      movptr(rbx, Address(rbx, InlineKlass::pack_handler_offset()));
       mov(rax, r13);
       call(rbx);
     }
@@ -5268,16 +5259,16 @@ int MacroAssembler::store_value_type_fields_to_buf(ciValueKlass* vk, bool from_i
   }
 
   bind(slow_case);
-  // We failed to allocate a new value, fall back to a runtime
+  // We failed to allocate a new inline type, fall back to a runtime
   // call. Some oop field may be live in some registers but we can't
   // tell. That runtime call will take care of preserving them
   // across a GC if there's one.
 #endif
 
   if (from_interpreter) {
-    super_call_VM_leaf(StubRoutines::store_value_type_fields_to_buf());
+    super_call_VM_leaf(StubRoutines::store_inline_type_fields_to_buf());
   } else {
-    call(RuntimeAddress(StubRoutines::store_value_type_fields_to_buf()));
+    call(RuntimeAddress(StubRoutines::store_inline_type_fields_to_buf()));
     call_offset = offset();
   }
 
@@ -5349,9 +5340,9 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
   return true;
 }
 
-// Read all fields from a value type oop and store the values in registers/stack slots
-bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to,
-                                         int& to_index, RegState reg_state[], int ret_off, int extra_stack_offset) {
+// Read all fields from an inline type oop and store the values in registers/stack slots
+bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to,
+                                          int& to_index, RegState reg_state[], int ret_off, int extra_stack_offset) {
   Register fromReg = from->is_reg() ? from->as_Register() : noreg;
   assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
 
@@ -5361,7 +5352,7 @@ bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int
   do {
     sig_index--;
     BasicType bt = sig->at(sig_index)._bt;
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       vt--;
     } else if (bt == T_VOID &&
                sig->at(sig_index-1)._bt != T_LONG &&
@@ -5431,11 +5422,11 @@ bool MacroAssembler::unpack_value_helper(const GrowableArray<SigEntry>* sig, int
   return done;
 }
 
-// Pack fields back into a value type oop
-bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                                       VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
-                                       int ret_off, int extra_stack_offset) {
-  assert(sig->at(sig_index)._bt == T_VALUETYPE, "should be at end delimiter");
+// Pack fields back into an inline type oop
+bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
+                                        VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
+                                        int ret_off, int extra_stack_offset) {
+  assert(sig->at(sig_index)._bt == T_INLINE_TYPE, "should be at end delimiter");
   assert(to->is_valid(), "must be");
 
   if (reg_state[to->value()] == reg_written) {
@@ -5459,7 +5450,7 @@ bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& 
     val_obj = val_obj_tmp;
   }
 
-  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_VALUETYPE);
+  int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_INLINE_TYPE);
   load_heap_oop(val_obj, Address(val_array, index));
 
   ScalarizedValueArgsStream stream(sig, sig_index, regs_from, regs_from_count, from_index);
@@ -5510,17 +5501,17 @@ bool MacroAssembler::pack_value_helper(const GrowableArray<SigEntry>* sig, int& 
   return true;
 }
 
-// Unpack all value type arguments passed as oops
-void MacroAssembler::unpack_value_args(Compile* C, bool receiver_only) {
-  int sp_inc = unpack_value_args_common(C, receiver_only);
+// Unpack all inline type arguments passed as oops
+void MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
+  int sp_inc = unpack_inline_args_common(C, receiver_only);
   // Emit code for verified entry and save increment for stack repair on return
   verified_entry(C, sp_inc);
 }
 
-void MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
-                                        BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                                        int args_passed, int args_on_stack, VMRegPair* regs,
-                                        int args_passed_to, int args_on_stack_to, VMRegPair* regs_to, int sp_inc) {
+void MacroAssembler::shuffle_inline_args(bool is_packing, bool receiver_only, int extra_stack_offset,
+                                         BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
+                                         int args_passed, int args_on_stack, VMRegPair* regs,
+                                         int args_passed_to, int args_on_stack_to, VMRegPair* regs_to, int sp_inc) {
   // Check if we need to extend the stack for packing/unpacking
   if (sp_inc > 0 && !is_packing) {
     // Save the return address, adjust the stack (make sure it is properly
@@ -5533,7 +5524,7 @@ void MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int
 
   int ret_off; // make sure we don't overwrite the return address
   if (is_packing) {
-    // For C1 code, the VVEP doesn't have reserved slots, so we store the returned address at
+    // For C1 code, the VIEP doesn't have reserved slots, so we store the returned address at
     // rsp[0] during shuffling.
     ret_off = 0;
   } else {
@@ -5541,11 +5532,11 @@ void MacroAssembler::shuffle_value_args(bool is_packing, bool receiver_only, int
     ret_off = sp_inc;
   }
 
-  shuffle_value_args_common(is_packing, receiver_only, extra_stack_offset,
-                            sig_bt, sig_cc,
-                            args_passed, args_on_stack, regs,
-                            args_passed_to, args_on_stack_to, regs_to,
-                            sp_inc, ret_off);
+  shuffle_inline_args_common(is_packing, receiver_only, extra_stack_offset,
+                             sig_bt, sig_cc,
+                             args_passed, args_on_stack, regs,
+                             args_passed_to, args_on_stack_to, regs_to,
+                             sp_inc, ret_off);
 }
 
 VMReg MacroAssembler::spill_reg_for(VMReg reg) {
@@ -7180,16 +7171,6 @@ void MacroAssembler::update_byte_crc32(Register crc, Register val, Register tabl
 }
 
 /**
-* Fold four 128-bit data chunks
-*/
-void MacroAssembler::fold_128bit_crc32_avx512(XMMRegister xcrc, XMMRegister xK, XMMRegister xtmp, Register buf, int offset) {
-  evpclmulhdq(xtmp, xK, xcrc, Assembler::AVX_512bit); // [123:64]
-  evpclmulldq(xcrc, xK, xcrc, Assembler::AVX_512bit); // [63:0]
-  evpxorq(xcrc, xcrc, Address(buf, offset), Assembler::AVX_512bit /* vector_len */);
-  evpxorq(xcrc, xcrc, xtmp, Assembler::AVX_512bit /* vector_len */);
-}
-
-/**
  * Fold 128-bit data chunk
  */
 void MacroAssembler::fold_128bit_crc32(XMMRegister xcrc, XMMRegister xK, XMMRegister xtmp, Register buf, int offset) {
@@ -7392,6 +7373,372 @@ void MacroAssembler::kernel_crc32(Register crc, Register buf, Register len, Regi
 }
 
 #ifdef _LP64
+// Helper function for AVX 512 CRC32
+// Fold 512-bit data chunks
+void MacroAssembler::fold512bit_crc32_avx512(XMMRegister xcrc, XMMRegister xK, XMMRegister xtmp, Register buf,
+                                             Register pos, int offset) {
+  evmovdquq(xmm3, Address(buf, pos, Address::times_1, offset), Assembler::AVX_512bit);
+  evpclmulqdq(xtmp, xcrc, xK, 0x10, Assembler::AVX_512bit); // [123:64]
+  evpclmulqdq(xmm2, xcrc, xK, 0x01, Assembler::AVX_512bit); // [63:0]
+  evpxorq(xcrc, xtmp, xmm2, Assembler::AVX_512bit /* vector_len */);
+  evpxorq(xcrc, xcrc, xmm3, Assembler::AVX_512bit /* vector_len */);
+}
+
+// Helper function for AVX 512 CRC32
+// Compute CRC32 for < 256B buffers
+void MacroAssembler::kernel_crc32_avx512_256B(Register crc, Register buf, Register len, Register key, Register pos,
+                                              Register tmp1, Register tmp2, Label& L_barrett, Label& L_16B_reduction_loop,
+                                              Label& L_get_last_two_xmms, Label& L_128_done, Label& L_cleanup) {
+
+  Label L_less_than_32, L_exact_16_left, L_less_than_16_left;
+  Label L_less_than_8_left, L_less_than_4_left, L_less_than_2_left, L_zero_left;
+  Label L_only_less_than_4, L_only_less_than_3, L_only_less_than_2;
+
+  // check if there is enough buffer to be able to fold 16B at a time
+  cmpl(len, 32);
+  jcc(Assembler::less, L_less_than_32);
+
+  // if there is, load the constants
+  movdqu(xmm10, Address(key, 1 * 16));    //rk1 and rk2 in xmm10
+  movdl(xmm0, crc);                        // get the initial crc value
+  movdqu(xmm7, Address(buf, pos, Address::times_1, 0 * 16)); //load the plaintext
+  pxor(xmm7, xmm0);
+
+  // update the buffer pointer
+  addl(pos, 16);
+  //update the counter.subtract 32 instead of 16 to save one instruction from the loop
+  subl(len, 32);
+  jmp(L_16B_reduction_loop);
+
+  bind(L_less_than_32);
+  //mov initial crc to the return value. this is necessary for zero - length buffers.
+  movl(rax, crc);
+  testl(len, len);
+  jcc(Assembler::equal, L_cleanup);
+
+  movdl(xmm0, crc);                        //get the initial crc value
+
+  cmpl(len, 16);
+  jcc(Assembler::equal, L_exact_16_left);
+  jcc(Assembler::less, L_less_than_16_left);
+
+  movdqu(xmm7, Address(buf, pos, Address::times_1, 0 * 16)); //load the plaintext
+  pxor(xmm7, xmm0);                       //xor the initial crc value
+  addl(pos, 16);
+  subl(len, 16);
+  movdqu(xmm10, Address(key, 1 * 16));    // rk1 and rk2 in xmm10
+  jmp(L_get_last_two_xmms);
+
+  bind(L_less_than_16_left);
+  //use stack space to load data less than 16 bytes, zero - out the 16B in memory first.
+  pxor(xmm1, xmm1);
+  movptr(tmp1, rsp);
+  movdqu(Address(tmp1, 0 * 16), xmm1);
+
+  cmpl(len, 4);
+  jcc(Assembler::less, L_only_less_than_4);
+
+  //backup the counter value
+  movl(tmp2, len);
+  cmpl(len, 8);
+  jcc(Assembler::less, L_less_than_8_left);
+
+  //load 8 Bytes
+  movq(rax, Address(buf, pos, Address::times_1, 0 * 16));
+  movq(Address(tmp1, 0 * 16), rax);
+  addptr(tmp1, 8);
+  subl(len, 8);
+  addl(pos, 8);
+
+  bind(L_less_than_8_left);
+  cmpl(len, 4);
+  jcc(Assembler::less, L_less_than_4_left);
+
+  //load 4 Bytes
+  movl(rax, Address(buf, pos, Address::times_1, 0));
+  movl(Address(tmp1, 0 * 16), rax);
+  addptr(tmp1, 4);
+  subl(len, 4);
+  addl(pos, 4);
+
+  bind(L_less_than_4_left);
+  cmpl(len, 2);
+  jcc(Assembler::less, L_less_than_2_left);
+
+  // load 2 Bytes
+  movw(rax, Address(buf, pos, Address::times_1, 0));
+  movl(Address(tmp1, 0 * 16), rax);
+  addptr(tmp1, 2);
+  subl(len, 2);
+  addl(pos, 2);
+
+  bind(L_less_than_2_left);
+  cmpl(len, 1);
+  jcc(Assembler::less, L_zero_left);
+
+  // load 1 Byte
+  movb(rax, Address(buf, pos, Address::times_1, 0));
+  movb(Address(tmp1, 0 * 16), rax);
+
+  bind(L_zero_left);
+  movdqu(xmm7, Address(rsp, 0));
+  pxor(xmm7, xmm0);                       //xor the initial crc value
+
+  lea(rax, ExternalAddress(StubRoutines::x86::shuf_table_crc32_avx512_addr()));
+  movdqu(xmm0, Address(rax, tmp2));
+  pshufb(xmm7, xmm0);
+  jmp(L_128_done);
+
+  bind(L_exact_16_left);
+  movdqu(xmm7, Address(buf, pos, Address::times_1, 0));
+  pxor(xmm7, xmm0);                       //xor the initial crc value
+  jmp(L_128_done);
+
+  bind(L_only_less_than_4);
+  cmpl(len, 3);
+  jcc(Assembler::less, L_only_less_than_3);
+
+  // load 3 Bytes
+  movb(rax, Address(buf, pos, Address::times_1, 0));
+  movb(Address(tmp1, 0), rax);
+
+  movb(rax, Address(buf, pos, Address::times_1, 1));
+  movb(Address(tmp1, 1), rax);
+
+  movb(rax, Address(buf, pos, Address::times_1, 2));
+  movb(Address(tmp1, 2), rax);
+
+  movdqu(xmm7, Address(rsp, 0));
+  pxor(xmm7, xmm0);                     //xor the initial crc value
+
+  pslldq(xmm7, 0x5);
+  jmp(L_barrett);
+  bind(L_only_less_than_3);
+  cmpl(len, 2);
+  jcc(Assembler::less, L_only_less_than_2);
+
+  // load 2 Bytes
+  movb(rax, Address(buf, pos, Address::times_1, 0));
+  movb(Address(tmp1, 0), rax);
+
+  movb(rax, Address(buf, pos, Address::times_1, 1));
+  movb(Address(tmp1, 1), rax);
+
+  movdqu(xmm7, Address(rsp, 0));
+  pxor(xmm7, xmm0);                     //xor the initial crc value
+
+  pslldq(xmm7, 0x6);
+  jmp(L_barrett);
+
+  bind(L_only_less_than_2);
+  //load 1 Byte
+  movb(rax, Address(buf, pos, Address::times_1, 0));
+  movb(Address(tmp1, 0), rax);
+
+  movdqu(xmm7, Address(rsp, 0));
+  pxor(xmm7, xmm0);                     //xor the initial crc value
+
+  pslldq(xmm7, 0x7);
+}
+
+/**
+* Compute CRC32 using AVX512 instructions
+* param crc   register containing existing CRC (32-bit)
+* param buf   register pointing to input byte buffer (byte*)
+* param len   register containing number of bytes
+* param tmp1  scratch register
+* param tmp2  scratch register
+* return rax  result register
+*/
+void MacroAssembler::kernel_crc32_avx512(Register crc, Register buf, Register len, Register key, Register tmp1, Register tmp2) {
+  assert_different_registers(crc, buf, len, key, tmp1, tmp2, rax);
+
+  Label L_tail, L_tail_restore, L_tail_loop, L_exit, L_align_loop, L_aligned;
+  Label L_fold_tail, L_fold_128b, L_fold_512b, L_fold_512b_loop, L_fold_tail_loop;
+  Label L_less_than_256, L_fold_128_B_loop, L_fold_256_B_loop;
+  Label L_fold_128_B_register, L_final_reduction_for_128, L_16B_reduction_loop;
+  Label L_128_done, L_get_last_two_xmms, L_barrett, L_cleanup;
+
+  const Register pos = r12;
+  push(r12);
+  subptr(rsp, 16 * 2 + 8);
+
+  // For EVEX with VL and BW, provide a standard mask, VL = 128 will guide the merge
+  // context for the registers used, where all instructions below are using 128-bit mode
+  // On EVEX without VL and BW, these instructions will all be AVX.
+  lea(key, ExternalAddress(StubRoutines::x86::crc_table_avx512_addr()));
+  notl(crc);
+  movl(pos, 0);
+
+  // check if smaller than 256B
+  cmpl(len, 256);
+  jcc(Assembler::less, L_less_than_256);
+
+  // load the initial crc value
+  movdl(xmm10, crc);
+
+  // receive the initial 64B data, xor the initial crc value
+  evmovdquq(xmm0, Address(buf, pos, Address::times_1, 0 * 64), Assembler::AVX_512bit);
+  evmovdquq(xmm4, Address(buf, pos, Address::times_1, 1 * 64), Assembler::AVX_512bit);
+  evpxorq(xmm0, xmm0, xmm10, Assembler::AVX_512bit);
+  evbroadcasti32x4(xmm10, Address(key, 2 * 16), Assembler::AVX_512bit); //zmm10 has rk3 and rk4
+
+  subl(len, 256);
+  cmpl(len, 256);
+  jcc(Assembler::less, L_fold_128_B_loop);
+
+  evmovdquq(xmm7, Address(buf, pos, Address::times_1, 2 * 64), Assembler::AVX_512bit);
+  evmovdquq(xmm8, Address(buf, pos, Address::times_1, 3 * 64), Assembler::AVX_512bit);
+  evbroadcasti32x4(xmm16, Address(key, 0 * 16), Assembler::AVX_512bit); //zmm16 has rk-1 and rk-2
+  subl(len, 256);
+
+  bind(L_fold_256_B_loop);
+  addl(pos, 256);
+  fold512bit_crc32_avx512(xmm0, xmm16, xmm1, buf, pos, 0 * 64);
+  fold512bit_crc32_avx512(xmm4, xmm16, xmm1, buf, pos, 1 * 64);
+  fold512bit_crc32_avx512(xmm7, xmm16, xmm1, buf, pos, 2 * 64);
+  fold512bit_crc32_avx512(xmm8, xmm16, xmm1, buf, pos, 3 * 64);
+
+  subl(len, 256);
+  jcc(Assembler::greaterEqual, L_fold_256_B_loop);
+
+  // Fold 256 into 128
+  addl(pos, 256);
+  evpclmulqdq(xmm1, xmm0, xmm10, 0x01, Assembler::AVX_512bit);
+  evpclmulqdq(xmm2, xmm0, xmm10, 0x10, Assembler::AVX_512bit);
+  vpternlogq(xmm7, 0x96, xmm1, xmm2, Assembler::AVX_512bit); // xor ABC
+
+  evpclmulqdq(xmm5, xmm4, xmm10, 0x01, Assembler::AVX_512bit);
+  evpclmulqdq(xmm6, xmm4, xmm10, 0x10, Assembler::AVX_512bit);
+  vpternlogq(xmm8, 0x96, xmm5, xmm6, Assembler::AVX_512bit); // xor ABC
+
+  evmovdquq(xmm0, xmm7, Assembler::AVX_512bit);
+  evmovdquq(xmm4, xmm8, Assembler::AVX_512bit);
+
+  addl(len, 128);
+  jmp(L_fold_128_B_register);
+
+  // at this section of the code, there is 128 * x + y(0 <= y<128) bytes of buffer.The fold_128_B_loop
+  // loop will fold 128B at a time until we have 128 + y Bytes of buffer
+
+  // fold 128B at a time.This section of the code folds 8 xmm registers in parallel
+  bind(L_fold_128_B_loop);
+  addl(pos, 128);
+  fold512bit_crc32_avx512(xmm0, xmm10, xmm1, buf, pos, 0 * 64);
+  fold512bit_crc32_avx512(xmm4, xmm10, xmm1, buf, pos, 1 * 64);
+
+  subl(len, 128);
+  jcc(Assembler::greaterEqual, L_fold_128_B_loop);
+
+  addl(pos, 128);
+
+  // at this point, the buffer pointer is pointing at the last y Bytes of the buffer, where 0 <= y < 128
+  // the 128B of folded data is in 8 of the xmm registers : xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7
+  bind(L_fold_128_B_register);
+  evmovdquq(xmm16, Address(key, 5 * 16), Assembler::AVX_512bit); // multiply by rk9-rk16
+  evmovdquq(xmm11, Address(key, 9 * 16), Assembler::AVX_512bit); // multiply by rk17-rk20, rk1,rk2, 0,0
+  evpclmulqdq(xmm1, xmm0, xmm16, 0x01, Assembler::AVX_512bit);
+  evpclmulqdq(xmm2, xmm0, xmm16, 0x10, Assembler::AVX_512bit);
+  // save last that has no multiplicand
+  vextracti64x2(xmm7, xmm4, 3);
+
+  evpclmulqdq(xmm5, xmm4, xmm11, 0x01, Assembler::AVX_512bit);
+  evpclmulqdq(xmm6, xmm4, xmm11, 0x10, Assembler::AVX_512bit);
+  // Needed later in reduction loop
+  movdqu(xmm10, Address(key, 1 * 16));
+  vpternlogq(xmm1, 0x96, xmm2, xmm5, Assembler::AVX_512bit); // xor ABC
+  vpternlogq(xmm1, 0x96, xmm6, xmm7, Assembler::AVX_512bit); // xor ABC
+
+  // Swap 1,0,3,2 - 01 00 11 10
+  evshufi64x2(xmm8, xmm1, xmm1, 0x4e, Assembler::AVX_512bit);
+  evpxorq(xmm8, xmm8, xmm1, Assembler::AVX_256bit);
+  vextracti128(xmm5, xmm8, 1);
+  evpxorq(xmm7, xmm5, xmm8, Assembler::AVX_128bit);
+
+  // instead of 128, we add 128 - 16 to the loop counter to save 1 instruction from the loop
+  // instead of a cmp instruction, we use the negative flag with the jl instruction
+  addl(len, 128 - 16);
+  jcc(Assembler::less, L_final_reduction_for_128);
+
+  bind(L_16B_reduction_loop);
+  vpclmulqdq(xmm8, xmm7, xmm10, 0x1);
+  vpclmulqdq(xmm7, xmm7, xmm10, 0x10);
+  vpxor(xmm7, xmm7, xmm8, Assembler::AVX_128bit);
+  movdqu(xmm0, Address(buf, pos, Address::times_1, 0 * 16));
+  vpxor(xmm7, xmm7, xmm0, Assembler::AVX_128bit);
+  addl(pos, 16);
+  subl(len, 16);
+  jcc(Assembler::greaterEqual, L_16B_reduction_loop);
+
+  bind(L_final_reduction_for_128);
+  addl(len, 16);
+  jcc(Assembler::equal, L_128_done);
+
+  bind(L_get_last_two_xmms);
+  movdqu(xmm2, xmm7);
+  addl(pos, len);
+  movdqu(xmm1, Address(buf, pos, Address::times_1, -16));
+  subl(pos, len);
+
+  // get rid of the extra data that was loaded before
+  // load the shift constant
+  lea(rax, ExternalAddress(StubRoutines::x86::shuf_table_crc32_avx512_addr()));
+  movdqu(xmm0, Address(rax, len));
+  addl(rax, len);
+
+  vpshufb(xmm7, xmm7, xmm0, Assembler::AVX_128bit);
+  //Change mask to 512
+  vpxor(xmm0, xmm0, ExternalAddress(StubRoutines::x86::crc_by128_masks_avx512_addr() + 2 * 16), Assembler::AVX_128bit, tmp2);
+  vpshufb(xmm2, xmm2, xmm0, Assembler::AVX_128bit);
+
+  blendvpb(xmm2, xmm2, xmm1, xmm0, Assembler::AVX_128bit);
+  vpclmulqdq(xmm8, xmm7, xmm10, 0x1);
+  vpclmulqdq(xmm7, xmm7, xmm10, 0x10);
+  vpxor(xmm7, xmm7, xmm8, Assembler::AVX_128bit);
+  vpxor(xmm7, xmm7, xmm2, Assembler::AVX_128bit);
+
+  bind(L_128_done);
+  // compute crc of a 128-bit value
+  movdqu(xmm10, Address(key, 3 * 16));
+  movdqu(xmm0, xmm7);
+
+  // 64b fold
+  vpclmulqdq(xmm7, xmm7, xmm10, 0x0);
+  vpsrldq(xmm0, xmm0, 0x8, Assembler::AVX_128bit);
+  vpxor(xmm7, xmm7, xmm0, Assembler::AVX_128bit);
+
+  // 32b fold
+  movdqu(xmm0, xmm7);
+  vpslldq(xmm7, xmm7, 0x4, Assembler::AVX_128bit);
+  vpclmulqdq(xmm7, xmm7, xmm10, 0x10);
+  vpxor(xmm7, xmm7, xmm0, Assembler::AVX_128bit);
+  jmp(L_barrett);
+
+  bind(L_less_than_256);
+  kernel_crc32_avx512_256B(crc, buf, len, key, pos, tmp1, tmp2, L_barrett, L_16B_reduction_loop, L_get_last_two_xmms, L_128_done, L_cleanup);
+
+  //barrett reduction
+  bind(L_barrett);
+  vpand(xmm7, xmm7, ExternalAddress(StubRoutines::x86::crc_by128_masks_avx512_addr() + 1 * 16), Assembler::AVX_128bit, tmp2);
+  movdqu(xmm1, xmm7);
+  movdqu(xmm2, xmm7);
+  movdqu(xmm10, Address(key, 4 * 16));
+
+  pclmulqdq(xmm7, xmm10, 0x0);
+  pxor(xmm7, xmm2);
+  vpand(xmm7, xmm7, ExternalAddress(StubRoutines::x86::crc_by128_masks_avx512_addr()), Assembler::AVX_128bit, tmp2);
+  movdqu(xmm2, xmm7);
+  pclmulqdq(xmm7, xmm10, 0x10);
+  pxor(xmm7, xmm2);
+  pxor(xmm7, xmm1);
+  pextrd(crc, xmm7, 2);
+
+  bind(L_cleanup);
+  notl(crc); // ~c
+  addptr(rsp, 16 * 2 + 8);
+  pop(r12);
+}
+
 // S. Gueron / Information Processing Letters 112 (2012) 184
 // Algorithm 4: Computing carry-less multiplication using a precomputed lookup table.
 // Input: A 32 bit value B = [byte3, byte2, byte1, byte0].

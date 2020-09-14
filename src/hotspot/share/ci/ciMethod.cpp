@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -826,7 +826,8 @@ ciMethod* ciMethod::resolve_invoke(ciKlass* caller, ciKlass* exact_receiver, boo
    Symbol* h_signature = signature()->get_symbol();
 
    LinkInfo link_info(resolved, h_name, h_signature, caller_klass,
-                      check_access ? LinkInfo::needs_access_check : LinkInfo::skip_access_check);
+                      check_access ? LinkInfo::AccessCheck::required : LinkInfo::AccessCheck::skip,
+                      check_access ? LinkInfo::LoaderConstraintCheck::required : LinkInfo::LoaderConstraintCheck::skip);
    Method* m = NULL;
    // Only do exact lookup if receiver klass has been linked.  Otherwise,
    // the vtable has not been setup, and the LinkResolver will fail.
@@ -1487,7 +1488,7 @@ void ciMethod::print_impl(outputStream* st) {
 static BasicType erase_to_word_type(BasicType bt) {
   if (is_subword_type(bt))   return T_INT;
   if (is_reference_type(bt)) return T_OBJECT;
-  if (bt == T_VALUETYPE)   return T_OBJECT;
+  if (bt == T_INLINE_TYPE)   return T_OBJECT;
   return bt;
 }
 

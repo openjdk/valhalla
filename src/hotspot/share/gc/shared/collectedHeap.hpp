@@ -29,6 +29,8 @@
 #include "gc/shared/gcWhen.hpp"
 #include "gc/shared/verifyOption.hpp"
 #include "memory/allocation.hpp"
+#include "memory/heapInspection.hpp"
+#include "memory/universe.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/perfData.hpp"
 #include "runtime/safepoint.hpp"
@@ -43,6 +45,7 @@
 // class defines the functions that a heap must implement, and contains
 // infrastructure common to all heaps.
 
+class AbstractGangTask;
 class AdaptiveSizePolicy;
 class BarrierSet;
 class GCHeapSummary;
@@ -84,6 +87,11 @@ class GCHeapLog : public EventLogBase<GCMessage> {
   }
 };
 
+class ParallelObjectIterator : public CHeapObj<mtGC> {
+public:
+  virtual void object_iterate(ObjectClosure* cl, uint worker_id) = 0;
+};
+
 //
 // CollectedHeap
 //   GenCollectedHeap
@@ -110,6 +118,12 @@ class CollectedHeap : public CHeapObj<mtInternal> {
 
   // Used for filler objects (static, but initialized in ctor).
   static size_t _filler_array_max_size;
+
+  // Last time the whole heap has been examined in support of RMI
+  // MaxObjectInspectionAge.
+  // This timestamp must be monotonically non-decreasing to avoid
+  // time-warp warnings.
+  jlong _last_whole_heap_examined_time_ns;
 
   unsigned int _total_collections;          // ... started
   unsigned int _total_full_collections;     // ... started
@@ -176,6 +190,20 @@ class CollectedHeap : public CHeapObj<mtInternal> {
     Z,
     Shenandoah
   };
+
+ protected:
+  // Get a pointer to the derived heap object.  Used to implement
+  // derived class heap() functions rather than being called directly.
+  template<typename T>
+  static T* named_heap(Name kind) {
+    CollectedHeap* heap = Universe::heap();
+    assert(heap != NULL, "Uninitialized heap");
+    assert(kind == heap->kind(), "Heap kind %u should be %u",
+           static_cast<uint>(heap->kind()), static_cast<uint>(kind));
+    return static_cast<T*>(heap);
+  }
+
+ public:
 
   static inline size_t filler_array_max_size() {
     return _filler_array_max_size;
@@ -387,18 +415,25 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // Iterate over all objects, calling "cl.do_object" on each.
   virtual void object_iterate(ObjectClosure* cl) = 0;
 
+  virtual ParallelObjectIterator* parallel_object_iterator(uint thread_num) {
+    return NULL;
+  }
+
   // Keep alive an object that was loaded with AS_NO_KEEPALIVE.
   virtual void keep_alive(oop obj) {}
-
-  // Returns the longest time (in ms) that has elapsed since the last
-  // time that any part of the heap was examined by a garbage collection.
-  virtual jlong millis_since_last_gc() = 0;
 
   // Perform any cleanup actions necessary before allowing a verification.
   virtual void prepare_for_verify() = 0;
 
-  // Generate any dumps preceding or following a full gc
+  // Returns the longest time (in ms) that has elapsed since the last
+  // time that the whole heap has been examined by a garbage collection.
+  jlong millis_since_last_whole_heap_examined();
+  // GC should call this when the next whole heap analysis has completed to
+  // satisfy above requirement.
+  void record_whole_heap_examined_timestamp();
+
  private:
+  // Generate any dumps preceding or following a full gc
   void full_gc_dump(GCTimer* timer, bool before);
 
   virtual void initialize_serviceability() = 0;
@@ -430,13 +465,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // Used to print information about locations in the hs_err file.
   virtual bool print_location(outputStream* st, void* addr) const = 0;
 
-  // Print all GC threads (other than the VM thread)
-  // used by this heap.
-  virtual void print_gc_threads_on(outputStream* st) const = 0;
-  // The default behavior is to call print_gc_threads_on() on tty.
-  void print_gc_threads() {
-    print_gc_threads_on(tty);
-  }
   // Iterator for all GC threads (other than VM thread)
   virtual void gc_threads_do(ThreadClosure* tc) const = 0;
 
@@ -472,7 +500,7 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   // concurrent marking) for an intermittent non-GC safepoint.
   // If this method returns NULL, SafepointSynchronize will
   // perform cleanup tasks serially in the VMThread.
-  virtual WorkGang* get_safepoint_workers() { return NULL; }
+  virtual WorkGang* safepoint_workers() { return NULL; }
 
   // Support for object pinning. This is used by JNI Get*Critical()
   // and Release*Critical() family of functions. If supported, the GC
@@ -485,8 +513,6 @@ class CollectedHeap : public CHeapObj<mtInternal> {
   virtual void deduplicate_string(oop str);
 
   virtual bool is_oop(oop object) const;
-
-  virtual size_t obj_size(oop obj) const;
 
   // Non product verification and debugging.
 #ifndef PRODUCT

@@ -30,7 +30,7 @@
  * @bug 8231610
  * @library /test/lib /test/hotspot/jtreg/runtime/cds/appcds/test-classes
  * @build HelloRelocation
- * @run driver ClassFileInstaller -jar hello.jar HelloRelocation HelloInlineClassApp HelloInlineClassApp$Point
+ * @run driver ClassFileInstaller -jar hello.jar HelloRelocation HelloInlineClassApp HelloInlineClassApp$Point HelloInlineClassApp$Point$ref HelloInlineClassApp$Rectangle HelloInlineClassApp$Rectangle$ref
  * @run driver ArchiveRelocationTest
  */
 
@@ -68,12 +68,13 @@ public class ArchiveRelocationTest {
         String runRelocArg  = run_reloc  ? forceRelocation : "-showversion";
         String logArg = "-Xlog:cds=debug,cds+reloc=debug";
         String unlockArg = "-XX:+UnlockDiagnosticVMOptions";
+        String nmtArg = "-XX:NativeMemoryTracking=detail";
 
         OutputAnalyzer out = TestCommon.dump(appJar,
                                              TestCommon.list(mainClass,
                                                              "HelloInlineClassApp",
                                                              "HelloInlineClassApp$Point"),
-                                             unlockArg, dumpRelocArg, logArg);
+                                             unlockArg, dumpRelocArg, logArg, nmtArg);
         if (dump_reloc) {
             out.shouldContain("ArchiveRelocationMode == 1: always allocate class space at an alternative address");
             out.shouldContain("Relocating archive from");

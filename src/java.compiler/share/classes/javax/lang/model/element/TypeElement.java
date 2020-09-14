@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -118,10 +118,10 @@ public interface TypeElement extends Element, Parameterizable, QualifiedNameable
     NestingKind getNestingKind();
 
     /**
-     * Returns the fully qualified name of this type element.
-     * More precisely, it returns the <i>canonical</i> name.
-     * For local and anonymous classes, which do not have canonical names,
-     * an empty name is returned.
+     * Returns the fully qualified name of this type element.  More
+     * precisely, it returns the <i>canonical</i> name.  For local and
+     * anonymous classes, which do not have canonical names, an <a
+     * href=Name.html#empty_name>empty name</a> is returned.
      *
      * <p>The name of a generic type does not include any reference
      * to its formal type parameters.
@@ -141,7 +141,8 @@ public interface TypeElement extends Element, Parameterizable, QualifiedNameable
     /**
      * Returns the simple name of this type element.
      *
-     * For an anonymous class, an empty name is returned.
+     * For an anonymous class, an <a href=Name.html#empty_name> empty
+     * name</a> is returned.
      *
      * @return the simple name of this class or interface,
      * an empty name for an anonymous class
@@ -201,6 +202,29 @@ public interface TypeElement extends Element, Parameterizable, QualifiedNameable
                                  essentialAPI=false)
     @SuppressWarnings("preview")
     default List<? extends RecordComponentElement> getRecordComponents() {
+        return List.of();
+    }
+
+    /**
+     * {@preview Associated with sealed classes, a preview feature of the Java language.
+     *
+     *           This method is associated with <i>sealed classes</i>, a preview
+     *           feature of the Java language. Preview features
+     *           may be removed in a future release, or upgraded to permanent
+     *           features of the Java language.}
+     * Returns the permitted classes of this type element in
+     * declaration order.
+     *
+     * @implSpec The default implementations of this method returns an
+     * empty and unmodifiable list.
+     *
+     * @return the permitted classes, or an empty list if there are none
+     *
+     * @since 15
+     */
+    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SEALED_CLASSES,
+                                 essentialAPI=false)
+    default List<? extends TypeMirror> getPermittedSubclasses() {
         return List.of();
     }
 

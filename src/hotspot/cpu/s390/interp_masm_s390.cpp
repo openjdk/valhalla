@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2016, 2019 SAP SE. All rights reserved.
+ * Copyright (c) 2016, 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@
 #include "interpreter/interpreterRuntime.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/markWord.hpp"
+#include "oops/methodData.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
@@ -998,6 +999,12 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
 
   // Load markWord from object into displaced_header.
   z_lg(displaced_header, oopDesc::mark_offset_in_bytes(), object);
+
+  if (DiagnoseSyncOnPrimitiveWrappers != 0) {
+    load_klass(Z_R1_scratch, object);
+    testbit(Address(Z_R1_scratch, Klass::access_flags_offset()), exact_log2(JVM_ACC_IS_BOX_CLASS));
+    z_btrue(slow_case);
+  }
 
   if (UseBiasedLocking) {
     biased_locking_enter(object, displaced_header, Z_R1, Z_R0, done, &slow_case);

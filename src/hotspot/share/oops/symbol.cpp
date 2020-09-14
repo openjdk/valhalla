@@ -30,11 +30,13 @@
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
+#include "memory/metaspaceShared.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/symbol.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/os.hpp"
+#include "runtime/signature.hpp"
 #include "utilities/utf8.hpp"
 
 uint32_t Symbol::pack_hash_and_refcount(short hash, int refcount) {
@@ -49,13 +51,32 @@ uint32_t Symbol::pack_hash_and_refcount(short hash, int refcount) {
 Symbol::Symbol(const u1* name, int length, int refcount) {
   _hash_and_refcount =  pack_hash_and_refcount((short)os::random(), refcount);
   _length = length;
-  _body[0] = 0;  // in case length == 0
-  for (int i = 0; i < length; i++) {
-    byte_at_put(i, name[i]);
-  }
+  // _body[0..1] are allocated in the header just by coincidence in the current
+  // implementation of Symbol. They are read by identity_hash(), so make sure they
+  // are initialized.
+  // No other code should assume that _body[0..1] are always allocated. E.g., do
+  // not unconditionally read base()[0] as that will be invalid for an empty Symbol.
+  _body[0] = _body[1] = 0;
+  memcpy(_body, name, length);
 }
 
 void* Symbol::operator new(size_t sz, int len) throw() {
+#if INCLUDE_CDS
+ if (DumpSharedSpaces) {
+    // To get deterministic output from -Xshare:dump, we ensure that Symbols are allocated in
+    // increasing addresses. When the symbols are copied into the archive, we preserve their
+    // relative address order (see SortedSymbolClosure in metaspaceShared.cpp)
+    //
+    // We cannot use arena because arena chunks are allocated by the OS. As a result, for example,
+    // the archived symbol of "java/lang/Object" may sometimes be lower than "java/lang/String", and
+    // sometimes be higher. This would cause non-deterministic contents in the archive.
+   DEBUG_ONLY(static void* last = 0);
+   void* p = (void*)MetaspaceShared::symbol_space_alloc(size(len)*wordSize);
+   assert(p > last, "must increase monotonically");
+   DEBUG_ONLY(last = p);
+   return p;
+ }
+#endif
   int alloc_size = size(len)*wordSize;
   address res = (address) AllocateHeap(alloc_size, mtSymbol);
   return res;
@@ -72,15 +93,25 @@ void Symbol::operator delete(void *p) {
   FreeHeap(p);
 }
 
+#if INCLUDE_CDS
+void Symbol::update_identity_hash() {
+  // This is called at a safepoint during dumping of a static CDS archive. The caller should have
+  // called os::init_random() with a deterministic seed and then iterate all archived Symbols in
+  // a deterministic order.
+  assert(SafepointSynchronize::is_at_safepoint(), "must be at a safepoint");
+  _hash_and_refcount =  pack_hash_and_refcount((short)os::random(), PERM_REFCOUNT);
+}
+
 void Symbol::set_permanent() {
   // This is called at a safepoint during dumping of a dynamic CDS archive.
   assert(SafepointSynchronize::is_at_safepoint(), "must be at a safepoint");
   _hash_and_refcount =  pack_hash_and_refcount(extract_hash(_hash_and_refcount), PERM_REFCOUNT);
 }
+#endif
 
 bool Symbol::is_Q_signature() const {
   int len = utf8_length();
-  return len > 2 && char_at(0) == JVM_SIGNATURE_VALUETYPE && char_at(len - 1) == JVM_SIGNATURE_ENDCLASS;
+  return len > 2 && char_at(0) == JVM_SIGNATURE_INLINE_TYPE && char_at(len - 1) == JVM_SIGNATURE_ENDCLASS;
 }
 
 bool Symbol::is_Q_array_signature() const {
@@ -90,7 +121,7 @@ bool Symbol::is_Q_array_signature() const {
   }
   for (int i = 1; i < (l - 2); i++) {
     char c = char_at(i);
-    if (c == JVM_SIGNATURE_VALUETYPE) {
+    if (c == JVM_SIGNATURE_INLINE_TYPE) {
       return true;
     }
     if (c != JVM_SIGNATURE_ARRAY) {
@@ -105,7 +136,7 @@ bool Symbol::is_Q_method_signature() const {
   int len = utf8_length();
   if (len > 4 && char_at(0) == JVM_SIGNATURE_FUNC) {
     for (int i=1; i<len-3; i++) { // Must end with ")Qx;", where x is at least one character or more.
-      if (char_at(i) == JVM_SIGNATURE_ENDFUNC && char_at(i+1) == JVM_SIGNATURE_VALUETYPE) {
+      if (char_at(i) == JVM_SIGNATURE_ENDFUNC && char_at(i+1) == JVM_SIGNATURE_INLINE_TYPE) {
         return true;
       }
     }
@@ -113,14 +144,8 @@ bool Symbol::is_Q_method_signature() const {
   return false;
 }
 
-bool Symbol::is_Q_singledim_array_signature() const {
-  int len = utf8_length();
-  return len > 3 && char_at(0) == JVM_SIGNATURE_ARRAY && char_at(1) == JVM_SIGNATURE_VALUETYPE &&
-                    char_at(len - 1) == JVM_SIGNATURE_ENDCLASS;
-}
-
 Symbol* Symbol::fundamental_name(TRAPS) {
-  if ((char_at(0) == JVM_SIGNATURE_VALUETYPE || char_at(0) == JVM_SIGNATURE_CLASS) && ends_with(JVM_SIGNATURE_ENDCLASS)) {
+  if ((char_at(0) == JVM_SIGNATURE_INLINE_TYPE || char_at(0) == JVM_SIGNATURE_CLASS) && ends_with(JVM_SIGNATURE_ENDCLASS)) {
     return SymbolTable::new_symbol(this, 1, utf8_length() - 1);
   } else {
     // reference count is incremented to be consistent with the behavior with
@@ -135,7 +160,7 @@ bool Symbol::is_same_fundamental_type(Symbol* s) const {
   if (utf8_length() < 3) return false;
   int offset1, offset2, len;
   if (ends_with(JVM_SIGNATURE_ENDCLASS)) {
-    if (char_at(0) != JVM_SIGNATURE_VALUETYPE && char_at(0) != JVM_SIGNATURE_CLASS) return false;
+    if (char_at(0) != JVM_SIGNATURE_INLINE_TYPE && char_at(0) != JVM_SIGNATURE_CLASS) return false;
     offset1 = 1;
     len = utf8_length() - 2;
   } else {
@@ -143,7 +168,7 @@ bool Symbol::is_same_fundamental_type(Symbol* s) const {
     len = utf8_length();
   }
   if (ends_with(JVM_SIGNATURE_ENDCLASS)) {
-    if (s->char_at(0) != JVM_SIGNATURE_VALUETYPE && s->char_at(0) != JVM_SIGNATURE_CLASS) return false;
+    if (s->char_at(0) != JVM_SIGNATURE_INLINE_TYPE && s->char_at(0) != JVM_SIGNATURE_CLASS) return false;
     offset2 = 1;
   } else {
     offset2 = 0;

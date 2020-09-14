@@ -142,7 +142,7 @@ public:
   virtual bool is_method_handles_adapter_blob() const { return false; }
   virtual bool is_aot() const                         { return false; }
   virtual bool is_compiled() const                    { return false; }
-  virtual bool is_buffered_value_type_blob() const    { return false; }
+  virtual bool is_buffered_inline_type_blob() const   { return false; }
 
   inline bool is_compiled_by_c1() const    { return _type == compiler_c1; };
   inline bool is_compiled_by_c2() const    { return _type == compiler_c2; };
@@ -396,13 +396,13 @@ class BufferBlob: public RuntimeBlob {
   friend class AdapterBlob;
   friend class VtableBlob;
   friend class MethodHandlesAdapterBlob;
-  friend class BufferedValueTypeBlob;
+  friend class BufferedInlineTypeBlob;
   friend class WhiteBox;
 
  private:
   // Creation support
   BufferBlob(const char* name, int size);
-  BufferBlob(const char* name, int size, CodeBuffer* cb);
+  BufferBlob(const char* name, int header_size, int size, CodeBuffer* cb);
   BufferBlob(const char* name, int size, CodeBuffer* cb, int frame_complete, int frame_size, OopMapSet* oop_maps, bool caller_must_gc_arguments = false);
 
   // This ordinary operator delete is needed even though not used, so the
@@ -481,26 +481,26 @@ public:
 };
 
 //----------------------------------------------------------------------------------------------------
-// BufferedValueTypeBlob : used for pack/unpack handlers
+// BufferedInlineTypeBlob : used for pack/unpack handlers
 
-class BufferedValueTypeBlob: public BufferBlob {
+class BufferedInlineTypeBlob: public BufferBlob {
 private:
   const int _pack_fields_off;
   const int _pack_fields_jobject_off;
   const int _unpack_fields_off;
 
-  BufferedValueTypeBlob(int size, CodeBuffer* cb, int pack_fields_off, int pack_fields_jobject_off, int unpack_fields_off);
+  BufferedInlineTypeBlob(int size, CodeBuffer* cb, int pack_fields_off, int pack_fields_jobject_off, int unpack_fields_off);
 
 public:
   // Creation
-  static BufferedValueTypeBlob* create(CodeBuffer* cb, int pack_fields_off, int pack_fields_jobject_off, int unpack_fields_off);
+  static BufferedInlineTypeBlob* create(CodeBuffer* cb, int pack_fields_off, int pack_fields_jobject_off, int unpack_fields_off);
 
   address pack_fields() const { return code_begin() + _pack_fields_off; }
   address pack_fields_jobject() const { return code_begin() + _pack_fields_jobject_off; }
   address unpack_fields() const { return code_begin() + _unpack_fields_off; }
 
   // Typing
-  virtual bool is_buffered_value_type_blob() const { return true; }
+  virtual bool is_buffered_inline_type_blob() const { return true; }
 };
 
 //----------------------------------------------------------------------------------------------------

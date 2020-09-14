@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -599,9 +599,9 @@ Node* AndLNode::Identity(PhaseGVN* phase) {
     }
 
     if (con == markWord::always_locked_pattern) {
-      assert(EnableValhalla, "should only be used for value types");
-      if (in(1)->is_Load() && phase->type(in(1)->in(MemNode::Address))->is_valuetypeptr()) {
-        return in(2); // Obj is known to be a value type
+      assert(EnableValhalla, "should only be used for inline types");
+      if (in(1)->is_Load() && phase->type(in(1)->in(MemNode::Address))->is_inlinetypeptr()) {
+        return in(2); // Obj is known to be an inline type
       }
     }
   }
@@ -1185,6 +1185,18 @@ Node *URShiftINode::Ideal(PhaseGVN *phase, bool can_reshape) {
       phase->type(shl->in(2)) == t2 )
     return new AndINode( shl->in(1), phase->intcon(mask) );
 
+  // Check for (x >> n) >>> 31. Replace with (x >>> 31)
+  Node *shr = in(1);
+  if ( in1_op == Op_RShiftI ) {
+    Node *in11 = shr->in(1);
+    Node *in12 = shr->in(2);
+    const TypeInt *t11 = phase->type(in11)->isa_int();
+    const TypeInt *t12 = phase->type(in12)->isa_int();
+    if ( t11 && t2 && t2->is_con(31) && t12 && t12->is_con() ) {
+      return new URShiftINode(in11, phase->intcon(31));
+    }
+  }
+
   return NULL;
 }
 
@@ -1314,6 +1326,17 @@ Node *URShiftLNode::Ideal(PhaseGVN *phase, bool can_reshape) {
       phase->type(shl->in(2)) == t2 )
     return new AndLNode( shl->in(1), phase->longcon(mask) );
 
+  // Check for (x >> n) >>> 63. Replace with (x >>> 63)
+  Node *shr = in(1);
+  if ( shr->Opcode() == Op_RShiftL ) {
+    Node *in11 = shr->in(1);
+    Node *in12 = shr->in(2);
+    const TypeLong *t11 = phase->type(in11)->isa_long();
+    const TypeInt *t12 = phase->type(in12)->isa_int();
+    if ( t11 && t2 && t2->is_con(63) && t12 && t12->is_con() ) {
+      return new URShiftLNode(in11, phase->intcon(63));
+    }
+  }
   return NULL;
 }
 
@@ -1428,4 +1451,100 @@ const Type* FmaFNode::Value(PhaseGVN* phase) const {
 // The hash function must return the same value when edge swapping is performed.
 uint MulAddS2INode::hash() const {
   return (uintptr_t)in(1) + (uintptr_t)in(2) + (uintptr_t)in(3) + (uintptr_t)in(4) + Opcode();
+}
+
+//------------------------------Rotate Operations ------------------------------
+
+const Type* RotateLeftNode::Value(PhaseGVN* phase) const {
+  const Type* t1 = phase->type(in(1));
+  const Type* t2 = phase->type(in(2));
+  // Either input is TOP ==> the result is TOP
+  if (t1 == Type::TOP || t2 == Type::TOP) {
+    return Type::TOP;
+  }
+
+  if (t1->isa_int()) {
+    const TypeInt* r1 = t1->is_int();
+    const TypeInt* r2 = t2->is_int();
+
+    // Left input is ZERO ==> the result is ZERO.
+    if (r1 == TypeInt::ZERO) {
+      return TypeInt::ZERO;
+    }
+    // Shift by zero does nothing
+    if (r2 == TypeInt::ZERO) {
+      return r1;
+    }
+
+    if (r1->is_con() && r2->is_con()) {
+      int shift = r2->get_con() & (BitsPerJavaInteger - 1); // semantics of Java shifts
+      return TypeInt::make((r1->get_con() << shift) | (r1->get_con() >> (32 - shift)));
+    }
+    return TypeInt::INT;
+  } else {
+    assert(t1->isa_long(), "Type must be a long");
+    const TypeLong* r1 = t1->is_long();
+    const TypeInt*  r2 = t2->is_int();
+
+    // Left input is ZERO ==> the result is ZERO.
+    if (r1 == TypeLong::ZERO) {
+      return TypeLong::ZERO;
+    }
+    // Shift by zero does nothing
+    if (r2 == TypeInt::ZERO) {
+      return r1;
+    }
+
+    if (r1->is_con() && r2->is_con()) {
+      int shift = r2->get_con() & (BitsPerJavaLong - 1); // semantics of Java shifts
+      return TypeLong::make((r1->get_con() << shift) | (r1->get_con() >> (64 - shift)));
+    }
+    return TypeLong::LONG;
+  }
+}
+
+const Type* RotateRightNode::Value(PhaseGVN* phase) const {
+  const Type* t1 = phase->type(in(1));
+  const Type* t2 = phase->type(in(2));
+  // Either input is TOP ==> the result is TOP
+  if (t1 == Type::TOP || t2 == Type::TOP) {
+    return Type::TOP;
+  }
+
+  if (t1->isa_int()) {
+    const TypeInt* r1 = t1->is_int();
+    const TypeInt* r2 = t2->is_int();
+
+    // Left input is ZERO ==> the result is ZERO.
+    if (r1 == TypeInt::ZERO) {
+      return TypeInt::ZERO;
+    }
+    // Shift by zero does nothing
+    if (r2 == TypeInt::ZERO) {
+      return r1;
+    }
+    if (r1->is_con() && r2->is_con()) {
+      int shift = r2->get_con() & (BitsPerJavaInteger - 1); // semantics of Java shifts
+      return TypeInt::make((r1->get_con() >> shift) | (r1->get_con() << (32 - shift)));
+    }
+    return TypeInt::INT;
+
+  } else {
+    assert(t1->isa_long(), "Type must be a long");
+    const TypeLong* r1 = t1->is_long();
+    const TypeInt*  r2 = t2->is_int();
+    // Left input is ZERO ==> the result is ZERO.
+    if (r1 == TypeLong::ZERO) {
+      return TypeLong::ZERO;
+    }
+    // Shift by zero does nothing
+    if (r2 == TypeInt::ZERO) {
+      return r1;
+    }
+    if (r1->is_con() && r2->is_con()) {
+      int shift = r2->get_con() & (BitsPerJavaLong - 1); // semantics of Java shifts
+      return TypeLong::make((r1->get_con() >> shift) | (r1->get_con() << (64 - shift)));
+    }
+    return TypeLong::LONG;
+  }
 }

@@ -26,7 +26,6 @@
 #define SHARE_RUNTIME_THREAD_HPP
 
 #include "jni.h"
-#include "code/compiledMethod.hpp"
 #include "gc/shared/gcThreadLocalData.hpp"
 #include "gc/shared/threadLocalAllocBuffer.hpp"
 #include "memory/allocation.hpp"
@@ -50,9 +49,6 @@
 #include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
-#ifdef ZERO
-# include "stack_zero.hpp"
-#endif
 #if INCLUDE_JFR
 #include "jfr/support/jfrThreadExtension.hpp"
 #endif
@@ -71,6 +67,7 @@ class ParkEvent;
 class Parker;
 class MonitorInfo;
 
+class AbstractCompiler;
 class ciEnv;
 class CompileThread;
 class CompileLog;
@@ -94,6 +91,8 @@ class JVMCIPrimitiveArray;
 
 class Metadata;
 class ResourceArea;
+
+class OopStorage;
 
 DEBUG_ONLY(class ResourceMark;)
 
@@ -1019,9 +1018,10 @@ class JavaThread: public Thread {
   friend class JVMCIVMStructs;
   friend class WhiteBox;
   friend class VTBuffer;
+  friend class ThreadsSMRSupport; // to access _threadObj for exiting_threads_oops_do
  private:
   bool           _on_thread_list;                // Is set when this JavaThread is added to the Threads list
-  oop            _threadObj;                     // The Java level thread object
+  OopHandle      _threadObj;                     // The Java level thread object
 
 #ifdef ASSERT
  private:
@@ -1188,8 +1188,10 @@ class JavaThread: public Thread {
  public:
   static jlong* _jvmci_old_thread_counters;
   static void collect_counters(jlong* array, int length);
-  void resize_counters(int current_size, int new_size);
-  static void resize_all_jvmci_counters(int new_size);
+
+  bool resize_counters(int current_size, int new_size);
+
+  static bool resize_all_jvmci_counters(int new_size);
 
  private:
 #endif // INCLUDE_JVMCI
@@ -1280,8 +1282,8 @@ class JavaThread: public Thread {
 
   // Thread oop. threadObj() can be NULL for initial JavaThread
   // (or for threads attached via JNI)
-  oop threadObj() const                          { return _threadObj; }
-  void set_threadObj(oop p)                      { _threadObj = p; }
+  oop threadObj() const;
+  void set_threadObj(oop p);
 
   // Prepare thread and add to priority queue.  If a priority is
   // not specified, use the priority of the thread object. Threads_lock
@@ -1362,15 +1364,13 @@ class JavaThread: public Thread {
     _handshake.process_by_self();
   }
 
-  bool handshake_try_process(HandshakeOperation* op) {
+  HandshakeState::ProcessResult handshake_try_process(HandshakeOperation* op) {
     return _handshake.try_process(op);
   }
 
-#ifdef ASSERT
   Thread* active_handshaker() const {
     return _handshake.active_handshaker();
   }
-#endif
 
   // Suspend/resume support for JavaThread
  private:
@@ -1579,12 +1579,12 @@ class JavaThread: public Thread {
 #endif // INCLUDE_JVMCI
 
   // Exception handling for compiled methods
-  oop      exception_oop() const                 { return _exception_oop; }
+  oop      exception_oop() const;
   address  exception_pc() const                  { return _exception_pc; }
   address  exception_handler_pc() const          { return _exception_handler_pc; }
   bool     is_method_handle_return() const       { return _is_method_handle_return == 1; }
 
-  void set_exception_oop(oop o)                  { (void)const_cast<oop&>(_exception_oop = o); }
+  void set_exception_oop(oop o);
   void set_exception_pc(address a)               { _exception_pc = a; }
   void set_exception_handler_pc(address a)       { _exception_handler_pc = a; }
   void set_is_method_handle_return(bool value)   { _is_method_handle_return = value ? 1 : 0; }
@@ -1965,13 +1965,6 @@ class JavaThread: public Thread {
   void thread_main_inner();
   virtual void post_run();
 
-
- private:
-  GrowableArray<oop>* _array_for_gc;
- public:
-
-  void register_array_for_gc(GrowableArray<oop>* array) { _array_for_gc = array; }
-
  public:
   // Thread local information maintained by JVMTI.
   void set_jvmti_thread_state(JvmtiThreadState *value)                           { _jvmti_thread_state = value; }
@@ -2007,13 +2000,10 @@ class JavaThread: public Thread {
   bool has_pending_popframe()                         { return (popframe_condition() & popframe_pending_bit) != 0; }
   bool popframe_forcing_deopt_reexecution()           { return (popframe_condition() & popframe_force_deopt_reexecution_bit) != 0; }
   void clear_popframe_forcing_deopt_reexecution()     { _popframe_condition &= ~popframe_force_deopt_reexecution_bit; }
-#ifdef CC_INTERP
-  bool pop_frame_pending(void)                        { return ((_popframe_condition & popframe_pending_bit) != 0); }
-  void clr_pop_frame_pending(void)                    { _popframe_condition = popframe_inactive; }
+
   bool pop_frame_in_process(void)                     { return ((_popframe_condition & popframe_processing_bit) != 0); }
   void set_pop_frame_in_process(void)                 { _popframe_condition |= popframe_processing_bit; }
   void clr_pop_frame_in_process(void)                 { _popframe_condition &= ~popframe_processing_bit; }
-#endif
 
   int frames_to_pop_failed_realloc() const            { return _frames_to_pop_failed_realloc; }
   void set_frames_to_pop_failed_realloc(int nb)       { _frames_to_pop_failed_realloc = nb; }
@@ -2038,9 +2028,11 @@ class JavaThread: public Thread {
 
   // Used by the interpreter in fullspeed mode for frame pop, method
   // entry, method exit and single stepping support. This field is
-  // only set to non-zero by the VM_EnterInterpOnlyMode VM operation.
-  // It can be set to zero asynchronously (i.e., without a VM operation
-  // or a lock) so we have to be very careful.
+  // only set to non-zero at a safepoint or using a direct handshake
+  // (see EnterInterpOnlyModeClosure).
+  // It can be set to zero asynchronously to this threads execution (i.e., without
+  // safepoint/handshake or a lock) so we have to be very careful.
+  // Accesses by other threads are synchronized using JvmtiThreadState_lock though.
   int               _interp_only_mode;
 
  public:
@@ -2120,6 +2112,7 @@ public:
   void interrupt();
   bool is_interrupted(bool clear_interrupted);
 
+  static OopStorage* thread_oop_storage();
 };
 
 // Inline implementation of JavaThread::current
@@ -2349,5 +2342,19 @@ class SignalHandlerMark: public StackObj {
   }
 };
 
+class UnlockFlagSaver {
+  private:
+    JavaThread* _thread;
+    bool _do_not_unlock;
+  public:
+    UnlockFlagSaver(JavaThread* t) {
+      _thread = t;
+      _do_not_unlock = t->do_not_unlock_if_synchronized();
+      t->set_do_not_unlock_if_synchronized(false);
+    }
+    ~UnlockFlagSaver() {
+      _thread->set_do_not_unlock_if_synchronized(_do_not_unlock);
+    }
+};
 
 #endif // SHARE_RUNTIME_THREAD_HPP

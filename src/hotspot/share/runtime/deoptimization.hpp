@@ -137,6 +137,11 @@ class Deoptimization : AllStatic {
     Unpack_LIMIT                = 4
   };
 
+#if INCLUDE_JVMCI
+  // Can reconstruct virtualized unsafe large accesses to byte arrays.
+  static const int _support_large_access_byte_array_virtualization = 1;
+#endif
+
   // Make all nmethods that are marked_for_deoptimization not_entrant and deoptimize any live
   // activations using those nmethods.  If an nmethod is passed as an argument then it is
   // marked_for_deoptimization and made not_entrant.  Otherwise a scan of the code cache is done to
@@ -165,10 +170,10 @@ class Deoptimization : AllStatic {
 
   // Support for restoring non-escaping objects
   static bool realloc_objects(JavaThread* thread, frame* fr, RegisterMap* reg_map, GrowableArray<ScopeValue*>* objects, TRAPS);
-  static bool realloc_value_type_result(ValueKlass* vk, const RegisterMap& map, GrowableArray<Handle>& return_oops, TRAPS);
+  static bool realloc_inline_type_result(InlineKlass* vk, const RegisterMap& map, GrowableArray<Handle>& return_oops, TRAPS);
   static void reassign_type_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, typeArrayOop obj, BasicType type);
   static void reassign_object_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, objArrayOop obj);
-  static void reassign_value_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, valueArrayOop obj, ValueArrayKlass* vak, TRAPS);
+  static void reassign_flat_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, flatArrayOop obj, FlatArrayKlass* vak, TRAPS);
   static void reassign_fields(frame* fr, RegisterMap* reg_map, GrowableArray<ScopeValue*>* objects, bool realloc_failures, bool skip_internal, TRAPS);
   static void relock_objects(GrowableArray<MonitorInfo*>* monitors, JavaThread* thread, bool realloc_failures);
   static void pop_frames_failed_reallocs(JavaThread* thread, vframeArray* array);

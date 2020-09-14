@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, 2019, Red Hat Inc. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -304,7 +304,7 @@ class StubGenerator: public StubCodeGenerator {
     return_address = __ pc();
 
     // store result depending on type (everything that is not
-    // T_OBJECT, T_VALUETYPE, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
+    // T_OBJECT, T_INLINE_TYPE, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
     // n.b. this assumes Java returns an integral result in r0
     // and a floating result in j_farg0
     __ ldr(j_rarg2, result);
@@ -312,7 +312,7 @@ class StubGenerator: public StubCodeGenerator {
     __ ldr(j_rarg1, result_type);
     __ cmp(j_rarg1, (u1)T_OBJECT);
     __ br(Assembler::EQ, is_long);
-    __ cmp(j_rarg1, (u1)T_VALUETYPE);
+    __ cmp(j_rarg1, (u1)T_INLINE_TYPE);
     __ br(Assembler::EQ, is_value);
     __ cmp(j_rarg1, (u1)T_LONG);
     __ br(Assembler::EQ, is_long);
@@ -369,14 +369,14 @@ class StubGenerator: public StubCodeGenerator {
 
     // handle return types different from T_INT
     __ BIND(is_value);
-    if (ValueTypeReturnedAsFields) {
+    if (InlineTypeReturnedAsFields) {
       // Check for flattened return value
       __ cbz(r0, is_long);
       // Initialize pre-allocated buffer
       __ mov(r1, r0);
       __ andr(r1, r1, -2);
-      __ ldr(r1, Address(r1, InstanceKlass::adr_valueklass_fixed_block_offset()));
-      __ ldr(r1, Address(r1, ValueKlass::pack_handler_offset()));
+      __ ldr(r1, Address(r1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      __ ldr(r1, Address(r1, InlineKlass::pack_handler_offset()));
       __ ldr(r0, Address(j_rarg2, 0));
       __ blr(r1);
       __ b(exit);
@@ -503,6 +503,11 @@ class StubGenerator: public StubCodeGenerator {
     __ call_VM_leaf(CAST_FROM_FN_PTR(address,
                          SharedRuntime::exception_handler_for_return_address),
                     rthread, c_rarg1);
+    if (UseSVE > 0 ) {
+      // Reinitialize the ptrue predicate register, in case the external runtime
+      // call clobbers ptrue reg, as we may return to SVE compiled code.
+      __ reinitialize_ptrue();
+    }
     // we should not really care that lr is no longer the callee
     // address. we saved the value the handler needs in r19 so we can
     // just copy it to r3. however, the C2 handler will push its own
@@ -712,7 +717,6 @@ class StubGenerator: public StubCodeGenerator {
     int unit = wordSize * direction;
     int bias = (UseSIMDForMemoryOps ? 4:2) * wordSize;
 
-    int offset;
     const Register t0 = r3, t1 = r4, t2 = r5, t3 = r6,
       t4 = r7, t5 = r10, t6 = r11, t7 = r12;
     const Register stride = r13;
@@ -3141,6 +3145,172 @@ class StubGenerator: public StubCodeGenerator {
     return start;
   }
 
+  // Arguments:
+  //
+  // Inputs:
+  //   c_rarg0   - byte[]  source+offset
+  //   c_rarg1   - int[]   SHA.state
+  //   c_rarg2   - int     offset
+  //   c_rarg3   - int     limit
+  //
+  address generate_sha512_implCompress(bool multi_block, const char *name) {
+    static const uint64_t round_consts[80] = {
+      0x428A2F98D728AE22L, 0x7137449123EF65CDL, 0xB5C0FBCFEC4D3B2FL,
+      0xE9B5DBA58189DBBCL, 0x3956C25BF348B538L, 0x59F111F1B605D019L,
+      0x923F82A4AF194F9BL, 0xAB1C5ED5DA6D8118L, 0xD807AA98A3030242L,
+      0x12835B0145706FBEL, 0x243185BE4EE4B28CL, 0x550C7DC3D5FFB4E2L,
+      0x72BE5D74F27B896FL, 0x80DEB1FE3B1696B1L, 0x9BDC06A725C71235L,
+      0xC19BF174CF692694L, 0xE49B69C19EF14AD2L, 0xEFBE4786384F25E3L,
+      0x0FC19DC68B8CD5B5L, 0x240CA1CC77AC9C65L, 0x2DE92C6F592B0275L,
+      0x4A7484AA6EA6E483L, 0x5CB0A9DCBD41FBD4L, 0x76F988DA831153B5L,
+      0x983E5152EE66DFABL, 0xA831C66D2DB43210L, 0xB00327C898FB213FL,
+      0xBF597FC7BEEF0EE4L, 0xC6E00BF33DA88FC2L, 0xD5A79147930AA725L,
+      0x06CA6351E003826FL, 0x142929670A0E6E70L, 0x27B70A8546D22FFCL,
+      0x2E1B21385C26C926L, 0x4D2C6DFC5AC42AEDL, 0x53380D139D95B3DFL,
+      0x650A73548BAF63DEL, 0x766A0ABB3C77B2A8L, 0x81C2C92E47EDAEE6L,
+      0x92722C851482353BL, 0xA2BFE8A14CF10364L, 0xA81A664BBC423001L,
+      0xC24B8B70D0F89791L, 0xC76C51A30654BE30L, 0xD192E819D6EF5218L,
+      0xD69906245565A910L, 0xF40E35855771202AL, 0x106AA07032BBD1B8L,
+      0x19A4C116B8D2D0C8L, 0x1E376C085141AB53L, 0x2748774CDF8EEB99L,
+      0x34B0BCB5E19B48A8L, 0x391C0CB3C5C95A63L, 0x4ED8AA4AE3418ACBL,
+      0x5B9CCA4F7763E373L, 0x682E6FF3D6B2B8A3L, 0x748F82EE5DEFB2FCL,
+      0x78A5636F43172F60L, 0x84C87814A1F0AB72L, 0x8CC702081A6439ECL,
+      0x90BEFFFA23631E28L, 0xA4506CEBDE82BDE9L, 0xBEF9A3F7B2C67915L,
+      0xC67178F2E372532BL, 0xCA273ECEEA26619CL, 0xD186B8C721C0C207L,
+      0xEADA7DD6CDE0EB1EL, 0xF57D4F7FEE6ED178L, 0x06F067AA72176FBAL,
+      0x0A637DC5A2C898A6L, 0x113F9804BEF90DAEL, 0x1B710B35131C471BL,
+      0x28DB77F523047D84L, 0x32CAAB7B40C72493L, 0x3C9EBE0A15C9BEBCL,
+      0x431D67C49C100D4CL, 0x4CC5D4BECB3E42B6L, 0x597F299CFC657E2AL,
+      0x5FCB6FAB3AD6FAECL, 0x6C44198C4A475817L
+    };
+
+    // Double rounds for sha512.
+    #define sha512_dround(dr, i0, i1, i2, i3, i4, rc0, rc1, in0, in1, in2, in3, in4) \
+      if (dr < 36)                                                                   \
+        __ ld1(v##rc1, __ T2D, __ post(rscratch2, 16));                              \
+      __ addv(v5, __ T2D, v##rc0, v##in0);                                           \
+      __ ext(v6, __ T16B, v##i2, v##i3, 8);                                          \
+      __ ext(v5, __ T16B, v5, v5, 8);                                                \
+      __ ext(v7, __ T16B, v##i1, v##i2, 8);                                          \
+      __ addv(v##i3, __ T2D, v##i3, v5);                                             \
+      if (dr < 32) {                                                                 \
+        __ ext(v5, __ T16B, v##in3, v##in4, 8);                                      \
+        __ sha512su0(v##in0, __ T2D, v##in1);                                        \
+      }                                                                              \
+      __ sha512h(v##i3, __ T2D, v6, v7);                                             \
+      if (dr < 32)                                                                   \
+        __ sha512su1(v##in0, __ T2D, v##in2, v5);                                    \
+      __ addv(v##i4, __ T2D, v##i1, v##i3);                                          \
+      __ sha512h2(v##i3, __ T2D, v##i1, v##i0);                                      \
+
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", name);
+    address start = __ pc();
+
+    Register buf   = c_rarg0;
+    Register state = c_rarg1;
+    Register ofs   = c_rarg2;
+    Register limit = c_rarg3;
+
+    __ stpd(v8, v9, __ pre(sp, -64));
+    __ stpd(v10, v11, Address(sp, 16));
+    __ stpd(v12, v13, Address(sp, 32));
+    __ stpd(v14, v15, Address(sp, 48));
+
+    Label sha512_loop;
+
+    // load state
+    __ ld1(v8, v9, v10, v11, __ T2D, state);
+
+    // load first 4 round constants
+    __ lea(rscratch1, ExternalAddress((address)round_consts));
+    __ ld1(v20, v21, v22, v23, __ T2D, __ post(rscratch1, 64));
+
+    __ BIND(sha512_loop);
+    // load 128B of data into v12..v19
+    __ ld1(v12, v13, v14, v15, __ T2D, __ post(buf, 64));
+    __ ld1(v16, v17, v18, v19, __ T2D, __ post(buf, 64));
+    __ rev64(v12, __ T16B, v12);
+    __ rev64(v13, __ T16B, v13);
+    __ rev64(v14, __ T16B, v14);
+    __ rev64(v15, __ T16B, v15);
+    __ rev64(v16, __ T16B, v16);
+    __ rev64(v17, __ T16B, v17);
+    __ rev64(v18, __ T16B, v18);
+    __ rev64(v19, __ T16B, v19);
+
+    __ mov(rscratch2, rscratch1);
+
+    __ mov(v0, __ T16B, v8);
+    __ mov(v1, __ T16B, v9);
+    __ mov(v2, __ T16B, v10);
+    __ mov(v3, __ T16B, v11);
+
+    sha512_dround( 0, 0, 1, 2, 3, 4, 20, 24, 12, 13, 19, 16, 17);
+    sha512_dround( 1, 3, 0, 4, 2, 1, 21, 25, 13, 14, 12, 17, 18);
+    sha512_dround( 2, 2, 3, 1, 4, 0, 22, 26, 14, 15, 13, 18, 19);
+    sha512_dround( 3, 4, 2, 0, 1, 3, 23, 27, 15, 16, 14, 19, 12);
+    sha512_dround( 4, 1, 4, 3, 0, 2, 24, 28, 16, 17, 15, 12, 13);
+    sha512_dround( 5, 0, 1, 2, 3, 4, 25, 29, 17, 18, 16, 13, 14);
+    sha512_dround( 6, 3, 0, 4, 2, 1, 26, 30, 18, 19, 17, 14, 15);
+    sha512_dround( 7, 2, 3, 1, 4, 0, 27, 31, 19, 12, 18, 15, 16);
+    sha512_dround( 8, 4, 2, 0, 1, 3, 28, 24, 12, 13, 19, 16, 17);
+    sha512_dround( 9, 1, 4, 3, 0, 2, 29, 25, 13, 14, 12, 17, 18);
+    sha512_dround(10, 0, 1, 2, 3, 4, 30, 26, 14, 15, 13, 18, 19);
+    sha512_dround(11, 3, 0, 4, 2, 1, 31, 27, 15, 16, 14, 19, 12);
+    sha512_dround(12, 2, 3, 1, 4, 0, 24, 28, 16, 17, 15, 12, 13);
+    sha512_dround(13, 4, 2, 0, 1, 3, 25, 29, 17, 18, 16, 13, 14);
+    sha512_dround(14, 1, 4, 3, 0, 2, 26, 30, 18, 19, 17, 14, 15);
+    sha512_dround(15, 0, 1, 2, 3, 4, 27, 31, 19, 12, 18, 15, 16);
+    sha512_dround(16, 3, 0, 4, 2, 1, 28, 24, 12, 13, 19, 16, 17);
+    sha512_dround(17, 2, 3, 1, 4, 0, 29, 25, 13, 14, 12, 17, 18);
+    sha512_dround(18, 4, 2, 0, 1, 3, 30, 26, 14, 15, 13, 18, 19);
+    sha512_dround(19, 1, 4, 3, 0, 2, 31, 27, 15, 16, 14, 19, 12);
+    sha512_dround(20, 0, 1, 2, 3, 4, 24, 28, 16, 17, 15, 12, 13);
+    sha512_dround(21, 3, 0, 4, 2, 1, 25, 29, 17, 18, 16, 13, 14);
+    sha512_dround(22, 2, 3, 1, 4, 0, 26, 30, 18, 19, 17, 14, 15);
+    sha512_dround(23, 4, 2, 0, 1, 3, 27, 31, 19, 12, 18, 15, 16);
+    sha512_dround(24, 1, 4, 3, 0, 2, 28, 24, 12, 13, 19, 16, 17);
+    sha512_dround(25, 0, 1, 2, 3, 4, 29, 25, 13, 14, 12, 17, 18);
+    sha512_dround(26, 3, 0, 4, 2, 1, 30, 26, 14, 15, 13, 18, 19);
+    sha512_dround(27, 2, 3, 1, 4, 0, 31, 27, 15, 16, 14, 19, 12);
+    sha512_dround(28, 4, 2, 0, 1, 3, 24, 28, 16, 17, 15, 12, 13);
+    sha512_dround(29, 1, 4, 3, 0, 2, 25, 29, 17, 18, 16, 13, 14);
+    sha512_dround(30, 0, 1, 2, 3, 4, 26, 30, 18, 19, 17, 14, 15);
+    sha512_dround(31, 3, 0, 4, 2, 1, 27, 31, 19, 12, 18, 15, 16);
+    sha512_dround(32, 2, 3, 1, 4, 0, 28, 24, 12,  0,  0,  0,  0);
+    sha512_dround(33, 4, 2, 0, 1, 3, 29, 25, 13,  0,  0,  0,  0);
+    sha512_dround(34, 1, 4, 3, 0, 2, 30, 26, 14,  0,  0,  0,  0);
+    sha512_dround(35, 0, 1, 2, 3, 4, 31, 27, 15,  0,  0,  0,  0);
+    sha512_dround(36, 3, 0, 4, 2, 1, 24,  0, 16,  0,  0,  0,  0);
+    sha512_dround(37, 2, 3, 1, 4, 0, 25,  0, 17,  0,  0,  0,  0);
+    sha512_dround(38, 4, 2, 0, 1, 3, 26,  0, 18,  0,  0,  0,  0);
+    sha512_dround(39, 1, 4, 3, 0, 2, 27,  0, 19,  0,  0,  0,  0);
+
+    __ addv(v8, __ T2D, v8, v0);
+    __ addv(v9, __ T2D, v9, v1);
+    __ addv(v10, __ T2D, v10, v2);
+    __ addv(v11, __ T2D, v11, v3);
+
+    if (multi_block) {
+      __ add(ofs, ofs, 128);
+      __ cmp(ofs, limit);
+      __ br(Assembler::LE, sha512_loop);
+      __ mov(c_rarg0, ofs); // return ofs
+    }
+
+    __ st1(v8, v9, v10, v11, __ T2D, state);
+
+    __ ldpd(v14, v15, Address(sp, 48));
+    __ ldpd(v12, v13, Address(sp, 32));
+    __ ldpd(v10, v11, Address(sp, 16));
+    __ ldpd(v8, v9, __ post(sp, 64));
+
+    __ ret(lr);
+
+    return start;
+  }
+
   // Safefetch stubs.
   void generate_safefetch(const char* name, int size, address* entry,
                           address* fault_pc, address* continuation_pc) {
@@ -3298,8 +3468,8 @@ class StubGenerator: public StubCodeGenerator {
 
     // Max number of bytes we can process before having to take the mod
     // 0x15B0 is 5552 in decimal, the largest n such that 255n(n+1)/2 + (n+1)(BASE-1) <= 2^32-1
-    unsigned long BASE = 0xfff1;
-    unsigned long NMAX = 0x15B0;
+    uint64_t BASE = 0xfff1;
+    uint64_t NMAX = 0x15B0;
 
     __ mov(base, BASE);
     __ mov(nmax, NMAX);
@@ -4076,7 +4246,7 @@ class StubGenerator: public StubCodeGenerator {
     FloatRegister vtmpZ = v0, vtmp = v1, vtmp3 = v2;
     RegSet spilled_regs = RegSet::of(tmp3, tmp4);
 
-    int prefetchLoopExitCondition = MAX(64, SoftwarePrefetchHintDistance/2);
+    int prefetchLoopExitCondition = MAX2(64, SoftwarePrefetchHintDistance/2);
 
     __ eor(vtmpZ, __ T16B, vtmpZ, vtmpZ);
     // cnt2 == amount of characters left to compare
@@ -4170,6 +4340,50 @@ class StubGenerator: public StubCodeGenerator {
     return entry;
   }
 
+    address generate_method_entry_barrier() {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", "nmethod_entry_barrier");
+
+    Label deoptimize_label;
+
+    address start = __ pc();
+
+    __ set_last_Java_frame(sp, rfp, lr, rscratch1);
+
+    __ enter();
+    __ add(rscratch2, sp, wordSize);  // rscratch2 points to the saved lr
+
+    __ sub(sp, sp, 4 * wordSize);  // four words for the returned {sp, fp, lr, pc}
+
+    __ push_call_clobbered_registers();
+
+    __ mov(c_rarg0, rscratch2);
+    __ call_VM_leaf
+         (CAST_FROM_FN_PTR
+          (address, BarrierSetNMethod::nmethod_stub_entry_barrier), 1);
+
+    __ reset_last_Java_frame(true);
+
+    __ mov(rscratch1, r0);
+
+    __ pop_call_clobbered_registers();
+
+    __ cbnz(rscratch1, deoptimize_label);
+
+    __ leave();
+    __ ret(lr);
+
+    __ BIND(deoptimize_label);
+
+    __ ldp(/* new sp */ rscratch1, rfp, Address(sp, 0 * wordSize));
+    __ ldp(lr, /* new pc*/ rscratch2, Address(sp, 2 * wordSize));
+
+    __ mov(sp, rscratch1);
+    __ br(rscratch2);
+
+    return start;
+  }
+
   // r0  = result
   // r1  = str1
   // r2  = cnt1
@@ -4190,7 +4404,7 @@ class StubGenerator: public StubCodeGenerator {
         DIFF_LAST_POSITION, DIFF_LAST_POSITION2;
     // exit from large loop when less than 64 bytes left to read or we're about
     // to prefetch memory behind array border
-    int largeLoopExitCondition = MAX(64, SoftwarePrefetchHintDistance)/(isLL ? 1 : 2);
+    int largeLoopExitCondition = MAX2(64, SoftwarePrefetchHintDistance)/(isLL ? 1 : 2);
     // cnt1/cnt2 contains amount of characters to compare. cnt1 can be re-used
     // update cnt2 counter with already loaded 8 bytes
     __ sub(cnt2, cnt2, wordSize/(isLL ? 1 : 2));
@@ -4616,7 +4830,7 @@ class StubGenerator: public StubCodeGenerator {
     address entry = __ pc();
     Label LOOP, LOOP_START, LOOP_PRFM, LOOP_PRFM_START, DONE;
     Register src = r0, dst = r1, len = r2, octetCounter = r3;
-    const int large_loop_threshold = MAX(64, SoftwarePrefetchHintDistance)/8 + 4;
+    const int large_loop_threshold = MAX2(64, SoftwarePrefetchHintDistance)/8 + 4;
 
     // do one more 8-byte read to have address 16-byte aligned in most cases
     // also use single store instruction
@@ -4823,6 +5037,12 @@ class StubGenerator: public StubCodeGenerator {
 
     __ reset_last_Java_frame(true);
     __ maybe_isb();
+
+    if (UseSVE > 0) {
+      // Reinitialize the ptrue predicate register, in case the external runtime
+      // call clobbers ptrue reg, as we may return to SVE compiled code.
+      __ reinitialize_ptrue();
+    }
 
     __ leave();
 
@@ -5352,12 +5572,12 @@ class StubGenerator: public StubCodeGenerator {
     // In C, approximately:
 
     // void
-    // montgomery_multiply(unsigned long Pa_base[], unsigned long Pb_base[],
-    //                     unsigned long Pn_base[], unsigned long Pm_base[],
-    //                     unsigned long inv, int len) {
-    //   unsigned long t0 = 0, t1 = 0, t2 = 0; // Triple-precision accumulator
-    //   unsigned long *Pa, *Pb, *Pn, *Pm;
-    //   unsigned long Ra, Rb, Rn, Rm;
+    // montgomery_multiply(julong Pa_base[], julong Pb_base[],
+    //                     julong Pn_base[], julong Pm_base[],
+    //                     julong inv, int len) {
+    //   julong t0 = 0, t1 = 0, t2 = 0; // Triple-precision accumulator
+    //   julong *Pa, *Pb, *Pn, *Pm;
+    //   julong Ra, Rb, Rn, Rm;
 
     //   int i;
 
@@ -5565,11 +5785,11 @@ class StubGenerator: public StubCodeGenerator {
     // In C, approximately:
 
     // void
-    // montgomery_square(unsigned long Pa_base[], unsigned long Pn_base[],
-    //                   unsigned long Pm_base[], unsigned long inv, int len) {
-    //   unsigned long t0 = 0, t1 = 0, t2 = 0; // Triple-precision accumulator
-    //   unsigned long *Pa, *Pb, *Pn, *Pm;
-    //   unsigned long Ra, Rb, Rn, Rm;
+    // montgomery_square(julong Pa_base[], julong Pn_base[],
+    //                   julong Pm_base[], julong inv, int len) {
+    //   julong t0 = 0, t1 = 0, t2 = 0; // Triple-precision accumulator
+    //   julong *Pa, *Pb, *Pn, *Pm;
+    //   julong Ra, Rb, Rn, Rm;
 
     //   int i;
 
@@ -5671,9 +5891,9 @@ class StubGenerator: public StubCodeGenerator {
 
 
   // Call here from the interpreter or compiled code to either load
-  // multiple returned values from the value type instance being
+  // multiple returned values from the inline type instance being
   // returned to registers or to store returned values to a newly
-  // allocated value type instance.
+  // allocated inline type instance.
   address generate_return_value_stub(address destination, const char* name, bool has_res) {
 
     // Information about frame layout at time of blocking runtime call.
@@ -5898,11 +6118,18 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_dcos = generate_dsin_dcos(/* isCos = */ true);
     }
 
+    StubRoutines::_load_inline_type_fields_in_regs =
+         generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_inline_type_fields_in_regs), "load_inline_type_fields_in_regs", false);
+    StubRoutines::_store_inline_type_fields_to_buf =
+         generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf), "store_inline_type_fields_to_buf", true);
 
-    StubRoutines::_load_value_type_fields_in_regs =
-         generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_value_type_fields_in_regs), "load_value_type_fields_in_regs", false);
-    StubRoutines::_store_value_type_fields_to_buf =
-         generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_value_type_fields_to_buf), "store_value_type_fields_to_buf", true);
+    // Safefetch stubs.
+    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
+                                                       &StubRoutines::_safefetch32_fault_pc,
+                                                       &StubRoutines::_safefetch32_continuation_pc);
+    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
+                                                       &StubRoutines::_safefetchN_fault_pc,
+                                                       &StubRoutines::_safefetchN_continuation_pc);
   }
 
   void generate_all() {
@@ -5944,6 +6171,10 @@ class StubGenerator: public StubCodeGenerator {
     // byte_array_inflate stub for large arrays.
     StubRoutines::aarch64::_large_byte_array_inflate = generate_large_byte_array_inflate();
 
+    BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
+    if (bs_nm != NULL) {
+      StubRoutines::aarch64::_method_entry_barrier = generate_method_entry_barrier();
+    }
 #ifdef COMPILER2
     if (UseMultiplyToLenIntrinsic) {
       StubRoutines::_multiplyToLen = generate_multiplyToLen();
@@ -5996,19 +6227,16 @@ class StubGenerator: public StubCodeGenerator {
       StubRoutines::_sha256_implCompress   = generate_sha256_implCompress(false, "sha256_implCompress");
       StubRoutines::_sha256_implCompressMB = generate_sha256_implCompress(true,  "sha256_implCompressMB");
     }
+    if (UseSHA512Intrinsics) {
+      StubRoutines::_sha512_implCompress   = generate_sha512_implCompress(false, "sha512_implCompress");
+      StubRoutines::_sha512_implCompressMB = generate_sha512_implCompress(true,  "sha512_implCompressMB");
+    }
 
     // generate Adler32 intrinsics code
     if (UseAdler32Intrinsics) {
       StubRoutines::_updateBytesAdler32 = generate_updateBytesAdler32();
     }
 
-    // Safefetch stubs.
-    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
-                                                       &StubRoutines::_safefetch32_fault_pc,
-                                                       &StubRoutines::_safefetch32_continuation_pc);
-    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
-                                                       &StubRoutines::_safefetchN_fault_pc,
-                                                       &StubRoutines::_safefetchN_continuation_pc);
     StubRoutines::aarch64::set_completed();
   }
 

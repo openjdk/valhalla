@@ -25,8 +25,8 @@
 /*
  * @test TestStringDedupStress
  * @summary Test Shenandoah string deduplication implementation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Shenandoah
  * @library /test/lib
  * @modules java.base/jdk.internal.misc:open
  * @modules java.base/java.lang:open
@@ -46,8 +46,8 @@
 /*
  * @test TestStringDedupStress
  * @summary Test Shenandoah string deduplication implementation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Shenandoah
  * @library /test/lib
  * @modules java.base/jdk.internal.misc:open
  * @modules java.base/java.lang:open
@@ -77,8 +77,8 @@
  /*
  * @test TestStringDedupStress
  * @summary Test Shenandoah string deduplication implementation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Shenandoah
  * @library /test/lib
  * @modules java.base/jdk.internal.misc:open
  * @modules java.base/java.lang:open
@@ -109,6 +109,7 @@
 import java.lang.management.*;
 import java.lang.reflect.*;
 import java.util.*;
+import jdk.test.lib.Utils;
 
 import sun.misc.*;
 
@@ -163,7 +164,7 @@ public class TestStringDedupStress {
 
     // Generate uniqueStrings number of strings
     private static void generateStrings(ArrayList<StringAndId> strs, int uniqueStrings) {
-        Random rn = new Random();
+        Random rn = Utils.getRandomInstance();
         for (int u = 0; u < uniqueStrings; u++) {
             int n = rn.nextInt(uniqueStrings);
             strs.add(new StringAndId("Unique String " + n, n));
@@ -200,7 +201,7 @@ public class TestStringDedupStress {
     static GarbageCollectorMXBean gcCycleMBean;
 
     public static void main(String[] args) {
-        Random rn = new Random();
+        Random rn = Utils.getRandomInstance();
 
         for (GarbageCollectorMXBean bean : ManagementFactory.getGarbageCollectorMXBeans()) {
             if ("Shenandoah Cycles".equals(bean.getName())) {

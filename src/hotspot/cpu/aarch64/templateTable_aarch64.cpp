@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -414,6 +414,7 @@ void TemplateTable::fast_aldc(bool wide)
     // Stash null_sentinel address to get its value later
     __ movptr(rarg, (uintptr_t)Universe::the_null_sentinel_addr());
     __ ldr(tmp, Address(rarg));
+    __ resolve_oop_handle(tmp);
     __ cmpoop(result, tmp);
     __ br(Assembler::NE, notNull);
     __ mov(result, 0);  // NULL object reference
@@ -810,7 +811,7 @@ void TemplateTable::aaload()
   // r0: array
   // r1: index
   index_check(r0, r1); // leaves index in r1, kills rscratch1
-  if (ValueArrayFlatten) {
+  if (UseFlatArray) {
     Label is_flat_array, done;
 
     __ test_flattened_array_oop(r0, r8 /*temp*/, is_flat_array);
@@ -1129,7 +1130,7 @@ void TemplateTable::aastore() {
   __ cbz(r0, is_null);
 
   Label  is_flat_array;
-  if (ValueArrayFlatten) {
+  if (UseFlatArray) {
     __ test_flattened_array_oop(r3, r8 /*temp*/, is_flat_array);
   }
 
@@ -1169,7 +1170,7 @@ void TemplateTable::aastore() {
     Label is_null_into_value_array_npe, store_null;
 
     // No way to store null in flat array
-    __ test_null_free_array_oop(r3, r8, is_null_into_value_array_npe); 
+    __ test_null_free_array_oop(r3, r8, is_null_into_value_array_npe);
     __ b(store_null);
 
     __ bind(is_null_into_value_array_npe);
@@ -1179,10 +1180,10 @@ void TemplateTable::aastore() {
   }
 
   // Store a NULL
-  do_oop_store(_masm, element_address, noreg, IS_ARRAY); 
+  do_oop_store(_masm, element_address, noreg, IS_ARRAY);
   __ b(done);
 
-  if (EnableValhalla) { 
+  if (EnableValhalla) {
      Label is_type_ok;
 
     // store non-null value
@@ -1192,7 +1193,7 @@ void TemplateTable::aastore() {
     // r0 - value, r2 - index, r3 - array.
 
     // Profile the not-null value's klass.
-    // Load value class 
+    // Load value class
      __ load_klass(r1, r0);
      __ profile_typecheck(r2, r1, r0); // blows r2, and r0
 
@@ -1203,7 +1204,7 @@ void TemplateTable::aastore() {
 
      __ load_klass(r0, r3);
 
-     __ ldr(r0, Address(r0, ArrayKlass::element_klass_offset())); 
+     __ ldr(r0, Address(r0, ArrayKlass::element_klass_offset()));
      __ cmp(r0, r1);
      __ br(Assembler::EQ, is_type_ok);
 
@@ -1215,7 +1216,7 @@ void TemplateTable::aastore() {
     // Reload from TOS to be safe, because of profile_typecheck that blows r2 and r0.
     // FIXME: Should we really do it?
      __ ldr(r1, at_tos());  // value
-     __ mov(r2, r3); // array, ldr(r2, at_tos_p2()); 
+     __ mov(r2, r3); // array, ldr(r2, at_tos_p2());
      __ ldr(r3, at_tos_p1()); // index
      __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::value_array_store), r1, r2, r3);
   }
@@ -1780,7 +1781,7 @@ void TemplateTable::lcmp()
   Label done;
   __ pop_l(r1);
   __ cmp(r1, r0);
-  __ mov(r0, (u_int64_t)-1L);
+  __ mov(r0, (uint64_t)-1L);
   __ br(Assembler::LT, done);
   // __ mov(r0, 1UL);
   // __ csel(r0, r0, zr, Assembler::NE);
@@ -1804,7 +1805,7 @@ void TemplateTable::float_cmp(bool is_float, int unordered_result)
   if (unordered_result < 0) {
     // we want -1 for unordered or less than, 0 for equal and 1 for
     // greater than.
-    __ mov(r0, (u_int64_t)-1L);
+    __ mov(r0, (uint64_t)-1L);
     // for FP LT tests less than or unordered
     __ br(Assembler::LT, done);
     // install 0 for EQ otherwise 1
@@ -2398,7 +2399,7 @@ void TemplateTable::_return(TosState state)
     __ narrow(r0);
   }
 
-  __ remove_activation(state); 
+  __ remove_activation(state);
   __ ret(lr);
 }
 
@@ -2607,7 +2608,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   // membar it's possible for a simple Dekker test to fail if loads
   // use LDR;DMB but stores use STLR.  This can happen if C2 compiles
   // the stores in one method and we interpret the loads in another.
-  if (! UseBarriersForVolatile) {
+  if (!is_c1_or_interpreter_only()){
     Label notVolatile;
     __ tbz(raw_flags, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
     __ membar(MacroAssembler::AnyAny);
@@ -2661,58 +2662,58 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
     __ push(atos);
     if (rc == may_rewrite) {
       patch_bytecode(Bytecodes::_fast_agetfield, bc, r1);
-    }  
+    }
     __ b(Done);
   } else { // Valhalla
 
     if (is_static) {
       __ load_heap_oop(r0, field);
-      Label isFlattenable, isUninitialized;
+      Label is_inline, isUninitialized;
       // Issue below if the static field has not been initialized yet
-      __ test_field_is_flattenable(raw_flags, r8 /*temp*/, isFlattenable);
-        // Not flattenable case
+      __ test_field_is_inline_type(raw_flags, r8 /*temp*/, is_inline);
+        // Not inline case
         __ push(atos);
         __ b(Done);
-      // Flattenable case, must not return null even if uninitialized
-      __ bind(isFlattenable);
+      // Inline case, must not return null even if uninitialized
+      __ bind(is_inline);
         __ cbz(r0, isUninitialized);
           __ push(atos);
           __ b(Done);
         __ bind(isUninitialized);
           __ andw(raw_flags, raw_flags, ConstantPoolCacheEntry::field_index_mask);
-          __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_value_field), obj, raw_flags);
+          __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_inline_type_field), obj, raw_flags);
           __ verify_oop(r0);
           __ push(atos);
           __ b(Done);
     } else {
-      Label isFlattened, isInitialized, isFlattenable, rewriteFlattenable;
-        __ test_field_is_flattenable(raw_flags, r8 /*temp*/, isFlattenable);
-        // Non-flattenable field case, also covers the object case
+      Label isFlattened, isInitialized, is_inline, rewrite_inline;
+        __ test_field_is_inline_type(raw_flags, r8 /*temp*/, is_inline);
+        // Non-inline field case
         __ load_heap_oop(r0, field);
         __ push(atos);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_agetfield, bc, r1);
         }
         __ b(Done);
-      __ bind(isFlattenable);
-        __ test_field_is_flattened(raw_flags, r8 /* temp */, isFlattened);
-         // Non-flattened field case
+      __ bind(is_inline);
+        __ test_field_is_inlined(raw_flags, r8 /* temp */, isFlattened);
+         // Non-inline field case
           __ load_heap_oop(r0, field);
           __ cbnz(r0, isInitialized);
             __ andw(raw_flags, raw_flags, ConstantPoolCacheEntry::field_index_mask);
-            __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_value_field), obj, raw_flags);
+            __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_inline_type_field), obj, raw_flags);
           __ bind(isInitialized);
           __ verify_oop(r0);
           __ push(atos);
-          __ b(rewriteFlattenable);
+          __ b(rewrite_inline);
         __ bind(isFlattened);
           __ ldr(r10, Address(cache, in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::f1_offset())));
           __ andw(raw_flags, raw_flags, ConstantPoolCacheEntry::field_index_mask);
-          call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flattened_field), obj, raw_flags, r10); 
+          call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flattened_field), obj, raw_flags, r10);
           __ verify_oop(r0);
           __ push(atos);
-      __ bind(rewriteFlattenable);
-      if (rc == may_rewrite) { 
+      __ bind(rewrite_inline);
+      if (rc == may_rewrite) {
          patch_bytecode(Bytecodes::_fast_qgetfield, bc, r1);
       }
       __ b(Done);
@@ -2910,7 +2911,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   Label notByte, notBool, notInt, notShort, notChar,
         notLong, notFloat, notObj, notDouble;
 
-  __ mov(flags2, flags); 
+  __ mov(flags2, flags);
 
   // x86 uses a shift and mask or wings it with a shift plus assert
   // the mask is not needed. aarch64 just uses bitfield extract
@@ -2967,37 +2968,37 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
 
       __ pop(atos);
       if (is_static) {
-        Label notFlattenable;
-         __ test_field_is_not_flattenable(flags2, r8 /* temp */, notFlattenable);
+        Label not_inline;
+         __ test_field_is_not_inline_type(flags2, r8 /* temp */, not_inline);
          __ null_check(r0);
-         __ bind(notFlattenable);
-         do_oop_store(_masm, field, r0, IN_HEAP); 
+         __ bind(not_inline);
+         do_oop_store(_masm, field, r0, IN_HEAP);
          __ b(Done);
       } else {
-        Label isFlattenable, isFlattened, notBuffered, notBuffered2, rewriteNotFlattenable, rewriteFlattenable;
-        __ test_field_is_flattenable(flags2, r8 /*temp*/, isFlattenable);
-        // Not flattenable case, covers not flattenable values and objects
+        Label is_inline, isFlattened, rewrite_not_inline, rewrite_inline;
+        __ test_field_is_inline_type(flags2, r8 /*temp*/, is_inline);
+        // Not inline case
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, r0, IN_HEAP);
-        __ bind(rewriteNotFlattenable);
+        __ bind(rewrite_not_inline);
         if (rc == may_rewrite) {
-          patch_bytecode(Bytecodes::_fast_aputfield, bc, r19, true, byte_no); 
+          patch_bytecode(Bytecodes::_fast_aputfield, bc, r19, true, byte_no);
         }
         __ b(Done);
-        // Implementation of the flattenable semantic
-        __ bind(isFlattenable);
+        // Implementation of the inline semantic
+        __ bind(is_inline);
         __ null_check(r0);
-        __ test_field_is_flattened(flags2, r8 /*temp*/, isFlattened);
-        // Not flattened case
+        __ test_field_is_inlined(flags2, r8 /*temp*/, isFlattened);
+        // Not inline case
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, r0, IN_HEAP);
-        __ b(rewriteFlattenable);
+        __ b(rewrite_inline);
         __ bind(isFlattened);
         pop_and_check_object(obj);
         call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::write_flattened_value), r0, off, obj);
-        __ bind(rewriteFlattenable);
+        __ bind(rewrite_inline);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_qputfield, bc, r19, true, byte_no);
         }
@@ -3197,6 +3198,9 @@ void TemplateTable::fast_storefield(TosState state)
   // access constant pool cache
   __ get_cache_and_index_at_bcp(r2, r1, 1);
 
+  // Must prevent reordering of the following cp cache loads with bytecode load
+  __ membar(MacroAssembler::LoadLoad);
+
   // test for volatile with r3
   __ ldrw(r3, Address(r2, in_bytes(base +
                                    ConstantPoolCacheEntry::flags_offset())));
@@ -3221,9 +3225,9 @@ void TemplateTable::fast_storefield(TosState state)
 
   // access field
   switch (bytecode()) {
-  case Bytecodes::_fast_qputfield: //fall through 
+  case Bytecodes::_fast_qputfield: //fall through
    {
-      Label isFlattened, done; 
+      Label isFlattened, done;
       __ null_check(r0);
       __ test_field_is_flattened(r3, r8 /* temp */, isFlattened);
       // No Flattened case
@@ -3302,6 +3306,10 @@ void TemplateTable::fast_accessfield(TosState state)
 
   // access constant pool cache
   __ get_cache_and_index_at_bcp(r2, r1, 1);
+
+  // Must prevent reordering of the following cp cache loads with bytecode load
+  __ membar(MacroAssembler::LoadLoad);
+
   __ ldr(r1, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
                                   ConstantPoolCacheEntry::f2_offset())));
   __ ldrw(r3, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
@@ -3318,7 +3326,7 @@ void TemplateTable::fast_accessfield(TosState state)
   // membar it's possible for a simple Dekker test to fail if loads
   // use LDR;DMB but stores use STLR.  This can happen if C2 compiles
   // the stores in one method and we interpret the loads in another.
-  if (! UseBarriersForVolatile) {
+  if (!is_c1_or_interpreter_only()) {
     Label notVolatile;
     __ tbz(r3, ConstantPoolCacheEntry::is_volatile_shift, notVolatile);
     __ membar(MacroAssembler::AnyAny);
@@ -3327,20 +3335,20 @@ void TemplateTable::fast_accessfield(TosState state)
 
   // access field
   switch (bytecode()) {
-  case Bytecodes::_fast_qgetfield: 
+  case Bytecodes::_fast_qgetfield:
     {
        Label isFlattened, isInitialized, Done;
        // FIXME: We don't need to reload registers multiple times, but stay close to x86 code
-       __ ldrw(r9, Address(r2, in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::flags_offset()))); 
-       __ test_field_is_flattened(r9, r8 /* temp */, isFlattened);
+       __ ldrw(r9, Address(r2, in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::flags_offset())));
+       __ test_field_is_inlined(r9, r8 /* temp */, isFlattened);
         // Non-flattened field case
         __ mov(r9, r0);
         __ load_heap_oop(r0, field);
         __ cbnz(r0, isInitialized);
           __ mov(r0, r9);
-          __ ldrw(r9, Address(r2, in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::flags_offset()))); 
+          __ ldrw(r9, Address(r2, in_bytes(ConstantPoolCache::base_offset() + ConstantPoolCacheEntry::flags_offset())));
           __ andw(r9, r9, ConstantPoolCacheEntry::field_index_mask);
-          __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_value_field), r0, r9);
+          __ call_VM(r0, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_instance_inline_type_field), r0, r9);
         __ bind(isInitialized);
         __ verify_oop(r0);
         __ b(Done);
@@ -3406,7 +3414,7 @@ void TemplateTable::fast_xaccess(TosState state)
   // membar it's possible for a simple Dekker test to fail if loads
   // use LDR;DMB but stores use STLR.  This can happen if C2 compiles
   // the stores in one method and we interpret the loads in another.
-  if (! UseBarriersForVolatile) {
+  if (!is_c1_or_interpreter_only()) {
     Label notVolatile;
     __ ldrw(r3, Address(r2, in_bytes(ConstantPoolCache::base_offset() +
                                      ConstantPoolCacheEntry::flags_offset())));
@@ -3539,7 +3547,7 @@ void TemplateTable::invokevirtual_helper(Register index,
 
   const Register method = index;  // method must be rmethod
   assert(method == rmethod,
-         "methodOop must be rmethod for interpreter calling convention");
+         "Method must be rmethod for interpreter calling convention");
 
   // do the call - the index is actually the method to call
   // that is, f2 is a vtable index if !is_vfinal, else f2 is a Method*
@@ -3562,7 +3570,7 @@ void TemplateTable::invokevirtual_helper(Register index,
   // profile this call
   __ profile_virtual_call(r0, rlocals, r3);
 
-  // get target methodOop & entry point
+  // get target Method & entry point
   __ lookup_virtual_method(r0, index, method);
   __ profile_arguments_type(r3, method, r4, true);
   // FIXME -- this looks completely redundant. is it?
@@ -3697,7 +3705,7 @@ void TemplateTable::invokeinterface(int byte_no) {
                              rmethod, r13,
                              no_such_interface);
 
-  // rmethod,: methodOop to call
+  // rmethod,: Method to call
   // r2: receiver
   // Check for abstract method error
   // Note: This should be done more efficiently via a throw_abstract_method_error
@@ -3709,7 +3717,7 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   // do the call
   // r2: receiver
-  // rmethod,: methodOop
+  // rmethod,: Method
   __ jump_from_interpreted(rmethod, r3);
   __ should_not_reach_here();
 
@@ -3925,7 +3933,7 @@ void TemplateTable::withfield() {
 
   // n.b. unlike x86 cache is now rcpool plus the indexed offset
   // so using rcpool to meet shared code expectations
- 
+
   call_VM(r1, CAST_FROM_FN_PTR(address, InterpreterRuntime::withfield), rcpool);
   __ verify_oop(r1);
   __ add(esp, esp, r0);
@@ -4018,7 +4026,7 @@ void TemplateTable::checkcast()
      // See if bytecode has already been quicked
     __ add(rscratch1, r3, Array<u1>::base_offset_in_bytes());
     __ lea(r1, Address(rscratch1, r19));
-    __ ldarb(r1, r1); 
+    __ ldarb(r1, r1);
     // See if CP entry is a Q-descriptor
     __ andr (r1, r1, JVM_CONSTANT_QDescBit);
     __ cmp(r1, (u1) JVM_CONSTANT_QDescBit);

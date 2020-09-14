@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,7 @@ import java.util.ArrayList;
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller -jar loadclasses.jar LoadClasses
  * @run driver ClassFileInstaller -jar whitebox.jar sun.hotspot.WhiteBox
- * @run driver/timeout=500 DynamicLotsOfClasses
+ * @run main/othervm/timeout=500 -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:./whitebox.jar DynamicLotsOfClasses
  */
 
 public class DynamicLotsOfClasses extends DynamicArchiveTestBase {

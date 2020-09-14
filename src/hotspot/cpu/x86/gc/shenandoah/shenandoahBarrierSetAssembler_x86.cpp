@@ -28,9 +28,9 @@
 #include "gc/shenandoah/shenandoahForwarding.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
-#include "gc/shenandoah/shenandoahHeuristics.hpp"
 #include "gc/shenandoah/shenandoahRuntime.hpp"
 #include "gc/shenandoah/shenandoahThreadLocalData.hpp"
+#include "gc/shenandoah/heuristics/shenandoahHeuristics.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -45,6 +45,30 @@
 #define __ masm->
 
 address ShenandoahBarrierSetAssembler::_shenandoah_lrb = NULL;
+
+static void save_xmm_registers(MacroAssembler* masm) {
+    __ subptr(rsp, 64);
+    __ movdbl(Address(rsp, 0), xmm0);
+    __ movdbl(Address(rsp, 8), xmm1);
+    __ movdbl(Address(rsp, 16), xmm2);
+    __ movdbl(Address(rsp, 24), xmm3);
+    __ movdbl(Address(rsp, 32), xmm4);
+    __ movdbl(Address(rsp, 40), xmm5);
+    __ movdbl(Address(rsp, 48), xmm6);
+    __ movdbl(Address(rsp, 56), xmm7);
+}
+
+static void restore_xmm_registers(MacroAssembler* masm) {
+    __ movdbl(xmm0, Address(rsp, 0));
+    __ movdbl(xmm1, Address(rsp, 8));
+    __ movdbl(xmm2, Address(rsp, 16));
+    __ movdbl(xmm3, Address(rsp, 24));
+    __ movdbl(xmm4, Address(rsp, 32));
+    __ movdbl(xmm5, Address(rsp, 40));
+    __ movdbl(xmm6, Address(rsp, 48));
+    __ movdbl(xmm7, Address(rsp, 56));
+    __ addptr(rsp, 64);
+}
 
 void ShenandoahBarrierSetAssembler::arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, BasicType type,
                                                        Register src, Register dst, Register count) {
@@ -290,7 +314,9 @@ void ShenandoahBarrierSetAssembler::load_reference_barrier_not_null(MacroAssembl
     __ lea(src_addr, src);
   }
 
+  save_xmm_registers(masm);
   __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahBarrierSetAssembler::shenandoah_lrb())));
+  restore_xmm_registers(masm);
 
   if (need_addr_setup) {
     if (dst != rax) {
@@ -368,7 +394,10 @@ void ShenandoahBarrierSetAssembler::load_reference_barrier_native(MacroAssembler
 
   assert_different_registers(dst, rsi);
   __ lea(rsi, src);
+
+  save_xmm_registers(masm);
   __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_native), dst, rsi);
+  restore_xmm_registers(masm);
 
 #ifdef _LP64
   __ pop(r15);
@@ -514,15 +543,7 @@ void ShenandoahBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet d
     // That path can be reached from the c2i adapter with live fp
     // arguments in registers.
     LP64_ONLY(assert(Argument::n_float_register_parameters_j == 8, "8 fp registers to save at java call"));
-    __ subptr(rsp, 64);
-    __ movdbl(Address(rsp, 0), xmm0);
-    __ movdbl(Address(rsp, 8), xmm1);
-    __ movdbl(Address(rsp, 16), xmm2);
-    __ movdbl(Address(rsp, 24), xmm3);
-    __ movdbl(Address(rsp, 32), xmm4);
-    __ movdbl(Address(rsp, 40), xmm5);
-    __ movdbl(Address(rsp, 48), xmm6);
-    __ movdbl(Address(rsp, 56), xmm7);
+    save_xmm_registers(masm);
 
     Register thread = NOT_LP64(tmp_thread) LP64_ONLY(r15_thread);
     assert_different_registers(dst, tmp1, tmp_thread);
@@ -539,15 +560,7 @@ void ShenandoahBarrierSetAssembler::load_at(MacroAssembler* masm, DecoratorSet d
                                  tmp1 /* tmp */,
                                  true /* tosca_live */,
                                  true /* expand_call */);
-    __ movdbl(xmm0, Address(rsp, 0));
-    __ movdbl(xmm1, Address(rsp, 8));
-    __ movdbl(xmm2, Address(rsp, 16));
-    __ movdbl(xmm3, Address(rsp, 24));
-    __ movdbl(xmm4, Address(rsp, 32));
-    __ movdbl(xmm5, Address(rsp, 40));
-    __ movdbl(xmm6, Address(rsp, 48));
-    __ movdbl(xmm7, Address(rsp, 56));
-    __ addptr(rsp, 64);
+    restore_xmm_registers(masm);
     __ pop_IU_state();
   }
 }
@@ -977,7 +990,7 @@ address ShenandoahBarrierSetAssembler::generate_shenandoah_lrb(StubCodeGenerator
   StubCodeMark mark(cgen, "StubRoutines", "shenandoah_lrb");
   address start = __ pc();
 
-  Label resolve_oop, slow_path;
+  Label slow_path;
 
   // We use RDI, which also serves as argument register for slow call.
   // RAX always holds the src object ptr, except after the slow call,
@@ -995,25 +1008,7 @@ address ShenandoahBarrierSetAssembler::generate_shenandoah_lrb(StubCodeGenerator
   __ movptr(tmp2, (intptr_t) ShenandoahHeap::in_cset_fast_test_addr());
   __ movbool(tmp2, Address(tmp2, tmp1, Address::times_1));
   __ testbool(tmp2);
-  __ jccb(Assembler::notZero, resolve_oop);
-  __ pop(tmp2);
-  __ pop(tmp1);
-  __ ret(0);
-
-  // Test if object is already resolved.
-  __ bind(resolve_oop);
-  __ movptr(tmp2, Address(rax, oopDesc::mark_offset_in_bytes()));
-  // Test if both lowest bits are set. We trick it by negating the bits
-  // then test for both bits clear.
-  __ notptr(tmp2);
-  __ testb(tmp2, markWord::marked_value);
   __ jccb(Assembler::notZero, slow_path);
-  // Clear both lower bits. It's still inverted, so set them, and then invert back.
-  __ orptr(tmp2, markWord::marked_value);
-  __ notptr(tmp2);
-  // At this point, tmp2 contains the decoded forwarding pointer.
-  __ mov(rax, tmp2);
-
   __ pop(tmp2);
   __ pop(tmp1);
   __ ret(0);

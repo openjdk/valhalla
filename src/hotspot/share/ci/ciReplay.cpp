@@ -35,11 +35,12 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/constantPool.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/method.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/java.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/utf8.hpp"
@@ -628,7 +629,7 @@ class CompileReplay : public StackObj {
     // method to be rewritten (number of arguments at a call for
     // instance)
     method->method_holder()->link_class(CHECK);
-    // methodOopDesc::build_interpreter_method_data(method, CHECK);
+    // Method::build_interpreter_method_data(method, CHECK);
     {
       // Grab a lock here to prevent multiple
       // MethodData*s from being created.
@@ -789,16 +790,16 @@ class CompileReplay : public StackObj {
     }
   }
 
-  class ValueTypeFieldInitializer : public FieldClosure {
+  class InlineTypeFieldInitializer : public FieldClosure {
     oop _vt;
     CompileReplay* _replay;
   public:
-    ValueTypeFieldInitializer(oop vt, CompileReplay* replay)
+    InlineTypeFieldInitializer(oop vt, CompileReplay* replay)
   : _vt(vt), _replay(replay) {}
 
     void do_field(fieldDescriptor* fd) {
       BasicType bt = fd->field_type();
-      const char* string_value = bt != T_VALUETYPE ? _replay->parse_escaped_string() : NULL;
+      const char* string_value = bt != T_INLINE_TYPE ? _replay->parse_escaped_string() : NULL;
       switch (bt) {
       case T_BYTE: {
         int value = atoi(string_value);
@@ -851,12 +852,12 @@ class CompileReplay : public StackObj {
         assert(res, "should succeed for arrays & objects");
         break;
       }
-      case T_VALUETYPE: {
-        ValueKlass* vk = ValueKlass::cast(fd->field_holder()->get_value_field_klass(fd->index()));
-        if (fd->is_flattened()) {
+      case T_INLINE_TYPE: {
+        InlineKlass* vk = InlineKlass::cast(fd->field_holder()->get_inline_type_field_klass(fd->index()));
+        if (fd->is_inlined()) {
           int field_offset = fd->offset() - vk->first_field_offset();
           oop obj = (oop)(cast_from_oop<address>(_vt) + field_offset);
-          ValueTypeFieldInitializer init_fields(obj, _replay);
+          InlineTypeFieldInitializer init_fields(obj, _replay);
           vk->do_nonstatic_fields(&init_fields);
         } else {
           oop value = vk->allocate_instance(Thread::current());
@@ -912,9 +913,9 @@ class CompileReplay : public StackObj {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
           value = oopFactory::new_objArray(kelem, length, CHECK_(true));
         } else if (field_signature[0] == JVM_SIGNATURE_ARRAY &&
-                   field_signature[1] == JVM_SIGNATURE_VALUETYPE) {
+                   field_signature[1] == JVM_SIGNATURE_INLINE_TYPE) {
           Klass* kelem = resolve_klass(field_signature + 1, CHECK_(true));
-          value = oopFactory::new_valueArray(kelem, length, CHECK_(true));
+          value = oopFactory::new_flatArray(kelem, length, CHECK_(true));
         } else {
           report_error("unhandled array staticfield");
         }
@@ -999,11 +1000,11 @@ class CompileReplay : public StackObj {
       const char* string_value = parse_escaped_string();
       double value = atof(string_value);
       java_mirror->double_field_put(fd.offset(), value);
-    } else if (field_signature[0] == JVM_SIGNATURE_VALUETYPE) {
+    } else if (field_signature[0] == JVM_SIGNATURE_INLINE_TYPE) {
       Klass* kelem = resolve_klass(field_signature, CHECK);
-      ValueKlass* vk = ValueKlass::cast(kelem);
+      InlineKlass* vk = InlineKlass::cast(kelem);
       oop value = vk->allocate_instance(CHECK);
-      ValueTypeFieldInitializer init_fields(value, this);
+      InlineTypeFieldInitializer init_fields(value, this);
       vk->do_nonstatic_fields(&init_fields);
       java_mirror->obj_field_put(fd.offset(), value);
     } else {
@@ -1219,8 +1220,8 @@ void* ciReplay::load_inline_data(ciMethod* method, int entry_bci, int comp_level
 }
 
 int ciReplay::replay_impl(TRAPS) {
-  HandleMark hm;
-  ResourceMark rm;
+  HandleMark hm(THREAD);
+  ResourceMark rm(THREAD);
 
   if (ReplaySuppressInitializers > 2) {
     // ReplaySuppressInitializers > 2 means that we want to allow

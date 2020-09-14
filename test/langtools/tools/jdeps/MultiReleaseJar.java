@@ -22,7 +22,6 @@
  */
 
 /*
- * @ignore
  * @test
  * @bug 8153654 8176333
  * @summary Tests for jdeps tool with multi-release jar files

@@ -46,15 +46,15 @@ import static org.testng.Assert.assertThrows;
 /*
  * @test
  * @bug 8236105 8240533
- * @summary Check that DatagramSocket and MulticastSocket throw expected
+ * @summary Check that DatagramSocket throws expected
  *          Exception when sending a DatagramPacket with port 0
- * @run testng/othervm SendPortZero
+ * @run testng SendPortZero
+ * @run testng/othervm -Djdk.net.usePlainDatagramSocketImpl SendPortZero
  */
 
 public class SendPortZero {
     private InetAddress loopbackAddr, wildcardAddr;
     private DatagramSocket datagramSocket, datagramSocketAdaptor;
-    private MulticastSocket multicastSocket;
     private DatagramPacket loopbackZeroPkt, wildcardZeroPkt, wildcardValidPkt;
 
     private static final Class<SocketException> SE = SocketException.class;
@@ -64,7 +64,6 @@ public class SendPortZero {
     @BeforeTest
     public void setUp() throws IOException {
         datagramSocket = new DatagramSocket();
-        multicastSocket = new MulticastSocket();
         datagramSocketAdaptor = DatagramChannel.open().socket();
 
         byte[] buf = "test".getBytes();
@@ -102,7 +101,6 @@ public class SendPortZero {
         return new Object[][]{
                 { datagramSocket,        loopbackZeroPkt },
                 { datagramSocketAdaptor, loopbackZeroPkt },
-                { multicastSocket,       loopbackZeroPkt }
         };
     }
 
@@ -140,7 +138,6 @@ public class SendPortZero {
     @AfterTest
     public void tearDown() {
         datagramSocket.close();
-        multicastSocket.close();
         datagramSocketAdaptor.close();
     }
 }

@@ -481,11 +481,17 @@ final class Finished {
                         SSLHandshake.FINISHED.id, SSLHandshake.FINISHED);
                 shc.conContext.inputRecord.expectingFinishFlight();
             } else {
-                if (shc.handshakeSession.isRejoinable() &&
-                        !shc.handshakeSession.isStatelessable(shc)) {
-                    ((SSLSessionContextImpl)shc.sslContext.
-                        engineGetServerSessionContext()).put(
-                            shc.handshakeSession);
+                // Set the session's context based on stateless/cache status
+                if (shc.statelessResumption &&
+                        shc.handshakeSession.isStatelessable()) {
+                    shc.handshakeSession.setContext((SSLSessionContextImpl)
+                            shc.sslContext.engineGetServerSessionContext());
+                } else {
+                    if (shc.handshakeSession.isRejoinable()) {
+                        ((SSLSessionContextImpl)shc.sslContext.
+                                engineGetServerSessionContext()).put(
+                                shc.handshakeSession);
+                    }
                 }
                 shc.conContext.conSession = shc.handshakeSession.finish();
                 shc.conContext.protocolVersion = shc.negotiatedProtocol;
@@ -857,6 +863,9 @@ final class Finished {
                 shc.conContext.serverVerifyData = fm.verifyData;
             }
 
+            // Make sure session's context is set
+            shc.handshakeSession.setContext((SSLSessionContextImpl)
+                    shc.sslContext.engineGetServerSessionContext());
             shc.conContext.conSession = shc.handshakeSession.finish();
 
             // update the context
@@ -1074,14 +1083,6 @@ final class Finished {
                         shc.negotiatedProtocol);
             }
 
-            // Save the session if possible and not stateless
-            if (!shc.statelessResumption && !shc.isResumption &&
-                    shc.handshakeSession.isRejoinable()) {
-                SSLSessionContextImpl sessionContext = (SSLSessionContextImpl)
-                        shc.sslContext.engineGetServerSessionContext();
-                sessionContext.put(shc.handshakeSession);
-            }
-
             try {
                 // update the application traffic read keys.
                 SecretKey readSecret = kd.deriveKey(
@@ -1140,12 +1141,7 @@ final class Finished {
 
             //
             // produce
-            if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
-                SSLLogger.fine(
-                "Sending new session ticket");
-            }
-
-            NewSessionTicket.kickstartProducer.produce(shc);
+            NewSessionTicket.t13PosthandshakeProducer.produce(shc);
         }
     }
 

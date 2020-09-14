@@ -31,7 +31,7 @@
 #include "gc/shenandoah/shenandoahCollectorPolicy.hpp"
 #include "gc/shenandoah/shenandoahConcurrentRoots.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
-#include "gc/shenandoah/shenandoahHeuristics.hpp"
+#include "gc/shenandoah/heuristics/shenandoahHeuristics.hpp"
 #include "memory/iterator.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #ifdef COMPILER1
@@ -134,7 +134,7 @@ oop ShenandoahBarrierSet::load_reference_barrier_impl(oop obj) {
         _heap->in_collection_set(obj) &&
         obj == fwd) {
       Thread *t = Thread::current();
-      ShenandoahEvacOOMScope oom_evac_scope;
+      ShenandoahEvacOOMScope oom_evac_scope(t);
       return _heap->evacuate_object(obj, t);
     } else {
       return fwd;
@@ -164,6 +164,7 @@ void ShenandoahBarrierSet::on_thread_attach(Thread *thread) {
   if (thread->is_Java_thread()) {
     ShenandoahThreadLocalData::set_gc_state(thread, _heap->gc_state());
     ShenandoahThreadLocalData::initialize_gclab(thread);
+    ShenandoahThreadLocalData::set_disarmed_value(thread, ShenandoahCodeRoots::disarmed_value());
   }
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2014, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -33,9 +33,9 @@
 #include "c1/c1_Runtime1.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArray.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "utilities/powerOfTwo.hpp"
@@ -298,7 +298,7 @@ void LIRGenerator::cmp_reg_mem(LIR_Condition condition, LIR_Opr reg, LIR_Opr bas
 }
 
 
-bool LIRGenerator::strength_reduce_multiply(LIR_Opr left, int c, LIR_Opr result, LIR_Opr tmp) {
+bool LIRGenerator::strength_reduce_multiply(LIR_Opr left, jint c, LIR_Opr result, LIR_Opr tmp) {
 
   if (is_power_of_2(c - 1)) {
     __ shift_left(left, exact_log2(c - 1), tmp);
@@ -340,7 +340,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   LIR_Opr lock = new_register(T_INT);
   // Need a scratch register for biased locking
   LIR_Opr scratch = LIR_OprFact::illegalOpr;
-  if (UseBiasedLocking || x->maybe_valuetype()) {
+  if (UseBiasedLocking || x->maybe_inlinetype()) {
     scratch = new_register(T_INT);
   }
 
@@ -350,7 +350,7 @@ void LIRGenerator::do_MonitorEnter(MonitorEnter* x) {
   }
 
   CodeStub* throw_imse_stub =
-      x->maybe_valuetype() ?
+      x->maybe_inlinetype() ?
       new SimpleExceptionStub(Runtime1::throw_illegal_monitor_state_exception_id, LIR_OprFact::illegalOpr, state_for(x)) :
       NULL;
 
@@ -472,7 +472,7 @@ void LIRGenerator::do_ArithmeticOp_Long(ArithmeticOp* x) {
     if (need_zero_check) {
       CodeEmitInfo* info = state_for(x);
       __ cmp(lir_cond_equal, right.result(), LIR_OprFact::longConst(0));
-      __ branch(lir_cond_equal, T_LONG, new DivByZeroStub(info));
+      __ branch(lir_cond_equal, new DivByZeroStub(info));
     }
 
     rlock_result(x);
@@ -547,7 +547,7 @@ void LIRGenerator::do_ArithmeticOp_Int(ArithmeticOp* x) {
     if (need_zero_check) {
       CodeEmitInfo* info = state_for(x);
       __ cmp(lir_cond_equal, right_arg->result(), LIR_OprFact::longConst(0));
-      __ branch(lir_cond_equal, T_INT, new DivByZeroStub(info));
+      __ branch(lir_cond_equal, new DivByZeroStub(info));
     }
 
     LIR_Opr ill = LIR_OprFact::illegalOpr;
@@ -1166,7 +1166,7 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   __ move(reg, result);
 }
 
-void LIRGenerator::do_NewValueTypeInstance  (NewValueTypeInstance* x) {
+void LIRGenerator::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {
   // Mapping to do_NewInstance (same code)
   CodeEmitInfo* info = state_for(x, x->state());
   x->set_to_object_type();
@@ -1228,14 +1228,14 @@ void LIRGenerator::do_NewObjectArray(NewObjectArray* x) {
   LIR_Opr len = length.result();
 
   ciKlass* obj = (ciKlass*) x->exact_type();
-  CodeStub* slow_path = new NewObjectArrayStub(klass_reg, len, reg, info, x->is_never_null());
+  CodeStub* slow_path = new NewObjectArrayStub(klass_reg, len, reg, info, x->is_null_free());
   if (obj == ciEnv::unloaded_ciobjarrayklass()) {
     BAILOUT("encountered unloaded_ciobjarrayklass due to out of memory error");
   }
 
   klass2reg_with_patching(klass_reg, obj, patching_info);
-  if (x->is_never_null()) {
-    __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_VALUETYPE, klass_reg, slow_path);
+  if (x->is_null_free()) {
+    __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_INLINE_TYPE, klass_reg, slow_path);
   } else {
     __ allocate_array(reg, len, tmp1, tmp2, tmp3, tmp4, T_OBJECT, klass_reg, slow_path);
   }
@@ -1314,7 +1314,7 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
   CodeEmitInfo* info_for_exception =
       (x->needs_exception_state() ? state_for(x) :
                                     state_for(x, x->state_before(), true /*ignore_xhandler*/));
-  if (x->is_never_null()) {
+  if (x->is_null_free()) {
     __ null_check(obj.result(), new CodeEmitInfo(info_for_exception));
   }
 
@@ -1340,7 +1340,7 @@ void LIRGenerator::do_CheckCast(CheckCast* x) {
   __ checkcast(reg, obj.result(), x->klass(),
                new_register(objectType), new_register(objectType), tmp3,
                x->direct_compare(), info_for_exception, patching_info, stub,
-               x->profiled_method(), x->profiled_bci(), x->is_never_null());
+               x->profiled_method(), x->profiled_bci(), x->is_null_free());
 
 }
 
@@ -1424,9 +1424,9 @@ void LIRGenerator::do_If(If* x) {
   profile_branch(x, cond);
   move_to_phi(x->state());
   if (x->x()->type()->is_float_kind()) {
-    __ branch(lir_cond(cond), right->type(), x->tsux(), x->usux());
+    __ branch(lir_cond(cond), x->tsux(), x->usux());
   } else {
-    __ branch(lir_cond(cond), right->type(), x->tsux());
+    __ branch(lir_cond(cond), x->tsux());
   }
   assert(x->default_sux() == x->fsux(), "wrong destination above");
   __ jump(x->default_sux());
@@ -1451,9 +1451,8 @@ void LIRGenerator::volatile_field_load(LIR_Address* address, LIR_Opr result,
   // membar it's possible for a simple Dekker test to fail if loads
   // use LD;DMB but stores use STLR.  This can happen if C2 compiles
   // the stores in one method and C1 compiles the loads in another.
-  if (! UseBarriersForVolatile) {
+  if (!is_c1_or_interpreter_only()) {
     __ membar();
   }
-
   __ volatile_load_mem_reg(address, result, info);
 }

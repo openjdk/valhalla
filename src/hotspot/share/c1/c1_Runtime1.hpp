@@ -51,13 +51,13 @@ class StubAssembler;
   stub(fast_new_instance_init_check) \
   stub(new_type_array)               \
   stub(new_object_array)             \
-  stub(new_value_array)              \
+  stub(new_flat_array)               \
   stub(new_multi_array)              \
   stub(load_flattened_array)         \
   stub(store_flattened_array)        \
   stub(substitutability_check)       \
-  stub(buffer_value_args)            \
-  stub(buffer_value_args_no_receiver)\
+  stub(buffer_inline_args)           \
+  stub(buffer_inline_args_no_receiver)\
   stub(handle_exception_nofpu)         /* optimized version that does not preserve fpu registers */ \
   stub(handle_exception)             \
   stub(handle_exception_from_callee) \
@@ -111,14 +111,14 @@ class Runtime1: public AllStatic {
   static int _arraycopy_checkcast_attempt_cnt;
   static int _new_type_array_slowcase_cnt;
   static int _new_object_array_slowcase_cnt;
-  static int _new_value_array_slowcase_cnt;
+  static int _new_flat_array_slowcase_cnt;
   static int _new_instance_slowcase_cnt;
   static int _new_multi_array_slowcase_cnt;
   static int _load_flattened_array_slowcase_cnt;
   static int _store_flattened_array_slowcase_cnt;
   static int _substitutability_check_slowcase_cnt;
-  static int _buffer_value_args_slowcase_cnt;
-  static int _buffer_value_args_no_receiver_slowcase_cnt;
+  static int _buffer_inline_args_slowcase_cnt;
+  static int _buffer_inline_args_no_receiver_slowcase_cnt;
   static int _monitorenter_slowcase_cnt;
   static int _monitorexit_slowcase_cnt;
   static int _patch_code_slowcase_cnt;
@@ -136,7 +136,7 @@ class Runtime1: public AllStatic {
  private:
   static CodeBlob* _blobs[number_of_ids];
   static const char* _blob_names[];
-  static void buffer_value_args_impl(JavaThread* thread, Method* m, bool allocate_receiver);
+  static void buffer_inline_args_impl(JavaThread* thread, Method* m, bool allocate_receiver);
 
   // stub generation
  public:
@@ -156,13 +156,13 @@ class Runtime1: public AllStatic {
   static void new_instance    (JavaThread* thread, Klass* klass);
   static void new_type_array  (JavaThread* thread, Klass* klass, jint length);
   static void new_object_array(JavaThread* thread, Klass* klass, jint length);
-  static void new_value_array (JavaThread* thread, Klass* klass, jint length);
+  static void new_flat_array (JavaThread* thread, Klass* klass, jint length);
   static void new_multi_array (JavaThread* thread, Klass* klass, int rank, jint* dims);
-  static void load_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index);
-  static void store_flattened_array(JavaThread* thread, valueArrayOopDesc* array, int index, oopDesc* value);
+  static void load_flattened_array(JavaThread* thread, flatArrayOopDesc* array, int index);
+  static void store_flattened_array(JavaThread* thread, flatArrayOopDesc* array, int index, oopDesc* value);
   static int  substitutability_check(JavaThread* thread, oopDesc* left, oopDesc* right);
-  static void buffer_value_args(JavaThread* thread, Method* method);
-  static void buffer_value_args_no_receiver(JavaThread* thread, Method* method);
+  static void buffer_inline_args(JavaThread* thread, Method* method);
+  static void buffer_inline_args_no_receiver(JavaThread* thread, Method* method);
 
   static address counter_overflow(JavaThread* thread, int bci, Method* method);
 

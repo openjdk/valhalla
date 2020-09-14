@@ -25,9 +25,8 @@
  * @test
  * @bug 8237007
  * @summary Shenandoah: assert(_base == Tuple) failure during C2 compilation
- * @key gc
  * @requires vm.flavor == "server"
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
  *
  * @run main/othervm -XX:+UnlockExperimentalVMOptions -XX:-BackgroundCompilation -XX:+UseShenandoahGC LRBRightAfterMemBar
  *

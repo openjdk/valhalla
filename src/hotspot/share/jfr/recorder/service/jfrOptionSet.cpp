@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/javaClasses.hpp"
 #include "jfr/dcmd/jfrDcmds.hpp"
 #include "jfr/recorder/service/jfrMemorySizer.hpp"
 #include "jfr/recorder/service/jfrOptionSet.hpp"
@@ -366,6 +367,7 @@ bool JfrOptionSet::configure(TRAPS) {
   configure._sample_threads.set_is_set(_dcmd_sample_threads.is_set());
   configure._sample_threads.set_value(_dcmd_sample_threads.value());
 
+  configure.set_verbose(false);
   configure.execute(DCmd_Source_Internal, THREAD);
 
   if (HAS_PENDING_EXCEPTION) {
@@ -701,7 +703,7 @@ bool JfrOptionSet::parse_start_flight_recording_option(const JavaVMOption** opti
   const size_t value_length = strlen(value);
 
   if (start_flight_recording_options_array == NULL) {
-    start_flight_recording_options_array = new (ResourceObj::C_HEAP, mtTracing) GrowableArray<const char*>(8, true, mtTracing);
+    start_flight_recording_options_array = new (ResourceObj::C_HEAP, mtTracing) GrowableArray<const char*>(8, mtTracing);
   }
   assert(start_flight_recording_options_array != NULL, "invariant");
   char* const startup_value = NEW_C_HEAP_ARRAY(char, value_length + 1, mtTracing);

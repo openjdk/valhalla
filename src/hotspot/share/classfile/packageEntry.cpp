@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "logging/log.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/symbol.hpp"
+#include "runtime/java.hpp"
 #include "runtime/handles.inline.hpp"
 #include "utilities/events.hpp"
 #include "utilities/growableArray.hpp"
@@ -53,7 +54,7 @@ void PackageEntry::add_qexport(ModuleEntry* m) {
   if (!has_qual_exports_list()) {
     // Lazily create a package's qualified exports list.
     // Initial size is small, do not anticipate export lists to be large.
-    _qualified_exports = new (ResourceObj::C_HEAP, mtModule) GrowableArray<ModuleEntry*>(QUAL_EXP_SIZE, true);
+    _qualified_exports = new (ResourceObj::C_HEAP, mtModule) GrowableArray<ModuleEntry*>(QUAL_EXP_SIZE, mtModule);
   }
 
   // Determine, based on this newly established export to module m,

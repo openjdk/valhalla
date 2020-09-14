@@ -26,6 +26,7 @@
 
 #include "gc/shenandoah/heuristics/shenandoahPassiveHeuristics.hpp"
 #include "gc/shenandoah/shenandoahCollectionSet.hpp"
+#include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.inline.hpp"
 #include "logging/log.hpp"
 #include "logging/logTag.hpp"
@@ -57,8 +58,8 @@ void ShenandoahPassiveHeuristics::choose_collection_set_from_regiondata(Shenando
 
   // Do not select too large CSet that would overflow the available free space.
   // Take at least the entire evacuation reserve, and be free to overflow to free space.
-  size_t capacity  = ShenandoahHeap::heap()->max_capacity();
-  size_t available = MAX2(capacity / 100 * ShenandoahEvacReserve, actual_free);
+  size_t max_capacity = ShenandoahHeap::heap()->max_capacity();
+  size_t available = MAX2(max_capacity / 100 * ShenandoahEvacReserve, actual_free);
   size_t max_cset  = (size_t)(available / ShenandoahEvacWaste);
 
   log_info(gc, ergo)("CSet Selection. Actual Free: " SIZE_FORMAT "%s, Max CSet: " SIZE_FORMAT "%s",
@@ -76,16 +77,4 @@ void ShenandoahPassiveHeuristics::choose_collection_set_from_regiondata(Shenando
       cset->add_region(r);
     }
   }
-}
-
-const char* ShenandoahPassiveHeuristics::name() {
-  return "passive";
-}
-
-bool ShenandoahPassiveHeuristics::is_diagnostic() {
-  return true;
-}
-
-bool ShenandoahPassiveHeuristics::is_experimental() {
-  return false;
 }

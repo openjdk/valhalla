@@ -217,7 +217,7 @@ public abstract class Executable extends AccessibleObject
      * @throws GenericSignatureFormatError if the generic
      *     signature of this generic declaration does not conform to
      *     the format specified in
-     *     <cite>The Java&trade; Virtual Machine Specification</cite>
+     *     <cite>The Java Virtual Machine Specification</cite>
      */
     public abstract TypeVariable<?>[] getTypeParameters();
 
@@ -276,7 +276,7 @@ public abstract class Executable extends AccessibleObject
      * @throws GenericSignatureFormatError
      *     if the generic method signature does not conform to the format
      *     specified in
-     *     <cite>The Java&trade; Virtual Machine Specification</cite>
+     *     <cite>The Java Virtual Machine Specification</cite>
      * @throws TypeNotPresentException if any of the parameter
      *     types of the underlying executable refers to a non-existent type
      *     declaration
@@ -307,12 +307,12 @@ public abstract class Executable extends AccessibleObject
             final boolean realParamData = hasRealParameterData();
             final Type[] genericParamTypes = getGenericParameterTypes();
             final Type[] nonGenericParamTypes = getParameterTypes();
-            final Type[] out = new Type[nonGenericParamTypes.length];
-            final Parameter[] params = getParameters();
-            int fromidx = 0;
             // If we have real parameter data, then we use the
             // synthetic and mandate flags to our advantage.
             if (realParamData) {
+                final Type[] out = new Type[nonGenericParamTypes.length];
+                final Parameter[] params = getParameters();
+                int fromidx = 0;
                 for (int i = 0; i < out.length; i++) {
                     final Parameter param = params[i];
                     if (param.isSynthetic() || param.isImplicit()) {
@@ -325,6 +325,7 @@ public abstract class Executable extends AccessibleObject
                         fromidx++;
                     }
                 }
+                return out;
             } else {
                 // Otherwise, use the non-generic parameter data.
                 // Without method parameter reflection data, we have
@@ -334,7 +335,6 @@ public abstract class Executable extends AccessibleObject
                 return genericParamTypes.length == nonGenericParamTypes.length ?
                     genericParamTypes : nonGenericParamTypes;
             }
-            return out;
         }
     }
 
@@ -474,7 +474,7 @@ public abstract class Executable extends AccessibleObject
      * @throws GenericSignatureFormatError
      *     if the generic method signature does not conform to the format
      *     specified in
-     *     <cite>The Java&trade; Virtual Machine Specification</cite>
+     *     <cite>The Java Virtual Machine Specification</cite>
      * @throws TypeNotPresentException if the underlying executable's
      *     {@code throws} clause refers to a non-existent type declaration
      * @throws MalformedParameterizedTypeException if
@@ -515,7 +515,7 @@ public abstract class Executable extends AccessibleObject
      *
      * @return true if and only if this executable is a synthetic
      * construct as defined by
-     * <cite>The Java&trade; Language Specification</cite>.
+     * <cite>The Java Language Specification</cite>.
      * @jls 13.1 The Form of a Binary
      */
     public boolean isSynthetic() {

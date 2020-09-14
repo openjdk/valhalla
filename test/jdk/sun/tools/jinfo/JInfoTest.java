@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 import java.io.IOException;
 
 import jdk.test.lib.JDKToolLauncher;
+import jdk.test.lib.Utils;
 import jdk.test.lib.process.OutputAnalyzer;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.apps.LingeredApp;
@@ -68,8 +69,12 @@ public class JInfoTest {
             output.shouldHaveExitValue(0);
             documentMatch(output.getStdout(), ".*MinHeapFreeRatio=1.*MinHeapFreeRatio=1.*");
         } finally {
-            JInfoTestLingeredApp.stopApp(app1);
-            JInfoTestLingeredApp.stopApp(app2);
+            // LingeredApp.stopApp can throw an exception
+            try {
+                JInfoTestLingeredApp.stopApp(app1);
+            } finally {
+                JInfoTestLingeredApp.stopApp(app2);
+            }
         }
     }
 
@@ -92,8 +97,12 @@ public class JInfoTest {
             // "Runtime Environment" written once per proc
             documentMatch(output.getStdout(), ".*Runtime Environment.*Runtime Environment.*");
         } finally {
-            JInfoTestLingeredApp.stopApp(app1);
-            JInfoTestLingeredApp.stopApp(app2);
+            // LingeredApp.stopApp can throw an exception
+            try {
+                JInfoTestLingeredApp.stopApp(app1);
+            } finally {
+                JInfoTestLingeredApp.stopApp(app2);
+            }
         }
     }
 
@@ -106,6 +115,7 @@ public class JInfoTest {
 
     private static OutputAnalyzer jinfo(String... toolArgs) throws Exception {
         JDKToolLauncher launcher = JDKToolLauncher.createUsingTestJDK("jinfo");
+        launcher.addVMArgs(Utils.getTestJavaOpts());
         if (toolArgs != null) {
             for (String toolArg : toolArgs) {
                 launcher.addToolArg(toolArg);

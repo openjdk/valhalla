@@ -24,17 +24,17 @@
 
 #include "precompiled.hpp"
 #include "ci/ciField.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/jniHandles.inline.hpp"
@@ -65,9 +65,10 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   _has_nonstatic_fields = ik->has_nonstatic_fields();
   _has_nonstatic_concrete_methods = ik->has_nonstatic_concrete_methods();
   _is_unsafe_anonymous = ik->is_unsafe_anonymous();
-  _nonstatic_fields = NULL;            // initialized lazily by compute_nonstatic_fields
+  _is_hidden = ik->is_hidden();
+  _is_record = ik->is_record();
+  _nonstatic_fields = NULL; // initialized lazily by compute_nonstatic_fields:
   _has_injected_fields = -1;
-  _vcc_klass = NULL;
   _implementor = NULL; // we will fill these lazily
 
   // Ensure that the metadata wrapped by the ciMetadata is kept alive by GC.
@@ -76,13 +77,13 @@ ciInstanceKlass::ciInstanceKlass(Klass* k) :
   // InstanceKlass are created for both weak and strong metadata.  Ensuring this metadata
   // alive covers the cases where there are weak roots without performance cost.
   oop holder = ik->klass_holder();
-  if (ik->is_unsafe_anonymous()) {
+  if (ik->class_loader_data()->has_class_mirror_holder()) {
     // Though ciInstanceKlass records class loader oop, it's not enough to keep
-    // VM unsafe anonymous classes alive (loader == NULL). Klass holder should
+    // non-strong hidden classes and VM unsafe anonymous classes alive (loader == NULL). Klass holder should
     // be used instead. It is enough to record a ciObject, since cached elements are never removed
     // during ciObjectFactory lifetime. ciObjectFactory itself is created for
     // every compilation and lives for the whole duration of the compilation.
-    assert(holder != NULL, "holder of unsafe anonymous class is the mirror which is never null");
+    assert(holder != NULL, "holder of hidden or unsafe anonymous class is the mirror which is never null");
     (void)CURRENT_ENV->get_object(holder);
   }
 
@@ -126,8 +127,9 @@ ciInstanceKlass::ciInstanceKlass(ciSymbol* name,
   _has_nonstatic_fields = false;
   _nonstatic_fields = NULL;            // initialized lazily by compute_nonstatic_fields
   _has_injected_fields = -1;
-  _vcc_klass = NULL;
   _is_unsafe_anonymous = false;
+  _is_hidden = false;
+  _is_record = false;
   _loader = loader;
   _protection_domain = protection_domain;
   _is_shared = false;
@@ -277,7 +279,7 @@ bool ciInstanceKlass::is_box_klass() const {
 bool ciInstanceKlass::is_boxed_value_offset(int offset) const {
   BasicType bt = box_klass_type();
   return is_java_primitive(bt) &&
-         (offset == java_lang_boxing_object::value_offset_in_bytes(bt));
+         (offset == java_lang_boxing_object::value_offset(bt));
 }
 
 // ------------------------------------------------------------------
@@ -333,11 +335,11 @@ void ciInstanceKlass::print_impl(outputStream* st) {
               bool_to_str(has_subklass()),
               layout_helper());
 
-    _flags.print_klass_flags();
+    _flags.print_klass_flags(st);
 
     if (_super) {
       st->print(" super=");
-      _super->print_name();
+      _super->print_name_on(st);
     }
     if (_java_mirror) {
       st->print(" mirror=PRESENT");
@@ -548,21 +550,21 @@ GrowableArray<ciField*>* ciInstanceKlass::compute_nonstatic_fields_impl(Growable
   for (JavaFieldStream fs(k); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static())  continue;
     fieldDescriptor& fd = fs.field_descriptor();
-    if (fd.is_flattened() && flatten) {
-      // Value type fields are embedded
+    if (fd.is_inlined() && flatten) {
+      // Inline type fields are embedded
       int field_offset = fd.offset();
-      // Get ValueKlass and adjust number of fields
-      Klass* k = get_instanceKlass()->get_value_field_klass(fd.index());
-      ciValueKlass* vk = CURRENT_ENV->get_klass(k)->as_value_klass();
+      // Get InlineKlass and adjust number of fields
+      Klass* k = get_instanceKlass()->get_inline_type_field_klass(fd.index());
+      ciInlineKlass* vk = CURRENT_ENV->get_klass(k)->as_inline_klass();
       flen += vk->nof_nonstatic_fields() - 1;
-      // Iterate over fields of the flattened value type and copy them to 'this'
+      // Iterate over fields of the flattened inline type and copy them to 'this'
       for (int i = 0; i < vk->nof_nonstatic_fields(); ++i) {
         ciField* flattened_field = vk->nonstatic_field_at(i);
         // Adjust offset to account for missing oop header
         int offset = field_offset + (flattened_field->offset() - vk->first_field_offset());
         // A flattened field can be treated as final if the non-flattened
-        // field is declared final or the holder klass is a value type itself.
-        bool is_final = fd.is_final() || is_valuetype();
+        // field is declared final or the holder klass is an inline type itself.
+        bool is_final = fd.is_final() || is_inlinetype();
         ciField* field = new (arena) ciField(flattened_field, this, offset, is_final);
         fields->append(field);
       }
@@ -672,6 +674,22 @@ ciInstanceKlass* ciInstanceKlass::implementor() {
   return impl;
 }
 
+bool ciInstanceKlass::can_be_inline_klass(bool is_exact) {
+  if (!EnableValhalla) {
+    return false;
+  }
+  if (!is_loaded() || is_inlinetype()) {
+    // Not loaded or known to be an inline klass
+    return true;
+  }
+  if (!is_exact) {
+    // Not exact, check if this is a valid super for an inline klass
+    VM_ENTRY_MARK;
+    return !get_instanceKlass()->invalid_inline_super();
+  }
+  return false;
+}
+
 ciInstanceKlass* ciInstanceKlass::unsafe_anonymous_host() {
   assert(is_loaded(), "must be loaded");
   if (is_unsafe_anonymous()) {
@@ -679,10 +697,6 @@ ciInstanceKlass* ciInstanceKlass::unsafe_anonymous_host() {
     Klass* unsafe_anonymous_host = get_instanceKlass()->unsafe_anonymous_host();
     return CURRENT_ENV->get_instance_klass(unsafe_anonymous_host);
   }
-  return NULL;
-}
-
-ciInstanceKlass* ciInstanceKlass::vcc_klass() {
   return NULL;
 }
 
@@ -726,10 +740,10 @@ class StaticFinalFieldPrinter : public StaticFieldPrinter {
   }
 };
 
-class ValueTypeFieldPrinter : public StaticFieldPrinter {
+class InlineTypeFieldPrinter : public StaticFieldPrinter {
   oop _obj;
 public:
-  ValueTypeFieldPrinter(outputStream* out, oop obj) :
+  InlineTypeFieldPrinter(outputStream* out, oop obj) :
     StaticFieldPrinter(out), _obj(obj) {
   }
   void do_field(fieldDescriptor* fd) {
@@ -775,7 +789,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
       } else if (value->is_array()) {
         typeArrayOop ta = (typeArrayOop)value;
         _out->print("%d", ta->length());
-        if (value->is_objArray() || value->is_valueArray()) {
+        if (value->is_objArray() || value->is_flatArray()) {
           objArrayOop oa = (objArrayOop)value;
           const char* klass_name  = value->klass()->name()->as_quoted_ascii();
           _out->print(" %s", klass_name);
@@ -785,7 +799,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
       }
       break;
     }
-    case T_VALUETYPE: {
+    case T_INLINE_TYPE: {
       ResetNoHandleMark rnhm;
       Thread* THREAD = Thread::current();
       SignatureStream ss(fd->signature(), false);
@@ -795,7 +809,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
       Klass* k = SystemDictionary::find(name, Handle(THREAD, holder->class_loader()),
                                         Handle(THREAD, holder->protection_domain()), THREAD);
       assert(k != NULL && !HAS_PENDING_EXCEPTION, "can resolve klass?");
-      ValueKlass* vk = ValueKlass::cast(k);
+      InlineKlass* vk = InlineKlass::cast(k);
       oop obj;
       if (flattened) {
         int field_offset = fd->offset() - vk->first_field_offset();
@@ -803,7 +817,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
       } else {
         obj =  mirror->obj_field_acquire(fd->offset());
       }
-      ValueTypeFieldPrinter print_field(_out, obj);
+      InlineTypeFieldPrinter print_field(_out, obj);
       vk->do_nonstatic_fields(&print_field);
       break;
     }

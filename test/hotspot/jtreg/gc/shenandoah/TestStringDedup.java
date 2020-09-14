@@ -25,8 +25,8 @@
 /*
  * @test TestStringDedup
  * @summary Test Shenandoah string deduplication implementation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Shenandoah
  * @library /test/lib
  * @modules java.base/jdk.internal.misc:open
  * @modules java.base/java.lang:open
@@ -46,8 +46,8 @@
 /*
  * @test TestStringDedup
  * @summary Test Shenandoah string deduplication implementation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Shenandoah
  * @library /test/lib
  * @modules java.base/jdk.internal.misc:open
  * @modules java.base/java.lang:open
@@ -69,8 +69,8 @@
 /*
  * @test TestStringDedup
  * @summary Test Shenandoah string deduplication implementation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Shenandoah
  * @library /test/lib
  * @modules java.base/jdk.internal.misc:open
  * @modules java.base/java.lang:open
@@ -87,6 +87,7 @@
 
 import java.lang.reflect.*;
 import java.util.*;
+import jdk.test.lib.Utils;
 
 import sun.misc.*;
 
@@ -136,7 +137,7 @@ public class TestStringDedup {
     }
 
     private static void generateStrings(ArrayList<StringAndId> strs, int unique_strs) {
-        Random rn = new Random();
+        Random rn = Utils.getRandomInstance();
         for (int u = 0; u < unique_strs; u++) {
             int n = rn.nextInt() % 10;
             n = Math.max(n, 2);

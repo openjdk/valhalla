@@ -36,11 +36,6 @@
 // call sites and method entry points.
 
 class CallGenerator : public ResourceObj {
- public:
-  enum {
-    xxxunusedxxx
-  };
-
  private:
   ciMethod*             _method;                // The method being called.
 
@@ -86,6 +81,8 @@ class CallGenerator : public ResourceObj {
   virtual void set_unique_id(jlong id)          { fatal("unique id only for late inlines"); };
   virtual jlong unique_id() const               { fatal("unique id only for late inlines"); return 0; };
 
+  virtual CallGenerator* inline_cg() { ShouldNotReachHere(); return NULL; }
+
   // Note:  It is possible for a CG to be both inline and virtual.
   // (The hashCode intrinsic does a vtable check and an inlined fast path.)
 
@@ -124,8 +121,8 @@ class CallGenerator : public ResourceObj {
   static CallGenerator* for_direct_call(ciMethod* m, bool separate_io_projs = false);   // static, special
   static CallGenerator* for_virtual_call(ciMethod* m, int vtable_index);  // virtual, interface
 
-  static CallGenerator* for_method_handle_call(  JVMState* jvms, ciMethod* caller, ciMethod* callee, bool delayed_forbidden);
-  static CallGenerator* for_method_handle_inline(JVMState* jvms, ciMethod* caller, ciMethod* callee, bool& input_not_const, bool delayed_forbidden);
+  static CallGenerator* for_method_handle_call(  JVMState* jvms, ciMethod* caller, ciMethod* callee);
+  static CallGenerator* for_method_handle_inline(JVMState* jvms, ciMethod* caller, ciMethod* callee, bool& input_not_const);
 
   // How to generate a replace a direct call with an inline version
   static CallGenerator* for_late_inline(ciMethod* m, CallGenerator* inline_cg);

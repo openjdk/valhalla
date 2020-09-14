@@ -101,6 +101,8 @@ apt_help() {
       PKGHANDLER_COMMAND="sudo apt-get install libfontconfig1-dev" ;;
     freetype)
       PKGHANDLER_COMMAND="sudo apt-get install libfreetype6-dev" ;;
+    harfbuzz)
+      PKGHANDLER_COMMAND="sudo apt-get install libharfbuzz-dev" ;;
     ffi)
       PKGHANDLER_COMMAND="sudo apt-get install libffi-dev" ;;
     x11)
@@ -124,6 +126,8 @@ zypper_help() {
       PKGHANDLER_COMMAND="sudo zypper install fontconfig-devel" ;;
     freetype)
       PKGHANDLER_COMMAND="sudo zypper install freetype-devel" ;;
+    harfbuzz)
+      PKGHANDLER_COMMAND="sudo zypper install harfbuzz-devel" ;;
     x11)
       PKGHANDLER_COMMAND="sudo zypper install libX11-devel libXext-devel libXrender-devel libXrandr-devel libXtst-devel libXt-devel libXi-devel" ;;
     ccache)
@@ -143,6 +147,8 @@ yum_help() {
       PKGHANDLER_COMMAND="sudo yum install fontconfig-devel" ;;
     freetype)
       PKGHANDLER_COMMAND="sudo yum install freetype-devel" ;;
+    harfbuzz)
+      PKGHANDLER_COMMAND="sudo yum install harfbuzz-devel" ;;
     x11)
       PKGHANDLER_COMMAND="sudo yum install libXtst-devel libXt-devel libXrender-devel libXrandr-devel libXi-devel" ;;
     ccache)
@@ -250,7 +256,11 @@ AC_DEFUN_ONCE([HELP_PRINT_SUMMARY_AND_WARNINGS],
   printf "\n"
   printf "Tools summary:\n"
   if test "x$OPENJDK_BUILD_OS" = "xwindows"; then
-    printf "* Environment:    $WINDOWS_ENV_VENDOR version $WINDOWS_ENV_VERSION (root at $WINDOWS_ENV_ROOT_PATH)\n"
+    printf "* Environment:    $WINDOWS_ENV_VENDOR version $WINDOWS_ENV_VERSION. Windows version $WINDOWS_VERSION"
+    if test "x$WINDOWS_ENV_ROOT_PATH" != "x"; then
+      printf ". Root at $WINDOWS_ENV_ROOT_PATH"
+    fi
+    printf "\n"
   fi
   printf "* Boot JDK:       $BOOT_JDK_VERSION (at $BOOT_JDK)\n"
   printf "* Toolchain:      $TOOLCHAIN_TYPE ($TOOLCHAIN_DESCRIPTION)\n"

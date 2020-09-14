@@ -26,6 +26,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "memory/metaspace.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
@@ -42,24 +43,27 @@ MemoryPool::MemoryPool(const char* name,
                        size_t init_size,
                        size_t max_size,
                        bool support_usage_threshold,
-                       bool support_gc_threshold) {
-  _name = name;
-  _initial_size = init_size;
-  _max_size = max_size;
-  (void)const_cast<instanceOop&>(_memory_pool_obj = instanceOop(NULL));
-  _available_for_allocation = true;
-  _num_managers = 0;
-  _type = type;
-
-  // initialize the max and init size of collection usage
-  _after_gc_usage = MemoryUsage(_initial_size, 0, 0, _max_size);
-
-  _usage_sensor = NULL;
-  _gc_usage_sensor = NULL;
+                       bool support_gc_threshold) :
+  _name(name),
+  _type(type),
+  _initial_size(init_size),
+  _max_size(max_size),
+  _available_for_allocation(true),
+  _managers(),
+  _num_managers(0),
+  _peak_usage(),
+  _after_gc_usage(init_size, 0, 0, max_size),
   // usage threshold supports both high and low threshold
-  _usage_threshold = new ThresholdSupport(support_usage_threshold, support_usage_threshold);
+  _usage_threshold(new ThresholdSupport(support_usage_threshold, support_usage_threshold)),
   // gc usage threshold supports only high threshold
-  _gc_usage_threshold = new ThresholdSupport(support_gc_threshold, support_gc_threshold);
+  _gc_usage_threshold(new ThresholdSupport(support_gc_threshold, support_gc_threshold)),
+  _usage_sensor(),
+  _gc_usage_sensor(),
+  _memory_pool_obj()
+{}
+
+bool MemoryPool::is_pool(instanceHandle pool) const {
+  return pool() == Atomic::load(&_memory_pool_obj).resolve();
 }
 
 void MemoryPool::add_manager(MemoryManager* mgr) {
@@ -71,13 +75,13 @@ void MemoryPool::add_manager(MemoryManager* mgr) {
 }
 
 
-// Returns an instanceHandle of a MemoryPool object.
+// Returns an instanceOop of a MemoryPool object.
 // It creates a MemoryPool instance when the first time
 // this function is called.
 instanceOop MemoryPool::get_memory_pool_instance(TRAPS) {
   // Must do an acquire so as to force ordering of subsequent
   // loads from anything _memory_pool_obj points to or implies.
-  instanceOop pool_obj = Atomic::load_acquire(&_memory_pool_obj);
+  oop pool_obj = Atomic::load_acquire(&_memory_pool_obj).resolve();
   if (pool_obj == NULL) {
     // It's ok for more than one thread to execute the code up to the locked region.
     // Extra pool instances will just be gc'ed.
@@ -115,12 +119,9 @@ instanceOop MemoryPool::get_memory_pool_instance(TRAPS) {
       // Check if another thread has created the pool.  We reload
       // _memory_pool_obj here because some other thread may have
       // initialized it while we were executing the code before the lock.
-      //
-      // The lock has done an acquire, so the load can't float above it,
-      // but we need to do a load_acquire as above.
-      pool_obj = Atomic::load_acquire(&_memory_pool_obj);
+      pool_obj = Atomic::load(&_memory_pool_obj).resolve();
       if (pool_obj != NULL) {
-         return pool_obj;
+         return (instanceOop)pool_obj;
       }
 
       // Get the address of the object we created via call_special.
@@ -130,11 +131,11 @@ instanceOop MemoryPool::get_memory_pool_instance(TRAPS) {
       // with creating the pool are visible before publishing its address.
       // The unlock will publish the store to _memory_pool_obj because
       // it does a release first.
-      Atomic::release_store(&_memory_pool_obj, pool_obj);
+      Atomic::release_store(&_memory_pool_obj, OopHandle(Universe::vm_global(), pool_obj));
     }
   }
 
-  return pool_obj;
+  return (instanceOop)pool_obj;
 }
 
 inline static size_t get_max_value(size_t val1, size_t val2) {
@@ -165,16 +166,6 @@ void MemoryPool::set_usage_sensor_obj(instanceHandle sh) {
 
 void MemoryPool::set_gc_usage_sensor_obj(instanceHandle sh) {
   set_sensor_obj_at(&_gc_usage_sensor, sh);
-}
-
-void MemoryPool::oops_do(OopClosure* f) {
-  f->do_oop((oop*) &_memory_pool_obj);
-  if (_usage_sensor != NULL) {
-    _usage_sensor->oops_do(f);
-  }
-  if (_gc_usage_sensor != NULL) {
-    _gc_usage_sensor->oops_do(f);
-  }
 }
 
 CodeHeapPool::CodeHeapPool(CodeHeap* codeHeap, const char* name, bool support_usage_threshold) :

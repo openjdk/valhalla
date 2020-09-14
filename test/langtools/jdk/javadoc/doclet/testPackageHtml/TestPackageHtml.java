@@ -46,7 +46,7 @@ public class TestPackageHtml extends JavadocTester {
                 "-sourcepath", testSrc,
                 "pkg1");
         checkExit(Exit.ERROR);
-        checkOutput(Output.OUT, true, "package.html:5: error: bad use of '>'");
+        checkOutput(Output.OUT, true, "package.html:4: error: malformed HTML");
     }
 
     // Doclet must handle empty body in package.html, must
@@ -59,16 +59,18 @@ public class TestPackageHtml extends JavadocTester {
                 "pkg2", "pkg3", "pkg4");
         checkExit(Exit.OK);
         checkOutput("index-all.html", true,
-              "<dl class=\"index\">\n"
-                      + "<dt><a href=\"pkg2/package-summary.html\">pkg2</a> - package pkg2</dt>\n"
-                      + "<dt><a href=\"pkg3/package-summary.html\">pkg3</a> - package pkg3</dt>\n"
-                      + "<dd>\n"
-                      + "<div class=\"block\">This is a documentation for <a href=\"pkg3/package-summary.html\"><code>pkg3</code></a></div>\n"
-                      + "</dd>\n"
-                      + "<dt><a href=\"pkg4/package-summary.html\">pkg4</a> - package pkg4</dt>\n"
-                      + "<dd>\n"
-                      + "<div class=\"block\">This is a documentation for <a href=\"pkg4/package-summary.html\"><code>pkg4</code></a></div>\n"
-                      + "</dd>\n"
-                      + "</dl>\n");
+              """
+                  <dl class="index">
+                  <dt><a href="pkg2/package-summary.html">pkg2</a> - package pkg2</dt>
+                  <dt><a href="pkg3/package-summary.html">pkg3</a> - package pkg3</dt>
+                  <dd>
+                  <div class="block">This is a documentation for <a href="pkg3/package-summary.html"><code>pkg3</code></a></div>
+                  </dd>
+                  <dt><a href="pkg4/package-summary.html">pkg4</a> - package pkg4</dt>
+                  <dd>
+                  <div class="block">This is a documentation for <a href="pkg4/package-summary.html"><code>pkg4</code></a></div>
+                  </dd>
+                  </dl>
+                  """);
     }
 }

@@ -277,9 +277,10 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     public HotSpotResolvedObjectTypeImpl[] getInterfaces() {
         if (interfaces == null) {
             if (isArray()) {
-                HotSpotResolvedObjectTypeImpl[] types = new HotSpotResolvedObjectTypeImpl[2];
+                HotSpotResolvedObjectTypeImpl[] types = new HotSpotResolvedObjectTypeImpl[3];
                 types[0] = runtime().getJavaLangCloneable();
                 types[1] = runtime().getJavaLangSerializable();
+                types[2] = runtime().getJavaLangIdentityObject();
                 this.interfaces = types;
             } else {
                 interfaces = runtime().compilerToVm.getInterfaces(this);
@@ -370,6 +371,27 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
     @Override
     public boolean isLinked() {
         return isArray() ? true : getInitState() >= config().instanceKlassStateLinked;
+    }
+
+    @Override
+    public void link() {
+        if (!isLinked()) {
+            runtime().compilerToVm.ensureLinked(this);
+        }
+    }
+
+    @Override
+    public boolean hasDefaultMethods() {
+        HotSpotVMConfig config = config();
+        int miscFlags = UNSAFE.getChar(getMetaspaceKlass() + config.instanceKlassMiscFlagsOffset);
+        return (miscFlags & config.jvmMiscFlagsHasDefaultMethods) != 0;
+    }
+
+    @Override
+    public boolean declaresDefaultMethods() {
+        HotSpotVMConfig config = config();
+        int miscFlags = UNSAFE.getChar(getMetaspaceKlass() + config.instanceKlassMiscFlagsOffset);
+        return (miscFlags & config.jvmMiscFlagsDeclaresDefaultMethods) != 0;
     }
 
     /**
@@ -817,12 +839,10 @@ final class HotSpotResolvedObjectTypeImpl extends HotSpotResolvedJavaType implem
 
     @Override
     public String getSourceFileName() {
-        HotSpotVMConfig config = config();
-        final int sourceFileNameIndex = UNSAFE.getChar(getMetaspaceKlass() + config.instanceKlassSourceFileNameIndexOffset);
-        if (sourceFileNameIndex == 0) {
+        if (isArray()) {
             return null;
         }
-        return getConstantPool().lookupUtf8(sourceFileNameIndex);
+        return getConstantPool().getSourceFileName();
     }
 
     @Override

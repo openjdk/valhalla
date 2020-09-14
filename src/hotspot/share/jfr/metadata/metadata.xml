@@ -66,6 +66,10 @@
     <Field type="InflateCause" name="cause" label="Monitor Inflation Cause" description="Cause of inflation" />
   </Event>
 
+  <Event name="SyncOnPrimitiveWrapper" category="Java Virtual Machine, Diagnostics" label="Primitive Wrapper Synchronization" thread="true" stackTrace="true" startTime="false" experimental="true">
+    <Field type="Class" name="boxClass" label="Boxing Class" />
+  </Event>
+
   <Event name="BiasedLockRevocation" category="Java Virtual Machine, Runtime" label="Biased Lock Revocation" description="Revoked bias of object" thread="true"
     stackTrace="true">
     <Field type="Class" name="lockClass" label="Lock Class" description="Class of object whose biased lock was revoked" />
@@ -218,7 +222,7 @@
   <Event name="MetaspaceAllocationFailure" category="Java Virtual Machine, GC, Metaspace" label="Metaspace Allocation Failure" startTime="false"
     stackTrace="true">
     <Field type="ClassLoader" name="classLoader" label="Class Loader" />
-    <Field type="boolean" name="unsafeAnonymousClassLoader" label="Unsafe Anonymous Class Loader" />
+    <Field type="boolean" name="hiddenClassLoader" label="Hidden Class Loader" />
     <Field type="ulong" contentType="bytes" name="size" label="Size" />
     <Field type="MetadataType" name="metadataType" label="Metadata Type" />
     <Field type="MetaspaceObjectType" name="metaspaceObjectType" label="Metaspace Object Type" />
@@ -226,7 +230,7 @@
 
   <Event name="MetaspaceOOM" category="Java Virtual Machine, GC, Metaspace" label="Metaspace Out of Memory" startTime="false" stackTrace="true">
     <Field type="ClassLoader" name="classLoader" label="Class Loader" />
-    <Field type="boolean" name="unsafeAnonymousClassLoader" label="Unsafe Anonymous Class Loader" />
+    <Field type="boolean" name="hiddenClassLoader" label="Hidden Class Loader" />
     <Field type="ulong" contentType="bytes" name="size" label="Size" />
     <Field type="MetadataType" name="metadataType" label="Metadata Type" />
     <Field type="MetaspaceObjectType" name="metaspaceObjectType" label="Metaspace Object Type" />
@@ -368,7 +372,7 @@
       description="Mutator allocation during mutator operation in the most recent interval" />
     <Field type="long" contentType="millis" name="recentMutatorDuration" label="Recent Mutator Duration" description="Time the mutator ran in the most recent interval" />
     <Field type="double" contentType="bytes-per-second" name="recentAllocationRate" label="Recent Allocation Rate" description="Allocation rate of the mutator in the most recent interval in bytes/second" />
-    <Field type="long" contentType="millis" name="lastMarkingDuration" label="Last Marking Duration" description="Last time from the end of the last initial mark to the first mixed GC" />
+    <Field type="long" contentType="millis" name="lastMarkingDuration" label="Last Marking Duration" description="Last time from the end of the last concurrent start to the first mixed GC" />
   </Event>
 
   <Event name="G1AdaptiveIHOP" category="Java Virtual Machine, GC, Detailed" label="G1 Adaptive IHOP Statistics" startTime="false"
@@ -381,7 +385,7 @@
     <Field type="ulong" contentType="bytes" name="additionalBufferSize" label="Additional Buffer" description="Additional buffer size" experimental="true" />
     <Field type="double" contentType="bytes-per-second" name="predictedAllocationRate" label="Predicted Allocation Rate" description="Current predicted allocation rate for the mutator in bytes/second" />
     <Field type="long" contentType="millis" name="predictedMarkingDuration" label="Predicted Marking Duration"
-      description="Current predicted time from the end of the last initial mark to the first mixed GC" />
+      description="Current predicted time from the end of the last concurrent start to the first mixed GC" />
     <Field type="boolean" name="predictionActive" label="Prediction Active" description="Indicates whether the adaptive IHOP prediction is active" />
   </Event>
 
@@ -724,11 +728,11 @@
     <Field type="long" name="classCount" label="Classes" description="Number of loaded classes" />
     <Field type="ulong" contentType="bytes" name="chunkSize" label="Total Chunk Size" description="Total size of all allocated metaspace chunks (each chunk has several blocks)" />
     <Field type="ulong" contentType="bytes" name="blockSize" label="Total Block Size" description="Total size of all allocated metaspace blocks (each chunk has several blocks)" />
-    <Field type="long" name="unsafeAnonymousClassCount" label="Unsafe Anonymous Classes" description="Number of loaded classes to support invokedynamic" />
-    <Field type="ulong" contentType="bytes" name="unsafeAnonymousChunkSize" label="Total Unsafe Anonymous Classes Chunk Size"
-      description="Total size of all allocated metaspace chunks for unsafe anonymous classes (each chunk has several blocks)" />
-    <Field type="ulong" contentType="bytes" name="unsafeAnonymousBlockSize" label="Total Unsafe Anonymous Classes Block Size"
-      description="Total size of all allocated metaspace blocks for unsafe anonymous classes (each chunk has several blocks)" />
+    <Field type="long" name="hiddenClassCount" label="Hidden Classes" description="Number of hidden classes" />
+    <Field type="ulong" contentType="bytes" name="hiddenChunkSize" label="Total Hidden Classes Chunk Size"
+      description="Total size of all allocated metaspace chunks for hidden classes (each chunk has several blocks)" />
+    <Field type="ulong" contentType="bytes" name="hiddenBlockSize" label="Total Hidden Classes Block Size"
+      description="Total size of all allocated metaspace blocks for hidden classes (each chunk has several blocks)" />
   </Event>
 
   <Event name="SymbolTableStatistics" category="Java Virtual Machine, Runtime, Tables" label="Symbol Table Statistics" period="everyChunk">
@@ -890,6 +894,7 @@
   <Event name="CodeSweeperConfiguration" category="Java Virtual Machine, Code Sweeper" label="Code Sweeper Configuration" thread="false" period="endChunk" startTime="false">
     <Field type="boolean" name="sweeperEnabled" label="Code Sweeper Enabled" />
     <Field type="boolean" name="flushingEnabled" label="Code Cache Flushing Enabled" />
+    <Field type="ulong" contentType="bytes" name="sweepThreshold" label="Sweep Threshold" />
   </Event>
 
   <Event name="IntFlag" category="Java Virtual Machine, Flag" period="endChunk" label="Int Flag">
@@ -1001,16 +1006,11 @@
   <Event name="ZPageAllocation" category="Java Virtual Machine, GC, Detailed" label="ZGC Page Allocation" description="Allocation of a ZPage" thread="true" stackTrace="true">
      <Field type="ZPageTypeType" name="type" label="Type" />
      <Field type="ulong" contentType="bytes" name="size" label="Size" />
-     <Field type="ulong" contentType="bytes" name="usedAfter" label="Used After" />
-     <Field type="ulong" contentType="bytes" name="freeAfter" label="Free After" />
-     <Field type="ulong" contentType="bytes" name="inCacheAfter" label="In Cache After" />
+     <Field type="ulong" contentType="bytes" name="flushed" label="Flushed" />
+     <Field type="ulong" contentType="bytes" name="committed" label="Committed" />
+     <Field type="uint" name="segments" label="Segments" />
      <Field type="boolean" name="nonBlocking" label="Non-blocking" />
      <Field type="boolean" name="noReserve" label="No Reserve" />
-  </Event>
-
-  <Event name="ZPageCacheFlush" category="Java Virtual Machine, GC, Detailed" label="ZGC Page Cache Flush" description="Flushing of ZPages" thread="true" stackTrace="true">
-     <Field type="ulong" contentType="bytes" name="flushed" label="Flushed Size" />
-     <Field type="boolean" name="forAllocation" label="For Allocation" />
   </Event>
 
   <Event name="ZRelocationSet" category="Java Virtual Machine, GC, Detailed" label="ZGC Relocation Set" thread="true">
@@ -1046,9 +1046,11 @@
   </Event>
 
   <Event name="ZUncommit" category="Java Virtual Machine, GC, Detailed" label="ZGC Uncommit" description="Uncommitting of memory" thread="true">
-    <Field type="ulong" contentType="bytes" name="capacityBefore" label="Capacity Before" />
-    <Field type="ulong" contentType="bytes" name="capacityAfter" label="Capacity After" />
     <Field type="ulong" contentType="bytes" name="uncommitted" label="Uncommitted" />
+  </Event>
+
+  <Event name="ZUnmap" category="Java Virtual Machine, GC, Detailed" label="ZGC Unmap" description="Unmapping of memory" thread="true">
+    <Field type="ulong" contentType="bytes" name="unmapped" label="Unmapped" />
   </Event>
 
   <Event name="ShenandoahHeapRegionStateChange" category="Java Virtual Machine, GC, Detailed" label="Shenandoah Heap Region State Change" description="Information about a Shenandoah heap region state change"
@@ -1135,6 +1137,7 @@
     <Field type="Symbol" name="name" label="Name" />
     <Field type="Package" name="package" label="Package" />
     <Field type="int" name="modifiers" label="Access Modifiers" />
+    <Field type="boolean" name="hidden" label="Hidden" />
   </Type>
 
   <Type name="ClassLoader" label="Java Class Loader">
@@ -1303,8 +1306,8 @@
   <XmlType name="ClassLoader" parameterType="const ClassLoaderData*" fieldType="const ClassLoaderData*"/>
   <XmlType name="Method" parameterType="const Method*" fieldType="const Method*"/>
   <XmlType name="Thread" javaType="java.lang.Thread" parameterType="u8" fieldType="u8"/>
-  <XmlType name="Tickspan" contentType="tickspan" javaType="long" parameterType="const Tickspan&amp;" fieldType="Tickspan"/>
-  <XmlType name="Ticks" contentType="tickstamp" javaType="long" parameterType="const Ticks&amp;" fieldType="Ticks"/>
+  <XmlType name="Tickspan" contentType="tickspan" unsigned="true" javaType="long" parameterType="const Tickspan&amp;" fieldType="Tickspan"/>
+  <XmlType name="Ticks" contentType="tickstamp" unsigned="true" javaType="long" parameterType="const Ticks&amp;" fieldType="Ticks"/>
   <XmlType name="ulong" javaType="long" unsigned="true" parameterType="u8" fieldType="u8"/>
   <XmlType name="uint" javaType="int" unsigned="true" parameterType="unsigned" fieldType="unsigned"/>
   <XmlType name="ushort" javaType="short" unsigned="true" parameterType="u2" fieldType="u2"/>
@@ -1318,6 +1321,7 @@
   <XmlType name="boolean" javaType="boolean" parameterType="bool" fieldType="bool"/>
   <XmlType name="char" javaType="char" parameterType="char" fieldType="char"/>
   <XmlType name="string" javaType="java.lang.String" parameterType="const char*" fieldType="const char*"/>
+  <XmlType name="StackTrace" javaType="jdk.types.StackTrace" parameterType="u8" fieldType="u8"/>
 
   <XmlContentType name="bytes" annotation="jdk.jfr.DataAmount(BYTES)" />
   <XmlContentType name="tickstamp" annotation="jdk.jfr.Timestamp(TICKS)" />

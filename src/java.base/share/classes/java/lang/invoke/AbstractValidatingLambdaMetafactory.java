@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -51,6 +51,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
      *         System.out.printf(">>> %s\n", iii.foo(44));
      * }}
      */
+    final MethodHandles.Lookup caller;        // The caller's lookup context
     final Class<?> targetClass;               // The class calling the meta-factory via invokedynamic "class X"
     final MethodType invokedType;             // The type of the invoked method "(CC)II"
     final Class<?> samBase;                   // The type of the returned instance "interface JJ"
@@ -120,6 +121,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
                     "Invalid caller: %s",
                     caller.lookupClass().getName()));
         }
+        this.caller = caller;
         this.targetClass = caller.lookupClass();
         this.invokedType = invokedType;
 
@@ -143,8 +145,20 @@ import static sun.invoke.util.Wrapper.isWrapperType;
             case REF_invokeSpecial:
                 // JDK-8172817: should use referenced class here, but we don't know what it was
                 this.implClass = implInfo.getDeclaringClass();
-                this.implKind = REF_invokeSpecial;
                 this.implIsInstanceMethod = true;
+
+                // Classes compiled prior to dynamic nestmate support invokes a private instance
+                // method with REF_invokeSpecial.
+                //
+                // invokespecial should only be used to invoke private nestmate constructors.
+                // The lambda proxy class will be defined as a nestmate of targetClass.
+                // If the method to be invoked is an instance method of targetClass, then
+                // convert to use invokevirtual or invokeinterface.
+                if (targetClass == implClass && !implInfo.getName().equals("<init>")) {
+                    this.implKind = implClass.isInterface() ? REF_invokeInterface : REF_invokeVirtual;
+                } else {
+                    this.implKind = REF_invokeSpecial;
+                }
                 break;
             case REF_invokeStatic:
             case REF_newInvokeSpecial:
@@ -194,7 +208,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
      *
      * @return a CallSite, which, when invoked, will return an instance of the
      * functional interface
-     * @throws ReflectiveOperationException
+     * @throws LambdaConversionException
      */
     abstract CallSite buildCallSite()
             throws LambdaConversionException;
@@ -352,10 +366,45 @@ import static sun.invoke.util.Wrapper.isWrapperType;
                     return !strict;
                 }
             } else {
-                // both are reference types: fromType should be a superclass of toType.
-                return !strict || toType.isAssignableFrom(fromType);
+                // inline types: fromType and toType are projection types of the same inline class
+                // identity types: fromType should be a superclass of toType.
+                return !strict || canConvert(fromType, toType);
             }
         }
+    }
+
+    /**
+     * Tests if {@code fromType} can be converted to {@code toType}
+     * via an identity conversion, via a widening reference conversion or
+     * via inline narrowing and widening conversions.
+     * <p>
+     * If {@code fromType} represents a class or interface, this method
+     * returns {@code true} if {@code toType} is the same as,
+     * or is a superclass or superinterface of, {@code fromType}.
+     * <p>
+     * If {@code fromType} is an inline class, this method returns {@code true}
+     * if {@code toType} is the {@linkplain Class#referenceType() reference projection type}
+     * of {@code fromType}.
+     * If {@code toType} is an inline class, this method returns {@code true}
+     * if {@code toType} is the {@linkplain Class#valueType() value projection type}
+     * of {@code fromType}.
+     * <p>
+     * Otherwise, this method returns {@code false}.
+     *
+     * @param     fromType the {@code Class} object to be converted from
+     * @param     toType the {@code Class} object to be converted to
+     * @return    {@code true} if {@code fromType} can be converted to {@code toType}
+     */
+    private boolean canConvert(Class<?> fromType, Class<?> toType) {
+        if (toType.isAssignableFrom(fromType)) {
+            return true;
+        }
+
+        if (!fromType.isInlineClass() && !toType.isInlineClass()) {
+            return false;
+        }
+
+        return fromType.valueType().equals(toType.valueType());
     }
 
     /**

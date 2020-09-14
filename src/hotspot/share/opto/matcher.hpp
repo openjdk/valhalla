@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -178,6 +178,10 @@ public:
   static uint mreg2regmask_max;
   static RegMask mreg2regmask[];
   static RegMask STACK_ONLY_mask;
+  static RegMask caller_save_regmask;
+  static RegMask caller_save_regmask_exclude_soe;
+  static RegMask mh_caller_save_regmask;
+  static RegMask mh_caller_save_regmask_exclude_soe;
 
   MachNode* mach_null() const { return _mach_null; }
 
@@ -336,9 +340,12 @@ public:
             Matcher::min_vector_size(bt) <= size);
   }
 
+  static const bool supports_scalable_vector();
+  // Actual max scalable vector register length.
+  static const int scalable_vector_reg_size(const BasicType bt);
+
   // Vector ideal reg
   static const uint vector_ideal_reg(int len);
-  static const uint vector_shift_count_ideal_reg(int len);
 
   // CPU supports misaligned vectors store/load.
   static const bool misaligned_vectors_ok();
@@ -411,7 +418,7 @@ public:
   static int  number_of_saved_registers();
 
   // The Method-klass-holder may be passed in the inline_cache_reg
-  // and then expanded into the inline_cache_reg and a method_oop register
+  // and then expanded into the inline_cache_reg and a method_ptr register
 
   static OptoReg::Name  interpreter_method_oop_reg();
   static int            interpreter_method_oop_reg_encode();
@@ -522,10 +529,8 @@ public:
   void specialize_mach_node(MachNode* m);
   void specialize_temp_node(MachTempNode* tmp, MachNode* use, uint idx);
   MachOper* specialize_vector_operand(MachNode* m, uint opnd_idx);
-  MachOper* specialize_vector_operand_helper(MachNode* m, uint opnd_idx, const TypeVect* vt);
 
-  static MachOper* specialize_generic_vector_operand(MachOper* generic_opnd, uint ideal_reg, bool is_temp);
-
+  static MachOper* pd_specialize_generic_vector_operand(MachOper* generic_opnd, uint ideal_reg, bool is_temp);
   static bool is_generic_reg2reg_move(MachNode* m);
   static bool is_generic_vector(MachOper* opnd);
 

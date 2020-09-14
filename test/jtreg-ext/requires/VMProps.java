@@ -99,7 +99,9 @@ public class VMProps implements Callable<Map<String, String>> {
         // vm.hasJFR is "true" if JFR is included in the build of the VM and
         // so tests can be executed.
         map.put("vm.hasJFR", this::vmHasJFR);
+        map.put("vm.jvmti", this::vmHasJVMTI);
         map.put("vm.cpu.features", this::cpuFeatures);
+        map.put("vm.pageSize", this::vmPageSize);
         map.put("vm.rtm.cpu", this::vmRTMCPU);
         map.put("vm.rtm.compiler", this::vmRTMCompiler);
         map.put("vm.aot", this::vmAOT);
@@ -268,18 +270,36 @@ public class VMProps implements Callable<Map<String, String>> {
         return CPUInfo.getFeatures().toString();
     }
 
+    private boolean isGcSupportedByGraal(GC gc) {
+        switch (gc) {
+            case Serial:
+            case Parallel:
+            case G1:
+                return true;
+            case Epsilon:
+            case Z:
+            case Shenandoah:
+                return false;
+            default:
+                throw new IllegalStateException("Unknown GC " + gc.name());
+        }
+    }
+
     /**
      * For all existing GC sets vm.gc.X property.
      * Example vm.gc.G1=true means:
      *    VM supports G1
      *    User either set G1 explicitely (-XX:+UseG1GC) or did not set any GC
+     *    G1 can be selected, i.e. it doesn't conflict with other VM flags
      *
      * @param map - property-value pairs
      */
     protected void vmGC(SafeMap map) {
+        var isGraalEnabled = Compiler.isGraalEnabled();
         for (GC gc: GC.values()) {
             map.put("vm.gc." + gc.name(),
                     () -> "" + (gc.isSupported()
+                            && (!isGraalEnabled || isGcSupportedByGraal(gc))
                             && (gc.isSelected() || GC.isSelectedErgonomically())));
         }
     }
@@ -322,6 +342,13 @@ public class VMProps implements Callable<Map<String, String>> {
      */
     protected String vmHasJFR() {
         return "" + WB.isJFRIncludedInVmBuild();
+    }
+
+    /**
+     * @return "true" if the VM is compiled with JVMTI
+     */
+    protected String vmHasJVMTI() {
+        return "" + WB.isJVMTIIncluded();
     }
 
     /**
@@ -412,6 +439,13 @@ public class VMProps implements Callable<Map<String, String>> {
      */
     protected String vmCDSForArchivedJavaHeap() {
         return "" + ("true".equals(vmCDS()) && WB.isJavaHeapArchiveSupported());
+    }
+
+    /**
+     * @return System page size in bytes.
+     */
+    protected String vmPageSize() {
+        return "" + WB.getVMPageSize();
     }
 
     /**

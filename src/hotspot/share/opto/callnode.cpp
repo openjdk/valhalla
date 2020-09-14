@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "compiler/compileLog.hpp"
+#include "ci/ciFlatArrayKlass.hpp"
 #include "ci/bcEscapeAnalyzer.hpp"
 #include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSet.hpp"
@@ -34,6 +35,7 @@
 #include "opto/castnode.hpp"
 #include "opto/convertnode.hpp"
 #include "opto/escape.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/locknode.hpp"
 #include "opto/machnode.hpp"
 #include "opto/matcher.hpp"
@@ -42,7 +44,6 @@
 #include "opto/regmask.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
-#include "opto/valuetypenode.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/powerOfTwo.hpp"
 
@@ -471,8 +472,8 @@ void JVMState::format(PhaseRegAlloc *regalloc, const Node *n, outputStream* st) 
         while (ndim-- > 0) {
           st->print("[]");
         }
-      } else if (cik->is_value_array_klass()) {
-        ciKlass* cie = cik->as_value_array_klass()->base_element_klass();
+      } else if (cik->is_flat_array_klass()) {
+        ciKlass* cie = cik->as_flat_array_klass()->base_element_klass();
         cie->print_name_on(st);
         st->print("[%d]", spobj->n_fields());
         int ndim = cik->as_array_klass()->dimension() - 1;
@@ -698,7 +699,7 @@ const Type* CallNode::Value(PhaseGVN* phase) const {
 
 //------------------------------calling_convention-----------------------------
 void CallNode::calling_convention(BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt) const {
-  if (_entry_point == StubRoutines::store_value_type_fields_to_buf()) {
+  if (_entry_point == StubRoutines::store_inline_type_fields_to_buf()) {
     // The call to that stub is a special case: its inputs are
     // multiple values returned from a call and so it should follow
     // the return convention.
@@ -732,9 +733,9 @@ Node *CallNode::match(const ProjNode *proj, const Matcher *match, const RegMask*
         return new MachProjNode(this,con, RegMask::Empty, (uint)OptoReg::Bad);
       }
     } else {
-      // The Call may return multiple values (value type fields): we
-      // create one projection per returned values.
-      assert(con <= TypeFunc::Parms+1 || ValueTypeReturnedAsFields, "only for multi value return");
+      // The Call may return multiple values (inline type fields): we
+      // create one projection per returned value.
+      assert(con <= TypeFunc::Parms+1 || InlineTypeReturnedAsFields, "only for multi value return");
       uint ideal_reg = range_cc->field_at(con)->ideal_reg();
       return new MachProjNode(this, con, mask[con-TypeFunc::Parms], ideal_reg);
     }
@@ -907,9 +908,8 @@ CallProjections* CallNode::extract_projections(bool separate_io_proj, bool do_as
       {
         // For Control (fallthrough) and I_O (catch_all_index) we have CatchProj -> Catch -> Proj
         projs->fallthrough_proj = pn;
-        DUIterator_Fast jmax, j = pn->fast_outs(jmax);
-        const Node *cn = pn->fast_out(j);
-        if (cn->is_Catch()) {
+        const Node *cn = pn->unique_ctrl_out();
+        if (cn != NULL && cn->is_Catch()) {
           ProjNode *cpn = NULL;
           for (DUIterator_Fast kmax, k = cn->fast_outs(kmax); k < kmax; k++) {
             cpn = cn->fast_out(k)->as_Proj();
@@ -1149,7 +1149,7 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
     if (c->is_Proj() || c->is_Catch() || c->is_MemBar()) {
       c = c->in(0);
     } else if (c->Opcode() == Op_CallLeaf &&
-               c->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, OptoRuntime::load_unknown_value)) {
+               c->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, OptoRuntime::load_unknown_inline)) {
       copy = c;
       c = c->in(0);
     } else if (c->is_Allocate()) {
@@ -1194,7 +1194,7 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
       } else if (m1->is_MemBar()) {
         m1 = m1->in(TypeFunc::Memory);
       } else if (m1->Opcode() == Op_CallLeaf &&
-                 m1->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, OptoRuntime::load_unknown_value)) {
+                 m1->as_Call()->entry_point() == CAST_FROM_FN_PTR(address, OptoRuntime::load_unknown_inline)) {
         if (m1 != copy) {
           return false;
         }
@@ -1604,7 +1604,7 @@ AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
                            Node *ctrl, Node *mem, Node *abio,
                            Node *size, Node *klass_node,
                            Node* initial_test,
-                           ValueTypeBaseNode* value_node)
+                           InlineTypeBaseNode* inline_type_node)
   : CallNode(atype, NULL, TypeRawPtr::BOTTOM)
 {
   init_class_id(Class_Allocate);
@@ -1624,10 +1624,9 @@ AllocateNode::AllocateNode(Compile* C, const TypeFunc *atype,
   init_req( KlassNode          , klass_node);
   init_req( InitialTest        , initial_test);
   init_req( ALength            , topnode);
-  init_req( ValueNode          , value_node);
+  init_req( InlineTypeNode     , inline_type_node);
   // DefaultValue defaults to NULL
   // RawDefaultValue defaults to NULL
-  // StorageProperties defaults to NULL
   C->add_macro_node(this);
 }
 
@@ -1645,61 +1644,6 @@ void AllocateNode::compute_MemBar_redundancy(ciMethod* initializer)
   if (analyzer->is_arg_stack(0) || analyzer->is_arg_local(0)) {
     _is_allocation_MemBar_redundant = true;
   }
-}
-
-Node* AllocateNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  // Check for unused value type allocation
-  if (can_reshape && in(AllocateNode::ValueNode) != NULL &&
-      outcnt() != 0 && result_cast() == NULL) {
-    // Remove allocation by replacing the projection nodes with its inputs
-    InitializeNode* init = initialization();
-    PhaseIterGVN* igvn = phase->is_IterGVN();
-    CallProjections* projs = extract_projections(true, false);
-    assert(projs->nb_resproj <= 1, "unexpected number of results");
-    if (projs->fallthrough_catchproj != NULL) {
-      igvn->replace_node(projs->fallthrough_catchproj, in(TypeFunc::Control));
-    }
-    if (projs->fallthrough_memproj != NULL) {
-      igvn->replace_node(projs->fallthrough_memproj, in(TypeFunc::Memory));
-    }
-    if (projs->catchall_memproj != NULL) {
-      igvn->replace_node(projs->catchall_memproj, phase->C->top());
-    }
-    if (projs->fallthrough_ioproj != NULL) {
-      igvn->replace_node(projs->fallthrough_ioproj, in(TypeFunc::I_O));
-    }
-    if (projs->catchall_ioproj != NULL) {
-      igvn->replace_node(projs->catchall_ioproj, phase->C->top());
-    }
-    if (projs->catchall_catchproj != NULL) {
-      igvn->replace_node(projs->catchall_catchproj, phase->C->top());
-    }
-    if (projs->resproj[0] != NULL) {
-      // Remove MemBarStoreStore user as well
-      for (DUIterator_Fast imax, i = projs->resproj[0]->fast_outs(imax); i < imax; i++) {
-        MemBarStoreStoreNode* mb = projs->resproj[0]->fast_out(i)->isa_MemBarStoreStore();
-        if (mb != NULL && mb->outcnt() == 2) {
-          mb->remove(igvn);
-          --i; --imax;
-        }
-      }
-      igvn->replace_node(projs->resproj[0], phase->C->top());
-    }
-    igvn->replace_node(this, phase->C->top());
-    if (init != NULL) {
-      Node* ctrl_proj = init->proj_out_or_null(TypeFunc::Control);
-      Node* mem_proj = init->proj_out_or_null(TypeFunc::Memory);
-      if (ctrl_proj != NULL) {
-        igvn->replace_node(ctrl_proj, init->in(TypeFunc::Control));
-      }
-      if (mem_proj != NULL) {
-        igvn->replace_node(mem_proj, init->in(TypeFunc::Memory));
-      }
-    }
-    return NULL;
-  }
-
-  return CallNode::Ideal(phase, can_reshape);
 }
 
 Node* AllocateNode::make_ideal_mark(PhaseGVN* phase, Node* control, Node* mem) {
@@ -2150,7 +2094,7 @@ Node *LockNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // one computed above.
   const Type* obj_type = phase->type(obj_node());
   if (can_reshape && EliminateLocks && !is_non_esc_obj() &&
-      !obj_type->isa_valuetype() && !obj_type->is_valuetypeptr()) {
+      !obj_type->isa_inlinetype() && !obj_type->is_inlinetypeptr()) {
     //
     // If we are locking an unescaped object, the lock/unlock is unnecessary
     //
@@ -2320,7 +2264,7 @@ Node *UnlockNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Escape state is defined after Parse phase.
   const Type* obj_type = phase->type(obj_node());
   if (can_reshape && EliminateLocks && !is_non_esc_obj() &&
-      !obj_type->isa_valuetype() && !obj_type->is_valuetypeptr()) {
+      !obj_type->isa_inlinetype() && !obj_type->is_inlinetypeptr()) {
     //
     // If we are unlocking an unescaped object, the lock/unlock is unnecessary.
     //

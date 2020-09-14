@@ -28,6 +28,7 @@
 #include "classfile/classLoader.inline.hpp"
 #include "classfile/classLoaderExt.hpp"
 #include "classfile/classLoaderData.inline.hpp"
+#include "classfile/classLoadInfo.hpp"
 #include "classfile/klassFactory.hpp"
 #include "classfile/modules.hpp"
 #include "classfile/systemDictionaryShared.hpp"
@@ -284,13 +285,12 @@ InstanceKlass* ClassLoaderExt::load_class(Symbol* name, const char* path, TRAPS)
 
   ClassLoaderData* loader_data = ClassLoaderData::the_null_class_loader_data();
   Handle protection_domain;
+  ClassLoadInfo cl_info(protection_domain);
 
   InstanceKlass* result = KlassFactory::create_from_stream(stream,
                                                            name,
                                                            loader_data,
-                                                           protection_domain,
-                                                           NULL, // unsafe_anonymous_host
-                                                           NULL, // cp_patches
+                                                           cl_info,
                                                            THREAD);
 
   if (HAS_PENDING_EXCEPTION) {
@@ -311,7 +311,7 @@ ClassPathEntry* ClassLoaderExt::find_classpath_entry_from_cache(const char* path
   // This is called from dump time so it's single threaded and there's no need for a lock.
   assert(DumpSharedSpaces, "this function is only used with -Xshare:dump");
   if (cached_path_entries == NULL) {
-    cached_path_entries = new (ResourceObj::C_HEAP, mtClass) GrowableArray<CachedClassPathEntry>(20, /*c heap*/ true);
+    cached_path_entries = new (ResourceObj::C_HEAP, mtClass) GrowableArray<CachedClassPathEntry>(20, mtClass);
   }
   CachedClassPathEntry ccpe;
   for (int i=0; i<cached_path_entries->length(); i++) {

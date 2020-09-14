@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, Google and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -39,7 +39,6 @@ import sun.hotspot.WhiteBox;
  * @test TestMetaSpaceLog
  * @bug 8211123
  * @summary Ensure that the Metaspace is updated in the log
- * @key gc
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
@@ -56,6 +55,8 @@ public class TestMetaSpaceLog {
 
   static {
     // Do this once here.
+    // Scan for Metaspace update notices as part of the GC log, e.g. in this form:
+    // [gc,metaspace   ] GC(0) Metaspace: 11895K(14208K)->11895K(14208K) NonClass: 10552K(12544K)->10552K(12544K) Class: 1343K(1664K)->1343K(1664K)
     metaSpaceRegexp = Pattern.compile(".*Metaspace: ([0-9]+).*->([0-9]+).*");
   }
 
@@ -73,10 +74,13 @@ public class TestMetaSpaceLog {
 
   private static boolean check(String line) {
     Matcher m = metaSpaceRegexp.matcher(line);
-    Asserts.assertTrue(m.matches(), "Unexpected line for metaspace logging: " + line);
-    long before = Long.parseLong(m.group(1));
-    long after  = Long.parseLong(m.group(2));
-    return before > after;
+    if (m.matches()) {
+      // Numbers for Metaspace occupation should grow.
+      long before = Long.parseLong(m.group(1));
+      long after = Long.parseLong(m.group(2));
+      return before > after;
+    }
+    return false;
   }
 
   private static void testMetaSpaceUpdate() throws Exception {
@@ -84,8 +88,7 @@ public class TestMetaSpaceLog {
     String testSrc= "-Dtest.src=" + System.getProperty("test.src", ".");
 
     ProcessBuilder pb =
-      ProcessTools.createJavaProcessBuilder(
-          true,
+      ProcessTools.createTestJvm(
           "-Xlog:gc*",
           "-Xbootclasspath/a:.",
           "-XX:+UnlockDiagnosticVMOptions",

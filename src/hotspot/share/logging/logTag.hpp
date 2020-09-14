@@ -52,6 +52,7 @@
   LOG_TAG(codecache) \
   LOG_TAG(compaction) \
   LOG_TAG(compilation) \
+  LOG_TAG(condy) \
   LOG_TAG(constraints) \
   LOG_TAG(constantpool) \
   LOG_TAG(container) \
@@ -80,6 +81,7 @@
   LOG_TAG(humongous) \
   LOG_TAG(ihop) \
   LOG_TAG(iklass) \
+  LOG_TAG(indy) \
   LOG_TAG(init) \
   LOG_TAG(inlining) \
   LOG_TAG(install) \
@@ -102,6 +104,7 @@
   LOG_TAG(methodcomparator) \
   LOG_TAG(metadata) \
   LOG_TAG(metaspace) \
+  LOG_TAG(methodhandles) \
   LOG_TAG(mmu) \
   LOG_TAG(module) \
   LOG_TAG(monitorinflation) \
@@ -127,6 +130,7 @@
   LOG_TAG(phases) \
   LOG_TAG(plab) \
   LOG_TAG(preview)   /* Trace loading of preview feature types */ \
+  LOG_TAG(primitivewrappers) \
   LOG_TAG(promotion) \
   LOG_TAG(preorder) /* Trace all classes loaded in order referenced (not loaded) */ \
   LOG_TAG(protectiondomain) /* "Trace protection domain verification" */ \
@@ -144,6 +148,7 @@
   LOG_TAG(safepoint) \
   LOG_TAG(sampling) \
   LOG_TAG(scavenge) \
+  LOG_TAG(sealed) \
   LOG_TAG(setting) \
   LOG_TAG(smr) \
   LOG_TAG(stacktrace) \

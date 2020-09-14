@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,7 +52,7 @@ import jdk.jfr.internal.handlers.EventHandler;
 public final class MetadataRepository {
 
     private static final JVM jvm = JVM.getJVM();
-    private static final MetadataRepository instace = new MetadataRepository();
+    private static final MetadataRepository instance = new MetadataRepository();
 
     private final List<EventType> nativeEventTypes = new ArrayList<>(100);
     private final List<EventControl> nativeControls = new ArrayList<EventControl>(100);
@@ -93,7 +93,7 @@ public final class MetadataRepository {
     }
 
     public static MetadataRepository getInstance() {
-        return instace;
+        return instance;
     }
 
     public synchronized List<EventType> getRegisteredEventTypes() {
@@ -109,7 +109,7 @@ public final class MetadataRepository {
     }
 
     public synchronized EventType getEventType(Class<? extends jdk.internal.event.Event> eventClass) {
-        EventHandler h = getHandler(eventClass);
+        EventHandler h = getHandler(eventClass, false);
         if (h != null && h.isRegistered()) {
             return h.getEventType();
         }
@@ -118,7 +118,7 @@ public final class MetadataRepository {
 
     public synchronized void unregister(Class<? extends Event> eventClass) {
         Utils.checkRegisterPermission();
-        EventHandler handler = getHandler(eventClass);
+        EventHandler handler = getHandler(eventClass, false);
         if (handler != null) {
             handler.setRegistered(false);
         }
@@ -130,7 +130,7 @@ public final class MetadataRepository {
 
     public synchronized EventType register(Class<? extends jdk.internal.event.Event> eventClass, List<AnnotationElement> dynamicAnnotations, List<ValueDescriptor> dynamicFields) {
         Utils.checkRegisterPermission();
-        EventHandler handler = getHandler(eventClass);
+        EventHandler handler = getHandler(eventClass, true);
         if (handler == null) {
             if (eventClass.getAnnotation(MirrorEvent.class) != null) {
                 // don't register mirrors
@@ -142,13 +142,11 @@ public final class MetadataRepository {
         handler.setRegistered(true);
         typeLibrary.addType(handler.getPlatformEventType());
         if (jvm.isRecording()) {
-            storeDescriptorInJVM(); // needed for emergency dump
             settingsManager.setEventControl(handler.getEventControl());
             settingsManager.updateRetransform(Collections.singletonList((eventClass)));
-        } else {
-            setStaleMetadata();
-        }
-        return handler.getEventType();
+       }
+       setStaleMetadata();
+       return handler.getEventType();
     }
 
     private PlatformEventType findMirrorType(Class<? extends jdk.internal.event.Event> eventClass) throws InternalError {
@@ -165,10 +163,12 @@ public final class MetadataRepository {
         return et;
     }
 
-    private EventHandler getHandler(Class<? extends jdk.internal.event.Event> eventClass) {
+    private EventHandler getHandler(Class<? extends jdk.internal.event.Event> eventClass, boolean ensureInitialized) {
         Utils.ensureValidEventSubclass(eventClass);
         SecuritySupport.makeVisibleToJFR(eventClass);
-        Utils.ensureInitialized(eventClass);
+        if (ensureInitialized) {
+            Utils.ensureInitialized(eventClass);
+        }
         return Utils.getHandler(eventClass);
     }
 

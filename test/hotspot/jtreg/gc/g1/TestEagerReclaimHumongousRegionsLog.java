@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@ package gc.g1;
  * @test TestEagerReclaimHumongousRegionsLog
  * @summary Check that G1 reports humongous eager reclaim statistics correctly.
  * @requires vm.gc.G1
- * @key gc
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
@@ -49,7 +48,7 @@ public class TestEagerReclaimHumongousRegionsLog {
     private static final String LogSeparator = ": ";
 
     public static void runTest() throws Exception {
-        final String[] arguments = {
+        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
             "-Xbootclasspath/a:.",
             "-XX:+UnlockExperimentalVMOptions",
             "-XX:+UnlockDiagnosticVMOptions",
@@ -59,10 +58,7 @@ public class TestEagerReclaimHumongousRegionsLog {
             "-Xms128M",
             "-Xmx128M",
             "-Xlog:gc+phases=trace,gc+heap=info",
-            GCTest.class.getName()
-            };
-
-        ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(arguments);
+            GCTest.class.getName());
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
 
         output.shouldHaveExitValue(0);

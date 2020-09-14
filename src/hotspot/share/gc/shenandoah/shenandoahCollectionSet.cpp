@@ -33,15 +33,14 @@
 #include "services/memTracker.hpp"
 #include "utilities/copy.hpp"
 
-ShenandoahCollectionSet::ShenandoahCollectionSet(ShenandoahHeap* heap, char* heap_base, size_t size) :
+ShenandoahCollectionSet::ShenandoahCollectionSet(ShenandoahHeap* heap, ReservedSpace space, char* heap_base) :
   _map_size(heap->num_regions()),
   _region_size_bytes_shift(ShenandoahHeapRegion::region_size_bytes_shift()),
-  _map_space(align_up(((uintx)heap_base + size) >> _region_size_bytes_shift, os::vm_allocation_granularity())),
+  _map_space(space),
   _cset_map(_map_space.base() + ((uintx)heap_base >> _region_size_bytes_shift)),
   _biased_cset_map(_map_space.base()),
   _heap(heap),
   _garbage(0),
-  _live_data(0),
   _used(0),
   _region_count(0),
   _current_index(0) {
@@ -85,9 +84,8 @@ void ShenandoahCollectionSet::add_region(ShenandoahHeapRegion* r) {
   assert(Thread::current()->is_VM_thread(), "Must be VMThread");
   assert(!is_in(r), "Already in collection set");
   _cset_map[r->index()] = 1;
-  _region_count ++;
+  _region_count++;
   _garbage += r->garbage();
-  _live_data += r->get_live_data_bytes();
   _used += r->used();
 
   // Update the region status too. State transition would be checked internally.
@@ -105,7 +103,6 @@ void ShenandoahCollectionSet::clear() {
 #endif
 
   _garbage = 0;
-  _live_data = 0;
   _used = 0;
 
   _region_count = 0;

@@ -64,7 +64,7 @@ abstract class UnsafeFieldAccessorImpl extends FieldAccessorImpl {
     }
 
     protected boolean canBeNull() {
-        return field.getType().isNullableType();
+        return !field.getType().isInlineClass();
     }
 
     protected Object checkValue(Object value) {

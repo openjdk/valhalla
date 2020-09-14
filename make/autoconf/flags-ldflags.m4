@@ -53,6 +53,7 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS],
 
   LDFLAGS_TESTEXE="${TARGET_LDFLAGS_JDK_LIBPATH}"
   AC_SUBST(LDFLAGS_TESTEXE)
+  AC_SUBST(ADLC_LDFLAGS)
 ])
 
 ################################################################################
@@ -62,17 +63,10 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
 [
   # Setup basic LDFLAGS
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
-    # If this is a --hash-style=gnu system, use --hash-style=both, why?
-    # We have previously set HAS_GNU_HASH if this is the case
-    if test -n "$HAS_GNU_HASH"; then
-      BASIC_LDFLAGS="-Wl,--hash-style=both"
-      LIBJSIG_HASHSTYLE_LDFLAGS="-Wl,--hash-style=both"
-    fi
-
     # Add -z,defs, to forbid undefined symbols in object files.
     # add -z,relro (mark relocations read only) for all libs
     # add -z,now ("full relro" - more of the Global Offset Table GOT is marked read only)
-    BASIC_LDFLAGS="$BASIC_LDFLAGS -Wl,-z,defs -Wl,-z,relro -Wl,-z,now"
+    BASIC_LDFLAGS="-Wl,--hash-style=gnu -Wl,-z,defs -Wl,-z,relro -Wl,-z,now"
     # Linux : remove unused code+data in link step
     if test "x$ENABLE_LINKTIME_GC" = xtrue; then
       if test "x$OPENJDK_TARGET_CPU" = xs390x; then
@@ -87,14 +81,6 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
   elif test "x$TOOLCHAIN_TYPE" = xclang; then
     BASIC_LDFLAGS_JVM_ONLY="-mno-omit-leaf-frame-pointer -mstack-alignment=16 \
         -fPIC"
-
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    BASIC_LDFLAGS="-Wl,-z,defs"
-    BASIC_LDFLAGS_ONLYCXX="-norunpath"
-    BASIC_LDFLAGS_ONLYCXX_JDK_ONLY="-xnolib"
-
-    BASIC_LDFLAGS_JDK_ONLY="-ztext"
-    BASIC_LDFLAGS_JVM_ONLY="-library=%none -mt -z noversion"
 
   elif test "x$TOOLCHAIN_TYPE" = xxlc; then
     BASIC_LDFLAGS="-b64 -brtl -bnorwexec -bnolibpath -bexpall -bernotok -btextpsize:64K \
@@ -141,14 +127,6 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
     fi
   fi
 
-  # Setup warning flags
-  if test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    LDFLAGS_WARNINGS_ARE_ERRORS="-Wl,-z,fatal-warnings"
-  else
-    LDFLAGS_WARNINGS_ARE_ERRORS=""
-  fi
-  AC_SUBST(LDFLAGS_WARNINGS_ARE_ERRORS)
-
   # Setup LDFLAGS for linking executables
   if test "x$TOOLCHAIN_TYPE" = xgcc; then
     EXECUTABLE_LDFLAGS="$EXECUTABLE_LDFLAGS -Wl,--allow-shlib-undefined"
@@ -168,8 +146,6 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_HELPER],
   # Export some intermediate variables for compatibility
   LDFLAGS_CXX_JDK="$BASIC_LDFLAGS_ONLYCXX $BASIC_LDFLAGS_ONLYCXX_JDK_ONLY $DEBUGLEVEL_LDFLAGS_JDK_ONLY"
   AC_SUBST(LDFLAGS_CXX_JDK)
-  AC_SUBST(LIBJSIG_HASHSTYLE_LDFLAGS)
-  AC_SUBST(LIBJSIG_NOEXECSTACK_LDFLAGS)
 ])
 
 ################################################################################
@@ -186,11 +162,6 @@ AC_DEFUN([FLAGS_SETUP_LDFLAGS_CPU_DEP],
     elif test "x$OPENJDK_$1_CPU" = xarm; then
       $1_CPU_LDFLAGS_JVM_ONLY="${$1_CPU_LDFLAGS_JVM_ONLY} -fsigned-char"
       $1_CPU_LDFLAGS="$ARM_ARCH_TYPE_FLAGS $ARM_FLOAT_TYPE_FLAGS"
-    fi
-
-  elif test "x$TOOLCHAIN_TYPE" = xsolstudio; then
-    if test "x${OPENJDK_$1_CPU}" = "xsparcv9"; then
-      $1_CPU_LDFLAGS_JVM_ONLY="-xarch=sparc"
     fi
 
   elif test "x$TOOLCHAIN_TYPE" = xmicrosoft; then

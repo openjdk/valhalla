@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,7 +40,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 
 import static java.lang.invoke.LambdaForm.BasicType.*;
-import static java.lang.invoke.MethodHandleNatives.Constants.REF_invokeStatic;
+import static java.lang.invoke.MethodHandleNatives.Constants.*;
 import static java.lang.invoke.MethodHandleStatics.*;
 
 /**
@@ -805,7 +805,7 @@ class LambdaForm {
      * (a) redundant compilation work and (b) extra I$ pressure.
      * To control repeated versions, we need to be ready to
      * erase details from LFs and move them into MH data,
-     * whevener those details are not relevant to significant
+     * whenever those details are not relevant to significant
      * optimization.  "Significant" means optimization of
      * code that is actually hot.
      *
@@ -899,7 +899,7 @@ class LambdaForm {
     private static boolean argumentTypesMatch(String sig, Object[] av) {
         int arity = signatureArity(sig);
         assert(av.length == arity) : "av.length == arity: av.length=" + av.length + ", arity=" + arity;
-        assert(av[0] instanceof MethodHandle) : "av[0] not instace of MethodHandle: " + av[0];
+        assert(av[0] instanceof MethodHandle) : "av[0] not instance of MethodHandle: " + av[0];
         MethodHandle mh = (MethodHandle) av[0];
         MethodType mt = mh.type();
         assert(mt.parameterCount() == arity-1);
@@ -1762,10 +1762,10 @@ class LambdaForm {
             MemberName idMem = new MemberName(LambdaForm.class, "identity_"+btChar, idType, REF_invokeStatic);
             MemberName zeMem = null;
             try {
-                idMem = IMPL_NAMES.resolveOrFail(REF_invokeStatic, idMem, null, NoSuchMethodException.class);
+                idMem = IMPL_NAMES.resolveOrFail(REF_invokeStatic, idMem, null, LM_TRUSTED, NoSuchMethodException.class);
                 if (!isVoid) {
                     zeMem = new MemberName(LambdaForm.class, "zero_"+btChar, zeType, REF_invokeStatic);
-                    zeMem = IMPL_NAMES.resolveOrFail(REF_invokeStatic, zeMem, null, NoSuchMethodException.class);
+                    zeMem = IMPL_NAMES.resolveOrFail(REF_invokeStatic, zeMem, null, LM_TRUSTED, NoSuchMethodException.class);
                 }
             } catch (IllegalAccessException|NoSuchMethodException ex) {
                 throw newInternalError(ex);

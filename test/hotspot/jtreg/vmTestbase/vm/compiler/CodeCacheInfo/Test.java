@@ -35,7 +35,6 @@
  *          /test/lib
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm
  *      -Xmixed
  *      -Xbootclasspath/a:.
@@ -79,7 +78,7 @@ public class Test {
     public static void main(String[] args) throws Exception {
         {
             System.out.println("SegmentedCodeCache is enabled");
-            var pb = ProcessTools.createJavaProcessBuilder(true,
+            var pb = ProcessTools.createTestJvm(
                     "-XX:+SegmentedCodeCache",
                     "-XX:+PrintCodeCache",
                     "-version");
@@ -89,7 +88,7 @@ public class Test {
         }
         {
             System.out.println("SegmentedCodeCache is disabled");
-            var pb = ProcessTools.createJavaProcessBuilder(true,
+            var pb = ProcessTools.createTestJvm(
                     "-XX:-SegmentedCodeCache",
                     "-XX:+PrintCodeCache",
                     "-version");

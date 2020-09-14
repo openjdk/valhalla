@@ -95,7 +95,6 @@ public class InstanceKlass extends Klass {
     constants            = new MetadataField(type.getAddressField("_constants"), 0);
     sourceDebugExtension = type.getAddressField("_source_debug_extension");
     innerClasses         = type.getAddressField("_inner_classes");
-    sourceFileNameIndex  = new CIntField(type.getCIntegerField("_source_file_name_index"), 0);
     nonstaticFieldSize   = new CIntField(type.getCIntegerField("_nonstatic_field_size"), 0);
     staticFieldSize      = new CIntField(type.getCIntegerField("_static_field_size"), 0);
     staticOopFieldCount  = new CIntField(type.getCIntegerField("_static_oop_field_count"), 0);
@@ -106,10 +105,7 @@ public class InstanceKlass extends Klass {
     if (VM.getVM().isJvmtiSupported()) {
       breakpoints        = type.getAddressField("_breakpoints");
     }
-    genericSignatureIndex = new CIntField(type.getCIntegerField("_generic_signature_index"), 0);
     miscFlags            = new CIntField(type.getCIntegerField("_misc_flags"), 0);
-    majorVersion         = new CIntField(type.getCIntegerField("_major_version"), 0);
-    minorVersion         = new CIntField(type.getCIntegerField("_minor_version"), 0);
     headerSize           = type.getSize();
 
     // read field offset constants
@@ -149,6 +145,18 @@ public class InstanceKlass extends Klass {
 
   public InstanceKlass(Address addr) {
     super(addr);
+
+    // If the class hasn't yet reached the "loaded" init state, then don't go any further
+    // or we'll run into problems trying to look at fields that are not yet setup.
+    // Attempted lookups of this InstanceKlass via ClassLoaderDataGraph, ClassLoaderData,
+    // and Dictionary will all refuse to return it. The main purpose of allowing this
+    // InstanceKlass to initialize is so ClassLoaderData.getKlasses() will succeed, allowing
+    // ClassLoaderData.classesDo() to iterate over all Klasses (skipping those that are
+    // not yet fully loaded).
+    if (!isLoaded()) {
+        return;
+    }
+
     if (getJavaFieldsCount() != getAllFieldsCount()) {
       // Exercise the injected field logic
       for (int i = getJavaFieldsCount(); i < getAllFieldsCount(); i++) {
@@ -169,7 +177,6 @@ public class InstanceKlass extends Klass {
   private static MetadataField constants;
   private static AddressField  sourceDebugExtension;
   private static AddressField  innerClasses;
-  private static CIntField sourceFileNameIndex;
   private static CIntField nonstaticFieldSize;
   private static CIntField staticFieldSize;
   private static CIntField staticOopFieldCount;
@@ -178,10 +185,7 @@ public class InstanceKlass extends Klass {
   private static CIntField initState;
   private static CIntField itableLen;
   private static AddressField breakpoints;
-  private static CIntField genericSignatureIndex;
   private static CIntField miscFlags;
-  private static CIntField majorVersion;
-  private static CIntField minorVersion;
 
   // type safe enum for ClassState from instanceKlass.hpp
   public static class ClassState {
@@ -427,23 +431,16 @@ public class InstanceKlass extends Klass {
     return allFieldsCount;
   }
   public ConstantPool getConstants()        { return (ConstantPool) constants.getValue(this); }
-  public Symbol    getSourceFileName()      { return                getConstants().getSymbolAt(sourceFileNameIndex.getValue(this)); }
+  public Symbol    getSourceFileName()      { return                getConstants().getSourceFileName(); }
   public String    getSourceDebugExtension(){ return                CStringUtilities.getString(sourceDebugExtension.getValue(getAddress())); }
   public long      getNonstaticFieldSize()  { return                nonstaticFieldSize.getValue(this); }
   public long      getStaticOopFieldCount() { return                staticOopFieldCount.getValue(this); }
   public long      getNonstaticOopMapSize() { return                nonstaticOopMapSize.getValue(this); }
   public boolean   getIsMarkedDependent()   { return                isMarkedDependent.getValue(this) != 0; }
   public long      getItableLen()           { return                itableLen.getValue(this); }
-  public long      majorVersion()           { return                majorVersion.getValue(this); }
-  public long      minorVersion()           { return                minorVersion.getValue(this); }
-  public Symbol    getGenericSignature()    {
-    long index = genericSignatureIndex.getValue(this);
-    if (index != 0) {
-      return getConstants().getSymbolAt(index);
-    } else {
-      return null;
-    }
-  }
+  public long      majorVersion()           { return                getConstants().majorVersion(); }
+  public long      minorVersion()           { return                getConstants().minorVersion(); }
+  public Symbol    getGenericSignature()    { return                getConstants().getGenericSignature(); }
 
   // "size helper" == instance size in words
   public long getSizeHelper() {

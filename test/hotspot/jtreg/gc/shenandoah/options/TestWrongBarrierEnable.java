@@ -24,10 +24,9 @@
 
 /* @test TestWrongBarrierEnable
  * @summary Test that disabling wrong barriers fails early
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
  * @library /test/lib
- * @run main/othervm TestWrongBarrierEnable
+ * @run driver TestWrongBarrierEnable
  */
 
 import java.util.*;
@@ -57,6 +56,7 @@ public class TestWrongBarrierEnable {
     private static void shouldFailAll(String h, String[] barriers) throws Exception {
         for (String b : barriers) {
             ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+                    "-Xmx128m",
                     "-XX:+UnlockDiagnosticVMOptions",
                     "-XX:+UnlockExperimentalVMOptions",
                     "-XX:+UseShenandoahGC",
@@ -74,6 +74,7 @@ public class TestWrongBarrierEnable {
     private static void shouldPassAll(String h, String[] barriers) throws Exception {
         for (String b : barriers) {
             ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+                    "-Xmx128m",
                     "-XX:+UnlockDiagnosticVMOptions",
                     "-XX:+UnlockExperimentalVMOptions",
                     "-XX:+UseShenandoahGC",

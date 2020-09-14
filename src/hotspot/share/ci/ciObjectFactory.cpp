@@ -24,9 +24,10 @@
 
 #include "precompiled.hpp"
 #include "ci/ciCallSite.hpp"
+#include "ci/ciFlatArray.hpp"
+#include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciInstanceKlass.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "ci/ciMemberName.hpp"
 #include "ci/ciMethod.hpp"
 #include "ci/ciMethodData.hpp"
@@ -41,8 +42,7 @@
 #include "ci/ciTypeArray.hpp"
 #include "ci/ciTypeArrayKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "ci/ciValueArray.hpp"
-#include "ci/ciValueArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -366,9 +366,9 @@ ciObject* ciObjectFactory::create_new_object(oop o) {
   } else if (o->is_typeArray()) {
     typeArrayHandle h_ta(THREAD, (typeArrayOop)o);
     return new (arena()) ciTypeArray(h_ta);
-  } else if (o->is_valueArray()) {
-    valueArrayHandle h_ta(THREAD, (valueArrayOop)o);
-    return new (arena()) ciValueArray(h_ta);
+  } else if (o->is_flatArray()) {
+    flatArrayHandle h_ta(THREAD, (flatArrayOop)o);
+    return new (arena()) ciFlatArray(h_ta);
   }
 
   // The oop is of some type not supported by the compiler interface.
@@ -388,12 +388,12 @@ ciMetadata* ciObjectFactory::create_new_metadata(Metadata* o) {
 
   if (o->is_klass()) {
     Klass* k = (Klass*)o;
-    if (k->is_value()) {
-      return new (arena()) ciValueKlass(k);
+    if (k->is_inline_klass()) {
+      return new (arena()) ciInlineKlass(k);
     } else if (k->is_instance_klass()) {
       return new (arena()) ciInstanceKlass(k);
-    } else if (k->is_valueArray_klass()) {
-      return new (arena()) ciValueArrayKlass(k);
+    } else if (k->is_flatArray_klass()) {
+      return new (arena()) ciFlatArrayKlass(k);
     } else if (k->is_objArray_klass()) {
       return new (arena()) ciObjArrayKlass(k);
     } else if (k->is_typeArray_klass()) {
@@ -503,7 +503,7 @@ ciKlass* ciObjectFactory::get_unloaded_klass(ciKlass* accessing_klass,
     BasicType element_type = ss.type();
     assert(element_type != T_ARRAY, "unsuccessful decomposition");
     ciKlass* element_klass = NULL;
-    if (element_type == T_OBJECT || element_type == T_VALUETYPE) {
+    if (element_type == T_OBJECT || element_type == T_INLINE_TYPE) {
       ciEnv *env = CURRENT_THREAD_ENV;
       ciSymbol* ci_name = env->get_symbol(ss.as_symbol());
       element_klass =
@@ -632,12 +632,6 @@ ciReturnAddress* ciObjectFactory::get_return_address(int bci) {
   init_ident_of(new_ret_addr);
   _return_addresses->append(new_ret_addr);
   return new_ret_addr;
-}
-
-ciWrapper* ciObjectFactory::make_never_null_wrapper(ciType* type) {
-  ciWrapper* wrapper = new (arena()) ciWrapper(type, /* never_null */ true);
-  init_ident_of(wrapper);
-  return wrapper;
 }
 
 // ------------------------------------------------------------------

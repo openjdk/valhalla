@@ -25,7 +25,7 @@ package gc.z;
 
 /*
  * @test TestHighUsage
- * @requires vm.gc.Z & !vm.graal.enabled
+ * @requires vm.gc.Z
  * @summary Test ZGC "High Usage" rule
  * @library /test/lib
  * @run main/othervm gc.z.TestHighUsage
@@ -85,14 +85,14 @@ public class TestHighUsage {
     }
 
     public static void main(String[] args) throws Exception {
-        ProcessTools.executeTestJvm(new String[]{ "-XX:+UseZGC",
-                                                  "-XX:-ZProactive",
-                                                  "-Xms128M",
-                                                  "-Xmx128M",
-                                                  "-XX:ParallelGCThreads=1",
-                                                  "-XX:ConcGCThreads=1",
-                                                  "-Xlog:gc,gc+start",
-                                                  Test.class.getName() })
+        ProcessTools.executeTestJvm("-XX:+UseZGC",
+                                    "-XX:-ZProactive",
+                                    "-Xms128M",
+                                    "-Xmx128M",
+                                    "-XX:ParallelGCThreads=1",
+                                    "-XX:ConcGCThreads=1",
+                                    "-Xlog:gc,gc+start",
+                                    Test.class.getName())
                     .shouldNotContain("Allocation Stall")
                     .shouldContain("High Usage")
                     .shouldHaveExitValue(0);

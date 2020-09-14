@@ -416,7 +416,7 @@ public:
                                   ShenandoahRootVerifier* verifier,
                                   const char* label,
                                   ShenandoahVerifier::VerifyOptions options) :
-    AbstractGangTask("Shenandoah Parallel Verifier Reachable Task"),
+    AbstractGangTask("Shenandoah Verifier Reachable Objects"),
     _label(label),
     _verifier(verifier),
     _options(options),
@@ -481,7 +481,7 @@ public:
                                      ShenandoahLivenessData* ld,
                                      const char* label,
                                      ShenandoahVerifier::VerifyOptions options) :
-          AbstractGangTask("Shenandoah Parallel Verifier Marked Region"),
+          AbstractGangTask("Shenandoah Verifier Marked Objects"),
           _label(label),
           _options(options),
           _heap(ShenandoahHeap::heap()),
@@ -690,7 +690,10 @@ void ShenandoahVerifier::verify_at_safepoint(const char *label,
   }
 
   OrderAccess::fence();
-  _heap->make_parsable(false);
+
+  if (UseTLAB) {
+    _heap->labs_make_parsable();
+  }
 
   // Allocate temporary bitmap for storing marking wavefront:
   _verification_bit_map->clear();

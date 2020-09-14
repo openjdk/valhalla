@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,14 +27,12 @@
 #include "gc/serial/serialHeap.hpp"
 #include "gc/serial/tenuredGeneration.inline.hpp"
 #include "gc/shared/genMemoryPools.hpp"
+#include "gc/shared/strongRootsScope.hpp"
 #include "memory/universe.hpp"
 #include "services/memoryManager.hpp"
 
 SerialHeap* SerialHeap::heap() {
-  CollectedHeap* heap = Universe::heap();
-  assert(heap != NULL, "Uninitialized access to SerialHeap::heap()");
-  assert(heap->kind() == CollectedHeap::Serial, "Invalid name");
-  return static_cast<SerialHeap*>(heap);
+  return named_heap<SerialHeap>(CollectedHeap::Serial);
 }
 
 SerialHeap::SerialHeap() :
@@ -89,4 +87,23 @@ GrowableArray<MemoryPool*> SerialHeap::memory_pools() {
   memory_pools.append(_survivor_pool);
   memory_pools.append(_old_pool);
   return memory_pools;
+}
+
+void SerialHeap::young_process_roots(StrongRootsScope* scope,
+                                     OopIterateClosure* root_closure,
+                                     OopIterateClosure* old_gen_closure,
+                                     CLDClosure* cld_closure) {
+  MarkingCodeBlobClosure mark_code_closure(root_closure, CodeBlobToOopClosure::FixRelocations);
+
+  process_roots(scope, SO_ScavengeCodeCache, root_closure,
+                cld_closure, cld_closure, &mark_code_closure);
+
+  if (_process_strong_tasks->try_claim_task(GCH_PS_younger_gens)) {
+
+  }
+
+  rem_set()->at_younger_refs_iterate();
+  old_gen()->younger_refs_iterate(old_gen_closure, scope->n_threads());
+
+  _process_strong_tasks->all_tasks_completed(scope->n_threads());
 }

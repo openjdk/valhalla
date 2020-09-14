@@ -27,13 +27,11 @@ package sun.security.ssl;
 import sun.security.x509.X509CertImpl;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.nio.ByteBuffer;
 import java.security.Principal;
 import java.security.PrivateKey;
-import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -317,13 +315,9 @@ final class SSLSessionImpl extends ExtendedSSLSession {
         this.protocolVersion =
                 ProtocolVersion.valueOf(Short.toUnsignedInt(buf.getShort()));
 
-        if (protocolVersion.useTLS13PlusSpec()) {
-            this.sessionId = new SessionId(false, null);
-        } else {
-            // The CH session id may reset this if it's provided
-            this.sessionId = new SessionId(true,
-                    hc.sslContext.getSecureRandom());
-        }
+        // The CH session id may reset this if it's provided
+        this.sessionId = new SessionId(true,
+                hc.sslContext.getSecureRandom());
 
         this.cipherSuite =
                 CipherSuite.valueOf(Short.toUnsignedInt(buf.getShort()));
@@ -396,8 +390,8 @@ final class SSLSessionImpl extends ExtendedSSLSession {
             identificationProtocol = null;
         } else {
             b = new byte[i];
-            identificationProtocol =
-                    buf.get(b, 0, i).asCharBuffer().toString();
+            buf.get(b);
+            identificationProtocol = new String(b);
         }
 
         // SNI
@@ -452,7 +446,8 @@ final class SSLSessionImpl extends ExtendedSSLSession {
             this.host = new String();
         } else {
             b = new byte[i];
-            this.host = buf.get(b).toString();
+            buf.get(b, 0, i);
+            this.host = new String(b);
         }
         this.port = Short.toUnsignedInt(buf.getShort());
 
@@ -500,7 +495,8 @@ final class SSLSessionImpl extends ExtendedSSLSession {
                 // Length of pre-shared key algorithm  (one byte)
                 i = buf.get();
                 b = new byte[i];
-                String alg = buf.get(b, 0, i).asCharBuffer().toString();
+                buf.get(b, 0 , i);
+                String alg = new String(b);
                 // Get length of encoding
                 i = Short.toUnsignedInt(buf.getShort());
                 // Get encoding
@@ -522,11 +518,7 @@ final class SSLSessionImpl extends ExtendedSSLSession {
 
     // Some situations we cannot provide a stateless ticket, but after it
     // has been negotiated
-    boolean isStatelessable(HandshakeContext hc) {
-        if (!hc.statelessResumption) {
-            return false;
-        }
-
+    boolean isStatelessable() {
         // If there is no getMasterSecret with TLS1.2 or under, do not resume.
         if (!protocolVersion.useTLS13PlusSpec() &&
                 getMasterSecret().getEncoded() == null) {
@@ -536,6 +528,7 @@ final class SSLSessionImpl extends ExtendedSSLSession {
             }
             return false;
         }
+
         if (boundValues != null && boundValues.size() > 0) {
             if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                 SSLLogger.finest("There are boundValues, cannot make" +
@@ -543,6 +536,7 @@ final class SSLSessionImpl extends ExtendedSSLSession {
             }
             return false;
         }
+
         return true;
     }
 
@@ -627,8 +621,8 @@ final class SSLSessionImpl extends ExtendedSSLSession {
         // List of SNIServerName
         hos.putInt16(requestedServerNames.size());
         if (requestedServerNames.size() > 0) {
-            for (SNIServerName host : requestedServerNames) {
-                b = host.getEncoded();
+            for (SNIServerName sn : requestedServerNames) {
+                b = sn.getEncoded();
                 hos.putInt8(b.length);
                 hos.write(b, 0, b.length);
             }

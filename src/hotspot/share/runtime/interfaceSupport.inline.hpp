@@ -48,9 +48,9 @@
 class InterfaceSupport: AllStatic {
 # ifdef ASSERT
  public:
-  static long _scavenge_alot_counter;
-  static long _fullgc_alot_counter;
-  static long _fullgc_alot_invocation;
+  static unsigned int _scavenge_alot_counter;
+  static unsigned int _fullgc_alot_counter;
+  static int _fullgc_alot_invocation;
 
   // Helper methods used to implement +ScavengeALot and +FullGCALot
   static void check_gc_alot() { if (ScavengeALot || FullGCALot) gc_alot(); }
@@ -93,7 +93,7 @@ class ThreadStateTransition : public StackObj {
     // Change to transition state and ensure it is seen by the VM thread.
     thread->set_thread_state_fence((JavaThreadState)(from + 1));
 
-    SafepointMechanism::block_if_requested(thread);
+    SafepointMechanism::process_if_requested(thread);
     thread->set_thread_state(to);
   }
 
@@ -114,7 +114,7 @@ class ThreadStateTransition : public StackObj {
     // We never install asynchronous exceptions when coming (back) in
     // to the runtime from native code because the runtime is not set
     // up to handle exceptions floating around at arbitrary points.
-    if (SafepointMechanism::should_block(thread) || thread->is_suspend_after_native()) {
+    if (SafepointMechanism::should_process(thread) || thread->is_suspend_after_native()) {
       JavaThread::check_safepoint_and_suspend_for_native_trans(thread);
     }
 
@@ -135,7 +135,7 @@ class ThreadInVMForHandshake : public ThreadStateTransition {
     // Change to transition state and ensure it is seen by the VM thread.
     _thread->set_thread_state_fence(_thread_in_vm_trans);
 
-    SafepointMechanism::block_if_requested(_thread);
+    SafepointMechanism::process_if_requested(_thread);
 
     _thread->set_thread_state(_original_state);
 
@@ -290,9 +290,9 @@ class ThreadBlockInVMWithDeadlockCheck : public ThreadStateTransition {
     // Change to transition state and ensure it is seen by the VM thread.
     _thread->set_thread_state_fence((JavaThreadState)(_thread_blocked_trans));
 
-    if (SafepointMechanism::should_block(_thread)) {
+    if (SafepointMechanism::should_process(_thread)) {
       release_mutex();
-      SafepointMechanism::block_if_requested(_thread);
+      SafepointMechanism::process_if_requested(_thread);
     }
 
     _thread->set_thread_state(_thread_in_vm);

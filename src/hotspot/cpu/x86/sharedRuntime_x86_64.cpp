@@ -494,7 +494,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     case T_OBJECT:
     case T_ARRAY:
     case T_ADDRESS:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
       if (int_args < Argument::n_int_register_parameters_j) {
         regs[i].set2(INT_ArgReg[int_args++]->as_VMReg());
       } else {
@@ -573,7 +573,7 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt,
       assert(sig_bt[i + 1] == T_VOID, "expecting half");
       // fall through
     case T_OBJECT:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
     case T_ARRAY:
     case T_ADDRESS:
     case T_METADATA:
@@ -652,34 +652,34 @@ static void patch_callers_callsite(MacroAssembler *masm) {
   __ bind(L);
 }
 
-// For each value type argument, sig includes the list of fields of
-// the value type. This utility function computes the number of
-// arguments for the call if value types are passed by reference (the
+// For each inline type argument, sig includes the list of fields of
+// the inline type. This utility function computes the number of
+// arguments for the call if inline types are passed by reference (the
 // calling convention the interpreter expects).
 static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_extended) {
   int total_args_passed = 0;
-  if (ValueTypePassFieldsAsArgs) {
+  if (InlineTypePassFieldsAsArgs) {
     for (int i = 0; i < sig_extended->length(); i++) {
       BasicType bt = sig_extended->at(i)._bt;
       if (SigEntry::is_reserved_entry(sig_extended, i)) {
         // Ignore reserved entry
-      } else if (bt == T_VALUETYPE) {
-        // In sig_extended, a value type argument starts with:
-        // T_VALUETYPE, followed by the types of the fields of the
-        // value type and T_VOID to mark the end of the value
-        // type. Value types are flattened so, for instance, in the
-        // case of a value type with an int field and a value type
+      } else if (bt == T_INLINE_TYPE) {
+        // In sig_extended, an inline type argument starts with:
+        // T_INLINE_TYPE, followed by the types of the fields of the
+        // inline type and T_VOID to mark the end of the value
+        // type. Inline types are flattened so, for instance, in the
+        // case of an inline type with an int field and an inline type
         // field that itself has 2 fields, an int and a long:
-        // T_VALUETYPE T_INT T_VALUETYPE T_INT T_LONG T_VOID (second
-        // slot for the T_LONG) T_VOID (inner T_VALUETYPE) T_VOID
-        // (outer T_VALUETYPE)
+        // T_INLINE_TYPE T_INT T_INLINE_TYPE T_INT T_LONG T_VOID (second
+        // slot for the T_LONG) T_VOID (inner T_INLINE_TYPE) T_VOID
+        // (outer T_INLINE_TYPE)
         total_args_passed++;
         int vt = 1;
         do {
           i++;
           BasicType bt = sig_extended->at(i)._bt;
           BasicType prev_bt = sig_extended->at(i-1)._bt;
-          if (bt == T_VALUETYPE) {
+          if (bt == T_INLINE_TYPE) {
             vt++;
           } else if (bt == T_VOID &&
                      prev_bt != T_LONG &&
@@ -706,7 +706,7 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm,
                                    const Address& to,
                                    int extraspace,
                                    bool is_oop) {
-  assert(bt != T_VALUETYPE || !ValueTypePassFieldsAsArgs, "no value type here");
+  assert(bt != T_INLINE_TYPE || !InlineTypePassFieldsAsArgs, "no inline type here");
   if (bt == T_VOID) {
     assert(prev_bt == T_LONG || prev_bt == T_DOUBLE, "missing half");
     return;
@@ -769,7 +769,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                             OopMapSet* oop_maps,
                             int& frame_complete,
                             int& frame_size_in_words,
-                            bool alloc_value_receiver) {
+                            bool alloc_inline_receiver) {
   // Before we get into the guts of the C2I adapter, see if we should be here
   // at all.  We've come from compiled code and are attempting to jump to the
   // interpreter, which means the caller made a static call to get here
@@ -779,16 +779,16 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   __ bind(skip_fixup);
 
-  if (ValueTypePassFieldsAsArgs) {
-    // Is there a value type argument?
-    bool has_value_argument = false;
-    for (int i = 0; i < sig_extended->length() && !has_value_argument; i++) {
-      has_value_argument = (sig_extended->at(i)._bt == T_VALUETYPE);
+  if (InlineTypePassFieldsAsArgs) {
+    // Is there an inline type argument?
+    bool has_inline_argument = false;
+    for (int i = 0; i < sig_extended->length() && !has_inline_argument; i++) {
+      has_inline_argument = (sig_extended->at(i)._bt == T_INLINE_TYPE);
     }
-    if (has_value_argument) {
-      // There is at least a value type argument: we're coming from
-      // compiled code so we have no buffers to back the value
-      // types. Allocate the buffers here with a runtime call.
+    if (has_inline_argument) {
+      // There is at least an inline type argument: we're coming from
+      // compiled code so we have no buffers to back the inline types.
+      // Allocate the buffers here with a runtime call.
       OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
 
       frame_complete = __ offset();
@@ -797,8 +797,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
       __ mov(c_rarg0, r15_thread);
       __ mov(c_rarg1, rbx);
-      __ mov64(c_rarg2, (int64_t)alloc_value_receiver);
-      __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_value_types)));
+      __ mov64(c_rarg2, (int64_t)alloc_inline_receiver);
+      __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_inline_types)));
 
       oop_maps->add_gc_map((int)(__ pc() - start), map);
       __ reset_last_Java_frame(false);
@@ -845,22 +845,22 @@ static void gen_c2i_adapter(MacroAssembler *masm,
   // Now write the args into the outgoing interpreter space
 
   // next_arg_comp is the next argument from the compiler point of
-  // view (value type fields are passed in registers/on the stack). In
-  // sig_extended, a value type argument starts with: T_VALUETYPE,
-  // followed by the types of the fields of the value type and T_VOID
-  // to mark the end of the value type. ignored counts the number of
-  // T_VALUETYPE/T_VOID. next_vt_arg is the next value type argument:
+  // view (inline type fields are passed in registers/on the stack). In
+  // sig_extended, an inline type argument starts with: T_INLINE_TYPE,
+  // followed by the types of the fields of the inline type and T_VOID
+  // to mark the end of the inline type. ignored counts the number of
+  // T_INLINE_TYPE/T_VOID. next_vt_arg is the next inline type argument:
   // used to get the buffer for that argument from the pool of buffers
   // we allocated above and want to pass to the
   // interpreter. next_arg_int is the next argument from the
-  // interpreter point of view (value types are passed by reference).
+  // interpreter point of view (inline types are passed by reference).
   for (int next_arg_comp = 0, ignored = 0, next_vt_arg = 0, next_arg_int = 0;
        next_arg_comp < sig_extended->length(); next_arg_comp++) {
     assert(ignored <= next_arg_comp, "shouldn't skip over more slots than there are arguments");
     assert(next_arg_int <= total_args_passed, "more arguments for the interpreter than expected?");
     BasicType bt = sig_extended->at(next_arg_comp)._bt;
     int st_off = (total_args_passed - next_arg_int) * Interpreter::stackElementSize;
-    if (!ValueTypePassFieldsAsArgs || bt != T_VALUETYPE) {
+    if (!InlineTypePassFieldsAsArgs || bt != T_INLINE_TYPE) {
       if (SigEntry::is_reserved_entry(sig_extended, next_arg_comp)) {
         continue; // Ignore reserved entry
       }
@@ -881,21 +881,21 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     } else {
       ignored++;
       // get the buffer from the just allocated pool of buffers
-      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_VALUETYPE);
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_INLINE_TYPE);
       __ load_heap_oop(r14, Address(rscratch2, index));
       next_vt_arg++; next_arg_int++;
       int vt = 1;
       // write fields we get from compiled code in registers/stack
-      // slots to the buffer: we know we are done with that value type
-      // argument when we hit the T_VOID that acts as an end of value
-      // type delimiter for this value type. Value types are flattened
-      // so we might encounter embedded value types. Each entry in
+      // slots to the buffer: we know we are done with that inline type
+      // argument when we hit the T_VOID that acts as an end of inline
+      // type delimiter for this inline type. Inline types are flattened
+      // so we might encounter embedded inline types. Each entry in
       // sig_extended contains a field offset in the buffer.
       do {
         next_arg_comp++;
         BasicType bt = sig_extended->at(next_arg_comp)._bt;
         BasicType prev_bt = sig_extended->at(next_arg_comp-1)._bt;
-        if (bt == T_VALUETYPE) {
+        if (bt == T_INLINE_TYPE) {
           vt++;
           ignored++;
         } else if (bt == T_VOID &&
@@ -1031,7 +1031,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
 
   // Will jump to the compiled code just as if compiled code was doing it.
   // Pre-load the register-jump target early, to schedule it better.
-  __ movptr(r11, Address(rbx, in_bytes(Method::from_compiled_value_offset())));
+  __ movptr(r11, Address(rbx, in_bytes(Method::from_compiled_inline_offset())));
 
 #if INCLUDE_JVMCI
   if (EnableJVMCI || UseAOT) {
@@ -1051,7 +1051,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm,
   // rest through the floating point stack top.
   for (int i = 0; i < total_args_passed; i++) {
     BasicType bt = sig->at(i)._bt;
-    assert(bt != T_VALUETYPE, "i2c adapter doesn't unpack value args");
+    assert(bt != T_INLINE_TYPE, "i2c adapter doesn't unpack inline type args");
     if (bt == T_VOID) {
       // Longs and doubles are passed in native word order, but misaligned
       // in the 32-bit build.
@@ -1157,7 +1157,7 @@ static void gen_inline_cache_check(MacroAssembler *masm, Label& skip_fixup) {
   Register receiver = j_rarg0;
   Register temp = rbx;
 
-  __ load_klass(temp, receiver);
+  __ load_klass(temp, receiver, rscratch1);
   __ cmpptr(temp, Address(holder, CompiledICHolder::holder_klass_offset()));
   __ movptr(rbx, Address(holder, CompiledICHolder::holder_metadata_offset()));
   __ jcc(Assembler::equal, ok);
@@ -1205,11 +1205,10 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   int frame_size_in_words = 0;
 
   // Scalarized c2i adapter with non-scalarized receiver (i.e., don't pack receiver)
-  address c2i_value_ro_entry = __ pc();
+  address c2i_inline_ro_entry = __ pc();
   if (regs_cc != regs_cc_ro) {
-    Label unused;
     gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
-    skip_fixup = unused;
+    skip_fixup.reset();
   }
 
   // Scalarized c2i adapter
@@ -1243,18 +1242,17 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
 
   gen_c2i_adapter(masm, sig_cc, regs_cc, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, true);
 
-  address c2i_unverified_value_entry = c2i_unverified_entry;
+  address c2i_unverified_inline_entry = c2i_unverified_entry;
 
   // Non-scalarized c2i adapter
-  address c2i_value_entry = c2i_entry;
+  address c2i_inline_entry = c2i_entry;
   if (regs != regs_cc) {
-    Label value_entry_skip_fixup;
-    c2i_unverified_value_entry = __ pc();
-    gen_inline_cache_check(masm, value_entry_skip_fixup);
+    Label inline_entry_skip_fixup;
+    c2i_unverified_inline_entry = __ pc();
+    gen_inline_cache_check(masm, inline_entry_skip_fixup);
 
-    c2i_value_entry = __ pc();
-    Label unused;
-    gen_c2i_adapter(masm, sig, regs, value_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
+    c2i_inline_entry = __ pc();
+    gen_c2i_adapter(masm, sig, regs, inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
   }
 
   __ flush();
@@ -1264,7 +1262,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   bool caller_must_gc_arguments = (regs != regs_cc);
   new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words, oop_maps, caller_must_gc_arguments);
 
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry, c2i_unverified_value_entry, c2i_no_clinit_check_entry);
+  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry, c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
 }
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
@@ -1322,7 +1320,7 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
         // fall through
       case T_OBJECT:
       case T_ARRAY:
-      case T_VALUETYPE:
+      case T_INLINE_TYPE:
       case T_ADDRESS:
       case T_METADATA:
         if (int_args < Argument::n_int_register_parameters_c) {
@@ -1384,7 +1382,7 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
 }
 
 // On 64 bit we will store integer like items to the stack as
-// 64 bits items (sparc abi) even though java would only store
+// 64 bits items (x86_32/64 abi) even though java would only store
 // 32bits for a parameter. On 32bit it will simply be 32 bits
 // So this routine will do 32->32 on 32bit and 32->64 on 64bit
 static void move32_64(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
@@ -1510,7 +1508,6 @@ static void float_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
 
   // The calling conventions assures us that each VMregpair is either
   // all really one physical register or adjacent stack slots.
-  // This greatly simplifies the cases here compared to sparc.
 
   if (src.first()->is_stack()) {
     if (dst.first()->is_stack()) {
@@ -1539,7 +1536,6 @@ static void long_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
 
   // The calling conventions assures us that each VMregpair is either
   // all really one physical register or adjacent stack slots.
-  // This greatly simplifies the cases here compared to sparc.
 
   if (src.is_single_phys_reg() ) {
     if (dst.is_single_phys_reg()) {
@@ -1565,7 +1561,6 @@ static void double_move(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
 
   // The calling conventions assures us that each VMregpair is either
   // all really one physical register or adjacent stack slots.
-  // This greatly simplifies the cases here compared to sparc.
 
   if (src.is_single_phys_reg() ) {
     if (dst.is_single_phys_reg()) {
@@ -1707,7 +1702,7 @@ static void save_or_restore_arguments(MacroAssembler* masm,
           // handled above
           break;
         case T_OBJECT:
-        case T_VALUETYPE:
+        case T_INLINE_TYPE:
         default: ShouldNotReachHere();
       }
     } else if (in_regs[i].first()->is_XMMRegister()) {
@@ -2404,7 +2399,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   assert_different_registers(ic_reg, receiver, rscratch1);
   __ verify_oop(receiver);
-  __ load_klass(rscratch1, receiver);
+  __ load_klass(rscratch1, receiver, rscratch2);
   __ cmpq(ic_reg, rscratch1);
   __ jcc(Assembler::equal, hit);
 
@@ -2621,7 +2616,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 #endif
           break;
         }
-      case T_VALUETYPE:
+      case T_INLINE_TYPE:
       case T_OBJECT:
         assert(!is_critical_native, "no oop arguments");
         object_move(masm, map, oop_handle_offset, stack_slots, in_regs[i], out_regs[c_arg],
@@ -2749,7 +2744,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
     __ resolve(IS_NOT_NULL, obj_reg);
     if (UseBiasedLocking) {
-      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch1, false, lock_done, &slow_path_lock);
+      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, rscratch1, rscratch2, false, lock_done, &slow_path_lock);
     }
 
     // Load immediate 1 into swap_reg %rax
@@ -2822,7 +2817,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Result is in xmm0 we'll save as needed
     break;
   case T_ARRAY:                 // Really a handle
-  case T_VALUETYPE:             // Really a handle
+  case T_INLINE_TYPE:           // Really a handle
   case T_OBJECT:                // Really a handle
       break; // can't de-handlize until after safepoint check
   case T_VOID: break;
@@ -3950,14 +3945,11 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
 
 #ifndef _WINDOWS
 
-#define ASM_SUBTRACT
-
-#ifdef ASM_SUBTRACT
 // Subtract 0:b from carry:a.  Return carry.
-static unsigned long
-sub(unsigned long a[], unsigned long b[], unsigned long carry, long len) {
-  long i = 0, cnt = len;
-  unsigned long tmp;
+static julong
+sub(julong a[], julong b[], julong carry, long len) {
+  long long i = 0, cnt = len;
+  julong tmp;
   asm volatile("clc; "
                "0: ; "
                "mov (%[b], %[i], 8), %[tmp]; "
@@ -3970,24 +3962,6 @@ sub(unsigned long a[], unsigned long b[], unsigned long carry, long len) {
                : "memory");
   return tmp;
 }
-#else // ASM_SUBTRACT
-typedef int __attribute__((mode(TI))) int128;
-
-// Subtract 0:b from carry:a.  Return carry.
-static unsigned long
-sub(unsigned long a[], unsigned long b[], unsigned long carry, int len) {
-  int128 tmp = 0;
-  int i;
-  for (i = 0; i < len; i++) {
-    tmp += a[i];
-    tmp -= b[i];
-    a[i] = tmp;
-    tmp >>= 64;
-    assert(-1 <= tmp && tmp <= 0, "invariant");
-  }
-  return tmp + carry;
-}
-#endif // ! ASM_SUBTRACT
 
 // Multiply (unsigned) Long A by Long B, accumulating the double-
 // length result into the accumulator formed of T0, T1, and T2.
@@ -4010,17 +3984,59 @@ do {                                                            \
            : "r"(A), "a"(B) : "cc");                            \
  } while(0)
 
+#else //_WINDOWS
+
+static julong
+sub(julong a[], julong b[], julong carry, long len) {
+  long i;
+  julong tmp;
+  unsigned char c = 1;
+  for (i = 0; i < len; i++) {
+    c = _addcarry_u64(c, a[i], ~b[i], &tmp);
+    a[i] = tmp;
+  }
+  c = _addcarry_u64(c, carry, ~0, &tmp);
+  return tmp;
+}
+
+// Multiply (unsigned) Long A by Long B, accumulating the double-
+// length result into the accumulator formed of T0, T1, and T2.
+#define MACC(A, B, T0, T1, T2)                          \
+do {                                                    \
+  julong hi, lo;                            \
+  lo = _umul128(A, B, &hi);                             \
+  unsigned char c = _addcarry_u64(0, lo, T0, &T0);      \
+  c = _addcarry_u64(c, hi, T1, &T1);                    \
+  _addcarry_u64(c, T2, 0, &T2);                         \
+ } while(0)
+
+// As above, but add twice the double-length result into the
+// accumulator.
+#define MACC2(A, B, T0, T1, T2)                         \
+do {                                                    \
+  julong hi, lo;                            \
+  lo = _umul128(A, B, &hi);                             \
+  unsigned char c = _addcarry_u64(0, lo, T0, &T0);      \
+  c = _addcarry_u64(c, hi, T1, &T1);                    \
+  _addcarry_u64(c, T2, 0, &T2);                         \
+  c = _addcarry_u64(0, lo, T0, &T0);                    \
+  c = _addcarry_u64(c, hi, T1, &T1);                    \
+  _addcarry_u64(c, T2, 0, &T2);                         \
+ } while(0)
+
+#endif //_WINDOWS
+
 // Fast Montgomery multiplication.  The derivation of the algorithm is
 // in  A Cryptographic Library for the Motorola DSP56000,
 // Dusse and Kaliski, Proc. EUROCRYPT 90, pp. 230-237.
 
-static void __attribute__((noinline))
-montgomery_multiply(unsigned long a[], unsigned long b[], unsigned long n[],
-                    unsigned long m[], unsigned long inv, int len) {
-  unsigned long t0 = 0, t1 = 0, t2 = 0; // Triple-precision accumulator
+static void NOINLINE
+montgomery_multiply(julong a[], julong b[], julong n[],
+                    julong m[], julong inv, int len) {
+  julong t0 = 0, t1 = 0, t2 = 0; // Triple-precision accumulator
   int i;
 
-  assert(inv * n[0] == -1UL, "broken inverse in Montgomery multiply");
+  assert(inv * n[0] == ULLONG_MAX, "broken inverse in Montgomery multiply");
 
   for (i = 0; i < len; i++) {
     int j;
@@ -4056,13 +4072,13 @@ montgomery_multiply(unsigned long a[], unsigned long b[], unsigned long n[],
 // multiplication.  However, its loop control is more complex and it
 // may actually run slower on some machines.
 
-static void __attribute__((noinline))
-montgomery_square(unsigned long a[], unsigned long n[],
-                  unsigned long m[], unsigned long inv, int len) {
-  unsigned long t0 = 0, t1 = 0, t2 = 0; // Triple-precision accumulator
+static void NOINLINE
+montgomery_square(julong a[], julong n[],
+                  julong m[], julong inv, int len) {
+  julong t0 = 0, t1 = 0, t2 = 0; // Triple-precision accumulator
   int i;
 
-  assert(inv * n[0] == -1UL, "broken inverse in Montgomery multiply");
+  assert(inv * n[0] == ULLONG_MAX, "broken inverse in Montgomery square");
 
   for (i = 0; i < len; i++) {
     int j;
@@ -4108,13 +4124,13 @@ montgomery_square(unsigned long a[], unsigned long n[],
 }
 
 // Swap words in a longword.
-static unsigned long swap(unsigned long x) {
+static julong swap(julong x) {
   return (x << 32) | (x >> 32);
 }
 
 // Copy len longwords from s to d, word-swapping as we go.  The
 // destination array is reversed.
-static void reverse_words(unsigned long *s, unsigned long *d, int len) {
+static void reverse_words(julong *s, julong *d, int len) {
   d += len;
   while(len-- > 0) {
     d--;
@@ -4136,24 +4152,24 @@ void SharedRuntime::montgomery_multiply(jint *a_ints, jint *b_ints, jint *n_ints
   // Make very sure we don't use so much space that the stack might
   // overflow.  512 jints corresponds to an 16384-bit integer and
   // will use here a total of 8k bytes of stack space.
-  int total_allocation = longwords * sizeof (unsigned long) * 4;
+  int total_allocation = longwords * sizeof (julong) * 4;
   guarantee(total_allocation <= 8192, "must be");
-  unsigned long *scratch = (unsigned long *)alloca(total_allocation);
+  julong *scratch = (julong *)alloca(total_allocation);
 
   // Local scratch arrays
-  unsigned long
+  julong
     *a = scratch + 0 * longwords,
     *b = scratch + 1 * longwords,
     *n = scratch + 2 * longwords,
     *m = scratch + 3 * longwords;
 
-  reverse_words((unsigned long *)a_ints, a, longwords);
-  reverse_words((unsigned long *)b_ints, b, longwords);
-  reverse_words((unsigned long *)n_ints, n, longwords);
+  reverse_words((julong *)a_ints, a, longwords);
+  reverse_words((julong *)b_ints, b, longwords);
+  reverse_words((julong *)n_ints, n, longwords);
 
-  ::montgomery_multiply(a, b, n, m, (unsigned long)inv, longwords);
+  ::montgomery_multiply(a, b, n, m, (julong)inv, longwords);
 
-  reverse_words(m, (unsigned long *)m_ints, longwords);
+  reverse_words(m, (julong *)m_ints, longwords);
 }
 
 void SharedRuntime::montgomery_square(jint *a_ints, jint *n_ints,
@@ -4165,29 +4181,27 @@ void SharedRuntime::montgomery_square(jint *a_ints, jint *n_ints,
   // Make very sure we don't use so much space that the stack might
   // overflow.  512 jints corresponds to an 16384-bit integer and
   // will use here a total of 6k bytes of stack space.
-  int total_allocation = longwords * sizeof (unsigned long) * 3;
+  int total_allocation = longwords * sizeof (julong) * 3;
   guarantee(total_allocation <= 8192, "must be");
-  unsigned long *scratch = (unsigned long *)alloca(total_allocation);
+  julong *scratch = (julong *)alloca(total_allocation);
 
   // Local scratch arrays
-  unsigned long
+  julong
     *a = scratch + 0 * longwords,
     *n = scratch + 1 * longwords,
     *m = scratch + 2 * longwords;
 
-  reverse_words((unsigned long *)a_ints, a, longwords);
-  reverse_words((unsigned long *)n_ints, n, longwords);
+  reverse_words((julong *)a_ints, a, longwords);
+  reverse_words((julong *)n_ints, n, longwords);
 
   if (len >= MONTGOMERY_SQUARING_THRESHOLD) {
-    ::montgomery_square(a, n, m, (unsigned long)inv, longwords);
+    ::montgomery_square(a, n, m, (julong)inv, longwords);
   } else {
-    ::montgomery_multiply(a, a, n, m, (unsigned long)inv, longwords);
+    ::montgomery_multiply(a, a, n, m, (julong)inv, longwords);
   }
 
-  reverse_words(m, (unsigned long *)m_ints, longwords);
+  reverse_words(m, (julong *)m_ints, longwords);
 }
-
-#endif // WINDOWS
 
 #ifdef COMPILER2
 // This is here instead of runtime_x86_64.cpp because it uses SimpleRuntimeFrame
@@ -4323,8 +4337,8 @@ void OptoRuntime::generate_exception_blob() {
 }
 #endif // COMPILER2
 
-BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const ValueKlass* vk) {
-  BufferBlob* buf = BufferBlob::create("value types pack/unpack", 16 * K);
+BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
+  BufferBlob* buf = BufferBlob::create("inline types pack/unpack", 16 * K);
   CodeBuffer buffer(buf);
   short buffer_locs[20];
   buffer.insts()->initialize_shared_locs((relocInfo*)buffer_locs,
@@ -4349,7 +4363,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       continue;
     }
     if (bt == T_VOID) {
@@ -4389,7 +4403,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       continue;
     }
     if (bt == T_VOID) {
@@ -4422,8 +4436,8 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
   }
   assert(j == regs->length(), "missed a field?");
 
-  if (StressValueTypeReturnedAsFields) {
-    __ load_klass(rax, rax);
+  if (StressInlineTypeReturnedAsFields) {
+    __ load_klass(rax, rax, rscratch1);
     __ orptr(rax, 1);
   }
 
@@ -4431,5 +4445,5 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
 
   __ flush();
 
-  return BufferedValueTypeBlob::create(&buffer, pack_fields_off, pack_fields_jobject_off, unpack_fields_off);
+  return BufferedInlineTypeBlob::create(&buffer, pack_fields_off, pack_fields_jobject_off, unpack_fields_off);
 }

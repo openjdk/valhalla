@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "jfr/recorder/repository/jfrChunk.hpp"
 #include "jfr/recorder/repository/jfrChunkWriter.hpp"
 #include "jfr/utilities/jfrTime.hpp"
+#include "jfr/utilities/jfrTypes.hpp"
 #include "runtime/mutexLocker.hpp"
 #include "runtime/os.inline.hpp"
 
@@ -61,7 +62,7 @@ class JfrChunkHeadWriter : public StackObj {
   JfrChunk* _chunk;
  public:
   void write_magic() {
-    _writer->bytes(_chunk->magic(), MAGIC_LEN);
+    _writer->write_bytes(_chunk->magic(), MAGIC_LEN);
   }
 
   void write_version() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
 #include "interpreter/linkResolver.hpp"
 #include "interpreter/rewriter.hpp"
 #include "logging/log.hpp"
+#include "logging/logStream.hpp"
 #include "memory/heapShared.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
@@ -42,6 +43,7 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "prims/methodHandles.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
 #include "utilities/macros.hpp"
@@ -132,19 +134,19 @@ void ConstantPoolCacheEntry::set_field(Bytecodes::Code get_code,
                                        TosState field_type,
                                        bool is_final,
                                        bool is_volatile,
-                                       bool is_flattened,
-                                       bool is_flattenable,
+                                       bool is_inlined,
+                                       bool is_inline_type,
                                        Klass* root_klass) {
   set_f1(field_holder);
   set_f2(field_offset);
   assert((field_index & field_index_mask) == field_index,
          "field index does not fit in low flag bits");
-  assert(!is_flattened || is_flattenable, "Sanity check");
+  assert(!is_inlined || is_inline_type, "Sanity check");
   set_field_flags(field_type,
                   ((is_volatile ? 1 : 0) << is_volatile_shift) |
                   ((is_final    ? 1 : 0) << is_final_shift) |
-                  ((is_flattened  ? 1 : 0) << is_flattened_field_shift) |
-                  ((is_flattenable ? 1 : 0) << is_flattenable_field_shift),
+                  ((is_inlined  ? 1 : 0) << is_inlined_shift) |
+                  ((is_inline_type ? 1 : 0) << is_inline_type_shift),
                   field_index);
   set_bytecode_1(get_code);
   set_bytecode_2(put_code);
@@ -418,15 +420,18 @@ void ConstantPoolCacheEntry::set_method_handle_common(const constantPoolHandle& 
                    (                   1      << is_final_shift            ),
                    adapter->size_of_parameters());
 
-  if (TraceInvokeDynamic) {
-    ttyLocker ttyl;
-    tty->print_cr("set_method_handle bc=%d appendix=" PTR_FORMAT "%s method=" PTR_FORMAT " (local signature) ",
-                  invoke_code,
-                  p2i(appendix()),
-                  (has_appendix ? "" : " (unused)"),
-                  p2i(adapter));
-    adapter->print();
-    if (has_appendix)  appendix()->print();
+  LogStream* log_stream = NULL;
+  LogStreamHandle(Debug, methodhandles, indy) lsh_indy;
+  if (lsh_indy.is_enabled()) {
+    ResourceMark rm;
+    log_stream = &lsh_indy;
+    log_stream->print_cr("set_method_handle bc=%d appendix=" PTR_FORMAT "%s method=" PTR_FORMAT " (local signature) ",
+                         invoke_code,
+                         p2i(appendix()),
+                         (has_appendix ? "" : " (unused)"),
+                         p2i(adapter));
+    adapter->print_on(log_stream);
+    if (has_appendix)  appendix()->print_on(log_stream);
   }
 
   // Method handle invokes and invokedynamic sites use both cp cache words.
@@ -462,9 +467,9 @@ void ConstantPoolCacheEntry::set_method_handle_common(const constantPoolHandle& 
   // but it is used by is_resolved, method_if_resolved, etc.
   set_bytecode_1(invoke_code);
   NOT_PRODUCT(verify(tty));
-  if (TraceInvokeDynamic) {
-    ttyLocker ttyl;
-    this->print(tty, 0);
+
+  if (log_stream != NULL) {
+    this->print(log_stream, 0);
   }
 
   assert(has_appendix == this->has_appendix(), "proper storage of appendix flag");
@@ -563,15 +568,14 @@ oop ConstantPoolCacheEntry::appendix_if_resolved(const constantPoolHandle& cpool
 #if INCLUDE_JVMTI
 
 void log_adjust(const char* entry_type, Method* old_method, Method* new_method, bool* trace_name_printed) {
-  if (log_is_enabled(Info, redefine, class, update)) {
-    ResourceMark rm;
-    if (!(*trace_name_printed)) {
-      log_info(redefine, class, update)("adjust: name=%s", old_method->method_holder()->external_name());
-      *trace_name_printed = true;
-    }
-    log_debug(redefine, class, update, constantpool)
-          ("cpc %s entry update: %s(%s)", entry_type, new_method->name()->as_C_string(), new_method->signature()->as_C_string());
+  ResourceMark rm;
+
+  if (!(*trace_name_printed)) {
+    log_info(redefine, class, update)("adjust: name=%s", old_method->method_holder()->external_name());
+    *trace_name_printed = true;
   }
+  log_trace(redefine, class, update, constantpool)
+    ("cpc %s entry update: %s", entry_type, new_method->external_name());
 }
 
 // RedefineClasses() API support:
@@ -769,7 +773,7 @@ void ConstantPoolCache::walk_entries_for_initialization(bool check_only) {
 void ConstantPoolCache::deallocate_contents(ClassLoaderData* data) {
   assert(!is_shared(), "shared caches are not deallocated");
   data->remove_handle(_resolved_references);
-  set_resolved_references(NULL);
+  set_resolved_references(OopHandle());
   MetadataFactory::free_array<u2>(data, _reference_map);
   set_reference_map(NULL);
 }
@@ -811,9 +815,13 @@ void ConstantPoolCache::adjust_method_entries(bool * trace_name_printed) {
 
 // the constant pool cache should never contain old or obsolete methods
 bool ConstantPoolCache::check_no_old_or_obsolete_entries() {
+  ResourceMark rm;
   for (int i = 1; i < length(); i++) {
-    if (entry_at(i)->get_interesting_method_entry() != NULL &&
-        !entry_at(i)->check_no_old_or_obsolete_entries()) {
+    Method* m = entry_at(i)->get_interesting_method_entry();
+    if (m != NULL && !entry_at(i)->check_no_old_or_obsolete_entries()) {
+      log_trace(redefine, class, update, constantpool)
+        ("cpcache check found old method entry: class: %s, old: %d, obsolete: %d, method: %s",
+         constant_pool()->pool_holder()->external_name(), m->is_old(), m->is_obsolete(), m->external_name());
       return false;
     }
   }

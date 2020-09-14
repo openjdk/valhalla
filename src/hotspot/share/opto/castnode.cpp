@@ -28,12 +28,12 @@
 #include "opto/castnode.hpp"
 #include "opto/connode.hpp"
 #include "opto/graphKit.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/matcher.hpp"
 #include "opto/phaseX.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/subnode.hpp"
 #include "opto/type.hpp"
-#include "opto/valuetypenode.hpp"
 
 //=============================================================================
 // If input is already higher or equal to cast type, then this is an identity.
@@ -62,14 +62,6 @@ const Type* ConstraintCastNode::Value(PhaseGVN* phase) const {
     {
       const Type* t1 = phase->type(in(1));
       if( t1 == Type::TOP )  assert(ft == Type::TOP, "special case #1");
-      const Type* rt = t1->join_speculative(_type);
-      if (rt->empty())       assert(ft == Type::TOP, "special case #2");
-      break;
-    }
-    case Op_CastLL:
-    {
-      const Type* t1 = phase->type(in(1));
-      if (t1 == Type::TOP)   assert(ft == Type::TOP, "special case #1");
       const Type* rt = t1->join_speculative(_type);
       if (rt->empty())       assert(ft == Type::TOP, "special case #2");
       break;
@@ -104,11 +96,6 @@ Node* ConstraintCastNode::make_cast(int opcode, Node* c, Node *n, const Type *t,
   switch(opcode) {
   case Op_CastII: {
     Node* cast = new CastIINode(n, t, carry_dependency);
-    cast->set_req(0, c);
-    return cast;
-  }
-  case Op_CastLL: {
-    Node* cast = new CastLLNode(n, t, carry_dependency);
     cast->set_req(0, c);
     return cast;
   }
@@ -295,50 +282,11 @@ void CastIINode::dump_spec(outputStream* st) const {
 }
 #endif
 
-Node* CastLLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
-  Node* progress = ConstraintCastNode::Ideal(phase, can_reshape);
-  if (progress != NULL) {
-    return progress;
-  }
-
-  // Same as in CastIINode::Ideal but for TypeLong instead of TypeInt
-  if (can_reshape && !phase->C->major_progress()) {
-    const TypeLong* this_type = this->type()->is_long();
-    const TypeLong* in_type = phase->type(in(1))->isa_long();
-    if (in_type != NULL && this_type != NULL &&
-        (in_type->_lo != this_type->_lo ||
-         in_type->_hi != this_type->_hi)) {
-      jlong lo1 = this_type->_lo;
-      jlong hi1 = this_type->_hi;
-      int w1  = this_type->_widen;
-
-      if (lo1 >= 0) {
-        // Keep a range assertion of >=0.
-        lo1 = 0;         hi1 = max_jlong;
-      } else if (hi1 < 0) {
-        // Keep a range assertion of <0.
-        lo1 = min_jlong; hi1 = -1;
-      } else {
-        lo1 = min_jlong; hi1 = max_jlong;
-      }
-      const TypeLong* wtype = TypeLong::make(MAX2(in_type->_lo, lo1),
-                                             MIN2(in_type->_hi, hi1),
-                                             MAX2((int)in_type->_widen, w1));
-      if (wtype != type()) {
-        set_type(wtype);
-        return this;
-      }
-    }
-  }
-  return NULL;
-}
-
-
 //=============================================================================
 //------------------------------Identity---------------------------------------
 // If input is already higher or equal to cast type, then this is an identity.
 Node* CheckCastPPNode::Identity(PhaseGVN* phase) {
-  if (in(1)->is_ValueTypeBase() && _type->isa_oopptr() && phase->type(in(1))->value_klass()->is_subtype_of(_type->is_oopptr()->klass())) {
+  if (in(1)->is_InlineTypeBase() && _type->isa_oopptr() && phase->type(in(1))->inline_klass()->is_subtype_of(_type->is_oopptr()->klass())) {
     return in(1);
   }
   Node* dom = dominating_cast(phase, phase);
@@ -365,6 +313,13 @@ const Type* CheckCastPPNode::Value(PhaseGVN* phase) const {
   const TypePtr *my_type   = _type->isa_ptr();
   const Type *result = _type;
   if( in_type != NULL && my_type != NULL ) {
+    if (my_type->isa_aryptr() && in_type->isa_aryptr()) {
+      // Propagate array properties (not flat/null-free)
+      my_type = my_type->is_aryptr()->update_properties(in_type->is_aryptr());
+      if (my_type == NULL) {
+        return Type::TOP; // Inconsistent properties
+      }
+    }
     TypePtr::PTR   in_ptr    = in_type->ptr();
     if (in_ptr == TypePtr::Null) {
       result = in_type;

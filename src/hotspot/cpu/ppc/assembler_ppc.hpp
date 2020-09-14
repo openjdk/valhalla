@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -436,6 +436,10 @@ class Assembler : public AbstractAssembler {
     NAND_OPCODE   = (31u << OPCODE_SHIFT | 476u << XO_21_30_SHIFT), // X-FORM
     NOR_OPCODE    = (31u << OPCODE_SHIFT | 124u << XO_21_30_SHIFT), // X-FORM
 
+    // Byte reverse opcodes (introduced with Power10)
+    BRH_OPCODE    = (31u << OPCODE_SHIFT | 219u << 1),              // X-FORM
+    BRW_OPCODE    = (31u << OPCODE_SHIFT | 155u << 1),              // X-FORM
+    BRD_OPCODE    = (31u << OPCODE_SHIFT | 187u << 1),              // X-FORM
 
     // opcodes only used for floating arithmetic
     FADD_OPCODE   = (63u << OPCODE_SHIFT |  21u << 1),
@@ -530,6 +534,8 @@ class Assembler : public AbstractAssembler {
     XXLXOR_OPCODE  = (60u << OPCODE_SHIFT |  154u << 3),
     XXLEQV_OPCODE  = (60u << OPCODE_SHIFT |  186u << 3),
     XVDIVSP_OPCODE = (60u << OPCODE_SHIFT |   88u << 3),
+    XXBRD_OPCODE   = (60u << OPCODE_SHIFT |  475u << 2 | 23u << 16), // XX2-FORM
+    XXBRW_OPCODE   = (60u << OPCODE_SHIFT |  475u << 2 | 15u << 16), // XX2-FORM
     XVDIVDP_OPCODE = (60u << OPCODE_SHIFT |  120u << 3),
     XVABSSP_OPCODE = (60u << OPCODE_SHIFT |  409u << 2),
     XVABSDP_OPCODE = (60u << OPCODE_SHIFT |  473u << 2),
@@ -1566,6 +1572,11 @@ class Assembler : public AbstractAssembler {
   // testbit with condition register
   inline void testbitdi(ConditionRegister cr, Register a, Register s, int ui6);
 
+  // Byte reverse instructions (introduced with Power10)
+  inline void brh(     Register a, Register s);
+  inline void brw(     Register a, Register s);
+  inline void brd(     Register a, Register s);
+
   // rotate instructions
   inline void rotldi(  Register a, Register s, int n);
   inline void rotrdi(  Register a, Register s, int n);
@@ -1931,11 +1942,21 @@ class Assembler : public AbstractAssembler {
   inline void td(           int tobits, Register a, Register b); // asserts UseSIGTRAP
   inline void tw(           int tobits, Register a, Register b); // asserts UseSIGTRAP
 
+ public:
   static bool is_tdi(int x, int tobits, int ra, int si16) {
      return (TDI_OPCODE == (x & TDI_OPCODE_MASK))
          && (tobits == inv_to_field(x))
          && (ra == -1/*any reg*/ || ra == inv_ra_field(x))
          && (si16 == inv_si_field(x));
+  }
+
+  static int tdi_get_si16(int x, int tobits, int ra) {
+    if (TDI_OPCODE == (x & TDI_OPCODE_MASK)
+        && (tobits == inv_to_field(x))
+        && (ra == -1/*any reg*/ || ra == inv_ra_field(x))) {
+      return inv_si_field(x);
+    }
+    return -1; // No valid tdi instruction.
   }
 
   static bool is_twi(int x, int tobits, int ra, int si16) {
@@ -1965,7 +1986,6 @@ class Assembler : public AbstractAssembler {
          && (rb == -1/*any reg*/ || rb == inv_rb_field(x));
   }
 
- public:
   // PPC floating point instructions
   // PPC 1, section 4.6.2 Floating-Point Load Instructions
   inline void lfs(  FloatRegister d, int si16,   Register a);
@@ -2227,11 +2247,15 @@ class Assembler : public AbstractAssembler {
   inline void xxmrghw(  VectorSRegister d, VectorSRegister a, VectorSRegister b);
   inline void xxmrglw(  VectorSRegister d, VectorSRegister a, VectorSRegister b);
   inline void mtvsrd(   VectorSRegister d, Register a);
+  inline void mfvsrd(   Register        d, VectorSRegister a);
   inline void mtvsrwz(  VectorSRegister d, Register a);
+  inline void mfvsrwz(  Register        d, VectorSRegister a);
   inline void xxspltw(  VectorSRegister d, VectorSRegister b, int ui2);
   inline void xxlor(    VectorSRegister d, VectorSRegister a, VectorSRegister b);
   inline void xxlxor(   VectorSRegister d, VectorSRegister a, VectorSRegister b);
   inline void xxleqv(   VectorSRegister d, VectorSRegister a, VectorSRegister b);
+  inline void xxbrd(    VectorSRegister d, VectorSRegister b);
+  inline void xxbrw(    VectorSRegister d, VectorSRegister b);
   inline void xvdivsp(  VectorSRegister d, VectorSRegister a, VectorSRegister b);
   inline void xvdivdp(  VectorSRegister d, VectorSRegister a, VectorSRegister b);
   inline void xvabssp(  VectorSRegister d, VectorSRegister b);

@@ -76,7 +76,8 @@ tier3 = \
     :jdk_beans \
     :jdk_imageio \
     :jdk_sound \
-    :jdk_client_sanity
+    :jdk_client_sanity \
+    :jdk_jfr_tier3
 
 ###############################################################################
 #
@@ -206,7 +207,6 @@ jdk_security1 = \
 jdk_security2 = \
     javax/crypto \
     javax/xml/crypto \
-    com/oracle/security/ucrypto \
     com/sun/crypto
 
 jdk_security3 = \
@@ -286,6 +286,9 @@ jdk_tools = \
 jdk_jfr = \
     jdk/jfr
 
+jdk_jfr_tier3 = \
+    jdk/jfr/event/metadata/TestLookForUntestedEvents.java
+
 #
 # Catch-all for other areas with a small number of tests
 #
@@ -299,6 +302,7 @@ jdk_other = \
     javax/smartcardio \
     javax/xml \
     -javax/xml/crypto \
+    jdk/dynalink \
     jdk/internal/jline \
     com/sun/jndi \
     lib/testlibrary

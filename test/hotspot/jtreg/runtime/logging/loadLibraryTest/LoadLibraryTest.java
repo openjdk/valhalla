@@ -27,8 +27,7 @@
  * @summary Tests logging of shared library loads and unloads.
  * @library /runtime/testlibrary /test/lib
  * @build sun.hotspot.WhiteBox
- * @run main ClassFileInstaller sun.hotspot.WhiteBox
- *                              sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @run main LoadLibraryTest
  */
 
@@ -65,6 +64,22 @@ public class LoadLibraryTest {
             WhiteBox wb = WhiteBox.getWhiteBox();
             if (!wb.isClassAlive(CLASS_NAME)) {
                 System.out.println("Class LoadLibraryClass was unloaded");
+                while (true) {
+                    try {
+                        System.loadLibrary("LoadLibraryClass");
+                        // Able to load the library with this class's class loader
+                        // so it must have been unloaded by myLoader.
+                        break;
+                    } catch(java.lang.UnsatisfiedLinkError e) {
+                        if (e.getMessage().contains("already loaded in another classloader")) {
+                            // Library has not been unloaded yet, so wait a little and check again.
+                            Thread.sleep(10);
+                        } else {
+                            throw new RuntimeException(
+                                "Unexpected UnsatisfiedLinkError: " + e.getMessage());
+                        }
+                    }
+                }
             }
         }
 

@@ -30,7 +30,7 @@
 #include "runtime/rtmLocking.hpp"
 #include "runtime/signature.hpp"
 
-class ciValueKlass;
+class ciInlineKlass;
 
 // MacroAssembler extends Assembler by frequently used macros.
 //
@@ -102,24 +102,30 @@ class MacroAssembler: public Assembler {
   static bool uses_implicit_null_check(void* address);
 
   // valueKlass queries, kills temp_reg
-  void test_klass_is_value(Register klass, Register temp_reg, Label& is_value);
-  void test_klass_is_empty_value(Register klass, Register temp_reg, Label& is_empty_value);
+  void test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type);
+  void test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type);
 
-  // Get the default value oop for the given ValueKlass
-  void get_default_value_oop(Register value_klass, Register temp_reg, Register obj);
-  // The empty value oop, for the given ValueKlass ("empty" as in no instance fields)
-  // get_default_value_oop with extra assertion for empty value klass
-  void get_empty_value_oop(Register value_klass, Register temp_reg, Register obj);
+  // Get the default value oop for the given InlineKlass
+  void get_default_value_oop(Register inline_klass, Register temp_reg, Register obj);
+  // The empty value oop, for the given InlineKlass ("empty" as in no instance fields)
+  // get_default_value_oop with extra assertion for empty inline klass
+  void get_empty_inline_type_oop(Register inline_klass, Register temp_reg, Register obj);
 
-  void test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable);
-  void test_field_is_not_flattenable(Register flags, Register temp_reg, Label& notFlattenable);
-  void test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened);
+  void test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline);
+  void test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline);
+  void test_field_is_inlined(Register flags, Register temp_reg, Label& is_inlined);
 
   // Check oops array storage properties, i.e. flattened and/or null-free
   void test_flattened_array_oop(Register oop, Register temp_reg, Label&is_flattened_array);
   void test_non_flattened_array_oop(Register oop, Register temp_reg, Label&is_non_flattened_array);
   void test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array);
   void test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array);
+
+  // Check array klass layout helper for flatten or null-free arrays...
+  void test_flattened_array_layout(Register lh, Label& is_flattened_array);
+  void test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array);
+  void test_null_free_array_layout(Register lh, Label& is_null_free_array);
+  void test_non_null_free_array_layout(Register lh, Label& is_non_null_free_array);
 
   // Required platform-specific helpers for Label::patch_instructions.
   // They _shadow_ the declarations in AbstractAssembler, which are undefined.
@@ -339,20 +345,19 @@ class MacroAssembler: public Assembler {
 
   // oop manipulations
   void load_metadata(Register dst, Register src);
-  void load_storage_props(Register dst, Register src);
-  void load_klass(Register dst, Register src);
-  void store_klass(Register dst, Register src);
+  void load_klass(Register dst, Register src, Register tmp);
+  void store_klass(Register dst, Register src, Register tmp);
 
   void access_load_at(BasicType type, DecoratorSet decorators, Register dst, Address src,
                       Register tmp1, Register thread_tmp);
   void access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register src,
                        Register tmp1, Register tmp2, Register tmp3 = noreg);
 
-  void access_value_copy(DecoratorSet decorators, Register src, Register dst, Register value_klass);
+  void access_value_copy(DecoratorSet decorators, Register src, Register dst, Register inline_klass);
 
-  // value type data payload offsets...
-  void first_field_offset(Register value_klass, Register offset);
-  void data_for_oop(Register oop, Register data, Register value_klass);
+  // inline type data payload offsets...
+  void first_field_offset(Register inline_klass, Register offset);
+  void data_for_oop(Register oop, Register data, Register inline_klass);
   // get data payload ptr a flat value array at index, kills rcx and index
   void data_for_value_array_index(Register array, Register array_klass,
                                   Register index, Register data);
@@ -373,7 +378,7 @@ class MacroAssembler: public Assembler {
   // stored using routines that take a jobject.
   void store_heap_oop_null(Address dst);
 
-  void load_prototype_header(Register dst, Register src);
+  void load_prototype_header(Register dst, Register src, Register tmp);
 
 #ifdef _LP64
   void store_klass_gap(Register dst, Register src);
@@ -396,18 +401,14 @@ class MacroAssembler: public Assembler {
   void cmp_narrow_oop(Register dst, jobject obj);
   void cmp_narrow_oop(Address dst, jobject obj);
 
-  void encode_klass_not_null(Register r);
-  void decode_klass_not_null(Register r);
-  void encode_klass_not_null(Register dst, Register src);
-  void decode_klass_not_null(Register dst, Register src);
+  void encode_klass_not_null(Register r, Register tmp);
+  void decode_klass_not_null(Register r, Register tmp);
+  void encode_and_move_klass_not_null(Register dst, Register src);
+  void decode_and_move_klass_not_null(Register dst, Register src);
   void set_narrow_klass(Register dst, Klass* k);
   void set_narrow_klass(Address dst, Klass* k);
   void cmp_narrow_klass(Register dst, Klass* k);
   void cmp_narrow_klass(Address dst, Klass* k);
-
-  // Returns the byte size of the instructions generated by decode_klass_not_null()
-  // when compressed klass pointers are being used.
-  static int instr_size_for_decode_klass_not_null();
 
   // if heap base register is used - reinit it with the correct value
   void reinit_heapbase();
@@ -575,8 +576,8 @@ class MacroAssembler: public Assembler {
   );
   void zero_memory(Register address, Register length_in_bytes, int offset_in_bytes, Register temp);
 
-  // For field "index" within "klass", return value_klass ...
-  void get_value_field_klass(Register klass, Register index, Register value_klass);
+  // For field "index" within "klass", return inline_klass ...
+  void get_inline_type_field_klass(Register klass, Register index, Register inline_klass);
 
   // interface method calling
   void lookup_interface_method(Register recv_klass,
@@ -712,15 +713,11 @@ class MacroAssembler: public Assembler {
   // allocate a temporary (inefficient, avoid if possible).
   // Optional slow case is for implementations (interpreter and C1) which branch to
   // slow case directly. Leaves condition codes set for C2's Fast_Lock node.
-  // Returns offset of first potentially-faulting instruction for null
-  // check info (currently consumed only by C1). If
-  // swap_reg_contains_mark is true then returns -1 as it is assumed
-  // the calling code has already passed any potential faults.
-  int biased_locking_enter(Register lock_reg, Register obj_reg,
-                           Register swap_reg, Register tmp_reg,
-                           bool swap_reg_contains_mark,
-                           Label& done, Label* slow_case = NULL,
-                           BiasedLockingCounters* counters = NULL);
+  void biased_locking_enter(Register lock_reg, Register obj_reg,
+                            Register swap_reg, Register tmp_reg,
+                            Register tmp_reg2, bool swap_reg_contains_mark,
+                            Label& done, Label* slow_case = NULL,
+                            BiasedLockingCounters* counters = NULL);
   void biased_locking_exit (Register obj_reg, Register temp_reg, Label& done);
 
   Condition negate_condition(Condition cond);
@@ -1006,6 +1003,9 @@ public:
                       Register len_reg, Register used, Register used_addr, Register saved_encCounter_start);
 
 #endif
+
+  void fast_md5(Register buf, Address state, Address ofs, Address limit,
+                bool multi_block);
 
   void fast_sha1(XMMRegister abcd, XMMRegister e0, XMMRegister e1, XMMRegister msg0,
                  XMMRegister msg1, XMMRegister msg2, XMMRegister msg3, XMMRegister shuf_mask,
@@ -1653,25 +1653,25 @@ public:
     reg_written
   };
 
-  int store_value_type_fields_to_buf(ciValueKlass* vk, bool from_interpreter = true);
+  int store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter = true);
 
-  // Unpack all value type arguments passed as oops
-  void unpack_value_args(Compile* C, bool receiver_only);
+  // Unpack all inline type arguments passed as oops
+  void unpack_inline_args(Compile* C, bool receiver_only);
   bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset);
-  bool unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index,
-                           RegState reg_state[], int ret_off, int extra_stack_offset);
-  bool pack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                         VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
-                         int ret_off, int extra_stack_offset);
+  bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index,
+                            RegState reg_state[], int ret_off, int extra_stack_offset);
+  bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
+                          VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
+                          int ret_off, int extra_stack_offset);
   void remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset);
 
-  void shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
-                          BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                          int args_passed, int args_on_stack, VMRegPair* regs,
-                          int args_passed_to, int args_on_stack_to, VMRegPair* regs_to, int sp_inc);
-  bool shuffle_value_args_spill(bool is_packing,  const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
-                                VMRegPair* regs_from, int from_index, int regs_from_count,
-                                RegState* reg_state, int sp_inc, int extra_stack_offset);
+  void shuffle_inline_args(bool is_packing, bool receiver_only, int extra_stack_offset,
+                           BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
+                           int args_passed, int args_on_stack, VMRegPair* regs,
+                           int args_passed_to, int args_on_stack_to, VMRegPair* regs_to, int sp_inc);
+  bool shuffle_inline_args_spill(bool is_packing,  const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
+                                 VMRegPair* regs_from, int from_index, int regs_from_count,
+                                 RegState* reg_state, int sp_inc, int extra_stack_offset);
   VMReg spill_reg_for(VMReg reg);
 
   // clear memory of size 'cnt' qwords, starting at 'base';
@@ -1736,6 +1736,15 @@ public:
   // CRC32 code for java.util.zip.CRC32::updateBytes() intrinsic.
   void update_byte_crc32(Register crc, Register val, Register table);
   void kernel_crc32(Register crc, Register buf, Register len, Register table, Register tmp);
+
+
+#ifdef _LP64
+  void kernel_crc32_avx512(Register crc, Register buf, Register len, Register table, Register tmp1, Register tmp2);
+  void kernel_crc32_avx512_256B(Register crc, Register buf, Register len, Register key, Register pos,
+                                Register tmp1, Register tmp2, Label& L_barrett, Label& L_16B_reduction_loop,
+                                Label& L_get_last_two_xmms, Label& L_128_done, Label& L_cleanup);
+#endif // _LP64
+
   // CRC32C code for java.util.zip.CRC32C::updateBytes() intrinsic
   // Note on a naming convention:
   // Prefix w = register only used on a Westmere+ architecture
@@ -1772,10 +1781,13 @@ public:
   // Fold 128-bit data chunk
   void fold_128bit_crc32(XMMRegister xcrc, XMMRegister xK, XMMRegister xtmp, Register buf, int offset);
   void fold_128bit_crc32(XMMRegister xcrc, XMMRegister xK, XMMRegister xtmp, XMMRegister xbuf);
+#ifdef _LP64
+  // Fold 512-bit data chunk
+  void fold512bit_crc32_avx512(XMMRegister xcrc, XMMRegister xK, XMMRegister xtmp, Register buf, Register pos, int offset);
+#endif // _LP64
   // Fold 8-bit data
   void fold_8bit_crc32(Register crc, Register table, Register tmp);
   void fold_8bit_crc32(XMMRegister crc, Register table, XMMRegister xtmp, Register tmp);
-  void fold_128bit_crc32_avx512(XMMRegister xcrc, XMMRegister xK, XMMRegister xtmp, Register buf, int offset);
 
   // Compress char[] array to byte[].
   void char_array_compress(Register src, Register dst, Register len,

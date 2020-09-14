@@ -35,16 +35,22 @@
 #include "runtime/timerTrace.hpp"
 #include "utilities/copy.hpp"
 
-#ifndef CC_INTERP
-
 # define __ _masm->
 
-void TemplateInterpreter::initialize() {
+void TemplateInterpreter::initialize_stub() {
   // assertions
   assert(_code == NULL, "must only initialize once");
   assert((int)Bytecodes::number_of_codes <= (int)DispatchTable::length,
          "dispatch table too small");
 
+  // allocate interpreter
+  int code_size = InterpreterCodeSize;
+  NOT_PRODUCT(code_size *= 4;)  // debug uses extra interpreter code space
+  _code = new StubQueue(new InterpreterCodeletInterface, code_size, NULL,
+                        "Interpreter");
+}
+
+void TemplateInterpreter::initialize_code() {
   AbstractInterpreter::initialize();
 
   TemplateTable::initialize();
@@ -52,10 +58,6 @@ void TemplateInterpreter::initialize() {
   // generate interpreter
   { ResourceMark rm;
     TraceTime timer("Interpreter generation", TRACETIME_LOG(Info, startuptime));
-    int code_size = InterpreterCodeSize;
-    NOT_PRODUCT(code_size *= 4;)  // debug uses extra interpreter code space
-    _code = new StubQueue(new InterpreterCodeletInterface, code_size, NULL,
-                          "Interpreter");
     TemplateInterpreterGenerator g(_code);
     // Free the unused memory not occupied by the interpreter and the stubs
     _code->deallocate_unused_tail();
@@ -365,5 +367,3 @@ bool TemplateInterpreter::bytecode_should_reexecute(Bytecodes::Code code) {
 InterpreterCodelet* TemplateInterpreter::codelet_containing(address pc) {
   return (InterpreterCodelet*)_code->stub_containing(pc);
 }
-
-#endif // !CC_INTERP

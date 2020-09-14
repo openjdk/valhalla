@@ -1718,7 +1718,7 @@ public class Lower extends TreeTranslator {
 
     private JCStatement makeResourceCloseInvocation(JCExpression resource) {
         // convert to AutoCloseable if needed
-        if (types.asSuper(resource.type, syms.autoCloseableType.tsym) == null) {
+        if (types.asSuper(resource.type, syms.autoCloseableType.tsym, true) == null) {
             resource = convert(resource, syms.autoCloseableType);
         }
 
@@ -3506,7 +3506,7 @@ public class Lower extends TreeTranslator {
             make_at(tree.expr.pos());
             Type iteratorTarget = syms.objectType;
             Type iterableType = types.asSuper(types.cvarUpperBound(tree.expr.type),
-                                              syms.iterableType.tsym);
+                                              syms.iterableType.tsym, true);
             if (iterableType.getTypeArguments().nonEmpty())
                 iteratorTarget = types.erasure(iterableType.getTypeArguments().head);
             Type eType = types.skipTypeVars(tree.expr.type, false);

@@ -22,10 +22,20 @@
  */
 import java.text.*;
 import java.text.spi.*;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.LogRecord;
+import java.util.logging.StreamHandler;
 import java.util.spi.*;
 import java.util.stream.IntStream;
 import sun.util.locale.provider.LocaleProviderAdapter;
+
+import static java.util.logging.LogManager.*;
 
 public class LocaleProviders {
 
@@ -90,6 +100,14 @@ public class LocaleProviders {
 
             case "bug8232860Test":
                 bug8232860Test();
+                break;
+
+            case "bug8245241Test":
+                bug8245241Test(args[1]);
+                break;
+
+            case "bug8248695Test":
+                bug8248695Test();
                 break;
 
             default:
@@ -227,14 +245,13 @@ public class LocaleProviders {
             System.out.println(new SimpleDateFormat("z", new Locale(lang, ctry)).parse("UTC"));
         } catch (ParseException pe) {
             // ParseException is fine in this test, as it's not "UTC"
-}
+        }
     }
 
     static void bug8013903Test() {
         if (IS_WINDOWS) {
             Date sampleDate = new Date(0x10000000000L);
-            String hostResult = "\u5e73\u6210 16.11.03 (Wed) AM 11:53:47";
-            String jreResult = "\u5e73\u6210 16.11.03 (\u6c34) \u5348\u524d 11:53:47";
+            String expected = "\u5e73\u6210 16.11.03 (\u6c34) \u5348\u524d 11:53:47";
             Locale l = new Locale("ja", "JP", "JP");
             SimpleDateFormat sdf = new SimpleDateFormat("GGGG yyyy.MMM.dd '('E')' a hh:mm:ss", l);
             sdf.setTimeZone(TimeZone.getTimeZone("America/Los_Angeles"));
@@ -242,15 +259,15 @@ public class LocaleProviders {
             System.out.println(result);
             if (LocaleProviderAdapter.getAdapterPreference()
                 .contains(LocaleProviderAdapter.Type.JRE)) {
-                if (!jreResult.equals(result)) {
+                if (!expected.equals(result)) {
                     throw new RuntimeException("Format failed. result: \"" +
-                        result + "\", expected: \"" + jreResult);
+                        result + "\", expected: \"" + expected);
                 }
             } else {
                 // Windows display names. Subject to change if Windows changes its format.
-                if (!hostResult.equals(result)) {
+                if (!expected.equals(result)) {
                     throw new RuntimeException("Format failed. result: \"" +
-                        result + "\", expected: \"" + hostResult);
+                        result + "\", expected: \"" + expected);
                 }
             }
         }
@@ -372,6 +389,48 @@ public class LocaleProviders {
                 "Default format locale is not Locale.US: " + defLoc + ", or\n" +
                 "OS is neither macOS/Windows, or\n" +
                 "provider is not HOST: " + type);
+        }
+    }
+
+    static void bug8245241Test(String expected) {
+        LogRecord[] lra = new LogRecord[1];
+        StreamHandler handler = new StreamHandler() {
+            @Override
+            public void publish(LogRecord record) {
+                lra[0] = record;
+            }
+        };
+        getLogManager().getLogger("").addHandler(handler);
+
+        DateFormat.getDateInstance(); // this will init LocaleProviderAdapter
+        handler.flush();
+
+        if (lra[0] == null ||
+            lra[0].getLevel() != Level.INFO ||
+            !lra[0].getMessage().equals(expected)) {
+            throw new RuntimeException("Expected log was not emitted. LogRecord: " + lra[0]);
+        }
+    }
+
+    static void bug8248695Test() {
+        Locale l = Locale.getDefault(Locale.Category.FORMAT);
+        LocaleProviderAdapter lda = LocaleProviderAdapter.getAdapter(DateFormatProvider.class, l);
+        LocaleProviderAdapter.Type type = lda.getAdapterType();
+        if (type == LocaleProviderAdapter.Type.HOST) {
+            System.out.println("Locale: " + l);
+            var ld = LocalDate.now();
+            var zdt = ZonedDateTime.now(ZoneId.of("America/Los_Angeles"));
+            var df = DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(l);
+            var tf = DateTimeFormatter.ofLocalizedTime(FormatStyle.FULL).withLocale(l);
+            var dtf = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.FULL).withLocale(l);
+
+            // Checks there's no "unsupported temporal field" exception thrown, such as HourOfDay
+            System.out.println(df.format(ld));
+            System.out.println(tf.format(zdt));
+
+            // Checks there's no "Too many pattern letters: aa" exception thrown, if
+            // underlying OS provides the "am/pm" pattern.
+            System.out.println(dtf.format(zdt));
         }
     }
 }

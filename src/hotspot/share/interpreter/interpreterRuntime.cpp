@@ -43,15 +43,15 @@
 #include "memory/universe.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/cpCache.inline.hpp"
+#include "oops/flatArrayKlass.hpp"
+#include "oops/flatArrayOop.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/valueArrayOop.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/atomic.hpp"
@@ -77,21 +77,6 @@
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
 #endif
-
-class UnlockFlagSaver {
-  private:
-    JavaThread* _thread;
-    bool _do_not_unlock;
-  public:
-    UnlockFlagSaver(JavaThread* t) {
-      _thread = t;
-      _do_not_unlock = t->do_not_unlock_if_synchronized();
-      t->set_do_not_unlock_if_synchronized(false);
-    }
-    ~UnlockFlagSaver() {
-      _thread->set_do_not_unlock_if_synchronized(_do_not_unlock);
-    }
-};
 
 // Helper class to access current interpreter state
 class LastFrameAccessor : public StackObj {
@@ -218,7 +203,7 @@ JRT_ENTRY(void, InterpreterRuntime::resolve_ldc(JavaThread* thread, Bytecodes::C
   if (!is_fast_aldc) {
     // Tell the interpreter how to unbox the primitive.
     guarantee(java_lang_boxing_object::is_instance(result, type), "");
-    int offset = java_lang_boxing_object::value_offset_in_bytes(type);
+    int offset = java_lang_boxing_object::value_offset(type);
     intptr_t flags = ((as_TosState(type) << ConstantPoolCacheEntry::tos_state_shift)
                       | (offset & ConstantPoolCacheEntry::field_index_mask));
     thread->set_vm_result_2((Metadata*)flags);
@@ -234,7 +219,7 @@ JRT_ENTRY(void, InterpreterRuntime::_new(JavaThread* thread, ConstantPool* pool,
   Klass* k = pool->klass_at(index, CHECK);
   InstanceKlass* klass = InstanceKlass::cast(k);
 
-  if (klass->is_value()) {
+  if (klass->is_inline_klass()) {
     THROW(vmSymbols::java_lang_InstantiationError());
   }
 
@@ -290,7 +275,7 @@ void copy_primitive_argument(intptr_t* addr, Handle instance, int offset, BasicT
     break;
   case T_OBJECT:
   case T_ARRAY:
-  case T_VALUETYPE:
+  case T_INLINE_TYPE:
     fatal("Should not be handled with this method");
     break;
   default:
@@ -299,15 +284,15 @@ void copy_primitive_argument(intptr_t* addr, Handle instance, int offset, BasicT
 }
 
 JRT_ENTRY(void, InterpreterRuntime::defaultvalue(JavaThread* thread, ConstantPool* pool, int index))
-  // Getting the ValueKlass
+  // Getting the InlineKlass
   Klass* k = pool->klass_at(index, CHECK);
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     // inconsistency with 'new' which throws an InstantiationError
     // in the future, defaultvalue will just return null instead of throwing an exception
     THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
   }
-  assert(k->is_value(), "defaultvalue argument must be the value type class");
-  ValueKlass* vklass = ValueKlass::cast(k);
+  assert(k->is_inline_klass(), "defaultvalue argument must be the inline type class");
+  InlineKlass* vklass = InlineKlass::cast(k);
 
   vklass->initialize(THREAD);
   oop res = vklass->default_value();
@@ -316,13 +301,13 @@ JRT_END
 
 JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCache* cp_cache))
   LastFrameAccessor last_frame(thread);
-  // Getting the ValueKlass
+  // Getting the InlineKlass
   int index = ConstantPool::decode_cpcache_index(last_frame.get_index_u2_cpcache(Bytecodes::_withfield));
   ConstantPoolCacheEntry* cp_entry = cp_cache->entry_at(index);
   assert(cp_entry->is_resolved(Bytecodes::_withfield), "Should have been resolved");
   Klass* klass = cp_entry->f1_as_klass();
-  assert(klass->is_value(), "withfield only applies to value types");
-  ValueKlass* vklass = ValueKlass::cast(klass);
+  assert(klass->is_inline_klass(), "withfield only applies to inline types");
+  InlineKlass* vklass = InlineKlass::cast(klass);
 
   // Getting Field information
   int offset = cp_entry->f2_as_index();
@@ -337,36 +322,36 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
   jint tos_idx = f.interpreter_frame_expression_stack_size() - 1;
   int vt_offset = type2size[field_type];
   oop old_value = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx - vt_offset);
-  assert(old_value != NULL && oopDesc::is_oop(old_value) && old_value->is_value(),"Verifying receiver");
+  assert(old_value != NULL && oopDesc::is_oop(old_value) && old_value->is_inline_type(),"Verifying receiver");
   Handle old_value_h(THREAD, old_value);
 
   // Creating new value by copying the one passed in argument
-  instanceOop new_value = vklass->allocate_instance(
+  instanceOop new_value = vklass->allocate_instance_buffer(
       CHECK_((type2size[field_type]) * AbstractInterpreter::stackElementSize));
   Handle new_value_h = Handle(THREAD, new_value);
-  vklass->value_copy_oop_to_new_oop(old_value_h(), new_value_h());
+  vklass->inline_copy_oop_to_new_oop(old_value_h(), new_value_h());
 
   // Updating the field specified in arguments
   if (field_type == T_ARRAY || field_type == T_OBJECT) {
     oop aoop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
     assert(aoop == NULL || oopDesc::is_oop(aoop),"argument must be a reference type");
     new_value_h()->obj_field_put(field_offset, aoop);
-  } else if (field_type == T_VALUETYPE) {
-    if (cp_entry->is_flattened()) {
+  } else if (field_type == T_INLINE_TYPE) {
+    if (cp_entry->is_inlined()) {
       oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_value(),"argument must be a value type");
-      ValueKlass* field_vk = ValueKlass::cast(vklass->get_value_field_klass(field_index));
+      assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_inline_type(),"argument must be an inline type");
+      InlineKlass* field_vk = InlineKlass::cast(vklass->get_inline_type_field_klass(field_index));
       assert(vt_oop != NULL && field_vk == vt_oop->klass(), "Must match");
-      field_vk->write_flattened_field(new_value_h(), offset, vt_oop, CHECK_(return_offset));
-    } else { // not flattened
+      field_vk->write_inlined_field(new_value_h(), offset, vt_oop, CHECK_(return_offset));
+    } else { // not inlined
       oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      if (voop == NULL && cp_entry->is_flattenable()) {
+      if (voop == NULL && cp_entry->is_inline_type()) {
         THROW_(vmSymbols::java_lang_NullPointerException(), return_offset);
       }
       assert(voop == NULL || oopDesc::is_oop(voop),"checking argument");
       new_value_h()->obj_field_put(field_offset, voop);
     }
-  } else { // not T_OBJECT nor T_ARRAY nor T_VALUETYPE
+  } else { // not T_OBJECT nor T_ARRAY nor T_INLINE_TYPE
     intptr_t* addr = f.interpreter_frame_expression_stack_at(tos_idx);
     copy_primitive_argument(addr, new_value_h, field_offset, field_type);
   }
@@ -376,8 +361,8 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
   return return_offset;
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread* thread, oopDesc* mirror, int index))
-  // The interpreter tries to access a flattenable static field that has not been initialized.
+JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_inline_type_field(JavaThread* thread, oopDesc* mirror, int index))
+  // The interpreter tries to access an inline static field that has not been initialized.
   // This situation can happen in different scenarios:
   //   1 - if the load or initialization of the field failed during step 8 of
   //       the initialization of the holder of the field, in this case the access to the field
@@ -392,17 +377,17 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread*
   InstanceKlass* klass = InstanceKlass::cast(java_lang_Class::as_Klass(mirror));
   if (klass->is_being_initialized() && klass->is_reentrant_initialization(THREAD)) {
     int offset = klass->field_offset(index);
-    Klass* field_k = klass->get_value_field_klass_or_null(index);
+    Klass* field_k = klass->get_inline_type_field_klass_or_null(index);
     if (field_k == NULL) {
       field_k = SystemDictionary::resolve_or_fail(klass->field_signature(index)->fundamental_name(THREAD),
           Handle(THREAD, klass->class_loader()),
           Handle(THREAD, klass->protection_domain()),
           true, CHECK);
       assert(field_k != NULL, "Should have been loaded or an exception thrown above");
-      klass->set_value_field_klass(index, field_k);
+      klass->set_inline_type_field_klass(index, field_k);
     }
     field_k->initialize(CHECK);
-    oop defaultvalue = ValueKlass::cast(field_k)->default_value();
+    oop defaultvalue = InlineKlass::cast(field_k)->default_value();
     // It is safe to initialized the static field because 1) the current thread is the initializing thread
     // and is the only one that can access it, and 2) the field is actually not initialized (i.e. null)
     // otherwise the JVM should not be executing this code.
@@ -425,7 +410,7 @@ JRT_ENTRY(void, InterpreterRuntime::uninitialized_static_value_field(JavaThread*
   }
 JRT_END
 
-JRT_ENTRY(void, InterpreterRuntime::read_flattened_field(JavaThread* thread, oopDesc* obj, int index, Klass* field_holder))
+JRT_ENTRY(void, InterpreterRuntime::read_inlined_field(JavaThread* thread, oopDesc* obj, int index, Klass* field_holder))
   Handle obj_h(THREAD, obj);
 
   assert(oopDesc::is_oop(obj), "Sanity check");
@@ -433,12 +418,12 @@ JRT_ENTRY(void, InterpreterRuntime::read_flattened_field(JavaThread* thread, oop
   assert(field_holder->is_instance_klass(), "Sanity check");
   InstanceKlass* klass = InstanceKlass::cast(field_holder);
 
-  assert(klass->field_is_flattened(index), "Sanity check");
+  assert(klass->field_is_inlined(index), "Sanity check");
 
-  ValueKlass* field_vklass = ValueKlass::cast(klass->get_value_field_klass(index));
+  InlineKlass* field_vklass = InlineKlass::cast(klass->get_inline_type_field_klass(index));
   assert(field_vklass->is_initialized(), "Must be initialized at this point");
 
-  oop res = field_vklass->read_flattened_field(obj_h(), klass->field_offset(index), CHECK);
+  oop res = field_vklass->read_inlined_field(obj_h(), klass->field_offset(index), CHECK);
   thread->set_vm_result(res);
 JRT_END
 
@@ -454,7 +439,7 @@ JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* thread, ConstantPool* 
   arrayOop obj;
   if ((!klass->is_array_klass()) && is_qtype_desc) { // Logically creates elements, ensure klass init
     klass->initialize(CHECK);
-    obj = oopFactory::new_valueArray(klass, size, CHECK);
+    obj = oopFactory::new_flatArray(klass, size, CHECK);
   } else {
     obj = oopFactory::new_objArray(klass, size, CHECK);
   }
@@ -462,14 +447,14 @@ JRT_ENTRY(void, InterpreterRuntime::anewarray(JavaThread* thread, ConstantPool* 
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::value_array_load(JavaThread* thread, arrayOopDesc* array, int index))
-  valueArrayHandle vah(thread, (valueArrayOop)array);
-  oop value_holder = valueArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
+  flatArrayHandle vah(thread, (flatArrayOop)array);
+  oop value_holder = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK);
   thread->set_vm_result(value_holder);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::value_array_store(JavaThread* thread, void* val, arrayOopDesc* array, int index))
   assert(val != NULL, "can't store null into flat array");
-  ((valueArrayOop)array)->value_copy_to_index((oop)val, index);
+  ((flatArrayOop)array)->value_copy_to_index((oop)val, index);
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::multianewarray(JavaThread* thread, jint* first_size_address))
@@ -584,28 +569,6 @@ void InterpreterRuntime::note_trap(JavaThread* thread, int reason, TRAPS) {
   int trap_bci = trap_method->bci_from(last_frame.bcp());
   note_trap_inner(thread, reason, trap_method, trap_bci, THREAD);
 }
-
-#ifdef CC_INTERP
-// As legacy note_trap, but we have more arguments.
-JRT_ENTRY(void, InterpreterRuntime::note_trap(JavaThread* thread, int reason, Method *method, int trap_bci))
-  methodHandle trap_method(thread, method);
-  note_trap_inner(thread, reason, trap_method, trap_bci, THREAD);
-JRT_END
-
-// Class Deoptimization is not visible in BytecodeInterpreter, so we need a wrapper
-// for each exception.
-void InterpreterRuntime::note_nullCheck_trap(JavaThread* thread, Method *method, int trap_bci)
-  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_null_check, method, trap_bci); }
-void InterpreterRuntime::note_div0Check_trap(JavaThread* thread, Method *method, int trap_bci)
-  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_div0_check, method, trap_bci); }
-void InterpreterRuntime::note_rangeCheck_trap(JavaThread* thread, Method *method, int trap_bci)
-  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_range_check, method, trap_bci); }
-void InterpreterRuntime::note_classCheck_trap(JavaThread* thread, Method *method, int trap_bci)
-  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_class_check, method, trap_bci); }
-void InterpreterRuntime::note_arrayCheck_trap(JavaThread* thread, Method *method, int trap_bci)
-  { if (ProfileTraps) note_trap(thread, Deoptimization::Reason_array_check, method, trap_bci); }
-#endif // CC_INTERP
-
 
 static Handle get_preinitialized_exception(Klass* k, TRAPS) {
   // get klass
@@ -733,11 +696,7 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     // during deoptimization so the interpreter needs to skip it when
     // the frame is popped.
     thread->set_do_not_unlock_if_synchronized(true);
-#ifdef CC_INTERP
-    return (address) -1;
-#else
     return Interpreter::remove_activation_entry();
-#endif
   }
 
   // Need to do this check first since when _do_not_unlock_if_synchronized
@@ -748,11 +707,7 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     ResourceMark rm;
     assert(current_bci == 0,  "bci isn't zero for do_not_unlock_if_synchronized");
     thread->set_vm_result(exception);
-#ifdef CC_INTERP
-    return (address) -1;
-#else
     return Interpreter::remove_activation_entry();
-#endif
   }
 
   do {
@@ -822,19 +777,13 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
     JvmtiExport::post_exception_throw(thread, h_method(), last_frame.bcp(), h_exception());
   }
 
-#ifdef CC_INTERP
-  address continuation = (address)(intptr_t) handler_bci;
-#else
   address continuation = NULL;
-#endif
   address handler_pc = NULL;
   if (handler_bci < 0 || !thread->reguard_stack((address) &continuation)) {
     // Forward exception to callee (leaving bci/bcp untouched) because (a) no
     // handler in this method, or (b) after a stack overflow there is not yet
     // enough stack space available to reprotect the stack.
-#ifndef CC_INTERP
     continuation = Interpreter::remove_activation_entry();
-#endif
 #if COMPILER2_OR_JVMCI
     // Count this for compilation purposes
     h_method->interpreter_throwout_increment(THREAD);
@@ -842,11 +791,14 @@ JRT_ENTRY(address, InterpreterRuntime::exception_handler_for_exception(JavaThrea
   } else {
     // handler in this method => change bci/bcp to handler bci/bcp and continue there
     handler_pc = h_method->code_base() + handler_bci;
-#ifndef CC_INTERP
+#ifndef ZERO
     set_bcp_and_mdp(handler_pc, thread);
     continuation = Interpreter::dispatch_table(vtos)[*handler_pc];
+#else
+    continuation = (address)(intptr_t) handler_bci;
 #endif
   }
+
   // notify debugger of an exception catch
   // (this is good for exceptions caught in native methods as well)
   if (JvmtiExport::can_post_on_exceptions()) {
@@ -926,7 +878,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
   bool is_put    = (bytecode == Bytecodes::_putfield  || bytecode == Bytecodes::_nofast_putfield ||
                     bytecode == Bytecodes::_putstatic || bytecode == Bytecodes::_withfield);
   bool is_static = (bytecode == Bytecodes::_getstatic || bytecode == Bytecodes::_putstatic);
-  bool is_value  = bytecode == Bytecodes::_withfield;
+  bool is_inline_type  = bytecode == Bytecodes::_withfield;
 
   {
     JvmtiHideSingleStepping jhss(thread);
@@ -975,7 +927,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
     } else {
       get_code = Bytecodes::_getfield;
     }
-    if (is_put && is_value) {
+    if (is_put && is_inline_type) {
         put_code = ((is_static) ? Bytecodes::_putstatic : Bytecodes::_withfield);
     } else if ((is_put && !has_initialized_final_update) || !info.access_flags().is_final()) {
         put_code = ((is_static) ? Bytecodes::_putstatic : Bytecodes::_putfield);
@@ -991,8 +943,8 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
     state,
     info.access_flags().is_final(),
     info.access_flags().is_volatile(),
-    info.is_flattened(),
-    info.is_flattenable(),
+    info.is_inlined(),
+    info.is_inline_type(),
     pool->pool_holder()
   );
 }
@@ -1310,6 +1262,9 @@ nmethod* InterpreterRuntime::frequency_counter_overflow(JavaThread* thread, addr
 
 JRT_ENTRY(nmethod*,
           InterpreterRuntime::frequency_counter_overflow_inner(JavaThread* thread, address branch_bcp))
+  if (HAS_PENDING_EXCEPTION) {
+    return NULL;
+  }
   // use UnlockFlagSaver to clear and restore the _do_not_unlock_if_synchronized
   // flag, in case this method triggers classloading which will call into Java.
   UnlockFlagSaver fs(thread);
@@ -1320,7 +1275,6 @@ JRT_ENTRY(nmethod*,
   const int branch_bci = branch_bcp != NULL ? method->bci_from(branch_bcp) : InvocationEntryBci;
   const int bci = branch_bcp != NULL ? method->bci_from(last_frame.bcp()) : InvocationEntryBci;
 
-  assert(!HAS_PENDING_EXCEPTION, "Should not have any exceptions pending");
   nmethod* osr_nm = CompilationPolicy::policy()->event(method, method, branch_bci, bci, CompLevel_none, NULL, thread);
   assert(!HAS_PENDING_EXCEPTION, "Event handler should not throw any exceptions");
 
@@ -1363,6 +1317,9 @@ JRT_LEAF(jint, InterpreterRuntime::bcp_to_di(Method* method, address cur_bcp))
 JRT_END
 
 JRT_ENTRY(void, InterpreterRuntime::profile_method(JavaThread* thread))
+  if (HAS_PENDING_EXCEPTION) {
+    return;
+  }
   // use UnlockFlagSaver to clear and restore the _do_not_unlock_if_synchronized
   // flag, in case this method triggers classloading which will call into Java.
   UnlockFlagSaver fs(thread);
@@ -1392,8 +1349,6 @@ JRT_LEAF(void, InterpreterRuntime::verify_mdp(Method* method, address bcp, addre
   address mdp2 = mdo->bci_to_dp(bci);
   if (mdp != mdp2) {
     ResourceMark rm;
-    ResetNoHandleMark rnm; // In a LEAF entry.
-    HandleMark hm;
     tty->print_cr("FAILED verify : actual mdp %p   expected mdp %p @ bci %d", mdp, mdp2, bci);
     int current_di = mdo->dp_to_di(mdp);
     int expected_di  = mdo->dp_to_di(mdp2);
@@ -1414,7 +1369,6 @@ JRT_END
 JRT_ENTRY(void, InterpreterRuntime::update_mdp_for_ret(JavaThread* thread, int return_bci))
   assert(ProfileInterpreter, "must be profiling interpreter");
   ResourceMark rm(thread);
-  HandleMark hm(thread);
   LastFrameAccessor last_frame(thread);
   assert(last_frame.is_interpreted_frame(), "must come from interpreter");
   MethodData* h_mdo = last_frame.method()->method_data();
@@ -1469,7 +1423,7 @@ ConstantPoolCacheEntry *cp_entry))
   if ((ik->field_access_flags(index) & JVM_ACC_FIELD_ACCESS_WATCHED) == 0) return;
 
   bool is_static = (obj == NULL);
-  bool is_flattened = cp_entry->is_flattened();
+  bool is_inlined = cp_entry->is_inlined();
   HandleMark hm(thread);
 
   Handle h_obj;
@@ -1478,7 +1432,7 @@ ConstantPoolCacheEntry *cp_entry))
     h_obj = Handle(thread, obj);
   }
   InstanceKlass* cp_entry_f1 = InstanceKlass::cast(cp_entry->f1_as_klass());
-  jfieldID fid = jfieldIDWorkaround::to_jfieldID(cp_entry_f1, cp_entry->f2_as_index(), is_static, is_flattened);
+  jfieldID fid = jfieldIDWorkaround::to_jfieldID(cp_entry_f1, cp_entry->f2_as_index(), is_static, is_inlined);
   LastFrameAccessor last_frame(thread);
   JvmtiExport::post_field_access(thread, last_frame.method(), last_frame.bcp(), cp_entry_f1, h_obj, fid);
 JRT_END
@@ -1511,14 +1465,14 @@ JRT_ENTRY(void, InterpreterRuntime::post_field_modification(JavaThread *thread,
 
   // Both Q-signatures and L-signatures are mapped to atos
   if (cp_entry->flag_state() == atos && ik->field_signature(index)->is_Q_signature()) {
-    sig_type = JVM_SIGNATURE_VALUETYPE;
+    sig_type = JVM_SIGNATURE_INLINE_TYPE;
   }
 
   bool is_static = (obj == NULL);
-  bool is_flattened = cp_entry->is_flattened();
+  bool is_inlined = cp_entry->is_inlined();
 
   HandleMark hm(thread);
-  jfieldID fid = jfieldIDWorkaround::to_jfieldID(ik, cp_entry->f2_as_index(), is_static, is_flattened);
+  jfieldID fid = jfieldIDWorkaround::to_jfieldID(ik, cp_entry->f2_as_index(), is_static, is_inlined);
   jvalue fvalue;
 #ifdef _LP64
   fvalue = *value;
@@ -1598,8 +1552,8 @@ void SignatureHandlerLibrary::initialize() {
                                       SignatureHandlerLibrary::buffer_size);
   _buffer = bb->code_begin();
 
-  _fingerprints = new(ResourceObj::C_HEAP, mtCode)GrowableArray<uint64_t>(32, true);
-  _handlers     = new(ResourceObj::C_HEAP, mtCode)GrowableArray<address>(32, true);
+  _fingerprints = new(ResourceObj::C_HEAP, mtCode)GrowableArray<uint64_t>(32, mtCode);
+  _handlers     = new(ResourceObj::C_HEAP, mtCode)GrowableArray<address>(32, mtCode);
 }
 
 address SignatureHandlerLibrary::set_handler(CodeBuffer* buffer) {
@@ -1776,8 +1730,6 @@ JRT_LEAF(void, InterpreterRuntime::popframe_move_outgoing_args(JavaThread* threa
   if (src_address == dest_address) {
     return;
   }
-  ResetNoHandleMark rnm; // In a LEAF entry.
-  HandleMark hm;
   ResourceMark rm;
   LastFrameAccessor last_frame(thread);
   assert(last_frame.is_interpreted_frame(), "");

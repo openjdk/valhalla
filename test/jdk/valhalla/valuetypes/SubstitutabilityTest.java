@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,10 +24,13 @@
 /*
  * @test
  * @summary test MethodHandle/VarHandle on inline types
- * @run testng/othervm SubstitutabilityTest
+ * @modules java.base/java.lang.invoke:open
+ * @run testng/othervm -Xint SubstitutabilityTest
+ * @run testng/othervm -Xcomp SubstitutabilityTest
  */
 
 import java.lang.invoke.ValueBootstrapMethods;
+import java.lang.reflect.Method;
 import java.util.List;
 
 import org.testng.annotations.DataProvider;
@@ -54,6 +57,10 @@ public class SubstitutabilityTest {
             new Object[] { mixedValues, mixedValues},
             new Object[] { valueBuilder().setPoint(p1).build(),
                            valueBuilder().setPoint(Point.makePoint(10, 10)).build() },
+            new Object[] { valueBuilder().setPointRef(p2).build(),
+                           valueBuilder().setPointRef(Point.makePoint(20, 20)).build() },
+            new Object[] { valueBuilder().setReference(p2).build(),
+                           valueBuilder().setReference(Point.makePoint(20, 20)).build() },
             new Object[] { valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setPoint(p1).build(),
                            valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setPoint(l1.p1).build() },
             new Object[] { valueBuilder().setFloat(Float.NaN).setDouble(Double.NaN).setNumber(number).build(),
@@ -87,6 +94,8 @@ public class SubstitutabilityTest {
                            valueBuilder().setFloat(+0.0f).setDouble(-0.0).build() },
             new Object[] { valueBuilder().setPoint(point).build(),
                            valueBuilder().setPoint(Point.makePoint(20, 20)).build() },
+            new Object[] { valueBuilder().setPointRef(point).build(),
+                           valueBuilder().setPointRef(Point.makePoint(20, 20)).build() },
             new Object[] { valueBuilder().setNumber(number).build(),
                            valueBuilder().setNumber(new Value.IntNumber(99)).build() },
             new Object[] { valueBuilder().setNumber(Value.Number.intValue(1)).build(),
@@ -108,5 +117,100 @@ public class SubstitutabilityTest {
                        .setByte((byte)0x1)
                        .setShort((short)3)
                        .setLong(4L);
+    }
+
+    static inline class MyValue {
+        static int cnt = 0;
+        final int x;
+        final MyValue2 vtField1;
+        final MyValue2.ref vtField2;
+
+        public MyValue() {
+            this.x = ++cnt;
+            this.vtField1 = new MyValue2();
+            this.vtField2 = new MyValue2();
+        }
+    }
+
+    static inline class MyValue2 {
+        static int cnt = 0;
+        final int x;
+        public MyValue2() {
+            this.x = ++cnt;
+        }
+    }
+
+    @Test
+    public void uninitializedArrayElement() throws Exception {
+        MyValue[] va = new MyValue[1];
+        Object[] oa = new Object[] { va };
+        for (int i = 0; i < 100; ++i) {
+            Object o = zerothElement(((i % 2) == 0) ? va : oa);
+            if ((i % 2) == 0) {
+                assertTrue(o instanceof MyValue);
+                assertTrue(o == va[0]);
+                assertFalse(o != va[0]);
+                assertTrue(isSubstitutable(o, va[0]));
+            } else {
+                assertTrue(o.getClass().isArray());
+                assertFalse(o == va[0]);
+                assertTrue(o != va[0]);
+                assertFalse(isSubstitutable(o, va[0]));
+            }
+        }
+    }
+
+    @DataProvider(name="negativeSubstitutableCases")
+    Object[][] negativeSubstitutableCases() {
+        MyValue[] va = new MyValue[1];
+        Object[] oa = new Object[] { va };
+        Point p = Point.makePoint(10, 10);
+        Integer i = Integer.valueOf(10);
+        return new Object[][] {
+                new Object[] { va[0], null },
+                new Object[] { null,  va[0] },
+                new Object[] { va[0], oa },
+                new Object[] { va[0], oa[0] },
+                new Object[] { va,    oa },
+                new Object[] { p,     i },
+                new Object[] { i,     Integer.valueOf(20) },
+        };
+    }
+
+    /*
+     * isSubstitutable method handle invoker requires both parameters are
+     * non-null and of the same inline class.
+     *
+     * This verifies ValueBootstrapMethods::isSubstitutable0 that does not
+     * throw an exception if any one of parameter is null or if
+     * the parameters are of different types.
+     */
+    @Test(dataProvider="negativeSubstitutableCases")
+    public void testIsSubstitutable0(Object a, Object b) throws Exception {
+        assertFalse(isSubstitutable(a, b));
+    }
+
+    @Test
+    public void nullArguments() throws Exception {
+        assertTrue(isSubstitutable(null, null));
+    }
+
+    private static Object zerothElement(Object[] oa) {
+        return oa[0];
+    }
+
+    private static final Method IS_SUBSTITUTABLE;
+    static {
+        Method m = null;
+        try {
+            m = ValueBootstrapMethods.class.getDeclaredMethod("isSubstitutable", Object.class, Object.class);
+            m.setAccessible(true);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException(e);
+        }
+        IS_SUBSTITUTABLE = m;
+    }
+    private static boolean isSubstitutable(Object a, Object b) throws ReflectiveOperationException {
+        return (boolean) IS_SUBSTITUTABLE.invoke(null, a, b);
     }
 }

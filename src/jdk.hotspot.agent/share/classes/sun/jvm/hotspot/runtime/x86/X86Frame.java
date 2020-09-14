@@ -440,21 +440,32 @@ public class X86Frame extends Frame {
     return addressOfStackSlot(INTERPRETER_FRAME_BCX_OFFSET);
   }
 
-  public int getInterpreterFrameBCI() {
+  public Address getInterpreterFrameBCP() {
     // FIXME: this is not atomic with respect to GC and is unsuitable
     // for use in a non-debugging, or reflective, system. Need to
     // figure out how to express this.
+
+    Method method = getInterpreterFrameMethod();
     Address bcp = addressOfInterpreterFrameBCX().getAddressAt(0);
 
-    // If we are in the top level frame then the bcp  may have been set for us. If so then let it
-    // take priority. If we are in a top level interpreter frame, the bcp is live in R13 (on x86)
+    // If we are in the top level frame then the bcp may have been set for us. If so then let it
+    // take priority. If we are in a top level interpreter frame, the bcp is live in R13 (on x86_64)
     // and not saved in the BCX stack slot.
     if (live_bcp != null) {
-        bcp = live_bcp;
+        // Only use live_bcp if it points within the Method's bytecodes. Sometimes R13 is used
+        // for scratch purposes and is not a valid BCP. If it is not valid, then we stick with
+        // the bcp stored in the frame, which R13 should have been flushed to.
+        if (method.getConstMethod().isAddressInMethod(live_bcp)) {
+            bcp = live_bcp;
+        }
     }
 
-    Address methodHandle = addressOfInterpreterFrameMethod().getAddressAt(0);
-    Method method = (Method)Metadata.instantiateWrapperFor(methodHandle);
+    return bcp;
+  }
+
+  public int getInterpreterFrameBCI() {
+    Address bcp = getInterpreterFrameBCP();
+    Method method = getInterpreterFrameMethod();
     return bcpToBci(bcp, method);
   }
 

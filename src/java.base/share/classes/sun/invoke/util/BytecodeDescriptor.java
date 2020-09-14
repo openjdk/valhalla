@@ -1,5 +1,5 @@
 /*
- * copyright (c) 2008, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -90,8 +90,7 @@ public class BytecodeDescriptor {
             i[0] = endc+1;
             String name = str.substring(begc, endc).replace('/', '.');
             try {
-                Class<?> clz = Class.forName(name, false, loader);
-                return c == 'Q' ? clz.asPrimaryType() : clz.asIndirectType();
+                return Class.forName(name, false, loader);
             } catch (ClassNotFoundException ex) {
                 throw new TypeNotPresentException(name, ex);
             }
@@ -111,9 +110,7 @@ public class BytecodeDescriptor {
         } else if (type == int.class) {
             return "I";
         }
-        StringBuilder sb = new StringBuilder();
-        unparseSig(type, sb);
-        return sb.toString();
+        return type.descriptorString();
     }
 
     public static String unparse(MethodType type) {
@@ -155,13 +152,7 @@ public class BytecodeDescriptor {
         } else if (t == Object.class) {
             sb.append("Ljava/lang/Object;");
         } else {
-            boolean lsemi = (!t.isArray());
-            if (!t.isIndirectType())
-                c = 'Q';
-            if (lsemi)  sb.append(c);
-            sb.append(t.getName().replace('.', '/'));
-            if (lsemi)  sb.append(';');
+            sb.append(t.descriptorString());
         }
     }
-
 }

@@ -35,6 +35,26 @@
 
 class MemoryBuffer;
 
+class DelayedFlattenedFieldAccess : public CompilationResourceObj {
+private:
+  Value _obj;
+  ciField* _field;
+  int _offset;
+public:
+  DelayedFlattenedFieldAccess(Value obj, ciField* field, int offset)
+  : _obj(obj)
+  , _field(field)
+  , _offset(offset) { }
+
+  void update(ciField* field, int offset) {
+    _field = field;
+    _offset += offset;
+  }
+  Value obj() { return _obj; }
+  ciField* field() { return _field; }
+  int offset() { return _offset; }
+};
+
 class GraphBuilder {
  private:
   // Per-scope data. These are pushed and popped as we descend into
@@ -191,6 +211,10 @@ class GraphBuilder {
   Instruction*      _last;                       // the last instruction added
   bool              _skip_block;                 // skip processing of the rest of this block
 
+  DelayedFlattenedFieldAccess* _delayed_flattened_field_access;
+  bool              has_delayed_flattened_field_access() { return _delayed_flattened_field_access != NULL; }
+
+
   // accessors
   ScopeData*        scope_data() const           { return _scope_data; }
   Compilation*      compilation() const          { return _compilation; }
@@ -267,11 +291,11 @@ class GraphBuilder {
   void throw_op(int bci);
   Value round_fp(Value fp_value);
 
-  // value types
+  // inline types
   void default_value(int klass_index);
   void withfield(int field_index);
-  void copy_value_content(ciValueKlass* vk, Value src, int src_off, Value dest, int dest_off,
-       ValueStack* state_before, bool needs_patching);
+  void copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off,
+                           ValueStack* state_before, bool needs_patching);
 
   // stack/code manipulation helpers
   Instruction* append_with_bci(Instruction* instr, int bci);
@@ -365,6 +389,18 @@ class GraphBuilder {
 
   // JSR 292 support
   bool try_method_handle_inline(ciMethod* callee, bool ignore_return);
+
+  // Inline type support
+  void update_larval_state(Value v) {
+    if (v != NULL && v->as_NewInlineTypeInstance() != NULL) {
+      v->as_NewInlineTypeInstance()->update_larval_state();
+    }
+  }
+  void update_larva_stack_count(Value v) {
+    if (v != NULL && v->as_NewInlineTypeInstance() != NULL) {
+      v->as_NewInlineTypeInstance()->update_stack_count();
+    }
+  }
 
   // helpers
   void inline_bailout(const char* msg);

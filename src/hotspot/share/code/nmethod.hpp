@@ -194,9 +194,9 @@ class nmethod : public CompiledMethod {
   // offsets for entry points
   address _entry_point;                      // entry point with class check
   address _verified_entry_point;             // entry point without class check
-  address _value_entry_point;                // value type entry point (unpack all value args) with class check
-  address _verified_value_entry_point;       // value type entry point (unpack all value args) without class check
-  address _verified_value_ro_entry_point;    // value type entry point (unpack receiver only) without class check
+  address _inline_entry_point;               // inline type entry point (unpack all inline type args) with class check
+  address _verified_inline_entry_point;      // inline type entry point (unpack all inline type args) without class check
+  address _verified_inline_ro_entry_point;   // inline type entry point (unpack receiver only) without class check
   address _osr_entry_point;                  // entry point for on stack replacement
 
   // Offsets for different nmethod parts
@@ -264,7 +264,7 @@ class nmethod : public CompiledMethod {
   // The _hotness_counter indicates the hotness of a method. The higher
   // the value the hotter the method. The hotness counter of a nmethod is
   // set to [(ReservedCodeCacheSize / (1024 * 1024)) * 2] each time the method
-  // is active while stack scanning (mark_active_nmethods()). The hotness
+  // is active while stack scanning (do_stack_scanning()). The hotness
   // counter is decreased (by 1) while sweeping.
   int _hotness_counter;
 
@@ -452,11 +452,11 @@ class nmethod : public CompiledMethod {
   bool scopes_pcs_contains   (PcDesc* addr) const { return scopes_pcs_begin   () <= addr && addr < scopes_pcs_end   (); }
 
   // entry points
-  address entry_point() const                     { return _entry_point;             }       // normal entry point
-  address verified_entry_point() const            { return _verified_entry_point;    }       // normal entry point without class check
-  address value_entry_point() const               { return _value_entry_point; }             // value type entry point (unpack all value args)
-  address verified_value_entry_point() const      { return _verified_value_entry_point; }    // value type entry point (unpack all value args) without class check
-  address verified_value_ro_entry_point() const   { return _verified_value_ro_entry_point; } // value type entry point (only unpack receiver) without class check
+  address entry_point() const                     { return _entry_point;             }        // normal entry point
+  address verified_entry_point() const            { return _verified_entry_point;    }        // normal entry point without class check
+  address inline_entry_point() const              { return _inline_entry_point; }             // inline type entry point (unpack all inline type args)
+  address verified_inline_entry_point() const     { return _verified_inline_entry_point; }    // inline type entry point (unpack all inline type args) without class check
+  address verified_inline_ro_entry_point() const  { return _verified_inline_ro_entry_point; } // inline type entry point (only unpack receiver) without class check
 
   // flag accessing and manipulation
   bool  is_not_installed() const                  { return _state == not_installed; }

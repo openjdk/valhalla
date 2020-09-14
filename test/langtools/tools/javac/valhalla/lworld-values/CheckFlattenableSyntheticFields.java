@@ -55,7 +55,7 @@ public class CheckFlattenableSyntheticFields {
     public static void main(String[] args) throws Exception {
         ClassFile cls = ClassFile.read(CheckFlattenableSyntheticFields.class.getResourceAsStream("CheckFlattenableSyntheticFields$ValueOuter$Inner.class"));
 
-        if (!cls.access_flags.is(AccessFlags.ACC_VALUE))
+        if (!cls.access_flags.is(AccessFlags.ACC_INLINE))
             throw new Exception("Value flag not set");
 
         if (!cls.access_flags.is(AccessFlags.ACC_FINAL))
@@ -63,7 +63,7 @@ public class CheckFlattenableSyntheticFields {
 
         cls = ClassFile.read(CheckFlattenableSyntheticFields.class.getResourceAsStream("CheckFlattenableSyntheticFields$RefOuter$Inner.class"));
 
-        if (!cls.access_flags.is(AccessFlags.ACC_VALUE))
+        if (!cls.access_flags.is(AccessFlags.ACC_INLINE))
             throw new Exception("Value flag not set");
 
         if (!cls.access_flags.is(AccessFlags.ACC_FINAL))

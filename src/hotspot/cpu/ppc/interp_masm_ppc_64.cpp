@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
+ * Copyright (c) 2012, 2020 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,6 +30,7 @@
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "interp_masm_ppc.hpp"
 #include "interpreter/interpreterRuntime.hpp"
+#include "oops/methodData.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
@@ -490,7 +491,7 @@ void InterpreterMacroAssembler::load_resolved_reference_at_index(Register result
   sldi(R0, R0, LogBytesPerHeapOop);
   cmpd(CCR0, tmp, R0);
   blt(CCR0, index_ok);
-  stop("resolved reference index out of bounds", 0x09256);
+  stop("resolved reference index out of bounds");
   bind(index_ok);
 #endif
   // Add in the index.
@@ -909,6 +910,13 @@ void InterpreterMacroAssembler::lock_object(Register monitor, Register object) {
     // Load markWord from object into displaced_header.
     ld(displaced_header, oopDesc::mark_offset_in_bytes(), object);
 
+    if (DiagnoseSyncOnPrimitiveWrappers != 0) {
+      load_klass(tmp, object);
+      lwz(tmp, in_bytes(Klass::access_flags_offset()), tmp);
+      testbitdi(CCR0, R0, tmp, exact_log2(JVM_ACC_IS_BOX_CLASS));
+      bne(CCR0, slow_case);
+    }
+
     if (UseBiasedLocking) {
       biased_locking_enter(CCR0, object, displaced_header, tmp, current_header, done, &slow_case);
     }
@@ -1143,7 +1151,7 @@ void InterpreterMacroAssembler::call_from_interpreter(Register Rtarget_method, R
 #ifdef ASSERT
   ld(Rscratch1, _ijava_state_neg(top_frame_sp), Rscratch2); // Rscratch2 contains fp
   cmpd(CCR0, R21_sender_SP, Rscratch1);
-  asm_assert_eq("top_frame_sp incorrect", 0x951);
+  asm_assert_eq("top_frame_sp incorrect");
 #endif
 
   bctr();
@@ -2251,7 +2259,7 @@ void InterpreterMacroAssembler::restore_interpreter_state(Register scratch, bool
     subf(R0, R1_SP, scratch);
     cmpdi(CCR0, R0, frame::abi_reg_args_size + frame::ijava_state_size);
     bge(CCR0, Lok);
-    stop("frame too small (restore istate)", 0x5432);
+    stop("frame too small (restore istate)");
     bind(Lok);
   }
 #endif

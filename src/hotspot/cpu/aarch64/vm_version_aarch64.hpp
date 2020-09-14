@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, 2019, Red Hat Inc. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -41,6 +41,8 @@ protected:
   static int _revision;
   static int _stepping;
   static bool _dcpop;
+  static int _initial_sve_vector_length;
+
   struct PsrInfo {
     uint32_t dczid_el0;
     uint32_t ctr_el0;
@@ -98,7 +100,6 @@ public:
     CPU_LSE          = (1<<8),
     CPU_STXR_PREFETCH= (1 << 29),
     CPU_A53MAC       = (1 << 30),
-    CPU_DMB_ATOMICS  = (1 << 31),
   };
 
   static int cpu_family()                     { return _cpu; }
@@ -107,6 +108,7 @@ public:
   static int cpu_variant()                    { return _variant; }
   static int cpu_revision()                   { return _revision; }
   static bool supports_dcpop()                { return _dcpop; }
+  static int get_initial_sve_vector_length()  { return _initial_sve_vector_length; };
   static ByteSize dczid_el0_offset() { return byte_offset_of(PsrInfo, dczid_el0); }
   static ByteSize ctr_el0_offset()   { return byte_offset_of(PsrInfo, ctr_el0); }
   static bool is_zva_enabled() {

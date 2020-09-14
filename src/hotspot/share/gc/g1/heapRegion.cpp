@@ -89,7 +89,6 @@ void HeapRegion::setup_heap_region_size(size_t max_heap_size) {
   // The cast to int is safe, given that we've bounded region_size by
   // MIN_REGION_SIZE and MAX_REGION_SIZE.
   GrainBytes = region_size;
-  log_info(gc, heap)("Heap region size: " SIZE_FORMAT "M", GrainBytes / M);
 
   guarantee(GrainWords == 0, "we should only set it once");
   GrainWords = GrainBytes >> LogHeapWordSize;
@@ -286,15 +285,15 @@ void HeapRegion::report_region_type_change(G1HeapRegionTraceType::Type to) {
                                             used());
 }
 
-void HeapRegion::note_self_forwarding_removal_start(bool during_initial_mark,
+void HeapRegion::note_self_forwarding_removal_start(bool during_concurrent_start,
                                                     bool during_conc_mark) {
   // We always recreate the prev marking info and we'll explicitly
   // mark all objects we find to be self-forwarded on the prev
   // bitmap. So all objects need to be below PTAMS.
   _prev_marked_bytes = 0;
 
-  if (during_initial_mark) {
-    // During initial-mark, we'll also explicitly mark all objects
+  if (during_concurrent_start) {
+    // During concurrent start, we'll also explicitly mark all objects
     // we find to be self-forwarded on the next bitmap. So all
     // objects need to be below NTAMS.
     _next_top_at_mark_start = top();

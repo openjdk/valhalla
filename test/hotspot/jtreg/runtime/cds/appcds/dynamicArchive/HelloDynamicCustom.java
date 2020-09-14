@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,15 +32,15 @@
  * @run driver ClassFileInstaller -jar hello.jar HelloUnload ClassUnloadCommon ClassUnloadCommon$1 ClassUnloadCommon$TestFailure
  * @run driver ClassFileInstaller -jar hello_custom.jar CustomLoadee
  * @run driver ClassFileInstaller -jar WhiteBox.jar sun.hotspot.WhiteBox
- * @run driver HelloDynamicCustom
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:./WhiteBox.jar HelloDynamicCustom
  */
 
 import java.io.File;
+import jdk.test.lib.cds.CDSTestUtils;
 import jdk.test.lib.process.OutputAnalyzer;
 
 public class HelloDynamicCustom extends DynamicArchiveTestBase {
-    private static final String ARCHIVE_NAME =
-        System.getProperty("test.classes") + File.separator + "HelloDynamicCustom-top.jsa";
+    private static final String ARCHIVE_NAME = CDSTestUtils.getOutputFileName("top.jsa");
 
     public static void main(String[] args) throws Exception {
         runTest(HelloDynamicCustom::testDefaultBase);

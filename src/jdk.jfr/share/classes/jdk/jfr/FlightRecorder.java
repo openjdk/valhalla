@@ -85,7 +85,7 @@ public final class FlightRecorder {
     /**
      * Creates a snapshot of all available recorded data.
      * <p>
-     * A snapshot is a synthesized recording in a {@code STOPPPED} state. If no data is
+     * A snapshot is a synthesized recording in a {@code STOPPED} state. If no data is
      * available, a recording with size {@code 0} is returned.
      * <p>
      * A snapshot provides stable access to data for later operations (for example,
@@ -93,17 +93,15 @@ public final class FlightRecorder {
      * <p>
      * The following example shows how to create a snapshot and write a subset of the data to a file.
      *
-     * <pre>
-     * <code>
+     * <pre>{@literal
      * try (Recording snapshot = FlightRecorder.getFlightRecorder().takeSnapshot()) {
-     *   if (snapshot.getSize() &gt; 0) {
+     *   if (snapshot.getSize() > 0) {
      *     snapshot.setMaxSize(100_000_000);
      *     snapshot.setMaxAge(Duration.ofMinutes(5));
      *     snapshot.dump(Paths.get("snapshot.jfr"));
      *   }
      * }
-     * </code>
-     * </pre>
+     * }</pre>
      *
      * The caller must close the recording when access to the data is no longer
      * needed.
@@ -189,15 +187,19 @@ public final class FlightRecorder {
                 // before initialization is done
                 initialized = true;
                 Logger.log(JFR, INFO, "Flight Recorder initialized");
-                Logger.log(JFR, DEBUG, "maxchunksize: " + Options.getMaxChunkSize()+ " bytes");
-                Logger.log(JFR, DEBUG, "memorysize: " + Options.getMemorySize()+ " bytes");
-                Logger.log(JFR, DEBUG, "globalbuffersize: " + Options.getGlobalBufferSize()+ " bytes");
-                Logger.log(JFR, DEBUG, "globalbuffercount: " + Options.getGlobalBufferCount());
-                Logger.log(JFR, DEBUG, "dumppath: " + Options.getDumpPath());
-                Logger.log(JFR, DEBUG, "samplethreads: " + Options.getSampleThreads());
-                Logger.log(JFR, DEBUG, "stackdepth: " + Options.getStackDepth());
-                Logger.log(JFR, DEBUG, "threadbuffersize: " + Options.getThreadBufferSize());
-                Logger.log(JFR, LogLevel.INFO, "Repository base directory: " + Repository.getRepository().getBaseLocation());
+                if (Logger.shouldLog(JFR, DEBUG)) {
+                    Logger.log(JFR, DEBUG, "maxchunksize: " + Options.getMaxChunkSize()+ " bytes");
+                    Logger.log(JFR, DEBUG, "memorysize: " + Options.getMemorySize()+ " bytes");
+                    Logger.log(JFR, DEBUG, "globalbuffersize: " + Options.getGlobalBufferSize()+ " bytes");
+                    Logger.log(JFR, DEBUG, "globalbuffercount: " + Options.getGlobalBufferCount());
+                    Logger.log(JFR, DEBUG, "dumppath: " + Options.getDumpPath());
+                    Logger.log(JFR, DEBUG, "samplethreads: " + Options.getSampleThreads());
+                    Logger.log(JFR, DEBUG, "stackdepth: " + Options.getStackDepth());
+                    Logger.log(JFR, DEBUG, "threadbuffersize: " + Options.getThreadBufferSize());
+                }
+                if (Logger.shouldLog(JFR, INFO)) {
+                    Logger.log(JFR, INFO, "Repository base directory: " + Repository.getRepository().getBaseLocation());
+                }
                 PlatformRecorder.notifyRecorderInitialized(platformRecorder);
             }
         }

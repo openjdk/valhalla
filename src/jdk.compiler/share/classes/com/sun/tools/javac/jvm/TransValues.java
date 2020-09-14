@@ -63,6 +63,7 @@ import java.util.Map;
 
 import static com.sun.tools.javac.code.Flags.STATIC;
 import static com.sun.tools.javac.code.Kinds.Kind.MTH;
+import static com.sun.tools.javac.code.Kinds.Kind.TYP;
 import static com.sun.tools.javac.code.Kinds.Kind.VAR;
 import static com.sun.tools.javac.tree.JCTree.Tag.APPLY;
 import static com.sun.tools.javac.tree.JCTree.Tag.EXEC;
@@ -279,7 +280,7 @@ public class TransValues extends TreeTranslator {
                 default:
                     break;
             }
-            if (isInstanceAccess(symbol)) {
+            if (isInstanceMemberAccess(symbol)) {
                 final JCIdent facHandle = make.Ident(currentMethod.factoryProduct);
                 result = make.Assign(facHandle, make.WithField(make.Select(facHandle, symbol), translate(tree.rhs)).setType(currentClass.type)).setType(currentClass.type);
                 if (requireRVal) {
@@ -305,9 +306,12 @@ public class TransValues extends TreeTranslator {
     public void visitIdent(JCIdent ident) {
         if (constructingValue()) {
             Symbol symbol = ident.sym;
-            if (isInstanceAccess(symbol)) {
+            if (isInstanceMemberAccess(symbol)) {
                 final JCIdent facHandle = make.Ident(currentMethod.factoryProduct);
                 result = make.Select(facHandle, symbol);
+                return;
+            } else if (symbol.name == names._this) {
+                result = make.Ident(currentMethod.factoryProduct);
                 return;
             }
         }
@@ -319,26 +323,34 @@ public class TransValues extends TreeTranslator {
         if (constructingValue()) { // Qualified this would have been lowered already.
             if (fieldAccess.selected.hasTag(IDENT) && ((JCIdent)fieldAccess.selected).name == names._this) {
                 Symbol symbol = fieldAccess.sym;
-                if (isInstanceAccess(symbol)) {
+                if (isInstanceMemberAccess(symbol)) {
                     final JCIdent facHandle = make.Ident(currentMethod.factoryProduct);
                     result = make.Select(facHandle, symbol);
                     return;
                 }
             }
         }
-        // Rewrite any accesses of the form V.ref.member to ((V) V.ref).member
+        /* Rewrite any accesses of the form V.ref.member to ((V) V.ref).member OR
+           if a static member is being selected via a V.ref as a TYP, rewrite
+           V.ref.member to V.member
+        */
         fieldAccess.selected = translate(fieldAccess.selected);
         if (fieldAccess.name != names._class && fieldAccess.name != names._default) {  // TODO: this and super ??
             Symbol sym = TreeInfo.symbol(fieldAccess);
+            Symbol sitesym = TreeInfo.symbol(fieldAccess.selected);
             TypeSymbol selectedType = fieldAccess.selected.type.tsym;
             if (selectedType.isReferenceProjection()) {
                 switch (sym.kind) {
                     case MTH:
                     case VAR:
-                        fieldAccess.selected =
-                                make.TypeCast(types.erasure(selectedType.valueProjection().type), fieldAccess.selected);
-                        if (sym.owner.isReferenceProjection()) // is an empty class file.
-                            sym = sym.valueProjection();
+                        if (sym.isStatic() && sitesym != null && sitesym.kind == TYP) {
+                            fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection().type));
+                        } else {
+                            fieldAccess.selected =
+                                    make.TypeCast(types.erasure(selectedType.valueProjection().type), fieldAccess.selected);
+                            if (sym.owner.isReferenceProjection()) // is an empty class file.
+                                TreeInfo.setSymbol(fieldAccess, sym.valueProjection());
+                        }
                         break;
                     case TYP:
                         fieldAccess.selected = make.Type(types.erasure(selectedType.valueProjection().type));
@@ -376,8 +388,11 @@ public class TransValues extends TreeTranslator {
         return currentClass != null && (currentClass.sym.flags() & Flags.VALUE) != 0 && currentMethod != null && currentMethod.sym.isConstructor();
     }
 
-    private boolean isInstanceAccess(Symbol symbol) {
-        return symbol != null && (symbol.kind == VAR || symbol.kind == MTH) && symbol.owner == currentClass.sym && !symbol.isStatic();
+    private boolean isInstanceMemberAccess(Symbol symbol) {
+        return symbol != null
+                && (symbol.name != names._this && symbol.name != names._super)
+                && (symbol.kind == VAR || symbol.kind == MTH)
+                && symbol.owner == currentClass.sym && !symbol.isStatic();
     }
 
     private MethodSymbol getValueFactory(MethodSymbol init) {

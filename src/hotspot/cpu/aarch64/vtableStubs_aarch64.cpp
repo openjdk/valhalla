@@ -65,7 +65,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index, bool caller_is_c1)
 
 // No variance was detected in vtable stub sizes. Setting index_dependent_slop == 0 will unveil any deviation from this observation.
   const int index_dependent_slop     = 0;
-  ByteSize  entry_offset = caller_is_c1 ? Method::from_compiled_value_offset() :  Method::from_compiled_value_ro_offset();
+  ByteSize  entry_offset = caller_is_c1 ? Method::from_compiled_inline_offset() :  Method::from_compiled_inline_ro_offset();
 
   ResourceMark    rm;
   CodeBuffer      cb(s->entry_point(), stub_code_length);
@@ -159,7 +159,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index, bool caller_is_c1)
 
   const int index_dependent_slop = (itable_index == 0) ? 4 :     // code size change with transition from 8-bit to 32-bit constant (@index == 16).
                                    (itable_index < 16) ? 3 : 0;  // index == 0 generates even shorter code.
-  ByteSize  entry_offset = caller_is_c1 ? Method::from_compiled_value_offset() :  Method::from_compiled_value_ro_offset();
+  ByteSize  entry_offset = caller_is_c1 ? Method::from_compiled_inline_offset() :  Method::from_compiled_inline_ro_offset();
 
   ResourceMark    rm;
   CodeBuffer      cb(s->entry_point(), stub_code_length);

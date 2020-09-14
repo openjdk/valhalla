@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2012, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -104,6 +104,13 @@ void C1_MacroAssembler::lock_object(Register Rmark, Register Roop, Register Rbox
 
   // Save object being locked into the BasicObjectLock...
   std(Roop, BasicObjectLock::obj_offset_in_bytes(), Rbox);
+
+  if (DiagnoseSyncOnPrimitiveWrappers != 0) {
+    load_klass(Rscratch, Roop);
+    lwz(Rscratch, in_bytes(Klass::access_flags_offset()), Rscratch);
+    testbitdi(CCR0, R0, Rscratch, exact_log2(JVM_ACC_IS_BOX_CLASS));
+    bne(CCR0, slow_int);
+  }
 
   if (UseBiasedLocking) {
     biased_locking_enter(CCR0, Roop, Rmark, Rscratch, R0, done, &slow_int);
@@ -294,7 +301,7 @@ void C1_MacroAssembler::initialize_object(
     } else {
       cmpwi(CCR0, t1, con_size_in_bytes);
     }
-    asm_assert_eq("bad size in initialize_object", 0x753);
+    asm_assert_eq("bad size in initialize_object");
   }
 #endif
 
@@ -390,7 +397,7 @@ void C1_MacroAssembler::allocate_array(
 #ifndef PRODUCT
 
 void C1_MacroAssembler::verify_stack_oop(int stack_offset) {
-  verify_oop_addr((RegisterOrConstant)(stack_offset + STACK_BIAS), R1_SP, "broken oop in stack slot");
+  verify_oop_addr((RegisterOrConstant)stack_offset, R1_SP, "broken oop in stack slot");
 }
 
 void C1_MacroAssembler::verify_not_null_oop(Register r) {

@@ -61,7 +61,6 @@ import jdk.vm.ci.meta.MetaAccessProvider;
 import jdk.vm.ci.meta.MetaUtil;
 import jdk.vm.ci.meta.MethodHandleAccessProvider.IntrinsicMethod;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
-import jdk.vm.ci.sparc.SPARC;
 
 /**
  * Checks the intrinsics implemented by Graal against the set of intrinsics declared by HotSpot. The
@@ -278,8 +277,6 @@ public class CheckGraalIntrinsics extends GraalTest {
                             "jdk/jfr/internal/JVM.getClassId(Ljava/lang/Class;)J");
 
             add(toBeInvestigated,
-                            // Just check if the argument is a compile time constant
-                            "java/lang/invoke/MethodHandleImpl.isCompileConstant(Ljava/lang/Object;)Z",
                             // Only used as a marker for vectorization?
                             "java/util/stream/Streams$RangeIntSpliterator.forEachRemaining(Ljava/util/function/IntConsumer;)V",
                             // Only implemented on non-AMD64 platforms (some logic and runtime call)
@@ -373,7 +370,7 @@ public class CheckGraalIntrinsics extends GraalTest {
                 add(ignore,
                                 "java/lang/Math.fma(DDD)D",
                                 "java/lang/Math.fma(FFF)F");
-            } else if (arch instanceof SPARC) {
+            } else if (isSPARC(arch)) {
                 add(toBeInvestigated,
                                 "java/lang/Math.fma(DDD)D",
                                 "java/lang/Math.fma(FFF)F");
@@ -381,8 +378,10 @@ public class CheckGraalIntrinsics extends GraalTest {
         }
 
         if (isJDK10OrHigher()) {
-            add(toBeInvestigated,
-                            "java/lang/Math.multiplyHigh(JJ)J");
+            if (!(arch instanceof AArch64)) {
+                add(toBeInvestigated,
+                                "java/lang/Math.multiplyHigh(JJ)J");
+            }
         }
 
         if (isJDK11OrHigher()) {
@@ -400,9 +399,12 @@ public class CheckGraalIntrinsics extends GraalTest {
         }
 
         if (isJDK13OrHigher()) {
+            if (!(arch instanceof AArch64)) {
+                add(toBeInvestigated,
+                                "java/lang/Math.abs(I)I",
+                                "java/lang/Math.abs(J)J");
+            }
             add(toBeInvestigated,
-                            "java/lang/Math.abs(I)I",
-                            "java/lang/Math.abs(J)J",
                             "java/lang/Math.max(DD)D",
                             "java/lang/Math.max(FF)F",
                             "java/lang/Math.min(DD)D",
@@ -425,6 +427,15 @@ public class CheckGraalIntrinsics extends GraalTest {
                             "jdk/internal/misc/Unsafe.getValue(Ljava/lang/Object;JLjava/lang/Class;)Ljava/lang/Object;",
                             "jdk/internal/misc/Unsafe.makePrivateBuffer(Ljava/lang/Object;)Ljava/lang/Object;",
                             "jdk/internal/misc/Unsafe.putValue(Ljava/lang/Object;JLjava/lang/Class;Ljava/lang/Object;)V");
+        }
+
+        if (isJDK16OrHigher()) {
+            add(toBeInvestigated,
+                            "java/lang/Math.copySign(DD)D",
+                            "java/lang/Math.copySign(FF)F",
+                            "java/lang/Math.signum(D)D",
+                            "java/lang/Math.signum(F)F",
+                            "sun/security/provider/MD5.implCompress0([BI)V");
         }
 
         if (!config.inlineNotify()) {
@@ -595,6 +606,14 @@ public class CheckGraalIntrinsics extends GraalTest {
 
     private static boolean isJDK14OrHigher() {
         return JavaVersionUtil.JAVA_SPEC >= 14;
+    }
+
+    private static boolean isJDK15OrHigher() {
+        return JavaVersionUtil.JAVA_SPEC >= 15;
+    }
+
+    private static boolean isJDK16OrHigher() {
+        return JavaVersionUtil.JAVA_SPEC >= 16;
     }
 
     public interface Refiner {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -424,6 +424,26 @@ void JvmtiClassFileReconstituter::write_nest_members_attribute() {
   }
 }
 
+//  PermittedSubclasses {
+//    u2 attribute_name_index;
+//    u4 attribute_length;
+//    u2 number_of_classes;
+//    u2 classes[number_of_classes];
+//  }
+void JvmtiClassFileReconstituter::write_permitted_subclasses_attribute() {
+  Array<u2>* permitted_subclasses = ik()->permitted_subclasses();
+  int number_of_classes = permitted_subclasses->length();
+  int length = sizeof(u2) * (1 + number_of_classes); // '1 +' is for number_of_classes field
+
+  write_attribute_name_index("PermittedSubclasses");
+  write_u4(length);
+  write_u2(number_of_classes);
+  for (int i = 0; i < number_of_classes; i++) {
+    u2 class_cp_index = permitted_subclasses->at(i);
+    write_u2(class_cp_index);
+  }
+}
+
 //  Record {
 //    u2 attribute_name_index;
 //    u4 attribute_length;
@@ -751,6 +771,9 @@ void JvmtiClassFileReconstituter::write_class_attributes() {
   if (ik()->nest_members() != Universe::the_empty_short_array()) {
     ++attr_count;
   }
+  if (ik()->permitted_subclasses() != Universe::the_empty_short_array()) {
+    ++attr_count;
+  }
   if (ik()->record_components() != NULL) {
     ++attr_count;
   }
@@ -783,6 +806,9 @@ void JvmtiClassFileReconstituter::write_class_attributes() {
   }
   if (ik()->nest_members() != Universe::the_empty_short_array()) {
     write_nest_members_attribute();
+  }
+  if (ik()->permitted_subclasses() != Universe::the_empty_short_array()) {
+    write_permitted_subclasses_attribute();
   }
   if (ik()->record_components() != NULL) {
     write_record_attribute();
@@ -869,11 +895,13 @@ void JvmtiClassFileReconstituter::write_class_file_format() {
   // JVMSpec|           u2 interfaces[interfaces_count];
   Array<InstanceKlass*>* interfaces =  ik()->local_interfaces();
   int num_interfaces = interfaces->length();
-  write_u2(num_interfaces);
+  write_u2(num_interfaces - (ik()->has_injected_identityObject() ? 1 : 0) );
   for (int index = 0; index < num_interfaces; index++) {
     HandleMark hm(thread());
     InstanceKlass* iik = interfaces->at(index);
-    write_u2(class_symbol_to_cpool_index(iik->name()));
+    if (!ik()->has_injected_identityObject() || iik != SystemDictionary::IdentityObject_klass()) {
+      write_u2(class_symbol_to_cpool_index(iik->name()));
+    }
   }
 
   // JVMSpec|           u2 fields_count;

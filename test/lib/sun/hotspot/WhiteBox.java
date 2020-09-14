@@ -110,6 +110,8 @@ public class WhiteBox {
 
   public  native int getSymbolRefcount(String name);
 
+  public native boolean deflateIdleMonitors();
+
   private native boolean isMonitorInflated0(Object obj);
   public         boolean isMonitorInflated(Object obj) {
     Objects.requireNonNull(obj);
@@ -579,10 +581,6 @@ public class WhiteBox {
                               .orElse(null);
   }
 
-  // Safepoint Checking
-  public native void assertMatchingSafepointCalls(boolean mutexSafepointValue, boolean attemptedNoSafepointValue);
-  public native void assertSpecialLock(boolean allowVMBlock, boolean safepointCheck);
-
   // Sharing & archiving
   public native String  getDefaultArchivePath();
   public native boolean cdsMemoryMappingFailed();
@@ -627,4 +625,9 @@ public class WhiteBox {
   public native int aotLibrariesCount();
 
   public native int getKlassMetadataSize(Class<?> c);
+
+  // ThreadSMR GC safety check for threadObj
+  public native void checkThreadObjOfTerminatingThread(Thread target);
+
+  public native boolean isJVMTIIncluded();
 }

@@ -41,7 +41,6 @@ import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleReference;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.Charset;
@@ -110,12 +109,12 @@ import java.util.Spliterators;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import jdk.internal.joptsimple.*;
-import jdk.internal.jshell.tool.Feedback.FormatAction;
-import jdk.internal.jshell.tool.Feedback.FormatCase;
-import jdk.internal.jshell.tool.Feedback.FormatErrors;
-import jdk.internal.jshell.tool.Feedback.FormatResolve;
-import jdk.internal.jshell.tool.Feedback.FormatUnresolved;
-import jdk.internal.jshell.tool.Feedback.FormatWhen;
+import jdk.internal.jshell.tool.Selector.FormatAction;
+import jdk.internal.jshell.tool.Selector.FormatCase;
+import jdk.internal.jshell.tool.Selector.FormatErrors;
+import jdk.internal.jshell.tool.Selector.FormatResolve;
+import jdk.internal.jshell.tool.Selector.FormatUnresolved;
+import jdk.internal.jshell.tool.Selector.FormatWhen;
 import jdk.internal.editor.spi.BuildInEditorProvider;
 import jdk.internal.editor.external.ExternalEditor;
 import static java.util.Arrays.asList;
@@ -230,15 +229,18 @@ public class JShellTool implements MessageHandler {
 
     static final String STARTUP_KEY  = "STARTUP";
     static final String EDITOR_KEY   = "EDITOR";
-    static final String FEEDBACK_KEY = "FEEDBACK";
     static final String MODE_KEY     = "MODE";
+    static final String MODE2_KEY     = "MODE2";
+    static final String FEEDBACK_KEY = "FEEDBACK";
     static final String REPLAY_RESTORE_KEY = "REPLAY_RESTORE";
+    public static final String INDENT_KEY   = "INDENT";
 
     static final Pattern BUILTIN_FILE_PATTERN = Pattern.compile("\\w+");
     static final String BUILTIN_FILE_PATH_FORMAT = "/jdk/jshell/tool/resources/%s.jsh";
     static final String INT_PREFIX = "int $$exit$$ = ";
 
     static final int OUTPUT_WIDTH = 72;
+    static final int DEFAULT_INDENT = 4;
 
     // match anything followed by whitespace
     private static final Pattern OPTION_PRE_PATTERN =
@@ -910,6 +912,12 @@ public class JShellTool implements MessageHandler {
         }
     }
 
+    private String indent() {
+        String indentValue = prefs.get(INDENT_KEY);
+        if (indentValue == null) indentValue = Integer.toString(DEFAULT_INDENT);
+        return indentValue;
+    }
+
     /**
      * The entry point into the JShell tool.
      *
@@ -968,6 +976,14 @@ public class JShellTool implements MessageHandler {
             Runtime.getRuntime().addShutdownHook(shutdownHook);
             // execute from user input
             try (IOContext in = new ConsoleIOContext(this, cmdin, console)) {
+                int indent;
+                try {
+                    String indentValue = indent();
+                    indent = Integer.parseInt(indentValue);
+                } catch (NumberFormatException ex) {
+                    indent = DEFAULT_INDENT;
+                }
+                in.setIndent(indent);
                 while (regenerateOnDeath) {
                     if (!live) {
                         resetState();
@@ -1114,11 +1130,20 @@ public class JShellTool implements MessageHandler {
         // These predefined modes are read-only
         feedback.markModesReadOnly();
         // Restore user defined modes retained on previous run with /set mode -retain
-        String encoded = prefs.get(MODE_KEY);
+        boolean oldModes = false;
+        String encoded = prefs.get(MODE2_KEY);
+        if (encoded == null || encoded.isEmpty()) {
+            // No new layout modes, see if there are old (JDK-14 and before) modes
+            oldModes = true;
+            encoded = prefs.get(MODE_KEY);
+        }
         if (encoded != null && !encoded.isEmpty()) {
             if (!feedback.restoreEncodedModes(initmh, encoded)) {
                 // Catastrophic corruption -- remove the retained modes
-                prefs.remove(MODE_KEY);
+                // Leave old mode corruption clean-up to old versions
+                if (!oldModes) {
+                    prefs.remove(MODE2_KEY);
+                }
             }
         }
         if (initMode != null) {
@@ -1830,7 +1855,8 @@ public class JShellTool implements MessageHandler {
                                 SET_MODE_OPTIONS_COMPLETION_PROVIDER)),
                         "prompt", feedback.modeCompletions(),
                         "editor", fileCompletions(Files::isExecutable),
-                        "start", FILE_COMPLETION_PROVIDER),
+                        "start", FILE_COMPLETION_PROVIDER,
+                        "indent", EMPTY_COMPLETION_PROVIDER),
                         STARTSWITH_MATCHER)));
         registerCommand(new Command("/?",
                 "help.quest",
@@ -1941,7 +1967,7 @@ public class JShellTool implements MessageHandler {
     // --- Command implementations ---
 
     private static final String[] SET_SUBCOMMANDS = new String[]{
-        "format", "truncation", "feedback", "mode", "prompt", "editor", "start"};
+        "format", "truncation", "feedback", "mode", "prompt", "editor", "start", "indent"};
 
     final boolean cmdSet(String arg) {
         String cmd = "/set";
@@ -1958,6 +1984,7 @@ public class JShellTool implements MessageHandler {
             case "_blank": {
                 // show top-level settings
                 new SetEditor().set();
+                showIndent();
                 showSetStart();
                 setFeedback(this, at); // no args so shows feedback setting
                 hardmsg("jshell.msg.set.show.mode.settings");
@@ -1971,13 +1998,30 @@ public class JShellTool implements MessageHandler {
                 return setFeedback(this, at);
             case "mode":
                 return feedback.setMode(this, at,
-                        retained -> prefs.put(MODE_KEY, retained));
+                        retained -> prefs.put(MODE2_KEY, retained));
             case "prompt":
                 return feedback.setPrompt(this, at);
             case "editor":
                 return new SetEditor(at).set();
             case "start":
                 return setStart(at);
+            case "indent":
+                String value = at.next();
+                if (value != null) {
+                    try {
+                        int indent = Integer.parseInt(value);
+                        String indentValue = Integer.toString(indent);
+                        prefs.put(INDENT_KEY, indentValue);
+                        input.setIndent(indent);
+                        fluffmsg("jshell.msg.set.indent.set", indentValue);
+                    } catch (NumberFormatException ex) {
+                        errormsg("jshell.err.invalid.indent", value);
+                        return false;
+                    }
+                } else {
+                    showIndent();
+                }
+                return true;
             default:
                 errormsg("jshell.err.arg", cmd, at.val());
                 return false;
@@ -2250,6 +2294,10 @@ public class JShellTool implements MessageHandler {
             sb.append(startup.showDetail());
         }
         hard(sb.toString());
+    }
+
+    private void showIndent() {
+        hard("/set indent %s", indent());
     }
 
     boolean cmdDebug(String arg) {

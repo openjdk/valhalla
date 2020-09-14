@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,14 +27,13 @@ package gc.g1;
  * @test TestStringDeduplicationTableRehash
  * @summary Test string deduplication table rehash
  * @bug 8029075
- * @key gc
  * @requires vm.gc.G1
  * @library /test/lib
  * @library /
  * @modules java.base/jdk.internal.misc:open
  * @modules java.base/java.lang:open
  *          java.management
- * @run main gc.g1.TestStringDeduplicationTableRehash
+ * @run driver gc.g1.TestStringDeduplicationTableRehash
  */
 
 public class TestStringDeduplicationTableRehash {

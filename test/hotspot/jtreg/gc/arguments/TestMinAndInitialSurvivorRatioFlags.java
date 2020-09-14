@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@ package gc.arguments;
 
 /*
  * @test TestMinAndInitialSurvivorRatioFlags
- * @key gc
  * @summary Verify that MinSurvivorRatio and InitialSurvivorRatio flags work
  * @library /test/lib
  * @library /
@@ -104,7 +103,7 @@ public class TestMinAndInitialSurvivorRatioFlags {
                 Boolean.toString(useAdaptiveSizePolicy)
         );
         vmOptions.removeIf((String p) -> p.isEmpty());
-        ProcessBuilder procBuilder = GCArguments.createJavaProcessBuilder(vmOptions.toArray(new String[vmOptions.size()]));
+        ProcessBuilder procBuilder = GCArguments.createJavaProcessBuilder(vmOptions);
         OutputAnalyzer analyzer = new OutputAnalyzer(procBuilder.start());
         analyzer.shouldHaveExitValue(0);
     }

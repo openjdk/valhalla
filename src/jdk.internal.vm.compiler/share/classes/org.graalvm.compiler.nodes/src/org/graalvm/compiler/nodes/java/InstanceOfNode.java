@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -34,6 +34,7 @@ import org.graalvm.compiler.core.common.type.ObjectStamp;
 import org.graalvm.compiler.core.common.type.Stamp;
 import org.graalvm.compiler.core.common.type.StampFactory;
 import org.graalvm.compiler.core.common.type.TypeReference;
+import org.graalvm.compiler.graph.Node.NodeIntrinsicFactory;
 import org.graalvm.compiler.graph.NodeClass;
 import org.graalvm.compiler.graph.spi.CanonicalizerTool;
 import org.graalvm.compiler.nodeinfo.NodeInfo;
@@ -48,14 +49,12 @@ import org.graalvm.compiler.nodes.calc.IsNullNode;
 import org.graalvm.compiler.nodes.extended.AnchoringNode;
 import org.graalvm.compiler.nodes.graphbuilderconf.GraphBuilderContext;
 import org.graalvm.compiler.nodes.spi.Lowerable;
-import org.graalvm.compiler.nodes.spi.LoweringTool;
 import org.graalvm.compiler.nodes.spi.Virtualizable;
 import org.graalvm.compiler.nodes.spi.VirtualizerTool;
 import org.graalvm.compiler.nodes.type.StampTool;
 
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.JavaTypeProfile;
-import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaType;
 import jdk.vm.ci.meta.TriState;
 
@@ -63,6 +62,7 @@ import jdk.vm.ci.meta.TriState;
  * The {@code InstanceOfNode} represents an instanceof test.
  */
 @NodeInfo(cycles = CYCLES_8, size = SIZE_8)
+@NodeIntrinsicFactory
 public class InstanceOfNode extends UnaryOpLogicNode implements Lowerable, Virtualizable {
     public static final NodeClass<InstanceOfNode> TYPE = NodeClass.create(InstanceOfNode.class);
 
@@ -107,11 +107,6 @@ public class InstanceOfNode extends UnaryOpLogicNode implements Lowerable, Virtu
         } else {
             return new InstanceOfNode(checkedStamp, object, profile, anchor);
         }
-    }
-
-    @Override
-    public void lower(LoweringTool tool) {
-        tool.getLowerer().lower(this, tool);
     }
 
     @Override
@@ -226,8 +221,7 @@ public class InstanceOfNode extends UnaryOpLogicNode implements Lowerable, Virtu
     @NodeIntrinsic
     public static native boolean doInstanceof(@ConstantNodeParameter ResolvedJavaType type, Object object);
 
-    @SuppressWarnings("unused")
-    static boolean intrinsify(GraphBuilderContext b, ResolvedJavaMethod method, ResolvedJavaType type, ValueNode object) {
+    public static boolean intrinsify(GraphBuilderContext b, ResolvedJavaType type, ValueNode object) {
         InstanceOfNode node = new InstanceOfNode(StampFactory.objectNonNull(TypeReference.create(b.getAssumptions(), type)), object, null, null);
         node = b.add(node);
         b.addPush(JavaKind.Int, ConditionalNode.create(node, NodeView.DEFAULT));

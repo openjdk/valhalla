@@ -81,7 +81,7 @@ Method* ArrayKlass::uncached_lookup_method(const Symbol* name,
   // Always ignore overpass methods in superclasses, although technically the
   // super klass of an array, (j.l.Object) should not have
   // any overpass methods present.
-  return super()->uncached_lookup_method(name, signature, Klass::skip_overpass, private_mode);
+  return super()->uncached_lookup_method(name, signature, OverpassLookupMode::skip, private_mode);
 }
 
 ArrayKlass::ArrayKlass(Symbol* name, KlassID id) :
@@ -99,38 +99,29 @@ ArrayKlass::ArrayKlass(Symbol* name, KlassID id) :
     JFR_ONLY(INIT_ID(this);)
 }
 
-Symbol* ArrayKlass::create_element_klass_array_name(bool is_qtype, Klass* element_klass, TRAPS) {
+Symbol* ArrayKlass::create_element_klass_array_name(Klass* element_klass, TRAPS) {
+  ResourceMark rm(THREAD);
   Symbol* name = NULL;
-  if (!element_klass->is_instance_klass() || is_qtype ||
-      (name = InstanceKlass::cast(element_klass)->array_name()) == NULL) {
-
-    ResourceMark rm(THREAD);
-    char *name_str = element_klass->name()->as_C_string();
-    int len = element_klass->name()->utf8_length();
-    char *new_str = NEW_RESOURCE_ARRAY(char, len + 4);
-    int idx = 0;
-    new_str[idx++] = JVM_SIGNATURE_ARRAY;
-    if (element_klass->is_instance_klass()) { // it could be an array or simple type
-      if (is_qtype) {
-        new_str[idx++] = JVM_SIGNATURE_VALUETYPE;
-      } else {
-        new_str[idx++] = JVM_SIGNATURE_CLASS;
-      }
-    }
-    memcpy(&new_str[idx], name_str, len * sizeof(char));
-    idx += len;
-    if (element_klass->is_instance_klass()) {
-      new_str[idx++] = JVM_SIGNATURE_ENDCLASS;
-    }
-    new_str[idx++] = '\0';
-    name = SymbolTable::new_permanent_symbol(new_str);
-    if (element_klass->is_instance_klass() && (!is_qtype)) {
-      InstanceKlass* ik = InstanceKlass::cast(element_klass);
-      ik->set_array_name(name); // CMH: only cache and deref array_name for L-type...missing for Q-type
+  bool is_qtype = element_klass->is_inline_klass();
+  char *name_str = element_klass->name()->as_C_string();
+  int len = element_klass->name()->utf8_length();
+  char *new_str = NEW_RESOURCE_ARRAY(char, len + 4);
+  int idx = 0;
+  new_str[idx++] = JVM_SIGNATURE_ARRAY;
+  if (element_klass->is_instance_klass()) { // it could be an array or simple type
+    if (is_qtype) {
+      new_str[idx++] = JVM_SIGNATURE_INLINE_TYPE;
+    } else {
+      new_str[idx++] = JVM_SIGNATURE_CLASS;
     }
   }
-
-  return name;
+  memcpy(&new_str[idx], name_str, len * sizeof(char));
+  idx += len;
+  if (element_klass->is_instance_klass()) {
+    new_str[idx++] = JVM_SIGNATURE_ENDCLASS;
+  }
+  new_str[idx++] = '\0';
+  return SymbolTable::new_symbol(new_str);
 }
 
 // Initialization of vtables and mirror object is done separatly from base_create_array_klass,
@@ -145,7 +136,7 @@ void ArrayKlass::complete_create_array_klass(ArrayKlass* k, Klass* super_klass, 
   assert((module_entry != NULL) || ((module_entry == NULL) && !ModuleEntryTable::javabase_defined()),
          "module entry not available post " JAVA_BASE_NAME " definition");
   oop module = (module_entry != NULL) ? module_entry->module() : (oop)NULL;
-  java_lang_Class::create_mirror(k, Handle(THREAD, k->class_loader()), Handle(THREAD, module), Handle(), CHECK);
+  java_lang_Class::create_mirror(k, Handle(THREAD, k->class_loader()), Handle(THREAD, module), Handle(), Handle(), CHECK);
 }
 
 GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
@@ -161,12 +152,21 @@ GrowableArray<Klass*>* ArrayKlass::compute_secondary_supers(int num_extra_slots,
 objArrayOop ArrayKlass::allocate_arrayArray(int n, int length, TRAPS) {
   check_array_allocation_length(length, arrayOopDesc::max_array_length(T_ARRAY), CHECK_NULL);
   int size = objArrayOopDesc::object_size(length);
-  Klass* k = array_klass(ArrayStorageProperties::for_signature(name()), n+dimension(), CHECK_NULL);
+  Klass* k = array_klass(n+dimension(), CHECK_NULL);
   ArrayKlass* ak = ArrayKlass::cast(k);
   objArrayOop o = (objArrayOop)Universe::heap()->array_allocate(ak, size, length,
                                                                 /* do_zero */ true, CHECK_NULL);
   // initialization to NULL not necessary, area already cleared
   return o;
+}
+
+void ArrayKlass::array_klasses_do(void f(Klass* k, TRAPS), TRAPS) {
+  Klass* k = this;
+  // Iterate over this array klass and all higher dimensions
+  while (k != NULL) {
+    f(k, CHECK);
+    k = ArrayKlass::cast(k)->higher_dimension();
+  }
 }
 
 void ArrayKlass::array_klasses_do(void f(Klass* k)) {

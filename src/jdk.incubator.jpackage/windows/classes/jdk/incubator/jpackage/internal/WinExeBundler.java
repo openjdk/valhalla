@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,12 +24,12 @@
  */
 package jdk.incubator.jpackage.internal;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.text.MessageFormat;
-import java.util.*;
+import java.util.Map;
 
 public class WinExeBundler extends AbstractBundler {
 
@@ -37,26 +37,20 @@ public class WinExeBundler extends AbstractBundler {
         System.loadLibrary("jpackage");
     }
 
-    private static final ResourceBundle I18N = ResourceBundle.getBundle(
-            "jdk.incubator.jpackage.internal.resources.WinResources");
-
-    public static final BundlerParamInfo<WinAppBundler> APP_BUNDLER
-            = new WindowsBundlerParam<>(
-                    "win.app.bundler",
-                    WinAppBundler.class,
-                    params -> new WinAppBundler(),
-                    null);
-
-    public static final BundlerParamInfo<File> EXE_IMAGE_DIR
-            = new WindowsBundlerParam<>(
+    public static final BundlerParamInfo<Path> EXE_IMAGE_DIR
+            = new StandardBundlerParam<>(
                     "win.exe.imageDir",
-                    File.class,
+                    Path.class,
                     params -> {
-                        File imagesRoot = IMAGES_ROOT.fetchFrom(params);
-                        if (!imagesRoot.exists()) {
-                            imagesRoot.mkdirs();
+                        Path imagesRoot = IMAGES_ROOT.fetchFrom(params);
+                        if (!Files.exists(imagesRoot)) {
+                            try {
+                                Files.createDirectories(imagesRoot);
+                            } catch (IOException ioe) {
+                                return null;
+                            }
                         }
-                        return new File(imagesRoot, "win-exe.image");
+                        return imagesRoot.resolve("win-exe.image");
                     },
                     (s, p) -> null);
 
@@ -64,7 +58,7 @@ public class WinExeBundler extends AbstractBundler {
 
     @Override
     public String getName() {
-        return getString("exe.bundler.name");
+        return I18N.getString("exe.bundler.name");
     }
 
     @Override
@@ -78,8 +72,8 @@ public class WinExeBundler extends AbstractBundler {
     }
 
     @Override
-    public File execute(Map<String, ? super Object> params,
-            File outputParentDir) throws PackagerException {
+    public Path execute(Map<String, ? super Object> params,
+            Path outputParentDir) throws PackagerException {
         return bundle(params, outputParentDir);
     }
 
@@ -99,66 +93,62 @@ public class WinExeBundler extends AbstractBundler {
         return msiBundler.validate(params);
     }
 
-    public File bundle(Map<String, ? super Object> params, File outdir)
+    public Path bundle(Map<String, ? super Object> params, Path outdir)
             throws PackagerException {
 
-        IOUtils.writableOutputDir(outdir.toPath());
+        IOUtils.writableOutputDir(outdir);
 
-        File exeImageDir = EXE_IMAGE_DIR.fetchFrom(params);
+        Path exeImageDir = EXE_IMAGE_DIR.fetchFrom(params);
 
         // Write msi to temporary directory.
-        File msi = msiBundler.bundle(params, exeImageDir);
+        Path msi = msiBundler.execute(params, exeImageDir);
 
         try {
             new ScriptRunner()
-            .setDirectory(msi.toPath().getParent())
+            .setDirectory(msi.getParent())
             .setResourceCategoryId("resource.post-msi-script")
             .setScriptNameSuffix("post-msi")
-            .setEnvironmentVariable("JpMsiFile", msi.getAbsolutePath().toString())
+            .setEnvironmentVariable("JpMsiFile", msi.toAbsolutePath().toString())
             .run(params);
 
-            return buildEXE(msi, outdir);
+            return buildEXE(params, msi, outdir);
         } catch (IOException ex) {
             Log.verbose(ex);
             throw new PackagerException(ex);
         }
     }
 
-    private File buildEXE(File msi, File outdir)
-            throws IOException {
+    private Path buildEXE(Map<String, ? super Object> params, Path msi,
+            Path outdir) throws IOException {
 
         Log.verbose(MessageFormat.format(
-                getString("message.outputting-to-location"),
-                outdir.getAbsolutePath()));
+                I18N.getString("message.outputting-to-location"),
+                outdir.toAbsolutePath().toString()));
 
         // Copy template msi wrapper next to msi file
-        String exePath = msi.getAbsolutePath();
-        exePath = exePath.substring(0, exePath.lastIndexOf('.')) + ".exe";
+        final Path exePath = IOUtils.replaceSuffix(msi, ".exe");
         try (InputStream is = OverridableResource.readDefault(EXE_WRAPPER_NAME)) {
-            Files.copy(is, Path.of(exePath));
+            Files.copy(is, exePath);
         }
-        // Embed msi in msi wrapper exe.
-        embedMSI(exePath, msi.getAbsolutePath());
 
-        Path dstExePath = Paths.get(outdir.getAbsolutePath(),
-                Path.of(exePath).getFileName().toString());
+        new ExecutableRebrander().addAction((resourceLock) -> {
+            // Embed msi in msi wrapper exe.
+            embedMSI(resourceLock, msi.toAbsolutePath().toString());
+        }).rebrandInstaller(params, exePath);
+
+        Path dstExePath = outdir.toAbsolutePath().resolve(exePath.getFileName());
         Files.deleteIfExists(dstExePath);
 
-        Files.copy(Path.of(exePath), dstExePath);
+        Files.copy(exePath, dstExePath);
 
         Log.verbose(MessageFormat.format(
-                getString("message.output-location"),
-                outdir.getAbsolutePath()));
+                I18N.getString("message.output-location"),
+                outdir.toAbsolutePath().toString()));
 
-        return dstExePath.toFile();
-    }
-
-    private static String getString(String key)
-            throws MissingResourceException {
-        return I18N.getString(key);
+        return dstExePath;
     }
 
     private final WinMsiBundler msiBundler = new WinMsiBundler();
 
-    private static native int embedMSI(String exePath, String msiPath);
+    private static native int embedMSI(long resourceLock, String msiPath);
 }

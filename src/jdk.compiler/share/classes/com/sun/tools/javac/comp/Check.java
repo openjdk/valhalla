@@ -29,6 +29,7 @@ import java.util.*;
 import java.util.function.Supplier;
 
 import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.NestingKind;
 import javax.tools.JavaFileManager;
 
 import com.sun.tools.javac.code.*;
@@ -161,6 +162,8 @@ public class Check {
 
         allowRecords = (!preview.isPreview(Feature.RECORDS) || preview.isEnabled()) &&
                 Feature.RECORDS.allowedInSource(source);
+        allowSealed = (!preview.isPreview(Feature.SEALED_CLASSES) || preview.isEnabled()) &&
+                Feature.SEALED_CLASSES.allowedInSource(source);
     }
 
     /** Character for synthetic names
@@ -195,6 +198,10 @@ public class Check {
     /** Are records allowed
      */
     private final boolean allowRecords;
+
+    /** Are sealed classes allowed
+     */
+    private final boolean allowSealed;
 
 /* *************************************************************************
  * Errors and Warnings
@@ -743,11 +750,10 @@ public class Check {
         }
 
     void checkConstraintsOfInlineSuper(DiagnosticPosition pos, ClassSymbol c) {
-        boolean indirectSuper = false;
-        for(Type st = types.supertype(c.type); st != Type.noType; indirectSuper = true, st = types.supertype(st)) {
+        for(Type st = types.supertype(c.type); st != Type.noType; st = types.supertype(st)) {
             if (st == null || st.tsym == null || st.tsym.kind == ERR)
                 return;
-            if  (indirectSuper && st.tsym == syms.objectType.tsym)
+            if  (st.tsym == syms.objectType.tsym)
                 return;
             if (!st.tsym.isAbstract()) {
                 log.error(pos, Errors.ConcreteSupertypeForInlineClass(c, st));
@@ -788,21 +794,30 @@ public class Check {
 
     /** Check that type is a valid qualifier for a constructor reference expression
      */
-    Type checkConstructorRefType(DiagnosticPosition pos, Type t) {
-        t = checkClassOrArrayType(pos, t);
+    Type checkConstructorRefType(JCExpression expr, Type t) {
+        t = checkClassOrArrayType(expr, t);
         if (t.hasTag(CLASS)) {
             if ((t.tsym.flags() & (ABSTRACT | INTERFACE)) != 0) {
-                log.error(pos, Errors.AbstractCantBeInstantiated(t.tsym));
+                log.error(expr, Errors.AbstractCantBeInstantiated(t.tsym));
                 t = types.createErrorType(t);
             } else if ((t.tsym.flags() & ENUM) != 0) {
-                log.error(pos, Errors.EnumCantBeInstantiated);
+                log.error(expr, Errors.EnumCantBeInstantiated);
                 t = types.createErrorType(t);
             } else {
-                t = checkClassType(pos, t, true);
+                // Projection types may not be mentioned in constructor references
+                if (expr.hasTag(SELECT)) {
+                    JCFieldAccess fieldAccess = (JCFieldAccess) expr;
+                    if (fieldAccess.selected.type.isValue() &&
+                            (fieldAccess.name == names.ref || fieldAccess.name == names.val)) {
+                        log.error(expr, Errors.ProjectionCantBeInstantiated);
+                        t = types.createErrorType(t);
+                    }
+                }
+                t = checkClassType(expr, t, true);
             }
         } else if (t.hasTag(ARRAY)) {
             if (!types.isReifiable(((ArrayType)t).elemtype)) {
-                log.error(pos, Errors.GenericArrayCreation);
+                log.error(expr, Errors.GenericArrayCreation);
                 t = types.createErrorType(t);
             }
         }
@@ -898,9 +913,7 @@ public class Check {
     }
 
     void checkParameterizationWithValues(DiagnosticPosition pos, Type t) {
-        if (t.tsym != syms.classType.tsym) { // tolerate Value.class.
-            valueParameterizationChecker.visit(t, pos);
-        }
+        valueParameterizationChecker.visit(t, pos);
     }
 
     /** valueParameterizationChecker: A type visitor that descends down the given type looking for instances of value types
@@ -1374,38 +1387,35 @@ public class Check {
             break;
         case TYP:
             if (sym.isLocal()) {
-                mask = (flags & RECORD) != 0 ? LocalRecordFlags : LocalClassFlags;
-                if ((flags & RECORD) != 0) {
-                    implicit = STATIC;
+                boolean implicitlyStatic = !sym.isAnonymous() &&
+                        ((flags & RECORD) != 0 || (flags & ENUM) != 0 || (flags & INTERFACE) != 0);
+                boolean staticOrImplicitlyStatic = (flags & STATIC) != 0 || implicitlyStatic;
+                mask = staticOrImplicitlyStatic && allowRecords && (flags & ANNOTATION) == 0 ? StaticLocalFlags : LocalClassFlags;
+                implicit = implicitlyStatic ? STATIC : implicit;
+                if (staticOrImplicitlyStatic) {
                     if (sym.owner.kind == TYP) {
-                        log.error(pos, Errors.RecordDeclarationNotAllowedInInnerClasses);
+                        log.error(pos, Errors.StaticDeclarationNotAllowedInInnerClasses);
                     }
                 }
-                if ((sym.owner.flags_field & STATIC) == 0 &&
-                    (flags & ENUM) != 0) {
-                    log.error(pos, Errors.EnumsMustBeStatic);
-                }
             } else if (sym.owner.kind == TYP) {
-                mask = (flags & RECORD) != 0 ? MemberRecordFlags : MemberClassFlags;
+                mask = (flags & RECORD) != 0 ? MemberRecordFlags : ExtendedMemberClassFlags;
                 if (sym.owner.owner.kind == PCK ||
                     (sym.owner.flags_field & STATIC) != 0)
                     mask |= STATIC;
-                else if ((flags & ENUM) != 0) {
-                    log.error(pos, Errors.EnumsMustBeStatic);
-                } else if ((flags & RECORD) != 0) {
-                    log.error(pos, Errors.RecordDeclarationNotAllowedInInnerClasses);
+                else if ((flags & ENUM) != 0 || (flags & RECORD) != 0) {
+                    log.error(pos, Errors.StaticDeclarationNotAllowedInInnerClasses);
                 }
                 // Nested interfaces and enums are always STATIC (Spec ???)
                 if ((flags & (INTERFACE | ENUM | RECORD)) != 0 ) implicit = STATIC;
             } else {
-                mask = ClassFlags;
+                mask = ExtendedClassFlags;
             }
             // Interfaces are always ABSTRACT
             if ((flags & INTERFACE) != 0) implicit |= ABSTRACT;
 
             if ((flags & ENUM) != 0) {
-                // enums can't be declared abstract or final or value type
-                mask &= ~(ABSTRACT | FINAL | VALUE);
+                // enums can't be declared abstract, final, sealed or non-sealed or value type
+                mask &= ~(ABSTRACT | FINAL | SEALED | NON_SEALED | VALUE);
                 implicit |= implicitEnumFinalFlag(tree);
             }
             if ((flags & RECORD) != 0) {
@@ -1427,7 +1437,7 @@ public class Check {
             }
             else {
                 log.error(pos,
-                          Errors.ModNotAllowedHere(asFlagSet(illegal)));
+                        Errors.ModNotAllowedHere(asFlagSet(illegal)));
             }
         }
         else if ((sym.kind == TYP ||
@@ -1453,14 +1463,20 @@ public class Check {
                                PRIVATE,
                                PUBLIC | PROTECTED)
                  &&
-                 checkDisjoint(pos, flags,
+                 checkDisjoint(pos, (flags | implicit), // complain against volatile & implcitly final entities too.
                                FINAL,
                                VOLATILE)
                  &&
                  (sym.kind == TYP ||
                   checkDisjoint(pos, flags,
                                 ABSTRACT | NATIVE,
-                                STRICTFP))) {
+                                STRICTFP))
+                 && checkDisjoint(pos, flags,
+                                FINAL,
+                           SEALED | NON_SEALED)
+                 && checkDisjoint(pos, flags,
+                                SEALED,
+                           FINAL | NON_SEALED)) {
             // skip
         }
         return flags & (mask | ~ExtendedStandardFlags) | implicit;
@@ -1500,7 +1516,7 @@ public class Check {
         JCClassDecl cdef = (JCClassDecl) tree;
         for (JCTree defs: cdef.defs) {
             defs.accept(sts);
-            if (sts.specialized) return 0;
+            if (sts.specialized) return allowSealed ? SEALED : 0;
         }
         return FINAL;
     }
@@ -1621,10 +1637,13 @@ public class Check {
 
         public void visitSelectInternal(JCFieldAccess tree) {
             if (tree.type.tsym.isStatic() &&
-                tree.selected.type.isParameterized()) {
+                tree.selected.type.isParameterized() &&
+                    (tree.name != names.ref || !tree.type.isReferenceProjection())) {
                 // The enclosing type is not a class, so we are
                 // looking at a static member type.  However, the
                 // qualifying expression is parameterized.
+                // Tolerate the pseudo-select V.ref: V<T>.ref will be static if V<T> is and
+                // should not be confused as selecting a static member of a parameterized type.
                 log.error(tree.pos(), Errors.CantSelectStaticClassFromParamType);
             } else {
                 // otherwise validate the rest of the expression
@@ -2242,11 +2261,21 @@ public class Check {
      */
     void checkOverride(Env<AttrContext> env, JCMethodDecl tree, MethodSymbol m) {
         ClassSymbol origin = (ClassSymbol)m.owner;
-        if ((origin.flags() & ENUM) != 0 && names.finalize.equals(m.name))
+        if ((origin.flags() & ENUM) != 0 && names.finalize.equals(m.name)) {
             if (m.overrides(syms.enumFinalFinalize, origin, types, false)) {
                 log.error(tree.pos(), Errors.EnumNoFinalize);
                 return;
             }
+        }
+        if (allowRecords && origin.isRecord()) {
+            // let's find out if this is a user defined accessor in which case the @Override annotation is acceptable
+            Optional<? extends RecordComponent> recordComponent = origin.getRecordComponents().stream()
+                    .filter(rc -> rc.accessor == tree.sym && (rc.accessor.flags_field & GENERATED_MEMBER) == 0).findFirst();
+            if (recordComponent.isPresent()) {
+                return;
+            }
+        }
+
         for (Type t = origin.type; t.hasTag(CLASS);
              t = types.supertype(t)) {
             if (t != origin.type) {
@@ -2318,8 +2347,10 @@ public class Check {
                     .tsym.members().findFirst(names.equals);
             MethodSymbol hashCodeAtObject = (MethodSymbol)syms.objectType
                     .tsym.members().findFirst(names.hashCode);
-            boolean overridesEquals = types.implementation(equalsAtObject,
-                someClass, false, equalsHasCodeFilter).owner == someClass;
+            MethodSymbol equalsImpl = types.implementation(equalsAtObject,
+                    someClass, false, equalsHasCodeFilter);
+            boolean overridesEquals = equalsImpl != null &&
+                                      equalsImpl.owner == someClass;
             boolean overridesHashCode = types.implementation(hashCodeAtObject,
                 someClass, false, equalsHasCodeFilter) != hashCodeAtObject;
 
@@ -2675,18 +2706,8 @@ public class Check {
         }
         checkCompatibleConcretes(pos, c);
 
-        /* Check for inline/identity incompatibilities: But first, we may need to switch to the
-           reference universe to make the hierarchy navigable.
-        */
-        Type asRefType = c.isValue() ? c.referenceProjection() : c;
-        boolean isIdentityObject = types.asSuper(asRefType, syms.identityObjectType.tsym) != null;
-        boolean isInlineObject = types.asSuper(asRefType, syms.inlineObjectType.tsym) != null;
-        if (c.isValue() && isIdentityObject) {
+        if (c.isValue() && types.asSuper(c, syms.identityObjectType.tsym, true) != null) {
             log.error(pos, Errors.InlineTypeMustNotImplementIdentityObject(c));
-        } else if (!c.isInterface() && !c.tsym.isAbstract() && !c.isValue() && isInlineObject) {
-            log.error(pos, Errors.IdentityTypeMustNotImplementInlineObject(c));
-        } else if (isIdentityObject && isInlineObject) {
-            log.error(pos, Errors.MutuallyIncompatibleInterfaces(c));
         }
     }
 
@@ -2903,7 +2924,7 @@ public class Check {
                             types.findDescriptorType(t).getParameterTypes().length()) {
                         potentiallyAmbiguous = true;
                     } else {
-                        break;
+                        return;
                     }
                 }
                 args1 = args1.tail;
@@ -3112,10 +3133,9 @@ public class Check {
      */
     private void validateAnnotation(JCAnnotation a, JCTree declarationTree, Symbol s) {
         validateAnnotationTree(a);
-        boolean isRecordMember = (s.flags_field & RECORD) != 0 || s.enclClass() != null && s.enclClass().isRecord();
+        boolean isRecordMember = ((s.flags_field & RECORD) != 0 || s.enclClass() != null && s.enclClass().isRecord());
 
-        boolean isRecordField = isRecordMember &&
-                (s.flags_field & (Flags.PRIVATE | Flags.FINAL | Flags.GENERATED_MEMBER | Flags.RECORD)) != 0 &&
+        boolean isRecordField = (s.flags_field & RECORD) != 0 &&
                 declarationTree.hasTag(VARDEF) &&
                 s.owner.kind == TYP;
 
@@ -3599,6 +3619,9 @@ public class Check {
             } else if (target == names.TYPE_PARAMETER) {
                 if (s.kind == TYP && s.type.hasTag(TYPEVAR))
                     applicableTargets.add(names.TYPE_PARAMETER);
+            } else if (target == names.MODULE) {
+                if (s.kind == MDL)
+                    applicableTargets.add(names.MODULE);
             } else
                 return Optional.empty(); // Unknown ElementType. This should be an error at declaration site,
                                          // assume applicable.
@@ -3727,7 +3750,8 @@ public class Check {
     void checkDeprecated(Supplier<DiagnosticPosition> pos, final Symbol other, final Symbol s) {
         if ( (s.isDeprecatedForRemoval()
                 || s.isDeprecated() && !other.isDeprecated())
-                && (s.outermostClass() != other.outermostClass() || s.outermostClass() == null)) {
+                && (s.outermostClass() != other.outermostClass() || s.outermostClass() == null)
+                && s.kind != Kind.PCK) {
             deferredLintHandler.report(() -> warnDeprecated(pos.get(), s));
         }
     }
@@ -4038,6 +4062,59 @@ public class Check {
             log.warning(pos,
                         Warnings.AuxiliaryClassAccessedFromOutsideOfItsSourceFile(c, c.sourcefile));
         }
+    }
+
+    /**
+     * Check for a default constructor in an exported package.
+     */
+    void checkDefaultConstructor(ClassSymbol c, DiagnosticPosition pos) {
+        if (lint.isEnabled(LintCategory.MISSING_EXPLICIT_CTOR) &&
+            ((c.flags() & (ENUM | RECORD)) == 0) &&
+            !c.isAnonymous() &&
+            ((c.flags() & (PUBLIC | PROTECTED)) != 0) &&
+            Feature.MODULES.allowedInSource(source)) {
+            NestingKind nestingKind = c.getNestingKind();
+            switch (nestingKind) {
+                case ANONYMOUS,
+                     LOCAL -> {return;}
+                case TOP_LEVEL -> {;} // No additional checks needed
+                case MEMBER -> {
+                    // For nested member classes, all the enclosing
+                    // classes must be public or protected.
+                    Symbol owner = c.owner;
+                    while (owner != null && owner.kind == TYP) {
+                        if ((owner.flags() & (PUBLIC | PROTECTED)) == 0)
+                            return;
+                        owner = owner.owner;
+                    }
+                }
+            }
+
+            // Only check classes in named packages exported by its module
+            PackageSymbol pkg = c.packge();
+            if (!pkg.isUnnamed()) {
+                ModuleSymbol modle = pkg.modle;
+                for (ExportsDirective exportDir : modle.exports) {
+                    // Report warning only if the containing
+                    // package is unconditionally exported
+                    if (exportDir.packge.equals(pkg)) {
+                        if (exportDir.modules == null || exportDir.modules.isEmpty()) {
+                            // Warning may be suppressed by
+                            // annotations; check again for being
+                            // enabled in the deferred context.
+                            deferredLintHandler.report(() -> {
+                                if (lint.isEnabled(LintCategory.MISSING_EXPLICIT_CTOR))
+                                   log.warning(LintCategory.MISSING_EXPLICIT_CTOR,
+                                               pos, Warnings.MissingExplicitCtor(c, pkg, modle));
+                                                       });
+                        } else {
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        return;
     }
 
     private class ConversionWarner extends Warner {

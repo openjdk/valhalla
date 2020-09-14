@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2019, 2020, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 
 #include "memory/iterator.hpp"
 #include "oops/accessDecorators.hpp"
+#include "runtime/handshake.hpp"
 
 class ShenandoahHeap;
 class ShenandoahMarkingContext;
@@ -93,6 +94,18 @@ public:
   inline void do_oop(narrowOop* p);
 };
 
+template <bool CONCURRENT, typename IsAlive, typename KeepAlive>
+class ShenandoahCleanUpdateWeakOopsClosure : public OopClosure {
+private:
+  IsAlive*    _is_alive;
+  KeepAlive*  _keep_alive;
+
+public:
+  inline ShenandoahCleanUpdateWeakOopsClosure(IsAlive* is_alive, KeepAlive* keep_alive);
+  inline void do_oop(oop* p);
+  inline void do_oop(narrowOop* p);
+};
+
 class ShenandoahCodeBlobAndDisarmClosure: public CodeBlobToOopClosure {
 private:
   BarrierSetNMethod* const _bs;
@@ -100,6 +113,12 @@ private:
 public:
   inline ShenandoahCodeBlobAndDisarmClosure(OopClosure* cl);
   inline void do_code_blob(CodeBlob* cb);
+};
+
+class ShenandoahRendezvousClosure : public HandshakeClosure {
+public:
+  inline ShenandoahRendezvousClosure();
+  inline void do_thread(Thread* thread);
 };
 
 #ifdef ASSERT

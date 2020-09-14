@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -79,7 +79,10 @@ public enum Target {
     JDK1_14("14", 58, 0),
 
     /** JDK 15. */
-    JDK1_15("15", 59, 0);
+    JDK1_15("15", 59, 0),
+
+    /** JDK 16. */
+    JDK1_16("16", 60, 0);
 
     private static final Context.Key<Target> targetKey = new Context.Key<>();
 
@@ -169,16 +172,23 @@ public enum Target {
         return compareTo(JDK1_11) >= 0;
     }
 
+    /** language runtime uses nest-based access.
+     *  e.g. lambda and string concat spin dynamic proxy class as a nestmate
+     *  of the target class
+     */
+    public boolean runtimeUseNestAccess() {
+        return compareTo(JDK1_15) >= 0;
+    }
+
     /** Does the target VM support virtual private invocations?
      */
     public boolean hasVirtualPrivateInvoke() {
         return compareTo(JDK1_11) >= 0;
     }
 
-    /** Does the target VM support new top interfaces?
+    /** Does the target VM support sealed types
      */
-    public boolean hasTopInterfaces() {
-        return compareTo(JDK1_14) >= 0;
+    public boolean hasSealedClasses() {
+        return compareTo(JDK1_15) >= 0;
     }
-
 }

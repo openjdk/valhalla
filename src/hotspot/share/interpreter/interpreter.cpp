@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@
 #include "asm/macroAssembler.inline.hpp"
 #include "compiler/disassembler.hpp"
 #include "interpreter/bytecodeHistogram.hpp"
-#include "interpreter/bytecodeInterpreter.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interpreterRuntime.hpp"
 #include "interpreter/interp_masm.hpp"
@@ -113,9 +112,22 @@ CodeletMark::~CodeletMark() {
   *_masm = NULL;
 }
 
+// The reason that interpreter initialization is split into two parts is that the first part
+// needs to run before methods are loaded (which with CDS implies linked also), and the other
+// part needs to run after. The reason is that when methods are loaded (with CDS) or linked
+// (without CDS), the i2c adapters are generated that assert we are currently in the interpreter.
+// Asserting that requires knowledge about where the interpreter is in memory. Therefore,
+// establishing the interpreter address must be done before methods are loaded. However,
+// we would like to actually generate the interpreter after methods are loaded. That allows
+// us to remove otherwise hardcoded offsets regarding fields that are needed in the interpreter
+// code. This leads to a split if 1. reserving the memory for the interpreter, 2. loading methods
+// and 3. generating the interpreter.
+void interpreter_init_stub() {
+  Interpreter::initialize_stub();
+}
 
-void interpreter_init() {
-  Interpreter::initialize();
+void interpreter_init_code() {
+  Interpreter::initialize_code();
 #ifndef PRODUCT
   if (TraceBytecodes) BytecodeTracer::set_closure(BytecodeTracer::std_closure());
 #endif // PRODUCT

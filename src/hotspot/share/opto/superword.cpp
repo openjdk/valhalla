@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,8 +94,11 @@ SuperWord::SuperWord(PhaseIdealLoop* phase) :
 //------------------------------transform_loop---------------------------
 void SuperWord::transform_loop(IdealLoopTree* lpt, bool do_optimization) {
   assert(UseSuperWord, "should be");
-  // Do vectors exist on this architecture?
-  if (Matcher::vector_width_in_bytes(T_BYTE) < 2) return;
+  // SuperWord only works with power of two vector sizes.
+  int vector_width = Matcher::vector_width_in_bytes(T_BYTE);
+  if (vector_width < 2 || !is_power_of_2(vector_width)) {
+    return;
+  }
 
   assert(lpt->_head->is_CountedLoop(), "must be");
   CountedLoopNode *cl = lpt->_head->as_CountedLoop();
@@ -499,6 +502,10 @@ void SuperWord::SLP_extract() {
 
     find_adjacent_refs();
 
+    if (align_to_ref() == NULL) {
+      return; // Did not find memory reference to align vectors
+    }
+
     extend_packlist();
 
     if (_do_vector_loop) {
@@ -575,6 +582,9 @@ void SuperWord::find_adjacent_refs() {
       }
     }
   }
+  if (TraceSuperWord) {
+    tty->print_cr("\nfind_adjacent_refs found %d memops", memops.size());
+  }
 
   Node_List align_to_refs;
   int max_idx;
@@ -615,7 +625,7 @@ void SuperWord::find_adjacent_refs() {
     // alignment is set and vectors will be aligned.
     bool create_pack = true;
     if (memory_alignment(mem_ref, best_iv_adjustment) == 0 || _do_vector_loop) {
-      if (!Matcher::misaligned_vectors_ok() || AlignVector) {
+      if (vectors_should_be_aligned()) {
         int vw = vector_width(mem_ref);
         int vw_best = vector_width(best_align_to_mem_ref);
         if (vw > vw_best) {
@@ -640,7 +650,7 @@ void SuperWord::find_adjacent_refs() {
       } else {
         // Allow independent (different type) unaligned memory operations
         // if HW supports them.
-        if (!Matcher::misaligned_vectors_ok() || AlignVector) {
+        if (vectors_should_be_aligned()) {
           create_pack = false;
         } else {
           // Check if packs of the same memory type but
@@ -776,8 +786,9 @@ MemNode* SuperWord::find_align_to_ref(Node_List &memops, int &idx) {
   for (uint i = 0; i < memops.size(); i++) {
     MemNode* s1 = memops.at(i)->as_Mem();
     SWPointer p1(s1, this, NULL, false);
-    // Discard if pre loop can't align this reference
-    if (!ref_is_alignable(p1)) {
+    // Only discard unalignable memory references if vector memory references
+    // should be aligned on this platform.
+    if (vectors_should_be_aligned() && !ref_is_alignable(p1)) {
       *cmp_ct.adr_at(i) = 0;
       continue;
     }
@@ -998,7 +1009,9 @@ int SuperWord::get_iv_adjustment(MemNode* mem_ref) {
     // several iterations are needed to align memory operations in main-loop even
     // if offset is 0.
     int iv_adjustment_in_bytes = (stride_sign * vw - (offset % vw));
-    assert(((ABS(iv_adjustment_in_bytes) % elt_size) == 0),
+    // iv_adjustment_in_bytes must be a multiple of elt_size if vector memory
+    // references should be aligned on this platform.
+    assert((ABS(iv_adjustment_in_bytes) % elt_size) == 0 || !vectors_should_be_aligned(),
            "(%d) should be divisible by (%d)", iv_adjustment_in_bytes, elt_size);
     iv_adjustment = iv_adjustment_in_bytes/elt_size;
   } else {
@@ -2461,6 +2474,16 @@ void SuperWord::output() {
         const TypePtr* atyp = n->adr_type();
         vn = StoreVectorNode::make(opc, ctl, mem, adr, atyp, val, vlen);
         vlen_in_bytes = vn->as_StoreVector()->memory_size();
+      } else if (VectorNode::is_scalar_rotate(n)) {
+        Node* in1 = low_adr->in(1);
+        Node* in2 = p->at(0)->in(2);
+        assert(in2->bottom_type()->isa_int(), "Shift must always be an int value");
+        // If rotation count is non-constant or greater than 8bit value create a vector.
+        if (!in2->is_Con() || -0x80 > in2->get_int() || in2->get_int() >= 0x80) {
+          in2 =  vector_opd(p, 2);
+        }
+        vn = VectorNode::make(opc, in1, in2, vlen, velt_basic_type(n));
+        vlen_in_bytes = vn->as_Vector()->length_in_bytes();
       } else if (VectorNode::is_roundopD(n)) {
         Node* in1 = vector_opd(p, 1);
         Node* in2 = low_adr->in(2);
@@ -2624,8 +2647,10 @@ void SuperWord::output() {
         }
       }
 
-      if (vlen_in_bytes >= max_vlen_in_bytes && vlen > max_vlen) {
+      if (vlen > max_vlen) {
         max_vlen = vlen;
+      }
+      if (vlen_in_bytes > max_vlen_in_bytes) {
         max_vlen_in_bytes = vlen_in_bytes;
       }
 #ifdef ASSERT
@@ -2755,8 +2780,22 @@ Node* SuperWord::vector_opd(Node_List* p, int opd_idx) {
     // Convert scalar input to vector with the same number of elements as
     // p0's vector. Use p0's type because size of operand's container in
     // vector should match p0's size regardless operand's size.
-    const Type* p0_t = velt_type(p0);
-    VectorNode* vn = VectorNode::scalar2vector(opd, vlen, p0_t);
+    const Type* p0_t = NULL;
+    VectorNode* vn = NULL;
+    if (opd_idx == 2 && VectorNode::is_scalar_rotate(p0)) {
+       Node* conv = opd;
+       p0_t =  TypeInt::INT;
+       if (p0->bottom_type()->isa_long()) {
+         p0_t = TypeLong::LONG;
+         conv = new ConvI2LNode(opd);
+         _igvn.register_new_node_with_optimizer(conv);
+         _phase->set_ctrl(conv, _phase->get_ctrl(opd));
+       }
+       vn = VectorNode::scalar2vector(conv, vlen, p0_t);
+    } else {
+       p0_t =  velt_type(p0);
+       vn = VectorNode::scalar2vector(opd, vlen, p0_t);
+    }
 
     _igvn.register_new_node_with_optimizer(vn);
     _phase->set_ctrl(vn, _phase->get_ctrl(opd));
@@ -3200,15 +3239,15 @@ void SuperWord::compute_vector_element_type() {
 //------------------------------memory_alignment---------------------------
 // Alignment within a vector memory reference
 int SuperWord::memory_alignment(MemNode* s, int iv_adjust) {
-  #ifndef PRODUCT
-    if(TraceSuperWord && Verbose) {
-      tty->print("SuperWord::memory_alignment within a vector memory reference for %d:  ", s->_idx); s->dump();
-    }
-  #endif
+#ifndef PRODUCT
+  if ((TraceSuperWord && Verbose) || is_trace_alignment()) {
+    tty->print("SuperWord::memory_alignment within a vector memory reference for %d:  ", s->_idx); s->dump();
+  }
+#endif
   NOT_PRODUCT(SWPointer::Tracer::Depth ddd(0);)
   SWPointer p(s, this, NULL, false);
   if (!p.valid()) {
-    NOT_PRODUCT(if(is_trace_alignment()) tty->print("SWPointer::memory_alignment: SWPointer p invalid, return bottom_align");)
+    NOT_PRODUCT(if(is_trace_alignment()) tty->print_cr("SWPointer::memory_alignment: SWPointer p invalid, return bottom_align");)
     return bottom_align;
   }
   int vw = get_vw_bytes_special(s);
@@ -3220,9 +3259,11 @@ int SuperWord::memory_alignment(MemNode* s, int iv_adjust) {
   offset     += iv_adjust*p.memory_size();
   int off_rem = offset % vw;
   int off_mod = off_rem >= 0 ? off_rem : off_rem + vw;
-  if (TraceSuperWord && Verbose) {
+#ifndef PRODUCT
+  if ((TraceSuperWord && Verbose) || is_trace_alignment()) {
     tty->print_cr("SWPointer::memory_alignment: off_rem = %d, off_mod = %d", off_rem, off_mod);
   }
+#endif
   return off_mod;
 }
 
@@ -3737,6 +3778,7 @@ bool SWPointer::invariant(Node* n) {
   NOT_PRODUCT(_tracer.invariant_1(n, n_c);)
   return !lpt()->is_member(phase()->get_loop(n_c));
 }
+
 //------------------------scaled_iv_plus_offset--------------------
 // Match: k*iv + offset
 // where: k is a constant that maybe zero, and
@@ -3757,20 +3799,20 @@ bool SWPointer::scaled_iv_plus_offset(Node* n) {
 
   int opc = n->Opcode();
   if (opc == Op_AddI) {
-    if (scaled_iv(n->in(1)) && offset_plus_k(n->in(2))) {
+    if (offset_plus_k(n->in(2)) && scaled_iv_plus_offset(n->in(1))) {
       NOT_PRODUCT(_tracer.scaled_iv_plus_offset_4(n);)
       return true;
     }
-    if (scaled_iv(n->in(2)) && offset_plus_k(n->in(1))) {
+    if (offset_plus_k(n->in(1)) && scaled_iv_plus_offset(n->in(2))) {
       NOT_PRODUCT(_tracer.scaled_iv_plus_offset_5(n);)
       return true;
     }
   } else if (opc == Op_SubI) {
-    if (scaled_iv(n->in(1)) && offset_plus_k(n->in(2), true)) {
+    if (offset_plus_k(n->in(2), true) && scaled_iv_plus_offset(n->in(1))) {
       NOT_PRODUCT(_tracer.scaled_iv_plus_offset_6(n);)
       return true;
     }
-    if (scaled_iv(n->in(2)) && offset_plus_k(n->in(1))) {
+    if (offset_plus_k(n->in(1)) && scaled_iv_plus_offset(n->in(2))) {
       _scale *= -1;
       NOT_PRODUCT(_tracer.scaled_iv_plus_offset_7(n);)
       return true;
@@ -3842,6 +3884,7 @@ bool SWPointer::scaled_iv(Node* n) {
           int mult = 1 << n->in(2)->get_int();
           _scale   = tmp._scale  * mult;
           _offset += tmp._offset * mult;
+          _invar = tmp._invar;
           NOT_PRODUCT(_tracer.scaled_iv_9(n, _scale, _offset, mult);)
           return true;
         }

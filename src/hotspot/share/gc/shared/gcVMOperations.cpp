@@ -36,6 +36,7 @@
 #include "memory/universe.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
+#include "runtime/java.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/preserveException.hpp"
@@ -55,12 +56,10 @@ VM_GC_Operation::~VM_GC_Operation() {
 void VM_GC_Operation::notify_gc_begin(bool full) {
   HOTSPOT_GC_BEGIN(
                    full);
-  HS_DTRACE_WORKAROUND_TAIL_CALL_BUG();
 }
 
 void VM_GC_Operation::notify_gc_end() {
   HOTSPOT_GC_END();
-  HS_DTRACE_WORKAROUND_TAIL_CALL_BUG();
 }
 
 // Allocations may fail in several threads at about the same time,
@@ -132,7 +131,6 @@ bool VM_GC_HeapInspection::collect() {
 }
 
 void VM_GC_HeapInspection::doit() {
-  HandleMark hm;
   Universe::heap()->ensure_parsability(false); // must happen, even if collection does
                                                // not happen (e.g. due to GCLocker)
                                                // or _full_gc being false
@@ -152,7 +150,7 @@ void VM_GC_HeapInspection::doit() {
     }
   }
   HeapInspection inspect;
-  inspect.heap_inspection(_out);
+  inspect.heap_inspection(_out, _parallel_thread_num);
 }
 
 
@@ -200,7 +198,7 @@ bool VM_CollectForMetadataAllocation::initiate_concurrent_GC() {
 
     // At this point we are supposed to start a concurrent cycle. We
     // will do so if one is not already in progress.
-    bool should_start = g1h->policy()->force_initial_mark_if_outside_cycle(_gc_cause);
+    bool should_start = g1h->policy()->force_concurrent_start_if_outside_cycle(_gc_cause);
 
     if (should_start) {
       double pause_target = g1h->policy()->max_pause_time_ms();

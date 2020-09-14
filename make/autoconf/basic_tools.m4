@@ -72,7 +72,6 @@ AC_DEFUN_ONCE([BASIC_SETUP_FUNDAMENTAL_TOOLS],
   UTIL_REQUIRE_PROGS(UNAME, uname)
   UTIL_REQUIRE_PROGS(UNIQ, uniq)
   UTIL_REQUIRE_PROGS(WC, wc)
-  UTIL_REQUIRE_PROGS(WHICH, which)
   UTIL_REQUIRE_PROGS(XARGS, xargs)
 
   # Then required tools that require some special treatment.
@@ -97,7 +96,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_FUNDAMENTAL_TOOLS],
   UTIL_PATH_PROGS(NICE, nice)
 
   UTIL_PATH_PROGS(LSB_RELEASE, lsb_release)
-  UTIL_PATH_PROGS(CMD, [cmd.exe /mnt/c/Windows/System32/cmd.exe])
+  UTIL_PATH_PROGS(CMD, cmd.exe, $PATH /cygdrive/c/Windows/System32 /mnt/c/Windows/System32)
 ])
 
 ###############################################################################
@@ -270,23 +269,15 @@ AC_DEFUN([BASIC_CHECK_TAR],
     TAR_TYPE="bsd"
   elif test "x$($TAR -v | $GREP "bsdtar")" != "x"; then
     TAR_TYPE="bsd"
-  elif test "x$OPENJDK_BUILD_OS" = "xsolaris"; then
-    TAR_TYPE="solaris"
   elif test "x$OPENJDK_BUILD_OS" = "xaix"; then
     TAR_TYPE="aix"
   fi
   AC_MSG_CHECKING([what type of tar was found])
   AC_MSG_RESULT([$TAR_TYPE])
 
-  TAR_CREATE_FILE_PARAM=""
-
   if test "x$TAR_TYPE" = "xgnu"; then
     TAR_INCLUDE_PARAM="T"
     TAR_SUPPORTS_TRANSFORM="true"
-    if test "x$OPENJDK_TARGET_OS" = "xsolaris"; then
-      # When using gnu tar for Solaris targets, need to use compatibility mode
-      TAR_CREATE_EXTRA_PARAM="--format=ustar"
-    fi
   elif test "x$TAR_TYPE" = "aix"; then
     # -L InputList of aix tar: name of file listing the files and directories
     # that need to be   archived or extracted
@@ -297,7 +288,6 @@ AC_DEFUN([BASIC_CHECK_TAR],
     TAR_SUPPORTS_TRANSFORM="false"
   fi
   AC_SUBST(TAR_TYPE)
-  AC_SUBST(TAR_CREATE_EXTRA_PARAM)
   AC_SUBST(TAR_INCLUDE_PARAM)
   AC_SUBST(TAR_SUPPORTS_TRANSFORM)
 ])
@@ -359,7 +349,7 @@ AC_DEFUN_ONCE([BASIC_SETUP_COMPLEX_TOOLS],
   UTIL_PATH_PROGS(STAT, stat)
   UTIL_PATH_PROGS(TIME, time)
   UTIL_PATH_PROGS(FLOCK, flock)
-  # Dtrace is usually found in /usr/sbin on Solaris, but that directory may not
+  # Dtrace is usually found in /usr/sbin, but that directory may not
   # be in the user path.
   UTIL_PATH_PROGS(DTRACE, dtrace, $PATH:/usr/sbin)
   UTIL_PATH_PROGS(PATCH, [gpatch patch])
@@ -415,8 +405,6 @@ AC_DEFUN_ONCE([BASIC_SETUP_COMPLEX_TOOLS],
       fi
     fi
     UTIL_REQUIRE_PROGS(SETFILE, SetFile)
-  elif test "x$OPENJDK_TARGET_OS" = "xsolaris"; then
-    UTIL_REQUIRE_PROGS(ELFEDIT, elfedit)
   fi
   if ! test "x$OPENJDK_TARGET_OS" = "xwindows"; then
     UTIL_REQUIRE_BUILTIN_PROGS(ULIMIT, ulimit)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #define SHARE_MEMORY_HEAPSHARED_HPP
 
 #include "classfile/compactHashtable.hpp"
+#include "classfile/javaClasses.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "memory/allocation.hpp"
 #include "memory/metaspaceShared.hpp"
@@ -38,6 +39,8 @@
 #include "utilities/resourceHash.hpp"
 
 #if INCLUDE_CDS_JAVA_HEAP
+class DumpedInternedStrings;
+
 struct ArchivableStaticFieldInfo {
   const char* klass_name;
   const char* field_name;
@@ -123,12 +126,18 @@ class HeapShared: AllStatic {
   static bool _closed_archive_heap_region_mapped;
   static bool _open_archive_heap_region_mapped;
   static bool _archive_heap_region_fixed;
+  static DumpedInternedStrings *_dumped_interned_strings;
 
+public:
   static bool oop_equals(oop const& p1, oop const& p2) {
     return p1 == p2;
   }
   static unsigned oop_hash(oop const& p);
+  static unsigned string_oop_hash(oop const& string) {
+    return java_lang_String::hash_code(string);
+  }
 
+private:
   typedef ResourceHashtable<oop, oop,
       HeapShared::oop_hash,
       HeapShared::oop_equals,
@@ -141,7 +150,8 @@ class HeapShared: AllStatic {
   }
 
   static unsigned klass_hash(Klass* const& klass) {
-    return primitive_hash<address>((address)klass);
+    // Generate deterministic hashcode even if SharedBaseAddress is changed due to ASLR.
+    return primitive_hash<address>(address(klass) - SharedBaseAddress);
   }
 
   class DumpTimeKlassSubGraphInfoTable
@@ -273,9 +283,12 @@ private:
                                             TRAPS);
 
   static ResourceBitMap calculate_oopmap(MemRegion region);
+  static void add_to_dumped_interned_strings(oop string);
 #endif // INCLUDE_CDS_JAVA_HEAP
 
  public:
+  static void run_full_gc_in_vm_thread() NOT_CDS_JAVA_HEAP_RETURN;
+
   static bool is_heap_object_archiving_allowed() {
     CDS_JAVA_HEAP_ONLY(return (UseG1GC && UseCompressedOops && UseCompressedClassPointers);)
     NOT_CDS_JAVA_HEAP(return false;)
@@ -321,8 +334,20 @@ private:
   static void patch_archived_heap_embedded_pointers(MemRegion mem, address  oopmap,
                                                     size_t oopmap_in_bits) NOT_CDS_JAVA_HEAP_RETURN;
 
+  static void init_for_dumping(Thread* THREAD) NOT_CDS_JAVA_HEAP_RETURN;
   static void init_subgraph_entry_fields(Thread* THREAD) NOT_CDS_JAVA_HEAP_RETURN;
   static void write_subgraph_info_table() NOT_CDS_JAVA_HEAP_RETURN;
   static void serialize_subgraph_info_table_header(SerializeClosure* soc) NOT_CDS_JAVA_HEAP_RETURN;
 };
+
+#if INCLUDE_CDS_JAVA_HEAP
+class DumpedInternedStrings :
+  public ResourceHashtable<oop, bool,
+                           HeapShared::string_oop_hash,
+                           HeapShared::oop_equals,
+                           15889, // prime number
+                           ResourceObj::C_HEAP>
+{};
+#endif
+
 #endif // SHARE_MEMORY_HEAPSHARED_HPP

@@ -30,6 +30,7 @@
 #include "classfile/classLoader.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "code/codeCache.hpp"
 #include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
 #include "compiler/compileBroker.hpp"
@@ -46,7 +47,6 @@
 #include "prims/jvm_misc.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/extendedPC.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
@@ -71,17 +71,14 @@
 #include "utilities/decoder.hpp"
 #include "utilities/defaultStream.hpp"
 #include "utilities/events.hpp"
-#include "utilities/growableArray.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/vmError.hpp"
 #include "symbolengine.hpp"
 #include "windbghelp.hpp"
 
-
 #ifdef _DEBUG
 #include <crtdbg.h>
 #endif
-
 
 #include <windows.h>
 #include <sys/types.h>
@@ -1607,14 +1604,12 @@ void os::print_os_info(outputStream* st) {
     st->print("N/A ");
   }
 #endif
-  st->print("OS:");
+  st->print_cr("OS:");
   os::win32::print_windows_version(st);
 
   os::win32::print_uptime_info(st);
 
-#ifdef _LP64
   VM_Version::print_platform_virtualization_info(st);
-#endif
 }
 
 void os::win32::print_windows_version(outputStream* st) {
@@ -2383,7 +2378,8 @@ LONG WINAPI topLevelVectoredExceptionFilter(struct _EXCEPTION_POINTERS* exceptio
 //-----------------------------------------------------------------------------
 LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
   if (InterceptOSException) return EXCEPTION_CONTINUE_SEARCH;
-  DWORD exception_code = exceptionInfo->ExceptionRecord->ExceptionCode;
+  PEXCEPTION_RECORD exception_record = exceptionInfo->ExceptionRecord;
+  DWORD exception_code = exception_record->ExceptionCode;
 #ifdef _M_AMD64
   address pc = (address) exceptionInfo->ContextRecord->Rip;
 #else
@@ -2402,9 +2398,8 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
   // This is safe to do because we have a new/unique ExceptionInformation
   // code for this condition.
   if (exception_code == EXCEPTION_ACCESS_VIOLATION) {
-    PEXCEPTION_RECORD exceptionRecord = exceptionInfo->ExceptionRecord;
-    int exception_subcode = (int) exceptionRecord->ExceptionInformation[0];
-    address addr = (address) exceptionRecord->ExceptionInformation[1];
+    int exception_subcode = (int) exception_record->ExceptionInformation[0];
+    address addr = (address) exception_record->ExceptionInformation[1];
 
     if (exception_subcode == EXCEPTION_INFO_EXEC_VIOLATION) {
       int page_size = os::vm_page_size();
@@ -2468,7 +2463,7 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
 
       // Last unguard failed or not unguarding
       tty->print_raw_cr("Execution protection violation");
-      report_error(t, exception_code, addr, exceptionInfo->ExceptionRecord,
+      report_error(t, exception_code, addr, exception_record,
                    exceptionInfo->ContextRecord);
       return EXCEPTION_CONTINUE_SEARCH;
     }
@@ -2484,14 +2479,14 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
   if (t != NULL && t->is_Java_thread()) {
     JavaThread* thread = (JavaThread*) t;
     bool in_java = thread->thread_state() == _thread_in_Java;
+    bool in_native = thread->thread_state() == _thread_in_native;
+    bool in_vm = thread->thread_state() == _thread_in_vm;
 
     // Handle potential stack overflows up front.
     if (exception_code == EXCEPTION_STACK_OVERFLOW) {
       if (thread->stack_guards_enabled()) {
         if (in_java) {
           frame fr;
-          PEXCEPTION_RECORD exceptionRecord = exceptionInfo->ExceptionRecord;
-          address addr = (address) exceptionRecord->ExceptionInformation[1];
           if (os::win32::get_frame_at_stack_banging_point(thread, exceptionInfo, pc, &fr)) {
             assert(fr.is_java_frame(), "Must be a Java frame");
             SharedRuntime::look_for_reserved_stack_annotated_method(thread, fr);
@@ -2500,7 +2495,7 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
         // Yellow zone violation.  The o/s has unprotected the first yellow
         // zone page for us.  Note:  must call disable_stack_yellow_zone to
         // update the enabled status, even if the zone contains only one page.
-        assert(thread->thread_state() != _thread_in_vm, "Undersized StackShadowPages");
+        assert(!in_vm, "Undersized StackShadowPages");
         thread->disable_stack_yellow_reserved_zone();
         // If not in java code, return and hope for the best.
         return in_java
@@ -2510,15 +2505,14 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
         // Fatal red zone violation.
         thread->disable_stack_red_zone();
         tty->print_raw_cr("An unrecoverable stack overflow has occurred.");
-        report_error(t, exception_code, pc, exceptionInfo->ExceptionRecord,
+        report_error(t, exception_code, pc, exception_record,
                       exceptionInfo->ContextRecord);
         return EXCEPTION_CONTINUE_SEARCH;
       }
     } else if (exception_code == EXCEPTION_ACCESS_VIOLATION) {
-      // Either stack overflow or null pointer exception.
       if (in_java) {
-        PEXCEPTION_RECORD exceptionRecord = exceptionInfo->ExceptionRecord;
-        address addr = (address) exceptionRecord->ExceptionInformation[1];
+        // Either stack overflow or null pointer exception.
+        address addr = (address) exception_record->ExceptionInformation[1];
         address stack_end = thread->stack_end();
         if (addr < stack_end && addr >= stack_end - os::vm_page_size()) {
           // Stack overflow.
@@ -2537,47 +2531,38 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
             return Handle_Exception(exceptionInfo, stub);
           }
         }
-        {
 #ifdef _WIN64
-          // If it's a legal stack address map the entire region in
-          //
-          PEXCEPTION_RECORD exceptionRecord = exceptionInfo->ExceptionRecord;
-          address addr = (address) exceptionRecord->ExceptionInformation[1];
-          if (thread->is_in_usable_stack(addr)) {
-            addr = (address)((uintptr_t)addr &
-                             (~((uintptr_t)os::vm_page_size() - (uintptr_t)1)));
-            os::commit_memory((char *)addr, thread->stack_base() - addr,
-                              !ExecMem);
-            return EXCEPTION_CONTINUE_EXECUTION;
-          } else
-#endif
-          {
-            // Null pointer exception.
-            if (MacroAssembler::uses_implicit_null_check((void*)addr)) {
-              address stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_NULL);
-              if (stub != NULL) return Handle_Exception(exceptionInfo, stub);
-            }
-            report_error(t, exception_code, pc, exceptionInfo->ExceptionRecord,
-                         exceptionInfo->ContextRecord);
-            return EXCEPTION_CONTINUE_SEARCH;
-          }
+        // If it's a legal stack address map the entire region in
+        if (thread->is_in_usable_stack(addr)) {
+          addr = (address)((uintptr_t)addr &
+                            (~((uintptr_t)os::vm_page_size() - (uintptr_t)1)));
+          os::commit_memory((char *)addr, thread->stack_base() - addr,
+                            !ExecMem);
+          return EXCEPTION_CONTINUE_EXECUTION;
         }
+#endif
+        // Null pointer exception.
+        if (MacroAssembler::uses_implicit_null_check((void*)addr)) {
+          address stub = SharedRuntime::continuation_for_implicit_exception(thread, pc, SharedRuntime::IMPLICIT_NULL);
+          if (stub != NULL) return Handle_Exception(exceptionInfo, stub);
+        }
+        report_error(t, exception_code, pc, exception_record,
+                      exceptionInfo->ContextRecord);
+        return EXCEPTION_CONTINUE_SEARCH;
       }
 
 #ifdef _WIN64
       // Special care for fast JNI field accessors.
       // jni_fast_Get<Primitive>Field can trap at certain pc's if a GC kicks
       // in and the heap gets shrunk before the field access.
-      if (exception_code == EXCEPTION_ACCESS_VIOLATION) {
-        address addr = JNI_FastGetField::find_slowcase_pc(pc);
-        if (addr != (address)-1) {
-          return Handle_Exception(exceptionInfo, addr);
-        }
+      address slowcase_pc = JNI_FastGetField::find_slowcase_pc(pc);
+      if (slowcase_pc != (address)-1) {
+        return Handle_Exception(exceptionInfo, slowcase_pc);
       }
 #endif
 
       // Stack overflow or null pointer exception in native code.
-      report_error(t, exception_code, pc, exceptionInfo->ExceptionRecord,
+      report_error(t, exception_code, pc, exception_record,
                    exceptionInfo->ContextRecord);
       return EXCEPTION_CONTINUE_SEARCH;
     } // /EXCEPTION_ACCESS_VIOLATION
@@ -2591,11 +2576,8 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
         nm = (cb != NULL) ? cb->as_compiled_method_or_null() : NULL;
       }
 
-      bool is_unsafe_arraycopy = (thread->thread_state() == _thread_in_native || in_java) && UnsafeCopyMemory::contains_pc(pc);
-      if (((thread->thread_state() == _thread_in_vm ||
-           thread->thread_state() == _thread_in_native ||
-           is_unsafe_arraycopy) &&
-          thread->doing_unsafe_access()) ||
+      bool is_unsafe_arraycopy = (in_native || in_java) && UnsafeCopyMemory::contains_pc(pc);
+      if (((in_vm || in_native || is_unsafe_arraycopy) && thread->doing_unsafe_access()) ||
           (nm != NULL && nm->has_unsafe_access())) {
         address next_pc =  Assembler::locate_next_instruction(pc);
         if (is_unsafe_arraycopy) {
@@ -2615,16 +2597,14 @@ LONG WINAPI topLevelExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
 
       } // switch
     }
-    if (((thread->thread_state() == _thread_in_Java) ||
-         (thread->thread_state() == _thread_in_native)) &&
-         exception_code != EXCEPTION_UNCAUGHT_CXX_EXCEPTION) {
+    if ((in_java || in_native) && exception_code != EXCEPTION_UNCAUGHT_CXX_EXCEPTION) {
       LONG result=Handle_FLT_Exception(exceptionInfo);
       if (result==EXCEPTION_CONTINUE_EXECUTION) return result;
     }
   }
 
   if (exception_code != EXCEPTION_BREAKPOINT) {
-    report_error(t, exception_code, pc, exceptionInfo->ExceptionRecord,
+    report_error(t, exception_code, pc, exception_record,
                  exceptionInfo->ContextRecord);
   }
   return EXCEPTION_CONTINUE_SEARCH;
@@ -2716,9 +2696,6 @@ int os::vm_allocation_granularity() {
   #define MEM_LARGE_PAGES 0x20000000
 #endif
 
-static HANDLE    _hProcess;
-static HANDLE    _hToken;
-
 // Container for NUMA node list info
 class NUMANodeListHolder {
  private:
@@ -2766,17 +2743,17 @@ class NUMANodeListHolder {
 
 } numa_node_list_holder;
 
-
-
 static size_t _large_page_size = 0;
 
 static bool request_lock_memory_privilege() {
-  _hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE,
-                          os::current_process_id());
+  HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE,
+                                os::current_process_id());
 
+  bool success = false;
+  HANDLE hToken = NULL;
   LUID luid;
-  if (_hProcess != NULL &&
-      OpenProcessToken(_hProcess, TOKEN_ADJUST_PRIVILEGES, &_hToken) &&
+  if (hProcess != NULL &&
+      OpenProcessToken(hProcess, TOKEN_ADJUST_PRIVILEGES, &hToken) &&
       LookupPrivilegeValue(NULL, "SeLockMemoryPrivilege", &luid)) {
 
     TOKEN_PRIVILEGES tp;
@@ -2786,51 +2763,52 @@ static bool request_lock_memory_privilege() {
 
     // AdjustTokenPrivileges() may return TRUE even when it couldn't change the
     // privilege. Check GetLastError() too. See MSDN document.
-    if (AdjustTokenPrivileges(_hToken, false, &tp, sizeof(tp), NULL, NULL) &&
+    if (AdjustTokenPrivileges(hToken, false, &tp, sizeof(tp), NULL, NULL) &&
         (GetLastError() == ERROR_SUCCESS)) {
-      return true;
+      success = true;
     }
   }
 
-  return false;
-}
+  // Cleanup
+  if (hProcess != NULL) {
+    CloseHandle(hProcess);
+  }
+  if (hToken != NULL) {
+    CloseHandle(hToken);
+  }
 
-static void cleanup_after_large_page_init() {
-  if (_hProcess) CloseHandle(_hProcess);
-  _hProcess = NULL;
-  if (_hToken) CloseHandle(_hToken);
-  _hToken = NULL;
+  return success;
 }
 
 static bool numa_interleaving_init() {
   bool success = false;
-  bool use_numa_interleaving_specified = !FLAG_IS_DEFAULT(UseNUMAInterleaving);
 
   // print a warning if UseNUMAInterleaving flag is specified on command line
-  bool warn_on_failure = use_numa_interleaving_specified;
+  bool warn_on_failure = !FLAG_IS_DEFAULT(UseNUMAInterleaving);
+
 #define WARN(msg) if (warn_on_failure) { warning(msg); }
 
   // NUMAInterleaveGranularity cannot be less than vm_allocation_granularity (or _large_page_size if using large pages)
   size_t min_interleave_granularity = UseLargePages ? _large_page_size : os::vm_allocation_granularity();
   NUMAInterleaveGranularity = align_up(NUMAInterleaveGranularity, min_interleave_granularity);
 
-  if (numa_node_list_holder.build()) {
-    if (log_is_enabled(Debug, os, cpu)) {
-      Log(os, cpu) log;
-      log.debug("NUMA UsedNodeCount=%d, namely ", numa_node_list_holder.get_count());
-      for (int i = 0; i < numa_node_list_holder.get_count(); i++) {
-        log.debug("  %d ", numa_node_list_holder.get_node_list_entry(i));
-      }
-    }
-    success = true;
-  } else {
+  if (!numa_node_list_holder.build()) {
     WARN("Process does not cover multiple NUMA nodes.");
+    WARN("...Ignoring UseNUMAInterleaving flag.");
+    return false;
   }
-  if (!success) {
-    if (use_numa_interleaving_specified) WARN("...Ignoring UseNUMAInterleaving flag.");
+
+  if (log_is_enabled(Debug, os, cpu)) {
+    Log(os, cpu) log;
+    log.debug("NUMA UsedNodeCount=%d, namely ", numa_node_list_holder.get_count());
+    for (int i = 0; i < numa_node_list_holder.get_count(); i++) {
+      log.debug("  %d ", numa_node_list_holder.get_node_list_entry(i));
+    }
   }
-  return success;
+
 #undef WARN
+
+  return true;
 }
 
 // this routine is used whenever we need to reserve a contiguous VA range
@@ -2951,51 +2929,55 @@ static char* allocate_pages_individually(size_t bytes, char* addr, DWORD flags,
   return p_buf;
 }
 
-
-
-void os::large_page_init() {
-  if (!UseLargePages) return;
-
+static size_t large_page_init_decide_size() {
   // print a warning if any large page related flag is specified on command line
   bool warn_on_failure = !FLAG_IS_DEFAULT(UseLargePages) ||
                          !FLAG_IS_DEFAULT(LargePageSizeInBytes);
-  bool success = false;
 
 #define WARN(msg) if (warn_on_failure) { warning(msg); }
-  if (request_lock_memory_privilege()) {
-    size_t s = GetLargePageMinimum();
-    if (s) {
-#if defined(IA32) || defined(AMD64)
-      if (s > 4*M || LargePageSizeInBytes > 4*M) {
-        WARN("JVM cannot use large pages bigger than 4mb.");
-      } else {
-#endif
-        if (LargePageSizeInBytes && LargePageSizeInBytes % s == 0) {
-          _large_page_size = LargePageSizeInBytes;
-        } else {
-          _large_page_size = s;
-        }
-        success = true;
-#if defined(IA32) || defined(AMD64)
-      }
-#endif
-    } else {
-      WARN("Large page is not supported by the processor.");
-    }
-  } else {
+
+  if (!request_lock_memory_privilege()) {
     WARN("JVM cannot use large page memory because it does not have enough privilege to lock pages in memory.");
+    return 0;
   }
+
+  size_t size = GetLargePageMinimum();
+  if (size == 0) {
+    WARN("Large page is not supported by the processor.");
+    return 0;
+  }
+
+#if defined(IA32) || defined(AMD64)
+  if (size > 4*M || LargePageSizeInBytes > 4*M) {
+    WARN("JVM cannot use large pages bigger than 4mb.");
+    return 0;
+  }
+#endif
+
+  if (LargePageSizeInBytes > 0 && LargePageSizeInBytes % size == 0) {
+    size = LargePageSizeInBytes;
+  }
+
 #undef WARN
 
+  return size;
+}
+
+void os::large_page_init() {
+  if (!UseLargePages) {
+    return;
+  }
+
+  _large_page_size = large_page_init_decide_size();
+
   const size_t default_page_size = (size_t) vm_page_size();
-  if (success && _large_page_size > default_page_size) {
+  if (_large_page_size > default_page_size) {
     _page_sizes[0] = _large_page_size;
     _page_sizes[1] = default_page_size;
     _page_sizes[2] = 0;
   }
 
-  cleanup_after_large_page_init();
-  UseLargePages = success;
+  UseLargePages = _large_page_size != 0;
 }
 
 int os::create_file_for_heap(const char* dir) {
@@ -3071,17 +3053,23 @@ char* os::replace_existing_mapping_with_file_mapping(char* base, size_t size, in
 // On win32, one cannot release just a part of reserved memory, it's an
 // all or nothing deal.  When we split a reservation, we must break the
 // reservation into two reservations.
-void os::pd_split_reserved_memory(char *base, size_t size, size_t split,
-                                  bool realloc) {
-  if (size > 0) {
-    release_memory(base, size);
-    if (realloc) {
-      reserve_memory(split, base);
-    }
-    if (size != split) {
-      reserve_memory(size - split, base + split);
-    }
-  }
+void os::split_reserved_memory(char *base, size_t size, size_t split) {
+
+  char* const split_address = base + split;
+  assert(size > 0, "Sanity");
+  assert(size > split, "Sanity");
+  assert(split > 0, "Sanity");
+  assert(is_aligned(base, os::vm_allocation_granularity()), "Sanity");
+  assert(is_aligned(split_address, os::vm_allocation_granularity()), "Sanity");
+
+  release_memory(base, size);
+  reserve_memory(split, base);
+  reserve_memory(size - split, split_address);
+
+  // NMT: nothing to do here. Since Windows implements the split by
+  //  releasing and re-reserving memory, the parts are already registered
+  //  as individual mappings with NMT.
+
 }
 
 // Multiple threads can race in this code but it's not possible to unmap small sections of
@@ -4092,14 +4080,15 @@ jint os::init_2(void) {
   // initialize thread priority policy
   prio_init();
 
-  if (UseNUMA && !ForceNUMA) {
-    UseNUMA = false; // We don't fully support this yet
-  }
+  UseNUMA = false; // We don't fully support this yet
 
-  if (UseNUMAInterleaving) {
-    // first check whether this Windows OS supports VirtualAllocExNuma, if not ignore this flag
-    bool success = numa_interleaving_init();
-    if (!success) UseNUMAInterleaving = false;
+  if (UseNUMAInterleaving || (UseNUMA && FLAG_IS_DEFAULT(UseNUMAInterleaving))) {
+    if (!numa_interleaving_init()) {
+      FLAG_SET_ERGO(UseNUMAInterleaving, false);
+    } else if (!UseNUMAInterleaving) {
+      // When NUMA requested, not-NUMA-aware allocations default to interleaving.
+      FLAG_SET_ERGO(UseNUMAInterleaving, true);
+    }
   }
 
   if (initSock() != JNI_OK) {
@@ -4843,7 +4832,7 @@ char* os::pd_map_memory(int fd, const char* file_name, size_t file_offset,
 
   hFile = CreateFile(file_name, GENERIC_READ, FILE_SHARE_READ, NULL,
                      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-  if (hFile == NULL) {
+  if (hFile == INVALID_HANDLE_VALUE) {
     log_info(os)("CreateFile() failed: GetLastError->%ld.", GetLastError());
     return NULL;
   }

@@ -23,10 +23,8 @@
 
 package jdk.test.lib.apps;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.StringReader;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
@@ -38,20 +36,33 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.UUID;
+
+import jdk.test.lib.JDKToolFinder;
 import jdk.test.lib.Utils;
 import jdk.test.lib.process.OutputBuffer;
 import jdk.test.lib.process.StreamPumper;
+import jdk.test.lib.util.CoreUtils;
 
 /**
  * This is a framework to launch an app that could be synchronized with caller
  * to make further attach actions reliable across supported platforms
 
  * Caller example:
- *   SmartTestApp a = SmartTestApp.startApp(cmd);
+ *
+ *   LingeredApp a = LingeredApp.startApp(cmd);
+ *     // do something.
+ *     // a.getPid(). a.getProcess(), a.getProcessStdout() are available.
+ *   LingeredApp.stopApp(a);
+ *
+ *   for use custom LingeredApp (class SmartTestApp extends LingeredApp):
+ *
+ *   SmartTestApp = new SmartTestApp();
+ *   LingeredApp.startApp(a, cmd);
  *     // do something
- *   a.stopApp();
+ *   a.stopApp();   // LingeredApp.stopApp(a) can be used as well
  *
  *   or fine grained control
  *
@@ -63,10 +74,9 @@ import jdk.test.lib.process.StreamPumper;
  *   a.deleteLock();
  *   a.waitAppTerminate();
  *
- *  Then you can work with app output and process object
+ *  After app termination (stopApp/waitAppTermination) its output is available
  *
  *   output = a.getAppOutput();
- *   process = a.getProcess();
  *
  */
 public class LingeredApp {
@@ -82,7 +92,10 @@ public class LingeredApp {
     protected Process appProcess;
     protected OutputBuffer output;
     protected static final int appWaitTime = 100;
+    protected static final int appCoreWaitTime = 240;
     protected final String lockFileName;
+
+    protected boolean forceCrash = false; // set true to force a crash and core file
 
     /**
      * Create LingeredApp object on caller side. Lock file have be a valid filename
@@ -98,6 +111,12 @@ public class LingeredApp {
         final String lockName = UUID.randomUUID().toString() + ".lck";
         this.lockFileName = lockName;
     }
+
+    public void setForceCrash(boolean forceCrash) {
+        this.forceCrash = forceCrash;
+    }
+
+    native private static int crash();
 
     /**
      *
@@ -144,7 +163,7 @@ public class LingeredApp {
             throw new RuntimeException("Process is still alive. Can't get its output.");
         }
         if (output == null) {
-            output = OutputBuffer.of(stdoutBuffer.toString(), stderrBuffer.toString());
+            output = OutputBuffer.of(stdoutBuffer.toString(), stderrBuffer.toString(), appProcess.exitValue());
         }
         return output;
     }
@@ -166,18 +185,6 @@ public class LingeredApp {
 
         outPumperThread.start();
         errPumperThread.start();
-    }
-
-    /**
-     *
-     * @return application output as List. Empty List if application produced no output
-     */
-    public List<String> getAppOutput() {
-        if (appProcess.isAlive()) {
-            throw new RuntimeException("Process is still alive. Can't get its output.");
-        }
-        BufferedReader bufReader = new BufferedReader(new StringReader(output.getStdout()));
-        return bufReader.lines().collect(Collectors.toList());
     }
 
     /* Make sure all part of the app use the same method to get dates,
@@ -228,7 +235,11 @@ public class LingeredApp {
     public void waitAppTerminate() {
         // This code is modeled after tail end of ProcessTools.getOutput().
         try {
-            appProcess.waitFor();
+            // If the app hangs, we don't want to wait for the to test timeout.
+            if (!appProcess.waitFor(Utils.adjustTimeout(appWaitTime), TimeUnit.SECONDS)) {
+                appProcess.destroy();
+                appProcess.waitFor();
+            }
             outPumperThread.join();
             errPumperThread.join();
         } catch (InterruptedException e) {
@@ -241,14 +252,16 @@ public class LingeredApp {
      * The app touches the lock file when it's started
      * wait while it happens. Caller have to delete lock on wait error.
      *
-     * @param timeout
+     * @param timeout timeout in seconds
      * @throws java.io.IOException
      */
     public void waitAppReady(long timeout) throws IOException {
+        // adjust timeout for timeout_factor and convert to ms
+        timeout = Utils.adjustTimeout(timeout) * 1000;
         long here = epoch();
         while (true) {
             long epoch = epoch();
-            if (epoch - here > (timeout * 1000)) {
+            if (epoch - here > timeout) {
                 throw new IOException("App waiting timeout");
             }
 
@@ -260,7 +273,11 @@ public class LingeredApp {
 
             // Make sure process didn't already exit
             if (!appProcess.isAlive()) {
-                throw new IOException("App exited unexpectedly with " + appProcess.exitValue());
+                if (forceCrash) {
+                    return; // This is expected. Just return.
+                } else {
+                    throw new IOException("App exited unexpectedly with " + appProcess.exitValue());
+                }
             }
 
             try {
@@ -272,30 +289,25 @@ public class LingeredApp {
     }
 
     /**
+     * Waits for the application to start with the default timeout.
+     */
+    public void waitAppReady() throws IOException {
+        waitAppReady(forceCrash ? appCoreWaitTime : appWaitTime);
+    }
+
+    /**
      * Analyze an environment and prepare a command line to
      * run the app, app name should be added explicitly
      */
     private List<String> runAppPrepare(String[] vmArguments) {
-        // We should always use testjava or throw an exception,
-        // so we can't use JDKToolFinder.getJDKTool("java");
-        // that falls back to compile java on error
-        String jdkPath = System.getProperty("test.jdk");
-        if (jdkPath == null) {
-            // we are not under jtreg, try env
-            Map<String, String> env = System.getenv();
-            jdkPath = env.get("TESTJAVA");
-        }
-
-        if (jdkPath == null) {
-            throw new RuntimeException("Can't determine jdk path neither test.jdk property no TESTJAVA env are set");
-        }
-
-        String osname = System.getProperty("os.name");
-        String javapath = jdkPath + ((osname.startsWith("window")) ? "/bin/java.exe" : "/bin/java");
-
-        List<String> cmd = new ArrayList<String>();
-        cmd.add(javapath);
+        List<String> cmd = new ArrayList<>();
+        cmd.add(JDKToolFinder.getTestJDKTool("java"));
         Collections.addAll(cmd, vmArguments);
+        if (forceCrash) {
+            cmd.add("-XX:+CreateCoredumpOnCrash");
+            // We need to find libLingeredApp.so for the crash() native method
+            cmd.add("-Djava.library.path=" + System.getProperty("java.library.path"));
+        }
 
         // Make sure we set correct classpath to run the app
         cmd.add("-cp");
@@ -318,12 +330,9 @@ public class LingeredApp {
      */
     public void printCommandLine(List<String> cmd) {
         // A bit of verbosity
-        StringBuilder cmdLine = new StringBuilder();
-        for (String strCmd : cmd) {
-            cmdLine.append("'").append(strCmd).append("' ");
-        }
-
-        System.err.println("Command line: [" + cmdLine.toString() + "]");
+        System.out.println(cmd.stream()
+                .map(s -> "'" + s + "'")
+                .collect(Collectors.joining(" ", "Command line: [", "]")));
     }
 
     /**
@@ -339,10 +348,17 @@ public class LingeredApp {
 
         runAddAppName(cmd);
         cmd.add(lockFileName);
+        if (forceCrash) {
+            cmd.add("forceCrash"); // Let the subprocess know to force a crash
+        }
 
         printCommandLine(cmd);
 
         ProcessBuilder pb = new ProcessBuilder(cmd);
+        if (forceCrash) {
+            // If we are going to force a core dump, apply "ulimit -c unlimited" if we can.
+            pb = CoreUtils.addCoreUlimitCommand(pb);
+        }
         // ProcessBuilder.start can throw IOException
         appProcess = pb.start();
 
@@ -357,7 +373,7 @@ public class LingeredApp {
                     " LingeredApp stderr: [" + output.getStderr() + "]\n" +
                     " LingeredApp exitValue = " + appProcess.exitValue();
 
-            System.err.println(msg);
+            System.out.println(msg);
         }
     }
 
@@ -398,7 +414,7 @@ public class LingeredApp {
         theApp.createLock();
         try {
             theApp.runAppExactJvmOpts(jvmOpts);
-            theApp.waitAppReady(appWaitTime);
+            theApp.waitAppReady();
         } catch (Exception ex) {
             theApp.deleteLock();
             throw ex;
@@ -428,7 +444,7 @@ public class LingeredApp {
         try {
             startApp(a, additionalJvmOpts);
         } catch (Exception ex) {
-            System.err.println("LingeredApp failed to start: " + ex);
+            System.out.println("LingeredApp failed to start: " + ex);
             a.finishApp();
             throw ex;
         }
@@ -480,19 +496,37 @@ public class LingeredApp {
     }
 
     /**
-     * This part is the application it self
+     * This part is the application itself. First arg is optional "forceCrash".
+     * Following arg is the lock file name.
      */
     public static void main(String args[]) {
+        boolean forceCrash = false;
 
-        if (args.length != 1) {
+        if (args.length == 0) {
             System.err.println("Lock file name is not specified");
             System.exit(7);
+        } else if (args.length > 2) {
+            System.err.println("Too many arguments specified: "  + args.length);
+            System.exit(7);
+        }
+
+        if (args.length == 2) {
+            if (args[1].equals("forceCrash")) {
+                forceCrash = true;
+            } else {
+                System.err.println("Invalid 1st argment: " + args[1]);
+                System.exit(7);
+            }
         }
 
         String theLockFileName = args[0];
         Path path = Paths.get(theLockFileName);
 
         try {
+            if (forceCrash) {
+                System.loadLibrary("LingeredApp"); // location of native crash() method
+                crash();
+            }
             while (Files.exists(path)) {
                 // Touch the lock to indicate our readiness
                 setLastModified(theLockFileName, epoch());

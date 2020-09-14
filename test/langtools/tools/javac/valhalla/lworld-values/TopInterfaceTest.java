@@ -47,14 +47,14 @@ public class TopInterfaceTest  {
         V inln_o = new V();
         C id_o = new C();
 
-        // Check that InlineObject is injected as a super interface for inline types.
+
         Class<?> [] ca = inln_o.getClass().getInterfaces();
-        if (ca.length != 1)
+        if (ca.length != 0)
             throw new AssertionError("Found wrong super interfaces");
-        if (!ca[0].getCanonicalName().equals("java.lang.InlineObject"))
-            throw new AssertionError("Found wrong super interfaces");
-        if (!(inln_o instanceof InlineObject)) // really really make sure...
-            throw new AssertionError("Expected inline Object");
+
+
+
+
 
         // Check that V's super class is V.ref in class file.
         Class<?> vrefCls = inln_o.getClass().getSuperclass();
@@ -70,8 +70,8 @@ public class TopInterfaceTest  {
 
         if (!(id_o instanceof IdentityObject))
             throw new AssertionError("Expected identity Object");
-        if (id_o instanceof InlineObject)
-            throw new AssertionError("Expected identity object, found inline object");
+
+
 
         // Check that no super interface injection has happened for interfaces.
         if (I.class.getInterfaces().length != 0)

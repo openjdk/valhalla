@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -355,8 +355,6 @@ void report_java_out_of_memory(const char* message) {
 class Command : public StackObj {
  private:
   ResourceMark rm;
-  ResetNoHandleMark rnhm;
-  HandleMark   hm;
   bool debug_save;
  public:
   static int level;
@@ -640,12 +638,11 @@ void help() {
   tty->print_cr("  findm(intptr_t pc) - finds Method*");
   tty->print_cr("  find(intptr_t x)   - finds & prints nmethod/stub/bytecode/oop based on pointer into it");
   tty->print_cr("  pns(void* sp, void* fp, void* pc)  - print native (i.e. mixed) stack trace. E.g.");
-  tty->print_cr("                   pns($sp, $rbp, $pc) on Linux/amd64 and Solaris/amd64 or");
+  tty->print_cr("                   pns($sp, $rbp, $pc) on Linux/amd64 or");
   tty->print_cr("                   pns($sp, $ebp, $pc) on Linux/x86 or");
   tty->print_cr("                   pns($sp, $fp, $pc)  on Linux/AArch64 or");
   tty->print_cr("                   pns($sp, 0, $pc)    on Linux/ppc64 or");
   tty->print_cr("                   pns($sp, $s8, $pc)  on Linux/mips or");
-  tty->print_cr("                   pns($sp + 0x7ff, 0, $pc) on Solaris/SPARC");
   tty->print_cr("                 - in gdb do 'set overload-resolution off' before calling pns()");
   tty->print_cr("                 - in dbx do 'frame 1' before calling pns()");
 
@@ -741,7 +738,7 @@ void disarm_assert_poison() {
 
 static void store_context(const void* context) {
   memcpy(&g_stored_assertion_context, context, sizeof(ucontext_t));
-#if defined(__linux) && defined(PPC64)
+#if defined(LINUX) && defined(PPC64)
   // on Linux ppc64, ucontext_t contains pointers into itself which have to be patched up
   //  after copying the context (see comment in sys/ucontext.h):
   *((void**) &g_stored_assertion_context.uc_mcontext.regs) = &(g_stored_assertion_context.uc_mcontext.gp_regs);

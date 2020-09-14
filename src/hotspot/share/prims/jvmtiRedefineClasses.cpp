@@ -24,8 +24,9 @@
 
 #include "precompiled.hpp"
 #include "aot/aotLoader.hpp"
-#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/classFileStream.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
+#include "classfile/classLoadInfo.hpp"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/metadataOnStackMark.hpp"
 #include "classfile/symbolTable.hpp"
@@ -70,8 +71,9 @@ Method**  VM_RedefineClasses::_added_methods        = NULL;
 int       VM_RedefineClasses::_matching_methods_length = 0;
 int       VM_RedefineClasses::_deleted_methods_length  = 0;
 int       VM_RedefineClasses::_added_methods_length    = 0;
+
+// This flag is global as the constructor does not reset it:
 bool      VM_RedefineClasses::_has_redefined_Object = false;
-bool      VM_RedefineClasses::_has_null_class_loader = false;
 u8        VM_RedefineClasses::_id_counter = 0;
 
 VM_RedefineClasses::VM_RedefineClasses(jint class_count,
@@ -83,8 +85,6 @@ VM_RedefineClasses::VM_RedefineClasses(jint class_count,
   _any_class_has_resolved_methods = false;
   _res = JVMTI_ERROR_NONE;
   _the_class = NULL;
-  _has_redefined_Object = false;
-  _has_null_class_loader = false;
   _id = next_id();
 }
 
@@ -150,8 +150,8 @@ bool VM_RedefineClasses::doit_prologue() {
     }
 
     oop mirror = JNIHandles::resolve_non_null(_class_defs[i].klass);
-    // classes for primitives and arrays and vm unsafe anonymous classes cannot be redefined
-    // check here so following code can assume these classes are InstanceKlass
+    // classes for primitives, arrays, hidden and vm unsafe anonymous classes
+    // cannot be redefined.
     if (!is_modifiable_class(mirror)) {
       _res = JVMTI_ERROR_UNMODIFIABLE_CLASS;
       return false;
@@ -293,8 +293,14 @@ bool VM_RedefineClasses::is_modifiable_class(oop klass_mirror) {
     return false;
   }
 
-  // Cannot redefine or retransform an unsafe anonymous class.
-  if (InstanceKlass::cast(k)->is_unsafe_anonymous()) {
+  // Cannot redefine or retransform interface java.lang.IdentityObject.
+  if (k->name() == vmSymbols::java_lang_IdentityObject()) {
+    return false;
+  }
+
+  // Cannot redefine or retransform a hidden or an unsafe anonymous class.
+  if (InstanceKlass::cast(k)->is_hidden() ||
+      InstanceKlass::cast(k)->is_unsafe_anonymous()) {
     return false;
   }
   return true;
@@ -708,6 +714,63 @@ static int symcmp(const void* a, const void* b) {
   return strcmp(astr, bstr);
 }
 
+// The caller must have an active ResourceMark.
+static jvmtiError check_attribute_arrays(const char* attr_name,
+           InstanceKlass* the_class, InstanceKlass* scratch_class,
+           Array<u2>* the_array, Array<u2>* scr_array) {
+  bool the_array_exists = the_array != Universe::the_empty_short_array();
+  bool scr_array_exists = scr_array != Universe::the_empty_short_array();
+
+  int array_len = the_array->length();
+  if (the_array_exists && scr_array_exists) {
+    if (array_len != scr_array->length()) {
+      log_trace(redefine, class)
+        ("redefined class %s attribute change error: %s len=%d changed to len=%d",
+         the_class->external_name(), attr_name, array_len, scr_array->length());
+      return JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED;
+    }
+
+    // The order of entries in the attribute array is not specified so we
+    // have to explicitly check for the same contents. We do this by copying
+    // the referenced symbols into their own arrays, sorting them and then
+    // comparing each element pair.
+
+    Symbol** the_syms = NEW_RESOURCE_ARRAY_RETURN_NULL(Symbol*, array_len);
+    Symbol** scr_syms = NEW_RESOURCE_ARRAY_RETURN_NULL(Symbol*, array_len);
+
+    if (the_syms == NULL || scr_syms == NULL) {
+      return JVMTI_ERROR_OUT_OF_MEMORY;
+    }
+
+    for (int i = 0; i < array_len; i++) {
+      int the_cp_index = the_array->at(i);
+      int scr_cp_index = scr_array->at(i);
+      the_syms[i] = the_class->constants()->klass_name_at(the_cp_index);
+      scr_syms[i] = scratch_class->constants()->klass_name_at(scr_cp_index);
+    }
+
+    qsort(the_syms, array_len, sizeof(Symbol*), symcmp);
+    qsort(scr_syms, array_len, sizeof(Symbol*), symcmp);
+
+    for (int i = 0; i < array_len; i++) {
+      if (the_syms[i] != scr_syms[i]) {
+        log_trace(redefine, class)
+          ("redefined class %s attribute change error: %s[%d]: %s changed to %s",
+           the_class->external_name(), attr_name, i,
+           the_syms[i]->as_C_string(), scr_syms[i]->as_C_string());
+        return JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED;
+      }
+    }
+  } else if (the_array_exists ^ scr_array_exists) {
+    const char* action_str = (the_array_exists) ? "removed" : "added";
+    log_trace(redefine, class)
+      ("redefined class %s attribute change error: %s attribute %s",
+       the_class->external_name(), attr_name, action_str);
+    return JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED;
+  }
+  return JVMTI_ERROR_NONE;
+}
+
 static jvmtiError check_nest_attributes(InstanceKlass* the_class,
                                         InstanceKlass* scratch_class) {
   // Check whether the class NestHost attribute has been changed.
@@ -734,59 +797,10 @@ static jvmtiError check_nest_attributes(InstanceKlass* the_class,
   }
 
   // Check whether the class NestMembers attribute has been changed.
-  Array<u2>* the_nest_members = the_class->nest_members();
-  Array<u2>* scr_nest_members = scratch_class->nest_members();
-  bool the_members_exists = the_nest_members != Universe::the_empty_short_array();
-  bool scr_members_exists = scr_nest_members != Universe::the_empty_short_array();
-
-  int members_len = the_nest_members->length();
-  if (the_members_exists && scr_members_exists) {
-    if (members_len != scr_nest_members->length()) {
-      log_trace(redefine, class, nestmates)
-        ("redefined class %s attribute change error: NestMember len=%d changed to len=%d",
-         the_class->external_name(), members_len, scr_nest_members->length());
-      return JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED;
-    }
-
-    // The order of entries in the NestMembers array is not specified so we
-    // have to explicitly check for the same contents. We do this by copying
-    // the referenced symbols into their own arrays, sorting them and then
-    // comparing each element pair.
-
-    Symbol** the_syms = NEW_RESOURCE_ARRAY_RETURN_NULL(Symbol*, members_len);
-    Symbol** scr_syms = NEW_RESOURCE_ARRAY_RETURN_NULL(Symbol*, members_len);
-
-    if (the_syms == NULL || scr_syms == NULL) {
-      return JVMTI_ERROR_OUT_OF_MEMORY;
-    }
-
-    for (int i = 0; i < members_len; i++) {
-      int the_cp_index = the_nest_members->at(i);
-      int scr_cp_index = scr_nest_members->at(i);
-      the_syms[i] = the_class->constants()->klass_name_at(the_cp_index);
-      scr_syms[i] = scratch_class->constants()->klass_name_at(scr_cp_index);
-    }
-
-    qsort(the_syms, members_len, sizeof(Symbol*), symcmp);
-    qsort(scr_syms, members_len, sizeof(Symbol*), symcmp);
-
-    for (int i = 0; i < members_len; i++) {
-      if (the_syms[i] != scr_syms[i]) {
-        log_trace(redefine, class, nestmates)
-          ("redefined class %s attribute change error: NestMembers[%d]: %s changed to %s",
-           the_class->external_name(), i, the_syms[i]->as_C_string(), scr_syms[i]->as_C_string());
-        return JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED;
-      }
-    }
-  } else if (the_members_exists ^ scr_members_exists) {
-    const char* action_str = (the_members_exists) ? "removed" : "added";
-    log_trace(redefine, class, nestmates)
-      ("redefined class %s attribute change error: NestMembers attribute %s",
-       the_class->external_name(), action_str);
-    return JVMTI_ERROR_UNSUPPORTED_REDEFINITION_CLASS_ATTRIBUTE_CHANGED;
-  }
-
-  return JVMTI_ERROR_NONE;
+  return check_attribute_arrays("NestMembers",
+                                the_class, scratch_class,
+                                the_class->nest_members(),
+                                scratch_class->nest_members());
 }
 
 // Return an error status if the class Record attribute was changed.
@@ -852,6 +866,18 @@ static jvmtiError check_record_attribute(InstanceKlass* the_class, InstanceKlass
 }
 
 
+static jvmtiError check_permitted_subclasses_attribute(InstanceKlass* the_class,
+                                                       InstanceKlass* scratch_class) {
+  Thread* thread = Thread::current();
+  ResourceMark rm(thread);
+
+  // Check whether the class PermittedSubclasses attribute has been changed.
+  return check_attribute_arrays("PermittedSubclasses",
+                                the_class, scratch_class,
+                                the_class->permitted_subclasses(),
+                                scratch_class->permitted_subclasses());
+}
+
 static bool can_add_or_delete(Method* m) {
       // Compatibility mode
   return (AllowRedefinitionToAddDeleteMethods &&
@@ -907,6 +933,12 @@ jvmtiError VM_RedefineClasses::compare_and_normalize_class_versions(
 
   // Check whether the Record attribute has been changed.
   err = check_record_attribute(the_class, scratch_class);
+  if (err != JVMTI_ERROR_NONE) {
+    return err;
+  }
+
+  // Check whether the PermittedSubclasses attribute has been changed.
+  err = check_permitted_subclasses_attribute(the_class, scratch_class);
   if (err != JVMTI_ERROR_NONE) {
     return err;
   }
@@ -1194,6 +1226,44 @@ bool VM_RedefineClasses::is_unresolved_class_mismatch(const constantPoolHandle& 
 } // end is_unresolved_class_mismatch()
 
 
+// The bug 6214132 caused the verification to fail.
+// 1. What's done in RedefineClasses() before verification:
+//  a) A reference to the class being redefined (_the_class) and a
+//     reference to new version of the class (_scratch_class) are
+//     saved here for use during the bytecode verification phase of
+//     RedefineClasses.
+//  b) The _java_mirror field from _the_class is copied to the
+//     _java_mirror field in _scratch_class. This means that a jclass
+//     returned for _the_class or _scratch_class will refer to the
+//     same Java mirror. The verifier will see the "one true mirror"
+//     for the class being verified.
+// 2. See comments in JvmtiThreadState for what is done during verification.
+
+class RedefineVerifyMark : public StackObj {
+ private:
+  JvmtiThreadState* _state;
+  Klass*            _scratch_class;
+  Handle            _scratch_mirror;
+
+ public:
+
+  RedefineVerifyMark(Klass* the_class, Klass* scratch_class,
+                     JvmtiThreadState* state) : _state(state), _scratch_class(scratch_class)
+  {
+    _state->set_class_versions_map(the_class, scratch_class);
+    _scratch_mirror = Handle(_state->get_thread(), _scratch_class->java_mirror());
+    _scratch_class->replace_java_mirror(the_class->java_mirror());
+  }
+
+  ~RedefineVerifyMark() {
+    // Restore the scratch class's mirror, so when scratch_class is removed
+    // the correct mirror pointing to it can be cleared.
+    _scratch_class->replace_java_mirror(_scratch_mirror());
+    _state->clear_class_versions_map();
+  }
+};
+
+
 jvmtiError VM_RedefineClasses::load_new_class_versions(TRAPS) {
 
   // For consistency allocate memory using os::malloc wrapper.
@@ -1238,11 +1308,12 @@ jvmtiError VM_RedefineClasses::load_new_class_versions(TRAPS) {
     // load hook event.
     state->set_class_being_redefined(the_class, _class_load_kind);
 
+    ClassLoadInfo cl_info(protection_domain);
     InstanceKlass* scratch_class = SystemDictionary::parse_stream(
                                                       the_class_sym,
                                                       the_class_loader,
-                                                      protection_domain,
                                                       &st,
+                                                      cl_info,
                                                       THREAD);
     // Clear class_being_redefined just to be sure.
     state->clear_class_being_redefined();
@@ -1280,10 +1351,20 @@ jvmtiError VM_RedefineClasses::load_new_class_versions(TRAPS) {
       the_class->link_class(THREAD);
       if (HAS_PENDING_EXCEPTION) {
         Symbol* ex_name = PENDING_EXCEPTION->klass()->name();
-        log_info(redefine, class, load, exceptions)("link_class exception: '%s'", ex_name->as_C_string());
+        oop message = java_lang_Throwable::message(PENDING_EXCEPTION);
+        if (message != NULL) {
+          char* ex_msg = java_lang_String::as_utf8_string(message);
+          log_info(redefine, class, load, exceptions)("link_class exception: '%s %s'",
+                   ex_name->as_C_string(), ex_msg);
+        } else {
+          log_info(redefine, class, load, exceptions)("link_class exception: '%s'",
+                   ex_name->as_C_string());
+        }
         CLEAR_PENDING_EXCEPTION;
         if (ex_name == vmSymbols::java_lang_OutOfMemoryError()) {
           return JVMTI_ERROR_OUT_OF_MEMORY;
+        } else if (ex_name == vmSymbols::java_lang_NoClassDefFoundError()) {
+          return JVMTI_ERROR_INVALID_CLASS;
         } else {
           return JVMTI_ERROR_INTERNAL;
         }
@@ -1696,10 +1777,9 @@ jvmtiError VM_RedefineClasses::merge_cp_and_rewrite(
     return JVMTI_ERROR_INTERNAL;
   }
 
-  if (old_cp->has_dynamic_constant()) {
-    merge_cp->set_has_dynamic_constant();
-    scratch_cp->set_has_dynamic_constant();
-  }
+  // Save fields from the old_cp.
+  merge_cp->copy_fields(old_cp());
+  scratch_cp->copy_fields(old_cp());
 
   log_info(redefine, class, constantpool)("merge_cp_len=%d, index_map_len=%d", merge_cp_length, _index_map_count);
 
@@ -1786,6 +1866,12 @@ bool VM_RedefineClasses::rewrite_cp_refs(InstanceKlass* scratch_class,
 
   // rewrite constant pool references in the Record attribute:
   if (!rewrite_cp_refs_in_record_attribute(scratch_class, THREAD)) {
+    // propagate failure back to caller
+    return false;
+  }
+
+  // rewrite constant pool references in the PermittedSubclasses attribute:
+  if (!rewrite_cp_refs_in_permitted_subclasses_attribute(scratch_class)) {
     // propagate failure back to caller
     return false;
   }
@@ -1924,6 +2010,19 @@ bool VM_RedefineClasses::rewrite_cp_refs_in_record_attribute(
         }
       }
     }
+  }
+  return true;
+}
+
+// Rewrite constant pool references in the PermittedSubclasses attribute.
+bool VM_RedefineClasses::rewrite_cp_refs_in_permitted_subclasses_attribute(
+       InstanceKlass* scratch_class) {
+
+  Array<u2>* permitted_subclasses = scratch_class->permitted_subclasses();
+  assert(permitted_subclasses != NULL, "unexpected null permitted_subclasses");
+  for (int i = 0; i < permitted_subclasses->length(); i++) {
+    u2 cp_index = permitted_subclasses->at(i);
+    permitted_subclasses->at_put(i, find_new_index(cp_index));
   }
   return true;
 }
@@ -3370,9 +3469,7 @@ void VM_RedefineClasses::set_new_constant_pool(
   // reference to the cp holder is needed for copy_operands()
   smaller_cp->set_pool_holder(scratch_class);
 
-  if (scratch_cp->has_dynamic_constant()) {
-    smaller_cp->set_has_dynamic_constant();
-  }
+  smaller_cp->copy_fields(scratch_cp());
 
   scratch_cp->copy_cp_to(1, scratch_cp_length - 1, smaller_cp, 1, THREAD);
   if (HAS_PENDING_EXCEPTION) {
@@ -3553,7 +3650,10 @@ void VM_RedefineClasses::AdjustAndCleanMetadata::do_klass(Klass* k) {
   bool trace_name_printed = false;
 
   // If the class being redefined is java.lang.Object, we need to fix all
-  // array class vtables also
+  // array class vtables also. The _has_redefined_Object flag is global.
+  // Once the java.lang.Object has been redefined (by the current or one
+  // of the previous VM_RedefineClasses operations) we have to always
+  // adjust method entries for array classes.
   if (k->is_array_klass() && _has_redefined_Object) {
     k->vtable().adjust_method_entries(&trace_name_printed);
 
@@ -3569,22 +3669,6 @@ void VM_RedefineClasses::AdjustAndCleanMetadata::do_klass(Klass* k) {
       if (methods->at(index)->method_data() != NULL) {
         methods->at(index)->method_data()->clean_weak_method_links();
       }
-    }
-
-    // HotSpot specific optimization! HotSpot does not currently
-    // support delegation from the bootstrap class loader to a
-    // user-defined class loader. This means that if the bootstrap
-    // class loader is the initiating class loader, then it will also
-    // be the defining class loader. This also means that classes
-    // loaded by the bootstrap class loader cannot refer to classes
-    // loaded by a user-defined class loader. Note: a user-defined
-    // class loader can delegate to the bootstrap class loader.
-    //
-    // If the current class being redefined has a user-defined class
-    // loader as its defining class loader, then we can skip all
-    // classes loaded by the bootstrap class loader.
-    if (!_has_null_class_loader && ik->class_loader() == NULL) {
-      return;
     }
 
     // Adjust all vtables, default methods and itables, to clean out old methods.
@@ -3605,21 +3689,24 @@ void VM_RedefineClasses::AdjustAndCleanMetadata::do_klass(Klass* k) {
     // constant pool cache holds the Method*s for non-virtual
     // methods and for virtual, final methods.
     //
-    // Special case: if the current class being redefined, then new_cp
-    // has already been attached to the_class and old_cp has already
-    // been added as a previous version. The new_cp doesn't have any
-    // cached references to old methods so it doesn't need to be
-    // updated. We can simply start with the previous version(s) in
-    // that case.
+    // Special case: if the current class is being redefined by the current
+    // VM_RedefineClasses operation, then new_cp has already been attached
+    // to the_class and old_cp has already been added as a previous version.
+    // The new_cp doesn't have any cached references to old methods so it
+    // doesn't need to be updated and we could optimize by skipping it.
+    // However, the current class can be marked as being redefined by another
+    // VM_RedefineClasses operation which has already executed its doit_prologue
+    // and needs cpcache method entries adjusted. For simplicity, the cpcache
+    // update is done unconditionally. It should result in doing nothing for
+    // classes being redefined by the current VM_RedefineClasses operation.
+    // Method entries in the previous version(s) are adjusted as well.
     ConstantPoolCache* cp_cache;
 
-    if (!ik->is_being_redefined()) {
-      // this klass' constant pool cache may need adjustment
-      ConstantPool* other_cp = ik->constants();
-      cp_cache = other_cp->cache();
-      if (cp_cache != NULL) {
-        cp_cache->adjust_method_entries(&trace_name_printed);
-      }
+    // this klass' constant pool cache may need adjustment
+    ConstantPool* other_cp = ik->constants();
+    cp_cache = other_cp->cache();
+    if (cp_cache != NULL) {
+      cp_cache->adjust_method_entries(&trace_name_printed);
     }
 
     // the previous versions' constant pool caches may need adjustment
@@ -4064,9 +4151,8 @@ void VM_RedefineClasses::redefine_single_class(jclass the_jclass,
 
   InstanceKlass* the_class = get_ik(the_jclass);
 
-  // Set some flags to control and optimize adjusting method entries
+  // Set a flag to control and optimize adjusting method entries
   _has_redefined_Object |= the_class == SystemDictionary::Object_klass();
-  _has_null_class_loader |= the_class->class_loader() == NULL;
 
   // Remove all breakpoints in methods of this class
   JvmtiBreakpoints& jvmti_breakpoints = JvmtiCurrentBreakpoints::get_jvmti_breakpoints();
@@ -4250,16 +4336,6 @@ void VM_RedefineClasses::redefine_single_class(jclass the_jclass,
   }
 
   swap_annotations(the_class, scratch_class);
-
-  // Replace minor version number of class file
-  u2 old_minor_version = the_class->minor_version();
-  the_class->set_minor_version(scratch_class->minor_version());
-  scratch_class->set_minor_version(old_minor_version);
-
-  // Replace major version number of class file
-  u2 old_major_version = the_class->major_version();
-  the_class->set_major_version(scratch_class->major_version());
-  scratch_class->set_major_version(old_major_version);
 
   // Replace CP indexes for class and name+type of enclosing method
   u2 old_class_idx  = the_class->enclosing_method_class_index();

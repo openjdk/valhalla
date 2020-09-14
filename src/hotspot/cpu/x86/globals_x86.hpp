@@ -89,8 +89,8 @@ define_pd_global(bool, PreserveFramePointer, false);
 
 define_pd_global(intx, InitArrayShortSize, 8*BytesPerLong);
 
-define_pd_global(bool, ValueTypePassFieldsAsArgs, LP64_ONLY(true) NOT_LP64(false));
-define_pd_global(bool, ValueTypeReturnedAsFields, LP64_ONLY(true) NOT_LP64(false));
+define_pd_global(bool, InlineTypePassFieldsAsArgs, LP64_ONLY(true) NOT_LP64(false));
+define_pd_global(bool, InlineTypeReturnedAsFields, LP64_ONLY(true) NOT_LP64(false));
 
 #define ARCH_FLAGS(develop, \
                    product, \

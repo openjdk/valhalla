@@ -176,6 +176,19 @@ public class AccessibleObject implements AnnotatedElement {
      * to the caller and the package containing the declaring class is not open
      * to the caller's module. </p>
      *
+     * <p> This method cannot be used to enable {@linkplain Field#set <em>write</em>}
+     * access to a <em>non-modifiable</em> final field.  The following fields
+     * are non-modifiable:
+     * <ul>
+     * <li>static final fields declared in any class or interface</li>
+     * <li>final fields declared in a {@linkplain Class#isHidden() hidden class}</li>
+     * <li>fields declared in a {@linkplain Class#isInlineClass() inline class}</li>
+     * <li>final fields declared in a {@linkplain Class#isRecord() record}</li>
+     * </ul>
+     * <p> The {@code accessible} flag when {@code true} suppresses Java language access
+     * control checks to only enable {@linkplain Field#get <em>read</em>} access to
+     * these non-modifiable final fields.
+     *
      * <p> If there is a security manager, its
      * {@code checkPermission} method is first called with a
      * {@code ReflectPermission("suppressAccessChecks")} permission.
@@ -303,19 +316,6 @@ public class AccessibleObject implements AnnotatedElement {
             modifiers = ((Field) this).getModifiers();
         }
 
-        // Do not allow suppression of access check for inline class's field
-        if (declaringClass.isInlineClass() &&
-                this instanceof Field
-                && Modifier.isFinal(modifiers)) {
-            if (throwExceptionIfDenied) {
-                String msg = "Unable to make field accessible of inline class "
-                                + declaringClass.getName();
-                throw new InaccessibleObjectException(msg);
-            } else {
-                return false;
-            }
-        }
-
         Module callerModule = caller.getModule();
         Module declaringModule = declaringClass.getModule();
 
@@ -441,7 +441,7 @@ public class AccessibleObject implements AnnotatedElement {
      * <p> This method returns {@code true} if the {@code accessible} flag
      * is set to {@code true}, i.e. the checks for Java language access control
      * are suppressed, or if the caller can access the member as
-     * specified in <cite>The Java&trade; Language Specification</cite>,
+     * specified in <cite>The Java Language Specification</cite>,
      * with the variation noted in the class description. </p>
      *
      * @param obj an instance object of the declaring class of this reflected

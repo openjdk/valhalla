@@ -81,8 +81,7 @@ class ThreadClosure;
 // remains in scope. The target JavaThread * may have logically exited,
 // but that target JavaThread * will not be deleted until it is no
 // longer protected by a ThreadsListHandle.
-
-
+//
 // SMR Support for the Threads class.
 //
 class ThreadsSMRSupport : AllStatic {
@@ -144,6 +143,7 @@ class ThreadsSMRSupport : AllStatic {
   static ThreadsList* get_java_thread_list();
   static bool is_a_protected_JavaThread(JavaThread *thread);
   static bool is_a_protected_JavaThread_with_lock(JavaThread *thread);
+  static void wait_until_not_protected(JavaThread *thread);
   static bool is_bootstrap_list(ThreadsList* list);
   static void remove_thread(JavaThread *thread);
   static void smr_delete(JavaThread *thread);

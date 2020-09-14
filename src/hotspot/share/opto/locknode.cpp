@@ -184,7 +184,7 @@ void Parse::do_monitor_enter() {
 
   Node* obj = peek();
 
-  if (obj->is_ValueType()) {
+  if (obj->is_InlineType()) {
     uncommon_trap(Deoptimization::Reason_class_check,
                   Deoptimization::Action_none);
     return;

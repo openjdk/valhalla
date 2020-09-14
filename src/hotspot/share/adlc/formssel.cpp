@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -774,6 +774,8 @@ bool InstructForm::captures_bottom_type(FormDict &globals) const {
        !strcmp(_matrule->_rChild->_opType,"CheckCastPP")  ||
        !strcmp(_matrule->_rChild->_opType,"GetAndSetP")   ||
        !strcmp(_matrule->_rChild->_opType,"GetAndSetN")   ||
+       !strcmp(_matrule->_rChild->_opType,"RotateLeft")   ||
+       !strcmp(_matrule->_rChild->_opType,"RotateRight")   ||
 #if INCLUDE_SHENANDOAHGC
        !strcmp(_matrule->_rChild->_opType,"ShenandoahCompareAndExchangeP") ||
        !strcmp(_matrule->_rChild->_opType,"ShenandoahCompareAndExchangeN") ||
@@ -1045,11 +1047,7 @@ uint  InstructForm::reloc(FormDict &globals) {
     const char  *opType   = NULL;
     while (_matrule->base_operand(position, globals, result, name, opType)) {
       if ( strcmp(opType,"ConP") == 0 ) {
-#ifdef SPARC
-        reloc_entries += 2; // 1 for sethi + 1 for setlo
-#else
         ++reloc_entries;
-#endif
       }
       ++position;
     }
@@ -1083,13 +1081,7 @@ uint  InstructForm::reloc(FormDict &globals) {
   // Check for any component being an immediate float or double.
   Form::DataType data_type = is_chain_of_constant(globals);
   if( data_type==idealD || data_type==idealF ) {
-#ifdef SPARC
-    // sparc required more relocation entries for floating constants
-    // (expires 9/98)
-    reloc_entries += 6;
-#else
     reloc_entries++;
-#endif
   }
 
   return reloc_entries;
@@ -3952,6 +3944,8 @@ bool MatchRule::is_base_register(FormDict &globals) const {
          strcmp(opType,"RegL")==0 ||
          strcmp(opType,"RegF")==0 ||
          strcmp(opType,"RegD")==0 ||
+         strcmp(opType,"RegVMask")==0 ||
+         strcmp(opType,"VecA")==0 ||
          strcmp(opType,"VecS")==0 ||
          strcmp(opType,"VecD")==0 ||
          strcmp(opType,"VecX")==0 ||
@@ -4176,7 +4170,7 @@ bool MatchRule::is_vector() const {
     "RShiftVB","RShiftVS","RShiftVI","RShiftVL",
     "URShiftVB","URShiftVS","URShiftVI","URShiftVL",
     "ReplicateB","ReplicateS","ReplicateI","ReplicateL","ReplicateF","ReplicateD",
-    "RoundDoubleModeV","LoadVector","StoreVector",
+    "RoundDoubleModeV","RotateLeftV" , "RotateRightV", "LoadVector","StoreVector",
     "FmaVD", "FmaVF","PopCountVI",
     // Next are not supported currently.
     "PackB","PackS","PackI","PackL","PackF","PackD","Pack2L","Pack2D",

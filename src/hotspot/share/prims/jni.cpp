@@ -49,7 +49,9 @@
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/arrayOop.inline.hpp"
-#include "oops/instanceKlass.hpp"
+#include "oops/flatArrayOop.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
+#include "oops/instanceKlass.inline.hpp"
 #include "oops/instanceOop.hpp"
 #include "oops/markWord.hpp"
 #include "oops/method.hpp"
@@ -59,8 +61,6 @@
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "oops/valueArrayOop.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
 #include "prims/jniCheck.hpp"
 #include "prims/jniExport.hpp"
 #include "prims/jniFastGetField.hpp"
@@ -318,23 +318,11 @@ JNI_ENTRY(jclass, jni_DefineClass(JNIEnv *env, const char *name, jobject loaderR
   jclass cls = NULL;
   DT_RETURN_MARK(DefineClass, jclass, (const jclass&)cls);
 
-  TempNewSymbol class_name = NULL;
-  // Since exceptions can be thrown, class initialization can take place
-  // if name is NULL no check for class name in .class stream has to be made.
-  if (name != NULL) {
-    const int str_len = (int)strlen(name);
-    if (str_len > Symbol::max_length()) {
-      // It's impossible to create this class;  the name cannot fit
-      // into the constant pool.
-      Exceptions::fthrow(THREAD_AND_LOCATION,
-                         vmSymbols::java_lang_NoClassDefFoundError(),
-                         "Class name exceeds maximum length of %d: %s",
-                         Symbol::max_length(),
-                         name);
-      return 0;
-    }
-    class_name = SymbolTable::new_symbol(name);
-  }
+  // Class resolution will get the class name from the .class stream if the name is null.
+  TempNewSymbol class_name = name == NULL ? NULL :
+    SystemDictionary::class_name_symbol(name, vmSymbols::java_lang_NoClassDefFoundError(),
+                                        CHECK_NULL);
+
   ResourceMark rm(THREAD);
   ClassFileStream st((u1*)buf, bufLen, NULL, ClassFileStream::verify);
   Handle class_loader (THREAD, JNIHandles::resolve(loaderRef));
@@ -358,8 +346,7 @@ JNI_ENTRY(jclass, jni_DefineClass(JNIEnv *env, const char *name, jobject loaderR
     trace_class_resolution(k);
   }
 
-  cls = (jclass)JNIHandles::make_local(
-    env, k->java_mirror());
+  cls = (jclass)JNIHandles::make_local(THREAD, k->java_mirror());
   return cls;
 JNI_END
 
@@ -376,19 +363,10 @@ JNI_ENTRY(jclass, jni_FindClass(JNIEnv *env, const char *name))
   jclass result = NULL;
   DT_RETURN_MARK(FindClass, jclass, (const jclass&)result);
 
-  // Sanity check the name:  it cannot be null or larger than the maximum size
-  // name we can fit in the constant pool.
-  if (name == NULL) {
-    THROW_MSG_0(vmSymbols::java_lang_NoClassDefFoundError(), "No class name given");
-  }
-  if ((int)strlen(name) > Symbol::max_length()) {
-    Exceptions::fthrow(THREAD_AND_LOCATION,
-                       vmSymbols::java_lang_NoClassDefFoundError(),
-                       "Class name exceeds maximum length of %d: %s",
-                       Symbol::max_length(),
-                       name);
-    return 0;
-  }
+  // This should be ClassNotFoundException imo.
+  TempNewSymbol class_name =
+    SystemDictionary::class_name_symbol(name, vmSymbols::java_lang_NoClassDefFoundError(),
+                                        CHECK_NULL);
 
   //%note jni_3
   Handle protection_domain;
@@ -420,8 +398,7 @@ JNI_ENTRY(jclass, jni_FindClass(JNIEnv *env, const char *name))
     }
   }
 
-  TempNewSymbol sym = SymbolTable::new_symbol(name);
-  result = find_class_from_class_loader(env, sym, true, loader,
+  result = find_class_from_class_loader(env, class_name, true, loader,
                                         protection_domain, true, thread);
 
   if (log_is_enabled(Debug, class, resolve) && result != NULL) {
@@ -500,9 +477,9 @@ JNI_ENTRY(jfieldID, jni_FromReflectedField(JNIEnv *env, jobject field))
   // The jfieldID is the offset of the field within the object
   // It may also have hash bits for k, if VerifyJNIFields is turned on.
   intptr_t offset = InstanceKlass::cast(k1)->field_offset( slot );
-  bool is_flattened = InstanceKlass::cast(k1)->field_is_flattened(slot);
+  bool is_inlined = InstanceKlass::cast(k1)->field_is_inlined(slot);
   assert(InstanceKlass::cast(k1)->contains_field_offset(offset), "stay within object");
-  ret = jfieldIDWorkaround::to_instance_jfieldID(k1, offset, is_flattened);
+  ret = jfieldIDWorkaround::to_instance_jfieldID(k1, offset, is_inlined);
   return ret;
 JNI_END
 
@@ -521,12 +498,12 @@ JNI_ENTRY(jobject, jni_ToReflectedMethod(JNIEnv *env, jclass cls, jmethodID meth
   methodHandle m (THREAD, Method::resolve_jmethod_id(method_id));
   assert(m->is_static() == (isStatic != 0), "jni_ToReflectedMethod access flags doesn't match");
   oop reflection_method;
-  if (m->is_object_constructor()) {
+  if (m->is_object_constructor() || m->is_static_init_factory()) {
     reflection_method = Reflection::new_constructor(m, CHECK_NULL);
   } else {
     reflection_method = Reflection::new_method(m, false, CHECK_NULL);
   }
-  ret = JNIHandles::make_local(env, reflection_method);
+  ret = JNIHandles::make_local(THREAD, reflection_method);
   return ret;
 JNI_END
 
@@ -560,7 +537,7 @@ JNI_ENTRY(jclass, jni_GetSuperclass(JNIEnv *env, jclass sub))
                                  : k->super() ) );
   assert(super == super2,
          "java_super computation depends on interface, array, other super");
-  obj = (super == NULL) ? NULL : (jclass) JNIHandles::make_local(super->java_mirror());
+  obj = (super == NULL) ? NULL : (jclass) JNIHandles::make_local(THREAD, super->java_mirror());
   return obj;
 JNI_END
 
@@ -583,15 +560,6 @@ JNI_ENTRY_NO_PRESERVE(jboolean, jni_IsAssignableFrom(JNIEnv *env, jclass sub, jc
   assert(sub_klass != NULL && super_klass != NULL, "invalid arguments to jni_IsAssignableFrom");
   jboolean ret = sub_klass->is_subtype_of(super_klass) ?
                    JNI_TRUE : JNI_FALSE;
-  if (sub_klass == super_klass && sub_klass->is_value()) {
-    // for inline class, V <: V?
-    ValueKlass* vk = ValueKlass::cast(InstanceKlass::cast(sub_klass));
-    if (sub_mirror == super_mirror || (sub_mirror == vk->value_mirror() && super_mirror == vk->indirect_mirror())) {
-      ret = JNI_TRUE;
-    } else {
-      ret = JNI_FALSE;
-    }
-  }
   HOTSPOT_JNI_ISASSIGNABLEFROM_RETURN(ret);
   return ret;
 JNI_END
@@ -656,7 +624,7 @@ JNI_ENTRY_NO_PRESERVE(jthrowable, jni_ExceptionOccurred(JNIEnv *env))
 
   jni_check_async_exceptions(thread);
   oop exception = thread->pending_exception();
-  jthrowable ret = (jthrowable) JNIHandles::make_local(env, exception);
+  jthrowable ret = (jthrowable) JNIHandles::make_local(THREAD, exception);
 
   HOTSPOT_JNI_EXCEPTIONOCCURRED_RETURN(ret);
   return ret;
@@ -787,7 +755,7 @@ JNI_ENTRY(jobject, jni_NewGlobalRef(JNIEnv *env, jobject ref))
   HOTSPOT_JNI_NEWGLOBALREF_ENTRY(env, ref);
 
   Handle ref_handle(thread, JNIHandles::resolve(ref));
-  jobject ret = JNIHandles::make_global(ref_handle);
+  jobject ret = JNIHandles::make_global(ref_handle, AllocFailStrategy::RETURN_NULL);
 
   HOTSPOT_JNI_NEWGLOBALREF_RETURN(ret);
   return ret;
@@ -831,7 +799,8 @@ JNI_ENTRY(jobject, jni_NewLocalRef(JNIEnv *env, jobject ref))
 
   HOTSPOT_JNI_NEWLOCALREF_ENTRY(env, ref);
 
-  jobject ret = JNIHandles::make_local(env, JNIHandles::resolve(ref));
+  jobject ret = JNIHandles::make_local(THREAD, JNIHandles::resolve(ref),
+                                       AllocFailStrategy::RETURN_NULL);
 
   HOTSPOT_JNI_NEWLOCALREF_RETURN(ret);
   return ret;
@@ -927,7 +896,7 @@ class JNI_ArgumentPusherVaArg : public JNI_ArgumentPusher {
 
     case T_ARRAY:
     case T_OBJECT:
-    case T_VALUETYPE:   push_object(va_arg(_ap, jobject)); break;
+    case T_INLINE_TYPE: push_object(va_arg(_ap, jobject)); break;
     default:            ShouldNotReachHere();
     }
   }
@@ -964,7 +933,7 @@ class JNI_ArgumentPusherArray : public JNI_ArgumentPusher {
     case T_DOUBLE:      push_double((_ap++)->d); break;
     case T_ARRAY:
     case T_OBJECT:
-    case T_VALUETYPE:   push_object((_ap++)->l); break;
+    case T_INLINE_TYPE: push_object((_ap++)->l); break;
     default:            ShouldNotReachHere();
     }
   }
@@ -1011,7 +980,7 @@ static void jni_invoke_static(JNIEnv *env, JavaValue* result, jobject receiver, 
 
   // Convert result
   if (is_reference_type(result->get_type())) {
-    result->set_jobject(JNIHandles::make_local(env, (oop) result->get_jobject()));
+    result->set_jobject(JNIHandles::make_local(THREAD, (oop) result->get_jobject()));
   }
 }
 
@@ -1073,21 +1042,8 @@ static void jni_invoke_nonstatic(JNIEnv *env, JavaValue* result, jobject receive
 
   // Convert result
   if (is_reference_type(result->get_type())) {
-    result->set_jobject(JNIHandles::make_local(env, (oop) result->get_jobject()));
+    result->set_jobject(JNIHandles::make_local(THREAD, (oop) result->get_jobject()));
   }
-}
-
-
-static instanceOop alloc_object(jclass clazz, TRAPS) {
-  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz));
-  if (k == NULL) {
-    ResourceMark rm(THREAD);
-    THROW_(vmSymbols::java_lang_InstantiationException(), NULL);
-  }
-  k->check_valid_for_instantiation(false, CHECK_NULL);
-  k->initialize(CHECK_NULL);
-  instanceOop ih = InstanceKlass::cast(k)->allocate_instance(THREAD);
-  return ih;
 }
 
 DT_RETURN_MARK_DECL(AllocObject, jobject
@@ -1101,8 +1057,8 @@ JNI_ENTRY(jobject, jni_AllocObject(JNIEnv *env, jclass clazz))
   jobject ret = NULL;
   DT_RETURN_MARK(AllocObject, jobject, (const jobject&)ret);
 
-  instanceOop i = alloc_object(clazz, CHECK_NULL);
-  ret = JNIHandles::make_local(env, i);
+  instanceOop i = InstanceKlass::allocate_instance(JNIHandles::resolve_non_null(clazz), CHECK_NULL);
+  ret = JNIHandles::make_local(THREAD, i);
   return ret;
 JNI_END
 
@@ -1117,20 +1073,21 @@ JNI_ENTRY(jobject, jni_NewObjectA(JNIEnv *env, jclass clazz, jmethodID methodID,
   jobject obj = NULL;
   DT_RETURN_MARK(NewObjectA, jobject, (const jobject)obj);
 
-  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz));
+  oop clazzoop = JNIHandles::resolve_non_null(clazz);
+  Klass* k = java_lang_Class::as_Klass(clazzoop);
   if (k == NULL) {
     ResourceMark rm(THREAD);
     THROW_(vmSymbols::java_lang_InstantiationException(), NULL);
   }
 
-  if (!k->is_value()) {
-    instanceOop i = alloc_object(clazz, CHECK_NULL);
-    obj = JNIHandles::make_local(env, i);
+  if (!k->is_inline_klass()) {
+    instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
+    obj = JNIHandles::make_local(THREAD, i);
     JavaValue jvalue(T_VOID);
     JNI_ArgumentPusherArray ap(methodID, args);
     jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
   } else {
-    JavaValue jvalue(T_VALUETYPE);
+    JavaValue jvalue(T_INLINE_TYPE);
     JNI_ArgumentPusherArray ap(methodID, args);
     jni_invoke_static(env, &jvalue, NULL, JNI_STATIC, methodID, &ap, CHECK_NULL);
     obj = jvalue.get_jobject();
@@ -1150,20 +1107,21 @@ JNI_ENTRY(jobject, jni_NewObjectV(JNIEnv *env, jclass clazz, jmethodID methodID,
   jobject obj = NULL;
   DT_RETURN_MARK(NewObjectV, jobject, (const jobject&)obj);
 
-  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz));
+  oop clazzoop = JNIHandles::resolve_non_null(clazz);
+  Klass* k = java_lang_Class::as_Klass(clazzoop);
   if (k == NULL) {
     ResourceMark rm(THREAD);
     THROW_(vmSymbols::java_lang_InstantiationException(), NULL);
   }
 
-  if (!k->is_value()) {
-    instanceOop i = alloc_object(clazz, CHECK_NULL);
-    obj = JNIHandles::make_local(env, i);
+  if (!k->is_inline_klass()) {
+    instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
+    obj = JNIHandles::make_local(THREAD, i);
     JavaValue jvalue(T_VOID);
     JNI_ArgumentPusherVaArg ap(methodID, args);
     jni_invoke_nonstatic(env, &jvalue, obj, JNI_NONVIRTUAL, methodID, &ap, CHECK_NULL);
   } else {
-    JavaValue jvalue(T_VALUETYPE);
+    JavaValue jvalue(T_INLINE_TYPE);
     JNI_ArgumentPusherVaArg ap(methodID, args);
     jni_invoke_static(env, &jvalue, NULL, JNI_STATIC, methodID, &ap, CHECK_NULL);
     obj = jvalue.get_jobject();
@@ -1183,15 +1141,16 @@ JNI_ENTRY(jobject, jni_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, 
   jobject obj = NULL;
   DT_RETURN_MARK(NewObject, jobject, (const jobject&)obj);
 
-  Klass* k = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz));
+  oop clazzoop = JNIHandles::resolve_non_null(clazz);
+  Klass* k = java_lang_Class::as_Klass(clazzoop);
   if (k == NULL) {
     ResourceMark rm(THREAD);
     THROW_(vmSymbols::java_lang_InstantiationException(), NULL);
   }
 
-  if (!k->is_value()) {
-    instanceOop i = alloc_object(clazz, CHECK_NULL);
-    obj = JNIHandles::make_local(env, i);
+  if (!k->is_inline_klass()) {
+    instanceOop i = InstanceKlass::allocate_instance(clazzoop, CHECK_NULL);
+    obj = JNIHandles::make_local(THREAD, i);
     va_list args;
     va_start(args, methodID);
     JavaValue jvalue(T_VOID);
@@ -1201,7 +1160,7 @@ JNI_ENTRY(jobject, jni_NewObject(JNIEnv *env, jclass clazz, jmethodID methodID, 
   } else {
     va_list args;
     va_start(args, methodID);
-    JavaValue jvalue(T_VALUETYPE);
+    JavaValue jvalue(T_INLINE_TYPE);
     JNI_ArgumentPusherVaArg ap(methodID, args);
     jni_invoke_static(env, &jvalue, NULL, JNI_STATIC, methodID, &ap, CHECK_NULL);
     va_end(args);
@@ -1218,7 +1177,7 @@ JNI_ENTRY(jclass, jni_GetObjectClass(JNIEnv *env, jobject obj))
 
   Klass* k = JNIHandles::resolve_non_null(obj)->klass();
   jclass ret =
-    (jclass) JNIHandles::make_local(env, k->java_mirror());
+    (jclass) JNIHandles::make_local(THREAD, k->java_mirror());
 
   HOTSPOT_JNI_GETOBJECTCLASS_RETURN(ret);
   return ret;
@@ -1261,11 +1220,12 @@ static jmethodID get_method_id(JNIEnv *env, jclass clazz, const char *name_str,
     THROW_MSG_0(vmSymbols::java_lang_NoSuchMethodError(), name_str);
   }
 
-  Klass* klass = java_lang_Class::as_Klass(JNIHandles::resolve_non_null(clazz));
+  oop mirror = JNIHandles::resolve_non_null(clazz);
+  Klass* klass = java_lang_Class::as_Klass(mirror);
 
   // Throw a NoSuchMethodError exception if we have an instance of a
   // primitive java.lang.Class
-  if (java_lang_Class::is_primitive(JNIHandles::resolve_non_null(clazz))) {
+  if (java_lang_Class::is_primitive(mirror)) {
     ResourceMark rm;
     THROW_MSG_0(vmSymbols::java_lang_NoSuchMethodError(), err_msg("%s%s.%s%s", is_static ? "static " : "", klass->signature_name(), name_str, sig));
   }
@@ -1983,7 +1943,7 @@ JNI_ENTRY(jfieldID, jni_GetFieldID(JNIEnv *env, jclass clazz,
 
   // A jfieldID for a non-static field is simply the offset of the field within the instanceOop
   // It may also have hash bits for k, if VerifyJNIFields is turned on.
-  ret = jfieldIDWorkaround::to_instance_jfieldID(k, fd.offset(), fd.is_flattened());
+  ret = jfieldIDWorkaround::to_instance_jfieldID(k, fd.offset(), fd.is_inlined());
   return ret;
 JNI_END
 
@@ -2000,18 +1960,18 @@ JNI_ENTRY(jobject, jni_GetObjectField(JNIEnv *env, jobject obj, jfieldID fieldID
   if (JvmtiExport::should_post_field_access()) {
     o = JvmtiExport::jni_GetField_probe(thread, obj, o, k, fieldID, false);
   }
-  if (!jfieldIDWorkaround::is_flattened_field(fieldID)) {
+  if (!jfieldIDWorkaround::is_inlined_jfieldID(fieldID)) {
     res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(o, offset);
   } else {
-    assert(k->is_instance_klass(), "Only instance can have flattened fields");
+    assert(k->is_instance_klass(), "Only instance can have inlined fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);  // performance bottleneck
     InstanceKlass* holder = fd.field_holder();
-    ValueKlass* field_vklass = ValueKlass::cast(holder->get_value_field_klass(fd.index()));
-    res = field_vklass->read_flattened_field(o, ik->field_offset(fd.index()), CHECK_NULL);
+    InlineKlass* field_vklass = InlineKlass::cast(holder->get_inline_type_field_klass(fd.index()));
+    res = field_vklass->read_inlined_field(o, ik->field_offset(fd.index()), CHECK_NULL);
   }
-  jobject ret = JNIHandles::make_local(env, res);
+  jobject ret = JNIHandles::make_local(THREAD, res);
   HOTSPOT_JNI_GETOBJECTFIELD_RETURN(ret);
   return ret;
 JNI_END
@@ -2109,17 +2069,17 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
     field_value.l = value;
     o = JvmtiExport::jni_SetField_probe_nh(thread, obj, o, k, fieldID, false, JVM_SIGNATURE_CLASS, (jvalue *)&field_value);
   }
-  if (!jfieldIDWorkaround::is_flattened_field(fieldID)) {
+  if (!jfieldIDWorkaround::is_inlined_jfieldID(fieldID)) {
     HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(o, offset, JNIHandles::resolve(value));
   } else {
-    assert(k->is_instance_klass(), "Only instances can have flattened fields");
+    assert(k->is_instance_klass(), "Only instances can have inlined fields");
     InstanceKlass* ik = InstanceKlass::cast(k);
     fieldDescriptor fd;
     ik->find_field_from_offset(offset, false, &fd);
     InstanceKlass* holder = fd.field_holder();
-    ValueKlass* vklass = ValueKlass::cast(holder->get_value_field_klass(fd.index()));
+    InlineKlass* vklass = InlineKlass::cast(holder->get_inline_type_field_klass(fd.index()));
     oop v = JNIHandles::resolve_non_null(value);
-    vklass->write_flattened_field(o, offset, v, CHECK);
+    vklass->write_inlined_field(o, offset, v, CHECK);
   }
   HOTSPOT_JNI_SETOBJECTFIELD_RETURN();
 JNI_END
@@ -2202,7 +2162,7 @@ JNI_ENTRY(jobject, jni_ToReflectedField(JNIEnv *env, jclass cls, jfieldID fieldI
   }
   assert(found, "bad fieldID passed into jni_ToReflectedField");
   oop reflected = Reflection::new_field(&fd, CHECK_NULL);
-  ret = JNIHandles::make_local(env, reflected);
+  ret = JNIHandles::make_local(THREAD, reflected);
   return ret;
 JNI_END
 
@@ -2262,7 +2222,7 @@ JNI_ENTRY(jobject, jni_GetStaticObjectField(JNIEnv *env, jclass clazz, jfieldID 
   if (JvmtiExport::should_post_field_access()) {
     JvmtiExport::jni_GetField_probe(thread, NULL, NULL, id->holder(), fieldID, true);
   }
-  jobject ret = JNIHandles::make_local(id->holder()->java_mirror()->obj_field(id->offset()));
+  jobject ret = JNIHandles::make_local(THREAD, id->holder()->java_mirror()->obj_field(id->offset()));
   HOTSPOT_JNI_GETSTATICOBJECTFIELD_RETURN(ret);
   return ret;
 JNI_END
@@ -2389,7 +2349,7 @@ JNI_ENTRY(jstring, jni_NewString(JNIEnv *env, const jchar *unicodeChars, jsize l
   jstring ret = NULL;
   DT_RETURN_MARK(NewString, jstring, (const jstring&)ret);
   oop string=java_lang_String::create_oop_from_unicode((jchar*) unicodeChars, len, CHECK_NULL);
-  ret = (jstring) JNIHandles::make_local(env, string);
+  ret = (jstring) JNIHandles::make_local(THREAD, string);
   return ret;
 JNI_END
 
@@ -2465,7 +2425,7 @@ JNI_ENTRY(jstring, jni_NewStringUTF(JNIEnv *env, const char *bytes))
   DT_RETURN_MARK(NewStringUTF, jstring, (const jstring&)ret);
 
   oop result = java_lang_String::create_oop_from_str((char*) bytes, CHECK_NULL);
-  ret = (jstring) JNIHandles::make_local(env, result);
+  ret = (jstring) JNIHandles::make_local(THREAD, result);
   return ret;
 JNI_END
 
@@ -2545,7 +2505,7 @@ JNI_ENTRY(jobjectArray, jni_NewObjectArray(JNIEnv *env, jsize length, jclass ele
       result->obj_at_put(index, initial_value);
     }
   }
-  ret = (jobjectArray) JNIHandles::make_local(env, result);
+  ret = (jobjectArray) JNIHandles::make_local(THREAD, result);
   return ret;
 JNI_END
 
@@ -2560,11 +2520,11 @@ JNI_ENTRY(jobject, jni_GetObjectArrayElement(JNIEnv *env, jobjectArray array, js
   oop res = NULL;
   arrayOop arr((arrayOop)JNIHandles::resolve_non_null(array));
   if (arr->is_within_bounds(index)) {
-    if (arr->is_valueArray()) {
-      valueArrayOop a = valueArrayOop(JNIHandles::resolve_non_null(array));
+    if (arr->is_flatArray()) {
+      flatArrayOop a = flatArrayOop(JNIHandles::resolve_non_null(array));
       arrayHandle ah(THREAD, a);
-      valueArrayHandle vah(thread, a);
-      res = valueArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK_NULL);
+      flatArrayHandle vah(thread, a);
+      res = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK_NULL);
       assert(res != NULL, "Must be set in one of two paths above");
     } else {
       assert(arr->is_objArray(), "If not a valueArray. must be an objArray");
@@ -2577,7 +2537,7 @@ JNI_ENTRY(jobject, jni_GetObjectArrayElement(JNIEnv *env, jobjectArray array, js
     ss.print("Index %d out of bounds for length %d", index,arr->length());
     THROW_MSG_0(vmSymbols::java_lang_ArrayIndexOutOfBoundsException(), ss.as_string());
   }
-  ret = JNIHandles::make_local(env, res);
+  ret = JNIHandles::make_local(THREAD, res);
   return ret;
 JNI_END
 
@@ -2594,17 +2554,17 @@ JNI_ENTRY(void, jni_SetObjectArrayElement(JNIEnv *env, jobjectArray array, jsize
    oop res = NULL;
    arrayOop arr((arrayOop)JNIHandles::resolve_non_null(array));
    if (arr->is_within_bounds(index)) {
-     if (arr->is_valueArray()) {
-       valueArrayOop a = valueArrayOop(JNIHandles::resolve_non_null(array));
+     if (arr->is_flatArray()) {
+       flatArrayOop a = flatArrayOop(JNIHandles::resolve_non_null(array));
        oop v = JNIHandles::resolve(value);
-       ValueArrayKlass* vaklass = ValueArrayKlass::cast(a->klass());
-       ValueKlass* element_vklass = vaklass->element_klass();
+       FlatArrayKlass* vaklass = FlatArrayKlass::cast(a->klass());
+       InlineKlass* element_vklass = vaklass->element_klass();
        if (v != NULL && v->is_a(element_vklass)) {
          a->value_copy_to_index(v, index);
        } else {
          ResourceMark rm(THREAD);
          stringStream ss;
-         Klass *kl = ValueArrayKlass::cast(a->klass());
+         Klass *kl = FlatArrayKlass::cast(a->klass());
          ss.print("type mismatch: can not store %s to %s[%d]",
              v->klass()->external_name(),
              kl->external_name(),
@@ -2658,7 +2618,7 @@ JNI_ENTRY(Return, \
   DT_RETURN_MARK(New##Result##Array, Return, (const Return&)ret);\
 \
   oop obj= oopFactory::Allocator(len, CHECK_NULL); \
-  ret = (Return) JNIHandles::make_local(env, obj); \
+  ret = (Return) JNIHandles::make_local(THREAD, obj); \
   return ret;\
 JNI_END
 
@@ -3200,10 +3160,13 @@ JNI_END
 
 JNI_ENTRY(jweak, jni_NewWeakGlobalRef(JNIEnv *env, jobject ref))
   JNIWrapper("jni_NewWeakGlobalRef");
- HOTSPOT_JNI_NEWWEAKGLOBALREF_ENTRY(env, ref);
+  HOTSPOT_JNI_NEWWEAKGLOBALREF_ENTRY(env, ref);
   Handle ref_handle(thread, JNIHandles::resolve(ref));
-  jweak ret = JNIHandles::make_weak_global(ref_handle);
- HOTSPOT_JNI_NEWWEAKGLOBALREF_RETURN(ret);
+  jweak ret = JNIHandles::make_weak_global(ref_handle, AllocFailStrategy::RETURN_NULL);
+  if (ret == NULL) {
+    THROW_OOP_(Universe::out_of_memory_error_c_heap(), NULL);
+  }
+  HOTSPOT_JNI_NEWWEAKGLOBALREF_RETURN(ret);
   return ret;
 JNI_END
 
@@ -3278,6 +3241,12 @@ static bool initializeDirectBufferSupport(JNIEnv* env, JavaThread* thread) {
     bufferClass           = (jclass) env->NewGlobalRef(bufferClass);
     directBufferClass     = (jclass) env->NewGlobalRef(directBufferClass);
     directByteBufferClass = (jclass) env->NewGlobalRef(directByteBufferClass);
+
+    // Global refs will be NULL if out-of-memory (no exception is pending)
+    if (bufferClass == NULL || directBufferClass == NULL || directByteBufferClass == NULL) {
+      directBufferSupportInitializeFailed = 1;
+      return false;
+    }
 
     // Get needed field and method IDs
     directByteBufferConstructor = env->GetMethodID(directByteBufferClass, "<init>", "(JI)V");
@@ -3435,15 +3404,15 @@ JNI_ENTRY(void*, jni_GetFlattenedArrayElements(JNIEnv* env, jarray array, jboole
   if (!ar->is_array()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not an array");
   }
-  if (!ar->is_valueArray()) {
+  if (!ar->is_flatArray()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
   }
-  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass());
+  FlatArrayKlass* vak = FlatArrayKlass::cast(ar->klass());
   if (vak->contains_oops()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Flattened array contains oops");
   }
   oop a = lock_gc_or_pin_object(thread, array);
-  valueArrayOop vap = valueArrayOop(a);
+  flatArrayOop vap = flatArrayOop(a);
   void* ret = vap->value_at_addr(0, vak->layout_helper());
   return ret;
 JNI_END
@@ -3459,10 +3428,10 @@ JNI_ENTRY(jsize, jni_GetFlattenedArrayElementSize(JNIEnv* env, jarray array)) {
   if (!a->is_array()) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Not an array");
   }
-  if (!a->is_valueArray()) {
+  if (!a->is_flatArray()) {
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
   }
-  ValueArrayKlass* vak = ValueArrayKlass::cast(a->klass());
+  FlatArrayKlass* vak = FlatArrayKlass::cast(a->klass());
   jsize ret = vak->element_byte_size();
   return ret;
 }
@@ -3474,24 +3443,24 @@ JNI_ENTRY(jclass, jni_GetFlattenedArrayElementClass(JNIEnv* env, jarray array))
   if (!a->is_array()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not an array");
   }
-  if (!a->is_valueArray()) {
+  if (!a->is_flatArray()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
   }
-  ValueArrayKlass* vak = ValueArrayKlass::cast(a->klass());
-  ValueKlass* vk = vak->element_klass();
+  FlatArrayKlass* vak = FlatArrayKlass::cast(a->klass());
+  InlineKlass* vk = vak->element_klass();
   return (jclass) JNIHandles::make_local(vk->java_mirror());
 JNI_END
 
-JNI_ENTRY(jsize, jni_GetFieldOffsetInFlattenedLayout(JNIEnv* env, jclass clazz, const char *name, const char *signature, jboolean* isFlattened))
+JNI_ENTRY(jsize, jni_GetFieldOffsetInFlattenedLayout(JNIEnv* env, jclass clazz, const char *name, const char *signature, jboolean* is_inlined))
   JNIWrapper("jni_GetFieldOffsetInFlattenedLayout");
 
   oop mirror = JNIHandles::resolve_non_null(clazz);
   Klass* k = java_lang_Class::as_Klass(mirror);
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     ResourceMark rm;
         THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s has not flattened layout", k->external_name()));
   }
-  ValueKlass* vk = ValueKlass::cast(k);
+  InlineKlass* vk = InlineKlass::cast(k);
 
   TempNewSymbol fieldname = SymbolTable::probe(name, (int)strlen(name));
   TempNewSymbol signame = SymbolTable::probe(signature, (int)strlen(signature));
@@ -3510,8 +3479,8 @@ JNI_ENTRY(jsize, jni_GetFieldOffsetInFlattenedLayout(JNIEnv* env, jclass clazz, 
   }
 
   int offset = fd.offset() - vk->first_field_offset();
-  if (isFlattened != NULL) {
-    *isFlattened = fd.is_flattened();
+  if (is_inlined != NULL) {
+    *is_inlined = fd.is_inlined();
   }
   return (jsize)offset;
 JNI_END
@@ -3523,7 +3492,7 @@ JNI_ENTRY(jobject, jni_CreateSubElementSelector(JNIEnv* env, jarray array))
   if (!ar->is_array()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not an array");
   }
-  if (!ar->is_valueArray()) {
+  if (!ar->is_flatArray()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
   }
   Klass* ses_k = SystemDictionary::resolve_or_null(vmSymbols::jdk_internal_vm_jni_SubElementSelector(),
@@ -3536,8 +3505,8 @@ JNI_ENTRY(jobject, jni_CreateSubElementSelector(JNIEnv* env, jarray array))
   jdk_internal_vm_jni_SubElementSelector::setArrayElementType(ses_h(), elementKlass->java_mirror());
   jdk_internal_vm_jni_SubElementSelector::setSubElementType(ses_h(), elementKlass->java_mirror());
   jdk_internal_vm_jni_SubElementSelector::setOffset(ses_h(), 0);
-  jdk_internal_vm_jni_SubElementSelector::setIsFlattened(ses_h(), true);   // by definition, top element of a flattened array is flattened
-  jdk_internal_vm_jni_SubElementSelector::setIsFlattenable(ses_h(), true); // by definition, top element of a flattened array is flattenable
+  jdk_internal_vm_jni_SubElementSelector::setIsInlined(ses_h(), true);   // by definition, top element of a flattened array is inlined
+  jdk_internal_vm_jni_SubElementSelector::setIsInlineType(ses_h(), true); // by definition, top element of a flattened array is an inline type
   return JNIHandles::make_local(ses_h());
 JNI_END
 
@@ -3548,17 +3517,17 @@ JNI_ENTRY(jobject, jni_GetSubElementSelector(JNIEnv* env, jobject selector, jfie
   if (slct->klass()->name() != vmSymbols::jdk_internal_vm_jni_SubElementSelector()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a SubElementSelector");
   }
-  jboolean isflattened = jdk_internal_vm_jni_SubElementSelector::getIsFlattened(slct);
-  if (!isflattened) {
-    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "SubElement is not flattened");
+  jboolean is_inlined = jdk_internal_vm_jni_SubElementSelector::getIsInlined(slct);
+  if (!is_inlined) {
+    THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "SubElement is not inlined");
   }
   oop semirror = jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct);
   Klass* k = java_lang_Class::as_Klass(semirror);
-  if (!k->is_value()) {
+  if (!k->is_inline_klass()) {
     ResourceMark rm;
         THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), err_msg("%s is not an inline type", k->external_name()));
   }
-  ValueKlass* vk = ValueKlass::cast(k);
+  InlineKlass* vk = InlineKlass::cast(k);
   assert(vk->is_initialized(), "If a flattened array has been created, the element klass must have been initialized");
   int field_offset = jfieldIDWorkaround::from_instance_jfieldID(vk, fieldID);
   fieldDescriptor fd;
@@ -3582,33 +3551,33 @@ JNI_ENTRY(jobject, jni_GetSubElementSelector(JNIEnv* env, jobject selector, jfie
     jdk_internal_vm_jni_SubElementSelector::setSubElementType(res_h(),fieldKlass->java_mirror());
   }
   jdk_internal_vm_jni_SubElementSelector::setOffset(res_h(), offset);
-  jdk_internal_vm_jni_SubElementSelector::setIsFlattened(res_h(), fd.is_flattened());
-  jdk_internal_vm_jni_SubElementSelector::setIsFlattenable(res_h(), fd.is_flattenable());
+  jdk_internal_vm_jni_SubElementSelector::setIsInlined(res_h(), fd.is_inlined());
+  jdk_internal_vm_jni_SubElementSelector::setIsInlineType(res_h(), fd.is_inline_type());
   return JNIHandles::make_local(res_h());
 JNI_END
 
 JNI_ENTRY(jobject, jni_GetObjectSubElement(JNIEnv* env, jarray array, jobject selector, int index))
   JNIWrapper("jni_GetObjectSubElement");
 
-  valueArrayOop ar =  (valueArrayOop)JNIHandles::resolve_non_null(array);
+  flatArrayOop ar =  (flatArrayOop)JNIHandles::resolve_non_null(array);
   oop slct = JNIHandles::resolve_non_null(selector);
-  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass());
+  FlatArrayKlass* vak = FlatArrayKlass::cast(ar->klass());
   if (jdk_internal_vm_jni_SubElementSelector::getArrayElementType(slct) != vak->element_klass()->java_mirror()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Array/Selector mismatch");
   }
   oop res = NULL;
-  if (!jdk_internal_vm_jni_SubElementSelector::getIsFlattened(slct)) {
+  if (!jdk_internal_vm_jni_SubElementSelector::getIsInlined(slct)) {
     int offset = (address)ar->base() - cast_from_oop<address>(ar) + index * vak->element_byte_size()
                       + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
     res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(ar, offset);
   } else {
-    ValueKlass* fieldKlass = ValueKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
-    res = fieldKlass->allocate_instance(CHECK_NULL);
+    InlineKlass* fieldKlass = InlineKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
+    res = fieldKlass->allocate_instance_buffer(CHECK_NULL);
     // The array might have been moved by the GC, refreshing the arrayOop
-    ar =  (valueArrayOop)JNIHandles::resolve_non_null(array);
+    ar =  (flatArrayOop)JNIHandles::resolve_non_null(array);
     address addr = (address)ar->value_at_addr(index, vak->layout_helper())
               + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
-    fieldKlass->value_copy_payload_to_new_oop(addr, res);
+    fieldKlass->inline_copy_payload_to_new_oop(addr, res);
   }
   return JNIHandles::make_local(res);
 JNI_END
@@ -3616,15 +3585,15 @@ JNI_END
 JNI_ENTRY(void, jni_SetObjectSubElement(JNIEnv* env, jarray array, jobject selector, int index, jobject value))
   JNIWrapper("jni_SetObjectSubElement");
 
-  valueArrayOop ar =  (valueArrayOop)JNIHandles::resolve_non_null(array);
+  flatArrayOop ar =  (flatArrayOop)JNIHandles::resolve_non_null(array);
   oop slct = JNIHandles::resolve_non_null(selector);
-  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass());
+  FlatArrayKlass* vak = FlatArrayKlass::cast(ar->klass());
   if (jdk_internal_vm_jni_SubElementSelector::getArrayElementType(slct) != vak->element_klass()->java_mirror()) {
     THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "Array/Selector mismatch");
   }
   oop val = JNIHandles::resolve(value);
   if (val == NULL) {
-    if (jdk_internal_vm_jni_SubElementSelector::getIsFlattenable(slct)) {
+    if (jdk_internal_vm_jni_SubElementSelector::getIsInlineType(slct)) {
       THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), "null cannot be stored in a flattened array");
     }
   } else {
@@ -3632,15 +3601,15 @@ JNI_ENTRY(void, jni_SetObjectSubElement(JNIEnv* env, jarray array, jobject selec
       THROW_MSG(vmSymbols::java_lang_ArrayStoreException(), "type mismatch");
     }
   }
-  if (!jdk_internal_vm_jni_SubElementSelector::getIsFlattened(slct)) {
+  if (!jdk_internal_vm_jni_SubElementSelector::getIsInlined(slct)) {
     int offset = (address)ar->base() - cast_from_oop<address>(ar) + index * vak->element_byte_size()
                   + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
     HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(ar, offset, JNIHandles::resolve(value));
   } else {
-    ValueKlass* fieldKlass = ValueKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
+    InlineKlass* fieldKlass = InlineKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
     address addr = (address)ar->value_at_addr(index, vak->layout_helper())
                   + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
-    fieldKlass->value_copy_oop_to_payload(JNIHandles::resolve_non_null(value), addr);
+    fieldKlass->inline_copy_oop_to_payload(JNIHandles::resolve_non_null(value), addr);
   }
 JNI_END
 
@@ -3649,9 +3618,9 @@ JNI_END
 JNI_ENTRY(ElementType, \
           jni_Get##Result##SubElement(JNIEnv *env, jarray array, jobject selector, int index)) \
   JNIWrapper("Get" XSTR(Result) "SubElement"); \
-  valueArrayOop ar = (valueArrayOop)JNIHandles::resolve_non_null(array); \
+  flatArrayOop ar = (flatArrayOop)JNIHandles::resolve_non_null(array); \
   oop slct = JNIHandles::resolve_non_null(selector); \
-  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass()); \
+  FlatArrayKlass* vak = FlatArrayKlass::cast(ar->klass()); \
   if (jdk_internal_vm_jni_SubElementSelector::getArrayElementType(slct) != vak->element_klass()->java_mirror()) { \
     THROW_MSG_0(vmSymbols::java_lang_IllegalArgumentException(), "Array/Selector mismatch"); \
   } \
@@ -3678,9 +3647,9 @@ DEFINE_GETSUBELEMENT(jdouble, Double,T_DOUBLE)
 JNI_ENTRY(void, \
           jni_Set##Result##SubElement(JNIEnv *env, jarray array, jobject selector, int index, ElementType value)) \
   JNIWrapper("Get" XSTR(Result) "SubElement"); \
-  valueArrayOop ar = (valueArrayOop)JNIHandles::resolve_non_null(array); \
+  flatArrayOop ar = (flatArrayOop)JNIHandles::resolve_non_null(array); \
   oop slct = JNIHandles::resolve_non_null(selector); \
-  ValueArrayKlass* vak = ValueArrayKlass::cast(ar->klass()); \
+  FlatArrayKlass* vak = FlatArrayKlass::cast(ar->klass()); \
   if (jdk_internal_vm_jni_SubElementSelector::getArrayElementType(slct) != vak->element_klass()->java_mirror()) { \
     THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(), "Array/Selector mismatch"); \
   } \
@@ -4225,7 +4194,7 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
           JVMCICompiler* compiler = JVMCICompiler::instance(true, CATCH);
           compiler->bootstrap(THREAD);
           if (HAS_PENDING_EXCEPTION) {
-            HandleMark hm;
+            HandleMark hm(THREAD);
             vm_exit_during_initialization(Handle(THREAD, PENDING_EXCEPTION));
           }
         }
@@ -4259,7 +4228,7 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
       // otherwise no pending exception possible - VM will already have aborted
       JavaThread* THREAD = JavaThread::current();
       if (HAS_PENDING_EXCEPTION) {
-        HandleMark hm;
+        HandleMark hm(THREAD);
         vm_exit_during_initialization(Handle(THREAD, PENDING_EXCEPTION));
       }
     }

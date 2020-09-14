@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2018 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -30,6 +30,7 @@
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
+#include "classfile/javaClasses.hpp"
 #include "nativeInst_s390.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/align.hpp"
@@ -353,7 +354,7 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
     // thread.
     assert(_obj != noreg, "must be a valid register");
     assert(_index >= 0, "must have oop index");
-    __ z_lg(Z_R1_scratch, java_lang_Class::klass_offset_in_bytes(), _obj);
+    __ z_lg(Z_R1_scratch, java_lang_Class::klass_offset(), _obj);
     __ z_cg(Z_thread, Address(Z_R1_scratch, InstanceKlass::init_thread_offset()));
     __ branch_optimized(Assembler::bcondNotEqual, call_patch);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -64,7 +64,11 @@ public final class EventInstrumentation {
         private String settingDescriptor;
         final String fieldName;
         final int index;
-        // Used when instantiating Setting
+
+        // The settingControl is passed to EventHandler where it is
+        // used to check enablement before calling commit
+        // Methods on settingControl must never be invoked
+        // directly by JFR, instead use jdk.jfr.internal.Control
         SettingControl settingControl;
 
         public SettingInfo(String fieldName, int index) {
@@ -320,7 +324,7 @@ public final class EventInstrumentation {
         return result;
     }
 
-    public byte[] builUninstrumented() {
+    public byte[] buildUninstrumented() {
         makeUninstrumented();
         return toByteArray();
     }

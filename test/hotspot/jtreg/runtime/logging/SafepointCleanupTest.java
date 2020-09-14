@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,8 +39,7 @@ public class SafepointCleanupTest {
         OutputAnalyzer output = new OutputAnalyzer(pb.start());
         output.shouldContain("[safepoint,cleanup]");
         output.shouldContain("safepoint cleanup tasks");
-        output.shouldContain("deflating global idle monitors");
-        output.shouldContain("deflating per-thread idle monitors");
+        output.shouldContain("deflating idle monitors");
         output.shouldContain("updating inline caches");
         output.shouldContain("compilation policy safepoint handler");
         output.shouldHaveExitValue(0);

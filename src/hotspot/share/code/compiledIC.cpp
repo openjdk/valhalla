@@ -536,9 +536,9 @@ void CompiledIC::compute_monomorphic_entry(const methodHandle& method,
     //     it looks vanilla but is optimized. Code in is_call_to_interpreted
     //     is aware of this and weakens its asserts.
     if (is_optimized) {
-      entry      = caller_is_c1 ? method_code->verified_value_entry_point() : method_code->verified_entry_point();
+      entry      = caller_is_c1 ? method_code->verified_inline_entry_point() : method_code->verified_entry_point();
     } else {
-      entry      = caller_is_c1 ? method_code->value_entry_point() : method_code->entry_point();
+      entry      = caller_is_c1 ? method_code->inline_entry_point() : method_code->entry_point();
     }
   }
   bool far_c2a = entry != NULL && caller_is_nmethod && method_code->is_far_code();
@@ -552,14 +552,14 @@ void CompiledIC::compute_monomorphic_entry(const methodHandle& method,
         info.set_aot_entry(entry, method());
       } else {
         // Use stub entry
-        address entry = caller_is_c1 ? method()->get_c2i_value_entry() : method()->get_c2i_entry();
+        address entry = caller_is_c1 ? method()->get_c2i_inline_entry() : method()->get_c2i_entry();
         info.set_interpreter_entry(entry, method());
       }
     } else {
       // Use icholder entry
       assert(method_code == NULL || method_code->is_compiled(), "must be compiled");
       CompiledICHolder* holder = new CompiledICHolder(method(), receiver_klass);
-      entry = (caller_is_c1)? method()->get_c2i_unverified_value_entry() : method()->get_c2i_unverified_entry();
+      entry = (caller_is_c1)? method()->get_c2i_unverified_inline_entry() : method()->get_c2i_unverified_entry();
       info.set_icholder_entry(entry, holder);
     }
   }
@@ -672,7 +672,7 @@ void CompiledStaticCall::compute_entry(const methodHandle& m, CompiledMethod* ca
     }
     info._to_interpreter = false;
     if (caller_nm->is_compiled_by_c1()) {
-      info._entry = m_code->verified_value_entry_point();
+      info._entry = m_code->verified_inline_entry_point();
     } else {
       info._entry = m_code->verified_entry_point();
     }
@@ -684,7 +684,7 @@ void CompiledStaticCall::compute_entry(const methodHandle& m, CompiledMethod* ca
 
     if (caller_nm->is_compiled_by_c1()) {
       // C1 -> interp: values passed as oops
-      info._entry = m()->get_c2i_value_entry();
+      info._entry = m()->get_c2i_inline_entry();
     } else {
       // C2 -> interp: values passed fields
       info._entry = m()->get_c2i_entry();
@@ -771,7 +771,9 @@ void CompiledDirectStaticCall::verify_mt_safe(const methodHandle& callee, addres
          "a) MT-unsafe modification of inline cache");
 
   address destination = jump->jump_destination();
-  assert(destination == (address)-1 || destination == entry,
+  assert(destination == (address)-1 || destination == entry
+         || old_method == NULL || !old_method->method_holder()->is_loader_alive() // may have a race due to class unloading.
+         || old_method->is_old(),  // may be race patching deoptimized nmethod due to redefinition.
          "b) MT-unsafe modification of inline cache");
 }
 #endif // !PRODUCT

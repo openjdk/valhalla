@@ -61,8 +61,7 @@ class OperatingSystemImpl extends BaseOperatingSystemImpl
             // it can use as much memory as the host's OS allows.
             long memLimit = containerMetrics.getMemoryLimit();
             if (limit >= 0 && memLimit >= 0) {
-                // we see a limit == 0 on some machines where "kernel does not support swap limit capabilities"
-                return (limit < memLimit) ? 0 : limit - memLimit;
+                return limit - memLimit; // might potentially be 0 for limit == memLimit
             }
         }
         return getTotalSwapSpaceSize0();
@@ -73,6 +72,12 @@ class OperatingSystemImpl extends BaseOperatingSystemImpl
             long memSwapLimit = containerMetrics.getMemoryAndSwapLimit();
             long memLimit = containerMetrics.getMemoryLimit();
             if (memSwapLimit >= 0 && memLimit >= 0) {
+                long deltaLimit = memSwapLimit - memLimit;
+                // Return 0 when memSwapLimit == memLimit, which means no swap space is allowed.
+                // And the same for memSwapLimit < memLimit.
+                if (deltaLimit <= 0) {
+                    return 0;
+                }
                 for (int attempt = 0; attempt < MAX_ATTEMPTS_NUMBER; attempt++) {
                     long memSwapUsage = containerMetrics.getMemoryAndSwapUsage();
                     long memUsage = containerMetrics.getMemoryUsage();
@@ -80,8 +85,12 @@ class OperatingSystemImpl extends BaseOperatingSystemImpl
                         // We read "memory usage" and "memory and swap usage" not atomically,
                         // and it's possible to get the negative value when subtracting these two.
                         // If this happens just retry the loop for a few iterations.
-                        if ((memSwapUsage - memUsage) >= 0) {
-                            return memSwapLimit - memLimit - (memSwapUsage - memUsage);
+                        long deltaUsage = memSwapUsage - memUsage;
+                        if (deltaUsage >= 0) {
+                            long freeSwap = deltaLimit - deltaUsage;
+                            if (freeSwap >= 0) {
+                                return freeSwap;
+                            }
                         }
                     }
                 }
@@ -148,6 +157,10 @@ class OperatingSystemImpl extends BaseOperatingSystemImpl
                     return getCpuLoad0();
                 } else {
                     int[] cpuSet = containerMetrics.getEffectiveCpuSetCpus();
+                    // in case the effectiveCPUSetCpus are not available, attempt to use just cpusets.cpus
+                    if (cpuSet == null || cpuSet.length <= 0) {
+                        cpuSet = containerMetrics.getCpuSetCpus();
+                    }
                     if (cpuSet != null && cpuSet.length > 0) {
                         double systemLoad = 0.0;
                         for (int cpu : cpuSet) {
@@ -172,7 +185,7 @@ class OperatingSystemImpl extends BaseOperatingSystemImpl
 
     private boolean isCpuSetSameAsHostCpuSet() {
         if (containerMetrics != null && containerMetrics.getCpuSetCpus() != null) {
-            return containerMetrics.getCpuSetCpus().length == getHostConfiguredCpuCount0();
+            return containerMetrics.getCpuSetCpus().length == getHostOnlineCpuCount0();
         }
         return false;
     }
@@ -190,6 +203,7 @@ class OperatingSystemImpl extends BaseOperatingSystemImpl
     private native long getTotalSwapSpaceSize0();
     private native double getSingleCpuLoad0(int cpuNum);
     private native int getHostConfiguredCpuCount0();
+    private native int getHostOnlineCpuCount0();
 
     static {
         initialize0();

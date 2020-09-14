@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,28 +24,22 @@
  */
 package jdk.incubator.jpackage.internal;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.jar.Attributes;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
-import java.util.stream.Stream;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -70,6 +64,20 @@ public class Arguments {
     private static final String FA_DESCRIPTION = "description";
     private static final String FA_ICON = "icon";
 
+    // Mac specific file association keys
+    // String
+    public static final String MAC_CFBUNDLETYPEROLE = "mac.CFBundleTypeRole";
+    public static final String MAC_LSHANDLERRANK = "mac.LSHandlerRank";
+    public static final String MAC_NSSTORETYPEKEY = "mac.NSPersistentStoreTypeKey";
+    public static final String MAC_NSDOCUMENTCLASS = "mac.NSDocumentClass";
+    // Boolean
+    public static final String MAC_LSTYPEISPACKAGE = "mac.LSTypeIsPackage";
+    public static final String MAC_LSDOCINPLACE = "mac.LSSupportsOpeningDocumentsInPlace";
+    public static final String MAC_UIDOCBROWSER = "mac.UISupportsDocumentBrowser";
+     // Array of strings
+    public static final String MAC_NSEXPORTABLETYPES = "mac.NSExportableTypes";
+    public static final String MAC_UTTYPECONFORMSTO = "mac.UTTypeConformsTo";
+
     // regexp for parsing args (for example, for additional launchers)
     private static Pattern pattern = Pattern.compile(
           "(?:(?:([\"'])(?:\\\\\\1|.)*?(?:\\1|$))|(?:\\\\[\"'\\s]|[^\\s]))++");
@@ -82,7 +90,7 @@ public class Arguments {
     private List<CLIOptions> allOptions = null;
 
     private String input = null;
-    private String output = null;
+    private Path output = null;
 
     private boolean hasMainJar = false;
     private boolean hasMainClass = false;
@@ -123,8 +131,8 @@ public class Arguments {
 
         addLaunchers = new ArrayList<>();
 
-        output = Paths.get("").toAbsolutePath().toString();
-        deployParams.setOutput(new File(output));
+        output = Paths.get("").toAbsolutePath();
+        deployParams.setOutput(output);
     }
 
     // CLIOptions is public for DeployParamsTest
@@ -139,8 +147,8 @@ public class Arguments {
         }),
 
         OUTPUT ("dest", "d", OptionCategories.PROPERTY, () -> {
-            context().output = popArg();
-            context().deployParams.setOutput(new File(context().output));
+            context().output = Path.of(popArg());
+            context().deployParams.setOutput(context().output);
         }),
 
         DESCRIPTION ("description", OptionCategories.PROPERTY),
@@ -170,6 +178,11 @@ public class Arguments {
             setOptionValue("arguments", arguments);
         }),
 
+        JLINK_OPTIONS ("jlink-options", OptionCategories.PROPERTY, () -> {
+            List<String> options = getArgumentList(popArg());
+            setOptionValue("jlink-options", options);
+        }),
+
         ICON ("icon", OptionCategories.PROPERTY),
 
         COPYRIGHT ("copyright", OptionCategories.PROPERTY),
@@ -192,25 +205,45 @@ public class Arguments {
             // load .properties file
             Map<String, String> initialMap = getPropertiesFromFile(popArg());
 
-            String ext = initialMap.get(FA_EXTENSIONS);
-            if (ext != null) {
-                args.put(StandardBundlerParam.FA_EXTENSIONS.getID(), ext);
-            }
+            putUnlessNull(args, StandardBundlerParam.FA_EXTENSIONS.getID(),
+                    initialMap.get(FA_EXTENSIONS));
 
-            String type = initialMap.get(FA_CONTENT_TYPE);
-            if (type != null) {
-                args.put(StandardBundlerParam.FA_CONTENT_TYPE.getID(), type);
-            }
+            putUnlessNull(args, StandardBundlerParam.FA_CONTENT_TYPE.getID(),
+                    initialMap.get(FA_CONTENT_TYPE));
 
-            String desc = initialMap.get(FA_DESCRIPTION);
-            if (desc != null) {
-                args.put(StandardBundlerParam.FA_DESCRIPTION.getID(), desc);
-            }
+            putUnlessNull(args, StandardBundlerParam.FA_DESCRIPTION.getID(),
+                    initialMap.get(FA_DESCRIPTION));
 
-            String icon = initialMap.get(FA_ICON);
-            if (icon != null) {
-                args.put(StandardBundlerParam.FA_ICON.getID(), icon);
-            }
+            putUnlessNull(args, StandardBundlerParam.FA_ICON.getID(),
+                    initialMap.get(FA_ICON));
+
+            // Mac extended file association arguments
+            putUnlessNull(args, MAC_CFBUNDLETYPEROLE,
+                    initialMap.get(MAC_CFBUNDLETYPEROLE));
+
+            putUnlessNull(args, MAC_LSHANDLERRANK,
+                    initialMap.get(MAC_LSHANDLERRANK));
+
+            putUnlessNull(args, MAC_NSSTORETYPEKEY,
+                    initialMap.get(MAC_NSSTORETYPEKEY));
+
+            putUnlessNull(args, MAC_NSDOCUMENTCLASS,
+                    initialMap.get(MAC_NSDOCUMENTCLASS));
+
+            putUnlessNull(args, MAC_LSTYPEISPACKAGE,
+                    initialMap.get(MAC_LSTYPEISPACKAGE));
+
+            putUnlessNull(args, MAC_LSDOCINPLACE,
+                    initialMap.get(MAC_LSDOCINPLACE));
+
+            putUnlessNull(args, MAC_UIDOCBROWSER,
+                    initialMap.get(MAC_UIDOCBROWSER));
+
+            putUnlessNull(args, MAC_NSEXPORTABLETYPES,
+                    initialMap.get(MAC_NSEXPORTABLETYPES));
+
+            putUnlessNull(args, MAC_UTTYPECONFORMSTO,
+                    initialMap.get(MAC_UTTYPECONFORMSTO));
 
             ArrayList<Map<String, ? super Object>> associationList =
                 new ArrayList<Map<String, ? super Object>>();
@@ -262,10 +295,6 @@ public class Arguments {
         ADD_MODULES ("add-modules", OptionCategories.MODULAR),
 
         MODULE_PATH ("module-path", "p", OptionCategories.MODULAR),
-
-        BIND_SERVICES ("bind-services", OptionCategories.PROPERTY, () -> {
-            setOptionValue("bind-services", true);
-        }),
 
         MAC_SIGN ("mac-sign", "s", OptionCategories.PLATFORM_MAC, () -> {
             setOptionValue("mac-sign", true);
@@ -338,7 +367,7 @@ public class Arguments {
         private final String id;
         private final String shortId;
         private final OptionCategories category;
-        private final ArgAction action;
+        private final Runnable action;
         private static Arguments argContext;
 
         private CLIOptions(String id, OptionCategories category) {
@@ -351,12 +380,12 @@ public class Arguments {
         }
 
         private CLIOptions(String id,
-                OptionCategories category, ArgAction action) {
+                OptionCategories category, Runnable action) {
             this(id, null, category, action);
         }
 
         private CLIOptions(String id, String shortId,
-                           OptionCategories category, ArgAction action) {
+                           OptionCategories category, Runnable action) {
             this.id = id;
             this.shortId = shortId;
             this.action = action;
@@ -389,7 +418,7 @@ public class Arguments {
 
         void execute() {
             if (action != null) {
-                action.execute();
+                action.run();
             } else {
                 defaultAction();
             }
@@ -465,8 +494,6 @@ public class Arguments {
 
             validateArguments();
 
-            addResources(deployParams, input, mainJarPath);
-
             List<Map<String, ? super Object>> launchersAsMap =
                     new ArrayList<>();
 
@@ -515,11 +542,11 @@ public class Arguments {
                 Log.verbose(e);
             } else {
                 String msg1 = e.getMessage();
-                Log.error(msg1);
+                Log.fatalError(msg1);
                 if (e.getCause() != null && e.getCause() != e) {
                     String msg2 = e.getCause().getMessage();
                     if (msg2 != null && !msg1.contains(msg2)) {
-                        Log.error(msg2);
+                        Log.fatalError(msg2);
                     }
                 }
             }
@@ -574,12 +601,11 @@ public class Arguments {
                         CLIOptions.PREDEFINED_RUNTIME_IMAGE.getIdWithPrefix(),
                         CLIOptions.ADD_MODULES.getIdWithPrefix());
             }
-            if (allOptions.contains(CLIOptions.BIND_SERVICES)) {
+            if (allOptions.contains(CLIOptions.JLINK_OPTIONS)) {
                 throw new PackagerException("ERR_MutuallyExclusiveOptions",
                         CLIOptions.PREDEFINED_RUNTIME_IMAGE.getIdWithPrefix(),
-                        CLIOptions.BIND_SERVICES.getIdWithPrefix());
+                        CLIOptions.JLINK_OPTIONS.getIdWithPrefix());
             }
-
         }
         if (hasMainJar && hasMainModule) {
             throw new PackagerException("ERR_BothMainJarAndModule");
@@ -635,7 +661,7 @@ public class Arguments {
         Map<String, ? super Object> localParams = new HashMap<>(params);
         try {
             bundler.validate(localParams);
-            File result = bundler.execute(localParams, deployParams.outdir);
+            Path result = bundler.execute(localParams, deployParams.outdir);
             if (result == null) {
                 throw new PackagerException("MSG_BundlerFailed",
                         bundler.getID(), bundler.getName());
@@ -661,42 +687,13 @@ public class Arguments {
             if (userProvidedBuildRoot) {
                 Log.verbose(MessageFormat.format(
                         I18N.getString("message.debug-working-directory"),
-                        (new File(buildRoot)).getAbsolutePath()));
+                        (Path.of(buildRoot)).toAbsolutePath().toString()));
             } else {
                 // always clean up the temporary directory created
                 // when --temp option not used.
                 bundler.cleanup(localParams);
             }
         }
-    }
-
-    private void addResources(DeployParams deployParams,
-            String inputdir, String mainJar) throws PackagerException {
-
-        if (inputdir == null || inputdir.isEmpty()) {
-            return;
-        }
-
-        File baseDir = new File(inputdir);
-
-        if (!baseDir.isDirectory()) {
-            throw new PackagerException("ERR_InputNotDirectory", inputdir);
-        }
-        if (!baseDir.canRead()) {
-            throw new PackagerException("ERR_CannotReadInputDir", inputdir);
-        }
-
-        List<String> fileNames;
-        fileNames = new ArrayList<>();
-        try (Stream<Path> files = Files.list(baseDir.toPath())) {
-            files.forEach(file -> fileNames.add(
-                    file.getFileName().toString()));
-        } catch (IOException e) {
-            Log.error("Unable to add resources: " + e.getMessage());
-        }
-        fileNames.forEach(file -> deployParams.addResource(baseDir, file));
-
-        deployParams.setClasspath(mainJar);
     }
 
     static CLIOptions toCLIOption(String arg) {
@@ -710,10 +707,9 @@ public class Arguments {
     static Map<String, String> getPropertiesFromFile(String filename) {
         Map<String, String> map = new HashMap<>();
         // load properties file
-        File file = new File(filename);
         Properties properties = new Properties();
-        try (FileInputStream in = new FileInputStream(file)) {
-            properties.load(in);
+        try (Reader reader = Files.newBufferedReader(Path.of(filename))) {
+            properties.load(reader);
         } catch (IOException e) {
             Log.error("Exception: " + e.getMessage());
         }
@@ -745,6 +741,13 @@ public class Arguments {
             }
         }
         return list;
+    }
+
+    static void putUnlessNull(Map<String, ? super Object> params,
+            String param, Object value) {
+        if (value != null) {
+            params.put(param, value);
+        }
     }
 
     private static String unquoteIfNeeded(String in) {
@@ -795,11 +798,11 @@ public class Arguments {
 
         JarFile jf;
         try {
-            File file = new File(input, mainJarPath);
-            if (!file.exists()) {
+            Path file = Path.of(input, mainJarPath);
+            if (!Files.exists(file)) {
                 return null;
             }
-            jf = new JarFile(file);
+            jf = new JarFile(file.toFile());
             Manifest m = jf.getManifest();
             Attributes attrs = (m != null) ? m.getMainAttributes() : null;
             if (attrs != null) {

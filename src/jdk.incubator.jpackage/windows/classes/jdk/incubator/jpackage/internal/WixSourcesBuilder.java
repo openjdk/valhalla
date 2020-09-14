@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,18 +28,32 @@ package jdk.incubator.jpackage.internal;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import java.text.MessageFormat;
-import java.util.*;
-import java.util.function.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
 import jdk.incubator.jpackage.internal.IOUtils.XmlConsumer;
-import static jdk.incubator.jpackage.internal.StandardBundlerParam.*;
-import static jdk.incubator.jpackage.internal.WinMsiBundler.*;
-import static jdk.incubator.jpackage.internal.WindowsBundlerParam.MENU_GROUP;
-import static jdk.incubator.jpackage.internal.WindowsBundlerParam.WINDOWS_INSTALL_DIR;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.APP_NAME;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.INSTALL_DIR;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.VENDOR;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.VERSION;
+import static jdk.incubator.jpackage.internal.WinMsiBundler.MSI_SYSTEM_WIDE;
 
 /**
  * Creates application WiX source files.
@@ -147,7 +161,7 @@ class WixSourcesBuilder {
         fa.launcherPath = addExeSuffixToPath(
                 installedAppImage.launchersDirectory().resolve(fa.launcherPath));
 
-        if (fa.iconPath != null && !fa.iconPath.toFile().exists()) {
+        if (fa.iconPath != null && !Files.exists(fa.iconPath)) {
             fa.iconPath = null;
         }
 
@@ -824,7 +838,7 @@ class WixSourcesBuilder {
             PROGRAM_MENU_PATH, DESKTOP_PATH);
 
     private static final StandardBundlerParam<Boolean> MENU_HINT =
-        new WindowsBundlerParam<>(
+        new StandardBundlerParam<>(
                 Arguments.CLIOptions.WIN_MENU_HINT.getId(),
                 Boolean.class,
                 params -> false,
@@ -835,7 +849,7 @@ class WixSourcesBuilder {
         );
 
     private static final StandardBundlerParam<Boolean> SHORTCUT_HINT =
-        new WindowsBundlerParam<>(
+        new StandardBundlerParam<>(
                 Arguments.CLIOptions.WIN_SHORTCUT_HINT.getId(),
                 Boolean.class,
                 params -> false,
@@ -844,4 +858,38 @@ class WixSourcesBuilder {
                 (s, p) -> (s == null ||
                        "null".equalsIgnoreCase(s))? false : Boolean.valueOf(s)
         );
+
+    private static final StandardBundlerParam<String> MENU_GROUP =
+            new StandardBundlerParam<>(
+                    Arguments.CLIOptions.WIN_MENU_GROUP.getId(),
+                    String.class,
+                    params -> I18N.getString("param.menu-group.default"),
+                    (s, p) -> s
+            );
+
+    private static final BundlerParamInfo<String> WINDOWS_INSTALL_DIR =
+            new StandardBundlerParam<>(
+            "windows-install-dir",
+            String.class,
+            params -> {
+                 String dir = INSTALL_DIR.fetchFrom(params);
+                 if (dir != null) {
+                     if (dir.contains(":") || dir.contains("..")) {
+                         Log.error(MessageFormat.format(I18N.getString(
+                                "message.invalid.install.dir"), dir,
+                                APP_NAME.fetchFrom(params)));
+                     } else {
+                        if (dir.startsWith("\\")) {
+                             dir = dir.substring(1);
+                        }
+                        if (dir.endsWith("\\")) {
+                             dir = dir.substring(0, dir.length() - 1);
+                        }
+                        return dir;
+                     }
+                 }
+                 return APP_NAME.fetchFrom(params); // Default to app name
+             },
+            (s, p) -> s
+    );
 }

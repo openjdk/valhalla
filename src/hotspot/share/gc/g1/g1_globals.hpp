@@ -52,7 +52,7 @@
           "behavior.")                                                      \
                                                                             \
   experimental(size_t, G1AdaptiveIHOPNumInitialSamples, 3,                  \
-          "How many completed time periods from initial mark to first "     \
+          "How many completed time periods from concurrent start to first " \
           "mixed gc are required to use the input values for prediction "   \
           "of the optimal occupancy to start marking.")                     \
           range(1, max_intx)                                                \
@@ -131,8 +131,8 @@
           range(0, max_intx)                                                \
                                                                             \
   product(uintx, G1ConcRefinementServiceIntervalMillis, 300,                \
-          "The last concurrent refinement thread wakes up every "           \
-          "specified number of milliseconds to do miscellaneous work.")     \
+          "The G1 service thread wakes up every specified number of "       \
+          "milliseconds to do miscellaneous work.")                         \
           range(0, max_jint)                                                \
                                                                             \
   product(size_t, G1ConcRefinementThresholdStep, 2,                         \
@@ -271,9 +271,9 @@
           "Force use of evacuation failure handling during evacuation "     \
           "pauses when marking is in progress")                             \
                                                                             \
-  develop(bool, G1EvacuationFailureALotDuringInitialMark, true,             \
-          "Force use of evacuation failure handling during initial mark "   \
-          "evacuation pauses")                                              \
+  develop(bool, G1EvacuationFailureALotDuringConcurrentStart, true,         \
+          "Force use of evacuation failure handling during concurrent "     \
+          "start evacuation pauses")                                        \
                                                                             \
   develop(bool, G1EvacuationFailureALotDuringYoungGC, true,                 \
           "Force use of evacuation failure handling during young "          \

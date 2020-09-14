@@ -52,7 +52,8 @@ public:
   static EpsilonHeap* heap();
 
   EpsilonHeap() :
-          _memory_manager("Epsilon Heap", "") {};
+          _memory_manager("Epsilon Heap", ""),
+          _space(NULL) {};
 
   virtual Name kind() const {
     return CollectedHeap::Epsilon;
@@ -116,7 +117,6 @@ public:
   bool block_is_obj(const HeapWord* addr) const { return false; }
 
   // No GC threads
-  virtual void print_gc_threads_on(outputStream* st) const {}
   virtual void gc_threads_do(ThreadClosure* tc) const {}
 
   // No nmethod handling
@@ -128,11 +128,6 @@ public:
   // No heap verification
   virtual void prepare_for_verify() {}
   virtual void verify(VerifyOption option) {}
-
-  virtual jlong millis_since_last_gc() {
-    // Report time since the VM start
-    return os::elapsed_counter() / NANOSECS_PER_MILLISEC;
-  }
 
   MemRegion reserved_region() const { return _reserved; }
   bool is_in_reserved(const void* addr) const { return _reserved.contains(addr); }

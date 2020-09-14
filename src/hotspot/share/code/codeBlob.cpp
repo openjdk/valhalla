@@ -242,8 +242,8 @@ BufferBlob* BufferBlob::create(const char* name, int buffer_size) {
 }
 
 
-BufferBlob::BufferBlob(const char* name, int size, CodeBuffer* cb)
-  : RuntimeBlob(name, cb, sizeof(BufferBlob), size, CodeOffsets::frame_never_safe, 0, NULL)
+BufferBlob::BufferBlob(const char* name, int header_size, int size, CodeBuffer* cb)
+  : RuntimeBlob(name, cb, header_size, size, CodeOffsets::frame_never_safe, 0, NULL)
 {}
 
 BufferBlob* BufferBlob::create(const char* name, CodeBuffer* cb) {
@@ -254,7 +254,7 @@ BufferBlob* BufferBlob::create(const char* name, CodeBuffer* cb) {
   assert(name != NULL, "must provide a name");
   {
     MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size) BufferBlob(name, size, cb);
+    blob = new (size) BufferBlob(name, sizeof(BufferBlob), size, cb);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();
@@ -354,23 +354,23 @@ MethodHandlesAdapterBlob* MethodHandlesAdapterBlob::create(int buffer_size) {
 }
 
 //----------------------------------------------------------------------------------------------------
-// Implementation of BufferedValueTypeBlob
-BufferedValueTypeBlob::BufferedValueTypeBlob(int size, CodeBuffer* cb, int pack_fields_off, int pack_fields_jobject_off, int unpack_fields_off) :
-  BufferBlob("buffered value type", size, cb),
+// Implementation of BufferedInlineTypeBlob
+BufferedInlineTypeBlob::BufferedInlineTypeBlob(int size, CodeBuffer* cb, int pack_fields_off, int pack_fields_jobject_off, int unpack_fields_off) :
+  BufferBlob("buffered inline type", sizeof(BufferedInlineTypeBlob), size, cb),
   _pack_fields_off(pack_fields_off),
   _pack_fields_jobject_off(pack_fields_jobject_off),
   _unpack_fields_off(unpack_fields_off) {
   CodeCache::commit(this);
 }
 
-BufferedValueTypeBlob* BufferedValueTypeBlob::create(CodeBuffer* cb, int pack_fields_off, int pack_fields_jobject_off, int unpack_fields_off) {
+BufferedInlineTypeBlob* BufferedInlineTypeBlob::create(CodeBuffer* cb, int pack_fields_off, int pack_fields_jobject_off, int unpack_fields_off) {
   ThreadInVMfromUnknown __tiv;  // get to VM state in case we block on CodeCache_lock
 
-  BufferedValueTypeBlob* blob = NULL;
-  unsigned int size = CodeBlob::allocation_size(cb, sizeof(BufferedValueTypeBlob));
+  BufferedInlineTypeBlob* blob = NULL;
+  unsigned int size = CodeBlob::allocation_size(cb, sizeof(BufferedInlineTypeBlob));
   {
     MutexLocker mu(CodeCache_lock, Mutex::_no_safepoint_check_flag);
-    blob = new (size) BufferedValueTypeBlob(size, cb, pack_fields_off, pack_fields_jobject_off, unpack_fields_off);
+    blob = new (size) BufferedInlineTypeBlob(size, cb, pack_fields_off, pack_fields_jobject_off, unpack_fields_off);
   }
   // Track memory usage statistic after releasing CodeCache_lock
   MemoryService::track_code_cache_memory_usage();

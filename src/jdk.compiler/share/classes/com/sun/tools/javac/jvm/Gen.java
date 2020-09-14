@@ -1079,73 +1079,6 @@ public class Gen extends JCTree.Visitor {
             return startpcCrt;
         }
 
-        private void synthesizeValueMethod(JCMethodDecl methodDecl) {
-
-            Name name; List<Type> argTypes; Type resType;
-
-            switch (methodDecl.name.toString()) {
-                case "hashCode":
-                    name = names.hashCode;
-                    argTypes = List.of(methodDecl.sym.owner.type);
-                    resType = methodDecl.restype.type;
-                    break;
-                case "equals":
-                    name = names.equals;
-                    argTypes = List.of(methodDecl.sym.owner.type, syms.objectType);
-                    resType = methodDecl.restype.type;
-                    break;
-                case "toString":
-                    name = names.toString;
-                    argTypes = List.of(methodDecl.sym.owner.type);
-                    resType = methodDecl.restype.type;
-                    break;
-                default:
-                    throw new AssertionError("Unexpected synthetic method body");
-            }
-
-            Type.MethodType indyType = new Type.MethodType(argTypes,
-                    resType,
-                    List.nil(),
-                    syms.methodClass);
-
-            List<Type> bsm_staticArgs = List.of(syms.methodHandleLookupType,
-                                                syms.stringType,
-                                                syms.methodTypeType);
-
-            Symbol bsm = rs.resolveInternalMethod(methodDecl.pos(),
-                    getAttrEnv(),
-                    syms.valueBootstrapMethods,
-                    names.fromString("makeBootstrapMethod"),
-                    bsm_staticArgs,
-                    null);
-
-            Symbol.DynamicMethodSymbol dynSym = new Symbol.DynamicMethodSymbol(name,
-                    syms.noSymbol,
-                    ((MethodSymbol)bsm).asHandle(),
-                    indyType,
-                    List.nil().toArray(new LoadableConstant[0]));
-
-
-            switch (methodDecl.name.toString()) {
-                case "hashCode":
-                    code.emitop0(aload_0);
-                    items.makeDynamicItem(dynSym).invoke();
-                    code.emitop0(ireturn);
-                    return;
-                case "equals":
-                    code.emitop0(aload_0);
-                    code.emitop0(aload_1);
-                    items.makeDynamicItem(dynSym).invoke();
-                    code.emitop0(ireturn);
-                    return;
-                case "toString":
-                    code.emitop0(aload_0);
-                    items.makeDynamicItem(dynSym).invoke();
-                    code.emitop0(areturn);
-                    return;
-            }
-        }
-
     public void visitVarDef(JCVariableDecl tree) {
         VarSymbol v = tree.sym;
         if (tree.init != null) {
@@ -1167,10 +1100,6 @@ public class Gen extends JCTree.Visitor {
     }
 
     public void visitBlock(JCBlock tree) {
-        if ((tree.flags & SYNTHETIC) != 0 && env.tree.hasTag(METHODDEF) && (((JCMethodDecl) env.tree).sym.owner.flags() & VALUE) != 0) {
-            synthesizeValueMethod((JCMethodDecl) env.tree);
-            return;
-        }
         int limit = code.nextreg;
         Env<GenContext> localEnv = env.dup(tree, new GenContext());
         genStats(tree.stats, localEnv);

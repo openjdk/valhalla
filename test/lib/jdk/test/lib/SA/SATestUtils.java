@@ -22,27 +22,20 @@
  */
 package jdk.test.lib.SA;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
+import jdk.test.lib.JDKToolLauncher;
+import jdk.test.lib.Platform;
+import jtreg.SkippedException;
+
 import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.zip.GZIPInputStream;
-
-import jdk.test.lib.Asserts;
-import jdk.test.lib.JDKToolLauncher;
-import jdk.test.lib.Platform;
-import jdk.test.lib.process.OutputAnalyzer;
-import jdk.test.lib.process.ProcessTools;
-import jtreg.SkippedException;
+import java.util.List;
 
 public class SATestUtils {
     /**
@@ -168,11 +161,15 @@ public class SATestUtils {
      */
     private static boolean canPtraceAttachLinux() throws IOException {
         // SELinux deny_ptrace:
-        File deny_ptrace = new File("/sys/fs/selinux/booleans/deny_ptrace");
-        if (deny_ptrace.exists()) {
-            try (RandomAccessFile file = AccessController.doPrivileged(
-                    (PrivilegedExceptionAction<RandomAccessFile>) () -> new RandomAccessFile(deny_ptrace, "r"))) {
-                if (file.readByte() != '0') {
+        var deny_ptrace = Paths.get("/sys/fs/selinux/booleans/deny_ptrace");
+        if (Files.exists(deny_ptrace)) {
+            try {
+                var bb = AccessController.doPrivileged(
+                    (PrivilegedExceptionAction<byte[]>) () -> Files.readAllBytes(deny_ptrace));
+                if (bb.length == 0) {
+                    throw new Error("deny_ptrace is empty");
+                }
+                if (bb[0] != '0') {
                     return false;
                 }
             } catch (PrivilegedActionException e) {
@@ -186,11 +183,15 @@ public class SATestUtils {
         // 1 - restricted ptrace: a process must be a children of the inferior or user is root
         // 2 - only processes with CAP_SYS_PTRACE may use ptrace or user is root
         // 3 - no attach: no processes may use ptrace with PTRACE_ATTACH
-        File ptrace_scope = new File("/proc/sys/kernel/yama/ptrace_scope");
-        if (ptrace_scope.exists()) {
-            try (RandomAccessFile file = AccessController.doPrivileged(
-                    (PrivilegedExceptionAction<RandomAccessFile>) () -> new RandomAccessFile(ptrace_scope, "r"))) {
-                byte yama_scope = file.readByte();
+        var ptrace_scope = Paths.get("/proc/sys/kernel/yama/ptrace_scope");
+        if (Files.exists(ptrace_scope)) {
+            try {
+                var bb = AccessController.doPrivileged(
+                    (PrivilegedExceptionAction<byte[]>) () -> Files.readAllBytes(ptrace_scope));
+                if (bb.length == 0) {
+                    throw new Error("ptrace_scope is empty");
+                }
+                byte yama_scope = bb[0];
                 if (yama_scope == '3') {
                     return false;
                 }
@@ -205,23 +206,5 @@ public class SATestUtils {
         }
         // Otherwise expect to be permitted:
         return true;
-    }
-
-    public static void unzipCores(File dir) {
-        File[] gzCores = dir.listFiles((directory, name) -> name.matches("core(\\.\\d+)?\\.gz"));
-        for (File gzCore : gzCores) {
-            String coreFileName = gzCore.getName().replace(".gz", "");
-            System.out.println("Unzipping core into " + coreFileName);
-            try (GZIPInputStream gzis = new GZIPInputStream(new FileInputStream(gzCore));
-                 FileOutputStream fos = new FileOutputStream(coreFileName)) {
-                byte[] buffer = new byte[1024];
-                int length;
-                while ((length = gzis.read(buffer)) > 0) {
-                    fos.write(buffer, 0, length);
-                }
-            } catch (IOException e) {
-                throw new SkippedException("Not able to unzip file: " + gzCore.getAbsolutePath(), e);
-            }
-        }
     }
 }

@@ -25,6 +25,7 @@
  * @test
  * @summary Redefine a class with an UnresolvedClass reference in the constant pool.
  * @bug 8035150
+ * @requires vm.jvmti
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.compiler
@@ -78,11 +79,10 @@ public class TestRedefineWithUnresolvedClass {
     }
 
     private static void launchTest() throws Throwable {
-        String[] args = {
+        OutputAnalyzer output = ProcessTools.executeTestJvm(
             "-javaagent:" + testClasses + "UnresolvedClassAgent.jar",
             "-Dtest.classes=" + testClasses,
-            "UnresolvedClassAgent" };
-        OutputAnalyzer output = ProcessTools.executeTestJvm(args);
+            "UnresolvedClassAgent");
         output.shouldHaveExitValue(0);
     }
 }

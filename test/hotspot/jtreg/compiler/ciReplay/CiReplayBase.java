@@ -70,9 +70,12 @@ public abstract class CiReplayBase {
     private static final String[] REPLAY_OPTIONS = new String[]{DISABLE_COREDUMP_ON_CRASH,
         "-XX:+ReplayCompiles", REPLAY_FILE_OPTION};
     protected final Optional<Boolean> runServer;
+    private static int dummy;
 
-    public static class EmptyMain {
+    public static class TestMain {
         public static void main(String[] args) {
+            // Do something because empty methods might not be called/compiled.
+            dummy = 42;
         }
     }
 
@@ -140,13 +143,12 @@ public abstract class CiReplayBase {
             options.addAll(Arrays.asList(REPLAY_GENERATION_OPTIONS));
             options.addAll(Arrays.asList(vmopts));
             options.add(needCoreDump ? ENABLE_COREDUMP_ON_CRASH : DISABLE_COREDUMP_ON_CRASH);
-            options.add(EmptyMain.class.getName());
+            options.add(TestMain.class.getName());
             if (needCoreDump) {
-                crashOut = ProcessTools.executeProcess(getTestJavaCommandlineWithPrefix(
+                crashOut = ProcessTools.executeProcess(getTestJvmCommandlineWithPrefix(
                         RUN_SHELL_NO_LIMIT, options.toArray(new String[0])));
             } else {
-                crashOut = ProcessTools.executeProcess(ProcessTools.createJavaProcessBuilder(true,
-                        options.toArray(new String[0])));
+                crashOut = ProcessTools.executeProcess(ProcessTools.createTestJvm(options));
             }
             crashOutputString = crashOut.getOutput();
             Asserts.assertNotEquals(crashOut.getExitValue(), 0, "Crash JVM exits gracefully");
@@ -190,7 +192,7 @@ public abstract class CiReplayBase {
             List<String> allAdditionalOpts = new ArrayList<>();
             allAdditionalOpts.addAll(Arrays.asList(REPLAY_OPTIONS));
             allAdditionalOpts.addAll(Arrays.asList(additionalVmOpts));
-            OutputAnalyzer oa = ProcessTools.executeProcess(getTestJavaCommandlineWithPrefix(
+            OutputAnalyzer oa = ProcessTools.executeProcess(getTestJvmCommandlineWithPrefix(
                     RUN_SHELL_ZERO_LIMIT, allAdditionalOpts.toArray(new String[0])));
             return oa.getExitValue();
         } catch (Throwable t) {
@@ -290,9 +292,9 @@ public abstract class CiReplayBase {
         return null;
     }
 
-    private String[] getTestJavaCommandlineWithPrefix(String prefix, String... args) {
+    private String[] getTestJvmCommandlineWithPrefix(String prefix, String... args) {
         try {
-            String cmd = ProcessTools.getCommandLine(ProcessTools.createJavaProcessBuilder(true, args));
+            String cmd = ProcessTools.getCommandLine(ProcessTools.createTestJvm(args));
             return new String[]{"sh", "-c", prefix
                 + (Platform.isWindows() ? cmd.replace('\\', '/').replace(";", "\\;").replace("|", "\\|") : cmd)};
         } catch(Throwable t) {

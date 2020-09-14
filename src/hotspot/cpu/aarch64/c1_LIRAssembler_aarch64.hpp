@@ -45,9 +45,11 @@ friend class ArrayCopyStub;
 
   bool is_literal_address(LIR_Address* addr);
 
-  // When we need to use something other than rscratch1 use this
-  // method.
+  // When we need to use something other than rscratch1 use this method.
   Address as_Address(LIR_Address* addr, Register tmp);
+
+  // Ensure we have a valid Address (base+offset) to a stack-slot.
+  Address stack_slot_address(int index, uint shift, Register tmp, int adjust = 0);
 
   // Record the type of the receiver in ReceiverTypeData
   void type_profile_helper(Register mdo,
@@ -82,7 +84,7 @@ public:
   void store_parameter(Register r, int offset_from_esp_in_words);
   void store_parameter(jint c,     int offset_from_esp_in_words);
   void store_parameter(jobject c,  int offset_from_esp_in_words);
-  void arraycopy_valuetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest);
+  void arraycopy_inlinetype_check(Register obj, Register tmp, CodeStub* slow_path, bool is_dest);
   void move(LIR_Opr src, LIR_Opr dst);
 
 #endif // CPU_AARCH64_C1_LIRASSEMBLER_AARCH64_HPP

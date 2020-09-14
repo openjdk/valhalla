@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,18 +26,16 @@
 #include "aot/aotLoader.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/stringTable.hpp"
-#include "classfile/systemDictionary.hpp"
+#include "gc/shared/oopStorage.inline.hpp"
+#include "gc/shared/oopStorageSet.inline.hpp"
 #include "gc/shared/strongRootsScope.hpp"
 #include "jfr/leakprofiler/chains/bfsClosure.hpp"
 #include "jfr/leakprofiler/chains/dfsClosure.hpp"
 #include "jfr/leakprofiler/chains/edgeQueue.hpp"
 #include "jfr/leakprofiler/chains/rootSetClosure.hpp"
 #include "jfr/leakprofiler/utilities/unifiedOopRef.inline.hpp"
-#include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "prims/jvmtiExport.hpp"
-#include "runtime/jniHandles.inline.hpp"
 #include "runtime/synchronizer.hpp"
 #include "runtime/thread.hpp"
 #include "services/management.hpp"
@@ -74,11 +72,7 @@ void RootSetClosure<Delegate>::process() {
   // We don't follow code blob oops, because they have misaligned oops.
   Threads::oops_do(this, NULL);
   ObjectSynchronizer::oops_do(this);
-  Universe::oops_do(this);
-  JNIHandles::oops_do(this);
-  JvmtiExport::oops_do(this);
-  SystemDictionary::oops_do(this);
-  Management::oops_do(this);
+  OopStorageSet::strong_oops_do(this);
   AOTLoader::oops_do(this);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -106,7 +106,7 @@ inline void G1CMMarkStack::iterate(Fn fn) const {
 inline void G1CMTask::scan_task_entry(G1TaskQueueEntry task_entry) { process_grey_task_entry<true>(task_entry); }
 
 inline void G1CMTask::push(G1TaskQueueEntry task_entry) {
-  assert(task_entry.is_array_slice() || _g1h->is_in_g1_reserved(task_entry.obj()), "invariant");
+  assert(task_entry.is_array_slice() || _g1h->is_in_reserved(task_entry.obj()), "invariant");
   assert(task_entry.is_array_slice() || !_g1h->is_on_master_free_list(
               _g1h->heap_region_containing(task_entry.obj())), "invariant");
   assert(task_entry.is_array_slice() || !_g1h->is_obj_ill(task_entry.obj()), "invariant");  // FIXME!!!
@@ -260,7 +260,7 @@ inline bool G1CMTask::make_reference_grey(oop obj) {
 template <class T>
 inline bool G1CMTask::deal_with_reference(T* p) {
   increment_refs_reached();
-  oop const obj = RawAccess<MO_VOLATILE>::oop_load(p);
+  oop const obj = RawAccess<MO_RELAXED>::oop_load(p);
   if (obj == NULL) {
     return false;
   }

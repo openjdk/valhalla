@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,13 +24,13 @@
 #include "precompiled.hpp"
 #include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/stringTable.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
 #include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetNMethod.hpp"
-#include "gc/shared/oopStorageParState.inline.hpp"
 #include "gc/shared/oopStorageSet.hpp"
+#include "gc/shared/oopStorageParState.inline.hpp"
+#include "gc/shared/oopStorageSetParState.inline.hpp"
 #include "gc/shared/suspendibleThreadSet.hpp"
 #include "gc/z/zBarrierSetNMethod.hpp"
 #include "gc/z/zGlobals.hpp"
@@ -49,21 +49,13 @@
 #include "runtime/synchronizer.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/vmThread.hpp"
-#include "services/management.hpp"
 #include "utilities/debug.hpp"
-#if INCLUDE_JFR
-#include "jfr/jfr.hpp"
-#endif
 
 static const ZStatSubPhase ZSubPhasePauseRootsSetup("Pause Roots Setup");
 static const ZStatSubPhase ZSubPhasePauseRoots("Pause Roots");
 static const ZStatSubPhase ZSubPhasePauseRootsTeardown("Pause Roots Teardown");
-static const ZStatSubPhase ZSubPhasePauseRootsUniverse("Pause Roots Universe");
 static const ZStatSubPhase ZSubPhasePauseRootsObjectSynchronizer("Pause Roots ObjectSynchronizer");
-static const ZStatSubPhase ZSubPhasePauseRootsManagement("Pause Roots Management");
-static const ZStatSubPhase ZSubPhasePauseRootsJVMTIExport("Pause Roots JVMTIExport");
 static const ZStatSubPhase ZSubPhasePauseRootsJVMTIWeakExport("Pause Roots JVMTIWeakExport");
-static const ZStatSubPhase ZSubPhasePauseRootsSystemDictionary("Pause Roots SystemDictionary");
 static const ZStatSubPhase ZSubPhasePauseRootsVMThread("Pause Roots VM Thread");
 static const ZStatSubPhase ZSubPhasePauseRootsJavaThreads("Pause Roots Java Threads");
 static const ZStatSubPhase ZSubPhasePauseRootsCodeCache("Pause Roots CodeCache");
@@ -71,21 +63,16 @@ static const ZStatSubPhase ZSubPhasePauseRootsCodeCache("Pause Roots CodeCache")
 static const ZStatSubPhase ZSubPhaseConcurrentRootsSetup("Concurrent Roots Setup");
 static const ZStatSubPhase ZSubPhaseConcurrentRoots("Concurrent Roots");
 static const ZStatSubPhase ZSubPhaseConcurrentRootsTeardown("Concurrent Roots Teardown");
-static const ZStatSubPhase ZSubPhaseConcurrentRootsJNIHandles("Concurrent Roots JNIHandles");
-static const ZStatSubPhase ZSubPhaseConcurrentRootsVMHandles("Concurrent Roots VMHandles");
+static const ZStatSubPhase ZSubPhaseConcurrentRootsOopStorageSet("Concurrent Roots OopStorageSet");
 static const ZStatSubPhase ZSubPhaseConcurrentRootsClassLoaderDataGraph("Concurrent Roots ClassLoaderDataGraph");
 
 static const ZStatSubPhase ZSubPhasePauseWeakRootsSetup("Pause Weak Roots Setup");
 static const ZStatSubPhase ZSubPhasePauseWeakRoots("Pause Weak Roots");
 static const ZStatSubPhase ZSubPhasePauseWeakRootsTeardown("Pause Weak Roots Teardown");
 static const ZStatSubPhase ZSubPhasePauseWeakRootsJVMTIWeakExport("Pause Weak Roots JVMTIWeakExport");
-static const ZStatSubPhase ZSubPhasePauseWeakRootsJFRWeak("Pause Weak Roots JFRWeak");
 
 static const ZStatSubPhase ZSubPhaseConcurrentWeakRoots("Concurrent Weak Roots");
-static const ZStatSubPhase ZSubPhaseConcurrentWeakRootsVMWeakHandles("Concurrent Weak Roots VMWeakHandles");
-static const ZStatSubPhase ZSubPhaseConcurrentWeakRootsJNIWeakHandles("Concurrent Weak Roots JNIWeakHandles");
-static const ZStatSubPhase ZSubPhaseConcurrentWeakRootsStringTable("Concurrent Weak Roots StringTable");
-static const ZStatSubPhase ZSubPhaseConcurrentWeakRootsResolvedMethodTable("Concurrent Weak Roots ResolvedMethodTable");
+static const ZStatSubPhase ZSubPhaseConcurrentWeakRootsOopStorageSet("Concurrent Weak Roots OopStorageSet");
 
 template <typename T, void (T::*F)(ZRootsIteratorClosure*)>
 ZSerialOopsDo<T, F>::ZSerialOopsDo(T* iter) :
@@ -197,12 +184,8 @@ void ZJavaThreadsIterator::threads_do(ThreadClosure* cl) {
 ZRootsIterator::ZRootsIterator(bool visit_jvmti_weak_export) :
     _visit_jvmti_weak_export(visit_jvmti_weak_export),
     _java_threads_iter(),
-    _universe(this),
     _object_synchronizer(this),
-    _management(this),
-    _jvmti_export(this),
     _jvmti_weak_export(this),
-    _system_dictionary(this),
     _vm_thread(this),
     _java_threads(this),
     _code_cache(this) {
@@ -228,36 +211,15 @@ ZRootsIterator::~ZRootsIterator() {
   COMPILER2_OR_JVMCI_PRESENT(DerivedPointerTable::update_pointers());
 }
 
-void ZRootsIterator::do_universe(ZRootsIteratorClosure* cl) {
-  ZStatTimer timer(ZSubPhasePauseRootsUniverse);
-  Universe::oops_do(cl);
-}
-
 void ZRootsIterator::do_object_synchronizer(ZRootsIteratorClosure* cl) {
   ZStatTimer timer(ZSubPhasePauseRootsObjectSynchronizer);
   ObjectSynchronizer::oops_do(cl);
-}
-
-void ZRootsIterator::do_management(ZRootsIteratorClosure* cl) {
-  ZStatTimer timer(ZSubPhasePauseRootsManagement);
-  Management::oops_do(cl);
-}
-
-void ZRootsIterator::do_jvmti_export(ZRootsIteratorClosure* cl) {
-  ZStatTimer timer(ZSubPhasePauseRootsJVMTIExport);
-  JvmtiExport::oops_do(cl);
 }
 
 void ZRootsIterator::do_jvmti_weak_export(ZRootsIteratorClosure* cl) {
   ZStatTimer timer(ZSubPhasePauseRootsJVMTIWeakExport);
   AlwaysTrueClosure always_alive;
   JvmtiExport::weak_oops_do(&always_alive, cl);
-}
-
-void ZRootsIterator::do_system_dictionary(ZRootsIteratorClosure* cl) {
-  ZStatTimer timer(ZSubPhasePauseRootsSystemDictionary);
-  // Handles are processed via _vm_handles.
-  SystemDictionary::oops_do(cl, false /* include_handles */);
 }
 
 void ZRootsIterator::do_vm_thread(ZRootsIteratorClosure* cl) {
@@ -279,11 +241,7 @@ void ZRootsIterator::do_code_cache(ZRootsIteratorClosure* cl) {
 
 void ZRootsIterator::oops_do(ZRootsIteratorClosure* cl) {
   ZStatTimer timer(ZSubPhasePauseRoots);
-  _universe.oops_do(cl);
   _object_synchronizer.oops_do(cl);
-  _management.oops_do(cl);
-  _jvmti_export.oops_do(cl);
-  _system_dictionary.oops_do(cl);
   _vm_thread.oops_do(cl);
   _java_threads.oops_do(cl);
   if (!ClassUnloading) {
@@ -295,11 +253,9 @@ void ZRootsIterator::oops_do(ZRootsIteratorClosure* cl) {
 }
 
 ZConcurrentRootsIterator::ZConcurrentRootsIterator(int cld_claim) :
-    _jni_handles_iter(OopStorageSet::jni_global()),
-    _vm_handles_iter(OopStorageSet::vm_global()),
+    _oop_storage_set_iter(),
     _cld_claim(cld_claim),
-    _jni_handles(this),
-    _vm_handles(this),
+    _oop_storage_set(this),
     _class_loader_data_graph(this) {
   ZStatTimer timer(ZSubPhaseConcurrentRootsSetup);
   ClassLoaderDataGraph::clear_claimed_marks(cld_claim);
@@ -309,14 +265,9 @@ ZConcurrentRootsIterator::~ZConcurrentRootsIterator() {
   ZStatTimer timer(ZSubPhaseConcurrentRootsTeardown);
 }
 
-void ZConcurrentRootsIterator::do_jni_handles(ZRootsIteratorClosure* cl) {
-  ZStatTimer timer(ZSubPhaseConcurrentRootsJNIHandles);
-  _jni_handles_iter.oops_do(cl);
-}
-
-void ZConcurrentRootsIterator::do_vm_handles(ZRootsIteratorClosure* cl) {
-  ZStatTimer timer(ZSubPhaseConcurrentRootsVMHandles);
-  _vm_handles_iter.oops_do(cl);
+void ZConcurrentRootsIterator::do_oop_storage_set(ZRootsIteratorClosure* cl) {
+  ZStatTimer timer(ZSubPhaseConcurrentRootsOopStorageSet);
+  _oop_storage_set_iter.oops_do(cl);
 }
 
 void ZConcurrentRootsIterator::do_class_loader_data_graph(ZRootsIteratorClosure* cl) {
@@ -327,14 +278,12 @@ void ZConcurrentRootsIterator::do_class_loader_data_graph(ZRootsIteratorClosure*
 
 void ZConcurrentRootsIterator::oops_do(ZRootsIteratorClosure* cl) {
   ZStatTimer timer(ZSubPhaseConcurrentRoots);
-  _jni_handles.oops_do(cl);
-  _vm_handles.oops_do(cl),
+  _oop_storage_set.oops_do(cl);
   _class_loader_data_graph.oops_do(cl);
 }
 
 ZWeakRootsIterator::ZWeakRootsIterator() :
-    _jvmti_weak_export(this),
-    _jfr_weak(this) {
+    _jvmti_weak_export(this) {
   assert(SafepointSynchronize::is_at_safepoint(), "Should be at safepoint");
   ZStatTimer timer(ZSubPhasePauseWeakRootsSetup);
 }
@@ -348,17 +297,9 @@ void ZWeakRootsIterator::do_jvmti_weak_export(BoolObjectClosure* is_alive, ZRoot
   JvmtiExport::weak_oops_do(is_alive, cl);
 }
 
-void ZWeakRootsIterator::do_jfr_weak(BoolObjectClosure* is_alive, ZRootsIteratorClosure* cl) {
-#if INCLUDE_JFR
-  ZStatTimer timer(ZSubPhasePauseWeakRootsJFRWeak);
-  Jfr::weak_oops_do(is_alive, cl);
-#endif
-}
-
 void ZWeakRootsIterator::weak_oops_do(BoolObjectClosure* is_alive, ZRootsIteratorClosure* cl) {
   ZStatTimer timer(ZSubPhasePauseWeakRoots);
   _jvmti_weak_export.weak_oops_do(is_alive, cl);
-  _jfr_weak.weak_oops_do(is_alive, cl);
 }
 
 void ZWeakRootsIterator::oops_do(ZRootsIteratorClosure* cl) {
@@ -367,76 +308,20 @@ void ZWeakRootsIterator::oops_do(ZRootsIteratorClosure* cl) {
 }
 
 ZConcurrentWeakRootsIterator::ZConcurrentWeakRootsIterator() :
-    _vm_weak_handles_iter(OopStorageSet::vm_weak()),
-    _jni_weak_handles_iter(OopStorageSet::jni_weak()),
-    _string_table_iter(OopStorageSet::string_table_weak()),
-    _resolved_method_table_iter(OopStorageSet::resolved_method_table_weak()),
-    _vm_weak_handles(this),
-    _jni_weak_handles(this),
-    _string_table(this),
-    _resolved_method_table(this) {
-  StringTable::reset_dead_counter();
-  ResolvedMethodTable::reset_dead_counter();
+    _oop_storage_set_iter(),
+    _oop_storage_set(this) {
 }
 
-ZConcurrentWeakRootsIterator::~ZConcurrentWeakRootsIterator() {
-  StringTable::finish_dead_counter();
-  ResolvedMethodTable::finish_dead_counter();
+void ZConcurrentWeakRootsIterator::report_num_dead() {
+  _oop_storage_set_iter.report_num_dead();
 }
 
-void ZConcurrentWeakRootsIterator::do_vm_weak_handles(ZRootsIteratorClosure* cl) {
-  ZStatTimer timer(ZSubPhaseConcurrentWeakRootsVMWeakHandles);
-  _vm_weak_handles_iter.oops_do(cl);
-}
-
-void ZConcurrentWeakRootsIterator::do_jni_weak_handles(ZRootsIteratorClosure* cl) {
-  ZStatTimer timer(ZSubPhaseConcurrentWeakRootsJNIWeakHandles);
-  _jni_weak_handles_iter.oops_do(cl);
-}
-
-template <class Container>
-class ZDeadCounterClosure : public ZRootsIteratorClosure  {
-private:
-  ZRootsIteratorClosure* const _cl;
-  size_t                       _ndead;
-
-public:
-  ZDeadCounterClosure(ZRootsIteratorClosure* cl) :
-      _cl(cl),
-      _ndead(0) {}
-
-  ~ZDeadCounterClosure() {
-    Container::inc_dead_counter(_ndead);
-  }
-
-  virtual void do_oop(oop* p) {
-    _cl->do_oop(p);
-    if (*p == NULL) {
-      _ndead++;
-    }
-  }
-
-  virtual void do_oop(narrowOop* p) {
-    ShouldNotReachHere();
-  }
-};
-
-void ZConcurrentWeakRootsIterator::do_string_table(ZRootsIteratorClosure* cl) {
-  ZStatTimer timer(ZSubPhaseConcurrentWeakRootsStringTable);
-  ZDeadCounterClosure<StringTable> counter_cl(cl);
-  _string_table_iter.oops_do(&counter_cl);
-}
-
-void ZConcurrentWeakRootsIterator::do_resolved_method_table(ZRootsIteratorClosure* cl) {
-  ZStatTimer timer(ZSubPhaseConcurrentWeakRootsResolvedMethodTable);
-  ZDeadCounterClosure<ResolvedMethodTable> counter_cl(cl);
-  _resolved_method_table_iter.oops_do(&counter_cl);
+void ZConcurrentWeakRootsIterator::do_oop_storage_set(ZRootsIteratorClosure* cl) {
+  ZStatTimer timer(ZSubPhaseConcurrentWeakRootsOopStorageSet);
+  _oop_storage_set_iter.oops_do(cl);
 }
 
 void ZConcurrentWeakRootsIterator::oops_do(ZRootsIteratorClosure* cl) {
   ZStatTimer timer(ZSubPhaseConcurrentWeakRoots);
-  _vm_weak_handles.oops_do(cl);
-  _jni_weak_handles.oops_do(cl);
-  _string_table.oops_do(cl);
-  _resolved_method_table.oops_do(cl);
+  _oop_storage_set.oops_do(cl);
 }

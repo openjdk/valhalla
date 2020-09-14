@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,9 +28,7 @@
 #include "jni.h"
 #include "memory/allocation.hpp"
 
-class BoolObjectClosure;
 class JavaThread;
-class OopClosure;
 class Thread;
 
 extern "C" void JNICALL jfr_register_natives(JNIEnv*, jclass);
@@ -49,11 +47,10 @@ class Jfr : AllStatic {
   static void on_unloading_classes();
   static void on_thread_start(Thread* thread);
   static void on_thread_exit(Thread* thread);
-  static void on_java_thread_dismantle(JavaThread* jt);
   static void on_vm_shutdown(bool exception_handler = false);
   static bool on_flight_recorder_option(const JavaVMOption** option, char* delimiter);
   static bool on_start_flight_recording_option(const JavaVMOption** option, char* delimiter);
-  static void weak_oops_do(BoolObjectClosure* is_alive, OopClosure* f);
+  static void on_vm_error_report(outputStream* st);
   static void exclude_thread(Thread* thread);
   static bool is_excluded(Thread* thread);
   static void include_thread(Thread* thread);

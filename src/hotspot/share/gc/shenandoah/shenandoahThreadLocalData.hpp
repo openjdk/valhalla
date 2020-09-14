@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2018, 2020, Red Hat, Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #define SHARE_GC_SHENANDOAH_SHENANDOAHTHREADLOCALDATA_HPP
 
 #include "gc/shared/plab.hpp"
+#include "gc/shared/gcThreadLocalData.hpp"
 #include "gc/shenandoah/shenandoahBarrierSet.hpp"
 #include "gc/shenandoah/shenandoahCodeRoots.hpp"
 #include "gc/shenandoah/shenandoahSATBMarkQueueSet.hpp"
@@ -39,22 +40,32 @@ public:
 
 private:
   char _gc_state;
-  char _oom_during_evac;
+  // Evacuation OOM state
+  uint8_t                 _oom_scope_nesting_level;
+  bool                    _oom_during_evac;
   ShenandoahSATBMarkQueue _satb_mark_queue;
   PLAB* _gclab;
   size_t _gclab_size;
   uint  _worker_id;
   bool _force_satb_flush;
   int  _disarmed_value;
+  double _paced_time;
 
   ShenandoahThreadLocalData() :
     _gc_state(0),
-    _oom_during_evac(0),
+    _oom_scope_nesting_level(0),
+    _oom_during_evac(false),
     _satb_mark_queue(&ShenandoahBarrierSet::satb_mark_queue_set()),
     _gclab(NULL),
     _gclab_size(0),
     _worker_id(INVALID_WORKER_ID),
-    _force_satb_flush(false) {
+    _force_satb_flush(false),
+    _disarmed_value(0),
+    _paced_time(0) {
+
+    // At least on x86_64, nmethod entry barrier encodes _disarmed_value offset
+    // in instruction as disp8 immed
+    assert(in_bytes(disarmed_value_offset()) < 128, "Offset range check");
   }
 
   ~ShenandoahThreadLocalData() {
@@ -83,18 +94,6 @@ public:
 
   static SATBMarkQueue& satb_mark_queue(Thread* thread) {
     return data(thread)->_satb_mark_queue;
-  }
-
-  static bool is_oom_during_evac(Thread* thread) {
-    return (data(thread)->_oom_during_evac & 1) == 1;
-  }
-
-  static void set_oom_during_evac(Thread* thread, bool oom) {
-    if (oom) {
-      data(thread)->_oom_during_evac |= 1;
-    } else {
-      data(thread)->_oom_during_evac &= ~1;
-    }
   }
 
   static void set_gc_state(Thread* thread, char gc_state) {
@@ -128,7 +127,6 @@ public:
     assert(data(thread)->_gclab == NULL, "Only initialize once");
     data(thread)->_gclab = new PLAB(PLAB::min_size());
     data(thread)->_gclab_size = 0;
-    data(thread)->_disarmed_value = ShenandoahCodeRoots::disarmed_value();
   }
 
   static PLAB* gclab(Thread* thread) {
@@ -143,23 +141,54 @@ public:
     data(thread)->_gclab_size = v;
   }
 
+  static void add_paced_time(Thread* thread, double v) {
+    data(thread)->_paced_time += v;
+  }
+
+  static double paced_time(Thread* thread) {
+    return data(thread)->_paced_time;
+  }
+
+  static void reset_paced_time(Thread* thread) {
+    data(thread)->_paced_time = 0;
+  }
+
   static void set_disarmed_value(Thread* thread, int value) {
     data(thread)->_disarmed_value = value;
   }
 
-#ifdef ASSERT
-  static void set_evac_allowed(Thread* thread, bool evac_allowed) {
-    if (evac_allowed) {
-      data(thread)->_oom_during_evac |= 2;
-    } else {
-      data(thread)->_oom_during_evac &= ~2;
-    }
+  // Evacuation OOM handling
+  static bool is_oom_during_evac(Thread* thread) {
+    return data(thread)->_oom_during_evac;
+  }
+
+  static void set_oom_during_evac(Thread* thread, bool oom) {
+    data(thread)->_oom_during_evac = oom;
+  }
+
+  static uint8_t evac_oom_scope_level(Thread* thread) {
+    return data(thread)->_oom_scope_nesting_level;
+  }
+
+  // Push the scope one level deeper, return previous level
+  static uint8_t push_evac_oom_scope(Thread* thread) {
+    uint8_t level = evac_oom_scope_level(thread);
+    assert(level < 254, "Overflow nesting level"); // UINT8_MAX = 255
+    data(thread)->_oom_scope_nesting_level = level + 1;
+    return level;
+  }
+
+  // Pop the scope by one level, return previous level
+  static uint8_t pop_evac_oom_scope(Thread* thread) {
+    uint8_t level = evac_oom_scope_level(thread);
+    assert(level > 0, "Underflow nesting level");
+    data(thread)->_oom_scope_nesting_level = level - 1;
+    return level;
   }
 
   static bool is_evac_allowed(Thread* thread) {
-    return (data(thread)->_oom_during_evac & 2) == 2;
+    return evac_oom_scope_level(thread) > 0;
   }
-#endif
 
   // Offsets
   static ByteSize satb_mark_queue_active_offset() {
@@ -182,5 +211,7 @@ public:
     return Thread::gc_data_offset() + byte_offset_of(ShenandoahThreadLocalData, _disarmed_value);
   }
 };
+
+STATIC_ASSERT(sizeof(ShenandoahThreadLocalData) <= sizeof(GCThreadLocalData));
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHTHREADLOCALDATA_HPP

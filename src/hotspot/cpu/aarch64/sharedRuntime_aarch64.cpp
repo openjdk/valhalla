@@ -27,9 +27,11 @@
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "classfile/symbolTable.hpp"
+#include "code/codeCache.hpp"
 #include "code/debugInfoRec.hpp"
 #include "code/icBuffer.hpp"
 #include "code/vtableStubs.hpp"
+#include "gc/shared/barrierSetAssembler.hpp"
 #include "interpreter/interpreter.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "logging/log.hpp"
@@ -114,11 +116,28 @@ class RegisterSaver {
 };
 
 OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_frame_words, int* total_frame_words, bool save_vectors) {
+  bool use_sve = false;
+  int sve_vector_size_in_bytes = 0;
+  int sve_vector_size_in_slots = 0;
+
+#ifdef COMPILER2
+  use_sve = Matcher::supports_scalable_vector();
+  sve_vector_size_in_bytes = Matcher::scalable_vector_reg_size(T_BYTE);
+  sve_vector_size_in_slots = Matcher::scalable_vector_reg_size(T_FLOAT);
+#endif
+
 #if COMPILER2_OR_JVMCI
   if (save_vectors) {
+    int vect_words = 0;
+    int extra_save_slots_per_register = 0;
     // Save upper half of vector registers
-    int vect_words = FloatRegisterImpl::number_of_registers * FloatRegisterImpl::extra_save_slots_per_register /
-                     VMRegImpl::slots_per_word;
+    if (use_sve) {
+      extra_save_slots_per_register = sve_vector_size_in_slots - FloatRegisterImpl::save_slots_per_register;
+    } else {
+      extra_save_slots_per_register = FloatRegisterImpl::extra_save_slots_per_neon_register;
+    }
+    vect_words = FloatRegisterImpl::number_of_registers * extra_save_slots_per_register /
+                 VMRegImpl::slots_per_word;
     additional_frame_words += vect_words;
   }
 #else
@@ -137,7 +156,7 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_
 
   // Save Integer and Float registers.
   __ enter();
-  __ push_CPU_state(save_vectors);
+  __ push_CPU_state(save_vectors, use_sve, sve_vector_size_in_bytes);
 
   // Set an oopmap for the call site.  This oopmap will map all
   // oop-registers and debug-info registers as callee-saved.  This
@@ -161,8 +180,13 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_
 
   for (int i = 0; i < FloatRegisterImpl::number_of_registers; i++) {
     FloatRegister r = as_FloatRegister(i);
-    int sp_offset = save_vectors ? (FloatRegisterImpl::max_slots_per_register * i) :
-                                   (FloatRegisterImpl::save_slots_per_register * i);
+    int sp_offset = 0;
+    if (save_vectors) {
+      sp_offset = use_sve ? (sve_vector_size_in_slots * i) :
+                            (FloatRegisterImpl::slots_per_neon_register * i);
+    } else {
+      sp_offset = FloatRegisterImpl::save_slots_per_register * i;
+    }
     oop_map->set_callee_saved(VMRegImpl::stack2reg(sp_offset),
                               r->as_VMReg());
   }
@@ -171,12 +195,17 @@ OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_
 }
 
 void RegisterSaver::restore_live_registers(MacroAssembler* masm, bool restore_vectors) {
-#if COMPILER2_OR_JVMCI
-  __ pop_CPU_state(restore_vectors);
-  __ leave();
+#ifdef COMPILER2
+  __ pop_CPU_state(restore_vectors, Matcher::supports_scalable_vector(),
+                   Matcher::scalable_vector_reg_size(T_BYTE));
 #else
+#if !INCLUDE_JVMCI
   assert(!restore_vectors, "vectors are generated only by C2 and JVMCI");
 #endif
+  __ pop_CPU_state(restore_vectors);
+#endif
+  __ leave();
+
 }
 
 void RegisterSaver::restore_result_registers(MacroAssembler* masm) {
@@ -290,7 +319,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     case T_OBJECT:
     case T_ARRAY:
     case T_ADDRESS:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
       if (int_args < Argument::n_int_register_parameters_j) {
         regs[i].set2(INT_ArgReg[int_args++]->as_VMReg());
       } else {
@@ -374,7 +403,7 @@ int SharedRuntime::java_return_convention(const BasicType *sig_bt, VMRegPair *re
     case T_ADDRESS:
       // Should T_METADATA be added to java_calling_convention as well ?
     case T_METADATA:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
       if (int_args < SharedRuntime::java_return_convention_max_int) {
         regs[i].set2(INT_ArgReg[int_args]->as_VMReg());
         int_args ++;
@@ -438,34 +467,34 @@ static void patch_callers_callsite(MacroAssembler *masm) {
   __ bind(L);
 }
 
-// For each value type argument, sig includes the list of fields of
-// the value type. This utility function computes the number of
-// arguments for the call if value types are passed by reference (the
+// For each inline type argument, sig includes the list of fields of
+// the inline type. This utility function computes the number of
+// arguments for the call if inline types are passed by reference (the
 // calling convention the interpreter expects).
 static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_extended) {
   int total_args_passed = 0;
-  if (ValueTypePassFieldsAsArgs) {
+  if (InlineTypePassFieldsAsArgs) {
      for (int i = 0; i < sig_extended->length(); i++) {
        BasicType bt = sig_extended->at(i)._bt;
        if (SigEntry::is_reserved_entry(sig_extended, i)) {
          // Ignore reserved entry
-       } else if (bt == T_VALUETYPE) {
-         // In sig_extended, a value type argument starts with:
-         // T_VALUETYPE, followed by the types of the fields of the
-         // value type and T_VOID to mark the end of the value
-         // type. Value types are flattened so, for instance, in the
-         // case of a value type with an int field and a value type
+       } else if (bt == T_INLINE_TYPE) {
+         // In sig_extended, an inline type argument starts with:
+         // T_INLINE_TYPE, followed by the types of the fields of the
+         // inline type and T_VOID to mark the end of the value
+         // type. Inline types are flattened so, for instance, in the
+         // case of an inline type with an int field and an inline type
          // field that itself has 2 fields, an int and a long:
-         // T_VALUETYPE T_INT T_VALUETYPE T_INT T_LONG T_VOID (second
-         // slot for the T_LONG) T_VOID (inner T_VALUETYPE) T_VOID
-         // (outer T_VALUETYPE)
+         // T_INLINE_TYPE T_INT T_INLINE_TYPE T_INT T_LONG T_VOID (second
+         // slot for the T_LONG) T_VOID (inner T_INLINE_TYPE) T_VOID
+         // (outer T_INLINE_TYPE)
          total_args_passed++;
          int vt = 1;
          do {
            i++;
            BasicType bt = sig_extended->at(i)._bt;
            BasicType prev_bt = sig_extended->at(i-1)._bt;
-           if (bt == T_VALUETYPE) {
+           if (bt == T_INLINE_TYPE) {
              vt++;
            } else if (bt == T_VOID &&
                       prev_bt != T_LONG &&
@@ -487,7 +516,7 @@ static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_exte
 
 static void gen_c2i_adapter_helper(MacroAssembler* masm, BasicType bt, const VMRegPair& reg_pair, int extraspace, const Address& to) {
 
-    assert(bt != T_VALUETYPE || !ValueTypePassFieldsAsArgs, "no value type here");
+    assert(bt != T_INLINE_TYPE || !InlineTypePassFieldsAsArgs, "no inline type here");
 
     // Say 4 args:
     // i   st_off
@@ -497,7 +526,7 @@ static void gen_c2i_adapter_helper(MacroAssembler* masm, BasicType bt, const VMR
     // 3    8 T_BOOL
     // -    0 return address
     //
-    // However to make thing extra confusing. Because we can fit a long/double in
+    // However to make thing extra confusing. Because we can fit a Java long/double in
     // a single slot on a 64 bt vm and it would be silly to break them up, the interpreter
     // leaves one slot empty and only stores to a single slot. In this case the
     // slot that is occupied is the T_VOID slot. See I said it was confusing.
@@ -547,7 +576,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                             OopMapSet* oop_maps,
                             int& frame_complete,
                             int& frame_size_in_words,
-                            bool alloc_value_receiver) {
+                            bool alloc_inline_receiver) {
 
   // Before we get into the guts of the C2I adapter, see if we should be here
   // at all.  We've come from compiled code and are attempting to jump to the
@@ -558,17 +587,17 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   __ bind(skip_fixup);
 
-  bool has_value_argument = false;
+  bool has_inline_argument = false;
 
-  if (ValueTypePassFieldsAsArgs) {
-      // Is there a value type argument?
-     for (int i = 0; i < sig_extended->length() && !has_value_argument; i++) {
-       has_value_argument = (sig_extended->at(i)._bt == T_VALUETYPE);
+  if (InlineTypePassFieldsAsArgs) {
+      // Is there an inline type argument?
+     for (int i = 0; i < sig_extended->length() && !has_inline_argument; i++) {
+       has_inline_argument = (sig_extended->at(i)._bt == T_INLINE_TYPE);
      }
-     if (has_value_argument) {
-      // There is at least a value type argument: we're coming from
-      // compiled code so we have no buffers to back the value
-      // types. Allocate the buffers here with a runtime call.
+     if (has_inline_argument) {
+      // There is at least an inline type argument: we're coming from
+      // compiled code so we have no buffers to back the inline types
+      // Allocate the buffers here with a runtime call.
       OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
 
       frame_complete = __ offset();
@@ -578,9 +607,9 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
       __ mov(c_rarg0, rthread);
       __ mov(c_rarg1, r1);
-      __ mov(c_rarg2, (int64_t)alloc_value_receiver);
+      __ mov(c_rarg2, (int64_t)alloc_inline_receiver);
 
-      __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_value_types)));
+      __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::allocate_inline_types)));
       __ blr(rscratch1);
 
       oop_maps->add_gc_map((int)(__ pc() - start), map);
@@ -630,7 +659,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     // offset to start parameters
     int st_off   = (total_args_passed - next_arg_int - 1) * Interpreter::stackElementSize;
 
-    if (!ValueTypePassFieldsAsArgs || bt != T_VALUETYPE) {
+    if (!InlineTypePassFieldsAsArgs || bt != T_INLINE_TYPE) {
 
             if (SigEntry::is_reserved_entry(sig_extended, next_arg_comp)) {
                continue; // Ignore reserved entry
@@ -650,22 +679,22 @@ static void gen_c2i_adapter(MacroAssembler *masm,
    } else {
        ignored++;
       // get the buffer from the just allocated pool of buffers
-      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_VALUETYPE);
+      int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + next_vt_arg * type2aelembytes(T_INLINE_TYPE);
       __ load_heap_oop(rscratch1, Address(r10, index));
       next_vt_arg++;
       next_arg_int++;
       int vt = 1;
       // write fields we get from compiled code in registers/stack
-      // slots to the buffer: we know we are done with that value type
+      // slots to the buffer: we know we are done with that inline type
       // argument when we hit the T_VOID that acts as an end of value
-      // type delimiter for this value type. Value types are flattened
-      // so we might encounter embedded value types. Each entry in
+      // type delimiter for this inline type. Inline types are flattened
+      // so we might encounter embedded inline types. Each entry in
       // sig_extended contains a field offset in the buffer.
       do {
         next_arg_comp++;
         BasicType bt = sig_extended->at(next_arg_comp)._bt;
         BasicType prev_bt = sig_extended->at(next_arg_comp - 1)._bt;
-        if (bt == T_VALUETYPE) {
+        if (bt == T_INLINE_TYPE) {
           vt++;
           ignored++;
         } else if (bt == T_VOID && prev_bt != T_LONG && prev_bt != T_DOUBLE) {
@@ -689,8 +718,8 @@ static void gen_c2i_adapter(MacroAssembler *masm,
 
   }
 
-// If a value type was allocated and initialized, apply post barrier to all oop fields
-  if (has_value_argument && has_oop_field) {
+// If an inline type was allocated and initialized, apply post barrier to all oop fields
+  if (has_inline_argument && has_oop_field) {
     __ push(r13); // save senderSP
     __ push(r1); // save callee
     // Allocate argument register save area
@@ -802,7 +831,7 @@ void SharedRuntime::gen_i2c_adapter(MacroAssembler *masm, int comp_args_on_stack
   for (int i = 0; i < total_args_passed; i++) {
     BasicType bt = sig->at(i)._bt;
 
-    assert(bt != T_VALUETYPE, "i2c adapter doesn't unpack value args");
+    assert(bt != T_INLINE_TYPE, "i2c adapter doesn't unpack inline typ args");
     if (bt == T_VOID) {
       assert(i > 0 && (sig->at(i - 1)._bt == T_LONG || sig->at(i - 1)._bt == T_DOUBLE), "missing half");
       continue;
@@ -953,7 +982,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   int frame_size_in_words = 0;
 
   // Scalarized c2i adapter with non-scalarized receiver (i.e., don't pack receiver)
-  address c2i_value_ro_entry = __ pc();
+  address c2i_inline_ro_entry = __ pc();
   if (regs_cc != regs_cc_ro) {
     Label unused;
     gen_c2i_adapter(masm, sig_cc_ro, regs_cc_ro, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
@@ -986,24 +1015,23 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
     c2i_no_clinit_check_entry = __ pc();
   }
 
-//  FIXME: Not Implemented
-//  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
-//  bs->c2i_entry_barrier(masm);
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->c2i_entry_barrier(masm);
 
-  gen_c2i_adapter(masm, sig_cc, regs_cc, skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, true);
+  gen_c2i_adapter(masm, total_args_passed, comp_args_on_stack, sig_bt, regs, skip_fixup);
 
-  address c2i_unverified_value_entry = c2i_unverified_entry;
+  address c2i_unverified_inline_entry = c2i_unverified_entry;
 
  // Non-scalarized c2i adapter
-  address c2i_value_entry = c2i_entry;
+  address c2i_inline_entry = c2i_entry;
   if (regs != regs_cc) {
-    Label value_entry_skip_fixup;
-    c2i_unverified_value_entry = __ pc();
-    gen_inline_cache_check(masm, value_entry_skip_fixup);
+    Label inline_entry_skip_fixup;
+    c2i_unverified_inline_entry = __ pc();
+    gen_inline_cache_check(masm, inline_entry_skip_fixup);
 
-    c2i_value_entry = __ pc();
+    c2i_inline_entry = __ pc();
     Label unused;
-    gen_c2i_adapter(masm, sig, regs, value_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
+    gen_c2i_adapter(masm, sig, regs, inline_entry_skip_fixup, i2c_entry, oop_maps, frame_complete, frame_size_in_words, false);
   }
 
   __ flush();
@@ -1014,7 +1042,7 @@ AdapterHandlerEntry* SharedRuntime::generate_i2c2i_adapters(MacroAssembler *masm
   bool caller_must_gc_arguments = (regs != regs_cc);
   new_adapter = AdapterBlob::create(masm->code(), frame_complete, frame_size_in_words + 10, oop_maps, caller_must_gc_arguments);
 
-  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_value_entry, c2i_value_ro_entry, c2i_unverified_entry, c2i_unverified_value_entry, c2i_no_clinit_check_entry);
+  return AdapterHandlerLibrary::new_entry(fingerprint, i2c_entry, c2i_entry, c2i_inline_entry, c2i_inline_ro_entry, c2i_unverified_entry, c2i_unverified_inline_entry, c2i_no_clinit_check_entry);
 }
 
 int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
@@ -1057,7 +1085,7 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
         // fall through
       case T_OBJECT:
       case T_ARRAY:
-      case T_VALUETYPE:
+      case T_INLINE_TYPE:
       case T_ADDRESS:
       case T_METADATA:
         if (int_args < Argument::n_int_register_parameters_c) {
@@ -1098,7 +1126,7 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
 }
 
 // On 64 bit we will store integer like items to the stack as
-// 64 bits items (sparc abi) even though java would only store
+// 64 bits items (Aarch64 abi) even though java would only store
 // 32bits for a parameter. On 32bit it will simply be 32 bits
 // So this routine will do 32->32 on 32bit and 32->64 on 64bit
 static void move32_64(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
@@ -1405,13 +1433,11 @@ class ComputeMoveOrder: public StackObj {
 };
 
 
-static void rt_call(MacroAssembler* masm, address dest, int gpargs, int fpargs, int type) {
+static void rt_call(MacroAssembler* masm, address dest) {
   CodeBlob *cb = CodeCache::find_blob(dest);
   if (cb) {
     __ far_call(RuntimeAddress(dest));
   } else {
-    assert((unsigned)gpargs < 256, "eek!");
-    assert((unsigned)fpargs < 32, "eek!");
     __ lea(rscratch1, RuntimeAddress(dest));
     __ blr(rscratch1);
     __ maybe_isb();
@@ -1784,6 +1810,9 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   // -2 because return address is already present and so is saved rfp
   __ sub(sp, sp, stack_size - 2*wordSize);
 
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->nmethod_entry_barrier(masm);
+
   // Frame is now completed as far as size and linkage.
   int frame_complete = ((intptr_t)__ pc()) - start;
 
@@ -1908,7 +1937,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
           int_args++;
           break;
         }
-      case T_VALUETYPE:
+      case T_INLINE_TYPE:
       case T_OBJECT:
         assert(!is_critical_native, "no oop arguments");
         object_move(masm, map, oop_handle_offset, stack_slots, in_regs[i], out_regs[c_arg],
@@ -1976,7 +2005,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   Label dtrace_method_entry, dtrace_method_entry_done;
   {
-    unsigned long offset;
+    uint64_t offset;
     __ adrp(rscratch1, ExternalAddress((address)&DTraceMethodProbes), offset);
     __ ldrb(rscratch1, Address(rscratch1, offset));
     __ cbnzw(rscratch1, dtrace_method_entry);
@@ -2077,34 +2106,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
   __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
   __ stlrw(rscratch1, rscratch2);
 
-  {
-    int return_type = 0;
-    switch (ret_type) {
-    case T_VOID: break;
-      return_type = 0; break;
-    case T_CHAR:
-    case T_BYTE:
-    case T_SHORT:
-    case T_INT:
-    case T_BOOLEAN:
-    case T_LONG:
-      return_type = 1; break;
-    case T_ARRAY:
-    case T_VALUETYPE:
-    case T_OBJECT:
-      return_type = 1; break;
-    case T_FLOAT:
-      return_type = 2; break;
-    case T_DOUBLE:
-      return_type = 3; break;
-    default:
-      ShouldNotReachHere();
-    }
-    rt_call(masm, native_func,
-            int_args + 2, // AArch64 passes up to 8 args in int registers
-            float_args,   // and up to 8 float args
-            return_type);
-  }
+  rt_call(masm, native_func);
 
   __ bind(native_return);
 
@@ -2123,7 +2125,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Result is in v0 we'll save as needed
     break;
   case T_ARRAY:                 // Really a handle
-  case T_VALUETYPE:
+  case T_INLINE_TYPE:
   case T_OBJECT:                // Really a handle
       break; // can't de-handlize until after safepoint check
   case T_VOID: break;
@@ -2144,6 +2146,11 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   // Force this write out before the read below
   __ dmb(Assembler::ISH);
+
+  if (UseSVE > 0) {
+    // Make sure that jni code does not change SVE vector length.
+    __ verify_sve_vector_length();
+  }
 
   // check for safepoint operation in progress and/or pending suspend requests
   Label safepoint_in_progress, safepoint_in_progress_done;
@@ -2218,7 +2225,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   Label dtrace_method_exit, dtrace_method_exit_done;
   {
-    unsigned long offset;
+    uint64_t offset;
     __ adrp(rscratch1, ExternalAddress((address)&DTraceMethodProbes), offset);
     __ ldrb(rscratch1, Address(rscratch1, offset));
     __ cbnzw(rscratch1, dtrace_method_exit);
@@ -2315,7 +2322,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ ldr(r19, Address(rthread, in_bytes(Thread::pending_exception_offset())));
     __ str(zr, Address(rthread, in_bytes(Thread::pending_exception_offset())));
 
-    rt_call(masm, CAST_FROM_FN_PTR(address, SharedRuntime::complete_monitor_unlocking_C), 3, 0, 1);
+    rt_call(masm, CAST_FROM_FN_PTR(address, SharedRuntime::complete_monitor_unlocking_C));
 
 #ifdef ASSERT
     {
@@ -2342,7 +2349,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   __ bind(reguard);
   save_native_result(masm, ret_type, stack_slots);
-  rt_call(masm, CAST_FROM_FN_PTR(address, SharedRuntime::reguard_yellow_pages), 0, 0, 0);
+  rt_call(masm, CAST_FROM_FN_PTR(address, SharedRuntime::reguard_yellow_pages));
   restore_native_result(masm, ret_type, stack_slots);
   // and continue
   __ b(reguard_done);
@@ -3077,6 +3084,12 @@ SafepointBlob* SharedRuntime::generate_handler_blob(address call_ptr, int poll_t
   __ maybe_isb();
   __ membar(Assembler::LoadLoad | Assembler::LoadStore);
 
+  if (UseSVE > 0 && save_vectors) {
+    // Reinitialize the ptrue predicate register, in case the external runtime
+    // call clobbers ptrue reg, as we may return to SVE compiled code.
+    __ reinitialize_ptrue();
+  }
+
   __ ldr(rscratch1, Address(rthread, Thread::pending_exception_offset()));
   __ cbz(rscratch1, noException);
 
@@ -3350,8 +3363,8 @@ void OptoRuntime::generate_exception_blob() {
   _exception_blob =  ExceptionBlob::create(&buffer, oop_maps, SimpleRuntimeFrame::framesize >> 1);
 }
 
-BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const ValueKlass* vk) {
-  BufferBlob* buf = BufferBlob::create("value types pack/unpack", 16 * K);
+BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
+  BufferBlob* buf = BufferBlob::create("inline types pack/unpack", 16 * K);
   CodeBuffer buffer(buf);
   short buffer_locs[20];
   buffer.insts()->initialize_shared_locs((relocInfo*)buffer_locs,
@@ -3368,7 +3381,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
   int j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       continue;
     }
     if (bt == T_VOID) {
@@ -3415,7 +3428,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
   j = 1;
   for (int i = 0; i < sig_vk->length(); i++) {
     BasicType bt = sig_vk->at(i)._bt;
-    if (bt == T_VALUETYPE) {
+    if (bt == T_INLINE_TYPE) {
       continue;
     }
     if (bt == T_VOID) {
@@ -3452,6 +3465,6 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
 
   __ flush();
 
-  return BufferedValueTypeBlob::create(&buffer, pack_fields_off, unpack_fields_off);
+  return BufferedInlineTypeBlob::create(&buffer, pack_fields_off, unpack_fields_off);
 }
 #endif // COMPILER2

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,9 +22,11 @@
  */
 
 #include "precompiled.hpp"
+#include "gc/shared/gcLogPrecious.hpp"
 #include "gc/shared/workgroup.hpp"
 #include "gc/z/zRuntimeWorkers.hpp"
 #include "gc/z/zThread.hpp"
+#include "runtime/java.hpp"
 #include "runtime/mutexLocker.hpp"
 
 class ZRuntimeWorkersInitializeTask : public AbstractGangTask {
@@ -66,7 +68,7 @@ ZRuntimeWorkers::ZRuntimeWorkers() :
              false /* are_GC_task_threads */,
              false /* are_ConcurrentGC_threads */) {
 
-  log_info(gc, init)("Runtime Workers: %u parallel", nworkers());
+  log_info_p(gc, init)("Runtime Workers: %u parallel", nworkers());
 
   // Initialize worker threads
   _workers.initialize_workers();
@@ -92,8 +94,4 @@ WorkGang* ZRuntimeWorkers::workers() {
 
 void ZRuntimeWorkers::threads_do(ThreadClosure* tc) const {
   _workers.threads_do(tc);
-}
-
-void ZRuntimeWorkers::print_threads_on(outputStream* st) const {
-  _workers.print_worker_threads_on(st);
 }

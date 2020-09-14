@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,8 +32,6 @@
 #include "interpreter/templateTable.hpp"
 #include "oops/methodData.hpp"
 
-#ifndef CC_INTERP
-
 #define __ Disassembler::hook<InterpreterMacroAssembler>(__FILE__, __LINE__, _masm)->
 
 TemplateInterpreterGenerator::TemplateInterpreterGenerator(StubQueue* _code): AbstractInterpreterGenerator(_code) {
@@ -53,7 +51,7 @@ static const BasicType types[Interpreter::number_of_result_handlers] = {
   T_FLOAT  ,
   T_DOUBLE ,
   T_OBJECT ,
-  T_VALUETYPE
+  T_INLINE_TYPE
 };
 
 void TemplateInterpreterGenerator::generate_all() {
@@ -486,4 +484,3 @@ address TemplateInterpreterGenerator::generate_method_entry(
 
   return entry_point;
 }
-#endif // !CC_INTERP

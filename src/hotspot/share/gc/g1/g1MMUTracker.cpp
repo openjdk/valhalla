@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -76,8 +76,6 @@ double G1MMUTrackerQueue::calculate_gc_time(double current_time) {
 }
 
 void G1MMUTrackerQueue::add_pause(double start, double end) {
-  double duration = end - start;
-
   remove_expired_entries(end);
   if (_no_entries == QueueLength) {
     // OK, we've filled up the queue. There are a few ways
@@ -107,8 +105,12 @@ void G1MMUTrackerQueue::add_pause(double start, double end) {
   double slice_time = calculate_gc_time(end);
   G1MMUTracer::report_mmu(_time_slice, slice_time, _max_gc_time);
 
-  if (slice_time >= _max_gc_time) {
-    log_info(gc, mmu)("MMU target violated: %.1lfms (%.1lfms/%.1lfms)", slice_time * 1000.0, _max_gc_time * 1000.0, _time_slice * 1000);
+  if (slice_time < _max_gc_time) {
+    log_debug(gc, mmu)("MMU: %.1lfms (%.1lfms/%.1lfms)",
+                       slice_time * 1000.0, _max_gc_time * 1000.0, _time_slice * 1000);
+  } else {
+    log_info(gc, mmu)("MMU target violated: %.1lfms (%.1lfms/%.1lfms)",
+                      slice_time * 1000.0, _max_gc_time * 1000.0, _time_slice * 1000);
   }
 }
 
@@ -123,6 +125,11 @@ double G1MMUTrackerQueue::when_sec(double current_time, double pause_time) {
   if (is_double_leq_0(diff))
     return 0.0;
 
+  if (adjusted_pause_time == max_gc_time()) {
+    G1MMUTrackerQueueElem *elem = &_array[_head_index];
+    return elem->end_time() - limit;
+  }
+
   int index = _tail_index;
   while ( 1 ) {
     G1MMUTrackerQueueElem *elem = &_array[index];
@@ -132,7 +139,7 @@ double G1MMUTrackerQueue::when_sec(double current_time, double pause_time) {
       else
         diff -= elem->end_time() - limit;
       if (is_double_leq_0(diff))
-        return  elem->end_time() + diff + _time_slice - adjusted_pause_time - current_time;
+        return elem->end_time() + diff - limit;
     }
     index = trim_index(index+1);
     guarantee(index != trim_index(_head_index + 1), "should not go past head");

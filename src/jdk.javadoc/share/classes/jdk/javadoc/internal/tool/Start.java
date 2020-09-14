@@ -31,16 +31,14 @@ import java.io.PrintWriter;
 import java.text.BreakIterator;
 import java.text.Collator;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.IllformedLocaleException;
 import java.util.List;
 import java.util.Locale;
-import java.util.MissingResourceException;
 import java.util.Objects;
-import java.util.ResourceBundle;
 import java.util.Set;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import javax.tools.JavaFileManager;
@@ -62,6 +60,7 @@ import jdk.javadoc.doclet.Doclet;
 import jdk.javadoc.doclet.Doclet.Option;
 import jdk.javadoc.doclet.DocletEnvironment;
 import jdk.javadoc.doclet.StandardDoclet;
+import jdk.javadoc.internal.Versions;
 import jdk.javadoc.internal.tool.Main.Result;
 import jdk.javadoc.internal.tool.ToolOptions.ToolOption;
 
@@ -167,15 +166,28 @@ public class Start {
 
             @Override
             public void version() {
-                showVersion("javadoc.version", "release");
+                showVersion("javadoc.version", orDefault(() -> Versions.shortVersionStringOf(toolVersion())));
             }
 
             @Override
             public void fullVersion() {
-                showVersion("javadoc.fullversion", "full");
+                showVersion("javadoc.fullversion", orDefault(() -> Versions.fullVersionStringOf(toolVersion())));
+            }
+
+            private String orDefault(Supplier<String> s) {
+                try {
+                    return s.get();
+                } catch (RuntimeException e) {
+                    assert false : e;
+                    return Log.getLocalizedString("version.not.available");
+                }
             }
         };
         return new ToolOptions(context, messager, helper);
+    }
+
+    private Runtime.Version toolVersion() {
+        return Versions.javadocVersion();
     }
 
     private void showUsage() {
@@ -188,8 +200,6 @@ public class Start {
 
         // let doclet print usage information
         if (docletClass != null) {
-            String name = doclet.getName();
-            messager.notice("main.doclet.usage.header", name);
             showDocletOptions(kind == ToolOption.Kind.EXTENDED
                     ? Option.Kind.EXTENDED
                     : Option.Kind.STANDARD);
@@ -198,26 +208,8 @@ public class Start {
             messager.notice(footerKey);
     }
 
-    private static final String versionRBName = "jdk.javadoc.internal.tool.resources.version";
-    private static ResourceBundle versionRB;
-
-    private void showVersion(String labelKey, String versionKey) {
-        messager.notice(labelKey, messager.programName, getVersion(versionKey));
-    }
-
-    private static String getVersion(String key) {
-        if (versionRB == null) {
-            try {
-                versionRB = ResourceBundle.getBundle(versionRBName);
-            } catch (MissingResourceException e) {
-                return Log.getLocalizedString("version.not.available");
-            }
-        }
-        try {
-            return versionRB.getString(key);
-        } catch (MissingResourceException e) {
-            return Log.getLocalizedString("version.not.available");
-        }
+    private void showVersion(String labelKey, String value) {
+        messager.notice(labelKey, messager.programName, value);
     }
 
     private void showToolOptions(ToolOption.Kind kind) {
@@ -242,7 +234,10 @@ public class Start {
         String primaryName = option.primaryName;
         String parameters;
         if (option.hasArg || primaryName.endsWith(":")) {
-            String sep = primaryName.equals(ToolOptions.J) || primaryName.endsWith(":") ? "" : " ";
+            String sep = primaryName.endsWith(":")
+                    || primaryName.equals(ToolOptions.AT)
+                    || primaryName.equals(ToolOptions.J)
+                    ? "" : " ";
             parameters = sep + option.getParameters(messager);
         } else {
             parameters = "";
@@ -252,6 +247,13 @@ public class Start {
     }
 
     private void showDocletOptions(Option.Kind kind) {
+        String name = doclet.getName();
+        Set<? extends Option> options = getSupportedOptionsOf(doclet);
+        if (options.isEmpty()) {
+            return;
+        }
+        messager.notice("main.doclet.usage.header", name);
+
         Comparator<Doclet.Option> comp = new Comparator<Doclet.Option>() {
             final Collator collator = Collator.getInstance(Locale.US);
             { collator.setStrength(Collator.PRIMARY); }
@@ -262,7 +264,7 @@ public class Start {
             }
         };
 
-        doclet.getSupportedOptions().stream()
+        options.stream()
                 .filter(opt -> opt.getKind() == kind)
                 .sorted(comp)
                 .forEach(this::showDocletOption);
@@ -336,13 +338,14 @@ public class Start {
     @SuppressWarnings("deprecation")
     Result begin(String... argv) {
         // Preprocess @file arguments
+        List<String> allArgs;
         try {
-            argv = CommandLine.parse(argv);
+            allArgs = CommandLine.parse(List.of(argv));
         } catch (IOException e) {
             error("main.cant.read", e.getMessage());
             return ERROR;
         }
-        return begin(Arrays.asList(argv), Collections.emptySet());
+        return begin(allArgs, Collections.emptySet());
     }
 
     // Called by the JSR 199 API
@@ -490,7 +493,12 @@ public class Start {
         arguments.allowEmpty();
 
         doclet.init(locale, messager);
-        parseArgs(argList, javaNames);
+        int beforeCount = messager.nerrors;
+        boolean success = parseArgs(argList, javaNames);
+        int afterCount = messager.nerrors;
+        if (!success && beforeCount == afterCount) { // if there were failures but they have not been reported
+            return CMDERR;
+        }
 
         if (!arguments.handleReleaseOptions(extra -> true)) {
             // Arguments does not always increase the error count in the
@@ -574,10 +582,15 @@ public class Start {
     }
 
     private Set<? extends Doclet.Option> docletOptions = null;
-    int handleDocletOption(int idx, List<String> args, boolean isToolOption)
-            throws OptionException {
+
+    /*
+     * Consumes an option along with its arguments. Returns an advanced index
+     * modulo the sign. If the value is negative, it means there was a failure
+     * processing one or more options.
+     */
+    int consumeDocletOption(int idx, List<String> args, boolean isToolOption) throws OptionException {
         if (docletOptions == null) {
-            docletOptions = doclet.getSupportedOptions();
+            docletOptions = getSupportedOptionsOf(doclet);
         }
         String arg = args.get(idx);
         String argBase, argVal;
@@ -589,6 +602,7 @@ public class Start {
             argBase = arg;
             argVal = null;
         }
+        int m = 1;
         String text = null;
         for (Doclet.Option opt : docletOptions) {
             if (matches(opt, argBase)) {
@@ -598,21 +612,25 @@ public class Start {
                             text = messager.getText("main.unnecessary_arg_provided", argBase);
                             throw new OptionException(ERROR, this::showUsage, text);
                         case 1:
-                            opt.process(arg, Arrays.asList(argVal));
+                            if (!opt.process(arg, Collections.singletonList(argVal))) {
+                                m = -1;
+                            }
                             break;
                         default:
                             text = messager.getText("main.only_one_argument_with_equals", argBase);
                             throw new OptionException(ERROR, this::showUsage, text);
                     }
                 } else {
-                    if (args.size() - idx -1 < opt.getArgumentCount()) {
+                    if (args.size() - idx - 1 < opt.getArgumentCount()) {
                         text = messager.getText("main.requires_argument", arg);
                         throw new OptionException(ERROR, this::showUsage, text);
                     }
-                    opt.process(arg, args.subList(idx + 1, args.size()));
+                    if (!opt.process(arg, args.subList(idx + 1, idx + 1 + opt.getArgumentCount()))) {
+                        m = -1;
+                    }
                     idx += opt.getArgumentCount();
                 }
-                return idx;
+                return m * idx;
             }
         }
         // check if arg is accepted by the tool before emitting error
@@ -620,7 +638,12 @@ public class Start {
             text = messager.getText("main.invalid_flag", arg);
             throw new OptionException(ERROR, this::showUsage, text);
         }
-        return idx;
+        return m * idx;
+    }
+
+    private static Set<? extends Option> getSupportedOptionsOf(Doclet doclet) {
+        Set<? extends Option> options = doclet.getSupportedOptions();
+        return options == null ? Set.of() : options;
     }
 
     /**
@@ -639,8 +662,7 @@ public class Start {
      * @throws ToolException if an error occurs initializing the doclet
      * @throws OptionException if an error occurs while processing an option
      */
-    private Doclet preprocess(List<String> argv)
-            throws ToolException, OptionException {
+    private Doclet preprocess(List<String> argv) throws ToolException, OptionException {
         // doclet specifying arguments
         String userDocletPath = null;
         String userDocletName = null;
@@ -764,15 +786,19 @@ public class Start {
         }
     }
 
-    private void parseArgs(List<String> args, List<String> javaNames) throws ToolException,
-            OptionException, com.sun.tools.javac.main.Option.InvalidValueException {
+    private boolean parseArgs(List<String> args, List<String> javaNames)
+            throws OptionException, com.sun.tools.javac.main.Option.InvalidValueException
+    {
+        boolean success = true;
         for (int i = 0; i < args.size(); i++) {
             String arg = args.get(i);
             ToolOption o = options.getOption(arg);
             if (o != null) {
                 // handle a doclet argument that may be needed however
                 // don't increment the index, and allow the tool to consume args
-                handleDocletOption(i, args, true);
+                if (consumeDocletOption(i, args, true) < 0) {
+                    success = false;
+                }
                 if (o.hasArg) {
                     if (arg.startsWith("--") && arg.contains("=")) {
                         o.process(arg.substring(arg.indexOf('=') + 1));
@@ -790,14 +816,19 @@ public class Start {
                 String s = arg.substring("-XD".length());
                 int eq = s.indexOf('=');
                 String key = (eq < 0) ? s : s.substring(0, eq);
-                String value = (eq < 0) ? s : s.substring(eq+1);
+                String value = (eq < 0) ? s : s.substring(eq + 1);
                 options.compilerOptions().put(key, value);
             } else if (arg.startsWith("-")) {
-                i = handleDocletOption(i, args, false);
+                i = consumeDocletOption(i, args, false);
+                if (i < 0) {
+                    i = -i;
+                    success = false;
+                }
             } else {
                 javaNames.add(arg);
             }
         }
+        return success;
     }
 
     private <T> boolean isEmpty(Iterable<T> iter) {

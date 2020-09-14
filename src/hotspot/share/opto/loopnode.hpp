@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -488,6 +488,7 @@ public:
   Node *_head;                  // Head of loop
   Node *_tail;                  // Tail of loop
   inline Node *tail();          // Handle lazy update of _tail field
+  inline Node *head();          // Handle lazy update of _head field
   PhaseIdealLoop* _phase;
   int _local_loop_unroll_limit;
   int _local_loop_unroll_factor;
@@ -638,11 +639,15 @@ public:
 
   // Reassociate invariant expressions.
   void reassociate_invariants(PhaseIdealLoop *phase);
+  // Reassociate invariant binary expressions.
+  Node* reassociate(Node* n1, PhaseIdealLoop *phase);
   // Reassociate invariant add and subtract expressions.
-  Node* reassociate_add_sub(Node* n1, PhaseIdealLoop *phase);
+  Node* reassociate_add_sub(Node* n1, int inv1_idx, int inv2_idx, PhaseIdealLoop *phase);
   // Return nonzero index of invariant operand if invariant and variant
-  // are combined with an Add or Sub. Helper for reassociate_invariants.
-  int is_invariant_addition(Node* n, PhaseIdealLoop *phase);
+  // are combined with an associative binary. Helper for reassociate_invariants.
+  int find_invariant(Node* n, PhaseIdealLoop *phase);
+  // Return TRUE if "n" is associative.
+  bool is_associative(Node* n, Node* base=NULL);
 
   // Return true if n is invariant
   bool is_invariant(Node* n) const;
@@ -790,13 +795,13 @@ private:
 #ifdef ASSERT
   void ensure_zero_trip_guard_proj(Node* node, bool is_main_loop);
 #endif
-  void copy_skeleton_predicates_to_main_loop_helper(Node* predicate, Node* start, Node* end, IdealLoopTree* outer_loop, LoopNode* outer_main_head,
+  void copy_skeleton_predicates_to_main_loop_helper(Node* predicate, Node* init, Node* stride, IdealLoopTree* outer_loop, LoopNode* outer_main_head,
                                                     uint dd_main_head, const uint idx_before_pre_post, const uint idx_after_post_before_pre,
                                                     Node* zero_trip_guard_proj_main, Node* zero_trip_guard_proj_post, const Node_List &old_new);
-  void copy_skeleton_predicates_to_main_loop(CountedLoopNode* pre_head, Node* start, Node* end, IdealLoopTree* outer_loop, LoopNode* outer_main_head,
+  void copy_skeleton_predicates_to_main_loop(CountedLoopNode* pre_head, Node* init, Node* stride, IdealLoopTree* outer_loop, LoopNode* outer_main_head,
                                              uint dd_main_head, const uint idx_before_pre_post, const uint idx_after_post_before_pre,
                                              Node* zero_trip_guard_proj_main, Node* zero_trip_guard_proj_post, const Node_List &old_new);
-  Node* clone_skeleton_predicate(Node* iff, Node* value, Node* predicate, Node* uncommon_proj,
+  Node* clone_skeleton_predicate(Node* iff, Node* new_init, Node* new_stride, Node* predicate, Node* uncommon_proj,
                                  Node* current_proj, IdealLoopTree* outer_loop, Node* prev_proj);
   bool skeleton_predicate_has_opaque(IfNode* iff);
   void update_main_loop_skeleton_predicates(Node* ctrl, CountedLoopNode* loop_head, Node* init, int stride_con);
@@ -1033,9 +1038,16 @@ public:
   bool _has_irreducible_loops;
 
   // Per-Node transform
-  virtual Node* transform(Node* n) { return 0; }
+  virtual Node* transform(Node* n) { return NULL; }
+
+  Node* loop_exit_control(Node* x, IdealLoopTree* loop);
+  Node* loop_exit_test(Node* back_control, IdealLoopTree* loop, Node*& incr, Node*& limit, BoolTest::mask& bt, float& cl_prob);
+  Node* loop_iv_incr(Node* incr, Node* x, IdealLoopTree* loop, Node*& phi_incr);
+  Node* loop_iv_stride(Node* incr, IdealLoopTree* loop, Node*& xphi);
+  PhiNode* loop_iv_phi(Node* xphi, Node* phi_incr, Node* x, IdealLoopTree* loop);
 
   bool is_counted_loop(Node* n, IdealLoopTree* &loop);
+  IdealLoopTree* insert_outer_loop(IdealLoopTree* loop, LoopNode* outer_l, Node* outer_ift);
   IdealLoopTree* create_outer_strip_mined_loop(BoolNode *test, Node *cmp, Node *init_control,
                                                IdealLoopTree* loop, float cl_prob, float le_fcnt,
                                                Node*& entry_control, Node*& iffalse);
@@ -1139,7 +1151,7 @@ public:
   ProjNode* create_new_if_for_predicate(ProjNode* cont_proj, Node* new_entry, Deoptimization::DeoptReason reason,
                                         int opcode, bool if_cont_is_true_proj = true);
 
-  void register_control(Node* n, IdealLoopTree *loop, Node* pred);
+  void register_control(Node* n, IdealLoopTree *loop, Node* pred, bool update_body = true);
 
   static Node* skip_all_loop_predicates(Node* entry);
   static Node* skip_loop_predicates(Node* entry);
@@ -1224,7 +1236,7 @@ public:
   void do_unswitching (IdealLoopTree *loop, Node_List &old_new);
 
   // Find candidate "if" for unswitching
-  IfNode* find_unswitching_candidate(const IdealLoopTree *loop, Node_List& flattened_checks) const;
+  IfNode* find_unswitching_candidate(const IdealLoopTree *loop, Node_List& unswitch_iffs) const;
 
   // Range Check Elimination uses this function!
   // Constrain the main loop iterations so the affine function:
@@ -1402,14 +1414,17 @@ private:
   void require_nodes_final(uint live_at_begin, bool check_estimate) {
     assert(_nodes_required < UINT_MAX, "Bad state (final).");
 
+#ifdef ASSERT
     if (check_estimate) {
-      // Assert that the node budget request was not off by too much (x2).
+      // Check that the node budget request was not off by too much (x2).
       // Should this be the case we _surely_ need to improve the estimates
       // used in our budget calculations.
-      assert(C->live_nodes() - live_at_begin <= 2 * _nodes_required,
-             "Bad node estimate: actual = %d >> request = %d",
-             C->live_nodes() - live_at_begin, _nodes_required);
+      if (C->live_nodes() - live_at_begin > 2 * _nodes_required) {
+        log_info(compilation)("Bad node estimate: actual = %d >> request = %d",
+                              C->live_nodes() - live_at_begin, _nodes_required);
+      }
     }
+#endif
     // Assert that we have stayed within the node budget limit.
     assert(C->live_nodes() < C->max_node_limit(),
            "Exceeding node budget limit: %d + %d > %d (request = %d)",
@@ -1429,6 +1444,10 @@ private:
                                       uint idx_before_clone, Node_List &old_new);
 
   bool _created_loop_node;
+#ifdef ASSERT
+  void dump_real_LCA(Node* early, Node* wrong_lca);
+  bool check_idom_chains_intersection(const Node* n, uint& idom_idx_new, uint& idom_idx_other, const Node_List* nodes_seen) const;
+#endif
 
 public:
   void set_created_loop_node() { _created_loop_node = true; }
@@ -1441,6 +1460,7 @@ public:
 
 #ifndef PRODUCT
   void dump() const;
+  void dump_idom(Node* n) const;
   void dump(IdealLoopTree* loop, uint rpo_idx, Node_List &rpo_list) const;
   void verify() const;          // Major slow  :-)
   void verify_compare(Node* n, const PhaseIdealLoop* loop_verify, VectorSet &visited) const;
@@ -1573,6 +1593,13 @@ inline Node* IdealLoopTree::tail() {
   return _tail;
 }
 
+inline Node* IdealLoopTree::head() {
+  // Handle lazy update of _head field.
+  if (_head->in(0) == NULL) {
+    _head = _phase->get_ctrl(_head);
+  }
+  return _head;
+}
 
 // Iterate over the loop tree using a preorder, left-to-right traversal.
 //

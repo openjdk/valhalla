@@ -25,8 +25,7 @@
 /*
  * @test TestAllocObjects
  * @summary Acceptance tests: collector can withstand allocation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
  *
  * @run main/othervm -Xmx1g -Xms1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=passive
@@ -52,8 +51,7 @@
 /*
  * @test TestAllocObjects
  * @summary Acceptance tests: collector can withstand allocation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
  *
  * @run main/othervm -Xmx1g -Xms1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=aggressive
@@ -84,6 +82,13 @@
  *      -XX:+ShenandoahSuspendibleWorkers
  *      TestAllocObjects
  *
+ */
+
+/*
+ * @test TestAllocObjects
+ * @summary Acceptance tests: collector can withstand allocation
+ * @requires vm.gc.Shenandoah
+ *
  * @run main/othervm -Xmx1g -Xms1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=adaptive
  *      -XX:+ShenandoahVerify
@@ -97,6 +102,12 @@
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=adaptive
  *      -XX:+ShenandoahSuspendibleWorkers
  *      TestAllocObjects
+ */
+
+/*
+ * @test TestAllocObjects
+ * @summary Acceptance tests: collector can withstand allocation
+ * @requires vm.gc.Shenandoah
  *
  * @run main/othervm -Xmx1g -Xms1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=static
@@ -106,6 +117,12 @@
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=static
  *      -XX:+ShenandoahSuspendibleWorkers
  *      TestAllocObjects
+ */
+
+/*
+ * @test TestAllocObjects
+ * @summary Acceptance tests: collector can withstand allocation
+ * @requires vm.gc.Shenandoah
  *
  * @run main/othervm -Xmx1g -Xms1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=compact
@@ -120,8 +137,7 @@
 /*
  * @test TestAllocObjects
  * @summary Acceptance tests: collector can withstand allocation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
  *
  * @run main/othervm -Xmx1g -Xms1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu -XX:ShenandoahGCHeuristics=aggressive
@@ -146,6 +162,12 @@
  * @run main/othervm -Xmx1g -Xms1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu -XX:ShenandoahGCHeuristics=aggressive
  *      TestAllocObjects
+ */
+
+/*
+ * @test TestAllocObjects
+ * @summary Acceptance tests: collector can withstand allocation
+ * @requires vm.gc.Shenandoah
  *
  * @run main/othervm -Xmx1g -Xms1g -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu
@@ -161,8 +183,6 @@
  *      -XX:+ShenandoahSuspendibleWorkers
  *      TestAllocObjects
  */
-
-import java.util.Random;
 
 public class TestAllocObjects {
 

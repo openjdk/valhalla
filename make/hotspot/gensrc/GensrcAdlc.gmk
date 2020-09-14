@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -36,23 +36,19 @@ ifeq ($(call check-jvm-feature, compiler2), true)
   # NOTE: No optimization or debug flags set here
   ifeq ($(call isBuildOs, linux), true)
     ADLC_CFLAGS := -fno-exceptions -DLINUX
-  else ifeq ($(call isBuildOs, solaris), true)
-    ADLC_LDFLAGS := -m64
-    ADLC_CFLAGS := -m64
-    ADLC_CFLAGS_WARNINGS := +w
   else ifeq ($(call isBuildOs, aix), true)
-    ADLC_LDFLAGS := -q64
+    ADLC_LDFLAGS += -q64
     ADLC_CFLAGS := -qnortti -qeh -q64 -DAIX
   else ifeq ($(call isBuildOs, windows), true)
-    ADLC_LDFLAGS := -nologo
+    ADLC_LDFLAGS += -nologo
     ADLC_CFLAGS := -nologo -EHsc
     # NOTE: The old build also have -D_CRT_SECURE_NO_DEPRECATE but it doesn't
     # seem needed any more.
     ADLC_CFLAGS_WARNINGS := -W3 -D_CRT_SECURE_NO_WARNINGS
   endif
 
-  # Set the C++ standard if supported
-  ADLC_CFLAGS += $(ADLC_CXXFLAG)
+  # Set the C++ standard
+  ADLC_CFLAGS += $(ADLC_LANGSTD_CXXFLAG)
 
   # NOTE: The old build didn't set -DASSERT for windows but it doesn't seem to
   # hurt.
@@ -88,8 +84,6 @@ ifeq ($(call check-jvm-feature, compiler2), true)
   # ADLC flags depending on target OS
   ifeq ($(call isTargetOs, linux), true)
     ADLCFLAGS += -DLINUX=1 -D_GNU_SOURCE=1
-  else ifeq ($(call isTargetOs, solaris), true)
-    ADLCFLAGS += -DSOLARIS=1 -DSPARC_WORKS=1
   else ifeq ($(call isTargetOs, aix), true)
     ADLCFLAGS += -DAIX=1
   else ifeq ($(call isTargetOs, macosx), true)
@@ -134,6 +128,12 @@ ifeq ($(call check-jvm-feature, compiler2), true)
       $d/cpu/$(HOTSPOT_TARGET_CPU_ARCH)/$(HOTSPOT_TARGET_CPU_ARCH).ad \
       $d/os_cpu/$(HOTSPOT_TARGET_OS)_$(HOTSPOT_TARGET_CPU_ARCH)/$(HOTSPOT_TARGET_OS)_$(HOTSPOT_TARGET_CPU_ARCH).ad \
     )))
+
+  ifeq ($(HOTSPOT_TARGET_CPU_ARCH), aarch64)
+    AD_SRC_FILES += $(call uniq, $(wildcard $(foreach d, $(AD_SRC_ROOTS), \
+        $d/cpu/$(HOTSPOT_TARGET_CPU_ARCH)/$(HOTSPOT_TARGET_CPU_ARCH)_sve.ad \
+    )))
+  endif
 
   ifeq ($(call check-jvm-feature, shenandoahgc), true)
     AD_SRC_FILES += $(call uniq, $(wildcard $(foreach d, $(AD_SRC_ROOTS), \

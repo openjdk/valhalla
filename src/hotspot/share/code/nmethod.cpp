@@ -635,9 +635,9 @@ nmethod::nmethod(
     _verified_entry_point    = code_begin()          + offsets->value(CodeOffsets::Verified_Entry);
 
     assert(!method->has_scalarized_args(), "scalarized native wrappers not supported yet"); // for the next 3 fields
-    _value_entry_point       = _entry_point;
-    _verified_value_entry_point = _verified_entry_point;
-    _verified_value_ro_entry_point = _verified_entry_point;
+    _inline_entry_point       = _entry_point;
+    _verified_inline_entry_point = _verified_entry_point;
+    _verified_inline_ro_entry_point = _verified_entry_point;
 
     _osr_entry_point         = NULL;
     _exception_cache         = NULL;
@@ -810,9 +810,9 @@ nmethod::nmethod(
 #endif
     _entry_point             = code_begin()          + offsets->value(CodeOffsets::Entry);
     _verified_entry_point    = code_begin()          + offsets->value(CodeOffsets::Verified_Entry);
-    _value_entry_point       = code_begin()          + offsets->value(CodeOffsets::Value_Entry);
-    _verified_value_entry_point = code_begin()       + offsets->value(CodeOffsets::Verified_Value_Entry);
-    _verified_value_ro_entry_point = code_begin()    + offsets->value(CodeOffsets::Verified_Value_Entry_RO);
+    _inline_entry_point       = code_begin()         + offsets->value(CodeOffsets::Inline_Entry);
+    _verified_inline_entry_point = code_begin()      + offsets->value(CodeOffsets::Verified_Inline_Entry);
+    _verified_inline_ro_entry_point = code_begin()   + offsets->value(CodeOffsets::Verified_Inline_Entry_RO);
     _osr_entry_point         = code_begin()          + offsets->value(CodeOffsets::OSR_Entry);
     _exception_cache         = NULL;
     _scopes_data_begin       = (address) this + scopes_data_offset;
@@ -882,7 +882,6 @@ void nmethod::log_identity(xmlStream* log) const {
 void nmethod::log_new_nmethod() const {
   if (LogCompilation && xtty != NULL) {
     ttyLocker ttyl;
-    HandleMark hm;
     xtty->begin_elem("nmethod");
     log_identity(xtty);
     xtty->print(" entry='" INTPTR_FORMAT "' size='%d'", p2i(code_begin()), size());
@@ -952,7 +951,6 @@ void nmethod::print_nmethod(bool printmethod) {
   // Print the header part, then print the requested information.
   // This is both handled in decode2().
   if (printmethod) {
-    HandleMark hm;
     ResourceMark m;
     if (is_compiled_by_c1()) {
       tty->cr();
@@ -1140,7 +1138,9 @@ bool nmethod::can_convert_to_zombie() {
   // not_entrant. However, with concurrent code cache unloading, the state
   // might have moved on to unloaded if it is_unloading(), due to racing
   // concurrent GC threads.
-  assert(is_not_entrant() || is_unloading(), "must be a non-entrant method");
+  assert(is_not_entrant() || is_unloading() ||
+         !Thread::current()->is_Code_cache_sweeper_thread(),
+         "must be a non-entrant method if called from sweeper");
 
   // Since the nmethod sweeper only does partial sweep the sweeper's traversal
   // count can be greater than the stack traversal count before it hits the
@@ -2028,23 +2028,22 @@ void nmethod::oops_do_marking_epilogue() {
 
   nmethod* next = _oops_do_mark_nmethods;
   _oops_do_mark_nmethods = NULL;
-  if (next == NULL) {
-    return;
-  }
-  nmethod* cur;
-  do {
-    cur = next;
-    next = extract_nmethod(cur->_oops_do_mark_link);
-    cur->_oops_do_mark_link = NULL;
-    DEBUG_ONLY(cur->verify_oop_relocations());
+  if (next != NULL) {
+    nmethod* cur;
+    do {
+      cur = next;
+      next = extract_nmethod(cur->_oops_do_mark_link);
+      cur->_oops_do_mark_link = NULL;
+      DEBUG_ONLY(cur->verify_oop_relocations());
 
-    LogTarget(Trace, gc, nmethod) lt;
-    if (lt.is_enabled()) {
-      LogStream ls(lt);
-      CompileTask::print(&ls, cur, "oops_do, unmark", /*short_form:*/ true);
-    }
-    // End if self-loop has been detected.
-  } while (cur != next);
+      LogTarget(Trace, gc, nmethod) lt;
+      if (lt.is_enabled()) {
+        LogStream ls(lt);
+        CompileTask::print(&ls, cur, "oops_do, unmark", /*short_form:*/ true);
+      }
+      // End if self-loop has been detected.
+    } while (cur != next);
+  }
   log_trace(gc, nmethod)("oops_do_marking_epilogue");
 }
 
@@ -2428,6 +2427,7 @@ void nmethod::verify() {
 
 
 void nmethod::verify_interrupt_point(address call_site) {
+
   // Verify IC only when nmethod installation is finished.
   if (!is_not_installed()) {
     if (CompiledICLocker::is_safe(this)) {
@@ -2437,6 +2437,8 @@ void nmethod::verify_interrupt_point(address call_site) {
       CompiledIC_at(this, call_site);
     }
   }
+
+  HandleMark hm(Thread::current());
 
   PcDesc* pd = pc_desc_at(nativeCall_at(call_site)->return_address());
   assert(pd != NULL, "PcDesc must exist");
@@ -2577,7 +2579,6 @@ void nmethod::print(outputStream* st) const {
 }
 
 void nmethod::print_code() {
-  HandleMark hm;
   ResourceMark m;
   ttyLocker ttyl;
   // Call the specialized decode method of this class.
@@ -2607,7 +2608,6 @@ void nmethod::print_dependencies() {
 
 // Print the oops from the underlying CodeBlob.
 void nmethod::print_oops(outputStream* st) {
-  HandleMark hm;
   ResourceMark m;
   st->print("Oops:");
   if (oops_begin() < oops_end()) {
@@ -2633,7 +2633,6 @@ void nmethod::print_oops(outputStream* st) {
 
 // Print metadata pool.
 void nmethod::print_metadata(outputStream* st) {
-  HandleMark hm;
   ResourceMark m;
   st->print("Metadata:");
   if (metadata_begin() < metadata_end()) {
@@ -3091,10 +3090,10 @@ const char* nmethod::nmethod_section_label(address pos) const {
   const char* label = NULL;
   if (pos == code_begin())                                              label = "[Instructions begin]";
   if (pos == entry_point())                                             label = "[Entry Point]";
-  if (pos == value_entry_point())                                       label = "[Value Entry Point]";
+  if (pos == inline_entry_point())                                      label = "[Inline Entry Point]";
   if (pos == verified_entry_point())                                    label = "[Verified Entry Point]";
-  if (pos == verified_value_entry_point())                              label = "[Verified Value Entry Point]";
-  if (pos == verified_value_ro_entry_point())                           label = "[Verified Value Entry Point (RO)]";
+  if (pos == verified_inline_entry_point())                             label = "[Verified Inline Entry Point]";
+  if (pos == verified_inline_ro_entry_point())                          label = "[Verified Inline Entry Point (RO)]";
   if (has_method_handle_invokes() && (pos == deopt_mh_handler_begin())) label = "[Deopt MH Handler Code]";
   if (pos == consts_begin() && pos != insts_begin())                    label = "[Constants]";
   // Check stub_code before checking exception_handler or deopt_handler.
@@ -3118,11 +3117,11 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
   if (print_section_labels) {
     int n = 0;
     // Multiple entry points may be at the same position. Print them all.
-    n += maybe_print_entry_label(stream, block_begin, entry_point(),                   "[Entry Point]");
-    n += maybe_print_entry_label(stream, block_begin, value_entry_point(),             "[Value Entry Point]");
-    n += maybe_print_entry_label(stream, block_begin, verified_entry_point(),          "[Verified Entry Point]");
-    n += maybe_print_entry_label(stream, block_begin, verified_value_entry_point(),    "[Verified Value Entry Point]");
-    n += maybe_print_entry_label(stream, block_begin, verified_value_ro_entry_point(), "[Verified Value Entry Point (RO)]");
+    n += maybe_print_entry_label(stream, block_begin, entry_point(),                    "[Entry Point]");
+    n += maybe_print_entry_label(stream, block_begin, inline_entry_point(),             "[Inline Entry Point]");
+    n += maybe_print_entry_label(stream, block_begin, verified_entry_point(),           "[Verified Entry Point]");
+    n += maybe_print_entry_label(stream, block_begin, verified_inline_entry_point(),    "[Verified Inline Entry Point]");
+    n += maybe_print_entry_label(stream, block_begin, verified_inline_ro_entry_point(), "[Verified Inline Entry Point (RO)]");
     if (n == 0) {
       const char* label = nmethod_section_label(block_begin);
       if (label != NULL) {
@@ -3141,8 +3140,8 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
   }
 
   // Print the name of the method (only once)
-  address low = MIN4(entry_point(), verified_entry_point(), verified_value_entry_point(), verified_value_ro_entry_point());
-  low = MIN2(low, value_entry_point());
+  address low = MIN4(entry_point(), verified_entry_point(), verified_inline_entry_point(), verified_inline_ro_entry_point());
+  low = MIN2(low, inline_entry_point());
   assert(low != 0, "sanity");
   if (block_begin == low) {
     stream->print("  # ");
@@ -3158,10 +3157,10 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
     if (block_begin == verified_entry_point()) {
       sig_cc = &ces->sig_cc();
       regs = ces->regs_cc();
-    } else if (block_begin == verified_value_entry_point()) {
+    } else if (block_begin == verified_inline_entry_point()) {
       sig_cc = &ces->sig();
       regs = ces->regs();
-    } else if (block_begin == verified_value_ro_entry_point()) {
+    } else if (block_begin == verified_inline_ro_entry_point()) {
       sig_cc = &ces->sig_cc_ro();
       regs = ces->regs_cc_ro();
     } else {
@@ -3183,7 +3182,7 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
       }
     }
     bool has_this = !m->is_static();
-    if (ces->has_value_recv() && block_begin == verified_entry_point()) {
+    if (ces->has_inline_recv() && block_begin == verified_entry_point()) {
       // <this> argument is scalarized for verified_entry_point()
       has_this = false;
     }

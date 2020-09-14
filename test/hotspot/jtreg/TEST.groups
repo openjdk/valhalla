@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -192,8 +192,7 @@ ctw_3 = \
   applications/ctw/modules/jdk_compiler.java \
   applications/ctw/modules/jdk_internal_vm_compiler.java \
   applications/ctw/modules/jdk_localedata.java \
-  applications/ctw/modules/jdk_localedata_2.java \
-  applications/ctw/modules/jdk_scripting_nashorn.java \
+  applications/ctw/modules/jdk_localedata_2.java
 
 tier1_gc = \
   :tier1_gc_1 \
@@ -325,7 +324,6 @@ tier1_runtime = \
  -runtime/Thread/TestThreadDumpMonitorContention.java \
  -runtime/Unsafe/RangeCheck.java \
   sanity/ \
-  testlibrary_tests/TestMutuallyExclusivePlatformPredicates.java \
  -:tier1_runtime_appcds_exclude \
  -runtime/signal
 
@@ -343,9 +341,11 @@ hotspot_appcds_dynamic = \
  -runtime/cds/appcds/cacheObject \
  -runtime/cds/appcds/customLoader \
  -runtime/cds/appcds/dynamicArchive \
+ -runtime/cds/appcds/loaderConstraints/DynamicLoaderConstraintsTest.java \
  -runtime/cds/appcds/javaldr/ArrayTest.java \
  -runtime/cds/appcds/javaldr/GCSharedStringsDuringDump.java \
  -runtime/cds/appcds/javaldr/HumongousDuringDump.java \
+ -runtime/cds/appcds/javaldr/LockDuringDump.java \
  -runtime/cds/appcds/sharedStrings \
  -runtime/cds/appcds/ArchiveRelocationTest.java \
  -runtime/cds/appcds/DumpClassList.java \
@@ -367,7 +367,8 @@ hotspot_cds_relocation = \
   runtime/modules/PatchModule/PatchModuleCDS.java \
   runtime/modules/PatchModule/PatchModuleClassList.java \
   runtime/NMT \
-  serviceability/sa
+  serviceability/sa \
+ -runtime/cds/DeterministicDump.java
 
 # A subset of AppCDS tests to be run in tier1
 tier1_runtime_appcds = \
@@ -395,17 +396,15 @@ hotspot_appcds_with_jfr = \
  -runtime/cds/appcds/jigsaw/modulepath/MainModuleOnly.java
 
 tier1_serviceability = \
-  serviceability/dcmd/compiler \
+  serviceability/ \
   -serviceability/dcmd/compiler/CompilerQueueTest.java \
-  serviceability/jvmti/RedefineClasses \
   -serviceability/jvmti/RedefineClasses/RedefineLeak.java \
   -serviceability/jvmti/RedefineClasses/RedefinePreviousVersions.java \
   -serviceability/jvmti/RedefineClasses/RedefineRunningMethods.java \
   -serviceability/jvmti/RedefineClasses/RedefineRunningMethodsWithBacktrace.java \
   -serviceability/jvmti/RedefineClasses/TestRedefineObject.java \
-  serviceability/logging \
-  serviceability/sa \
   -serviceability/sa/ClhsdbScanOops.java \
+  -serviceability/sa/ClhsdbJstackXcompStress.java \
   -serviceability/sa/TestJmapCore.java \
   -serviceability/sa/TestJmapCoreMetaspace.java
 

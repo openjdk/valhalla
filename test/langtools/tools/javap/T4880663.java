@@ -40,7 +40,7 @@ public class T4880663 {
     public void run() throws IOException {
         File javaFile = writeTestFile();
         File classFile = compileTestFile(javaFile);
-        verify(classFile, "class Test implements java.lang.IdentityObject {");
+        verify(classFile, "class Test {");
 
         if (errors > 0)
             throw new Error(errors + " found.");

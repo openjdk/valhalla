@@ -24,14 +24,15 @@
 /*
  * @test
  * @summary Basic test for Array::get, Array::set, Arrays::setAll on inline class array
- * @compile -XDallowGenericsOverValues StreamTest.java
+ * @compile StreamTest.java
  * @run testng StreamTest
  */
 
-import java.util.Arrays;
-import java.util.stream.*;
-
 import org.testng.annotations.Test;
+
+import java.util.Arrays;
+import java.util.stream.Stream;
+
 import static org.testng.Assert.*;
 
 public class StreamTest {
@@ -54,14 +55,22 @@ public class StreamTest {
     @Test
     public void testInlineType() {
         Arrays.stream(values)
-                .map(Value::point)
+                .map(Value.ref::point)
                 .filter(p -> p.x >= 5)
                 .forEach(System.out::println);
 
         Arrays.stream(values)
-                .map(Value::nullablePoint)
+                .map(Value.ref::nullablePoint)
                 .filter(p -> p != null)
                 .forEach(System.out::println);
+    }
+
+    @Test
+    public void mapToInt() {
+        Stream<Point.ref> stream = Arrays.stream(values)
+                                         .filter(v -> (v.getI() % 2) == 0)
+                                         .map(Value.ref::point);
+        stream.forEach(p -> assertTrue((p.x % 2) == 0));
     }
 
     static inline class Value {
@@ -81,5 +90,7 @@ public class StreamTest {
         Point.ref nullablePoint() {
             return nullable;
         }
+
+        int getI() { return i; }
     }
 }

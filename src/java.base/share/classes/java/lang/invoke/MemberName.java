@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -193,11 +193,10 @@ final class MemberName implements Member, Cloneable {
      */
     public MethodType getInvocationType() {
         MethodType itype = getMethodOrFieldType();
-        Class<?> c = clazz.asPrimaryType();
         if (isObjectConstructor() && getReferenceKind() == REF_newInvokeSpecial)
-            return itype.changeReturnType(c);
+            return itype.changeReturnType(clazz);
         if (!isStatic())
-            return itype.insertParameterTypes(0, c);
+            return itype.insertParameterTypes(0, clazz);
         return itype;
     }
 
@@ -478,17 +477,10 @@ final class MemberName implements Member, Cloneable {
     public boolean isFlattened() { return (flags & FLATTENED) == FLATTENED; }
 
     /** Query whether this member is a field of an inline class. */
-    public boolean isInlineable()  {
+    public boolean isInlineableField()  {
         if (isField()) {
             Class<?> type = getFieldType();
-            return type.isInlineClass() && type == type.asPrimaryType();
-        }
-        return false;
-    }
-
-    public boolean isIndirect()  {
-        if (isField()) {
-            return getFieldType().isIndirectType();
+            return type.isInlineClass();
         }
         return false;
     }
@@ -504,7 +496,8 @@ final class MemberName implements Member, Cloneable {
             IS_OBJECT_CONSTRUCTOR = MN_IS_OBJECT_CONSTRUCTOR,  // object constructor
             IS_FIELD              = MN_IS_FIELD,               // field
             IS_TYPE               = MN_IS_TYPE,                // nested type
-            CALLER_SENSITIVE      = MN_CALLER_SENSITIVE;       // @CallerSensitive annotation detected
+            CALLER_SENSITIVE      = MN_CALLER_SENSITIVE,       // @CallerSensitive annotation detected
+            TRUSTED_FINAL         = MN_TRUSTED_FINAL;    // trusted final field
 
     static final int ALL_ACCESS = Modifier.PUBLIC | Modifier.PRIVATE | Modifier.PROTECTED;
     static final int ALL_KINDS = IS_METHOD | IS_OBJECT_CONSTRUCTOR | IS_FIELD | IS_TYPE;
@@ -548,6 +541,8 @@ final class MemberName implements Member, Cloneable {
     public boolean isCallerSensitive() {
         return testAllFlags(CALLER_SENSITIVE);
     }
+    /** Query whether this member is a trusted final field. */
+    public boolean isTrustedFinalField() { return testAllFlags(TRUSTED_FINAL|IS_FIELD); }
 
     /** Utility method to query whether this member is accessible from a given lookup class. */
     public boolean isAccessibleFrom(Class<?> lookupClass) {
@@ -957,18 +952,9 @@ final class MemberName implements Member, Cloneable {
     }
     private static String getName(Object obj) {
         if (obj instanceof Class<?>)
-            return toTypeName((Class<?>)obj);
+            return ((Class<?>)obj).getName();
         return String.valueOf(obj);
     }
-
-    /*
-     * Returns the class name appended with "?" if it is the nullable projection
-     * of an inline class.
-     */
-    private static String toTypeName(Class<?> type) {
-        return type.isInlineClass() && type.isIndirectType() ? type.getName() + "?" : type.getName();
-    }
-
 
     public IllegalAccessException makeAccessException(String message, Object from) {
         message = message + ": "+ toString();
@@ -1104,7 +1090,7 @@ final class MemberName implements Member, Cloneable {
          *  If lookup fails or access is not permitted, null is returned.
          *  Otherwise a fresh copy of the given member is returned, with modifier bits filled in.
          */
-        private MemberName resolve(byte refKind, MemberName ref, Class<?> lookupClass,
+        private MemberName resolve(byte refKind, MemberName ref, Class<?> lookupClass, int allowedModes,
                                    boolean speculativeResolve) {
             MemberName m = ref.clone();  // JVM will side-effect the ref
             assert(refKind == m.getReferenceKind());
@@ -1124,7 +1110,7 @@ final class MemberName implements Member, Cloneable {
                 //
                 // REFC view on PTYPES doesn't matter, since it is used only as a starting point for resolution and doesn't
                 // participate in method selection.
-                m = MethodHandleNatives.resolve(m, lookupClass, speculativeResolve);
+                m = MethodHandleNatives.resolve(m, lookupClass, allowedModes, speculativeResolve);
                 if (m == null && speculativeResolve) {
                     return null;
                 }
@@ -1148,10 +1134,12 @@ final class MemberName implements Member, Cloneable {
          *  Otherwise a fresh copy of the given member is returned, with modifier bits filled in.
          */
         public <NoSuchMemberException extends ReflectiveOperationException>
-                MemberName resolveOrFail(byte refKind, MemberName m, Class<?> lookupClass,
-                                 Class<NoSuchMemberException> nsmClass)
+                MemberName resolveOrFail(byte refKind, MemberName m,
+                                         Class<?> lookupClass, int allowedModes,
+                                         Class<NoSuchMemberException> nsmClass)
                 throws IllegalAccessException, NoSuchMemberException {
-            MemberName result = resolve(refKind, m, lookupClass, false);
+            assert lookupClass != null || allowedModes == LM_TRUSTED;
+            MemberName result = resolve(refKind, m, lookupClass, allowedModes, false);
             if (result.isResolved())
                 return result;
             ReflectiveOperationException ex = result.makeAccessException();
@@ -1164,8 +1152,9 @@ final class MemberName implements Member, Cloneable {
          *  If lookup fails or access is not permitted, return null.
          *  Otherwise a fresh copy of the given member is returned, with modifier bits filled in.
          */
-        public MemberName resolveOrNull(byte refKind, MemberName m, Class<?> lookupClass) {
-            MemberName result = resolve(refKind, m, lookupClass, true);
+        public MemberName resolveOrNull(byte refKind, MemberName m, Class<?> lookupClass, int allowedModes) {
+            assert lookupClass != null || allowedModes == LM_TRUSTED;
+            MemberName result = resolve(refKind, m, lookupClass, allowedModes, true);
             if (result != null && result.isResolved())
                 return result;
             return null;

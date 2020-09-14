@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
 #include "gc/shared/collectedHeap.hpp"
 #include "jvmci/jvmciCodeInstaller.hpp"
@@ -116,7 +117,8 @@
   nonstatic_field(ConstantPool,                _tags,                                  Array<u1>*)                                   \
   nonstatic_field(ConstantPool,                _pool_holder,                           InstanceKlass*)                               \
   nonstatic_field(ConstantPool,                _length,                                int)                                          \
-  nonstatic_field(ConstantPool,                _flags,                                 int)                                          \
+  nonstatic_field(ConstantPool,                _flags,                                 u2)                                           \
+  nonstatic_field(ConstantPool,                _source_file_name_index,                u2)                                           \
                                                                                                                                      \
   nonstatic_field(ConstMethod,                 _constants,                             ConstantPool*)                                \
   nonstatic_field(ConstMethod,                 _flags,                                 u2)                                           \
@@ -155,7 +157,6 @@
                                                                                                                                      \
   nonstatic_field(InstanceKlass,               _fields,                                       Array<u2>*)                            \
   nonstatic_field(InstanceKlass,               _constants,                                    ConstantPool*)                         \
-  nonstatic_field(InstanceKlass,               _source_file_name_index,                       u2)                                    \
   nonstatic_field(InstanceKlass,               _init_state,                                   u1)                                    \
   nonstatic_field(InstanceKlass,               _init_thread,                                  Thread*)                               \
   nonstatic_field(InstanceKlass,               _misc_flags,                                   u4)                                    \
@@ -169,7 +170,7 @@
   nonstatic_field(JVMCICompileState,           _jvmti_can_post_on_exceptions,                 jbyte)                                 \
   nonstatic_field(JVMCICompileState,           _jvmti_can_pop_frame,                          jbyte)                                 \
                                                                                                                                      \
-  nonstatic_field(JavaThread,                  _threadObj,                                    oop)                                   \
+  nonstatic_field(JavaThread,                  _threadObj,                                    OopHandle)                             \
   nonstatic_field(JavaThread,                  _anchor,                                       JavaFrameAnchor)                       \
   nonstatic_field(JavaThread,                  _vm_result,                                    oop)                                   \
   volatile_nonstatic_field(JavaThread,         _exception_oop,                                oop)                                   \
@@ -381,7 +382,6 @@
 #define VM_INT_CONSTANTS(declare_constant, declare_constant_with_value, declare_preprocessor_constant) \
   declare_preprocessor_constant("ASSERT", DEBUG_ONLY(1) NOT_DEBUG(0))     \
   declare_preprocessor_constant("FIELDINFO_TAG_SIZE", FIELDINFO_TAG_SIZE) \
-  declare_preprocessor_constant("STACK_BIAS", STACK_BIAS)                 \
                                                                           \
   declare_constant(CompLevel_none)                                        \
   declare_constant(CompLevel_simple)                                      \
@@ -397,6 +397,7 @@
   declare_constant(JVM_ACC_HAS_MONITOR_BYTECODES)                         \
   declare_constant(JVM_ACC_HAS_FINALIZER)                                 \
   declare_constant(JVM_ACC_IS_CLONEABLE_FAST)                             \
+  declare_constant(JVM_ACC_IS_HIDDEN_CLASS)                               \
   declare_constant(JVM_ACC_FIELD_INTERNAL)                                \
   declare_constant(JVM_ACC_FIELD_STABLE)                                  \
   declare_constant(JVM_ACC_FIELD_HAS_GENERIC_SIGNATURE)                   \
@@ -470,7 +471,17 @@
   declare_constant(CodeInstaller::CRC_TABLE_ADDRESS)                      \
   declare_constant(CodeInstaller::LOG_OF_HEAP_REGION_GRAIN_BYTES)         \
   declare_constant(CodeInstaller::INLINE_CONTIGUOUS_ALLOCATION_SUPPORTED) \
+  declare_constant(CodeInstaller::DEOPT_MH_HANDLER_ENTRY)                 \
+  declare_constant(CodeInstaller::VERIFY_OOP_COUNT_ADDRESS)               \
+  declare_constant(CodeInstaller::VERIFY_OOPS)                            \
+  declare_constant(CodeInstaller::VERIFY_OOP_BITS)                        \
+  declare_constant(CodeInstaller::VERIFY_OOP_MASK)                        \
   declare_constant(CodeInstaller::INVOKE_INVALID)                         \
+                                                                          \
+  declare_constant(vmIntrinsics::FIRST_MH_SIG_POLY)                       \
+  declare_constant(vmIntrinsics::LAST_MH_SIG_POLY)                        \
+  declare_constant(vmIntrinsics::_invokeGeneric)                          \
+  declare_constant(vmIntrinsics::_compiledLambdaForm)                     \
                                                                           \
   declare_constant(CollectedHeap::Serial)                                 \
   declare_constant(CollectedHeap::Parallel)                               \
@@ -542,6 +553,7 @@
   declare_constant(Deoptimization::Reason_unresolved)                     \
   declare_constant(Deoptimization::Reason_jsr_mismatch)                   \
   declare_constant(Deoptimization::Reason_LIMIT)                          \
+  declare_constant(Deoptimization::_support_large_access_byte_array_virtualization)               \
                                                                           \
   declare_constant(FieldInfo::access_flags_offset)                        \
   declare_constant(FieldInfo::name_index_offset)                          \
@@ -554,7 +566,14 @@
   declare_constant(InstanceKlass::linked)                                 \
   declare_constant(InstanceKlass::being_initialized)                      \
   declare_constant(InstanceKlass::fully_initialized)                      \
+                                                                          \
+  /*********************************/                                     \
+  /* InstanceKlass _misc_flags */                                         \
+  /*********************************/                                     \
+                                                                          \
   declare_constant(InstanceKlass::_misc_is_unsafe_anonymous)              \
+  declare_constant(InstanceKlass::_misc_has_nonstatic_concrete_methods)   \
+  declare_constant(InstanceKlass::_misc_declares_nonstatic_concrete_methods) \
                                                                           \
   declare_constant(JumpData::taken_off_set)                               \
   declare_constant(JumpData::displacement_off_set)                        \
@@ -725,8 +744,7 @@
   declare_constant(VM_Version::CPU_CRC32)               \
   declare_constant(VM_Version::CPU_LSE)                 \
   declare_constant(VM_Version::CPU_STXR_PREFETCH)       \
-  declare_constant(VM_Version::CPU_A53MAC)              \
-  declare_constant(VM_Version::CPU_DMB_ATOMICS)
+  declare_constant(VM_Version::CPU_A53MAC)
 
 #endif
 
@@ -790,61 +808,6 @@
   declare_preprocessor_constant("VM_Version::CPU_AVX512_VBMI", CPU_AVX512_VBMI)
 
 #endif
-
-
-#ifdef SPARC
-
-#define VM_STRUCTS_CPU(nonstatic_field, static_field, unchecked_nonstatic_field, volatile_nonstatic_field, nonproduct_nonstatic_field, c2_nonstatic_field, unchecked_c1_static_field, unchecked_c2_static_field) \
-  volatile_nonstatic_field(JavaFrameAnchor, _flags, int)
-
-#define VM_INT_CONSTANTS_CPU(declare_constant, declare_preprocessor_constant, declare_c1_constant, declare_c2_constant, declare_c2_preprocessor_constant) \
-  declare_constant(VM_Version::ISA_V9)                  \
-  declare_constant(VM_Version::ISA_POPC)                \
-  declare_constant(VM_Version::ISA_VIS1)                \
-  declare_constant(VM_Version::ISA_VIS2)                \
-  declare_constant(VM_Version::ISA_BLK_INIT)            \
-  declare_constant(VM_Version::ISA_FMAF)                \
-  declare_constant(VM_Version::ISA_VIS3)                \
-  declare_constant(VM_Version::ISA_HPC)                 \
-  declare_constant(VM_Version::ISA_IMA)                 \
-  declare_constant(VM_Version::ISA_AES)                 \
-  declare_constant(VM_Version::ISA_DES)                 \
-  declare_constant(VM_Version::ISA_KASUMI)              \
-  declare_constant(VM_Version::ISA_CAMELLIA)            \
-  declare_constant(VM_Version::ISA_MD5)                 \
-  declare_constant(VM_Version::ISA_SHA1)                \
-  declare_constant(VM_Version::ISA_SHA256)              \
-  declare_constant(VM_Version::ISA_SHA512)              \
-  declare_constant(VM_Version::ISA_MPMUL)               \
-  declare_constant(VM_Version::ISA_MONT)                \
-  declare_constant(VM_Version::ISA_PAUSE)               \
-  declare_constant(VM_Version::ISA_CBCOND)              \
-  declare_constant(VM_Version::ISA_CRC32C)              \
-  declare_constant(VM_Version::ISA_VIS3B)               \
-  declare_constant(VM_Version::ISA_ADI)                 \
-  declare_constant(VM_Version::ISA_SPARC5)              \
-  declare_constant(VM_Version::ISA_MWAIT)               \
-  declare_constant(VM_Version::ISA_XMPMUL)              \
-  declare_constant(VM_Version::ISA_XMONT)               \
-  declare_constant(VM_Version::ISA_PAUSE_NSEC)          \
-  declare_constant(VM_Version::ISA_VAMASK)              \
-  declare_constant(VM_Version::ISA_SPARC6)              \
-  declare_constant(VM_Version::ISA_DICTUNP)             \
-  declare_constant(VM_Version::ISA_FPCMPSHL)            \
-  declare_constant(VM_Version::ISA_RLE)                 \
-  declare_constant(VM_Version::ISA_SHA3)                \
-  declare_constant(VM_Version::ISA_VIS3C)               \
-  declare_constant(VM_Version::ISA_SPARC5B)             \
-  declare_constant(VM_Version::ISA_MME)                 \
-  declare_constant(VM_Version::CPU_FAST_IDIV)           \
-  declare_constant(VM_Version::CPU_FAST_RDPC)           \
-  declare_constant(VM_Version::CPU_FAST_BIS)            \
-  declare_constant(VM_Version::CPU_FAST_LD)             \
-  declare_constant(VM_Version::CPU_FAST_CMOVE)          \
-  declare_constant(VM_Version::CPU_FAST_IND_BR)         \
-  declare_constant(VM_Version::CPU_BLK_ZEROING)
-#endif
-
 
 /*
  * Dummy defines for architectures that don't use these.
@@ -1014,4 +977,3 @@ void jvmci_vmStructs_init() {
   JVMCIVMStructs::init();
 }
 #endif // ASSERT
-

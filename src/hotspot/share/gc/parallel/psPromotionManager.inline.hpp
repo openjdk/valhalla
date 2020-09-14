@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -36,6 +36,7 @@
 #include "memory/iterator.inline.hpp"
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/prefetch.inline.hpp"
 
 inline PSPromotionManager* PSPromotionManager::manager_array(uint index) {
   assert(_manager_array != NULL, "access of NULL manager_array");
@@ -43,34 +44,17 @@ inline PSPromotionManager* PSPromotionManager::manager_array(uint index) {
   return &_manager_array[index];
 }
 
-template <class T>
-inline void PSPromotionManager::push_depth(T* p) {
-  claimed_stack_depth()->push(p);
-}
-
-template <class T>
-inline void PSPromotionManager::claim_or_forward_internal_depth(T* p) {
-  if (p != NULL) { // XXX: error if p != NULL here
-    oop o = RawAccess<IS_NOT_NULL>::oop_load(p);
-    if (o->is_forwarded()) {
-      o = o->forwardee();
-      // Card mark
-      if (PSScavenge::is_obj_in_young(o)) {
-        PSScavenge::card_table()->inline_write_ref_field_gc(p, o);
-      }
-      RawAccess<IS_NOT_NULL>::oop_store(p, o);
-    } else {
-      push_depth(p);
-    }
-  }
+inline void PSPromotionManager::push_depth(ScannerTask task) {
+  claimed_stack_depth()->push(task);
 }
 
 template <class T>
 inline void PSPromotionManager::claim_or_forward_depth(T* p) {
   assert(should_scavenge(p, true), "revisiting object?");
   assert(ParallelScavengeHeap::heap()->is_in(p), "pointer outside heap");
-
-  claim_or_forward_internal_depth(p);
+  oop obj = RawAccess<IS_NOT_NULL>::oop_load(p);
+  Prefetch::write(obj->mark_addr_raw(), 0);
+  push_depth(ScannerTask(p));
 }
 
 inline void PSPromotionManager::promotion_trace_event(oop new_obj, oop old_obj,
@@ -275,9 +259,8 @@ inline oop PSPromotionManager::copy_to_survivor_space(oop o) {
           new_obj->is_objArray() &&
           PSChunkLargeArrays) {
         // we'll chunk it
-        oop* const masked_o = mask_chunked_array_oop(o);
-        push_depth(masked_o);
-        TASKQUEUE_STATS_ONLY(++_arrays_chunked; ++_masked_pushes);
+        push_depth(ScannerTask(PartialArrayScanTask(o)));
+        TASKQUEUE_STATS_ONLY(++_arrays_chunked; ++_array_chunk_pushes);
       } else {
         // we'll just push its contents
         push_contents(new_obj);
@@ -318,7 +301,7 @@ inline oop PSPromotionManager::copy_to_survivor_space(oop o) {
 // Attempt to "claim" oop at p via CAS, push the new obj if successful
 // This version tests the oop* to make sure it is within the heap before
 // attempting marking.
-template <class T, bool promote_immediately>
+template <bool promote_immediately, class T>
 inline void PSPromotionManager::copy_and_push_safe_barrier(T* p) {
   assert(should_scavenge(p, true), "revisiting object?");
 
@@ -348,29 +331,28 @@ inline void PSPromotionManager::copy_and_push_safe_barrier(T* p) {
   }
 }
 
-inline void PSPromotionManager::process_popped_location_depth(StarTask p) {
-  if (is_oop_masked(p)) {
+inline void PSPromotionManager::process_popped_location_depth(ScannerTask task) {
+  if (task.is_partial_array_task()) {
     assert(PSChunkLargeArrays, "invariant");
-    oop const old = unmask_chunked_array_oop(p);
-    process_array_chunk(old);
+    process_array_chunk(task.to_partial_array_task());
   } else {
-    if (p.is_narrow()) {
+    if (task.is_narrow_oop_ptr()) {
       assert(UseCompressedOops, "Error");
-      copy_and_push_safe_barrier<narrowOop, /*promote_immediately=*/false>(p);
+      copy_and_push_safe_barrier</*promote_immediately=*/false>(task.to_narrow_oop_ptr());
     } else {
-      copy_and_push_safe_barrier<oop, /*promote_immediately=*/false>(p);
+      copy_and_push_safe_barrier</*promote_immediately=*/false>(task.to_oop_ptr());
     }
   }
 }
 
-inline bool PSPromotionManager::steal_depth(int queue_num, StarTask& t) {
+inline bool PSPromotionManager::steal_depth(int queue_num, ScannerTask& t) {
   return stack_array_depth()->steal(queue_num, t);
 }
 
 #if TASKQUEUE_STATS
-void PSPromotionManager::record_steal(StarTask& p) {
-  if (is_oop_masked(p)) {
-    ++_masked_steals;
+void PSPromotionManager::record_steal(ScannerTask task) {
+  if (task.is_partial_array_task()) {
+    ++_array_chunk_steals;
   }
 }
 #endif // TASKQUEUE_STATS

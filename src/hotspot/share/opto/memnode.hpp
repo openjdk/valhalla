@@ -93,6 +93,7 @@ protected:
   }
 
   virtual Node* find_previous_arraycopy(PhaseTransform* phase, Node* ld_alloc, Node*& mem, bool can_see_stored_value) const { return NULL; }
+  ArrayCopyNode* find_array_copy_clone(PhaseTransform* phase, Node* ld_alloc, Node* mem) const;
   static bool check_if_adr_maybe_raw(Node* adr);
 
 public:
@@ -515,44 +516,29 @@ public:
 //------------------------------LoadKlassNode----------------------------------
 // Load a Klass from an object
 class LoadKlassNode : public LoadPNode {
-private:
-  bool _clear_prop_bits; // Clear the ArrayStorageProperties bits
 protected:
   // In most cases, LoadKlassNode does not have the control input set. If the control
   // input is set, it must not be removed (by LoadNode::Ideal()).
   virtual bool can_remove_control() const;
 public:
-  LoadKlassNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypeKlassPtr *tk, MemOrd mo, bool clear_prop_bits)
-    : LoadPNode(c, mem, adr, at, tk, mo), _clear_prop_bits(clear_prop_bits) {}
-  virtual uint hash() const { return LoadPNode::hash() + _clear_prop_bits; }
-  virtual bool cmp(const Node &n) const {
-    return (_clear_prop_bits == ((LoadKlassNode&)n)._clear_prop_bits) && LoadPNode::cmp(n);
-  }
-  virtual uint size_of() const { return sizeof(*this); }
+  LoadKlassNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypeKlassPtr *tk, MemOrd mo)
+    : LoadPNode(c, mem, adr, at, tk, mo) {}
   virtual int Opcode() const;
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node* Identity(PhaseGVN* phase);
   virtual bool depends_only_on_test() const { return true; }
-  bool clear_prop_bits() const { return _clear_prop_bits; }
 
   // Polymorphic factory method:
   static Node* make(PhaseGVN& gvn, Node* ctl, Node* mem, Node* adr, const TypePtr* at,
-                    const TypeKlassPtr* tk = TypeKlassPtr::OBJECT, bool clear_prop_bits = false);
+                    const TypeKlassPtr* tk = TypeKlassPtr::OBJECT);
 };
 
 //------------------------------LoadNKlassNode---------------------------------
 // Load a narrow Klass from an object.
 class LoadNKlassNode : public LoadNNode {
-private:
-  bool _clear_prop_bits; // Clear the ArrayStorageProperties bits
 public:
-  LoadNKlassNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypeNarrowKlass *tk, MemOrd mo, bool clear_prop_bits)
-    : LoadNNode(c, mem, adr, at, tk, mo), _clear_prop_bits(clear_prop_bits) {}
-  virtual uint hash() const { return LoadNNode::hash() + _clear_prop_bits; }
-  virtual bool cmp(const Node &n) const {
-    return (_clear_prop_bits == ((LoadNKlassNode&)n)._clear_prop_bits) && LoadNNode::cmp(n);
-  }
-  virtual uint size_of() const { return sizeof(*this); }
+  LoadNKlassNode(Node *c, Node *mem, Node *adr, const TypePtr *at, const TypeNarrowKlass *tk, MemOrd mo)
+    : LoadNNode(c, mem, adr, at, tk, mo) {}
   virtual int Opcode() const;
   virtual uint ideal_reg() const { return Op_RegN; }
   virtual int store_Opcode() const { return Op_StoreNKlass; }
@@ -561,48 +547,6 @@ public:
   virtual const Type* Value(PhaseGVN* phase) const;
   virtual Node* Identity(PhaseGVN* phase);
   virtual bool depends_only_on_test() const { return true; }
-  bool clear_prop_bits() const { return _clear_prop_bits; }
-};
-
-// Retrieve the null free/flattened property from an array klass. This
-// is treated a bit like a field that would be read from the klass
-// structure at runtime except, the implementation encodes the
-// property as a bit in the klass header field of the array. This
-// implementation detail is hidden under this node so it doesn't make
-// a difference for high level optimizations. At final graph reshaping
-// time, this node is turned into the actual logical operations that
-// extract the property from the klass pointer. For this to work
-// correctly, GeStoragePropertyNodes must take a LoadKlass/LoadNKlass
-// input. The Ideal transformation splits the GetStoragePropertyNode
-// through phis, Value returns a constant if the node's input is a
-// constant. These 2 should guarantee GetStoragePropertyNode does
-// indeed have a LoadKlass/LoadNKlass input at final graph reshaping
-// time.
-class GetStoragePropertyNode : public Node {
-protected:
-  GetStoragePropertyNode(Node* klass) : Node(NULL, klass) {}
-public:
-  virtual const Type* Value(PhaseGVN* phase) const;
-  virtual Node* Ideal(PhaseGVN *phase, bool can_reshape);
-  virtual const Type* bottom_type() const {
-    if (in(1)->bottom_type()->isa_klassptr()) {
-      return TypeLong::LONG;
-    }
-    return TypeInt::INT;
-  }
-};
-
-
-class GetNullFreePropertyNode : public GetStoragePropertyNode {
-public:
-  GetNullFreePropertyNode(Node* klass) : GetStoragePropertyNode(klass) {}
-  virtual int Opcode() const;
-};
-
-class GetFlattenedPropertyNode : public GetStoragePropertyNode {
-public:
-  GetFlattenedPropertyNode(Node* klass) : GetStoragePropertyNode(klass) {}
-  virtual int Opcode() const;
 };
 
 //------------------------------StoreNode--------------------------------------

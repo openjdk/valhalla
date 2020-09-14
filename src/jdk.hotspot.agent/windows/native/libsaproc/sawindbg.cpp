@@ -42,6 +42,7 @@
 
 #include <limits.h>
 #include <windows.h>
+#include <inttypes.h>
 
 #define DEBUG_NO_IMPLEMENTATION
 #include <dbgeng.h>
@@ -398,6 +399,19 @@ static bool setImageAndSymbolPath(JNIEnv* env, jobject obj) {
   return true;
 }
 
+static HRESULT WaitForEvent(IDebugControl *ptrIDebugControl) {
+  HRESULT hr = ptrIDebugControl->WaitForEvent(DEBUG_WAIT_DEFAULT, INFINITE);
+  // see JDK-8204994: sometimes WaitForEvent fails with E_ACCESSDENIED,
+  // but succeeds on 2nd call.
+  // To minimize possible noise retry 3 times.
+  for (int i = 0; hr == E_ACCESSDENIED && i < 3; i++) {
+    // yield current thread use of a processor (short delay).
+    SwitchToThread();
+    hr = ptrIDebugControl->WaitForEvent(DEBUG_WAIT_DEFAULT, INFINITE);
+  }
+  return hr;
+}
+
 static bool openDumpFile(JNIEnv* env, jobject obj, jstring coreFileName) {
   // open the dump file
   AutoJavaString coreFile(env, coreFileName);
@@ -413,7 +427,7 @@ static bool openDumpFile(JNIEnv* env, jobject obj, jstring coreFileName) {
 
   IDebugControl* ptrIDebugControl = (IDebugControl*)env->GetLongField(obj, ptrIDebugControl_ID);
   CHECK_EXCEPTION_(false);
-  COM_VERIFY_OK_(ptrIDebugControl->WaitForEvent(DEBUG_WAIT_DEFAULT, INFINITE),
+  COM_VERIFY_OK_(WaitForEvent(ptrIDebugControl),
                  "Windbg Error: WaitForEvent failed!", false);
 
   return true;
@@ -450,7 +464,7 @@ static bool attachToProcess(JNIEnv* env, jobject obj, jint pid) {
   IDebugControl* ptrIDebugControl = (IDebugControl*) env->GetLongField(obj,
                                                      ptrIDebugControl_ID);
   CHECK_EXCEPTION_(false);
-  COM_VERIFY_OK_(ptrIDebugControl->WaitForEvent(DEBUG_WAIT_DEFAULT, INFINITE),
+  COM_VERIFY_OK_(WaitForEvent(ptrIDebugControl),
                  "Windbg Error: WaitForEvent failed!", false);
 
   return true;
@@ -728,11 +742,9 @@ JNIEXPORT jbyteArray JNICALL Java_sun_jvm_hotspot_debugger_windbg_WindbgDebugger
   CHECK_EXCEPTION_(0);
 
   ULONG bytesRead;
-  COM_VERIFY_OK_(ptrIDebugDataSpaces->ReadVirtual((ULONG64)address, arrayBytes,
-                                                  (ULONG)numBytes, &bytesRead),
-                 "Windbg Error: ReadVirtual failed!", 0);
-
-  if (bytesRead != numBytes) {
+  const HRESULT hr = ptrIDebugDataSpaces->ReadVirtual((ULONG64)address, arrayBytes,
+                                                      (ULONG)numBytes, &bytesRead);
+  if (hr != S_OK || bytesRead != numBytes) {
      return 0;
   }
 
@@ -753,9 +765,16 @@ JNIEXPORT jlong JNICALL Java_sun_jvm_hotspot_debugger_windbg_WindbgDebuggerLocal
   CHECK_EXCEPTION_(0);
 
   ULONG id = 0;
-  COM_VERIFY_OK_(ptrIDebugSystemObjects->GetThreadIdBySystemId((ULONG)sysId, &id),
-                 "Windbg Error: GetThreadIdBySystemId failed!", 0);
-
+  HRESULT hr = ptrIDebugSystemObjects->GetThreadIdBySystemId((ULONG)sysId, &id);
+  if (hr != S_OK) {
+    // This is not considered fatal and does happen on occassion, usually with an
+    // 0x80004002 "No such interface supported". The root cause is not fully understood,
+    // but by ignoring this error and returning NULL, stacking walking code will get
+    // null registers and fallback to using the "last java frame" if setup.
+   printf("WARNING: GetThreadIdBySystemId failed with 0x%x for sysId (%" PRIu64 ")\n",
+           hr, sysId);
+    return -1;
+  }
   return (jlong) id;
 }
 

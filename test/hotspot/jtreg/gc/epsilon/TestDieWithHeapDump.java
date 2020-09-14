@@ -25,11 +25,10 @@ package gc.epsilon;
 
 /**
  * @test TestDieWithHeapDump
- * @key gc
- * @requires vm.gc.Epsilon & !vm.graal.enabled
+ * @requires vm.gc.Epsilon
  * @summary Epsilon GC should die on heap exhaustion with error handler attached
  * @library /test/lib
- * @run main gc.epsilon.TestDieWithHeapDump
+ * @run driver gc.epsilon.TestDieWithHeapDump
  */
 
 import java.io.*;

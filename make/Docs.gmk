@@ -63,7 +63,7 @@ MODULES_SOURCE_PATH := $(call PathList, $(call GetModuleSrcPath) )
 JAVADOC_BASE_URL := https://docs.oracle.com/pls/topic/lookup?ctx=javase$(VERSION_NUMBER)&amp;id=homepage
 BUG_SUBMIT_URL := https://bugreport.java.com/bugreport/
 COPYRIGHT_URL := legal/copyright.html
-LICENSE_URL := https://www.oracle.com/technetwork/java/javase/terms/license/java$(VERSION_NUMBER)speclicense.html
+LICENSE_URL := https://www.oracle.com/java/javase/terms/license/java$(VERSION_NUMBER)speclicense.html
 REDISTRIBUTION_URL := https://www.oracle.com/technetwork/java/redist-137594.html
 
 # In order to get a specific ordering it's necessary to specify the total
@@ -299,6 +299,8 @@ define SetupApiDocsGenerationBody
   # Create a string like "-Xdoclint:all,-syntax,-html,..."
   $1_OPTIONS += -Xdoclint:all,$$(call CommaList, $$(addprefix -, \
       $$(JAVADOC_DISABLED_DOCLINT)))
+  # Ignore the doclint warnings in the W3C DOM package
+  $1_OPTIONS += -Xdoclint/package:-org.w3c.*
 
   $1_DOC_TITLE := $$($1_LONG_NAME)<br>Version $$(VERSION_SPECIFICATION) API \
       Specification
@@ -611,9 +613,9 @@ ifeq ($(ENABLE_PANDOC), true)
   # PANDOC_HTML_MANPAGE_FILTER, a wrapper around
   # PANDOC_HTML_MANPAGE_FILTER_JAVASCRIPT. This is created by buildtools-jdk.
 
-  # We should also depend on the source javascript filter
-  PANDOC_HTML_MANPAGE_FILTER_JAVASCRIPT := \
-      $(TOPDIR)/make/scripts/pandoc-html-manpage-filter.js
+  # We should also depend on the source code for the filter
+  PANDOC_HTML_MANPAGE_FILTER_SOURCE := $(call FindFiles, \
+      $(TOPDIR)/make/jdk/src/classes/build/tools/pandocfilter)
 
   $(foreach m, $(ALL_MODULES), \
     $(eval MAN_$m := $(call FindModuleManDirs, $m)) \
@@ -633,7 +635,7 @@ ifeq ($(ENABLE_PANDOC), true)
             OPTIONS := --toc -V include-before='$(SPECS_TOP)' -V include-after='$(SPECS_BOTTOM_1)', \
             POST_PROCESS := $(TOOL_FIXUPPANDOC), \
             EXTRA_DEPS := $(PANDOC_HTML_MANPAGE_FILTER) \
-                $(PANDOC_HTML_MANPAGE_FILTER_JAVASCRIPT), \
+                $(PANDOC_HTML_MANPAGE_FILTER_SOURCE), \
         )) \
         $(eval JDK_SPECS_TARGETS += $($($m_$f_NAME))) \
       ) \

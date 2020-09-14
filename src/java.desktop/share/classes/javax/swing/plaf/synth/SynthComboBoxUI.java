@@ -93,6 +93,12 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
     private boolean forceOpaque = false;
 
     /**
+     *
+     * Constructs a {@code SynthComboBoxUI}.
+     */
+    public SynthComboBoxUI() {}
+
+    /**
      * Creates a new UI object for the given component.
      *
      * @param c component to create UI object for
@@ -352,6 +358,8 @@ public class SynthComboBoxUI extends BasicComboBoxUI implements
             Rectangle r = rectangleForCurrentValue();
             paintCurrentValue(g,r,hasFocus);
         }
+        // Empty out the renderer pane, allowing renderers to be gc'ed.
+        currentValuePane.removeAll();
     }
 
     /**

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,10 +67,12 @@ public class ClassHierarchyTest {
     // java.lang.Object/null
     // |--DcmdBaseClass/0xa4abcd48
     // |  implements Intf2/0xa4abcd48 (declared intf)
+    // |  implements java.lang.IdentityObject/null (declared intf)
     // |  implements Intf1/0xa4abcd48 (inherited intf)
     // |  |--DcmdTestClass/0xa4abcd48
     // |  |  implements Intf1/0xa4abcd48 (inherited intf)
     // |  |  implements Intf2/0xa4abcd48 (inherited intf)
+    // |  |  implements java.lang.IdentityObject/null (inherited intf)
 
     static Pattern expected_lambda_line =
         Pattern.compile("\\|--DcmdTestClass\\$\\$Lambda.*");
@@ -79,10 +81,12 @@ public class ClassHierarchyTest {
         Pattern.compile("java.lang.Object/null"),
         Pattern.compile("\\|--DcmdBaseClass/0x(\\p{XDigit}*)"),
         Pattern.compile("\\|  implements Intf2/0x(\\p{XDigit}*) \\(declared intf\\)"),
+        Pattern.compile("\\|  implements java.lang.IdentityObject/null \\(declared intf\\)"),
         Pattern.compile("\\|  implements Intf1/0x(\\p{XDigit}*) \\(inherited intf\\)"),
         Pattern.compile("\\|  \\|--DcmdTestClass/0x(\\p{XDigit}*)"),
         Pattern.compile("\\|  \\|  implements Intf1/0x(\\p{XDigit}*) \\(inherited intf\\)"),
-        Pattern.compile("\\|  \\|  implements Intf2/0x(\\p{XDigit}*) \\(inherited intf\\)")
+        Pattern.compile("\\|  \\|  implements Intf2/0x(\\p{XDigit}*) \\(inherited intf\\)"),
+        Pattern.compile("\\|  \\|  implements java.lang.IdentityObject/null \\(inherited intf\\)")
     };
 
     public void run(CommandExecutor executor) throws ClassNotFoundException {
@@ -140,7 +144,7 @@ public class ClassHierarchyTest {
                 Assert.fail("Failed to match line #" + i + ": " + line);
             }
             // "implements" lines should not be in this output.
-            if (i == 2 || i == 4) i += 2;
+            if (i == 2 || i == 6) i += 3;
         }
         if (lines.hasNext()) {
             String line = lines.next();
@@ -164,7 +168,7 @@ public class ClassHierarchyTest {
                 // subsequent lines.
                 classLoaderAddr = m.group(1);
                 System.out.println(classLoaderAddr);
-            } else if (i > 2) {
+            } else if (i > 2 && i != 4 && i != 9) {
                 if (!classLoaderAddr.equals(m.group(1))) {
                     Assert.fail("Classloader address didn't match on line #"
                                         + i + ": " + line);

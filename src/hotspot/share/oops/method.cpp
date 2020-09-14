@@ -38,6 +38,7 @@
 #include "interpreter/oopMapCache.hpp"
 #include "logging/log.hpp"
 #include "logging/logTag.hpp"
+#include "logging/logStream.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
@@ -53,7 +54,7 @@
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
-#include "oops/valueKlass.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "prims/nativeLookup.hpp"
@@ -67,6 +68,7 @@
 #include "runtime/safepointVerifiers.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
+#include "services/memTracker.hpp"
 #include "utilities/align.hpp"
 #include "utilities/quickSort.hpp"
 #include "utilities/vmError.hpp"
@@ -149,9 +151,9 @@ address Method::get_c2i_entry() {
   return adapter()->get_c2i_entry();
 }
 
-address Method::get_c2i_value_entry() {
+address Method::get_c2i_inline_entry() {
   assert(adapter() != NULL, "must have");
-  return adapter()->get_c2i_value_entry();
+  return adapter()->get_c2i_inline_entry();
 }
 
 address Method::get_c2i_unverified_entry() {
@@ -159,9 +161,9 @@ address Method::get_c2i_unverified_entry() {
   return adapter()->get_c2i_unverified_entry();
 }
 
-address Method::get_c2i_unverified_value_entry() {
+address Method::get_c2i_unverified_inline_entry() {
   assert(adapter() != NULL, "must have");
-  return adapter()->get_c2i_unverified_value_entry();
+  return adapter()->get_c2i_unverified_inline_entry();
 }
 
 address Method::get_c2i_no_clinit_check_entry() {
@@ -356,18 +358,19 @@ void Method::metaspace_pointers_do(MetaspaceClosure* it) {
   Method* this_ptr = this;
   it->push_method_entry(&this_ptr, (intptr_t*)&_i2i_entry);
   it->push_method_entry(&this_ptr, (intptr_t*)&_from_compiled_entry);
-  it->push_method_entry(&this_ptr, (intptr_t*)&_from_compiled_value_ro_entry);
-  it->push_method_entry(&this_ptr, (intptr_t*)&_from_compiled_value_entry);
+  it->push_method_entry(&this_ptr, (intptr_t*)&_from_compiled_inline_ro_entry);
+  it->push_method_entry(&this_ptr, (intptr_t*)&_from_compiled_inline_entry);
   it->push_method_entry(&this_ptr, (intptr_t*)&_from_interpreted_entry);
 }
 
-// Attempt to return method oop to original state.  Clear any pointers
+// Attempt to return method to original state.  Clear any pointers
 // (to objects outside the shared spaces).  We won't be able to predict
 // where they should point in a new JVM.  Further initialize some
 // entries now in order allow them to be write protected later.
 
 void Method::remove_unshareable_info() {
   unlink_method();
+  JFR_ONLY(REMOVE_METHOD_ID(this);)
 }
 
 void Method::set_vtable_index(int index) {
@@ -601,10 +604,10 @@ void Method::compute_from_signature(Symbol* sig) {
   constMethod()->set_fingerprint(fp.fingerprint());
 }
 
-// ValueKlass the method is declared to return. This must not
+// InlineKlass the method is declared to return. This must not
 // safepoint as it is called with references live on the stack at
 // locations the GC is unaware of.
-ValueKlass* Method::returned_value_type(Thread* thread) const {
+InlineKlass* Method::returned_inline_type(Thread* thread) const {
   SignatureStream ss(signature());
   while (!ss.at_return_type()) {
     ss.next();
@@ -617,7 +620,7 @@ ValueKlass* Method::returned_value_type(Thread* thread) const {
     k = ss.as_klass(class_loader, protection_domain, SignatureStream::ReturnNull, thread);
   }
   assert(k != NULL && !thread->has_pending_exception(), "can't resolve klass");
-  return ValueKlass::cast(k);
+  return InlineKlass::cast(k);
 }
 bool Method::is_empty_method() const {
   return  code_size() == 1
@@ -629,7 +632,7 @@ bool Method::is_vanilla_constructor() const {
   // which only calls the superclass vanilla constructor and possibly does stores of
   // zero constants to local fields:
   //
-  //   aload_0
+  //   aload_0, _fast_aload_0, or _nofast_aload_0
   //   invokespecial
   //   indexbyte1
   //   indexbyte2
@@ -653,7 +656,8 @@ bool Method::is_vanilla_constructor() const {
   if (size == 0 || size % 5 != 0) return false;
   address cb = code_base();
   int last = size - 1;
-  if (cb[0] != Bytecodes::_aload_0 || cb[1] != Bytecodes::_invokespecial || cb[last] != Bytecodes::_return) {
+  if ((cb[0] != Bytecodes::_aload_0 && cb[0] != Bytecodes::_fast_aload_0 && cb[0] != Bytecodes::_nofast_aload_0) ||
+       cb[1] != Bytecodes::_invokespecial || cb[last] != Bytecodes::_return) {
     // Does not call superclass default constructor
     return false;
   }
@@ -835,7 +839,7 @@ bool Method::needs_clinit_barrier() const {
 objArrayHandle Method::resolved_checked_exceptions_impl(Method* method, TRAPS) {
   int length = method->checked_exceptions_length();
   if (length == 0) {  // common case
-    return objArrayHandle(THREAD, Universe::the_empty_class_klass_array());
+    return objArrayHandle(THREAD, Universe::the_empty_class_array());
   } else {
     methodHandle h_this(THREAD, method);
     objArrayOop m_oop = oopFactory::new_objArray(SystemDictionary::Class_klass(), length, CHECK_(objArrayHandle()));
@@ -1070,12 +1074,12 @@ void Method::clear_code() {
   // Only should happen at allocate time.
   if (adapter() == NULL) {
     _from_compiled_entry    = NULL;
-    _from_compiled_value_entry = NULL;
-    _from_compiled_value_ro_entry = NULL;
+    _from_compiled_inline_entry = NULL;
+    _from_compiled_inline_ro_entry = NULL;
   } else {
     _from_compiled_entry    = adapter()->get_c2i_entry();
-    _from_compiled_value_entry = adapter()->get_c2i_value_entry();
-    _from_compiled_value_ro_entry = adapter()->get_c2i_value_ro_entry();
+    _from_compiled_inline_entry = adapter()->get_c2i_inline_entry();
+    _from_compiled_inline_ro_entry = adapter()->get_c2i_inline_ro_entry();
   }
   OrderAccess::storestore();
   _from_interpreted_entry = _i2i_entry;
@@ -1125,12 +1129,12 @@ void Method::unlink_method() {
     assert(*((int*)_from_compiled_entry) == 0,
            "instructions must be zeros during dump time, to be initialized at run time");
 
-    _from_compiled_value_ro_entry = cds_adapter->get_c2i_value_ro_entry_trampoline();
-    assert(*((int*)_from_compiled_value_ro_entry) == 0,
+    _from_compiled_inline_ro_entry = cds_adapter->get_c2i_inline_ro_entry_trampoline();
+    assert(*((int*)_from_compiled_inline_ro_entry) == 0,
            "instructions must be zeros during dump time, to be initialized at run time");
 
-    _from_compiled_value_entry = cds_adapter->get_c2i_value_entry_trampoline();
-    assert(*((int*)_from_compiled_value_entry) == 0,
+    _from_compiled_inline_entry = cds_adapter->get_c2i_inline_entry_trampoline();
+    assert(*((int*)_from_compiled_inline_entry) == 0,
            "instructions must be zeros during dump time, to be initialized at run time");
   }
 
@@ -1222,16 +1226,12 @@ void Method::link_method(const methodHandle& h_method, TRAPS) {
   // If the code cache is full, we may reenter this function for the
   // leftover methods that weren't linked.
   if (is_shared()) {
-#ifdef ASSERT
-    address entry = Interpreter::entry_for_cds_method(h_method);
-    assert(entry != NULL && entry == _i2i_entry,
-           "should be correctly set during dump time");
-#endif
+    // Can't assert that the adapters are sane, because methods get linked before
+    // the interpreter is generated, and hence before its adapters are generated.
+    // If you messed them up you will notice soon enough though, don't you worry.
     if (adapter() != NULL) {
       return;
     }
-    assert(entry == _from_interpreted_entry,
-           "should be correctly set during dump time");
   } else if (_i2i_entry != NULL) {
     return;
   }
@@ -1288,13 +1288,13 @@ address Method::make_adapters(const methodHandle& mh, TRAPS) {
   if (mh->is_shared()) {
     assert(mh->adapter() == adapter, "must be");
     assert(mh->_from_compiled_entry != NULL, "must be");
-    assert(mh->_from_compiled_value_entry != NULL, "must be");
-    assert(mh->_from_compiled_value_ro_entry != NULL, "must be");
+    assert(mh->_from_compiled_inline_entry != NULL, "must be");
+    assert(mh->_from_compiled_inline_ro_entry != NULL, "must be");
   } else {
     mh->set_adapter_entry(adapter);
     mh->_from_compiled_entry = adapter->get_c2i_entry();
-    mh->_from_compiled_value_entry = adapter->get_c2i_value_entry();
-    mh->_from_compiled_value_ro_entry = adapter->get_c2i_value_ro_entry();
+    mh->_from_compiled_inline_entry = adapter->get_c2i_inline_entry();
+    mh->_from_compiled_inline_ro_entry = adapter->get_c2i_inline_ro_entry();
   }
   return adapter->get_c2i_entry();
 }
@@ -1326,14 +1326,14 @@ void Method::restore_unshareable_info(TRAPS) {
 address Method::from_compiled_entry_no_trampoline(bool caller_is_c1) const {
   CompiledMethod *code = Atomic::load_acquire(&_code);
   if (caller_is_c1) {
-    // C1 - value arguments are passed as objects
+    // C1 - inline type arguments are passed as objects
     if (code) {
-      return code->verified_value_entry_point();
+      return code->verified_inline_entry_point();
     } else {
-      return adapter()->get_c2i_value_entry();
+      return adapter()->get_c2i_inline_entry();
     }
   } else {
-    // C2 - value arguments may be passed as fields
+    // C2 - inline type arguments may be passed as fields
     if (code) {
       return code->verified_entry_point();
     } else {
@@ -1355,16 +1355,16 @@ address Method::verified_code_entry() {
   return _from_compiled_entry;
 }
 
-address Method::verified_value_code_entry() {
+address Method::verified_inline_code_entry() {
   debug_only(NoSafepointVerifier nsv;)
-  assert(_from_compiled_value_entry != NULL, "must be set");
-  return _from_compiled_value_entry;
+  assert(_from_compiled_inline_entry != NULL, "must be set");
+  return _from_compiled_inline_entry;
 }
 
-address Method::verified_value_ro_code_entry() {
+address Method::verified_inline_ro_code_entry() {
   debug_only(NoSafepointVerifier nsv;)
-  assert(_from_compiled_value_ro_entry != NULL, "must be set");
-  return _from_compiled_value_ro_entry;
+  assert(_from_compiled_inline_ro_entry != NULL, "must be set");
+  return _from_compiled_inline_ro_entry;
 }
 
 // Check that if an nmethod ref exists, it has a backlink to this or no backlink at all
@@ -1398,8 +1398,8 @@ void Method::set_code(const methodHandle& mh, CompiledMethod *code) {
 
   OrderAccess::storestore();
   mh->_from_compiled_entry = code->verified_entry_point();
-  mh->_from_compiled_value_entry = code->verified_value_entry_point();
-  mh->_from_compiled_value_ro_entry = code->verified_value_ro_entry_point();
+  mh->_from_compiled_inline_entry = code->verified_inline_entry_point();
+  mh->_from_compiled_inline_ro_entry = code->verified_inline_ro_entry_point();
   OrderAccess::storestore();
   // Instantly compiled code can execute.
   if (!mh->is_method_handle_intrinsic())
@@ -1505,9 +1505,8 @@ methodHandle Method::make_method_handle_intrinsic(vmIntrinsics::ID iid,
   InstanceKlass* holder = SystemDictionary::MethodHandle_klass();
   Symbol* name = MethodHandles::signature_polymorphic_intrinsic_name(iid);
   assert(iid == MethodHandles::signature_polymorphic_name_id(name), "");
-  if (TraceMethodHandles) {
-    tty->print_cr("make_method_handle_intrinsic MH.%s%s", name->as_C_string(), signature->as_C_string());
-  }
+
+  log_info(methodhandles)("make_method_handle_intrinsic MH.%s%s", name->as_C_string(), signature->as_C_string());
 
   // invariant:   cp->symbol_at_put is preceded by a refcount increment (more usually a lookup)
   name->increment_refcount();
@@ -1520,6 +1519,7 @@ methodHandle Method::make_method_handle_intrinsic(vmIntrinsics::ID iid,
     ConstantPool* cp_oop = ConstantPool::allocate(loader_data, cp_length, CHECK_(empty));
     cp = constantPoolHandle(THREAD, cp_oop);
   }
+  cp->copy_fields(holder->constants());
   cp->set_pool_holder(holder);
   cp->symbol_at_put(_imcp_invoke_name,       name);
   cp->symbol_at_put(_imcp_invoke_signature,  signature);
@@ -1558,9 +1558,10 @@ methodHandle Method::make_method_handle_intrinsic(vmIntrinsics::ID iid,
   m->set_vtable_index(Method::nonvirtual_vtable_index);
   m->link_method(m, CHECK_(empty));
 
-  if (TraceMethodHandles && (Verbose || WizardMode)) {
-    ttyLocker ttyl;
-    m->print_on(tty);
+  if (log_is_enabled(Info, methodhandles) && (Verbose || WizardMode)) {
+    LogTarget(Info, methodhandles) lt;
+    LogStream ls(lt);
+    m->print_on(&ls);
   }
 
   return m;
@@ -2273,9 +2274,9 @@ void Method::ensure_jmethod_ids(ClassLoaderData* loader_data, int capacity) {
   ClassLoaderData* cld = loader_data;
   if (!SafepointSynchronize::is_at_safepoint()) {
     // Have to add jmethod_ids() to class loader data thread-safely.
-    // Also have to add the method to the list safely, which the cld lock
+    // Also have to add the method to the list safely, which the lock
     // protects as well.
-    MutexLocker ml(cld->metaspace_lock(),  Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(JmethodIdCreation_lock,  Mutex::_no_safepoint_check_flag);
     if (cld->jmethod_ids() == NULL) {
       cld->set_jmethod_ids(new JNIMethodBlock(capacity));
     } else {
@@ -2297,9 +2298,9 @@ jmethodID Method::make_jmethod_id(ClassLoaderData* loader_data, Method* m) {
 
   if (!SafepointSynchronize::is_at_safepoint()) {
     // Have to add jmethod_ids() to class loader data thread-safely.
-    // Also have to add the method to the list safely, which the cld lock
+    // Also have to add the method to the list safely, which the lock
     // protects as well.
-    MutexLocker ml(cld->metaspace_lock(),  Mutex::_no_safepoint_check_flag);
+    MutexLocker ml(JmethodIdCreation_lock,  Mutex::_no_safepoint_check_flag);
     if (cld->jmethod_ids() == NULL) {
       cld->set_jmethod_ids(new JNIMethodBlock());
     }

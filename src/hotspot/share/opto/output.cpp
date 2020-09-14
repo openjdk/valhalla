@@ -30,6 +30,7 @@
 #include "code/debugInfoRec.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/compilerDirectives.hpp"
+#include "compiler/disassembler.hpp"
 #include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
@@ -307,10 +308,10 @@ void PhaseOutput::Output() {
   } else {
     if (C->method()) {
       if (C->method()->has_scalarized_args()) {
-        // Add entry point to unpack all value type arguments
+        // Add entry point to unpack all inline type arguments
         C->cfg()->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ true, /* receiver_only */ false));
         if (!C->method()->is_static()) {
-          // Add verified/unverified entry points to only unpack value type receiver at interface calls
+          // Add verified/unverified entry points to only unpack inline type receiver at interface calls
           C->cfg()->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ false, /* receiver_only */ false));
           C->cfg()->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ true,  /* receiver_only */ true));
           C->cfg()->insert(broot, 0, new MachVEPNode(&verified_entry, /* verified */ false, /* receiver_only */ true));
@@ -360,27 +361,27 @@ void PhaseOutput::Output() {
   shorten_branches(blk_starts);
 
   if (!C->is_osr_compilation() && C->has_scalarized_args()) {
-    // Compute the offsets of the entry points required by the value type calling convention
+    // Compute the offsets of the entry points required by the inline type calling convention
     if (!C->method()->is_static()) {
       // We have entries at the beginning of the method, implemented by the first 4 nodes.
       // Entry                     (unverified) @ offset 0
-      // Verified_Value_Entry_RO
-      // Value_Entry               (unverified)
-      // Verified_Value_Entry
+      // Verified_Inline_Entry_RO
+      // Inline_Entry              (unverified)
+      // Verified_Inline_Entry
       uint offset = 0;
       _code_offsets.set_value(CodeOffsets::Entry, offset);
 
       offset += ((MachVEPNode*)broot->get_node(0))->size(C->regalloc());
-      _code_offsets.set_value(CodeOffsets::Verified_Value_Entry_RO, offset);
+      _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry_RO, offset);
 
       offset += ((MachVEPNode*)broot->get_node(1))->size(C->regalloc());
-      _code_offsets.set_value(CodeOffsets::Value_Entry, offset);
+      _code_offsets.set_value(CodeOffsets::Inline_Entry, offset);
 
       offset += ((MachVEPNode*)broot->get_node(2))->size(C->regalloc());
-      _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, offset);
+      _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry, offset);
     } else {
       _code_offsets.set_value(CodeOffsets::Entry, -1); // will be patched later
-      _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, 0);
+      _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry, 0);
     }
   }
 
@@ -848,14 +849,6 @@ void PhaseOutput::FillLocArray( int idx, MachSafePointNode* sfpt, Node *local,
       array->append(new_loc_value( C->regalloc(), regnum, Location::lng ));
     }
 #else //_LP64
-#ifdef SPARC
-    if (t->base() == Type::Long && OptoReg::is_reg(regnum)) {
-      // For SPARC we have to swap high and low words for
-      // long values stored in a single-register (g0-g7).
-      array->append(new_loc_value( C->regalloc(),              regnum   , Location::normal ));
-      array->append(new_loc_value( C->regalloc(), OptoReg::add(regnum,1), Location::normal ));
-    } else
-#endif //SPARC
     if( t->base() == Type::DoubleBot || t->base() == Type::DoubleCon || t->base() == Type::Long ) {
       // Repack the double/long as two jints.
       // The convention the interpreter uses is that the second local
@@ -1676,8 +1669,17 @@ void PhaseOutput::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
       }
 
 #ifdef ASSERT
-      if (n->size(C->regalloc()) < (current_offset-instr_offset)) {
+      uint n_size = n->size(C->regalloc());
+      if (n_size < (current_offset-instr_offset)) {
+        MachNode* mach = n->as_Mach();
         n->dump();
+        mach->dump_format(C->regalloc(), tty);
+        tty->print_cr(" n_size (%d), current_offset (%d), instr_offset (%d)", n_size, current_offset, instr_offset);
+        Disassembler::decode(cb->insts_begin() + instr_offset, cb->insts_begin() + current_offset + 1, tty);
+        tty->print_cr(" ------------------- ");
+        BufferBlob* blob = this->scratch_buffer_blob();
+        address blob_begin = blob->content_begin();
+        Disassembler::decode(blob_begin, blob_begin + n_size + 1, tty);
         assert(false, "wrong size of mach node");
       }
 #endif
@@ -2073,8 +2075,8 @@ void PhaseOutput::ScheduleAndBundle() {
   if (!C->do_scheduling())
     return;
 
-  // Scheduling code works only with pairs (16 bytes) maximum.
-  if (C->max_vector_size() > 16)
+  // Scheduling code works only with pairs (8 bytes) maximum.
+  if (C->max_vector_size() > 8)
     return;
 
   Compile::TracePhase tp("isched", &timers[_t_instrSched]);
@@ -3232,12 +3234,16 @@ void PhaseOutput::init_scratch_buffer_blob(int const_size) {
     ResourceMark rm;
     _scratch_const_size = const_size;
     int size = C2Compiler::initial_code_buffer_size(const_size);
-#ifdef ASSERT
     if (C->has_scalarized_args()) {
-      // Oop verification for loading object fields from scalarized value types in the new entry point requires lots of space
-      size += 5120;
+      // Inline type entry points (MachVEPNodes) require lots of space for GC barriers and oop verification
+      // when loading object fields from the buffered argument. Increase scratch buffer size accordingly.
+      int barrier_size = UseZGC ? 200 : (7 DEBUG_ONLY(+ 37));
+      for (ciSignatureStream str(C->method()->signature()); !str.at_return_type(); str.next()) {
+        if (str.type()->is_inlinetype() && str.type()->as_inline_klass()->can_be_passed_as_fields()) {
+          size += str.type()->as_inline_klass()->oop_count() * barrier_size;
+        }
+      }
     }
-#endif
     blob = BufferBlob::create("Compile::scratch_buffer", size);
     // Record the buffer blob for next time.
     set_scratch_buffer_blob(blob);
@@ -3330,7 +3336,9 @@ uint PhaseOutput::scratch_emit_size(const Node* n) {
 }
 
 void PhaseOutput::install() {
-  if (C->stub_function() != NULL) {
+  if (!C->should_install_code()) {
+    return;
+  } else if (C->stub_function() != NULL) {
     install_stub(C->stub_name(),
                  C->save_argument_registers());
   } else {
@@ -3364,11 +3372,11 @@ void PhaseOutput::install_code(ciMethod*         target,
       _code_offsets.set_value(CodeOffsets::OSR_Entry, _first_block_size);
     } else {
       _code_offsets.set_value(CodeOffsets::Verified_Entry, _first_block_size);
-      if (_code_offsets.value(CodeOffsets::Verified_Value_Entry) == -1) {
-        _code_offsets.set_value(CodeOffsets::Verified_Value_Entry, _first_block_size);
+      if (_code_offsets.value(CodeOffsets::Verified_Inline_Entry) == -1) {
+        _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry, _first_block_size);
       }
-      if (_code_offsets.value(CodeOffsets::Verified_Value_Entry_RO) == -1) {
-        _code_offsets.set_value(CodeOffsets::Verified_Value_Entry_RO, _first_block_size);
+      if (_code_offsets.value(CodeOffsets::Verified_Inline_Entry_RO) == -1) {
+        _code_offsets.set_value(CodeOffsets::Verified_Inline_Entry_RO, _first_block_size);
       }
       if (_code_offsets.value(CodeOffsets::Entry) == -1) {
         _code_offsets.set_value(CodeOffsets::Entry, _first_block_size);

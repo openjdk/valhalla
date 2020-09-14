@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,6 +43,7 @@
 #include "runtime/jfieldIDWorkaround.hpp"
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/thread.inline.hpp"
+#include "utilities/utf8.hpp"
 
 // Complain every extra number of unplanned local refs
 #define CHECK_JNI_LOCAL_REF_CAP_WARN_THRESHOLD 32
@@ -134,6 +135,8 @@ static const char * fatal_wrong_field = "Wrong field ID passed to JNI";
 static const char * fatal_instance_field_not_found = "Instance field not found in JNI get/set field operations";
 static const char * fatal_instance_field_mismatch = "Field type (instance) mismatch in JNI get/set field operations";
 static const char * fatal_non_string = "JNI string operation received a non-string";
+static const char * fatal_non_utf8_class_name1 = "JNI class name is not a valid UTF8 string \"";
+static const char * fatal_non_utf8_class_name2 = "\"";
 
 
 // When in VM state:
@@ -276,7 +279,7 @@ checkStaticFieldID(JavaThread* thr, jfieldID fid, jclass cls, int ftype)
     ReportJNIFatalError(thr, fatal_static_field_not_found);
   if ((fd.field_type() != ftype) &&
       !(fd.field_type() == T_ARRAY && ftype == T_OBJECT) &&
-      !(fd.field_type() == T_VALUETYPE && ftype == T_OBJECT)) {
+      !(fd.field_type() == T_INLINE_TYPE && ftype == T_OBJECT)) {
     ReportJNIFatalError(thr, fatal_static_field_mismatch);
   }
 }
@@ -314,7 +317,7 @@ checkInstanceFieldID(JavaThread* thr, jfieldID fid, jobject obj, int ftype)
 
   if ((fd.field_type() != ftype) &&
       !(fd.field_type() == T_ARRAY && ftype == T_OBJECT) &&
-      !(fd.field_type() == T_VALUETYPE && ftype == T_OBJECT)) {
+      !(fd.field_type() == T_INLINE_TYPE && ftype == T_OBJECT)) {
     ReportJNIFatalError(thr, fatal_instance_field_mismatch);
   }
 }
@@ -365,9 +368,9 @@ check_primitive_array_type(JavaThread* thr, jarray jArray, BasicType elementType
 }
 
 static inline void
-check_is_obj_array(JavaThread* thr, jarray jArray) {
+check_is_obj_or_inline_array(JavaThread* thr, jarray jArray) {
   arrayOop aOop = check_is_array(thr, jArray);
-  if (!aOop->is_objArray()) {
+  if (!aOop->is_objArray() && !aOop->is_flatArray()) {
     ReportJNIFatalError(thr, fatal_object_array_expected);
   }
 }
@@ -484,12 +487,19 @@ void jniCheck::validate_class_descriptor(JavaThread* thr, const char* name) {
   size_t len = strlen(name);
 
   if (len >= 2 &&
-      name[0] == JVM_SIGNATURE_CLASS &&            // 'L'
+      (name[0] == JVM_SIGNATURE_CLASS || name[0] == JVM_SIGNATURE_INLINE_TYPE) && // 'L' or 'Q'
       name[len-1] == JVM_SIGNATURE_ENDCLASS ) {    // ';'
     char msg[JVM_MAXPATHLEN];
     jio_snprintf(msg, JVM_MAXPATHLEN, "%s%s%s",
                  warn_bad_class_descriptor1, name, warn_bad_class_descriptor2);
     ReportJNIWarning(thr, msg);
+  }
+
+  // Verify that the class name given is a valid utf8 string
+  if (!UTF8::is_legal_utf8((const unsigned char*)name, (int)strlen(name), false)) {
+    char msg[JVM_MAXPATHLEN];
+    jio_snprintf(msg, JVM_MAXPATHLEN, "%s%s%s", fatal_non_utf8_class_name1, name, fatal_non_utf8_class_name2);
+    ReportJNIFatalError(thr, msg);
   }
 }
 
@@ -1626,7 +1636,7 @@ JNI_ENTRY_CHECKED(jobject,
                                     jsize index))
     functionEnter(thr);
     IN_VM(
-      check_is_obj_array(thr, array);
+      check_is_obj_or_inline_array(thr, array);
     )
     jobject result = UNCHECKED()->GetObjectArrayElement(env,array,index);
     functionExit(thr);
@@ -1640,7 +1650,7 @@ JNI_ENTRY_CHECKED(void,
                                     jobject val))
     functionEnter(thr);
     IN_VM(
-      check_is_obj_array(thr, array);
+      check_is_obj_or_inline_array(thr, array);
     )
     UNCHECKED()->SetObjectArrayElement(env,array,index,val);
     functionExit(thr);

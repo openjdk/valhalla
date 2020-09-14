@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -33,7 +33,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
 
-import org.testng.annotations.BeforeTest;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import static org.testng.Assert.*;
@@ -120,7 +119,7 @@ public class MethodHandleTest {
 
         Class<?> elementType = c.getComponentType();
         if (elementType.isInlineClass()) {
-            assertTrue(elementType == elementType.asPrimaryType());
+            assertTrue(elementType == elementType.valueType().get());
         }
         // set an array element to null
         try {
@@ -195,8 +194,7 @@ public class MethodHandleTest {
     void setValueField(String name, Object obj, Object value) throws Throwable {
         Field f = c.getDeclaredField(name);
         boolean isStatic = Modifier.isStatic(f.getModifiers());
-        assertTrue(f.getType().isInlineClass() ||
-                   f.getType().getCanonicalName().endsWith("$ref"));
+        assertTrue(f.getType().isInlineClass() || f.getType().valueType().isPresent());
         assertTrue((isStatic && obj == null) || (!isStatic && obj != null));
         Object v = f.get(obj);
 
@@ -291,7 +289,7 @@ public class MethodHandleTest {
      */
     void ensureNullable(Field f) throws Throwable {
         assertFalse(Modifier.isStatic(f.getModifiers()));
-        boolean canBeNull = f.getType().isNullableType();
+        boolean canBeNull = !f.getType().isInlineClass();
         // test reflection
         try {
             f.set(o, null);

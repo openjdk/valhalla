@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,8 +27,8 @@
 #include "c1/c1_LIR.hpp"
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_ValueStack.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 Register LIR_OprDesc::as_register() const {
@@ -93,7 +93,7 @@ LIR_Address::Scale LIR_Address::scale(BasicType type) {
 char LIR_OprDesc::type_char(BasicType t) {
   switch (t) {
     case T_ARRAY:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
       t = T_OBJECT;
     case T_BOOLEAN:
     case T_CHAR:
@@ -152,7 +152,7 @@ void LIR_OprDesc::validate_type() const {
     case T_OBJECT:
     case T_METADATA:
     case T_ARRAY:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
       assert((kindfield == cpu_register || kindfield == stack_value) &&
              size_field() == single_size, "must match");
       break;
@@ -239,30 +239,27 @@ void LIR_Op2::verify() const {
 }
 
 
-LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, BasicType type, BlockBegin* block)
+LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, BlockBegin* block)
   : LIR_Op(lir_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
   , _cond(cond)
-  , _type(type)
   , _label(block->label())
   , _block(block)
   , _ublock(NULL)
   , _stub(NULL) {
 }
 
-LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, BasicType type, CodeStub* stub) :
+LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, CodeStub* stub) :
   LIR_Op(lir_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
   , _cond(cond)
-  , _type(type)
   , _label(stub->entry())
   , _block(NULL)
   , _ublock(NULL)
   , _stub(stub) {
 }
 
-LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, BasicType type, BlockBegin* block, BlockBegin* ublock)
+LIR_OpBranch::LIR_OpBranch(LIR_Condition cond, BlockBegin* block, BlockBegin* ublock)
   : LIR_Op(lir_cond_float_branch, LIR_OprFact::illegalOpr, (CodeEmitInfo*)NULL)
   , _cond(cond)
-  , _type(type)
   , _label(block->label())
   , _block(block)
   , _ublock(ublock)
@@ -492,8 +489,6 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
     case lir_monaddr:        // input and result always valid, info always invalid
     case lir_null_check:     // input and info always valid, result always invalid
     case lir_move:           // input and result always valid, may have info
-    case lir_pack64:         // input and result always valid
-    case lir_unpack64:       // input and result always valid
     {
       assert(op->as_Op1() != NULL, "must be");
       LIR_Op1* op1 = (LIR_Op1*)op;
@@ -1043,12 +1038,12 @@ void LIR_OpJavaCall::emit_code(LIR_Assembler* masm) {
   masm->emit_call(this);
 }
 
-bool LIR_OpJavaCall::maybe_return_as_fields(ciValueKlass** vk_ret) const {
-  if (ValueTypeReturnedAsFields) {
-    if (method()->signature()->maybe_returns_never_null()) {
+bool LIR_OpJavaCall::maybe_return_as_fields(ciInlineKlass** vk_ret) const {
+  if (InlineTypeReturnedAsFields) {
+    if (method()->signature()->maybe_returns_inline_type()) {
       ciType* return_type = method()->return_type();
-      if (return_type->is_valuetype()) {
-        ciValueKlass* vk = return_type->as_value_klass();
+      if (return_type->is_inlinetype()) {
+        ciInlineKlass* vk = return_type->as_inline_klass();
         if (vk->can_be_returned_as_fields()) {
           if (vk_ret != NULL) {
             *vk_ret = vk;
@@ -1064,11 +1059,11 @@ bool LIR_OpJavaCall::maybe_return_as_fields(ciValueKlass** vk_ret) const {
       }
     } else if (is_method_handle_invoke()) {
       BasicType bt = method()->return_type()->basic_type();
-      if (bt == T_OBJECT || bt == T_VALUETYPE) {
-        // A value type might be returned from the call but we don't know its
-        // type. Either we get a buffered value (and nothing needs to be done)
-        // or one of the values being returned is the klass of the value type
-        // (RAX on x64, with LSB set to 1) and we need to allocate a value
+      if (bt == T_OBJECT || bt == T_INLINE_TYPE) {
+        // An inline type might be returned from the call but we don't know its
+        // type. Either we get a buffered inline type (and nothing needs to be done)
+        // or one of the inlines being returned is the klass of the inline type
+        // (RAX on x64, with LSB set to 1) and we need to allocate an inline
         // type instance of that type and initialize it with other values being
         // returned (in other registers).
         // type.
@@ -1511,10 +1506,10 @@ void check_LIR() {
 void LIR_List::checkcast (LIR_Opr result, LIR_Opr object, ciKlass* klass,
                           LIR_Opr tmp1, LIR_Opr tmp2, LIR_Opr tmp3, bool fast_check,
                           CodeEmitInfo* info_for_exception, CodeEmitInfo* info_for_patch, CodeStub* stub,
-                          ciMethod* profiled_method, int profiled_bci, bool is_never_null) {
+                          ciMethod* profiled_method, int profiled_bci, bool is_null_free) {
   // If klass is non-nullable,  LIRGenerator::do_CheckCast has already performed null-check
   // on the object.
-  bool need_null_check = !is_never_null;
+  bool need_null_check = !is_null_free;
   LIR_OpTypeCheck* c = new LIR_OpTypeCheck(lir_checkcast, result, object, klass,
                                            tmp1, tmp2, tmp3, fast_check, info_for_exception, info_for_patch, stub,
                                            need_null_check);
@@ -1554,7 +1549,7 @@ void LIR_List::null_check(LIR_Opr opr, CodeEmitInfo* info, bool deoptimize_on_nu
     // Emit an explicit null check and deoptimize if opr is null
     CodeStub* deopt = new DeoptimizeStub(info, Deoptimization::Reason_null_check, Deoptimization::Action_none);
     cmp(lir_cond_equal, opr, LIR_OprFact::oopConst(NULL));
-    branch(lir_cond_equal, T_OBJECT, deopt);
+    branch(lir_cond_equal, deopt);
   } else {
     // Emit an implicit null check
     append(new LIR_Op1(lir_null_check, opr, info));
@@ -1819,8 +1814,6 @@ const char * LIR_Op::name() const {
      case lir_convert:               s = "convert";       break;
      case lir_alloc_object:          s = "alloc_obj";     break;
      case lir_monaddr:               s = "mon_addr";      break;
-     case lir_pack64:                s = "pack64";        break;
-     case lir_unpack64:              s = "unpack64";      break;
      // LIR_Op2
      case lir_cmp:                   s = "cmp";           break;
      case lir_cmp_l2i:               s = "cmp_l2i";       break;
@@ -2143,8 +2136,16 @@ void LIR_OpSubstitutabilityCheck::print_instr(outputStream* out) const {
   not_equal_result()->print(out);        out->print(" ");
   tmp1()->print(out);                    out->print(" ");
   tmp2()->print(out);                    out->print(" ");
-  left_klass()->print(out);              out->print(" ");
-  right_klass()->print(out);             out->print(" ");
+  if (left_klass() == NULL) {
+    out->print("unknown ");
+  } else {
+    left_klass()->print(out);            out->print(" ");
+  }
+  if (right_klass() == NULL) {
+    out->print("unknown ");
+  } else {
+    right_klass()->print(out);           out->print(" ");
+  }
   left_klass_op()->print(out);           out->print(" ");
   right_klass_op()->print(out);          out->print(" ");
   if (stub() != NULL) {

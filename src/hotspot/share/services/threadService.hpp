@@ -25,6 +25,7 @@
 #ifndef SHARE_SERVICES_THREADSERVICE_HPP
 #define SHARE_SERVICES_THREADSERVICE_HPP
 
+#include "classfile/classLoader.hpp"
 #include "classfile/javaClasses.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/init.hpp"
@@ -113,8 +114,6 @@ public:
 
   static DeadlockCycle*       find_deadlocks_at_safepoint(ThreadsList * t_list, bool object_monitors_only);
 
-  // GC support
-  static void   oops_do(OopClosure* f);
   static void   metadata_do(void f(Metadata*));
 };
 
@@ -140,8 +139,8 @@ private:
   bool         _timer_pending_reset;
 
   // Keep accurate times for potentially recursive class operations
-  int           _perf_recursion_counts[6];
-  elapsedTimer  _perf_timers[6];
+  int           _perf_recursion_counts[PerfClassTraceTime::EVENT_TYPE_COUNT];
+  elapsedTimer  _perf_timers[PerfClassTraceTime::EVENT_TYPE_COUNT];
 
   // utility functions
   void  check_and_reset_count()            {
@@ -194,7 +193,7 @@ private:
   // This JavaThread* is protected by being stored in objects that are
   // protected by a ThreadsListSetter (ThreadDumpResult).
   JavaThread* _thread;
-  oop         _threadObj;
+  OopHandle   _threadObj;
   java_lang_Thread::ThreadStatus _thread_status;
 
   bool    _is_ext_suspended;
@@ -206,8 +205,9 @@ private:
   jlong   _monitor_wait_count;
   jlong   _sleep_ticks;
   jlong   _sleep_count;
-  oop     _blocker_object;
-  oop     _blocker_object_owner;
+
+  OopHandle     _blocker_object;
+  OopHandle     _blocker_object_owner;
 
   ThreadStackTrace*      _stack_trace;
   ThreadConcurrentLocks* _concurrent_locks;
@@ -216,8 +216,7 @@ private:
   // ThreadSnapshot instances should only be created via
   // ThreadDumpResult::add_thread_snapshot.
   friend class ThreadDumpResult;
-  ThreadSnapshot() : _thread(NULL), _threadObj(NULL),
-                     _blocker_object(NULL), _blocker_object_owner(NULL),
+  ThreadSnapshot() : _thread(NULL),
                      _stack_trace(NULL), _concurrent_locks(NULL), _next(NULL) {};
   void        initialize(ThreadsList * t_list, JavaThread* thread);
 
@@ -226,7 +225,7 @@ public:
 
   java_lang_Thread::ThreadStatus thread_status() { return _thread_status; }
 
-  oop         threadObj() const           { return _threadObj; }
+  oop         threadObj() const;
 
   void        set_next(ThreadSnapshot* n) { _next = n; }
 
@@ -241,8 +240,8 @@ public:
   jlong       sleep_ticks()               { return _sleep_ticks; }
 
 
-  oop         blocker_object()            { return _blocker_object; }
-  oop         blocker_object_owner()      { return _blocker_object_owner; }
+  oop         blocker_object() const;
+  oop         blocker_object_owner() const;
 
   ThreadSnapshot*   next() const          { return _next; }
   ThreadStackTrace* get_stack_trace()     { return _stack_trace; }
@@ -250,7 +249,6 @@ public:
 
   void        dump_stack_at_safepoint(int max_depth, bool with_locked_monitors);
   void        set_concurrent_locks(ThreadConcurrentLocks* l) { _concurrent_locks = l; }
-  void        oops_do(OopClosure* f);
   void        metadata_do(void f(Metadata*));
 };
 
@@ -260,7 +258,7 @@ class ThreadStackTrace : public CHeapObj<mtInternal> {
   int                             _depth;  // number of stack frames added
   bool                            _with_locked_monitors;
   GrowableArray<StackFrameInfo*>* _frames;
-  GrowableArray<oop>*             _jni_locked_monitors;
+  GrowableArray<OopHandle>*       _jni_locked_monitors;
 
  public:
 
@@ -274,13 +272,12 @@ class ThreadStackTrace : public CHeapObj<mtInternal> {
   void            add_stack_frame(javaVFrame* jvf);
   void            dump_stack_at_safepoint(int max_depth);
   Handle          allocate_fill_stack_trace_element_array(TRAPS);
-  void            oops_do(OopClosure* f);
   void            metadata_do(void f(Metadata*));
-  GrowableArray<oop>* jni_locked_monitors() { return _jni_locked_monitors; }
+  GrowableArray<OopHandle>* jni_locked_monitors() { return _jni_locked_monitors; }
   int             num_jni_locked_monitors() { return (_jni_locked_monitors != NULL ? _jni_locked_monitors->length() : 0); }
 
   bool            is_owned_monitor_on_stack(oop object);
-  void            add_jni_locked_monitor(oop object) { _jni_locked_monitors->append(object); }
+  void            add_jni_locked_monitor(oop object);
 };
 
 // StackFrameInfo for keeping Method* and bci during
@@ -290,33 +287,28 @@ class StackFrameInfo : public CHeapObj<mtInternal> {
  private:
   Method*             _method;
   int                 _bci;
-  GrowableArray<oop>* _locked_monitors; // list of object monitors locked by this frame
+  GrowableArray<OopHandle>* _locked_monitors; // list of object monitors locked by this frame
   // We need to save the mirrors in the backtrace to keep the class
   // from being unloaded while we still have this stack trace.
-  oop                 _class_holder;
+  OopHandle           _class_holder;
 
  public:
 
   StackFrameInfo(javaVFrame* jvf, bool with_locked_monitors);
-  ~StackFrameInfo() {
-    if (_locked_monitors != NULL) {
-      delete _locked_monitors;
-    }
-  };
+  ~StackFrameInfo();
   Method*   method() const       { return _method; }
   int       bci()    const       { return _bci; }
-  void      oops_do(OopClosure* f);
   void      metadata_do(void f(Metadata*));
 
   int       num_locked_monitors()       { return (_locked_monitors != NULL ? _locked_monitors->length() : 0); }
-  GrowableArray<oop>* locked_monitors() { return _locked_monitors; }
+  GrowableArray<OopHandle>* locked_monitors() { return _locked_monitors; }
 
   void      print_on(outputStream* st) const;
 };
 
 class ThreadConcurrentLocks : public CHeapObj<mtInternal> {
 private:
-  GrowableArray<instanceOop>* _owned_locks;
+  GrowableArray<OopHandle>*   _owned_locks;
   ThreadConcurrentLocks*      _next;
   // This JavaThread* is protected in one of two different ways
   // depending on the usage of the ThreadConcurrentLocks object:
@@ -333,8 +325,7 @@ private:
   void                        set_next(ThreadConcurrentLocks* n) { _next = n; }
   ThreadConcurrentLocks*      next() { return _next; }
   JavaThread*                 java_thread()                      { return _thread; }
-  GrowableArray<instanceOop>* owned_locks()                      { return _owned_locks; }
-  void                        oops_do(OopClosure* f);
+  GrowableArray<OopHandle>*   owned_locks()                      { return _owned_locks; }
 };
 
 class ConcurrentLocksDump : public StackObj {
@@ -388,7 +379,6 @@ class ThreadDumpResult : public StackObj {
   void                 set_t_list()                     { _setter.set(); }
   ThreadsList*         t_list();
   bool                 t_list_has_been_set()            { return _setter.is_set(); }
-  void                 oops_do(OopClosure* f);
   void                 metadata_do(void f(Metadata*));
 };
 

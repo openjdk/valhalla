@@ -330,6 +330,7 @@ class HeapDumpDCmd : public DCmdWithParser {
 protected:
   DCmdArgument<char*> _filename;
   DCmdArgument<bool>  _all;
+  DCmdArgument<jlong> _gzip;
 public:
   HeapDumpDCmd(outputStream* output, bool heap);
   static const char* name() {
@@ -412,7 +413,7 @@ public:
     return "VM.class_print_layout";
   }
   static const char* description() {
-    return "Print the layout of an instance of a class, including flattened fields. "
+    return "Print the layout of an instance of a class, including inlined fields. "
            "The name of each class is followed by the ClassLoaderData* of its ClassLoader, "
            "or \"null\" if loaded by the bootstrap class loader.";
   }

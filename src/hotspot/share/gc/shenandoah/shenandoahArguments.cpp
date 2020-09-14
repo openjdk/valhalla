@@ -29,6 +29,7 @@
 #include "gc/shenandoah/shenandoahCollectorPolicy.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
+#include "runtime/java.hpp"
 #include "utilities/defaultStream.hpp"
 
 void ShenandoahArguments::initialize() {
@@ -143,24 +144,9 @@ void ShenandoahArguments::initialize() {
 #endif // ASSERT
 #endif // COMPILER2
 
-  if (AlwaysPreTouch) {
-    // Shenandoah handles pre-touch on its own. It does not let the
-    // generic storage code to do the pre-touch before Shenandoah has
-    // a chance to do it on its own.
-    FLAG_SET_DEFAULT(AlwaysPreTouch, false);
-    FLAG_SET_DEFAULT(ShenandoahAlwaysPreTouch, true);
-  }
-
   // Record more information about previous cycles for improved debugging pleasure
   if (FLAG_IS_DEFAULT(LogEventsBufferEntries)) {
     FLAG_SET_DEFAULT(LogEventsBufferEntries, 250);
-  }
-
-  if (ShenandoahAlwaysPreTouch) {
-    if (!FLAG_IS_DEFAULT(ShenandoahUncommit)) {
-      warning("AlwaysPreTouch is enabled, disabling ShenandoahUncommit");
-    }
-    FLAG_SET_DEFAULT(ShenandoahUncommit, false);
   }
 
   if ((InitialHeapSize == MaxHeapSize) && ShenandoahUncommit) {

@@ -22,7 +22,6 @@
  */
 
 /*
- * @ignore
  * @test
  * @bug 8143037 8142447 8144095 8140265 8144906 8146138 8147887 8147886 8148316 8148317 8143955 8157953 8080347 8154714 8166649 8167643 8170162 8172102 8165405 8174796 8174797 8175304 8167554 8180508 8166232 8196133 8199912 8211694 8223688
  * @summary Tests for Basic tests for REPL tool
@@ -700,8 +699,7 @@ public class ToolBasicTest extends ReplToolTesting {
                     a -> assertCommand(a, "/set feedback " + off, ""),
                     a -> assertCommand(a, "int a", ""),
                     a -> assertCommand(a, "void f() {}", ""),
-                    a -> assertCommandCheckOutput(a, "aaaa", assertStartsWith("|  Error:")),
-                    a -> assertCommandCheckOutput(a, "static void f() {}", assertStartsWith("|  Warning:"))
+                    a -> assertCommandCheckOutput(a, "aaaa", assertStartsWith("|  Error:"))
             );
         }
     }
@@ -877,6 +875,17 @@ public class ToolBasicTest extends ReplToolTesting {
                             assertTrue(s.contains("unchecked call"));
                             assertFalse(s.contains("Exception"));
                         })
+        );
+    }
+
+    public void testIndent() { //8223688
+        prefsMap.remove("INDENT");
+        test(false, new String[]{"--no-startup"},
+                a -> assertCommand(a, "/set indent", "|  /set indent 4"),
+                a -> assertCommand(a, "/set indent 2", "|  Indent level set to: 2"),
+                a -> assertCommand(a, "/set indent", "|  /set indent 2"),
+                a -> assertCommand(a, "/set indent broken", "|  Invalid indent level: broken"),
+                a -> assertCommandOutputContains(a, "/set", "|  /set indent 2")
         );
     }
 

@@ -194,7 +194,7 @@ VerificationType StackMapReader::parse_verification_type(u1* flags, TRAPS) {
         _stream->stackmap_format_error("TBD something bad happened", THREAD);
         return VerificationType::bogus_type();
       }
-      return VerificationType::valuetype_type(fund_name);
+      return VerificationType::inline_type(fund_name);
     } else {
       return VerificationType::reference_type(klass_name);
     }

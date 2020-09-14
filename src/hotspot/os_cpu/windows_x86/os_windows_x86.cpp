@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -38,7 +38,6 @@
 #include "prims/jniFastGetField.hpp"
 #include "prims/jvm_misc.hpp"
 #include "runtime/arguments.hpp"
-#include "runtime/extendedPC.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
@@ -212,138 +211,6 @@ bool os::register_code_area(char *low, char *high) {
   return true;
 }
 
-// Atomics and Stub Functions
-
-typedef int32_t   xchg_func_t            (int32_t,  volatile int32_t*);
-typedef int64_t   xchg_long_func_t       (int64_t,  volatile int64_t*);
-typedef int32_t   cmpxchg_func_t         (int32_t,  volatile int32_t*, int32_t);
-typedef int8_t    cmpxchg_byte_func_t    (int8_t,   volatile int8_t*,  int8_t);
-typedef int64_t   cmpxchg_long_func_t    (int64_t,  volatile int64_t*, int64_t);
-typedef int32_t   add_func_t             (int32_t,  volatile int32_t*);
-typedef int64_t   add_long_func_t        (int64_t,  volatile int64_t*);
-
-#ifdef AMD64
-
-int32_t os::atomic_xchg_bootstrap(int32_t exchange_value, volatile int32_t* dest) {
-  // try to use the stub:
-  xchg_func_t* func = CAST_TO_FN_PTR(xchg_func_t*, StubRoutines::atomic_xchg_entry());
-
-  if (func != NULL) {
-    os::atomic_xchg_func = func;
-    return (*func)(exchange_value, dest);
-  }
-  assert(Threads::number_of_threads() == 0, "for bootstrap only");
-
-  int32_t old_value = *dest;
-  *dest = exchange_value;
-  return old_value;
-}
-
-int64_t os::atomic_xchg_long_bootstrap(int64_t exchange_value, volatile int64_t* dest) {
-  // try to use the stub:
-  xchg_long_func_t* func = CAST_TO_FN_PTR(xchg_long_func_t*, StubRoutines::atomic_xchg_long_entry());
-
-  if (func != NULL) {
-    os::atomic_xchg_long_func = func;
-    return (*func)(exchange_value, dest);
-  }
-  assert(Threads::number_of_threads() == 0, "for bootstrap only");
-
-  int64_t old_value = *dest;
-  *dest = exchange_value;
-  return old_value;
-}
-
-
-int32_t os::atomic_cmpxchg_bootstrap(int32_t exchange_value, volatile int32_t* dest, int32_t compare_value) {
-  // try to use the stub:
-  cmpxchg_func_t* func = CAST_TO_FN_PTR(cmpxchg_func_t*, StubRoutines::atomic_cmpxchg_entry());
-
-  if (func != NULL) {
-    os::atomic_cmpxchg_func = func;
-    return (*func)(exchange_value, dest, compare_value);
-  }
-  assert(Threads::number_of_threads() == 0, "for bootstrap only");
-
-  int32_t old_value = *dest;
-  if (old_value == compare_value)
-    *dest = exchange_value;
-  return old_value;
-}
-
-int8_t os::atomic_cmpxchg_byte_bootstrap(int8_t exchange_value, volatile int8_t* dest, int8_t compare_value) {
-  // try to use the stub:
-  cmpxchg_byte_func_t* func = CAST_TO_FN_PTR(cmpxchg_byte_func_t*, StubRoutines::atomic_cmpxchg_byte_entry());
-
-  if (func != NULL) {
-    os::atomic_cmpxchg_byte_func = func;
-    return (*func)(exchange_value, dest, compare_value);
-  }
-  assert(Threads::number_of_threads() == 0, "for bootstrap only");
-
-  int8_t old_value = *dest;
-  if (old_value == compare_value)
-    *dest = exchange_value;
-  return old_value;
-}
-
-#endif // AMD64
-
-int64_t os::atomic_cmpxchg_long_bootstrap(int64_t exchange_value, volatile int64_t* dest, int64_t compare_value) {
-  // try to use the stub:
-  cmpxchg_long_func_t* func = CAST_TO_FN_PTR(cmpxchg_long_func_t*, StubRoutines::atomic_cmpxchg_long_entry());
-
-  if (func != NULL) {
-    os::atomic_cmpxchg_long_func = func;
-    return (*func)(exchange_value, dest, compare_value);
-  }
-  assert(Threads::number_of_threads() == 0, "for bootstrap only");
-
-  int64_t old_value = *dest;
-  if (old_value == compare_value)
-    *dest = exchange_value;
-  return old_value;
-}
-
-#ifdef AMD64
-
-int32_t os::atomic_add_bootstrap(int32_t add_value, volatile int32_t* dest) {
-  // try to use the stub:
-  add_func_t* func = CAST_TO_FN_PTR(add_func_t*, StubRoutines::atomic_add_entry());
-
-  if (func != NULL) {
-    os::atomic_add_func = func;
-    return (*func)(add_value, dest);
-  }
-  assert(Threads::number_of_threads() == 0, "for bootstrap only");
-
-  return (*dest) += add_value;
-}
-
-int64_t os::atomic_add_long_bootstrap(int64_t add_value, volatile int64_t* dest) {
-  // try to use the stub:
-  add_long_func_t* func = CAST_TO_FN_PTR(add_long_func_t*, StubRoutines::atomic_add_long_entry());
-
-  if (func != NULL) {
-    os::atomic_add_long_func = func;
-    return (*func)(add_value, dest);
-  }
-  assert(Threads::number_of_threads() == 0, "for bootstrap only");
-
-  return (*dest) += add_value;
-}
-
-xchg_func_t*         os::atomic_xchg_func         = os::atomic_xchg_bootstrap;
-xchg_long_func_t*    os::atomic_xchg_long_func    = os::atomic_xchg_long_bootstrap;
-cmpxchg_func_t*      os::atomic_cmpxchg_func      = os::atomic_cmpxchg_bootstrap;
-cmpxchg_byte_func_t* os::atomic_cmpxchg_byte_func = os::atomic_cmpxchg_byte_bootstrap;
-add_func_t*          os::atomic_add_func          = os::atomic_add_bootstrap;
-add_long_func_t*     os::atomic_add_long_func     = os::atomic_add_long_bootstrap;
-
-#endif // AMD64
-
-cmpxchg_long_func_t* os::atomic_cmpxchg_long_func = os::atomic_cmpxchg_long_bootstrap;
-
 #ifdef AMD64
 /*
  * Windows/x64 does not use stack frames the way expected by Java:
@@ -430,19 +297,18 @@ bool os::platform_print_native_stack(outputStream* st, const void* context,
 }
 #endif // AMD64
 
-ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
+address os::fetch_frame_from_context(const void* ucVoid,
                     intptr_t** ret_sp, intptr_t** ret_fp) {
 
-  ExtendedPC  epc;
+  address  epc;
   CONTEXT* uc = (CONTEXT*)ucVoid;
 
   if (uc != NULL) {
-    epc = ExtendedPC((address)uc->REG_PC);
+    epc = (address)uc->REG_PC;
     if (ret_sp) *ret_sp = (intptr_t*)uc->REG_SP;
     if (ret_fp) *ret_fp = (intptr_t*)uc->REG_FP;
   } else {
-    // construct empty ExtendedPC for return value checking
-    epc = ExtendedPC(NULL);
+    epc = NULL;
     if (ret_sp) *ret_sp = (intptr_t *)NULL;
     if (ret_fp) *ret_fp = (intptr_t *)NULL;
   }
@@ -453,8 +319,8 @@ ExtendedPC os::fetch_frame_from_context(const void* ucVoid,
 frame os::fetch_frame_from_context(const void* ucVoid) {
   intptr_t* sp;
   intptr_t* fp;
-  ExtendedPC epc = fetch_frame_from_context(ucVoid, &sp, &fp);
-  return frame(sp, fp, epc.pc());
+  address epc = fetch_frame_from_context(ucVoid, &sp, &fp);
+  return frame(sp, fp, epc);
 }
 
 // VC++ does not save frame pointer on stack in optimized build. It
@@ -651,6 +517,23 @@ extern "C" int SpinPause () {
 #endif // AMD64
 }
 
+juint os::cpu_microcode_revision() {
+  juint result = 0;
+  BYTE data[8] = {0};
+  HKEY key;
+  DWORD status = RegOpenKey(HKEY_LOCAL_MACHINE,
+               "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0", &key);
+  if (status == ERROR_SUCCESS) {
+    DWORD size = sizeof(data);
+    status = RegQueryValueEx(key, "Update Revision", NULL, NULL, data, &size);
+    if (status == ERROR_SUCCESS) {
+      if (size == 4) result = *((juint*)data);
+      if (size == 8) result = *((juint*)data + 1); // upper 32-bits
+    }
+    RegCloseKey(key);
+  }
+  return result;
+}
 
 void os::setup_fpu() {
 #ifndef AMD64

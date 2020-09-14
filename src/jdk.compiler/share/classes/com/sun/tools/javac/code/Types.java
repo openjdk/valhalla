@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -95,7 +95,6 @@ public class Types {
     final boolean allowDefaultMethods;
     final boolean mapCapturesToBounds;
     final boolean allowValueBasedClasses;
-    final boolean injectTopInterfaceTypes;
     final Check chk;
     final Enter enter;
     JCDiagnostic.Factory diags;
@@ -127,9 +126,6 @@ public class Types {
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
-        injectTopInterfaceTypes = Options.instance(context).isUnset("noTopInterfaceInjection") &&
-                Feature.INLINE_TYPES.allowedInSource(source) &&
-                Target.instance(context).hasTopInterfaces();
     }
     // </editor-fold>
 
@@ -747,7 +743,7 @@ public class Types {
          */
         public FunctionDescriptor findDescriptorInternal(TypeSymbol origin,
                 CompoundScope membersCache) throws FunctionDescriptorLookupError {
-            if (!origin.isInterface() || (origin.flags() & ANNOTATION) != 0) {
+            if (!origin.isInterface() || (origin.flags() & ANNOTATION) != 0 || origin.isSealed()) {
                 //t must be an interface
                 throw failure("not.a.functional.intf", origin);
             }
@@ -1245,7 +1241,7 @@ public class Types {
                     return sname == names.java_lang_Object
                         || sname == names.java_lang_Cloneable
                         || sname == names.java_io_Serializable
-                        || (injectTopInterfaceTypes && sname == names.java_lang_IdentityObject);
+                        || sname == names.java_lang_IdentityObject;
                 }
 
                 return false;
@@ -1822,7 +1818,7 @@ public class Types {
                     // Sidecast
                     if (s.hasTag(CLASS)) {
                         if ((s.tsym.flags() & INTERFACE) != 0) {
-                            return ((t.tsym.flags() & FINAL) == 0)
+                            return (dynamicTypeMayImplementAdditionalInterfaces(t.tsym))
                                 ? sideCast(t, s, warnStack.head)
                                 : sideCastFinal(t, s, warnStack.head);
                         } else if ((t.tsym.flags() & INTERFACE) != 0) {
@@ -2165,6 +2161,23 @@ public class Types {
      * @param sym a symbol
      */
     public Type asSuper(Type t, Symbol sym) {
+        return asSuper(t, sym, false);
+    }
+
+    /**
+     * Return the (most specific) base type of t that starts with the
+     * given symbol.  If none exists, return null.
+     *
+     * Caveat Emptor: Since javac represents the class of all arrays with a singleton
+     * symbol Symtab.arrayClass, which by being a singleton cannot hold any discriminant,
+     * this method could yield surprising answers when invoked on arrays. For example when
+     * invoked with t being byte [] and sym being t.sym itself, asSuper would answer null.
+     *
+     * @param t a type
+     * @param sym a symbol
+     * @param checkReferenceProjection if true, first compute reference projection of t
+     */
+    public Type asSuper(Type t, Symbol sym, boolean checkReferenceProjection) {
         /* Some examples:
          *
          * (Enum<E>, Comparable) => Comparable<E>
@@ -2173,14 +2186,34 @@ public class Types {
          * (j.u.List<capture#160 of ? extends c.s.s.d.DocTree>, Iterable) =>
          *     Iterable<capture#160 of ? extends c.s.s.d.DocTree>
          */
+
+        /* For a (value or identity) class V, whether it implements an interface I, boils down to whether
+           V.ref is a subtype of I. OIOW, whether asSuper(V.ref, sym) != null. (Likewise for an abstract
+           superclass)
+        */
+        if (checkReferenceProjection)
+            t = t.isValue() ? t.referenceProjection() : t;
+
         if (sym.type == syms.objectType) { //optimization
             if (!isValue(t))
                 return syms.objectType;
+        }
+        if (sym.type == syms.identityObjectType) {
+            // IdentityObject is super interface of every concrete identity class other than jlO
+            if (t.isValue() || t.tsym == syms.objectType.tsym)
+                return null;
+            if (t.hasTag(ARRAY))
+                return syms.identityObjectType;
+            if (t.hasTag(CLASS) && !t.isReferenceProjection() && !t.tsym.isInterface() && !t.tsym.isAbstract()) {
+                return syms.identityObjectType;
+            } // else fall through and look for explicit coded super interface
         }
         return asSuper.visit(t, sym);
     }
     // where
         private SimpleVisitor<Type,Symbol> asSuper = new SimpleVisitor<Type,Symbol>() {
+
+            private Set<Symbol> seenTypes = new HashSet<>();
 
             public Type visitType(Type t, Symbol sym) {
                 return null;
@@ -2195,22 +2228,30 @@ public class Types {
                 if (isValue(t))
                     return null;
 
-                Type st = supertype(t);
-                if (st.hasTag(CLASS) || st.hasTag(TYPEVAR)) {
-                    Type x = asSuper(st, sym);
-                    if (x != null)
-                        return x;
+                Symbol c = t.tsym;
+                if (!seenTypes.add(c)) {
+                    return null;
                 }
-                if ((sym.flags() & INTERFACE) != 0) {
-                    for (List<Type> l = interfaces(t); l.nonEmpty(); l = l.tail) {
-                        if (!l.head.hasTag(ERROR)) {
-                            Type x = asSuper(l.head, sym);
-                            if (x != null)
-                                return x;
+                try {
+                    Type st = supertype(t);
+                    if (st.hasTag(CLASS) || st.hasTag(TYPEVAR)) {
+                        Type x = asSuper(st, sym);
+                        if (x != null)
+                            return x;
+                    }
+                    if ((sym.flags() & INTERFACE) != 0) {
+                        for (List<Type> l = interfaces(t); l.nonEmpty(); l = l.tail) {
+                            if (!l.head.hasTag(ERROR)) {
+                                Type x = asSuper(l.head, sym);
+                                if (x != null)
+                                    return x;
+                            }
                         }
                     }
+                    return null;
+                } finally {
+                    seenTypes.remove(c);
                 }
-                return null;
             }
 
             @Override
@@ -3999,23 +4040,6 @@ public class Types {
         final int CLASS_BOUND = 2;
 
         int[] kinds = new int[ts.length];
-
-        boolean haveValues = false;
-        boolean haveRefs = false;
-        for (int i = 0 ; i < ts.length ; i++) {
-            if (ts[i].isValue())
-                haveValues = true;
-            else
-                haveRefs = true;
-        }
-        if (haveRefs && haveValues) {
-            System.arraycopy(ts, 0, ts = new Type[ts.length], 0, ts.length);
-            for (int i = 0; i < ts.length; i++) {
-                if (ts[i].isValue())
-                    ts[i] = ts[i].referenceProjection();
-            }
-        }
-
         int boundkind = UNKNOWN_BOUND;
         for (int i = 0 ; i < ts.length ; i++) {
             Type t = ts[i];
@@ -4136,9 +4160,8 @@ public class Types {
                 synchronized (this) {
                     if (arraySuperType == null) {
                         // JLS 10.8: all arrays implement Cloneable and Serializable.
-                        List<Type> ifaces = injectTopInterfaceTypes ?
-                                List.of(syms.serializableType, syms.cloneableType, syms.identityObjectType):
-                                List.of(syms.serializableType, syms.cloneableType);
+                        List<Type> ifaces =
+                                List.of(syms.serializableType, syms.cloneableType, syms.identityObjectType);
                         arraySuperType = makeIntersectionType(ifaces, true);
                     }
                 }
@@ -4577,7 +4600,7 @@ public class Types {
             to = from;
             from = target;
         }
-        Assert.check((from.tsym.flags() & FINAL) != 0);
+        Assert.check(!dynamicTypeMayImplementAdditionalInterfaces(from.tsym));
         Type t1 = asSuper(from, to.tsym);
         if (t1 == null) return false;
         Type t2 = to;
@@ -4587,6 +4610,10 @@ public class Types {
             (reverse ? giveWarning(t2, t1) : giveWarning(t1, t2)))
             warn.warn(LintCategory.UNCHECKED);
         return true;
+    }
+
+    private boolean dynamicTypeMayImplementAdditionalInterfaces(TypeSymbol tsym) {
+        return (tsym.flags() & FINAL) == 0 && !tsym.isReferenceProjection();
     }
 
     private boolean giveWarning(Type from, Type to) {

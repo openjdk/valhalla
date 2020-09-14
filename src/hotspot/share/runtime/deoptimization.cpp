@@ -1,5 +1,3 @@
-
-
 /*
  * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -26,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "jvm.h"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "code/codeCache.hpp"
@@ -42,15 +41,15 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/constantPool.hpp"
+#include "oops/flatArrayKlass.hpp"
+#include "oops/flatArrayOop.hpp"
 #include "oops/method.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/fieldStreams.inline.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
-#include "oops/valueArrayKlass.hpp"
-#include "oops/valueArrayOop.hpp"
-#include "oops/valueKlass.inline.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/atomic.hpp"
@@ -189,9 +188,9 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
   // In case of the return of multiple values, we must take care
   // of all oop return values.
   GrowableArray<Handle> return_oops;
-  ValueKlass* vk = NULL;
+  InlineKlass* vk = NULL;
   if (save_oop_result && scope->return_vt()) {
-    vk = ValueKlass::returned_value_klass(map);
+    vk = InlineKlass::returned_inline_klass(map);
     if (vk != NULL) {
       vk->save_oop_fields(map, return_oops);
       save_oop_result = false;
@@ -213,7 +212,7 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
     bool skip_internal = (compiled_method != NULL) && !compiled_method->is_compiled_by_jvmci();
     JRT_BLOCK
       if (vk != NULL) {
-        realloc_failures = Deoptimization::realloc_value_type_result(vk, map, return_oops, THREAD);
+        realloc_failures = Deoptimization::realloc_inline_type_result(vk, map, return_oops, THREAD);
       }
       if (objects != NULL) {
         realloc_failures = realloc_failures || Deoptimization::realloc_objects(thread, &deoptee, &map, objects, THREAD);
@@ -235,13 +234,15 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
   }
   if (save_oop_result || vk != NULL) {
     // Restore result.
-    assert(return_oops.length() == 1, "no value type");
+    assert(return_oops.length() == 1, "no inline type");
     deoptee.set_saved_oop_result(&map, return_oops.pop()());
   }
   return realloc_failures;
 }
 
 static void eliminate_locks(JavaThread* thread, GrowableArray<compiledVFrame*>* chunk, bool realloc_failures) {
+  assert(thread == Thread::current(), "should be");
+  HandleMark hm(thread);
 #ifndef PRODUCT
   bool first = true;
 #endif
@@ -620,16 +621,9 @@ void Deoptimization::cleanup_deopt_info(JavaThread *thread,
 
 
   if (JvmtiExport::can_pop_frame()) {
-#ifndef CC_INTERP
     // Regardless of whether we entered this routine with the pending
     // popframe condition bit set, we should always clear it now
     thread->clear_popframe_condition();
-#else
-    // C++ interpreter will clear has_pending_popframe when it enters
-    // with method_resume. For deopt_resume2 we clear it now.
-    if (thread->popframe_forcing_deopt_reexecution())
-        thread->clear_popframe_condition();
-#endif /* CC_INTERP */
   }
 
   // unpack_frames() is called at the end of the deoptimization handler
@@ -668,7 +662,7 @@ JRT_LEAF(BasicType, Deoptimization::unpack_frames(JavaThread* thread, int exec_m
   // but makes the entry a little slower. There is however a little dance we have to
   // do in debug mode to get around the NoHandleMark code in the JRT_LEAF macro
   ResetNoHandleMark rnhm; // No-op in release/product versions
-  HandleMark hm;
+  HandleMark hm(thread);
 
   frame stub_frame = thread->last_frame();
 
@@ -688,8 +682,16 @@ JRT_LEAF(BasicType, Deoptimization::unpack_frames(JavaThread* thread, int exec_m
 
   UnrollBlock* info = array->unroll_block();
 
+  // We set the last_Java frame. But the stack isn't really parsable here. So we
+  // clear it to make sure JFR understands not to try and walk stacks from events
+  // in here.
+  intptr_t* sp = thread->frame_anchor()->last_Java_sp();
+  thread->frame_anchor()->set_last_Java_sp(NULL);
+
   // Unpack the interpreter frames and any adapter frame (c2 only) we might create.
   array->unpack_to_stack(stub_frame, exec_mode, info->caller_actual_parameters());
+
+  thread->frame_anchor()->set_last_Java_sp(sp);
 
   BasicType bt = info->return_type();
 
@@ -825,7 +827,6 @@ JRT_LEAF(BasicType, Deoptimization::unpack_frames(JavaThread* thread, int exec_m
     }
   }
 #endif /* !PRODUCT */
-
 
   return bt;
 JRT_END
@@ -1028,9 +1029,9 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
       if (obj == NULL) {
         obj = ik->allocate_instance(THREAD);
       }
-    } else if (k->is_valueArray_klass()) {
-      ValueArrayKlass* ak = ValueArrayKlass::cast(k);
-      // Value type array must be zeroed because not all memory is reassigned
+    } else if (k->is_flatArray_klass()) {
+      FlatArrayKlass* ak = FlatArrayKlass::cast(k);
+      // Inline type array must be zeroed because not all memory is reassigned
       obj = ak->allocate(sv->field_size(), THREAD);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
@@ -1061,11 +1062,11 @@ bool Deoptimization::realloc_objects(JavaThread* thread, frame* fr, RegisterMap*
   return failures;
 }
 
-// We're deoptimizing at the return of a call, value type fields are
+// We're deoptimizing at the return of a call, inline type fields are
 // in registers. When we go back to the interpreter, it will expect a
-// reference to a value type instance. Allocate and initialize it from
+// reference to an inline type instance. Allocate and initialize it from
 // the register values here.
-bool Deoptimization::realloc_value_type_result(ValueKlass* vk, const RegisterMap& map, GrowableArray<Handle>& return_oops, TRAPS) {
+bool Deoptimization::realloc_inline_type_result(InlineKlass* vk, const RegisterMap& map, GrowableArray<Handle>& return_oops, TRAPS) {
   oop new_vt = vk->realloc_result(map, return_oops, THREAD);
   if (new_vt == NULL) {
     CLEAR_PENDING_EXCEPTION;
@@ -1075,6 +1076,66 @@ bool Deoptimization::realloc_value_type_result(ValueKlass* vk, const RegisterMap
   return_oops.push(Handle(THREAD, new_vt));
   return false;
 }
+
+#if INCLUDE_JVMCI
+/**
+ * For primitive types whose kind gets "erased" at runtime (shorts become stack ints),
+ * we need to somehow be able to recover the actual kind to be able to write the correct
+ * amount of bytes.
+ * For that purpose, this method assumes that, for an entry spanning n bytes at index i,
+ * the entries at index n + 1 to n + i are 'markers'.
+ * For example, if we were writing a short at index 4 of a byte array of size 8, the
+ * expected form of the array would be:
+ *
+ * {b0, b1, b2, b3, INT, marker, b6, b7}
+ *
+ * Thus, in order to get back the size of the entry, we simply need to count the number
+ * of marked entries
+ *
+ * @param virtualArray the virtualized byte array
+ * @param i index of the virtual entry we are recovering
+ * @return The number of bytes the entry spans
+ */
+static int count_number_of_bytes_for_entry(ObjectValue *virtualArray, int i) {
+  int index = i;
+  while (++index < virtualArray->field_size() &&
+           virtualArray->field_at(index)->is_marker()) {}
+  return index - i;
+}
+
+/**
+ * If there was a guarantee for byte array to always start aligned to a long, we could
+ * do a simple check on the parity of the index. Unfortunately, that is not always the
+ * case. Thus, we check alignment of the actual address we are writing to.
+ * In the unlikely case index 0 is 5-aligned for example, it would then be possible to
+ * write a long to index 3.
+ */
+static jbyte* check_alignment_get_addr(typeArrayOop obj, int index, int expected_alignment) {
+    jbyte* res = obj->byte_at_addr(index);
+    assert((((intptr_t) res) % expected_alignment) == 0, "Non-aligned write");
+    return res;
+}
+
+static void byte_array_put(typeArrayOop obj, intptr_t val, int index, int byte_count) {
+  switch (byte_count) {
+    case 1:
+      obj->byte_at_put(index, (jbyte) *((jint *) &val));
+      break;
+    case 2:
+      *((jshort *) check_alignment_get_addr(obj, index, 2)) = (jshort) *((jint *) &val);
+      break;
+    case 4:
+      *((jint *) check_alignment_get_addr(obj, index, 4)) = (jint) *((jint *) &val);
+      break;
+    case 8:
+      *((jlong *) check_alignment_get_addr(obj, index, 8)) = (jlong) *((jlong *) &val);
+      break;
+    default:
+      ShouldNotReachHere();
+  }
+}
+#endif // INCLUDE_JVMCI
+
 
 // restore elements of an eliminated type array
 void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, typeArrayOop obj, BasicType type) {
@@ -1091,12 +1152,7 @@ void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_ma
 #ifdef _LP64
       jlong res = (jlong)low->get_int();
 #else
-#ifdef SPARC
-      // For SPARC we have to swap high and low words.
-      jlong res = jlong_from((jint)low->get_int(), (jint)value->get_int());
-#else
       jlong res = jlong_from((jint)value->get_int(), (jint)low->get_int());
-#endif //SPARC
 #endif
       obj->long_at_put(index, res);
       break;
@@ -1125,12 +1181,7 @@ void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_ma
   #ifdef _LP64
         jlong res = (jlong)low->get_int();
   #else
-  #ifdef SPARC
-        // For SPARC we have to swap high and low words.
-        jlong res = jlong_from((jint)low->get_int(), (jint)value->get_int());
-  #else
         jlong res = jlong_from((jint)value->get_int(), (jint)low->get_int());
-  #endif //SPARC
   #endif
         obj->int_at_put(index, (jint)*((jint*)&res));
         obj->int_at_put(++index, (jint)*(((jint*)&res) + 1));
@@ -1153,17 +1204,30 @@ void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_ma
       obj->char_at_put(index, (jchar)*((jint*)&val));
       break;
 
-    case T_BYTE:
+    case T_BYTE: {
       assert(value->type() == T_INT, "Agreement.");
+      // The value we get is erased as a regular int. We will need to find its actual byte count 'by hand'.
       val = value->get_int();
+#if INCLUDE_JVMCI
+      int byte_count = count_number_of_bytes_for_entry(sv, i);
+      byte_array_put(obj, val, index, byte_count);
+      // According to byte_count contract, the values from i + 1 to i + byte_count are illegal values. Skip.
+      i += byte_count - 1; // Balance the loop counter.
+      index += byte_count;
+      // index has been updated so continue at top of loop
+      continue;
+#else
       obj->byte_at_put(index, (jbyte)*((jint*)&val));
       break;
+#endif // INCLUDE_JVMCI
+    }
 
-    case T_BOOLEAN:
+    case T_BOOLEAN: {
       assert(value->type() == T_INT, "Agreement.");
       val = value->get_int();
       obj->bool_at_put(index, (jboolean)*((jint*)&val));
       break;
+    }
 
       default:
         ShouldNotReachHere();
@@ -1171,7 +1235,6 @@ void Deoptimization::reassign_type_array_elements(frame* fr, RegisterMap* reg_ma
     index++;
   }
 }
-
 
 // restore fields of an eliminated object array
 void Deoptimization::reassign_object_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, objArrayOop obj) {
@@ -1211,14 +1274,14 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         ReassignedField field;
         field._offset = fs.offset();
         field._type = Signature::basic_type(fs.signature());
-        if (field._type == T_VALUETYPE) {
+        if (field._type == T_INLINE_TYPE) {
           field._type = T_OBJECT;
         }
-        if (fs.is_flattened()) {
-          // Resolve klass of flattened value type field
-          Klass* vk = klass->get_value_field_klass(fs.index());
-          field._klass = ValueKlass::cast(vk);
-          field._type = T_VALUETYPE;
+        if (fs.is_inlined()) {
+          // Resolve klass of flattened inline type field
+          Klass* vk = klass->get_inline_type_field_klass(fs.index());
+          field._klass = InlineKlass::cast(vk);
+          field._type = T_INLINE_TYPE;
         }
         fields->append(field);
       }
@@ -1239,11 +1302,11 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
         obj->obj_field_put(offset, value->get_obj()());
         break;
 
-      case T_VALUETYPE: {
-        // Recursively re-assign flattened value type fields
+      case T_INLINE_TYPE: {
+        // Recursively re-assign flattened inline type fields
         InstanceKlass* vk = fields->at(i)._klass;
         assert(vk != NULL, "must be resolved");
-        offset -= ValueKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header
+        offset -= InlineKlass::cast(vk)->first_field_offset(); // Adjust offset to omit oop header
         svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, skip_internal, offset, CHECK_0);
         continue; // Continue because we don't need to increment svIndex
       }
@@ -1285,12 +1348,7 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
 #ifdef _LP64
         jlong res = (jlong)low->get_int();
 #else
-#ifdef SPARC
-        // For SPARC we have to swap high and low words.
-        jlong res = jlong_from((jint)low->get_int(), (jint)value->get_int());
-#else
         jlong res = jlong_from((jint)value->get_int(), (jint)low->get_int());
-#endif //SPARC
 #endif
         obj->long_field_put(offset, res);
         break;
@@ -1328,13 +1386,16 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
   return svIndex;
 }
 
-// restore fields of an eliminated value type array
-void Deoptimization::reassign_value_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, valueArrayOop obj, ValueArrayKlass* vak, TRAPS) {
-  ValueKlass* vk = vak->element_klass();
-  assert(vk->flatten_array(), "should only be used for flattened value type arrays");
+// restore fields of an eliminated inline type array
+void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_map, ObjectValue* sv, flatArrayOop obj, FlatArrayKlass* vak, TRAPS) {
+  InlineKlass* vk = vak->element_klass();
+  assert(vk->flatten_array(), "should only be used for flattened inline type arrays");
+  if (vk->is_empty_inline_type()) {
+    return; // No fields to re-assign
+  }
   // Adjust offset to omit oop header
-  int base_offset = arrayOopDesc::base_offset_in_bytes(T_VALUETYPE) - ValueKlass::cast(vk)->first_field_offset();
-  // Initialize all elements of the flattened value type array
+  int base_offset = arrayOopDesc::base_offset_in_bytes(T_INLINE_TYPE) - InlineKlass::cast(vk)->first_field_offset();
+  // Initialize all elements of the flattened inline type array
   for (int i = 0; i < sv->field_size(); i++) {
     ScopeValue* val = sv->field_at(i);
     int offset = base_offset + (i << Klass::layout_helper_log2_element_size(vak->layout_helper()));
@@ -1364,9 +1425,9 @@ void Deoptimization::reassign_fields(frame* fr, RegisterMap* reg_map, GrowableAr
     if (k->is_instance_klass()) {
       InstanceKlass* ik = InstanceKlass::cast(k);
       reassign_fields_by_klass(ik, fr, reg_map, sv, 0, obj(), skip_internal, 0, CHECK);
-    } else if (k->is_valueArray_klass()) {
-      ValueArrayKlass* vak = ValueArrayKlass::cast(k);
-      reassign_value_array_elements(fr, reg_map, sv, (valueArrayOop) obj(), vak, CHECK);
+    } else if (k->is_flatArray_klass()) {
+      FlatArrayKlass* vak = FlatArrayKlass::cast(k);
+      reassign_flat_array_elements(fr, reg_map, sv, (flatArrayOop) obj(), vak, CHECK);
     } else if (k->is_typeArray_klass()) {
       TypeArrayKlass* ak = TypeArrayKlass::cast(k);
       reassign_type_array_elements(fr, reg_map, sv, (typeArrayOop) obj(), ak->element_type());
@@ -1561,6 +1622,9 @@ void Deoptimization::revoke_from_deopt_handler(JavaThread* thread, frame fr, Reg
   if (!UseBiasedLocking) {
     return;
   }
+  assert(thread == Thread::current(), "should be");
+  ResourceMark rm(thread);
+  HandleMark hm(thread);
   GrowableArray<Handle>* objects_to_revoke = new GrowableArray<Handle>();
   get_monitors_from_stack(objects_to_revoke, thread, fr, map);
 
@@ -1792,7 +1856,7 @@ static void post_deoptimization_event(CompiledMethod* nm,
 #endif // INCLUDE_JFR
 
 JRT_ENTRY(void, Deoptimization::uncommon_trap_inner(JavaThread* thread, jint trap_request)) {
-  HandleMark hm;
+  HandleMark hm(thread);
 
   // uncommon_trap() is called at the beginning of the uncommon trap
   // handler. Note this fact before we start generating temporary frames

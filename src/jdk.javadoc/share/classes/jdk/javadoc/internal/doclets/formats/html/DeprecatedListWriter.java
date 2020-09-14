@@ -205,8 +205,6 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
 
     private EnumMap<DeprElementKind, AbstractMemberWriter> writerMap;
 
-    private HtmlConfiguration configuration;
-
     private final Navigation navBar;
 
     /**
@@ -218,7 +216,6 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
 
     public DeprecatedListWriter(HtmlConfiguration configuration, DocPath filename) {
         super(configuration, filename);
-        this.configuration = configuration;
         this.navBar = new Navigation(null, configuration, PageMode.DEPRECATED, path);
         NestedClassWriterImpl classW = new NestedClassWriterImpl(this);
         writerMap = new EnumMap<>(DeprElementKind.class);
@@ -373,7 +370,7 @@ public class DeprecatedListWriter extends SubWriterHolderWriter {
             String tableSummary, TableHeader tableHeader, Content contentTree) {
         if (deprList.size() > 0) {
             Content caption = contents.getContent(headingKey);
-            Table table = new Table(HtmlStyle.deprecatedSummary)
+            Table table = new Table(HtmlStyle.deprecatedSummary, HtmlStyle.summaryTable)
                     .setCaption(caption)
                     .setHeader(tableHeader)
                     .setId(id)

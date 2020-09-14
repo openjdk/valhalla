@@ -28,6 +28,7 @@ package sun.security.util;
 import java.io.*;
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Represent an ISO Object Identifier.
@@ -51,6 +52,25 @@ import java.util.Arrays;
  */
 
 public final class ObjectIdentifier implements Serializable {
+    /*
+     * The maximum encoded OID length, excluding the ASN.1 encoding tag and
+     * length.
+     *
+     * In theory, there is no maximum size for OIDs.  However, there are some
+     * limitation in practice.
+     *
+     * RFC 5280 mandates support for OIDs that have arc elements with values
+     * that are less than 2^28 (that is, they MUST be between 0 and
+     * 268,435,455, inclusive), and implementations MUST be able to handle
+     * OIDs with up to 20 elements (inclusive).  Per RFC 5280, an encoded
+     * OID should be less than 80 bytes for safe interoperability.
+     *
+     * This class could be used for protocols other than X.509 certificates.
+     * To be safe, a relatively large but still reasonable value is chosen
+     * as the restriction in JDK.
+     */
+    private static final int MAXIMUM_OID_SIZE = 4096;    // 2^12
+
     /**
      * We use the DER value (no tag, no length) as the internal format
      * @serial
@@ -117,7 +137,13 @@ public final class ObjectIdentifier implements Serializable {
             if (componentLen > comp.length) {
                 componentLen = comp.length;
             }
+
+            // Check the estimated size before it is too later.
+            checkOidSize(componentLen);
+
             init(comp, componentLen);
+        } else {
+            checkOidSize(encoding.length);
         }
     }
 
@@ -148,7 +174,7 @@ public final class ObjectIdentifier implements Serializable {
      * Constructs, from a string.  This string should be of the form 1.23.56.
      * Validity check included.
      */
-    public ObjectIdentifier(String oid) throws IOException {
+    private ObjectIdentifier(String oid) throws IOException {
         int ch = '.';
         int start = 0;
         int end = 0;
@@ -202,6 +228,8 @@ public final class ObjectIdentifier implements Serializable {
                 }
                 start = end + 1;
                 count++;
+
+                checkOidSize(pos);
             } while (end != -1);
 
             checkCount(count);
@@ -249,11 +277,13 @@ public final class ObjectIdentifier implements Serializable {
                 );
 
         int len = in.getDefiniteLength();
+        checkOidSize(len);
         if (len > in.available()) {
-            throw new IOException("ObjectIdentifier() -- length exceeds" +
+            throw new IOException("ObjectIdentifier length exceeds " +
                     "data available.  Length: " + len + ", Available: " +
                     in.available());
         }
+
         encoding = new byte[len];
         in.getBytes(encoding);
         check(encoding);
@@ -266,42 +296,72 @@ public final class ObjectIdentifier implements Serializable {
      */
     ObjectIdentifier(DerInputBuffer buf) throws IOException {
         DerInputStream in = new DerInputStream(buf);
-        encoding = new byte[in.available()];
+        int len = in.available();
+        checkOidSize(len);
+
+        encoding = new byte[len];
         in.getBytes(encoding);
         check(encoding);
     }
 
-    private void init(int[] components, int length) {
+    private void init(int[] components, int length) throws IOException {
         int pos = 0;
-        byte[] tmp = new byte[length*5+1];  // +1 for empty input
+        byte[] tmp = new byte[length * 5 + 1];  // +1 for empty input
 
-        if (components[1] < Integer.MAX_VALUE - components[0]*40)
-            pos += pack7Oid(components[0]*40+components[1], tmp, pos);
-        else {
+        if (components[1] < Integer.MAX_VALUE - components[0] * 40) {
+            pos += pack7Oid(components[0] * 40 + components[1], tmp, pos);
+        } else {
             BigInteger big = BigInteger.valueOf(components[1]);
-            big = big.add(BigInteger.valueOf(components[0]*40));
+            big = big.add(BigInteger.valueOf(components[0] * 40));
             pos += pack7Oid(big, tmp, pos);
         }
 
-        for (int i=2; i<length; i++) {
+        for (int i = 2; i < length; i++) {
             pos += pack7Oid(components[i], tmp, pos);
+
+            checkOidSize(pos);
         }
+
         encoding = new byte[pos];
         System.arraycopy(tmp, 0, encoding, 0, pos);
     }
 
+    // oid cache index'ed by the oid string
+    private static ConcurrentHashMap<String,ObjectIdentifier> oidTable =
+            new ConcurrentHashMap<>();
+
     /**
-     * Returns an ObjectIdentifier instance for the specific string OID.
+     * Returns an ObjectIdentifier instance for the specific String.
      *
-     * Note: Please use legal string OID only.  Otherwise, a RuntimeException
-     * is thrown.
+     * If the String is not a valid OID string, an IOException is thrown.
      */
-    public static ObjectIdentifier of(String oid) {
-        try {
-            return new ObjectIdentifier(oid);
-        } catch (IOException ioe) {
-            throw new RuntimeException(ioe);
+    public static ObjectIdentifier of(String oidStr) throws IOException {
+        // check cache first
+        ObjectIdentifier oid = oidTable.get(oidStr);
+        if (oid == null) {
+            oid = new ObjectIdentifier(oidStr);
+            oidTable.put(oidStr, oid);
         }
+        return oid;
+    }
+
+    /**
+     * Returns an ObjectIdentifier instance for the specific KnownOIDs.
+     */
+    public static ObjectIdentifier of(KnownOIDs o) {
+        // check cache first
+        String oidStr = o.value();
+        ObjectIdentifier oid = oidTable.get(oidStr);
+        if (oid == null) {
+            try {
+                oid = new ObjectIdentifier(oidStr);
+            } catch (IOException ioe) {
+                // should not happen as oid string for KnownOIDs is internal
+                throw new RuntimeException(ioe);
+            }
+            oidTable.put(oidStr, oid);
+        }
+        return oid;
     }
 
     /*
@@ -663,6 +723,15 @@ public final class ObjectIdentifier implements Serializable {
         if (num.signum() == -1) {
             throw new IOException("ObjectIdentifier() -- " +
                     "oid component #" + (i+1) + " must be non-negative ");
+        }
+    }
+
+    private static void checkOidSize(int oidLength) throws IOException {
+        if (oidLength > MAXIMUM_OID_SIZE) {
+            throw new IOException(
+                    "ObjectIdentifier encoded length exceeds " +
+                    "the restriction in JDK (OId length(>=): " + oidLength +
+                    ", Restriction: " + MAXIMUM_OID_SIZE + ")");
         }
     }
 }

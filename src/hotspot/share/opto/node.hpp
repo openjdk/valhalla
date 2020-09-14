@@ -52,7 +52,6 @@ class CallNode;
 class CallRuntimeNode;
 class CallStaticJavaNode;
 class CastIINode;
-class CastLLNode;
 class CatchNode;
 class CatchProjNode;
 class CheckCastPPNode;
@@ -119,6 +118,7 @@ class MulNode;
 class MultiNode;
 class MultiBranchNode;
 class NeverBranchNode;
+class Opaque1Node;
 class OuterStripMinedLoopNode;
 class OuterStripMinedLoopEndNode;
 class Node;
@@ -152,9 +152,9 @@ class SubTypeCheckNode;
 class Type;
 class TypeNode;
 class UnlockNode;
-class ValueTypeBaseNode;
-class ValueTypeNode;
-class ValueTypePtrNode;
+class InlineTypeBaseNode;
+class InlineTypeNode;
+class InlineTypePtrNode;
 class VectorNode;
 class LoadVectorNode;
 class StoreVectorNode;
@@ -615,9 +615,9 @@ public:
   // This enum is used only for C2 ideal and mach nodes with is_<node>() methods
   // so that it's values fits into 16 bits.
   enum NodeClasses {
-    Bit_Node   = 0x0000,
-    Class_Node = 0x0000,
-    ClassMask_Node = 0xFFFF,
+    Bit_Node   = 0x00000000,
+    Class_Node = 0x00000000,
+    ClassMask_Node = 0xFFFFFFFF,
 
     DEFINE_CLASS_ID(Multi, Node, 0)
       DEFINE_CLASS_ID(SafePoint, Multi, 0)
@@ -674,8 +674,7 @@ public:
       DEFINE_CLASS_ID(Phi,   Type, 0)
       DEFINE_CLASS_ID(ConstraintCast, Type, 1)
         DEFINE_CLASS_ID(CastII, ConstraintCast, 0)
-        DEFINE_CLASS_ID(CastLL, ConstraintCast, 1)
-        DEFINE_CLASS_ID(CheckCastPP, ConstraintCast, 2)
+        DEFINE_CLASS_ID(CheckCastPP, ConstraintCast, 1)
       DEFINE_CLASS_ID(CMove, Type, 3)
       DEFINE_CLASS_ID(SafePointScalarObject, Type, 4)
       DEFINE_CLASS_ID(DecodeNarrowPtr, Type, 5)
@@ -684,9 +683,9 @@ public:
       DEFINE_CLASS_ID(EncodeNarrowPtr, Type, 6)
         DEFINE_CLASS_ID(EncodeP, EncodeNarrowPtr, 0)
         DEFINE_CLASS_ID(EncodePKlass, EncodeNarrowPtr, 1)
-      DEFINE_CLASS_ID(ValueTypeBase, Type, 8)
-        DEFINE_CLASS_ID(ValueType, ValueTypeBase, 0)
-        DEFINE_CLASS_ID(ValueTypePtr, ValueTypeBase, 1)
+      DEFINE_CLASS_ID(InlineTypeBase, Type, 8)
+        DEFINE_CLASS_ID(InlineType, InlineTypeBase, 0)
+        DEFINE_CLASS_ID(InlineTypePtr, InlineTypeBase, 1)
 
     DEFINE_CLASS_ID(Proj,  Node, 3)
       DEFINE_CLASS_ID(CatchProj, Proj, 0)
@@ -728,6 +727,7 @@ public:
     DEFINE_CLASS_ID(Vector,   Node, 13)
     DEFINE_CLASS_ID(ClearArray, Node, 14)
     DEFINE_CLASS_ID(Halt, Node, 15)
+    DEFINE_CLASS_ID(Opaque1, Node, 16)
 
     _max_classes  = ClassMask_Halt
   };
@@ -756,14 +756,14 @@ public:
   class PD;
 
 private:
-  jushort _class_id;
+  juint _class_id;
   jushort _flags;
 
   static juint max_flags();
 
 protected:
   // These methods should be called from constructors only.
-  void init_class_id(jushort c) {
+  void init_class_id(juint c) {
     _class_id = c; // cast out const
   }
   void init_flags(uint fl) {
@@ -776,7 +776,7 @@ protected:
   }
 
 public:
-  const jushort class_id() const { return _class_id; }
+  const juint class_id() const { return _class_id; }
 
   const jushort flags() const { return _flags; }
 
@@ -821,7 +821,6 @@ public:
   DEFINE_CLASS_QUERY(CatchProj)
   DEFINE_CLASS_QUERY(CheckCastPP)
   DEFINE_CLASS_QUERY(CastII)
-  DEFINE_CLASS_QUERY(CastLL)
   DEFINE_CLASS_QUERY(ConstraintCast)
   DEFINE_CLASS_QUERY(ClearArray)
   DEFINE_CLASS_QUERY(CMove)
@@ -880,6 +879,7 @@ public:
   DEFINE_CLASS_QUERY(Mul)
   DEFINE_CLASS_QUERY(Multi)
   DEFINE_CLASS_QUERY(MultiBranch)
+  DEFINE_CLASS_QUERY(Opaque1)
   DEFINE_CLASS_QUERY(OuterStripMinedLoop)
   DEFINE_CLASS_QUERY(OuterStripMinedLoopEnd)
   DEFINE_CLASS_QUERY(Parm)
@@ -895,9 +895,9 @@ public:
   DEFINE_CLASS_QUERY(Sub)
   DEFINE_CLASS_QUERY(SubTypeCheck)
   DEFINE_CLASS_QUERY(Type)
-  DEFINE_CLASS_QUERY(ValueType)
-  DEFINE_CLASS_QUERY(ValueTypeBase)
-  DEFINE_CLASS_QUERY(ValueTypePtr)
+  DEFINE_CLASS_QUERY(InlineType)
+  DEFINE_CLASS_QUERY(InlineTypeBase)
+  DEFINE_CLASS_QUERY(InlineTypePtr)
   DEFINE_CLASS_QUERY(Vector)
   DEFINE_CLASS_QUERY(LoadVector)
   DEFINE_CLASS_QUERY(StoreVector)
@@ -1133,10 +1133,11 @@ private:
   void walk_(NFunc pre, NFunc post, void *env, VectorSet &visited);
 
 //----------------- Printing, etc
-public:
 #ifndef PRODUCT
-  Node* find(int idx) const;         // Search the graph for the given idx.
-  Node* find_ctrl(int idx) const;    // Search control ancestors for the given idx.
+  static bool add_to_worklist(Node* n, Node_List* worklist, Arena* old_arena, VectorSet* old_space, VectorSet* new_space);
+public:
+  Node* find(int idx, bool only_ctrl = false); // Search the graph for the given idx.
+  Node* find_ctrl(int idx); // Search control ancestors for the given idx.
   void dump() const { dump("\n"); }  // Print this node.
   void dump(const char* suffix, bool mark = false, outputStream *st = tty) const; // Print this node.
   void dump(int depth) const;        // Print this node, recursively to depth d
@@ -1168,8 +1169,7 @@ public:
   void collect_nodes_out_all_ctrl_boundary(GrowableArray<Node*> *ns) const;
 
   void verify_edges(Unique_Node_List &visited); // Verify bi-directional edges
-  void verify() const;               // Check Def-Use info for my subgraph
-  static void verify_recur(const Node *n, int verify_depth, VectorSet &old_space, VectorSet &new_space);
+  static void verify(Node* n, int verify_depth);
 
   // This call defines a class-unique string used to identify class instances
   virtual const char *Name() const;
@@ -1539,7 +1539,7 @@ class Unique_Node_List : public Node_List {
   VectorSet _in_worklist;
   uint _clock_index;            // Index in list where to pop from next
 public:
-  Unique_Node_List() : Node_List(), _in_worklist(Thread::current()->resource_area()), _clock_index(0) {}
+  Unique_Node_List() : Node_List(), _clock_index(0) {}
   Unique_Node_List(Arena *a) : Node_List(a), _in_worklist(a), _clock_index(0) {}
 
   void remove( Node *n );

@@ -23,19 +23,19 @@
  */
 
 #include "precompiled.hpp"
-#include "ci/ciValueKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "compiler/compileLog.hpp"
+#include "oops/flatArrayKlass.hpp"
 #include "oops/objArrayKlass.hpp"
-#include "oops/valueArrayKlass.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/memnode.hpp"
 #include "opto/mulnode.hpp"
 #include "opto/parse.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
-#include "opto/valuetypenode.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 //------------------------------make_dtrace_method_entry_exit ----------------
@@ -69,8 +69,6 @@ void GraphKit::make_dtrace_method_entry_exit(ciMethod* method, bool is_entry) {
 void Parse::do_checkcast() {
   bool will_link;
   ciKlass* klass = iter().get_klass(will_link);
-  bool never_null = iter().is_klass_never_null();
-
   Node *obj = peek();
 
   // Throw uncommon trap if class is not loaded or the value we are casting
@@ -78,7 +76,7 @@ void Parse::do_checkcast() {
   // then the checkcast does nothing.
   const TypeOopPtr *tp = _gvn.type(obj)->isa_oopptr();
   if (!will_link || (tp && tp->klass() && !tp->klass()->is_loaded())) {
-    assert(!never_null, "Null-free value type should be loaded");
+    assert(!iter().is_inline_klass(), "Inline type should be loaded");
     if (C->log() != NULL) {
       if (!will_link) {
         C->log()->elem("assert_null reason='checkcast' klass='%d'",
@@ -98,7 +96,7 @@ void Parse::do_checkcast() {
     return;
   }
 
-  Node* res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass)), NULL, never_null);
+  Node* res = gen_checkcast(obj, makecon(TypeKlassPtr::make(klass)));
   if (stopped()) {
     return;
   }
@@ -264,11 +262,11 @@ Node* Parse::array_store_check() {
   Node* a_e_klass = _gvn.transform(LoadKlassNode::make(_gvn, always_see_exact_class ? control() : NULL,
                                                        immutable_memory(), p2, tak));
 
-  // Handle value type arrays
+  // Handle inline type arrays
   const Type* elemtype = _gvn.type(ary)->is_aryptr()->elem();
-  if (elemtype->isa_valuetype() != NULL || elemtype->is_valuetypeptr()) {
-    // We statically know that this is a value type array, use precise klass ptr
-    a_e_klass = makecon(TypeKlassPtr::make(elemtype->value_klass()));
+  if (elemtype->isa_inlinetype() != NULL || elemtype->is_inlinetypeptr()) {
+    // We statically know that this is an inline type array, use precise klass ptr
+    a_e_klass = makecon(TypeKlassPtr::make(elemtype->inline_klass()));
   }
 
   // Check (the hard way) and throw if not a subklass.
@@ -322,7 +320,7 @@ void Parse::do_new() {
 //------------------------------do_defaultvalue---------------------------------
 void Parse::do_defaultvalue() {
   bool will_link;
-  ciValueKlass* vk = iter().get_klass(will_link)->as_value_klass();
+  ciInlineKlass* vk = iter().get_klass(will_link)->as_inline_klass();
   assert(will_link, "defaultvalue: typeflow responsibility");
 
   // Should throw an InstantiationError?
@@ -338,7 +336,7 @@ void Parse::do_defaultvalue() {
     if (stopped())  return;
   }
 
-  ValueTypeNode* vt = ValueTypeNode::make_default(_gvn, vk);
+  InlineTypeNode* vt = InlineTypeNode::make_default(_gvn, vk);
   if (vk->is_scalarizable()) {
     push(vt);
   } else {
@@ -352,37 +350,31 @@ void Parse::do_withfield() {
   ciField* field = iter().get_field(will_link);
   assert(will_link, "withfield: typeflow responsibility");
   Node* val = pop_node(field->layout_type());
-  ciValueKlass* holder_klass = field->holder()->as_value_klass();
+  ciInlineKlass* holder_klass = field->holder()->as_inline_klass();
   Node* holder = pop();
   int nargs = 1 + field->type()->size();
 
-  if (!holder->is_ValueType()) {
-    // Null check and scalarize value type holder
-    inc_sp(nargs);
-    holder = null_check(holder);
-    dec_sp(nargs);
-    if (stopped()) return;
-    holder = ValueTypeNode::make_from_oop(this, holder, holder_klass);
+  if (!holder->is_InlineType()) {
+    // Scalarize inline type holder
+    assert(!gvn().type(holder)->maybe_null(), "Inline types are null-free");
+    holder = InlineTypeNode::make_from_oop(this, holder, holder_klass);
   }
-  if (!val->is_ValueType() && field->is_flattenable()) {
-    // Null check and scalarize value type field value
-    inc_sp(nargs);
-    val = null_check(val);
-    dec_sp(nargs);
-    if (stopped()) return;
-    val = ValueTypeNode::make_from_oop(this, val, gvn().type(val)->value_klass());
-  } else if (val->is_ValueType() && !field->is_flattenable()) {
-    // Non-flattenable field value needs to be allocated because it can be merged
-    // with an oop. Re-execute withfield if buffering triggers deoptimization.
+  if (!val->is_InlineType() && field->type()->is_inlinetype()) {
+    // Scalarize inline type field value
+    assert(!gvn().type(holder)->maybe_null(), "Inline types are null-free");
+    val = InlineTypeNode::make_from_oop(this, val, gvn().type(val)->inline_klass());
+  } else if (val->is_InlineType() && !field->type()->is_inlinetype()) {
+    // Field value needs to be allocated because it can be merged with an oop.
+    // Re-execute withfield if buffering triggers deoptimization.
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
     inc_sp(nargs);
-    val = ValueTypePtrNode::make_from_value_type(this, val->as_ValueType());
+    val = val->as_InlineType()->buffer(this);
   }
 
-  // Clone the value type node and set the new field value
-  ValueTypeNode* new_vt = holder->clone()->as_ValueType();
-  new_vt->set_oop(_gvn.zerocon(T_VALUETYPE));
+  // Clone the inline type node and set the new field value
+  InlineTypeNode* new_vt = holder->clone()->as_InlineType();
+  new_vt->set_oop(_gvn.zerocon(T_INLINE_TYPE));
   gvn().set_type(new_vt, new_vt->bottom_type());
   new_vt->set_field_value_by_offset(field->offset(), val);
   Node* res = new_vt;
@@ -392,7 +384,7 @@ void Parse::do_withfield() {
     PreserveReexecuteState preexecs(this);
     jvms()->set_should_reexecute(true);
     inc_sp(nargs);
-    res = new_vt->allocate(this)->get_oop();
+    res = new_vt->buffer(this)->get_oop();
   }
   push(_gvn.transform(res));
 }

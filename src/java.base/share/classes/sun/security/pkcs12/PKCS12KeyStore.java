@@ -66,17 +66,11 @@ import javax.security.auth.DestroyFailedException;
 import javax.security.auth.x500.X500Principal;
 
 import sun.security.tools.KeyStoreUtil;
-import sun.security.util.Debug;
-import sun.security.util.DerInputStream;
-import sun.security.util.DerOutputStream;
-import sun.security.util.DerValue;
-import sun.security.util.ObjectIdentifier;
+import sun.security.util.*;
 import sun.security.pkcs.ContentInfo;
-import sun.security.util.SecurityProperties;
 import sun.security.x509.AlgorithmId;
 import sun.security.pkcs.EncryptedPrivateKeyInfo;
 import sun.security.provider.JavaKeyStore.JKS;
-import sun.security.util.KeyStoreDelegator;
 import sun.security.x509.AuthorityKeyIdentifierExtension;
 
 
@@ -148,29 +142,29 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
     private static final int MAX_ITERATION_COUNT = 5000000;
     private static final int SALT_LEN = 20;
 
-    // friendlyName, localKeyId, trustedKeyUsage
-    private static final String[] CORE_ATTRIBUTES = {
-        "1.2.840.113549.1.9.20",
-        "1.2.840.113549.1.9.21",
-        "2.16.840.1.113894.746875.1.1"
+    private static final KnownOIDs[] CORE_ATTRIBUTES = {
+        KnownOIDs.FriendlyName,
+        KnownOIDs.LocalKeyID,
+        KnownOIDs.ORACLE_TrustedKeyUsage
     };
 
     private static final Debug debug = Debug.getInstance("pkcs12");
 
     private static final ObjectIdentifier PKCS8ShroudedKeyBag_OID =
-            ObjectIdentifier.of("1.2.840.113549.1.12.10.1.2");
+            ObjectIdentifier.of(KnownOIDs.PKCS8ShroudedKeyBag);
     private static final ObjectIdentifier CertBag_OID =
-            ObjectIdentifier.of("1.2.840.113549.1.12.10.1.3");
+            ObjectIdentifier.of(KnownOIDs.CertBag);
     private static final ObjectIdentifier SecretBag_OID =
-            ObjectIdentifier.of("1.2.840.113549.1.12.10.1.5");
+            ObjectIdentifier.of(KnownOIDs.SecretBag);
+
     private static final ObjectIdentifier PKCS9FriendlyName_OID =
-            ObjectIdentifier.of("1.2.840.113549.1.9.20");
+            ObjectIdentifier.of(KnownOIDs.FriendlyName);
     private static final ObjectIdentifier PKCS9LocalKeyId_OID =
-            ObjectIdentifier.of("1.2.840.113549.1.9.21");
+            ObjectIdentifier.of(KnownOIDs.LocalKeyID);
     private static final ObjectIdentifier PKCS9CertType_OID =
-            ObjectIdentifier.of("1.2.840.113549.1.9.22.1");
+            ObjectIdentifier.of(KnownOIDs.CertTypeX509);
     private static final ObjectIdentifier pbes2_OID =
-            ObjectIdentifier.of("1.2.840.113549.1.5.13");
+            ObjectIdentifier.of(KnownOIDs.PBES2);
 
     /*
      * Temporary Oracle OID
@@ -179,11 +173,10 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
      *  oracle(113894) jdk(746875) crypto(1) id-at-trustedKeyUsage(1)}
      */
     private static final ObjectIdentifier TrustedKeyUsage_OID =
-            ObjectIdentifier.of("2.16.840.1.113894.746875.1.1");
+            ObjectIdentifier.of(KnownOIDs.ORACLE_TrustedKeyUsage);
 
     private static final ObjectIdentifier[] AnyUsage = new ObjectIdentifier[] {
-                // AnyExtendedKeyUsage
-                ObjectIdentifier.of("2.5.29.37.0")
+                ObjectIdentifier.of(KnownOIDs.anyExtendedKeyUsage)
             };
 
     private int counter = 0;
@@ -390,6 +383,9 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 DerInputStream in = val.toDerInputStream();
                 int i = in.getInteger();
                 DerValue[] value = in.getSequence(2);
+                if (value.length < 1 || value.length > 2) {
+                    throw new IOException("Invalid length for AlgorithmIdentifier");
+                }
                 AlgorithmId algId = new AlgorithmId(value[0].getOID());
                 String keyAlgo = algId.getName();
 
@@ -1643,9 +1639,9 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
             for (KeyStore.Entry.Attribute attribute : attributes) {
                 String attributeName = attribute.getName();
                 // skip friendlyName, localKeyId and trustedKeyUsage
-                if (CORE_ATTRIBUTES[0].equals(attributeName) ||
-                    CORE_ATTRIBUTES[1].equals(attributeName) ||
-                    CORE_ATTRIBUTES[2].equals(attributeName)) {
+                if (CORE_ATTRIBUTES[0].value().equals(attributeName) ||
+                    CORE_ATTRIBUTES[1].value().equals(attributeName) ||
+                    CORE_ATTRIBUTES[2].value().equals(attributeName)) {
                     continue;
                 }
                 attrs.write(((PKCS12Attribute) attribute).getEncoded());
@@ -2041,11 +2037,17 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                 DerInputStream edi =
                                 safeContents.getContent().toDerInputStream();
                 int edVersion = edi.getInteger();
-                DerValue[] seq = edi.getSequence(2);
+                DerValue[] seq = edi.getSequence(3);
+                if (seq.length != 3) {
+                    // We require the encryptedContent field, even though
+                    // it is optional
+                    throw new IOException("Invalid length for EncryptedContentInfo");
+                }
                 ObjectIdentifier edContentType = seq[0].getOID();
                 eAlgId = seq[1].toByteArray();
                 if (!seq[2].isContextSpecific((byte)0)) {
-                   throw new IOException("encrypted content not present!");
+                    throw new IOException("unsupported encrypted content type "
+                                          + seq[2].tag);
                 }
                 byte newTag = DerValue.tag_OctetString;
                 if (seq[2].isConstructed())
@@ -2240,7 +2242,8 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
         X500Principal issuerPrinc = input.getIssuerX500Principal();
 
         // AuthorityKeyIdentifier value encoded as an OCTET STRING
-        byte[] issuerIdExtension = input.getExtensionValue("2.5.29.35");
+        byte[] issuerIdExtension = input.getExtensionValue(
+                KnownOIDs.AuthorityKeyID.value());
         byte[] issuerId = null;
 
         if (issuerIdExtension != null) {
@@ -2258,7 +2261,8 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
             if (cert.getSubjectX500Principal().equals(issuerPrinc)) {
                 if (issuerId != null) {
                     // SubjectKeyIdentifier value encoded as an OCTET STRING
-                    byte[] subjectIdExtension = cert.getExtensionValue("2.5.29.14");
+                    byte[] subjectIdExtension = cert.getExtensionValue(
+                            KnownOIDs.SubjectKeyID.value());
                     byte[] subjectId = null;
                     if (subjectIdExtension != null) {
                         try {
@@ -2384,6 +2388,9 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
             } else if (bagId.equals(CertBag_OID)) {
                 DerInputStream cs = new DerInputStream(bagValue.toByteArray());
                 DerValue[] certValues = cs.getSequence(2);
+                if (certValues.length != 2) {
+                    throw new IOException("Invalid length for CertBag");
+                }
                 ObjectIdentifier certId = certValues[0].getOID();
                 if (!certValues[1].isContextSpecific((byte)0)) {
                     throw new IOException("unsupported PKCS12 cert value type "
@@ -2399,6 +2406,9 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
             } else if (bagId.equals(SecretBag_OID)) {
                 DerInputStream ss = new DerInputStream(bagValue.toByteArray());
                 DerValue[] secretValues = ss.getSequence(2);
+                if (secretValues.length != 2) {
+                    throw new IOException("Invalid length for SecretBag");
+                }
                 ObjectIdentifier secretId = secretValues[0].getOID();
                 if (!secretValues[1].isContextSpecific((byte)0)) {
                     throw new IOException(
@@ -2437,6 +2447,9 @@ public final class PKCS12KeyStore extends KeyStoreSpi {
                     byte[] encoded = attrSet[j].toByteArray();
                     DerInputStream as = new DerInputStream(encoded);
                     DerValue[] attrSeq = as.getSequence(2);
+                    if (attrSeq.length != 2) {
+                        throw new IOException("Invalid length for Attribute");
+                    }
                     ObjectIdentifier attrId = attrSeq[0].getOID();
                     DerInputStream vs =
                         new DerInputStream(attrSeq[1].toByteArray());

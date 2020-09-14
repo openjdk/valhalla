@@ -260,7 +260,8 @@ final class SessionTicketExtension {
         public byte[] encrypt(HandshakeContext hc, SSLSessionImpl session) {
             byte[] encrypted;
 
-            if (!hc.handshakeSession.isStatelessable(hc)) {
+            if (!hc.statelessResumption ||
+                    !hc.handshakeSession.isStatelessable()) {
                 return new byte[0];
             }
 
@@ -412,6 +413,7 @@ final class SessionTicketExtension {
             if (chc.localSupportedSignAlgs == null) {
                 chc.localSupportedSignAlgs =
                         SignatureScheme.getSupportedAlgorithms(
+                                chc.sslConfig,
                                 chc.algorithmConstraints, chc.activeProtocols);
             }
 
@@ -447,8 +449,10 @@ final class SessionTicketExtension {
                 return;
             }
 
+            // Regardless of session ticket contents, client allows stateless
+            shc.statelessResumption = true;
+
             if (buffer.remaining() == 0) {
-                shc.statelessResumption = true;
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine("Client accepts session tickets.");
                 }
@@ -461,9 +465,12 @@ final class SessionTicketExtension {
             if (b != null) {
                 shc.resumingSession = new SSLSessionImpl(shc, b);
                 shc.isResumption = true;
-                shc.statelessResumption = true;
                 if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
                     SSLLogger.fine("Valid stateless session ticket found");
+                }
+            } else {
+                if (SSLLogger.isOn && SSLLogger.isOn("ssl,handshake")) {
+                    SSLLogger.fine("Invalid stateless session ticket found");
                 }
             }
         }

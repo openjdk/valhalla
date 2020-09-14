@@ -759,6 +759,7 @@ BUILD_HOTSPOT_JTREG_LIBRARIES_CFLAGS_libobjmonusage002 := $(NSK_JVMTI_AGENT_INCL
 BUILD_HOTSPOT_JTREG_LIBRARIES_CFLAGS_libobjmonusage005 := $(NSK_JVMTI_AGENT_INCLUDES)
 BUILD_HOTSPOT_JTREG_LIBRARIES_CFLAGS_libobjmonusage006 := $(NSK_JVMTI_AGENT_INCLUDES)
 BUILD_HOTSPOT_JTREG_LIBRARIES_CFLAGS_libobjmonusage001 := $(NSK_JVMTI_AGENT_INCLUDES)
+BUILD_HOTSPOT_JTREG_LIBRARIES_CFLAGS_libobjmonusage007 := $(NSK_JVMTI_AGENT_INCLUDES)
 BUILD_HOTSPOT_JTREG_LIBRARIES_CFLAGS_libagentonload001 := $(NSK_JVMTI_AGENT_INCLUDES)
 BUILD_HOTSPOT_JTREG_LIBRARIES_CFLAGS_libagentonload002 := $(NSK_JVMTI_AGENT_INCLUDES)
 BUILD_HOTSPOT_JTREG_LIBRARIES_CFLAGS_libagentonload003 := $(NSK_JVMTI_AGENT_INCLUDES)
@@ -850,10 +851,6 @@ BUILD_HOTSPOT_JTREG_LIBRARIES_CFLAGS_libVirtualMachine09agent00 := $(NSK_AOD_INC
 ################################################################################
 
 # Platform specific setup
-ifeq ($(call And, $(call isTargetOs, solaris) $(call isTargetCpuArch, sparc)), false)
-  BUILD_HOTSPOT_JTREG_EXCLUDE += liboverflow.c exeThreadSignalMask.c
-endif
-
 ifeq ($(call isTargetOs, linux), true)
     BUILD_HOTSPOT_JTREG_LIBRARIES_LDFLAGS_libtest-rw := -z noexecstack
     BUILD_HOTSPOT_JTREG_LIBRARIES_LDFLAGS_libtest-rwx := -z execstack
@@ -873,17 +870,11 @@ endif
 
 BUILD_HOTSPOT_JTREG_EXECUTABLES_LIBS_exesigtest := -ljvm
 
-ifeq ($(call isTargetOs, solaris), true)
-    BUILD_HOTSPOT_JTREG_EXCLUDE += libterminatedThread.c
-endif
-
 ifeq ($(call isTargetOs, windows), true)
     BUILD_HOTSPOT_JTREG_EXECUTABLES_CFLAGS_exeFPRegs := -MT
     BUILD_HOTSPOT_JTREG_EXCLUDE += exesigtest.c libterminatedThread.c
-    BUILD_HOTSPOT_JTREG_EXECUTABLES_LIBS_exejvm-test-launcher := jvm.lib
     BUILD_HOTSPOT_JTREG_LIBRARIES_LIBS_libatExit := jvm.lib
 else
-    BUILD_HOTSPOT_JTREG_EXECUTABLES_LIBS_exejvm-test-launcher := -ljvm
     BUILD_HOTSPOT_JTREG_LIBRARIES_LIBS_libbootclssearch_agent += -lpthread
     BUILD_HOTSPOT_JTREG_LIBRARIES_LIBS_libsystemclssearch_agent += -lpthread
     BUILD_HOTSPOT_JTREG_LIBRARIES_LIBS_libgetsysprop001 += -lpthread
@@ -1474,6 +1465,7 @@ else
     BUILD_HOTSPOT_JTREG_LIBRARIES_LIBS_libobjmonusage005 += -lpthread
     BUILD_HOTSPOT_JTREG_LIBRARIES_LIBS_libobjmonusage006 += -lpthread
     BUILD_HOTSPOT_JTREG_LIBRARIES_LIBS_libobjmonusage001 += -lpthread
+    BUILD_HOTSPOT_JTREG_LIBRARIES_LIBS_libobjmonusage007 += -lpthread
     BUILD_HOTSPOT_JTREG_LIBRARIES_LIBS_libagentonload001 += -lpthread
     BUILD_HOTSPOT_JTREG_LIBRARIES_LIBS_libagentonload002 += -lpthread
     BUILD_HOTSPOT_JTREG_LIBRARIES_LIBS_libagentonload003 += -lpthread

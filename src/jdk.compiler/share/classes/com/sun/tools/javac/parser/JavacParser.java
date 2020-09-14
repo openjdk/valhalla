@@ -190,6 +190,8 @@ public class JavacParser implements Parser {
         this.allowWithFieldOperator = fac.options.isSet("allowWithFieldOperator");
         this.allowRecords = (!preview.isPreview(Feature.RECORDS) || preview.isEnabled()) &&
                 Feature.RECORDS.allowedInSource(source);
+        this.allowSealedTypes = (!preview.isPreview(Feature.SEALED_CLASSES) || preview.isEnabled()) &&
+                Feature.SEALED_CLASSES.allowedInSource(source);
     }
 
     protected AbstractEndPosTable newEndPosTable(boolean keepEndPositions) {
@@ -230,6 +232,10 @@ public class JavacParser implements Parser {
     /** Switch: are records allowed in this source level?
      */
     boolean allowRecords;
+
+    /** Switch: are sealed types allowed in this source level?
+     */
+    boolean allowSealedTypes;
 
     /** The type of the method receiver, as specified by a first "this" parameter.
      */
@@ -453,7 +459,7 @@ public class JavacParser implements Parser {
             }
         }
         S.errPos(pos);
-        if (token.pos == errorPos) {
+        if (token.pos == errorPos && token.kind != EOF) {
             //check for a possible infinite loop in parsing:
             Assert.check(count++ < RECOVERY_THRESHOLD);
         } else {
@@ -2654,7 +2660,9 @@ public class JavacParser implements Parser {
             dc = token.comment(CommentStyle.JAVADOC);
             return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), dc));
         case ENUM:
-            log.error(DiagnosticFlag.SYNTAX, token.pos, Errors.LocalEnum);
+            if (!allowRecords) {
+                log.error(DiagnosticFlag.SYNTAX, token.pos, Errors.LocalEnum);
+            }
             dc = token.comment(CommentStyle.JAVADOC);
             return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), dc));
         case IDENTIFIER:
@@ -2702,6 +2710,19 @@ public class JavacParser implements Parser {
                 }
 
                 //else intentional fall-through
+            } else {
+                if (isNonSealedClassStart(true)) {
+                    log.error(token.pos, Errors.SealedOrNonSealedLocalClassesNotAllowed);
+                    nextToken();
+                    nextToken();
+                    nextToken();
+                    return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), token.comment(CommentStyle.JAVADOC)));
+                } else if (isSealedClassStart(true)) {
+                    checkSourceLevel(Feature.SEALED_CLASSES);
+                    log.error(token.pos, Errors.SealedOrNonSealedLocalClassesNotAllowed);
+                    nextToken();
+                    return List.of(classOrRecordOrInterfaceOrEnumDeclaration(modifiersOpt(), token.comment(CommentStyle.JAVADOC)));
+                }
             }
         }
         if (isRecordStart() && allowRecords) {
@@ -3156,6 +3177,20 @@ public class JavacParser implements Parser {
             case MONKEYS_AT  : flag = Flags.ANNOTATION; break;
             case DEFAULT     : checkSourceLevel(Feature.DEFAULT_METHODS); flag = Flags.DEFAULT; break;
             case ERROR       : flag = 0; nextToken(); break;
+            case IDENTIFIER  : {
+                if (isNonSealedClassStart(false)) {
+                    flag = Flags.NON_SEALED;
+                    nextToken();
+                    nextToken();
+                    break;
+                }
+                if (isSealedClassStart(false)) {
+                    checkSourceLevel(Feature.SEALED_CLASSES);
+                    flag = Flags.SEALED;
+                    break;
+                }
+                break loop;
+            }
             default: break loop;
             }
             if ((flags & flag) != 0) log.error(DiagnosticFlag.SYNTAX, token.pos, Errors.RepeatedModifier);
@@ -3450,16 +3485,30 @@ public class JavacParser implements Parser {
                 log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK14));
             }
         }
+        if (name == names.sealed) {
+            if (allowSealedTypes) {
+                return Source.JDK15;
+            } else if (shouldWarn) {
+                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK15));
+            }
+        }
+        if (name == names.permits) {
+            if (allowSealedTypes) {
+                return Source.JDK15;
+            } else if (shouldWarn) {
+                log.warning(pos, Warnings.RestrictedTypeNotAllowedPreview(name, Source.JDK15));
+            }
+        }
         return null;
     }
 
     /** VariableDeclaratorId = Ident BracketsOpt
      */
     JCVariableDecl variableDeclaratorId(JCModifiers mods, JCExpression type) {
-        return variableDeclaratorId(mods, type, false);
+        return variableDeclaratorId(mods, type, false, false);
     }
     //where
-    JCVariableDecl variableDeclaratorId(JCModifiers mods, JCExpression type, boolean lambdaParameter) {
+    JCVariableDecl variableDeclaratorId(JCModifiers mods, JCExpression type, boolean lambdaParameter, boolean recordComponent) {
         int pos = token.pos;
         Name name;
         if (lambdaParameter && token.kind == UNDERSCORE) {
@@ -3503,6 +3552,9 @@ public class JavacParser implements Parser {
         if ((mods.flags & Flags.VARARGS) != 0 &&
                 token.kind == LBRACKET) {
             log.error(token.pos, Errors.VarargsAndOldArraySyntax);
+        }
+        if (recordComponent && token.kind == LBRACKET) {
+            log.error(token.pos, Errors.RecordComponentAndOldArraySyntax);
         }
         type = bracketsOpt(type);
 
@@ -3569,7 +3621,7 @@ public class JavacParser implements Parser {
             List<JCAnnotation> annotations = List.nil();
             seenPackage = true;
             if (mods != null) {
-                checkNoMods(mods.flags);
+                checkNoMods(mods.flags & ~Flags.DEPRECATED);
                 annotations = mods.annotations;
                 mods = null;
             }
@@ -3844,9 +3896,10 @@ public class JavacParser implements Parser {
             nextToken();
             implementing = typeList();
         }
+        List<JCExpression> permitting = permitsClause(mods, "class");
         List<JCTree> defs = classInterfaceOrRecordBody(name, false, false);
         JCClassDecl result = toP(F.at(pos).ClassDef(
-            mods, name, typarams, extending, implementing, defs));
+            mods, name, typarams, extending, implementing, permitting, defs));
         attach(result, dc);
         return result;
     }
@@ -3879,7 +3932,8 @@ public class JavacParser implements Parser {
                     for (JCVariableDecl param : headerFields) {
                         tmpParams.add(F.at(param)
                                 // we will get flags plus annotations from the record component
-                                .VarDef(F.Modifiers(Flags.PARAMETER | param.mods.flags & Flags.VARARGS, param.mods.annotations),
+                                .VarDef(F.Modifiers(Flags.PARAMETER | Flags.GENERATED_MEMBER | param.mods.flags & Flags.VARARGS,
+                                        param.mods.annotations),
                                 param.name, param.vartype, null));
                     }
                     methDef.params = tmpParams.toList();
@@ -3923,11 +3977,25 @@ public class JavacParser implements Parser {
             nextToken();
             extending = typeList();
         }
-        List<JCTree> defs = classInterfaceOrRecordBody(name, true, false);
+        List<JCExpression> permitting = permitsClause(mods, "interface");
+        List<JCTree> defs;
+        defs = classInterfaceOrRecordBody(name, true, false);
         JCClassDecl result = toP(F.at(pos).ClassDef(
-            mods, name, typarams, null, extending, defs));
+            mods, name, typarams, null, extending, permitting, defs));
         attach(result, dc);
         return result;
+    }
+
+    List<JCExpression> permitsClause(JCModifiers mods, String classOrInterface) {
+        if (allowSealedTypes && token.kind == IDENTIFIER && token.name() == names.permits) {
+            checkSourceLevel(Feature.SEALED_CLASSES);
+            if ((mods.flags & Flags.SEALED) == 0) {
+                log.error(token.pos, Errors.InvalidPermitsClause(Fragments.ClassIsNotSealed(classOrInterface)));
+            }
+            nextToken();
+            return qualidentList(false);
+        }
+        return List.nil();
     }
 
     /** EnumDeclaration = ENUM Ident [IMPLEMENTS TypeList] EnumBody
@@ -4027,7 +4095,10 @@ public class JavacParser implements Parser {
     }
 
     private EnumeratorEstimate estimateEnumeratorOrMember(Name enumName) {
-        if (token.kind == TokenKind.IDENTIFIER && token.name() != enumName) {
+        // if we are seeing a record declaration inside of an enum we want the same error message as expected for a
+        // let's say an interface declaration inside an enum
+        if (token.kind == TokenKind.IDENTIFIER && token.name() != enumName &&
+                (!allowRecords || !isRecordStart())) {
             Token next = S.token(1);
             switch (next.kind) {
                 case LPAREN: case LBRACE: case COMMA: case SEMI:
@@ -4036,6 +4107,11 @@ public class JavacParser implements Parser {
         }
         switch (token.kind) {
             case IDENTIFIER: case MONKEYS_AT: case LT:
+                if (token.kind == IDENTIFIER) {
+                    if (allowRecords && isRecordStart()) {
+                        return EnumeratorEstimate.MEMBER;
+                    }
+                }
                 return EnumeratorEstimate.UNKNOWN;
             default:
                 return EnumeratorEstimate.MEMBER;
@@ -4105,6 +4181,8 @@ public class JavacParser implements Parser {
             skip(false, true, false, false);
             if (token.kind == LBRACE)
                 nextToken();
+            else
+                return List.nil();
         }
         ListBuffer<JCTree> defs = new ListBuffer<>();
         while (token.kind != RBRACE && token.kind != EOF) {
@@ -4263,16 +4341,62 @@ public class JavacParser implements Parser {
     }
 
     protected boolean isRecordStart() {
-     if (token.kind == IDENTIFIER && token.name() == names.record &&
+        if (token.kind == IDENTIFIER && token.name() == names.record &&
             (peekToken(TokenKind.IDENTIFIER, TokenKind.LPAREN) ||
              peekToken(TokenKind.IDENTIFIER, TokenKind.EOF) ||
              peekToken(TokenKind.IDENTIFIER, TokenKind.LT))) {
-          checkSourceLevel(Feature.RECORDS);
-          return true;
-    } else {
-       return false;
-   }
-}
+             checkSourceLevel(Feature.RECORDS);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    protected boolean isNonSealedClassStart(boolean local) {
+        if (isNonSealedIdentifier(token, 0)) {
+            Token next = S.token(3);
+            return allowedAfterSealedOrNonSealed(next, local, true);
+        }
+        return false;
+    }
+
+    protected boolean isNonSealedIdentifier(Token someToken, int lookAheadOffset) {
+        if (someToken.name() == names.non && peekToken(lookAheadOffset, TokenKind.SUB, TokenKind.IDENTIFIER)) {
+            Token tokenSub = S.token(lookAheadOffset + 1);
+            Token tokenSealed = S.token(lookAheadOffset + 2);
+            if (someToken.endPos == tokenSub.pos &&
+                    tokenSub.endPos == tokenSealed.pos &&
+                    tokenSealed.name() == names.sealed) {
+                checkSourceLevel(Feature.SEALED_CLASSES);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    protected boolean isSealedClassStart(boolean local) {
+        if (token.name() == names.sealed) {
+            Token next = S.token(1);
+            if (allowedAfterSealedOrNonSealed(next, local, false)) {
+                checkSourceLevel(Feature.SEALED_CLASSES);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean allowedAfterSealedOrNonSealed(Token next, boolean local, boolean currentIsNonSealed) {
+        return local ?
+            switch (next.kind) {
+                case MONKEYS_AT, ABSTRACT, FINAL, STRICTFP, CLASS, INTERFACE, ENUM -> true;
+                default -> false;
+            } :
+            switch (next.kind) {
+                case MONKEYS_AT, PUBLIC, PROTECTED, PRIVATE, ABSTRACT, STATIC, FINAL, STRICTFP, CLASS, INTERFACE, ENUM -> true;
+                case IDENTIFIER -> isNonSealedIdentifier(next, currentIsNonSealed ? 3 : 1) || next.name() == names.sealed;
+                default -> false;
+            };
+    }
 
     /** MethodDeclaratorRest =
      *      FormalParameters BracketsOpt [THROWS TypeList] ( MethodBody | [DEFAULT AnnotationValue] ";")
@@ -4580,12 +4704,12 @@ public class JavacParser implements Parser {
             }
             typeAnnotationsPushedBack = List.nil();
         }
-        return variableDeclaratorId(mods, type, lambdaParameter);
+        return variableDeclaratorId(mods, type, lambdaParameter, recordComponent);
     }
 
     protected JCVariableDecl implicitParameter() {
         JCModifiers mods = F.at(token.pos).Modifiers(Flags.PARAMETER);
-        return variableDeclaratorId(mods, null, true);
+        return variableDeclaratorId(mods, null, true, false);
     }
 
 /* ---------- auxiliary methods -------------- */

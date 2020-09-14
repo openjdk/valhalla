@@ -112,7 +112,6 @@ PLATFORM_MODULES += \
     jdk.jsobject \
     jdk.localedata \
     jdk.naming.dns \
-    jdk.scripting.nashorn \
     jdk.security.auth \
     jdk.security.jgss \
     jdk.xml.dom \
@@ -123,14 +122,9 @@ ifeq ($(call isTargetOs, windows), true)
   PLATFORM_MODULES += jdk.crypto.mscapi
 endif
 
-ifeq ($(call isTargetOs, solaris), true)
-  PLATFORM_MODULES += jdk.crypto.ucrypto
-endif
-
 JRE_TOOL_MODULES += \
     jdk.jdwp.agent \
     jdk.incubator.jpackage \
-    jdk.scripting.nashorn.shell \
     #
 
 ################################################################################
@@ -172,7 +166,6 @@ DOCS_MODULES += \
     jdk.naming.rmi \
     jdk.net \
     jdk.nio.mapmode \
-    jdk.scripting.nashorn \
     jdk.sctp \
     jdk.security.auth \
     jdk.security.jgss \
@@ -198,21 +191,6 @@ HOTSPOT_MODULES := \
     jdk.internal.vm.ci \
     jdk.internal.vm.compiler \
     jdk.internal.vm.compiler.management \
-    #
-
-# The native dynamic libraries in these modules will also get built into static
-# libraries for consumption by downstream projects that need to statically link
-# the JDK libraries. Those static libraries are not part of the main JDK
-# distribution. 
-STATIC_LIBS_MODULES := \
-    java.base \
-    jdk.crypto.ec \
-    jdk.security.auth \
-    java.prefs \
-    java.security.jgss \
-    java.smartcardio \
-    jdk.crypto.cryptoki \
-    jdk.net \
     #
 
 ################################################################################
@@ -368,6 +346,7 @@ $(MODULE_DEPS_MAKEFILE): $(MODULE_INFOS) \
 	                          sub(/\/\*.*\*\//, ""); \
 	                          gsub(/^ +\*.*/, ""); \
 	                          gsub(/ /, ""); \
+	                          gsub(/\r/, ""); \
 	                          printf(" %s", $$0) } \
 	          END           { printf("\n") }' $m && \
 	      $(PRINTF) "TRANSITIVE_MODULES_$(call GetModuleNameFromModuleInfo, $m) :=" && \
@@ -381,6 +360,7 @@ $(MODULE_DEPS_MAKEFILE): $(MODULE_INFOS) \
 	                          sub(/\/\*.*\*\//, ""); \
 	                          gsub(/^ +\*.*/, ""); \
 	                          gsub(/ /, ""); \
+	                          gsub(/\r/, ""); \
 	                          printf(" %s", $$0) } \
 	          END           { printf("\n") }' $m \
 	    ) >> $@ $(NEWLINE))

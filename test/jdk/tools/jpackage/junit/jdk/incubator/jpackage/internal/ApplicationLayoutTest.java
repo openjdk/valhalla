@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@ import java.nio.file.Path;
 import org.junit.Test;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertTrue;
 
 
 public class ApplicationLayoutTest {
@@ -82,7 +82,6 @@ public class ApplicationLayoutTest {
         assertTrue(Files.isDirectory(layout.appModsDirectory()));
         assertTrue(Files.isRegularFile(layout.launchersDirectory().resolve("Foo")));
         assertTrue(Files.isRegularFile(layout.destktopIntegrationDirectory().resolve("Foo.png")));
-        assertTrue(Files.isRegularFile(layout.dllDirectory().resolve("libapplauncher.so")));
         assertTrue(Files.isRegularFile(layout.runtimeDirectory().resolve("bin/java")));
     }
 

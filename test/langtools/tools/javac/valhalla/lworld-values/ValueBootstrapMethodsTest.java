@@ -58,6 +58,17 @@ public class ValueBootstrapMethodsTest {
             return String.format("[%s i=%s d=%s s=%s l=%s]", Value.class.getName(),
                                  i, String.valueOf(d), s, l.toString());
         }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof Value) {
+                Value v = (Value)obj;
+                return this.i == v.i && this.d == v.d &&
+                        Objects.equals(this.s, v.s) &&
+                        Objects.equals(this.l, this.l);
+            }
+            return false;
+        }
     }
 
     private static void assertEquals(Object o1, Object expected) {
@@ -73,18 +84,24 @@ public class ValueBootstrapMethodsTest {
         assertEquals(value.localHashCode(), value.hashCode());
         assertEquals(value.localToString(), value.toString());
 
-        if (!value.equals(value)) {
-            throw new RuntimeException("expected equals");
+        // verify ifacmp and the overridden equals method
+
+        // same instance
+        if (value != value || !value.equals(value)) {
+            throw new RuntimeException("expected == and equals");
         }
 
+        // value and v2 are of different values
         Value v2 = new Value(20, 5.03, "foo", "bar", "goo");
-        if (value.equals(v2)) {
-            throw new RuntimeException("expected unequals");
+        if (value == v2 || value.equals(v2)) {
+            throw new RuntimeException("expected != and unequals");
         }
 
+        // v2 and v3 are of different values but Value::equals
+        // returns true because v2::l and v3::l field contain the same elements
         Value v3 = new Value(20, 5.03, "foo", "bar", "goo");
-        if (!v2.equals(v3)) {
-            throw new RuntimeException("expected equals");
+        if (v2 == v3 || !v2.equals(v3)) {
+            throw new RuntimeException("expected != and equals");
         }
     }
 }

@@ -28,6 +28,7 @@
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionaryShared.hpp"
 #include "classfile/vmSymbols.hpp"
+#include "gc/shared/gcLocker.hpp"
 #include "logging/log.hpp"
 #include "logging/logMessage.hpp"
 #include "logging/logStream.hpp"
@@ -55,9 +56,9 @@
 bool HeapShared::_closed_archive_heap_region_mapped = false;
 bool HeapShared::_open_archive_heap_region_mapped = false;
 bool HeapShared::_archive_heap_region_fixed = false;
-
 address   HeapShared::_narrow_oop_base;
 int       HeapShared::_narrow_oop_shift;
+DumpedInternedStrings *HeapShared::_dumped_interned_strings = NULL;
 
 //
 // If you add new entries to the following tables, you should know what you're doing!
@@ -97,6 +98,7 @@ void HeapShared::fixup_mapped_heap_regions() {
   FileMapInfo *mapinfo = FileMapInfo::current_info();
   mapinfo->fixup_mapped_heap_regions();
   set_archive_heap_region_fixed();
+  SystemDictionaryShared::update_archived_mirror_native_pointers();
 }
 
 unsigned HeapShared::oop_hash(oop const& p) {
@@ -134,13 +136,23 @@ oop HeapShared::archive_heap_object(oop obj, Thread* THREAD) {
     return NULL;
   }
 
-  // Pre-compute object identity hash at CDS dump time.
-  obj->identity_hash();
-
   oop archived_oop = (oop)G1CollectedHeap::heap()->archive_mem_allocate(len);
   if (archived_oop != NULL) {
     Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(obj), cast_from_oop<HeapWord*>(archived_oop), len);
     MetaspaceShared::relocate_klass_ptr(archived_oop);
+    // Reinitialize markword to remove age/marking/locking/etc.
+    //
+    // We need to retain the identity_hash, because it may have been used by some hashtables
+    // in the shared heap. This also has the side effect of pre-initializing the
+    // identity_hash for all shared objects, so they are less likely to be written
+    // into during run time, increasing the potential of memory sharing.
+    int hash_original = obj->identity_hash();
+    archived_oop->set_mark_raw(markWord::prototype().copy_set_hash(hash_original));
+    assert(archived_oop->mark().is_unlocked(), "sanity");
+
+    DEBUG_ONLY(int hash_archived = archived_oop->identity_hash());
+    assert(hash_original == hash_archived, "Different hash codes: original %x, archived %x", hash_original, hash_archived);
+
     ArchivedObjectCache* cache = archived_object_cache();
     cache->put(obj, archived_oop);
     log_debug(cds, heap)("Archived heap object " PTR_FORMAT " ==> " PTR_FORMAT,
@@ -181,6 +193,25 @@ void HeapShared::archive_klass_objects(Thread* THREAD) {
   }
 }
 
+void HeapShared::run_full_gc_in_vm_thread() {
+  if (is_heap_object_archiving_allowed()) {
+    // Avoid fragmentation while archiving heap objects.
+    // We do this inside a safepoint, so that no further allocation can happen after GC
+    // has finished.
+    if (GCLocker::is_active()) {
+      // Just checking for safety ...
+      // This should not happen during -Xshare:dump. If you see this, probably the Java core lib
+      // has been modified such that JNI code is executed in some clean up threads after
+      // we have finished class loading.
+      log_warning(cds)("GC locker is held, unable to start extra compacting GC. This may produce suboptimal results.");
+    } else {
+      log_info(cds)("Run GC ...");
+      Universe::heap()->collect_as_vm_thread(GCCause::_archive_time_gc);
+      log_info(cds)("Run GC done");
+    }
+  }
+}
+
 void HeapShared::archive_java_heap_objects(GrowableArray<MemRegion> *closed,
                                            GrowableArray<MemRegion> *open) {
   if (!is_heap_object_archiving_allowed()) {
@@ -202,7 +233,6 @@ void HeapShared::archive_java_heap_objects(GrowableArray<MemRegion> *closed,
     create_archived_object_cache();
 
     log_info(cds)("Dumping objects to closed archive heap region ...");
-    NOT_PRODUCT(StringTable::verify());
     copy_closed_archive_heap_objects(closed);
 
     log_info(cds)("Dumping objects to open archive heap region ...");
@@ -222,7 +252,7 @@ void HeapShared::copy_closed_archive_heap_objects(
   G1CollectedHeap::heap()->begin_archive_alloc_range();
 
   // Archive interned string objects
-  StringTable::write_to_archive();
+  StringTable::write_to_archive(_dumped_interned_strings);
 
   archive_object_subgraphs(closed_archive_subgraph_entry_fields,
                            num_closed_archive_subgraph_entry_fields,
@@ -284,7 +314,7 @@ void KlassSubGraphInfo::add_subgraph_entry_field(
   assert(DumpSharedSpaces, "dump time only");
   if (_subgraph_entry_fields == NULL) {
     _subgraph_entry_fields =
-      new(ResourceObj::C_HEAP, mtClass) GrowableArray<juint>(10, true);
+      new(ResourceObj::C_HEAP, mtClass) GrowableArray<juint>(10, mtClass);
   }
   _subgraph_entry_fields->append((juint)static_field_offset);
   _subgraph_entry_fields->append(CompressedOops::encode(v));
@@ -300,7 +330,7 @@ void KlassSubGraphInfo::add_subgraph_object_klass(Klass* orig_k, Klass *relocate
 
   if (_subgraph_object_klasses == NULL) {
     _subgraph_object_klasses =
-      new(ResourceObj::C_HEAP, mtClass) GrowableArray<Klass*>(50, true);
+      new(ResourceObj::C_HEAP, mtClass) GrowableArray<Klass*>(50, mtClass);
   }
 
   assert(relocated_k->is_shared(), "must be a shared class");
@@ -931,6 +961,11 @@ void HeapShared::init_subgraph_entry_fields(Thread* THREAD) {
                              THREAD);
 }
 
+void HeapShared::init_for_dumping(Thread* THREAD) {
+  _dumped_interned_strings = new (ResourceObj::C_HEAP, mtClass)DumpedInternedStrings();
+  init_subgraph_entry_fields(THREAD);
+}
+
 void HeapShared::archive_object_subgraphs(ArchivableStaticFieldInfo fields[],
                                           int num, bool is_closed_archive,
                                           Thread* THREAD) {
@@ -982,6 +1017,17 @@ void HeapShared::archive_object_subgraphs(ArchivableStaticFieldInfo fields[],
   }
   log_info(cds, heap)("  Verified %d references", _num_total_verifications);
 #endif
+}
+
+// Not all the strings in the global StringTable are dumped into the archive, because
+// some of those strings may be only referenced by classes that are excluded from
+// the archive. We need to explicitly mark the strings that are:
+//   [1] used by classes that WILL be archived;
+//   [2] included in the SharedArchiveConfigFile.
+void HeapShared::add_to_dumped_interned_strings(oop string) {
+  assert_at_safepoint(); // DumpedInternedStrings uses raw oops
+  bool created;
+  _dumped_interned_strings->put_if_absent(string, true, &created);
 }
 
 // At dump-time, find the location of all the non-null oop pointers in an archived heap

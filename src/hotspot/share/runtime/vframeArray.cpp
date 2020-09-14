@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -70,28 +70,34 @@ void vframeArrayElement::fill_in(compiledVFrame* vf, bool realloc_failures) {
 
   int index;
 
-  // Get the monitors off-stack
+  {
+    Thread* current_thread = Thread::current();
+    ResourceMark rm(current_thread);
+    HandleMark hm(current_thread);
 
-  GrowableArray<MonitorInfo*>* list = vf->monitors();
-  if (list->is_empty()) {
-    _monitors = NULL;
-  } else {
+    // Get the monitors off-stack
 
-    // Allocate monitor chunk
-    _monitors = new MonitorChunk(list->length());
-    vf->thread()->add_monitor_chunk(_monitors);
+    GrowableArray<MonitorInfo*>* list = vf->monitors();
+    if (list->is_empty()) {
+      _monitors = NULL;
+    } else {
 
-    // Migrate the BasicLocks from the stack to the monitor chunk
-    for (index = 0; index < list->length(); index++) {
-      MonitorInfo* monitor = list->at(index);
-      assert(!monitor->owner_is_scalar_replaced() || realloc_failures, "object should be reallocated already");
-      BasicObjectLock* dest = _monitors->at(index);
-      if (monitor->owner_is_scalar_replaced()) {
-        dest->set_obj(NULL);
-      } else {
-        assert(monitor->owner() == NULL || (!monitor->owner()->is_unlocked() && !monitor->owner()->has_bias_pattern()), "object must be null or locked, and unbiased");
-        dest->set_obj(monitor->owner());
-        monitor->lock()->move_to(monitor->owner(), dest->lock());
+      // Allocate monitor chunk
+      _monitors = new MonitorChunk(list->length());
+      vf->thread()->add_monitor_chunk(_monitors);
+
+      // Migrate the BasicLocks from the stack to the monitor chunk
+      for (index = 0; index < list->length(); index++) {
+        MonitorInfo* monitor = list->at(index);
+        assert(!monitor->owner_is_scalar_replaced() || realloc_failures, "object should be reallocated already");
+        BasicObjectLock* dest = _monitors->at(index);
+        if (monitor->owner_is_scalar_replaced()) {
+          dest->set_obj(NULL);
+        } else {
+          assert(monitor->owner() == NULL || (!monitor->owner()->is_unlocked() && !monitor->owner()->has_bias_pattern()), "object must be null or locked, and unbiased");
+          dest->set_obj(monitor->owner());
+          monitor->lock()->move_to(monitor->owner(), dest->lock());
+        }
       }
     }
   }
@@ -225,14 +231,7 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
         (thread->has_pending_popframe() || thread->popframe_forcing_deopt_reexecution())) {
       if (thread->has_pending_popframe()) {
         // Pop top frame after deoptimization
-#ifndef CC_INTERP
         pc = Interpreter::remove_activation_preserving_args_entry();
-#else
-        // Do an uncommon trap type entry. c++ interpreter will know
-        // to pop frame and preserve the args
-        pc = Interpreter::deopt_entry(vtos, 0);
-        use_next_mdp = false;
-#endif
       } else {
         // Reexecute invoke in top frame
         pc = Interpreter::deopt_entry(vtos, 0);
@@ -242,11 +241,10 @@ void vframeArrayElement::unpack_on_stack(int caller_actual_parameters,
         // Deoptimization::fetch_unroll_info_helper
         popframe_preserved_args_size_in_words = in_words(thread->popframe_preserved_args_size_in_words());
       }
-    } else if (!realloc_failure_exception && JvmtiExport::can_force_early_return() && state != NULL && state->is_earlyret_pending()) {
+    } else if (!realloc_failure_exception && JvmtiExport::can_force_early_return() && state != NULL &&
+               state->is_earlyret_pending()) {
       // Force early return from top frame after deoptimization
-#ifndef CC_INTERP
       pc = Interpreter::remove_activation_early_entry(state->earlyret_tos());
-#endif
     } else {
       if (realloc_failure_exception && JvmtiExport::can_force_early_return() && state != NULL && state->is_earlyret_pending()) {
         state->clr_earlyret_pending();

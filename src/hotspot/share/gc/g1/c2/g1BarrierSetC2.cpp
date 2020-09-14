@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/javaClasses.hpp"
 #include "gc/g1/c2/g1BarrierSetC2.hpp"
 #include "gc/g1/g1BarrierSet.hpp"
 #include "gc/g1/g1BarrierSetRuntime.hpp"
@@ -207,7 +208,7 @@ void G1BarrierSetC2::pre_barrier(GraphKit* kit,
     if (pre_val->bottom_type() == TypePtr::NULL_PTR) return;
     assert(pre_val->bottom_type()->basic_type() == T_OBJECT, "or we shouldn't be here");
   }
-  assert(bt == T_OBJECT || bt == T_VALUETYPE, "or we shouldn't be here");
+  assert(bt == T_OBJECT || bt == T_INLINE_TYPE, "or we shouldn't be here");
 
   IdealKit ideal(kit, true);
 
@@ -510,7 +511,7 @@ void G1BarrierSetC2::insert_pre_barrier(GraphKit* kit, Node* base_oop, Node* off
   // If offset is a constant, is it java_lang_ref_Reference::_reference_offset?
   const TypeX* otype = offset->find_intptr_t_type();
   if (otype != NULL && otype->is_con() &&
-      otype->get_con() != java_lang_ref_Reference::referent_offset) {
+      otype->get_con() != java_lang_ref_Reference::referent_offset()) {
     // Constant offset but not the reference_offset so just return
     return;
   }
@@ -550,7 +551,7 @@ void G1BarrierSetC2::insert_pre_barrier(GraphKit* kit, Node* base_oop, Node* off
 
   IdealKit ideal(kit);
 
-  Node* referent_off = __ ConX(java_lang_ref_Reference::referent_offset);
+  Node* referent_off = __ ConX(java_lang_ref_Reference::referent_offset());
 
   __ if_then(offset, BoolTest::eq, referent_off, unlikely); {
       // Update graphKit memory and control from IdealKit.
@@ -661,7 +662,7 @@ bool G1BarrierSetC2::is_gc_barrier_node(Node* node) const {
   return strcmp(call->_name, "write_ref_field_pre_entry") == 0 || strcmp(call->_name, "write_ref_field_post_entry") == 0;
 }
 
-void G1BarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const {
+void G1BarrierSetC2::eliminate_gc_barrier(PhaseIterGVN* igvn, Node* node) const {
   assert(node->Opcode() == Op_CastP2X, "ConvP2XNode required");
   assert(node->outcnt() <= 2, "expects 1 or 2 users: Xor and URShift nodes");
   // It could be only one user, URShift node, in Object.clone() intrinsic
@@ -689,7 +690,7 @@ void G1BarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) c
     assert(cmpx->is_Cmp() && cmpx->unique_out()->is_Bool() &&
     cmpx->unique_out()->as_Bool()->_test._test == BoolTest::ne,
     "missing region check in G1 post barrier");
-    macro->replace_node(cmpx, macro->makecon(TypeInt::CC_EQ));
+    igvn->replace_node(cmpx, igvn->makecon(TypeInt::CC_EQ));
 
     // Remove G1 pre barrier.
 
@@ -707,14 +708,14 @@ void G1BarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) c
         assert(bol->is_Bool(), "");
         cmpx = bol->in(1);
         if (bol->as_Bool()->_test._test == BoolTest::ne &&
-            cmpx->is_Cmp() && cmpx->in(2) == macro->intcon(0) &&
+            cmpx->is_Cmp() && cmpx->in(2) == igvn->intcon(0) &&
             cmpx->in(1)->is_Load()) {
           Node* adr = cmpx->in(1)->as_Load()->in(MemNode::Address);
           const int marking_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
-          if (adr->is_AddP() && adr->in(AddPNode::Base) == macro->top() &&
+          if (adr->is_AddP() && adr->in(AddPNode::Base) == igvn->C->top() &&
               adr->in(AddPNode::Address)->Opcode() == Op_ThreadLocal &&
-              adr->in(AddPNode::Offset) == macro->MakeConX(marking_offset)) {
-            macro->replace_node(cmpx, macro->makecon(TypeInt::CC_EQ));
+              adr->in(AddPNode::Offset) == igvn->MakeConX(marking_offset)) {
+            igvn->replace_node(cmpx, igvn->makecon(TypeInt::CC_EQ));
           }
         }
       }
@@ -733,13 +734,13 @@ void G1BarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) c
     assert(cmpx->is_Cmp() && cmpx->unique_out()->is_Bool() &&
            cmpx->unique_out()->as_Bool()->_test._test == BoolTest::ne,
            "missing card value check in G1 post barrier");
-    macro->replace_node(cmpx, macro->makecon(TypeInt::CC_EQ));
+    igvn->replace_node(cmpx, igvn->makecon(TypeInt::CC_EQ));
     // There is no G1 pre barrier in this case
   }
   // Now CastP2X can be removed since it is used only on dead path
   // which currently still alive until igvn optimize it.
   assert(node->outcnt() == 0 || node->unique_out()->Opcode() == Op_URShiftX, "");
-  macro->replace_node(node, macro->top());
+  igvn->replace_node(node, igvn->C->top());
 }
 
 Node* G1BarrierSetC2::step_over_gc_barrier(Node* c) const {
@@ -785,9 +786,8 @@ void G1BarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase phase) co
   // Verify G1 pre-barriers
   const int marking_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
 
-  ResourceArea *area = Thread::current()->resource_area();
-  Unique_Node_List visited(area);
-  Node_List worklist(area);
+  Unique_Node_List visited;
+  Node_List worklist;
   // We're going to walk control flow backwards starting from the Root
   worklist.push(compile->root());
   while (worklist.size() > 0) {

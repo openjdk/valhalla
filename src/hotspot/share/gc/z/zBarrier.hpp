@@ -26,7 +26,7 @@
 
 #include "memory/allocation.hpp"
 #include "oops/oop.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 
 typedef bool (*ZBarrierFastPath)(uintptr_t);
 typedef uintptr_t (*ZBarrierSlowPath)(uintptr_t);

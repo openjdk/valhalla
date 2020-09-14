@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -336,13 +336,13 @@ class StubGenerator: public StubCodeGenerator {
     return_address = __ pc();
 
     // store result depending on type (everything that is not
-    // T_OBJECT, T_VALUETYPE, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
+    // T_OBJECT, T_INLINE_TYPE, T_LONG, T_FLOAT or T_DOUBLE is treated as T_INT)
     __ movptr(r13, result);
     Label is_long, is_float, is_double, is_value, exit;
     __ movl(rbx, result_type);
     __ cmpl(rbx, T_OBJECT);
     __ jcc(Assembler::equal, is_long);
-    __ cmpl(rbx, T_VALUETYPE);
+    __ cmpl(rbx, T_INLINE_TYPE);
     __ jcc(Assembler::equal, is_value);
     __ cmpl(rbx, T_LONG);
     __ jcc(Assembler::equal, is_long);
@@ -415,14 +415,14 @@ class StubGenerator: public StubCodeGenerator {
 
     // handle return types different from T_INT
     __ BIND(is_value);
-    if (ValueTypeReturnedAsFields) {
+    if (InlineTypeReturnedAsFields) {
       // Check for flattened return value
       __ testptr(rax, 1);
       __ jcc(Assembler::zero, is_long);
       // Load pack handler address
       __ andptr(rax, -2);
-      __ movptr(rax, Address(rax, InstanceKlass::adr_valueklass_fixed_block_offset()));
-      __ movptr(rbx, Address(rax, ValueKlass::pack_handler_jobject_offset()));
+      __ movptr(rax, Address(rax, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+      __ movptr(rbx, Address(rax, InlineKlass::pack_handler_jobject_offset()));
       // Call pack handler to initialize the buffer
       __ call(rbx);
       __ jmp(exit);
@@ -563,170 +563,6 @@ class StubGenerator: public StubCodeGenerator {
     // rdx: throwing pc
     __ verify_oop(rax);
     __ jmp(rbx);
-
-    return start;
-  }
-
-  // Implementation of jint atomic_xchg(jint add_value, volatile jint* dest)
-  // used by Atomic::xchg(volatile jint* dest, jint exchange_value)
-  //
-  // Arguments :
-  //    c_rarg0: exchange_value
-  //    c_rarg0: dest
-  //
-  // Result:
-  //    *dest <- ex, return (orig *dest)
-  address generate_atomic_xchg() {
-    StubCodeMark mark(this, "StubRoutines", "atomic_xchg");
-    address start = __ pc();
-
-    __ movl(rax, c_rarg0); // Copy to eax we need a return value anyhow
-    __ xchgl(rax, Address(c_rarg1, 0)); // automatic LOCK
-    __ ret(0);
-
-    return start;
-  }
-
-  // Implementation of intptr_t atomic_xchg(jlong add_value, volatile jlong* dest)
-  // used by Atomic::xchg(volatile jlong* dest, jlong exchange_value)
-  //
-  // Arguments :
-  //    c_rarg0: exchange_value
-  //    c_rarg1: dest
-  //
-  // Result:
-  //    *dest <- ex, return (orig *dest)
-  address generate_atomic_xchg_long() {
-    StubCodeMark mark(this, "StubRoutines", "atomic_xchg_long");
-    address start = __ pc();
-
-    __ movptr(rax, c_rarg0); // Copy to eax we need a return value anyhow
-    __ xchgptr(rax, Address(c_rarg1, 0)); // automatic LOCK
-    __ ret(0);
-
-    return start;
-  }
-
-  // Support for jint atomic::atomic_cmpxchg(jint exchange_value, volatile jint* dest,
-  //                                         jint compare_value)
-  //
-  // Arguments :
-  //    c_rarg0: exchange_value
-  //    c_rarg1: dest
-  //    c_rarg2: compare_value
-  //
-  // Result:
-  //    if ( compare_value == *dest ) {
-  //       *dest = exchange_value
-  //       return compare_value;
-  //    else
-  //       return *dest;
-  address generate_atomic_cmpxchg() {
-    StubCodeMark mark(this, "StubRoutines", "atomic_cmpxchg");
-    address start = __ pc();
-
-    __ movl(rax, c_rarg2);
-    __ lock();
-    __ cmpxchgl(c_rarg0, Address(c_rarg1, 0));
-    __ ret(0);
-
-    return start;
-  }
-
-  // Support for int8_t atomic::atomic_cmpxchg(int8_t exchange_value, volatile int8_t* dest,
-  //                                           int8_t compare_value)
-  //
-  // Arguments :
-  //    c_rarg0: exchange_value
-  //    c_rarg1: dest
-  //    c_rarg2: compare_value
-  //
-  // Result:
-  //    if ( compare_value == *dest ) {
-  //       *dest = exchange_value
-  //       return compare_value;
-  //    else
-  //       return *dest;
-  address generate_atomic_cmpxchg_byte() {
-    StubCodeMark mark(this, "StubRoutines", "atomic_cmpxchg_byte");
-    address start = __ pc();
-
-    __ movsbq(rax, c_rarg2);
-    __ lock();
-    __ cmpxchgb(c_rarg0, Address(c_rarg1, 0));
-    __ ret(0);
-
-    return start;
-  }
-
-  // Support for int64_t atomic::atomic_cmpxchg(int64_t exchange_value,
-  //                                            volatile int64_t* dest,
-  //                                            int64_t compare_value)
-  // Arguments :
-  //    c_rarg0: exchange_value
-  //    c_rarg1: dest
-  //    c_rarg2: compare_value
-  //
-  // Result:
-  //    if ( compare_value == *dest ) {
-  //       *dest = exchange_value
-  //       return compare_value;
-  //    else
-  //       return *dest;
-  address generate_atomic_cmpxchg_long() {
-    StubCodeMark mark(this, "StubRoutines", "atomic_cmpxchg_long");
-    address start = __ pc();
-
-    __ movq(rax, c_rarg2);
-    __ lock();
-    __ cmpxchgq(c_rarg0, Address(c_rarg1, 0));
-    __ ret(0);
-
-    return start;
-  }
-
-  // Implementation of jint atomic_add(jint add_value, volatile jint* dest)
-  // used by Atomic::add(volatile jint* dest, jint add_value)
-  //
-  // Arguments :
-  //    c_rarg0: add_value
-  //    c_rarg1: dest
-  //
-  // Result:
-  //    *dest += add_value
-  //    return *dest;
-  address generate_atomic_add() {
-    StubCodeMark mark(this, "StubRoutines", "atomic_add");
-    address start = __ pc();
-
-    __ movl(rax, c_rarg0);
-    __ lock();
-    __ xaddl(Address(c_rarg1, 0), c_rarg0);
-    __ addl(rax, c_rarg0);
-    __ ret(0);
-
-    return start;
-  }
-
-  // Implementation of intptr_t atomic_add(intptr_t add_value, volatile intptr_t* dest)
-  // used by Atomic::add(volatile intptr_t* dest, intptr_t add_value)
-  //
-  // Arguments :
-  //    c_rarg0: add_value
-  //    c_rarg1: dest
-  //
-  // Result:
-  //    *dest += add_value
-  //    return *dest;
-  address generate_atomic_add_long() {
-    StubCodeMark mark(this, "StubRoutines", "atomic_add_long");
-    address start = __ pc();
-
-    __ movptr(rax, c_rarg0); // Copy to eax we need a return value anyhow
-    __ lock();
-    __ xaddptr(Address(c_rarg1, 0), c_rarg0);
-    __ addptr(rax, c_rarg0);
-    __ ret(0);
 
     return start;
   }
@@ -1098,11 +934,8 @@ class StubGenerator: public StubCodeGenerator {
     __ cmpptr(c_rarg2, c_rarg3);
     __ jcc(Assembler::notZero, error);
 
-    // set r12 to heapbase for load_klass()
-    __ reinit_heapbase();
-
     // make sure klass is 'reasonable', which is not zero.
-    __ load_klass(rax, rax);  // get klass
+    __ load_klass(rax, rax, rscratch1);  // get klass
     __ testptr(rax, rax);
     __ jcc(Assembler::zero, error); // if klass is NULL it is broken
 
@@ -2540,7 +2373,7 @@ class StubGenerator: public StubCodeGenerator {
     __ testptr(rax_oop, rax_oop);
     __ jcc(Assembler::zero, L_store_element);
 
-    __ load_klass(r11_klass, rax_oop);// query the object klass
+    __ load_klass(r11_klass, rax_oop, rscratch1);// query the object klass
     generate_type_check(r11_klass, ckoff, ckval, L_store_element);
     // ======== end loop ========
 
@@ -2704,8 +2537,10 @@ class StubGenerator: public StubCodeGenerator {
     const Register dst_pos    = c_rarg3;  // destination position
 #ifndef _WIN64
     const Register length     = c_rarg4;
+    const Register rklass_tmp = r9;  // load_klass
 #else
     const Address  length(rsp, 6 * wordSize);  // elements count is on stack on Win64
+    const Register rklass_tmp = rdi;  // load_klass
 #endif
 
     { int modulus = CodeEntryAlignment;
@@ -2778,7 +2613,7 @@ class StubGenerator: public StubCodeGenerator {
     __ testl(r11_length, r11_length);
     __ jccb(Assembler::negative, L_failed_0);
 
-    __ load_klass(r10_src_klass, src);
+    __ load_klass(r10_src_klass, src, rklass_tmp);
 #ifdef ASSERT
     //  assert(src->klass() != NULL);
     {
@@ -2789,7 +2624,7 @@ class StubGenerator: public StubCodeGenerator {
       __ bind(L1);
       __ stop("broken null klass");
       __ bind(L2);
-      __ load_klass(rax, dst);
+      __ load_klass(rax, dst, rklass_tmp);
       __ cmpq(rax, 0);
       __ jcc(Assembler::equal, L1);     // this would be broken also
       BLOCK_COMMENT("} assert klasses not null done");
@@ -2812,12 +2647,20 @@ class StubGenerator: public StubCodeGenerator {
     __ jcc(Assembler::equal, L_objArray);
 
     //  if (src->klass() != dst->klass()) return -1;
-    __ load_klass(rax, dst);
+    __ load_klass(rax, dst, rklass_tmp);
     __ cmpq(r10_src_klass, rax);
     __ jcc(Assembler::notEqual, L_failed);
 
     const Register rax_lh = rax;  // layout helper
     __ movl(rax_lh, Address(r10_src_klass, lh_offset));
+
+    // Check for flat inline type array -> return -1
+    __ testl(rax_lh, Klass::_lh_array_tag_vt_value_bit_inplace);
+    __ jcc(Assembler::notZero, L_failed);
+
+    // Check for null-free (non-flat) inline type array -> handle as object array
+    __ testl(rax_lh, Klass::_lh_null_free_bit_inplace);
+    __ jcc(Assembler::notZero, L_objArray);
 
     //  if (!src->is_Array()) return -1;
     __ cmpl(rax_lh, Klass::_lh_neutral_value);
@@ -2828,8 +2671,10 @@ class StubGenerator: public StubCodeGenerator {
     {
       BLOCK_COMMENT("assert primitive array {");
       Label L;
-      __ cmpl(rax_lh, (Klass::_lh_array_tag_type_value << Klass::_lh_array_tag_shift));
-      __ jcc(Assembler::greaterEqual, L);
+      __ movl(rklass_tmp, rax_lh);
+      __ sarl(rklass_tmp, Klass::_lh_array_tag_shift);
+      __ cmpl(rklass_tmp, Klass::_lh_array_tag_type_value);
+      __ jcc(Assembler::equal, L);
       __ stop("must be a primitive array");
       __ bind(L);
       BLOCK_COMMENT("} assert primitive array done");
@@ -2911,7 +2756,7 @@ class StubGenerator: public StubCodeGenerator {
 
     Label L_plain_copy, L_checkcast_copy;
     //  test array classes for subtyping
-    __ load_klass(rax, dst);
+    __ load_klass(rax, dst, rklass_tmp);
     __ cmpq(r10_src_klass, rax); // usual case is exact equality
     __ jcc(Assembler::notEqual, L_checkcast_copy);
 
@@ -2931,15 +2776,29 @@ class StubGenerator: public StubCodeGenerator {
     // live at this point:  r10_src_klass, r11_length, rax (dst_klass)
     {
       // Before looking at dst.length, make sure dst is also an objArray.
+      // This check also fails for flat/null-free arrays which are not supported.
       __ cmpl(Address(rax, lh_offset), objArray_lh);
       __ jcc(Assembler::notEqual, L_failed);
+
+#ifdef ASSERT
+      {
+        BLOCK_COMMENT("assert not null-free array {");
+        Label L;
+        __ movl(rklass_tmp, Address(rax, lh_offset));
+        __ testl(rklass_tmp, Klass::_lh_null_free_bit_inplace);
+        __ jcc(Assembler::zero, L);
+        __ stop("unexpected null-free array");
+        __ bind(L);
+        BLOCK_COMMENT("} assert not null-free array");
+      }
+#endif
 
       // It is safe to examine both src.length and dst.length.
       arraycopy_range_checks(src, src_pos, dst, dst_pos, r11_length,
                              rax, L_failed);
 
       const Register r11_dst_klass = r11;
-      __ load_klass(r11_dst_klass, dst); // reload
+      __ load_klass(r11_dst_klass, dst, rklass_tmp); // reload
 
       // Marshal the base address arguments now, freeing registers.
       __ lea(from, Address(src, src_pos, TIMES_OOP,
@@ -3822,6 +3681,43 @@ class StubGenerator: public StubCodeGenerator {
     __ enter(); // required for proper stackwalking of RuntimeStub frame
     __ aesecb_decrypt(from, to, key, len);
     __ leave(); // required for proper stackwalking of RuntimeStub frame
+    __ ret(0);
+    return start;
+  }
+
+  // ofs and limit are use for multi-block byte array.
+  // int com.sun.security.provider.MD5.implCompress(byte[] b, int ofs)
+  address generate_md5_implCompress(bool multi_block, const char *name) {
+    __ align(CodeEntryAlignment);
+    StubCodeMark mark(this, "StubRoutines", name);
+    address start = __ pc();
+
+    const Register buf_param = r15;
+    const Address state_param(rsp, 0 * wordSize);
+    const Address ofs_param  (rsp, 1 * wordSize    );
+    const Address limit_param(rsp, 1 * wordSize + 4);
+
+    __ enter();
+    __ push(rbx);
+    __ push(rdi);
+    __ push(rsi);
+    __ push(r15);
+    __ subptr(rsp, 2 * wordSize);
+
+    __ movptr(buf_param, c_rarg0);
+    __ movptr(state_param, c_rarg1);
+    if (multi_block) {
+      __ movl(ofs_param, c_rarg2);
+      __ movl(limit_param, c_rarg3);
+    }
+    __ fast_md5(buf_param, state_param, ofs_param, limit_param, multi_block);
+
+    __ addptr(rsp, 2 * wordSize);
+    __ pop(r15);
+    __ pop(rsi);
+    __ pop(rdi);
+    __ pop(rbx);
+    __ leave();
     __ ret(0);
     return start;
   }
@@ -5341,13 +5237,20 @@ address generate_avx_ghash_processBlocks() {
     const Register buf   = c_rarg1;  // source java byte array address
     const Register len   = c_rarg2;  // length
     const Register table = c_rarg3;  // crc_table address (reuse register)
-    const Register tmp   = r11;
-    assert_different_registers(crc, buf, len, table, tmp, rax);
+    const Register tmp1   = r11;
+    const Register tmp2   = r10;
+    assert_different_registers(crc, buf, len, table, tmp1, tmp2, rax);
 
     BLOCK_COMMENT("Entry:");
     __ enter(); // required for proper stackwalking of RuntimeStub frame
 
-    __ kernel_crc32(crc, buf, len, table, tmp);
+    if (VM_Version::supports_sse4_1() && VM_Version::supports_avx512_vpclmulqdq() &&
+        VM_Version::supports_avx512bw() &&
+        VM_Version::supports_avx512vl()) {
+      __ kernel_crc32_avx512(crc, buf, len, table, tmp1, tmp2);
+    } else {
+      __ kernel_crc32(crc, buf, len, table, tmp1);
+    }
 
     __ movl(rax, crc);
     __ vzeroupper();
@@ -6320,9 +6223,9 @@ address generate_avx_ghash_processBlocks() {
   }
 
   // Call here from the interpreter or compiled code to either load
-  // multiple returned values from the value type instance being
+  // multiple returned values from the inline type instance being
   // returned to registers or to store returned values to a newly
-  // allocated value type instance.
+  // allocated inline type instance.
   address generate_return_value_stub(address destination, const char* name, bool has_res) {
     // We need to save all registers the calling convention may use so
     // the runtime calls read or update those registers. This needs to
@@ -6475,8 +6378,8 @@ address generate_avx_ghash_processBlocks() {
     StubRoutines::_forward_exception_entry = generate_forward_exception();
 
     // Generate these first because they are called from other stubs
-    StubRoutines::_load_value_type_fields_in_regs = generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_value_type_fields_in_regs), "load_value_type_fields_in_regs", false);
-    StubRoutines::_store_value_type_fields_to_buf = generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_value_type_fields_to_buf), "store_value_type_fields_to_buf", true);
+    StubRoutines::_load_inline_type_fields_in_regs = generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::load_inline_type_fields_in_regs), "load_inline_type_fields_in_regs", false);
+    StubRoutines::_store_inline_type_fields_to_buf = generate_return_value_stub(CAST_FROM_FN_PTR(address, SharedRuntime::store_inline_type_fields_to_buf), "store_inline_type_fields_to_buf", true);
 
     StubRoutines::_call_stub_entry = generate_call_stub(StubRoutines::_call_stub_return_address);
 
@@ -6484,13 +6387,6 @@ address generate_avx_ghash_processBlocks() {
     StubRoutines::_catch_exception_entry = generate_catch_exception();
 
     // atomic calls
-    StubRoutines::_atomic_xchg_entry          = generate_atomic_xchg();
-    StubRoutines::_atomic_xchg_long_entry     = generate_atomic_xchg_long();
-    StubRoutines::_atomic_cmpxchg_entry       = generate_atomic_cmpxchg();
-    StubRoutines::_atomic_cmpxchg_byte_entry  = generate_atomic_cmpxchg_byte();
-    StubRoutines::_atomic_cmpxchg_long_entry  = generate_atomic_cmpxchg_long();
-    StubRoutines::_atomic_add_entry           = generate_atomic_add();
-    StubRoutines::_atomic_add_long_entry      = generate_atomic_add_long();
     StubRoutines::_fence_entry                = generate_orderaccess_fence();
 
     // platform dependent
@@ -6573,6 +6469,14 @@ address generate_avx_ghash_processBlocks() {
         StubRoutines::_dtan = generate_libmTan();
       }
     }
+
+    // Safefetch stubs.
+    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
+                                                       &StubRoutines::_safefetch32_fault_pc,
+                                                       &StubRoutines::_safefetch32_continuation_pc);
+    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
+                                                       &StubRoutines::_safefetchN_fault_pc,
+                                                       &StubRoutines::_safefetchN_continuation_pc);
   }
 
   void generate_all() {
@@ -6642,6 +6546,10 @@ address generate_avx_ghash_processBlocks() {
       }
     }
 
+    if (UseMD5Intrinsics) {
+      StubRoutines::_md5_implCompress = generate_md5_implCompress(false, "md5_implCompress");
+      StubRoutines::_md5_implCompressMB = generate_md5_implCompress(true, "md5_implCompressMB");
+    }
     if (UseSHA1Intrinsics) {
       StubRoutines::x86::_upper_word_mask_addr = generate_upper_word_mask();
       StubRoutines::x86::_shuffle_byte_flip_mask_addr = generate_shuffle_byte_flip_mask();
@@ -6692,14 +6600,6 @@ address generate_avx_ghash_processBlocks() {
       StubRoutines::_base64_encodeBlock = generate_base64_encodeBlock();
     }
 
-    // Safefetch stubs.
-    generate_safefetch("SafeFetch32", sizeof(int),     &StubRoutines::_safefetch32_entry,
-                                                       &StubRoutines::_safefetch32_fault_pc,
-                                                       &StubRoutines::_safefetch32_continuation_pc);
-    generate_safefetch("SafeFetchN", sizeof(intptr_t), &StubRoutines::_safefetchN_entry,
-                                                       &StubRoutines::_safefetchN_fault_pc,
-                                                       &StubRoutines::_safefetchN_continuation_pc);
-
     BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
     if (bs_nm != NULL) {
       StubRoutines::x86::_method_entry_barrier = generate_method_entry_barrier();
@@ -6718,7 +6618,6 @@ address generate_avx_ghash_processBlocks() {
       StubRoutines::_bigIntegerRightShiftWorker = generate_bigIntegerRightShift();
       StubRoutines::_bigIntegerLeftShiftWorker = generate_bigIntegerLeftShift();
     }
-#ifndef _WINDOWS
     if (UseMontgomeryMultiplyIntrinsic) {
       StubRoutines::_montgomeryMultiply
         = CAST_FROM_FN_PTR(address, SharedRuntime::montgomery_multiply);
@@ -6727,7 +6626,6 @@ address generate_avx_ghash_processBlocks() {
       StubRoutines::_montgomerySquare
         = CAST_FROM_FN_PTR(address, SharedRuntime::montgomery_square);
     }
-#endif // WINDOWS
 #endif // COMPILER2
 
     if (UseVectorizedMismatchIntrinsic) {

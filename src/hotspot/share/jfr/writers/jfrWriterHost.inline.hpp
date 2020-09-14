@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -237,7 +237,7 @@ inline void WriterHost<BE, IE, WriterPolicyImpl>::write(jstring string) {
 template <typename Writer, typename T>
 inline void tag_write(Writer* w, const T* t) {
   assert(w != NULL, "invariant");
-  const traceid id = t == NULL ? 0 : JfrTraceId::use(t);
+  const traceid id = t == NULL ? 0 : JfrTraceId::load(t);
   w->write(id);
 }
 
@@ -293,10 +293,11 @@ void WriterHost<BE, IE, WriterPolicyImpl>::write(const JfrTickspan& time) {
 }
 
 template <typename BE, typename IE, typename WriterPolicyImpl>
-void WriterHost<BE, IE, WriterPolicyImpl>::bytes(const void* buf, size_t len) {
-  u1* const pos = this->ensure_size(len);
+void WriterHost<BE, IE, WriterPolicyImpl>::write_bytes(const void* buf, intptr_t len) {
+  assert(len >= 0, "invariant");
+  u1* const pos = this->ensure_size((size_t)len);
   if (pos != NULL) {
-    WriterPolicyImpl::bytes(pos, buf, len); // WriterPolicyImpl responsible for position update
+    WriterPolicyImpl::write_bytes(pos, buf, len); // WriterPolicyImpl responsible for position update
   }
 }
 

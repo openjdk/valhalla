@@ -98,11 +98,6 @@ public abstract class BaseConfiguration {
     public static final String DEFAULT_BUILDER_XML = "resources/doclet.xml";
 
     /**
-     * Maintain backward compatibility with previous javadoc version
-     */
-    public boolean backwardCompatibility = true;
-
-    /**
      * The meta tag keywords instance.
      */
     public MetaKeywords metakeywords;
@@ -156,11 +151,11 @@ public abstract class BaseConfiguration {
     public abstract Resources getDocResources();
 
     /**
-     * Returns a string identifying the version of the doclet.
+     * Returns the version of the {@link #doclet doclet}.
      *
-     * @return a version string
+     * @return the version
      */
-    public abstract String getDocletVersion();
+    public abstract Runtime.Version getDocletVersion();
 
     /**
      * This method should be defined in all those doclets (configurations),

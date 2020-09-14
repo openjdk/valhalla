@@ -44,13 +44,24 @@
  * the checks inside the loop could be eliminated. Currently, loop predication
  * optimization has been applied to remove array range check and loop invariant
  * checks (such as null checks).
+ *
+ * There are at least 3 kinds of predicates: a place holder inserted
+ * at parse time, the tests added by predication above the place
+ * holder (referred to as concrete predicates), skeleton predicates
+ * that are added between main loop and pre loop to protect C2 from
+ * inconsistencies in some rare cases of over unrolling. Skeleton
+ * predicates themselves are expanded and updated as unrolling
+ * proceeds. They don't compile to any code.
+ *
 */
 
 //-------------------------------register_control-------------------------
-void PhaseIdealLoop::register_control(Node* n, IdealLoopTree *loop, Node* pred) {
-  assert(n->is_CFG(), "must be control node");
+void PhaseIdealLoop::register_control(Node* n, IdealLoopTree *loop, Node* pred, bool update_body) {
+  assert(n->is_CFG(), "msust be control node");
   _igvn.register_new_node_with_optimizer(n);
-  loop->_body.push(n);
+  if (update_body) {
+    loop->_body.push(n);
+  }
   set_loop(n, loop);
   // When called from beautify_loops() idom is not constructed yet.
   if (_idom != NULL) {
@@ -111,6 +122,9 @@ ProjNode* PhaseIdealLoop::create_new_if_for_predicate(ProjNode* cont_proj, Node*
     CallNode* call = rgn->as_Call();
     IdealLoopTree* loop = get_loop(call);
     rgn = new RegionNode(1);
+    Node* uncommon_proj_orig = uncommon_proj;
+    uncommon_proj = uncommon_proj->clone()->as_Proj();
+    register_control(uncommon_proj, loop, iff);
     rgn->add_req(uncommon_proj);
     register_control(rgn, loop, uncommon_proj);
     _igvn.replace_input_of(call, 0, rgn);
@@ -118,13 +132,9 @@ ProjNode* PhaseIdealLoop::create_new_if_for_predicate(ProjNode* cont_proj, Node*
     if (_idom != NULL) {
       set_idom(call, rgn, dom_depth(rgn));
     }
-    for (DUIterator_Fast imax, i = uncommon_proj->fast_outs(imax); i < imax; i++) {
-      Node* n = uncommon_proj->fast_out(i);
-      if (n->is_Load() || n->is_Store()) {
-        _igvn.replace_input_of(n, 0, rgn);
-        --i; --imax;
-      }
-    }
+    // Move nodes pinned on the projection or whose control is set to
+    // the projection to the region.
+    lazy_replace(uncommon_proj_orig, rgn);
   } else {
     // Find region's edge corresponding to uncommon_proj
     for (; proj_index < rgn->req(); proj_index++)
@@ -1245,8 +1255,9 @@ ProjNode* PhaseIdealLoop::insert_initial_skeleton_predicate(IfNode* iff, IdealLo
                                                             Node* init, Node* limit, jint stride,
                                                             Node* rng, bool &overflow,
                                                             Deoptimization::DeoptReason reason) {
+  // First predicate for the initial value on first loop iteration
   assert(proj->_con && predicate_proj->_con, "not a range check?");
-  Node* opaque_init = new Opaque1Node(C, init);
+  Node* opaque_init = new OpaqueLoopInitNode(C, init);
   register_new_node(opaque_init, upper_bound_proj);
   BoolNode* bol = rc_predicate(loop, upper_bound_proj, scale, offset, opaque_init, limit, stride, rng, (stride > 0) != (scale > 0), overflow);
   Node* opaque_bol = new Opaque4Node(C, bol, _igvn.intcon(1)); // This will go away once loop opts are over
@@ -1254,6 +1265,24 @@ ProjNode* PhaseIdealLoop::insert_initial_skeleton_predicate(IfNode* iff, IdealLo
   ProjNode* new_proj = create_new_if_for_predicate(predicate_proj, NULL, reason, overflow ? Op_If : iff->Opcode());
   _igvn.replace_input_of(new_proj->in(0), 1, opaque_bol);
   assert(opaque_init->outcnt() > 0, "should be used");
+
+  // Second predicate for init + (current stride - initial stride)
+  // This is identical to the previous predicate initially but as
+  // unrolling proceeds current stride is updated.
+  Node* init_stride = loop->_head->as_CountedLoop()->stride();
+  Node* opaque_stride = new OpaqueLoopStrideNode(C, init_stride);
+  register_new_node(opaque_stride, new_proj);
+  Node* max_value = new SubINode(opaque_stride, init_stride);
+  register_new_node(max_value, new_proj);
+  max_value = new AddINode(opaque_init, max_value);
+  register_new_node(max_value, new_proj);
+  bol = rc_predicate(loop, new_proj, scale, offset, max_value, limit, stride, rng, (stride > 0) != (scale > 0), overflow);
+  opaque_bol = new Opaque4Node(C, bol, _igvn.intcon(1));
+  register_new_node(opaque_bol, new_proj);
+  new_proj = create_new_if_for_predicate(predicate_proj, NULL, reason, overflow ? Op_If : iff->Opcode());
+  _igvn.replace_input_of(new_proj->in(0), 1, opaque_bol);
+  assert(max_value->outcnt() > 0, "should be used");
+
   return new_proj;
 }
 
@@ -1327,17 +1356,17 @@ bool PhaseIdealLoop::loop_predication_impl(IdealLoopTree *loop) {
   ConNode* zero = _igvn.intcon(0);
   set_ctrl(zero, C->root());
 
-  ResourceArea *area = Thread::current()->resource_area();
+  ResourceArea* area = Thread::current()->resource_area();
   Invariance invar(area, loop);
 
   // Create list of if-projs such that a newer proj dominates all older
   // projs in the list, and they all dominate loop->tail()
-  Node_List if_proj_list(area);
-  Node_List regions(area);
-  Node *current_proj = loop->tail(); //start from tail
+  Node_List if_proj_list;
+  Node_List regions;
+  Node* current_proj = loop->tail(); // start from tail
 
 
-  Node_List controls(area);
+  Node_List controls;
   while (current_proj != head) {
     if (loop == get_loop(current_proj) && // still in the loop ?
         current_proj->is_Proj()        && // is a projection  ?
@@ -1406,7 +1435,7 @@ bool PhaseIdealLoop::loop_predication_impl(IdealLoopTree *loop) {
 
     // And look into all branches
     Node_Stack stack(0);
-    VectorSet seen(Thread::current()->resource_area());
+    VectorSet seen;
     Node_List if_proj_list_freq(area);
     while (regions.size() > 0) {
       Node* c = regions.pop();

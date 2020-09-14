@@ -31,11 +31,11 @@
 #include "c1/c1_LIRGenerator.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArrayKlass.hpp"
+#include "ci/ciFlatArrayKlass.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciObjArray.hpp"
 #include "ci/ciUtilities.hpp"
-#include "ci/ciValueArrayKlass.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c1/barrierSetC1.hpp"
 #include "oops/klass.inline.hpp"
@@ -482,11 +482,11 @@ void LIRGenerator::array_range_check(LIR_Opr array, LIR_Opr index,
   if (index->is_constant()) {
     cmp_mem_int(lir_cond_belowEqual, array, arrayOopDesc::length_offset_in_bytes(),
                 index->as_jint(), null_check_info);
-    __ branch(lir_cond_belowEqual, T_INT, stub); // forward branch
+    __ branch(lir_cond_belowEqual, stub); // forward branch
   } else {
     cmp_reg_mem(lir_cond_aboveEqual, index, array,
                 arrayOopDesc::length_offset_in_bytes(), T_INT, null_check_info);
-    __ branch(lir_cond_aboveEqual, T_INT, stub); // forward branch
+    __ branch(lir_cond_aboveEqual, stub); // forward branch
   }
 }
 
@@ -495,11 +495,11 @@ void LIRGenerator::nio_range_check(LIR_Opr buffer, LIR_Opr index, LIR_Opr result
   CodeStub* stub = new RangeCheckStub(info, index);
   if (index->is_constant()) {
     cmp_mem_int(lir_cond_belowEqual, buffer, java_nio_Buffer::limit_offset(), index->as_jint(), info);
-    __ branch(lir_cond_belowEqual, T_INT, stub); // forward branch
+    __ branch(lir_cond_belowEqual, stub); // forward branch
   } else {
     cmp_reg_mem(lir_cond_aboveEqual, index, buffer,
                 java_nio_Buffer::limit_offset(), T_INT, info);
-    __ branch(lir_cond_aboveEqual, T_INT, stub); // forward branch
+    __ branch(lir_cond_aboveEqual, stub); // forward branch
   }
   __ move(index, result);
 }
@@ -691,7 +691,7 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
                        oopDesc::header_size(), instance_size, klass_reg, !klass->is_initialized(), slow_path);
   } else {
     CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, Runtime1::new_instance_id);
-    __ branch(lir_cond_always, T_ILLEGAL, slow_path);
+    __ branch(lir_cond_always, slow_path);
     __ branch_destination(slow_path->continuation());
   }
 }
@@ -795,10 +795,10 @@ void LIRGenerator::arraycopy_helper(Intrinsic* x, int* flagsp, ciArrayKlass** ex
     flags &= ~LIR_OpArrayCopy::always_slow_path;
   }
   if (!src->maybe_flattened_array()) {
-    flags &= ~LIR_OpArrayCopy::src_valuetype_check;
+    flags &= ~LIR_OpArrayCopy::src_inlinetype_check;
   }
   if (!dst->maybe_flattened_array() && !dst->maybe_null_free_array()) {
-    flags &= ~LIR_OpArrayCopy::dst_valuetype_check;
+    flags &= ~LIR_OpArrayCopy::dst_inlinetype_check;
   }
 
   if (!src_objarray)
@@ -1235,8 +1235,7 @@ void LIRGenerator::do_Return(Return* x) {
 // Combination of LoadField and g1 pre-write barrier
 void LIRGenerator::do_Reference_get(Intrinsic* x) {
 
-  const int referent_offset = java_lang_ref_Reference::referent_offset;
-  guarantee(referent_offset > 0, "referent offset not initialized");
+  const int referent_offset = java_lang_ref_Reference::referent_offset();
 
   assert(x->number_of_arguments() == 1, "wrong type");
 
@@ -1322,7 +1321,7 @@ void LIRGenerator::do_isPrimitive(Intrinsic* x) {
     info = state_for(x);
   }
 
-  __ move(new LIR_Address(rcvr.result(), java_lang_Class::klass_offset_in_bytes(), T_ADDRESS), temp, info);
+  __ move(new LIR_Address(rcvr.result(), java_lang_Class::klass_offset(), T_ADDRESS), temp, info);
   __ cmp(lir_cond_notEqual, temp, LIR_OprFact::metadataConst(0));
   __ cmove(lir_cond_notEqual, LIR_OprFact::intConst(0), LIR_OprFact::intConst(1), result, T_BOOLEAN);
 }
@@ -1331,8 +1330,12 @@ void LIRGenerator::do_isPrimitive(Intrinsic* x) {
 // Example: Thread.currentThread()
 void LIRGenerator::do_currentThread(Intrinsic* x) {
   assert(x->number_of_arguments() == 0, "wrong type");
+  LIR_Opr temp = new_register(T_ADDRESS);
   LIR_Opr reg = rlock_result(x);
-  __ move_wide(new LIR_Address(getThreadPointer(), in_bytes(JavaThread::threadObj_offset()), T_OBJECT), reg);
+  __ move(new LIR_Address(getThreadPointer(), in_bytes(JavaThread::threadObj_offset()), T_ADDRESS), temp);
+  // threadObj = ((OopHandle)_threadObj)->resolve();
+  access_load(IN_NATIVE, T_OBJECT,
+              LIR_OprFact::address(new LIR_Address(temp, T_OBJECT)), reg);
 }
 
 
@@ -1466,10 +1469,6 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
   LIRItem cmp   (x->argument_at(2), this);  // value to compare with field
   LIRItem val   (x->argument_at(3), this);  // replace field with val if matches cmp
   assert(obj.type()->tag() == objectTag, "invalid type");
-
-  // In 64bit the type can be long, sparc doesn't have this assert
-  // assert(offset.type()->tag() == intTag, "invalid type");
-
   assert(cmp.type()->tag() == type->tag(), "invalid type");
   assert(val.type()->tag() == type->tag(), "invalid type");
 
@@ -1555,7 +1554,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   if (x->needs_null_check() &&
       (needs_patching ||
        MacroAssembler::needs_explicit_null_check(x->offset()))) {
-    if (needs_patching && x->field()->is_flattenable()) {
+    if (needs_patching && x->field()->signature()->is_Q_signature()) {
       // We are storing a field of type "QT;" into holder class H, but H is not yet
       // loaded. (If H had been loaded, then T must also have already been loaded
       // due to the "Q" signature, and needs_patching would be false).
@@ -1564,7 +1563,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
       CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                           Deoptimization::Reason_unloaded,
                                           Deoptimization::Action_make_not_entrant);
-      __ branch(lir_cond_always, T_ILLEGAL, stub);
+      __ branch(lir_cond_always, stub);
     } else {
       // Emit an explicit null check because the offset is too large.
       // If the class is not loaded and the object is NULL, we need to deoptimize to throw a
@@ -1599,12 +1598,12 @@ class TempResolvedAddress: public Instruction {
 void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item) {
   // Find the starting address of the source (inside the array)
   ciType* array_type = array.value()->declared_type();
-  ciValueArrayKlass* value_array_klass = array_type->as_value_array_klass();
-  assert(value_array_klass->is_loaded(), "must be");
+  ciFlatArrayKlass* flat_array_klass = array_type->as_flat_array_klass();
+  assert(flat_array_klass->is_loaded(), "must be");
 
-  ciValueKlass* elem_klass = value_array_klass->element_klass()->as_value_klass();
-  int array_header_size = value_array_klass->array_header_in_bytes();
-  int shift = value_array_klass->log2_element_size();
+  ciInlineKlass* elem_klass = flat_array_klass->element_klass()->as_inline_klass();
+  int array_header_size = flat_array_klass->array_header_in_bytes();
+  int shift = flat_array_klass->log2_element_size();
 
 #ifndef _LP64
   LIR_Opr index_op = new_register(T_INT);
@@ -1683,7 +1682,7 @@ void LIRGenerator::check_null_free_array(LIRItem& array, LIRItem& value, CodeEmi
   LabelObj* L_end = new LabelObj();
   LIR_Opr tmp = new_register(T_METADATA);
   __ check_null_free_array(array.result(), tmp);
-  __ branch(lir_cond_equal, T_ILLEGAL, L_end->label());
+  __ branch(lir_cond_equal, L_end->label());
   __ null_check(value.result(), info);
   __ branch_destination(L_end->label());
 }
@@ -1693,8 +1692,8 @@ bool LIRGenerator::needs_flattened_array_store_check(StoreIndexed* x) {
     ciType* type = x->value()->declared_type();
     if (type != NULL && type->is_klass()) {
       ciKlass* klass = type->as_klass();
-      if (!klass->can_be_value_klass() || (klass->is_valuetype() && !klass->as_value_klass()->flatten_array())) {
-        // This is known to be a non-flattenable object. If the array is flattened,
+      if (!klass->can_be_inline_klass() || (klass->is_inlinetype() && !klass->as_inline_klass()->flatten_array())) {
+        // This is known to be a non-flattened object. If the array is flattened,
         // it will be caught by the code generated by array_store_check().
         return false;
       }
@@ -1754,7 +1753,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   if (GenerateRangeChecks && needs_range_check) {
     if (use_length) {
       __ cmp(lir_cond_belowEqual, length.result(), index.result());
-      __ branch(lir_cond_belowEqual, T_INT, new RangeCheckStub(range_check_info, index.result(), array.result()));
+      __ branch(lir_cond_belowEqual, new RangeCheckStub(range_check_info, index.result(), array.result()));
     } else {
       array_range_check(array.result(), index.result(), null_check_info, range_check_info);
       // range_check also does the null check
@@ -1782,7 +1781,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (is_loaded_flattened_array) {
-    if (!x->value()->is_never_null()) {
+    if (!x->value()->is_null_free()) {
       __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }
     access_flattened_array(false, array, index, value);
@@ -1901,7 +1900,7 @@ LIR_Opr LIRGenerator::access_resolve(DecoratorSet decorators, LIR_Opr obj) {
   return _barrier_set->resolve(this, decorators, obj);
 }
 
-Constant* LIRGenerator::flattenable_load_field_prolog(LoadField* x, CodeEmitInfo* info) {
+Constant* LIRGenerator::flattened_field_load_prolog(LoadField* x, CodeEmitInfo* info) {
   ciField* field = x->field();
   ciInstanceKlass* holder = field->holder();
   Constant* default_value = NULL;
@@ -1948,12 +1947,12 @@ Constant* LIRGenerator::flattenable_load_field_prolog(LoadField* x, CodeEmitInfo
     CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                         Deoptimization::Reason_unloaded,
                                         Deoptimization::Action_make_not_entrant);
-    __ branch(lir_cond_always, T_ILLEGAL, stub);
+    __ branch(lir_cond_always, stub);
   } else if (need_default) {
     assert(!field_type_unloaded, "must be");
-    assert(field->type()->is_valuetype(), "must be");
-    ciValueKlass* value_klass = field->type()->as_value_klass();
-    assert(value_klass->is_loaded(), "must be");
+    assert(field->type()->is_inlinetype(), "must be");
+    ciInlineKlass* inline_klass = field->type()->as_inline_klass();
+    assert(inline_klass->is_loaded(), "must be");
 
     if (field->is_static() && holder->is_loaded()) {
       ciInstance* mirror = field->holder()->java_mirror();
@@ -1968,7 +1967,7 @@ Constant* LIRGenerator::flattenable_load_field_prolog(LoadField* x, CodeEmitInfo
     }
 
     if (need_default) {
-      default_value = new Constant(new InstanceConstant(value_klass->default_value_instance()));
+      default_value = new Constant(new InstanceConstant(inline_klass->default_instance()));
     }
   }
 
@@ -2005,8 +2004,8 @@ void LIRGenerator::do_LoadField(LoadField* x) {
 #endif
 
   Constant* default_value = NULL;
-  if (x->field()->is_flattenable()) {
-    default_value = flattenable_load_field_prolog(x, info);
+  if (x->field()->signature()->is_Q_signature()) {
+    default_value = flattened_field_load_prolog(x, info);
   }
 
   bool stress_deopt = StressLoopInvariantCodeMotion && info && info->deoptimize_on_exception();
@@ -2041,7 +2040,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   if (default_value != NULL) {
     LabelObj* L_end = new LabelObj();
     __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
-    __ branch(lir_cond_notEqual, T_OBJECT, L_end->label());
+    __ branch(lir_cond_notEqual, L_end->label());
     set_in_conditional_code(true);
     __ move(load_constant(default_value), result);
     __ branch_destination(L_end->label());
@@ -2070,11 +2069,11 @@ void LIRGenerator::do_NIOCheckIndex(Intrinsic* x) {
     LIR_Opr buf_obj = access_resolve(IS_NOT_NULL | ACCESS_READ, buf.result());
     if (index.result()->is_constant()) {
       cmp_mem_int(lir_cond_belowEqual, buf_obj, java_nio_Buffer::limit_offset(), index.result()->as_jint(), info);
-      __ branch(lir_cond_belowEqual, T_INT, stub);
+      __ branch(lir_cond_belowEqual, stub);
     } else {
       cmp_reg_mem(lir_cond_aboveEqual, index.result(), buf_obj,
                   java_nio_Buffer::limit_offset(), T_INT, info);
-      __ branch(lir_cond_aboveEqual, T_INT, stub);
+      __ branch(lir_cond_aboveEqual, stub);
     }
     __ move(index.result(), result);
   } else {
@@ -2148,12 +2147,12 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
 
   if (GenerateRangeChecks && needs_range_check) {
     if (StressLoopInvariantCodeMotion && range_check_info->deoptimize_on_exception()) {
-      __ branch(lir_cond_always, T_ILLEGAL, new RangeCheckStub(range_check_info, index.result(), array.result()));
+      __ branch(lir_cond_always, new RangeCheckStub(range_check_info, index.result(), array.result()));
     } else if (use_length) {
       // TODO: use a (modified) version of array_range_check that does not require a
       //       constant length to be loaded to a register
       __ cmp(lir_cond_belowEqual, length.result(), index.result());
-      __ branch(lir_cond_belowEqual, T_INT, new RangeCheckStub(range_check_info, index.result(), array.result()));
+      __ branch(lir_cond_belowEqual, new RangeCheckStub(range_check_info, index.result(), array.result()));
     } else {
       array_range_check(array.result(), index.result(), null_check_info, range_check_info);
       // The range check performs the null check, so clear it out for the load
@@ -2170,7 +2169,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   Value element;
   if (x->vt() != NULL) {
     assert(x->array()->is_loaded_flattened_array(), "must be");
-    // Find the destination address (of the NewValueTypeInstance).
+    // Find the destination address (of the NewInlineTypeInstance).
     LIR_Opr obj = x->vt()->operand();
     LIRItem obj_item(x->vt(), this);
 
@@ -2223,7 +2222,7 @@ void LIRGenerator::do_WithField(WithField* x) {
   CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                       Deoptimization::Reason_unloaded,
                                       Deoptimization::Action_make_not_entrant);
-  __ branch(lir_cond_always, T_ILLEGAL, stub);
+  __ branch(lir_cond_always, stub);
   LIR_Opr reg = rlock_result(x, T_OBJECT);
   __ move(LIR_OprFact::oopConst(NULL), reg);
 }
@@ -2234,7 +2233,7 @@ void LIRGenerator::do_DefaultValue(DefaultValue* x) {
   CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                       Deoptimization::Reason_unloaded,
                                       Deoptimization::Action_make_not_entrant);
-  __ branch(lir_cond_always, T_ILLEGAL, stub);
+  __ branch(lir_cond_always, stub);
   LIR_Opr reg = rlock_result(x, T_OBJECT);
   __ move(LIR_OprFact::oopConst(NULL), reg);
 }
@@ -2598,18 +2597,18 @@ void LIRGenerator::do_SwitchRanges(SwitchRangeArray* x, LIR_Opr value, BlockBegi
     BlockBegin* dest = one_range->sux();
     if (low_key == high_key) {
       __ cmp(lir_cond_equal, value, low_key);
-      __ branch(lir_cond_equal, T_INT, dest);
+      __ branch(lir_cond_equal, dest);
     } else if (high_key - low_key == 1) {
       __ cmp(lir_cond_equal, value, low_key);
-      __ branch(lir_cond_equal, T_INT, dest);
+      __ branch(lir_cond_equal, dest);
       __ cmp(lir_cond_equal, value, high_key);
-      __ branch(lir_cond_equal, T_INT, dest);
+      __ branch(lir_cond_equal, dest);
     } else {
       LabelObj* L = new LabelObj();
       __ cmp(lir_cond_less, value, low_key);
-      __ branch(lir_cond_less, T_INT, L->label());
+      __ branch(lir_cond_less, L->label());
       __ cmp(lir_cond_lessEqual, value, high_key);
-      __ branch(lir_cond_lessEqual, T_INT, dest);
+      __ branch(lir_cond_lessEqual, dest);
       __ branch_destination(L->label());
     }
   }
@@ -2729,7 +2728,7 @@ void LIRGenerator::do_TableSwitch(TableSwitch* x) {
   } else {
     for (int i = 0; i < len; i++) {
       __ cmp(lir_cond_equal, value, i + lo_key);
-      __ branch(lir_cond_equal, T_INT, x->sux_at(i));
+      __ branch(lir_cond_equal, x->sux_at(i));
     }
     __ jump(x->default_sux());
   }
@@ -2788,7 +2787,7 @@ void LIRGenerator::do_LookupSwitch(LookupSwitch* x) {
     int len = x->length();
     for (int i = 0; i < len; i++) {
       __ cmp(lir_cond_equal, value, x->key_at(i));
-      __ branch(lir_cond_equal, T_INT, x->sux_at(i));
+      __ branch(lir_cond_equal, x->sux_at(i));
     }
     __ jump(x->default_sux());
   }
@@ -3006,7 +3005,7 @@ void LIRGenerator::profile_null_free_array(LIRItem array, ciMethodData* md, ciAr
   assert(md != NULL, "should have been initialized");
   __ metadata2reg(md->constant_encoding(), mdp);
   __ check_null_free_array(array.result(), tmp);
-  __ branch(lir_cond_equal, T_ILLEGAL, L_end->label());
+  __ branch(lir_cond_equal, L_end->label());
 
   profile_array_load_store_flags(md, load_store, ArrayLoadStoreData::null_free_array_byte_constant(), mdp);
 
@@ -3118,12 +3117,12 @@ void LIRGenerator::do_Base(Base* x) {
     increment_invocation_counter(info);
   }
   if (method()->has_scalarized_args()) {
-    // Check if deoptimization was triggered (i.e. orig_pc was set) while buffering scalarized value type arguments
+    // Check if deoptimization was triggered (i.e. orig_pc was set) while buffering scalarized inline type arguments
     // in the entry point (see comments in frame::deoptimize). If so, deoptimize only now that we have the right state.
     CodeEmitInfo* info = new CodeEmitInfo(scope()->start()->state()->copy(ValueStack::StateBefore, 0), NULL, false);
     CodeStub* deopt_stub = new DeoptimizeStub(info, Deoptimization::Reason_none, Deoptimization::Action_none);
     __ append(new LIR_Op0(lir_check_orig_pc));
-    __ branch(lir_cond_notEqual, T_ADDRESS, deopt_stub);
+    __ branch(lir_cond_notEqual, deopt_stub);
   }
 
   // all blocks with a successor must end with an unconditional jump
@@ -3146,7 +3145,7 @@ void LIRGenerator::invoke_load_one_argument(LIRItem* param, LIR_Opr loc) {
   } else {
     LIR_Address* addr = loc->as_address_ptr();
     param->load_for_store(addr->type());
-    assert(addr->type() != T_VALUETYPE, "not supported yet");
+    assert(addr->type() != T_INLINE_TYPE, "not supported yet");
     if (addr->type() == T_OBJECT) {
       __ move_wide(param->result(), addr);
     } else {
@@ -3402,12 +3401,12 @@ void LIRGenerator::substitutability_check_common(Value left_val, Value right_val
   ciKlass* right_klass = right_val->as_loaded_klass_or_null();
 
   if ((left_klass == NULL || right_klass == NULL) ||// The klass is still unloaded, or came from a Phi node.
-      !left_klass->is_valuetype() || !right_klass->is_valuetype()) {
+      !left_klass->is_inlinetype() || !right_klass->is_inlinetype()) {
     init_temps_for_substitutability_check(tmp1, tmp2);
   }
 
-  if (left_klass != NULL && left_klass->is_valuetype() && left_klass == right_klass) {
-    // No need to load klass -- the operands are statically known to be the same value klass.
+  if (left_klass != NULL && left_klass->is_inlinetype() && left_klass == right_klass) {
+    // No need to load klass -- the operands are statically known to be the same inline klass.
   } else {
     BasicType t_klass = UseCompressedOops ? T_INT : T_METADATA;
     left_klass_op = new_register(t_klass);
@@ -3430,7 +3429,7 @@ void LIRGenerator::do_ClassIDIntrinsic(Intrinsic* x) {
 
   arg.load_item();
   LIR_Opr klass = new_register(T_METADATA);
-  __ move(new LIR_Address(arg.result(), java_lang_Class::klass_offset_in_bytes(), T_ADDRESS), klass, info);
+  __ move(new LIR_Address(arg.result(), java_lang_Class::klass_offset(), T_ADDRESS), klass, info);
   LIR_Opr id = new_register(T_LONG);
   ByteSize offset = KLASS_TRACE_ID_OFFSET;
   LIR_Address* trace_id_addr = new LIR_Address(klass, in_bytes(offset), T_LONG);
@@ -3452,16 +3451,18 @@ void LIRGenerator::do_ClassIDIntrinsic(Intrinsic* x) {
 void LIRGenerator::do_getEventWriter(Intrinsic* x) {
   LabelObj* L_end = new LabelObj();
 
+  // FIXME T_ADDRESS should actually be T_METADATA but it can't because the
+  // meaning of these two is mixed up (see JDK-8026837).
   LIR_Address* jobj_addr = new LIR_Address(getThreadPointer(),
                                            in_bytes(THREAD_LOCAL_WRITER_OFFSET_JFR),
-                                           T_OBJECT);
+                                           T_ADDRESS);
   LIR_Opr result = rlock_result(x);
-  __ move_wide(jobj_addr, result);
-  __ cmp(lir_cond_equal, result, LIR_OprFact::oopConst(NULL));
-  __ branch(lir_cond_equal, T_OBJECT, L_end->label());
+  __ move(LIR_OprFact::oopConst(NULL), result);
+  LIR_Opr jobj = new_register(T_METADATA);
+  __ move_wide(jobj_addr, jobj);
+  __ cmp(lir_cond_equal, jobj, LIR_OprFact::metadataConst(0));
+  __ branch(lir_cond_equal, L_end->label());
 
-  LIR_Opr jobj = new_register(T_OBJECT);
-  __ move(result, jobj);
   access_load(IN_NATIVE, T_OBJECT, LIR_OprFact::address(new LIR_Address(jobj, T_OBJECT)), result);
 
   __ branch_destination(L_end->label());
@@ -3819,7 +3820,7 @@ void LIRGenerator::decrement_age(CodeEmitInfo* info) {
     CodeStub* deopt = new DeoptimizeStub(info, Deoptimization::Reason_tenured,
                                          Deoptimization::Action_make_not_entrant);
     __ cmp(lir_cond_lessEqual, result, LIR_OprFact::intConst(0));
-    __ branch(lir_cond_lessEqual, T_INT, deopt);
+    __ branch(lir_cond_lessEqual, deopt);
   }
 }
 
@@ -3866,9 +3867,9 @@ void LIRGenerator::increment_event_counter_impl(CodeEmitInfo* info,
     if (freq == 0) {
       if (!step->is_constant()) {
         __ cmp(lir_cond_notEqual, step, LIR_OprFact::intConst(0));
-        __ branch(lir_cond_notEqual, T_ILLEGAL, overflow);
+        __ branch(lir_cond_notEqual, overflow);
       } else {
-        __ branch(lir_cond_always, T_ILLEGAL, overflow);
+        __ branch(lir_cond_always, overflow);
       }
     } else {
       LIR_Opr mask = load_immediate(freq, T_INT);
@@ -3879,7 +3880,7 @@ void LIRGenerator::increment_event_counter_impl(CodeEmitInfo* info,
       }
       __ logical_and(result, mask, result);
       __ cmp(lir_cond_equal, result, LIR_OprFact::intConst(0));
-      __ branch(lir_cond_equal, T_INT, overflow);
+      __ branch(lir_cond_equal, overflow);
     }
     __ branch_destination(overflow->continuation());
   }
@@ -3993,7 +3994,7 @@ void LIRGenerator::do_RangeCheckPredicate(RangeCheckPredicate *x) {
     CodeStub* stub = new PredicateFailedStub(info);
 
     __ cmp(lir_cond(cond), left, right);
-    __ branch(lir_cond(cond), right->type(), stub);
+    __ branch(lir_cond(cond), stub);
   }
 }
 

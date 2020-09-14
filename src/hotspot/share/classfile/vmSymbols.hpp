@@ -129,7 +129,7 @@
   template(jdk_internal_vm_PostVMInitHook,            "jdk/internal/vm/PostVMInitHook")           \
   template(sun_net_www_ParseUtil,                     "sun/net/www/ParseUtil")                    \
   template(java_util_Iterator,                        "java/util/Iterator")                       \
-  template(java_lang_Record,                          "java/lang/Record")                       \
+  template(java_lang_Record,                          "java/lang/Record")                         \
                                                                                                   \
   template(jdk_internal_loader_NativeLibraries,       "jdk/internal/loader/NativeLibraries")      \
   template(jdk_internal_loader_ClassLoaders_AppClassLoader,      "jdk/internal/loader/ClassLoaders$AppClassLoader")      \
@@ -175,6 +175,7 @@
   template(tag_runtime_invisible_type_annotations,    "RuntimeInvisibleTypeAnnotations")          \
   template(tag_enclosing_method,                      "EnclosingMethod")                          \
   template(tag_bootstrap_methods,                     "BootstrapMethods")                         \
+  template(tag_permitted_subclasses,                  "PermittedSubclasses")                      \
                                                                                                   \
   /* exception klasses: at least all exceptions thrown by the VM have entries here */             \
   template(java_lang_ArithmeticException,             "java/lang/ArithmeticException")            \
@@ -267,6 +268,7 @@
   template(returnType_name,                           "returnType")                               \
   template(signature_name,                            "signature")                                \
   template(slot_name,                                 "slot")                                     \
+  template(trusted_final_name,                        "trustedFinal")                             \
                                                                                                   \
   /* Support for annotations (JDK 1.5 and above) */                                               \
                                                                                                   \
@@ -439,8 +441,6 @@
   template(input_stream_signature,                    "Ljava/io/InputStream;")                    \
   template(print_stream_signature,                    "Ljava/io/PrintStream;")                    \
   template(security_manager_signature,                "Ljava/lang/SecurityManager;")              \
-  template(definePackage_name,                        "definePackage")                            \
-  template(definePackage_signature,                   "(Ljava/lang/String;Ljava/lang/Module;)Ljava/lang/Package;") \
   template(defineOrCheckPackage_name,                 "defineOrCheckPackage")                     \
   template(defineOrCheckPackage_signature,            "(Ljava/lang/String;Ljava/util/jar/Manifest;Ljava/net/URL;)Ljava/lang/Package;") \
   template(fileToEncodedURL_name,                     "fileToEncodedURL")                         \
@@ -560,6 +560,7 @@
   template(string_signature,                          "Ljava/lang/String;")                                       \
   template(string_array_signature,                    "[Ljava/lang/String;")                                      \
   template(reference_signature,                       "Ljava/lang/ref/Reference;")                                \
+  template(referencequeue_signature,                  "Ljava/lang/ref/ReferenceQueue;")                           \
   template(executable_signature,                      "Ljava/lang/reflect/Executable;")                           \
   template(module_signature,                          "Ljava/lang/Module;")                                       \
   template(concurrenthashmap_signature,               "Ljava/util/concurrent/ConcurrentHashMap;")                 \
@@ -604,12 +605,6 @@
   template(createGCNotification_name,                  "createGCNotification")                                    \
   template(createGCNotification_signature,             "(JLjava/lang/String;Ljava/lang/String;Ljava/lang/String;Lcom/sun/management/GcInfo;)V") \
   template(createDiagnosticFrameworkNotification_name, "createDiagnosticFrameworkNotification")                   \
-  template(createMemoryPoolMBean_name,                 "createMemoryPoolMBean")                                   \
-  template(createMemoryManagerMBean_name,              "createMemoryManagerMBean")                                \
-  template(createGarbageCollectorMBean_name,           "createGarbageCollectorMBean")                             \
-  template(createMemoryPoolMBean_signature,            "(Ljava/lang/String;ZJJ)Ljava/lang/management/MemoryPoolMBean;") \
-  template(createMemoryManagerMBean_signature,         "(Ljava/lang/String;)Ljava/lang/management/MemoryManagerMBean;") \
-  template(createGarbageCollectorMBean_signature,      "(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/management/GarbageCollectorMBean;") \
   template(trigger_name,                               "trigger")                                                 \
   template(clear_name,                                 "clear")                                                   \
   template(trigger_method_signature,                   "(ILjava/lang/management/MemoryUsage;)V")                  \
@@ -680,7 +675,8 @@
   template(url_void_signature,                     "(Ljava/net/URL;)V")                                           \
                                                                                                                   \
   template(java_lang_invoke_ValueBootstrapMethods, "java/lang/invoke/ValueBootstrapMethods")                      \
-  template(isSubstitutable_name,                   "isSubstitutable0")                                            \
+  template(isSubstitutable_name,                   "isSubstitutable")                                             \
+  template(inlineObjectHashCode_name,              "inlineObjectHashCode")                                        \
                                                                                                                   \
   template(jdk_internal_vm_jni_SubElementSelector, "jdk/internal/vm/jni/SubElementSelector")                      \
   /*end*/
@@ -794,6 +790,8 @@
   do_name(negateExact_name,"negateExact")                                                                               \
   do_name(subtractExact_name,"subtractExact")                                                                           \
   do_name(fma_name, "fma")                                                                                              \
+  do_name(copySign_name, "copySign")                                                                                    \
+  do_name(signum_name,"signum")                                                                                         \
                                                                                                                         \
   do_intrinsic(_dabs,                     java_lang_Math,         abs_name,   double_double_signature,           F_S)   \
   do_intrinsic(_fabs,                     java_lang_Math,         abs_name,   float_float_signature,           F_S)   \
@@ -832,6 +830,10 @@
   do_intrinsic(_minF,                     java_lang_Math,         min_name,           float2_float_signature,    F_S)   \
   do_intrinsic(_maxD,                     java_lang_Math,         max_name,           double2_double_signature,  F_S)   \
   do_intrinsic(_minD,                     java_lang_Math,         min_name,           double2_double_signature,  F_S)   \
+  do_intrinsic(_dcopySign,                java_lang_Math,         copySign_name,      double2_double_signature,  F_S)   \
+  do_intrinsic(_fcopySign,                java_lang_Math,         copySign_name,      float2_float_signature,    F_S)   \
+  do_intrinsic(_dsignum,                  java_lang_Math,         signum_name,        double_double_signature,   F_S)   \
+  do_intrinsic(_fsignum,                  java_lang_Math,         signum_name,        float_float_signature,     F_S)   \
                                                                                                                         \
   do_intrinsic(_floatToRawIntBits,        java_lang_Float,        floatToRawIntBits_name,   float_int_signature, F_S)   \
    do_name(     floatToRawIntBits_name,                          "floatToRawIntBits")                                   \
@@ -882,10 +884,6 @@
    do_signature(currentThread_signature,                         "()Ljava/lang/Thread;")                                \
                                                                                                                         \
   /* reflective intrinsics, for java/lang/Class, etc. */                                                                \
-  do_intrinsic(_asPrimaryType,           java_lang_Class,         asPrimaryType_name, void_class_signature,     F_R)    \
-   do_name(     asPrimaryType_name,                              "asPrimaryType")                                       \
-  do_intrinsic(_asIndirectType,          java_lang_Class,         asIndirectType_name, void_class_signature,    F_R)    \
-   do_name(     asIndirectType_name,                             "asIndirectType")                                      \
   do_intrinsic(_isAssignableFrom,         java_lang_Class,        isAssignableFrom_name, class_boolean_signature, F_RN) \
    do_name(     isAssignableFrom_name,                           "isAssignableFrom")                                    \
   do_intrinsic(_isInstance,               java_lang_Class,        isInstance_name, object_boolean_signature,     F_RN)  \
@@ -898,6 +896,8 @@
    do_name(     isArray_name,                                    "isArray")                                             \
   do_intrinsic(_isPrimitive,              java_lang_Class,        isPrimitive_name, void_boolean_signature,      F_RN)  \
    do_name(     isPrimitive_name,                                "isPrimitive")                                         \
+  do_intrinsic(_isHidden,                 java_lang_Class,        isHidden_name, void_boolean_signature,         F_RN)  \
+   do_name(     isHidden_name,                                   "isHidden")                                            \
   do_intrinsic(_getSuperclass,            java_lang_Class,        getSuperclass_name, void_class_signature,      F_RN)  \
    do_name(     getSuperclass_name,                              "getSuperclass")                                       \
   do_intrinsic(_Class_cast,               java_lang_Class,        Class_cast_name, object_object_signature,      F_R)   \
@@ -1061,11 +1061,15 @@
    do_intrinsic(_counterMode_AESCrypt, com_sun_crypto_provider_counterMode, crypt_name, byteArray_int_int_byteArray_int_signature, F_R)   \
    do_name(     crypt_name,                                 "implCrypt")                                                    \
                                                                                                                         \
+  /* support for sun.security.provider.MD5 */                                                                           \
+  do_class(sun_security_provider_md5,                              "sun/security/provider/MD5")                         \
+  do_intrinsic(_md5_implCompress, sun_security_provider_md5, implCompress_name, implCompress_signature, F_R)            \
+   do_name(     implCompress_name,                                 "implCompress0")                                     \
+   do_signature(implCompress_signature,                            "([BI)V")                                            \
+                                                                                                                        \
   /* support for sun.security.provider.SHA */                                                                           \
   do_class(sun_security_provider_sha,                              "sun/security/provider/SHA")                         \
   do_intrinsic(_sha_implCompress, sun_security_provider_sha, implCompress_name, implCompress_signature, F_R)            \
-   do_name(     implCompress_name,                                 "implCompress0")                                     \
-   do_signature(implCompress_signature,                            "([BI)V")                                            \
                                                                                                                         \
   /* support for sun.security.provider.SHA2 */                                                                          \
   do_class(sun_security_provider_sha2,                             "sun/security/provider/SHA2")                        \
@@ -1662,7 +1666,10 @@ private:
                          vmSymbols::SID sig,
                          jshort flags);
 
+  // check if the intrinsic is disabled by course-grained flags.
+  static bool disabled_by_jvm_flags(vmIntrinsics::ID id);
 public:
+  static ID find_id(const char* name);
   // Given a method's class, name, signature, and access flags, report its ID.
   static ID find_id(vmSymbols::SID holder,
                     vmSymbols::SID name,
@@ -1712,12 +1719,25 @@ public:
   // 'method' requires predicated logic.
   static int predicates_needed(vmIntrinsics::ID id);
 
-  // Returns true if a compiler intrinsic is disabled by command-line flags
-  // and false otherwise.
-  static bool is_disabled_by_flags(const methodHandle& method);
+  // There are 2 kinds of JVM options to control intrinsics.
+  // 1. Disable/Control Intrinsic accepts a list of intrinsic IDs.
+  //    ControlIntrinsic is recommended. DisableIntrinic will be deprecated.
+  //    Currently, the DisableIntrinsic list prevails if an intrinsic appears on
+  //    both lists.
+  //
+  // 2. Explicit UseXXXIntrinsics options. eg. UseAESIntrinsics, UseCRC32Intrinsics etc.
+  //    Each option can control a group of intrinsics. The user can specify them but
+  //    their final values are subject to hardware inspection (VM_Version::initialize).
+  //    Stub generators are controlled by them.
+  //
+  // An intrinsic is enabled if and only if neither the fine-grained control(1) nor
+  // the corresponding coarse-grained control(2) disables it.
   static bool is_disabled_by_flags(vmIntrinsics::ID id);
-  static bool is_intrinsic_disabled(vmIntrinsics::ID id);
-  static bool is_intrinsic_available(vmIntrinsics::ID id);
+
+  static bool is_disabled_by_flags(const methodHandle& method);
+  static bool is_intrinsic_available(vmIntrinsics::ID id) {
+    return !is_disabled_by_flags(id);
+  }
 };
 
 #endif // SHARE_CLASSFILE_VMSYMBOLS_HPP

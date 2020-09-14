@@ -58,14 +58,15 @@ class SharedClassPathEntry {
   void set_name(const char* name, TRAPS);
 
   u1     _type;
+  bool   _is_module_path;
   bool   _from_class_path_attr;
   time_t _timestamp;          // jar timestamp,  0 if is directory, modules image or other
-  long   _filesize;           // jar/jimage file size, -1 if is directory, -2 if other
+  int64_t      _filesize;     // jar/jimage file size, -1 if is directory, -2 if other
   Array<char>* _name;
   Array<u1>*   _manifest;
 
 public:
-  void init(bool is_modules_image, ClassPathEntry* cpe, TRAPS);
+  void init(bool is_modules_image, bool is_module_path, ClassPathEntry* cpe, TRAPS);
   void init_as_non_existent(const char* path, TRAPS);
   void metaspace_pointers_do(MetaspaceClosure* it);
   bool validate(bool is_class_path = true) const;
@@ -83,7 +84,6 @@ public:
   }
   bool from_class_path_attr() { return _from_class_path_attr; }
   time_t timestamp() const { return _timestamp; }
-  long   filesize()  const { return _filesize; }
   const char* name() const;
   const char* manifest() const {
     return (_manifest == NULL) ? NULL : (const char*)_manifest->data();
@@ -96,6 +96,10 @@ public:
   }
   bool check_non_existent() const;
   void copy_from(SharedClassPathEntry* ent, ClassLoaderData* loader_data, TRAPS);
+  bool in_named_module() {
+    return is_modules_image() || // modules image doesn't contain unnamed modules
+           _is_module_path;      // module path doesn't contain unnamed modules
+  }
 };
 
 struct ArchiveHeapOopmapInfo {
@@ -227,6 +231,8 @@ class FileMapHeader: private CDSFileMapHeaderBase {
   char*  _mapped_base_address;          // Actual base address where archive is mapped.
 
   bool   _allow_archiving_with_java_agent; // setting of the AllowArchivingWithJavaAgent option
+  bool   _use_optimized_module_handling;// No module-relation VM options were specified, so we can skip
+                                        // some expensive operations.
   size_t _ptrmap_size_in_bits;          // Size of pointer relocation bitmap
 
   char* from_mapped_offset(size_t offset) const {
@@ -519,6 +525,8 @@ public:
   static int get_number_of_shared_paths() {
     return _shared_path_table.size();
   }
+
+  static int get_module_shared_path_index(Symbol* location) NOT_CDS_RETURN_(-1);
 
   char* region_addr(int idx);
 

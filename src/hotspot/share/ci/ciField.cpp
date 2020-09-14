@@ -32,6 +32,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/fieldDescriptor.inline.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/reflectionUtils.hpp"
 
 // ciField
 //
@@ -100,9 +101,6 @@ ciField::ciField(ciInstanceKlass* klass, int index) :
   }
 
   _name = (ciSymbol*)ciEnv::current(THREAD)->get_symbol(name);
-
-  // this is needed if the field class is not yet loaded.
-  _is_flattenable = _signature->is_Q_signature();
 
   // Get the field's declared holder.
   //
@@ -215,10 +213,10 @@ ciField::ciField(fieldDescriptor *fd) :
          "bootstrap classes must not create & cache unshared fields");
 }
 
-// Special copy constructor used to flatten value type fields by
-// copying the fields of the value type to a new holder klass.
+// Special copy constructor used to flatten inline type fields by
+// copying the fields of the inline type to a new holder klass.
 ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_final) {
-  assert(field->holder()->is_valuetype(), "should only be used for value type field flattening");
+  assert(field->holder()->is_inlinetype(), "should only be used for inline type field flattening");
   // Set the is_final flag
   jint final = is_final ? JVM_ACC_FINAL : ~JVM_ACC_FINAL;
   AccessFlags flags(field->flags().as_int() & final);
@@ -229,13 +227,13 @@ ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_fi
   _name = field->_name;
   _signature = field->_signature;
   _type = field->_type;
-  _is_constant = field->_is_constant;
+  // Trust final flattened fields
+  _is_constant = is_final;
   _known_to_link_with_put = field->_known_to_link_with_put;
   _known_to_link_with_get = field->_known_to_link_with_get;
   _constant_value = field->_constant_value;
   assert(!field->is_flattened(), "field must not be flattened");
   _is_flattened = false;
-  _is_flattenable = field->is_flattenable();
 }
 
 static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
@@ -249,12 +247,19 @@ static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
       holder->is_in_package("jdk/internal/foreign") || holder->is_in_package("jdk/incubator/foreign") ||
       holder->is_in_package("java/lang"))
     return true;
-  // Trust VM unsafe anonymous classes. They are private API (jdk.internal.misc.Unsafe)
-  // and can't be serialized, so there is no hacking of finals going on with them.
-  if (holder->is_unsafe_anonymous())
+  // Trust hidden classes and VM unsafe anonymous classes. They are created via
+  // Lookup.defineHiddenClass or the private jdk.internal.misc.Unsafe API and
+  // can't be serialized, so there is no hacking of finals going on with them.
+  if (holder->is_hidden() || holder->is_unsafe_anonymous())
+    return true;
+  // Trust final fields in inline type buffers
+  if (holder->is_inlinetype())
     return true;
   // Trust final fields in all boxed classes
   if (holder->is_box_klass())
+    return true;
+  // Trust final fields in records
+  if (holder->is_record())
     return true;
   // Trust final fields in String
   if (holder->name() == ciSymbol::java_lang_String())
@@ -277,8 +282,7 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   Klass* field_holder = fd->field_holder();
   assert(field_holder != NULL, "null field_holder");
   _holder = CURRENT_ENV->get_instance_klass(field_holder);
-  _is_flattened = fd->is_flattened();
-  _is_flattenable = fd->is_flattenable();
+  _is_flattened = fd->is_inlined();
 
   // Check to see if the field is constant.
   Klass* k = _holder->get_Klass();
@@ -292,9 +296,9 @@ void ciField::initialize_from(fieldDescriptor* fd) {
       assert(SystemDictionary::System_klass() != NULL, "Check once per vm");
       if (k == SystemDictionary::System_klass()) {
         // Check offsets for case 2: System.in, System.out, or System.err
-        if( _offset == java_lang_System::in_offset_in_bytes()  ||
-            _offset == java_lang_System::out_offset_in_bytes() ||
-            _offset == java_lang_System::err_offset_in_bytes() ) {
+        if (_offset == java_lang_System::in_offset()  ||
+            _offset == java_lang_System::out_offset() ||
+            _offset == java_lang_System::err_offset()) {
           _is_constant = false;
           return;
         }
@@ -310,7 +314,7 @@ void ciField::initialize_from(fieldDescriptor* fd) {
     // For CallSite objects treat the target field as a compile time constant.
     assert(SystemDictionary::CallSite_klass() != NULL, "should be already initialized");
     if (k == SystemDictionary::CallSite_klass() &&
-        _offset == java_lang_invoke_CallSite::target_offset_in_bytes()) {
+        _offset == java_lang_invoke_CallSite::target_offset()) {
       assert(!has_initialized_final_update(), "CallSite is not supposed to have writes to final fields outside initializers");
       _is_constant = true;
     } else {
@@ -457,7 +461,6 @@ void ciField::print() {
     tty->print(" constant_value=");
     _constant_value.print();
   }
-  tty->print(" is_flattenable=%s", bool_to_str(_is_flattenable));
   tty->print(" is_flattened=%s", bool_to_str(_is_flattened));
   tty->print(">");
 }

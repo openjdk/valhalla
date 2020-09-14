@@ -836,7 +836,7 @@ void GenerateOopMap::merge_state(GenerateOopMap *gom, int bci, int* data) {
 }
 
 void GenerateOopMap::set_var(int localNo, CellTypeState cts) {
-  assert(cts.is_reference() || cts.is_value() || cts.is_address(),
+  assert(cts.is_reference() || cts.is_inline_type() || cts.is_address(),
          "wrong celltypestate");
   if (localNo < 0 || localNo > _max_locals) {
     verify_error("variable write error: r%d", localNo);
@@ -1729,7 +1729,7 @@ void GenerateOopMap::ppop(CellTypeState *out) {
 }
 
 void GenerateOopMap::ppush1(CellTypeState in) {
-  assert(in.is_reference() || in.is_value(), "sanity check");
+  assert(in.is_reference() || in.is_inline_type(), "sanity check");
   push(in);
 }
 
@@ -2034,7 +2034,7 @@ CellTypeState *GenerateOopMap::signature_to_effect(const Symbol* sig, int bci, C
   return vCTS;                               // Otherwise
 }
 
-long GenerateOopMap::_total_byte_count = 0;
+uint64_t GenerateOopMap::_total_byte_count = 0;
 elapsedTimer GenerateOopMap::_total_oopmap_time;
 
 // This function assumes "bcs" is at a "ret" instruction and that the vars
@@ -2364,7 +2364,7 @@ void GenerateOopMap::rewrite_refval_conflict(int from, int to) {
   bool startOver;
   do {
     // Make sure that the BytecodeStream is constructed in the loop, since
-    // during rewriting a new method oop is going to be used, and the next time
+    // during rewriting a new method is going to be used, and the next time
     // around we want to use that.
     BytecodeStream bcs(_method);
     startOver = false;
@@ -2501,7 +2501,7 @@ void GenerateOopMap::expand_current_instr(int bci, int ilen, int newIlen, u_char
     return;
   }
 
-  // Relocator returns a new method oop.
+  // Relocator returns a new method.
   _did_relocation = true;
   _method = m;
 }

@@ -55,8 +55,8 @@ class ArrayKlass: public Klass {
   ArrayKlass(Symbol* name, KlassID id);
   ArrayKlass() { assert(DumpSharedSpaces || UseSharedSpaces, "only for cds"); }
 
-  // Create array_name for element klass, creates a permanent symbol, returns result
-  static Symbol* create_element_klass_array_name(bool is_qtype, Klass* element_klass, TRAPS);
+  // Create array_name for element klass
+  static Symbol* create_element_klass_array_name(Klass* element_klass, TRAPS);
 
  public:
   // Instance variables
@@ -65,9 +65,6 @@ class ArrayKlass: public Klass {
 
   // Compiler/Interpreter offset
   static ByteSize element_klass_offset() { return in_ByteSize(offset_of(ArrayKlass, _element_klass)); }
-
-  // Presented with an ArrayKlass, which storage_properties should be encoded into arrayOop
-  virtual ArrayStorageProperties storage_properties() { return ArrayStorageProperties::empty; }
 
   // Are loads and stores to this concrete array type atomic?
   // Note that Object[] is naturally atomic, but its subtypes may not be.
@@ -109,7 +106,7 @@ class ArrayKlass: public Klass {
   Method* uncached_lookup_method(const Symbol* name,
                                  const Symbol* signature,
                                  OverpassLookupMode overpass_mode,
-                                 PrivateLookupMode private_mode = find_private) const;
+                                 PrivateLookupMode private_mode = PrivateLookupMode::find) const;
 
   static ArrayKlass* cast(Klass* k) {
     return const_cast<ArrayKlass*>(cast(const_cast<const Klass*>(k)));
@@ -132,6 +129,7 @@ class ArrayKlass: public Klass {
 
   // Iterators
   void array_klasses_do(void f(Klass* k));
+  void array_klasses_do(void f(Klass* k, TRAPS), TRAPS);
 
   // Return a handle.
   static void     complete_create_array_klass(ArrayKlass* k, Klass* super_klass, ModuleEntry* module, TRAPS);

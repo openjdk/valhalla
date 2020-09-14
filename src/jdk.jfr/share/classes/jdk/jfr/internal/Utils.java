@@ -180,6 +180,30 @@ public final class Utils {
         return String.format("%d%s%s", value, separation, result.text);
     }
 
+    // This method reduces the number of loaded classes
+    // compared to DateTimeFormatter
+    static String formatDateTime(LocalDateTime time) {
+        StringBuilder sb = new StringBuilder(19);
+        sb.append(time.getYear() / 100);
+        appendPadded(sb, time.getYear() % 100, true);
+        appendPadded(sb, time.getMonth().getValue(), true);
+        appendPadded(sb, time.getDayOfMonth(), true);
+        appendPadded(sb, time.getHour(), true);
+        appendPadded(sb, time.getMinute(), true);
+        appendPadded(sb, time.getSecond(), false);
+        return sb.toString();
+    }
+
+    private static void appendPadded(StringBuilder text, int number, boolean separator) {
+        if (number < 10) {
+            text.append('0');
+        }
+        text.append(number);
+        if (separator) {
+            text.append('_');
+        }
+    }
+
     public static long parseTimespanWithInfinity(String s) {
         if (INFINITY.equals(s)) {
             return Long.MAX_VALUE;
@@ -213,7 +237,7 @@ public final class Utils {
         try {
             Long.parseLong(s);
         } catch (NumberFormatException nfe) {
-            throw new NumberFormatException("'" + s + "' is not a valid timespan. Shoule be numeric value followed by a unit, i.e. 20 ms. Valid units are ns, us, s, m, h and d.");
+            throw new NumberFormatException("'" + s + "' is not a valid timespan. Should be numeric value followed by a unit, i.e. 20 ms. Valid units are ns, us, s, m, h and d.");
         }
         // Only accept values with units
         throw new NumberFormatException("Timespan + '" + s + "' is missing unit. Valid units are ns, us, s, m, h and d.");
@@ -326,7 +350,7 @@ public final class Utils {
         return (long) (nanos * JVM.getJVM().getTimeConversionFactor());
     }
 
-    static synchronized EventHandler getHandler(Class<? extends jdk.internal.event.Event> eventClass) {
+    public static synchronized EventHandler getHandler(Class<? extends jdk.internal.event.Event> eventClass) {
         Utils.ensureValidEventSubclass(eventClass);
         try {
             Field f = eventClass.getDeclaredField(EventInstrumentation.FIELD_EVENT_HANDLER);
@@ -494,13 +518,13 @@ public final class Utils {
     }
 
     public static boolean isSettingVisible(Control c, boolean hasEventHook) {
-        if (c instanceof ThresholdSetting) {
+        if (c.isType(ThresholdSetting.class)) {
             return !hasEventHook;
         }
-        if (c instanceof PeriodSetting) {
+        if (c.isType(PeriodSetting.class)) {
             return hasEventHook;
         }
-        if (c instanceof StackTraceSetting) {
+        if (c.isType(StackTraceSetting.class)) {
             return !hasEventHook;
         }
         return true;
@@ -604,7 +628,7 @@ public final class Utils {
 
     public static String makeFilename(Recording recording) {
         String pid = JVM.getJVM().getPid();
-        String date = Repository.REPO_DATE_FORMAT.format(LocalDateTime.now());
+        String date = formatDateTime(LocalDateTime.now());
         String idText = recording == null ? "" :  "-id-" + Long.toString(recording.getId());
         return "hotspot-" + "pid-" + pid + idText + "-" + date + ".jfr";
     }

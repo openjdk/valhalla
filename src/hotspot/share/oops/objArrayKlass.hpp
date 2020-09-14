@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -50,10 +50,6 @@ class ObjArrayKlass : public ArrayKlass {
   // For dummy objects
   ObjArrayKlass() {}
 
-  // if ObjArrayKlass is used to represent an LWorld "Q-type" value type array, the only thing we can give null-free (i.e. not flattened)
-  // ArrayStorageProperties::empty meaning nothing special, array of references (possibly even to value types)
-  ArrayStorageProperties storage_properties();
-
   Klass* bottom_klass() const       { return _bottom_klass; }
   void set_bottom_klass(Klass* k)   { _bottom_klass = k; }
   Klass** bottom_klass_addr()       { return &_bottom_klass; }
@@ -69,8 +65,8 @@ class ObjArrayKlass : public ArrayKlass {
   int oop_size(oop obj) const;
 
   // Allocation
-  static Klass* allocate_objArray_klass(ArrayStorageProperties storage_props,
-                                          int n, Klass* element_klass, TRAPS);
+  static ObjArrayKlass* allocate_objArray_klass(ClassLoaderData* loader_data,
+                                                int n, Klass* element_klass, TRAPS);
 
   objArrayOop allocate(int length, TRAPS);
   oop multi_allocate(int rank, jint* sizes, TRAPS);
@@ -91,10 +87,10 @@ class ObjArrayKlass : public ArrayKlass {
                int length, TRAPS);
  protected:
   // Returns the ObjArrayKlass for n'th dimension.
-  virtual Klass* array_klass_impl(ArrayStorageProperties storage_props, bool or_null, int n, TRAPS);
+  virtual Klass* array_klass_impl(bool or_null, int n, TRAPS);
 
   // Returns the array class with this class as element type.
-  virtual Klass* array_klass_impl(ArrayStorageProperties storage_props, bool or_null, TRAPS);
+  virtual Klass* array_klass_impl(bool or_null, TRAPS);
 
  public:
 

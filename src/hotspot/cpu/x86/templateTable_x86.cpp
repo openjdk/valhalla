@@ -33,7 +33,7 @@
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
@@ -451,6 +451,7 @@ void TemplateTable::fast_aldc(bool wide) {
     Label notNull;
     ExternalAddress null_sentinel((address)Universe::the_null_sentinel_addr());
     __ movptr(tmp, null_sentinel);
+    __ resolve_oop_handle(tmp);
     __ cmpoop(tmp, result);
     __ jccb(Assembler::notEqual, notNull);
     __ xorptr(result, result);  // NULL object reference
@@ -827,7 +828,7 @@ void TemplateTable::aaload() {
 
   index_check(array, index); // kills rbx
   __ profile_array(rbx, array, rcx);
-  if (ValueArrayFlatten) {
+  if (UseFlatArray) {
     Label is_flat_array, done;
     __ test_flattened_array_oop(array, rbx, is_flat_array);
     do_oop_load(_masm,
@@ -1154,13 +1155,15 @@ void TemplateTable::aastore() {
   __ jcc(Assembler::zero, is_null);
 
   // Move array class to rdi
-  __ load_klass(rdi, rdx);
-  if (ValueArrayFlatten) {
-    __ test_flattened_array_oop(rdx, rbx, is_flat_array);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  __ load_klass(rdi, rdx, tmp_load_klass);
+  if (UseFlatArray) {
+    __ movl(rbx, Address(rdi, Klass::layout_helper_offset()));
+    __ test_flattened_array_layout(rbx, is_flat_array);
   }
 
   // Move subklass into rbx
-  __ load_klass(rbx, rax);
+  __ load_klass(rbx, rax, tmp_load_klass);
   // Move array element superklass into rax
   __ movptr(rax, Address(rdi,
                          ObjArrayKlass::element_klass_offset()));
@@ -1209,7 +1212,7 @@ void TemplateTable::aastore() {
     // Simplistic type check...
 
     // Profile the not-null value's klass.
-    __ load_klass(rbx, rax);
+    __ load_klass(rbx, rax, tmp_load_klass);
     // Move element klass into rax
     __ movptr(rax, Address(rdi, ArrayKlass::element_klass_offset()));
     // flat value array needs exact type match
@@ -1223,7 +1226,7 @@ void TemplateTable::aastore() {
     // rbx: value's klass
     // rdx: array
     // rdi: array klass
-    __ test_klass_is_empty_value(rbx, rax, done);
+    __ test_klass_is_empty_inline_type(rbx, rax, done);
 
     // calc dst for copy
     __ movl(rax, at_tos_p1()); // index
@@ -1249,7 +1252,8 @@ void TemplateTable::bastore() {
   index_check(rdx, rbx); // prefer index in rbx
   // Need to check whether array is boolean or byte
   // since both types share the bastore bytecode.
-  __ load_klass(rcx, rdx);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  __ load_klass(rcx, rdx, tmp_load_klass);
   __ movl(rcx, Address(rcx, Klass::layout_helper_offset()));
   int diffbit = Klass::layout_helper_boolean_diffbit();
   __ testl(rcx, diffbit);
@@ -2483,7 +2487,7 @@ void TemplateTable::if_acmp(Condition cc) {
   Label taken, not_taken;
   __ pop_ptr(rdx);
 
-  const int is_value_mask = markWord::always_locked_pattern;
+  const int is_inline_type_mask = markWord::always_locked_pattern;
   if (EnableValhalla) {
     __ cmpoop(rdx, rax);
     __ jcc(Assembler::equal, (cc == equal) ? taken : not_taken);
@@ -2496,11 +2500,11 @@ void TemplateTable::if_acmp(Condition cc) {
 
     // and both are values ?
     __ movptr(rbx, Address(rdx, oopDesc::mark_offset_in_bytes()));
-    __ andptr(rbx, is_value_mask);
+    __ andptr(rbx, is_inline_type_mask);
     __ movptr(rcx, Address(rax, oopDesc::mark_offset_in_bytes()));
-    __ andptr(rbx, is_value_mask);
+    __ andptr(rbx, is_inline_type_mask);
     __ andptr(rbx, rcx);
-    __ cmpl(rbx, is_value_mask);
+    __ cmpl(rbx, is_inline_type_mask);
     __ jcc(Assembler::notEqual, (cc == equal) ? not_taken : taken);
 
     // same value klass ?
@@ -2765,7 +2769,8 @@ void TemplateTable::_return(TosState state) {
     assert(state == vtos, "only valid state");
     Register robj = LP64_ONLY(c_rarg1) NOT_LP64(rax);
     __ movptr(robj, aaddress(0));
-    __ load_klass(rdi, robj);
+    Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+    __ load_klass(rdi, robj, tmp_load_klass);
     __ movl(rdi, Address(rdi, Klass::access_flags_offset()));
     __ testl(rdi, JVM_ACC_HAS_FINALIZER);
     Label skip_register_finalizer;
@@ -3007,7 +3012,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
 
   const Address field(obj, off, Address::times_1, 0*wordSize);
 
-  Label Done, notByte, notBool, notInt, notShort, notChar, notLong, notFloat, notObj, notValueType;
+  Label Done, notByte, notBool, notInt, notShort, notChar, notLong, notFloat, notObj, notInlineType;
 
   if (!is_static) {
     __ movptr(rcx, Address(cache, index, Address::times_ptr,
@@ -3064,14 +3069,14 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
   } else {
     if (is_static) {
       __ load_heap_oop(rax, field);
-      Label isFlattenable, uninitialized;
+      Label is_inline_type, uninitialized;
       // Issue below if the static field has not been initialized yet
-      __ test_field_is_flattenable(flags2, rscratch1, isFlattenable);
-        // Not flattenable case
+      __ test_field_is_inline_type(flags2, rscratch1, is_inline_type);
+        // field is not an inline type
         __ push(atos);
         __ jmp(Done);
-      // Flattenable case, must not return null even if uninitialized
-      __ bind(isFlattenable);
+      // field is an inline type, must not return null even if uninitialized
+      __ bind(is_inline_type);
         __ testptr(rax, rax);
         __ jcc(Assembler::zero, uninitialized);
           __ push(atos);
@@ -3086,7 +3091,7 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
         __ jmp(finish);
         __ bind(slow_case);
 #endif // LP64
-          __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_value_field),
+          __ call_VM(rax, CAST_FROM_FN_PTR(address, InterpreterRuntime::uninitialized_static_inline_type_field),
                  obj, flags2);
 #ifdef _LP64
           __ bind(finish);
@@ -3095,9 +3100,9 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ push(atos);
           __ jmp(Done);
     } else {
-      Label isFlattened, nonnull, isFlattenable, rewriteFlattenable;
-      __ test_field_is_flattenable(flags2, rscratch1, isFlattenable);
-        // Non-flattenable field case, also covers the object case
+      Label is_inlined, nonnull, is_inline_type, rewrite_inline;
+      __ test_field_is_inline_type(flags2, rscratch1, is_inline_type);
+        // field is not an inline type
         pop_and_check_object(obj);
         __ load_heap_oop(rax, field);
         __ push(atos);
@@ -3105,9 +3110,9 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           patch_bytecode(Bytecodes::_fast_agetfield, bc, rbx);
         }
         __ jmp(Done);
-      __ bind(isFlattenable);
-        __ test_field_is_flattened(flags2, rscratch1, isFlattened);
-          // Non-flattened field case
+      __ bind(is_inline_type);
+        __ test_field_is_inlined(flags2, rscratch1, is_inlined);
+          // field is not inlined
           __ movptr(rax, rcx);  // small dance required to preserve the klass_holder somewhere
           pop_and_check_object(obj);
           __ push(rax);
@@ -3116,19 +3121,20 @@ void TemplateTable::getfield_or_static(int byte_no, bool is_static, RewriteContr
           __ testptr(rax, rax);
           __ jcc(Assembler::notZero, nonnull);
             __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
-            __ get_value_field_klass(rcx, flags2, rbx);
+            __ get_inline_type_field_klass(rcx, flags2, rbx);
             __ get_default_value_oop(rbx, rcx, rax);
           __ bind(nonnull);
           __ verify_oop(rax);
           __ push(atos);
-          __ jmp(rewriteFlattenable);
-        __ bind(isFlattened);
+          __ jmp(rewrite_inline);
+        __ bind(is_inlined);
+        // field is inlined
           __ andl(flags2, ConstantPoolCacheEntry::field_index_mask);
           pop_and_check_object(rax);
-          __ read_flattened_field(rcx, flags2, rbx, rax);
+          __ read_inlined_field(rcx, flags2, rbx, rax);
           __ verify_oop(rax);
           __ push(atos);
-      __ bind(rewriteFlattenable);
+      __ bind(rewrite_inline);
       if (rc == may_rewrite) {
         patch_bytecode(Bytecodes::_fast_qgetfield, bc, rbx);
       }
@@ -3388,7 +3394,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
   NOT_LP64( const Address hi(obj, off, Address::times_1, 1*wordSize);)
 
   Label notByte, notBool, notInt, notShort, notChar,
-        notLong, notFloat, notObj, notValueType;
+        notLong, notFloat, notObj, notInlineType;
   Label Done;
 
   const Register bc    = LP64_ONLY(c_rarg3) NOT_LP64(rcx);
@@ -3443,41 +3449,42 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
     } else {
       __ pop(atos);
       if (is_static) {
-        Label notFlattenable, notBuffered;
-        __ test_field_is_not_flattenable(flags2, rscratch1, notFlattenable);
+        Label is_inline_type;
+        __ test_field_is_not_inline_type(flags2, rscratch1, is_inline_type);
         __ null_check(rax);
-        __ bind(notFlattenable);
+        __ bind(is_inline_type);
         do_oop_store(_masm, field, rax);
         __ jmp(Done);
       } else {
-        Label isFlattenable, isFlattened, notBuffered, notBuffered2, rewriteNotFlattenable, rewriteFlattenable;
-        __ test_field_is_flattenable(flags2, rscratch1, isFlattenable);
-        // Not flattenable case, covers not flattenable values and objects
+        Label is_inline_type, is_inlined, rewrite_not_inline, rewrite_inline;
+        __ test_field_is_inline_type(flags2, rscratch1, is_inline_type);
+        // Not an inline type
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, rax);
-        __ bind(rewriteNotFlattenable);
+        __ bind(rewrite_not_inline);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_aputfield, bc, rbx, true, byte_no);
         }
         __ jmp(Done);
-        // Implementation of the flattenable semantic
-        __ bind(isFlattenable);
+        // Implementation of the inline type semantic
+        __ bind(is_inline_type);
         __ null_check(rax);
-        __ test_field_is_flattened(flags2, rscratch1, isFlattened);
-        // Not flattened case
+        __ test_field_is_inlined(flags2, rscratch1, is_inlined);
+        // field is not inlined
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, rax);
-        __ jmp(rewriteFlattenable);
-        __ bind(isFlattened);
+        __ jmp(rewrite_inline);
+        __ bind(is_inlined);
+        // field is inlined
         pop_and_check_object(obj);
         assert_different_registers(rax, rdx, obj, off);
-        __ load_klass(rdx, rax);
+        __ load_klass(rdx, rax, rscratch1);
         __ data_for_oop(rax, rax, rdx);
         __ addptr(obj, off);
         __ access_value_copy(IN_HEAP, rax, obj, rdx);
-        __ bind(rewriteFlattenable);
+        __ bind(rewrite_inline);
         if (rc == may_rewrite) {
           patch_bytecode(Bytecodes::_fast_qputfield, bc, rbx, true, byte_no);
         }
@@ -3689,7 +3696,7 @@ void TemplateTable::fast_storefield(TosState state) {
 
   Label notVolatile, Done;
   if (bytecode() == Bytecodes::_fast_qputfield) {
-    __ movl(rscratch2, rdx);  // saving flags for isFlattened test
+    __ movl(rscratch2, rdx);  // saving flags for is_inlined test
   }
 
   __ shrl(rdx, ConstantPoolCacheEntry::is_volatile_shift);
@@ -3706,7 +3713,7 @@ void TemplateTable::fast_storefield(TosState state) {
   __ jcc(Assembler::zero, notVolatile);
 
   if (bytecode() == Bytecodes::_fast_qputfield) {
-    __ movl(rdx, rscratch2);  // restoring flags for isFlattened test
+    __ movl(rdx, rscratch2);  // restoring flags for is_inlined test
   }
   fast_storefield_helper(field, rax, rdx);
   volatile_barrier(Assembler::Membar_mask_bits(Assembler::StoreLoad |
@@ -3715,7 +3722,7 @@ void TemplateTable::fast_storefield(TosState state) {
   __ bind(notVolatile);
 
   if (bytecode() == Bytecodes::_fast_qputfield) {
-    __ movl(rdx, rscratch2);  // restoring flags for isFlattened test
+    __ movl(rdx, rscratch2);  // restoring flags for is_inlined test
   }
   fast_storefield_helper(field, rax, rdx);
 
@@ -3728,15 +3735,15 @@ void TemplateTable::fast_storefield_helper(Address field, Register rax, Register
   switch (bytecode()) {
   case Bytecodes::_fast_qputfield:
     {
-      Label isFlattened, done;
+      Label is_inlined, done;
       __ null_check(rax);
-      __ test_field_is_flattened(flags, rscratch1, isFlattened);
-      // No Flattened case
+      __ test_field_is_inlined(flags, rscratch1, is_inlined);
+      // field is not inlined
       do_oop_store(_masm, field, rax);
       __ jmp(done);
-      __ bind(isFlattened);
-      // Flattened case
-      __ load_klass(rdx, rax);
+      __ bind(is_inlined);
+      // field is inlined
+      __ load_klass(rdx, rax, rscratch1);
       __ data_for_oop(rax, rax, rdx);
       __ lea(rcx, field);
       __ access_value_copy(IN_HEAP, rax, rcx, rdx);
@@ -3829,12 +3836,12 @@ void TemplateTable::fast_accessfield(TosState state) {
   switch (bytecode()) {
   case Bytecodes::_fast_qgetfield:
     {
-      Label isFlattened, nonnull, Done;
+      Label is_inlined, nonnull, Done;
       __ movptr(rscratch1, Address(rcx, rbx, Address::times_ptr,
                                    in_bytes(ConstantPoolCache::base_offset() +
                                             ConstantPoolCacheEntry::flags_offset())));
-      __ test_field_is_flattened(rscratch1, rscratch2, isFlattened);
-        // Non-flattened field case
+      __ test_field_is_inlined(rscratch1, rscratch2, is_inlined);
+        // field is not inlined
         __ load_heap_oop(rax, field);
         __ testptr(rax, rax);
         __ jcc(Assembler::notZero, nonnull);
@@ -3845,12 +3852,13 @@ void TemplateTable::fast_accessfield(TosState state) {
           __ movptr(rcx, Address(rcx, rbx, Address::times_ptr,
                                        in_bytes(ConstantPoolCache::base_offset() +
                                                 ConstantPoolCacheEntry::f1_offset())));
-          __ get_value_field_klass(rcx, rdx, rbx);
+          __ get_inline_type_field_klass(rcx, rdx, rbx);
           __ get_default_value_oop(rbx, rcx, rax);
         __ bind(nonnull);
         __ verify_oop(rax);
         __ jmp(Done);
-      __ bind(isFlattened);
+      __ bind(is_inlined);
+      // field is inlined
         __ push(rdx); // save offset
         __ movl(rdx, Address(rcx, rbx, Address::times_ptr,
                            in_bytes(ConstantPoolCache::base_offset() +
@@ -3860,7 +3868,7 @@ void TemplateTable::fast_accessfield(TosState state) {
                                      in_bytes(ConstantPoolCache::base_offset() +
                                               ConstantPoolCacheEntry::f1_offset())));
         __ pop(rbx); // restore offset
-        __ read_flattened_field(rcx, rdx, rbx, rax);
+        __ read_inlined_field(rcx, rdx, rbx, rax);
       __ bind(Done);
       __ verify_oop(rax);
     }
@@ -4078,7 +4086,8 @@ void TemplateTable::invokevirtual_helper(Register index,
 
   // get receiver klass
   __ null_check(recv, oopDesc::klass_offset_in_bytes());
-  __ load_klass(rax, recv);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  __ load_klass(rax, recv, tmp_load_klass);
 
   // profile this call
   __ profile_virtual_call(rax, rlocals, rdx);
@@ -4170,7 +4179,8 @@ void TemplateTable::invokeinterface(int byte_no) {
 
   // Get receiver klass into rlocals - also a null check
   __ null_check(rcx, oopDesc::klass_offset_in_bytes());
-  __ load_klass(rlocals, rcx);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  __ load_klass(rlocals, rcx, tmp_load_klass);
 
   Label subtype;
   __ check_klass_subtype(rlocals, rax, rbcp, subtype);
@@ -4193,7 +4203,7 @@ void TemplateTable::invokeinterface(int byte_no) {
   // Get receiver klass into rdx - also a null check
   __ restore_locals();  // restore r14
   __ null_check(rcx, oopDesc::klass_offset_in_bytes());
-  __ load_klass(rdx, rcx);
+  __ load_klass(rdx, rcx, tmp_load_klass);
 
   Label no_such_method;
 
@@ -4351,9 +4361,7 @@ void TemplateTable::_new() {
   // get InstanceKlass
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
 
-  __ movl(rdx, Address(rcx, InstanceKlass::misc_flags_offset()));
-  __ andl(rdx, InstanceKlass::_misc_kind_field_mask);
-  __ cmpl(rdx, InstanceKlass::_misc_kind_value_type);
+  __ cmpb(Address(rcx, InstanceKlass::kind_offset()), InstanceKlass::_kind_inline_type);
   __ jcc(Assembler::notEqual, is_not_value);
 
   __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::throw_InstantiationError));
@@ -4402,9 +4410,7 @@ void TemplateTable::defaultvalue() {
   // get InstanceKlass
   __ load_resolved_klass_at_index(rcx, rcx, rdx);
 
-  __ movl(rdx, Address(rcx, InstanceKlass::misc_flags_offset()));
-  __ andl(rdx, InstanceKlass::_misc_kind_field_mask);
-  __ cmpl(rdx, InstanceKlass::_misc_kind_value_type);
+  __ cmpb(Address(rcx, InstanceKlass::kind_offset()), InstanceKlass::_kind_inline_type);
   __ jcc(Assembler::equal, is_value);
 
   // in the future, defaultvalue will just return null instead of throwing an exception
@@ -4416,7 +4422,7 @@ void TemplateTable::defaultvalue() {
   __ cmpb(Address(rcx, InstanceKlass::init_state_offset()), InstanceKlass::fully_initialized);
   __ jcc(Assembler::notEqual, slow_case);
 
-  // have a resolved ValueKlass in rcx, return the default value oop from it
+  // have a resolved InlineKlass in rcx, return the default value oop from it
   __ get_default_value_oop(rcx, rdx, rax);
   __ jmp(done);
 
@@ -4499,7 +4505,8 @@ void TemplateTable::checkcast() {
   __ load_resolved_klass_at_index(rax, rcx, rbx);
 
   __ bind(resolved);
-  __ load_klass(rbx, rdx);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  __ load_klass(rbx, rdx, tmp_load_klass);
 
   // Generate subtype check.  Blows rcx, rdi.  Object in rdx.
   // Superklass in rax.  Subklass in rbx.
@@ -4571,12 +4578,13 @@ void TemplateTable::instanceof() {
 
   __ pop_ptr(rdx); // restore receiver
   __ verify_oop(rdx);
-  __ load_klass(rdx, rdx);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  __ load_klass(rdx, rdx, tmp_load_klass);
   __ jmpb(resolved);
 
   // Get superklass in rax and subklass in rdx
   __ bind(quicked);
-  __ load_klass(rdx, rax);
+  __ load_klass(rdx, rax, tmp_load_klass);
   __ load_resolved_klass_at_index(rax, rcx, rbx);
 
   __ bind(resolved);
@@ -4668,11 +4676,11 @@ void TemplateTable::monitorenter() {
 
   __ resolve(IS_NOT_NULL, rax);
 
-  const int is_value_mask = markWord::always_locked_pattern;
+  const int is_inline_type_mask = markWord::always_locked_pattern;
   Label has_identity;
   __ movptr(rbx, Address(rax, oopDesc::mark_offset_in_bytes()));
-  __ andptr(rbx, is_value_mask);
-  __ cmpl(rbx, is_value_mask);
+  __ andptr(rbx, is_inline_type_mask);
+  __ cmpl(rbx, is_inline_type_mask);
   __ jcc(Assembler::notEqual, has_identity);
   __ call_VM(noreg, CAST_FROM_FN_PTR(address,
                      InterpreterRuntime::throw_illegal_monitor_state_exception));
@@ -4778,11 +4786,11 @@ void TemplateTable::monitorexit() {
 
   __ resolve(IS_NOT_NULL, rax);
 
-  const int is_value_mask = markWord::always_locked_pattern;
+  const int is_inline_type_mask = markWord::always_locked_pattern;
   Label has_identity;
   __ movptr(rbx, Address(rax, oopDesc::mark_offset_in_bytes()));
-  __ andptr(rbx, is_value_mask);
-  __ cmpl(rbx, is_value_mask);
+  __ andptr(rbx, is_inline_type_mask);
+  __ cmpl(rbx, is_inline_type_mask);
   __ jcc(Assembler::notEqual, has_identity);
   __ call_VM(noreg, CAST_FROM_FN_PTR(address,
                      InterpreterRuntime::throw_illegal_monitor_state_exception));

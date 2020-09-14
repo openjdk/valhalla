@@ -105,7 +105,7 @@ public:
       return oop_atomic_cmpxchg_in_heap(AccessInternal::oop_field_addr<decorators>(base, offset), compare_value, new_value);
     }
 
-    static void value_copy_in_heap(void* src, void* dst, ValueKlass* md);
+    static void value_copy_in_heap(void* src, void* dst, InlineKlass* md);
   };
 };
 

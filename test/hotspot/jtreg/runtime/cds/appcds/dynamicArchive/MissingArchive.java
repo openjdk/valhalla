@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@ import java.io.File;
  * @build GenericTestApp sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller -jar WhiteBox.jar sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller -jar GenericTestApp.jar GenericTestApp
- * @run driver MissingArchive
+ * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI -Xbootclasspath/a:./WhiteBox.jar MissingArchive
  */
 
 public class MissingArchive extends DynamicArchiveTestBase {
@@ -56,7 +56,7 @@ public class MissingArchive extends DynamicArchiveTestBase {
     static void test(String args[]) throws Exception {
         String topArchiveName = getNewArchiveName("top");
         String baseArchiveName = getNewArchiveName("base");
-        dumpBaseArchive(baseArchiveName);
+        TestCommon.dumpBaseArchive(baseArchiveName);
 
         String appJar = ClassFileInstaller.getJarPath("GenericTestApp.jar");
         String mainClass = "GenericTestApp";

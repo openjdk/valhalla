@@ -139,6 +139,9 @@ REGISTER_DECLARATION(Register, rdispatch, r21);
 // Java stack pointer
 REGISTER_DECLARATION(Register, esp,      r20);
 
+// Preserved predicate register with all elements set TRUE.
+REGISTER_DECLARATION(PRegister, ptrue, p7);
+
 #define assert_cond(ARG1) assert(ARG1, #ARG1)
 
 namespace asm_util {
@@ -199,7 +202,7 @@ public:
     return extend(uval, msb - lsb);
   }
 
-  static void patch(address a, int msb, int lsb, unsigned long val) {
+  static void patch(address a, int msb, int lsb, uint64_t val) {
     int nbits = msb - lsb + 1;
     guarantee(val < (1U << nbits), "Field too big for insn");
     assert_cond(msb >= lsb);
@@ -212,9 +215,9 @@ public:
     *(unsigned *)a = target;
   }
 
-  static void spatch(address a, int msb, int lsb, long val) {
+  static void spatch(address a, int msb, int lsb, int64_t val) {
     int nbits = msb - lsb + 1;
-    long chk = val >> (nbits - 1);
+    int64_t chk = val >> (nbits - 1);
     guarantee (chk == -1 || chk == 0, "Field too big for insn");
     unsigned uval = val;
     unsigned mask = (1U << nbits) - 1;
@@ -245,9 +248,9 @@ public:
     f(val, bit, bit);
   }
 
-  void sf(long val, int msb, int lsb) {
+  void sf(int64_t val, int msb, int lsb) {
     int nbits = msb - lsb + 1;
-    long chk = val >> (nbits - 1);
+    int64_t chk = val >> (nbits - 1);
     guarantee (chk == -1 || chk == 0, "Field too big for insn");
     unsigned uval = val;
     unsigned mask = (1U << nbits) - 1;
@@ -271,6 +274,14 @@ public:
 
   void rf(FloatRegister r, int lsb) {
     f(r->encoding_nocheck(), lsb + 4, lsb);
+  }
+
+  void prf(PRegister r, int lsb) {
+    f(r->encoding_nocheck(), lsb + 3, lsb);
+  }
+
+  void pgrf(PRegister r, int lsb) {
+    f(r->encoding_nocheck(), lsb + 2, lsb);
   }
 
   unsigned get(int msb = 31, int lsb = 0) {
@@ -357,7 +368,7 @@ class Address {
  private:
   Register _base;
   Register _index;
-  long _offset;
+  int64_t _offset;
   enum mode _mode;
   extend _ext;
 
@@ -382,7 +393,13 @@ class Address {
     : _base(r), _index(noreg), _offset(o), _mode(base_plus_offset), _target(0) { }
   Address(Register r, long o)
     : _base(r), _index(noreg), _offset(o), _mode(base_plus_offset), _target(0) { }
+  Address(Register r, long long o)
+    : _base(r), _index(noreg), _offset(o), _mode(base_plus_offset), _target(0) { }
+  Address(Register r, unsigned int o)
+    : _base(r), _index(noreg), _offset(o), _mode(base_plus_offset), _target(0) { }
   Address(Register r, unsigned long o)
+    : _base(r), _index(noreg), _offset(o), _mode(base_plus_offset), _target(0) { }
+  Address(Register r, unsigned long long o)
     : _base(r), _index(noreg), _offset(o), _mode(base_plus_offset), _target(0) { }
 #ifdef ASSERT
   Address(Register r, ByteSize disp)
@@ -422,7 +439,7 @@ class Address {
               "wrong mode");
     return _base;
   }
-  long offset() const {
+  int64_t offset() const {
     return _offset;
   }
   Register index() const {
@@ -554,13 +571,18 @@ class Address {
 
   void lea(MacroAssembler *, Register) const;
 
-  static bool offset_ok_for_immed(long offset, int shift) {
-    unsigned mask = (1 << shift) - 1;
-    if (offset < 0 || offset & mask) {
-      return (uabs(offset) < (1 << (20 - 12))); // Unscaled offset
-    } else {
-      return ((offset >> shift) < (1 << (21 - 10 + 1))); // Scaled, unsigned offset
+  static bool offset_ok_for_immed(int64_t offset, uint shift);
+
+  static bool offset_ok_for_sve_immed(long offset, int shift, int vl /* sve vector length */) {
+    if (offset % vl == 0) {
+      // Convert address offset into sve imm offset (MUL VL).
+      int sve_offset = offset / vl;
+      if (((-(1 << (shift - 1))) <= sve_offset) && (sve_offset < (1 << (shift - 1)))) {
+        // sve_offset can be encoded
+        return true;
+      }
     }
+    return false;
   }
 };
 
@@ -616,10 +638,10 @@ typedef enum {
 class Assembler : public AbstractAssembler {
 
 #ifndef PRODUCT
-  static const unsigned long asm_bp;
+  static const uintptr_t asm_bp;
 
   void emit_long(jint x) {
-    if ((unsigned long)pc() == asm_bp)
+    if ((uintptr_t)pc() == asm_bp)
       asm volatile ("nop");
     AbstractAssembler::emit_int32(x);
   }
@@ -670,7 +692,7 @@ public:
   void f(unsigned val, int msb) {
     current->f(val, msb, msb);
   }
-  void sf(long val, int msb, int lsb) {
+  void sf(int64_t val, int msb, int lsb) {
     current->sf(val, msb, lsb);
   }
   void rf(Register reg, int lsb) {
@@ -684,6 +706,12 @@ public:
   }
   void rf(FloatRegister reg, int lsb) {
     current->rf(reg, lsb);
+  }
+  void prf(PRegister reg, int lsb) {
+    current->prf(reg, lsb);
+  }
+  void pgrf(PRegister reg, int lsb) {
+    current->pgrf(reg, lsb);
   }
   void fixed(unsigned value, unsigned mask) {
     current->fixed(value, mask);
@@ -720,7 +748,7 @@ public:
     wrap_label(Rd, L, &Assembler::_adrp);
   }
 
-  void adrp(Register Rd, const Address &dest, unsigned long &offset);
+  void adrp(Register Rd, const Address &dest, uint64_t &offset);
 
 #undef INSN
 
@@ -846,7 +874,7 @@ public:
   // architecture.  In debug mode we shrink it in order to test
   // trampolines, but not so small that branches in the interpreter
   // are out of range.
-  static const unsigned long branch_range = NOT_DEBUG(128 * M) DEBUG_ONLY(2 * M);
+  static const uint64_t branch_range = NOT_DEBUG(128 * M) DEBUG_ONLY(2 * M);
 
   static bool reachable_from_branch_at(address branch, address target) {
     return uabs(target - branch) < branch_range;
@@ -856,7 +884,7 @@ public:
 #define INSN(NAME, opcode)                                              \
   void NAME(address dest) {                                             \
     starti;                                                             \
-    long offset = (dest - pc()) >> 2;                                   \
+    int64_t offset = (dest - pc()) >> 2;                                \
     DEBUG_ONLY(assert(reachable_from_branch_at(pc(), dest), "debug only")); \
     f(opcode, 31), f(0b00101, 30, 26), sf(offset, 25, 0);               \
   }                                                                     \
@@ -873,7 +901,7 @@ public:
   // Compare & branch (immediate)
 #define INSN(NAME, opcode)                              \
   void NAME(Register Rt, address dest) {                \
-    long offset = (dest - pc()) >> 2;                   \
+    int64_t offset = (dest - pc()) >> 2;                \
     starti;                                             \
     f(opcode, 31, 24), sf(offset, 23, 5), rf(Rt, 0);    \
   }                                                     \
@@ -891,7 +919,7 @@ public:
   // Test & branch (immediate)
 #define INSN(NAME, opcode)                                              \
   void NAME(Register Rt, int bitpos, address dest) {                    \
-    long offset = (dest - pc()) >> 2;                                   \
+    int64_t offset = (dest - pc()) >> 2;                                \
     int b5 = bitpos >> 5;                                               \
     bitpos &= 0x1f;                                                     \
     starti;                                                             \
@@ -912,7 +940,7 @@ public:
     {EQ, NE, HS, CS=HS, LO, CC=LO, MI, PL, VS, VC, HI, LS, GE, LT, GT, LE, AL, NV};
 
   void br(Condition  cond, address dest) {
-    long offset = (dest - pc()) >> 2;
+    int64_t offset = (dest - pc()) >> 2;
     starti;
     f(0b0101010, 31, 25), f(0, 24), sf(offset, 23, 5), f(0, 4), f(cond, 3, 0);
   }
@@ -962,9 +990,9 @@ public:
   INSN(smc, 0b000, 0, 0b11);
   INSN(brk, 0b001, 0, 0b00);
   INSN(hlt, 0b010, 0, 0b00);
-  INSN(dpcs1, 0b101, 0, 0b01);
-  INSN(dpcs2, 0b101, 0, 0b10);
-  INSN(dpcs3, 0b101, 0, 0b11);
+  INSN(dcps1, 0b101, 0, 0b01);
+  INSN(dcps2, 0b101, 0, 0b10);
+  INSN(dcps3, 0b101, 0, 0b11);
 
 #undef INSN
 
@@ -1292,7 +1320,7 @@ public:
   // Load register (literal)
 #define INSN(NAME, opc, V)                                              \
   void NAME(Register Rt, address dest) {                                \
-    long offset = (dest - pc()) >> 2;                                   \
+    int64_t offset = (dest - pc()) >> 2;                                \
     starti;                                                             \
     f(opc, 31, 30), f(0b011, 29, 27), f(V, 26), f(0b00, 25, 24),        \
       sf(offset, 23, 5);                                                \
@@ -1317,7 +1345,7 @@ public:
 
 #define INSN(NAME, opc, V)                                              \
   void NAME(FloatRegister Rt, address dest) {                           \
-    long offset = (dest - pc()) >> 2;                                   \
+    int64_t offset = (dest - pc()) >> 2;                                \
     starti;                                                             \
     f(opc, 31, 30), f(0b011, 29, 27), f(V, 26), f(0b00, 25, 24),        \
       sf(offset, 23, 5);                                                \
@@ -1332,7 +1360,7 @@ public:
 
 #define INSN(NAME, opc, V)                                              \
   void NAME(address dest, prfop op = PLDL1KEEP) {                       \
-    long offset = (dest - pc()) >> 2;                                   \
+    int64_t offset = (dest - pc()) >> 2;                                \
     starti;                                                             \
     f(opc, 31, 30), f(0b011, 29, 27), f(V, 26), f(0b00, 25, 24),        \
       sf(offset, 23, 5);                                                \
@@ -1408,7 +1436,7 @@ public:
       assert(size == 0b10 || size == 0b11, "bad operand size in ldr");
       assert(op == 0b01, "literal form can only be used with loads");
       f(size & 0b01, 31, 30), f(0b011, 29, 27), f(0b00, 25, 24);
-      long offset = (adr.target() - pc()) >> 2;
+      int64_t offset = (adr.target() - pc()) >> 2;
       sf(offset, 23, 5);
       code_section()->relocate(pc(), adr.rspec());
       return;
@@ -2014,6 +2042,21 @@ public:
 #undef INSN
 #undef INSN1
 
+// Floating-point compare. 3-registers versions (scalar).
+#define INSN(NAME, sz, e)                                             \
+  void NAME(FloatRegister Vd, FloatRegister Vn, FloatRegister Vm) {   \
+    starti;                                                           \
+    f(0b01111110, 31, 24), f(e, 23), f(sz, 22), f(1, 21), rf(Vm, 16); \
+    f(0b111011, 15, 10), rf(Vn, 5), rf(Vd, 0);                        \
+  }                                                                   \
+
+  INSN(facged, 1, 0); // facge-double
+  INSN(facges, 0, 0); // facge-single
+  INSN(facgtd, 1, 1); // facgt-double
+  INSN(facgts, 0, 1); // facgt-single
+
+#undef INSN
+
   // Floating-point Move (immediate)
 private:
   unsigned pack(double value);
@@ -2278,12 +2321,12 @@ public:
     rf(Vn, 5), rf(Vd, 0);                                                               \
   }
 
-  INSN(absr,   0, 0b100000101110, 1); // accepted arrangements: T8B, T16B, T4H, T8H,      T4S
+  INSN(absr,   0, 0b100000101110, 3); // accepted arrangements: T8B, T16B, T4H, T8H, T2S, T4S, T2D
   INSN(negr,   1, 0b100000101110, 3); // accepted arrangements: T8B, T16B, T4H, T8H, T2S, T4S, T2D
   INSN(notr,   1, 0b100000010110, 0); // accepted arrangements: T8B, T16B
   INSN(addv,   0, 0b110001101110, 1); // accepted arrangements: T8B, T16B, T4H, T8H,      T4S
-  INSN(cls,    0, 0b100000010010, 1); // accepted arrangements: T8B, T16B, T4H, T8H,      T4S
-  INSN(clz,    1, 0b100000010010, 1); // accepted arrangements: T8B, T16B, T4H, T8H,      T4S
+  INSN(cls,    0, 0b100000010010, 2); // accepted arrangements: T8B, T16B, T4H, T8H, T2S, T4S
+  INSN(clz,    1, 0b100000010010, 2); // accepted arrangements: T8B, T16B, T4H, T8H, T2S, T4S
   INSN(cnt,    0, 0b100000010110, 0); // accepted arrangements: T8B, T16B
   INSN(uaddlp, 1, 0b100000001010, 2); // accepted arrangements: T8B, T16B, T4H, T8H, T2S, T4S
   INSN(uaddlv, 1, 0b110000001110, 1); // accepted arrangements: T8B, T16B, T4H, T8H,      T4S
@@ -2379,6 +2422,30 @@ public:
 
 #undef INSN
 
+#define INSN(NAME, opc)                                                                 \
+  void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, FloatRegister Vm) { \
+    starti;                                                                             \
+    assert(T == T2D, "arrangement must be T2D");                                        \
+    f(0b11001110011, 31, 21), rf(Vm, 16), f(opc, 15, 10), rf(Vn, 5), rf(Vd, 0);         \
+  }
+
+  INSN(sha512h,   0b100000);
+  INSN(sha512h2,  0b100001);
+  INSN(sha512su1, 0b100010);
+
+#undef INSN
+
+#define INSN(NAME, opc)                                                                 \
+  void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn) {                   \
+    starti;                                                                             \
+    assert(T == T2D, "arrangement must be T2D");                                        \
+    f(opc, 31, 10), rf(Vn, 5), rf(Vd, 0);                                               \
+  }
+
+  INSN(sha512su0, 0b1100111011000000100000);
+
+#undef INSN
+
 #define INSN(NAME, opc)                           \
   void NAME(FloatRegister Vd, FloatRegister Vn) { \
     starti;                                       \
@@ -2435,12 +2502,17 @@ public:
     f(sidx<<(int)T, 14, 11), f(1, 10), rf(Vn, 5), rf(Vd, 0);
   }
 
-  void umov(Register Rd, FloatRegister Vn, SIMD_RegVariant T, int idx) {
-    starti;
-    f(0, 31), f(T==D ? 1:0, 30), f(0b001110000, 29, 21);
-    f(((idx<<1)|1)<<(int)T, 20, 16), f(0b001111, 15, 10);
-    rf(Vn, 5), rf(Rd, 0);
+#define INSN(NAME, op)                                                     \
+  void NAME(Register Rd, FloatRegister Vn, SIMD_RegVariant T, int idx) {   \
+    starti;                                                                \
+    f(0, 31), f(T==D ? 1:0, 30), f(0b001110000, 29, 21);                   \
+    f(((idx<<1)|1)<<(int)T, 20, 16), f(op, 15, 10);                        \
+    rf(Vn, 5), rf(Rd, 0);                                                  \
   }
+
+  INSN(umov, 0b001111);
+  INSN(smov, 0b001011);
+#undef INSN
 
 #define INSN(NAME, opc, opc2, isSHR)                                    \
   void NAME(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, int shift){ \
@@ -2468,6 +2540,20 @@ public:
   INSN(shl,  0, 0b010101, /* isSHR = */ false);
   INSN(sshr, 0, 0b000001, /* isSHR = */ true);
   INSN(ushr, 1, 0b000001, /* isSHR = */ true);
+
+#undef INSN
+
+#define INSN(NAME, opc, opc2, isSHR)                                    \
+  void NAME(FloatRegister Vd, FloatRegister Vn, int shift){             \
+    starti;                                                             \
+    int encodedShift = isSHR ? 128 - shift : 64 + shift;                \
+    f(0b01, 31, 30), f(opc, 29), f(0b111110, 28, 23),                   \
+    f(encodedShift, 22, 16); f(opc2, 15, 10), rf(Vn, 5), rf(Vd, 0);     \
+  }
+
+  INSN(shld,  0, 0b010101, /* isSHR = */ false);
+  INSN(sshrd, 0, 0b000001, /* isSHR = */ true);
+  INSN(ushrd, 1, 0b000001, /* isSHR = */ true);
 
 #undef INSN
 
@@ -2659,7 +2745,7 @@ public:
 
 #undef INSN
 
-void ext(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, FloatRegister Vm, int index)
+  void ext(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, FloatRegister Vm, int index)
   {
     starti;
     assert(T == T8B || T == T16B, "invalid arrangement");
@@ -2667,6 +2753,292 @@ void ext(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, FloatRegister V
     f(0, 31), f((int)T & 1, 30), f(0b101110000, 29, 21);
     rf(Vm, 16), f(0, 15), f(index, 14, 11);
     f(0, 10), rf(Vn, 5), rf(Vd, 0);
+  }
+
+// SVE arithmetics - unpredicated
+#define INSN(NAME, opcode)                                                             \
+  void NAME(FloatRegister Zd, SIMD_RegVariant T, FloatRegister Zn, FloatRegister Zm) { \
+    starti;                                                                            \
+    assert(T != Q, "invalid register variant");                                        \
+    f(0b00000100, 31, 24), f(T, 23, 22), f(1, 21),                                     \
+    rf(Zm, 16), f(0, 15, 13), f(opcode, 12, 10), rf(Zn, 5), rf(Zd, 0);                 \
+  }
+  INSN(sve_add, 0b000);
+  INSN(sve_sub, 0b001);
+#undef INSN
+
+// SVE floating-point arithmetic - unpredicated
+#define INSN(NAME, opcode)                                                             \
+  void NAME(FloatRegister Zd, SIMD_RegVariant T, FloatRegister Zn, FloatRegister Zm) { \
+    starti;                                                                            \
+    assert(T == S || T == D, "invalid register variant");                              \
+    f(0b01100101, 31, 24), f(T, 23, 22), f(0, 21),                                     \
+    rf(Zm, 16), f(0, 15, 13), f(opcode, 12, 10), rf(Zn, 5), rf(Zd, 0);                 \
+  }
+
+  INSN(sve_fadd, 0b000);
+  INSN(sve_fmul, 0b010);
+  INSN(sve_fsub, 0b001);
+#undef INSN
+
+private:
+  void sve_predicate_reg_insn(unsigned op24, unsigned op13,
+                              FloatRegister Zd_or_Vd, SIMD_RegVariant T,
+                              PRegister Pg, FloatRegister Zn_or_Vn) {
+    starti;
+    f(op24, 31, 24), f(T, 23, 22), f(op13, 21, 13);
+    pgrf(Pg, 10), rf(Zn_or_Vn, 5), rf(Zd_or_Vd, 0);
+  }
+
+public:
+
+// SVE integer arithmetics - predicate
+#define INSN(NAME, op1, op2)                                                                            \
+  void NAME(FloatRegister Zdn_or_Zd_or_Vd, SIMD_RegVariant T, PRegister Pg, FloatRegister Znm_or_Vn) {  \
+    assert(T != Q, "invalid register variant");                                                         \
+    sve_predicate_reg_insn(op1, op2, Zdn_or_Zd_or_Vd, T, Pg, Znm_or_Vn);                                \
+  }
+
+  INSN(sve_abs,  0b00000100, 0b010110101); // vector abs, unary
+  INSN(sve_add,  0b00000100, 0b000000000); // vector add
+  INSN(sve_andv, 0b00000100, 0b011010001); // bitwise and reduction to scalar
+  INSN(sve_asr,  0b00000100, 0b010000100); // vector arithmetic shift right
+  INSN(sve_cnt,  0b00000100, 0b011010101)  // count non-zero bits
+  INSN(sve_cpy,  0b00000101, 0b100000100); // copy scalar to each active vector element
+  INSN(sve_eorv, 0b00000100, 0b011001001); // bitwise xor reduction to scalar
+  INSN(sve_lsl,  0b00000100, 0b010011100); // vector logical shift left
+  INSN(sve_lsr,  0b00000100, 0b010001100); // vector logical shift right
+  INSN(sve_mul,  0b00000100, 0b010000000); // vector mul
+  INSN(sve_neg,  0b00000100, 0b010111101); // vector neg, unary
+  INSN(sve_not,  0b00000100, 0b011110101); // bitwise invert vector, unary
+  INSN(sve_orv,  0b00000100, 0b011000001); // bitwise or reduction to scalar
+  INSN(sve_smax, 0b00000100, 0b001000000); // signed maximum vectors
+  INSN(sve_smaxv, 0b00000100, 0b001000001); // signed maximum reduction to scalar
+  INSN(sve_smin,  0b00000100, 0b001010000); // signed minimum vectors
+  INSN(sve_sminv, 0b00000100, 0b001010001); // signed minimum reduction to scalar
+  INSN(sve_sub,   0b00000100, 0b000001000); // vector sub
+  INSN(sve_uaddv, 0b00000100, 0b000001001); // unsigned add reduction to scalar
+#undef INSN
+
+// SVE floating-point arithmetics - predicate
+#define INSN(NAME, op1, op2)                                                                          \
+  void NAME(FloatRegister Zd_or_Zdn_or_Vd, SIMD_RegVariant T, PRegister Pg, FloatRegister Zn_or_Zm) { \
+    assert(T == S || T == D, "invalid register variant");                                             \
+    sve_predicate_reg_insn(op1, op2, Zd_or_Zdn_or_Vd, T, Pg, Zn_or_Zm);                               \
+  }
+
+  INSN(sve_fabs,    0b00000100, 0b011100101);
+  INSN(sve_fadd,    0b01100101, 0b000000100);
+  INSN(sve_fadda,   0b01100101, 0b011000001); // add strictly-ordered reduction to scalar Vd
+  INSN(sve_fdiv,    0b01100101, 0b001101100);
+  INSN(sve_fmax,    0b01100101, 0b000110100); // floating-point maximum
+  INSN(sve_fmaxv,   0b01100101, 0b000110001); // floating-point maximum recursive reduction to scalar
+  INSN(sve_fmin,    0b01100101, 0b000111100); // floating-point minimum
+  INSN(sve_fminv,   0b01100101, 0b000111001); // floating-point minimum recursive reduction to scalar
+  INSN(sve_fmul,    0b01100101, 0b000010100);
+  INSN(sve_fneg,    0b00000100, 0b011101101);
+  INSN(sve_frintm,  0b01100101, 0b000010101); // floating-point round to integral value, toward minus infinity
+  INSN(sve_frintn,  0b01100101, 0b000000101); // floating-point round to integral value, nearest with ties to even
+  INSN(sve_frintp,  0b01100101, 0b000001101); // floating-point round to integral value, toward plus infinity
+  INSN(sve_fsqrt,   0b01100101, 0b001101101);
+  INSN(sve_fsub,    0b01100101, 0b000001100);
+#undef INSN
+
+  // SVE multiple-add/sub - predicated
+#define INSN(NAME, op0, op1, op2)                                                                     \
+  void NAME(FloatRegister Zda, SIMD_RegVariant T, PRegister Pg, FloatRegister Zn, FloatRegister Zm) { \
+    starti;                                                                                           \
+    assert(T != Q, "invalid size");                                                                   \
+    f(op0, 31, 24), f(T, 23, 22), f(op1, 21), rf(Zm, 16);                                             \
+    f(op2, 15, 13), pgrf(Pg, 10), rf(Zn, 5), rf(Zda, 0);                                              \
+  }
+
+  INSN(sve_fmla,  0b01100101, 1, 0b000); // floating-point fused multiply-add: Zda = Zda + Zn * Zm
+  INSN(sve_fmls,  0b01100101, 1, 0b001); // floating-point fused multiply-subtract: Zda = Zda + -Zn * Zm
+  INSN(sve_fnmla, 0b01100101, 1, 0b010); // floating-point negated fused multiply-add: Zda = -Zda + -Zn * Zm
+  INSN(sve_fnmls, 0b01100101, 1, 0b011); // floating-point negated fused multiply-subtract: Zda = -Zda + Zn * Zm
+  INSN(sve_mla,   0b00000100, 0, 0b010); // multiply-add: Zda = Zda + Zn*Zm
+  INSN(sve_mls,   0b00000100, 0, 0b011); // multiply-subtract: Zda = Zda + -Zn*Zm
+#undef INSN
+
+// SVE bitwise logical - unpredicated
+#define INSN(NAME, opc)                                              \
+  void NAME(FloatRegister Zd, FloatRegister Zn, FloatRegister Zm) {  \
+    starti;                                                          \
+    f(0b00000100, 31, 24), f(opc, 23, 22), f(1, 21),                 \
+    rf(Zm, 16), f(0b001100, 15, 10), rf(Zn, 5), rf(Zd, 0);           \
+  }
+  INSN(sve_and, 0b00);
+  INSN(sve_eor, 0b10);
+  INSN(sve_orr, 0b01);
+#undef INSN
+
+// SVE shift immediate - unpredicated
+#define INSN(NAME, opc, isSHR)                                                  \
+  void NAME(FloatRegister Zd, SIMD_RegVariant T, FloatRegister Zn, int shift) { \
+    starti;                                                                     \
+    /* The encodings for the tszh:tszl:imm3 fields (bits 23:22 20:19 18:16)     \
+     * for shift right is calculated as:                                        \
+     *   0001 xxx       B, shift = 16  - UInt(tszh:tszl:imm3)                   \
+     *   001x xxx       H, shift = 32  - UInt(tszh:tszl:imm3)                   \
+     *   01xx xxx       S, shift = 64  - UInt(tszh:tszl:imm3)                   \
+     *   1xxx xxx       D, shift = 128 - UInt(tszh:tszl:imm3)                   \
+     * for shift left is calculated as:                                         \
+     *   0001 xxx       B, shift = UInt(tszh:tszl:imm3) - 8                     \
+     *   001x xxx       H, shift = UInt(tszh:tszl:imm3) - 16                    \
+     *   01xx xxx       S, shift = UInt(tszh:tszl:imm3) - 32                    \
+     *   1xxx xxx       D, shift = UInt(tszh:tszl:imm3) - 64                    \
+     */                                                                         \
+    assert(T != Q, "Invalid register variant");                                 \
+    if (isSHR) {                                                                \
+      assert(((1 << (T + 3)) >= shift) && (shift > 0) , "Invalid shift value"); \
+    } else {                                                                    \
+      assert(((1 << (T + 3)) > shift) && (shift >= 0) , "Invalid shift value"); \
+    }                                                                           \
+    int cVal = (1 << ((T + 3) + (isSHR ? 1 : 0)));                              \
+    int encodedShift = isSHR ? cVal - shift : cVal + shift;                     \
+    int tszh = encodedShift >> 5;                                               \
+    int tszl_imm = encodedShift & 0x1f;                                         \
+    f(0b00000100, 31, 24);                                                      \
+    f(tszh, 23, 22), f(1,21), f(tszl_imm, 20, 16);                              \
+    f(0b100, 15, 13), f(opc, 12, 10), rf(Zn, 5), rf(Zd, 0);                     \
+  }
+
+  INSN(sve_asr, 0b100, /* isSHR = */ true);
+  INSN(sve_lsl, 0b111, /* isSHR = */ false);
+  INSN(sve_lsr, 0b101, /* isSHR = */ true);
+#undef INSN
+
+private:
+
+  // Scalar base + immediate index
+  void sve_ld_st1(FloatRegister Zt, Register Xn, int imm, PRegister Pg,
+              SIMD_RegVariant T, int op1, int type, int op2) {
+    starti;
+    assert_cond(T >= type);
+    f(op1, 31, 25), f(type, 24, 23), f(T, 22, 21);
+    f(0, 20), sf(imm, 19, 16), f(op2, 15, 13);
+    pgrf(Pg, 10), srf(Xn, 5), rf(Zt, 0);
+  }
+
+  // Scalar base + scalar index
+  void sve_ld_st1(FloatRegister Zt, Register Xn, Register Xm, PRegister Pg,
+              SIMD_RegVariant T, int op1, int type, int op2) {
+    starti;
+    assert_cond(T >= type);
+    f(op1, 31, 25), f(type, 24, 23), f(T, 22, 21);
+    rf(Xm, 16), f(op2, 15, 13);
+    pgrf(Pg, 10), srf(Xn, 5), rf(Zt, 0);
+  }
+
+  void sve_ld_st1(FloatRegister Zt, PRegister Pg,
+              SIMD_RegVariant T, const Address &a,
+              int op1, int type, int imm_op2, int scalar_op2) {
+    switch (a.getMode()) {
+    case Address::base_plus_offset:
+      sve_ld_st1(Zt, a.base(), a.offset(), Pg, T, op1, type, imm_op2);
+      break;
+    case Address::base_plus_offset_reg:
+      sve_ld_st1(Zt, a.base(), a.index(), Pg, T, op1, type, scalar_op2);
+      break;
+    default:
+      ShouldNotReachHere();
+    }
+  }
+
+public:
+
+// SVE load/store - predicated
+#define INSN(NAME, op1, type, imm_op2, scalar_op2)                                   \
+  void NAME(FloatRegister Zt, SIMD_RegVariant T, PRegister Pg, const Address &a) {   \
+    assert(T != Q, "invalid register variant");                                      \
+    sve_ld_st1(Zt, Pg, T, a, op1, type, imm_op2, scalar_op2);                        \
+  }
+
+  INSN(sve_ld1b, 0b1010010, 0b00, 0b101, 0b010);
+  INSN(sve_st1b, 0b1110010, 0b00, 0b111, 0b010);
+  INSN(sve_ld1h, 0b1010010, 0b01, 0b101, 0b010);
+  INSN(sve_st1h, 0b1110010, 0b01, 0b111, 0b010);
+  INSN(sve_ld1w, 0b1010010, 0b10, 0b101, 0b010);
+  INSN(sve_st1w, 0b1110010, 0b10, 0b111, 0b010);
+  INSN(sve_ld1d, 0b1010010, 0b11, 0b101, 0b010);
+  INSN(sve_st1d, 0b1110010, 0b11, 0b111, 0b010);
+#undef INSN
+
+// SVE load/store - unpredicated
+#define INSN(NAME, op1)                                                         \
+  void NAME(FloatRegister Zt, const Address &a)  {                              \
+    starti;                                                                     \
+    assert(a.index() == noreg, "invalid address variant");                      \
+    f(op1, 31, 29), f(0b0010110, 28, 22), sf(a.offset() >> 3, 21, 16),          \
+    f(0b010, 15, 13), f(a.offset() & 0x7, 12, 10), srf(a.base(), 5), rf(Zt, 0); \
+  }
+
+  INSN(sve_ldr, 0b100); // LDR (vector)
+  INSN(sve_str, 0b111); // STR (vector)
+#undef INSN
+
+#define INSN(NAME, op) \
+  void NAME(Register Xd, Register Xn, int imm6) {                 \
+    starti;                                                       \
+    f(0b000001000, 31, 23), f(op, 22, 21);                        \
+    srf(Xn, 16), f(0b01010, 15, 11), sf(imm6, 10, 5), srf(Xd, 0); \
+  }
+
+  INSN(sve_addvl, 0b01);
+  INSN(sve_addpl, 0b11);
+#undef INSN
+
+// SVE inc/dec register by element count
+#define INSN(NAME, op) \
+  void NAME(Register Xdn, SIMD_RegVariant T, unsigned imm4 = 1, int pattern = 0b11111) { \
+    starti;                                                                              \
+    assert(T != Q, "invalid size");                                                      \
+    f(0b00000100,31, 24), f(T, 23, 22), f(0b11, 21, 20);                                 \
+    f(imm4 - 1, 19, 16), f(0b11100, 15, 11), f(op, 10), f(pattern, 9, 5), rf(Xdn, 0);    \
+  }
+
+  INSN(sve_inc, 0);
+  INSN(sve_dec, 1);
+#undef INSN
+
+  // SVE predicate count
+  void sve_cntp(Register Xd, SIMD_RegVariant T, PRegister Pg, PRegister Pn) {
+    starti;
+    assert(T != Q, "invalid size");
+    f(0b00100101, 31, 24), f(T, 23, 22), f(0b10000010, 21, 14);
+    prf(Pg, 10), f(0, 9), prf(Pn, 5), rf(Xd, 0);
+  }
+
+  // SVE dup scalar
+  void sve_dup(FloatRegister Zd, SIMD_RegVariant T, Register Rn) {
+    starti;
+    assert(T != Q, "invalid size");
+    f(0b00000101, 31, 24), f(T, 23, 22), f(0b100000001110, 21, 10);
+    srf(Rn, 5), rf(Zd, 0);
+  }
+
+  // SVE dup imm
+  void sve_dup(FloatRegister Zd, SIMD_RegVariant T, int imm8) {
+    starti;
+    assert(T != Q, "invalid size");
+    int sh = 0;
+    if (imm8 <= 127 && imm8 >= -128) {
+      sh = 0;
+    } else if (T != B && imm8 <= 32512 && imm8 >= -32768 && (imm8 & 0xff) == 0) {
+      sh = 1;
+      imm8 = (imm8 >> 8);
+    } else {
+      guarantee(false, "invalid immediate");
+    }
+    f(0b00100101, 31, 24), f(T, 23, 22), f(0b11100011, 21, 14);
+    f(sh, 13), sf(imm8, 12, 5), rf(Zd, 0);
+  }
+
+  void sve_ptrue(PRegister pd, SIMD_RegVariant esize, int pattern = 0b11111) {
+    starti;
+    f(0b00100101, 31, 24), f(esize, 23, 22), f(0b011000111000, 21, 10);
+    f(pattern, 9, 5), f(0b0, 4), prf(pd, 0);
   }
 
   Assembler(CodeBuffer* code) : AbstractAssembler(code) {
@@ -2683,7 +3055,7 @@ void ext(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn, FloatRegister V
   virtual void bang_stack_with_offset(int offset);
 
   static bool operand_valid_for_logical_immediate(bool is32, uint64_t imm);
-  static bool operand_valid_for_add_sub_immediate(long imm);
+  static bool operand_valid_for_add_sub_immediate(int64_t imm);
   static bool operand_valid_for_float_immediate(double imm);
 
   void emit_data64(jlong data, relocInfo::relocType rtype, int format = 0);

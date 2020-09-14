@@ -90,7 +90,7 @@ public class ArrayMethods {
         Class<?>[] is = new Integer[0].getClass().getInterfaces();
         boolean thisFailed = false;
 
-        if (is.length != 2)
+        if (is.length != 3)
             thisFailed = true;
 
         if (!is[0].getCanonicalName().equals("java.lang.Cloneable"))
@@ -99,10 +99,13 @@ public class ArrayMethods {
         if (!is[1].getCanonicalName().equals("java.io.Serializable"))
             thisFailed = true;
 
+        if (!is[2].getCanonicalName().equals("java.lang.IdentityObject"))
+            thisFailed = true;
+
         if (thisFailed) {
             failed++;
             System.out.println(Arrays.asList(is));
-            System.out.println("Should contain exactly Cloneable, Serializable in that order.");
+            System.out.println("Should contain exactly Cloneable, Serializable and IdentityObject in that order.");
         }
     }
 }

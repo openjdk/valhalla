@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,7 +23,7 @@
  */
 
 #include "precompiled.hpp"
-#include "classfile/symbolTable.hpp"
+#include "classfile/classLoaderDataGraph.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "compiler/compileBroker.hpp"
@@ -40,7 +40,7 @@
 #include "runtime/deoptimization.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
-#include "runtime/sweeper.hpp"
+#include "runtime/synchronizer.hpp"
 #include "runtime/thread.inline.hpp"
 #include "runtime/threadSMR.inline.hpp"
 #include "runtime/vmOperations.hpp"
@@ -93,8 +93,8 @@ void VM_ClearICs::doit() {
   }
 }
 
-void VM_MarkActiveNMethods::doit() {
-  NMethodSweeper::mark_active_nmethods();
+void VM_CleanClassLoaderDataMetaspaces::doit() {
+  ClassLoaderDataGraph::walk_metadata_and_clean_metaspaces();
 }
 
 VM_DeoptimizeFrame::VM_DeoptimizeFrame(JavaThread* thread, intptr_t* id, int reason) {
@@ -431,6 +431,16 @@ int VM_Exit::wait_for_threads_in_native_to_block() {
     MonitorLocker ml(&timer, Mutex::_no_safepoint_check_flag);
     ml.wait(10);
   }
+}
+
+bool VM_Exit::doit_prologue() {
+  if (log_is_enabled(Info, monitorinflation)) {
+    // Do a deflation in order to reduce the in-use monitor population
+    // that is reported by ObjectSynchronizer::log_in_use_monitor_details()
+    // at VM exit.
+    ObjectSynchronizer::request_deflate_idle_monitors();
+  }
+  return true;
 }
 
 void VM_Exit::doit() {

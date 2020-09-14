@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,10 +22,7 @@
  *
  */
 
-import java.io.File;
-import java.nio.file.Paths;
-import java.time.Duration;
-
+import jdk.test.lib.Utils;
 import jdk.test.lib.process.ProcessTools;
 import jdk.test.lib.process.OutputAnalyzer;
 
@@ -38,16 +35,13 @@ import sun.hotspot.WhiteBox;
  * @library /testlibrary /test/lib
  * @build HandshakeTransitionTest
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                              sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm/native -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI HandshakeTransitionTest
  */
 
 public class HandshakeTransitionTest {
-
     public static native void someTime(int ms);
 
     public static void main(String[] args) throws Exception {
-        String lib = System.getProperty("test.nativepath");
         WhiteBox wb = WhiteBox.getWhiteBox();
         Boolean useJVMCICompiler = wb.getBooleanVMFlag("UseJVMCICompiler");
         String useJVMCICompilerStr;
@@ -58,9 +52,8 @@ public class HandshakeTransitionTest {
             useJVMCICompilerStr = "-XX:+UnlockExperimentalVMOptions";
         }
         ProcessBuilder pb =
-            ProcessTools.createJavaProcessBuilder(
-                    true,
-                    "-Djava.library.path=" + lib,
+            ProcessTools.createTestJvm(
+                    "-Djava.library.path=" + Utils.TEST_NATIVE_PATH,
                     "-XX:+SafepointALot",
                     "-XX:+HandshakeALot",
                     "-XX:GuaranteedSafepointInterval=20",
@@ -71,7 +64,6 @@ public class HandshakeTransitionTest {
                     "-XX:+UnlockExperimentalVMOptions",
                     useJVMCICompilerStr,
                     "HandshakeTransitionTest$Test");
-
 
         OutputAnalyzer output = ProcessTools.executeProcess(pb);
         output.reportDiagnosticSummary();

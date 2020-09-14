@@ -821,8 +821,8 @@ class ClassFieldMap: public CHeapObj<mtInternal> {
 };
 
 ClassFieldMap::ClassFieldMap() {
-  _fields = new (ResourceObj::C_HEAP, mtInternal)
-    GrowableArray<ClassFieldDescriptor*>(initial_field_count, true);
+  _fields = new (ResourceObj::C_HEAP, mtServiceability)
+    GrowableArray<ClassFieldDescriptor*>(initial_field_count, mtServiceability);
 }
 
 ClassFieldMap::~ClassFieldMap() {
@@ -841,7 +841,6 @@ void ClassFieldMap::add(int index, char type, int offset) {
 // of the given class.
 //
 ClassFieldMap* ClassFieldMap::create_map_of_static_fields(Klass* k) {
-  HandleMark hm;
   InstanceKlass* ik = InstanceKlass::cast(k);
 
   // create the field map
@@ -866,7 +865,6 @@ ClassFieldMap* ClassFieldMap::create_map_of_static_fields(Klass* k) {
 // and private fields declared in superclasses and superinterfaces too).
 //
 ClassFieldMap* ClassFieldMap::create_map_of_instance_fields(oop obj) {
-  HandleMark hm;
   InstanceKlass* ik = InstanceKlass::cast(obj->klass());
 
   // create the field map
@@ -958,8 +956,8 @@ bool ClassFieldMapCacheMark::_is_active;
 // record that the given InstanceKlass is caching a field map
 void JvmtiCachedClassFieldMap::add_to_class_list(InstanceKlass* ik) {
   if (_class_list == NULL) {
-    _class_list = new (ResourceObj::C_HEAP, mtInternal)
-      GrowableArray<InstanceKlass*>(initial_class_count, true);
+    _class_list = new (ResourceObj::C_HEAP, mtServiceability)
+      GrowableArray<InstanceKlass*>(initial_class_count, mtServiceability);
   }
   _class_list->push(ik);
 }
@@ -1531,8 +1529,8 @@ class TagObjectCollector : public JvmtiTagHashmapEntryClosure {
     _env = env;
     _tags = (jlong*)tags;
     _tag_count = tag_count;
-    _object_results = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<jobject>(1,true);
-    _tag_results = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<uint64_t>(1,true);
+    _object_results = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<jobject>(1, mtServiceability);
+    _tag_results = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<uint64_t>(1, mtServiceability);
   }
 
   ~TagObjectCollector() {
@@ -1674,8 +1672,8 @@ void ObjectMarker::init() {
   Universe::heap()->ensure_parsability(false);  // no need to retire TLABs
 
   // create stacks for interesting headers
-  _saved_mark_stack = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<markWord>(4000, true);
-  _saved_oop_stack = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<oop>(4000, true);
+  _saved_mark_stack = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<markWord>(4000, mtServiceability);
+  _saved_oop_stack = new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<oop>(4000, mtServiceability);
 
   if (UseBiasedLocking) {
     BiasedLocking::preserve_marks();
@@ -2582,14 +2580,6 @@ class SimpleRootsClosure : public OopClosure {
     assert(Universe::heap()->is_in(o), "should be impossible");
 
     jvmtiHeapReferenceKind kind = root_kind();
-    if (kind == JVMTI_HEAP_REFERENCE_SYSTEM_CLASS) {
-      // SystemDictionary::oops_do reports the application
-      // class loader as a root. We want this root to be reported as
-      // a root kind of "OTHER" rather than "SYSTEM_CLASS".
-      if (!o->is_instance() || !InstanceKlass::cast(o->klass())->is_mirror_instance_klass()) {
-        kind = JVMTI_HEAP_REFERENCE_OTHER;
-      }
-    }
 
     // invoke the callback
     _continue = CallbackInvoker::report_simple_root(kind, o);
@@ -2671,7 +2661,7 @@ class VM_HeapWalkOperation: public VM_Operation {
   bool _reporting_string_values;
 
   GrowableArray<oop>* create_visit_stack() {
-    return new (ResourceObj::C_HEAP, mtInternal) GrowableArray<oop>(initial_visit_stack_size, true);
+    return new (ResourceObj::C_HEAP, mtServiceability) GrowableArray<oop>(initial_visit_stack_size, mtServiceability);
   }
 
   // accessors
@@ -3021,7 +3011,6 @@ inline bool VM_HeapWalkOperation::collect_simple_roots() {
 
   // Preloaded classes and loader from the system dictionary
   blk.set_kind(JVMTI_HEAP_REFERENCE_SYSTEM_CLASS);
-  SystemDictionary::oops_do(&blk);
   CLDToOopClosure cld_closure(&blk, false);
   ClassLoaderDataGraph::always_strong_cld_do(&cld_closure);
   if (blk.stopped()) {
@@ -3041,7 +3030,7 @@ inline bool VM_HeapWalkOperation::collect_simple_roots() {
   // Many of these won't be visible but others (such as instances of important
   // exceptions) will be visible.
   blk.set_kind(JVMTI_HEAP_REFERENCE_OTHER);
-  Universe::oops_do(&blk);
+  Universe::vm_global()->oops_do(&blk);
   if (blk.stopped()) {
     return false;
   }

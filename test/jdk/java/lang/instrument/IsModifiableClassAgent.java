@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2015, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,6 +58,10 @@ public class IsModifiableClassAgent
                     }
                     if (isMod && klass.isPrimitive()) {
                         System.err.println("Error: primitive class returned as modifiable: " + klass);
+                        fail = true;
+                    }
+                    if (isMod && klass == java.lang.IdentityObject.class) {
+                        System.err.println("Error: java.lang.IdentityObject class returned as modifiable: " + klass);
                         fail = true;
                     }
                     try {

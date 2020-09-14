@@ -86,7 +86,7 @@ class TypeOopPtr;
 class TypeFunc;
 class TypeVect;
 class Unique_Node_List;
-class ValueTypeBaseNode;
+class InlineTypeBaseNode;
 class nmethod;
 class WarmCallInfo;
 class Node_Stack;
@@ -248,6 +248,7 @@ class Compile : public Phase {
   const bool            _save_argument_registers; // save/restore arg regs for trampolines
   const bool            _subsume_loads;         // Load can be matched as part of a larger op.
   const bool            _do_escape_analysis;    // Do escape analysis.
+  const bool            _install_code;          // Install the code that was compiled
   const bool            _eliminate_boxing;      // Do boxing elimination.
   ciMethod*             _method;                // The method being compiled.
   int                   _entry_bci;             // entry bci for osr methods.
@@ -318,10 +319,12 @@ class Compile : public Phase {
   GrowableArray<Node*>* _expensive_nodes;       // List of nodes that are expensive to compute and that we'd better not let the GVN freely common
   GrowableArray<Node*>* _range_check_casts;     // List of CastII nodes with a range check dependency
   GrowableArray<Node*>* _opaque4_nodes;         // List of Opaque4 nodes that have a default value
-  Unique_Node_List*     _value_type_nodes;      // List of ValueType nodes
+  GrowableArray<Node*>* _inline_type_nodes;     // List of InlineType nodes
   ConnectionGraph*      _congraph;
 #ifndef PRODUCT
   IdealGraphPrinter*    _printer;
+  static IdealGraphPrinter* _debug_file_printer;
+  static IdealGraphPrinter* _debug_network_printer;
 #endif
 
 
@@ -330,7 +333,8 @@ class Compile : public Phase {
   VectorSet             _dead_node_list;        // Set of dead nodes
   uint                  _dead_node_count;       // Number of dead nodes; VectorSet::Size() is O(N).
                                                 // So use this to keep count and make the call O(1).
-  DEBUG_ONLY( Unique_Node_List* _modified_nodes; )  // List of nodes which inputs were modified
+  DEBUG_ONLY(Unique_Node_List* _modified_nodes;)   // List of nodes which inputs were modified
+  DEBUG_ONLY(bool       _phase_optimize_finished;) // Used for live node verification while creating new nodes
 
   debug_only(static int _debug_idx;)            // Monotonic counter (not reset), use -XX:BreakAtNode=<idx>
   Arena                 _node_arena;            // Arena for new-space Nodes
@@ -509,7 +513,7 @@ class Compile : public Phase {
   /** Do aggressive boxing elimination. */
   bool              aggressive_unboxing() const { return _eliminate_boxing && AggressiveUnboxing; }
   bool              save_argument_registers() const { return _save_argument_registers; }
-
+  bool              should_install_code() const { return _install_code; }
 
   // Other fixed compilation parameters.
   ciMethod*         method() const              { return _method; }
@@ -599,7 +603,7 @@ class Compile : public Phase {
   bool          flattened_accesses_share_alias() const { return _flattened_accesses_share_alias; }
   void          set_flattened_accesses_share_alias(bool z) { _flattened_accesses_share_alias = z; }
 
-  // Support for scalarized value type calling convention
+  // Support for scalarized inline type calling convention
   bool              has_scalarized_args() const  { return _method != NULL && _method->has_scalarized_args(); }
   bool              needs_stack_repair()  const  { return _method != NULL && _method->get_Method()->c2_needs_stack_repair(); }
 
@@ -624,9 +628,9 @@ class Compile : public Phase {
 
   Ticks _latest_stage_start_counter;
 
-  void begin_method() {
+  void begin_method(int level = 1) {
 #ifndef PRODUCT
-    if (_printer && _printer->should_print(1)) {
+    if (_method != NULL && should_print(level)) {
       _printer->begin_method();
     }
 #endif
@@ -635,44 +639,32 @@ class Compile : public Phase {
 
   bool should_print(int level = 1) {
 #ifndef PRODUCT
-    return (_printer && _printer->should_print(level));
+    if (PrintIdealGraphLevel < 0) { // disabled by the user
+      return false;
+    }
+
+    bool need = directive()->IGVPrintLevelOption >= level;
+    if (need && !_printer) {
+      _printer = IdealGraphPrinter::printer();
+      assert(_printer != NULL, "_printer is NULL when we need it!");
+      _printer->set_compile(this);
+    }
+    return need;
 #else
     return false;
 #endif
   }
 
-  void print_method(CompilerPhaseType cpt, int level = 1, int idx = 0) {
-    EventCompilerPhase event;
-    if (event.should_commit()) {
-      CompilerEvent::PhaseEvent::post(event, C->_latest_stage_start_counter, cpt, C->_compile_id, level);
-    }
+  void print_method(CompilerPhaseType cpt, int level = 1, int idx = 0);
 
 #ifndef PRODUCT
-    if (should_print(level)) {
-      char output[1024];
-      if (idx != 0) {
-        sprintf(output, "%s:%d", CompilerPhaseTypeHelper::to_string(cpt), idx);
-      } else {
-        sprintf(output, "%s", CompilerPhaseTypeHelper::to_string(cpt));
-      }
-      _printer->print_method(output, level);
-    }
+  void igv_print_method_to_file(const char* phase_name = "Debug", bool append = false);
+  void igv_print_method_to_network(const char* phase_name = "Debug");
+  static IdealGraphPrinter* debug_file_printer() { return _debug_file_printer; }
+  static IdealGraphPrinter* debug_network_printer() { return _debug_network_printer; }
 #endif
-    C->_latest_stage_start_counter.stamp();
-  }
 
-  void end_method(int level = 1) {
-    EventCompilerPhase event;
-    if (event.should_commit()) {
-      CompilerEvent::PhaseEvent::post(event, C->_latest_stage_start_counter, PHASE_END, C->_compile_id, level);
-    }
-
-#ifndef PRODUCT
-    if (_printer && _printer->should_print(level)) {
-      _printer->end_method();
-    }
-#endif
-  }
+  void end_method(int level = 1);
 
   int           macro_count()             const { return _macro_nodes->length(); }
   int           predicate_count()         const { return _predicate_opaqs->length();}
@@ -687,23 +679,20 @@ class Compile : public Phase {
     assert(!_macro_nodes->contains(n), "duplicate entry in expand list");
     _macro_nodes->append(n);
   }
-  void remove_macro_node(Node * n) {
-    // this function may be called twice for a node so check
-    // that the node is in the array before attempting to remove it
-    if (_macro_nodes->contains(n))
-      _macro_nodes->remove(n);
+  void remove_macro_node(Node* n) {
+    // this function may be called twice for a node so we can only remove it
+    // if it's still existing.
+    _macro_nodes->remove_if_existing(n);
     // remove from _predicate_opaqs list also if it is there
-    if (predicate_count() > 0 && _predicate_opaqs->contains(n)){
-      _predicate_opaqs->remove(n);
+    if (predicate_count() > 0) {
+      _predicate_opaqs->remove_if_existing(n);
     }
   }
-  void add_expensive_node(Node * n);
-  void remove_expensive_node(Node * n) {
-    if (_expensive_nodes->contains(n)) {
-      _expensive_nodes->remove(n);
-    }
+  void add_expensive_node(Node* n);
+  void remove_expensive_node(Node* n) {
+    _expensive_nodes->remove_if_existing(n);
   }
-  void add_predicate_opaq(Node * n) {
+  void add_predicate_opaq(Node* n) {
     assert(!_predicate_opaqs->contains(n), "duplicate entry in predicate opaque1");
     assert(_macro_nodes->contains(n), "should have already been in macro list");
     _predicate_opaqs->append(n);
@@ -712,9 +701,7 @@ class Compile : public Phase {
   // Range check dependent CastII nodes that can be removed after loop optimizations
   void add_range_check_cast(Node* n);
   void remove_range_check_cast(Node* n) {
-    if (_range_check_casts->contains(n)) {
-      _range_check_casts->remove(n);
-    }
+    _range_check_casts->remove_if_existing(n);
   }
   Node* range_check_cast_node(int idx) const { return _range_check_casts->at(idx);  }
   int   range_check_cast_count()       const { return _range_check_casts->length(); }
@@ -723,19 +710,16 @@ class Compile : public Phase {
 
   void add_opaque4_node(Node* n);
   void remove_opaque4_node(Node* n) {
-    if (_opaque4_nodes->contains(n)) {
-      _opaque4_nodes->remove(n);
-    }
+    _opaque4_nodes->remove_if_existing(n);
   }
   Node* opaque4_node(int idx) const { return _opaque4_nodes->at(idx);  }
   int   opaque4_count()       const { return _opaque4_nodes->length(); }
   void  remove_opaque4_nodes(PhaseIterGVN &igvn);
 
-  // Keep track of value type nodes for later processing
-  void add_value_type(Node* n);
-  void remove_value_type(Node* n);
-  void process_value_types(PhaseIterGVN &igvn);
-  bool can_add_value_type() const { return _value_type_nodes != NULL; }
+  // Keep track of inline type nodes for later processing
+  void add_inline_type(Node* n);
+  void remove_inline_type(Node* n);
+  void process_inline_types(PhaseIterGVN &igvn, bool post_ea = false);
 
   void adjust_flattened_array_access_aliases(PhaseIterGVN& igvn);
 
@@ -814,6 +798,8 @@ class Compile : public Phase {
             return (uint) val;
                                            }
 #ifdef ASSERT
+  void         set_phase_optimize_finished() { _phase_optimize_finished = true; }
+  bool         phase_optimize_finished() const { return _phase_optimize_finished; }
   uint         count_live_nodes_by_graph_walk();
   void         print_missing_nodes();
 #endif
@@ -894,7 +880,7 @@ class Compile : public Phase {
   // The profile factor is a discount to apply to this site's interp. profile.
   CallGenerator*    call_generator(ciMethod* call_method, int vtable_index, bool call_does_dispatch,
                                    JVMState* jvms, bool allow_inline, float profile_factor, ciKlass* speculative_receiver_type = NULL,
-                                   bool allow_intrinsics = true, bool delayed_forbidden = false);
+                                   bool allow_intrinsics = true);
   bool should_delay_inlining(ciMethod* call_method, JVMState* jvms) {
     return should_delay_string_inlining(call_method, jvms) ||
            should_delay_boxing_inlining(call_method, jvms);
@@ -1035,7 +1021,7 @@ class Compile : public Phase {
   // continuation.
   Compile(ciEnv* ci_env, ciMethod* target,
           int entry_bci, bool subsume_loads, bool do_escape_analysis,
-          bool eliminate_boxing, DirectiveSet* directive);
+          bool eliminate_boxing, bool install_code, DirectiveSet* directive);
 
   // Second major entry point.  From the TypeFunc signature, generate code
   // to pass arguments from the Java calling convention to the C calling
@@ -1044,14 +1030,6 @@ class Compile : public Phase {
           address stub_function, const char *stub_name,
           int is_fancy_jump, bool pass_tls,
           bool save_arg_registers, bool return_pc, DirectiveSet* directive);
-
-  // From the TypeFunc signature, generate code to pass arguments
-  // from Compiled calling convention to Interpreter's calling convention
-  void Generate_Compiled_To_Interpreter_Graph(const TypeFunc *tf, address interpreter_entry);
-
-  // From the TypeFunc signature, generate code to pass arguments
-  // from Interpreter's calling convention to Compiler's calling convention
-  void Generate_Interpreter_To_Compiled_Graph(const TypeFunc *tf);
 
   // Are we compiling a method?
   bool has_method() { return method() != NULL; }

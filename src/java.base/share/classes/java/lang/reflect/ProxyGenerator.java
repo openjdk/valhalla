@@ -392,7 +392,7 @@ final class ProxyGenerator extends ClassWriter {
     /**
      * Return the number of abstract "words", or consecutive local variable
      * indexes, required to contain a value of the given type.  See JVMS
-     * section 3.6.1.
+     * section {@jvms 3.6.1}.
      * <p>
      * Note that the original version of the JVMS contained a definition of
      * this abstract notion of a "word" in section 3.4, but that definition
@@ -446,7 +446,7 @@ final class ProxyGenerator extends ClassWriter {
      * class file generation process.
      */
     private byte[] generateClassFile() {
-        visit(V15, accessFlags, dotToSlash(className), null,
+        visit(V16, accessFlags, dotToSlash(className), null,
                 JLR_PROXY, typeNames(interfaces));
 
         /*
@@ -670,7 +670,10 @@ final class ProxyGenerator extends ClassWriter {
         private void generateMethod(ClassWriter cw, String className) {
             MethodType mt = MethodType.methodType(returnType, parameterTypes);
             String desc = mt.toMethodDescriptorString();
-            MethodVisitor mv = cw.visitMethod(ACC_PUBLIC | ACC_FINAL,
+            int accessFlags = ACC_PUBLIC | ACC_FINAL;
+            if (method.isVarArgs()) accessFlags |= ACC_VARARGS;
+
+            MethodVisitor mv = cw.visitMethod(accessFlags,
                     method.getName(), desc, null,
                     typeNames(Arrays.asList(exceptionTypes)));
 
@@ -814,7 +817,7 @@ final class ProxyGenerator extends ClassWriter {
                 }
             } else {
                 String internalName = dotToSlash(type.getName());
-                if (type.isInlineClass() && !type.isIndirectType()) {
+                if (type.isInlineClass()) {
                     internalName = 'Q' + internalName + ";";
                 }
                 mv.visitTypeInsn(CHECKCAST, internalName);
@@ -879,11 +882,6 @@ final class ProxyGenerator extends ClassWriter {
             mv.visitMethodInsn(INVOKESTATIC,
                     JL_CLASS,
                     "forName", "(Ljava/lang/String;)Ljava/lang/Class;", false);
-            if (cl.isInlineClass() && cl == cl.asPrimaryType()) {
-                mv.visitMethodInsn(INVOKEVIRTUAL,
-                    JL_CLASS,
-                    "asPrimaryType", "()Ljava/lang/Class;", false);
-            }
         }
 
         /**

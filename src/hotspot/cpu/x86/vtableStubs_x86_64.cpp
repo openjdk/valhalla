@@ -48,6 +48,7 @@ extern "C" void bad_compiled_vtable_index(JavaThread* thread, oop receiver, int 
 VtableStub* VtableStubs::create_vtable_stub(int vtable_index, bool caller_is_c1) {
   // Read "A word on VtableStub sizing" in share/code/vtableStubs.hpp for details on stub sizing.
   const int stub_code_length = code_size_limit(true);
+  Register tmp_load_klass = rscratch1;
   VtableStub* s = new(stub_code_length) VtableStub(true, vtable_index, caller_is_c1);
   // Can be NULL if there is no free space in the code cache.
   if (s == NULL) {
@@ -62,7 +63,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index, bool caller_is_c1)
   int       slop_delta = 0;
   // No variance was detected in vtable stub sizes. Setting index_dependent_slop == 0 will unveil any deviation from this observation.
   const int index_dependent_slop     = 0;
-  ByteSize  entry_offset = caller_is_c1 ? Method::from_compiled_value_offset() :  Method::from_compiled_value_ro_offset();
+  ByteSize  entry_offset = caller_is_c1 ? Method::from_compiled_inline_offset() :  Method::from_compiled_inline_ro_offset();
 
   ResourceMark    rm;
   CodeBuffer      cb(s->entry_point(), stub_code_length);
@@ -81,7 +82,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index, bool caller_is_c1)
 
   // get receiver klass
   address npe_addr = __ pc();
-  __ load_klass(rax, j_rarg0);
+  __ load_klass(rax, j_rarg0, tmp_load_klass);
 
 #ifndef PRODUCT
   if (DebugVtables) {
@@ -143,7 +144,7 @@ VtableStub* VtableStubs::create_vtable_stub(int vtable_index, bool caller_is_c1)
 VtableStub* VtableStubs::create_itable_stub(int itable_index, bool caller_is_c1) {
   // Read "A word on VtableStub sizing" in share/code/vtableStubs.hpp for details on stub sizing.
   const int stub_code_length = code_size_limit(false);
-  ByteSize  entry_offset = caller_is_c1 ? Method::from_compiled_value_offset() :  Method::from_compiled_value_ro_offset();
+  ByteSize  entry_offset = caller_is_c1 ? Method::from_compiled_inline_offset() :  Method::from_compiled_inline_ro_offset();
   VtableStub* s = new(stub_code_length) VtableStub(false, itable_index, caller_is_c1);
   // Can be NULL if there is no free space in the code cache.
   if (s == NULL) {
@@ -188,7 +189,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index, bool caller_is_c1)
   // get receiver klass (also an implicit null-check)
   assert(VtableStub::receiver_location() == j_rarg0->as_VMReg(), "receiver expected in j_rarg0");
   address npe_addr = __ pc();
-  __ load_klass(recv_klass_reg, j_rarg0);
+  __ load_klass(recv_klass_reg, j_rarg0, temp_reg);
 
   start_pc = __ pc();
 
@@ -206,7 +207,7 @@ VtableStub* VtableStubs::create_itable_stub(int itable_index, bool caller_is_c1)
 
   // Get selected method from declaring class and itable index
   const Register method = rbx;
-  __ load_klass(recv_klass_reg, j_rarg0);   // restore recv_klass_reg
+  __ load_klass(recv_klass_reg, j_rarg0, temp_reg);   // restore recv_klass_reg
   __ lookup_interface_method(// inputs: rec. class, interface, itable index
                              recv_klass_reg, holder_klass_reg, itable_index,
                              // outputs: method, scan temp. reg

@@ -29,10 +29,27 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
-import java.nio.file.*;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.StandardCopyOption;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
 import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
-import java.util.*;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiPredicate;
@@ -202,21 +219,39 @@ final public class TKit {
         return false;
     }
 
+    private static String addTimestamp(String msg) {
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss.SSS");
+        Date time = new Date(System.currentTimeMillis());
+        return String.format("[%s] %s", sdf.format(time), msg);
+    }
+
     static void log(String v) {
+        v = addTimestamp(v);
         System.out.println(v);
         if (extraLogStream != null) {
             extraLogStream.println(v);
         }
     }
 
-    public static void createTextFile(Path propsFilename, Collection<String> lines) {
-        createTextFile(propsFilename, lines.stream());
+    static Path removeRootFromAbsolutePath(Path v) {
+        if (!v.isAbsolute()) {
+            throw new IllegalArgumentException();
+        }
+
+        if (v.getNameCount() == 0) {
+            return Path.of("");
+        }
+        return v.subpath(0, v.getNameCount());
     }
 
-    public static void createTextFile(Path propsFilename, Stream<String> lines) {
+    public static void createTextFile(Path filename, Collection<String> lines) {
+        createTextFile(filename, lines.stream());
+    }
+
+    public static void createTextFile(Path filename, Stream<String> lines) {
         trace(String.format("Create [%s] text file...",
-                propsFilename.toAbsolutePath().normalize()));
-        ThrowingRunnable.toRunnable(() -> Files.write(propsFilename,
+                filename.toAbsolutePath().normalize()));
+        ThrowingRunnable.toRunnable(() -> Files.write(filename,
                 lines.peek(TKit::trace).collect(Collectors.toList()))).run();
         trace("Done");
     }
@@ -397,6 +432,15 @@ final public class TKit {
 
         private String msg;
         private boolean contentsOnly;
+    }
+
+    public static boolean deleteIfExists(Path path) throws IOException {
+        if (isWindows()) {
+            if (path.toFile().exists()) {
+                Files.setAttribute(path, "dos:readonly", false);
+            }
+        }
+        return Files.deleteIfExists(path);
     }
 
     /**

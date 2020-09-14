@@ -128,7 +128,7 @@ void basic_types_init() {
       case T_DOUBLE:
       case T_LONG:
       case T_OBJECT:
-      case T_VALUETYPE:
+      case T_INLINE_TYPE:
       case T_ADDRESS:     // random raw pointer
       case T_METADATA:    // metadata pointer
       case T_NARROWOOP:   // compressed pointer
@@ -194,7 +194,7 @@ void basic_types_init() {
   }
   _type2aelembytes[T_OBJECT] = heapOopSize;
   _type2aelembytes[T_ARRAY]  = heapOopSize;
-  _type2aelembytes[T_VALUETYPE]  = heapOopSize;
+  _type2aelembytes[T_INLINE_TYPE]  = heapOopSize;
 }
 
 
@@ -206,7 +206,7 @@ char type2char_tab[T_CONFLICT+1] = {
   JVM_SIGNATURE_BYTE,    JVM_SIGNATURE_SHORT,
   JVM_SIGNATURE_INT,     JVM_SIGNATURE_LONG,
   JVM_SIGNATURE_CLASS,   JVM_SIGNATURE_ARRAY,
-  JVM_SIGNATURE_VALUETYPE, JVM_SIGNATURE_VOID,
+  JVM_SIGNATURE_INLINE_TYPE, JVM_SIGNATURE_VOID,
   0, 0, 0, 0, 0
 };
 
@@ -223,7 +223,7 @@ const char* type2name_tab[T_CONFLICT+1] = {
   "long",
   "object",
   "array",
-  "valuetype",
+  "inline_type",
   "void",
   "*address*",
   "*narrowoop*",
@@ -260,7 +260,7 @@ BasicType type2field[T_CONFLICT+1] = {
   T_LONG,                  // T_LONG     = 11,
   T_OBJECT,                // T_OBJECT   = 12,
   T_OBJECT,                // T_ARRAY    = 13,
-  T_VALUETYPE,             // T_VALUETYPE = 14,
+  T_INLINE_TYPE,           // T_INLINE_TYPE = 14,
   T_VOID,                  // T_VOID     = 15,
   T_ADDRESS,               // T_ADDRESS  = 16,
   T_NARROWOOP,             // T_NARROWOOP= 17,
@@ -285,7 +285,7 @@ BasicType type2wfield[T_CONFLICT+1] = {
   T_LONG,    // T_LONG     = 11,
   T_OBJECT,  // T_OBJECT   = 12,
   T_OBJECT,  // T_ARRAY    = 13,
-  T_OBJECT,  // T_VALUETYPE = 14,
+  T_OBJECT,  // T_INLINE_TYPE = 14,
   T_VOID,    // T_VOID     = 15,
   T_ADDRESS, // T_ADDRESS  = 16,
   T_NARROWOOP, // T_NARROWOOP  = 17,
@@ -310,7 +310,7 @@ int _type2aelembytes[T_CONFLICT+1] = {
   T_LONG_aelem_bytes,        // T_LONG     = 11,
   T_OBJECT_aelem_bytes,      // T_OBJECT   = 12,
   T_ARRAY_aelem_bytes,       // T_ARRAY    = 13,
-  T_VALUETYPE_aelem_bytes,   // T_VALUETYPE = 14,
+  T_INLINE_TYPE_aelem_bytes,   // T_INLINE_TYPE = 14,
   0,                         // T_VOID     = 15,
   T_OBJECT_aelem_bytes,      // T_ADDRESS  = 16,
   T_NARROWOOP_aelem_bytes,   // T_NARROWOOP= 17,

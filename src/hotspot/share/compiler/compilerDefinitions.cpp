@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "code/codeCache.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/globals_extension.hpp"
 #include "compiler/compilerDefinitions.hpp"
@@ -278,6 +279,13 @@ void CompilerConfig::set_tiered_flags() {
     }
 #endif // INCLUDE_AOT
   }
+
+  // Reduce stack usage due to inlining of methods which require much stack.
+  // (High tier compiler can inline better based on profiling information.)
+  if (FLAG_IS_DEFAULT(C1InlineStackLimit) &&
+      TieredStopAtLevel == CompLevel_full_optimization && !CompilationModeFlag::quick_only()) {
+    FLAG_SET_DEFAULT(C1InlineStackLimit, 5);
+  }
 }
 
 #endif // TIERED
@@ -395,17 +403,6 @@ bool CompilerConfig::check_args_consistency(bool status) {
     }
     FLAG_SET_CMDLINE(PostLoopMultiversioning, false);
   }
-  if (UseCountedLoopSafepoints && LoopStripMiningIter == 0) {
-    if (!FLAG_IS_DEFAULT(UseCountedLoopSafepoints) || !FLAG_IS_DEFAULT(LoopStripMiningIter)) {
-      warning("When counted loop safepoints are enabled, LoopStripMiningIter must be at least 1 (a safepoint every 1 iteration): setting it to 1");
-    }
-    LoopStripMiningIter = 1;
-  } else if (!UseCountedLoopSafepoints && LoopStripMiningIter > 0) {
-    if (!FLAG_IS_DEFAULT(UseCountedLoopSafepoints) || !FLAG_IS_DEFAULT(LoopStripMiningIter)) {
-      warning("Disabling counted safepoints implies no loop strip mining: setting LoopStripMiningIter to 0");
-    }
-    LoopStripMiningIter = 0;
-  }
 #endif // COMPILER2
 
   if (Arguments::is_interpreter_only()) {
@@ -477,6 +474,13 @@ void CompilerConfig::ergo_initialize() {
     }
   }
 
+  if (FLAG_IS_DEFAULT(SweeperThreshold)) {
+    if ((SweeperThreshold * ReservedCodeCacheSize / 100) > (1.2 * M)) {
+      // Cap default SweeperThreshold value to an equivalent of 1.2 Mb
+      FLAG_SET_ERGO(SweeperThreshold, (1.2 * M * 100) / ReservedCodeCacheSize);
+    }
+  }
+
   if (UseOnStackReplacement && !UseLoopCounter) {
     warning("On-stack-replacement requires loop counters; enabling loop counters");
     FLAG_SET_DEFAULT(UseLoopCounter, true);
@@ -493,8 +497,8 @@ void CompilerConfig::ergo_initialize() {
   if (!IncrementalInline) {
     AlwaysIncrementalInline = false;
   }
-  if (PrintIdealGraphLevel > 0) {
-    FLAG_SET_ERGO(PrintIdealGraph, true);
+  if (FLAG_IS_CMDLINE(PrintIdealGraph) && !PrintIdealGraph) {
+    FLAG_SET_ERGO(PrintIdealGraphLevel, -1);
   }
 #endif
   if (!UseTypeSpeculation && FLAG_IS_DEFAULT(TypeProfileLevel)) {
@@ -509,4 +513,43 @@ void CompilerConfig::ergo_initialize() {
     LoopStripMiningIterShortLoop = LoopStripMiningIter / 10;
   }
 #endif // COMPILER2
+}
+
+static CompLevel highest_compile_level() {
+  return TieredCompilation ? MIN2((CompLevel) TieredStopAtLevel, CompLevel_highest_tier) : CompLevel_highest_tier;
+}
+
+bool is_c1_or_interpreter_only() {
+  if (Arguments::is_interpreter_only()) {
+    return true;
+  }
+
+#if INCLUDE_AOT
+  if (UseAOT) {
+    return false;
+  }
+#endif
+
+  if (highest_compile_level() < CompLevel_full_optimization) {
+#if INCLUDE_JVMCI
+    if (TieredCompilation) {
+       return true;
+    }
+    // This happens on jvm variant with C2 disabled and JVMCI
+    // enabled.
+    return !UseJVMCICompiler;
+#else
+    return true;
+#endif
+  }
+
+#ifdef TIERED
+  // The quick-only compilation mode is c1 only. However,
+  // CompilationModeFlag only takes effect with TieredCompilation
+  // enabled.
+  if (TieredCompilation && CompilationModeFlag::quick_only()) {
+    return true;
+  }
+#endif
+  return false;
 }

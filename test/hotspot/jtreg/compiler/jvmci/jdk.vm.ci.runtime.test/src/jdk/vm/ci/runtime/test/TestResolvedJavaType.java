@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,8 @@
  * @test
  * @requires vm.jvmci
  * @library ../../../../../
- * @modules java.base/jdk.internal.reflect
+ * @modules java.base/jdk.internal.org.objectweb.asm
+ *          java.base/jdk.internal.reflect
  *          jdk.internal.vm.ci/jdk.vm.ci.meta
  *          jdk.internal.vm.ci/jdk.vm.ci.runtime
  *          jdk.internal.vm.ci/jdk.vm.ci.common
@@ -48,6 +49,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.invoke.MethodHandles.Lookup;
 import java.lang.reflect.AccessibleObject;
@@ -63,8 +67,10 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.junit.Assert;
 import org.junit.Test;
 
+import jdk.internal.org.objectweb.asm.*;
 import jdk.internal.reflect.ConstantPool;
 import jdk.vm.ci.common.JVMCIError;
 import jdk.vm.ci.meta.Assumptions.AssumptionResult;
@@ -156,15 +162,26 @@ public class TestResolvedJavaType extends TypeUniverse {
         }
     }
 
+    private static Class<?> anonClass() throws Exception {
+        ClassWriter cw = new ClassWriter(0);
+        cw.visit(Opcodes.V1_8, Opcodes.ACC_FINAL + Opcodes.ACC_SUPER, "Anon", null, "java/lang/Object", null);
+        FieldVisitor intField = cw.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, "intField", "I", null, 0);
+        intField.visitEnd();
+        cw.visitEnd();
+        return unsafe.defineAnonymousClass(TypeUniverse.class, cw.toByteArray(), null);
+    }
+
     @Test
-    public void getHostClassTest() {
+    public void getHostClassTest() throws Exception {
+        ResolvedJavaType type = metaAccess.lookupJavaType(anonClass());
+        ResolvedJavaType host = type.getHostClass();
+        assertNotNull(host);
         for (Class<?> c : classes) {
-            ResolvedJavaType type = metaAccess.lookupJavaType(c);
-            ResolvedJavaType host = type.getHostClass();
-            if (!type.equals(predicateType)) {
-                assertNull(host);
-            } else {
-                assertNotNull(host);
+            type = metaAccess.lookupJavaType(c);
+            host = type.getHostClass();
+            assertNull(host);
+            if (type.equals(predicateType)) {
+                assertTrue(c.isHidden());
             }
         }
 
@@ -176,9 +193,10 @@ public class TestResolvedJavaType extends TypeUniverse {
         Supplier<Runnable> lambda = () -> () -> System.out.println("run");
         ResolvedJavaType lambdaType = metaAccess.lookupJavaType(lambda.getClass());
         ResolvedJavaType nestedLambdaType = metaAccess.lookupJavaType(lambda.get().getClass());
-        assertNotNull(lambdaType.getHostClass());
-        assertNotNull(nestedLambdaType.getHostClass());
-        assertEquals(lambdaType.getHostClass(), nestedLambdaType.getHostClass());
+        assertNull(lambdaType.getHostClass());
+        assertTrue(lambda.getClass().isHidden());
+        assertNull(nestedLambdaType.getHostClass());
+        assertTrue(lambda.get().getClass().isHidden());
     }
 
     @Test
@@ -259,7 +277,9 @@ public class TestResolvedJavaType extends TypeUniverse {
             ResolvedJavaType type = metaAccess.lookupJavaType(c);
             Class<?>[] expected = c.getInterfaces();
             ResolvedJavaType[] actual = type.getInterfaces();
-            assertEquals(expected.length, actual.length);
+            // With injection of the IdentityObject interface by the JVM, the number of
+            // interfaces visible through reflection and through JVMCI could differ by one
+            assertTrue(expected.length == actual.length || (actual.length - expected.length) == 1);
             for (int i = 0; i < expected.length; i++) {
                 assertTrue(actual[i].equals(metaAccess.lookupJavaType(expected[i])));
             }
@@ -319,6 +339,111 @@ public class TestResolvedJavaType extends TypeUniverse {
                 }
             }
         }
+    }
+
+    @Test
+    public void linkTest() {
+        for (Class<?> c : classes) {
+            ResolvedJavaType type = metaAccess.lookupJavaType(c);
+            type.link();
+        }
+    }
+
+    private class HidingClassLoader extends ClassLoader {
+        @Override
+        protected Class<?> findClass(final String name) throws ClassNotFoundException {
+            if (name.endsWith("MissingInterface")) {
+                throw new ClassNotFoundException("missing");
+            }
+            byte[] classData = null;
+            try {
+                InputStream is = HidingClassLoader.class.getResourceAsStream("/" + name.replace('.', '/') + ".class");
+                classData = new byte[is.available()];
+                new DataInputStream(is).readFully(classData);
+            } catch (IOException e) {
+                Assert.fail("can't access class: " + name);
+            }
+
+            return defineClass(null, classData, 0, classData.length);
+        }
+
+        ResolvedJavaType lookupJavaType(String name) throws ClassNotFoundException {
+            return metaAccess.lookupJavaType(loadClass(name));
+        }
+
+        HidingClassLoader() {
+            super(null);
+        }
+
+    }
+
+    interface MissingInterface {
+    }
+
+    static class MissingInterfaceImpl implements MissingInterface {
+    }
+
+    interface SomeInterface {
+        default MissingInterface someMethod() {
+            return new MissingInterfaceImpl();
+        }
+    }
+
+    static class Wrapper implements SomeInterface {
+    }
+
+    @Test
+    public void linkExceptionTest() throws ClassNotFoundException {
+        HidingClassLoader cl = new HidingClassLoader();
+        ResolvedJavaType inner = cl.lookupJavaType(Wrapper.class.getName());
+        assertTrue("expected default methods", inner.hasDefaultMethods());
+        try {
+            inner.link();
+            assertFalse("link should throw an exception", true);
+        } catch (NoClassDefFoundError e) {
+        }
+    }
+
+    @Test
+    public void hasDefaultMethodsTest() {
+        for (Class<?> c : classes) {
+            ResolvedJavaType type = metaAccess.lookupJavaType(c);
+            assertEquals(hasDefaultMethods(type), type.hasDefaultMethods());
+        }
+    }
+
+    @Test
+    public void declaresDefaultMethodsTest() {
+        for (Class<?> c : classes) {
+            ResolvedJavaType type = metaAccess.lookupJavaType(c);
+            assertEquals(declaresDefaultMethods(type), type.declaresDefaultMethods());
+        }
+    }
+
+    private static boolean hasDefaultMethods(ResolvedJavaType type) {
+        if (!type.isInterface() && type.getSuperclass() != null && hasDefaultMethods(type.getSuperclass())) {
+            return true;
+        }
+        for (ResolvedJavaType iface : type.getInterfaces()) {
+            if (hasDefaultMethods(iface)) {
+                return true;
+            }
+        }
+        return declaresDefaultMethods(type);
+    }
+
+    static boolean declaresDefaultMethods(ResolvedJavaType type) {
+        if (!type.isInterface()) {
+            /* Only interfaces can declare default methods. */
+            return false;
+        }
+        for (ResolvedJavaMethod method : type.getDeclaredMethods()) {
+            if (method.isDefault()) {
+                assert !Modifier.isStatic(method.getModifiers()) : "Default method that is static?";
+                return true;
+            }
+        }
+        return false;
     }
 
     private static class Base {
@@ -766,8 +891,8 @@ public class TestResolvedJavaType extends TypeUniverse {
         if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(ConstantPool.class)) && f.getName().equals("constantPoolOop")) {
             return true;
         }
-        if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(Class.class)) && f.getName().equals("classLoader")) {
-            return true;
+        if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(Class.class))) {
+            return f.getName().equals("classLoader") || f.getName().equals("classData");
         }
         if (f.getDeclaringClass().equals(metaAccess.lookupJavaType(Lookup.class))) {
             return f.getName().equals("allowedModes") || f.getName().equals("lookupClass");
@@ -905,6 +1030,13 @@ public class TestResolvedJavaType extends TypeUniverse {
     }
 
     @Test
+    public void getSourceFileNameTest() {
+        Class<?> c = Object.class;
+        ResolvedJavaType type = metaAccess.lookupJavaType(c);
+        assertEquals(type.getSourceFileName(), "Object.java");
+    }
+
+    @Test
     public void memberClassesTest() {
         for (Class<?> c : classes) {
             ResolvedJavaType type = metaAccess.lookupJavaType(c);
@@ -1006,7 +1138,6 @@ public class TestResolvedJavaType extends TypeUniverse {
         "getObjectHub",
         "hasFinalizableSubclass",
         "hasFinalizer",
-        "getSourceFileName",
         "isLocal",
         "isJavaLangObject",
         "isMember",

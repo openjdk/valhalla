@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,25 +24,34 @@
  */
 package jdk.incubator.jpackage.internal;
 
-import java.io.*;
+import java.io.IOException;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.text.MessageFormat;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import static jdk.incubator.jpackage.internal.DesktopIntegration.*;
-import static jdk.incubator.jpackage.internal.LinuxAppBundler.LINUX_INSTALL_DIR;
-import static jdk.incubator.jpackage.internal.LinuxAppBundler.LINUX_PACKAGE_DEPENDENCIES;
-import static jdk.incubator.jpackage.internal.StandardBundlerParam.*;
-
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.PREDEFINED_RUNTIME_IMAGE;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.VERSION;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.RELEASE;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.VENDOR;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.DESCRIPTION;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.INSTALL_DIR;
 
 abstract class LinuxPackageBundler extends AbstractBundler {
 
     LinuxPackageBundler(BundlerParamInfo<String> packageName) {
         this.packageName = packageName;
+        appImageBundler = new LinuxAppBundler().setDependentTask(true);
     }
 
     @Override
@@ -51,11 +60,11 @@ abstract class LinuxPackageBundler extends AbstractBundler {
 
         // run basic validation to ensure requirements are met
         // we are not interested in return code, only possible exception
-        APP_BUNDLER.fetchFrom(params).validate(params);
+        appImageBundler.validate(params);
 
         validateInstallDir(LINUX_INSTALL_DIR.fetchFrom(params));
 
-        validateFileAssociations(FILE_ASSOCIATIONS.fetchFrom(params));
+        FileAssociation.verify(FileAssociation.fetchFrom(params));
 
         // If package name has some restrictions, the string converter will
         // throw an exception if invalid
@@ -94,29 +103,29 @@ abstract class LinuxPackageBundler extends AbstractBundler {
     }
 
     @Override
-    final public File execute(Map<String, ? super Object> params,
-            File outputParentDir) throws PackagerException {
-        IOUtils.writableOutputDir(outputParentDir.toPath());
+    final public Path execute(Map<String, ? super Object> params,
+            Path outputParentDir) throws PackagerException {
+        IOUtils.writableOutputDir(outputParentDir);
 
         PlatformPackage thePackage = createMetaPackage(params);
 
-        Function<File, ApplicationLayout> initAppImageLayout = imageRoot -> {
+        Function<Path, ApplicationLayout> initAppImageLayout = imageRoot -> {
             ApplicationLayout layout = appImageLayout(params);
             layout.pathGroup().setPath(new Object(),
                     AppImageFile.getPathInAppImage(Path.of("")));
-            return layout.resolveAt(imageRoot.toPath());
+            return layout.resolveAt(imageRoot);
         };
 
         try {
-            File appImage = StandardBundlerParam.getPredefinedAppImage(params);
+            Path appImage = StandardBundlerParam.getPredefinedAppImage(params);
 
             // we either have an application image or need to build one
             if (appImage != null) {
                 initAppImageLayout.apply(appImage).copy(
                         thePackage.sourceApplicationLayout());
             } else {
-                appImage = APP_BUNDLER.fetchFrom(params).doBundle(params,
-                        thePackage.sourceRoot().toFile(), true);
+                final Path srcAppImageRoot = thePackage.sourceRoot().resolve("src");
+                appImage = appImageBundler.execute(params, srcAppImageRoot);
                 ApplicationLayout srcAppLayout = initAppImageLayout.apply(
                         appImage);
                 if (appImage.equals(PREDEFINED_RUNTIME_IMAGE.fetchFrom(params))) {
@@ -127,11 +136,7 @@ abstract class LinuxPackageBundler extends AbstractBundler {
                     // Application image is a newly created directory tree.
                     // Move it.
                     srcAppLayout.move(thePackage.sourceApplicationLayout());
-                    if (appImage.exists()) {
-                        // Empty app image directory might remain after all application
-                        // directories have been moved.
-                        appImage.delete();
-                    }
+                    IOUtils.deleteRecursive(srcAppImageRoot);
                 }
             }
 
@@ -147,10 +152,10 @@ abstract class LinuxPackageBundler extends AbstractBundler {
 
             data.putAll(createReplacementData(params));
 
-            File packageBundle = buildPackageBundle(Collections.unmodifiableMap(
+            Path packageBundle = buildPackageBundle(Collections.unmodifiableMap(
                     data), params, outputParentDir);
 
-            verifyOutputBundle(params, packageBundle.toPath()).stream()
+            verifyOutputBundle(params, packageBundle).stream()
                     .filter(Objects::nonNull)
                     .forEachOrdered(ex -> {
                 Log.verbose(ex.getLocalizedMessage());
@@ -234,13 +239,24 @@ abstract class LinuxPackageBundler extends AbstractBundler {
     abstract protected Map<String, String> createReplacementData(
             Map<String, ? super Object> params) throws IOException;
 
-    abstract protected File buildPackageBundle(
+    abstract protected Path buildPackageBundle(
             Map<String, String> replacementData,
-            Map<String, ? super Object> params, File outputParentDir) throws
+            Map<String, ? super Object> params, Path outputParentDir) throws
             PackagerException, IOException;
 
     final protected PlatformPackage createMetaPackage(
             Map<String, ? super Object> params) {
+
+        Supplier<ApplicationLayout> packageLayout = () -> {
+            String installDir = LINUX_INSTALL_DIR.fetchFrom(params);
+            if (isInstallDirInUsrTree(installDir)) {
+                return ApplicationLayout.linuxUsrTreePackageImage(
+                        Path.of("/").relativize(Path.of(installDir)),
+                        packageName.fetchFrom(params));
+            }
+            return appImageLayout(params);
+        };
+
         return new PlatformPackage() {
             @Override
             public String name() {
@@ -249,24 +265,28 @@ abstract class LinuxPackageBundler extends AbstractBundler {
 
             @Override
             public Path sourceRoot() {
-                return IMAGES_ROOT.fetchFrom(params).toPath().toAbsolutePath();
+                return IMAGES_ROOT.fetchFrom(params).toAbsolutePath();
             }
 
             @Override
             public ApplicationLayout sourceApplicationLayout() {
-                return appImageLayout(params).resolveAt(
+                return packageLayout.get().resolveAt(
                         applicationInstallDir(sourceRoot()));
             }
 
             @Override
             public ApplicationLayout installedApplicationLayout() {
-                return appImageLayout(params).resolveAt(
+                return packageLayout.get().resolveAt(
                         applicationInstallDir(Path.of("/")));
             }
 
             private Path applicationInstallDir(Path root) {
-                Path installDir = Path.of(LINUX_INSTALL_DIR.fetchFrom(params),
-                        name());
+                String installRoot = LINUX_INSTALL_DIR.fetchFrom(params);
+                if (isInstallDirInUsrTree(installRoot)) {
+                    return root;
+                }
+
+                Path installDir = Path.of(installRoot, name());
                 if (installDir.isAbsolute()) {
                     installDir = Path.of("." + installDir.toString()).normalize();
                 }
@@ -285,10 +305,6 @@ abstract class LinuxPackageBundler extends AbstractBundler {
 
     private static void validateInstallDir(String installDir) throws
             ConfigException {
-        if (installDir.startsWith("/usr/") || installDir.equals("/usr")) {
-            throw new ConfigException(MessageFormat.format(I18N.getString(
-                    "error.unsupported-install-dir"), installDir), null);
-        }
 
         if (installDir.isEmpty()) {
             throw new ConfigException(MessageFormat.format(I18N.getString(
@@ -313,41 +329,37 @@ abstract class LinuxPackageBundler extends AbstractBundler {
         }
     }
 
-    private static void validateFileAssociations(
-            List<Map<String, ? super Object>> associations) throws
-            ConfigException {
-        // only one mime type per association, at least one file extention
-        int assocIdx = 0;
-        for (var assoc : associations) {
-            ++assocIdx;
-            List<String> mimes = FA_CONTENT_TYPE.fetchFrom(assoc);
-            if (mimes == null || mimes.isEmpty()) {
-                String msgKey = "error.no-content-types-for-file-association";
-                throw new ConfigException(
-                        MessageFormat.format(I18N.getString(msgKey), assocIdx),
-                        I18N.getString(msgKey + ".advise"));
-
-            }
-
-            if (mimes.size() > 1) {
-                String msgKey = "error.too-many-content-types-for-file-association";
-                throw new ConfigException(
-                        MessageFormat.format(I18N.getString(msgKey), assocIdx),
-                        I18N.getString(msgKey + ".advise"));
-            }
-        }
+    protected static boolean isInstallDirInUsrTree(String installDir) {
+        return Set.of("/usr/local", "/usr").contains(installDir);
     }
 
     private final BundlerParamInfo<String> packageName;
+    private final Bundler appImageBundler;
     private boolean withFindNeededPackages;
     private DesktopIntegration desktopIntegration;
 
-    private static final BundlerParamInfo<LinuxAppBundler> APP_BUNDLER =
-        new StandardBundlerParam<>(
-                "linux.app.bundler",
-                LinuxAppBundler.class,
-                (params) -> new LinuxAppBundler(),
-                null
-        );
+    private static final BundlerParamInfo<String> LINUX_PACKAGE_DEPENDENCIES =
+            new StandardBundlerParam<>(
+            Arguments.CLIOptions.LINUX_PACKAGE_DEPENDENCIES.getId(),
+            String.class,
+            params -> "",
+            (s, p) -> s
+    );
 
+    static final BundlerParamInfo<String> LINUX_INSTALL_DIR =
+            new StandardBundlerParam<>(
+            "linux-install-dir",
+            String.class,
+            params -> {
+                 String dir = INSTALL_DIR.fetchFrom(params);
+                 if (dir != null) {
+                     if (dir.endsWith("/")) {
+                         dir = dir.substring(0, dir.length()-1);
+                     }
+                     return dir;
+                 }
+                 return "/opt";
+             },
+            (s, p) -> s
+    );
 }

@@ -25,6 +25,7 @@
 #ifndef SHARE_RUNTIME_FIELDDESCRIPTOR_INLINE_HPP
 #define SHARE_RUNTIME_FIELDDESCRIPTOR_INLINE_HPP
 
+#include "runtime/fieldDescriptor.hpp"
 #include "runtime/handles.inline.hpp"
 
 // All fieldDescriptor inline functions that (directly or indirectly) use "_cp()" or "_cp->"
@@ -79,7 +80,7 @@ inline BasicType fieldDescriptor::field_type() const {
   return Signature::basic_type(signature());
 }
 
-inline bool fieldDescriptor::is_flattened()  const  { return field()->is_flattened(); }
-inline bool fieldDescriptor::is_flattenable() const { return field()->is_flattenable(); }
+inline bool fieldDescriptor::is_inlined()  const  { return field()->is_inlined(); }
+inline bool fieldDescriptor::is_inline_type() const { return Signature::basic_type(field()->signature(_cp())) == T_INLINE_TYPE; }
 
 #endif // SHARE_RUNTIME_FIELDDESCRIPTOR_INLINE_HPP

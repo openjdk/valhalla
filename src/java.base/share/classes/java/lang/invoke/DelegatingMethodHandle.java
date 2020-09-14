@@ -28,7 +28,7 @@ package java.lang.invoke;
 import java.util.Arrays;
 import static java.lang.invoke.LambdaForm.*;
 import static java.lang.invoke.LambdaForm.Kind.*;
-import static java.lang.invoke.MethodHandleNatives.Constants.REF_invokeVirtual;
+import static java.lang.invoke.MethodHandleNatives.Constants.*;
 import static java.lang.invoke.MethodHandleStatics.*;
 
 /**
@@ -59,6 +59,20 @@ abstract class DelegatingMethodHandle extends MethodHandle {
     @Override
     MemberName internalMemberName() {
         return getTarget().internalMemberName();
+    }
+
+    @Override
+    boolean isCrackable() {
+        MemberName member = internalMemberName();
+        return member != null &&
+                (member.isResolved() ||
+                 member.isMethodHandleInvoke() ||
+                 member.isVarHandleMethodInvoke());
+    }
+
+    @Override
+    MethodHandle viewAsType(MethodType newType, boolean strict) {
+        return getTarget().viewAsType(newType, strict);
     }
 
     @Override
@@ -163,7 +177,7 @@ abstract class DelegatingMethodHandle extends MethodHandle {
                     MethodType.methodType(MethodHandle.class), REF_invokeVirtual);
             NF_getTarget = new NamedFunction(
                     MemberName.getFactory()
-                            .resolveOrFail(REF_invokeVirtual, member, DelegatingMethodHandle.class, NoSuchMethodException.class));
+                            .resolveOrFail(REF_invokeVirtual, member, DelegatingMethodHandle.class, LM_TRUSTED, NoSuchMethodException.class));
         } catch (ReflectiveOperationException ex) {
             throw newInternalError(ex);
         }

@@ -88,18 +88,6 @@ static size_t cur_malloc_words = 0;  // current size for MallocMaxTestWords
 
 DEBUG_ONLY(bool os::_mutex_init_done = false;)
 
-static time_t get_timezone(const struct tm* time_struct) {
-#if defined(_ALLBSD_SOURCE)
-  return time_struct->tm_gmtoff;
-#elif defined(_WINDOWS)
-  long zone;
-  _get_timezone(&zone);
-  return static_cast<time_t>(zone);
-#else
-  return timezone;
-#endif
-}
-
 int os::snprintf(char* buf, size_t len, const char* fmt, ...) {
   va_list args;
   va_start(args, fmt);
@@ -152,21 +140,32 @@ char* os::iso8601_time(char* buffer, size_t buffer_length, bool utc) {
       return NULL;
     }
   }
-  const time_t zone = get_timezone(&time_struct);
 
-  // If daylight savings time is in effect,
-  // we are 1 hour East of our time zone
   const time_t seconds_per_minute = 60;
   const time_t minutes_per_hour = 60;
   const time_t seconds_per_hour = seconds_per_minute * minutes_per_hour;
-  time_t UTC_to_local = zone;
-  if (time_struct.tm_isdst > 0) {
-    UTC_to_local = UTC_to_local - seconds_per_hour;
-  }
 
   // No offset when dealing with UTC
-  if (utc) {
-    UTC_to_local = 0;
+  time_t UTC_to_local = 0;
+  if (!utc) {
+#if defined(_ALLBSD_SOURCE) || defined(_GNU_SOURCE)
+    UTC_to_local = -(time_struct.tm_gmtoff);
+#elif defined(_WINDOWS)
+    long zone;
+    _get_timezone(&zone);
+    UTC_to_local = static_cast<time_t>(zone);
+#else
+    UTC_to_local = timezone;
+#endif
+
+    // tm_gmtoff already includes adjustment for daylight saving
+#if !defined(_ALLBSD_SOURCE) && !defined(_GNU_SOURCE)
+    // If daylight savings time is in effect,
+    // we are 1 hour East of our time zone
+    if (time_struct.tm_isdst > 0) {
+      UTC_to_local = UTC_to_local - seconds_per_hour;
+    }
+#endif
   }
 
   // Compute the time zone offset.
@@ -959,7 +958,7 @@ void os::print_environment_variables(outputStream* st, const char** env_list) {
 void os::print_cpu_info(outputStream* st, char* buf, size_t buflen) {
   // cpu
   st->print("CPU:");
-  st->print("total %d", os::processor_count());
+  st->print(" total %d", os::processor_count());
   // It's not safe to query number of active processors after crash
   // st->print("(active %d)", os::active_processor_count()); but we can
   // print the initial number of active processors.
@@ -1157,6 +1156,9 @@ void os::print_location(outputStream* st, intptr_t x, bool verbose) {
 
   if (accessible) {
     st->print(INTPTR_FORMAT " points into unknown readable memory:", p2i(addr));
+    if (is_aligned(addr, sizeof(intptr_t))) {
+      st->print(" " PTR_FORMAT " |", *(intptr_t*)addr);
+    }
     for (address p = addr; p < align_up(addr + 1, sizeof(intptr_t)); ++p) {
       st->print(" %02x", *(u1*)p);
     }
@@ -1697,11 +1699,6 @@ char* os::attempt_reserve_memory_at(size_t bytes, char* addr, int file_desc) {
   return result;
 }
 
-void os::split_reserved_memory(char *base, size_t size,
-                                 size_t split, bool realloc) {
-  pd_split_reserved_memory(base, size, split, realloc);
-}
-
 bool os::commit_memory(char* addr, size_t bytes, bool executable) {
   bool res = pd_commit_memory(addr, bytes, executable);
   if (res) {
@@ -1768,10 +1765,10 @@ void os::pretouch_memory(void* start, void* end, size_t page_size) {
 
 char* os::map_memory(int fd, const char* file_name, size_t file_offset,
                            char *addr, size_t bytes, bool read_only,
-                           bool allow_exec) {
+                           bool allow_exec, MEMFLAGS flags) {
   char* result = pd_map_memory(fd, file_name, file_offset, addr, bytes, read_only, allow_exec);
   if (result != NULL) {
-    MemTracker::record_virtual_memory_reserve_and_commit((address)result, bytes, CALLER_PC);
+    MemTracker::record_virtual_memory_reserve_and_commit((address)result, bytes, CALLER_PC, flags);
   }
   return result;
 }

@@ -61,12 +61,13 @@ template <MEMFLAGS F> BasicHashtableEntry<F>* BasicHashtable<F>::new_entry(unsig
 
   if (entry == NULL) {
     if (_first_free_entry + _entry_size >= _end_block) {
-      int block_size = MIN2(512, MAX3(2, (int)_table_size / 2, (int)_number_of_entries));
+      int block_size = MAX2((int)_table_size / 2, (int)_number_of_entries); // pick a reasonable value
+      block_size = clamp(block_size, 2, 512); // but never go out of this range
       int len = _entry_size * block_size;
       len = 1 << log2_int(len); // round down to power of 2
       assert(len >= _entry_size, "");
       _first_free_entry = NEW_C_HEAP_ARRAY2(char, len, F, CURRENT_PC);
-      _entry_blocks->append(_first_free_entry);
+      _entry_blocks.append(_first_free_entry);
       _end_block = _first_free_entry + len;
     }
     entry = (BasicHashtableEntry<F>*)_first_free_entry;
@@ -127,7 +128,7 @@ static int literal_size(oop obj) {
   }
 }
 
-static int literal_size(WeakHandle<vm_class_loader_data> v) {
+static int literal_size(WeakHandle v) {
   return literal_size(v.peek());
 }
 
@@ -222,7 +223,7 @@ template <class T> void print_literal(T l) {
   l->print();
 }
 
-static void print_literal(WeakHandle<vm_class_loader_data> l) {
+static void print_literal(WeakHandle l) {
   l.print();
 }
 
@@ -286,14 +287,13 @@ template class Hashtable<ConstantPool*, mtClass>;
 template class Hashtable<Symbol*, mtSymbol>;
 template class Hashtable<Klass*, mtClass>;
 template class Hashtable<InstanceKlass*, mtClass>;
-template class Hashtable<WeakHandle<vm_class_loader_data>, mtClass>;
+template class Hashtable<WeakHandle, mtClass>;
 template class Hashtable<Symbol*, mtModule>;
 template class Hashtable<oop, mtSymbol>;
 template class Hashtable<Symbol*, mtClass>;
 template class HashtableEntry<Symbol*, mtSymbol>;
 template class HashtableEntry<Symbol*, mtClass>;
 template class HashtableEntry<oop, mtSymbol>;
-template class HashtableEntry<WeakHandle<vm_class_loader_data>, mtClass>;
 template class HashtableBucket<mtClass>;
 template class BasicHashtableEntry<mtSymbol>;
 template class BasicHashtableEntry<mtCode>;

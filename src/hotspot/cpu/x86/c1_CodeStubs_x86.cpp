@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
 #include "c1/c1_Runtime1.hpp"
+#include "classfile/javaClasses.hpp"
 #include "nativeInst_x86.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -282,12 +283,12 @@ void NewTypeArrayStub::emit_code(LIR_Assembler* ce) {
 // Implementation of NewObjectArrayStub
 
 NewObjectArrayStub::NewObjectArrayStub(LIR_Opr klass_reg, LIR_Opr length, LIR_Opr result,
-                                       CodeEmitInfo* info, bool is_value_type) {
+                                       CodeEmitInfo* info, bool is_inline_type) {
   _klass_reg = klass_reg;
   _result = result;
   _length = length;
   _info = new CodeEmitInfo(info);
-  _is_value_type = is_value_type;
+  _is_inline_type = is_inline_type;
 }
 
 
@@ -296,8 +297,8 @@ void NewObjectArrayStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   assert(_length->as_register() == rbx, "length must in rbx,");
   assert(_klass_reg->as_register() == rdx, "klass_reg must in rdx");
-  if (_is_value_type) {
-    __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_value_array_id)));
+  if (_is_inline_type) {
+    __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_flat_array_id)));
   } else {
     __ call(RuntimeAddress(Runtime1::entry_for(Runtime1::new_object_array_id)));
   }
@@ -455,7 +456,7 @@ void PatchingStub::emit_code(LIR_Assembler* ce) {
     __ push(tmp2);
     // Load without verification to keep code size small. We need it because
     // begin_initialized_entry_offset has to fit in a byte. Also, we know it's not null.
-    __ movptr(tmp2, Address(_obj, java_lang_Class::klass_offset_in_bytes()));
+    __ movptr(tmp2, Address(_obj, java_lang_Class::klass_offset()));
     __ get_thread(tmp);
     __ cmpptr(tmp, Address(tmp2, InstanceKlass::init_thread_offset()));
     __ pop(tmp2);

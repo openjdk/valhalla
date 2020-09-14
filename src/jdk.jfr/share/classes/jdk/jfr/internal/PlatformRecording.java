@@ -83,14 +83,14 @@ public final class PlatformRecording implements AutoCloseable {
     private TimerTask stopTask;
     private TimerTask startTask;
     private AccessControlContext noDestinationDumpOnExitAccessControlContext;
-    private boolean shuoldWriteActiveRecordingEvent = true;
+    private boolean shouldWriteActiveRecordingEvent = true;
     private Duration flushInterval = Duration.ofSeconds(1);
     private long finalStartChunkNanos = Long.MIN_VALUE;
 
     PlatformRecording(PlatformRecorder recorder, long id) {
         // Typically the access control context is taken
-        // when you call dump(Path) or setDdestination(Path),
-        // but if no destination is set and dumponexit=true
+        // when you call dump(Path) or setDestination(Path),
+        // but if no destination is set and dumpOnExit=true
         // the control context of the recording is taken when the
         // Recording object is constructed. This works well for
         // -XX:StartFlightRecording and JFR.dump
@@ -115,7 +115,7 @@ public final class PlatformRecording implements AutoCloseable {
                 startTime = null;
             }
             startNanos = recorder.start(this);
-            Logger.log(LogTag.JFR, LogLevel.INFO, () -> {
+            if (Logger.shouldLog(LogTag.JFR, LogLevel.INFO)) {
                 // Only print non-default values so it easy to see
                 // which options were added
                 StringJoiner options = new StringJoiner(", ");
@@ -141,8 +141,9 @@ public final class PlatformRecording implements AutoCloseable {
                 if (optionText.length() != 0) {
                     optionText = "{" + optionText + "}";
                 }
-                return "Started recording \"" + getName() + "\" (" + getId() + ") " + optionText;
-            });
+                Logger.log(LogTag.JFR, LogLevel.INFO,
+                        "Started recording \"" + getName() + "\" (" + getId() + ") " + optionText);
+            };
             newState = getState();
         }
         notifyIfStateChanged(oldState, newState);
@@ -203,7 +204,7 @@ public final class PlatformRecording implements AutoCloseable {
 
     private void ensureOkForSchedule() {
         if (getState() != RecordingState.NEW) {
-            throw new IllegalStateException("Only a new recoridng can be scheduled for start");
+            throw new IllegalStateException("Only a new recording can be scheduled for start");
         }
     }
 
@@ -576,12 +577,16 @@ public final class PlatformRecording implements AutoCloseable {
     private void added(RepositoryChunk c) {
         c.use();
         size += c.getSize();
-        Logger.log(JFR, DEBUG, () -> "Recording \"" + name + "\" (" + id + ") added chunk " + c.toString() + ", current size=" + size);
+        if (Logger.shouldLog(JFR, DEBUG)) {
+            Logger.log(JFR, DEBUG, "Recording \"" + name + "\" (" + id + ") added chunk " + c.toString() + ", current size=" + size);
+        }
     }
 
     private void removed(RepositoryChunk c) {
         size -= c.getSize();
-        Logger.log(JFR, DEBUG, () -> "Recording \"" + name + "\" (" + id + ") removed chunk " + c.toString() + ", current size=" + size);
+        if (Logger.shouldLog(JFR, DEBUG)) {
+            Logger.log(JFR, DEBUG, "Recording \"" + name + "\" (" + id + ") removed chunk " + c.toString() + ", current size=" + size);
+        }
         c.release();
     }
 
@@ -682,11 +687,11 @@ public final class PlatformRecording implements AutoCloseable {
     }
 
     void setShouldWriteActiveRecordingEvent(boolean shouldWrite) {
-        this.shuoldWriteActiveRecordingEvent = shouldWrite;
+        this.shouldWriteActiveRecordingEvent = shouldWrite;
     }
 
     boolean shouldWriteMetadataEvent() {
-        return shuoldWriteActiveRecordingEvent;
+        return shouldWriteActiveRecordingEvent;
     }
 
     // Dump running and stopped recordings
@@ -700,7 +705,7 @@ public final class PlatformRecording implements AutoCloseable {
 
     public void dumpStopped(WriteableUserPath userPath) throws IOException {
         synchronized (recorder) {
-                userPath.doPriviligedIO(() -> {
+                userPath.doPrivilegedIO(() -> {
                     try (ChunksChannel cc = new ChunksChannel(chunks); FileChannel fc = FileChannel.open(userPath.getReal(), StandardOpenOption.WRITE, StandardOpenOption.APPEND)) {
                         cc.transferTo(fc);
                         fc.force(true);

@@ -26,7 +26,7 @@
  * @test
  * @bug 8189131 8198240 8191844 8189949 8191031 8196141 8204923 8195774 8199779
  *      8209452 8209506 8210432 8195793 8216577 8222089 8222133 8222137 8222136
- *      8223499 8225392 8232019 8234245 8233223
+ *      8223499 8225392 8232019 8234245 8233223 8225068 8225069 8243321 8243320
  * @summary Check root CA entries in cacerts file
  */
 import java.io.ByteArrayInputStream;
@@ -52,12 +52,12 @@ public class VerifyCACerts {
             + File.separator + "security" + File.separator + "cacerts";
 
     // The numbers of certs now.
-    private static final int COUNT = 93;
+    private static final int COUNT = 95;
 
     // SHA-256 of cacerts, can be generated with
     // shasum -a 256 cacerts | sed -e 's/../&:/g' | tr '[:lower:]' '[:upper:]' | cut -c1-95
     private static final String CHECKSUM
-            = "22:AA:EB:89:4E:A4:EA:25:CA:3E:DA:0F:F1:2B:FA:05:4B:68:C5:E1:3A:F9:03:40:BF:EF:F5:13:7C:CE:BC:60";
+            = "84:BB:36:9E:B0:07:A7:C5:7F:38:EC:36:82:5C:0F:46:C0:35:3B:B1:1F:06:C2:D0:47:B9:39:FA:87:64:E5:9D";
 
     // map of cert alias to SHA-256 fingerprint
     @SuppressWarnings("serial")
@@ -93,8 +93,6 @@ public class VerifyCACerts {
                     "4F:F4:60:D5:4B:9C:86:DA:BF:BC:FC:57:12:E0:40:0D:2B:ED:3F:BC:4D:4F:BD:AA:86:E0:6A:DC:D2:A9:AD:7A");
             put("utnuserfirstobjectca [jdk]",
                     "6F:FF:78:E4:00:A7:0C:11:01:1C:D8:59:77:C4:59:FB:5A:F9:6A:3D:F0:54:08:20:D0:F4:B8:60:78:75:E5:8F");
-            put("addtrustclass1ca [jdk]",
-                    "8C:72:09:27:9A:C0:4E:27:5E:16:D0:7F:D3:B7:75:E8:01:54:B5:96:80:46:E3:1F:52:DD:25:76:63:24:E9:A7");
             put("addtrustexternalca [jdk]",
                     "68:7F:A4:51:38:22:78:FF:F0:C8:B1:1F:8D:43:D5:76:67:1C:6E:B2:BC:EA:B4:13:FB:83:D9:65:D0:6D:2F:F2");
             put("addtrustqualifiedca [jdk]",
@@ -151,8 +149,6 @@ public class VerifyCACerts {
                     "69:DD:D7:EA:90:BB:57:C9:3E:13:5D:C8:5E:A6:FC:D5:48:0B:60:32:39:BD:C4:54:FC:75:8B:2A:26:CF:7F:79");
             put("verisignclass3g5ca [jdk]",
                     "9A:CF:AB:7E:43:C8:D8:80:D0:6B:26:2A:94:DE:EE:E4:B4:65:99:89:C3:D0:CA:F1:9B:AF:64:05:E4:1A:B7:DF");
-            put("keynectisrootca [jdk]",
-                    "42:10:F1:99:49:9A:9A:C3:3C:8D:E0:2B:A6:DB:AA:14:40:8B:DD:8A:6E:32:46:89:C1:92:2D:06:97:15:A3:32");
             put("dtrustclass3ca2 [jdk]",
                     "49:E7:A4:42:AC:F0:EA:62:87:05:00:54:B5:25:64:B6:50:E4:F4:9E:42:E3:48:D6:AA:38:E0:39:E9:57:B1:C1");
             put("dtrustclass3ca2ev [jdk]",
@@ -249,6 +245,14 @@ public class VerifyCACerts {
                     "18:CE:6C:FE:7B:F1:4E:60:B2:E3:47:B8:DF:E8:68:CB:31:D0:2E:BB:3A:DA:27:15:69:F5:03:43:B4:6D:B3:A4");
             put("amazonrootca4 [jdk]",
                     "E3:5D:28:41:9E:D0:20:25:CF:A6:90:38:CD:62:39:62:45:8D:A5:C6:95:FB:DE:A3:C2:2B:0B:FB:25:89:70:92");
+            put("entrustrootcag4 [jdk]",
+                    "DB:35:17:D1:F6:73:2A:2D:5A:B9:7C:53:3E:C7:07:79:EE:32:70:A6:2F:B4:AC:42:38:37:24:60:E6:F0:1E:88");
+            put("sslrootrsaca [jdk]",
+                    "85:66:6A:56:2E:E0:BE:5C:E9:25:C1:D8:89:0A:6F:76:A8:7E:C1:6D:4D:7D:5F:29:EA:74:19:CF:20:12:3B:69");
+            put("sslrootevrsaca [jdk]",
+                    "2E:7B:F1:6C:C2:24:85:A7:BB:E2:AA:86:96:75:07:61:B0:AE:39:BE:3B:2F:E9:D0:CC:6D:4E:F7:34:91:42:5C");
+            put("sslrooteccca [jdk]",
+                    "34:17:BB:06:CC:60:07:DA:1B:96:1C:92:0B:8A:B4:CE:3F:AD:82:0E:4A:A3:0B:9A:CB:C4:A7:4E:BD:CE:BC:65");
         }
     };
 
@@ -259,12 +263,8 @@ public class VerifyCACerts {
         {
             // Valid until: Tue Jul 09 14:40:36 EDT 2019
             add("utnuserfirstobjectca [jdk]");
-            // Valid until: Tue May 26 00:00:00 GMT 2020
-            add("keynectisrootca [jdk]");
             // Valid until: Sat May 30 10:38:31 GMT 2020
             add("addtrustexternalca [jdk]");
-            // Valid until: Sat May 30 10:48:38 GMT 2020
-            add("addtrustclass1ca [jdk]");
             // Valid until: Sat May 30 10:44:50 GMT 2020
             add("addtrustqualifiedca [jdk]");
         }

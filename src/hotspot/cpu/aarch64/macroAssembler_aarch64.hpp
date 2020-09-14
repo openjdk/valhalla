@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, 2019, Red Hat Inc. All rights reserved.
+ * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,14 +26,14 @@
 #ifndef CPU_AARCH64_MACROASSEMBLER_AARCH64_HPP
 #define CPU_AARCH64_MACROASSEMBLER_AARCH64_HPP
 
-#include "asm/assembler.hpp"
+#include "asm/assembler.inline.hpp"
 #include "oops/compressedOops.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "runtime/signature.hpp"
 
 
-class ciValueKlass;
+class ciInlineKlass;
 
 // MacroAssembler extends Assembler by frequently used macros.
 //
@@ -116,15 +116,11 @@ class MacroAssembler: public Assembler {
   // tmp_reg must be supplied and must not be rscratch1 or rscratch2
   // Optional slow case is for implementations (interpreter and C1) which branch to
   // slow case directly. Leaves condition codes set for C2's Fast_Lock node.
-  // Returns offset of first potentially-faulting instruction for null
-  // check info (currently consumed only by C1). If
-  // swap_reg_contains_mark is true then returns -1 as it is assumed
-  // the calling code has already passed any potential faults.
-  int biased_locking_enter(Register lock_reg, Register obj_reg,
-                           Register swap_reg, Register tmp_reg,
-                           bool swap_reg_contains_mark,
-                           Label& done, Label* slow_case = NULL,
-                           BiasedLockingCounters* counters = NULL);
+  void biased_locking_enter(Register lock_reg, Register obj_reg,
+                            Register swap_reg, Register tmp_reg,
+                            bool swap_reg_contains_mark,
+                            Label& done, Label* slow_case = NULL,
+                            BiasedLockingCounters* counters = NULL);
   void biased_locking_exit (Register obj_reg, Register temp_reg, Label& done);
 
 
@@ -181,6 +177,8 @@ class MacroAssembler: public Assembler {
 
   using Assembler::ldr;
   using Assembler::str;
+  using Assembler::ldrw;
+  using Assembler::strw;
 
   void ldr(Register Rx, const Address &adr);
   void ldrw(Register Rw, const Address &adr);
@@ -459,8 +457,8 @@ class MacroAssembler: public Assembler {
   // first two private routines for loading 32 bit or 64 bit constants
 private:
 
-  void mov_immediate64(Register dst, u_int64_t imm64);
-  void mov_immediate32(Register dst, u_int32_t imm32);
+  void mov_immediate64(Register dst, uint64_t imm64);
+  void mov_immediate32(Register dst, uint32_t imm32);
 
   int push(unsigned int bitset, Register stack);
   int pop(unsigned int bitset, Register stack);
@@ -480,36 +478,34 @@ public:
   // Push and pop everything that might be clobbered by a native
   // runtime call except rscratch1 and rscratch2.  (They are always
   // scratch, so we don't have to protect them.)  Only save the lower
-  // 64 bits of each vector register.
-  void push_call_clobbered_registers();
-  void pop_call_clobbered_registers();
+  // 64 bits of each vector register. Additonal registers can be excluded
+  // in a passed RegSet.
+  void push_call_clobbered_registers_except(RegSet exclude);
+  void pop_call_clobbered_registers_except(RegSet exclude);
+
+  void push_call_clobbered_registers() {
+    push_call_clobbered_registers_except(RegSet());
+  }
+  void pop_call_clobbered_registers() {
+    pop_call_clobbered_registers_except(RegSet());
+  }
+
 
   // now mov instructions for loading absolute addresses and 32 or
   // 64 bit integers
 
-  inline void mov(Register dst, address addr)
-  {
-    mov_immediate64(dst, (u_int64_t)addr);
-  }
+  inline void mov(Register dst, address addr)             { mov_immediate64(dst, (uint64_t)addr); }
 
-  inline void mov(Register dst, u_int64_t imm64)
-  {
-    mov_immediate64(dst, imm64);
-  }
+  inline void mov(Register dst, int imm64)                { mov_immediate64(dst, (uint64_t)imm64); }
+  inline void mov(Register dst, long imm64)               { mov_immediate64(dst, (uint64_t)imm64); }
+  inline void mov(Register dst, long long imm64)          { mov_immediate64(dst, (uint64_t)imm64); }
+  inline void mov(Register dst, unsigned int imm64)       { mov_immediate64(dst, (uint64_t)imm64); }
+  inline void mov(Register dst, unsigned long imm64)      { mov_immediate64(dst, (uint64_t)imm64); }
+  inline void mov(Register dst, unsigned long long imm64) { mov_immediate64(dst, (uint64_t)imm64); }
 
-  inline void movw(Register dst, u_int32_t imm32)
+  inline void movw(Register dst, uint32_t imm32)
   {
     mov_immediate32(dst, imm32);
-  }
-
-  inline void mov(Register dst, long l)
-  {
-    mov(dst, (u_int64_t)l);
-  }
-
-  inline void mov(Register dst, int i)
-  {
-    mov(dst, (long)i);
   }
 
   void mov(Register dst, RegisterOrConstant src) {
@@ -521,7 +517,7 @@ public:
 
   void movptr(Register r, uintptr_t imm64);
 
-  void mov(FloatRegister Vd, SIMD_Arrangement T, u_int32_t imm32);
+  void mov(FloatRegister Vd, SIMD_Arrangement T, uint32_t imm32);
 
   void mov(FloatRegister Vd, SIMD_Arrangement T, FloatRegister Vn) {
     orr(Vd, T, Vn, Vn);
@@ -613,11 +609,11 @@ public:
 
   void test_klass_is_value(Register klass, Register temp_reg, Label& is_value);
 
-  void test_field_is_flattenable(Register flags, Register temp_reg, Label& is_flattenable);
-  void test_field_is_not_flattenable(Register flags, Register temp_reg, Label& notFlattenable);
-  void test_field_is_flattened(Register flags, Register temp_reg, Label& is_flattened);
+  void test_field_is_inline_type(Register flags, Register temp_reg, Label& is_inline);
+  void test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline);
+  void test_field_is_inlined(Register flags, Register temp_reg, Label& is_flattened);
 
-  // Check klass/oops is flat value type array (oop->_klass->_layout_helper & vt_bit)
+  // Check klass/oops is flat inline type array (oop->_klass->_layout_helper & vt_bit)
   void test_flattened_array_oop(Register klass, Register temp_reg, Label& is_flattened_array);
   void test_null_free_array_oop(Register oop, Register temp_reg, Label& is_null_free_array);
 
@@ -824,6 +820,7 @@ public:
   // C 'boolean' to Java boolean: x == 0 ? 0 : 1
   void c2bool(Register x);
 
+  void load_method_holder_cld(Register rresult, Register rmethod);
   void load_method_holder(Register holder, Register method);
 
   // oop manipulations
@@ -834,6 +831,7 @@ public:
   void store_klass(Register dst, Register src);
   void cmp_klass(Register oop, Register trial_klass, Register tmp);
 
+  void resolve_weak_handle(Register result, Register tmp);
   void resolve_oop_handle(Register result, Register tmp = r5);
   void load_mirror(Register dst, Register method, Register tmp = r5);
 
@@ -893,8 +891,10 @@ public:
 
   DEBUG_ONLY(void verify_heapbase(const char* msg);)
 
-  void push_CPU_state(bool save_vectors = false);
-  void pop_CPU_state(bool restore_vectors = false) ;
+  void push_CPU_state(bool save_vectors = false, bool use_sve = false,
+                      int sve_vector_size_in_bytes = 0);
+  void pop_CPU_state(bool restore_vectors = false, bool use_sve = false,
+                      int sve_vector_size_in_bytes = 0);
 
   // Round up to a power of two
   void round_to(Register reg, int modulus);
@@ -974,6 +974,11 @@ public:
 
   Address argument_address(RegisterOrConstant arg_slot, int extra_slot_offset = 0);
 
+  void verify_sve_vector_length();
+  void reinitialize_ptrue() {
+    sve_ptrue(ptrue, B);
+  }
+  void verify_ptrue();
 
   // Debugging
 
@@ -993,9 +998,6 @@ public:
 
   // prints msg, dumps registers and stops execution
   void stop(const char* msg);
-
-  // prints msg and continues
-  void warn(const char* msg);
 
   static void debug64(char* msg, int64_t pc, int64_t regs[]);
 
@@ -1187,7 +1189,7 @@ public:
   void sub(Register Rd, Register Rn, RegisterOrConstant decrement);
   void subw(Register Rd, Register Rn, RegisterOrConstant decrement);
 
-  void adrp(Register reg1, const Address &dest, unsigned long &byte_offset);
+  void adrp(Register reg1, const Address &dest, uint64_t &byte_offset);
 
 
   enum RegState {
@@ -1198,25 +1200,25 @@ public:
 
   void verified_entry(Compile* C, int sp_inc);
 
-  int store_value_type_fields_to_buf(ciValueKlass* vk, bool from_interpreter = true);
+  int store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter = true);
 
-// Unpack all value type arguments passed as oops
-  void unpack_value_args(Compile* C, bool receiver_only);
+// Unpack all inline type arguments passed as oops
+  void unpack_inline_args(Compile* C, bool receiver_only);
   bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset);
-  bool unpack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index,
-                           RegState reg_state[], int ret_off, int extra_stack_offset);
-  bool pack_value_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                         VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
-                         int ret_off, int extra_stack_offset);
+  bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index,
+                            RegState reg_state[], int ret_off, int extra_stack_offset);
+  bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
+                          VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
+                          int ret_off, int extra_stack_offset);
   void restore_stack(Compile* C);
 
-  int shuffle_value_args(bool is_packing, bool receiver_only, int extra_stack_offset,
-                         BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                         int args_passed, int args_on_stack, VMRegPair* regs,
-                         int args_passed_to, int args_on_stack_to, VMRegPair* regs_to);
-  bool shuffle_value_args_spill(bool is_packing,  const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
-                                VMRegPair* regs_from, int from_index, int regs_from_count,
-                                RegState* reg_state, int sp_inc, int extra_stack_offset);
+  int shuffle_inline_args(bool is_packing, bool receiver_only, int extra_stack_offset,
+                          BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
+                          int args_passed, int args_on_stack, VMRegPair* regs,
+                          int args_passed_to, int args_on_stack_to, VMRegPair* regs_to);
+  bool shuffle_inline_args_spill(bool is_packing,  const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
+                                 VMRegPair* regs_from, int from_index, int regs_from_count,
+                                 RegState* reg_state, int sp_inc, int extra_stack_offset);
   VMReg spill_reg_for(VMReg reg);
 
 
@@ -1235,7 +1237,7 @@ public:
   // actually be used: you must use the Address that is returned.  It
   // is up to you to ensure that the shift provided matches the size
   // of your data.
-  Address form_address(Register Rd, Register base, long byte_offset, int shift);
+  Address form_address(Register Rd, Register base, int64_t byte_offset, int shift);
 
   // Return true iff an address is within the 48-bit AArch64 address
   // space.
@@ -1260,7 +1262,7 @@ public:
     if (NearCpool) {
       ldr(dest, const_addr);
     } else {
-      unsigned long offset;
+      uint64_t offset;
       adrp(dest, InternalAddress(const_addr.target()), offset);
       ldr(dest, Address(dest, offset));
     }
@@ -1285,9 +1287,9 @@ public:
                      int elem_size);
 
   void fill_words(Register base, Register cnt, Register value);
-  void fill_words(Register base, u_int64_t cnt, Register value);
+  void fill_words(Register base, uint64_t cnt, Register value);
 
-  void zero_words(Register base, u_int64_t cnt);
+  void zero_words(Register base, uint64_t cnt);
   void zero_words(Register ptr, Register cnt);
   void zero_dcache_blocks(Register base, Register cnt);
 
@@ -1359,8 +1361,9 @@ private:
   // Returns an address on the stack which is reachable with a ldr/str of size
   // Uses rscratch2 if the address is not directly reachable
   Address spill_address(int size, int offset, Register tmp=rscratch2);
+  Address sve_spill_address(int sve_reg_size_in_bytes, int offset, Register tmp=rscratch2);
 
-  bool merge_alignment_check(Register base, size_t size, long cur_offset, long prev_offset) const;
+  bool merge_alignment_check(Register base, size_t size, int64_t cur_offset, int64_t prev_offset) const;
 
   // Check whether two loads/stores can be merged into ldp/stp.
   bool ldst_can_merge(Register rx, const Address &adr, size_t cur_size_in_bytes, bool is_store) const;
@@ -1382,6 +1385,9 @@ public:
   void spill(FloatRegister Vx, SIMD_RegVariant T, int offset) {
     str(Vx, T, spill_address(1 << (int)T, offset));
   }
+  void spill_sve_vector(FloatRegister Zx, int offset, int vector_reg_size_in_bytes) {
+    sve_str(Zx, sve_spill_address(vector_reg_size_in_bytes, offset));
+  }
   void unspill(Register Rx, bool is64, int offset) {
     if (is64) {
       ldr(Rx, spill_address(8, offset));
@@ -1391,6 +1397,9 @@ public:
   }
   void unspill(FloatRegister Vx, SIMD_RegVariant T, int offset) {
     ldr(Vx, T, spill_address(1 << (int)T, offset));
+  }
+  void unspill_sve_vector(FloatRegister Zx, int offset, int vector_reg_size_in_bytes) {
+    sve_ldr(Zx, sve_spill_address(vector_reg_size_in_bytes, offset));
   }
   void spill_copy128(int src_offset, int dst_offset,
                      Register tmp1=rscratch1, Register tmp2=rscratch2) {
@@ -1405,7 +1414,15 @@ public:
       spill(tmp1, true, dst_offset+8);
     }
   }
-
+  void spill_copy_sve_vector_stack_to_stack(int src_offset, int dst_offset,
+                                            int sve_vec_reg_size_in_bytes) {
+    assert(sve_vec_reg_size_in_bytes % 16 == 0, "unexpected sve vector reg size");
+    for (int i = 0; i < sve_vec_reg_size_in_bytes / 16; i++) {
+      spill_copy128(src_offset, dst_offset);
+      src_offset += 16;
+      dst_offset += 16;
+    }
+  }
   void cache_wb(Address line);
   void cache_wbsync(bool is_pre);
 

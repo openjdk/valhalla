@@ -125,11 +125,6 @@ class Symbol : public MetaspaceObj {
     return (int)heap_word_size(byte_size(length));
   }
 
-  void byte_at_put(int index, u1 value) {
-    assert(index >=0 && index < length(), "symbol index overflow");
-    _body[index] = value;
-  }
-
   Symbol(const u1* name, int length, int refcount);
   void* operator new(size_t size, int len) throw();
   void* operator new(size_t size, int len, Arena* arena) throw();
@@ -168,7 +163,8 @@ class Symbol : public MetaspaceObj {
   bool is_permanent() const {
     return (refcount() == PERM_REFCOUNT);
   }
-  void set_permanent();
+  void update_identity_hash() NOT_CDS_RETURN;
+  void set_permanent() NOT_CDS_RETURN;
   void make_permanent();
 
   // Function char_at() returns the Symbol's selected u1 byte as a char type.
@@ -238,7 +234,6 @@ class Symbol : public MetaspaceObj {
   bool is_Q_signature() const;
   bool is_Q_array_signature() const;
   bool is_Q_method_signature() const;
-  bool is_Q_singledim_array_signature() const;
   Symbol* fundamental_name(TRAPS);
   bool is_same_fundamental_type(Symbol*) const;
 

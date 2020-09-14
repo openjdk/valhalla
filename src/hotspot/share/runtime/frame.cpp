@@ -37,7 +37,7 @@
 #include "oops/method.hpp"
 #include "oops/methodData.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/verifyOopClosure.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/frame.inline.hpp"
@@ -291,8 +291,8 @@ void frame::deoptimize(JavaThread* thread) {
 
 #ifdef COMPILER1
   if (cm->is_compiled_by_c1() && cm->method()->has_scalarized_args() &&
-      pc() < cm->verified_value_entry_point()) {
-    // The VEP and VVEP(RO) of C1-compiled methods call into the runtime to buffer scalarized value
+      pc() < cm->verified_inline_entry_point()) {
+    // The VEP and VIEP(RO) of C1-compiled methods call into the runtime to buffer scalarized value
     // type args. We can't deoptimize at that point because the buffers have not yet been initialized.
     // Also, if the method is synchronized, we first need to acquire the lock.
     // Don't patch the return pc to delay deoptimization until we enter the method body (the check
@@ -300,8 +300,8 @@ void frame::deoptimize(JavaThread* thread) {
 #ifdef ASSERT
     NativeCall* call = nativeCall_before(this->pc());
     address dest = call->destination();
-    assert(dest == Runtime1::entry_for(Runtime1::buffer_value_args_no_receiver_id) ||
-           dest == Runtime1::entry_for(Runtime1::buffer_value_args_id), "unexpected safepoint in entry point");
+    assert(dest == Runtime1::entry_for(Runtime1::buffer_inline_args_no_receiver_id) ||
+           dest == Runtime1::entry_for(Runtime1::buffer_inline_args_id), "unexpected safepoint in entry point");
 #endif
     return;
   }
@@ -1080,9 +1080,6 @@ void frame::oops_entry_do(OopClosure* f, const RegisterMap* map) {
 
 void frame::oops_do_internal(OopClosure* f, CodeBlobClosure* cf, RegisterMap* map, bool use_interpreter_oop_map_cache) {
 #ifndef PRODUCT
-#if defined(__SUNPRO_CC) && __SUNPRO_CC >= 0x5140
-#pragma error_messages(off, SEC_NULL_PTR_DEREF)
-#endif
   // simulate GC crash here to dump java thread in error report
   if (CrashGCForDumpingJavaThread) {
     char *t = NULL;

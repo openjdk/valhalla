@@ -126,12 +126,11 @@ BASIC_SETUP_DEFAULT_LOG
 
 ###############################################################################
 #
-# Determine OpenJDK variants, options and version numbers.
+# Determine OpenJDK variants and version numbers.
 #
 ###############################################################################
 
 # We need build & target for this.
-JDKOPT_SETUP_JDK_OPTIONS
 JDKOPT_SETUP_JLINK_OPTIONS
 JDKVER_SETUP_JDK_VERSION_NUMBERS
 
@@ -143,6 +142,14 @@ JDKVER_SETUP_JDK_VERSION_NUMBERS
 
 BOOTJDK_SETUP_BOOT_JDK
 BOOTJDK_SETUP_BUILD_JDK
+
+###############################################################################
+#
+# Determine JDK specific build time options.
+#
+###############################################################################
+
+JDKOPT_SETUP_JDK_OPTIONS
 
 ###############################################################################
 #
@@ -227,7 +234,6 @@ LIB_SETUP_LIBRARIES
 JVM_FEATURES_PARSE_OPTIONS
 JVM_FEATURES_SETUP
 
-HOTSPOT_ENABLE_DISABLE_GTEST
 HOTSPOT_SETUP_MISC
 
 ###############################################################################
@@ -242,6 +248,7 @@ JDKOPT_ENABLE_DISABLE_GENERATE_CLASSLIST
 JDKOPT_EXCLUDE_TRANSLATIONS
 JDKOPT_ENABLE_DISABLE_MANPAGES
 JDKOPT_ENABLE_DISABLE_CDS_ARCHIVE
+JDKOPT_SETUP_REPRODUCIBLE_BUILD
 
 ###############################################################################
 #
@@ -254,12 +261,10 @@ BPERF_SETUP_BUILD_CORES
 BPERF_SETUP_BUILD_MEMORY
 BPERF_SETUP_BUILD_JOBS
 BPERF_SETUP_TEST_JOBS
+BPERF_SETUP_JAVAC_SERVER
 
 # Setup arguments for the boot jdk (after cores and memory have been setup)
 BOOTJDK_SETUP_BOOT_JDK_ARGUMENTS
-
-# Setup smart javac (after cores and memory have been setup)
-BPERF_SETUP_SMART_JAVAC
 
 # Setup use of icecc if requested
 BPERF_SETUP_ICECC

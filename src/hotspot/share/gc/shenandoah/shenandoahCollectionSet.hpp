@@ -43,7 +43,6 @@ private:
   ShenandoahHeap* const _heap;
 
   size_t                _garbage;
-  size_t                _live_data;
   size_t                _used;
   size_t                _region_count;
 
@@ -52,7 +51,7 @@ private:
   shenandoah_padding(1);
 
 public:
-  ShenandoahCollectionSet(ShenandoahHeap* heap, char* heap_base, size_t size);
+  ShenandoahCollectionSet(ShenandoahHeap* heap, ReservedSpace space, char* heap_base);
 
   // Add region to collection set
   void add_region(ShenandoahHeapRegion* r);
@@ -78,7 +77,6 @@ public:
   void print_on(outputStream* out) const;
 
   size_t used()      const { return _used; }
-  size_t live_data() const { return _live_data; }
   size_t garbage()   const { return _garbage;   }
   void clear();
 

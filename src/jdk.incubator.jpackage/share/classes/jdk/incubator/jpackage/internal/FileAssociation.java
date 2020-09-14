@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,17 +25,49 @@
 
 package jdk.incubator.jpackage.internal;
 
-import java.io.File;
 import java.nio.file.Path;
-import java.util.*;
+import java.text.MessageFormat;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
-import static jdk.incubator.jpackage.internal.StandardBundlerParam.*;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.APP_NAME;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.FILE_ASSOCIATIONS;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.FA_EXTENSIONS;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.FA_CONTENT_TYPE;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.FA_ICON;
+import static jdk.incubator.jpackage.internal.StandardBundlerParam.FA_DESCRIPTION;
 
 final class FileAssociation {
     void verify() {
         if (extensions.isEmpty()) {
             Log.error(I18N.getString(
                     "message.creating-association-with-null-extension"));
+        }
+    }
+
+    static void verify(List<FileAssociation> associations) throws ConfigException {
+        // only one mime type per association, at least one file extension
+        int assocIdx = 0;
+        for (var assoc : associations) {
+            ++assocIdx;
+            if (assoc.mimeTypes.isEmpty()) {
+                String msgKey = "error.no-content-types-for-file-association";
+                throw new ConfigException(
+                        MessageFormat.format(I18N.getString(msgKey), assocIdx),
+                        MessageFormat.format(I18N.getString(msgKey + ".advice"), assocIdx));
+            }
+
+            if (assoc.mimeTypes.size() > 1) {
+                String msgKey = "error.too-many-content-types-for-file-association";
+                throw new ConfigException(
+                        MessageFormat.format(I18N.getString(msgKey), assocIdx),
+                        MessageFormat.format(I18N.getString(msgKey + ".advice"), assocIdx));
+            }
+
+            assoc.verify();
         }
     }
 
@@ -47,15 +79,19 @@ final class FileAssociation {
                     FileAssociation assoc = new FileAssociation();
 
                     assoc.launcherPath = Path.of(launcherName);
-                    assoc.description = FA_DESCRIPTION.fetchFrom(fa);
+                    assoc.description = Optional.ofNullable(
+                            FA_DESCRIPTION.fetchFrom(fa))
+                            .orElse(launcherName + " association");
                     assoc.extensions = Optional.ofNullable(
-                            FA_EXTENSIONS.fetchFrom(fa)).orElse(Collections.emptyList());
+                            FA_EXTENSIONS.fetchFrom(fa))
+                            .orElse(Collections.emptyList());
                     assoc.mimeTypes = Optional.ofNullable(
-                            FA_CONTENT_TYPE.fetchFrom(fa)).orElse(Collections.emptyList());
+                            FA_CONTENT_TYPE.fetchFrom(fa))
+                            .orElse(Collections.emptyList());
 
-                    File icon = FA_ICON.fetchFrom(fa);
+                    Path icon = FA_ICON.fetchFrom(fa);
                     if (icon != null) {
-                        assoc.iconPath = icon.toPath();
+                        assoc.iconPath = icon;
                     }
 
                     return assoc;

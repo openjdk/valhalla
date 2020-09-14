@@ -21,7 +21,7 @@
  * questions.
  */
 
-super public class RedefineCondy implements java/lang/IdentityObject version 55:0 {
+super public class RedefineCondy version 55:0 {
 
     public Method "<init>":"(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/Class;)V"
     stack 3 locals 4 {

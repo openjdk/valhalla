@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,8 +25,6 @@
 #ifndef SHARE_GC_PARALLEL_VMSTRUCTS_PARALLELGC_HPP
 #define SHARE_GC_PARALLEL_VMSTRUCTS_PARALLELGC_HPP
 
-#include "gc/parallel/asPSOldGen.hpp"
-#include "gc/parallel/asPSYoungGen.hpp"
 #include "gc/parallel/immutableSpace.hpp"
 #include "gc/parallel/mutableSpace.hpp"
 #include "gc/parallel/parallelScavengeHeap.hpp"
@@ -58,14 +56,12 @@
   nonstatic_field(PSYoungGen,                  _eden_space,                                   MutableSpace*)                         \
   nonstatic_field(PSYoungGen,                  _from_space,                                   MutableSpace*)                         \
   nonstatic_field(PSYoungGen,                  _to_space,                                     MutableSpace*)                         \
-  nonstatic_field(PSYoungGen,                  _init_gen_size,                                const size_t)                          \
   nonstatic_field(PSYoungGen,                  _min_gen_size,                                 const size_t)                          \
   nonstatic_field(PSYoungGen,                  _max_gen_size,                                 const size_t)                          \
                                                                                                                                      \
   nonstatic_field(PSOldGen,                    _reserved,                                     MemRegion)                             \
   nonstatic_field(PSOldGen,                    _virtual_space,                                PSVirtualSpace*)                       \
   nonstatic_field(PSOldGen,                    _object_space,                                 MutableSpace*)                         \
-  nonstatic_field(PSOldGen,                    _init_gen_size,                                const size_t)                          \
   nonstatic_field(PSOldGen,                    _min_gen_size,                                 const size_t)                          \
   nonstatic_field(PSOldGen,                    _max_gen_size,                                 const size_t)                          \
                                                                                                                                      \
@@ -88,9 +84,7 @@
   declare_toplevel_type(ImmutableSpace)                                   \
            declare_type(MutableSpace, ImmutableSpace)                     \
   declare_toplevel_type(PSYoungGen)                                       \
-           declare_type(ASPSYoungGen, PSYoungGen)                         \
   declare_toplevel_type(PSOldGen)                                         \
-           declare_type(ASPSOldGen, PSOldGen)                             \
                                                                           \
   /*****************************/                                         \
   /* Parallel GC pointer types */                                         \
@@ -100,9 +94,7 @@
   declare_toplevel_type(ImmutableSpace*)                                  \
   declare_toplevel_type(MutableSpace*)                                    \
   declare_toplevel_type(PSYoungGen*)                                      \
-  declare_toplevel_type(ASPSYoungGen*)                                    \
   declare_toplevel_type(PSOldGen*)                                        \
-  declare_toplevel_type(ASPSOldGen*)                                      \
   declare_toplevel_type(ParallelScavengeHeap*)
 
 #define VM_INT_CONSTANTS_PARALLELGC(declare_constant,                     \

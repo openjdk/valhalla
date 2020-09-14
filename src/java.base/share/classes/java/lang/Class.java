@@ -28,6 +28,7 @@ package java.lang;
 import java.lang.annotation.Annotation;
 import java.lang.constant.ClassDesc;
 import java.lang.invoke.TypeDescriptor;
+import java.lang.invoke.MethodHandles;
 import java.lang.module.ModuleReader;
 import java.lang.ref.SoftReference;
 import java.io.IOException;
@@ -98,16 +99,42 @@ import sun.reflect.misc.ReflectUtil;
  * keyword {@code void} are also represented as {@code Class} objects.
  *
  * <p> {@code Class} has no public constructor. Instead a {@code Class}
- * object is constructed automatically by the Java Virtual Machine
- * when a class loader invokes one of the
- * {@link ClassLoader#defineClass(String,byte[], int,int) defineClass} methods
- * and passes the bytes of a {@code class} file.
+ * object is constructed automatically by the Java Virtual Machine when
+ * a class is derived from the bytes of a {@code class} file through
+ * the invocation of one of the following methods:
+ * <ul>
+ * <li> {@link ClassLoader#defineClass(String, byte[], int, int) ClassLoader::defineClass}
+ * <li> {@link java.lang.invoke.MethodHandles.Lookup#defineClass(byte[])
+ *      java.lang.invoke.MethodHandles.Lookup::defineClass}
+ * <li> {@link java.lang.invoke.MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
+ *      java.lang.invoke.MethodHandles.Lookup::defineHiddenClass}
+ * </ul>
  *
  * <p> The methods of class {@code Class} expose many characteristics of a
  * class or interface. Most characteristics are derived from the {@code class}
- * file that the class loader passed to the Java Virtual Machine. A few
- * characteristics are determined by the class loading environment at run time,
- * such as the module returned by {@link #getModule() getModule()}.
+ * file that the class loader passed to the Java Virtual Machine or
+ * from the {@code class} file passed to {@code Lookup::defineClass}
+ * or {@code Lookup::defineHiddenClass}.
+ * A few characteristics are determined by the class loading environment
+ * at run time, such as the module returned by {@link #getModule() getModule()}.
+ *
+ * <p> The following example uses a {@code Class} object to print the
+ * class name of an object:
+ *
+ * <blockquote><pre>
+ *     void printClassName(Object obj) {
+ *         System.out.println("The class of " + obj +
+ *                            " is " + obj.getClass().getName());
+ *     }
+ * </pre></blockquote>
+ *
+ * It is also possible to get the {@code Class} object for a named
+ * type (or for {@code void}) using a <i>class literal</i>.
+ * For example:
+ *
+ * <blockquote>
+ *     {@code System.out.println("The name of class Foo is: "+Foo.class.getName());}
+ * </blockquote>
  *
  * <p> Some methods of class {@code Class} expose whether the declaration of
  * a class or interface in Java source code was <em>enclosed</em> within
@@ -126,24 +153,33 @@ import sun.reflect.misc.ReflectUtil;
  * other members are the classes and interfaces whose declarations are
  * enclosed within the top-level class declaration.
  *
- * <p> The following example uses a {@code Class} object to print the
- * class name of an object:
+ * <p> A class or interface created by the invocation of
+ * {@link java.lang.invoke.MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
+ * Lookup::defineHiddenClass} is a {@linkplain Class#isHidden() <em>hidden</em>}
+ * class or interface.
+ * All kinds of class, including enum types and record types, may be
+ * hidden classes; all kinds of interface, including annotation types,
+ * may be hidden interfaces.
  *
- * <blockquote><pre>
- *     void printClassName(Object obj) {
- *         System.out.println("The class of " + obj +
- *                            " is " + obj.getClass().getName());
- *     }
- * </pre></blockquote>
+ * The {@linkplain #getName() name of a hidden class or interface} is
+ * not a <a href="ClassLoader.html#binary-name">binary name</a>,
+ * which means the following:
+ * <ul>
+ * <li>A hidden class or interface cannot be referenced by the constant pools
+ *     of other classes and interfaces.
+ * <li>A hidden class or interface cannot be described in
+ *     {@linkplain java.lang.constant.ConstantDesc <em>nominal form</em>} by
+ *     {@link #describeConstable() Class::describeConstable},
+ *     {@link ClassDesc#of(String) ClassDesc::of}, or
+ *     {@link ClassDesc#ofDescriptor(String) ClassDesc::ofDescriptor}.
+ * <li>A hidden class or interface cannot be discovered by {@link #forName Class::forName}
+ *     or {@link ClassLoader#loadClass(String, boolean) ClassLoader::loadClass}.
+ * </ul>
  *
- * <p> It is also possible to get the {@code Class} object for a named
- * type (or for void) using a class literal.  See Section {@jls
- * 15.8.2} of <cite>The Java&trade; Language Specification</cite>.
- * For example:
- *
- * <blockquote>
- *     {@code System.out.println("The name of class Foo is: " + Foo.class.getName());}
- * </blockquote>
+ * A hidden class or interface is never an array class, but may be
+ * the element type of an array. In all other respects, the fact that
+ * a class or interface is hidden has no bearing on the characteristics
+ * exposed by the methods of class {@code Class}.
  *
  * @param <T> the type of the class modeled by this {@code Class}
  * object.  For example, the type of {@code String.class} is {@code
@@ -153,6 +189,7 @@ import sun.reflect.misc.ReflectUtil;
  * @author  unascribed
  * @see     java.lang.ClassLoader#defineClass(byte[], int, int)
  * @since   1.0
+ * @jls 15.8.2 Class Literals
  */
 public final class Class<T> implements java.io.Serializable,
                               GenericDeclaration,
@@ -163,7 +200,9 @@ public final class Class<T> implements java.io.Serializable,
     private static final int ANNOTATION = 0x00002000;
     private static final int ENUM       = 0x00004000;
     private static final int SYNTHETIC  = 0x00001000;
-    private static final int VALUE_TYPE = 0x00000100;
+    private static final int INLINE     = 0x00000100;
+
+    private static final ClassDesc[] EMPTY_CLASS_DESC_ARRAY = new ClassDesc[0];
 
     private static native void registerNatives();
     static {
@@ -185,9 +224,9 @@ public final class Class<T> implements java.io.Serializable,
     /**
      * Converts the object to a string. The string representation is the
      * string "class" or "interface", followed by a space, and then by the
-     * fully qualified name of the class in the format returned by
-     * {@code getName}.  If this {@code Class} object represents a
-     * primitive type, this method returns the name of the primitive type.  If
+     * name of the class in the format returned by {@code getName}.
+     * If this {@code Class} object represents a primitive type,
+     * this method returns the name of the primitive type.  If
      * this {@code Class} object represents void this method returns
      * "void". If this {@code Class} object represents an array type,
      * this method returns "class " followed by {@code getName}.
@@ -197,7 +236,7 @@ public final class Class<T> implements java.io.Serializable,
     public String toString() {
         return (isInlineClass() ? "inline " : "")
                + (isInterface() ? "interface " : (isPrimitive() ? "" : "class "))
-               + getName() + (isInlineClass() && isIndirectType() ? "?" : "");
+               + getName();
     }
 
     /**
@@ -380,7 +419,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * Note that this method throws errors related to loading, linking
      * or initializing as specified in Sections {@jls 12.2}, {@jls
-     * 12.3}, and {@jls 12.4} of <cite>The Java&trade; Language
+     * 12.3}, and {@jls 12.4} of <cite>The Java Language
      * Specification</cite>.
      * Note that this method does not check whether the requested class
      * is accessible to its caller.
@@ -389,7 +428,7 @@ public final class Class<T> implements java.io.Serializable,
 
      * @param initialize if {@code true} the class will be initialized
      *                   (which implies linking). See Section {@jls
-     *                   12.4} of <cite>The Java&trade; Language
+     *                   12.4} of <cite>The Java Language
      *                   Specification</cite>.
      * @param loader     class loader from which the class must be loaded
      * @return           class object representing the desired class
@@ -519,90 +558,180 @@ public final class Class<T> implements java.io.Serializable,
     /**
      * Returns {@code true} if this class is an inline class.
      *
-     * @return {@code true} if this class is an inline class.
+     * @return {@code true} if this class is an inline class
+     * @since Valhalla
      */
     public boolean isInlineClass() {
-        return (this.getModifiers() & VALUE_TYPE) != 0;
+        return (this.getModifiers() & INLINE) != 0;
     }
 
     /**
-     * Returns a {@code Class} object representing the primary type of
-     * this class.
+     * Returns a {@code Class} object representing the <em>value projection</em>
+     * type of this class if this {@code Class} represents the reference projection
+     * type of an {@linkplain #isInlineClass() inline class}.
+     * If this {@code Class} represents the value projection type
+     * of an inline class, then this method returns this class.
+     * Otherwise an empty {@link Optional} is returned.
      *
-     * <p> For class {@code C}, {@code C.class} is the primary type of {@code C}.
-     * For a primitive type, the {@code Class} instance representing
-     * that primitive type is its primary type, for example {@code int.class}.
-     *
-     * @return the {@code Class} object representing the primary type of
-     *         this class
+     * @return the {@code Class} object representing the value projection type of
+     *         this class if this class is the value projection type
+     *         or the reference projection type of an inline class;
+     *         an empty {@link Optional} otherwise
+     * @since Valhalla
      */
-    @HotSpotIntrinsicCandidate
-    public Class<T> asPrimaryType() {
-        return isInlineClass() ? inlineType : this;
+    public Optional<Class<?>> valueType() {
+        if (isPrimitive() || isInterface() || isArray())
+            return Optional.empty();
+
+        Class<?>[] valRefTypes = getProjectionTypes();
+        return valRefTypes.length > 0 ? Optional.of(valRefTypes[0]) : Optional.empty();
     }
 
     /**
-     * Returns a {@code Class} object representing the <em>indirect projection</em>
-     * type if this class is an {@linkplain #isInlineClass() inline class};
-     * otherwise, returns this class.
+     * Returns a {@code Class} object representing the reference type
+     * of this class.
+     * <p>
+     * If this {@code Class} represents an {@linkplain #isInlineClass()
+     * inline class} with a reference projection type, then this method
+     * returns the <em>reference projection</em> type of this inline class.
+     * <p>
+     * If this {@code Class} represents the reference projection type
+     * of an inline class, then this method returns this class.
+     * <p>
+     * If this class is an {@linkplain #isInlineClass() inline class}
+     * without a reference projection, then this method returns an empty
+     * {@code Optional}.
+     * <p>
+     * If this class is an identity class, then this method returns this
+     * class.
+     * <p>
+     * Otherwise this method returns an empty {@code Optional}.
      *
-     * <p> An inline class, {@code V}, has two {@code Class} representations,
-     * {@code V.class} and its {@linkplain #asIndirectType() indirect projection
-     * type}.  The indirect projection type is always
-     * {@linkplain #isNullableType() nullable}.
-     * The indirect projection type of a zero-default inline class
-     * is also its nullable projection type.
-     *
-     * @return the {@code Class} object representing the indirect projection type of
-     *         this class if this class is an inline class; otherwise, this class.
+     * @return the {@code Class} object representing a reference type for
+     *         this class if present; an empty {@link Optional} otherwise.
+     * @since Valhalla
      */
-    @HotSpotIntrinsicCandidate
-    public Class<T> asIndirectType() {
-        return isInlineClass() ? indirectType : this;
+    public Optional<Class<?>> referenceType() {
+        if (isPrimitive()) return Optional.empty();
+        if (isInterface() || isArray()) return Optional.of(this);
+
+        Class<?>[] valRefTypes = getProjectionTypes();
+        return valRefTypes.length == 2 ? Optional.of(valRefTypes[1]) : Optional.empty();
     }
 
-    /**
-     * Returns a {@code Class} object representing the <em>nullable projection</em>
-     * type if this class is an {@linkplain #isInlineClass() inline class};
-     * otherwise, returns this class.
+    /*
+     * Returns true if this Class object represents a reference projection
+     * type for an inline class.
      *
-     * <p> An inline class, {@code V}, has two {@code Class} representations,
-     * {@code V.class} and its {@linkplain #asIndirectType() indirect projection
-     * type}.  The indirect projection type is always
-     * {@linkplain #isNullableType() nullable}.
-     * The indirect projection type of a zero-default inline class
-     * is also its nullable projection type.
-     *
-     * @return the {@code Class} object representing the nullable projection type of
-     *         this class if this class is an inline class; otherwise, this class.
+     * A reference projection type must be a sealed abstract class that
+     * permits the inline projection type to extend.  The inline projection
+     * type and reference projection type for an inline type must be of
+     * the same package.
      */
-    public Class<T> asNullableType() {
-        return asIndirectType();
+    private boolean isReferenceProjectionType() {
+        if (isPrimitive() || isArray() || isInterface() || isInlineClass())
+            return false;
+
+        int mods = getModifiers();
+        if (!Modifier.isAbstract(mods)) {
+            return false;
+        }
+
+        Class<?>[] valRefTypes = getProjectionTypes();
+        return valRefTypes.length == 2 && valRefTypes[1] == this;
     }
 
-    /**
-     * Returns {@code true} if this class is an indirect type.
-     * An indirect type is always {@linkplain #isNullableType() nullable}.
-     *
-     * @return {@code true} if this class is an indirect type.
-     */
-    public boolean isIndirectType() {
-        return indirectType == null || this == indirectType;
+    private transient Class<?>[] projectionTypes;
+    private Class<?>[] getProjectionTypes() {
+        if (isPrimitive() || isArray() || isInterface())
+            return null;
+
+        Class<?>[] valRefTypes = projectionTypes;
+        if (valRefTypes == null) {
+            // C.ensureProjectionTypesInited calls initProjectionTypes that may
+            // call D.ensureProjectionTypesInited where D is its superclass.
+            // So initProjectionTypes is called without holding any lock to
+            // avoid potential deadlock when multiple threads attempt to
+            // initialize the projection types for C and E where D is
+            // the superclass of both C and E (which is an error case)
+            valRefTypes = newProjectionTypeArray();
+        }
+        synchronized (this) {
+            // set the projection types if not set
+            if (projectionTypes == null) {
+                projectionTypes = valRefTypes;
+            }
+        }
+        return projectionTypes;
     }
 
-    /**
-     * Returns {@code true} if this class is a nullable type.
+    /*
+     * Returns an array of Class object whose element at index 0 represents the
+     * value projection type and element at index 1 represents the reference
+     * projection type if present.
      *
-     * @return {@code true} if this class is a nullable type.
+     * If this Class object is neither a value projection type nor
+     * a reference projection type for an inline class, then an empty array
+     * is returned.
      */
-    public boolean isNullableType() {
-        return isIndirectType();
+    private Class<?>[] newProjectionTypeArray() {
+        if (isPrimitive() || isArray() || isInterface())
+            return null;
+
+        if (isInlineClass()) {
+            Class<?> superClass = getSuperclass();
+            if (superClass != Object.class && superClass.isReferenceProjectionType()) {
+                return new Class<?>[] { this, superClass };
+            } else {
+                return new Class<?>[] { this };
+            }
+        } else {
+            Class<?> valType = valueProjectionType();
+            if (valType != null) {
+                return new Class<?>[] { valType, this};
+            } else {
+                return EMPTY_CLASS_ARRAY;
+            }
+        }
     }
 
-    // set by VM if this class is an inline type
-    // otherwise, these two fields are null
-    private transient Class<T> inlineType;
-    private transient Class<T> indirectType;
+    /*
+     * Returns the value projection type if this Class represents
+     * a reference projection type.  If this class is an inline class
+     * then this method returns this class.  Otherwise, returns null.
+     */
+    private Class<?> valueProjectionType() {
+        if (isPrimitive() || isArray() || isInterface())
+            return null;
+
+        if (isInlineClass())
+            return this;
+
+        int mods = getModifiers();
+        if (!Modifier.isAbstract(mods)) {
+            return null;
+        }
+
+        // A reference projection type must be a sealed abstract class
+        // that permits the inline projection type to extend.
+        // The inline projection type and reference projection type for
+        // an inline type must be of the same package.
+        String[] subclassNames = getPermittedSubclasses0();
+        if (subclassNames.length == 1) {
+            String cn = subclassNames[0].replace('/', '.');
+            int index = cn.lastIndexOf('.');
+            String pn = index > 0 ? cn.substring(0, index) : "";
+            if (pn.equals(getPackageName())) {
+                try {
+                    Class<?> valType = Class.forName(cn, false, getClassLoader());
+                    if (valType.isInlineClass()) {
+                        return valType;
+                    }
+                } catch (ClassNotFoundException e) {}
+            }
+        }
+        return null;
+    }
 
     /**
      * Creates a new instance of the class represented by this {@code Class}
@@ -755,7 +884,7 @@ public final class Class<T> implements java.io.Serializable,
      * <p> Specifically, this method tests whether the type represented by the
      * specified {@code Class} parameter can be converted to the type
      * represented by this {@code Class} object via an identity conversion
-     * or via a widening reference conversion. See <cite>The Java&trade; Language
+     * or via a widening reference conversion. See <cite>The Java Language
      * Specification</cite>, sections {@jls 5.1.1} and {@jls 5.1.4},
      * for details.
      *
@@ -837,11 +966,12 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * Returns {@code true} if this class is a synthetic class;
-     * returns {@code false} otherwise.
-     * @return {@code true} if and only if this class is a synthetic class as
-     *         defined by <cite>The Java&trade; Language Specification</cite>.
+     * Returns {@code true} if and only if this class has the synthetic modifier
+     * bit set.
+     *
+     * @return {@code true} if and only if this class has the synthetic modifier bit set
      * @jls 13.1 The Form of a Binary
+     * @jvms 4.1 The {@code ClassFile} Structure
      * @since 1.5
      */
     public boolean isSynthetic() {
@@ -850,22 +980,26 @@ public final class Class<T> implements java.io.Serializable,
 
     /**
      * Returns the  name of the entity (class, interface, array class,
-     * primitive type, or void) represented by this {@code Class} object,
-     * as a {@code String}.
+     * primitive type, or void) represented by this {@code Class} object.
      *
-     * <p> If this {@code Class} object represents a reference type that is
-     * not an array type then the binary name of the class is
-     * returned, as specified by <cite>The Java&trade; Language
-     * Specification</cite>.
+     * <p> If this {@code Class} object represents a class or interface,
+     * not an array class, then:
+     * <ul>
+     * <li> If the class or interface is not {@linkplain #isHidden() hidden},
+     *      then the <a href="ClassLoader.html#binary-name">binary name</a>
+     *      of the class or interface is returned.
+     * <li> If the class or interface is hidden, then the result is a string
+     *      of the form: {@code N + '/' + <suffix>}
+     *      where {@code N} is the <a href="ClassLoader.html#binary-name">binary name</a>
+     *      indicated by the {@code class} file passed to
+     *      {@link java.lang.invoke.MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
+     *      Lookup::defineHiddenClass}, and {@code <suffix>} is an unqualified name.
+     * </ul>
      *
-     * <p> If this {@code Class} object represents a primitive type or void, then the
-     * name returned is a {@code String} equal to the Java language
-     * keyword corresponding to the primitive type or void.
-     *
-     * <p> If this {@code Class} object represents a class of arrays, then the internal
-     * form of the name consists of the name of the element type preceded by
-     * one or more '{@code [}' characters representing the depth of the array
-     * nesting.  The encoding of element type names is as follows:
+     * <p> If this {@code Class} object represents an array class, then
+     * the result is a string consisting of one or more '{@code [}' characters
+     * representing the depth of the array nesting, followed by the element
+     * type as encoded using the following table:
      *
      * <blockquote><table class="striped">
      * <caption style="display:none">Element types and encodings</caption>
@@ -873,23 +1007,24 @@ public final class Class<T> implements java.io.Serializable,
      * <tr><th scope="col"> Element Type <th scope="col"> Encoding
      * </thead>
      * <tbody style="text-align:left">
-     * <tr><th scope="row"> boolean      <td style="text-align:center"> Z
-     * <tr><th scope="row"> byte         <td style="text-align:center"> B
-     * <tr><th scope="row"> char         <td style="text-align:center"> C
-     * <tr><th scope="row"> class or interface
-     *                                   <td style="text-align:center"> L<i>classname</i>;
-     * <tr><th scope="row"> non-nullable {@linkplain #isInlineClass() inline class}
-     *                                   <td style="text-align:center"> Q<i>classname</i>;
-     * <tr><th scope="row"> double       <td style="text-align:center"> D
-     * <tr><th scope="row"> float        <td style="text-align:center"> F
-     * <tr><th scope="row"> int          <td style="text-align:center"> I
-     * <tr><th scope="row"> long         <td style="text-align:center"> J
-     * <tr><th scope="row"> short        <td style="text-align:center"> S
+     * <tr><th scope="row"> {@code boolean} <td style="text-align:center"> {@code Z}
+     * <tr><th scope="row"> {@code byte}    <td style="text-align:center"> {@code B}
+     * <tr><th scope="row"> {@code char}    <td style="text-align:center"> {@code C}
+     * <tr><th scope="row"> class or interface with <a href="ClassLoader.html#binary-name">binary name</a> <i>N</i>
+     *                                      <td style="text-align:center"> {@code L}<em>N</em>{@code ;}
+     * <tr><th scope="row"> {@linkplain #isInlineClass() inline class} with <a href="ClassLoader.html#binary-name">binary name</a> <i>N</i>
+     *                                      <td style="text-align:center"> {@code Q}<em>N</em>{@code ;}
+     * <tr><th scope="row"> {@code double}  <td style="text-align:center"> {@code D}
+     * <tr><th scope="row"> {@code float}   <td style="text-align:center"> {@code F}
+     * <tr><th scope="row"> {@code int}     <td style="text-align:center"> {@code I}
+     * <tr><th scope="row"> {@code long}    <td style="text-align:center"> {@code J}
+     * <tr><th scope="row"> {@code short}   <td style="text-align:center"> {@code S}
      * </tbody>
      * </table></blockquote>
      *
-     * <p> The class or interface name <i>classname</i> is the binary name of
-     * the class specified above.
+     * <p> If this {@code Class} object represents a primitive type or {@code void},
+     * then the result is a string with the same spelling as the Java language
+     * keyword which corresponds to the primitive type or {@code void}.
      *
      * <p> Examples:
      * <blockquote><pre>
@@ -903,14 +1038,15 @@ public final class Class<T> implements java.io.Serializable,
      *     returns "[Ljava.lang.Object;"
      * (new Point[3]).getClass().getName()
      *     returns "[QPoint;"
-     * (new Point?[3][4]).getClass().getName()
-     *     returns "[[LPoint;"
+     * (new Point.ref[3][4]).getClass().getName()
+     *     returns "[[LPoint$ref;"
      * (new int[3][4][5][6][7][8][9]).getClass().getName()
      *     returns "[[[[[[[I"
      * </pre></blockquote>
      *
-     * @return  the name of the class or interface
+     * @return  the name of the class, interface, or other entity
      *          represented by this {@code Class} object.
+     * @jls 13.1 The Form of a Binary
      */
     public String getName() {
         String name = this.name;
@@ -988,6 +1124,14 @@ public final class Class<T> implements java.io.Serializable,
     // will throw NoSuchFieldException
     private final ClassLoader classLoader;
 
+    // Set by VM
+    private transient Object classData;
+
+    // package-private
+    Object getClassData() {
+        return classData;
+    }
+
     /**
      * Returns an array of {@code TypeVariable} objects that represent the
      * type variables declared by the generic declaration represented by this
@@ -1000,7 +1144,7 @@ public final class Class<T> implements java.io.Serializable,
      * @throws java.lang.reflect.GenericSignatureFormatError if the generic
      *     signature of this generic declaration does not conform to
      *     the format specified in section {@jvms 4.7.9} of
-     *     <cite>The Java&trade; Virtual Machine Specification</cite>,
+     *     <cite>The Java Virtual Machine Specification</cite>
      * @since 1.5
      */
     @SuppressWarnings("unchecked")
@@ -1048,7 +1192,7 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @throws java.lang.reflect.GenericSignatureFormatError if the generic
      *     class signature does not conform to the format specified in
-     *     section {@jvms 4.7.9} of <cite>The Java&trade; Virtual
+     *     section {@jvms 4.7.9} of <cite>The Java Virtual
      *     Machine Specification</cite>
      * @throws TypeNotPresentException if the generic superclass
      *     refers to a non-existent type declaration
@@ -1123,10 +1267,7 @@ public final class Class<T> implements java.io.Serializable,
     public String getPackageName() {
         String pn = this.packageName;
         if (pn == null) {
-            Class<?> c = this;
-            while (c.isArray()) {
-                c = c.getComponentType();
-            }
+            Class<?> c = isArray() ? elementType() : this;
             if (c.isPrimitive()) {
                 pn = "java.lang";
             } else {
@@ -1248,7 +1389,7 @@ public final class Class<T> implements java.io.Serializable,
      * @throws java.lang.reflect.GenericSignatureFormatError
      *     if the generic class signature does not conform to the
      *     format specified in section {@jvms 4.7.9} of <cite>The
-     *     Java&trade; Virtual Machine Specification</cite>
+     *     Java Virtual Machine Specification</cite>
      * @throws TypeNotPresentException if any of the generic
      *     superinterfaces refers to a non-existent type declaration
      * @throws java.lang.reflect.MalformedParameterizedTypeException
@@ -1284,6 +1425,20 @@ public final class Class<T> implements java.io.Serializable,
 
     private final Class<?> componentType;
 
+    /*
+     * Returns the {@code Class} representing the element type of an array class.
+     * If this class does not represent an array class, then this method returns
+     * {@code null}.
+     */
+    private Class<?> elementType() {
+        if (!isArray()) return null;
+
+        Class<?> c = this;
+        while (c.isArray()) {
+            c = c.getComponentType();
+        }
+        return c;
+    }
 
     /**
      * Returns the Java language modifiers for this class or interface, encoded
@@ -1306,7 +1461,7 @@ public final class Class<T> implements java.io.Serializable,
      * by this specification.
      *
      * <p> The modifier encodings are defined in section {@jvms 4.1}
-     * of <cite>The Java&trade; Virtual Machine Specification</cite>.
+     * of <cite>The Java Virtual Machine Specification</cite>.
      *
      * @return the {@code int} representing the modifiers for this class
      * @see     java.lang.reflect.Modifier
@@ -1323,20 +1478,12 @@ public final class Class<T> implements java.io.Serializable,
      *          a primitive type or void.
      * @since   1.1
      */
-    public Object[] getSigners() {
-        return asPrimaryType().getSigners0();
-    }
-
-    private native Object[] getSigners0();
+    public native Object[] getSigners();
 
     /**
      * Set the signers of this class.
      */
-    void setSigners(Object[] signers) {
-        asPrimaryType().setSigners0(signers);
-    }
-
-    native void setSigners0(Object[] signers);
+    native void setSigners(Object[] signers);
 
 
     /**
@@ -1695,7 +1842,7 @@ public final class Class<T> implements java.io.Serializable,
             simpleName = getName();
             simpleName = simpleName.substring(simpleName.lastIndexOf('.') + 1); // strip the package name
         }
-        return isInlineClass() && isIndirectType() ? simpleName + "?" : simpleName;
+        return simpleName;
     }
 
     /**
@@ -1716,15 +1863,21 @@ public final class Class<T> implements java.io.Serializable,
                 return cl.getTypeName() + "[]".repeat(dimensions);
             } catch (Throwable e) { /*FALLTHRU*/ }
         }
-        return toTypeName();
+        return getName();
     }
 
     /**
-     * Returns the canonical name of the underlying class as defined
-     * by <cite>The Java&trade; Language Specification</cite>, section
-     * {@jls 6.7}.  Returns null if the underlying class does not have
-     * a canonical name (i.e., if it is a local or anonymous class or
-     * an array whose component type does not have a canonical name).
+     * Returns the canonical name of the underlying class as
+     * defined by <cite>The Java Language Specification</cite>.
+     * Returns {@code null} if the underlying class does not have a canonical
+     * name. Classes without canonical names include:
+     * <ul>
+     * <li>a {@linkplain #isLocalClass() local class}
+     * <li>a {@linkplain #isAnonymousClass() anonymous class}
+     * <li>a {@linkplain #isHidden() hidden class}
+     * <li>an array whose component type does not have a canonical name</li>
+     * </ul>
+     *
      * @return the canonical name of the underlying class if it exists, and
      * {@code null} otherwise.
      * @since 1.5
@@ -1746,7 +1899,7 @@ public final class Class<T> implements java.io.Serializable,
             else
                 return ReflectionData.NULL_SENTINEL;
         }
-        if (isLocalOrAnonymousClass())
+        if (isHidden() || isLocalOrAnonymousClass())
             return ReflectionData.NULL_SENTINEL;
         Class<?> enclosingClass = getEnclosingClass();
         if (enclosingClass == null) { // top level class
@@ -1762,6 +1915,9 @@ public final class Class<T> implements java.io.Serializable,
     /**
      * Returns {@code true} if and only if the underlying class
      * is an anonymous class.
+     *
+     * @apiNote
+     * An anonymous class is not a {@linkplain #isHidden() hidden class}.
      *
      * @return {@code true} if and only if this class is an anonymous class.
      * @since 1.5
@@ -2512,7 +2668,7 @@ public final class Class<T> implements java.io.Serializable,
      * object represents an interface, a primitive type, an array class, or
      * void.
      *
-     * <p> See <cite>The Java&trade; Language Specification</cite>,
+     * <p> See <cite>The Java Language Specification</cite>,
      * section {@jls 8.2}.
      *
      * @return  the array of {@code Constructor} objects representing all the
@@ -2988,6 +3144,11 @@ public final class Class<T> implements java.io.Serializable,
         if (sm != null) {
             sm.checkPermission(SecurityConstants.GET_PD_PERMISSION);
         }
+        return protectionDomain();
+    }
+
+    // package-private
+    java.security.ProtectionDomain protectionDomain() {
         java.security.ProtectionDomain pd = getProtectionDomain0();
         if (pd == null) {
             if (allPermDomain == null) {
@@ -3001,7 +3162,6 @@ public final class Class<T> implements java.io.Serializable,
         }
         return pd;
     }
-
 
     /**
      * Returns the ProtectionDomain of this class.
@@ -3074,10 +3234,7 @@ public final class Class<T> implements java.io.Serializable,
      */
     private String resolveName(String name) {
         if (!name.startsWith("/")) {
-            Class<?> c = this;
-            while (c.isArray()) {
-                c = c.getComponentType();
-            }
+            Class<?> c = isArray() ? elementType() : this;
             String baseName = c.getPackageName();
             if (baseName != null && !baseName.isEmpty()) {
                 name = baseName.replace('.', '/') + "/" + name;
@@ -3610,16 +3767,8 @@ public final class Class<T> implements java.io.Serializable,
                 ((argTypes == null || argTypes.length == 0) ?
                 "()" :
                 Arrays.stream(argTypes)
-                        .map(c -> c == null ? "null" : c.toTypeName())
+                        .map(c -> c == null ? "null" : c.getName())
                         .collect(Collectors.joining(",", "(", ")")));
-    }
-
-    /*
-     * Returns the class name appended with "?" if it is the nullable projection
-     * of an inline class.
-     */
-    private String toTypeName() {
-        return isInlineClass() && isIndirectType() ? getName() + "?" : getName();
     }
 
     /** use serialVersionUID from JDK 1.1 for interoperability */
@@ -3847,15 +3996,15 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @throws ClassCastException if the object is not
      * {@code null} and is not assignable to the type T.
-     * @throws NullPointerException if this is not a {@linkplain #isNullableType()
-     * nullable type} and the object is {@code null}
+     * @throws NullPointerException if this is an {@linkplain #isInlineClass()
+     * inline type} and the object is {@code null}
      *
      * @since 1.5
      */
     @SuppressWarnings("unchecked")
     @HotSpotIntrinsicCandidate
     public T cast(Object obj) {
-        if (!isNullableType() && obj == null)
+        if (isInlineClass() && obj == null)
             throw new NullPointerException(getName() + " is an inline class");
 
         if (obj != null && !isInstance(obj))
@@ -4161,29 +4310,22 @@ public final class Class<T> implements java.io.Serializable,
     /**
      * Returns the nest host of the <a href=#nest>nest</a> to which the class
      * or interface represented by this {@code Class} object belongs.
-     * Every class and interface is a member of exactly one nest.
-     * A class or interface that is not recorded as belonging to a nest
-     * belongs to the nest consisting only of itself, and is the nest
-     * host.
+     * Every class and interface belongs to exactly one nest.
      *
-     * <p>Each of the {@code Class} objects representing array types,
-     * primitive types, and {@code void} returns {@code this} to indicate
-     * that the represented entity belongs to the nest consisting only of
+     * If the nest host of this class or interface has previously
+     * been determined, then this method returns the nest host.
+     * If the nest host of this class or interface has
+     * not previously been determined, then this method determines the nest
+     * host using the algorithm of JVMS 5.4.4, and returns it.
+     *
+     * Often, a class or interface belongs to a nest consisting only of itself,
+     * in which case this method returns {@code this} to indicate that the class
+     * or interface is the nest host.
+     *
+     * <p>If this {@code Class} object represents a primitive type, an array type,
+     * or {@code void}, then this method returns {@code this},
+     * indicating that the represented entity belongs to the nest consisting only of
      * itself, and is the nest host.
-     *
-     * <p>If there is a {@linkplain LinkageError linkage error} accessing
-     * the nest host, or if this class or interface is not enumerated as
-     * a member of the nest by the nest host, then it is considered to belong
-     * to its own nest and {@code this} is returned as the host.
-     *
-     * @apiNote A {@code class} file of version 55.0 or greater may record the
-     * host of the nest to which it belongs by using the {@code NestHost}
-     * attribute (JVMS {@jvms 4.7.28}). Alternatively, a {@code class} file of
-     * version 55.0 or greater may act as a nest host by enumerating the nest's
-     * other members with the
-     * {@code NestMembers} attribute (JVMS {@jvms 4.7.29}).
-     * A {@code class} file of version 54.0 or lower does not use these
-     * attributes.
      *
      * @return the nest host of this class or interface
      *
@@ -4204,17 +4346,9 @@ public final class Class<T> implements java.io.Serializable,
         if (isPrimitive() || isArray()) {
             return this;
         }
-        Class<?> host;
-        try {
-            host = getNestHost0();
-        } catch (LinkageError e) {
-            // if we couldn't load our nest-host then we
-            // act as-if we have no nest-host attribute
-            return this;
-        }
-        // if null then nest membership validation failed, so we
-        // act as-if we have no nest-host attribute
-        if (host == null || host == this) {
+
+        Class<?> host = getNestHost0();
+        if (host == this) {
             return this;
         }
         // returning a different class requires a security check
@@ -4246,11 +4380,8 @@ public final class Class<T> implements java.io.Serializable,
             c.isPrimitive() || c.isArray()) {
             return false;
         }
-        try {
-            return getNestHost0() == c.getNestHost0();
-        } catch (LinkageError e) {
-            return false;
-        }
+
+        return getNestHost() == c.getNestHost();
     }
 
     private native Class<?>[] getNestMembers0();
@@ -4259,39 +4390,47 @@ public final class Class<T> implements java.io.Serializable,
      * Returns an array containing {@code Class} objects representing all the
      * classes and interfaces that are members of the nest to which the class
      * or interface represented by this {@code Class} object belongs.
-     * The {@linkplain #getNestHost() nest host} of that nest is the zeroth
-     * element of the array. Subsequent elements represent any classes or
-     * interfaces that are recorded by the nest host as being members of
-     * the nest; the order of such elements is unspecified. Duplicates are
-     * permitted.
-     * If the nest host of that nest does not enumerate any members, then the
-     * array has a single element containing {@code this}.
      *
-     * <p>Each of the {@code Class} objects representing array types,
-     * primitive types, and {@code void} returns an array containing only
+     * First, this method obtains the {@linkplain #getNestHost() nest host},
+     * {@code H}, of the nest to which the class or interface represented by
+     * this {@code Class} object belongs. The zeroth element of the returned
+     * array is {@code H}.
+     *
+     * Then, for each class or interface {@code C} which is recorded by {@code H}
+     * as being a member of its nest, this method attempts to obtain the {@code Class}
+     * object for {@code C} (using {@linkplain #getClassLoader() the defining class
+     * loader} of the current {@code Class} object), and then obtains the
+     * {@linkplain #getNestHost() nest host} of the nest to which {@code C} belongs.
+     * The classes and interfaces which are recorded by {@code H} as being members
+     * of its nest, and for which {@code H} can be determined as their nest host,
+     * are indicated by subsequent elements of the returned array. The order of
+     * such elements is unspecified. Duplicates are permitted.
+     *
+     * <p>If this {@code Class} object represents a primitive type, an array type,
+     * or {@code void}, then this method returns a single-element array containing
      * {@code this}.
      *
-     * <p>This method validates that, for each class or interface which is
-     * recorded as a member of the nest by the nest host, that class or
-     * interface records itself as a member of that same nest. Any exceptions
-     * that occur during this validation are rethrown by this method.
+     * @apiNote
+     * The returned array includes only the nest members recorded in the {@code NestMembers}
+     * attribute, and not any hidden classes that were added to the nest via
+     * {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
+     * Lookup::defineHiddenClass}.
      *
      * @return an array of all classes and interfaces in the same nest as
-     * this class
+     * this class or interface
      *
-     * @throws LinkageError
-     *         If there is any problem loading or validating a nest member or
-     *         its nest host
      * @throws SecurityException
-     *         If any returned class is not the current class, and
-     *         if a security manager, <i>s</i>, is present and the caller's
-     *         class loader is not the same as or an ancestor of the class
-     *         loader for that returned class and invocation of {@link
-     *         SecurityManager#checkPackageAccess s.checkPackageAccess()}
-     *         denies access to the package of that returned class
+     * If any returned class is not the current class, and
+     * if a security manager, <i>s</i>, is present and the caller's
+     * class loader is not the same as or an ancestor of the class
+     * loader for that returned class and invocation of {@link
+     * SecurityManager#checkPackageAccess s.checkPackageAccess()}
+     * denies access to the package of that returned class
      *
      * @since 11
      * @see #getNestHost()
+     * @jvms 4.7.28 The {@code NestHost} Attribute
+     * @jvms 4.7.29 The {@code NestMembers} Attribute
      */
     @CallerSensitive
     public Class<?>[] getNestMembers() {
@@ -4315,13 +4454,57 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * Returns the type descriptor string for this class.
-     * <p>
-     * Note that this is not a strict inverse of {@link #forName};
+     * Returns the descriptor string of the entity (class, interface, array class,
+     * primitive type, or {@code void}) represented by this {@code Class} object.
+     *
+     * <p> If this {@code Class} object represents a class or interface,
+     * not an array class, then:
+     * <ul>
+     * <li> If the class or interface is not {@linkplain Class#isHidden() hidden},
+     *      then the result is a field descriptor (JVMS {@jvms 4.3.2})
+     *      for the class or interface. Calling
+     *      {@link ClassDesc#ofDescriptor(String) ClassDesc::ofDescriptor}
+     *      with the result descriptor string produces a {@link ClassDesc ClassDesc}
+     *      describing this class or interface.
+     * <li> If the class or interface is {@linkplain Class#isHidden() hidden},
+     *      then the result is a string of the form:
+     *      <blockquote>
+     *      {@code "L" +} <em>N</em> {@code + "." + <suffix> + ";"}
+     *      </blockquote>
+     *      where <em>N</em> is the <a href="ClassLoader.html#binary-name">binary name</a>
+     *      encoded in internal form indicated by the {@code class} file passed to
+     *      {@link MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)
+     *      Lookup::defineHiddenClass}, and {@code <suffix>} is an unqualified name.
+     *      A hidden class or interface has no {@linkplain ClassDesc nominal descriptor}.
+     *      The result string is not a type descriptor.
+     * </ul>
+     *
+     * <p> If this {@code Class} object represents an array class, then
+     * the result is a string consisting of one or more '{@code [}' characters
+     * representing the depth of the array nesting, followed by the
+     * descriptor string of the element type.
+     * <ul>
+     * <li> If the element type is not a {@linkplain Class#isHidden() hidden} class
+     * or interface, then this array class can be described nominally.
+     * Calling {@link ClassDesc#ofDescriptor(String) ClassDesc::ofDescriptor}
+     * with the result descriptor string produces a {@link ClassDesc ClassDesc}
+     * describing this array class.
+     * <li> If the element type is a {@linkplain Class#isHidden() hidden} class or
+     * interface, then this array class cannot be described nominally.
+     * The result string is not a type descriptor.
+     * </ul>
+     *
+     * <p> If this {@code Class} object represents a primitive type or
+     * {@code void}, then the result is a field descriptor string which
+     * is a one-letter code corresponding to a primitive type or {@code void}
+     * ({@code "B", "C", "D", "F", "I", "J", "S", "Z", "V"}) (JVMS {@jvms 4.3.2}).
+     *
+     * @apiNote
+     * This is not a strict inverse of {@link #forName};
      * distinct classes which share a common name but have different class loaders
      * will have identical descriptor strings.
      *
-     * @return the type descriptor representation
+     * @return the descriptor string for this {@code Class} object
      * @jvms 4.3.2 Field Descriptors
      * @since 12
      */
@@ -4329,11 +4512,18 @@ public final class Class<T> implements java.io.Serializable,
     public String descriptorString() {
         if (isPrimitive())
             return Wrapper.forPrimitiveType(this).basicTypeString();
-        else if (isArray()) {
+
+        if (isArray()) {
             return "[" + componentType.descriptorString();
         }
-        else {
-            return "L" + getName().replace('.', '/') + ";";
+        String typeDesc = isInlineClass() ? "Q" : "L";
+        if (isHidden()) {
+            String name = getName();
+            int index = name.indexOf('/');
+            return typeDesc + name.substring(0, index).replace('.', '/')
+                       + "." + name.substring(index+1) + ";";
+        } else {
+            return typeDesc + getName().replace('.', '/') + ";";
         }
     }
 
@@ -4375,6 +4565,87 @@ public final class Class<T> implements java.io.Serializable,
      */
     @Override
     public Optional<ClassDesc> describeConstable() {
-        return Optional.of(ClassDesc.ofDescriptor(descriptorString()));
+        Class<?> c = isArray() ? elementType() : this;
+        return c.isHidden() ? Optional.empty()
+                            : Optional.of(ClassDesc.ofDescriptor(descriptorString()));
+   }
+
+    /**
+     * Returns {@code true} if and only if the underlying class is a hidden class.
+     *
+     * @return {@code true} if and only if this class is a hidden class.
+     *
+     * @since 15
+     * @see MethodHandles.Lookup#defineHiddenClass
+     */
+    @HotSpotIntrinsicCandidate
+    public native boolean isHidden();
+
+    /**
+     * {@preview Associated with sealed classes, a preview feature of the Java language.
+     *
+     *           This method is associated with <i>sealed classes</i>, a preview
+     *           feature of the Java language. Preview features
+     *           may be removed in a future release, or upgraded to permanent
+     *           features of the Java language.}
+     *
+     * Returns an array containing {@code ClassDesc} objects representing all the
+     * direct subclasses or direct implementation classes permitted to extend or
+     * implement this class or interface if it is sealed. The order of such elements
+     * is unspecified. If this {@code Class} object represents a primitive type,
+     * {@code void}, an array type, or a class or interface that is not sealed,
+     * an empty array is returned.
+     *
+     * @return an array of class descriptors of all the permitted subclasses of this class or interface
+     *
+     * @jls 8.1 Class Declarations
+     * @jls 9.1 Interface Declarations
+     * @since 15
+     */
+    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SEALED_CLASSES, essentialAPI=false)
+    public ClassDesc[] permittedSubclasses() {
+        String[] subclassNames;
+        if (isArray() || isPrimitive() || (subclassNames = getPermittedSubclasses0()).length == 0) {
+            return EMPTY_CLASS_DESC_ARRAY;
+        }
+        ClassDesc[] constants = new ClassDesc[subclassNames.length];
+        int i = 0;
+        for (String subclassName : subclassNames) {
+            try {
+                constants[i++] = ClassDesc.of(subclassName.replace('/', '.'));
+            } catch (IllegalArgumentException iae) {
+                throw new InternalError("Invalid type in permitted subclasses information: " + subclassName, iae);
+            }
+        }
+        return constants;
     }
+
+    /**
+     * * {@preview Associated with sealed classes, a preview feature of the Java language.
+     *
+     *           This method is associated with <i>sealed classes</i>, a preview
+     *           feature of the Java language. Preview features
+     *           may be removed in a future release, or upgraded to permanent
+     *           features of the Java language.}
+     *
+     * Returns {@code true} if and only if this {@code Class} object represents a sealed class or interface.
+     * If this {@code Class} object represents a primitive type, {@code void}, or an array type, this method returns
+     * {@code false}.
+     *
+     * @return {@code true} if and only if this {@code Class} object represents a sealed class or interface.
+     *
+     * @jls 8.1 Class Declarations
+     * @jls 9.1 Interface Declarations
+     * @since 15
+     */
+    @jdk.internal.PreviewFeature(feature=jdk.internal.PreviewFeature.Feature.SEALED_CLASSES, essentialAPI=false)
+    @SuppressWarnings("preview")
+    public boolean isSealed() {
+        if (isArray() || isPrimitive()) {
+            return false;
+        }
+        return permittedSubclasses().length != 0;
+    }
+
+    private native String[] getPermittedSubclasses0();
 }

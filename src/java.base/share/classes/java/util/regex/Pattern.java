@@ -395,8 +395,8 @@ import jdk.internal.util.ArraysSupport;
  *
  * <p> Backslashes within string literals in Java source code are interpreted
  * as required by
- * <cite>The Java&trade; Language Specification</cite>
- * as either Unicode escapes (section 3.3) or other character escapes (section 3.10.6)
+ * <cite>The Java Language Specification</cite>
+ * as either Unicode escapes (section {@jls 3.3}) or other character escapes (section {@jls 3.10.6})
  * It is therefore necessary to double backslashes in string
  * literals that represent regular expressions to protect them from
  * interpretation by the Java bytecode compiler.  The string literal
@@ -543,8 +543,8 @@ import jdk.internal.util.ArraysSupport;
  * Canonical Equivalents and RL2.2 Extended Grapheme Clusters.
  * <p>
  * <b>Unicode escape sequences</b> such as <code>&#92;u2014</code> in Java source code
- * are processed as described in section 3.3 of
- * <cite>The Java&trade; Language Specification</cite>.
+ * are processed as described in section {@jls 3.3} of
+ * <cite>The Java Language Specification</cite>.
  * Such escape sequences are also implemented directly by the regular-expression
  * parser so that Unicode escapes can be used in expressions that are read from
  * files or from the keyboard.  Thus the strings <code>"&#92;u2014"</code> and
@@ -760,7 +760,7 @@ import jdk.internal.util.ArraysSupport;
  *
  * <p> For a more precise description of the behavior of regular expression
  * constructs, please see <a href="http://www.oreilly.com/catalog/regex3/">
- * <i>Mastering Regular Expressions, 3nd Edition</i>, Jeffrey E. F. Friedl,
+ * <i>Mastering Regular Expressions, 3rd Edition</i>, Jeffrey E. F. Friedl,
  * O'Reilly and Associates, 2006.</a>
  * </p>
  *
@@ -1049,9 +1049,10 @@ public final class Pattern
     private transient int patternLength;
 
     /**
-     * If the Start node might possibly match supplementary characters.
+     * If the Start node might possibly match supplementary or surrogate
+     * code points.
      * It is set to true during compiling if
-     * (1) There is supplementary char in pattern, or
+     * (1) There is supplementary or surrogate code point in pattern, or
      * (2) There is complement node of a "family" CharProperty
      */
     private transient boolean hasSupplementary;
@@ -1681,7 +1682,7 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
         try {
             newTempLen = Math.addExact(j + 2, Math.multiplyExact(3, pLen - i));
         } catch (ArithmeticException ae) {
-            throw new OutOfMemoryError();
+            throw new OutOfMemoryError("Required pattern length too large");
         }
         int[] newtemp = new int[newTempLen];
         System.arraycopy(temp, 0, newtemp, 0, j);
@@ -2948,8 +2949,10 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
             return null;
         if (p instanceof BmpCharPredicate)
             return new BmpCharProperty((BmpCharPredicate)p);
-        else
+        else {
+            hasSupplementary = true;
             return new CharProperty(p);
+        }
     }
 
     /**
@@ -4035,17 +4038,8 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
             if (i < matcher.to) {
                 int ch0 = Character.codePointAt(seq, i);
                 int n = Character.charCount(ch0);
-                int j = i + n;
-                // Fast check if it's necessary to call Normalizer;
-                // testing Grapheme.isBoundary is enough for this case
-                while (j < matcher.to) {
-                    int ch1 = Character.codePointAt(seq, j);
-                    if (Grapheme.isBoundary(ch0, ch1))
-                        break;
-                    ch0 = ch1;
-                    j += Character.charCount(ch1);
-                }
-                if (i + n == j) {    // single, assume nfc cp
+                int j = Grapheme.nextBoundary(seq, i, matcher.to);
+                if (i + n == j) { // single cp grapheme, assume nfc
                     if (predicate.is(ch0))
                         return next.match(matcher, j, seq);
                 } else {
@@ -4109,13 +4103,12 @@ loop:   for(int x=0, offset=0; x<nCodePoints; x++, offset+=len) {
                 endIndex = matcher.getTextLength();
             }
             if (i == startIndex) {
-                return next.match(matcher, i, seq);
-            }
-            if (i < endIndex) {
-                if (Character.isSurrogatePair(seq.charAt(i-1), seq.charAt(i)) ||
-                    Grapheme.nextBoundary(seq,
-                        i - Character.charCount(Character.codePointBefore(seq, i)),
-                        i + Character.charCount(Character.codePointAt(seq, i))) > i) {
+                // continue with return below
+            } else if (i < endIndex) {
+                if (Character.isSurrogatePair(seq.charAt(i - 1), seq.charAt(i))) {
+                    return false;
+                }
+                if (Grapheme.nextBoundary(seq, matcher.last, endIndex) > i) {
                     return false;
                 }
             } else {
@@ -5795,18 +5788,18 @@ NEXT:       while (i <= last) {
     }
 
     /**
-     * Charactrs within a explicit value range
+     * Characters within a explicit value range
      */
     static CharPredicate Range(int lower, int upper) {
         if (upper < Character.MIN_HIGH_SURROGATE ||
-            lower > Character.MAX_HIGH_SURROGATE &&
+            lower > Character.MAX_LOW_SURROGATE &&
             upper < Character.MIN_SUPPLEMENTARY_CODE_POINT)
             return (BmpCharPredicate)(ch -> inRange(lower, ch, upper));
         return ch -> inRange(lower, ch, upper);
     }
 
    /**
-    * Charactrs within a explicit value range in a case insensitive manner.
+    * Characters within a explicit value range in a case insensitive manner.
     */
     static CharPredicate CIRange(int lower, int upper) {
         return ch -> inRange(lower, ch, upper) ||

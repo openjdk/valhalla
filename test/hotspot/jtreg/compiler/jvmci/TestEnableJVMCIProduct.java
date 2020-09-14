@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,11 @@
 
 /*
  * @test
- * @bug 8235539
+ * @bug 8235539 8245717
  * @summary Tests effect of -XX:+EnableJVMCIProduct on EnableJVMCI and UseJVMCICompiler
  * @requires vm.jvmci
  * @library /test/lib
+ * @run driver TestEnableJVMCIProduct
  */
 
 import jdk.test.lib.process.ProcessTools;
@@ -64,6 +65,10 @@ public class TestEnableJVMCIProduct {
         test("-XX:-EnableJVMCI",
             new Expectation("EnableJVMCI", "false", "command line"),
             new Expectation("UseJVMCICompiler", "false", "default"));
+        test("-XX:+EnableJVMCIProduct",
+            new Expectation("EnableJVMCIProduct", "true", "command line"),
+            new Expectation("EnableJVMCI", "true", "default"),
+            new Expectation("UseJVMCICompiler", "true", "default"));
     }
 
     static void test(String explicitFlag, Expectation... expectations) throws Exception {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -252,6 +252,18 @@ Node *SubINode::Ideal(PhaseGVN *phase, bool can_reshape){
     return new SubINode( add1, in2->in(1) );
   }
 
+  // Convert "0-(A>>31)" into "(A>>>31)"
+  if ( op2 == Op_RShiftI ) {
+    Node *in21 = in2->in(1);
+    Node *in22 = in2->in(2);
+    const TypeInt *zero = phase->type(in1)->isa_int();
+    const TypeInt *t21 = phase->type(in21)->isa_int();
+    const TypeInt *t22 = phase->type(in22)->isa_int();
+    if ( t21 && t22 && zero == TypeInt::ZERO && t22->is_con(31) ) {
+      return new URShiftINode(in21, in22);
+    }
+  }
+
   return NULL;
 }
 
@@ -359,6 +371,18 @@ Node *SubLNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   if( op2 == Op_SubL && in2->outcnt() == 1) {
     Node *add1 = phase->transform( new AddLNode( in1, in2->in(2) ) );
     return new SubLNode( add1, in2->in(1) );
+  }
+
+  // Convert "0L-(A>>63)" into "(A>>>63)"
+  if ( op2 == Op_RShiftL ) {
+    Node *in21 = in2->in(1);
+    Node *in22 = in2->in(2);
+    const TypeLong *zero = phase->type(in1)->isa_long();
+    const TypeLong *t21 = phase->type(in21)->isa_long();
+    const TypeInt *t22 = phase->type(in22)->isa_int();
+    if ( t21 && t22 && zero == TypeLong::ZERO && t22->is_con(63) ) {
+      return new URShiftLNode(in21, in22);
+    }
   }
 
   return NULL;
@@ -731,6 +755,13 @@ Node* CmpLNode::Ideal(PhaseGVN* phase, bool can_reshape) {
     // Degraded to a simple null check, use old acmp
     return new CmpPNode(a, b);
   }
+  const TypeLong *t2 = phase->type(in(2))->isa_long();
+  if (Opcode() == Op_CmpL && in(1)->Opcode() == Op_ConvI2L && t2 && t2->is_con()) {
+    const jlong con = t2->get_con();
+    if (con >= min_jint && con <= max_jint) {
+      return new CmpINode(in(1)->in(1), phase->intcon((jint)con));
+    }
+  }
   return NULL;
 }
 
@@ -917,10 +948,13 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
       } else {                  // Neither subtypes the other
         unrelated_classes = true;
       }
-      if ((r0->flat_array() && (!r1->can_be_value_type() || (klass1->is_valuetype() && !klass1->flatten_array()))) ||
-          (r1->flat_array() && (!r0->can_be_value_type() || (klass0->is_valuetype() && !klass0->flatten_array())))) {
-        // One type is flattened in arrays and the other type is not. Must be unrelated.
-        unrelated_classes = true;
+      if (!unrelated_classes) {
+        // Handle inline type arrays
+        if ((r0->flatten_array() && (!r1->can_be_inline_type() || (klass1->is_inlinetype() && !klass1->flatten_array()))) ||
+            (r1->flatten_array() && (!r0->can_be_inline_type() || (klass0->is_inlinetype() && !klass0->flatten_array())))) {
+          // One type is flattened in arrays but the other type is not. Must be unrelated.
+          unrelated_classes = true;
+        }
       }
       if (unrelated_classes) {
         // The oops classes are known to be unrelated. If the joined PTRs of
@@ -1084,16 +1118,6 @@ Node* CmpPNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // Verify that we understand the situation
   if (con2 != (intptr_t) superklass->super_check_offset())
     return NULL;                // Might be element-klass loading from array klass
-
-  // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
-  // [V is a subtype of [V? but the klass for [V is not equal to the klass for [V?. Perform a full test.
-  if (superklass->is_obj_array_klass()) {
-    ciObjArrayKlass* ak = superklass->as_obj_array_klass();
-    if (!ak->storage_properties().is_null_free() && ak->element_klass()->is_valuetype()) {
-      // Do not bypass the klass load from the primary supertype array
-      return NULL;
-    }
-  }
 
   // If 'superklass' has no subklasses and is not an interface, then we are
   // assured that the only input which will pass the type check is
@@ -1430,6 +1454,34 @@ Node *BoolNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     cmp->swap_edges(1, 2);
     cmp = phase->transform( cmp );
     return new BoolNode( cmp, _test.commute() );
+  }
+
+  // Change "bool eq/ne (cmp (and X 16) 16)" into "bool ne/eq (cmp (and X 16) 0)".
+  if (cop == Op_CmpI &&
+      (_test._test == BoolTest::eq || _test._test == BoolTest::ne) &&
+      cmp1->Opcode() == Op_AndI && cmp2->Opcode() == Op_ConI &&
+      cmp1->in(2)->Opcode() == Op_ConI) {
+    const TypeInt *t12 = phase->type(cmp2)->isa_int();
+    const TypeInt *t112 = phase->type(cmp1->in(2))->isa_int();
+    if (t12 && t12->is_con() && t112 && t112->is_con() &&
+        t12->get_con() == t112->get_con() && is_power_of_2(t12->get_con())) {
+      Node *ncmp = phase->transform(new CmpINode(cmp1, phase->intcon(0)));
+      return new BoolNode(ncmp, _test.negate());
+    }
+  }
+
+  // Same for long type: change "bool eq/ne (cmp (and X 16) 16)" into "bool ne/eq (cmp (and X 16) 0)".
+  if (cop == Op_CmpL &&
+      (_test._test == BoolTest::eq || _test._test == BoolTest::ne) &&
+      cmp1->Opcode() == Op_AndL && cmp2->Opcode() == Op_ConL &&
+      cmp1->in(2)->Opcode() == Op_ConL) {
+    const TypeLong *t12 = phase->type(cmp2)->isa_long();
+    const TypeLong *t112 = phase->type(cmp1->in(2))->isa_long();
+    if (t12 && t12->is_con() && t112 && t112->is_con() &&
+        t12->get_con() == t112->get_con() && is_power_of_2(t12->get_con())) {
+      Node *ncmp = phase->transform(new CmpLNode(cmp1, phase->longcon(0)));
+      return new BoolNode(ncmp, _test.negate());
+    }
   }
 
   // Change "bool eq/ne (cmp (xor X 1) 0)" into "bool ne/eq (cmp X 0)".

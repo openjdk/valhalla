@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -124,7 +124,7 @@
     object_field(HotSpotCompiledNmethod, installationFailureMessage, "Ljava/lang/String;")                    \
     int_field(HotSpotCompiledNmethod, entryBCI)                                                               \
     int_field(HotSpotCompiledNmethod, id)                                                                     \
-    long_field(HotSpotCompiledNmethod, compileState)                                                           \
+    long_field(HotSpotCompiledNmethod, compileState)                                                          \
     boolean_field(HotSpotCompiledNmethod, hasUnsafeAccess)                                                    \
   end_class                                                                                                   \
   start_class(HotSpotForeignCallTarget, jdk_vm_ci_hotspot_HotSpotForeignCallTarget)                           \
@@ -175,6 +175,7 @@
   end_class                                                                                                   \
   start_class(site_Call, jdk_vm_ci_code_site_Call)                                                            \
     object_field(site_Call, target, "Ljdk/vm/ci/meta/InvokeTarget;")                                          \
+    boolean_field(site_Call, direct)                                                                          \
   end_class                                                                                                   \
   start_class(site_DataPatch, jdk_vm_ci_code_site_DataPatch)                                                  \
     object_field(site_DataPatch, reference, "Ljdk/vm/ci/code/site/Reference;")                                \
@@ -544,7 +545,7 @@ class HotSpotJVMCI {
   static void check(JVMCIEnv* jvmciEnv, JVMCIObject obj, const char* field_name, jfieldID offset);  \
   static jclass _class;                                                                             \
 public:                                                                                             \
- static jclass clazz() { assert(_class != NULL, #fullClassName " uninitialized"); return _class; }                         \
+ static jclass clazz() { assert(_class != NULL, #fullClassName " uninitialized"); return _class; }  \
  static jclass fullClassName ##_class()  { assert(_class != NULL, "uninit"); return _class; }
 
 #undef METHOD
@@ -639,6 +640,7 @@ class JNIJVMCI {
 
   static void initialize_ids(JNIEnv* env);
   static void initialize_field_id(JNIEnv* env, jfieldID &dest_offset, jclass klass, const char* klass_name, const char* name, const char* signature, bool static_field);
+  static void register_natives(JNIEnv* env);
 
   static jobject resolve_handle(JVMCIObject obj) { return obj.as_jobject(); }
   static JVMCIObject wrap(jobject obj) { return JVMCIObject(obj, false); }

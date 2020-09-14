@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -48,7 +48,6 @@ class oopFactory: AllStatic {
   static objArrayOop     new_objectArray(int length, TRAPS);
 
   static typeArrayOop    new_charArray(const char* utf8_str,  TRAPS);
-  static typeArrayOop    new_tenured_charArray(int length, TRAPS);
 
   static typeArrayOop    new_typeArray(BasicType type, int length, TRAPS);
   static typeArrayOop    new_typeArray_nozero(BasicType type, int length, TRAPS);
@@ -60,19 +59,18 @@ class oopFactory: AllStatic {
   // Value arrays...
   // LWorld:
   //    - Q-type signature allocation should use this path.
-  //    - L-type signature allocation should use new_objArray (even with value type elements)
+  //    - L-type signature allocation should use new_objArray
   //
-  // Method specifically creates ArrayStorageProperties::null_free and possibly flattened if possible
-  // i.e. valueArrayOop if flattening can be done, else objArrayOop with "null free" storage properties
-  static arrayOop        new_valueArray(Klass* klass, int length, TRAPS);
+  // Method specifically null free and possibly flattened if possible
+  // i.e. flatArrayOop if flattening can be done, else "null free" objArrayOop
+  static arrayOop        new_flatArray(Klass* klass, int length, TRAPS);
 
   // Helper conversions from value to obj array...
-  static objArrayHandle  copy_valueArray_to_objArray(valueArrayHandle array, TRAPS);
+  static objArrayHandle  copy_flatArray_to_objArray(flatArrayHandle array, TRAPS);
   static objArrayHandle  ensure_objArray(oop array, TRAPS); // copy into new objArray if not already an objArray
 
-  // Helpers that return handles
+  // Helper that returns a Handle
   static objArrayHandle  new_objArray_handle(Klass* klass, int length, TRAPS);
-  static typeArrayHandle new_byteArray_handle(int length, TRAPS);
 };
 
 #endif // SHARE_MEMORY_OOPFACTORY_HPP

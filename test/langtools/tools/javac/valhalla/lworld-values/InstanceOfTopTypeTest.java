@@ -29,9 +29,11 @@
  */
 
 public class InstanceOfTopTypeTest {
-    static inline class V {
+    interface InlineObject {}
+    static inline class V implements InlineObject {
         int x = 42;
     }
+
     public static void main(String [] args) {
         int points = 0;
         Object o = new InstanceOfTopTypeTest();
@@ -58,7 +60,7 @@ public class InstanceOfTopTypeTest {
             throw new AssertionError("Broken");
         if (oa[0] instanceof InlineObject)
             points++;
-        if (points != 4) // Change to != 6 after JDK-8237958 is fixed
+        if (points != 6)
             throw new AssertionError("Broken top type set up" + points);
     }
 }

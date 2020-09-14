@@ -328,7 +328,7 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter, Membe
         List<? extends Element> members = mems;
         boolean printedUseTableHeader = false;
         if (members.size() > 0) {
-            Table useTable = new Table(HtmlStyle.useSummary)
+            Table useTable = new Table(HtmlStyle.useSummary, HtmlStyle.summaryTable)
                     .setCaption(heading)
                     .setRowScopeColumn(1)
                     .setColumnStyles(HtmlStyle.colFirst, HtmlStyle.colSecond, HtmlStyle.colLast);
@@ -686,12 +686,11 @@ public abstract class AbstractMemberWriter implements MemberSummaryWriter, Membe
             // Record current position for indentation of exceptions
             int indentSize = htmltree.charCount() - lastLineSeparator;
 
-            if (parameters.isEmpty()) {
-                htmltree.add("()");
+            if (parameters.charCount() == 2) {
+                // empty parameters are added without packing
+                htmltree.add(parameters);
             } else {
-                parameters.add(")");
                 htmltree.add(Entity.ZERO_WIDTH_SPACE);
-                htmltree.add("(");
                 htmltree.add(HtmlTree.SPAN(HtmlStyle.parameters, parameters));
             }
 

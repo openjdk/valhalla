@@ -25,8 +25,7 @@
 /**
  * @test TestHeapDump
  * @summary Tests JVMTI heap dumps
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
  * @compile TestHeapDump.java
  * @run main/othervm/native/timeout=300 -agentlib:TestHeapDump -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseShenandoahGC -Xmx128m -XX:ShenandoahGCHeuristics=aggressive                        TestHeapDump
  *
@@ -35,8 +34,8 @@
 /**
  * @test TestHeapDump
  * @summary Tests JVMTI heap dumps
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled & (vm.bits == "64")
+ * @requires vm.gc.Shenandoah
+ * @requires vm.bits == "64"
  * @compile TestHeapDump.java
  * @run main/othervm/native/timeout=300 -agentlib:TestHeapDump -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseShenandoahGC -Xmx128m -XX:ShenandoahGCHeuristics=aggressive -XX:-UseCompressedOops TestHeapDump
  */
@@ -44,8 +43,7 @@
 /**
  * @test TestHeapDump
  * @summary Tests JVMTI heap dumps
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
  * @compile TestHeapDump.java
  * @run main/othervm/native/timeout=300 -agentlib:TestHeapDump -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -XX:+UseShenandoahGC -Xmx128m -XX:ShenandoahGCHeuristics=aggressive                         -XX:+UseStringDeduplication TestHeapDump
  */

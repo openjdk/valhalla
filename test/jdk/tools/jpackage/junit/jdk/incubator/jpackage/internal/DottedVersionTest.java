@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,8 @@ import java.util.stream.Stream;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -61,7 +62,8 @@ public class DottedVersionTest {
             "2.234.045",
             "2.234.0",
             "0",
-            "0.1"
+            "0.1",
+            "9".repeat(1000)
         );
 
         final List<String> validLazyStrings;
@@ -82,7 +84,7 @@ public class DottedVersionTest {
                 "+1",
                 "-1",
                 "-0",
-                "1234567890123456789012345678901234567890"
+                "+0"
             );
         }
 

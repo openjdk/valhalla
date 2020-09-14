@@ -35,32 +35,34 @@
 #include "runtime/java.hpp"
 #include "utilities/align.hpp"
 
-PSYoungGen::PSYoungGen(size_t initial_size, size_t min_size, size_t max_size) :
+PSYoungGen::PSYoungGen(ReservedSpace rs, size_t initial_size, size_t min_size, size_t max_size) :
   _reserved(),
   _virtual_space(NULL),
   _eden_space(NULL),
   _from_space(NULL),
   _to_space(NULL),
-  _init_gen_size(initial_size),
   _min_gen_size(min_size),
   _max_gen_size(max_size),
   _gen_counters(NULL),
   _eden_counters(NULL),
   _from_counters(NULL),
   _to_counters(NULL)
-{}
+{
+  initialize(rs, initial_size, GenAlignment);
+}
 
-void PSYoungGen::initialize_virtual_space(ReservedSpace rs, size_t alignment) {
-  assert(_init_gen_size != 0, "Should have a finite size");
+void PSYoungGen::initialize_virtual_space(ReservedSpace rs,
+                                          size_t initial_size,
+                                          size_t alignment) {
+  assert(initial_size != 0, "Should have a finite size");
   _virtual_space = new PSVirtualSpace(rs, alignment);
-  if (!virtual_space()->expand_by(_init_gen_size)) {
-    vm_exit_during_initialization("Could not reserve enough space for "
-                                  "object heap");
+  if (!virtual_space()->expand_by(initial_size)) {
+    vm_exit_during_initialization("Could not reserve enough space for object heap");
   }
 }
 
-void PSYoungGen::initialize(ReservedSpace rs, size_t alignment) {
-  initialize_virtual_space(rs, alignment);
+void PSYoungGen::initialize(ReservedSpace rs, size_t initial_size, size_t alignment) {
+  initialize_virtual_space(rs, initial_size, alignment);
   initialize_work();
 }
 
@@ -68,6 +70,7 @@ void PSYoungGen::initialize_work() {
 
   _reserved = MemRegion((HeapWord*)virtual_space()->low_boundary(),
                         (HeapWord*)virtual_space()->high_boundary());
+  assert(_reserved.byte_size() == max_gen_size(), "invariant");
 
   MemRegion cmr((HeapWord*)virtual_space()->low(),
                 (HeapWord*)virtual_space()->high());
@@ -89,8 +92,8 @@ void PSYoungGen::initialize_work() {
   _to_space   = new MutableSpace(virtual_space()->alignment());
 
   // Generation Counters - generation 0, 3 subspaces
-  _gen_counters = new PSGenerationCounters("new", 0, 3, _min_gen_size,
-                                           _max_gen_size, _virtual_space);
+  _gen_counters = new PSGenerationCounters("new", 0, 3, min_gen_size(),
+                                           max_gen_size(), virtual_space());
 
   // Compute maximum space sizes for performance counters
   size_t alignment = SpaceAlignment;
@@ -256,7 +259,7 @@ void PSYoungGen::resize(size_t eden_size, size_t survivor_size) {
                         " used: " SIZE_FORMAT " capacity: " SIZE_FORMAT
                         " gen limits: " SIZE_FORMAT " / " SIZE_FORMAT,
                         eden_size, survivor_size, used_in_bytes(), capacity_in_bytes(),
-                        _max_gen_size, min_gen_size());
+                        max_gen_size(), min_gen_size());
   }
 }
 
@@ -267,18 +270,18 @@ bool PSYoungGen::resize_generation(size_t eden_size, size_t survivor_size) {
   bool size_changed = false;
 
   // There used to be this guarantee there.
-  // guarantee ((eden_size + 2*survivor_size)  <= _max_gen_size, "incorrect input arguments");
+  // guarantee ((eden_size + 2*survivor_size)  <= max_gen_size(), "incorrect input arguments");
   // Code below forces this requirement.  In addition the desired eden
   // size and desired survivor sizes are desired goals and may
   // exceed the total generation size.
 
-  assert(min_gen_size() <= orig_size && orig_size <= max_size(), "just checking");
+  assert(min_gen_size() <= orig_size && orig_size <= max_gen_size(), "just checking");
 
   // Adjust new generation size
   const size_t eden_plus_survivors =
           align_up(eden_size + 2 * survivor_size, alignment);
-  size_t desired_size = clamp(eden_plus_survivors, min_gen_size(), max_size());
-  assert(desired_size <= max_size(), "just checking");
+  size_t desired_size = clamp(eden_plus_survivors, min_gen_size(), max_gen_size());
+  assert(desired_size <= max_gen_size(), "just checking");
 
   if (desired_size > orig_size) {
     // Grow the generation
@@ -310,7 +313,7 @@ bool PSYoungGen::resize_generation(size_t eden_size, size_t survivor_size) {
       size_changed = true;
     }
   } else {
-    if (orig_size == gen_size_limit()) {
+    if (orig_size == max_gen_size()) {
       log_trace(gc)("PSYoung generation size at maximum: " SIZE_FORMAT "K", orig_size/K);
     } else if (orig_size == min_gen_size()) {
       log_trace(gc)("PSYoung generation size at minium: " SIZE_FORMAT "K", orig_size/K);
@@ -324,7 +327,7 @@ bool PSYoungGen::resize_generation(size_t eden_size, size_t survivor_size) {
   }
 
   guarantee(eden_plus_survivors <= virtual_space()->committed_size() ||
-            virtual_space()->committed_size() == max_size(), "Sanity");
+            virtual_space()->committed_size() == max_gen_size(), "Sanity");
 
   return true;
 }
@@ -711,16 +714,6 @@ void PSYoungGen::print_on(outputStream* st) const {
   st->print("  to  "); to_space()->print_on(st);
 }
 
-size_t PSYoungGen::available_for_expansion() {
-  ShouldNotReachHere();
-  return 0;
-}
-
-size_t PSYoungGen::available_for_contraction() {
-  ShouldNotReachHere();
-  return 0;
-}
-
 size_t PSYoungGen::available_to_min_gen() {
   assert(virtual_space()->committed_size() >= min_gen_size(), "Invariant");
   return virtual_space()->committed_size() - min_gen_size();
@@ -771,10 +764,6 @@ size_t PSYoungGen::limit_gen_shrink(size_t bytes) {
   // to maintain the minimum young gen size
   bytes = MIN3(bytes, available_to_min_gen(), available_to_live());
   return align_down(bytes, virtual_space()->alignment());
-}
-
-void PSYoungGen::reset_after_change() {
-  ShouldNotReachHere();
 }
 
 void PSYoungGen::reset_survivors_after_shrink() {

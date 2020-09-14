@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -75,6 +75,10 @@ import com.sun.source.tree.*;
  * @since 1.6
  */
 public class TreeScanner<R,P> implements TreeVisitor<R,P> {
+    /**
+     * Constructs a {@code TreeScanner}.
+     */
+    public TreeScanner() {}
 
     /**
      * Scans a single node.
@@ -178,12 +182,14 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
      * @param p  {@inheritDoc}
      * @return the result of scanning
      */
+    @SuppressWarnings("preview")
     @Override
     public R visitClass(ClassTree node, P p) {
         R r = scan(node.getModifiers(), p);
         r = scanAndReduce(node.getTypeParameters(), p, r);
         r = scanAndReduce(node.getExtendsClause(), p, r);
         r = scanAndReduce(node.getImplementsClause(), p, r);
+        r = scanAndReduce(node.getPermitsClause(), p, r);
         r = scanAndReduce(node.getMembers(), p, r);
         return r;
     }
@@ -958,7 +964,7 @@ public class TreeScanner<R,P> implements TreeVisitor<R,P> {
     }
 
     /**
-     * {@inheritDoc} This implementation returns {@code null}.
+     * {@inheritDoc} This implementation scans the children in left to right order.
      *
      * @param node  {@inheritDoc}
      * @param p  {@inheritDoc}

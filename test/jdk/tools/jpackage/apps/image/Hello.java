@@ -50,6 +50,11 @@ public class Hello implements OpenFilesHandler {
 
         var lines = printArgs(args);
 
+        Stream.of(args).forEach(arg -> System.out.println(
+                arg.codePoints()
+                        .mapToObj(codePoint -> String.format("0x%04x", codePoint))
+                        .collect(Collectors.joining(",", "[", "]"))));
+
         lines.forEach(System.out::println);
 
         var outputFile = getOutputFile(args);
@@ -63,7 +68,13 @@ public class Hello implements OpenFilesHandler {
 
         lines.add("args.length: " + args.length);
 
-        lines.addAll(List.of(args));
+        for (String arg : args) {
+            if (arg.startsWith("jpackage.app")) {
+                lines.add(arg + "=" + System.getProperty(arg));
+            } else {
+                lines.add(arg);
+            }
+        }
 
         for (int index = 1; index <= EXPECTED_NUM_OF_PARAMS; index++) {
             String value = System.getProperty("param" + index);

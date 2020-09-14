@@ -38,7 +38,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
-@ExpectedSignature(descriptor = "FieldTest", signature = "<T:Ljava/lang/Object;>Ljava/lang/Object;Ljava/lang/IdentityObject;")
+@ExpectedSignature(descriptor = "FieldTest", signature = "<T:Ljava/lang/Object;>Ljava/lang/Object;")
 public class FieldTest<T> {
 
     @ExpectedSignature(descriptor = "typeInList", signature = "Ljava/util/List<TT;>;")

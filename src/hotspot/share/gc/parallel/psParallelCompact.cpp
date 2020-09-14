@@ -49,6 +49,9 @@
 #include "gc/shared/gcTrace.hpp"
 #include "gc/shared/gcTraceTime.inline.hpp"
 #include "gc/shared/isGCActiveMark.hpp"
+#include "gc/shared/oopStorage.inline.hpp"
+#include "gc/shared/oopStorageSet.inline.hpp"
+#include "gc/shared/oopStorageSetParState.inline.hpp"
 #include "gc/shared/referencePolicy.hpp"
 #include "gc/shared/referenceProcessor.hpp"
 #include "gc/shared/referenceProcessorPhaseTimes.hpp"
@@ -62,18 +65,18 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/access.inline.hpp"
+#include "oops/flatArrayKlass.inline.hpp"
 #include "oops/instanceClassLoaderKlass.inline.hpp"
 #include "oops/instanceKlass.inline.hpp"
 #include "oops/instanceMirrorKlass.inline.hpp"
 #include "oops/methodData.hpp"
 #include "oops/objArrayKlass.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueArrayKlass.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
+#include "runtime/java.hpp"
 #include "runtime/safepoint.hpp"
 #include "runtime/vmThread.hpp"
-#include "services/management.hpp"
 #include "services/memTracker.hpp"
 #include "services/memoryService.hpp"
 #include "utilities/align.hpp"
@@ -842,7 +845,6 @@ ParallelOldTracer   PSParallelCompact::_gc_tracer;
 elapsedTimer        PSParallelCompact::_accumulated_time;
 unsigned int        PSParallelCompact::_total_invocations = 0;
 unsigned int        PSParallelCompact::_maximum_compaction_gc_num = 0;
-jlong               PSParallelCompact::_time_of_last_gc = 0;
 CollectorCounters*  PSParallelCompact::_counters = NULL;
 ParMarkBitMap       PSParallelCompact::_mark_bitmap;
 ParallelCompactData PSParallelCompact::_summary_data;
@@ -1006,7 +1008,6 @@ void PSParallelCompact::pre_compact()
   heap->ensure_parsability(true);  // retire TLABs
 
   if (VerifyBeforeGC && heap->total_collections() >= VerifyGCStartAt) {
-    HandleMark hm;  // Discard invalid handles created during verification
     Universe::verify("Before GC");
   }
 
@@ -1040,10 +1041,6 @@ void PSParallelCompact::post_compact()
 
   ParallelScavengeHeap* heap = ParallelScavengeHeap::heap();
   bool eden_empty = eden_space->is_empty();
-  if (!eden_empty) {
-    eden_empty = absorb_live_data_from_eden(heap->size_policy(),
-                                            heap->young_gen(), heap->old_gen());
-  }
 
   // Update heap occupancy information which is used as input to the soft ref
   // clearing policy at the next gc.
@@ -1061,7 +1058,7 @@ void PSParallelCompact::post_compact()
   }
 
   // Delete metaspaces for unloaded class loaders and clean up loader_data graph
-  ClassLoaderDataGraph::purge();
+  ClassLoaderDataGraph::purge(/*at_safepoint*/true);
   MetaspaceUtils::verify_metrics();
 
   heap->prune_scavengable_nmethods();
@@ -1074,8 +1071,8 @@ void PSParallelCompact::post_compact()
     heap->gen_mangle_unused_area();
   }
 
-  // Update time of last GC
-  reset_millis_since_last_gc();
+  // Signal that we have completed a visit to all live objects.
+  Universe::heap()->record_whole_heap_examined_timestamp();
 }
 
 HeapWord*
@@ -1614,6 +1611,7 @@ void PSParallelCompact::summary_phase(ParCompactionManager* cm,
 {
   GCTraceTime(Info, gc, phases) tm("Summary Phase", &_gc_timer);
 
+#ifdef ASSERT
   log_develop_debug(gc, marking)(
       "add_obj_count=" SIZE_FORMAT " "
       "add_obj_bytes=" SIZE_FORMAT,
@@ -1624,6 +1622,7 @@ void PSParallelCompact::summary_phase(ParCompactionManager* cm,
       "mark_bitmap_bytes=" SIZE_FORMAT,
       mark_bitmap_count,
       mark_bitmap_size * HeapWordSize);
+#endif // ASSERT
 
   // Quick summarization of each space into itself, to see how much is live.
   summarize_spaces_quick();
@@ -1791,7 +1790,6 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
 
   {
     ResourceMark rm;
-    HandleMark hm;
 
     const uint active_workers =
       WorkerPolicy::calc_active_workers(ParallelScavengeHeap::heap()->workers().total_workers(),
@@ -1869,7 +1867,7 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
         }
 
         // Calculate optimal free space amounts
-        assert(young_gen->max_size() >
+        assert(young_gen->max_gen_size() >
           young_gen->from_space()->capacity_in_bytes() +
           young_gen->to_space()->capacity_in_bytes(),
           "Sizes of space in young gen are out-of-bounds");
@@ -1879,7 +1877,7 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
         size_t old_live = old_gen->used_in_bytes();
         size_t cur_eden = young_gen->eden_space()->capacity_in_bytes();
         size_t max_old_gen_size = old_gen->max_gen_size();
-        size_t max_eden_size = young_gen->max_size() -
+        size_t max_eden_size = young_gen->max_gen_size() -
           young_gen->from_space()->capacity_in_bytes() -
           young_gen->to_space()->capacity_in_bytes();
 
@@ -1948,7 +1946,6 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
 #endif // ASSERT
 
   if (VerifyAfterGC && heap->total_collections() >= VerifyGCStartAt) {
-    HandleMark hm;  // Discard invalid handles created during verification
     Universe::verify("After GC");
   }
 
@@ -1983,95 +1980,6 @@ bool PSParallelCompact::invoke_no_policy(bool maximum_heap_compaction) {
   return true;
 }
 
-bool PSParallelCompact::absorb_live_data_from_eden(PSAdaptiveSizePolicy* size_policy,
-                                             PSYoungGen* young_gen,
-                                             PSOldGen* old_gen) {
-  MutableSpace* const eden_space = young_gen->eden_space();
-  assert(!eden_space->is_empty(), "eden must be non-empty");
-  assert(young_gen->virtual_space()->alignment() ==
-         old_gen->virtual_space()->alignment(), "alignments do not match");
-
-  // We also return false when it's a heterogeneous heap because old generation cannot absorb data from eden
-  // when it is allocated on different memory (example, nv-dimm) than young.
-  if (!(UseAdaptiveSizePolicy && UseAdaptiveGCBoundary) ||
-      ParallelArguments::is_heterogeneous_heap()) {
-    return false;
-  }
-
-  // Both generations must be completely committed.
-  if (young_gen->virtual_space()->uncommitted_size() != 0) {
-    return false;
-  }
-  if (old_gen->virtual_space()->uncommitted_size() != 0) {
-    return false;
-  }
-
-  // Figure out how much to take from eden.  Include the average amount promoted
-  // in the total; otherwise the next young gen GC will simply bail out to a
-  // full GC.
-  const size_t alignment = old_gen->virtual_space()->alignment();
-  const size_t eden_used = eden_space->used_in_bytes();
-  const size_t promoted = (size_t)size_policy->avg_promoted()->padded_average();
-  const size_t absorb_size = align_up(eden_used + promoted, alignment);
-  const size_t eden_capacity = eden_space->capacity_in_bytes();
-
-  if (absorb_size >= eden_capacity) {
-    return false; // Must leave some space in eden.
-  }
-
-  const size_t new_young_size = young_gen->capacity_in_bytes() - absorb_size;
-  if (new_young_size < young_gen->min_gen_size()) {
-    return false; // Respect young gen minimum size.
-  }
-
-  log_trace(gc, ergo, heap)(" absorbing " SIZE_FORMAT "K:  "
-                            "eden " SIZE_FORMAT "K->" SIZE_FORMAT "K "
-                            "from " SIZE_FORMAT "K, to " SIZE_FORMAT "K "
-                            "young_gen " SIZE_FORMAT "K->" SIZE_FORMAT "K ",
-                            absorb_size / K,
-                            eden_capacity / K, (eden_capacity - absorb_size) / K,
-                            young_gen->from_space()->used_in_bytes() / K,
-                            young_gen->to_space()->used_in_bytes() / K,
-                            young_gen->capacity_in_bytes() / K, new_young_size / K);
-
-  // Fill the unused part of the old gen.
-  MutableSpace* const old_space = old_gen->object_space();
-  HeapWord* const unused_start = old_space->top();
-  size_t const unused_words = pointer_delta(old_space->end(), unused_start);
-
-  if (unused_words > 0) {
-    if (unused_words < CollectedHeap::min_fill_size()) {
-      return false;  // If the old gen cannot be filled, must give up.
-    }
-    CollectedHeap::fill_with_objects(unused_start, unused_words);
-  }
-
-  // Take the live data from eden and set both top and end in the old gen to
-  // eden top.  (Need to set end because reset_after_change() mangles the region
-  // from end to virtual_space->high() in debug builds).
-  HeapWord* const new_top = eden_space->top();
-  old_gen->virtual_space()->expand_into(young_gen->virtual_space(),
-                                        absorb_size);
-  young_gen->reset_after_change();
-  old_space->set_top(new_top);
-  old_space->set_end(new_top);
-  old_gen->reset_after_change();
-
-  // Update the object start array for the filler object and the data from eden.
-  ObjectStartArray* const start_array = old_gen->start_array();
-  for (HeapWord* p = unused_start; p < new_top; p += oop(p)->size()) {
-    start_array->allocate_block(p);
-  }
-
-  // Could update the promoted average here, but it is not typically updated at
-  // full GCs and the value to use is unclear.  Something like
-  //
-  // cur_promoted_avg + absorb_size / number_of_scavenges_since_last_full_gc.
-
-  size_policy->set_bytes_absorbed_from_eden(absorb_size);
-  return true;
-}
-
 class PCAddThreadRootsMarkingTaskClosure : public ThreadClosure {
 private:
   uint _worker_id;
@@ -2103,28 +2011,8 @@ static void mark_from_roots_work(ParallelRootType::Value root_type, uint worker_
   PCMarkAndPushClosure mark_and_push_closure(cm);
 
   switch (root_type) {
-    case ParallelRootType::universe:
-      Universe::oops_do(&mark_and_push_closure);
-      break;
-
-    case ParallelRootType::jni_handles:
-      JNIHandles::oops_do(&mark_and_push_closure);
-      break;
-
     case ParallelRootType::object_synchronizer:
       ObjectSynchronizer::oops_do(&mark_and_push_closure);
-      break;
-
-    case ParallelRootType::management:
-      Management::oops_do(&mark_and_push_closure);
-      break;
-
-    case ParallelRootType::jvmti:
-      JvmtiExport::oops_do(&mark_and_push_closure);
-      break;
-
-    case ParallelRootType::system_dictionary:
-      SystemDictionary::oops_do(&mark_and_push_closure);
       break;
 
     case ParallelRootType::class_loader_data:
@@ -2173,6 +2061,7 @@ static void steal_marking_work(TaskTerminator& terminator, uint worker_id) {
 class MarkFromRootsTask : public AbstractGangTask {
   typedef AbstractRefProcTaskExecutor::ProcessTask ProcessTask;
   StrongRootsScope _strong_roots_scope; // needed for Threads::possibly_parallel_threads_do
+  OopStorageSetStrongParState<false /* concurrent */, false /* is_const */> _oop_storage_set_par_state;
   SequentialSubTasksDone _subtasks;
   TaskTerminator _terminator;
   uint _active_workers;
@@ -2196,6 +2085,15 @@ public:
 
     PCAddThreadRootsMarkingTaskClosure closure(worker_id);
     Threads::possibly_parallel_threads_do(true /*parallel */, &closure);
+
+    // Mark from OopStorages
+    {
+      ParCompactionManager* cm = ParCompactionManager::gc_thread_compaction_manager(worker_id);
+      PCMarkAndPushClosure closure(cm);
+      _oop_storage_set_par_state.oops_do(&closure);
+      // Do the real work
+      cm->follow_marking_stacks();
+    }
 
     if (_active_workers > 1) {
       steal_marking_work(_terminator, worker_id);
@@ -2326,13 +2224,9 @@ void PSParallelCompact::adjust_roots(ParCompactionManager* cm) {
   PCAdjustPointerClosure oop_closure(cm);
 
   // General strong roots.
-  Universe::oops_do(&oop_closure);
-  JNIHandles::oops_do(&oop_closure);   // Global (strong) JNI handles
   Threads::oops_do(&oop_closure, NULL);
   ObjectSynchronizer::oops_do(&oop_closure);
-  Management::oops_do(&oop_closure);
-  JvmtiExport::oops_do(&oop_closure);
-  SystemDictionary::oops_do(&oop_closure);
+  OopStorageSet::strong_oops_do(&oop_closure);
   CLDToOopClosure cld_closure(&oop_closure, ClassLoaderData::_claim_strong);
   ClassLoaderDataGraph::cld_do(&cld_closure);
 
@@ -3299,25 +3193,6 @@ void PSParallelCompact::fill_blocks(size_t region_idx)
       return;
     }
   }
-}
-
-jlong PSParallelCompact::millis_since_last_gc() {
-  // We need a monotonically non-decreasing time in ms but
-  // os::javaTimeMillis() does not guarantee monotonicity.
-  jlong now = os::javaTimeNanos() / NANOSECS_PER_MILLISEC;
-  jlong ret_val = now - _time_of_last_gc;
-  // XXX See note in genCollectedHeap::millis_since_last_gc().
-  if (ret_val < 0) {
-    NOT_PRODUCT(log_warning(gc)("time warp: " JLONG_FORMAT, ret_val);)
-    return 0;
-  }
-  return ret_val;
-}
-
-void PSParallelCompact::reset_millis_since_last_gc() {
-  // We need a monotonically non-decreasing time in ms but
-  // os::javaTimeMillis() does not guarantee monotonicity.
-  _time_of_last_gc = os::javaTimeNanos() / NANOSECS_PER_MILLISEC;
 }
 
 ParMarkBitMap::IterationStatus MoveAndUpdateClosure::copy_until_full()

@@ -481,7 +481,7 @@ public:
 };
 
 //------------------------------MachVEPNode-----------------------------------
-// Machine Value Type Entry Point Node
+// Machine Inline Type Entry Point Node
 class MachVEPNode : public MachIdealNode {
 public:
   Label* _verified_entry;
@@ -502,7 +502,7 @@ public:
   virtual void emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const;
 
 #ifndef PRODUCT
-  virtual const char* Name() const { return "ValueType Entry-Point"; }
+  virtual const char* Name() const { return "InlineType Entry-Point"; }
   virtual void format(PhaseRegAlloc*, outputStream* st) const;
 #endif
 private:
@@ -1047,8 +1047,12 @@ public:
 // Machine-specific versions of halt nodes
 class MachHaltNode : public MachReturnNode {
 public:
+  bool _reachable;
   const char* _halt_reason;
   virtual JVMState* jvms() const;
+  bool is_reachable() const {
+    return _reachable;
+  }
 };
 
 class MachMemBarNode : public MachNode {

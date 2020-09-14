@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,11 @@ package jdk.jpackage.test;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 import jdk.jpackage.test.Functional.ThrowingBiConsumer;
@@ -213,7 +217,7 @@ public final class AdditionalLauncher {
 
         TKit.assertExecutableFileExists(launcherPath);
 
-        if (cmd.isFakeRuntime(String.format(
+        if (!cmd.canRunLauncher(String.format(
                 "Not running %s launcher", launcherPath))) {
             return;
         }

@@ -52,8 +52,8 @@ import jdk.tools.jaotc.binformat.pecoff.JPECoffRelocObject;
  *
  * <p>
  * This class holds information necessary to create platform-specific binary containers such as
- * ELFContainer for Linux and Solaris operating systems or MachOContainer for Mac OS or PEContainer
- * for MS Windows operating systems.
+ * ELFContainer for Linux or MachOContainer for Mac OS or PEContainer for MS Windows operating
+ * systems.
  *
  * <p>
  * Method APIs provided by this class are used to construct and populate platform-independent
@@ -300,7 +300,7 @@ public final class BinaryContainer implements SymbolTable {
 
         this.codeEntryAlignment = graalHotSpotVMConfig.codeEntryAlignment;
 
-        this.threadLocalHandshakes = graalHotSpotVMConfig.threadLocalHandshakes;
+        this.threadLocalHandshakes = graalHotSpotVMConfig.useThreadLocalPolling;
 
         // Section unique name is limited to 8 characters due to limitation on Windows.
         // Name could be longer but only first 8 characters are stored on Windows.
@@ -354,7 +354,7 @@ public final class BinaryContainer implements SymbolTable {
                                               graphBuilderConfig.omitAssertions()));
         if (JavaVersionUtil.JAVA_SPEC < 14) {
             // See JDK-8220049. Thread local handshakes are on by default since JDK14, the command line option has been removed.
-            booleanFlagsList.add(graalHotSpotVMConfig.threadLocalHandshakes);
+            booleanFlagsList.add(graalHotSpotVMConfig.useThreadLocalPolling);
         }
 
         ArrayList<Integer> intFlagsList = new ArrayList<>();
@@ -432,6 +432,10 @@ public final class BinaryContainer implements SymbolTable {
         return "_aot_stub_routines_crc_table_adr";
     }
 
+    public static String getPollingPageSymbolName() {
+        return "_aot_polling_page";
+    }
+
     public static String getResolveStaticEntrySymbolName() {
         return "_resolve_static_entry";
     }
@@ -458,6 +462,22 @@ public final class BinaryContainer implements SymbolTable {
 
     public static String getInlineContiguousAllocationSupportedSymbolName() {
         return "_aot_inline_contiguous_allocation_supported";
+    }
+
+    public static String getVerifyOopsSymbolName() {
+        return "_aot_verify_oops";
+    }
+
+    public static String getVerifyOopCountAddressSymbolName() {
+        return "_aot_verify_oop_count_address";
+    }
+
+    public static String getVerifyOopBitsSymbolName() {
+        return "_aot_verify_oop_bits";
+    }
+
+    public static String getVerifyOopMaskSymbolName() {
+        return "_aot_verify_oop_mask";
     }
 
     public int getCodeSegmentSize() {
@@ -508,8 +528,13 @@ public final class BinaryContainer implements SymbolTable {
         createGotSymbol(getHeapEndAddressSymbolName());
         createGotSymbol(getNarrowKlassBaseAddressSymbolName());
         createGotSymbol(getNarrowOopBaseAddressSymbolName());
+        createGotSymbol(getPollingPageSymbolName());
         createGotSymbol(getLogOfHeapRegionGrainBytesSymbolName());
         createGotSymbol(getInlineContiguousAllocationSupportedSymbolName());
+        createGotSymbol(getVerifyOopsSymbolName());
+        createGotSymbol(getVerifyOopCountAddressSymbolName());
+        createGotSymbol(getVerifyOopBitsSymbolName());
+        createGotSymbol(getVerifyOopMaskSymbolName());
 
         for (HashMap.Entry<String, String> entry : functionNamesToAOTSymbols.entrySet()) {
             createGotSymbol(entry.getValue());
@@ -552,7 +577,6 @@ public final class BinaryContainer implements SymbolTable {
         String osName = System.getProperty("os.name");
         switch (osName) {
             case "Linux":
-            case "SunOS":
                 JELFRelocObject elfobj = JELFRelocObject.newInstance(this, outputFileName);
                 elfobj.createELFRelocObject(relocationTable, symbolTable.values());
                 break;

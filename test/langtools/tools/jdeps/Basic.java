@@ -22,7 +22,6 @@
  */
 
 /*
- * @ignore
  * @test
  * @bug 8003562 8005428 8015912 8027481 8048063 8068937
  * @summary Basic tests for jdeps tool

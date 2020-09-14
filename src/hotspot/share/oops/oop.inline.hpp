@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@
 // We need a separate file to avoid circular references
 
 markWord oopDesc::mark() const {
-  uintptr_t v = HeapAccess<MO_VOLATILE>::load_at(as_oop(), mark_offset_in_bytes());
+  uintptr_t v = HeapAccess<MO_RELAXED>::load_at(as_oop(), mark_offset_in_bytes());
   return markWord(v);
 }
 
@@ -56,7 +56,7 @@ markWord* oopDesc::mark_addr_raw() const {
 }
 
 void oopDesc::set_mark(markWord m) {
-  HeapAccess<MO_VOLATILE>::store_at(as_oop(), mark_offset_in_bytes(), m.value());
+  HeapAccess<MO_RELAXED>::store_at(as_oop(), mark_offset_in_bytes(), m.value());
 }
 
 void oopDesc::set_mark_raw(markWord m) {
@@ -88,37 +88,28 @@ void oopDesc::init_mark_raw() {
   set_mark_raw(markWord::prototype_for_klass(klass()));
 }
 
-narrowKlass oopDesc::compressed_klass_mask() { return ((narrowKlass) 1 << narrow_storage_props_shift) - 1; }
-uintptr_t   oopDesc::klass_mask()   { return ((uintptr_t) 1 << wide_storage_props_shift) - 1; }
-
-narrowKlass oopDesc::compressed_klass_masked(narrowKlass raw) { return raw & compressed_klass_mask(); }
-Klass*      oopDesc::klass_masked(uintptr_t raw)     { return reinterpret_cast<Klass*>(raw & klass_mask()); }
-
-
 Klass* oopDesc::klass() const {
   if (UseCompressedClassPointers) {
-    return CompressedKlassPointers::decode_not_null(compressed_klass_masked(_metadata._compressed_klass));
+    return CompressedKlassPointers::decode_not_null(_metadata._compressed_klass);
   } else {
-    return klass_masked(_metadata._wide_storage_props);
+    return _metadata._klass;
   }
 }
 
-Klass* oopDesc::klass_or_null() const volatile {
+Klass* oopDesc::klass_or_null() const {
   if (UseCompressedClassPointers) {
-    return CompressedKlassPointers::decode(compressed_klass_masked(_metadata._compressed_klass));
+    return CompressedKlassPointers::decode(_metadata._compressed_klass);
   } else {
-    return klass_masked(_metadata._wide_storage_props);
+    return _metadata._klass;
   }
 }
 
-Klass* oopDesc::klass_or_null_acquire() const volatile {
+Klass* oopDesc::klass_or_null_acquire() const {
   if (UseCompressedClassPointers) {
-    // Workaround for non-const load_acquire parameter.
-    const volatile narrowKlass* addr = &_metadata._compressed_klass;
-    volatile narrowKlass* xaddr = const_cast<volatile narrowKlass*>(addr);
-    return CompressedKlassPointers::decode(compressed_klass_masked(Atomic::load_acquire(xaddr)));
+    narrowKlass nklass = Atomic::load_acquire(&_metadata._compressed_klass);
+    return CompressedKlassPointers::decode(nklass);
   } else {
-    return klass_masked(Atomic::load_acquire(&_metadata._wide_storage_props));
+    return Atomic::load_acquire(&_metadata._klass);
   }
 }
 
@@ -128,12 +119,6 @@ Klass** oopDesc::klass_addr(HeapWord* mem) {
   assert(!UseCompressedClassPointers, "only supported with uncompressed klass pointers");
   ByteSize offset = byte_offset_of(oopDesc, _metadata._klass);
   return (Klass**) (((char*)mem) + in_bytes(offset));
-}
-
-uintptr_t* oopDesc::wide_metadata_addr(HeapWord* mem) {
-  assert(!UseCompressedClassPointers, "only supported with uncompressed klass pointers");
-  ByteSize offset = byte_offset_of(oopDesc, _metadata._wide_storage_props);
-  return (uintptr_t*) (((char*)mem) + in_bytes(offset));
 }
 
 narrowKlass* oopDesc::compressed_klass_addr(HeapWord* mem) {
@@ -154,8 +139,6 @@ narrowKlass* oopDesc::compressed_klass_addr() {
   do {                                                                    \
     assert(Universe::is_bootstrapping() || k != NULL, "NULL Klass");      \
     assert(Universe::is_bootstrapping() || k->is_klass(), "not a Klass"); \
-    assert(((reinterpret_cast<uintptr_t>(k) & (~ oopDesc::klass_mask())) == 0), \
-      "No room for storage props "); \
   } while (0)
 
 void oopDesc::set_klass(Klass* k) {
@@ -178,36 +161,7 @@ void oopDesc::release_set_klass(HeapWord* mem, Klass* klass) {
   assert(((oopDesc*)mem)->klass() == klass, "failed oopDesc::klass() encode/decode");
 }
 
-void oopDesc::set_metadata(ArrayStorageProperties storage_props, Klass* klass) {
-  CHECK_SET_KLASS(klass);
-  if (UseCompressedClassPointers) {
-    *compressed_klass_addr() = (CompressedKlassPointers::encode_not_null(klass) | storage_props.encode<narrowKlass>(narrow_storage_props_shift));
-  } else {
-    *wide_metadata_addr((HeapWord*)this) = (reinterpret_cast<uintptr_t>(klass) | storage_props.encode<uintptr_t>(wide_storage_props_shift));
-  }
-}
-
-void oopDesc::release_set_metadata(HeapWord* mem, ArrayStorageProperties storage_props, Klass* klass) {
-  CHECK_SET_KLASS(klass);
-  if (UseCompressedClassPointers) {
-    Atomic::release_store(oopDesc::compressed_klass_addr(mem),
-                               CompressedKlassPointers::encode_not_null(klass) | storage_props.encode<narrowKlass>(narrow_storage_props_shift));
-  } else {
-    Atomic::release_store(oopDesc::wide_metadata_addr(mem),
-                               (reinterpret_cast<uintptr_t>(klass) | storage_props.encode<uintptr_t>(wide_storage_props_shift)));
-  }
-}
 #undef CHECK_SET_KLASS
-
-
-ArrayStorageProperties oopDesc::array_storage_properties() const {
-  if (UseCompressedClassPointers) {
-    return ArrayStorageProperties(_metadata._narrow_storage_props >> narrow_storage_props_shift);
-  } else {
-    return ArrayStorageProperties(_metadata._wide_storage_props >> wide_storage_props_shift);
-  }
-}
-
 
 int oopDesc::klass_gap() const {
   return *(int*)(((intptr_t)this) + klass_gap_offset_in_bytes());
@@ -291,8 +245,8 @@ bool oopDesc::is_instance()  const { return klass()->is_instance_klass();  }
 bool oopDesc::is_array()     const { return klass()->is_array_klass();     }
 bool oopDesc::is_objArray()  const { return klass()->is_objArray_klass();  }
 bool oopDesc::is_typeArray() const { return klass()->is_typeArray_klass(); }
-bool oopDesc::is_value()     const { return klass()->is_value(); }
-bool oopDesc::is_valueArray()  const { return klass()->is_valueArray_klass(); }
+bool oopDesc::is_inline_type() const { return klass()->is_inline_klass(); }
+bool oopDesc::is_flatArray() const { return klass()->is_flatArray_klass(); }
 
 void*    oopDesc::field_addr_raw(int offset)     const { return reinterpret_cast<void*>(cast_from_oop<intptr_t>(as_oop()) + offset); }
 void*    oopDesc::field_addr(int offset)         const { return Access<>::resolve(as_oop())->field_addr_raw(offset); }

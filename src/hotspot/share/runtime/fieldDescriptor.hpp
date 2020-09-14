@@ -93,8 +93,8 @@ class fieldDescriptor {
   bool is_stable()                const    { return access_flags().is_stable(); }
   bool is_volatile()              const    { return access_flags().is_volatile(); }
   bool is_transient()             const    { return access_flags().is_transient(); }
-  inline bool is_flattened()      const;
-  inline bool is_flattenable()    const;
+  inline bool is_inlined() const;
+  inline bool is_inline_type()    const;
 
   bool is_synthetic()             const    { return access_flags().is_synthetic(); }
 
@@ -103,6 +103,8 @@ class fieldDescriptor {
                                            { return access_flags().is_field_modification_watched(); }
   bool has_initialized_final_update() const { return access_flags().has_field_initialized_final_update(); }
   bool has_generic_signature()    const    { return access_flags().field_has_generic_signature(); }
+
+  bool is_trusted_final()         const;
 
   inline void set_is_field_access_watched(const bool value);
   inline void set_is_field_modification_watched(const bool value);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -123,7 +123,7 @@ namespace AccessInternal {
                                      arrayOop dst_obj, size_t dst_offset_in_bytes, T* dst_raw,
                                      size_t length);
     typedef void (*clone_func_t)(oop src, oop dst, size_t size);
-    typedef void (*value_copy_func_t)(void* src, void* dst, ValueKlass* md);
+    typedef void (*value_copy_func_t)(void* src, void* dst, InlineKlass* md);
     typedef oop (*resolve_func_t)(oop obj);
   };
 
@@ -260,13 +260,6 @@ protected:
 
   template <DecoratorSet ds, typename T>
   static inline typename EnableIf<
-    HasDecorator<ds, MO_VOLATILE>::value, T>::type
-  load_internal(void* addr) {
-    return *reinterpret_cast<const volatile T*>(addr);
-  }
-
-  template <DecoratorSet ds, typename T>
-  static inline typename EnableIf<
     HasDecorator<ds, MO_UNORDERED>::value, T>::type
   load_internal(void* addr) {
     return *reinterpret_cast<T*>(addr);
@@ -286,13 +279,6 @@ protected:
   static typename EnableIf<
     HasDecorator<ds, MO_RELAXED>::value>::type
   store_internal(void* addr, T value);
-
-  template <DecoratorSet ds, typename T>
-  static inline typename EnableIf<
-    HasDecorator<ds, MO_VOLATILE>::value>::type
-  store_internal(void* addr, T value) {
-    (void)const_cast<T&>(*reinterpret_cast<volatile T*>(addr) = value);
-  }
 
   template <DecoratorSet ds, typename T>
   static inline typename EnableIf<
@@ -417,7 +403,7 @@ public:
 
   static void clone(oop src, oop dst, size_t size);
 
-  static void value_copy(void* src, void* dst, ValueKlass* md);
+  static void value_copy(void* src, void* dst, InlineKlass* md);
 
   static oop resolve(oop obj) { return obj; }
 };
@@ -606,9 +592,9 @@ namespace AccessInternal {
     typedef typename AccessFunction<decorators, T, BARRIER_VALUE_COPY>::type func_t;
     static func_t _value_copy_func;
 
-    static void value_copy_init(void* src, void* dst, ValueKlass* md);
+    static void value_copy_init(void* src, void* dst, InlineKlass* md);
 
-    static inline void value_copy(void* src, void* dst, ValueKlass* md) {
+    static inline void value_copy(void* src, void* dst, InlineKlass* md) {
       _value_copy_func(src, dst, md);
     }
   };
@@ -993,7 +979,7 @@ namespace AccessInternal {
     template <DecoratorSet decorators>
     inline static typename EnableIf<
       HasDecorator<decorators, AS_RAW>::value>::type
-    value_copy(void* src, void* dst, ValueKlass* md) {
+    value_copy(void* src, void* dst, InlineKlass* md) {
       typedef RawAccessBarrier<decorators & RAW_DECORATOR_MASK> Raw;
       Raw::value_copy(src, dst, md);
     }
@@ -1001,7 +987,7 @@ namespace AccessInternal {
     template <DecoratorSet decorators>
     inline static typename EnableIf<
       !HasDecorator<decorators, AS_RAW>::value>::type
-      value_copy(void* src, void* dst, ValueKlass* md) {
+      value_copy(void* src, void* dst, InlineKlass* md) {
       const DecoratorSet expanded_decorators = decorators;
       RuntimeDispatch<expanded_decorators, void*, BARRIER_VALUE_COPY>::value_copy(src, dst, md);
     }
@@ -1165,7 +1151,7 @@ namespace AccessInternal {
   }
 
   // Step 1: Set default decorators. This step remembers if a type was volatile
-  // and then sets the MO_VOLATILE decorator by default. Otherwise, a default
+  // and then sets the MO_RELAXED decorator by default. Otherwise, a default
   // memory ordering is set for the access, and the implied decorator rules
   // are applied to select sensible defaults for decorators that have not been
   // explicitly set. For example, default object referent strength is set to strong.
@@ -1189,10 +1175,10 @@ namespace AccessInternal {
     typedef typename Decay<T>::type DecayedT;
     DecayedT decayed_value = value;
     // If a volatile address is passed in but no memory ordering decorator,
-    // set the memory ordering to MO_VOLATILE by default.
+    // set the memory ordering to MO_RELAXED by default.
     const DecoratorSet expanded_decorators = DecoratorFixup<
       (IsVolatile<P>::value && !HasDecorator<decorators, MO_DECORATOR_MASK>::value) ?
-      (MO_VOLATILE | decorators) : decorators>::value;
+      (MO_RELAXED | decorators) : decorators>::value;
     store_reduce_types<expanded_decorators>(const_cast<DecayedP*>(addr), decayed_value);
   }
 
@@ -1215,10 +1201,10 @@ namespace AccessInternal {
                                  typename OopOrNarrowOop<T>::type,
                                  typename Decay<T>::type>::type DecayedT;
     // If a volatile address is passed in but no memory ordering decorator,
-    // set the memory ordering to MO_VOLATILE by default.
+    // set the memory ordering to MO_RELAXED by default.
     const DecoratorSet expanded_decorators = DecoratorFixup<
       (IsVolatile<P>::value && !HasDecorator<decorators, MO_DECORATOR_MASK>::value) ?
-      (MO_VOLATILE | decorators) : decorators>::value;
+      (MO_RELAXED | decorators) : decorators>::value;
     return load_reduce_types<expanded_decorators, DecayedT>(const_cast<DecayedP*>(addr));
   }
 
@@ -1314,7 +1300,7 @@ namespace AccessInternal {
   }
 
   template <DecoratorSet decorators>
-  inline void value_copy(void* src, void* dst, ValueKlass* md) {
+  inline void value_copy(void* src, void* dst, InlineKlass* md) {
     const DecoratorSet expanded_decorators = DecoratorFixup<decorators>::value;
     PreRuntimeDispatch::value_copy<expanded_decorators>(src, dst, md);
   }

@@ -27,13 +27,13 @@
 #include "ci/ciConstant.hpp"
 #include "ci/ciEnv.hpp"
 #include "ci/ciField.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciMethod.hpp"
 #include "ci/ciNullObject.hpp"
 #include "ci/ciReplay.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "ci/ciValueKlass.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
@@ -42,9 +42,11 @@
 #include "compiler/compileBroker.hpp"
 #include "compiler/compilerEvent.hpp"
 #include "compiler/compileLog.hpp"
+#include "compiler/compileTask.hpp"
 #include "compiler/disassembler.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "interpreter/linkResolver.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "logging/log.hpp"
 #include "memory/allocation.inline.hpp"
 #include "memory/oopFactory.hpp"
@@ -230,7 +232,7 @@ ciEnv::~ciEnv() {
 
 // ------------------------------------------------------------------
 // Cache Jvmti state
-void ciEnv::cache_jvmti_state() {
+bool ciEnv::cache_jvmti_state() {
   VM_ENTRY_MARK;
   // Get Jvmti capabilities under lock to get consistant values.
   MutexLocker mu(JvmtiThreadState_lock);
@@ -240,6 +242,7 @@ void ciEnv::cache_jvmti_state() {
   _jvmti_can_post_on_exceptions         = JvmtiExport::can_post_on_exceptions();
   _jvmti_can_pop_frame                  = JvmtiExport::can_pop_frame();
   _jvmti_can_get_owned_monitor_info     = JvmtiExport::can_get_owned_monitor_info();
+  return _task != NULL && _task->method()->is_old();
 }
 
 bool ciEnv::jvmti_state_changed() const {
@@ -468,7 +471,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   if (Signature::is_array(sym) &&
       (sym->char_at(1) == JVM_SIGNATURE_ARRAY ||
        sym->char_at(1) == JVM_SIGNATURE_CLASS ||
-       sym->char_at(1) == JVM_SIGNATURE_VALUETYPE )) {
+       sym->char_at(1) == JVM_SIGNATURE_INLINE_TYPE )) {
     // We have an unloaded array.
     // Build it on the fly if the element class exists.
     SignatureStream ss(sym, false);
@@ -481,7 +484,7 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
                              require_local);
     if (elem_klass != NULL && elem_klass->is_loaded()) {
       // Now make an array for it
-      return ciArrayKlass::make(elem_klass, sym->char_at(1) == JVM_SIGNATURE_VALUETYPE);
+      return ciArrayKlass::make(elem_klass);
     }
   }
 
@@ -511,10 +514,10 @@ ciKlass* ciEnv::get_klass_by_name_impl(ciKlass* accessing_klass,
   while (sym->char_at(i) == JVM_SIGNATURE_ARRAY) {
     i++;
   }
-  if (i > 0 && sym->char_at(i) == JVM_SIGNATURE_VALUETYPE) {
-    // An unloaded array class of value types is an ObjArrayKlass, an
-    // unloaded value type class is an InstanceKlass. For consistency,
-    // make the signature of the unloaded array of value type use L
+  if (i > 0 && sym->char_at(i) == JVM_SIGNATURE_INLINE_TYPE) {
+    // An unloaded array class of inline types is an ObjArrayKlass, an
+    // unloaded inline type class is an InstanceKlass. For consistency,
+    // make the signature of the unloaded array of inline type use L
     // rather than Q.
     char *new_name = CURRENT_THREAD_ENV->name_buffer(sym->utf8_length()+1);
     strncpy(new_name, (char*)sym->base(), sym->utf8_length());
@@ -605,10 +608,10 @@ ciKlass* ciEnv::get_klass_by_index(const constantPoolHandle& cpool,
 }
 
 // ------------------------------------------------------------------
-// ciEnv::is_klass_never_null
+// ciEnv::is_inline_klass
 //
-// Get information about nullability from the constant pool.
-bool ciEnv::is_klass_never_null(const constantPoolHandle& cpool, int index) {
+// Check if the klass is an inline klass.
+bool ciEnv::is_inline_klass(const constantPoolHandle& cpool, int index) {
   GUARDED_VM_ENTRY(return cpool->klass_name_at(index)->is_Q_signature();)
 }
 
@@ -784,7 +787,7 @@ Method* ciEnv::lookup_method(ciInstanceKlass* accessor,
   InstanceKlass* accessor_klass = accessor->get_instanceKlass();
   Klass* holder_klass = holder->get_Klass();
   Method* dest_method;
-  LinkInfo link_info(holder_klass, name, sig, accessor_klass, LinkInfo::needs_access_check, tag);
+  LinkInfo link_info(holder_klass, name, sig, accessor_klass, LinkInfo::AccessCheck::required, LinkInfo::LoaderConstraintCheck::required, tag);
   switch (bc) {
   case Bytecodes::_invokestatic:
     dest_method =

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,18 +25,25 @@
 
 package jdk.incubator.jpackage.internal;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.Writer;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.nio.channels.FileChannel;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;
@@ -48,11 +55,11 @@ import javax.xml.stream.XMLStreamWriter;
  */
 public class IOUtils {
 
-    public static void deleteRecursive(File path) throws IOException {
-        if (!path.exists()) {
+    public static void deleteRecursive(Path directory) throws IOException {
+        if (!Files.exists(directory)) {
             return;
         }
-        Path directory = path.toPath();
+
         Files.walkFileTree(directory, new SimpleFileVisitor<Path>() {
             @Override
             public FileVisitResult visitFile(Path file,
@@ -111,48 +118,66 @@ public class IOUtils {
         });
     }
 
-    public static void copyFile(File sourceFile, File destFile)
+    public static void copyFile(Path sourceFile, Path destFile)
             throws IOException {
-        Files.createDirectories(destFile.getParentFile().toPath());
+        Files.createDirectories(destFile.getParent());
 
-        Files.copy(sourceFile.toPath(), destFile.toPath(),
+        Files.copy(sourceFile, destFile,
                    StandardCopyOption.REPLACE_EXISTING,
                    StandardCopyOption.COPY_ATTRIBUTES);
     }
 
+    public static boolean exists(Path path) {
+        if (path == null) {
+            return false;
+        }
+
+        return Files.exists(path);
+    }
+
     // run "launcher paramfile" in the directory where paramfile is kept
-    public static void run(String launcher, File paramFile)
+    public static void run(String launcher, Path paramFile)
             throws IOException {
-        if (paramFile != null && paramFile.exists()) {
+        if (IOUtils.exists(paramFile)) {
             ProcessBuilder pb =
-                    new ProcessBuilder(launcher, paramFile.getName());
-            pb = pb.directory(paramFile.getParentFile());
+                    new ProcessBuilder(launcher, paramFile.getFileName().toString());
+            pb = pb.directory(paramFile.getParent().toFile());
             exec(pb);
         }
     }
 
     public static void exec(ProcessBuilder pb)
             throws IOException {
-        exec(pb, false, null, false);
+        exec(pb, false, null, false, Executor.INFINITE_TIMEOUT);
     }
 
-    // Reading output from some processes (currently known "hdiutil attach" might hang even if process already
-    // exited. Only possible workaround found in "hdiutil attach" case is to wait for process to exit before
-    // reading output.
-    public static void exec(ProcessBuilder pb, boolean waitBeforeOutput)
+    // timeout in seconds. -1 will be return if process timeouts.
+    public static void exec(ProcessBuilder pb, long timeout)
             throws IOException {
-        exec(pb, false, null, waitBeforeOutput);
+        exec(pb, false, null, false, timeout);
+    }
+
+    // See JDK-8236282
+    // Reading output from some processes (currently known "hdiutil attach")
+    // might hang even if process already exited. Only possible workaround found
+    // in "hdiutil attach" case is to redirect the output to a temp file and then
+    // read this file back.
+    public static void exec(ProcessBuilder pb, boolean writeOutputToFile)
+            throws IOException {
+        exec(pb, false, null, writeOutputToFile, Executor.INFINITE_TIMEOUT);
     }
 
     static void exec(ProcessBuilder pb, boolean testForPresenceOnly,
             PrintStream consumer) throws IOException {
-        exec(pb, testForPresenceOnly, consumer, false);
+        exec(pb, testForPresenceOnly, consumer, false, Executor.INFINITE_TIMEOUT);
     }
 
     static void exec(ProcessBuilder pb, boolean testForPresenceOnly,
-            PrintStream consumer, boolean waitBeforeOutput) throws IOException {
+            PrintStream consumer, boolean writeOutputToFile, long timeout)
+            throws IOException {
         List<String> output = new ArrayList<>();
-        Executor exec = Executor.of(pb).setWaitBeforeOutput(waitBeforeOutput).setOutputConsumer(lines -> {
+        Executor exec = Executor.of(pb).setWriteOutputToFile(writeOutputToFile)
+                .setTimeout(timeout).setOutputConsumer(lines -> {
             lines.forEach(output::add);
             if (consumer != null) {
                 output.forEach(consumer::println);
@@ -211,15 +236,18 @@ public class IOUtils {
     }
 
     static void writableOutputDir(Path outdir) throws PackagerException {
-        File file = outdir.toFile();
-
-        if (!file.isDirectory() && !file.mkdirs()) {
-            throw new PackagerException("error.cannot-create-output-dir",
-                    file.getAbsolutePath());
+        if (!Files.isDirectory(outdir)) {
+            try {
+                Files.createDirectories(outdir);
+            } catch (IOException ex) {
+                throw new PackagerException("error.cannot-create-output-dir",
+                    outdir.toAbsolutePath().toString());
+            }
         }
-        if (!file.canWrite()) {
+
+        if (!Files.isWritable(outdir)) {
             throw new PackagerException("error.cannot-write-to-output-dir",
-                    file.getAbsolutePath());
+                    outdir.toAbsolutePath().toString());
         }
     }
 
@@ -249,6 +277,7 @@ public class IOUtils {
     public static void createXml(Path dstFile, XmlConsumer xmlConsumer) throws
             IOException {
         XMLOutputFactory xmlFactory = XMLOutputFactory.newInstance();
+        Files.createDirectories(dstFile.getParent());
         try (Writer w = Files.newBufferedWriter(dstFile)) {
             // Wrap with pretty print proxy
             XMLStreamWriter xml = (XMLStreamWriter) Proxy.newProxyInstance(

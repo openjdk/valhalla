@@ -56,6 +56,8 @@ private:
   bool                   _has_nonstatic_fields;
   bool                   _has_nonstatic_concrete_methods;
   bool                   _is_unsafe_anonymous;
+  bool                   _is_hidden;
+  bool                   _is_record;
 
   ciFlags                _flags;
   jint                   _nonstatic_field_size;
@@ -69,8 +71,6 @@ private:
   GrowableArray<ciField*>* _nonstatic_fields;
 
   int                    _has_injected_fields; // any non static injected fields? lazily initialized.
-
-  ciInstanceKlass*       _vcc_klass; // points to the value-capable class corresponding to the current derived value type class.
 
   // The possible values of the _implementor fall into following three cases:
   //   NULL: no implementor.
@@ -194,8 +194,16 @@ public:
     return _has_nonstatic_concrete_methods;
   }
 
-  bool is_unsafe_anonymous() {
+  bool is_unsafe_anonymous() const {
     return _is_unsafe_anonymous;
+  }
+
+  bool is_hidden() const {
+    return _is_hidden;
+  }
+
+  bool is_record() const {
+    return _is_record;
   }
 
   ciInstanceKlass* get_canonical_holder(int offset);
@@ -251,7 +259,6 @@ public:
 
   bool is_leaf_type();
   ciInstanceKlass* implementor();
-  ciInstanceKlass* vcc_klass();
 
   ciInstanceKlass* unique_implementor() {
     assert(is_loaded(), "must be loaded");
@@ -259,9 +266,7 @@ public:
     return (impl != this ? impl : NULL);
   }
 
-  virtual bool can_be_value_klass(bool is_exact = false) {
-    return EnableValhalla && (!is_loaded() || is_valuetype() || ((is_java_lang_Object() || is_interface() || (is_abstract() && !has_nonstatic_fields())) && !is_exact));
-  }
+  virtual bool can_be_inline_klass(bool is_exact = false);
 
   // Is the defining class loader of this class the default loader?
   bool uses_default_loader() const;

@@ -27,6 +27,7 @@
 #include "jvmci/jvmciEnv.hpp"
 #include "jvmci/jvmciRuntime.hpp"
 #include "oops/objArrayOop.inline.hpp"
+#include "runtime/arguments.hpp"
 #include "runtime/handles.inline.hpp"
 
 JVMCICompiler* JVMCICompiler::_instance = NULL;
@@ -42,6 +43,7 @@ JVMCICompiler::JVMCICompiler() : AbstractCompiler(compiler_jvmci) {
 
 // Initialization
 void JVMCICompiler::initialize() {
+  assert(!is_c1_or_interpreter_only(), "JVMCI is launched, it's not c1/interpreter only mode");
   if (!UseCompiler || !EnableJVMCI || !UseJVMCICompiler || !should_perform_init()) {
     return;
   }
@@ -56,8 +58,8 @@ void JVMCICompiler::bootstrap(TRAPS) {
     return;
   }
   _bootstrapping = true;
-  ResourceMark rm;
-  HandleMark hm;
+  ResourceMark rm(THREAD);
+  HandleMark hm(THREAD);
   if (PrintBootstrap) {
     tty->print("Bootstrapping JVMCI");
   }
@@ -101,53 +103,57 @@ void JVMCICompiler::bootstrap(TRAPS) {
                   (jlong)nanos_to_millis(os::javaTimeNanos() - start), _methods_compiled);
   }
   _bootstrapping = false;
-  JVMCI::compiler_runtime()->bootstrap_finished(CHECK);
+  JVMCI::java_runtime()->bootstrap_finished(CHECK);
 }
 
 bool JVMCICompiler::force_comp_at_level_simple(const methodHandle& method) {
-  if (UseJVMCINativeLibrary) {
-    // This mechanism exists to force compilation of a JVMCI compiler by C1
-    // to reduces the compilation time spent on the JVMCI compiler itself. In
-    // +UseJVMCINativeLibrary mode, the JVMCI compiler is AOT compiled.
-    return false;
-  }
-
   if (_bootstrapping) {
     // When bootstrapping, the JVMCI compiler can compile its own methods.
     return false;
   }
-
-  JVMCIRuntime* runtime = JVMCI::compiler_runtime();
-  if (runtime != NULL && runtime->is_HotSpotJVMCIRuntime_initialized()) {
-    JavaThread* thread = JavaThread::current();
-    HandleMark hm(thread);
-    THREAD_JVMCIENV(thread);
-    JVMCIObject receiver = runtime->get_HotSpotJVMCIRuntime(JVMCIENV);
-    objArrayHandle excludeModules(thread, HotSpotJVMCI::HotSpotJVMCIRuntime::excludeFromJVMCICompilation(JVMCIENV, HotSpotJVMCI::resolve(receiver)));
-    if (excludeModules.not_null()) {
-      ModuleEntry* moduleEntry = method->method_holder()->module();
-      for (int i = 0; i < excludeModules->length(); i++) {
-        if (excludeModules->obj_at(i) == moduleEntry->module()) {
-          return true;
+  if (UseJVMCINativeLibrary) {
+    // This mechanism exists to force compilation of a JVMCI compiler by C1
+    // to reduce the compilation time spent on the JVMCI compiler itself. In
+    // +UseJVMCINativeLibrary mode, the JVMCI compiler is AOT compiled.
+    return false;
+  } else {
+    JVMCIRuntime* runtime = JVMCI::java_runtime();
+    if (runtime != NULL) {
+      JVMCIObject receiver = runtime->probe_HotSpotJVMCIRuntime();
+      if (receiver.is_null()) {
+        return false;
+      }
+      JVMCIEnv* ignored_env = NULL;
+      objArrayHandle excludeModules(JavaThread::current(), HotSpotJVMCI::HotSpotJVMCIRuntime::excludeFromJVMCICompilation(ignored_env, HotSpotJVMCI::resolve(receiver)));
+      if (excludeModules.not_null()) {
+        ModuleEntry* moduleEntry = method->method_holder()->module();
+        for (int i = 0; i < excludeModules->length(); i++) {
+          if (excludeModules->obj_at(i) == moduleEntry->module()) {
+            return true;
+          }
         }
       }
     }
+    return false;
   }
-  return false;
 }
 
 // Compilation entry point for methods
-void JVMCICompiler::compile_method(ciEnv* env, ciMethod* target, int entry_bci, DirectiveSet* directive) {
+void JVMCICompiler::compile_method(ciEnv* env, ciMethod* target, int entry_bci, bool install_code, DirectiveSet* directive) {
   ShouldNotReachHere();
 }
 
 // Print compilation timers and statistics
 void JVMCICompiler::print_timers() {
+  tty->print_cr("    JVMCI Compile Time:      %7.3f s", stats()->total_time());
   print_compilation_timers();
 }
 
 // Print compilation timers and statistics
 void JVMCICompiler::print_compilation_timers() {
-  TRACE_jvmci_1("JVMCICompiler::print_timers");
-  tty->print_cr("       JVMCI code install time:        %6.3f s",    _codeInstallTimer.seconds());
+  double code_install_time = _codeInstallTimer.seconds();
+  if (code_install_time != 0.0) {
+    tty->cr();
+    tty->print_cr("    JVMCI code install time:        %6.3f s", code_install_time);
+  }
 }

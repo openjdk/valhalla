@@ -25,8 +25,6 @@
 #include "precompiled.hpp"
 #include "gc/shared/oopStorage.hpp"
 #include "gc/shared/oopStorageSet.hpp"
-#include "runtime/mutex.hpp"
-#include "runtime/os.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
@@ -34,41 +32,39 @@
 // +1 for NULL singular entry.
 OopStorage* OopStorageSet::storages[all_count + 1] = {};
 
-static Mutex* make_oopstorage_mutex(const char* storage_name,
-                                    const char* kind,
-                                    int rank) {
-  char name[256];
-  os::snprintf(name, sizeof(name), "%s %s lock", storage_name, kind);
-  return new PaddedMutex(rank, name, true, Mutex::_safepoint_check_never);
+OopStorage* OopStorageSet::create_strong(const char* name) {
+  static uint registered_strong = 0;
+  assert(registered_strong < strong_count, "More registered strong storages than slots");
+  OopStorage* storage = new OopStorage(name);
+  storages[strong_start + registered_strong++] = storage;
+  return storage;
 }
 
-static OopStorage* make_oopstorage(const char* name) {
-  Mutex* alloc = make_oopstorage_mutex(name, "alloc", Mutex::oopstorage);
-  Mutex* active = make_oopstorage_mutex(name, "active", Mutex::oopstorage - 1);
-  return new OopStorage(name, alloc, active);
+OopStorage* OopStorageSet::create_weak(const char* name) {
+  static uint registered_weak = 0;
+  assert(registered_weak < weak_count, "More registered strong storages than slots");
+  OopStorage* storage = new OopStorage(name);
+  storages[weak_start + registered_weak++] = storage;
+  return storage;
 }
 
-void OopStorageSet::initialize() {
-  storages[jni_global_index]        = make_oopstorage("JNI global");
-  storages[vm_global_index]         = make_oopstorage("VM global");
-  storages[jni_weak_index]          = make_oopstorage("JNI weak");
-  storages[vm_weak_index]           = make_oopstorage("VM weak");
-  storages[string_table_weak_index] = make_oopstorage("StringTable weak");
-  storages[resolved_method_table_weak_index] =
-    make_oopstorage("ResolvedMethodTable weak");
 
-  // Ensure we have all of them.
-  STATIC_ASSERT(all_count == 6);
-  assert(storages[singular_index] == NULL, "postcondition");
-#ifdef ASSERT
-  for (uint i = all_start; i < all_end; ++i) {
-    assert(storages[i] != NULL, "postcondition");
+void OopStorageSet::fill_strong(OopStorage* to[strong_count]) {
+  for (uint i = 0; i < OopStorageSet::strong_count; i++) {
+    to[i] = storage(strong_start + i);
   }
-#endif // ASSERT
 }
 
-void oopstorage_init() {
-  OopStorageSet::initialize();
+void OopStorageSet::fill_weak(OopStorage* to[weak_count]) {
+  for (uint i = 0; i < OopStorageSet::weak_count; i++) {
+    to[i] = storage(weak_start + i);
+  }
+}
+
+void OopStorageSet::fill_all(OopStorage* to[all_count]) {
+  for (uint i = 0; i < OopStorageSet::all_count; i++) {
+    to[i] = storage(all_start + i);
+  }
 }
 
 #ifdef ASSERT

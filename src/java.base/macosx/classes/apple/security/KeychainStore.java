@@ -93,9 +93,9 @@ public final class KeychainStore extends KeyStoreSpi {
      * PKCS12 bag we get from the Keychain.
      */
     private static ObjectIdentifier PKCS8ShroudedKeyBag_OID =
-            ObjectIdentifier.of("1.2.840.113549.1.12.10.1.2");
+            ObjectIdentifier.of(KnownOIDs.PKCS8ShroudedKeyBag);
     private static ObjectIdentifier pbeWithSHAAnd3KeyTripleDESCBC_OID =
-            ObjectIdentifier.of("1.2.840.113549.1.12.1.3");
+            ObjectIdentifier.of(KnownOIDs.PBEWithSHA1AndDESede);
 
     /**
      * Constnats used in PBE decryption.
@@ -215,6 +215,9 @@ public final class KeychainStore extends KeyStoreSpi {
 
             // Get the Algorithm ID next
             DerValue[] value = in.getSequence(2);
+            if (value.length < 1 || value.length > 2) {
+                throw new IOException("Invalid length for AlgorithmIdentifier");
+            }
             AlgorithmId algId = new AlgorithmId(value[0].getOID());
             String algName = algId.getName();
 

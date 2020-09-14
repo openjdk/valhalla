@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -326,7 +326,7 @@ void G1HeapVerifier::verify_ready_for_archiving() {
   if (cl.has_holes()) {
     log_warning(gc, verify)("All free regions should be at the top end of the heap, but"
                             " we found holes. This is probably caused by (unmovable) humongous"
-                            " allocations, and may lead to fragmentation while"
+                            " allocations or active GCLocker, and may lead to fragmentation while"
                             " writing archive heap memory regions.");
   }
   if (cl.has_humongous()) {
@@ -334,7 +334,6 @@ void G1HeapVerifier::verify_ready_for_archiving() {
                             " may lead to fragmentation while"
                             " writing archive heap memory regions.");
   }
-  assert(!cl.has_unexpected_holes(), "all holes should have been caused by humongous regions");
 }
 
 class VerifyArchivePointerRegionClosure: public HeapRegionClosure {
@@ -450,7 +449,6 @@ public:
   }
 
   void work(uint worker_id) {
-    HandleMark hm;
     VerifyRegionClosure blk(true, _vo);
     _g1h->heap_region_par_iterate_from_worker_offset(&blk, &_hrclaimer, worker_id);
     if (blk.failures()) {
@@ -620,7 +618,6 @@ double G1HeapVerifier::verify(G1VerifyType type, VerifyOption vo, const char* ms
 
   if (should_verify(type) && _g1h->total_collections() >= VerifyGCStartAt) {
     double verify_start = os::elapsedTime();
-    HandleMark hm;  // Discard invalid handles created during verification
     prepare_for_verify();
     Universe::verify(vo, msg);
     verify_time_ms = (os::elapsedTime() - verify_start) * 1000;

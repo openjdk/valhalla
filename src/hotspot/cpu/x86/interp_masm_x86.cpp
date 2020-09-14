@@ -31,7 +31,7 @@
 #include "oops/markWord.hpp"
 #include "oops/methodData.hpp"
 #include "oops/method.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
@@ -60,7 +60,8 @@ void InterpreterMacroAssembler::profile_obj_type(Register obj, const Address& md
   jmpb(next);
 
   bind(update);
-  load_klass(obj, obj);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  load_klass(obj, obj, tmp_load_klass);
 
   xorptr(obj, mdo_addr);
   testptr(obj, TypeEntries::type_klass_mask);
@@ -1153,23 +1154,24 @@ void InterpreterMacroAssembler::remove_activation(
   movptr(rbx,
          Address(rbp, frame::interpreter_frame_sender_sp_offset * wordSize));
 
-  if (state == atos && ValueTypeReturnedAsFields) {
+  if (state == atos && InlineTypeReturnedAsFields) {
     Label skip;
-    // Test if the return type is a value type
+    // Test if the return type is an inline type
     movptr(rdi, Address(rbp, frame::interpreter_frame_method_offset * wordSize));
     movptr(rdi, Address(rdi, Method::const_offset()));
     load_unsigned_byte(rdi, Address(rdi, ConstMethod::result_type_offset()));
-    cmpl(rdi, T_VALUETYPE);
+    cmpl(rdi, T_INLINE_TYPE);
     jcc(Assembler::notEqual, skip);
 
-    // We are returning a value type, load its fields into registers
+    // We are returning an inline type, load its fields into registers
 #ifndef _LP64
-    super_call_VM_leaf(StubRoutines::load_value_type_fields_in_regs());
+    super_call_VM_leaf(StubRoutines::load_inline_type_fields_in_regs());
 #else
-    // Load fields from a buffered value with a value class specific handler
-    load_klass(rdi, rax);
-    movptr(rdi, Address(rdi, InstanceKlass::adr_valueklass_fixed_block_offset()));
-    movptr(rdi, Address(rdi, ValueKlass::unpack_handler_offset()));
+    // Load fields from a buffered value with an inline class specific handler
+    Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+    load_klass(rdi, rax, tmp_load_klass);
+    movptr(rdi, Address(rdi, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+    movptr(rdi, Address(rdi, InlineKlass::unpack_handler_offset()));
 
     testptr(rdi, rdi);
     jcc(Assembler::equal, skip);
@@ -1213,7 +1215,7 @@ void InterpreterMacroAssembler::allocate_instance(Register klass, Register new_o
 }
 
 
-void InterpreterMacroAssembler::read_flattened_field(Register holder_klass,
+void InterpreterMacroAssembler::read_inlined_field(Register holder_klass,
                                                      Register field_index, Register field_offset,
                                                      Register obj) {
   Label alloc_failed, empty_value, done;
@@ -1225,10 +1227,10 @@ void InterpreterMacroAssembler::read_flattened_field(Register holder_klass,
   // Grap the inline field klass
   push(holder_klass);
   const Register field_klass = holder_klass;
-  get_value_field_klass(holder_klass, field_index, field_klass);
+  get_inline_type_field_klass(holder_klass, field_index, field_klass);
 
   //check for empty value klass
-  test_klass_is_empty_value(field_klass, dst_temp, empty_value);
+  test_klass_is_empty_inline_type(field_klass, dst_temp, empty_value);
 
   // allocate buffer
   push(obj); // save holder
@@ -1246,14 +1248,14 @@ void InterpreterMacroAssembler::read_flattened_field(Register holder_klass,
   jmp(done);
 
   bind(empty_value);
-  get_empty_value_oop(field_klass, dst_temp, obj);
+  get_empty_inline_type_oop(field_klass, dst_temp, obj);
   pop(holder_klass);
   jmp(done);
 
   bind(alloc_failed);
   pop(obj);
   pop(holder_klass);
-  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_flattened_field),
+  call_VM(obj, CAST_FROM_FN_PTR(address, InterpreterRuntime::read_inlined_field),
           obj, field_index, holder_klass);
 
   bind(done);
@@ -1270,11 +1272,12 @@ void InterpreterMacroAssembler::read_flattened_element(Register array, Register 
   const Register dst_temp   = LP64_ONLY(rscratch2) NOT_LP64(rdi);
 
   // load in array->klass()->element_klass()
-  load_klass(array_klass, array);
+  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+  load_klass(array_klass, array, tmp_load_klass);
   movptr(elem_klass, Address(array_klass, ArrayKlass::element_klass_offset()));
 
   //check for empty value klass
-  test_klass_is_empty_value(elem_klass, dst_temp, empty_value);
+  test_klass_is_empty_inline_type(elem_klass, dst_temp, empty_value);
 
   // calc source into "array_klass" and free up some regs
   const Register src = array_klass;
@@ -1290,7 +1293,7 @@ void InterpreterMacroAssembler::read_flattened_element(Register array, Register 
   jmp(done);
 
   bind(empty_value);
-  get_empty_value_oop(elem_klass, dst_temp, obj);
+  get_empty_inline_type_oop(elem_klass, dst_temp, obj);
   jmp(done);
 
   bind(alloc_failed);
@@ -1327,6 +1330,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
     const Register tmp_reg = rbx; // Will be passed to biased_locking_enter to avoid a
                                   // problematic case where tmp_reg = no_reg.
     const Register obj_reg = LP64_ONLY(c_rarg3) NOT_LP64(rcx); // Will contain the oop
+    const Register rklass_decode_tmp = LP64_ONLY(rscratch1) NOT_LP64(noreg);
 
     const int obj_offset = BasicObjectLock::obj_offset_in_bytes();
     const int lock_offset = BasicObjectLock::lock_offset_in_bytes ();
@@ -1338,8 +1342,15 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg) {
     // Load object pointer into obj_reg
     movptr(obj_reg, Address(lock_reg, obj_offset));
 
+    if (DiagnoseSyncOnPrimitiveWrappers != 0) {
+      load_klass(tmp_reg, obj_reg, rklass_decode_tmp);
+      movl(tmp_reg, Address(tmp_reg, Klass::access_flags_offset()));
+      testl(tmp_reg, JVM_ACC_IS_BOX_CLASS);
+      jcc(Assembler::notZero, slow_case);
+    }
+
     if (UseBiasedLocking) {
-      biased_locking_enter(lock_reg, obj_reg, swap_reg, tmp_reg, false, done, &slow_case);
+      biased_locking_enter(lock_reg, obj_reg, swap_reg, tmp_reg, rklass_decode_tmp, false, done, &slow_case);
     }
 
     // Load immediate 1 into swap_reg %rax

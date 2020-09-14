@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -28,6 +28,7 @@ package sun.nio.ch;
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.Inet4Address;
 import java.net.InetSocketAddress;
 import java.net.ProtocolFamily;
 import java.net.Socket;
@@ -70,6 +71,9 @@ class SocketChannelImpl
 {
     // Used to make native read and write calls
     private static final NativeDispatcher nd = new SocketDispatcher();
+
+    // The protocol family of the socket
+    private final ProtocolFamily family;
 
     // Our file descriptor object
     private final FileDescriptor fd;
@@ -118,12 +122,26 @@ class SocketChannelImpl
 
     // -- End of fields protected by stateLock
 
-
     // Constructor for normal connecting sockets
     //
     SocketChannelImpl(SelectorProvider sp) throws IOException {
+        this(sp, Net.isIPv6Available()
+                ? StandardProtocolFamily.INET6
+                : StandardProtocolFamily.INET);
+    }
+
+    SocketChannelImpl(SelectorProvider sp, ProtocolFamily family) throws IOException {
         super(sp);
-        this.fd = Net.socket(true);
+        Objects.requireNonNull(family, "'family' is null");
+        if ((family != StandardProtocolFamily.INET) &&
+                (family != StandardProtocolFamily.INET6)) {
+            throw new UnsupportedOperationException("Protocol family not supported");
+        }
+        if (family == StandardProtocolFamily.INET6 && !Net.isIPv6Available()) {
+            throw new UnsupportedOperationException("IPv6 not available");
+        }
+        this.family = family;
+        this.fd = Net.socket(family, true);
         this.fdVal = IOUtil.fdVal(fd);
     }
 
@@ -131,8 +149,12 @@ class SocketChannelImpl
         throws IOException
     {
         super(sp);
+        this.family = Net.isIPv6Available()
+                ? StandardProtocolFamily.INET6
+                : StandardProtocolFamily.INET;
         this.fd = fd;
         this.fdVal = IOUtil.fdVal(fd);
+
         if (bound) {
             synchronized (stateLock) {
                 this.localAddress = Net.localAddress(fd);
@@ -142,10 +164,14 @@ class SocketChannelImpl
 
     // Constructor for sockets obtained from server sockets
     //
-    SocketChannelImpl(SelectorProvider sp, FileDescriptor fd, InetSocketAddress isa)
+    SocketChannelImpl(SelectorProvider sp,
+                      ProtocolFamily family,
+                      FileDescriptor fd,
+                      InetSocketAddress isa)
         throws IOException
     {
         super(sp);
+        this.family = family;
         this.fd = fd;
         this.fdVal = IOUtil.fdVal(fd);
         synchronized (stateLock) {
@@ -225,8 +251,6 @@ class SocketChannelImpl
             ensureOpen();
 
             if (name == StandardSocketOptions.IP_TOS) {
-                ProtocolFamily family = Net.isIPv6Available() ?
-                    StandardProtocolFamily.INET6 : StandardProtocolFamily.INET;
                 Net.setSocketOption(fd, family, name, value);
                 return this;
             }
@@ -260,10 +284,8 @@ class SocketChannelImpl
                 return (T)Boolean.valueOf(isReuseAddress);
             }
 
-            // special handling for IP_TOS: always return 0 when IPv6
+            // special handling for IP_TOS
             if (name == StandardSocketOptions.IP_TOS) {
-                ProtocolFamily family = Net.isIPv6Available() ?
-                    StandardProtocolFamily.INET6 : StandardProtocolFamily.INET;
                 return (T) Net.getSocketOption(fd, family, name);
             }
 
@@ -302,8 +324,7 @@ class SocketChannelImpl
     /**
      * Marks the beginning of a read operation that might block.
      *
-     * @throws ClosedChannelException if the channel is closed
-     * @throws NotYetConnectedException if the channel is not yet connected
+     * @throws ClosedChannelException if blocking and the channel is closed
      */
     private void beginRead(boolean blocking) throws ClosedChannelException {
         if (blocking) {
@@ -311,12 +332,10 @@ class SocketChannelImpl
             begin();
 
             synchronized (stateLock) {
-                ensureOpenAndConnected();
+                ensureOpen();
                 // record thread so it can be signalled if needed
                 readerThread = NativeThread.current();
             }
-        } else {
-            ensureOpenAndConnected();
         }
     }
 
@@ -351,6 +370,7 @@ class SocketChannelImpl
 
         readLock.lock();
         try {
+            ensureOpenAndConnected();
             boolean blocking = isBlocking();
             int n = 0;
             try {
@@ -393,6 +413,7 @@ class SocketChannelImpl
 
         readLock.lock();
         try {
+            ensureOpenAndConnected();
             boolean blocking = isBlocking();
             long n = 0;
             try {
@@ -430,8 +451,7 @@ class SocketChannelImpl
     /**
      * Marks the beginning of a write operation that might block.
      *
-     * @throws ClosedChannelException if the channel is closed or output shutdown
-     * @throws NotYetConnectedException if the channel is not yet connected
+     * @throws ClosedChannelException if blocking and the channel is closed
      */
     private void beginWrite(boolean blocking) throws ClosedChannelException {
         if (blocking) {
@@ -439,14 +459,12 @@ class SocketChannelImpl
             begin();
 
             synchronized (stateLock) {
-                ensureOpenAndConnected();
+                ensureOpen();
                 if (isOutputClosed)
                     throw new ClosedChannelException();
                 // record thread so it can be signalled if needed
                 writerThread = NativeThread.current();
             }
-        } else {
-            ensureOpenAndConnected();
         }
     }
 
@@ -474,9 +492,9 @@ class SocketChannelImpl
     @Override
     public int write(ByteBuffer buf) throws IOException {
         Objects.requireNonNull(buf);
-
         writeLock.lock();
         try {
+            ensureOpenAndConnected();
             boolean blocking = isBlocking();
             int n = 0;
             try {
@@ -507,6 +525,7 @@ class SocketChannelImpl
 
         writeLock.lock();
         try {
+            ensureOpenAndConnected();
             boolean blocking = isBlocking();
             long n = 0;
             try {
@@ -535,6 +554,7 @@ class SocketChannelImpl
     int sendOutOfBandData(byte b) throws IOException {
         writeLock.lock();
         try {
+            ensureOpenAndConnected();
             boolean blocking = isBlocking();
             int n = 0;
             try {
@@ -632,14 +652,18 @@ class SocketChannelImpl
                         throw new ConnectionPendingException();
                     if (localAddress != null)
                         throw new AlreadyBoundException();
-                    InetSocketAddress isa = (local == null) ?
-                        new InetSocketAddress(0) : Net.checkAddress(local);
+                    InetSocketAddress isa;
+                    if (local == null) {
+                        isa = new InetSocketAddress(Net.anyLocalAddress(family), 0);
+                    } else {
+                        isa = Net.checkAddress(local, family);
+                    }
                     SecurityManager sm = System.getSecurityManager();
                     if (sm != null) {
                         sm.checkListen(isa.getPort());
                     }
                     NetHooks.beforeTcpBind(fd, isa.getAddress(), isa.getPort());
-                    Net.bind(fd, isa.getAddress(), isa.getPort());
+                    Net.bind(family, fd, isa.getAddress(), isa.getPort());
                     localAddress = Net.localAddress(fd);
                 }
             } finally {
@@ -723,14 +747,21 @@ class SocketChannelImpl
     /**
      * Checks the remote address to which this channel is to be connected.
      */
-    private InetSocketAddress checkRemote(SocketAddress sa) throws IOException {
-        InetSocketAddress isa = Net.checkAddress(sa);
+    private InetSocketAddress checkRemote(SocketAddress sa) {
+        InetSocketAddress isa = Net.checkAddress(sa, family);
         SecurityManager sm = System.getSecurityManager();
         if (sm != null) {
             sm.checkConnect(isa.getAddress().getHostAddress(), isa.getPort());
         }
-        if (isa.getAddress().isAnyLocalAddress()) {
-            return new InetSocketAddress(InetAddress.getLocalHost(), isa.getPort());
+        InetAddress address = isa.getAddress();
+        if (address.isAnyLocalAddress()) {
+            int port = isa.getPort();
+            if (address instanceof Inet4Address) {
+                return new InetSocketAddress(Net.inet4LoopbackAddress(), port);
+            } else {
+                assert family == StandardProtocolFamily.INET6;
+                return new InetSocketAddress(Net.inet6LoopbackAddress(), port);
+            }
         } else {
             return isa;
         }
@@ -748,7 +779,10 @@ class SocketChannelImpl
                     boolean connected = false;
                     try {
                         beginConnect(blocking, isa);
-                        int n = Net.connect(fd, isa.getAddress(), isa.getPort());
+                        int n = Net.connect(family,
+                                            fd,
+                                            isa.getAddress(),
+                                            isa.getPort());
                         if (n > 0) {
                             connected = true;
                         } else if (blocking) {
@@ -1141,6 +1175,8 @@ class SocketChannelImpl
 
         readLock.lock();
         try {
+            ensureOpenAndConnected();
+
             // check that channel is configured blocking
             if (!isBlocking())
                 throw new IllegalBlockingModeException();
@@ -1218,6 +1254,8 @@ class SocketChannelImpl
 
         writeLock.lock();
         try {
+            ensureOpenAndConnected();
+
             // check that channel is configured blocking
             if (!isBlocking())
                 throw new IllegalBlockingModeException();
@@ -1225,8 +1263,8 @@ class SocketChannelImpl
             // loop until all bytes have been written
             int pos = off;
             int end = off + len;
-            beginWrite(true);
             try {
+                beginWrite(true);
                 while (pos < end && isOpen()) {
                     int size = end - pos;
                     int n = tryWrite(b, pos, size);

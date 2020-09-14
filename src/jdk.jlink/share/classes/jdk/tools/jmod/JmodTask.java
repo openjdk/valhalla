@@ -35,53 +35,30 @@ import java.io.PrintWriter;
 import java.io.UncheckedIOException;
 import java.lang.module.Configuration;
 import java.lang.module.FindException;
-import java.lang.module.ModuleReader;
-import java.lang.module.ModuleReference;
-import java.lang.module.ModuleFinder;
 import java.lang.module.ModuleDescriptor;
 import java.lang.module.ModuleDescriptor.Exports;
 import java.lang.module.ModuleDescriptor.Opens;
 import java.lang.module.ModuleDescriptor.Provides;
-import java.lang.module.ModuleDescriptor.Requires;
 import java.lang.module.ModuleDescriptor.Version;
+import java.lang.module.ModuleFinder;
+import java.lang.module.ModuleReader;
+import java.lang.module.ModuleReference;
 import java.lang.module.ResolutionException;
 import java.lang.module.ResolvedModule;
 import java.net.URI;
-import java.nio.file.FileSystems;
-import java.nio.file.FileVisitOption;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
-import java.nio.file.PathMatcher;
-import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.MissingResourceException;
-import java.util.Optional;
-import java.util.ResourceBundle;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.jar.JarOutputStream;
-import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
@@ -282,19 +259,35 @@ public class JmodTask {
         }
     }
 
-    private boolean hashModules() {
+    private boolean hashModules() throws IOException {
+        String moduleName = null;
+        if (options.jmodFile != null) {
+            try (JmodFile jf = new JmodFile(options.jmodFile)) {
+                try (InputStream in = jf.getInputStream(Section.CLASSES, MODULE_INFO)) {
+                    ModuleInfo.Attributes attrs = ModuleInfo.read(in, null);
+                    moduleName = attrs.descriptor().name();
+                } catch (IOException e) {
+                    throw new CommandException("err.module.descriptor.not.found");
+                }
+            }
+        }
+        Hasher hasher = new Hasher(moduleName, options.moduleFinder);
+
         if (options.dryrun) {
             out.println("Dry run:");
         }
 
-        Hasher hasher = new Hasher(options.moduleFinder);
-        hasher.computeHashes().forEach((mn, hashes) -> {
+        Map<String, ModuleHashes> moduleHashes = hasher.computeHashes();
+        if (moduleHashes.isEmpty()) {
+            throw new CommandException("err.no.moduleToHash", "\"" + options.modulesToHash + "\"");
+        }
+        moduleHashes.forEach((mn, hashes) -> {
             if (options.dryrun) {
                 out.format("%s%n", mn);
                 hashes.names().stream()
-                    .sorted()
-                    .forEach(name -> out.format("  hashes %s %s %s%n",
-                        name, hashes.algorithm(), toHex(hashes.hashFor(name))));
+                      .sorted()
+                      .forEach(name -> out.format("  hashes %s %s %s%n",
+                            name, hashes.algorithm(), toHex(hashes.hashFor(name))));
             } else {
                 try {
                     hasher.updateModuleInfo(mn, hashes);
@@ -780,21 +773,17 @@ public class JmodTask {
                         throws IOException
                     {
                         Path relPath = path.relativize(file);
-                        if (relPath.toString().equals(MODULE_INFO)
-                                && !Section.CLASSES.equals(section))
-                            warning("warn.ignore.entry", MODULE_INFO, section);
-
-                        if (!relPath.toString().equals(MODULE_INFO)
-                                && !matches(relPath, excludes)) {
-                            try (InputStream in = Files.newInputStream(file)) {
-                                out.writeEntry(in, section, relPath.toString());
-                            } catch (IOException x) {
-                                if (x.getMessage().contains("duplicate entry")) {
-                                    warning("warn.ignore.duplicate.entry",
-                                            relPath.toString(), section);
-                                    return FileVisitResult.CONTINUE;
+                        String name = relPath.toString();
+                        if (name.equals(MODULE_INFO)) {
+                            if (!Section.CLASSES.equals(section))
+                                warning("warn.ignore.entry", name, section);
+                        } else if (!matches(relPath, excludes)) {
+                            if (out.contains(section, name)) {
+                                warning("warn.ignore.duplicate.entry", name, section);
+                            } else {
+                                try (InputStream in = Files.newInputStream(file)) {
+                                    out.writeEntry(in, section, name);
                                 }
-                                throw x;
                             }
                         }
                         return FileVisitResult.CONTINUE;
@@ -831,7 +820,14 @@ public class JmodTask {
             public boolean test(JarEntry je) {
                 String name = je.getName();
                 // ## no support for excludes. Is it really needed?
-                return !name.endsWith(MODULE_INFO) && !je.isDirectory();
+                if (name.endsWith(MODULE_INFO) || je.isDirectory()) {
+                    return false;
+                }
+                if (out.contains(Section.CLASSES, name)) {
+                    warning("warn.ignore.duplicate.entry", name, Section.CLASSES);
+                    return false;
+                }
+                return true;
             }
         }
     }
@@ -846,25 +842,19 @@ public class JmodTask {
         final String moduleName;  // a specific module to record hashes, if set
 
         /**
-         * This constructor is for jmod hash command.
-         *
-         * This Hasher will determine which modules to record hashes, i.e.
-         * the module in a subgraph of modules to be hashed and that
-         * has no outgoing edges.  It will record in each of these modules,
-         * say `M`, with the the hashes of modules that depend upon M
-         * directly or indirectly matching the specified --hash-modules pattern.
-         */
-        Hasher(ModuleFinder finder) {
-            this(null, finder);
-        }
-
-        /**
          * Constructs a Hasher to compute hashes.
          *
          * If a module name `M` is specified, it will compute the hashes of
          * modules that depend upon M directly or indirectly matching the
          * specified --hash-modules pattern and record in the ModuleHashes
          * attribute in M's module-info.class.
+         *
+         * If name is null, this Hasher will determine which modules to
+         * record hashes, i.e. the module in a subgraph of modules to be
+         * hashed and that has no outgoing edges.  It will record in each
+         * of these modules, say `M`, with the hashes of modules that
+         * depend upon M directly or indirectly matching the specified
+         * --hash-modules pattern.
          *
          * @param name    name of the module to record hashes
          * @param finder  module finder for the specified --module-path
@@ -1452,6 +1442,18 @@ public class JmodTask {
                 if (options.moduleFinder == null || options.modulesToHash == null)
                     throw new CommandException("err.modulepath.must.be.specified")
                             .showUsage(true);
+                // It's optional to specify jmod-file.  If not specified, then
+                // it will find all the modules that have no outgoing read edges
+                if (words.size() >= 2) {
+                    Path path = Paths.get(words.get(1));
+                    if (Files.notExists(path))
+                        throw new CommandException("err.jmod.not.found", path);
+
+                    options.jmodFile = path;
+                }
+                if (words.size() > 2)
+                    throw new CommandException("err.unknown.option",
+                            words.subList(2, words.size())).showUsage(true);
             } else {
                 if (words.size() <= 1)
                     throw new CommandException("err.jmod.must.be.specified").showUsage(true);

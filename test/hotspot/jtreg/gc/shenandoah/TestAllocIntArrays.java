@@ -25,8 +25,9 @@
 /*
  * @test TestAllocIntArrays
  * @summary Acceptance tests: collector can withstand allocation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Shenandoah
+ * @library /test/lib
  *
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -Xmx1g -Xms1g
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=passive
@@ -52,8 +53,9 @@
 /*
  * @test TestAllocIntArrays
  * @summary Acceptance tests: collector can withstand allocation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Shenandoah
+ * @library /test/lib
  *
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -Xmx1g -Xms1g
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=aggressive
@@ -78,6 +80,14 @@
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -Xmx1g -Xms1g
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=aggressive
  *      TestAllocIntArrays
+ */
+
+/*
+ * @test TestAllocIntArrays
+ * @summary Acceptance tests: collector can withstand allocation
+ * @key randomness
+ * @requires vm.gc.Shenandoah
+ * @library /test/lib
  *
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -Xmx1g -Xms1g
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=adaptive
@@ -87,14 +97,38 @@
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -Xmx1g -Xms1g
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=adaptive
  *      TestAllocIntArrays
+ */
+
+/*
+ * @test TestAllocIntArrays
+ * @summary Acceptance tests: collector can withstand allocation
+ * @key randomness
+ * @requires vm.gc.Shenandoah
+ * @library /test/lib
  *
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -Xmx1g -Xms1g
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=static
  *      TestAllocIntArrays
+ */
+
+/*
+ * @test TestAllocIntArrays
+ * @summary Acceptance tests: collector can withstand allocation
+ * @key randomness
+ * @requires vm.gc.Shenandoah
+ * @library /test/lib
  *
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -Xmx1g -Xms1g
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCHeuristics=compact
  *      TestAllocIntArrays
+ */
+
+/*
+ * @test TestAllocIntArrays
+ * @summary Acceptance tests: collector can withstand allocation
+ * @key randomness
+ * @requires vm.gc.Shenandoah
+ * @library /test/lib
  *
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -Xmx1g -Xms1g
  *      -XX:+UseShenandoahGC
@@ -105,8 +139,9 @@
 /*
  * @test TestAllocIntArrays
  * @summary Acceptance tests: collector can withstand allocation
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @key randomness
+ * @requires vm.gc.Shenandoah
+ * @library /test/lib
  *
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -Xmx1g -Xms1g
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu -XX:ShenandoahGCHeuristics=aggressive
@@ -131,6 +166,14 @@
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -Xmx1g -Xms1g
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu -XX:ShenandoahGCHeuristics=aggressive
  *      TestAllocIntArrays
+ */
+
+/*
+ * @test TestAllocIntArrays
+ * @summary Acceptance tests: collector can withstand allocation
+ * @key randomness
+ * @requires vm.gc.Shenandoah
+ * @library /test/lib
  *
  * @run main/othervm -XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions -Xmx1g -Xms1g
  *      -XX:+UseShenandoahGC -XX:ShenandoahGCMode=iu
@@ -143,6 +186,7 @@
  */
 
 import java.util.Random;
+import jdk.test.lib.Utils;
 
 public class TestAllocIntArrays {
 
@@ -155,7 +199,7 @@ public class TestAllocIntArrays {
         final int max = 384 * 1024;
         long count = TARGET_MB * 1024 * 1024 / (16 + 4 * (min + (max - min) / 2));
 
-        Random r = new Random();
+        Random r = Utils.getRandomInstance();
         for (long c = 0; c < count; c++) {
             sink = new int[min + r.nextInt(max - min)];
         }

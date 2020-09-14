@@ -31,7 +31,6 @@
  *
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
  *
  * @run main/othervm -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI
@@ -77,7 +76,6 @@ public class ClearDirectivesFileStackTest extends AbstractTestBase {
             CompileCommand compileCommand = new CompileCommand(command,
                     methodDescriptor, cmdGen.generateCompiler(),
                     Scenario.Type.DIRECTIVE);
-            compileCommand.print();
             builder.add(compileCommand);
         }
         // clear the stack

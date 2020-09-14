@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -866,17 +866,26 @@ public class ClassWriter extends ClassFile {
      * Write NestMembers attribute (if needed)
      */
     int writeNestMembersIfNeeded(ClassSymbol csym) {
-        ListBuffer<ClassSymbol> nested = new ListBuffer<>();
-        listNested(csym, nested);
-        Set<ClassSymbol> nestedUnique = new LinkedHashSet<>(nested);
-        if (csym.owner.kind == PCK && !nestedUnique.isEmpty()) {
-            int alenIdx = writeAttr(names.NestMembers);
-            databuf.appendChar(nestedUnique.size());
-            for (ClassSymbol s : nestedUnique) {
-                databuf.appendChar(poolWriter.putClass(s));
+        Set<ClassSymbol> nestedUnique = new LinkedHashSet<>();
+        if (csym.owner.kind == PCK) {
+            if (csym.isValue()) {
+                // reference projection is the host
+            } else if (csym.isReferenceProjection()) {
+                ClassSymbol valueProjection = csym.valueProjection();
+                nestedUnique.add(valueProjection);
+                listNested(valueProjection, nestedUnique);
+            } else {
+                listNested(csym, nestedUnique);
             }
-            endAttr(alenIdx);
-            return 1;
+            if (!nestedUnique.isEmpty()) {
+                int alenIdx = writeAttr(names.NestMembers);
+                databuf.appendChar(nestedUnique.size());
+                for (ClassSymbol s : nestedUnique) {
+                    databuf.appendChar(poolWriter.putClass(s));
+                }
+                endAttr(alenIdx);
+                return 1;
+            }
         }
         return 0;
     }
@@ -885,16 +894,20 @@ public class ClassWriter extends ClassFile {
      * Write NestHost attribute (if needed)
      */
     int writeNestHostIfNeeded(ClassSymbol csym) {
-        if (csym.owner.kind != PCK) {
+        if (csym.owner.kind != PCK || csym.isValue()) {
             int alenIdx = writeAttr(names.NestHost);
-            databuf.appendChar(poolWriter.putClass(csym.outermostClass()));
+            ClassSymbol outerMost = csym.outermostClass();
+            if (outerMost.isValue()) {
+                outerMost = outerMost.referenceProjection();
+            }
+            databuf.appendChar(poolWriter.putClass(outerMost));
             endAttr(alenIdx);
             return 1;
         }
         return 0;
     }
 
-    private void listNested(Symbol sym, ListBuffer<ClassSymbol> seen) {
+    private void listNested(Symbol sym, Set<ClassSymbol> seen) {
         if (sym.kind != TYP) return;
         ClassSymbol csym = (ClassSymbol)sym;
         if (csym.owner.kind != PCK) {
@@ -913,6 +926,21 @@ public class ClassWriter extends ClassFile {
                 listNested(s, seen);
             }
         }
+    }
+
+    /** Write "PermittedSubclasses" attribute.
+     */
+    int writePermittedSubclassesIfNeeded(ClassSymbol csym) {
+        if (csym.permitted.nonEmpty()) {
+            int alenIdx = writeAttr(names.PermittedSubclasses);
+            databuf.appendChar(csym.permitted.size());
+            for (Symbol c : csym.permitted) {
+                databuf.appendChar(poolWriter.putClass((ClassSymbol) c));
+            }
+            endAttr(alenIdx);
+            return 1;
+        }
+        return 0;
     }
 
     /** Write "bootstrapMethods" attribute.
@@ -1535,7 +1563,7 @@ public class ClassWriter extends ClassFile {
         poolbuf.reset();
 
         Type supertype = c.isValue() ? c.type.referenceProjection() : types.supertype(c.type);
-        List<Type> interfaces = c.isValue() ? List.of(syms.inlineObjectType) : types.interfaces(c.type);
+        List<Type> interfaces = c.isValue() ? List.nil() : types.interfaces(c.type);
         List<Type> typarams = c.type.getTypeArguments();
 
         int flags;
@@ -1544,7 +1572,7 @@ public class ClassWriter extends ClassFile {
         } else {
             flags = adjustFlags(c.flags() & ~DEFAULT);
             if ((flags & PROTECTED) != 0) flags |= PUBLIC;
-            flags = flags & (ClassFlags | ACC_VALUE) & ~STRICTFP;
+            flags = flags & (ClassFlags | ACC_INLINE) & ~STRICTFP;
             if ((flags & INTERFACE) == 0) flags |= ACC_SUPER;
         }
 
@@ -1668,6 +1696,10 @@ public class ClassWriter extends ClassFile {
             acount += writeRecordAttribute(c);
         }
 
+        if (target.hasSealedClasses()) {
+            acount += writePermittedSubclassesIfNeeded(c);
+        }
+
         if (!poolWriter.bootstrapMethods.isEmpty()) {
             writeBootstrapMethods();
             acount++;
@@ -1718,7 +1750,7 @@ public class ClassWriter extends ClassFile {
         if ((flags & DEFAULT) != 0)
             result &= ~ABSTRACT;
         if ((flags & VALUE) != 0)
-            result |= ACC_VALUE;
+            result |= ACC_INLINE;
         return result;
     }
 

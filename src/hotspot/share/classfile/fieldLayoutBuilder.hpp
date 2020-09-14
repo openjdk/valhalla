@@ -53,18 +53,18 @@ class LayoutRawBlock : public ResourceObj {
  public:
   // Some code relies on the order of values below.
   enum Kind {
-    EMPTY,         // empty slot, space is taken from this to allocate fields
-    RESERVED,      // reserved for JVM usage (for instance object header)
-    PADDING,       // padding (because of alignment constraints or @Contended)
-    REGULAR,       // primitive or oop field (including non-flattened inline fields)
-    FLATTENED,     // flattened field
-    INHERITED      // field(s) inherited from super classes
+    EMPTY,            // empty slot, space is taken from this to allocate fields
+    RESERVED,         // reserved for JVM usage (for instance object header)
+    PADDING,          // padding (because of alignment constraints or @Contended)
+    REGULAR,          // primitive or oop field (including inline type fields not inlined)
+    INLINED,          // field inlined
+    INHERITED         // field(s) inherited from super classes
   };
 
  private:
   LayoutRawBlock* _next_block;
   LayoutRawBlock* _prev_block;
-  ValueKlass* _value_klass;
+  InlineKlass* _inline_klass;
   Kind _kind;
   int _offset;
   int _alignment;
@@ -93,11 +93,11 @@ class LayoutRawBlock : public ResourceObj {
     return _field_index;
   }
   bool is_reference() const { return _is_reference; }
-  ValueKlass* value_klass() const {
-    assert(_value_klass != NULL, "Must be initialized");
-    return _value_klass;
+  InlineKlass* inline_klass() const {
+    assert(_inline_klass != NULL, "Must be initialized");
+    return _inline_klass;
   }
-  void set_value_klass(ValueKlass* value_klass) { _value_klass = value_klass; }
+  void set_inline_klass(InlineKlass* inline_klass) { _inline_klass = inline_klass; }
 
   bool fit(int size, int alignment);
 
@@ -123,7 +123,7 @@ class LayoutRawBlock : public ResourceObj {
 // A Field group represents a set of fields that have to be allocated together,
 // this is the way the @Contended annotation is supported.
 // Inside a FieldGroup, fields are sorted based on their kind: primitive,
-// oop, or flattened.
+// oop, or inlined.
 //
 class FieldGroup : public ResourceObj {
 
@@ -132,7 +132,7 @@ class FieldGroup : public ResourceObj {
 
   GrowableArray<LayoutRawBlock*>* _primitive_fields;
   GrowableArray<LayoutRawBlock*>* _oop_fields;
-  GrowableArray<LayoutRawBlock*>* _flattened_fields;
+  GrowableArray<LayoutRawBlock*>* _inlined_fields;
   int _contended_group;
   int _oop_count;
   static const int INITIAL_LIST_SIZE = 16;
@@ -144,13 +144,13 @@ class FieldGroup : public ResourceObj {
   void set_next(FieldGroup* next) { _next = next; }
   GrowableArray<LayoutRawBlock*>* primitive_fields() const { return _primitive_fields; }
   GrowableArray<LayoutRawBlock*>* oop_fields() const { return _oop_fields; }
-  GrowableArray<LayoutRawBlock*>* flattened_fields() const { return _flattened_fields; }
+  GrowableArray<LayoutRawBlock*>* inlined_fields() const { return _inlined_fields; }
   int contended_group() const { return _contended_group; }
   int oop_count() const { return _oop_count; }
 
   void add_primitive_field(AllFieldStream fs, BasicType type);
   void add_oop_field(AllFieldStream fs);
-  void add_flattened_field(AllFieldStream fs, ValueKlass* vk);
+  void add_inlined_field(AllFieldStream fs, InlineKlass* vk);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
 };
@@ -253,8 +253,9 @@ class FieldLayoutBuilder : public ResourceObj {
   int _first_field_offset;
   int _exact_size_in_bytes;
   bool _has_nonstatic_fields;
+  bool _has_inline_type_fields;
   bool _is_contended;
-  bool _is_value_type;
+  bool _is_inline_type;
   bool _has_flattening_information;
   bool _has_nonatomic_values;
   int _atomic_field_count;
@@ -263,7 +264,7 @@ class FieldLayoutBuilder : public ResourceObj {
 
  public:
   FieldLayoutBuilder(const Symbol* classname, const InstanceKlass* super_klass, ConstantPool* constant_pool,
-      Array<u2>* fields, bool is_contended, bool is_value_type, ClassLoaderData* class_loader_data,
+      Array<u2>* fields, bool is_contended, bool is_inline_type, ClassLoaderData* class_loader_data,
       Handle protection_domain, FieldLayoutInfo* info);
 
   int get_alignment() {
@@ -283,8 +284,6 @@ class FieldLayoutBuilder : public ResourceObj {
 
   void build_layout(TRAPS);
   void compute_regular_layout();
-  void compute_java_lang_ref_Reference_layout();
-  void compute_boxing_class_layout();
   void compute_inline_class_layout(TRAPS);
   void insert_contended_padding(LayoutRawBlock* slot);
 
@@ -293,7 +292,7 @@ class FieldLayoutBuilder : public ResourceObj {
   void epilogue();
   void regular_field_sorting();
   void inline_class_field_sorting(TRAPS);
-  void add_flattened_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_map, ValueKlass* vk, int offset);
+  void add_inlined_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_map, InlineKlass* vk, int offset);
 };
 
 #endif // SHARE_CLASSFILE_FIELDLAYOUTBUILDER_HPP

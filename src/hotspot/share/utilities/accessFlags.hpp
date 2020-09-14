@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -66,6 +66,8 @@ enum {
   JVM_ACC_IS_CLONEABLE_FAST       = (int)0x80000000,// True if klass implements the Cloneable interface and can be optimized in generated code
   JVM_ACC_HAS_FINAL_METHOD        = 0x01000000,     // True if klass has final method
   JVM_ACC_IS_SHARED_CLASS         = 0x02000000,     // True if klass is shared
+  JVM_ACC_IS_HIDDEN_CLASS         = 0x04000000,     // True if klass is hidden
+  JVM_ACC_IS_BOX_CLASS            = 0x08000000,     // True if klass is primitive wrapper
 
   // Klass* and Method* flags
   JVM_ACC_HAS_LOCAL_VARIABLE_TABLE= 0x00200000,
@@ -85,17 +87,14 @@ enum {
   JVM_ACC_FIELD_STABLE                    = 0x00000020, // @Stable field, same as JVM_ACC_SYNCHRONIZED and JVM_ACC_SUPER
   JVM_ACC_FIELD_INITIALIZED_FINAL_UPDATE  = 0x00000200, // (static) final field updated outside (class) initializer, same as JVM_ACC_NATIVE
   JVM_ACC_FIELD_HAS_GENERIC_SIGNATURE     = 0x00000800, // field has generic signature
-  JVM_ACC_FIELD_FLATTENABLE               = 0x00004000, // flattenable field
-  JVM_ACC_FIELD_FLATTENED                 = 0x00008000, // flattened field
+  JVM_ACC_FIELD_INLINED                   = 0x00008000, // field is inlined
 
   JVM_ACC_FIELD_INTERNAL_FLAGS       = JVM_ACC_FIELD_ACCESS_WATCHED |
                                        JVM_ACC_FIELD_MODIFICATION_WATCHED |
                                        JVM_ACC_FIELD_INTERNAL |
                                        JVM_ACC_FIELD_STABLE |
                                        JVM_ACC_FIELD_HAS_GENERIC_SIGNATURE |
-                                       JVM_ACC_FLATTENABLE |
-                                       JVM_ACC_FIELD_FLATTENABLE |
-                                       JVM_ACC_FIELD_FLATTENED,
+                                       JVM_ACC_FIELD_INLINED,
 
                                                     // flags accepted by set_field_flags()
   JVM_ACC_FIELD_FLAGS                = JVM_RECOGNIZED_FIELD_MODIFIERS | JVM_ACC_FIELD_INTERNAL_FLAGS
@@ -126,8 +125,7 @@ class AccessFlags {
   bool is_interface   () const         { return (_flags & JVM_ACC_INTERFACE   ) != 0; }
   bool is_abstract    () const         { return (_flags & JVM_ACC_ABSTRACT    ) != 0; }
   bool is_strict      () const         { return (_flags & JVM_ACC_STRICT      ) != 0; }
-  bool is_value_type  () const         { return (_flags & JVM_ACC_VALUE       ) != 0; }
-  bool is_flattenable () const         { return (_flags & JVM_ACC_FLATTENABLE ) != 0; }
+  bool is_inline_type () const         { return (_flags & JVM_ACC_INLINE      ) != 0; }
 
   // Attribute flags
   bool is_synthetic   () const         { return (_flags & JVM_ACC_SYNTHETIC   ) != 0; }
@@ -156,6 +154,8 @@ class AccessFlags {
   bool has_final_method        () const { return (_flags & JVM_ACC_HAS_FINAL_METHOD       ) != 0; }
   bool is_cloneable_fast       () const { return (_flags & JVM_ACC_IS_CLONEABLE_FAST      ) != 0; }
   bool is_shared_class         () const { return (_flags & JVM_ACC_IS_SHARED_CLASS        ) != 0; }
+  bool is_hidden_class         () const { return (_flags & JVM_ACC_IS_HIDDEN_CLASS        ) != 0; }
+  bool is_box_class            () const { return (_flags & JVM_ACC_IS_BOX_CLASS           ) != 0; }
 
   // Klass* and Method* flags
   bool has_localvariable_table () const { return (_flags & JVM_ACC_HAS_LOCAL_VARIABLE_TABLE) != 0; }
@@ -217,7 +217,6 @@ class AccessFlags {
   void set_is_obsolete()               { atomic_set_bits(JVM_ACC_IS_OBSOLETE);             }
   void set_is_deleted()                { atomic_set_bits(JVM_ACC_IS_DELETED);              }
   void set_is_prefixed_native()        { atomic_set_bits(JVM_ACC_IS_PREFIXED_NATIVE);      }
-  void set_is_flattenable()            { atomic_set_bits(JVM_ACC_FLATTENABLE);             }
 
   void clear_not_c1_compilable()       { atomic_clear_bits(JVM_ACC_NOT_C1_COMPILABLE);       }
   void clear_not_c2_compilable()       { atomic_clear_bits(JVM_ACC_NOT_C2_COMPILABLE);       }
@@ -229,6 +228,8 @@ class AccessFlags {
   void set_is_cloneable_fast()         { atomic_set_bits(JVM_ACC_IS_CLONEABLE_FAST);       }
   void set_has_miranda_methods()       { atomic_set_bits(JVM_ACC_HAS_MIRANDA_METHODS);     }
   void set_is_shared_class()           { atomic_set_bits(JVM_ACC_IS_SHARED_CLASS);         }
+  void set_is_hidden_class()           { atomic_set_bits(JVM_ACC_IS_HIDDEN_CLASS);         }
+  void set_is_box_class()              { atomic_set_bits(JVM_ACC_IS_BOX_CLASS);            }
 
  public:
   // field flags

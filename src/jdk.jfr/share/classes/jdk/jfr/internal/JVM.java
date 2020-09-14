@@ -25,7 +25,6 @@
 
 package jdk.jfr.internal;
 
-import java.io.IOException;
 import java.util.List;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
@@ -39,7 +38,7 @@ import jdk.jfr.internal.handlers.EventHandler;
 public final class JVM {
     private static final JVM jvm = new JVM();
 
-    // JVM signals file changes by doing Object#notifu on this object
+    // JVM signals file changes by doing Object#notify on this object
     static final Object FILE_DELTA_CHANGE = new Object();
 
     static final long RESERVED_CLASS_ID_LIMIT = 500;
@@ -283,7 +282,6 @@ public final class JVM {
      *
      * @param file the file where data should be written, or null if it should
      *        not be copied out (in memory).
-     * @throws IOException
      */
     public native void setOutput(String file);
 
@@ -362,8 +360,6 @@ public final class JVM {
      * Requires that JFR has been started with {@link #createNativeJFR()}
      *
      * @param bytes binary representation of metadata descriptor
-     *
-     * @param binary representation of descriptor
      */
     public native void storeMetadataDescriptor(byte[] bytes);
 
@@ -428,8 +424,8 @@ public final class JVM {
     public native double getTimeConversionFactor();
 
     /**
-     * Return a unique identifier for a class. Compared to {@link #getClassId()}
-     * , this method does not tag the class as being "in-use".
+     * Return a unique identifier for a class. Compared to {@link #getClassId(Class)},
+     * this method does not tag the class as being "in-use".
      *
      * @param clazz class
      *
@@ -525,8 +521,9 @@ public final class JVM {
      *
      * @param cutoff the cutoff in ticks
      * @param emitAll emit all samples in old object queue
+     * @param skipBFS don't use BFS when searching for path to GC root
      */
-    public native void emitOldObjectSamples(long cutoff, boolean emitAll);
+    public native void emitOldObjectSamples(long cutoff, boolean emitAll, boolean skipBFS);
 
     /**
      * Test if a chunk rotation is warranted.
@@ -580,4 +577,13 @@ public final class JVM {
      * @return the handler, may be {@code null}
      */
     public native Object getHandler(Class<? extends jdk.internal.event.Event> eventClass);
+
+    /**
+     * Returns the id for the Java types defined in metadata.xml.
+     *
+     * @param name the name of the type
+     *
+     * @return the id, or a negative value if it does not exists.
+     */
+    public native long getTypeId(String name);
 }

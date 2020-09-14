@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,7 +22,7 @@
  */
 package jdk.incubator.jpackage.internal;
 
-import java.io.File;
+import java.nio.file.Path;
 import java.io.IOException;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -45,7 +45,7 @@ public class DeployParamsTest {
 
     @Before
     public void setUp() throws IOException {
-        testRoot = tempFolder.newFolder();
+        testRoot = tempFolder.newFolder().toPath();
     }
 
     @Test
@@ -119,7 +119,6 @@ public class DeployParamsTest {
         params = new DeployParams();
 
         params.setOutput(testRoot);
-        params.addResource(testRoot, new File(testRoot, "test.jar"));
         params.addBundleArgument(Arguments.CLIOptions.APPCLASS.getId(),
                 "TestClass");
         params.addBundleArgument(Arguments.CLIOptions.MAIN_JAR.getId(),
@@ -132,6 +131,6 @@ public class DeployParamsTest {
         params.validate();
     }
 
-    private File testRoot = null;
+    private Path testRoot = null;
     private DeployParams params;
 }

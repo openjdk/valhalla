@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
 #include "ci/ciReplay.hpp"
-#include "classfile/systemDictionary.hpp"
+#include "classfile/javaClasses.hpp"
 #include "code/exceptionHandlerTable.hpp"
 #include "code/nmethod.hpp"
 #include "compiler/compileBroker.hpp"
@@ -35,6 +35,7 @@
 #include "compiler/oopMap.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "memory/resourceArea.hpp"
 #include "opto/addnode.hpp"
 #include "opto/block.hpp"
@@ -50,6 +51,7 @@
 #include "opto/divnode.hpp"
 #include "opto/escape.hpp"
 #include "opto/idealGraphPrinter.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/loopnode.hpp"
 #include "opto/machnode.hpp"
 #include "opto/macro.hpp"
@@ -67,7 +69,6 @@
 #include "opto/runtime.hpp"
 #include "opto/stringopts.hpp"
 #include "opto/type.hpp"
-#include "opto/valuetypenode.hpp"
 #include "opto/vectornode.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -405,9 +406,12 @@ void Compile::remove_useless_nodes(Unique_Node_List &useful) {
       remove_opaque4_node(opaq);
     }
   }
-  // Remove useless value type nodes
-  if (_value_type_nodes != NULL) {
-    _value_type_nodes->remove_useless_nodes(useful.member_set());
+  // Remove useless inline type nodes
+  for (int i = _inline_type_nodes->length() - 1; i >= 0; i--) {
+    Node* vt = _inline_type_nodes->at(i);
+    if (!useful.member(vt)) {
+      _inline_type_nodes->remove(vt);
+    }
   }
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   bs->eliminate_useless_gc_barriers(useful, this);
@@ -503,12 +507,13 @@ debug_only( int Compile::_debug_idx = 100000; )
 
 
 Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
-                  bool subsume_loads, bool do_escape_analysis, bool eliminate_boxing, DirectiveSet* directive)
+                  bool subsume_loads, bool do_escape_analysis, bool eliminate_boxing, bool install_code, DirectiveSet* directive)
                 : Phase(Compiler),
                   _compile_id(ci_env->compile_id()),
                   _save_argument_registers(false),
                   _subsume_loads(subsume_loads),
                   _do_escape_analysis(do_escape_analysis),
+                  _install_code(install_code),
                   _eliminate_boxing(eliminate_boxing),
                   _method(target),
                   _entry_bci(osr_bci),
@@ -533,9 +538,7 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
                   _log(ci_env->log()),
                   _failure_reason(NULL),
                   _congraph(NULL),
-#ifndef PRODUCT
-                  _printer(IdealGraphPrinter::printer()),
-#endif
+                  NOT_PRODUCT(_printer(NULL) COMMA)
                   _dead_node_list(comp_arena()),
                   _dead_node_count(0),
                   _node_arena(mtCompiler),
@@ -563,11 +566,6 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
 #endif
 {
   C = this;
-#ifndef PRODUCT
-  if (_printer != NULL) {
-    _printer->set_compile(this);
-  }
-#endif
   CompileWrapper cw(this);
 
   if (CITimeVerbose) {
@@ -727,7 +725,7 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
   // Drain the list.
   Finish_Warm();
 #ifndef PRODUCT
-  if (_printer && _printer->should_print(1)) {
+  if (should_print(1)) {
     _printer->print_inlining();
   }
 #endif
@@ -804,6 +802,7 @@ Compile::Compile( ciEnv* ci_env,
     _save_argument_registers(save_arg_registers),
     _subsume_loads(true),
     _do_escape_analysis(false),
+    _install_code(true),
     _eliminate_boxing(false),
     _method(NULL),
     _entry_bci(InvocationEntryBci),
@@ -827,9 +826,7 @@ Compile::Compile( ciEnv* ci_env,
     _log(ci_env->log()),
     _failure_reason(NULL),
     _congraph(NULL),
-#ifndef PRODUCT
-    _printer(NULL),
-#endif
+    NOT_PRODUCT(_printer(NULL) COMMA)
     _dead_node_list(comp_arena()),
     _dead_node_count(0),
     _node_arena(mtCompiler),
@@ -1019,10 +1016,11 @@ void Compile::Init(int aliaslevel) {
   _expensive_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _range_check_casts = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   _opaque4_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
-  _value_type_nodes = new (comp_arena()) Unique_Node_List(comp_arena());
+  _inline_type_nodes = new(comp_arena()) GrowableArray<Node*>(comp_arena(), 8,  0, NULL);
   register_library_intrinsics();
 #ifdef ASSERT
   _type_verify_symmetry = true;
+  _phase_optimize_finished = false;
 #endif
 }
 
@@ -1280,7 +1278,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
     // For arrays indexed by constant indices, we flatten the alias
     // space to include all of the array body.  Only the header, klass
     // and array length can be accessed un-aliased.
-    // For flattened value type array, each field has its own slice so
+    // For flattened inline type array, each field has its own slice so
     // we must include the field offset.
     if( offset != Type::OffsetBot ) {
       if( ta->const_oop() ) { // MethodData* or Method*
@@ -1317,8 +1315,8 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), ta->field_offset());
     }
     // Initially all flattened array accesses share a single slice
-    if (ta->elem()->isa_valuetype() && ta->elem() != TypeValueType::BOTTOM && _flattened_accesses_share_alias) {
-      const TypeAry *tary = TypeAry::make(TypeValueType::BOTTOM, ta->size());
+    if (ta->is_flat() && ta->elem() != TypeInlineType::BOTTOM && _flattened_accesses_share_alias) {
+      const TypeAry *tary = TypeAry::make(TypeInlineType::BOTTOM, ta->size());
       tj = ta = TypeAryPtr::make(ptr,ta->const_oop(),tary,NULL,false,Type::Offset(offset), Type::Offset(Type::OffsetBot));
     }
     // Arrays of bytes and of booleans both use 'bastore' and 'baload' so
@@ -1346,7 +1344,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
         // No constant oop pointers (such as Strings); they alias with
         // unknown strings.
         assert(!is_known_inst, "not scalarizable allocation");
-        tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset), to->klass()->flatten_array());
+        tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset));
       }
     } else if( is_known_inst ) {
       tj = to; // Keep NotNull and klass_is_exact for instance type
@@ -1354,7 +1352,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       // During the 2nd round of IterGVN, NotNull castings are removed.
       // Make sure the Bottom and NotNull variants alias the same.
       // Also, make sure exact and non-exact variants alias the same.
-      tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset), to->klass()->flatten_array());
+      tj = to = TypeInstPtr::make(TypePtr::BotPTR,to->klass(),false,0,Type::Offset(offset));
     }
     if (to->speculative() != NULL) {
       tj = to = TypeInstPtr::make(to->ptr(),to->klass(),to->klass_is_exact(),to->const_oop(),Type::Offset(to->offset()), to->klass()->flatten_array(), to->instance_id());
@@ -1364,7 +1362,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       // First handle header references such as a LoadKlassNode, even if the
       // object's klass is unloaded at compile time (4965979).
       if (!is_known_inst) { // Do it only for non-instance types
-        tj = to = TypeInstPtr::make(TypePtr::BotPTR, env()->Object_klass(), false, NULL, Type::Offset(offset), false);
+        tj = to = TypeInstPtr::make(TypePtr::BotPTR, env()->Object_klass(), false, NULL, Type::Offset(offset));
       }
     } else if (offset < 0 || offset >= k->size_helper() * wordSize) {
       // Static fields are in the space above the normal instance
@@ -1380,7 +1378,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
         if( is_known_inst ) {
           tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, true, NULL, Type::Offset(offset), canonical_holder->flatten_array(), to->instance_id());
         } else {
-          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, false, NULL, Type::Offset(offset), canonical_holder->flatten_array());
+          tj = to = TypeInstPtr::make(to->ptr(), canonical_holder, false, NULL, Type::Offset(offset));
         }
       }
     }
@@ -1397,8 +1395,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
 
       tj = tk = TypeKlassPtr::make(TypePtr::NotNull,
                                    TypeKlassPtr::OBJECT->klass(),
-                                   Type::Offset(offset),
-                                   false);
+                                   Type::Offset(offset));
     }
 
     ciKlass* klass = tk->klass();
@@ -1406,7 +1403,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
       ciKlass* k = TypeAryPtr::OOPS->klass();
       if( !k || !k->is_loaded() )                  // Only fails for some -Xcomp runs
         k = TypeInstPtr::BOTTOM->klass();
-      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, k, Type::Offset(offset), false);
+      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, k, Type::Offset(offset));
     }
 
     // Check for precise loads from the primary supertype array and force them
@@ -1422,7 +1419,7 @@ const TypePtr *Compile::flatten_alias_type( const TypePtr *tj ) const {
          offset < (int)(primary_supers_offset + Klass::primary_super_limit() * wordSize)) ||
         offset == (int)in_bytes(Klass::secondary_super_cache_offset())) {
       offset = in_bytes(Klass::secondary_super_cache_offset());
-      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, tk->klass(), Type::Offset(offset), tk->flat_array());
+      tj = tk = TypeKlassPtr::make(TypePtr::NotNull, tk->klass(), Type::Offset(offset));
     }
   }
 
@@ -1616,7 +1613,7 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
     if (flat == TypeInstPtr::KLASS)  alias_type(idx)->set_rewritable(false);
     if (flat == TypeAryPtr::RANGE)   alias_type(idx)->set_rewritable(false);
     if (flat->isa_instptr()) {
-      if (flat->offset() == java_lang_Class::klass_offset_in_bytes()
+      if (flat->offset() == java_lang_Class::klass_offset()
           && flat->is_instptr()->klass() == env()->Class_klass())
         alias_type(idx)->set_rewritable(false);
     }
@@ -1632,10 +1629,10 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
         alias_type(idx)->set_element(elemtype);
       }
       int field_offset = flat->is_aryptr()->field_offset().get();
-      if (elemtype->isa_valuetype() &&
-          elemtype->value_klass() != NULL &&
+      if (elemtype->isa_inlinetype() &&
+          elemtype->inline_klass() != NULL &&
           field_offset != Type::OffsetBot) {
-        ciValueKlass* vk = elemtype->value_klass();
+        ciInlineKlass* vk = elemtype->inline_klass();
         field_offset += vk->first_field_offset();
         field = vk->get_field_by_offset(field_offset, false);
       }
@@ -1667,9 +1664,9 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
         // static field
         ciInstanceKlass* k = tinst->const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
         field = k->get_field_by_offset(tinst->offset(), true);
-      } else if (tinst->klass()->is_valuetype()) {
-        // Value type field
-        ciValueKlass* vk = tinst->value_klass();
+      } else if (tinst->klass()->is_inlinetype()) {
+        // Inline type field
+        ciInlineKlass* vk = tinst->inline_klass();
         field = vk->get_field_by_offset(tinst->offset(), false);
       } else {
         ciInstanceKlass* k = tinst->klass()->as_instance_klass();
@@ -1685,8 +1682,8 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
     if (field != NULL) {
       alias_type(idx)->set_field(field);
       if (flat->isa_aryptr()) {
-        // Fields of flattened inline type arrays are rewritable although they are declared final
-        assert(flat->is_aryptr()->elem()->isa_valuetype(), "must be a flattened value array");
+        // Fields of flat arrays are rewritable although they are declared final
+        assert(flat->is_aryptr()->is_flat(), "must be a flat array");
         alias_type(idx)->set_rewritable(true);
       }
     }
@@ -1861,27 +1858,36 @@ void Compile::remove_opaque4_nodes(PhaseIterGVN &igvn) {
   for (int i = opaque4_count(); i > 0; i--) {
     Node* opaq = opaque4_node(i-1);
     assert(opaq->Opcode() == Op_Opaque4, "Opaque4 only");
+    // With Opaque4 nodes, the expectation is that the test of input 1
+    // is always equal to the constant value of input 2. So we can
+    // remove the Opaque4 and replace it by input 2. In debug builds,
+    // leave the non constant test in instead to sanity check that it
+    // never fails (if it does, that subgraph was constructed so, at
+    // runtime, a Halt node is executed).
+#ifdef ASSERT
+    igvn.replace_node(opaq, opaq->in(1));
+#else
     igvn.replace_node(opaq, opaq->in(2));
+#endif
   }
   assert(opaque4_count() == 0, "should be empty");
 }
 
-void Compile::add_value_type(Node* n) {
-  assert(n->is_ValueTypeBase(), "unexpected node");
-  if (_value_type_nodes != NULL) {
-    _value_type_nodes->push(n);
+void Compile::add_inline_type(Node* n) {
+  assert(n->is_InlineTypeBase(), "unexpected node");
+  if (_inline_type_nodes != NULL) {
+    _inline_type_nodes->push(n);
   }
 }
 
-void Compile::remove_value_type(Node* n) {
-  assert(n->is_ValueTypeBase(), "unexpected node");
-  if (_value_type_nodes != NULL) {
-    _value_type_nodes->remove(n);
+void Compile::remove_inline_type(Node* n) {
+  assert(n->is_InlineTypeBase(), "unexpected node");
+  if (_inline_type_nodes != NULL && _inline_type_nodes->contains(n)) {
+    _inline_type_nodes->remove(n);
   }
 }
 
-// Does the return value keep otherwise useless value type allocations
-// alive?
+// Does the return value keep otherwise useless inline type allocations alive?
 static bool return_val_keeps_allocations_alive(Node* ret_val) {
   ResourceMark rm;
   Unique_Node_List wq;
@@ -1889,10 +1895,12 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
   bool some_allocations = false;
   for (uint i = 0; i < wq.size(); i++) {
     Node* n = wq.at(i);
-    assert(!n->is_ValueTypeBase(), "chain of value type nodes");
+    assert(!n->is_InlineType(), "chain of inline type nodes");
     if (n->outcnt() > 1) {
       // Some other use for the allocation
       return false;
+    } else if (n->is_InlineTypePtr()) {
+      wq.push(n->in(1));
     } else if (n->is_Phi()) {
       for (uint j = 1; j < n->req(); j++) {
         wq.push(n->in(j));
@@ -1906,19 +1914,25 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
   return some_allocations;
 }
 
-void Compile::process_value_types(PhaseIterGVN &igvn) {
-  // Make value types scalar in safepoints
-  while (_value_type_nodes->size() != 0) {
-    ValueTypeBaseNode* vt = _value_type_nodes->pop()->as_ValueTypeBase();
+void Compile::process_inline_types(PhaseIterGVN &igvn, bool post_ea) {
+  // Make inline types scalar in safepoints
+  for (int i = _inline_type_nodes->length()-1; i >= 0; i--) {
+    InlineTypeBaseNode* vt = _inline_type_nodes->at(i)->as_InlineTypeBase();
     vt->make_scalar_in_safepoints(&igvn);
-    if (vt->is_ValueTypePtr()) {
-      igvn.replace_node(vt, vt->get_oop());
-    } else if (vt->outcnt() == 0) {
-      igvn.remove_dead_node(vt);
+  }
+  // Remove InlineTypePtr nodes only after EA to give scalar replacement a chance
+  // to remove buffer allocations. InlineType nodes are kept until loop opts and
+  // removed via InlineTypeNode::remove_redundant_allocations.
+  if (post_ea) {
+    while (_inline_type_nodes->length() > 0) {
+      InlineTypeBaseNode* vt = _inline_type_nodes->pop()->as_InlineTypeBase();
+      if (vt->is_InlineTypePtr()) {
+        igvn.replace_node(vt, vt->get_oop());
+      }
     }
   }
-  _value_type_nodes = NULL;
-  if (tf()->returns_value_type_as_fields()) {
+  // Make sure that the return value does not keep an unused allocation alive
+  if (tf()->returns_inline_type_as_fields()) {
     Node* ret = NULL;
     for (uint i = 1; i < root()->req(); i++){
       Node* in = root()->in(i);
@@ -1931,7 +1945,7 @@ void Compile::process_value_types(PhaseIterGVN &igvn) {
       Node* ret_val = ret->in(TypeFunc::Parms);
       if (igvn.type(ret_val)->isa_oopptr() &&
           return_val_keeps_allocations_alive(ret_val)) {
-        igvn.replace_input_of(ret, TypeFunc::Parms, ValueTypeNode::tagged_klass(igvn.type(ret_val)->value_klass(), igvn));
+        igvn.replace_input_of(ret, TypeFunc::Parms, InlineTypeNode::tagged_klass(igvn.type(ret_val)->inline_klass(), igvn));
         assert(ret_val->outcnt() == 0, "should be dead now");
         igvn.remove_dead_node(ret_val);
       }
@@ -1959,7 +1973,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
   Node_List memnodes;
 
   // Alias index currently shared by all flattened memory accesses
-  int index = get_alias_index(TypeAryPtr::VALUES);
+  int index = get_alias_index(TypeAryPtr::INLINES);
 
   // Find MergeMem nodes and flattened array accesses
   for (uint i = 0; i < wq.size(); i++) {
@@ -1971,7 +1985,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
       } else {
         adr_type = get_adr_type(get_alias_index(n->adr_type()));
       }
-      if (adr_type == TypeAryPtr::VALUES) {
+      if (adr_type == TypeAryPtr::INLINES) {
         memnodes.push(n);
       }
     } else if (n->is_MergeMem()) {
@@ -1998,7 +2012,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
       AliasCacheEntry* ace = &_alias_cache[i];
       if (ace->_adr_type != NULL &&
           ace->_adr_type->isa_aryptr() &&
-          ace->_adr_type->is_aryptr()->elem()->isa_valuetype()) {
+          ace->_adr_type->is_aryptr()->is_flat()) {
         ace->_adr_type = NULL;
         ace->_index = (i != 0) ? 0 : AliasIdxTop; // Make sure the NULL adr_type resolves to AliasIdxTop
       }
@@ -2048,7 +2062,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
         // bottom memory, we pop element off the stack one at a
         // time, in reverse order, and move them to the right slice
         // by changing their memory edges.
-        if ((n->is_Phi() && n->adr_type() != TypePtr::BOTTOM) || n->is_Mem() || n->adr_type() == TypeAryPtr::VALUES) {
+        if ((n->is_Phi() && n->adr_type() != TypePtr::BOTTOM) || n->is_Mem() || n->adr_type() == TypeAryPtr::INLINES) {
           assert(!seen.test_set(n->_idx), "");
           // Uses (a load for instance) will need to be moved to the
           // right slice as well and will get a new memory state
@@ -2121,7 +2135,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
                 Node* r = m->in(0);
                 for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
                   const Type* adr_type = get_adr_type(j);
-                  if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_valuetype()) {
+                  if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->is_flat()) {
                     continue;
                   }
                   Node* phi = new PhiNode(r, Type::MEMORY, get_adr_type(j));
@@ -2151,7 +2165,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
               igvn.replace_input_of(m->in(0), TypeFunc::Control, top());
               for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
                 const Type* adr_type = get_adr_type(j);
-                if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_valuetype()) {
+                if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->is_flat()) {
                   continue;
                 }
                 MemBarNode* mb = new MemBarCPUOrderNode(this, j, NULL);
@@ -2194,7 +2208,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
       igvn.rehash_node_delayed(current);
       for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
         const Type* adr_type = get_adr_type(j);
-        if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->elem()->isa_valuetype()) {
+        if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->is_flat()) {
           continue;
         }
         current->set_memory_at(j, mm);
@@ -2203,7 +2217,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
     }
     igvn.optimize();
   }
-  print_method(PHASE_SPLIT_VALUES_ARRAY, 2);
+  print_method(PHASE_SPLIT_INLINES_ARRAY, 2);
 }
 
 
@@ -2486,9 +2500,9 @@ void Compile::Optimize() {
     igvn.optimize();
   }
 
-  if (_value_type_nodes->size() > 0) {
+  if (_inline_type_nodes->length() > 0) {
     // Do this once all inlining is over to avoid getting inconsistent debug info
-    process_value_types(igvn);
+    process_inline_types(igvn);
   }
 
   adjust_flattened_array_access_aliases(igvn);
@@ -2523,6 +2537,11 @@ void Compile::Optimize() {
 
       if (failing())  return;
     }
+  }
+
+  if (_inline_type_nodes->length() > 0) {
+    // Process inline types again now that EA might have simplified the graph
+    process_inline_types(igvn, /* post_ea= */ true);
   }
 
   // Loop transforms on the ideal graph.  Range Check Elimination,
@@ -2652,6 +2671,7 @@ void Compile::Optimize() {
  }
 
  print_method(PHASE_OPTIMIZE_FINISHED, 2);
+ DEBUG_ONLY(set_phase_optimize_finished();)
 }
 
 //---------------------------- Bitwise operation packing optimization ---------------------------
@@ -2812,15 +2832,21 @@ static void eval_operands(Node* n,
                           uint& func1, uint& func2, uint& func3,
                           ResourceHashtable<Node*,uint>& eval_map) {
   assert(is_vector_bitwise_op(n), "");
-  func1 = eval_operand(n->in(1), eval_map);
 
-  if (is_vector_binary_bitwise_op(n)) {
+  if (is_vector_unary_bitwise_op(n)) {
+    Node* opnd = n->in(1);
+    if (VectorNode::is_vector_bitwise_not_pattern(n) && VectorNode::is_all_ones_vector(opnd)) {
+      opnd = n->in(2);
+    }
+    func1 = eval_operand(opnd, eval_map);
+  } else if (is_vector_binary_bitwise_op(n)) {
+    func1 = eval_operand(n->in(1), eval_map);
     func2 = eval_operand(n->in(2), eval_map);
-  } else if (is_vector_ternary_bitwise_op(n)) {
+  } else {
+    assert(is_vector_ternary_bitwise_op(n), "unknown operation");
+    func1 = eval_operand(n->in(1), eval_map);
     func2 = eval_operand(n->in(2), eval_map);
     func3 = eval_operand(n->in(3), eval_map);
-  } else {
-    assert(is_vector_unary_bitwise_op(n), "not unary");
   }
 }
 
@@ -2882,7 +2908,9 @@ uint Compile::compute_truth_table(Unique_Node_List& partition, Unique_Node_List&
 bool Compile::compute_logic_cone(Node* n, Unique_Node_List& partition, Unique_Node_List& inputs) {
   assert(partition.size() == 0, "not empty");
   assert(inputs.size() == 0, "not empty");
-  assert(!is_vector_ternary_bitwise_op(n), "not supported");
+  if (is_vector_ternary_bitwise_op(n)) {
+    return false;
+  }
 
   bool is_unary_op = is_vector_unary_bitwise_op(n);
   if (is_unary_op) {
@@ -2923,6 +2951,7 @@ bool Compile::compute_logic_cone(Node* n, Unique_Node_List& partition, Unique_No
   return (partition.size() == 2 || partition.size() == 3) &&
          (inputs.size()    == 2 || inputs.size()    == 3);
 }
+
 
 void Compile::process_logic_cone_root(PhaseIterGVN &igvn, Node *n, VectorSet &visited) {
   assert(is_vector_bitwise_op(n), "not a root");
@@ -3093,8 +3122,7 @@ struct Final_Reshape_Counts : public StackObj {
 
   Final_Reshape_Counts() :
     _call_count(0), _float_count(0), _double_count(0),
-    _java_call_count(0), _inner_loop_count(0),
-    _visited( Thread::current()->resource_area() ) { }
+    _java_call_count(0), _inner_loop_count(0) { }
 
   void inc_call_count  () { _call_count  ++; }
   void inc_float_count () { _float_count ++; }
@@ -3108,15 +3136,6 @@ struct Final_Reshape_Counts : public StackObj {
   int  get_java_call_count() const { return _java_call_count; }
   int  get_inner_loop_count() const { return _inner_loop_count; }
 };
-
-#ifdef ASSERT
-static bool oop_offset_is_sane(const TypeInstPtr* tp) {
-  ciInstanceKlass *k = tp->klass()->as_instance_klass();
-  // Make sure the offset goes inside the instance layout.
-  return k->contains_field_offset(tp->offset());
-  // Note that OffsetBot and OffsetTop are very negative.
-}
-#endif
 
 // Eliminate trivially redundant StoreCMs and accumulate their
 // precedence edges.
@@ -3241,6 +3260,8 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
   case Op_ConF:
   case Op_CmpF:
   case Op_CmpF3:
+  case Op_StoreF:
+  case Op_LoadF:
   // case Op_ConvL2F: // longs are split into 32-bit halves
     frc.inc_float_count();
     break;
@@ -3265,6 +3286,9 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
   case Op_ConD:
   case Op_CmpD:
   case Op_CmpD3:
+  case Op_StoreD:
+  case Op_LoadD:
+  case Op_LoadD_unaligned:
     frc.inc_double_count();
     break;
   case Op_Opaque1:              // Remove Opaque Nodes before matching
@@ -3305,16 +3329,6 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     }
     break;
   }
-
-  case Op_StoreD:
-  case Op_LoadD:
-  case Op_LoadD_unaligned:
-    frc.inc_double_count();
-    goto handle_mem;
-  case Op_StoreF:
-  case Op_LoadF:
-    frc.inc_float_count();
-    goto handle_mem;
 
   case Op_StoreCM:
     {
@@ -3377,61 +3391,8 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
   case Op_LoadP:
   case Op_LoadN:
   case Op_LoadRange:
-  case Op_LoadS: {
-  handle_mem:
-#ifdef ASSERT
-    if( VerifyOptoOopOffsets ) {
-      MemNode* mem  = n->as_Mem();
-      // Check to see if address types have grounded out somehow.
-      const TypeInstPtr *tp = mem->in(MemNode::Address)->bottom_type()->isa_instptr();
-      assert( !tp || oop_offset_is_sane(tp), "" );
-    }
-#endif
-    if (EnableValhalla &&
-        ((nop == Op_LoadKlass && ((LoadKlassNode*)n)->clear_prop_bits()) ||
-         (nop == Op_LoadNKlass && ((LoadNKlassNode*)n)->clear_prop_bits()))) {
-      const TypeKlassPtr* tk = n->bottom_type()->make_ptr()->is_klassptr();
-      assert(!tk->klass_is_exact(), "should have been folded");
-      assert(n->as_Mem()->adr_type()->offset() == oopDesc::klass_offset_in_bytes(), "unexpected LoadKlass");
-      if (tk->klass()->can_be_value_array_klass()) {
-        // Array load klass needs to filter out property bits (but not
-        // GetNullFreePropertyNode or GetFlattenedPropertyNode which
-        // needs to extract the storage property bits)
-        uint last = unique();
-        Node* pointer = NULL;
-        if (nop == Op_LoadKlass) {
-          Node* cast = new CastP2XNode(NULL, n);
-          Node* masked = new LShiftXNode(cast, new ConINode(TypeInt::make(oopDesc::storage_props_nof_bits)));
-          masked = new RShiftXNode(masked, new ConINode(TypeInt::make(oopDesc::storage_props_nof_bits)));
-          pointer = new CastX2PNode(masked);
-          pointer = new CheckCastPPNode(NULL, pointer, n->bottom_type());
-        } else {
-          Node* cast = new CastN2INode(n);
-          Node* masked = new AndINode(cast, new ConINode(TypeInt::make(oopDesc::compressed_klass_mask())));
-          pointer = new CastI2NNode(masked, n->bottom_type());
-        }
-        for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
-          Node* u = n->fast_out(i);
-          if (u->_idx < last && u->Opcode() != Op_GetNullFreeProperty && u->Opcode() != Op_GetFlattenedProperty) {
-            // If user is a comparison with a klass that can't be a value type
-            // array klass, we don't need to clear the storage property bits.
-            Node* cmp = (u->is_DecodeNKlass() && u->outcnt() == 1) ? u->unique_out() : u;
-            if (cmp->is_Cmp()) {
-              const TypeKlassPtr* kp1 = cmp->in(1)->bottom_type()->make_ptr()->isa_klassptr();
-              const TypeKlassPtr* kp2 = cmp->in(2)->bottom_type()->make_ptr()->isa_klassptr();
-              if ((kp1 != NULL && !kp1->klass()->can_be_value_array_klass()) ||
-                  (kp2 != NULL && !kp2->klass()->can_be_value_array_klass())) {
-                continue;
-              }
-            }
-            int nb = u->replace_edge(n, pointer);
-            --i, imax -= nb;
-          }
-        }
-      }
-    }
+  case Op_LoadS:
     break;
-  }
 
   case Op_AddP: {               // Assert sane base pointers
     Node *addp = n->in(AddPNode::Address);
@@ -3947,30 +3908,13 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     break;
   }
 #ifdef ASSERT
-  case Op_ValueTypePtr:
-  case Op_ValueType: {
+  case Op_InlineTypePtr:
+  case Op_InlineType: {
     n->dump(-1);
-    assert(false, "value type node was not removed");
+    assert(false, "inline type node was not removed");
     break;
   }
 #endif
-  case Op_GetNullFreeProperty:
-  case Op_GetFlattenedProperty: {
-    // Extract the null free bits
-    uint last = unique();
-    Node* null_free = NULL;
-    int bit = nop == Op_GetNullFreeProperty ? ArrayStorageProperties::null_free_bit : ArrayStorageProperties::flattened_bit;
-    if (n->in(1)->Opcode() == Op_LoadKlass) {
-      Node* cast = new CastP2XNode(NULL, n->in(1));
-      null_free = new AndLNode(cast, new ConLNode(TypeLong::make(((jlong)1)<<(oopDesc::wide_storage_props_shift + bit))));
-    } else {
-      assert(n->in(1)->Opcode() == Op_LoadNKlass, "not a compressed klass?");
-      Node* cast = new CastN2INode(n->in(1));
-      null_free = new AndINode(cast, new ConINode(TypeInt::make(1<<(oopDesc::narrow_storage_props_shift + bit))));
-    }
-    n->subsume_by(null_free, this);
-    break;
-  }
   default:
     assert(!n->is_Call(), "");
     assert(!n->is_Mem(), "");
@@ -3983,8 +3927,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
 // Replacing Opaque nodes with their input in final_graph_reshaping_impl(),
 // requires that the walk visits a node's inputs before visiting the node.
 void Compile::final_graph_reshaping_walk( Node_Stack &nstack, Node *root, Final_Reshape_Counts &frc ) {
-  ResourceArea *area = Thread::current()->resource_area();
-  Unique_Node_List sfpt(area);
+  Unique_Node_List sfpt;
 
   frc._visited.set(root->_idx); // first, mark node as visited
   uint cnt = root->req();
@@ -4346,14 +4289,13 @@ bool Compile::needs_clinit_barrier(ciInstanceKlass* holder, ciMethod* accessing_
 // between Use-Def edges and Def-Use edges in the graph.
 void Compile::verify_graph_edges(bool no_dead_code) {
   if (VerifyGraphEdges) {
-    ResourceArea *area = Thread::current()->resource_area();
-    Unique_Node_List visited(area);
+    Unique_Node_List visited;
     // Call recursive graph walk to check edges
     _root->verify_edges(visited);
     if (no_dead_code) {
       // Now make sure that no visited node is used by an unvisited node.
       bool dead_nodes = false;
-      Unique_Node_List checked(area);
+      Unique_Node_List checked;
       while (visited.size() > 0) {
         Node* n = visited.pop();
         checked.push(n);
@@ -4474,11 +4416,6 @@ int Compile::static_subtype_check(ciKlass* superk, ciKlass* subk) {
     }
   }
 
-  // Do not fold the subtype check to an array klass pointer comparison for [V? arrays.
-  // [V is a subtype of [V? but the klass for [V is not equal to the klass for [V?. Perform a full test.
-  if (superk->is_obj_array_klass() && !superk->as_array_klass()->storage_properties().is_null_free() && superk->as_array_klass()->element_klass()->is_valuetype()) {
-    return SSC_full_test;
-  }
   // If casting to an instance klass, it must have no subtypes
   if (superk->is_interface()) {
     // Cannot trust interfaces yet.
@@ -4933,11 +4870,11 @@ Node* Compile::optimize_acmp(PhaseGVN* phase, Node* a, Node* b) {
   const TypeInstPtr* tb = phase->type(b)->isa_instptr();
   if (!EnableValhalla || ta == NULL || tb == NULL ||
       ta->is_zero_type() || tb->is_zero_type() ||
-      !ta->can_be_value_type() || !tb->can_be_value_type()) {
-    // Use old acmp if one operand is null or not a value type
+      !ta->can_be_inline_type() || !tb->can_be_inline_type()) {
+    // Use old acmp if one operand is null or not an inline type
     return new CmpPNode(a, b);
-  } else if (ta->is_valuetypeptr() || tb->is_valuetypeptr()) {
-    // We know that one operand is a value type. Therefore,
+  } else if (ta->is_inlinetypeptr() || tb->is_inlinetypeptr()) {
+    // We know that one operand is an inline type. Therefore,
     // new acmp will only return true if both operands are NULL.
     // Check if both operands are null by or'ing the oops.
     a = phase->transform(new CastP2XNode(NULL, a));
@@ -5043,7 +4980,6 @@ void CloneMap::dump(node_idx_t key) const {
   }
 }
 
-
 // Move Allocate nodes to the start of the list
 void Compile::sort_macro_nodes() {
   int count = macro_count();
@@ -5060,3 +4996,112 @@ void Compile::sort_macro_nodes() {
     }
   }
 }
+
+void Compile::print_method(CompilerPhaseType cpt, int level, int idx) {
+  EventCompilerPhase event;
+  if (event.should_commit()) {
+    CompilerEvent::PhaseEvent::post(event, C->_latest_stage_start_counter, cpt, C->_compile_id, level);
+  }
+
+#ifndef PRODUCT
+  if (should_print(level)) {
+    char output[1024];
+    if (idx != 0) {
+      jio_snprintf(output, sizeof(output), "%s:%d", CompilerPhaseTypeHelper::to_string(cpt), idx);
+    } else {
+      jio_snprintf(output, sizeof(output), "%s", CompilerPhaseTypeHelper::to_string(cpt));
+    }
+    _printer->print_method(output, level);
+  }
+#endif
+  C->_latest_stage_start_counter.stamp();
+}
+
+void Compile::end_method(int level) {
+  EventCompilerPhase event;
+  if (event.should_commit()) {
+    CompilerEvent::PhaseEvent::post(event, C->_latest_stage_start_counter, PHASE_END, C->_compile_id, level);
+  }
+
+#ifndef PRODUCT
+  if (_method != NULL && should_print(level)) {
+    _printer->end_method();
+  }
+#endif
+}
+
+
+#ifndef PRODUCT
+IdealGraphPrinter* Compile::_debug_file_printer = NULL;
+IdealGraphPrinter* Compile::_debug_network_printer = NULL;
+
+// Called from debugger. Prints method to the default file with the default phase name.
+// This works regardless of any Ideal Graph Visualizer flags set or not.
+void igv_print() {
+  Compile::current()->igv_print_method_to_file();
+}
+
+// Same as igv_print() above but with a specified phase name.
+void igv_print(const char* phase_name) {
+  Compile::current()->igv_print_method_to_file(phase_name);
+}
+
+// Called from debugger. Prints method with the default phase name to the default network or the one specified with
+// the network flags for the Ideal Graph Visualizer, or to the default file depending on the 'network' argument.
+// This works regardless of any Ideal Graph Visualizer flags set or not.
+void igv_print(bool network) {
+  if (network) {
+    Compile::current()->igv_print_method_to_network();
+  } else {
+    Compile::current()->igv_print_method_to_file();
+  }
+}
+
+// Same as igv_print(bool network) above but with a specified phase name.
+void igv_print(bool network, const char* phase_name) {
+  if (network) {
+    Compile::current()->igv_print_method_to_network(phase_name);
+  } else {
+    Compile::current()->igv_print_method_to_file(phase_name);
+  }
+}
+
+// Called from debugger. Normal write to the default _printer. Only works if Ideal Graph Visualizer printing flags are set.
+void igv_print_default() {
+  Compile::current()->print_method(PHASE_DEBUG, 0, 0);
+}
+
+// Called from debugger, especially when replaying a trace in which the program state cannot be altered like with rr replay.
+// A method is appended to an existing default file with the default phase name. This means that igv_append() must follow
+// an earlier igv_print(*) call which sets up the file. This works regardless of any Ideal Graph Visualizer flags set or not.
+void igv_append() {
+  Compile::current()->igv_print_method_to_file("Debug", true);
+}
+
+// Same as igv_append() above but with a specified phase name.
+void igv_append(const char* phase_name) {
+  Compile::current()->igv_print_method_to_file(phase_name, true);
+}
+
+void Compile::igv_print_method_to_file(const char* phase_name, bool append) {
+  const char* file_name = "custom_debug.xml";
+  if (_debug_file_printer == NULL) {
+    _debug_file_printer = new IdealGraphPrinter(C, file_name, append);
+  } else {
+    _debug_file_printer->update_compiled_method(C->method());
+  }
+  tty->print_cr("Method %s to %s", append ? "appended" : "printed", file_name);
+  _debug_file_printer->print_method(phase_name, 0);
+}
+
+void Compile::igv_print_method_to_network(const char* phase_name) {
+  if (_debug_network_printer == NULL) {
+    _debug_network_printer = new IdealGraphPrinter(C);
+  } else {
+    _debug_network_printer->update_compiled_method(C->method());
+  }
+  tty->print_cr("Method printed over network stream to IGV");
+  _debug_network_printer->print_method(phase_name, 0);
+}
+#endif
+

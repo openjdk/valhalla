@@ -26,12 +26,10 @@ package gc;
 /*
  * @test TestConcurrentGCBreakpoints
  * @summary Test of WhiteBox concurrent GC control.
- * @key gc
  * @modules java.base
  * @library /test/lib
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *    sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm
  *   -Xbootclasspath/a:.
  *   -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI

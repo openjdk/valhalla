@@ -33,12 +33,12 @@
 #include "opto/callGenerator.hpp"
 #include "opto/castnode.hpp"
 #include "opto/cfgnode.hpp"
+#include "opto/inlinetypenode.hpp"
 #include "opto/mulnode.hpp"
 #include "opto/parse.hpp"
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
 #include "opto/subnode.hpp"
-#include "opto/valuetypenode.hpp"
 #include "prims/nativeLookup.hpp"
 #include "runtime/sharedRuntime.hpp"
 
@@ -66,7 +66,7 @@ void trace_type_profile(Compile* C, ciMethod *method, int depth, int bci, ciMeth
 CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool call_does_dispatch,
                                        JVMState* jvms, bool allow_inline,
                                        float prof_factor, ciKlass* speculative_receiver_type,
-                                       bool allow_intrinsics, bool delayed_forbidden) {
+                                       bool allow_intrinsics) {
   ciMethod*       caller   = jvms->method();
   int             bci      = jvms->bci();
   Bytecodes::Code bytecode = caller->java_code_at_bci(bci);
@@ -146,8 +146,7 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
   // MethodHandle.invoke* are native methods which obviously don't
   // have bytecodes and so normal inlining fails.
   if (callee->is_method_handle_intrinsic()) {
-    CallGenerator* cg = CallGenerator::for_method_handle_call(jvms, caller, callee, delayed_forbidden);
-    assert(cg == NULL || !delayed_forbidden || !cg->is_late_inline() || cg->is_mh_late_inline(), "unexpected CallGenerator");
+    CallGenerator* cg = CallGenerator::for_method_handle_call(jvms, caller, callee);
     return cg;
   }
 
@@ -183,12 +182,10 @@ CallGenerator* Compile::call_generator(ciMethod* callee, int vtable_index, bool 
           // opportunity to perform some high level optimizations
           // first.
           if (should_delay_string_inlining(callee, jvms)) {
-            assert(!delayed_forbidden, "strange");
             return CallGenerator::for_string_late_inline(callee, cg);
           } else if (should_delay_boxing_inlining(callee, jvms)) {
-            assert(!delayed_forbidden, "strange");
             return CallGenerator::for_boxing_late_inline(callee, cg);
-          } else if ((should_delay || AlwaysIncrementalInline) && !delayed_forbidden) {
+          } else if (should_delay || AlwaysIncrementalInline) {
             return CallGenerator::for_late_inline(callee, cg);
           }
         }
@@ -542,8 +539,8 @@ void Parse::do_call() {
   if (is_virtual_or_interface) {
     Node* receiver_node             = stack(sp() - nargs);
     const TypeOopPtr* receiver_type = NULL;
-    if (receiver_node->is_ValueType()) {
-      receiver_type = TypeInstPtr::make(TypePtr::NotNull, _gvn.type(receiver_node)->value_klass());
+    if (receiver_node->is_InlineType()) {
+      receiver_type = TypeInstPtr::make(TypePtr::NotNull, _gvn.type(receiver_node)->inline_klass());
     } else {
       receiver_type = _gvn.type(receiver_node)->isa_oopptr();
     }
@@ -633,7 +630,7 @@ void Parse::do_call() {
   Node* receiver = has_receiver ? argument(0) : NULL;
 
   // The extra CheckCastPPs for speculative types mess with PhaseStringOpts
-  if (receiver != NULL && !receiver->is_ValueType() && !call_does_dispatch && !cg->is_string_late_inline()) {
+  if (receiver != NULL && !receiver->is_InlineType() && !call_does_dispatch && !cg->is_string_late_inline()) {
     // Feed profiling data for a single receiver to the type system so
     // it can propagate it as a speculative type
     receiver = record_profiled_receiver_for_speculation(receiver);
@@ -714,11 +711,10 @@ void Parse::do_call() {
           if (ctype->is_loaded()) {
             const TypeOopPtr* arg_type = TypeOopPtr::make_from_klass(rtype->as_klass());
             const Type*       sig_type = TypeOopPtr::make_from_klass(ctype->as_klass());
-            if (declared_signature->returns_never_null()) {
-              assert(ct == T_VALUETYPE, "should be a value type");
+            if (ct == T_INLINE_TYPE) {
               sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
             }
-            if (arg_type != NULL && !arg_type->higher_equal(sig_type) && !peek()->is_ValueType()) {
+            if (arg_type != NULL && !arg_type->higher_equal(sig_type) && !peek()->is_InlineType()) {
               Node* retnode = pop();
               Node* cast_obj = _gvn.transform(new CheckCastPPNode(control(), retnode, sig_type));
               push(cast_obj);
@@ -744,12 +740,13 @@ void Parse::do_call() {
              "mismatched return types: rtype=%s, ctype=%s", rtype->name(), ctype->name());
     }
 
-    if (rtype->basic_type() == T_VALUETYPE && !peek()->is_ValueType()) {
+    if (rtype->basic_type() == T_INLINE_TYPE && !peek()->is_InlineType()) {
       Node* retnode = pop();
-      if (!gvn().type(retnode)->maybe_null() && rtype->as_value_klass()->is_scalarizable()) {
-        retnode = ValueTypeNode::make_from_oop(this, retnode, rtype->as_value_klass());
+      assert(!gvn().type(retnode)->maybe_null(), "should never be null");
+      if (rtype->as_inline_klass()->is_scalarizable()) {
+        retnode = InlineTypeNode::make_from_oop(this, retnode, rtype->as_inline_klass());
       }
-      push_node(T_VALUETYPE, retnode);
+      push_node(T_INLINE_TYPE, retnode);
     }
 
     // If the return type of the method is not loaded, assert that the

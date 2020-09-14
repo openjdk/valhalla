@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -161,11 +161,23 @@ public class TreeMaker implements JCTree.Factory {
                                 List<JCExpression> implementing,
                                 List<JCTree> defs)
     {
+        return ClassDef(mods, name, typarams, extending, implementing, List.nil(), defs);
+    }
+
+    public JCClassDecl ClassDef(JCModifiers mods,
+                                Name name,
+                                List<JCTypeParameter> typarams,
+                                JCExpression extending,
+                                List<JCExpression> implementing,
+                                List<JCExpression> permitting,
+                                List<JCTree> defs)
+    {
         JCClassDecl tree = new JCClassDecl(mods,
                                      name,
                                      typarams,
                                      extending,
                                      implementing,
+                                     permitting,
                                      defs,
                                      null);
         tree.pos = pos;
@@ -810,9 +822,18 @@ public class TreeMaker implements JCTree.Factory {
             }
             default: {
                 if (t.isReferenceProjection()) {
-                    JCFieldAccess f = (JCFieldAccess) Select(Type(t.valueProjection()), t.tsym);
-                    f.name = names.ref;
-                    tp = f;
+                    // For parameterized types, we want V.ref<A1 ... An> not V<A1 ... An>.ref
+                    JCExpression vp = Type(t.valueProjection());
+                    if (vp.hasTag(Tag.TYPEAPPLY)) {
+                        // vp now is V<A1 ... An>, build V.ref<A1 ... An>
+                        JCFieldAccess f = (JCFieldAccess) Select(((JCTypeApply) vp).clazz, t.tsym);
+                        f.name = names.ref;
+                        tp = TypeApply(f, ((JCTypeApply) vp).arguments);
+                    } else {
+                        JCFieldAccess f = (JCFieldAccess) Select(vp, t.tsym);
+                        f.name = names.ref;
+                        tp = f;
+                    }
                 } else {
                     Type outer = t.getEnclosingType();
                     JCExpression clazz = outer.hasTag(CLASS) && t.tsym.owner.kind == TYP

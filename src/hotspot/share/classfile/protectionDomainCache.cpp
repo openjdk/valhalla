@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,6 +31,7 @@
 #include "logging/logStream.hpp"
 #include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
+#include "memory/universe.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/weakHandle.inline.hpp"
 #include "utilities/hashtable.inline.hpp"
@@ -45,7 +46,7 @@ int ProtectionDomainCacheTable::index_for(Handle protection_domain) {
 }
 
 ProtectionDomainCacheTable::ProtectionDomainCacheTable(int table_size)
-  : Hashtable<WeakHandle<vm_class_loader_data>, mtClass>(table_size, sizeof(ProtectionDomainCacheEntry))
+  : Hashtable<WeakHandle, mtClass>(table_size, sizeof(ProtectionDomainCacheEntry))
 {   _dead_entries = false;
     _total_oops_removed = 0;
 }
@@ -93,7 +94,7 @@ void ProtectionDomainCacheTable::unlink() {
           LogStream ls(lt);
           ls.print_cr("protection domain unlinked at %d", i);
         }
-        entry->literal().release();
+        entry->literal().release(Universe::vm_weak());
         *p = entry->next();
         free_entry(entry);
       }
@@ -180,8 +181,8 @@ ProtectionDomainCacheEntry* ProtectionDomainCacheTable::add_entry(int index, uns
     protection_domain->print_value_on(&ls);
     ls.cr();
   }
-  WeakHandle<vm_class_loader_data> w = WeakHandle<vm_class_loader_data>::create(protection_domain);
+  WeakHandle w(Universe::vm_weak(), protection_domain);
   ProtectionDomainCacheEntry* p = new_entry(hash, w);
-  Hashtable<WeakHandle<vm_class_loader_data>, mtClass>::add_entry(index, p);
+  Hashtable<WeakHandle, mtClass>::add_entry(index, p);
   return p;
 }

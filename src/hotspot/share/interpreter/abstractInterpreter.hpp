@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -39,21 +39,19 @@
 // an assembly language version (aka template interpreter) and a high level language version
 // (aka c++ interpreter). Th division of labor is as follows:
 
-// Template Interpreter          C++ Interpreter        Functionality
+// Template Interpreter          Zero Interpreter       Functionality
 //
 // templateTable*                bytecodeInterpreter*   actual interpretation of bytecodes
 //
-// templateInterpreter*          cppInterpreter*        generation of assembly code that creates
+// templateInterpreter*          zeroInterpreter*       generation of assembly code that creates
 //                                                      and manages interpreter runtime frames.
-//                                                      Also code for populating interpreter
-//                                                      frames created during deoptimization.
 //
 
 class InterpreterMacroAssembler;
 
 class AbstractInterpreter: AllStatic {
   friend class VMStructs;
-  friend class CppInterpreterGenerator;
+  friend class ZeroInterpreterGenerator;
   friend class TemplateInterpreterGenerator;
  public:
   enum MethodKind {
@@ -241,7 +239,7 @@ class AbstractInterpreter: AllStatic {
   }
 
   static int expr_offset_in_bytes(int i) {
-#if !defined(ZERO) && (defined(PPC) || defined(S390) || defined(SPARC))
+#if !defined(ZERO) && (defined(PPC) || defined(S390))
     return stackElementSize * i + wordSize;  // both point to one word past TOS
 #else
     return stackElementSize * i;

@@ -34,6 +34,7 @@
 #include "logging/log.hpp"
 #include "logging/logTag.hpp"
 #include "memory/universe.hpp"
+#include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/flags/jvmFlag.hpp"
@@ -50,7 +51,7 @@
 void check_ThreadShadow();
 void eventlog_init();
 void mutex_init();
-void oopstorage_init();
+void universe_oopstorage_init();
 void chunkpool_init();
 void perfMemory_init();
 void SuspendibleThreadSet_init();
@@ -66,8 +67,8 @@ void stubRoutines_init1();
 jint universe_init();          // depends on codeCache_init and stubRoutines_init
 // depends on universe_init, must be before interpreter_init (currently only on SPARC)
 void gc_barrier_stubs_init();
-void interpreter_init();       // before any methods loaded
-void invocationCounter_init(); // before any methods loaded
+void interpreter_init_stub();  // before any methods loaded
+void interpreter_init_code();  // after methods loaded, but before they are linked
 void accessFlags_init();
 void InterfaceSupport_init();
 void universe2_init();  // dependent on codeCache_init and stubRoutines_init, loads primordial classes
@@ -97,7 +98,7 @@ void vm_init_globals() {
   basic_types_init();
   eventlog_init();
   mutex_init();
-  oopstorage_init();
+  universe_oopstorage_init();
   chunkpool_init();
   perfMemory_init();
   SuspendibleThreadSet_init();
@@ -105,8 +106,8 @@ void vm_init_globals() {
 
 
 jint init_globals() {
-  HandleMark hm;
   management_init();
+  JvmtiExport::initialize_oop_storage();
   bytecodes_init();
   classLoader_init1();
   compilationPolicy_init();
@@ -119,14 +120,14 @@ jint init_globals() {
   if (status != JNI_OK)
     return status;
 
-  gc_barrier_stubs_init();   // depends on universe_init, must be before interpreter_init
-  interpreter_init();        // before any methods loaded
-  invocationCounter_init();  // before any methods loaded
+  gc_barrier_stubs_init();  // depends on universe_init, must be before interpreter_init
+  interpreter_init_stub();  // before methods get loaded
   accessFlags_init();
   InterfaceSupport_init();
   SharedRuntime::generate_stubs();
   universe2_init();  // dependent on codeCache_init and stubRoutines_init1
   javaClasses_init();// must happen after vtable initialization, before referenceProcessor_init
+  interpreter_init_code();  // after javaClasses_init and before any method gets linked
   referenceProcessor_init();
   jni_handles_init();
 #if INCLUDE_VM_STRUCTS
@@ -153,12 +154,6 @@ jint init_globals() {
   stubRoutines_init2(); // note: StubRoutines need 2-phase init
   MethodHandles::generate_adapters();
 
-#if INCLUDE_NMT
-  // Solaris stack is walkable only after stubRoutines are set up.
-  // On Other platforms, the stack is always walkable.
-  NMT_stack_walkable = true;
-#endif // INCLUDE_NMT
-
   // All the flags that get adjusted by VM_Version_init and os::init_2
   // have been set so dump the flags now.
   if (PrintFlagsFinal || PrintFlagsRanges) {
@@ -176,8 +171,10 @@ void exit_globals() {
     if (log_is_enabled(Info, monitorinflation)) {
       // The ObjectMonitor subsystem uses perf counters so
       // do this before perfMemory_exit().
-      // ObjectSynchronizer::finish_deflate_idle_monitors()'s call
-      // to audit_and_print_stats() is done at the Debug level.
+      // This other audit_and_print_stats() call is done at the
+      // Debug level at a safepoint:
+      // - for async deflation auditing:
+      //   ObjectSynchronizer::do_safepoint_work()
       ObjectSynchronizer::audit_and_print_stats(true /* on_exit */);
     }
     perfMemory_exit();

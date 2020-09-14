@@ -36,11 +36,11 @@
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/arguments.hpp"
@@ -348,10 +348,10 @@ arrayOop Reflection::reflect_new_array(oop element_mirror, jint length, TRAPS) {
     if (k->is_array_klass() && ArrayKlass::cast(k)->dimension() >= MAX_DIM) {
       THROW_0(vmSymbols::java_lang_IllegalArgumentException());
     }
-    if (java_lang_Class::is_indirect_type(element_mirror)) {
-      return oopFactory::new_objArray(k, length, THREAD);
+    if (k->is_inline_klass()) {
+      return oopFactory::new_flatArray(k, length, THREAD);
     } else {
-      return oopFactory::new_valueArray(k, length, THREAD);
+      return oopFactory::new_objArray(k, length, THREAD);
     }
   }
 }
@@ -393,8 +393,7 @@ arrayOop Reflection::reflect_new_multi_array(oop element_mirror, typeArrayOop di
       dim += k_dim;
     }
   }
-  ArrayStorageProperties storage_props = ArrayStorageProperties::for_signature(klass->name());
-  klass = klass->array_klass(storage_props, dim, CHECK_NULL);
+  klass = klass->array_klass(dim, CHECK_NULL);
   oop obj = ArrayKlass::cast(klass)->multi_allocate(len, dimensions, CHECK_NULL);
   assert(obj->is_array(), "just checking");
   return arrayOop(obj);
@@ -718,7 +717,7 @@ bool Reflection::is_same_class_package(const Klass* class1, const Klass* class2)
 // Checks that the 'outer' klass has declared 'inner' as being an inner klass. If not,
 // throw an incompatible class change exception
 // If inner_is_member, require the inner to be a member of the outer.
-// If !inner_is_member, require the inner to be unsafe anonymous (a non-member).
+// If !inner_is_member, require the inner to be hidden or unsafe anonymous (non-members).
 // Caller is responsible for figuring out in advance which case must be true.
 void Reflection::check_for_inner_class(const InstanceKlass* outer, const InstanceKlass* inner,
                                        bool inner_is_member, TRAPS) {
@@ -815,8 +814,7 @@ oop Reflection::new_method(const methodHandle& method, bool for_constant_pool_ac
   Handle return_type(THREAD, return_type_oop);
 
   objArrayHandle exception_types = get_exception_types(method, CHECK_NULL);
-
-  if (exception_types.is_null()) return NULL;
+  assert(!exception_types.is_null(), "cannot return null");
 
   Symbol*  method_name = method->name();
   oop name_oop = StringTable::intern(method_name, CHECK_NULL);
@@ -864,7 +862,7 @@ oop Reflection::new_constructor(const methodHandle& method, TRAPS) {
   if (parameter_types.is_null()) return NULL;
 
   objArrayHandle exception_types = get_exception_types(method, CHECK_NULL);
-  if (exception_types.is_null()) return NULL;
+  assert(!exception_types.is_null(), "cannot return null");
 
   const int modifiers = method->access_flags().as_int() & JVM_RECOGNIZED_METHOD_MODIFIERS;
 
@@ -902,15 +900,13 @@ oop Reflection::new_field(fieldDescriptor* fd, TRAPS) {
   java_lang_reflect_Field::set_slot(rh(), fd->index());
   java_lang_reflect_Field::set_name(rh(), name());
   java_lang_reflect_Field::set_type(rh(), type());
+  if (fd->is_trusted_final()) {
+    java_lang_reflect_Field::set_trusted_final(rh());
+  }
   // Note the ACC_ANNOTATION bit, which is a per-class access flag, is never set here.
   int modifiers = fd->access_flags().as_int() & JVM_RECOGNIZED_FIELD_MODIFIERS;
-  if (fd->is_flattenable()) {
-    modifiers |= JVM_ACC_FIELD_FLATTENABLE;
-    // JVM_ACC_FLATTENABLE should not be set in LWorld.  set_is_flattenable should be re-examined.
-    modifiers &= ~JVM_ACC_FLATTENABLE;
-  }
-  if (fd->is_flattened()) {
-    modifiers |= JVM_ACC_FIELD_FLATTENED;
+  if (fd->is_inlined()) {
+    modifiers |= JVM_ACC_FIELD_INLINED;
   }
   java_lang_reflect_Field::set_modifiers(rh(), modifiers);
   java_lang_reflect_Field::set_override(rh(), false);
@@ -1187,8 +1183,8 @@ oop Reflection::invoke_method(oop method_mirror, Handle receiver, objArrayHandle
   BasicType rtype;
   if (java_lang_Class::is_primitive(return_type_mirror)) {
     rtype = basic_type_mirror_to_basic_type(return_type_mirror, CHECK_NULL);
-  } else if (java_lang_Class::inline_type_mirror(return_type_mirror) == return_type_mirror) {
-    rtype = T_VALUETYPE;
+  } else if (java_lang_Class::as_Klass(return_type_mirror)->is_inline_klass()) {
+    rtype = T_INLINE_TYPE;
   } else {
     rtype = T_OBJECT;
   }
@@ -1226,13 +1222,19 @@ oop Reflection::invoke_constructor(oop constructor_mirror, objArrayHandle args, 
 
   // Special case for factory methods
   if (!method->signature()->is_void_method_signature()) {
-    assert(klass->is_value(), "inline classes must use factory methods");
+    assert(klass->is_inline_klass(), "inline classes must use factory methods");
     Handle no_receiver; // null instead of receiver
-    return invoke(klass, method, no_receiver, override, ptypes, T_VALUETYPE, args, false, CHECK_NULL);
+    BasicType rtype;
+    if (klass->is_hidden()) {
+      rtype = T_OBJECT;
+    } else {
+      rtype = T_INLINE_TYPE;
+    }
+    return invoke(klass, method, no_receiver, override, ptypes, rtype, args, false, CHECK_NULL);
   }
 
   // main branch of code creates a non-inline object:
-  assert(!klass->is_value(), "classic constructors are only for non-inline classes");
+  assert(!klass->is_inline_klass(), "classic constructors are only for non-inline classes");
   Handle receiver = klass->allocate_instance_handle(CHECK_NULL);
 
   // Ignore result from call and return receiver

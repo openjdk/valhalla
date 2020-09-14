@@ -184,6 +184,7 @@ jfieldID AwtWindow::sysYID;
 jfieldID AwtWindow::sysWID;
 jfieldID AwtWindow::sysHID;
 jfieldID AwtWindow::windowTypeID;
+jmethodID AwtWindow::notifyWindowStateChangedMID;
 
 jmethodID AwtWindow::getWarningStringMID;
 jmethodID AwtWindow::calculateSecurityWarningPositionMID;
@@ -1571,6 +1572,15 @@ void AwtWindow::SendWindowEvent(jint id, HWND opposite,
         CHECK_NULL(sequencedEventConst);
     }
 
+    static jclass windowCls = NULL;
+    if (windowCls == NULL) {
+        jclass windowClsLocal = env->FindClass("java/awt/Window");
+        CHECK_NULL(windowClsLocal);
+        windowCls = (jclass)env->NewGlobalRef(windowClsLocal);
+        env->DeleteLocalRef(windowClsLocal);
+        CHECK_NULL(windowCls);
+    }
+
     if (env->EnsureLocalCapacity(3) < 0) {
         return;
     }
@@ -1581,6 +1591,28 @@ void AwtWindow::SendWindowEvent(jint id, HWND opposite,
         AwtComponent *awtOpposite = AwtComponent::GetComponent(opposite);
         if (awtOpposite != NULL) {
             jOpposite = awtOpposite->GetTarget(env);
+            if ((jOpposite != NULL) &&
+                !env->IsInstanceOf(jOpposite, windowCls)) {
+                env->DeleteLocalRef(jOpposite);
+                jOpposite = NULL;
+
+                HWND parent = AwtComponent::GetTopLevelParentForWindow(opposite);
+                if ((parent != NULL) && (parent != opposite)) {
+                    if (parent == GetHWnd()) {
+                        jOpposite = env->NewLocalRef(target);
+                    } else {
+                        AwtComponent* awtParent = AwtComponent::GetComponent(parent);
+                        if (awtParent != NULL) {
+                            jOpposite = awtParent->GetTarget(env);
+                            if ((jOpposite != NULL) &&
+                                !env->IsInstanceOf(jOpposite, windowCls)) {
+                                env->DeleteLocalRef(jOpposite);
+                                jOpposite = NULL;
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     jobject event = env->NewObject(wClassEvent, wEventInitMID, target, id,
@@ -1608,6 +1640,16 @@ void AwtWindow::SendWindowEvent(jint id, HWND opposite,
     SendEvent(event);
 
     env->DeleteLocalRef(event);
+}
+
+void AwtWindow::NotifyWindowStateChanged(jint oldState, jint newState)
+{
+    JNIEnv *env = (JNIEnv *)JNU_GetEnv(jvm, JNI_VERSION_1_2);
+    jobject peer = GetPeer(env);
+    if (peer != NULL) {
+        env->CallVoidMethod(peer, AwtWindow::notifyWindowStateChangedMID,
+            oldState, newState);
+    }
 }
 
 BOOL AwtWindow::AwtSetActiveWindow(BOOL isMouseEventCause, UINT hittest)
@@ -3312,6 +3354,11 @@ Java_sun_awt_windows_WWindowPeer_initIDs(JNIEnv *env, jclass cls)
 
     AwtWindow::windowTypeID = env->GetFieldID(cls, "windowType",
             "Ljava/awt/Window$Type;");
+
+    AwtWindow::notifyWindowStateChangedMID =
+        env->GetMethodID(cls, "notifyWindowStateChanged", "(II)V");
+    DASSERT(AwtWindow::notifyWindowStateChangedMID);
+    CHECK_NULL(AwtWindow::notifyWindowStateChangedMID);
 
     CATCH_BAD_ALLOC;
 }

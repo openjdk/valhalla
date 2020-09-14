@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,7 +57,7 @@ public class ZipEntry implements ZipConstants, Cloneable {
     int flag = 0;       // general purpose flag
     byte[] extra;       // optional extra field data for entry
     String comment;     // optional comment string for entry
-
+    int extraAttributes = -1; // e.g. POSIX permissions, sym links.
     /**
      * Compression method for uncompressed entries.
      */
@@ -131,12 +131,8 @@ public class ZipEntry implements ZipConstants, Cloneable {
         flag = e.flag;
         extra = e.extra;
         comment = e.comment;
+        extraAttributes = e.extraAttributes;
     }
-
-    /**
-     * Creates a new un-initialized zip entry
-     */
-    ZipEntry() {}
 
     /**
      * Returns the name of the entry.
@@ -167,10 +163,15 @@ public class ZipEntry implements ZipConstants, Cloneable {
         this.xdostime = javaToExtendedDosTime(time);
         // Avoid setting the mtime field if time is in the valid
         // range for a DOS time
-        if (xdostime != DOSTIME_BEFORE_1980 && time <= UPPER_DOSTIME_BOUND) {
+        if (this.xdostime != DOSTIME_BEFORE_1980 && time <= UPPER_DOSTIME_BOUND) {
             this.mtime = null;
         } else {
-            this.mtime = FileTime.from(time, TimeUnit.MILLISECONDS);
+            int localYear = javaEpochToLocalDateTime(time).getYear();
+            if (localYear >= 1980 && localYear <= 2099) {
+                this.mtime = null;
+            } else {
+                this.mtime = FileTime.from(time, TimeUnit.MILLISECONDS);
+            }
         }
     }
 

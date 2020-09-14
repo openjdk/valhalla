@@ -28,12 +28,13 @@
 #include "classfile/moduleEntry.hpp"
 #include "classfile/packageEntry.hpp"
 #include "classfile/symbolTable.hpp"
-#include "jfr/jfr.hpp"
-#include "jfr/jni/jfrGetAllEventClasses.hpp"
 #include "jfr/leakprofiler/checkpoint/objectSampleCheckpoint.hpp"
 #include "jfr/recorder/checkpoint/types/jfrTypeSet.hpp"
 #include "jfr/recorder/checkpoint/types/jfrTypeSetUtils.hpp"
 #include "jfr/recorder/checkpoint/types/traceid/jfrTraceId.inline.hpp"
+#include "jfr/recorder/checkpoint/types/traceid/jfrTraceIdLoadBarrier.inline.hpp"
+#include "jfr/recorder/jfrRecorder.hpp"
+#include "jfr/support/jfrKlassUnloading.hpp"
 #include "jfr/utilities/jfrHashtable.hpp"
 #include "jfr/utilities/jfrTypes.hpp"
 #include "jfr/writers/jfrTypeWriterHost.hpp"
@@ -44,6 +45,7 @@
 #include "oops/oop.inline.hpp"
 #include "utilities/accessFlags.hpp"
 #include "utilities/bitMap.inline.hpp"
+#include "utilities/stack.inline.hpp"
 
 typedef const Klass* KlassPtr;
 typedef const PackageEntry* PkgPtr;
@@ -99,7 +101,7 @@ static traceid get_bootstrap_name(bool leakp) {
 template <typename T>
 static traceid artifact_id(const T* ptr) {
   assert(ptr != NULL, "invariant");
-  return TRACE_ID(ptr);
+  return JfrTraceId::load_raw(ptr);
 }
 
 static traceid package_id(KlassPtr klass, bool leakp) {
@@ -137,7 +139,6 @@ static traceid method_id(KlassPtr klass, MethodPtr method) {
 
 static traceid cld_id(CldPtr cld, bool leakp) {
   assert(cld != NULL, "invariant");
-  assert(!cld->is_unsafe_anonymous(), "invariant");
   if (leakp) {
     SET_LEAKP(cld);
   } else {
@@ -163,6 +164,7 @@ static ClassLoaderData* get_cld(const Klass* klass) {
   if (klass->is_objArray_klass()) {
     klass = ObjArrayKlass::cast(klass)->bottom_klass();
   }
+  if (klass->is_non_strong_hidden()) return NULL;
   return is_unsafe_anonymous(klass) ?
     InstanceKlass::cast(klass)->unsafe_anonymous_host()->class_loader_data() : klass->class_loader_data();
 }
@@ -188,10 +190,12 @@ static int write_klass(JfrCheckpointWriter* writer, KlassPtr klass, bool leakp) 
   assert(_artifacts != NULL, "invariant");
   assert(klass != NULL, "invariant");
   writer->write(artifact_id(klass));
-  writer->write(cld_id(get_cld(klass), leakp));
+  ClassLoaderData* cld = get_cld(klass);
+  writer->write(cld != NULL ? cld_id(cld, leakp) : 0);
   writer->write(mark_symbol(klass, leakp));
   writer->write(package_id(klass, leakp));
   writer->write(get_flags(klass));
+  writer->write<bool>(klass->is_hidden());
   return 1;
 }
 
@@ -213,53 +217,96 @@ static bool is_implied(const Klass* klass) {
   return klass->is_subclass_of(SystemDictionary::ClassLoader_klass()) || klass == SystemDictionary::Object_klass();
 }
 
-static void do_implied(Klass* klass) {
+static void do_klass(Klass* klass) {
   assert(klass != NULL, "invariant");
-  if (is_implied(klass)) {
+  assert(_flushpoint ? USED_THIS_EPOCH(klass) : USED_PREVIOUS_EPOCH(klass), "invariant");
+  assert(_subsystem_callback != NULL, "invariant");
+  _subsystem_callback->do_artifact(klass);
+}
+
+static void do_loader_klass(const Klass* klass) {
+  if (klass != NULL && _artifacts->should_do_loader_klass(klass)) {
     if (_leakp_writer != NULL) {
       SET_LEAKP(klass);
     }
+    SET_TRANSIENT(klass);
     _subsystem_callback->do_artifact(klass);
   }
 }
 
-static void do_unloaded_klass(Klass* klass) {
+static bool register_klass_unload(Klass* klass) {
   assert(klass != NULL, "invariant");
-  assert(_subsystem_callback != NULL, "invariant");
-  if (IS_JDK_JFR_EVENT_SUBKLASS(klass)) {
-    JfrEventClasses::increment_unloaded_event_class();
-  }
-  if (USED_THIS_EPOCH(klass)) {
-    ObjectSampleCheckpoint::on_klass_unload(klass);
-    _subsystem_callback->do_artifact(klass);
-    return;
-  }
-  do_implied(klass);
+  return JfrKlassUnloading::on_unload(klass);
 }
 
-static void do_klass(Klass* klass) {
+static void on_klass_unload(Klass* klass) {
+  register_klass_unload(klass);
+}
+
+static size_t register_unloading_klasses() {
+  ClassLoaderDataGraph::classes_unloading_do(&on_klass_unload);
+  return 0;
+}
+
+static void do_unloading_klass(Klass* klass) {
   assert(klass != NULL, "invariant");
   assert(_subsystem_callback != NULL, "invariant");
-  if (_flushpoint) {
-    if (USED_THIS_EPOCH(klass)) {
-      _subsystem_callback->do_artifact(klass);
-      return;
+  if (register_klass_unload(klass)) {
+    _subsystem_callback->do_artifact(klass);
+    do_loader_klass(klass->class_loader_data()->class_loader_klass());
+  }
+}
+
+/*
+ * Abstract klasses are filtered out unconditionally.
+ * If a klass is not yet initialized, i.e yet to run its <clinit>
+ * it is also filtered out so we don't accidentally
+ * trigger initialization.
+ */
+static bool is_classloader_klass_whitelisted(const Klass* k) {
+  assert(k != NULL, "invariant");
+  return !(k->is_abstract() || k->should_be_initialized());
+}
+
+static void do_classloaders() {
+  Stack<const Klass*, mtTracing> mark_stack;
+  mark_stack.push(SystemDictionary::ClassLoader_klass()->subklass());
+
+  while (!mark_stack.is_empty()) {
+    const Klass* const current = mark_stack.pop();
+    assert(current != NULL, "null element in stack!");
+    if (is_classloader_klass_whitelisted(current)) {
+      do_loader_klass(current);
     }
-  } else {
-    if (USED_PREV_EPOCH(klass)) {
-      _subsystem_callback->do_artifact(klass);
-      return;
+
+    // subclass (depth)
+    const Klass* next_klass = current->subklass();
+    if (next_klass != NULL) {
+      mark_stack.push(next_klass);
+    }
+
+    // siblings (breadth)
+    next_klass = current->next_sibling();
+    if (next_klass != NULL) {
+      mark_stack.push(next_klass);
     }
   }
-  do_implied(klass);
+  assert(mark_stack.is_empty(), "invariant");
+}
+
+static void do_object() {
+  SET_TRANSIENT(SystemDictionary::Object_klass());
+  do_klass(SystemDictionary::Object_klass());
 }
 
 static void do_klasses() {
   if (_class_unload) {
-    ClassLoaderDataGraph::classes_unloading_do(&do_unloaded_klass);
+    ClassLoaderDataGraph::classes_unloading_do(&do_unloading_klass);
     return;
   }
-  ClassLoaderDataGraph::classes_do(&do_klass);
+  JfrTraceIdLoadBarrier::do_klasses(&do_klass, previous_epoch());
+  do_classloaders();
+  do_object();
 }
 
 typedef SerializePredicate<KlassPtr> KlassPredicate;
@@ -315,7 +362,7 @@ template <typename T>
 static void do_previous_epoch_artifact(JfrArtifactClosure* callback, T* value) {
   assert(callback != NULL, "invariant");
   assert(value != NULL, "invariant");
-  if (USED_PREV_EPOCH(value)) {
+  if (USED_PREVIOUS_EPOCH(value)) {
     callback->do_artifact(value);
     assert(IS_NOT_SERIALIZED(value), "invariant");
     return;
@@ -326,7 +373,7 @@ static void do_previous_epoch_artifact(JfrArtifactClosure* callback, T* value) {
   assert(IS_NOT_SERIALIZED(value), "invariant");
 }
 
-typedef JfrArtifactCallbackHost<KlassPtr, KlassArtifactRegistrator> RegistrationCallback;
+typedef JfrArtifactCallbackHost<KlassPtr, KlassArtifactRegistrator> RegisterKlassCallback;
 
 static void register_klass(Klass* klass) {
   assert(klass != NULL, "invariant");
@@ -334,16 +381,12 @@ static void register_klass(Klass* klass) {
   do_previous_epoch_artifact(_subsystem_callback, klass);
 }
 
-static void do_register_klasses() {
-  ClassLoaderDataGraph::classes_do(&register_klass);
-}
-
 static void register_klasses() {
   assert(!_artifacts->has_klass_entries(), "invariant");
   KlassArtifactRegistrator reg(_artifacts);
-  RegistrationCallback callback(&reg);
+  RegisterKlassCallback callback(&reg);
   _subsystem_callback = &callback;
-  do_register_klasses();
+  ClassLoaderDataGraph::classes_do(&register_klass);
 }
 
 static int write_package(JfrCheckpointWriter* writer, PkgPtr pkg, bool leakp) {
@@ -546,7 +589,6 @@ static void clear_modules() {
 
 static int write_classloader(JfrCheckpointWriter* writer, CldPtr cld, bool leakp) {
   assert(cld != NULL, "invariant");
-  assert(!cld->is_unsafe_anonymous(), "invariant");
   // class loader type
   const Klass* class_loader_klass = cld->class_loader_klass();
   if (class_loader_klass == NULL) {
@@ -555,6 +597,7 @@ static int write_classloader(JfrCheckpointWriter* writer, CldPtr cld, bool leakp
     writer->write((traceid)0);  // class loader type id (absence of)
     writer->write(get_bootstrap_name(leakp)); // maps to synthetic name -> "bootstrap"
   } else {
+    assert(_class_unload ? true : IS_SERIALIZED(class_loader_klass), "invariant");
     writer->write(artifact_id(cld)); // class loader instance id
     writer->write(artifact_id(class_loader_klass)); // class loader type id
     writer->write(mark_symbol(cld->name(), leakp)); // class loader instance name
@@ -604,7 +647,7 @@ class CLDCallback : public CLDClosure {
   CLDCallback() {}
   void do_cld(ClassLoaderData* cld) {
     assert(cld != NULL, "invariant");
-    if (cld->is_unsafe_anonymous()) {
+    if (cld->has_class_mirror_holder()) {
       return;
     }
     do_class_loader_data(cld);
@@ -718,6 +761,7 @@ int write__method(JfrCheckpointWriter* writer, const void* m) {
 int write__method__leakp(JfrCheckpointWriter* writer, const void* m) {
   assert(m != NULL, "invariant");
   MethodPtr method = (MethodPtr)m;
+  CLEAR_LEAKP_METHOD(method);
   return write_method(writer, method, true);
 }
 
@@ -946,6 +990,7 @@ static size_t teardown() {
   const size_t total_count = _artifacts->total_count();
   if (previous_epoch()) {
     clear_klasses_and_methods();
+    JfrKlassUnloading::clear();
     clear_artifacts = true;
     ++checkpoint_id;
   }
@@ -961,6 +1006,9 @@ static void setup(JfrCheckpointWriter* writer, JfrCheckpointWriter* leakp_writer
     _artifacts = new JfrArtifactSet(class_unload);
   } else {
     _artifacts->initialize(class_unload, clear_artifacts);
+  }
+  if (!_class_unload) {
+    JfrKlassUnloading::sort(previous_epoch());
   }
   clear_artifacts = false;
   assert(_artifacts != NULL, "invariant");
@@ -991,6 +1039,8 @@ size_t JfrTypeSet::serialize(JfrCheckpointWriter* writer, JfrCheckpointWriter* l
  * Clear all tags from the previous epoch.
  */
 void JfrTypeSet::clear() {
+  ResourceMark rm;
+  JfrKlassUnloading::clear();
   clear_artifacts = true;
   setup(NULL, NULL, false, false);
   register_klasses();
@@ -998,4 +1048,11 @@ void JfrTypeSet::clear() {
   clear_modules();
   clear_classloaders();
   clear_klasses_and_methods();
+}
+
+size_t JfrTypeSet::on_unloading_classes(JfrCheckpointWriter* writer) {
+  if (JfrRecorder::is_recording()) {
+    return serialize(writer, NULL, true, false);
+  }
+  return register_unloading_klasses();
 }

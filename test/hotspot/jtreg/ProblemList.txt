@@ -29,10 +29,10 @@
 # List items are testnames followed by labels, all MUST BE commented
 #   as to why they are here and use a label:
 #     generic-all   Problems on all platforms
-#     generic-ARCH  Where ARCH is one of: sparc, sparcv9, x64, i586, etc.
-#     OSNAME-all    Where OSNAME is one of: solaris, linux, windows, macosx, aix
-#     OSNAME-ARCH   Specific on to one OSNAME and ARCH, e.g. solaris-amd64
-#     OSNAME-REV    Specific on to one OSNAME and REV, e.g. solaris-5.8
+#     generic-ARCH  Where ARCH is one of: x64, i586, ppc64, ppc64le, s390x etc.
+#     OSNAME-all    Where OSNAME is one of: linux, windows, macosx, aix
+#     OSNAME-ARCH   Specific on to one OSNAME and ARCH, e.g. macosx-x64
+#     OSNAME-REV    Specific on to one OSNAME and REV, e.g. macosx-10.7.4
 #
 # More than one label is allowed but must be on the same line.
 #
@@ -42,18 +42,9 @@
 
 compiler/ciReplay/TestSAServer.java 8029528 generic-all
 compiler/codecache/jmx/PoolsIndependenceTest.java 8167015 generic-all
-compiler/codecache/stress/OverloadCompileQueueTest.java 8166554 generic-all
-compiler/codegen/Test6896617.java 8193479 generic-all
 compiler/compilercontrol/jcmd/ClearDirectivesFileStackTest.java 8225370 generic-all
 compiler/jvmci/compilerToVM/GetFlagValueTest.java 8204459 generic-all
-compiler/jvmci/compilerToVM/GetResolvedJavaTypeTest.java 8158860 generic-all
-compiler/jvmci/compilerToVM/InvalidateInstalledCodeTest.java 8163894 generic-all
 compiler/tiered/LevelTransitionTest.java 8067651 generic-all
-
-compiler/types/correctness/CorrectnessTest.java 8225620 solaris-sparcv9
-compiler/types/correctness/OffTest.java         8225620 solaris-sparcv9
-
-compiler/c2/Test6852078.java 8194310 generic-all
 
 compiler/cpuflags/TestAESIntrinsicsOnSupportedConfig.java 8190680 generic-all
 
@@ -170,6 +161,7 @@ gc/metaspace/CompressedClassSpaceSizeInJmapHeap.java 8241293 macosx-x64
 
 runtime/jni/terminatedThread/TestTerminatedThread.java 8219652 aix-ppc64
 runtime/ReservedStack/ReservedStackTest.java 8231031 generic-all
+containers/docker/TestMemoryAwareness.java 8250984 linux-5.4.0-1019-oracle
 
 # Valhalla TODO:
 runtime/CompressedOops/CompressedClassPointers.java 8210258 generic-all
@@ -197,17 +189,14 @@ runtime/appcds/sharedStrings/SharedStringsBasic.java 8210258 generic-all
 
 # :hotspot_serviceability
 
-serviceability/sa/ClhsdbDumpheap.java 8241158 macosx-x64
-serviceability/sa/ClhsdbScanOops.java#id0 8241158,8230731 macosx-x64,windows-x64
-serviceability/sa/ClhsdbScanOops.java#id1 8241158,8230731 macosx-x64,windows-x64
 serviceability/sa/sadebugd/DebugdConnectTest.java 8239062 macosx-x64
-serviceability/sa/TestHeapDumpForInvokeDynamic.java 8241158 macosx-x64
 serviceability/sa/TestInstanceKlassSize.java 8230664 linux-ppc64le,linux-ppc64
 serviceability/sa/TestInstanceKlassSizeForInterface.java 8230664 linux-ppc64le,linux-ppc64
 serviceability/sa/TestRevPtrsForInvokeDynamic.java 8241235 generic-all
 
 serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorStatIntervalTest.java 8214032 generic-all
 serviceability/jvmti/HeapMonitor/MyPackage/HeapMonitorStatArrayCorrectnessTest.java 8224150 generic-all
+serviceability/jvmti/ModuleAwareAgents/ThreadStart/MAAThreadStart.java 8225354 windows-all
 
 # Valhalla TODO:
 serviceability/sa/ClhsdbCDSCore.java 8190936 generic-all
@@ -274,7 +263,7 @@ vmTestbase/nsk/jvmti/scenarios/jni_interception/JI05/ji05t001/TestDescription.ja
 vmTestbase/nsk/jvmti/scenarios/jni_interception/JI06/ji06t001/TestDescription.java 8219652 aix-ppc64
 vmTestbase/nsk/jvmti/SetJNIFunctionTable/setjniftab001/TestDescription.java 8219652 aix-ppc64
 
-vmTestbase/gc/lock/jni/jnilock002/TestDescription.java 8208243,8192647 generic-all
+vmTestbase/gc/lock/jni/jnilock002/TestDescription.java 8192647 generic-all
 
 vmTestbase/jit/escape/LockCoarsening/LockCoarsening001.java 8148743 generic-all
 vmTestbase/jit/escape/LockCoarsening/LockCoarsening002.java 8208259 generic-all

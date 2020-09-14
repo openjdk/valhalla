@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -32,7 +32,7 @@ import com.sun.source.tree.ModuleTree.ModuleKind;
 import com.sun.tools.javac.code.*;
 import com.sun.tools.javac.tree.JCTree.*;
 import com.sun.tools.javac.util.*;
-import com.sun.tools.javac.util.List;
+
 import static com.sun.tools.javac.code.Flags.*;
 import static com.sun.tools.javac.code.Flags.ANNOTATION;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
@@ -166,11 +166,11 @@ public class Pretty extends JCTree.Visitor {
 
     String lineSep = System.getProperty("line.separator");
 
-    /**************************************************************************
+    /* ************************************************************************
      * Traversal methods
      *************************************************************************/
 
-    /** Exception to propagate IOException through visitXXX methods */
+    /** Exception to propagate IOException through visitXYZ methods */
     private static class UncheckedIOException extends Error {
         static final long serialVersionUID = -4032692679158424751L;
         UncheckedIOException(IOException e) {
@@ -564,6 +564,10 @@ public class Pretty extends JCTree.Visitor {
                     print(" extends ");
                     printExprs(tree.implementing);
                 }
+                if (tree.permitting.nonEmpty()) {
+                    print(" permits ");
+                    printExprs(tree.permitting);
+                }
             } else {
                 if ((tree.mods.flags & ENUM) != 0)
                     print("enum " + tree.name);
@@ -577,6 +581,10 @@ public class Pretty extends JCTree.Visitor {
                 if (tree.implementing.nonEmpty()) {
                     print(" implements ");
                     printExprs(tree.implementing);
+                }
+                if (tree.permitting.nonEmpty()) {
+                    print(" permits ");
+                    printExprs(tree.permitting);
                 }
             }
             print(" ");

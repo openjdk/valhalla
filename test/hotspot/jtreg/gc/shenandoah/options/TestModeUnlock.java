@@ -25,8 +25,7 @@
 /*
  * @test TestModeUnlock
  * @summary Test that Shenandoah modes are unlocked properly
- * @key gc
- * @requires vm.gc.Shenandoah & !vm.graal.enabled
+ * @requires vm.gc.Shenandoah
  * @library /test/lib
  * @modules java.base/jdk.internal.misc
  *          java.management
@@ -45,14 +44,15 @@ public class TestModeUnlock {
     }
 
     public static void main(String[] args) throws Exception {
-        testWith("-XX:ShenandoahGCMode=normal",  Mode.PRODUCT);
+        testWith("-XX:ShenandoahGCMode=satb",    Mode.PRODUCT);
         testWith("-XX:ShenandoahGCMode=iu",      Mode.EXPERIMENTAL);
         testWith("-XX:ShenandoahGCMode=passive", Mode.DIAGNOSTIC);
     }
 
     private static void testWith(String h, Mode mode) throws Exception {
-        if (false) { // When ShenandoahGC is experimental flag, this makes no sense to test
+        {
             ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+                    "-Xmx128m",
                     "-XX:-UnlockDiagnosticVMOptions",
                     "-XX:-UnlockExperimentalVMOptions",
                     "-XX:+UseShenandoahGC",
@@ -71,8 +71,9 @@ public class TestModeUnlock {
             }
         }
 
-        if (false) { // When ShenandoahGC is experimental flag, this makes no sense to test
+        {
             ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+                    "-Xmx128m",
                     "-XX:+UnlockDiagnosticVMOptions",
                     "-XX:-UnlockExperimentalVMOptions",
                     "-XX:+UseShenandoahGC",
@@ -93,6 +94,7 @@ public class TestModeUnlock {
 
         {
             ProcessBuilder pb = ProcessTools.createJavaProcessBuilder(
+                    "-Xmx128m",
                     "-XX:-UnlockDiagnosticVMOptions",
                     "-XX:+UnlockExperimentalVMOptions",
                     "-XX:+UseShenandoahGC",

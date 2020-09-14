@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,7 @@ package com.sun.source.tree;
  * Common interface for all nodes in an abstract syntax tree.
  *
  * <p><b>WARNING:</b> This interface and its sub-interfaces are
- * subject to change as the Java&trade; programming language evolves.
+ * subject to change as the Java programming language evolves.
  * These interfaces are implemented by the JDK Java compiler (javac)
  * and should not be implemented either directly or indirectly by
  * other applications.
@@ -713,7 +713,7 @@ public interface Tree {
     /**
      * Returns the kind of this tree.
      *
-     * @return the kind of this tree.
+     * @return the kind of this tree
      */
     Kind getKind();
 
@@ -721,8 +721,8 @@ public interface Tree {
      * Accept method used to implement the visitor pattern.  The
      * visitor pattern is used to implement operations on trees.
      *
-     * @param <R> result type of this operation.
-     * @param <D> type of additional data.
+     * @param <R> the result type of this operation
+     * @param <D> the type of additional data
      * @param visitor the visitor to be called
      * @param data a value to be passed to the visitor
      * @return the result returned from calling the visitor

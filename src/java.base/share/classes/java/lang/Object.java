@@ -26,7 +26,9 @@
 package java.lang;
 
 import jdk.internal.HotSpotIntrinsicCandidate;
+import jdk.internal.access.SharedSecrets;
 
+import java.lang.invoke.ValueBootstrapMethods;
 import java.util.Objects;
 
 /**
@@ -227,21 +229,31 @@ public class Object {
      * person to read.
      * It is recommended that all subclasses override this method.
      * <p>
-     * The {@code toString} method for class {@code Object}
-     * returns a string consisting of the name of the class of which the
-     * object is an instance, the at-sign character `{@code @}', and
-     * the unsigned hexadecimal representation of the hash code of the
-     * object. In other words, this method returns a string equal to the
+     * If this object is an instance of an identity class, then
+     * the {@code toString} method returns a string consisting of the name
+     * of the class of which the object is an instance, the at-sign character
+     * `{@code @}', and the unsigned hexadecimal representation of the hash code
+     * of the object. In other words, this method returns a string equal to the
      * value of:
      * <blockquote>
      * <pre>
      * getClass().getName() + '@' + Integer.toHexString(hashCode())
      * </pre></blockquote>
+     * <p>
+     * If this object is an instance of an inline class, then
+     * the {@code toString} method returns a string which contains
+     * the name of the inline class, and string representations of
+     * all its fields.  The precise format produced by this method
+     * is unspecified and subject to change.
      *
      * @return  a string representation of the object.
      */
     public String toString() {
-        return getClass().getName() + "@" + Integer.toHexString(hashCode());
+        if (getClass().isInlineClass()) {
+            return SharedSecrets.getJavaLangInvokeAccess().inlineObjectToString(this);
+        } else {
+            return getClass().getName() + "@" + Integer.toHexString(hashCode());
+        }
     }
 
     /**
@@ -467,7 +479,7 @@ public class Object {
      * system resources or to perform other cleanup.
      * <p>
      * The general contract of {@code finalize} is that it is invoked
-     * if and when the Java&trade; virtual
+     * if and when the Java virtual
      * machine has determined that there is no longer any
      * means by which this object can be accessed by any thread that has
      * not yet died, except as a result of an action taken by the

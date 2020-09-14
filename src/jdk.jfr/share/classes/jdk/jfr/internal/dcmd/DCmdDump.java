@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,8 +26,6 @@ package jdk.jfr.internal.dcmd;
 
 import java.io.IOException;
 import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -58,7 +56,7 @@ final class DCmdDump extends AbstractDCmd {
     /**
      * Execute JFR.dump.
      *
-     * @param name name or id of the recording to dump, or <code>null</code> to dump everything
+     * @param name name or id of the recording to dump, or {@code null} to dump everything
      *
      * @param filename file path where recording should be written, not null
      * @param maxAge how far back in time to dump, may be null
@@ -79,7 +77,7 @@ final class DCmdDump extends AbstractDCmd {
                     ", maxage=" + maxAge +
                     ", maxsize=" + maxSize +
                     ", begin=" + begin +
-                    ", end" + end +
+                    ", end=" + end +
                     ", path-to-gc-roots=" + pathToGcRoots);
         }
 
@@ -114,7 +112,7 @@ final class DCmdDump extends AbstractDCmd {
 
         if (beginTime != null && endTime != null) {
             if (endTime.isBefore(beginTime)) {
-                throw new DCmdException("Dump failed, begin must preceed end.");
+                throw new DCmdException("Dump failed, begin must precede end.");
             }
         }
 

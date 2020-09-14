@@ -37,6 +37,8 @@ template <typename T>
 class Array;
 class ClassFileStream;
 class ClassLoaderData;
+class ClassLoadInfo;
+class ClassInstanceInfo;
 class CompressedLineNumberWriteStream;
 class ConstMethod;
 class FieldInfo;
@@ -74,6 +76,7 @@ class FieldLayoutInfo : public ResourceObj {
   int _static_field_size;
   bool  _has_nonstatic_fields;
   bool  _is_naturally_atomic;
+  bool _has_inline_fields;
 };
 
 // Parser for for .class files
@@ -110,11 +113,12 @@ class ClassFileParser {
   typedef void unsafe_u2;
 
   const ClassFileStream* _stream; // Actual input stream
-  const Symbol* _requested_name;
   Symbol* _class_name;
   mutable ClassLoaderData* _loader_data;
   const InstanceKlass* _unsafe_anonymous_host;
   GrowableArray<Handle>* _cp_patches; // overrides for CP entries
+  const bool _is_hidden;
+  const bool _can_access_vm_annotations;
   int _num_patched_klasses;
   int _max_num_patched_klasses;
   int _orig_cp_size;
@@ -130,7 +134,9 @@ class ClassFileParser {
   Array<u2>* _inner_classes;
   Array<u2>* _nest_members;
   u2 _nest_host;
+  Array<u2>* _permitted_subclasses;
   Array<RecordComponent*>* _record_components;
+  GrowableArray<InstanceKlass*>* _temp_local_interfaces;
   Array<InstanceKlass*>* _local_interfaces;
   Array<InstanceKlass*>* _transitive_interfaces;
   Annotations* _combined_annotations;
@@ -198,10 +204,15 @@ class ClassFileParser {
   bool _has_final_method;
   bool _has_contended_fields;
 
-  bool _has_flattenable_fields;
-  bool _is_empty_value;
+  bool _has_inline_type_fields;
+  bool _has_nonstatic_fields;
+  bool _is_empty_inline_type;
   bool _is_naturally_atomic;
   bool _is_declared_atomic;
+  bool _invalid_inline_super;   // if true, invalid super type for an inline type.
+  bool _invalid_identity_super; // if true, invalid super type for an identity type.
+  bool _implements_identityObject;
+  bool _has_injected_identityObject;
 
   // precomputed flags
   bool _has_finalizer;
@@ -211,6 +222,8 @@ class ClassFileParser {
 
   void parse_stream(const ClassFileStream* const stream, TRAPS);
 
+  void mangle_hidden_class_name(InstanceKlass* const ik);
+
   void post_process_parsed_stream(const ClassFileStream* const stream,
                                   ConstantPool* cp,
                                   TRAPS);
@@ -218,7 +231,9 @@ class ClassFileParser {
   void prepend_host_package_name(const InstanceKlass* unsafe_anonymous_host, TRAPS);
   void fix_unsafe_anonymous_class_name(TRAPS);
 
-  void fill_instance_klass(InstanceKlass* ik, bool cf_changed_in_CFLH, TRAPS);
+  void fill_instance_klass(InstanceKlass* ik, bool cf_changed_in_CFLH,
+                           const ClassInstanceInfo& cl_inst_info, TRAPS);
+
   void set_klass(InstanceKlass* instance);
 
   void set_class_bad_constant_seen(short bad_constant);
@@ -248,6 +263,7 @@ class ClassFileParser {
   void parse_interfaces(const ClassFileStream* const stream,
                         const int itfs_len,
                         ConstantPool* const cp,
+                        bool is_inline_type,
                         bool* has_nonstatic_concrete_methods,
                         bool* is_declared_atomic,
                         TRAPS);
@@ -270,7 +286,7 @@ class ClassFileParser {
 
   void parse_fields(const ClassFileStream* const cfs,
                     bool is_interface,
-                    bool is_value_type,
+                    bool is_inline_type,
                     FieldAllocationCount* const fac,
                     ConstantPool* cp,
                     const int cp_size,
@@ -280,14 +296,14 @@ class ClassFileParser {
   // Method parsing
   Method* parse_method(const ClassFileStream* const cfs,
                        bool is_interface,
-                       bool is_value_type,
+                       bool is_inline_type,
                        const ConstantPool* cp,
                        AccessFlags* const promoted_flags,
                        TRAPS);
 
   void parse_methods(const ClassFileStream* const cfs,
                      bool is_interface,
-                     bool is_value_type,
+                     bool is_inline_type,
                      AccessFlags* const promoted_flags,
                      bool* const has_final_method,
                      bool* const declares_nonstatic_concrete_methods,
@@ -334,11 +350,16 @@ class ClassFileParser {
                                             const u1* const nest_members_attribute_start,
                                             TRAPS);
 
+  u2 parse_classfile_permitted_subclasses_attribute(const ClassFileStream* const cfs,
+                                                    const u1* const permitted_subclasses_attribute_start,
+                                                    TRAPS);
+
   u2 parse_classfile_record_attribute(const ClassFileStream* const cfs,
                                       const ConstantPool* cp,
                                       const u1* const record_attribute_start,
                                       TRAPS);
 
+  bool supports_sealed_types();
   bool supports_records();
 
   void parse_classfile_attributes(const ClassFileStream* const cfs,
@@ -444,10 +465,10 @@ class ClassFileParser {
                              const Symbol* sig,
                              TRAPS) const;
 
-  void throwValueTypeLimitation(THREAD_AND_LOCATION_DECL,
-                                const char* msg,
-                                const Symbol* name = NULL,
-                                const Symbol* sig  = NULL) const;
+  void throwInlineTypeLimitation(THREAD_AND_LOCATION_DECL,
+                                 const char* msg,
+                                 const Symbol* name = NULL,
+                                 const Symbol* sig  = NULL) const;
 
   void verify_constantvalue(const ConstantPool* const cp,
                             int constantvalue_index,
@@ -469,11 +490,11 @@ class ClassFileParser {
   void verify_legal_class_modifiers(jint flags, TRAPS) const;
   void verify_legal_field_modifiers(jint flags,
                                     bool is_interface,
-                                    bool is_value_type,
+                                    bool is_inline_type,
                                     TRAPS) const;
   void verify_legal_method_modifiers(jint flags,
                                      bool is_interface,
-                                     bool is_value_type,
+                                     bool is_inline_type,
                                      const Symbol* name,
                                      TRAPS) const;
 
@@ -543,31 +564,22 @@ class ClassFileParser {
                                int annotation_default_length,
                                TRAPS);
 
-  // lays out fields in class and returns the total oopmap count
-  void layout_fields(ConstantPool* cp,
-                     const FieldAllocationCount* fac,
-                     const ClassAnnotationCollector* parsed_annotations,
-                     FieldLayoutInfo* info,
-                     TRAPS);
+  void update_class_name(Symbol* new_name);
 
-   void update_class_name(Symbol* new_name);
-
-  // Check if the class file supports value types
-  bool supports_value_types() const;
+  // Check if the class file supports inline types
+  bool supports_inline_types() const;
 
  public:
   ClassFileParser(ClassFileStream* stream,
                   Symbol* name,
                   ClassLoaderData* loader_data,
-                  Handle protection_domain,
-                  const InstanceKlass* unsafe_anonymous_host,
-                  GrowableArray<Handle>* cp_patches,
+                  const ClassLoadInfo* cl_info,
                   Publicity pub_level,
                   TRAPS);
 
   ~ClassFileParser();
 
-  InstanceKlass* create_instance_klass(bool cf_changed_in_CFLH, TRAPS);
+  InstanceKlass* create_instance_klass(bool cf_changed_in_CFLH, const ClassInstanceInfo& cl_inst_info, TRAPS);
 
   const ClassFileStream* clone_stream() const;
 
@@ -583,10 +595,16 @@ class ClassFileParser {
   u2 this_class_index() const { return _this_class_index; }
 
   bool is_unsafe_anonymous() const { return _unsafe_anonymous_host != NULL; }
+  bool is_hidden() const { return _is_hidden; }
   bool is_interface() const { return _access_flags.is_interface(); }
-  bool is_value_type() const { return _access_flags.is_value_type(); }
+  bool is_inline_type() const { return _access_flags.is_inline_type(); }
   bool is_value_capable_class() const;
-  bool has_flattenable_fields() const { return _has_flattenable_fields; }
+  bool has_inline_fields() const { return _has_inline_type_fields; }
+  bool invalid_inline_super() const { return _invalid_inline_super; }
+  void set_invalid_inline_super() { _invalid_inline_super = true; }
+  bool invalid_identity_super() const { return _invalid_identity_super; }
+  void set_invalid_identity_super() { _invalid_identity_super = true; }
+  bool is_invalid_super_for_inline_type();
 
   u2 java_fields_count() const { return _java_fields_count; }
 

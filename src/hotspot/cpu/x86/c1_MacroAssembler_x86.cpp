@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,7 @@
 #include "runtime/stubRoutines.hpp"
 
 int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr, Register scratch, Label& slow_case) {
+  const Register rklass_decode_tmp = LP64_ONLY(rscratch1) NOT_LP64(noreg);
   const int aligned_mask = BytesPerWord -1;
   const int hdr_offset = oopDesc::mark_offset_in_bytes();
   assert(hdr == rax, "hdr must be rax, for the cmpxchg instruction");
@@ -52,11 +53,18 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   // save object being locked into the BasicObjectLock
   movptr(Address(disp_hdr, BasicObjectLock::obj_offset_in_bytes()), obj);
 
+  null_check_offset = offset();
+
+  if (DiagnoseSyncOnPrimitiveWrappers != 0) {
+    load_klass(hdr, obj, rklass_decode_tmp);
+    movl(hdr, Address(hdr, Klass::access_flags_offset()));
+    testl(hdr, JVM_ACC_IS_BOX_CLASS);
+    jcc(Assembler::notZero, slow_case);
+  }
+
   if (UseBiasedLocking) {
     assert(scratch != noreg, "should have scratch register at this point");
-    null_check_offset = biased_locking_enter(disp_hdr, obj, hdr, scratch, false, done, &slow_case);
-  } else {
-    null_check_offset = offset();
+    biased_locking_enter(disp_hdr, obj, hdr, scratch, rklass_decode_tmp, false, done, &slow_case);
   }
 
   // Load object header
@@ -64,7 +72,7 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   // and mark it as unlocked
   orptr(hdr, markWord::unlocked_value);
   if (EnableValhalla && !UseBiasedLocking) {
-    // Mask always_locked bit such that we go to the slow path if object is a value type
+    // Mask always_locked bit such that we go to the slow path if object is an inline type
     andptr(hdr, ~((int) markWord::biased_lock_bit_in_place));
   }
   // save unlocked object header into the displaced header location on the stack
@@ -155,6 +163,7 @@ void C1_MacroAssembler::try_allocate(Register obj, Register var_size_in_bytes, i
 
 void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register len, Register t1, Register t2) {
   assert_different_registers(obj, klass, len);
+  Register tmp_encode_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
   if ((UseBiasedLocking || EnableValhalla) && !len->is_valid()) {
     // Need to copy markWord::always_locked_pattern for values.
     assert_different_registers(obj, klass, len, t1, t2);
@@ -167,7 +176,7 @@ void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register
 #ifdef _LP64
   if (UseCompressedClassPointers) { // Take care not to kill klass
     movptr(t1, klass);
-    encode_klass_not_null(t1);
+    encode_klass_not_null(t1, tmp_encode_klass);
     movl(Address(obj, oopDesc::klass_offset_in_bytes()), t1);
   } else
 #endif
@@ -302,9 +311,10 @@ void C1_MacroAssembler::inline_cache_check(Register receiver, Register iCache) {
   // check against inline cache
   assert(!MacroAssembler::needs_explicit_null_check(oopDesc::klass_offset_in_bytes()), "must add explicit null check");
   int start_offset = offset();
+  Register tmp_load_klass = LP64_ONLY(rscratch2) NOT_LP64(noreg);
 
   if (UseCompressedClassPointers) {
-    load_klass(rscratch1, receiver);
+    load_klass(rscratch1, receiver, tmp_load_klass);
     cmpptr(rscratch1, iCache);
   } else {
     cmpptr(iCache, Address(receiver, oopDesc::klass_offset_in_bytes()));
@@ -338,13 +348,13 @@ void C1_MacroAssembler::build_frame_helper(int frame_size_in_bytes, int sp_inc, 
   }
 }
 
-void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, bool needs_stack_repair, bool has_scalarized_args, Label* verified_value_entry_label) {
+void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, bool needs_stack_repair, bool has_scalarized_args, Label* verified_inline_entry_label) {
   if (has_scalarized_args) {
     // Initialize orig_pc to detect deoptimization during buffering in the entry points
     movptr(Address(rsp, sp_offset_for_orig_pc - frame_size_in_bytes - wordSize), 0);
   }
-  if (!needs_stack_repair && verified_value_entry_label != NULL) {
-    bind(*verified_value_entry_label);
+  if (!needs_stack_repair && verified_inline_entry_label != NULL) {
+    bind(*verified_inline_entry_label);
   }
   // Make sure there is enough stack space for this method's activation.
   // Note that we do this before doing an enter(). This matches the
@@ -356,13 +366,14 @@ void C1_MacroAssembler::build_frame(int frame_size_in_bytes, int bang_size_in_by
 
   build_frame_helper(frame_size_in_bytes, 0, needs_stack_repair);
 
-  if (needs_stack_repair && verified_value_entry_label != NULL) {
-    // Jump here from the scalarized entry points that require additional stack space
-    // for packing scalarized arguments and therefore already created the frame.
-    bind(*verified_value_entry_label);
-  }
   BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
   bs->nmethod_entry_barrier(this);
+
+  if (needs_stack_repair && verified_inline_entry_label != NULL) {
+    // Jump here from the scalarized entry points that require additional stack space
+    // for packing scalarized arguments and therefore already created the frame.
+    bind(*verified_inline_entry_label);
+  }
 }
 
 void C1_MacroAssembler::verified_entry() {
@@ -381,20 +392,20 @@ void C1_MacroAssembler::verified_entry() {
   IA32_ONLY( verify_FPU(0, "method_entry"); )
 }
 
-int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_value_entry_label, bool is_value_ro_entry) {
-  assert(ValueTypePassFieldsAsArgs, "sanity");
+int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int frame_size_in_bytes, int bang_size_in_bytes, int sp_offset_for_orig_pc, Label& verified_inline_entry_label, bool is_inline_ro_entry) {
+  assert(InlineTypePassFieldsAsArgs, "sanity");
   // Make sure there is enough stack space for this method's activation.
   assert(bang_size_in_bytes >= frame_size_in_bytes, "stack bang size incorrect");
   generate_stack_overflow_check(bang_size_in_bytes);
 
   GrowableArray<SigEntry>* sig    = &ces->sig();
-  GrowableArray<SigEntry>* sig_cc = is_value_ro_entry ? &ces->sig_cc_ro() : &ces->sig_cc();
+  GrowableArray<SigEntry>* sig_cc = is_inline_ro_entry ? &ces->sig_cc_ro() : &ces->sig_cc();
   VMRegPair* regs      = ces->regs();
-  VMRegPair* regs_cc   = is_value_ro_entry ? ces->regs_cc_ro() : ces->regs_cc();
+  VMRegPair* regs_cc   = is_inline_ro_entry ? ces->regs_cc_ro() : ces->regs_cc();
   int args_on_stack    = ces->args_on_stack();
-  int args_on_stack_cc = is_value_ro_entry ? ces->args_on_stack_cc_ro() : ces->args_on_stack_cc();
+  int args_on_stack_cc = is_inline_ro_entry ? ces->args_on_stack_cc_ro() : ces->args_on_stack_cc();
 
-  assert(sig->length() <= sig_cc->length(), "Zero-sized value class not allowed!");
+  assert(sig->length() <= sig_cc->length(), "Zero-sized inline class not allowed!");
   BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, sig_cc->length());
   int args_passed = sig->length();
   int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
@@ -417,12 +428,16 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   // Initialize orig_pc to detect deoptimization during buffering in below runtime call
   movptr(Address(rsp, sp_offset_for_orig_pc), 0);
 
-  // FIXME -- call runtime only if we cannot in-line allocate all the incoming value args.
+  // The runtime call might safepoint, make sure nmethod entry barrier is executed
+  BarrierSetAssembler* bs = BarrierSet::barrier_set()->barrier_set_assembler();
+  bs->nmethod_entry_barrier(this);
+
+  // FIXME -- call runtime only if we cannot in-line allocate all the incoming inline type args.
   movptr(rbx, (intptr_t)(ces->method()));
-  if (is_value_ro_entry) {
-    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_value_args_no_receiver_id)));
+  if (is_inline_ro_entry) {
+    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_inline_args_no_receiver_id)));
   } else {
-    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_value_args_id)));
+    call(RuntimeAddress(Runtime1::entry_for(Runtime1::buffer_inline_args_id)));
   }
   int rt_call_offset = offset();
 
@@ -430,17 +445,17 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature *ces, int f
   addptr(rsp, frame_size_in_bytes);
   pop(rbp);
 
-  shuffle_value_args(true, is_value_ro_entry, extra_stack_offset, sig_bt, sig_cc,
-                     args_passed_cc, args_on_stack_cc, regs_cc, // from
-                     args_passed, args_on_stack, regs, sp_inc); // to
+  shuffle_inline_args(true, is_inline_ro_entry, extra_stack_offset, sig_bt, sig_cc,
+                      args_passed_cc, args_on_stack_cc, regs_cc, // from
+                      args_passed, args_on_stack, regs, sp_inc); // to
 
   if (ces->c1_needs_stack_repair()) {
     // Create the real frame. Below jump will then skip over the stack banging and frame
-    // setup code in the verified_value_entry (which has a different real_frame_size).
+    // setup code in the verified_inline_entry (which has a different real_frame_size).
     build_frame_helper(frame_size_in_bytes, sp_inc, true);
   }
 
-  jmp(verified_value_entry_label);
+  jmp(verified_inline_entry_label);
   return rt_call_offset;
 }
 

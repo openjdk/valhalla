@@ -80,7 +80,7 @@ public:
 double G1ConcurrentMarkThread::mmu_delay_end(G1Policy* g1_policy, bool remark) {
   // There are 3 reasons to use SuspendibleThreadSetJoiner.
   // 1. To avoid concurrency problem.
-  //    - G1MMUTracker::add_pause(), when_sec() and its variation(when_ms() etc..) can be called
+  //    - G1MMUTracker::add_pause(), when_sec() and when_max_gc_sec() can be called
   //      concurrently from ConcurrentMarkThread and VMThread.
   // 2. If currently a gc is running, but it has not yet updated the MMU,
   //    we will not forget to consider that pause in the MMU calculation.
@@ -153,7 +153,7 @@ void G1ConcurrentMarkThread::run_service() {
     GCTraceConcTime(Info, gc) tt("Concurrent Cycle");
     {
       ResourceMark rm;
-      HandleMark   hm;
+
       double cycle_start = os::elapsedVTime();
 
       {
@@ -268,7 +268,8 @@ void G1ConcurrentMarkThread::run_service() {
     // called System.gc() with +ExplicitGCInvokesConcurrent).
     {
       SuspendibleThreadSetJoiner sts_join;
-      g1h->increment_old_marking_cycles_completed(true /* concurrent */);
+      g1h->increment_old_marking_cycles_completed(true /* concurrent */,
+                                                  !_cm->has_aborted() /* liveness_completed */);
 
       _cm->concurrent_cycle_end();
       ConcurrentGCBreakpoints::notify_active_to_idle();

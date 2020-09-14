@@ -52,15 +52,17 @@ public class ValueBootstrapMethods {
 
     public static void main(String... args) throws Throwable {
         Class<?> test = valueTestClass();
-        Value value = Value.make(10, 5.03, "foo", "bar", "goo");
+        Value value = new Value(10, 5.03, "foo", "bar", "goo");
 
         Class<?> valueClass = Value.class;
         Method hashCode = test.getMethod("hashCode", valueClass);
         int hash = (int)hashCode.invoke(null, value);
+        assertEquals(hash, value.localHashCode());
         assertEquals(hash, value.hashCode());
 
         Method toString = test.getMethod("toString", valueClass);
         String s = (String)toString.invoke(null, value);
+        assertEquals(s, value.localToString());
         assertEquals(s, value.toString());
 
         Method equals = test.getMethod("equals", valueClass, Object.class);
@@ -70,35 +72,27 @@ public class ValueBootstrapMethods {
         }
     }
 
-    public static final inline class Value {
+    public static inline class Value {
         private final int i;
         private final double d;
         private final String s;
         private final List<String> l;
-        Value() {
-            this.i = 0;
-            this.d = 0;
-            this.s = "default";
-            this.l = List.of();
-        }
-        public static Value make(int i, double d, String s, String... items) {
-            Value v = Value.default;
-            v = __WithField(v.i, i);
-            v = __WithField(v.d, d);
-            v = __WithField(v.s, s);
-            v = __WithField(v.l, List.of(items));
-            return v;
+        Value(int i, double d, String s, String... items) {
+            this.i = i;
+            this.d = d;
+            this.s = s;
+            this.l = List.of(items);
         }
 
         List<Object> values() {
             return List.of(Value.class, i, d, s, l);
         }
 
-        public int hashCode() {
+        public int localHashCode() {
             return values().hashCode();
         }
 
-        public String toString() {
+        public String localToString() {
             System.out.println(l);
             return String.format("[%s i=%s d=%s s=%s l=%s]", Value.class.getName(),
                                  i, String.valueOf(d), s, l.toString());

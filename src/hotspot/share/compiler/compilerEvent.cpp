@@ -25,6 +25,7 @@
 #include "ci/ciMethod.hpp"
 #include "compiler/compilerEvent.hpp"
 #include "jfr/jfr.hpp"
+#include "jfr/jfrEvents.hpp"
 #include "jfr/metadata/jfrSerializer.hpp"
 #include "runtime/semaphore.inline.hpp"
 #include "utilities/growableArray.hpp"
@@ -78,7 +79,7 @@ int CompilerEvent::PhaseEvent::register_phases(GrowableArray<const char*>* new_p
   {
     PhaseTypeGuard guard;
     if (phase_names == NULL) {
-      phase_names = new (ResourceObj::C_HEAP, mtInternal) GrowableArray<const char*>(100, true);
+      phase_names = new (ResourceObj::C_HEAP, mtCompiler) GrowableArray<const char*>(100, mtCompiler);
       register_jfr_serializer = true;
     }
     idx = phase_names->length();

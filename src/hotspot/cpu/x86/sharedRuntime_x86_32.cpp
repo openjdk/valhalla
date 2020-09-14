@@ -466,7 +466,7 @@ int SharedRuntime::java_calling_convention(const BasicType *sig_bt,
     case T_INT:
     case T_ARRAY:
     case T_OBJECT:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
     case T_ADDRESS:
       if( reg_arg0 == 9999 )  {
         reg_arg0 = i;
@@ -1022,7 +1022,7 @@ int SharedRuntime::c_calling_convention(const BasicType *sig_bt,
     case T_SHORT:
     case T_INT:
     case T_OBJECT:
-    case T_VALUETYPE:
+    case T_INLINE_TYPE:
     case T_ARRAY:
     case T_ADDRESS:
     case T_METADATA:
@@ -1050,8 +1050,8 @@ static void simple_move32(MacroAssembler* masm, VMRegPair src, VMRegPair dst) {
   if (src.first()->is_stack()) {
     if (dst.first()->is_stack()) {
       // stack to stack
-      // __ ld(FP, reg2offset(src.first()) + STACK_BIAS, L5);
-      // __ st(L5, SP, reg2offset(dst.first()) + STACK_BIAS);
+      // __ ld(FP, reg2offset(src.first()), L5);
+      // __ st(L5, SP, reg2offset(dst.first()));
       __ movl2ptr(rax, Address(rbp, reg2offset_in(src.first())));
       __ movptr(Address(rsp, reg2offset_out(dst.first())), rax);
     } else {
@@ -1304,7 +1304,7 @@ static void save_or_restore_arguments(MacroAssembler* masm,
           }
           break;
         case T_OBJECT:
-        case T_VALUETYPE:
+        case T_INLINE_TYPE:
         default: ShouldNotReachHere();
       }
     } else if (in_regs[i].first()->is_XMMRegister()) {
@@ -2022,7 +2022,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
           c_arg++;
           break;
         }
-      case T_VALUETYPE:
+      case T_INLINE_TYPE:
       case T_OBJECT:
         assert(!is_critical_native, "no oop arguments");
         object_move(masm, map, oop_handle_offset, stack_slots, in_regs[i], out_regs[c_arg],
@@ -2128,7 +2128,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
     if (UseBiasedLocking) {
       // Note that oop_handle_reg is trashed during this call
-      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, oop_handle_reg, false, lock_done, &slow_path_lock);
+      __ biased_locking_enter(lock_reg, obj_reg, swap_reg, oop_handle_reg, noreg, false, lock_done, &slow_path_lock);
     }
 
     // Load immediate 1 into swap_reg %rax,
@@ -2205,7 +2205,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     // Result is in st0 we'll save as needed
     break;
   case T_ARRAY:                 // Really a handle
-  case T_VALUETYPE:             // Really a handle
+  case T_INLINE_TYPE:           // Really a handle
   case T_OBJECT:                // Really a handle
       break; // can't de-handlize until after safepoint check
   case T_VOID: break;
@@ -3325,7 +3325,7 @@ RuntimeStub* SharedRuntime::generate_resolve_blob(address destination, const cha
   return RuntimeStub::new_runtime_stub(name, &buffer, frame_complete, frame_size_words, oop_maps, true);
 }
 
-BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const ValueKlass* vk) {
+BufferedInlineTypeBlob* SharedRuntime::generate_buffered_inline_type_adapter(const InlineKlass* vk) {
   Unimplemented();
   return NULL;
 }

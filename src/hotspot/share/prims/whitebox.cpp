@@ -27,6 +27,7 @@
 #include <new>
 
 #include "classfile/classLoaderDataGraph.hpp"
+#include "classfile/javaClasses.inline.hpp"
 #include "classfile/modules.hpp"
 #include "classfile/protectionDomainCache.hpp"
 #include "classfile/stringTable.hpp"
@@ -40,6 +41,7 @@
 #include "gc/shared/genArguments.hpp"
 #include "gc/shared/genCollectedHeap.hpp"
 #include "jvmtifiles/jvmtiEnv.hpp"
+#include "logging/log.hpp"
 #include "memory/filemap.hpp"
 #include "memory/heapShared.inline.hpp"
 #include "memory/metaspaceShared.hpp"
@@ -74,6 +76,7 @@
 #include "runtime/jniHandles.inline.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sweeper.hpp"
+#include "runtime/synchronizer.hpp"
 #include "runtime/thread.hpp"
 #include "runtime/threadSMR.hpp"
 #include "runtime/vm_version.hpp"
@@ -96,7 +99,6 @@
 #endif // INCLUDE_G1GC
 #if INCLUDE_PARALLELGC
 #include "gc/parallel/parallelScavengeHeap.inline.hpp"
-#include "gc/parallel/adjoiningGenerations.hpp"
 #endif // INCLUDE_PARALLELGC
 #if INCLUDE_NMT
 #include "services/mallocSiteTable.hpp"
@@ -387,7 +389,7 @@ WB_END
 
 WB_ENTRY(jlong, WB_GetObjectSize(JNIEnv* env, jobject o, jobject obj))
   oop p = JNIHandles::resolve(obj);
-  return Universe::heap()->obj_size(p) * HeapWordSize;
+  return p->size() * HeapWordSize;
 WB_END
 
 WB_ENTRY(jlong, WB_GetHeapSpaceAlignment(JNIEnv* env, jobject o))
@@ -503,11 +505,12 @@ WB_ENTRY(jlong, WB_DramReservedStart(JNIEnv* env, jobject o))
 #if INCLUDE_G1GC
   if (UseG1GC) {
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
+    HeapWord* base = g1h->reserved().start();
     if (g1h->is_heterogeneous_heap()) {
       uint start_region = HeterogeneousHeapRegionManager::manager()->start_index_of_dram();
-      return (jlong)(g1h->base() + start_region * HeapRegion::GrainBytes);
+      return (jlong)(base + start_region * HeapRegion::GrainBytes);
     } else {
-      return (jlong)g1h->base();
+      return (jlong)base;
     }
   }
 #endif // INCLUDE_G1GC
@@ -529,11 +532,12 @@ WB_ENTRY(jlong, WB_DramReservedEnd(JNIEnv* env, jobject o))
 #if INCLUDE_G1GC
   if (UseG1GC) {
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
+    HeapWord* base = g1h->reserved().start();
     if (g1h->is_heterogeneous_heap()) {
       uint end_region = HeterogeneousHeapRegionManager::manager()->end_index_of_dram();
-      return (jlong)(g1h->base() + (end_region + 1) * HeapRegion::GrainBytes - 1);
+      return (jlong)(base + (end_region + 1) * HeapRegion::GrainBytes - 1);
     } else {
-      return (jlong)g1h->base() + G1Arguments::heap_max_size_bytes();
+      return (jlong)base + G1Arguments::heap_max_size_bytes();
     }
   }
 #endif // INCLUDE_G1GC
@@ -557,7 +561,7 @@ WB_ENTRY(jlong, WB_NvdimmReservedStart(JNIEnv* env, jobject o))
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
     if (g1h->is_heterogeneous_heap()) {
       uint start_region = HeterogeneousHeapRegionManager::manager()->start_index_of_nvdimm();
-      return (jlong)(g1h->base() + start_region * HeapRegion::GrainBytes);
+      return (jlong)(g1h->reserved().start() + start_region * HeapRegion::GrainBytes);
     } else {
       THROW_MSG_0(vmSymbols::java_lang_UnsupportedOperationException(), "WB_NvdimmReservedStart: Old gen is not allocated on NV-DIMM using AllocateOldGenAt flag");
     }
@@ -583,7 +587,7 @@ WB_ENTRY(jlong, WB_NvdimmReservedEnd(JNIEnv* env, jobject o))
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
     if (g1h->is_heterogeneous_heap()) {
       uint end_region = HeterogeneousHeapRegionManager::manager()->start_index_of_nvdimm();
-      return (jlong)(g1h->base() + (end_region + 1) * HeapRegion::GrainBytes - 1);
+      return (jlong)(g1h->reserved().start() + (end_region + 1) * HeapRegion::GrainBytes - 1);
     } else {
       THROW_MSG_0(vmSymbols::java_lang_UnsupportedOperationException(), "WB_NvdimmReservedEnd: Old gen is not allocated on NV-DIMM using AllocateOldGenAt flag");
     }
@@ -609,7 +613,7 @@ WB_END
 
 WB_ENTRY(jlong, WB_PSVirtualSpaceAlignment(JNIEnv* env, jobject o))
   if (UseParallelGC) {
-    return ParallelScavengeHeap::heap()->gens()->virtual_spaces()->alignment();
+    return GenAlignment;
   }
   THROW_MSG_0(vmSymbols::java_lang_UnsupportedOperationException(), "WB_PSVirtualSpaceAlignment: Parallel GC is not enabled");
 WB_END
@@ -631,7 +635,7 @@ WB_ENTRY(jobject, WB_G1AuxiliaryMemoryUsage(JNIEnv* env))
     G1CollectedHeap* g1h = G1CollectedHeap::heap();
     MemoryUsage usage = g1h->get_auxiliary_data_memory_usage();
     Handle h = MemoryService::create_MemoryUsage_obj(usage, CHECK_NULL);
-    return JNIHandles::make_local(env, h());
+    return JNIHandles::make_local(THREAD, h());
   }
   THROW_MSG_0(vmSymbols::java_lang_UnsupportedOperationException(), "WB_G1AuxiliaryMemoryUsage: G1 GC is not enabled");
 WB_END
@@ -654,7 +658,7 @@ WB_ENTRY(jintArray, WB_G1MemoryNodeIds(JNIEnv* env, jobject o))
     for (int i = 0; i < num_node_ids; i++) {
       result->int_at_put(i, (jint)node_ids[i]);
     }
-    return (jintArray) JNIHandles::make_local(env, result);
+    return (jintArray) JNIHandles::make_local(THREAD, result);
   }
   THROW_MSG_NULL(vmSymbols::java_lang_UnsupportedOperationException(), "WB_G1MemoryNodeIds: G1 GC is not enabled");
 WB_END
@@ -715,7 +719,7 @@ WB_ENTRY(jlongArray, WB_G1GetMixedGCInfo(JNIEnv* env, jobject o, jint liveness))
   result->long_at_put(0, rli.total_count());
   result->long_at_put(1, rli.total_memory());
   result->long_at_put(2, rli.total_memory_to_free());
-  return (jlongArray) JNIHandles::make_local(env, result);
+  return (jlongArray) JNIHandles::make_local(THREAD, result);
 WB_END
 
 #endif // INCLUDE_G1GC
@@ -1678,12 +1682,11 @@ WB_ENTRY(jlong, WB_GetMethodData(JNIEnv* env, jobject wv, jobject method))
 WB_END
 
 WB_ENTRY(jlong, WB_GetThreadStackSize(JNIEnv* env, jobject o))
-  return (jlong) Thread::current()->stack_size();
+  return (jlong) thread->stack_size();
 WB_END
 
 WB_ENTRY(jlong, WB_GetThreadRemainingStackSize(JNIEnv* env, jobject o))
-  JavaThread* t = JavaThread::current();
-  return (jlong) t->stack_available(os::current_stack_pointer()) - (jlong)JavaThread::stack_shadow_zone_size();
+  return (jlong) thread->stack_available(os::current_stack_pointer()) - (jlong)JavaThread::stack_shadow_zone_size();
 WB_END
 
 
@@ -1718,52 +1721,19 @@ WB_END
 
 WB_ENTRY(void, WB_DefineModule(JNIEnv* env, jobject o, jobject module, jboolean is_open,
                                 jstring version, jstring location, jobjectArray packages))
-  ResourceMark rm(THREAD);
-
-  objArrayOop packages_oop = objArrayOop(JNIHandles::resolve(packages));
-  objArrayHandle packages_h(THREAD, packages_oop);
-  int num_packages = (packages_h == NULL ? 0 : packages_h->length());
-
-  char** pkgs = NULL;
-  if (num_packages > 0) {
-    pkgs = NEW_RESOURCE_ARRAY_IN_THREAD(THREAD, char*, num_packages);
-    for (int x = 0; x < num_packages; x++) {
-      oop pkg_str = packages_h->obj_at(x);
-      if (pkg_str == NULL || !pkg_str->is_a(SystemDictionary::String_klass())) {
-        THROW_MSG(vmSymbols::java_lang_IllegalArgumentException(),
-                  err_msg("Bad package name"));
-      }
-      pkgs[x] = java_lang_String::as_utf8_string(pkg_str);
-    }
-  }
-  Modules::define_module(module, is_open, version, location, (const char* const*)pkgs, num_packages, CHECK);
+  Modules::define_module(module, is_open, version, location, packages, CHECK);
 WB_END
 
 WB_ENTRY(void, WB_AddModuleExports(JNIEnv* env, jobject o, jobject from_module, jstring package, jobject to_module))
-  ResourceMark rm(THREAD);
-  char* package_name = NULL;
-  if (package != NULL) {
-      package_name = java_lang_String::as_utf8_string(JNIHandles::resolve_non_null(package));
-  }
-  Modules::add_module_exports_qualified(from_module, package_name, to_module, CHECK);
+  Modules::add_module_exports_qualified(from_module, package, to_module, CHECK);
 WB_END
 
 WB_ENTRY(void, WB_AddModuleExportsToAllUnnamed(JNIEnv* env, jobject o, jclass module, jstring package))
-  ResourceMark rm(THREAD);
-  char* package_name = NULL;
-  if (package != NULL) {
-      package_name = java_lang_String::as_utf8_string(JNIHandles::resolve_non_null(package));
-  }
-  Modules::add_module_exports_to_all_unnamed(module, package_name, CHECK);
+  Modules::add_module_exports_to_all_unnamed(module, package, CHECK);
 WB_END
 
 WB_ENTRY(void, WB_AddModuleExportsToAll(JNIEnv* env, jobject o, jclass module, jstring package))
-  ResourceMark rm(THREAD);
-  char* package_name = NULL;
-  if (package != NULL) {
-      package_name = java_lang_String::as_utf8_string(JNIHandles::resolve_non_null(package));
-  }
-  Modules::add_module_exports(module, package_name, NULL, CHECK);
+  Modules::add_module_exports(module, package, NULL, CHECK);
 WB_END
 
 WB_ENTRY(void, WB_AddReadsModule(JNIEnv* env, jobject o, jobject from_module, jobject source_module))
@@ -1801,34 +1771,14 @@ WB_ENTRY(jlong, WB_MetaspaceReserveAlignment(JNIEnv* env, jobject wb))
   return (jlong)Metaspace::reserve_alignment();
 WB_END
 
-WB_ENTRY(void, WB_AssertMatchingSafepointCalls(JNIEnv* env, jobject o, jboolean mutexSafepointValue, jboolean attemptedNoSafepointValue))
-  Mutex::SafepointCheckRequired sfpt_check_required = mutexSafepointValue ?
-                                           Mutex::_safepoint_check_always :
-                                           Mutex::_safepoint_check_never;
-  Mutex::SafepointCheckFlag sfpt_check_attempted = attemptedNoSafepointValue ?
-                                           Mutex::_no_safepoint_check_flag :
-                                           Mutex::_safepoint_check_flag;
-  MutexLocker ml(new Mutex(Mutex::leaf, "SFPT_Test_lock", true, sfpt_check_required),
-                 sfpt_check_attempted);
-WB_END
-
-WB_ENTRY(void, WB_AssertSpecialLock(JNIEnv* env, jobject o, jboolean allowVMBlock, jboolean safepointCheck))
-  // Create a special lock violating condition in value
-  Mutex::SafepointCheckRequired sfpt_check_required = safepointCheck ?
-                                           Mutex::_safepoint_check_always :
-                                           Mutex::_safepoint_check_never;
-  Mutex::SafepointCheckFlag safepoint_check = safepointCheck ?
-                                           Monitor::_safepoint_check_flag :
-                                           Monitor::_no_safepoint_check_flag;
-
-  MutexLocker ml(new Mutex(Mutex::special, "SpecialTest_lock", allowVMBlock, sfpt_check_required), safepoint_check);
-  // If the lock above succeeds, try to safepoint to test the NSV implied with this special lock.
-  ThreadBlockInVM tbivm(JavaThread::current());
-WB_END
-
 WB_ENTRY(jboolean, WB_IsMonitorInflated(JNIEnv* env, jobject wb, jobject obj))
   oop obj_oop = JNIHandles::resolve(obj);
   return (jboolean) obj_oop->mark().has_monitor();
+WB_END
+
+WB_ENTRY(jboolean, WB_DeflateIdleMonitors(JNIEnv* env, jobject wb))
+  log_info(monitorinflation)("WhiteBox initiated DeflateIdleMonitors");
+  return ObjectSynchronizer::request_deflate_idle_monitors();
 WB_END
 
 WB_ENTRY(void, WB_ForceSafepoint(JNIEnv* env, jobject wb))
@@ -1904,7 +1854,7 @@ WB_ENTRY(jobjectArray, WB_getObjectsViaKlassOopMaps(JNIEnv* env, jobject wb, job
     }
     map++;
   }
-  return (jobjectArray)JNIHandles::make_local(env, result_array);
+  return (jobjectArray)JNIHandles::make_local(THREAD, result_array);
 WB_END
 
 class CollectOops : public BasicOopIterateClosure {
@@ -1921,12 +1871,12 @@ class CollectOops : public BasicOopIterateClosure {
   }
 
   jobjectArray create_jni_result(JNIEnv* env, TRAPS) {
-    return (jobjectArray)JNIHandles::make_local(env, create_results(THREAD));
+    return (jobjectArray)JNIHandles::make_local(THREAD, create_results(THREAD));
   }
 
   void add_oop(oop o) {
     // Value might be oop, but JLS can't see as Object, just iterate through it...
-    if (o != NULL && o->is_value()) {
+    if (o != NULL && o->is_inline_type()) {
       o->oop_iterate(this);
     } else {
       array->append(Handle(Thread::current(), o));
@@ -2077,7 +2027,7 @@ WB_ENTRY(jobject, WB_GetResolvedReferences(JNIEnv* env, jobject wb, jclass clazz
     InstanceKlass *ik = InstanceKlass::cast(k);
     ConstantPool *cp = ik->constants();
     objArrayOop refs =  cp->resolved_references();
-    return (jobject)JNIHandles::make_local(env, refs);
+    return (jobject)JNIHandles::make_local(THREAD, refs);
   } else {
     return NULL;
   }
@@ -2152,11 +2102,11 @@ WB_ENTRY(jint, WB_HandshakeWalkStack(JNIEnv* env, jobject wb, jobject thread_han
     }
 
   public:
-    TraceSelfClosure() : HandshakeClosure("WB_TraceSelf"), _num_threads_completed(0) {}
+    TraceSelfClosure(Thread* thread) : HandshakeClosure("WB_TraceSelf"), _num_threads_completed(0) {}
 
     jint num_threads_completed() const { return _num_threads_completed; }
   };
-  TraceSelfClosure tsc;
+  TraceSelfClosure tsc(Thread::current());
 
   if (all_threads) {
     Handshake::execute(&tsc);
@@ -2349,6 +2299,64 @@ WB_ENTRY(jint, WB_GetKlassMetadataSize(JNIEnv* env, jobject wb, jclass mirror))
   return k->size() * wordSize;
 WB_END
 
+// See test/hotspot/jtreg/runtime/Thread/ThreadObjAccessAtExit.java.
+// It explains how the thread's priority field is used for test state coordination.
+//
+WB_ENTRY(void, WB_CheckThreadObjOfTerminatingThread(JNIEnv* env, jobject wb, jobject target_handle))
+  oop target_oop = JNIHandles::resolve_non_null(target_handle);
+  jlong tid = java_lang_Thread::thread_id(target_oop);
+  JavaThread* target = java_lang_Thread::thread(target_oop);
+
+  // Grab a ThreadsListHandle to protect the target thread whilst terminating
+  ThreadsListHandle tlh;
+
+  // Look up the target thread by tid to ensure it is present
+  JavaThread* t = tlh.list()->find_JavaThread_from_java_tid(tid);
+  if (t == NULL) {
+    THROW_MSG(vmSymbols::java_lang_RuntimeException(), "Target thread not found in ThreadsList!");
+  }
+
+  tty->print_cr("WB_CheckThreadObjOfTerminatingThread: target thread is protected");
+  // Allow target to terminate by boosting priority
+  java_lang_Thread::set_priority(t->threadObj(), ThreadPriority(NormPriority + 1));
+
+  // Now wait for the target to terminate
+  while (!target->is_terminated()) {
+    ThreadBlockInVM tbivm(thread);  // just in case target is involved in a safepoint
+    os::naked_short_sleep(0);
+  }
+
+  tty->print_cr("WB_CheckThreadObjOfTerminatingThread: target thread is terminated");
+
+  // Now release the GC inducing thread - we have to re-resolve the external oop that
+  // was passed in as GC may have occurred and we don't know if we can trust t->threadObj() now.
+  oop original = JNIHandles::resolve_non_null(target_handle);
+  java_lang_Thread::set_priority(original, ThreadPriority(NormPriority + 2));
+
+  tty->print_cr("WB_CheckThreadObjOfTerminatingThread: GC has been initiated - checking threadObj:");
+
+  // The Java code should be creating garbage and triggering GC, which would potentially move
+  // the threadObj oop. If the exiting thread is properly protected then its threadObj should
+  // remain valid and equal to our initial target_handle. Loop a few times to give GC a chance to
+  // kick in.
+  for (int i = 0; i < 5; i++) {
+    oop original = JNIHandles::resolve_non_null(target_handle);
+    oop current = t->threadObj();
+    if (original != current) {
+      tty->print_cr("WB_CheckThreadObjOfTerminatingThread: failed comparison on iteration %d", i);
+      THROW_MSG(vmSymbols::java_lang_RuntimeException(), "Target thread oop has changed!");
+    } else {
+      tty->print_cr("WB_CheckThreadObjOfTerminatingThread: successful comparison on iteration %d", i);
+      ThreadBlockInVM tbivm(thread);
+      os::naked_short_sleep(50);
+    }
+  }
+WB_END
+
+WB_ENTRY(jboolean, WB_IsJVMTIIncluded(JNIEnv* env, jobject wb))
+  return INCLUDE_JVMTI ? JNI_TRUE : JNI_FALSE;
+WB_END
+
 #define CC (char*)
 
 static JNINativeMethod methods[] = {
@@ -2531,8 +2539,7 @@ static JNINativeMethod methods[] = {
                                                       (void*)&WB_AddModuleExportsToAllUnnamed },
   {CC"AddModuleExportsToAll", CC"(Ljava/lang/Object;Ljava/lang/String;)V",
                                                       (void*)&WB_AddModuleExportsToAll },
-  {CC"assertMatchingSafepointCalls", CC"(ZZ)V",       (void*)&WB_AssertMatchingSafepointCalls },
-  {CC"assertSpecialLock",  CC"(ZZ)V",                 (void*)&WB_AssertSpecialLock },
+  {CC"deflateIdleMonitors", CC"()Z",                  (void*)&WB_DeflateIdleMonitors },
   {CC"isMonitorInflated0", CC"(Ljava/lang/Object;)Z", (void*)&WB_IsMonitorInflated  },
   {CC"forceSafepoint",     CC"()V",                   (void*)&WB_ForceSafepoint     },
   {CC"getConstantPool0",   CC"(Ljava/lang/Class;)J",  (void*)&WB_GetConstantPool    },
@@ -2580,6 +2587,7 @@ static JNINativeMethod methods[] = {
 
   {CC"clearInlineCaches0",  CC"(Z)V",                 (void*)&WB_ClearInlineCaches },
   {CC"handshakeWalkStack", CC"(Ljava/lang/Thread;Z)I", (void*)&WB_HandshakeWalkStack },
+  {CC"checkThreadObjOfTerminatingThread", CC"(Ljava/lang/Thread;)V", (void*)&WB_CheckThreadObjOfTerminatingThread },
   {CC"addCompilerDirective",    CC"(Ljava/lang/String;)I",
                                                       (void*)&WB_AddCompilerDirective },
   {CC"removeCompilerDirective",   CC"(I)V",           (void*)&WB_RemoveCompilerDirective },
@@ -2604,6 +2612,7 @@ static JNINativeMethod methods[] = {
   {CC"protectionDomainRemovedCount",   CC"()I",       (void*)&WB_ProtectionDomainRemovedCount },
   {CC"aotLibrariesCount", CC"()I",                    (void*)&WB_AotLibrariesCount },
   {CC"getKlassMetadataSize", CC"(Ljava/lang/Class;)I",(void*)&WB_GetKlassMetadataSize},
+  {CC"isJVMTIIncluded", CC"()Z",                      (void*)&WB_IsJVMTIIncluded},
 };
 
 
@@ -2613,7 +2622,7 @@ JVM_ENTRY(void, JVM_RegisterWhiteBoxMethods(JNIEnv* env, jclass wbclass))
   {
     if (WhiteBoxAPI) {
       // Make sure that wbclass is loaded by the null classloader
-      InstanceKlass* ik = InstanceKlass::cast(JNIHandles::resolve(wbclass)->klass());
+      InstanceKlass* ik = InstanceKlass::cast(java_lang_Class::as_Klass(JNIHandles::resolve(wbclass)));
       Handle loader(THREAD, ik->class_loader());
       if (loader.is_null()) {
         WhiteBox::register_methods(env, wbclass, thread, methods, sizeof(methods) / sizeof(methods[0]));

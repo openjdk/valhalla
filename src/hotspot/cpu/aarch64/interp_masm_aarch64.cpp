@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2014, Red Hat Inc. All rights reserved.
+ * Copyright (c) 2014, 2020, Red Hat Inc. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,7 +35,7 @@
 #include "oops/markWord.hpp"
 #include "oops/method.hpp"
 #include "oops/methodData.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "prims/jvmtiThreadState.hpp"
 #include "runtime/basicLock.hpp"
@@ -169,7 +169,7 @@ void InterpreterMacroAssembler::get_unsigned_2_byte_index_at_bcp(
 }
 
 void InterpreterMacroAssembler::get_dispatch() {
-  unsigned long offset;
+  uint64_t offset;
   adrp(rdispatch, ExternalAddress((address)Interpreter::dispatch_table()), offset);
   lea(rdispatch, Address(rdispatch, offset));
 }
@@ -687,21 +687,21 @@ void InterpreterMacroAssembler::remove_activation(
   }
 
 
-  if (state == atos && ValueTypeReturnedAsFields) {
+  if (state == atos && InlineTypeReturnedAsFields) {
     Label skip;
-    // Test if the return type is a value type
+    // Test if the return type is an inline type
     ldr(rscratch1, Address(rfp, frame::interpreter_frame_method_offset * wordSize));
     ldr(rscratch1, Address(rscratch1, Method::const_offset()));
     ldrb(rscratch1, Address(rscratch1, ConstMethod::result_type_offset()));
-    cmpw(rscratch1, (u1) T_VALUETYPE);
+    cmpw(rscratch1, (u1) T_INLINE_TYPE);
     br(Assembler::NE, skip);
 
-    // We are returning a value type, load its fields into registers
-    // Load fields from a buffered value with a value class specific handler
+    // We are returning an inline type, load its fields into registers
+    // Load fields from a buffered value with an inline class specific handler
 
     load_klass(rscratch1 /*dst*/, r0 /*src*/);
-    ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_valueklass_fixed_block_offset()));
-    ldr(rscratch1, Address(rscratch1, ValueKlass::unpack_handler_offset()));
+    ldr(rscratch1, Address(rscratch1, InstanceKlass::adr_inlineklass_fixed_block_offset()));
+    ldr(rscratch1, Address(rscratch1, InlineKlass::unpack_handler_offset()));
     cbz(rscratch1, skip);
 
     blr(rscratch1);
@@ -754,6 +754,13 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     // Load object pointer into obj_reg %c_rarg3
     ldr(obj_reg, Address(lock_reg, obj_offset));
 
+    if (DiagnoseSyncOnPrimitiveWrappers != 0) {
+      load_klass(tmp, obj_reg);
+      ldrw(tmp, Address(tmp, Klass::access_flags_offset()));
+      tstw(tmp, JVM_ACC_IS_BOX_CLASS);
+      br(Assembler::NE, slow_case);
+    }
+
     if (UseBiasedLocking) {
       biased_locking_enter(lock_reg, obj_reg, swap_reg, tmp, false, done, &slow_case);
     }
@@ -799,7 +806,7 @@ void InterpreterMacroAssembler::lock_object(Register lock_reg)
     // copy
     mov(rscratch1, sp);
     sub(swap_reg, swap_reg, rscratch1);
-    ands(swap_reg, swap_reg, (unsigned long)(7 - os::vm_page_size()));
+    ands(swap_reg, swap_reg, (uint64_t)(7 - os::vm_page_size()));
 
     // Save the test result, for recursive case, the result is zero
     str(swap_reg, Address(lock_reg, mark_offset));

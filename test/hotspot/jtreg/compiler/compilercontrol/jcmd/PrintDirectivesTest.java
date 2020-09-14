@@ -32,7 +32,6 @@
  *
  * @build sun.hotspot.WhiteBox
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- *                                sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run driver compiler.compilercontrol.jcmd.PrintDirectivesTest
  */
 
@@ -74,7 +73,6 @@ public class PrintDirectivesTest extends AbstractTestBase {
             CompileCommand compileCommand = new CompileCommand(command,
                     methodDescriptor, cmdGen.generateCompiler(),
                     Scenario.Type.DIRECTIVE);
-            compileCommand.print();
             builder.add(compileCommand);
         }
         // print all directives

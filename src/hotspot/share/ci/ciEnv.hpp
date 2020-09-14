@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,7 +27,6 @@
 
 #include "ci/ciClassList.hpp"
 #include "ci/ciObjectFactory.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "code/debugInfoRec.hpp"
 #include "code/dependencies.hpp"
 #include "code/exceptionHandlerTable.hpp"
@@ -134,8 +133,8 @@ private:
   ciMethod*  get_method_by_index(const constantPoolHandle& cpool,
                                  int method_index, Bytecodes::Code bc,
                                  ciInstanceKlass* loading_klass);
-  bool       is_klass_never_null(const constantPoolHandle& cpool,
-                                 int klass_index);
+  bool       is_inline_klass(const constantPoolHandle& cpool,
+                             int klass_index);
 
   // Implementation methods for loading and constant pool access.
   ciKlass* get_klass_by_name_impl(ciKlass* accessing_klass,
@@ -200,9 +199,9 @@ private:
     if (o == NULL) return NULL;
     return get_object(o)->as_instance();
   }
-  ciValueArrayKlass* get_value_array_klass(Klass* o) {
+  ciFlatArrayKlass* get_flat_array_klass(Klass* o) {
     if (o == NULL) return NULL;
-    return get_metadata(o)->as_value_array_klass();
+    return get_metadata(o)->as_flat_array_klass();
   }
   ciObjArrayKlass* get_obj_array_klass(Klass* o) {
     if (o == NULL) return NULL;
@@ -347,7 +346,7 @@ public:
   void set_break_at_compile(bool z) { _break_at_compile = z; }
 
   // Cache Jvmti state
-  void  cache_jvmti_state();
+  bool  cache_jvmti_state();
   bool  jvmti_state_changed() const;
   bool  should_retain_local_variables() const {
     return _jvmti_can_access_local_variables || _jvmti_can_pop_frame;
@@ -475,10 +474,6 @@ public:
   void dump_replay_data(outputStream* out);
   void dump_replay_data_unsafe(outputStream* out);
   void dump_compile_data(outputStream* out);
-
-  ciWrapper* make_never_null_wrapper(ciType* type) {
-    return _factory->make_never_null_wrapper(type);
-  }
 };
 
 #endif // SHARE_CI_CIENV_HPP

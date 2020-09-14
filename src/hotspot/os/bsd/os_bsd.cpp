@@ -44,7 +44,6 @@
 #include "prims/jvm_misc.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
-#include "runtime/extendedPC.hpp"
 #include "runtime/globals.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/java.hpp"
@@ -141,6 +140,13 @@ static bool check_signals = true;
 static int SR_signum = SIGUSR2;
 sigset_t SR_sigset;
 
+#ifdef __APPLE__
+static const int processor_id_unassigned = -1;
+static const int processor_id_assigning = -2;
+static const int processor_id_map_size = 256;
+static volatile int processor_id_map[processor_id_map_size];
+static volatile int processor_id_next = 0;
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // utility functions
@@ -215,12 +221,6 @@ static char cpu_arch[] = "amd64";
 static char cpu_arch[] = "arm";
 #elif defined(PPC32)
 static char cpu_arch[] = "ppc";
-#elif defined(SPARC)
-  #ifdef _LP64
-static char cpu_arch[] = "sparcv9";
-  #else
-static char cpu_arch[] = "sparc";
-  #endif
 #else
   #error Add appropriate cpu_arch setting
 #endif
@@ -249,6 +249,13 @@ void os::Bsd::initialize_system_info() {
   } else {
     set_processor_count(1);   // fallback
   }
+
+#ifdef __APPLE__
+  // initialize processor id map
+  for (int i = 0; i < processor_id_map_size; i++) {
+    processor_id_map[i] = processor_id_unassigned;
+  }
+#endif
 
   // get physical memory via hw.memsize sysctl (hw.memsize is used
   // since it returns a 64 bit value)
@@ -1056,14 +1063,6 @@ void os::shutdown() {
 void os::abort(bool dump_core, void* siginfo, const void* context) {
   os::shutdown();
   if (dump_core) {
-#ifndef PRODUCT
-    fdStream out(defaultStream::output_fd());
-    out.print_raw("Current thread is ");
-    char buf[16];
-    jio_snprintf(buf, sizeof(buf), UINTX_FORMAT, os::current_thread_id());
-    out.print_raw_cr(buf);
-    out.print_raw_cr("Dumping core ...");
-#endif
     ::abort(); // dump core
   }
 
@@ -1359,9 +1358,6 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
     {EM_486,         EM_386,     ELFCLASS32, ELFDATA2LSB, (char*)"IA 32"},
     {EM_IA_64,       EM_IA_64,   ELFCLASS64, ELFDATA2LSB, (char*)"IA 64"},
     {EM_X86_64,      EM_X86_64,  ELFCLASS64, ELFDATA2LSB, (char*)"AMD 64"},
-    {EM_SPARC,       EM_SPARC,   ELFCLASS32, ELFDATA2MSB, (char*)"Sparc 32"},
-    {EM_SPARC32PLUS, EM_SPARC,   ELFCLASS32, ELFDATA2MSB, (char*)"Sparc 32"},
-    {EM_SPARCV9,     EM_SPARCV9, ELFCLASS64, ELFDATA2MSB, (char*)"Sparc v9 64"},
     {EM_PPC,         EM_PPC,     ELFCLASS32, ELFDATA2MSB, (char*)"Power PC 32"},
     {EM_PPC64,       EM_PPC64,   ELFCLASS64, ELFDATA2MSB, (char*)"Power PC 64"},
     {EM_ARM,         EM_ARM,     ELFCLASS32,   ELFDATA2LSB, (char*)"ARM"},
@@ -1379,10 +1375,6 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
   static  Elf32_Half running_arch_code=EM_X86_64;
   #elif  (defined IA64)
   static  Elf32_Half running_arch_code=EM_IA_64;
-  #elif  (defined __sparc) && (defined _LP64)
-  static  Elf32_Half running_arch_code=EM_SPARCV9;
-  #elif  (defined __sparc) && (!defined _LP64)
-  static  Elf32_Half running_arch_code=EM_SPARC;
   #elif  (defined __powerpc64__)
   static  Elf32_Half running_arch_code=EM_PPC64;
   #elif  (defined __powerpc__)
@@ -1403,7 +1395,7 @@ void * os::dll_load(const char *filename, char *ebuf, int ebuflen) {
   static  Elf32_Half running_arch_code=EM_68K;
   #else
     #error Method os::dll_load requires that one of following is defined:\
-         IA32, AMD64, IA64, __sparc, __powerpc__, ARM, S390, ALPHA, MIPS, MIPSEL, PARISC, M68K
+         IA32, AMD64, IA64, __powerpc__, ARM, S390, ALPHA, MIPS, MIPSEL, PARISC, M68K
   #endif
 
   // Identify compatability class for VM's architecture and library's architecture
@@ -1544,11 +1536,11 @@ void os::get_summary_os_info(char* buf, size_t buflen) {
   int mib_kern[] = { CTL_KERN, KERN_OSTYPE };
   if (sysctl(mib_kern, 2, os, &size, NULL, 0) < 0) {
 #ifdef __APPLE__
-      strncpy(os, "Darwin", sizeof(os));
+    strncpy(os, "Darwin", sizeof(os));
 #elif __OpenBSD__
-      strncpy(os, "OpenBSD", sizeof(os));
+    strncpy(os, "OpenBSD", sizeof(os));
 #else
-      strncpy(os, "BSD", sizeof(os));
+    strncpy(os, "BSD", sizeof(os));
 #endif
   }
 
@@ -1556,9 +1548,25 @@ void os::get_summary_os_info(char* buf, size_t buflen) {
   size = sizeof(release);
   int mib_release[] = { CTL_KERN, KERN_OSRELEASE };
   if (sysctl(mib_release, 2, release, &size, NULL, 0) < 0) {
-      // if error, leave blank
-      strncpy(release, "", sizeof(release));
+    // if error, leave blank
+    strncpy(release, "", sizeof(release));
   }
+
+#ifdef __APPLE__
+  char osproductversion[100];
+  size_t sz = sizeof(osproductversion);
+  int ret = sysctlbyname("kern.osproductversion", osproductversion, &sz, NULL, 0);
+  if (ret == 0) {
+    char build[100];
+    size = sizeof(build);
+    int mib_build[] = { CTL_KERN, KERN_OSVERSION };
+    if (sysctl(mib_build, 2, build, &size, NULL, 0) < 0) {
+      snprintf(buf, buflen, "%s %s, macOS %s", os, release, osproductversion);
+    } else {
+      snprintf(buf, buflen, "%s %s, macOS %s (%s)", os, release, osproductversion, build);
+    }
+  } else
+#endif
   snprintf(buf, buflen, "%s %s", os, release);
 }
 
@@ -1884,42 +1892,6 @@ int os::vm_page_size() {
 int os::vm_allocation_granularity() {
   assert(os::Bsd::page_size() != -1, "must call os::init");
   return os::Bsd::page_size();
-}
-
-// Rationale behind this function:
-//  current (Mon Apr 25 20:12:18 MSD 2005) oprofile drops samples without executable
-//  mapping for address (see lookup_dcookie() in the kernel module), thus we cannot get
-//  samples for JITted code. Here we create private executable mapping over the code cache
-//  and then we can use standard (well, almost, as mapping can change) way to provide
-//  info for the reporting script by storing timestamp and location of symbol
-void bsd_wrap_code(char* base, size_t size) {
-  static volatile jint cnt = 0;
-
-  if (!UseOprofile) {
-    return;
-  }
-
-  char buf[PATH_MAX + 1];
-  int num = Atomic::add(&cnt, 1);
-
-  snprintf(buf, PATH_MAX + 1, "%s/hs-vm-%d-%d",
-           os::get_temp_directory(), os::current_process_id(), num);
-  unlink(buf);
-
-  int fd = ::open(buf, O_CREAT | O_RDWR, S_IRWXU);
-
-  if (fd != -1) {
-    off_t rv = ::lseek(fd, size-2, SEEK_SET);
-    if (rv != (off_t)-1) {
-      if (::write(fd, "", 1) == 1) {
-        mmap(base, size,
-             PROT_READ|PROT_WRITE|PROT_EXEC,
-             MAP_PRIVATE|MAP_FIXED|MAP_NORESERVE, fd, 0);
-      }
-    }
-    ::close(fd);
-    unlink(buf);
-  }
 }
 
 static void warn_fail_commit_memory(char* addr, size_t size, bool exec,
@@ -2373,7 +2345,7 @@ OSReturn os::get_native_priority(const Thread* const thread, int *priority_ptr) 
 //  The SR_lock is, however, used by JavaThread::java_suspend()/java_resume() APIs.
 //
 //  Note that resume_clear_context() and suspend_save_context() are needed
-//  by SR_handler(), so that fetch_frame_from_ucontext() works,
+//  by SR_handler(), so that fetch_frame_from_context() works,
 //  which in part is used by:
 //    - Forte Analyzer: AsyncGetCallTrace()
 //    - StackBanging: get_frame_at_stack_banging_point()
@@ -3126,6 +3098,10 @@ jint os::init_2(void) {
     return JNI_ERR;
   }
 
+  // Not supported.
+  FLAG_SET_ERGO(UseNUMA, false);
+  FLAG_SET_ERGO(UseNUMAInterleaving, false);
+
   if (MaxFDLimit) {
     // set the number of file descriptors to max. print out error
     // if getrlimit/setrlimit fails but continue regardless.
@@ -3196,69 +3172,32 @@ int os::active_processor_count() {
 }
 
 #ifdef __APPLE__
-static volatile int* volatile apic_to_processor_mapping = NULL;
-static volatile int next_processor_id = 0;
-
-static inline volatile int* get_apic_to_processor_mapping() {
-  volatile int* mapping = Atomic::load_acquire(&apic_to_processor_mapping);
-  if (mapping == NULL) {
-    // Calculate possible number space for APIC ids. This space is not necessarily
-    // in the range [0, number_of_processors).
-    uint total_bits = 0;
-    for (uint i = 0;; ++i) {
-      uint eax = 0xb; // Query topology leaf
-      uint ebx;
-      uint ecx = i;
-      uint edx;
-
-      __asm__ ("cpuid\n\t" : "+a" (eax), "+b" (ebx), "+c" (ecx), "+d" (edx) : );
-
-      uint level_type = (ecx >> 8) & 0xFF;
-      if (level_type == 0) {
-        // Invalid level; end of topology
-        break;
-      }
-      uint level_apic_id_shift = eax & ((1u << 5) - 1);
-      total_bits += level_apic_id_shift;
-    }
-
-    uint max_apic_ids = 1u << total_bits;
-    mapping = NEW_C_HEAP_ARRAY(int, max_apic_ids, mtInternal);
-
-    for (uint i = 0; i < max_apic_ids; ++i) {
-      mapping[i] = -1;
-    }
-
-    if (!Atomic::replace_if_null(&apic_to_processor_mapping, mapping)) {
-      FREE_C_HEAP_ARRAY(int, mapping);
-      mapping = Atomic::load_acquire(&apic_to_processor_mapping);
-    }
-  }
-
-  return mapping;
-}
-
 uint os::processor_id() {
-  volatile int* mapping = get_apic_to_processor_mapping();
-
-  uint eax = 0xb;
+  // Get the initial APIC id and return the associated processor id. The initial APIC
+  // id is limited to 8-bits, which means we can have at most 256 unique APIC ids. If
+  // the system has more processors (or the initial APIC ids are discontiguous) the
+  // APIC id will be truncated and more than one processor will potentially share the
+  // same processor id. This is not optimal, but unlikely to happen in practice. Should
+  // this become a real problem we could switch to using x2APIC ids, which are 32-bit
+  // wide. However, note that x2APIC is Intel-specific, and the wider number space
+  // would require a more complicated mapping approach.
+  uint eax = 0x1;
   uint ebx;
   uint ecx = 0;
   uint edx;
 
   __asm__ ("cpuid\n\t" : "+a" (eax), "+b" (ebx), "+c" (ecx), "+d" (edx) : );
 
-  // Map from APIC id to a unique logical processor ID in the expected
-  // [0, num_processors) range.
-
-  uint apic_id = edx;
-  int processor_id = Atomic::load(&mapping[apic_id]);
+  uint apic_id = (ebx >> 24) & (processor_id_map_size - 1);
+  int processor_id = Atomic::load(&processor_id_map[apic_id]);
 
   while (processor_id < 0) {
-    if (Atomic::cmpxchg(&mapping[apic_id], -1, -2) == -1) {
-      Atomic::store(&mapping[apic_id], Atomic::add(&next_processor_id, 1) - 1);
+    // Assign processor id to APIC id
+    processor_id = Atomic::cmpxchg(&processor_id_map[apic_id], processor_id_unassigned, processor_id_assigning);
+    if (processor_id == processor_id_unassigned) {
+      processor_id = Atomic::fetch_and_add(&processor_id_next, 1) % os::processor_count();
+      Atomic::store(&processor_id_map[apic_id], processor_id);
     }
-    processor_id = Atomic::load(&mapping[apic_id]);
   }
 
   assert(processor_id >= 0 && processor_id < os::processor_count(), "invalid processor id");

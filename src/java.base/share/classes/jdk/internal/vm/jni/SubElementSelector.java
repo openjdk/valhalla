@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2019 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,6 @@ public /*inline*/ class SubElementSelector {
     public final Class<?> arrayElementType = null;
     public final Class<?> subElementType = null;
     public final int offset = -1;
-    public final boolean isFlattened = false;
-    public final boolean isFlattenable = false;
+    public final boolean isInlined = false;
+    public final boolean isInlineType = false;
 }

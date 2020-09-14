@@ -26,7 +26,7 @@
 #include "memory/allocation.inline.hpp"
 #include "oops/constantPool.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/valueKlass.hpp"
+#include "oops/inlineKlass.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/thread.inline.hpp"
@@ -118,7 +118,7 @@ void HandleArea::oops_do(OopClosure* f) {
 }
 
 void HandleMark::initialize(Thread* thread) {
-  _thread = thread;
+  _thread = thread;  // Not the current thread during thread creation.
   // Save area
   _area  = thread->handle_area();
   // Save current top

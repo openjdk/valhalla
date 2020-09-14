@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -31,7 +31,7 @@
  *
  * @build sun.hotspot.WhiteBox
  *        compiler.tiered.ConstantGettersTransitionsTest
- * @run driver ClassFileInstaller sun.hotspot.WhiteBox sun.hotspot.WhiteBox$WhiteBoxPermission
+ * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  * @run main/othervm/timeout=240 -Xmixed -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *      -XX:+WhiteBoxAPI -XX:+TieredCompilation -XX:-UseCounterDecay
  *      -XX:CompileCommand=compileonly,compiler.tiered.ConstantGettersTransitionsTest$ConstantGettersTestCase$TrivialMethods::*
@@ -107,8 +107,8 @@ public class ConstantGettersTransitionsTest extends LevelTransitionTest {
 
         private ConstantGettersTestCase() {
             String name = "make" + this.name();
-            this.executable = LevelTransitionTest.Helper.getMethod(TrivialMethods.class, name);
-            this.callable = LevelTransitionTest.Helper.getCallable(new TrivialMethods(), name);
+            this.executable = MethodHelper.getMethod(TrivialMethods.class, name);
+            this.callable = MethodHelper.getCallable(new TrivialMethods(), name);
         }
 
         /**

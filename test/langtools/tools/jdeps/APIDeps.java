@@ -22,7 +22,6 @@
  */
 
 /*
- * @ignore
  * @test
  * @bug 8015912 8029216 8048063 8050804
  * @summary Test -apionly and -jdkinternals options

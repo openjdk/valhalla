@@ -37,7 +37,6 @@ import jdk.internal.vm.compiler.collections.Equivalence;
 import jdk.internal.vm.compiler.collections.MapCursor;
 import jdk.internal.vm.compiler.collections.Pair;
 import org.graalvm.compiler.core.common.cfg.Loop;
-import org.graalvm.compiler.core.common.spi.ConstantFieldProvider;
 import org.graalvm.compiler.graph.Node;
 import org.graalvm.compiler.nodes.AbstractBeginNode;
 import org.graalvm.compiler.nodes.FieldLocationIdentity;
@@ -63,8 +62,7 @@ import org.graalvm.compiler.nodes.java.StoreFieldNode;
 import org.graalvm.compiler.nodes.java.StoreIndexedNode;
 import org.graalvm.compiler.nodes.memory.MultiMemoryKill;
 import org.graalvm.compiler.nodes.memory.SingleMemoryKill;
-import org.graalvm.compiler.nodes.spi.PlatformConfigurationProvider;
-import org.graalvm.compiler.nodes.spi.LoweringProvider;
+import org.graalvm.compiler.nodes.spi.CoreProviders;
 import org.graalvm.compiler.nodes.type.StampTool;
 import org.graalvm.compiler.nodes.util.GraphUtil;
 import org.graalvm.compiler.nodes.virtual.VirtualArrayNode;
@@ -72,10 +70,8 @@ import org.graalvm.compiler.options.OptionValues;
 import org.graalvm.compiler.virtual.phases.ea.PEReadEliminationBlockState.ReadCacheEntry;
 import jdk.internal.vm.compiler.word.LocationIdentity;
 
-import jdk.vm.ci.meta.ConstantReflectionProvider;
 import jdk.vm.ci.meta.JavaConstant;
 import jdk.vm.ci.meta.JavaKind;
-import jdk.vm.ci.meta.MetaAccessProvider;
 import jdk.vm.ci.meta.ResolvedJavaType;
 
 public final class PEReadEliminationClosure extends PartialEscapeClosure<PEReadEliminationBlockState> {
@@ -89,9 +85,8 @@ public final class PEReadEliminationClosure extends PartialEscapeClosure<PEReadE
         }
     }
 
-    public PEReadEliminationClosure(ScheduleResult schedule, MetaAccessProvider metaAccess, ConstantReflectionProvider constantReflection, ConstantFieldProvider constantFieldProvider,
-                    LoweringProvider loweringProvider, PlatformConfigurationProvider platformConfigurationProvider) {
-        super(schedule, metaAccess, constantReflection, constantFieldProvider, loweringProvider, platformConfigurationProvider);
+    public PEReadEliminationClosure(ScheduleResult schedule, CoreProviders providers) {
+        super(schedule, providers);
     }
 
     @Override
@@ -184,6 +179,10 @@ public final class PEReadEliminationClosure extends PartialEscapeClosure<PEReadE
     }
 
     private boolean processUnsafeLoad(RawLoadNode load, PEReadEliminationBlockState state, GraphEffectList effects) {
+        if (load.isVolatile()) {
+            state.killReadCache();
+            return false;
+        }
         if (load.offset().isConstant()) {
             ResolvedJavaType type = StampTool.typeOrNull(load.object());
             if (type != null && type.isArray()) {
@@ -210,6 +209,10 @@ public final class PEReadEliminationClosure extends PartialEscapeClosure<PEReadE
     }
 
     private boolean processUnsafeStore(RawStoreNode store, PEReadEliminationBlockState state, GraphEffectList effects) {
+        if (store.isVolatile()) {
+            state.killReadCache();
+            return false;
+        }
         ResolvedJavaType type = StampTool.typeOrNull(store.object());
         if (type != null && type.isArray()) {
             JavaKind accessKind = store.accessKind();

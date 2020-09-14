@@ -201,7 +201,7 @@ class CellTypeState {
 
   bool is_address() const               { return ((_state & bits_mask) == addr_bit); }
   bool is_reference() const             { return ((_state & bits_mask) == ref_bit); }
-  bool is_value() const                 { return ((_state & bits_mask) == val_bit); }
+  bool is_inline_type() const           { return ((_state & bits_mask) == val_bit); }
   bool is_uninit() const                { return ((_state & bits_mask) == (uint)uninit_bit); }
 
   bool can_be_address() const           { return ((_state & addr_bit) != 0); }
@@ -322,7 +322,7 @@ class GenerateOopMap {
 
   // Timing and statistics
   static elapsedTimer _total_oopmap_time;   // Holds cumulative oopmap generation time
-  static long         _total_byte_count;    // Holds cumulative number of bytes inspected
+  static uint64_t     _total_byte_count;    // Holds cumulative number of bytes inspected
 
   // Cell type methods
   void            init_state();

@@ -1,0 +1,2 @@
+DualPathInnerType.java:16:10: compiler.err.already.defined: kindname.method, f(DualPathInnerType.Inner), kindname.class, DualPathInnerType
+1 error

@@ -25,9 +25,11 @@
 
 package com.sun.tools.javac.comp;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import javax.tools.JavaFileObject;
 
@@ -58,7 +60,6 @@ import static com.sun.tools.javac.code.TypeTag.ERROR;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 
 import static com.sun.tools.javac.code.TypeTag.*;
-import static com.sun.tools.javac.code.TypeTag.BOT;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 
 import com.sun.tools.javac.util.Dependencies.CompletionCause;
@@ -144,9 +145,6 @@ public class TypeEnter implements Completer {
         Source source = Source.instance(context);
         allowTypeAnnos = Feature.TYPE_ANNOTATIONS.allowedInSource(source);
         allowDeprecationOnImport = Feature.DEPRECATION_ON_IMPORT.allowedInSource(source);
-        injectTopInterfaceTypes = Options.instance(context).isUnset("noTopInterfaceInjection") &&
-                                        Feature.INLINE_TYPES.allowedInSource(source) &&
-                                            Target.instance(context).hasTopInterfaces();
     }
 
     /** Switch: support type annotations.
@@ -157,10 +155,6 @@ public class TypeEnter implements Completer {
      * Switch: should deprecation warnings be issued on import
      */
     boolean allowDeprecationOnImport;
-
-    /** Switch: inject top interface types.
-     */
-    boolean injectTopInterfaceTypes;
 
     /** A flag to disable completion from time to time during member
      *  enter, as we only need to look up types.  This avoids
@@ -704,17 +698,6 @@ public class TypeEnter implements Completer {
             }
             ct.supertype_field = modelMissingTypes(baseEnv, supertype, extending, false);
 
-            Type interfaceToInject = Type.noType;
-            if (injectTopInterfaceTypes) {
-                if (isValueType || types.isValue(supertype)) {
-                    interfaceToInject = syms.inlineObjectType;
-                } else if ((sym.flags_field & (INTERFACE | ABSTRACT)) == 0) { // skip interfaces, abstract classes and annotations.
-                    if (sym.fullname != names.java_lang_Object) {
-                        interfaceToInject = syms.identityObjectType;
-                    }
-                }
-            }
-
             // Determine interfaces.
             ListBuffer<Type> interfaces = new ListBuffer<>();
             ListBuffer<Type> all_interfaces = null; // lazy init
@@ -722,9 +705,6 @@ public class TypeEnter implements Completer {
             for (JCExpression iface : interfaceTrees) {
                 iface = clearTypeParams(iface);
                 Type it = attr.attribBase(iface, baseEnv, false, true, true);
-                if (it.tsym == interfaceToInject.tsym) {
-                    interfaceToInject = Type.noType;
-                }
                 if (it.hasTag(CLASS)) {
                     interfaces.append(it);
                     if (all_interfaces != null) all_interfaces.append(it);
@@ -735,13 +715,18 @@ public class TypeEnter implements Completer {
                 }
             }
 
+            // Determine permits.
+            ListBuffer<Symbol> permittedSubtypeSymbols = new ListBuffer<>();
+            List<JCExpression> permittedTrees = tree.permitting;
+            for (JCExpression permitted : permittedTrees) {
+                Type pt = attr.attribBase(permitted, baseEnv, false, false, false);
+                permittedSubtypeSymbols.append(pt.tsym);
+            }
+
             if ((sym.flags_field & ANNOTATION) != 0) {
                 ct.interfaces_field = List.of(syms.annotationType);
                 ct.all_interfaces_field = ct.interfaces_field;
             }  else {
-                if (interfaceToInject != Type.noType) {
-                    interfaces.append(interfaceToInject);
-                }
                 ct.interfaces_field = interfaces.toList();
                 ct.all_interfaces_field = (all_interfaces == null)
                         ? ct.interfaces_field : all_interfaces.toList();
@@ -755,6 +740,15 @@ public class TypeEnter implements Completer {
                     projectedType.all_interfaces_field = ct.all_interfaces_field;
                 }
             }
+
+            /* it could be that there are already some symbols in the permitted list, for the case
+             * where there are subtypes in the same compilation unit but the permits list is empty
+             * so don't overwrite the permitted list if it is not empty
+             */
+            if (!permittedSubtypeSymbols.isEmpty()) {
+                sym.permitted = permittedSubtypeSymbols.toList();
+            }
+            sym.isPermittedExplicit = !permittedSubtypeSymbols.isEmpty();
         }
             //where:
             protected JCExpression clearTypeParams(JCExpression superType) {
@@ -765,7 +759,7 @@ public class TypeEnter implements Completer {
     private final class HierarchyPhase extends AbstractHeaderPhase implements Completer {
 
         public HierarchyPhase() {
-            super(CompletionCause.HIERARCHY_PHASE, new HeaderPhase());
+            super(CompletionCause.HIERARCHY_PHASE, new PermitsPhase());
         }
 
         @Override
@@ -835,6 +829,33 @@ public class TypeEnter implements Completer {
             Env<AttrContext> env = typeEnvs.get((ClassSymbol) sym);
 
             super.doCompleteEnvs(List.of(env));
+        }
+
+    }
+
+    private final class PermitsPhase extends AbstractHeaderPhase {
+
+        public PermitsPhase() {
+            super(CompletionCause.HIERARCHY_PHASE, new HeaderPhase());
+        }
+
+        @Override
+        protected void runPhase(Env<AttrContext> env) {
+            JCClassDecl tree = env.enclClass;
+            if (!tree.sym.isAnonymous() || tree.sym.isEnum()) {
+                for (Type supertype : types.directSupertypes(tree.sym.type)) {
+                    if (supertype.tsym.kind == TYP) {
+                        ClassSymbol supClass = (ClassSymbol) supertype.tsym;
+                        Env<AttrContext> supClassEnv = enter.getEnv(supClass);
+                        if (supClass.isSealed() &&
+                            !supClass.isPermittedExplicit &&
+                            supClassEnv != null &&
+                            supClassEnv.toplevel == env.toplevel) {
+                            supClass.permitted = supClass.permitted.append(tree.sym);
+                        }
+                    }
+                }
+            }
         }
 
     }
@@ -985,11 +1006,14 @@ public class TypeEnter implements Completer {
             ClassSymbol sym = tree.sym;
             ClassType ct = (ClassType)sym.type;
 
+            JCTree defaultConstructor = null;
+
             // Add default constructor if needed.
             DefaultConstructorHelper helper = getDefaultConstructorHelper(env);
             if (helper != null) {
-                JCTree constrDef = defaultConstructor(make.at(tree.pos), helper);
-                tree.defs = tree.defs.prepend(constrDef);
+                chk.checkDefaultConstructor(sym, tree.pos());
+                defaultConstructor = defaultConstructor(make.at(tree.pos), helper);
+                tree.defs = tree.defs.prepend(defaultConstructor);
             }
             if (!sym.isRecord()) {
                 enterThisAndSuper(sym, env);
@@ -1001,7 +1025,7 @@ public class TypeEnter implements Completer {
                 }
             }
 
-            finishClass(tree, env);
+            finishClass(tree, defaultConstructor, env);
 
             if (allowTypeAnnos) {
                 typeAnnotations.organizeTypeAnnotationsSignatures(env, (JCClassDecl)env.tree);
@@ -1042,7 +1066,7 @@ public class TypeEnter implements Completer {
 
         /** Enter members for a class.
          */
-        void finishClass(JCClassDecl tree, Env<AttrContext> env) {
+        void finishClass(JCClassDecl tree, JCTree defaultConstructor, Env<AttrContext> env) {
             if ((tree.mods.flags & Flags.ENUM) != 0 &&
                 !tree.sym.type.hasTag(ERROR) &&
                 (types.supertype(tree.sym.type).tsym.flags() & Flags.ENUM) == 0) {
@@ -1053,19 +1077,13 @@ public class TypeEnter implements Completer {
             if (isRecord) {
                 alreadyEntered = List.convert(JCTree.class, TreeInfo.recordFields(tree));
                 alreadyEntered = alreadyEntered.prependList(tree.defs.stream()
-                        .filter(t -> TreeInfo.isConstructor(t) &&
-                                ((JCMethodDecl)t).sym != null &&
-                                (((JCMethodDecl)t).sym.flags_field & Flags.GENERATEDCONSTR) == 0).collect(List.collector()));
+                        .filter(t -> TreeInfo.isConstructor(t) && t != defaultConstructor).collect(List.collector()));
             }
             List<JCTree> defsToEnter = isRecord ?
                     tree.defs.diff(alreadyEntered) : tree.defs;
             memberEnter.memberEnter(defsToEnter, env);
-            List<JCTree> defsBeforeAddingNewMembers = tree.defs;
             if (isRecord) {
                 addRecordMembersIfNeeded(tree, env);
-            }
-            if ((tree.mods.flags & (Flags.VALUE | Flags.INTERFACE)) == Flags.VALUE && !tree.sym.type.hasTag(ERROR)) {
-                addValueMembers(tree, env);
             }
             if (tree.sym.isAnnotationType()) {
                 Assert.check(tree.sym.isCompleted());
@@ -1081,19 +1099,21 @@ public class TypeEnter implements Completer {
                  * it could be that some of those annotations are not applicable to the accessor, they will be striped
                  * away later at Check::validateAnnotation
                  */
+                TreeCopier<JCTree> tc = new TreeCopier<JCTree>(make.at(tree.pos));
                 List<JCAnnotation> originalAnnos = rec.getOriginalAnnos().isEmpty() ?
                         rec.getOriginalAnnos() :
-                        new TreeCopier<JCTree>(make.at(tree.pos)).copy(rec.getOriginalAnnos());
+                        tc.copy(rec.getOriginalAnnos());
+                JCVariableDecl recordField = TreeInfo.recordFields((JCClassDecl) env.tree).stream().filter(rf -> rf.name == tree.name).findAny().get();
                 JCMethodDecl getter = make.at(tree.pos).
                         MethodDef(
-                                make.Modifiers(Flags.PUBLIC | Flags.GENERATED_MEMBER, originalAnnos),
+                                make.Modifiers(PUBLIC | Flags.GENERATED_MEMBER, originalAnnos),
                           tree.sym.name,
                           /* we need to special case for the case when the user declared the type as an ident
                            * if we don't do that then we can have issues if type annotations are applied to the
                            * return type: javac issues an error if a type annotation is applied to java.lang.String
                            * but applying a type annotation to String is kosher
                            */
-                          tree.vartype.hasTag(IDENT) ? make.Ident(tree.vartype.type.tsym) : make.Type(tree.sym.type),
+                          tc.copy(recordField.vartype),
                           List.nil(),
                           List.nil(),
                           List.nil(), // thrown
@@ -1139,94 +1159,6 @@ public class TypeEnter implements Completer {
             memberEnter.memberEnter(valueOf, env);
         }
 
-        /** Add the implicit members for a value type to the parse tree and the symbol table.
-         */
-        private void addValueMembers(JCClassDecl tree, Env<AttrContext> env) {
-
-            boolean requireHashCode = true, requireEquals = true, requireToString = true;
-
-            for (JCTree def : tree.defs) {
-                if (def.getTag() == METHODDEF) {
-                    JCMethodDecl methodDecl = (JCMethodDecl)def;
-                    if (methodDecl.sym != null
-                            && methodDecl.sym.type != null
-                            && !methodDecl.sym.type.isErroneous()
-                            && (methodDecl.sym.flags() & STATIC) == 0) {
-                        final List<Type> parameterTypes = methodDecl.sym.type.getParameterTypes();
-                        switch (parameterTypes.size()) {
-                            case 0:
-                                String name = methodDecl.name.toString();
-                                if (name.equals("hashCode"))
-                                    requireHashCode = false;
-                                else if (name.equals("toString"))
-                                    requireToString = false;
-                                break;
-                            case 1:
-                                name = methodDecl.name.toString();
-                                if (name.equals("equals") && parameterTypes.head.tsym == syms.objectType.tsym)
-                                    requireEquals = false;
-                                break;
-                        }
-                    }
-                }
-            }
-
-            make.at(tree.pos);
-            // Make a body comprising { throw new RuntimeException(""Internal error: This method must have been replaced by javac"); }
-            JCBlock body = make.Block(Flags.SYNTHETIC, List.of(make.Throw(
-                    make.NewClass(null,
-                            null,
-                            make.Ident(names.fromString("RuntimeException")),
-                            List.of(make.Literal(CLASS, "Internal error: This method must have been replaced by javac")),
-                            null))));
-
-            if (requireHashCode) {
-                // public int hashCode() { throw new RuntimeException(message); }
-                JCMethodDecl hashCode = make.
-                        MethodDef(make.Modifiers(Flags.PUBLIC | Flags.FINAL),
-                                names.hashCode,
-                                make.TypeIdent(TypeTag.INT),
-                                List.nil(),
-                                List.nil(),
-                                List.nil(), // thrown
-                                body,
-                                null);
-                memberEnter.memberEnter(hashCode, env);
-                tree.defs = tree.defs.append(hashCode);
-            }
-
-            if (requireEquals) {
-                // public boolean equals(Object o) { throw new RuntimeException(message); }
-                JCMethodDecl equals = make.
-                        MethodDef(make.Modifiers(Flags.PUBLIC | Flags.FINAL),
-                                names.equals,
-                                make.TypeIdent(TypeTag.BOOLEAN),
-                                List.nil(),
-                                List.of(make.VarDef(make.Modifiers(PARAMETER), names.fromString("o"), make.Ident(names.fromString("Object")), null )),
-                                List.nil(), // thrown
-                                body,
-                                null);
-                memberEnter.memberEnter(equals, env);
-                tree.defs = tree.defs.append(equals);
-            }
-
-            if (requireToString) {
-                // public String toString() { throw new RuntimeException(message); }
-                JCMethodDecl toString = make.
-                        MethodDef(make.Modifiers(Flags.PUBLIC | Flags.FINAL),
-                                names.toString,
-                                make.Ident(names.fromString("String")),
-                                List.nil(),
-                                List.nil(),
-                                List.nil(), // thrown
-                                body,
-                                null);
-                memberEnter.memberEnter(toString, env);
-                tree.defs = tree.defs.append(toString);
-            }
-
-        }
-
         JCMethodDecl getCanonicalConstructorDecl(JCClassDecl tree) {
             // let's check if there is a constructor with exactly the same arguments as the record components
             List<Type> recordComponentErasedTypes = types.erasure(TreeInfo.recordFields(tree).map(vd -> vd.sym.type));
@@ -1249,7 +1181,7 @@ public class TypeEnter implements Completer {
         private void addRecordMembersIfNeeded(JCClassDecl tree, Env<AttrContext> env) {
             if (lookupMethod(tree.sym, names.toString, List.nil()) == null) {
                 JCMethodDecl toString = make.
-                    MethodDef(make.Modifiers(Flags.PUBLIC | Flags.RECORD | Flags.GENERATED_MEMBER),
+                    MethodDef(make.Modifiers(Flags.PUBLIC | Flags.RECORD | Flags.FINAL | Flags.GENERATED_MEMBER),
                               names.toString,
                               make.Type(syms.stringType),
                               List.nil(),
@@ -1349,9 +1281,6 @@ public class TypeEnter implements Completer {
                     (types.supertype(owner().type).tsym == syms.enumSym)) {
                     // constructors of true enums are private
                     flags = PRIVATE | GENERATEDCONSTR;
-                } else if ((owner().flags_field & RECORD) != 0) {
-                    // record constructors are public
-                    flags = PUBLIC | GENERATEDCONSTR;
                 } else {
                     flags = (owner().flags() & AccessFlags) | GENERATEDCONSTR;
                 }
@@ -1439,21 +1368,25 @@ public class TypeEnter implements Completer {
     }
 
     class RecordConstructorHelper extends BasicConstructorHelper {
-
-        List<VarSymbol> recordFieldSymbols;
+        boolean lastIsVarargs;
         List<JCVariableDecl> recordFieldDecls;
 
-        RecordConstructorHelper(TypeSymbol owner, List<JCVariableDecl> recordFieldDecls) {
+        RecordConstructorHelper(ClassSymbol owner, List<JCVariableDecl> recordFieldDecls) {
             super(owner);
             this.recordFieldDecls = recordFieldDecls;
-            this.recordFieldSymbols = recordFieldDecls.map(vd -> vd.sym);
+            this.lastIsVarargs = owner.getRecordComponents().stream().anyMatch(rc -> rc.isVarargs());
         }
 
         @Override
         public Type constructorType() {
             if (constructorType == null) {
-                List<Type> argtypes = recordFieldSymbols.map(v -> (v.flags_field & Flags.VARARGS) != 0 ? types.elemtype(v.type) : v.type);
-                constructorType = new MethodType(argtypes, syms.voidType, List.nil(), syms.methodClass);
+                ListBuffer<Type> argtypes = new ListBuffer<>();
+                JCVariableDecl lastField = recordFieldDecls.last();
+                for (JCVariableDecl field : recordFieldDecls) {
+                    argtypes.add(field == lastField && lastIsVarargs ? types.elemtype(field.sym.type) : field.sym.type);
+                }
+
+                constructorType = new MethodType(argtypes.toList(), syms.voidType, List.nil(), syms.methodClass);
             }
             return constructorType;
         }
@@ -1466,11 +1399,14 @@ public class TypeEnter implements Completer {
              */
             csym.flags_field |= Flags.COMPACT_RECORD_CONSTRUCTOR | GENERATEDCONSTR;
             ListBuffer<VarSymbol> params = new ListBuffer<>();
-            for (VarSymbol p : recordFieldSymbols) {
-                params.add(new VarSymbol(GENERATED_MEMBER | PARAMETER | RECORD | ((p.flags_field & Flags.VARARGS) != 0 ? Flags.VARARGS : 0), p.name, p.type, csym));
+            JCVariableDecl lastField = recordFieldDecls.last();
+            for (JCVariableDecl field : recordFieldDecls) {
+                params.add(new VarSymbol(
+                        GENERATED_MEMBER | PARAMETER | RECORD | (field == lastField && lastIsVarargs ? Flags.VARARGS : 0),
+                        field.name, field.sym.type, csym));
             }
             csym.params = params.toList();
-            csym.flags_field |= RECORD | PUBLIC;
+            csym.flags_field |= RECORD;
             return csym;
         }
 
@@ -1482,10 +1418,11 @@ public class TypeEnter implements Completer {
                  * parameter in the constructor.
                  */
                 RecordComponent rc = ((ClassSymbol) owner).getRecordComponent(arg.sym);
+                TreeCopier<JCTree> tc = new TreeCopier<JCTree>(make.at(arg.pos));
                 arg.mods.annotations = rc.getOriginalAnnos().isEmpty() ?
                         List.nil() :
-                        new TreeCopier<JCTree>(make.at(arg.pos)).copy(rc.getOriginalAnnos());
-                arg.vartype = tmpRecordFieldDecls.head.vartype;
+                        tc.copy(rc.getOriginalAnnos());
+                arg.vartype = tc.copy(tmpRecordFieldDecls.head.vartype);
                 tmpRecordFieldDecls = tmpRecordFieldDecls.tail;
             }
             return md;

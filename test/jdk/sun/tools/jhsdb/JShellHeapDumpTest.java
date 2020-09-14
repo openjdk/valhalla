@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Arrays;
 import java.util.Map;
 
+import jdk.test.lib.Utils;
 import jdk.test.lib.hprof.parser.HprofReader;
 import jdk.test.lib.JDKToolLauncher;
 import jdk.test.lib.JDKToolFinder;
@@ -61,6 +62,7 @@ public class JShellHeapDumpTest {
 
             System.out.println("Starting " + toolArgs.get(0) + " against " + jShellPID);
             JDKToolLauncher launcher = JDKToolLauncher.createUsingTestJDK("jhsdb");
+            launcher.addVMArgs(Utils.getFilteredTestJavaOpts("-Xcomp"));
 
             for (String cmd : toolArgs) {
                 launcher.addToolArg(cmd);
@@ -98,7 +100,10 @@ public class JShellHeapDumpTest {
     public static void printStackTraces(String file) throws IOException {
         try {
             String output = HprofReader.getStack(file, 0);
-            if (!output.contains("JShellToolProvider")) {
+            // We only require JShellToolProvider to be in the output if we did the
+            // short sleep. If we did not, the java process may not have executed far
+            // enough along to even start the main thread.
+            if (doSleep && !output.contains("JShellToolProvider")) {
                 throw new RuntimeException("'JShellToolProvider' missing from stdout/stderr");
             }
         } catch (Exception ex) {

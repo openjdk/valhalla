@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 
 #include "classfile/classLoader.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/arguments.hpp"
 
 // Next entry in class path
 inline ClassPathEntry* ClassPathEntry::next() const { return Atomic::load_acquire(&_next); }
@@ -53,6 +54,12 @@ inline ClassPathEntry* ClassLoader::classpath_entry(int n) {
       e = e->next();
     }
     return e;
+  }
+}
+
+inline void ClassLoader::load_zip_library_if_needed() {
+  if (Atomic::load_acquire(&_libzip_loaded) == 0) {
+    release_load_zip_library();
   }
 }
 

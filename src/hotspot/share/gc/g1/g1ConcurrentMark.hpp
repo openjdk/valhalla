@@ -65,21 +65,12 @@ private:
   }
   G1TaskQueueEntry(HeapWord* addr) : _holder((void*)((uintptr_t)addr | ArraySliceBit)) { }
 public:
-  G1TaskQueueEntry(const G1TaskQueueEntry& other) { _holder = other._holder; }
+
   G1TaskQueueEntry() : _holder(NULL) { }
+  // Trivially copyable, for use in GenericTaskQueue.
 
   static G1TaskQueueEntry from_slice(HeapWord* what) { return G1TaskQueueEntry(what); }
   static G1TaskQueueEntry from_oop(oop obj) { return G1TaskQueueEntry(obj); }
-
-  G1TaskQueueEntry& operator=(const G1TaskQueueEntry& t) {
-    _holder = t._holder;
-    return *this;
-  }
-
-  volatile G1TaskQueueEntry& operator=(const volatile G1TaskQueueEntry& t) volatile {
-    _holder = t._holder;
-    return *this;
-  }
 
   oop obj() const {
     assert(!is_array_slice(), "Trying to read array slice " PTR_FORMAT " as oop", p2i(_holder));
@@ -229,8 +220,8 @@ private:
 // roots wrt to the marking. They must be scanned before marking to maintain the
 // SATB invariant.
 // Typically they contain the areas from nTAMS to top of the regions.
-// We could scan and mark through these objects during the initial-mark pause, but for
-// pause time reasons we move this work to the concurrent phase.
+// We could scan and mark through these objects during the concurrent start pause,
+// but for pause time reasons we move this work to the concurrent phase.
 // We need to complete this procedure before the next GC because it might determine
 // that some of these "root objects" are dead, potentially dropping some required
 // references.
@@ -393,7 +384,7 @@ class G1ConcurrentMark : public CHeapObj<mtGC> {
   void clear_statistics(HeapRegion* r);
 
   // Resets the global marking data structures, as well as the
-  // task local ones; should be called during initial mark.
+  // task local ones; should be called during concurrent start.
   void reset();
 
   // Resets all the marking data structures. Called when we have to restart
@@ -444,7 +435,7 @@ class G1ConcurrentMark : public CHeapObj<mtGC> {
 
   // Returns the task with the given id
   G1CMTask* task(uint id) {
-    // During initial mark we use the parallel gc threads to do some work, so
+    // During concurrent start we use the parallel gc threads to do some work, so
     // we can only compare against _max_num_tasks.
     assert(id < _max_num_tasks, "Task id %u not within bounds up to %u", id, _max_num_tasks);
     return _tasks[id];
@@ -550,9 +541,9 @@ public:
   void clear_prev_bitmap(WorkGang* workers);
 
   // These two methods do the work that needs to be done at the start and end of the
-  // initial mark pause.
-  void pre_initial_mark();
-  void post_initial_mark();
+  // concurrent start pause.
+  void pre_concurrent_start();
+  void post_concurrent_start();
 
   // Scan all the root regions and mark everything reachable from
   // them.
@@ -592,7 +583,6 @@ public:
 
   void print_summary_info();
 
-  void print_worker_threads_on(outputStream* st) const;
   void threads_do(ThreadClosure* tc) const;
 
   void print_on_error(outputStream* st) const;
@@ -828,8 +818,7 @@ public:
   G1CMTask(uint worker_id,
            G1ConcurrentMark *cm,
            G1CMTaskQueue* task_queue,
-           G1RegionMarkStats* mark_stats,
-           uint max_regions);
+           G1RegionMarkStats* mark_stats);
 
   inline void update_liveness(oop const obj, size_t const obj_size);
 

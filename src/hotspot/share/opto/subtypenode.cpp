@@ -76,11 +76,19 @@ const Type* SubTypeCheckNode::sub(const Type* sub_t, const Type* super_t) const 
       // type check is known to fail.
       unrelated_classes = true;
     }
-    // Ignore exactness of constant supertype (the type of the corresponding object may be non-exact).
-    const TypeKlassPtr* casted_sup = super_t->is_klassptr()->cast_to_exactness(false)->is_klassptr();
-    if (sub_t->is_ptr()->flat_array() && (!casted_sup->can_be_value_type() || (superk->is_valuetype() && !superk->flatten_array()))) {
-      // Subtype is flattened in arrays but supertype is not. Must be unrelated.
-      unrelated_classes = true;
+    if (!unrelated_classes) {
+      // Handle inline type arrays
+      if (sub_t->isa_aryptr() && sub_t->is_aryptr()->is_not_flat() && superk->is_flat_array_klass()) {
+        // Subtype is not a flat array but supertype is. Must be unrelated.
+        unrelated_classes = true;
+      } else if (sub_t->isa_aryptr() && sub_t->is_aryptr()->is_not_null_free() &&
+                 superk->is_obj_array_klass() && superk->as_obj_array_klass()->element_klass()->is_inlinetype()) {
+        // Subtype is not a null-free array but supertype is. Must be unrelated.
+        unrelated_classes = true;
+      } else if (sub_t->is_ptr()->flatten_array() && (!superk->can_be_inline_klass() || (superk->is_inlinetype() && !superk->flatten_array()))) {
+        // Subtype is flattened in arrays but supertype is not. Must be unrelated.
+        unrelated_classes = true;
+      }
     }
     if (unrelated_classes) {
       TypePtr::PTR jp = sub_t->is_ptr()->join_ptr(super_t->is_ptr()->_ptr);
@@ -140,7 +148,14 @@ Node *SubTypeCheckNode::Ideal(PhaseGVN *phase, bool can_reshape) {
     intptr_t con = 0;
     Node* obj = AddPNode::Ideal_base_and_offset(addr, phase, con);
     if (con == oopDesc::klass_offset_in_bytes() && obj != NULL) {
-      assert(phase->type(obj)->isa_oopptr(), "only for oop input");
+#ifdef ASSERT
+      const Type* obj_t = phase->type(obj);
+      if (!obj_t->isa_oopptr() && obj_t != Type::TOP) {
+        obj->dump();
+        obj_t->dump(); tty->cr();
+        fatal("only for oop input");
+      }
+#endif
       set_req(ObjOrSubKlass, obj);
       return this;
     }
@@ -149,7 +164,14 @@ Node *SubTypeCheckNode::Ideal(PhaseGVN *phase, bool can_reshape) {
   // AllocateNode might have more accurate klass input
   Node* allocated_klass = AllocateNode::Ideal_klass(obj_or_subklass, phase);
   if (allocated_klass != NULL) {
-    assert(phase->type(obj_or_subklass)->isa_oopptr(), "only for oop input");
+#ifdef ASSERT
+      const Type* obj_or_subklass_t = phase->type(obj_or_subklass);
+      if (!obj_or_subklass_t->isa_oopptr() && obj_or_subklass_t != Type::TOP) {
+        obj_or_subklass->dump();
+        obj_or_subklass_t->dump(); tty->cr();
+        fatal("only for oop input");
+      }
+#endif
     set_req(ObjOrSubKlass, allocated_klass);
     return this;
   }
