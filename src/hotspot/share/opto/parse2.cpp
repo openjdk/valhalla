@@ -2272,12 +2272,20 @@ void Parse::do_acmp(BoolTest::mask btest, Node* right, Node* left) {
     }
   }
 
-  if (!too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check)) {
-    if (speculative_ptr_kind(tleft) != ProfileMaybeNull && speculative_ptr_kind(tleft) != ProfileUnknownNull) {
-      left_ptr = speculative_ptr_kind(tleft);
+  if (speculative_ptr_kind(tleft) != ProfileMaybeNull && speculative_ptr_kind(tleft) != ProfileUnknownNull) {
+    ProfilePtrKind speculative_left_ptr = speculative_ptr_kind(tleft);
+    if (speculative_left_ptr == ProfileAlwaysNull && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_assert)) {
+      left_ptr = speculative_left_ptr;
+    } else if (speculative_left_ptr == ProfileNeverNull && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check)) {
+      left_ptr = speculative_left_ptr;
     }
-    if (speculative_ptr_kind(tright) != ProfileMaybeNull && speculative_ptr_kind(tright) != ProfileUnknownNull) {
-      right_ptr = speculative_ptr_kind(tright);
+  }
+  if (speculative_ptr_kind(tright) != ProfileMaybeNull && speculative_ptr_kind(tright) != ProfileUnknownNull) {
+    ProfilePtrKind speculative_right_ptr = speculative_ptr_kind(tright);
+    if (speculative_right_ptr == ProfileAlwaysNull && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_assert)) {
+      right_ptr = speculative_right_ptr;
+    } else if (speculative_right_ptr == ProfileNeverNull && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check)) {
+      right_ptr = speculative_right_ptr;
     }
   }
 

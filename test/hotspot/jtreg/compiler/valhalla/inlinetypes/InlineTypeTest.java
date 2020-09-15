@@ -842,7 +842,7 @@ public abstract class InlineTypeTest {
     }
 
     static private TriState compiledByC2(Method m) {
-        if (!USE_COMPILER || XCOMP) {
+        if (!USE_COMPILER || XCOMP || TEST_C1) {
             return TriState.Maybe;
         }
         if (WHITE_BOX.isMethodCompiled(m, false) &&
