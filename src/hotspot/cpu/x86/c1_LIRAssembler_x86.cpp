@@ -2036,13 +2036,8 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   // (1) Null check -- if one of the operands is null, the other must not be null (because
   //     the two references are not equal), so they are not substitutable,
   //     FIXME: do null check only if the operand is nullable
-  {
-    __ cmpptr(left, (int32_t)NULL_WORD);
-    __ jcc(Assembler::equal, L_oops_not_equal);
-
-    __ cmpptr(right, (int32_t)NULL_WORD);
-    __ jcc(Assembler::equal, L_oops_not_equal);
-  }
+  __ testptr(left, right);
+  __ jcc(Assembler::zero, L_oops_not_equal);
 
   ciKlass* left_klass = op->left_klass();
   ciKlass* right_klass = op->right_klass();
@@ -2054,8 +2049,8 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
       !left_klass->is_inlinetype() || !right_klass->is_inlinetype()) {
     Register tmp1  = op->tmp1()->as_register();
     __ movptr(tmp1, (intptr_t)markWord::always_locked_pattern);
-    __ andl(tmp1, Address(left, oopDesc::mark_offset_in_bytes()));
-    __ andl(tmp1, Address(right, oopDesc::mark_offset_in_bytes()));
+    __ andptr(tmp1, Address(left, oopDesc::mark_offset_in_bytes()));
+    __ andptr(tmp1, Address(right, oopDesc::mark_offset_in_bytes()));
     __ cmpptr(tmp1, (intptr_t)markWord::always_locked_pattern);
     __ jcc(Assembler::notEqual, L_oops_not_equal);
   }
