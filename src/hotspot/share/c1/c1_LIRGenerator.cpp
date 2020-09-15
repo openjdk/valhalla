@@ -1595,20 +1595,8 @@ class TempResolvedAddress: public Instruction {
   virtual const char* name() const  { return "TempResolvedAddress"; }
 };
 
-void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset) {
-  assert(field != NULL, "Need a subelement type specified");
-  // Find the starting address of the source (inside the array)
-  ciType* array_type = array.value()->declared_type();
-  ciFlatArrayKlass* flat_array_klass = array_type->as_flat_array_klass();
-  assert(flat_array_klass->is_loaded(), "must be");
-
-  ciInlineKlass* elem_klass = NULL;
-  int array_header_size = flat_array_klass->array_header_in_bytes();
-  int shift = flat_array_klass->log2_element_size();
-
-  BasicType subelt_type = field->type()->basic_type();
-
-  #ifndef _LP64
+LIR_Opr LIRGenerator::get_index_in_register(LIRItem& index, int shift) {
+#ifndef _LP64
   LIR_Opr index_op = new_register(T_INT);
   // FIXME -- on 32-bit, the shift below can overflow, so we need to check that
   // the top (shift+1) bits of index_op must be zero, or
@@ -1619,6 +1607,7 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
   } else {
     __ shift_left(index_op, shift, index.result());
   }
+  return index_op;
 #else
   LIR_Opr index_op = new_register(T_LONG);
   if (index.result()->is_constant()) {
@@ -1629,8 +1618,20 @@ void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& r
     // Need to shift manually, as LIR_Address can scale only up to 3.
     __ shift_left(index_op, shift, index_op);
   }
+  return index_op;
 #endif
+}
 
+void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset) {
+  assert(field != NULL, "Need a subelement type specified");
+  // Find the starting address of the source (inside the array)
+  ciType* array_type = array.value()->declared_type();
+  ciFlatArrayKlass* flat_array_klass = array_type->as_flat_array_klass();
+  assert(flat_array_klass->is_loaded(), "must be");
+
+  int array_header_size = flat_array_klass->array_header_in_bytes();
+  BasicType subelt_type = field->type()->basic_type();
+  LIR_Opr index_op = get_index_in_register(index, flat_array_klass->log2_element_size());
   LIR_Opr elm_op = new_pointer_register();
   LIR_Address* elm_address = new LIR_Address(array.result(), index_op, array_header_size, T_ADDRESS);
   __ leal(LIR_OprFact::address(elm_address), elm_op);
@@ -1674,31 +1675,7 @@ void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem&
     elem_klass = flat_array_klass->element_klass()->as_inline_klass();
   }
   int array_header_size = flat_array_klass->array_header_in_bytes();
-  int shift = flat_array_klass->log2_element_size();
-
-#ifndef _LP64
-  LIR_Opr index_op = new_register(T_INT);
-  // FIXME -- on 32-bit, the shift below can overflow, so we need to check that
-  // the top (shift+1) bits of index_op must be zero, or
-  // else throw ArrayIndexOutOfBoundsException
-  if (index.result()->is_constant()) {
-    jint const_index = index.result()->as_jint();
-    __ move(LIR_OprFact::intConst(const_index << shift), index_op);
-  } else {
-    __ shift_left(index_op, shift, index.result());
-  }
-#else
-  LIR_Opr index_op = new_register(T_LONG);
-  if (index.result()->is_constant()) {
-    jint const_index = index.result()->as_jint();
-    __ move(LIR_OprFact::longConst(const_index << shift), index_op);
-  } else {
-    __ convert(Bytecodes::_i2l, index.result(), index_op);
-    // Need to shift manually, as LIR_Address can scale only up to 3.
-    __ shift_left(index_op, shift, index_op);
-  }
-#endif
-
+  LIR_Opr index_op = get_index_in_register(index, flat_array_klass->log2_element_size());
   LIR_Opr elm_op = new_pointer_register();
   LIR_Address* elm_address = new LIR_Address(array.result(), index_op, array_header_size, T_ADDRESS);
   __ leal(LIR_OprFact::address(elm_address), elm_op);
@@ -1707,7 +1684,7 @@ void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem&
     ciField* inner_field = elem_klass->nonstatic_field_at(i);
     assert(!inner_field->is_flattened(), "flattened fields must have been expanded");
     int obj_offset = inner_field->offset();
-    int elm_offset = obj_offset - elem_klass->first_field_offset()  + sub_offset; // object header is not stored in array.
+    int elm_offset = obj_offset - elem_klass->first_field_offset() + sub_offset; // object header is not stored in array.
 
     BasicType field_type = inner_field->type()->basic_type();
     switch (field_type) {
