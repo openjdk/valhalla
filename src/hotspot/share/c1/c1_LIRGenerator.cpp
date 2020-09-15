@@ -1635,7 +1635,7 @@ LIR_Opr LIRGenerator::get_and_load_element_address(LIRItem& array, LIRItem& inde
 void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset) {
   assert(field != NULL, "Need a subelement type specified");
 
-// Find the starting address of the source (inside the array)
+  // Find the starting address of the source (inside the array)
   LIR_Opr elm_op = get_and_load_element_address(array, index);
 
   BasicType subelt_type = field->type()->basic_type();
@@ -1667,7 +1667,7 @@ void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem&
                                           ciField* field, int sub_offset) {
   assert(sub_offset == 0 || field != NULL, "Sanity check");
 
-// Find the starting address of the source (inside the array)
+  // Find the starting address of the source (inside the array)
   LIR_Opr elm_op = get_and_load_element_address(array, index);
 
   ciInlineKlass* elem_klass = NULL;
