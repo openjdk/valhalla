@@ -43,7 +43,7 @@ public class Primitive64 extends SizeBase {
         }
 
     }
-    
+
     @Benchmark
     @CompilerControl(CompilerControl.Mode.DONT_INLINE)
     public int walk(LongState s) {
