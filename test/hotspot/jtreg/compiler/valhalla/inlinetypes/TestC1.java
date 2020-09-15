@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -130,4 +130,159 @@ public class TestC1 extends InlineTypeTest {
         int result = test2(array);
         Asserts.assertEQ(result, 2*rI);
     }
+
+
+    // Tests below (3 to 8) check the behavior of the C1 optimization to access
+    // sub-elements of a flattened array without copying the element first
+
+    // Test access to a null array
+    @Test(compLevel=C1)
+    public int test3(MyValue2[] array, int index) {
+        return array[index].x;
+    }
+
+    @DontCompile
+    public void test3_verifier(boolean warmup) {
+        NullPointerException npe = null;
+        try {
+            test3(null, 0);
+        } catch(NullPointerException e) {
+            npe = e;
+        }
+        Asserts.assertNE(npe, null);
+    }
+
+    // Test out of bound accesses
+    @Test(compLevel=C1)
+    public int test4(MyValue2[] array, int index) {
+        return array[index].x;
+    }
+
+    @DontCompile
+    public void test4_verifier(boolean warmup) {
+        MyValue2[] array = new MyValue2[2];
+        ArrayIndexOutOfBoundsException aioob = null;
+        try {
+            test3(array, -1);
+        } catch(ArrayIndexOutOfBoundsException e) {
+            aioob = e;
+        }
+        Asserts.assertNE(aioob, null);
+        aioob = null;
+        try {
+            test3(array, 2);
+        } catch(ArrayIndexOutOfBoundsException e) {
+            aioob = e;
+        }
+        Asserts.assertNE(aioob, null);
+    }
+
+    // Test 1st level sub-element access to primitive field
+    @Test(compLevel=C1)
+    public int test5(MyValue2[] array, int index) {
+        return array[index].x;
+    }
+
+    @DontCompile
+    public void test5_verifier(boolean warmup) {
+        MyValue2[] array = new MyValue2[2];
+        MyValue2 v = new MyValue2(1,(byte)2, new MyValue2Inline(5.0d, 345L));
+        array[1] = v;
+        int x = test5(array, 1);
+        Asserts.assertEQ(x, 1);
+    }
+
+    // Test 1st level sub-element access to flattened field
+    @Test(compLevel=C1)
+    public MyValue2Inline test6(MyValue2[] array, int index) {
+        return array[index].v;
+    }
+
+    @DontCompile
+    public void test6_verifier(boolean warmup) {
+        MyValue2[] array = new MyValue2[2];
+        MyValue2Inline vi = new MyValue2Inline(3.5d, 678L);
+        MyValue2 v = new MyValue2(1,(byte)2, vi);
+        array[0] = v;
+        MyValue2Inline vi2 = test6(array, 0);
+        Asserts.assertEQ(vi, vi2);
+    }
+
+    // Test 1st level sub-element access to non-flattened field
+    static inline class Big {
+        long l0,l1,l2,l3,l4,l5,l6,l7,l8,l9,l10,l11,l12,l13,l14,l15,l16,l17,l18,l19 ;
+
+        Big(long n) {
+            l0 = n++; l1 = n++; l2 = n++; l3 = n++; l4 = n++; l5 = n++; l6 = n++; l7 = n++; l8 = n++;
+            l9 = n++; l10 = n++; l11 = n++; l12 = n++; l13 = n++; l14 = n++; l15 = n++; l16= n++;
+            l17 = n++; l18 = n++; l19 = n++;
+        }
+
+        void check(long n, int i) {
+            Asserts.assertEQ(l0, n); n += i;
+            Asserts.assertEQ(l1, n); n += i;
+            Asserts.assertEQ(l2, n); n += i;
+            Asserts.assertEQ(l3, n); n += i;
+            Asserts.assertEQ(l4, n); n += i;
+            Asserts.assertEQ(l5, n); n += i;
+            Asserts.assertEQ(l6, n); n += i;
+            Asserts.assertEQ(l7, n); n += i;
+            Asserts.assertEQ(l8, n); n += i;
+            Asserts.assertEQ(l9, n); n += i;
+            Asserts.assertEQ(l10, n); n += i;
+            Asserts.assertEQ(l11, n); n += i;
+            Asserts.assertEQ(l12, n); n += i;
+            Asserts.assertEQ(l13, n); n += i;
+            Asserts.assertEQ(l14, n); n += i;
+            Asserts.assertEQ(l15, n); n += i;
+            Asserts.assertEQ(l16, n); n += i;
+            Asserts.assertEQ(l17, n); n += i;
+            Asserts.assertEQ(l18, n); n += i;
+            Asserts.assertEQ(l19, n);
+        }
+    }
+
+    static inline class TestValue {
+        int i;
+        Big big;
+
+        TestValue(int n) {
+            i = n;
+            big = new Big(n);
+        }
+    }
+
+    @Test(compLevel=C1)
+    public Big test7(TestValue[] array, int index) {
+        return array[index].big;
+    }
+
+    @DontCompile
+    public void test7_verifier(boolean warmup) {
+        TestValue[] array = new TestValue[7];
+        Big b0 = test7(array, 3);
+        b0.check(0, 0);
+        TestValue tv = new TestValue(9);
+        array[5] = tv;
+        Big b1 = test7(array, 5);
+        b1.check(9, 1);
+    }
+
+    // Test 2nd level sub-element access to primitive field
+    @Test(compLevel=C1)
+    public byte test8(MyValue1[] array, int index) {
+        return array[index].v2.y;
+    }
+
+    @DontCompile
+    public void test8_verifier(boolean warmup) {
+        MyValue1[] array = new MyValue1[23];
+        MyValue2 mv2a = MyValue2.createWithFieldsInline(7, 63L, 8.9d);
+        MyValue2 mv2b = MyValue2.createWithFieldsInline(11, 69L, 17.3d);
+        MyValue1 mv1 = new MyValue1(1, 2L, (short)3, 4, null, mv2a, mv2b, 'z');
+        array[19] = mv1;
+        byte b = test8(array, 19);
+        Asserts.assertEQ(b, (byte)11);
+    }
+
 }

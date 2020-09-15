@@ -269,7 +269,9 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_vectorizedMismatch(Intrinsic* x);
 
   Constant* flattened_field_load_prolog(LoadField* x, CodeEmitInfo* info);
-  void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item);
+  void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = NULL, int offset = 0);
+  void access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset);
+  LIR_Opr get_and_load_element_address(LIRItem& array, LIRItem& index);
   bool needs_flattened_array_store_check(StoreIndexed* x);
   void check_flattened_array(LIR_Opr array, LIR_Opr value, CodeStub* slow_path);
   bool needs_null_free_array_store_check(StoreIndexed* x);
