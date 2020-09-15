@@ -100,21 +100,6 @@ class InlineKlass: public InstanceKlass {
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(default_value_offset_offset());
   }
 
-  address adr_flat_array_klass() const {
-    assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
-    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _flat_array_klass));
-  }
-
-  Klass* get_flat_array_klass() const {
-    return *(Klass**)adr_flat_array_klass();
-  }
-
-  Klass* acquire_flat_array_klass() const {
-    return Atomic::load_acquire((Klass**)adr_flat_array_klass());
-  }
-
-  Klass* allocate_flat_array_klass(TRAPS);
-
   address adr_alignment() const {
     assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _alignment));
@@ -176,9 +161,6 @@ class InlineKlass: public InstanceKlass {
   // Returns the array class with this class as element type
   Klass* array_klass_impl(bool or_null, TRAPS);
 
-  // Specifically flat array klass
-  Klass* flat_array_klass(bool or_null, int rank, TRAPS);
-
  public:
   // Type testing
   bool is_inline_klass_slow() const        { return true; }
@@ -191,10 +173,6 @@ class InlineKlass: public InstanceKlass {
   virtual int size_helper() const {
     return layout_helper_to_size_helper(layout_helper());
   }
-
-  // Metadata iterators
-  void array_klasses_do(void f(Klass* k));
-  void array_klasses_do(void f(Klass* k, TRAPS), TRAPS);
 
   // allocate_instance() allocates a stand alone value in the Java heap
   // initialized to default value (cleared memory)

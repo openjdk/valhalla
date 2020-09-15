@@ -145,7 +145,6 @@ class InlineKlassFixedBlock {
   address* _pack_handler_jobject;
   address* _unpack_handler;
   int* _default_value_offset;
-  Klass** _flat_array_klass;
   int _alignment;
   int _first_field_offset;
   int _exact_size_in_bytes;
@@ -192,7 +191,7 @@ class InstanceKlass: public Klass {
   // Package this class is defined in
   PackageEntry*   _package_entry;
   // Array classes holding elements of this class.
-  ObjArrayKlass* volatile _array_klasses;
+  ArrayKlass* volatile _array_klasses;
   // Constant pool for this class.
   ConstantPool* _constants;
   // The InnerClasses attribute and EnclosingMethod attribute. The
@@ -494,10 +493,10 @@ class InstanceKlass: public Klass {
   void set_itable_length(int len)          { _itable_len = len; }
 
   // array klasses
-  ObjArrayKlass* array_klasses() const     { return _array_klasses; }
-  inline ObjArrayKlass* array_klasses_acquire() const; // load with acquire semantics
-  void set_array_klasses(ObjArrayKlass* k) { _array_klasses = k; }
-  inline void release_set_array_klasses(ObjArrayKlass* k); // store with release semantics
+  ArrayKlass* array_klasses() const     { return _array_klasses; }
+  inline ArrayKlass* array_klasses_acquire() const; // load with acquire semantics
+  void set_array_klasses(ArrayKlass* k) { _array_klasses = k; }
+  inline void release_set_array_klasses(ArrayKlass* k); // store with release semantics
 
   // methods
   Array<Method*>* methods() const          { return _methods; }

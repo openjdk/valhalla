@@ -1592,7 +1592,7 @@ Klass* InstanceKlass::array_klass_impl(bool or_null, int n, TRAPS) {
     }
   }
   // _this will always be set at this point
-  ObjArrayKlass* oak = array_klasses();
+  ArrayKlass* oak = array_klasses();
   if (or_null) {
     return oak->array_klass_or_null(n);
   }

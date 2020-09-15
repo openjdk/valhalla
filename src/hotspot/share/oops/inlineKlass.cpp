@@ -60,7 +60,6 @@ InlineKlass::InlineKlass(const ClassFileParser& parser)
   *((address*)adr_unpack_handler()) = NULL;
   assert(pack_handler() == NULL, "pack handler not null");
   *((int*)adr_default_value_offset()) = 0;
-  *((Klass**)adr_flat_array_klass()) = NULL;
   set_prototype_header(markWord::always_locked_prototype());
   assert(is_inline_type_klass(), "invariant");
 }
@@ -211,63 +210,46 @@ void InlineKlass::remove_unshareable_info() {
   *((address*)adr_pack_handler_jobject()) = NULL;
   *((address*)adr_unpack_handler()) = NULL;
   assert(pack_handler() == NULL, "pack handler not null");
-  *((Klass**)adr_flat_array_klass()) = NULL;
 }
 
 void InlineKlass::restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS) {
   InstanceKlass::restore_unshareable_info(loader_data, protection_domain, pkg_entry, CHECK);
 }
 
-
 Klass* InlineKlass::array_klass_impl(bool or_null, int n, TRAPS) {
-  if (flatten_array()) {
-    return flat_array_klass(or_null, n, THREAD);
-  } else {
-    return InstanceKlass::array_klass_impl(or_null, n, THREAD);
+  // Need load-acquire for lock-free read
+  if (array_klasses_acquire() == NULL) {
+    if (or_null) return NULL;
+
+    ResourceMark rm(THREAD);
+    JavaThread *jt = (JavaThread *)THREAD;
+    {
+      // Atomic creation of array_klasses
+      MutexLocker ma(THREAD, MultiArray_lock);
+
+      ArrayKlass* k = NULL;
+      // Check if update has already taken place
+      if (array_klasses() == NULL) {
+        if (flatten_array()) {
+          k = FlatArrayKlass::allocate_klass(this, CHECK_NULL);
+        } else {
+          k = ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, CHECK_NULL);
+        }
+        // use 'release' to pair with lock-free load
+        release_set_array_klasses(k);
+      }
+    }
   }
+  // _this will always be set at this point
+  ArrayKlass* ak = array_klasses();
+  if (or_null) {
+    return ak->array_klass_or_null(n);
+  }
+  return ak->array_klass(n, THREAD);
 }
 
 Klass* InlineKlass::array_klass_impl(bool or_null, TRAPS) {
   return array_klass_impl(or_null, 1, THREAD);
-}
-
-Klass* InlineKlass::flat_array_klass(bool or_null, int rank, TRAPS) {
-  Klass* vak = acquire_flat_array_klass();
-  if (vak == NULL) {
-    if (or_null) return NULL;
-    ResourceMark rm;
-    {
-      // Atomic creation of array_klasses
-      MutexLocker ma(THREAD, MultiArray_lock);
-      if (get_flat_array_klass() == NULL) {
-        vak = allocate_flat_array_klass(CHECK_NULL);
-        Atomic::release_store((Klass**)adr_flat_array_klass(), vak);
-      }
-    }
-  }
-  if (or_null) {
-    return vak->array_klass_or_null(rank);
-  }
-  return vak->array_klass(rank, THREAD);
-}
-
-Klass* InlineKlass::allocate_flat_array_klass(TRAPS) {
-  if (flatten_array()) {
-    return FlatArrayKlass::allocate_klass(this, THREAD);
-  }
-  return ObjArrayKlass::allocate_objArray_klass(class_loader_data(), 1, this, THREAD);
-}
-
-void InlineKlass::array_klasses_do(void f(Klass* k, TRAPS), TRAPS) {
-  InstanceKlass::array_klasses_do(f, THREAD);
-  if (get_flat_array_klass() != NULL)
-    ArrayKlass::cast(get_flat_array_klass())->array_klasses_do(f, THREAD);
-}
-
-void InlineKlass::array_klasses_do(void f(Klass* k)) {
-  InstanceKlass::array_klasses_do(f);
-  if (get_flat_array_klass() != NULL)
-    ArrayKlass::cast(get_flat_array_klass())->array_klasses_do(f);
 }
 
 // Inline type arguments are not passed by reference, instead each
