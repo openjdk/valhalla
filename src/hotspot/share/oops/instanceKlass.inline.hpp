@@ -35,11 +35,11 @@
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
 
-inline ObjArrayKlass* InstanceKlass::array_klasses_acquire() const {
+inline ArrayKlass* InstanceKlass::array_klasses_acquire() const {
   return Atomic::load_acquire(&_array_klasses);
 }
 
-inline void InstanceKlass::release_set_array_klasses(ObjArrayKlass* k) {
+inline void InstanceKlass::release_set_array_klasses(ArrayKlass* k) {
   Atomic::release_store(&_array_klasses, k);
 }
 
