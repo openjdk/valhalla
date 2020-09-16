@@ -60,6 +60,10 @@ public class BadInlineTypes {
         runTest("ValueMethodSynch",
                 "Method getInt in class ValueMethodSynch (an inline class) has illegal modifiers");
 
+        // Test that a class with an old class file version cannot contain a Q signature.
+        runTest("OldClassWithQSig",
+                "Field \"this\" in class OldClassWithQSig has illegal signature \"QOldClassWithQSig;\"");
+
         // Test that ClassCircularityError gets detected for instance fields.
         System.out.println("Testing ClassCircularityError for instance fields");
         try {
