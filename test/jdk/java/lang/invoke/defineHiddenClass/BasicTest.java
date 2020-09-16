@@ -115,8 +115,8 @@ public class BasicTest {
         Class<?>[] intfs = c.getInterfaces();
         assertTrue(c.isHidden());
         assertFalse(c.isPrimitive());
-        assertTrue(intfs.length == 1);
-        assertTrue(intfs[0] == HiddenTest.class);
+        assertTrue(intfs.length == 1 || intfs.length == 2);
+        assertTrue(intfs[0] == HiddenTest.class || (intfs.length == 2 && intfs[1] == HiddenTest.class));
         assertTrue(c.getCanonicalName() == null);
 
         String hcName = "HiddenClass";
@@ -348,8 +348,8 @@ public class BasicTest {
 
         Class<?> c = t.getClass();
         Class<?>[] intfs = c.getInterfaces();
-        assertTrue(intfs.length == 1);
-        assertTrue(intfs[0] == HiddenTest.class);
+        assertTrue(intfs.length == 1 || intfs.length == 2);
+        assertTrue(intfs[0] == HiddenTest.class || (intfs.length == 2 && intfs[1] == HiddenTest.class));
 
         try {
             // this would cause loading of class HiddenCantReflect and NCDFE due
