@@ -13,7 +13,7 @@ domain=openjdk.org
 files=.*\.cpp|.*\.hpp|.*\.c|.*\.h|.*\.java|.*\.cc|.*\.hh|.*\.m|.*\.mm
 
 [checks "merge"]
-message=Merge jdk
+message=.*
 
 [checks "committer"]
 role=committer
