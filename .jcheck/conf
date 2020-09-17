@@ -3,7 +3,7 @@ project=valhalla
 jbs=JDK
 
 [checks]
-error=author,committer,merge,executable,symlink,whitespace,problemlists
+error=author,committer,executable,symlink,whitespace,problemlists
 
 [census]
 version=0
