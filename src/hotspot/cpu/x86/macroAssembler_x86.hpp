@@ -101,7 +101,9 @@ class MacroAssembler: public Assembler {
   static bool needs_explicit_null_check(intptr_t offset);
   static bool uses_implicit_null_check(void* address);
 
-  // valueKlass queries, kills temp_reg
+  void test_markword_is_inline_type(Register markword, Register temp_reg, Label& is_inline_type);
+
+  // inlineKlass queries, kills temp_reg
   void test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type);
   void test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type);
 

@@ -1658,7 +1658,7 @@ Node* AllocateNode::make_ideal_mark(PhaseGVN* phase, Node* control, Node* mem) {
   }
   mark_node = phase->transform(mark_node);
   // Avoid returning a constant (old node) here because this method is used by LoadNode::Ideal
-  return new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_state_pattern : 0));
+  return new OrXNode(mark_node, phase->MakeConX(_larval ? markWord::larval_bit_in_place : 0));
 }
 
 

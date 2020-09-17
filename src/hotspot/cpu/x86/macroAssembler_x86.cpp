@@ -2610,6 +2610,13 @@ void MacroAssembler::null_check(Register reg, int offset) {
   }
 }
 
+void MacroAssembler::test_markword_is_inline_type(Register markword, Register temp_reg, Label& is_inline_type) {
+  movptr(temp_reg, markword);
+  andptr(temp_reg, markWord::inline_type_mask_in_place);
+  cmpptr(temp_reg, markWord::inline_type_pattern);
+  jcc(Assembler::equal, is_inline_type);
+}
+
 void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type) {
   movl(temp_reg, Address(klass, Klass::access_flags_offset()));
   testl(temp_reg, JVM_ACC_INLINE);
@@ -5232,7 +5239,7 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     cmpptr(r14, Address(r15_thread, in_bytes(JavaThread::tlab_end_offset())));
     jcc(Assembler::above, slow_case);
     movptr(Address(r15_thread, in_bytes(JavaThread::tlab_top_offset())), r14);
-    movptr(Address(r13, oopDesc::mark_offset_in_bytes()), (intptr_t)markWord::always_locked_prototype().value());
+    movptr(Address(r13, oopDesc::mark_offset_in_bytes()), (intptr_t)markWord::inline_type_prototype().value());
 
     xorl(rax, rax); // use zero reg to clear memory (shorter code)
     store_klass_gap(r13, rax);  // zero klass gap for compressed oops

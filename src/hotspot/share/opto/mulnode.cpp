@@ -598,7 +598,7 @@ Node* AndLNode::Identity(PhaseGVN* phase) {
       }
     }
 
-    if (con == markWord::always_locked_pattern) {
+    if (con == markWord::inline_type_pattern) {
       assert(EnableValhalla, "should only be used for inline types");
       if (in(1)->is_Load() && phase->type(in(1)->in(MemNode::Address))->is_inlinetypeptr()) {
         return in(2); // Obj is known to be an inline type

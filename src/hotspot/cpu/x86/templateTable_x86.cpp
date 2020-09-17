@@ -2487,7 +2487,7 @@ void TemplateTable::if_acmp(Condition cc) {
   Label taken, not_taken;
   __ pop_ptr(rdx);
 
-  const int is_inline_type_mask = markWord::always_locked_pattern;
+  const int is_inline_type_mask = markWord::inline_type_pattern;
   if (EnableValhalla) {
     __ cmpoop(rdx, rax);
     __ jcc(Assembler::equal, (cc == equal) ? taken : not_taken);
@@ -4676,16 +4676,9 @@ void TemplateTable::monitorenter() {
 
   __ resolve(IS_NOT_NULL, rax);
 
-  const int is_inline_type_mask = markWord::always_locked_pattern;
-  Label has_identity;
+  Label is_inline_type;
   __ movptr(rbx, Address(rax, oopDesc::mark_offset_in_bytes()));
-  __ andptr(rbx, is_inline_type_mask);
-  __ cmpl(rbx, is_inline_type_mask);
-  __ jcc(Assembler::notEqual, has_identity);
-  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
-                     InterpreterRuntime::throw_illegal_monitor_state_exception));
-  __ should_not_reach_here();
-  __ bind(has_identity);
+  __ test_markword_is_inline_type(rbx, rbx, is_inline_type);
 
   const Address monitor_block_top(
         rbp, frame::interpreter_frame_monitor_block_top_offset * wordSize);
@@ -4776,6 +4769,11 @@ void TemplateTable::monitorenter() {
   // The bcp has already been incremented. Just need to dispatch to
   // next instruction.
   __ dispatch_next(vtos);
+
+  __ bind(is_inline_type);
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address,
+                    InterpreterRuntime::throw_illegal_monitor_state_exception));
+  __ should_not_reach_here();
 }
 
 void TemplateTable::monitorexit() {
@@ -4786,7 +4784,7 @@ void TemplateTable::monitorexit() {
 
   __ resolve(IS_NOT_NULL, rax);
 
-  const int is_inline_type_mask = markWord::always_locked_pattern;
+  const int is_inline_type_mask = markWord::inline_type_pattern;
   Label has_identity;
   __ movptr(rbx, Address(rax, oopDesc::mark_offset_in_bytes()));
   __ andptr(rbx, is_inline_type_mask);

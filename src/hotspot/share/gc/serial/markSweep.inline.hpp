@@ -83,6 +83,7 @@ template <class T> inline void MarkSweep::adjust_pointer(T* p) {
 
     assert(new_obj != NULL ||                          // is forwarding ptr?
            obj->mark_raw() == markWord::prototype() || // not gc marked?
+           obj->mark_raw().is_inline_type() ||
            (UseBiasedLocking && obj->mark_raw().has_bias_pattern()),
            // not gc marked?
            "should be forwarded");

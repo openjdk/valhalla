@@ -160,13 +160,13 @@ struct ObjectMonitorListGlobals {
 static ObjectMonitorListGlobals om_list_globals;
 
 #define CHECK_THROW_NOSYNC_IMSE(obj)  \
-  if ((obj)->mark().is_always_locked()) {  \
+  if ((obj)->mark().is_inline_type()) {  \
     ResourceMark rm(THREAD);                \
     THROW_MSG(vmSymbols::java_lang_IllegalMonitorStateException(), obj->klass()->external_name()); \
   }
 
 #define CHECK_THROW_NOSYNC_IMSE_0(obj)  \
-    if ((obj)->mark().is_always_locked()) {  \
+    if ((obj)->mark().is_inline_type()) {  \
     ResourceMark rm(THREAD);                  \
     THROW_MSG_0(vmSymbols::java_lang_IllegalMonitorStateException(), obj->klass()->external_name()); \
   }
@@ -676,7 +676,7 @@ void ObjectSynchronizer::enter(Handle obj, BasicLock* lock, TRAPS) {
 
 void ObjectSynchronizer::exit(oop object, BasicLock* lock, TRAPS) {
   markWord mark = object->mark();
-  if (EnableValhalla && mark.is_always_locked()) {
+  if (EnableValhalla && mark.is_inline_type()) {
     return;
   }
   assert(!EnableValhalla || !object->klass()->is_inline_klass(), "monitor op on inline type");
@@ -1222,7 +1222,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* self, oop obj) {
 
 bool ObjectSynchronizer::current_thread_holds_lock(JavaThread* thread,
                                                    Handle h_obj) {
-  if (EnableValhalla && h_obj->mark().is_always_locked()) {
+  if (EnableValhalla && h_obj->mark().is_inline_type()) {
     return false;
   }
   if (UseBiasedLocking) {

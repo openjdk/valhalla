@@ -3559,7 +3559,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
 Node* GraphKit::is_inline_type(Node* obj) {
   Node* mark_addr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
-  Node* mask = _gvn.MakeConX(markWord::always_locked_pattern);
+  Node* mask = _gvn.MakeConX(markWord::inline_type_pattern);
   Node* andx = _gvn.transform(new AndXNode(mark, mask));
   Node* cmp = _gvn.transform(new CmpXNode(andx, mask));
   return _gvn.transform(new BoolNode(cmp, BoolTest::eq));

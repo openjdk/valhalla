@@ -2047,16 +2047,16 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
   ciKlass* left_klass = op->left_klass();
   ciKlass* right_klass = op->right_klass();
 
-  // (2) Value object check -- if either of the operands is not a value object,
+  // (2) Inline type check -- if either of the operands is not a inline type,
   //     they are not substitutable. We do this only if we are not sure that the
-  //     operands are value objects
+  //     operands are inline type
   if ((left_klass == NULL || right_klass == NULL) ||// The klass is still unloaded, or came from a Phi node.
       !left_klass->is_inlinetype() || !right_klass->is_inlinetype()) {
     Register tmp1  = op->tmp1()->as_register();
-    __ movptr(tmp1, (intptr_t)markWord::always_locked_pattern);
+    __ movptr(tmp1, (intptr_t)markWord::inline_type_pattern);
     __ andl(tmp1, Address(left, oopDesc::mark_offset_in_bytes()));
     __ andl(tmp1, Address(right, oopDesc::mark_offset_in_bytes()));
-    __ cmpptr(tmp1, (intptr_t)markWord::always_locked_pattern);
+    __ cmpptr(tmp1, (intptr_t)markWord::inline_type_pattern);
     __ jcc(Assembler::notEqual, L_oops_not_equal);
   }
 

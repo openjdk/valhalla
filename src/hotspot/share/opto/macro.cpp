@@ -2519,7 +2519,7 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
     // Deoptimize and re-execute if a value
     assert(EnableValhalla, "should only be used if inline types are enabled");
     Node* mark = make_load(slow_path, mem, obj, oopDesc::mark_offset_in_bytes(), TypeX_X, TypeX_X->basic_type());
-    Node* value_mask = _igvn.MakeConX(markWord::always_locked_pattern);
+    Node* value_mask = _igvn.MakeConX(markWord::inline_type_pattern);
     Node* is_value = _igvn.transform(new AndXNode(mark, value_mask));
     Node* cmp = _igvn.transform(new CmpXNode(is_value, value_mask));
     Node* bol = _igvn.transform(new BoolNode(cmp, BoolTest::eq));
@@ -2774,7 +2774,7 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   transform_later(slowpath_false);
   Node* rawmem = new StorePNode(slowpath_false, mem, top_adr, TypeRawPtr::BOTTOM, new_top, MemNode::unordered);
   transform_later(rawmem);
-  Node* mark_node = makecon(TypeRawPtr::make((address)markWord::always_locked_prototype().value()));
+  Node* mark_node = makecon(TypeRawPtr::make((address)markWord::inline_type_prototype().value()));
   rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::mark_offset_in_bytes(), mark_node, T_ADDRESS);
   rawmem = make_store(slowpath_false, rawmem, old_top, oopDesc::klass_offset_in_bytes(), klass_node, T_METADATA);
   if (UseCompressedClassPointers) {

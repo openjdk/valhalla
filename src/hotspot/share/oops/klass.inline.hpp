@@ -30,7 +30,7 @@
 #include "oops/markWord.hpp"
 
 inline void Klass::set_prototype_header(markWord header) {
-  assert(!is_inline_klass() || header.is_always_locked(), "Unexpected prototype");
+  assert(!is_inline_klass() || header.is_inline_type(), "Unexpected prototype");
   assert(!header.has_bias_pattern() || is_instance_klass(), "biased locking currently only supported for Java instances");
   _prototype_header = header;
 }
