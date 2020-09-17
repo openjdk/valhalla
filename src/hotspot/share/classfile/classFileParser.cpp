@@ -5299,7 +5299,7 @@ void ClassFileParser::verify_legal_field_signature(const Symbol* name,
                                                    const Symbol* signature,
                                                    TRAPS) const {
   if (!_need_verify) { return; }
-  if (!supports_inline_types() && signature->is_Q_signature()) {
+  if (!supports_inline_types() && (signature->is_Q_signature() || signature->is_Q_array_signature())) {
     throwIllegalSignature("Field", name, signature, CHECK);
   }
 

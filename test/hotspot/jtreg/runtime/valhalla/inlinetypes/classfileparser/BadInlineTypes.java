@@ -64,6 +64,10 @@ public class BadInlineTypes {
         runTest("OldClassWithQSig",
                 "Field \"this\" in class OldClassWithQSig has illegal signature \"QOldClassWithQSig;\"");
 
+        // Test that a class with an old class file version cannot contain an array Q signature.
+        runTest("OldClassWithQArraySig",
+                "Field \"ia\" in class OldClassWithQArraySig has illegal signature \"[Qjava/lang/Integer;\"");
+
         // Test that ClassCircularityError gets detected for instance fields.
         System.out.println("Testing ClassCircularityError for instance fields");
         try {
