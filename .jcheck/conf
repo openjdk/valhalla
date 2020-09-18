@@ -3,7 +3,7 @@ project=valhalla
 jbs=JDK
 
 [checks]
-error=author,committer,executable,symlink,whitespace,problemlists
+error=author,committer,executable,symlink,whitespace
 
 [census]
 version=0
@@ -12,14 +12,5 @@ domain=openjdk.org
 [checks "whitespace"]
 files=.*\.cpp|.*\.hpp|.*\.c|.*\.h|.*\.java|.*\.cc|.*\.hh|.*\.m|.*\.mm
 
-[checks "merge"]
-message=.*
-
 [checks "committer"]
 role=committer
-
-[checks "issues"]
-pattern=^([124-8][0-9]{6}): (\S.*)$
-
-[checks "problemlists"]
-dirs=test/jdk|test/langtools|test/lib-test|test/hotspot/jtreg|test/jaxp

@@ -4725,6 +4725,7 @@ void ClassFileParser::verify_legal_class_modifiers(jint flags, TRAPS) const {
       "Class modifier ACC_INLINE in class %s requires option -XX:+EnableValhalla",
       _class_name->as_C_string()
     );
+    return;
   }
 
   if (!_need_verify) { return; }
@@ -4896,7 +4897,6 @@ void ClassFileParser::verify_legal_method_modifiers(jint flags,
   bool is_illegal = false;
 
   const char* class_note = "";
-
   if (is_interface) {
     if (major_gte_8) {
       // Class file version is JAVA_8_VERSION or later Methods of
@@ -5299,6 +5299,9 @@ void ClassFileParser::verify_legal_field_signature(const Symbol* name,
                                                    const Symbol* signature,
                                                    TRAPS) const {
   if (!_need_verify) { return; }
+  if (!supports_inline_types() && (signature->is_Q_signature() || signature->is_Q_array_signature())) {
+    throwIllegalSignature("Field", name, signature, CHECK);
+  }
 
   const char* const bytes = (const char* const)signature->bytes();
   const unsigned int length = signature->utf8_length();
@@ -6593,7 +6596,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
           Handle(THREAD, _loader_data->class_loader()),
           _protection_domain, true, CHECK);
       assert(klass != NULL, "Sanity check");
-      assert(klass->access_flags().is_inline_type(), "Value type expected");
+      assert(klass->access_flags().is_inline_type(), "Inline type expected");
     }
   }
 
