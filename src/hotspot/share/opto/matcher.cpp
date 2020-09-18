@@ -1367,10 +1367,6 @@ MachNode *Matcher::match_sfpt( SafePointNode *sfpt ) {
         rm->Insert( reg2 );
       }
     } // End of for all arguments
-
-    // Compute number of stack slots needed to restore stack in case of
-    // Pascal-style argument popping.
-    mcall->_argsize = out_arg_limit_per_call - begin_out_arg_area;
   }
 
   // Compute the max stack slot killed by any call.  These will not be
@@ -1407,9 +1403,6 @@ MachNode *Matcher::match_sfpt( SafePointNode *sfpt ) {
   // Debug inputs begin just after the last incoming parameter
   assert((mcall == NULL) || (mcall->jvms() == NULL) ||
          (mcall->jvms()->debug_start() + mcall->_jvmadj == mcall->tf()->domain_cc()->cnt()), "");
-
-  // Move the OopMap
-  msfpt->_oop_map = sfpt->_oop_map;
 
   // Add additional edges.
   if (msfpt->mach_constant_base_node_input() != (uint)-1 && !msfpt->is_MachCallLeaf()) {

@@ -14,4 +14,3 @@ files=.*\.cpp|.*\.hpp|.*\.c|.*\.h|.*\.java|.*\.cc|.*\.hh|.*\.m|.*\.mm
 
 [checks "committer"]
 role=committer
-

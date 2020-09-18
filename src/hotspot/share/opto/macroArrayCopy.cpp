@@ -781,9 +781,7 @@ Node* PhaseMacroExpand::generate_arraycopy(ArrayCopyNode *ac, AllocateArrayNode*
     // a subsequent store that would make this object accessible by
     // other threads.
     insert_mem_bar(ctrl, &out_mem, Op_MemBarStoreStore);
-  } else if (InsertMemBarAfterArraycopy) {
-    insert_mem_bar(ctrl, &out_mem, Op_MemBarCPUOrder);
-  } else if (adr_type == TypeRawPtr::BOTTOM) {
+  } else {
     // Do not let reads from the destination float above the arraycopy.
     // Since we cannot type the arrays, we don't know which slices
     // might be affected.  We could restrict this barrier only to those
