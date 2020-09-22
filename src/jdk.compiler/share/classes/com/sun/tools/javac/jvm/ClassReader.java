@@ -321,7 +321,9 @@ public class ClassReader {
                     refVar.projection = valVar;
                     clone = refVar;
                 }
-                refProjection.members_field.enter(clone);
+                if (clone != null) {
+                    refProjection.members_field.enter(clone);
+                }
             }
         }
     }
