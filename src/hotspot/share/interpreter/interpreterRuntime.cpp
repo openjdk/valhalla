@@ -528,18 +528,19 @@ JRT_ENTRY(void, InterpreterRuntime::check_restricted_type(JavaThread* thread))
   fieldDescriptor fd;
   bool is_static = last_frame.bytecode().code() == Bytecodes::_putstatic;
   holder->find_field_from_offset(offset, is_static, &fd);
-  if (!is_java_primitive(fd.field_type())) {
-    // Note: can be optimized using the fact that the restricted type is always an inline type
-    Klass* fieldKlass = SystemDictionary::resolve_or_fail(fd.signature(), Handle(THREAD, holder->class_loader()),
-                                                          Handle(THREAD, holder->protection_domain()), true, CHECK);
-    assert(fieldKlass != NULL, "Sanity check");
-    //intptr_t* ptr = last_frame.get_frame().interpreter_frame_tos_at(0);
-    oop value = cast_to_oop(*last_frame.get_frame().interpreter_frame_tos_at(0));
-    if (value != NULL) {
-      Klass* valueKlass = value->klass();
-      assert(valueKlass->is_subtype_of(fieldKlass), "Just checking");
-    }
+  Klass* field_klass = holder->get_inline_type_field_klass_or_null(fd.index());
+  if (field_klass == NULL) {
+    field_klass = SystemDictionary::resolve_or_fail(holder->field_signature(fd.index())->fundamental_name(THREAD),
+        Handle(THREAD, holder->class_loader()),
+        Handle(THREAD, holder->protection_domain()),
+        true, CHECK);
+    holder->set_inline_type_field_klass(fd.index(), field_klass);
   }
+  assert(field_klass != NULL, "Must have been set");
+  oop value = cast_to_oop(*last_frame.get_frame().interpreter_frame_tos_at(0));
+  assert(value != NULL, "Inline types cannot be NULL");
+  Klass* value_klass = value->klass();
+  assert(value_klass->is_subtype_of(field_klass), "Just checking");
 JRT_END
 
 // Quicken instance-of and check-cast bytecodes

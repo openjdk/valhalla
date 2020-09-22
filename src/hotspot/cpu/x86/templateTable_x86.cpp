@@ -3368,18 +3368,17 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
 
   Label notRestricted;
   __ movl(rdx, flags);
-  __ shrl(rdx, ConstantPoolCacheEntry::has_restricted_type);
+  // __ shrl(rdx, ConstantPoolCacheEntry::has_restricted_type_shift);
+  __ shrl(rdx, ConstantPoolCacheEntry::is_inline_type_shift);         // For testing purposes, apply to all inline fields
   __ andl(rdx, 0x1);
   __ testl(rdx, rdx);
   __ jcc(Assembler::zero, notRestricted);
-
-  __ bind(notRestricted); // Added for testing
 
   __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::check_restricted_type));
   __ get_cache_and_index_at_bcp(cache, index, 1);
   load_field_cp_cache_entry(obj, cache, index, off, flags, is_static);
 
-  // __ bind(notRestricted);  // Commented for testing
+  __ bind(notRestricted);
 
   Label notVolatile, Done;
   __ movl(rdx, flags);

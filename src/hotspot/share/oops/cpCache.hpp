@@ -185,7 +185,7 @@ class ConstantPoolCacheEntry {
     // misc. option bits; can be any bit position in [16..27]
     is_field_entry_shift       = 26,  // (F) is it a field or a method?
     has_local_signature_shift  = 25,  // (S) does the call site have a per-site signature (sig-poly methods)?
-    has_restricted_type        = 25,  // (R) does the field have a restricted type?
+    has_restricted_type_shift  = 25,  // (R) does the field have a restricted type?
     has_appendix_shift         = 24,  // (A) does the call site have an appendix argument?
     is_inline_type_shift       = 24,  // (I) is the type of the field an inline type (must never be null)
     is_forced_virtual_shift    = 23,  // (I) is the interface reference forced to virtual mode?
