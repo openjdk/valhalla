@@ -71,6 +71,7 @@ class InterpreterRuntime: AllStatic {
   static void value_array_store(JavaThread* thread, void* val, arrayOopDesc* array, int index);
 
   static jboolean is_substitutable(JavaThread* thread, oopDesc* aobj, oopDesc* bobj);
+  static void check_restricted_type(JavaThread* thread);
 
   // Quicken instance-of and check-cast bytecodes
   static void    quicken_io_cc(JavaThread* thread);

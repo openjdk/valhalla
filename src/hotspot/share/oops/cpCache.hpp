@@ -51,7 +51,7 @@ class PSPromotionManager;
 // _indices   [ b2 | b1 |  index  ]  index = constant_pool_index
 // _f1        [  entry specific   ]  metadata ptr (method or klass)
 // _f2        [  entry specific   ]  vtable or res_ref index, or vfinal method ptr
-// _flags     [tos|0|F=1|0|I|i|f|v|0 |0000|field_index] (for field entries)
+// _flags     [tos|0|F=1|R|I|i|f|v|0 |0000|field_index] (for field entries)
 // bit length [ 4 |1| 1 |1|1|1|1|1|1 |1     |-3-|----16-----]
 // _flags     [tos|0|F=0|S|A|I|f|0|vf|indy_rf|000|00000|psize] (for method entries)
 // bit length [ 4 |1| 1 |1|1|1|1|1|1 |-4--|--8--|--8--]
@@ -185,6 +185,7 @@ class ConstantPoolCacheEntry {
     // misc. option bits; can be any bit position in [16..27]
     is_field_entry_shift       = 26,  // (F) is it a field or a method?
     has_local_signature_shift  = 25,  // (S) does the call site have a per-site signature (sig-poly methods)?
+    has_restricted_type        = 25,  // (R) does the field have a restricted type?
     has_appendix_shift         = 24,  // (A) does the call site have an appendix argument?
     is_inline_type_shift       = 24,  // (I) is the type of the field an inline type (must never be null)
     is_forced_virtual_shift    = 23,  // (I) is the interface reference forced to virtual mode?
