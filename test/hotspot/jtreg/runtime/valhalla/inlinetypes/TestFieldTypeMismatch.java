@@ -45,6 +45,8 @@ public class TestFieldTypeMismatch {
           TestFieldTypeMismatchHelper t = new TestFieldTypeMismatchHelper();
         } catch(IncompatibleClassChangeError err) {
             exception = true;
+            Asserts.assertEquals(err.getMessage(),
+                "Class compiler/valhalla/inlinetypes/TestFieldTypeMismatchHelper expects class compiler.valhalla.inlinetypes.MyValue to be an inline type, but it is not");
         }
         Asserts.assertTrue(exception);
     }
