@@ -6600,7 +6600,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         assert(klass->is_instance_klass(), "Sanity check");
         ResourceMark rm(THREAD);
           THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                    err_msg("Class %s expect class %s to be an inline type, but it is not",
+                    err_msg("Class %s expects class %s to be an inline type, but it is not",
                     _class_name->as_C_string(),
                     InstanceKlass::cast(klass)->external_name()));
       }
