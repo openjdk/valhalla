@@ -131,7 +131,6 @@ void oopDesc::release_set_klass(HeapWord* mem, Klass* k) {
   } else {
     Atomic::release_store((Klass**)raw_mem, k);
   }
-  assert(((oopDesc*)mem)->klass() == klass, "failed oopDesc::klass() encode/decode");
 }
 
 int oopDesc::klass_gap() const {
