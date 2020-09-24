@@ -498,7 +498,8 @@ oop G1ParScanThreadState::do_copy_to_survivor_space(G1HeapRegionAttr const regio
 
     // Most objects are not arrays, so do one array check rather than
     // checking for each array category for each object.
-    if (klass->is_array_klass()) {
+    // CMH: Valhalla flat arrays can split this work up, but for now, doesn't
+    if (klass->is_array_klass() && !klass->is_flatArray_klass()) {
       if (klass->is_objArray_klass()) {
         start_partial_objarray(dest_attr, old, obj);
       } else {
