@@ -3334,8 +3334,6 @@ public class TestLWorld extends InlineTypeTest {
         Asserts.assertTrue(res);
     }
 
-    // TODO Disabled until JDK-8253416 is fixed
-    /*
     // Verify that empty inline type field loads check for null holder
     @Test()
     public MyValueEmpty test122(TestLWorld t) {
@@ -3371,5 +3369,4 @@ public class TestLWorld extends InlineTypeTest {
             // Expected
         }
     }
-    */
 }

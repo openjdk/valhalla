@@ -1288,11 +1288,12 @@ void LIRGenerator::do_NewInstance(NewInstance* x) {
   CodeEmitInfo* info = state_for(x, x->state());
   LIR_Opr reg = result_register_for(x->type());
   new_instance(reg, x->klass(), x->is_unresolved(),
-                       FrameMap::rcx_oop_opr,
-                       FrameMap::rdi_oop_opr,
-                       FrameMap::rsi_oop_opr,
-                       LIR_OprFact::illegalOpr,
-                       FrameMap::rdx_metadata_opr, info);
+               /* allow_inline */ false,
+               FrameMap::rcx_oop_opr,
+               FrameMap::rdi_oop_opr,
+               FrameMap::rsi_oop_opr,
+               LIR_OprFact::illegalOpr,
+               FrameMap::rdx_metadata_opr, info);
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);
 }
@@ -1302,15 +1303,15 @@ void LIRGenerator::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {
   CodeEmitInfo* info = state_for(x, x->state_before());
   x->set_to_object_type();
   LIR_Opr reg = result_register_for(x->type());
-  new_instance(reg, x->klass(), x->is_unresolved(),
-             FrameMap::rcx_oop_opr,
-             FrameMap::rdi_oop_opr,
-             FrameMap::rsi_oop_opr,
-             LIR_OprFact::illegalOpr,
-             FrameMap::rdx_metadata_opr, info);
+  new_instance(reg, x->klass(), false,
+               /* allow_inline */ true,
+               FrameMap::rcx_oop_opr,
+               FrameMap::rdi_oop_opr,
+               FrameMap::rsi_oop_opr,
+               LIR_OprFact::illegalOpr,
+               FrameMap::rdx_metadata_opr, info);
   LIR_Opr result = rlock_result(x);
   __ move(reg, result);
-
 }
 
 void LIRGenerator::do_NewTypeArray(NewTypeArray* x) {

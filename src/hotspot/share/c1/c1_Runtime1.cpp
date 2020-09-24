@@ -360,10 +360,7 @@ const char* Runtime1::name_for_address(address entry) {
   return pd_name_for_address(entry);
 }
 
-
-JRT_ENTRY(void, Runtime1::new_instance(JavaThread* thread, Klass* klass))
-  NOT_PRODUCT(_new_instance_slowcase_cnt++;)
-
+static void allocate_instance(JavaThread* thread, Klass* klass, TRAPS) {
   assert(klass->is_klass(), "not a class");
   Handle holder(THREAD, klass->klass_holder()); // keep the klass alive
   InstanceKlass* h = InstanceKlass::cast(klass);
@@ -373,8 +370,22 @@ JRT_ENTRY(void, Runtime1::new_instance(JavaThread* thread, Klass* klass))
   // allocate instance and return via TLS
   oop obj = h->allocate_instance(CHECK);
   thread->set_vm_result(obj);
+}
+
+JRT_ENTRY(void, Runtime1::new_instance(JavaThread* thread, Klass* klass))
+  NOT_PRODUCT(_new_instance_slowcase_cnt++;)
+  allocate_instance(thread, klass, CHECK);
 JRT_END
 
+// Same as new_instance but throws error for inline klasses
+JRT_ENTRY(void, Runtime1::new_instance_no_inline(JavaThread* thread, Klass* klass))
+  NOT_PRODUCT(_new_instance_slowcase_cnt++;)
+  if (klass->is_inline_klass()) {
+    SharedRuntime::throw_and_post_jvmti_exception(thread, vmSymbols::java_lang_InstantiationError());
+  } else {
+    allocate_instance(thread, klass, CHECK);
+  }
+JRT_END
 
 JRT_ENTRY(void, Runtime1::new_type_array(JavaThread* thread, Klass* klass, jint length))
   NOT_PRODUCT(_new_type_array_slowcase_cnt++;)
@@ -1015,6 +1026,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
     constantPoolHandle constants(THREAD, caller_method->constants());
     LinkResolver::resolve_field_access(result, constants, field_access.index(), caller_method, Bytecodes::java_code(code), CHECK);
     patch_field_offset = result.offset();
+    assert(!result.is_inlined(), "Can not patch access to flattened field");
 
     // If we're patching a field which is volatile then at compile it
     // must not have been know to be volatile, so the generated code
@@ -1584,7 +1596,7 @@ void Runtime1::print_statistics() {
 
   tty->print_cr(" _new_type_array_slowcase_cnt:    %d", _new_type_array_slowcase_cnt);
   tty->print_cr(" _new_object_array_slowcase_cnt:  %d", _new_object_array_slowcase_cnt);
-  tty->print_cr(" _new_flat_array_slowcase_cnt:   %d", _new_flat_array_slowcase_cnt);
+  tty->print_cr(" _new_flat_array_slowcase_cnt:    %d", _new_flat_array_slowcase_cnt);
   tty->print_cr(" _new_instance_slowcase_cnt:      %d", _new_instance_slowcase_cnt);
   tty->print_cr(" _new_multi_array_slowcase_cnt:   %d", _new_multi_array_slowcase_cnt);
   tty->print_cr(" _load_flattened_array_slowcase_cnt:   %d", _load_flattened_array_slowcase_cnt);
