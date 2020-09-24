@@ -518,7 +518,7 @@ public final class Float extends Number
      * {@link #valueOf(float)} is generally a better choice, as it is
      * likely to yield significantly better space and time performance.
      */
-    @Deprecated(since="9")
+    @Deprecated(since="9", forRemoval = true)
     public Float(float value) {
         this.value = value;
     }
@@ -534,7 +534,7 @@ public final class Float extends Number
      * static factory method {@link #valueOf(float)} method as follows:
      * {@code Float.valueOf((float)value)}.
      */
-    @Deprecated(since="9")
+    @Deprecated(since="9", forRemoval = true)
     public Float(double value) {
         this.value = (float)value;
     }
@@ -555,7 +555,7 @@ public final class Float extends Number
      * {@code float} primitive, or use {@link #valueOf(String)}
      * to convert a string to a {@code Float} object.
      */
-    @Deprecated(since="9")
+    @Deprecated(since="9", forRemoval = true)
     public Float(String s) throws NumberFormatException {
         value = parseFloat(s);
     }
