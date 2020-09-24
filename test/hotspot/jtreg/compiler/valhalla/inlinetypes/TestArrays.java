@@ -340,6 +340,7 @@ public class TestArrays extends InlineTypeTest {
         }
     }
 
+    @DontCompile
     public void test12_verifier(boolean warmup) {
         Asserts.assertEQ(test12(), rI);
     }
@@ -361,6 +362,7 @@ public class TestArrays extends InlineTypeTest {
         }
     }
 
+    @DontCompile
     public void test13_verifier(boolean warmup) {
         Asserts.assertEQ(test13(), rI);
     }
@@ -371,6 +373,7 @@ public class TestArrays extends InlineTypeTest {
         return va[index].x;
     }
 
+    @DontCompile
     public void test14_verifier(boolean warmup) {
         int arraySize = Math.abs(rI) % 10;
         MyValue1[] va = new MyValue1[arraySize];
@@ -406,6 +409,7 @@ public class TestArrays extends InlineTypeTest {
         }
     }
 
+    @DontCompile
     public void test15_verifier(boolean warmup) {
         Asserts.assertEQ(test15(), rI);
     }
@@ -426,6 +430,7 @@ public class TestArrays extends InlineTypeTest {
         }
     }
 
+    @DontCompile
     public void test16_verifier(boolean warmup) {
         Asserts.assertEQ(test16(), rI);
     }
