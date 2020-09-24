@@ -178,8 +178,8 @@
   LOG_TAG(tracking) \
   LOG_TAG(unload) /* Trace unloading of classes */ \
   LOG_TAG(unshareable) \
-  LOG_TAG(valuetypes) \
   LOG_TAG(update) \
+  LOG_TAG(valuetypes) \
   LOG_TAG(verification) \
   LOG_TAG(verify) \
   LOG_TAG(vmmutex) \
