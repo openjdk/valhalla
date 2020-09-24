@@ -67,6 +67,7 @@ public class TestIntrinsics extends InlineTypeTest {
         return supercls.isAssignableFrom(subcls);
     }
 
+    @DontCompile
     public void test1_verifier(boolean warmup) {
         Asserts.assertTrue(test1(java.util.AbstractList.class, java.util.ArrayList.class), "test1_1 failed");
         Asserts.assertTrue(test1(MyValue1.ref.class, MyValue1.ref.class), "test1_2 failed");
@@ -96,6 +97,7 @@ public class TestIntrinsics extends InlineTypeTest {
         return check1 && check2 && check3 && check4 && check5 && check6 && check7 && check8 && check9 && check10;
     }
 
+    @DontCompile
     public void test2_verifier(boolean warmup) {
         Asserts.assertTrue(test2(), "test2 failed");
     }
@@ -106,6 +108,7 @@ public class TestIntrinsics extends InlineTypeTest {
         return cls.getSuperclass();
     }
 
+    @DontCompile
     public void test3_verifier(boolean warmup) {
         Asserts.assertTrue(test3(Object.class) == null, "test3_1 failed");
         Asserts.assertTrue(test3(MyValue1.ref.class) == MyAbstract.class, "test3_2 failed");
@@ -125,6 +128,7 @@ public class TestIntrinsics extends InlineTypeTest {
         return check1 && check2 && check3 && check4;
     }
 
+    @DontCompile
     public void test4_verifier(boolean warmup) {
         Asserts.assertTrue(test4(), "test4 failed");
     }

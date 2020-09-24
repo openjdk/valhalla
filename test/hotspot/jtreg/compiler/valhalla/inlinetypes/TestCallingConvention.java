@@ -901,4 +901,17 @@ public class TestCallingConvention extends InlineTypeTest {
         LargeValueWithoutOops res = test40(vt);
         Asserts.assertEQ(res, vt);
     }
+
+    // Test passing/returning an empty inline type together with non-empty
+    // inline types such that only some inline type arguments are scalarized.
+    @Test(failOn = ALLOC + LOAD + STORE + TRAP)
+    public MyValueEmpty test41(MyValue1 vt1, MyValueEmpty vt2, MyValue1 vt3) {
+        return vt2.copy(vt2);
+    }
+
+    @DontCompile
+    public void test41_verifier(boolean warmup) {
+        MyValueEmpty res = test41(MyValue1.default, MyValueEmpty.default, MyValue1.default);
+        Asserts.assertEQ(res, MyValueEmpty.default);
+    }
 }

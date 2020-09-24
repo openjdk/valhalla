@@ -281,6 +281,7 @@ void Parse::do_new() {
   bool will_link;
   ciInstanceKlass* klass = iter().get_klass(will_link)->as_instance_klass();
   assert(will_link, "_new: typeflow responsibility");
+  assert(!klass->is_inlinetype(), "unexpected inline type");
 
   // Should throw an InstantiationError?
   if (klass->is_abstract() || klass->is_interface() ||

@@ -3305,4 +3305,71 @@ public class TestLWorld extends InlineTypeTest {
     public void test119_verifier(boolean warmup) {
         test119(!warmup);
     }
+
+    // Test removal of empty inline type field stores
+    @Test(failOn = ALLOC + ALLOC_G + LOAD + STORE + FIELD_ACCESS + NULL_CHECK_TRAP + TRAP)
+    public void test120(MyValueEmpty empty) {
+        fEmpty1 = empty;
+        fEmpty3 = empty;
+        // fEmpty2 and fEmpty4 could be null, store can't be removed
+    }
+
+    @DontCompile
+    public void test120_verifier(boolean warmup) {
+        test120(MyValueEmpty.default);
+        Asserts.assertEquals(fEmpty1, MyValueEmpty.default);
+        Asserts.assertEquals(fEmpty2, MyValueEmpty.default);
+    }
+
+    // Test removal of empty inline type field loads
+    @Test(failOn = ALLOC + ALLOC_G + LOAD + STORE + FIELD_ACCESS + NULL_CHECK_TRAP + TRAP)
+    public boolean test121() {
+        return fEmpty1.equals(fEmpty3);
+        // fEmpty2 and fEmpty4 could be null, load can't be removed
+    }
+
+    @DontCompile
+    public void test121_verifier(boolean warmup) {
+        boolean res = test121();
+        Asserts.assertTrue(res);
+    }
+
+    // TODO Disabled until JDK-8253416 is fixed
+    /*
+    // Verify that empty inline type field loads check for null holder
+    @Test()
+    public MyValueEmpty test122(TestLWorld t) {
+        return t.fEmpty3;
+    }
+
+    @DontCompile
+    public void test122_verifier(boolean warmup) {
+        MyValueEmpty res = test122(this);
+        Asserts.assertEquals(res, MyValueEmpty.default);
+        try {
+            test122(null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    // Verify that empty inline type field stores check for null holder
+    @Test()
+    public void test123(TestLWorld t) {
+        t.fEmpty3 = MyValueEmpty.default;
+    }
+
+    @DontCompile
+    public void test123_verifier(boolean warmup) {
+        test123(this);
+        Asserts.assertEquals(fEmpty3, MyValueEmpty.default);
+        try {
+            test123(null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+    */
 }
