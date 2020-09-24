@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -291,6 +291,7 @@
 0260: 2E 31 36 2E 38 34 30 2E   31 2E 31 31 33 37 33 30  .16.840.1.113730
 0270: 2E 33 2E 34 2E 32                                  .3.4.2
 
+# LDAP AddResponse:
 #
 #   0  12: SEQUENCE {
 #   2   1:   INTEGER 3
