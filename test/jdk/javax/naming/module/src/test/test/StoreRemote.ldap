@@ -1,5 +1,5 @@
 #
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 # DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
 #
 # This code is free software; you can redistribute it and/or modify it
@@ -136,10 +136,10 @@
 #         :     }
 #         :   }
 #
-0000: 30 82 03 17 02 01 02 68   82 02 F3 04 22 63 6E 3D  0......h...."cn=
+0000: 30 82 03 31 02 01 02 68   82 03 0D 04 22 63 6E 3D  0..1...h...."cn=
 0010: 6D 79 72 65 6D 6F 74 65   2C 64 63 3D 69 65 2C 64  myremote,dc=ie,d
 0020: 63 3D 6F 72 61 63 6C 65   2C 64 63 3D 63 6F 6D 30  c=oracle,dc=com0
-0030: 82 02 CB 30 82 01 58 04   12 6A 61 76 61 53 65 72  ...0..X..javaSer
+0030: 82 02 E5 30 82 01 58 04   12 6A 61 76 61 53 65 72  ...0..X..javaSer
 0040: 69 61 6C 69 7A 65 64 44   61 74 61 31 82 01 40 04  ializedData1..@.
 0050: 82 01 3C AC ED 00 05 73   72 00 1B 6F 72 67 2E 65  ..<....sr..org.e
 0060: 78 61 6D 70 6C 65 2E 68   65 6C 6C 6F 2E 48 65 6C  xample.hello.Hel
@@ -165,8 +165,8 @@
 01A0: 04 03 74 6F 70 04 0D 6A   61 76 61 43 6F 6E 74 61  ..top..javaConta
 01B0: 69 6E 65 72 04 0A 6A 61   76 61 4F 62 6A 65 63 74  iner..javaObject
 01C0: 04 14 6A 61 76 61 53 65   72 69 61 6C 69 7A 65 64  ..javaSerialized
-01D0: 4F 62 6A 65 63 74 30 81   E3 04 0E 6A 61 76 61 43  Object0....javaC
-01E0: 6C 61 73 73 4E 61 6D 65   73 31 81 D0 04 1B 6F 72  lassNames1....or
+01D0: 4F 62 6A 65 63 74 30 81   FD 04 0E 6A 61 76 61 43  Object0....javaC
+01E0: 6C 61 73 73 4E 61 6D 65   73 31 81 EA 04 1B 6F 72  lassNames1....or
 01F0: 67 2E 65 78 61 6D 70 6C   65 2E 68 65 6C 6C 6F 2E  g.example.hello.
 0200: 48 65 6C 6C 6F 49 6D 70   6C 04 23 6A 61 76 61 2E  HelloImpl.#java.
 0210: 72 6D 69 2E 73 65 72 76   65 72 2E 55 6E 69 63 61  rmi.server.Unica
@@ -178,14 +178,16 @@
 0270: 2E 6C 61 6E 67 2E 4F 62   6A 65 63 74 04 0F 6A 61  .lang.Object..ja
 0280: 76 61 2E 72 6D 69 2E 52   65 6D 6F 74 65 04 14 6A  va.rmi.Remote..j
 0290: 61 76 61 2E 69 6F 2E 53   65 72 69 61 6C 69 7A 61  ava.io.Serializa
-02A0: 62 6C 65 04 17 6F 72 67   2E 65 78 61 6D 70 6C 65  ble..org.example
-02B0: 2E 68 65 6C 6C 6F 2E 48   65 6C 6C 6F 30 2E 04 0D  .hello.Hello0...
-02C0: 6A 61 76 61 43 6C 61 73   73 4E 61 6D 65 31 1D 04  javaClassName1..
-02D0: 1B 6F 72 67 2E 65 78 61   6D 70 6C 65 2E 68 65 6C  .org.example.hel
-02E0: 6C 6F 2E 48 65 6C 6C 6F   49 6D 70 6C 30 10 04 02  lo.HelloImpl0...
-02F0: 63 6E 31 0A 04 08 6D 79   72 65 6D 6F 74 65 A0 1B  cn1...myremote..
-0300: 30 19 04 17 32 2E 31 36   2E 38 34 30 2E 31 2E 31  0...2.16.840.1.1
-0310: 31 33 37 33 30 2E 33 2E   34 2E 32                 13730.3.4.2
+02A0: 62 6C 65 04 18 6A 61 76   61 2E 6C 61 6E 67 2E 49  ble..java.lang.I
+02B0: 64 65 6E 74 69 74 79 4F   62 6A 65 63 74 04 17 6F  dentityObject..o
+02C0: 72 67 2E 65 78 61 6D 70   6C 65 2E 68 65 6C 6C 6F  rg.example.hello
+02D0: 2E 48 65 6C 6C 6F 30 2E   04 0D 6A 61 76 61 43 6C  .Hello0...javaCl
+02E0: 61 73 73 4E 61 6D 65 31   1D 04 1B 6F 72 67 2E 65  assName1...org.e
+02F0: 78 61 6D 70 6C 65 2E 68   65 6C 6C 6F 2E 48 65 6C  xample.hello.Hel
+0300: 6C 6F 49 6D 70 6C 30 10   04 02 63 6E 31 0A 04 08  loImpl0...cn1...
+0310: 6D 79 72 65 6D 6F 74 65   A0 1B 30 19 04 17 32 2E  myremote..0...2.
+0320: 31 36 2E 38 34 30 2E 31   2E 31 31 33 37 33 30 2E  16.840.1.113730.
+0330: 33 2E 34 2E 32                                     3.4.2
 
 # LDAP AddResponse:
 #
@@ -301,10 +303,10 @@
 #         :     }
 #         :   }
 #
-0000: 30 82 02 FA 02 01 03 64   82 02 F3 04 22 63 6E 3D  0......d...."cn=
+0000: 30 82 03 14 02 01 03 64   82 03 0D 04 22 63 6E 3D  0......d...."cn=
 0010: 6D 79 72 65 6D 6F 74 65   2C 64 63 3D 69 65 2C 64  myremote,dc=ie,d
 0020: 63 3D 6F 72 61 63 6C 65   2C 64 63 3D 63 6F 6D 30  c=oracle,dc=com0
-0030: 82 02 CB 30 82 01 58 04   12 6A 61 76 61 53 65 72  ...0..X..javaSer
+0030: 82 02 E5 30 82 01 58 04   12 6A 61 76 61 53 65 72  ...0..X..javaSer
 0040: 69 61 6C 69 7A 65 64 44   61 74 61 31 82 01 40 04  ializedData1..@.
 0050: 82 01 3C AC ED 00 05 73   72 00 1B 6F 72 67 2E 65  ..<....sr..org.e
 0060: 78 61 6D 70 6C 65 2E 68   65 6C 6C 6F 2E 48 65 6C  xample.hello.Hel
@@ -330,8 +332,8 @@
 01A0: 04 03 74 6F 70 04 0D 6A   61 76 61 43 6F 6E 74 61  ..top..javaConta
 01B0: 69 6E 65 72 04 0A 6A 61   76 61 4F 62 6A 65 63 74  iner..javaObject
 01C0: 04 14 6A 61 76 61 53 65   72 69 61 6C 69 7A 65 64  ..javaSerialized
-01D0: 4F 62 6A 65 63 74 30 81   E3 04 0E 6A 61 76 61 43  Object0....javaC
-01E0: 6C 61 73 73 4E 61 6D 65   73 31 81 D0 04 1B 6F 72  lassNames1....or
+01D0: 4F 62 6A 65 63 74 30 81   FD 04 0E 6A 61 76 61 43  Object0....javaC
+01E0: 6C 61 73 73 4E 61 6D 65   73 31 81 EA 04 1B 6F 72  lassNames1....or
 01F0: 67 2E 65 78 61 6D 70 6C   65 2E 68 65 6C 6C 6F 2E  g.example.hello.
 0200: 48 65 6C 6C 6F 49 6D 70   6C 04 23 6A 61 76 61 2E  HelloImpl.#java.
 0210: 72 6D 69 2E 73 65 72 76   65 72 2E 55 6E 69 63 61  rmi.server.Unica
@@ -343,12 +345,14 @@
 0270: 2E 6C 61 6E 67 2E 4F 62   6A 65 63 74 04 0F 6A 61  .lang.Object..ja
 0280: 76 61 2E 72 6D 69 2E 52   65 6D 6F 74 65 04 14 6A  va.rmi.Remote..j
 0290: 61 76 61 2E 69 6F 2E 53   65 72 69 61 6C 69 7A 61  ava.io.Serializa
-02A0: 62 6C 65 04 17 6F 72 67   2E 65 78 61 6D 70 6C 65  ble..org.example
-02B0: 2E 68 65 6C 6C 6F 2E 48   65 6C 6C 6F 30 2E 04 0D  .hello.Hello0...
-02C0: 6A 61 76 61 43 6C 61 73   73 4E 61 6D 65 31 1D 04  javaClassName1..
-02D0: 1B 6F 72 67 2E 65 78 61   6D 70 6C 65 2E 68 65 6C  .org.example.hel
-02E0: 6C 6F 2E 48 65 6C 6C 6F   49 6D 70 6C 30 10 04 02  lo.HelloImpl0...
-02F0: 63 6E 31 0A 04 08 6D 79   72 65 6D 6F 74 65        cn1...myremote
+02A0: 62 6C 65 04 18 6A 61 76   61 2E 6C 61 6E 67 2E 49  ble..java.lang.I
+02B0: 64 65 6E 74 69 74 79 4F   62 6A 65 63 74 04 17 6F  dentityObject..o
+02C0: 72 67 2E 65 78 61 6D 70   6C 65 2E 68 65 6C 6C 6F  rg.example.hello
+02D0: 2E 48 65 6C 6C 6F 30 2E   04 0D 6A 61 76 61 43 6C  .Hello0...javaCl
+02E0: 61 73 73 4E 61 6D 65 31   1D 04 1B 6F 72 67 2E 65  assName1...org.e
+02F0: 78 61 6D 70 6C 65 2E 68   65 6C 6C 6F 2E 48 65 6C  xample.hello.Hel
+0300: 6C 6F 49 6D 70 6C 30 10   04 02 63 6E 31 0A 04 08  loImpl0...cn1...
+0310: 6D 79 72 65 6D 6F 74 65                            myremote
 
 # LDAP SearchResultDone:
 #
