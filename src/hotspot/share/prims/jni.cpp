@@ -2522,7 +2522,6 @@ JNI_ENTRY(jobject, jni_GetObjectArrayElement(JNIEnv *env, jobjectArray array, js
   if (arr->is_within_bounds(index)) {
     if (arr->is_flatArray()) {
       flatArrayOop a = flatArrayOop(JNIHandles::resolve_non_null(array));
-      arrayHandle ah(THREAD, a);
       flatArrayHandle vah(thread, a);
       res = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK_NULL);
       assert(res != NULL, "Must be set in one of two paths above");
@@ -3488,18 +3487,19 @@ JNI_END
 JNI_ENTRY(jobject, jni_CreateSubElementSelector(JNIEnv* env, jarray array))
   JNIWrapper("jni_CreateSubElementSelector");
 
-  arrayOop ar = arrayOop(JNIHandles::resolve_non_null(array));
+  oop ar = JNIHandles::resolve_non_null(array);
   if (!ar->is_array()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not an array");
   }
   if (!ar->is_flatArray()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
   }
+  flatArrayHandle ar_h(THREAD, flatArrayOop(ar));
   Klass* ses_k = SystemDictionary::resolve_or_null(vmSymbols::jdk_internal_vm_jni_SubElementSelector(),
         Handle(THREAD, SystemDictionary::java_system_loader()), Handle(), CHECK_NULL);
   InstanceKlass* ses_ik = InstanceKlass::cast(ses_k);
   ses_ik->initialize(CHECK_NULL);
-  Klass* elementKlass = ArrayKlass::cast(ar->klass())->element_klass();
+  Klass* elementKlass = ArrayKlass::cast(ar_h()->klass())->element_klass();
   oop ses = ses_ik->allocate_instance(CHECK_NULL);
   Handle ses_h(THREAD, ses);
   jdk_internal_vm_jni_SubElementSelector::setArrayElementType(ses_h(), elementKlass->java_mirror());
@@ -3571,12 +3571,13 @@ JNI_ENTRY(jobject, jni_GetObjectSubElement(JNIEnv* env, jarray array, jobject se
                       + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
     res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(ar, offset);
   } else {
+    Handle slct_h(THREAD, slct);
     InlineKlass* fieldKlass = InlineKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
     res = fieldKlass->allocate_instance_buffer(CHECK_NULL);
     // The array might have been moved by the GC, refreshing the arrayOop
     ar =  (flatArrayOop)JNIHandles::resolve_non_null(array);
     address addr = (address)ar->value_at_addr(index, vak->layout_helper())
-              + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
+              + jdk_internal_vm_jni_SubElementSelector::getOffset(slct_h());
     fieldKlass->inline_copy_payload_to_new_oop(addr, res);
   }
   return JNIHandles::make_local(res);
