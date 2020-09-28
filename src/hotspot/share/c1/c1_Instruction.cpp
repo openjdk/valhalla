@@ -307,15 +307,6 @@ ciType* NewInstance::declared_type() const {
   return exact_type();
 }
 
-Value NewInlineTypeInstance::depends_on() {
-  if (_depends_on != this) {
-    if (_depends_on->as_NewInlineTypeInstance() != NULL) {
-      return _depends_on->as_NewInlineTypeInstance()->depends_on();
-    }
-  }
-  return _depends_on;
-}
-
 ciType* NewInlineTypeInstance::exact_type() const {
   return klass();
 }

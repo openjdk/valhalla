@@ -96,19 +96,19 @@ public class TestGetfieldChains extends InlineTypeTest {
     // Simple chain of getfields ending with primitive field
     @Test(compLevel=C1)
     public int test1() {
-            return NamedRectangle.getP1X(new NamedRectangle());
+        return NamedRectangle.getP1X(new NamedRectangle());
     }
 
     @DontCompile
     public void test1_verifier(boolean warmup) {
-            int res = test1();
-            Asserts.assertEQ(res, 4);
+        int res = test1();
+        Asserts.assertEQ(res, 4);
     }
 
     // Simple chain of getfields ending with a flattened field
     @Test(compLevel=C1)
     public Point test2() {
-            return NamedRectangle.getP1(new NamedRectangle());
+        return NamedRectangle.getP1(new NamedRectangle());
     }
 
     @DontCompile
