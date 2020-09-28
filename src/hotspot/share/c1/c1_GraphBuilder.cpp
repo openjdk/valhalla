@@ -1964,7 +1964,14 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             ciInlineKlass* inline_klass = field->type()->as_inline_klass();
             scope()->set_wrote_final();
             scope()->set_wrote_fields();
-            if (has_pending_load_indexed()) {
+            if (inline_klass->is_empty()) {
+              apush(append(new Constant(new InstanceConstant(inline_klass->default_instance()))));
+              if (has_pending_field_access()) {
+                set_pending_field_access(NULL);
+              } else if (has_pending_load_indexed()) {
+                set_pending_load_indexed(NULL);
+              }
+            } else if (has_pending_load_indexed()) {
               assert(!needs_patching, "Can't patch delayed field access");
               pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
               NewInlineTypeInstance* vt = new NewInlineTypeInstance(inline_klass, pending_load_indexed()->state_before());
