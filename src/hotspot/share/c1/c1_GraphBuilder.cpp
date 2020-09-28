@@ -2076,7 +2076,9 @@ void GraphBuilder::withfield(int field_index)
       if (field->offset() != offset) {
         if (field->is_flattened()) {
           ciInlineKlass* vk = field->type()->as_inline_klass();
-          copy_inline_content(vk, obj, off, new_instance, vk->first_field_offset(), state_before, needs_patching);
+          if (!vk->is_empty()) {
+            copy_inline_content(vk, obj, off, new_instance, vk->first_field_offset(), state_before, needs_patching);
+          }
         } else {
           // Only load those fields who are not modified
           LoadField* load = new LoadField(obj, off, field, false, state_before, needs_patching);
@@ -2095,7 +2097,9 @@ void GraphBuilder::withfield(int field_index)
   }
   if (field_modify->is_flattened()) {
     ciInlineKlass* vk = field_modify->type()->as_inline_klass();
-    copy_inline_content(vk, val, vk->first_field_offset(), new_instance, field_modify->offset(), state_before, needs_patching);
+    if (!vk->is_empty()) {
+      copy_inline_content(vk, val, vk->first_field_offset(), new_instance, field_modify->offset(), state_before, needs_patching);
+    }
   } else {
     StoreField* store = new StoreField(new_instance, offset, field_modify, val, false, state_before, needs_patching);
     append(store);
