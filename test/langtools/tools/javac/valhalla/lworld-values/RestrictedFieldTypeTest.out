@@ -1,0 +1,2 @@
+RestrictedFieldTypeTest.java:13:17: compiler.err.prob.found.req: (compiler.misc.inconvertible.types: compiler.misc.type.null, PointBox.Point)
+1 error

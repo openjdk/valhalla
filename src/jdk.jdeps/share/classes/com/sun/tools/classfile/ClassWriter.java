@@ -656,6 +656,12 @@ public class ClassWriter {
         }
 
         @Override
+        public Void visitRestrictedField(RestrictedField_attribute attr, ClassOutputStream out) {
+            out.writeShort(attr.restricted_type_index);
+            return null;
+        }
+
+        @Override
         public Void visitRuntimeInvisibleAnnotations(RuntimeInvisibleAnnotations_attribute attr, ClassOutputStream out) {
             annotationWriter.write(attr.annotations, out);
             return null;
