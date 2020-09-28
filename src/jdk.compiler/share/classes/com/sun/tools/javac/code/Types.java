@@ -101,6 +101,9 @@ public class Types {
     List<Warner> warnStack = List.nil();
     final Name capturedName;
 
+    /** enable alternate code generation to faciliate specialization experiments using type restrictions */
+    public boolean flattenWithTypeRestrictions;
+
     public final Warner noWarnings;
 
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
@@ -126,6 +129,7 @@ public class Types {
         noWarnings = new Warner(null);
         Options options = Options.instance(context);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
+        flattenWithTypeRestrictions = options.isSet("flattenWithTypeRestrictions");
     }
     // </editor-fold>
 

@@ -26,6 +26,7 @@
 package com.sun.tools.javac.jvm;
 
 import com.sun.tools.javac.code.*;
+import com.sun.tools.javac.code.Kinds.Kind;
 import com.sun.tools.javac.code.Symbol.*;
 import com.sun.tools.javac.code.Type.*;
 import com.sun.tools.javac.jvm.Code.*;
@@ -33,6 +34,8 @@ import com.sun.tools.javac.jvm.PoolConstant.LoadableConstant;
 import com.sun.tools.javac.jvm.PoolConstant.LoadableConstant.BasicConstant;
 import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.Assert;
+
+import java.util.HashMap;
 
 import static com.sun.tools.javac.jvm.ByteCodes.*;
 
@@ -154,8 +157,27 @@ public class Items {
      *                      and private members).
      */
     Item makeMemberItem(Symbol member, boolean nonvirtual) {
-        return new MemberItem(member, nonvirtual);
+        if (this.types.flattenWithTypeRestrictions && member.kind == Kind.VAR && member.type.isValue()) {
+            return new MemberItem(getFlattenedField(member), nonvirtual);
+        } else {
+            return new MemberItem(member, nonvirtual);
+        }
     }
+        // where
+        private Symbol getFlattenedField(Symbol member) {
+            if (flatFieldsMap == null)
+                flatFieldsMap = new HashMap<>();
+            Symbol flatField = flatFieldsMap.get(member);
+            if (flatField == null) {
+                flatFieldsMap.put(member, flatField = new VarSymbol(member.flags(),
+                                                        member.name,
+                                                        member.type.referenceProjection(),
+                                                        member.owner));
+            }
+            return flatField;
+        }
+
+     private HashMap<Symbol, Symbol> flatFieldsMap;
 
     /** Make an item representing a literal.
      *  @param type     The literal's type.

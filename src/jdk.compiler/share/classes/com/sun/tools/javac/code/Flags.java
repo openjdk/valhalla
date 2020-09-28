@@ -143,6 +143,10 @@ public class Flags {
      */
     public static final int VALUEBASED       = 1<<19;
 
+    /** Flag is set for a type restricted field.
+     */
+    public static final int RESTRICTED_FIELD       = 1<<19;
+
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
      */
@@ -518,6 +522,7 @@ public class Flags {
         CLASH(Flags.CLASH),
         AUXILIARY(Flags.AUXILIARY),
         NOT_IN_PROFILE(Flags.NOT_IN_PROFILE),
+        RESTRICTED_FIELD(Flags.RESTRICTED_FIELD),
         BAD_OVERRIDE(Flags.BAD_OVERRIDE),
         SIGNATURE_POLYMORPHIC(Flags.SIGNATURE_POLYMORPHIC),
         THROWS(Flags.THROWS),

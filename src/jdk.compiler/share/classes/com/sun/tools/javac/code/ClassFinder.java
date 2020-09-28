@@ -386,6 +386,9 @@ public class ClassFinder {
                 throw cf;
             } finally {
                 currentClassFile = previousClassFile;
+                if (c.isValue() && c.projection != null) {
+                    c.projection.flags_field = (c.flags_field & ~(VALUE | UNATTRIBUTED | FINAL)) | SEALED;
+                }
             }
         } else {
             throw classFileNotFound(c);

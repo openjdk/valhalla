@@ -1268,6 +1268,19 @@ public class ClassReader {
                     }
                 }
             },
+            new AttributeReader(names.RestrictedField, V60, MEMBER_ATTRIBUTE) {
+                @Override
+                protected boolean accepts(AttributeKind kind) {
+                    return super.accepts(kind) && allowInlineTypes;
+                }
+                protected void read(Symbol sym, int attrLen) {
+                    if (sym.kind == VAR && sym.owner.kind == TYP) {
+                        final Type type = poolReader.getType(nextChar());
+                        Assert.check(((ClassSymbol)((ClassType)sym.type).tsym).projection == type.tsym);
+                        sym.flags_field |= RESTRICTED_FIELD;
+                    }
+                }
+            },
         };
 
         for (AttributeReader r: readers)
@@ -2235,7 +2248,8 @@ public class ClassReader {
         Type type = poolReader.getType(nextChar());
         VarSymbol v = new VarSymbol(flags, name, type, currentOwner);
         readMemberAttrs(v);
-        return v;
+        return (v.flags_field & RESTRICTED_FIELD) == RESTRICTED_FIELD ?
+                new VarSymbol(flags, name, ((ClassSymbol)v.type.tsym).projection.type, currentOwner) : v;
     }
 
     /** Read a method.

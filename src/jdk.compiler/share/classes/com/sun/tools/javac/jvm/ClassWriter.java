@@ -973,12 +973,25 @@ public class ClassWriter extends ClassFile {
             pw.println("---" + flagNames(v.flags()));
         }
         databuf.appendChar(poolWriter.putName(v.name));
-        databuf.appendChar(poolWriter.putDescriptor(v));
+        boolean emitRestrictedField = false;
+        if (types.flattenWithTypeRestrictions && v.type.isValue()) {
+            emitRestrictedField = true;
+            databuf.appendChar(poolWriter.putDescriptor(v.type.referenceProjection()));
+        } else {
+            databuf.appendChar(poolWriter.putDescriptor(v));
+        }
+
         int acountIdx = beginAttrs();
         int acount = 0;
         if (v.getConstValue() != null) {
             int alenIdx = writeAttr(names.ConstantValue);
             databuf.appendChar(poolWriter.putConstant(v.getConstValue()));
+            endAttr(alenIdx);
+            acount++;
+        }
+        if (emitRestrictedField) {
+            int alenIdx = writeAttr(names.RestrictedField);
+            databuf.appendChar(poolWriter.putDescriptor(v));
             endAttr(alenIdx);
             acount++;
         }

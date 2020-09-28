@@ -151,6 +151,7 @@ public class Names {
     public final Name NestHost;
     public final Name NestMembers;
     public final Name Record;
+    public final Name RestrictedField;
     public final Name RuntimeInvisibleAnnotations;
     public final Name RuntimeInvisibleParameterAnnotations;
     public final Name RuntimeInvisibleTypeAnnotations;
@@ -337,6 +338,7 @@ public class Names {
         NestHost = fromString("NestHost");
         NestMembers = fromString("NestMembers");
         Record = fromString("Record");
+        RestrictedField = fromString("RestrictedField");
         RuntimeInvisibleAnnotations = fromString("RuntimeInvisibleAnnotations");
         RuntimeInvisibleParameterAnnotations = fromString("RuntimeInvisibleParameterAnnotations");
         RuntimeInvisibleTypeAnnotations = fromString("RuntimeInvisibleTypeAnnotations");

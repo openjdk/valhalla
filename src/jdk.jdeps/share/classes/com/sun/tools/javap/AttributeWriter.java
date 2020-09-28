@@ -61,6 +61,7 @@ import com.sun.tools.classfile.ModuleTarget_attribute;
 import com.sun.tools.classfile.NestHost_attribute;
 import com.sun.tools.classfile.NestMembers_attribute;
 import com.sun.tools.classfile.Record_attribute;
+import com.sun.tools.classfile.RestrictedField_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleAnnotations_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleParameterAnnotations_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleTypeAnnotations_attribute;
@@ -763,6 +764,22 @@ public class AttributeWriter extends BasicWriter
         }
         indent(-1);
         return null;
+    }
+
+    @Override
+    public Void visitRestrictedField(RestrictedField_attribute attr, Void p) {
+        print("RestrictedField: #" + attr.restricted_type_index);
+        tab();
+        println("// " + getRestrictedType(attr));
+        return null;
+    }
+
+    String getRestrictedType(RestrictedField_attribute info) {
+        try {
+            return info.getRestrictedType(constant_pool);
+        } catch (ConstantPoolException e) {
+            return report(e);
+        }
     }
 
     String getValue(Descriptor d) {

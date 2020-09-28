@@ -1671,8 +1671,6 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
 
         @Override
         public ClassSymbol referenceProjection() {
-            if (!isValue())
-                return null;
 
             if (projection != null)
                 return projection;
@@ -1688,28 +1686,42 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
             ct.projection = projectedType;
 
             Name projectionName = this.name.append('$', this.name.table.names.ref);
-            long projectionFlags = (this.flags() & ~(VALUE | UNATTRIBUTED | FINAL)) | SEALED;
+            long projectionFlags = (this.flags_field & ~(VALUE | UNATTRIBUTED | FINAL)) | SEALED;
 
             projection = new ClassSymbol(projectionFlags, projectionName, projectedType, this.owner);
             projection.members_field = WriteableScope.create(projection);
-            for (Symbol s : this.members().getSymbols(s->(s.kind == MTH || s.kind == VAR), NON_RECURSIVE)) {
-                Symbol clone = null;
-                if (s.kind == MTH) {
-                    MethodSymbol valMethod = (MethodSymbol)s;
-                    MethodSymbol refMethod = valMethod.clone(projection);
-                    valMethod.projection = refMethod;
-                    refMethod.projection = valMethod;
-                    clone = refMethod;
-                } else if (s.kind == VAR) {
-                    VarSymbol valVar = (VarSymbol)s;
-                    VarSymbol refVar = valVar.clone(projection);
-                    valVar.projection = refVar;
-                    refVar.projection = valVar;
-                    clone = refVar;
+            if (this.completer == Completer.NULL_COMPLETER) {
+                for (Symbol s : this.members().getSymbols(s -> (s.kind == MTH || s.kind == VAR), NON_RECURSIVE)) {
+                    Symbol clone = null;
+                    if (s.kind == MTH) {
+                        MethodSymbol valMethod = (MethodSymbol)s;
+                        MethodSymbol refMethod = valMethod.clone(projection);
+                        valMethod.projection = refMethod;
+                        refMethod.projection = valMethod;
+                        clone = refMethod;
+                    } else if (s.kind == VAR) {
+                        VarSymbol valVar = (VarSymbol)s;
+                        VarSymbol refVar = valVar.clone(projection);
+                        valVar.projection = refVar;
+                        refVar.projection = valVar;
+                        clone = refVar;
+                    }
+                    projection.members_field.enter(clone);
                 }
-                projection.members_field.enter(clone);
             }
-            projection.completer = Completer.NULL_COMPLETER;
+
+            projection.completer = new Completer() {
+                @Override
+                public void complete(Symbol sym) throws CompletionFailure {
+                    ClassSymbol.this.complete();
+                }
+
+                @Override
+                public boolean isTerminal() {
+                    return ClassSymbol.this.completer.isTerminal();
+                }
+            };
+
             projection.sourcefile = this.sourcefile;
             projection.flatname = this.flatname.append('$', this.name.table.names.ref);
             projection.permitted = List.of(this);
