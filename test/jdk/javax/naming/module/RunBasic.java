@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,7 +67,17 @@ public class RunBasic {
 
     private static final List<String> JAVA_CMDS;
 
+    // To update .ldap files under src/test/test, LDAP request and response
+    // bytes can be logged while interacting with a real LDAP server
+    // (e.g.: HOST_NAME = "localhost:8389").
+    // For that point HOST_NAME to a real server in which the ROOT_DOMAIN
+    // below is configured to allow modifications by anonymous users, and
+    // pass an additional "-trace" argument to the created subprocesses.
+    // The LDAP requests and response bytes will appear in the log, and you
+    // can then update the corresponding .ldap files.
     static final String HOST_NAME = InetAddress.getLoopbackAddress().getHostName();
+    static final String ROOT_DOMAIN = "dc=ie,dc=oracle,dc=com";
+    static final String PATH = "/" + ROOT_DOMAIN;
 
     static {
         String javaPath = JDKToolFinder.getJDKTool("java");
@@ -119,8 +129,14 @@ public class RunBasic {
 
     private static void runTest(String desc, String clsName) throws Throwable {
         System.out.println("Running with the '" + desc + "' module...");
+        // To record LDAP requests and responses in order to update the
+        // .ldap files under src/test/test, make sure that HOST_NAME
+        // points to an LDAP server accepting anonymous modifications without
+        // credentials, and that has "dc=ie,dc=oracle,dc=com" configured
+        // as root domain. Also add "-trace" as last argument to the runJava
+        // command below.
         runJava("-Dtest.src=" + TEST_SRC, "-p", "mods", "-m", "test/" + clsName,
-                "ldap://" + HOST_NAME + "/dc=ie,dc=oracle,dc=com");
+                "ldap://" + HOST_NAME + PATH);
     }
 
     private static void runJava(String... opts) throws Throwable {
