@@ -148,7 +148,11 @@ public class Items {
      *  @param member   The represented symbol.
      */
     Item makeStaticItem(Symbol member) {
-        return new StaticItem(member);
+        if (this.types.flattenWithTypeRestrictions && member.kind == Kind.VAR && member.type.isValue()) {
+            return new StaticItem(getFlattenedField(member));
+        } else {
+            return new StaticItem(member);
+        }
     }
 
     /** Make an item representing an instance variable or method.
