@@ -28,7 +28,7 @@
  * @bug 8253760
  * @summary [type-restrictions] Static inline fields are not "erased" to the ref type
  * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile -XDflattenWithTypeRestrictions RestrictedStaticFieldCodegenTest.java 
+ * @compile -XDflattenWithTypeRestrictions RestrictedStaticFieldCodegenTest.java
  * @run main/othervm -Xverify:none RestrictedStaticFieldCodegenTest
  * @modules jdk.compiler
  */
