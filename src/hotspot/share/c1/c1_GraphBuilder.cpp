@@ -1964,7 +1964,14 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             ciInlineKlass* inline_klass = field->type()->as_inline_klass();
             scope()->set_wrote_final();
             scope()->set_wrote_fields();
-            if (has_pending_load_indexed()) {
+            if (inline_klass->is_empty()) {
+              apush(append(new Constant(new InstanceConstant(inline_klass->default_instance()))));
+              if (has_pending_field_access()) {
+                set_pending_field_access(NULL);
+              } else if (has_pending_load_indexed()) {
+                set_pending_load_indexed(NULL);
+              }
+            } else if (has_pending_load_indexed()) {
               assert(!needs_patching, "Can't patch delayed field access");
               pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
               NewInlineTypeInstance* vt = new NewInlineTypeInstance(inline_klass, pending_load_indexed()->state_before());
@@ -2076,7 +2083,9 @@ void GraphBuilder::withfield(int field_index)
       if (field->offset() != offset) {
         if (field->is_flattened()) {
           ciInlineKlass* vk = field->type()->as_inline_klass();
-          copy_inline_content(vk, obj, off, new_instance, vk->first_field_offset(), state_before, needs_patching);
+          if (!vk->is_empty()) {
+            copy_inline_content(vk, obj, off, new_instance, vk->first_field_offset(), state_before, needs_patching);
+          }
         } else {
           // Only load those fields who are not modified
           LoadField* load = new LoadField(obj, off, field, false, state_before, needs_patching);
@@ -2095,7 +2104,9 @@ void GraphBuilder::withfield(int field_index)
   }
   if (field_modify->is_flattened()) {
     ciInlineKlass* vk = field_modify->type()->as_inline_klass();
-    copy_inline_content(vk, val, vk->first_field_offset(), new_instance, field_modify->offset(), state_before, needs_patching);
+    if (!vk->is_empty()) {
+      copy_inline_content(vk, val, vk->first_field_offset(), new_instance, field_modify->offset(), state_before, needs_patching);
+    }
   } else {
     StoreField* store = new StoreField(new_instance, offset, field_modify, val, false, state_before, needs_patching);
     append(store);
