@@ -382,7 +382,7 @@ void MemAllocator::mem_clear(HeapWord* mem) const {
 
 oop MemAllocator::finish(HeapWord* mem) const {
   assert(mem != NULL, "NULL object pointer");
-  oopDesc::set_mark_raw(mem, Klass::default_prototype_header(_klass));
+  oopDesc::set_mark(mem, Klass::default_prototype_header(_klass));
   // Need a release store to ensure array/class length, mark word, and
   // object zeroing are visible before setting the klass non-NULL, for
   // concurrent collectors.
