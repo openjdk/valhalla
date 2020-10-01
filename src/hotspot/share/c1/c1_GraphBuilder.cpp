@@ -1042,7 +1042,7 @@ void GraphBuilder::load_indexed(BasicType type) {
       set_pending_load_indexed(dli);
       return; // Nothing else to do for now
     } else {
-      NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(elem_klass, state_before, false);
+      NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(elem_klass, state_before);
       _memory->new_instance(new_instance);
       apush(append_split(new_instance));
       load_indexed = new LoadIndexed(array, index, length, type, state_before);
@@ -1754,6 +1754,8 @@ Value GraphBuilder::make_constant(ciConstant field_value, ciField* field) {
 
 void GraphBuilder::copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off,
                                        ValueStack* state_before, bool needs_patching) {
+  assert(!needs_patching, "Can't patch flattened inline type field access");
+  assert(vk->nof_nonstatic_fields() > 0, "Empty inline type access should be removed");
   src->set_escaped();
   for (int i = 0; i < vk->nof_nonstatic_fields(); i++) {
     ciField* inner_field = vk->nonstatic_field_at(i);
@@ -1776,7 +1778,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
   // call will_link again to determine if the field is valid.
   const bool needs_patching = !holder->is_loaded() ||
                               !field->will_link(method(), code) ||
-                              PatchALot;
+                              (!field->is_flattened() && PatchALot);
 
   ValueStack* state_before = NULL;
   if (!holder->is_initialized() || needs_patching) {
@@ -1795,11 +1797,11 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
     }
   }
 
-  if (field->is_final() && (code == Bytecodes::_putfield || code == Bytecodes::_withfield)) {
+  if (field->is_final() && code == Bytecodes::_putfield) {
     scope()->set_wrote_final();
   }
 
-  if (code == Bytecodes::_putfield || code == Bytecodes::_withfield) {
+  if (code == Bytecodes::_putfield) {
     scope()->set_wrote_fields();
     if (field->is_volatile()) {
       scope()->set_wrote_volatile();
@@ -1816,6 +1818,9 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         assert(!field->is_stable() || !field_value.is_null_or_zero(),
                "stable static w/ default value shouldn't be a constant");
         constant = make_constant(field_value, field);
+      } else if (field_type == T_INLINE_TYPE && field->type()->as_inline_klass()->is_empty()) {
+        // Loading from a field of an empty inline type. Just return the default instance.
+        constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
       }
       if (constant != NULL) {
         push(type, append(constant));
@@ -1839,6 +1844,10 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
+      if (field_type == T_INLINE_TYPE && field->type()->as_inline_klass()->is_empty()) {
+        // Storing to a field of an empty inline type. Ignore.
+        break;
+      }
       append(new StoreField(append(obj), offset, field, val, true, state_before, needs_patching));
       break;
     }
@@ -1853,7 +1862,11 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (!has_pending_field_access() && !has_pending_load_indexed()) {
         obj = apop();
         ObjectType* obj_type = obj->type()->as_ObjectType();
-        if (field->is_constant() && !field->is_flattened() && obj_type->is_constant() && !PatchALot) {
+        if (field_type == T_INLINE_TYPE && field->type()->as_inline_klass()->is_empty()) {
+          // Loading from a field of an empty inline type. Just return the default instance.
+          null_check(obj);
+          constant = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
+        } else if (field->is_constant() && !field->is_flattened() && obj_type->is_constant() && !PatchALot) {
           ciObject* const_oop = obj_type->constant_value();
           if (!const_oop->is_null_object() && const_oop->is_loaded()) {
             ciConstant field_value = field->constant_value_of(const_oop);
@@ -1885,11 +1898,13 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         if (!field->is_flattened()) {
           LoadField* load;
           if (has_pending_field_access()) {
+            assert(!needs_patching, "Can't patch delayed field access");
             load = new LoadField(pending_field_access()->obj(),
                                  pending_field_access()->offset() + offset - field->holder()->as_inline_klass()->first_field_offset(),
                                  field, false, state_before, needs_patching);
             set_pending_field_access(NULL);
           } else if (has_pending_load_indexed()) {
+            assert(!needs_patching, "Can't patch delayed field access");
             pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
             LoadIndexed* li = pending_load_indexed()->load_instr();
             li->set_type(type);
@@ -1904,17 +1919,16 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             assert(replacement->is_linked() || !replacement->can_be_linked(), "should already by linked");
             // Writing an (integer) value to a boolean, byte, char or short field includes an implicit narrowing
             // conversion. Emit an explicit conversion here to get the correct field value after the write.
-            BasicType bt = field->type()->basic_type();
-            switch (bt) {
+            switch (field_type) {
             case T_BOOLEAN:
             case T_BYTE:
-              replacement = append(new Convert(Bytecodes::_i2b, replacement, as_ValueType(bt)));
+              replacement = append(new Convert(Bytecodes::_i2b, replacement, type));
               break;
             case T_CHAR:
-              replacement = append(new Convert(Bytecodes::_i2c, replacement, as_ValueType(bt)));
+              replacement = append(new Convert(Bytecodes::_i2c, replacement, type));
               break;
             case T_SHORT:
-              replacement = append(new Convert(Bytecodes::_i2s, replacement, as_ValueType(bt)));
+              replacement = append(new Convert(Bytecodes::_i2s, replacement, type));
               break;
             default:
               break;
@@ -1924,10 +1938,19 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             push(type, append(load));
           }
         } else {
+          // Look at the next bytecode to check if we can delay the field access
+          bool can_delay_access = false;
           ciBytecodeStream s(method());
           s.force_bci(bci());
           s.next();
           if (s.cur_bc() == Bytecodes::_getfield && !needs_patching) {
+            ciField* next_field = s.get_field(will_link);
+            bool next_needs_patching = !next_field->holder()->is_loaded() ||
+                                       !next_field->will_link(method(), code) ||
+                                       PatchALot;
+            can_delay_access = !next_needs_patching;
+          }
+          if (can_delay_access) {
             if (has_pending_load_indexed()) {
               pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
             } else if (has_pending_field_access()) {
@@ -1938,22 +1961,27 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               set_pending_field_access(dfa);
             }
           } else {
-            assert(field->type()->is_inlinetype(), "Sanity check");
             ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-            assert(field->type()->is_inlinetype(), "Sanity check");
             scope()->set_wrote_final();
             scope()->set_wrote_fields();
-            if (has_pending_load_indexed()) {
+            if (inline_klass->is_empty()) {
+              apush(append(new Constant(new InstanceConstant(inline_klass->default_instance()))));
+              if (has_pending_field_access()) {
+                set_pending_field_access(NULL);
+              } else if (has_pending_load_indexed()) {
+                set_pending_load_indexed(NULL);
+              }
+            } else if (has_pending_load_indexed()) {
+              assert(!needs_patching, "Can't patch delayed field access");
               pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
-              NewInlineTypeInstance* vt = new NewInlineTypeInstance(field->type()->as_inline_klass(),
-                                                                    pending_load_indexed()->state_before(), false);
+              NewInlineTypeInstance* vt = new NewInlineTypeInstance(inline_klass, pending_load_indexed()->state_before());
               _memory->new_instance(vt);
               pending_load_indexed()->load_instr()->set_vt(vt);
               apush(append_split(vt));
               append(pending_load_indexed()->load_instr());
               set_pending_load_indexed(NULL);
             } else {
-              NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(inline_klass, state_before, false);
+              NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(inline_klass, state_before);
               _memory->new_instance(new_instance);
               apush(append_split(new_instance));
               if (has_pending_field_access()) {
@@ -1964,7 +1992,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                 set_pending_field_access(NULL);
               } else {
                 copy_inline_content(inline_klass, obj, field->offset(), new_instance, inline_klass->first_field_offset(),
-                            state_before, needs_patching);
+                                    state_before, needs_patching);
               }
             }
           }
@@ -1972,7 +2000,6 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       }
       break;
     }
-    case Bytecodes::_withfield:
     case Bytecodes::_putfield: {
       Value val = pop(type);
       val->set_escaped();
@@ -1980,23 +2007,22 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (state_before == NULL) {
         state_before = copy_state_for_exception();
       }
-      if (field->type()->basic_type() == T_BOOLEAN) {
+      if (field_type == T_BOOLEAN) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
-
-      if (!field->is_flattened()) {
+      if (field_type == T_INLINE_TYPE && field->type()->as_inline_klass()->is_empty()) {
+        // Storing to a field of an empty inline type. Ignore.
+        null_check(obj);
+      } else if (!field->is_flattened()) {
         StoreField* store = new StoreField(obj, offset, field, val, false, state_before, needs_patching);
         if (!needs_patching) store = _memory->store(store);
         if (store != NULL) {
           append(store);
         }
       } else {
-        assert(field->type()->is_inlinetype(), "Sanity check");
         ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-        int flattening_offset = field->offset() - inline_klass->first_field_offset();
-        copy_inline_content(inline_klass, val, inline_klass->first_field_offset(), obj, field->offset(),
-                   state_before, needs_patching);
+        copy_inline_content(inline_klass, val, inline_klass->first_field_offset(), obj, offset, state_before, needs_patching);
       }
       break;
     }
@@ -2020,22 +2046,20 @@ void GraphBuilder::withfield(int field_index)
                               !field_modify->will_link(method(), Bytecodes::_withfield) ||
                               PatchALot;
 
-
   scope()->set_wrote_final();
   scope()->set_wrote_fields();
 
   const int offset = !needs_patching ? field_modify->offset() : -1;
 
+  ValueStack* state_before = copy_state_before();
   if (!holder->is_loaded()
       || needs_patching /* FIXME: 8228634 - field_modify->will_link() may incorrectly return false */
       ) {
-    ValueStack* state_before = copy_state_before();
     Value val = pop(type);
     Value obj = apop();
     apush(append_split(new WithField(state_before)));
     return;
   }
-  ValueStack* state_before = copy_state_before();
 
   Value val = pop(type);
   Value obj = apop();
@@ -2048,7 +2072,7 @@ void GraphBuilder::withfield(int field_index)
     new_instance = obj->as_NewInlineTypeInstance();
     apush(append_split(new_instance));
   } else {
-    new_instance = new NewInlineTypeInstance(holder->as_inline_klass(), state_before, false);
+    new_instance = new NewInlineTypeInstance(holder->as_inline_klass(), state_before);
     _memory->new_instance(new_instance);
     apush(append_split(new_instance));
 
@@ -2058,10 +2082,10 @@ void GraphBuilder::withfield(int field_index)
 
       if (field->offset() != offset) {
         if (field->is_flattened()) {
-          assert(field->type()->is_inlinetype(), "Sanity check");
-          assert(field->type()->is_inlinetype(), "Only inline types can be flattened");
           ciInlineKlass* vk = field->type()->as_inline_klass();
-          copy_inline_content(vk, obj, off, new_instance, vk->first_field_offset(), state_before, needs_patching);
+          if (!vk->is_empty()) {
+            copy_inline_content(vk, obj, off, new_instance, vk->first_field_offset(), state_before, needs_patching);
+          }
         } else {
           // Only load those fields who are not modified
           LoadField* load = new LoadField(obj, off, field, false, state_before, needs_patching);
@@ -2079,9 +2103,10 @@ void GraphBuilder::withfield(int field_index)
     val = append(new LogicOp(Bytecodes::_iand, val, mask));
   }
   if (field_modify->is_flattened()) {
-    assert(field_modify->type()->is_inlinetype(), "Only inline types can be flattened");
     ciInlineKlass* vk = field_modify->type()->as_inline_klass();
-    copy_inline_content(vk, val, vk->first_field_offset(), new_instance, field_modify->offset(), state_before, needs_patching);
+    if (!vk->is_empty()) {
+      copy_inline_content(vk, val, vk->first_field_offset(), new_instance, field_modify->offset(), state_before, needs_patching);
+    }
   } else {
     StoreField* store = new StoreField(new_instance, offset, field_modify, val, false, state_before, needs_patching);
     append(store);
@@ -2457,7 +2482,6 @@ void GraphBuilder::new_instance(int klass_index) {
   bool will_link;
   ciKlass* klass = stream()->get_klass(will_link);
   assert(klass->is_instance_klass(), "must be an instance klass");
-  assert(!klass->is_inlinetype(), "must not be an inline klass");
   NewInstance* new_instance = new NewInstance(klass->as_instance_klass(), state_before, stream()->is_unresolved_klass());
   _memory->new_instance(new_instance);
   apush(append_split(new_instance));
@@ -2465,8 +2489,9 @@ void GraphBuilder::new_instance(int klass_index) {
 
 void GraphBuilder::default_value(int klass_index) {
   bool will_link;
-  if (!stream()->is_unresolved_klass()) {
-    ciInlineKlass* vk = stream()->get_klass(will_link)->as_inline_klass();
+  ciKlass* klass = stream()->get_klass(will_link);
+  if (!stream()->is_unresolved_klass() && klass->is_inlinetype()) {
+    ciInlineKlass* vk = klass->as_inline_klass();
     apush(append(new Constant(new InstanceConstant(vk->default_instance()))));
   } else {
     ValueStack* state_before = copy_state_before();

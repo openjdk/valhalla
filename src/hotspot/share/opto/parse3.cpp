@@ -120,7 +120,6 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 
 void Parse::do_get_xxx(Node* obj, ciField* field) {
   BasicType bt = field->layout_type();
-
   // Does this field have a constant value?  If so, just push the value.
   if (field->is_constant() &&
       // Keep consistent with types found by ciTypeFlow: for an
@@ -138,62 +137,52 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
   }
 
   ciType* field_klass = field->type();
-  bool is_vol = field->is_volatile();
-  bool flattened = field->is_flattened();
-
-  // Compute address and memory type.
   int offset = field->offset_in_bytes();
-  const TypePtr* adr_type = C->alias_type(field)->adr_type();
-  Node *adr = basic_plus_adr(obj, obj, offset);
-
-  // Build the resultant type of the load
-  const Type *type;
-
   bool must_assert_null = false;
 
-  DecoratorSet decorators = IN_HEAP;
-  decorators |= is_vol ? MO_SEQ_CST : MO_UNORDERED;
-
-  bool is_obj = is_reference_type(bt);
-
-  if (is_obj) {
-    if (!field->type()->is_loaded()) {
-      type = TypeInstPtr::BOTTOM;
-      must_assert_null = true;
-    } else if (field->is_static_constant()) {
-      // This can happen if the constant oop is non-perm.
-      ciObject* con = field->constant_value().as_object();
-      // Do not "join" in the previous type; it doesn't add value,
-      // and may yield a vacuous result if the field is of interface type.
-      if (con->is_null_object()) {
-        type = TypePtr::NULL_PTR;
-      } else {
-        type = TypeOopPtr::make_from_constant(con)->isa_oopptr();
-      }
-      assert(type != NULL, "field singleton type must be consistent");
-    } else {
-      type = TypeOopPtr::make_from_klass(field_klass->as_klass());
-      if (bt == T_INLINE_TYPE && field->is_static()) {
-        // Check if static inline type field is already initialized
-        assert(!flattened, "static fields should not be flattened");
-        ciInstance* mirror = field->holder()->java_mirror();
-        ciObject* val = mirror->field_value(field).as_object();
-        if (!val->is_null_object()) {
-          type = type->join_speculative(TypePtr::NOTNULL);
-        }
-      }
-    }
-  } else {
-    type = Type::get_const_basic_type(bt);
-  }
-
   Node* ld = NULL;
-  if (flattened) {
-    // Load flattened inline type
+  if (bt == T_INLINE_TYPE && field_klass->as_inline_klass()->is_empty()) {
+    // Loading from a field of an empty inline type. Just return the default instance.
+    ld = InlineTypeNode::make_default(_gvn, field_klass->as_inline_klass());
+  } else if (field->is_flattened()) {
+    // Loading from a flattened inline type field.
     ld = InlineTypeNode::make_from_flattened(this, field_klass->as_inline_klass(), obj, obj, field->holder(), offset);
   } else {
+    // Build the resultant type of the load
+    const Type* type;
+    if (is_reference_type(bt)) {
+      if (!field_klass->is_loaded()) {
+        type = TypeInstPtr::BOTTOM;
+        must_assert_null = true;
+      } else if (field->is_static_constant()) {
+        // This can happen if the constant oop is non-perm.
+        ciObject* con = field->constant_value().as_object();
+        // Do not "join" in the previous type; it doesn't add value,
+        // and may yield a vacuous result if the field is of interface type.
+        if (con->is_null_object()) {
+          type = TypePtr::NULL_PTR;
+        } else {
+          type = TypeOopPtr::make_from_constant(con)->isa_oopptr();
+        }
+        assert(type != NULL, "field singleton type must be consistent");
+      } else {
+        type = TypeOopPtr::make_from_klass(field_klass->as_klass());
+        if (bt == T_INLINE_TYPE && field->is_static()) {
+          // Check if static inline type field is already initialized
+          ciInstance* mirror = field->holder()->java_mirror();
+          ciObject* val = mirror->field_value(field).as_object();
+          if (!val->is_null_object()) {
+            type = type->join_speculative(TypePtr::NOTNULL);
+          }
+        }
+      }
+    } else {
+      type = Type::get_const_basic_type(bt);
+    }
+    Node* adr = basic_plus_adr(obj, obj, offset);
+    const TypePtr* adr_type = C->alias_type(field)->adr_type();
     DecoratorSet decorators = IN_HEAP;
-    decorators |= is_vol ? MO_SEQ_CST : MO_UNORDERED;
+    decorators |= field->is_volatile() ? MO_SEQ_CST : MO_UNORDERED;
     ld = access_load_at(obj, adr, adr_type, type, bt, decorators);
     if (bt == T_INLINE_TYPE) {
       // Load a non-flattened inline type from memory
@@ -227,7 +216,7 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
     }
     if (C->log() != NULL) {
       C->log()->elem("assert_null reason='field' klass='%d'",
-                     C->log()->identify(field->type()));
+                     C->log()->identify(field_klass));
     }
     // If there is going to be a trap, put it at the next bytecode:
     set_bci(iter().next_bci());
@@ -238,48 +227,36 @@ void Parse::do_get_xxx(Node* obj, ciField* field) {
 
 void Parse::do_put_xxx(Node* obj, ciField* field, bool is_field) {
   bool is_vol = field->is_volatile();
-
-  // Compute address and memory type.
   int offset = field->offset_in_bytes();
-  const TypePtr* adr_type = C->alias_type(field)->adr_type();
-  Node* adr = basic_plus_adr(obj, obj, offset);
   BasicType bt = field->layout_type();
-  // Value to be stored
   Node* val = type2size[bt] == 1 ? pop() : pop_pair();
 
-  DecoratorSet decorators = IN_HEAP;
-  decorators |= is_vol ? MO_SEQ_CST : MO_UNORDERED;
-
-  bool is_obj = is_reference_type(bt);
-  // Store the value.
-  const Type* field_type;
-  if (!field->type()->is_loaded()) {
-    field_type = TypeInstPtr::BOTTOM;
-  } else {
-    if (is_obj) {
-      field_type = TypeOopPtr::make_from_klass(field->type()->as_klass());
-    } else {
-      field_type = Type::BOTTOM;
-    }
-  }
-
-  if (bt == T_INLINE_TYPE && !val->is_InlineType()) {
-    // We can see a null constant here
-    assert(val->bottom_type()->remove_speculative() == TypePtr::NULL_PTR, "Anything other than null?");
-    push(null());
-    uncommon_trap(Deoptimization::Reason_null_check, Deoptimization::Action_none);
-    assert(stopped(), "dead path");
+  assert(bt != T_INLINE_TYPE || val->is_InlineType() || !gvn().type(val)->maybe_null(), "Null store to inline type field");
+  if (bt == T_INLINE_TYPE && field->type()->as_inline_klass()->is_empty()) {
+    // Storing to a field of an empty inline type. Ignore.
     return;
-  }
-
-  if (field->is_flattened()) {
-    // Store flattened inline type to a non-static field
+  } else if (field->is_flattened()) {
+    // Storing to a flattened inline type field.
     if (!val->is_InlineType()) {
-      assert(!gvn().type(val)->maybe_null(), "should never be null");
       val = InlineTypeNode::make_from_oop(this, val, field->type()->as_inline_klass());
     }
-    val->as_InlineType()->store_flattened(this, obj, obj, field->holder(), offset, decorators);
+    val->as_InlineType()->store_flattened(this, obj, obj, field->holder(), offset);
   } else {
+    // Store the value.
+    const Type* field_type;
+    if (!field->type()->is_loaded()) {
+      field_type = TypeInstPtr::BOTTOM;
+    } else {
+      if (is_reference_type(bt)) {
+        field_type = TypeOopPtr::make_from_klass(field->type()->as_klass());
+      } else {
+        field_type = Type::BOTTOM;
+      }
+    }
+    Node* adr = basic_plus_adr(obj, obj, offset);
+    const TypePtr* adr_type = C->alias_type(field)->adr_type();
+    DecoratorSet decorators = IN_HEAP;
+    decorators |= is_vol ? MO_SEQ_CST : MO_UNORDERED;
     inc_sp(1);
     access_store_at(obj, adr, adr_type, val, field_type, bt, decorators);
     dec_sp(1);

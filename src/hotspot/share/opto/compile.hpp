@@ -70,7 +70,6 @@ class PhaseGVN;
 class PhaseIterGVN;
 class PhaseRegAlloc;
 class PhaseCCP;
-class PhaseCCP_DCE;
 class PhaseOutput;
 class RootNode;
 class relocInfo;
@@ -305,6 +304,7 @@ class Compile : public Phase {
   bool                  _clinit_barrier_on_entry; // True if clinit barrier is needed on nmethod entry
   bool                  _has_flattened_accesses; // Any known flattened array accesses?
   bool                  _flattened_accesses_share_alias; // Initially all flattened array share a single slice
+  uint                  _stress_seed;           // Seed for stress testing
 
   // Compilation environment.
   Arena                 _comp_arena;            // Arena with lifetime equivalent to Compile
@@ -1159,6 +1159,7 @@ class Compile : public Phase {
   Node* optimize_acmp(PhaseGVN* phase, Node* a, Node* b);
 
   // Auxiliary method for randomized fuzzing/stressing
+  int random();
   static bool randomized_select(int count);
 
   // supporting clone_map

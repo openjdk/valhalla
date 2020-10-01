@@ -66,6 +66,7 @@
 #include "prims/stackwalk.hpp"
 #include "runtime/arguments.hpp"
 #include "runtime/atomic.hpp"
+#include "runtime/globals_extension.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/init.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
@@ -1287,9 +1288,6 @@ JVM_ENTRY(jobjectArray, JVM_GetClassInterfaces(JNIEnv *env, jclass cls))
   if (klass->is_instance_klass()) {
     InstanceKlass* ik = InstanceKlass::cast(klass);
     size = ik->local_interfaces()->length();
-    if (ik->has_injected_identityObject()) {
-      size--;
-    }
   } else {
     assert(klass->is_objArray_klass() || klass->is_typeArray_klass(), "Illegal mirror klass");
     size = 3;
@@ -1301,13 +1299,10 @@ JVM_ENTRY(jobjectArray, JVM_GetClassInterfaces(JNIEnv *env, jclass cls))
   // Fill in result
   if (klass->is_instance_klass()) {
     // Regular instance klass, fill in all local interfaces
-    int cursor = 0;
     for (int index = 0; index < size; index++) {
       InstanceKlass* ik = InstanceKlass::cast(klass);
       Klass* k = ik->local_interfaces()->at(index);
-      if (!ik->has_injected_identityObject() || k != SystemDictionary::IdentityObject_klass()) {
-        result->obj_at_put(cursor++, k->java_mirror());
-      }
+      result->obj_at_put(index, k->java_mirror());
     }
   } else {
     // All arrays implement java.lang.Cloneable, java.io.Serializable and java.lang.IdentityObject
@@ -3909,18 +3904,18 @@ JVM_ENTRY(jclass, JVM_LookupLambdaProxyClassFromArchive(JNIEnv* env,
 #endif // INCLUDE_CDS
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsCDSDumpingEnabled(JNIEnv* env))
-    JVMWrapper("JVM_IsCDSDumpingEnable");
+JVM_ENTRY(jboolean, JVM_IsDynamicDumpingEnabled(JNIEnv* env))
+    JVMWrapper("JVM_IsDynamicDumpingEnable");
     return DynamicDumpSharedSpaces;
 JVM_END
 
-JVM_ENTRY(jboolean, JVM_IsCDSSharingEnabled(JNIEnv* env))
-    JVMWrapper("JVM_IsCDSSharingEnable");
+JVM_ENTRY(jboolean, JVM_IsSharingEnabled(JNIEnv* env))
+    JVMWrapper("JVM_IsSharingEnable");
     return UseSharedSpaces;
 JVM_END
 
-JVM_ENTRY_NO_ENV(jlong, JVM_GetRandomSeedForCDSDump())
-  JVMWrapper("JVM_GetRandomSeedForCDSDump");
+JVM_ENTRY_NO_ENV(jlong, JVM_GetRandomSeedForDumping())
+  JVMWrapper("JVM_GetRandomSeedForDumping");
   if (DumpSharedSpaces) {
     const char* release = Abstract_VM_Version::vm_release();
     const char* dbg_level = Abstract_VM_Version::jdk_debug_level();
@@ -3935,7 +3930,7 @@ JVM_ENTRY_NO_ENV(jlong, JVM_GetRandomSeedForCDSDump())
     if (seed == 0) { // don't let this ever be zero.
       seed = 0x87654321;
     }
-    log_debug(cds)("JVM_GetRandomSeedForCDSDump() = " JLONG_FORMAT, seed);
+    log_debug(cds)("JVM_GetRandomSeedForDumping() = " JLONG_FORMAT, seed);
     return seed;
   } else {
     return 0;
