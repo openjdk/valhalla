@@ -46,7 +46,8 @@ public class interfaces001 {
 
     static final String class_interfaces [][] = {
                     { DEBUGEE_CLASS_NAME + "$" + "TestedClassInterface1", "" },
-                    { DEBUGEE_CLASS_NAME + "$" + "TestedClassInterface2", "" }
+                    { DEBUGEE_CLASS_NAME + "$" + "TestedClassInterface2", "" },
+                    { "java.lang.IdentityObject", ""}
                 };
     static final int DECLARED_INTERFACES = class_interfaces.length;
     static final long interfaceIDs[] = new long[DECLARED_INTERFACES];
