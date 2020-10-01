@@ -135,10 +135,6 @@ class FieldStreamBase : public StackObj {
     return field()->offset();
   }
 
-  int allocation_type() const {
-    return field()->allocation_type();
-  }
-
   bool is_inlined() {
     return field()->is_inlined();
   }
@@ -161,6 +157,14 @@ class FieldStreamBase : public StackObj {
 
   int contended_group() const {
     return field()->contended_group();
+  }
+
+  bool has_restricted_type() const {
+    return field()->has_restricted_type();
+  }
+
+  void set_has_restricted_type(bool b) {
+    field()->set_has_rectricted_type(b);
   }
 
   // bridge to a heavier API:

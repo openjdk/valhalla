@@ -518,12 +518,14 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
 }
 
 FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, const InstanceKlass* super_klass, ConstantPool* constant_pool,
-                                       Array<u2>* fields, bool is_contended, bool is_inline_type, ClassLoaderData* class_loader_data,
+                                       Array<u2>* fields, GrowableArray<RestrictedFieldInfo>* restricted_field_info,
+                                       bool is_contended, bool is_inline_type, ClassLoaderData* class_loader_data,
                                        Handle protection_domain, FieldLayoutInfo* info) :
   _classname(classname),
   _super_klass(super_klass),
   _constant_pool(constant_pool),
   _fields(fields),
+  _restricted_field_info(restricted_field_info),
   _info(info),
   _root_group(NULL),
   _contended_groups(GrowableArray<FieldGroup*>(8)),
@@ -598,6 +600,11 @@ void FieldLayoutBuilder::regular_field_sorting() {
     }
     assert(group != NULL, "invariant");
     BasicType type = Signature::basic_type(fs.signature());
+    if (fs.has_restricted_type()) {
+      tty->print_cr("Restricted type detected, switching from %s to %s",
+                    fs.signature()->as_C_string(),
+                    _restricted_field_info->at(fs.index()).name()->as_C_string());
+    }
     switch(type) {
     case T_BYTE:
     case T_CHAR:

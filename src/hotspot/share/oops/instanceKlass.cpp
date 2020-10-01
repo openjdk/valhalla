@@ -481,7 +481,8 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
                                        parser.is_unsafe_anonymous(),
                                        should_store_fingerprint(is_hidden_or_anonymous),
                                        parser.has_inline_fields() ? parser.java_fields_count() : 0,
-                                       parser.is_inline_type());
+                                       parser.is_inline_type(),
+                                       parser.has_restricted_fields());
 
   const Symbol* const class_name = parser.class_name();
   assert(class_name != NULL, "invariant");
