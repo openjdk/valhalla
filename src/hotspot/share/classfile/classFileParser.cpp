@@ -1363,7 +1363,8 @@ void ClassFileParser::parse_field_attributes(const ClassFileStream* const cfs,
                                              bool* const is_synthetic_addr,
                                              u2* const generic_signature_index_addr,
                                              ClassFileParser::FieldAnnotationCollector* parsed_annotations,
-                                             RestrictedFieldInfo* restricted_field_info,
+                                             u2* restricted_field_info,
+                                             bool* has_restricted_type,
                                              TRAPS) {
   assert(cfs != NULL, "invariant");
   assert(constantvalue_index_addr != NULL, "invariant");
@@ -1454,15 +1455,16 @@ void ClassFileParser::parse_field_attributes(const ClassFileStream* const cfs,
                           CHECK);
         cfs->skip_u1_fast(runtime_visible_annotations_length);
       } else if (attribute_name == vmSymbols::tag_restricted_field()) {
-        ResourceMark rm(THREAD);
-        tty->print_cr("RestrictedField attribute found");
         check_property(
           attribute_length == 2,
           "Invalid RestrictedField field attribute length %u in class file %s",
           attribute_length, CHECK);
           const u2 type_index = cfs->get_u2_fast();
-          Symbol* restricted_type = cp->symbol_at(type_index);
-          restricted_field_info->set_unresolved(restricted_type);
+          check_property(valid_symbol_at(type_index),
+                         "Invalid constant pool index %u for field restricted type signature in class file %s",
+                          type_index, CHECK);
+          *restricted_field_info = type_index;
+          *has_restricted_type = true;
           set_has_restricted_fields();
       } else if (attribute_name == vmSymbols::tag_runtime_invisible_annotations()) {
         if (runtime_invisible_annotations_exists) {
@@ -1653,7 +1655,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   // one for the field the JVM injects when detecting an empty inline class
   const int total_fields = length + num_injected + (is_inline_type ? 2 : 0);
 
-  _restricted_field_info = new GrowableArray<RestrictedFieldInfo>(total_fields);
+  _restricted_field_info = new GrowableArray<u2>(total_fields);
 
   // The field array starts with tuples of shorts
   // [access, name index, sig index, initial value index, byte offset].
@@ -1685,7 +1687,6 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   int num_generic_signature = 0;
   int instance_fields_count = 0;
   for (int n = 0; n < length; n++) {
-    RestrictedFieldInfo rfi;
 
     // access_flags, name_index, descriptor_index, attributes_count
     cfs->guarantee_more(8, CHECK);
@@ -1719,6 +1720,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     FieldAnnotationCollector parsed_annotations(_loader_data);
 
     const u2 attributes_count = cfs->get_u2_fast();
+    bool has_restricted_type = false;
+    u2 restricted_type_index;
     if (attributes_count > 0) {
       parse_field_attributes(cfs,
                              attributes_count,
@@ -1728,7 +1731,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                              &is_synthetic,
                              &generic_signature_index,
                              &parsed_annotations,
-                             &rfi,
+                             &restricted_type_index,
+                             &has_restricted_type,
                              CHECK);
 
       if (parsed_annotations.field_annotations() != NULL) {
@@ -1763,25 +1767,27 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       }
     }
 
-    if (rfi.has_restricted_type()) {
-      ResourceMark rm(THREAD);
-      tty->print_cr("Field %s with signature %s has restricted type %s",
-                    name->as_C_string(), sig->as_C_string(), rfi._name->as_C_string());
+    u2 sharp_type_index, erased_type_index;
+    if (has_restricted_type) {
+      sharp_type_index = restricted_type_index;
+      erased_type_index = signature_index;
+    } else {
+      sharp_type_index = signature_index;
+      erased_type_index = signature_index;
     }
-
-    _restricted_field_info->append(rfi);
 
     FieldInfo* const field = FieldInfo::from_field_array(fa, n);
     field->initialize(access_flags.as_short(),
                       name_index,
-                      signature_index,
+                      sharp_type_index,
                       constantvalue_index);
-    field->set_has_rectricted_type(rfi.has_restricted_type());
+    _restricted_field_info->append(erased_type_index);
+    field->set_has_rectricted_type(has_restricted_type);
 
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
 
-    // // Remember how many oops we encountered and compute allocation type
-    const FieldAllocationType atype = fac->update(is_static, type, type == T_INLINE_TYPE);
+    // // Remember how many oops we encountered
+    fac->update(is_static, type, type == T_INLINE_TYPE);
 
     // After field is initialized with type, we can augment it with aux info
     if (parsed_annotations.has_any_annotations()) {
@@ -1824,14 +1830,14 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
       const BasicType type = Signature::basic_type(injected[n].signature());
 
-      // // Remember how many oops we encountered and compute allocation type
-      const FieldAllocationType atype = fac->update(false, type, false);
+      // Remember how many oops we encountered
+      fac->update(false, type, false);
       index++;
-      RestrictedFieldInfo rfi;
-      _restricted_field_info->append(rfi);
+      _restricted_field_info->append(0);
     }
   }
 
+  // Add internal static field to inline type to store the pre-allocated default value
   if (is_inline_type) {
     FieldInfo* const field = FieldInfo::from_field_array(fa, index);
     field->initialize(JVM_ACC_FIELD_INTERNAL | JVM_ACC_STATIC,
@@ -1839,12 +1845,15 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                       vmSymbols::object_signature_enum,
                       0);
     const BasicType type = Signature::basic_type(vmSymbols::object_signature());
-    const FieldAllocationType atype = fac->update(true, type, false);
+    // Remember how many oops we encountered
+    fac->update(true, type, false);
     index++;
-    RestrictedFieldInfo rfi;
-    _restricted_field_info->append(rfi);
+    _restricted_field_info->append(vmSymbols::object_signature_enum);
   }
 
+  // True zero size inline types are causing issues when inlined, so the current
+  // implementation inserts a byte field to work around the issue
+  // Could be optimized later after revisiting use of field offsets as field identifiers
   if (is_inline_type && instance_fields_count == 0) {
     _is_empty_inline_type = true;
     FieldInfo* const field = FieldInfo::from_field_array(fa, index);
@@ -1853,19 +1862,11 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
         vmSymbols::byte_signature_enum,
         0);
     const BasicType type = Signature::basic_type(vmSymbols::byte_signature());
-    const FieldAllocationType atype = fac->update(false, type, false);
+    // Remember how many oops we encountered
+    fac->update(false, type, false);
     index++;
-    RestrictedFieldInfo rfi;
-    _restricted_field_info->append(rfi);
+    _restricted_field_info->append(vmSymbols::byte_signature_enum);
   }
-
-  // for (int i = 0; i < index; i++) {
-  //   ResourceMark rm(THREAD);
-  //   FieldInfo* const field = FieldInfo::from_field_array(fa, i);
-  //   tty->print("Field %s:", field->name(_cp)->as_C_string());
-  //   _restricted_field_info->at(i).print();
-  //   tty->print_cr("");
-  // }
 
   if (instance_fields_count > 0) {
     _has_nonstatic_fields = true;
@@ -5825,7 +5826,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
 
   if(has_restricted_fields()) {
     ik->set_has_restricted_fields();
-    RestrictedFieldInfo* rfi = ik->restricted_fields_info();
+    u2* rfi = ik->fields_erased_type();
     for (int i = 0; i < ik->java_fields_count(); i++) {
       rfi[i] = _restricted_field_info->at(i);
     }
@@ -6647,19 +6648,8 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
     }
   }
 
-  // Pre-loading restricted types
-  for (int i = 0; i < _restricted_field_info->length(); i++) {
-    if (_restricted_field_info->at(i).has_restricted_type()) {
-      Klass* klass = SystemDictionary::resolve_or_fail(_restricted_field_info->at(i).name(),
-          Handle(THREAD, _loader_data->class_loader()),
-          _protection_domain, true, CHECK);
-      assert(klass != NULL, "Sanity check");
-      _restricted_field_info->at(i).set_resolved(klass);
-    }
-  }
-
   _field_info = new FieldLayoutInfo();
-  FieldLayoutBuilder lb(class_name(), super_klass(), _cp, _fields, _restricted_field_info,
+  FieldLayoutBuilder lb(class_name(), super_klass(), _cp, _fields,
       _parsed_annotations->is_contended(), is_inline_type(),
       loader_data(), _protection_domain, _field_info);
   lb.build_layout(CHECK);

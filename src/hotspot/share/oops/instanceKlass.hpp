@@ -153,61 +153,6 @@ class InlineKlassFixedBlock {
   friend class InlineKlass;
 };
 
-class RestrictedFieldInfo {
-  friend class InstanceKlass;
-  friend class ClassFileParser;
-
- public:
-  enum class RFState { NONE, UNRESOLVED, RESOLVED};
-
- private:
-  RFState _flag;
-  Symbol* _name;
-  Klass* _klass;
-
- public:
-  RestrictedFieldInfo() {
-    _flag = RFState::NONE;
-    _name = NULL;
-    _klass = NULL;
-  }
-
-  Symbol* name() const { return _name; }
-  Klass* klass() const { return _klass; }
-
-  void set_unresolved(Symbol* name) {
-    assert(name != NULL, "Sanity check");
-    _name = name;
-    _flag = RFState::UNRESOLVED;
-  }
-
-  void set_resolved(Klass* klass) {
-    assert(klass != NULL, "Sanity check");
-    _klass = klass;
-    _flag = RFState::RESOLVED;
-  }
-
-  void clear() {
-    _flag = RFState::NONE;
-    _name = NULL;
-    _klass = NULL;
-  }
-
-  bool has_restricted_type() { return _flag != RFState::NONE; }
-  bool is_resolved() { return _flag == RFState::RESOLVED; }
-
-  void print() {
-    switch(_flag) {
-      case RFState::NONE: tty->print("NONE: "); break;
-      case RFState::UNRESOLVED: tty->print("UNRESOLVED: "); break;
-      case RFState::RESOLVED: tty->print("RESOLVED: "); break;
-      default: tty->print("UNKNOWN STATE: ");
-    }
-    tty->print("symbol = %s ", _name == NULL ? " NULL" : _name->as_C_string());
-    tty->print("klass = %s ", _klass == NULL ? " NULL" :_klass->name()->as_C_string());
-  }
-};
-
 class InstanceKlass: public Klass {
   friend class VMStructs;
   friend class JVMCIVMStructs;
@@ -1267,7 +1212,7 @@ public:
            (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0) +
            (java_fields * (int)sizeof(Klass*)/wordSize) +
            (is_inline_type ? (int)sizeof(InlineKlassFixedBlock) : 0) +
-           (has_restricted_fields ? java_fields * (int)sizeof(RestrictedFieldInfo)/wordSize : 0));
+           (has_restricted_fields ? java_fields * (int)sizeof(u2)/wordSize : 0));
   }
   int size() const                    { return size(vtable_length(),
                                                itable_length(),
@@ -1337,7 +1282,7 @@ public:
     }
   }
 
-  RestrictedFieldInfo* restricted_fields_info();
+  u2* fields_erased_type();
 
   address adr_inline_type_field_klasses() const {
     if (has_inline_type_fields()) {

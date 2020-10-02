@@ -231,6 +231,7 @@ class ConstantPoolCacheEntry {
     bool            is_volatile,                 // the field is volatile
     bool            is_inlined,                  // the field is inlined
     bool            is_inline_type,              // the field is an inline type (must never be null)
+    bool            has_restricted_type,         // field has a restricted type
     Klass*          root_klass                   // needed by the GC to dirty the klass
   );
 

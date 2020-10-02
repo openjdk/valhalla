@@ -240,7 +240,6 @@ class FieldLayoutBuilder : public ResourceObj {
   const InstanceKlass* _super_klass;
   ConstantPool* _constant_pool;
   Array<u2>* _fields;
-  GrowableArray<RestrictedFieldInfo>* _restricted_field_info;
   FieldLayoutInfo* _info;
   FieldGroup* _root_group;
   GrowableArray<FieldGroup*> _contended_groups;
@@ -265,8 +264,8 @@ class FieldLayoutBuilder : public ResourceObj {
 
  public:
   FieldLayoutBuilder(const Symbol* classname, const InstanceKlass* super_klass, ConstantPool* constant_pool,
-      Array<u2>* fields, GrowableArray<RestrictedFieldInfo>* restricted_field_info, bool is_contended, bool is_inline_type,
-      ClassLoaderData* class_loader_data, Handle protection_domain, FieldLayoutInfo* info);
+      Array<u2>* fields, bool is_contended, bool is_inline_type, ClassLoaderData* class_loader_data,
+      Handle protection_domain, FieldLayoutInfo* info);
 
   int get_alignment() {
     assert(_alignment != -1, "Uninitialized");

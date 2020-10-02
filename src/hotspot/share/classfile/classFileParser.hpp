@@ -146,7 +146,7 @@ class ClassFileParser {
   Array<AnnotationArray*>* _fields_type_annotations;
   InstanceKlass* _klass;  // InstanceKlass* once created.
   InstanceKlass* _klass_to_deallocate; // an InstanceKlass* to be destroyed
-  GrowableArray<RestrictedFieldInfo>* _restricted_field_info;
+  GrowableArray<u2>* _restricted_field_info;
 
   ClassAnnotationCollector* _parsed_annotations;
   FieldAllocationCount* _fac;
@@ -284,7 +284,8 @@ class ClassFileParser {
                               bool* const is_synthetic_addr,
                               u2* const generic_signature_index_addr,
                               FieldAnnotationCollector* parsed_annotations,
-                              RestrictedFieldInfo* restricted_field_info,
+                              u2* restricted_field_info,
+                              bool* has_restricted_type,
                               TRAPS);
 
   void parse_fields(const ClassFileStream* const cfs,

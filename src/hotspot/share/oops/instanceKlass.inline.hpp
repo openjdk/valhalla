@@ -171,33 +171,33 @@ inline instanceOop InstanceKlass::allocate_instance(oop java_class, TRAPS) {
   return ik->allocate_instance(THREAD);
 }
 
-inline RestrictedFieldInfo* InstanceKlass::restricted_fields_info() {
+inline u2* InstanceKlass::fields_erased_type() {
     assert(has_restricted_fields(), "Should not be called otherwise");
     if (is_inline_klass()) {
-      return (RestrictedFieldInfo*)((address)(InlineKlass::cast(this)->inlineklass_static_block()) + sizeof(InlineKlassFixedBlock));
+      return (u2*)((address)(InlineKlass::cast(this)->inlineklass_static_block()) + sizeof(InlineKlassFixedBlock));
     }
 
     address adr_jf = adr_inline_type_field_klasses();
     if (adr_jf != NULL) {
-      return (RestrictedFieldInfo*)(adr_jf + this->java_fields_count() * sizeof(Klass*));
+      return (u2*)(adr_jf + this->java_fields_count() * sizeof(Klass*));
     }
 
     address adr_fing = adr_fingerprint();
     if (adr_fing != NULL) {
-      return (RestrictedFieldInfo*)(adr_fingerprint() + sizeof(u8));
+      return (u2*)(adr_fingerprint() + sizeof(u8));
     }
 
     InstanceKlass** adr_host = adr_unsafe_anonymous_host();
     if (adr_host != NULL) {
-      return (RestrictedFieldInfo*)(adr_host + 1);
+      return (u2*)(adr_host + 1);
     }
 
     Klass* volatile* adr_impl = adr_implementor();
     if (adr_impl != NULL) {
-      return (RestrictedFieldInfo*)(adr_impl + 1);
+      return (u2*)(adr_impl + 1);
     }
 
-    return (RestrictedFieldInfo*)end_of_nonstatic_oop_maps();
+    return (u2*)end_of_nonstatic_oop_maps();
   }
 
 #endif // SHARE_OOPS_INSTANCEKLASS_INLINE_HPP

@@ -136,6 +136,7 @@ void ConstantPoolCacheEntry::set_field(Bytecodes::Code get_code,
                                        bool is_volatile,
                                        bool is_inlined,
                                        bool is_inline_type,
+                                       bool has_restricted_type,
                                        Klass* root_klass) {
   set_f1(field_holder);
   set_f2(field_offset);
@@ -146,7 +147,8 @@ void ConstantPoolCacheEntry::set_field(Bytecodes::Code get_code,
                   ((is_volatile ? 1 : 0) << is_volatile_shift) |
                   ((is_final    ? 1 : 0) << is_final_shift) |
                   ((is_inlined  ? 1 : 0) << is_inlined_shift) |
-                  ((is_inline_type ? 1 : 0) << is_inline_type_shift),
+                  ((is_inline_type ? 1 : 0) << is_inline_type_shift) |
+                  ((has_restricted_type ? 1 : 0) << has_restricted_type_shift),
                   field_index);
   set_bytecode_1(get_code);
   set_bytecode_2(put_code);

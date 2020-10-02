@@ -968,6 +968,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
     info.access_flags().is_volatile(),
     info.is_inlined(),
     info.is_inline_type(),
+    info.has_restricted_type(),
     pool->pool_holder()
   );
 }

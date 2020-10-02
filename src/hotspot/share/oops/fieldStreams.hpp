@@ -121,6 +121,16 @@ class FieldStreamBase : public StackObj {
     return field()->signature(_constants());
   }
 
+  Symbol* secondary_signature() const {
+    assert(field()->has_restricted_type(), "Must have");
+    int sig_index = field_holder()->fields_erased_type()[index()];
+    if (access_flags().is_internal()) {
+      return vmSymbols::symbol_at((vmSymbols::SID)sig_index);
+    } else {
+      return _constants->symbol_at(sig_index);
+    }
+  }
+
   Symbol* generic_signature() const {
     if (access_flags().field_has_generic_signature()) {
       assert(_generic_signature_slot < _fields->length(), "out of bounds");
