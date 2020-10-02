@@ -3013,4 +3013,96 @@ public class TestArrays extends InlineTypeTest {
             // expected
         }
     }
+
+    // Empty inline type array access
+    @Test(failOn = ALLOC + ALLOCA + LOAD + STORE)
+    public MyValueEmpty test130(MyValueEmpty[] array) {
+        array[0] = new MyValueEmpty();
+        return array[1];
+    }
+
+    @DontCompile
+    public void test130_verifier(boolean warmup) {
+        MyValueEmpty[] array = new MyValueEmpty[2];
+        MyValueEmpty empty = test130(array);
+        Asserts.assertEquals(array[0], MyValueEmpty.default);
+        Asserts.assertEquals(empty, MyValueEmpty.default);
+    }
+
+    static inline class EmptyContainer {
+        MyValueEmpty empty = MyValueEmpty.default;
+    }
+
+    // TODO disabled until JDK-8253893 is fixed
+/*
+    // Empty inline type container array access
+    @Test(failOn = ALLOC + ALLOCA + LOAD + STORE)
+    public MyValueEmpty test131(EmptyContainer[] array) {
+        array[0] = new EmptyContainer();
+        return array[1].empty;
+    }
+
+    @DontCompile
+    public void test131_verifier(boolean warmup) {
+        EmptyContainer[] array = new EmptyContainer[2];
+        MyValueEmpty empty = test131(array);
+        Asserts.assertEquals(array[0], EmptyContainer.default);
+        Asserts.assertEquals(empty, MyValueEmpty.default);
+    }
+*/
+
+    // Empty inline type array access with unknown array type
+    @Test()
+    public Object test132(Object[] array) {
+        array[0] = new MyValueEmpty();
+        return array[1];
+    }
+
+    @DontCompile
+    public void test132_verifier(boolean warmup) {
+        Object[] array = new MyValueEmpty[2];
+        Object empty = test132(array);
+        Asserts.assertEquals(array[0], MyValueEmpty.default);
+        Asserts.assertEquals(empty, MyValueEmpty.default);
+        array = new Object[2];
+        empty = test132(array);
+        Asserts.assertEquals(array[0], MyValueEmpty.default);
+        Asserts.assertEquals(empty, null);
+    }
+
+    // TODO disabled until JDK-8253893 is fixed
+/*
+    // Empty inline type container array access with unknown array type
+    @Test()
+    public Object test133(Object[] array) {
+        array[0] = new EmptyContainer();
+        return array[1];
+    }
+
+    @DontCompile
+    public void test133_verifier(boolean warmup) {
+        Object[] array = new EmptyContainer[2];
+        Object empty = test133(array);
+        Asserts.assertEquals(array[0], EmptyContainer.default);
+        Asserts.assertEquals(empty, EmptyContainer.default);
+        array = new Object[2];
+        empty = test133(array);
+        Asserts.assertEquals(array[0], EmptyContainer.default);
+        Asserts.assertEquals(empty, null);
+    }
+*/
+
+    // Non-escaping empty inline type array access
+    @Test(failOn = ALLOC + ALLOCA + LOAD + STORE)
+    public static MyValueEmpty test134(MyValueEmpty val) {
+        MyValueEmpty[] array = new MyValueEmpty[1];
+        array[0] = val;
+        return array[0];
+    }
+
+    @DontCompile
+    public void test134_verifier(boolean warmup) {
+        MyValueEmpty empty = test134(MyValueEmpty.default);
+        Asserts.assertEquals(empty, MyValueEmpty.default);
+    }
 }
