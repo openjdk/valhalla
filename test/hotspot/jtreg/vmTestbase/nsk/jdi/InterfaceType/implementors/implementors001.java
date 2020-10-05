@@ -178,7 +178,7 @@ public class implementors001 {
                         List iface0list =
                              ((ClassType) classRefType).interfaces();
 
-                        if (iface0list.size() != 2) {
+                        if (iface0list.size() != 2) { // includes injected java.lang.IdentityObject
                             log3("ERROR : iface0list.size() != 2  in case: Iface1");
                             expresult = 1;
                             break;
@@ -255,7 +255,7 @@ public class implementors001 {
                         List iface3list =
                              ((ClassType) classRefType).interfaces();
 
-                        if (iface3list.size() != 2) {
+                        if (iface3list.size() != 2) { // includes injected java.lang.IdentityObject
                             log3("ERROR : iface3list.size() != 2  in case: Iface3");
                             expresult = 1;
                             break;

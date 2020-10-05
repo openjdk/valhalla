@@ -167,7 +167,7 @@ public class interfaces001 {
 
                 switch (i2) {
 
-                case 0:         // Class0ForCheck - 0 interfaces
+                case 0:         // Class0ForCheck - 1 interface (injected java.lang.IdentityObject)
 
                         List list0 = vm.classesByName(mName + ".Class0ForCheck");
 
@@ -184,7 +184,7 @@ public class interfaces001 {
 
                         break;
 
-                case 1:         // Class1forCheck - 1 interface
+                case 1:         // Class1forCheck - 2 interfaces (includes injected java.lang.IdentityObject)
 
                         List list1 = vm.classesByName(mName + ".Class1ForCheck");
 
@@ -209,7 +209,7 @@ public class interfaces001 {
 
                         break;
 
-                case 2:         // Class2ForCheck - 2 interfaces
+                case 2:         // Class2ForCheck - 3 interfaces (includes injected java.lang.IdentityObject)
 
                         List list2 = vm.classesByName(mName + ".Class2ForCheck");
 
