@@ -1676,20 +1676,22 @@ void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem&
     assert(!inner_field->is_flattened(), "flattened fields must have been expanded");
     int obj_offset = inner_field->offset();
     int elm_offset = obj_offset - elem_klass->first_field_offset() + sub_offset; // object header is not stored in array.
-
     BasicType field_type = inner_field->type()->basic_type();
-    switch (field_type) {
+
+    // Types which are smaller than int are still passed in an int register.
+    BasicType reg_type = field_type;
+    switch (reg_type) {
     case T_BYTE:
     case T_BOOLEAN:
     case T_SHORT:
     case T_CHAR:
-     field_type = T_INT;
+      reg_type = T_INT;
       break;
     default:
       break;
     }
 
-    LIR_Opr temp = new_register(field_type);
+    LIR_Opr temp = new_register(reg_type);
     TempResolvedAddress* elm_resolved_addr = new TempResolvedAddress(as_ValueType(field_type), elm_op);
     LIRItem elm_item(elm_resolved_addr, this);
 
