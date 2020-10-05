@@ -183,37 +183,37 @@ public class TestGetfieldChains extends InlineTypeTest {
         Asserts.assertEQ(nsfe.getMessage(), "x");
     }
 
-    // static inline class EmptyType { }
-    // static inline class EmptyContainer {
-    //     int i = 0;
-    //     EmptyType et = new EmptyType();
-    // }
-    // static inline class Container {
-    //     EmptyContainer container0 = new EmptyContainer();
-    //     EmptyContainer container1 = new EmptyContainer();
-    // }
+    static inline class EmptyType { }
+    static inline class EmptyContainer {
+        int i = 0;
+        EmptyType et = new EmptyType();
+    }
+    static inline class Container {
+        EmptyContainer container0 = new EmptyContainer();
+        EmptyContainer container1 = new EmptyContainer();
+    }
 
-    // @Test(compLevel=C1)
-    // public EmptyType test6() {
-    //     Container c = new Container();
-    //     return c.container1.et;
-    // }
+    @Test(compLevel=C1)
+    public EmptyType test6() {
+        Container c = new Container();
+        return c.container1.et;
+    }
 
-    // @DontCompile
-    // public void test6_verifier(boolean warmup) {
-    //     EmptyType et = test6();
-    //     Asserts.assertEQ(et, EmptyType.default);
-    // }
+    @DontCompile
+    public void test6_verifier(boolean warmup) {
+        EmptyType et = test6();
+        Asserts.assertEQ(et, EmptyType.default);
+    }
 
-    // @Test(compLevel=C1)
-    // public EmptyType test7() {
-    //     Container[] ca = new Container[10];
-    //     return ca[3].container0.et;
-    // }
+    @Test(compLevel=C1)
+    public EmptyType test7() {
+        Container[] ca = new Container[10];
+        return ca[3].container0.et;
+    }
 
-    // @DontCompile
-    // public void test7_verifier(boolean warmup) {
-    //     EmptyType et = test7();
-    //     Asserts.assertEQ(et, EmptyType.default);
-    // }
+    @DontCompile
+    public void test7_verifier(boolean warmup) {
+        EmptyType et = test7();
+        Asserts.assertEQ(et, EmptyType.default);
+    }
 }

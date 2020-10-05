@@ -275,7 +275,7 @@ Klass* InlineKlass::array_klass_impl(bool or_null, TRAPS) {
 int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   int count = 0;
   SigEntry::add_entry(sig, T_INLINE_TYPE, base_off);
-  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
+  for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
     if (fs.is_inlined()) {
@@ -376,12 +376,12 @@ bool InlineKlass::is_scalarizable() const {
 
 // Can this inline type be passed as multiple values?
 bool InlineKlass::can_be_passed_as_fields() const {
-  return InlineTypePassFieldsAsArgs && is_scalarizable() && !is_empty_inline_type();
+  return InlineTypePassFieldsAsArgs && is_scalarizable();
 }
 
 // Can this inline type be returned as multiple values?
 bool InlineKlass::can_be_returned_as_fields(bool init) const {
-  return InlineTypeReturnedAsFields && is_scalarizable() && !is_empty_inline_type() && (init || return_regs() != NULL);
+  return InlineTypeReturnedAsFields && is_scalarizable() && (init || return_regs() != NULL);
 }
 
 // Create handles for all oop fields returned in registers that are going to be live across a safepoint

@@ -74,7 +74,8 @@ public class TestCallingConvention extends InlineTypeTest {
 
     public static void main(String[] args) throws Throwable {
         TestCallingConvention test = new TestCallingConvention();
-        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class, MyValue3Inline.class, MyValue4.class, Test27Value1.class, Test27Value2.class, Test27Value3.class, Test37Value.class);
+        test.run(args, MyValue1.class, MyValue2.class, MyValue2Inline.class, MyValue3.class, MyValue3Inline.class, MyValue4.class,
+                 Test27Value1.class, Test27Value2.class, Test27Value3.class, Test37Value.class, EmptyContainer.class, MixedContainer.class);
     }
 
     // Test interpreter to compiled code with various signatures
@@ -913,5 +914,125 @@ public class TestCallingConvention extends InlineTypeTest {
     public void test41_verifier(boolean warmup) {
         MyValueEmpty res = test41(MyValue1.default, MyValueEmpty.default, MyValue1.default);
         Asserts.assertEQ(res, MyValueEmpty.default);
+    }
+
+    // More empty inline type tests with containers
+
+    static inline class EmptyContainer {
+        private MyValueEmpty empty;
+
+        EmptyContainer(MyValueEmpty empty) {
+            this.empty = empty;
+        }
+
+        @ForceInline
+        MyValueEmpty getInline() { return empty; }
+
+        @DontInline
+        MyValueEmpty getNoInline() { return empty; }
+    }
+
+    static inline class MixedContainer {
+        public int val;
+        private EmptyContainer empty;
+
+        MixedContainer(int val, EmptyContainer empty) {
+            this.val = val;
+            this.empty = empty;
+        }
+
+        @ForceInline
+        EmptyContainer getInline() { return empty; }
+
+        @DontInline
+        EmptyContainer getNoInline() { return empty; }
+    }
+
+    // Empty inline type return
+    @Test(failOn = ALLOC + LOAD + STORE + TRAP)
+    public MyValueEmpty test42() {
+        EmptyContainer c = new EmptyContainer(MyValueEmpty.default);
+        return c.getInline();
+    }
+
+    @DontCompile
+    public void test42_verifier(boolean warmup) {
+        MyValueEmpty empty = test42();
+        Asserts.assertEquals(empty, MyValueEmpty.default);
+    }
+
+    // Empty inline type container return
+    @Test(failOn = ALLOC + LOAD + STORE + TRAP)
+    public EmptyContainer test43(EmptyContainer c) {
+        return c;
+    }
+
+    @DontCompile
+    public void test43_verifier(boolean warmup) {
+        EmptyContainer c = test43(EmptyContainer. default);
+        Asserts.assertEquals(c, EmptyContainer.default);
+    }
+
+    // Empty inline type container (mixed) return
+    @Test(failOn = ALLOC + LOAD + STORE + TRAP)
+    public MixedContainer test44() {
+        MixedContainer c = new MixedContainer(rI, EmptyContainer.default);
+        c = new MixedContainer(rI, c.getInline());
+        return c;
+    }
+
+    @DontCompile
+    public void test44_verifier(boolean warmup) {
+        MixedContainer c = test44();
+        Asserts.assertEquals(c, new MixedContainer(rI, EmptyContainer.default));
+    }
+
+    // Empty inline type container argument
+    @Test(failOn = ALLOC + LOAD + STORE + TRAP)
+    public EmptyContainer test45(EmptyContainer c) {
+        return new EmptyContainer(c.getInline());
+    }
+
+    @DontCompile
+    public void test45_verifier(boolean warmup) {
+        EmptyContainer empty = test45(EmptyContainer.default);
+        Asserts.assertEquals(empty, EmptyContainer.default);
+    }
+
+    // Empty inline type container and mixed container arguments
+    @Test(failOn = ALLOC + LOAD + STORE + TRAP)
+    public MyValueEmpty test46(EmptyContainer c1, MixedContainer c2, MyValueEmpty empty) {
+        c2 = new MixedContainer(c2.val, c1);
+        return c2.getNoInline().getNoInline();
+    }
+
+    @DontCompile
+    public void test46_verifier(boolean warmup) {
+        MyValueEmpty empty = test46(EmptyContainer.default, MixedContainer.default, MyValueEmpty.default);
+        Asserts.assertEquals(empty, MyValueEmpty.default);
+    }
+
+    // No receiver and only empty argument
+    @Test(failOn = ALLOC + LOAD + STORE + TRAP)
+    public static MyValueEmpty test47(MyValueEmpty empty) {
+        return empty;
+    }
+
+    @DontCompile
+    public void test47_verifier(boolean warmup) {
+        MyValueEmpty empty = test47(MyValueEmpty.default);
+        Asserts.assertEquals(empty, MyValueEmpty.default);
+    }
+
+    // No receiver and only empty container argument
+    @Test(failOn = ALLOC + LOAD + STORE + TRAP)
+    public static MyValueEmpty test48(EmptyContainer empty) {
+        return empty.getNoInline();
+    }
+
+    @DontCompile
+    public void test48_verifier(boolean warmup) {
+        MyValueEmpty empty = test48(EmptyContainer.default);
+        Asserts.assertEquals(empty, MyValueEmpty.default);
     }
 }

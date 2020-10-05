@@ -76,7 +76,7 @@ public:
   bool          field_is_flattened(uint index) const;
 
   // Replace InlineTypeNodes in debug info at safepoints with SafePointScalarObjectNodes
-  void make_scalar_in_safepoints(PhaseIterGVN* igvn);
+  void make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop = true);
 
   // Store the inline type as a flattened (headerless) representation
   void store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED) const;
@@ -139,9 +139,9 @@ public:
   }
   static Node* tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn);
   // Pass inline type as fields at a call or return
-  void pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig, uint& base_input, int base_offset = 0);
+  void pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig, uint& base_input);
   // Initialize the inline type fields with the inputs or outputs of a MultiNode
-  void initialize_fields(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, uint& base_input, int base_offset, bool in);
+  void initialize_fields(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, uint& base_input, bool in);
 
   // Allocation optimizations
   void remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealLoop* phase);

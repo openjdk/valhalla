@@ -1659,7 +1659,7 @@ public:
   // Unpack all inline type arguments passed as oops
   void unpack_inline_args(Compile* C, bool receiver_only);
   bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset);
-  bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index,
+  bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, int& from_index, VMRegPair* regs_to, int& to_index,
                             RegState reg_state[], int ret_off, int extra_stack_offset);
   bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
                           VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
