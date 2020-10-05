@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -172,7 +172,7 @@ public class allinterfaces001 {
 
                 switch (i2) {
 
-                case 0:         // Class0ForCheck - 0 interfaces
+                case 0:         // Class0ForCheck - 1 injected interface (java.lang.IdentityObject)
 
                         List list0 = vm.classesByName(mName + ".Class0ForCheck");
 
@@ -181,15 +181,15 @@ public class allinterfaces001 {
                         List iface0list =
                              ((ClassType) classRefType).allInterfaces();
 
-                        if (iface0list.size() != 0) {
-                            log3("ERROR : iface0list.size() != 0 in case: Class0ForCheck");
+                        if (iface0list.size() != 1) {
+                            log3("ERROR : iface0list.size() != 1 in case: Class0ForCheck");
                             expresult = 1;
                             break;
                         }
 
                         break ;
 
-                case 1:         // Class1forCheck - 1 direct and 1 indirect interfaces
+                case 1:         // Class1forCheck - 1 direct, 1 indirect, and 1 injected (java.lang.IdentityObject) interfaces
 
                         List list1 = vm.classesByName(mName + ".Class1ForCheck");
 
@@ -198,8 +198,8 @@ public class allinterfaces001 {
                         List iface1list =
                              ((ClassType) classRefType).allInterfaces();
 
-                        if (iface1list.size() != 2) {
-                            log3("ERROR : iface1list.size() != 2 in case: Class1forCheck   :"  + iface1list.size());
+                        if (iface1list.size() != 3) {
+                            log3("ERROR : iface1list.size() != 3 in case: Class1forCheck   :"  + iface1list.size());
                             expresult = 1;
                             break;
                         }
@@ -208,7 +208,7 @@ public class allinterfaces001 {
                         name = reftype.name();
                         if (!name.equals(mName + ".Iface1")) {
                             if (!name.equals(mName + ".Iface2")) {
-                                log3("ERROR : name1: !name.equals('.Iface1' or '.Iface2') in Class1forCheck");
+                                log3("ERROR : name1: !name.equals('.Iface1' or '.Iface2') in Class1forCheck, name: " + name);
                                 expresult = 1;
                                 break;
                             }
@@ -217,14 +217,16 @@ public class allinterfaces001 {
                         name = reftype.name();
                         if (!name.equals(mName + ".Iface1")) {
                             if (!name.equals(mName + ".Iface2")) {
-                                log3("ERROR :name2: !name.equals('.Iface1' or '.Iface2') in Class1forCheck");
-                                expresult = 1;
-                                break;
+                                if (!name.equals("java.lang.IdentityObject")) {
+                                    log3("ERROR :name2: !name.equals('.Iface1' or '.Iface2 or 'java.lang.IdentityObject') in Class1forCheck, name: " + name);
+                                    expresult = 1;
+                                    break;
+                                }
                             }
                         }
                         break;
 
-                case 2:         // Class2ForCheck - 1 direct and 2 indirect interfaces
+                case 2:         // Class2ForCheck - 1 direct, 2 indirect, and 1 injected (java.lang.IdentityObject) interfaces
 
                         List list2 = vm.classesByName(mName + ".Class2ForCheck");
 
@@ -233,8 +235,8 @@ public class allinterfaces001 {
                         List iface2list =
                              ((ClassType) classRefType).allInterfaces();
 
-                        if (iface2list.size() != 3) {
-                            log3("ERROR : iface2list.size() != 3 in case: Class2forCheck");
+                        if (iface2list.size() != 4) {
+                            log3("ERROR : iface2list.size() != 4 in case: Class2forCheck");
                             expresult = 1;
                             break;
                         }
@@ -244,7 +246,7 @@ public class allinterfaces001 {
                         if (!name.equals(mName + ".Iface1")) {
                             if (!name.equals(mName + ".Iface2")) {
                                 if (!name.equals(mName + ".Iface3")) {
-                                    log3("ERROR : name1: !name.equals('.Iface1' or '.Iface3' or 'Iface3) in Class2forCheck");
+                                    log3("ERROR : name1: !name.equals('.Iface1' or '.Iface2' or 'Iface3) in Class2forCheck, name: " + name);
                                     expresult = 1;
                                     break;
                                 }
@@ -255,9 +257,11 @@ public class allinterfaces001 {
                         if (!name.equals(mName + ".Iface1")) {
                             if (!name.equals(mName + ".Iface2")) {
                                 if (!name.equals(mName + ".Iface3")) {
-                                    log3("ERROR : name1: !name.equals('.Iface1' or '.Iface3' or 'Iface3) in Class2forCheck");
-                                    expresult = 1;
-                                    break;
+                                    if (!name.equals("java.lang.IdentityObject")) {
+                                        log3("ERROR : name1: !name.equals('.Iface1' or '.Iface2' or 'Iface3' or 'java.lang.IdentityObject') in Class2forCheck, name: " + name);
+                                        expresult = 1;
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -266,7 +270,7 @@ public class allinterfaces001 {
                         if (!name.equals(mName + ".Iface1")) {
                             if (!name.equals(mName + ".Iface2")) {
                                 if (!name.equals(mName + ".Iface3")) {
-                                    log3("ERROR : name1: !name.equals('.Iface1' or '.Iface3' or 'Iface3) in Class2forCheck");
+                                    log3("ERROR : name1: !name.equals('.Iface1' or '.Iface3' or 'Iface3) in Class2forCheck, name: " + name);
                                     expresult = 1;
                                     break;
                                 }
@@ -274,7 +278,7 @@ public class allinterfaces001 {
                         }
                         break;
 
-                case 3:         // Class3ForCheck - 1 direct and 2 indirect interfaces
+                case 3:         // Class3ForCheck - 1 direct, 2 indirect, and 1 injected (java.lang.IdentityObject) interfaces
 
                         List list3 = vm.classesByName(mName + ".Class3ForCheck");
 
@@ -283,8 +287,8 @@ public class allinterfaces001 {
                         List iface3list =
                              ((ClassType) classRefType).allInterfaces();
 
-                        if (iface3list.size() != 3) {
-                            log3("ERROR : iface3list.size() != 3 in case: Class3forCheck");
+                        if (iface3list.size() != 4) {
+                            log3("ERROR : iface3list.size() != 4 in case: Class3forCheck");
                             expresult = 1;
                             break;
                         }
@@ -294,7 +298,7 @@ public class allinterfaces001 {
                         if (!name.equals(mName + ".Iface1")) {
                             if (!name.equals(mName + ".Iface2")) {
                                 if (!name.equals(mName + ".Iface3")) {
-                                    log3("ERROR : name1: !name.equals('.Iface1' or '.Iface3' or 'Iface3) in Class3forCheck");
+                                    log3("ERROR : name1: !name.equals('.Iface1' or '.Iface2' or 'Iface3) in Class3forCheck, name: " + name);
                                     expresult = 1;
                                     break;
                                 }
@@ -305,9 +309,11 @@ public class allinterfaces001 {
                         if (!name.equals(mName + ".Iface1")) {
                             if (!name.equals(mName + ".Iface2")) {
                                 if (!name.equals(mName + ".Iface3")) {
-                                    log3("ERROR : name1: !name.equals('.Iface1' or '.Iface3' or 'Iface3) in Class3forCheck");
-                                    expresult = 1;
-                                    break;
+                                    if (!name.equals("java.lang.IdentityObject")) {
+                                        log3("ERROR : name1: !name.equals('.Iface1' or '.Iface3' or 'Iface3' or 'java.lang.IdentityObject') in Class3forCheck, name: " + name);
+                                        expresult = 1;
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -316,7 +322,7 @@ public class allinterfaces001 {
                         if (!name.equals(mName + ".Iface1")) {
                             if (!name.equals(mName + ".Iface2")) {
                                 if (!name.equals(mName + ".Iface3")) {
-                                    log3("ERROR : name1: !name.equals('.Iface1' or '.Iface3' or 'Iface3) in Class3forCheck");
+                                    log3("ERROR : name1: !name.equals('.Iface1' or '.Iface2' or 'Iface3) in Class3forCheck, name: " + name);
                                     expresult = 1;
                                     break;
                                 }

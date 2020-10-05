@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -67,15 +67,19 @@ static iface_info i9[] = {
     { "Lnsk/jvmti/GetImplementedInterfaces/OuterInterface2;" }
 };
 
+static iface_info jlio[] = {
+    { "Ljava/lang/IdentityObject;" }
+};
+
 static class_info classes[] = {
-    { "InnerClass1", 0, NULL },
+    { "InnerClass1", 1, jlio },
     { "InnerInterface1", 0, NULL },
     { "InnerInterface2", 1, i2 },
-    { "InnerClass2", 1, i3 },
-    { "OuterClass1", 0, NULL },
+    { "InnerClass2", 2, i3 },
+    { "OuterClass1", 1, jlio },
     { "OuterClass2", 0, NULL },
     { "OuterInterface1", 0, NULL },
-    { "OuterClass3", 1, i7 },
+    { "OuterClass3", 2, i7 },
     { "OuterInterface2", 1, i8 },
     { "OuterClass4", 1, i9 },
     { "OuterClass5", 0, NULL }
@@ -155,9 +159,11 @@ Java_nsk_jvmti_GetImplementedInterfaces_getintrf007_check(JNIEnv *env, jclass cl
                 }
                 if ((j < classes[i].icount) && (sig == NULL ||
                         strcmp(sig, classes[i].ifaces[j].sig) != 0)) {
-                    printf("(%d:%d) wrong interface: \"%s\"", i, j, sig);
-                    printf(", expected: \"%s\"\n", classes[i].ifaces[j].sig);
-                    result = STATUS_FAILED;
+                    if (strcmp(sig, "Ljava/lang/IdentityObject;") != 0) {
+                        printf("(%d:%d) wrong interface: \"%s\"", i, j, sig);
+                        printf(", expected: \"%s\"\n", classes[i].ifaces[j].sig);
+                        result = STATUS_FAILED;
+                    }
                 }
             }
         }
