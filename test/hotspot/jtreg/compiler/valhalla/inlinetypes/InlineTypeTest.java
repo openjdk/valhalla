@@ -131,7 +131,7 @@ public abstract class InlineTypeTest {
     private static final boolean PRINT_GRAPH = true;
     private static final boolean VERBOSE = Boolean.parseBoolean(System.getProperty("Verbose", "false"));
     private static final boolean PRINT_TIMES = Boolean.parseBoolean(System.getProperty("PrintTimes", "false"));
-    private static final boolean COMPILE_COMMANDS = Boolean.parseBoolean(System.getProperty("CompileCommands", "true"));
+    private static final boolean COMPILE_COMMANDS = Boolean.parseBoolean(System.getProperty("CompileCommands", "true")) && !XCOMP;
     private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true")) && !XCOMP && !TEST_C1 && COMPILE_COMMANDS;
     private static final boolean VERIFY_VM = Boolean.parseBoolean(System.getProperty("VerifyVM", "false"));
     private static final String SCENARIOS = System.getProperty("Scenarios", "");
@@ -264,32 +264,31 @@ public abstract class InlineTypeTest {
     public String[] getVMParameters(int scenario) {
         switch (scenario) {
         case 0: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:FlatArrayElementMaxOops=5",
                 "-XX:FlatArrayElementMaxSize=-1",
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields"};
         case 1: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:-UseCompressedOops",
                 "-XX:FlatArrayElementMaxOops=5",
                 "-XX:FlatArrayElementMaxSize=-1",
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:-InlineTypePassFieldsAsArgs",
                 "-XX:-InlineTypeReturnedAsFields"};
         case 2: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:-UseCompressedOops",
                 "-XX:FlatArrayElementMaxOops=0",
                 "-XX:FlatArrayElementMaxSize=0",
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields",
                 "-XX:+StressInlineTypeReturnedAsFields"};
         case 3: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
                 "-DVerifyIR=false",
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:FlatArrayElementMaxOops=0",
@@ -298,7 +297,6 @@ public abstract class InlineTypeTest {
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields"};
         case 4: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
                 "-DVerifyIR=false",
                 "-XX:FlatArrayElementMaxOops=-1",
                 "-XX:FlatArrayElementMaxSize=-1",
@@ -307,10 +305,10 @@ public abstract class InlineTypeTest {
                 "-XX:-InlineTypeReturnedAsFields",
                 "-XX:-ReduceInitialCardMarks"};
         case 5: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:FlatArrayElementMaxOops=5",
                 "-XX:FlatArrayElementMaxSize=-1",
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:-InlineTypePassFieldsAsArgs",
                 "-XX:-InlineTypeReturnedAsFields"};
