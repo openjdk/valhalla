@@ -773,7 +773,7 @@
   product(bool, UseProfiledLoopPredicate, true,                             \
           "Move predicates out of loops based on profiling data")           \
                                                                             \
-  product(bool, UseArrayLoadStoreProfile, false,                            \
+  product(bool, UseArrayLoadStoreProfile, true,                             \
           "Take advantage of profiling at array load/store")                \
                                                                             \
   product(bool, ExpandSubTypeCheckAtParseTime, false, DIAGNOSTIC,           \
