@@ -146,6 +146,7 @@ class ClassFileParser {
   Array<AnnotationArray*>* _fields_type_annotations;
   InstanceKlass* _klass;  // InstanceKlass* once created.
   InstanceKlass* _klass_to_deallocate; // an InstanceKlass* to be destroyed
+  GrowableArray<u2>* _restricted_field_info;
 
   ClassAnnotationCollector* _parsed_annotations;
   FieldAllocationCount* _fac;
@@ -213,6 +214,7 @@ class ClassFileParser {
   bool _invalid_identity_super; // if true, invalid super type for an identity type.
   bool _implements_identityObject;
   bool _has_injected_identityObject;
+  bool _has_restricted_fields;
 
   // precomputed flags
   bool _has_finalizer;
@@ -282,6 +284,8 @@ class ClassFileParser {
                               bool* const is_synthetic_addr,
                               u2* const generic_signature_index_addr,
                               FieldAnnotationCollector* parsed_annotations,
+                              u2* restricted_field_info,
+                              bool* has_restricted_type,
                               TRAPS);
 
   void parse_fields(const ClassFileStream* const cfs,
@@ -605,6 +609,8 @@ class ClassFileParser {
   bool invalid_identity_super() const { return _invalid_identity_super; }
   void set_invalid_identity_super() { _invalid_identity_super = true; }
   bool is_invalid_super_for_inline_type();
+  void set_has_restricted_fields() { _has_restricted_fields = true; }
+  bool has_restricted_fields() const { return _has_restricted_fields; }
 
   u2 java_fields_count() const { return _java_fields_count; }
 

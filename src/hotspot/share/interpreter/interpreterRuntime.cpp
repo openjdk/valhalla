@@ -520,6 +520,29 @@ JRT_ENTRY(jboolean, InterpreterRuntime::is_substitutable(JavaThread* thread, oop
   return result.get_jboolean();
 JRT_END
 
+JRT_ENTRY(void, InterpreterRuntime::check_restricted_type(JavaThread* thread))
+  LastFrameAccessor last_frame(thread);
+  ConstantPoolCacheEntry* cp_entry = last_frame.cache_entry();
+  int offset = cp_entry->f2_as_offset();
+  InstanceKlass* holder = InstanceKlass::cast(cp_entry->f1_as_klass());
+  fieldDescriptor fd;
+  bool is_static = last_frame.bytecode().code() == Bytecodes::_putstatic;
+  holder->find_field_from_offset(offset, is_static, &fd);
+  Klass* field_klass = holder->get_inline_type_field_klass_or_null(fd.index());
+  if (field_klass == NULL) {
+    field_klass = SystemDictionary::resolve_or_fail(holder->field_signature(fd.index())->fundamental_name(THREAD),
+        Handle(THREAD, holder->class_loader()),
+        Handle(THREAD, holder->protection_domain()),
+        true, CHECK);
+    holder->set_inline_type_field_klass(fd.index(), field_klass);
+  }
+  assert(field_klass != NULL, "Must have been set");
+  oop value = cast_to_oop(*last_frame.get_frame().interpreter_frame_tos_at(0));
+  assert(value != NULL, "Inline types cannot be NULL");
+  Klass* value_klass = value->klass();
+  assert(value_klass->is_subtype_of(field_klass), "Just checking");
+JRT_END
+
 // Quicken instance-of and check-cast bytecodes
 JRT_ENTRY(void, InterpreterRuntime::quicken_io_cc(JavaThread* thread))
   // Force resolving; quicken the bytecode
@@ -945,6 +968,7 @@ void InterpreterRuntime::resolve_get_put(JavaThread* thread, Bytecodes::Code byt
     info.access_flags().is_volatile(),
     info.is_inlined(),
     info.is_inline_type(),
+    info.has_restricted_type(),
     pool->pool_holder()
   );
 }

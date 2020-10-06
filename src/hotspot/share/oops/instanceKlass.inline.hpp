@@ -27,6 +27,7 @@
 
 #include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/inlineKlass.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/klass.hpp"
 #include "oops/oop.inline.hpp"
@@ -169,5 +170,34 @@ inline instanceOop InstanceKlass::allocate_instance(oop java_class, TRAPS) {
   ik->initialize(CHECK_NULL);
   return ik->allocate_instance(THREAD);
 }
+
+inline u2* InstanceKlass::fields_erased_type() {
+    assert(has_restricted_fields(), "Should not be called otherwise");
+    if (is_inline_klass()) {
+      return (u2*)((address)(InlineKlass::cast(this)->inlineklass_static_block()) + sizeof(InlineKlassFixedBlock));
+    }
+
+    address adr_jf = adr_inline_type_field_klasses();
+    if (adr_jf != NULL) {
+      return (u2*)(adr_jf + this->java_fields_count() * sizeof(Klass*));
+    }
+
+    address adr_fing = adr_fingerprint();
+    if (adr_fing != NULL) {
+      return (u2*)(adr_fingerprint() + sizeof(u8));
+    }
+
+    InstanceKlass** adr_host = adr_unsafe_anonymous_host();
+    if (adr_host != NULL) {
+      return (u2*)(adr_host + 1);
+    }
+
+    Klass* volatile* adr_impl = adr_implementor();
+    if (adr_impl != NULL) {
+      return (u2*)(adr_impl + 1);
+    }
+
+    return (u2*)end_of_nonstatic_oop_maps();
+  }
 
 #endif // SHARE_OOPS_INSTANCEKLASS_INLINE_HPP

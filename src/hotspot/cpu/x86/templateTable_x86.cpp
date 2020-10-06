@@ -3365,6 +3365,20 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   // volatile_barrier(Assembler::Membar_mask_bits(Assembler::LoadStore |
   //                                              Assembler::StoreStore));
 
+
+  Label notRestricted;
+  __ movl(rdx, flags);
+  __ shrl(rdx, ConstantPoolCacheEntry::has_restricted_type_shift);
+  __ andl(rdx, 0x1);
+  __ testl(rdx, rdx);
+  __ jcc(Assembler::zero, notRestricted);
+
+  __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::check_restricted_type));
+  __ get_cache_and_index_at_bcp(cache, index, 1);
+  load_field_cp_cache_entry(obj, cache, index, off, flags, is_static);
+
+  __ bind(notRestricted);
+
   Label notVolatile, Done;
   __ movl(rdx, flags);
   __ shrl(rdx, ConstantPoolCacheEntry::is_volatile_shift);

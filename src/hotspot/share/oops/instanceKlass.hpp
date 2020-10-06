@@ -57,6 +57,7 @@ class RecordComponent;
 //    [EMBEDDED fingerprint       ] only if should_store_fingerprint()==true
 //    [EMBEDDED inline_type_field_klasses] only if has_inline_fields() == true
 //    [EMBEDDED InlineKlassFixedBlock] only if is an InlineKlass instance
+//    [EMBEDDED restricted_fields_info] only if has_restricted_fields() == true
 
 
 // forward declaration for class -- see below for definition
@@ -293,7 +294,8 @@ class InstanceKlass: public Klass {
     _misc_is_declared_atomic                  = 1 << 19, // implements jl.NonTearable
     _misc_invalid_inline_super                = 1 << 20, // invalid super type for an inline type
     _misc_invalid_identity_super              = 1 << 21, // invalid super type for an identity type
-    _misc_has_injected_identityObject         = 1 << 22  // IdentityObject has been injected by the JVM
+    _misc_has_injected_identityObject         = 1 << 22, // IdentityObject has been injected by the JVM
+    _misc_has_restricted_fields               = 1 << 23  // class has fields with type restrictions
   };
   u2 shared_loader_type_bits() const {
     return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
@@ -476,6 +478,14 @@ class InstanceKlass: public Klass {
 
   void set_has_injected_identityObject() {
     _misc_flags |= _misc_has_injected_identityObject;
+  }
+
+  bool has_restricted_fields() const {
+    return (_misc_flags & _misc_has_restricted_fields);
+  }
+
+  void set_has_restricted_fields() {
+    _misc_flags |= _misc_has_restricted_fields;
   }
 
   // field sizes
@@ -1192,7 +1202,7 @@ public:
   static int size(int vtable_length, int itable_length,
                   int nonstatic_oop_map_size,
                   bool is_interface, bool is_unsafe_anonymous, bool has_stored_fingerprint,
-                  int java_fields, bool is_inline_type) {
+                  int java_fields, bool is_inline_type, bool has_restricted_fields) {
     return align_metadata_size(header_size() +
            vtable_length +
            itable_length +
@@ -1201,7 +1211,8 @@ public:
            (is_unsafe_anonymous ? (int)sizeof(Klass*)/wordSize : 0) +
            (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0) +
            (java_fields * (int)sizeof(Klass*)/wordSize) +
-           (is_inline_type ? (int)sizeof(InlineKlassFixedBlock) : 0));
+           (is_inline_type ? (int)sizeof(InlineKlassFixedBlock) : 0) +
+           (has_restricted_fields ? java_fields * (int)sizeof(u2)/wordSize : 0));
   }
   int size() const                    { return size(vtable_length(),
                                                itable_length(),
@@ -1210,7 +1221,8 @@ public:
                                                is_unsafe_anonymous(),
                                                has_stored_fingerprint(),
                                                has_inline_type_fields() ? java_fields_count() : 0,
-                                               is_inline_klass());
+                                               is_inline_klass(),
+                                               has_restricted_fields());
   }
 
   intptr_t* start_of_itable()   const { return (intptr_t*)start_of_vtable() + vtable_length(); }
@@ -1269,6 +1281,8 @@ public:
       return NULL;
     }
   }
+
+  u2* fields_erased_type();
 
   address adr_inline_type_field_klasses() const {
     if (has_inline_type_fields()) {

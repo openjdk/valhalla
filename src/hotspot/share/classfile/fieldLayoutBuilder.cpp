@@ -518,7 +518,7 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
 }
 
 FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, const InstanceKlass* super_klass, ConstantPool* constant_pool,
-                                       Array<u2>* fields, bool is_contended, bool is_inline_type, ClassLoaderData* class_loader_data,
+                                       Array<u2>* fields,  bool is_contended, bool is_inline_type, ClassLoaderData* class_loader_data,
                                        Handle protection_domain, FieldLayoutInfo* info) :
   _classname(classname),
   _super_klass(super_klass),
