@@ -1031,7 +1031,6 @@ void GraphBuilder::load_indexed(BasicType type) {
     ciType* array_type = array->declared_type();
     ciInlineKlass* elem_klass = array_type->as_flat_array_klass()->element_klass()->as_inline_klass();
 
-
     ciBytecodeStream s(method());
     s.force_bci(bci());
     s.next();
