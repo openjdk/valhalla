@@ -1825,7 +1825,10 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     if (!x->value()->is_null_free()) {
       __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }
-    access_flattened_array(false, array, index, value);
+    // If array element is an empty inline type, no need to copy anything
+    if (!x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
+      access_flattened_array(false, array, index, value);
+    }
   } else {
     StoreFlattenedArrayStub* slow_path = NULL;
 
@@ -2199,6 +2202,13 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
                        x->delayed() == NULL ? 0 : x->delayed()->field(),
                        x->delayed() == NULL ? 0 : x->delayed()->offset());
     assert(!x->should_profile(), "Loaded flattened array should not be profiled");
+  } else if (x->array() != NULL && x->array()->is_loaded_flattened_array() &&
+             x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
+    // Load the default instance instead of reading the element
+    ciInlineKlass* elem_klass = x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass();
+    LIR_Opr result = rlock_result(x, x->elt_type());
+    Constant* default_value = new Constant(new InstanceConstant(elem_klass->default_instance()));
+    __ move(load_constant(default_value), result);
   } else {
     LIR_Opr result = rlock_result(x, x->elt_type());
     LoadFlattenedArrayStub* slow_path = NULL;

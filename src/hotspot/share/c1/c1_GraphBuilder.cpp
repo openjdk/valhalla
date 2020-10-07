@@ -1031,6 +1031,7 @@ void GraphBuilder::load_indexed(BasicType type) {
     ciType* array_type = array->declared_type();
     ciInlineKlass* elem_klass = array_type->as_flat_array_klass()->element_klass()->as_inline_klass();
 
+
     ciBytecodeStream s(method());
     s.force_bci(bci());
     s.next();
@@ -1042,11 +1043,17 @@ void GraphBuilder::load_indexed(BasicType type) {
       set_pending_load_indexed(dli);
       return; // Nothing else to do for now
     } else {
-      NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(elem_klass, state_before);
-      _memory->new_instance(new_instance);
-      apush(append_split(new_instance));
-      load_indexed = new LoadIndexed(array, index, length, type, state_before);
-      load_indexed->set_vt(new_instance);
+      if (elem_klass->is_empty()) {
+        // No need to create a new instance, the default instance will be used instead
+        load_indexed = new LoadIndexed(array, index, length, type, state_before);
+        apush(append(load_indexed));
+      } else {
+        NewInlineTypeInstance* new_instance = new NewInlineTypeInstance(elem_klass, state_before);
+        _memory->new_instance(new_instance);
+        apush(append_split(new_instance));
+        load_indexed = new LoadIndexed(array, index, length, type, state_before);
+        load_indexed->set_vt(new_instance);
+      }
     }
   } else {
     load_indexed = new LoadIndexed(array, index, length, type, state_before);
