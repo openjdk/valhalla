@@ -38,13 +38,8 @@ import org.openjdk.jmh.annotations.TearDown;
 
 import org.openjdk.jmh.infra.Blackhole;
 
-import java.util.Arrays;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.IntStream;
 
 /**
  * Measure performance of List of Integer operations.
@@ -55,122 +50,119 @@ import java.util.stream.IntStream;
  */
 
 
-@Fork(value = 1, jvmArgsAppend = "--enable-preview")
+@Fork(3)
+@Warmup(iterations = 5, time = 2)
+@Measurement(iterations = 5, time = 3)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @BenchmarkMode(Mode.AverageTime)
 @State(Scope.Thread)
 public class ArrayListOfIntBench {
 
     @Param({
-//            "100",
-            "10000",
+            "100",
+            "1_000_000",
     })
     public int size;
 
-    @Param({
-            "42",
-    })
-    public int seed;
-
-    public Random rnd;
-    public int[] keys;
-    public int[] nonKeys;
     ArrayListOfInt arrayListOfInt;
     ArrayList<Integer> arrayListOfInteger;
     ArrayListOfPrimitiveInt arrayListOfPrimitiveInt;
 
-    public void init() {
-        Integer[] all;
-        if (seed != 0) {
-            rnd = new Random(seed);
-            all = rnd.ints().distinct().limit(size * 2).boxed().toArray(Integer[]::new);
-            Collections.shuffle(Arrays.asList(all), rnd);
-        } else {
-            rnd = new Random(seed);
-            all = IntStream.range(0, size * 2).boxed().toArray(Integer[]::new);
-            Collections.shuffle(Arrays.asList(all));
-        }
-        keys = new int[size];
-        for (int i = 0; i < size; i++)
-            keys[i] = all[i];
-
-        nonKeys = new int[size];
-        for (int i = 0; i < size; i++)
-            nonKeys[i] = all[i + size];
-
+    @Setup
+    public void setup() {
         arrayListOfInt = new ArrayListOfInt(size);
-        for (int i = 0; i < keys.length; i++) {
-            arrayListOfInt.add(i, keys[i]);
+        for (int i = 0; i < size; i++) {
+            arrayListOfInt.add(i, i);
         }
 
         arrayListOfInteger = new ArrayList<>(size);
-        for (int i = 0; i < keys.length; i++) {
-            arrayListOfInteger.add(i, keys[i]);
+        for (int i = 0; i < size; i++) {
+            arrayListOfInteger.add(i, i);
         }
 
         arrayListOfPrimitiveInt = new ArrayListOfPrimitiveInt(size);
-        for (int i = 0; i < keys.length; i++) {
-            arrayListOfPrimitiveInt.add(i, new PrimitiveInt(keys[i]));
-        }
-    }
-
-    @Setup
-    public void setup() {
-        init();
-    }
-
-    @TearDown
-    public void teardown() {
-
-    }
-
-    @Benchmark
-    public void ofIntAdd1() {
-        ArrayListOfInt arr = new ArrayListOfInt(size);
-        for (int i = 0; i < keys.length; i++) {
-            arr.add(i, keys[i]);
+        for (int i = 0; i < size; i++) {
+            arrayListOfPrimitiveInt.add(i, new PrimitiveInt(i));
         }
     }
 
     @Benchmark
-    public int ofIntSum1(Blackhole bh) {
-        ArrayListOfInt arr = new ArrayListOfInt(size);
+    public Object ofIntAdd() {
+        ArrayListOfInt list = new ArrayListOfInt(size);
+        for (int i = 0; i < size; i++) {
+            list.add(i, i);
+        }
+        return list;
+    }
+
+    @Benchmark
+    public Object ofIntegerAdd() {
+        ArrayList<Integer> list = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            list.add(i, i);
+        }
+        return list;
+    }
+
+    @Benchmark
+    public Object ofPrimitiveIntAdd() {
+        ArrayListOfPrimitiveInt list = new ArrayListOfPrimitiveInt(size);
+        for (int i = 0; i < size; i++) {
+            list.add(i, new PrimitiveInt(i));
+        }
+        return list;
+    }
+
+    @Benchmark
+    public Object ofIntAdd0() {
+        ArrayListOfInt list = new ArrayListOfInt(size);
+        for (int i = 0; i < size; i++) {
+            list.add(i);
+        }
+        return list;
+    }
+
+    @Benchmark
+    public Object ofIntegerAdd0() {
+        ArrayList<Integer> list = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            list.add(i);
+        }
+        return list;
+    }
+
+    @Benchmark
+    public Object ofPrimitiveIntAdd0() {
+        ArrayListOfPrimitiveInt list = new ArrayListOfPrimitiveInt(size);
+        for (int i = 0; i < size; i++) {
+            list.add(new PrimitiveInt(i));
+        }
+        return list;
+    }
+
+    @Benchmark
+    public int ofIntSum() {
         int sum = 0;
-        for (int i = 0; i < keys.length; i++) {
+        for (int i = 0; i < size; i++) {
             sum += arrayListOfInt.get(i);
         }
         return sum;
     }
 
     @Benchmark
-    public void ofIntegerAdd1() {
-        ArrayList<Integer> arr = new ArrayList<>(size);
-        for (int i = 0; i < keys.length; i++) {
-            arr.add(i, keys[i]);
-        }
-    }
-
-    @Benchmark
     public int ofIntegerSum() {
         int sum = 0;
-        for (int i = 0; i < keys.length; i++) {
+        for (int i = 0; i < size; i++) {
             sum += arrayListOfInteger.get(i);
         }
         return sum;
     }
 
-    @Benchmark
-    public void ofPrimitiveIntAdd1() {
-        ArrayListOfPrimitiveInt arr = new ArrayListOfPrimitiveInt(size);
-        for (int i = 0; i < keys.length; i++) {
-            arr.add(i, arrayListOfPrimitiveInt.get(i));
-        }
-    }
 
     @Benchmark
     public int ofPrimitiveIntSum() {
         int sum = 0;
-        for (int i = 0; i < keys.length; i++) {
+        for (int i = 0; i < size; i++) {
             sum += arrayListOfPrimitiveInt.get(i).value();
         }
         return sum;
