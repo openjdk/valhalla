@@ -863,12 +863,12 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
     set_default_node_notes(entry_nn);
   }
   PhaseGVN& gvn = *initial_gvn();
-  uint j = 0;
+  uint i = 0;
   ExtendedSignature sig_cc = ExtendedSignature(method()->get_sig_cc(), SigEntryFilter());
-  for (uint i = 0; i < (uint)arg_size; i++) {
+  for (uint j = 0; i < (uint)arg_size; i++) {
     const Type* t = tf->domain_sig()->field_at(i);
     Node* parm = NULL;
-    if (has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null()) {
+    if (has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null() && t->inline_klass()->can_be_passed_as_fields()) {
       // Inline type arguments are not passed by reference: we get an argument per
       // field of the inline type. Build InlineTypeNodes from the inline type arguments.
       GraphKit kit(jvms, &gvn);
@@ -890,8 +890,8 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
     // Record all these guys for later GVN.
     record_for_igvn(parm);
   }
-  for (; j < map->req(); j++) {
-    map->init_req(j, top());
+  for (; i < map->req(); i++) {
+    map->init_req(i, top());
   }
   assert(jvms->argoff() == TypeFunc::Parms, "parser gets arguments here");
   set_default_node_notes(old_nn);

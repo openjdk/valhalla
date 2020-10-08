@@ -216,6 +216,7 @@ define_pd_global(bool, InlineTypeReturnedAsFields, LP64_ONLY(true) NOT_LP64(fals
              "for copy, inflate and fill. When this value is set as zero"   \
              "compare operations can also use AVX512 intrinsics.")          \
              range(0, max_jint)                                             \
+             constraint(AVX3ThresholdConstraintFunc,AfterErgo)              \
                                                                             \
   product(bool, IntelJccErratumMitigation, true, DIAGNOSTIC,                \
              "Turn off JVM mitigations related to Intel micro code "        \

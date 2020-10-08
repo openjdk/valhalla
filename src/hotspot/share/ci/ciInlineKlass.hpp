@@ -81,7 +81,7 @@ public:
   bool is_scalarizable() const;
   bool can_be_passed_as_fields() const;
   bool can_be_returned_as_fields() const;
-  bool is_empty() const;
+  bool is_empty();
   int inline_arg_slots();
   int default_value_offset() const;
   ciInstance* default_instance() const;

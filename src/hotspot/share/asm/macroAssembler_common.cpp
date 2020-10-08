@@ -189,7 +189,7 @@ void MacroAssembler::shuffle_inline_args_common(bool is_packing, bool receiver_o
 
   // Emit code for packing/unpacking inline type arguments
   // We try multiple times and eventually start spilling to resolve (circular) dependencies
-  bool done = false;
+  bool done = (args_passed_to == 0);
   for (int i = 0; i < 2*args_passed_to && !done; ++i) {
     done = true;
     bool spill = (i > args_passed_to); // Start spilling?
@@ -209,8 +209,6 @@ void MacroAssembler::shuffle_inline_args_common(bool is_packing, bool receiver_o
           to_index += step;
         }
       } else {
-        assert(0 <= from_index && from_index < args_passed, "index out of bounds");
-        assert(0 <= to_index && to_index < args_passed_to, "index out of bounds");
         if (spill) {
           // This call returns true IFF we should keep trying to spill in this round.
           spill = shuffle_inline_args_spill(is_packing, sig_cc, sig_index, regs, from_index, args_passed,
@@ -221,22 +219,23 @@ void MacroAssembler::shuffle_inline_args_common(bool is_packing, bool receiver_o
           VMReg from_reg = regs[from_index].first();
           done &= move_helper(from_reg, regs_to[to_index].first(), bt, reg_state, ret_off, extra_stack_offset);
           to_index += step;
-        } else if (is_packing || !receiver_only || (from_index == 0 && bt == T_VOID)) {
-          if (is_packing) {
-            VMReg reg_to = regs_to[to_index].first();
-            done &= pack_inline_helper(sig_cc, sig_index, vtarg_index, reg_to, regs, args_passed, from_index,
-                                       reg_state, ret_off, extra_stack_offset);
-            vtarg_index ++;
-            to_index ++;
-            continue; // from_index already adjusted
-          } else {
-            VMReg from_reg = regs[from_index].first();
-            done &= unpack_inline_helper(sig_cc, sig_index, from_reg, regs_to, to_index, reg_state, ret_off, extra_stack_offset);
+          from_index += step;
+        } else if (is_packing) {
+          VMReg reg_to = regs_to[to_index].first();
+          done &= pack_inline_helper(sig_cc, sig_index, vtarg_index, reg_to, regs, args_passed, from_index,
+                                     reg_state, ret_off, extra_stack_offset);
+          vtarg_index++;
+          to_index++;
+        } else if (!receiver_only || (from_index == 0 && bt == T_VOID)) {
+          VMReg from_reg = regs[from_index].first();
+          done &= unpack_inline_helper(sig_cc, sig_index, from_reg, from_index, regs_to, to_index, reg_state, ret_off, extra_stack_offset);
+          if (from_index == -1 && sig_index != 0) {
+            // This can happen when we are confusing an empty inline type argument which is
+            // not counted in the scalarized signature for the receiver. Just ignore it.
+            assert(receiver_only, "sanity");
+            from_index = 0;
           }
-        } else {
-          continue;
         }
-        from_index += step;
       }
     }
   }

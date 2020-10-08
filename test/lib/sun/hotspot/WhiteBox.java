@@ -601,6 +601,7 @@ public class WhiteBox {
 
   // Handshakes
   public native int handshakeWalkStack(Thread t, boolean all_threads);
+  public native void asyncHandshakeWalkStack(Thread t);
 
   // Returns true on linux if library has the noexecstack flag set.
   public native boolean checkLibSpecifiesNoexecstack(String libfilename);
@@ -630,4 +631,6 @@ public class WhiteBox {
   public native void checkThreadObjOfTerminatingThread(Thread target);
 
   public native boolean isJVMTIIncluded();
+
+  public native void waitUnsafe(int time_ms);
 }

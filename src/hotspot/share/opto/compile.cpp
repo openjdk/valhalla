@@ -71,6 +71,7 @@
 #include "opto/type.hpp"
 #include "opto/vectornode.hpp"
 #include "runtime/arguments.hpp"
+#include "runtime/globals_extension.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/signature.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -531,6 +532,7 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
 #endif
                   _has_method_handle_invokes(false),
                   _clinit_barrier_on_entry(false),
+                  _stress_seed(0),
                   _comp_arena(mtCompiler),
                   _barrier_set_state(BarrierSet::barrier_set()->barrier_set_c2()->create_barrier_state(comp_arena())),
                   _env(ci_env),
@@ -733,6 +735,18 @@ Compile::Compile( ciEnv* ci_env, ciMethod* target, int osr_bci,
   if (failing())  return;
   NOT_PRODUCT( verify_graph_edges(); )
 
+  // If IGVN is randomized for stress testing, seed random number
+  // generation and log the seed for repeatability.
+  if (StressIGVN) {
+    _stress_seed = FLAG_IS_DEFAULT(StressSeed) ?
+      static_cast<uint>(Ticks::now().nanoseconds()) : StressSeed;
+    if (_log != NULL) {
+      _log->elem("stress_test seed='%u'", _stress_seed);
+    } else if (FLAG_IS_DEFAULT(StressSeed)) {
+      tty->print_cr("Warning:  set +LogCompilation to log the seed.");
+    }
+  }
+
   // Now optimize
   Optimize();
   if (failing())  return;
@@ -819,6 +833,7 @@ Compile::Compile( ciEnv* ci_env,
 #endif
     _has_method_handle_invokes(false),
     _clinit_barrier_on_entry(false),
+    _stress_seed(0),
     _comp_arena(mtCompiler),
     _barrier_set_state(BarrierSet::barrier_set()->barrier_set_c2()->create_barrier_state(comp_arena())),
     _env(ci_env),
@@ -4886,8 +4901,13 @@ Node* Compile::optimize_acmp(PhaseGVN* phase, Node* a, Node* b) {
   return NULL;
 }
 
-// Auxiliary method to support randomized stressing/fuzzing.
-//
+// Auxiliary methods to support randomized stressing/fuzzing.
+
+int Compile::random() {
+  _stress_seed = os::next_random(_stress_seed);
+  return static_cast<int>(_stress_seed);
+}
+
 // This method can be called the arbitrary number of times, with current count
 // as the argument. The logic allows selecting a single candidate from the
 // running list of candidates as follows:

@@ -1812,7 +1812,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
   for (uint i = TypeFunc::Parms, idx = TypeFunc::Parms; i < nargs; i++) {
     Node* arg = argument(i-TypeFunc::Parms);
     const Type* t = domain->field_at(i);
-    if (call->method()->has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null()) {
+    if (call->method()->has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null() && t->inline_klass()->can_be_passed_as_fields()) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       InlineTypeNode* vt = arg->as_InlineType();
       vt->pass_fields(this, call, sig_cc, idx);

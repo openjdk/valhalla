@@ -1386,39 +1386,25 @@ LEAF(NewInstance, StateSplit)
 };
 
 LEAF(NewInlineTypeInstance, StateSplit)
-  bool _is_unresolved;
   ciInlineKlass* _klass;
-  Value _depends_on;      // Link to instance on with withfield was called on
-  bool _is_optimizable_for_withfield;
   bool _in_larval_state;
   int _first_local_index;
   int _on_stack_count;
 public:
 
   // Default creation, always allocated for now
-  NewInlineTypeInstance(ciInlineKlass* klass, ValueStack* state_before, bool is_unresolved, Value depends_on = NULL, bool from_default_value = false)
+  NewInlineTypeInstance(ciInlineKlass* klass, ValueStack* state_before)
   : StateSplit(instanceType, state_before)
-   , _is_unresolved(is_unresolved)
    , _klass(klass)
-   , _is_optimizable_for_withfield(from_default_value)
    , _in_larval_state(true)
    , _first_local_index(-1)
    , _on_stack_count(1)
   {
-    if (depends_on == NULL) {
-      _depends_on = this;
-    } else {
-      _depends_on = depends_on;
-    }
     set_null_free(true);
   }
 
   // accessors
-  bool is_unresolved() const                     { return _is_unresolved; }
-  Value depends_on();
-
   ciInlineKlass* klass() const { return _klass; }
-
   virtual bool needs_exception_state() const     { return false; }
 
   // generic
@@ -1429,10 +1415,6 @@ public:
   // Only done in LIR Generator -> map everything to object
   void set_to_object_type() { set_type(instanceType); }
 
-  // withfield optimization
-  virtual void set_escaped() {
-    _is_optimizable_for_withfield = false;
-  }
   virtual void set_local_index(int index) {
     if (_first_local_index != index) {
       if (_first_local_index == -1) {
@@ -1459,7 +1441,6 @@ public:
       decrement_on_stack_count();
     }
   }
-
 };
 
 BASE(NewArray, StateSplit)
