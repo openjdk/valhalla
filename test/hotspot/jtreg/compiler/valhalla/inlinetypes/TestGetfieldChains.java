@@ -96,19 +96,19 @@ public class TestGetfieldChains extends InlineTypeTest {
     // Simple chain of getfields ending with primitive field
     @Test(compLevel=C1)
     public int test1() {
-            return NamedRectangle.getP1X(new NamedRectangle());
+        return NamedRectangle.getP1X(new NamedRectangle());
     }
 
     @DontCompile
     public void test1_verifier(boolean warmup) {
-            int res = test1();
-            Asserts.assertEQ(res, 4);
+        int res = test1();
+        Asserts.assertEQ(res, 4);
     }
 
     // Simple chain of getfields ending with a flattened field
     @Test(compLevel=C1)
     public Point test2() {
-            return NamedRectangle.getP1(new NamedRectangle());
+        return NamedRectangle.getP1(new NamedRectangle());
     }
 
     @DontCompile
@@ -181,5 +181,39 @@ public class TestGetfieldChains extends InlineTypeTest {
         Asserts.assertEQ(st.getMethodName(), "getP1X");
         Asserts.assertEQ(st.getLineNumber(), 31);       // line number depends on jcod file generated from NamedRectangle.java
         Asserts.assertEQ(nsfe.getMessage(), "x");
+    }
+
+    static inline class EmptyType { }
+    static inline class EmptyContainer {
+        int i = 0;
+        EmptyType et = new EmptyType();
+    }
+    static inline class Container {
+        EmptyContainer container0 = new EmptyContainer();
+        EmptyContainer container1 = new EmptyContainer();
+    }
+
+    @Test(compLevel=C1)
+    public EmptyType test6() {
+        Container c = new Container();
+        return c.container1.et;
+    }
+
+    @DontCompile
+    public void test6_verifier(boolean warmup) {
+        EmptyType et = test6();
+        Asserts.assertEQ(et, EmptyType.default);
+    }
+
+    @Test(compLevel=C1)
+    public EmptyType test7() {
+        Container[] ca = new Container[10];
+        return ca[3].container0.et;
+    }
+
+    @DontCompile
+    public void test7_verifier(boolean warmup) {
+        EmptyType et = test7();
+        Asserts.assertEQ(et, EmptyType.default);
     }
 }

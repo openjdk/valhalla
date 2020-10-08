@@ -1161,7 +1161,7 @@ void MacroAssembler::biased_locking_enter(Register lock_reg,
   // the prototype header is no longer biased and we have to revoke
   // the bias on this object.
   testptr(header_reg, markWord::biased_lock_mask_in_place);
-  jccb(Assembler::notZero, try_revoke_bias);
+  jcc(Assembler::notZero, try_revoke_bias);
 
   // Biasing is still enabled for this data type. See whether the
   // epoch of the current bias is still valid, meaning that the epoch
@@ -5341,7 +5341,7 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
 }
 
 // Read all fields from an inline type oop and store the values in registers/stack slots
-bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to,
+bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, int& from_index, VMRegPair* regs_to,
                                           int& to_index, RegState reg_state[], int ret_off, int extra_stack_offset) {
   Register fromReg = from->is_reg() ? from->as_Register() : noreg;
   assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
@@ -5419,6 +5419,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
     // This is okay because no one else will write to that slot
     reg_state[from->value()] = reg_writable;
   }
+  from_index--;
   return done;
 }
 
@@ -5831,7 +5832,7 @@ void MacroAssembler::generate_fill(BasicType t, bool aligned,
 }
 
 // encode char[] to byte[] in ISO_8859_1
-   //@HotSpotIntrinsicCandidate
+   //@IntrinsicCandidate
    //private static int implEncodeISOArray(byte[] sa, int sp,
    //byte[] da, int dp, int len) {
    //  int i = 0;
@@ -8208,7 +8209,7 @@ void MacroAssembler::crc32c_ipl_alg2_alt2(Register in_out, Register in1, Registe
 
 // Compress char[] array to byte[].
 //   ..\jdk\src\java.base\share\classes\java\lang\StringUTF16.java
-//   @HotSpotIntrinsicCandidate
+//   @IntrinsicCandidate
 //   private static int compress(char[] src, int srcOff, byte[] dst, int dstOff, int len) {
 //     for (int i = 0; i < len; i++) {
 //       int c = src[srcOff++];
@@ -8424,7 +8425,7 @@ void MacroAssembler::char_array_compress(Register src, Register dst, Register le
 
 // Inflate byte[] array to char[].
 //   ..\jdk\src\java.base\share\classes\java\lang\StringLatin1.java
-//   @HotSpotIntrinsicCandidate
+//   @IntrinsicCandidate
 //   private static void inflate(byte[] src, int srcOff, char[] dst, int dstOff, int len) {
 //     for (int i = 0; i < len; i++) {
 //       dst[dstOff++] = (char)(src[srcOff++] & 0xff);

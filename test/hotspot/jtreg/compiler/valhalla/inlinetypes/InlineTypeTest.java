@@ -131,7 +131,7 @@ public abstract class InlineTypeTest {
     private static final boolean PRINT_GRAPH = true;
     private static final boolean VERBOSE = Boolean.parseBoolean(System.getProperty("Verbose", "false"));
     private static final boolean PRINT_TIMES = Boolean.parseBoolean(System.getProperty("PrintTimes", "false"));
-    private static final boolean COMPILE_COMMANDS = Boolean.parseBoolean(System.getProperty("CompileCommands", "true"));
+    private static final boolean COMPILE_COMMANDS = Boolean.parseBoolean(System.getProperty("CompileCommands", "true")) && !XCOMP;
     private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true")) && !XCOMP && !TEST_C1 && COMPILE_COMMANDS;
     private static final boolean VERIFY_VM = Boolean.parseBoolean(System.getProperty("VerifyVM", "false"));
     private static final String SCENARIOS = System.getProperty("Scenarios", "");
@@ -143,7 +143,7 @@ public abstract class InlineTypeTest {
     private static final boolean GC_AFTER = Boolean.parseBoolean(System.getProperty("GCAfter", "false"));
     private static final int OSR_TEST_TIMEOUT = Integer.parseInt(System.getProperty("OSRTestTimeOut", "5000"));
     protected static final boolean STRESS_CC = Boolean.parseBoolean(System.getProperty("StressCC", "false"));
-    private static final boolean SHUFFLE_TESTS = Boolean.parseBoolean(System.getProperty("ShuffleTests", "false"));
+    private static final boolean SHUFFLE_TESTS = Boolean.parseBoolean(System.getProperty("ShuffleTests", "true"));
 
     // "jtreg -DXcomp=true" runs all the scenarios with -Xcomp. This is faster than "jtreg -javaoptions:-Xcomp".
     protected static final boolean RUN_SCENARIOS_WITH_XCOMP = Boolean.parseBoolean(System.getProperty("Xcomp", "false"));
@@ -195,8 +195,8 @@ public abstract class InlineTypeTest {
     protected static final boolean PRINT_IDEAL  = WHITE_BOX.getBooleanVMFlag("PrintIdeal");
 
     // Regular expressions used to match nodes in the PrintIdeal output
-    protected static final String START = "(\\d+\\t(.*";
-    protected static final String MID = ".*)+\\t===.*";
+    protected static final String START = "(\\d+ (.*";
+    protected static final String MID = ".*)+ ===.*";
     protected static final String END = ")|";
     // Generic allocation
     protected static final String ALLOC_G  = "(.*call,static  wrapper for: _new_instance_Java" + END;
@@ -231,6 +231,7 @@ public abstract class InlineTypeTest {
     protected static final String CHECKCAST_ARRAY = "(cmp.*precise klass \\[(L|Q)compiler/valhalla/inlinetypes/MyValue.*" + END;
     protected static final String CHECKCAST_ARRAYCOPY = "(.*call_leaf_nofp,runtime  checkcast_arraycopy.*" + END;
     protected static final String JLONG_ARRAYCOPY = "(.*call_leaf_nofp,runtime  jlong_disjoint_arraycopy.*" + END;
+    protected static final String FIELD_ACCESS = "(.*Field: *" + END;
 
     public static String[] concat(String prefix[], String... extra) {
         ArrayList<String> list = new ArrayList<String>();
@@ -263,32 +264,31 @@ public abstract class InlineTypeTest {
     public String[] getVMParameters(int scenario) {
         switch (scenario) {
         case 0: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:FlatArrayElementMaxOops=5",
                 "-XX:FlatArrayElementMaxSize=-1",
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields"};
         case 1: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:-UseCompressedOops",
                 "-XX:FlatArrayElementMaxOops=5",
                 "-XX:FlatArrayElementMaxSize=-1",
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:-InlineTypePassFieldsAsArgs",
                 "-XX:-InlineTypeReturnedAsFields"};
         case 2: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:-UseCompressedOops",
                 "-XX:FlatArrayElementMaxOops=0",
                 "-XX:FlatArrayElementMaxSize=0",
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields",
                 "-XX:+StressInlineTypeReturnedAsFields"};
         case 3: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
                 "-DVerifyIR=false",
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:FlatArrayElementMaxOops=0",
@@ -297,7 +297,6 @@ public abstract class InlineTypeTest {
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields"};
         case 4: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
                 "-DVerifyIR=false",
                 "-XX:FlatArrayElementMaxOops=-1",
                 "-XX:FlatArrayElementMaxSize=-1",
@@ -306,10 +305,10 @@ public abstract class InlineTypeTest {
                 "-XX:-InlineTypeReturnedAsFields",
                 "-XX:-ReduceInitialCardMarks"};
         case 5: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:FlatArrayElementMaxOops=5",
                 "-XX:FlatArrayElementMaxSize=-1",
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:-InlineTypePassFieldsAsArgs",
                 "-XX:-InlineTypeReturnedAsFields"};

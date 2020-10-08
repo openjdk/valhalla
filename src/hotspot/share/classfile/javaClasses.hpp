@@ -47,6 +47,7 @@ class RecordComponent;
   f(java_lang_Throwable) \
   f(java_lang_Thread) \
   f(java_lang_ThreadGroup) \
+  f(java_lang_InternalError) \
   f(java_lang_AssertionStatusDirectives) \
   f(java_lang_ref_SoftReference) \
   f(java_lang_invoke_MethodHandle) \
@@ -1653,6 +1654,21 @@ class java_lang_Byte_ByteCache : AllStatic {
   static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
 };
 
+// Interface to java.lang.InternalError objects
+
+#define INTERNALERROR_INJECTED_FIELDS(macro)                      \
+  macro(java_lang_InternalError, during_unsafe_access, bool_signature, false)
+
+class java_lang_InternalError : AllStatic {
+ private:
+  static int _during_unsafe_access_offset;
+ public:
+  static jboolean during_unsafe_access(oop internal_error);
+  static void set_during_unsafe_access(oop internal_error);
+  static void compute_offsets();
+  static void serialize_offsets(SerializeClosure* f) NOT_CDS_RETURN;
+};
+
 class jdk_internal_vm_jni_SubElementSelector : AllStatic {
  private:
   static int _arrayElementType_offset;
@@ -1676,6 +1692,7 @@ class jdk_internal_vm_jni_SubElementSelector : AllStatic {
   static bool getIsInlineType(oop obj);
   static void setIsInlineType(oop obj, bool b);
 };
+
 
 // Use to declare fields that need to be injected into Java classes
 // for the JVM to use.  The name_index and signature_index are
@@ -1716,7 +1733,9 @@ class InjectedField {
   MEMBERNAME_INJECTED_FIELDS(macro)         \
   CALLSITECONTEXT_INJECTED_FIELDS(macro)    \
   STACKFRAMEINFO_INJECTED_FIELDS(macro)     \
-  MODULE_INJECTED_FIELDS(macro)
+  MODULE_INJECTED_FIELDS(macro)             \
+  INTERNALERROR_INJECTED_FIELDS(macro)
+
 
 // Interface to hard-coded offset checking
 

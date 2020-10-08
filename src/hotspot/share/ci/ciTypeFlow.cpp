@@ -780,7 +780,7 @@ void ciTypeFlow::StateVector::do_multianewarray(ciBytecodeStream* str) {
 void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
-  if (!will_link || str->is_unresolved_klass()) {
+  if (!will_link || str->is_unresolved_klass() || klass->is_inlinetype()) {
     trap(str, klass, str->get_klass_index());
   } else {
     push_object(klass);
@@ -792,10 +792,9 @@ void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
 void ciTypeFlow::StateVector::do_defaultvalue(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
-  if (!will_link) {
+  if (!will_link || !klass->is_inlinetype()) {
     trap(str, klass, str->get_klass_index());
   } else {
-    assert(klass->is_inlinetype(), "should be inline type");
     push_object(klass);
   }
 }

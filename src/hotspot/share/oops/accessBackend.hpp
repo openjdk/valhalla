@@ -678,8 +678,7 @@ namespace AccessInternal {
 
     template<DecoratorSet decorators>
     static bool is_hardwired_primitive() {
-      return !HasDecorator<decorators, INTERNAL_BT_BARRIER_ON_PRIMITIVES>::value &&
-             !HasDecorator<decorators, INTERNAL_VALUE_IS_OOP>::value;
+      return !HasDecorator<decorators, INTERNAL_VALUE_IS_OOP>::value;
     }
 
     template <DecoratorSet decorators, typename T>
@@ -991,22 +990,6 @@ namespace AccessInternal {
       const DecoratorSet expanded_decorators = decorators;
       RuntimeDispatch<expanded_decorators, void*, BARRIER_VALUE_COPY>::value_copy(src, dst, md);
     }
-
-
-    template <DecoratorSet decorators>
-    inline static typename EnableIf<
-      HasDecorator<decorators, INTERNAL_BT_TO_SPACE_INVARIANT>::value, oop>::type
-    resolve(oop obj) {
-      typedef RawAccessBarrier<decorators & RAW_DECORATOR_MASK> Raw;
-      return Raw::resolve(obj);
-    }
-
-    template <DecoratorSet decorators>
-    inline static typename EnableIf<
-      !HasDecorator<decorators, INTERNAL_BT_TO_SPACE_INVARIANT>::value, oop>::type
-    resolve(oop obj) {
-      return RuntimeDispatch<decorators, oop, BARRIER_RESOLVE>::resolve(obj);
-    }
   };
 
   // Step 2: Reduce types.
@@ -1303,12 +1286,6 @@ namespace AccessInternal {
   inline void value_copy(void* src, void* dst, InlineKlass* md) {
     const DecoratorSet expanded_decorators = DecoratorFixup<decorators>::value;
     PreRuntimeDispatch::value_copy<expanded_decorators>(src, dst, md);
-  }
-
-  template <DecoratorSet decorators>
-  inline oop resolve(oop obj) {
-    const DecoratorSet expanded_decorators = DecoratorFixup<decorators>::value;
-    return PreRuntimeDispatch::resolve<expanded_decorators>(obj);
   }
 
   // Infer the type that should be returned from an Access::oop_load.

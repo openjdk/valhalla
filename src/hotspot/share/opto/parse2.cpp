@@ -295,6 +295,10 @@ void Parse::array_store(BasicType bt) {
         if (stopped()) return;
         dec_sp(3);
       }
+      if (elemtype->inline_klass()->is_empty()) {
+        // Ignore empty inline stores, array is already initialized.
+        return;
+      }
     } else if (!ary_t->is_not_flat() && tval != TypePtr::NULL_PTR) {
       // Array might be flattened, emit runtime checks (for NULL, a simple inline_array_null_guard is sufficient).
       assert(UseFlatArray && !not_flattened && elemtype->is_oopptr()->can_be_inline_type() &&

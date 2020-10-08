@@ -35,7 +35,7 @@
  */
 
 public class TestIdentityObject {
-    static void checkIdentityObject(Class c, boolean subtype, boolean visible) {
+    static void checkIdentityObject(Class c, boolean subtype) {
         boolean s;
         try {
             c.asSubclass(IdentityObject.class);
@@ -50,30 +50,18 @@ public class TestIdentityObject {
                 throw new RuntimeException("Type " + c.getName() + " should not implements IdentityObject");
             }
         }
-        boolean found = false;
-        Class[] interfaces = c.getInterfaces();
-        for(Class i : interfaces) {
-            if (i == IdentityObject.class) found = true;
-        }
-        if (found != visible) {
-            if (visible) {
-                throw new RuntimeException("Type " + c.getName() + "  should have IdentityObject visible, but it hasn't");
-            } else {
-                throw new RuntimeException("Type " + c.getName() + "  should not have IdentityObject visible, but it has");
-            }
-        }
     }
 
     public static void main(String[] args) {
-        checkIdentityObject(InlineType.class, false, false);
-        checkIdentityObject(IdentityType.class, true, false);
-        checkIdentityObject(IdentityTypeImplementingIdentityObject.class, true, true);
-        checkIdentityObject(Interface.class, false, false);
-        checkIdentityObject(InterfaceExtendingIdentityObject.class, true, true);
-        checkIdentityObject(AbstractTypeImplementingIdentityObject.class, true, true);
-        checkIdentityObject(AbstractTypeWithNonstaticFields.class, true, false);
-        checkIdentityObject(AbstractTypeWithStaticFields.class, false, false);
-        checkIdentityObject(AbstractTypeWithSynchronizedNonstaticMethod.class, true, false);
-        checkIdentityObject(AbstractTypeWithSynchronizedStaticMethod.class, false, false);
+        checkIdentityObject(InlineType.class, false);
+        checkIdentityObject(IdentityType.class, true);
+        checkIdentityObject(IdentityTypeImplementingIdentityObject.class, true);
+        checkIdentityObject(Interface.class, false);
+        checkIdentityObject(InterfaceExtendingIdentityObject.class, true);
+        checkIdentityObject(AbstractTypeImplementingIdentityObject.class, true);
+        checkIdentityObject(AbstractTypeWithNonstaticFields.class, true);
+        checkIdentityObject(AbstractTypeWithStaticFields.class, false);
+        checkIdentityObject(AbstractTypeWithSynchronizedNonstaticMethod.class, true);
+        checkIdentityObject(AbstractTypeWithSynchronizedStaticMethod.class, false);
     }
 }

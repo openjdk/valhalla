@@ -268,7 +268,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_update_CRC32C(Intrinsic* x);
   void do_vectorizedMismatch(Intrinsic* x);
 
-  Constant* flattened_field_load_prolog(LoadField* x, CodeEmitInfo* info);
+  bool inline_type_field_access_prolog(AccessField* x, CodeEmitInfo* info);
   void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = NULL, int offset = 0);
   void access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset);
   LIR_Opr get_and_load_element_address(LIRItem& array, LIRItem& index);
@@ -379,7 +379,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void monitor_enter (LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no, CodeEmitInfo* info_for_exception, CodeEmitInfo* info, CodeStub* throw_imse_stub);
   void monitor_exit  (LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no);
 
-  void new_instance    (LIR_Opr  dst, ciInstanceKlass* klass, bool is_unresolved, LIR_Opr  scratch1, LIR_Opr  scratch2, LIR_Opr  scratch3,  LIR_Opr scratch4, LIR_Opr  klass_reg, CodeEmitInfo* info);
+  void new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unresolved, bool allow_inline, LIR_Opr scratch1, LIR_Opr scratch2, LIR_Opr scratch3, LIR_Opr scratch4, LIR_Opr klass_reg, CodeEmitInfo* info);
 
   // machine dependent
   void cmp_mem_int(LIR_Condition condition, LIR_Opr base, int disp, int c, CodeEmitInfo* info);

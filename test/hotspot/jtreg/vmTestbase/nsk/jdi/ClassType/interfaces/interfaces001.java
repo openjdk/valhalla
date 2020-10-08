@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -167,7 +167,7 @@ public class interfaces001 {
 
                 switch (i2) {
 
-                case 0:         // Class0ForCheck - 0 interfaces
+                case 0:         // Class0ForCheck - 1 interface (injected java.lang.IdentityObject)
 
                         List list0 = vm.classesByName(mName + ".Class0ForCheck");
 
@@ -176,15 +176,15 @@ public class interfaces001 {
                         List iface0list =
                              ((ClassType) classRefType).interfaces();
 
-                        if (iface0list.size() != 0) {
-                            log3("ERROR : iface0list.size() != 0 in case: Class0ForCheck");
+                        if (iface0list.size() != 1) {
+                            log3("ERROR : iface0list.size() != 1 in case: Class0ForCheck");
                             expresult = 1;
                             break;
                         }
 
                         break;
 
-                case 1:         // Class1forCheck - 1 interface
+                case 1:         // Class1forCheck - 2 interfaces (includes injected java.lang.IdentityObject)
 
                         List list1 = vm.classesByName(mName + ".Class1ForCheck");
 
@@ -193,8 +193,8 @@ public class interfaces001 {
                         List iface1list =
                              ((ClassType) classRefType).interfaces();
 
-                        if (iface1list.size() != 1) {
-                            log3("ERROR : iface1list.size() != 1 in case: Class1forCheck");
+                        if (iface1list.size() != 2) {
+                            log3("ERROR : iface1list.size() != 2 in case: Class1forCheck");
                             expresult = 1;
                             break;
                         }
@@ -209,7 +209,7 @@ public class interfaces001 {
 
                         break;
 
-                case 2:         // Class2ForCheck - 2 interfaces
+                case 2:         // Class2ForCheck - 3 interfaces (includes injected java.lang.IdentityObject)
 
                         List list2 = vm.classesByName(mName + ".Class2ForCheck");
 
@@ -218,8 +218,8 @@ public class interfaces001 {
                         List iface2list =
                              ((ClassType) classRefType).interfaces();
 
-                        if (iface2list.size() != 2) {
-                            log3("ERROR : iface1list.size() != 2 in case: Class2forCheck");
+                        if (iface2list.size() != 3) {
+                            log3("ERROR : iface1list.size() != 3 in case: Class2forCheck");
                             expresult = 1;
                             break;
                         }
