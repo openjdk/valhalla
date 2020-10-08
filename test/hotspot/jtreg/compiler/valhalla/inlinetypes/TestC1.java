@@ -287,7 +287,7 @@ public class TestC1 extends InlineTypeTest {
 
 
     // Test optimizations for arrays of empty types
-    // (ead/write are not performed, pre-allocated instance is used for reads)
+    // (read/write are not performed, pre-allocated instance is used for reads)
     // Most tests check that error conditions are still correctly handled
     // (OOB, null pointer)
     static inline class EmptyType {}
@@ -326,21 +326,21 @@ public class TestC1 extends InlineTypeTest {
         Exception e = null;
         EmptyType[] array = new EmptyType[10];
         try {
-            EmptyType et  = test11(array, 11);
+            EmptyType et = test11(array, 11);
         } catch (ArrayIndexOutOfBoundsException ex) {
             e = ex;
         }
         Asserts.assertNotNull(e);
         e = null;
         try {
-            EmptyType et  = test11(array, -1);
+            EmptyType et = test11(array, -1);
         } catch (ArrayIndexOutOfBoundsException ex) {
             e = ex;
         }
         Asserts.assertNotNull(e);
         e = null;
         try {
-            EmptyType et  = test11(null, 1);
+            EmptyType et = test11(null, 1);
         } catch (NullPointerException ex) {
             e = ex;
         }
