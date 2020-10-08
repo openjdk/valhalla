@@ -1508,21 +1508,23 @@ void MachVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 
 void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
 {
-  MacroAssembler masm(&cbuf);
+  MacroAssembler _masm(&cbuf);
   if (!_verified) {  
     uint insts_size = cbuf.insts_size();
     if (UseCompressedClassPointers) {
-      masm.load_klass(rscratch1, j_rarg0, rscratch2);
-      masm.cmpptr(rax, rscratch1);
+      __ load_klass(rscratch1, j_rarg0, rscratch2);
+      __ cmpptr(rax, rscratch1);
     } else {
-      masm.cmpptr(rax, Address(j_rarg0, oopDesc::klass_offset_in_bytes()));
+      __ cmpptr(rax, Address(j_rarg0, oopDesc::klass_offset_in_bytes()));
     }
-    masm.jump_cc(Assembler::notEqual, RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
+    __ jump_cc(Assembler::notEqual, RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
   } else {
     // Unpack inline type args passed as oop and then jump to
     // the verified entry point (skipping the unverified entry).
-    masm.unpack_inline_args(ra_->C, _receiver_only);
-    masm.jmp(*_verified_entry);
+    int sp_inc = __ unpack_inline_args(ra_->C, _receiver_only);
+    // Emit code for verified entry and save increment for stack repair on return
+    __ verified_entry(ra_->C, sp_inc);
+    __ jmp(*_verified_entry);
   }
 }
 

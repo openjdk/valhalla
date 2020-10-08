@@ -575,8 +575,6 @@ class SigEntry {
   BasicType _bt;
   int _offset;
 
-  enum { ReservedOffset = -2 }; // Special offset to mark the reserved entry
-
   SigEntry()
     : _bt(T_ILLEGAL), _offset(-1) {
   }
@@ -609,13 +607,9 @@ class SigEntry {
     return 0;
   }
   static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, int offset = -1);
-  static void insert_reserved_entry(GrowableArray<SigEntry>* sig, int i, BasicType bt);
-  static bool is_reserved_entry(const GrowableArray<SigEntry>* sig, int i);
   static bool skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i);
   static int fill_sig_bt(const GrowableArray<SigEntry>* sig, BasicType* sig_bt);
   static TempNewSymbol create_symbol(const GrowableArray<SigEntry>* sig);
-
-  static bool next_is_reserved(ExtendedSignature& sig, BasicType& bt, bool can_be_void = false);
 };
 
 class SigEntryFilter {

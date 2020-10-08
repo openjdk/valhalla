@@ -1936,12 +1936,6 @@ void MachPrologNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   }
 }
 
-uint MachPrologNode::size(PhaseRegAlloc* ra_) const
-{
-  return MachNode::size(ra_); // too many variables; just compute it
-                              // the hard way
-}
-
 int MachPrologNode::reloc() const
 {
   return 0;
@@ -1989,11 +1983,6 @@ void MachEpilogNode::emit(CodeBuffer &cbuf, PhaseRegAlloc *ra_) const {
   if (do_polling() && C->is_method_compilation()) {
     __ fetch_and_read_polling_page(rscratch1, relocInfo::poll_return_type);
   }
-}
-
-uint MachEpilogNode::size(PhaseRegAlloc *ra_) const {
-  // Variable size. Determine dynamically.
-  return MachNode::size(ra_);
 }
 
 int MachEpilogNode::reloc() const {
@@ -2305,17 +2294,12 @@ void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
   } else {
     // Unpack inline type args passed as oop and then jump to
     // the verified entry point (skipping the unverified entry).
-    __ unpack_inline_args(ra_->C, _receiver_only);
+    int sp_inc = __ unpack_inline_args(ra_->C, _receiver_only);
+    // Emit code for verified entry and save increment for stack repair on return
+    __ verified_entry(ra_->C, sp_inc);
     __ b(*_verified_entry);
   }
 }
-
-
-uint MachVEPNode::size(PhaseRegAlloc* ra_) const
-{
-  return MachNode::size(ra_); // too many variables; just compute it the hard way
-}
-
 
 //=============================================================================
 #ifndef PRODUCT
@@ -2349,11 +2333,6 @@ void MachUEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
   __ br(Assembler::EQ, skip);
   __ far_jump(RuntimeAddress(SharedRuntime::get_ic_miss_stub()));
   __ bind(skip);
-}
-
-uint MachUEPNode::size(PhaseRegAlloc* ra_) const
-{
-  return MachNode::size(ra_);
 }
 
 // REQUIRED EMIT CODE

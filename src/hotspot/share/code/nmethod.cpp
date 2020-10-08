@@ -3170,7 +3170,6 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
     ResourceMark rm;
     int sizeargs = 0;
     BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, 256);
-    bool has_scalarized_args = ces->has_scalarized_args();
     TempNewSymbol sig = SigEntry::create_symbol(sig_cc);
     for (SignatureStream ss(sig); !ss.at_return_type(); ss.next()) {
       BasicType t = ss.type();
@@ -3190,7 +3189,6 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
     int stack_slot_offset = this->frame_size() * wordSize;
     int tab1 = 14, tab2 = 24;
     int sig_index = 0;
-    int sig_index_cc = 0;
     int arg_index = has_this ? -1 : 0;
     bool did_old_sp = false;
     for (SignatureStream ss(sig); !ss.at_return_type(); ) {
@@ -3232,15 +3230,6 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
         }
         if (!did_name)
           stream->print("%s", type2name(t));
-      }
-      if (has_scalarized_args) {
-        while (!SigEntry::skip_value_delimiters(sig_cc, sig_index_cc)) {
-          sig_index_cc++;
-        }
-        if (SigEntry::is_reserved_entry(sig_cc, sig_index_cc)) {
-          stream->print(" [RESERVED]");
-        }
-        sig_index_cc += type2size[t];
       }
       if (at_old_sp) {
         stream->print("  (%s of caller)", spname);
