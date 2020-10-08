@@ -1963,7 +1963,7 @@ const TypeTuple *TypeTuple::LONG_PAIR;
 const TypeTuple *TypeTuple::INT_CC_PAIR;
 const TypeTuple *TypeTuple::LONG_CC_PAIR;
 
-static void collect_inline_fields(ciInlineKlass* vk, const Type** field_array, uint& pos, ExtendedSignature& sig_cc) {
+static void collect_inline_fields(ciInlineKlass* vk, const Type** field_array, uint& pos) {
   for (int j = 0; j < vk->nof_nonstatic_fields(); j++) {
     ciField* field = vk->nonstatic_field_at(j);
     BasicType bt = field->type()->basic_type();
@@ -1971,13 +1971,6 @@ static void collect_inline_fields(ciInlineKlass* vk, const Type** field_array, u
     field_array[pos++] = ft;
     if (type2size[bt] == 2) {
       field_array[pos++] = Type::HALF;
-    }
-    // Skip reserved arguments
-    while (SigEntry::next_is_reserved(sig_cc, bt)) {
-      field_array[pos++] = Type::get_const_basic_type(bt);
-      if (type2size[bt] == 2) {
-        field_array[pos++] = Type::HALF;
-      }
     }
   }
 }
@@ -2017,7 +2010,7 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
       field_array[pos] = TypePtr::BOTTOM;
       pos++;
       ExtendedSignature sig = ExtendedSignature(NULL, SigEntryFilter());
-      collect_inline_fields(return_type->as_inline_klass(), field_array, pos, sig);
+      collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
     } else {
       field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(TypePtr::NOTNULL);
     }
@@ -2048,7 +2041,7 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
   if (!method->is_static()) {
     ciInstanceKlass* recv = method->holder();
     if (vt_fields_as_args && recv->is_inlinetype() && recv->as_inline_klass()->can_be_passed_as_fields()) {
-      collect_inline_fields(recv->as_inline_klass(), field_array, pos, sig_cc);
+      collect_inline_fields(recv->as_inline_klass(), field_array, pos);
     } else {
       field_array[pos++] = get_const_type(recv)->join_speculative(TypePtr::NOTNULL);
       if (vt_fields_as_args) {
@@ -2087,7 +2080,7 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
     case T_INLINE_TYPE: {
       if (vt_fields_as_args && type->as_inline_klass()->can_be_passed_as_fields()) {
         is_flattened = true;
-        collect_inline_fields(type->as_inline_klass(), field_array, pos, sig_cc);
+        collect_inline_fields(type->as_inline_klass(), field_array, pos);
       } else {
         field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
       }
@@ -2095,13 +2088,6 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
     }
     default:
       ShouldNotReachHere();
-    }
-    // Skip reserved arguments
-    while (!is_flattened && SigEntry::next_is_reserved(sig_cc, bt)) {
-      field_array[pos++] = Type::get_const_basic_type(bt);
-      if (type2size[bt] == 2) {
-        field_array[pos++] = Type::HALF;
-      }
     }
     i++;
   }

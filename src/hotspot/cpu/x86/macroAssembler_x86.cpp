@@ -5276,9 +5276,8 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
   return call_offset;
 }
 
-
 // Move a value between registers/stack slots and update the reg_state
-bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset) {
+bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]) {
   if (reg_state[to->value()] == reg_written) {
     return true; // Already written
   }
@@ -5299,8 +5298,7 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
           movq(to->as_Register(), from->as_Register());
         }
       } else {
-        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
-        assert(st_off != ret_off, "overwriting return address at %d", st_off);
+        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
         Address to_addr = Address(rsp, st_off);
         if (from->is_XMMRegister()) {
           if (bt == T_DOUBLE) {
@@ -5314,7 +5312,7 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
         }
       }
     } else {
-      Address from_addr = Address(rsp, from->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset);
+      Address from_addr = Address(rsp, from->reg2stack() * VMRegImpl::stack_slot_size + wordSize);
       if (to->is_reg()) {
         if (to->is_XMMRegister()) {
           if (bt == T_DOUBLE) {
@@ -5327,8 +5325,7 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
           movq(to->as_Register(), from_addr);
         }
       } else {
-        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
-        assert(st_off != ret_off, "overwriting return address at %d", st_off);
+        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
         movq(r13, from_addr);
         movq(Address(rsp, st_off), r13);
       }
@@ -5340,81 +5337,67 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
   return true;
 }
 
-// Read all fields from an inline type oop and store the values in registers/stack slots
-bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, int& from_index, VMRegPair* regs_to,
-                                          int& to_index, RegState reg_state[], int ret_off, int extra_stack_offset) {
-  Register fromReg = from->is_reg() ? from->as_Register() : noreg;
+// Read all fields from an inline type buffer and store the field values in registers/stack slots.
+bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index,
+                                          VMReg from, int& from_index, VMRegPair* to, int to_count, int& to_index,
+                                          RegState reg_state[]) {
   assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
+  assert(from->is_valid(), "source must bevalid");
+  Register fromReg;
+  if (from->is_reg()) {
+    fromReg = from->as_Register();
+  } else {
+    int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+    movq(r10, Address(rsp, st_off));
+    fromReg = r10;
+  }
 
-  int vt = 1;
+  ScalarizedInlineArgsStream stream(sig, sig_index, to, to_count, to_index, -1);
   bool done = true;
   bool mark_done = true;
-  do {
-    sig_index--;
-    BasicType bt = sig->at(sig_index)._bt;
-    if (bt == T_INLINE_TYPE) {
-      vt--;
-    } else if (bt == T_VOID &&
-               sig->at(sig_index-1)._bt != T_LONG &&
-               sig->at(sig_index-1)._bt != T_DOUBLE) {
-      vt++;
-    } else if (SigEntry::is_reserved_entry(sig, sig_index)) {
-      to_index--; // Ignore this
+  VMReg toReg;
+  BasicType bt;
+  while (stream.next(toReg, bt)) {
+    int off = sig->at(stream.sig_index())._offset;
+    assert(off > 0, "offset in object should be positive");
+    Address fromAddr = Address(fromReg, off);
+
+    int idx = (int)toReg->value();
+    if (reg_state[idx] == reg_readonly) {
+     if (idx != from->value()) {
+       mark_done = false;
+     }
+     done = false;
+     continue;
+    } else if (reg_state[idx] == reg_written) {
+      continue;
     } else {
-      assert(to_index >= 0, "invalid to_index");
-      VMRegPair pair_to = regs_to[to_index--];
-      VMReg to = pair_to.first();
-
-      if (bt == T_VOID) continue;
-
-      int idx = (int)to->value();
-      if (reg_state[idx] == reg_readonly) {
-         if (idx != from->value()) {
-           mark_done = false;
-         }
-         done = false;
-         continue;
-      } else if (reg_state[idx] == reg_written) {
-        continue;
-      } else {
-        assert(reg_state[idx] == reg_writable, "must be writable");
-        reg_state[idx] = reg_written;
-       }
-
-      if (fromReg == noreg) {
-        int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
-        movq(r10, Address(rsp, st_off));
-        fromReg = r10;
-      }
-
-      int off = sig->at(sig_index)._offset;
-      assert(off > 0, "offset in object should be positive");
-      bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
-
-      Address fromAddr = Address(fromReg, off);
-      bool is_signed = (bt != T_CHAR) && (bt != T_BOOLEAN);
-      if (!to->is_XMMRegister()) {
-        Register dst = to->is_stack() ? r13 : to->as_Register();
-        if (is_oop) {
-          load_heap_oop(dst, fromAddr);
-        } else {
-          load_sized_value(dst, fromAddr, type2aelembytes(bt), is_signed);
-        }
-        if (to->is_stack()) {
-          int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
-          assert(st_off != ret_off, "overwriting return address at %d", st_off);
-          movq(Address(rsp, st_off), dst);
-        }
-      } else {
-        if (bt == T_DOUBLE) {
-          movdbl(to->as_XMMRegister(), fromAddr);
-        } else {
-          assert(bt == T_FLOAT, "must be float");
-          movflt(to->as_XMMRegister(), fromAddr);
-        }
-      }
+      assert(reg_state[idx] == reg_writable, "must be writable");
+      reg_state[idx] = reg_written;
     }
-  } while (vt != 0);
+
+    if (!toReg->is_XMMRegister()) {
+      Register dst = toReg->is_stack() ? r13 : toReg->as_Register();
+      if (is_reference_type(bt)) {
+        load_heap_oop(dst, fromAddr);
+      } else {
+        bool is_signed = (bt != T_CHAR) && (bt != T_BOOLEAN);
+        load_sized_value(dst, fromAddr, type2aelembytes(bt), is_signed);
+      }
+      if (toReg->is_stack()) {
+        int st_off = toReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        movq(Address(rsp, st_off), dst);
+      }
+    } else if (bt == T_DOUBLE) {
+      movdbl(toReg->as_XMMRegister(), fromAddr);
+    } else {
+      assert(bt == T_FLOAT, "must be float");
+      movflt(toReg->as_XMMRegister(), fromAddr);
+    }
+  }
+  sig_index = stream.sig_index();
+  to_index = stream.regs_index();
+
   if (mark_done && reg_state[from->value()] != reg_written) {
     // This is okay because no one else will write to that slot
     reg_state[from->value()] = reg_writable;
@@ -5423,15 +5406,14 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
   return done;
 }
 
-// Pack fields back into an inline type oop
 bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                                        VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
-                                        int ret_off, int extra_stack_offset) {
+                                        VMRegPair* from, int from_count, int& from_index, VMReg to,
+                                        RegState reg_state[]) {
   assert(sig->at(sig_index)._bt == T_INLINE_TYPE, "should be at end delimiter");
-  assert(to->is_valid(), "must be");
+  assert(to->is_valid(), "destination must be valid");
 
   if (reg_state[to->value()] == reg_written) {
-    skip_unpacked_fields(sig, sig_index, regs_from, regs_from_count, from_index);
+    skip_unpacked_fields(sig, sig_index, from, from_count, from_index);
     return true; // Already written
   }
 
@@ -5444,8 +5426,8 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   Register val_obj = to->is_stack() ? val_obj_tmp : to->as_Register();
 
   if (reg_state[to->value()] == reg_readonly) {
-    if (!is_reg_in_unpacked_fields(sig, sig_index, to, regs_from, regs_from_count, from_index)) {
-      skip_unpacked_fields(sig, sig_index, regs_from, regs_from_count, from_index);
+    if (!is_reg_in_unpacked_fields(sig, sig_index, to, from, from_count, from_index)) {
+      skip_unpacked_fields(sig, sig_index, from, from_count, from_index);
       return false; // Not yet writable
     }
     val_obj = val_obj_tmp;
@@ -5454,90 +5436,45 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_INLINE_TYPE);
   load_heap_oop(val_obj, Address(val_array, index));
 
-  ScalarizedValueArgsStream stream(sig, sig_index, regs_from, regs_from_count, from_index);
-  VMRegPair from_pair;
+  ScalarizedInlineArgsStream stream(sig, sig_index, from, from_count, from_index);
+  VMReg fromReg;
   BasicType bt;
-  while (stream.next(from_pair, bt)) {
-    int off = sig->at(stream.sig_cc_index())._offset;
+  while (stream.next(fromReg, bt)) {
+    int off = sig->at(stream.sig_index())._offset;
     assert(off > 0, "offset in object should be positive");
-    bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
     size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
 
-    VMReg from_r1 = from_pair.first();
-    VMReg from_r2 = from_pair.second();
-
-    // Pack the scalarized field into the value object.
     Address dst(val_obj, off);
-    if (!from_r1->is_XMMRegister()) {
-      Register from_reg;
-      if (from_r1->is_stack()) {
-        from_reg = from_reg_tmp;
-        int ld_off = from_r1->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
-        load_sized_value(from_reg, Address(rsp, ld_off), size_in_bytes, /* is_signed */ false);
+    if (!fromReg->is_XMMRegister()) {
+      Register src;
+      if (fromReg->is_stack()) {
+        src = from_reg_tmp;
+        int ld_off = fromReg->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
+        load_sized_value(src, Address(rsp, ld_off), size_in_bytes, /* is_signed */ false);
       } else {
-        from_reg = from_r1->as_Register();
+        src = fromReg->as_Register();
       }
-      assert_different_registers(dst.base(), from_reg, tmp1, tmp2, tmp3, val_array);
-      if (is_oop) {
-        store_heap_oop(dst, from_reg, tmp1, tmp2, tmp3, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
+      assert_different_registers(dst.base(), src, tmp1, tmp2, tmp3, val_array);
+      if (is_reference_type(bt)) {
+        store_heap_oop(dst, src, tmp1, tmp2, tmp3, IN_HEAP | ACCESS_WRITE | IS_DEST_UNINITIALIZED);
       } else {
-        store_sized_value(dst, from_reg, size_in_bytes);
+        store_sized_value(dst, src, size_in_bytes);
       }
+    } else if (bt == T_DOUBLE) {
+      movdbl(dst, fromReg->as_XMMRegister());
     } else {
-      if (from_r2->is_valid()) {
-        movdbl(dst, from_r1->as_XMMRegister());
-      } else {
-        movflt(dst, from_r1->as_XMMRegister());
-      }
+      assert(bt == T_FLOAT, "must be float");
+      movflt(dst, fromReg->as_XMMRegister());
     }
-    reg_state[from_r1->value()] = reg_writable;
+    reg_state[fromReg->value()] = reg_writable;
   }
-  sig_index = stream.sig_cc_index();
-  from_index = stream.regs_cc_index();
+  sig_index = stream.sig_index();
+  from_index = stream.regs_index();
 
   assert(reg_state[to->value()] == reg_writable, "must have already been read");
-  bool success = move_helper(val_obj->as_VMReg(), to, T_OBJECT, reg_state, ret_off, extra_stack_offset);
+  bool success = move_helper(val_obj->as_VMReg(), to, T_OBJECT, reg_state);
   assert(success, "to register must be writeable");
-
   return true;
-}
-
-// Unpack all inline type arguments passed as oops
-void MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
-  int sp_inc = unpack_inline_args_common(C, receiver_only);
-  // Emit code for verified entry and save increment for stack repair on return
-  verified_entry(C, sp_inc);
-}
-
-void MacroAssembler::shuffle_inline_args(bool is_packing, bool receiver_only, int extra_stack_offset,
-                                         BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                                         int args_passed, int args_on_stack, VMRegPair* regs,
-                                         int args_passed_to, int args_on_stack_to, VMRegPair* regs_to, int sp_inc) {
-  // Check if we need to extend the stack for packing/unpacking
-  if (sp_inc > 0 && !is_packing) {
-    // Save the return address, adjust the stack (make sure it is properly
-    // 16-byte aligned) and copy the return address to the new top of the stack.
-    // (Note: C1 does this in C1_MacroAssembler::scalarized_entry).
-    pop(r13);
-    subptr(rsp, sp_inc);
-    push(r13);
-  }
-
-  int ret_off; // make sure we don't overwrite the return address
-  if (is_packing) {
-    // For C1 code, the VIEP doesn't have reserved slots, so we store the returned address at
-    // rsp[0] during shuffling.
-    ret_off = 0;
-  } else {
-    // C2 code ensures that sp_inc is a reserved slot.
-    ret_off = sp_inc;
-  }
-
-  shuffle_inline_args_common(is_packing, receiver_only, extra_stack_offset,
-                             sig_bt, sig_cc,
-                             args_passed, args_on_stack, regs,
-                             args_passed_to, args_on_stack_to, regs_to,
-                             sp_inc, ret_off);
 }
 
 VMReg MacroAssembler::spill_reg_for(VMReg reg) {

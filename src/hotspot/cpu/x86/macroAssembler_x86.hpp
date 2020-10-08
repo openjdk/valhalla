@@ -1648,31 +1648,18 @@ public:
   // C2 compiled method's prolog code.
   void verified_entry(Compile* C, int sp_inc = 0);
 
-  enum RegState {
-    reg_readonly,
-    reg_writable,
-    reg_written
-  };
+  // Inline type specific methods
+  #include "asm/macroAssembler_common.hpp"
 
   int store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter = true);
-
-  // Unpack all inline type arguments passed as oops
-  void unpack_inline_args(Compile* C, bool receiver_only);
-  bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset);
-  bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, int& from_index, VMRegPair* regs_to, int& to_index,
-                            RegState reg_state[], int ret_off, int extra_stack_offset);
+  bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]);
+  bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index,
+                            VMReg from, int& from_index, VMRegPair* to, int to_count, int& to_index,
+                            RegState reg_state[]);
   bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                          VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
-                          int ret_off, int extra_stack_offset);
+                          VMRegPair* from, int from_count, int& from_index, VMReg to,
+                          RegState reg_state[]);
   void remove_frame(int initial_framesize, bool needs_stack_repair, int sp_inc_offset);
-
-  void shuffle_inline_args(bool is_packing, bool receiver_only, int extra_stack_offset,
-                           BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                           int args_passed, int args_on_stack, VMRegPair* regs,
-                           int args_passed_to, int args_on_stack_to, VMRegPair* regs_to, int sp_inc);
-  bool shuffle_inline_args_spill(bool is_packing,  const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
-                                 VMRegPair* regs_from, int from_index, int regs_from_count,
-                                 RegState* reg_state, int sp_inc, int extra_stack_offset);
   VMReg spill_reg_for(VMReg reg);
 
   // clear memory of size 'cnt' qwords, starting at 'base';
@@ -1810,8 +1797,6 @@ public:
 #endif // _LP64
 
   void vallones(XMMRegister dst, int vector_len);
-
-  #include "asm/macroAssembler_common.hpp"
 };
 
 /**

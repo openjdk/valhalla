@@ -1191,36 +1191,19 @@ public:
 
   void adrp(Register reg1, const Address &dest, uint64_t &byte_offset);
 
-
-  enum RegState {
-     reg_readonly,
-     reg_writable,
-     reg_written
-  };
-
   void verified_entry(Compile* C, int sp_inc);
 
+  // Inline type specific methods
+  #include "asm/macroAssembler_common.hpp"
+
   int store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter = true);
-
-// Unpack all inline type arguments passed as oops
-  void unpack_inline_args(Compile* C, bool receiver_only);
-  bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset);
+  bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]);
   bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index,
-                            RegState reg_state[], int ret_off, int extra_stack_offset);
+                            RegState reg_state[]);
   bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                          VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
-                          int ret_off, int extra_stack_offset);
+                          VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[]);
   void restore_stack(Compile* C);
-
-  int shuffle_inline_args(bool is_packing, bool receiver_only, int extra_stack_offset,
-                          BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                          int args_passed, int args_on_stack, VMRegPair* regs,
-                          int args_passed_to, int args_on_stack_to, VMRegPair* regs_to);
-  bool shuffle_inline_args_spill(bool is_packing,  const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
-                                 VMRegPair* regs_from, int from_index, int regs_from_count,
-                                 RegState* reg_state, int sp_inc, int extra_stack_offset);
   VMReg spill_reg_for(VMReg reg);
-
 
   void tableswitch(Register index, jint lowbound, jint highbound,
                    Label &jumptable, Label &jumptable_end, int stride = 1) {
@@ -1425,9 +1408,6 @@ public:
   }
   void cache_wb(Address line);
   void cache_wbsync(bool is_pre);
-
-  #include "asm/macroAssembler_common.hpp"
-
 };
 
 #ifdef ASSERT

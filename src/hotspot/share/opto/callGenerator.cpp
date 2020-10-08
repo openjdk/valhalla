@@ -369,19 +369,8 @@ void LateInlineCallGenerator::do_late_inline() {
     return;
   }
 
-  const GrowableArray<SigEntry>* sig_cc = method()->get_sig_cc();
   const TypeTuple* r = call->tf()->domain_cc();
-  for (uint i1 = TypeFunc::Parms, i2 = 0; i1 < r->cnt(); i1++) {
-    if (sig_cc != NULL) {
-      // Skip reserved entries
-      while (!SigEntry::skip_value_delimiters(sig_cc, i2)) {
-        i2++;
-      }
-      if (SigEntry::is_reserved_entry(sig_cc, i2++)) {
-        assert(call->in(i1)->is_top(), "should be top");
-        continue;
-      }
-    }
+  for (uint i1 = TypeFunc::Parms; i1 < r->cnt(); i1++) {
     if (call->in(i1)->is_top() && r->field_at(i1) != Type::HALF) {
       assert(Compile::current()->inlining_incrementally(), "shouldn't happen during parsing");
       return;
@@ -471,10 +460,6 @@ void LateInlineCallGenerator::do_late_inline() {
         map->set_argument(jvms, i1, vt);
       } else {
         map->set_argument(jvms, i1, call->in(j++));
-        BasicType bt = t->basic_type();
-        while (SigEntry::next_is_reserved(sig_cc, bt, true)) {
-          j += type2size[bt]; // Skip reserved arguments
-        }
       }
     }
 

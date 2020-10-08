@@ -661,9 +661,7 @@ static int compute_total_args_passed_int(const GrowableArray<SigEntry>* sig_exte
   if (InlineTypePassFieldsAsArgs) {
     for (int i = 0; i < sig_extended->length(); i++) {
       BasicType bt = sig_extended->at(i)._bt;
-      if (SigEntry::is_reserved_entry(sig_extended, i)) {
-        // Ignore reserved entry
-      } else if (bt == T_INLINE_TYPE) {
+      if (bt == T_INLINE_TYPE) {
         // In sig_extended, an inline type argument starts with:
         // T_INLINE_TYPE, followed by the types of the fields of the
         // inline type and T_VOID to mark the end of the value
@@ -861,9 +859,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
     BasicType bt = sig_extended->at(next_arg_comp)._bt;
     int st_off = (total_args_passed - next_arg_int) * Interpreter::stackElementSize;
     if (!InlineTypePassFieldsAsArgs || bt != T_INLINE_TYPE) {
-      if (SigEntry::is_reserved_entry(sig_extended, next_arg_comp)) {
-        continue; // Ignore reserved entry
-      }
       int next_off = st_off - Interpreter::stackElementSize;
       const int offset = (bt == T_LONG || bt == T_DOUBLE) ? next_off : st_off;
       const VMRegPair reg_pair = regs[next_arg_comp-ignored];
@@ -903,8 +898,6 @@ static void gen_c2i_adapter(MacroAssembler *masm,
                    prev_bt != T_DOUBLE) {
           vt--;
           ignored++;
-        } else if (SigEntry::is_reserved_entry(sig_extended, next_arg_comp)) {
-          // Ignore reserved entry
         } else {
           int off = sig_extended->at(next_arg_comp)._offset;
           assert(off > 0, "offset in object should be positive");

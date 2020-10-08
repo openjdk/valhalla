@@ -2745,7 +2745,6 @@ CompiledEntrySignature::CompiledEntrySignature(Method* method) :
   _sig_cc(NULL), _sig_cc_ro(NULL), _regs(NULL), _regs_cc(NULL), _regs_cc_ro(NULL),
   _args_on_stack(0), _args_on_stack_cc(0), _args_on_stack_cc_ro(0),
   _c1_needs_stack_repair(false), _c2_needs_stack_repair(false), _has_scalarized_args(false) {
-  _has_reserved_entries = false;
   _sig = new GrowableArray<SigEntry>(method->size_of_parameters());
 
 }
@@ -2777,27 +2776,6 @@ int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_
   return SharedRuntime::java_calling_convention(sig_cc, regs_cc);
 }
 
-int CompiledEntrySignature::insert_reserved_entry(int ret_off) {
-  // Find index in signature that belongs to return address slot
-  BasicType bt = T_ILLEGAL;
-  int i = 0;
-  for (uint off = 0; i < _sig_cc->length(); ++i) {
-    if (SigEntry::skip_value_delimiters(_sig_cc, i)) {
-      VMReg first = _regs_cc[off++].first();
-      if (first->is_valid() && first->is_stack()) {
-        // Select a type for the reserved entry that will end up on the stack
-        bt = _sig_cc->at(i)._bt;
-        if (((int)first->reg2stack() + VMRegImpl::slots_per_word) == ret_off) {
-          break; // Index of the return address found
-        }
-      }
-    }
-  }
-  // Insert reserved entry and re-compute calling convention
-  SigEntry::insert_reserved_entry(_sig_cc, i, bt);
-  return SharedRuntime::java_calling_convention(_sig_cc, _regs_cc);
-}
-
 // See if we can save space by sharing the same entry for VIEP and VIEP(RO),
 // or the same entry for VEP and VIEP(RO).
 CodeOffsets::Entries CompiledEntrySignature::c1_inline_ro_entry_type() const {
@@ -2826,7 +2804,7 @@ CodeOffsets::Entries CompiledEntrySignature::c1_inline_ro_entry_type() const {
   }
 
   // Either a static method, or <this> is not an inline type
-  if (args_on_stack_cc() != args_on_stack_cc_ro() || _has_reserved_entries) {
+  if (args_on_stack_cc() != args_on_stack_cc_ro()) {
     // No sharing:
     // Some arguments are passed on the stack, and we have inserted reserved entries
     // into the VEP, but we never insert reserved entries into the VIEP(RO).
@@ -2882,38 +2860,6 @@ void CompiledEntrySignature::compute_calling_conventions() {
     if (_has_inline_recv || _args_on_stack_cc > _args_on_stack) {
       // For interface calls, we need another entry point / adapter to unpack the receiver
       _args_on_stack_cc_ro = compute_scalarized_cc(_sig_cc_ro, _regs_cc_ro, /* scalar_receiver = */ false);
-    }
-
-    // Compute the stack extension that is required to convert between the calling conventions.
-    // The stack slots at these offsets are occupied by the return address with the unscalarized
-    // calling convention. Don't use them for arguments with the scalarized calling convention.
-    int ret_off    = _args_on_stack_cc - _args_on_stack;
-    int ret_off_ro = _args_on_stack_cc - _args_on_stack_cc_ro;
-    assert(ret_off_ro <= 0 || ret_off > 0, "receiver unpacking requires more stack space than expected");
-
-    if (ret_off > 0) {
-      // Make sure the stack of the scalarized calling convention with the reserved
-      // entries (2 slots each) remains 16-byte (4 slots) aligned after stack extension.
-      int alignment = StackAlignmentInBytes / VMRegImpl::stack_slot_size;
-      if (ret_off_ro != ret_off && ret_off_ro >= 0) {
-        ret_off    += 4; // Account for two reserved entries (4 slots)
-        ret_off_ro += 4;
-        ret_off     = align_up(ret_off, alignment);
-        ret_off_ro  = align_up(ret_off_ro, alignment);
-        // TODO can we avoid wasting a stack slot here?
-        //assert(ret_off != ret_off_ro, "fail");
-        if (ret_off > ret_off_ro) {
-          swap(ret_off, ret_off_ro); // Sort by offset
-        }
-        _args_on_stack_cc = insert_reserved_entry(ret_off);
-        _args_on_stack_cc = insert_reserved_entry(ret_off_ro);
-      } else {
-        ret_off += 2; // Account for one reserved entry (2 slots)
-        ret_off = align_up(ret_off, alignment);
-        _args_on_stack_cc = insert_reserved_entry(ret_off);
-      }
-
-      _has_reserved_entries = true;
     }
 
     // Upper bound on stack arguments to avoid hitting the argument limit and

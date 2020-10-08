@@ -1829,14 +1829,6 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       }
     }
     call->init_req(idx++, arg);
-    // Skip reserved arguments
-    BasicType bt = t->basic_type();
-    while (SigEntry::next_is_reserved(sig_cc, bt, true)) {
-      call->init_req(idx++, top());
-      if (type2size[bt] == 2) {
-        call->init_req(idx++, top());
-      }
-    }
   }
 }
 

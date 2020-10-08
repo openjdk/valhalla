@@ -418,8 +418,6 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   int args_passed = sig->length();
   int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
 
-  int extra_stack_offset = wordSize; // tos is return address.
-
   // Create a temp frame so we can call into runtime. It must be properly set up to accomodate GC.
   int sp_inc = (args_on_stack - args_on_stack_cc) * VMRegImpl::stack_slot_size;
   if (sp_inc > 0) {
@@ -451,9 +449,9 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   // Remove the temp frame
   add(sp, sp, frame_size_in_bytes);
 
-  int n = shuffle_inline_args(true, is_inline_ro_entry, extra_stack_offset, sig_bt, sig_cc,
-                              args_passed_cc, args_on_stack_cc, regs_cc, // from
-                              args_passed, args_on_stack, regs);         // to
+  int n = shuffle_inline_args(true, is_inline_ro_entry, sig_cc,
+                              args_passed_cc, regs_cc,            // from
+                              args_passed, args_on_stack, regs);  // to
   assert(sp_inc == n, "must be");
 
   if (sp_inc != 0) {
