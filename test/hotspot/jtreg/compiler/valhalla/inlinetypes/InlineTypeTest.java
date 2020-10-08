@@ -195,8 +195,8 @@ public abstract class InlineTypeTest {
     protected static final boolean PRINT_IDEAL  = WHITE_BOX.getBooleanVMFlag("PrintIdeal");
 
     // Regular expressions used to match nodes in the PrintIdeal output
-    protected static final String START = "(\\d+\\t(.*";
-    protected static final String MID = ".*)+\\t===.*";
+    protected static final String START = "(\\d+ (.*";
+    protected static final String MID = ".*)+ ===.*";
     protected static final String END = ")|";
     // Generic allocation
     protected static final String ALLOC_G  = "(.*call,static  wrapper for: _new_instance_Java" + END;
