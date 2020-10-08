@@ -25,7 +25,7 @@
 
 package java.lang;
 
-import jdk.internal.HotSpotIntrinsicCandidate;
+import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.access.SharedSecrets;
 
 import java.lang.invoke.ValueBootstrapMethods;
@@ -48,7 +48,7 @@ public class Object {
      * @apiNote {@link Objects#newIdentity java.util.Objects.newIdentity()}
      * should be used instead of {@code new Object()}.
      */
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     public Object() {}
 
     /**
@@ -70,7 +70,7 @@ public class Object {
      *         class of this object.
      * @jls 15.8.2 Class Literals
      */
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     public final native Class<?> getClass();
 
     /**
@@ -105,7 +105,7 @@ public class Object {
      * @see     java.lang.Object#equals(java.lang.Object)
      * @see     java.lang.System#identityHashCode
      */
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     public native int hashCode();
 
     /**
@@ -218,7 +218,7 @@ public class Object {
      *               be cloned.
      * @see java.lang.Cloneable
      */
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     protected native Object clone() throws CloneNotSupportedException;
 
     /**
@@ -288,7 +288,7 @@ public class Object {
      * @see        java.lang.Object#notifyAll()
      * @see        java.lang.Object#wait()
      */
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     public final native void notify();
 
     /**
@@ -313,7 +313,7 @@ public class Object {
      * @see        java.lang.Object#notify()
      * @see        java.lang.Object#wait()
      */
-    @HotSpotIntrinsicCandidate
+    @IntrinsicCandidate
     public final native void notifyAll();
 
     /**
