@@ -5609,9 +5609,6 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
   if (_field_info->_is_naturally_atomic && ik->is_inline_klass()) {
     ik->set_is_naturally_atomic();
   }
-  if (_is_empty_inline_type) {
-    ik->set_is_empty_inline_type();
-  }
 
   if (this->_invalid_inline_super) {
     ik->set_invalid_inline_super();
@@ -5786,26 +5783,33 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     }
   }
 
+  bool all_fields_empty = true;
   int nfields = ik->java_fields_count();
   if (ik->is_inline_klass()) nfields++;
   for (int i = 0; i < nfields; i++) {
-    if (ik->field_is_inline_type(i) && ((ik->field_access_flags(i) & JVM_ACC_STATIC) == 0)) {
-      Symbol* klass_name = ik->field_signature(i)->fundamental_name(CHECK);
-      // Inline classes for instance fields must have been pre-loaded
-      // Inline classes for static fields might not have been loaded yet
-      Klass* klass = SystemDictionary::find(klass_name,
-          Handle(THREAD, ik->class_loader()),
-          Handle(THREAD, ik->protection_domain()), CHECK);
-      if (klass != NULL) {
+    if (((ik->field_access_flags(i) & JVM_ACC_STATIC) == 0)) {
+      if (ik->field_is_inline_type(i)) {
+        Symbol* klass_name = ik->field_signature(i)->fundamental_name(CHECK);
+        // Inline classes for instance fields must have been pre-loaded
+        // Inline classes for static fields might not have been loaded yet
+        Klass* klass = SystemDictionary::find(klass_name,
+            Handle(THREAD, ik->class_loader()),
+            Handle(THREAD, ik->protection_domain()), CHECK);
+        assert(klass != NULL, "Just checking");
         assert(klass->access_flags().is_inline_type(), "Inline type expected");
         ik->set_inline_type_field_klass(i, klass);
+        klass_name->decrement_refcount();
+        if (!InlineKlass::cast(klass)->is_empty_inline_type()) { all_fields_empty = false; }
+      } else {
+        all_fields_empty = false;
       }
-      klass_name->decrement_refcount();
-    } else
-      if (is_inline_type() && ((ik->field_access_flags(i) & JVM_ACC_FIELD_INTERNAL) != 0)
-        && ((ik->field_access_flags(i) & JVM_ACC_STATIC) != 0)) {
+    } else if (is_inline_type() && ((ik->field_access_flags(i) & JVM_ACC_FIELD_INTERNAL) != 0)) {
       InlineKlass::cast(ik)->set_default_value_offset(ik->field_offset(i));
     }
+  }
+
+  if (_is_empty_inline_type || (is_inline_type() && all_fields_empty)) {
+    ik->set_is_empty_inline_type();
   }
 
   if (is_inline_type()) {
