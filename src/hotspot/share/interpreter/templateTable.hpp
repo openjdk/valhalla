@@ -343,7 +343,6 @@ class TemplateTable: AllStatic {
  public:
   // Initialization
   static void initialize();
-  static void pd_initialize();
 
   // Templates
   static Template* template_for     (Bytecodes::Code code)  { Bytecodes::check     (code); return &_template_table     [code]; }
