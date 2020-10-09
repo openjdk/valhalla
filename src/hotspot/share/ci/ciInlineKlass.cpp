@@ -92,7 +92,10 @@ bool ciInlineKlass::can_be_returned_as_fields() const {
 }
 
 bool ciInlineKlass::is_empty() {
-  GUARDED_VM_ENTRY(return to_InlineKlass()->is_empty_inline_type();)
+  // Do not use InlineKlass::is_empty_inline_type here because it does
+  // consider the container empty even if fields of empty inline types
+  // are not flattened
+  return nof_nonstatic_fields() == 0;
 }
 
 // When passing an inline type's fields as arguments, count the number
