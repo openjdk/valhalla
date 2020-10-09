@@ -39,6 +39,7 @@ import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.infra.Blackhole;
 
 import java.util.ArrayList;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -50,7 +51,7 @@ import java.util.concurrent.TimeUnit;
  */
 
 
-@Fork(3)
+@Fork(value = 3, jvmArgsAppend = "--enable-preview")
 @Warmup(iterations = 5, time = 2)
 @Measurement(iterations = 5, time = 3)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
@@ -60,19 +61,26 @@ public class ArrayListOfIntBench {
 
     @Param({
             "100",
-            "1_000_000",
+//            "1000000",
     })
     public int size;
 
-    ArrayListOfInt arrayListOfInt;
+    ArrayListInt arrayListInt;
+    ArrayListPrimitiveInt arrayListPrimitiveInt;
     ArrayList<Integer> arrayListOfInteger;
-    ArrayListOfPrimitiveInt arrayListOfPrimitiveInt;
+    ArrayList<PrimitiveInt.ref> arrayListOfPrimitiveInt;
+    Random random;
 
     @Setup
     public void setup() {
-        arrayListOfInt = new ArrayListOfInt(size);
+        arrayListInt = new ArrayListInt(size);
         for (int i = 0; i < size; i++) {
-            arrayListOfInt.add(i, i);
+            arrayListInt.add(i, i);
+        }
+
+        arrayListPrimitiveInt = new ArrayListPrimitiveInt(size);
+        for (int i = 0; i < size; i++) {
+            arrayListPrimitiveInt.add(i, new PrimitiveInt(i));
         }
 
         arrayListOfInteger = new ArrayList<>(size);
@@ -80,42 +88,17 @@ public class ArrayListOfIntBench {
             arrayListOfInteger.add(i, i);
         }
 
-        arrayListOfPrimitiveInt = new ArrayListOfPrimitiveInt(size);
+        arrayListOfPrimitiveInt = new ArrayList<PrimitiveInt.ref>(size);
         for (int i = 0; i < size; i++) {
             arrayListOfPrimitiveInt.add(i, new PrimitiveInt(i));
         }
+
+        random = new Random(42);
     }
 
     @Benchmark
-    public Object ofIntAdd() {
-        ArrayListOfInt list = new ArrayListOfInt(size);
-        for (int i = 0; i < size; i++) {
-            list.add(i, i);
-        }
-        return list;
-    }
-
-    @Benchmark
-    public Object ofIntegerAdd() {
-        ArrayList<Integer> list = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) {
-            list.add(i, i);
-        }
-        return list;
-    }
-
-    @Benchmark
-    public Object ofPrimitiveIntAdd() {
-        ArrayListOfPrimitiveInt list = new ArrayListOfPrimitiveInt(size);
-        for (int i = 0; i < size; i++) {
-            list.add(i, new PrimitiveInt(i));
-        }
-        return list;
-    }
-
-    @Benchmark
-    public Object ofIntAdd0() {
-        ArrayListOfInt list = new ArrayListOfInt(size);
+    public Object appendListInt() {
+        ArrayListInt list = new ArrayListInt(size);
         for (int i = 0; i < size; i++) {
             list.add(i);
         }
@@ -123,17 +106,8 @@ public class ArrayListOfIntBench {
     }
 
     @Benchmark
-    public Object ofIntegerAdd0() {
-        ArrayList<Integer> list = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) {
-            list.add(i);
-        }
-        return list;
-    }
-
-    @Benchmark
-    public Object ofPrimitiveIntAdd0() {
-        ArrayListOfPrimitiveInt list = new ArrayListOfPrimitiveInt(size);
+    public Object appendListPrimitiveInt() {
+        ArrayListPrimitiveInt list = new ArrayListPrimitiveInt(size);
         for (int i = 0; i < size; i++) {
             list.add(new PrimitiveInt(i));
         }
@@ -141,16 +115,35 @@ public class ArrayListOfIntBench {
     }
 
     @Benchmark
-    public int ofIntSum() {
+    public Object appendListOfInteger() {
+        ArrayList<Integer> list = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            list.add(i);
+        }
+        return list;
+    }
+
+    @Benchmark
+    public Object appendListOfPrimitiveInt() {
+        ArrayList<PrimitiveInt.ref> list = new ArrayList<>(size);
+        for (int i = 0; i < size; i++) {
+            list.add(new PrimitiveInt(i));
+        }
+        return list;
+    }
+
+
+    @Benchmark
+    public int sumListInt() {
         int sum = 0;
         for (int i = 0; i < size; i++) {
-            sum += arrayListOfInt.get(i);
+            sum += arrayListInt.get(i);
         }
         return sum;
     }
 
     @Benchmark
-    public int ofIntegerSum() {
+    public int sumListOfInteger() {
         int sum = 0;
         for (int i = 0; i < size; i++) {
             sum += arrayListOfInteger.get(i);
@@ -160,7 +153,16 @@ public class ArrayListOfIntBench {
 
 
     @Benchmark
-    public int ofPrimitiveIntSum() {
+    public int sumListPrimitiveInt() {
+        int sum = 0;
+        for (int i = 0; i < size; i++) {
+            sum += arrayListPrimitiveInt.get(i).value();
+        }
+        return sum;
+    }
+
+    @Benchmark
+    public int sumListOfPrimitiveInt() {
         int sum = 0;
         for (int i = 0; i < size; i++) {
             sum += arrayListOfPrimitiveInt.get(i).value();
@@ -168,4 +170,83 @@ public class ArrayListOfIntBench {
         return sum;
     }
 
+    @Benchmark
+    public int thrashListInt() {
+        final ArrayListInt list = new ArrayListInt(size);
+
+        int sum = 0;
+        for (int i = 0; i < size * 10; i++) {
+            int r = (random.nextInt() & 0x7fffffff);    // positive
+            if ((list.size() > 0 && random.nextBoolean()) || list.size() == size) {
+                list.remove(r % list.size());
+            } else {
+                if (list.size() == 0)
+                    list.add(r);
+                else
+                    list.add(r % list.size(), r);
+            }
+            sum += r;
+        }
+        return sum;
+    }
+
+    @Benchmark
+    public int thrashListPrimitiveInt() {
+        final ArrayListPrimitiveInt list = arrayListPrimitiveInt;
+        int sum = 0;
+        for (int i = 0; i < size * 10; i++) {
+            int r = (random.nextInt() & 0x7fffffff);    // positive
+            if ((list.size() > 0 && random.nextBoolean()) || list.size() == size) {
+                list.remove(r % list.size());
+            } else {
+                PrimitiveInt v = new PrimitiveInt(r);
+                if (list.size() == 0)
+                    list.add(v);
+                else
+                    list.add(r % list.size(), v);
+            }
+            sum += r;
+        }
+        return sum;
+    }
+
+    @Benchmark
+    public int thrashListOfInteger() {
+        final ArrayList<Integer> list = arrayListOfInteger;
+        int sum = 0;
+        for (int i = 0; i < size * 10; i++) {
+            int r = (random.nextInt() & 0x7fffffff);    // positive
+            if ((list.size() > 0 && random.nextBoolean()) || list.size() == size) {
+                list.remove(r % list.size());
+            } else {
+                if (list.size() == 0)
+                    list.add(r);
+                else
+                    list.add(r % list.size(), r);
+            }
+            sum += r;
+        }
+        return sum;
+    }
+
+
+    @Benchmark
+    public int thrashListOfPrimitiveInt() {
+        final ArrayList<PrimitiveInt.ref> list = arrayListOfPrimitiveInt;
+        int sum = 0;
+        for (int i = 0; i < size * 10; i++) {
+            int r = (random.nextInt() & 0x7fffffff);    // positive
+            if ((list.size() > 0 && random.nextBoolean()) || list.size() == size) {
+                list.remove(r % list.size());
+            } else {
+                PrimitiveInt v = new PrimitiveInt(r);
+                if (list.size() == 0)
+                    list.add(v);
+                else
+                    list.add(r % list.size(), v);
+            }
+            sum += r;
+        }
+        return sum;
+    }
 }
