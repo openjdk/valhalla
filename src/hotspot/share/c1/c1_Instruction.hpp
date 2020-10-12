@@ -2724,12 +2724,12 @@ LEAF(ProfileACmpTypes, Instruction)
 
   ciMethod* method()             const { return _method; }
   int bci()                      const { return _bci; }
-  Value left()                 const { return _left; }
-  Value right()                 const { return _right; }
-  bool left_maybe_null()       const { return _left_maybe_null; }
-  bool right_maybe_null()       const { return _right_maybe_null; }
-  void set_left_maybe_null(bool v)   { _left_maybe_null = v; }
-  void set_right_maybe_null(bool v)   { _right_maybe_null = v; }
+  Value left()                   const { return _left; }
+  Value right()                  const { return _right; }
+  bool left_maybe_null()         const { return _left_maybe_null; }
+  bool right_maybe_null()        const { return _right_maybe_null; }
+  void set_left_maybe_null(bool v)     { _left_maybe_null = v; }
+  void set_right_maybe_null(bool v)    { _right_maybe_null = v; }
 
   virtual void input_values_do(ValueVisitor* f)   {
     if (_left != NULL) {

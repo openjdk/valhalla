@@ -236,7 +236,7 @@ public abstract class InlineTypeTest {
     protected static final String CHECKCAST_ARRAYCOPY = "(.*call_leaf_nofp,runtime  checkcast_arraycopy.*" + END;
     protected static final String JLONG_ARRAYCOPY = "(.*call_leaf_nofp,runtime  jlong_disjoint_arraycopy.*" + END;
     protected static final String FIELD_ACCESS = "(.*Field: *" + END;
-    protected static final String SUBSTITUTABLITY_TEST = START + "CallStaticJava" + MID + "java.lang.invoke.ValueBootstrapMethods::isSubstitutable" + END;
+    protected static final String SUBSTITUTABILITY_TEST = START + "CallStaticJava" + MID + "java.lang.invoke.ValueBootstrapMethods::isSubstitutable" + END;
 
     public static String[] concat(String prefix[], String... extra) {
         ArrayList<String> list = new ArrayList<String>();
@@ -297,7 +297,6 @@ public abstract class InlineTypeTest {
                 "-XX:+InlineTypeReturnedAsFields",
                 "-XX:+StressInlineTypeReturnedAsFields"};
         case 3: return new String[] {
-                "-XX:-UseACmpProfile",
                 "-DVerifyIR=false",
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:FlatArrayElementMaxOops=0",
@@ -306,7 +305,6 @@ public abstract class InlineTypeTest {
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields"};
         case 4: return new String[] {
-                "-XX:-UseACmpProfile",
                 "-DVerifyIR=false",
                 "-XX:FlatArrayElementMaxOops=-1",
                 "-XX:FlatArrayElementMaxSize=-1",

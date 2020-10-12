@@ -3385,9 +3385,9 @@ public class TestLWorld extends InlineTypeTest {
         }
     }
 
-    // acmp doesn't need substitutablity test when one input is known
+    // acmp doesn't need substitutability test when one input is known
     // not to be a value type
-    @Test(failOn = SUBSTITUTABLITY_TEST)
+    @Test(failOn = SUBSTITUTABILITY_TEST)
     public boolean test124(Integer o1, Object o2) {
         return o1 == o2;
     }
@@ -3398,8 +3398,8 @@ public class TestLWorld extends InlineTypeTest {
         test124(42, testValue1);
     }
 
-    // acmp doesn't need substitutablity test when one input null
-    @Test(failOn = SUBSTITUTABLITY_TEST)
+    // acmp doesn't need substitutability test when one input null
+    @Test(failOn = SUBSTITUTABILITY_TEST)
     public boolean test125(Object o1) {
         Object o2 = null;
         return o1 == o2;

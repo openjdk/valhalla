@@ -2177,7 +2177,7 @@ void Parse::acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* ti
   }
 }
 
-void Parse::do_acmp(BoolTest::mask btest, Node* right, Node* left) {
+void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   ciKlass* left_type = NULL;
   ciKlass* right_type = NULL;
   ProfilePtrKind left_ptr = ProfileUnknownNull;
@@ -2310,12 +2310,12 @@ void Parse::do_acmp(BoolTest::mask btest, Node* right, Node* left) {
     return;
   }
   if (!left_inline_type) {
-    // Comparison with an object of known not to be an inline type
+    // Comparison with an object known not to be an inline type
     acmp_unknown_non_inline_type_input(left, tleft, left_ptr, btest, eq_region);
     return;
   }
   if (!right_inline_type) {
-    // Comparison with an object of known not to be an inline type
+    // Comparison with an object known not to be an inline type
     acmp_unknown_non_inline_type_input(right, tright, right_ptr, btest, eq_region);
     return;
   }
@@ -3546,7 +3546,7 @@ void Parse::do_one_bytecode() {
     maybe_add_safepoint(iter().get_dest());
     a = pop();
     b = pop();
-    do_acmp(btest, a, b);
+    do_acmp(btest, b, a);
     break;
 
   case Bytecodes::_ifeq: btest = BoolTest::eq; goto handle_ifxx;

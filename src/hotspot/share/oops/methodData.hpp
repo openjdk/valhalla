@@ -394,7 +394,7 @@ public:
   virtual bool is_ParametersTypeData() const { return false; }
   virtual bool is_SpeculativeTrapData()const { return false; }
   virtual bool is_ArrayLoadStoreData() const { return false; }
-  virtual bool is_ACmpData()          const { return false; }
+  virtual bool is_ACmpData()           const { return false; }
 
 
   BitData* as_BitData() const {

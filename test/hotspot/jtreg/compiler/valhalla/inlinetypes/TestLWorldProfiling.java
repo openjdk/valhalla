@@ -491,7 +491,7 @@ public class TestLWorldProfiling extends InlineTypeTest {
 
     // branch frequency profiling causes not equal branch to be optimized out
     @Warmup(10000)
-    @Test(failOn = SUBSTITUTABLITY_TEST)
+    @Test(failOn = SUBSTITUTABILITY_TEST)
     public boolean test21(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -504,8 +504,8 @@ public class TestLWorldProfiling extends InlineTypeTest {
 
     // Input profiled non null
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test22(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -524,9 +524,9 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
-    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
+    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test23(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -545,8 +545,8 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test24(Object o1, Object o2) {
         return o1 != o2;
     }
@@ -565,9 +565,9 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
-    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
+    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test25(Object o1, Object o2) {
         return o1 != o2;
     }
@@ -587,9 +587,9 @@ public class TestLWorldProfiling extends InlineTypeTest {
 
     // Input profiled not inline type with known type
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
-    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test26(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -610,8 +610,8 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test27(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -632,9 +632,9 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
-    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test28(Object o1, Object o2) {
         return o1 != o2;
     }
@@ -655,8 +655,8 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test29(Object o1, Object o2) {
         return o1 != o2;
     }
@@ -677,9 +677,9 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST + NULL_CHECK_TRAP, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
-    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABLITY_TEST + NULL_CHECK_TRAP, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST + NULL_CHECK_TRAP, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
+    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABILITY_TEST + NULL_CHECK_TRAP, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test30(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -701,8 +701,8 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST + NULL_CHECK_TRAP)
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST + NULL_CHECK_TRAP)
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test31(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -725,8 +725,8 @@ public class TestLWorldProfiling extends InlineTypeTest {
 
     // Input profiled not inline type with unknown type
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test32(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -748,8 +748,8 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test33(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -771,8 +771,8 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test34(Object o1, Object o2) {
         return o1 != o2;
     }
@@ -794,8 +794,8 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test35(Object o1, Object o2) {
         return o1 != o2;
     }
@@ -817,8 +817,8 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST + NULL_CHECK_TRAP, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST + NULL_CHECK_TRAP, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test36(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -840,8 +840,8 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST + NULL_CHECK_TRAP)
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1})
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST + NULL_CHECK_TRAP)
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
     public boolean test37(Object o1, Object o2) {
         return o1 == o2;
     }
@@ -865,9 +865,9 @@ public class TestLWorldProfiling extends InlineTypeTest {
     // Test that acmp profile data that's unused at the acmp is fed to
     // speculation and leverage later
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
-    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1 })
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
+    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1 })
     public void test38(Object o1, Object o2, Object o3) {
         if (o1 == o2) {
             test38_helper2();
@@ -890,9 +890,9 @@ public class TestLWorldProfiling extends InlineTypeTest {
     }
 
     @Warmup(10000)
-    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
-    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABLITY_TEST, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
-    @Test(match = { SUBSTITUTABLITY_TEST }, matchCount = { 1 })
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
+    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1 })
     public void test39(Object o1, Object o2, Object o3) {
         if (o1 == o2) {
             test39_helper2();
