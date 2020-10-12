@@ -110,6 +110,7 @@ class Canonicalizer: InstructionVisitor {
   virtual void do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x);
   virtual void do_ProfileCall    (ProfileCall*     x);
   virtual void do_ProfileReturnType (ProfileReturnType*  x);
+  virtual void do_ProfileACmpTypes(ProfileACmpTypes*  x);
   virtual void do_ProfileInvoke  (ProfileInvoke*   x);
   virtual void do_RuntimeCall    (RuntimeCall*     x);
   virtual void do_MemBar         (MemBar*          x);

@@ -2482,24 +2482,22 @@ void TemplateTable::if_acmp(Condition cc) {
   Label taken, not_taken;
   __ pop_ptr(rdx);
 
+  __ profile_acmp(rbx, rdx, rax, rcx);
+
   const int is_inline_type_mask = markWord::always_locked_pattern;
   if (EnableValhalla) {
     __ cmpoop(rdx, rax);
     __ jcc(Assembler::equal, (cc == equal) ? taken : not_taken);
 
     // might be substitutable, test if either rax or rdx is null
-    __ movptr(rbx, rdx);
-    __ andptr(rbx, rax);
-    __ testptr(rbx, rbx);
+    __ testptr(rdx, rax);
     __ jcc(Assembler::zero, (cc == equal) ? not_taken : taken);
 
     // and both are values ?
     __ movptr(rbx, Address(rdx, oopDesc::mark_offset_in_bytes()));
+    __ andptr(rbx, Address(rax, oopDesc::mark_offset_in_bytes()));
     __ andptr(rbx, is_inline_type_mask);
-    __ movptr(rcx, Address(rax, oopDesc::mark_offset_in_bytes()));
-    __ andptr(rbx, is_inline_type_mask);
-    __ andptr(rbx, rcx);
-    __ cmpl(rbx, is_inline_type_mask);
+    __ cmpptr(rbx, is_inline_type_mask);
     __ jcc(Assembler::notEqual, (cc == equal) ? not_taken : taken);
 
     // same value klass ?
@@ -2522,7 +2520,7 @@ void TemplateTable::if_acmp(Condition cc) {
   __ bind(taken);
   branch(false, false);
   __ bind(not_taken);
-  __ profile_not_taken_branch(rax);
+  __ profile_not_taken_branch(rax, true);
 }
 
 void TemplateTable::invoke_is_substitutable(Register aobj, Register bobj,

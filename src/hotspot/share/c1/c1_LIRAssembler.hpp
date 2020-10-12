@@ -210,6 +210,7 @@ class LIR_Assembler: public CompilationResourceObj {
   void emit_rtcall(LIR_OpRTCall* op);
   void emit_profile_call(LIR_OpProfileCall* op);
   void emit_profile_type(LIR_OpProfileType* op);
+  void emit_profile_inline_type(LIR_OpProfileInlineType* op);
   void emit_delay(LIR_OpDelay* op);
   void emit_std_entries();
   void emit_std_entry(CodeOffsets::Entries entry, const CompiledEntrySignature* ces);

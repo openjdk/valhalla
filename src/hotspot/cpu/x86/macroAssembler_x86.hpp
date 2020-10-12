@@ -104,6 +104,7 @@ class MacroAssembler: public Assembler {
   // valueKlass queries, kills temp_reg
   void test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type);
   void test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type);
+  void test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type);
 
   // Get the default value oop for the given InlineKlass
   void get_default_value_oop(Register inline_klass, Register temp_reg, Register obj);

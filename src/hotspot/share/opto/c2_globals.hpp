@@ -780,6 +780,9 @@
   product(bool, UseArrayLoadStoreProfile, true,                             \
           "Take advantage of profiling at array load/store")                \
                                                                             \
+  product(bool, UseACmpProfile, true,                                       \
+          "Take advantage of profiling at acmp")                            \
+                                                                            \
   product(bool, ExpandSubTypeCheckAtParseTime, false, DIAGNOSTIC,           \
           "Do not use subtype check macro node")
 

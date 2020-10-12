@@ -1695,7 +1695,7 @@ void InterpreterMacroAssembler::profile_taken_branch(Register mdp,
 }
 
 
-void InterpreterMacroAssembler::profile_not_taken_branch(Register mdp) {
+void InterpreterMacroAssembler::profile_not_taken_branch(Register mdp, bool acmp) {
   if (ProfileInterpreter) {
     Label profile_continue;
 
@@ -1707,7 +1707,7 @@ void InterpreterMacroAssembler::profile_not_taken_branch(Register mdp) {
 
     // The method data pointer needs to be updated to correspond to
     // the next bytecode
-    update_mdp_by_constant(mdp, in_bytes(BranchData::branch_data_size()));
+    update_mdp_by_constant(mdp, acmp ? in_bytes(ACmpData::acmp_data_size()): in_bytes(BranchData::branch_data_size()));
     bind(profile_continue);
   }
 }
@@ -2130,6 +2130,37 @@ void InterpreterMacroAssembler::profile_element(Register mdp,
     bind(profile_continue);
   }
 }
+
+void InterpreterMacroAssembler::profile_acmp(Register mdp,
+                                             Register left,
+                                             Register right,
+                                             Register tmp) {
+  if (ProfileInterpreter) {
+    Label profile_continue;
+
+    // If no method data exists, go to profile_continue.
+    test_method_data_pointer(mdp, profile_continue);
+
+    mov(tmp, left);
+    profile_obj_type(tmp, Address(mdp, in_bytes(ACmpData::left_offset())));
+
+    Label left_not_inline_type;
+    test_oop_is_not_inline_type(left, tmp, left_not_inline_type);
+    set_mdp_flag_at(mdp, ACmpData::left_inline_type_byte_constant());
+    bind(left_not_inline_type);
+
+    mov(tmp, right);
+    profile_obj_type(tmp, Address(mdp, in_bytes(ACmpData::right_offset())));
+
+    Label right_not_inline_type;
+    test_oop_is_not_inline_type(right, tmp, right_not_inline_type);
+    set_mdp_flag_at(mdp, ACmpData::right_inline_type_byte_constant());
+    bind(right_not_inline_type);
+
+    bind(profile_continue);
+  }
+}
+
 
 void InterpreterMacroAssembler::_interp_verify_oop(Register reg, TosState state, const char* file, int line) {
   if (state == atos) {

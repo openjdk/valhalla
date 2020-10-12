@@ -3982,6 +3982,26 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
   }
 }
 
+void LIR_Assembler::emit_profile_inline_type(LIR_OpProfileInlineType* op) {
+  Register obj = op->obj()->as_register();
+  Register tmp = op->tmp()->as_pointer_register();
+  Address mdo_addr = as_Address(op->mdp()->as_address_ptr());
+  bool not_null = op->not_null();
+  int flag = op->flag();
+
+  Label not_inline_type;
+  if (!not_null) {
+    __ testptr(obj, obj);
+    __ jccb(Assembler::zero, not_inline_type);
+  }
+
+  __ test_oop_is_not_inline_type(obj, tmp, not_inline_type);
+
+  __ orb(mdo_addr, flag);
+
+  __ bind(not_inline_type);
+}
+
 void LIR_Assembler::emit_delay(LIR_OpDelay*) {
   Unimplemented();
 }

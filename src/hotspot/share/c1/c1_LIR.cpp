@@ -974,7 +974,18 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       do_temp(opProfileType->_tmp);
       break;
     }
-  default:
+
+    // LIR_OpProfileInlineType:
+    case lir_profile_inline_type: {
+      assert(op->as_OpProfileInlineType() != NULL, "must be");
+      LIR_OpProfileInlineType* opProfileInlineType = (LIR_OpProfileInlineType*)op;
+
+      do_input(opProfileInlineType->_mdp); do_temp(opProfileInlineType->_mdp);
+      do_input(opProfileInlineType->_obj);
+      do_temp(opProfileInlineType->_tmp);
+      break;
+    }
+default:
     op->visit(this);
   }
 }
@@ -1189,6 +1200,10 @@ void LIR_OpProfileCall::emit_code(LIR_Assembler* masm) {
 
 void LIR_OpProfileType::emit_code(LIR_Assembler* masm) {
   masm->emit_profile_type(this);
+}
+
+void LIR_OpProfileInlineType::emit_code(LIR_Assembler* masm) {
+  masm->emit_profile_inline_type(this);
 }
 
 // LIR_List
@@ -1877,6 +1892,8 @@ const char * LIR_Op::name() const {
      case lir_profile_call:          s = "profile_call";  break;
      // LIR_OpProfileType
      case lir_profile_type:          s = "profile_type";  break;
+     // LIR_OpProfileInlineType
+     case lir_profile_inline_type:   s = "profile_inline_type"; break;
      // LIR_OpAssert
 #ifdef ASSERT
      case lir_assert:                s = "assert";        break;
@@ -2208,6 +2225,14 @@ void LIR_OpProfileType::print_instr(outputStream* out) const {
   }
   out->print(" current = "); ciTypeEntries::print_ciklass(out, current_klass());
   out->print(" ");
+  mdp()->print(out);          out->print(" ");
+  obj()->print(out);          out->print(" ");
+  tmp()->print(out);          out->print(" ");
+}
+
+// LIR_OpProfileInlineType
+void LIR_OpProfileInlineType::print_instr(outputStream* out) const {
+  out->print(" flag = %x ", flag());
   mdp()->print(out);          out->print(" ");
   obj()->print(out);          out->print(" ");
   tmp()->print(out);          out->print(" ");
