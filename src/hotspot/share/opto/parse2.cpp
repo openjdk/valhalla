@@ -2206,33 +2206,33 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   }
 
   if (!EnableValhalla) {
-    Node* cmp = CmpP(right, left);
+    Node* cmp = CmpP(left, right);
     cmp = optimize_cmp_with_klass(cmp);
     do_if(btest, cmp);
     return;
   }
 
   // Allocate inline type operands and re-execute on deoptimization
-  if (right->is_InlineType()) {
-    PreserveReexecuteState preexecs(this);
-    inc_sp(2);
-    jvms()->set_should_reexecute(true);
-    right = right->as_InlineType()->buffer(this)->get_oop();
-  }
   if (left->is_InlineType()) {
     PreserveReexecuteState preexecs(this);
     inc_sp(2);
     jvms()->set_should_reexecute(true);
     left = left->as_InlineType()->buffer(this)->get_oop();
   }
+  if (right->is_InlineType()) {
+    PreserveReexecuteState preexecs(this);
+    inc_sp(2);
+    jvms()->set_should_reexecute(true);
+    right = right->as_InlineType()->buffer(this)->get_oop();
+  }
 
   // First, do a normal pointer comparison
-  const TypeOopPtr* tright = _gvn.type(right)->isa_oopptr();
   const TypeOopPtr* tleft = _gvn.type(left)->isa_oopptr();
-  Node* cmp = CmpP(right, left);
+  const TypeOopPtr* tright = _gvn.type(right)->isa_oopptr();
+  Node* cmp = CmpP(left, right);
   cmp = optimize_cmp_with_klass(cmp);
-  if (tright == NULL || !tright->can_be_inline_type() ||
-      tleft == NULL || !tleft->can_be_inline_type()) {
+  if (tleft == NULL || !tleft->can_be_inline_type() ||
+      tright == NULL || !tright->can_be_inline_type()) {
     // This is sufficient, if one of the operands can't be an inline type
     do_if(btest, cmp);
     return;
@@ -2338,8 +2338,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   ne_region->init_req(3, null_ctl);
 
   // Check if both operands are of the same class.
-  Node* kls_right = load_object_klass(not_null_right);
   Node* kls_left = load_object_klass(not_null_left);
+  Node* kls_right = load_object_klass(not_null_right);
   Node* kls_cmp = CmpP(kls_left, kls_right);
   Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
   IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
