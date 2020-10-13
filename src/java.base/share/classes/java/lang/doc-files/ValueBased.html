@@ -31,41 +31,42 @@
 <body>
 <h1 id="ValueBased">{@index "Value-based Classes"}</h1>
 
-Some classes, such as <code>java.util.Optional</code> and
-<code>java.time.LocalDateTime</code>, are <em>value-based</em>.  Instances of a
-value-based class:
+Some classes, such as <code>java.lang.Integer</code> and
+<code>java.time.LocalDateTime</code>, are <em>value-based</em>.
+Value-based classes:
 <ul>
-    <li>are final</li>
-    <li>have only final instance fields (though these may contain references to mutable
-        objects);</li>
-    <li>extend either <code>Object</code> or a hierarchy of abstract classes that
-        declare no instance fields and have no instance initialization logic</li>
-    <li>do not have (or have deprecated for removal any) accessible constructors,
-        but are instead instantiated through factory methods which make no
-        commitment as to the identity of returned instances;</li>
-    <li>expose no identity-sensitive behaviors through their methods, such as by
-        relying on equality (<code>==</code>) between instances, the identity hash
-        code of an instance, or synchronization on an instances's intrinsic lock;</li>
-    <li>have implementations of <code>equals</code>,
+    <li>declare only final instance fields (though these may contain references
+        to mutable objects);</li>
+    <li>declare implementations of <code>equals</code>,
         <code>hashCode</code>, and <code>toString</code> which are computed
         solely from the instance's state and not from its identity or the state
         of any other object or variable;</li>
-    <li>are <em>freely substitutable</em> when equal, meaning that interchanging
-        any two instances <code>x</code> and <code>y</code> that are equal
-        according to <code>equals()</code> in any computation or method
-        invocation should produce no visible change in behavior.
+    <li>have instances that are <em>freely substitutable</em> when equal, meaning
+        that interchanging any two instances <code>x</code> and <code>y</code> that
+        are equal according to <code>equals()</code> produces no visible change in
+        the behavior of the class's methods;
     </li>
+    <li>perform no synchronization on an instance's intrinsic lock;</li>
+    <li>do not have (or have deprecated any) accessible constructors;</li>
+    <li>may support instance creation through factory methods that do <em>not</em>
+        promise a unique identity for each invocation—in particular, each factory
+        method must allow for the possibility that if two independently-produced
+        instances are equal according to <code>equals()</code>, they may also be
+        equal according to <code>==</code>;
+    </li>
+    <li>are final;</li>
+    <li>extend either <code>Object</code> or a hierarchy of abstract classes that
+        declare no instance fields or instance initializers and whose constructors
+        are empty.</li>
+    <li>
 </ul>
 
-<p>Because the identity of instances produced by factories is unspecified, a program
-    may experience unpredictable behavior if it attempts to distinguish two
-    references to equal values of a value-based class, whether directly via reference
+<p>When two instances of a value-based class are `equal`, a program should not attempt
+    to distinguish between their identities, whether directly via reference
     equality or indirectly via an appeal to synchronization, identity hashing,
-    serialization, or any other identity-sensitive mechanism.  Use of such
-    identity-sensitive operations on instances of value-based classes should be
-    avoided.</p>
-<p>In particular, synchronization on instances of value-based classes is strongly
-    discouraged, because the programmer cannot guarantee unique ownership of the
+    serialization, or any other identity-sensitive mechanism.</p>
+<p>Synchronization on instances of value-based classes is strongly discouraged,
+    because the programmer cannot usually guarantee unique ownership of the
     associated lock.</p>
 </body>
 </html>
