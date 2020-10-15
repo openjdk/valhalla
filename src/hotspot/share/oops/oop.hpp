@@ -130,7 +130,7 @@ class oopDesc {
   bool is_typeArray_noinline()         const;
   bool is_value_noinline()             const;
   bool is_flatArray_noinline()         const;
-  bool is_nullfreeArray_noinline()              const;
+  bool is_nullfreeArray_noinline()     const;
 
  protected:
   inline oop        as_oop() const { return const_cast<oopDesc*>(this); }
