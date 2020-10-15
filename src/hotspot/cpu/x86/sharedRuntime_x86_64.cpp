@@ -2752,6 +2752,12 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
     // Load (object->mark() | 1) into swap_reg %rax
     __ orptr(swap_reg, Address(obj_reg, oopDesc::mark_offset_in_bytes()));
+    if (EnableValhalla) {
+      assert(!UseBiasedLocking, "Not compatible with biased-locking");
+      // Mask inline_type bit such that we go to the slow path if object is an inline type
+      __ andptr(swap_reg, ~((int) markWord::inline_type_bit_in_place));
+    }
+
 
     // Save (object->mark() | 1) into BasicLock's displaced header
     __ movptr(Address(lock_reg, mark_word_offset), swap_reg);

@@ -64,6 +64,7 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlass(
   set_layout_helper(array_layout_helper(InlineKlass::cast(element_klass)));
   assert(is_array_klass(), "sanity");
   assert(is_flatArray_klass(), "sanity");
+  assert(is_null_free_array_klass(), "sanity");
 
   set_prototype_header(markWord::flat_array_prototype());
   assert(prototype_header().is_flat_array(), "sanity");

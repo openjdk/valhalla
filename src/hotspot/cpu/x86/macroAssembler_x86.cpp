@@ -2665,10 +2665,12 @@ void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int
   // load mark word
   movptr(temp_reg, Address(oop, oopDesc::mark_offset_in_bytes()));
   // check displaced
-  testb(temp_reg, markWord::unlocked_value);
-  jcc(Assembler::notZero, test_mark_word);
+  testl(temp_reg, markWord::unlocked_value);
+  jccb(Assembler::notZero, test_mark_word);
   // slow path use klass prototype
+  push(rscratch1);
   load_prototype_header(temp_reg, oop, rscratch1);
+  pop(rscratch1);
 
   bind(test_mark_word);
   testl(temp_reg, test_bit);

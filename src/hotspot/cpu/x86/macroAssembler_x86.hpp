@@ -104,7 +104,6 @@ class MacroAssembler: public Assembler {
   // markWord tests, kills markWord reg
   void test_markword_is_inline_type(Register markword, Label& is_inline_type);
 
-
   // inlineKlass queries, kills temp_reg
   void test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type);
   void test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type);

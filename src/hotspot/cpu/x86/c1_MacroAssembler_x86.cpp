@@ -69,12 +69,13 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
 
   // Load object header
   movptr(hdr, Address(obj, hdr_offset));
-  if (EnableValhalla) {
-    movptr(rklass_decode_tmp, hdr);
-    test_markword_is_inline_type(rklass_decode_tmp, slow_case);
-  }
   // and mark it as unlocked
   orptr(hdr, markWord::unlocked_value);
+  if (EnableValhalla) {
+    assert(!UseBiasedLocking, "Not compatible with biased-locking");
+    // Mask inline_type bit such that we go to the slow path if object is an inline type
+    andptr(hdr, ~((int) markWord::inline_type_bit_in_place));
+  }
   // save unlocked object header into the displaced header location on the stack
   movptr(Address(disp_hdr, 0), hdr);
   // test if object header is still the same (i.e. unlocked), and if so, store the
