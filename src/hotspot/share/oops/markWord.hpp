@@ -96,7 +96,7 @@
 //
 //  Valhalla
 //
-//  CMH: merge this doc into the text above
+//  <CMH: merge this doc into the text above>
 //
 //  Project Valhalla has mark word encoding requirements for the following oops:
 //
@@ -106,7 +106,7 @@
 //
 //  * flat arrays: load/decode of klass layout helper is expensive for aaload
 //
-//  * "null free" arrays: load/decode of klass layout helper is expensive for aaload
+//  * "null free" arrays: load/decode of klass layout helper again for aaload
 //
 //  UseBiasedLocking / EnableValhalla
 //
@@ -133,11 +133,22 @@
 //
 //  32 bits:
 //  --------
-//  hash:24 ------------>| larval_state:1 age:4 inline_type:1 lock:2
+//  hash:24 ------------>| larval:1 age:4 inline_type:1 lock:2
 //
 //  64 bits:
 //  --------
-//  unused:1 | <-- hash:31 -->| unused:22 nullfree_array:1 flat_array:1 larval_state:1 age:4 inline_type:1 lock:2
+//  unused:1 | <-- hash:31 -->| unused:22 larval:1 age:4 nullfree_array:1 flat_array:1 inline_type:1 lock:2
+//
+//  The "fast" static type bits (nullfree_array, flat_array, and inline_type)
+//  are placed lowest next to lock bits to more easily decode forwarding pointers.
+//  G1 for example, implicitly clears age bits ("G1FullGCCompactionPoint::forward()")
+//  using "oopDesc->forwardee()", so it necessary for "markWord::decode_pointer()"
+//  to return a non-NULL for this case, but not confuse the static type bits for
+//  a pointer.
+//
+//  Static types bits are recorded in the "klass->prototype_header()", displaced
+//  mark should simply use the prototype header as "slow path", rather chasing
+//  monitor or stack lock races.
 //
 //  Lock patterns (note inline types can't be locked/monitor/inflating)...
 //
@@ -182,66 +193,79 @@ class markWord {
   // Conversion
   uintptr_t value() const { return _value; }
 
-  // Constants
-  static const int age_bits                       = 4;
+  // Constants, in least significant bit order
   static const int lock_bits                      = 2;
-  static const int biased_lock_bits               = 1;
+  static const int biased_lock_bits               = 1; // Valhalla: unused
+  // static prototype header bits (fast path instead of klass layout_helper)
   static const int inline_type_bits               = 1;
-  static const int larval_bits                    = 1;
   static const int flat_array_bits                = LP64_ONLY(1) NOT_LP64(0);
   static const int nullfree_array_bits            = LP64_ONLY(1) NOT_LP64(0);
+  // instance state
+  static const int age_bits                       = 4;
+  static const int larval_bits                    = 1;
   static const int max_hash_bits                  = BitsPerWord - age_bits - lock_bits - inline_type_bits - larval_bits - flat_array_bits - nullfree_array_bits;
   static const int hash_bits                      = max_hash_bits > 31 ? 31 : max_hash_bits;
-  static const int unused_gap_bits                = LP64_ONLY(1) NOT_LP64(0);
-  static const int epoch_bits                     = 2;
-
+  static const int unused_gap_bits                = LP64_ONLY(1) NOT_LP64(0); // Valhalla: unused
+  static const int epoch_bits                     = 2; // Valhalla: unused
 
   // The biased locking code currently requires that the age bits be
   // contiguous to the lock bits.
   static const int lock_shift                     = 0;
   static const int biased_lock_shift              = lock_bits;
   static const int inline_type_shift              = lock_bits;
-  static const int age_shift                      = lock_bits + inline_type_bits;
-  static const int unused_gap_shift               = age_shift + age_bits;
-  static const int larval_shift                   = age_shift + age_bits + unused_gap_bits;
-  static const int flat_array_shift               = larval_shift + larval_bits;
+  static const int flat_array_shift               = inline_type_shift + inline_type_bits;
   static const int nullfree_array_shift           = flat_array_shift + flat_array_bits;
+  static const int age_shift                      = nullfree_array_shift + nullfree_array_bits;
+  static const int unused_gap_shift               = age_shift + age_bits; // Valhalla: unused
+  static const int larval_shift                   = age_shift + age_bits;
   static const int hash_shift                     = LP64_ONLY(32) NOT_LP64(larval_shift + larval_bits);
-  static const int epoch_shift                    = unused_gap_shift + unused_gap_bits /*hash_shift*/;
+  static const int epoch_shift                    = unused_gap_shift + unused_gap_bits /*hash_shift*/; // Valhalla: unused
+
   static const uintptr_t lock_mask                = right_n_bits(lock_bits);
   static const uintptr_t lock_mask_in_place       = lock_mask << lock_shift;
-  static const uintptr_t biased_lock_mask         = right_n_bits(lock_bits + biased_lock_bits);
-  static const uintptr_t biased_lock_mask_in_place= biased_lock_mask << lock_shift;
-  static const uintptr_t biased_lock_bit_in_place = 1 << biased_lock_shift;
+  static const uintptr_t biased_lock_mask         = right_n_bits(lock_bits + biased_lock_bits); // Valhalla: unused
+  static const uintptr_t biased_lock_mask_in_place= biased_lock_mask << lock_shift; // Valhalla: unused
+  static const uintptr_t biased_lock_bit_in_place = 1 << biased_lock_shift; // Valhalla: unused
   static const uintptr_t inline_type_mask         = right_n_bits(lock_bits + inline_type_bits);
   static const uintptr_t inline_type_mask_in_place = inline_type_mask << lock_shift;
   static const uintptr_t inline_type_bit_in_place = 1 << inline_type_shift;
+  static const uintptr_t flat_array_mask          = right_n_bits(flat_array_bits);
+  static const uintptr_t flat_array_mask_in_place = (flat_array_mask << flat_array_shift) | lock_mask_in_place;
+  static const uintptr_t flat_array_bit_in_place = (1 << flat_array_shift);
+  static const uintptr_t nullfree_array_mask      = right_n_bits(nullfree_array_bits);
+  static const uintptr_t nullfree_array_mask_in_place = (nullfree_array_mask << nullfree_array_shift) | lock_mask_in_place;
+  static const uintptr_t nullfree_array_bit_in_place = (1 << nullfree_array_shift);
+
   static const uintptr_t age_mask                 = right_n_bits(age_bits);
   static const uintptr_t age_mask_in_place        = age_mask << age_shift;
+
   static const uintptr_t larval_mask              = right_n_bits(larval_bits);
   static const uintptr_t larval_mask_in_place     = (larval_mask << larval_shift) | inline_type_mask_in_place;
   static const uintptr_t larval_bit_in_place     = (1 << larval_shift);
-  static const uintptr_t flat_array_mask          = right_n_bits(flat_array_bits);
-  static const uintptr_t flat_array_mask_in_place = flat_array_mask << flat_array_shift;
-  static const uintptr_t nullfree_array_mask      = right_n_bits(nullfree_array_bits);
-  static const uintptr_t nullfree_array_mask_in_place = nullfree_array_mask << nullfree_array_shift;
-  static const uintptr_t epoch_mask               = right_n_bits(epoch_bits);
-  static const uintptr_t epoch_mask_in_place      = epoch_mask << epoch_shift;
+
+  static const uintptr_t epoch_mask               = right_n_bits(epoch_bits); // Valhalla: unused
+  static const uintptr_t epoch_mask_in_place      = epoch_mask << epoch_shift;// Valhalla: unused
 
   static const uintptr_t hash_mask                = right_n_bits(hash_bits);
   static const uintptr_t hash_mask_in_place       = hash_mask << hash_shift;
 
   // Alignment of JavaThread pointers encoded in object header required by biased locking
-  static const size_t biased_lock_alignment       = 2 << (epoch_shift + epoch_bits);
+  static const size_t biased_lock_alignment       = 2 << (epoch_shift + epoch_bits); // Valhalla: unused
 
   static const uintptr_t locked_value             = 0;
   static const uintptr_t unlocked_value           = 1;
   static const uintptr_t monitor_value            = 2;
   static const uintptr_t marked_value             = 3;
-  static const uintptr_t biased_lock_pattern      = 5;
+  static const uintptr_t biased_lock_pattern      = 5; // Valhalla: unused
 
   static const uintptr_t inline_type_pattern      = inline_type_bit_in_place | unlocked_value;
-  static const uintptr_t larval_state_pattern     = larval_bit_in_place | inline_type_pattern;
+  static const uintptr_t flat_array_pattern       = flat_array_bit_in_place | unlocked_value;
+  static const uintptr_t nullfree_array_pattern   = nullfree_array_bit_in_place | unlocked_value;
+  static const uintptr_t static_prototype_mask    = LP64_ONLY(right_n_bits(inline_type_bits + flat_array_bits + nullfree_array_bits)) NOT_LP64(right_n_bits(inline_type_bits));
+  static const uintptr_t static_prototype_mask_in_place = static_prototype_mask << lock_bits;
+  static const uintptr_t static_prototype_value_max = (1 << age_shift) - 1;
+
+  static const uintptr_t larval_pattern           = larval_bit_in_place | inline_type_pattern;
 
   static const uintptr_t no_hash                  = 0 ;  // no hash value assigned
   static const uintptr_t no_hash_in_place         = (address_word)no_hash << hash_shift;
@@ -406,7 +430,7 @@ class markWord {
   }
 
   // used to encode pointers during GC
-  markWord clear_lock_bits() { return markWord(value() & /*~lock_mask_in_place*/ ~inline_type_mask_in_place); }
+  markWord clear_lock_bits() { return markWord(value() & ~lock_mask_in_place); }
 
   // age operations
   markWord set_marked()   { return markWord((value() & ~lock_mask_in_place) | marked_value); }
@@ -436,9 +460,18 @@ class markWord {
     return markWord(value() & ~larval_bit_in_place);
   }
   bool is_larval_state() const {
-    return (value() & larval_mask_in_place) == larval_state_pattern;
+    return (mask_bits(value(), larval_mask_in_place) == larval_pattern);
   }
 
+#ifdef _LP64 // 64 bit encodings only
+  bool is_flat_array() const {
+    return (mask_bits(value(), flat_array_mask_in_place) == flat_array_pattern);
+  }
+
+  bool is_nullfree_array() const {
+    return (mask_bits(value(), nullfree_array_mask_in_place) == nullfree_array_pattern);
+  }
+#endif
   // Prototype mark for initialization
   static markWord prototype() {
     return markWord( no_hash_in_place | no_lock_in_place );
@@ -448,6 +481,15 @@ class markWord {
     return markWord(inline_type_pattern);
   }
 
+#ifdef _LP64 // 64 bit encodings only
+  static markWord flat_array_prototype() {
+    return markWord(flat_array_pattern);
+  }
+
+  static markWord nullfree_array_prototype() {
+    return markWord(nullfree_array_pattern);
+  }
+#endif
     // Helper function for restoration of unmarked mark oops during GC
   static inline markWord prototype_for_klass(const Klass* klass);
 
@@ -458,7 +500,7 @@ class markWord {
   inline static markWord encode_pointer_as_mark(void* p) { return from_pointer(p).set_marked(); }
 
   // Recover address of oop from encoded form used in mark
-  inline void* decode_pointer() { return (void*)clear_lock_bits().value(); }
+  inline void* decode_pointer() { return (_value < static_prototype_value_max) ? NULL : (void*) (clear_lock_bits().value()); }
 };
 
 // Support atomic operations.

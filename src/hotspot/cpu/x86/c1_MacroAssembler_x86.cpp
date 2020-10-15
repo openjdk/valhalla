@@ -70,7 +70,8 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   // Load object header
   movptr(hdr, Address(obj, hdr_offset));
   if (EnableValhalla) {
-    test_markword_is_inline_type(hdr, rklass_decode_tmp, slow_case);
+    movptr(rklass_decode_tmp, hdr);
+    test_markword_is_inline_type(rklass_decode_tmp, slow_case);
   }
   // and mark it as unlocked
   orptr(hdr, markWord::unlocked_value);

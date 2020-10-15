@@ -2610,10 +2610,9 @@ void MacroAssembler::null_check(Register reg, int offset) {
   }
 }
 
-void MacroAssembler::test_markword_is_inline_type(Register markword, Register temp_reg, Label& is_inline_type) {
-  movptr(temp_reg, markword);
-  andptr(temp_reg, markWord::inline_type_mask_in_place);
-  cmpptr(temp_reg, markWord::inline_type_pattern);
+void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_inline_type) {
+  andptr(markword, markWord::inline_type_mask_in_place);
+  cmpptr(markword, markWord::inline_type_pattern);
   jcc(Assembler::equal, is_inline_type);
 }
 
@@ -2661,40 +2660,68 @@ void MacroAssembler::test_field_is_inlined(Register flags, Register temp_reg, La
   jcc(Assembler::notZero, is_inlined);
 }
 
+void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
+  Label test_mark_word;
+  // load mark word
+  movptr(temp_reg, Address(oop, oopDesc::mark_offset_in_bytes()));
+  // check displaced
+  testb(temp_reg, markWord::unlocked_value);
+  jcc(Assembler::notZero, test_mark_word);
+  // slow path use klass prototype
+  load_prototype_header(temp_reg, oop, rscratch1);
+
+  bind(test_mark_word);
+  testl(temp_reg, test_bit);
+  jcc((jmp_set) ? Assembler::notZero : Assembler::zero, jmp_label);
+}
+
 void MacroAssembler::test_flattened_array_oop(Register oop, Register temp_reg,
                                               Label&is_flattened_array) {
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  load_klass(temp_reg, oop, tmp_load_klass);
+#ifdef _LP64
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flattened_array);
+#else
+  load_klass(temp_reg, oop, noreg);
   movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
   test_flattened_array_layout(temp_reg, is_flattened_array);
+#endif
 }
 
 void MacroAssembler::test_non_flattened_array_oop(Register oop, Register temp_reg,
                                                   Label&is_non_flattened_array) {
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  load_klass(temp_reg, oop, tmp_load_klass);
+#ifdef _LP64
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flattened_array);
+#else
+  load_klass(temp_reg, oop, noreg);
   movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
   test_non_flattened_array_layout(temp_reg, is_non_flattened_array);
+#endif
 }
 
 void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array) {
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  load_klass(temp_reg, oop, tmp_load_klass);
+#ifdef _LP64
+  test_oop_prototype_bit(oop, temp_reg, markWord::nullfree_array_bit_in_place, true, is_null_free_array);
+#else
+  load_klass(temp_reg, oop, noreg);
   movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
   test_null_free_array_layout(temp_reg, is_null_free_array);
+#endif
 }
 
 void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array) {
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  load_klass(temp_reg, oop, tmp_load_klass);
+#ifdef _LP64
+  test_oop_prototype_bit(oop, temp_reg, markWord::nullfree_array_bit_in_place, false, is_non_null_free_array);
+#else
+  load_klass(temp_reg, oop, noreg);
   movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
   test_non_null_free_array_layout(temp_reg, is_non_null_free_array);
+#endif
 }
 
 void MacroAssembler::test_flattened_array_layout(Register lh, Label& is_flattened_array) {
   testl(lh, Klass::_lh_array_tag_vt_value_bit_inplace);
   jcc(Assembler::notZero, is_flattened_array);
 }
+
 void MacroAssembler::test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array) {
   testl(lh, Klass::_lh_array_tag_vt_value_bit_inplace);
   jcc(Assembler::zero, is_non_flattened_array);

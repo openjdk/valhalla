@@ -498,7 +498,8 @@ void C2_MacroAssembler::fast_lock(Register objReg, Register boxReg, Register tmp
   movptr(tmpReg, Address(objReg, oopDesc::mark_offset_in_bytes()));          // [FETCH]
   testptr(tmpReg, markWord::monitor_value); // inflated vs stack-locked|neutral|biased
   jccb(Assembler::notZero, IsInflated);
-  test_markword_is_inline_type(tmpReg, scrReg, DONE_LABEL);
+  movptr(scrReg, tmpReg);
+  test_markword_is_inline_type(tmpReg, DONE_LABEL);
   // Attempt stack-locking ...
   orptr (tmpReg, markWord::unlocked_value);
   movptr(Address(boxReg, 0), tmpReg);          // Anticipate successful CAS

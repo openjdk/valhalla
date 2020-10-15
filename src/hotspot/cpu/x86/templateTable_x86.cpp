@@ -4678,7 +4678,7 @@ void TemplateTable::monitorenter() {
 
   Label is_inline_type;
   __ movptr(rbx, Address(rax, oopDesc::mark_offset_in_bytes()));
-  __ test_markword_is_inline_type(rbx, rbx, is_inline_type);
+  __ test_markword_is_inline_type(rbx, is_inline_type);
 
   const Address monitor_block_top(
         rbp, frame::interpreter_frame_monitor_block_top_offset * wordSize);

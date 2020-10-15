@@ -62,7 +62,8 @@ InlineKlass::InlineKlass(const ClassFileParser& parser)
   *((int*)adr_default_value_offset()) = 0;
   *((Klass**)adr_flat_array_klass()) = NULL;
   set_prototype_header(markWord::inline_type_prototype());
-  assert(is_inline_type_klass(), "invariant");
+  assert(is_inline_type_klass(), "sanity");
+  assert(prototype_header().is_inline_type(), "sanity");
 }
 
 oop InlineKlass::default_value() {
