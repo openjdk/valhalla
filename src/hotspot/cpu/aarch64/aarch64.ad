@@ -8786,37 +8786,6 @@ instruct castP2X(iRegLNoSp dst, iRegP src) %{
   ins_pipe(ialu_reg);
 %}
 
-instruct castN2I(iRegINoSp dst, iRegN src) %{
-  match(Set dst (CastN2I src));
-
-  ins_cost(INSN_COST);
-  format %{ "movw $dst, $src\t# compressed ptr -> int" %}
-
-  ins_encode %{
-    if ($dst$$reg != $src$$reg) {
-      __ movw(as_Register($dst$$reg), as_Register($src$$reg));
-    }
-  %}
-
-  ins_pipe(ialu_reg);
-%}
-
-instruct castI2N(iRegNNoSp dst, iRegI src) %{
-  match(Set dst (CastI2N src));
-
-  ins_cost(INSN_COST);
-  format %{ "movw $dst, $src\t# int -> compressed ptr" %}
-
-  ins_encode %{
-    if ($dst$$reg != $src$$reg) {
-      __ movw(as_Register($dst$$reg), as_Register($src$$reg));
-    }
-  %}
-
-  ins_pipe(ialu_reg);
-%}
-
-
 // Convert oop into int for vectors alignment masking
 instruct convP2I(iRegINoSp dst, iRegP src) %{
   match(Set dst (ConvL2I (CastP2X src)));
