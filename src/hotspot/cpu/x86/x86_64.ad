@@ -6659,33 +6659,6 @@ instruct castP2X(rRegL dst, rRegP src)
   ins_pipe(ialu_reg_reg); // XXX
 %}
 
-instruct castN2I(rRegI dst, rRegN src)
-%{
-  match(Set dst (CastN2I src));
-
-  format %{ "movl    $dst, $src\t# compressed ptr -> int" %}
-  ins_encode %{
-    if ($dst$$reg != $src$$reg) {
-      __ movl($dst$$Register, $src$$Register);
-    }
-  %}
-  ins_pipe(ialu_reg_reg); // XXX
-%}
-
-instruct castI2N(rRegN dst, rRegI src)
-%{
-  match(Set dst (CastI2N src));
-
-  format %{ "movl    $dst, $src\t# int -> compressed ptr" %}
-  ins_encode %{
-    if ($dst$$reg != $src$$reg) {
-      __ movl($dst$$Register, $src$$Register);
-    }
-  %}
-  ins_pipe(ialu_reg_reg); // XXX
-%}
-
-
 // Convert oop into int for vectors alignment masking
 instruct convP2I(rRegI dst, rRegP src)
 %{
@@ -11512,17 +11485,6 @@ instruct testI_reg_mem(rFlagsReg cr, rRegI src, memory mem, immI0 zero)
   ins_pipe(ialu_cr_reg_mem);
 %}
 
-// Fold array properties check
-instruct testI_mem_imm(rFlagsReg cr, memory mem, immI con, immI0 zero)
-%{
-  match(Set cr (CmpI (AndI (CastN2I (LoadNKlass mem)) con) zero));
-
-  format %{ "testl   $mem, $con" %}
-  opcode(0xF7, 0x00);
-  ins_encode(REX_mem(mem), OpcP, RM_opc_mem(0x00, mem), Con32(con));
-  ins_pipe(ialu_mem_imm);
-%}
-
 // Unsigned compare Instructions; really, same as signed except they
 // produce an rFlagsRegU instead of rFlagsReg.
 instruct compU_rReg(rFlagsRegU cr, rRegI op1, rRegI op2)
@@ -11830,17 +11792,6 @@ instruct testL_reg_mem2(rFlagsReg cr, rRegP src, memory mem, immL0 zero)
   match(Set cr (CmpL (AndL (CastP2X src) (LoadL mem)) zero));
 
   format %{ "testq   $src, $mem" %}
-  opcode(0x85);
-  ins_encode(REX_reg_mem_wide(src, mem), OpcP, reg_mem(src, mem));
-  ins_pipe(ialu_cr_reg_mem);
-%}
-
-// Fold array properties check
-instruct testL_reg_mem3(rFlagsReg cr, memory mem, rRegL src, immL0 zero)
-%{
-  match(Set cr (CmpL (AndL (CastP2X (LoadKlass mem)) src) zero));
-
-  format %{ "testq   $src, $mem\t# test array properties" %}
   opcode(0x85);
   ins_encode(REX_reg_mem_wide(src, mem), OpcP, reg_mem(src, mem));
   ins_pipe(ialu_cr_reg_mem);
