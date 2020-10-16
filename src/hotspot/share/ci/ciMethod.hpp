@@ -30,7 +30,7 @@
 #include "ci/ciObject.hpp"
 #include "ci/ciSignature.hpp"
 #include "compiler/methodLiveness.hpp"
-#include "prims/methodHandles.hpp"
+#include "runtime/handles.hpp"
 #include "utilities/bitMap.hpp"
 
 class ciMethodBlocks;
@@ -363,6 +363,7 @@ class ciMethod : public ciMetadata {
   bool is_object_constructor() const;
   bool is_static_init_factory() const;
   bool is_object_constructor_or_class_initializer() const;
+  bool is_vector_method() const;
 
   bool can_be_statically_bound(ciInstanceKlass* context) const;
 
