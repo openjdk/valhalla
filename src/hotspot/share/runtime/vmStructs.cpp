@@ -1576,11 +1576,9 @@ typedef HashtableEntry<InstanceKlass*, mtClass>  KlassHashtableEntry;
   declare_c2_type(ConvI2DNode, Node)                                      \
   declare_c2_type(ConvI2FNode, Node)                                      \
   declare_c2_type(ConvI2LNode, TypeNode)                                  \
-  declare_c2_type(CastI2NNode, TypeNode)                                  \
   declare_c2_type(ConvL2DNode, Node)                                      \
   declare_c2_type(ConvL2FNode, Node)                                      \
   declare_c2_type(ConvL2INode, Node)                                      \
-  declare_c2_type(CastN2INode, Node)                                      \
   declare_c2_type(CastX2PNode, Node)                                      \
   declare_c2_type(CastP2XNode, Node)                                      \
   declare_c2_type(SetVectMaskINode, Node)                                 \
