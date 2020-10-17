@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,58 +25,57 @@
 #ifndef SHARE_RUNTIME_SIGNATURE_CC_HPP
 #define SHARE_RUNTIME_SIGNATURE_CC_HPP
 
-// Handling of scalarized Calling Convention
 #include "runtime/signature.hpp"
 
-class ScalarizedValueArgsStream : public StackObj {
-  const GrowableArray<SigEntry>* _sig_cc;
-  int _sig_cc_index;
-  const VMRegPair* _regs_cc;
-  int _regs_cc_count;
-  int _regs_cc_index;
-  int _vt;
+// Stream that iterates over a scalarized signature
+class ScalarizedInlineArgsStream : public StackObj {
+  const GrowableArray<SigEntry>* _sig;
+  int _sig_idx;
+  const VMRegPair* _regs;
+  int _regs_count;
+  int _regs_idx;
+  int _depth;
+  int _step;
   DEBUG_ONLY(bool _finished);
+
 public:
-  ScalarizedValueArgsStream(const GrowableArray<SigEntry>* sig_cc, int sig_cc_index, VMRegPair* regs_cc, int regs_cc_count, int regs_cc_index) :
-    _sig_cc(sig_cc), _sig_cc_index(sig_cc_index), _regs_cc(regs_cc), _regs_cc_count(regs_cc_count), _regs_cc_index(regs_cc_index) {
-    assert(_sig_cc->at(_sig_cc_index)._bt == T_INLINE_TYPE, "should be at end delimiter");
-    _vt = 1;
+  ScalarizedInlineArgsStream(const GrowableArray<SigEntry>* sig, int sig_idx, VMRegPair* regs, int regs_count, int regs_idx, int step = 1)
+    : _sig(sig), _sig_idx(sig_idx), _regs(regs), _regs_count(regs_count), _regs_idx(regs_idx), _step(step) {
+    assert(_sig->at(_sig_idx)._bt == (step > 0) ? T_INLINE_TYPE : T_VOID, "should be at inline type delimiter");
+    _depth = 1;
     DEBUG_ONLY(_finished = false);
   }
 
-  bool next(VMRegPair& pair, BasicType& bt) {
+  bool next(VMReg& reg, BasicType& bt) {
     assert(!_finished, "sanity");
     do {
-      _sig_cc_index++;
-      bt = _sig_cc->at(_sig_cc_index)._bt;
+      _sig_idx += _step;
+      bt = _sig->at(_sig_idx)._bt;
       if (bt == T_INLINE_TYPE) {
-        _vt++;
+        _depth += _step;
       } else if (bt == T_VOID &&
-                 _sig_cc->at(_sig_cc_index-1)._bt != T_LONG &&
-                 _sig_cc->at(_sig_cc_index-1)._bt != T_DOUBLE) {
-        _vt--;
-      } else if (SigEntry::is_reserved_entry(_sig_cc, _sig_cc_index)) {
-        _regs_cc_index++;
+                 _sig->at(_sig_idx-1)._bt != T_LONG &&
+                 _sig->at(_sig_idx-1)._bt != T_DOUBLE) {
+        _depth -= _step;
       } else {
-        assert(_regs_cc_index < _regs_cc_count, "must be");
-        pair = _regs_cc[_regs_cc_index++];
-        VMReg r1 = pair.first();
-        VMReg r2 = pair.second();
-
-        if (!r1->is_valid()) {
-          assert(!r2->is_valid(), "must be invalid");
+        assert(_regs_idx >= 0 && _regs_idx < _regs_count, "out of bounds");
+        const VMRegPair pair = _regs[_regs_idx];
+        _regs_idx += _step;
+        reg = pair.first();
+        if (!reg->is_valid()) {
+          assert(!pair.second()->is_valid(), "must be invalid");
         } else {
           return true;
         }
       }
-    } while (_vt != 0);
+    } while (_depth != 0);
 
     DEBUG_ONLY(_finished = true);
     return false;
   }
 
-  int sig_cc_index() {return _sig_cc_index;}
-  int regs_cc_index() {return _regs_cc_index;}
+  int sig_index()  { return _sig_idx;  }
+  int regs_index() { return _regs_idx; }
 };
 
 #endif // SHARE_RUNTIME_SIGNATURE_CC_HPP

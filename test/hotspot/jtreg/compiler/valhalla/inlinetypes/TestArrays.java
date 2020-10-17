@@ -42,21 +42,6 @@ import java.util.Arrays;
  *                               compiler.valhalla.inlinetypes.TestArrays
  */
 public class TestArrays extends InlineTypeTest {
-    // Unlike C2, C1 intrinsics never deoptimize System.arraycopy. Instead, we fall back to
-    // a normal method invocation when encountering flattened arrays.
-    private static void assertDeoptimizedByC2(Method m) {
-        int CompLevel_none              = 0,         // Interpreter
-            CompLevel_simple            = 1,         // C1
-            CompLevel_limited_profile   = 2,         // C1, invocation & backedge counters
-            CompLevel_full_profile      = 3,         // C1, invocation & backedge counters + mdo
-            CompLevel_full_optimization = 4;         // C2 or JVMCI
-
-        if (USE_COMPILER && !XCOMP && !STRESS_CC && WHITE_BOX.isMethodCompiled(m, false) &&
-            WHITE_BOX.getMethodCompilationLevel(m, false) >= CompLevel_full_optimization) {
-            throw new RuntimeException("Type check should have caused it to deoptimize");
-        }
-    }
-
     // Extra VM parameters for some test scenarios. See InlineTypeTest.getVMParameters()
     @Override
     public String[] getExtraVMParameters(int scenario) {

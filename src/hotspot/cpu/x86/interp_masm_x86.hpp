@@ -286,7 +286,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
   void update_mdp_for_ret(Register return_bci);
 
   void profile_taken_branch(Register mdp, Register bumped_count);
-  void profile_not_taken_branch(Register mdp);
+  void profile_not_taken_branch(Register mdp, bool acmp = false);
   void profile_call(Register mdp);
   void profile_final_call(Register mdp);
   void profile_virtual_call(Register receiver, Register mdp,
@@ -301,6 +301,7 @@ class InterpreterMacroAssembler: public MacroAssembler {
                            Register scratch2);
   void profile_array(Register mdp, Register array, Register tmp);
   void profile_element(Register mdp, Register element, Register tmp);
+  void profile_acmp(Register mdp, Register left, Register right, Register tmp);
 
   // Debugging
   // only if +VerifyOops && state == atos

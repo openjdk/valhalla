@@ -69,6 +69,7 @@
 #include "runtime/java.hpp"
 #include "runtime/javaCalls.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/stackWatermarkSet.hpp"
 #include "runtime/stubRoutines.hpp"
 #include "runtime/synchronizer.hpp"
 #include "runtime/vframe.inline.hpp"
@@ -457,6 +458,12 @@ JRT_END
 // previous frame depending on the return address.
 
 address SharedRuntime::raw_exception_handler_for_return_address(JavaThread* thread, address return_address) {
+  // Note: This is called when we have unwound the frame of the callee that did
+  // throw an exception. So far, no check has been performed by the StackWatermarkSet.
+  // Notably, the stack is not walkable at this point, and hence the check must
+  // be deferred until later. Specifically, any of the handlers returned here in
+  // this function, will get dispatched to, and call deferred checks to
+  // StackWatermarkSet::after_unwind at a point where the stack is walkable.
   assert(frame::verify_return_pc(return_address), "must be a return address: " INTPTR_FORMAT, p2i(return_address));
   assert(thread->frames_to_pop_failed_realloc() == 0 || Interpreter::contains(return_address), "missed frames to pop?");
 
@@ -483,24 +490,33 @@ address SharedRuntime::raw_exception_handler_for_return_address(JavaThread* thre
       // unguarded. Reguard the stack otherwise if we return to the
       // deopt blob and the stack bang causes a stack overflow we
       // crash.
-      bool guard_pages_enabled = thread->stack_guards_enabled();
-      if (!guard_pages_enabled) guard_pages_enabled = thread->reguard_stack();
-      if (thread->reserved_stack_activation() != thread->stack_base()) {
-        thread->set_reserved_stack_activation(thread->stack_base());
+      StackOverflow* overflow_state = thread->stack_overflow_state();
+      bool guard_pages_enabled = overflow_state->reguard_stack_if_needed();
+      if (overflow_state->reserved_stack_activation() != thread->stack_base()) {
+        overflow_state->set_reserved_stack_activation(thread->stack_base());
       }
       assert(guard_pages_enabled, "stack banging in deopt blob may cause crash");
+      // The deferred StackWatermarkSet::after_unwind check will be performed in
+      // Deoptimization::fetch_unroll_info (with exec_mode == Unpack_exception)
       return SharedRuntime::deopt_blob()->unpack_with_exception();
     } else {
+      // The deferred StackWatermarkSet::after_unwind check will be performed in
+      // * OptoRuntime::rethrow_C for C2 code
+      // * exception_handler_for_pc_helper via Runtime1::handle_exception_from_callee_id for C1 code
       return nm->exception_begin();
     }
   }
 
   // Entry code
   if (StubRoutines::returns_to_call_stub(return_address)) {
+    // The deferred StackWatermarkSet::after_unwind check will be performed in
+    // JavaCallWrapper::~JavaCallWrapper
     return StubRoutines::catch_exception_entry();
   }
   // Interpreted code
   if (Interpreter::contains(return_address)) {
+    // The deferred StackWatermarkSet::after_unwind check will be performed in
+    // InterpreterRuntime::exception_handler_for_exception
     return Interpreter::rethrow_exception_entry();
   }
 
@@ -2135,7 +2151,7 @@ char* SharedRuntime::generate_class_cast_message(
 }
 
 JRT_LEAF(void, SharedRuntime::reguard_yellow_pages())
-  (void) JavaThread::current()->reguard_stack();
+  (void) JavaThread::current()->stack_overflow_state()->reguard_stack();
 JRT_END
 
 void SharedRuntime::monitor_enter_helper(oopDesc* obj, BasicLock* lock, JavaThread* thread) {
@@ -2745,7 +2761,6 @@ CompiledEntrySignature::CompiledEntrySignature(Method* method) :
   _sig_cc(NULL), _sig_cc_ro(NULL), _regs(NULL), _regs_cc(NULL), _regs_cc_ro(NULL),
   _args_on_stack(0), _args_on_stack_cc(0), _args_on_stack_cc_ro(0),
   _c1_needs_stack_repair(false), _c2_needs_stack_repair(false), _has_scalarized_args(false) {
-  _has_reserved_entries = false;
   _sig = new GrowableArray<SigEntry>(method->size_of_parameters());
 
 }
@@ -2777,27 +2792,6 @@ int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_
   return SharedRuntime::java_calling_convention(sig_cc, regs_cc);
 }
 
-int CompiledEntrySignature::insert_reserved_entry(int ret_off) {
-  // Find index in signature that belongs to return address slot
-  BasicType bt = T_ILLEGAL;
-  int i = 0;
-  for (uint off = 0; i < _sig_cc->length(); ++i) {
-    if (SigEntry::skip_value_delimiters(_sig_cc, i)) {
-      VMReg first = _regs_cc[off++].first();
-      if (first->is_valid() && first->is_stack()) {
-        // Select a type for the reserved entry that will end up on the stack
-        bt = _sig_cc->at(i)._bt;
-        if (((int)first->reg2stack() + VMRegImpl::slots_per_word) == ret_off) {
-          break; // Index of the return address found
-        }
-      }
-    }
-  }
-  // Insert reserved entry and re-compute calling convention
-  SigEntry::insert_reserved_entry(_sig_cc, i, bt);
-  return SharedRuntime::java_calling_convention(_sig_cc, _regs_cc);
-}
-
 // See if we can save space by sharing the same entry for VIEP and VIEP(RO),
 // or the same entry for VEP and VIEP(RO).
 CodeOffsets::Entries CompiledEntrySignature::c1_inline_ro_entry_type() const {
@@ -2826,7 +2820,7 @@ CodeOffsets::Entries CompiledEntrySignature::c1_inline_ro_entry_type() const {
   }
 
   // Either a static method, or <this> is not an inline type
-  if (args_on_stack_cc() != args_on_stack_cc_ro() || _has_reserved_entries) {
+  if (args_on_stack_cc() != args_on_stack_cc_ro()) {
     // No sharing:
     // Some arguments are passed on the stack, and we have inserted reserved entries
     // into the VEP, but we never insert reserved entries into the VIEP(RO).
@@ -2882,38 +2876,6 @@ void CompiledEntrySignature::compute_calling_conventions() {
     if (_has_inline_recv || _args_on_stack_cc > _args_on_stack) {
       // For interface calls, we need another entry point / adapter to unpack the receiver
       _args_on_stack_cc_ro = compute_scalarized_cc(_sig_cc_ro, _regs_cc_ro, /* scalar_receiver = */ false);
-    }
-
-    // Compute the stack extension that is required to convert between the calling conventions.
-    // The stack slots at these offsets are occupied by the return address with the unscalarized
-    // calling convention. Don't use them for arguments with the scalarized calling convention.
-    int ret_off    = _args_on_stack_cc - _args_on_stack;
-    int ret_off_ro = _args_on_stack_cc - _args_on_stack_cc_ro;
-    assert(ret_off_ro <= 0 || ret_off > 0, "receiver unpacking requires more stack space than expected");
-
-    if (ret_off > 0) {
-      // Make sure the stack of the scalarized calling convention with the reserved
-      // entries (2 slots each) remains 16-byte (4 slots) aligned after stack extension.
-      int alignment = StackAlignmentInBytes / VMRegImpl::stack_slot_size;
-      if (ret_off_ro != ret_off && ret_off_ro >= 0) {
-        ret_off    += 4; // Account for two reserved entries (4 slots)
-        ret_off_ro += 4;
-        ret_off     = align_up(ret_off, alignment);
-        ret_off_ro  = align_up(ret_off_ro, alignment);
-        // TODO can we avoid wasting a stack slot here?
-        //assert(ret_off != ret_off_ro, "fail");
-        if (ret_off > ret_off_ro) {
-          swap(ret_off, ret_off_ro); // Sort by offset
-        }
-        _args_on_stack_cc = insert_reserved_entry(ret_off);
-        _args_on_stack_cc = insert_reserved_entry(ret_off_ro);
-      } else {
-        ret_off += 2; // Account for one reserved entry (2 slots)
-        ret_off = align_up(ret_off, alignment);
-        _args_on_stack_cc = insert_reserved_entry(ret_off);
-      }
-
-      _has_reserved_entries = true;
     }
 
     // Upper bound on stack arguments to avoid hitting the argument limit and
@@ -3387,6 +3349,12 @@ VMRegPair *SharedRuntime::find_callee_arguments(Symbol* sig, bool has_receiver, 
 // All of this is done NOT at any Safepoint, nor is any safepoint or GC allowed.
 
 JRT_LEAF(intptr_t*, SharedRuntime::OSR_migration_begin( JavaThread *thread) )
+  // During OSR migration, we unwind the interpreted frame and replace it with a compiled
+  // frame. The stack watermark code below ensures that the interpreted frame is processed
+  // before it gets unwound. This is helpful as the size of the compiled frame could be
+  // larger than the interpreted frame, which could result in the new frame not being
+  // processed correctly.
+  StackWatermarkSet::before_unwind(thread);
 
   //
   // This code is dependent on the memory layout of the interpreter local
@@ -3523,10 +3491,9 @@ void AdapterHandlerLibrary::print_statistics() {
 #endif /* PRODUCT */
 
 JRT_LEAF(void, SharedRuntime::enable_stack_reserved_zone(JavaThread* thread))
-  if (thread->stack_reserved_zone_disabled()) {
-    thread->enable_stack_reserved_zone();
-  }
-  thread->set_reserved_stack_activation(thread->stack_base());
+  StackOverflow* overflow_state = thread->stack_overflow_state();
+  overflow_state->enable_stack_reserved_zone(/*check_if_disabled*/true);
+  overflow_state->set_reserved_stack_activation(thread->stack_base());
 JRT_END
 
 frame SharedRuntime::look_for_reserved_stack_annotated_method(JavaThread* thread, frame fr) {

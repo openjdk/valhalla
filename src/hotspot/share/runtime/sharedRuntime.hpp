@@ -805,7 +805,6 @@ class CompiledEntrySignature : public StackObj {
   bool _c1_needs_stack_repair;
   bool _c2_needs_stack_repair;
   bool _has_scalarized_args;
-  bool _has_reserved_entries;
 
 public:
   Method* method()                     const { return _method; }
@@ -841,7 +840,6 @@ public:
 
 private:
   int compute_scalarized_cc(GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver);
-  int insert_reserved_entry(int ret_off);
 };
 
 #endif // SHARE_RUNTIME_SHAREDRUNTIME_HPP

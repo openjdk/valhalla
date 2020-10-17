@@ -736,13 +736,6 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig,
       if (type2size[bt] == 2) {
         n->init_req(base_input++, kit->top());
       }
-      // Skip reserved arguments
-      while (SigEntry::next_is_reserved(sig, bt)) {
-        n->init_req(base_input++, kit->top());
-        if (type2size[bt] == 2) {
-          n->init_req(base_input++, kit->top());
-        }
-      }
     }
   }
 }
@@ -776,10 +769,6 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, Extended
       }
       BasicType bt = type->basic_type();
       base_input += type2size[bt];
-      // Skip reserved arguments
-      while (SigEntry::next_is_reserved(sig, bt)) {
-        base_input += type2size[bt];
-      }
     }
     assert(parm != NULL, "should never be null");
     assert(field_value(i) == NULL, "already set");

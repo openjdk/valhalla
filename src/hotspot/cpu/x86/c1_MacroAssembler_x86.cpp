@@ -409,7 +409,6 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, sig_cc->length());
   int args_passed = sig->length();
   int args_passed_cc = SigEntry::fill_sig_bt(sig_cc, sig_bt);
-  int extra_stack_offset = wordSize; // tos is return address.
 
   // Check if we need to extend the stack for packing
   int sp_inc = 0;
@@ -417,7 +416,10 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
     // Two additional slots to account for return address
     sp_inc = (args_on_stack + 2) * VMRegImpl::stack_slot_size;
     sp_inc = align_up(sp_inc, StackAlignmentInBytes);
-    pop(r13); // Copy return address
+    // Save the return address, adjust the stack (make sure it is properly
+    // 16-byte aligned) and copy the return address to the new top of the stack.
+    // The stack will be repaired on return (see MacroAssembler::remove_frame).
+    pop(r13);
     subptr(rsp, sp_inc);
     push(r13);
   }
@@ -445,9 +447,10 @@ int C1_MacroAssembler::scalarized_entry(const CompiledEntrySignature* ces, int f
   addptr(rsp, frame_size_in_bytes);
   pop(rbp);
 
-  shuffle_inline_args(true, is_inline_ro_entry, extra_stack_offset, sig_bt, sig_cc,
+  shuffle_inline_args(true, is_inline_ro_entry, sig_cc,
                       args_passed_cc, args_on_stack_cc, regs_cc, // from
-                      args_passed, args_on_stack, regs, sp_inc); // to
+                      args_passed, args_on_stack, regs,          // to
+                      sp_inc);
 
   if (ces->c1_needs_stack_repair()) {
     // Create the real frame. Below jump will then skip over the stack banging and frame

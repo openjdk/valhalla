@@ -289,27 +289,21 @@ address MacroAssembler::target_addr_for_insn(address insn_addr, unsigned insn) {
   return address(((uint64_t)insn_addr + (offset << 2)));
 }
 
-void MacroAssembler::safepoint_poll(Label& slow_path) {
-  ldr(rscratch1, Address(rthread, Thread::polling_page_offset()));
-  tbnz(rscratch1, exact_log2(SafepointMechanism::poll_bit()), slow_path);
-}
-
-// Just like safepoint_poll, but use an acquiring load for thread-
-// local polling.
-//
-// We need an acquire here to ensure that any subsequent load of the
-// global SafepointSynchronize::_state flag is ordered after this load
-// of the local Thread::_polling page.  We don't want this poll to
-// return false (i.e. not safepointing) and a later poll of the global
-// SafepointSynchronize::_state spuriously to return true.
-//
-// This is to avoid a race when we're in a native->Java transition
-// racing the code which wakes up from a safepoint.
-//
-void MacroAssembler::safepoint_poll_acquire(Label& slow_path) {
-  lea(rscratch1, Address(rthread, Thread::polling_page_offset()));
-  ldar(rscratch1, rscratch1);
-  tbnz(rscratch1, exact_log2(SafepointMechanism::poll_bit()), slow_path);
+void MacroAssembler::safepoint_poll(Label& slow_path, bool at_return, bool acquire, bool in_nmethod) {
+  if (acquire) {
+    lea(rscratch1, Address(rthread, Thread::polling_word_offset()));
+    ldar(rscratch1, rscratch1);
+  } else {
+    ldr(rscratch1, Address(rthread, Thread::polling_word_offset()));
+  }
+  if (at_return) {
+    // Note that when in_nmethod is set, the stack pointer is incremented before the poll. Therefore,
+    // we may safely use the sp instead to perform the stack watermark check.
+    cmp(in_nmethod ? sp : rfp, rscratch1);
+    br(Assembler::HI, slow_path);
+  } else {
+    tbnz(rscratch1, exact_log2(SafepointMechanism::poll_bit()), slow_path);
+  }
 }
 
 void MacroAssembler::reset_last_Java_frame(bool clear_fp) {
@@ -4457,7 +4451,7 @@ void MacroAssembler::bang_stack_size(Register size, Register tmp) {
   // was post-decremented.)  Skip this address by starting at i=1, and
   // touch a few more pages below.  N.B.  It is important to touch all
   // the way down to and including i=StackShadowPages.
-  for (int i = 0; i < (int)(JavaThread::stack_shadow_zone_size() / os::vm_page_size()) - 1; i++) {
+  for (int i = 0; i < (int)(StackOverflow::stack_shadow_zone_size() / os::vm_page_size()) - 1; i++) {
     // this could be any sized move but this is can be a debugging crumb
     // so the bigger the better.
     lea(tmp, Address(tmp, -os::vm_page_size()));
@@ -4468,13 +4462,6 @@ void MacroAssembler::bang_stack_size(Register size, Register tmp) {
 // Move the address of the polling page into dest.
 void MacroAssembler::get_polling_page(Register dest, relocInfo::relocType rtype) {
   ldr(dest, Address(rthread, Thread::polling_page_offset()));
-}
-
-// Move the address of the polling page into r, then read the polling
-// page.
-address MacroAssembler::fetch_and_read_polling_page(Register r, relocInfo::relocType rtype) {
-  get_polling_page(r, rtype);
-  return read_polling_page(r, rtype);
 }
 
 // Read the polling page.  The address of the polling page must
@@ -5447,7 +5434,7 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
 }
 
 // Move a value between registers/stack slots and update the reg_state
-bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset) {
+bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]) {
   if (reg_state[to->value()] == reg_written) {
     return true; // Already written
   }
@@ -5460,7 +5447,7 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
       if (to->is_reg()) {
         mov(to->as_Register(), from->as_Register());
       } else {
-        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
+        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
         Address to_addr = Address(sp, st_off);
         if (from->is_FloatRegister()) {
           if (bt == T_DOUBLE) {
@@ -5474,7 +5461,7 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
         }
       }
     } else {
-      Address from_addr = Address(sp, from->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset);
+      Address from_addr = Address(sp, from->reg2stack() * VMRegImpl::stack_slot_size + wordSize);
       if (to->is_reg()) {
         if (to->is_FloatRegister()) {
           if (bt == T_DOUBLE) {
@@ -5487,7 +5474,7 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
           ldr(to->as_Register(), from_addr);
         }
       } else {
-        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
+        int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
         ldr(rscratch1, from_addr);
         str(rscratch1, Address(sp, st_off));
       }
@@ -5502,7 +5489,7 @@ bool MacroAssembler::move_helper(VMReg from, VMReg to, BasicType bt, RegState re
 
 // Read all fields from an inline type oop and store the values in registers/stack slots
 bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to,
-                                          int& to_index, RegState reg_state[], int ret_off, int extra_stack_offset) {
+                                          int& to_index, RegState reg_state[]) {
   Register fromReg = from->is_reg() ? from->as_Register() : noreg;
   assert(sig->at(sig_index)._bt == T_VOID, "should be at end delimiter");
 
@@ -5519,8 +5506,6 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
                sig->at(sig_index-1)._bt != T_LONG &&
                sig->at(sig_index-1)._bt != T_DOUBLE) {
       vt++;
-    } else if (SigEntry::is_reserved_entry(sig, sig_index)) {
-      to_index--; // Ignore this
     } else {
       assert(to_index >= 0, "invalid to_index");
       VMRegPair pair_to = regs_to[to_index--];
@@ -5543,7 +5528,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
       }
 
       if (fromReg == noreg) {
-        int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
+        int st_off = from->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
         ldr(rscratch2, Address(sp, st_off));
         fromReg = rscratch2;
       }
@@ -5565,7 +5550,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
           load_sized_value(dst, fromAddr, type2aelembytes(bt), is_signed);
         }
         if (to->is_stack()) {
-          int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
+          int st_off = to->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
           str(dst, Address(sp, st_off));
         }
       } else {
@@ -5590,8 +5575,7 @@ bool MacroAssembler::unpack_inline_helper(const GrowableArray<SigEntry>* sig, in
 
 // Pack fields back into an inline type oop
 bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                                        VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
-                                        int ret_off, int extra_stack_offset) {
+                                        VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[]) {
   assert(sig->at(sig_index)._bt == T_INLINE_TYPE, "should be at end delimiter");
   assert(to->is_valid(), "must be");
 
@@ -5619,12 +5603,12 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
   int index = arrayOopDesc::base_offset_in_bytes(T_OBJECT) + vtarg_index * type2aelembytes(T_INLINE_TYPE);
   load_heap_oop(val_obj, Address(val_array, index));
 
-  ScalarizedValueArgsStream stream(sig, sig_index, regs_from, regs_from_count, from_index);
+  ScalarizedInlineArgsStream stream(sig, sig_index, regs_from, regs_from_count, from_index);
   VMRegPair from_pair;
   BasicType bt;
 
   while (stream.next(from_pair, bt)) {
-    int off = sig->at(stream.sig_cc_index())._offset;
+    int off = sig->at(stream.sig_index())._offset;
     assert(off > 0, "offset in object should be positive");
     bool is_oop = (bt == T_OBJECT || bt == T_ARRAY);
     size_t size_in_bytes = is_java_primitive(bt) ? type2aelembytes(bt) : wordSize;
@@ -5639,7 +5623,7 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
       Register from_reg;
       if (from_r1->is_stack()) {
         from_reg = from_reg_tmp;
-        int ld_off = from_r1->reg2stack() * VMRegImpl::stack_slot_size + extra_stack_offset;
+        int ld_off = from_r1->reg2stack() * VMRegImpl::stack_slot_size + wordSize;
         load_sized_value(from_reg, Address(sp, ld_off), size_in_bytes, /* is_signed */ false);
       } else {
         from_reg = from_r1->as_Register();
@@ -5661,61 +5645,14 @@ bool MacroAssembler::pack_inline_helper(const GrowableArray<SigEntry>* sig, int&
 
     reg_state[from_r1->value()] = reg_writable;
   }
-  sig_index = stream.sig_cc_index();
-  from_index = stream.regs_cc_index();
+  sig_index = stream.sig_index();
+  from_index = stream.regs_index();
 
   assert(reg_state[to->value()] == reg_writable, "must have already been read");
-  bool success = move_helper(val_obj->as_VMReg(), to, T_OBJECT, reg_state, ret_off, extra_stack_offset);
+  bool success = move_helper(val_obj->as_VMReg(), to, T_OBJECT, reg_state);
   assert(success, "to register must be writeable");
 
   return true;
-}
-
-// Unpack all inline type arguments passed as oops
-void MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
-  int sp_inc = unpack_inline_args_common(C, receiver_only);
-  // Emit code for verified entry and save increment for stack repair on return
-  verified_entry(C, sp_inc);
-}
-
-int MacroAssembler::shuffle_inline_args(bool is_packing, bool receiver_only, int extra_stack_offset,
-                                        BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                                        int args_passed, int args_on_stack, VMRegPair* regs,            // from
-                                        int args_passed_to, int args_on_stack_to, VMRegPair* regs_to) { // to
-  // Check if we need to extend the stack for packing/unpacking
-  int sp_inc = (args_on_stack_to - args_on_stack) * VMRegImpl::stack_slot_size;
-  if (sp_inc > 0) {
-    sp_inc = align_up(sp_inc, StackAlignmentInBytes);
-    if (!is_packing) {
-      // Save the return address, adjust the stack (make sure it is properly
-      // 16-byte aligned) and copy the return address to the new top of the stack.
-      // (Note: C1 does this in C1_MacroAssembler::scalarized_entry).
-      // FIXME: We need not to preserve return address on aarch64
-      pop(rscratch1);
-      sub(sp, sp, sp_inc);
-      push(rscratch1);
-    }
-  } else {
-    // The scalarized calling convention needs less stack space than the unscalarized one.
-    // No need to extend the stack, the caller will take care of these adjustments.
-    sp_inc = 0;
-  }
-
-  int ret_off; // make sure we don't overwrite the return address
-  if (is_packing) {
-    // For C1 code, the VIEP doesn't have reserved slots, so we store the returned address at
-    // rsp[0] during shuffling.
-    ret_off = 0;
-  } else {
-    // C2 code ensures that sp_inc is a reserved slot.
-    ret_off = sp_inc;
-  }
-
-  return shuffle_inline_args_common(is_packing, receiver_only, extra_stack_offset,
-                                    sig_bt, sig_cc,
-                                    args_passed, args_on_stack, regs,
-                                    args_passed_to, args_on_stack_to, regs_to,
-                                    sp_inc, ret_off);
 }
 
 VMReg MacroAssembler::spill_reg_for(VMReg reg) {

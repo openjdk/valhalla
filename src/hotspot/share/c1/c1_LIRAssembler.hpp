@@ -163,7 +163,7 @@ class LIR_Assembler: public CompilationResourceObj {
   // particular sparc uses this for delay slot filling.
   void peephole(LIR_List* list);
 
-  void return_op(LIR_Opr result);
+  void return_op(LIR_Opr result, C1SafepointPollStub* code_stub);
 
   // returns offset of poll instruction
   int safepoint_poll(LIR_Opr result, CodeEmitInfo* info);
@@ -210,6 +210,7 @@ class LIR_Assembler: public CompilationResourceObj {
   void emit_rtcall(LIR_OpRTCall* op);
   void emit_profile_call(LIR_OpProfileCall* op);
   void emit_profile_type(LIR_OpProfileType* op);
+  void emit_profile_inline_type(LIR_OpProfileInlineType* op);
   void emit_delay(LIR_OpDelay* op);
   void emit_std_entries();
   void emit_std_entry(CodeOffsets::Entries entry, const CompiledEntrySignature* ces);
