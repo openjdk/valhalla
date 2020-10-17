@@ -1864,7 +1864,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     // Remember how many oops we encountered
     fac->update(true, type, false);
     index++;
-    _restricted_field_info->append(vmSymbols::object_signature_enum);
+    _restricted_field_info->append((u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(object_signature)));
   }
 
   // True zero size inline types are causing issues when inlined, so the current
@@ -1881,7 +1881,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     // Remember how many oops we encountered
     fac->update(false, type, false);
     index++;
-    _restricted_field_info->append(vmSymbols::byte_signature_enum);
+    _restricted_field_info->append((u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(byte_signature)));
   }
 
   if (instance_fields_count > 0) {

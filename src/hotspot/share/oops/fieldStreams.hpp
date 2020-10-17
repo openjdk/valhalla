@@ -25,6 +25,7 @@
 #ifndef SHARE_OOPS_FIELDSTREAMS_HPP
 #define SHARE_OOPS_FIELDSTREAMS_HPP
 
+#include "classfile/vmSymbols.hpp"
 #include "oops/instanceKlass.hpp"
 #include "oops/fieldInfo.hpp"
 #include "runtime/fieldDescriptor.hpp"
@@ -125,7 +126,7 @@ class FieldStreamBase : public StackObj {
     assert(field()->has_restricted_type(), "Must have");
     int sig_index = field_holder()->fields_erased_type()[index()];
     if (access_flags().is_internal()) {
-      return vmSymbols::symbol_at((vmSymbols::SID)sig_index);
+      return vmSymbols::symbol_at(vmSymbols::as_SID(sig_index));
     } else {
       return _constants->symbol_at(sig_index);
     }
