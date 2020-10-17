@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "asm/macroAssembler.hpp"
 #include "asm/macroAssembler.inline.hpp"
+#include "c1/c1_CodeStubs.hpp"
 #include "c1/c1_Compilation.hpp"
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_MacroAssembler.hpp"
@@ -520,8 +521,7 @@ int LIR_Assembler::emit_deopt_handler() {
   return offset;
 }
 
-
-void LIR_Assembler::return_op(LIR_Opr result) {
+void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   assert(result->is_illegal() || !result->is_single_cpu() || result->as_register() == rax, "word returns are in rax,");
   if (!result->is_illegal() && result->is_float_kind() && !result->is_xmm_register()) {
     assert(result->fpu() == 0, "result must already be on TOS");
@@ -552,22 +552,21 @@ void LIR_Assembler::return_op(LIR_Opr result) {
     __ reserved_stack_check();
   }
 
-  bool result_is_oop = result->is_valid() ? result->is_oop() : false;
-
   // Note: we do not need to round double result; float result has the right precision
   // the poll sets the condition code, but no data registers
 
 #ifdef _LP64
-  const Register poll_addr = rscratch1;
-  __ movptr(poll_addr, Address(r15_thread, Thread::polling_page_offset()));
+  code_stub->set_safepoint_offset(__ offset());
+  __ relocate(relocInfo::poll_return_type);
+  __ safepoint_poll(*code_stub->entry(), r15_thread, true /* at_return */, true /* in_nmethod */);
 #else
   const Register poll_addr = rbx;
   assert(FrameMap::is_caller_save_register(poll_addr), "will overwrite");
   __ get_thread(poll_addr);
   __ movptr(poll_addr, Address(poll_addr, Thread::polling_page_offset()));
-#endif
   __ relocate(relocInfo::poll_return_type);
   __ testl(rax, Address(poll_addr, 0));
+#endif
   __ ret(0);
 }
 
@@ -3980,6 +3979,26 @@ void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
 
     __ bind(next);
   }
+}
+
+void LIR_Assembler::emit_profile_inline_type(LIR_OpProfileInlineType* op) {
+  Register obj = op->obj()->as_register();
+  Register tmp = op->tmp()->as_pointer_register();
+  Address mdo_addr = as_Address(op->mdp()->as_address_ptr());
+  bool not_null = op->not_null();
+  int flag = op->flag();
+
+  Label not_inline_type;
+  if (!not_null) {
+    __ testptr(obj, obj);
+    __ jccb(Assembler::zero, not_inline_type);
+  }
+
+  __ test_oop_is_not_inline_type(obj, tmp, not_inline_type);
+
+  __ orb(mdo_addr, flag);
+
+  __ bind(not_inline_type);
 }
 
 void LIR_Assembler::emit_delay(LIR_OpDelay*) {

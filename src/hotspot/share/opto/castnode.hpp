@@ -149,23 +149,4 @@ class CastP2XNode : public Node {
   virtual bool depends_only_on_test() const { return false; }
 };
 
-// convert between a 32 bit integer and a compressed pointer
-class CastI2NNode : public TypeNode {
-  public:
-  CastI2NNode(Node *n, const Type *t) : TypeNode(t, 2) {
-    init_req(1, n);
-  }
-  virtual int Opcode() const;
-  virtual uint ideal_reg() const { return Op_RegN; }
-};
-
-class CastN2INode : public Node {
-  public:
-  CastN2INode(Node *n) : Node(NULL, n) {}
-  virtual int Opcode() const;
-  virtual uint ideal_reg() const { return Op_RegI; }
-  virtual const Type *bottom_type() const { return TypeInt::INT; }
-};
-
-
 #endif // SHARE_OPTO_CASTNODE_HPP

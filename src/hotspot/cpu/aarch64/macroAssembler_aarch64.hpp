@@ -107,8 +107,7 @@ class MacroAssembler: public Assembler {
  virtual void check_and_handle_popframe(Register java_thread);
  virtual void check_and_handle_earlyret(Register java_thread);
 
-  void safepoint_poll(Label& slow_path);
-  void safepoint_poll_acquire(Label& slow_path);
+  void safepoint_poll(Label& slow_path, bool at_return, bool acquire, bool in_nmethod);
 
   // Biased locking support
   // lock_reg and obj_reg must be loaded up with the appropriate values.
@@ -193,7 +192,15 @@ class MacroAssembler: public Assembler {
     mov(rscratch2, call_site);
   }
 
+// Microsoft's MSVC team thinks that the __FUNCSIG__ is approximately (sympathy for calling conventions) equivalent to __PRETTY_FUNCTION__
+// Also, from Clang patch: "It is very similar to GCC's PRETTY_FUNCTION, except it prints the calling convention."
+// https://reviews.llvm.org/D3311
+
+#ifdef _WIN64
+#define call_Unimplemented() _call_Unimplemented((address)__FUNCSIG__)
+#else
 #define call_Unimplemented() _call_Unimplemented((address)__PRETTY_FUNCTION__)
+#endif
 
   // aliases defined in AARCH64 spec
 
@@ -201,7 +208,7 @@ class MacroAssembler: public Assembler {
   inline void cmpw(Register Rd, T imm)  { subsw(zr, Rd, imm); }
 
   inline void cmp(Register Rd, unsigned char imm8)  { subs(zr, Rd, imm8); }
-  inline void cmp(Register Rd, unsigned imm) __attribute__ ((deprecated));
+  inline void cmp(Register Rd, unsigned imm) = delete;
 
   inline void cmnw(Register Rd, unsigned imm) { addsw(zr, Rd, imm); }
   inline void cmn(Register Rd, unsigned imm) { adds(zr, Rd, imm); }
@@ -475,6 +482,8 @@ public:
   void push_fp(RegSet regs, Register stack) { if (regs.bits()) push_fp(regs.bits(), stack); }
   void pop_fp(RegSet regs, Register stack) { if (regs.bits()) pop_fp(regs.bits(), stack); }
 
+  static RegSet call_clobbered_registers();
+
   // Push and pop everything that might be clobbered by a native
   // runtime call except rscratch1 and rscratch2.  (They are always
   // scratch, so we don't have to protect them.)  Only save the lower
@@ -527,10 +536,10 @@ public:
 
   // Generalized Test Bit And Branch, including a "far" variety which
   // spans more than 32KiB.
-  void tbr(Condition cond, Register Rt, int bitpos, Label &dest, bool far = false) {
+  void tbr(Condition cond, Register Rt, int bitpos, Label &dest, bool isfar = false) {
     assert(cond == EQ || cond == NE, "must be");
 
-    if (far)
+    if (isfar)
       cond = ~cond;
 
     void (Assembler::* branch)(Register Rt, int bitpos, Label &L);
@@ -539,7 +548,7 @@ public:
     else
       branch = &Assembler::tbnz;
 
-    if (far) {
+    if (isfar) {
       Label L;
       (this->*branch)(Rt, bitpos, L);
       b(dest);
@@ -1191,36 +1200,19 @@ public:
 
   void adrp(Register reg1, const Address &dest, uint64_t &byte_offset);
 
-
-  enum RegState {
-     reg_readonly,
-     reg_writable,
-     reg_written
-  };
-
   void verified_entry(Compile* C, int sp_inc);
 
+  // Inline type specific methods
+  #include "asm/macroAssembler_common.hpp"
+
   int store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from_interpreter = true);
-
-// Unpack all inline type arguments passed as oops
-  void unpack_inline_args(Compile* C, bool receiver_only);
-  bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[], int ret_off, int extra_stack_offset);
+  bool move_helper(VMReg from, VMReg to, BasicType bt, RegState reg_state[]);
   bool unpack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, VMReg from, VMRegPair* regs_to, int& to_index,
-                            RegState reg_state[], int ret_off, int extra_stack_offset);
+                            RegState reg_state[]);
   bool pack_inline_helper(const GrowableArray<SigEntry>* sig, int& sig_index, int vtarg_index,
-                          VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[],
-                          int ret_off, int extra_stack_offset);
+                          VMReg to, VMRegPair* regs_from, int regs_from_count, int& from_index, RegState reg_state[]);
   void restore_stack(Compile* C);
-
-  int shuffle_inline_args(bool is_packing, bool receiver_only, int extra_stack_offset,
-                          BasicType* sig_bt, const GrowableArray<SigEntry>* sig_cc,
-                          int args_passed, int args_on_stack, VMRegPair* regs,
-                          int args_passed_to, int args_on_stack_to, VMRegPair* regs_to);
-  bool shuffle_inline_args_spill(bool is_packing,  const GrowableArray<SigEntry>* sig_cc, int sig_cc_index,
-                                 VMRegPair* regs_from, int from_index, int regs_from_count,
-                                 RegState* reg_state, int sp_inc, int extra_stack_offset);
   VMReg spill_reg_for(VMReg reg);
-
 
   void tableswitch(Register index, jint lowbound, jint highbound,
                    Label &jumptable, Label &jumptable_end, int stride = 1) {
@@ -1270,7 +1262,6 @@ public:
 
   address read_polling_page(Register r, relocInfo::relocType rtype);
   void get_polling_page(Register dest, relocInfo::relocType rtype);
-  address fetch_and_read_polling_page(Register r, relocInfo::relocType rtype);
 
   // CRC32 code for java.util.zip.CRC32::updateBytes() instrinsic.
   void update_byte_crc32(Register crc, Register val, Register table);
@@ -1425,9 +1416,6 @@ public:
   }
   void cache_wb(Address line);
   void cache_wbsync(bool is_pre);
-
-  #include "asm/macroAssembler_common.hpp"
-
 };
 
 #ifdef ASSERT

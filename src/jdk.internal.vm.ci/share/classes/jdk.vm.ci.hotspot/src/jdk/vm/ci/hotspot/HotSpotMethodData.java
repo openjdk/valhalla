@@ -107,6 +107,7 @@ final class HotSpotMethodData {
             new UnknownProfileData(this, config.dataLayoutParametersTypeDataTag),
             new UnknownProfileData(this, config.dataLayoutSpeculativeTrapDataTag),
             new UnknownProfileData(this, config.dataLayoutArrayLoadStoreDataTag),
+            new UnknownProfileData(this, config.dataLayoutACmpDataTag),
         };
         // @formatter:on
 

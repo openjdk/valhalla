@@ -288,13 +288,19 @@ class InstanceKlass: public Klass {
     _misc_is_being_redefined                  = 1 << 14, // used for locking redefinition
     _misc_has_contended_annotations           = 1 << 15,  // has @Contended annotation
     _misc_has_inline_type_fields              = 1 << 16, // has inline fields and related embedded section is not empty
-    _misc_is_empty_inline_type                = 1 << 17, // empty inline type
+    _misc_is_empty_inline_type                = 1 << 17, // empty inline type (*)
     _misc_is_naturally_atomic                 = 1 << 18, // loaded/stored in one instruction
     _misc_is_declared_atomic                  = 1 << 19, // implements jl.NonTearable
     _misc_invalid_inline_super                = 1 << 20, // invalid super type for an inline type
     _misc_invalid_identity_super              = 1 << 21, // invalid super type for an identity type
     _misc_has_injected_identityObject         = 1 << 22  // IdentityObject has been injected by the JVM
   };
+
+  // (*) An inline type is considered empty if it contains no non-static fields or
+  // if it contains only empty inline fields. Note that JITs have a slightly different
+  // definition: empty inline fields must be flattened otherwise the container won't
+  // be considered empty
+
   u2 shared_loader_type_bits() const {
     return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
   }

@@ -76,19 +76,20 @@ bool LayoutRawBlock::fit(int size, int alignment) {
 
 FieldGroup::FieldGroup(int contended_group) :
   _next(NULL),
-  _primitive_fields(NULL),
+  _small_primitive_fields(NULL),
+  _big_primitive_fields(NULL),
   _oop_fields(NULL),
-  _inlined_fields(NULL),
   _contended_group(contended_group),  // -1 means no contended group, 0 means default contended group
   _oop_count(0) {}
 
 void FieldGroup::add_primitive_field(AllFieldStream fs, BasicType type) {
   int size = type2aelembytes(type);
   LayoutRawBlock* block = new LayoutRawBlock(fs.index(), LayoutRawBlock::REGULAR, size, size /* alignment == size for primitive types */, false);
-  if (_primitive_fields == NULL) {
-    _primitive_fields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
+  if (size >= oopSize) {
+    add_to_big_primitive_list(block);
+  } else {
+    add_to_small_primitive_list(block);
   }
-  _primitive_fields->append(block);
 }
 
 void FieldGroup::add_oop_field(AllFieldStream fs) {
@@ -102,22 +103,36 @@ void FieldGroup::add_oop_field(AllFieldStream fs) {
 }
 
 void FieldGroup::add_inlined_field(AllFieldStream fs, InlineKlass* vk) {
-  // _inlined_fields list might be merged with the _primitive_fields list in the future
   LayoutRawBlock* block = new LayoutRawBlock(fs.index(), LayoutRawBlock::INLINED, vk->get_exact_size_in_bytes(), vk->get_alignment(), false);
   block->set_inline_klass(vk);
-  if (_inlined_fields == NULL) {
-    _inlined_fields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
+  if (block->size() >= oopSize) {
+    add_to_big_primitive_list(block);
+  } else {
+    add_to_small_primitive_list(block);
   }
-  _inlined_fields->append(block);
 }
 
 void FieldGroup::sort_by_size() {
-  if (_primitive_fields != NULL) {
-    _primitive_fields->sort(LayoutRawBlock::compare_size_inverted);
+  if (_small_primitive_fields != NULL) {
+    _small_primitive_fields->sort(LayoutRawBlock::compare_size_inverted);
   }
-  if (_inlined_fields != NULL) {
-    _inlined_fields->sort(LayoutRawBlock::compare_size_inverted);
+  if (_big_primitive_fields != NULL) {
+    _big_primitive_fields->sort(LayoutRawBlock::compare_size_inverted);
   }
+}
+
+void FieldGroup::add_to_small_primitive_list(LayoutRawBlock* block) {
+  if (_small_primitive_fields == NULL) {
+    _small_primitive_fields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
+  }
+  _small_primitive_fields->append(block);
+}
+
+void FieldGroup::add_to_big_primitive_list(LayoutRawBlock* block) {
+  if (_big_primitive_fields == NULL) {
+    _big_primitive_fields = new(ResourceObj::RESOURCE_AREA, mtInternal) GrowableArray<LayoutRawBlock*>(INITIAL_LIST_SIZE);
+  }
+  _big_primitive_fields->append(block);
 }
 
 FieldLayout::FieldLayout(Array<u2>* fields, ConstantPool* cp) :
@@ -783,13 +798,10 @@ void FieldLayoutBuilder::insert_contended_padding(LayoutRawBlock* slot) {
 
 /* Computation of regular classes layout is an evolution of the previous default layout
  * (FieldAllocationStyle 1):
- *   - inlined fields are allocated first (because they have potentially the
- *     least regular shapes, and are more likely to create empty slots between them,
- *     which can then be used to allocation primitive or oop fields). Allocation is
- *     performed from the biggest to the smallest field.
- *   - then primitive fields (from the biggest to the smallest)
- *   - then oop fields are allocated contiguously (to reduce the number of oopmaps
- *     and reduce the work of the GC).
+ *   - primitive fields (both primitive types and flattened inline types) are allocated
+ *     first, from the biggest to the smallest
+ *   - then oop fields are allocated (to increase chances to have contiguous oops and
+ *     a simpler oopmap).
  */
 void FieldLayoutBuilder::compute_regular_layout() {
   bool need_tail_padding = false;
@@ -802,8 +814,8 @@ void FieldLayoutBuilder::compute_regular_layout() {
     insert_contended_padding(_layout->start());
     need_tail_padding = true;
   }
-  _layout->add(_root_group->inlined_fields());
-  _layout->add(_root_group->primitive_fields());
+  _layout->add(_root_group->big_primitive_fields());
+  _layout->add(_root_group->small_primitive_fields());
   _layout->add(_root_group->oop_fields());
 
   if (!_contended_groups.is_empty()) {
@@ -811,8 +823,8 @@ void FieldLayoutBuilder::compute_regular_layout() {
       FieldGroup* cg = _contended_groups.at(i);
       LayoutRawBlock* start = _layout->last_block();
       insert_contended_padding(start);
-      _layout->add(_root_group->inlined_fields());
-      _layout->add(cg->primitive_fields(), start);
+      _layout->add(cg->big_primitive_fields());
+      _layout->add(cg->small_primitive_fields(), start);
       _layout->add(cg->oop_fields(), start);
       need_tail_padding = true;
     }
@@ -821,9 +833,10 @@ void FieldLayoutBuilder::compute_regular_layout() {
   if (need_tail_padding) {
     insert_contended_padding(_layout->last_block());
   }
-  _static_layout->add(_static_fields->inlined_fields());
+  // Warning: IntanceMirrorKlass expects static oops to be allocated first
   _static_layout->add_contiguously(_static_fields->oop_fields());
-  _static_layout->add(_static_fields->primitive_fields());
+  _static_layout->add(_static_fields->big_primitive_fields());
+  _static_layout->add(_static_fields->small_primitive_fields());
 
   epilogue();
 }
@@ -835,13 +848,10 @@ void FieldLayoutBuilder::compute_regular_layout() {
  * of inline classes is to be embedded into other containers, it is critical
  * to keep their size as small as possible. For this reason, the allocation
  * strategy is:
- *   - inlined fields are allocated first (because they have potentially the
- *     least regular shapes, and are more likely to create empty slots between them,
- *     which can then be used to allocation primitive or oop fields). Allocation is
- *     performed from the biggest to the smallest field.
- *   - then oop fields are allocated contiguously (to reduce the number of oopmaps
- *     and reduce the work of the GC)
- *   - then primitive fields (from the biggest to the smallest)
+ *   - big primitive fields (primitive types and flattened inline type smaller
+ *     than an oop) are allocated first (from the biggest to the smallest)
+ *   - then oop fields
+ *   - then small primitive fields (from the biggest to the smallest)
  */
 void FieldLayoutBuilder::compute_inline_class_layout(TRAPS) {
   prologue();
@@ -858,9 +868,9 @@ void FieldLayoutBuilder::compute_inline_class_layout(TRAPS) {
     _layout->set_start(padding->next_block());
   }
 
-  _layout->add(_root_group->inlined_fields());
+  _layout->add(_root_group->big_primitive_fields());
   _layout->add(_root_group->oop_fields());
-  _layout->add(_root_group->primitive_fields());
+  _layout->add(_root_group->small_primitive_fields());
 
   LayoutRawBlock* first_field = _layout->first_field_block();
    if (first_field != NULL) {
@@ -873,10 +883,10 @@ void FieldLayoutBuilder::compute_inline_class_layout(TRAPS) {
    }
   _exact_size_in_bytes = _layout->last_block()->offset() - _layout->first_field_block()->offset();
 
-  _static_layout->add(_static_fields->inlined_fields());
+  // Warning:: InstanceMirrorKlass expects static oops to be allocated first
   _static_layout->add_contiguously(_static_fields->oop_fields());
-  _static_layout->add(_static_fields->primitive_fields());
-
+  _static_layout->add(_static_fields->big_primitive_fields());
+  _static_layout->add(_static_fields->small_primitive_fields());
 
   epilogue();
 }
@@ -892,47 +902,52 @@ void FieldLayoutBuilder::add_inlined_field_oopmap(OopMapBlocksBuilder* nonstatic
   }
 }
 
+void FieldLayoutBuilder::register_embedded_oops_from_list(OopMapBlocksBuilder* nonstatic_oop_maps, GrowableArray<LayoutRawBlock*>* list) {
+  if (list != NULL) {
+    for (int i = 0; i < list->length(); i++) {
+      LayoutRawBlock* f = list->at(i);
+      if (f->kind() == LayoutRawBlock::INLINED) {
+        InlineKlass* vk = f->inline_klass();
+        assert(vk != NULL, "Should have been initialized");
+        if (vk->contains_oops()) {
+          add_inlined_field_oopmap(nonstatic_oop_maps, vk, f->offset());
+        }
+      }
+    }
+  }
+}
+
+void FieldLayoutBuilder::register_embedded_oops(OopMapBlocksBuilder* nonstatic_oop_maps, FieldGroup* group) {
+  if (group->oop_fields() != NULL) {
+    for (int i = 0; i < group->oop_fields()->length(); i++) {
+      LayoutRawBlock* b = group->oop_fields()->at(i);
+      nonstatic_oop_maps->add(b->offset(), 1);
+    }
+  }
+  register_embedded_oops_from_list(nonstatic_oop_maps, group->big_primitive_fields());
+  register_embedded_oops_from_list(nonstatic_oop_maps, group->small_primitive_fields());
+}
+
 void FieldLayoutBuilder::epilogue() {
   // Computing oopmaps
   int super_oop_map_count = (_super_klass == NULL) ? 0 :_super_klass->nonstatic_oop_map_count();
   int max_oop_map_count = super_oop_map_count + _nonstatic_oopmap_count;
-
   OopMapBlocksBuilder* nonstatic_oop_maps =
       new OopMapBlocksBuilder(max_oop_map_count);
   if (super_oop_map_count > 0) {
     nonstatic_oop_maps->initialize_inherited_blocks(_super_klass->start_of_nonstatic_oop_maps(),
     _super_klass->nonstatic_oop_map_count());
   }
-
-  if (_root_group->oop_fields() != NULL) {
-    for (int i = 0; i < _root_group->oop_fields()->length(); i++) {
-      LayoutRawBlock* b = _root_group->oop_fields()->at(i);
-      nonstatic_oop_maps->add(b->offset(), 1);
-    }
-  }
-
-  GrowableArray<LayoutRawBlock*>* ff = _root_group->inlined_fields();
-  if (ff != NULL) {
-    for (int i = 0; i < ff->length(); i++) {
-      LayoutRawBlock* f = ff->at(i);
-      InlineKlass* vk = f->inline_klass();
-      assert(vk != NULL, "Should have been initialized");
-      if (vk->contains_oops()) {
-        add_inlined_field_oopmap(nonstatic_oop_maps, vk, f->offset());
-      }
-    }
-  }
-
+  register_embedded_oops(nonstatic_oop_maps, _root_group);
   if (!_contended_groups.is_empty()) {
     for (int i = 0; i < _contended_groups.length(); i++) {
       FieldGroup* cg = _contended_groups.at(i);
       if (cg->oop_count() > 0) {
         assert(cg->oop_fields() != NULL && cg->oop_fields()->at(0) != NULL, "oop_count > 0 but no oop fields found");
-        nonstatic_oop_maps->add(cg->oop_fields()->at(0)->offset(), cg->oop_count());
+        register_embedded_oops(nonstatic_oop_maps, cg);
       }
     }
   }
-
   nonstatic_oop_maps->compact();
 
   int instance_end = align_up(_layout->last_block()->offset(), wordSize);

@@ -44,21 +44,27 @@ public class TestLWorldProfiling extends InlineTypeTest {
 
     static final String[][] scenarios = {
         {"-XX:-UseArrayLoadStoreProfile",
+         "-XX:-UseACmpProfile",
          "-XX:TypeProfileLevel=0",
          "-XX:-MonomorphicArrayCheck" },
         { "-XX:+UseArrayLoadStoreProfile",
+          "-XX:+UseACmpProfile",
           "-XX:TypeProfileLevel=0" },
         { "-XX:-UseArrayLoadStoreProfile",
+          "-XX:-UseACmpProfile",
           "-XX:TypeProfileLevel=222",
           "-XX:-MonomorphicArrayCheck" },
         { "-XX:-UseArrayLoadStoreProfile",
+          "-XX:-UseACmpProfile",
           "-XX:TypeProfileLevel=0",
           "-XX:-MonomorphicArrayCheck",
           "-XX:-TieredCompilation" },
         { "-XX:+UseArrayLoadStoreProfile",
+          "-XX:+UseACmpProfile",
           "-XX:TypeProfileLevel=0",
           "-XX:-TieredCompilation" },
         { "-XX:-UseArrayLoadStoreProfile",
+          "-XX:-UseACmpProfile",
           "-XX:TypeProfileLevel=222",
           "-XX:-MonomorphicArrayCheck",
           "-XX:-TieredCompilation" }
@@ -479,5 +485,432 @@ public class TestLWorldProfiling extends InlineTypeTest {
     public void test20_verifier(boolean warmup) {
         test20(testIntegerArray, 42);
         test20(testNotFlattenableArray, notFlattenable);
+    }
+
+    // acmp tests
+
+    // branch frequency profiling causes not equal branch to be optimized out
+    @Warmup(10000)
+    @Test(failOn = SUBSTITUTABILITY_TEST)
+    public boolean test21(Object o1, Object o2) {
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test21_verifier(boolean warmup) {
+        test21(42, 42);
+        test21(testValue1, testValue1);
+    }
+
+    // Input profiled non null
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test22(Object o1, Object o2) {
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test22_verifier(boolean warmup) {
+        test22(42, null);
+        test22(42.0, null);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test22"));
+            test22(42, 42.0);
+            if (UseACmpProfile) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test22"));
+            }
+        }
+    }
+
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
+    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test23(Object o1, Object o2) {
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test23_verifier(boolean warmup) {
+        test23(null, 42);
+        test23(null, 42.0);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test23"));
+            test23(42, 42.0);
+            if (UseACmpProfile || TypeProfileLevel != 0) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test23"));
+            }
+        }
+    }
+
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test24(Object o1, Object o2) {
+        return o1 != o2;
+    }
+
+    @DontCompile
+    public void test24_verifier(boolean warmup) {
+        test24(42, null);
+        test24(42.0, null);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test24"));
+            test24(42, 42.0);
+             if (UseACmpProfile) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test24"));
+            }
+        }
+    }
+
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
+    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_ASSERT_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test25(Object o1, Object o2) {
+        return o1 != o2;
+    }
+
+    @DontCompile
+    public void test25_verifier(boolean warmup) {
+        test25(null, 42);
+        test25(null, 42.0);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test25"));
+            test25(42, 42.0);
+            if (UseACmpProfile || TypeProfileLevel != 0) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test25"));
+            }
+        }
+    }
+
+    // Input profiled not inline type with known type
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test26(Object o1, Object o2) {
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test26_verifier(boolean warmup) {
+        test26(42, 42);
+        test26(42, 42.0);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test26"));
+            for (int i = 0; i < 10; i++) {
+                test26(42.0, 42);
+            }
+            if (UseACmpProfile || TypeProfileLevel != 0) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test26"));
+            }
+        }
+    }
+
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test27(Object o1, Object o2) {
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test27_verifier(boolean warmup) {
+        test27(42, 42);
+        test27(42.0, 42);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test27"));
+            for (int i = 0; i < 10; i++) {
+                test27(42, 42.0);
+            }
+            if (UseACmpProfile) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test27"));
+            }
+        }
+    }
+
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test28(Object o1, Object o2) {
+        return o1 != o2;
+    }
+
+    @DontCompile
+    public void test28_verifier(boolean warmup) {
+        test28(42, 42);
+        test28(42, 42.0);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test28"));
+            for (int i = 0; i < 10; i++) {
+                test28(42.0, 42);
+            }
+            if (UseACmpProfile || TypeProfileLevel != 0) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test28"));
+            }
+        }
+    }
+
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test29(Object o1, Object o2) {
+        return o1 != o2;
+    }
+
+    @DontCompile
+    public void test29_verifier(boolean warmup) {
+        test29(42, 42);
+        test29(42.0, 42);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test29"));
+            for (int i = 0; i < 10; i++) {
+                test29(42, 42.0);
+            }
+            if (UseACmpProfile) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test29"));
+            }
+        }
+    }
+
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST + NULL_CHECK_TRAP, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
+    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABILITY_TEST + NULL_CHECK_TRAP, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test30(Object o1, Object o2) {
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test30_verifier(boolean warmup) {
+        test30(42, 42);
+        test30(42, 42.0);
+        test30(null, 42);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test30"));
+            for (int i = 0; i < 10; i++) {
+                test30(42.0, 42);
+            }
+            if (UseACmpProfile || TypeProfileLevel != 0) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test30"));
+            }
+        }
+    }
+
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST + NULL_CHECK_TRAP)
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test31(Object o1, Object o2) {
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test31_verifier(boolean warmup) {
+        test31(42, 42);
+        test31(42.0, 42);
+        test31(42, null);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test31"));
+            for (int i = 0; i < 10; i++) {
+                test31(42, 42.0);
+            }
+            if (UseACmpProfile) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test31"));
+            }
+        }
+    }
+
+    // Input profiled not inline type with unknown type
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test32(Object o1, Object o2) {
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test32_verifier(boolean warmup) {
+        test32(42, 42);
+        test32(42, testValue1);
+        test32(42.0, 42);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test32"));
+            for (int i = 0; i < 10; i++) {
+                test32(testValue1, 42);
+            }
+            if (UseACmpProfile) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test32"));
+            }
+        }
+    }
+
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test33(Object o1, Object o2) {
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test33_verifier(boolean warmup) {
+        test33(42, 42);
+        test33(testValue1, 42);
+        test33(42, 42.0);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test33"));
+            for (int i = 0; i < 10; i++) {
+                test33(42, testValue1);
+            }
+            if (UseACmpProfile) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test33"));
+            }
+        }
+    }
+
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test34(Object o1, Object o2) {
+        return o1 != o2;
+    }
+
+    @DontCompile
+    public void test34_verifier(boolean warmup) {
+        test34(42, 42);
+        test34(42, testValue1);
+        test34(42.0, 42);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test34"));
+            for (int i = 0; i < 10; i++) {
+                test34(testValue1, 42);
+            }
+            if (UseACmpProfile) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test34"));
+            }
+        }
+    }
+
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { NULL_CHECK_TRAP, CLASS_CHECK_TRAP }, matchCount = { 1, 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test35(Object o1, Object o2) {
+        return o1 != o2;
+    }
+
+    @DontCompile
+    public void test35_verifier(boolean warmup) {
+        test35(42, 42);
+        test35(testValue1, 42);
+        test35(42, 42.0);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test35"));
+            for (int i = 0; i < 10; i++) {
+                test35(42, testValue1);
+            }
+            if (UseACmpProfile) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test35"));
+            }
+        }
+    }
+
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST + NULL_CHECK_TRAP, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test36(Object o1, Object o2) {
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test36_verifier(boolean warmup) {
+        test36(42, 42.0);
+        test36(42.0, testValue1);
+        test36(null, 42);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test36"));
+            for (int i = 0; i < 10; i++) {
+                test36(testValue1, 42);
+            }
+            if (UseACmpProfile) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test36"));
+            }
+        }
+    }
+
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST + NULL_CHECK_TRAP)
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1})
+    public boolean test37(Object o1, Object o2) {
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test37_verifier(boolean warmup) {
+        test37(42.0, 42);
+        test37(testValue1, 42.0);
+        test37(42, null);
+        if (!warmup) {
+            assertCompiledByC2(tests.get("TestLWorldProfiling::test37"));
+            for (int i = 0; i < 10; i++) {
+                test37(42, testValue1);
+            }
+            if (UseACmpProfile) {
+                assertDeoptimizedByC2(tests.get("TestLWorldProfiling::test37"));
+            }
+        }
+    }
+
+    // Test that acmp profile data that's unused at the acmp is fed to
+    // speculation and leverage later
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
+    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1 })
+    public void test38(Object o1, Object o2, Object o3) {
+        if (o1 == o2) {
+            test38_helper2();
+        }
+        test38_helper(o1, o3);
+    }
+
+    public void test38_helper(Object o1, Object o2) {
+        if (o1 == o2) {
+        }
+    }
+
+    public void test38_helper2() {
+    }
+
+    @DontCompile
+    public void test38_verifier(boolean warmup) {
+        test38(42, 42, 42);
+        test38_helper(testValue1, testValue2);
+    }
+
+    @Warmup(10000)
+    @Test(valid = ACmpProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
+    @Test(valid = TypeProfileOn, failOn = SUBSTITUTABILITY_TEST, match = { CLASS_CHECK_TRAP }, matchCount = { 1})
+    @Test(match = { SUBSTITUTABILITY_TEST }, matchCount = { 1 })
+    public void test39(Object o1, Object o2, Object o3) {
+        if (o1 == o2) {
+            test39_helper2();
+        }
+        test39_helper(o2, o3);
+    }
+
+    public void test39_helper(Object o1, Object o2) {
+        if (o1 == o2) {
+        }
+    }
+
+    public void test39_helper2() {
+    }
+
+    @DontCompile
+    public void test39_verifier(boolean warmup) {
+        test39(42, 42, 42);
+        test39_helper(testValue1, testValue2);
     }
 }

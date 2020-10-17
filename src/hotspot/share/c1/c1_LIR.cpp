@@ -23,12 +23,14 @@
  */
 
 #include "precompiled.hpp"
+#include "c1/c1_CodeStubs.hpp"
 #include "c1/c1_InstructionPrinter.hpp"
 #include "c1/c1_LIR.hpp"
 #include "c1/c1_LIRAssembler.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciInstance.hpp"
+#include "runtime/safepointMechanism.inline.hpp"
 #include "runtime/sharedRuntime.hpp"
 
 Register LIR_OprDesc::as_register() const {
@@ -484,7 +486,6 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
     case lir_fld:            // input always valid, result and info always invalid
     case lir_push:           // input always valid, result and info always invalid
     case lir_pop:            // input always valid, result and info always invalid
-    case lir_return:         // input always valid, result and info always invalid
     case lir_leal:           // input and result always valid, info always invalid
     case lir_monaddr:        // input and result always valid, info always invalid
     case lir_null_check:     // input and info always valid, result always invalid
@@ -496,6 +497,19 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       if (op1->_info)                  do_info(op1->_info);
       if (op1->_opr->is_valid())       do_input(op1->_opr);
       if (op1->_result->is_valid())    do_output(op1->_result);
+
+      break;
+    }
+
+    case lir_return:
+    {
+      assert(op->as_OpReturn() != NULL, "must be");
+      LIR_OpReturn* op_ret = (LIR_OpReturn*)op;
+
+      if (op_ret->_info)               do_info(op_ret->_info);
+      if (op_ret->_opr->is_valid())    do_input(op_ret->_opr);
+      if (op_ret->_result->is_valid()) do_output(op_ret->_result);
+      if (op_ret->stub() != NULL)      do_stub(op_ret->stub());
 
       break;
     }
@@ -974,7 +988,18 @@ void LIR_OpVisitState::visit(LIR_Op* op) {
       do_temp(opProfileType->_tmp);
       break;
     }
-  default:
+
+    // LIR_OpProfileInlineType:
+    case lir_profile_inline_type: {
+      assert(op->as_OpProfileInlineType() != NULL, "must be");
+      LIR_OpProfileInlineType* opProfileInlineType = (LIR_OpProfileInlineType*)op;
+
+      do_input(opProfileInlineType->_mdp); do_temp(opProfileInlineType->_mdp);
+      do_input(opProfileInlineType->_obj);
+      do_temp(opProfileInlineType->_tmp);
+      break;
+    }
+default:
     op->visit(this);
   }
 }
@@ -1030,6 +1055,15 @@ bool LIR_OpVisitState::no_operands(LIR_Op* op) {
          !has_slow_case();
 }
 #endif
+
+// LIR_OpReturn
+LIR_OpReturn::LIR_OpReturn(LIR_Opr opr) :
+    LIR_Op1(lir_return, opr, (CodeEmitInfo*)NULL /* info */),
+    _stub(NULL) {
+  if (VM_Version::supports_stack_watermark_barrier()) {
+    _stub = new C1SafepointPollStub();
+  }
+}
 
 //---------------------------------------------------
 
@@ -1189,6 +1223,10 @@ void LIR_OpProfileCall::emit_code(LIR_Assembler* masm) {
 
 void LIR_OpProfileType::emit_code(LIR_Assembler* masm) {
   masm->emit_profile_type(this);
+}
+
+void LIR_OpProfileInlineType::emit_code(LIR_Assembler* masm) {
+  masm->emit_profile_inline_type(this);
 }
 
 // LIR_List
@@ -1877,6 +1915,8 @@ const char * LIR_Op::name() const {
      case lir_profile_call:          s = "profile_call";  break;
      // LIR_OpProfileType
      case lir_profile_type:          s = "profile_type";  break;
+     // LIR_OpProfileInlineType
+     case lir_profile_inline_type:   s = "profile_inline_type"; break;
      // LIR_OpAssert
 #ifdef ASSERT
      case lir_assert:                s = "assert";        break;
@@ -2208,6 +2248,14 @@ void LIR_OpProfileType::print_instr(outputStream* out) const {
   }
   out->print(" current = "); ciTypeEntries::print_ciklass(out, current_klass());
   out->print(" ");
+  mdp()->print(out);          out->print(" ");
+  obj()->print(out);          out->print(" ");
+  tmp()->print(out);          out->print(" ");
+}
+
+// LIR_OpProfileInlineType
+void LIR_OpProfileInlineType::print_instr(outputStream* out) const {
+  out->print(" flag = %x ", flag());
   mdp()->print(out);          out->print(" ");
   obj()->print(out);          out->print(" ");
   tmp()->print(out);          out->print(" ");
