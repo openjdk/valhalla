@@ -61,7 +61,7 @@ public class ArrayListOfIntBench {
 
     @Param({
             "100",
-//            "1000000",
+            "1000000",
     })
     public int size;
 
@@ -172,20 +172,17 @@ public class ArrayListOfIntBench {
 
     @Benchmark
     public int thrashListInt() {
-        final ArrayListInt list = new ArrayListInt(size);
+        final ArrayListInt list = arrayListInt;
 
         int sum = 0;
-        for (int i = 0; i < size * 10; i++) {
-            int r = (random.nextInt() & 0x7fffffff);    // positive
-            if ((list.size() > 0 && random.nextBoolean()) || list.size() == size) {
-                list.remove(r % list.size());
+        for (int i = 0; i < 1000; i++) {
+            int ndx = (random.nextInt() & 0x7fffffff) % list.size();    // positive
+            if (list.size() == size) {
+                list.remove(ndx);
             } else {
-                if (list.size() == 0)
-                    list.add(r);
-                else
-                    list.add(r % list.size(), r);
+                list.add(ndx);
             }
-            sum += r;
+            sum += ndx;
         }
         return sum;
     }
@@ -194,18 +191,14 @@ public class ArrayListOfIntBench {
     public int thrashListPrimitiveInt() {
         final ArrayListPrimitiveInt list = arrayListPrimitiveInt;
         int sum = 0;
-        for (int i = 0; i < size * 10; i++) {
-            int r = (random.nextInt() & 0x7fffffff);    // positive
-            if ((list.size() > 0 && random.nextBoolean()) || list.size() == size) {
-                list.remove(r % list.size());
+        for (int i = 0; i < 1000; i++) {
+            int ndx = (random.nextInt() & 0x7fffffff) % list.size();    // positive
+            if (list.size() == size) {
+                list.remove(ndx);
             } else {
-                PrimitiveInt v = new PrimitiveInt(r);
-                if (list.size() == 0)
-                    list.add(v);
-                else
-                    list.add(r % list.size(), v);
+                list.add(ndx, new PrimitiveInt(ndx));
             }
-            sum += r;
+            sum += ndx;
         }
         return sum;
     }
@@ -214,17 +207,14 @@ public class ArrayListOfIntBench {
     public int thrashListOfInteger() {
         final ArrayList<Integer> list = arrayListOfInteger;
         int sum = 0;
-        for (int i = 0; i < size * 10; i++) {
-            int r = (random.nextInt() & 0x7fffffff);    // positive
-            if ((list.size() > 0 && random.nextBoolean()) || list.size() == size) {
-                list.remove(r % list.size());
+        for (int i = 0; i < 1000; i++) {
+            int ndx = (random.nextInt() & 0x7fffffff) % list.size();    // positive
+            if (list.size() == size) {
+                list.remove(ndx);
             } else {
-                if (list.size() == 0)
-                    list.add(r);
-                else
-                    list.add(r % list.size(), r);
+                list.add(ndx);
             }
-            sum += r;
+            sum += ndx;
         }
         return sum;
     }
@@ -234,18 +224,15 @@ public class ArrayListOfIntBench {
     public int thrashListOfPrimitiveInt() {
         final ArrayList<PrimitiveInt.ref> list = arrayListOfPrimitiveInt;
         int sum = 0;
-        for (int i = 0; i < size * 10; i++) {
-            int r = (random.nextInt() & 0x7fffffff);    // positive
-            if ((list.size() > 0 && random.nextBoolean()) || list.size() == size) {
-                list.remove(r % list.size());
+
+        for (int i = 0; i < 1000; i++) {
+            int ndx = (random.nextInt() & 0x7fffffff) % list.size();    // positive
+            if (list.size() == size) {
+                list.remove(ndx);
             } else {
-                PrimitiveInt v = new PrimitiveInt(r);
-                if (list.size() == 0)
-                    list.add(v);
-                else
-                    list.add(r % list.size(), v);
+                list.add(ndx, new PrimitiveInt(ndx));
             }
-            sum += r;
+            sum += ndx;
         }
         return sum;
     }
