@@ -810,7 +810,6 @@ void ciTypeFlow::StateVector::do_withfield(ciBytecodeStream* str) {
   } else {
     ciType* type = pop_value();
     ciType* field_type = field->type();
-    assert(field_type->is_loaded(), "field type must be loaded");
     if (field_type->is_two_word()) {
       ciType* type2 = pop_value();
       assert(type2->is_two_word(), "must be 2nd half");
