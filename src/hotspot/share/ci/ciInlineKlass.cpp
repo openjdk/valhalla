@@ -93,7 +93,8 @@ bool ciInlineKlass::can_be_returned_as_fields() const {
 
 bool ciInlineKlass::is_empty() {
   // Do not use InlineKlass::is_empty_inline_type here because it does
-  // not recursively account for flattened fields of empty inline types.
+  // consider the container empty even if fields of empty inline types
+  // are not flattened
   return nof_nonstatic_fields() == 0;
 }
 

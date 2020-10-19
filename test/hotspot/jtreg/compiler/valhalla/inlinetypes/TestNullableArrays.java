@@ -41,14 +41,6 @@ import java.util.Arrays;
  *                               compiler.valhalla.inlinetypes.TestNullableArrays
  */
 public class TestNullableArrays extends InlineTypeTest {
-    // Unlike C2, C1 intrinsics never deoptimize System.arraycopy. Instead, we fall back to
-    // a normal method invocation when encountering flattened arrays.
-    private static void assertDeoptimizedByC2(Method m) {
-        if (isCompiledByC2(m)) {
-            throw new RuntimeException("Type check should have caused it to deoptimize");
-        }
-    }
-
     // Extra VM parameters for some test scenarios. See InlineTypeTest.getVMParameters()
     @Override
     public String[] getExtraVMParameters(int scenario) {

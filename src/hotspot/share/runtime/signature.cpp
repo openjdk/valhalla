@@ -582,23 +582,6 @@ void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, int offset)
   }
 }
 
-// Inserts a reserved argument at position 'i'
-void SigEntry::insert_reserved_entry(GrowableArray<SigEntry>* sig, int i, BasicType bt) {
-  if (bt == T_OBJECT || bt == T_ARRAY || bt == T_INLINE_TYPE) {
-    // Treat this as INT to not confuse the GC
-    bt = T_INT;
-  } else if (bt == T_LONG || bt == T_DOUBLE) {
-    // Longs and doubles take two stack slots
-    sig->insert_before(i, SigEntry(T_VOID, SigEntry::ReservedOffset));
-  }
-  sig->insert_before(i, SigEntry(bt, SigEntry::ReservedOffset));
-}
-
-// Returns true if the argument at index 'i' is a reserved argument
-bool SigEntry::is_reserved_entry(const GrowableArray<SigEntry>* sig, int i) {
-  return sig->at(i)._offset == SigEntry::ReservedOffset;
-}
-
 // Returns true if the argument at index 'i' is not an inline type delimiter
 bool SigEntry::skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i) {
   return (sig->at(i)._bt != T_INLINE_TYPE &&
@@ -642,20 +625,4 @@ TempNewSymbol SigEntry::create_symbol(const GrowableArray<SigEntry>* sig) {
   sig_str[idx++] = 'V';
   sig_str[idx++] = '\0';
   return SymbolTable::new_symbol(sig_str);
-}
-
-// Increment signature iterator (skips inline type delimiters and T_VOID) and check if next entry is reserved
-bool SigEntry::next_is_reserved(ExtendedSignature& sig, BasicType& bt, bool can_be_void) {
-  assert(can_be_void || bt != T_VOID, "should never see void");
-  if (sig.at_end() || (can_be_void && type2size[bt] == 2 && (*sig)._offset != SigEntry::ReservedOffset)) {
-    // Don't increment at the end or at a T_LONG/T_DOUBLE which will be followed by a (skipped) T_VOID
-    return false;
-  }
-  assert(bt == T_VOID || type2wfield[bt] == type2wfield[(*sig)._bt], "inconsistent signature");
-  ++sig;
-  if (!sig.at_end() && (*sig)._offset == SigEntry::ReservedOffset) {
-    bt = (*sig)._bt;
-    return true;
-  }
-  return false;
 }

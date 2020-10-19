@@ -853,7 +853,9 @@ class GraphKit : public Phase {
   // and the array-store bytecode
   Node* gen_checkcast(Node *subobj, Node* superkls, Node* *failure_control = NULL);
 
+  Node* inline_type_test(Node* obj);
   Node* is_inline_type(Node* obj);
+  Node* is_not_inline_type(Node* obj);
   Node* is_non_flattened_array(Node* ary);
   Node* check_null_free_bit(Node* klass, bool null_free);
   Node* is_nullable_array(Node* ary);

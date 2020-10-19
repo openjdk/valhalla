@@ -29,8 +29,8 @@ package runtime.valhalla.inlinetypes;
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
  * @compile -XDallowWithFieldOperator Point.java UnsafeTest.java
- * @run main/othervm -Xint runtime.valhalla.inlinetypes.UnsafeTest
- * @run main/othervm -Xcomp runtime.valhalla.inlinetypes.UnsafeTest
+ * @run main/othervm -Xint -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 runtime.valhalla.inlinetypes.UnsafeTest
+ * @run main/othervm -Xcomp -XX:FlatArrayElementMaxSize=-1 -XX:InlineFieldMaxFlatSize=-1 runtime.valhalla.inlinetypes.UnsafeTest
  */
 
 import jdk.internal.misc.Unsafe;

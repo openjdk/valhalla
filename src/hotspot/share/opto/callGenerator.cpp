@@ -369,19 +369,8 @@ void LateInlineCallGenerator::do_late_inline() {
     return;
   }
 
-  const GrowableArray<SigEntry>* sig_cc = method()->get_sig_cc();
   const TypeTuple* r = call->tf()->domain_cc();
-  for (uint i1 = TypeFunc::Parms, i2 = 0; i1 < r->cnt(); i1++) {
-    if (sig_cc != NULL) {
-      // Skip reserved entries
-      while (!SigEntry::skip_value_delimiters(sig_cc, i2)) {
-        i2++;
-      }
-      if (SigEntry::is_reserved_entry(sig_cc, i2++)) {
-        assert(call->in(i1)->is_top(), "should be top");
-        continue;
-      }
-    }
+  for (uint i1 = TypeFunc::Parms; i1 < r->cnt(); i1++) {
     if (call->in(i1)->is_top() && r->field_at(i1) != Type::HALF) {
       assert(Compile::current()->inlining_incrementally(), "shouldn't happen during parsing");
       return;
@@ -471,10 +460,6 @@ void LateInlineCallGenerator::do_late_inline() {
         map->set_argument(jvms, i1, vt);
       } else {
         map->set_argument(jvms, i1, call->in(j++));
-        BasicType bt = t->basic_type();
-        while (SigEntry::next_is_reserved(sig_cc, bt, true)) {
-          j += type2size[bt]; // Skip reserved arguments
-        }
       }
     }
 
@@ -487,7 +472,7 @@ void LateInlineCallGenerator::do_late_inline() {
     // This check is done here because for_method_handle_inline() method
     // needs jvms for inlined state.
     if (!do_late_inline_check(jvms)) {
-      map->disconnect_inputs(NULL, C);
+      map->disconnect_inputs(C);
       return;
     }
 
@@ -529,7 +514,6 @@ void LateInlineCallGenerator::do_late_inline() {
       result = (result_size == 1) ? kit.pop() : kit.pop_pair();
     }
 
-    C->set_has_loops(C->has_loops() || _inline_cg->method()->has_loops());
     C->env()->notice_inlined_method(_inline_cg->method());
     C->set_inlining_progress(true);
     C->set_do_cleanup(kit.stopped()); // path is dead; needs cleanup
@@ -636,7 +620,7 @@ class LateInlineStringCallGenerator : public LateInlineCallGenerator {
 
     C->add_string_late_inline(this);
 
-    JVMState* new_jvms =  DirectCallGenerator::generate(jvms);
+    JVMState* new_jvms = DirectCallGenerator::generate(jvms);
     return new_jvms;
   }
 
@@ -660,7 +644,7 @@ class LateInlineBoxingCallGenerator : public LateInlineCallGenerator {
 
     C->add_boxing_late_inline(this);
 
-    JVMState* new_jvms =  DirectCallGenerator::generate(jvms);
+    JVMState* new_jvms = DirectCallGenerator::generate(jvms);
     return new_jvms;
   }
 };
@@ -669,6 +653,28 @@ CallGenerator* CallGenerator::for_boxing_late_inline(ciMethod* method, CallGener
   return new LateInlineBoxingCallGenerator(method, inline_cg);
 }
 
+class LateInlineVectorReboxingCallGenerator : public LateInlineCallGenerator {
+
+ public:
+  LateInlineVectorReboxingCallGenerator(ciMethod* method, CallGenerator* inline_cg) :
+    LateInlineCallGenerator(method, inline_cg, /*is_pure=*/true) {}
+
+  virtual JVMState* generate(JVMState* jvms) {
+    Compile *C = Compile::current();
+
+    C->log_inline_id(this);
+
+    C->add_vector_reboxing_late_inline(this);
+
+    JVMState* new_jvms = DirectCallGenerator::generate(jvms);
+    return new_jvms;
+  }
+};
+
+//   static CallGenerator* for_vector_reboxing_late_inline(ciMethod* m, CallGenerator* inline_cg);
+CallGenerator* CallGenerator::for_vector_reboxing_late_inline(ciMethod* method, CallGenerator* inline_cg) {
+  return new LateInlineVectorReboxingCallGenerator(method, inline_cg);
+}
 //---------------------------WarmCallGenerator--------------------------------
 // Internal class which handles initial deferral of inlining decisions.
 class WarmCallGenerator : public CallGenerator {

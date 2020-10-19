@@ -379,6 +379,23 @@ public:
 #endif
 };
 
+class ciACmpData : public ACmpData {
+public:
+  ciACmpData(DataLayout* layout) : ACmpData(layout) {}
+
+  ciSingleTypeEntry* left() const { return (ciSingleTypeEntry*)ACmpData::left(); }
+  ciSingleTypeEntry* right() const { return (ciSingleTypeEntry*)ACmpData::right(); }
+
+  virtual void translate_from(const ProfileData* data) {
+    left()->translate_type_data_from(data->as_ACmpData()->left());
+    right()->translate_type_data_from(data->as_ACmpData()->right());
+  }
+
+#ifndef PRODUCT
+  void print_data_on(outputStream* st, const char* extra = NULL) const;
+#endif
+};
+
 // ciMethodData
 //
 // This class represents a MethodData* in the HotSpot virtual

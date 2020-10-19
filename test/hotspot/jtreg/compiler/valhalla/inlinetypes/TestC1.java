@@ -285,4 +285,98 @@ public class TestC1 extends InlineTypeTest {
         Asserts.assertEQ(b, (byte)11);
     }
 
+
+    // Test optimizations for arrays of empty types
+    // (read/write are not performed, pre-allocated instance is used for reads)
+    // Most tests check that error conditions are still correctly handled
+    // (OOB, null pointer)
+    static inline class EmptyType {}
+
+    @Test(compLevel=C1)
+    public EmptyType test9() {
+        EmptyType[] array = new EmptyType[10];
+        return array[4];
+    }
+
+    @DontCompile
+    public void test9_verifier(boolean warmup) {
+        EmptyType et = test9();
+        Asserts.assertEQ(et, EmptyType.default);
+    }
+
+    @Test(compLevel=C1)
+    public EmptyType test10(EmptyType[] array) {
+        return array[0];
+    }
+
+    @DontCompile
+    public void test10_verifier(boolean warmup) {
+        EmptyType[] array = new EmptyType[16];
+        EmptyType et = test10(array);
+        Asserts.assertEQ(et, EmptyType.default);
+    }
+
+    @Test(compLevel=C1)
+    public EmptyType test11(EmptyType[] array, int index) {
+        return array[index];
+    }
+
+    @DontCompile
+    public void test11_verifier(boolean warmup) {
+        Exception e = null;
+        EmptyType[] array = new EmptyType[10];
+        try {
+            EmptyType et = test11(array, 11);
+        } catch (ArrayIndexOutOfBoundsException ex) {
+            e = ex;
+        }
+        Asserts.assertNotNull(e);
+        e = null;
+        try {
+            EmptyType et = test11(array, -1);
+        } catch (ArrayIndexOutOfBoundsException ex) {
+            e = ex;
+        }
+        Asserts.assertNotNull(e);
+        e = null;
+        try {
+            EmptyType et = test11(null, 1);
+        } catch (NullPointerException ex) {
+            e = ex;
+        }
+        Asserts.assertNotNull(e);
+    }
+
+    @Test(compLevel=C1)
+    public void test12(EmptyType[] array, int index, EmptyType value) {
+        array[index] = value;
+    }
+
+    @DontCompile
+    public void test12_verifier(boolean warmup) {
+        EmptyType[] array = new EmptyType[16];
+        test12(array, 2, EmptyType.default);
+        Exception e = null;
+        try {
+            test12(null, 2, EmptyType.default);
+        } catch(NullPointerException ex) {
+            e = ex;
+        }
+        Asserts.assertNotNull(e);
+        e = null;
+        try {
+            test12(array, 17, EmptyType.default);
+        } catch(ArrayIndexOutOfBoundsException ex) {
+            e = ex;
+        }
+        Asserts.assertNotNull(e);
+        e = null;
+        try {
+            test12(array, -8, EmptyType.default);
+        } catch(ArrayIndexOutOfBoundsException ex) {
+            e = ex;
+        }
+        Asserts.assertNotNull(e);
+    }
+
 }

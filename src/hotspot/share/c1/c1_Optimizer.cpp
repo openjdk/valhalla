@@ -543,6 +543,7 @@ public:
   void do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x);
   void do_ProfileCall    (ProfileCall*     x);
   void do_ProfileReturnType (ProfileReturnType*  x);
+  void do_ProfileACmpTypes(ProfileACmpTypes*  x);
   void do_ProfileInvoke  (ProfileInvoke*   x);
   void do_RuntimeCall    (RuntimeCall*     x);
   void do_MemBar         (MemBar*          x);
@@ -672,6 +673,7 @@ class NullCheckEliminator: public ValueVisitor {
   void handle_Phi             (Phi* x);
   void handle_ProfileCall     (ProfileCall* x);
   void handle_ProfileReturnType (ProfileReturnType* x);
+  void handle_ProfileACmpTypes(ProfileACmpTypes* x);
 };
 
 
@@ -735,6 +737,7 @@ void NullCheckVisitor::do_ProfileCall    (ProfileCall*     x) { nce()->clear_las
                                                                 nce()->handle_ProfileCall(x); }
 void NullCheckVisitor::do_ProfileReturnType (ProfileReturnType* x) { nce()->handle_ProfileReturnType(x); }
 void NullCheckVisitor::do_ProfileInvoke  (ProfileInvoke*   x) {}
+void NullCheckVisitor::do_ProfileACmpTypes(ProfileACmpTypes* x) { nce()->handle_ProfileACmpTypes(x); }
 void NullCheckVisitor::do_RuntimeCall    (RuntimeCall*     x) {}
 void NullCheckVisitor::do_MemBar         (MemBar*          x) {}
 void NullCheckVisitor::do_RangeCheckPredicate(RangeCheckPredicate* x) {}
@@ -1167,6 +1170,11 @@ void NullCheckEliminator::handle_ProfileCall(ProfileCall* x) {
 
 void NullCheckEliminator::handle_ProfileReturnType(ProfileReturnType* x) {
   x->set_needs_null_check(!set_contains(x->ret()));
+}
+
+void NullCheckEliminator::handle_ProfileACmpTypes(ProfileACmpTypes* x) {
+  x->set_left_maybe_null(!set_contains(x->left()));
+  x->set_right_maybe_null(!set_contains(x->right()));
 }
 
 void Optimizer::eliminate_null_checks() {

@@ -1809,7 +1809,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     if (is_loaded_flattened_array) {
       int flag = ArrayLoadStoreData::flat_array_byte_constant() | ArrayLoadStoreData::null_free_array_byte_constant();
       assert(md != NULL, "should have been initialized");
-      profile_array_load_store_flags(md, load_store, flag);
+      profile_flags(md, load_store, flag);
     } else if (x->array()->maybe_null_free_array()) {
       profile_null_free_array(array, md, load_store);
     }
@@ -1825,7 +1825,10 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     if (!x->value()->is_null_free()) {
       __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }
-    access_flattened_array(false, array, index, value);
+    // If array element is an empty inline type, no need to copy anything
+    if (!x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
+      access_flattened_array(false, array, index, value);
+    }
   } else {
     StoreFlattenedArrayStub* slow_path = NULL;
 
@@ -2190,7 +2193,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     if (x->should_profile()) {
       fatal("Loaded flattened array should not be profiled");
       int flag = ArrayLoadStoreData::flat_array_byte_constant() | ArrayLoadStoreData::null_free_array_byte_constant();
-      profile_array_load_store_flags(md, load_store, flag);
+      profile_flags(md, load_store, flag);
     }
   } else if (x->delayed() != NULL) {
     assert(x->array()->is_loaded_flattened_array(), "must be");
@@ -2199,6 +2202,13 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
                        x->delayed() == NULL ? 0 : x->delayed()->field(),
                        x->delayed() == NULL ? 0 : x->delayed()->offset());
     assert(!x->should_profile(), "Loaded flattened array should not be profiled");
+  } else if (x->array() != NULL && x->array()->is_loaded_flattened_array() &&
+             x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
+    // Load the default instance instead of reading the element
+    ciInlineKlass* elem_klass = x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass();
+    LIR_Opr result = rlock_result(x, x->elt_type());
+    Constant* default_value = new Constant(new InstanceConstant(elem_klass->default_instance()));
+    __ move(load_constant(default_value), result);
   } else {
     LIR_Opr result = rlock_result(x, x->elt_type());
     LoadFlattenedArrayStub* slow_path = NULL;
@@ -3005,31 +3015,28 @@ void LIRGenerator::profile_parameters(Base* x) {
   }
 }
 
-void LIRGenerator::profile_array_load_store_flags(ciMethodData* md, ciArrayLoadStoreData* load_store, int flag, LIR_Opr mdp) {
-  assert(md != NULL && load_store != NULL, "should have been initialized");
-  if (mdp == NULL) {
-    mdp = new_register(T_METADATA);
-    __ metadata2reg(md->constant_encoding(), mdp);
+void LIRGenerator::profile_flags(ciMethodData* md, ciProfileData* data, int flag, LIR_Condition condition) {
+  assert(md != NULL && data != NULL, "should have been initialized");
+  LIR_Opr mdp = new_register(T_METADATA);
+  __ metadata2reg(md->constant_encoding(), mdp);
+  LIR_Address* addr = new LIR_Address(mdp, md->byte_offset_of_slot(data, DataLayout::flags_offset()), T_BYTE);
+  LIR_Opr flags = new_register(T_INT);
+  __ move(addr, flags);
+  if (condition != lir_cond_always) {
+    LIR_Opr update = new_register(T_INT);
+    __ cmove(condition, LIR_OprFact::intConst(0), LIR_OprFact::intConst(flag), update, T_INT);
+  } else {
+    __ logical_or(flags, LIR_OprFact::intConst(flag), flags);
   }
-  LIR_Address* addr = new LIR_Address(mdp, md->byte_offset_of_slot(load_store, DataLayout::flags_offset()), T_BYTE);
-  LIR_Opr id = new_register(T_INT);
-  __ move(addr, id);
-  __ logical_or(id, LIR_OprFact::intConst(flag), id);
-  __ store(id, addr);
+  __ store(flags, addr);
 }
 
 void LIRGenerator::profile_null_free_array(LIRItem array, ciMethodData* md, ciArrayLoadStoreData* load_store) {
   LabelObj* L_end = new LabelObj();
   LIR_Opr tmp = new_register(T_METADATA);
-  LIR_Opr mdp = new_register(T_METADATA);
-  assert(md != NULL, "should have been initialized");
-  __ metadata2reg(md->constant_encoding(), mdp);
   __ check_null_free_array(array.result(), tmp);
-  __ branch(lir_cond_equal, L_end->label());
 
-  profile_array_load_store_flags(md, load_store, ArrayLoadStoreData::null_free_array_byte_constant(), mdp);
-
-  __ branch_destination(L_end->label());
+  profile_flags(md, load_store, ArrayLoadStoreData::null_free_array_byte_constant(), lir_cond_equal);
 }
 
 void LIRGenerator::profile_array_type(AccessIndexed* x, ciMethodData*& md, ciArrayLoadStoreData*& load_store) {
@@ -3766,6 +3773,53 @@ void LIRGenerator::do_ProfileReturnType(ProfileReturnType* x) {
     if (exact != NULL) {
       md->set_return_type(bci, exact);
     }
+  }
+}
+
+bool LIRGenerator::profile_inline_klass(ciMethodData* md, ciProfileData* data, Value value, int flag) {
+  ciKlass* klass = value->as_loaded_klass_or_null();
+  if (klass != NULL) {
+    if (klass->is_inlinetype()) {
+      profile_flags(md, data, flag, lir_cond_always);
+    } else if (klass->can_be_inline_klass()) {
+      return false;
+    }
+  } else {
+    return false;
+  }
+  return true;
+}
+
+
+void LIRGenerator::do_ProfileACmpTypes(ProfileACmpTypes* x) {
+  ciMethod* method = x->method();
+  assert(method != NULL, "method should be set if branch is profiled");
+  ciMethodData* md = method->method_data_or_null();
+  assert(md != NULL, "Sanity");
+  ciProfileData* data = md->bci_to_data(x->bci());
+  assert(data != NULL, "must have profiling data");
+  assert(data->is_ACmpData(), "need BranchData for two-way branches");
+  ciACmpData* acmp = (ciACmpData*)data;
+  LIR_Opr mdp = LIR_OprFact::illegalOpr;
+  profile_type(md, md->byte_offset_of_slot(acmp, ACmpData::left_offset()), 0,
+               acmp->left()->type(), x->left(), mdp, !x->left_maybe_null(), NULL, NULL);
+  int flags_offset = md->byte_offset_of_slot(data, DataLayout::flags_offset());
+  if (!profile_inline_klass(md, acmp, x->left(), ACmpData::left_inline_type_byte_constant())) {
+    LIR_Opr mdp = new_register(T_METADATA);
+    __ metadata2reg(md->constant_encoding(), mdp);
+    LIRItem value(x->left(), this);
+    value.load_item();
+    __ profile_inline_type(new LIR_Address(mdp, flags_offset, T_INT), value.result(), ACmpData::left_inline_type_byte_constant(), new_register(T_INT), !x->left_maybe_null());
+  }
+  profile_type(md, md->byte_offset_of_slot(acmp, ACmpData::left_offset()),
+               in_bytes(ACmpData::right_offset()) - in_bytes(ACmpData::left_offset()),
+               acmp->right()->type(), x->right(), mdp, !x->right_maybe_null(), NULL, NULL);
+  if (!profile_inline_klass(md, acmp, x->right(), ACmpData::right_inline_type_byte_constant())) {
+    LIR_Opr mdp = new_register(T_METADATA);
+    __ metadata2reg(md->constant_encoding(), mdp);
+    LIRItem value(x->right(), this);
+    value.load_item();
+    __ profile_inline_type(new LIR_Address(mdp, flags_offset, T_INT), value.result(), ACmpData::right_inline_type_byte_constant(), new_register(T_INT), !x->left_maybe_null());
   }
 }
 

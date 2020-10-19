@@ -283,7 +283,7 @@ int LIR_Assembler::emit_deopt_handler() {
 }
 
 
-void LIR_Assembler::return_op(LIR_Opr result) {
+void LIR_Assembler::return_op(LIR_Opr result, C1SafepointPollStub* code_stub) {
   // Pop the frame before safepoint polling
   __ remove_frame(initial_frame_size_in_bytes());
   __ read_polling_page(Rtemp, relocInfo::poll_return_type);
@@ -2561,6 +2561,10 @@ void LIR_Assembler::emit_profile_call(LIR_OpProfileCall* op) {
 
 void LIR_Assembler::emit_profile_type(LIR_OpProfileType* op) {
   fatal("Type profiling not implemented on this platform");
+}
+
+void LIR_Assembler::emit_profile_inline_type(LIR_OpProfileInlineType* op) {
+  Unimplemented();
 }
 
 void LIR_Assembler::emit_delay(LIR_OpDelay*) {
