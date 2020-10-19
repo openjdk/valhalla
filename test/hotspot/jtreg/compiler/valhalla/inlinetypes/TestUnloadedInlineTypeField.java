@@ -857,4 +857,29 @@ public class TestUnloadedInlineTypeField extends InlineTypeTest {
             Asserts.assertEQ(test19(rI), rI);
         }
     }
+
+    // Test case 20:
+    // Inline type with object field of unloaded type.
+    static class MyObject20 {
+        int x = 42;
+    }
+
+    static final inline class MyValue20 {
+        MyObject20 obj;
+
+        MyValue20() {
+            this.obj = null;
+        }
+    }
+
+    @Test
+    public MyValue20 test20() {
+        return new MyValue20();
+    }
+
+    @DontCompile
+    public void test20_verifier(boolean warmup) {
+        MyValue20 vt = test20();
+        Asserts.assertEQ(vt.obj, null);
+    }
 }
