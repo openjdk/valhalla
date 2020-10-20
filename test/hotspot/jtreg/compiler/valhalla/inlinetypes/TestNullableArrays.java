@@ -41,14 +41,6 @@ import java.util.Arrays;
  *                               compiler.valhalla.inlinetypes.TestNullableArrays
  */
 public class TestNullableArrays extends InlineTypeTest {
-    // Unlike C2, C1 intrinsics never deoptimize System.arraycopy. Instead, we fall back to
-    // a normal method invocation when encountering flattened arrays.
-    private static void assertDeoptimizedByC2(Method m) {
-        if (isCompiledByC2(m)) {
-            throw new RuntimeException("Type check should have caused it to deoptimize");
-        }
-    }
-
     // Extra VM parameters for some test scenarios. See InlineTypeTest.getVMParameters()
     @Override
     public String[] getExtraVMParameters(int scenario) {
@@ -361,6 +353,7 @@ public class TestNullableArrays extends InlineTypeTest {
         }
     }
 
+    @DontCompile
     public void test12_verifier(boolean warmup) {
         Asserts.assertEQ(test12(), rI);
     }
@@ -382,6 +375,7 @@ public class TestNullableArrays extends InlineTypeTest {
         }
     }
 
+    @DontCompile
     public void test13_verifier(boolean warmup) {
         Asserts.assertEQ(test13(), rI);
     }
@@ -392,6 +386,7 @@ public class TestNullableArrays extends InlineTypeTest {
         return va[index].x;
     }
 
+    @DontCompile
     public void test14_verifier(boolean warmup) {
         int arraySize = Math.abs(rI) % 10;
         MyValue1.ref[] va = new MyValue1.ref[arraySize];
@@ -427,6 +422,7 @@ public class TestNullableArrays extends InlineTypeTest {
         }
     }
 
+    @DontCompile
     public void test15_verifier(boolean warmup) {
         Asserts.assertEQ(test15(), rI);
     }
@@ -447,6 +443,7 @@ public class TestNullableArrays extends InlineTypeTest {
         }
     }
 
+    @DontCompile
     public void test16_verifier(boolean warmup) {
         Asserts.assertEQ(test16(), rI);
     }

@@ -131,7 +131,7 @@ public abstract class InlineTypeTest {
     private static final boolean PRINT_GRAPH = true;
     private static final boolean VERBOSE = Boolean.parseBoolean(System.getProperty("Verbose", "false"));
     private static final boolean PRINT_TIMES = Boolean.parseBoolean(System.getProperty("PrintTimes", "false"));
-    private static final boolean COMPILE_COMMANDS = Boolean.parseBoolean(System.getProperty("CompileCommands", "true"));
+    private static final boolean COMPILE_COMMANDS = Boolean.parseBoolean(System.getProperty("CompileCommands", "true")) && !XCOMP;
     private static       boolean VERIFY_IR = Boolean.parseBoolean(System.getProperty("VerifyIR", "true")) && !XCOMP && !TEST_C1 && COMPILE_COMMANDS;
     private static final boolean VERIFY_VM = Boolean.parseBoolean(System.getProperty("VerifyVM", "false"));
     private static final String SCENARIOS = System.getProperty("Scenarios", "");
@@ -143,7 +143,7 @@ public abstract class InlineTypeTest {
     private static final boolean GC_AFTER = Boolean.parseBoolean(System.getProperty("GCAfter", "false"));
     private static final int OSR_TEST_TIMEOUT = Integer.parseInt(System.getProperty("OSRTestTimeOut", "5000"));
     protected static final boolean STRESS_CC = Boolean.parseBoolean(System.getProperty("StressCC", "false"));
-    private static final boolean SHUFFLE_TESTS = Boolean.parseBoolean(System.getProperty("ShuffleTests", "false"));
+    private static final boolean SHUFFLE_TESTS = Boolean.parseBoolean(System.getProperty("ShuffleTests", "true"));
 
     // "jtreg -DXcomp=true" runs all the scenarios with -Xcomp. This is faster than "jtreg -javaoptions:-Xcomp".
     protected static final boolean RUN_SCENARIOS_WITH_XCOMP = Boolean.parseBoolean(System.getProperty("Xcomp", "false"));
@@ -180,6 +180,8 @@ public abstract class InlineTypeTest {
     protected static final int ArrayLoadStoreProfileOff = 0x2000;
     protected static final int TypeProfileOn = 0x4000;
     protected static final int TypeProfileOff = 0x8000;
+    protected static final int ACmpProfileOn = 0x10000;
+    protected static final int ACmpProfileOff = 0x20000;
     protected static final boolean InlineTypePassFieldsAsArgs = (Boolean)WHITE_BOX.getVMFlag("InlineTypePassFieldsAsArgs");
     protected static final boolean InlineTypeArrayFlatten = (WHITE_BOX.getIntxVMFlag("FlatArrayElementMaxSize") == -1);
     protected static final boolean InlineTypeReturnedAsFields = (Boolean)WHITE_BOX.getVMFlag("InlineTypeReturnedAsFields");
@@ -189,14 +191,15 @@ public abstract class InlineTypeTest {
     protected static final boolean VerifyOops = (Boolean)WHITE_BOX.getVMFlag("VerifyOops");
     protected static final boolean UseArrayLoadStoreProfile = (Boolean)WHITE_BOX.getVMFlag("UseArrayLoadStoreProfile");
     protected static final long TypeProfileLevel = (Long)WHITE_BOX.getVMFlag("TypeProfileLevel");
+    protected static final boolean UseACmpProfile = (Boolean)WHITE_BOX.getVMFlag("UseACmpProfile");
 
     protected static final Hashtable<String, Method> tests = new Hashtable<String, Method>();
     protected static final boolean USE_COMPILER = WHITE_BOX.getBooleanVMFlag("UseCompiler");
     protected static final boolean PRINT_IDEAL  = WHITE_BOX.getBooleanVMFlag("PrintIdeal");
 
     // Regular expressions used to match nodes in the PrintIdeal output
-    protected static final String START = "(\\d+\\t(.*";
-    protected static final String MID = ".*)+\\t===.*";
+    protected static final String START = "(\\d+ (.*";
+    protected static final String MID = ".*)+ ===.*";
     protected static final String END = ")|";
     // Generic allocation
     protected static final String ALLOC_G  = "(.*call,static  wrapper for: _new_instance_Java" + END;
@@ -224,6 +227,7 @@ public abstract class InlineTypeTest {
     protected static final String CLONE_INTRINSIC_SLOW_PATH = "(.*call,static.*java.lang.Object::clone.*" + END;
     protected static final String CLASS_CHECK_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*class_check" + END;
     protected static final String NULL_CHECK_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*null_check" + END;
+    protected static final String NULL_ASSERT_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*null_assert" + END;
     protected static final String RANGE_CHECK_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*range_check" + END;
     protected static final String UNHANDLED_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*unhandled" + END;
     protected static final String PREDICATE_TRAP = START + "CallStaticJava" + MID + "uncommon_trap.*predicate" + END;
@@ -231,6 +235,8 @@ public abstract class InlineTypeTest {
     protected static final String CHECKCAST_ARRAY = "(cmp.*precise klass \\[(L|Q)compiler/valhalla/inlinetypes/MyValue.*" + END;
     protected static final String CHECKCAST_ARRAYCOPY = "(.*call_leaf_nofp,runtime  checkcast_arraycopy.*" + END;
     protected static final String JLONG_ARRAYCOPY = "(.*call_leaf_nofp,runtime  jlong_disjoint_arraycopy.*" + END;
+    protected static final String FIELD_ACCESS = "(.*Field: *" + END;
+    protected static final String SUBSTITUTABILITY_TEST = START + "CallStaticJava" + MID + "java.lang.invoke.ValueBootstrapMethods::isSubstitutable" + END;
 
     public static String[] concat(String prefix[], String... extra) {
         ArrayList<String> list = new ArrayList<String>();
@@ -263,32 +269,34 @@ public abstract class InlineTypeTest {
     public String[] getVMParameters(int scenario) {
         switch (scenario) {
         case 0: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
+                "-XX:-UseACmpProfile",
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:FlatArrayElementMaxOops=5",
                 "-XX:FlatArrayElementMaxSize=-1",
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields"};
         case 1: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
+                "-XX:-UseACmpProfile",
                 "-XX:-UseCompressedOops",
                 "-XX:FlatArrayElementMaxOops=5",
                 "-XX:FlatArrayElementMaxSize=-1",
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:-InlineTypePassFieldsAsArgs",
                 "-XX:-InlineTypeReturnedAsFields"};
         case 2: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
+                "-XX:-UseACmpProfile",
                 "-XX:-UseCompressedOops",
                 "-XX:FlatArrayElementMaxOops=0",
                 "-XX:FlatArrayElementMaxSize=0",
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields",
                 "-XX:+StressInlineTypeReturnedAsFields"};
         case 3: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
                 "-DVerifyIR=false",
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:FlatArrayElementMaxOops=0",
@@ -297,7 +305,6 @@ public abstract class InlineTypeTest {
                 "-XX:+InlineTypePassFieldsAsArgs",
                 "-XX:+InlineTypeReturnedAsFields"};
         case 4: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
                 "-DVerifyIR=false",
                 "-XX:FlatArrayElementMaxOops=-1",
                 "-XX:FlatArrayElementMaxSize=-1",
@@ -306,10 +313,11 @@ public abstract class InlineTypeTest {
                 "-XX:-InlineTypeReturnedAsFields",
                 "-XX:-ReduceInitialCardMarks"};
         case 5: return new String[] {
-                "-XX:-UseArrayLoadStoreProfile",
+                "-XX:-UseACmpProfile",
                 "-XX:+AlwaysIncrementalInline",
                 "-XX:FlatArrayElementMaxOops=5",
                 "-XX:FlatArrayElementMaxSize=-1",
+                "-XX:-UseArrayLoadStoreProfile",
                 "-XX:InlineFieldMaxFlatSize=-1",
                 "-XX:-InlineTypePassFieldsAsArgs",
                 "-XX:-InlineTypeReturnedAsFields"};
@@ -504,6 +512,8 @@ public abstract class InlineTypeTest {
             new TestAnnotation(ArrayLoadStoreProfileOff, () -> !UseArrayLoadStoreProfile),
             new TestAnnotation(TypeProfileOn, () -> TypeProfileLevel == 222),
             new TestAnnotation(TypeProfileOff, () -> TypeProfileLevel == 0),
+            new TestAnnotation(ACmpProfileOn, () -> UseACmpProfile),
+            new TestAnnotation(ACmpProfileOff, () -> !UseACmpProfile),
         };
 
         private TestAnnotation(int flag, BooleanSupplier predicate) {
@@ -823,10 +833,36 @@ public abstract class InlineTypeTest {
         WHITE_BOX.enqueueMethodForCompilation(m, level);
     }
 
-    // Unlike C2, C1 intrinsics never deoptimize System.arraycopy. Instead, we fall back to
-    // a normal method invocation when encountering flattened arrays.
+    enum TriState {
+        Maybe,
+        Yes,
+        No
+    }
+
+    static private TriState compiledByC2(Method m) {
+        if (!USE_COMPILER || XCOMP || TEST_C1) {
+            return TriState.Maybe;
+        }
+        if (WHITE_BOX.isMethodCompiled(m, false) &&
+            WHITE_BOX.getMethodCompilationLevel(m, false) >= COMP_LEVEL_FULL_OPTIMIZATION) {
+            return TriState.Yes;
+        }
+        return TriState.No;
+    }
+
     static boolean isCompiledByC2(Method m) {
-        return USE_COMPILER && !XCOMP && WHITE_BOX.isMethodCompiled(m, false) &&
-            WHITE_BOX.getMethodCompilationLevel(m, false) >= COMP_LEVEL_FULL_OPTIMIZATION;
+        return compiledByC2(m) == TriState.Yes;
+    }
+
+    static void assertDeoptimizedByC2(Method m) {
+        if (compiledByC2(m) == TriState.Yes) {
+            throw new RuntimeException("Expected to have deoptimized");
+        }
+    }
+
+    static void assertCompiledByC2(Method m) {
+        if (compiledByC2(m) == TriState.No) {
+            throw new RuntimeException("Expected to be compiled");
+        }
     }
 }

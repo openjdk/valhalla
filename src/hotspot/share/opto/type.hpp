@@ -513,6 +513,8 @@ public:
   virtual const Type *xmeet( const Type *t ) const;
   virtual const Type *xdual() const;    // Compute dual right now.
   // Convenience common pre-built types.
+  static const TypeF *MAX;
+  static const TypeF *MIN;
   static const TypeF *ZERO; // positive zero only
   static const TypeF *ONE;
   static const TypeF *POS_INF;
@@ -542,6 +544,8 @@ public:
   virtual const Type *xmeet( const Type *t ) const;
   virtual const Type *xdual() const;    // Compute dual right now.
   // Convenience common pre-built types.
+  static const TypeD *MAX;
+  static const TypeD *MIN;
   static const TypeD *ZERO; // positive zero only
   static const TypeD *ONE;
   static const TypeD *POS_INF;
@@ -585,6 +589,8 @@ public:
   virtual const Type *narrow( const Type *t ) const;
   // Do not kill _widen bits.
   // Convenience common pre-built types.
+  static const TypeInt *MAX;
+  static const TypeInt *MIN;
   static const TypeInt *MINUS_1;
   static const TypeInt *ZERO;
   static const TypeInt *ONE;
@@ -650,6 +656,8 @@ public:
   virtual const Type *widen( const Type *t, const Type* limit_type ) const;
   virtual const Type *narrow( const Type *t ) const;
   // Convenience common pre-built types.
+  static const TypeLong *MAX;
+  static const TypeLong *MIN;
   static const TypeLong *MINUS_1;
   static const TypeLong *ZERO;
   static const TypeLong *ONE;
@@ -1121,6 +1129,9 @@ public:
 
   virtual const TypeOopPtr *cast_to_instance_id(int instance_id) const;
 
+  // corresponding pointer to klass, for a given instance
+  const TypeKlassPtr* as_klass_type() const;
+
   virtual const TypePtr *add_offset( intptr_t offset ) const;
 
   // Speculative type helper methods.
@@ -1332,7 +1343,7 @@ public:
   const TypeAryPtr* cast_to_stable(bool stable, int stable_dimension = 1) const;
   int stable_dimension() const;
 
-  const TypeAryPtr* cast_to_autobox_cache(bool cache) const;
+  const TypeAryPtr* cast_to_autobox_cache() const;
 
   static jint max_array_length(BasicType etype);
 

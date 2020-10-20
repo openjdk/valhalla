@@ -2225,3 +2225,268 @@ class ValueCloneable {
     } // end BootstrapMethods
   } // Attributes
 } // end class ValueCloneable
+
+
+// Test that a class with an old class file version cannot contain a Q signature.
+class OldClassWithQSig {
+  0xCAFEBABE;
+  0; // minor version
+  52; // version
+  [29] { // Constant Pool
+    ; // first element is empty
+    Utf8 "OldClassWithQSig"; // #1     at 0x0A
+    class #1; // #2     at 0x1A
+    Utf8 "java/lang/Object"; // #3     at 0x1D
+    class #3; // #4     at 0x30
+    Utf8 "inlineclasses.scala"; // #5     at 0x33
+    Utf8 "Lscala/reflect/ScalaSignature;"; // #6     at 0x49
+    Utf8 "bytes"; // #7     at 0x6A
+    Utf8 "i1QB\t!AAC\bI\t\tQ!!Q\nEAQ!YQ\"T=J]2Lg.Z\"mCN(\"q*W;z}\r1C\n!\tQQ\"D\fa!B:dC2\fB\b\f\te.*fM\t.F!\tQ!#\tJ;%Aj]&$h\b3AA!)qba#"; // #8     at 0x72
+    Utf8 "i"; // #9     at 0x0128
+    Utf8 "I"; // #10     at 0x012C
+    Utf8 "()I"; // #11     at 0x0130
+    NameAndType #9 #10; // #12     at 0x0136
+    Field #2 #12; // #13     at 0x013B
+    Utf8 "this"; // #14     at 0x0140
+    Utf8 "QOldClassWithQSig;"; // #15     at 0x0147
+    Utf8 "<init>"; // #16     at 0x0159
+    Utf8 "(I)V"; // #17     at 0x0162
+    Utf8 "()V"; // #18     at 0x0169
+    NameAndType #16 #18; // #19     at 0x016F
+    Method #4 #19; // #20     at 0x0174
+    Utf8 "Code"; // #21     at 0x0179
+    Utf8 "LineNumberTable"; // #22     at 0x0180
+    Utf8 "LocalVariableTable"; // #23     at 0x0192
+    Utf8 "MethodParameters"; // #24     at 0x01A7
+    Utf8 "SourceFile"; // #25     at 0x01BA
+    Utf8 "RuntimeVisibleAnnotations"; // #26     at 0x01C7
+    Utf8 "ScalaInlineInfo"; // #27     at 0x01E3
+    Utf8 "ScalaSig"; // #28     at 0x01F5
+  } // Constant Pool
+
+  0x0121; // access [ ACC_PUBLIC ACC_SUPER ]
+  #2;// this_cpx
+  #4;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [1] { // Fields
+    {  // field at 0x020A
+      0x0012; // access
+      #9; // name_index       : i
+      #10; // descriptor_index : I
+      [0] { // Attributes
+      } // Attributes
+    }
+  } // Fields
+
+  [2] { // Methods
+    {  // method at 0x0214
+      0x0001; // access
+      #9; // name_index       : i
+      #11; // descriptor_index : ()I
+      [1] { // Attributes
+        Attr(#21, 47) { // Code at 0x021C
+          1; // max_stack
+          1; // max_locals
+          Bytes[5]{
+            0x2AB4000DAC;
+          }
+          [0] { // Traps
+          } // end Traps
+          [2] { // Attributes
+            Attr(#22, 6) { // LineNumberTable at 0x0233
+              [1] { // line_number_table
+                0  1; //  at 0x023F
+              }
+            } // end LineNumberTable
+            ;
+            Attr(#23, 12) { // LocalVariableTable at 0x023F
+              [1] { // LocalVariableTable
+                0 5 14 15 0; //  at 0x0251
+              }
+            } // end LocalVariableTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+    ;
+    {  // method at 0x0251
+      0x0001; // access
+      #16; // name_index       : <init>
+      #17; // descriptor_index : (I)V
+      [2] { // Attributes
+        Attr(#21, 70) { // Code at 0x0259
+          2; // max_stack
+          2; // max_locals
+          Bytes[10]{
+            0x2A1BB5000D2AB700;
+            0x14B1;
+          }
+          [0] { // Traps
+          } // end Traps
+          [2] { // Attributes
+            Attr(#22, 14) { // LineNumberTable at 0x0275
+              [3] { // line_number_table
+                0  1; //  at 0x0281
+                5  3; //  at 0x0285
+                9  1; //  at 0x0289
+              }
+            } // end LineNumberTable
+            ;
+            Attr(#23, 22) { // LocalVariableTable at 0x0289
+              [2] { // LocalVariableTable
+                0 10 14 15 0; //  at 0x029B
+                0 10 9 10 1; //  at 0x02A5
+              }
+            } // end LocalVariableTable
+          } // Attributes
+        } // end Code
+        ;
+        Attr(#24, 5) { // MethodParameters at 0x02A5
+          [1]b { // MethodParameters
+            #9  0x0010; //  at 0x02B0
+          }
+        } // end MethodParameters
+      } // Attributes
+    }
+  } // Methods
+
+  [4] { // Attributes
+    Attr(#25, 2) { // SourceFile at 0x02B2
+      #5;
+    } // end SourceFile
+    ;
+    Attr(#26, 11) { // RuntimeVisibleAnnotations at 0x02BA
+      [1] { // annotations
+        {  //  annotation
+          #6;
+          [1] { // element_value_pairs
+            {  //  element value pair
+              #7;
+              {  //  element_value
+                's';
+                #8;
+              }  //  element_value
+            }  //  element value pair
+          }  //  element_value_pairs
+        }  //  annotation
+      }
+    } // end RuntimeVisibleAnnotations
+    ;
+    Attr(#27, 14) { // ScalaInlineInfo at 0x02CB
+      0x0100000200100011;
+      0x000009000B00;
+    } // end ScalaInlineInfo
+    ;
+    Attr(#28, 3) { // ScalaSig at 0x02DF
+      0x050200;
+    } // end ScalaSig
+  } // Attributes
+} // end class OldClassWithQSig
+
+
+// Test that a class with an old class file version cannot contain an array Q signature.
+class OldClassWithQArraySig {
+  0xCAFEBABE;
+  0; // minor version
+  52; // version
+  [20] { // Constant Pool
+    ; // first element is empty
+    Method #2 #3; // #1     at 0x0A
+    class #4; // #2     at 0x0F
+    NameAndType #5 #6; // #3     at 0x12
+    Utf8 "java/lang/Object"; // #4     at 0x17
+    Utf8 "<init>"; // #5     at 0x2A
+    Utf8 "()V"; // #6     at 0x33
+    class #8; // #7     at 0x39
+    Utf8 "java/lang/Integer"; // #8     at 0x3C
+    Field #10 #11; // #9     at 0x50
+    class #12; // #10     at 0x55
+    NameAndType #13 #14; // #11     at 0x58
+    Utf8 "OldClassWithQArraySig"; // #12     at 0x5D
+    Utf8 "ia"; // #13     at 0x65
+    Utf8 "[Qjava/lang/Integer;"; // #14     at 0x6A
+    Utf8 "Code"; // #15     at 0x81
+    Utf8 "LineNumberTable"; // #16     at 0x88
+    Utf8 "runIt"; // #17     at 0x9A
+    Utf8 "SourceFile"; // #18     at 0xA2
+    Utf8 "OldClassWithQArraySig.java"; // #19     at 0xAF
+  } // Constant Pool
+
+  0x0021; // access [ ACC_PUBLIC ACC_SUPER ]
+  #10;// this_cpx
+  #2;// super_cpx
+
+  [0] { // Interfaces
+  } // Interfaces
+
+  [1] { // Fields
+    {  // field at 0xC6
+      0x0000; // access
+      #13; // name_index       : ia
+      #14; // descriptor_index : [Qjava/lang/Integer;
+      [0] { // Attributes
+      } // Attributes
+    }
+  } // Fields
+
+  [2] { // Methods
+    {  // method at 0xD0
+      0x0001; // access
+      #5; // name_index       : <init>
+      #6; // descriptor_index : ()V
+      [1] { // Attributes
+        Attr(#15, 29) { // Code at 0xD8
+          1; // max_stack
+          1; // max_locals
+          Bytes[5]{
+            0x2AB70001B1;
+          }
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#16, 6) { // LineNumberTable at 0xEF
+              [1] { // line_number_table
+                0  1; //  at 0xFB
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+    ;
+    {  // method at 0xFB
+      0x0001; // access
+      #17; // name_index       : runIt
+      #6; // descriptor_index : ()V
+      [1] { // Attributes
+        Attr(#15, 37) { // Code at 0x0103
+          2; // max_stack
+          1; // max_locals
+          Bytes[9]{
+            0x2A05BD0007B50009;
+            0xB1;
+          }
+          [0] { // Traps
+          } // end Traps
+          [1] { // Attributes
+            Attr(#16, 10) { // LineNumberTable at 0x011E
+              [2] { // line_number_table
+                0  6; //  at 0x012A
+                8  7; //  at 0x012E
+              }
+            } // end LineNumberTable
+          } // Attributes
+        } // end Code
+      } // Attributes
+    }
+  } // Methods
+
+  [1] { // Attributes
+    Attr(#18, 2) { // SourceFile at 0x0130
+      #19;
+    } // end SourceFile
+  } // Attributes
+} // end class OldClassWithQArraySig

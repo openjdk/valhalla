@@ -130,9 +130,9 @@ class FieldGroup : public ResourceObj {
  private:
   FieldGroup* _next;
 
-  GrowableArray<LayoutRawBlock*>* _primitive_fields;
+  GrowableArray<LayoutRawBlock*>* _small_primitive_fields;
+  GrowableArray<LayoutRawBlock*>* _big_primitive_fields;
   GrowableArray<LayoutRawBlock*>* _oop_fields;
-  GrowableArray<LayoutRawBlock*>* _inlined_fields;
   int _contended_group;
   int _oop_count;
   static const int INITIAL_LIST_SIZE = 16;
@@ -142,9 +142,9 @@ class FieldGroup : public ResourceObj {
 
   FieldGroup* next() const { return _next; }
   void set_next(FieldGroup* next) { _next = next; }
-  GrowableArray<LayoutRawBlock*>* primitive_fields() const { return _primitive_fields; }
+  GrowableArray<LayoutRawBlock*>* small_primitive_fields() const { return _small_primitive_fields; }
+  GrowableArray<LayoutRawBlock*>* big_primitive_fields() const { return _big_primitive_fields; }
   GrowableArray<LayoutRawBlock*>* oop_fields() const { return _oop_fields; }
-  GrowableArray<LayoutRawBlock*>* inlined_fields() const { return _inlined_fields; }
   int contended_group() const { return _contended_group; }
   int oop_count() const { return _oop_count; }
 
@@ -153,6 +153,9 @@ class FieldGroup : public ResourceObj {
   void add_inlined_field(AllFieldStream fs, InlineKlass* vk);
   void add_block(LayoutRawBlock** list, LayoutRawBlock* block);
   void sort_by_size();
+ private:
+  void add_to_small_primitive_list(LayoutRawBlock* block);
+  void add_to_big_primitive_list(LayoutRawBlock* block);
 };
 
 // The FieldLayout class represents a set of fields organized
@@ -293,6 +296,8 @@ class FieldLayoutBuilder : public ResourceObj {
   void regular_field_sorting();
   void inline_class_field_sorting(TRAPS);
   void add_inlined_field_oopmap(OopMapBlocksBuilder* nonstatic_oop_map, InlineKlass* vk, int offset);
+  void register_embedded_oops_from_list(OopMapBlocksBuilder* nonstatic_oop_maps, GrowableArray<LayoutRawBlock*>* list);
+  void register_embedded_oops(OopMapBlocksBuilder* nonstatic_oop_maps, FieldGroup* group);
 };
 
 #endif // SHARE_CLASSFILE_FIELDLAYOUTBUILDER_HPP

@@ -175,7 +175,7 @@ void GraphKit::verify_exception_state(SafePointNode* ex_map) {
 void GraphKit::stop_and_kill_map() {
   SafePointNode* dead_map = stop();
   if (dead_map != NULL) {
-    dead_map->disconnect_inputs(NULL, C); // Mark the map as killed.
+    dead_map->disconnect_inputs(C); // Mark the map as killed.
     assert(dead_map->is_killed(), "must be so marked");
   }
 }
@@ -1812,7 +1812,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
   for (uint i = TypeFunc::Parms, idx = TypeFunc::Parms; i < nargs; i++) {
     Node* arg = argument(i-TypeFunc::Parms);
     const Type* t = domain->field_at(i);
-    if (call->method()->has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null()) {
+    if (call->method()->has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null() && t->inline_klass()->can_be_passed_as_fields()) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       InlineTypeNode* vt = arg->as_InlineType();
       vt->pass_fields(this, call, sig_cc, idx);
@@ -1829,14 +1829,6 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
       }
     }
     call->init_req(idx++, arg);
-    // Skip reserved arguments
-    BasicType bt = t->basic_type();
-    while (SigEntry::next_is_reserved(sig_cc, bt, true)) {
-      call->init_req(idx++, top());
-      if (type2size[bt] == 2) {
-        call->init_req(idx++, top());
-      }
-    }
   }
 }
 
@@ -2069,7 +2061,7 @@ void GraphKit::replace_call(CallNode* call, Node* result, bool do_replaced_nodes
   }
 
   // Disconnect the call from the graph
-  call->disconnect_inputs(NULL, C);
+  call->disconnect_inputs(C);
   C->gvn_replace_by(call, C->top());
 
   // Clean up any MergeMems that feed other MergeMems since the
@@ -2276,7 +2268,7 @@ Node* GraphKit::record_profile_for_speculation(Node* n, ciKlass* exact_kls, Prof
     assert(xtype->klass_is_exact(), "Should be exact");
     // Any reason to believe n is not null (from this profiling or a previous one)?
     assert(ptr_kind != ProfileAlwaysNull, "impossible here");
-    const TypePtr* ptr = (ptr_kind == ProfileMaybeNull && current_type->speculative_maybe_null()) ? TypePtr::BOTTOM : TypePtr::NOTNULL;
+    const TypePtr* ptr = (ptr_kind != ProfileNeverNull && current_type->speculative_maybe_null()) ? TypePtr::BOTTOM : TypePtr::NOTNULL;
     // record the new speculative type's depth
     speculative = xtype->cast_to_ptr_type(ptr->ptr())->is_ptr();
     speculative = speculative->with_inline_depth(jvms()->depth());
@@ -3556,13 +3548,20 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
 }
 
 // Check if 'obj' is an inline type by checking if it has the inline_type_pattern markWord pattern set.
-Node* GraphKit::is_inline_type(Node* obj) {
+Node* GraphKit::inline_type_test(Node* obj) {
   Node* mark_addr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
   Node* mask = _gvn.MakeConX(markWord::inline_type_pattern);
   Node* andx = _gvn.transform(new AndXNode(mark, mask));
-  Node* cmp = _gvn.transform(new CmpXNode(andx, mask));
-  return _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+  return _gvn.transform(new CmpXNode(andx, mask));
+}
+
+Node* GraphKit::is_inline_type(Node* obj) {
+  return _gvn.transform(new BoolNode(inline_type_test(obj), BoolTest::eq));
+}
+
+Node* GraphKit::is_not_inline_type(Node* obj) {
+  return _gvn.transform(new BoolNode(inline_type_test(obj), BoolTest::ne));
 }
 
 // Check if 'ary' is a non-flattened array

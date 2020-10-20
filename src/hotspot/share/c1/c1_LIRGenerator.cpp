@@ -673,10 +673,15 @@ void LIRGenerator::print_if_not_loaded(const NewInstance* new_instance) {
 }
 #endif
 
-void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unresolved, LIR_Opr scratch1, LIR_Opr scratch2, LIR_Opr scratch3, LIR_Opr scratch4, LIR_Opr klass_reg, CodeEmitInfo* info) {
-  klass2reg_with_patching(klass_reg, klass, info, is_unresolved);
-  // If klass is not loaded we do not know if the klass has finalizers:
-  if (UseFastNewInstance && klass->is_loaded()
+void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unresolved, bool allow_inline, LIR_Opr scratch1, LIR_Opr scratch2, LIR_Opr scratch3, LIR_Opr scratch4, LIR_Opr klass_reg, CodeEmitInfo* info) {
+  if (allow_inline) {
+    assert(!is_unresolved && klass->is_loaded(), "inline type klass should be resolved");
+    __ metadata2reg(klass->constant_encoding(), klass_reg);
+  } else {
+    klass2reg_with_patching(klass_reg, klass, info, is_unresolved);
+  }
+  // If klass is not loaded we do not know if the klass has finalizers or is an unexpected inline klass
+  if (UseFastNewInstance && klass->is_loaded() && (allow_inline || !klass->is_inlinetype())
       && !Klass::layout_helper_needs_slow_path(klass->layout_helper())) {
 
     Runtime1::StubID stub_id = klass->is_initialized() ? Runtime1::fast_new_instance_id : Runtime1::fast_new_instance_init_check_id;
@@ -690,8 +695,8 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
     __ allocate_object(dst, scratch1, scratch2, scratch3, scratch4,
                        oopDesc::header_size(), instance_size, klass_reg, !klass->is_initialized(), slow_path);
   } else {
-    CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, Runtime1::new_instance_id);
-    __ branch(lir_cond_always, slow_path);
+    CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, allow_inline ? Runtime1::new_instance_id : Runtime1::new_instance_no_inline_id);
+    __ jump(slow_path);
     __ branch_destination(slow_path->continuation());
   }
 }
@@ -1551,25 +1556,18 @@ void LIRGenerator::do_StoreField(StoreField* x) {
   }
 #endif
 
+  if (!inline_type_field_access_prolog(x, info)) {
+    // Field store will always deopt due to unloaded field or holder klass
+    return;
+  }
+
   if (x->needs_null_check() &&
       (needs_patching ||
        MacroAssembler::needs_explicit_null_check(x->offset()))) {
-    if (needs_patching && x->field()->signature()->is_Q_signature()) {
-      // We are storing a field of type "QT;" into holder class H, but H is not yet
-      // loaded. (If H had been loaded, then T must also have already been loaded
-      // due to the "Q" signature, and needs_patching would be false).
-      assert(!x->field()->holder()->is_loaded(), "must be");
-      // We don't know the offset of this field. Let's deopt and recompile.
-      CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
-                                          Deoptimization::Reason_unloaded,
-                                          Deoptimization::Action_make_not_entrant);
-      __ branch(lir_cond_always, stub);
-    } else {
-      // Emit an explicit null check because the offset is too large.
-      // If the class is not loaded and the object is NULL, we need to deoptimize to throw a
-      // NoClassDefFoundError in the interpreter instead of an implicit NPE from compiled code.
-      __ null_check(object.result(), new CodeEmitInfo(info), /* deoptimize */ needs_patching);
-    }
+    // Emit an explicit null check because the offset is too large.
+    // If the class is not loaded and the object is NULL, we need to deoptimize to throw a
+    // NoClassDefFoundError in the interpreter instead of an implicit NPE from compiled code.
+    __ null_check(object.result(), new CodeEmitInfo(info), /* deoptimize */ needs_patching);
   }
 
   DecoratorSet decorators = IN_HEAP;
@@ -1595,13 +1593,11 @@ class TempResolvedAddress: public Instruction {
   virtual const char* name() const  { return "TempResolvedAddress"; }
 };
 
-void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item) {
-  // Find the starting address of the source (inside the array)
+LIR_Opr LIRGenerator::get_and_load_element_address(LIRItem& array, LIRItem& index) {
   ciType* array_type = array.value()->declared_type();
   ciFlatArrayKlass* flat_array_klass = array_type->as_flat_array_klass();
   assert(flat_array_klass->is_loaded(), "must be");
 
-  ciInlineKlass* elem_klass = flat_array_klass->element_klass()->as_inline_klass();
   int array_header_size = flat_array_klass->array_header_in_bytes();
   int shift = flat_array_klass->log2_element_size();
 
@@ -1631,26 +1627,71 @@ void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem&
   LIR_Opr elm_op = new_pointer_register();
   LIR_Address* elm_address = new LIR_Address(array.result(), index_op, array_header_size, T_ADDRESS);
   __ leal(LIR_OprFact::address(elm_address), elm_op);
+  return elm_op;
+}
 
+void LIRGenerator::access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset) {
+  assert(field != NULL, "Need a subelement type specified");
+
+  // Find the starting address of the source (inside the array)
+  LIR_Opr elm_op = get_and_load_element_address(array, index);
+
+  BasicType subelt_type = field->type()->basic_type();
+  TempResolvedAddress* elm_resolved_addr = new TempResolvedAddress(as_ValueType(subelt_type), elm_op);
+  LIRItem elm_item(elm_resolved_addr, this);
+
+  DecoratorSet decorators = IN_HEAP;
+  access_load_at(decorators, subelt_type,
+                     elm_item, LIR_OprFact::intConst(sub_offset), result,
+                     NULL, NULL);
+
+  if (field->signature()->is_Q_signature()) {
+    assert(field->type()->as_inline_klass()->is_loaded(), "Must be");
+    LabelObj* L_end = new LabelObj();
+    __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
+    __ branch(lir_cond_notEqual, L_end->label());
+    set_in_conditional_code(true);
+    Constant* default_value = new Constant(new InstanceConstant(field->type()->as_inline_klass()->default_instance()));
+    __ move(load_constant(default_value), result);
+    __ branch_destination(L_end->label());
+    set_in_conditional_code(false);
+  }
+}
+
+void LIRGenerator::access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item,
+                                          ciField* field, int sub_offset) {
+  assert(sub_offset == 0 || field != NULL, "Sanity check");
+
+  // Find the starting address of the source (inside the array)
+  LIR_Opr elm_op = get_and_load_element_address(array, index);
+
+  ciInlineKlass* elem_klass = NULL;
+  if (field != NULL) {
+    elem_klass = field->type()->as_inline_klass();
+  } else {
+    elem_klass = array.value()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass();
+  }
   for (int i = 0; i < elem_klass->nof_nonstatic_fields(); i++) {
     ciField* inner_field = elem_klass->nonstatic_field_at(i);
     assert(!inner_field->is_flattened(), "flattened fields must have been expanded");
     int obj_offset = inner_field->offset();
-    int elm_offset = obj_offset - elem_klass->first_field_offset(); // object header is not stored in array.
-
+    int elm_offset = obj_offset - elem_klass->first_field_offset() + sub_offset; // object header is not stored in array.
     BasicType field_type = inner_field->type()->basic_type();
-    switch (field_type) {
+
+    // Types which are smaller than int are still passed in an int register.
+    BasicType reg_type = field_type;
+    switch (reg_type) {
     case T_BYTE:
     case T_BOOLEAN:
     case T_SHORT:
     case T_CHAR:
-     field_type = T_INT;
+      reg_type = T_INT;
       break;
     default:
       break;
     }
 
-    LIR_Opr temp = new_register(field_type);
+    LIR_Opr temp = new_register(reg_type);
     TempResolvedAddress* elm_resolved_addr = new TempResolvedAddress(as_ValueType(field_type), elm_op);
     LIRItem elm_item(elm_resolved_addr, this);
 
@@ -1768,7 +1809,7 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     if (is_loaded_flattened_array) {
       int flag = ArrayLoadStoreData::flat_array_byte_constant() | ArrayLoadStoreData::null_free_array_byte_constant();
       assert(md != NULL, "should have been initialized");
-      profile_array_load_store_flags(md, load_store, flag);
+      profile_flags(md, load_store, flag);
     } else if (x->array()->maybe_null_free_array()) {
       profile_null_free_array(array, md, load_store);
     }
@@ -1784,7 +1825,10 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
     if (!x->value()->is_null_free()) {
       __ null_check(value.result(), new CodeEmitInfo(range_check_info));
     }
-    access_flattened_array(false, array, index, value);
+    // If array element is an empty inline type, no need to copy anything
+    if (!x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
+      access_flattened_array(false, array, index, value);
+    }
   } else {
     StoreFlattenedArrayStub* slow_path = NULL;
 
@@ -1900,78 +1944,29 @@ LIR_Opr LIRGenerator::access_resolve(DecoratorSet decorators, LIR_Opr obj) {
   return _barrier_set->resolve(this, decorators, obj);
 }
 
-Constant* LIRGenerator::flattened_field_load_prolog(LoadField* x, CodeEmitInfo* info) {
+bool LIRGenerator::inline_type_field_access_prolog(AccessField* x, CodeEmitInfo* info) {
   ciField* field = x->field();
-  ciInstanceKlass* holder = field->holder();
-  Constant* default_value = NULL;
-
-  // Unloaded "QV;" klasses are represented by a ciInstanceKlass
-  bool field_type_unloaded = field->type()->is_instance_klass() && !field->type()->as_instance_klass()->is_loaded();
-
-  // Check for edge cases (1), (2) and (3) for getstatic and getfield
-  bool deopt = false;
-  bool need_default = false;
-  if (field->is_static()) {
-      // (1) holder is unloaded -- no problem: it will be loaded by patching, and field offset will be determined.
-      // No check needed here.
-
-    if (field_type_unloaded) {
-      // (2) field type is unloaded -- problem: we don't know what the default value is. Let's deopt.
-      //                               FIXME: consider getting the default value in patching code.
-      deopt = true;
-    } else {
-      need_default = true;
-    }
-
-      // (3) field is not flattened -- we don't care: static fields are never flattened.
-      // No check needed here.
-  } else {
-    if (!holder->is_loaded()) {
-      // (1) holder is unloaded -- problem: we needed the field offset back in GraphBuilder::access_field()
-      //                           FIXME: consider getting field offset in patching code (but only if the field
-      //                           type was loaded at compilation time).
-      deopt = true;
-    } else if (field_type_unloaded) {
-      // (2) field type is unloaded -- problem: we don't know whether it's flattened or not. Let's deopt
-      deopt = true;
-    } else if (!field->is_flattened()) {
-      // (3) field is not flattened -- need default value in cases of uninitialized field
-      need_default = true;
-    }
+  assert(!field->is_flattened(), "Flattened field access should have been expanded");
+  if (!field->signature()->is_Q_signature()) {
+    return true; // Not an inline type field
   }
-
-  if (deopt) {
-    assert(!need_default, "deopt and need_default cannot both be true");
-    assert(x->needs_patching(), "must be");
-    assert(info != NULL, "must be");
+  // Deoptimize if the access is non-static and requires patching (holder not loaded
+  // or not accessible) because then we only have partial field information and the
+  // field could be flattened (see ciField constructor).
+  bool could_be_flat = !x->is_static() && x->needs_patching();
+  // Deoptimize if we load from a static field with an unloaded type because we need
+  // the default value if the field is null.
+  bool could_be_null = x->is_static() && x->as_LoadField() != NULL && !field->type()->is_loaded();
+  assert(!could_be_null || !field->holder()->is_loaded(), "inline type field should be loaded");
+  if (could_be_flat || could_be_null) {
+    assert(x->needs_patching(), "no deopt required");
     CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                         Deoptimization::Reason_unloaded,
                                         Deoptimization::Action_make_not_entrant);
-    __ branch(lir_cond_always, stub);
-  } else if (need_default) {
-    assert(!field_type_unloaded, "must be");
-    assert(field->type()->is_inlinetype(), "must be");
-    ciInlineKlass* inline_klass = field->type()->as_inline_klass();
-    assert(inline_klass->is_loaded(), "must be");
-
-    if (field->is_static() && holder->is_loaded()) {
-      ciInstance* mirror = field->holder()->java_mirror();
-      ciObject* val = mirror->field_value(field).as_object();
-      if (val->is_null_object()) {
-        // This is a non-nullable static field, but it's not initialized.
-        // We need to do a null check, and replace it with the default value.
-      } else {
-        // No need to perform null check on this static field
-        need_default = false;
-      }
-    }
-
-    if (need_default) {
-      default_value = new Constant(new InstanceConstant(inline_klass->default_instance()));
-    }
+    __ jump(stub);
+    return false;
   }
-
-  return default_value;
+  return true;
 }
 
 void LIRGenerator::do_LoadField(LoadField* x) {
@@ -2003,9 +1998,11 @@ void LIRGenerator::do_LoadField(LoadField* x) {
   }
 #endif
 
-  Constant* default_value = NULL;
-  if (x->field()->signature()->is_Q_signature()) {
-    default_value = flattened_field_load_prolog(x, info);
+  if (!inline_type_field_access_prolog(x, info)) {
+    // Field load will always deopt due to unloaded field or holder klass
+    LIR_Opr result = rlock_result(x, field_type);
+    __ move(LIR_OprFact::oopConst(NULL), result);
+    return;
   }
 
   bool stress_deopt = StressLoopInvariantCodeMotion && info && info->deoptimize_on_exception();
@@ -2037,11 +2034,26 @@ void LIRGenerator::do_LoadField(LoadField* x) {
                  object, LIR_OprFact::intConst(x->offset()), result,
                  info ? new CodeEmitInfo(info) : NULL, info);
 
-  if (default_value != NULL) {
+  ciField* field = x->field();
+  if (field->signature()->is_Q_signature()) {
+    // Load from non-flattened inline type field requires
+    // a null check to replace null with the default value.
+    ciInlineKlass* inline_klass = field->type()->as_inline_klass();
+    assert(inline_klass->is_loaded(), "field klass must be loaded");
+
+    ciInstanceKlass* holder = field->holder();
+    if (field->is_static() && holder->is_loaded()) {
+      ciObject* val = holder->java_mirror()->field_value(field).as_object();
+      if (!val->is_null_object()) {
+        // Static field is initialized, we don need to perform a null check.
+        return;
+      }
+    }
     LabelObj* L_end = new LabelObj();
     __ cmp(lir_cond_notEqual, result, LIR_OprFact::oopConst(NULL));
     __ branch(lir_cond_notEqual, L_end->label());
     set_in_conditional_code(true);
+    Constant* default_value = new Constant(new InstanceConstant(inline_klass->default_instance()));
     __ move(load_constant(default_value), result);
     __ branch_destination(L_end->label());
     set_in_conditional_code(false);
@@ -2170,16 +2182,33 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   if (x->vt() != NULL) {
     assert(x->array()->is_loaded_flattened_array(), "must be");
     // Find the destination address (of the NewInlineTypeInstance).
-    LIR_Opr obj = x->vt()->operand();
+    // LIR_Opr obj = x->vt()->operand();
     LIRItem obj_item(x->vt(), this);
 
-    access_flattened_array(true, array, index, obj_item);
+    access_flattened_array(true, array, index, obj_item,
+                           x->delayed() == NULL ? 0 : x->delayed()->field(),
+                           x->delayed() == NULL ? 0 : x->delayed()->offset());
     set_no_result(x);
     element = x->vt();
     if (x->should_profile()) {
+      fatal("Loaded flattened array should not be profiled");
       int flag = ArrayLoadStoreData::flat_array_byte_constant() | ArrayLoadStoreData::null_free_array_byte_constant();
-      profile_array_load_store_flags(md, load_store, flag);
+      profile_flags(md, load_store, flag);
     }
+  } else if (x->delayed() != NULL) {
+    assert(x->array()->is_loaded_flattened_array(), "must be");
+    LIR_Opr result = rlock_result(x, x->delayed()->field()->type()->basic_type());
+    access_sub_element(array, index, result,
+                       x->delayed() == NULL ? 0 : x->delayed()->field(),
+                       x->delayed() == NULL ? 0 : x->delayed()->offset());
+    assert(!x->should_profile(), "Loaded flattened array should not be profiled");
+  } else if (x->array() != NULL && x->array()->is_loaded_flattened_array() &&
+             x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
+    // Load the default instance instead of reading the element
+    ciInlineKlass* elem_klass = x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass();
+    LIR_Opr result = rlock_result(x, x->elt_type());
+    Constant* default_value = new Constant(new InstanceConstant(elem_klass->default_instance()));
+    __ move(load_constant(default_value), result);
   } else {
     LIR_Opr result = rlock_result(x, x->elt_type());
     LoadFlattenedArrayStub* slow_path = NULL;
@@ -2189,6 +2218,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     }
 
     if (x->elt_type() == T_OBJECT && x->array()->maybe_flattened_array()) {
+      assert(x->delayed() == NULL, "Delayed LoadIndexed only apply to loaded_flattened_arrays");
       index.load_item();
       // if we are loading from flattened array, load it using a runtime call
       slow_path = new LoadFlattenedArrayStub(array.result(), index.result(), result, state_for(x, x->state_before()));
@@ -2222,7 +2252,7 @@ void LIRGenerator::do_WithField(WithField* x) {
   CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                       Deoptimization::Reason_unloaded,
                                       Deoptimization::Action_make_not_entrant);
-  __ branch(lir_cond_always, stub);
+  __ jump(stub);
   LIR_Opr reg = rlock_result(x, T_OBJECT);
   __ move(LIR_OprFact::oopConst(NULL), reg);
 }
@@ -2233,7 +2263,7 @@ void LIRGenerator::do_DefaultValue(DefaultValue* x) {
   CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                       Deoptimization::Reason_unloaded,
                                       Deoptimization::Action_make_not_entrant);
-  __ branch(lir_cond_always, stub);
+  __ jump(stub);
   LIR_Opr reg = rlock_result(x, T_OBJECT);
   __ move(LIR_OprFact::oopConst(NULL), reg);
 }
@@ -2985,31 +3015,28 @@ void LIRGenerator::profile_parameters(Base* x) {
   }
 }
 
-void LIRGenerator::profile_array_load_store_flags(ciMethodData* md, ciArrayLoadStoreData* load_store, int flag, LIR_Opr mdp) {
-  assert(md != NULL && load_store != NULL, "should have been initialized");
-  if (mdp == NULL) {
-    mdp = new_register(T_METADATA);
-    __ metadata2reg(md->constant_encoding(), mdp);
+void LIRGenerator::profile_flags(ciMethodData* md, ciProfileData* data, int flag, LIR_Condition condition) {
+  assert(md != NULL && data != NULL, "should have been initialized");
+  LIR_Opr mdp = new_register(T_METADATA);
+  __ metadata2reg(md->constant_encoding(), mdp);
+  LIR_Address* addr = new LIR_Address(mdp, md->byte_offset_of_slot(data, DataLayout::flags_offset()), T_BYTE);
+  LIR_Opr flags = new_register(T_INT);
+  __ move(addr, flags);
+  if (condition != lir_cond_always) {
+    LIR_Opr update = new_register(T_INT);
+    __ cmove(condition, LIR_OprFact::intConst(0), LIR_OprFact::intConst(flag), update, T_INT);
+  } else {
+    __ logical_or(flags, LIR_OprFact::intConst(flag), flags);
   }
-  LIR_Address* addr = new LIR_Address(mdp, md->byte_offset_of_slot(load_store, DataLayout::flags_offset()), T_BYTE);
-  LIR_Opr id = new_register(T_INT);
-  __ move(addr, id);
-  __ logical_or(id, LIR_OprFact::intConst(flag), id);
-  __ store(id, addr);
+  __ store(flags, addr);
 }
 
 void LIRGenerator::profile_null_free_array(LIRItem array, ciMethodData* md, ciArrayLoadStoreData* load_store) {
   LabelObj* L_end = new LabelObj();
   LIR_Opr tmp = new_register(T_METADATA);
-  LIR_Opr mdp = new_register(T_METADATA);
-  assert(md != NULL, "should have been initialized");
-  __ metadata2reg(md->constant_encoding(), mdp);
   __ check_null_free_array(array.result(), tmp);
-  __ branch(lir_cond_equal, L_end->label());
 
-  profile_array_load_store_flags(md, load_store, ArrayLoadStoreData::null_free_array_byte_constant(), mdp);
-
-  __ branch_destination(L_end->label());
+  profile_flags(md, load_store, ArrayLoadStoreData::null_free_array_byte_constant(), lir_cond_equal);
 }
 
 void LIRGenerator::profile_array_type(AccessIndexed* x, ciMethodData*& md, ciArrayLoadStoreData*& load_store) {
@@ -3746,6 +3773,53 @@ void LIRGenerator::do_ProfileReturnType(ProfileReturnType* x) {
     if (exact != NULL) {
       md->set_return_type(bci, exact);
     }
+  }
+}
+
+bool LIRGenerator::profile_inline_klass(ciMethodData* md, ciProfileData* data, Value value, int flag) {
+  ciKlass* klass = value->as_loaded_klass_or_null();
+  if (klass != NULL) {
+    if (klass->is_inlinetype()) {
+      profile_flags(md, data, flag, lir_cond_always);
+    } else if (klass->can_be_inline_klass()) {
+      return false;
+    }
+  } else {
+    return false;
+  }
+  return true;
+}
+
+
+void LIRGenerator::do_ProfileACmpTypes(ProfileACmpTypes* x) {
+  ciMethod* method = x->method();
+  assert(method != NULL, "method should be set if branch is profiled");
+  ciMethodData* md = method->method_data_or_null();
+  assert(md != NULL, "Sanity");
+  ciProfileData* data = md->bci_to_data(x->bci());
+  assert(data != NULL, "must have profiling data");
+  assert(data->is_ACmpData(), "need BranchData for two-way branches");
+  ciACmpData* acmp = (ciACmpData*)data;
+  LIR_Opr mdp = LIR_OprFact::illegalOpr;
+  profile_type(md, md->byte_offset_of_slot(acmp, ACmpData::left_offset()), 0,
+               acmp->left()->type(), x->left(), mdp, !x->left_maybe_null(), NULL, NULL);
+  int flags_offset = md->byte_offset_of_slot(data, DataLayout::flags_offset());
+  if (!profile_inline_klass(md, acmp, x->left(), ACmpData::left_inline_type_byte_constant())) {
+    LIR_Opr mdp = new_register(T_METADATA);
+    __ metadata2reg(md->constant_encoding(), mdp);
+    LIRItem value(x->left(), this);
+    value.load_item();
+    __ profile_inline_type(new LIR_Address(mdp, flags_offset, T_INT), value.result(), ACmpData::left_inline_type_byte_constant(), new_register(T_INT), !x->left_maybe_null());
+  }
+  profile_type(md, md->byte_offset_of_slot(acmp, ACmpData::left_offset()),
+               in_bytes(ACmpData::right_offset()) - in_bytes(ACmpData::left_offset()),
+               acmp->right()->type(), x->right(), mdp, !x->right_maybe_null(), NULL, NULL);
+  if (!profile_inline_klass(md, acmp, x->right(), ACmpData::right_inline_type_byte_constant())) {
+    LIR_Opr mdp = new_register(T_METADATA);
+    __ metadata2reg(md->constant_encoding(), mdp);
+    LIRItem value(x->right(), this);
+    value.load_item();
+    __ profile_inline_type(new LIR_Address(mdp, flags_offset, T_INT), value.result(), ACmpData::right_inline_type_byte_constant(), new_register(T_INT), !x->left_maybe_null());
   }
 }
 

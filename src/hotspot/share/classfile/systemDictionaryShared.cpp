@@ -45,6 +45,7 @@
 #include "memory/heapShared.hpp"
 #include "memory/metadataFactory.hpp"
 #include "memory/metaspaceClosure.hpp"
+#include "memory/metaspaceShared.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -655,6 +656,22 @@ static RunTimeSharedDictionary _unregistered_dictionary;
 static RunTimeSharedDictionary _dynamic_builtin_dictionary;
 static RunTimeSharedDictionary _dynamic_unregistered_dictionary;
 
+
+Handle SystemDictionaryShared::create_jar_manifest(const char* manifest_chars, size_t size, TRAPS) {
+  typeArrayOop buf = oopFactory::new_byteArray((int)size, CHECK_NH);
+  typeArrayHandle bufhandle(THREAD, buf);
+  ArrayAccess<>::arraycopy_from_native(reinterpret_cast<const jbyte*>(manifest_chars),
+                                         buf, typeArrayOopDesc::element_offset<jbyte>(0), size);
+  Handle bais = JavaCalls::construct_new_instance(SystemDictionary::ByteArrayInputStream_klass(),
+                      vmSymbols::byte_array_void_signature(),
+                      bufhandle, CHECK_NH);
+  // manifest = new Manifest(ByteArrayInputStream)
+  Handle manifest = JavaCalls::construct_new_instance(SystemDictionary::Jar_Manifest_klass(),
+                      vmSymbols::input_stream_void_signature(),
+                      bais, CHECK_NH);
+  return manifest;
+}
+
 oop SystemDictionaryShared::shared_protection_domain(int index) {
   return ((objArrayOop)_shared_protection_domains.resolve())->obj_at(index);
 }
@@ -671,30 +688,17 @@ Handle SystemDictionaryShared::get_shared_jar_manifest(int shared_path_index, TR
   Handle manifest ;
   if (shared_jar_manifest(shared_path_index) == NULL) {
     SharedClassPathEntry* ent = FileMapInfo::shared_path(shared_path_index);
-    long size = ent->manifest_size();
-    if (size <= 0) {
+    size_t size = (size_t)ent->manifest_size();
+    if (size == 0) {
       return Handle();
     }
 
     // ByteArrayInputStream bais = new ByteArrayInputStream(buf);
     const char* src = ent->manifest();
     assert(src != NULL, "No Manifest data");
-    typeArrayOop buf = oopFactory::new_byteArray(size, CHECK_NH);
-    typeArrayHandle bufhandle(THREAD, buf);
-    ArrayAccess<>::arraycopy_from_native(reinterpret_cast<const jbyte*>(src),
-                                         buf, typeArrayOopDesc::element_offset<jbyte>(0), size);
-
-    Handle bais = JavaCalls::construct_new_instance(SystemDictionary::ByteArrayInputStream_klass(),
-                      vmSymbols::byte_array_void_signature(),
-                      bufhandle, CHECK_NH);
-
-    // manifest = new Manifest(bais)
-    manifest = JavaCalls::construct_new_instance(SystemDictionary::Jar_Manifest_klass(),
-                      vmSymbols::input_stream_void_signature(),
-                      bais, CHECK_NH);
+    manifest = create_jar_manifest(src, size, THREAD);
     atomic_set_shared_jar_manifest(shared_path_index, manifest());
   }
-
   manifest = Handle(THREAD, shared_jar_manifest(shared_path_index));
   assert(manifest.not_null(), "sanity");
   return manifest;
@@ -1343,7 +1347,8 @@ bool SystemDictionaryShared::should_be_excluded(InstanceKlass* k) {
   }
 
   if (k->is_hidden() && !is_registered_lambda_proxy_class(k)) {
-    warn_excluded(k, "Hidden class");
+    ResourceMark rm;
+    log_debug(cds)("Skipping %s: %s", k->name()->as_C_string(), "Hidden class");
     return true;
   }
 
@@ -1402,6 +1407,14 @@ bool SystemDictionaryShared::is_excluded_class(InstanceKlass* k) {
   Arguments::assert_is_dumping_archive();
   DumpTimeSharedClassInfo* p = find_or_allocate_info_for(k);
   return (p == NULL) ? true : p->is_excluded();
+}
+
+void SystemDictionaryShared::set_excluded(InstanceKlass* k) {
+  Arguments::assert_is_dumping_archive();
+  DumpTimeSharedClassInfo* info = find_or_allocate_info_for(k);
+  if (info != NULL) {
+    info->set_excluded();
+  }
 }
 
 void SystemDictionaryShared::set_class_has_failed_verification(InstanceKlass* ik) {
@@ -1616,8 +1629,7 @@ InstanceKlass* SystemDictionaryShared::prepare_shared_lambda_proxy_class(Instanc
   loaded_lambda->link_class(CHECK_NULL);
   // notify jvmti
   if (JvmtiExport::should_post_class_load()) {
-    assert(THREAD->is_Java_thread(), "thread->is_Java_thread()");
-    JvmtiExport::post_class_load((JavaThread *) THREAD, loaded_lambda);
+    JvmtiExport::post_class_load(THREAD->as_Java_thread(), loaded_lambda);
   }
   if (class_load_start_event.should_commit()) {
     SystemDictionary::post_class_load_event(&class_load_start_event, loaded_lambda, ClassLoaderData::class_loader_data(class_loader()));
@@ -1849,7 +1861,7 @@ public:
   bool do_entry(InstanceKlass* k, DumpTimeSharedClassInfo& info) {
     if (!info.is_excluded()) {
       size_t byte_size = RunTimeSharedClassInfo::byte_size(info._klass, info.num_verifier_constraints(), info.num_loader_constraints());
-      _shared_class_info_size += align_up(byte_size, BytesPerWord);
+      _shared_class_info_size += align_up(byte_size, SharedSpaceObjectAlignment);
     }
     return true; // keep on iterating
   }
@@ -1866,8 +1878,9 @@ size_t SystemDictionaryShared::estimate_size_for_archive() {
     CompactHashtableWriter::estimate_size(_dumptime_table->count_of(true)) +
     CompactHashtableWriter::estimate_size(_dumptime_table->count_of(false));
   if (_dumptime_lambda_proxy_class_dictionary != NULL) {
+    size_t bytesize = align_up(sizeof(RunTimeLambdaProxyClassInfo), SharedSpaceObjectAlignment);
     total_size +=
-      (sizeof(RunTimeLambdaProxyClassInfo) * _dumptime_lambda_proxy_class_dictionary->_count) +
+      (bytesize * _dumptime_lambda_proxy_class_dictionary->_count) +
       CompactHashtableWriter::estimate_size(_dumptime_lambda_proxy_class_dictionary->_count);
   } else {
     total_size += CompactHashtableWriter::estimate_size(0);
@@ -2051,6 +2064,7 @@ InstanceKlass* SystemDictionaryShared::find_builtin_class(Symbol* name) {
   const RunTimeSharedClassInfo* record = find_record(&_builtin_dictionary, &_dynamic_builtin_dictionary, name);
   if (record != NULL) {
     assert(!record->_klass->is_hidden(), "hidden class cannot be looked up by name");
+    assert(check_alignment(record->_klass), "Address not aligned");
     return record->_klass;
   } else {
     return NULL;

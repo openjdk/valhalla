@@ -108,6 +108,7 @@ class       UnsafePutObject;
 class         UnsafeGetAndSetObject;
 class   ProfileCall;
 class   ProfileReturnType;
+class   ProfileACmpTypes;
 class   ProfileInvoke;
 class   RuntimeCall;
 class   MemBar;
@@ -210,6 +211,7 @@ class InstructionVisitor: public StackObj {
   virtual void do_UnsafeGetAndSetObject(UnsafeGetAndSetObject* x) = 0;
   virtual void do_ProfileCall    (ProfileCall*     x) = 0;
   virtual void do_ProfileReturnType (ProfileReturnType*  x) = 0;
+  virtual void do_ProfileACmpTypes(ProfileACmpTypes*  x) = 0;
   virtual void do_ProfileInvoke  (ProfileInvoke*   x) = 0;
   virtual void do_RuntimeCall    (RuntimeCall*     x) = 0;
   virtual void do_MemBar         (MemBar*          x) = 0;
@@ -325,6 +327,7 @@ class Instruction: public CompilationResourceObj {
   XHandlers*   _exception_handlers;              // Flat list of exception handlers covering this instruction
 
   friend class UseCountComputer;
+  friend class GraphBuilder;
 
   void update_exception_state(ValueStack* state);
 
@@ -991,17 +994,19 @@ BASE(AccessIndexed, AccessArray)
   virtual void input_values_do(ValueVisitor* f)   { AccessArray::input_values_do(f); f->visit(&_index); if (_length != NULL) f->visit(&_length); }
 };
 
+class DelayedLoadIndexed;
 
 LEAF(LoadIndexed, AccessIndexed)
  private:
   NullCheck*  _explicit_null_check;              // For explicit null check elimination
   NewInlineTypeInstance* _vt;
+  DelayedLoadIndexed* _delayed;
 
  public:
   // creation
   LoadIndexed(Value array, Value index, Value length, BasicType elt_type, ValueStack* state_before, bool mismatched = false)
   : AccessIndexed(array, index, length, elt_type, state_before, mismatched)
-  , _explicit_null_check(NULL), _vt(NULL) {}
+  , _explicit_null_check(NULL), _vt(NULL), _delayed(NULL) {}
 
   // accessors
   NullCheck* explicit_null_check() const         { return _explicit_null_check; }
@@ -1016,10 +1021,36 @@ LEAF(LoadIndexed, AccessIndexed)
   NewInlineTypeInstance* vt() const { return _vt; }
   void set_vt(NewInlineTypeInstance* vt) { _vt = vt; }
 
+  DelayedLoadIndexed* delayed() { return _delayed; }
+  void set_delayed(DelayedLoadIndexed* delayed) { _delayed = delayed; }
+
   // generic
   HASHING4(LoadIndexed, !should_profile(), type()->tag(), array()->subst(), index()->subst(), vt())
 };
 
+class DelayedLoadIndexed : public CompilationResourceObj {
+private:
+  LoadIndexed* _load_instr;
+  ValueStack* _state_before;
+  ciField* _field;
+  int _offset;
+ public:
+  DelayedLoadIndexed(LoadIndexed* load, ValueStack* state_before)
+  : _load_instr(load)
+  , _state_before(state_before)
+  , _field(NULL)
+  , _offset(0) { }
+
+  void update(ciField* field, int offset) {
+    _field = field;
+    _offset += offset;
+  }
+
+  LoadIndexed* load_instr() { return _load_instr; }
+  ValueStack* state_before() { return _state_before; }
+  ciField* field() { return _field; }
+  int offset() { return _offset; }
+};
 
 LEAF(StoreIndexed, AccessIndexed)
  private:
@@ -1357,39 +1388,25 @@ LEAF(NewInstance, StateSplit)
 };
 
 LEAF(NewInlineTypeInstance, StateSplit)
-  bool _is_unresolved;
   ciInlineKlass* _klass;
-  Value _depends_on;      // Link to instance on with withfield was called on
-  bool _is_optimizable_for_withfield;
   bool _in_larval_state;
   int _first_local_index;
   int _on_stack_count;
 public:
 
   // Default creation, always allocated for now
-  NewInlineTypeInstance(ciInlineKlass* klass, ValueStack* state_before, bool is_unresolved, Value depends_on = NULL, bool from_default_value = false)
+  NewInlineTypeInstance(ciInlineKlass* klass, ValueStack* state_before)
   : StateSplit(instanceType, state_before)
-   , _is_unresolved(is_unresolved)
    , _klass(klass)
-   , _is_optimizable_for_withfield(from_default_value)
    , _in_larval_state(true)
    , _first_local_index(-1)
    , _on_stack_count(1)
   {
-    if (depends_on == NULL) {
-      _depends_on = this;
-    } else {
-      _depends_on = depends_on;
-    }
     set_null_free(true);
   }
 
   // accessors
-  bool is_unresolved() const                     { return _is_unresolved; }
-  Value depends_on();
-
   ciInlineKlass* klass() const { return _klass; }
-
   virtual bool needs_exception_state() const     { return false; }
 
   // generic
@@ -1400,10 +1417,6 @@ public:
   // Only done in LIR Generator -> map everything to object
   void set_to_object_type() { set_type(instanceType); }
 
-  // withfield optimization
-  virtual void set_escaped() {
-    _is_optimizable_for_withfield = false;
-  }
   virtual void set_local_index(int index) {
     if (_first_local_index != index) {
       if (_first_local_index == -1) {
@@ -1430,7 +1443,6 @@ public:
       decrement_on_stack_count();
     }
   }
-
 };
 
 BASE(NewArray, StateSplit)
@@ -2671,7 +2683,7 @@ LEAF(ProfileReturnType, Instruction)
     , _ret(ret)
   {
     set_needs_null_check(true);
-    // The ProfileType has side-effects and must occur precisely where located
+    // The ProfileReturnType has side-effects and must occur precisely where located
     pin();
   }
 
@@ -2683,6 +2695,48 @@ LEAF(ProfileReturnType, Instruction)
   virtual void input_values_do(ValueVisitor* f)   {
     if (_ret != NULL) {
       f->visit(&_ret);
+    }
+  }
+};
+
+LEAF(ProfileACmpTypes, Instruction)
+ private:
+  ciMethod*        _method;
+  int              _bci;
+  Value            _left;
+  Value            _right;
+  bool             _left_maybe_null;
+  bool             _right_maybe_null;
+
+ public:
+  ProfileACmpTypes(ciMethod* method, int bci, Value left, Value right)
+    : Instruction(voidType)
+    , _method(method)
+    , _bci(bci)
+    , _left(left)
+    , _right(right)
+  {
+    // The ProfileACmp has side-effects and must occur precisely where located
+    pin();
+    _left_maybe_null = true;
+    _right_maybe_null = true;
+  }
+
+  ciMethod* method()             const { return _method; }
+  int bci()                      const { return _bci; }
+  Value left()                   const { return _left; }
+  Value right()                  const { return _right; }
+  bool left_maybe_null()         const { return _left_maybe_null; }
+  bool right_maybe_null()        const { return _right_maybe_null; }
+  void set_left_maybe_null(bool v)     { _left_maybe_null = v; }
+  void set_right_maybe_null(bool v)    { _right_maybe_null = v; }
+
+  virtual void input_values_do(ValueVisitor* f)   {
+    if (_left != NULL) {
+      f->visit(&_left);
+    }
+    if (_right != NULL) {
+      f->visit(&_right);
     }
   }
 };

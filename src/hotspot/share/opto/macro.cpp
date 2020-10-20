@@ -614,8 +614,6 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
   for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
     ciType* field_type = vt->field_type(i);
     int field_offset = offset + vt->field_offset(i);
-    // Each inline type field has its own memory slice
-    adr_type = adr_type->with_field_offset(field_offset);
     Node* value = NULL;
     if (vt->field_is_flattened(i)) {
       value = inline_type_from_mem(mem, ctl, field_type->as_inline_klass(), adr_type, field_offset, alloc);
@@ -626,6 +624,8 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
         ft = ft->make_narrowoop();
         bt = T_NARROWOOP;
       }
+      // Each inline type field has its own memory slice
+      adr_type = adr_type->with_field_offset(field_offset);
       value = value_from_mem(mem, ctl, bt, ft, adr_type, alloc);
       if (value != NULL && ft->isa_narrowoop()) {
         assert(UseCompressedOops, "unexpected narrow oop");
@@ -969,10 +969,13 @@ bool PhaseMacroExpand::scalar_replacement(AllocateNode *alloc, GrowableArray <Sa
     _igvn._worklist.push(sfpt);
     safepoints_done.append_if_missing(sfpt); // keep it for rollback
   }
-  // Scalarize inline types that were added to the safepoint
+  // Scalarize inline types that were added to the safepoint.
+  // Don't allow linking a constant oop (if available) for flat array elements
+  // because Deoptimization::reassign_flat_array_elements needs field values.
+  bool allow_oop = (klass == NULL) || !klass->is_flat_array_klass();
   for (uint i = 0; i < value_worklist.size(); ++i) {
     Node* vt = value_worklist.at(i);
-    vt->as_InlineType()->make_scalar_in_safepoints(&_igvn);
+    vt->as_InlineType()->make_scalar_in_safepoints(&_igvn, allow_oop);
   }
   return true;
 }
@@ -2576,7 +2579,7 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
   Node *slow_ctrl = _fallthroughproj->clone();
   transform_later(slow_ctrl);
   _igvn.hash_delete(_fallthroughproj);
-  _fallthroughproj->disconnect_inputs(NULL, C);
+  _fallthroughproj->disconnect_inputs(C);
   region->init_req(1, slow_ctrl);
   // region inputs are now complete
   transform_later(region);
@@ -2644,7 +2647,7 @@ void PhaseMacroExpand::expand_unlock_node(UnlockNode *unlock) {
   Node *slow_ctrl = _fallthroughproj->clone();
   transform_later(slow_ctrl);
   _igvn.hash_delete(_fallthroughproj);
-  _fallthroughproj->disconnect_inputs(NULL, C);
+  _fallthroughproj->disconnect_inputs(C);
   region->init_req(1, slow_ctrl);
   // region inputs are now complete
   transform_later(region);

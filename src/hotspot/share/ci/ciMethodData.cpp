@@ -367,6 +367,8 @@ ciProfileData* ciMethodData::data_at(int data_index) {
     return new ciParametersTypeData(data_layout);
   case DataLayout::array_load_store_data_tag:
     return new ciArrayLoadStoreData(data_layout);
+  case DataLayout::acmp_data_tag:
+    return new ciACmpData(data_layout);
   };
 }
 
@@ -915,5 +917,16 @@ void ciArrayLoadStoreData::print_data_on(outputStream* st, const char* extra) co
   tab(st, true);
   st->print("element");
   element()->print_data_on(st);
+}
+
+void ciACmpData::print_data_on(outputStream* st, const char* extra) const {
+  BranchData::print_data_on(st, extra);
+  st->cr();
+  tab(st, true);
+  st->print("left");
+  left()->print_data_on(st);
+  tab(st, true);
+  st->print("right");
+  right()->print_data_on(st);
 }
 #endif

@@ -223,14 +223,14 @@ int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node
   return sfpt->replace_edges_in_range(this, sobj, start, end);
 }
 
-void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn) {
+void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop) {
   // Process all safepoint uses and scalarize inline type
   Unique_Node_List worklist;
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     SafePointNode* sfpt = fast_out(i)->isa_SafePoint();
     if (sfpt != NULL && !sfpt->is_CallLeaf() && (!sfpt->is_Call() || sfpt->as_Call()->has_debug_use(this))) {
       int nb = 0;
-      if (is_allocated(igvn) && get_oop()->is_Con()) {
+      if (allow_oop && is_allocated(igvn) && get_oop()->is_Con()) {
         // Inline type is allocated with a constant oop, link it directly
         nb = sfpt->replace_edges_in_range(this, get_oop(), sfpt->jvms()->debug_start(), sfpt->jvms()->debug_end());
         igvn->rehash_node_delayed(sfpt);
@@ -273,8 +273,12 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
     Node* value = NULL;
     ciType* ft = field_type(i);
     if (field_is_flattened(i)) {
-      // Recursively load the flattened inline type field
-      value = InlineTypeNode::make_from_flattened(kit, ft->as_inline_klass(), base, ptr, holder, offset, decorators);
+      if (ft->as_inline_klass()->is_empty()) {
+        value = InlineTypeNode::make_default(kit->gvn(), ft->as_inline_klass());
+      } else {
+        // Recursively load the flattened inline type field
+        value = InlineTypeNode::make_from_flattened(kit, ft->as_inline_klass(), base, ptr, holder, offset, decorators);
+      }
     } else {
       const TypeOopPtr* oop_ptr = kit->gvn().type(base)->isa_oopptr();
       bool is_array = (oop_ptr->isa_aryptr() != NULL);
@@ -510,7 +514,7 @@ InlineTypeNode* InlineTypeNode::make_default(PhaseGVN& gvn, ciInlineKlass* vk) {
     if (field_type->is_inlinetype()) {
       ciInlineKlass* field_klass = field_type->as_inline_klass();
       if (field_klass->is_scalarizable()) {
-        value = InlineTypeNode::make_default(gvn, field_klass);
+        value = make_default(gvn, field_klass);
       } else {
         value = default_oop(gvn, field_klass);
       }
@@ -538,7 +542,9 @@ bool InlineTypeNode::is_default(PhaseGVN* gvn) const {
 
 InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInlineKlass* vk) {
   PhaseGVN& gvn = kit->gvn();
-
+  if (vk->is_empty()) {
+    return make_default(gvn, vk);
+  }
   // Create and initialize an InlineTypeNode by loading all field
   // values from a heap-allocated version and also save the oop.
   InlineTypeNode* vt = new InlineTypeNode(vk, oop);
@@ -577,7 +583,7 @@ InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInline
     // Oop can never be null
     Node* init_ctl = kit->control();
     vt->load(kit, oop, oop, vk, /* holder_offset */ 0);
-    assert(init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineTypePtr ||
+    assert(vt->is_default(&gvn) || init_ctl != kit->control() || !gvn.type(oop)->is_inlinetypeptr() || oop->is_Con() || oop->Opcode() == Op_InlineTypePtr ||
            AllocateNode::Ideal_allocation(oop, &gvn) != NULL || vt->is_loaded(&gvn) == oop, "inline type should be loaded");
   }
 
@@ -599,8 +605,8 @@ InlineTypeNode* InlineTypeNode::make_from_flattened(GraphKit* kit, ciInlineKlass
 }
 
 InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, ciInlineKlass* vk, uint& base_input, bool in) {
-  InlineTypeNode* vt = InlineTypeNode::make_uninitialized(kit->gvn(), vk);
-  vt->initialize_fields(kit, multi, sig, base_input, 0, in);
+  InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk);
+  vt->initialize_fields(kit, multi, sig, base_input, in);
   return kit->gvn().transform(vt)->as_InlineType();
 }
 
@@ -659,10 +665,12 @@ Node* InlineTypeNode::is_loaded(PhaseGVN* phase, ciInlineKlass* vk, Node* base, 
     if (value->is_InlineType()) {
       InlineTypeNode* vt = value->as_InlineType();
       if (field_is_flattened(i)) {
-        // Check inline type field load recursively
-        base = vt->is_loaded(phase, vk, base, offset - vt->inline_klass()->first_field_offset());
-        if (base == NULL) {
-          return NULL;
+        if (!vt->inline_klass()->is_empty()) {
+          // Check inline type field load recursively
+          base = vt->is_loaded(phase, vk, base, offset - vt->inline_klass()->first_field_offset());
+          if (base == NULL) {
+            return NULL;
+          }
         }
         continue;
       } else {
@@ -705,16 +713,16 @@ Node* InlineTypeNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
   return gvn.makecon(TypeRawPtr::make((address)bits));
 }
 
-void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig, uint& base_input, int base_offset) {
+void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig, uint& base_input) {
   for (uint i = 0; i < field_count(); i++) {
-    int sig_offset = (*sig)._offset;
-    uint idx = field_index(sig_offset - base_offset);
-    Node* arg = field_value(idx);
+    int offset = field_offset(i);
+    ciType* type = field_type(i);
+    Node* arg = field_value(i);
 
-    if (field_is_flattened(idx)) {
+    if (field_is_flattened(i)) {
       // Flattened inline type field
       InlineTypeNode* vt = arg->as_InlineType();
-      vt->pass_fields(kit, n, sig, base_input, sig_offset - vt->inline_klass()->first_field_offset());
+      vt->pass_fields(kit, n, sig, base_input);
     } else {
       if (arg->is_InlineType()) {
         // Non-flattened inline type field
@@ -728,29 +736,19 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig,
       if (type2size[bt] == 2) {
         n->init_req(base_input++, kit->top());
       }
-      // Skip reserved arguments
-      while (SigEntry::next_is_reserved(sig, bt)) {
-        n->init_req(base_input++, kit->top());
-        if (type2size[bt] == 2) {
-          n->init_req(base_input++, kit->top());
-        }
-      }
     }
   }
 }
 
-void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, uint& base_input, int base_offset, bool in) {
+void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, uint& base_input, bool in) {
   PhaseGVN& gvn = kit->gvn();
-  for (uint i = 0; i < field_count(); i++) {
-    int sig_offset = (*sig)._offset;
-    uint idx = field_index(sig_offset - base_offset);
-    ciType* type = field_type(idx);
-
+  for (uint i = 0; i < field_count(); ++i) {
+    ciType* type = field_type(i);
     Node* parm = NULL;
-    if (field_is_flattened(idx)) {
+    if (field_is_flattened(i)) {
       // Flattened inline type field
-      InlineTypeNode* vt = InlineTypeNode::make_uninitialized(gvn, type->as_inline_klass());
-      vt->initialize_fields(kit, multi, sig, base_input, sig_offset - type->as_inline_klass()->first_field_offset(), in);
+      InlineTypeNode* vt = make_uninitialized(gvn, type->as_inline_klass());
+      vt->initialize_fields(kit, multi, sig, base_input, in);
       parm = gvn.transform(vt);
     } else {
       if (multi->is_Start()) {
@@ -764,20 +762,17 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, Extended
       if (type->is_inlinetype()) {
         // Non-flattened inline type field
         if (type->as_inline_klass()->is_scalarizable()) {
-          parm = InlineTypeNode::make_from_oop(kit, parm, type->as_inline_klass());
+          parm = make_from_oop(kit, parm, type->as_inline_klass());
         } else {
           parm = kit->null2default(parm, type->as_inline_klass());
         }
       }
-      base_input += type2size[type->basic_type()];
-      // Skip reserved arguments
       BasicType bt = type->basic_type();
-      while (SigEntry::next_is_reserved(sig, bt)) {
-        base_input += type2size[bt];
-      }
+      base_input += type2size[bt];
     }
     assert(parm != NULL, "should never be null");
-    set_field_value(idx, parm);
+    assert(field_value(i) == NULL, "already set");
+    set_field_value(i, parm);
     gvn.record_for_igvn(parm);
   }
 }

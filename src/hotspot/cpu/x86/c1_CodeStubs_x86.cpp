@@ -80,6 +80,22 @@ void ConversionStub::emit_code(LIR_Assembler* ce) {
 }
 #endif // !_LP64
 
+void C1SafepointPollStub::emit_code(LIR_Assembler* ce) {
+#ifdef _LP64
+  __ bind(_entry);
+  InternalAddress safepoint_pc(ce->masm()->pc() - ce->masm()->offset() + safepoint_offset());
+  __ lea(rscratch1, safepoint_pc);
+  __ movptr(Address(r15_thread, JavaThread::saved_exception_pc_offset()), rscratch1);
+
+  assert(SharedRuntime::polling_page_return_handler_blob() != NULL,
+         "polling page return stub not created yet");
+  address stub = SharedRuntime::polling_page_return_handler_blob()->entry_point();
+  __ jump(RuntimeAddress(stub));
+#else
+  ShouldNotReachHere();
+#endif /* _LP64 */
+}
+
 void CounterOverflowStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   Metadata *m = _method->as_constant_ptr()->as_metadata();
@@ -238,6 +254,7 @@ NewInstanceStub::NewInstanceStub(LIR_Opr klass_reg, LIR_Opr result, ciInstanceKl
   _klass_reg = klass_reg;
   _info = new CodeEmitInfo(info);
   assert(stub_id == Runtime1::new_instance_id                 ||
+         stub_id == Runtime1::new_instance_no_inline_id       ||
          stub_id == Runtime1::fast_new_instance_id            ||
          stub_id == Runtime1::fast_new_instance_init_check_id,
          "need new_instance id");

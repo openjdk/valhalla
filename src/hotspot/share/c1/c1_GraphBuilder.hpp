@@ -35,13 +35,13 @@
 
 class MemoryBuffer;
 
-class DelayedFlattenedFieldAccess : public CompilationResourceObj {
+class DelayedFieldAccess : public CompilationResourceObj {
 private:
   Value _obj;
   ciField* _field;
   int _offset;
 public:
-  DelayedFlattenedFieldAccess(Value obj, ciField* field, int offset)
+  DelayedFieldAccess(Value obj, ciField* field, int offset)
   : _obj(obj)
   , _field(field)
   , _offset(offset) { }
@@ -211,9 +211,9 @@ class GraphBuilder {
   Instruction*      _last;                       // the last instruction added
   bool              _skip_block;                 // skip processing of the rest of this block
 
-  DelayedFlattenedFieldAccess* _delayed_flattened_field_access;
-  bool              has_delayed_flattened_field_access() { return _delayed_flattened_field_access != NULL; }
-
+  // support for optimization of accesses to flattened fields and arrays
+  DelayedFieldAccess* _pending_field_access;
+  DelayedLoadIndexed* _pending_load_indexed;
 
   // accessors
   ScopeData*        scope_data() const           { return _scope_data; }
@@ -232,6 +232,12 @@ class GraphBuilder {
   Bytecodes::Code   code() const                 { return stream()->cur_bc(); }
   int               bci() const                  { return stream()->cur_bci(); }
   int               next_bci() const             { return stream()->next_bci(); }
+  bool              has_pending_field_access()   { return _pending_field_access != NULL; }
+  DelayedFieldAccess* pending_field_access()     { return _pending_field_access; }
+  void              set_pending_field_access(DelayedFieldAccess* delayed) { _pending_field_access = delayed; }
+  bool              has_pending_load_indexed()   { return _pending_load_indexed != NULL; }
+  DelayedLoadIndexed* pending_load_indexed()     { return _pending_load_indexed; }
+  void              set_pending_load_indexed(DelayedLoadIndexed* delayed) { _pending_load_indexed = delayed; }
 
   // unified bailout support
   void bailout(const char* msg) const            { compilation()->bailout(msg); }

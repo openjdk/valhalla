@@ -268,7 +268,6 @@ class SharedRuntime: AllStatic {
 
   // To be used as the entry point for unresolved native methods.
   static address native_method_throw_unsatisfied_link_error_entry();
-  static address native_method_throw_unsupported_operation_exception_entry();
 
   static oop retrieve_receiver(Symbol* sig, frame caller);
 
@@ -806,7 +805,6 @@ class CompiledEntrySignature : public StackObj {
   bool _c1_needs_stack_repair;
   bool _c2_needs_stack_repair;
   bool _has_scalarized_args;
-  bool _has_reserved_entries;
 
 public:
   Method* method()                     const { return _method; }
@@ -842,7 +840,6 @@ public:
 
 private:
   int compute_scalarized_cc(GrowableArray<SigEntry>*& sig_cc, VMRegPair*& regs_cc, bool scalar_receiver);
-  int insert_reserved_entry(int ret_off);
 };
 
 #endif // SHARE_RUNTIME_SHAREDRUNTIME_HPP

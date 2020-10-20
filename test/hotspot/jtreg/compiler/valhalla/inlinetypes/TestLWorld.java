@@ -3290,19 +3290,124 @@ public class TestLWorld extends InlineTypeTest {
         Asserts.assertTrue(res);
     }
 
+    static inline class EmptyContainer {
+        private MyValueEmpty empty = MyValueEmpty.default;
+    }
+
+    static inline class MixedContainer {
+        public int val = rI;
+        private EmptyContainer empty = EmptyContainer.default;
+    }
+
     // Test re-allocation of empty inline type array during deoptimization
     @Test
     public void test119(boolean deopt) {
-        MyValueEmpty[] arr = new MyValueEmpty[]{MyValueEmpty.default};
+        MyValueEmpty[]   array1 = new MyValueEmpty[]{MyValueEmpty.default};
+// TODO disabled until JDK-8253893 is fixed
+//        EmptyContainer[] array2 = new EmptyContainer[]{EmptyContainer.default};
+//        MixedContainer[] array3 = new MixedContainer[]{MixedContainer.default};
         if (deopt) {
             // uncommon trap
             WHITE_BOX.deoptimizeMethod(tests.get(getClass().getSimpleName() + "::test119"));
         }
-        Asserts.assertEquals(arr[0], MyValueEmpty.default);
+        Asserts.assertEquals(array1[0], MyValueEmpty.default);
+// TODO disabled until JDK-8253893 is fixed
+//        Asserts.assertEquals(array2[0], EmptyContainer.default);
+//        Asserts.assertEquals(array3[0], MixedContainer.default);
     }
 
     @DontCompile
     public void test119_verifier(boolean warmup) {
         test119(!warmup);
+    }
+
+    // Test removal of empty inline type field stores
+    @Test(failOn = ALLOC + ALLOC_G + LOAD + STORE + FIELD_ACCESS + NULL_CHECK_TRAP + TRAP)
+    public void test120(MyValueEmpty empty) {
+        fEmpty1 = empty;
+        fEmpty3 = empty;
+        // fEmpty2 and fEmpty4 could be null, store can't be removed
+    }
+
+    @DontCompile
+    public void test120_verifier(boolean warmup) {
+        test120(MyValueEmpty.default);
+        Asserts.assertEquals(fEmpty1, MyValueEmpty.default);
+        Asserts.assertEquals(fEmpty2, MyValueEmpty.default);
+    }
+
+    // Test removal of empty inline type field loads
+    @Test(failOn = ALLOC + ALLOC_G + LOAD + STORE + FIELD_ACCESS + NULL_CHECK_TRAP + TRAP)
+    public boolean test121() {
+        return fEmpty1.equals(fEmpty3);
+        // fEmpty2 and fEmpty4 could be null, load can't be removed
+    }
+
+    @DontCompile
+    public void test121_verifier(boolean warmup) {
+        boolean res = test121();
+        Asserts.assertTrue(res);
+    }
+
+    // Verify that empty inline type field loads check for null holder
+    @Test()
+    public MyValueEmpty test122(TestLWorld t) {
+        return t.fEmpty3;
+    }
+
+    @DontCompile
+    public void test122_verifier(boolean warmup) {
+        MyValueEmpty res = test122(this);
+        Asserts.assertEquals(res, MyValueEmpty.default);
+        try {
+            test122(null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    // Verify that empty inline type field stores check for null holder
+    @Test()
+    public void test123(TestLWorld t) {
+        t.fEmpty3 = MyValueEmpty.default;
+    }
+
+    @DontCompile
+    public void test123_verifier(boolean warmup) {
+        test123(this);
+        Asserts.assertEquals(fEmpty3, MyValueEmpty.default);
+        try {
+            test123(null);
+            throw new RuntimeException("No NPE thrown");
+        } catch (NullPointerException e) {
+            // Expected
+        }
+    }
+
+    // acmp doesn't need substitutability test when one input is known
+    // not to be a value type
+    @Test(failOn = SUBSTITUTABILITY_TEST)
+    public boolean test124(Integer o1, Object o2) {
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test124_verifier(boolean warmup) {
+        test124(42, 42);
+        test124(42, testValue1);
+    }
+
+    // acmp doesn't need substitutability test when one input null
+    @Test(failOn = SUBSTITUTABILITY_TEST)
+    public boolean test125(Object o1) {
+        Object o2 = null;
+        return o1 == o2;
+    }
+
+    @DontCompile
+    public void test125_verifier(boolean warmup) {
+        test125(testValue1);
+        test125(null);
     }
 }

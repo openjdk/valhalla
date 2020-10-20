@@ -95,7 +95,7 @@
 
 static jint CurrentVersion = JNI_VERSION_10;
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(USE_VECTORED_EXCEPTION_HANDLING)
 extern LONG WINAPI topLevelExceptionFilter(_EXCEPTION_POINTERS* );
 #endif
 
@@ -331,7 +331,7 @@ JNI_ENTRY(jclass, jni_DefineClass(JNIEnv *env, const char *name, jobject loaderR
     // check whether the current caller thread holds the lock or not.
     // If not, increment the corresponding counter
     if (ObjectSynchronizer::
-        query_lock_ownership((JavaThread*)THREAD, class_loader) !=
+        query_lock_ownership(thread, class_loader) !=
         ObjectSynchronizer::owner_self) {
       ClassLoader::sync_JNIDefineClassLockFreeCounter()->inc();
     }
@@ -2522,7 +2522,6 @@ JNI_ENTRY(jobject, jni_GetObjectArrayElement(JNIEnv *env, jobjectArray array, js
   if (arr->is_within_bounds(index)) {
     if (arr->is_flatArray()) {
       flatArrayOop a = flatArrayOop(JNIHandles::resolve_non_null(array));
-      arrayHandle ah(THREAD, a);
       flatArrayHandle vah(thread, a);
       res = flatArrayOopDesc::value_alloc_copy_from_index(vah, index, CHECK_NULL);
       assert(res != NULL, "Must be set in one of two paths above");
@@ -3488,18 +3487,19 @@ JNI_END
 JNI_ENTRY(jobject, jni_CreateSubElementSelector(JNIEnv* env, jarray array))
   JNIWrapper("jni_CreateSubElementSelector");
 
-  arrayOop ar = arrayOop(JNIHandles::resolve_non_null(array));
+  oop ar = JNIHandles::resolve_non_null(array);
   if (!ar->is_array()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not an array");
   }
   if (!ar->is_flatArray()) {
     THROW_MSG_NULL(vmSymbols::java_lang_IllegalArgumentException(), "Not a flattened array");
   }
+  flatArrayHandle ar_h(THREAD, flatArrayOop(ar));
   Klass* ses_k = SystemDictionary::resolve_or_null(vmSymbols::jdk_internal_vm_jni_SubElementSelector(),
         Handle(THREAD, SystemDictionary::java_system_loader()), Handle(), CHECK_NULL);
   InstanceKlass* ses_ik = InstanceKlass::cast(ses_k);
   ses_ik->initialize(CHECK_NULL);
-  Klass* elementKlass = ArrayKlass::cast(ar->klass())->element_klass();
+  Klass* elementKlass = ArrayKlass::cast(ar_h()->klass())->element_klass();
   oop ses = ses_ik->allocate_instance(CHECK_NULL);
   Handle ses_h(THREAD, ses);
   jdk_internal_vm_jni_SubElementSelector::setArrayElementType(ses_h(), elementKlass->java_mirror());
@@ -3571,12 +3571,13 @@ JNI_ENTRY(jobject, jni_GetObjectSubElement(JNIEnv* env, jarray array, jobject se
                       + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
     res = HeapAccess<ON_UNKNOWN_OOP_REF>::oop_load_at(ar, offset);
   } else {
+    Handle slct_h(THREAD, slct);
     InlineKlass* fieldKlass = InlineKlass::cast(java_lang_Class::as_Klass(jdk_internal_vm_jni_SubElementSelector::getSubElementType(slct)));
     res = fieldKlass->allocate_instance_buffer(CHECK_NULL);
     // The array might have been moved by the GC, refreshing the arrayOop
     ar =  (flatArrayOop)JNIHandles::resolve_non_null(array);
     address addr = (address)ar->value_at_addr(index, vak->layout_helper())
-              + jdk_internal_vm_jni_SubElementSelector::getOffset(slct);
+              + jdk_internal_vm_jni_SubElementSelector::getOffset(slct_h());
     fieldKlass->inline_copy_payload_to_new_oop(addr, res);
   }
   return JNIHandles::make_local(res);
@@ -4257,11 +4258,11 @@ static jint JNI_CreateJavaVM_inner(JavaVM **vm, void **penv, void *args) {
 _JNI_IMPORT_OR_EXPORT_ jint JNICALL JNI_CreateJavaVM(JavaVM **vm, void **penv, void *args) {
   jint result = JNI_ERR;
   // On Windows, let CreateJavaVM run with SEH protection
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(USE_VECTORED_EXCEPTION_HANDLING)
   __try {
 #endif
     result = JNI_CreateJavaVM_inner(vm, penv, args);
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(USE_VECTORED_EXCEPTION_HANDLING)
   } __except(topLevelExceptionFilter((_EXCEPTION_POINTERS*)_exception_info())) {
     // Nothing to do.
   }
@@ -4329,11 +4330,11 @@ static jint JNICALL jni_DestroyJavaVM_inner(JavaVM *vm) {
 jint JNICALL jni_DestroyJavaVM(JavaVM *vm) {
   jint result = JNI_ERR;
   // On Windows, we need SEH protection
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(USE_VECTORED_EXCEPTION_HANDLING)
   __try {
 #endif
     result = jni_DestroyJavaVM_inner(vm);
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(USE_VECTORED_EXCEPTION_HANDLING)
   } __except(topLevelExceptionFilter((_EXCEPTION_POINTERS*)_exception_info())) {
     // Nothing to do.
   }
@@ -4356,7 +4357,7 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
     // If executing from an atexit hook we may be in the VMThread.
     if (t->is_Java_thread()) {
       // If the thread has been attached this operation is a no-op
-      *(JNIEnv**)penv = ((JavaThread*) t)->jni_environment();
+      *(JNIEnv**)penv = t->as_Java_thread()->jni_environment();
       return JNI_OK;
     } else {
       return JNI_ERR;
@@ -4380,7 +4381,7 @@ static jint attach_current_thread(JavaVM *vm, void **penv, void *_args, bool dae
     return JNI_ERR;
   }
   // Enable stack overflow checks
-  thread->create_stack_guard_pages();
+  thread->stack_overflow_state()->create_stack_guard_pages();
 
   thread->initialize_tlab();
 
@@ -4494,7 +4495,7 @@ jint JNICALL jni_DetachCurrentThread(JavaVM *vm)  {
 
   VM_Exit::block_if_vm_exited();
 
-  JavaThread* thread = (JavaThread*) current;
+  JavaThread* thread = current->as_Java_thread();
   if (thread->has_last_Java_frame()) {
     HOTSPOT_JNI_DETACHCURRENTTHREAD_RETURN((uint32_t) JNI_ERR);
     // Can't detach a thread that's running java, that can't work.
@@ -4549,7 +4550,7 @@ jint JNICALL jni_GetEnv(JavaVM *vm, void **penv, jint version) {
   Thread* thread = Thread::current_or_null();
   if (thread != NULL && thread->is_Java_thread()) {
     if (Threads::is_supported_jni_version_including_1_1(version)) {
-      *(JNIEnv**)penv = ((JavaThread*) thread)->jni_environment();
+      *(JNIEnv**)penv = thread->as_Java_thread()->jni_environment();
       ret = JNI_OK;
       return ret;
 

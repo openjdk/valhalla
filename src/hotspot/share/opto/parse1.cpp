@@ -441,6 +441,7 @@ Parse::Parse(JVMState* caller, ciMethod* parse_method, float expected_uses)
     C->set_parsed_irreducible_loop(true);
   }
 #endif
+  C->set_has_loops(C->has_loops() || method()->has_loops());
 
   if (_expected_uses <= 0) {
     _prof_factor = 1;
@@ -863,12 +864,12 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
     set_default_node_notes(entry_nn);
   }
   PhaseGVN& gvn = *initial_gvn();
-  uint j = 0;
+  uint i = 0;
   ExtendedSignature sig_cc = ExtendedSignature(method()->get_sig_cc(), SigEntryFilter());
-  for (uint i = 0; i < (uint)arg_size; i++) {
+  for (uint j = 0; i < (uint)arg_size; i++) {
     const Type* t = tf->domain_sig()->field_at(i);
     Node* parm = NULL;
-    if (has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null()) {
+    if (has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null() && t->inline_klass()->can_be_passed_as_fields()) {
       // Inline type arguments are not passed by reference: we get an argument per
       // field of the inline type. Build InlineTypeNodes from the inline type arguments.
       GraphKit kit(jvms, &gvn);
@@ -881,17 +882,13 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
       map->set_memory(old_mem);
     } else {
       parm = gvn.transform(new ParmNode(start, j++));
-      BasicType bt = t->basic_type();
-      while (i >= TypeFunc::Parms && !is_osr_compilation() && SigEntry::next_is_reserved(sig_cc, bt, true)) {
-        j += type2size[bt]; // Skip reserved arguments
-      }
     }
     map->init_req(i, parm);
     // Record all these guys for later GVN.
     record_for_igvn(parm);
   }
-  for (; j < map->req(); j++) {
-    map->init_req(j, top());
+  for (; i < map->req(); i++) {
+    map->init_req(i, top());
   }
   assert(jvms->argoff() == TypeFunc::Parms, "parser gets arguments here");
   set_default_node_notes(old_nn);
@@ -1672,6 +1669,11 @@ void Parse::merge_new_path(int target_bci) {
 // Merge the current mapping into the basic block starting at bci
 // The ex_oop must be pushed on the stack, unlike throw_to_exit.
 void Parse::merge_exception(int target_bci) {
+#ifdef ASSERT
+  if (target_bci < bci()) {
+    C->set_exception_backedge();
+  }
+#endif
   assert(sp() == 1, "must have only the throw exception on the stack");
   Block* target = successor_for_bci(target_bci);
   if (target == NULL) { handle_missing_successor(target_bci); return; }

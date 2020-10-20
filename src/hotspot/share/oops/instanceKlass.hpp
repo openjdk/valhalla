@@ -145,7 +145,6 @@ class InlineKlassFixedBlock {
   address* _pack_handler_jobject;
   address* _unpack_handler;
   int* _default_value_offset;
-  Klass** _flat_array_klass;
   int _alignment;
   int _first_field_offset;
   int _exact_size_in_bytes;
@@ -192,7 +191,7 @@ class InstanceKlass: public Klass {
   // Package this class is defined in
   PackageEntry*   _package_entry;
   // Array classes holding elements of this class.
-  ObjArrayKlass* volatile _array_klasses;
+  ArrayKlass* volatile _array_klasses;
   // Constant pool for this class.
   ConstantPool* _constants;
   // The InnerClasses attribute and EnclosingMethod attribute. The
@@ -289,13 +288,19 @@ class InstanceKlass: public Klass {
     _misc_is_being_redefined                  = 1 << 14, // used for locking redefinition
     _misc_has_contended_annotations           = 1 << 15,  // has @Contended annotation
     _misc_has_inline_type_fields              = 1 << 16, // has inline fields and related embedded section is not empty
-    _misc_is_empty_inline_type                = 1 << 17, // empty inline type
+    _misc_is_empty_inline_type                = 1 << 17, // empty inline type (*)
     _misc_is_naturally_atomic                 = 1 << 18, // loaded/stored in one instruction
     _misc_is_declared_atomic                  = 1 << 19, // implements jl.NonTearable
     _misc_invalid_inline_super                = 1 << 20, // invalid super type for an inline type
     _misc_invalid_identity_super              = 1 << 21, // invalid super type for an identity type
     _misc_has_injected_identityObject         = 1 << 22  // IdentityObject has been injected by the JVM
   };
+
+  // (*) An inline type is considered empty if it contains no non-static fields or
+  // if it contains only empty inline fields. Note that JITs have a slightly different
+  // definition: empty inline fields must be flattened otherwise the container won't
+  // be considered empty
+
   u2 shared_loader_type_bits() const {
     return _misc_is_shared_boot_class|_misc_is_shared_platform_class|_misc_is_shared_app_class;
   }
@@ -494,10 +499,10 @@ class InstanceKlass: public Klass {
   void set_itable_length(int len)          { _itable_len = len; }
 
   // array klasses
-  ObjArrayKlass* array_klasses() const     { return _array_klasses; }
-  inline ObjArrayKlass* array_klasses_acquire() const; // load with acquire semantics
-  void set_array_klasses(ObjArrayKlass* k) { _array_klasses = k; }
-  inline void release_set_array_klasses(ObjArrayKlass* k); // store with release semantics
+  ArrayKlass* array_klasses() const     { return _array_klasses; }
+  inline ArrayKlass* array_klasses_acquire() const; // load with acquire semantics
+  void set_array_klasses(ArrayKlass* k) { _array_klasses = k; }
+  inline void release_set_array_klasses(ArrayKlass* k); // store with release semantics
 
   // methods
   Array<Method*>* methods() const          { return _methods; }
@@ -1501,6 +1506,7 @@ public:
   virtual void remove_unshareable_info();
   virtual void remove_java_mirror();
   virtual void restore_unshareable_info(ClassLoaderData* loader_data, Handle protection_domain, PackageEntry* pkg_entry, TRAPS);
+  void init_shared_package_entry();
 
   // jvm support
   jint compute_modifier_flags(TRAPS) const;

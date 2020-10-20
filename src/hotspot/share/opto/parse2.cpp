@@ -295,6 +295,10 @@ void Parse::array_store(BasicType bt) {
         if (stopped()) return;
         dec_sp(3);
       }
+      if (elemtype->inline_klass()->is_empty()) {
+        // Ignore empty inline stores, array is already initialized.
+        return;
+      }
     } else if (!ary_t->is_not_flat() && tval != TypePtr::NULL_PTR) {
       // Array might be flattened, emit runtime checks (for NULL, a simple inline_array_null_guard is sufficient).
       assert(UseFlatArray && !not_flattened && elemtype->is_oopptr()->can_be_inline_type() &&
@@ -2049,35 +2053,186 @@ void Parse::do_if(BoolTest::mask btest, Node* c, bool new_path, Node** ctrl_take
   }
 }
 
-void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
+
+static ProfilePtrKind speculative_ptr_kind(const TypeOopPtr* t) {
+  if (t->speculative() == NULL) {
+    return ProfileUnknownNull;
+  }
+  if (t->speculative_always_null()) {
+    return ProfileAlwaysNull;
+  }
+  if (t->speculative_maybe_null()) {
+    return ProfileMaybeNull;
+  }
+  return ProfileNeverNull;
+}
+
+void Parse::acmp_always_null_input(Node* input, const TypeOopPtr* tinput, BoolTest::mask btest, Node* eq_region) {
+  inc_sp(2);
+  Node* cast = null_check_common(input, T_OBJECT, true, NULL,
+                                 !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check) &&
+                                 speculative_ptr_kind(tinput) == ProfileAlwaysNull);
+  dec_sp(2);
+  if (btest == BoolTest::ne) {
+    {
+      PreserveJVMState pjvms(this);
+      replace_in_map(input, cast);
+      int target_bci = iter().get_dest();
+      merge(target_bci);
+    }
+    record_for_igvn(eq_region);
+    set_control(_gvn.transform(eq_region));
+  } else {
+    replace_in_map(input, cast);
+  }
+}
+
+Node* Parse::acmp_null_check(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, Node*& null_ctl) {
+  inc_sp(2);
+  null_ctl = top();
+  Node* cast = null_check_oop(input, &null_ctl,
+                              input_ptr == ProfileNeverNull || (input_ptr == ProfileUnknownNull && !too_many_traps_or_recompiles(Deoptimization::Reason_null_check)),
+                              false,
+                              speculative_ptr_kind(tinput) == ProfileNeverNull &&
+                              !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check));
+  dec_sp(2);
+  assert(!stopped(), "null input should have been caught earlier");
+  return cast;
+}
+
+void Parse::acmp_known_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, ciKlass* input_type, BoolTest::mask btest, Node* eq_region) {
+  Node* ne_region = new RegionNode(1);
+  Node* null_ctl;
+  Node* cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
+  ne_region->add_req(null_ctl);
+
+  Node* slow_ctl = type_check_receiver(cast, input_type, 1.0, &cast);
+  {
+    PreserveJVMState pjvms(this);
+    inc_sp(2);
+    set_control(slow_ctl);
+    Deoptimization::DeoptReason reason;
+    if (tinput->speculative_type() != NULL && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
+      reason = Deoptimization::Reason_speculate_class_check;
+    } else {
+      reason = Deoptimization::Reason_class_check;
+    }
+    uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
+  }
+  ne_region->add_req(control());
+
+  record_for_igvn(ne_region);
+  set_control(_gvn.transform(ne_region));
+  if (btest == BoolTest::ne) {
+    {
+      PreserveJVMState pjvms(this);
+      if (null_ctl == top()) {
+        replace_in_map(input, cast);
+      }
+      int target_bci = iter().get_dest();
+      merge(target_bci);
+    }
+    record_for_igvn(eq_region);
+    set_control(_gvn.transform(eq_region));
+  } else {
+    if (null_ctl == top()) {
+      replace_in_map(input, cast);
+    }
+    set_control(_gvn.transform(ne_region));
+  }
+}
+
+void Parse::acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* tinput, ProfilePtrKind input_ptr, BoolTest::mask btest, Node* eq_region) {
+  Node* ne_region = new RegionNode(1);
+  Node* null_ctl;
+  Node* cast = acmp_null_check(input, tinput, input_ptr, null_ctl);
+  ne_region->add_req(null_ctl);
+
+  {
+    BuildCutout unless(this, is_not_inline_type(cast), PROB_MAX);
+    inc_sp(2);
+    uncommon_trap_exact(Deoptimization::Reason_class_check, Deoptimization::Action_maybe_recompile);
+  }
+
+  ne_region->add_req(control());
+
+  record_for_igvn(ne_region);
+  set_control(_gvn.transform(ne_region));
+  if (btest == BoolTest::ne) {
+    {
+      PreserveJVMState pjvms(this);
+      if (null_ctl == top()) {
+        replace_in_map(input, cast);
+      }
+      int target_bci = iter().get_dest();
+      merge(target_bci);
+    }
+    record_for_igvn(eq_region);
+    set_control(_gvn.transform(eq_region));
+  } else {
+    if (null_ctl == top()) {
+      replace_in_map(input, cast);
+    }
+    set_control(_gvn.transform(ne_region));
+  }
+}
+
+void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
+  ciKlass* left_type = NULL;
+  ciKlass* right_type = NULL;
+  ProfilePtrKind left_ptr = ProfileUnknownNull;
+  ProfilePtrKind right_ptr = ProfileUnknownNull;
+  bool left_inline_type = true;
+  bool right_inline_type = true;
+
+  // Leverage profiling at acmp
+  if (UseACmpProfile) {
+    method()->acmp_profiled_type(bci(), left_type, right_type, left_ptr, right_ptr, left_inline_type, right_inline_type);
+    if (too_many_traps_or_recompiles(Deoptimization::Reason_class_check)) {
+      left_type = NULL;
+      right_type = NULL;
+      left_inline_type = true;
+      right_inline_type = true;
+    }
+    if (too_many_traps_or_recompiles(Deoptimization::Reason_null_check)) {
+      left_ptr = ProfileUnknownNull;
+      right_ptr = ProfileUnknownNull;
+    }
+  }
+
+ if (UseTypeSpeculation) {
+    record_profile_for_speculation(left, left_type, left_ptr);
+    record_profile_for_speculation(right, right_type, right_ptr);
+  }
+
   if (!EnableValhalla) {
-    Node* cmp = CmpP(a, b);
+    Node* cmp = CmpP(left, right);
     cmp = optimize_cmp_with_klass(cmp);
     do_if(btest, cmp);
     return;
   }
 
   // Allocate inline type operands and re-execute on deoptimization
-  if (a->is_InlineType()) {
+  if (left->is_InlineType()) {
     PreserveReexecuteState preexecs(this);
     inc_sp(2);
     jvms()->set_should_reexecute(true);
-    a = a->as_InlineType()->buffer(this)->get_oop();
+    left = left->as_InlineType()->buffer(this)->get_oop();
   }
-  if (b->is_InlineType()) {
+  if (right->is_InlineType()) {
     PreserveReexecuteState preexecs(this);
     inc_sp(2);
     jvms()->set_should_reexecute(true);
-    b = b->as_InlineType()->buffer(this)->get_oop();
+    right = right->as_InlineType()->buffer(this)->get_oop();
   }
 
   // First, do a normal pointer comparison
-  const TypeOopPtr* ta = _gvn.type(a)->isa_oopptr();
-  const TypeOopPtr* tb = _gvn.type(b)->isa_oopptr();
-  Node* cmp = CmpP(a, b);
+  const TypeOopPtr* tleft = _gvn.type(left)->isa_oopptr();
+  const TypeOopPtr* tright = _gvn.type(right)->isa_oopptr();
+  Node* cmp = CmpP(left, right);
   cmp = optimize_cmp_with_klass(cmp);
-  if (ta == NULL || !ta->can_be_inline_type() ||
-      tb == NULL || !tb->can_be_inline_type()) {
+  if (tleft == NULL || !tleft->can_be_inline_type() ||
+      tright == NULL || !tright->can_be_inline_type()) {
     // This is sufficient, if one of the operands can't be an inline type
     do_if(btest, cmp);
     return;
@@ -2107,60 +2262,85 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
     set_control(is_not_equal);
   }
 
-  // Pointers are not equal, check if first operand is non-null
-  Node* ne_region = new RegionNode(6);
-  inc_sp(2);
-  Node* null_ctl = top();
-  Node* not_null_a = null_check_oop(a, &null_ctl, !too_many_traps(Deoptimization::Reason_null_check), false, false);
-  dec_sp(2);
-  ne_region->init_req(1, null_ctl);
-  if (stopped()) {
-    record_for_igvn(ne_region);
-    set_control(_gvn.transform(ne_region));
-    if (btest == BoolTest::ne) {
-      {
-        PreserveJVMState pjvms(this);
-        int target_bci = iter().get_dest();
-        merge(target_bci);
-      }
-      record_for_igvn(eq_region);
-      set_control(_gvn.transform(eq_region));
+  // Prefer speculative types if available
+  if (!too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
+    if (tleft->speculative_type() != NULL) {
+      left_type = tleft->speculative_type();
     }
+    if (tright->speculative_type() != NULL) {
+      right_type = tright->speculative_type();
+    }
+  }
+
+  if (speculative_ptr_kind(tleft) != ProfileMaybeNull && speculative_ptr_kind(tleft) != ProfileUnknownNull) {
+    ProfilePtrKind speculative_left_ptr = speculative_ptr_kind(tleft);
+    if (speculative_left_ptr == ProfileAlwaysNull && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_assert)) {
+      left_ptr = speculative_left_ptr;
+    } else if (speculative_left_ptr == ProfileNeverNull && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check)) {
+      left_ptr = speculative_left_ptr;
+    }
+  }
+  if (speculative_ptr_kind(tright) != ProfileMaybeNull && speculative_ptr_kind(tright) != ProfileUnknownNull) {
+    ProfilePtrKind speculative_right_ptr = speculative_ptr_kind(tright);
+    if (speculative_right_ptr == ProfileAlwaysNull && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_assert)) {
+      right_ptr = speculative_right_ptr;
+    } else if (speculative_right_ptr == ProfileNeverNull && !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_null_check)) {
+      right_ptr = speculative_right_ptr;
+    }
+  }
+
+  if (left_ptr == ProfileAlwaysNull) {
+    // Comparison with null. Assert the input is indeed null and we're done.
+    acmp_always_null_input(left, tleft, btest, eq_region);
+    return;
+  }
+  if (right_ptr == ProfileAlwaysNull) {
+    // Comparison with null. Assert the input is indeed null and we're done.
+    acmp_always_null_input(right, tright, btest, eq_region);
+    return;
+  }
+  if (left_type != NULL && !left_type->is_inlinetype()) {
+    // Comparison with an object of known type
+    acmp_known_non_inline_type_input(left, tleft, left_ptr, left_type, btest, eq_region);
+    return;
+  }
+  if (right_type != NULL && !right_type->is_inlinetype()) {
+    // Comparison with an object of known type
+    acmp_known_non_inline_type_input(right, tright, right_ptr, right_type, btest, eq_region);
+    return;
+  }
+  if (!left_inline_type) {
+    // Comparison with an object known not to be an inline type
+    acmp_unknown_non_inline_type_input(left, tleft, left_ptr, btest, eq_region);
+    return;
+  }
+  if (!right_inline_type) {
+    // Comparison with an object known not to be an inline type
+    acmp_unknown_non_inline_type_input(right, tright, right_ptr, btest, eq_region);
     return;
   }
 
+  // Pointers are not equal, check if first operand is non-null
+  Node* ne_region = new RegionNode(6);
+  Node* null_ctl;
+  Node* not_null_right = acmp_null_check(right, tright, right_ptr, null_ctl);
+  ne_region->init_req(1, null_ctl);
+
   // First operand is non-null, check if it is an inline type
-  Node* is_value = is_inline_type(not_null_a);
+  Node* is_value = is_inline_type(not_null_right);
   IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
   Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
   ne_region->init_req(2, not_value);
   set_control(_gvn.transform(new IfTrueNode(is_value_iff)));
 
   // The first operand is an inline type, check if the second operand is non-null
-  inc_sp(2);
-  null_ctl = top();
-  Node* not_null_b = null_check_oop(b, &null_ctl, !too_many_traps(Deoptimization::Reason_null_check), false, false);
-  dec_sp(2);
+  Node* not_null_left = acmp_null_check(left, tleft, left_ptr, null_ctl);
   ne_region->init_req(3, null_ctl);
-  if (stopped()) {
-    record_for_igvn(ne_region);
-    set_control(_gvn.transform(ne_region));
-    if (btest == BoolTest::ne) {
-      {
-        PreserveJVMState pjvms(this);
-        int target_bci = iter().get_dest();
-        merge(target_bci);
-      }
-      record_for_igvn(eq_region);
-      set_control(_gvn.transform(eq_region));
-    }
-    return;
-  }
 
   // Check if both operands are of the same class.
-  Node* kls_a = load_object_klass(not_null_a);
-  Node* kls_b = load_object_klass(not_null_b);
-  Node* kls_cmp = CmpP(kls_a, kls_b);
+  Node* kls_left = load_object_klass(not_null_left);
+  Node* kls_right = load_object_klass(not_null_right);
+  Node* kls_cmp = CmpP(kls_left, kls_right);
   Node* kls_bol = _gvn.transform(new BoolNode(kls_cmp, BoolTest::ne));
   IfNode* kls_iff = create_and_map_if(control(), kls_bol, PROB_FAIR, COUNT_UNKNOWN);
   Node* kls_ne = _gvn.transform(new IfTrueNode(kls_iff));
@@ -2201,8 +2381,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* a, Node* b) {
   ciMethod* subst_method = ciEnv::current()->ValueBootstrapMethods_klass()->find_method(ciSymbol::isSubstitutable_name(), ciSymbol::object_object_boolean_signature());
   CallStaticJavaNode *call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method, bci());
   call->set_override_symbolic_info(true);
-  call->init_req(TypeFunc::Parms, not_null_a);
-  call->init_req(TypeFunc::Parms+1, not_null_b);
+  call->init_req(TypeFunc::Parms, not_null_left);
+  call->init_req(TypeFunc::Parms+1, not_null_right);
   inc_sp(2);
   set_edges_for_java_call(call, false, false);
   Node* ret = set_results_for_java_call(call, false, true);
@@ -3366,7 +3546,7 @@ void Parse::do_one_bytecode() {
     maybe_add_safepoint(iter().get_dest());
     a = pop();
     b = pop();
-    do_acmp(btest, a, b);
+    do_acmp(btest, b, a);
     break;
 
   case Bytecodes::_ifeq: btest = BoolTest::eq; goto handle_ifxx;

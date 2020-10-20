@@ -268,8 +268,10 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void do_update_CRC32C(Intrinsic* x);
   void do_vectorizedMismatch(Intrinsic* x);
 
-  Constant* flattened_field_load_prolog(LoadField* x, CodeEmitInfo* info);
-  void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item);
+  bool inline_type_field_access_prolog(AccessField* x, CodeEmitInfo* info);
+  void access_flattened_array(bool is_load, LIRItem& array, LIRItem& index, LIRItem& obj_item, ciField* field = NULL, int offset = 0);
+  void access_sub_element(LIRItem& array, LIRItem& index, LIR_Opr& result, ciField* field, int sub_offset);
+  LIR_Opr get_and_load_element_address(LIRItem& array, LIRItem& index);
   bool needs_flattened_array_store_check(StoreIndexed* x);
   void check_flattened_array(LIR_Opr array, LIR_Opr value, CodeStub* slow_path);
   bool needs_null_free_array_store_check(StoreIndexed* x);
@@ -377,7 +379,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void monitor_enter (LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no, CodeEmitInfo* info_for_exception, CodeEmitInfo* info, CodeStub* throw_imse_stub);
   void monitor_exit  (LIR_Opr object, LIR_Opr lock, LIR_Opr hdr, LIR_Opr scratch, int monitor_no);
 
-  void new_instance    (LIR_Opr  dst, ciInstanceKlass* klass, bool is_unresolved, LIR_Opr  scratch1, LIR_Opr  scratch2, LIR_Opr  scratch3,  LIR_Opr scratch4, LIR_Opr  klass_reg, CodeEmitInfo* info);
+  void new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unresolved, bool allow_inline, LIR_Opr scratch1, LIR_Opr scratch2, LIR_Opr scratch3, LIR_Opr scratch4, LIR_Opr klass_reg, CodeEmitInfo* info);
 
   // machine dependent
   void cmp_mem_int(LIR_Condition condition, LIR_Opr base, int disp, int c, CodeEmitInfo* info);
@@ -498,10 +500,11 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   void profile_arguments(ProfileCall* x);
   void profile_parameters(Base* x);
   void profile_parameters_at_call(ProfileCall* x);
-  void profile_array_load_store_flags(ciMethodData* md, ciArrayLoadStoreData* load_store, int flag, LIR_Opr mdp = NULL);
+  void profile_flags(ciMethodData* md, ciProfileData* load_store, int flag, LIR_Condition condition = lir_cond_always);
   void profile_null_free_array(LIRItem array, ciMethodData* md, ciArrayLoadStoreData* load_store);
   void profile_array_type(AccessIndexed* x, ciMethodData*& md, ciArrayLoadStoreData*& load_store);
   void profile_element_type(Value element, ciMethodData* md, ciArrayLoadStoreData* load_store);
+  bool profile_inline_klass(ciMethodData* md, ciProfileData* data, Value value, int flag);
   LIR_Opr mask_boolean(LIR_Opr array, LIR_Opr value, CodeEmitInfo*& null_check_info);
   LIR_Opr maybe_mask_boolean(StoreIndexed* x, LIR_Opr array, LIR_Opr value, CodeEmitInfo*& null_check_info);
 
@@ -615,6 +618,7 @@ class LIRGenerator: public InstructionVisitor, public BlockClosure {
   virtual void do_ProfileCall    (ProfileCall*     x);
   virtual void do_ProfileReturnType (ProfileReturnType* x);
   virtual void do_ProfileInvoke  (ProfileInvoke*   x);
+  virtual void do_ProfileACmpTypes(ProfileACmpTypes* x);
   virtual void do_RuntimeCall    (RuntimeCall*     x);
   virtual void do_MemBar         (MemBar*          x);
   virtual void do_RangeCheckPredicate(RangeCheckPredicate* x);

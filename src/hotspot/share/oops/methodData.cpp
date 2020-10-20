@@ -523,6 +523,10 @@ void BranchData::post_initialize(BytecodeStream* stream, MethodData* mdo) {
 
 void BranchData::print_data_on(outputStream* st, const char* extra) const {
   print_shared(st, "BranchData", extra);
+  if (data()->flags()) {
+    tty->cr();
+    tab(st);
+  }
   st->print_cr("taken(%u) displacement(%d)",
                taken(), displacement());
   tab(st);
@@ -657,6 +661,16 @@ void ArrayLoadStoreData::print_data_on(outputStream* st, const char* extra) cons
   _element.print_data_on(st);
 }
 
+void ACmpData::print_data_on(outputStream* st, const char* extra) const {
+  BranchData::print_data_on(st, extra);
+  tab(st, true);
+  st->print("left");
+  _left.print_data_on(st);
+  tab(st, true);
+  st->print("right");
+  _right.print_data_on(st);
+}
+
 // ==================================================================
 // MethodData*
 //
@@ -724,11 +738,12 @@ int MethodData::bytecode_cell_count(Bytecodes::Code code) {
   case Bytecodes::_if_icmpge:
   case Bytecodes::_if_icmpgt:
   case Bytecodes::_if_icmple:
-  case Bytecodes::_if_acmpeq:
-  case Bytecodes::_if_acmpne:
   case Bytecodes::_ifnull:
   case Bytecodes::_ifnonnull:
     return BranchData::static_cell_count();
+  case Bytecodes::_if_acmpne:
+  case Bytecodes::_if_acmpeq:
+    return ACmpData::static_cell_count();
   case Bytecodes::_lookupswitch:
   case Bytecodes::_tableswitch:
     return variable_cell_count;
@@ -1075,12 +1090,15 @@ int MethodData::initialize_data(BytecodeStream* stream,
   case Bytecodes::_if_icmpge:
   case Bytecodes::_if_icmpgt:
   case Bytecodes::_if_icmple:
-  case Bytecodes::_if_acmpeq:
-  case Bytecodes::_if_acmpne:
   case Bytecodes::_ifnull:
   case Bytecodes::_ifnonnull:
     cell_count = BranchData::static_cell_count();
     tag = DataLayout::branch_data_tag;
+    break;
+  case Bytecodes::_if_acmpeq:
+  case Bytecodes::_if_acmpne:
+    cell_count = ACmpData::static_cell_count();
+    tag = DataLayout::acmp_data_tag;
     break;
   case Bytecodes::_lookupswitch:
   case Bytecodes::_tableswitch:
@@ -1151,6 +1169,8 @@ ProfileData* DataLayout::data_in() {
     return new SpeculativeTrapData(this);
   case DataLayout::array_load_store_data_tag:
     return new ArrayLoadStoreData(this);
+  case DataLayout::acmp_data_tag:
+    return new ACmpData(this);
   }
 }
 

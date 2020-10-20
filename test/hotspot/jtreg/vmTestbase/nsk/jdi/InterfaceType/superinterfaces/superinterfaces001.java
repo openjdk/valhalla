@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2001, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -180,8 +180,8 @@ public class superinterfaces001 {
                         List iface0list =
                              ((ClassType) classRefType).interfaces();
 
-                        if (iface0list.size() != 1) {
-                            log3("ERROR : iface0list.size() != 1  in case: Iface1");
+                        if (iface0list.size() != 2) { // includes injected java.lang.IdentityObject
+                            log3("ERROR : iface0list.size() != 2  in case: Iface1");
                             expresult = 1;
                             break;
                         }
@@ -204,8 +204,8 @@ public class superinterfaces001 {
                         List iface1list =
                              ((ClassType) classRefType).interfaces();
 
-                        if (iface1list.size() != 1) {
-                            log3("ERROR : iface1list.size() != 1  in case: Iface2");
+                        if (iface1list.size() != 2) { // includes injected java.lang.IdentityObject
+                            log3("ERROR : iface1list.size() != 2  in case: Iface2");
                             expresult = 1;
                             break;
                         }
@@ -237,8 +237,8 @@ public class superinterfaces001 {
                         List iface3list =
                              ((ClassType) classRefType).interfaces();
 
-                        if (iface3list.size() != 1) {
-                            log3("ERROR : iface3list.size() != 1  in case: Iface3");
+                        if (iface3list.size() != 2) { // includes injected java.lang.IdentityObject
+                            log3("ERROR : iface3list.size() != 2  in case: Iface3");
                             expresult = 1;
                             break;
                         }
@@ -262,8 +262,8 @@ public class superinterfaces001 {
                         List iface4list =
                              ((ClassType) classRefType).interfaces();
 
-                        if (iface4list.size() != 1) {
-                            log3("ERROR : iface4list.size() != 1  in case: Iface4");
+                        if (iface4list.size() != 2) { // includes injected java.lang.IdentityObject
+                            log3("ERROR : iface4list.size() != 2  in case: Iface4");
                             expresult = 1;
                             break;
                         }

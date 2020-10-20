@@ -511,6 +511,7 @@ protected:
   JavaThread* _biased_locker;
   BiasedLocking::Condition _status_code;
   traceid _biased_locker_id;
+  bool _executed;
 
 public:
   RevokeOneBias(Handle obj, JavaThread* requesting_thread, JavaThread* biased_locker)
@@ -519,10 +520,14 @@ public:
     , _requesting_thread(requesting_thread)
     , _biased_locker(biased_locker)
     , _status_code(BiasedLocking::NOT_BIASED)
-    , _biased_locker_id(0) {}
+    , _biased_locker_id(0)
+    , _executed(false) {}
+
+  bool executed() { return _executed; }
 
   void do_thread(Thread* target) {
     assert(target == _biased_locker, "Wrong thread");
+    _executed = true;
 
     oop o = _obj();
     markWord mark = o->mark();
@@ -624,11 +629,11 @@ BiasedLocking::Condition BiasedLocking::single_revoke_with_handshake(Handle obj,
                                      p2i(biaser), p2i(obj()));
 
   RevokeOneBias revoke(obj, requester, biaser);
-  bool executed = Handshake::execute_direct(&revoke, biaser);
+  Handshake::execute(&revoke, biaser);
   if (revoke.status_code() == NOT_REVOKED) {
     return NOT_REVOKED;
   }
-  if (executed) {
+  if (revoke.executed()) {
     log_info(biasedlocking, handshake)("Handshake revocation for object " INTPTR_FORMAT " succeeded. Bias was %srevoked",
                                        p2i(obj()), (revoke.status_code() == BIAS_REVOKED ? "" : "already "));
     if (event.should_commit() && revoke.status_code() == BIAS_REVOKED) {
@@ -670,7 +675,7 @@ BiasedLocking::Condition BiasedLocking::single_revoke_with_handshake(Handle obj,
 void BiasedLocking::walk_stack_and_revoke(oop obj, JavaThread* biased_locker) {
   Thread* cur = Thread::current();
   assert(!SafepointSynchronize::is_at_safepoint(), "this should always be executed outside safepoints");
-  assert(cur == biased_locker || cur == biased_locker->active_handshaker(), "wrong thread");
+  assert(biased_locker->is_handshake_safe_for(cur), "wrong thread");
 
   markWord mark = obj->mark();
   assert(mark.biased_locker() == biased_locker &&
@@ -727,8 +732,7 @@ void BiasedLocking::walk_stack_and_revoke(oop obj, JavaThread* biased_locker) {
 }
 
 void BiasedLocking::revoke_own_lock(Handle obj, TRAPS) {
-  assert(THREAD->is_Java_thread(), "must be called by a JavaThread");
-  JavaThread* thread = (JavaThread*)THREAD;
+  JavaThread* thread = THREAD->as_Java_thread();
 
   markWord mark = obj->mark();
 
@@ -742,7 +746,7 @@ void BiasedLocking::revoke_own_lock(Handle obj, TRAPS) {
   ResourceMark rm;
   log_info(biasedlocking)("Revoking bias by walking my own stack:");
   EventBiasedLockSelfRevocation event;
-  BiasedLocking::walk_stack_and_revoke(obj(), (JavaThread*) thread);
+  BiasedLocking::walk_stack_and_revoke(obj(), thread);
   thread->set_cached_monitor_info(NULL);
   assert(!obj->mark().has_bias_pattern(), "invariant");
   if (event.should_commit()) {
@@ -832,7 +836,7 @@ void BiasedLocking::revoke(Handle obj, TRAPS) {
         }
         return;
       } else {
-        BiasedLocking::Condition cond = single_revoke_with_handshake(obj, (JavaThread*)THREAD, blt);
+        BiasedLocking::Condition cond = single_revoke_with_handshake(obj, THREAD->as_Java_thread(), blt);
         if (cond != NOT_REVOKED) {
           return;
         }
@@ -841,7 +845,7 @@ void BiasedLocking::revoke(Handle obj, TRAPS) {
       assert((heuristics == HR_BULK_REVOKE) ||
          (heuristics == HR_BULK_REBIAS), "?");
       EventBiasedLockClassRevocation event;
-      VM_BulkRevokeBias bulk_revoke(&obj, (JavaThread*)THREAD,
+      VM_BulkRevokeBias bulk_revoke(&obj, THREAD->as_Java_thread(),
                                     (heuristics == HR_BULK_REBIAS));
       VMThread::execute(&bulk_revoke);
       if (event.should_commit()) {

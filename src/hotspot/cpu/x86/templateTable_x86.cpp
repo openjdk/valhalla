@@ -48,11 +48,6 @@
 static const Register rbcp     = LP64_ONLY(r13) NOT_LP64(rsi);
 static const Register rlocals  = LP64_ONLY(r14) NOT_LP64(rdi);
 
-// Platform-dependent initialization
-void TemplateTable::pd_initialize() {
-  // No x86 specific initialization
-}
-
 // Address Computation: local variables
 static inline Address iaddress(int n) {
   return Address(rlocals, Interpreter::local_offset_in_bytes(n));
@@ -2377,7 +2372,7 @@ void TemplateTable::branch(bool is_jsr, bool is_wide) {
   __ dispatch_only(vtos, true);
 
   if (UseLoopCounter) {
-    if (ProfileInterpreter) {
+    if (ProfileInterpreter && !TieredCompilation) {
       // Out-of-line code to allocate method data oop.
       __ bind(profile_method);
       __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::profile_method));
@@ -2487,24 +2482,22 @@ void TemplateTable::if_acmp(Condition cc) {
   Label taken, not_taken;
   __ pop_ptr(rdx);
 
+  __ profile_acmp(rbx, rdx, rax, rcx);
+
   const int is_inline_type_mask = markWord::inline_type_pattern;
   if (EnableValhalla) {
     __ cmpoop(rdx, rax);
     __ jcc(Assembler::equal, (cc == equal) ? taken : not_taken);
 
     // might be substitutable, test if either rax or rdx is null
-    __ movptr(rbx, rdx);
-    __ andptr(rbx, rax);
-    __ testptr(rbx, rbx);
+    __ testptr(rdx, rax);
     __ jcc(Assembler::zero, (cc == equal) ? not_taken : taken);
 
     // and both are values ?
     __ movptr(rbx, Address(rdx, oopDesc::mark_offset_in_bytes()));
+    __ andptr(rbx, Address(rax, oopDesc::mark_offset_in_bytes()));
     __ andptr(rbx, is_inline_type_mask);
-    __ movptr(rcx, Address(rax, oopDesc::mark_offset_in_bytes()));
-    __ andptr(rbx, is_inline_type_mask);
-    __ andptr(rbx, rcx);
-    __ cmpl(rbx, is_inline_type_mask);
+    __ cmpptr(rbx, is_inline_type_mask);
     __ jcc(Assembler::notEqual, (cc == equal) ? not_taken : taken);
 
     // same value klass ?
@@ -2527,7 +2520,7 @@ void TemplateTable::if_acmp(Condition cc) {
   __ bind(taken);
   branch(false, false);
   __ bind(not_taken);
-  __ profile_not_taken_branch(rax);
+  __ profile_not_taken_branch(rax, true);
 }
 
 void TemplateTable::invoke_is_substitutable(Register aobj, Register bobj,
@@ -2785,16 +2778,16 @@ void TemplateTable::_return(TosState state) {
     Label no_safepoint;
     NOT_PRODUCT(__ block_comment("Thread-local Safepoint poll"));
 #ifdef _LP64
-    __ testb(Address(r15_thread, Thread::polling_page_offset()), SafepointMechanism::poll_bit());
+    __ testb(Address(r15_thread, Thread::polling_word_offset()), SafepointMechanism::poll_bit());
 #else
     const Register thread = rdi;
     __ get_thread(thread);
-    __ testb(Address(thread, Thread::polling_page_offset()), SafepointMechanism::poll_bit());
+    __ testb(Address(thread, Thread::polling_word_offset()), SafepointMechanism::poll_bit());
 #endif
     __ jcc(Assembler::zero, no_safepoint);
     __ push(state);
     __ call_VM(noreg, CAST_FROM_FN_PTR(address,
-                                    InterpreterRuntime::at_safepoint));
+                                       InterpreterRuntime::at_safepoint));
     __ pop(state);
     __ bind(no_safepoint);
   }
@@ -3960,11 +3953,6 @@ void TemplateTable::fast_xaccess(TosState state) {
 
 //-----------------------------------------------------------------------------
 // Calls
-
-void TemplateTable::count_calls(Register method, Register temp) {
-  // implemented elsewhere
-  ShouldNotReachHere();
-}
 
 void TemplateTable::prepare_invoke(int byte_no,
                                    Register method,  // linked method (or i-klass)

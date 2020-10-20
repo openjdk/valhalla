@@ -780,7 +780,7 @@ void ciTypeFlow::StateVector::do_multianewarray(ciBytecodeStream* str) {
 void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
-  if (!will_link || str->is_unresolved_klass()) {
+  if (!will_link || str->is_unresolved_klass() || klass->is_inlinetype()) {
     trap(str, klass, str->get_klass_index());
   } else {
     push_object(klass);
@@ -792,10 +792,9 @@ void ciTypeFlow::StateVector::do_new(ciBytecodeStream* str) {
 void ciTypeFlow::StateVector::do_defaultvalue(ciBytecodeStream* str) {
   bool will_link;
   ciKlass* klass = str->get_klass(will_link);
-  if (!will_link) {
+  if (!will_link || !klass->is_inlinetype()) {
     trap(str, klass, str->get_klass_index());
   } else {
-    assert(klass->is_inlinetype(), "should be inline type");
     push_object(klass);
   }
 }
@@ -811,7 +810,6 @@ void ciTypeFlow::StateVector::do_withfield(ciBytecodeStream* str) {
   } else {
     ciType* type = pop_value();
     ciType* field_type = field->type();
-    assert(field_type->is_loaded(), "field type must be loaded");
     if (field_type->is_two_word()) {
       ciType* type2 = pop_value();
       assert(type2->is_two_word(), "must be 2nd half");
