@@ -160,13 +160,13 @@ struct ObjectMonitorListGlobals {
 static ObjectMonitorListGlobals om_list_globals;
 
 #define CHECK_THROW_NOSYNC_IMSE(obj)  \
-  if ((obj)->mark().is_inline_type()) {  \
+  if (EnableValhalla && (obj)->mark().is_inline_type()) {  \
     ResourceMark rm(THREAD);                \
     THROW_MSG(vmSymbols::java_lang_IllegalMonitorStateException(), obj->klass()->external_name()); \
   }
 
 #define CHECK_THROW_NOSYNC_IMSE_0(obj)  \
-    if ((obj)->mark().is_inline_type()) {  \
+    if (EnableValhalla && (obj)->mark().is_inline_type()) {  \
     ResourceMark rm(THREAD);                  \
     THROW_MSG_0(vmSymbols::java_lang_IllegalMonitorStateException(), obj->klass()->external_name()); \
   }

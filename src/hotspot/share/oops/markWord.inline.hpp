@@ -45,7 +45,7 @@ inline bool markWord::must_be_preserved(KlassProxy klass) const {
       return true;
     }
   }
-  return (!is_unlocked() || !has_no_hash() || is_larval_state());
+  return (!is_unlocked() || !has_no_hash() || (EnableValhalla && is_larval_state()));
 }
 
 // Should this header be preserved in the case of a promotion failure during scavenge?
@@ -65,7 +65,7 @@ inline bool markWord::must_be_preserved_for_promotion_failure(KlassProxy klass) 
       return true;
     }
   }
-  return (!is_unlocked() || !has_no_hash() || is_larval_state());
+  return (!is_unlocked() || !has_no_hash() || (EnableValhalla && is_larval_state()));
 }
 
 inline markWord markWord::prototype_for_klass(const Klass* klass) {
