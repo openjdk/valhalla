@@ -30,7 +30,7 @@ import java.lang.annotation.*;
 /**
  * An informative annotation type used to indicate that a value type existed in a
  * prior avatar as a <a href="../lang/doc-files/ValueBased.html">value-based</a>
- * class. Armed with this information, the compiler may choose to treat with leniency 
+ * class. Armed with this information, the compiler may choose to treat with leniency
  * certain constructs which are erroneous when used with value types, thereby easing the
  * pain of migration.
  */
