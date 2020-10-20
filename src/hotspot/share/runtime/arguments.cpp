@@ -3220,7 +3220,7 @@ jint Arguments::finalize_vm_init_args(bool patch_mod_javabase) {
     }
   }
 
-  if (EnableValhalla && UseBiasedLocking) {
+  if (UseBiasedLocking) {
     jio_fprintf(defaultStream::error_stream(), "Valhalla does not support use with UseBiasedLocking");
     return JNI_ERR;
   }
