@@ -3555,7 +3555,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   return res;
 }
 
-// Check if 'obj' is an inline type by checking if it has the always_locked markWord pattern set.
+// Check if 'obj' is an inline type by checking if it has the inline_type_pattern markWord pattern set.
 Node* GraphKit::is_inline_type(Node* obj) {
   Node* mark_addr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
