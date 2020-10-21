@@ -202,6 +202,7 @@ serviceability/sa/ClhsdbCDSCore.java 8190936 generic-all
 serviceability/sa/ClhsdbCDSJstackPrintAll.java 8190936 generic-all
 serviceability/sa/ClhsdbFindPC.java 8190936 generic-all
 serviceability/sa/ClhsdbInspect.java 8190936 generic-all
+serviceability/sa/ClhsdbLongConstant.java 8190936 generic-all
 serviceability/sa/ClhsdbJdis.java 8190936 generic-all
 serviceability/sa/ClhsdbJstack.java 8190936 generic-all
 serviceability/sa/ClhsdbPrintAll.java 8190936 generic-all

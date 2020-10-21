@@ -2076,10 +2076,11 @@ const Type* LoadNode::Value(PhaseGVN* phase) const {
       return Type::get_zero_type(_type->basic_type());
     }
   }
-
-  Node* alloc = is_new_object_mark_load(phase);
-  if (alloc != NULL && !(alloc->Opcode() == Op_Allocate && UseBiasedLocking)) {
-    return TypeX::make(markWord::prototype().value());
+  if (!EnableValhalla) { // CMH: Fix JDK-8255045
+    Node* alloc = is_new_object_mark_load(phase);
+    if (alloc != NULL && !(alloc->Opcode() == Op_Allocate && UseBiasedLocking)) {
+      return TypeX::make(markWord::prototype().value());
+    }
   }
 
   return _type;

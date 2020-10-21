@@ -516,9 +516,10 @@ void C2_MacroAssembler::fast_lock(Register objReg, Register boxReg, Register tmp
 
   // Attempt stack-locking ...
   orptr (tmpReg, markWord::unlocked_value);
-  if (EnableValhalla && !UseBiasedLocking) {
-    // Mask always_locked bit such that we go to the slow path if object is an inline type
-    andptr(tmpReg, ~((int) markWord::biased_lock_bit_in_place));
+  if (EnableValhalla) {
+    assert(!UseBiasedLocking, "Not compatible with biased-locking");
+    // Mask inline_type bit such that we go to the slow path if object is an inline type
+    andptr(tmpReg, ~((int) markWord::inline_type_bit_in_place));
   }
   movptr(Address(boxReg, 0), tmpReg);          // Anticipate successful CAS
   lock();

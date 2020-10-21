@@ -60,8 +60,9 @@ InlineKlass::InlineKlass(const ClassFileParser& parser)
   *((address*)adr_unpack_handler()) = NULL;
   assert(pack_handler() == NULL, "pack handler not null");
   *((int*)adr_default_value_offset()) = 0;
-  set_prototype_header(markWord::always_locked_prototype());
-  assert(is_inline_type_klass(), "invariant");
+  set_prototype_header(markWord::inline_type_prototype());
+  assert(is_inline_type_klass(), "sanity");
+  assert(prototype_header().is_inline_type(), "sanity");
 }
 
 oop InlineKlass::default_value() {
@@ -128,7 +129,7 @@ instanceOop InlineKlass::allocate_instance(TRAPS) {
   int size = size_helper();  // Query before forming handle.
 
   instanceOop oop = (instanceOop)Universe::heap()->obj_allocate(this, size, CHECK_NULL);
-  assert(oop->mark().is_always_locked(), "Unlocked inline type");
+  assert(oop->mark().is_inline_type(), "Expected inline type");
   return oop;
 }
 
@@ -136,7 +137,7 @@ instanceOop InlineKlass::allocate_instance_buffer(TRAPS) {
   int size = size_helper();  // Query before forming handle.
 
   instanceOop oop = (instanceOop)Universe::heap()->obj_buffer_allocate(this, size, CHECK_NULL);
-  assert(oop->mark().is_always_locked(), "Unlocked inline type");
+  assert(oop->mark().is_inline_type(), "Expected inline type");
   return oop;
 }
 
@@ -549,12 +550,12 @@ InlineKlass* InlineKlass::returned_inline_klass(const RegisterMap& map) {
 
 void InlineKlass::verify_on(outputStream* st) {
   InstanceKlass::verify_on(st);
-  guarantee(prototype_header().is_always_locked(), "Prototype header is not always locked");
+  guarantee(prototype_header().is_inline_type(), "Prototype header is not inline type");
 }
 
 void InlineKlass::oop_verify_on(oop obj, outputStream* st) {
   InstanceKlass::oop_verify_on(obj, st);
-  guarantee(obj->mark().is_always_locked(), "Header is not always locked");
+  guarantee(obj->mark().is_inline_type(), "Header is not inline type");
 }
 
 void InlineKlass::metaspace_pointers_do(MetaspaceClosure* it) {

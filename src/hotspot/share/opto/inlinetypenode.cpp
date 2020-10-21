@@ -635,7 +635,7 @@ InlineTypeNode* InlineTypeNode::finish_larval(GraphKit* kit) const {
   Node* obj = get_oop();
   Node* mark_addr = kit->basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = kit->make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
-  mark = kit->gvn().transform(new AndXNode(mark, kit->MakeConX(~markWord::larval_mask_in_place)));
+  mark = kit->gvn().transform(new AndXNode(mark, kit->MakeConX(~markWord::larval_bit_in_place)));
   kit->store_to_memory(kit->control(), mark_addr, mark, TypeX_X->basic_type(), kit->gvn().type(mark_addr)->is_ptr(), MemNode::unordered);
 
   // Do not let stores that initialize this buffer be reordered with a subsequent

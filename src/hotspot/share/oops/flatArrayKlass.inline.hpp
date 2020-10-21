@@ -94,7 +94,7 @@ void FlatArrayKlass::oop_oop_iterate_elements(flatArrayOop a, OopClosureType* cl
 
 template <typename T, typename OopClosureType>
 void FlatArrayKlass::oop_oop_iterate(oop obj, OopClosureType* closure) {
-  assert(obj->is_flatArray(),"must be a flat array");
+  assert(obj->klass()->is_flatArray_klass(),"must be a flat array");
   flatArrayOop a = flatArrayOop(obj);
 
   if (Devirtualizer::do_metadata(closure)) {

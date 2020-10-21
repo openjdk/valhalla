@@ -71,9 +71,10 @@ int C1_MacroAssembler::lock_object(Register hdr, Register obj, Register disp_hdr
   movptr(hdr, Address(obj, hdr_offset));
   // and mark it as unlocked
   orptr(hdr, markWord::unlocked_value);
-  if (EnableValhalla && !UseBiasedLocking) {
-    // Mask always_locked bit such that we go to the slow path if object is an inline type
-    andptr(hdr, ~((int) markWord::biased_lock_bit_in_place));
+  if (EnableValhalla) {
+    assert(!UseBiasedLocking, "Not compatible with biased-locking");
+    // Mask inline_type bit such that we go to the slow path if object is an inline type
+    andptr(hdr, ~((int) markWord::inline_type_bit_in_place));
   }
   // save unlocked object header into the displaced header location on the stack
   movptr(Address(disp_hdr, 0), hdr);
@@ -164,8 +165,8 @@ void C1_MacroAssembler::try_allocate(Register obj, Register var_size_in_bytes, i
 void C1_MacroAssembler::initialize_header(Register obj, Register klass, Register len, Register t1, Register t2) {
   assert_different_registers(obj, klass, len);
   Register tmp_encode_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  if ((UseBiasedLocking || EnableValhalla) && !len->is_valid()) {
-    // Need to copy markWord::always_locked_pattern for values.
+  if (EnableValhalla) {
+    // Need to copy markWord::prototype header for klass
     assert_different_registers(obj, klass, len, t1, t2);
     movptr(t1, Address(klass, Klass::prototype_header_offset()));
     movptr(Address(obj, oopDesc::mark_offset_in_bytes()), t1);

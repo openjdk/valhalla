@@ -807,7 +807,7 @@ const intx ObjectAlignmentInBytes = 8;
   product(bool, RestrictContended, true,                                    \
           "Restrict @Contended to trusted classes")                         \
                                                                             \
-  product(bool, UseBiasedLocking, true,                                     \
+  product(bool, UseBiasedLocking, false,                                     \
           "(Deprecated) Enable biased locking in JVM")                      \
                                                                             \
   product(intx, BiasedLockingStartupDelay, 0,                               \
