@@ -127,7 +127,6 @@ import java.util.concurrent.ConcurrentMap;
  *
  * @since 1.8
  */
-@jdk.internal.ValueBased
 public final class ZoneOffset
         extends ZoneId
         implements TemporalAccessor, TemporalAdjuster, Comparable<ZoneOffset>, Serializable {

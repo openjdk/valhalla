@@ -51,7 +51,6 @@ import static java.lang.constant.ConstantDescs.CD_Boolean;
  * @author  Arthur van Hoff
  * @since   1.0
  */
-@jdk.internal.ValueBased
 public final class Boolean implements java.io.Serializable,
                                       Comparable<Boolean>, Constable
 {

@@ -52,7 +52,6 @@ import static java.lang.constant.ConstantDescs.DEFAULT_NAME;
  * @see     java.lang.Number
  * @since   1.1
  */
-@jdk.internal.ValueBased
 public final class Short extends Number implements Comparable<Short>, Constable {
 
     /**

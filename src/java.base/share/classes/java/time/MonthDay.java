@@ -124,7 +124,6 @@ import java.util.Objects;
  *
  * @since 1.8
  */
-@jdk.internal.ValueBased
 public final class MonthDay
         implements TemporalAccessor, TemporalAdjuster, Comparable<MonthDay>, Serializable {
 
