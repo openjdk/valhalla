@@ -132,7 +132,6 @@ import java.util.Objects;
  *
  * @since 1.8
  */
-@jdk.internal.ValueBased
 public final class LocalDateTime
         implements Temporal, TemporalAdjuster, ChronoLocalDateTime<LocalDate>, Serializable {
 

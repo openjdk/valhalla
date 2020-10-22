@@ -950,7 +950,6 @@ public class Runtime {
      *
      * @since  9
      */
-    @jdk.internal.ValueBased
     public static final class Version
         implements Comparable<Version>
     {

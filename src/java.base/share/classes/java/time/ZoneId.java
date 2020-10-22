@@ -175,7 +175,6 @@ import static java.util.Map.entry;
  *
  * @since 1.8
  */
-@jdk.internal.ValueBased
 public abstract class ZoneId implements Serializable {
 
     /**
