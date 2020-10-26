@@ -122,6 +122,11 @@ public class Flags {
      */
     public static final int HASINIT          = 1<<18;
 
+    /**
+     * Flag that marks a value based class.
+     */
+    public static final long VALUE_BASED = 1L<<19;
+
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
      */
@@ -470,6 +475,7 @@ public class Flags {
         ANNOTATION(Flags.ANNOTATION),
         DEPRECATED(Flags.DEPRECATED),
         HASINIT(Flags.HASINIT),
+        VALUEBASED(Flags.VALUE_BASED),
         BLOCK(Flags.BLOCK),
         ENUM(Flags.ENUM),
         MANDATED(Flags.MANDATED),

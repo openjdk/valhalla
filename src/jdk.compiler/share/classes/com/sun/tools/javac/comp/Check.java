@@ -3041,6 +3041,8 @@ public class Check {
             } else if (!s.isInterface() || (s.flags() & ANNOTATION) != 0) {
                 log.error(a.pos(), Errors.BadFunctionalIntfAnno1(Fragments.NotAFunctionalIntf(s)));
             }
+        }  else if (a.annotationType.type.tsym == syms.valueBasedType.tsym) {
+            s.flags_field |= Flags.VALUE_BASED;
         }
     }
 

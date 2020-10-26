@@ -2012,6 +2012,10 @@ public class Types {
         };
     // </editor-fold>
 
+    public boolean isValueBased(Type t) {
+        return t != null && t.tsym != null && t.tsym.isValueBased();
+    }
+
     // <editor-fold defaultstate="collapsed" desc="Array Utils">
     public boolean isArray(Type t) {
         while (t.hasTag(WILDCARD))

@@ -1737,6 +1737,9 @@ public class Attr extends JCTree.Visitor {
 
     public void visitSynchronized(JCSynchronized tree) {
         chk.checkRefType(tree.pos(), attribExpr(tree.lock, env));
+        if (env.info.lint.isEnabled(LintCategory.SYNCHRONIZE) && types.isValueBased(tree.lock.type)) {
+            log.warning(LintCategory.SYNCHRONIZE, tree.pos(), Warnings.AttemptToSynchronizeOnInstanceOfValueBasedClass);
+        }
         attribStat(tree.body, env);
         result = null;
     }
@@ -2417,6 +2420,40 @@ public class Attr extends JCTree.Visitor {
             restype = adjustMethodReturnType(msym, qualifier, methName, argtypes, restype);
 
             chk.checkRefTypes(tree.typeargs, typeargtypes);
+
+            if (localEnv.info.lint.isEnabled(LintCategory.SYNCHRONIZE)) {
+                final Symbol method = TreeInfo.symbolFor(tree.meth);
+                if (method != null && method.kind != ERR && method.owner == syms.objectType.tsym) {
+                    // Warn about ill conceived attempts to synchronize on instances of value based classes.
+                    boolean superCallOnValueReceiver = types.isValueBased(env.enclClass.sym.type)
+                            && (tree.meth.hasTag(SELECT))
+                            && ((JCFieldAccess)tree.meth).selected.hasTag(IDENT)
+                            && TreeInfo.name(((JCFieldAccess)tree.meth).selected) == names._super;
+                    if (types.isValueBased(qualifier) || superCallOnValueReceiver) {
+                        boolean shouldComplain = false;
+                        List<Type> parameterTypes = method.type.getParameterTypes();
+                        int paramSize = parameterTypes.size();
+                        Name name = method.name;
+                        switch (name.toString()) {
+                            case "wait":
+                                if (paramSize == 0
+                                        || (types.isSameType(parameterTypes.head, syms.longType) &&
+                                        (paramSize == 1 || (paramSize == 2 && types.isSameType(parameterTypes.tail.head, syms.intType))))) {
+                                    shouldComplain = true;
+                                }
+                                break;
+                            case "notify":
+                            case "notifyAll":
+                                if (paramSize == 0)
+                                    shouldComplain = true;
+                                break;
+                        }
+                        if (shouldComplain) {
+                            log.warning(LintCategory.SYNCHRONIZE, tree.pos(), Warnings.AttemptToSynchronizeOnInstanceOfValueBasedClass);
+                        }
+                    }
+                }
+            }
 
             // Check that value of resulting type is admissible in the
             // current context.  Also, capture the return type

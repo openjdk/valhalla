@@ -1437,6 +1437,8 @@ public class ClassReader {
                     target = proxy;
                 } else if (proxy.type.tsym == syms.repeatableType.tsym) {
                     repeatable = proxy;
+                } else if (sym.kind == TYP && proxy.type.tsym == syms.valueBasedType.tsym) {
+                    sym.flags_field |= VALUE_BASED;
                 } else if (proxy.type.tsym == syms.deprecatedType.tsym) {
                     sym.flags_field |= (DEPRECATED | DEPRECATED_ANNOTATION);
                     setFlagIfAttributeTrue(proxy, sym, names.forRemoval, DEPRECATED_REMOVAL);

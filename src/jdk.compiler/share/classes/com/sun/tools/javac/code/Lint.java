@@ -283,6 +283,11 @@ public class Lint
         STATIC("static"),
 
         /**
+         * Warn about synchronization attempts on instances of @ValueBased classes.
+         */
+        SYNCHRONIZE("synchronize"),
+
+        /**
          * Warn about issues relating to use of text blocks
          */
         TEXT_BLOCKS("text-blocks"),

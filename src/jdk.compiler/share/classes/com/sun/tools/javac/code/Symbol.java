@@ -458,6 +458,13 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         return name == name.table.names.init;
     }
 
+    /**
+     * Is this a value based class ?
+     */
+    public boolean isValueBased() {
+        return (flags() & VALUE_BASED) != 0;
+    }
+
     public boolean isDynamic() {
         return false;
     }
