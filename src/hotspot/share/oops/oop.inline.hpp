@@ -206,8 +206,14 @@ bool oopDesc::is_typeArray() const { return klass()->is_typeArray_klass(); }
 
 bool oopDesc::is_inline_type() const { return mark().is_inline_type(); }
 #if _LP64
-bool oopDesc::is_flatArray()     const { return mark().is_flat_array(); }
-bool oopDesc::is_nullfreeArray() const { return mark().is_nullfree_array(); }
+bool oopDesc::is_flatArray() const {
+  markWord mrk = mark();
+  return (mrk.is_unlocked()) ? mrk.is_flat_array() : klass()->is_flatArray_klass();
+}
+bool oopDesc::is_nullfreeArray() const {
+  markWord mrk = mark();
+  return (mrk.is_unlocked()) ? mrk.is_nullfree_array() : klass()->is_null_free_array_klass();
+}
 #else
 bool oopDesc::is_flatArray()     const { return klass()->is_flatArray_klass(); }
 bool oopDesc::is_nullfreeArray() const { return klass()->is_null_free_array_klass(); }
