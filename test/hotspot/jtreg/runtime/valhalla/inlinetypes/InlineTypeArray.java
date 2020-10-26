@@ -111,10 +111,26 @@ public class InlineTypeArray {
         Point[] points = createSimplePointArray();
         System.gc(); // check that VTs survive GC
         checkSimplePointArray(points);
-
         assertTrue(points instanceof Point[], "Instance of");
 
         testSimplePointArrayCopy();
+
+        // Locked/unlocked flat array type checks
+        points = createSimplePointArray();
+        Point[] pointsCopy = new Point[points.length];
+        synchronized (points) {
+            assertTrue(points instanceof Point[], "Instance of");
+            checkSimplePointArray(points);
+            System.arraycopy(points, 0, pointsCopy, 0, points.length);
+            synchronized (pointsCopy) {
+                assertTrue(pointsCopy instanceof Point[], "Instance of");
+                checkSimplePointArray(pointsCopy);
+                System.gc();
+            }
+            System.gc();
+        }
+        assertTrue(pointsCopy instanceof Point[], "Instance of");
+        checkSimplePointArray(pointsCopy);
     }
 
     void testSimplePointArrayCopy() {
@@ -391,6 +407,16 @@ public class InlineTypeArray {
         checkArrayElementsEqual(srcNulls, dstNulls);
         srcNulls[1] = MyInt.create(1);
         System.arraycopy(srcNulls, 0, dstNulls, 0, 2);
+        checkArrayElementsEqual(srcNulls, dstNulls);
+
+
+        // Locked/unlocked flat array type checks
+        synchronized (srcNulls) {
+            System.arraycopy(srcNulls, 0, dstNulls, 0, 2);
+            checkArrayElementsEqual(srcNulls, dstNulls);
+            System.gc();
+        }
+        System.gc();
         checkArrayElementsEqual(srcNulls, dstNulls);
     }
 
