@@ -724,7 +724,7 @@ class Compile : public Phase {
   // Keep track of inline type nodes for later processing
   void add_inline_type(Node* n);
   void remove_inline_type(Node* n);
-  void process_inline_types(PhaseIterGVN &igvn, bool post_ea = false);
+  void process_inline_types(PhaseIterGVN &igvn, bool remove = false);
 
   void adjust_flattened_array_access_aliases(PhaseIterGVN& igvn);
 
