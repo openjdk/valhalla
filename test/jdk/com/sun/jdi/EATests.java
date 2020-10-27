@@ -41,38 +41,6 @@
  *                 -XX:CompileCommand=dontinline,*::dontinline_*
  *                 -XX:+WhiteBoxAPI
  *                 -Xbatch
- *                 -XX:+DoEscapeAnalysis -XX:+EliminateAllocations -XX:+EliminateLocks -XX:+EliminateNestedLocks -XX:+UseBiasedLocking
- * @run driver EATests
- *                 -XX:+UnlockDiagnosticVMOptions
- *                 -Xms256m -Xmx256m
- *                 -Xbootclasspath/a:.
- *                 -XX:CompileCommand=dontinline,*::dontinline_*
- *                 -XX:+WhiteBoxAPI
- *                 -Xbatch
- *                 -XX:+DoEscapeAnalysis -XX:+EliminateAllocations -XX:-EliminateLocks -XX:+EliminateNestedLocks -XX:+UseBiasedLocking -XX:-UseOptoBiasInlining
- * @run driver EATests
- *                 -XX:+UnlockDiagnosticVMOptions
- *                 -Xms256m -Xmx256m
- *                 -Xbootclasspath/a:.
- *                 -XX:CompileCommand=dontinline,*::dontinline_*
- *                 -XX:+WhiteBoxAPI
- *                 -Xbatch
- *                 -XX:+DoEscapeAnalysis -XX:-EliminateAllocations -XX:+EliminateLocks -XX:+EliminateNestedLocks -XX:+UseBiasedLocking
- * @run driver EATests
- *                 -XX:+UnlockDiagnosticVMOptions
- *                 -Xms256m -Xmx256m
- *                 -Xbootclasspath/a:.
- *                 -XX:CompileCommand=dontinline,*::dontinline_*
- *                 -XX:+WhiteBoxAPI
- *                 -Xbatch
- *                 -XX:-DoEscapeAnalysis -XX:-EliminateAllocations -XX:+EliminateLocks -XX:+EliminateNestedLocks -XX:+UseBiasedLocking
- * @run driver EATests
- *                 -XX:+UnlockDiagnosticVMOptions
- *                 -Xms256m -Xmx256m
- *                 -Xbootclasspath/a:.
- *                 -XX:CompileCommand=dontinline,*::dontinline_*
- *                 -XX:+WhiteBoxAPI
- *                 -Xbatch
  *                 -XX:+DoEscapeAnalysis -XX:+EliminateAllocations -XX:+EliminateLocks -XX:+EliminateNestedLocks -XX:-UseBiasedLocking
  * @run driver EATests
  *                 -XX:+UnlockDiagnosticVMOptions
