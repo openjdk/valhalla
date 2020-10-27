@@ -1151,11 +1151,12 @@ void PhaseMacroExpand::process_users_of_allocation(CallNode *alloc, bool inline_
 }
 
 bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
-  // Don't do scalar replacement if the frame can be popped by JVMTI:
-  // if reallocation fails during deoptimization we'll pop all
+  // If reallocation fails during deoptimization we'll pop all
   // interpreter frames for this compiled frame and that won't play
   // nice with JVMTI popframe.
-  if (!EliminateAllocations || JvmtiExport::can_pop_frame()) {
+  // We avoid this issue by eager reallocation when the popframe request
+  // is received.
+  if (!EliminateAllocations) {
     return false;
   }
   Node* klass = alloc->in(AllocateNode::KlassNode);

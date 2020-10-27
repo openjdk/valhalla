@@ -2722,7 +2722,7 @@ void C2_MacroAssembler::string_indexof_char(Register str1, Register cnt1, Regist
     pmovmskb(tmp, vec3);
   }
   bsfl(ch, tmp);
-  addl(result, ch);
+  addptr(result, ch);
 
   bind(FOUND_SEQ_CHAR);
   subptr(result, str1);
@@ -2816,7 +2816,7 @@ void C2_MacroAssembler::stringL_indexof_char(Register str1, Register cnt1, Regis
     pmovmskb(tmp, vec3);
   }
   bsfl(ch, tmp);
-  addl(result, ch);
+  addptr(result, ch);
 
   bind(FOUND_SEQ_CHAR);
   subptr(result, str1);
