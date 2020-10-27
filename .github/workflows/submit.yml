@@ -448,6 +448,7 @@ jobs:
           --with-gtest="$env:GITHUB_WORKSPACE/gtest"
           --with-default-make-target="product-bundles test-bundles"
           --enable-jtreg-failure-handler
+          --disable-precompiled-headers
         working-directory: jdk
 
       - name: Build
