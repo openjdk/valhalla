@@ -1933,23 +1933,26 @@ static bool return_val_keeps_allocations_alive(Node* ret_val) {
   return some_allocations;
 }
 
-void Compile::process_inline_types(PhaseIterGVN &igvn, bool post_ea) {
+void Compile::process_inline_types(PhaseIterGVN &igvn, bool remove) {
   // Make inline types scalar in safepoints
   for (int i = _inline_type_nodes->length()-1; i >= 0; i--) {
     InlineTypeBaseNode* vt = _inline_type_nodes->at(i)->as_InlineTypeBase();
     vt->make_scalar_in_safepoints(&igvn);
   }
-  // Remove InlineTypePtr nodes only after EA to give scalar replacement a chance
-  // to remove buffer allocations. InlineType nodes are kept until loop opts and
-  // removed via InlineTypeNode::remove_redundant_allocations.
-  if (post_ea) {
+  if (remove) {
+    // Remove inline type nodes
     while (_inline_type_nodes->length() > 0) {
       InlineTypeBaseNode* vt = _inline_type_nodes->pop()->as_InlineTypeBase();
-      if (vt->is_InlineTypePtr()) {
+      if (vt->outcnt() == 0) {
+        igvn.remove_dead_node(vt);
+      } else if (vt->is_InlineTypePtr()) {
         igvn.replace_node(vt, vt->get_oop());
+      } else {
+        igvn.replace_node(vt, igvn.C->top());
       }
     }
   }
+  // TODO only check once we are removing, right?
   // Make sure that the return value does not keep an unused allocation alive
   if (tf()->returns_inline_type_as_fields()) {
     Node* ret = NULL;
@@ -2570,11 +2573,6 @@ void Compile::Optimize() {
     }
   }
 
-  if (_inline_type_nodes->length() > 0) {
-    // Process inline types again now that EA might have simplified the graph
-    process_inline_types(igvn, /* post_ea= */ true);
-  }
-
   // Loop transforms on the ideal graph.  Range Check Elimination,
   // peeling, unrolling, etc.
 
@@ -2658,6 +2656,12 @@ void Compile::Optimize() {
 #ifdef ASSERT
   bs->verify_gc_barriers(this, BarrierSetC2::BeforeMacroExpand);
 #endif
+
+  if (_inline_type_nodes->length() > 0) {
+    // Process inline type nodes again and remove them. From here
+    // on we don't need to keep track of field values anymore.
+    process_inline_types(igvn, /* remove= */ true);
+  }
 
   {
     TracePhase tp("macroExpand", &timers[_t_macroExpand]);
