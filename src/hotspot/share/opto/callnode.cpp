@@ -1006,9 +1006,9 @@ bool CallJavaNode::cmp( const Node &n ) const {
          _override_symbolic_info == call._override_symbolic_info;
 }
 
-void CallJavaNode::copy_call_debug_info(PhaseIterGVN* phase, CallNode *oldcall) {
+void CallJavaNode::copy_call_debug_info(PhaseIterGVN* phase, SafePointNode *sfpt) {
   // Copy debug information and adjust JVMState information
-  uint old_dbg_start = oldcall->tf()->domain_sig()->cnt();
+  uint old_dbg_start = sfpt->is_Call() ? sfpt->as_Call()->tf()->domain_sig()->cnt() : (uint)TypeFunc::Parms+1;
   uint new_dbg_start = tf()->domain_sig()->cnt();
   int jvms_adj  = new_dbg_start - old_dbg_start;
   assert (new_dbg_start == req(), "argument count mismatch");
@@ -1017,14 +1017,14 @@ void CallJavaNode::copy_call_debug_info(PhaseIterGVN* phase, CallNode *oldcall) 
   // SafePointScalarObject node could be referenced several times in debug info.
   // Use Dict to record cloned nodes.
   Dict* sosn_map = new Dict(cmpkey,hashkey);
-  for (uint i = old_dbg_start; i < oldcall->req(); i++) {
-    Node* old_in = oldcall->in(i);
+  for (uint i = old_dbg_start; i < sfpt->req(); i++) {
+    Node* old_in = sfpt->in(i);
     // Clone old SafePointScalarObjectNodes, adjusting their field contents.
     if (old_in != NULL && old_in->is_SafePointScalarObject()) {
       SafePointScalarObjectNode* old_sosn = old_in->as_SafePointScalarObject();
-      uint old_unique = C->unique();
-      Node* new_in = old_sosn->clone(sosn_map);
-      if (old_unique != C->unique()) { // New node?
+      bool new_node;
+      Node* new_in = old_sosn->clone(sosn_map, new_node);
+      if (new_node) { // New node?
         new_in->set_req(0, C->root()); // reset control edge
         new_in = phase->transform(new_in); // Register new node.
       }
@@ -1034,7 +1034,7 @@ void CallJavaNode::copy_call_debug_info(PhaseIterGVN* phase, CallNode *oldcall) 
   }
 
   // JVMS may be shared so clone it before we modify it
-  set_jvms(oldcall->jvms() != NULL ? oldcall->jvms()->clone_deep(C) : NULL);
+  set_jvms(sfpt->jvms() != NULL ? sfpt->jvms()->clone_deep(C) : NULL);
   for (JVMState *jvms = this->jvms(); jvms != NULL; jvms = jvms->caller()) {
     jvms->set_map(this);
     jvms->set_locoff(jvms->locoff()+jvms_adj);
@@ -1405,7 +1405,9 @@ Node* SafePointNode::Identity(PhaseGVN* phase) {
   if( in(TypeFunc::Control)->is_SafePoint() )
     return in(TypeFunc::Control);
 
-  if( in(0)->is_Proj() ) {
+  // Transforming long counted loops requires a safepoint node. Do not
+  // eliminate a safepoint until loop opts are over.
+  if (in(0)->is_Proj() && !phase->C->major_progress()) {
     Node *n0 = in(0)->in(0);
     // Check if he is a call projection (except Leaf Call)
     if( n0->is_Catch() ) {
@@ -1578,11 +1580,13 @@ uint SafePointScalarObjectNode::match_edge(uint idx) const {
 }
 
 SafePointScalarObjectNode*
-SafePointScalarObjectNode::clone(Dict* sosn_map) const {
+SafePointScalarObjectNode::clone(Dict* sosn_map, bool& new_node) const {
   void* cached = (*sosn_map)[(void*)this];
   if (cached != NULL) {
+    new_node = false;
     return (SafePointScalarObjectNode*)cached;
   }
+  new_node = true;
   SafePointScalarObjectNode* res = (SafePointScalarObjectNode*)Node::clone();
   sosn_map->Insert((void*)this, (void*)res);
   return res;

@@ -77,7 +77,8 @@ protected:
          StripMined=32768,
          SubwordLoop=65536,
          ProfileTripFailed=131072,
-         FlattenedArrays=262144};
+         TransformedLongLoop=262144,
+         FlattenedArrays=524288};
   char _unswitch_count;
   enum { _unswitch_max=3 };
   char _postloop_flags;
@@ -102,6 +103,7 @@ public:
   bool is_strip_mined() const { return _loop_flags & StripMined; }
   bool is_profile_trip_failed() const { return _loop_flags & ProfileTripFailed; }
   bool is_subword_loop() const { return _loop_flags & SubwordLoop; }
+  bool is_transformed_long_loop() const { return _loop_flags & TransformedLongLoop; }
   bool is_flattened_arrays() const { return _loop_flags & FlattenedArrays; }
 
   void mark_partial_peel_failed() { _loop_flags |= PartialPeelFailed; }
@@ -117,6 +119,7 @@ public:
   void clear_strip_mined() { _loop_flags &= ~StripMined; }
   void mark_profile_trip_failed() { _loop_flags |= ProfileTripFailed; }
   void mark_subword_loop() { _loop_flags |= SubwordLoop; }
+  void mark_transformed_long_loop() { _loop_flags |= TransformedLongLoop; }
   void mark_flattened_arrays() { _loop_flags |= FlattenedArrays; }
 
   int unswitch_max() { return _unswitch_max; }
@@ -617,13 +620,6 @@ public:
   // also gather the end of the first split and the start of the 2nd split.
   bool policy_range_check( PhaseIdealLoop *phase ) const;
 
-  // Return TRUE or FALSE if the loop should be cache-line aligned.
-  // Gather the expression that does the alignment.  Note that only
-  // one array base can be aligned in a loop (unless the VM guarantees
-  // mutual alignment).  Note that if we vectorize short memory ops
-  // into longer memory ops, we may want to increase alignment.
-  bool policy_align( PhaseIdealLoop *phase ) const;
-
   // Return TRUE if "iff" is a range check.
   bool is_range_check_if(IfNode *iff, PhaseIdealLoop *phase, Invariance& invar) const;
 
@@ -811,6 +807,8 @@ private:
 #ifdef ASSERT
   bool only_has_infinite_loops();
 #endif
+
+  void log_loop_tree();
 
 public:
 
@@ -1037,6 +1035,14 @@ public:
   static void optimize(PhaseIterGVN &igvn, LoopOptsMode mode) {
     ResourceMark rm;
     PhaseIdealLoop v(igvn, mode);
+
+    Compile* C = Compile::current();
+    if (!C->failing()) {
+      // Cleanup any modified bits
+      igvn.optimize();
+
+      v.log_loop_tree();
+    }
   }
 
   // True if the method has at least 1 irreducible loop
@@ -1052,6 +1058,13 @@ public:
   PhiNode* loop_iv_phi(Node* xphi, Node* phi_incr, Node* x, IdealLoopTree* loop);
 
   bool is_counted_loop(Node* n, IdealLoopTree* &loop);
+  void long_loop_replace_long_iv(Node* iv_to_replace, Node* inner_iv, Node* outer_phi, Node* inner_head);
+  bool is_long_counted_loop(Node* x, IdealLoopTree* loop, Node_List &old_new);
+#ifdef ASSERT
+  bool convert_to_long_loop(Node* cmp, Node* phi, IdealLoopTree* loop);
+#endif
+  void add_empty_predicate(Deoptimization::DeoptReason reason, Node* inner_head, IdealLoopTree* loop, SafePointNode* sfpt);
+  SafePointNode* find_safepoint(Node* back_control, Node* x, IdealLoopTree* loop);
   IdealLoopTree* insert_outer_loop(IdealLoopTree* loop, LoopNode* outer_l, Node* outer_ift);
   IdealLoopTree* create_outer_strip_mined_loop(BoolNode *test, Node *cmp, Node *init_control,
                                                IdealLoopTree* loop, float cl_prob, float le_fcnt,
@@ -1249,9 +1262,9 @@ public:
   // always holds true.  That is, either increase the number of iterations in
   // the pre-loop or the post-loop until the condition holds true in the main
   // loop.  Scale_con, offset and limit are all loop invariant.
-  void add_constraint( int stride_con, int scale_con, Node *offset, Node *low_limit, Node *upper_limit, Node *pre_ctrl, Node **pre_limit, Node **main_limit );
+  void add_constraint(jlong stride_con, jlong scale_con, Node* offset, Node* low_limit, Node* upper_limit, Node* pre_ctrl, Node** pre_limit, Node** main_limit);
   // Helper function for add_constraint().
-  Node* adjust_limit(int stride_con, Node * scale, Node *offset, Node *rc_limit, Node *loop_limit, Node *pre_ctrl, bool round_up);
+  Node* adjust_limit(bool reduce, Node* scale, Node* offset, Node* rc_limit, Node* old_limit, Node* pre_ctrl, bool round);
 
   // Partially peel loop up through last_peel node.
   bool partial_peel( IdealLoopTree *loop, Node_List &old_new );
@@ -1475,6 +1488,9 @@ public:
   static void print_statistics();
   static int _loop_invokes;     // Count of PhaseIdealLoop invokes
   static int _loop_work;        // Sum of PhaseIdealLoop x _unique
+  static volatile int _long_loop_candidates;
+  static volatile int _long_loop_nests;
+  static volatile int _long_loop_counted_loops;
 #endif
 
   void rpo(Node* start, Node_Stack &stk, VectorSet &visited, Node_List &rpo_list) const;
