@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -43,7 +43,9 @@ class PcDesc {
     PCDESC_is_method_handle_invoke = 1 << 1,
     PCDESC_return_oop              = 1 << 2,
     PCDESC_rethrow_exception       = 1 << 3,
-    PCDESC_return_vt               = 1 << 4
+    PCDESC_has_ea_local_in_scope   = 1 << 4,
+    PCDESC_arg_escape              = 1 << 5,
+    PCDESC_return_vt               = 1 << 6
   };
 
   int _flags;
@@ -92,6 +94,15 @@ class PcDesc {
 
   bool     return_vt()                     const { return (_flags & PCDESC_return_vt) != 0;     }
   void set_return_vt(bool z)                     { set_flag(PCDESC_return_vt, z); }
+  // Indicates if there are objects in scope that, based on escape analysis, are local to the
+  // compiled method or local to the current thread, i.e. NoEscape or ArgEscape
+  bool     has_ea_local_in_scope()         const { return (_flags & PCDESC_has_ea_local_in_scope) != 0; }
+  void set_has_ea_local_in_scope(bool z)         { set_flag(PCDESC_has_ea_local_in_scope, z); }
+
+  // Indicates if this pc descriptor is at a call site where objects that do not escape the
+  // current thread are passed as arguments.
+  bool     arg_escape()                    const { return (_flags & PCDESC_arg_escape) != 0; }
+  void set_arg_escape(bool z)                    { set_flag(PCDESC_arg_escape, z); }
 
   // Returns the real pc
   address real_pc(const CompiledMethod* code) const;
