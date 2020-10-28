@@ -125,6 +125,7 @@ public class Lint
             if (!options.isSet(Option.PREVIEW)) {
                 values.add(LintCategory.PREVIEW);
             }
+            values.add(LintCategory.SYNCHRONIZATION);
         }
 
         // Look for specific overrides
@@ -285,7 +286,7 @@ public class Lint
         /**
          * Warn about synchronization attempts on instances of @ValueBased classes.
          */
-        SYNCHRONIZE("synchronize"),
+        SYNCHRONIZATION("synchronization"),
 
         /**
          * Warn about issues relating to use of text blocks

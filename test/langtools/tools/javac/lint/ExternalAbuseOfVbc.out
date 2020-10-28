@@ -1,13 +1,4 @@
-ExternalAbuseOfVbc.java:17:13: compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class
-ExternalAbuseOfVbc.java:20:25: compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class
-ExternalAbuseOfVbc.java:23:27: compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class
-ExternalAbuseOfVbc.java:26:30: compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class
-ExternalAbuseOfVbc.java:29:25: compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class
-ExternalAbuseOfVbc.java:32:25: compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class
-ExternalAbuseOfVbc.java:35:25: compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class
-ExternalAbuseOfVbc.java:38:25: compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class
-ExternalAbuseOfVbc.java:41:25: compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class
-ExternalAbuseOfVbc.java:44:25: compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class
+ExternalAbuseOfVbc.java:18:13: compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class
 - compiler.err.warnings.and.werror
 1 error
-10 warnings
+1 warning

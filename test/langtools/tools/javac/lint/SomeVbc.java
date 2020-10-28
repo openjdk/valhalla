@@ -4,7 +4,9 @@
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.
+ * published by the Free Software Foundation.  Oracle designates this
+ * particular file as subject to the "Classpath" exception as provided
+ * by Oracle in the LICENSE file that accompanied this code.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -21,12 +23,32 @@
  * questions.
  */
 
-// key: compiler.warn.attempt.to.synchronize.on.instance.of.value.based.class
-// options: -Xlint:synchronization
+package java.lang;
 
-class AttemptToSynchronizeOnInstanceOfVbc {
-    void foo(Integer i) {
-        synchronized(i) {
+@jdk.internal.ValueBased
+public final class SomeVbc {
+
+    public SomeVbc() {}
+
+    final String ref = "String";
+
+    void abuseVbc() {
+
+        synchronized(ref) {           // OK
+            synchronized (this) {     // WARN
+            }
         }
     }
 }
+
+final class AuxilliaryAbuseOfVbc {
+
+    void abuseVbc(SomeVbc vbc) {
+
+        synchronized(this) {           // OK
+            synchronized (vbc) {       // WARN
+            }
+        }
+    }
+}
+
