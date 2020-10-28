@@ -88,6 +88,7 @@ MacroAssembler::RegState* MacroAssembler::init_reg_state(VMRegPair* regs, int nu
   return reg_state;
 }
 
+#ifdef COMPILER2
 int MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
   assert(C->has_scalarized_args(), "inline type argument scalarization is disabled");
   Method* method = C->method()->get_Method();
@@ -148,6 +149,7 @@ int MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
                       sp_inc);
   return sp_inc;
 }
+#endif // COMPILER2
 
 void MacroAssembler::shuffle_inline_args(bool is_packing, bool receiver_only,
                                          const GrowableArray<SigEntry>* sig,

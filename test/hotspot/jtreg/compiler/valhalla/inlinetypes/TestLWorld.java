@@ -3410,4 +3410,124 @@ public class TestLWorld extends InlineTypeTest {
         test125(testValue1);
         test125(null);
     }
+
+    // Test inline type that can only be scalarized after loop opts
+    @Test(failOn = ALLOC + LOAD + STORE)
+    @Warmup(10000)
+    public long test126(boolean trap) {
+        MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
+        MyValue2.ref val = null;
+
+        for (int i = 0; i < 4; i++) {
+            if ((i % 2) == 0) {
+                val = nonNull;
+            }
+        }
+        // 'val' is always non-null here but that's only known after loop opts
+        if (trap) {
+            // Uncommon trap with an inline input that can only be scalarized after loop opts
+            return val.hash();
+        }
+        return 0;
+    }
+
+    @DontCompile
+    public void test126_verifier(boolean warmup) {
+        long res = test126(false);
+        Asserts.assertEquals(res, 0L);
+        if (!warmup) {
+            res = test126(true);
+            Asserts.assertEquals(res, testValue2.hash());
+        }
+    }
+
+    // Same as test126 but with interface type
+    @Test(failOn = ALLOC + LOAD + STORE)
+    @Warmup(10000)
+    public long test127(boolean trap) {
+        MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
+        MyInterface val = null;
+
+        for (int i = 0; i < 4; i++) {
+            if ((i % 2) == 0) {
+                val = nonNull;
+            }
+        }
+        // 'val' is always non-null here but that's only known after loop opts
+        if (trap) {
+            // Uncommon trap with an inline input that can only be scalarized after loop opts
+            return val.hash();
+        }
+        return 0;
+    }
+
+    @DontCompile
+    public void test127_verifier(boolean warmup) {
+        long res = test127(false);
+        Asserts.assertEquals(res, 0L);
+        if (!warmup) {
+            res = test127(true);
+            Asserts.assertEquals(res, testValue2.hash());
+        }
+    }
+
+    // Test inline type that can only be scalarized after CCP
+    @Test(failOn = ALLOC + LOAD + STORE)
+    @Warmup(10000)
+    public long test128(boolean trap) {
+        MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
+        MyValue2.ref val = null;
+
+        int limit = 2;
+        for (; limit < 4; limit *= 2);
+        for (int i = 2; i < limit; i++) {
+            val = nonNull;
+        }
+        // 'val' is always non-null here but that's only known after CCP
+        if (trap) {
+            // Uncommon trap with an inline input that can only be scalarized after CCP
+            return val.hash();
+        }
+        return 0;
+    }
+
+    @DontCompile
+    public void test128_verifier(boolean warmup) {
+        long res = test128(false);
+        Asserts.assertEquals(res, 0L);
+        if (!warmup) {
+            res = test128(true);
+            Asserts.assertEquals(res, testValue2.hash());
+        }
+    }
+
+    // Same as test128 but with interface type
+    @Test(failOn = ALLOC + LOAD + STORE)
+    @Warmup(10000)
+    public long test129(boolean trap) {
+        MyValue2 nonNull = MyValue2.createWithFieldsInline(rI, rD);
+        MyInterface val = null;
+
+        int limit = 2;
+        for (; limit < 4; limit *= 2);
+        for (int i = 0; i < limit; i++) {
+            val = nonNull;
+        }
+        // 'val' is always non-null here but that's only known after CCP
+        if (trap) {
+            // Uncommon trap with an inline input that can only be scalarized after CCP
+            return val.hash();
+        }
+        return 0;
+    }
+
+    @DontCompile
+    public void test129_verifier(boolean warmup) {
+        long res = test129(false);
+        Asserts.assertEquals(res, 0L);
+        if (!warmup) {
+            res = test129(true);
+            Asserts.assertEquals(res, testValue2.hash());
+        }
+    }
 }

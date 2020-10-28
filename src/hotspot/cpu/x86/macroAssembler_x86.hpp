@@ -101,7 +101,10 @@ class MacroAssembler: public Assembler {
   static bool needs_explicit_null_check(intptr_t offset);
   static bool uses_implicit_null_check(void* address);
 
-  // valueKlass queries, kills temp_reg
+  // markWord tests, kills markWord reg
+  void test_markword_is_inline_type(Register markword, Label& is_inline_type);
+
+  // inlineKlass queries, kills temp_reg
   void test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type);
   void test_klass_is_empty_inline_type(Register klass, Register temp_reg, Label& is_empty_inline_type);
   void test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type);
@@ -116,7 +119,8 @@ class MacroAssembler: public Assembler {
   void test_field_is_not_inline_type(Register flags, Register temp_reg, Label& not_inline);
   void test_field_is_inlined(Register flags, Register temp_reg, Label& is_inlined);
 
-  // Check oops array storage properties, i.e. flattened and/or null-free
+  // Check oops for special arrays, i.e. flattened and/or null-free
+  void test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label);
   void test_flattened_array_oop(Register oop, Register temp_reg, Label&is_flattened_array);
   void test_non_flattened_array_oop(Register oop, Register temp_reg, Label&is_non_flattened_array);
   void test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array);

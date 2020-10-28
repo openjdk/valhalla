@@ -60,12 +60,15 @@ FlatArrayKlass::FlatArrayKlass(Klass* element_klass, Symbol* name) : ArrayKlass(
 
   set_element_klass(InlineKlass::cast(element_klass));
   set_class_loader_data(element_klass->class_loader_data());
-  set_layout_helper(array_layout_helper(InlineKlass::cast(element_klass)));
 
+  set_layout_helper(array_layout_helper(InlineKlass::cast(element_klass)));
   assert(is_array_klass(), "sanity");
   assert(is_flatArray_klass(), "sanity");
+  assert(is_null_free_array_klass(), "sanity");
 
-  CMH("tweak name symbol refcnt ?")
+  set_prototype_header(markWord::flat_array_prototype());
+  assert(prototype_header().is_flat_array(), "sanity");
+
 #ifndef PRODUCT
   if (PrintFlatArrayLayout) {
     print();
@@ -181,7 +184,7 @@ jint FlatArrayKlass::array_layout_helper(InlineKlass* vk) {
 }
 
 int FlatArrayKlass::oop_size(oop obj) const {
-  assert(obj->is_flatArray(),"must be an flat array");
+  assert(obj->klass()->is_flatArray_klass(),"must be an flat array");
   flatArrayOop array = flatArrayOop(obj);
   return array->object_size();
 }

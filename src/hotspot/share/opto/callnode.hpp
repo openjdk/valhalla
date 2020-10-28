@@ -328,7 +328,8 @@ public:
                 const TypePtr* adr_type = NULL)
     : MultiNode( edges ),
       _jvms(jvms),
-      _adr_type(adr_type)
+      _adr_type(adr_type),
+      _has_ea_local_in_scope(false)
   {
     init_class_id(Class_SafePoint);
   }
@@ -336,6 +337,7 @@ public:
   JVMState* const _jvms;      // Pointer to list of JVM State objects
   const TypePtr*  _adr_type;  // What type of memory does this node produce?
   ReplacedNodes   _replaced_nodes; // During parsing: list of pair of nodes from calls to GraphKit::replace_in_map()
+  bool            _has_ea_local_in_scope; // NoEscape or ArgEscape objects in JVM States
 
   // Many calls take *all* of memory as input,
   // but some produce a limited subset of that memory as output.
@@ -455,6 +457,12 @@ public:
   bool has_replaced_nodes() const {
     return !_replaced_nodes.is_empty();
   }
+  void set_has_ea_local_in_scope(bool b) {
+    _has_ea_local_in_scope = b;
+  }
+  bool has_ea_local_in_scope() const {
+    return _has_ea_local_in_scope;
+  }
 
   void disconnect_from_root(PhaseIterGVN *igvn);
 
@@ -526,7 +534,7 @@ public:
   // corresponds appropriately to "this" in "new_call".  Assumes that
   // "sosn_map" is a map, specific to the translation of "s" to "new_call",
   // mapping old SafePointScalarObjectNodes to new, to avoid multiple copies.
-  SafePointScalarObjectNode* clone(Dict* sosn_map) const;
+  SafePointScalarObjectNode* clone(Dict* sosn_map, bool& new_node) const;
 
 #ifndef PRODUCT
   virtual void              dump_spec(outputStream *st) const;
@@ -654,7 +662,7 @@ public:
 
   bool is_call_to_arraycopystub() const;
 
-  virtual void copy_call_debug_info(PhaseIterGVN* phase, CallNode *oldcall) {}
+  virtual void copy_call_debug_info(PhaseIterGVN* phase, SafePointNode *sfpt) {}
 
 #ifndef PRODUCT
   virtual void        dump_req(outputStream *st = tty) const;
@@ -677,6 +685,7 @@ protected:
   bool    _method_handle_invoke;
   bool    _override_symbolic_info; // Override symbolic call site info from bytecode
   ciMethod* _method;               // Method being direct called
+  bool    _arg_escape;             // ArgEscape in parameter list
 public:
   const int       _bci;         // Byte Code Index of call byte code
   CallJavaNode(const TypeFunc* tf , address addr, ciMethod* method, int bci)
@@ -684,7 +693,8 @@ public:
       _optimized_virtual(false),
       _method_handle_invoke(false),
       _override_symbolic_info(false),
-      _method(method), _bci(bci)
+      _method(method),
+      _arg_escape(false), _bci(bci)
   {
     init_class_id(Class_CallJava);
   }
@@ -698,8 +708,9 @@ public:
   bool  is_method_handle_invoke() const    { return _method_handle_invoke; }
   void  set_override_symbolic_info(bool f) { _override_symbolic_info = f; }
   bool  override_symbolic_info() const     { return _override_symbolic_info; }
-
-  void copy_call_debug_info(PhaseIterGVN* phase, CallNode *oldcall);
+  void  set_arg_escape(bool f)             { _arg_escape = f; }
+  bool  arg_escape() const                 { return _arg_escape; }
+  void copy_call_debug_info(PhaseIterGVN* phase, SafePointNode *sfpt);
 
   DEBUG_ONLY( bool validate_symbolic_info() const; )
 

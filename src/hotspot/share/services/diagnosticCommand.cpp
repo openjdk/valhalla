@@ -1027,8 +1027,6 @@ int ClassHierarchyDCmd::num_arguments() {
   }
 }
 
-#endif
-
 PrintClassLayoutDCmd::PrintClassLayoutDCmd(outputStream* output, bool heap) :
                                        DCmdWithParser(output, heap),
   _classname("classname", "Name of class whose layout should be printed. ",
@@ -1051,6 +1049,8 @@ int PrintClassLayoutDCmd::num_arguments() {
     return 0;
   }
 }
+
+#endif // INCLUDE_SERVICES
 
 class VM_DumpTouchedMethods : public VM_Operation {
 private:
