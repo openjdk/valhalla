@@ -109,7 +109,6 @@ jobs:
           - build release
           - build debug
           - build hotspot no-pch
-          - build hotspot zero
           - build hotspot minimal
         include:
           - flavor: build debug
@@ -117,9 +116,6 @@ jobs:
             artifact: -debug
           - flavor: build hotspot no-pch
             flags: --enable-debug --disable-precompiled-headers
-            build-target: hotspot
-          - flavor: build hotspot zero
-            flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=zero
             build-target: hotspot
           - flavor: build hotspot minimal
             flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=minimal
@@ -579,6 +575,7 @@ jobs:
           --with-gtest="$env:GITHUB_WORKSPACE/gtest"
           --with-default-make-target="product-bundles test-bundles"
           --enable-jtreg-failure-handler
+          --disable-precompiled-headers
         working-directory: jdk
 
       - name: Build

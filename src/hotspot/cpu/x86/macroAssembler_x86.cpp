@@ -27,6 +27,7 @@
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
 #include "compiler/disassembler.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -5273,6 +5274,7 @@ void MacroAssembler::reinit_heapbase() {
 
 #endif // _LP64
 
+#ifdef COMPILER2
 // C2 compiled method's prolog code.
 void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   int framesize = C->output()->frame_size_in_bytes();
@@ -5366,6 +5368,7 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   }
 #endif
 }
+#endif // COMPILER2
 
 // clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM registers
 void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp) {
