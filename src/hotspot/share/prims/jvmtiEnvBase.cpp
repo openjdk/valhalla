@@ -968,8 +968,10 @@ JvmtiEnvBase::get_object_monitor_usage(JavaThread* calling_thread, jobject objec
   uint32_t debug_bits = 0;
   // first derive the object's owner and entry_count (if any)
   {
-    // Revoke any biases before querying the mark word
-    BiasedLocking::revoke_at_safepoint(hobj);
+    if (UseBiasedLocking) {
+      // Revoke any biases before querying the mark word
+      BiasedLocking::revoke_at_safepoint(hobj);
+    }
 
     address owner = NULL;
     {
