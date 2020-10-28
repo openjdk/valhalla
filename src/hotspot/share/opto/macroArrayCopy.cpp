@@ -189,21 +189,24 @@ Node* PhaseMacroExpand::generate_nonpositive_guard(Node** ctrl, Node* index, boo
   return is_notp;
 }
 
-Node* PhaseMacroExpand::generate_flat_array_guard(Node** ctrl, Node* mem, Node* obj_or_klass, RegionNode* region) {
+Node* PhaseMacroExpand::array_lh_test(Node* array, jint mask) {
+  Node* klass_adr = basic_plus_adr(array, oopDesc::klass_offset_in_bytes());
+  Node* klass = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT));
+  Node* lh_addr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
+  Node* lh_val = _igvn.transform(LoadNode::make(_igvn, NULL, C->immutable_memory(), lh_addr, lh_addr->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
+  Node* masked = transform_later(new AndINode(lh_val, intcon(mask)));
+  Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
+  return transform_later(new BoolNode(cmp, BoolTest::ne));
+}
+
+Node* PhaseMacroExpand::generate_flat_array_guard(Node** ctrl, Node* array, RegionNode* region) {
   assert(UseFlatArray, "can never be flattened");
-  return generate_array_guard(ctrl, mem, obj_or_klass, region, Klass::_lh_array_tag_vt_value);
+  return generate_fair_guard(ctrl, array_lh_test(array, Klass::_lh_array_tag_vt_value_bit_inplace), region);
 }
 
 Node* PhaseMacroExpand::generate_null_free_array_guard(Node** ctrl, Node* array, RegionNode* region) {
-  Node* k_adr = basic_plus_adr(array, oopDesc::klass_offset_in_bytes());
-  Node* klass_node = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), k_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT));
-  Node* lhp = basic_plus_adr(klass_node, in_bytes(Klass::layout_helper_offset()));
-  Node* layout_val = _igvn.transform(LoadNode::make(_igvn, NULL, C->immutable_memory(), lhp, lhp->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
-  Node* null_free = _igvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_null_free_shift)));
-  null_free = _igvn.transform(new AndINode(null_free, intcon(Klass::_lh_null_free_mask)));
-  Node* cmp = _igvn.transform(new CmpINode(null_free, intcon(0)));
-  Node* test = _igvn.transform(new BoolNode(cmp, BoolTest::ne));
-  return generate_fair_guard(ctrl, test, region);
+  assert(EnableValhalla, "can never be null free");
+  return generate_fair_guard(ctrl, array_lh_test(array, Klass::_lh_null_free_bit_inplace), region);
 }
 
 Node* PhaseMacroExpand::generate_object_array_guard(Node** ctrl, Node* mem, Node* obj_or_klass, RegionNode* region) {
@@ -1415,7 +1418,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     if (!top_src->is_flat()) {
       if (UseFlatArray && !top_src->is_not_flat()) {
         // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
-        generate_flat_array_guard(&ctrl, merge_mem, src, slow_region);
+        generate_flat_array_guard(&ctrl, src, slow_region);
       }
       // No validation. The subtype check emitted at macro expansion time will not go to the slow
       // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.

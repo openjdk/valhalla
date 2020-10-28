@@ -97,7 +97,7 @@ void Parse::array_load(BasicType bt) {
     IdealKit ideal(this);
     IdealVariable res(ideal);
     ideal.declarations_done();
-    ideal.if_then(is_non_flattened_array(ary)); {
+    ideal.if_then(flat_array_test(ary, /* flat = */ false)); {
       // non-flattened
       assert(ideal.ctrl()->in(0)->as_If()->is_non_flattened_array_check(&_gvn), "Should be found");
       sync_kit(ideal);
@@ -304,11 +304,11 @@ void Parse::array_store(BasicType bt) {
       assert(UseFlatArray && !not_flattened && elemtype->is_oopptr()->can_be_inline_type() &&
              !ary_t->klass_is_exact() && !ary_t->is_not_null_free(), "array can't be flattened");
       IdealKit ideal(this);
-      ideal.if_then(is_non_flattened_array(ary)); {
+      ideal.if_then(flat_array_test(ary, /* flat = */ false)); {
         // non-flattened
         assert(ideal.ctrl()->in(0)->as_If()->is_non_flattened_array_check(&_gvn), "Should be found");
         sync_kit(ideal);
-        gen_inline_array_null_guard(ary, cast_val, 3);
+        inline_array_null_guard(ary, cast_val, 3);
         inc_sp(3);
         access_store_at(ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
         dec_sp(3);
@@ -387,7 +387,7 @@ void Parse::array_store(BasicType bt) {
     } else if (!ary_t->is_not_null_free()) {
       // Array is not flattened but may be null free
       assert(elemtype->is_oopptr()->can_be_inline_type() && !ary_t->klass_is_exact(), "array can't be null-free");
-      ary = gen_inline_array_null_guard(ary, cast_val, 3, true);
+      ary = inline_array_null_guard(ary, cast_val, 3, true);
     }
   }
   inc_sp(3);
@@ -573,7 +573,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     }
     if (!null_free_array) {
       { // Deoptimize if null-free array
-        BuildCutout unless(this, is_nullable_array(ary), PROB_MAX);
+        BuildCutout unless(this, null_free_array_test(load_object_klass(ary), /* null_free = */ false), PROB_MAX);
         uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
       }
       Node* better_ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype->cast_to_not_null_free()));
@@ -602,7 +602,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     }
     if (!flat_array) {
       { // Deoptimize if flat array
-        BuildCutout unless(this, is_non_flattened_array(ary), PROB_MAX);
+        BuildCutout unless(this, flat_array_test(ary, /* flat = */ false), PROB_MAX);
         uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
       }
       Node* better_ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype->cast_to_not_flat()));
@@ -2149,7 +2149,7 @@ void Parse::acmp_unknown_non_inline_type_input(Node* input, const TypeOopPtr* ti
   ne_region->add_req(null_ctl);
 
   {
-    BuildCutout unless(this, is_not_inline_type(cast), PROB_MAX);
+    BuildCutout unless(this, inline_type_test(cast, /* is_inline = */ false), PROB_MAX);
     inc_sp(2);
     uncommon_trap_exact(Deoptimization::Reason_class_check, Deoptimization::Action_maybe_recompile);
   }
@@ -2327,7 +2327,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   ne_region->init_req(1, null_ctl);
 
   // First operand is non-null, check if it is an inline type
-  Node* is_value = is_inline_type(not_null_right);
+  Node* is_value = inline_type_test(not_null_right);
   IfNode* is_value_iff = create_and_map_if(control(), is_value, PROB_FAIR, COUNT_UNKNOWN);
   Node* not_value = _gvn.transform(new IfFalseNode(is_value_iff));
   ne_region->init_req(2, not_value);

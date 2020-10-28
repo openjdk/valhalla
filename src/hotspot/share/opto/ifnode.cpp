@@ -1194,22 +1194,22 @@ bool IfNode::is_non_flattened_array_check(PhaseTransform* phase, Node** array) {
   }
   Node* cmp_in1 = cmp->in(1);
   Node* cmp_in2 = cmp->in(2);
-  if ((unsigned int)cmp_in2->find_int_con(0) != Klass::_lh_array_tag_vt_value) {
+  if (cmp_in2->find_int_con(-1) != 0) {
     return false;
   }
-  if (cmp_in1->Opcode() != Op_RShiftI) {
+  if (cmp_in1->Opcode() != Op_AndI) {
     return false;
   }
-  Node* shift_in1 = cmp_in1->in(1);
-  Node* shift_in2 = cmp_in1->in(2);
-  if ((unsigned int)shift_in2->find_int_con(0) != Klass::_lh_array_tag_shift) {
+  Node* and_in1 = cmp_in1->in(1);
+  Node* and_in2 = cmp_in1->in(2);
+  if (and_in2->find_int_con(0) != Klass::_lh_array_tag_vt_value_bit_inplace) {
     return false;
   }
-  if (shift_in1->Opcode() != Op_LoadI) {
+  if (and_in1->Opcode() != Op_LoadI) {
     return false;
   }
   intptr_t offset;
-  Node* ptr = shift_in1->in(MemNode::Address);
+  Node* ptr = and_in1->in(MemNode::Address);
   Node* addr = AddPNode::Ideal_base_and_offset(ptr, phase, offset);
   if (addr == NULL || offset != in_bytes(Klass::layout_helper_offset())) {
     return false;
@@ -1225,7 +1225,6 @@ bool IfNode::is_non_flattened_array_check(PhaseTransform* phase, Node** array) {
     Node* address = klass_load->in(MemNode::Address);
     *array = address->as_AddP()->in(AddPNode::Base);
   }
-  assert(bol->isa_Bool()->_test._test == BoolTest::ne, "IfTrue proj must point to non-flattened array");
   return true;
 }
 
