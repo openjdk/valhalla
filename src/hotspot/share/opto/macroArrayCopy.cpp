@@ -1415,14 +1415,16 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     // The generate_arraycopy subroutine checks this.
 
     // Handle inline type arrays
-    if (EnableValhalla && !top_src->is_flat()) {
+    if (!top_src->is_flat()) {
       if (UseFlatArray && !top_src->is_not_flat()) {
         // Src might be flat and dest might not be flat. Go to the slow path if src is flat.
         generate_flat_array_guard(&ctrl, src, slow_region);
       }
-      // No validation. The subtype check emitted at macro expansion time will not go to the slow
-      // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.
-      generate_null_free_array_guard(&ctrl, dest, slow_region);
+      if (EnableValhalla) {
+        // No validation. The subtype check emitted at macro expansion time will not go to the slow
+        // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.
+        generate_null_free_array_guard(&ctrl, dest, slow_region);
+      }
     } else {
       assert(top_dest->is_flat(), "dest array must be flat");
     }
