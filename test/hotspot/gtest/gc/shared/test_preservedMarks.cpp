@@ -26,13 +26,6 @@
 #include "oops/oop.inline.hpp"
 #include "unittest.hpp"
 
-class ScopedDisabledBiasedLocking {
-  bool _orig;
-public:
-  ScopedDisabledBiasedLocking() : _orig(UseBiasedLocking) { UseBiasedLocking = false; }
-  ~ScopedDisabledBiasedLocking() { UseBiasedLocking = _orig; }
-};
-
 // Class to create a "fake" oop with a mark that will
 // return true for calls to must_be_preserved().
 class FakeOop {
@@ -50,16 +43,12 @@ public:
   }
 
   static markWord originalMark() { return markWord(markWord::lock_mask_in_place); }
-  static markWord changedMark()  { return markWord(0x4711); }
+  static markWord changedMark()  { return markWord((uintptr_t)0x4711 << markWord::hash_shift); }
 };
 
 #define ASSERT_MARK_WORD_EQ(a, b) ASSERT_EQ((a).value(), (b).value())
 
 TEST_VM(PreservedMarks, iterate_and_restore) {
-  // Need to disable biased locking to easily
-  // create oops that "must_be_preseved"
-  ScopedDisabledBiasedLocking dbl;
-
   PreservedMarks pm;
   FakeOop o1;
   FakeOop o2;

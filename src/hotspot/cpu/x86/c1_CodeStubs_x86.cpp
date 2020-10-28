@@ -345,7 +345,7 @@ void MonitorEnterStub::emit_code(LIR_Assembler* ce) {
   __ bind(_entry);
   if (_throw_imse_stub != NULL) {
     // When we come here, _obj_reg has already been checked to be non-null.
-    const int is_value_mask = markWord::always_locked_pattern;
+    const int is_value_mask = markWord::inline_type_pattern;
     Register mark = _scratch_reg->as_register();
     __ movptr(mark, Address(_obj_reg->as_register(), oopDesc::mark_offset_in_bytes()));
     __ andptr(mark, is_value_mask);

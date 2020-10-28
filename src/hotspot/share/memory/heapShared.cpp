@@ -192,7 +192,7 @@ oop HeapShared::archive_heap_object(oop obj, Thread* THREAD) {
     // identity_hash for all shared objects, so they are less likely to be written
     // into during run time, increasing the potential of memory sharing.
     int hash_original = obj->identity_hash();
-    archived_oop->set_mark(markWord::prototype().copy_set_hash(hash_original));
+    archived_oop->set_mark(markWord::prototype_for_klass(archived_oop->klass()).copy_set_hash(hash_original));
     assert(archived_oop->mark().is_unlocked(), "sanity");
 
     DEBUG_ONLY(int hash_archived = archived_oop->identity_hash());
@@ -1150,9 +1150,6 @@ class FindEmbeddedNonNullPointers: public BasicOopIterateClosure {
   FindEmbeddedNonNullPointers(narrowOop* start, BitMap* oopmap)
     : _start(start), _oopmap(oopmap), _num_total_oops(0),  _num_null_oops(0) {}
 
-  virtual bool should_verify_oops(void) {
-    return false;
-  }
   virtual void do_oop(narrowOop* p) {
     _num_total_oops ++;
     narrowOop v = *p;

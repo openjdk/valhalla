@@ -137,10 +137,13 @@ arrayOop oopFactory::new_flatArray(Klass* klass, int length, TRAPS) {
   arrayOop oop;
   if (array_klass->is_flatArray_klass()) {
     oop = (arrayOop) FlatArrayKlass::cast(array_klass)->allocate(length, THREAD);
+    assert(oop == NULL || oop->is_flatArray(), "sanity");
+    assert(oop == NULL || oop->klass()->is_flatArray_klass(), "sanity");
   } else {
     oop = (arrayOop) ObjArrayKlass::cast(array_klass)->allocate(length, THREAD);
   }
-  assert(oop == NULL || oop->klass()->is_null_free_array_klass(), "Bad array storage encoding");
+  assert(oop == NULL || oop->klass()->is_null_free_array_klass(), "sanity");
+  assert(oop == NULL || oop->is_nullfreeArray(), "sanity");
   return oop;
 }
 

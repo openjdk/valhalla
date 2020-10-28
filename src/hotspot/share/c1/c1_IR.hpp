@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -235,7 +235,29 @@ class IRScopeDebugInfo: public CompilationResourceObj {
   //Whether we should reexecute this bytecode for deopt
   bool should_reexecute();
 
-  void record_debug_info(DebugInformationRecorder* recorder, int pc_offset, bool topmost, bool is_method_handle_invoke = false, bool maybe_return_as_fields = false);
+  void record_debug_info(DebugInformationRecorder* recorder, int pc_offset, bool topmost, bool is_method_handle_invoke = false, bool maybe_return_as_fields = false) {
+    if (caller() != NULL) {
+      // Order is significant:  Must record caller first.
+      caller()->record_debug_info(recorder, pc_offset, false/*topmost*/);
+    }
+    DebugToken* locvals = recorder->create_scope_values(locals());
+    DebugToken* expvals = recorder->create_scope_values(expressions());
+    DebugToken* monvals = recorder->create_monitor_values(monitors());
+    // reexecute allowed only for the topmost frame
+    bool reexecute = topmost ? should_reexecute() : false;
+    bool return_oop = false; // This flag will be ignored since it used only for C2 with escape analysis.
+    bool return_vt = false;
+    if (maybe_return_as_fields) {
+      return_oop = true;
+      return_vt = true;
+    }
+    bool rethrow_exception = false;
+    bool has_ea_local_in_scope = false;
+    bool arg_escape = false;
+    recorder->describe_scope(pc_offset, methodHandle(), scope()->method(), bci(),
+                             reexecute, rethrow_exception, is_method_handle_invoke, return_oop, return_vt,
+                             has_ea_local_in_scope, arg_escape, locvals, expvals, monvals);
+  }
 };
 
 

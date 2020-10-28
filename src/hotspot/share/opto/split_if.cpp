@@ -239,15 +239,6 @@ bool PhaseIdealLoop::split_up( Node *n, Node *blk1, Node *blk2 ) {
     rtype = TypeLong::INT;
   }
 
-  // Inline types should not be split through Phis but each value input
-  // needs to be merged individually. At this point, inline types should
-  // only be used by AllocateNodes. Try to remove redundant allocations
-  // and unlink the now dead inline type node.
-  if (n->is_InlineType()) {
-    n->as_InlineType()->remove_redundant_allocations(&_igvn, this);
-    return true; // n is now dead
-  }
-
   // Now actually split-up this guy.  One copy per control path merging.
   Node *phi = PhiNode::make_blank(blk1, n);
   for( uint j = 1; j < blk1->req(); j++ ) {

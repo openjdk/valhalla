@@ -635,7 +635,7 @@ InlineTypeNode* InlineTypeNode::finish_larval(GraphKit* kit) const {
   Node* obj = get_oop();
   Node* mark_addr = kit->basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = kit->make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
-  mark = kit->gvn().transform(new AndXNode(mark, kit->MakeConX(~markWord::larval_mask_in_place)));
+  mark = kit->gvn().transform(new AndXNode(mark, kit->MakeConX(~markWord::larval_bit_in_place)));
   kit->store_to_memory(kit->control(), mark_addr, mark, TypeX_X->basic_type(), kit->gvn().type(mark_addr)->is_ptr(), MemNode::unordered);
 
   // Do not let stores that initialize this buffer be reordered with a subsequent
@@ -860,7 +860,6 @@ Node* InlineTypeNode::Ideal(PhaseGVN* phase, bool can_reshape) {
 }
 
 // Search for multiple allocations of this inline type and try to replace them by dominating allocations.
-// Then unlink the inline type node and remove it.
 void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealLoop* phase) {
   // Search for allocations of this inline type. Ignore scalar replaceable ones, they
   // will be removed anyway and changing the memory chain will confuse other optimizations.
@@ -898,23 +897,14 @@ void InlineTypeNode::remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdeal
   for (DUIterator_Fast imax, i = fast_outs(imax); i < imax; i++) {
     Node* out = fast_out(i);
     if (out->is_InlineType()) {
-      // Unlink and recursively process inline type users
+      // Recursively process inline type users
       igvn->rehash_node_delayed(out);
-      int nb = out->replace_edge(this, igvn->C->top());
       out->as_InlineType()->remove_redundant_allocations(igvn, phase);
-      --i; imax -= nb;
     } else if (out->isa_Allocate() != NULL) {
       // Unlink AllocateNode
       assert(out->in(AllocateNode::InlineTypeNode) == this, "should be linked");
       igvn->replace_input_of(out, AllocateNode::InlineTypeNode, igvn->C->top());
       --i; --imax;
-    } else {
-#ifdef ASSERT
-      // The inline type should not have any other users at this time
-      out->dump();
-      assert(false, "unexpected user of inline type");
-#endif
     }
   }
-  igvn->remove_dead_node(this);
 }

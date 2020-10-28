@@ -3547,11 +3547,11 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   return res;
 }
 
-// Check if 'obj' is an inline type by checking if it has the always_locked markWord pattern set.
+// Check if 'obj' is an inline type by checking if it has the inline_type_pattern markWord pattern set.
 Node* GraphKit::inline_type_test(Node* obj) {
   Node* mark_addr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
-  Node* mask = _gvn.MakeConX(markWord::always_locked_pattern);
+  Node* mask = _gvn.MakeConX(markWord::inline_type_pattern);
   Node* andx = _gvn.transform(new AndXNode(mark, mask));
   return _gvn.transform(new CmpXNode(andx, mask));
 }

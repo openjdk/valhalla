@@ -27,6 +27,7 @@
 #include "asm/assembler.hpp"
 #include "asm/assembler.inline.hpp"
 #include "compiler/disassembler.hpp"
+#include "ci/ciInlineKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/barrierSetAssembler.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
@@ -2671,6 +2672,12 @@ void MacroAssembler::null_check(Register reg, int offset) {
   }
 }
 
+void MacroAssembler::test_markword_is_inline_type(Register markword, Label& is_inline_type) {
+  andptr(markword, markWord::inline_type_mask_in_place);
+  cmpptr(markword, markWord::inline_type_pattern);
+  jcc(Assembler::equal, is_inline_type);
+}
+
 void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg, Label& is_inline_type) {
   movl(temp_reg, Address(klass, Klass::access_flags_offset()));
   testl(temp_reg, JVM_ACC_INLINE);
@@ -2680,7 +2687,7 @@ void MacroAssembler::test_klass_is_inline_type(Register klass, Register temp_reg
 void MacroAssembler::test_oop_is_not_inline_type(Register object, Register tmp, Label& not_inline_type) {
   testptr(object, object);
   jcc(Assembler::equal, not_inline_type);
-  const int is_inline_type_mask = markWord::always_locked_pattern;
+  const int is_inline_type_mask = markWord::inline_type_pattern;
   movptr(tmp, Address(object, oopDesc::mark_offset_in_bytes()));
   andptr(tmp, is_inline_type_mask);
   cmpptr(tmp, is_inline_type_mask);
@@ -2725,40 +2732,70 @@ void MacroAssembler::test_field_is_inlined(Register flags, Register temp_reg, La
   jcc(Assembler::notZero, is_inlined);
 }
 
+void MacroAssembler::test_oop_prototype_bit(Register oop, Register temp_reg, int32_t test_bit, bool jmp_set, Label& jmp_label) {
+  Label test_mark_word;
+  // load mark word
+  movptr(temp_reg, Address(oop, oopDesc::mark_offset_in_bytes()));
+  // check displaced
+  testl(temp_reg, markWord::unlocked_value);
+  jccb(Assembler::notZero, test_mark_word);
+  // slow path use klass prototype
+  push(rscratch1);
+  load_prototype_header(temp_reg, oop, rscratch1);
+  pop(rscratch1);
+
+  bind(test_mark_word);
+  testl(temp_reg, test_bit);
+  jcc((jmp_set) ? Assembler::notZero : Assembler::zero, jmp_label);
+}
+
 void MacroAssembler::test_flattened_array_oop(Register oop, Register temp_reg,
                                               Label&is_flattened_array) {
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  load_klass(temp_reg, oop, tmp_load_klass);
+#ifdef _LP64
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, true, is_flattened_array);
+#else
+  load_klass(temp_reg, oop, noreg);
   movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
   test_flattened_array_layout(temp_reg, is_flattened_array);
+#endif
 }
 
 void MacroAssembler::test_non_flattened_array_oop(Register oop, Register temp_reg,
                                                   Label&is_non_flattened_array) {
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  load_klass(temp_reg, oop, tmp_load_klass);
+#ifdef _LP64
+  test_oop_prototype_bit(oop, temp_reg, markWord::flat_array_bit_in_place, false, is_non_flattened_array);
+#else
+  load_klass(temp_reg, oop, noreg);
   movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
   test_non_flattened_array_layout(temp_reg, is_non_flattened_array);
+#endif
 }
 
 void MacroAssembler::test_null_free_array_oop(Register oop, Register temp_reg, Label&is_null_free_array) {
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  load_klass(temp_reg, oop, tmp_load_klass);
+#ifdef _LP64
+  test_oop_prototype_bit(oop, temp_reg, markWord::nullfree_array_bit_in_place, true, is_null_free_array);
+#else
+  load_klass(temp_reg, oop, noreg);
   movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
   test_null_free_array_layout(temp_reg, is_null_free_array);
+#endif
 }
 
 void MacroAssembler::test_non_null_free_array_oop(Register oop, Register temp_reg, Label&is_non_null_free_array) {
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  load_klass(temp_reg, oop, tmp_load_klass);
+#ifdef _LP64
+  test_oop_prototype_bit(oop, temp_reg, markWord::nullfree_array_bit_in_place, false, is_non_null_free_array);
+#else
+  load_klass(temp_reg, oop, noreg);
   movl(temp_reg, Address(temp_reg, Klass::layout_helper_offset()));
   test_non_null_free_array_layout(temp_reg, is_non_null_free_array);
+#endif
 }
 
 void MacroAssembler::test_flattened_array_layout(Register lh, Label& is_flattened_array) {
   testl(lh, Klass::_lh_array_tag_vt_value_bit_inplace);
   jcc(Assembler::notZero, is_flattened_array);
 }
+
 void MacroAssembler::test_non_flattened_array_layout(Register lh, Label& is_non_flattened_array) {
   testl(lh, Klass::_lh_array_tag_vt_value_bit_inplace);
   jcc(Assembler::zero, is_non_flattened_array);
@@ -4384,6 +4421,9 @@ class ControlWord {
       case 1: rc = "round down"; break;
       case 2: rc = "round up  "; break;
       case 3: rc = "chop      "; break;
+      default:
+        rc = NULL; // silence compiler warnings
+        fatal("Unknown rounding control: %d", rounding_control());
     };
     // precision control
     const char* pc;
@@ -4392,6 +4432,9 @@ class ControlWord {
       case 1: pc = "reserved"; break;
       case 2: pc = "53 bits "; break;
       case 3: pc = "64 bits "; break;
+      default:
+        pc = NULL; // silence compiler warnings
+        fatal("Unknown precision control: %d", precision_control());
     };
     // flags
     char f[9];
@@ -5231,6 +5274,7 @@ void MacroAssembler::reinit_heapbase() {
 
 #endif // _LP64
 
+#ifdef COMPILER2
 // C2 compiled method's prolog code.
 void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   int framesize = C->output()->frame_size_in_bytes();
@@ -5324,6 +5368,7 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
   }
 #endif
 }
+#endif // COMPILER2
 
 // clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM registers
 void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp) {
@@ -5413,7 +5458,7 @@ int MacroAssembler::store_inline_type_fields_to_buf(ciInlineKlass* vk, bool from
     cmpptr(r14, Address(r15_thread, in_bytes(JavaThread::tlab_end_offset())));
     jcc(Assembler::above, slow_case);
     movptr(Address(r15_thread, in_bytes(JavaThread::tlab_top_offset())), r14);
-    movptr(Address(r13, oopDesc::mark_offset_in_bytes()), (intptr_t)markWord::always_locked_prototype().value());
+    movptr(Address(r13, oopDesc::mark_offset_in_bytes()), (intptr_t)markWord::inline_type_prototype().value());
 
     xorl(rax, rax); // use zero reg to clear memory (shorter code)
     store_klass_gap(r13, rax);  // zero klass gap for compressed oops
