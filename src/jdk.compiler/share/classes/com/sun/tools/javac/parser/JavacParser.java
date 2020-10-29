@@ -188,8 +188,7 @@ public class JavacParser implements Parser {
         this.allowYieldStatement = (!preview.isPreview(Feature.SWITCH_EXPRESSION) || preview.isEnabled()) &&
                 Feature.SWITCH_EXPRESSION.allowedInSource(source);
         this.allowWithFieldOperator = fac.options.isSet("allowWithFieldOperator");
-        this.allowRecords = (!preview.isPreview(Feature.RECORDS) || preview.isEnabled()) &&
-                Feature.RECORDS.allowedInSource(source);
+        this.allowRecords = Feature.RECORDS.allowedInSource(source);
         this.allowSealedTypes = (!preview.isPreview(Feature.SEALED_CLASSES) || preview.isEnabled()) &&
                 Feature.SEALED_CLASSES.allowedInSource(source);
     }
@@ -3849,7 +3848,7 @@ public class JavacParser implements Parser {
         } else {
             int pos = token.pos;
             List<JCTree> errs;
-            if (token.kind == IDENTIFIER && token.name() == names.record && preview.isEnabled()) {
+            if (token.kind == IDENTIFIER && token.name() == names.record) {
                 checkSourceLevel(Feature.RECORDS);
                 JCErroneous erroneousTree = syntaxError(token.pos, List.of(mods), Errors.RecordHeaderExpected);
                 return toP(F.Exec(erroneousTree));
@@ -4346,7 +4345,7 @@ public class JavacParser implements Parser {
             (peekToken(TokenKind.IDENTIFIER, TokenKind.LPAREN) ||
              peekToken(TokenKind.IDENTIFIER, TokenKind.EOF) ||
              peekToken(TokenKind.IDENTIFIER, TokenKind.LT))) {
-             checkSourceLevel(Feature.RECORDS);
+            checkSourceLevel(Feature.RECORDS);
             return true;
         } else {
             return false;
