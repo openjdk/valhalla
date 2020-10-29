@@ -220,34 +220,37 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
   Node* invar_iff_c   = invar_iff->in(0);
   invar_iff->_prob    = unswitch_iff->_prob;
   BoolNode* bol       = unswitch_iff->in(1)->as_Bool();
-  if (unswitch_iffs.size() > 1) {
+  bool flat_array_checks = unswitch_iffs.size() > 1;
+  if (flat_array_checks) {
     // Flattened array checks are used on array access to switch between
     // a legacy object array access and a flattened inline type array
     // access. We want the performance impact on legacy accesses to be
     // as small as possible so we make two copies of the loop: a fast
     // one where all accesses are known to be legacy, a slow one where
     // some accesses are to flattened arrays. Flattened array checks
-    // can be removed from the fast loop but not from the slow loop
-    // as it can have a mix of flattened/legacy accesses.
-    bol = bol->clone()->as_Bool();
+    // can be removed from the fast loop (true proj) but not from the
+    // slow loop (false proj) as it can have a mix of flattened/legacy accesses.
+    assert(bol->_test._test == BoolTest::ne, "IfTrue proj must point to flat array");
+    // Adjust condition such that the true proj points to non-flat array
+    bol = new BoolNode(bol->in(1), bol->_test.negate());
     register_new_node(bol, invar_iff->in(0));
     Node* cmp = bol->in(1)->clone();
     register_new_node(cmp, invar_iff->in(0));
     bol->set_req(1, cmp);
     // Combine all checks into a single one that fails if one array is flattened
-    Node* in1 = NULL;
+    Node* lhs = NULL;
     for (uint i = 0; i < unswitch_iffs.size(); i++) {
-      Node* array_tag = unswitch_iffs.at(i)->in(1)->in(1)->in(1);
-      array_tag = new AndINode(array_tag, _igvn.intcon(Klass::_lh_array_tag_vt_value));
-      register_new_node(array_tag, invar_iff->in(0));
-      if (in1 == NULL) {
-        in1 = array_tag;
+      Node* lh = unswitch_iffs.at(i)->in(1)->in(1)->in(1)->in(1);
+      if (lhs == NULL) {
+        lhs = lh;
       } else {
-        in1 = new OrINode(in1, array_tag);
-        register_new_node(in1, invar_iff->in(0));
+        lhs = new OrINode(lhs, lh);
+        register_new_node(lhs, invar_iff->in(0));
       }
     }
-    cmp->set_req(1, in1);
+    Node* masked = new AndINode(lhs, _igvn.intcon(Klass::_lh_array_tag_vt_value_bit_inplace));
+    register_new_node(masked, invar_iff->in(0));
+    cmp->set_req(1, masked);
   }
   invar_iff->set_req(1, bol);
 
@@ -264,7 +267,7 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
           worklist.push(use);
         }
       }
-      ProjNode* invar_proj = invar_iff->proj_out(proj->_con)->as_Proj();
+      ProjNode* invar_proj = invar_iff->proj_out(flat_array_checks ? (1-proj->_con) : proj->_con)->as_Proj();
       while (worklist.size() > 0) {
         Node* use = worklist.pop();
         Node* nuse = use->clone();
@@ -272,7 +275,7 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
         _igvn.replace_input_of(use, 1, nuse);
         register_new_node(nuse, invar_proj);
         // Same for the clone if we are removing checks from the slow loop
-        if (unswitch_iffs.size() == 1) {
+        if (!flat_array_checks) {
           Node* use_clone = old_new[use->_idx];
           _igvn.replace_input_of(use_clone, 1, nuse);
         }
@@ -284,10 +287,10 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
   for (uint i = 0; i < unswitch_iffs.size(); i++) {
     IfNode* iff = unswitch_iffs.at(i)->as_If();
     _igvn.rehash_node_delayed(iff);
-    dominated_by(proj_true, iff, false, false);
+    dominated_by(proj_true, iff, /* flip = */ flat_array_checks, false);
   }
   IfNode* unswitch_iff_clone = old_new[unswitch_iff->_idx]->as_If();
-  if (unswitch_iffs.size() == 1) {
+  if (!flat_array_checks) {
     ProjNode* proj_false = invar_iff->proj_out(0)->as_Proj();
     _igvn.rehash_node_delayed(unswitch_iff_clone);
     dominated_by(proj_false, unswitch_iff_clone, false, false);
