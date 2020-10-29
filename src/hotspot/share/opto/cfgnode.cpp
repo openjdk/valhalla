@@ -2302,6 +2302,11 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           Node *ii = in(i);
           if (ii->is_MergeMem()) {
             MergeMemNode* n = ii->as_MergeMem();
+            if (igvn) {
+              // TODO revisit this with JDK-8247216
+              // Put 'n' on the worklist because it might be modified by MergeMemStream::iteration_setup
+              igvn->_worklist.push(n);
+            }
             for (MergeMemStream mms(result, n); mms.next_non_empty2(); ) {
               // If we have not seen this slice yet, make a phi for it.
               bool made_new_phi = false;
