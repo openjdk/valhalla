@@ -3492,9 +3492,9 @@ Node* LibraryCallKit::generate_array_guard_common(Node* kls, RegionNode* region,
     }
     case FlatArray:
     case NonFlatArray: {
-      value = Klass::_lh_array_tag_vt_value;
-      layout_val = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
-      btest = (kind == FlatArray) ? BoolTest::eq : BoolTest::ne;
+      value = 0;
+      layout_val = _gvn.transform(new AndINode(layout_val, intcon(Klass::_lh_array_tag_vt_value_bit_inplace)));
+      btest = (kind == FlatArray) ? BoolTest::ne : BoolTest::eq;
       break;
     }
     case AnyArray:    value = Klass::_lh_neutral_value; btest = BoolTest::lt; break;
@@ -3737,7 +3737,7 @@ bool LibraryCallKit::inline_array_copyOf(bool is_copyOfRange) {
         // No validation. The subtype check emitted at macro expansion time will not go to the slow
         // path but call checkcast_arraycopy which can not handle flat/null-free inline type arrays.
         // TODO 8251971: Optimize for the case when src/dest are later found to be both flat/null-free.
-        generate_fair_guard(check_null_free_bit(klass_node, true), bailout);
+        generate_fair_guard(null_free_array_test(klass_node), bailout);
       }
     }
 

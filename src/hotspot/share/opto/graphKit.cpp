@@ -3547,48 +3547,35 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
   return res;
 }
 
-// Check if 'obj' is an inline type by checking if it has the inline_type_pattern markWord pattern set.
-Node* GraphKit::inline_type_test(Node* obj) {
+Node* GraphKit::inline_type_test(Node* obj, bool is_inline) {
   Node* mark_addr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
   Node* mark = make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
-  Node* mask = _gvn.MakeConX(markWord::inline_type_pattern);
-  Node* andx = _gvn.transform(new AndXNode(mark, mask));
-  return _gvn.transform(new CmpXNode(andx, mask));
+  Node* mask = MakeConX(markWord::inline_type_pattern);
+  Node* masked = _gvn.transform(new AndXNode(mark, mask));
+  Node* cmp = _gvn.transform(new CmpXNode(masked, mask));
+  return _gvn.transform(new BoolNode(cmp, is_inline ? BoolTest::eq : BoolTest::ne));
 }
 
-Node* GraphKit::is_inline_type(Node* obj) {
-  return _gvn.transform(new BoolNode(inline_type_test(obj), BoolTest::eq));
+Node* GraphKit::array_lh_test(Node* klass, jint mask, jint val, bool eq) {
+  Node* lh_adr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
+  // Make sure to use immutable memory here to enable hoisting the check out of loops
+  Node* lh_val = _gvn.transform(LoadNode::make(_gvn, NULL, immutable_memory(), lh_adr, lh_adr->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
+  Node* masked = _gvn.transform(new AndINode(lh_val, intcon(mask)));
+  Node* cmp = _gvn.transform(new CmpINode(masked, intcon(val)));
+  return _gvn.transform(new BoolNode(cmp, eq ? BoolTest::eq : BoolTest::ne));
 }
 
-Node* GraphKit::is_not_inline_type(Node* obj) {
-  return _gvn.transform(new BoolNode(inline_type_test(obj), BoolTest::ne));
+Node* GraphKit::flat_array_test(Node* ary, bool flat) {
+  Node* klass = load_object_klass(ary);
+  return array_lh_test(klass, Klass::_lh_array_tag_vt_value_bit_inplace, 0, !flat);
 }
 
-// Check if 'ary' is a non-flattened array
-Node* GraphKit::is_non_flattened_array(Node* ary) {
-  Node* kls = load_object_klass(ary);
-  Node* cmp = gen_lh_array_test(kls, Klass::_lh_array_tag_vt_value);
-  return _gvn.transform(new BoolNode(cmp, BoolTest::ne));
-}
-
-// Check bit that determines if an array is null-free
-Node* GraphKit::check_null_free_bit(Node* klass, bool null_free) {
-  Node* lhp = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
-  Node* layout_val = _gvn.transform(LoadNode::make(_gvn, NULL, immutable_memory(), lhp, lhp->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
-  Node* bit = _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_null_free_shift)));
-  bit = _gvn.transform(new AndINode(bit, intcon(Klass::_lh_null_free_mask)));
-  Node* cmp = _gvn.transform(new CmpINode(bit, intcon(0)));
-  return _gvn.transform(new BoolNode(cmp, null_free ? BoolTest::ne : BoolTest::eq));
-}
-
-// Check if 'ary' is a nullable array
-Node* GraphKit::is_nullable_array(Node* ary) {
-  Node* kls = load_object_klass(ary);
-  return check_null_free_bit(kls, false);
+Node* GraphKit::null_free_array_test(Node* klass, bool null_free) {
+  return array_lh_test(klass, Klass::_lh_null_free_bit_inplace, 0, !null_free);
 }
 
 // Deoptimize if 'ary' is a null-free inline type array and 'val' is null
-Node* GraphKit::gen_inline_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace) {
+Node* GraphKit::inline_array_null_guard(Node* ary, Node* val, int nargs, bool safe_for_replace) {
   const Type* val_t = _gvn.type(val);
   if (val->is_InlineType() || !TypePtr::NULL_PTR->higher_equal(val_t)) {
     return ary; // Never null
@@ -3601,7 +3588,7 @@ Node* GraphKit::gen_inline_array_null_guard(Node* ary, Node* val, int nargs, boo
     set_control(null_ctl);
     {
       // Deoptimize if null-free array
-      BuildCutout unless(this, is_nullable_array(ary), PROB_MAX);
+      BuildCutout unless(this, null_free_array_test(load_object_klass(ary), /* null_free = */ false), PROB_MAX);
       inc_sp(nargs);
       uncommon_trap(Deoptimization::Reason_null_check,
                     Deoptimization::Action_none);
@@ -3622,18 +3609,6 @@ Node* GraphKit::gen_inline_array_null_guard(Node* ary, Node* val, int nargs, boo
     ary = cast;
   }
   return ary;
-}
-
-Node* GraphKit::load_lh_array_tag(Node* kls) {
-  Node* lhp = basic_plus_adr(kls, in_bytes(Klass::layout_helper_offset()));
-  Node* layout_val = _gvn.transform(LoadNode::make(_gvn, NULL, immutable_memory(), lhp, lhp->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
-  return _gvn.transform(new RShiftINode(layout_val, intcon(Klass::_lh_array_tag_shift)));
-}
-
-Node* GraphKit::gen_lh_array_test(Node* kls, unsigned int lh_value) {
-  Node* layout_val = load_lh_array_tag(kls);
-  Node* cmp = _gvn.transform(new CmpINode(layout_val, intcon(lh_value)));
-  return cmp;
 }
 
 //------------------------------next_monitor-----------------------------------
@@ -4041,14 +4016,6 @@ Node* GraphKit::new_instance(Node* klass_node,
   return set_output_for_allocation(alloc, oop_type, deoptimize_on_exception);
 }
 
-// With compressed oops, the 64 bit init value for non flattened value
-// arrays is built from 2 32 bit compressed oops
-static Node* raw_default_for_coops(Node* default_value, GraphKit& kit) {
-  Node* lower = kit.gvn().transform(new CastP2XNode(kit.control(), default_value));
-  Node* upper = kit.gvn().transform(new LShiftLNode(lower, kit.intcon(32)));
-  return kit.gvn().transform(new OrLNode(lower, upper));
-}
-
 //-------------------------------new_array-------------------------------------
 // helper for newarray and anewarray
 // The 'length' parameter is (obviously) the length of the array.
@@ -4223,36 +4190,16 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
       ciInlineKlass* vk = elem_klass->as_inline_klass();
       if (!vk->flatten_array()) {
         default_value = InlineTypeNode::default_oop(gvn(), vk);
-        if (UseCompressedOops) {
-          default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));
-          raw_default_value = raw_default_for_coops(default_value, *this);
-        } else {
-          raw_default_value = _gvn.transform(new CastP2XNode(control(), default_value));
-        }
       }
     }
   } else if (ary_klass->klass()->can_be_inline_array_klass()) {
     // Array type is not known, add runtime checks
     assert(!ary_klass->klass_is_exact(), "unexpected exact type");
-    Node* r = new RegionNode(4);
+    Node* r = new RegionNode(3);
     default_value = new PhiNode(r, TypeInstPtr::BOTTOM);
 
-    // Check if array is an object array
-    Node* cmp = gen_lh_array_test(klass_node, Klass::_lh_array_tag_obj_value);
-    Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+    Node* bol = array_lh_test(klass_node, Klass::_lh_array_tag_vt_value_bit_inplace | Klass::_lh_null_free_bit_inplace, Klass::_lh_null_free_bit_inplace);
     IfNode* iff = create_and_map_if(control(), bol, PROB_FAIR, COUNT_UNKNOWN);
-
-    // Not an object array, initialize with all zero
-    r->init_req(1, _gvn.transform(new IfFalseNode(iff)));
-    default_value->init_req(1, null());
-
-    // Object array, check if null-free
-    set_control(_gvn.transform(new IfTrueNode(iff)));
-    iff = create_and_map_if(control(), check_null_free_bit(klass_node, true), PROB_FAIR, COUNT_UNKNOWN);
-
-    // Not null-free, initialize with all zero
-    r->init_req(2, _gvn.transform(new IfFalseNode(iff)));
-    default_value->init_req(2, null());
 
     // Null-free, non-flattened inline type array, initialize with the default value
     set_control(_gvn.transform(new IfTrueNode(iff)));
@@ -4265,14 +4212,23 @@ Node* GraphKit::new_array(Node* klass_node,     // array klass (maybe variable)
     Node* elem_mirror = load_mirror_from_klass(eklass);
     Node* default_value_addr = basic_plus_adr(elem_mirror, ConvI2X(default_value_offset));
     Node* val = access_load_at(elem_mirror, default_value_addr, _gvn.type(default_value_addr)->is_ptr(), TypeInstPtr::BOTTOM, T_OBJECT, IN_HEAP);
-    r->init_req(3, control());
-    default_value->init_req(3, val);
+    r->init_req(1, control());
+    default_value->init_req(1, val);
+
+    // Otherwise initialize with all zero
+    r->init_req(2, _gvn.transform(new IfFalseNode(iff)));
+    default_value->init_req(2, null());
 
     set_control(_gvn.transform(r));
     default_value = _gvn.transform(default_value);
+  }
+  if (default_value != NULL) {
     if (UseCompressedOops) {
+      // With compressed oops, the 64-bit init value is built from two 32-bit compressed oops
       default_value = _gvn.transform(new EncodePNode(default_value, default_value->bottom_type()->make_narrowoop()));
-      raw_default_value = raw_default_for_coops(default_value, *this);
+      Node* lower = _gvn.transform(new CastP2XNode(control(), default_value));
+      Node* upper = _gvn.transform(new LShiftLNode(lower, intcon(32)));
+      raw_default_value = _gvn.transform(new OrLNode(lower, upper));
     } else {
       raw_default_value = _gvn.transform(new CastP2XNode(control(), default_value));
     }
