@@ -68,7 +68,8 @@
 // ------------------------------------------------------------------
 // ciField::ciField
 ciField::ciField(ciInstanceKlass* klass, int index) :
-  _is_flattened(false), _known_to_link_with_put(NULL), _known_to_link_with_get(NULL) {
+  _descriptor_signature(NULL), _is_flattened(false),
+  _known_to_link_with_put(NULL), _known_to_link_with_get(NULL) {
   ASSERT_IN_VM;
   CompilerThread *THREAD = CompilerThread::current();
 
@@ -99,8 +100,6 @@ ciField::ciField(ciInstanceKlass* klass, int index) :
   } else {
     _type = ciType::make(field_type);
   }
-
-  _name = (ciSymbol*)ciEnv::current(THREAD)->get_symbol(name);
 
   // Get the field's declared holder.
   //
@@ -195,6 +194,9 @@ ciField::ciField(fieldDescriptor *fd) :
   ciEnv* env = CURRENT_ENV;
   _name = env->get_symbol(fd->name());
   _signature = env->get_symbol(fd->signature());
+  if (fd->has_restricted_type()) {
+    _descriptor_signature = env->get_symbol(fd->descriptor_signature());
+  }
 
   BasicType field_type = fd->field_type();
 
@@ -234,6 +236,7 @@ ciField::ciField(ciField* field, ciInstanceKlass* holder, int offset, bool is_fi
   _constant_value = field->_constant_value;
   assert(!field->is_flattened(), "field must not be flattened");
   _is_flattened = false;
+  _descriptor_signature = field->_descriptor_signature;
 }
 
 static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
@@ -277,6 +280,7 @@ static bool trust_final_non_static_fields(ciInstanceKlass* holder) {
 }
 
 void ciField::initialize_from(fieldDescriptor* fd) {
+  ASSERT_IN_VM;
   // Get the flags, offset, and canonical holder of the field.
   _flags = ciFlags(fd->access_flags());
   _offset = fd->offset();
@@ -284,9 +288,21 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   assert(field_holder != NULL, "null field_holder");
   _holder = CURRENT_ENV->get_instance_klass(field_holder);
   _is_flattened = fd->is_inlined();
+  if (fd->has_restricted_type()) {
+    _descriptor_signature = ciEnv::current(CompilerThread::current())->get_symbol(fd->descriptor_signature());
+    // assert(_descriptor_signature == _signature, "Must match");
+    _signature = ciEnv::current(CompilerThread::current())->get_symbol(fd->signature());
+    // Only InstanceKlass should have fields
+    assert(field_holder->is_instance_klass(), "Sanity check");
+    InstanceKlass* field_holder_ik = InstanceKlass::cast(field_holder);
+    // resetting the type because field's type has been switched from its descriptor signature
+    // to its restricted type
+    _type = NULL;
+    compute_type();
+    assert(_type != NULL, "Should have been set above");
+  }
 
   // Check to see if the field is constant.
-  Klass* k = _holder->get_Klass();
   bool is_stable_field = FoldStableValues && is_stable();
   if ((is_final() && !has_initialized_final_update()) || is_stable_field) {
     if (is_static()) {
@@ -295,7 +311,7 @@ void ciField::initialize_from(fieldDescriptor* fd) {
       // whose value may change.  The three examples are java.lang.System.in,
       // java.lang.System.out, and java.lang.System.err.
       assert(SystemDictionary::System_klass() != NULL, "Check once per vm");
-      if (k == SystemDictionary::System_klass()) {
+      if (field_holder == SystemDictionary::System_klass()) {
         // Check offsets for case 2: System.in, System.out, or System.err
         if (_offset == java_lang_System::in_offset()  ||
             _offset == java_lang_System::out_offset() ||
@@ -314,7 +330,7 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   } else {
     // For CallSite objects treat the target field as a compile time constant.
     assert(SystemDictionary::CallSite_klass() != NULL, "should be already initialized");
-    if (k == SystemDictionary::CallSite_klass() &&
+    if (field_holder == SystemDictionary::CallSite_klass() &&
         _offset == java_lang_invoke_CallSite::target_offset()) {
       assert(!has_initialized_final_update(), "CallSite is not supposed to have writes to final fields outside initializers");
       _is_constant = true;
@@ -463,6 +479,11 @@ void ciField::print() {
     _constant_value.print();
   }
   tty->print(" is_flattened=%s", bool_to_str(_is_flattened));
+  tty->print(" has_restricted_type=%s", bool_to_str(_descriptor_signature != NULL));
+  if (_descriptor_signature != NULL) {
+    tty->print("descriptor signature=");
+    _descriptor_signature->print_symbol();
+  }
   tty->print(">");
 }
 

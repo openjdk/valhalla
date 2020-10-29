@@ -558,6 +558,7 @@ class InstanceKlass: public Klass {
   Symbol* field_signature   (int index) const { return field(index)->signature(constants()); }
   bool    field_is_inlined(int index) const { return field(index)->is_inlined(); }
   bool    field_is_inline_type(int index) const;
+  bool    field_has_restricted_type(int index) const { return field(index)->has_restricted_type(); }
 
   // Number of Java declared fields
   int java_fields_count() const           { return (int)_java_fields_count; }
@@ -1288,7 +1289,7 @@ public:
     }
   }
 
-  u2* fields_erased_type();
+  u2* fields_descriptor_type();
 
   address adr_inline_type_field_klasses() const {
     if (has_inline_type_fields()) {

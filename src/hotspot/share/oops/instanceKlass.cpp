@@ -1667,7 +1667,7 @@ bool InstanceKlass::find_local_field(Symbol* name, Symbol* sig, fieldDescriptor*
         return true;
       }
       if (fs.has_restricted_type()) {
-        Symbol* f_sig2 = fs.secondary_signature();
+        Symbol* f_sig2 = fs.descriptor_signature();
         if (f_name == name && f_sig2 == sig) {
           fd->reinitialize(const_cast<InstanceKlass*>(this), fs.index());
           return true;

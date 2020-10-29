@@ -5913,7 +5913,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
 
   if(has_restricted_fields()) {
     ik->set_has_restricted_fields();
-    u2* rfi = ik->fields_erased_type();
+    u2* rfi = ik->fields_descriptor_type();
     for (int i = 0; i < ik->java_fields_count(); i++) {
       rfi[i] = _restricted_field_info->at(i);
     }

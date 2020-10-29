@@ -59,6 +59,13 @@ Symbol* fieldDescriptor::generic_signature() const {
   return NULL;
 }
 
+Symbol* fieldDescriptor::descriptor_signature() const {
+  if (!has_restricted_type()) {
+    return NULL;  // or the real signature could be returned
+  }
+  return _cp->symbol_at(field_holder()->fields_descriptor_type()[_index]);
+}
+
 bool fieldDescriptor::is_trusted_final() const {
   InstanceKlass* ik = field_holder();
   return is_final() && (is_static() || ik->is_hidden() || ik->is_record() || ik->is_inline_klass());

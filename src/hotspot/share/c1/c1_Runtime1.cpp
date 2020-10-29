@@ -1021,6 +1021,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
   BasicType patch_field_type = T_ILLEGAL;
   bool deoptimize_for_volatile = false;
   bool deoptimize_for_atomic = false;
+  bool deoptimize_for_flattened_field = false;
   int patch_field_offset = -1;
   Klass* init_klass = NULL; // klass needed by load_klass_patching code
   Klass* load_klass = NULL; // klass needed by load_klass_patching code
@@ -1037,7 +1038,13 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
     constantPoolHandle constants(THREAD, caller_method->constants());
     LinkResolver::resolve_field_access(result, constants, field_access.index(), caller_method, Bytecodes::java_code(code), CHECK);
     patch_field_offset = result.offset();
-    assert(!result.is_inlined(), "Can not patch access to flattened field");
+
+    // With type restrictions, it possible that at compilation time,
+    // the holder was unloaded, and C1 didn't know that the field
+    // would be flattened, so the generated code is incorrect for
+    // flattened field. The nmethod had to be deoptimized so that
+    // the code can be regnerated correctly.
+    deoptimize_for_flattened_field = result.is_inlined();
 
     // If we're patching a field which is volatile then at compile it
     // must not have been know to be volatile, so the generated code
@@ -1150,7 +1157,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
     ShouldNotReachHere();
   }
 
-  if (deoptimize_for_volatile || deoptimize_for_atomic) {
+  if (deoptimize_for_volatile || deoptimize_for_atomic || deoptimize_for_flattened_field) {
     // At compile time we assumed the field wasn't volatile/atomic but after
     // loading it turns out it was volatile/atomic so we have to throw the
     // compiled code out and let it be regenerated.
@@ -1160,6 +1167,9 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
       }
       if (deoptimize_for_atomic) {
         tty->print_cr("Deoptimizing for patching atomic field reference");
+      }
+      if (deoptimize_for_flattened_field) {
+        tty->print_cr("Deoptimizing for patching flattened field reference");
       }
     }
 

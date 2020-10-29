@@ -65,6 +65,7 @@ class fieldDescriptor {
   // Offset (in words) of field from start of instanceOop / Klass*
   inline int offset()             const;
   Symbol* generic_signature()     const;
+  Symbol* descriptor_signature()  const;
   int index()                     const    { return _index; }
   AnnotationArray* annotations()  const;
   AnnotationArray* type_annotations()  const;
