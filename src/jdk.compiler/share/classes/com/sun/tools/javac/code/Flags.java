@@ -139,10 +139,6 @@ public class Flags {
      */
     public static final int EMPTYNOARGCONSTR         = 1<<18;
 
-    /** Flag is set for a value based class.
-     */
-    public static final int VALUEBASED       = 1<<19;
-
     /** Flag is set for compiler-generated anonymous method symbols
      *  that `own' an initializer block.
      */
@@ -531,7 +527,6 @@ public class Flags {
         HAS_RESOURCE(Flags.HAS_RESOURCE),
         POTENTIALLY_AMBIGUOUS(Flags.POTENTIALLY_AMBIGUOUS),
         ANONCONSTR_BASED(Flags.ANONCONSTR_BASED),
-        VALUEBASED(Flags.VALUEBASED),
         NAME_FILLED(Flags.NAME_FILLED),
         PREVIEW_API(Flags.PREVIEW_API),
         PREVIEW_ESSENTIAL_API(Flags.PREVIEW_ESSENTIAL_API),

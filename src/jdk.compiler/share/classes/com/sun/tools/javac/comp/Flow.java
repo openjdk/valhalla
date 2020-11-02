@@ -54,7 +54,6 @@ import static com.sun.tools.javac.code.TypeTag.BOOLEAN;
 import static com.sun.tools.javac.code.TypeTag.VOID;
 import static com.sun.tools.javac.comp.Flow.ThisExposability.ALLOWED;
 import static com.sun.tools.javac.comp.Flow.ThisExposability.BANNED;
-import static com.sun.tools.javac.comp.Flow.ThisExposability.DISCOURAGED;
 import static com.sun.tools.javac.tree.JCTree.Tag.*;
 
 /** This pass implements dataflow analysis for Java programs though
@@ -1662,7 +1661,6 @@ public class Flow {
     enum ThisExposability {
         ALLOWED,     // Normal Object classes - NOP
         BANNED,      // Value types           - Error
-        DISCOURAGED  // Value based types     - Warning
     }
 
     /**
@@ -1897,8 +1895,6 @@ public class Flow {
                 if (!inits.isMember(sym.adr)) {
                     if (this.thisExposability == BANNED) {
                         log.error(node, Errors.ThisExposedPrematurely);
-                    } else {
-                        log.warning(node, Warnings.ThisExposedPrematurely);
                     }
                     return; // don't flog a dead horse.
                 }
@@ -2126,9 +2122,7 @@ public class Flow {
                         firstadr = nextadr;
                         this.thisExposability = ALLOWED;
                     } else {
-                        if (types.isValueBased(tree.sym.owner.type))
-                            this.thisExposability = DISCOURAGED;
-                        else if (types.isValue(tree.sym.owner.type))
+                        if (types.isValue(tree.sym.owner.type))
                             this.thisExposability = BANNED;
                         else
                             this.thisExposability = ALLOWED;
