@@ -611,7 +611,7 @@ public class Types {
         if (tValue != sValue) {
             return tValue ?
                     isSubtype(t.referenceProjection(), s) :
-                    (!t.hasTag(BOT) || isValueBased(s)) && isSubtype(t, s.referenceProjection());
+                    !t.hasTag(BOT) && isSubtype(t, s.referenceProjection());
         }
 
         boolean tPrimitive = t.isPrimitive();
@@ -1011,10 +1011,6 @@ public class Types {
         return t != null && t.tsym != null && (t.tsym.flags_field & Flags.VALUE) != 0;
     }
 
-    public boolean isValueBased(Type t) {
-        return allowValueBasedClasses && t != null && t.tsym != null && (t.tsym.flags() & Flags.VALUEBASED) != 0;
-    }
-
     // <editor-fold defaultstate="collapsed" desc="isSubtype">
     /**
      * Is t an unchecked subtype of s?
@@ -1145,7 +1141,7 @@ public class Types {
                      return isSubtypeNoCapture(t.getUpperBound(), s);
                  case BOT:
                      return
-                         s.hasTag(BOT) || (s.hasTag(CLASS) && (!isValue(s) || isValueBased(s))) ||
+                         s.hasTag(BOT) || (s.hasTag(CLASS) && !isValue(s)) ||
                          s.hasTag(ARRAY) || s.hasTag(TYPEVAR);
                  case WILDCARD: //we shouldn't be here - avoids crash (see 7034495)
                  case NONE:
