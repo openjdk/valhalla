@@ -1022,6 +1022,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
   bool deoptimize_for_volatile = false;
   bool deoptimize_for_atomic = false;
   bool deoptimize_for_flattened_field = false;
+  bool deoptimize_for_restricted_type = false;
   int patch_field_offset = -1;
   Klass* init_klass = NULL; // klass needed by load_klass_patching code
   Klass* load_klass = NULL; // klass needed by load_klass_patching code
@@ -1044,7 +1045,20 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
     // would be flattened, so the generated code is incorrect for
     // flattened field. The nmethod had to be deoptimized so that
     // the code can be regnerated correctly.
+
     deoptimize_for_flattened_field = result.is_inlined();
+
+    // Another case caused by type restrictions: if the holder was
+    // unloaded at compilation time, C1 didn't know that the field
+    // could have type restrictions, and when the field has such
+    // restriction, it means additional checks have to be performed
+    // to ensure the value being written satisfies those restrictions.
+    // The nmethod has to be deoptimized so that the code can be
+    // regenerated with the additional checks.
+
+    if ((code == Bytecodes::_putfield || code == Bytecodes::_putstatic) && result.has_restricted_type()) {
+      deoptimize_for_restricted_type = true;
+    }
 
     // If we're patching a field which is volatile then at compile it
     // must not have been know to be volatile, so the generated code
@@ -1157,7 +1171,8 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
     ShouldNotReachHere();
   }
 
-  if (deoptimize_for_volatile || deoptimize_for_atomic || deoptimize_for_flattened_field) {
+  if (deoptimize_for_volatile || deoptimize_for_atomic || deoptimize_for_flattened_field ||
+      deoptimize_for_restricted_type) {
     // At compile time we assumed the field wasn't volatile/atomic but after
     // loading it turns out it was volatile/atomic so we have to throw the
     // compiled code out and let it be regenerated.
@@ -1170,6 +1185,9 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
       }
       if (deoptimize_for_flattened_field) {
         tty->print_cr("Deoptimizing for patching flattened field reference");
+      }
+      if (deoptimize_for_restricted_type) {
+        tty->print_cr("Deoptimizing for patching field with type restriction");
       }
     }
 

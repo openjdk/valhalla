@@ -1851,6 +1851,12 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       if (state_before == NULL) {
         state_before = copy_state_for_exception();
       }
+      if (field->has_restricted_type()) {
+        CheckCast* c = new CheckCast(field->type()->as_klass(), val, copy_state_before(), field->type()->as_inline_klass() != NULL);
+        append_split(c);
+        c->set_incompatible_class_change_check();
+        c->set_direct_compare(field->type()->as_instance_klass()->is_final());
+      }
       if (field_type == T_BOOLEAN) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
@@ -2017,6 +2023,12 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
       obj = apop();
       if (state_before == NULL) {
         state_before = copy_state_for_exception();
+      }
+      if (field->has_restricted_type()) {
+        CheckCast* c = new CheckCast(field->type()->as_klass(), val, copy_state_before(), field->type()->as_inline_klass() != NULL);
+        append_split(c);
+        c->set_incompatible_class_change_check();
+        c->set_direct_compare(field->type()->as_instance_klass()->is_final());
       }
       if (field_type == T_BOOLEAN) {
         Value mask = append(new Constant(new IntConstant(1)));
