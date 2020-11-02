@@ -4,6 +4,7 @@ on:
   push:
     branches-ignore:
       - master
+      - lworld
   workflow_dispatch:
     inputs:
       platforms:
