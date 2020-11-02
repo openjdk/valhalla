@@ -3,10 +3,7 @@ name: Pre-submit tests
 on:
   push:
     branches-ignore:
-      - 'master'
-      - 'lworld'
-      - 'type-restrictions'
-      - 'jep390'
+      - master
   workflow_dispatch:
     inputs:
       platforms:
