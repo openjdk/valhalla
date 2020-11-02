@@ -974,8 +974,10 @@ public class ClassWriter extends ClassFile {
         }
         databuf.appendChar(poolWriter.putName(v.name));
         boolean emitRestrictedField = false;
-        if (types.flattenWithTypeRestrictions && v.type.isValue()) {
-            emitRestrictedField = true;
+        if ((types.flattenWithTypeRestrictions || types.flattenWithErasure) && v.type.isValue()) {
+            if (types.flattenWithTypeRestrictions) {
+                emitRestrictedField = true;
+            }
             databuf.appendChar(poolWriter.putDescriptor(v.type.referenceProjection()));
         } else {
             databuf.appendChar(poolWriter.putDescriptor(v));

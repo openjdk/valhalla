@@ -104,6 +104,9 @@ public class Types {
     /** enable alternate code generation to faciliate specialization experiments using type restrictions */
     public boolean flattenWithTypeRestrictions;
 
+    /** enable alternate code generation to faciliate specialization experiments, without restricted field attribute */
+    public boolean flattenWithErasure;
+
     public final Warner noWarnings;
 
     // <editor-fold defaultstate="collapsed" desc="Instantiating">
@@ -130,6 +133,7 @@ public class Types {
         Options options = Options.instance(context);
         allowValueBasedClasses = options.isSet("allowValueBasedClasses");
         flattenWithTypeRestrictions = options.isSet("flattenWithTypeRestrictions");
+        flattenWithErasure = options.isSet("flattenWithErasure");
     }
     // </editor-fold>
 
