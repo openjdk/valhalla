@@ -5,7 +5,7 @@ on:
     branches-ignore:
       - master
       - lworld
-      - 'type-restrictions'
+      - type-restrictions
       - jep390
   workflow_dispatch:
     inputs:
