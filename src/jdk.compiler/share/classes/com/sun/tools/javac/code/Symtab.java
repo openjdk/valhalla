@@ -222,7 +222,6 @@ public class Symtab {
     public final Type previewFeatureInternalType;
     public final Type typeDescriptorType;
     public final Type recordType;
-    public final Type valueBasedType;
     public final Type identityObjectType;
 
     /** The symbol representing the length field of an array.
@@ -597,7 +596,6 @@ public class Symtab {
         previewFeatureInternalType = enterSyntheticAnnotation("jdk.internal.PreviewFeature+Annotation");
         typeDescriptorType = enterClass("java.lang.invoke.TypeDescriptor");
         recordType = enterClass("java.lang.Record");
-        valueBasedType = enterClass("java.lang.ValueBased");
         identityObjectType = enterClass("java.lang.IdentityObject");
 
         synthesizeEmptyInterfaceIfMissing(autoCloseableType);

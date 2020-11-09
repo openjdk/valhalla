@@ -96,7 +96,6 @@ public class Check {
     private final Profile profile;
     private final Preview preview;
     private final boolean warnOnAnyAccessToMembers;
-    private final boolean allowValueBasedClasses;
 
     // The set of lint options currently in effect. It is initialized
     // from the context, and then is set/reset as needed by Attr as it
@@ -137,7 +136,6 @@ public class Check {
         source = Source.instance(context);
         target = Target.instance(context);
         warnOnAnyAccessToMembers = options.isSet("warnOnAccessToMembers");
-        allowValueBasedClasses = options.isSet("allowValueBasedClasses");
         Target target = Target.instance(context);
         syntheticNameChar = target.syntheticNameChar();
 
@@ -614,9 +612,6 @@ public class Check {
         if (req.hasTag(NONE))
             return found;
         if (checkContext.compatible(found, req, checkContext.checkWarner(pos, found, req))) {
-            if (found.hasTag(BOT) && types.isValueBased(req)) {
-                log.warning(pos, Warnings.SuspiciousMixOfNullWithValueBasedClass(req));
-            }
             return found;
         } else {
             if (found.isNumeric() && req.isNumeric()) {
@@ -639,13 +634,6 @@ public class Check {
     }
     Type checkCastable(DiagnosticPosition pos, Type found, Type req, CheckContext checkContext) {
         if (types.isCastable(found, req, castWarner(pos, found, req))) {
-            if (types.isValueBased(req)) {
-                if (found.hasTag(BOT)) {
-                    log.warning(pos, Warnings.SuspiciousMixOfNullWithValueBasedClass(req));
-                } else if (!types.isValueBased(found)) {
-                    log.warning(pos, Warnings.PotentialNullPollution(found));
-                }
-            }
             return req;
         } else {
             checkContext.report(pos, diags.fragment(Fragments.InconvertibleTypes(found, req)));
@@ -3264,13 +3252,6 @@ public class Check {
                 log.error(a.pos(), Errors.BadFunctionalIntfAnno);
             } else if (!s.isInterface() || (s.flags() & ANNOTATION) != 0) {
                 log.error(a.pos(), Errors.BadFunctionalIntfAnno1(Fragments.NotAFunctionalIntf(s)));
-            }
-        }
-        if (a.annotationType.type.tsym == syms.valueBasedType.tsym) {
-            if (s.isInterface() || s.isEnum()) {
-                log.error(a.pos(), Errors.BadValueBasedAnno);
-            } else if (allowValueBasedClasses) {
-                s.flags_field |= VALUEBASED;
             }
         }
     }

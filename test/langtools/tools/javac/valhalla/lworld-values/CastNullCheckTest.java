@@ -29,13 +29,12 @@
  * @summary Check that casting to a value type involves a null check.
  *
  * @compile -XDallowWithFieldOperator Point.java
- * @compile -XDallowValueBasedClasses -XDallowWithFieldOperator CastNullCheckTest.java
+ * @compile -XDallowWithFieldOperator CastNullCheckTest.java
  * @run main/othervm CastNullCheckTest
  */
 
 public class CastNullCheckTest {
 
-    @ValueBased
     final inline class XX {
         final int x = 10;
     }
