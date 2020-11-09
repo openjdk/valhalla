@@ -239,11 +239,6 @@ static bool eliminate_allocations(JavaThread* thread, int exec_mode, CompiledMet
         bool skip_internal = (compiled_method != NULL) && !compiled_method->is_compiled_by_jvmci();
         Deoptimization::reassign_fields(&deoptee, &map, objects, realloc_failures, skip_internal, CHECK_AND_CLEAR_(true));
       }
-      // Make sure the deoptee frame gets processed after a potential safepoint during
-      // object reallocation. This is necessary because (a) deoptee_thread can be
-      // different from the current thread and (b) the deoptee frame does not need to be
-      // the top frame.
-      StackWatermarkSet::finish_processing(deoptee_thread, NULL /* context */, StackWatermarkKind::gc);
       deoptimized_objects = true;
     } else {
       JRT_BLOCK
