@@ -3289,21 +3289,22 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, bool xk, ciObject* o, Offse
         } else if (klass() == ciEnv::current()->Class_klass() &&
                    this->offset() >= InstanceMirrorKlass::offset_of_static_fields()) {
           // Static fields
-          assert(o != NULL, "must be constant");
-          ciInstanceKlass* ik = o->as_instance()->java_lang_Class_klass()->as_instance_klass();
-          BasicType basic_elem_type;
-          if (ik->is_inlinetype() && this->offset() == ik->as_inline_klass()->default_value_offset()) {
-            // Special hidden field that contains the oop of the default inline type
-            basic_elem_type = T_INLINE_TYPE;
-           _is_ptr_to_narrowoop = UseCompressedOops;
-          } else {
-            ciField* field = ik->get_field_by_offset(this->offset(), true);
-            if (field != NULL) {
-              BasicType basic_elem_type = field->layout_type();
-              _is_ptr_to_narrowoop = UseCompressedOops && is_reference_type(basic_elem_type);
+          ciField* field = NULL;
+          if (const_oop() != NULL) {
+            ciInstanceKlass* k = const_oop()->as_instance()->java_lang_Class_klass()->as_instance_klass();
+            if (k->is_inlinetype() && this->offset() == k->as_inline_klass()->default_value_offset()) {
+              // Special hidden field that contains the oop of the default inline type
+              // basic_elem_type = T_INLINE_TYPE;
+             _is_ptr_to_narrowoop = UseCompressedOops;
             } else {
-              // unsafe access
-              _is_ptr_to_narrowoop = UseCompressedOops;
+              field = k->get_field_by_offset(this->offset(), true);
+              if (field != NULL) {
+                BasicType basic_elem_type = field->layout_type();
+                _is_ptr_to_narrowoop = UseCompressedOops && is_reference_type(basic_elem_type);
+              } else {
+                // unsafe access
+                _is_ptr_to_narrowoop = UseCompressedOops;
+              }
             }
           }
         } else {

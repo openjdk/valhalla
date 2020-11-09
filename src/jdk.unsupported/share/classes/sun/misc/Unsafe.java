@@ -636,7 +636,6 @@ public final class Unsafe {
      * @see #getInt(Object, long)
      */
     @ForceInline
-    @SuppressWarnings("preview")
     public long objectFieldOffset(Field f) {
         if (f == null) {
             throw new NullPointerException();
@@ -649,7 +648,7 @@ public final class Unsafe {
             throw new UnsupportedOperationException("can't get field offset on an inline class: " + f);
         }
         if (declaringClass.isRecord()) {
-            throw new UnsupportedOperationException("can't get field offset on a record (preview): " + f);
+            throw new UnsupportedOperationException("can't get field offset on a record class: " + f);
         }
         return theInternalUnsafe.objectFieldOffset(f);
     }
@@ -672,7 +671,6 @@ public final class Unsafe {
      * @see #getInt(Object, long)
      */
     @ForceInline
-    @SuppressWarnings("preview")
     public long staticFieldOffset(Field f) {
         if (f == null) {
             throw new NullPointerException();
@@ -685,7 +683,7 @@ public final class Unsafe {
             throw new UnsupportedOperationException("can't get static field offset on an inline class: " + f);
         }
         if (declaringClass.isRecord()) {
-            throw new UnsupportedOperationException("can't get field offset on a record (preview): " + f);
+            throw new UnsupportedOperationException("can't get field offset on a record class: " + f);
         }
         return theInternalUnsafe.staticFieldOffset(f);
     }
@@ -701,7 +699,6 @@ public final class Unsafe {
      * this class.
      */
     @ForceInline
-    @SuppressWarnings("preview")
     public Object staticFieldBase(Field f) {
         if (f == null) {
             throw new NullPointerException();
@@ -714,7 +711,7 @@ public final class Unsafe {
             throw new UnsupportedOperationException("can't get base address on an inline class: " + f);
         }
         if (declaringClass.isRecord()) {
-            throw new UnsupportedOperationException("can't get base address on a record (preview): " + f);
+            throw new UnsupportedOperationException("can't get base address on a record class: " + f);
         }
         return theInternalUnsafe.staticFieldBase(f);
     }
