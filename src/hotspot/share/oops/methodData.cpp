@@ -1167,6 +1167,10 @@ int DataLayout::cell_count() {
     return ((new ParametersTypeData(this))->cell_count());
   case DataLayout::speculative_trap_data_tag:
     return SpeculativeTrapData::static_cell_count();
+  case DataLayout::array_load_store_data_tag:
+    return ((new ArrayLoadStoreData(this))->cell_count());
+  case DataLayout::acmp_data_tag:
+    return ((new ACmpData(this))->cell_count());
   }
 }
 ProfileData* DataLayout::data_in() {
