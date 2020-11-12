@@ -1685,7 +1685,15 @@ int ConnectionGraph::find_init_values(JavaObjectNode* pta, PointsToNode* init_va
         // OffsetBot is used to reference array's element,
         // always add reference to NULL to all Field nodes since we don't
         // known which element is referenced.
-        if (add_edge(field, null_obj)) {
+        if (alloc->as_Allocate()->in(AllocateNode::DefaultValue) != NULL) {
+          // Non-flattened inline type arrays are initialized with the
+          // default value instead of null. Add corresponding edge.
+          if (add_edge(field, phantom_obj)) {
+            add_field_uses_to_worklist(field->as_Field());
+            add_java_object_edges(phantom_obj, false);
+            visited_bottom_offset = true;
+          }
+        } else if (add_edge(field, null_obj)) {
           // New edge was added
           new_edges++;
           add_field_uses_to_worklist(field->as_Field());
@@ -1768,7 +1776,14 @@ int ConnectionGraph::find_init_values(JavaObjectNode* pta, PointsToNode* init_va
         }
         if (value == NULL) {
           // A field's initializing value was not recorded. Add NULL.
-          if (add_edge(field, null_obj)) {
+          if (alloc->as_Allocate()->in(AllocateNode::DefaultValue) != NULL) {
+            // Non-flattened inline type arrays are initialized with the
+            // default value instead of null. Add corresponding edge.
+            if (add_edge(field, phantom_obj)) {
+              add_field_uses_to_worklist(field->as_Field());
+              add_java_object_edges(phantom_obj, false);
+            }
+          } else if (add_edge(field, null_obj)) {
             // New edge was added
             new_edges++;
             add_field_uses_to_worklist(field->as_Field());
@@ -3496,7 +3511,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         } else if (!(BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(use) ||
               op == Op_AryEq || op == Op_StrComp || op == Op_HasNegatives ||
               op == Op_StrCompressedCopy || op == Op_StrInflatedCopy ||
-              op == Op_StrEquals || op == Op_StrIndexOf || op == Op_StrIndexOfChar)) {
+              op == Op_StrEquals || op == Op_StrIndexOf || op == Op_StrIndexOfChar || op == Op_FlatArrayCheck)) {
           n->dump();
           use->dump();
           assert(false, "EA: missing memory path");
