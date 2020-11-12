@@ -3318,7 +3318,7 @@ public class TestArrays extends InlineTypeTest {
 
     volatile MyInterface143[] array143 = new MyObject143[1];
     int len143 = 0;
-    
+
     volatile int vf = 0;
 
     // Test that triggers an anti dependency failure when array mark word is loaded from immutable memory
