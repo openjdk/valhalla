@@ -135,10 +135,6 @@ class FieldStreamBase : public StackObj {
     return field()->offset();
   }
 
-  int allocation_type() const {
-    return field()->allocation_type();
-  }
-
   bool is_inlined() {
     return field()->is_inlined();
   }

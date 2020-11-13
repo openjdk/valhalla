@@ -1613,14 +1613,13 @@ class ClassFileParser::FieldAllocationCount : public ResourceObj {
     }
   }
 
-  FieldAllocationType update(bool is_static, BasicType type, bool is_inline_type) {
+  void update(bool is_static, BasicType type, bool is_inline_type) {
     FieldAllocationType atype = basic_type_to_atype(is_static, type, is_inline_type);
     if (atype != BAD_ALLOCATION_TYPE) {
       // Make sure there is no overflow with injected fields.
       assert(count[atype] < 0xFFFF, "More than 65535 fields");
       count[atype]++;
     }
-    return atype;
   }
 };
 
@@ -1769,9 +1768,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                       constantvalue_index);
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
 
-    // Remember how many oops we encountered and compute allocation type
-    const FieldAllocationType atype = fac->update(is_static, type, type == T_INLINE_TYPE);
-    field->set_allocation_type(atype);
+    // Update FieldAllocationCount for this kind of field
+    fac->update(is_static, type, type == T_INLINE_TYPE);
 
     // After field is initialized with type, we can augment it with aux info
     if (parsed_annotations.has_any_annotations()) {
@@ -1814,9 +1812,8 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
       const BasicType type = Signature::basic_type(injected[n].signature());
 
-      // Remember how many oops we encountered and compute allocation type
-      const FieldAllocationType atype = fac->update(false, type, false);
-      field->set_allocation_type(atype);
+      // Update FieldAllocationCount for this kind of field
+      fac->update(false, type, false);
       index++;
     }
   }
@@ -1828,8 +1825,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                       (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(object_signature)),
                       0);
     const BasicType type = Signature::basic_type(vmSymbols::object_signature());
-    const FieldAllocationType atype = fac->update(true, type, false);
-    field->set_allocation_type(atype);
+    fac->update(true, type, false);
     index++;
   }
 
@@ -1841,8 +1837,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
         (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(byte_signature)),
         0);
     const BasicType type = Signature::basic_type(vmSymbols::byte_signature());
-    const FieldAllocationType atype = fac->update(false, type, false);
-    field->set_allocation_type(atype);
+    fac->update(false, type, false);
     index++;
   }
 
