@@ -968,6 +968,56 @@ void PhaseIdealLoop::try_move_store_after_loop(Node* n) {
   }
 }
 
+// If UseArrayMarkWordCheck is enabled, we can't use immutable memory for the flat array check
+// because we are loading the mark word which is mutable. Although the bits we are interested in
+// are immutable (we check for markWord::unlocked_value), we need to use raw memory to not break
+// anti dependency analysis. Below code will attempt to still move flat array checks out of loops,
+// mainly to enable loop unswitching.
+void PhaseIdealLoop::move_flat_array_check_out_of_loop(Node* n) {
+  // Skip checks for more than one array
+  if (n->req() > 3) {
+    return;
+  }
+  Node* mem = n->in(FlatArrayCheckNode::Memory);
+  Node* array = n->in(FlatArrayCheckNode::Array)->uncast();
+  IdealLoopTree* check_loop = get_loop(get_ctrl(n));
+  IdealLoopTree* ary_loop = get_loop(get_ctrl(array));
+
+  // Check if array is loop invariant
+  if (!check_loop->is_member(ary_loop)) {
+    // Walk up memory graph from the check until we leave the loop
+    ResourceMark rm;
+    VectorSet wq;
+    wq.set(mem->_idx);
+    while (check_loop->is_member(get_loop(ctrl_or_self(mem)))) {
+      if (mem->is_Phi()) {
+        mem = mem->in(1);
+      } else if (mem->is_MergeMem()) {
+        mem = mem->as_MergeMem()->memory_at(Compile::AliasIdxRaw);
+      } else if (mem->is_Proj()) {
+        mem = mem->in(0);
+      } else if (mem->is_MemBar() || mem->is_SafePoint()) {
+        mem = mem->in(TypeFunc::Memory);
+      } else if (mem->is_Store() || mem->is_LoadStore() || mem->is_ClearArray()) {
+        mem = mem->in(MemNode::Memory);
+      } else {
+#ifdef ASSERT
+        mem->dump();
+#endif
+        ShouldNotReachHere();
+      }
+      if (wq.test_set(mem->_idx)) {
+        return;
+      }
+    }
+    // Replace memory input and re-compute ctrl to move the check out of the loop
+    _igvn.replace_input_of(n, 1, mem);
+    set_ctrl_and_loop(n, get_early_ctrl(n));
+    Node* bol = n->unique_out();
+    set_ctrl_and_loop(bol, get_early_ctrl(bol));
+  }
+}
+
 //------------------------------split_if_with_blocks_pre-----------------------
 // Do the real work in a non-recursive function.  Data nodes want to be
 // cloned in the pre-order so they can feed each other nicely.
@@ -980,6 +1030,12 @@ Node *PhaseIdealLoop::split_if_with_blocks_pre( Node *n ) {
   if (n->is_Proj()) {
     return n;
   }
+
+  if (UseArrayMarkWordCheck && n->isa_FlatArrayCheck()) {
+    move_flat_array_check_out_of_loop(n);
+    return n;
+  }
+
   // Do not clone-up CmpFXXX variations, as these are always
   // followed by a CmpI
   if (n->is_Cmp()) {

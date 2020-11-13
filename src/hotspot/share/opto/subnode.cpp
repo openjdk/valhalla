@@ -1266,6 +1266,43 @@ Node *CmpDNode::Ideal(PhaseGVN *phase, bool can_reshape){
   return NULL;                  // No change
 }
 
+//=============================================================================
+//------------------------------Value------------------------------------------
+const Type* FlatArrayCheckNode::Value(PhaseGVN* phase) const {
+  bool all_not_flat = true;
+  for (uint i = Array; i < req(); ++i) {
+    Node* array = in(i);
+    if (!array->is_top()) {
+      const TypeAryPtr* t = phase->type(array)->isa_aryptr();
+      if (t != NULL && t->is_flat()) {
+        // One of the input arrays is flat, check always passes
+        return TypeInt::CC_EQ;
+      } else if (t == NULL || !t->is_not_flat()) {
+        // One of the input arrays might be flat
+        all_not_flat = false;
+      }
+    }
+  }
+  if (all_not_flat) {
+    // None of the input arrays can be flat, check always fails
+    return TypeInt::CC_GT;
+  }
+  return TypeInt::CC;
+}
+
+//------------------------------Ideal------------------------------------------
+Node* FlatArrayCheckNode::Ideal(PhaseGVN* phase, bool can_reshape) {
+  bool changed = false;
+  // Remove array inputs that are known to be non-flat
+  for (uint i = Array; i < req(); ++i) {
+    const TypeAryPtr* t = phase->type(in(i))->isa_aryptr();
+    if (t != NULL && t->is_not_flat()) {
+      set_req(i, phase->C->top());
+      changed = true;
+    }
+  }
+  return changed ? this : NULL;
+}
 
 //=============================================================================
 //------------------------------cc2logical-------------------------------------

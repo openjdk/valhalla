@@ -99,7 +99,7 @@ void Parse::array_load(BasicType bt) {
     ideal.declarations_done();
     ideal.if_then(flat_array_test(ary, /* flat = */ false)); {
       // non-flattened
-      assert(ideal.ctrl()->in(0)->as_If()->is_non_flattened_array_check(&_gvn), "Should be found");
+      assert(ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
       sync_kit(ideal);
       const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
       Node* ld = access_load_at(ary, adr, adr_type, elemptr, bt,
@@ -306,7 +306,7 @@ void Parse::array_store(BasicType bt) {
       IdealKit ideal(this);
       ideal.if_then(flat_array_test(ary, /* flat = */ false)); {
         // non-flattened
-        assert(ideal.ctrl()->in(0)->as_If()->is_non_flattened_array_check(&_gvn), "Should be found");
+        assert(ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
         sync_kit(ideal);
         inline_array_null_guard(ary, cast_val, 3);
         inc_sp(3);

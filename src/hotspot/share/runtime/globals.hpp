@@ -2527,6 +2527,9 @@ const intx ObjectAlignmentInBytes = 8;
   develop(bool, ScalarizeInlineTypes, true,                                 \
           "Scalarize inline types in compiled code")                        \
                                                                             \
+  product(bool, UseArrayMarkWordCheck, NOT_LP64(false) LP64_ONLY(true),     \
+          "Use bits in the mark word to check for flat/null-free arrays")   \
+                                                                            \
   product(ccstrlist, ForceNonTearable, "", DIAGNOSTIC,                      \
           "List of inline classes which are forced to be atomic "           \
           "(whitespace and commas separate names, "                         \

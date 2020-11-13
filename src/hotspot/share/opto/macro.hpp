@@ -200,6 +200,8 @@ private:
 
   void expand_subtypecheck_node(SubTypeCheckNode *check);
 
+  void expand_flatarraycheck_node(FlatArrayCheckNode* check);
+
   int replace_input(Node *use, Node *oldref, Node *newref);
   Node* opt_bits_test(Node* ctrl, Node* region, int edge, Node* word, int mask, int bits, bool return_fast_path = false);
   void copy_predefined_input_for_runtime_call(Node * ctrl, CallNode* oldcall, CallNode* call);
