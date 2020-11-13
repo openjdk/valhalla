@@ -124,10 +124,10 @@ IfNode* PhaseIdealLoop::find_unswitching_candidate(const IdealLoopTree *loop, No
 
   // Collect all non-flattened array checks for unswitching to create a fast loop
   // without checks (only non-flattened array accesses) and a slow loop with checks.
-  if (unswitch_iff == NULL || unswitch_iff->is_non_flattened_array_check(&_igvn)) {
+  if (unswitch_iff == NULL || unswitch_iff->is_flat_array_check(&_igvn)) {
     for (uint i = 0; i < loop->_body.size(); i++) {
       IfNode* n = loop->_body.at(i)->isa_If();
-      if (n != NULL && n != unswitch_iff && n->is_non_flattened_array_check(&_igvn) &&
+      if (n != NULL && n != unswitch_iff && n->is_flat_array_check(&_igvn) &&
           loop->is_invariant(n->in(1)) && !loop->is_loop_exit(n)) {
         unswitch_iffs.push(n);
         if (unswitch_iff == NULL) {
@@ -231,26 +231,18 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
     // can be removed from the fast loop (true proj) but not from the
     // slow loop (false proj) as it can have a mix of flattened/legacy accesses.
     assert(bol->_test._test == BoolTest::ne, "IfTrue proj must point to flat array");
-    // Adjust condition such that the true proj points to non-flat array
-    bol = new BoolNode(bol->in(1), bol->_test.negate());
-    register_new_node(bol, invar_iff->in(0));
-    Node* cmp = bol->in(1)->clone();
-    register_new_node(cmp, invar_iff->in(0));
+    bol = bol->clone()->as_Bool();
+    register_new_node(bol, invar_iff_c);
+    FlatArrayCheckNode* cmp = bol->in(1)->clone()->as_FlatArrayCheck();
+    register_new_node(cmp, invar_iff_c);
     bol->set_req(1, cmp);
     // Combine all checks into a single one that fails if one array is flattened
-    Node* lhs = NULL;
+    assert(cmp->req() == 3, "unexpected number of inputs for FlatArrayCheck");
+    cmp->add_req_batch(C->top(), unswitch_iffs.size() - 1);
     for (uint i = 0; i < unswitch_iffs.size(); i++) {
-      Node* lh = unswitch_iffs.at(i)->in(1)->in(1)->in(1)->in(1);
-      if (lhs == NULL) {
-        lhs = lh;
-      } else {
-        lhs = new OrINode(lhs, lh);
-        register_new_node(lhs, invar_iff->in(0));
-      }
+      Node* array = unswitch_iffs.at(i)->in(1)->in(1)->in(FlatArrayCheckNode::Array);
+      cmp->set_req(FlatArrayCheckNode::Array + i, array);
     }
-    Node* masked = new AndINode(lhs, _igvn.intcon(Klass::_lh_array_tag_vt_value_bit_inplace));
-    register_new_node(masked, invar_iff->in(0));
-    cmp->set_req(1, masked);
   }
   invar_iff->set_req(1, bol);
 
@@ -267,7 +259,7 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
           worklist.push(use);
         }
       }
-      ProjNode* invar_proj = invar_iff->proj_out(flat_array_checks ? (1-proj->_con) : proj->_con)->as_Proj();
+      ProjNode* invar_proj = invar_iff->proj_out(proj->_con)->as_Proj();
       while (worklist.size() > 0) {
         Node* use = worklist.pop();
         Node* nuse = use->clone();
@@ -287,13 +279,13 @@ void PhaseIdealLoop::do_unswitching(IdealLoopTree *loop, Node_List &old_new) {
   for (uint i = 0; i < unswitch_iffs.size(); i++) {
     IfNode* iff = unswitch_iffs.at(i)->as_If();
     _igvn.rehash_node_delayed(iff);
-    dominated_by(proj_true, iff, /* flip = */ flat_array_checks, false);
+    dominated_by(proj_true, iff);
   }
   IfNode* unswitch_iff_clone = old_new[unswitch_iff->_idx]->as_If();
   if (!flat_array_checks) {
     ProjNode* proj_false = invar_iff->proj_out(0)->as_Proj();
     _igvn.rehash_node_delayed(unswitch_iff_clone);
-    dominated_by(proj_false, unswitch_iff_clone, false, false);
+    dominated_by(proj_false, unswitch_iff_clone);
   } else {
     // Leave the flattened array checks in the slow loop and
     // prevent it from being unswitched again based on these checks.

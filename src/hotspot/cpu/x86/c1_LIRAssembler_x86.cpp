@@ -1990,20 +1990,28 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
   // We are loading/storing from/to an array that *may* be flattened (the
   // declared type is Object[], abstract[], interface[] or VT.ref[]).
   // If this array is flattened, take the slow path.
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
   Register klass = op->tmp()->as_register();
-  __ load_klass(klass, op->array()->as_register(), tmp_load_klass);
-  __ movl(klass, Address(klass, Klass::layout_helper_offset()));
-  __ testl(klass, Klass::_lh_array_tag_vt_value_bit_inplace);
-  __ jcc(Assembler::notZero, *op->stub()->entry());
+  if (UseArrayMarkWordCheck) {
+    __ test_flattened_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
+  } else {
+    Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+    __ load_klass(klass, op->array()->as_register(), tmp_load_klass);
+    __ movl(klass, Address(klass, Klass::layout_helper_offset()));
+    __ testl(klass, Klass::_lh_array_tag_vt_value_bit_inplace);
+    __ jcc(Assembler::notZero, *op->stub()->entry());
+  }
   if (!op->value()->is_illegal()) {
     // The array is not flattened, but it might be null-free. If we are storing
     // a null into a null-free array, take the slow path (which will throw NPE).
     Label skip;
     __ cmpptr(op->value()->as_register(), (int32_t)NULL_WORD);
     __ jcc(Assembler::notEqual, skip);
-    __ testl(klass, Klass::_lh_null_free_bit_inplace);
-    __ jcc(Assembler::notZero, *op->stub()->entry());
+    if (UseArrayMarkWordCheck) {
+      __ test_null_free_array_oop(op->array()->as_register(), op->tmp()->as_register(), *op->stub()->entry());
+    } else {
+      __ testl(klass, Klass::_lh_null_free_bit_inplace);
+      __ jcc(Assembler::notZero, *op->stub()->entry());
+    }
     __ bind(skip);
   }
 }
@@ -2011,11 +2019,22 @@ void LIR_Assembler::emit_opFlattenedArrayCheck(LIR_OpFlattenedArrayCheck* op) {
 void LIR_Assembler::emit_opNullFreeArrayCheck(LIR_OpNullFreeArrayCheck* op) {
   // We are storing into an array that *may* be null-free (the declared type is
   // Object[], abstract[], interface[] or VT.ref[]).
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  Register klass = op->tmp()->as_register();
-  __ load_klass(klass, op->array()->as_register(), tmp_load_klass);
-  __ movl(klass, Address(klass, Klass::layout_helper_offset()));
-  __ testl(klass, Klass::_lh_null_free_bit_inplace);
+  if (UseArrayMarkWordCheck) {
+    Label test_mark_word;
+    Register tmp = op->tmp()->as_register();
+    __ movptr(tmp, Address(op->array()->as_register(), oopDesc::mark_offset_in_bytes()));
+    __ testl(tmp, markWord::unlocked_value);
+    __ jccb(Assembler::notZero, test_mark_word);
+    __ load_prototype_header(tmp, op->array()->as_register(), rscratch1);
+    __ bind(test_mark_word);
+    __ testl(tmp, markWord::nullfree_array_bit_in_place);
+  } else {
+    Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+    Register klass = op->tmp()->as_register();
+    __ load_klass(klass, op->array()->as_register(), tmp_load_klass);
+    __ movl(klass, Address(klass, Klass::layout_helper_offset()));
+    __ testl(klass, Klass::_lh_null_free_bit_inplace);
+  }
 }
 
 void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op) {
@@ -3252,17 +3271,24 @@ void LIR_Assembler::arraycopy_inlinetype_check(Register obj, Register tmp, CodeS
     __ testptr(obj, obj);
     __ jcc(Assembler::zero, *slow_path->entry());
   }
-  Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
-  __ load_klass(tmp, obj, tmp_load_klass);
-  __ movl(tmp, Address(tmp, Klass::layout_helper_offset()));
-  if (is_dest) {
-    // We also take slow path if it's a null_free destination array, just in case the source array
-    // contains NULLs.
-    __ testl(tmp, Klass::_lh_null_free_bit_inplace);
+  if (UseArrayMarkWordCheck) {
+    if (is_dest) {
+      __ test_null_free_array_oop(obj, tmp, *slow_path->entry());
+    } else {
+      __ test_flattened_array_oop(obj, tmp, *slow_path->entry());
+    }
   } else {
-    __ testl(tmp, Klass::_lh_array_tag_vt_value_bit_inplace);
+    Register tmp_load_klass = LP64_ONLY(rscratch1) NOT_LP64(noreg);
+    __ load_klass(tmp, obj, tmp_load_klass);
+    __ movl(tmp, Address(tmp, Klass::layout_helper_offset()));
+    if (is_dest) {
+      // Take the slow path if it's a null_free destination array, in case the source array contains NULLs.
+      __ testl(tmp, Klass::_lh_null_free_bit_inplace);
+    } else {
+      __ testl(tmp, Klass::_lh_array_tag_vt_value_bit_inplace);
+    }
+    __ jcc(Assembler::notZero, *slow_path->entry());
   }
-  __ jcc(Assembler::notZero, *slow_path->entry());
 }
 
 

@@ -3090,4 +3090,272 @@ public class TestArrays extends InlineTypeTest {
         MyValueEmpty empty = test134(MyValueEmpty.default);
         Asserts.assertEquals(empty, MyValueEmpty.default);
     }
+
+    // Test accessing a locked (inline type) array
+    @Test()
+    public Object test135(Object[] array, Object val) {
+        array[0] = val;
+        return array[1];
+    }
+
+    @DontCompile
+    public void test135_verifier(boolean warmup) {
+        MyValue1[] array1 = new MyValue1[2];
+        array1[1] = MyValue1.createWithFieldsInline(rI, rL);
+        synchronized (array1) {
+            Object res = test135(array1, array1[1]);
+            Asserts.assertEquals(((MyValue1)res).hash(), array1[1].hash());
+            Asserts.assertEquals(array1[0].hash(), array1[1].hash());
+        }
+        Integer[] array2 = new Integer[2];
+        array2[1] = rI;
+        synchronized (array2) {
+            Object res = test135(array2, array2[1]);
+            Asserts.assertEquals(res, array2[1]);
+            Asserts.assertEquals(array2[0], array2[1]);
+        }
+    }
+
+    // Same as test135 but with locking in compiled method
+    @Test()
+    public Object test136(Object[] array, Object val) {
+        Object res = null;
+        synchronized (array) {
+            array[0] = val;
+            res = array[1];
+        }
+        return res;
+    }
+
+    @DontCompile
+    public void test136_verifier(boolean warmup) {
+        MyValue1[] array1 = new MyValue1[2];
+        array1[1] = MyValue1.createWithFieldsInline(rI, rL);
+        Object res = test136(array1, array1[1]);
+        Asserts.assertEquals(((MyValue1)res).hash(), array1[1].hash());
+        Asserts.assertEquals(array1[0].hash(), array1[1].hash());
+        Integer[] array2 = new Integer[2];
+        array2[1] = rI;
+        res = test136(array2, array2[1]);
+        Asserts.assertEquals(res, array2[1]);
+        Asserts.assertEquals(array2[0], array2[1]);
+    }
+
+    Object oFld1, oFld2;
+
+    // Test loop unwswitching with locked (inline type) array accesses
+    @Test()
+    public void test137(Object[] array1, Object[] array2) {
+        for (int i = 0; i < array1.length; i++) {
+            oFld1 = array1[i];
+            oFld2 = array2[i];
+        }
+    }
+
+    @DontCompile
+    public void test137_verifier(boolean warmup) {
+        MyValue1[] array1 = new MyValue1[100];
+        Arrays.fill(array1, MyValue1.createWithFieldsInline(rI, rL));
+        Integer[] array2 = new Integer[100];
+        Arrays.fill(array2, rI);
+        synchronized (array1) {
+            test137(array1, array1);
+            Asserts.assertEquals(oFld1, array1[0]);
+            Asserts.assertEquals(oFld2, array1[0]);
+            test137(array1, array2);
+            Asserts.assertEquals(oFld1, array1[0]);
+            Asserts.assertEquals(oFld2, array2[0]);
+            test137(array2, array1);
+            Asserts.assertEquals(oFld1, array2[0]);
+            Asserts.assertEquals(oFld2, array1[0]);
+        }
+        synchronized (array2) {
+            test137(array2, array2);
+            Asserts.assertEquals(oFld1, array2[0]);
+            Asserts.assertEquals(oFld2, array2[0]);
+            test137(array1, array2);
+            Asserts.assertEquals(oFld1, array1[0]);
+            Asserts.assertEquals(oFld2, array2[0]);
+            test137(array2, array1);
+            Asserts.assertEquals(oFld1, array2[0]);
+            Asserts.assertEquals(oFld2, array1[0]);
+        }
+    }
+
+    // Same as test137 but with locking in loop
+    @Test()
+    public void test138(Object[] array1, Object[] array2) {
+        for (int i = 0; i < array1.length; i++) {
+            synchronized (array1) {
+                oFld1 = array1[i];
+            }
+            synchronized (array2) {
+                oFld2 = array2[i];
+            }
+        }
+    }
+
+    @DontCompile
+    public void test138_verifier(boolean warmup) {
+        MyValue1[] array1 = new MyValue1[100];
+        Arrays.fill(array1, MyValue1.createWithFieldsInline(rI, rL));
+        Integer[] array2 = new Integer[100];
+        Arrays.fill(array2, rI);
+        test138(array1, array1);
+        Asserts.assertEquals(oFld1, array1[0]);
+        Asserts.assertEquals(oFld2, array1[0]);
+        test138(array1, array2);
+        Asserts.assertEquals(oFld1, array1[0]);
+        Asserts.assertEquals(oFld2, array2[0]);
+        test138(array2, array1);
+        Asserts.assertEquals(oFld1, array2[0]);
+        Asserts.assertEquals(oFld2, array1[0]);
+        test138(array2, array2);
+        Asserts.assertEquals(oFld1, array2[0]);
+        Asserts.assertEquals(oFld2, array2[0]);
+        Asserts.assertEquals(oFld2, array2[0]);
+    }
+
+    // Test load from array that is only known to be non-inline after parsing
+    @Test(failOn = ALLOC + ALLOCA + ALLOC_G + ALLOCA_G + LOOP + LOAD + STORE + TRAP + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
+    public Object test139() {
+        Object[]  array = null;
+        Object[] iarray = new Integer[1];
+        Object[] varray = new MyValue1[1];
+        for (int i = 0; i < 10; i++) {
+            array = varray;
+            varray = iarray;
+        }
+        return array[0];
+    }
+
+    @DontCompile
+    public void test139_verifier(boolean warmup) {
+        Object res = test139();
+        Asserts.assertEquals(res, null);
+    }
+
+    // Test store to array that is only known to be non-inline after parsing
+    @Test(failOn = ALLOC + ALLOCA + ALLOC_G + LOOP + LOAD + STORE + TRAP + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
+    public Object[] test140(Object val) {
+        Object[]  array = null;
+        Object[] iarray = new Integer[1];
+        Object[] varray = new MyValue1[1];
+        for (int i = 0; i < 10; i++) {
+            array = varray;
+            varray = iarray;
+        }
+        array[0] = val;
+        return array;
+    }
+
+    @DontCompile
+    public void test140_verifier(boolean warmup) {
+        Object[] res = test140(rI);
+        Asserts.assertEquals(res[0], rI);
+        res = test140(null);
+        Asserts.assertEquals(res[0], null);
+    }
+
+    // Test load from array that is only known to be inline after parsing
+    // TODO 8255938
+    // @Test(failOn = ALLOC + ALLOCA + ALLOC_G + ALLOCA_G + LOOP + LOAD + STORE + TRAP + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
+    @Test
+    public Object test141() {
+        Object[]  array = null;
+        Object[] iarray = new Integer[1];
+        Object[] varray = new MyValue1[1];
+        for (int i = 0; i < 10; i++) {
+            array = iarray;
+            iarray = varray;
+        }
+        return array[0];
+    }
+
+    @DontCompile
+    public void test141_verifier(boolean warmup) {
+        Object res = test141();
+        Asserts.assertEquals(res, MyValue1.default);
+    }
+
+    // Test store to array that is only known to be inline after parsing
+    // TODO 8255938
+    // @Test(failOn = ALLOC + ALLOCA + ALLOC_G + LOOP + LOAD + STORE + TRAP + LOAD_UNKNOWN_INLINE + STORE_UNKNOWN_INLINE + INLINE_ARRAY_NULL_GUARD)
+    @Test
+    public Object[] test142(Object val) {
+        Object[]  array = null;
+        Object[] iarray = new Integer[1];
+        Object[] varray = new MyValue1[1];
+        for (int i = 0; i < 10; i++) {
+            array = iarray;
+            iarray = varray;
+        }
+        array[0] = val;
+        return array;
+    }
+
+    @DontCompile
+    public void test142_verifier(boolean warmup) {
+        Object[] res = test142(MyValue1.default);
+        Asserts.assertEquals(res[0], MyValue1.default);
+        if (!warmup) {
+            try {
+                test142(null);
+                throw new RuntimeException("Should throw NullPointerException");
+            } catch (NullPointerException e) {
+                // Expected
+            }
+        }
+    }
+
+    static interface MyInterface143 {
+        public int hash();
+    }
+
+    static class MyObject143 implements MyInterface143 {
+        public int hash() { return 42; }
+    }
+
+    volatile MyInterface143[] array143 = new MyObject143[1];
+    int len143 = 0;
+
+    volatile int vf = 0;
+
+    // Test that triggers an anti dependency failure when array mark word is loaded from immutable memory
+    @Test
+    @Warmup(0)
+    public void test143() {
+        MyInterface143[] arr = array143;
+        int tmp = arr.length;
+        for (int i = 0; i < len143; i++) {
+            if (arr[i].hash() > 0) {
+                return;
+            }
+        }
+    }
+
+    @DontCompile
+    public void test143_verifier(boolean warmup) {
+        test143();
+    }
+
+    // Same as test143 but with two flat array checks that are unswitched
+    @Test
+    @Warmup(0)
+    public void test144() {
+        MyInterface143[] arr1 = array143;
+        MyInterface143[] arr2 = array143;
+        int tmp1 = arr1.length;
+        int tmp2 = arr2.length;
+        for (int i = 0; i < len143; i++) {
+            if (arr1[i].hash() > 0 && arr2[i].hash() > 0) {
+                return;
+            }
+        }
+    }
+
+    @DontCompile
+    public void test144_verifier(boolean warmup) {
+        test144();
+    }
 }

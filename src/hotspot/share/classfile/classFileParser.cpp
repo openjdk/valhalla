@@ -1627,14 +1627,13 @@ class ClassFileParser::FieldAllocationCount : public ResourceObj {
     }
   }
 
-  FieldAllocationType update(bool is_static, BasicType type, bool is_inline_type) {
+  void update(bool is_static, BasicType type, bool is_inline_type) {
     FieldAllocationType atype = basic_type_to_atype(is_static, type, is_inline_type);
     if (atype != BAD_ALLOCATION_TYPE) {
       // Make sure there is no overflow with injected fields.
       assert(count[atype] < 0xFFFF, "More than 65535 fields");
       count[atype]++;
     }
-    return atype;
   }
 };
 
@@ -1802,7 +1801,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
 
-    // // Remember how many oops we encountered
+    // Update FieldAllocationCount for this kind of field
     fac->update(is_static, type, type == T_INLINE_TYPE);
 
     // After field is initialized with type, we can augment it with aux info
@@ -1846,7 +1845,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
 
       const BasicType type = Signature::basic_type(injected[n].signature());
 
-      // Remember how many oops we encountered
+      // Update FieldAllocationCount for this kind of field
       fac->update(false, type, false);
       index++;
       _restricted_field_info->append(0);
