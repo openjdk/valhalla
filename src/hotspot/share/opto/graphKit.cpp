@@ -3571,6 +3571,7 @@ Node* GraphKit::flat_array_test(Node* ary, bool flat) {
   // check is moved out of loops (mainly to enable loop unswitching).
   Node* mem = UseArrayMarkWordCheck ? memory(Compile::AliasIdxRaw) : immutable_memory();
   Node* cmp = _gvn.transform(new FlatArrayCheckNode(C, mem, ary));
+  record_for_igvn(cmp); // Give it a chance to be optimized out by IGVN
   return _gvn.transform(new BoolNode(cmp, flat ? BoolTest::eq : BoolTest::ne));
 }
 
