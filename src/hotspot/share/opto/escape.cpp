@@ -1638,21 +1638,28 @@ int ConnectionGraph::find_init_values(JavaObjectNode* pta, PointsToNode* init_va
   if (init_val == phantom_obj) {
     // Do nothing for Allocate nodes since its fields values are
     // "known" unless they are initialized by arraycopy/clone.
-    if (alloc->is_Allocate() && !pta->arraycopy_dst())
-      return 0;
-    assert(pta->arraycopy_dst() || alloc->as_CallStaticJava(), "sanity");
+    if (alloc->is_Allocate() && !pta->arraycopy_dst()) {
+      if (alloc->as_Allocate()->in(AllocateNode::DefaultValue) != NULL) {
+        // Non-flattened inline type arrays are initialized with
+        // the default value instead of null. Handle them here.
+        init_val = ptnode_adr(alloc->as_Allocate()->in(AllocateNode::DefaultValue)->_idx);
+        assert(init_val != NULL, "default value should be registered");
+      } else {
+        return 0;
+      }
+    }
+    // Non-escaped allocation returned from Java or runtime call has unknown values in fields.
+    assert(pta->arraycopy_dst() || alloc->is_CallStaticJava() || init_val != phantom_obj, "sanity");
 #ifdef ASSERT
-    if (!pta->arraycopy_dst() && alloc->as_CallStaticJava()->method() == NULL) {
+    if (alloc->is_CallStaticJava() && alloc->as_CallStaticJava()->method() == NULL) {
       const char* name = alloc->as_CallStaticJava()->_name;
       assert(strncmp(name, "_multianewarray", 15) == 0, "sanity");
     }
 #endif
-    // Non-escaped allocation returned from Java or runtime call have
-    // unknown values in fields.
     for (EdgeIterator i(pta); i.has_next(); i.next()) {
       PointsToNode* field = i.get();
       if (field->is_Field() && field->as_Field()->is_oop()) {
-        if (add_edge(field, phantom_obj)) {
+        if (add_edge(field, init_val)) {
           // New edge was added
           new_edges++;
           add_field_uses_to_worklist(field->as_Field());
@@ -1663,8 +1670,9 @@ int ConnectionGraph::find_init_values(JavaObjectNode* pta, PointsToNode* init_va
   }
   assert(init_val == null_obj, "sanity");
   // Do nothing for Call nodes since its fields values are unknown.
-  if (!alloc->is_Allocate())
+  if (!alloc->is_Allocate() || alloc->as_Allocate()->in(AllocateNode::DefaultValue) != NULL) {
     return 0;
+  }
 
   InitializeNode* ini = alloc->as_Allocate()->initialization();
   bool visited_bottom_offset = false;
@@ -1685,15 +1693,7 @@ int ConnectionGraph::find_init_values(JavaObjectNode* pta, PointsToNode* init_va
         // OffsetBot is used to reference array's element,
         // always add reference to NULL to all Field nodes since we don't
         // known which element is referenced.
-        if (alloc->as_Allocate()->in(AllocateNode::DefaultValue) != NULL) {
-          // Non-flattened inline type arrays are initialized with the
-          // default value instead of null. Add corresponding edge.
-          if (add_edge(field, phantom_obj)) {
-            add_field_uses_to_worklist(field->as_Field());
-            add_java_object_edges(phantom_obj, false);
-            visited_bottom_offset = true;
-          }
-        } else if (add_edge(field, null_obj)) {
+        if (add_edge(field, null_obj)) {
           // New edge was added
           new_edges++;
           add_field_uses_to_worklist(field->as_Field());
@@ -1776,14 +1776,7 @@ int ConnectionGraph::find_init_values(JavaObjectNode* pta, PointsToNode* init_va
         }
         if (value == NULL) {
           // A field's initializing value was not recorded. Add NULL.
-          if (alloc->as_Allocate()->in(AllocateNode::DefaultValue) != NULL) {
-            // Non-flattened inline type arrays are initialized with the
-            // default value instead of null. Add corresponding edge.
-            if (add_edge(field, phantom_obj)) {
-              add_field_uses_to_worklist(field->as_Field());
-              add_java_object_edges(phantom_obj, false);
-            }
-          } else if (add_edge(field, null_obj)) {
+          if (add_edge(field, null_obj)) {
             // New edge was added
             new_edges++;
             add_field_uses_to_worklist(field->as_Field());
