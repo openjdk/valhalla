@@ -189,7 +189,7 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
 
   const Type* src_type = phase->type(base_src);
 
-  MergeMemNode* mem = MergeMemNode::make(in_mem);
+  MergeMemNode* mem = phase->transform(MergeMemNode::make(in_mem))->as_MergeMem();
 
   const TypeInstPtr* inst_src = src_type->isa_instptr();
 
@@ -447,7 +447,7 @@ void ArrayCopyNode::array_copy_forward(GraphKit& kit,
       for (int i = 0; i < count; i++) {
         copy(kit, atp_src, atp_dest, i, base_src, base_dest, adr_src, adr_dest, copy_type, value_type);
       }
-    } else if(can_reshape) {
+    } else if (can_reshape) {
       PhaseGVN& gvn = kit.gvn();
       assert(gvn.is_IterGVN(), "");
       gvn.record_for_igvn(adr_src);

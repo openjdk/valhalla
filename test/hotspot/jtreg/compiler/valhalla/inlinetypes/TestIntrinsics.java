@@ -1047,4 +1047,32 @@ public class TestIntrinsics extends InlineTypeTest {
         MyValue2 res = test55();
         Asserts.assertEQ(res.hash(), test55_vt.v1.hash());
     }
+
+    // Test OptimizePtrCompare part of Escape Analysis
+    @Test()
+    public void test56(int idx) {
+        Object[] va = (Object[])Array.newInstance(MyValue1.val.class, 1);
+        if (va[idx] == null) {
+            throw new RuntimeException("Unexpected null");
+        }
+    }
+
+    @DontCompile
+    public void test56_verifier(boolean warmup) {
+        test56(0);
+    }
+
+    // Same as test56 but with load from known array index
+    @Test()
+    public void test57() {
+        Object[] va = (Object[])Array.newInstance(MyValue1.val.class, 1);
+        if (va[0] == null) {
+            throw new RuntimeException("Unexpected null");
+        }
+    }
+
+    @DontCompile
+    public void test57_verifier(boolean warmup) {
+        test57();
+    }
 }

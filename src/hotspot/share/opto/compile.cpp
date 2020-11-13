@@ -1136,8 +1136,7 @@ void Compile::print_missing_nodes() {
   }
 }
 void Compile::record_modified_node(Node* n) {
-  if (_modified_nodes != NULL && !_inlining_incrementally &&
-      n->outcnt() != 0 && !n->is_Con()) {
+  if (_modified_nodes != NULL && !_inlining_incrementally && !n->is_Con()) {
     _modified_nodes->push(n);
   }
 }
@@ -2172,7 +2171,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
                 Node* hook = new Node(1);
                 hook->init_req(0, mm);
                 igvn.replace_node(place_holder, mm_clone);
-                hook->destruct();
+                hook->destruct(&igvn);
               }
               assert(!m->has_out_with(Op_Node), "place holder should be gone now");
             }

@@ -849,7 +849,8 @@ bool RegionNode::optimize_trichotomy(PhaseIterGVN* igvn) {
              cmp2->Opcode() == Op_CmpF || cmp2->Opcode() == Op_CmpD ||
              cmp1->Opcode() == Op_CmpP || cmp1->Opcode() == Op_CmpN ||
              cmp2->Opcode() == Op_CmpP || cmp2->Opcode() == Op_CmpN ||
-             cmp1->is_SubTypeCheck() || cmp2->is_SubTypeCheck()) {
+             cmp1->is_SubTypeCheck() || cmp2->is_SubTypeCheck() ||
+             cmp1->is_FlatArrayCheck() || cmp2->is_FlatArrayCheck()) {
     // Floats and pointers don't exactly obey trichotomy. To be on the safe side, don't transform their tests.
     // SubTypeCheck is not commutative
     return false;
@@ -2339,12 +2340,7 @@ Node *PhiNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           Node* phi = mms.memory();
           mms.set_memory(phase->transform(phi));
         }
-        if (igvn) { // Unhook.
-          igvn->hash_delete(hook);
-          for (uint i = 1; i < hook->req(); i++) {
-            hook->set_req(i, NULL);
-          }
-        }
+        hook->destruct(igvn);
         // Replace self with the result.
         return result;
       }
