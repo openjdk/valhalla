@@ -209,10 +209,6 @@ Node* PhaseMacroExpand::generate_null_free_array_guard(Node** ctrl, Node* array,
   return generate_fair_guard(ctrl, array_lh_test(array, Klass::_lh_null_free_bit_inplace), region);
 }
 
-Node* PhaseMacroExpand::generate_object_array_guard(Node** ctrl, Node* mem, Node* obj_or_klass, RegionNode* region) {
-  return generate_array_guard(ctrl, mem, obj_or_klass, region, Klass::_lh_array_tag_obj_value);
-}
-
 Node* PhaseMacroExpand::generate_array_guard(Node** ctrl, Node* mem, Node* obj_or_klass, RegionNode* region, jint lh_con) {
   if ((*ctrl)->is_top())  return NULL;
 
