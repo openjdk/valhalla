@@ -137,7 +137,6 @@ private:
   Node* array_lh_test(Node* array, jint mask);
   Node* generate_flat_array_guard(Node** ctrl, Node* array, RegionNode* region);
   Node* generate_null_free_array_guard(Node** ctrl, Node* array, RegionNode* region);
-  Node* generate_object_array_guard(Node** ctrl, Node* mem, Node* obj, RegionNode* region);
   Node* generate_array_guard(Node** ctrl, Node* mem, Node* obj, RegionNode* region, jint lh_con);
 
   void finish_arraycopy_call(Node* call, Node** ctrl, MergeMemNode** mem, const TypePtr* adr_type);
