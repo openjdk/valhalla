@@ -39,7 +39,7 @@ A value-based class has the following properties:
         to mutable objects);</li>
     <li>the class declares implementations of <code>equals</code>,
         <code>hashCode</code>, and <code>toString</code> which are computed
-        solely from the values of the class's instance fields (and properties of
+        solely from the values of the class's instance fields (and the members of
         the objects they reference), not from the instance's identity;</li>
     <li>the class's methods treat instances as <em>freely substitutable</em>
         when equal, meaning that interchanging any two instances <code>x</code> and
@@ -47,9 +47,9 @@ A value-based class has the following properties:
         visible change in the behavior of the class's methods;</li>
     <li>the class performs no synchronization using an instance's monitor;</li>
     <li>the class does not declare (or has deprecated any) accessible constructors;</li>
-    <li>the class does not provide any other instance creation mechanism that promises
+    <li>the class does not provide any instance creation mechanism that promises
         a unique identity on each method call&mdash;in particular, any factory
-        method must allow for the possibility that if two independently-produced
+        method's contract must allow for the possibility that if two independently-produced
         instances are equal according to <code>equals()</code>, they may also be
         equal according to <code>==</code>;</li>
     <li>the class is final, and extends either <code>Object</code> or a hierarchy of
