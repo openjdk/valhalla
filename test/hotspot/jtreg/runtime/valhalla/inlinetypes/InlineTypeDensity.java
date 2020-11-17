@@ -50,6 +50,7 @@ import jdk.test.lib.Asserts;
 public class InlineTypeDensity {
 
     private static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
+    private static final boolean VM_FLAG_FORCENONTEARABLE = WHITE_BOX.getStringVMFlag("ForceNonTearable").equals("*");
 
     public InlineTypeDensity() {
         if (WHITE_BOX.getIntxVMFlag("FlatArrayElementMaxSize") != -1) {
@@ -286,9 +287,28 @@ public class InlineTypeDensity {
         testLongArraySizesSame(testSizes);
     }
 
+    static inline class bbValue { byte b = 0; byte b2 = 0;}
+    static inline class bsValue { byte b = 0; short s = 0;}
+    static inline class siValue { short s = 0; int i = 0;}
+    static inline class ssiValue { short s = 0; short s2 = 0; int i = 0;}
+    static inline class blValue { byte b = 0; long l = 0; }
+
+    // Expect aligned array addressing to nearest pow2
+    void testAlignedSize() {
+        int testSize = 10;
+        if (!VM_FLAG_FORCENONTEARABLE) {
+            assertArraySameSize(new short[testSize], new bbValue[testSize], testSize);
+            assertArraySameSize(new long[testSize], new siValue[testSize], testSize);
+            assertArraySameSize(new long[testSize], new ssiValue[testSize], testSize);
+            assertArraySameSize(new long[testSize*2], new blValue[testSize], testSize);
+        }
+        assertArraySameSize(new int[testSize], new bsValue[testSize], testSize);
+    }
+
     public void test() {
         ensureArraySizeWin();
         testPrimitiveArraySizesSame();
+        testAlignedSize();
     }
 
     public static void main(String[] args) {
