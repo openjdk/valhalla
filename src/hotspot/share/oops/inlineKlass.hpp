@@ -182,9 +182,6 @@ class InlineKlass: public InstanceKlass {
   // returning to Java (i.e.: inline_copy)
   instanceOop allocate_instance_buffer(TRAPS);
 
-  // minimum number of bytes occupied by nonstatic fields, HeapWord aligned or pow2
-  int raw_value_byte_size();
-
   address data_for_oop(oop o) const;
   oop oop_for_data(address data) const;
 
