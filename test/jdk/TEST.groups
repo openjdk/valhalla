@@ -285,7 +285,8 @@ jdk_tools = \
     :svc_tools
 
 jdk_jfr = \
-    jdk/jfr
+    jdk/jfr \
+    -jdk/jfr/event/runtime/TestBiasedLockRevocationEvents.java
 
 jdk_jfr_tier3 = \
     jdk/jfr/event/metadata/TestLookForUntestedEvents.java
