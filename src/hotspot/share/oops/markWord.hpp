@@ -340,6 +340,7 @@ class markWord {
   }
 
   // is unlocked and not an inline type (which cannot be involved in locking, displacement or inflation)
+  // i.e. test both lock bits and the inline type bit together
   bool is_neutral()  const { return (mask_bits(value(), inline_type_mask_in_place) == unlocked_value); }
 
   // Special temporary state of the markWord while being inflated.

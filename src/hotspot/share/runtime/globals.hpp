@@ -832,7 +832,7 @@ const intx ObjectAlignmentInBytes = 8;
           "Restrict @Contended to trusted classes")                         \
                                                                             \
   product(bool, UseBiasedLocking, false,                                     \
-          "(Deprecated) Enable biased locking in JVM")                      \
+          "(Deprecated) Enable biased locking in JVM (completely disabled by Valhalla)") \
                                                                             \
   product(intx, BiasedLockingStartupDelay, 0,                               \
           "(Deprecated) Number of milliseconds to wait before enabling "    \
