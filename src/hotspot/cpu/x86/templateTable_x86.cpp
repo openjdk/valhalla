@@ -2490,7 +2490,9 @@ void TemplateTable::if_acmp(Condition cc) {
     __ jcc(Assembler::equal, (cc == equal) ? taken : not_taken);
 
     // might be substitutable, test if either rax or rdx is null
-    __ testptr(rdx, rax);
+    __ testptr(rax, rax);
+    __ jcc(Assembler::zero, (cc == equal) ? not_taken : taken);
+    __ testptr(rdx, rdx);
     __ jcc(Assembler::zero, (cc == equal) ? not_taken : taken);
 
     // and both are values ?
