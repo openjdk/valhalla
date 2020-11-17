@@ -139,4 +139,121 @@ TEST_VM(markWord, printing) {
     done.wait_with_safepoint_check(THREAD);  // wait till the thread is done.
   }
 }
+
+static void assert_unlocked_state(markWord mark) {
+  EXPECT_FALSE(mark.has_displaced_mark_helper());
+  EXPECT_FALSE(mark.has_locker());
+  EXPECT_FALSE(mark.has_monitor());
+  EXPECT_FALSE(mark.is_being_inflated());
+  EXPECT_FALSE(mark.is_locked());
+  EXPECT_TRUE(mark.is_unlocked());
+}
+
+static void assert_copy_set_hash(markWord mark) {
+  const intptr_t hash = 4711;
+  EXPECT_TRUE(mark.has_no_hash());
+  markWord copy = mark.copy_set_hash(hash);
+  EXPECT_EQ(hash, copy.hash());
+  EXPECT_FALSE(copy.has_no_hash());
+}
+
+static void assert_type(markWord mark) {
+  EXPECT_FALSE(mark.is_flat_array());
+  EXPECT_FALSE(mark.is_inline_type());
+  EXPECT_FALSE(mark.is_larval_state());
+  EXPECT_FALSE(mark.is_nullfree_array());
+}
+
+TEST_VM(markWord, prototype) {
+  markWord mark = markWord::prototype();
+  assert_unlocked_state(mark);
+  EXPECT_TRUE(mark.is_neutral());
+
+  assert_type(mark);
+
+  EXPECT_TRUE(mark.has_no_hash());
+  EXPECT_FALSE(mark.is_marked());
+  EXPECT_TRUE(mark.decode_pointer() == NULL);
+
+  assert_copy_set_hash(mark);
+  assert_type(mark);
+}
+
+static void assert_inline_type(markWord mark) {
+  EXPECT_FALSE(mark.is_flat_array());
+  EXPECT_TRUE(mark.is_inline_type());
+  EXPECT_FALSE(mark.is_nullfree_array());
+}
+
+TEST_VM(markWord, inline_type_prototype) {
+  markWord mark = markWord::inline_type_prototype();
+  assert_unlocked_state(mark);
+  EXPECT_FALSE(mark.is_neutral());
+
+  assert_inline_type(mark);
+  EXPECT_FALSE(mark.is_larval_state());
+
+  EXPECT_TRUE(mark.has_no_hash());
+  EXPECT_FALSE(mark.is_marked());
+  EXPECT_TRUE(mark.decode_pointer() == NULL);
+
+  markWord larval = mark.enter_larval_state();
+  EXPECT_TRUE(larval.is_larval_state());
+  assert_inline_type(larval);
+  mark = larval.exit_larval_state();
+  EXPECT_FALSE(mark.is_larval_state());
+  assert_inline_type(mark);
+
+  EXPECT_TRUE(mark.has_no_hash());
+  EXPECT_FALSE(mark.is_marked());
+  EXPECT_TRUE(mark.decode_pointer() == NULL);
+}
+
+#if _LP64
+
+static void assert_flat_array_type(markWord mark) {
+  EXPECT_TRUE(mark.is_flat_array());
+  EXPECT_FALSE(mark.is_inline_type());
+  EXPECT_FALSE(mark.is_larval_state());
+  EXPECT_TRUE(mark.is_nullfree_array());
+}
+
+TEST_VM(markWord, flat_array_prototype) {
+  markWord mark = markWord::flat_array_prototype();
+  assert_unlocked_state(mark);
+  EXPECT_TRUE(mark.is_neutral());
+
+  assert_flat_array_type(mark);
+
+  EXPECT_TRUE(mark.has_no_hash());
+  EXPECT_FALSE(mark.is_marked());
+  EXPECT_TRUE(mark.decode_pointer() == NULL);
+
+  assert_copy_set_hash(mark);
+  assert_flat_array_type(mark);
+}
+
+static void assert_nullfree_array_type(markWord mark) {
+  EXPECT_FALSE(mark.is_flat_array());
+  EXPECT_FALSE(mark.is_inline_type());
+  EXPECT_FALSE(mark.is_larval_state());
+  EXPECT_TRUE(mark.is_nullfree_array());
+}
+
+TEST_VM(markWord, nullfree_array_prototype) {
+  markWord mark = markWord::nullfree_array_prototype();
+  assert_unlocked_state(mark);
+  EXPECT_TRUE(mark.is_neutral());
+
+  assert_nullfree_array_type(mark);
+
+  EXPECT_TRUE(mark.has_no_hash());
+  EXPECT_FALSE(mark.is_marked());
+  EXPECT_TRUE(mark.decode_pointer() == NULL);
+
+  assert_copy_set_hash(mark);
+  assert_nullfree_array_type(mark);
+}
+#endif // _LP64
+
 #endif // PRODUCT

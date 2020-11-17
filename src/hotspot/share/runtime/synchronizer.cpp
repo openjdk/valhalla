@@ -461,7 +461,7 @@ void ObjectSynchronizer::enter(Handle obj, BasicLock* lock, TRAPS) {
   }
 
   markWord mark = obj->mark();
-  assert(!mark.has_bias_pattern(), "should not see bias pattern here");
+  assert(!UseBiasedLocking || !mark.has_bias_pattern(), "should not see bias pattern here");
 
   if (mark.is_neutral()) {
     // Anticipate successful CAS -- the ST of the displaced mark must
@@ -503,6 +503,7 @@ void ObjectSynchronizer::exit(oop object, BasicLock* lock, TRAPS) {
   assert(!EnableValhalla || !object->klass()->is_inline_klass(), "monitor op on inline type");
   // We cannot check for Biased Locking if we are racing an inflation.
   assert(mark == markWord::INFLATING() ||
+         !UseBiasedLocking ||
          !mark.has_bias_pattern(), "should not see bias pattern here");
 
   markWord dhw = lock->displaced_header();
@@ -631,8 +632,8 @@ void ObjectSynchronizer::jni_exit(oop obj, Thread* THREAD) {
     Handle h_obj(THREAD, obj);
     BiasedLocking::revoke(h_obj, THREAD);
     obj = h_obj();
+    assert(!obj->mark().has_bias_pattern(), "biases should be revoked by now");
   }
-  assert(!obj->mark().has_bias_pattern(), "biases should be revoked by now");
 
   // The ObjectMonitor* can't be async deflated until ownership is
   // dropped inside exit() and the ObjectMonitor* must be !is_busy().
@@ -934,7 +935,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* self, oop obj) {
     markWord mark = read_stable_mark(obj);
 
     // object should remain ineligible for biased locking
-    assert(!mark.has_bias_pattern(), "invariant");
+    assert(!UseBiasedLocking || !mark.has_bias_pattern(), "invariant");
 
     if (mark.is_neutral()) {            // if this is a normal header
       hash = mark.hash();
@@ -1302,7 +1303,7 @@ ObjectMonitor* ObjectSynchronizer::inflate(Thread* self, oop object,
 
   for (;;) {
     const markWord mark = object->mark();
-    assert(!mark.has_bias_pattern(), "invariant");
+    assert(!UseBiasedLocking || !mark.has_bias_pattern(), "invariant");
 
     // The mark can be in one of the following states:
     // *  Inflated     - just return
