@@ -33,7 +33,10 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile -XDallowWithFieldOperator InlineTypeDensity.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -Xint -XX:FlatArrayElementMaxSize=-1
+ * @run main/othervm -Xint -XX:FlatArrayElementMaxSize=-1 -XX:+UseCompressedOops
+ *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
+ *                    -XX:+WhiteBoxAPI InlineTypeDensity
+ * @run main/othervm -Xint -XX:FlatArrayElementMaxSize=-1 -XX:-UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI InlineTypeDensity
  * @run main/othervm -Xcomp -XX:FlatArrayElementMaxSize=-1
@@ -229,8 +232,63 @@ public class InlineTypeDensity {
         Asserts.assertLessThan(flatArraySize, objectArraySize, "Flat array accounts for more heap than object array + elements !");
     }
 
+    static inline class MyByte  { byte  v = 0; }
+    static inline class MyShort { short v = 0; }
+    static inline class MyInt   { int   v = 0; }
+    static inline class MyLong  { long  v = 0; }
+
+    void assertArraySameSize(Object a, Object b, int nofElements) {
+        long aSize = WHITE_BOX.getObjectSize(a);
+        long bSize = WHITE_BOX.getObjectSize(b);
+        Asserts.assertEquals(aSize, bSize,
+            a + "(" + aSize + " bytes) not equivalent size " +
+            b + "(" + bSize + " bytes)" +
+            (nofElements >= 0 ? " (array of " + nofElements + " elements)" : ""));
+    }
+
+    void testByteArraySizesSame(int[] testSizes) {
+        for (int testSize : testSizes) {
+            byte[] ba = new byte[testSize];
+            MyByte[] mba = new MyByte[testSize];
+            assertArraySameSize(ba, mba, testSize);
+        }
+    }
+
+    void testShortArraySizesSame(int[] testSizes) {
+        for (int testSize : testSizes) {
+            short[] sa = new short[testSize];
+            MyShort[] msa = new MyShort[testSize];
+            assertArraySameSize(sa, msa, testSize);
+        }
+    }
+
+    void testIntArraySizesSame(int[] testSizes) {
+        for (int testSize : testSizes) {
+            int[] ia = new int[testSize];
+            MyInt[] mia = new MyInt[testSize];
+            assertArraySameSize(ia, mia, testSize);
+        }
+    }
+
+    void testLongArraySizesSame(int[] testSizes) {
+        for (int testSize : testSizes) {
+            long[] la = new long[testSize];
+            MyLong[] mla = new MyLong[testSize];
+            assertArraySameSize(la, mla, testSize);
+        }
+    }
+
+    public void testPrimitiveArraySizesSame() {
+        int[] testSizes = new int[] { 0, 1, 2, 3, 4, 7, 10, 257 };
+        testByteArraySizesSame(testSizes);
+        testShortArraySizesSame(testSizes);
+        testIntArraySizesSame(testSizes);
+        testLongArraySizesSame(testSizes);
+    }
+
     public void test() {
         ensureArraySizeWin();
+        testPrimitiveArraySizesSame();
     }
 
     public static void main(String[] args) {
