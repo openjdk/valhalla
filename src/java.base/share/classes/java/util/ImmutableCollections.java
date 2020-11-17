@@ -163,7 +163,6 @@ class ImmutableCollections {
 
     @jdk.internal.ValueBased
     static abstract class AbstractImmutableList<E> extends AbstractImmutableCollection<E>
-
             implements List<E>, RandomAccess {
 
         // all mutating methods throw UnsupportedOperationException
