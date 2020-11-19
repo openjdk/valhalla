@@ -68,8 +68,8 @@ Node *StartNode::Ideal(PhaseGVN *phase, bool can_reshape){
 }
 
 //------------------------------calling_convention-----------------------------
-void StartNode::calling_convention( BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt ) const {
-  Matcher::calling_convention( sig_bt, parm_regs, argcnt, false );
+void StartNode::calling_convention(BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt) const {
+  SharedRuntime::java_calling_convention(sig_bt, parm_regs, argcnt);
 }
 
 //------------------------------Registers--------------------------------------
@@ -699,15 +699,8 @@ const Type* CallNode::Value(PhaseGVN* phase) const {
 
 //------------------------------calling_convention-----------------------------
 void CallNode::calling_convention(BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt) const {
-  if (_entry_point == StubRoutines::store_inline_type_fields_to_buf()) {
-    // The call to that stub is a special case: its inputs are
-    // multiple values returned from a call and so it should follow
-    // the return convention.
-    SharedRuntime::java_return_convention(sig_bt, parm_regs, argcnt);
-    return;
-  }
   // Use the standard compiler calling convention
-  Matcher::calling_convention( sig_bt, parm_regs, argcnt, true );
+  SharedRuntime::java_calling_convention(sig_bt, parm_regs, argcnt);
 }
 
 
@@ -721,7 +714,7 @@ Node *CallNode::match(const ProjNode *proj, const Matcher *match, const RegMask*
     if (is_CallRuntime()) {
       if (con == TypeFunc::Parms) {
         uint ideal_reg = range_cc->field_at(TypeFunc::Parms)->ideal_reg();
-        OptoRegPair regs = match->c_return_value(ideal_reg,true);
+        OptoRegPair regs = match->c_return_value(ideal_reg);
         RegMask rm = RegMask(regs.first());
         if (OptoReg::is_valid(regs.second())) {
           rm.Insert(regs.second());
@@ -1315,7 +1308,7 @@ void CallRuntimeNode::dump_spec(outputStream *st) const {
 #endif
 
 //------------------------------calling_convention-----------------------------
-void CallRuntimeNode::calling_convention( BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt ) const {
+void CallRuntimeNode::calling_convention(BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt) const {
   if (_entry_point == NULL) {
     // The call to that stub is a special case: its inputs are
     // multiple values returned from a call and so it should follow
@@ -1323,7 +1316,7 @@ void CallRuntimeNode::calling_convention( BasicType* sig_bt, VMRegPair *parm_reg
     SharedRuntime::java_return_convention(sig_bt, parm_regs, argcnt);
     return;
   }
-  Matcher::c_calling_convention( sig_bt, parm_regs, argcnt );
+  SharedRuntime::c_calling_convention(sig_bt, parm_regs, /*regs2=*/nullptr, argcnt);
 }
 
 //=============================================================================
