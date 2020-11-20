@@ -38,6 +38,7 @@
 #include "oops/oop.inline.hpp"
 #include "oops/inlineKlass.hpp"
 #include "prims/jniCheck.hpp"
+#include "prims/jvmtiExport.hpp"
 #include "runtime/handles.inline.hpp"
 #include "runtime/interfaceSupport.inline.hpp"
 #include "runtime/javaCalls.hpp"

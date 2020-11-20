@@ -33,7 +33,10 @@ import jdk.test.lib.Asserts;
  * @library /test/lib
  * @compile -XDallowWithFieldOperator InlineTypeDensity.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
- * @run main/othervm -Xint -XX:FlatArrayElementMaxSize=-1
+ * @run main/othervm -Xint -XX:FlatArrayElementMaxSize=-1 -XX:+UseCompressedOops
+ *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
+ *                    -XX:+WhiteBoxAPI InlineTypeDensity
+ * @run main/othervm -Xint -XX:FlatArrayElementMaxSize=-1 -XX:-UseCompressedOops
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                    -XX:+WhiteBoxAPI InlineTypeDensity
  * @run main/othervm -Xcomp -XX:FlatArrayElementMaxSize=-1
@@ -47,6 +50,7 @@ import jdk.test.lib.Asserts;
 public class InlineTypeDensity {
 
     private static final WhiteBox WHITE_BOX = WhiteBox.getWhiteBox();
+    private static final boolean VM_FLAG_FORCENONTEARABLE = WHITE_BOX.getStringVMFlag("ForceNonTearable").equals("*");
 
     public InlineTypeDensity() {
         if (WHITE_BOX.getIntxVMFlag("FlatArrayElementMaxSize") != -1) {
@@ -229,8 +233,82 @@ public class InlineTypeDensity {
         Asserts.assertLessThan(flatArraySize, objectArraySize, "Flat array accounts for more heap than object array + elements !");
     }
 
+    static inline class MyByte  { byte  v = 0; }
+    static inline class MyShort { short v = 0; }
+    static inline class MyInt   { int   v = 0; }
+    static inline class MyLong  { long  v = 0; }
+
+    void assertArraySameSize(Object a, Object b, int nofElements) {
+        long aSize = WHITE_BOX.getObjectSize(a);
+        long bSize = WHITE_BOX.getObjectSize(b);
+        Asserts.assertEquals(aSize, bSize,
+            a + "(" + aSize + " bytes) not equivalent size " +
+            b + "(" + bSize + " bytes)" +
+            (nofElements >= 0 ? " (array of " + nofElements + " elements)" : ""));
+    }
+
+    void testByteArraySizesSame(int[] testSizes) {
+        for (int testSize : testSizes) {
+            byte[] ba = new byte[testSize];
+            MyByte[] mba = new MyByte[testSize];
+            assertArraySameSize(ba, mba, testSize);
+        }
+    }
+
+    void testShortArraySizesSame(int[] testSizes) {
+        for (int testSize : testSizes) {
+            short[] sa = new short[testSize];
+            MyShort[] msa = new MyShort[testSize];
+            assertArraySameSize(sa, msa, testSize);
+        }
+    }
+
+    void testIntArraySizesSame(int[] testSizes) {
+        for (int testSize : testSizes) {
+            int[] ia = new int[testSize];
+            MyInt[] mia = new MyInt[testSize];
+            assertArraySameSize(ia, mia, testSize);
+        }
+    }
+
+    void testLongArraySizesSame(int[] testSizes) {
+        for (int testSize : testSizes) {
+            long[] la = new long[testSize];
+            MyLong[] mla = new MyLong[testSize];
+            assertArraySameSize(la, mla, testSize);
+        }
+    }
+
+    public void testPrimitiveArraySizesSame() {
+        int[] testSizes = new int[] { 0, 1, 2, 3, 4, 7, 10, 257 };
+        testByteArraySizesSame(testSizes);
+        testShortArraySizesSame(testSizes);
+        testIntArraySizesSame(testSizes);
+        testLongArraySizesSame(testSizes);
+    }
+
+    static inline class bbValue { byte b = 0; byte b2 = 0;}
+    static inline class bsValue { byte b = 0; short s = 0;}
+    static inline class siValue { short s = 0; int i = 0;}
+    static inline class ssiValue { short s = 0; short s2 = 0; int i = 0;}
+    static inline class blValue { byte b = 0; long l = 0; }
+
+    // Expect aligned array addressing to nearest pow2
+    void testAlignedSize() {
+        int testSize = 10;
+        if (!VM_FLAG_FORCENONTEARABLE) {
+            assertArraySameSize(new short[testSize], new bbValue[testSize], testSize);
+            assertArraySameSize(new long[testSize], new siValue[testSize], testSize);
+            assertArraySameSize(new long[testSize], new ssiValue[testSize], testSize);
+            assertArraySameSize(new long[testSize*2], new blValue[testSize], testSize);
+        }
+        assertArraySameSize(new int[testSize], new bsValue[testSize], testSize);
+    }
+
     public void test() {
         ensureArraySizeWin();
+        testPrimitiveArraySizesSame();
+        testAlignedSize();
     }
 
     public static void main(String[] args) {

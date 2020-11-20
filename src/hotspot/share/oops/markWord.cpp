@@ -88,7 +88,7 @@ void markWord::print_on(outputStream* st, bool print_monitor_info) const {
       } else {
         st->print(" hash=" INTPTR_FORMAT, hash());
       }
-    } else if (has_bias_pattern()) {  // last bits = 101
+    } else if (UseBiasedLocking && has_bias_pattern()) {  // last bits = 101
       st->print("is_biased");
       JavaThread* jt = biased_locker();
       st->print(" biased_locker=" INTPTR_FORMAT " epoch=%d", p2i(jt), bias_epoch());
