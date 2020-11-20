@@ -94,7 +94,8 @@ class Method : public Metadata {
     _reserved_stack_access = 1 << 7,
     _scalarized_args       = 1 << 8,
     _c1_needs_stack_repair = 1 << 9,
-    _c2_needs_stack_repair = 1 << 10
+    _c2_needs_stack_repair = 1 << 10,
+    _scoped                = 1 << 11
   };
   mutable u2 _flags;
 
@@ -923,6 +924,14 @@ public:
 
   void set_hidden(bool x) {
     _flags = x ? (_flags | _hidden) : (_flags & ~_hidden);
+  }
+
+  bool is_scoped() const {
+    return (_flags & _scoped) != 0;
+  }
+
+  void set_scoped(bool x) {
+    _flags = x ? (_flags | _scoped) : (_flags & ~_scoped);
   }
 
   bool intrinsic_candidate() {
