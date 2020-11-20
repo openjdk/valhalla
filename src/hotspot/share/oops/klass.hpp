@@ -647,7 +647,7 @@ protected:
                                           class_loader_data()->has_class_mirror_holder(); }
   bool is_value_based()                 { return _access_flags.is_value_based_class(); }
   void set_is_value_based()             { _access_flags.set_is_value_based_class(); }
-  
+
   bool is_cloneable() const;
   void set_is_cloneable();
 
