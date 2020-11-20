@@ -732,6 +732,7 @@ void BiasedLocking::walk_stack_and_revoke(oop obj, JavaThread* biased_locker) {
 }
 
 void BiasedLocking::revoke_own_lock(Handle obj, TRAPS) {
+  assert(UseBiasedLocking, "biased locking not enabled");
   JavaThread* thread = THREAD->as_Java_thread();
 
   markWord mark = obj->mark();
@@ -755,6 +756,7 @@ void BiasedLocking::revoke_own_lock(Handle obj, TRAPS) {
 }
 
 void BiasedLocking::revoke(Handle obj, TRAPS) {
+  assert(UseBiasedLocking, "biased locking not enabled");
   assert(!SafepointSynchronize::is_at_safepoint(), "must not be called while at safepoint");
 
   while (true) {
@@ -858,6 +860,7 @@ void BiasedLocking::revoke(Handle obj, TRAPS) {
 
 // All objects in objs should be locked by biaser
 void BiasedLocking::revoke(GrowableArray<Handle>* objs, JavaThread *biaser) {
+  assert(UseBiasedLocking, "biased locking not enabled");
   bool clean_my_cache = false;
   for (int i = 0; i < objs->length(); i++) {
     oop obj = (objs->at(i))();
@@ -874,6 +877,7 @@ void BiasedLocking::revoke(GrowableArray<Handle>* objs, JavaThread *biaser) {
 
 
 void BiasedLocking::revoke_at_safepoint(Handle h_obj) {
+  assert(UseBiasedLocking, "biased locking not enabled");
   assert(SafepointSynchronize::is_at_safepoint(), "must only be called while at safepoint");
   oop obj = h_obj();
   HeuristicsResult heuristics = update_heuristics(obj);

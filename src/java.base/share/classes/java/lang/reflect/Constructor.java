@@ -663,7 +663,7 @@ public final class Constructor<T> extends Executable {
                     getConstantPool(thisDeclClass),
                 this,
                 thisDeclClass,
-                enclosingClass,
+                resolveToOwnerType(enclosingClass),
                 TypeAnnotation.TypeAnnotationTarget.METHOD_RECEIVER);
     }
 }

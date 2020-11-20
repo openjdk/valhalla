@@ -87,44 +87,6 @@ int InlineKlass::first_field_offset_old() {
   return base_offset;
 }
 
-int InlineKlass::raw_value_byte_size() {
-  int heapOopAlignedSize = nonstatic_field_size() << LogBytesPerHeapOop;
-  // If bigger than 64 bits or needs oop alignment, then use jlong aligned
-  // which for values should be jlong aligned, asserts in raw_field_copy otherwise
-  if (heapOopAlignedSize >= longSize || contains_oops()) {
-    return heapOopAlignedSize;
-  }
-  // Small primitives...
-  // If a few small basic type fields, return the actual size, i.e.
-  // 1 byte = 1
-  // 2 byte = 2
-  // 3 byte = 4, because pow2 needed for element stores
-  int first_offset = first_field_offset();
-  int last_offset  = 0; // find the last offset, add basic type size
-  int last_tsz     = 0;
-  for (AllFieldStream fs(this); !fs.done(); fs.next()) {
-    if (fs.access_flags().is_static()) {
-      continue;
-    } else if (fs.offset() > last_offset) {
-      BasicType type = Signature::basic_type(fs.signature());
-      if (is_java_primitive(type)) {
-        last_tsz = type2aelembytes(type);
-      } else if (type == T_INLINE_TYPE) {
-        // Not just primitives. Layout aligns embedded value, so use jlong aligned it is
-        return heapOopAlignedSize;
-      } else {
-        guarantee(0, "Unknown type %d", type);
-      }
-      assert(last_tsz != 0, "Invariant");
-      last_offset = fs.offset();
-    }
-  }
-  // Assumes VT with no fields are meaningless and illegal
-  last_offset += last_tsz;
-  assert(last_offset > first_offset && last_tsz, "Invariant");
-  return 1 << upper_log2(last_offset - first_offset);
-}
-
 instanceOop InlineKlass::allocate_instance(TRAPS) {
   int size = size_helper();  // Query before forming handle.
 
@@ -183,7 +145,7 @@ bool InlineKlass::flatten_array() {
     return false;
   }
   // Too big
-  int elem_bytes = raw_value_byte_size();
+  int elem_bytes = get_exact_size_in_bytes();
   if ((FlatArrayElementMaxSize >= 0) && (elem_bytes > FlatArrayElementMaxSize)) {
     return false;
   }

@@ -384,15 +384,13 @@ class SharedRuntime: AllStatic {
   // registers, those above refer to 4-byte stack slots.  All stack slots are
   // based off of the window top.  SharedInfo::stack0 refers to the first usable
   // slot in the bottom of the frame. SharedInfo::stack0+1 refers to the memory word
-  // 4-bytes higher. So for sparc because the register window save area is at
-  // the bottom of the frame the first 16 words will be skipped and SharedInfo::stack0
-  // will be just above it. (
+  // 4-bytes higher.
   // return value is the maximum number of VMReg stack slots the convention will use.
-  static int java_calling_convention(const BasicType* sig_bt, VMRegPair* regs, int total_args_passed, int is_outgoing);
+  static int java_calling_convention(const BasicType* sig_bt, VMRegPair* regs, int total_args_passed);
   static int java_calling_convention(const GrowableArray<SigEntry>* sig, VMRegPair* regs) {
     BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, sig->length());
     int total_args_passed = SigEntry::fill_sig_bt(sig, sig_bt);
-    return java_calling_convention(sig_bt, regs, total_args_passed, false);
+    return java_calling_convention(sig_bt, regs, total_args_passed);
   }
   static int java_return_convention(const BasicType* sig_bt, VMRegPair* regs, int total_args_passed);
   static const uint java_return_convention_max_int;
@@ -487,6 +485,11 @@ class SharedRuntime: AllStatic {
   // On Sparc this describes the words reserved for storing a register window
   // when an interrupt occurs.
   static uint out_preserve_stack_slots();
+
+  // Stack slots that may be unused by the calling convention but must
+  // otherwise be preserved.  On Intel this includes the return address.
+  // On PowerPC it includes the 4 words holding the old TOC & LR glue.
+  static uint in_preserve_stack_slots();
 
   // Is vector's size (in bytes) bigger than a size saved by default?
   // For example, on x86 16 bytes XMM registers are saved by default.

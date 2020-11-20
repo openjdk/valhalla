@@ -698,24 +698,22 @@ void G1BarrierSetC2::eliminate_gc_barrier(PhaseIterGVN* igvn, Node* node) const 
     // There is no G1 pre barrier if previous stored value is NULL
     // (for example, after initialization).
     if (this_region->is_Region() && this_region->req() == 3) {
-      int ind = 1;
-      if (!this_region->in(ind)->is_IfFalse()) {
-        ind = 2;
-      }
-      if (this_region->in(ind)->is_IfFalse() &&
-          this_region->in(ind)->in(0)->Opcode() == Op_If) {
-        Node* bol = this_region->in(ind)->in(0)->in(1);
-        assert(bol->is_Bool(), "");
-        cmpx = bol->in(1);
-        if (bol->as_Bool()->_test._test == BoolTest::ne &&
-            cmpx->is_Cmp() && cmpx->in(2) == igvn->intcon(0) &&
-            cmpx->in(1)->is_Load()) {
-          Node* adr = cmpx->in(1)->as_Load()->in(MemNode::Address);
-          const int marking_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
-          if (adr->is_AddP() && adr->in(AddPNode::Base) == igvn->C->top() &&
-              adr->in(AddPNode::Address)->Opcode() == Op_ThreadLocal &&
-              adr->in(AddPNode::Offset) == igvn->MakeConX(marking_offset)) {
-            igvn->replace_node(cmpx, igvn->makecon(TypeInt::CC_EQ));
+      for (int i = 1; i < 3; ++i) {
+        if (this_region->in(i)->is_IfFalse() &&
+            this_region->in(i)->in(0)->is_If() &&
+            this_region->in(i)->in(0)->in(1)->is_Bool()) {
+          Node* bol = this_region->in(i)->in(0)->in(1);
+          cmpx = bol->in(1);
+          if (bol->as_Bool()->_test._test == BoolTest::ne &&
+              cmpx->is_Cmp() && cmpx->in(2) == igvn->intcon(0) &&
+              cmpx->in(1)->is_Load()) {
+            Node* adr = cmpx->in(1)->as_Load()->in(MemNode::Address);
+            const int marking_offset = in_bytes(G1ThreadLocalData::satb_mark_queue_active_offset());
+            if (adr->is_AddP() && adr->in(AddPNode::Base) == igvn->C->top() &&
+                adr->in(AddPNode::Address)->Opcode() == Op_ThreadLocal &&
+                adr->in(AddPNode::Offset) == igvn->MakeConX(marking_offset)) {
+              igvn->replace_node(cmpx, igvn->makecon(TypeInt::CC_EQ));
+            }
           }
         }
       }

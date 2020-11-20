@@ -461,7 +461,7 @@ void ObjectSynchronizer::enter(Handle obj, BasicLock* lock, TRAPS) {
   }
 
   markWord mark = obj->mark();
-  assert(!mark.has_bias_pattern(), "should not see bias pattern here");
+  assert(!UseBiasedLocking || !mark.has_bias_pattern(), "should not see bias pattern here");
 
   if (mark.is_neutral()) {
     // Anticipate successful CAS -- the ST of the displaced mark must
@@ -503,6 +503,7 @@ void ObjectSynchronizer::exit(oop object, BasicLock* lock, TRAPS) {
   assert(!EnableValhalla || !object->klass()->is_inline_klass(), "monitor op on inline type");
   // We cannot check for Biased Locking if we are racing an inflation.
   assert(mark == markWord::INFLATING() ||
+         !UseBiasedLocking ||
          !mark.has_bias_pattern(), "should not see bias pattern here");
 
   markWord dhw = lock->displaced_header();
@@ -631,8 +632,8 @@ void ObjectSynchronizer::jni_exit(oop obj, Thread* THREAD) {
     Handle h_obj(THREAD, obj);
     BiasedLocking::revoke(h_obj, THREAD);
     obj = h_obj();
+    assert(!obj->mark().has_bias_pattern(), "biases should be revoked by now");
   }
-  assert(!obj->mark().has_bias_pattern(), "biases should be revoked by now");
 
   // The ObjectMonitor* can't be async deflated until ownership is
   // dropped inside exit() and the ObjectMonitor* must be !is_busy().
@@ -747,24 +748,6 @@ void ObjectSynchronizer::notifyall(Handle obj, TRAPS) {
 
 // -----------------------------------------------------------------------------
 // Hash Code handling
-//
-// Performance concern:
-// OrderAccess::storestore() calls release() which at one time stored 0
-// into the global volatile OrderAccess::dummy variable. This store was
-// unnecessary for correctness. Many threads storing into a common location
-// causes considerable cache migration or "sloshing" on large SMP systems.
-// As such, I avoided using OrderAccess::storestore(). In some cases
-// OrderAccess::fence() -- which incurs local latency on the executing
-// processor -- is a better choice as it scales on SMP systems.
-//
-// See http://blogs.oracle.com/dave/entry/biased_locking_in_hotspot for
-// a discussion of coherency costs. Note that all our current reference
-// platforms provide strong ST-ST order, so the issue is moot on IA32,
-// x64, and SPARC.
-//
-// As a general policy we use "volatile" to control compiler-based reordering
-// and explicit fences (barriers) to control for architectural reordering
-// performed by the CPU(s) or platform.
 
 struct SharedGlobals {
   char         _pad_prefix[OM_CACHE_LINE_SIZE];
@@ -934,7 +917,7 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* self, oop obj) {
     markWord mark = read_stable_mark(obj);
 
     // object should remain ineligible for biased locking
-    assert(!mark.has_bias_pattern(), "invariant");
+    assert(!UseBiasedLocking || !mark.has_bias_pattern(), "invariant");
 
     if (mark.is_neutral()) {            // if this is a normal header
       hash = mark.hash();
@@ -1302,7 +1285,7 @@ ObjectMonitor* ObjectSynchronizer::inflate(Thread* self, oop object,
 
   for (;;) {
     const markWord mark = object->mark();
-    assert(!mark.has_bias_pattern(), "invariant");
+    assert(!UseBiasedLocking || !mark.has_bias_pattern(), "invariant");
 
     // The mark can be in one of the following states:
     // *  Inflated     - just return
