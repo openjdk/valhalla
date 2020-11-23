@@ -327,7 +327,7 @@ bool ObjectSynchronizer::quick_enter(oop obj, Thread* self,
   NoSafepointVerifier nsv;
   if (obj == NULL) return false;       // Need to throw NPE
 
-  if (DiagnoseSyncOnValueBasedClasses != 0 && obj->klass()->is_value_based()) {
+  if (obj->klass()->is_value_based()) {
     return false;
   }
 
@@ -439,7 +439,7 @@ void ObjectSynchronizer::handle_sync_on_value_based_class(Handle obj, Thread* cu
 // changed. The implementation is extremely sensitive to race condition. Be careful.
 
 void ObjectSynchronizer::enter(Handle obj, BasicLock* lock, TRAPS) {
-  if (DiagnoseSyncOnValueBasedClasses != 0 && obj->klass()->is_value_based()) {
+  if (obj->klass()->is_value_based()) {
     handle_sync_on_value_based_class(obj, THREAD);
   }
 
