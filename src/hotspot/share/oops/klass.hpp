@@ -176,7 +176,6 @@ private:
   // Flags of the current shared class.
   u2     _shared_class_flags;
   enum {
-    _has_raw_archived_mirror = 1,
     _archived_lambda_proxy_is_available = 2,
     _has_value_based_class_annotation = 4
   };
