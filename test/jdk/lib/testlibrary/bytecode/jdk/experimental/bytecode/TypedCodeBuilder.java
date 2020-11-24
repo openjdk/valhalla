@@ -386,7 +386,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
     @SuppressWarnings("unchecked")
     public void updateState(Opcode op, Object optValue) {
         switch (op) {
-            case VALOAD:
             case AALOAD:
                 state.pop();
                 state.push(typeHelper.elemtype(state.pop()));
@@ -458,7 +457,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case ALOAD:
             case LLOAD:
             case DLOAD:
-            case VLOAD:
                 state.push(state.locals.get((Integer) optValue));
                 break;
             case IALOAD:
@@ -507,7 +505,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case ISTORE:
             case FSTORE:
             case ASTORE:
-            case VSTORE:
                 state.load(state.pop(), (int) optValue);
                 break;
             case LSTORE_0:
@@ -536,7 +533,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case LUSHR:
                 state.pop();
                 break;
-            case VRETURN:
             case ARETURN:
             case IRETURN:
             case FRETURN:
@@ -576,7 +572,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.pop();
                 state.push(TypeTag.I);
                 break;
-            case VASTORE:
             case AASTORE:
                 state.pop();
                 state.pop();
@@ -823,7 +818,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case MONITOREXIT:
                 state.pop();
                 break;
-            case VNEW:
             case NEW:
                 state.push(typeHelper.type((S) optValue));
                 break;
@@ -835,13 +829,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.pop();
                 state.push(typeHelper.arrayOf(typeHelper.arrayOf(typeHelper.type((S)optValue))));
                 break;
-            case VNEWARRAY:
-            case VBOX:
-            case VUNBOX:
-                state.pop();
-                state.push(typeHelper.type((S) optValue));
-                break;
-            case MULTIVNEWARRAY:
             case MULTIANEWARRAY:
                 for (int i = 0; i < (byte) ((Object[]) optValue)[1]; i++) {
                     state.pop();
@@ -858,7 +845,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case GETSTATIC:
                 state.push((T) optValue);
                 break;
-            case VGETFIELD:
             case GETFIELD:
                 state.pop();
                 state.push((T) optValue);

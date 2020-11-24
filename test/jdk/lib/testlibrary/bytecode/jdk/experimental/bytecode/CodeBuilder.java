@@ -99,12 +99,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         return thisBuilder();
     }
 
-    public C vgetfield(S owner, CharSequence name, T type) {
-        emitOp(Opcode.VGETFIELD, type);
-        code.writeChar(poolHelper.putFieldRef(owner, name, type));
-        return thisBuilder();
-    }
-
     public C putfield(S owner, CharSequence name, T type) {
         emitOp(Opcode.PUTFIELD, type);
         code.writeChar(poolHelper.putFieldRef(owner, name, type));
@@ -155,18 +149,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         return thisBuilder();
     }
 
-    public C vnew_(S clazz, CharSequence name, T desc) {
-        emitOp(Opcode.VNEW, clazz);
-        code.writeChar(poolHelper.putMethodRef(clazz, name, desc, false));
-        return thisBuilder();
-    }
-
-    public C vnewarray(S array) {
-        emitOp(Opcode.VNEWARRAY, array);
-        code.writeChar(poolHelper.putClass(array));
-        return thisBuilder();
-    }
-
     public C newarray(TypeTag tag) {
         emitOp(Opcode.NEWARRAY, tag);
         int newarraycode = tag.newarraycode;
@@ -198,24 +180,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
     public C multianewarray(S array, byte dims) {
         emitOp(Opcode.MULTIANEWARRAY, new Object[]{array, dims});
         code.writeChar(poolHelper.putClass(array)).writeByte(dims);
-        return thisBuilder();
-    }
-
-    public C multivnewarray(S array, byte dims) {
-        emitOp(Opcode.MULTIVNEWARRAY, new Object[]{array, dims});
-        code.writeChar(poolHelper.putClass(array)).writeByte(dims);
-        return thisBuilder();
-    }
-
-    public C vbox(S target) {
-        emitOp(Opcode.VBOX, target);
-        code.writeChar(poolHelper.putClass(target));
-        return thisBuilder();
-    }
-
-    public C vunbox(S target) {
-        emitOp(Opcode.VUNBOX, target);
-        code.writeChar(poolHelper.putClass(target));
         return thisBuilder();
     }
 
@@ -291,10 +255,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
 
     public C return_() {
         return emitOp(Opcode.RETURN);
-    }
-
-    public C vreturn() {
-        return emitOp(Opcode.VRETURN);
     }
 
     protected C emitWideIfNeeded(Opcode opcode, int n) {
@@ -405,10 +365,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         }
     }
 
-    public C vload(int i) {
-        return emitWideIfNeeded(Opcode.VLOAD, i);
-    }
-
     public C aload(int i) {
         return emitWideIfNeeded(Opcode.ALOAD, i);
     }
@@ -507,10 +463,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
 
     public C dload_3() {
         return emitOp(Opcode.DLOAD_3);
-    }
-
-    public C vstore(int i) {
-        return emitWideIfNeeded(Opcode.VSTORE, i);
     }
 
     public C astore(int i) {
@@ -631,10 +583,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         return emitOp(Opcode.DALOAD);
     }
 
-    public C vaload() {
-        return emitOp(Opcode.VALOAD);
-    }
-
     public C aaload() {
         return emitOp(Opcode.AALOAD);
     }
@@ -665,10 +613,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
 
     public C dastore() {
         return emitOp(Opcode.DASTORE);
-    }
-
-    public C vastore() {
-        return emitOp(Opcode.VASTORE);
     }
 
     public C aastore() {
