@@ -128,6 +128,7 @@ public class Ifacmp {
             checkEqual(pair[0], pair[1], false);
         }
         testLocalValues();
+        testAlot();
     }
 
     public void testValues() {
@@ -158,6 +159,21 @@ public class Ifacmp {
         }
         if (a == a1) throw new RuntimeException();
         checkEqual(a, a2, false);
+    }
+
+    public void testAlot() {
+        MyValue a = new MyValue(4711);
+        Reference ref = new WeakReference<Object>(new Object(), new ReferenceQueue<>());
+        do {
+            for (int i = 0; i < 1000; i++) {
+                MyValue b = new MyValue(4711);
+                if (acmpModeInlineAlwaysFalse) {
+                    if (a == b) throw new RuntimeException("Always false fail " + a + " == " + b);
+                } else {
+                    if (a != b) throw new RuntimeException("Substitutability test failed" + a + " != " + b);
+                }
+            }
+        } while (ref.get() != null);
     }
 
     boolean shouldEqualSelf(Object a) {

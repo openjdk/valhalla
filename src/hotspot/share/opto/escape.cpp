@@ -256,9 +256,6 @@ bool ConnectionGraph::compute_escape() {
     if (n->is_Allocate()) {
       n->as_Allocate()->_is_non_escaping = noescape;
     }
-    if (n->is_CallStaticJava()) {
-      n->as_CallStaticJava()->_is_non_escaping = noescape;
-    }
     if (noescape && ptn->scalar_replaceable()) {
       adjust_scalar_replaceable_state(ptn);
       if (ptn->scalar_replaceable()) {
@@ -1107,6 +1104,7 @@ void ConnectionGraph::process_call_arguments(CallNode *call) {
                   strcmp(call->as_CallLeaf()->_name, "counterMode_AESCrypt") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "ghash_processBlocks") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "encodeBlock") == 0 ||
+                  strcmp(call->as_CallLeaf()->_name, "decodeBlock") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "md5_implCompress") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "md5_implCompressMB") == 0 ||
                   strcmp(call->as_CallLeaf()->_name, "sha1_implCompress") == 0 ||
@@ -1641,21 +1639,28 @@ int ConnectionGraph::find_init_values(JavaObjectNode* pta, PointsToNode* init_va
   if (init_val == phantom_obj) {
     // Do nothing for Allocate nodes since its fields values are
     // "known" unless they are initialized by arraycopy/clone.
-    if (alloc->is_Allocate() && !pta->arraycopy_dst())
-      return 0;
-    assert(pta->arraycopy_dst() || alloc->as_CallStaticJava(), "sanity");
+    if (alloc->is_Allocate() && !pta->arraycopy_dst()) {
+      if (alloc->as_Allocate()->in(AllocateNode::DefaultValue) != NULL) {
+        // Non-flattened inline type arrays are initialized with
+        // the default value instead of null. Handle them here.
+        init_val = ptnode_adr(alloc->as_Allocate()->in(AllocateNode::DefaultValue)->_idx);
+        assert(init_val != NULL, "default value should be registered");
+      } else {
+        return 0;
+      }
+    }
+    // Non-escaped allocation returned from Java or runtime call has unknown values in fields.
+    assert(pta->arraycopy_dst() || alloc->is_CallStaticJava() || init_val != phantom_obj, "sanity");
 #ifdef ASSERT
-    if (!pta->arraycopy_dst() && alloc->as_CallStaticJava()->method() == NULL) {
+    if (alloc->is_CallStaticJava() && alloc->as_CallStaticJava()->method() == NULL) {
       const char* name = alloc->as_CallStaticJava()->_name;
       assert(strncmp(name, "_multianewarray", 15) == 0, "sanity");
     }
 #endif
-    // Non-escaped allocation returned from Java or runtime call have
-    // unknown values in fields.
     for (EdgeIterator i(pta); i.has_next(); i.next()) {
       PointsToNode* field = i.get();
       if (field->is_Field() && field->as_Field()->is_oop()) {
-        if (add_edge(field, phantom_obj)) {
+        if (add_edge(field, init_val)) {
           // New edge was added
           new_edges++;
           add_field_uses_to_worklist(field->as_Field());
@@ -1666,8 +1671,9 @@ int ConnectionGraph::find_init_values(JavaObjectNode* pta, PointsToNode* init_va
   }
   assert(init_val == null_obj, "sanity");
   // Do nothing for Call nodes since its fields values are unknown.
-  if (!alloc->is_Allocate())
+  if (!alloc->is_Allocate() || alloc->as_Allocate()->in(AllocateNode::DefaultValue) != NULL) {
     return 0;
+  }
 
   InitializeNode* ini = alloc->as_Allocate()->initialization();
   bool visited_bottom_offset = false;
@@ -3126,11 +3132,6 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
           // so it could be eliminated if it has no uses.
           alloc->as_Allocate()->_is_scalar_replaceable = true;
         }
-        if (alloc->is_CallStaticJava()) {
-          // Set the scalar_replaceable flag for boxing method
-          // so it could be eliminated if it has no uses.
-          alloc->as_CallStaticJava()->_is_scalar_replaceable = true;
-        }
         continue;
       }
       if (!n->is_CheckCastPP()) { // not unique CheckCastPP.
@@ -3178,11 +3179,6 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         // Set the scalar_replaceable flag for allocation
         // so it could be eliminated.
         alloc->as_Allocate()->_is_scalar_replaceable = true;
-      }
-      if (alloc->is_CallStaticJava()) {
-        // Set the scalar_replaceable flag for boxing method
-        // so it could be eliminated.
-        alloc->as_CallStaticJava()->_is_scalar_replaceable = true;
       }
       set_escape_state(ptnode_adr(n->_idx), es); // CheckCastPP escape state
       // in order for an object to be scalar-replaceable, it must be:
@@ -3509,7 +3505,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
         } else if (!(BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(use) ||
               op == Op_AryEq || op == Op_StrComp || op == Op_HasNegatives ||
               op == Op_StrCompressedCopy || op == Op_StrInflatedCopy ||
-              op == Op_StrEquals || op == Op_StrIndexOf || op == Op_StrIndexOfChar)) {
+              op == Op_StrEquals || op == Op_StrIndexOf || op == Op_StrIndexOfChar || op == Op_FlatArrayCheck)) {
           n->dump();
           use->dump();
           assert(false, "EA: missing memory path");

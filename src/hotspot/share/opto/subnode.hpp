@@ -140,6 +140,8 @@ public:
   const Type *bottom_type() const { return TypeInt::CC; }
   virtual uint ideal_reg() const { return Op_RegFlags; }
 
+  static CmpNode *make(Node *in1, Node *in2, BasicType bt, bool unsigned_comp = false);
+
 #ifndef PRODUCT
   // CmpNode and subclasses include all data inputs (until hitting a control
   // boundary) in their related node set, as well as all outputs until and
@@ -277,6 +279,25 @@ public:
   virtual uint ideal_reg() const { return Op_RegI; }
 };
 
+//--------------------------FlatArrayCheckNode---------------------------------
+// Returns true if one of the input arrays (there can be multiple) is flat.
+class FlatArrayCheckNode : public CmpNode {
+public:
+  enum {
+    Control,
+    Memory,
+    Array
+  };
+  FlatArrayCheckNode(Compile* C, Node* mem, Node* array) : CmpNode(mem, array) {
+    init_class_id(Class_FlatArrayCheck);
+    init_flags(Flag_is_macro);
+    C->add_macro_node(this);
+  }
+  virtual int Opcode() const;
+  virtual const Type* sub(const Type*, const Type*) const { ShouldNotReachHere(); return NULL; }
+  const Type* Value(PhaseGVN* phase) const;
+  virtual Node* Ideal(PhaseGVN* phase, bool can_reshape);
+};
 
 //------------------------------BoolTest---------------------------------------
 // Convert condition codes to a boolean test value (0 or -1).

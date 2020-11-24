@@ -4,6 +4,9 @@ on:
   push:
     branches-ignore:
       - master
+      - lworld
+      - type-restrictions
+      - jep390
   workflow_dispatch:
     inputs:
       platforms:
@@ -108,6 +111,7 @@ jobs:
           - build debug
           - build hotspot no-pch
           - build hotspot minimal
+          - build hotspot optimized
         include:
           - flavor: build debug
             flags: --enable-debug
@@ -117,6 +121,9 @@ jobs:
             build-target: hotspot
           - flavor: build hotspot minimal
             flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=minimal
+            build-target: hotspot
+          - flavor: build hotspot optimized
+            flags: --with-debug-level=optimized --disable-precompiled-headers
             build-target: hotspot
 
     env:
@@ -362,8 +369,8 @@ jobs:
           "$HOME/linux-x64${{ matrix.artifact }}_testsupport_${{ env.logsuffix }}.zip"
           .
           -i *.jtr
-          -i hs_err*
-          -i replay*
+          -i */hs_err*.log
+          -i */replay*.log
         continue-on-error: true
 
       - name: Persist test results
@@ -382,7 +389,7 @@ jobs:
 
   windows_x64_build:
     name: Windows x64
-    runs-on: "windows-latest"
+    runs-on: "windows-2019"
     needs: prerequisites
     if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_windows_x64 != 'false'
 
@@ -462,12 +469,19 @@ jobs:
           path: ~/jtreg/
         if: steps.jtreg_restore.outcome == 'failure'
 
+      - name: Ensure a specific version of MSVC is installed
+        run: >
+          Start-Process -FilePath 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe' -Wait -NoNewWindow -ArgumentList 
+          'modify --installPath "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise" --quiet 
+          --add Microsoft.VisualStudio.Component.VC.14.27.x86.x64'
+
       - name: Configure
         run: >
           $env:Path = "$HOME\cygwin\cygwin64\bin;$HOME\cygwin\cygwin64\bin;$env:Path" ;
           $env:Path = $env:Path -split ";" -match "C:\\Windows|PowerShell|cygwin" -join ";" ;
           & bash configure
           --with-conf-name=windows-x64
+          --with-msvc-toolset-version=14.27
           ${{ matrix.flags }}
           --with-version-opt="$env:GITHUB_ACTOR-$env:GITHUB_SHA"
           --with-version-build=0
@@ -498,7 +512,7 @@ jobs:
 
   windows_x64_test:
     name: Windows x64
-    runs-on: "windows-latest"
+    runs-on: "windows-2019"
     needs:
       - prerequisites
       - windows_x64_build
@@ -679,8 +693,8 @@ jobs:
           "$HOME/windows-x64${{ matrix.artifact }}_testsupport_${{ env.logsuffix }}.zip"
           .
           -i *.jtr
-          -i hs_err*
-          -i replay*
+          -i */hs_err*.log
+          -i */replay*.log
         continue-on-error: true
 
       - name: Persist test results
@@ -699,7 +713,7 @@ jobs:
 
   macos_x64_build:
     name: macOS x64
-    runs-on: "macos-latest"
+    runs-on: "macos-10.15"
     needs: prerequisites
     if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_macos_x64 != 'false'
 
@@ -769,6 +783,9 @@ jobs:
       - name: Install dependencies
         run: brew install make
 
+      - name: Select Xcode version
+        run: sudo xcode-select --switch /Applications/Xcode_11.3.1.app/Contents/Developer
+
       - name: Configure
         run: >
           bash configure
@@ -799,7 +816,7 @@ jobs:
 
   macos_x64_test:
     name: macOS x64
-    runs-on: "macos-latest"
+    runs-on: "macos-10.15"
     needs:
       - prerequisites
       - macos_x64_build
@@ -912,6 +929,9 @@ jobs:
       - name: Install dependencies
         run: brew install make
 
+      - name: Select Xcode version
+        run: sudo xcode-select --switch /Applications/Xcode_11.3.1.app/Contents/Developer
+
       - name: Find root of jdk image dir
         run: |
           imageroot=`find ${HOME}/jdk-macos-x64${{ matrix.artifact }}/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }} -name release -type f`
@@ -961,8 +981,8 @@ jobs:
           "$HOME/macos-x64${{ matrix.artifact }}_testsupport_${{ env.logsuffix }}.zip"
           .
           -i *.jtr
-          -i hs_err*
-          -i replay*
+          -i */hs_err*.log
+          -i */replay*.log
         continue-on-error: true
 
       - name: Persist test results

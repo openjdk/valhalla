@@ -3517,7 +3517,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
       if (region->req() == 3 && region->in(2) != NULL && region->in(2)->in(0) != NULL) {
         IfNode* iff = region->in(2)->in(0)->isa_If();
         if (iff != NULL) {
-          iff->is_non_flattened_array_check(&_gvn, &array);
+          iff->is_flat_array_check(&_gvn, &array);
         }
       }
     }
@@ -3548,8 +3548,8 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
 }
 
 Node* GraphKit::inline_type_test(Node* obj, bool is_inline) {
-  Node* mark_addr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
-  Node* mark = make_load(NULL, mark_addr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
+  Node* mark_adr = basic_plus_adr(obj, oopDesc::mark_offset_in_bytes());
+  Node* mark = make_load(NULL, mark_adr, TypeX_X, TypeX_X->basic_type(), MemNode::unordered);
   Node* mask = MakeConX(markWord::inline_type_pattern);
   Node* masked = _gvn.transform(new AndXNode(mark, mask));
   Node* cmp = _gvn.transform(new CmpXNode(masked, mask));
@@ -3566,8 +3566,13 @@ Node* GraphKit::array_lh_test(Node* klass, jint mask, jint val, bool eq) {
 }
 
 Node* GraphKit::flat_array_test(Node* ary, bool flat) {
-  Node* klass = load_object_klass(ary);
-  return array_lh_test(klass, Klass::_lh_array_tag_vt_value_bit_inplace, 0, !flat);
+  // We can't use immutable memory here because the mark word is mutable.
+  // PhaseIdealLoop::move_flat_array_check_out_of_loop will make sure the
+  // check is moved out of loops (mainly to enable loop unswitching).
+  Node* mem = UseArrayMarkWordCheck ? memory(Compile::AliasIdxRaw) : immutable_memory();
+  Node* cmp = _gvn.transform(new FlatArrayCheckNode(C, mem, ary));
+  record_for_igvn(cmp); // Give it a chance to be optimized out by IGVN
+  return _gvn.transform(new BoolNode(cmp, flat ? BoolTest::eq : BoolTest::ne));
 }
 
 Node* GraphKit::null_free_array_test(Node* klass, bool null_free) {

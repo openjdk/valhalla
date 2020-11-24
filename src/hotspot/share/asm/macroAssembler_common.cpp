@@ -122,12 +122,12 @@ int MacroAssembler::unpack_inline_args(Compile* C, bool receiver_only) {
     }
   }
   VMRegPair* regs = NEW_RESOURCE_ARRAY(VMRegPair, args_passed);
-  int args_on_stack = SharedRuntime::java_calling_convention(sig_bt, regs, args_passed, false);
+  int args_on_stack = SharedRuntime::java_calling_convention(sig_bt, regs, args_passed);
 
   // Get scalarized calling convention
   int args_passed_cc = SigEntry::fill_sig_bt(sig, sig_bt);
   VMRegPair* regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig->length());
-  int args_on_stack_cc = SharedRuntime::java_calling_convention(sig_bt, regs_cc, args_passed_cc, false);
+  int args_on_stack_cc = SharedRuntime::java_calling_convention(sig_bt, regs_cc, args_passed_cc);
 
   // Check if we need to extend the stack for unpacking
   int sp_inc = 0;

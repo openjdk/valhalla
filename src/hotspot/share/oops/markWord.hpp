@@ -290,34 +290,41 @@ class markWord {
   // fixes up biased locks to be compatible with it when a bias is
   // revoked.
   bool has_bias_pattern() const {
+    ShouldNotReachHere(); // Valhalla: unused
     return (mask_bits(value(), biased_lock_mask_in_place) == biased_lock_pattern);
   }
   JavaThread* biased_locker() const {
+    ShouldNotReachHere(); // Valhalla: unused
     assert(has_bias_pattern(), "should not call this otherwise");
     return (JavaThread*) mask_bits(value(), ~(biased_lock_mask_in_place | age_mask_in_place | epoch_mask_in_place));
   }
   // Indicates that the mark has the bias bit set but that it has not
   // yet been biased toward a particular thread
   bool is_biased_anonymously() const {
+    ShouldNotReachHere(); // Valhalla: unused
     return (has_bias_pattern() && (biased_locker() == NULL));
   }
   // Indicates epoch in which this bias was acquired. If the epoch
   // changes due to too many bias revocations occurring, the biases
   // from the previous epochs are all considered invalid.
   int bias_epoch() const {
+    ShouldNotReachHere(); // Valhalla: unused
     assert(has_bias_pattern(), "should not call this otherwise");
     return (mask_bits(value(), epoch_mask_in_place) >> epoch_shift);
   }
   markWord set_bias_epoch(int epoch) {
+    ShouldNotReachHere(); // Valhalla: unused
     assert(has_bias_pattern(), "should not call this otherwise");
     assert((epoch & (~epoch_mask)) == 0, "epoch overflow");
     return markWord(mask_bits(value(), ~epoch_mask_in_place) | (epoch << epoch_shift));
   }
   markWord incr_bias_epoch() {
+    ShouldNotReachHere(); // Valhalla: unused
     return set_bias_epoch((1 + bias_epoch()) & epoch_mask);
   }
   // Prototype mark for initialization
   static markWord biased_locking_prototype() {
+    ShouldNotReachHere(); // Valhalla: unused
     return markWord( biased_lock_pattern );
   }
 
@@ -326,12 +333,15 @@ class markWord {
     return (mask_bits(value(), lock_mask_in_place) != unlocked_value);
   }
   bool is_unlocked() const {
-    return (mask_bits(value(), biased_lock_mask_in_place) == unlocked_value);
+    return (mask_bits(value(), lock_mask_in_place) == unlocked_value);
   }
   bool is_marked()   const {
     return (mask_bits(value(), lock_mask_in_place) == marked_value);
   }
-  bool is_neutral()  const { return (mask_bits(value(), biased_lock_mask_in_place) == unlocked_value); }
+
+  // is unlocked and not an inline type (which cannot be involved in locking, displacement or inflation)
+  // i.e. test both lock bits and the inline type bit together
+  bool is_neutral()  const { return (mask_bits(value(), inline_type_mask_in_place) == unlocked_value); }
 
   // Special temporary state of the markWord while being inflated.
   // Code that looks at mark outside a lock need to take this into account.
@@ -393,16 +403,8 @@ class markWord {
   bool has_displaced_mark_helper() const {
     return ((value() & unlocked_value) == 0);
   }
-  markWord displaced_mark_helper() const {
-    assert(has_displaced_mark_helper(), "check");
-    uintptr_t ptr = (value() & ~monitor_value);
-    return *(markWord*)ptr;
-  }
-  void set_displaced_mark_helper(markWord m) const {
-    assert(has_displaced_mark_helper(), "check");
-    uintptr_t ptr = (value() & ~monitor_value);
-    ((markWord*)ptr)->_value = m._value;
-  }
+  markWord displaced_mark_helper() const;
+  void set_displaced_mark_helper(markWord m) const;
   markWord copy_set_hash(intptr_t hash) const {
     uintptr_t tmp = value() & (~hash_mask_in_place);
     tmp |= ((hash & hash_mask) << hash_shift);
@@ -495,7 +497,7 @@ class markWord {
   static inline markWord prototype_for_klass(const Klass* klass);
 
   // Debugging
-  void print_on(outputStream* st) const;
+  void print_on(outputStream* st, bool print_monitor_info = true) const;
 
   // Prepare address of oop for placement into mark
   inline static markWord encode_pointer_as_mark(void* p) { return from_pointer(p).set_marked(); }

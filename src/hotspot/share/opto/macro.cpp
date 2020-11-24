@@ -51,6 +51,7 @@
 #include "opto/subnode.hpp"
 #include "opto/subtypenode.hpp"
 #include "opto/type.hpp"
+#include "prims/jvmtiExport.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
@@ -319,7 +320,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
     Node* base = ac->in(ArrayCopyNode::Src);
     Node* adr = _igvn.transform(new AddPNode(base, base, MakeConX(offset)));
     const TypePtr* adr_type = _igvn.type(base)->is_ptr()->add_offset(offset);
-    MergeMemNode* mergemen = MergeMemNode::make(mem);
+    MergeMemNode* mergemen = _igvn.transform(MergeMemNode::make(mem))->as_MergeMem();
     BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
     res = ArrayCopyNode::load(bs, &_igvn, ctl, mergemen, adr, adr_type, type, bt);
   } else {
@@ -368,7 +369,7 @@ Node* PhaseMacroExpand::make_arraycopy_load(ArrayCopyNode* ac, intptr_t offset, 
         adr_type = adr_type->is_aryptr()->add_field_offset_and_offset(offset)->add_offset(Type::OffsetBot);
         adr = _igvn.transform(new CastPPNode(adr, adr_type));
       }
-      MergeMemNode* mergemen = MergeMemNode::make(mem);
+      MergeMemNode* mergemen = _igvn.transform(MergeMemNode::make(mem))->as_MergeMem();
       BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
       res = ArrayCopyNode::load(bs, &_igvn, ctl, mergemen, adr, adr_type, type, bt);
     }
@@ -2903,6 +2904,102 @@ void PhaseMacroExpand::expand_subtypecheck_node(SubTypeCheckNode *check) {
   _igvn.replace_node(check, C->top());
 }
 
+// FlatArrayCheckNode (array1 array2 ...) is expanded into:
+//
+// long mark = array1.mark | array2.mark | ...;
+// long locked_bit = markWord::unlocked_value & array1.mark & array2.mark & ...;
+// if (locked_bit == 0) {
+//   // One array is locked, load prototype header from the klass
+//   mark = array1.klass.proto | array2.klass.proto | ...
+// }
+// if ((mark & markWord::flat_array_bit_in_place) == 0) {
+//    ...
+// }
+void PhaseMacroExpand::expand_flatarraycheck_node(FlatArrayCheckNode* check) {
+  if (UseArrayMarkWordCheck) {
+    Node* mark = MakeConX(0);
+    Node* locked_bit = MakeConX(markWord::unlocked_value);
+    Node* mem = check->in(FlatArrayCheckNode::Memory);
+    for (uint i = FlatArrayCheckNode::Array; i < check->req(); ++i) {
+      Node* ary = check->in(i);
+      if (ary->is_top()) continue;
+      const TypeAryPtr* t = _igvn.type(ary)->isa_aryptr();
+      assert(!t->is_flat() && !t->is_not_flat(), "Should have been optimized out");
+      Node* mark_adr = basic_plus_adr(ary, oopDesc::mark_offset_in_bytes());
+      Node* mark_load = _igvn.transform(LoadNode::make(_igvn, NULL, mem, mark_adr, mark_adr->bottom_type()->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
+      mark = _igvn.transform(new OrXNode(mark, mark_load));
+      locked_bit = _igvn.transform(new AndXNode(locked_bit, mark_load));
+    }
+    assert(!mark->is_Con(), "Should have been optimized out");
+    Node* cmp = _igvn.transform(new CmpXNode(locked_bit, MakeConX(0)));
+    Node* is_unlocked = _igvn.transform(new BoolNode(cmp, BoolTest::ne));
+
+    // BoolNode might be shared, replace each if user
+    Node* old_bol = check->unique_out();
+    assert(old_bol->is_Bool() && old_bol->as_Bool()->_test._test == BoolTest::ne, "unexpected condition");
+    for (DUIterator_Last imin, i = old_bol->last_outs(imin); i >= imin; --i) {
+      IfNode* old_iff = old_bol->last_out(i)->as_If();
+      Node* ctrl = old_iff->in(0);
+      RegionNode* region = new RegionNode(3);
+      Node* mark_phi = new PhiNode(region, TypeX_X);
+
+      // Check if array is unlocked
+      IfNode* iff = _igvn.transform(new IfNode(ctrl, is_unlocked, PROB_MAX, COUNT_UNKNOWN))->as_If();
+
+      // Unlocked: Use bits from mark word
+      region->init_req(1, _igvn.transform(new IfTrueNode(iff)));
+      mark_phi->init_req(1, mark);
+
+      // Locked: Load prototype header from klass
+      ctrl = _igvn.transform(new IfFalseNode(iff));
+      Node* proto = MakeConX(0);
+      for (uint i = FlatArrayCheckNode::Array; i < check->req(); ++i) {
+        Node* ary = check->in(i);
+        if (ary->is_top()) continue;
+        // Make loads control dependent to make sure they are only executed if array is locked
+        Node* klass_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
+        Node* klass = _igvn.transform(LoadKlassNode::make(_igvn, ctrl, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT));
+        Node* proto_adr = basic_plus_adr(klass, in_bytes(Klass::prototype_header_offset()));
+        Node* proto_load = _igvn.transform(LoadNode::make(_igvn, ctrl, C->immutable_memory(), proto_adr, proto_adr->bottom_type()->is_ptr(), TypeX_X, TypeX_X->basic_type(), MemNode::unordered));
+        proto = _igvn.transform(new OrXNode(proto, proto_load));
+      }
+      region->init_req(2, ctrl);
+      mark_phi->init_req(2, proto);
+
+      // Check if flat array bits are set
+      Node* mask = MakeConX(markWord::flat_array_bit_in_place);
+      Node* masked = _igvn.transform(new AndXNode(_igvn.transform(mark_phi), mask));
+      cmp = _igvn.transform(new CmpXNode(masked, MakeConX(0)));
+      Node* is_not_flat = _igvn.transform(new BoolNode(cmp, BoolTest::eq));
+
+      ctrl = _igvn.transform(region);
+      iff = _igvn.transform(new IfNode(ctrl, is_not_flat, PROB_MAX, COUNT_UNKNOWN))->as_If();
+      _igvn.replace_node(old_iff, iff);
+    }
+    _igvn.replace_node(check, C->top());
+  } else {
+    // Fall back to layout helper check
+    Node* lhs = intcon(0);
+    for (uint i = FlatArrayCheckNode::Array; i < check->req(); ++i) {
+      Node* ary = check->in(i);
+      if (ary->is_top()) continue;
+      const TypeAryPtr* t = _igvn.type(ary)->isa_aryptr();
+      assert(!t->is_flat() && !t->is_not_flat(), "Should have been optimized out");
+      Node* klass_adr = basic_plus_adr(ary, oopDesc::klass_offset_in_bytes());
+      Node* klass = transform_later(LoadKlassNode::make(_igvn, NULL, C->immutable_memory(), klass_adr, TypeInstPtr::KLASS, TypeKlassPtr::OBJECT));
+      Node* lh_addr = basic_plus_adr(klass, in_bytes(Klass::layout_helper_offset()));
+      Node* lh_val = _igvn.transform(LoadNode::make(_igvn, NULL, C->immutable_memory(), lh_addr, lh_addr->bottom_type()->is_ptr(), TypeInt::INT, T_INT, MemNode::unordered));
+      lhs = _igvn.transform(new OrINode(lhs, lh_val));
+    }
+    Node* masked = transform_later(new AndINode(lhs, intcon(Klass::_lh_array_tag_vt_value_bit_inplace)));
+    Node* cmp = transform_later(new CmpINode(masked, intcon(0)));
+    Node* bol = transform_later(new BoolNode(cmp, BoolTest::eq));
+    Node* old_bol = check->unique_out();
+    _igvn.replace_node(old_bol, bol);
+    _igvn.replace_node(check, C->top());
+  }
+}
+
 //---------------------------eliminate_macro_nodes----------------------
 // Eliminate scalar replaced allocations and associated locks.
 void PhaseMacroExpand::eliminate_macro_nodes() {
@@ -2925,7 +3022,7 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
     for (int i = C->macro_count(); i > 0; i--) {
       Node * n = C->macro_node(i-1);
       bool success = false;
-      debug_only(int old_macro_count = C->macro_count(););
+      DEBUG_ONLY(int old_macro_count = C->macro_count();)
       if (n->is_AbstractLock()) {
         success = eliminate_locking_node(n->as_AbstractLock());
       }
@@ -2941,7 +3038,7 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
     for (int i = C->macro_count(); i > 0; i--) {
       Node * n = C->macro_node(i-1);
       bool success = false;
-      debug_only(int old_macro_count = C->macro_count(););
+      DEBUG_ONLY(int old_macro_count = C->macro_count();)
       switch (n->class_id()) {
       case Node::Class_Allocate:
       case Node::Class_AllocateArray:
@@ -2966,6 +3063,8 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
       case Node::Class_SubTypeCheck:
         break;
       case Node::Class_Opaque1:
+        break;
+      case Node::Class_FlatArrayCheck:
         break;
       default:
         assert(n->Opcode() == Op_LoopLimit ||
@@ -2993,7 +3092,7 @@ bool PhaseMacroExpand::expand_macro_nodes() {
     for (int i = C->macro_count(); i > 0; i--) {
       Node* n = C->macro_node(i-1);
       bool success = false;
-      debug_only(int old_macro_count = C->macro_count(););
+      DEBUG_ONLY(int old_macro_count = C->macro_count();)
       if (n->Opcode() == Op_LoopLimit) {
         // Remove it from macro list and put on IGVN worklist to optimize.
         C->remove_macro_node(n);
@@ -3082,33 +3181,33 @@ bool PhaseMacroExpand::expand_macro_nodes() {
       return true;
     }
 
-    debug_only(int old_macro_count = C->macro_count(););
+    DEBUG_ONLY(int old_macro_count = C->macro_count();)
     switch (n->class_id()) {
     case Node::Class_Lock:
       expand_lock_node(n->as_Lock());
-      assert(C->macro_count() == (old_macro_count - 1), "expansion must have deleted one node from macro list");
       break;
     case Node::Class_Unlock:
       expand_unlock_node(n->as_Unlock());
-      assert(C->macro_count() == (old_macro_count - 1), "expansion must have deleted one node from macro list");
       break;
     case Node::Class_ArrayCopy:
       expand_arraycopy_node(n->as_ArrayCopy());
-      assert(C->macro_count() == (old_macro_count - 1), "expansion must have deleted one node from macro list");
       break;
     case Node::Class_SubTypeCheck:
       expand_subtypecheck_node(n->as_SubTypeCheck());
-      assert(C->macro_count() == (old_macro_count - 1), "expansion must have deleted one node from macro list");
       break;
     case Node::Class_CallStaticJava:
       expand_mh_intrinsic_return(n->as_CallStaticJava());
       C->remove_macro_node(n);
       assert(C->macro_count() == (old_macro_count - 1), "expansion must have deleted one node from macro list");
       break;
+    case Node::Class_FlatArrayCheck:
+      expand_flatarraycheck_node(n->as_FlatArrayCheck());
+      assert(C->macro_count() == (old_macro_count - 1), "expansion must have deleted one node from macro list");
+      break;
     default:
       assert(false, "unknown node type in macro list");
     }
-    assert(C->macro_count() < macro_count, "must have deleted a node from macro list");
+    assert(C->macro_count() == (old_macro_count - 1), "expansion must have deleted one node from macro list");
     if (C->failing())  return true;
 
     // Clean up the graph so we're less likely to hit the maximum node

@@ -137,7 +137,6 @@ private:
   Node* array_lh_test(Node* array, jint mask);
   Node* generate_flat_array_guard(Node** ctrl, Node* array, RegionNode* region);
   Node* generate_null_free_array_guard(Node** ctrl, Node* array, RegionNode* region);
-  Node* generate_object_array_guard(Node** ctrl, Node* mem, Node* obj, RegionNode* region);
   Node* generate_array_guard(Node** ctrl, Node* mem, Node* obj, RegionNode* region, jint lh_con);
 
   void finish_arraycopy_call(Node* call, Node** ctrl, MergeMemNode** mem, const TypePtr* adr_type);
@@ -199,6 +198,8 @@ private:
   void expand_arraycopy_node(ArrayCopyNode *ac);
 
   void expand_subtypecheck_node(SubTypeCheckNode *check);
+
+  void expand_flatarraycheck_node(FlatArrayCheckNode* check);
 
   int replace_input(Node *use, Node *oldref, Node *newref);
   Node* opt_bits_test(Node* ctrl, Node* region, int edge, Node* word, int mask, int bits, bool return_fast_path = false);

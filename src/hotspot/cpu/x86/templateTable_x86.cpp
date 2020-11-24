@@ -34,6 +34,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/inlineKlass.hpp"
+#include "prims/jvmtiExport.hpp"
 #include "prims/methodHandles.hpp"
 #include "runtime/frame.inline.hpp"
 #include "runtime/safepointMechanism.hpp"
@@ -2490,7 +2491,9 @@ void TemplateTable::if_acmp(Condition cc) {
     __ jcc(Assembler::equal, (cc == equal) ? taken : not_taken);
 
     // might be substitutable, test if either rax or rdx is null
-    __ testptr(rdx, rax);
+    __ testptr(rax, rax);
+    __ jcc(Assembler::zero, (cc == equal) ? not_taken : taken);
+    __ testptr(rdx, rdx);
     __ jcc(Assembler::zero, (cc == equal) ? not_taken : taken);
 
     // and both are values ?
