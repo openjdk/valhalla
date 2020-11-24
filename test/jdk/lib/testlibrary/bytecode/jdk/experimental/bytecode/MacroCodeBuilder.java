@@ -306,21 +306,6 @@ public class MacroCodeBuilder<S, T, E, C extends MacroCodeBuilder<S, T, E, C>> e
         }
     }
 
-    @Override
-    public LabelledTypedBuilder typed(TypeTag typeTag) {
-        return super.typed(typeTag, _unused -> new LabelledTypedBuilder());
-    }
-
-    public class LabelledTypedBuilder extends TypedBuilder {
-        public C if_acmpeq(CharSequence target) {
-            return ifcmp(TypeTag.A, CondKind.EQ, target);
-        }
-
-        public C if_acmpne(CharSequence target) {
-            return ifcmp(TypeTag.A, CondKind.NE, target);
-        }
-    }
-
     public C conv(TypeTag from, TypeTag to) {
         switch (from) {
             case B:

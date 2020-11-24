@@ -137,95 +137,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
         }
     }
 
-    @Override
-    public StatefulTypedBuilder typed(TypeTag tag) {
-        return super.typed(tag, StatefulTypedBuilder::new);
-    }
-
-    public class StatefulTypedBuilder extends LabelledTypedBuilder {
-
-        TypeTag tag;
-
-        StatefulTypedBuilder(TypeTag tag) {
-            this.tag = tag;
-        }
-
-        @Override
-        public C astore_0() {
-            return storeAndUpdate(super::astore_0);
-        }
-
-        @Override
-        public C astore_1() {
-            return storeAndUpdate(super::astore_1);
-        }
-
-        @Override
-        public C astore_2() {
-            return storeAndUpdate(super::astore_2);
-        }
-
-        @Override
-        public C astore_3() {
-            return storeAndUpdate(super::astore_3);
-        }
-
-        @Override
-        public C astore(int n) {
-            return storeAndUpdate(() -> super.astore(n));
-        }
-
-        @Override
-        public C aastore() {
-            return storeAndUpdate(super::aastore);
-        }
-
-        @Override
-        public C areturn() {
-            state.pop(tag);
-            state.push(typeHelper.nullType());
-            return super.areturn();
-        }
-
-        @Override
-        public C anewarray(S s) {
-            super.anewarray(s);
-            state.pop();
-            state.push(typeHelper.arrayOf(typeHelper.type(s)));
-            return thisBuilder();
-        }
-
-        @Override
-        public C aconst_null() {
-            super.aconst_null();
-            state.pop();
-            state.push(tag);
-            return thisBuilder();
-        }
-
-        public C if_acmpeq(CharSequence label) {
-            return jumpAndUpdate(() -> super.if_acmpeq(label));
-        }
-
-        public C if_acmpne(CharSequence label) {
-            return jumpAndUpdate(() -> super.if_acmpne(label));
-        }
-
-        private C storeAndUpdate(Supplier<C> op) {
-            state.pop(tag);
-            state.push(typeHelper.nullType());
-            return op.get();
-        }
-
-        private C jumpAndUpdate(Supplier<C> op) {
-            state.pop(tag);
-            state.pop(tag);
-            state.push(typeHelper.nullType());
-            state.push(typeHelper.nullType());
-            return op.get();
-        }
-    }
-
     public class State {
         public final ArrayList<T> stack;
         public final Vector<T> locals;
@@ -902,7 +813,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.pop();
                 state.push(TypeTag.Z);
                 break;
-            case TYPED:
             case CHECKCAST:
                 break;
 
