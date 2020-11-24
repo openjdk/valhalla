@@ -45,5 +45,5 @@ public @interface RestrictedType {
     /**
      * @return the type descriptor string to be encoded in the RestrictedField attribute as a Utf8 constant
      */
-    String value(); 
+    String value();
 }
