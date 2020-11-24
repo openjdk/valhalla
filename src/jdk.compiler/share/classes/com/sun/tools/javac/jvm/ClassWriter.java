@@ -974,11 +974,21 @@ public class ClassWriter extends ClassFile {
         }
         databuf.appendChar(poolWriter.putName(v.name));
         boolean emitRestrictedField = false;
+        int restrictedFieldDescriptor = 0;
         if (types.flattenWithTypeRestrictions && v.type.isValue()) {
             emitRestrictedField = true;
             databuf.appendChar(poolWriter.putDescriptor(v.type.referenceProjection()));
         } else {
             databuf.appendChar(poolWriter.putDescriptor(v));
+            for (Attribute.Compound anno : v.type.getAnnotationMirrors()) {
+                if (anno.type.tsym == syms.restrictedTypeType.tsym) {
+                    Attribute member = anno.member(names.value);
+                    Assert.check(member.type.tsym == syms.stringType.tsym);
+                    String utf8 = (String) member.getValue();
+                    restrictedFieldDescriptor = poolWriter.putName(names.fromString(utf8));
+                    emitRestrictedField = true;
+                }
+            }
         }
 
         int acountIdx = beginAttrs();
@@ -991,7 +1001,11 @@ public class ClassWriter extends ClassFile {
         }
         if (emitRestrictedField) {
             int alenIdx = writeAttr(names.RestrictedField);
-            databuf.appendChar(poolWriter.putDescriptor(v));
+            if (types.flattenWithTypeRestrictions && v.type.isValue()) {
+                databuf.appendChar(poolWriter.putDescriptor(v));
+            }   else {
+                databuf.appendChar(restrictedFieldDescriptor);
+            }
             endAttr(alenIdx);
             acount++;
         }
