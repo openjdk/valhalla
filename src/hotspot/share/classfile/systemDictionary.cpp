@@ -1979,8 +1979,12 @@ void SystemDictionary::initialize(TRAPS) {
   oop lock_obj = oopFactory::new_intArray(0, CHECK);
   _system_loader_lock_obj = OopHandle(Universe::vm_global(), lock_obj);
 
-  // Initialize basic classes
+  // Resolve basic classes
   resolve_well_known_classes(CHECK);
+  // Resolve classes used by archived heap objects
+  if (UseSharedSpaces) {
+    HeapShared::resolve_classes(CHECK);
+  }
 }
 
 // Compact table of directions on the initialization of klasses:
@@ -2137,14 +2141,6 @@ void SystemDictionary::resolve_well_known_classes(TRAPS) {
   _box_klasses[T_LONG]    = WK_KLASS(Long_klass);
   //_box_klasses[T_OBJECT]  = WK_KLASS(object_klass);
   //_box_klasses[T_ARRAY]   = WK_KLASS(object_klass);
-
-  if (DiagnoseSyncOnPrimitiveWrappers != 0) {
-    for (int i = T_BOOLEAN; i < T_LONG + 1; i++) {
-      assert(_box_klasses[i] != NULL, "NULL box class");
-      _box_klasses[i]->set_is_box();
-      _box_klasses[i]->set_prototype_header(markWord::prototype());
-    }
-  }
 
 #ifdef ASSERT
   if (UseSharedSpaces) {
