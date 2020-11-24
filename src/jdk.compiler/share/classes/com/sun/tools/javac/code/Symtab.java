@@ -223,6 +223,7 @@ public class Symtab {
     public final Type typeDescriptorType;
     public final Type recordType;
     public final Type identityObjectType;
+    public final Type restrictedTypeType;
 
     /** The symbol representing the length field of an array.
      */
@@ -595,6 +596,7 @@ public class Symtab {
         previewFeatureType = enterClass("jdk.internal.PreviewFeature");
         previewFeatureInternalType = enterSyntheticAnnotation("jdk.internal.PreviewFeature+Annotation");
         typeDescriptorType = enterClass("java.lang.invoke.TypeDescriptor");
+        restrictedTypeType = enterClass("java.lang.invoke.RestrictedType");
         recordType = enterClass("java.lang.Record");
         identityObjectType = enterClass("java.lang.IdentityObject");
 
