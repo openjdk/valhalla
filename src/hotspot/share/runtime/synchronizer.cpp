@@ -586,7 +586,7 @@ void ObjectSynchronizer::reenter(Handle obj, intx recursions, TRAPS) {
 // JNI locks on java objects
 // NOTE: must use heavy weight monitor to handle jni monitor enter
 void ObjectSynchronizer::jni_enter(Handle obj, TRAPS) {
-  if (DiagnoseSyncOnValueBasedClasses != 0 && obj->klass()->is_value_based()) {
+  if (obj->klass()->is_value_based()) {
     handle_sync_on_value_based_class(obj, THREAD);
   }
 
