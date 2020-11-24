@@ -129,6 +129,7 @@ import java.util.regex.Pattern;
  *
  * @since 1.8
  */
+@jdk.internal.ValueBased
 public final class Period
         implements ChronoPeriod, Serializable {
 
