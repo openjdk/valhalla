@@ -37,8 +37,8 @@ A value-based class has the following properties:
 <ul>
     <li>the class declares only final instance fields (though these may contain references
         to mutable objects);</li>
-    <li>the class declares implementations of <code>equals</code>,
-        <code>hashCode</code>, and <code>toString</code> which are computed
+    <li>the class overrides the default implementations of <code>equals</code>,
+        <code>hashCode</code>, and <code>toString</code>, computing their results
         solely from the values of the class's instance fields (and the members of
         the objects they reference), not from the instance's identity;</li>
     <li>the class's methods treat instances as <em>freely substitutable</em>
