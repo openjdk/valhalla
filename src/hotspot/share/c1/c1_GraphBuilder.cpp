@@ -2087,6 +2087,13 @@ void GraphBuilder::withfield(int field_index)
   Value val = pop(type);
   Value obj = apop();
 
+  if (field_modify->has_restricted_type()) {
+      CheckCast* c = new CheckCast(field_modify->type()->as_klass(), val, copy_state_before(), field_modify->type()->as_inline_klass() != NULL);
+      append_split(c);
+      c->set_incompatible_class_change_check();
+      c->set_direct_compare(field_modify->type()->as_instance_klass()->is_final());
+    }
+
   assert(holder->is_inlinetype(), "must be a value klass");
   // Save the entire state and re-execute on deopt when executing withfield
   state_before->set_should_reexecute(true);

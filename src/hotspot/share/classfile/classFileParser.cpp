@@ -1671,7 +1671,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
   // one for the field the JVM injects when detecting an empty inline class
   const int total_fields = length + num_injected + (is_inline_type ? 2 : 0);
 
-  _restricted_field_info = new GrowableArray<u2>(total_fields);
+  _descriptor_signature_info = new GrowableArray<u2>(total_fields);
 
   // The field array starts with tuples of shorts
   // [access, name index, sig index, initial value index, byte offset].
@@ -1783,6 +1783,23 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       }
     }
 
+    // RestrictedField:
+    // The current model for restricted field is that such a field has a descriptor signature used
+    // as the normal signature for this field (for instance in field access bytecodes) but it also
+    // has a restricted type that will be used internally by the VM as the real type of the field.
+    // Current constrains are that the restricted type must be an inline type and the descriptor
+    // type must be a super type of the restricted type.
+    // The code below verifies that the restricted type is an inline type. The property that the
+    // descriptor type is a super type of the restricted type is verified just after the pre-loading
+    // of the restricted type (inline type field preloading)
+    if (has_restricted_type && cp->basic_type_for_signature_at(restricted_type_index) != T_INLINE_TYPE) {
+      // Probably not the right error to throw
+      THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+                    err_msg("Field %s.%s has a RestricteField attribute but its restricted type is not an inline type",
+                    _class_name->as_C_string(),
+                    _cp->symbol_at(restricted_type_index)->as_C_string()));
+    }
+
     u2 sharp_type_index, erased_type_index;
     if (has_restricted_type) {
       sharp_type_index = restricted_type_index;
@@ -1797,7 +1814,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                       name_index,
                       sharp_type_index,
                       constantvalue_index);
-    _restricted_field_info->append(erased_type_index);
+    _descriptor_signature_info->append(erased_type_index);
     field->set_has_rectricted_type(has_restricted_type);
 
     const BasicType type = cp->basic_type_for_signature_at(signature_index);
@@ -1849,7 +1866,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
       // Update FieldAllocationCount for this kind of field
       fac->update(false, type, false);
       index++;
-      _restricted_field_info->append(0);
+      _descriptor_signature_info->append(0);
     }
   }
 
@@ -1864,7 +1881,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     // Remember how many oops we encountered
     fac->update(true, type, false);
     index++;
-    _restricted_field_info->append((u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(object_signature)));
+    _descriptor_signature_info->append((u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(object_signature)));
   }
 
   // True zero size inline types are causing issues when inlined, so the current
@@ -1881,7 +1898,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     // Remember how many oops we encountered
     fac->update(false, type, false);
     index++;
-    _restricted_field_info->append((u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(byte_signature)));
+    _descriptor_signature_info->append((u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(byte_signature)));
   }
 
   if (instance_fields_count > 0) {
@@ -5915,7 +5932,7 @@ void ClassFileParser::fill_instance_klass(InstanceKlass* ik,
     ik->set_has_restricted_fields();
     u2* rfi = ik->fields_descriptor_type();
     for (int i = 0; i < ik->java_fields_count(); i++) {
-      rfi[i] = _restricted_field_info->at(i);
+      rfi[i] = _descriptor_signature_info->at(i);
     }
   }
 
@@ -6117,7 +6134,7 @@ ClassFileParser::ClassFileParser(ClassFileStream* stream,
   _fields_type_annotations(NULL),
   _klass(NULL),
   _klass_to_deallocate(NULL),
-  _restricted_field_info(NULL),
+  _descriptor_signature_info(NULL),
   _parsed_annotations(NULL),
   _fac(NULL),
   _field_info(NULL),
@@ -6750,6 +6767,20 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
                     err_msg("Class %s expects class %s to be an inline type, but it is not",
                     _class_name->as_C_string(),
                     InstanceKlass::cast(klass)->external_name()));
+      }
+      if (fs.has_restricted_type()) {
+        // descriptor type supposed to be a super type of the restricted type, so after the pre-loading
+        // of the restricted type above, the descriptor type should be loaded at this point
+        Symbol* descriptor_name = _cp->symbol_at(_descriptor_signature_info->at(fs.index()));
+        Klass* desc_klass = SystemDictionary::resolve_or_null(descriptor_name,
+                                                   Handle(THREAD, _loader_data->class_loader()),
+                                                   _protection_domain, CHECK);
+        if (desc_klass == NULL || !klass->is_subtype_of(desc_klass)) {
+          THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
+                    err_msg("Restricted type %s should be a subtype of the descriptor type %s, but it is not",
+                    fs.signature()->as_C_string(),
+                    descriptor_name->as_C_string()));
+        }
       }
     }
   }

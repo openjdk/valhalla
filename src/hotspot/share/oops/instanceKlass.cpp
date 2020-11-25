@@ -1661,14 +1661,15 @@ bool InstanceKlass::find_local_field(Symbol* name, Symbol* sig, fieldDescriptor*
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
     Symbol* f_name = fs.name();
     if (f_name == name) {
-      Symbol* f_sig  = fs.signature();
+      Symbol* f_sig = NULL;
+      f_sig  = fs.signature();
       if (f_sig == sig) {
         fd->reinitialize(const_cast<InstanceKlass*>(this), fs.index());
         return true;
       }
       if (fs.has_restricted_type()) {
-        Symbol* f_sig2 = fs.descriptor_signature();
-        if (f_name == name && f_sig2 == sig) {
+        f_sig = fs.descriptor_signature();
+        if (f_sig == sig) {
           fd->reinitialize(const_cast<InstanceKlass*>(this), fs.index());
           return true;
         }

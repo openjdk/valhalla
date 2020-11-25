@@ -146,7 +146,7 @@ class ClassFileParser {
   Array<AnnotationArray*>* _fields_type_annotations;
   InstanceKlass* _klass;  // InstanceKlass* once created.
   InstanceKlass* _klass_to_deallocate; // an InstanceKlass* to be destroyed
-  GrowableArray<u2>* _restricted_field_info;
+  GrowableArray<u2>* _descriptor_signature_info;
 
   ClassAnnotationCollector* _parsed_annotations;
   FieldAllocationCount* _fac;

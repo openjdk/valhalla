@@ -339,14 +339,20 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
     assert(aoop == NULL || oopDesc::is_oop(aoop),"argument must be a reference type");
     new_value_h()->obj_field_put(field_offset, aoop);
   } else if (field_type == T_INLINE_TYPE) {
+    oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
+    if (vklass->field_has_restricted_type(field_index)) {
+      Klass* value_klass = voop->klass();
+      Klass* field_klass = vklass->get_inline_type_field_klass(field_index);
+      if (!value_klass->is_subtype_of(field_klass)) {
+        THROW_(vmSymbols::java_lang_IncompatibleClassChangeError(), return_offset);
+      }
+    }
     if (cp_entry->is_inlined()) {
-      oop vt_oop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
-      assert(vt_oop != NULL && oopDesc::is_oop(vt_oop) && vt_oop->is_inline_type(),"argument must be an inline type");
+      assert(voop != NULL && oopDesc::is_oop(voop) && voop->is_inline_type(),"argument must be an inline type");
       InlineKlass* field_vk = InlineKlass::cast(vklass->get_inline_type_field_klass(field_index));
-      assert(vt_oop != NULL && field_vk == vt_oop->klass(), "Must match");
-      field_vk->write_inlined_field(new_value_h(), offset, vt_oop, CHECK_(return_offset));
+      assert(voop != NULL && field_vk == voop->klass(), "Must match");
+      field_vk->write_inlined_field(new_value_h(), offset, voop, CHECK_(return_offset));
     } else { // not inlined
-      oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
       if (voop == NULL && cp_entry->is_inline_type()) {
         THROW_(vmSymbols::java_lang_NullPointerException(), return_offset);
       }
@@ -540,9 +546,17 @@ JRT_ENTRY(void, InterpreterRuntime::check_restricted_type(JavaThread* thread))
   }
   assert(field_klass != NULL, "Must have been set");
   oop value = cast_to_oop(*last_frame.get_frame().interpreter_frame_tos_at(0));
+  if (value == NULL) {
+    if (field_klass->is_inline_klass()) {
+      THROW(vmSymbols::java_lang_NullPointerException());
+    }
+    return;
+  }
   assert(value != NULL, "Inline types cannot be NULL");
   Klass* value_klass = value->klass();
-  assert(value_klass->is_subtype_of(field_klass), "Just checking");
+  if (!value_klass->is_subtype_of(field_klass)) {
+    THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
+  };
 JRT_END
 
 // Quicken instance-of and check-cast bytecodes
