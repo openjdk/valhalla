@@ -23,27 +23,46 @@
  * questions.
  */
 
-package java.lang.invoke;
+/*
+ * @test
+ * @bug 8257028
+ * @summary Javac crashes on separate compilation.
+ * @compile PointBox.java PointBoxTest.java
+ * @compile PointBoxTest.java
+ */
 
-import java.lang.annotation.*;
-import static java.lang.annotation.ElementType.*;
+public class PointBoxTest {
+    public static void main(String[] args) {
+        for (int i = 0; i < 1000; i++) {
+            test1();
+            test2();
+            test3();
+        }
+    }
 
-/**
- * Annotation to facilitate type-restrictions experiments.
- *
- * When javac generates code for a field whose type is annotated by @RestrictedType("QFoo;"),
- * it generates a RestrictedField attribute pointing to a Utf8 constant representing
- * the given String.
+    static void test1() {
+        double x = 0.0D;
+        for (int i = 0; i < 50000; i++) {
+            PointBox pb = new PointBox();
+            x = ((PointBox.Point)(pb.p368)).x;
+            pb.p368 = new PointBox.Point(2.0, 3.0);
+        }
+    }
 
- * The @RestrictedType annotation supports ad hoc attribute generation,
- * for more fine-grained control.
- *
-*/
-@Retention(RetentionPolicy.SOURCE)
-@Target(ElementType.TYPE_USE)
-public @interface RestrictedType {
-    /**
-     * @return the type descriptor string to be encoded in the RestrictedField attribute as a Utf8 constant
-     */
-    String value();
+    static void test2() {
+        for (int i = 0; i < 50000; i++) {
+            PointBox pb = new PointBox();
+            pb.p368 = new PointBox.Point(2.0, 3.0);
+        }
+    }
+
+    static PointBox.Point.ref spoint = new PointBox.Point(1.0, 2.0);
+
+    static void test3() {
+        spoint = null;
+        for (int i = 0; i < 50000; i++) {
+            PointBox pb = new PointBox();
+            pb.p368 = spoint;
+        }
+    }
 }

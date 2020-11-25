@@ -25,67 +25,50 @@
 
 /*
  * @test
- * @bug 8255856
+ * @bug 8255856 8257028
  * @summary Generate RestrictedField attributes from annotations
- * @modules jdk.compiler/com.sun.tools.javac.util jdk.jdeps/com.sun.tools.javap
- * @compile RestrictedTypeAnnotationCodegenTest.java
- * @run main/othervm -Xverify:none RestrictedTypeAnnotationCodegenTest
- * @modules jdk.compiler
+ * @modules jdk.jdeps/com.sun.tools.classfile
+ * @compile -XDallowWithFieldOperator Point.java
+ * @run main RestrictedTypeAnnotationCodegenTest
  */
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.nio.file.Paths;
+import com.sun.tools.classfile.*;
+import com.sun.tools.classfile.ConstantPool.CONSTANT_Class_info;
 
 import java.lang.invoke.RestrictedType;
 
-final class PointBox {
-
-    @RestrictedType("QPoint;") Object p;
-
-}
-
 public class RestrictedTypeAnnotationCodegenTest {
 
-    public static void main(String [] args) {
-        new RestrictedTypeAnnotationCodegenTest().run();
-    }
+    inline class Point {}
+    inline class Line {}
 
-    void run() {
-        String [] params = new String [] { "-v",
-                                            Paths.get(System.getProperty("test.classes"),
-                                                "PointBox.class").toString() };
-        runCheck(params, new String [] {
-         "java.lang.Object p;",
-         "descriptor: Ljava/lang/Object;",
-         "RestrictedField: #11                    // QPoint;",
-         "RuntimeVisibleTypeAnnotations:",
-         "0: #14(#15=s#11): FIELD",
-         "java.lang.invoke.RestrictedType(",
-         "value=\"QPoint;\""
-         });
+    @RestrictedType("QRestrictedTypeAnnotationCodegenTest$Line;")
+    public Object jloFld = null;
 
-     }
+    @RestrictedType("QRestrictedTypeAnnotationCodegenTest$Point;")
+    public Point.ref refProjFld = null;
 
-     void runCheck(String [] params, String [] expectedOut) {
-        StringWriter s;
-        String out;
+    public static void main(String[] args) throws Exception {
+        ClassFile cls = ClassFile.read(InlineNestingAttributesTest.class.getResourceAsStream("RestrictedTypeAnnotationCodegenTest.class"));
 
-        System.out.println("Checking javap");
-        try (PrintWriter pw = new PrintWriter(s = new StringWriter())) {
-            com.sun.tools.javap.Main.run(params, pw);
-            out = s.toString();
-        }
-        System.out.println("Javap = " + out);
-        int errors = 0;
-        for (String eo: expectedOut) {
-            if (!out.contains(eo)) {
-                System.err.println("Match not found for string: " + eo);
-                errors++;
+        int goodFlds = 0;
+        for (Field fld: cls.fields) {
+            if (fld.getName(cls.constant_pool).equals("jloFld")) {
+               String desc = fld.descriptor.getValue(cls.constant_pool);
+               RestrictedField_attribute rfa =
+                    (RestrictedField_attribute) fld.attributes.get(Attribute.RestrictedField);
+               if (rfa.getRestrictedType(cls.constant_pool).equals("QRestrictedTypeAnnotationCodegenTest$Line;") && desc.equals("Ljava/lang/Object;"))
+                    goodFlds++;
+            } else if (fld.getName(cls.constant_pool).equals("refProjFld")) {
+               String desc = fld.descriptor.getValue(cls.constant_pool);
+               RestrictedField_attribute rfa =
+                    (RestrictedField_attribute) fld.attributes.get(Attribute.RestrictedField);
+               if (rfa.getRestrictedType(cls.constant_pool).equals("QRestrictedTypeAnnotationCodegenTest$Point;") && desc.equals("LRestrictedTypeAnnotationCodegenTest$Point$ref;"))
+                    goodFlds++;
             }
         }
-         if (errors > 0) {
-             throw new AssertionError("Unexpected javap output: " + out);
-         }
+        if (goodFlds != 2) {
+            throw new AssertionError("Lookup for 2 fields failed: Found only " + goodFlds);
+        }
     }
 }
