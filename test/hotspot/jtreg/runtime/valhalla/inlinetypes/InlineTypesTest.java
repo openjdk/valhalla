@@ -41,16 +41,14 @@ import jdk.experimental.bytecode.TypeTag;
 import jdk.test.lib.Platform;
 import jdk.test.lib.Utils;
 
-import jdk.experimental.value.MethodHandleBuilder;
-
 import javax.tools.*;
+import test.java.lang.invoke.lib.InstructionHelper;
 
 /**
  * @test InlineTypesTest
  * @summary Test data movement with inline types
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- * @library /test/lib
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator TestValue1.java TestValue2.java TestValue3.java TestValue4.java InlineTypesTest.java
  * @run main/othervm -Xint -Xmx128m -XX:-ShowMessageBoxOnError
  *                   -XX:+ExplicitGCInvokesConcurrent
@@ -103,7 +101,7 @@ public class InlineTypesTest {
     static void testExecutionStackToLocalVariable(Class<?> inlineClass) throws Throwable {
         String sig = "()Q" + inlineClass.getName() + ";";
         final String signature = sig.replace('.', '/');
-        MethodHandle fromExecStackToLocalVar = MethodHandleBuilder.loadCode(
+        MethodHandle fromExecStackToLocalVar = InstructionHelper.loadCode(
                 LOOKUP,
                 "execStackToLocalVar",
                 MethodType.methodType(boolean.class),
@@ -148,7 +146,7 @@ public class InlineTypesTest {
         final String fieldQSignature = "Q" + inlineClass.getName().replace('.', '/') + ";";
         final String fieldLSignature = "L" + inlineClass.getName().replace('.', '/') + "$ref;";
         System.out.println(methodSignature);
-        MethodHandle fromExecStackToFields = MethodHandleBuilder.loadCode(
+        MethodHandle fromExecStackToFields = InstructionHelper.loadCode(
                 LOOKUP,
                 "execStackToFields",
                 MethodType.methodType(boolean.class),
@@ -219,7 +217,7 @@ public class InlineTypesTest {
         final String signature = sig.replace('.', '/');
         final String arraySignature = "[L" + inlineClass.getName().replace('.', '/') + ";";
         System.out.println(arraySignature);
-        MethodHandle fromExecStackToInlineArray = MethodHandleBuilder.loadCode(
+        MethodHandle fromExecStackToInlineArray = InstructionHelper.loadCode(
                 LOOKUP,
                 "execStackToInlineArray",
                 MethodType.methodType(boolean.class),

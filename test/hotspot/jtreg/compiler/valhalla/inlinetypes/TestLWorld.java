@@ -27,15 +27,15 @@ import java.lang.invoke.*;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
-import jdk.experimental.value.MethodHandleBuilder;
 import jdk.test.lib.Asserts;
+import test.java.lang.invoke.lib.InstructionHelper;
 
 /*
  * @test
  * @key randomness
  * @summary Test inline types in LWorld.
- * @modules java.base/jdk.experimental.value
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /testlibrary /compiler/whitebox /
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile TestLWorld.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
@@ -1047,7 +1047,7 @@ public class TestLWorld extends InlineTypeTest {
 
     // Test writing constant null to a (flattened) inline type array
 
-    private static final MethodHandle setArrayElementNull = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementNull = InstructionHelper.loadCode(MethodHandles.lookup(),
         "setArrayElementNull",
         MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class),
         CODE -> {
@@ -1374,7 +1374,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Tests writing an array element with a (statically known) incompatible type
-    private static final MethodHandle setArrayElementIncompatible = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementIncompatible = InstructionHelper.loadCode(MethodHandles.lookup(),
         "setArrayElementIncompatible",
         MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class),
         CODE -> {

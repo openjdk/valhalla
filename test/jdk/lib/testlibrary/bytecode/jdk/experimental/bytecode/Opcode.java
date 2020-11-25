@@ -228,7 +228,10 @@ public enum Opcode {
     IF_NULL(198),
     IF_NONNULL(199),
     GOTO_W(200),
-    JSR_W(201);
+    JSR_W(201),
+    DEFAULTVALUE(203),
+    WITHFIELD(204);
+
 
     int code;
 

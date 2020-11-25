@@ -300,6 +300,7 @@ public class MacroCodeBuilder<S, T, E, C extends MacroCodeBuilder<S, T, E, C>> e
     public C return_(TypeTag type) {
         switch (type) {
             case V:
+            case Q:
                 return return_();
             default:
                 return emitOp(Opcode.IRETURN.at(type));

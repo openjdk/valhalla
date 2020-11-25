@@ -30,16 +30,14 @@ import java.util.concurrent.*;
 import static jdk.test.lib.Asserts.*;
 import jdk.test.lib.Utils;
 import sun.hotspot.WhiteBox;
-
-import jdk.experimental.value.MethodHandleBuilder;
+import test.java.lang.invoke.lib.InstructionHelper;
 
 /**
  * @test InlineOops_int_Serial
  * @requires vm.gc.Serial
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- * @library /test/lib
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
@@ -53,9 +51,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @test InlineOops_int_G1
  * @requires vm.gc.G1
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- * @library /test/lib
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
@@ -69,9 +66,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @test InlineOops_int_Parallel
  * @requires vm.gc.Parallel
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- * @library /test/lib
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
@@ -85,9 +81,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @test InlineOops_int_Z
  * @requires vm.gc.Z
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- * @library /test/lib
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
@@ -102,9 +97,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @test InlineOops_comp_serial
  * @requires vm.gc.Serial
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- * @library /test/lib
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
@@ -118,9 +112,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @test InlineOops_comp_G1
  * @requires vm.gc.G1
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- * @library /test/lib
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
@@ -134,9 +127,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @test InlineOops_comp_Parallel
  * @requires vm.gc.Parallel
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- * @library /test/lib
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
@@ -150,9 +142,8 @@ import jdk.experimental.value.MethodHandleBuilder;
  * @test InlineOops_comp_Z
  * @requires vm.gc.Z
  * @summary Test embedding oops into Inline types
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- * @library /test/lib
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator Person.java
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
@@ -410,7 +401,7 @@ public class InlineOops {
             doGc();
 
             // VT on stack and lvt, null refs, see if GC flies
-            MethodHandle moveValueThroughStackAndLvt = MethodHandleBuilder.loadCode(
+            MethodHandle moveValueThroughStackAndLvt = InstructionHelper.loadCode(
                     LOOKUP,
                     "gcOverPerson",
                     MethodType.methodType(vtClass, vtClass),
@@ -677,7 +668,7 @@ public class InlineOops {
             // Slots 1=oopMaps
             // OopMap Q=RRR (.name .description .someNotes)
             try {
-                MethodHandleBuilder.loadCode(
+                InstructionHelper.loadCode(
                         LOOKUP, "exerciseVBytecodeExprStackWithDefault", mt,
                         CODE->{
                             CODE
@@ -717,7 +708,7 @@ public class InlineOops {
             int fooArraySlot  = 0;
             int oopMapsSlot   = 1;
             try {
-                MethodHandleBuilder.loadCode(LOOKUP, "exerciseVBytecodeExprStackWithRefs", mt,
+                InstructionHelper.loadCode(LOOKUP, "exerciseVBytecodeExprStackWithRefs", mt,
                         CODE->{
                             CODE
                             .aload(fooArraySlot)

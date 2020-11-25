@@ -305,6 +305,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.alive = false;
                 break;
             case NOP:
+            case IINC:
             case INEG:
             case LNEG:
             case FNEG:
@@ -730,6 +731,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.pop();
                 break;
             case NEW:
+            case DEFAULTVALUE:
                 state.push(typeHelper.type((S) optValue));
                 break;
             case NEWARRAY:
@@ -777,6 +779,15 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                     state.pop2();
                 }
                 state.pop();
+                break;
+            }
+            case WITHFIELD: {
+                TypeTag tag = typeHelper.tag((T) optValue);
+                if (tag.width == 1) {
+                    state.pop();
+                } else {
+                    state.pop2();
+                }
                 break;
             }
             case BIPUSH:
@@ -858,6 +869,11 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             public int putClass(S symbol) {
                 type = typeHelper.type(symbol);
                 return poolHelper.putClass(symbol);
+            }
+
+            @Override
+            public int putValueClass(S symbol) {
+                throw new IllegalStateException();
             }
 
             @Override

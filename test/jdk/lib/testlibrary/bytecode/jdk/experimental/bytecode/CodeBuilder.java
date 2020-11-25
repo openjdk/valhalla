@@ -105,6 +105,12 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         return thisBuilder();
     }
 
+    public C withfield(S owner, CharSequence name, T type) {
+        emitOp(Opcode.WITHFIELD, type);
+        code.writeChar(poolHelper.putFieldRef(owner, name, type));
+        return thisBuilder();
+    }
+
     public C invokevirtual(S owner, CharSequence name, T type, boolean isInterface) {
         emitOp(Opcode.INVOKEVIRTUAL, type);
         code.writeChar(poolHelper.putMethodRef(owner, name, type, isInterface));
@@ -145,6 +151,12 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
 
     public C new_(S clazz) {
         emitOp(Opcode.NEW, clazz);
+        code.writeChar(poolHelper.putClass(clazz));
+        return thisBuilder();
+    }
+
+    public C defaultvalue(S clazz) {
+        emitOp(Opcode.DEFAULTVALUE, clazz);
         code.writeChar(poolHelper.putClass(clazz));
         return thisBuilder();
     }
@@ -1144,7 +1156,8 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
                     } else {
                         //TODO: uninit this, top?
                         stackmaps.writeByte(7);
-                        stackmaps.writeChar(poolHelper.putClass(typeHelper.symbol(t)));
+                        stackmaps.writeChar(typeHelper.isValue(t) ?
+                            poolHelper.putValueClass(typeHelper.symbol(t)) : poolHelper.putClass(typeHelper.symbol(t)));
                     }
                     break;
                 default:
