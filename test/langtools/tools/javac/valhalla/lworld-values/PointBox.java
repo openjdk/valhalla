@@ -23,27 +23,23 @@
  * questions.
  */
 
-package java.lang.invoke;
+import java.lang.invoke.RestrictedType;
 
-import java.lang.annotation.*;
-import static java.lang.annotation.ElementType.*;
+class PointBox {
 
-/**
- * Annotation to facilitate type-restrictions experiments.
- *
- * When javac generates code for a field whose type is annotated by @RestrictedType("QFoo;"),
- * it generates a RestrictedField attribute pointing to a Utf8 constant representing
- * the given String.
+    static inline class Point {
+        public double x;
+        public double y;
+        public Point(double x, double y) { this.x = x; this.y = y; }
+    }
 
- * The @RestrictedType annotation supports ad hoc attribute generation,
- * for more fine-grained control.
- *
-*/
-@Retention(RetentionPolicy.SOURCE)
-@Target(ElementType.TYPE_USE)
-public @interface RestrictedType {
-    /**
-     * @return the type descriptor string to be encoded in the RestrictedField attribute as a Utf8 constant
-     */
-    String value();
+    @RestrictedType("QPoint;")
+    public Object p368;
+
+    public static void main(String... args) {
+        PointBox b = new PointBox();
+        if (b.p368 != new Point(0,0)) throw new RuntimeException();
+        b.p368 = new Point(1.0, 2.0);
+        if (b.p368 != new Point(1.0, 2.0)) throw new RuntimeException();
+    }
 }

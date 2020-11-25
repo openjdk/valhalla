@@ -461,7 +461,7 @@ public class TypeAnnotations {
                         enclTy != null &&
                         enclTy.getKind() != TypeKind.NONE &&
                         enclTy.getKind() != TypeKind.ERROR &&
-                        (enclTr.getKind() == JCTree.Kind.MEMBER_SELECT ||
+                        ((enclTr.getKind() == JCTree.Kind.MEMBER_SELECT  && !enclTy.isReferenceProjection()) ||  // .ref is only a pseudo member select.
                                 enclTr.getKind() == JCTree.Kind.PARAMETERIZED_TYPE ||
                                 enclTr.getKind() == JCTree.Kind.ANNOTATED_TYPE)) {
                     // Iterate also over the type tree, not just the type: the type is already
