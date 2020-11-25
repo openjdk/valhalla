@@ -1270,8 +1270,10 @@ public class ClassReader {
                 protected void read(Symbol sym, int attrLen) {
                     if (sym.kind == VAR && sym.owner.kind == TYP) {
                         final Type type = poolReader.getType(nextChar());
-                        Assert.check(((ClassSymbol)((ClassType)sym.type).tsym).projection == type.tsym);
-                        sym.flags_field |= RESTRICTED_FIELD;
+                        if (types.flattenWithTypeRestrictions) {
+                            Assert.check(((ClassSymbol)((ClassType)sym.type).tsym).projection == type.tsym);
+                            sym.flags_field |= RESTRICTED_FIELD;
+                        }
                     }
                 }
             },
