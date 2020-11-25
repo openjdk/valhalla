@@ -479,7 +479,7 @@ class InstanceKlass: public Klass {
   }
 
   bool has_injected_identityObject() const {
-    return (_misc_flags & _misc_has_injected_identityObject);
+    return (_misc_flags & _misc_has_injected_identityObject) != 0;
   }
 
   void set_has_injected_identityObject() {
@@ -487,7 +487,7 @@ class InstanceKlass: public Klass {
   }
 
   bool has_restricted_fields() const {
-    return (_misc_flags & _misc_has_restricted_fields);
+    return (_misc_flags & _misc_has_restricted_fields) != 0;
   }
 
   void set_has_restricted_fields() {
@@ -1219,7 +1219,7 @@ public:
            (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0) +
            (java_fields * (int)sizeof(Klass*)/wordSize) +
            (is_inline_type ? (int)sizeof(InlineKlassFixedBlock) : 0) +
-           (has_restricted_fields ? java_fields * (int)sizeof(u2)/wordSize : 0));
+           (has_restricted_fields ? (align_up(java_fields * (int)sizeof(u2), wordSize)/wordSize) : 0));
   }
   int size() const                    { return size(vtable_length(),
                                                itable_length(),

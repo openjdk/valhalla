@@ -518,6 +518,10 @@ InstanceKlass* InstanceKlass::allocate_instance_klass(const ClassFileParser& par
     return NULL;
   }
 
+  if (parser.has_restricted_fields()) {
+    ik->set_has_restricted_fields(); // required to get the size right when calling size()
+  }
+
 #ifdef ASSERT
   assert(ik->size() == size, "");
   ik->bounds_check((address) ik->start_of_vtable(), false, size);
