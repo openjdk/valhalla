@@ -605,8 +605,8 @@ Node* AndLNode::Identity(PhaseGVN* phase) {
 
     // Check if this is part of an inline type test
     if (con == markWord::inline_type_pattern && in(1)->is_Load() &&
-        phase->type(in(1)->in(MemNode::Address))->is_ptr()->offset() == oopDesc::mark_offset_in_bytes() &&
-        phase->type(in(1)->in(MemNode::Address))->is_inlinetypeptr()) {
+        phase->type(in(1)->in(MemNode::Address))->is_inlinetypeptr() &&
+        phase->type(in(1)->in(MemNode::Address))->is_ptr()->offset() == oopDesc::mark_offset_in_bytes()) {
       assert(EnableValhalla, "should only be used for inline types");
       return in(2); // Obj is known to be an inline type
     }
