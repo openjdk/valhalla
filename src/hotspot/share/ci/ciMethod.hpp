@@ -202,7 +202,6 @@ class ciMethod : public ciMetadata {
   bool intrinsic_candidate()   const { return get_Method()->intrinsic_candidate();   }
   bool is_class_initializer()  const { return get_Method()->is_class_initializer(); }
 
-  int comp_level();
   int highest_osr_comp_level();
 
   Bytecodes::Code java_code_at_bci(int bci) {
@@ -217,14 +216,11 @@ class ciMethod : public ciMetadata {
   ciMethodBlocks    *get_method_blocks();
 
   bool    has_linenumber_table() const;          // length unknown until decompression
-  u_char* compressed_linenumber_table() const;   // not preserved by gc
 
   int line_number_from_bci(int bci) const;
 
   // Runtime information.
   int           vtable_index();
-  address       native_entry();
-  address       interpreter_entry();
 
   // Analysis and profiling.
   //
@@ -259,7 +255,6 @@ class ciMethod : public ciMetadata {
   ciTypeFlow*   get_flow_analysis();
   ciTypeFlow*   get_osr_flow_analysis(int osr_bci);  // alternate entry point
   ciCallProfile call_profile_at_bci(int bci);
-  int           interpreter_call_site_count(int bci);
 
   // Does type profiling provide any useful information at this point?
   bool          argument_profiled_type(int bci, int i, ciKlass*& type, ProfilePtrKind& ptr_kind);
@@ -306,8 +301,6 @@ class ciMethod : public ciMetadata {
   bool has_option_value(const char* option, double& value);
   bool can_be_compiled();
   bool can_be_parsed() const { return _can_be_parsed; }
-  bool can_be_osr_compiled(int entry_bci);
-  void set_not_compilable(const char* reason = NULL);
   bool has_compiled_code();
   void log_nmethod_identity(xmlStream* log);
   bool is_not_reached(int bci);
@@ -345,8 +338,6 @@ class ciMethod : public ciMetadata {
   bool has_vararg     () const                   { return flags().has_vararg(); }
 
   // Other flags
-  bool is_empty_method() const;
-  bool is_vanilla_constructor() const;
   bool is_final_method() const                   { return is_final() || holder()->is_final(); }
   bool is_default_method() const                 { return !is_abstract() && !is_private() &&
                                                           holder()->is_interface(); }

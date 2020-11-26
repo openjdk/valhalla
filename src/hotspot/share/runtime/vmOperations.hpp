@@ -112,6 +112,7 @@
   template(GTestExecuteAtSafepoint)               \
   template(JFROldObject)                          \
   template(ClassPrintLayout)                      \
+  template(JvmtiPostObjectFree)
 
 class VM_Operation : public StackObj {
  public:

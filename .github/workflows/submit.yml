@@ -17,7 +17,7 @@ on:
 jobs:
   prerequisites:
     name: Prerequisites
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-20.04"
     outputs:
       should_run: ${{ steps.check_submit.outputs.should_run }}
       bundle_id: ${{ steps.check_bundle_id.outputs.bundle_id }}
@@ -81,7 +81,7 @@ jobs:
         if: steps.check_submit.outputs.should_run != 'false' && steps.jtreg.outputs.cache-hit != 'true'
 
       - name: Build jtreg
-        run: sh make/build-all.sh ${JAVA_HOME}
+        run: sh make/build-all.sh ${JAVA_HOME_8_X64}
         working-directory: jtreg
         if: steps.check_submit.outputs.should_run != 'false' && steps.jtreg.outputs.cache-hit != 'true'
 
@@ -99,7 +99,7 @@ jobs:
 
   linux_x64_build:
     name: Linux x64
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-20.04"
     needs: prerequisites
     if: needs.prerequisites.outputs.should_run != 'false' && needs.prerequisites.outputs.platform_linux_x64 != 'false'
 
@@ -109,22 +109,10 @@ jobs:
         flavor:
           - build release
           - build debug
-          - build hotspot no-pch
-          - build hotspot minimal
-          - build hotspot optimized
         include:
           - flavor: build debug
             flags: --enable-debug
             artifact: -debug
-          - flavor: build hotspot no-pch
-            flags: --enable-debug --disable-precompiled-headers
-            build-target: hotspot
-          - flavor: build hotspot minimal
-            flags: --enable-debug --disable-precompiled-headers --with-jvm-variants=minimal
-            build-target: hotspot
-          - flavor: build hotspot optimized
-            flags: --with-debug-level=optimized --disable-precompiled-headers
-            build-target: hotspot
 
     env:
       JDK_VERSION: "${{ fromJson(needs.prerequisites.outputs.dependencies).DEFAULT_VERSION_FEATURE }}"
@@ -178,7 +166,10 @@ jobs:
           path: gtest
 
       - name: Install dependencies
-        run: sudo apt-get install libxrandr-dev libxtst-dev libcups2-dev libasound2-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install gcc-10=10.2.0-5ubuntu1~20.04 g++-10=10.2.0-5ubuntu1~20.04 libxrandr-dev libxtst-dev libcups2-dev libasound2-dev
+          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-10 100 --slave /usr/bin/g++ g++ /usr/bin/g++-10
 
       - name: Configure
         run: >
@@ -196,7 +187,7 @@ jobs:
         working-directory: jdk
 
       - name: Build
-        run: make CONF_NAME=linux-x64 ${{ matrix.build-target }}
+        run: make CONF_NAME=linux-x64
         working-directory: jdk
 
       - name: Persist test bundles
@@ -206,11 +197,10 @@ jobs:
           path: |
             jdk/build/linux-x64/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin${{ matrix.artifact }}.tar.gz
             jdk/build/linux-x64/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_linux-x64_bin-tests${{ matrix.artifact }}.tar.gz
-        if: matrix.build-target == false
 
   linux_x64_test:
     name: Linux x64
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-20.04"
     needs:
       - prerequisites
       - linux_x64_build
@@ -471,8 +461,8 @@ jobs:
 
       - name: Ensure a specific version of MSVC is installed
         run: >
-          Start-Process -FilePath 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe' -Wait -NoNewWindow -ArgumentList 
-          'modify --installPath "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise" --quiet 
+          Start-Process -FilePath 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vs_installer.exe' -Wait -NoNewWindow -ArgumentList
+          'modify --installPath "C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise" --quiet
           --add Microsoft.VisualStudio.Component.VC.14.27.x86.x64'
 
       - name: Configure
@@ -497,7 +487,7 @@ jobs:
         run: |
           $env:Path = "$HOME\cygwin\cygwin64\bin;$HOME\cygwin\cygwin64\bin;$env:Path" ;
           $env:Path = $env:Path -split ";" -match "C:\\Windows|PowerShell|cygwin" -join ";" ;
-          & make CONF_NAME=windows-x64 ${{ matrix.build-target }}
+          & make CONF_NAME=windows-x64
         working-directory: jdk
 
       - name: Persist test bundles
@@ -508,7 +498,6 @@ jobs:
             jdk/build/windows-x64/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}.zip
             jdk/build/windows-x64/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin-tests${{ matrix.artifact }}.tar.gz
             jdk/build/windows-x64/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_windows-x64_bin${{ matrix.artifact }}-symbols.tar.gz
-        if: matrix.build-target == false
 
   windows_x64_test:
     name: Windows x64
@@ -802,7 +791,7 @@ jobs:
         working-directory: jdk
 
       - name: Build
-        run: make CONF_NAME=macos-x64 ${{ matrix.build-target }}
+        run: make CONF_NAME=macos-x64
         working-directory: jdk
 
       - name: Persist test bundles
@@ -812,7 +801,6 @@ jobs:
           path: |
             jdk/build/macos-x64/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin${{ matrix.artifact }}.tar.gz
             jdk/build/macos-x64/bundles/jdk-${{ env.JDK_VERSION }}-internal+0_osx-x64_bin-tests${{ matrix.artifact }}.tar.gz
-        if: matrix.build-target == false
 
   macos_x64_test:
     name: macOS x64
@@ -1001,7 +989,7 @@ jobs:
 
   artifacts:
     name: Post-process artifacts
-    runs-on: "ubuntu-latest"
+    runs-on: "ubuntu-20.04"
     if: always()
     continue-on-error: true
     needs:
