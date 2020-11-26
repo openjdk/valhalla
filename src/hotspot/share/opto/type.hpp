@@ -1017,6 +1017,8 @@ public:
 
   virtual bool can_be_inline_type() const { return false; }
   virtual bool flatten_array() const { return false; }
+  virtual bool is_not_flat() const { return false; }
+  virtual bool is_not_null_free() const { return false; }
 
   // Tests for relation to centerline of type lattice:
   static bool above_centerline(PTR ptr) { return (ptr <= AnyNull); }
@@ -1449,7 +1451,7 @@ public:
 //------------------------------TypeKlassPtr-----------------------------------
 // Class of Java Klass pointers
 class TypeKlassPtr : public TypePtr {
-  TypeKlassPtr(PTR ptr, ciKlass* klass, Offset offset, bool flatten_array);
+  TypeKlassPtr(PTR ptr, ciKlass* klass, Offset offset, bool flatten_array, bool not_flat, bool not_null_free);
 
 protected:
   virtual const Type *filter_helper(const Type *kills, bool include_speculative) const;
@@ -1463,7 +1465,9 @@ protected:
 
   // Does the type exclude subclasses of the klass?  (Inexact == polymorphic.)
   bool _klass_is_exact;
-  bool _flatten_array; // Type is flat in arrays
+  const bool _flatten_array; // Type is flat in arrays
+  const bool _not_flat;      // Array is never flattened
+  const bool _not_null_free; // Array is never null-free
 
 public:
   ciKlass* klass() const { return  _klass; }
@@ -1471,15 +1475,20 @@ public:
 
   virtual bool can_be_inline_type() const { return EnableValhalla && (_klass == NULL || _klass->can_be_inline_klass(_klass_is_exact)); }
   virtual bool flatten_array() const { return _flatten_array; }
+  virtual bool is_not_flat() const { return _not_flat; }
+  virtual bool is_not_null_free() const { return _not_null_free; }
 
   bool  is_loaded() const { return klass() != NULL && klass()->is_loaded(); }
 
   // ptr to klass 'k'
-  static const TypeKlassPtr* make(ciKlass* k) { return make( TypePtr::Constant, k, Offset(0)); }
-  // ptr to klass 'k' with offset
-  static const TypeKlassPtr* make(ciKlass* k, Offset offset) { return make( TypePtr::Constant, k, offset); }
+  static const TypeKlassPtr* make(ciKlass* k) {
+    bool not_null_free = k->is_array_klass() && ( k->as_array_klass()->element_klass() == NULL ||
+                                                 !k->as_array_klass()->element_klass()->can_be_inline_klass(true));
+    bool not_flat = k->is_array_klass() && !k->is_flat_array_klass();
+    return make( TypePtr::Constant, k, Offset(0), false, not_flat, not_null_free);
+  }
   // ptr to klass 'k' or sub-klass
-  static const TypeKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, bool flatten_array = false);
+  static const TypeKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, bool flatten_array = false, bool not_flat = false, bool not_null_free = false);
 
   virtual const Type *cast_to_ptr_type(PTR ptr) const;
 

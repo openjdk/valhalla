@@ -2391,7 +2391,7 @@ const Type* LoadNode::klass_value_common(PhaseGVN* phase) const {
             return TypeKlassPtr::make(ak);
           }
         }
-        return TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0));
+        return TypeKlassPtr::make(TypePtr::NotNull, ak, Type::Offset(0), false, tary->is_not_flat(), tary->is_not_null_free());
       } else if (ak->is_type_array_klass()) {
         return TypeKlassPtr::make(ak); // These are always precise
       }
