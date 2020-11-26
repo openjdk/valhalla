@@ -77,7 +77,7 @@ ciSignature::ciSignature(ciKlass* accessing_klass, const constantPoolHandle& cpo
 // if the return type has a Q signature but is not yet loaded, in which case
 // it could be a never-null type.
 bool ciSignature::maybe_returns_inline_type() const {
-  ciType* ret_type = _types->at(_count);
+  ciType* ret_type = return_type();
   if (ret_type->is_inlinetype()) {
     return true;
   } else if (ret_type->is_instance_klass() && !ret_type->as_instance_klass()->is_loaded()) {

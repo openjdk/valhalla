@@ -801,7 +801,7 @@ static void gen_c2i_adapter(MacroAssembler *masm,
       // There is at least an inline type argument: we're coming from
       // compiled code so we have no buffers to back the inline types.
       // Allocate the buffers here with a runtime call.
-      OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words);
+      OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, /*save_vectors*/ false);
 
       frame_complete = __ offset();
 

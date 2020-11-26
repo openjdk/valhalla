@@ -1331,7 +1331,7 @@ bool CallNativeNode::cmp( const Node &n ) const {
   return CallNode::cmp(call) && !strcmp(_name,call._name)
     && _arg_regs == call._arg_regs && _ret_regs == call._ret_regs;
 }
-Node* CallNativeNode::match(const ProjNode *proj, const Matcher *matcher) {
+Node* CallNativeNode::match(const ProjNode *proj, const Matcher *matcher, const RegMask* mask) {
   switch (proj->_con) {
     case TypeFunc::Control:
     case TypeFunc::I_O:
@@ -1341,7 +1341,7 @@ Node* CallNativeNode::match(const ProjNode *proj, const Matcher *matcher) {
     case TypeFunc::FramePtr:
       ShouldNotReachHere();
     case TypeFunc::Parms: {
-      const Type* field_at_con = tf()->range()->field_at(proj->_con);
+      const Type* field_at_con = tf()->range_sig()->field_at(proj->_con);
       const BasicType bt = field_at_con->basic_type();
       OptoReg::Name optoreg = OptoReg::as_OptoReg(_ret_regs.at(proj->_con - TypeFunc::Parms));
       OptoRegPair regs;
@@ -1356,7 +1356,7 @@ Node* CallNativeNode::match(const ProjNode *proj, const Matcher *matcher) {
       return new MachProjNode(this, proj->_con, rm, field_at_con->ideal_reg());
     }
     case TypeFunc::Parms + 1: {
-      assert(tf()->range()->field_at(proj->_con) == Type::HALF, "Expected HALF");
+      assert(tf()->range_sig()->field_at(proj->_con) == Type::HALF, "Expected HALF");
       assert(_ret_regs.at(proj->_con - TypeFunc::Parms) == VMRegImpl::Bad(), "Unexpected register for Type::HALF");
       // 2nd half of doubles and longs
       return new MachProjNode(this, proj->_con, RegMask::Empty, (uint) OptoReg::Bad);
@@ -1402,10 +1402,10 @@ void CallRuntimeNode::calling_convention(BasicType* sig_bt, VMRegPair *parm_regs
 }
 
 void CallNativeNode::calling_convention( BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt ) const {
-  assert((tf()->domain()->cnt() - TypeFunc::Parms) == argcnt, "arg counts must match!");
+  assert((tf()->domain_sig()->cnt() - TypeFunc::Parms) == argcnt, "arg counts must match!");
 #ifdef ASSERT
   for (uint i = 0; i < argcnt; i++) {
-    assert(tf()->domain()->field_at(TypeFunc::Parms + i)->basic_type() == sig_bt[i], "types must match!");
+    assert(tf()->domain_sig()->field_at(TypeFunc::Parms + i)->basic_type() == sig_bt[i], "types must match!");
   }
 #endif
   for (uint i = 0; i < argcnt; i++) {

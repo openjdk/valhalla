@@ -874,7 +874,7 @@ public:
   }
   virtual int   Opcode() const;
   virtual bool  guaranteed_safepoint()  { return _need_transition; }
-  virtual Node* match(const ProjNode *proj, const Matcher *m);
+  virtual Node* match(const ProjNode *proj, const Matcher *m, const RegMask* mask);
   virtual void  calling_convention( BasicType* sig_bt, VMRegPair *parm_regs, uint argcnt ) const;
 #ifndef PRODUCT
   virtual void  dump_spec(outputStream *st) const;

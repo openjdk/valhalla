@@ -2702,7 +2702,7 @@ Node* GraphKit::make_native_call(const TypeFunc* call_type, uint nargs, ciNative
         vm_arg_pos < n_filtered_args; vm_arg_pos++) {
       uint vm_unfiltered_arg_pos = vm_arg_pos + 1; // +1 to skip fallback handle argument
       Node* node = argument(vm_unfiltered_arg_pos);
-      const Type* type = call_type->domain()->field_at(TypeFunc::Parms + vm_unfiltered_arg_pos);
+      const Type* type = call_type->domain_sig()->field_at(TypeFunc::Parms + vm_unfiltered_arg_pos);
       VMReg reg = type == Type::HALF
         ? VMRegImpl::Bad()
         : argRegs[java_arg_read_pos++];
@@ -2713,7 +2713,7 @@ Node* GraphKit::make_native_call(const TypeFunc* call_type, uint nargs, ciNative
     }
   }
 
-  uint n_returns = call_type->range()->cnt() - TypeFunc::Parms;
+  uint n_returns = call_type->range_sig()->cnt() - TypeFunc::Parms;
   GrowableArray<VMReg> ret_regs(C->comp_arena(), n_returns, n_returns, VMRegImpl::Bad());
   const Type** ret_types = TypeTuple::fields(n_returns);
 
@@ -2721,7 +2721,7 @@ Node* GraphKit::make_native_call(const TypeFunc* call_type, uint nargs, ciNative
   {
     for (uint vm_ret_pos = 0, java_ret_read_pos = 0;
         vm_ret_pos < n_returns; vm_ret_pos++) { // 0 or 1
-      const Type* type = call_type->range()->field_at(TypeFunc::Parms + vm_ret_pos);
+      const Type* type = call_type->range_sig()->field_at(TypeFunc::Parms + vm_ret_pos);
       VMReg reg = type == Type::HALF
         ? VMRegImpl::Bad()
         : retRegs[java_ret_read_pos++];
