@@ -5376,32 +5376,35 @@ const TypeKlassPtr *TypeKlassPtr::OBJECT;
 const TypeKlassPtr *TypeKlassPtr::OBJECT_OR_NULL;
 
 //------------------------------TypeKlassPtr-----------------------------------
-TypeKlassPtr::TypeKlassPtr(PTR ptr, ciKlass* klass, Offset offset, bool flatten_array)
-  : TypePtr(KlassPtr, ptr, offset), _klass(klass), _klass_is_exact(ptr == Constant), _flatten_array(flatten_array) {
+TypeKlassPtr::TypeKlassPtr(PTR ptr, ciKlass* klass, Offset offset, bool flatten_array, bool not_flat, bool not_null_free)
+  : TypePtr(KlassPtr, ptr, offset), _klass(klass), _klass_is_exact(ptr == Constant),
+    _flatten_array(flatten_array), _not_flat(not_flat), _not_null_free(not_null_free) {
   assert(!klass->flatten_array() || flatten_array, "Should be flat in array");
   assert(!flatten_array || can_be_inline_type(), "Only inline types can be flat in array");
 }
 
 //------------------------------make-------------------------------------------
 // ptr to klass 'k', if Constant, or possibly to a sub-klass if not a Constant
-const TypeKlassPtr* TypeKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, bool flatten_array) {
+const TypeKlassPtr* TypeKlassPtr::make(PTR ptr, ciKlass* k, Offset offset, bool flatten_array, bool not_flat, bool not_null_free) {
   assert(k == NULL || k->is_instance_klass() || k->is_array_klass(), "Incorrect type of klass oop");
   // Check if this type is known to be flat in arrays
   flatten_array = flatten_array || k->flatten_array();
-  return (TypeKlassPtr*)(new TypeKlassPtr(ptr, k, offset, flatten_array))->hashcons();
+  return (TypeKlassPtr*)(new TypeKlassPtr(ptr, k, offset, flatten_array, not_flat, not_null_free))->hashcons();
 }
 
 //------------------------------eq---------------------------------------------
 // Structural equality check for Type representations
 bool TypeKlassPtr::eq( const Type *t ) const {
   const TypeKlassPtr *p = t->is_klassptr();
-  return klass() == p->klass() && TypePtr::eq(p) && flatten_array() == p->flatten_array();
+  return klass() == p->klass() && TypePtr::eq(p) && flatten_array() == p->flatten_array() &&
+      is_not_flat() == p->is_not_flat() && is_not_null_free() == p->is_not_null_free();
 }
 
 //------------------------------hash-------------------------------------------
 // Type-specific hashing function.
 int TypeKlassPtr::hash(void) const {
-  return java_add(java_add(klass() != NULL ? klass()->hash() : (jint)0, (jint)TypePtr::hash()), (jint)flatten_array());
+  return java_add(java_add(java_add(java_add(klass() != NULL ? klass()->hash() : (jint)0, (jint)TypePtr::hash()),
+      (jint)flatten_array()), (jint)is_not_flat()), (jint)is_not_null_free());
 }
 
 //------------------------------singleton--------------------------------------
@@ -5535,21 +5538,21 @@ ciKlass* TypeAryPtr::klass() const {
 //------------------------------add_offset-------------------------------------
 // Access internals of klass object
 const TypePtr *TypeKlassPtr::add_offset( intptr_t offset ) const {
-  return make(_ptr, klass(), xadd_offset(offset), flatten_array());
+  return make(_ptr, klass(), xadd_offset(offset), flatten_array(), is_not_flat(), is_not_null_free());
 }
 
 //------------------------------cast_to_ptr_type-------------------------------
 const Type *TypeKlassPtr::cast_to_ptr_type(PTR ptr) const {
   assert(_base == KlassPtr, "subclass must override cast_to_ptr_type");
   if( ptr == _ptr ) return this;
-  return make(ptr, _klass, _offset, _flatten_array);
+  return make(ptr, _klass, _offset, _flatten_array, _not_flat, _not_null_free);
 }
 
 
 //-----------------------------cast_to_exactness-------------------------------
 const Type *TypeKlassPtr::cast_to_exactness(bool klass_is_exact) const {
   if( klass_is_exact == _klass_is_exact ) return this;
-  return make(klass_is_exact ? Constant : NotNull, _klass, _offset, _flatten_array);
+  return make(klass_is_exact ? Constant : NotNull, _klass, _offset, _flatten_array, _not_flat, _not_null_free);
 }
 
 
@@ -5560,12 +5563,15 @@ const TypeOopPtr* TypeKlassPtr::as_instance_type() const {
   ciKlass* k = klass();
   assert(k != NULL, "klass should not be NULL");
   bool    xk = klass_is_exact();
-  //return TypeInstPtr::make(TypePtr::NotNull, k, xk, NULL, 0);
   const TypeOopPtr* toop = TypeOopPtr::make_from_klass_raw(k);
   guarantee(toop != NULL, "need type for given klass");
   toop = toop->cast_to_ptr_type(TypePtr::NotNull)->is_oopptr();
   if (flatten_array() && !klass()->is_inlinetype()) {
     toop = toop->is_instptr()->cast_to_flatten_array();
+  } else if (is_not_null_free()) {
+    toop = toop->is_aryptr()->cast_to_not_null_free();
+  } else if (is_not_flat()) {
+    toop = toop->is_aryptr()->cast_to_not_flat();
   }
   return toop->cast_to_exactness(xk)->is_oopptr();
 }
@@ -5609,7 +5615,7 @@ const Type    *TypeKlassPtr::xmeet( const Type *t ) const {
     case Null:
       if( ptr == Null ) return TypePtr::make(AnyPtr, ptr, offset, tp->speculative(), tp->inline_depth());
     case AnyNull:
-      return make(ptr, klass(), offset, flatten_array());
+      return make(ptr, klass(), offset, flatten_array(), is_not_flat(), is_not_null_free());
     case BotPTR:
     case NotNull:
       return TypePtr::make(AnyPtr, ptr, offset, tp->speculative(), tp->inline_depth());
@@ -5657,8 +5663,8 @@ const Type    *TypeKlassPtr::xmeet( const Type *t ) const {
     // If we have constants, then we created oops so classes are loaded
     // and we can handle the constants further down.  This case handles
     // not-loaded classes
-    if (ptr != Constant && tkls->klass()->equals(klass()) && flatten_array() == tkls->flatten_array()) {
-      return make(ptr, klass(), off, flatten_array());
+    if (ptr != Constant && tkls->klass()->equals(klass()) && flatten_array() == tkls->flatten_array() && is_not_flat() == tkls->is_not_flat() && is_not_null_free() && tkls->is_not_null_free()) {
+      return make(ptr, klass(), off, flatten_array(), is_not_flat(), is_not_null_free());
     }
 
     // Classes require inspection in the Java klass hierarchy.  Must be loaded.
@@ -5666,9 +5672,9 @@ const Type    *TypeKlassPtr::xmeet( const Type *t ) const {
     ciKlass* this_klass = this->klass();
     assert( tkls_klass->is_loaded(), "This class should have been loaded.");
     assert( this_klass->is_loaded(), "This class should have been loaded.");
-    bool tkls_flatten_array = tkls->flatten_array();
-    bool this_flatten_array  = this->flatten_array();
-    bool flatten_array = below_centerline(ptr) ? (this_flatten_array && tkls_flatten_array) : (this_flatten_array || tkls_flatten_array);
+    bool flatten_array = below_centerline(ptr) ? (this->flatten_array() && tkls->flatten_array()) : (this->flatten_array() || tkls->flatten_array());
+    bool is_not_flat = this->is_not_flat() && tkls->is_not_flat();
+    bool is_not_null_free = this->is_not_null_free() && tkls->is_not_null_free();
 
     // If 'this' type is above the centerline and is a superclass of the
     // other, we can treat 'this' as having the same type as the other.
@@ -5696,7 +5702,7 @@ const Type    *TypeKlassPtr::xmeet( const Type *t ) const {
         else
           ptr = NotNull;
       }
-      return make(ptr, this_klass, off, flatten_array);
+      return make(ptr, this_klass, off, flatten_array, is_not_flat, is_not_null_free);
     } // Else classes are not equal
 
     // Since klasses are different, we require the LCA in the Java
@@ -5705,7 +5711,7 @@ const Type    *TypeKlassPtr::xmeet( const Type *t ) const {
       ptr = NotNull;
     // Now we find the LCA of Java classes
     ciKlass* k = this_klass->least_common_ancestor(tkls_klass);
-    return   make(ptr, k, off);
+    return make(ptr, k, off, false, is_not_flat, is_not_null_free);
   } // End of case KlassPtr
 
   } // End of switch
@@ -5715,7 +5721,7 @@ const Type    *TypeKlassPtr::xmeet( const Type *t ) const {
 //------------------------------xdual------------------------------------------
 // Dual: compute field-by-field dual
 const Type    *TypeKlassPtr::xdual() const {
-  return new TypeKlassPtr(dual_ptr(), klass(), dual_offset(), flatten_array());
+  return new TypeKlassPtr(dual_ptr(), klass(), dual_offset(), flatten_array(), !is_not_flat(), !is_not_null_free());
 }
 
 //------------------------------get_con----------------------------------------
@@ -5762,6 +5768,11 @@ void TypeKlassPtr::dump2( Dict & d, uint depth, outputStream *st ) const {
     break;
   default:
     break;
+  }
+  if (Verbose) {
+    if (_flatten_array) st->print(":flatten array");
+    if (_not_flat) st->print(":not flat");
+    if (_not_null_free) st->print(":not null free");
   }
 
   _offset.dump2(st);

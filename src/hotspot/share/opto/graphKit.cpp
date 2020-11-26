@@ -2931,7 +2931,7 @@ Node* GraphKit::gen_subtype_check(Node* obj_or_subklass, Node* superklass) {
     MergeMemNode* mem = merged_memory();
     Node* ctrl = control();
     Node* subklass = obj_or_subklass;
-    if (!sub_t->isa_klassptr()) {
+    if (!sub_t->isa_klassptr() && !sub_t->isa_inlinetype()) {
       subklass = load_object_klass(obj_or_subklass);
     }
     Node* n = Phase::gen_subtype_check(subklass, superklass, &ctrl, mem, _gvn);
