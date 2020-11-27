@@ -1300,11 +1300,13 @@ const Type* FlatArrayCheckNode::Value(PhaseGVN* phase) const {
   for (uint i = Array; i < req(); ++i) {
     Node* array = in(i);
     if (!array->is_top()) {
-      const TypeAryPtr* t = phase->type(array)->isa_aryptr();
-      if (t != NULL && t->is_flat()) {
+      const Type* t = phase->type(array);
+      if (t == Type::TOP) {
+        return Type::TOP;
+      } else if (t->is_aryptr()->is_flat()) {
         // One of the input arrays is flat, check always passes
         return TypeInt::CC_EQ;
-      } else if (t == NULL || !t->is_not_flat()) {
+      } else if (!t->is_aryptr()->is_not_flat()) {
         // One of the input arrays might be flat
         all_not_flat = false;
       }
