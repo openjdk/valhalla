@@ -978,7 +978,7 @@ void FieldLayoutBuilder::epilogue() {
   // allow larger values to be atomic, if properly aligned.
 
 
-  if (PrintFieldLayout) {
+  if (PrintFieldLayout || (PrintInlineLayout && _has_flattening_information)) {
     ResourceMark rm;
     tty->print_cr("Layout of class %s", _classname->as_C_string());
     tty->print_cr("Instance fields:");
