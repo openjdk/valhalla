@@ -53,11 +53,20 @@ public class RestrictedTypeAnnotationTest {
 			return;
 		}
 		Asserts.assertTrue(U.isFlattened(p368), "field PointBox.p369 should be flattened");
-		for (int i = 0; i < 100; i++) {
-			test1();
-			test2();
-			test3();
-			test4();
+		Class<?> testClass = RestrictedTypeAnnotationTest.class;
+		Method[] methods = testClass.getDeclaredMethods();
+		for (Method m : methods) {
+			if (Modifier.isStatic(m.getModifiers()) &&
+				m.getName().startsWith("test") &&
+				m.getParameterCount() == 0) {
+					System.out.println("Invoking " + m.getName());
+					try {
+						m.invoke(null);
+					} catch(Throwable t) {
+						t.printStackTrace();
+						return;
+					}
+				}
 		}
     }
 
@@ -120,7 +129,7 @@ public class RestrictedTypeAnnotationTest {
 		for (int i = 0; i < ITERATIONS; i++) {
 			PointBox.Rec rec = new PointBox.Rec();
 			PointBox.Point p = new PointBox.Point(2.0, 3.0);
-			rec.setp37(p);
+			rec = rec.setp37(p);
 			Asserts.assertEquals(rec.p37, p);
 		}
     }

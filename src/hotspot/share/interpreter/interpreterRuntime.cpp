@@ -340,6 +340,9 @@ JRT_ENTRY(int, InterpreterRuntime::withfield(JavaThread* thread, ConstantPoolCac
     new_value_h()->obj_field_put(field_offset, aoop);
   } else if (field_type == T_INLINE_TYPE) {
     oop voop = *(oop*)f.interpreter_frame_expression_stack_at(tos_idx);
+    if (voop == NULL) {
+      THROW_(vmSymbols::java_lang_NullPointerException(), return_offset);
+    }
     if (vklass->field_has_restricted_type(field_index)) {
       Klass* value_klass = voop->klass();
       Klass* field_klass = vklass->get_inline_type_field_klass(field_index);
