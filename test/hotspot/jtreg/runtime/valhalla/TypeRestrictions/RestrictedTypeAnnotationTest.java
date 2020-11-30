@@ -29,8 +29,8 @@ package runtime.valhalla.typerestrictions;
  * @summary check that code can operate on a field with a restricted type only known by the JVM
  * @modules java.base/jdk.internal.misc
  * @library /test/lib
- * @compile  RestrictedTypeAnnotationTest.java PointBox.java
- * @run main/othervm -XX:TieredStopAtLevel=1 runtime.valhalla.typerestrictions.RestrictedTypeAnnotationTest
+ * @compile -XDallowWithFieldOperator RestrictedTypeAnnotationTest.java PointBox.java
+ * @run main/othervm -XX:TieredStopAtLevel=1 -XX:CompileThreshold=100 runtime.valhalla.typerestrictions.RestrictedTypeAnnotationTest
  */
 
 import jdk.test.lib.Asserts;
@@ -38,6 +38,7 @@ import jdk.internal.misc.Unsafe;
 import java.lang.reflect.*;
 
 public class RestrictedTypeAnnotationTest {
+	static final int ITERATIONS = 500;
 	static final Unsafe U = Unsafe.getUnsafe();
 	static double d;
 
@@ -52,36 +53,39 @@ public class RestrictedTypeAnnotationTest {
 			return;
 		}
 		Asserts.assertTrue(U.isFlattened(p368), "field PointBox.p369 should be flattened");
-		for (int i = 0; i < 1000; i++) {
+		for (int i = 0; i < 100; i++) {
 			test1();
 			test2();
 			test3();
+			test4();
 		}
     }
 
 
-    // Reading field x from flattened field p368 without knowing p368 is flattened
+    // Reading field x from flattened field p368 without knowing p368 is flattened (getfield)
     static void test1() {
 		PointBox pb = new PointBox();
-		for (int i = 0; i < 5000; i++) {
+		for (int i = 0; i < ITERATIONS; i++) {
 			d = pb.p368.x;
 		}
     }
 
-    // Writting to field p368 without knowning p368 is flattened
+    // Writting to field p368 without knowning p368 is flattened (putfield)
     static void test2() {
-		for (int i = 0; i < 5000; i++) {
+		for (int i = 0; i < ITERATIONS; i++) {
 			PointBox pb = new PointBox();
-			pb.p368 = new PointBox.Point(2.0, 3.0);
+			PointBox.Point p = new PointBox.Point(2.0, 3.0);
+			pb.p368 = p;
+			Asserts.assertEquals(pb.p368, p);
 		}
     }
 
     static PointBox.Point.ref spoint = new PointBox.Point(1.0, 2.0);
 
-    // Trying to write null to field p368 without knowing it is null-free
+    // Trying to write null to field p368 without knowing it is null-free (putfield)
     static void test3() {
 		spoint = null;
-		for (int i = 0; i < 5000; i++) {
+		for (int i = 0; i < ITERATIONS; i++) {
 			PointBox pb = new PointBox();
 			Exception e = null;
 			try {
@@ -93,5 +97,64 @@ public class RestrictedTypeAnnotationTest {
 				throw new RuntimeException("Missing NPE");
 			}
 		}
+	}
+
+	// Trying to write a value from the wrong type (pufield)
+	static void test4() {
+		for (int i = 0; i < ITERATIONS; i++) {
+			PointBox pb = new PointBox();
+			Error e = null;
+			try {
+				pb.p397 = new String("hello");
+			} catch(IncompatibleClassChangeError icce) {
+				e = icce;
+			}
+			if (e == null) {
+				throw new RuntimeException("Missing ICCE");
+			}
+		}
+	}
+
+	// Writting to field p368 without knowning p368 is flattened (withfield)
+    static void test5() {
+		for (int i = 0; i < ITERATIONS; i++) {
+			PointBox.Rec rec = new PointBox.Rec();
+			PointBox.Point p = new PointBox.Point(2.0, 3.0);
+			rec.setp37(p);
+			Asserts.assertEquals(rec.p37, p);
+		}
     }
+
+    // Trying to write null to field p368 without knowing it is null-free (withfield)
+    static void test6() {
+		spoint = null;
+		for (int i = 0; i < ITERATIONS; i++) {
+			PointBox.Rec rec = new PointBox.Rec();
+			Exception e = null;
+			try {
+				rec.setp37(spoint);
+			} catch(NullPointerException npe) {
+				e = npe;
+			}
+			if (e == null) {
+				throw new RuntimeException("Missing NPE");
+			}
+		}
+	}
+
+	// Trying to write a value from the wrong type (withield)
+	static void test7() {
+		for (int i = 0; i < ITERATIONS; i++) {
+			PointBox.Rec rec = new PointBox.Rec();
+			Error e = null;
+			try {
+				rec.setp23(new String("hello"));
+			} catch(IncompatibleClassChangeError icce) {
+				e = icce;
+			}
+			if (e == null) {
+				throw new RuntimeException("Missing ICCE");
+			}
+		}
+	}
 }

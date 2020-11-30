@@ -30,9 +30,37 @@ class PointBox {
     static inline class Point {
         public double x;
         public double y;
+
         public Point(double x, double y) { this.x = x; this.y = y; }
+    }
+
+    static inline class Rec {
+        @RestrictedType("Qruntime/valhalla/typerestrictions/PointBox$Point;")
+        public Point.ref p37;
+
+        @RestrictedType("Qruntime/valhalla/typerestrictions/PointBox$Point;")
+        public Object p23;
+
+        public Rec() { this.p37 = new Point(0.0, 0.0); this.p23 = new Point(0.0, 0.0);}
+
+        Rec setp37(Point.ref p) {
+            Rec r = Rec.default;
+            r = __WithField(r.p37, p);
+            r = __WithField(r.p23, this.p23);
+            return r;
+        }
+
+        Rec setp23(Object o) {
+            Rec r = Rec.default;
+            r = __WithField(r.p37, this.p37);
+            r = __WithField(r.p23, o);
+            return r;
+        }
     }
 
     @RestrictedType("Qruntime/valhalla/typerestrictions/PointBox$Point;")
     public Point.ref p368;
+
+    @RestrictedType("Qruntime/valhalla/typerestrictions/PointBox$Point;")
+    public Object p397;
 }
