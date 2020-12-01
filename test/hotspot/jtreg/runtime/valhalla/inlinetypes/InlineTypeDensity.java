@@ -296,19 +296,19 @@ public class InlineTypeDensity {
     // Expect aligned array addressing to nearest pow2
     void testAlignedSize() {
         int testSize = 10;
-        if (!VM_FLAG_FORCENONTEARABLE) {
-            assertArraySameSize(new short[testSize], new bbValue[testSize], testSize);
-            assertArraySameSize(new long[testSize], new siValue[testSize], testSize);
-            assertArraySameSize(new long[testSize], new ssiValue[testSize], testSize);
-            assertArraySameSize(new long[testSize*2], new blValue[testSize], testSize);
-        }
+        assertArraySameSize(new short[testSize], new bbValue[testSize], testSize);
+        assertArraySameSize(new long[testSize], new siValue[testSize], testSize);
+        assertArraySameSize(new long[testSize], new ssiValue[testSize], testSize);
+        assertArraySameSize(new long[testSize*2], new blValue[testSize], testSize);
         assertArraySameSize(new int[testSize], new bsValue[testSize], testSize);
     }
 
     public void test() {
         ensureArraySizeWin();
         testPrimitiveArraySizesSame();
-        testAlignedSize();
+        if (!VM_FLAG_FORCENONTEARABLE) {
+          testAlignedSize();
+        }
     }
 
     public static void main(String[] args) {
