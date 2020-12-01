@@ -1795,9 +1795,15 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     if (has_restricted_type && cp->basic_type_for_signature_at(restricted_type_index) != T_INLINE_TYPE) {
       // Probably not the right error to throw
       THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
-                    err_msg("Field %s.%s has a RestricteField attribute but its restricted type is not an inline type",
-                    _class_name->as_C_string(),
-                    _cp->symbol_at(restricted_type_index)->as_C_string()));
+                err_msg("Field %s.%s has a RestricteField attribute but its restricted type is not an inline type",
+                _class_name->as_C_string(),
+                _cp->symbol_at(restricted_type_index)->as_C_string()));
+    }
+    if (has_restricted_type && access_flags.is_static()) {
+      THROW_MSG(vmSymbols::java_lang_ClassFormatError(),
+                err_msg("RestrictedField attribute not supported for static fields (%s.%s)",
+                _class_name->as_C_string(),
+                _cp->symbol_at(restricted_type_index)->as_C_string()));
     }
 
     u2 sharp_type_index, erased_type_index;
