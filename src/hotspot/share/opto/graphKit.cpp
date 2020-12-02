@@ -1804,7 +1804,8 @@ Node* GraphKit::load_array_element(Node* ctl, Node* ary, Node* idx, const TypeAr
 void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inline) {
   PreserveReexecuteState preexecs(this);
   if (EnableValhalla) {
-    // Make sure the call is re-executed, if buffering of inline type arguments triggers deoptimization
+    // Make sure the call is "re-executed", if buffering of inline type arguments triggers deoptimization.
+    // At this point, the call hasn't been executed yet, so we will only ever execute the call once.
     jvms()->set_should_reexecute(true);
     int arg_size = method()->get_declared_signature_at_bci(bci())->arg_size_for_bc(java_bc());
     inc_sp(arg_size);

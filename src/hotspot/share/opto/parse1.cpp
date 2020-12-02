@@ -823,9 +823,9 @@ void Parse::build_exits() {
     if (ret_oop_type && !ret_oop_type->klass()->is_loaded()) {
       ret_type = TypeOopPtr::BOTTOM;
     }
-    if ((_caller->has_method() || tf()->returns_inline_type_as_fields()) &&
+    // Scalarize inline type when returning as fields or inlining non-incrementally
+    if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
         ret_type->is_inlinetypeptr() && ret_type->inline_klass()->is_scalarizable() && !ret_type->maybe_null()) {
-      // Scalarize inline type return when inlining or with multiple return values
       ret_type = TypeInlineType::make(ret_type->inline_klass());
     }
     int         ret_size = type2size[ret_type->basic_type()];
@@ -2339,13 +2339,14 @@ void Parse::return_current(Node* value) {
     Node* phi = _exits.argument(0);
     const Type* return_type = phi->bottom_type();
     const TypeOopPtr* tr = return_type->isa_oopptr();
-    if (return_type->isa_inlinetype() && !Compile::current()->inlining_incrementally()) {
+    // The return_type is set in Parse::build_exits().
+    if (return_type->isa_inlinetype()) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
         value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass());
       }
-      if (!_caller->has_method()) {
-        // Inline type is returned as fields from root method, make sure all non-flattened
+      if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
+        // Returning from root or an incrementally inlined method. Make sure all non-flattened
         // fields are buffered and re-execute if allocation triggers deoptimization.
         PreserveReexecuteState preexecs(this);
         assert(tf()->returns_inline_type_as_fields(), "must be returned as fields");
@@ -2360,9 +2361,6 @@ void Parse::return_current(Node* value) {
       jvms()->set_should_reexecute(true);
       inc_sp(1);
       value = value->as_InlineType()->buffer(this);
-      if (Compile::current()->inlining_incrementally()) {
-        value = value->as_InlineTypeBase()->allocate_fields(this);
-      }
     } else if (tr && tr->isa_instptr() && tr->klass()->is_loaded() && tr->klass()->is_interface()) {
       // If returning oops to an interface-return, there is a silent free
       // cast from oop to interface allowed by the Verifier. Make it explicit here.

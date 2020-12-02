@@ -478,16 +478,19 @@ void LateInlineCallGenerator::do_late_inline() {
       return;
     }
 
-    // Allocate a buffer for the returned InlineTypeNode because the caller expects an oop return.
-    // Do this before the method handle call in case the buffer allocation triggers deoptimization.
+    // Check if we are late inlining a method handle call that returns an inline type as fields.
     Node* buffer_oop = NULL;
-    if (is_mh_late_inline() && _inline_cg->method()->return_type()->is_inlinetype()) {
+    ciType* mh_rt = _inline_cg->method()->return_type();
+    if (is_mh_late_inline() && mh_rt->is_inlinetype() && mh_rt->as_inline_klass()->can_be_returned_as_fields()) {
+      // Allocate a buffer for the inline type returned as fields because the caller expects an oop return.
+      // Do this before the method handle call in case the buffer allocation triggers deoptimization and
+      // we need to "re-execute" the call in the interpreter (to make sure the call is only executed once).
       GraphKit arg_kit(jvms, &gvn);
       {
         PreserveReexecuteState preexecs(&arg_kit);
         arg_kit.jvms()->set_should_reexecute(true);
         arg_kit.inc_sp(nargs);
-        Node* klass_node = arg_kit.makecon(TypeKlassPtr::make(_inline_cg->method()->return_type()->as_inline_klass()));
+        Node* klass_node = arg_kit.makecon(TypeKlassPtr::make(mh_rt->as_inline_klass()));
         buffer_oop = arg_kit.new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true);
       }
       jvms = arg_kit.transfer_exceptions_into_jvms();
@@ -521,22 +524,30 @@ void LateInlineCallGenerator::do_late_inline() {
     C->set_do_cleanup(kit.stopped()); // path is dead; needs cleanup
 
     // Handle inline type returns
-    bool returned_as_fields = call->tf()->returns_inline_type_as_fields();
-    if (result->is_InlineType()) {
-      // Only possible if is_mh_late_inline() when the callee does not "know" that the caller expects an oop
-      assert(is_mh_late_inline() && !returned_as_fields, "sanity");
-      assert(buffer_oop != NULL, "should have allocated a buffer");
-      InlineTypeNode* vt = result->as_InlineType();
-      vt->store(&kit, buffer_oop, buffer_oop, vt->type()->inline_klass(), 0);
-      // Do not let stores that initialize this buffer be reordered with a subsequent
-      // store that would make this buffer accessible by other threads.
-      AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer_oop, &kit.gvn());
-      assert(alloc != NULL, "must have an allocation node");
-      kit.insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
-      result = buffer_oop;
-    } else if (result->is_InlineTypePtr() && returned_as_fields) {
-      result->as_InlineTypePtr()->replace_call_results(&kit, call, C);
+    InlineTypeNode* vt = result->isa_InlineType();
+    if (vt != NULL) {
+      if (call->tf()->returns_inline_type_as_fields()) {
+        vt->replace_call_results(&kit, call, C);
+      } else {
+        // Only possible with is_mh_late_inline() when the callee does not "know" that the caller expects an oop
+        assert(is_mh_late_inline(), "sanity");
+        assert(!result->isa_InlineType()->is_allocated(&kit.gvn()), "already allocated");
+        assert(buffer_oop != NULL, "should have allocated a buffer");
+        vt->store(&kit, buffer_oop, buffer_oop, vt->type()->inline_klass());
+        // Do not let stores that initialize this buffer be reordered with a subsequent
+        // store that would make this buffer accessible by other threads.
+        AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer_oop, &kit.gvn());
+        assert(alloc != NULL, "must have an allocation node");
+        kit.insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
+        // Convert to InlineTypePtrNode to keep track of field values
+        kit.gvn().hash_delete(vt);
+        vt->set_oop(buffer_oop);
+        DEBUG_ONLY(buffer_oop = NULL);
+        vt = kit.gvn().transform(vt)->as_InlineType();
+        result = vt->as_ptr(&kit.gvn());
+      }
     }
+    assert(buffer_oop == NULL, "unused buffer allocation");
 
     kit.replace_call(call, result, true);
   }

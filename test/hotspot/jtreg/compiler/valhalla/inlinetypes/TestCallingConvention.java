@@ -1035,4 +1035,56 @@ public class TestCallingConvention extends InlineTypeTest {
         MyValueEmpty empty = test48(EmptyContainer.default);
         Asserts.assertEquals(empty, MyValueEmpty.default);
     }
+
+    // Test conditional inline type return with incremental inlining
+    public MyValue3 test49_inlined1(boolean b) {
+        if (b) {
+            return MyValue3.create();
+        } else {
+            return MyValue3.create();
+        }
+    }
+
+    public MyValue3 test49_inlined2(boolean b) {
+        return test49_inlined1(b);
+    }
+
+    @Test
+    public void test49(boolean b) {
+        test49_inlined2(b);
+    }
+
+    @DontCompile
+    public void test49_verifier(boolean warmup) {
+        test49(true);
+        test49(false);
+    }
+
+    // Variant of test49 with result verification (triggered different failure mode)
+    final MyValue3 test50_vt = MyValue3.create();
+    final MyValue3 test50_vt2 = test50_vt;
+
+    public MyValue3 test50_inlined1(boolean b) {
+        if (b) {
+            return test50_vt;
+        } else {
+            return test50_vt2;
+        }
+    }
+
+    public MyValue3 test50_inlined2(boolean b) {
+        return test50_inlined1(b);
+    }
+
+    @Test
+    public void test50(boolean b) {
+        MyValue3 vt = test50_inlined2(b);
+        test50_vt.verify(vt);
+    }
+
+    @DontCompile
+    public void test50_verifier(boolean warmup) {
+        test50(true);
+        test50(false);
+    }
 }
