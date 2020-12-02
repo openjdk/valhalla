@@ -393,7 +393,7 @@ InlineTypePtrNode* InlineTypeBaseNode::buffer(GraphKit* kit, bool safe_for_repla
     ciInlineKlass* vk = inline_klass();
     Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
     Node* alloc_oop  = kit->new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true, this);
-    store(kit, alloc_oop, alloc_oop, vk, 0);
+    store(kit, alloc_oop, alloc_oop, vk);
 
     // Do not let stores that initialize this buffer be reordered with a subsequent
     // store that would make this buffer accessible by other threads.
@@ -445,7 +445,7 @@ InlineTypePtrNode* InlineTypeBaseNode::as_ptr(PhaseGVN* phase) const {
 }
 
 // When a call returns multiple values, it has several result
-// projections, one per field. Replacing the result of the call by a
+// projections, one per field. Replacing the result of the call by an
 // inline type node (after late inlining) requires that for each result
 // projection, we find the corresponding inline type field.
 void InlineTypeBaseNode::replace_call_results(GraphKit* kit, Node* call, Compile* C) {
@@ -622,7 +622,7 @@ InlineTypeNode* InlineTypeNode::make_larval(GraphKit* kit, bool allocate) const 
     AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop, &kit->gvn());
     alloc->_larval = true;
 
-    store(kit, alloc_oop, alloc_oop, vk, 0);
+    store(kit, alloc_oop, alloc_oop, vk);
     res->set_oop(alloc_oop);
   }
   res->set_type(TypeInlineType::make(vk, true));
