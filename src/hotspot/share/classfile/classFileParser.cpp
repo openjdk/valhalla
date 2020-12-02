@@ -1787,7 +1787,7 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
     // The current model for restricted field is that such a field has a descriptor signature used
     // as the normal signature for this field (for instance in field access bytecodes) but it also
     // has a restricted type that will be used internally by the VM as the real type of the field.
-    // Current constrains are that the restricted type must be an inline type and the descriptor
+    // Current constraints are that the restricted type must be an inline type and the descriptor
     // type must be a super type of the restricted type.
     // The code below verifies that the restricted type is an inline type. The property that the
     // descriptor type is a super type of the restricted type is verified just after the pre-loading
@@ -6772,9 +6772,8 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         // descriptor type supposed to be a super type of the restricted type, so after the pre-loading
         // of the restricted type above, the descriptor type should be loaded at this point
         Symbol* descriptor_name = _cp->symbol_at(_descriptor_signature_info->at(fs.index()));
-        Klass* desc_klass = SystemDictionary::resolve_or_null(descriptor_name,
-                                                   Handle(THREAD, _loader_data->class_loader()),
-                                                   _protection_domain, CHECK);
+        ResolvingSignatureStream rss(descriptor_name, Handle(THREAD, _loader_data->class_loader()), _protection_domain, false);
+        Klass* desc_klass = rss.as_klass(SignatureStream::ReturnNull, CHECK);
         if (desc_klass == NULL || !klass->is_subtype_of(desc_klass)) {
           THROW_MSG(vmSymbols::java_lang_IncompatibleClassChangeError(),
                     err_msg("Restricted type %s should be a subtype of the descriptor type %s, but it is not",
