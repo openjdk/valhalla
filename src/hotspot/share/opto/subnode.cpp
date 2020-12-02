@@ -977,6 +977,14 @@ const Type *CmpPNode::sub( const Type *t1, const Type *t2 ) const {
             (r1->flatten_array() && (!r0->can_be_inline_type() || (klass0->is_inlinetype() && !klass0->flatten_array())))) {
           // One type is flattened in arrays but the other type is not. Must be unrelated.
           unrelated_classes = true;
+        } else if ((r0->is_not_flat() && klass1->is_flat_array_klass()) ||
+                   (r1->is_not_flat() && klass0->is_flat_array_klass())) {
+          // One type is a non-flattened array and the other type is a flattened array. Must be unrelated.
+          unrelated_classes = true;
+        } else if ((r0->is_not_null_free() && klass1->is_obj_array_klass() && klass1->as_obj_array_klass()->element_klass()->is_inlinetype()) ||
+                   (r1->is_not_null_free() && klass0->is_obj_array_klass() && klass0->as_obj_array_klass()->element_klass()->is_inlinetype())) {
+          // One type is a non-null-free array and the other type is a null-free array. Must be unrelated.
+          unrelated_classes = true;
         }
       }
       if (unrelated_classes) {
@@ -1292,11 +1300,13 @@ const Type* FlatArrayCheckNode::Value(PhaseGVN* phase) const {
   for (uint i = Array; i < req(); ++i) {
     Node* array = in(i);
     if (!array->is_top()) {
-      const TypeAryPtr* t = phase->type(array)->isa_aryptr();
-      if (t != NULL && t->is_flat()) {
+      const Type* t = phase->type(array);
+      if (t == Type::TOP) {
+        return Type::TOP;
+      } else if (t->is_aryptr()->is_flat()) {
         // One of the input arrays is flat, check always passes
         return TypeInt::CC_EQ;
-      } else if (t == NULL || !t->is_not_flat()) {
+      } else if (!t->is_aryptr()->is_not_flat()) {
         // One of the input arrays might be flat
         all_not_flat = false;
       }
