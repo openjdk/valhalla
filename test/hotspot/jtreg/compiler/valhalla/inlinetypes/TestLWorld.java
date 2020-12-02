@@ -49,10 +49,9 @@ public class TestLWorld extends InlineTypeTest {
     @Override
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
-        case 1: return new String[] {"-XX:-UseOptoBiasInlining"};
-        case 2: return new String[] {"-DVerifyIR=false", "-XX:-UseBiasedLocking"};
-        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UseBiasedLocking", "-XX:FlatArrayElementMaxSize=-1"};
-        case 4: return new String[] {"-XX:-MonomorphicArrayCheck"};
+        case 1: return new String[] {"-DVerifyIR=false" };
+        case 2: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1"};
+        case 3: return new String[] {"-XX:-MonomorphicArrayCheck"};
         }
         return null;
     }
