@@ -59,7 +59,6 @@ public:
 
   // What kind of ciObject is this?
   bool is_instance()     { return true; }
-  bool is_java_object()  { return true; }
 
   // Constant value of a field.
   ciConstant field_value(ciField* field);
