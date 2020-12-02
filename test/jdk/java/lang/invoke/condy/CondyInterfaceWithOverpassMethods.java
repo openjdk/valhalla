@@ -25,7 +25,8 @@
  * @test
  * @bug 8186046
  * @summary Test for an interface using condy with default overpass methods
- * @modules java.base/jdk.experimental.bytecode
+ * @library /lib/testlibrary/bytecode
+ * @build jdk.experimental.bytecode.BasicClassBuilder
  * @run testng CondyInterfaceWithOverpassMethods
  * @run testng/othervm -XX:+UnlockDiagnosticVMOptions -XX:UseBootstrapCallInfo=3 CondyInterfaceWithOverpassMethods
  */

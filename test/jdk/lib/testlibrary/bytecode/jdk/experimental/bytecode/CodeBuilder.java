@@ -99,14 +99,14 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         return thisBuilder();
     }
 
-    public C vgetfield(S owner, CharSequence name, T type) {
-        emitOp(Opcode.VGETFIELD, type);
+    public C putfield(S owner, CharSequence name, T type) {
+        emitOp(Opcode.PUTFIELD, type);
         code.writeChar(poolHelper.putFieldRef(owner, name, type));
         return thisBuilder();
     }
 
-    public C putfield(S owner, CharSequence name, T type) {
-        emitOp(Opcode.PUTFIELD, type);
+    public C withfield(S owner, CharSequence name, T type) {
+        emitOp(Opcode.WITHFIELD, type);
         code.writeChar(poolHelper.putFieldRef(owner, name, type));
         return thisBuilder();
     }
@@ -155,15 +155,9 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         return thisBuilder();
     }
 
-    public C vnew_(S clazz, CharSequence name, T desc) {
-        emitOp(Opcode.VNEW, clazz);
-        code.writeChar(poolHelper.putMethodRef(clazz, name, desc, false));
-        return thisBuilder();
-    }
-
-    public C vnewarray(S array) {
-        emitOp(Opcode.VNEWARRAY, array);
-        code.writeChar(poolHelper.putClass(array));
+    public C defaultvalue(S clazz) {
+        emitOp(Opcode.DEFAULTVALUE, clazz);
+        code.writeChar(poolHelper.putClass(clazz));
         return thisBuilder();
     }
 
@@ -198,24 +192,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
     public C multianewarray(S array, byte dims) {
         emitOp(Opcode.MULTIANEWARRAY, new Object[]{array, dims});
         code.writeChar(poolHelper.putClass(array)).writeByte(dims);
-        return thisBuilder();
-    }
-
-    public C multivnewarray(S array, byte dims) {
-        emitOp(Opcode.MULTIVNEWARRAY, new Object[]{array, dims});
-        code.writeChar(poolHelper.putClass(array)).writeByte(dims);
-        return thisBuilder();
-    }
-
-    public C vbox(S target) {
-        emitOp(Opcode.VBOX, target);
-        code.writeChar(poolHelper.putClass(target));
-        return thisBuilder();
-    }
-
-    public C vunbox(S target) {
-        emitOp(Opcode.VUNBOX, target);
-        code.writeChar(poolHelper.putClass(target));
         return thisBuilder();
     }
 
@@ -293,10 +269,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         return emitOp(Opcode.RETURN);
     }
 
-    public C vreturn() {
-        return emitOp(Opcode.VRETURN);
-    }
-
     protected C emitWideIfNeeded(Opcode opcode, int n) {
         boolean wide = n > Byte.MAX_VALUE;
         if (wide) {
@@ -323,90 +295,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
             code.writeByte(n).writeByte(v);
         }
         return thisBuilder();
-    }
-
-    public TypedBuilder typed(TypeTag typeTag) {
-        return typed(typeTag, _unused -> new TypedBuilder());
-    }
-
-    protected <TB extends TypedBuilder> TB typed(TypeTag typeTag, Function<TypeTag, TB> typedBuilderFunc) {
-        emitOp(Opcode.TYPED);
-        code.writeChar(poolHelper.putType(typeHelper.fromTag(typeTag)));
-        return typedBuilderFunc.apply(typeTag);
-    }
-
-    public class TypedBuilder {
-        public C aload_0() {
-            return CodeBuilder.this.aload_0();
-        }
-
-        public C aload_1() {
-            return CodeBuilder.this.aload_1();
-        }
-
-        public C aload_2() {
-            return CodeBuilder.this.aload_2();
-        }
-
-        public C aload_3() {
-            return CodeBuilder.this.aload_3();
-        }
-
-        public C aload(int n) {
-            return CodeBuilder.this.aload(n);
-        }
-
-        public C astore_0() {
-            return CodeBuilder.this.astore_0();
-        }
-
-        public C astore_1() {
-            return CodeBuilder.this.astore_1();
-        }
-
-        public C astore_2() {
-            return CodeBuilder.this.astore_2();
-        }
-
-        public C astore_3() {
-            return CodeBuilder.this.astore_3();
-        }
-
-        public C astore(int n) {
-            return CodeBuilder.this.astore(n);
-        }
-
-        public C aaload() {
-            return CodeBuilder.this.aaload();
-        }
-
-        public C aastore() {
-            return CodeBuilder.this.aastore();
-        }
-
-        public C areturn() {
-            return CodeBuilder.this.areturn();
-        }
-
-        public C anewarray(S s) {
-            return CodeBuilder.this.anewarray(s);
-        }
-
-        public C aconst_null() {
-            return CodeBuilder.this.aconst_null();
-        }
-
-        public C if_acmpeq(short target) {
-            return CodeBuilder.this.if_acmpeq(target);
-        }
-
-        public C if_acmpne(short target) {
-            return CodeBuilder.this.if_acmpeq(target);
-        }
-    }
-
-    public C vload(int i) {
-        return emitWideIfNeeded(Opcode.VLOAD, i);
     }
 
     public C aload(int i) {
@@ -507,10 +395,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
 
     public C dload_3() {
         return emitOp(Opcode.DLOAD_3);
-    }
-
-    public C vstore(int i) {
-        return emitWideIfNeeded(Opcode.VSTORE, i);
     }
 
     public C astore(int i) {
@@ -631,10 +515,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
         return emitOp(Opcode.DALOAD);
     }
 
-    public C vaload() {
-        return emitOp(Opcode.VALOAD);
-    }
-
     public C aaload() {
         return emitOp(Opcode.AALOAD);
     }
@@ -665,10 +545,6 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
 
     public C dastore() {
         return emitOp(Opcode.DASTORE);
-    }
-
-    public C vastore() {
-        return emitOp(Opcode.VASTORE);
     }
 
     public C aastore() {
@@ -1280,7 +1156,8 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
                     } else {
                         //TODO: uninit this, top?
                         stackmaps.writeByte(7);
-                        stackmaps.writeChar(poolHelper.putClass(typeHelper.symbol(t)));
+                        stackmaps.writeChar(typeHelper.isInlineClass(t) ?
+                            poolHelper.putInlineClass(typeHelper.symbol(t)) : poolHelper.putClass(typeHelper.symbol(t)));
                     }
                     break;
                 default:

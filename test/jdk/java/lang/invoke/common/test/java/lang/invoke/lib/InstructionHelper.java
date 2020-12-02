@@ -25,14 +25,21 @@ package test.java.lang.invoke.lib;
 
 import jdk.experimental.bytecode.BasicClassBuilder;
 import jdk.experimental.bytecode.BasicTypeHelper;
+import jdk.experimental.bytecode.BytePoolHelper;
+import jdk.experimental.bytecode.ClassBuilder;
+import jdk.experimental.bytecode.CodeBuilder;
 import jdk.experimental.bytecode.Flag;
+import jdk.experimental.bytecode.MethodBuilder;
 import jdk.experimental.bytecode.PoolHelper;
 import jdk.experimental.bytecode.TypedCodeBuilder;
+import jdk.experimental.bytecode.TypeHelper;
+import jdk.experimental.bytecode.TypeTag;
 
 import java.io.FileOutputStream;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodType;
+import java.util.Iterator;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -46,8 +53,12 @@ public class InstructionHelper {
 
     static final AtomicInteger COUNT = new AtomicInteger();
 
+    static String generateClassNameFromLookupClass(MethodHandles.Lookup l) {
+        return l.lookupClass().getCanonicalName().replace('.', '/') + "$Code_" + COUNT.getAndIncrement();
+    }
+
     static BasicClassBuilder classBuilder(MethodHandles.Lookup l) {
-        String className = l.lookupClass().getCanonicalName().replace('.', '/') + "$Code_" + COUNT.getAndIncrement();
+        String className = generateClassNameFromLookupClass(l);
         return new BasicClassBuilder(className, 55, 0)
                 .withSuperclass("java/lang/Object")
                 .withMethod("<init>", "()V", M ->
@@ -83,7 +94,7 @@ public class InstructionHelper {
     public static MethodHandle ldcMethodHandle(MethodHandles.Lookup l,
                                         int refKind, Class<?> owner, String name, MethodType type) throws Exception {
         return ldc(l, MethodHandle.class,
-                   P -> P.putMethodHandle(refKind, csym(owner), name, type.toMethodDescriptorString()));
+                   P -> P.putHandle(refKind, csym(owner), name, type.toMethodDescriptorString()));
     }
 
     public static MethodHandle ldcDynamicConstant(MethodHandles.Lookup l,
@@ -112,7 +123,7 @@ public class InstructionHelper {
                                                   String bsmClass, String bsmMethodName, String bsmType,
                                                   Consumer<PoolHelper.StaticArgListBuilder<String, String, byte[]>> staticArgs) throws Exception {
         return ldc(l, type,
-                   P -> P.putConstantDynamic(name, type,
+                   P -> P.putDynamicConstant(name, type,
                                              bsmClass, bsmMethodName, bsmType,
                                              staticArgs));
     }
@@ -148,4 +159,195 @@ public class InstructionHelper {
     public static String cref(Class<?> c) {
         return methodType(c).toMethodDescriptorString().substring(2);
     }
+
+
+    // loadCode(MethodHandles.Lookup, String, MethodType, Consumer<? super MethodHandleCodeBuilder<?>>) et al...
+
+    public static MethodHandle loadCode(MethodHandles.Lookup lookup, String name, MethodType type, Consumer<? super MethodHandleCodeBuilder<?>> builder) {
+        String className = generateClassNameFromLookupClass(lookup);
+        return loadCode(lookup, className, name, type, builder);
+    }
+
+    public static MethodHandle loadCode(MethodHandles.Lookup lookup, String className, String methodName, MethodType type, Consumer<? super MethodHandleCodeBuilder<?>> builder) {
+        String descriptor = type.toMethodDescriptorString();
+        return loadCode(lookup, className, methodName, descriptor, MethodHandleCodeBuilder::new,
+                    clazz -> {
+                        try {
+                            return lookup.findStatic(clazz, methodName, MethodType.fromMethodDescriptorString(descriptor, lookup.lookupClass().getClassLoader()));
+                        } catch (ReflectiveOperationException ex) {
+                            throw new IllegalStateException(ex);
+                        }
+                    },
+                    builder);
+    }
+
+
+    private static <Z, C extends CodeBuilder<Class<?>, String, byte[], ?>> Z loadCode(
+            MethodHandles.Lookup lookup, String className, String methodName, String type,
+            Function<MethodBuilder<Class<?>, String, byte[]>, ? extends C> builderFunc,
+            Function<Class<?>, Z> resFunc, Consumer<? super C> builder) {
+
+        IsolatedMethodBuilder isolatedMethodBuilder = new IsolatedMethodBuilder(className, lookup);
+        isolatedMethodBuilder
+                .withSuperclass(Object.class)
+                .withMajorVersion(60)
+                .withMinorVersion(0)
+                .withFlags(Flag.ACC_PUBLIC)
+                .withMethod(methodName, type, M ->
+                        M.withFlags(Flag.ACC_STATIC, Flag.ACC_PUBLIC)
+                                .withCode(builderFunc, builder));
+
+        try {
+            byte[] byteArray = isolatedMethodBuilder.build();
+            Class<?> clazz = lookup.defineClass(byteArray);
+            return resFunc.apply(clazz);
+        } catch (Throwable e) {
+             throw new IllegalStateException(e);
+        }
+    }
+
+    private static class IsolatedMethodBuilder extends ClassBuilder<Class<?>, String, IsolatedMethodBuilder> {
+
+        private static final Class<?> THIS_CLASS = new Object() { }.getClass();
+
+        private IsolatedMethodBuilder(String clazz, MethodHandles.Lookup lookup) {
+            super(new IsolatedMethodPoolHelper(clazz),
+                  new IsolatedMethodTypeHelper(lookup));
+            withThisClass(THIS_CLASS);
+        }
+
+        public Class<?> thisClass() {
+            return THIS_CLASS;
+        }
+
+        static String classToInternalName(Class<?> c) {
+            return c.getName().replace('.', '/');
+        }
+
+        private static class IsolatedMethodTypeHelper implements TypeHelper<Class<?>, String> {
+
+            BasicTypeHelper basicTypeHelper = new BasicTypeHelper();
+            MethodHandles.Lookup lookup;
+
+            private IsolatedMethodTypeHelper(MethodHandles.Lookup lookup) {
+                this.lookup = lookup;
+            }
+
+            @Override
+            public String elemtype(String s) {
+                return basicTypeHelper.elemtype(s);
+            }
+
+            @Override
+            public String arrayOf(String s) {
+                return basicTypeHelper.arrayOf(s);
+            }
+
+            @Override
+            public Iterator<String> parameterTypes(String s) {
+                return basicTypeHelper.parameterTypes(s);
+            }
+
+            @Override
+            public String fromTag(TypeTag tag) {
+                return basicTypeHelper.fromTag(tag);
+            }
+
+            @Override
+            public String returnType(String s) {
+                return basicTypeHelper.returnType(s);
+            }
+
+            @Override
+            public String type(Class<?> aClass) {
+                if (aClass.isArray()) {
+                    return classToInternalName(aClass);
+                } else {
+                    return (aClass.isInlineClass() ? "Q" : "L") + classToInternalName(aClass) + ";";
+                }
+            }
+
+            @Override
+            public boolean isInlineClass(String desc) {
+                Class<?> aClass = symbol(desc);
+                return aClass != null && aClass.isInlineClass();
+            }
+
+            @Override
+            public Class<?> symbol(String desc) {
+                try {
+                    if (desc.startsWith("[")) {
+                        return Class.forName(desc.replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
+                    } else {
+                        return Class.forName(basicTypeHelper.symbol(desc).replaceAll("/", "."), true, lookup.lookupClass().getClassLoader());
+                    }
+                } catch (ReflectiveOperationException ex) {
+                    throw new AssertionError(ex);
+                }
+            }
+
+            @Override
+            public TypeTag tag(String s) {
+                return basicTypeHelper.tag(s);
+            }
+
+            @Override
+            public Class<?> symbolFrom(String s) {
+                return symbol(s);
+            }
+
+            @Override
+            public String commonSupertype(String t1, String t2) {
+                return basicTypeHelper.commonSupertype(t1, t2);
+            }
+
+            @Override
+            public String nullType() {
+                return basicTypeHelper.nullType();
+            }
+        }
+
+        private static class IsolatedMethodPoolHelper extends BytePoolHelper<Class<?>, String> {
+            final String clazz;
+
+            private IsolatedMethodPoolHelper(String clazz) {
+                super(c -> from(c, clazz), s->s);
+                this.clazz = clazz;
+            }
+
+            static String from(Class<?> c, String clazz) {
+                return c == THIS_CLASS ? clazz.replace('.', '/')
+                                       : classToInternalName(c);
+            }
+        }
+
+        @Override
+        public byte[] build() {
+            return super.build();
+        }
+    }
+
+    public static class MethodHandleCodeBuilder<T extends MethodHandleCodeBuilder<T>> extends TypedCodeBuilder<Class<?>, String, byte[], T> {
+
+        BasicTypeHelper basicTypeHelper = new BasicTypeHelper();
+
+        public MethodHandleCodeBuilder(jdk.experimental.bytecode.MethodBuilder<Class<?>, String, byte[]> methodBuilder) {
+            super(methodBuilder);
+        }
+
+        TypeTag getTagType(String s) {
+            return basicTypeHelper.tag(s);
+        }
+
+        public T ifcmp(String s, CondKind cond, CharSequence label) {
+            return super.ifcmp(getTagType(s), cond, label);
+        }
+
+        public T return_(String s) {
+            return super.return_(getTagType(s));
+        }
+    }
+
+
+
 }

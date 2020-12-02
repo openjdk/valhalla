@@ -32,6 +32,10 @@ public class BasicClassBuilder extends ClassBuilder<String, String, BasicClassBu
         withThisClass(thisClass);
     }
 
+    public BasicClassBuilder(BytePoolHelper<String, String> poolHelper, TypeHelper<String, String> typeHelper) {
+        super(poolHelper, typeHelper);
+    }
+
     public BasicClassBuilder() {
         super(new BytePoolHelper<>(s->s, s->s), new BasicTypeHelper());
     }

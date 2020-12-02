@@ -137,95 +137,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
         }
     }
 
-    @Override
-    public StatefulTypedBuilder typed(TypeTag tag) {
-        return super.typed(tag, StatefulTypedBuilder::new);
-    }
-
-    public class StatefulTypedBuilder extends LabelledTypedBuilder {
-
-        TypeTag tag;
-
-        StatefulTypedBuilder(TypeTag tag) {
-            this.tag = tag;
-        }
-
-        @Override
-        public C astore_0() {
-            return storeAndUpdate(super::astore_0);
-        }
-
-        @Override
-        public C astore_1() {
-            return storeAndUpdate(super::astore_1);
-        }
-
-        @Override
-        public C astore_2() {
-            return storeAndUpdate(super::astore_2);
-        }
-
-        @Override
-        public C astore_3() {
-            return storeAndUpdate(super::astore_3);
-        }
-
-        @Override
-        public C astore(int n) {
-            return storeAndUpdate(() -> super.astore(n));
-        }
-
-        @Override
-        public C aastore() {
-            return storeAndUpdate(super::aastore);
-        }
-
-        @Override
-        public C areturn() {
-            state.pop(tag);
-            state.push(typeHelper.nullType());
-            return super.areturn();
-        }
-
-        @Override
-        public C anewarray(S s) {
-            super.anewarray(s);
-            state.pop();
-            state.push(typeHelper.arrayOf(typeHelper.type(s)));
-            return thisBuilder();
-        }
-
-        @Override
-        public C aconst_null() {
-            super.aconst_null();
-            state.pop();
-            state.push(tag);
-            return thisBuilder();
-        }
-
-        public C if_acmpeq(CharSequence label) {
-            return jumpAndUpdate(() -> super.if_acmpeq(label));
-        }
-
-        public C if_acmpne(CharSequence label) {
-            return jumpAndUpdate(() -> super.if_acmpne(label));
-        }
-
-        private C storeAndUpdate(Supplier<C> op) {
-            state.pop(tag);
-            state.push(typeHelper.nullType());
-            return op.get();
-        }
-
-        private C jumpAndUpdate(Supplier<C> op) {
-            state.pop(tag);
-            state.pop(tag);
-            state.push(typeHelper.nullType());
-            state.push(typeHelper.nullType());
-            return op.get();
-        }
-    }
-
     public class State {
         public final ArrayList<T> stack;
         public final Vector<T> locals;
@@ -386,7 +297,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
     @SuppressWarnings("unchecked")
     public void updateState(Opcode op, Object optValue) {
         switch (op) {
-            case VALOAD:
             case AALOAD:
                 state.pop();
                 state.push(typeHelper.elemtype(state.pop()));
@@ -395,6 +305,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.alive = false;
                 break;
             case NOP:
+            case IINC:
             case INEG:
             case LNEG:
             case FNEG:
@@ -458,7 +369,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case ALOAD:
             case LLOAD:
             case DLOAD:
-            case VLOAD:
                 state.push(state.locals.get((Integer) optValue));
                 break;
             case IALOAD:
@@ -507,7 +417,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case ISTORE:
             case FSTORE:
             case ASTORE:
-            case VSTORE:
                 state.load(state.pop(), (int) optValue);
                 break;
             case LSTORE_0:
@@ -536,7 +445,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case LUSHR:
                 state.pop();
                 break;
-            case VRETURN:
             case ARETURN:
             case IRETURN:
             case FRETURN:
@@ -576,7 +484,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.pop();
                 state.push(TypeTag.I);
                 break;
-            case VASTORE:
             case AASTORE:
                 state.pop();
                 state.pop();
@@ -823,8 +730,8 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case MONITOREXIT:
                 state.pop();
                 break;
-            case VNEW:
             case NEW:
+            case DEFAULTVALUE:
                 state.push(typeHelper.type((S) optValue));
                 break;
             case NEWARRAY:
@@ -835,13 +742,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.pop();
                 state.push(typeHelper.arrayOf(typeHelper.arrayOf(typeHelper.type((S)optValue))));
                 break;
-            case VNEWARRAY:
-            case VBOX:
-            case VUNBOX:
-                state.pop();
-                state.push(typeHelper.type((S) optValue));
-                break;
-            case MULTIVNEWARRAY:
             case MULTIANEWARRAY:
                 for (int i = 0; i < (byte) ((Object[]) optValue)[1]; i++) {
                     state.pop();
@@ -858,7 +758,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             case GETSTATIC:
                 state.push((T) optValue);
                 break;
-            case VGETFIELD:
             case GETFIELD:
                 state.pop();
                 state.push((T) optValue);
@@ -880,6 +779,15 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                     state.pop2();
                 }
                 state.pop();
+                break;
+            }
+            case WITHFIELD: {
+                TypeTag tag = typeHelper.tag((T) optValue);
+                if (tag.width == 1) {
+                    state.pop();
+                } else {
+                    state.pop2();
+                }
                 break;
             }
             case BIPUSH:
@@ -916,7 +824,6 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
                 state.pop();
                 state.push(TypeTag.Z);
                 break;
-            case TYPED:
             case CHECKCAST:
                 break;
 
@@ -962,6 +869,11 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             public int putClass(S symbol) {
                 type = typeHelper.type(symbol);
                 return poolHelper.putClass(symbol);
+            }
+
+            @Override
+            public int putInlineClass(S symbol) {
+                throw new IllegalStateException();
             }
 
             @Override
