@@ -986,6 +986,7 @@ class CompiledArgumentOopFinder: public SignatureIterator {
     assert(_offset < _arg_size, "out of bounds");
     VMReg reg = _regs[_offset].first();
     oop *loc = _fr.oopmapreg_to_location(reg, _reg_map);
+    assert(loc != NULL, "missing register map entry");
     _f->do_oop(loc);
   }
 

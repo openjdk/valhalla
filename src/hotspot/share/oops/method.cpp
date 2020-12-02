@@ -1574,6 +1574,9 @@ methodHandle Method::make_method_handle_intrinsic(vmIntrinsics::ID iid,
   m->set_vtable_index(Method::nonvirtual_vtable_index);
   m->link_method(m, CHECK_(empty));
 
+  if (iid == vmIntrinsics::_linkToNative) {
+    m->set_interpreter_entry(m->adapter()->get_i2c_entry());
+  }
   if (log_is_enabled(Info, methodhandles) && (Verbose || WizardMode)) {
     LogTarget(Info, methodhandles) lt;
     LogStream ls(lt);
@@ -2447,8 +2450,10 @@ void Method::print_on(outputStream* st) const {
   if (highest_comp_level() != CompLevel_none)
     st->print_cr(" - highest level:     %d", highest_comp_level());
   st->print_cr(" - vtable index:      %d",   _vtable_index);
+#ifdef ASSERT
   if (valid_itable_index())
     st->print_cr(" - itable index:      %d",   itable_index());
+#endif
   st->print_cr(" - i2i entry:         " INTPTR_FORMAT, p2i(interpreter_entry()));
   st->print(   " - adapters:          ");
   AdapterHandlerEntry* a = ((Method*)this)->adapter();

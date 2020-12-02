@@ -219,20 +219,18 @@ Node* Parse::array_store_check() {
       reason = Deoptimization::Reason_array_check;
     }
     if (extak != NULL) {
-      always_see_exact_class = true;
       Node* con = makecon(extak);
-      Node* cmp = _gvn.transform(new CmpPNode( array_klass, con ));
-      Node* bol = _gvn.transform(new BoolNode( cmp, BoolTest::eq ));
-      Node* ctrl= control();
-      { BuildCutout unless(this, bol, PROB_MAX);
-        uncommon_trap(reason,
-                      Deoptimization::Action_maybe_recompile,
-                      tak->klass());
-      }
-      if (stopped()) {          // MUST uncommon-trap?
-        set_control(ctrl);      // Then Don't Do It, just fall into the normal checking
-      } else {                  // Cast array klass to exactness:
-        // Use the exact constant value we know it is.
+      Node* cmp = _gvn.transform(new CmpPNode(array_klass, con));
+      Node* bol = _gvn.transform(new BoolNode(cmp, BoolTest::eq));
+      // Only do it if the check does not always pass/fail
+      if (!bol->is_Con()) {
+        always_see_exact_class = true;
+        { BuildCutout unless(this, bol, PROB_MAX);
+          uncommon_trap(reason,
+                        Deoptimization::Action_maybe_recompile,
+                        tak->klass());
+        }
+        // Cast array klass to exactness
         replace_in_map(array_klass,con);
         Node* cast = _gvn.transform(new CheckCastPPNode(control(), ary, extak->as_instance_type()));
         replace_in_map(ary, cast);
@@ -242,7 +240,8 @@ Node* Parse::array_store_check() {
           log->elem("cast_up reason='monomorphic_array' from='%d' to='(exact)'",
                     log->identify(tak->klass()));
         }
-        array_klass = con;      // Use cast value moving forward
+        // Use cast value moving forward
+        array_klass = con;
       }
     }
   }
