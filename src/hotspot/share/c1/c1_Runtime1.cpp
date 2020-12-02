@@ -1043,8 +1043,8 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
 
     // With type restrictions, it possible that at compilation time,
     // the holder was unloaded, and C1 didn't know that the field
-    // would be flattened, so the generated code is incorrect for
-    // flattened field. The nmethod had to be deoptimized so that
+    // would be flattened, so the generated code is incorrect for a
+    // flattened field. The  nmethod has to be deoptimized so that
     // the code can be regnerated correctly.
 
     deoptimize_for_flattened_field = result.is_inlined();
@@ -1052,7 +1052,7 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* thread, Runtime1::StubID stub_i
     // Another case caused by type restrictions: if the holder was
     // unloaded at compilation time, C1 didn't know that the field
     // could have type restrictions, and when the field has such
-    // restriction, it means additional checks have to be performed
+    // restrictions, it means additional checks have to be performed
     // to ensure the value being written satisfies those restrictions.
     // The nmethod has to be deoptimized so that the code can be
     // regenerated with the additional checks.

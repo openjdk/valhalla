@@ -290,16 +290,13 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   _is_flattened = fd->is_inlined();
   if (fd->has_restricted_type()) {
     _descriptor_signature = ciEnv::current(CompilerThread::current())->get_symbol(fd->descriptor_signature());
-    // assert(_descriptor_signature == _signature, "Must match");
     _signature = ciEnv::current(CompilerThread::current())->get_symbol(fd->signature());
     // Only InstanceKlass should have fields
     assert(field_holder->is_instance_klass(), "Sanity check");
     InstanceKlass* field_holder_ik = InstanceKlass::cast(field_holder);
     // resetting the type because field's type has been switched from its descriptor signature
-    // to its restricted type
+    // to its restricted type. The type will be set lazely wjen invoking the method type().
     _type = NULL;
-    compute_type();
-    assert(_type != NULL, "Should have been set above");
   }
 
   // Check to see if the field is constant.

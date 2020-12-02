@@ -166,4 +166,35 @@ public class RestrictedTypeAnnotationTest {
             }
         }
     }
+
+    // Trying to write null to field p368 without knowing it is null-free (putstatic)
+    static void test8() {
+        spoint = null;
+        for (int i = 0; i < ITERATIONS; i++) {
+            Exception e = null;
+            try {
+                PointBox.p84 = spoint;
+            } catch(NullPointerException npe) {
+                e = npe;
+            }
+            if (e == null) {
+                throw new RuntimeException("Missing NPE");
+            }
+        }
+    }
+
+    // Trying to write a value from the wrong type (putstatic)
+    static void test9() {
+        for (int i = 0; i < ITERATIONS; i++) {
+            Error e = null;
+            try {
+                PointBox.p71 = new String("hello");
+            } catch(IncompatibleClassChangeError icce) {
+                e = icce;
+            }
+            if (e == null) {
+                throw new RuntimeException("Missing ICCE");
+            }
+        }
+    }
 }

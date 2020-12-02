@@ -27,6 +27,12 @@ import java.lang.invoke.RestrictedType;
 
 class PointBox {
 
+    @RestrictedType("Qruntime/valhalla/typerestrictions/PointBox$Point;")
+    static public Point.ref p84;
+
+    @RestrictedType("Qruntime/valhalla/typerestrictions/PointBox$Point;")
+    static public Object p71;
+
     static inline class Point {
         public double x;
         public double y;

@@ -1799,12 +1799,6 @@ void ClassFileParser::parse_fields(const ClassFileStream* const cfs,
                 _class_name->as_C_string(),
                 _cp->symbol_at(restricted_type_index)->as_C_string()));
     }
-    if (has_restricted_type && access_flags.is_static()) {
-      THROW_MSG(vmSymbols::java_lang_ClassFormatError(),
-                err_msg("RestrictedField attribute not supported for static fields (%s.%s)",
-                _class_name->as_C_string(),
-                _cp->symbol_at(restricted_type_index)->as_C_string()));
-    }
 
     u2 sharp_type_index, erased_type_index;
     if (has_restricted_type) {

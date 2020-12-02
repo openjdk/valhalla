@@ -182,7 +182,6 @@ public:
   bool is_transient            () const { return flags().is_transient(); }
   bool is_flattened            () const { return _is_flattened; }
   bool has_restricted_type     () const { return _holder->is_loaded() && _descriptor_signature != NULL; }
-  bool may_have_restricted_type() const { return !_holder->is_loaded(); }
 
   // The field is modified outside of instance initializer methods
   // (or class/initializer methods if the field is static).
