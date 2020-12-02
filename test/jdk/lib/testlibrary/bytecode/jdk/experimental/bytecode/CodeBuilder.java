@@ -1156,8 +1156,8 @@ public class CodeBuilder<S, T, E, C extends CodeBuilder<S, T, E, C>> extends Att
                     } else {
                         //TODO: uninit this, top?
                         stackmaps.writeByte(7);
-                        stackmaps.writeChar(typeHelper.isValue(t) ?
-                            poolHelper.putValueClass(typeHelper.symbol(t)) : poolHelper.putClass(typeHelper.symbol(t)));
+                        stackmaps.writeChar(typeHelper.isInlineClass(t) ?
+                            poolHelper.putInlineClass(typeHelper.symbol(t)) : poolHelper.putClass(typeHelper.symbol(t)));
                     }
                     break;
                 default:

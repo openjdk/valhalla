@@ -182,7 +182,7 @@ public class InstructionHelper {
     }
 
 
-    protected static <Z, C extends CodeBuilder<Class<?>, String, byte[], ?>> Z loadCode(
+    private static <Z, C extends CodeBuilder<Class<?>, String, byte[], ?>> Z loadCode(
             MethodHandles.Lookup lookup, String className, String methodName, String type,
             Function<MethodBuilder<Class<?>, String, byte[]>, ? extends C> builderFunc,
             Function<Class<?>, Z> resFunc, Consumer<? super C> builder) {
@@ -206,11 +206,11 @@ public class InstructionHelper {
         }
     }
 
-    public static class IsolatedMethodBuilder extends ClassBuilder<Class<?>, String, IsolatedMethodBuilder> {
+    private static class IsolatedMethodBuilder extends ClassBuilder<Class<?>, String, IsolatedMethodBuilder> {
 
         private static final Class<?> THIS_CLASS = new Object() { }.getClass();
 
-        public IsolatedMethodBuilder(String clazz, MethodHandles.Lookup lookup) {
+        private IsolatedMethodBuilder(String clazz, MethodHandles.Lookup lookup) {
             super(new IsolatedMethodPoolHelper(clazz),
                   new IsolatedMethodTypeHelper(lookup));
             withThisClass(THIS_CLASS);
@@ -224,12 +224,12 @@ public class InstructionHelper {
             return c.getName().replace('.', '/');
         }
 
-        static class IsolatedMethodTypeHelper implements TypeHelper<Class<?>, String> {
+        private static class IsolatedMethodTypeHelper implements TypeHelper<Class<?>, String> {
 
             BasicTypeHelper basicTypeHelper = new BasicTypeHelper();
             MethodHandles.Lookup lookup;
 
-            IsolatedMethodTypeHelper(MethodHandles.Lookup lookup) {
+            private IsolatedMethodTypeHelper(MethodHandles.Lookup lookup) {
                 this.lookup = lookup;
             }
 
@@ -268,7 +268,7 @@ public class InstructionHelper {
             }
 
             @Override
-            public boolean isValue(String desc) {
+            public boolean isInlineClass(String desc) {
                 Class<?> aClass = symbol(desc);
                 return aClass != null && aClass.isInlineClass();
             }
@@ -307,16 +307,12 @@ public class InstructionHelper {
             }
         }
 
-        static class IsolatedMethodPoolHelper extends BytePoolHelper<Class<?>, String> {
+        private static class IsolatedMethodPoolHelper extends BytePoolHelper<Class<?>, String> {
             final String clazz;
 
-            IsolatedMethodPoolHelper(String clazz) {
+            private IsolatedMethodPoolHelper(String clazz) {
                 super(c -> from(c, clazz), s->s);
                 this.clazz = clazz;
-            }
-
-            Object[] patches() {
-                return null;
             }
 
             static String from(Class<?> c, String clazz) {

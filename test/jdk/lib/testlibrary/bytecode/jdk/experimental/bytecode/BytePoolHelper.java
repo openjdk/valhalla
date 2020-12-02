@@ -338,7 +338,7 @@ public class BytePoolHelper<S, T> implements PoolHelper<S, T, byte[]> {
     }
 
     @Override
-    public int putValueClass(S symbol) {
+    public int putInlineClass(S symbol) {
         return putClassInternal("Q" + symbolToString.apply(symbol) + ";");
     }
 

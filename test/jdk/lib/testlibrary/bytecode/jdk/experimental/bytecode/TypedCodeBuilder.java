@@ -872,7 +872,7 @@ public class TypedCodeBuilder<S, T, E, C extends TypedCodeBuilder<S, T, E, C>> e
             }
 
             @Override
-            public int putValueClass(S symbol) {
+            public int putInlineClass(S symbol) {
                 throw new IllegalStateException();
             }
 

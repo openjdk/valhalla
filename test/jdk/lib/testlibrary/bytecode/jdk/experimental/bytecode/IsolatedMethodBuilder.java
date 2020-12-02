@@ -54,7 +54,7 @@ public class IsolatedMethodBuilder extends MethodBuilder<Class<?>, String, Objec
         }
 
         @Override
-        public int putValueClass(Class<?> symbol) {
+        public int putInlineClass(Class<?> symbol) {
             return putIfAbsent(symbol);
         }
 

@@ -46,7 +46,7 @@ public class BasicTypeHelper implements TypeHelper<String, String> {
     }
 
     @Override
-    public boolean isValue(String t) {
+    public boolean isInlineClass(String t) {
         return t.charAt(0) == 'Q' && t.endsWith(";");
     }
 

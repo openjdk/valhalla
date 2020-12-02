@@ -89,7 +89,7 @@ public interface TypeHelper<S, T> {
      * @param t the type descreiptor
      * @return true if the given type is a value type
      */
-    boolean isValue(T t);
+    boolean isInlineClass(T t);
 
     /**
      * For a symbol that corresponds to a value type, return the type descriptor.
