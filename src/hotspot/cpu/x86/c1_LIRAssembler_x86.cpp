@@ -2078,7 +2078,7 @@ void LIR_Assembler::emit_opSubstitutabilityCheck(LIR_OpSubstitutabilityCheck* op
     Register left_klass_op = op->left_klass_op()->as_register();
     Register right_klass_op = op->right_klass_op()->as_register();
 
-    if (UseCompressedOops) {
+    if (UseCompressedClassPointers) {
       __ movl(left_klass_op,  Address(left,  oopDesc::klass_offset_in_bytes()));
       __ movl(right_klass_op, Address(right, oopDesc::klass_offset_in_bytes()));
       __ cmpl(left_klass_op, right_klass_op);
