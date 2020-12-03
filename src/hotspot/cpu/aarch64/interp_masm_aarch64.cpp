@@ -682,15 +682,17 @@ void InterpreterMacroAssembler::remove_activation(
 
   // remove activation
   // get sender esp
-  ldr(esp,
+  ldr(rscratch2,
       Address(rfp, frame::interpreter_frame_sender_sp_offset * wordSize));
 
   if (StackReservedPages > 0) {
     // testing if reserved zone needs to be re-enabled
     Label no_reserved_zone_enabling;
 
+    // look for an overflow into the stack reserved zone, i.e.
+    // interpreter_frame_sender_sp <= JavaThread::reserved_stack_activation
     ldr(rscratch1, Address(rthread, JavaThread::reserved_stack_activation_offset()));
-    cmp(esp, rscratch1);
+    cmp(rscratch2, rscratch1);
     br(Assembler::LS, no_reserved_zone_enabling);
 
     call_VM_leaf(
@@ -728,6 +730,9 @@ void InterpreterMacroAssembler::remove_activation(
   }
 
 
+
+  // restore sender esp
+  mov(esp, rscratch2);
   // remove frame anchor
   leave();
   // If we're returning to interpreted code we will shortly be
@@ -1812,7 +1817,7 @@ void InterpreterMacroAssembler::profile_return_type(Register mdp, Register ret, 
       br(Assembler::EQ, do_profile);
       get_method(tmp);
       ldrh(rscratch1, Address(tmp, Method::intrinsic_id_offset_in_bytes()));
-      subs(zr, rscratch1, vmIntrinsics::_compiledLambdaForm);
+      subs(zr, rscratch1, static_cast<int>(vmIntrinsics::_compiledLambdaForm));
       br(Assembler::NE, profile_continue);
 
       bind(do_profile);
