@@ -46,6 +46,7 @@ private:
   ciInstanceKlass* _holder;
   ciSymbol*        _name;
   ciSymbol*        _signature;
+  ciSymbol*        _descriptor_signature;
   ciType*          _type;
   int              _offset;
   bool             _is_constant;
@@ -99,6 +100,9 @@ public:
 
   // Signature of this field?
   ciSymbol* signature() const { return _signature; }
+
+  // What alternate signature can be used for this field in signature (must have a restricted type)
+  ciSymbol* descriptor_signature() const { return _descriptor_signature; }
 
   // Of what type is this field?
   ciType* type() { return (_type == NULL) ? compute_type() : _type; }
@@ -177,6 +181,7 @@ public:
   bool is_volatile             () const { return flags().is_volatile(); }
   bool is_transient            () const { return flags().is_transient(); }
   bool is_flattened            () const { return _is_flattened; }
+  bool has_restricted_type     () const { return _holder->is_loaded() && _descriptor_signature != NULL; }
 
   // The field is modified outside of instance initializer methods
   // (or class/initializer methods if the field is static).

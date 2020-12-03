@@ -479,7 +479,7 @@ class InstanceKlass: public Klass {
   }
 
   bool has_injected_identityObject() const {
-    return (_misc_flags & _misc_has_injected_identityObject);
+    return (_misc_flags & _misc_has_injected_identityObject) != 0;
   }
 
   void set_has_injected_identityObject() {
@@ -487,7 +487,7 @@ class InstanceKlass: public Klass {
   }
 
   bool has_restricted_fields() const {
-    return (_misc_flags & _misc_has_restricted_fields);
+    return (_misc_flags & _misc_has_restricted_fields) != 0;
   }
 
   void set_has_restricted_fields() {
@@ -558,6 +558,7 @@ class InstanceKlass: public Klass {
   Symbol* field_signature   (int index) const { return field(index)->signature(constants()); }
   bool    field_is_inlined(int index) const { return field(index)->is_inlined(); }
   bool    field_is_inline_type(int index) const;
+  bool    field_has_restricted_type(int index) const { return field(index)->has_restricted_type(); }
 
   // Number of Java declared fields
   int java_fields_count() const           { return (int)_java_fields_count; }
@@ -1215,7 +1216,7 @@ public:
            (has_stored_fingerprint ? (int)sizeof(uint64_t*)/wordSize : 0) +
            (java_fields * (int)sizeof(Klass*)/wordSize) +
            (is_inline_type ? (int)sizeof(InlineKlassFixedBlock) : 0) +
-           (has_restricted_fields ? java_fields * (int)sizeof(u2)/wordSize : 0));
+           (has_restricted_fields ? (align_up(java_fields * (int)sizeof(u2), wordSize)/wordSize) : 0));
   }
   int size() const                    { return size(vtable_length(),
                                                itable_length(),
@@ -1285,7 +1286,7 @@ public:
     }
   }
 
-  u2* fields_erased_type();
+  u2* fields_descriptor_type();
 
   address adr_inline_type_field_klasses() const {
     if (has_inline_type_fields()) {

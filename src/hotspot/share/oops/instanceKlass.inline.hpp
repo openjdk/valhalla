@@ -171,7 +171,7 @@ inline instanceOop InstanceKlass::allocate_instance(oop java_class, TRAPS) {
   return ik->allocate_instance(THREAD);
 }
 
-inline u2* InstanceKlass::fields_erased_type() {
+inline u2* InstanceKlass::fields_descriptor_type() {
     assert(has_restricted_fields(), "Should not be called otherwise");
     if (is_inline_klass()) {
       return (u2*)((address)(InlineKlass::cast(this)->inlineklass_static_block()) + sizeof(InlineKlassFixedBlock));

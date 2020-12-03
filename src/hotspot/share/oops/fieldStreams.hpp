@@ -122,9 +122,9 @@ class FieldStreamBase : public StackObj {
     return field()->signature(_constants());
   }
 
-  Symbol* secondary_signature() const {
+  Symbol* descriptor_signature() const {
     assert(field()->has_restricted_type(), "Must have");
-    int sig_index = field_holder()->fields_erased_type()[index()];
+    int sig_index = field_holder()->fields_descriptor_type()[index()];
     if (access_flags().is_internal()) {
       return vmSymbols::symbol_at(vmSymbols::as_SID(sig_index));
     } else {
