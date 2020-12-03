@@ -2269,8 +2269,6 @@ public class TestLWorld extends InlineTypeTest {
         MyValue2[] src = new MyValue2[100];
         Arrays.fill(src, testValue2);
         MyValue2[] dst = new MyValue2[100];
-        Method m = tests.get("TestLWorld::test84");
-
         rerun_and_recompile_for("TestLWorld::test84", 10,
                                 () ->  { test84(src, dst);
                                          Asserts.assertTrue(Arrays.equals(src, dst)); });
