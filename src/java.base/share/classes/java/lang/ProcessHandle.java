@@ -83,7 +83,8 @@ import java.util.stream.Stream;
  * <a href="{@docRoot}/java.base/java/lang/doc-files/ValueBased.html">value-based</a>,
  * immutable and thread-safe. Programmers should treat instances that are
  * {@linkplain #equals(Object) equal} as interchangeable and should not
- * use instances for synchronization, or unpredictable behavior may occur.
+ * use instances for synchronization, or unpredictable behavior may occur,
+ * including identity-related changes in a future release.
  * Use the {@code equals} or {@link #compareTo(ProcessHandle) compareTo} methods
  * to compare ProcessHandles.
  *

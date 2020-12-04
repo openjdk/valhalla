@@ -147,7 +147,8 @@ import java.util.Objects;
  * class; programmers should treat instances that are
  * {@linkplain #equals(Object) equal} as interchangeable and should not
  * use instances for synchronization, or unpredictable behavior may
- * occur. The {@code equals} method should be used for comparisons.
+ * occur, including identity-related changes in a future release.
+ * The {@code equals} method should be used for comparisons.
  *
  * @implSpec
  * A {@code ZonedDateTime} holds state equivalent to three separate objects,

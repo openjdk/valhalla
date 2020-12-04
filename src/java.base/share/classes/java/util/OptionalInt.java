@@ -45,7 +45,7 @@ import java.util.stream.IntStream;
  * class; programmers should treat instances that are
  * {@linkplain #equals(Object) equal} as interchangeable and should not
  * use instances for synchronization, or unpredictable behavior may
- * occur.
+ * occur, including identity-related changes in a future release.
  *
  * @apiNote
  * {@code OptionalInt} is primarily intended for use as a method return type where

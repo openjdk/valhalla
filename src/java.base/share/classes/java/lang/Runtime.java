@@ -945,7 +945,7 @@ public class Runtime {
      * class; programmers should treat instances that are
      * {@linkplain #equals(Object) equal} as interchangeable and should not
      * use instances for synchronization, or unpredictable behavior may
-     * occur.</p>
+     * occur, including identity-related changes in a future release.</p>
      *
      * @since  9
      */
