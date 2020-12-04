@@ -46,7 +46,7 @@ import java.util.stream.Stream;
  * class; programmers should treat instances that are
  * {@linkplain #equals(Object) equal} as interchangeable and should not
  * use instances for synchronization, or unpredictable behavior may
- * occur, including identity-related changes in a future release.
+ * occur. For example, in a future release, synchronization may fail.
  *
  * @apiNote
  * {@code Optional} is primarily intended for use as a method return type where
