@@ -766,6 +766,19 @@ void ciMethodData::dump_replay_data(outputStream* out) {
       } else if (pdata->is_CallTypeData()) {
           ciCallTypeData* call_type_data = (ciCallTypeData*)pdata;
           dump_replay_data_call_type_helper<ciCallTypeData>(out, round, count, call_type_data);
+      } else if (pdata->is_ArrayLoadStoreData()) {
+        ciArrayLoadStoreData* array_load_store_data = (ciArrayLoadStoreData*)pdata;
+        dump_replay_data_type_helper(out, round, count, array_load_store_data, ciArrayLoadStoreData::array_offset(),
+                                     array_load_store_data->array()->valid_type());
+        dump_replay_data_type_helper(out, round, count, array_load_store_data, ciArrayLoadStoreData::element_offset(),
+                                     array_load_store_data->element()->valid_type());
+      } else if (pdata->is_ACmpData()) {
+        ciACmpData* acmp_data = (ciACmpData*)pdata;
+        dump_replay_data_type_helper(out, round, count, acmp_data, ciACmpData::left_offset(),
+                                     acmp_data->left()->valid_type());
+        dump_replay_data_type_helper(out, round, count, acmp_data, ciACmpData::right_offset(),
+                                     acmp_data->right()->valid_type());
+
       }
     }
     if (parameters != NULL) {
