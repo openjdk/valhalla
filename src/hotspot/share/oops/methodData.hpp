@@ -1964,7 +1964,7 @@ public:
   virtual bool is_ACmpData() const { return true; }
 
   static int static_cell_count() {
-    return BranchData::static_cell_count()+ SingleTypeEntry::static_cell_count() * 2;
+    return BranchData::static_cell_count() + SingleTypeEntry::static_cell_count() * 2;
   }
 
   virtual int cell_count() const {

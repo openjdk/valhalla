@@ -614,6 +614,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
   offset -= vk->first_field_offset();
   // Create a new InlineTypeNode and retrieve the field values from memory
   InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk)->as_InlineType();
+  transform_later(vt);
   for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
     ciType* field_type = vt->field_type(i);
     int field_offset = offset + vt->field_offset(i);
@@ -642,7 +643,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
       return NULL;
     }
   }
-  return transform_later(vt);
+  return vt;
 }
 
 // Check the possibility of scalar replacement.
