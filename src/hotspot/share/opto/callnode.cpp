@@ -1189,6 +1189,7 @@ bool CallStaticJavaNode::remove_useless_allocation(PhaseGVN *phase, Node* ctl, N
   }
   if (!alloc_mem->is_MergeMem()) {
     alloc_mem = MergeMemNode::make(alloc_mem);
+    igvn->register_new_node_with_optimizer(alloc_mem);
   }
 
   // and that there's no unexpected side effect
