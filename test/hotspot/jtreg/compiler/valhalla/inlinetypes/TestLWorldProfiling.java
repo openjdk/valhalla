@@ -912,4 +912,60 @@ public class TestLWorldProfiling extends InlineTypeTest {
         test39(42, 42, 42);
         test39_helper(testValue1, testValue2);
     }
+
+    // Test array access with polluted array type profile
+    static abstract class Test40Abstract { }
+    static class Test40Class extends Test40Abstract { }
+    static inline class Test40Inline extends Test40Abstract { }
+
+    @ForceInline
+    public Object test40_access(Object[] array) {
+        return array[0];
+    }
+
+    @Warmup(10000)
+    @Test()
+    public Object test40(Test40Abstract[] array) {
+        return test40_access(array);
+    }
+
+    @DontCompile
+    public void test40_verifier(boolean warmup) {
+        // Make sure multiple implementors of Test40Abstract are loaded
+        Test40Inline tmp1 = new Test40Inline();
+        Test40Class tmp2 = new Test40Class();
+        if (warmup) {
+            // Pollute profile with Object[] (exact)
+            test40_access(new Object[1]);
+        } else {
+            // When inlining test40_access, profiling contradicts actual type of array
+            test40(new Test40Class[1]);
+        }
+    }
+
+    // Same as test40 but with array store
+    @ForceInline
+    public void test41_access(Object[] array, Object val) {
+        array[0] = val;
+    }
+
+    @Warmup(10000)
+    @Test()
+    public void test41(Test40Inline[] array, Object val) {
+        test41_access(array, val);
+    }
+
+    @DontCompile
+    public void test41_verifier(boolean warmup) {
+        // Make sure multiple implementors of Test40Abstract are loaded
+        Test40Inline tmp1 = new Test40Inline();
+        Test40Class tmp2 = new Test40Class();
+        if (warmup) {
+            // Pollute profile with exact Object[]
+            test41_access(new Object[1], new Object());
+        } else {
+            // When inlining test41_access, profiling contradicts actual type of array
+            test41(new Test40Inline[1], new Test40Inline());
+        }
+    }
 }

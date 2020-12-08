@@ -493,16 +493,9 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   if (stopped())  return top();
 
   // This could be an access to an inline type array. We can't tell if it's
-  // flat or not. Speculating it's not leads to a much simpler graph
-  // shape. Check profiling.
-  // For aastore, by the time we're here, the array store check should
-  // have already taken advantage of profiling to cast the array to an
-  // exact type reported by profiling
-  const TypeOopPtr* elemptr = elemtype->make_oopptr();
-  if (elemtype->isa_inlinetype() == NULL &&
-      (elemptr == NULL || !elemptr->is_inlinetypeptr() || elemptr->maybe_null()) &&
-      !arytype->is_not_flat()) {
-    assert(is_reference_type(type), "Only references");
+  // flat or not. Knowing the exact type avoids runtime checks and leads to
+  // a much simpler graph shape. Check profile information.
+  if (!arytype->is_flat() && !arytype->is_not_flat()) {
     // First check the speculative type
     Deoptimization::DeoptReason reason = Deoptimization::Reason_speculate_class_check;
     ciKlass* array_type = arytype->speculative_type();
@@ -521,15 +514,22 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     if (array_type != NULL) {
       // Speculate that this array has the exact type reported by profile data
       Node* better_ary = NULL;
+      DEBUG_ONLY(Node* old_control = control();)
       Node* slow_ctl = type_check_receiver(ary, array_type, 1.0, &better_ary);
-      { PreserveJVMState pjvms(this);
+      if (stopped()) {
+        // The check always fails and therefore profile information is incorrect. Don't use it.
+        assert(old_control == slow_ctl, "type check should have been removed");
         set_control(slow_ctl);
-        uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
+      } else {
+        { PreserveJVMState pjvms(this);
+          set_control(slow_ctl);
+          uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
+        }
+        replace_in_map(ary, better_ary);
+        ary = better_ary;
+        arytype  = _gvn.type(ary)->is_aryptr();
+        elemtype = arytype->elem();
       }
-      replace_in_map(ary, better_ary);
-      ary = better_ary;
-      arytype  = _gvn.type(ary)->is_aryptr();
-      elemtype = arytype->elem();
     }
   } else if (UseTypeSpeculation && UseArrayLoadStoreProfile) {
     // No need to speculate: feed profile data at this bci for the
@@ -546,16 +546,11 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   }
 
   // We have no exact array type from profile data. Check profile data
-  // for a non null free or non flat array. Non null free implies non
-  // flat so check this one first. Speculating on a non null free
+  // for a non null-free or non flat array. Non null-free implies non
+  // flat so check this one first. Speculating on a non null-free
   // array doesn't help aaload but could be profitable for a
   // subsequent aastore.
-  elemptr = elemtype->make_oopptr();
-  if (!arytype->is_not_null_free() &&
-      elemtype->isa_inlinetype() == NULL &&
-      (elemptr == NULL || !elemptr->is_inlinetypeptr()) &&
-      UseArrayLoadStoreProfile) {
-    assert(is_reference_type(type), "");
+  if (!arytype->is_null_free() && !arytype->is_not_null_free()) {
     bool null_free_array = true;
     Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
     if (arytype->speculative() != NULL &&
@@ -563,7 +558,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
         !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
       null_free_array = false;
       reason = Deoptimization::Reason_speculate_class_check;
-    } else if (!too_many_traps_or_recompiles(Deoptimization::Reason_class_check)) {
+    } else if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(Deoptimization::Reason_class_check)) {
       ciKlass* array_type = NULL;
       ciKlass* element_type = NULL;
       ProfilePtrKind element_ptr = ProfileMaybeNull;
@@ -576,6 +571,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
         BuildCutout unless(this, null_free_array_test(load_object_klass(ary), /* null_free = */ false), PROB_MAX);
         uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
       }
+      assert(!stopped(), "null-free array should have been caught earlier");
       Node* better_ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype->cast_to_not_null_free()));
       replace_in_map(ary, better_ary);
       ary = better_ary;
@@ -583,8 +579,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     }
   }
 
-  if (!arytype->is_not_flat() && elemtype->isa_inlinetype() == NULL) {
-    assert(is_reference_type(type), "");
+  if (!arytype->is_flat() && !arytype->is_not_flat()) {
     bool flat_array = true;
     Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
     if (arytype->speculative() != NULL &&
@@ -605,6 +600,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
         BuildCutout unless(this, flat_array_test(ary, /* flat = */ false), PROB_MAX);
         uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
       }
+      assert(!stopped(), "flat array should have been caught earlier");
       Node* better_ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype->cast_to_not_flat()));
       replace_in_map(ary, better_ary);
       ary = better_ary;
