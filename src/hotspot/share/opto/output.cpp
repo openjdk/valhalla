@@ -1758,10 +1758,8 @@ void PhaseOutput::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
         return;
       }
 
-#if 0 // new assert, always triggers in Valhalla
       assert(!is_mcall || (call_returns[block->_pre_order] <= (uint)current_offset),
              "ret_addr_offset() not within emitted code");
-#endif
 #ifdef ASSERT
       uint n_size = n->size(C->regalloc());
       if (n_size < (current_offset-instr_offset)) {
