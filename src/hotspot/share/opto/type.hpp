@@ -1486,7 +1486,7 @@ public:
     bool not_null_free = k->is_array_klass() && ( k->as_array_klass()->element_klass() == NULL ||
                                                  !k->as_array_klass()->element_klass()->can_be_inline_klass(true));
     bool not_flat = k->is_array_klass() && !k->is_flat_array_klass();
-    return make( TypePtr::Constant, k, Offset(0), false, not_flat, not_null_free);
+    return make(TypePtr::Constant, k, Offset(0), false, not_flat, not_null_free);
   }
   // ptr to klass 'k' or sub-klass
   static const TypeKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, bool flatten_array = false, bool not_flat = false, bool not_null_free = false);
