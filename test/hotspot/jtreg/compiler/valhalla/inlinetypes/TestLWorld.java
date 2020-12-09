@@ -3527,4 +3527,101 @@ public class TestLWorld extends InlineTypeTest {
             Asserts.assertEquals(res, testValue2.hash());
         }
     }
+
+    // Lock on inline type (known after inlining)
+    @ForceInline
+    public Object test130_inlinee() {
+        return MyValue1.createWithFieldsInline(rI, rL);
+    }
+
+    @Test()
+    public void test130() {
+        Object obj = test130_inlinee();
+        synchronized (obj) {
+            throw new RuntimeException("test130 failed: synchronization on inline type should not succeed");
+        }
+    }
+
+    @DontCompile
+    public void test130_verifier(boolean warmup) {
+        try {
+            test130();
+            throw new RuntimeException("test130 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+    }
+
+    // Same as test130 but with field load instead of allocation
+    @ForceInline
+    public Object test131_inlinee() {
+        return testValue1;
+    }
+
+    @Test()
+    public void test131() {
+        Object obj = test131_inlinee();
+        synchronized (obj) {
+            throw new RuntimeException("test131 failed: synchronization on inline type should not succeed");
+        }
+    }
+
+    @DontCompile
+    public void test131_verifier(boolean warmup) {
+        try {
+            test131();
+            throw new RuntimeException("test131 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+    }
+
+    // Test locking on object that is known to be an inline type only after CCP
+    @Test()
+    @Warmup(10000)
+    public void test132() {
+        MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
+        Object obj = new Integer(42);
+
+        int limit = 2;
+        for (; limit < 4; limit *= 2);
+        for (int i = 2; i < limit; i++) {
+            obj = vt;
+        }
+        synchronized (obj) {
+            throw new RuntimeException("test132 failed: synchronization on inline type should not succeed");
+        }
+    }
+
+    @DontCompile
+    public void test132_verifier(boolean warmup) {
+        try {
+            test132();
+            throw new RuntimeException("test132 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+    }
+
+    // Test conditional locking on inline type and non-escaping object
+    @Test()
+    public void test133(boolean b) {
+        Object obj = b ? new Integer(42) : MyValue2.createWithFieldsInline(rI, rD);
+        synchronized (obj) {
+            if (!b) {
+                throw new RuntimeException("test133 failed: synchronization on inline type should not succeed");
+            }
+        }
+    }
+
+    @DontCompile
+    public void test133_verifier(boolean warmup) {
+        test133(true);
+        try {
+            test133(false);
+            throw new RuntimeException("test133 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+    }
 }

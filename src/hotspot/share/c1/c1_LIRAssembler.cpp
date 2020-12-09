@@ -690,7 +690,7 @@ void LIR_Assembler::emit_std_entries() {
                            offsets()->value(ro_entry_type));
     }
   } else {
-    // All 3 entries are the same (no value-type packing)
+    // All 3 entries are the same (no inline type packing)
     offsets()->set_value(CodeOffsets::Entry, _masm->offset());
     offsets()->set_value(CodeOffsets::Inline_Entry, _masm->offset());
     if (needs_icache(method())) {
