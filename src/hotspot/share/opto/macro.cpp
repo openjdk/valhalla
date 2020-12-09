@@ -2228,7 +2228,6 @@ void PhaseMacroExpand::mark_eliminated_locking_nodes(AbstractLockNode *alock) {
 }
 
 void PhaseMacroExpand::inline_type_guard(Node** ctrl, LockNode* lock) {
-  assert(EnableValhalla, "should only be used if inline types are enabled");
   Node* obj = lock->obj_node();
   const TypePtr* obj_type = _igvn.type(obj)->make_ptr();
   if (!obj_type->can_be_inline_type()) {
