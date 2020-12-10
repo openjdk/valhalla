@@ -318,15 +318,7 @@ void Parse::do_new() {
 void Parse::do_defaultvalue() {
   bool will_link;
   ciInlineKlass* vk = iter().get_klass(will_link)->as_inline_klass();
-  assert(will_link, "defaultvalue: typeflow responsibility");
-
-  // Should throw an InstantiationError?
-  if (iter().is_unresolved_klass()) {
-    uncommon_trap(Deoptimization::Reason_unhandled,
-                  Deoptimization::Action_none,
-                  vk);
-    return;
-  }
+  assert(will_link && !iter().is_unresolved_klass(), "defaultvalue: typeflow responsibility");
 
   if (C->needs_clinit_barrier(vk, method())) {
     clinit_barrier(vk, method());
