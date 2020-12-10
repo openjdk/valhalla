@@ -841,23 +841,22 @@ bool CallNode::may_modify(const TypeOopPtr *t_oop, PhaseTransform *phase) {
 }
 
 // Does this call have a direct reference to n other than debug information?
-bool CallNode::has_non_debug_use(Node *n) {
-  const TypeTuple * d = tf()->domain_cc();
+bool CallNode::has_non_debug_use(Node* n) {
+  const TypeTuple* d = tf()->domain_cc();
   for (uint i = TypeFunc::Parms; i < d->cnt(); i++) {
-    Node *arg = in(i);
-    if (arg == n) {
+    if (in(i) == n) {
       return true;
     }
   }
   return false;
 }
 
-bool CallNode::has_debug_use(Node *n) {
-  assert(jvms() != NULL, "jvms should not be null");
-  for (uint i = jvms()->debug_start(); i < jvms()->debug_end(); i++) {
-    Node *arg = in(i);
-    if (arg == n) {
-      return true;
+bool CallNode::has_debug_use(Node* n) {
+  if (jvms() != NULL) {
+    for (uint i = jvms()->debug_start(); i < jvms()->debug_end(); i++) {
+      if (in(i) == n) {
+        return true;
+      }
     }
   }
   return false;
