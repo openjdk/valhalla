@@ -54,6 +54,7 @@ void LIR_Assembler::patching_epilog(PatchingStub* patch, LIR_PatchCode patch_cod
       case Bytecodes::_getstatic:
       case Bytecodes::_putfield:
       case Bytecodes::_getfield:
+      case Bytecodes::_withfield:
         break;
       default:
         ShouldNotReachHere();

@@ -77,8 +77,7 @@ class     NewArray;
 class       NewTypeArray;
 class       NewObjectArray;
 class       NewMultiArray;
-class     WithField;
-class     DefaultValue;
+class     Deoptimize;
 class     TypeCheck;
 class       CheckCast;
 class       InstanceOf;
@@ -185,8 +184,7 @@ class InstructionVisitor: public StackObj {
   virtual void do_NewTypeArray   (NewTypeArray*    x) = 0;
   virtual void do_NewObjectArray (NewObjectArray*  x) = 0;
   virtual void do_NewMultiArray  (NewMultiArray*   x) = 0;
-  virtual void do_WithField      (WithField*       x) = 0;
-  virtual void do_DefaultValue   (DefaultValue*    x) = 0;
+  virtual void do_Deoptimize     (Deoptimize*      x) = 0;
   virtual void do_CheckCast      (CheckCast*       x) = 0;
   virtual void do_InstanceOf     (InstanceOf*      x) = 0;
   virtual void do_MonitorEnter   (MonitorEnter*    x) = 0;
@@ -475,8 +473,8 @@ class Instruction: public CompilationResourceObj {
 
   void set_needs_null_check(bool f)              { set_flag(NeedsNullCheckFlag, f); }
   bool needs_null_check() const                  { return check_flag(NeedsNullCheckFlag); }
-  void set_null_free(bool f)                    { set_flag(NeverNullFlag, f); }
-  bool is_null_free() const                     { return check_flag(NeverNullFlag); }
+  void set_null_free(bool f)                     { set_flag(NeverNullFlag, f); }
+  bool is_null_free() const                      { return check_flag(NeverNullFlag); }
   bool is_linked() const                         { return check_flag(IsLinkedInBlockFlag); }
   bool can_be_linked()                           { return as_Local() == NULL && as_Phi() == NULL; }
 
@@ -488,12 +486,6 @@ class Instruction: public CompilationResourceObj {
   virtual bool needs_exception_state() const     { return true; }
   XHandlers* exception_handlers() const          { return _exception_handlers; }
   ciKlass* as_loaded_klass_or_null() const;
-
-  // withfield optimization
-  virtual void set_escaped()                     { }
-  virtual void set_local_index(int index)        { }
-  virtual bool is_optimizable_for_withfield() const { return false; }
-
 
   // manipulation
   void pin(PinReason reason)                     { _pin_state |= reason; }
@@ -594,8 +586,7 @@ class Instruction: public CompilationResourceObj {
   virtual NewTypeArray*     as_NewTypeArray()    { return NULL; }
   virtual NewObjectArray*   as_NewObjectArray()  { return NULL; }
   virtual NewMultiArray*    as_NewMultiArray()   { return NULL; }
-  virtual WithField*        as_WithField()       { return NULL; }
-  virtual DefaultValue*     as_DefaultValue()    { return NULL; }
+  virtual Deoptimize*       as_Deoptimize()      { return NULL; }
   virtual TypeCheck*        as_TypeCheck()       { return NULL; }
   virtual CheckCast*        as_CheckCast()       { return NULL; }
   virtual InstanceOf*       as_InstanceOf()      { return NULL; }
@@ -1417,7 +1408,8 @@ public:
   // Only done in LIR Generator -> map everything to object
   void set_to_object_type() { set_type(instanceType); }
 
-  virtual void set_local_index(int index) {
+  void set_local_index(int index) {
+    decrement_on_stack_count();
     if (_first_local_index != index) {
       if (_first_local_index == -1) {
         _first_local_index = index;
@@ -1427,22 +1419,12 @@ public:
     }
   }
 
-  virtual bool in_larval_state() const { return _in_larval_state; }
-  virtual void set_not_larva_anymore() { _in_larval_state = false; }
+  bool in_larval_state() const { return _in_larval_state; }
+  void set_not_larva_anymore() { _in_larval_state = false; }
 
-  virtual int on_stack_count() { return _on_stack_count; }
-  virtual void increment_on_stack_count() { _on_stack_count++; }
-  virtual void decrement_on_stack_count() { _on_stack_count--; }
-
-  void update_larval_state() {
-    set_not_larva_anymore();
-  }
-
-  void update_stack_count() {
-    if (in_larval_state()) {
-      decrement_on_stack_count();
-    }
-  }
+  int on_stack_count() const { return _on_stack_count; }
+  void increment_on_stack_count() { _on_stack_count++; }
+  void decrement_on_stack_count() { _on_stack_count--; }
 };
 
 BASE(NewArray, StateSplit)
@@ -1537,17 +1519,9 @@ LEAF(NewMultiArray, NewArray)
   ciType* exact_type() const;
 };
 
-LEAF(WithField, StateSplit)
+LEAF(Deoptimize, StateSplit)
  public:
-  // creation
-  WithField(ValueStack* state_before)
-  : StateSplit(objectType, state_before) {}
-};
-
-LEAF(DefaultValue, StateSplit)
- public:
-  // creation
-  DefaultValue(ValueStack* state_before)
+  Deoptimize(ValueStack* state_before)
   : StateSplit(objectType, state_before) {}
 };
 

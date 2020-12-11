@@ -151,8 +151,7 @@ public:
     void do_NewTypeArray   (NewTypeArray*    x) { /* nothing to do */ };
     void do_NewObjectArray (NewObjectArray*  x) { /* nothing to do */ };
     void do_NewMultiArray  (NewMultiArray*   x) { /* nothing to do */ };
-    void do_WithField      (WithField*       x) { /* nothing to do */ };
-    void do_DefaultValue   (DefaultValue*    x) { /* nothing to do */ };
+    void do_Deoptimize     (Deoptimize*      x) { /* nothing to do */ };
     void do_CheckCast      (CheckCast*       x) { /* nothing to do */ };
     void do_InstanceOf     (InstanceOf*      x) { /* nothing to do */ };
     void do_BlockBegin     (BlockBegin*      x) { /* nothing to do */ };

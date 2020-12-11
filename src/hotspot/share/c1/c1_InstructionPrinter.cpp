@@ -518,9 +518,6 @@ void InstructionPrinter::do_NewTypeArray(NewTypeArray* x) {
 
 void InstructionPrinter::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {
   output()->print("new inline type instance ");
-  if (x->is_optimizable_for_withfield()) {
-    output()->print("(optimizable) ");
-  }
   print_klass(x->klass());
 }
 
@@ -543,14 +540,9 @@ void InstructionPrinter::do_NewMultiArray(NewMultiArray* x) {
   print_klass(x->klass());
 }
 
-void InstructionPrinter::do_WithField(WithField* x) {
-  output()->print("withfield");
+void InstructionPrinter::do_Deoptimize(Deoptimize* x) {
+  output()->print("deoptimize");
 }
-
-void InstructionPrinter::do_DefaultValue(DefaultValue* x) {
-  output()->print("defaultvalue");
-}
-
 
 void InstructionPrinter::do_MonitorEnter(MonitorEnter* x) {
   output()->print("enter ");
