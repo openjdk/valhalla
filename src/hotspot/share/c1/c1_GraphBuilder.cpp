@@ -2046,18 +2046,17 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
 // Baseline version of withfield, allocate every time
 void GraphBuilder::withfield(int field_index)
 {
+  // Save the entire state and re-execute on deopt
+  ValueStack* state_before = copy_state_before();
+  state_before->set_should_reexecute(true);
+
   bool will_link;
   ciField* field_modify = stream()->get_field(will_link);
   ciInstanceKlass* holder = field_modify->holder();
   BasicType field_type = field_modify->type()->basic_type();
   ValueType* type = as_ValueType(field_type);
-
   Value val = pop(type);
   Value obj = apop();
-
-  // Save the entire state and re-execute on deopt
-  ValueStack* state_before = copy_state_before();
-  state_before->set_should_reexecute(true);
 
   if (!holder->is_loaded()) {
     apush(append_split(new Deoptimize(state_before)));
