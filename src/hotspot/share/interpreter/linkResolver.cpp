@@ -1025,22 +1025,21 @@ void LinkResolver::resolve_field(fieldDescriptor& fd,
     if (is_put && fd.access_flags().is_final()) {
 
       if (sel_klass != current_klass) {
-      // If byte code is a withfield check if they are nestmates.
-      bool are_nestmates = false;
-      if (sel_klass->is_instance_klass() &&
-          InstanceKlass::cast(sel_klass)->is_inline_klass() &&
-          current_klass->is_instance_klass()) {
-        are_nestmates = InstanceKlass::cast(link_info.current_klass())->has_nestmate_access_to(
-                                                        InstanceKlass::cast(sel_klass), THREAD);
-      }
-      if (!are_nestmates) {
-        ResourceMark rm(THREAD);
-        stringStream ss;
-        ss.print("Update to %s final field %s.%s attempted from a different class (%s) than the field's declaring class",
-                 is_static ? "static" : "non-static", resolved_klass->external_name(), fd.name()->as_C_string(),
-                  current_klass->external_name());
-        THROW_MSG(vmSymbols::java_lang_IllegalAccessError(), ss.as_string());
-      }
+        // If byte code is a withfield check if they are nestmates.
+        bool are_nestmates = false;
+        if (sel_klass->is_instance_klass() &&
+            InstanceKlass::cast(sel_klass)->is_inline_klass() &&
+            current_klass->is_instance_klass()) {
+          are_nestmates = InstanceKlass::cast(current_klass)->has_nestmate_access_to(InstanceKlass::cast(sel_klass), THREAD);
+        }
+        if (!are_nestmates) {
+          ResourceMark rm(THREAD);
+          stringStream ss;
+          ss.print("Update to %s final field %s.%s attempted from a different class (%s) than the field's declaring class",
+                   is_static ? "static" : "non-static", resolved_klass->external_name(), fd.name()->as_C_string(),
+                    current_klass->external_name());
+          THROW_MSG(vmSymbols::java_lang_IllegalAccessError(), ss.as_string());
+        }
       }
 
       if (fd.constants()->pool_holder()->major_version() >= 53) {

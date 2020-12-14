@@ -2346,21 +2346,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   }
 }
 
-void LIRGenerator::do_WithField(WithField* x) {
-  // This happens only when a class X uses the withfield bytecode to refer to
-  // an inline class V, where V has not yet been loaded. This is not a common
-  // case. Let's just deoptimize.
-  CodeEmitInfo* info = state_for(x, x->state_before());
-  CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
-                                      Deoptimization::Reason_unloaded,
-                                      Deoptimization::Action_make_not_entrant);
-  __ jump(stub);
-  LIR_Opr reg = rlock_result(x, T_OBJECT);
-  __ move(LIR_OprFact::oopConst(NULL), reg);
-}
-
-void LIRGenerator::do_DefaultValue(DefaultValue* x) {
-  // Same as withfield above. Let's deoptimize.
+void LIRGenerator::do_Deoptimize(Deoptimize* x) {
   CodeEmitInfo* info = state_for(x, x->state_before());
   CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                       Deoptimization::Reason_unloaded,
