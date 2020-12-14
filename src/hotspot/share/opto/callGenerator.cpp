@@ -445,8 +445,7 @@ void LateInlineCallGenerator::do_late_inline() {
     // Make enough space in the expression stack to transfer
     // the incoming arguments and return value.
     map->ensure_stack(jvms, jvms->method()->max_stack());
-    const TypeTuple *domain_sig = call->_tf->domain_sig();
-    ExtendedSignature sig_cc = ExtendedSignature(method()->get_sig_cc(), SigEntryFilter());
+    const TypeTuple* domain_sig = call->_tf->domain_sig();
     uint nargs = method()->arg_size();
     assert(domain_sig->cnt() - TypeFunc::Parms == nargs, "inconsistent signature");
 
@@ -457,7 +456,7 @@ void LateInlineCallGenerator::do_late_inline() {
         // Inline type arguments are not passed by reference: we get an argument per
         // field of the inline type. Build InlineTypeNodes from the inline type arguments.
         GraphKit arg_kit(jvms, &gvn);
-        InlineTypeNode* vt = InlineTypeNode::make_from_multi(&arg_kit, call, sig_cc, t->inline_klass(), j, true);
+        InlineTypeNode* vt = InlineTypeNode::make_from_multi(&arg_kit, call, t->inline_klass(), j, true);
         map->set_control(arg_kit.control());
         map->set_argument(jvms, i1, vt);
       } else {

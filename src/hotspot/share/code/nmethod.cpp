@@ -3177,103 +3177,86 @@ void nmethod::print_nmethod_labels(outputStream* stream, address block_begin, bo
   }
 
   // Print the arguments for the 3 types of verified entry points
-  {
-    const CompiledEntrySignature* ces = _nmethod_to_print_ces;
-    const GrowableArray<SigEntry>* sig_cc;
-    const VMRegPair* regs;
-    if (block_begin == verified_entry_point()) {
-      sig_cc = &ces->sig_cc();
-      regs = ces->regs_cc();
-    } else if (block_begin == verified_inline_entry_point()) {
-      sig_cc = &ces->sig();
-      regs = ces->regs();
-    } else if (block_begin == verified_inline_ro_entry_point()) {
-      sig_cc = &ces->sig_cc_ro();
-      regs = ces->regs_cc_ro();
-    } else {
-      return;
-    }
+  const CompiledEntrySignature* ces = _nmethod_to_print_ces;
+  const GrowableArray<SigEntry>* sig_cc;
+  const VMRegPair* regs;
+  if (block_begin == verified_entry_point()) {
+    sig_cc = &ces->sig_cc();
+    regs = ces->regs_cc();
+  } else if (block_begin == verified_inline_entry_point()) {
+    sig_cc = &ces->sig();
+    regs = ces->regs();
+  } else if (block_begin == verified_inline_ro_entry_point()) {
+    sig_cc = &ces->sig_cc_ro();
+    regs = ces->regs_cc_ro();
+  } else {
+    return;
+  }
 
-    ResourceMark rm;
-    int sizeargs = 0;
-    BasicType* sig_bt = NEW_RESOURCE_ARRAY(BasicType, 256);
-    TempNewSymbol sig = SigEntry::create_symbol(sig_cc);
-    for (SignatureStream ss(sig); !ss.at_return_type(); ss.next()) {
-      BasicType t = ss.type();
-      sig_bt[sizeargs++] = t;
-      if (type2size[t] == 2) {
-        sig_bt[sizeargs++] = T_VOID;
-      } else {
-        assert(type2size[t] == 1, "size is 1 or 2");
-      }
+  bool has_this = !m->is_static();
+  if (ces->has_inline_recv() && block_begin == verified_entry_point()) {
+    // <this> argument is scalarized for verified_entry_point()
+    has_this = false;
+  }
+  const char* spname = "sp"; // make arch-specific?
+  int stack_slot_offset = this->frame_size() * wordSize;
+  int tab1 = 14, tab2 = 24;
+  int sig_index = 0;
+  int arg_index = has_this ? -1 : 0;
+  bool did_old_sp = false;
+  for (ExtendedSignature sig = ExtendedSignature(sig_cc, SigEntryFilter()); !sig.at_end(); ++sig) {
+    bool at_this = (arg_index == -1);
+    bool at_old_sp = false;
+    BasicType t = (*sig)._bt;
+    if (at_this) {
+      stream->print("  # this: ");
+    } else {
+      stream->print("  # parm%d: ", arg_index);
     }
-    bool has_this = !m->is_static();
-    if (ces->has_inline_recv() && block_begin == verified_entry_point()) {
-      // <this> argument is scalarized for verified_entry_point()
-      has_this = false;
+    stream->move_to(tab1);
+    VMReg fst = regs[sig_index].first();
+    VMReg snd = regs[sig_index].second();
+    if (fst->is_reg()) {
+      stream->print("%s", fst->name());
+      if (snd->is_valid())  {
+        stream->print(":%s", snd->name());
+      }
+    } else if (fst->is_stack()) {
+      int offset = fst->reg2stack() * VMRegImpl::stack_slot_size + stack_slot_offset;
+      if (offset == stack_slot_offset)  at_old_sp = true;
+      stream->print("[%s+0x%x]", spname, offset);
+    } else {
+      stream->print("reg%d:%d??", (int)(intptr_t)fst, (int)(intptr_t)snd);
     }
-    const char* spname = "sp"; // make arch-specific?
-    int stack_slot_offset = this->frame_size() * wordSize;
-    int tab1 = 14, tab2 = 24;
-    int sig_index = 0;
-    int arg_index = has_this ? -1 : 0;
-    bool did_old_sp = false;
-    for (SignatureStream ss(sig); !ss.at_return_type(); ) {
-      bool at_this = (arg_index == -1);
-      bool at_old_sp = false;
-      BasicType t = ss.type();
-      assert(t == sig_bt[sig_index], "sigs in sync");
-      if (at_this) {
-        stream->print("  # this: ");
-      } else {
-        stream->print("  # parm%d: ", arg_index);
+    stream->print(" ");
+    stream->move_to(tab2);
+    stream->print("= ");
+    if (at_this) {
+      m->method_holder()->print_value_on(stream);
+    } else {
+      bool did_name = false;
+      if (is_reference_type(t)) {
+        Symbol* name = (*sig)._symbol;
+        name->print_value_on(stream);
+        did_name = true;
       }
-      stream->move_to(tab1);
-      VMReg fst = regs[sig_index].first();
-      VMReg snd = regs[sig_index].second();
-      if (fst->is_reg()) {
-        stream->print("%s", fst->name());
-        if (snd->is_valid())  {
-          stream->print(":%s", snd->name());
-        }
-      } else if (fst->is_stack()) {
-        int offset = fst->reg2stack() * VMRegImpl::stack_slot_size + stack_slot_offset;
-        if (offset == stack_slot_offset)  at_old_sp = true;
-        stream->print("[%s+0x%x]", spname, offset);
-      } else {
-        stream->print("reg%d:%d??", (int)(intptr_t)fst, (int)(intptr_t)snd);
-      }
-      stream->print(" ");
-      stream->move_to(tab2);
-      stream->print("= ");
-      if (at_this) {
-        m->method_holder()->print_value_on(stream);
-      } else {
-        bool did_name = false;
-        if (ss.is_reference()) {
-          Symbol* name = ss.as_symbol();
-          name->print_value_on(stream);
-          did_name = true;
-        }
-        if (!did_name)
-          stream->print("%s", type2name(t));
-      }
-      if (at_old_sp) {
-        stream->print("  (%s of caller)", spname);
-        did_old_sp = true;
-      }
-      stream->cr();
-      sig_index += type2size[t];
-      arg_index += 1;
-      ss.next();
+      if (!did_name)
+        stream->print("%s", type2name(t));
     }
-    if (!did_old_sp) {
-      stream->print("  # ");
-      stream->move_to(tab1);
-      stream->print("[%s+0x%x]", spname, stack_slot_offset);
+    if (at_old_sp) {
       stream->print("  (%s of caller)", spname);
-      stream->cr();
+      did_old_sp = true;
     }
+    stream->cr();
+    sig_index += type2size[t];
+    arg_index += 1;
+  }
+  if (!did_old_sp) {
+    stream->print("  # ");
+    stream->move_to(tab1);
+    stream->print("[%s+0x%x]", spname, stack_slot_offset);
+    stream->print("  (%s of caller)", spname);
+    stream->cr();
   }
 }
 

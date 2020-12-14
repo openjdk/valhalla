@@ -1812,7 +1812,6 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
   }
   // Add the call arguments
   const TypeTuple* domain = call->tf()->domain_sig();
-  ExtendedSignature sig_cc = ExtendedSignature(call->method()->get_sig_cc(), SigEntryFilter());
   uint nargs = domain->cnt();
   for (uint i = TypeFunc::Parms, idx = TypeFunc::Parms; i < nargs; i++) {
     Node* arg = argument(i-TypeFunc::Parms);
@@ -1820,7 +1819,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
     if (call->method()->has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null() && t->inline_klass()->can_be_passed_as_fields()) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       InlineTypeNode* vt = arg->as_InlineType();
-      vt->pass_fields(this, call, sig_cc, idx);
+      vt->pass_fields(this, call, idx);
       // If an inline type argument is passed as fields, attach the Method* to the call site
       // to be able to access the extended signature later via attached_method_before_pc().
       // For example, see CompiledMethod::preserve_callee_argument_oops().
@@ -1892,12 +1891,8 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     // Return of multiple values (inline type fields): we create a
     // InlineType node, each field is a projection from the call.
     ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
-    const Array<SigEntry>* sig_array = vk->extended_sig();
-    GrowableArray<SigEntry> sig = GrowableArray<SigEntry>(sig_array->length());
-    sig.appendAll(sig_array);
-    ExtendedSignature sig_cc = ExtendedSignature(&sig, SigEntryFilter());
     uint base_input = TypeFunc::Parms + 1;
-    ret = InlineTypeNode::make_from_multi(this, call, sig_cc, vk, base_input, false);
+    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false);
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
   }

@@ -237,7 +237,7 @@ Klass* InlineKlass::array_klass_impl(bool or_null, TRAPS) {
 // types is an argument: drop all T_INLINE_TYPE/T_VOID from the list).
 int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
   int count = 0;
-  SigEntry::add_entry(sig, T_INLINE_TYPE, base_off);
+  SigEntry::add_entry(sig, T_INLINE_TYPE, name(), base_off);
   for (JavaFieldStream fs(this); !fs.done(); fs.next()) {
     if (fs.access_flags().is_static()) continue;
     int offset = base_off + fs.offset() - (base_off > 0 ? first_field_offset() : 0);
@@ -250,12 +250,12 @@ int InlineKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off) {
       if (bt == T_INLINE_TYPE) {
         bt = T_OBJECT;
       }
-      SigEntry::add_entry(sig, bt, offset);
+      SigEntry::add_entry(sig, bt, fs.signature(), offset);
       count += type2size[bt];
     }
   }
   int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? first_field_offset() : 0);
-  SigEntry::add_entry(sig, T_VOID, offset);
+  SigEntry::add_entry(sig, T_VOID, name(), offset);
   if (base_off == 0) {
     sig->sort(SigEntry::compare);
   }

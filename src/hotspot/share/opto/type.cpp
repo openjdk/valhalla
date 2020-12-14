@@ -2050,7 +2050,6 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
       uint pos = TypeFunc::Parms;
       field_array[pos] = TypePtr::BOTTOM;
       pos++;
-      ExtendedSignature sig = ExtendedSignature(NULL, SigEntryFilter());
       collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
     } else {
       field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(TypePtr::NOTNULL);
@@ -2067,14 +2066,12 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
 // Make a TypeTuple from the domain of a method signature
 const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args) {
   ciSignature* sig = method->signature();
-  ExtendedSignature sig_cc = ExtendedSignature(vt_fields_as_args ? method->get_sig_cc() : NULL, SigEntryFilter());
-
   uint arg_cnt = sig->size() + (method->is_static() ? 0 : 1);
   if (vt_fields_as_args) {
-    for (arg_cnt = 0; !sig_cc.at_end(); ++sig_cc) {
+    arg_cnt = 0;
+    for (ExtendedSignature sig_cc = ExtendedSignature(method->get_sig_cc(), SigEntryFilter()); !sig_cc.at_end(); ++sig_cc) {
       arg_cnt += type2size[(*sig_cc)._bt];
     }
-    sig_cc = ExtendedSignature(method->get_sig_cc(), SigEntryFilter());
   }
 
   uint pos = TypeFunc::Parms;
@@ -2085,9 +2082,6 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
       collect_inline_fields(recv->as_inline_klass(), field_array, pos);
     } else {
       field_array[pos++] = get_const_type(recv)->join_speculative(TypePtr::NOTNULL);
-      if (vt_fields_as_args) {
-        ++sig_cc;
-      }
     }
   }
 
@@ -2095,7 +2089,6 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
   while (pos < TypeFunc::Parms + arg_cnt) {
     ciType* type = sig->type_at(i);
     BasicType bt = type->basic_type();
-    bool is_flattened = false;
 
     switch (bt) {
     case T_LONG:
@@ -2120,7 +2113,6 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
       break;
     case T_INLINE_TYPE: {
       if (vt_fields_as_args && type->as_inline_klass()->can_be_passed_as_fields()) {
-        is_flattened = true;
         collect_inline_fields(type->as_inline_klass(), field_array, pos);
       } else {
         field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
