@@ -604,9 +604,9 @@ InlineTypeNode* InlineTypeNode::make_from_flattened(GraphKit* kit, ciInlineKlass
   return kit->gvn().transform(vt)->as_InlineType();
 }
 
-InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, ciInlineKlass* vk, uint& base_input, bool in) {
+InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in) {
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk);
-  vt->initialize_fields(kit, multi, sig, base_input, in);
+  vt->initialize_fields(kit, multi, base_input, in);
   return kit->gvn().transform(vt)->as_InlineType();
 }
 
@@ -713,7 +713,7 @@ Node* InlineTypeNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
   return gvn.makecon(TypeRawPtr::make((address)bits));
 }
 
-void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig, uint& base_input) {
+void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input) {
   for (uint i = 0; i < field_count(); i++) {
     int offset = field_offset(i);
     ciType* type = field_type(i);
@@ -722,7 +722,7 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig,
     if (field_is_flattened(i)) {
       // Flattened inline type field
       InlineTypeNode* vt = arg->as_InlineType();
-      vt->pass_fields(kit, n, sig, base_input);
+      vt->pass_fields(kit, n, base_input);
     } else {
       if (arg->is_InlineType()) {
         // Non-flattened inline type field
@@ -740,7 +740,7 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig,
   }
 }
 
-void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, uint& base_input, bool in) {
+void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in) {
   PhaseGVN& gvn = kit->gvn();
   for (uint i = 0; i < field_count(); ++i) {
     ciType* type = field_type(i);
@@ -748,7 +748,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, Extended
     if (field_is_flattened(i)) {
       // Flattened inline type field
       InlineTypeNode* vt = make_uninitialized(gvn, type->as_inline_klass());
-      vt->initialize_fields(kit, multi, sig, base_input, in);
+      vt->initialize_fields(kit, multi, base_input, in);
       parm = gvn.transform(vt);
     } else {
       if (multi->is_Start()) {

@@ -574,15 +574,13 @@ class SigEntry {
  public:
   BasicType _bt;
   int _offset;
+  Symbol* _symbol;
 
   SigEntry()
-    : _bt(T_ILLEGAL), _offset(-1) {
-  }
-  SigEntry(BasicType bt, int offset)
-    : _bt(bt), _offset(offset) {}
+    : _bt(T_ILLEGAL), _offset(-1), _symbol(NULL) {}
 
-  SigEntry(BasicType bt)
-    : _bt(bt), _offset(-1) {}
+  SigEntry(BasicType bt, int offset, Symbol* symbol)
+    : _bt(bt), _offset(offset), _symbol(symbol) {}
 
   static int compare(SigEntry* e1, SigEntry* e2) {
     if (e1->_offset != e2->_offset) {
@@ -606,7 +604,7 @@ class SigEntry {
     ShouldNotReachHere();
     return 0;
   }
-  static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, int offset = -1);
+  static void add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* symbol, int offset = -1);
   static bool skip_value_delimiters(const GrowableArray<SigEntry>* sig, int i);
   static int fill_sig_bt(const GrowableArray<SigEntry>* sig, BasicType* sig_bt);
   static TempNewSymbol create_symbol(const GrowableArray<SigEntry>* sig);

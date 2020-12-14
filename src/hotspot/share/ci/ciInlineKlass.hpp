@@ -87,7 +87,6 @@ public:
   ciInstance* default_instance() const;
   bool contains_oops() const;
   int oop_count() const;
-  Array<SigEntry>* extended_sig() const;
   address pack_handler() const;
   address unpack_handler() const;
   InlineKlass* get_InlineKlass() const;

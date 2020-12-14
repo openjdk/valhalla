@@ -2768,20 +2768,19 @@ int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_
     if (holder->is_inline_klass() && scalar_receiver && InlineKlass::cast(holder)->can_be_passed_as_fields()) {
       sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
     } else {
-      SigEntry::add_entry(sig_cc, T_OBJECT);
+      SigEntry::add_entry(sig_cc, T_OBJECT, holder->name());
     }
   }
-  Thread* THREAD = Thread::current();
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
     if (ss.type() == T_INLINE_TYPE) {
       InlineKlass* vk = ss.as_inline_klass(holder);
       if (vk->can_be_passed_as_fields()) {
         sig_cc->appendAll(vk->extended_sig());
       } else {
-        SigEntry::add_entry(sig_cc, T_OBJECT);
+        SigEntry::add_entry(sig_cc, T_OBJECT, ss.as_symbol());
       }
     } else {
-      SigEntry::add_entry(sig_cc, ss.type());
+      SigEntry::add_entry(sig_cc, ss.type(), ss.as_symbol());
     }
   }
   regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc->length() + 2);
@@ -2835,7 +2834,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
       _has_inline_recv = true;
       _num_inline_args++;
     }
-    SigEntry::add_entry(_sig, T_OBJECT);
+    SigEntry::add_entry(_sig, T_OBJECT, _method->name());
   }
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
     BasicType bt = ss.type();
@@ -2845,7 +2844,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
       }
       bt = T_OBJECT;
     }
-    SigEntry::add_entry(_sig, bt);
+    SigEntry::add_entry(_sig, bt, ss.as_symbol());
   }
   if (_method->is_abstract() && !has_inline_arg()) {
     return;

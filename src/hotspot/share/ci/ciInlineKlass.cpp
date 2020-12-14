@@ -129,10 +129,6 @@ int ciInlineKlass::oop_count() const {
   GUARDED_VM_ENTRY(return get_InlineKlass()->nonstatic_oop_count();)
 }
 
-Array<SigEntry>* ciInlineKlass::extended_sig() const {
-  GUARDED_VM_ENTRY(return get_InlineKlass()->extended_sig();)
-}
-
 address ciInlineKlass::pack_handler() const {
   GUARDED_VM_ENTRY(return get_InlineKlass()->pack_handler();)
 }

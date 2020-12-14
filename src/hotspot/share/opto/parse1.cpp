@@ -862,7 +862,6 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
   }
   PhaseGVN& gvn = *initial_gvn();
   uint i = 0;
-  ExtendedSignature sig_cc = ExtendedSignature(method()->get_sig_cc(), SigEntryFilter());
   for (uint j = 0; i < (uint)arg_size; i++) {
     const Type* t = tf->domain_sig()->field_at(i);
     Node* parm = NULL;
@@ -874,7 +873,7 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
       Node* old_mem = map->memory();
       // Use immutable memory for inline type loads and restore it below
       kit.set_all_memory(C->immutable_memory());
-      parm = InlineTypeNode::make_from_multi(&kit, start, sig_cc, t->inline_klass(), j, true);
+      parm = InlineTypeNode::make_from_multi(&kit, start, t->inline_klass(), j, true);
       map->set_control(kit.control());
       map->set_memory(old_mem);
     } else {
@@ -931,12 +930,8 @@ void Compile::return_values(JVMState* jvms) {
       } else {
         ret->init_req(TypeFunc::Parms, vt->tagged_klass(kit.gvn()));
       }
-      const Array<SigEntry>* sig_array = vt->type()->inline_klass()->extended_sig();
-      GrowableArray<SigEntry> sig = GrowableArray<SigEntry>(sig_array->length());
-      sig.appendAll(sig_array);
-      ExtendedSignature sig_cc = ExtendedSignature(&sig, SigEntryFilter());
-      uint idx = TypeFunc::Parms+1;
-      vt->pass_fields(&kit, ret, sig_cc, idx);
+      uint idx = TypeFunc::Parms + 1;
+      vt->pass_fields(&kit, ret, idx);
     } else {
       ret->add_req(res);
       // Note:  The second dummy edge is not needed by a ReturnNode.
