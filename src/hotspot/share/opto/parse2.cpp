@@ -82,7 +82,6 @@ void Parse::array_load(BasicType bt) {
   const TypeOopPtr* elemptr = elemtype->make_oopptr();
   const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
   if (ary_t->is_flat()) {
-    C->set_flattened_accesses();
     // Load from flattened inline type array
     Node* vt = InlineTypeNode::make_from_flattened(this, elemtype->inline_klass(), ary, adr);
     push(vt);
@@ -231,7 +230,7 @@ void Parse::array_store(BasicType bt) {
   if (stopped())  return;     // guaranteed null or range check
   Node* cast_val = NULL;
   if (bt == T_OBJECT) {
-    cast_val = array_store_check();
+    cast_val = array_store_check(adr, elemtype);
     if (stopped()) return;
   }
   Node* val = pop_node(bt); // Value to store
@@ -240,6 +239,7 @@ void Parse::array_store(BasicType bt) {
 
   const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+  assert(adr->as_AddP()->in(AddPNode::Base) == ary, "inconsistent address base");
 
   if (elemtype == TypeInt::BOOL) {
     bt = T_BOOLEAN;
@@ -273,7 +273,6 @@ void Parse::array_store(BasicType bt) {
 
     if (ary_t->is_flat()) {
       // Store to flattened inline type array
-      C->set_flattened_accesses();
       if (!cast_val->is_InlineType()) {
         inc_sp(3);
         cast_val = null_check(cast_val);
@@ -541,7 +540,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     bool null_free_array = true;
     method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
     if (array_type != NULL) {
-      record_profile_for_speculation(ary, array_type, ProfileMaybeNull);
+      ary = record_profile_for_speculation(ary, array_type, ProfileMaybeNull);
     }
   }
 

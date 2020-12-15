@@ -144,6 +144,7 @@ public abstract class InlineTypeTest {
     private static final int OSR_TEST_TIMEOUT = Integer.parseInt(System.getProperty("OSRTestTimeOut", "5000"));
     protected static final boolean STRESS_CC = Boolean.parseBoolean(System.getProperty("StressCC", "false"));
     private static final boolean SHUFFLE_TESTS = Boolean.parseBoolean(System.getProperty("ShuffleTests", "true"));
+    private static final boolean PREFER_CL_FLAGS = Boolean.parseBoolean(System.getProperty("PreferCommandLineFlags", "false"));
 
     // "jtreg -DXcomp=true" runs all the scenarios with -Xcomp. This is faster than "jtreg -javaoptions:-Xcomp".
     protected static final boolean RUN_SCENARIOS_WITH_XCOMP = Boolean.parseBoolean(System.getProperty("Xcomp", "false"));
@@ -362,12 +363,19 @@ public abstract class InlineTypeTest {
                 System.out.println("Scenario #" + i + " is skipped due to -Dscenarios=" + SCENARIOS);
             } else {
                 System.out.println("Scenario #" + i + " -------- ");
-                String[] cmds = InputArguments.getVmInputArgs();
+                String[] cmds = new String[0];
+                if (!PREFER_CL_FLAGS) {
+                    cmds = InputArguments.getVmInputArgs();
+                }
                 if (RUN_SCENARIOS_WITH_XCOMP) {
                     cmds = concat(cmds, "-Xcomp");
                 }
                 cmds = concat(cmds, test.getVMParameters(i));
                 cmds = concat(cmds, test.getExtraVMParameters(i));
+                if (PREFER_CL_FLAGS) {
+                    // Prefer flags set via the command line over the ones set by the test scenarios
+                    cmds = concat(cmds, InputArguments.getVmInputArgs());
+                }
                 cmds = concat(cmds, testMainClassName);
 
                 OutputAnalyzer oa = ProcessTools.executeTestJvm(cmds);

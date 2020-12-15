@@ -323,6 +323,9 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
 }
 
 void InlineTypeBaseNode::store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) const {
+  if (kit->gvn().type(base)->isa_aryptr()) {
+    kit->C->set_flattened_accesses();
+  }
   // The inline type is embedded into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when storing the values.
   if (holder == NULL) {
@@ -593,6 +596,9 @@ InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInline
 
 // GraphKit wrapper for the 'make_from_flattened' method
 InlineTypeNode* InlineTypeNode::make_from_flattened(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) {
+  if (kit->gvn().type(obj)->isa_aryptr()) {
+    kit->C->set_flattened_accesses();
+  }
   // Create and initialize an InlineTypeNode by loading all field values from
   // a flattened inline type field at 'holder_offset' or from an inline type array.
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk);
