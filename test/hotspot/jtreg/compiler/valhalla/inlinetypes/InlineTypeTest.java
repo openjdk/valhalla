@@ -162,8 +162,8 @@ public abstract class InlineTypeTest {
     private static final String[] printFlags = {
         "-XX:+PrintCompilation", "-XX:+PrintIdeal", "-XX:+UnlockDiagnosticVMOptions", "-XX:+PrintOptoAssembly"};
     private static final String[] verifyFlags = {
-        "-XX:+VerifyOops", "-XX:+VerifyStack", "-XX:+VerifyLastFrame", "-XX:+VerifyBeforeGC", "-XX:+VerifyAfterGC",
-        "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing"};
+        "-XX:+UnlockDiagnosticVMOptions", "-XX:+VerifyOops", "-XX:+VerifyStack", "-XX:+VerifyLastFrame",
+        "-XX:+VerifyBeforeGC", "-XX:+VerifyAfterGC", "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing"};
 
     protected static final int InlineTypePassFieldsAsArgsOn = 0x1;
     protected static final int InlineTypePassFieldsAsArgsOff = 0x2;
@@ -848,7 +848,8 @@ public abstract class InlineTypeTest {
     }
 
     static private TriState compiledByC2(Method m) {
-        if (!USE_COMPILER || XCOMP || TEST_C1) {
+        if (!USE_COMPILER || XCOMP || TEST_C1 ||
+            (STRESS_CC && !WHITE_BOX.isMethodCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false))) {
             return TriState.Maybe;
         }
         if (WHITE_BOX.isMethodCompiled(m, false) &&

@@ -708,13 +708,13 @@ class AdapterHandlerEntry : public BasicHashtableEntry<mtCode> {
   AdapterHandlerEntry();
 
  public:
-  address get_i2c_entry()                  const { return _i2c_entry; }
-  address get_c2i_entry()                  const { return _c2i_entry; }
+  address get_i2c_entry()                   const { return _i2c_entry; }
+  address get_c2i_entry()                   const { return _c2i_entry; }
   address get_c2i_inline_entry()            const { return _c2i_inline_entry; }
   address get_c2i_inline_ro_entry()         const { return _c2i_inline_ro_entry; }
-  address get_c2i_unverified_entry()       const { return _c2i_unverified_entry; }
+  address get_c2i_unverified_entry()        const { return _c2i_unverified_entry; }
   address get_c2i_unverified_inline_entry() const { return _c2i_unverified_inline_entry; }
-  address get_c2i_no_clinit_check_entry()  const { return _c2i_no_clinit_check_entry; }
+  address get_c2i_no_clinit_check_entry()   const { return _c2i_no_clinit_check_entry; }
 
   address base_address();
   void relocate(address new_base);
