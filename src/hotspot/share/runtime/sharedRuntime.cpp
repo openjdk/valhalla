@@ -2377,27 +2377,14 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
   // Remap BasicTypes that are handled equivalently by the adapters.
   // These are correct for the current system but someday it might be
   // necessary to make this mapping platform dependent.
-  static int adapter_encoding(BasicType in, bool is_inlinetype) {
+  static BasicType adapter_encoding(BasicType in) {
     switch (in) {
       case T_BOOLEAN:
       case T_BYTE:
       case T_SHORT:
-      case T_CHAR: {
-        if (is_inlinetype) {
-          // Do not widen inline type field types
-          assert(InlineTypePassFieldsAsArgs, "must be enabled");
-          return in;
-        } else {
-          // They are all promoted to T_INT in the calling convention
-          return T_INT;
-        }
-      }
-
-      case T_INLINE_TYPE: {
-        // If inline types are passed as fields, return 'in' to differentiate
-        // between a T_INLINE_TYPE and a T_OBJECT in the signature.
-        return InlineTypePassFieldsAsArgs ? in : adapter_encoding(T_OBJECT, false);
-      }
+      case T_CHAR:
+        // They are all promoted to T_INT in the calling convention
+        return T_INT;
 
       case T_OBJECT:
       case T_ARRAY:
@@ -2444,33 +2431,37 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
 
     // Now pack the BasicTypes with 8 per int
     int sig_index = 0;
-    BasicType prev_sbt = T_ILLEGAL;
+    BasicType prev_bt = T_ILLEGAL;
     int vt_count = 0;
     for (int index = 0; index < len; index++) {
       int value = 0;
       for (int byte = 0; byte < _basic_types_per_int; byte++) {
-        int bt = 0;
+        BasicType bt = T_ILLEGAL;
         if (sig_index < total_args_passed) {
-          BasicType sbt = sig->at(sig_index++)._bt;
-          if (InlineTypePassFieldsAsArgs && sbt == T_INLINE_TYPE) {
+          bt = sig->at(sig_index++)._bt;
+          if (bt == T_INLINE_TYPE) {
             // Found start of inline type in signature
-            vt_count++;
+            assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
             if (sig_index == 1 && has_ro_adapter) {
               // With a ro_adapter, replace receiver inline type delimiter by T_VOID to prevent matching
               // with other adapters that have the same inline type as first argument and no receiver.
-              sbt = T_VOID;
+              bt = T_VOID;
             }
-          } else if (InlineTypePassFieldsAsArgs && sbt == T_VOID &&
-                     prev_sbt != T_LONG && prev_sbt != T_DOUBLE) {
+            vt_count++;
+          } else if (bt == T_VOID && prev_bt != T_LONG && prev_bt != T_DOUBLE) {
             // Found end of inline type in signature
+            assert(InlineTypePassFieldsAsArgs, "unexpected end of inline type");
             vt_count--;
             assert(vt_count >= 0, "invalid vt_count");
+          } else if (vt_count == 0) {
+            // Widen fields that are not part of a scalarized inline type argument
+            bt = adapter_encoding(bt);
           }
-          bt = adapter_encoding(sbt, vt_count > 0);
-          prev_sbt = sbt;
+          prev_bt = bt;
         }
-        assert((bt & _basic_type_mask) == bt, "must fit in 4 bits");
-        value = (value << _basic_type_bits) | bt;
+        int bt_val = (bt == T_ILLEGAL) ? 0 : bt;
+        assert((bt_val & _basic_type_mask) == bt_val, "must fit in 4 bits");
+        value = (value << _basic_type_bits) | bt_val;
       }
       ptr[index] = value;
     }
@@ -2868,7 +2859,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
     _sig_cc_ro = _sig_cc;
     _regs_cc_ro = _regs_cc;
     _args_on_stack_cc_ro = _args_on_stack_cc;
-    if (_has_inline_recv || _args_on_stack_cc > _args_on_stack) {
+    if (_has_inline_recv) {
       // For interface calls, we need another entry point / adapter to unpack the receiver
       _args_on_stack_cc_ro = compute_scalarized_cc(_sig_cc_ro, _regs_cc_ro, /* scalar_receiver = */ false);
     }
