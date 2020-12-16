@@ -1626,7 +1626,6 @@ Compile::AliasType* Compile::find_alias_type(const TypePtr* adr_type, bool no_cr
       }
       int field_offset = flat->is_aryptr()->field_offset().get();
       if (elemtype->isa_inlinetype() &&
-          elemtype->inline_klass() != NULL &&
           field_offset != Type::OffsetBot) {
         ciInlineKlass* vk = elemtype->inline_klass();
         field_offset += vk->first_field_offset();
