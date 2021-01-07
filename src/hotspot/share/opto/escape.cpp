@@ -3372,7 +3372,7 @@ void ConnectionGraph::split_unique_types(GrowableArray<Node *>  &alloc_worklist,
               op == Op_FastLock || op == Op_AryEq || op == Op_StrComp || op == Op_HasNegatives ||
               op == Op_StrCompressedCopy || op == Op_StrInflatedCopy ||
               op == Op_StrEquals || op == Op_StrIndexOf || op == Op_StrIndexOfChar ||
-              op == Op_SubTypeCheck || op == Op_InlineType || op == Op_InlineTypePtr ||
+              op == Op_SubTypeCheck || op == Op_InlineType || op == Op_InlineTypePtr || op == Op_FlatArrayCheck ||
               BarrierSet::barrier_set()->barrier_set_c2()->is_gc_barrier_node(use))) {
           n->dump();
           use->dump();

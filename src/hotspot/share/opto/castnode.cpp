@@ -358,15 +358,17 @@ const Type* CheckCastPPNode::Value(PhaseGVN* phase) const {
   const TypePtr *in_type   = inn->isa_ptr();
   const TypePtr *my_type   = _type->isa_ptr();
   const Type *result = _type;
-  if( in_type != NULL && my_type != NULL ) {
-    if (my_type->isa_aryptr() && in_type->isa_aryptr()) {
+  if (in_type != NULL && my_type != NULL) {
+    if (!StressReflectiveCode && my_type->isa_aryptr() && in_type->isa_aryptr()) {
       // Propagate array properties (not flat/null-free)
+      // Don't do this when StressReflectiveCode is enabled because it might lead to
+      // a dying data path while the corresponding flat/null-free check is not folded.
       my_type = my_type->is_aryptr()->update_properties(in_type->is_aryptr());
       if (my_type == NULL) {
         return Type::TOP; // Inconsistent properties
       }
     }
-    TypePtr::PTR   in_ptr    = in_type->ptr();
+    TypePtr::PTR in_ptr = in_type->ptr();
     if (in_ptr == TypePtr::Null) {
       result = in_type;
     } else if (in_ptr == TypePtr::Constant) {

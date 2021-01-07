@@ -4748,7 +4748,8 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
            (tap->_klass_is_exact && !tap->klass()->is_subtype_of(klass())) ||
            // 'this' is exact and super or unrelated:
            (this->_klass_is_exact && !klass()->is_subtype_of(tap->klass())))) {
-      if (above_centerline(ptr) || (tary->_elem->make_ptr() && above_centerline(tary->_elem->make_ptr()->_ptr))) {
+      if (above_centerline(ptr) || (tary->_elem->make_ptr() && above_centerline(tary->_elem->make_ptr()->_ptr)) ||
+          tary->_elem->isa_inlinetype()) {
         tary = TypeAry::make(Type::BOTTOM, tary->_size, tary->_stable, tary->_not_flat, tary->_not_null_free);
       }
       return make(NotNull, NULL, tary, lazy_klass, false, off, field_off, InstanceBot, speculative, depth);

@@ -190,6 +190,7 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
   const Type* src_type = phase->type(base_src);
 
   MergeMemNode* mem = phase->transform(MergeMemNode::make(in_mem))->as_MergeMem();
+  phase->record_for_igvn(mem);
 
   const TypeInstPtr* inst_src = src_type->isa_instptr();
 

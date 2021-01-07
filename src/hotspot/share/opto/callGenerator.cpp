@@ -530,19 +530,21 @@ void LateInlineCallGenerator::do_late_inline() {
       } else {
         // Only possible with is_mh_late_inline() when the callee does not "know" that the caller expects an oop
         assert(is_mh_late_inline(), "sanity");
-        assert(!result->isa_InlineType()->is_allocated(&kit.gvn()), "already allocated");
         assert(buffer_oop != NULL, "should have allocated a buffer");
-        vt->store(&kit, buffer_oop, buffer_oop, vt->type()->inline_klass());
-        // Do not let stores that initialize this buffer be reordered with a subsequent
-        // store that would make this buffer accessible by other threads.
-        AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer_oop, &kit.gvn());
-        assert(alloc != NULL, "must have an allocation node");
-        kit.insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
-        // Convert to InlineTypePtrNode to keep track of field values
-        kit.gvn().hash_delete(vt);
-        vt->set_oop(buffer_oop);
+        // Result might still be allocated (for example, if it has been stored to a non-flattened field)
+        if (!vt->is_allocated(&kit.gvn())) {
+          vt->store(&kit, buffer_oop, buffer_oop, vt->type()->inline_klass());
+          // Do not let stores that initialize this buffer be reordered with a subsequent
+          // store that would make this buffer accessible by other threads.
+          AllocateNode* alloc = AllocateNode::Ideal_allocation(buffer_oop, &kit.gvn());
+          assert(alloc != NULL, "must have an allocation node");
+          kit.insert_mem_bar(Op_MemBarStoreStore, alloc->proj_out_or_null(AllocateNode::RawAddress));
+          kit.gvn().hash_delete(vt);
+          vt->set_oop(buffer_oop);
+          vt = kit.gvn().transform(vt)->as_InlineType();
+        }
         DEBUG_ONLY(buffer_oop = NULL);
-        vt = kit.gvn().transform(vt)->as_InlineType();
+        // Convert to InlineTypePtrNode to keep track of field values
         result = vt->as_ptr(&kit.gvn());
       }
     }
@@ -988,6 +990,9 @@ static void cast_argument(int nargs, int arg_nb, ciType* t, GraphKit& kit) {
   Node* arg = kit.argument(arg_nb);
   const Type* arg_type = arg->bottom_type();
   const Type* sig_type = TypeOopPtr::make_from_klass(t->as_klass());
+  if (t->as_klass()->is_inlinetype()) {
+    sig_type = sig_type->join_speculative(TypePtr::NOTNULL);
+  }
   if (arg_type->isa_oopptr() && !arg_type->higher_equal(sig_type)) {
     const Type* narrowed_arg_type = arg_type->join_speculative(sig_type); // keep speculative part
     arg = gvn.transform(new CheckCastPPNode(kit.control(), arg, narrowed_arg_type));
