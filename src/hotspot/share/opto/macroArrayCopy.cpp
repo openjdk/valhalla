@@ -1299,7 +1299,7 @@ const TypePtr* PhaseMacroExpand::adjust_for_flat_array(const TypeAryPtr* top_des
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
   bool needs_barriers = top_dest->elem()->inline_klass()->contains_oops() &&
                         bs->array_copy_requires_gc_barriers(dest_length != NULL, T_OBJECT, false, BarrierSetC2::Optimization);
-  assert(!needs_barriers, "Flat arracopy would require GC barriers");
+  assert(!needs_barriers || StressReflectiveCode, "Flat arracopy would require GC barriers");
 #endif
   int elem_size = top_dest->klass()->as_flat_array_klass()->element_byte_size();
   if (elem_size >= 8) {
@@ -1374,7 +1374,7 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
 
     const TypePtr* adr_type = NULL;
     if (dest_elem == T_INLINE_TYPE) {
-      assert(dest_length != NULL, "must be tightly coupled");
+      assert(dest_length != NULL || StressReflectiveCode, "must be tightly coupled");
       // Copy to a flat array modifies multiple memory slices. Conservatively insert a barrier
       // on all slices to prevent writes into the source from floating below the arraycopy.
       insert_mem_bar(&ctrl, &mem, Op_MemBarCPUOrder);
@@ -1456,7 +1456,8 @@ void PhaseMacroExpand::expand_arraycopy_node(ArrayCopyNode *ac) {
     return;
   }
 
-  assert(!ac->is_arraycopy_validated() || (src_elem == dest_elem && dest_elem != T_VOID), "validated but different basic types");
+  assert(!ac->is_arraycopy_validated() || (src_elem == dest_elem && dest_elem != T_VOID) ||
+         (src_elem == T_INLINE_TYPE && StressReflectiveCode), "validated but different basic types");
 
   // (2) src and dest arrays must have elements of the same BasicType
   // Figure out the size and type of the elements we will be copying.

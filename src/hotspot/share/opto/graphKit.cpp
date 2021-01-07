@@ -3659,7 +3659,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     }
   }
 
-  if (!from_inline) {
+  if (!stopped() && !from_inline) {
     res = record_profiled_receiver_for_speculation(res);
     if (to_inline && toop->inline_klass()->is_scalarizable()) {
       assert(!gvn().type(res)->maybe_null(), "Inline types are null-free");
@@ -3918,7 +3918,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
   if (!StressReflectiveCode && inst_klass != NULL) {
     ciKlass* klass = inst_klass->klass();
     assert(klass != NULL, "klass should not be NULL");
-    bool    xklass = inst_klass->klass_is_exact();
+    bool xklass = inst_klass->klass_is_exact();
     bool can_be_flattened = false;
     if (UseFlatArray && klass->is_obj_array_klass()) {
       ciKlass* elem = klass->as_obj_array_klass()->element_klass();

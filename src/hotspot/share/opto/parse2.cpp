@@ -298,7 +298,7 @@ void Parse::array_store(BasicType bt) {
         // Ignore empty inline stores, array is already initialized.
         return;
       }
-    } else if (!ary_t->is_not_flat() && tval != TypePtr::NULL_PTR) {
+    } else if (!ary_t->is_not_flat() && (tval != TypePtr::NULL_PTR || StressReflectiveCode)) {
       // Array might be flattened, emit runtime checks (for NULL, a simple inline_array_null_guard is sufficient).
       assert(UseFlatArray && !not_flattened && elemtype->is_oopptr()->can_be_inline_type() &&
              !ary_t->klass_is_exact() && !ary_t->is_not_null_free(), "array can't be flattened");
@@ -307,9 +307,9 @@ void Parse::array_store(BasicType bt) {
         // non-flattened
         assert(ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
         sync_kit(ideal);
-        inline_array_null_guard(ary, cast_val, 3);
+        Node* cast_ary = inline_array_null_guard(ary, cast_val, 3);
         inc_sp(3);
-        access_store_at(ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
+        access_store_at(cast_ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
         dec_sp(3);
         ideal.sync_kit(this);
       } ideal.else_(); {
@@ -2159,7 +2159,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     }
   }
 
- if (UseTypeSpeculation) {
+  if (UseTypeSpeculation) {
     record_profile_for_speculation(left, left_type, left_ptr);
     record_profile_for_speculation(right, right_type, right_ptr);
   }
