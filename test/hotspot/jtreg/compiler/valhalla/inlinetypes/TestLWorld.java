@@ -2457,7 +2457,7 @@ public class TestLWorld extends InlineTypeTest {
                     }
                 }
                 boolean compiled = isCompiledByC2(m);
-                Asserts.assertTrue(!USE_COMPILER || XCOMP || STRESS_CC || TEST_C1 || compiled || (j != extra-1));
+                Asserts.assertTrue(!USE_COMPILER || XCOMP || STRESS_CC || TEST_C1 || !ProfileInterpreter || compiled || (j != extra-1));
                 if (!compiled) {
                     enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
                 }
