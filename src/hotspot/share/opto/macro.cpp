@@ -1195,7 +1195,7 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
     // are already replaced with SafePointScalarObject because
     // we can't search for a fields value without instance_id.
     if (safepoints.length() > 0) {
-      assert(!inline_alloc, "Inline type allocations should not have safepoint uses");
+      assert(!inline_alloc || !tklass->klass()->as_inline_klass()->is_scalarizable(), "Scalarizable inline type allocations should not have safepoint uses");
       return false;
     }
   }

@@ -2411,7 +2411,7 @@ bool LibraryCallKit::inline_unsafe_access(bool is_store, const BasicType type, c
     Node* p = NULL;
     // Try to constant fold a load from a constant field
 
-    if (heap_base_oop != top() && field != NULL && field->is_constant() && !mismatched) {
+    if (heap_base_oop != top() && field != NULL && field->is_constant() && !field->is_flattened() && !mismatched) {
       // final or stable field
       p = make_constant_from_field(field, heap_base_oop);
     }

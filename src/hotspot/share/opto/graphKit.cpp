@@ -4682,11 +4682,12 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
                                                         /*is_unsigned_load=*/false);
   if (con_type != NULL) {
     Node* con = makecon(con_type);
-    assert(!field->type()->is_inlinetype() || (field->is_static() && !con_type->is_zero_type()), "sanity");
     // Check type of constant which might be more precise
     if (con_type->is_inlinetypeptr() && con_type->inline_klass()->is_scalarizable()) {
-      // Load inline type from constant oop
+      assert(!con_type->is_zero_type(), "Inline types are null-free");
       con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass());
+    } else if (con_type->is_zero_type() && field->type()->is_inlinetype()) {
+      con = InlineTypeNode::default_oop(gvn(), field->type()->as_inline_klass());
     }
     return con;
   }

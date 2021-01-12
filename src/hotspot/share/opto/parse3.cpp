@@ -121,7 +121,7 @@ void Parse::do_field_access(bool is_get, bool is_field) {
 void Parse::do_get_xxx(Node* obj, ciField* field) {
   BasicType bt = field->layout_type();
   // Does this field have a constant value?  If so, just push the value.
-  if (field->is_constant() &&
+  if (field->is_constant() && !field->is_flattened() &&
       // Keep consistent with types found by ciTypeFlow: for an
       // unloaded field type, ciTypeFlow::StateVector::do_getstatic()
       // speculates the field is null. The code in the rest of this

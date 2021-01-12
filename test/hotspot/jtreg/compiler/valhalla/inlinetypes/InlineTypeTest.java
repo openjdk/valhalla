@@ -194,6 +194,7 @@ public abstract class InlineTypeTest {
     protected static final long TypeProfileLevel = (Long)WHITE_BOX.getVMFlag("TypeProfileLevel");
     protected static final boolean UseACmpProfile = (Boolean)WHITE_BOX.getVMFlag("UseACmpProfile");
     protected static final long PerMethodTrapLimit = (Long)WHITE_BOX.getVMFlag("PerMethodTrapLimit");
+    protected static final boolean ProfileInterpreter = (Boolean)WHITE_BOX.getVMFlag("ProfileInterpreter");
 
     protected static final Hashtable<String, Method> tests = new Hashtable<String, Method>();
     protected static final boolean USE_COMPILER = WHITE_BOX.getBooleanVMFlag("UseCompiler");
@@ -849,7 +850,7 @@ public abstract class InlineTypeTest {
     }
 
     static private TriState compiledByC2(Method m) {
-        if (!USE_COMPILER || XCOMP || TEST_C1 || (PerMethodTrapLimit == 0) ||
+        if (!USE_COMPILER || XCOMP || TEST_C1 ||
             (STRESS_CC && !WHITE_BOX.isMethodCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false))) {
             return TriState.Maybe;
         }
@@ -865,7 +866,7 @@ public abstract class InlineTypeTest {
     }
 
     static void assertDeoptimizedByC2(Method m) {
-        if (compiledByC2(m) == TriState.Yes) {
+        if (compiledByC2(m) == TriState.Yes && PerMethodTrapLimit != 0 && ProfileInterpreter) {
             throw new RuntimeException("Expected to have deoptimized");
         }
     }
