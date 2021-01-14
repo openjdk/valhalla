@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,7 +25,6 @@ import java.io.FilePermission;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.module.ModuleFinder;
-import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.InaccessibleObjectException;
@@ -43,7 +42,6 @@ import java.security.Policy;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
@@ -52,7 +50,6 @@ import java.util.PropertyPermission;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import jdk.internal.module.Modules;
 
@@ -63,7 +60,6 @@ import jdk.internal.module.Modules;
  *          be set accessible if the right permission is granted; this test
  *          loads all classes and get their declared fields
  *          and call setAccessible(false) followed by setAccessible(true);
- *          Except for fields of inline classes that are never settable
  * @modules java.base/jdk.internal.module
  * @run main/othervm --add-modules=ALL-SYSTEM FieldSetAccessibleTest UNSECURE
  * @run main/othervm --add-modules=ALL-SYSTEM FieldSetAccessibleTest SECURE
@@ -96,9 +92,7 @@ public class FieldSetAccessibleTest {
             // otherwise it would fail.
             boolean isPublic = Modifier.isPublic(f.getModifiers()) &&
                 Modifier.isPublic(c.getModifiers());
-            boolean access = !c.isInlineClass() &&
-                    ((exported && isPublic) || target.isOpen(pn, self));
-
+            boolean access = ((exported && isPublic) || target.isOpen(pn, self));
             try {
                 f.setAccessible(false);
                 f.setAccessible(true);
