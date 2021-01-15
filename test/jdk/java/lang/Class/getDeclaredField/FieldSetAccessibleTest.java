@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014, 2021, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -25,6 +25,7 @@ import java.io.FilePermission;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.lang.module.ModuleFinder;
+import java.lang.reflect.AccessibleObject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.InaccessibleObjectException;
@@ -42,6 +43,7 @@ import java.security.Policy;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
@@ -50,6 +52,7 @@ import java.util.PropertyPermission;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import jdk.internal.module.Modules;
 
@@ -91,15 +94,15 @@ public class FieldSetAccessibleTest {
             // is public and of a public class, or it's opened
             // otherwise it would fail.
             boolean isPublic = Modifier.isPublic(f.getModifiers()) &&
-                Modifier.isPublic(c.getModifiers());
-            boolean access = ((exported && isPublic) || target.isOpen(pn, self));
+                    Modifier.isPublic(c.getModifiers());
+            boolean access = (exported && isPublic) || target.isOpen(pn, self);
             try {
                 f.setAccessible(false);
                 f.setAccessible(true);
                 if (!access) {
                     throw new RuntimeException(
-                        String.format("Expected InaccessibleObjectException is not thrown "
-                                      + "for field %s in class %s%n", f.getName(), c.getName()));
+                            String.format("Expected InaccessibleObjectException is not thrown "
+                                    + "for field %s in class %s%n", f.getName(), c.getName()));
                 }
             } catch (InaccessibleObjectException expected) {
                 if (access) {
@@ -273,7 +276,7 @@ public class FieldSetAccessibleTest {
                         .map(p -> p.subpath(2, p.getNameCount()))
                         .map(p -> p.toString())
                         .filter(s -> s.endsWith(".class") && !s.endsWith("module-info.class"))
-                    .iterator();
+                        .iterator();
             } catch(IOException x) {
                 throw new UncheckedIOException("Unable to walk \"/modules\"", x);
             }
@@ -284,14 +287,14 @@ public class FieldSetAccessibleTest {
          */
         static Set<String> systemModules() {
             Set<String> mods = Set.of("javafx.deploy", "jdk.deploy", "jdk.plugin", "jdk.javaws",
-                // All JVMCI packages other than jdk.vm.ci.services are dynamically
-                // exported to jdk.internal.vm.compiler and jdk.aot
-                "jdk.internal.vm.compiler", "jdk.aot"
+                    // All JVMCI packages other than jdk.vm.ci.services are dynamically
+                    // exported to jdk.internal.vm.compiler and jdk.aot
+                    "jdk.internal.vm.compiler", "jdk.aot"
             );
             return ModuleFinder.ofSystem().findAll().stream()
-                               .map(mref -> mref.descriptor().name())
-                               .filter(mn -> !mods.contains(mn))
-                               .collect(Collectors.toSet());
+                    .map(mref -> mref.descriptor().name())
+                    .filter(mn -> !mods.contains(mn))
+                    .collect(Collectors.toSet());
         }
     }
 
