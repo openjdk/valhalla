@@ -25,8 +25,8 @@
 
 /**
  * @test
- * @bug 8257846 
- * @summary Separate compilation failure of generic inline class	
+ * @bug 8257846
+ * @summary Separate compilation failure of generic inline class
  * @compile Range.java
  * @run main SeparateCompileGenerics
  */
