@@ -48,32 +48,32 @@ public class TestGenerated {
             f2 = array[0];
         }
     }
-    
+
     MyValue1 test2(MyValue1[] array) {
         MyValue1 res = MyValue1.default;
         for (int i = 0; i < array.length; ++i) {
             res = array[i];
         }
         for (int i = 0; i < 1000; ++i) {
-        
+
         }
         return res;
     }
-    
+
     void test3(MyValue1[] array) {
         for (int i = 0; i < array.length; ++i) {
             array[i] = MyValue1.default;
         }
         for (int i = 0; i < 1000; ++i) {
-        
+
         }
     }
-  
+
     public static void main(String[] args) {
         TestGenerated t = new TestGenerated();
         EmptyValue[] array1 = { new EmptyValue() };
         MyValue1[] array2 = new MyValue1[10];
-        
+
         for (int i = 0; i < 50_000; ++i) {
             t.test1(array1);
             t.test2(array2);
