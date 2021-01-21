@@ -1905,17 +1905,19 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (x->should_profile()) {
-    ciMethodData* md = NULL;
-    ciArrayLoadStoreData* load_store = NULL;
-    profile_array_type(x, md, load_store);
-    if (is_loaded_flattened_array) {
-      int flag = ArrayLoadStoreData::flat_array_byte_constant() | ArrayLoadStoreData::null_free_array_byte_constant();
-      assert(md != NULL, "should have been initialized");
-      profile_flags(md, load_store, flag);
-    } else if (x->array()->maybe_null_free_array()) {
-      profile_null_free_array(array, md, load_store);
+    if (x->array()->is_loaded_flattened_array()) {
+      // No need to profile a store to a flattened array of known type. This can happen if
+      // the type only became known after optimizations (for example, after the PhiSimplifier).
+      x->set_should_profile(false);
+    } else {
+      ciMethodData* md = NULL;
+      ciArrayLoadStoreData* load_store = NULL;
+      profile_array_type(x, md, load_store);
+      if (x->array()->maybe_null_free_array()) {
+        profile_null_free_array(array, md, load_store);
+      }
+      profile_element_type(x->value(), md, load_store);
     }
-    profile_element_type(x->value(), md, load_store);
   }
 
   if (GenerateArrayStoreCheck && needs_store_check) {
@@ -2277,33 +2279,31 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   ciMethodData* md = NULL;
   ciArrayLoadStoreData* load_store = NULL;
   if (x->should_profile()) {
-    profile_array_type(x, md, load_store);
+    if (x->array()->is_loaded_flattened_array()) {
+      // No need to profile a load from a flattened array of known type. This can happen if
+      // the type only became known after optimizations (for example, after the PhiSimplifier).
+      x->set_should_profile(false);
+    } else {
+      profile_array_type(x, md, load_store);
+    }
   }
 
   Value element;
   if (x->vt() != NULL) {
     assert(x->array()->is_loaded_flattened_array(), "must be");
     // Find the destination address (of the NewInlineTypeInstance).
-    // LIR_Opr obj = x->vt()->operand();
     LIRItem obj_item(x->vt(), this);
 
     access_flattened_array(true, array, index, obj_item,
                            x->delayed() == NULL ? 0 : x->delayed()->field(),
                            x->delayed() == NULL ? 0 : x->delayed()->offset());
     set_no_result(x);
-    element = x->vt();
-    if (x->should_profile()) {
-      fatal("Loaded flattened array should not be profiled");
-      int flag = ArrayLoadStoreData::flat_array_byte_constant() | ArrayLoadStoreData::null_free_array_byte_constant();
-      profile_flags(md, load_store, flag);
-    }
   } else if (x->delayed() != NULL) {
     assert(x->array()->is_loaded_flattened_array(), "must be");
     LIR_Opr result = rlock_result(x, x->delayed()->field()->type()->basic_type());
     access_sub_element(array, index, result,
                        x->delayed() == NULL ? 0 : x->delayed()->field(),
                        x->delayed() == NULL ? 0 : x->delayed()->offset());
-    assert(!x->should_profile(), "Loaded flattened array should not be profiled");
   } else if (x->array() != NULL && x->array()->is_loaded_flattened_array() &&
              x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
     // Load the default instance instead of reading the element

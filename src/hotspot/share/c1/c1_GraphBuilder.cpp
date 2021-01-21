@@ -1062,15 +1062,15 @@ void GraphBuilder::load_indexed(BasicType type) {
     }
   } else {
     load_indexed = new LoadIndexed(array, index, length, type, state_before);
-  }
-  if (profile_array_accesses() && is_reference_type(type) && !array->is_loaded_flattened_array()) {
-    compilation()->set_would_profile(true);
-    load_indexed->set_should_profile(true);
-    load_indexed->set_profiled_method(method());
-    load_indexed->set_profiled_bci(bci());
+    if (profile_array_accesses() && is_reference_type(type)) {
+      compilation()->set_would_profile(true);
+      load_indexed->set_should_profile(true);
+      load_indexed->set_profiled_method(method());
+      load_indexed->set_profiled_bci(bci());
+    }
   }
   result = append(load_indexed);
-  assert(!(profile_array_accesses() && is_reference_type(type)) || load_indexed == result, "should not be optimized out");
+  assert(!load_indexed->should_profile() || load_indexed == result, "should not be optimized out");
   if (!array->is_loaded_flattened_array()) {
     push(as_ValueType(type), result);
   }
@@ -1112,7 +1112,7 @@ void GraphBuilder::store_indexed(BasicType type) {
   }
 
   StoreIndexed* store_indexed = new StoreIndexed(array, index, length, type, value, state_before, check_boolean);
-  if (profile_array_accesses() && is_reference_type(type)) {
+  if (profile_array_accesses() && is_reference_type(type) && !array->is_loaded_flattened_array()) {
     compilation()->set_would_profile(true);
     store_indexed->set_should_profile(true);
     store_indexed->set_profiled_method(method());
@@ -1121,7 +1121,6 @@ void GraphBuilder::store_indexed(BasicType type) {
   Instruction* result = append(store_indexed);
   assert(!store_indexed->should_profile() || store_indexed == result, "should not be optimized out");
   _memory->store_value(value);
-
 }
 
 void GraphBuilder::stack_op(Bytecodes::Code code) {
