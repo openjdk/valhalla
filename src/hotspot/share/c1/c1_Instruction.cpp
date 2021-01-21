@@ -238,7 +238,7 @@ ciType* Constant::exact_type() const {
 
 ciType* LoadIndexed::exact_type() const {
   ciType* array_type = array()->exact_type();
-  if (array_type != NULL) {
+  if (delayed() != NULL && array_type != NULL) {
     assert(array_type->is_array_klass(), "what else?");
     ciArrayKlass* ak = (ciArrayKlass*)array_type;
 
@@ -252,8 +252,10 @@ ciType* LoadIndexed::exact_type() const {
   return Instruction::exact_type();
 }
 
-
 ciType* LoadIndexed::declared_type() const {
+  if (delayed() != NULL) {
+    return delayed()->field()->type();
+  }
   ciType* array_type = array()->declared_type();
   if (array_type == NULL || !array_type->is_loaded()) {
     return NULL;
