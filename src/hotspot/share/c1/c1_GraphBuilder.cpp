@@ -1912,6 +1912,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             obj = pending_field_access()->obj();
             offset += pending_field_access()->offset() - field->holder()->as_inline_klass()->first_field_offset();
             field = pending_field_access()->field()->holder()->get_field_by_offset(offset, false);
+            assert(field != NULL, "field not found");
             set_pending_field_access(NULL);
           } else if (has_pending_load_indexed()) {
             assert(!needs_patching, "Can't patch delayed field access");
@@ -1963,7 +1964,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             if (has_pending_load_indexed()) {
               pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
             } else if (has_pending_field_access()) {
-              pending_field_access()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+              pending_field_access()->inc_offset(offset - field->holder()->as_inline_klass()->first_field_offset());
             } else {
               null_check(obj);
               DelayedFieldAccess* dfa = new DelayedFieldAccess(obj, field, field->offset());

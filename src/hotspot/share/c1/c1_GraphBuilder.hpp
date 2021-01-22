@@ -37,22 +37,17 @@ class MemoryBuffer;
 
 class DelayedFieldAccess : public CompilationResourceObj {
 private:
-  Value _obj;
+  Value    _obj;
   ciField* _field;
-  int _offset;
+  int      _offset;
 public:
   DelayedFieldAccess(Value obj, ciField* field, int offset)
-  : _obj(obj)
-  , _field(field)
-  , _offset(offset) { }
+  : _obj(obj), _field(field) , _offset(offset) { }
 
-  void update(ciField* field, int offset) {
-    _field = field;
-    _offset += offset;
-  }
-  Value obj() { return _obj; }
-  ciField* field() { return _field; }
-  int offset() { return _offset; }
+  Value obj() const           { return _obj; }
+  ciField* field() const      { return _field; }
+  int offset() const          { return _offset; }
+  void inc_offset(int offset) { _offset += offset; }
 };
 
 class GraphBuilder {
