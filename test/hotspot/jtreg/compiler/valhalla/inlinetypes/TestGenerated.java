@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8260034 8260225
+ * @bug 8260034 8260225 8260283
  * @summary Generated inline type tests.
  * @run main/othervm -Xbatch compiler.valhalla.inlinetypes.TestGenerated
  */
@@ -78,6 +78,17 @@ public class TestGenerated {
         return array[0].array[0];
     }
 
+    long f3;
+    MyValue1 f4 = new MyValue1();
+
+    void test6() {
+        f3 = 123L;
+        int res = f4.x;
+        if (res != 42) {
+            throw new RuntimeException("test6 failed");
+        }
+    }
+
     public static void main(String[] args) {
         TestGenerated t = new TestGenerated();
         EmptyValue[] array1 = { new EmptyValue() };
@@ -90,6 +101,7 @@ public class TestGenerated {
             t.test3(array2);
             t.test4(array3);
             t.test5(array3);
+            t.test6();
         }
     }
 }
