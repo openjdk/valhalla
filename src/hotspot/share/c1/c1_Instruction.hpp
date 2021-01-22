@@ -1012,7 +1012,7 @@ LEAF(LoadIndexed, AccessIndexed)
   NewInlineTypeInstance* vt() const { return _vt; }
   void set_vt(NewInlineTypeInstance* vt) { _vt = vt; }
 
-  DelayedLoadIndexed* delayed() { return _delayed; }
+  DelayedLoadIndexed* delayed() const { return _delayed; }
   void set_delayed(DelayedLoadIndexed* delayed) { _delayed = delayed; }
 
   // generic

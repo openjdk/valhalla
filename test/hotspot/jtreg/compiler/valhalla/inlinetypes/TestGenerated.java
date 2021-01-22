@@ -23,7 +23,7 @@
 
 /**
  * @test
- * @bug 8260034
+ * @bug 8260034 8260225
  * @summary Generated inline type tests.
  * @run main/othervm -Xbatch compiler.valhalla.inlinetypes.TestGenerated
  */
@@ -36,6 +36,7 @@ inline class EmptyValue {
 
 inline class MyValue1 {
     int x = 42;
+    int[] array = new int[1];
 }
 
 public class TestGenerated {
@@ -69,15 +70,26 @@ public class TestGenerated {
         }
     }
 
+    void test4(MyValue1[] array) {
+        array[0].array[0] = 0;
+    }
+
+    int test5(MyValue1[] array) {
+        return array[0].array[0];
+    }
+
     public static void main(String[] args) {
         TestGenerated t = new TestGenerated();
         EmptyValue[] array1 = { new EmptyValue() };
         MyValue1[] array2 = new MyValue1[10];
+        MyValue1[] array3 = { new MyValue1() };
 
         for (int i = 0; i < 50_000; ++i) {
             t.test1(array1);
             t.test2(array2);
             t.test3(array2);
+            t.test4(array3);
+            t.test5(array3);
         }
     }
 }
