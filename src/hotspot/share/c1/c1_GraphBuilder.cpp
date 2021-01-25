@@ -1820,7 +1820,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
     }
   }
 
-  const int offset = !needs_patching ? field->offset() : -1;
+  int offset = !needs_patching ? field->offset() : -1;
   switch (code) {
     case Bytecodes::_getstatic: {
       // check for compile-time constants, i.e., initialized static final fields
@@ -1907,12 +1907,12 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           state_before = copy_state_for_exception();
         }
         if (!field->is_flattened()) {
-          LoadField* load;
           if (has_pending_field_access()) {
             assert(!needs_patching, "Can't patch delayed field access");
-            load = new LoadField(pending_field_access()->obj(),
-                                 pending_field_access()->offset() + offset - field->holder()->as_inline_klass()->first_field_offset(),
-                                 field, false, state_before, needs_patching);
+            obj = pending_field_access()->obj();
+            offset += pending_field_access()->offset() - field->holder()->as_inline_klass()->first_field_offset();
+            field = pending_field_access()->holder()->get_field_by_offset(offset, false);
+            assert(field != NULL, "field not found");
             set_pending_field_access(NULL);
           } else if (has_pending_load_indexed()) {
             assert(!needs_patching, "Can't patch delayed field access");
@@ -1922,9 +1922,8 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             push(type, append(li));
             set_pending_load_indexed(NULL);
             break;
-          } else {
-            load = new LoadField(obj, offset, field, false, state_before, needs_patching);
           }
+          LoadField* load = new LoadField(obj, offset, field, false, state_before, needs_patching);
           Value replacement = !needs_patching ? _memory->load(load) : load;
           if (replacement != load) {
             assert(replacement->is_linked() || !replacement->can_be_linked(), "should already by linked");
@@ -1965,10 +1964,10 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
             if (has_pending_load_indexed()) {
               pending_load_indexed()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
             } else if (has_pending_field_access()) {
-              pending_field_access()->update(field, offset - field->holder()->as_inline_klass()->first_field_offset());
+              pending_field_access()->inc_offset(offset - field->holder()->as_inline_klass()->first_field_offset());
             } else {
               null_check(obj);
-              DelayedFieldAccess* dfa = new DelayedFieldAccess(obj, field, field->offset());
+              DelayedFieldAccess* dfa = new DelayedFieldAccess(obj, field->holder(), field->offset());
               set_pending_field_access(dfa);
             }
           } else {
