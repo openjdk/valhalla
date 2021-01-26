@@ -48,11 +48,9 @@ public class UninitializedInlineValueTest {
     static inline class InlineValue {
         Object o;
         EmptyInline empty;
-        volatile EmptyInline vempty;
         InlineValue() {
             this.o = null;
             this.empty = new EmptyInline();
-            this.vempty = new EmptyInline();
         }
     }
 
@@ -81,11 +79,6 @@ public class UninitializedInlineValueTest {
         assertTrue(f1.getType() == EmptyInline.class);
         EmptyInline empty = (EmptyInline)f1.get(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
-
-        Field f2 = v.getClass().getDeclaredField("vempty");
-        assertTrue(f2.getType() == EmptyInline.class);
-        EmptyInline vempty = (EmptyInline)f2.get(v);
-        assertTrue(vempty.isEmpty());        // test if vempty is non-null with default value
     }
 
     @Test
@@ -118,10 +111,6 @@ public class UninitializedInlineValueTest {
         MethodHandle mh = MethodHandles.lookup().findGetter(InlineValue.class, "empty", EmptyInline.class);
         EmptyInline empty = (EmptyInline) mh.invokeExact(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
-
-        MethodHandle mh1 = MethodHandles.lookup().findGetter(InlineValue.class, "vempty", EmptyInline.class);
-        EmptyInline vempty = (EmptyInline) mh1.invokeExact(v);
-        assertTrue(vempty.isEmpty());        // test if vempty is non-null with default value
     }
 
     @Test
@@ -131,7 +120,7 @@ public class UninitializedInlineValueTest {
         EmptyInline empty = (EmptyInline) getter.invokeExact(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
 
-        MethodHandle getter1 = MethodHandles.lookup().findGetter(InlineValue.class, "vempty", EmptyInline.class);
+        MethodHandle getter1 = MethodHandles.lookup().findGetter(MutableValue.class, "vempty", EmptyInline.class);
         EmptyInline vempty = (EmptyInline) getter1.invokeExact(v);
         assertTrue(vempty.isEmpty());        // test if vempty is non-null with default value
 
