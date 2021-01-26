@@ -36,7 +36,7 @@ class UnsafeQualifiedStaticObjectFieldAccessorImpl
 
     public Object get(Object obj) throws IllegalArgumentException {
         return isFlattened() ? unsafe.getValue(obj, fieldOffset, field.getType())
-                             : unsafe.getReferenceVolatile(base, fieldOffset);
+                             : unsafe.getReferenceVolatile(base, fieldOffset, field.getType());
     }
 
     public boolean getBoolean(Object obj) throws IllegalArgumentException {
