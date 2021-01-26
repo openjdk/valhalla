@@ -37,7 +37,7 @@ class UnsafeQualifiedObjectFieldAccessorImpl
     public Object get(Object obj) throws IllegalArgumentException {
         ensureObj(obj);
         return isFlattened() ? unsafe.getValue(obj, fieldOffset, field.getType())
-                             : unsafe.getReferenceVolatile(obj, fieldOffset);
+                             : unsafe.getReferenceVolatile(obj, fieldOffset, field.getType());
     }
 
     public boolean getBoolean(Object obj) throws IllegalArgumentException {
@@ -83,7 +83,7 @@ class UnsafeQualifiedObjectFieldAccessorImpl
         if (isFlattened()) {
             unsafe.putValue(obj, fieldOffset, field.getType(), value);
         } else {
-        unsafe.putReferenceVolatile(obj, fieldOffset, value);
+            unsafe.putReferenceVolatile(obj, fieldOffset, value);
         }
     }
 
