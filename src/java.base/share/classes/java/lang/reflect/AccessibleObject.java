@@ -305,13 +305,6 @@ public class AccessibleObject implements AnnotatedElement {
             throw new IllegalCallerException();   // should not happen
         }
 
-        int modifiers;
-        if (this instanceof Executable) {
-            modifiers = ((Executable) this).getModifiers();
-        } else {
-            modifiers = ((Field) this).getModifiers();
-        }
-
         Module callerModule = caller.getModule();
         Module declaringModule = declaringClass.getModule();
 
@@ -319,9 +312,16 @@ public class AccessibleObject implements AnnotatedElement {
         if (callerModule == Object.class.getModule()) return true;
         if (!declaringModule.isNamed()) return true;
 
+        String pn = declaringClass.getPackageName();
+        int modifiers;
+        if (this instanceof Executable) {
+            modifiers = ((Executable) this).getModifiers();
+        } else {
+            modifiers = ((Field) this).getModifiers();
+        }
+
         // class is public and package is exported to caller
         boolean isClassPublic = Modifier.isPublic(declaringClass.getModifiers());
-        String pn = declaringClass.getPackageName();
         if (isClassPublic && declaringModule.isExported(pn, callerModule)) {
             // member is public
             if (Modifier.isPublic(modifiers)) {
