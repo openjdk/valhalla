@@ -633,7 +633,6 @@ class MethodAccessorGenerator extends AccessorGenerator {
                                            count,
                                            count,
                                            typeSizeInStackSlots(returnType));
-
                 } else {
                     cb.opc_invokevirtual(targetMethodRef,
                                          count,
