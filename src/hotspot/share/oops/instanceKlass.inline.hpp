@@ -25,16 +25,148 @@
 #ifndef SHARE_OOPS_INSTANCEKLASS_INLINE_HPP
 #define SHARE_OOPS_INSTANCEKLASS_INLINE_HPP
 
+#include "classfile/javaClasses.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "memory/iterator.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/instanceKlass.hpp"
-#include "oops/klass.hpp"
+#include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "utilities/debug.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/macros.hpp"
+
+inline InstanceKlass* InstanceKlass::unsafe_anonymous_host() const {
+  InstanceKlass** hk = adr_unsafe_anonymous_host();
+  if (hk == NULL) {
+    assert(!is_unsafe_anonymous(), "Unsafe anonymous classes have host klasses");
+    return NULL;
+  } else {
+    assert(*hk != NULL, "host klass should always be set if the address is not null");
+    assert(is_unsafe_anonymous(), "Only unsafe anonymous classes have host klasses");
+    return *hk;
+  }
+}
+
+inline void InstanceKlass::set_unsafe_anonymous_host(const InstanceKlass* host) {
+  assert(is_unsafe_anonymous(), "not unsafe anonymous");
+  const InstanceKlass** addr = (const InstanceKlass **)adr_unsafe_anonymous_host();
+  assert(addr != NULL, "no reversed space");
+  if (addr != NULL) {
+    *addr = host;
+  }
+}
+
+inline intptr_t* InstanceKlass::start_of_itable()   const { return (intptr_t*)start_of_vtable() + vtable_length(); }
+inline intptr_t* InstanceKlass::end_of_itable()     const { return start_of_itable() + itable_length(); }
+
+inline int InstanceKlass::itable_offset_in_words() const { return start_of_itable() - (intptr_t*)this; }
+
+inline oop InstanceKlass::static_field_base_raw() { return java_mirror(); }
+
+inline OopMapBlock* InstanceKlass::start_of_nonstatic_oop_maps() const {
+  return (OopMapBlock*)(start_of_itable() + itable_length());
+}
+
+inline Klass** InstanceKlass::end_of_nonstatic_oop_maps() const {
+  return (Klass**)(start_of_nonstatic_oop_maps() +
+                   nonstatic_oop_map_count());
+}
+
+inline Klass* volatile* InstanceKlass::adr_implementor() const {
+  if (is_interface()) {
+    return (Klass* volatile*)end_of_nonstatic_oop_maps();
+  } else {
+    return NULL;
+  }
+}
+
+inline InstanceKlass** InstanceKlass::adr_unsafe_anonymous_host() const {
+  if (is_unsafe_anonymous()) {
+    InstanceKlass** adr_impl = (InstanceKlass**)adr_implementor();
+    if (adr_impl != NULL) {
+      return adr_impl + 1;
+    } else {
+      return (InstanceKlass **)end_of_nonstatic_oop_maps();
+    }
+  } else {
+    return NULL;
+  }
+}
+
+inline address InstanceKlass::adr_fingerprint() const {
+  if (has_stored_fingerprint()) {
+    InstanceKlass** adr_host = adr_unsafe_anonymous_host();
+    if (adr_host != NULL) {
+      return (address)(adr_host + 1);
+    }
+
+    Klass* volatile* adr_impl = adr_implementor();
+    if (adr_impl != NULL) {
+      return (address)(adr_impl + 1);
+    }
+
+    return (address)end_of_nonstatic_oop_maps();
+  } else {
+    return NULL;
+  }
+}
+
+inline address InstanceKlass::adr_inline_type_field_klasses() const {
+  if (has_inline_type_fields()) {
+    address adr_fing = adr_fingerprint();
+    if (adr_fing != NULL) {
+      return adr_fingerprint() + sizeof(u8);
+    }
+
+    InstanceKlass** adr_host = adr_unsafe_anonymous_host();
+    if (adr_host != NULL) {
+      return (address)(adr_host + 1);
+    }
+
+    Klass* volatile* adr_impl = adr_implementor();
+    if (adr_impl != NULL) {
+      return (address)(adr_impl + 1);
+    }
+
+    return (address)end_of_nonstatic_oop_maps();
+  } else {
+    return NULL;
+  }
+}
+
+inline Klass* InstanceKlass::get_inline_type_field_klass(int idx) const {
+  assert(has_inline_type_fields(), "Sanity checking");
+  assert(idx < java_fields_count(), "IOOB");
+  Klass* k = ((Klass**)adr_inline_type_field_klasses())[idx];
+  assert(k != NULL, "Should always be set before being read");
+  assert(k->is_inline_klass(), "Must be an inline type");
+  return k;
+}
+
+inline Klass* InstanceKlass::get_inline_type_field_klass_or_null(int idx) const {
+  assert(has_inline_type_fields(), "Sanity checking");
+  assert(idx < java_fields_count(), "IOOB");
+  Klass* k = ((Klass**)adr_inline_type_field_klasses())[idx];
+  assert(k == NULL || k->is_inline_klass(), "Must be an inline type");
+  return k;
+}
+
+inline void InstanceKlass::set_inline_type_field_klass(int idx, Klass* k) {
+  assert(has_inline_type_fields(), "Sanity checking");
+  assert(idx < java_fields_count(), "IOOB");
+  assert(k != NULL, "Should not be set to NULL");
+  assert(((Klass**)adr_inline_type_field_klasses())[idx] == NULL, "Should not be set twice");
+  ((Klass**)adr_inline_type_field_klasses())[idx] = k;
+}
+
+inline void InstanceKlass::reset_inline_type_field_klass(int idx) {
+  assert(has_inline_type_fields(), "Sanity checking");
+  assert(idx < java_fields_count(), "IOOB");
+  ((Klass**)adr_inline_type_field_klasses())[idx] = NULL;
+}
+
 
 inline ArrayKlass* InstanceKlass::array_klasses_acquire() const {
   return Atomic::load_acquire(&_array_klasses);

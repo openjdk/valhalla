@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -846,8 +846,7 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
   int        arg_size = tf->domain_sig()->cnt();
   int        max_size = MAX2(arg_size, (int)tf->range_cc()->cnt());
   JVMState*  jvms     = new (this) JVMState(max_size - TypeFunc::Parms);
-  SafePointNode* map  = new SafePointNode(max_size, NULL);
-  map->set_jvms(jvms);
+  SafePointNode* map  = new SafePointNode(max_size, jvms);
   jvms->set_map(map);
   record_for_igvn(map);
   assert(arg_size == TypeFunc::Parms + (is_osr_compilation() ? 1 : method()->arg_size()), "correct arg_size");
@@ -1137,8 +1136,7 @@ void Parse::do_exits() {
       // The exiting JVM state is otherwise a copy of the calling JVMS.
       JVMState* caller = kit.jvms();
       JVMState* ex_jvms = caller->clone_shallow(C);
-      ex_jvms->set_map(kit.clone_map());
-      ex_jvms->map()->set_jvms(ex_jvms);
+      ex_jvms->bind_map(kit.clone_map());
       ex_jvms->set_bci(   InvocationEntryBci);
       kit.set_jvms(ex_jvms);
       if (do_synch) {
@@ -1157,8 +1155,7 @@ void Parse::do_exits() {
       ex_map = kit.make_exception_state(ex_oop);
       assert(ex_jvms->same_calls_as(ex_map->jvms()), "sanity");
       // Pop the last vestige of this method:
-      ex_map->set_jvms(caller->clone_shallow(C));
-      ex_map->jvms()->set_map(ex_map);
+      caller->clone_shallow(C)->bind_map(ex_map);
       _exits.push_exception_state(ex_map);
     }
     assert(_exits.map() == normal_map, "keep the same return state");
@@ -1695,7 +1692,8 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
   int old_bci = bci();
   JVMState* tmp_jvms = old_jvms->clone_shallow(C);
   tmp_jvms->set_should_reexecute(true);
-  map()->set_jvms(tmp_jvms);
+  //map()->set_jvms(tmp_jvms);
+  tmp_jvms->bind_map(map());
   // Execution needs to restart a the next bytecode (entry of next
   // block)
   if (target->is_merged() ||
@@ -1720,7 +1718,8 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       }
     }
   }
-  map()->set_jvms(old_jvms);
+  //map()->set_jvms(old_jvms);
+  old_jvms->bind_map(map());
   set_parse_bci(old_bci);
 
   if (!target->is_merged()) {   // No prior mapping at this bci

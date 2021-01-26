@@ -37,6 +37,7 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/arrayOop.hpp"
 #include "oops/instanceKlass.hpp"
+#include "oops/klass.inline.hpp"
 #include "oops/objArrayOop.hpp"
 #include "oops/oop.inline.hpp"
 #include "runtime/handles.inline.hpp"

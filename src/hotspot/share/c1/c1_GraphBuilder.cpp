@@ -34,6 +34,7 @@
 #include "ci/ciInlineKlass.hpp"
 #include "ci/ciKlass.hpp"
 #include "ci/ciMemberName.hpp"
+#include "ci/ciSymbols.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "compiler/compilationPolicy.hpp"
 #include "compiler/compileBroker.hpp"
@@ -4197,7 +4198,7 @@ bool GraphBuilder::try_inline_full(ciMethod* callee, bool holder_known, bool ign
     }
 
     // don't inline throwable methods unless the inlining tree is rooted in a throwable class
-    if (callee->name() == ciSymbol::object_initializer_name() &&
+    if (callee->name() == ciSymbols::object_initializer_name() &&
         callee->holder()->is_subclass_of(ciEnv::current()->Throwable_klass())) {
       // Throwable constructor call
       IRScope* top = scope();
