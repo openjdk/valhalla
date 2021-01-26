@@ -35,7 +35,7 @@ import java.lang.reflect.Method;
  * @compile TestLWorldProfiling.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
  * @run main/othervm/timeout=300 -Xbootclasspath/a:. -XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockDiagnosticVMOptions
- *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI
+ *                               -XX:+UnlockExperimentalVMOptions -XX:+WhiteBoxAPI -XX:FlatArrayElementMaxSize=-1
  *                               compiler.valhalla.inlinetypes.InlineTypeTest
  *                               compiler.valhalla.inlinetypes.TestLWorldProfiling
  */

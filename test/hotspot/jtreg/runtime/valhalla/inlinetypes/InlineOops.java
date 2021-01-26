@@ -42,7 +42,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xint -XX:+UseSerialGC -Xmx128m
+ * @run main/othervm -Xint -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -57,7 +57,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xint  -XX:+UseG1GC -Xmx128m
+ * @run main/othervm -Xint  -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops 20
  */
@@ -72,7 +72,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xint -XX:+UseParallelGC -Xmx128m
+ * @run main/othervm -Xint -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -88,7 +88,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xint -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -103,7 +103,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xcomp -XX:+UseSerialGC -Xmx128m
+ * @run main/othervm -Xcomp -XX:+UseSerialGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -118,7 +118,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xcomp -XX:+UseG1GC -Xmx128m
+ * @run main/othervm -Xcomp -XX:+UseG1GC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops 20
  */
@@ -133,7 +133,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @compile -XDallowWithFieldOperator InlineOops.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
- * @run main/othervm -Xcomp -XX:+UseParallelGC -Xmx128m
+ * @run main/othervm -Xcomp -XX:+UseParallelGC -Xmx128m -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
@@ -149,7 +149,7 @@ import test.java.lang.invoke.lib.InstructionHelper;
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox
  *                   sun.hotspot.WhiteBox$WhiteBoxPermission
  * @run main/othervm -Xcomp -XX:+UnlockExperimentalVMOptions -XX:+UseZGC -Xmx128m
- *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews
+ *                   -XX:+UnlockDiagnosticVMOptions -XX:+ZVerifyViews -XX:InlineFieldMaxFlatSize=128
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions -XX:+WhiteBoxAPI
  *                   runtime.valhalla.inlinetypes.InlineOops
  */
