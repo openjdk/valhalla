@@ -81,7 +81,7 @@ class UnsafeQualifiedStaticObjectFieldAccessorImpl
         if (isFlattened()) {
             unsafe.putValue(base, fieldOffset, field.getType(), value);
         } else {
-        unsafe.putReferenceVolatile(base, fieldOffset, value);
+            unsafe.putReferenceVolatile(base, fieldOffset, value);
         }
     }
 

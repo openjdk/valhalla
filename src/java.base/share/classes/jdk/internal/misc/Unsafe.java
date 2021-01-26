@@ -284,25 +284,6 @@ public final class Unsafe {
     }
 
     /**
-     * Stores a reference value into a given Java variable.
-     * This method can store a reference to either an object or value
-     * or a null reference.
-     * <p>
-     * Unless the reference {@code x} being stored is either null
-     * or matches the field type, the results are undefined.
-     * If the reference {@code o} is non-null, card marks or
-     * other store barriers for that object (if the VM requires them)
-     * are updated.
-     * @see #putInt(Object, long, int)
-     */
-    public void putReference(Object o, long offset, Class<?> vc, Object x) {
-        if (vc.isInlineClass() && x == null) {
-            throw new NullPointerException("cannot write null to a field of an inline type: " + vc.getName());
-        }
-        putReference(o, offset, x);
-    }
-
-    /**
      * Returns an uninitialized default value of the given inline class.
      */
     public native <V> V uninitializedDefaultValue(Class<?> vc);
@@ -2450,17 +2431,6 @@ public final class Unsafe {
      */
     @IntrinsicCandidate
     public native void putReferenceVolatile(Object o, long offset, Object x);
-
-    /**
-     * Stores a reference value into a given Java variable, with
-     * volatile store semantics. Otherwise identical to {@link #putReference(Object, long, Object)}
-     */
-    public void putReferenceVolatile(Object o, long offset, Class<?> vc, Object x) {
-        if (vc.isInlineClass() && x == null) {
-            throw new NullPointerException("cannot write null to a field of an inline type: " + vc.getName());
-        }
-        putReferenceVolatile(o, offset, x);
-    }
 
     public final <V> void putValueVolatile(Object o, long offset, Class<?> valueType, V x) {
         synchronized (valueLock) {

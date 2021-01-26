@@ -48,15 +48,18 @@ public class UninitializedInlineValueTest {
     static inline class InlineValue {
         Object o;
         EmptyInline empty;
+        volatile EmptyInline vempty;
         InlineValue() {
             this.o = null;
             this.empty = new EmptyInline();
+            this.vempty = new EmptyInline();
         }
     }
 
     static class MutableValue {
         Object o;
         EmptyInline empty;
+        volatile EmptyInline vempty;
     }
 
     @Test
@@ -78,6 +81,11 @@ public class UninitializedInlineValueTest {
         assertTrue(f1.getType() == EmptyInline.class);
         EmptyInline empty = (EmptyInline)f1.get(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
+
+        Field f2 = v.getClass().getDeclaredField("vempty");
+        assertTrue(f2.getType() == EmptyInline.class);
+        EmptyInline vempty = (EmptyInline)f2.get(v);
+        assertTrue(vempty.isEmpty());        // test if vempty is non-null with default value
     }
 
     @Test
@@ -93,8 +101,15 @@ public class UninitializedInlineValueTest {
         EmptyInline empty = (EmptyInline)f1.get(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
 
+        Field f2 = v.getClass().getDeclaredField("vempty");
+        assertTrue(f2.getType() == EmptyInline.class);
+        EmptyInline vempty = (EmptyInline)f2.get(v);
+        assertTrue(vempty.isEmpty());        // test if vempty is non-null with default value
+
         f1.set(v, new EmptyInline());
         assertTrue((EmptyInline)f1.get(v) == new EmptyInline());
+        f2.set(v, new EmptyInline());
+        assertTrue((EmptyInline)f2.get(v) == new EmptyInline());
     }
 
     @Test
@@ -103,6 +118,10 @@ public class UninitializedInlineValueTest {
         MethodHandle mh = MethodHandles.lookup().findGetter(InlineValue.class, "empty", EmptyInline.class);
         EmptyInline empty = (EmptyInline) mh.invokeExact(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
+
+        MethodHandle mh1 = MethodHandles.lookup().findGetter(InlineValue.class, "vempty", EmptyInline.class);
+        EmptyInline vempty = (EmptyInline) mh1.invokeExact(v);
+        assertTrue(vempty.isEmpty());        // test if vempty is non-null with default value
     }
 
     @Test
@@ -112,10 +131,19 @@ public class UninitializedInlineValueTest {
         EmptyInline empty = (EmptyInline) getter.invokeExact(v);
         assertTrue(empty.isEmpty());        // test if empty is non-null with default value
 
+        MethodHandle getter1 = MethodHandles.lookup().findGetter(InlineValue.class, "vempty", EmptyInline.class);
+        EmptyInline vempty = (EmptyInline) getter1.invokeExact(v);
+        assertTrue(vempty.isEmpty());        // test if vempty is non-null with default value
+
         MethodHandle setter = MethodHandles.lookup().findSetter(MutableValue.class, "empty", EmptyInline.class);
         setter.invokeExact(v, new EmptyInline());
         empty = (EmptyInline) getter.invokeExact(v);
         assertTrue(empty == new EmptyInline());
+
+        MethodHandle setter1 = MethodHandles.lookup().findSetter(MutableValue.class, "vempty", EmptyInline.class);
+        setter1.invokeExact(v, new EmptyInline());
+        vempty = (EmptyInline) getter1.invokeExact(v);
+        assertTrue(vempty == new EmptyInline());
     }
 
     @Test(expectedExceptions = { IllegalAccessException.class})
