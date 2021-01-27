@@ -173,7 +173,7 @@ public class TestLWorld extends InlineTypeTest {
     public Object test3(int state) {
         Object res = null;
         if (state == 0) {
-            res = new Integer(rI);
+            res = Integer.valueOf(rI);
         } else if (state == 1) {
             res = MyValue1.createWithFieldsInline(rI, rL);
         } else if (state == 2) {
@@ -217,7 +217,7 @@ public class TestLWorld extends InlineTypeTest {
     // Test merging inline types and objects in loops
     @Test()
     public Object test4(int iters) {
-        Object res = new Integer(rI);
+        Object res = Integer.valueOf(rI);
         for (int i = 0; i < iters; ++i) {
             if (res instanceof Integer) {
                 res = MyValue1.createWithFieldsInline(rI, rL);
@@ -564,7 +564,7 @@ public class TestLWorld extends InlineTypeTest {
     @DontCompile
     public void test17_verifier(boolean warmup) {
         MyValue1 vt = testValue1;
-        MyValue1 result = test17(vt, new Integer(rI));
+        MyValue1 result = test17(vt, Integer.valueOf(rI));
         Asserts.assertEquals(result.hash(), vt.hash());
     }
 
@@ -1230,7 +1230,7 @@ public class TestLWorld extends InlineTypeTest {
             result = MyValue1.createWithFieldsInline(rI, rL);
             break;
         case 9:
-            result = new Integer(42);
+            result = Integer.valueOf(42);
             break;
         case 10:
             result = testValue1Array2;
@@ -1314,7 +1314,7 @@ public class TestLWorld extends InlineTypeTest {
         Asserts.assertEQ(result, testValue2.hash());
         result = test40(testValue1Array2, index);
         Asserts.assertEQ(result, testValue1.hash());
-        result = test40(new Long(42), index);
+        result = test40(Long.valueOf(42), index);
         Asserts.assertEQ(result, 42L);
     }
 
@@ -1483,7 +1483,7 @@ public class TestLWorld extends InlineTypeTest {
 
     @DontCompile
     public void test50_verifier(boolean warmup) {
-        boolean result = test49(new Integer(42));
+        boolean result = test49(Integer.valueOf(42));
         Asserts.assertFalse(result);
     }
 
@@ -2077,7 +2077,7 @@ public class TestLWorld extends InlineTypeTest {
     @DontCompile
     public void test77_verifier(boolean warmup) throws Throwable {
         try {
-            test77(new Integer(42));
+            test77(Integer.valueOf(42));
             throw new RuntimeException("ClassCastException expected");
         } catch (ClassCastException e) {
             // Expected
@@ -2120,7 +2120,7 @@ public class TestLWorld extends InlineTypeTest {
     @DontCompile
     public void test79_verifier(boolean warmup) throws Throwable {
         try {
-            test79(new Integer(42));
+            test79(Integer.valueOf(42));
             throw new RuntimeException("ClassCastException expected");
         } catch (ClassCastException e) {
             // Expected
@@ -2363,7 +2363,7 @@ public class TestLWorld extends InlineTypeTest {
 
     @DontCompile
     public void test89_verifier(boolean warmup) {
-        Asserts.assertTrue(test89(new Integer(42)));
+        Asserts.assertTrue(test89(Integer.valueOf(42)));
         Asserts.assertFalse(test89(new Object()));
     }
 
@@ -2374,7 +2374,7 @@ public class TestLWorld extends InlineTypeTest {
 
     @DontCompile
     public void test90_verifier(boolean warmup) {
-        test90(new Integer(42));
+        test90(Integer.valueOf(42));
         try {
             test90(new Object());
             throw new RuntimeException("ClassCastException expected");
@@ -3581,7 +3581,7 @@ public class TestLWorld extends InlineTypeTest {
     @Warmup(10000)
     public void test132() {
         MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
-        Object obj = new Integer(42);
+        Object obj = Integer.valueOf(42);
 
         int limit = 2;
         for (; limit < 4; limit *= 2);
@@ -3606,7 +3606,7 @@ public class TestLWorld extends InlineTypeTest {
     // Test conditional locking on inline type and non-escaping object
     @Test()
     public void test133(boolean b) {
-        Object obj = b ? new Integer(42) : MyValue2.createWithFieldsInline(rI, rD);
+        Object obj = b ? Integer.valueOf(42) : MyValue2.createWithFieldsInline(rI, rD);
         synchronized (obj) {
             if (!b) {
                 throw new RuntimeException("test133 failed: synchronization on inline type should not succeed");

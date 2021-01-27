@@ -1439,7 +1439,7 @@ public class TestArrays extends InlineTypeTest {
         int len = Math.abs(rI) % 10;
         Object[] va = new Integer[len];
         for (int i = 0; i < len; ++i) {
-            va[i] = new Integer(rI);
+            va[i] = Integer.valueOf(rI);
         }
         Object[] result = test61(va, Integer[].class);
         for (int i = 0; i < va.length; ++i) {
@@ -1474,7 +1474,7 @@ public class TestArrays extends InlineTypeTest {
         MyValue1[] va = new MyValue1[len];
         Integer[] oa = new Integer[len];
         for (int i = 0; i < len; ++i) {
-            oa[i] = new Integer(rI);
+            oa[i] = Integer.valueOf(rI);
         }
         test62_helper(42, va, oa);
         Object[] result = test62(va, oa);
@@ -1749,7 +1749,7 @@ public class TestArrays extends InlineTypeTest {
         MyValue1[] va = new MyValue1[len];
         Integer[] oa = new Integer[len];
         for (int i = 0; i < len; ++i) {
-            oa[i] = new Integer(rI);
+            oa[i] = Integer.valueOf(rI);
         }
         test75_helper(42, va, oa);
         Object[] result = test75(va, oa);
@@ -1858,7 +1858,7 @@ public class TestArrays extends InlineTypeTest {
 
     @DontCompile
     public void test79_verifier(boolean warmup) {
-        Integer i = new Integer(rI);
+        Integer i = Integer.valueOf(rI);
         Integer[] array = new Integer[2];
         array[1] = i;
         Object result = test79(array, 1);
@@ -1906,7 +1906,7 @@ public class TestArrays extends InlineTypeTest {
 
     @DontCompile
     public void test81_verifier(boolean warmup) {
-        Integer i = new Integer(rI);
+        Integer i = Integer.valueOf(rI);
         Integer[] array1 = new Integer[3];
         Object[] array2 = new Object[3];
         Object result = test81(array1, i, i, 0);
@@ -1958,7 +1958,7 @@ public class TestArrays extends InlineTypeTest {
 
     @DontCompile
     public void test83_verifier(boolean warmup) {
-        Integer i = new Integer(rI);
+        Integer i = Integer.valueOf(rI);
         Integer[] array1 = new Integer[2];
         Object[] array2 = new Object[2];
         test83(array1, i);
@@ -2009,7 +2009,7 @@ public class TestArrays extends InlineTypeTest {
 
     @DontCompile
     public void test85_verifier(boolean warmup) {
-        Integer i = new Integer(rI);
+        Integer i = Integer.valueOf(rI);
         Integer[] array1 = new Integer[2];
         Object[] array2 = new Object[2];
         test85(array1, i, true);

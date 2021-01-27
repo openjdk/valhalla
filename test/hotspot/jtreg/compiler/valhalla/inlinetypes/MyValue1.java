@@ -70,7 +70,7 @@ public final inline class MyValue1 extends MyAbstract {
         v = setX(v, x);
         v = setY(v, y);
         v = setZ(v, (short)x);
-        v = setO(v, new Integer(x));
+        v = setO(v, Integer.valueOf(x));
         int[] oa = {x};
         v = setOA(v, oa);
         v = setV1(v, MyValue2.createWithFieldsInline(x, y, InlineTypeTest.rD));

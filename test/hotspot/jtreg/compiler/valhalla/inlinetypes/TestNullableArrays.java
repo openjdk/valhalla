@@ -1639,7 +1639,7 @@ public class TestNullableArrays extends InlineTypeTest {
         int len = Math.abs(rI) % 10;
         Object[] va = new Integer[len];
         for (int i = 1; i < len; ++i) {
-            va[i] = new Integer(rI);
+            va[i] = Integer.valueOf(rI);
         }
         Object[] result = test61(va, Integer[].class);
         for (int i = 0; i < va.length; ++i) {
@@ -1674,7 +1674,7 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue1.ref[] va = new MyValue1.ref[len];
         Integer[] oa = new Integer[len];
         for (int i = 1; i < len; ++i) {
-            oa[i] = new Integer(rI);
+            oa[i] = Integer.valueOf(rI);
         }
         test62_helper(42, va, oa);
         Object[] result = test62(va, oa);
@@ -1934,7 +1934,7 @@ public class TestNullableArrays extends InlineTypeTest {
         MyValue1.ref[] va = new MyValue1.ref[len];
         Integer[] oa = new Integer[len];
         for (int i = 1; i < len; ++i) {
-            oa[i] = new Integer(rI);
+            oa[i] = Integer.valueOf(rI);
         }
         test74_helper(42, va, oa);
         Object[] result = test74(va, oa);
@@ -2089,7 +2089,7 @@ public class TestNullableArrays extends InlineTypeTest {
     @DontCompile
     public void test78_verifier(boolean warmup) {
         MyValue1 vt = testValue1;
-        Integer i = new Integer(42);
+        Integer i = Integer.valueOf(42);
         Object[] out = new Object[1];
         MyValue1[] vva = new MyValue1[42];
         MyValue1[] vva_r = new MyValue1[42];
