@@ -27,6 +27,7 @@
 #include "gc/shared/accessBarrierSupport.inline.hpp"
 #include "gc/z/zBarrier.inline.hpp"
 #include "gc/z/zBarrierSet.hpp"
+#include "oops/inlineKlass.inline.hpp"
 #include "utilities/debug.hpp"
 
 template <DecoratorSet decorators, typename BarrierSetT>

@@ -92,6 +92,8 @@
 // access.inline.hpp. The accesses that are allowed through the access.hpp file
 // must be instantiated in access.cpp using the INSTANTIATE_HPP_ACCESS macro.
 
+class InlineKlass;
+
 template <DecoratorSet decorators = DECORATORS_NONE>
 class Access: public AllStatic {
   // This function asserts that if an access gets passed in a decorator outside
