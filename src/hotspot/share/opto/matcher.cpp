@@ -2140,7 +2140,7 @@ void Matcher::find_shared(Node* n) {
       if (find_shared_visit(mstack, n, nop, mem_op, mem_addr_idx)) {
         continue;
       }
-      for (int i = n->req() - 1; i >= 0; --i) { // For my children
+      for (int i = n->len() - 1; i >= 0; --i) { // For my children
         Node* m = n->in(i); // Get ith input
         if (m == NULL) {
           continue;  // Ignore NULLs

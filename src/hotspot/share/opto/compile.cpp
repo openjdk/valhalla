@@ -2007,11 +2007,14 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
       const TypePtr* adr_type = NULL;
       if (m->Opcode() == Op_StoreCM) {
         adr_type = m->in(MemNode::OopStore)->adr_type();
-        Node* clone = new StoreCMNode(m->in(MemNode::Control), m->in(MemNode::Memory), m->in(MemNode::Address),
-                                      m->adr_type(), m->in(MemNode::ValueIn), m->in(MemNode::OopStore),
-                                      get_alias_index(adr_type));
-        igvn.register_new_node_with_optimizer(clone);
-        igvn.replace_node(m, clone);
+        if (adr_type != TypeAryPtr::INLINES) {
+          // store was optimized out and we lost track of the adr_type
+          Node* clone = new StoreCMNode(m->in(MemNode::Control), m->in(MemNode::Memory), m->in(MemNode::Address),
+                                        m->adr_type(), m->in(MemNode::ValueIn), m->in(MemNode::OopStore),
+                                        get_alias_index(adr_type));
+          igvn.register_new_node_with_optimizer(clone);
+          igvn.replace_node(m, clone);
+        }
       } else {
         adr_type = m->adr_type();
 #ifdef ASSERT
@@ -2115,7 +2118,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
                 Node* r = m->in(0);
                 for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
                   const Type* adr_type = get_adr_type(j);
-                  if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->is_flat()) {
+                  if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->is_flat() || j == (uint)index) {
                     continue;
                   }
                   Node* phi = new PhiNode(r, Type::MEMORY, get_adr_type(j));
@@ -2145,7 +2148,7 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
               igvn.replace_input_of(m->in(0), TypeFunc::Control, top());
               for (uint j = (uint)start_alias; j <= (uint)stop_alias; j++) {
                 const Type* adr_type = get_adr_type(j);
-                if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->is_flat()) {
+                if (!adr_type->isa_aryptr() || !adr_type->is_aryptr()->is_flat() || j == (uint)index) {
                   continue;
                 }
                 MemBarNode* mb = new MemBarCPUOrderNode(this, j, NULL);
@@ -2198,6 +2201,22 @@ void Compile::adjust_flattened_array_access_aliases(PhaseIterGVN& igvn) {
     igvn.optimize();
   }
   print_method(PHASE_SPLIT_INLINES_ARRAY, 2);
+#ifdef ASSERT
+  if (!_flattened_accesses_share_alias) {
+    wq.clear();
+    wq.push(root());
+    for (uint i = 0; i < wq.size(); i++) {
+      Node* n = wq.at(i);
+      assert(n->adr_type() != TypeAryPtr::INLINES, "should have been removed from the graph");
+      for (uint j = 0; j < n->req(); j++) {
+        Node* m = n->in(j);
+        if (m != NULL) {
+          wq.push(m);
+        }
+      }
+    }
+  }
+#endif
 }
 
 
@@ -3355,7 +3374,22 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
       // Convert OopStore dependence into precedence edge
       Node* prec = n->in(MemNode::OopStore);
       n->del_req(MemNode::OopStore);
-      n->add_prec(prec);
+      if (prec->is_MergeMem()) {
+        MergeMemNode* mm = prec->as_MergeMem();
+        Node* base = mm->base_memory();
+        for (int i = AliasIdxRaw + 1; i < num_alias_types(); i++) {
+          const Type* adr_type = get_adr_type(i);
+          if (adr_type->isa_aryptr() && adr_type->is_aryptr()->is_flat()) {
+            Node* m = mm->memory_at(i);
+            n->add_prec(m);
+          }
+        }
+        if (mm->outcnt() == 0) {
+          mm->disconnect_inputs(this);
+        }
+      } else {
+        n->add_prec(prec);
+      }
       eliminate_redundant_card_marks(n);
     }
 
