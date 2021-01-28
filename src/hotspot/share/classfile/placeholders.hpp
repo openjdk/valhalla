@@ -217,8 +217,8 @@ class PlaceholderEntry : public HashtableEntry<Symbol*, mtClass> {
          queuehead = _superThreadQ;
          break;
       case PlaceholderTable::DEFINE_CLASS:
-	 queuehead = _defineThreadQ;
-	 break;
+         queuehead = _defineThreadQ;
+         break;
       case PlaceholderTable::INLINE_TYPE_FIELD:
          queuehead = _inlineTypeFieldQ;
          break;
