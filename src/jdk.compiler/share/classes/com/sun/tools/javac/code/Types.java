@@ -1713,6 +1713,14 @@ public class Types {
     }
     // where
         private boolean areDisjoint(ClassSymbol ts, ClassSymbol ss) {
+            /* The disjointsness checks below are driven by subtyping. At the language level
+               a reference projection type and its value projection type are not related by
+               subtyping, thereby necessitating special handling.
+            */
+            if ((ss.isReferenceProjection() && ss.valueProjection() == ts) ||
+                (ss.isValue() && ss.referenceProjection() == ts)) {
+                return false;
+            }
             if (isSubtype(erasure(ts.type), erasure(ss.type))) {
                 return false;
             }
