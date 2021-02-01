@@ -5324,16 +5324,19 @@ void MacroAssembler::verified_entry(Compile* C, int sp_inc) {
 #if COMPILER2_OR_JVMCI
 
 // clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM/ZMM registers
-void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register rtmp, XMMRegister xtmp) {
+void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp) {
   // cnt - number of qwords (8-byte words).
   // base - start address, qword aligned.
   Label L_zero_64_bytes, L_loop, L_sloop, L_tail, L_end;
   bool use64byteVector = MaxVectorSize == 64 && AVX3Threshold == 0;
   if (use64byteVector) {
-    vpxor(xtmp, xtmp, xtmp, AVX_512bit);
+    evpbroadcastq(xtmp, val, AVX_512bit);
   } else if (MaxVectorSize >= 32) {
-    vpxor(xtmp, xtmp, xtmp, AVX_256bit);
+    movdq(xtmp, val);
+    punpcklqdq(xtmp, xtmp);
+    vinserti128_high(xtmp, xtmp);
   } else {
+    movdq(xtmp, val);
     punpcklqdq(xtmp, xtmp);
   }
   jmp(L_zero_64_bytes);
@@ -5357,7 +5360,7 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register rtmp, X
   if (use64byteVector) {
     addptr(cnt, 8);
     jccb(Assembler::equal, L_end);
-    fill64_masked_avx(3, base, 0, xtmp, k2, cnt, rtmp, true);
+    fill64_masked_avx(3, base, 0, xtmp, k2, cnt, val, true);
     jmp(L_end);
   } else {
     addptr(cnt, 4);
@@ -5376,7 +5379,7 @@ void MacroAssembler::xmm_clear_mem(Register base, Register cnt, Register rtmp, X
   addptr(cnt, 4);
   jccb(Assembler::lessEqual, L_end);
   if (UseAVX > 2 && MaxVectorSize >= 32 && VM_Version::supports_avx512vl()) {
-    fill32_masked_avx(3, base, 0, xtmp, k2, cnt, rtmp);
+    fill32_masked_avx(3, base, 0, xtmp, k2, cnt, val);
   } else {
     decrement(cnt);
 
@@ -5756,20 +5759,17 @@ void MacroAssembler::clear_mem(Register base, int cnt, Register rtmp, XMMRegiste
   }
 }
 
-void MacroAssembler::clear_mem(Register base, Register cnt, Register tmp, XMMRegister xtmp, bool is_large, bool word_copy_only) {
+void MacroAssembler::clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, bool is_large, bool word_copy_only) {
   // cnt      - number of qwords (8-byte words).
   // base     - start address, qword aligned.
   // is_large - if optimizers know cnt is larger than InitArrayShortSize
   assert(base==rdi, "base register must be edi for rep stos");
-  assert(tmp==rax,   "tmp register must be eax for rep stos");
+  assert(val==rax,   "val register must be eax for rep stos");
   assert(cnt==rcx,   "cnt register must be ecx for rep stos");
   assert(InitArrayShortSize % BytesPerLong == 0,
     "InitArrayShortSize should be the multiple of BytesPerLong");
 
   Label DONE;
-  if (!is_large || !UseXMMForObjInit) {
-    xorptr(tmp, tmp);
-  }
 
   if (!is_large) {
     Label LOOP, LONG;
@@ -5783,7 +5783,7 @@ void MacroAssembler::clear_mem(Register base, Register cnt, Register tmp, XMMReg
 
     // Use individual pointer-sized stores for small counts:
     BIND(LOOP);
-    movptr(Address(base, cnt, Address::times_ptr), tmp);
+    movptr(Address(base, cnt, Address::times_ptr), val);
     decrement(cnt);
     jccb(Assembler::greaterEqual, LOOP);
     jmpb(DONE);
@@ -5796,7 +5796,7 @@ void MacroAssembler::clear_mem(Register base, Register cnt, Register tmp, XMMReg
     shlptr(cnt, 3); // convert to number of bytes
     rep_stosb();
   } else if (UseXMMForObjInit) {
-    xmm_clear_mem(base, cnt, tmp, xtmp);
+    xmm_clear_mem(base, cnt, val, xtmp);
   } else {
     NOT_LP64(shlptr(cnt, 1);) // convert to number of 32-bit words for 32-bit VM
     rep_stos();

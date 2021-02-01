@@ -1521,7 +1521,7 @@ void MachVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
 {
   MacroAssembler _masm(&cbuf);
-  if (!_verified) {  
+  if (!_verified) {
     uint insts_size = cbuf.insts_size();
     if (UseCompressedClassPointers) {
       __ load_klass(rscratch1, j_rarg0, rscratch2);
@@ -10775,9 +10775,9 @@ instruct MoveL2D_reg_reg(regD dst, rRegL src) %{
 instruct rep_stos(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
                   Universe dummy, rFlagsReg cr)
 %{
-  predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() /*&& !n->in(2)->bottom_type()->is_long()->is_con()*/);
+  predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() && !n->in(2)->in(1)->bottom_type()->is_long()->is_con());
   match(Set dummy (ClearArray (Binary cnt base) val));
-  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL cr);
+  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL val, KILL cr);
 
   format %{ $$template
     $$emit$$"cmp     InitArrayShortSize,rcx\n\t"
@@ -10836,7 +10836,7 @@ instruct rep_stos_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
 %{
   predicate(!((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only());
   match(Set dummy (ClearArray (Binary cnt base) val));
-  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL cr);
+  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL val, KILL cr);
 
   format %{ $$template
     $$emit$$"cmp     InitArrayShortSize,rcx\n\t"
@@ -10892,7 +10892,7 @@ instruct rep_stos_large(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
 %{
   predicate(((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only());
   match(Set dummy (ClearArray (Binary cnt base) val));
-  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL cr);
+  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL val, KILL cr);
 
   format %{ $$template
     if (UseFastStosb) {
@@ -10936,12 +10936,12 @@ instruct rep_stos_large(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
   ins_pipe(pipe_slow);
 %}
 
-instruct rep_stos_large_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val, 
+instruct rep_stos_large_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
                         Universe dummy, rFlagsReg cr)
 %{
   predicate(((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only());
   match(Set dummy (ClearArray (Binary cnt base) val));
-  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL cr);
+  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL val, KILL cr);
 
   format %{ $$template
     if (UseXMMForObjInit) {
@@ -10976,20 +10976,20 @@ instruct rep_stos_large_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_Reg
     }
   %}
   ins_encode %{
-    __ clear_mem($base$$Register, $cnt$$Register, $val$$Register, 
+    __ clear_mem($base$$Register, $cnt$$Register, $val$$Register,
                  $tmp$$XMMRegister, true, true);
   %}
   ins_pipe(pipe_slow);
 %}
 
-instruct rep_stos_im(immL cnt, rRegP base, regD tmp, rRegI zero, Universe dummy, rFlagsReg cr)
+instruct rep_stos_im(immL cnt, rRegP base, regD tmp, rax_RegL val, Universe dummy, rFlagsReg cr)
 %{
-  predicate(!((ClearArrayNode*)n)->is_large() && n->in(2)->bottom_type()->is_long()->is_con());
-  match(Set dummy (ClearArray cnt base));
-  effect(TEMP tmp, TEMP zero, KILL cr);
+  predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() && n->in(2)->in(1)->bottom_type()->is_long()->is_con());
+  match(Set dummy (ClearArray (Binary cnt base) val));
+  effect(TEMP tmp, USE_KILL val, KILL cr);
   format %{ "clear_mem_imm $base , $cnt  \n\t" %}
   ins_encode %{
-   __ clear_mem($base$$Register, $cnt$$constant, $zero$$Register, $tmp$$XMMRegister);
+   __ clear_mem($base$$Register, $cnt$$constant, $val$$Register, $tmp$$XMMRegister);
   %}
   ins_pipe(pipe_slow);
 %}

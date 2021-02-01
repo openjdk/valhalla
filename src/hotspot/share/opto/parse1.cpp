@@ -1692,7 +1692,6 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
   int old_bci = bci();
   JVMState* tmp_jvms = old_jvms->clone_shallow(C);
   tmp_jvms->set_should_reexecute(true);
-  //map()->set_jvms(tmp_jvms);
   tmp_jvms->bind_map(map());
   // Execution needs to restart a the next bytecode (entry of next
   // block)
@@ -1718,7 +1717,6 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       }
     }
   }
-  //map()->set_jvms(old_jvms);
   old_jvms->bind_map(map());
   set_parse_bci(old_bci);
 
