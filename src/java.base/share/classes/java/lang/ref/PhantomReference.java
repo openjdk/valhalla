@@ -32,7 +32,7 @@ import jdk.internal.vm.annotation.IntrinsicCandidate;
  * determines that their referents may otherwise be reclaimed.  Phantom
  * references are most often used to schedule post-mortem cleanup actions.
  * <p>
- * The referent must not be an instance of an inline class; such a value
+ * The referent must not be an instance of a primitive class; such a value
  * can never have another reference to it and cannot be held in a reference type.
  *
  * <p> Suppose the garbage collector determines at a certain point in time
@@ -86,7 +86,7 @@ public class PhantomReference<T> extends Reference<T> {
      * @param q the queue with which the reference is to be registered,
      *          or {@code null} if registration is not required
      * @throws IllegalArgumentException if the referent is an instance of an
-     *         {@link Class#isInlineClass() inlineClass}
+     *         {@link Class#isPrimitiveClass() primitive class}
      */
     public PhantomReference(T referent, ReferenceQueue<? super T> q) {
         super(referent, q);

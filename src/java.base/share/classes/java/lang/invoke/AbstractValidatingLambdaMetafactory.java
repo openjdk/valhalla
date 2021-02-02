@@ -366,7 +366,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
                     return !strict;
                 }
             } else {
-                // inline types: fromType and toType are projection types of the same inline class
+                // primitive types: fromType and toType are types of the same primitive class
                 // identity types: fromType should be a superclass of toType.
                 return !strict || canConvert(fromType, toType);
             }
@@ -376,17 +376,17 @@ import static sun.invoke.util.Wrapper.isWrapperType;
     /**
      * Tests if {@code fromType} can be converted to {@code toType}
      * via an identity conversion, via a widening reference conversion or
-     * via inline narrowing and widening conversions.
+     * via primitive class narrowing and widening conversions.
      * <p>
      * If {@code fromType} represents a class or interface, this method
      * returns {@code true} if {@code toType} is the same as,
      * or is a superclass or superinterface of, {@code fromType}.
      * <p>
-     * If {@code fromType} is an inline class, this method returns {@code true}
-     * if {@code toType} is the {@linkplain Class#referenceType() reference projection type}
+     * If {@code fromType} is a primitive class, this method returns {@code true}
+     * if {@code toType} is the {@linkplain Class#referenceType() primitive reference type}
      * of {@code fromType}.
-     * If {@code toType} is an inline class, this method returns {@code true}
-     * if {@code toType} is the {@linkplain Class#valueType() value projection type}
+     * If {@code toType} is a primitive class, this method returns {@code true}
+     * if {@code toType} is the {@linkplain Class#valueType() primitive value type}
      * of {@code fromType}.
      * <p>
      * Otherwise, this method returns {@code false}.
@@ -400,7 +400,7 @@ import static sun.invoke.util.Wrapper.isWrapperType;
             return true;
         }
 
-        if (!fromType.isInlineClass() && !toType.isInlineClass()) {
+        if (!fromType.isPrimitiveClass() && !toType.isPrimitiveClass()) {
             return false;
         }
 

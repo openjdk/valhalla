@@ -644,7 +644,7 @@ public final class Unsafe {
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get field offset on a hidden class: " + f);
         }
-        if (f.getDeclaringClass().isInlineClass()) {
+        if (f.getDeclaringClass().isPrimitiveClass()) {
             throw new UnsupportedOperationException("can't get field offset on an inline class: " + f);
         }
         if (declaringClass.isRecord()) {
@@ -679,7 +679,7 @@ public final class Unsafe {
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get field offset on a hidden class: " + f);
         }
-        if (f.getDeclaringClass().isInlineClass()) {
+        if (f.getDeclaringClass().isPrimitiveClass()) {
             throw new UnsupportedOperationException("can't get static field offset on an inline class: " + f);
         }
         if (declaringClass.isRecord()) {
@@ -707,7 +707,7 @@ public final class Unsafe {
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get base address on a hidden class: " + f);
         }
-        if (f.getDeclaringClass().isInlineClass()) {
+        if (f.getDeclaringClass().isPrimitiveClass()) {
             throw new UnsupportedOperationException("can't get base address on an inline class: " + f);
         }
         if (declaringClass.isRecord()) {

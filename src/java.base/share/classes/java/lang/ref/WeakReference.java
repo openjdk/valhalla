@@ -31,7 +31,7 @@ package java.lang.ref;
  * made finalizable, finalized, and then reclaimed.  Weak references are most
  * often used to implement canonicalizing mappings.
  * <p>
- * The referent must not be an instance of an inline class; such a value
+ * The referent must not be an instance of a primitive class; such a value
  * can never have another reference to it and cannot be held in a reference type.
  *
  * <p> Suppose that the garbage collector determines at a certain point in time
@@ -55,8 +55,8 @@ public class WeakReference<T> extends Reference<T> {
      * reference is not registered with any queue.
      *
      * @param referent object the new weak reference will refer to
-     * @throws IllegalArgumentException if the referent is an instance of an
-     *         {@link Class#isInlineClass() inlineClass}
+     * @throws IllegalArgumentException if the referent is an instance of a
+     *         {@link Class#isPrimitiveClass() primitive class}
      */
     public WeakReference(T referent) {
         super(referent);
@@ -69,8 +69,8 @@ public class WeakReference<T> extends Reference<T> {
      * @param referent object the new weak reference will refer to
      * @param q the queue with which the reference is to be registered,
      *          or {@code null} if registration is not required
-     * @throws IllegalArgumentException if the referent is an instance of an
-     *         {@link Class#isInlineClass() inlineClass}
+     * @throws IllegalArgumentException if the referent is an instance of a
+     *         {@link Class#isPrimitiveClass() primitive class}
      */
     public WeakReference(T referent, ReferenceQueue<? super T> q) {
         super(referent, q);

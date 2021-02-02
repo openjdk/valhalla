@@ -81,8 +81,8 @@ public class Reflection {
     @Test
     public static void testMirrors() throws Exception {
         Class<?> inlineClass = Point.class;
-        assertTrue(inlineClass.isInlineClass());
-        assertFalse(Point.ref.class.isInlineClass());
+        assertTrue(inlineClass.isPrimitiveClass());
+        assertFalse(Point.ref.class.isPrimitiveClass());
         assertEquals(inlineClass.valueType().get(), Point.class);
         assertEquals(inlineClass.referenceType().get(), Point.ref.class);
         assertEquals(Point.ref.class.valueType().get(), Point.class);
@@ -123,7 +123,7 @@ public class Reflection {
     private final Object o;
     Reflection(Class<?> type, String cn, Object o) throws Exception {
         this.c = Class.forName(cn);
-        if (!c.isInlineClass() || c != type) {
+        if (!c.isPrimitiveClass() || c != type) {
             throw new RuntimeException(cn + " is not an inline class");
         }
 
@@ -164,7 +164,7 @@ public class Reflection {
         Class<?> arrayType = array.getClass();
         assertTrue(arrayType.isArray());
         Class<?> componentType = arrayType.getComponentType();
-        assertTrue(componentType.isInlineClass() || componentType.valueType().isPresent());
+        assertTrue(componentType.isPrimitiveClass() || componentType.valueType().isPresent());
         assertEquals(componentType, elementType);
         // Array is a reference type
         assertEquals(arrayType.referenceType().get(), arrayType);
