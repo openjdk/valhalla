@@ -40,9 +40,9 @@ import static org.testng.Assert.*;
 public class Reflection {
     @Test
     public static void sanityTest() {
-        assertTrue(Point.ref.class.permittedSubclasses().length == 1);
-        assertTrue(Line.ref.class.permittedSubclasses().length == 1);
-        assertTrue(NonFlattenValue.ref.class.permittedSubclasses().length == 1);
+        assertTrue(Point.ref.class.getPermittedSubclasses().length == 1);
+        assertTrue(Line.ref.class.getPermittedSubclasses().length == 1);
+        assertTrue(NonFlattenValue.ref.class.getPermittedSubclasses().length == 1);
     }
 
     @Test
