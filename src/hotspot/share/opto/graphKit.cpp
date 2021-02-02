@@ -3491,9 +3491,15 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
           builtin_throw(Deoptimization::Reason_class_check, makecon(TypeKlassPtr::make(klass)));
           return top();
         } else {
-          // CMH: JDK-8257594 fix removed from merge
           // It needs a null check because a null will *pass* the cast check.
-          return null_assert(obj);
+          const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
+          if (!objtp->maybe_null()) {
+            builtin_throw(Deoptimization::Reason_class_check, makecon(TypeKlassPtr::make(objtp->klass())));
+            return top();
+          } else if (!too_many_traps_or_recompiles(Deoptimization::Reason_null_assert)) {
+            return null_assert(obj);
+          }
+          break; // Fall through to full check
         }
       }
     }
