@@ -386,6 +386,7 @@ implements CRTFlags {
 
         public void visitYield(JCYield tree) {
             SourceRange sr = new SourceRange(startPos(tree), endPos(tree));
+            sr.mergeWith(csp(tree.value));
             result = sr;
         }
 

@@ -7,7 +7,9 @@ CheckSync.java:23:21: compiler.err.value.does.not.support: finalize
 CheckSync.java:24:18: compiler.err.value.does.not.support: clone
 CheckSync.java:32:17: compiler.err.value.does.not.support: wait
 CheckSync.java:33:17: compiler.err.value.does.not.support: wait
+CheckSync.java:34:18: compiler.warn.has.been.deprecated.for.removal: java.lang.Integer(int), java.lang.Integer
 CheckSync.java:34:17: compiler.err.value.does.not.support: wait
+CheckSync.java:35:18: compiler.warn.has.been.deprecated.for.removal: java.lang.Long(long), java.lang.Long
 CheckSync.java:35:17: compiler.err.value.does.not.support: wait
 CheckSync.java:36:17: compiler.err.value.does.not.support: wait
 CheckSync.java:37:17: compiler.err.value.does.not.support: wait
@@ -16,3 +18,4 @@ CheckSync.java:39:22: compiler.err.value.does.not.support: notifyAll
 - compiler.note.deprecated.filename: CheckSync.java
 - compiler.note.deprecated.recompile
 15 errors
+2 warnings

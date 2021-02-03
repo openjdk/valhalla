@@ -32,6 +32,7 @@
 #include "ci/ciStreams.hpp"
 #include "ci/ciSymbol.hpp"
 #include "ci/ciReplay.hpp"
+#include "ci/ciSymbols.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "compiler/abstractCompiler.hpp"
@@ -976,7 +977,7 @@ bool ciMethod::is_compiled_lambda_form() const {
 // ciMethod::is_object_constructor
 //
 bool ciMethod::is_object_constructor() const {
-   return (name() == ciSymbol::object_initializer_name()
+   return (name() == ciSymbols::object_initializer_name()
            && signature()->return_type()->is_void());
    // Note:  We can't test is_static, because that would
    // require the method to be loaded.  Sometimes it isn't.
@@ -986,7 +987,7 @@ bool ciMethod::is_object_constructor() const {
 // ciMethod::is_static_init_factory
 //
 bool ciMethod::is_static_init_factory() const {
-   return (name() == ciSymbol::object_initializer_name()
+   return (name() == ciSymbols::object_initializer_name()
            && !signature()->return_type()->is_void());
    // Note:  We can't test is_static, because that would
    // require the method to be loaded.  Sometimes it isn't.

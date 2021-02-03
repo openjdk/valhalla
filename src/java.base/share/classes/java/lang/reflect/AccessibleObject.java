@@ -643,7 +643,7 @@ public class AccessibleObject implements AnnotatedElement {
         }
 
         boolean isCacheFor(Class<?> caller, Class<?> refc) {
-            return callerRef.get() == caller && targetRef.get() == refc;
+            return callerRef.refersTo(caller) && targetRef.refersTo(refc);
         }
 
         static Object protectedMemberCallerCache(Class<?> caller, Class<?> refc) {
@@ -675,7 +675,7 @@ public class AccessibleObject implements AnnotatedElement {
         if (cache instanceof WeakReference) {
             @SuppressWarnings("unchecked")
             WeakReference<Class<?>> ref = (WeakReference<Class<?>>) cache;
-            return ref.get() == caller;
+            return ref.refersTo(caller);
         }
         return false;
     }
