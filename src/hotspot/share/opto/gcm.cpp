@@ -240,7 +240,7 @@ void PhaseCFG::schedule_pinned_nodes(VectorSet &visited) {
       }
 
       // process all inputs that are non NULL
-      for (int i = node->req()-1; i >= 0; --i) {
+      for (int i = node->len()-1; i >= 0; --i) {
         if (node->in(i) != NULL) {
           spstack.push(node->in(i));
         }
