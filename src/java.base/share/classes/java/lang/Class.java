@@ -555,7 +555,7 @@ public final class Class<T> implements java.io.Serializable,
     /**
      * Returns {@code true} if this class is a primitive class.
      *
-     * @return {@code true} if this class is a primitive class, otherwise false
+     * @return {@code true} if this class is a primitive class, otherwise {@code false}
      * @since Valhalla
      */
     public boolean isPrimitiveClass() {
@@ -563,16 +563,16 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * Returns a {@code Optional<Class>} object representing the <em>primitive value type</em>
-     * of this class if this {@code Class} represents the <em>primitive reference type</em>
+     * Returns an {@code Optional<Class>} object representing the <em>primitive value type</em>
+     * of this class if this {@code Class} represents the <em>reference type</em>
      * of a {@linkplain #isPrimitiveClass() primitive class}.
-     * If this {@code Class} represents the primitive value type
-     * of a primitive class, then this method returns this class.
+     * If this {@code Class} represents the value type of a primitive class,
+     * then this method returns this class.
      * Otherwise an empty {@link Optional} is returned.
      *
      * @return the {@code Optional<Class>} representing the primitive value type of
-     *         this class if this class is the primitive value type
-     *         or the primitive reference type of a primitive class;
+     *         this class if this class is either the value type
+     *         or the reference type of a primitive class;
      *         an empty {@link Optional} otherwise
      * @since Valhalla
      */
@@ -592,7 +592,7 @@ public final class Class<T> implements java.io.Serializable,
      * primitive reference type}, then this method
      * returns the <em>primitive reference type</em> type of this primitive class.
      * <p>
-     * If this {@code Class} represents the primitive reference type
+     * If this {@code Class} represents the reference type
      * of a primitive class, then this method returns this class.
      * <p>
      * If this class is an identity class, then this method returns this class.
@@ -643,7 +643,7 @@ public final class Class<T> implements java.io.Serializable,
             // avoid potential deadlock when multiple threads attempt to
             // initialize the primitive types for C and E where D is
             // the superclass of both C and E (which is an error case)
-            valRefTypes = newPrimitiveTypeArray();
+            valRefTypes = newTypeArrayForPrimitiveClass();
         }
         synchronized (this) {
             // set the value and reference types if not set
@@ -663,7 +663,7 @@ public final class Class<T> implements java.io.Serializable,
      * a primitive reference type for a primitive class, then an empty array
      * is returned.
      */
-    private Class<?>[] newPrimitiveTypeArray() {
+    private Class<?>[] newTypeArrayForPrimitiveClass() {
         if (isPrimitive() || isArray() || isInterface())
             return null;
 

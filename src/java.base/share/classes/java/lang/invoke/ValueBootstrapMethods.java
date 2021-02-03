@@ -552,9 +552,9 @@ public final class ValueBootstrapMethods {
     };
 
     /**
-     * Invoke the bootstrap methods hashCode for the given primitive classobject.
+     * Invoke the bootstrap methods hashCode for the given primitive class object.
      * @param o the instance to hash.
-     * @return the hash code of the given primitive classobject.
+     * @return the hash code of the given primitive class object.
      */
     private static int inlineObjectHashCode(Object o) {
         try {
@@ -579,9 +579,9 @@ public final class ValueBootstrapMethods {
     };
 
     /**
-     * Invoke the bootstrap methods hashCode for the given primitive classobject.
+     * Invoke the bootstrap methods hashCode for the given primitive class object.
      * @param o the instance to hash.
-     * @return the string representation of the given primitive classobject.
+     * @return the string representation of the given primitive class object.
      */
     static String inlineObjectToString(Object o) {
         try {

@@ -273,12 +273,12 @@ public final class Unsafe {
         return ref;
     }
 
-    public Object getReferenceVolatile(Object o, long offset, Class<?> vc) {
+    public Object getReferenceVolatile(Object o, long offset, Class<?> pc) {
         Object ref = getReferenceVolatile(o, offset);
-        if (ref == null && vc.isPrimitiveClass()) {
+        if (ref == null && pc.isPrimitiveClass()) {
             // If the type of the returned reference is a regular primitive type
             // return an uninitialized default value if null
-            ref = uninitializedDefaultValue(vc);
+            ref = uninitializedDefaultValue(pc);
         }
         return ref;
     }
