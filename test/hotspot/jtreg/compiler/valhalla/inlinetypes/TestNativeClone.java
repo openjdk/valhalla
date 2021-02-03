@@ -26,6 +26,7 @@
  * @bug 8209702
  * @summary Verify that the native clone intrinsic handles inline types.
  * @library /test/lib
+ * @modules java.base/java.lang:+open
  * @run main/othervm -Xbatch -XX:-UseTypeProfile
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.MyValue::*
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestNativeClone::test*

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "ci/ciFlatArrayKlass.hpp"
 #include "compiler/compileLog.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
+#include "gc/shared/tlab_globals.hpp"
 #include "libadt/vectset.hpp"
 #include "memory/universe.hpp"
 #include "opto/addnode.hpp"
@@ -53,6 +54,7 @@
 #include "opto/type.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/stubRoutines.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
 #if INCLUDE_G1GC
@@ -130,7 +132,7 @@ CallNode* PhaseMacroExpand::make_slow_call(CallNode *oldcall, const TypeFunc* sl
   // Slow-path call
  CallNode *call = leaf_name
    ? (CallNode*)new CallLeafNode      ( slow_call_type, slow_call, leaf_name, TypeRawPtr::BOTTOM )
-   : (CallNode*)new CallStaticJavaNode( slow_call_type, slow_call, OptoRuntime::stub_name(slow_call), oldcall->jvms()->bci(), TypeRawPtr::BOTTOM );
+   : (CallNode*)new CallStaticJavaNode( slow_call_type, slow_call, OptoRuntime::stub_name(slow_call), TypeRawPtr::BOTTOM );
 
   // Slow path call has no side-effects, uses few values
   copy_predefined_input_for_runtime_call(slow_path, oldcall, call );
@@ -1534,7 +1536,6 @@ void PhaseMacroExpand::expand_allocate_common(
   // Generate slow-path call
   CallNode *call = new CallStaticJavaNode(slow_call_type, slow_call_address,
                                OptoRuntime::stub_name(slow_call_address),
-                               alloc->jvms()->bci(),
                                TypePtr::BOTTOM);
   call->init_req(TypeFunc::Control,   slow_region);
   call->init_req(TypeFunc::I_O,       top());    // does no i/o
@@ -2244,7 +2245,7 @@ void PhaseMacroExpand::inline_type_guard(Node** ctrl, LockNode* lock) {
   address call_addr = SharedRuntime::uncommon_trap_blob()->entry_point();
   const TypePtr* no_memory_effects = NULL;
   CallNode* unc = new CallStaticJavaNode(OptoRuntime::uncommon_trap_Type(), call_addr, "uncommon_trap",
-                                         lock->jvms()->bci(), no_memory_effects);
+                                         no_memory_effects);
   unc->init_req(TypeFunc::Control, unc_ctrl);
   unc->init_req(TypeFunc::I_O, lock->i_o());
   unc->init_req(TypeFunc::Memory, lock->memory());
@@ -2751,7 +2752,6 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   CallStaticJavaNode* slow_call = new CallStaticJavaNode(OptoRuntime::store_inline_type_fields_Type(),
                                                          StubRoutines::store_inline_type_fields_to_buf(),
                                                          "store_inline_type_fields",
-                                                         call->jvms()->bci(),
                                                          TypePtr::BOTTOM);
   slow_call->init_req(TypeFunc::Control, slowpath_true);
   slow_call->init_req(TypeFunc::Memory, mem);
@@ -3026,8 +3026,8 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
   bool progress = true;
   while (progress) {
     progress = false;
-    for (int i = C->macro_count(); i > 0; i--) {
-      Node * n = C->macro_node(i-1);
+    for (int i = C->macro_count(); i > 0; i = MIN2(i - 1, C->macro_count())) { // more than 1 element can be eliminated at once
+      Node* n = C->macro_node(i - 1);
       bool success = false;
       DEBUG_ONLY(int old_macro_count = C->macro_count();)
       if (n->is_AbstractLock()) {
@@ -3042,8 +3042,8 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
   progress = true;
   while (progress) {
     progress = false;
-    for (int i = C->macro_count(); i > 0; i--) {
-      Node * n = C->macro_node(i-1);
+    for (int i = C->macro_count(); i > 0; i = MIN2(i - 1, C->macro_count())) { // more than 1 element can be eliminated at once
+      Node* n = C->macro_node(i - 1);
       bool success = false;
       DEBUG_ONLY(int old_macro_count = C->macro_count();)
       switch (n->class_id()) {

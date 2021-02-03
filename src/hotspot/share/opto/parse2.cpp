@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "ci/ciMethodData.hpp"
+#include "ci/ciSymbols.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compileLog.hpp"
@@ -942,7 +943,7 @@ void Parse::do_lookupswitch() {
     }
     prev = match_int+1;
   }
-  if (prev-1 != max_jint) {
+  if (prev != min_jint) {
     defaults += (float)max_jint - prev + 1;
   }
   float default_cnt = 1;
@@ -1381,7 +1382,7 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
 #ifndef PRODUCT
   if (switch_depth == 0) {
     _max_switch_depth = 0;
-    _est_switch_depth = log2_intptr((hi-lo+1)-1)+1;
+    _est_switch_depth = log2i_graceful((hi - lo + 1) - 1) + 1;
   }
 #endif
 
@@ -2337,8 +2338,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   set_all_memory(mem);
 
   kill_dead_locals();
-  ciMethod* subst_method = ciEnv::current()->ValueBootstrapMethods_klass()->find_method(ciSymbol::isSubstitutable_name(), ciSymbol::object_object_boolean_signature());
-  CallStaticJavaNode *call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method, bci());
+  ciMethod* subst_method = ciEnv::current()->ValueBootstrapMethods_klass()->find_method(ciSymbols::isSubstitutable_name(), ciSymbols::object_object_boolean_signature());
+  CallStaticJavaNode *call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method);
   call->set_override_symbolic_info(true);
   call->init_req(TypeFunc::Parms, not_null_left);
   call->init_req(TypeFunc::Parms+1, not_null_right);

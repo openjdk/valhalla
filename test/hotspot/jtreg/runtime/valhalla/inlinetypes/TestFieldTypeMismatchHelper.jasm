@@ -22,7 +22,7 @@
  *
  */
 
-public class compiler/valhalla/inlinetypes/TestFieldTypeMismatchHelper version 60:0 {
+public class compiler/valhalla/inlinetypes/TestFieldTypeMismatchHelper version 61:0 {
 
     Field field:"Qcompiler/valhalla/inlinetypes/MyValue;";
 

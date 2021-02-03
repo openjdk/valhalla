@@ -1286,7 +1286,6 @@ MachNode *Matcher::match_sfpt( SafePointNode *sfpt ) {
       assert(call_java->validate_symbolic_info(), "inconsistent info");
       method = call_java->method();
       mcall_java->_method = method;
-      mcall_java->_bci = call_java->_bci;
       mcall_java->_optimized_virtual = call_java->is_optimized_virtual();
       is_method_handle_invoke = call_java->is_method_handle_invoke();
       mcall_java->_method_handle_invoke = is_method_handle_invoke;
@@ -2140,7 +2139,7 @@ void Matcher::find_shared(Node* n) {
       if (find_shared_visit(mstack, n, nop, mem_op, mem_addr_idx)) {
         continue;
       }
-      for (int i = n->req() - 1; i >= 0; --i) { // For my children
+      for (int i = n->len() - 1; i >= 0; --i) { // For my children
         Node* m = n->in(i); // Get ith input
         if (m == NULL) {
           continue;  // Ignore NULLs
@@ -2456,9 +2455,9 @@ void Matcher::find_shared_post_visit(Node* n, uint opcode) {
       n->set_req(2, n->in(3));
       n->del_req(3);
       break;
+    }
     default:
       break;
-    }
   }
 }
 
