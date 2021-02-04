@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -453,7 +453,7 @@ final class ProxyGenerator extends ClassWriter {
      * class file generation process.
      */
     private byte[] generateClassFile() {
-        visit(V16, accessFlags, dotToSlash(className), null,
+        visit(V17, accessFlags, dotToSlash(className), null,
                 JLR_PROXY, typeNames(interfaces));
 
         /*
