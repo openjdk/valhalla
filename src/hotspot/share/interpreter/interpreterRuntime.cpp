@@ -26,6 +26,7 @@
 #include "jvm_io.h"
 #include "classfile/javaClasses.inline.hpp"
 #include "classfile/symbolTable.hpp"
+#include "classfile/systemDictionary.hpp"
 #include "classfile/vmClasses.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
@@ -515,7 +516,7 @@ JRT_ENTRY(jboolean, InterpreterRuntime::is_substitutable(JavaThread* thread, oop
     // Something really bad happened because isSubstitutable() should not throw exceptions
     // If it is an error, just let it propagate
     // If it is an exception, wrap it into an InternalError
-    if (!PENDING_EXCEPTION->is_a(SystemDictionary::Error_klass())) {
+    if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {
       Handle e(THREAD, PENDING_EXCEPTION);
       CLEAR_PENDING_EXCEPTION;
       THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in substitutability test", e, false);

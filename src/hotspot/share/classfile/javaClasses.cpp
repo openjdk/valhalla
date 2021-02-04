@@ -4813,7 +4813,7 @@ int jdk_internal_vm_jni_SubElementSelector::_isInlineType_offset;
   macro(_isInlineType_offset,      k, "isInlineType",     bool_signature,  false);
 
 void jdk_internal_vm_jni_SubElementSelector::compute_offsets() {
-  InstanceKlass* k = SystemDictionary::jdk_internal_vm_jni_SubElementSelector_klass();
+  InstanceKlass* k = vmClasses::jdk_internal_vm_jni_SubElementSelector_klass();
   SUBELEMENT_SELECTOR_FIELDS_DO(FIELD_COMPUTE_OFFSET);
 }
 

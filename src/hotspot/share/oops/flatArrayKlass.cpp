@@ -85,7 +85,7 @@ void FlatArrayKlass::set_element_klass(Klass* k) {
 }
 
 FlatArrayKlass* FlatArrayKlass::allocate_klass(Klass* element_klass, TRAPS) {
-  guarantee((!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()), "Really ?!");
+  guarantee((!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()), "Really ?!");
   assert(UseFlatArray, "Flatten array required");
   assert(InlineKlass::cast(element_klass)->is_naturally_atomic() || (!InlineArrayAtomicAccess), "Atomic by-default");
 
@@ -400,9 +400,9 @@ GrowableArray<Klass*>* FlatArrayKlass::compute_secondary_supers(int num_extra_sl
     return NULL;
   } else {
     GrowableArray<Klass*>* secondaries = new GrowableArray<Klass*>(num_elem_supers+3);
-    secondaries->push(SystemDictionary::Cloneable_klass());
-    secondaries->push(SystemDictionary::Serializable_klass());
-    secondaries->push(SystemDictionary::IdentityObject_klass());
+    secondaries->push(vmClasses::Cloneable_klass());
+    secondaries->push(vmClasses::Serializable_klass());
+    secondaries->push(vmClasses::IdentityObject_klass());
     for (int i = 0; i < num_elem_supers; i++) {
       Klass* elem_super = (Klass*) elem_supers->at(i);
       Klass* array_super = elem_super->array_klass_or_null();

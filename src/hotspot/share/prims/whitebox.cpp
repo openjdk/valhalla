@@ -1827,7 +1827,7 @@ WB_ENTRY(jobjectArray, WB_getObjectsViaKlassOopMaps(JNIEnv* env, jobject wb, job
   }
 
   objArrayOop result_array =
-      oopFactory::new_objArray(SystemDictionary::Object_klass(), oop_count, CHECK_NULL);
+      oopFactory::new_objArray(vmClasses::Object_klass(), oop_count, CHECK_NULL);
   map = klass->start_of_nonstatic_oop_maps();
   instanceOop ioop = ih();
   int index = 0;
@@ -1848,7 +1848,7 @@ class CollectOops : public BasicOopIterateClosure {
 
   objArrayOop create_results(TRAPS) {
     objArrayOop result_array =
-        oopFactory::new_objArray(SystemDictionary::Object_klass(), array->length(), CHECK_NULL);
+        oopFactory::new_objArray(vmClasses::Object_klass(), array->length(), CHECK_NULL);
     for (int i = 0 ; i < array->length(); i++) {
       result_array->obj_at_put(i, array->at(i)());
     }

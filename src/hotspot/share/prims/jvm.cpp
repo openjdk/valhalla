@@ -605,7 +605,7 @@ JVM_ENTRY(jint, JVM_IHashCode(JNIEnv* env, jobject handle))
       methodHandle method(THREAD, Universe::inline_type_hash_code_method());
       JavaCalls::call(&result, method, &args, THREAD);
       if (HAS_PENDING_EXCEPTION) {
-        if (!PENDING_EXCEPTION->is_a(SystemDictionary::Error_klass())) {
+        if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {
           Handle e(THREAD, PENDING_EXCEPTION);
           CLEAR_PENDING_EXCEPTION;
           THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in hashCode", e, false);

@@ -4597,7 +4597,7 @@ static Array<InstanceKlass*>* compute_transitive_interfaces(const InstanceKlass*
     const int length = result->length();
     assert(length <= max_transitive_size, "just checking");
 
-    if (length == 1 && result->at(0) == SystemDictionary::IdentityObject_klass()) {
+    if (length == 1 && result->at(0) == vmClasses::IdentityObject_klass()) {
       return Universe::the_single_IdentityObject_klass_array();
     }
 
@@ -6647,13 +6647,13 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
   if (!is_inline_type() && invalid_inline_super() && (_super_klass == NULL || !_super_klass->invalid_inline_super())
       && !_implements_identityObject && class_name() != vmSymbols::java_lang_IdentityObject()) {
-    _temp_local_interfaces->append(SystemDictionary::IdentityObject_klass());
+    _temp_local_interfaces->append(vmClasses::IdentityObject_klass());
     _has_injected_identityObject = true;
   }
   int itfs_len = _temp_local_interfaces->length();
   if (itfs_len == 0) {
     _local_interfaces = Universe::the_empty_instance_klass_array();
-  } else if (itfs_len == 1 && _temp_local_interfaces->at(0) == SystemDictionary::IdentityObject_klass()) {
+  } else if (itfs_len == 1 && _temp_local_interfaces->at(0) == vmClasses::IdentityObject_klass()) {
     _local_interfaces = Universe::the_single_IdentityObject_klass_array();
   } else {
     _local_interfaces = MetadataFactory::new_array<InstanceKlass*>(_loader_data, itfs_len, NULL, CHECK);

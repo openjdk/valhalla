@@ -29,6 +29,7 @@
 #include "ci/ciInstanceKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
 #include "classfile/javaClasses.hpp"
+#include "classfile/systemDictionary.hpp"
 #include "classfile/vmClasses.hpp"
 #include "memory/allocation.hpp"
 #include "memory/allocation.inline.hpp"
@@ -809,8 +810,8 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool f
       Symbol* name = ss.as_symbol();
       assert(!HAS_PENDING_EXCEPTION, "can resolve klass?");
       InstanceKlass* holder = fd->field_holder();
-      Klass* k = vmClasses::find(name, Handle(THREAD, holder->class_loader()),
-                                 Handle(THREAD, holder->protection_domain()), THREAD);
+      Klass* k = SystemDictionary::find(name, Handle(THREAD, holder->class_loader()),
+                                        Handle(THREAD, holder->protection_domain()), THREAD);
       assert(k != NULL && !HAS_PENDING_EXCEPTION, "can resolve klass?");
       InlineKlass* vk = InlineKlass::cast(k);
       oop obj;

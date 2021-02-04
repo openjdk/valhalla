@@ -270,6 +270,7 @@ static const char* action_to_string(PlaceholderTable::classloadAction action) {
   case PlaceholderTable::LOAD_INSTANCE: return "LOAD_INSTANCE";
   case PlaceholderTable::LOAD_SUPER:    return "LOAD_SUPER";
   case PlaceholderTable::DEFINE_CLASS:  return "DEFINE_CLASS";
+  case PlaceholderTable::INLINE_TYPE_FIELD: return "INLINE_TYPE_FIELD";
  }
  return "";
 }
