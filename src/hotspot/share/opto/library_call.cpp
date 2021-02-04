@@ -26,7 +26,6 @@
 #include "asm/macroAssembler.hpp"
 #include "ci/ciFlatArrayKlass.hpp"
 #include "ci/ciUtilities.inline.hpp"
-#include "classfile/systemDictionary.hpp"
 #include "classfile/vmIntrinsics.hpp"
 #include "compiler/compileBroker.hpp"
 #include "compiler/compileLog.hpp"

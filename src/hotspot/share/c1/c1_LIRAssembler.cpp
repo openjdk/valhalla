@@ -493,9 +493,9 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
     add_call_info(offset, op->info(), true);
   }
 
-#if defined(IA32) && defined(TIERED)
+#if defined(IA32) && defined(COMPILER2)
   // C2 leave fpu stack dirty clean it
-  if (UseSSE < 2) {
+  if (UseSSE < 2 && !CompilerConfig::is_c1_only_no_aot_or_jvmci()) {
     int i;
     for ( i = 1; i <= 7 ; i++ ) {
       ffree(i);
@@ -504,7 +504,7 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
       ffree(0);
     }
   }
-#endif // X86 && TIERED
+#endif // IA32 && COMPILER2
 }
 
 

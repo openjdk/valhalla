@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -40,6 +40,7 @@
 #include "classfile/systemDictionary.hpp"
 #include "classfile/verificationType.hpp"
 #include "classfile/verifier.hpp"
+#include "classfile/vmClasses.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "logging/log.hpp"
 #include "logging/logStream.hpp"
@@ -1150,7 +1151,7 @@ public:
   u2 _contended_group;
 
   AnnotationCollector(Location location)
-    : _location(location), _annotations_present(0)
+    : _location(location), _annotations_present(0), _contended_group(0)
   {
     assert((int)_annotation_LIMIT <= (int)sizeof(_annotations_present) * BitsPerByte, "");
   }
@@ -2827,7 +2828,7 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
       cfs->skip_u2_fast(method_parameters_length);
       cfs->skip_u2_fast(method_parameters_length);
       // ignore this attribute if it cannot be reflected
-      if (!SystemDictionary::Parameter_klass_loaded())
+      if (!vmClasses::Parameter_klass_loaded())
         method_parameters_length = -1;
     } else if (method_attribute_name == vmSymbols::tag_synthetic()) {
       if (method_attribute_length != 0) {
@@ -4476,8 +4477,8 @@ void ClassFileParser::set_precomputed_flags(InstanceKlass* ik) {
 #endif
 
   // Check if this klass supports the java.lang.Cloneable interface
-  if (SystemDictionary::Cloneable_klass_loaded()) {
-    if (ik->is_subtype_of(SystemDictionary::Cloneable_klass())) {
+  if (vmClasses::Cloneable_klass_loaded()) {
+    if (ik->is_subtype_of(vmClasses::Cloneable_klass())) {
       if (ik->is_inline_klass()) {
         Thread *THREAD = Thread::current();
         throwInlineTypeLimitation(THREAD_AND_LOCATION, "Inline Types do not support Cloneable");
@@ -4596,7 +4597,7 @@ static Array<InstanceKlass*>* compute_transitive_interfaces(const InstanceKlass*
     const int length = result->length();
     assert(length <= max_transitive_size, "just checking");
 
-    if (length == 1 && result->at(0) == SystemDictionary::IdentityObject_klass()) {
+    if (length == 1 && result->at(0) == vmClasses::IdentityObject_klass()) {
       return Universe::the_single_IdentityObject_klass_array();
     }
 
@@ -5175,7 +5176,7 @@ static const char* skip_over_field_name(const char* const name,
       if (not_first_ch) {
         // public static boolean isJavaIdentifierPart(char ch);
         JavaCalls::call_static(&result,
-          SystemDictionary::Character_klass(),
+          vmClasses::Character_klass(),
           vmSymbols::isJavaIdentifierPart_name(),
           vmSymbols::int_bool_signature(),
           &args,
@@ -5183,7 +5184,7 @@ static const char* skip_over_field_name(const char* const name,
       } else {
         // public static boolean isJavaIdentifierStart(char ch);
         JavaCalls::call_static(&result,
-          SystemDictionary::Character_klass(),
+          vmClasses::Character_klass(),
           vmSymbols::isJavaIdentifierStart_name(),
           vmSymbols::int_bool_signature(),
           &args,
@@ -6574,7 +6575,7 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
         CHECK);
   }
   // We check super class after class file is parsed and format is checked
-  if (_super_class_index > 0 && NULL ==_super_klass) {
+  if (_super_class_index > 0 && NULL == _super_klass) {
     Symbol* const super_class_name = cp->klass_name_at(_super_class_index);
     if (is_interface()) {
       // Before attempting to resolve the superclass, check for class format
@@ -6646,13 +6647,13 @@ void ClassFileParser::post_process_parsed_stream(const ClassFileStream* const st
 
   if (!is_inline_type() && invalid_inline_super() && (_super_klass == NULL || !_super_klass->invalid_inline_super())
       && !_implements_identityObject && class_name() != vmSymbols::java_lang_IdentityObject()) {
-    _temp_local_interfaces->append(SystemDictionary::IdentityObject_klass());
+    _temp_local_interfaces->append(vmClasses::IdentityObject_klass());
     _has_injected_identityObject = true;
   }
   int itfs_len = _temp_local_interfaces->length();
   if (itfs_len == 0) {
     _local_interfaces = Universe::the_empty_instance_klass_array();
-  } else if (itfs_len == 1 && _temp_local_interfaces->at(0) == SystemDictionary::IdentityObject_klass()) {
+  } else if (itfs_len == 1 && _temp_local_interfaces->at(0) == vmClasses::IdentityObject_klass()) {
     _local_interfaces = Universe::the_single_IdentityObject_klass_array();
   } else {
     _local_interfaces = MetadataFactory::new_array<InstanceKlass*>(_loader_data, itfs_len, NULL, CHECK);

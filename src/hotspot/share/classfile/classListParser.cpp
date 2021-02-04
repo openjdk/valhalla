@@ -32,6 +32,7 @@
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
+#include "classfile/vmClasses.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "interpreter/bytecode.hpp"
 #include "interpreter/bytecodeStream.hpp"
@@ -400,13 +401,13 @@ InstanceKlass* ClassListParser::load_class_from_source(Symbol* class_name, TRAPS
     bool identity_object_implemented = false;
     bool identity_object_specified = false;
     for (i = 0; i < actual_num_interfaces; i++) {
-      if (k->local_interfaces()->at(i) == SystemDictionary::IdentityObject_klass()) {
+      if (k->local_interfaces()->at(i) == vmClasses::IdentityObject_klass()) {
         identity_object_implemented = true;
         break;
       }
     }
     for (i = 0; i < specified_num_interfaces; i++) {
-      if (lookup_class_by_id(_interfaces->at(i)) == SystemDictionary::IdentityObject_klass()) {
+      if (lookup_class_by_id(_interfaces->at(i)) == vmClasses::IdentityObject_klass()) {
         identity_object_specified = true;
         break;
       }
@@ -590,7 +591,7 @@ Klass* ClassListParser::load_current_class(TRAPS) {
 
       JavaCalls::call_virtual(&result,
                               loader, //SystemDictionary::java_system_loader(),
-                              SystemDictionary::ClassLoader_klass(),
+                              vmClasses::ClassLoader_klass(),
                               vmSymbols::loadClass_name(),
                               vmSymbols::string_class_signature(),
                               ext_class_name,
@@ -681,7 +682,7 @@ InstanceKlass* ClassListParser::lookup_interface_for_current_class(Symbol* inter
   if (interface_name == vmSymbols::java_lang_IdentityObject()) {
     // Backwards compatibility -- older classlists do not know about
     // java.lang.IdentityObject.
-    return SystemDictionary::IdentityObject_klass();
+    return vmClasses::IdentityObject_klass();
   }
 
   const int n = _interfaces->length();
