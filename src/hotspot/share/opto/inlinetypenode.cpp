@@ -196,8 +196,6 @@ int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node
   ciInlineKlass* vk = inline_klass();
   uint nfields = vk->nof_nonstatic_fields();
   JVMState* jvms = sfpt->jvms();
-  int start = jvms->debug_start();
-  int end   = jvms->debug_end();
   // Replace safepoint edge by SafePointScalarObjectNode and add field values
   assert(jvms != NULL, "missing JVMS");
   uint first_ind = (sfpt->req() - jvms->scloff());
@@ -221,7 +219,7 @@ int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node
   jvms->set_endoff(sfpt->req());
   sobj = igvn->transform(sobj)->as_SafePointScalarObject();
   igvn->rehash_node_delayed(sfpt);
-  return sfpt->replace_edges_in_range(this, sobj, start, end);
+  return sfpt->replace_edges_in_range(this, sobj, jvms->debug_start(), jvms->debug_end());
 }
 
 void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop) {
