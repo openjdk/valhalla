@@ -263,14 +263,14 @@ public class InstructionHelper {
                 if (aClass.isArray()) {
                     return classToInternalName(aClass);
                 } else {
-                    return (aClass.isInlineClass() ? "Q" : "L") + classToInternalName(aClass) + ";";
+                    return (aClass.isPrimitiveClass() ? "Q" : "L") + classToInternalName(aClass) + ";";
                 }
             }
 
             @Override
             public boolean isInlineClass(String desc) {
                 Class<?> aClass = symbol(desc);
-                return aClass != null && aClass.isInlineClass();
+                return aClass != null && aClass.isPrimitiveClass();
             }
 
             @Override

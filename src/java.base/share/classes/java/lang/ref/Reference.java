@@ -490,8 +490,8 @@ public abstract class Reference<T> {
     }
 
     Reference(T referent, ReferenceQueue<? super T> queue) {
-        if (referent != null && referent.getClass().isInlineClass()) {
-            throw new IllegalArgumentException("cannot reference an inline value of type: " +
+        if (referent != null && referent.getClass().isPrimitiveClass()) {
+            throw new IllegalArgumentException("cannot reference a primitive type: " +
                     referent.getClass().getName());
         }
         this.referent = referent;

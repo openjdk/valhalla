@@ -147,7 +147,7 @@ public final class ValueBootstrapMethods {
          * 2. if o1 and o2 are both values then o1 v== o2
          *
          * At invocation time, it needs a dynamic check on the objects and
-         * do the substitutability test if they are of an inline type.
+         * do the substitutability test if they are of a primitive type.
          */
         static MethodHandle referenceTypeEquals(Class<?> type) {
             return EQUALS[Wrapper.OBJECT.ordinal()].asType(methodType(boolean.class, type, type));
@@ -156,10 +156,10 @@ public final class ValueBootstrapMethods {
 
         /*
          * Produces a MethodHandle that returns boolean if two value instances
-         * of the given inline class are substitutable.
+         * of the given primitive class are substitutable.
          */
         static MethodHandle inlineTypeEquals(Class<?> type) {
-            assert type.isInlineClass();
+            assert type.isPrimitiveClass();
             MethodType mt = methodType(boolean.class, type, type);
             MethodHandle[] getters = getters(type, TYPE_SORTER);
             MethodHandle instanceTrue = dropArguments(TRUE, 0, type, Object.class).asType(mt);
@@ -181,7 +181,7 @@ public final class ValueBootstrapMethods {
         }
 
         static MethodHandle inlineTypeHashCode(Class<?> type) {
-            assert type.isInlineClass();
+            assert type.isPrimitiveClass();
             MethodHandle target = dropArguments(constant(int.class, SALT), 0, type);
             MethodHandle cls = dropArguments(constant(Class.class, type),0, type);
             MethodHandle classHashCode = filterReturnValue(cls, hashCodeForType(Class.class));
@@ -193,8 +193,8 @@ public final class ValueBootstrapMethods {
             MethodHandle[] hashers = new MethodHandle[getters.length];
             for (int i=0; i < getters.length; i++) {
                 MethodHandle getter = getters[i];
-                // For inline type or reference type, this calls Objects::hashCode.
-                // If the instance is of inline type and the hashCode method is not
+                // For primitive type or reference type, this calls Objects::hashCode.
+                // If the instance is of primitive type and the hashCode method is not
                 // overridden, VM will call inlineObjectHashCode to compute the
                 // hash code.
                 MethodHandle hasher = hashCodeForType(getter.type().returnType());
@@ -210,7 +210,7 @@ public final class ValueBootstrapMethods {
         }
 
         static MethodHandle inlineTypeToString(Class<?> type) {
-            assert type.isInlineClass();
+            assert type.isPrimitiveClass();
             MethodHandle[] getters = MethodHandleBuilder.getters(type);
             int length = getters.length;
             StringBuilder format = new StringBuilder();
@@ -256,14 +256,14 @@ public final class ValueBootstrapMethods {
             if (a == null && b == null) return true;
             if (a == null || b == null) return false;
             if (a.getClass() != b.getClass()) return false;
-            return a.getClass().isInlineClass() ? inlineValueEq(a, b) : (a == b);
+            return a.getClass().isPrimitiveClass() ? inlineValueEq(a, b) : (a == b);
         }
 
         /*
          * Returns true if two values are substitutable.
          */
         private static boolean inlineValueEq(Object a, Object b) {
-            assert a != null && b != null && isSameInlineClass(a, b);
+            assert a != null && b != null && isSamePrimitiveClass(a, b);
             try {
                 Class<?> type = a.getClass();
                 return (boolean) substitutableInvoker(type).invoke(type.cast(a), type.cast(b));
@@ -282,16 +282,16 @@ public final class ValueBootstrapMethods {
         }
 
         /*
-         * Returns true if the given objects are of the same inline class.
+         * Returns true if the given objects are of the same primitive class.
          *
-         * Two objects are of the same inline class iff:
+         * Two objects are of the same primitive class iff:
          * 1. a != null and b != null
-         * 2. the declaring class of a and b is the same inline class
+         * 2. the declaring class of a and b is the same primitive class
          */
-        private static boolean isSameInlineClass(Object a, Object b) {
+        private static boolean isSamePrimitiveClass(Object a, Object b) {
             if (a == null || b == null) return false;
 
-            return a.getClass().isInlineClass() && a.getClass() == b.getClass();
+            return a.getClass().isPrimitiveClass() && a.getClass() == b.getClass();
         }
 
         private static String toString(Object o) {
@@ -332,7 +332,7 @@ public final class ValueBootstrapMethods {
         private static final MethodHandle[] HASHCODE = initHashCode();
 
         static final MethodHandle IS_SAME_INLINE_CLASS =
-            findStatic("isSameInlineClass", methodType(boolean.class, Object.class, Object.class));
+            findStatic("isSamePrimitiveClass", methodType(boolean.class, Object.class, Object.class));
         static final MethodHandle IS_NULL =
             findStatic("isNull", methodType(boolean.class, Object.class, Object.class));
         static final MethodHandle TO_STRING =
@@ -538,7 +538,7 @@ public final class ValueBootstrapMethods {
         if (type.isPrimitive())
             return MethodHandleBuilder.primitiveEquals(type);
 
-        if (type.isInlineClass())
+        if (type.isPrimitiveClass())
             return SUBST_TEST_METHOD_HANDLES.get(type);
 
         return MethodHandleBuilder.referenceTypeEquals(type);
@@ -552,17 +552,17 @@ public final class ValueBootstrapMethods {
     };
 
     /**
-     * Invoke the bootstrap methods hashCode for the given inline object.
+     * Invoke the bootstrap methods hashCode for the given primitive class object.
      * @param o the instance to hash.
-     * @return the hash code of the given inline object.
+     * @return the hash code of the given primitive class object.
      */
     private static int inlineObjectHashCode(Object o) {
         try {
             Class<?> type = o.getClass();
             // Note: javac disallows user to call super.hashCode if user implementated
             // risk for recursion for experts crafting byte-code
-            if (!type.isInlineClass())
-                throw new InternalError("must be inline type: " + type.getName());
+            if (!type.isPrimitiveClass())
+                throw new InternalError("must be primitive type: " + type.getName());
             return (int) HASHCODE_METHOD_HANDLES.get(type).invoke(o);
         } catch (Error|RuntimeException e) {
             throw e;
@@ -579,17 +579,17 @@ public final class ValueBootstrapMethods {
     };
 
     /**
-     * Invoke the bootstrap methods hashCode for the given inline object.
+     * Invoke the bootstrap methods hashCode for the given primitive class object.
      * @param o the instance to hash.
-     * @return the string representation of the given inline object.
+     * @return the string representation of the given primitive class object.
      */
     static String inlineObjectToString(Object o) {
         try {
             Class<?> type = o.getClass();
             // Note: javac disallows user to call super.hashCode if user implementated
             // risk for recursion for experts crafting byte-code
-            if (!type.isInlineClass())
-                throw new InternalError("must be inline type: " + type.getName());
+            if (!type.isPrimitiveClass())
+                throw new InternalError("must be primitive type: " + type.getName());
             return (String) TOSTRING_METHOD_HANDLES.get(type).invoke(o);
         } catch (Error|RuntimeException e) {
             throw e;

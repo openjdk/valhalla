@@ -864,7 +864,7 @@ final class ProxyGenerator extends ClassWriter {
                 }
             } else {
                 String internalName = dotToSlash(type.getName());
-                if (type.isInlineClass()) {
+                if (type.isPrimitiveClass()) {
                     internalName = 'Q' + internalName + ";";
                 }
                 mv.visitTypeInsn(CHECKCAST, internalName);

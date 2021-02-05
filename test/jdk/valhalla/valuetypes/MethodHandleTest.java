@@ -118,15 +118,15 @@ public class MethodHandleTest {
         }
 
         Class<?> elementType = c.getComponentType();
-        if (elementType.isInlineClass()) {
+        if (elementType.isPrimitiveClass()) {
             assertTrue(elementType == elementType.valueType().get());
         }
         // set an array element to null
         try {
             Object v = (Object)setter.invoke(array, 0, null);
-            assertFalse(elementType.isInlineClass(), "should fail to set an inline class array element to null");
+            assertFalse(elementType.isPrimitiveClass(), "should fail to set an inline class array element to null");
         } catch (NullPointerException e) {
-            assertTrue(elementType.isInlineClass(), "should only fail to set an inline class array element to null");
+            assertTrue(elementType.isPrimitiveClass(), "should only fail to set an inline class array element to null");
         }
     }
 
@@ -161,7 +161,7 @@ public class MethodHandleTest {
             unreflectField(f);
             findGetter(f);
             varHandle(f);
-            if (c.isInlineClass())
+            if (c.isPrimitiveClass())
                 ensureImmutable(f);
             else
                 ensureNullable(f);
@@ -194,7 +194,7 @@ public class MethodHandleTest {
     void setValueField(String name, Object obj, Object value) throws Throwable {
         Field f = c.getDeclaredField(name);
         boolean isStatic = Modifier.isStatic(f.getModifiers());
-        assertTrue(f.getType().isInlineClass() || f.getType().valueType().isPresent());
+        assertTrue(f.getType().isPrimitiveClass() || f.getType().valueType().isPresent());
         assertTrue((isStatic && obj == null) || (!isStatic && obj != null));
         Object v = f.get(obj);
 
@@ -289,7 +289,7 @@ public class MethodHandleTest {
      */
     void ensureNullable(Field f) throws Throwable {
         assertFalse(Modifier.isStatic(f.getModifiers()));
-        boolean canBeNull = !f.getType().isInlineClass();
+        boolean canBeNull = !f.getType().isPrimitiveClass();
         // test reflection
         try {
             f.set(o, null);

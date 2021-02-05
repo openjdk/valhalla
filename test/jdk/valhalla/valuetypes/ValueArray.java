@@ -56,7 +56,7 @@ public class ValueArray {
         testClassName();
         testArrayElements();
 
-        if (componentType.isInlineClass()) {
+        if (componentType.isPrimitiveClass()) {
             Object[] qArray = (Object[]) Array.newInstance(componentType, 0);
             Object[] lArray = (Object[]) Array.newInstance(componentType.referenceType().get(), 0);
             testInlineArrayCovariance(componentType, qArray, lArray);
@@ -72,7 +72,7 @@ public class ValueArray {
             sb.append("[");
             c = c.getComponentType();
         }
-        sb.append(c.isInlineClass() ? "Q" : "L").append(c.getName()).append(";");
+        sb.append(c.isPrimitiveClass() ? "Q" : "L").append(c.getName()).append(";");
         assertEquals(sb.toString(), arrayClassName);
     }
 
@@ -92,7 +92,7 @@ public class ValueArray {
         Arrays.setAll(array, i -> this.array[i]);
 
         // test nullable
-        if (!componentType.isInlineClass()) {
+        if (!componentType.isPrimitiveClass()) {
             for (int i=0; i < array.length; i++) {
                 Array.set(array, i, null);
             }
@@ -107,7 +107,7 @@ public class ValueArray {
     }
 
     void testInlineArrayCovariance(Class<?> componentType, Object[] qArray, Object[] lArray) {
-        assertTrue(componentType.isInlineClass());
+        assertTrue(componentType.isPrimitiveClass());
 
         // Class.instanceOf (self)
         assertTrue(qArray.getClass().isInstance(qArray));

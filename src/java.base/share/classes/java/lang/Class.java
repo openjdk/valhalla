@@ -201,7 +201,7 @@ public final class Class<T> implements java.io.Serializable,
     private static final int ANNOTATION = 0x00002000;
     private static final int ENUM       = 0x00004000;
     private static final int SYNTHETIC  = 0x00001000;
-    private static final int INLINE     = 0x00000100;
+    private static final int PRIMITIVE_CLASS = 0x00000100;
 
     private static native void registerNatives();
     static {
@@ -233,7 +233,7 @@ public final class Class<T> implements java.io.Serializable,
      * @return a string representation of this {@code Class} object.
      */
     public String toString() {
-        return (isInlineClass() ? "inline " : "")
+        return (isPrimitiveClass() ? "primitive " : "")
                + (isInterface() ? "interface " : (isPrimitive() ? "" : "class "))
                + getName();
     }
@@ -296,9 +296,8 @@ public final class Class<T> implements java.io.Serializable,
                 if (isAnnotation()) {
                     sb.append('@');
                 }
-                if (isInlineClass()) {
-                    sb.append("inline");
-                    sb.append(' ');
+                if (isPrimitiveClass()) {
+                    sb.append("primitive ");
                 }
                 if (isInterface()) { // Note: all annotation interfaces are interfaces
                     sb.append("interface");
@@ -553,26 +552,26 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /**
-     * Returns {@code true} if this class is an inline class.
+     * Returns {@code true} if this class is a primitive class.
      *
-     * @return {@code true} if this class is an inline class
+     * @return {@code true} if this class is a primitive class, otherwise {@code false}
      * @since Valhalla
      */
-    public boolean isInlineClass() {
-        return (this.getModifiers() & INLINE) != 0;
+    public boolean isPrimitiveClass() {
+        return (this.getModifiers() & PRIMITIVE_CLASS) != 0;
     }
 
     /**
-     * Returns a {@code Class} object representing the <em>value projection</em>
-     * type of this class if this {@code Class} represents the reference projection
-     * type of an {@linkplain #isInlineClass() inline class}.
-     * If this {@code Class} represents the value projection type
-     * of an inline class, then this method returns this class.
+     * Returns an {@code Optional<Class>} object representing the <em>primitive value type</em>
+     * of this class if this {@code Class} represents the <em>reference type</em>
+     * of a {@linkplain #isPrimitiveClass() primitive class}.
+     * If this {@code Class} represents the value type of a primitive class,
+     * then this method returns this class.
      * Otherwise an empty {@link Optional} is returned.
      *
-     * @return the {@code Class} object representing the value projection type of
-     *         this class if this class is the value projection type
-     *         or the reference projection type of an inline class;
+     * @return the {@code Optional<Class>} representing the primitive value type of
+     *         this class if this class is either the value type
+     *         or the reference type of a primitive class;
      *         an empty {@link Optional} otherwise
      * @since Valhalla
      */
@@ -580,7 +579,7 @@ public final class Class<T> implements java.io.Serializable,
         if (isPrimitive() || isInterface() || isArray())
             return Optional.empty();
 
-        Class<?>[] valRefTypes = getProjectionTypes();
+        Class<?>[] valRefTypes = getPrimitiveTypes();
         return valRefTypes.length > 0 ? Optional.of(valRefTypes[0]) : Optional.empty();
     }
 
@@ -588,45 +587,39 @@ public final class Class<T> implements java.io.Serializable,
      * Returns a {@code Class} object representing the reference type
      * of this class.
      * <p>
-     * If this {@code Class} represents an {@linkplain #isInlineClass()
-     * inline class} with a reference projection type, then this method
-     * returns the <em>reference projection</em> type of this inline class.
+     * If this {@code Class} represents a {@linkplain #isPrimitiveClass()
+     * primitive reference type}, then this method
+     * returns the <em>primitive reference type</em> type of this primitive class.
      * <p>
-     * If this {@code Class} represents the reference projection type
-     * of an inline class, then this method returns this class.
+     * If this {@code Class} represents the reference type
+     * of a primitive class, then this method returns this class.
      * <p>
-     * If this class is an {@linkplain #isInlineClass() inline class}
-     * without a reference projection, then this method returns an empty
-     * {@code Optional}.
-     * <p>
-     * If this class is an identity class, then this method returns this
-     * class.
+     * If this class is an identity class, then this method returns this class.
      * <p>
      * Otherwise this method returns an empty {@code Optional}.
      *
-     * @return the {@code Class} object representing a reference type for
-     *         this class if present; an empty {@link Optional} otherwise.
+     * @return the {@code Optional<Class>} object representing the reference type for
+     *         this class, if present; an empty {@link Optional} otherwise.
      * @since Valhalla
      */
     public Optional<Class<?>> referenceType() {
         if (isPrimitive()) return Optional.empty();
         if (isInterface() || isArray()) return Optional.of(this);
 
-        Class<?>[] valRefTypes = getProjectionTypes();
+        Class<?>[] valRefTypes = getPrimitiveTypes();
         return valRefTypes.length == 2 ? Optional.of(valRefTypes[1]) : Optional.empty();
     }
 
     /*
-     * Returns true if this Class object represents a reference projection
-     * type for an inline class.
+     * Returns true if this Class object represents a primitive reference
+     * type for a primitive class.
      *
-     * A reference projection type must be a sealed abstract class that
-     * permits the inline projection type to extend.  The inline projection
-     * type and reference projection type for an inline type must be of
-     * the same package.
+     * A primitive reference type must be a sealed abstract class that
+     * permits the primitive value type to extend.  The primitive value type
+     * and primitive reference type for a primitive type must be of the same package.
      */
-    private boolean isReferenceProjectionType() {
-        if (isPrimitive() || isArray() || isInterface() || isInlineClass())
+    private boolean isPrimitiveReferenceType() {
+        if (isPrimitive() || isArray() || isInterface() || isPrimitiveClass())
             return false;
 
         int mods = getModifiers();
@@ -634,56 +627,54 @@ public final class Class<T> implements java.io.Serializable,
             return false;
         }
 
-        Class<?>[] valRefTypes = getProjectionTypes();
+        Class<?>[] valRefTypes = getPrimitiveTypes();
         return valRefTypes.length == 2 && valRefTypes[1] == this;
     }
 
-    private transient Class<?>[] projectionTypes;
-    private Class<?>[] getProjectionTypes() {
+    private transient Class<?>[] primitiveTypes;
+    private Class<?>[] getPrimitiveTypes() {
         if (isPrimitive() || isArray() || isInterface())
             return null;
 
-        Class<?>[] valRefTypes = projectionTypes;
+        Class<?>[] valRefTypes = primitiveTypes;
         if (valRefTypes == null) {
-            // C.ensureProjectionTypesInited calls initProjectionTypes that may
-            // call D.ensureProjectionTypesInited where D is its superclass.
-            // So initProjectionTypes is called without holding any lock to
+            // So newPrimitiveTypeArray is called without holding any lock to
             // avoid potential deadlock when multiple threads attempt to
-            // initialize the projection types for C and E where D is
+            // initialize the primitive types for C and E where D is
             // the superclass of both C and E (which is an error case)
-            valRefTypes = newProjectionTypeArray();
+            valRefTypes = newTypeArrayForPrimitiveClass();
         }
         synchronized (this) {
-            // set the projection types if not set
-            if (projectionTypes == null) {
-                projectionTypes = valRefTypes;
+            // set the value and reference types if not set
+            if (primitiveTypes == null) {
+                primitiveTypes = valRefTypes;
             }
         }
-        return projectionTypes;
+        return primitiveTypes;
     }
 
     /*
-     * Returns an array of Class object whose element at index 0 represents the
-     * value projection type and element at index 1 represents the reference
-     * projection type if present.
+     * Returns an array of Class objects whose element at index 0 represents the
+     * primitive value type and element at index 1 represents the
+     * primitive reference type, if present.
      *
-     * If this Class object is neither a value projection type nor
-     * a reference projection type for an inline class, then an empty array
+     * If this Class object is neither a primitive value type nor
+     * a primitive reference type for a primitive class, then an empty array
      * is returned.
      */
-    private Class<?>[] newProjectionTypeArray() {
+    private Class<?>[] newTypeArrayForPrimitiveClass() {
         if (isPrimitive() || isArray() || isInterface())
             return null;
 
-        if (isInlineClass()) {
+        if (isPrimitiveClass()) {
             Class<?> superClass = getSuperclass();
-            if (superClass != Object.class && superClass.isReferenceProjectionType()) {
+            if (superClass != Object.class && superClass.isPrimitiveReferenceType()) {
                 return new Class<?>[] { this, superClass };
             } else {
                 return new Class<?>[] { this };
             }
         } else {
-            Class<?> valType = valueProjectionType();
+            Class<?> valType = primitiveValueType();
             if (valType != null) {
                 return new Class<?>[] { valType, this};
             } else {
@@ -693,15 +684,15 @@ public final class Class<T> implements java.io.Serializable,
     }
 
     /*
-     * Returns the value projection type if this Class represents
-     * a reference projection type.  If this class is an inline class
+     * Returns the primitive value type if this Class represents
+     * a primitive reference type.  If this class is a primitive class
      * then this method returns this class.  Otherwise, returns null.
      */
-    private Class<?> valueProjectionType() {
+    private Class<?> primitiveValueType() {
         if (isPrimitive() || isArray() || isInterface())
             return null;
 
-        if (isInlineClass())
+        if (isPrimitiveClass())
             return this;
 
         int mods = getModifiers();
@@ -709,14 +700,14 @@ public final class Class<T> implements java.io.Serializable,
             return null;
         }
 
-        // A reference projection type must be a sealed abstract class
-        // that permits the inline projection type to extend.
-        // The inline projection type and reference projection type for
-        // an inline type must be of the same package.
+        // A primitive reference type must be a sealed abstract class
+        // that permits the primitive class type to extend.
+        // The primitive class project type and primitive reference type for
+        // a primitive class type must be of the same package.
         Class<?>[] subclasses = getPermittedSubclasses0();
         if ((subclasses.length == 1) &&
-            (subclasses[0].isInlineClass()) &&
-            (getPackageName().equals(subclasses[0].getPackageName()))) {
+                (subclasses[0].isPrimitiveClass()) &&
+                (getPackageName().equals(subclasses[0].getPackageName()))) {
             return subclasses[0];
         }
         return null;
@@ -1001,7 +992,7 @@ public final class Class<T> implements java.io.Serializable,
      * <tr><th scope="row"> {@code char}    <td style="text-align:center"> {@code C}
      * <tr><th scope="row"> class or interface with <a href="ClassLoader.html#binary-name">binary name</a> <i>N</i>
      *                                      <td style="text-align:center"> {@code L}<em>N</em>{@code ;}
-     * <tr><th scope="row"> {@linkplain #isInlineClass() inline class} with <a href="ClassLoader.html#binary-name">binary name</a> <i>N</i>
+     * <tr><th scope="row"> {@linkplain #isPrimitiveClass() primitive class} with <a href="ClassLoader.html#binary-name">binary name</a> <i>N</i>
      *                                      <td style="text-align:center"> {@code Q}<em>N</em>{@code ;}
      * <tr><th scope="row"> {@code double}  <td style="text-align:center"> {@code D}
      * <tr><th scope="row"> {@code float}   <td style="text-align:center"> {@code F}
@@ -3990,16 +3981,16 @@ public final class Class<T> implements java.io.Serializable,
      *
      * @throws ClassCastException if the object is not
      * {@code null} and is not assignable to the type T.
-     * @throws NullPointerException if this is an {@linkplain #isInlineClass()
-     * inline type} and the object is {@code null}
+     * @throws NullPointerException if this is an {@linkplain #isPrimitiveClass()
+     * primitive class} and the object is {@code null}
      *
      * @since 1.5
      */
     @SuppressWarnings("unchecked")
     @IntrinsicCandidate
     public T cast(Object obj) {
-        if (isInlineClass() && obj == null)
-            throw new NullPointerException(getName() + " is an inline class");
+        if (isPrimitiveClass() && obj == null)
+            throw new NullPointerException(getName() + " is a primitive class");
 
         if (obj != null && !isInstance(obj))
             throw new ClassCastException(cannotCastMsg(obj));
@@ -4510,7 +4501,7 @@ public final class Class<T> implements java.io.Serializable,
         if (isArray()) {
             return "[" + componentType.descriptorString();
         }
-        String typeDesc = isInlineClass() ? "Q" : "L";
+        String typeDesc = isPrimitiveClass() ? "Q" : "L";
         if (isHidden()) {
             String name = getName();
             int index = name.indexOf('/');

@@ -61,7 +61,7 @@ public class InlineConstructorTest {
         String cn = INLINE_TYPE.getName();
         Class<?> c = Class.forName(cn);
 
-        assertTrue(c.isInlineClass());
+        assertTrue(c.isPrimitiveClass());
         assertEquals(c, INLINE_TYPE);
     }
 

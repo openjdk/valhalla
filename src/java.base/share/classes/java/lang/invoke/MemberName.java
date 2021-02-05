@@ -431,7 +431,7 @@ final class MemberName implements Member, Cloneable {
     /** Utility method to query the modifier flags of this member. */
     public boolean isFinal() {
         // all fields declared in a value type are effectively final
-        assert(!clazz.isInlineClass() || !isField() || Modifier.isFinal(flags));
+        assert(!clazz.isPrimitiveClass() || !isField() || Modifier.isFinal(flags));
         return Modifier.isFinal(flags);
     }
     /** Utility method to query whether this member or its defining class is final. */
@@ -476,11 +476,11 @@ final class MemberName implements Member, Cloneable {
     /** Query whether this member is a flattened field */
     public boolean isFlattened() { return (flags & FLATTENED) == FLATTENED; }
 
-    /** Query whether this member is a field of an inline class. */
+    /** Query whether this member is a field of a primitive class. */
     public boolean isInlineableField()  {
         if (isField()) {
             Class<?> type = getFieldType();
-            return type.isInlineClass();
+            return type.isPrimitiveClass();
         }
         return false;
     }
