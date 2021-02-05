@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -177,7 +177,7 @@ public class Ifacmp {
     }
 
     boolean shouldEqualSelf(Object a) {
-        return acmpModeInlineAlwaysFalse ? (!(a != null && a.getClass().isInlineClass())) : true;
+        return acmpModeInlineAlwaysFalse ? (!(a != null && a.getClass().isPrimitiveClass())) : true;
     }
 
     void checkEqual(Object a, Object b, boolean isEqual) {
