@@ -465,6 +465,10 @@ static void profile_flat_array(JavaThread* thread) {
   ResourceMark rm(thread);
   vframeStream vfst(thread, true);
   assert(!vfst.at_end(), "Java frame must exist");
+  // Check if array access profiling is enabled
+  if (vfst.nm()->comp_level() != CompLevel_full_profile || !C1UpdateMethodData) {
+    return;
+  }
   int bci = vfst.bci();
   Method* method = vfst.method();
   MethodData* md = method->method_data();

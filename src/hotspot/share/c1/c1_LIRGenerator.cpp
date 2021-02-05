@@ -3120,6 +3120,7 @@ void LIRGenerator::profile_flags(ciMethodData* md, ciProfileData* data, int flag
 }
 
 void LIRGenerator::profile_null_free_array(LIRItem array, ciMethodData* md, ciArrayLoadStoreData* load_store) {
+  assert(compilation()->profile_array_accesses(), "array access profiling is disabled");
   LabelObj* L_end = new LabelObj();
   LIR_Opr tmp = new_register(T_METADATA);
   __ check_null_free_array(array.result(), tmp);
@@ -3128,6 +3129,7 @@ void LIRGenerator::profile_null_free_array(LIRItem array, ciMethodData* md, ciAr
 }
 
 void LIRGenerator::profile_array_type(AccessIndexed* x, ciMethodData*& md, ciArrayLoadStoreData*& load_store) {
+  assert(compilation()->profile_array_accesses(), "array access profiling is disabled");
   int bci = x->profiled_bci();
   md = x->profiled_method()->method_data();
   assert(md != NULL, "Sanity");
@@ -3140,12 +3142,12 @@ void LIRGenerator::profile_array_type(AccessIndexed* x, ciMethodData*& md, ciArr
 }
 
 void LIRGenerator::profile_element_type(Value element, ciMethodData* md, ciArrayLoadStoreData* load_store) {
+  assert(compilation()->profile_array_accesses(), "array access profiling is disabled");
   assert(md != NULL && load_store != NULL, "should have been initialized");
   LIR_Opr mdp = LIR_OprFact::illegalOpr;
   profile_type(md, md->byte_offset_of_slot(load_store, ArrayLoadStoreData::element_offset()), 0,
                load_store->element()->type(), element, mdp, false, NULL, NULL);
 }
-
 
 void LIRGenerator::do_Base(Base* x) {
   __ std_entry(LIR_OprFact::illegalOpr);
