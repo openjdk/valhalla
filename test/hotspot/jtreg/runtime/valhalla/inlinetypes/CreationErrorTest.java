@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.concurrent.*;
 
 import static jdk.test.lib.Asserts.*;
+import test.java.lang.invoke.lib.InstructionHelper;
 
 import jdk.experimental.bytecode.MacroCodeBuilder;
 import jdk.experimental.bytecode.MacroCodeBuilder.CondKind;
@@ -41,19 +42,15 @@ import jdk.experimental.bytecode.TypeTag;
 import jdk.test.lib.Platform;
 import jdk.test.lib.Utils;
 
-import jdk.experimental.value.MethodHandleBuilder;
-
 import javax.tools.*;
 
 /**
  * @test CreationErrorTest
  * @summary Test data movement with inline types
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- * @library /test/lib
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @run main/othervm -Xint -Xmx128m -XX:-ShowMessageBoxOnError
- *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
- *                   -Djava.lang.invoke.MethodHandle.DUMP_CLASS_FILES=false
+ *                   -XX:+UnlockDiagnosticVMOptions
  *                   runtime.valhalla.inlinetypes.CreationErrorTest
  */
 
@@ -75,7 +72,7 @@ public class CreationErrorTest {
     }
 
     static void testErroneousObjectCreation() {
-        MethodHandle testNewOnInlineClass = MethodHandleBuilder.loadCode(
+        MethodHandle testNewOnInlineClass = InstructionHelper.loadCode(
                 LOOKUP,
                 "testNewOnInlineClass",
                 MethodType.methodType(boolean.class),
@@ -97,7 +94,7 @@ public class CreationErrorTest {
 
     // Note: this test might become obsolete if defaultvalue is extended to accept identity classes
     static void testErroneousValueCreation() {
-        MethodHandle testDefaultvalueOnIdentityClass = MethodHandleBuilder.loadCode(
+        MethodHandle testDefaultvalueOnIdentityClass = InstructionHelper.loadCode(
                 LOOKUP,
                 "testDefaultValueOnIdentityClass",
                 MethodType.methodType(boolean.class),

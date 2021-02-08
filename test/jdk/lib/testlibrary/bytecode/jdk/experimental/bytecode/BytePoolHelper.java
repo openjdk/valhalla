@@ -24,6 +24,7 @@
 package jdk.experimental.bytecode;
 
 import java.lang.invoke.MethodHandleInfo;
+import java.lang.invoke.MethodType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -334,6 +335,11 @@ public class BytePoolHelper<S, T> implements PoolHelper<S, T, byte[]> {
     @Override
     public int putClass(S symbol) {
         return putClassInternal(symbolToString.apply(symbol));
+    }
+
+    @Override
+    public int putInlineClass(S symbol) {
+        return putClassInternal("Q" + symbolToString.apply(symbol) + ";");
     }
 
     private int putClassInternal(String symbol) {

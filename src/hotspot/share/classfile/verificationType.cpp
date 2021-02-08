@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2003, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -24,9 +24,12 @@
 
 #include "precompiled.hpp"
 #include "classfile/symbolTable.hpp"
+#include "classfile/systemDictionary.hpp"
 #include "classfile/systemDictionaryShared.hpp"
 #include "classfile/verificationType.hpp"
 #include "classfile/verifier.hpp"
+#include "classfile/vmClasses.hpp"
+#include "classfile/vmSymbols.hpp"
 #include "logging/log.hpp"
 #include "oops/klass.inline.hpp"
 #include "runtime/arguments.hpp"
@@ -70,9 +73,9 @@ bool VerificationType::resolve_and_check_assignability(InstanceKlass* klass, Sym
     // and java.lang.IdentityObject.
     // Otherwise, we treat interfaces as java.lang.Object.
     return !from_is_array ||
-      this_class == SystemDictionary::Cloneable_klass() ||
-      this_class == SystemDictionary::Serializable_klass() ||
-      this_class == SystemDictionary::IdentityObject_klass();
+      this_class == vmClasses::Cloneable_klass() ||
+      this_class == vmClasses::Serializable_klass() ||
+      this_class == vmClasses::IdentityObject_klass();
   } else if (from_is_object) {
     Klass* from_class;
     if (klass->is_hidden() && klass->name() == from_name) {

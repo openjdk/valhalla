@@ -180,7 +180,7 @@ public class AccessibleObject implements AnnotatedElement {
      * <ul>
      * <li>static final fields declared in any class or interface</li>
      * <li>final fields declared in a {@linkplain Class#isHidden() hidden class}</li>
-     * <li>fields declared in a {@linkplain Class#isInlineClass() inline class}</li>
+     * <li>fields declared in a {@linkplain Class#isPrimitiveClass() primitive class}</li>
      * <li>final fields declared in a {@linkplain Class#isRecord() record}</li>
      * </ul>
      * <p> The {@code accessible} flag when {@code true} suppresses Java language access
@@ -305,13 +305,6 @@ public class AccessibleObject implements AnnotatedElement {
             throw new IllegalCallerException();   // should not happen
         }
 
-        int modifiers;
-        if (this instanceof Executable) {
-            modifiers = ((Executable) this).getModifiers();
-        } else {
-            modifiers = ((Field) this).getModifiers();
-        }
-
         Module callerModule = caller.getModule();
         Module declaringModule = declaringClass.getModule();
 
@@ -319,9 +312,16 @@ public class AccessibleObject implements AnnotatedElement {
         if (callerModule == Object.class.getModule()) return true;
         if (!declaringModule.isNamed()) return true;
 
+        String pn = declaringClass.getPackageName();
+        int modifiers;
+        if (this instanceof Executable) {
+            modifiers = ((Executable) this).getModifiers();
+        } else {
+            modifiers = ((Field) this).getModifiers();
+        }
+
         // class is public and package is exported to caller
         boolean isClassPublic = Modifier.isPublic(declaringClass.getModifiers());
-        String pn = declaringClass.getPackageName();
         if (isClassPublic && declaringModule.isExported(pn, callerModule)) {
             // member is public
             if (Modifier.isPublic(modifiers)) {
@@ -643,7 +643,7 @@ public class AccessibleObject implements AnnotatedElement {
         }
 
         boolean isCacheFor(Class<?> caller, Class<?> refc) {
-            return callerRef.get() == caller && targetRef.get() == refc;
+            return callerRef.refersTo(caller) && targetRef.refersTo(refc);
         }
 
         static Object protectedMemberCallerCache(Class<?> caller, Class<?> refc) {
@@ -675,7 +675,7 @@ public class AccessibleObject implements AnnotatedElement {
         if (cache instanceof WeakReference) {
             @SuppressWarnings("unchecked")
             WeakReference<Class<?>> ref = (WeakReference<Class<?>>) cache;
-            return ref.get() == caller;
+            return ref.refersTo(caller);
         }
         return false;
     }

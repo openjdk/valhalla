@@ -24,6 +24,7 @@
 
 #include "precompiled.hpp"
 #include "classfile/symbolTable.hpp"
+#include "classfile/vmClasses.hpp"
 #include "interpreter/bytecodeStream.hpp"
 #include "memory/universe.hpp"
 #include "oops/fieldStreams.inline.hpp"
@@ -899,7 +900,7 @@ void JvmtiClassFileReconstituter::write_class_file_format() {
   for (int index = 0; index < num_interfaces; index++) {
     HandleMark hm(thread());
     InstanceKlass* iik = interfaces->at(index);
-    if (!ik()->has_injected_identityObject() || iik != SystemDictionary::IdentityObject_klass()) {
+    if (!ik()->has_injected_identityObject() || iik != vmClasses::IdentityObject_klass()) {
       write_u2(class_symbol_to_cpool_index(iik->name()));
     }
   }

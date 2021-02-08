@@ -37,22 +37,17 @@ class MemoryBuffer;
 
 class DelayedFieldAccess : public CompilationResourceObj {
 private:
-  Value _obj;
-  ciField* _field;
-  int _offset;
+  Value            _obj;
+  ciInstanceKlass* _holder;
+  int              _offset;
 public:
-  DelayedFieldAccess(Value obj, ciField* field, int offset)
-  : _obj(obj)
-  , _field(field)
-  , _offset(offset) { }
+  DelayedFieldAccess(Value obj, ciInstanceKlass* holder, int offset)
+  : _obj(obj), _holder(holder) , _offset(offset) { }
 
-  void update(ciField* field, int offset) {
-    _field = field;
-    _offset += offset;
-  }
-  Value obj() { return _obj; }
-  ciField* field() { return _field; }
-  int offset() { return _offset; }
+  Value obj() const               { return _obj; }
+  ciInstanceKlass* holder() const { return _holder; }
+  int offset() const              { return _offset; }
+  void inc_offset(int offset)     { _offset += offset; }
 };
 
 class GraphBuilder {
@@ -300,8 +295,7 @@ class GraphBuilder {
   // inline types
   void default_value(int klass_index);
   void withfield(int field_index);
-  void copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off,
-                           ValueStack* state_before, bool needs_patching);
+  void copy_inline_content(ciInlineKlass* vk, Value src, int src_off, Value dest, int dest_off, ValueStack* state_before);
 
   // stack/code manipulation helpers
   Instruction* append_with_bci(Instruction* instr, int bci);
@@ -399,12 +393,13 @@ class GraphBuilder {
   // Inline type support
   void update_larval_state(Value v) {
     if (v != NULL && v->as_NewInlineTypeInstance() != NULL) {
-      v->as_NewInlineTypeInstance()->update_larval_state();
+      v->as_NewInlineTypeInstance()->set_not_larva_anymore();
     }
   }
   void update_larva_stack_count(Value v) {
-    if (v != NULL && v->as_NewInlineTypeInstance() != NULL) {
-      v->as_NewInlineTypeInstance()->update_stack_count();
+    if (v != NULL && v->as_NewInlineTypeInstance() != NULL &&
+        v->as_NewInlineTypeInstance()->in_larval_state()) {
+      v->as_NewInlineTypeInstance()->decrement_on_stack_count();
     }
   }
 

@@ -677,11 +677,11 @@ public final class Type {
             }
             stringBuilder.append(descriptor);
         } else {
-            stringBuilder.append(isInlineClass(currentClass) ? 'Q' : 'L').append(getInternalName(currentClass)).append(';');
+            stringBuilder.append(isPrimitiveClass(currentClass) ? 'Q' : 'L').append(getInternalName(currentClass)).append(';');
         }
     }
 
-    static boolean isInlineClass(Class<?> clazz) {
+    static boolean isPrimitiveClass(Class<?> clazz) {
         int mods = clazz.getModifiers();
         return (mods & 0x00000100) != 0;
     }

@@ -452,6 +452,10 @@ int MachCallDynamicJavaNode::ret_addr_offset()
 }
 
 int MachCallRuntimeNode::ret_addr_offset() {
+  if (_entry_point == NULL) {
+    // CallLeafNoFPInDirect
+    return 3; // callq (register)
+  }
   int offset = 13; // movq r10,#addr; callq (r10)
   offset += clear_avx_size();
   return offset;
@@ -462,6 +466,7 @@ int MachCallNativeNode::ret_addr_offset() {
   offset += clear_avx_size();
   return offset;
 }
+
 //
 // Compute padding required for nodes which need alignment
 //
@@ -1004,10 +1009,10 @@ static enum RC rc_class(OptoReg::Name reg)
 }
 
 // Next two methods are shared by 32- and 64-bit VM. They are defined in x86.ad.
-static int vec_mov_helper(CodeBuffer *cbuf, bool do_size, int src_lo, int dst_lo,
+static void vec_mov_helper(CodeBuffer *cbuf, int src_lo, int dst_lo,
                           int src_hi, int dst_hi, uint ireg, outputStream* st);
 
-int vec_spill_helper(CodeBuffer *cbuf, bool do_size, bool is_load,
+void vec_spill_helper(CodeBuffer *cbuf, bool is_load,
                      int stack_offset, int reg, uint ireg, outputStream* st);
 
 static void vec_stack_to_stack_helper(CodeBuffer *cbuf, int src_offset,
@@ -1122,13 +1127,13 @@ uint MachSpillCopyNode::implementation(CodeBuffer* cbuf,
       int dst_offset = ra_->reg2offset(dst_first);
       vec_stack_to_stack_helper(cbuf, src_offset, dst_offset, ireg, st);
     } else if (src_first_rc == rc_float && dst_first_rc == rc_float ) {
-      vec_mov_helper(cbuf, false, src_first, dst_first, src_second, dst_second, ireg, st);
+      vec_mov_helper(cbuf, src_first, dst_first, src_second, dst_second, ireg, st);
     } else if (src_first_rc == rc_float && dst_first_rc == rc_stack ) {
       int stack_offset = ra_->reg2offset(dst_first);
-      vec_spill_helper(cbuf, false, false, stack_offset, src_first, ireg, st);
+      vec_spill_helper(cbuf, false, stack_offset, src_first, ireg, st);
     } else if (src_first_rc == rc_stack && dst_first_rc == rc_float ) {
       int stack_offset = ra_->reg2offset(src_first);
-      vec_spill_helper(cbuf, false, true,  stack_offset, dst_first, ireg, st);
+      vec_spill_helper(cbuf, true,  stack_offset, dst_first, ireg, st);
     } else {
       ShouldNotReachHere();
     }
@@ -1516,7 +1521,7 @@ void MachVEPNode::format(PhaseRegAlloc* ra_, outputStream* st) const
 void MachVEPNode::emit(CodeBuffer& cbuf, PhaseRegAlloc* ra_) const
 {
   MacroAssembler _masm(&cbuf);
-  if (!_verified) {  
+  if (!_verified) {
     uint insts_size = cbuf.insts_size();
     if (UseCompressedClassPointers) {
       __ load_klass(rscratch1, j_rarg0, rscratch2);
@@ -9615,7 +9620,7 @@ instruct btrL_mem_imm(memory dst, immL_NotPow2 con, rFlagsReg cr)
 %{
   // con should be a pure 64-bit immediate given that not(con) is a power of 2
   // because AND/OR works well enough for 8/32-bit values.
-  predicate(log2_long(~n->in(3)->in(2)->get_long()) > 30);
+  predicate(log2i_graceful(~n->in(3)->in(2)->get_long()) > 30);
 
   match(Set dst (StoreL dst (AndL (LoadL dst) con)));
   effect(KILL cr);
@@ -9623,7 +9628,7 @@ instruct btrL_mem_imm(memory dst, immL_NotPow2 con, rFlagsReg cr)
   ins_cost(125);
   format %{ "btrq    $dst, log2(not($con))\t# long" %}
   ins_encode %{
-    __ btrq($dst$$Address, log2_long(~$con$$constant));
+    __ btrq($dst$$Address, log2i_exact((julong)~$con$$constant));
   %}
   ins_pipe(ialu_mem_imm);
 %}
@@ -9825,7 +9830,7 @@ instruct btsL_mem_imm(memory dst, immL_Pow2 con, rFlagsReg cr)
 %{
   // con should be a pure 64-bit power of 2 immediate
   // because AND/OR works well enough for 8/32-bit values.
-  predicate(log2_long(n->in(3)->in(2)->get_long()) > 31);
+  predicate(log2i_graceful(n->in(3)->in(2)->get_long()) > 31);
 
   match(Set dst (StoreL dst (OrL (LoadL dst) con)));
   effect(KILL cr);
@@ -9833,7 +9838,7 @@ instruct btsL_mem_imm(memory dst, immL_Pow2 con, rFlagsReg cr)
   ins_cost(125);
   format %{ "btsq    $dst, log2($con)\t# long" %}
   ins_encode %{
-    __ btsq($dst$$Address, log2_long((julong)$con$$constant));
+    __ btsq($dst$$Address, log2i_exact((julong)$con$$constant));
   %}
   ins_pipe(ialu_mem_imm);
 %}
@@ -10770,9 +10775,9 @@ instruct MoveL2D_reg_reg(regD dst, rRegL src) %{
 instruct rep_stos(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
                   Universe dummy, rFlagsReg cr)
 %{
-  predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only());
+  predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() && !n->in(2)->in(1)->bottom_type()->is_long()->is_con());
   match(Set dummy (ClearArray (Binary cnt base) val));
-  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL cr);
+  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL val, KILL cr);
 
   format %{ $$template
     $$emit$$"cmp     InitArrayShortSize,rcx\n\t"
@@ -10831,7 +10836,7 @@ instruct rep_stos_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
 %{
   predicate(!((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only());
   match(Set dummy (ClearArray (Binary cnt base) val));
-  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL cr);
+  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL val, KILL cr);
 
   format %{ $$template
     $$emit$$"cmp     InitArrayShortSize,rcx\n\t"
@@ -10887,7 +10892,7 @@ instruct rep_stos_large(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
 %{
   predicate(((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only());
   match(Set dummy (ClearArray (Binary cnt base) val));
-  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL cr);
+  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL val, KILL cr);
 
   format %{ $$template
     if (UseFastStosb) {
@@ -10931,12 +10936,12 @@ instruct rep_stos_large(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
   ins_pipe(pipe_slow);
 %}
 
-instruct rep_stos_large_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val, 
+instruct rep_stos_large_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_RegL val,
                         Universe dummy, rFlagsReg cr)
 %{
   predicate(((ClearArrayNode*)n)->is_large() && ((ClearArrayNode*)n)->word_copy_only());
   match(Set dummy (ClearArray (Binary cnt base) val));
-  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL cr);
+  effect(USE_KILL cnt, USE_KILL base, TEMP tmp, KILL val, KILL cr);
 
   format %{ $$template
     if (UseXMMForObjInit) {
@@ -10971,8 +10976,20 @@ instruct rep_stos_large_word_copy(rcx_RegL cnt, rdi_RegP base, regD tmp, rax_Reg
     }
   %}
   ins_encode %{
-    __ clear_mem($base$$Register, $cnt$$Register, $val$$Register, 
+    __ clear_mem($base$$Register, $cnt$$Register, $val$$Register,
                  $tmp$$XMMRegister, true, true);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+instruct rep_stos_im(immL cnt, rRegP base, regD tmp, rax_RegL val, Universe dummy, rFlagsReg cr)
+%{
+  predicate(!((ClearArrayNode*)n)->is_large() && !((ClearArrayNode*)n)->word_copy_only() && n->in(2)->in(1)->bottom_type()->is_long()->is_con());
+  match(Set dummy (ClearArray (Binary cnt base) val));
+  effect(TEMP tmp, USE_KILL val, KILL cr);
+  format %{ "clear_mem_imm $base , $cnt  \n\t" %}
+  ins_encode %{
+   __ clear_mem($base$$Register, $cnt$$constant, $val$$Register, $tmp$$XMMRegister);
   %}
   ins_pipe(pipe_slow);
 %}

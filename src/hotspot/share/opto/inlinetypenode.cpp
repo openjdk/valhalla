@@ -25,6 +25,7 @@
 #include "precompiled.hpp"
 #include "ci/ciInlineKlass.hpp"
 #include "gc/shared/barrierSet.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "opto/addnode.hpp"
 #include "opto/castnode.hpp"
 #include "opto/graphKit.hpp"
@@ -195,8 +196,6 @@ int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node
   ciInlineKlass* vk = inline_klass();
   uint nfields = vk->nof_nonstatic_fields();
   JVMState* jvms = sfpt->jvms();
-  int start = jvms->debug_start();
-  int end   = jvms->debug_end();
   // Replace safepoint edge by SafePointScalarObjectNode and add field values
   assert(jvms != NULL, "missing JVMS");
   uint first_ind = (sfpt->req() - jvms->scloff());
@@ -220,7 +219,7 @@ int InlineTypeBaseNode::make_scalar_in_safepoint(PhaseIterGVN* igvn, Unique_Node
   jvms->set_endoff(sfpt->req());
   sobj = igvn->transform(sobj)->as_SafePointScalarObject();
   igvn->rehash_node_delayed(sfpt);
-  return sfpt->replace_edges_in_range(this, sobj, start, end);
+  return sfpt->replace_edges_in_range(this, sobj, jvms->debug_start(), jvms->debug_end());
 }
 
 void InlineTypeBaseNode::make_scalar_in_safepoints(PhaseIterGVN* igvn, bool allow_oop) {
@@ -323,6 +322,9 @@ void InlineTypeBaseNode::load(GraphKit* kit, Node* base, Node* ptr, ciInstanceKl
 }
 
 void InlineTypeBaseNode::store_flattened(GraphKit* kit, Node* base, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) const {
+  if (kit->gvn().type(base)->isa_aryptr()) {
+    kit->C->set_flattened_accesses();
+  }
   // The inline type is embedded into the object without an oop header. Subtract the
   // offset of the first field to account for the missing header when storing the values.
   if (holder == NULL) {
@@ -393,7 +395,7 @@ InlineTypePtrNode* InlineTypeBaseNode::buffer(GraphKit* kit, bool safe_for_repla
     ciInlineKlass* vk = inline_klass();
     Node* klass_node = kit->makecon(TypeKlassPtr::make(vk));
     Node* alloc_oop  = kit->new_instance(klass_node, NULL, NULL, /* deoptimize_on_exception */ true, this);
-    store(kit, alloc_oop, alloc_oop, vk, 0);
+    store(kit, alloc_oop, alloc_oop, vk);
 
     // Do not let stores that initialize this buffer be reordered with a subsequent
     // store that would make this buffer accessible by other threads.
@@ -445,7 +447,7 @@ InlineTypePtrNode* InlineTypeBaseNode::as_ptr(PhaseGVN* phase) const {
 }
 
 // When a call returns multiple values, it has several result
-// projections, one per field. Replacing the result of the call by a
+// projections, one per field. Replacing the result of the call by an
 // inline type node (after late inlining) requires that for each result
 // projection, we find the corresponding inline type field.
 void InlineTypeBaseNode::replace_call_results(GraphKit* kit, Node* call, Compile* C) {
@@ -593,6 +595,9 @@ InlineTypeNode* InlineTypeNode::make_from_oop(GraphKit* kit, Node* oop, ciInline
 
 // GraphKit wrapper for the 'make_from_flattened' method
 InlineTypeNode* InlineTypeNode::make_from_flattened(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder, int holder_offset, DecoratorSet decorators) {
+  if (kit->gvn().type(obj)->isa_aryptr()) {
+    kit->C->set_flattened_accesses();
+  }
   // Create and initialize an InlineTypeNode by loading all field values from
   // a flattened inline type field at 'holder_offset' or from an inline type array.
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk);
@@ -604,9 +609,9 @@ InlineTypeNode* InlineTypeNode::make_from_flattened(GraphKit* kit, ciInlineKlass
   return kit->gvn().transform(vt)->as_InlineType();
 }
 
-InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, ciInlineKlass* vk, uint& base_input, bool in) {
+InlineTypeNode* InlineTypeNode::make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in) {
   InlineTypeNode* vt = make_uninitialized(kit->gvn(), vk);
-  vt->initialize_fields(kit, multi, sig, base_input, in);
+  vt->initialize_fields(kit, multi, base_input, in);
   return kit->gvn().transform(vt)->as_InlineType();
 }
 
@@ -622,7 +627,7 @@ InlineTypeNode* InlineTypeNode::make_larval(GraphKit* kit, bool allocate) const 
     AllocateNode* alloc = AllocateNode::Ideal_allocation(alloc_oop, &kit->gvn());
     alloc->_larval = true;
 
-    store(kit, alloc_oop, alloc_oop, vk, 0);
+    store(kit, alloc_oop, alloc_oop, vk);
     res->set_oop(alloc_oop);
   }
   res->set_type(TypeInlineType::make(vk, true));
@@ -713,7 +718,7 @@ Node* InlineTypeNode::tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn) {
   return gvn.makecon(TypeRawPtr::make((address)bits));
 }
 
-void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig, uint& base_input) {
+void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input) {
   for (uint i = 0; i < field_count(); i++) {
     int offset = field_offset(i);
     ciType* type = field_type(i);
@@ -722,7 +727,7 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig,
     if (field_is_flattened(i)) {
       // Flattened inline type field
       InlineTypeNode* vt = arg->as_InlineType();
-      vt->pass_fields(kit, n, sig, base_input);
+      vt->pass_fields(kit, n, base_input);
     } else {
       if (arg->is_InlineType()) {
         // Non-flattened inline type field
@@ -740,7 +745,7 @@ void InlineTypeNode::pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig,
   }
 }
 
-void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, uint& base_input, bool in) {
+void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in) {
   PhaseGVN& gvn = kit->gvn();
   for (uint i = 0; i < field_count(); ++i) {
     ciType* type = field_type(i);
@@ -748,7 +753,7 @@ void InlineTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, Extended
     if (field_is_flattened(i)) {
       // Flattened inline type field
       InlineTypeNode* vt = make_uninitialized(gvn, type->as_inline_klass());
-      vt->initialize_fields(kit, multi, sig, base_input, in);
+      vt->initialize_fields(kit, multi, base_input, in);
       parm = gvn.transform(vt);
     } else {
       if (multi->is_Start()) {

@@ -144,6 +144,7 @@ public abstract class InlineTypeTest {
     private static final int OSR_TEST_TIMEOUT = Integer.parseInt(System.getProperty("OSRTestTimeOut", "5000"));
     protected static final boolean STRESS_CC = Boolean.parseBoolean(System.getProperty("StressCC", "false"));
     private static final boolean SHUFFLE_TESTS = Boolean.parseBoolean(System.getProperty("ShuffleTests", "true"));
+    private static final boolean PREFER_CL_FLAGS = Boolean.parseBoolean(System.getProperty("PreferCommandLineFlags", "false"));
 
     // "jtreg -DXcomp=true" runs all the scenarios with -Xcomp. This is faster than "jtreg -javaoptions:-Xcomp".
     protected static final boolean RUN_SCENARIOS_WITH_XCOMP = Boolean.parseBoolean(System.getProperty("Xcomp", "false"));
@@ -161,8 +162,8 @@ public abstract class InlineTypeTest {
     private static final String[] printFlags = {
         "-XX:+PrintCompilation", "-XX:+PrintIdeal", "-XX:+UnlockDiagnosticVMOptions", "-XX:+PrintOptoAssembly"};
     private static final String[] verifyFlags = {
-        "-XX:+VerifyOops", "-XX:+VerifyStack", "-XX:+VerifyLastFrame", "-XX:+VerifyBeforeGC", "-XX:+VerifyAfterGC",
-        "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing"};
+        "-XX:+UnlockDiagnosticVMOptions", "-XX:+VerifyOops", "-XX:+VerifyStack", "-XX:+VerifyLastFrame",
+        "-XX:+VerifyBeforeGC", "-XX:+VerifyAfterGC", "-XX:+VerifyDuringGC", "-XX:+VerifyAdapterSharing"};
 
     protected static final int InlineTypePassFieldsAsArgsOn = 0x1;
     protected static final int InlineTypePassFieldsAsArgsOff = 0x2;
@@ -192,6 +193,8 @@ public abstract class InlineTypeTest {
     protected static final boolean UseArrayLoadStoreProfile = (Boolean)WHITE_BOX.getVMFlag("UseArrayLoadStoreProfile");
     protected static final long TypeProfileLevel = (Long)WHITE_BOX.getVMFlag("TypeProfileLevel");
     protected static final boolean UseACmpProfile = (Boolean)WHITE_BOX.getVMFlag("UseACmpProfile");
+    protected static final long PerMethodTrapLimit = (Long)WHITE_BOX.getVMFlag("PerMethodTrapLimit");
+    protected static final boolean ProfileInterpreter = (Boolean)WHITE_BOX.getVMFlag("ProfileInterpreter");
 
     protected static final Hashtable<String, Method> tests = new Hashtable<String, Method>();
     protected static final boolean USE_COMPILER = WHITE_BOX.getBooleanVMFlag("UseCompiler");
@@ -214,7 +217,6 @@ public abstract class InlineTypeTest {
     protected static final String COUNTEDLOOP = START + "CountedLoop\\b" + MID + "" + END;
     protected static final String COUNTEDLOOP_MAIN = START + "CountedLoop\\b" + MID + "main" + END;
     protected static final String TRAP   = START + "CallStaticJava" + MID + "uncommon_trap.*(unstable_if|predicate)" + END;
-    protected static final String RETURN = START + "Return" + MID + "returns" + END;
     protected static final String LINKTOSTATIC = START + "CallStaticJava" + MID + "linkToStatic" + END;
     protected static final String NPE = START + "CallStaticJava" + MID + "null_check" + END;
     protected static final String CALL = START + "CallStaticJava" + MID + END;
@@ -362,12 +364,19 @@ public abstract class InlineTypeTest {
                 System.out.println("Scenario #" + i + " is skipped due to -Dscenarios=" + SCENARIOS);
             } else {
                 System.out.println("Scenario #" + i + " -------- ");
-                String[] cmds = InputArguments.getVmInputArgs();
+                String[] cmds = new String[0];
+                if (!PREFER_CL_FLAGS) {
+                    cmds = InputArguments.getVmInputArgs();
+                }
                 if (RUN_SCENARIOS_WITH_XCOMP) {
                     cmds = concat(cmds, "-Xcomp");
                 }
                 cmds = concat(cmds, test.getVMParameters(i));
                 cmds = concat(cmds, test.getExtraVMParameters(i));
+                if (PREFER_CL_FLAGS) {
+                    // Prefer flags set via the command line over the ones set by the test scenarios
+                    cmds = concat(cmds, InputArguments.getVmInputArgs());
+                }
                 cmds = concat(cmds, testMainClassName);
 
                 OutputAnalyzer oa = ProcessTools.executeTestJvm(cmds);
@@ -840,7 +849,8 @@ public abstract class InlineTypeTest {
     }
 
     static private TriState compiledByC2(Method m) {
-        if (!USE_COMPILER || XCOMP || TEST_C1) {
+        if (!USE_COMPILER || XCOMP || TEST_C1 ||
+            (STRESS_CC && !WHITE_BOX.isMethodCompilable(m, COMP_LEVEL_FULL_OPTIMIZATION, false))) {
             return TriState.Maybe;
         }
         if (WHITE_BOX.isMethodCompiled(m, false) &&
@@ -855,7 +865,7 @@ public abstract class InlineTypeTest {
     }
 
     static void assertDeoptimizedByC2(Method m) {
-        if (compiledByC2(m) == TriState.Yes) {
+        if (compiledByC2(m) == TriState.Yes && PerMethodTrapLimit != 0 && ProfileInterpreter) {
             throw new RuntimeException("Expected to have deoptimized");
         }
     }

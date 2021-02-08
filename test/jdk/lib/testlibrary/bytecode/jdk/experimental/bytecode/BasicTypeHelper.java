@@ -46,8 +46,18 @@ public class BasicTypeHelper implements TypeHelper<String, String> {
     }
 
     @Override
+    public boolean isInlineClass(String t) {
+        return t.charAt(0) == 'Q' && t.endsWith(";");
+    }
+
+    @Override
     public String type(String s) {
         return "L" + s + ";";
+    }
+
+    @Override
+    public String valueType(String s) {
+        return "Q" + s + ";";
     }
 
     @Override
@@ -55,6 +65,7 @@ public class BasicTypeHelper implements TypeHelper<String, String> {
         switch (s.charAt(0)) {
             case '[':
             case 'L':
+            case 'Q':
                 return TypeTag.A;
             case 'B':
             case 'C':
@@ -70,9 +81,10 @@ public class BasicTypeHelper implements TypeHelper<String, String> {
                 return TypeTag.D;
             case 'V':
                 return TypeTag.V;
-            case 'Q':
-                return TypeTag.Q;
             default:
+                if (s == nullType()) {
+                    return TypeTag.A;
+                }
                 throw new IllegalStateException("Bad type: " + s);
         }
     }

@@ -126,7 +126,7 @@ public:
   // Create and initialize by loading the field values from a flattened field or array
   static InlineTypeNode* make_from_flattened(GraphKit* kit, ciInlineKlass* vk, Node* obj, Node* ptr, ciInstanceKlass* holder = NULL, int holder_offset = 0, DecoratorSet decorators = IN_HEAP | MO_UNORDERED);
   // Create and initialize with the inputs or outputs of a MultiNode (method entry or call)
-  static InlineTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, ciInlineKlass* vk, uint& base_input, bool in);
+  static InlineTypeNode* make_from_multi(GraphKit* kit, MultiNode* multi, ciInlineKlass* vk, uint& base_input, bool in);
 
   InlineTypeNode* make_larval(GraphKit* kit, bool allocate) const;
   InlineTypeNode* finish_larval(GraphKit* kit) const;
@@ -139,9 +139,9 @@ public:
   }
   static Node* tagged_klass(ciInlineKlass* vk, PhaseGVN& gvn);
   // Pass inline type as fields at a call or return
-  void pass_fields(GraphKit* kit, Node* n, ExtendedSignature& sig, uint& base_input);
+  void pass_fields(GraphKit* kit, Node* n, uint& base_input);
   // Initialize the inline type fields with the inputs or outputs of a MultiNode
-  void initialize_fields(GraphKit* kit, MultiNode* multi, ExtendedSignature& sig, uint& base_input, bool in);
+  void initialize_fields(GraphKit* kit, MultiNode* multi, uint& base_input, bool in);
 
   // Allocation optimizations
   void remove_redundant_allocations(PhaseIterGVN* igvn, PhaseIdealLoop* phase);

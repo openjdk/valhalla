@@ -835,8 +835,7 @@ bool GraphKit::dead_locals_are_killed() {
 
 #endif //ASSERT
 
-// Helper function for enforcing certain bytecodes to reexecute if
-// deoptimization happens
+// Helper function for enforcing certain bytecodes to reexecute if deoptimization happens.
 static bool should_reexecute_implied_by_bytecode(JVMState *jvms, bool is_anewarray) {
   ciMethod* cur_method = jvms->method();
   int       cur_bci   = jvms->bci();
@@ -907,6 +906,12 @@ void GraphKit::add_safepoint_edges(SafePointNode* call, bool must_throw) {
   // deoptimization happens. We set the reexecute state for them here
   if (out_jvms->is_reexecute_undefined() && //don't change if already specified
       should_reexecute_implied_by_bytecode(out_jvms, call->is_AllocateArray())) {
+#ifdef ASSERT
+    int inputs = 0, not_used; // initialized by GraphKit::compute_stack_effects()
+    assert(method() == youngest_jvms->method(), "sanity");
+    assert(compute_stack_effects(inputs, not_used), "unknown bytecode: %s", Bytecodes::name(java_bc()));
+    assert(out_jvms->sp() >= (uint)inputs, "not enough operands for reexecution");
+#endif // ASSERT
     out_jvms->set_should_reexecute(true); //NOTE: youngest_jvms not changed
   }
 
@@ -1507,6 +1512,7 @@ void GraphKit::replace_in_map(Node* old, Node* neww) {
 Node* GraphKit::memory(uint alias_idx) {
   MergeMemNode* mem = merged_memory();
   Node* p = mem->memory_at(alias_idx);
+  assert(p != mem->empty_memory(), "empty");
   _gvn.set_type(p, Type::MEMORY);  // must be mapped
   return p;
 }
@@ -1804,14 +1810,14 @@ Node* GraphKit::load_array_element(Node* ctl, Node* ary, Node* idx, const TypeAr
 void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inline) {
   PreserveReexecuteState preexecs(this);
   if (EnableValhalla) {
-    // Make sure the call is re-executed, if buffering of inline type arguments triggers deoptimization
+    // Make sure the call is "re-executed", if buffering of inline type arguments triggers deoptimization.
+    // At this point, the call hasn't been executed yet, so we will only ever execute the call once.
     jvms()->set_should_reexecute(true);
     int arg_size = method()->get_declared_signature_at_bci(bci())->arg_size_for_bc(java_bc());
     inc_sp(arg_size);
   }
   // Add the call arguments
   const TypeTuple* domain = call->tf()->domain_sig();
-  ExtendedSignature sig_cc = ExtendedSignature(call->method()->get_sig_cc(), SigEntryFilter());
   uint nargs = domain->cnt();
   for (uint i = TypeFunc::Parms, idx = TypeFunc::Parms; i < nargs; i++) {
     Node* arg = argument(i-TypeFunc::Parms);
@@ -1819,7 +1825,7 @@ void GraphKit::set_arguments_for_java_call(CallJavaNode* call, bool is_late_inli
     if (call->method()->has_scalarized_args() && t->is_inlinetypeptr() && !t->maybe_null() && t->inline_klass()->can_be_passed_as_fields()) {
       // We don't pass inline type arguments by reference but instead pass each field of the inline type
       InlineTypeNode* vt = arg->as_InlineType();
-      vt->pass_fields(this, call, sig_cc, idx);
+      vt->pass_fields(this, call, idx);
       // If an inline type argument is passed as fields, attach the Method* to the call site
       // to be able to access the extended signature later via attached_method_before_pc().
       // For example, see CompiledMethod::preserve_callee_argument_oops().
@@ -1891,12 +1897,8 @@ Node* GraphKit::set_results_for_java_call(CallJavaNode* call, bool separate_io_p
     // Return of multiple values (inline type fields): we create a
     // InlineType node, each field is a projection from the call.
     ciInlineKlass* vk = call->method()->return_type()->as_inline_klass();
-    const Array<SigEntry>* sig_array = vk->extended_sig();
-    GrowableArray<SigEntry> sig = GrowableArray<SigEntry>(sig_array->length());
-    sig.appendAll(sig_array);
-    ExtendedSignature sig_cc = ExtendedSignature(&sig, SigEntryFilter());
     uint base_input = TypeFunc::Parms + 1;
-    ret = InlineTypeNode::make_from_multi(this, call, sig_cc, vk, base_input, false);
+    ret = InlineTypeNode::make_from_multi(this, call, vk, base_input, false);
   } else {
     ret = _gvn.transform(new ProjNode(call, TypeFunc::Parms));
   }
@@ -2606,8 +2608,7 @@ Node* GraphKit::make_runtime_call(int flags,
   }
   CallNode* call;
   if (!is_leaf) {
-    call = new CallStaticJavaNode(call_type, call_addr, call_name,
-                                           bci(), adr_type);
+    call = new CallStaticJavaNode(call_type, call_addr, call_name, adr_type);
   } else if (flags & RC_NO_FP) {
     call = new CallLeafNoFPNode(call_type, call_addr, call_name, adr_type);
   } else {
@@ -3496,7 +3497,14 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
           return top();
         } else {
           // It needs a null check because a null will *pass* the cast check.
-          return null_assert(obj);
+          const TypeOopPtr* objtp = _gvn.type(obj)->isa_oopptr();
+          if (!objtp->maybe_null()) {
+            builtin_throw(Deoptimization::Reason_class_check, makecon(TypeKlassPtr::make(objtp->klass())));
+            return top();
+          } else if (!too_many_traps_or_recompiles(Deoptimization::Reason_null_assert)) {
+            return null_assert(obj);
+          }
+          break; // Fall through to full check
         }
       }
     }
@@ -3663,7 +3671,7 @@ Node* GraphKit::gen_checkcast(Node *obj, Node* superklass, Node* *failure_contro
     }
   }
 
-  if (!from_inline) {
+  if (!stopped() && !from_inline) {
     res = record_profiled_receiver_for_speculation(res);
     if (to_inline && toop->inline_klass()->is_scalarizable()) {
       assert(!gvn().type(res)->maybe_null(), "Inline types are null-free");
@@ -3922,7 +3930,7 @@ Node* GraphKit::get_layout_helper(Node* klass_node, jint& constant_value) {
   if (!StressReflectiveCode && inst_klass != NULL) {
     ciKlass* klass = inst_klass->klass();
     assert(klass != NULL, "klass should not be NULL");
-    bool    xklass = inst_klass->klass_is_exact();
+    bool xklass = inst_klass->klass_is_exact();
     bool can_be_flattened = false;
     if (UseFlatArray && klass->is_obj_array_klass()) {
       ciKlass* elem = klass->as_obj_array_klass()->element_klass();
@@ -4686,11 +4694,12 @@ Node* GraphKit::make_constant_from_field(ciField* field, Node* obj) {
                                                         /*is_unsigned_load=*/false);
   if (con_type != NULL) {
     Node* con = makecon(con_type);
-    assert(!field->type()->is_inlinetype() || (field->is_static() && !con_type->is_zero_type()), "sanity");
     // Check type of constant which might be more precise
     if (con_type->is_inlinetypeptr() && con_type->inline_klass()->is_scalarizable()) {
-      // Load inline type from constant oop
+      assert(!con_type->is_zero_type(), "Inline types are null-free");
       con = InlineTypeNode::make_from_oop(this, con, con_type->inline_klass());
+    } else if (con_type->is_zero_type() && field->type()->is_inlinetype()) {
+      con = InlineTypeNode::default_oop(gvn(), field->type()->as_inline_klass());
     }
     return con;
   }

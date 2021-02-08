@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,6 +29,7 @@
 #include "utilities/macros.hpp"
 #include "runtime/rtmLocking.hpp"
 #include "runtime/signature.hpp"
+#include "runtime/vm_version.hpp"
 
 class ciInlineKlass;
 
@@ -201,6 +202,9 @@ class MacroAssembler: public Assembler {
   void movflt(XMMRegister dst, Address src) { movss(dst, src); }
   void movflt(XMMRegister dst, AddressLiteral src);
   void movflt(Address dst, XMMRegister src) { movss(dst, src); }
+
+  // Move with zero extension
+  void movfltz(XMMRegister dst, XMMRegister src) { movss(dst, src); }
 
   void movdbl(XMMRegister dst, XMMRegister src) {
     if (dst-> encoding() == src->encoding()) return;
@@ -1752,8 +1756,11 @@ public:
   // if 'is_large' is set, do not try to produce short loop
   void clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp, bool is_large, bool word_copy_only);
 
+  // clear memory initialization sequence for constant size;
+  void clear_mem(Register base, int cnt, Register rtmp, XMMRegister xtmp);
+
   // clear memory of size 'cnt' qwords, starting at 'base' using XMM/YMM registers
-  void xmm_clear_mem(Register base, Register cnt, Register val, XMMRegister xtmp);
+  void xmm_clear_mem(Register base, Register cnt, Register rtmp, XMMRegister xtmp);
 
   // Fill primitive arrays
   void generate_fill(BasicType t, bool aligned,
@@ -1871,6 +1878,18 @@ public:
   // Inflate byte[] array to char[].
   void byte_array_inflate(Register src, Register dst, Register len,
                           XMMRegister tmp1, Register tmp2);
+
+  void fill64_masked_avx(uint shift, Register dst, int disp,
+                         XMMRegister xmm, KRegister mask, Register length,
+                         Register temp, bool use64byteVector = false);
+
+  void fill32_masked_avx(uint shift, Register dst, int disp,
+                         XMMRegister xmm, KRegister mask, Register length,
+                         Register temp);
+
+  void fill32_avx(Register dst, int disp, XMMRegister xmm);
+
+  void fill64_avx(Register dst, int dis, XMMRegister xmm, bool use64byteVector = false);
 
 #ifdef _LP64
   void convert_f2i(Register dst, XMMRegister src);

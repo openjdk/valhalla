@@ -25,10 +25,12 @@
 #include "precompiled.hpp"
 #include "classfile/symbolTable.hpp"
 #include "classfile/systemDictionary.hpp"
+#include "classfile/vmSymbols.hpp"
 #include "memory/oopFactory.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "oops/instanceKlass.hpp"
+#include "oops/klass.inline.hpp"
 #include "oops/oop.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
@@ -575,10 +577,10 @@ ssize_t SignatureVerifier::is_valid_type(const char* type, ssize_t limit) {
 #endif // ASSERT
 
 // Adds an argument to the signature
-void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, int offset) {
-  sig->append(SigEntry(bt, offset));
+void SigEntry::add_entry(GrowableArray<SigEntry>* sig, BasicType bt, Symbol* symbol, int offset) {
+  sig->append(SigEntry(bt, offset, symbol));
   if (bt == T_LONG || bt == T_DOUBLE) {
-    sig->append(SigEntry(T_VOID, offset)); // Longs and doubles take two stack slots
+    sig->append(SigEntry(T_VOID, offset, symbol)); // Longs and doubles take two stack slots
   }
 }
 

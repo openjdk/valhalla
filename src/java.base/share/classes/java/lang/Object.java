@@ -28,7 +28,6 @@ package java.lang;
 import jdk.internal.vm.annotation.IntrinsicCandidate;
 import jdk.internal.access.SharedSecrets;
 
-import java.lang.invoke.ValueBootstrapMethods;
 import java.util.Objects;
 
 /**
@@ -239,16 +238,16 @@ public class Object {
      * getClass().getName() + '@' + Integer.toHexString(hashCode())
      * </pre></blockquote>
      * <p>
-     * If this object is an instance of an inline class, then
+     * If this object is an instance of a primitive class, then
      * the {@code toString} method returns a string which contains
-     * the name of the inline class, and string representations of
+     * the name of the primitive class, and string representations of
      * all its fields.  The precise format produced by this method
      * is unspecified and subject to change.
      *
      * @return  a string representation of the object.
      */
     public String toString() {
-        if (getClass().isInlineClass()) {
+        if (getClass().isPrimitiveClass()) {
             return SharedSecrets.getJavaLangInvokeAccess().inlineObjectToString(this);
         } else {
             return getClass().getName() + "@" + Integer.toHexString(hashCode());

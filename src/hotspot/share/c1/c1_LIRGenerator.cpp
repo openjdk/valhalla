@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -463,10 +463,10 @@ CodeEmitInfo* LIRGenerator::state_for(Instruction* x) {
 
 
 void LIRGenerator::klass2reg_with_patching(LIR_Opr r, ciMetadata* obj, CodeEmitInfo* info, bool need_resolve) {
-  /* C2 relies on constant pool entries being resolved (ciTypeFlow), so if TieredCompilation
+  /* C2 relies on constant pool entries being resolved (ciTypeFlow), so if tiered compilation
    * is active and the class hasn't yet been resolved we need to emit a patch that resolves
    * the class. */
-  if ((TieredCompilation && need_resolve) || !obj->is_loaded() || PatchALot) {
+  if ((!CompilerConfig::is_c1_only_no_aot_or_jvmci() && need_resolve) || !obj->is_loaded() || PatchALot) {
     assert(info != NULL, "info must be set if class is not loaded");
     __ klass2reg_patch(NULL, r, info);
   } else {
@@ -667,7 +667,7 @@ void LIRGenerator::monitor_exit(LIR_Opr object, LIR_Opr lock, LIR_Opr new_hdr, L
 void LIRGenerator::print_if_not_loaded(const NewInstance* new_instance) {
   if (PrintNotLoaded && !new_instance->klass()->is_loaded()) {
     tty->print_cr("   ###class not loaded at new bci %d", new_instance->printable_bci());
-  } else if (PrintNotLoaded && (TieredCompilation && new_instance->is_unresolved())) {
+  } else if (PrintNotLoaded && (!CompilerConfig::is_c1_only_no_aot_or_jvmci() && new_instance->is_unresolved())) {
     tty->print_cr("   ###class not resolved at new bci %d", new_instance->printable_bci());
   }
 }
@@ -1905,17 +1905,19 @@ void LIRGenerator::do_StoreIndexed(StoreIndexed* x) {
   }
 
   if (x->should_profile()) {
-    ciMethodData* md = NULL;
-    ciArrayLoadStoreData* load_store = NULL;
-    profile_array_type(x, md, load_store);
-    if (is_loaded_flattened_array) {
-      int flag = ArrayLoadStoreData::flat_array_byte_constant() | ArrayLoadStoreData::null_free_array_byte_constant();
-      assert(md != NULL, "should have been initialized");
-      profile_flags(md, load_store, flag);
-    } else if (x->array()->maybe_null_free_array()) {
-      profile_null_free_array(array, md, load_store);
+    if (x->array()->is_loaded_flattened_array()) {
+      // No need to profile a store to a flattened array of known type. This can happen if
+      // the type only became known after optimizations (for example, after the PhiSimplifier).
+      x->set_should_profile(false);
+    } else {
+      ciMethodData* md = NULL;
+      ciArrayLoadStoreData* load_store = NULL;
+      profile_array_type(x, md, load_store);
+      if (x->array()->maybe_null_free_array()) {
+        profile_null_free_array(array, md, load_store);
+      }
+      profile_element_type(x->value(), md, load_store);
     }
-    profile_element_type(x->value(), md, load_store);
   }
 
   if (GenerateArrayStoreCheck && needs_store_check) {
@@ -2277,33 +2279,31 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   ciMethodData* md = NULL;
   ciArrayLoadStoreData* load_store = NULL;
   if (x->should_profile()) {
-    profile_array_type(x, md, load_store);
+    if (x->array()->is_loaded_flattened_array()) {
+      // No need to profile a load from a flattened array of known type. This can happen if
+      // the type only became known after optimizations (for example, after the PhiSimplifier).
+      x->set_should_profile(false);
+    } else {
+      profile_array_type(x, md, load_store);
+    }
   }
 
   Value element;
   if (x->vt() != NULL) {
     assert(x->array()->is_loaded_flattened_array(), "must be");
     // Find the destination address (of the NewInlineTypeInstance).
-    // LIR_Opr obj = x->vt()->operand();
     LIRItem obj_item(x->vt(), this);
 
     access_flattened_array(true, array, index, obj_item,
                            x->delayed() == NULL ? 0 : x->delayed()->field(),
                            x->delayed() == NULL ? 0 : x->delayed()->offset());
     set_no_result(x);
-    element = x->vt();
-    if (x->should_profile()) {
-      fatal("Loaded flattened array should not be profiled");
-      int flag = ArrayLoadStoreData::flat_array_byte_constant() | ArrayLoadStoreData::null_free_array_byte_constant();
-      profile_flags(md, load_store, flag);
-    }
   } else if (x->delayed() != NULL) {
     assert(x->array()->is_loaded_flattened_array(), "must be");
     LIR_Opr result = rlock_result(x, x->delayed()->field()->type()->basic_type());
     access_sub_element(array, index, result,
                        x->delayed() == NULL ? 0 : x->delayed()->field(),
                        x->delayed() == NULL ? 0 : x->delayed()->offset());
-    assert(!x->should_profile(), "Loaded flattened array should not be profiled");
   } else if (x->array() != NULL && x->array()->is_loaded_flattened_array() &&
              x->array()->declared_type()->as_flat_array_klass()->element_klass()->as_inline_klass()->is_empty()) {
     // Load the default instance instead of reading the element
@@ -2346,21 +2346,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
   }
 }
 
-void LIRGenerator::do_WithField(WithField* x) {
-  // This happens only when a class X uses the withfield bytecode to refer to
-  // an inline class V, where V has not yet been loaded. This is not a common
-  // case. Let's just deoptimize.
-  CodeEmitInfo* info = state_for(x, x->state_before());
-  CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
-                                      Deoptimization::Reason_unloaded,
-                                      Deoptimization::Action_make_not_entrant);
-  __ jump(stub);
-  LIR_Opr reg = rlock_result(x, T_OBJECT);
-  __ move(LIR_OprFact::oopConst(NULL), reg);
-}
-
-void LIRGenerator::do_DefaultValue(DefaultValue* x) {
-  // Same as withfield above. Let's deoptimize.
+void LIRGenerator::do_Deoptimize(Deoptimize* x) {
   CodeEmitInfo* info = state_for(x, x->state_before());
   CodeStub* stub = new DeoptimizeStub(new CodeEmitInfo(info),
                                       Deoptimization::Reason_unloaded,
@@ -3134,6 +3120,7 @@ void LIRGenerator::profile_flags(ciMethodData* md, ciProfileData* data, int flag
 }
 
 void LIRGenerator::profile_null_free_array(LIRItem array, ciMethodData* md, ciArrayLoadStoreData* load_store) {
+  assert(compilation()->profile_array_accesses(), "array access profiling is disabled");
   LabelObj* L_end = new LabelObj();
   LIR_Opr tmp = new_register(T_METADATA);
   __ check_null_free_array(array.result(), tmp);
@@ -3142,6 +3129,7 @@ void LIRGenerator::profile_null_free_array(LIRItem array, ciMethodData* md, ciAr
 }
 
 void LIRGenerator::profile_array_type(AccessIndexed* x, ciMethodData*& md, ciArrayLoadStoreData*& load_store) {
+  assert(compilation()->profile_array_accesses(), "array access profiling is disabled");
   int bci = x->profiled_bci();
   md = x->profiled_method()->method_data();
   assert(md != NULL, "Sanity");
@@ -3154,12 +3142,12 @@ void LIRGenerator::profile_array_type(AccessIndexed* x, ciMethodData*& md, ciArr
 }
 
 void LIRGenerator::profile_element_type(Value element, ciMethodData* md, ciArrayLoadStoreData* load_store) {
+  assert(compilation()->profile_array_accesses(), "array access profiling is disabled");
   assert(md != NULL && load_store != NULL, "should have been initialized");
   LIR_Opr mdp = LIR_OprFact::illegalOpr;
   profile_type(md, md->byte_offset_of_slot(load_store, ArrayLoadStoreData::element_offset()), 0,
                load_store->element()->type(), element, mdp, false, NULL, NULL);
 }
-
 
 void LIRGenerator::do_Base(Base* x) {
   __ std_entry(LIR_OprFact::illegalOpr);
@@ -3934,7 +3922,7 @@ void LIRGenerator::do_ProfileInvoke(ProfileInvoke* x) {
     // Notify the runtime very infrequently only to take care of counter overflows
     int freq_log = Tier23InlineeNotifyFreqLog;
     double scale;
-    if (_method->has_option_value("CompileThresholdScaling", scale)) {
+    if (_method->has_option_value(CompileCommand::CompileThresholdScaling, scale)) {
       freq_log = CompilerConfig::scaled_freq_log(freq_log, scale);
     }
     increment_event_counter_impl(info, x->inlinee(), LIR_OprFact::intConst(InvocationCounter::count_increment), right_n_bits(freq_log), InvocationEntryBci, false, true);
@@ -3975,7 +3963,7 @@ void LIRGenerator::increment_event_counter(CodeEmitInfo* info, LIR_Opr step, int
   }
   // Increment the appropriate invocation/backedge counter and notify the runtime.
   double scale;
-  if (_method->has_option_value("CompileThresholdScaling", scale)) {
+  if (_method->has_option_value(CompileCommand::CompileThresholdScaling, scale)) {
     freq_log = CompilerConfig::scaled_freq_log(freq_log, scale);
   }
   increment_event_counter_impl(info, info->scope()->method(), step, right_n_bits(freq_log), bci, backedge, true);

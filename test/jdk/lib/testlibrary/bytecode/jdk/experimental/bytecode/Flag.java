@@ -43,6 +43,7 @@ public enum Flag {
     ACC_BRIDGE(0x0040),
     ACC_VARARGS(0x0080),
     ACC_NATIVE(0x0100),
+    ACC_INLINE(0x0100),
     ACC_STRICT(0x0800);
 
     public int flag;

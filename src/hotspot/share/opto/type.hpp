@@ -309,7 +309,6 @@ public:
 
   const TypeInt    *is_int() const;
   const TypeInt    *isa_int() const;             // Returns NULL if not an Int
-  const TypeInteger* isa_integer() const;
   const TypeInteger* is_integer(BasicType bt) const;
   const TypeInteger* isa_integer(BasicType bt) const;
   const TypeLong   *is_long() const;
@@ -569,6 +568,8 @@ public:
   jlong get_con_as_long(BasicType bt) const;
 
   static const TypeInteger* make(jlong lo, jlong hi, int w, BasicType bt);
+
+  static const TypeInteger* bottom(BasicType type);
 };
 
 
@@ -1485,7 +1486,7 @@ public:
     bool not_null_free = k->is_array_klass() && ( k->as_array_klass()->element_klass() == NULL ||
                                                  !k->as_array_klass()->element_klass()->can_be_inline_klass(true));
     bool not_flat = k->is_array_klass() && !k->is_flat_array_klass();
-    return make( TypePtr::Constant, k, Offset(0), false, not_flat, not_null_free);
+    return make(TypePtr::Constant, k, Offset(0), false, not_flat, not_null_free);
   }
   // ptr to klass 'k' or sub-klass
   static const TypeKlassPtr* make(PTR ptr, ciKlass* k, Offset offset, bool flatten_array = false, bool not_flat = false, bool not_null_free = false);

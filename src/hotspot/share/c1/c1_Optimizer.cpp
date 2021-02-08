@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1999, 2020, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -517,8 +517,7 @@ public:
   void do_NewTypeArray   (NewTypeArray*    x);
   void do_NewObjectArray (NewObjectArray*  x);
   void do_NewMultiArray  (NewMultiArray*   x);
-  void do_WithField      (WithField*       x);
-  void do_DefaultValue   (DefaultValue*    x);
+  void do_Deoptimize     (Deoptimize*      x);
   void do_CheckCast      (CheckCast*       x);
   void do_InstanceOf     (InstanceOf*      x);
   void do_MonitorEnter   (MonitorEnter*    x);
@@ -709,8 +708,7 @@ void NullCheckVisitor::do_NewInlineTypeInstance(NewInlineTypeInstance* x) { nce(
 void NullCheckVisitor::do_NewTypeArray   (NewTypeArray*    x) { nce()->handle_NewArray(x); }
 void NullCheckVisitor::do_NewObjectArray (NewObjectArray*  x) { nce()->handle_NewArray(x); }
 void NullCheckVisitor::do_NewMultiArray  (NewMultiArray*   x) { nce()->handle_NewArray(x); }
-void NullCheckVisitor::do_WithField      (WithField*       x) {}
-void NullCheckVisitor::do_DefaultValue   (DefaultValue*    x) {}
+void NullCheckVisitor::do_Deoptimize     (Deoptimize*      x) {}
 void NullCheckVisitor::do_CheckCast      (CheckCast*       x) { nce()->clear_last_explicit_null_check(); }
 void NullCheckVisitor::do_InstanceOf     (InstanceOf*      x) {}
 void NullCheckVisitor::do_MonitorEnter   (MonitorEnter*    x) { nce()->handle_AccessMonitor(x); }
@@ -1122,13 +1120,13 @@ void NullCheckEliminator::handle_Intrinsic(Intrinsic* x) {
   if (set_contains(recv)) {
     // Value is non-null => update Intrinsic
     if (PrintNullCheckElimination) {
-      tty->print_cr("Eliminated Intrinsic %d's null check for value %d", x->id(), recv->id());
+      tty->print_cr("Eliminated Intrinsic %d's null check for value %d", vmIntrinsics::as_int(x->id()), recv->id());
     }
     x->set_needs_null_check(false);
   } else {
     set_put(recv);
     if (PrintNullCheckElimination) {
-      tty->print_cr("Intrinsic %d of value %d proves value to be non-null", x->id(), recv->id());
+      tty->print_cr("Intrinsic %d of value %d proves value to be non-null", vmIntrinsics::as_int(x->id()), recv->id());
     }
     // Ensure previous passes do not cause wrong state
     x->set_needs_null_check(true);

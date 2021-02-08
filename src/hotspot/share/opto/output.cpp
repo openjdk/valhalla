@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -482,7 +482,7 @@ bool PhaseOutput::need_stack_bang(int frame_size_in_bytes) const {
   // unexpected stack overflow (compiled method stack banging should
   // guarantee it doesn't happen) so we always need the stack bang in
   // a debug VM.
-  return (UseStackBanging && C->stub_function() == NULL &&
+  return (C->stub_function() == NULL &&
           (C->has_java_calls() || frame_size_in_bytes > os::vm_page_size()>>3
            DEBUG_ONLY(|| true)));
 }
@@ -1478,7 +1478,10 @@ void PhaseOutput::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
 
   // Emit the constant table.
   if (C->has_mach_constant_base_node()) {
-    constant_table().emit(*cb);
+    if (!constant_table().emit(*cb)) {
+      C->record_failure("consts section overflow");
+      return;
+    }
   }
 
   // Create an array of labels, one for each basic block
@@ -1750,9 +1753,7 @@ void PhaseOutput::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
       DEBUG_ONLY(uint instr_offset = cb->insts_size());
       n->emit(*cb, C->regalloc());
       current_offset = cb->insts_size();
-#if 0 // new assert, since moved below "if (C->failing())", but always triggers in Valhalla
-      assert(!is_mcall || (call_returns[block->_pre_order] <= (uint) current_offset), "ret_addr_offset() not within emitted code");
-#endif
+
       // Above we only verified that there is enough space in the instruction section.
       // However, the instruction may emit stubs that cause code buffer expansion.
       // Bail out here if expansion failed due to a lack of code cache space.
@@ -1760,6 +1761,8 @@ void PhaseOutput::fill_buffer(CodeBuffer* cb, uint* blk_starts) {
         return;
       }
 
+      assert(!is_mcall || (call_returns[block->_pre_order] <= (uint)current_offset),
+             "ret_addr_offset() not within emitted code");
 #ifdef ASSERT
       uint n_size = n->size(C->regalloc());
       if (n_size < (current_offset-instr_offset)) {

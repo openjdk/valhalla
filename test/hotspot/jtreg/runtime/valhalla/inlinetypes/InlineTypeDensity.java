@@ -42,7 +42,7 @@ import jdk.test.lib.Asserts;
  * @run main/othervm -Xcomp -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:+UnlockDiagnosticVMOptions
  *                   -XX:+WhiteBoxAPI InlineTypeDensity
- * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions
+ * @run main/othervm -Xbatch -XX:+UnlockDiagnosticVMOptions -XX:FlatArrayElementMaxSize=-1
  *                   -Xbootclasspath/a:. -XX:ForceNonTearable=*
  *                   -XX:+WhiteBoxAPI InlineTypeDensity
  */

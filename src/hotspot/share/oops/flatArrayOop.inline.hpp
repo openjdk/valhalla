@@ -26,7 +26,6 @@
 #define SHARE_VM_OOPS_FLATARRAYOOP_INLINE_HPP
 
 #include "oops/access.inline.hpp"
-#include "oops/arrayOop.inline.hpp"
 #include "oops/flatArrayOop.hpp"
 #include "oops/inlineKlass.inline.hpp"
 #include "oops/oop.inline.hpp"

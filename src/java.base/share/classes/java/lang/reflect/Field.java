@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1996, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -168,10 +168,7 @@ class Field extends AccessibleObject implements Member {
     @CallerSensitive
     public void setAccessible(boolean flag) {
         AccessibleObject.checkPermission();
-
-        if (flag) {
-            checkCanSetAccessible(Reflection.getCallerClass());
-        }
+        if (flag) checkCanSetAccessible(Reflection.getCallerClass());
         setAccessible0(flag);
     }
 
@@ -209,10 +206,10 @@ class Field extends AccessibleObject implements Member {
 
     /**
      * Returns {@code true} if this field represents an element of
-     * an enumerated type; returns {@code false} otherwise.
+     * an enumerated class; returns {@code false} otherwise.
      *
      * @return {@code true} if and only if this field represents an element of
-     * an enumerated type.
+     * an enumerated class.
      * @since 1.5
      */
     public boolean isEnumConstant() {
@@ -261,7 +258,7 @@ class Field extends AccessibleObject implements Member {
      *     <cite>The Java Virtual Machine Specification</cite>
      * @throws TypeNotPresentException if the generic type
      *     signature of the underlying field refers to a non-existent
-     *     type declaration
+     *     class or interface declaration
      * @throws MalformedParameterizedTypeException if the generic
      *     signature of the underlying field refers to a parameterized type
      *     that cannot be instantiated for any reason
@@ -282,8 +279,7 @@ class Field extends AccessibleObject implements Member {
      * and type.
      */
     public boolean equals(Object obj) {
-        if (obj != null && obj instanceof Field) {
-            Field other = (Field)obj;
+        if (obj instanceof Field other) {
             return (getDeclaringClass() == other.getDeclaringClass())
                 && (getName() == other.getName())
                 && (getType() == other.getType());
@@ -734,7 +730,9 @@ class Field extends AccessibleObject implements Member {
      *     this {@code Field} object;</li>
      * <li>the field is non-static; and</li>
      * <li>the field's declaring class is not a {@linkplain Class#isHidden()
-     *     hidden class}; and</li>
+     *     hidden class};</li>
+     * <li>the field's declaring class is not a {@linkplain Class#isPrimitiveClass()
+     *     primitive class}; and</li>
      * <li>the field's declaring class is not a {@linkplain Class#isRecord()
      *     record class}.</li>
      * </ul>

@@ -307,7 +307,7 @@ public class TestIntrinsics extends InlineTypeTest {
 
     @DontCompile
     public void test17_verifier(boolean warmup) {
-        Integer v = new Integer(rI);
+        Integer v = Integer.valueOf(rI);
         int res = test17(v);
         Asserts.assertEQ(res, System.identityHashCode(v));
     }

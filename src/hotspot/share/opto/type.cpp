@@ -882,18 +882,26 @@ bool Type::interface_vs_oop(const Type *t) const {
 
 #endif
 
-void Type::check_symmetrical(const Type *t, const Type *mt) const {
+void Type::check_symmetrical(const Type* t, const Type* mt) const {
 #ifdef ASSERT
-  assert(mt == t->xmeet(this), "meet not commutative");
+  const Type* mt2 = t->xmeet(this);
+  if (mt != mt2) {
+    tty->print_cr("=== Meet Not Commutative ===");
+    tty->print("t           = ");   t->dump(); tty->cr();
+    tty->print("this        = ");      dump(); tty->cr();
+    tty->print("t meet this = "); mt2->dump(); tty->cr();
+    tty->print("this meet t = ");  mt->dump(); tty->cr();
+    fatal("meet not commutative");
+  }
   const Type* dual_join = mt->_dual;
-  const Type *t2t    = dual_join->xmeet(t->_dual);
-  const Type *t2this = dual_join->xmeet(this->_dual);
+  const Type* t2t    = dual_join->xmeet(t->_dual);
+  const Type* t2this = dual_join->xmeet(this->_dual);
 
   // Interface meet Oop is Not Symmetric:
   // Interface:AnyNull meet Oop:AnyNull == Interface:AnyNull
   // Interface:NotNull meet Oop:NotNull == java/lang/Object:NotNull
 
-  if( !interface_vs_oop(t) && (t2t != t->_dual || t2this != this->_dual)) {
+  if (!interface_vs_oop(t) && (t2t != t->_dual || t2this != this->_dual)) {
     tty->print_cr("=== Meet Not Symmetric ===");
     tty->print("t   =                   ");              t->dump(); tty->cr();
     tty->print("this=                   ");                 dump(); tty->cr();
@@ -906,7 +914,7 @@ void Type::check_symmetrical(const Type *t, const Type *mt) const {
     tty->print("mt_dual meet t_dual=    "); t2t           ->dump(); tty->cr();
     tty->print("mt_dual meet this_dual= "); t2this        ->dump(); tty->cr();
 
-    fatal("meet not symmetric" );
+    fatal("meet not symmetric");
   }
 #endif
 }
@@ -1416,6 +1424,22 @@ const TypeInteger* TypeInteger::make(jlong lo, jlong hi, int w, BasicType bt) {
   }
   assert(bt == T_LONG, "basic type not an int or long");
   return TypeLong::make(lo, hi, w);
+}
+
+jlong TypeInteger::get_con_as_long(BasicType bt) const {
+  if (bt == T_INT) {
+    return is_int()->get_con();
+  }
+  assert(bt == T_LONG, "basic type not an int or long");
+  return is_long()->get_con();
+}
+
+const TypeInteger* TypeInteger::bottom(BasicType bt) {
+  if (bt == T_INT) {
+    return TypeInt::INT;
+  }
+  assert(bt == T_LONG, "basic type not an int or long");
+  return TypeLong::LONG;
 }
 
 //=============================================================================
@@ -2026,7 +2050,6 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
       uint pos = TypeFunc::Parms;
       field_array[pos] = TypePtr::BOTTOM;
       pos++;
-      ExtendedSignature sig = ExtendedSignature(NULL, SigEntryFilter());
       collect_inline_fields(return_type->as_inline_klass(), field_array, pos);
     } else {
       field_array[TypeFunc::Parms] = get_const_type(return_type)->join_speculative(TypePtr::NOTNULL);
@@ -2043,14 +2066,12 @@ const TypeTuple *TypeTuple::make_range(ciSignature* sig, bool ret_vt_fields) {
 // Make a TypeTuple from the domain of a method signature
 const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args) {
   ciSignature* sig = method->signature();
-  ExtendedSignature sig_cc = ExtendedSignature(vt_fields_as_args ? method->get_sig_cc() : NULL, SigEntryFilter());
-
   uint arg_cnt = sig->size() + (method->is_static() ? 0 : 1);
   if (vt_fields_as_args) {
-    for (arg_cnt = 0; !sig_cc.at_end(); ++sig_cc) {
+    arg_cnt = 0;
+    for (ExtendedSignature sig_cc = ExtendedSignature(method->get_sig_cc(), SigEntryFilter()); !sig_cc.at_end(); ++sig_cc) {
       arg_cnt += type2size[(*sig_cc)._bt];
     }
-    sig_cc = ExtendedSignature(method->get_sig_cc(), SigEntryFilter());
   }
 
   uint pos = TypeFunc::Parms;
@@ -2061,9 +2082,6 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
       collect_inline_fields(recv->as_inline_klass(), field_array, pos);
     } else {
       field_array[pos++] = get_const_type(recv)->join_speculative(TypePtr::NOTNULL);
-      if (vt_fields_as_args) {
-        ++sig_cc;
-      }
     }
   }
 
@@ -2071,7 +2089,6 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
   while (pos < TypeFunc::Parms + arg_cnt) {
     ciType* type = sig->type_at(i);
     BasicType bt = type->basic_type();
-    bool is_flattened = false;
 
     switch (bt) {
     case T_LONG:
@@ -2096,7 +2113,6 @@ const TypeTuple *TypeTuple::make_domain(ciMethod* method, bool vt_fields_as_args
       break;
     case T_INLINE_TYPE: {
       if (vt_fields_as_args && type->as_inline_klass()->can_be_passed_as_fields()) {
-        is_flattened = true;
         collect_inline_fields(type->as_inline_klass(), field_array, pos);
       } else {
         field_array[pos++] = get_const_type(type)->join_speculative(TypePtr::NOTNULL);
@@ -4732,7 +4748,8 @@ const Type *TypeAryPtr::xmeet_helper(const Type *t) const {
            (tap->_klass_is_exact && !tap->klass()->is_subtype_of(klass())) ||
            // 'this' is exact and super or unrelated:
            (this->_klass_is_exact && !klass()->is_subtype_of(tap->klass())))) {
-      if (above_centerline(ptr) || (tary->_elem->make_ptr() && above_centerline(tary->_elem->make_ptr()->_ptr))) {
+      if (above_centerline(ptr) || (tary->_elem->make_ptr() && above_centerline(tary->_elem->make_ptr()->_ptr)) ||
+          tary->_elem->isa_inlinetype()) {
         tary = TypeAry::make(Type::BOTTOM, tary->_size, tary->_stable, tary->_not_flat, tary->_not_null_free);
       }
       return make(NotNull, NULL, tary, lazy_klass, false, off, field_off, InstanceBot, speculative, depth);

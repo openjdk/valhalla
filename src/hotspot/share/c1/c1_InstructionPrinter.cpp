@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/vmSymbols.hpp"
 #include "c1/c1_InstructionPrinter.hpp"
 #include "c1/c1_ValueStack.hpp"
 #include "ci/ciArray.hpp"
@@ -240,7 +241,7 @@ void InstructionPrinter::print_stack(ValueStack* stack) {
     output()->cr();
     fill_to(start_position, ' ');
     output()->print("locks [");
-    for (int i = i = 0; i < stack->locks_size(); i++) {
+    for (int i = 0; i < stack->locks_size(); i++) {
       Value t = stack->lock_at(i);
       if (i > 0) output()->print(", ");
       output()->print("%d:", i);
@@ -518,9 +519,6 @@ void InstructionPrinter::do_NewTypeArray(NewTypeArray* x) {
 
 void InstructionPrinter::do_NewInlineTypeInstance(NewInlineTypeInstance* x) {
   output()->print("new inline type instance ");
-  if (x->is_optimizable_for_withfield()) {
-    output()->print("(optimizable) ");
-  }
   print_klass(x->klass());
 }
 
@@ -543,14 +541,9 @@ void InstructionPrinter::do_NewMultiArray(NewMultiArray* x) {
   print_klass(x->klass());
 }
 
-void InstructionPrinter::do_WithField(WithField* x) {
-  output()->print("withfield");
+void InstructionPrinter::do_Deoptimize(Deoptimize* x) {
+  output()->print("deoptimize");
 }
-
-void InstructionPrinter::do_DefaultValue(DefaultValue* x) {
-  output()->print("defaultvalue");
-}
-
 
 void InstructionPrinter::do_MonitorEnter(MonitorEnter* x) {
   output()->print("enter ");

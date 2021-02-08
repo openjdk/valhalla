@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -35,6 +35,7 @@
 #include "gc/shared/barrierSet.hpp"
 #include "runtime/os.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/vm_version.hpp"
 
 void LIR_Assembler::patching_epilog(PatchingStub* patch, LIR_PatchCode patch_code, Register obj, CodeEmitInfo* info) {
   // We must have enough patching space so that call can be inserted.
@@ -54,6 +55,7 @@ void LIR_Assembler::patching_epilog(PatchingStub* patch, LIR_PatchCode patch_cod
       case Bytecodes::_getstatic:
       case Bytecodes::_putfield:
       case Bytecodes::_getfield:
+      case Bytecodes::_withfield:
         break;
       default:
         ShouldNotReachHere();
@@ -491,9 +493,9 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
     add_call_info(offset, op->info(), true);
   }
 
-#if defined(IA32) && defined(TIERED)
+#if defined(IA32) && defined(COMPILER2)
   // C2 leave fpu stack dirty clean it
-  if (UseSSE < 2) {
+  if (UseSSE < 2 && !CompilerConfig::is_c1_only_no_aot_or_jvmci()) {
     int i;
     for ( i = 1; i <= 7 ; i++ ) {
       ffree(i);
@@ -502,7 +504,7 @@ void LIR_Assembler::emit_call(LIR_OpJavaCall* op) {
       ffree(0);
     }
   }
-#endif // X86 && TIERED
+#endif // IA32 && COMPILER2
 }
 
 
@@ -690,7 +692,7 @@ void LIR_Assembler::emit_std_entries() {
                            offsets()->value(ro_entry_type));
     }
   } else {
-    // All 3 entries are the same (no value-type packing)
+    // All 3 entries are the same (no inline type packing)
     offsets()->set_value(CodeOffsets::Entry, _masm->offset());
     offsets()->set_value(CodeOffsets::Inline_Entry, _masm->offset());
     if (needs_icache(method())) {

@@ -45,38 +45,12 @@ class InlineKlass: public InstanceKlass {
   // Constructor
   InlineKlass(const ClassFileParser& parser);
 
-  InlineKlassFixedBlock* inlineklass_static_block() const {
-    address adr_jf = adr_inline_type_field_klasses();
-    if (adr_jf != NULL) {
-      return (InlineKlassFixedBlock*)(adr_jf + this->java_fields_count() * sizeof(Klass*));
-    }
-
-    address adr_fing = adr_fingerprint();
-    if (adr_fing != NULL) {
-      return (InlineKlassFixedBlock*)(adr_fingerprint() + sizeof(u8));
-    }
-
-    InstanceKlass** adr_host = adr_unsafe_anonymous_host();
-    if (adr_host != NULL) {
-      return (InlineKlassFixedBlock*)(adr_host + 1);
-    }
-
-    Klass* volatile* adr_impl = adr_implementor();
-    if (adr_impl != NULL) {
-      return (InlineKlassFixedBlock*)(adr_impl + 1);
-    }
-
-    return (InlineKlassFixedBlock*)end_of_nonstatic_oop_maps();
-  }
+  inline InlineKlassFixedBlock* inlineklass_static_block() const;
+  inline address adr_return_regs() const;
 
   address adr_extended_sig() const {
     assert(_adr_inlineklass_fixed_block != NULL, "Should have been initialized");
     return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _extended_sig));
-  }
-
-  address adr_return_regs() const {
-    InlineKlassFixedBlock* vkst = inlineklass_static_block();
-    return ((address)_adr_inlineklass_fixed_block) + in_bytes(byte_offset_of(InlineKlassFixedBlock, _return_regs));
   }
 
   // pack and unpack handlers for inline types return
@@ -220,9 +194,7 @@ class InlineKlass: public InstanceKlass {
   Array<SigEntry>* extended_sig() const {
     return *((Array<SigEntry>**)adr_extended_sig());
   }
-  Array<VMRegPair>* return_regs() const {
-    return *((Array<VMRegPair>**)adr_return_regs());
-  }
+  inline Array<VMRegPair>* return_regs() const;
   bool is_scalarizable() const;
   bool can_be_passed_as_fields() const;
   bool can_be_returned_as_fields(bool init = false) const;
