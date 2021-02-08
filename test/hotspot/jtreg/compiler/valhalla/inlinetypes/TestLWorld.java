@@ -27,15 +27,15 @@ import java.lang.invoke.*;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
-import jdk.experimental.value.MethodHandleBuilder;
 import jdk.test.lib.Asserts;
+import test.java.lang.invoke.lib.InstructionHelper;
 
 /*
  * @test
  * @key randomness
  * @summary Test inline types in LWorld.
- * @modules java.base/jdk.experimental.value
- * @library /testlibrary /test/lib /compiler/whitebox /
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common /testlibrary /compiler/whitebox /
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @requires (os.simpleArch == "x64" | os.simpleArch == "aarch64")
  * @compile TestLWorld.java
  * @run driver ClassFileInstaller sun.hotspot.WhiteBox jdk.test.lib.Platform
@@ -49,9 +49,8 @@ public class TestLWorld extends InlineTypeTest {
     @Override
     public String[] getExtraVMParameters(int scenario) {
         switch (scenario) {
-        case 1: return new String[] {"-XX:-UseOptoBiasInlining"};
-        case 2: return new String[] {"-DVerifyIR=false", "-XX:-UseBiasedLocking"};
-        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:-UseBiasedLocking", "-XX:FlatArrayElementMaxSize=-1"};
+        case 2: return new String[] {"-DVerifyIR=false"};
+        case 3: return new String[] {"-XX:-MonomorphicArrayCheck", "-XX:FlatArrayElementMaxSize=-1"};
         case 4: return new String[] {"-XX:-MonomorphicArrayCheck"};
         }
         return null;
@@ -174,7 +173,7 @@ public class TestLWorld extends InlineTypeTest {
     public Object test3(int state) {
         Object res = null;
         if (state == 0) {
-            res = new Integer(rI);
+            res = Integer.valueOf(rI);
         } else if (state == 1) {
             res = MyValue1.createWithFieldsInline(rI, rL);
         } else if (state == 2) {
@@ -218,7 +217,7 @@ public class TestLWorld extends InlineTypeTest {
     // Test merging inline types and objects in loops
     @Test()
     public Object test4(int iters) {
-        Object res = new Integer(rI);
+        Object res = Integer.valueOf(rI);
         for (int i = 0; i < iters; ++i) {
             if (res instanceof Integer) {
                 res = MyValue1.createWithFieldsInline(rI, rL);
@@ -565,7 +564,7 @@ public class TestLWorld extends InlineTypeTest {
     @DontCompile
     public void test17_verifier(boolean warmup) {
         MyValue1 vt = testValue1;
-        MyValue1 result = test17(vt, new Integer(rI));
+        MyValue1 result = test17(vt, Integer.valueOf(rI));
         Asserts.assertEquals(result.hash(), vt.hash());
     }
 
@@ -1047,7 +1046,7 @@ public class TestLWorld extends InlineTypeTest {
 
     // Test writing constant null to a (flattened) inline type array
 
-    private static final MethodHandle setArrayElementNull = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementNull = InstructionHelper.loadCode(MethodHandles.lookup(),
         "setArrayElementNull",
         MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class),
         CODE -> {
@@ -1231,7 +1230,7 @@ public class TestLWorld extends InlineTypeTest {
             result = MyValue1.createWithFieldsInline(rI, rL);
             break;
         case 9:
-            result = new Integer(42);
+            result = Integer.valueOf(42);
             break;
         case 10:
             result = testValue1Array2;
@@ -1315,7 +1314,7 @@ public class TestLWorld extends InlineTypeTest {
         Asserts.assertEQ(result, testValue2.hash());
         result = test40(testValue1Array2, index);
         Asserts.assertEQ(result, testValue1.hash());
-        result = test40(new Long(42), index);
+        result = test40(Long.valueOf(42), index);
         Asserts.assertEQ(result, 42L);
     }
 
@@ -1374,7 +1373,7 @@ public class TestLWorld extends InlineTypeTest {
     }
 
     // Tests writing an array element with a (statically known) incompatible type
-    private static final MethodHandle setArrayElementIncompatible = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
+    private static final MethodHandle setArrayElementIncompatible = InstructionHelper.loadCode(MethodHandles.lookup(),
         "setArrayElementIncompatible",
         MethodType.methodType(void.class, TestLWorld.class, MyValue1[].class, int.class, MyValue2.class),
         CODE -> {
@@ -1484,7 +1483,7 @@ public class TestLWorld extends InlineTypeTest {
 
     @DontCompile
     public void test50_verifier(boolean warmup) {
-        boolean result = test49(new Integer(42));
+        boolean result = test49(Integer.valueOf(42));
         Asserts.assertFalse(result);
     }
 
@@ -2078,7 +2077,7 @@ public class TestLWorld extends InlineTypeTest {
     @DontCompile
     public void test77_verifier(boolean warmup) throws Throwable {
         try {
-            test77(new Integer(42));
+            test77(Integer.valueOf(42));
             throw new RuntimeException("ClassCastException expected");
         } catch (ClassCastException e) {
             // Expected
@@ -2121,7 +2120,7 @@ public class TestLWorld extends InlineTypeTest {
     @DontCompile
     public void test79_verifier(boolean warmup) throws Throwable {
         try {
-            test79(new Integer(42));
+            test79(Integer.valueOf(42));
             throw new RuntimeException("ClassCastException expected");
         } catch (ClassCastException e) {
             // Expected
@@ -2270,8 +2269,6 @@ public class TestLWorld extends InlineTypeTest {
         MyValue2[] src = new MyValue2[100];
         Arrays.fill(src, testValue2);
         MyValue2[] dst = new MyValue2[100];
-        Method m = tests.get("TestLWorld::test84");
-
         rerun_and_recompile_for("TestLWorld::test84", 10,
                                 () ->  { test84(src, dst);
                                          Asserts.assertTrue(Arrays.equals(src, dst)); });
@@ -2366,7 +2363,7 @@ public class TestLWorld extends InlineTypeTest {
 
     @DontCompile
     public void test89_verifier(boolean warmup) {
-        Asserts.assertTrue(test89(new Integer(42)));
+        Asserts.assertTrue(test89(Integer.valueOf(42)));
         Asserts.assertFalse(test89(new Object()));
     }
 
@@ -2377,7 +2374,7 @@ public class TestLWorld extends InlineTypeTest {
 
     @DontCompile
     public void test90_verifier(boolean warmup) {
-        test90(new Integer(42));
+        test90(Integer.valueOf(42));
         try {
             test90(new Object());
             throw new RuntimeException("ClassCastException expected");
@@ -2460,7 +2457,7 @@ public class TestLWorld extends InlineTypeTest {
                     }
                 }
                 boolean compiled = isCompiledByC2(m);
-                Asserts.assertTrue(!USE_COMPILER || XCOMP || STRESS_CC || TEST_C1 || compiled || (j != extra-1));
+                Asserts.assertTrue(!USE_COMPILER || XCOMP || STRESS_CC || TEST_C1 || !ProfileInterpreter || compiled || (j != extra-1));
                 if (!compiled) {
                     enqueueMethodForCompilation(m, COMP_LEVEL_FULL_OPTIMIZATION);
                 }
@@ -3528,6 +3525,103 @@ public class TestLWorld extends InlineTypeTest {
         if (!warmup) {
             res = test129(true);
             Asserts.assertEquals(res, testValue2.hash());
+        }
+    }
+
+    // Lock on inline type (known after inlining)
+    @ForceInline
+    public Object test130_inlinee() {
+        return MyValue1.createWithFieldsInline(rI, rL);
+    }
+
+    @Test()
+    public void test130() {
+        Object obj = test130_inlinee();
+        synchronized (obj) {
+            throw new RuntimeException("test130 failed: synchronization on inline type should not succeed");
+        }
+    }
+
+    @DontCompile
+    public void test130_verifier(boolean warmup) {
+        try {
+            test130();
+            throw new RuntimeException("test130 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+    }
+
+    // Same as test130 but with field load instead of allocation
+    @ForceInline
+    public Object test131_inlinee() {
+        return testValue1;
+    }
+
+    @Test()
+    public void test131() {
+        Object obj = test131_inlinee();
+        synchronized (obj) {
+            throw new RuntimeException("test131 failed: synchronization on inline type should not succeed");
+        }
+    }
+
+    @DontCompile
+    public void test131_verifier(boolean warmup) {
+        try {
+            test131();
+            throw new RuntimeException("test131 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+    }
+
+    // Test locking on object that is known to be an inline type only after CCP
+    @Test()
+    @Warmup(10000)
+    public void test132() {
+        MyValue2 vt = MyValue2.createWithFieldsInline(rI, rD);
+        Object obj = Integer.valueOf(42);
+
+        int limit = 2;
+        for (; limit < 4; limit *= 2);
+        for (int i = 2; i < limit; i++) {
+            obj = vt;
+        }
+        synchronized (obj) {
+            throw new RuntimeException("test132 failed: synchronization on inline type should not succeed");
+        }
+    }
+
+    @DontCompile
+    public void test132_verifier(boolean warmup) {
+        try {
+            test132();
+            throw new RuntimeException("test132 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
+        }
+    }
+
+    // Test conditional locking on inline type and non-escaping object
+    @Test()
+    public void test133(boolean b) {
+        Object obj = b ? Integer.valueOf(42) : MyValue2.createWithFieldsInline(rI, rD);
+        synchronized (obj) {
+            if (!b) {
+                throw new RuntimeException("test133 failed: synchronization on inline type should not succeed");
+            }
+        }
+    }
+
+    @DontCompile
+    public void test133_verifier(boolean warmup) {
+        test133(true);
+        try {
+            test133(false);
+            throw new RuntimeException("test133 failed: no exception thrown");
+        } catch (IllegalMonitorStateException ex) {
+            // Expected
         }
     }
 }

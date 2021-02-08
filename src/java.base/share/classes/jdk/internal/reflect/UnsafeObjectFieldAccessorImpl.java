@@ -35,7 +35,7 @@ class UnsafeObjectFieldAccessorImpl extends UnsafeFieldAccessorImpl {
     public Object get(Object obj) throws IllegalArgumentException {
         ensureObj(obj);
         return isFlattened() ? unsafe.getValue(obj, fieldOffset, field.getType())
-                             : unsafe.getReference(obj, fieldOffset);
+                             : unsafe.getReference(obj, fieldOffset, field.getType());
     }
 
     public boolean getBoolean(Object obj) throws IllegalArgumentException {

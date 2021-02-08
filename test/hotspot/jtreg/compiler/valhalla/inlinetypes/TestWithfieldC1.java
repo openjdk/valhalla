@@ -28,14 +28,12 @@ import java.lang.invoke.*;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
-import jdk.experimental.value.MethodHandleBuilder;
 import jdk.test.lib.Asserts;
 
 /*
  * @test
  * @key randomness
  * @summary Verify that C1 performs escape analysis before optimizing withfield bytecode to putfield.
- * @modules java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
  * @compile -XDallowWithFieldOperator TestWithfieldC1.java

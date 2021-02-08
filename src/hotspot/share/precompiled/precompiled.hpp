@@ -73,8 +73,10 @@
 // For Visual Studio, including the *.inline.hpp files actually
 // increased performance.
 #include "memory/allocation.inline.hpp"
+#ifdef JDK_8254007_IS_FIXED
 #include "oops/access.inline.hpp"
 #include "oops/oop.inline.hpp"
+#endif
 #include "runtime/handles.inline.hpp"
 #endif // TARGET_COMPILER_visCPP
 

@@ -29,14 +29,12 @@ import java.lang.reflect.Method;
 import java.nio.file.NoSuchFileException;
 import java.util.Arrays;
 
-import jdk.experimental.value.MethodHandleBuilder;
 import jdk.test.lib.Asserts;
 
 /*
  * @test
  * @key randomness
  * @summary Verify that chains of getfields on flattened fields are correctly optimized
- * @modules java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
  * @compile TestGetfieldChains.java NamedRectangle.java Rectangle.java Point.java GetfieldChains.jcod

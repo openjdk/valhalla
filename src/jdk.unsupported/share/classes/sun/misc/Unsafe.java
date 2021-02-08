@@ -644,7 +644,7 @@ public final class Unsafe {
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get field offset on a hidden class: " + f);
         }
-        if (f.getDeclaringClass().isInlineClass()) {
+        if (f.getDeclaringClass().isPrimitiveClass()) {
             throw new UnsupportedOperationException("can't get field offset on an inline class: " + f);
         }
         if (declaringClass.isRecord()) {
@@ -679,7 +679,7 @@ public final class Unsafe {
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get field offset on a hidden class: " + f);
         }
-        if (f.getDeclaringClass().isInlineClass()) {
+        if (f.getDeclaringClass().isPrimitiveClass()) {
             throw new UnsupportedOperationException("can't get static field offset on an inline class: " + f);
         }
         if (declaringClass.isRecord()) {
@@ -707,7 +707,7 @@ public final class Unsafe {
         if (declaringClass.isHidden()) {
             throw new UnsupportedOperationException("can't get base address on a hidden class: " + f);
         }
-        if (f.getDeclaringClass().isInlineClass()) {
+        if (f.getDeclaringClass().isPrimitiveClass()) {
             throw new UnsupportedOperationException("can't get base address on an inline class: " + f);
         }
         if (declaringClass.isRecord()) {
@@ -876,15 +876,17 @@ public final class Unsafe {
      * <li>InterfaceMethodRef: (NYI) a method handle to invoke on that call site's arguments
      * </ul>
      *
-     * @deprecated Use the {@link java.lang.invoke.MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)}
-     * method.
+     * @deprecated Use {@link java.lang.invoke.MethodHandles.Lookup#defineHiddenClass(byte[], boolean, MethodHandles.Lookup.ClassOption...)}
+     * or {@link java.lang.invoke.MethodHandles.Lookup#defineHiddenClassWithClassData(byte[], Object, boolean, MethodHandles.Lookup.ClassOption...)}
+     * instead.
      *
      * @param hostClass context for linkage, access control, protection domain, and class loader
      * @param data      bytes of a class file
      * @param cpPatches where non-null entries exist, they replace corresponding CP entries in data
      */
     @ForceInline
-    @Deprecated(since = "15", forRemoval = false)
+    @Deprecated(since = "15", forRemoval = true)
+    @SuppressWarnings("removal")
     public Class<?> defineAnonymousClass(Class<?> hostClass, byte[] data, Object[] cpPatches) {
         return theInternalUnsafe.defineAnonymousClass(hostClass, data, cpPatches);
     }

@@ -253,6 +253,7 @@ class Bytecode_field: public Bytecode_member_ref {
   bool is_putfield() const                       { return java_code() == Bytecodes::_putfield; }
   bool is_getstatic() const                      { return java_code() == Bytecodes::_getstatic; }
   bool is_putstatic() const                      { return java_code() == Bytecodes::_putstatic; }
+  bool is_withfield() const                      { return java_code() == Bytecodes::_withfield; }
 
   bool is_getter() const                         { return is_getfield()  || is_getstatic(); }
   bool is_static() const                         { return is_getstatic() || is_putstatic(); }
@@ -260,7 +261,8 @@ class Bytecode_field: public Bytecode_member_ref {
   bool is_valid() const                          { return is_getfield()   ||
                                                           is_putfield()   ||
                                                           is_getstatic()  ||
-                                                          is_putstatic(); }
+                                                          is_putstatic()  ||
+                                                          is_withfield(); }
   void verify() const;
 };
 

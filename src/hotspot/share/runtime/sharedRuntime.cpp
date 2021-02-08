@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,10 +23,11 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/javaClasses.hpp"
 #include "jvm.h"
 #include "aot/aotLoader.hpp"
 #include "classfile/stringTable.hpp"
-#include "classfile/systemDictionary.hpp"
+#include "classfile/vmClasses.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "code/codeCache.hpp"
 #include "code/compiledIC.hpp"
@@ -74,6 +75,7 @@
 #include "runtime/synchronizer.hpp"
 #include "runtime/vframe.inline.hpp"
 #include "runtime/vframeArray.hpp"
+#include "runtime/vm_version.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
@@ -153,7 +155,6 @@ int SharedRuntime::_nof_interface_calls = 0;
 int SharedRuntime::_nof_optimized_interface_calls = 0;
 int SharedRuntime::_nof_inlined_interface_calls = 0;
 int SharedRuntime::_nof_megamorphic_interface_calls = 0;
-int SharedRuntime::_nof_removable_exceptions = 0;
 
 int SharedRuntime::_new_instance_ctr=0;
 int SharedRuntime::_new_array_ctr=0;
@@ -601,6 +602,28 @@ void SharedRuntime::throw_and_post_jvmti_exception(JavaThread *thread, Handle h_
     address bcp = method()->bcp_from(vfst.bci());
     JvmtiExport::post_exception_throw(thread, method(), bcp, h_exception());
   }
+
+#if INCLUDE_JVMCI
+  if (EnableJVMCI && UseJVMCICompiler) {
+    vframeStream vfst(thread, true);
+    methodHandle method = methodHandle(thread, vfst.method());
+    int bci = vfst.bci();
+    MethodData* trap_mdo = method->method_data();
+    if (trap_mdo != NULL) {
+      // Set exception_seen if the exceptional bytecode is an invoke
+      Bytecode_invoke call = Bytecode_invoke_check(method, bci);
+      if (call.is_valid()) {
+        ResourceMark rm(thread);
+        ProfileData* pdata = trap_mdo->allocate_bci_to_data(bci, NULL);
+        if (pdata != NULL && pdata->is_BitData()) {
+          BitData* bit_data = (BitData*) pdata;
+          bit_data->set_exception_seen();
+        }
+      }
+    }
+  }
+#endif
+
   Exceptions::_throw(thread, __FILE__, __LINE__, h_exception);
 }
 
@@ -768,7 +791,7 @@ void SharedRuntime::throw_StackOverflowError_common(JavaThread* thread, bool del
   // We avoid using the normal exception construction in this case because
   // it performs an upcall to Java, and we're already out of stack space.
   Thread* THREAD = thread;
-  Klass* k = SystemDictionary::StackOverflowError_klass();
+  Klass* k = vmClasses::StackOverflowError_klass();
   oop exception_oop = InstanceKlass::cast(k)->allocate_instance(CHECK);
   if (delayed) {
     java_lang_Throwable::set_message(exception_oop,
@@ -1072,10 +1095,10 @@ Handle SharedRuntime::find_callee_info_helper(JavaThread* thread,
     bc = Bytecodes::_invokestatic;
     methodHandle attached_method(THREAD, extract_attached_method(vfst));
     assert(attached_method.not_null(), "must have attached method");
-    SystemDictionary::ValueBootstrapMethods_klass()->initialize(CHECK_NH);
+    vmClasses::ValueBootstrapMethods_klass()->initialize(CHECK_NH);
     LinkResolver::resolve_invoke(callinfo, receiver, attached_method, bc, false, CHECK_NH);
 #ifdef ASSERT
-    Method* is_subst = SystemDictionary::ValueBootstrapMethods_klass()->find_method(vmSymbols::isSubstitutable_name(), vmSymbols::object_object_boolean_signature());
+    Method* is_subst = vmClasses::ValueBootstrapMethods_klass()->find_method(vmSymbols::isSubstitutable_name(), vmSymbols::object_object_boolean_signature());
     assert(callinfo.selected_method() == is_subst, "must be isSubstitutable method");
 #endif
     return receiver;
@@ -1249,7 +1272,7 @@ methodHandle SharedRuntime::resolve_helper(JavaThread *thread,
   if (JvmtiExport::can_hotswap_or_post_breakpoint()) {
     int retry_count = 0;
     while (!HAS_PENDING_EXCEPTION && callee_method->is_old() &&
-           callee_method->method_holder() != SystemDictionary::Object_klass()) {
+           callee_method->method_holder() != vmClasses::Object_klass()) {
       // If has a pending exception then there is no need to re-try to
       // resolve this method.
       // If the method has been redefined, we need to try again.
@@ -2208,13 +2231,6 @@ void SharedRuntime::print_statistics() {
 
   SharedRuntime::print_ic_miss_histogram();
 
-  if (CountRemovableExceptions) {
-    if (_nof_removable_exceptions > 0) {
-      Unimplemented(); // this counter is not yet incremented
-      tty->print_cr("Removable exceptions: %d", _nof_removable_exceptions);
-    }
-  }
-
   // Dump the JRT_ENTRY counters
   if (_new_instance_ctr) tty->print_cr("%5d new instance requires GC", _new_instance_ctr);
   if (_new_array_ctr) tty->print_cr("%5d new array requires GC", _new_array_ctr);
@@ -2377,27 +2393,14 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
   // Remap BasicTypes that are handled equivalently by the adapters.
   // These are correct for the current system but someday it might be
   // necessary to make this mapping platform dependent.
-  static int adapter_encoding(BasicType in, bool is_inlinetype) {
+  static BasicType adapter_encoding(BasicType in) {
     switch (in) {
       case T_BOOLEAN:
       case T_BYTE:
       case T_SHORT:
-      case T_CHAR: {
-        if (is_inlinetype) {
-          // Do not widen inline type field types
-          assert(InlineTypePassFieldsAsArgs, "must be enabled");
-          return in;
-        } else {
-          // They are all promoted to T_INT in the calling convention
-          return T_INT;
-        }
-      }
-
-      case T_INLINE_TYPE: {
-        // If inline types are passed as fields, return 'in' to differentiate
-        // between a T_INLINE_TYPE and a T_OBJECT in the signature.
-        return InlineTypePassFieldsAsArgs ? in : adapter_encoding(T_OBJECT, false);
-      }
+      case T_CHAR:
+        // They are all promoted to T_INT in the calling convention
+        return T_INT;
 
       case T_OBJECT:
       case T_ARRAY:
@@ -2444,33 +2447,37 @@ class AdapterFingerPrint : public CHeapObj<mtCode> {
 
     // Now pack the BasicTypes with 8 per int
     int sig_index = 0;
-    BasicType prev_sbt = T_ILLEGAL;
+    BasicType prev_bt = T_ILLEGAL;
     int vt_count = 0;
     for (int index = 0; index < len; index++) {
       int value = 0;
       for (int byte = 0; byte < _basic_types_per_int; byte++) {
-        int bt = 0;
+        BasicType bt = T_ILLEGAL;
         if (sig_index < total_args_passed) {
-          BasicType sbt = sig->at(sig_index++)._bt;
-          if (InlineTypePassFieldsAsArgs && sbt == T_INLINE_TYPE) {
+          bt = sig->at(sig_index++)._bt;
+          if (bt == T_INLINE_TYPE) {
             // Found start of inline type in signature
-            vt_count++;
+            assert(InlineTypePassFieldsAsArgs, "unexpected start of inline type");
             if (sig_index == 1 && has_ro_adapter) {
               // With a ro_adapter, replace receiver inline type delimiter by T_VOID to prevent matching
               // with other adapters that have the same inline type as first argument and no receiver.
-              sbt = T_VOID;
+              bt = T_VOID;
             }
-          } else if (InlineTypePassFieldsAsArgs && sbt == T_VOID &&
-                     prev_sbt != T_LONG && prev_sbt != T_DOUBLE) {
+            vt_count++;
+          } else if (bt == T_VOID && prev_bt != T_LONG && prev_bt != T_DOUBLE) {
             // Found end of inline type in signature
+            assert(InlineTypePassFieldsAsArgs, "unexpected end of inline type");
             vt_count--;
             assert(vt_count >= 0, "invalid vt_count");
+          } else if (vt_count == 0) {
+            // Widen fields that are not part of a scalarized inline type argument
+            bt = adapter_encoding(bt);
           }
-          bt = adapter_encoding(sbt, vt_count > 0);
-          prev_sbt = sbt;
+          prev_bt = bt;
         }
-        assert((bt & _basic_type_mask) == bt, "must fit in 4 bits");
-        value = (value << _basic_type_bits) | bt;
+        int bt_val = (bt == T_ILLEGAL) ? 0 : bt;
+        assert((bt_val & _basic_type_mask) == bt_val, "must fit in 4 bits");
+        value = (value << _basic_type_bits) | bt_val;
       }
       ptr[index] = value;
     }
@@ -2768,20 +2775,19 @@ int CompiledEntrySignature::compute_scalarized_cc(GrowableArray<SigEntry>*& sig_
     if (holder->is_inline_klass() && scalar_receiver && InlineKlass::cast(holder)->can_be_passed_as_fields()) {
       sig_cc->appendAll(InlineKlass::cast(holder)->extended_sig());
     } else {
-      SigEntry::add_entry(sig_cc, T_OBJECT);
+      SigEntry::add_entry(sig_cc, T_OBJECT, holder->name());
     }
   }
-  Thread* THREAD = Thread::current();
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
     if (ss.type() == T_INLINE_TYPE) {
       InlineKlass* vk = ss.as_inline_klass(holder);
       if (vk->can_be_passed_as_fields()) {
         sig_cc->appendAll(vk->extended_sig());
       } else {
-        SigEntry::add_entry(sig_cc, T_OBJECT);
+        SigEntry::add_entry(sig_cc, T_OBJECT, ss.as_symbol());
       }
     } else {
-      SigEntry::add_entry(sig_cc, ss.type());
+      SigEntry::add_entry(sig_cc, ss.type(), ss.as_symbol());
     }
   }
   regs_cc = NEW_RESOURCE_ARRAY(VMRegPair, sig_cc->length() + 2);
@@ -2835,7 +2841,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
       _has_inline_recv = true;
       _num_inline_args++;
     }
-    SigEntry::add_entry(_sig, T_OBJECT);
+    SigEntry::add_entry(_sig, T_OBJECT, _method->name());
   }
   for (SignatureStream ss(_method->signature()); !ss.at_return_type(); ss.next()) {
     BasicType bt = ss.type();
@@ -2845,7 +2851,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
       }
       bt = T_OBJECT;
     }
-    SigEntry::add_entry(_sig, bt);
+    SigEntry::add_entry(_sig, bt, ss.as_symbol());
   }
   if (_method->is_abstract() && !has_inline_arg()) {
     return;
@@ -2869,7 +2875,7 @@ void CompiledEntrySignature::compute_calling_conventions() {
     _sig_cc_ro = _sig_cc;
     _regs_cc_ro = _regs_cc;
     _args_on_stack_cc_ro = _args_on_stack_cc;
-    if (_has_inline_recv || _args_on_stack_cc > _args_on_stack) {
+    if (_has_inline_recv) {
       // For interface calls, we need another entry point / adapter to unpack the receiver
       _args_on_stack_cc_ro = compute_scalarized_cc(_sig_cc_ro, _regs_cc_ro, /* scalar_receiver = */ false);
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,7 +26,7 @@
 #include "classfile/moduleEntry.hpp"
 #include "classfile/packageEntry.hpp"
 #include "classfile/symbolTable.hpp"
-#include "classfile/systemDictionary.hpp"
+#include "classfile/vmClasses.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
 #include "memory/iterator.inline.hpp"
@@ -60,7 +60,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
 
   // Eagerly allocate the direct array supertype.
   Klass* super_klass = NULL;
-  if (!Universe::is_bootstrapping() || SystemDictionary::Object_klass_loaded()) {
+  if (!Universe::is_bootstrapping() || vmClasses::Object_klass_loaded()) {
     Klass* element_super = element_klass->super();
     if (element_super != NULL) {
       // The element type has a direct super.  E.g., String[] has direct super of Object[].
@@ -93,7 +93,7 @@ ObjArrayKlass* ObjArrayKlass::allocate_objArray_klass(ClassLoaderData* loader_da
       }
     } else {
       // The element type is already Object.  Object[] has direct super of Object.
-      super_klass = SystemDictionary::Object_klass();
+      super_klass = vmClasses::Object_klass();
     }
   }
 
@@ -383,9 +383,9 @@ GrowableArray<Klass*>* ObjArrayKlass::compute_secondary_supers(int num_extra_slo
     return NULL;
   } else {
     GrowableArray<Klass*>* secondaries = new GrowableArray<Klass*>(num_elem_supers+3);
-    secondaries->push(SystemDictionary::Cloneable_klass());
-    secondaries->push(SystemDictionary::Serializable_klass());
-    secondaries->push(SystemDictionary::IdentityObject_klass());
+    secondaries->push(vmClasses::Cloneable_klass());
+    secondaries->push(vmClasses::Serializable_klass());
+    secondaries->push(vmClasses::IdentityObject_klass());
     for (int i = 0; i < num_elem_supers; i++) {
       Klass* elem_super = elem_supers->at(i);
       Klass* array_super = elem_super->array_klass_or_null();

@@ -31,12 +31,9 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.lang.reflect.Parameter;
 import java.nio.ByteOrder;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -46,7 +43,6 @@ import static java.lang.invoke.MethodHandleStatics.UNSAFE;
 import static java.lang.invoke.MethodHandleStatics.VAR_HANDLE_IDENTITY_ADAPT;
 import static java.lang.invoke.MethodHandleStatics.newIllegalArgumentException;
 import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toList;
 
 final class VarHandles {
 
@@ -231,7 +227,7 @@ final class VarHandles {
             // minimize the performance impact to non-value array.
             // It should be removed when Unsafe::isFlattenedArray is intrinsified.
 
-            return maybeAdapt(componentType.isInlineClass() && UNSAFE.isFlattenedArray(arrayClass)
+            return maybeAdapt(componentType.isPrimitiveClass() && UNSAFE.isFlattenedArray(arrayClass)
                 ? new VarHandleValues.Array(aoffset, ashift, arrayClass)
                 : new VarHandleReferences.Array(aoffset, ashift, arrayClass));
         }

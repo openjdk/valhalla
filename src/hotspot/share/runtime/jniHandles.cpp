@@ -23,6 +23,7 @@
  */
 
 #include "precompiled.hpp"
+#include "classfile/vmSymbols.hpp"
 #include "gc/shared/oopStorage.inline.hpp"
 #include "gc/shared/oopStorageSet.hpp"
 #include "logging/log.hpp"
@@ -329,7 +330,7 @@ bool JNIHandles::is_same_object(jobject handle1, jobject handle2) {
         // Something really bad happened because isSubstitutable() should not throw exceptions
         // If it is an error, just let it propagate
         // If it is an exception, wrap it into an InternalError
-        if (!PENDING_EXCEPTION->is_a(SystemDictionary::Error_klass())) {
+        if (!PENDING_EXCEPTION->is_a(vmClasses::Error_klass())) {
           Handle e(THREAD, PENDING_EXCEPTION);
           CLEAR_PENDING_EXCEPTION;
           THROW_MSG_CAUSE_(vmSymbols::java_lang_InternalError(), "Internal error in substitutability test", e, false);

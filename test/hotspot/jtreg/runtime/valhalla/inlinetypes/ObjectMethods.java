@@ -24,14 +24,13 @@ package runtime.valhalla.inlinetypes;
 
 import java.lang.invoke.*;
 
-import jdk.experimental.value.MethodHandleBuilder;
+import test.java.lang.invoke.lib.InstructionHelper;
 
 /*
  * @test ObjectMethods
  * @summary Check object method implemented by the VM behave with inline types
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
- * @library /test/lib
+ * @library /test/lib /test/jdk/lib/testlibrary/bytecode /test/jdk/java/lang/invoke/common
+ * @build jdk.experimental.bytecode.BasicClassBuilder test.java.lang.invoke.lib.InstructionHelper
  * @compile -XDallowWithFieldOperator ObjectMethods.java
  * @run main/othervm -Xint -XX:+UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
  * @run main/othervm -Xint -XX:-UseCompressedClassPointers runtime.valhalla.inlinetypes.ObjectMethods
@@ -134,15 +133,15 @@ public class ObjectMethods {
     static void checkMonitorExit(Object val) {
         boolean sawImse = false;
         try {
-            MethodHandleBuilder.loadCode(MethodHandles.lookup(),
-                                         "mismatchedMonitorExit",
-                                         MethodType.methodType(Void.TYPE, Object.class),
-                                         CODE->{
-                                             CODE
-                                                 .aload(0)
-                                                 .monitorexit()
-                                                 .return_();
-                                         }).invokeExact(val);
+            InstructionHelper.loadCode(MethodHandles.lookup(),
+                                        "mismatchedMonitorExit",
+                                        MethodType.methodType(Void.TYPE, Object.class),
+                                        CODE->{
+                                            CODE
+                                                .aload(0)
+                                                .monitorexit()
+                                                .return_();
+                                        }).invokeExact(val);
             throw new IllegalStateException("Unreachable code, reached");
         } catch (Throwable t) {
             if (t instanceof IllegalMonitorStateException) {

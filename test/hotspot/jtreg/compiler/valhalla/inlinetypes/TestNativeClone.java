@@ -25,8 +25,8 @@
  * @test
  * @bug 8209702
  * @summary Verify that the native clone intrinsic handles inline types.
- * @modules java.base/jdk.experimental.value
  * @library /test/lib
+ * @modules java.base/java.lang:+open
  * @run main/othervm -Xbatch -XX:-UseTypeProfile
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.MyValue::*
  *                   -XX:CompileCommand=compileonly,compiler.valhalla.inlinetypes.TestNativeClone::test*
@@ -40,7 +40,6 @@ package compiler.valhalla.inlinetypes;
 import java.lang.invoke.*;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import jdk.experimental.value.MethodHandleBuilder;
 import jdk.test.lib.Asserts;
 
 inline class MyValue {
@@ -49,30 +48,12 @@ inline class MyValue {
     public MyValue(int x) {
         this.x = x;
     }
+
 }
 
 public class TestNativeClone {
 
-    private static final MethodHandle cloneValue = MethodHandleBuilder.loadCode(MethodHandles.lookup(),
-        "MyValue",
-        MethodType.methodType(Object.class, MyValue.class),
-        CODE -> {
-            CODE.
-            aload_0().
-            invokevirtual(Object.class, "clone", "()Ljava/lang/Object;", false).
-            areturn();
-        });
-
-    public static void test1(MyValue vt) throws Throwable {
-        try {
-            cloneValue.invoke(vt);
-            throw new RuntimeException("No exception thrown");
-        } catch (CloneNotSupportedException e) {
-            // Expected
-        }
-    }
-
-    public static void test2(Method clone, Object obj) {
+    public static void test1(Method clone, Object obj) {
         try {
             clone.invoke(obj);
         } catch (InvocationTargetException e) {
@@ -90,8 +71,7 @@ public class TestNativeClone {
         Method clone = Object.class.getDeclaredMethod("clone");
         clone.setAccessible(true);
         for (int i = 0; i < 20_000; ++i) {
-            test1(vt);
-            test2(clone, vt);
+            test1(clone, vt);
         }
     }
 }

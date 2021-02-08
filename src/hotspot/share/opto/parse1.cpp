@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -823,9 +823,9 @@ void Parse::build_exits() {
     if (ret_oop_type && !ret_oop_type->klass()->is_loaded()) {
       ret_type = TypeOopPtr::BOTTOM;
     }
-    if ((_caller->has_method() || tf()->returns_inline_type_as_fields()) &&
+    // Scalarize inline type when returning as fields or inlining non-incrementally
+    if ((tf()->returns_inline_type_as_fields() || (_caller->has_method() && !Compile::current()->inlining_incrementally())) &&
         ret_type->is_inlinetypeptr() && ret_type->inline_klass()->is_scalarizable() && !ret_type->maybe_null()) {
-      // Scalarize inline type return when inlining or with multiple return values
       ret_type = TypeInlineType::make(ret_type->inline_klass());
     }
     int         ret_size = type2size[ret_type->basic_type()];
@@ -846,8 +846,7 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
   int        arg_size = tf->domain_sig()->cnt();
   int        max_size = MAX2(arg_size, (int)tf->range_cc()->cnt());
   JVMState*  jvms     = new (this) JVMState(max_size - TypeFunc::Parms);
-  SafePointNode* map  = new SafePointNode(max_size, NULL);
-  map->set_jvms(jvms);
+  SafePointNode* map  = new SafePointNode(max_size, jvms);
   jvms->set_map(map);
   record_for_igvn(map);
   assert(arg_size == TypeFunc::Parms + (is_osr_compilation() ? 1 : method()->arg_size()), "correct arg_size");
@@ -862,7 +861,6 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
   }
   PhaseGVN& gvn = *initial_gvn();
   uint i = 0;
-  ExtendedSignature sig_cc = ExtendedSignature(method()->get_sig_cc(), SigEntryFilter());
   for (uint j = 0; i < (uint)arg_size; i++) {
     const Type* t = tf->domain_sig()->field_at(i);
     Node* parm = NULL;
@@ -874,7 +872,7 @@ JVMState* Compile::build_start_state(StartNode* start, const TypeFunc* tf) {
       Node* old_mem = map->memory();
       // Use immutable memory for inline type loads and restore it below
       kit.set_all_memory(C->immutable_memory());
-      parm = InlineTypeNode::make_from_multi(&kit, start, sig_cc, t->inline_klass(), j, true);
+      parm = InlineTypeNode::make_from_multi(&kit, start, t->inline_klass(), j, true);
       map->set_control(kit.control());
       map->set_memory(old_mem);
     } else {
@@ -931,12 +929,8 @@ void Compile::return_values(JVMState* jvms) {
       } else {
         ret->init_req(TypeFunc::Parms, vt->tagged_klass(kit.gvn()));
       }
-      const Array<SigEntry>* sig_array = vt->type()->inline_klass()->extended_sig();
-      GrowableArray<SigEntry> sig = GrowableArray<SigEntry>(sig_array->length());
-      sig.appendAll(sig_array);
-      ExtendedSignature sig_cc = ExtendedSignature(&sig, SigEntryFilter());
-      uint idx = TypeFunc::Parms+1;
-      vt->pass_fields(&kit, ret, sig_cc, idx);
+      uint idx = TypeFunc::Parms + 1;
+      vt->pass_fields(&kit, ret, idx);
     } else {
       ret->add_req(res);
       // Note:  The second dummy edge is not needed by a ReturnNode.
@@ -1142,8 +1136,7 @@ void Parse::do_exits() {
       // The exiting JVM state is otherwise a copy of the calling JVMS.
       JVMState* caller = kit.jvms();
       JVMState* ex_jvms = caller->clone_shallow(C);
-      ex_jvms->set_map(kit.clone_map());
-      ex_jvms->map()->set_jvms(ex_jvms);
+      ex_jvms->bind_map(kit.clone_map());
       ex_jvms->set_bci(   InvocationEntryBci);
       kit.set_jvms(ex_jvms);
       if (do_synch) {
@@ -1162,8 +1155,7 @@ void Parse::do_exits() {
       ex_map = kit.make_exception_state(ex_oop);
       assert(ex_jvms->same_calls_as(ex_map->jvms()), "sanity");
       // Pop the last vestige of this method:
-      ex_map->set_jvms(caller->clone_shallow(C));
-      ex_map->jvms()->set_map(ex_map);
+      caller->clone_shallow(C)->bind_map(ex_map);
       _exits.push_exception_state(ex_map);
     }
     assert(_exits.map() == normal_map, "keep the same return state");
@@ -1700,7 +1692,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
   int old_bci = bci();
   JVMState* tmp_jvms = old_jvms->clone_shallow(C);
   tmp_jvms->set_should_reexecute(true);
-  map()->set_jvms(tmp_jvms);
+  tmp_jvms->bind_map(map());
   // Execution needs to restart a the next bytecode (entry of next
   // block)
   if (target->is_merged() ||
@@ -1725,7 +1717,7 @@ void Parse::merge_common(Parse::Block* target, int pnum) {
       }
     }
   }
-  map()->set_jvms(old_jvms);
+  old_jvms->bind_map(map());
   set_parse_bci(old_bci);
 
   if (!target->is_merged()) {   // No prior mapping at this bci
@@ -2339,13 +2331,14 @@ void Parse::return_current(Node* value) {
     Node* phi = _exits.argument(0);
     const Type* return_type = phi->bottom_type();
     const TypeOopPtr* tr = return_type->isa_oopptr();
-    if (return_type->isa_inlinetype() && !Compile::current()->inlining_incrementally()) {
+    // The return_type is set in Parse::build_exits().
+    if (return_type->isa_inlinetype()) {
       // Inline type is returned as fields, make sure it is scalarized
       if (!value->is_InlineType()) {
         value = InlineTypeNode::make_from_oop(this, value, return_type->inline_klass());
       }
-      if (!_caller->has_method()) {
-        // Inline type is returned as fields from root method, make sure all non-flattened
+      if (!_caller->has_method() || Compile::current()->inlining_incrementally()) {
+        // Returning from root or an incrementally inlined method. Make sure all non-flattened
         // fields are buffered and re-execute if allocation triggers deoptimization.
         PreserveReexecuteState preexecs(this);
         assert(tf()->returns_inline_type_as_fields(), "must be returned as fields");
@@ -2360,9 +2353,6 @@ void Parse::return_current(Node* value) {
       jvms()->set_should_reexecute(true);
       inc_sp(1);
       value = value->as_InlineType()->buffer(this);
-      if (Compile::current()->inlining_incrementally()) {
-        value = value->as_InlineTypeBase()->allocate_fields(this);
-      }
     } else if (tr && tr->isa_instptr() && tr->klass()->is_loaded() && tr->klass()->is_interface()) {
       // If returning oops to an interface-return, there is a silent free
       // cast from oop to interface allowed by the Verifier. Make it explicit here.

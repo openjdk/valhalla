@@ -87,7 +87,7 @@ public class TestArrayAccessDeopt {
         if (args.length == 0) {
             // Run test in new VM instance
             String[] arg = {"-XX:CompileCommand=quiet", "-XX:CompileCommand=compileonly,TestArrayAccessDeopt::test*", "-XX:-UseArrayLoadStoreProfile",
-                            "-XX:+TraceDeoptimization", "-Xbatch", "-XX:-MonomorphicArrayCheck", "-Xmixed", "TestArrayAccessDeopt", "run"};
+                            "-XX:+TraceDeoptimization", "-Xbatch", "-XX:-MonomorphicArrayCheck", "-Xmixed", "-XX:+ProfileInterpreter", "TestArrayAccessDeopt", "run"};
             OutputAnalyzer oa = ProcessTools.executeTestJvm(arg);
             String output = oa.getOutput();
             oa.shouldNotContain("Uncommon trap occurred");

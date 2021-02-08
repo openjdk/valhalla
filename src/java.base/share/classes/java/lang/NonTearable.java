@@ -26,7 +26,7 @@
 package java.lang;
 
 /**
- * An inline class implements the {@code NonTearable} interface to
+ * A primitive class implements the {@code NonTearable} interface to
  * request that the JVM take extra care to avoid structure tearing
  * when loading or storing any value of the class to a field or array
  * element.  Normally, only fields declared {@code volatile} are
@@ -35,7 +35,7 @@ package java.lang;
  * they are stored in array elements or in non-{@code volatile}
  * fields, and even when multiple threads perform racing writes.
  *
- * <p> An inline instance of multiple components is said to be "torn"
+ * <p> An primitive instance of multiple components is said to be "torn"
  * when two racing threads compete to write those components, and one
  * thread writes some components while another thread writes other
  * components, so a subsequent observer will read a hybrid composed,
@@ -45,7 +45,7 @@ package java.lang;
  * requires a read and two writes (initialization counting as a write)
  * of a multi-component value, with a race between any two of the
  * accesses.  The effect can also be described as if the Java memory
- * model break up inline instance reads and writes into reads and
+ * model break up primitive classinstance reads and writes into reads and
  * writes of their various fields, as it does with longs and doubles
  * (JLS 17.7).
  *
@@ -59,7 +59,7 @@ package java.lang;
  */
 public interface NonTearable {
     // TO DO: Finalize name.
-    // TO DO: Decide whether and how to restrict this type to to
-    // inline classes only, or if not, whether to document its
+    // TO DO: Decide whether and how to restrict this type to
+    // primitive classes only, or if not, whether to document its
     // non-effect on identity classes.
 }

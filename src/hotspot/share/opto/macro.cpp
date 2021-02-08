@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2005, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -26,6 +26,7 @@
 #include "ci/ciFlatArrayKlass.hpp"
 #include "compiler/compileLog.hpp"
 #include "gc/shared/collectedHeap.inline.hpp"
+#include "gc/shared/tlab_globals.hpp"
 #include "libadt/vectset.hpp"
 #include "memory/universe.hpp"
 #include "opto/addnode.hpp"
@@ -53,6 +54,7 @@
 #include "opto/type.hpp"
 #include "prims/jvmtiExport.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "runtime/stubRoutines.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
 #if INCLUDE_G1GC
@@ -130,7 +132,7 @@ CallNode* PhaseMacroExpand::make_slow_call(CallNode *oldcall, const TypeFunc* sl
   // Slow-path call
  CallNode *call = leaf_name
    ? (CallNode*)new CallLeafNode      ( slow_call_type, slow_call, leaf_name, TypeRawPtr::BOTTOM )
-   : (CallNode*)new CallStaticJavaNode( slow_call_type, slow_call, OptoRuntime::stub_name(slow_call), oldcall->jvms()->bci(), TypeRawPtr::BOTTOM );
+   : (CallNode*)new CallStaticJavaNode( slow_call_type, slow_call, OptoRuntime::stub_name(slow_call), TypeRawPtr::BOTTOM );
 
   // Slow path call has no side-effects, uses few values
   copy_predefined_input_for_runtime_call(slow_path, oldcall, call );
@@ -614,6 +616,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
   offset -= vk->first_field_offset();
   // Create a new InlineTypeNode and retrieve the field values from memory
   InlineTypeNode* vt = InlineTypeNode::make_uninitialized(_igvn, vk)->as_InlineType();
+  transform_later(vt);
   for (int i = 0; i < vk->nof_declared_nonstatic_fields(); ++i) {
     ciType* field_type = vt->field_type(i);
     int field_offset = offset + vt->field_offset(i);
@@ -642,7 +645,7 @@ Node* PhaseMacroExpand::inline_type_from_mem(Node* mem, Node* ctl, ciInlineKlass
       return NULL;
     }
   }
-  return transform_later(vt);
+  return vt;
 }
 
 // Check the possibility of scalar replacement.
@@ -1194,7 +1197,7 @@ bool PhaseMacroExpand::eliminate_allocate_node(AllocateNode *alloc) {
     // are already replaced with SafePointScalarObject because
     // we can't search for a fields value without instance_id.
     if (safepoints.length() > 0) {
-      assert(!inline_alloc, "Inline type allocations should not have safepoint uses");
+      assert(!inline_alloc || !tklass->klass()->as_inline_klass()->is_scalarizable(), "Scalarizable inline type allocations should not have safepoint uses");
       return false;
     }
   }
@@ -1533,7 +1536,6 @@ void PhaseMacroExpand::expand_allocate_common(
   // Generate slow-path call
   CallNode *call = new CallStaticJavaNode(slow_call_type, slow_call_address,
                                OptoRuntime::stub_name(slow_call_address),
-                               alloc->jvms()->bci(),
                                TypePtr::BOTTOM);
   call->init_req(TypeFunc::Control,   slow_region);
   call->init_req(TypeFunc::I_O,       top());    // does no i/o
@@ -2226,6 +2228,48 @@ void PhaseMacroExpand::mark_eliminated_locking_nodes(AbstractLockNode *alock) {
   }
 }
 
+void PhaseMacroExpand::inline_type_guard(Node** ctrl, LockNode* lock) {
+  Node* obj = lock->obj_node();
+  const TypePtr* obj_type = _igvn.type(obj)->make_ptr();
+  if (!obj_type->can_be_inline_type()) {
+    return;
+  }
+  Node* mark = make_load(*ctrl, lock->memory(), obj, oopDesc::mark_offset_in_bytes(), TypeX_X, TypeX_X->basic_type());
+  Node* value_mask = _igvn.MakeConX(markWord::inline_type_pattern);
+  Node* is_value = _igvn.transform(new AndXNode(mark, value_mask));
+  Node* cmp = _igvn.transform(new CmpXNode(is_value, value_mask));
+  Node* bol = _igvn.transform(new BoolNode(cmp, BoolTest::eq));
+  Node* unc_ctrl = generate_slow_guard(ctrl, bol, NULL);
+
+  int trap_request = Deoptimization::make_trap_request(Deoptimization::Reason_class_check, Deoptimization::Action_none);
+  address call_addr = SharedRuntime::uncommon_trap_blob()->entry_point();
+  const TypePtr* no_memory_effects = NULL;
+  CallNode* unc = new CallStaticJavaNode(OptoRuntime::uncommon_trap_Type(), call_addr, "uncommon_trap",
+                                         no_memory_effects);
+  unc->init_req(TypeFunc::Control, unc_ctrl);
+  unc->init_req(TypeFunc::I_O, lock->i_o());
+  unc->init_req(TypeFunc::Memory, lock->memory());
+  unc->init_req(TypeFunc::FramePtr,  lock->in(TypeFunc::FramePtr));
+  unc->init_req(TypeFunc::ReturnAdr, lock->in(TypeFunc::ReturnAdr));
+  unc->init_req(TypeFunc::Parms+0, _igvn.intcon(trap_request));
+  unc->set_cnt(PROB_UNLIKELY_MAG(4));
+  unc->copy_call_debug_info(&_igvn, lock);
+
+  assert(unc->peek_monitor_box() == lock->box_node(), "wrong monitor");
+  assert((obj_type->is_inlinetypeptr() && unc->peek_monitor_obj()->is_SafePointScalarObject()) ||
+         (unc->peek_monitor_obj() == lock->obj_node()), "wrong monitor");
+
+  // pop monitor and push obj back on stack: we trap before the monitorenter
+  unc->pop_monitor();
+  unc->grow_stack(unc->jvms(), 1);
+  unc->set_stack(unc->jvms(), unc->jvms()->stk_size()-1, obj);
+  _igvn.register_new_node_with_optimizer(unc);
+
+  unc_ctrl = _igvn.transform(new ProjNode(unc, TypeFunc::Control));
+  Node* halt = _igvn.transform(new HaltNode(unc_ctrl, lock->in(TypeFunc::FramePtr), "monitor enter on inline type"));
+  C->root()->add_req(halt);
+}
+
 // we have determined that this lock/unlock can be eliminated, we simply
 // eliminate the node without expanding it.
 //
@@ -2238,8 +2282,6 @@ bool PhaseMacroExpand::eliminate_locking_node(AbstractLockNode *alock) {
     return false;
   }
 #ifdef ASSERT
-  const Type* obj_type = _igvn.type(alock->obj_node());
-  assert(!obj_type->isa_inlinetype() && !obj_type->is_inlinetypeptr(), "Eliminating lock on inline type");
   if (!alock->is_coarsened()) {
     // Check that new "eliminated" BoxLock node is created.
     BoxLockNode* oldbox = alock->box_node()->as_BoxLock();
@@ -2278,6 +2320,9 @@ bool PhaseMacroExpand::eliminate_locking_node(AbstractLockNode *alock) {
   // The input to a Lock is merged memory, so extract its RawMem input
   // (unless the MergeMem has been optimized away.)
   if (alock->is_Lock()) {
+    // Deoptimize and re-execute if object is an inline type
+    inline_type_guard(&ctrl, alock->as_Lock());
+
     // Seach for MemBarAcquireLock node and delete it also.
     MemBarNode* membar = fallthroughproj->unique_ctrl_out()->as_MemBar();
     assert(membar != NULL && membar->Opcode() == Op_MemBarAcquireLock, "");
@@ -2521,47 +2566,8 @@ void PhaseMacroExpand::expand_lock_node(LockNode *lock) {
     mem_phi->init_req(2, mem);
   }
 
-  const TypeOopPtr* objptr = _igvn.type(obj)->make_oopptr();
-  if (objptr->can_be_inline_type()) {
-    // Deoptimize and re-execute if a value
-    assert(EnableValhalla, "should only be used if inline types are enabled");
-    Node* mark = make_load(slow_path, mem, obj, oopDesc::mark_offset_in_bytes(), TypeX_X, TypeX_X->basic_type());
-    Node* value_mask = _igvn.MakeConX(markWord::inline_type_pattern);
-    Node* is_value = _igvn.transform(new AndXNode(mark, value_mask));
-    Node* cmp = _igvn.transform(new CmpXNode(is_value, value_mask));
-    Node* bol = _igvn.transform(new BoolNode(cmp, BoolTest::eq));
-    Node* unc_ctrl = generate_slow_guard(&slow_path, bol, NULL);
-
-    int trap_request = Deoptimization::make_trap_request(Deoptimization::Reason_class_check, Deoptimization::Action_none);
-    address call_addr = SharedRuntime::uncommon_trap_blob()->entry_point();
-    const TypePtr* no_memory_effects = NULL;
-    JVMState* jvms = lock->jvms();
-    CallNode* unc = new CallStaticJavaNode(OptoRuntime::uncommon_trap_Type(), call_addr, "uncommon_trap",
-                                           jvms->bci(), no_memory_effects);
-
-    unc->init_req(TypeFunc::Control, unc_ctrl);
-    unc->init_req(TypeFunc::I_O, lock->i_o());
-    unc->init_req(TypeFunc::Memory, mem); // may gc ptrs
-    unc->init_req(TypeFunc::FramePtr,  lock->in(TypeFunc::FramePtr));
-    unc->init_req(TypeFunc::ReturnAdr, lock->in(TypeFunc::ReturnAdr));
-    unc->init_req(TypeFunc::Parms+0, _igvn.intcon(trap_request));
-    unc->set_cnt(PROB_UNLIKELY_MAG(4));
-    unc->copy_call_debug_info(&_igvn, lock);
-
-    assert(unc->peek_monitor_box() == box, "wrong monitor");
-    assert(unc->peek_monitor_obj() == obj, "wrong monitor");
-
-    // pop monitor and push obj back on stack: we trap before the monitorenter
-    unc->pop_monitor();
-    unc->grow_stack(unc->jvms(), 1);
-    unc->set_stack(unc->jvms(), unc->jvms()->stk_size()-1, obj);
-
-    _igvn.register_new_node_with_optimizer(unc);
-
-    Node* ctrl = _igvn.transform(new ProjNode(unc, TypeFunc::Control));
-    Node* halt = _igvn.transform(new HaltNode(ctrl, lock->in(TypeFunc::FramePtr), "monitor enter on value-type"));
-    C->root()->add_req(halt);
-  }
+  // Deoptimize and re-execute if object is an inline type
+  inline_type_guard(&slow_path, lock);
 
   // Make slow path call
   CallNode *call = make_slow_call((CallNode *) lock, OptoRuntime::complete_monitor_enter_Type(),
@@ -2746,7 +2752,6 @@ void PhaseMacroExpand::expand_mh_intrinsic_return(CallStaticJavaNode* call) {
   CallStaticJavaNode* slow_call = new CallStaticJavaNode(OptoRuntime::store_inline_type_fields_Type(),
                                                          StubRoutines::store_inline_type_fields_to_buf(),
                                                          "store_inline_type_fields",
-                                                         call->jvms()->bci(),
                                                          TypePtr::BOTTOM);
   slow_call->init_req(TypeFunc::Control, slowpath_true);
   slow_call->init_req(TypeFunc::Memory, mem);
@@ -3021,8 +3026,8 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
   bool progress = true;
   while (progress) {
     progress = false;
-    for (int i = C->macro_count(); i > 0; i--) {
-      Node * n = C->macro_node(i-1);
+    for (int i = C->macro_count(); i > 0; i = MIN2(i - 1, C->macro_count())) { // more than 1 element can be eliminated at once
+      Node* n = C->macro_node(i - 1);
       bool success = false;
       DEBUG_ONLY(int old_macro_count = C->macro_count();)
       if (n->is_AbstractLock()) {
@@ -3037,8 +3042,8 @@ void PhaseMacroExpand::eliminate_macro_nodes() {
   progress = true;
   while (progress) {
     progress = false;
-    for (int i = C->macro_count(); i > 0; i--) {
-      Node * n = C->macro_node(i-1);
+    for (int i = C->macro_count(); i > 0; i = MIN2(i - 1, C->macro_count())) { // more than 1 element can be eliminated at once
+      Node* n = C->macro_node(i - 1);
       bool success = false;
       DEBUG_ONLY(int old_macro_count = C->macro_count();)
       switch (n->class_id()) {

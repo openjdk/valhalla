@@ -28,14 +28,12 @@ import java.lang.invoke.*;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
-import jdk.experimental.value.MethodHandleBuilder;
 import jdk.test.lib.Asserts;
 
 /*
  * @test
  * @key randomness
  * @summary Various tests that are specific for C1.
- * @modules java.base/jdk.experimental.value
  * @library /testlibrary /test/lib /compiler/whitebox /
  * @requires os.simpleArch == "x64"
  * @compile -XDallowWithFieldOperator TestC1.java

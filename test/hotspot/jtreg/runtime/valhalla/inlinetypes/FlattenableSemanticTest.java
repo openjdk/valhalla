@@ -22,17 +22,12 @@
  */
 package runtime.valhalla.inlinetypes;
 
-import java.lang.invoke.*;
-
-import jdk.experimental.value.MethodHandleBuilder;
 
 import jdk.test.lib.Asserts;
 
 /*
  * @test
  * @summary Flattenable field semantic test
- * @modules java.base/jdk.experimental.bytecode
- *          java.base/jdk.experimental.value
  * @library /test/lib
  * @compile -XDallowWithFieldOperator Point.java JumboInline.java
  * @compile -XDallowWithFieldOperator FlattenableSemanticTest.java

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1998, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,8 +23,9 @@
  */
 
 #include "precompiled.hpp"
+#include "jvm_io.h"
 #include "ci/ciMethodData.hpp"
-#include "classfile/systemDictionary.hpp"
+#include "ci/ciSymbols.hpp"
 #include "classfile/vmSymbols.hpp"
 #include "compiler/compileLog.hpp"
 #include "interpreter/linkResolver.hpp"
@@ -82,7 +83,6 @@ void Parse::array_load(BasicType bt) {
   const TypeOopPtr* elemptr = elemtype->make_oopptr();
   const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
   if (ary_t->is_flat()) {
-    C->set_flattened_accesses();
     // Load from flattened inline type array
     Node* vt = InlineTypeNode::make_from_flattened(this, elemtype->inline_klass(), ary, adr);
     push(vt);
@@ -231,7 +231,7 @@ void Parse::array_store(BasicType bt) {
   if (stopped())  return;     // guaranteed null or range check
   Node* cast_val = NULL;
   if (bt == T_OBJECT) {
-    cast_val = array_store_check();
+    cast_val = array_store_check(adr, elemtype);
     if (stopped()) return;
   }
   Node* val = pop_node(bt); // Value to store
@@ -240,6 +240,7 @@ void Parse::array_store(BasicType bt) {
 
   const TypeAryPtr* ary_t = _gvn.type(ary)->is_aryptr();
   const TypeAryPtr* adr_type = TypeAryPtr::get_array_body_type(bt);
+  assert(adr->as_AddP()->in(AddPNode::Base) == ary, "inconsistent address base");
 
   if (elemtype == TypeInt::BOOL) {
     bt = T_BOOLEAN;
@@ -273,7 +274,6 @@ void Parse::array_store(BasicType bt) {
 
     if (ary_t->is_flat()) {
       // Store to flattened inline type array
-      C->set_flattened_accesses();
       if (!cast_val->is_InlineType()) {
         inc_sp(3);
         cast_val = null_check(cast_val);
@@ -299,7 +299,7 @@ void Parse::array_store(BasicType bt) {
         // Ignore empty inline stores, array is already initialized.
         return;
       }
-    } else if (!ary_t->is_not_flat() && tval != TypePtr::NULL_PTR) {
+    } else if (!ary_t->is_not_flat() && (tval != TypePtr::NULL_PTR || StressReflectiveCode)) {
       // Array might be flattened, emit runtime checks (for NULL, a simple inline_array_null_guard is sufficient).
       assert(UseFlatArray && !not_flattened && elemtype->is_oopptr()->can_be_inline_type() &&
              !ary_t->klass_is_exact() && !ary_t->is_not_null_free(), "array can't be flattened");
@@ -308,9 +308,9 @@ void Parse::array_store(BasicType bt) {
         // non-flattened
         assert(ideal.ctrl()->in(0)->as_If()->is_flat_array_check(&_gvn), "Should be found");
         sync_kit(ideal);
-        inline_array_null_guard(ary, cast_val, 3);
+        Node* cast_ary = inline_array_null_guard(ary, cast_val, 3);
         inc_sp(3);
-        access_store_at(ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
+        access_store_at(cast_ary, adr, adr_type, cast_val, elemtype, bt, MO_UNORDERED | IN_HEAP | IS_ARRAY, false);
         dec_sp(3);
         ideal.sync_kit(this);
       } ideal.else_(); {
@@ -493,16 +493,9 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
   if (stopped())  return top();
 
   // This could be an access to an inline type array. We can't tell if it's
-  // flat or not. Speculating it's not leads to a much simpler graph
-  // shape. Check profiling.
-  // For aastore, by the time we're here, the array store check should
-  // have already taken advantage of profiling to cast the array to an
-  // exact type reported by profiling
-  const TypeOopPtr* elemptr = elemtype->make_oopptr();
-  if (elemtype->isa_inlinetype() == NULL &&
-      (elemptr == NULL || !elemptr->is_inlinetypeptr() || elemptr->maybe_null()) &&
-      !arytype->is_not_flat()) {
-    assert(is_reference_type(type), "Only references");
+  // flat or not. Knowing the exact type avoids runtime checks and leads to
+  // a much simpler graph shape. Check profile information.
+  if (!arytype->is_flat() && !arytype->is_not_flat()) {
     // First check the speculative type
     Deoptimization::DeoptReason reason = Deoptimization::Reason_speculate_class_check;
     ciKlass* array_type = arytype->speculative_type();
@@ -521,15 +514,22 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     if (array_type != NULL) {
       // Speculate that this array has the exact type reported by profile data
       Node* better_ary = NULL;
+      DEBUG_ONLY(Node* old_control = control();)
       Node* slow_ctl = type_check_receiver(ary, array_type, 1.0, &better_ary);
-      { PreserveJVMState pjvms(this);
+      if (stopped()) {
+        // The check always fails and therefore profile information is incorrect. Don't use it.
+        assert(old_control == slow_ctl, "type check should have been removed");
         set_control(slow_ctl);
-        uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
+      } else {
+        { PreserveJVMState pjvms(this);
+          set_control(slow_ctl);
+          uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
+        }
+        replace_in_map(ary, better_ary);
+        ary = better_ary;
+        arytype  = _gvn.type(ary)->is_aryptr();
+        elemtype = arytype->elem();
       }
-      replace_in_map(ary, better_ary);
-      ary = better_ary;
-      arytype  = _gvn.type(ary)->is_aryptr();
-      elemtype = arytype->elem();
     }
   } else if (UseTypeSpeculation && UseArrayLoadStoreProfile) {
     // No need to speculate: feed profile data at this bci for the
@@ -541,21 +541,16 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     bool null_free_array = true;
     method()->array_access_profiled_type(bci(), array_type, element_type, element_ptr, flat_array, null_free_array);
     if (array_type != NULL) {
-      record_profile_for_speculation(ary, array_type, ProfileMaybeNull);
+      ary = record_profile_for_speculation(ary, array_type, ProfileMaybeNull);
     }
   }
 
   // We have no exact array type from profile data. Check profile data
-  // for a non null free or non flat array. Non null free implies non
-  // flat so check this one first. Speculating on a non null free
+  // for a non null-free or non flat array. Non null-free implies non
+  // flat so check this one first. Speculating on a non null-free
   // array doesn't help aaload but could be profitable for a
   // subsequent aastore.
-  elemptr = elemtype->make_oopptr();
-  if (!arytype->is_not_null_free() &&
-      elemtype->isa_inlinetype() == NULL &&
-      (elemptr == NULL || !elemptr->is_inlinetypeptr()) &&
-      UseArrayLoadStoreProfile) {
-    assert(is_reference_type(type), "");
+  if (!arytype->is_null_free() && !arytype->is_not_null_free()) {
     bool null_free_array = true;
     Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
     if (arytype->speculative() != NULL &&
@@ -563,7 +558,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
         !too_many_traps_or_recompiles(Deoptimization::Reason_speculate_class_check)) {
       null_free_array = false;
       reason = Deoptimization::Reason_speculate_class_check;
-    } else if (!too_many_traps_or_recompiles(Deoptimization::Reason_class_check)) {
+    } else if (UseArrayLoadStoreProfile && !too_many_traps_or_recompiles(Deoptimization::Reason_class_check)) {
       ciKlass* array_type = NULL;
       ciKlass* element_type = NULL;
       ProfilePtrKind element_ptr = ProfileMaybeNull;
@@ -576,6 +571,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
         BuildCutout unless(this, null_free_array_test(load_object_klass(ary), /* null_free = */ false), PROB_MAX);
         uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
       }
+      assert(!stopped(), "null-free array should have been caught earlier");
       Node* better_ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype->cast_to_not_null_free()));
       replace_in_map(ary, better_ary);
       ary = better_ary;
@@ -583,8 +579,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
     }
   }
 
-  if (!arytype->is_not_flat() && elemtype->isa_inlinetype() == NULL) {
-    assert(is_reference_type(type), "");
+  if (!arytype->is_flat() && !arytype->is_not_flat()) {
     bool flat_array = true;
     Deoptimization::DeoptReason reason = Deoptimization::Reason_none;
     if (arytype->speculative() != NULL &&
@@ -605,6 +600,7 @@ Node* Parse::array_addressing(BasicType type, int vals, const Type*& elemtype) {
         BuildCutout unless(this, flat_array_test(ary, /* flat = */ false), PROB_MAX);
         uncommon_trap_exact(reason, Deoptimization::Action_maybe_recompile);
       }
+      assert(!stopped(), "flat array should have been caught earlier");
       Node* better_ary = _gvn.transform(new CheckCastPPNode(control(), ary, arytype->cast_to_not_flat()));
       replace_in_map(ary, better_ary);
       ary = better_ary;
@@ -830,7 +826,6 @@ static void merge_ranges(SwitchRange* ranges, int& rp) {
 
 //-------------------------------do_tableswitch--------------------------------
 void Parse::do_tableswitch() {
-  Node* lookup = pop();
   // Get information about tableswitch
   int default_dest = iter().get_dest_table(0);
   int lo_index     = iter().get_int_table(1);
@@ -840,6 +835,7 @@ void Parse::do_tableswitch() {
   if (len < 1) {
     // If this is a backward branch, add safepoint
     maybe_add_safepoint(default_dest);
+    pop(); // the effect of the instruction execution on the operand stack
     merge(default_dest);
     return;
   }
@@ -896,22 +892,24 @@ void Parse::do_tableswitch() {
   }
 
   // Safepoint in case if backward branch observed
-  if( makes_backward_branch && UseLoopSafepoints )
+  if (makes_backward_branch && UseLoopSafepoints) {
     add_safepoint();
+  }
 
+  Node* lookup = pop(); // lookup value
   jump_switch_ranges(lookup, &ranges[0], &ranges[rp]);
 }
 
 
 //------------------------------do_lookupswitch--------------------------------
 void Parse::do_lookupswitch() {
-  Node *lookup = pop();         // lookup value
   // Get information about lookupswitch
   int default_dest = iter().get_dest_table(0);
   int len          = iter().get_int_table(1);
 
   if (len < 1) {    // If this is a backward branch, add safepoint
     maybe_add_safepoint(default_dest);
+    pop(); // the effect of the instruction execution on the operand stack
     merge(default_dest);
     return;
   }
@@ -947,7 +945,7 @@ void Parse::do_lookupswitch() {
     }
     prev = match_int+1;
   }
-  if (prev-1 != max_jint) {
+  if (prev != min_jint) {
     defaults += (float)max_jint - prev + 1;
   }
   float default_cnt = 1;
@@ -988,9 +986,11 @@ void Parse::do_lookupswitch() {
   }
 
   // Safepoint in case backward branch observed
-  if (makes_backward_branch && UseLoopSafepoints)
+  if (makes_backward_branch && UseLoopSafepoints) {
     add_safepoint();
+  }
 
+  Node *lookup = pop(); // lookup value
   jump_switch_ranges(lookup, &ranges[0], &ranges[rp]);
 }
 
@@ -1386,7 +1386,7 @@ void Parse::jump_switch_ranges(Node* key_val, SwitchRange *lo, SwitchRange *hi, 
 #ifndef PRODUCT
   if (switch_depth == 0) {
     _max_switch_depth = 0;
-    _est_switch_depth = log2_intptr((hi-lo+1)-1)+1;
+    _est_switch_depth = log2i_graceful((hi - lo + 1) - 1) + 1;
   }
 #endif
 
@@ -2164,7 +2164,7 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
     }
   }
 
- if (UseTypeSpeculation) {
+  if (UseTypeSpeculation) {
     record_profile_for_speculation(left, left_type, left_ptr);
     record_profile_for_speculation(right, right_type, right_ptr);
   }
@@ -2342,8 +2342,8 @@ void Parse::do_acmp(BoolTest::mask btest, Node* left, Node* right) {
   set_all_memory(mem);
 
   kill_dead_locals();
-  ciMethod* subst_method = ciEnv::current()->ValueBootstrapMethods_klass()->find_method(ciSymbol::isSubstitutable_name(), ciSymbol::object_object_boolean_signature());
-  CallStaticJavaNode *call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method, bci());
+  ciMethod* subst_method = ciEnv::current()->ValueBootstrapMethods_klass()->find_method(ciSymbols::isSubstitutable_name(), ciSymbols::object_object_boolean_signature());
+  CallStaticJavaNode *call = new CallStaticJavaNode(C, TypeFunc::make(subst_method), SharedRuntime::get_resolve_static_call_stub(), subst_method);
   call->set_override_symbolic_info(true);
   call->init_req(TypeFunc::Parms, not_null_left);
   call->init_req(TypeFunc::Parms+1, not_null_right);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2021, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -27,6 +27,7 @@
 #include "gc/shared/barrierSet.hpp"
 #include "gc/shared/c2/barrierSetC2.hpp"
 #include "gc/shared/c2/cardTableBarrierSetC2.hpp"
+#include "gc/shared/gc_globals.hpp"
 #include "opto/arraycopynode.hpp"
 #include "opto/graphKit.hpp"
 #include "opto/inlinetypenode.hpp"
@@ -142,9 +143,10 @@ int ArrayCopyNode::get_count(PhaseGVN *phase) const {
       // length input to ArrayCopyNode is constant, length of input
       // array must be too.
 
-      assert((get_length_if_constant(phase) == -1) == !ary_src->size()->is_con() ||
+      assert((get_length_if_constant(phase) == -1) != ary_src->size()->is_con() ||
              (UseFlatArray && ary_src->elem()->make_oopptr() != NULL && ary_src->elem()->make_oopptr()->can_be_inline_type()) ||
              phase->is_IterGVN() || phase->C->inlining_incrementally() || StressReflectiveCode, "inconsistent");
+
       if (ary_src->size()->is_con()) {
         return ary_src->size()->get_con();
       }
@@ -190,6 +192,7 @@ Node* ArrayCopyNode::try_clone_instance(PhaseGVN *phase, bool can_reshape, int c
   const Type* src_type = phase->type(base_src);
 
   MergeMemNode* mem = phase->transform(MergeMemNode::make(in_mem))->as_MergeMem();
+  phase->record_for_igvn(mem);
 
   const TypeInstPtr* inst_src = src_type->isa_instptr();
 

@@ -36,6 +36,8 @@ import java.util.function.ToIntBiFunction;
 public interface PoolHelper<S, T, E> {
     int putClass(S symbol);
 
+    int putInlineClass(S symbol);
+
     int putFieldRef(S owner, CharSequence name, T type);
 
     int putMethodRef(S owner, CharSequence name, T type, boolean isInterface);
