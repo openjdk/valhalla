@@ -1277,6 +1277,38 @@ public class ClassReader {
                     }
                 }
             },
+
+            new AttributeReader(names.RestrictedMethod, V60, MEMBER_ATTRIBUTE) {
+                @Override
+                protected boolean accepts(AttributeKind kind) {
+                    return super.accepts(kind) && allowInlineTypes;
+                }
+                protected void read(Symbol sym, int attrLen) {
+                    if (!types.flattenWithTypeRestrictions) {
+                        bp = bp + attrLen;
+                        return;
+                    }
+                    int paramCount = nextByte();
+                    if (sym.name == names.init && sym.owner.hasOuterInstance())
+                        paramCount --;
+                    List<Type> paramTypes = List.nil();
+                    for (int i = 0; i < paramCount; i++) {
+                        int restrictedParamTypeIndex = nextChar();
+                        paramTypes = paramTypes.append(
+                                  restrictedParamTypeIndex == 0 ?
+                                  sym.type.getParameterTypes().get(i)
+                                : poolReader.getType(restrictedParamTypeIndex));
+                    }
+                    int restrictedReturnTypeIndex = nextChar();
+                    Type returnType =
+                            restrictedReturnTypeIndex == 0 || sym.isConstructor() ?
+                                    sym.type.getReturnType()
+                                    : poolReader.getType(restrictedReturnTypeIndex);
+                    if (sym.kind == MTH && sym.owner.kind == TYP) {
+                        sym.type = new MethodType(paramTypes, returnType, sym.type.getThrownTypes(), sym.type.tsym);
+                    }
+                }
+            },
         };
 
         for (AttributeReader r: readers)

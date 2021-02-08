@@ -1,0 +1,4 @@
+RestrictedMethodTest.java:38:36: compiler.err.cant.apply.symbol: kindname.method, foo, int,FlaggedRestrictedMethodTest.Point,int,FlaggedRestrictedMethodTest.Line, int,compiler.misc.type.null,int,compiler.misc.type.null, kindname.class, FlaggedRestrictedMethodTest, (compiler.misc.no.conforming.assignment.exists: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlaggedRestrictedMethodTest.Point))
+RestrictedMethodTest.java:39:45: compiler.err.encl.class.required: FlaggedRestrictedMethodTest.Point
+RestrictedMethodTest.java:39:36: compiler.err.cant.apply.symbol: kindname.method, foo, int,FlaggedRestrictedMethodTest.Point,int,FlaggedRestrictedMethodTest.Line, int,FlaggedRestrictedMethodTest.Point,int,compiler.misc.type.null, kindname.class, FlaggedRestrictedMethodTest, (compiler.misc.no.conforming.assignment.exists: (compiler.misc.inconvertible.types: compiler.misc.type.null, FlaggedRestrictedMethodTest.Line))
+3 errors

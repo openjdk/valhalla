@@ -1054,6 +1054,81 @@ public class ClassWriter extends ClassFile {
             if (!m.isLambdaMethod()) // Per JDK-8138729, do not emit parameters table for lambda bodies.
                 acount += writeMethodParametersAttr(m);
         }
+        // See if we need to emit a RestrictedMethod attribute
+        boolean emitRestrictedMethod = false;
+
+        if (types.flattenWithTypeRestrictions && m.name == m.name.table.names.init && m.owner.hasOuterInstance()) {
+            Type outerThisType = types.erasure(m.owner.type.getEnclosingType());
+            if (outerThisType.isValue()) {
+                emitRestrictedMethod = true;
+            }
+        }
+        CheckTypeRestrictedParameters:
+        for (Type pt : m.type.getParameterTypes()) {
+            if (pt.isValue() && types.flattenWithTypeRestrictions) {
+                emitRestrictedMethod = true;
+                break;
+            }
+            for (Attribute.Compound anno : pt.getAnnotationMirrors()) {
+                if (anno.type.tsym == syms.restrictedTypeType.tsym) {
+                    emitRestrictedMethod = true;
+                    break CheckTypeRestrictedParameters;
+                }
+            }
+        }
+        if (m.type.getReturnType().isValue() && types.flattenWithTypeRestrictions) {
+            emitRestrictedMethod = true;
+        } else {
+            for (Attribute.Compound anno : m.type.getReturnType().getAnnotationMirrors()) {
+                if (anno.type.tsym == syms.restrictedTypeType.tsym) {
+                    emitRestrictedMethod = true;
+                    break;
+                }
+            }
+        }
+
+        if (emitRestrictedMethod) {
+            int alenIdx = writeAttr(names.RestrictedMethod);
+            databuf.appendByte(m.externalType(types).getParameterTypes().size());
+            if (types.flattenWithTypeRestrictions) {
+                if (m.name == names.init && m.owner.hasOuterInstance()) {
+                    Type outerThisType = types.erasure(m.owner.type.getEnclosingType());
+                    databuf.appendChar(outerThisType.isValue() ? poolWriter.putDescriptor(outerThisType) : 0);
+                }
+                for (Type pt : m.erasure(types).getParameterTypes()) {
+                    databuf.appendChar(pt.isValue() ? poolWriter.putDescriptor(pt) : 0);
+                }
+                Type rt = m.erasure(types).getReturnType();
+                databuf.appendChar(rt.isValue() ? poolWriter.putDescriptor(rt) : 0);
+            } else {
+                int restrictedTypeDescriptor;
+                for (Type pt : m.type.getParameterTypes()) {
+                    restrictedTypeDescriptor = 0;
+                    for (Attribute.Compound anno : pt.getAnnotationMirrors()) {
+                        if (anno.type.tsym == syms.restrictedTypeType.tsym) {
+                            Attribute member = anno.member(names.value);
+                            Assert.check(member.type.tsym == syms.stringType.tsym);
+                            String utf8 = (String) member.getValue();
+                            restrictedTypeDescriptor = poolWriter.putName(names.fromString(utf8));
+                        }
+                    }
+                    databuf.appendChar(restrictedTypeDescriptor);
+                }
+                restrictedTypeDescriptor = 0;
+                Type rt = m.type.getReturnType();
+                for (Attribute.Compound anno : rt.getAnnotationMirrors()) {
+                    if (anno.type.tsym == syms.restrictedTypeType.tsym) {
+                        Attribute member = anno.member(names.value);
+                        Assert.check(member.type.tsym == syms.stringType.tsym);
+                        String utf8 = (String) member.getValue();
+                        restrictedTypeDescriptor = poolWriter.putName(names.fromString(utf8));
+                    }
+                }
+                databuf.appendChar(restrictedTypeDescriptor);
+            }
+            endAttr(alenIdx);
+            acount++;
+        }
         acount += writeMemberAttrs(m, false);
         if (!m.isLambdaMethod())
             acount += writeParameterAttrs(m.params);
