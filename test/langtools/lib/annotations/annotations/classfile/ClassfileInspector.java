@@ -1376,6 +1376,11 @@ public class ClassfileInspector {
         public Void visitRestrictedField(RestrictedField_attribute attr, T p) {
             return null;
         }
+
+        @Override
+        public Void visitRestrictedMethod(RestrictedMethod_attribute attr, T p) {
+            return null;
+        }
     }
 
     private static final Attribute.Visitor<Void, ExpectedTypeAnnotation> typeAnnoMatcher

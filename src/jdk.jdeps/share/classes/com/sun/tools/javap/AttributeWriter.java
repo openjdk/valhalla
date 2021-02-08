@@ -62,6 +62,7 @@ import com.sun.tools.classfile.NestHost_attribute;
 import com.sun.tools.classfile.NestMembers_attribute;
 import com.sun.tools.classfile.Record_attribute;
 import com.sun.tools.classfile.RestrictedField_attribute;
+import com.sun.tools.classfile.RestrictedMethod_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleAnnotations_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleParameterAnnotations_attribute;
 import com.sun.tools.classfile.RuntimeInvisibleTypeAnnotations_attribute;
@@ -816,6 +817,31 @@ public class AttributeWriter extends BasicWriter
             print(item);
             print(" ");
         }
+    }
+
+    @Override
+    public Void visitRestrictedMethod(RestrictedMethod_attribute attr, Void aVoid) {
+        print("RestrictedMethod: (");
+        int tidx;
+        String type;
+        String unrestricted = "<unrestricted>";
+        for (int i = 0, count = attr.getParameterCount(); i < count; i++) {
+            tidx = attr.getRestrictedParameterType(i);
+            try {
+                type = tidx == 0 ? unrestricted : constant_pool.getUTF8Value(tidx);
+            } catch (ConstantPoolException e) {
+                    type = report(e);
+            }
+            print((i == 0 ? "" : ", ") + "#" + tidx + " " + type);
+        }
+        tidx = attr.getRestrictedReturnType();
+        try {
+            type = tidx == 0 ? unrestricted : constant_pool.getUTF8Value(tidx);
+        } catch (ConstantPoolException e) {
+            type = report(e);
+        }
+        println(")#" + tidx + " " + type);
+        return null;
     }
 
     @Override

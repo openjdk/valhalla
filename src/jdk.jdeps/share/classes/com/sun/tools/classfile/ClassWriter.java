@@ -662,6 +662,16 @@ public class ClassWriter {
         }
 
         @Override
+        public Void visitRestrictedMethod(RestrictedMethod_attribute attr, ClassOutputStream out) {
+            out.writeByte(attr.num_params);
+            for (int i = 0; i < attr.num_params; i++) {
+                out.writeShort(attr.restricted_param_type[i]);
+            }
+            out.writeShort(attr.restricted_return_type);
+            return null;
+        }
+
+        @Override
         public Void visitRuntimeInvisibleAnnotations(RuntimeInvisibleAnnotations_attribute attr, ClassOutputStream out) {
             annotationWriter.write(attr.annotations, out);
             return null;

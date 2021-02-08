@@ -357,13 +357,40 @@ public abstract class Symbol extends AnnoConstruct implements PoolConstant, Elem
         Type t = erasure(types);
         if (name == name.table.names.init && owner.hasOuterInstance()) {
             Type outerThisType = types.erasure(owner.type.getEnclosingType());
-            return new MethodType(t.getParameterTypes().prepend(outerThisType),
+            t = new MethodType(t.getParameterTypes().prepend(outerThisType),
                                   t.getReturnType(),
                                   t.getThrownTypes(),
                                   t.tsym);
-        } else {
+        }
+        if (!types.flattenWithTypeRestrictions) {
             return t;
         }
+        List<Type> rpt = List.nil();
+        Type rrt = null;
+        boolean mutateExternalType = false;
+        // Computed restricted parameter types
+        for (Type pt: t.getParameterTypes()) {
+            if (pt.isValue()) {
+                mutateExternalType = true;
+                rpt = rpt.append(pt.referenceProjection());
+            } else {
+                rpt = rpt.append(pt);
+            }
+        }
+        Type rt = t.getReturnType();
+        if (rt.isValue()) {
+            mutateExternalType = true;
+            rrt = rt.referenceProjection();
+        } else {
+            rrt = rt;
+        }
+        if (mutateExternalType) {
+            t = new MethodType(rpt,
+                    rrt,
+                    t.getThrownTypes(),
+                    t.tsym);
+        }
+        return t;
     }
 
     public boolean isDeprecated() {
