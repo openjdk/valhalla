@@ -2722,6 +2722,18 @@ void TemplateTable::_return(TosState state) {
     __ bind(skip_register_finalizer);
   }
 
+  if (_desc->bytecode() == Bytecodes::_areturn) {  // or should the test be state == atos ?
+    Label not_restricted;
+    __ get_method(rscratch1);
+    __ movzwl(rscratch1, Address(rscratch1, Method::flags_offset()));
+    __ andl(rscratch1, Method::_restricted_method);
+    __ jcc(Assembler::zero, not_restricted);
+    Register robj = LP64_ONLY(c_rarg1) NOT_LP64(rax);
+    __ movptr(robj, aaddress(0));
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::restricted_return_value_check), robj);
+    __ bind(not_restricted);
+  }
+
   if (_desc->bytecode() != Bytecodes::_return_register_finalizer) {
     Label no_safepoint;
     NOT_PRODUCT(__ block_comment("Thread-local Safepoint poll"));
@@ -3929,6 +3941,7 @@ void TemplateTable::prepare_invoke(int byte_no,
   const bool is_invokehandle     = code == Bytecodes::_invokehandle;
   const bool is_invokevirtual    = code == Bytecodes::_invokevirtual;
   const bool is_invokespecial    = code == Bytecodes::_invokespecial;
+  const bool is_invokestatic     = code == Bytecodes::_invokestatic;
   const bool load_receiver       = (recv  != noreg);
   const bool save_flags          = (flags != noreg);
   assert(load_receiver == (code != Bytecodes::_invokestatic && code != Bytecodes::_invokedynamic), "");
@@ -3945,6 +3958,40 @@ void TemplateTable::prepare_invoke(int byte_no,
   __ save_bcp();
 
   load_invoke_cp_cache_entry(byte_no, method, index, flags, is_invokevirtual, false, is_invokedynamic);
+
+  if (is_invokevirtual) {
+    Label not_restricted, restriction_test, not_vfinal;
+    __ movl(rscratch1, flags);
+    __ andl(rscratch1, (1 << ConstantPoolCacheEntry::is_vfinal_shift));
+    __ jcc(Assembler::zero, not_vfinal);
+    __ movptr(rscratch1, method);
+    __ jmp(restriction_test);
+    __ bind(not_vfinal);
+    __ movl(rscratch1, flags);
+    __ andl(rscratch1, ConstantPoolCacheEntry::parameter_size_mask);
+    const int no_return_pc_pushed_yet = -1;  // argument slot correction before we push return address
+    const int receiver_is_at_end      = -1;  // back off one slot to get receiver
+    Address recv_addr = __ argument_address(rscratch1, no_return_pc_pushed_yet + receiver_is_at_end);
+    __ movptr(rscratch1, recv_addr);
+    __ load_klass(rscratch1, rscratch1, rscratch2);
+    __ lookup_virtual_method(rscratch1, method, rscratch1);
+    __ bind(restriction_test);
+    __ movzwl(rscratch1, Address(rscratch1, Method::flags_offset()));
+    __ andl(rscratch1, Method::_restricted_method);
+    __ jcc(Assembler::zero, not_restricted);
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::restricted_parameter_checks));
+    load_invoke_cp_cache_entry(byte_no, method, index, flags, is_invokevirtual, false, is_invokedynamic);
+    __ bind(not_restricted);
+  } else if (is_invokespecial || is_invokestatic) {
+    Label not_restricted;
+    __ movptr(rscratch1, method);
+    __ movzwl(rscratch1, Address(rscratch1, Method::flags_offset()));
+    __ andl(rscratch1, Method::_restricted_method);
+    __ jcc(Assembler::zero, not_restricted);
+    __ call_VM(noreg, CAST_FROM_FN_PTR(address, InterpreterRuntime::restricted_parameter_checks));
+    load_invoke_cp_cache_entry(byte_no, method, index, flags, is_invokevirtual, false, is_invokedynamic);
+    __ bind(not_restricted);
+  }
 
   // maybe push appendix to arguments (just before return address)
   if (is_invokedynamic || is_invokehandle) {
@@ -4043,7 +4090,6 @@ void TemplateTable::invokevirtual_helper(Register index,
   __ profile_virtual_call(rax, rlocals, rdx);
   // get target Method* & entry point
   __ lookup_virtual_method(rax, index, method);
-
   __ profile_arguments_type(rdx, method, rbcp, true);
   __ jump_from_interpreted(method, rdx);
 }

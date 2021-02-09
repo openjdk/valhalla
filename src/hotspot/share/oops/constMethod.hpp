@@ -80,6 +80,9 @@
 //     (indexed from end of ConstMethod*)
 //    [EMBEDDED generic signature index (u2)]
 //     (indexed from end of constMethodOop)
+//    [EMBEDDED] restricted parameter types + restricted return type + num param (in this order)
+//     (restricted parameter types are u2, restricted return type is u2)
+//     (num param is u1)
 //    [EMBEDDED annotations arrays - method, parameter, type, default]
 //      pointer to Array<u1> if annotation is present
 //
@@ -134,7 +137,8 @@ class AdapterHandlerEntry;
   do_element(method_annotations_length)         \
   do_element(parameter_annotations_length)      \
   do_element(type_annotations_length)           \
-  do_element(default_annotations_length)
+  do_element(default_annotations_length)        \
+  do_element(restricted_method_length)
 
 #define INLINE_TABLE_DECLARE(sym)    int _##sym;
 #define INLINE_TABLE_PARAM(sym)      int sym,
@@ -186,7 +190,8 @@ private:
     _has_method_annotations = 0x0080,
     _has_parameter_annotations = 0x0100,
     _has_type_annotations = 0x0200,
-    _has_default_annotations = 0x0400
+    _has_default_annotations = 0x0400,
+    _has_restricted_method = 0x800
   };
 
   // Bit vector of signature
@@ -356,6 +361,21 @@ public:
     *addr = index;
   }
 
+  // RestrictedMethod support
+  int restricted_return_value_index() {
+    assert(has_restricted_method(), "");
+    return *(restricted_return_type_index_addr());
+  }
+  int restricted_num_param() {
+    assert(has_restricted_method(), "");
+    return *(restricted_num_params_addr());
+  }
+  int restricted_param_type_index_at(u1 index){
+    assert(has_restricted_method(), "");
+    u2* array = restricted_param_type_start();
+    return array[index];
+  }
+
   // Sizing
   static int header_size() {
     return align_up((int)sizeof(ConstMethod), wordSize) / wordSize;
@@ -382,11 +402,15 @@ public:
   // linenumber table - note that length is unknown until decompression,
   // see class CompressedLineNumberReadStream.
   u_char* compressed_linenumber_table() const;         // not preserved by gc
+  u1* restricted_num_params_addr() const;
+  u2* restricted_return_type_index_addr() const;
+  u2* restricted_param_type_start() const;
   u2* generic_signature_index_addr() const;
   u2* checked_exceptions_length_addr() const;
   u2* localvariable_table_length_addr() const;
   u2* exception_table_length_addr() const;
   u2* method_parameters_length_addr() const;
+  u2* restricted_method_length_addr() const;
 
   // checked exceptions
   int checked_exceptions_length() const;
@@ -422,6 +446,8 @@ public:
   bool has_default_annotations() const
     { return (_flags & _has_default_annotations) != 0; }
 
+  bool has_restricted_method() const
+    { return (_flags & _has_restricted_method) != 0; }
 
   AnnotationArray** method_annotations_addr() const;
   AnnotationArray* method_annotations() const  {

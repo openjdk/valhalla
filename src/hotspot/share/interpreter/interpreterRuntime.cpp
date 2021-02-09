@@ -534,6 +534,52 @@ JRT_ENTRY(jboolean, InterpreterRuntime::is_substitutable(JavaThread* thread, oop
   return result.get_jboolean();
 JRT_END
 
+JRT_ENTRY(void, InterpreterRuntime::restricted_parameter_checks(JavaThread* thread))
+  LastFrameAccessor last_frame(thread);
+  Method* caller = last_frame.method();
+  constantPoolHandle cph(THREAD, caller->constants());
+  Method* callee = last_frame.cache_entry()->method_if_resolved(cph);
+  assert(callee != NULL, "Something bad happened");
+  if (callee->has_restricted_method()) {
+    ResourceMark rm(THREAD);
+    Symbol* signature = callee->signature();
+    ArgumentCount args(signature);
+    int arg_count = args.size();
+    ResourceArea *area = Thread::current()->resource_area();
+    int* sizes = NEW_ARENA_ARRAY(area, int, arg_count);
+    int i = 0;
+    for (SignatureStream ss(signature); !ss.at_return_type(); ss.next()) {
+      sizes[i] = parameter_type_word_count(ss.type());
+      i++;
+    }
+    int tos_idx = (int)last_frame.get_frame().interpreter_frame_expression_stack_size() - 1;
+    for (int i = arg_count - 1; i >=0; --i) {
+      Klass* k = callee->restricted_param_type_at(i);
+      if (k != NULL) {
+        oop arg = *(oop*)last_frame.get_frame().interpreter_frame_expression_stack_at(tos_idx);
+        if (!arg->klass()->is_subtype_of(k)) {
+          THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
+        }
+      }
+      tos_idx -= sizes[i];
+    }
+  }
+JRT_END
+
+JRT_ENTRY(void, InterpreterRuntime::restricted_return_value_check(JavaThread* thread, oopDesc* obj))
+  LastFrameAccessor last_frame(thread);
+  assert(last_frame.bytecode().code() == Bytecodes::_areturn, "Only areturn should have such checks");
+  Method* caller = last_frame.method();
+  constantPoolHandle cph(THREAD, caller->constants());
+  Method* callee = last_frame.cache_entry()->method_if_resolved(cph);
+  if (callee->constMethod()->has_restricted_method()) {
+    Klass* k = callee->restricted_return_value();
+    if (k != NULL && !obj->klass()->is_subtype_of(k)) {
+      THROW(vmSymbols::java_lang_IncompatibleClassChangeError());
+    }
+  }
+JRT_END
+
 JRT_ENTRY(void, InterpreterRuntime::check_restricted_type(JavaThread* thread))
   LastFrameAccessor last_frame(thread);
   ConstantPoolCacheEntry* cp_entry = last_frame.cache_entry();

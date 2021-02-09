@@ -2681,6 +2681,10 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
   bool runtime_invisible_parameter_annotations_exists = false;
   const u1* annotation_default = NULL;
   int annotation_default_length = 0;
+  bool has_restricted_method_attribute = false;
+  const u1* restricted_param_types_start = NULL;
+  u2 restricted_return_type_index = 0;
+  u1 restricted_num_params = 0;
 
   // Parse code and exceptions attribute
   u2 method_attributes_count = cfs->get_u2_fast();
@@ -3017,6 +3021,29 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
           assert(runtime_invisible_type_annotations != NULL, "null invisible type annotations");
         }
         cfs->skip_u1(method_attribute_length, CHECK_NULL);
+      } else if (method_attribute_name == vmSymbols::tag_restricted_method()) {
+        const u1* const current_start = cfs->current();
+
+        // RestrictedMethod_attribute {
+        //   u2 name_index;
+        //   u4 length;
+        //   u1 num_params;
+        //   u2 restricted_param_type[num_params];
+        //   u2 restricted_return_type;
+        // }
+
+        has_restricted_method_attribute = true;
+        cfs->guarantee_more(1, CHECK_NULL);  // num_params
+        restricted_num_params = cfs->get_u1_fast();
+        guarantee_property((int)method_attribute_length == restricted_num_params * 2 + 3,
+                          "Invalid RestrictedMethod attribute length %u in class file %s",
+                          method_attribute_length,
+                          CHECK_NULL);
+
+        restricted_param_types_start = cfs->current();
+        cfs->skip_u2_fast(restricted_num_params);
+        cfs->guarantee_more(2, CHECK_NULL);  // restricted_return_type
+        restricted_return_type_index = cfs->get_u2_fast();
       } else {
         // Skip unknown attributes
         cfs->skip_u1(method_attribute_length, CHECK_NULL);
@@ -3056,6 +3083,10 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
       runtime_visible_type_annotations_length +
            runtime_invisible_type_annotations_length,
       annotation_default_length,
+      // RestrictedMethod atribute requires a more complex protocol because num_params can be zeo
+      // but the attribute still be there because of a restricted return value
+      // So -1 is passed if the attribute is absent, otherwise num_params is passed
+      has_restricted_method_attribute ? restricted_num_params : -1 ,
       0);
 
   Method* const m = Method::allocate(_loader_data,
@@ -3158,6 +3189,18 @@ Method* ClassFileParser::parse_method(const ClassFileStream* const cfs,
                           annotation_default,
                           annotation_default_length,
                           CHECK_NULL);
+
+  // Copy RestrictedMethod attribute if present
+  if (has_restricted_method_attribute) {
+    m->set_restricted_method(true);
+    *(m->constMethod()->restricted_num_params_addr()) = restricted_num_params;
+    *(m->constMethod()->restricted_return_type_index_addr()) = restricted_return_type_index;
+    u2* cursor = m->constMethod()->restricted_param_type_start();
+    for (int i = 0; i < restricted_num_params; i++) {
+      cursor[i] = Bytes::get_Java_u2((address)restricted_param_types_start);
+      restricted_param_types_start +=2;
+    }
+  }
 
   if (name == vmSymbols::finalize_method_name() &&
       signature == vmSymbols::void_method_signature()) {

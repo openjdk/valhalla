@@ -191,6 +191,7 @@
   template(tag_bootstrap_methods,                     "BootstrapMethods")                         \
   template(tag_permitted_subclasses,                  "PermittedSubclasses")                      \
   template(tag_restricted_field,                      "RestrictedField")                          \
+  template(tag_restricted_method,                     "RestrictedMethod")                         \
                                                                                                   \
   /* exception klasses: at least all exceptions thrown by the VM have entries here */             \
   template(java_lang_ArithmeticException,             "java/lang/ArithmeticException")            \
